@@ -2131,6 +2131,22 @@ const LIVE = {
           // suppress and nothing to re-argue under D8's floors.
           anchors: {},
         });
+        // Your own answer joins the count you are about to be shown (D122)
+        // — one re-read, once, after the write lands. REPLACE rather than
+        // invalidate: dropping the entry would make the next render fall
+        // back to the authored estimate while the re-read is in flight,
+        // which is the reveal you are looking at changing to the WORSE
+        // source. The old value stands until a newer one exists.
+        //
+        // It races the aggregate trigger and will often lose, which is
+        // fine and is why there is no retry: the split is a claim about
+        // the crowd, one answer does not move it, and the next sitting's
+        // prefetch reads it settled.
+        const fresh = await getDoc(doc(db, "v2_question_aggs", qid));
+        if (fresh.exists()) {
+          state.learnAggs[qid] = fresh.data() as AggDoc;
+          notify();
+        }
       } catch (err) {
         reportError(err, { where: "learnAnswer" });
       }
@@ -2141,6 +2157,15 @@ const LIVE = {
   // card returns null (the authored estimate renders, labeled) and kicks
   // one getDoc; if a published agg exists, notify() re-renders subscribers
   // with the measured split. One read per distinct card per session.
+  //
+  // THE FIRST CALL RETURNING NULL IS WHY loadLearnAggs EXISTS (D122). This
+  // is a read-through cache with no way to await it, and until D122 the
+  // ONLY caller was LEARN_SPLIT — which runs inside LEARN.answer(), i.e.
+  // at the instant of the tap. So the first call for every card was always
+  // the one deciding that card's reveal, always returned null, and every
+  // learn split the app has ever drawn was therefore the authored
+  // estimate, at any crowd size. The fix is to warm the cache before the
+  // tap rather than to make this function await.
   learnAgg(cardId: string): AggDoc | null {
     const qid = "learn-" + cardId;
     if (qid in state.learnAggs) return state.learnAggs[qid];
@@ -2159,6 +2184,48 @@ const LIVE = {
       }
     })();
     return null;
+  },
+  // Warm the cache for a whole serve plan, batched (D122).
+  //
+  // Called when the feed PLANS its learn cards, which is the one moment
+  // that happens before any of them can be tapped. One `in` query per 30
+  // cards — the same shape hydrate uses for world aggregates — against one
+  // getDoc per card if learnAgg were kicked in a loop.
+  //
+  // Cards already in the cache are skipped, so a re-plan inside a sitting
+  // costs nothing and the per-session read budget is unchanged: still at
+  // most one read per distinct card, just paid earlier and in bulk.
+  //
+  // Resolves when the cache is settled so the caller can re-render — the
+  // notify() below covers subscribers, and the promise covers the feed,
+  // which deliberately does not re-render on every store notify.
+  async loadLearnAggs(cardIds: readonly string[]): Promise<void> {
+    if (!this.enabled) return;
+    const want = [...new Set(cardIds.map((id) => "learn-" + id))]
+      .filter((qid) => !(qid in state.learnAggs));
+    if (!want.length) return;
+    // Claimed before the await so a second plan build in the same tick
+    // does not re-request the same ids.
+    for (const qid of want) state.learnAggs[qid] = null;
+    try {
+      const db = await getDb();
+      const chunks: string[][] = [];
+      for (let i = 0; i < want.length; i += 30) chunks.push(want.slice(i, i + 30));
+      const snaps = await Promise.all(chunks.map((chunk) =>
+        getDocs(query(collection(db, "v2_question_aggs"), where(documentId(), "in", chunk)))));
+      let found = 0;
+      for (const snap of snaps) {
+        for (const d of snap.docs) {
+          state.learnAggs[d.id] = d.data() as AggDoc;
+          found++;
+        }
+        state.stats.aggsFetched += snap.size;
+      }
+      if (found) notify();
+    } catch (err) {
+      // The null entries stand: the estimate renders, labeled as one.
+      reportError(err, { where: "loadLearnAggs" });
+    }
   },
   enabled: false,
   // True when this is a LIVE build (VITE_V2_LIVE) whose boot has NOT

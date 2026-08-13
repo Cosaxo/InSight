@@ -234,7 +234,7 @@ a lens row again:
 | **Answers** | **live**, a peer tab since D119, the prototype's row since D120 | `ui/LiveAnswerRows.tsx` — headline + thin stack + your answer, expanding into labelled option bars (or a histogram for a `rating`) and a where-you-sit sentence. Readings from `cohort.headlineFor` / `cohort.standingIn`. Still no "newest": nothing the client holds dates an answer, so the row prints the answer count where the prototype prints a date |
 | **People** | **live** | the mix is `mixFor` over the deck's aggregates; Kindred is `agreement` over the cached voter lists, bounded at 12 of your own answers × the latest 200 voters each (D102) |
 | **Compare** | **live** | `pctFor` on your own option, ranked least-typical first — no new read |
-| **Explore** | **live** | `divergence` across the six breakdown dims. The v18 test-pole axis is the one part with no source, since test results are not a dim |
+| **Explore** | **live** | `divergence` across the six breakdown dims. The v18 test-pole axis is the one part with no source, since test results are not a dim. Its chips and its sentences printed the raw bucket KEY until D122 — a country row read "NO" — and now resolve through `ui/cohortLabels.ts`, the same one a feed card's breakdown sheet uses |
 | **Scores** | **live since D100** | `meanScore` over the bank's ordinal questions (`rating` + `scale`), your own score ticked onto each bar. The prototype's *place* scorecard joins the day `rate` questions are written — the lens filters on type |
 | **the field itself** | **live since D112**, the **Overview** tab since D119 | `LiveSimilarityField` — the constellation the demo bodies drew from constants, now computed: kindred by scores on City, place profiles on Country/World |
 
@@ -364,6 +364,8 @@ Two gaps are worth stating in prose because no badge covers them:
 | the fold (no floor, no suppression — D98) | `functions/src/pure.ts`, `functions/src/v2.ts` |
 | who may read any of it | `firestore.rules` |
 | named who-voted — the cross-user read | `src/v2/data/voters.ts`, `src/v2/ui/LiveVotersPanel.tsx` |
+| a live card's who-voted sheet, cohort-first (D122) | `src/v2/ui/LiveBreakdownPanel.tsx` |
+| bucket key → the name a reader sees (D122) | `src/v2/ui/cohortLabels.ts` |
 | the cohort folds (mix, slice, divergence, typicality, likeness) | `src/v2/data/cohort.ts` |
 | the live lens bodies | `src/v2/ui/LiveMirrorLenses.tsx` |
 | the live stop's tab row (D119) | `src/v2/ui/MirrorLensTabs.tsx` + `ui/lensTabs.ts` |

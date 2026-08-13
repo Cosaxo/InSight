@@ -40,8 +40,12 @@ const LV_CHIPS: ReadonlyArray<readonly [string, string]> = [
   ["education", "education"],
 ];
 
-function LvChips({ anchors }: { anchors: Record<string, string> }) {
-  const shown = LV_CHIPS.map(([k]) => anchors?.[k]).filter(Boolean);
+function LvChips({ anchors, skip = "" }: { anchors: Record<string, string>; skip?: string }) {
+  // `skip` drops the dim the whole list is already scoped to (D122):
+  // repeating "25-34" on every row of a list headed "in 25-34" spends the
+  // line on the one fact the rows have in common, and what is worth
+  // reading there is how else they differ.
+  const shown = LV_CHIPS.filter(([k]) => k !== skip).map(([k]) => anchors?.[k]).filter(Boolean);
   if (!shown.length) return null;
   return (
     <span style={{ fontFamily: "var(--sans)", fontSize: 11.5, fontWeight: 500, color: "var(--ink-3)" }}>
@@ -50,7 +54,7 @@ function LvChips({ anchors }: { anchors: Record<string, string> }) {
   );
 }
 
-function LvRow({ voter }: { voter: Voter }) {
+function LvRow({ voter, skipChip = "" }: { voter: Voter; skipChip?: string }) {
   // The follow control (D101). This sheet is where a stranger first
   // becomes a person on screen, so it is where following belongs — and
   // the Circle stop's empty state points here by name.
@@ -69,7 +73,7 @@ function LvRow({ voter }: { voter: Voter }) {
       }}>
         {voter.isMe ? "You" : (voter.name || "Someone")}
       </span>
-      <LvChips anchors={voter.anchors} />
+      <LvChips anchors={voter.anchors} skip={skipChip} />
       {!voter.isMe && (
         <button
           onClick={() => void LIVE.setFollowing(voter.uid, !following)}
@@ -87,9 +91,28 @@ function LvRow({ voter }: { voter: Voter }) {
   );
 }
 
-function LiveVotersPanel({ qid, options }: { qid: string; options: string[] }) {
+function LiveVotersPanel({ qid, options, dim = "", bucket = "", cohortLabel = "" }: {
+  qid: string;
+  options: string[];
+  /**
+   * Scope the list to one cohort (D122) — the breakdown above this panel
+   * owns the choice, and the two must show the same people or the sheet
+   * makes two claims about one population.
+   *
+   * Filtered on the ANSWER's frozen anchors, which is the same snapshot
+   * the aggregate folded (D8). Reading the voter's current profile here
+   * would silently re-cohort history and put a different set of names
+   * under a number that did not move.
+   */
+  dim?: string;
+  bucket?: string;
+  /** The cohort's display name, for the copy. Keys are not sentences. */
+  cohortLabel?: string;
+}) {
   // One fetch per question per session. The store holds the list and
   // de-dupes concurrent calls, so a re-render mid-flight costs nothing.
+  // Scoping is applied to the list already in hand — switching cohorts
+  // costs no reads.
   React.useEffect(() => { void LIVE.loadVoters(qid); }, [qid]);
   // The store notifies on completion; without this the panel would render
   // its loading state and never leave it.
@@ -98,7 +121,12 @@ function LiveVotersPanel({ qid, options }: { qid: string; options: string[] }) {
 
   if (!LIVE.enabled || !qid) return null;
 
-  const cols = LIVE.votersByOption(qid, options.length);
+  const all = LIVE.votersByOption(qid, options.length);
+  const scoped = !!(dim && bucket);
+  const whom = cohortLabel || bucket;
+  const cols = all && scoped
+    ? all.map((col) => col.filter((v) => v.anchors?.[dim] === bucket))
+    : all;
 
   // Three states, three sentences. `null` is "we could not ask" — the
   // store deliberately leaves the key absent on a failed fetch rather
@@ -116,7 +144,9 @@ function LiveVotersPanel({ qid, options }: { qid: string; options: string[] }) {
   if (!total) {
     return (
       <div style={{ fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 600, color: "var(--ink-3)", padding: "6px 2px" }}>
-        Nobody has answered this yet.
+        {scoped
+          ? <>Nobody in {whom} is in the answers loaded here.</>
+          : <>Nobody has answered this yet.</>}
       </div>
     );
   }
@@ -128,13 +158,19 @@ function LiveVotersPanel({ qid, options }: { qid: string; options: string[] }) {
   // aggregate's total names the room's real size when the store holds it;
   // rows.length === snap size here because a question's answers are all
   // option-shaped or all catalog-shaped, never mixed.
-  const capped = total >= VOTER_FETCH_CAP;
+  //
+  // Measured against the UNFILTERED page: the cap is a property of the
+  // fetch, not of the cohort. A scope that happens to leave 12 names is
+  // not a short list — it is 12 of the newest 200 — and the copy below
+  // says which.
+  const fetched = (all || []).reduce((n, c) => n + c.length, 0);
+  const capped = fetched >= VOTER_FETCH_CAP;
   const roomN = capped ? LIVE.aggFor(qid)?.total : undefined;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       <span style={{ fontFamily: "var(--sans)", fontSize: 10.5, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--ink-3)" }}>
-        Who answered · {capped ? `the latest ${total}` : total}
+        Who answered · {capped ? `the latest ${total}` : total}{scoped ? ` in ${whom}` : ""}
       </span>
       {capped && (
         <span style={{ fontFamily: "var(--sans)", fontSize: 11.5, fontWeight: 500, color: "var(--ink-3)", marginTop: -8 }}>
@@ -153,7 +189,7 @@ function LiveVotersPanel({ qid, options }: { qid: string; options: string[] }) {
               {voters.length}
             </span>
           </div>
-          {voters.map((v) => <LvRow key={v.uid} voter={v} />)}
+          {voters.map((v) => <LvRow key={v.uid} voter={v} skipChip={scoped ? dim : ""} />)}
           {/* An option nobody picked keeps its column and says so — a
               missing column reads as a missing option. */}
           {!voters.length && (

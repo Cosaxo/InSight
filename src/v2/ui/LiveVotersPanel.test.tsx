@@ -193,4 +193,68 @@ describe("LiveVotersPanel · the fetch cap (D102)", () => {
     expect(screen.getByText(/who answered · 1/i)).toBeTruthy();
     expect(screen.queryByText(/latest|newest/i)).toBeNull();
   });
+
+  it("measures the cap against the PAGE, not against the cohort left after filtering", () => {
+    // A scope that leaves three names out of a full page of 200 is three
+    // of the newest 200, not a room of three. Measuring the cap after the
+    // filter would drop the qualifier exactly where it is most needed —
+    // a cohort is the slice most likely to be cut by a recency bound.
+    LIVE.votersByOption = () => [
+      Array.from({ length: VOTER_FETCH_CAP }, (_, i) => v({
+        uid: "u" + i, name: "P" + i,
+        anchors: { ageBand: i < 3 ? "25-34" : "35-44" },
+      })),
+      [],
+    ];
+    LIVE.aggFor = () => ({ total: 5000 });
+    render(<LiveVotersPanel qid="q1" options={OPTS} dim="ageBand" bucket="25-34" cohortLabel="25-34" />);
+    expect(screen.getByText(/the latest 3 in 25-34/i)).toBeTruthy();
+    expect(screen.getByText(/5,000 have answered/)).toBeTruthy();
+  });
+});
+
+describe("LiveVotersPanel · scoped to one cohort (D122)", () => {
+  const mixed = (): Voter[][] => [
+    [v({ uid: "a", name: "Ada", anchors: { ageBand: "25-34", city: "Oslo, NO" } })],
+    [v({ uid: "b", name: "Bea", anchors: { ageBand: "55-64", city: "Oslo, NO" } })],
+  ];
+
+  it("lists only the voters whose FROZEN anchors match", () => {
+    // The answer's snapshot, not the profile (D8). Filtering on the live
+    // profile would put a different set of names under a number folded
+    // from the snapshot — the two would disagree on the same screen.
+    LIVE.votersByOption = mixed;
+    render(<LiveVotersPanel qid="q1" options={OPTS} dim="ageBand" bucket="25-34" cohortLabel="25-34" />);
+    expect(screen.getByText("Ada")).toBeTruthy();
+    expect(screen.queryByText("Bea")).toBeNull();
+    expect(screen.getByText(/who answered · 1 in 25-34/i)).toBeTruthy();
+  });
+
+  it("drops the chip the whole list already shares, and keeps the rest", () => {
+    LIVE.votersByOption = mixed;
+    render(<LiveVotersPanel qid="q1" options={OPTS} dim="ageBand" bucket="25-34" cohortLabel="25-34" />);
+    // Repeating "25-34" on every row of a list headed "in 25-34" spends
+    // the line on the one fact the rows have in common.
+    expect(screen.getByText("Oslo, NO")).toBeTruthy();
+    expect(screen.queryByText(/25-34 · Oslo/)).toBeNull();
+  });
+
+  it("does not say nobody ANSWERED when it means nobody is on this page", () => {
+    // Two different claims. The aggregate above may well report a hundred
+    // people in this cohort; what this panel knows is who is in the
+    // bounded page it fetched.
+    LIVE.votersByOption = mixed;
+    render(<LiveVotersPanel qid="q1" options={OPTS} dim="ageBand" bucket="18-24" cohortLabel="18-24" />);
+    expect(screen.getByText(/nobody in 18-24 is in the answers loaded here/i)).toBeTruthy();
+    expect(screen.queryByText(/nobody has answered this yet/i)).toBeNull();
+  });
+
+  it("costs no extra fetch — the scope is applied to the list in hand", () => {
+    LIVE.votersByOption = mixed;
+    const { rerender } = render(<LiveVotersPanel qid="q1" options={OPTS} />);
+    expect(LIVE.loadVoters).toHaveBeenCalledTimes(1);
+    rerender(<LiveVotersPanel qid="q1" options={OPTS} dim="ageBand" bucket="55-64" cohortLabel="55-64" />);
+    expect(LIVE.loadVoters).toHaveBeenCalledTimes(1);
+    expect(screen.getByText("Bea")).toBeTruthy();
+  });
 });
