@@ -381,6 +381,61 @@ describe("world takes", () => {
 
 // ── the create rule's shape ──────────────────────────────────────────
 
+describe("loadTakes caches for the session (the read bound)", () => {
+  // The declaration for `state.takes` has always said "fetched on demand
+  // and held for the session". Only the in-flight guard existed, so the
+  // second half was an intention rather than a behaviour — and
+  // LiveTakesPanel loads on a `[gid, qid]` effect, which means once per
+  // OPEN, not once per session. These pin the cache so the claim and the
+  // code cannot drift apart again.
+  const takesQueries = () => h.queries.filter((q) => q.path === "v2_takes");
+
+  it("a second open does not re-query", async () => {
+    h.takeDocs.push(takeDoc("t1", 3000));
+    const LIVE = await bootLive();
+
+    await LIVE.social.loadTakes(GID);
+    expect(takesQueries()).toHaveLength(1);
+
+    await LIVE.social.loadTakes(GID);
+    await LIVE.social.loadTakes(GID);
+    expect(takesQueries()).toHaveLength(1);
+    expect(LIVE.social.takes(GID).map((t) => t.id)).toEqual(["t1"]);
+  });
+
+  it("caches an EMPTY result too — 'nobody wrote one' is an answer", async () => {
+    const LIVE = await bootLive();
+    await LIVE.social.loadTakes(GID);
+    await LIVE.social.loadTakes(GID);
+    expect(takesQueries()).toHaveLength(1);
+  });
+
+  it("still retries after a FAILURE, because absence is not emptiness", async () => {
+    const LIVE = await bootLive();
+    const mod = await import("firebase/firestore");
+    vi.spyOn(mod, "getDocs").mockRejectedValueOnce(new Error("offline"));
+
+    await LIVE.social.loadTakes(GID);
+    expect(LIVE.social.takes(GID)).toEqual([]);
+
+    h.takeDocs.push(takeDoc("t1", 1000));
+    await LIVE.social.loadTakes(GID);
+    // Two queries, not one: the cache guard keys on the list being
+    // PRESENT, and the error path leaves it absent on purpose.
+    expect(takesQueries()).toHaveLength(2);
+    expect(LIVE.social.takes(GID).map((t) => t.id)).toEqual(["t1"]);
+  });
+
+  it("keys per question in world scope, so a different qid still fetches", async () => {
+    const LIVE = await bootLive();
+    await LIVE.social.loadTakes("world", "q_1");
+    await LIVE.social.loadTakes("world", "q_1");
+    expect(takesQueries()).toHaveLength(1);
+    await LIVE.social.loadTakes("world", "q_2");
+    expect(takesQueries()).toHaveLength(2);
+  });
+});
+
 describe("postTake", () => {
   it("writes exactly the six keys hasOnly permits, with hidden false", async () => {
     const LIVE = await bootLive();

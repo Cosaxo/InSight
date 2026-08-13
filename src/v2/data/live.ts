@@ -1180,7 +1180,13 @@ const SOCIAL = {
   // exactly this list and the cache keys per question.
   async loadTakes(gid: string, qid?: string): Promise<void> {
     const key = takeScopeKey(gid, qid);
-    if (key == null || state.takesLoading[key]) return;
+    // Cache guard as well as in-flight guard — same omission, same effect
+    // as loadVoters above: LiveTakesPanel loads on a `[gid, qid]` effect,
+    // so without this every return to the panel re-ran the query. The
+    // failure path still leaves the key absent on purpose (a cached empty
+    // list reads exactly like a circle that never wrote a take), so a
+    // transient failure retries and a real empty result is kept.
+    if (key == null || state.takesLoading[key] || state.takes[key]) return;
     state.takesLoading[key] = true;
     try {
       const db = await getDb();
@@ -1631,7 +1637,18 @@ const LIVE = {
   // mounts when someone opens the who-voted sheet, so a feed of fifty
   // cards costs nothing until one is asked about.
   async loadVoters(qid: string): Promise<void> {
-    if (!qid || state.votersLoading[qid]) return;
+    // `state.voters[qid]` is the CACHE guard and `votersLoading` the
+    // in-flight one, and for a while only the second existed — so the
+    // declaration's "fetched on demand and held for the session" described
+    // an intent the code beside it did not implement, and every remount of
+    // the sheet re-ran the whole fetch. LiveVotersPanel loads on a
+    // `[qid]` effect, so that is once per open, not once per session:
+    // ≤200 answers plus name resolution, charged again on every tab
+    // return. Absent still means "we could not ask" and still retries —
+    // the error path deliberately leaves the key unset — while an empty
+    // array now means "nobody answered" and is kept, which is what
+    // distinguishing those two states was for.
+    if (!qid || state.votersLoading[qid] || state.voters[qid]) return;
     state.votersLoading[qid] = true;
     try {
       const db = await getDb();
@@ -1756,9 +1773,19 @@ const LIVE = {
   // place in the app that reads a named individual's whole answer set —
   // so unlike Kindred it costs a query per member and is loaded only
   // when the stop is opened.
-  async loadCircle(): Promise<void> {
+  async loadCircle(force = false): Promise<void> {
     const me = state.uid;
+    // The most expensive of the three: one query PER MEMBER, up to
+    // FOLLOW_CAP members x CIRCLE_ANSWER_CAP answers each. LiveCircleBody
+    // mounts it on an empty-dep effect, so before the cache guard every
+    // remount of the stop paid that again.
+    //
+    // `force` exists for exactly one caller: setFollowing, which changes
+    // the membership the fold is over and therefore genuinely needs the
+    // refetch it asks for. Making it a parameter rather than clearing
+    // state.circle keeps the "who may invalidate this" list to one site.
     if (!this.enabled || !me || state.circleLoading) return;
+    if (!force && state.circle) return;
     state.circleLoading = true;
     notify();
     try {
@@ -1818,7 +1845,7 @@ const LIVE = {
       } else {
         await circleMod.unfollow(db, me, uid);
       }
-      await this.loadCircle();
+      await this.loadCircle(true);
     } catch (err) {
       reportError(err, { where: "setFollowing" });
     }
