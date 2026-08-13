@@ -9696,11 +9696,11 @@ built.
 **Decided:** 2026-08-12 · **Status:** binding · **Applied:** not yet — no
 code exists. The design is [`docs/FORESIGHT-CALLS.md`](FORESIGHT-CALLS.md).
 
-**Decision.** Foresight's CALL half — a real-world event sealed now and
-scored when it resolves (D102 shipped READ) — is designed but not built.
-When it is built, **every resolution is confirmed by a human against a
-cited source before it scores anyone**, and the citation is stored and
-published beside the outcome.
+**Decision.** Foresight's CALL half — an event sealed now and scored when
+it resolves (D102 shipped READ) — is designed but not built. When it is
+built, **only questions whose outcome a machine can execute are
+admitted**, and the inputs the grader used are stored and published
+beside the outcome.
 
 ### The reason this needed a decision rather than a ticket
 
@@ -9732,11 +9732,39 @@ cover it. Hence the rule this decision adds:
 > outcome is believed. The reason is the citation, and a human confirms
 > the citation supports the outcome before anyone is scored.
 
-Rejected for the first version: auto-resolution with human spot-checks.
-It is the obvious efficiency and it inverts D87's posture (production
-writes require an approval) for the one write in the app that cannot be
-recomputed. Worth revisiting once there is a track record of proposals to
-measure — the measurement is the precondition, not the calendar.
+**Amended the same day, on the owner's constraint: "these also have to be
+verifiable and gradable by you."** That is a stronger rule than the one
+above and it replaces the human-confirms-everything step, because it puts
+the requirement on the QUESTION rather than on the reviewer.
+
+A call is admitted only when its outcome can be **executed**, in one of
+two tiers: **A**, self-resolving on the app's own published aggregate
+("will tomorrow's question split past 60/40?"), graded by arithmetic with
+no network and no model in the loop; or **B**, a machine-readable source
+where the rubric names an endpoint, a path and a value→option map, graded
+by one fetch and a comparison. Prose sources and model recall are refused
+outright — they are where every failure mode lives.
+
+The rubric stops being a sentence and becomes **executable data**, which
+makes "gradable" testable rather than hoped for: `check:calls` dry-runs
+every rubric before its question ships, and a rubric that cannot already
+return a well-formed provisional answer is not admitted. A rubric that
+cannot run today will not run in May.
+
+The human moves from confirming every resolution to handling the
+**exceptions** — an endpoint that moved, a value outside the map, a void.
+That is only defensible because tiers C and D never entered the bank; if
+they had, every row would be an exception in disguise.
+
+**Tier A ships first and alone.** It is the only kind verifiable end to
+end, it needs no operator and no external dependency, and it keeps the
+property that makes every other number in this app defensible: the reader
+can recompute it.
+
+Rejected for the first version, and still rejected: auto-resolution of
+prose-sourced or recalled outcomes. It is the obvious efficiency and it
+inverts D87's posture for the one write in the app that cannot be
+recomputed.
 
 Rejected outright: resolution from model memory with no citation. That is
 the one shape where a confident hallucination silently marks real users

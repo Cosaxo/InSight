@@ -24,9 +24,14 @@ no arithmetic to appeal to.
 
 That is the actual decision in this document. The plumbing is small; the
 question of whether this app is willing to assert unverifiable facts is
-not, and everything below is shaped by answering it **cautiously**.
+not.
 
-**The governing constraint: a resolution is a citation, never a belief.**
+**The governing constraint (revised 2026-08-12): the app never asserts a
+fact it cannot check.** Not "checks carefully" — *cannot check* is
+disqualifying at authoring time, which is what §3 enforces. The effect is
+that a resolved call keeps the property every other number here has: the
+reader can recompute it, from the aggregate for tier A or from the
+published fetch inputs for tier B.
 
 ## 2 · Why "Claude writes and grades them" is right about half of it
 
@@ -48,8 +53,14 @@ answers, votes, takes, people.
 cover it, and that is precisely why it needs its own rule:
 
 > **A machine may propose an outcome. It may never be the reason an
-> outcome is believed.** The reason is the citation, and a human confirms
-> the citation supports the outcome before anyone is scored.
+> outcome is believed.** The reason is the executed rubric — arithmetic
+> or a fetch — and its inputs are published with the result.
+
+The first draft satisfied that rule with a human confirming each
+citation. §3 satisfies it better, by admitting only questions whose
+rubric a machine can *run*: the model authors the question and the
+rubric, and the grader executes it. The model is never the thing being
+trusted, in either half.
 
 ### One constraint the farm's cadence imposes
 
@@ -59,32 +70,91 @@ tonight's match cannot survive that; a card about the league in May can.
 **`resolvesAt` must clear the pipeline with room to spare**, which in
 practice means calls are authored weeks or months out, not days.
 
-## 3 · The rubric is the highest-leverage piece
+## 3 · Only admit questions a machine can check
 
-Every CALL carries a **resolution rubric**, written by the same run that
-writes the question and reviewed by the human in the same PR. It is the
-single change that moves the hard judgement to a moment when a human is
-already reading.
+**Revised 2026-08-12 on the owner's constraint: a call has to be
+verifiable and gradable by the machine that grades it.** The first draft
+of this section put the safety in a human confirming every resolution.
+That is the weaker design, and this is the stronger one: put the
+constraint on the QUESTION, at authoring time, so grading is safe by
+construction rather than by someone catching mistakes at the end.
 
-A rubric names three things:
+The filter is not "is this interesting" but **"can this be executed"**.
 
-| Field | What it pins |
-| --- | --- |
-| `settles` | The exact fact that decides it, in one sentence, with no adjectives that need interpreting |
-| `source` | Where that fact is published — a named authority, not "the news" |
-| `at` | When the fact becomes knowable, which is what `resolvesAt` is derived from |
+### The tiers
 
-**If a crisp rubric cannot be written, the question is not a call.** That
-is the filter, and it kills most of the bad ideas at authoring time:
+| Tier | Truth comes from | Grading is | Admitted |
+| --- | --- | --- | --- |
+| **A · self-resolving** | the app's own published aggregate | arithmetic | **yes** |
+| **B · machine-readable source** | a named endpoint with a stable schema | fetch + compare | **yes** |
+| **C · prose source** | a page whose text must be interpreted | judgement | no |
+| **D · general knowledge** | the model's memory | nothing | never |
 
-- ❌ "Will AI change everything?" — `settles` cannot be written.
-- ❌ "Will the economy improve?" — needs an adjective interpreted.
-- ✅ "Will Arsenal finish top of the Premier League 2026/27?" —
-  `settles`: the final league table's first row. `source`: the Premier
-  League's published table. `at`: the day after the final matchday.
+C and D are where every failure mode in §9 lives. Excluding them at
+authoring is what makes the rest of this document short.
 
-A rubric a reviewer cannot check in thirty seconds is a rubric that will
-not survive contact with the resolver.
+### Tier A — the strongest, and the one to ship first
+
+A call on the app's **own future data**:
+
+> *"Tomorrow's question: will more than 60% pick one option?"*
+> *"Will 25-34 and 55+ disagree on tomorrow's question?"*
+
+Unknown when you answer, settled by the aggregate a day later, graded by
+arithmetic over documents the player can open. **No external source, no
+network, no operator, no LLM anywhere in the grading path** — and it
+inherits the property that makes every other number in this app
+defensible: the reader can recompute it.
+
+It is a different card from the prototype's sport-and-tech calls, and it
+is the only kind that is verifiable end to end. Ship this first, alone,
+and the feature is real with nothing outstanding.
+
+### Tier B — real events, still mechanical
+
+Admitted only when the rubric names a **machine-readable** source: an
+endpoint, a path into the response, and the mapping from value to option.
+Sports tables, election results, chart positions, box office. The model
+writes the rubric; it does not judge the outcome.
+
+### The rubric is executable data, not prose
+
+This is the change that makes "gradable by Claude" testable instead of
+hoped for. A rubric is not a sentence for a human to interpret — it is a
+small expression the grader runs:
+
+```jsonc
+// Tier A — no network at all
+{ "kind": "agg", "qid": "daily-231",
+  "test": "topShareAtLeast", "threshold": 60,
+  "options": ["Yes", "No"] }        // true → idx 0, false → idx 1
+
+// Tier B — one fetch, one comparison
+{ "kind": "fetch",
+  "url": "https://api.example.com/pl/2026-27/table",
+  "path": "standings[0].team",
+  "map": { "Arsenal": 0, "*": 1 } }
+```
+
+### The gate: dry-run the rubric before the question ships
+
+A rubric that cannot be executed **today** will not work in May either.
+So a call is admitted only if the grader can already run it and return a
+well-formed provisional result — which proves the source exists, the path
+resolves, and the mapping covers what comes back. The answer being
+non-final is fine; the answer being *unobtainable* is disqualifying.
+
+That is a CI gate (`check:calls`), not a review step, and it is the
+single highest-value piece of this design:
+
+- Tier A rubrics are checked against the live aggregate.
+- Tier B rubrics are fetched once and the path asserted to resolve.
+- A rubric whose `map` has no `*` fallback is rejected — an unmapped
+  value at resolution time is a void nobody planned.
+
+**If the dry run cannot produce a parseable answer, the question is not a
+call.** That sentence replaces "if a crisp rubric cannot be written",
+and the difference is that a machine enforces this one.
 
 ## 4 · Schema
 
@@ -95,7 +165,10 @@ Rides the existing seed path (`scripts/gen-v2content.mjs` →
 
 ```
 resolvesAt : Timestamp   the earliest moment grading may run
-rubric     : { settles, source, at }
+rubric     : the executable expression from §3 — `{kind:"agg",…}` or
+             `{kind:"fetch",…}`. Data the grader runs, not prose a
+             reviewer interprets.
+tier       : "A" | "B"   which grading path applies
 ```
 
 ### The outcome — `v2_call_outcomes/{qid}`, a NEW collection
@@ -110,10 +183,14 @@ would fight on every reseed.
 
 ```
 outcomeIdx : number      the winning option, or -1 for VOID
-citation   : string      the URL or reference the human confirmed
 resolvedAt : Timestamp
-resolvedBy : string      the uid that confirmed it
-note       : string      optional, for a void or a close call
+resolvedBy : "auto" | <uid of the human who resolved an exception>
+inputs     : map         WHAT THE GRADER SAW — the aggregate snapshot
+                         (tier A) or the url, raw value and fetch time
+                         (tier B). This is the field that keeps the
+                         claim checkable; without it the outcome is an
+                         assertion again.
+note       : string      optional, required on a void
 ```
 
 ### The answer — `v2_users/{uid}/answers/{qid}`, unchanged shape
@@ -149,25 +226,29 @@ the rubric, not just the prose. Everything else — `check:quality`,
 provenance, the append-only discipline, the no-place-scoped-civic rule —
 applies unchanged.
 
-### Resolution — a new Routine, human-confirmed
+### Resolution — mechanical, with the human on the exceptions
 
-1. A scheduled run wakes and finds calls past `resolvesAt` with no
-   outcome document.
-2. For each, it **fetches the rubric's named source** — it does not
-   answer from memory — and proposes
-   `{ outcomeIdx, citation }` or `unresolvable`.
-3. It writes those proposals **into a PR or an issue, not into
-   Firestore**. Same shape as the farm: propose, never apply.
-4. A human reads the citation, confirms it supports the outcome, and
-   runs the write.
+Because §3 admits only executable rubrics, resolution is not a judgement
+call:
 
-The write itself is admin-SDK only (§6). D87 already requires an approval
-for production writes; a resolution is one.
+1. A scheduled run finds calls past `resolvesAt` with no outcome.
+2. It **executes the rubric** — arithmetic for tier A, one fetch and a
+   comparison for tier B. Never a recollection.
+3. Clean result → it writes the outcome with the inputs it used.
+4. Anything else — endpoint down, path missing, value not in `map`,
+   tier A aggregate still empty — is **not** guessed. It retries, and
+   after a bounded number of attempts raises the call for a human, who
+   resolves it by hand or voids it.
 
-**Confirming is not rubber-stamping.** The human is checking one thing:
-*does the cited source say what the proposal claims it says.* That is a
-thirty-second job when the rubric is good, which is the whole reason §3
-exists.
+The human is on the **exceptions**, not on every row. That is only
+defensible because C and D never entered the bank; if they had, every row
+would be an exception wearing a clean-result costume.
+
+**What still gets published either way:** the inputs the grader used —
+the aggregate snapshot for tier A, the URL, the raw fetched value and the
+timestamp for tier B. The basis sits beside the claim, which is the same
+posture as D98's model and D102's frozen `answerIdx`, and it is what lets
+a player check the grade rather than trust it.
 
 ## 6 · Rules and who may write what
 
@@ -183,10 +264,11 @@ of the limitation D102 already records about its own client-written
 `answerIdx`, because there the basis is published and checkable and here
 it would be the basis.
 
-Publishing the citation is what keeps the claim honest: the basis sits
-beside the assertion, the same posture as D98's whole model and D102's
-frozen `answerIdx`. A wrong resolution becomes **visible and
-contestable** instead of silent.
+Publishing `inputs` is what keeps the claim honest: the basis sits beside
+the assertion, the same posture as D98's whole model and D102's frozen
+`answerIdx`. For tier A it is stronger than that — the input IS a
+published aggregate, so a player can recompute the grade rather than
+merely inspect it.
 
 ## 7 · VOID is a first-class outcome
 
@@ -218,7 +300,8 @@ would hide the one reading a call generates for months.
 
 | Failure | Mitigation | Residual |
 | --- | --- | --- |
-| Model asserts a wrong outcome from memory | Resolver must fetch and cite; human confirms the citation | A human confirming carelessly. The rubric is what keeps confirmation cheap enough to be done properly |
+| Model asserts a wrong outcome from memory | Structurally impossible: the grader executes a rubric, and tiers C/D never enter the bank | The model can still author a *bad rubric* — which is what the §3 dry run catches, and what tier A avoids entirely |
+| A tier-B endpoint changes shape between authoring and resolution | Path miss is an exception, not a guess: retry, then hand to a human | Real, and the reason tier A ships first |
 | Question is ambiguous | Rubric required at authoring, reviewed in the PR | Ambiguity only visible once reality arrives → void |
 | Event resolves earlier or later than `resolvesAt` | Resolver re-checks on a schedule rather than once | A call that resolves *early* stays open; harmless |
 | Source disappears | Void | Player loses the guess, told why |
@@ -241,12 +324,18 @@ Routine turn. No per-answer server work — scoring is a client-side join
 
 ## 11 · What is deliberately left open
 
-- **Whether the app should assert facts at all.** §1. Answered
-  cautiously here, not settled.
-- **Auto-resolve with spot-checking.** Rejected for the first version in
-  favour of human-confirms-every-one, matching D87's posture. Worth
-  revisiting once there is a track record of proposals to measure — the
-  measurement is the precondition, not the calendar.
+- **Whether the app should assert facts at all.** §1. Narrowed rather
+  than settled: with tier A the app asserts nothing it cannot recompute,
+  so the question only really bites for tier B.
+- **Tier B at all.** It could be dropped and the feature would still be
+  real — tier A is self-contained. Every remaining risk in §9 belongs to
+  B, so shipping A alone and never adding B is a legitimate end state,
+  not a half-built one.
+- **Which tier-A tests to offer.** `topShareAtLeast` is the obvious one;
+  "will these two slices disagree", "will turnout beat yesterday" and
+  "will the leading option change" are all arithmetic on the same
+  aggregate and each is a different kind of thinking. This is the
+  interesting design work and it is entirely unblocked.
 - **Crowd-relative scoring.** "You called it and 82% didn't" is a strong
   reading and needs the same collection-group query D102 defers.
 - **The Map's Foresight branch.** Still unbuilt for both halves; D102 §
