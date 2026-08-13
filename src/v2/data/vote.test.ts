@@ -35,7 +35,7 @@ const h = vi.hoisted(() => ({
   updateDocCalls: [] as Array<{ path: string; data: Record<string, unknown> }>,
   bankDocs: [] as FakeSnapshotDoc[],
   // Documents `v2_question_aggs` queries resolve to, and the id lists they
-  // were asked for (D124). The learn prefetch's whole failure mode is
+  // were asked for (D125). The learn prefetch's whole failure mode is
   // asking for a document id nobody writes — getDocs returns nothing, the
   // cache holds null, and every reveal shows the authored estimate. That
   // is indistinguishable from "no data yet" unless the REQUEST is visible.
@@ -800,7 +800,7 @@ describe("window.LIVE public surface", () => {
   });
 });
 
-// The learn crowd split, warmed before the tap (D124).
+// The learn crowd split, warmed before the tap (D125).
 //
 // learnAgg is a read-through cache that returns null on the first call for
 // a card and kicks a background getDoc. Its only caller ran inside
@@ -809,7 +809,7 @@ describe("window.LIVE public surface", () => {
 // time, and every learn split the app has ever drawn was the authored
 // estimate whatever the crowd had answered. The arithmetic was never
 // wrong; nothing ever reached it.
-describe("LIVE.loadLearnAggs — warming the split before the tap (D124)", () => {
+describe("LIVE.loadLearnAggs — warming the split before the tap (D125)", () => {
   it("asks for learn-<card>, deduped, in one batched query", async () => {
     const LIVE = await bootLive();
     await LIVE.loadLearnAggs(["cap6", "cell1", "cap6"]);
@@ -827,7 +827,7 @@ describe("LIVE.loadLearnAggs — warming the split before the tap (D124)", () =>
 
   it("is what the reveal was missing — an unwarmed read is null however much data exists", async () => {
     // The same session, the same published aggregate, and no warm-up: the
-    // shipped behaviour up to D124, and the reason the authored estimate
+    // shipped behaviour up to D125, and the reason the authored estimate
     // was not a cold-start state but a permanent one.
     h.aggDocs = [{ id: "learn-cap6", data: { total: 40, counts: { "0": 30, "1": 10 } } }];
     const LIVE = await bootLive();

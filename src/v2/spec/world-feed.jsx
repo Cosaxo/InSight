@@ -4,7 +4,7 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
-// The live who-voted sheet, cohort-first (D124) — it owns the cohort
+// The live who-voted sheet, cohort-first (D125) — it owns the cohort
 // choice, the split drawn for it and the named roster underneath, which
 // used to be three panels stacked here.
 //
@@ -149,7 +149,7 @@ const WF_GRP = (dim, ax) => (window.VOTECUTS ? window.VOTECUTS.groups(dim, ax) :
 const WF_CUTKEY = (dim, ax) => (ax ? dim + ':' + ax : dim);
 const WF_YOU = (dim, ax) => (window.VOTECUTS ? window.VOTECUTS.you(dim, ax) : null);
 // The live breakdown dimensions used to be listed here as WF_LIVE_DIMS, a
-// hand-kept copy of BREAKDOWN_DIMS (functions/src/pure.ts). D124 moved the
+// hand-kept copy of BREAKDOWN_DIMS (functions/src/pure.ts). D125 moved the
 // live sheet into ui/LiveBreakdownPanel, which reads COHORT_DIMS from
 // data/cohort.ts — one list, typed, already shared with the Mirror's
 // lenses, and one fewer place for the client's idea of the dimensions to
@@ -300,7 +300,7 @@ class WorldFeed extends React.Component {
   }
   componentDidUpdate() { this.applySnap(); }
   componentWillUnmount() {
-    // The learn-agg prefetch (D124) resolves after an await, so it can land
+    // The learn-agg prefetch (D125) resolves after an await, so it can land
     // on an unmounted feed — a tab switch mid-fetch is the ordinary case.
     this._mounted = false;
     clearTimeout(this._retry);
@@ -882,7 +882,7 @@ class WorldFeed extends React.Component {
     const sig = LF.freq() + '|' + LEARN.mine().map((f) => f.id).join(',') + '|' + muted;
     if (this._kqSig !== sig || !this._kq) {
       this._kqSig = sig; this._kq = LF.cards(Math.max(14, n), cats);
-      // Warm the crowd splits for the whole plan, here (D124). This is the
+      // Warm the crowd splits for the whole plan, here (D125). This is the
       // one moment that is guaranteed to precede every tap in the sitting,
       // and LIVE.learnAgg is a read-through cache whose first call always
       // returns null — so before this line the measured split was
@@ -1145,7 +1145,7 @@ class WorldFeed extends React.Component {
     const r = this.knowOf(q);
     const my = this.state.votes[q.id];
     const fresh = !!this.state.knowRes[q.id];
-    // The split and its provenance, read TOGETHER at render (D124).
+    // The split and its provenance, read TOGETHER at render (D125).
     //
     // `r.split` is still returned by LEARN.answer and is still the same
     // arithmetic — but it is frozen at the instant of the tap, while the
@@ -2515,7 +2515,7 @@ class WorldFeed extends React.Component {
     return by && Object.keys(by).length ? by : null;
   }
 
-  // The viewer's own option index on a live card, or -1 (D124). Local
+  // The viewer's own option index on a live card, or -1 (D125). Local
   // state first because it holds the answer given this sitting before the
   // store has confirmed it; the store's map is the fallback for a card
   // answered on another device or in an earlier session.
@@ -2755,7 +2755,7 @@ class WorldFeed extends React.Component {
     );
   }
 
-  // The live dial breakdown, cohort-first (D124). The panel above owns the
+  // The live dial breakdown, cohort-first (D125). The panel above owns the
   // choice of cohort; this draws where THAT cohort lands on the range,
   // with everyone's position beside it for the comparison.
   //
@@ -2860,7 +2860,7 @@ class WorldFeed extends React.Component {
     );
   }
 
-  // The live field breakdown, cohort-first (D124) — the same reversal the
+  // The live field breakdown, cohort-first (D125) — the same reversal the
   // dial gets above, on the plane: the selected cohort's real centre of
   // mass, with everyone's beside it and your own answer as the ring.
   renderFieldLiveStats(q, T) {
@@ -2927,7 +2927,7 @@ class WorldFeed extends React.Component {
     // 12-bucket dial as twelve meaningless bars.
     if (q.type === 'dial') return this.renderDialStats(q, T);
     if (q.type === 'field') return this.renderFieldStats(q, T);
-    // The whole live sheet, cohort-first (D124). One component owns the
+    // The whole live sheet, cohort-first (D125). One component owns the
     // cohort choice, the split drawn FOR that cohort, and the names under
     // it. The three used to be independent stacked panels and every one of
     // them answered "who is in this crowd" — none answered "what does this

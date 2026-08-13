@@ -41,7 +41,7 @@ const LV_CHIPS: ReadonlyArray<readonly [string, string]> = [
 ];
 
 function LvChips({ anchors, skip = "" }: { anchors: Record<string, string>; skip?: string }) {
-  // `skip` drops the dim the whole list is already scoped to (D124):
+  // `skip` drops the dim the whole list is already scoped to (D125):
   // repeating "25-34" on every row of a list headed "in 25-34" spends the
   // line on the one fact the rows have in common, and what is worth
   // reading there is how else they differ.
@@ -95,7 +95,7 @@ function LiveVotersPanel({ qid, options, dim = "", bucket = "", cohortLabel = ""
   qid: string;
   options: string[];
   /**
-   * Scope the list to one cohort (D124) — the breakdown above this panel
+   * Scope the list to one cohort (D125) — the breakdown above this panel
    * owns the choice, and the two must show the same people or the sheet
    * makes two claims about one population.
    *

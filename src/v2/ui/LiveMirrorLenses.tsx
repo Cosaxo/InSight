@@ -43,7 +43,7 @@ import {
   COHORT_DIMS, DIM_LABEL, divergence, meanScore, mixFor, pctFor, sliceSplit,
   type Score,
 } from "../data/cohort";
-// D124: these two lenses printed the raw bucket KEY, so a country row read
+// D125: these two lenses printed the raw bucket KEY, so a country row read
 // "NO" and a city row "Oslo, NO". One resolver, shared with the feed's
 // breakdown sheet, so the same cohort is named the same everywhere.
 import { bucketLabel } from "./cohortLabels";
@@ -259,7 +259,7 @@ function ExploreLens({ qs }: { qs: LensQuestion[] }) {
   const buckets = Object.keys(tally).sort((a, b) => tally[b] - tally[a]);
   const picked = buckets.includes(bucket) ? bucket : buckets[0] || "";
   // The name for the sentences below. `picked` stays the KEY — it is what
-  // indexes the fold — and only the copy is resolved (D124).
+  // indexes the fold — and only the copy is resolved (D125).
   const pickedName = picked ? bucketLabel(dim, picked) : "";
 
   // The rows this slice disagrees with everyone about, most first.

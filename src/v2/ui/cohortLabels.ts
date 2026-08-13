@@ -9,7 +9,7 @@
 // Its own module for the mechanical reason lensDefs.ts records: eslint's
 // react-refresh rule wants a component file to export only components, and
 // it is right that a function shared between two of them does not belong
-// in one. The practical reason is better — before D124 there were two
+// in one. The practical reason is better — before D125 there were two
 // conversions (world-feed's `wfBucketLabel`, off `window.PLACES`) and one
 // omission (the Mirror's lenses, which printed "NO" at people), which is
 // exactly the drift a shared list exists to stop.

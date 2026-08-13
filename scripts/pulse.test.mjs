@@ -29,7 +29,7 @@ import {
 import { renderPulse } from "./pulse-render.mjs";
 import {
   costModel, DECK_DAYS, AGG_CAP, PUBLISH_EVERY, TRIG, B, writesPerSec, CONTENTION_DAU,
-  VOTER_FETCH_CAP, KINDRED_QUESTIONS, FOLLOW_CAP, CIRCLE_ANSWER_CAP,
+  VOTER_FETCH_CAP, KINDRED_QUESTIONS, FOLLOW_CAP, CIRCLE_ANSWER_CAP, IDLE_DETACH_MS,
 } from "./cost-arith.mjs";
 
 const read = (rel) => readFileSync(join(ROOT, rel), "utf8");
@@ -44,6 +44,27 @@ describe("cost-arith reads its constants from source, not from memory", () => {
 
   it("AGG_CAP matches live.ts's AGG_ID_CAP", () => {
     expect(AGG_CAP).toBe(Number(read("src/v2/data/live.ts").match(/AGG_ID_CAP = (\d+)/)[1]));
+  });
+
+  it("the fan-out's bound is still in live.ts, and the app still detaches", () => {
+    // Two assertions, because the constant surviving is not the same claim
+    // as the behaviour surviving. `onlineMin` is the input the fan-out term
+    // is linear in, and it is an estimate of human attention being used as
+    // a statement about how long a listener stays attached. That is only
+    // true while something detaches on hide — before the idle detach it was
+    // false, and the model went on quoting a bill that assumed it.
+    const live = read("src/v2/data/live.ts");
+    expect(IDLE_DETACH_MS).toBe(
+      Number(live.match(/IDLE_DETACH_MS = ([\d_]+)/)[1].replace(/_/g, "")));
+    // A constant nothing reads is a comment. This pins the call site too,
+    // so deleting the arming while leaving the declaration fails here
+    // rather than in six months on an invoice.
+    expect(live).toMatch(/idleDetachTimer = setTimeout\(/);
+    // Bounded, and bounded at a sane order: long enough that the ten-second
+    // app swap wake() is written around does not pay to re-attach, short
+    // enough that a backgrounded phone is not a standing charge.
+    expect(IDLE_DETACH_MS).toBeGreaterThanOrEqual(10_000);
+    expect(IDLE_DETACH_MS).toBeLessThanOrEqual(15 * 60_000);
   });
 
   it("the D98-surface bounds match their sources (D102)", () => {
@@ -71,10 +92,10 @@ describe("cost-arith reads its constants from source, not from memory", () => {
     // list, in that order of harm.
     const { readsPerUser } = costModel({});
     expect(Object.keys(readsPerUser(5000, { mature: true })))
-      .toEqual(["boot", "topUp", "reseed", "fanOut", "rules", "server", "social"]);
+      .toEqual(["boot", "topUp", "reseed", "fanOut", "reattach", "rules", "server", "social"]);
     const series = read("scripts/pulse-render.mjs").match(/key: "(\w+)"/g)
       .map((s) => s.slice(6, -1));
-    expect(series).toEqual(["boot", "topUp", "reseed", "fanOut", "rules", "server", "social"]);
+    expect(series).toEqual(["boot", "topUp", "reseed", "fanOut", "reattach", "rules", "server", "social"]);
   });
 
   it("the social term is flat above the voter cap, and only above it", () => {

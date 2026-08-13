@@ -70,7 +70,7 @@ export const LIVE_MEMBERS = [
   "enabled", "feedReady",
   // `learnAgg` is a read-through cache whose first call for a card always
   // returns null, and its only caller runs at the instant of the tap — so
-  // until D124 every learn reveal drew the authored estimate whatever the
+  // until D125 every learn reveal drew the authored estimate whatever the
   // crowd had answered. `loadLearnAggs` is the warm-up the feed runs when
   // it PLANS the sitting's learn cards, which is the one moment guaranteed
   // to precede every tap in it.
