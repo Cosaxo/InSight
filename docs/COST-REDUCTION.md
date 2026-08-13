@@ -28,7 +28,9 @@
 >
 > **The rest of this page still stands and is now the remaining work.** The
 > region is untaken and is the largest single lever left (47–50% of every
-> Firestore line, one console setting, fixed at database creation). The cap
+> Firestore line, one console setting, fixed at database creation) —
+> [`docs/FIRESTORE-REGION.md`](FIRESTORE-REGION.md) has the procedure and
+> the two ways it fails silently. The cap
 > trims are still the worst ratio of product cost to money and are still
 > not recommended. Batching the mirror publish has gone from −78% to −0.0%,
 > because it divided a fan-out that no longer exists. Numbers below the
