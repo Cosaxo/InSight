@@ -128,7 +128,7 @@ jobs:
         env:
           CAPACITOR_BUILD: "1"
           VITE_V2_LIVE: "true"
-          # D133 — the test track requires an account before the app opens,
+          # D134 — the test track requires an account before the app opens,
           # which reverses D3's "never a wall" for this build and only this
           # build. A repository variable rather than a literal so the public
           # release can drop the wall without a code change: set

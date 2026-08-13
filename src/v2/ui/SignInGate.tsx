@@ -1,4 +1,4 @@
-// SignInGate — the eager half of the first-launch account wall (D133).
+// SignInGate — the eager half of the first-launch account wall (D134).
 //
 // WHY THIS IS TWO FILES. The wall wraps `<App />` at the root, so whatever
 // implements it is in the first-paint graph of EVERY build — including the
@@ -25,7 +25,7 @@ const Screen = React.lazy(() => import("./LiveSignInGate"));
 function SignInGate({ children }: { children?: React.ReactNode }) {
   const [, tick] = React.useState(0);
   // `LIVE.linked` flips when the anonymous session is upgraded, and the
-  // store announces that (D133's live.ts half) — without the subscription
+  // store announces that (D134's live.ts half) — without the subscription
   // the wall would stay up after a successful sign-in.
   React.useEffect(() => LIVE.subscribe(() => tick((t) => t + 1)), []);
 

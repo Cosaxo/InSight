@@ -2248,7 +2248,7 @@ class WorldFeed extends React.Component {
     const rows = [];
     if (kn) {
       rows.push(['Field', fd ? fd.label + ' \u00b7 ' + ((LEARN.subject(fd.subject) || {}).label || '') : '']);
-      // D132: this row read `kn.p` \u2014 the authored difficulty hint \u2014 and
+      // D133: this row read `kn.p` \u2014 the authored difficulty hint \u2014 and
       // labelled it "Crowd", which is a claim about people. LEARN_RATE
       // hands back the published first-attempt rate where there is one and
       // says so; where there is not, the row says whose number it is.
@@ -2634,7 +2634,7 @@ class WorldFeed extends React.Component {
   renderKnowStats(q, T) {
     const card = LEARN.card(q.learn);
     if (!card) return null;
-    // D132 \u2014 the other half of D89. That decision refused the "BEd knows
+    // D133 \u2014 the other half of D89. That decision refused the "BEd knows
     // this best \u00b7 83%" headline on a live device because the ranking under
     // it is hash noise over the DEMO cut groups. It refused the headline
     // and left the sheet the headline opened into, which is the same

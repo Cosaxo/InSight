@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 //
 // The profile's passive instruments, folded from the store's REAL vote
-// shape (D131).
+// shape (D132).
 //
 // WHY THIS FILE EXISTS, stated bluntly because the gap it closes is the
 // interesting part. `data/passiveProfile.test.ts` pins the fold and every

@@ -146,7 +146,7 @@ export function LEARN_SPLIT_SRC(card) {
  * The one number three surfaces outside the reveal want: the share of the
  * crowd who get this card RIGHT, and where it came from.
  *
- * D132. LEARN_SPLIT above is the whole distribution and the reveal reads
+ * D133. LEARN_SPLIT above is the whole distribution and the reveal reads
  * it carefully — it renders the measurement when there is one and says
  * "our estimate" when there is not. Every OTHER surface read the authored
  * `card.p` directly and printed it as a finished fact: the map node

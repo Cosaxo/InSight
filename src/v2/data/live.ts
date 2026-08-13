@@ -3279,7 +3279,7 @@ export async function initLive(timeoutMs = 2500): Promise<void> {
     // screen, and profile-overlay.jsx hardcodes the same sentence with no
     // check at all.
     //
-    // …and ANNOUNCE it when it changes (D133). The anonymous → Google
+    // …and ANNOUNCE it when it changes (D134). The anonymous → Google
     // upgrade keeps the uid, so this callback set `linked` and then fell
     // past every branch below without a notify(): the flag was correct and
     // no subscriber was told. LivePrivacyPanel papered over it with a local

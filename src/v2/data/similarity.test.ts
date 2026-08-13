@@ -299,7 +299,7 @@ describe("myFlatAxes — instruments first, own answers fill the gaps", () => {
   });
 });
 
-// D131. The bug this pins was not in the arithmetic — every fold above was
+// D132. The bug this pins was not in the arithmetic — every fold above was
 // right — it was in the one line that hands the store's vote map to it.
 // `LIVE.myVotes()` is `{ qid: "2" }`, the scorers ask `Number.isInteger`,
 // and `Number.isInteger("2")` is false: the profile told a user who had

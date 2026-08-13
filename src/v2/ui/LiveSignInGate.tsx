@@ -1,4 +1,4 @@
-// LiveSignInGate — the SCREEN of the first-launch account wall (D133).
+// LiveSignInGate — the SCREEN of the first-launch account wall (D134).
 // SignInGate.tsx decides whether it is ever rendered and dynamic-imports
 // this file; see its header for why the two are separate (3 KB of
 // first-paint weight for a screen only one build shows).

@@ -837,14 +837,22 @@ Three caveats worth carrying:
 - **MAU/DAU ratio.** Assumed 3. A worse retention curve raises the reseed
   delta and the auth bill together, because both are charged per *monthly*
   user — but post-D34 only the auth half of that is material.
-- **Region — and this one is not a knob.** A single-region database halves
-  every Firestore line: $3.71 / $151 / $11,133 against $7.26 / $247 /
-  $17,166 (`node scripts/cost-model.mjs --regional`). The project is on the
+- **Region — and this one is not a knob.** A single-region database roughly
+  halves every Firestore line: $1.06 / $21 / $230 / $2,342 against $2.12 /
+  $41 / $440 / $4,448 at 500 / 5 k / 50 k / 500 k DAU
+  (`node scripts/cost-model.mjs --regional`). The project is on the
   multi-region default, which is the safer and more expensive choice. It
   belongs in this list least of all the entries here, because a Firestore
   database's location is **fixed at creation** — every other line can be
   revisited after launch and this one cannot, so it is a decision with a
-  deadline at the content seed rather than an input to tune.
+  deadline rather than an input to tune. Since D129 took the fan-out out of
+  the bill it is also the **largest single lever left**.
+  [`docs/FIRESTORE-REGION.md`](FIRESTORE-REGION.md) has the procedure, the
+  two ways it fails silently, and what happens to the data already in
+  `(default)`. (The figures here were three model runs stale until
+  2026-08-13 — they quoted the pre-D124 arithmetic while the tables above
+  had moved twice, which is this document's own recurring defect committed
+  in the entry that warns about deadlines.)
 - **Catalog go-live (D14/W1.4).** Catalog answers fold an `ent` map and an
   `entBy` breakdown into the same private document. Same write count, but
   a materially larger document, and Firestore bills writes by operation

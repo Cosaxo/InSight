@@ -464,7 +464,7 @@ function SimilaritySection({ scope }: { scope: "city" | "country" | "world" }) {
   // first, own answers to the bank's test items filling the gaps — real
   // data either way, and myFlatAxes labels neither as the other.
   // This conversion used to be written out here, and being the only copy
-  // is what hid D131: result-card.jsx fed the fold a raw myVotes() and
+  // is what hid D132: result-card.jsx fed the fold a raw myVotes() and
   // scored nobody. Shared now, so there is one definition of what a vote
   // is worth to a scorer.
   const items = testItemMeta(LIVE.testFeedItems(), DEFS);

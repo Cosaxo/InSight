@@ -15,7 +15,7 @@ import './data/back';
 import './data/places';
 import { reportError, sentryInit } from '../lib/sentry';
 import { initDeepLinks } from './data/links';
-// The first-launch account wall, off unless VITE_REQUIRE_SIGNIN=true (D133).
+// The first-launch account wall, off unless VITE_REQUIRE_SIGNIN=true (D134).
 // A pass-through in every other build, and the SCREEN behind it is a
 // dynamic import — so what this line costs first paint is the decision,
 // not the wall.

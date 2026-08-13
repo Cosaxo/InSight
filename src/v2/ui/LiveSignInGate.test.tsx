@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 //
-// The first-launch account wall (D133). It reverses D3 for one build, so
+// The first-launch account wall (D134). It reverses D3 for one build, so
 // the cases that matter most are the ones proving it is INERT everywhere
 // else: a gate that leaked into the demo build, the dev server or a test
 // would put a Google button in front of a session that has no Firebase

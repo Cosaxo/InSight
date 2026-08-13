@@ -119,6 +119,24 @@ arithmetic.
 
 ## Phase 0 — Do these first (about an hour, one console)
 
+- [ ] **0.0 Decide the Firestore region — the only item here with a
+      DEADLINE.** Not a task so much as a fork, and it sits above the seed
+      because every day it is not decided makes it more expensive.
+      A database's location is fixed at creation, so this stops being a
+      setting and becomes a migration the moment real answers accumulate.
+      Worth roughly half of every Firestore line, forever, with no
+      user-visible change — and worth ~$20/month at the traction this app
+      is actually planning for, so the money is not the argument. The
+      deadline is.
+
+      [`FIRESTORE-REGION.md`](FIRESTORE-REGION.md) has the arithmetic, the
+      three options, the ordered procedure, and the two ways the migration
+      fails **silently** (a deploy sub-target that prints "Deploy
+      complete!" and ships nothing, and a Firestore trigger that binds to
+      the wrong database and simply never fires). Read it before touching
+      anything; staying on `nam5` is a legitimate answer and the point of
+      the page is that it be an answer rather than a default.
+
 - [ ] **0.1 Seed the production question bank — run 2026-08-07 and already
       stale.** Actions → **Seed content** → Run workflow.
       510 questions land in `v2_questions` — idempotent and, since D34,

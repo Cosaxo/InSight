@@ -256,7 +256,7 @@ describe("the LIVE reconcile leaves lrn- votes alone (D95)", () => {
   });
 });
 
-describe("LEARN_RATE — one crowd rate, and where it came from (D132)", () => {
+describe("LEARN_RATE — one crowd rate, and where it came from (D133)", () => {
   // D32's label seam covered the reveal's SPLIT and nothing else. Three
   // other surfaces printed the authored `p` — a content-authoring
   // difficulty hint — as a finished measurement about people: the Map's
@@ -295,7 +295,7 @@ describe("LEARN_RATE — one crowd rate, and where it came from (D132)", () => {
   });
 });
 
-describe("the who-knows-this cuts are demo furniture too (D132)", () => {
+describe("the who-knows-this cuts are demo furniture too (D133)", () => {
   // D89 refused the "<group> knows this best" HEADLINE on a live device and
   // left the sheet it opened into, which draws the same fabrication as a
   // full distribution: every row is wfKnowRate — a hash of (card, cohort) —

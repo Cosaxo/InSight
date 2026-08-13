@@ -327,7 +327,7 @@ revisited if the app ever ships custom crypto** — local encryption of
 cached answers, for instance — because it is an attestation on every
 upload, not a note.
 
-**Amendment (2026-08-13) — the wall exists, on the test track only (D133).**
+**Amendment (2026-08-13) — the wall exists, on the test track only (D134).**
 `VITE_REQUIRE_SIGNIN=true` puts a Google sign-in in front of the app before
 it can be used. That is the thing this record says never to build, and it is
 scoped to the build that sets the flag — `ios-release.yml`, i.e. TestFlight.
@@ -337,7 +337,7 @@ unchanged: dropping the wall is a repository variable, not a diff.
 The mechanism is still this decision's, which is why the cost is a tap and
 not a history: `initLive()` has already signed the session in anonymously by
 the time the gate paints, so the button LINKS — same uid, every answer kept.
-D133 has the argument for why a test build is the one place it is worth it.
+D134 has the argument for why a test build is the one place it is worth it.
 
 ## D4 · The v1 shelf, and the legacy boundary
 
@@ -12856,10 +12856,111 @@ down", which is the failure that happened, three times, in one release.
 **Nothing re-pushed to App Store Connect.** No answer changed, so there is
 nothing to push — the listing and age rating already match. That is a
 conclusion from the audit, not a step skipped.
+## D131 · The Firestore region is a decision with a deadline, and it is written down before it expires
 
----
+**Decided:** 2026-08-13 · **Status:** binding as a RECORD, not as a choice —
+the choice is deliberately left open. Follows D129, which removed the
+fan-out and left this as the largest remaining cost lever.
 
-## D131 · The profile said "0 of 30 answered" to someone who had answered thirty
+**What this records** is not a change to the tree. It is the one cost
+decision in this repository that expires, written down with its arithmetic
+and its procedure while it is still cheap, because the failure mode is not
+choosing wrong — it is arriving at an answer by default and finding out
+afterwards that the door had closed.
+
+### Why it expires
+
+A Firestore database's location is fixed at creation. There is no console
+button and no `gcloud` command; Google's own documentation says so. So
+`nam5` is not the current setting, it is the current *fact*, and the only
+way to a single region is a second database.
+
+`prvfire33`'s `(default)` is already seeded and already serving a deployed
+backend, and build 1 is in TestFlight with internal testers. Today the data
+at risk in a migration is a handful of testers' answers. After a public
+launch it is everyone's, and the same operation stops being a Saturday and
+becomes an export/import with a downtime window.
+
+### The arithmetic
+
+Roughly half of every Firestore line, forever, with nothing a user can see:
+
+| DAU | `nam5` | single-region |
+| ---: | ---: | ---: |
+| 500 | $2.12 | $1.06 |
+| 5,000 | $41 | $21 |
+| 50,000 | $440 | $230 |
+| 500,000 | $4,448 | $2,342 |
+
+**The money is not the argument, and saying so is the point.** At the
+traction this app is planning for it is ~$20/month. The argument is the
+deadline. If the durability of a multi-region database is worth more than
+that — and for some apps it plainly is — then staying on `nam5` is the
+right answer; it simply has to be an answer.
+
+### What was found while writing the procedure, and is the real content
+
+Two ways the migration fails **silently**, both of which would deploy
+green, run green, and surface only when a human noticed something missing.
+
+**1 · The deploy sub-target stops deploying.** `firebase-deploy.yml` uses
+`--only "firestore:rules,firestore:indexes"`. That is correct with one
+default database. With the multi-database `firestore` array config it
+becomes the form that, per firebase-tools issue #10447, *"exit[s] with code
+0 and print[s] 'Deploy complete!' but deploy[s] nothing"*. The fix is
+`--only firestore`.
+
+The issue is closed (PR #9770) and this repo pins `^15.24.0`, newer than
+the affected 15.10.0 — so it may not bite. That is not a reason to relax:
+a caret range resolves to whatever the lockfile holds, the failure mode is
+silence, and the subject is the file deciding who may read whose answers.
+
+**This repository has already paid for this exact class of bug once.** The
+storage step carries the scar in its own comment — `--only storage:rules`
+errored under `continue-on-error` on every deploy and *"storage.rules had
+never actually shipped from here"* until a run log was audited. The
+firestore step is one config change away from the same shape, and nothing
+in the tree would notice.
+
+**2 · A Firestore trigger binds to the wrong database.**
+`onDocumentCreated`/`onDocumentUpdated` default to `(default)`. Omit
+`database:` and the deploy succeeds, the functions are healthy, every
+answer still writes, and **nothing aggregates**. There is no error because
+nothing failed, and `monitoring/onV2AnswerCreated-errors.json` watches for
+the trigger *erroring* — a trigger that is never invoked raises nothing.
+The Mirror just stops moving.
+
+Both are recorded in `docs/FIRESTORE-REGION.md` with the gate each one
+wants (`check:deploy-targets` extended to the deploy form,
+`check-fn-runtime`'s `__endpoint` scan extended to the trigger's database),
+to be built in the same commit as the code rather than after it.
+
+### What was deliberately NOT done
+
+**No code, and this is the load-bearing part of the deferral.** The client,
+trigger and `firebase.json` edits are specified in the document but not
+implemented, because merging them before the database exists points the
+running app at an empty one. A PR that must not be merged until an
+unrelated console action happens is a trap sitting in the queue — the
+opposite of what a green branch means here. The code belongs in its own PR,
+opened after step 1.
+
+**No choice.** A, B and C are all live, with a recommendation and reasons.
+This is the shape D7 asks for: write down what breaks at scale with its
+arithmetic, and do not build for it yet — extended to a decision that, for
+once, cannot be made later.
+
+### One thing corrected in passing
+
+COSTS.md's own region entry was three model runs stale: it quoted
+`$3.71 / $151 / $11,133` against `$7.26 / $247 / $17,166`, the pre-D124
+arithmetic, while the tables above it had moved twice. That figure sat
+inside the bullet warning that this decision has a deadline — this
+document's recurring defect (D39, `check:figures`) committed in the entry
+least able to afford it. Now current, and sized at the model's own scenario
+sizes so the next reader can regenerate it.
+
+## D132 · The profile said "0 of 30 answered" to someone who had answered thirty
 
 **Decided:** 2026-08-13 · **Status:** binding · A defect report from the
 build-12 device, fixed. Extends D121 (the passive fold) with the seam it
@@ -12959,7 +13060,7 @@ reported a problem with, so it waits for one.
 
 ---
 
-## D132 · One card said "our estimate" in the feed and stated a measurement two taps away
+## D133 · One card said "our estimate" in the feed and stated a measurement two taps away
 
 **Decided:** 2026-08-13 · **Status:** binding · A defect report from the
 build-12 device — *"Learn seems to still use some sample data"*. Completes
@@ -13045,7 +13146,7 @@ it as a live-mode bug.
 
 ---
 
-## D133 · The test track gets a wall; the public build does not
+## D134 · The test track gets a wall; the public build does not
 
 **Decided:** 2026-08-13 · **Status:** binding · Amends D3 for one build.
 Owner decision, taken against the alternatives below rather than by

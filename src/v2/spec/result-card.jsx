@@ -17,7 +17,7 @@ import { PASSIVE } from './passive-progress.js';
 import { passiveResult, passiveTest } from '../data/passiveProfile.ts';
 // LIVE.myVotes() is string-valued ({ qid: "2" }) and the fold wants option
 // INDICES — see data/similarity.ts voteIndices for what passing the raw map
-// did (D131: every instrument stuck at "0 of N answered", forever).
+// did (D132: every instrument stuck at "0 of N answered", forever).
 import { voteIndices } from '../data/similarity.ts';
 
 // This test's own reading of the viewer, or null. Stored results always

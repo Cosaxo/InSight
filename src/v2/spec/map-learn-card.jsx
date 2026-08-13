@@ -21,7 +21,7 @@ function MTLearnCard({ node }) {
   const s = f ? LEARN.subject(f.subject) : null;
   const st = LEARN.stateOf(card.id) || {};
   const earned = (st.miss || 0) > 0;
-  // D132: the bar and the sentence used to read `card.p` \u2014 the authored
+  // D133: the bar and the sentence used to read `card.p` \u2014 the authored
   // difficulty hint \u2014 and print it as a measurement. LEARN_RATE returns the
   // real first-attempt rate where one has been published and says which it
   // handed back, so the estimate can be labelled here the way the feed's

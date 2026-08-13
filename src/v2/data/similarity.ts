@@ -199,7 +199,7 @@ export function axisScores(
  * no axis gets an answer, `answered` counts zero, and the profile reports
  * "0 of 30 answered" to someone who has answered thirty.
  *
- * That is exactly what shipped (D131). The conversion lived inline in
+ * That is exactly what shipped (D132). The conversion lived inline in
  * ONE of the two callers, so the bug was invisible as a diff — the
  * working call site and the broken one did not sit next to each other,
  * and the broken one is `.jsx`, where the type that would have caught it
