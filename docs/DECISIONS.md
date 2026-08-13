@@ -13253,3 +13253,102 @@ makes it easy to forget which of those was chosen.
 was declined by the owner. Recorded because it is the obvious thing to
 reach for if the wall proves too costly, and the flag makes that reversal
 a variable rather than a rewrite.
+## D135 · The field is what a stop opens on, and Near cannot be built as asked
+
+**Decided:** 2026-08-13 · **Status:** binding · Owner decision, taken
+against the prototype (`InSight_standalone_23.html`) as the reference.
+Reverses D119's tab order; amends LiveSimilarityField's honesty rule 2.
+
+### What the prototype does that live did not
+
+The Mirror's geographic stops are a FIELD in the prototype — *you at the
+centre, them arranged around you, distance = how unlike you* — with a
+figure hero above it and Overview first in the tab row. Live opened every
+stop on a list of answer rows under a place name, with the field one tap
+away. Three stops, one screen, a different heading each time.
+
+### The reversal, and what it costs
+
+**Overview leads and a stop opens on it.** D119's argument for
+Answers-first was sound and is unchanged: the constellation folds over
+completed test scores (D112) and stays empty until a population has taken
+them, while answer rows publish from the first answer (D98). What changed
+is the remedy. An empty field is now answered where it happens — every
+empty arm of the field offers *"See what they answered"*, which is the
+tab that is full today — rather than by putting a different tab in front
+of it. The field is the sentence the Mirror exists to say; burying it
+made every stop open on the same screen.
+
+**The cost is real and is now asserted rather than assumed.** Overview's
+fold runs on arrival at every cohort stop. It stays affordable because
+`loadSimilarity` early-returns on `similarityLoading` and its getDocs
+sweep is guarded by `state.testAggsLoaded`, so re-entry is free — the
+tab body re-mounts and calls again, and the second call does nothing.
+`LiveCohortBody.test.tsx` pins both halves, and the case's own note
+records that its first draft claimed "called once", which was a pin on
+mount behaviour wearing a cost guarantee's clothes and failed against a
+real re-mount.
+
+### The hero figure, which is not the prototype's
+
+The prototype's "12.6k in Oslo" is a RESIDENTS count. The app has never
+had one and cannot get one, which is exactly what honesty rule 2 refused.
+The rule is amended, not dropped: the refusal was of that CLAIM, never of
+a headline.
+
+What D98 makes available instead is better-founded than what was refused.
+Counts are exact from the first answer, and one person answers a question
+at most once — create-only (D5), and D86's edit MOVES a vote rather than
+adding one. So **the largest single-question count from a cohort is a
+number of distinct people**, and the hero shows that, with the unit
+saying *"people have answered in Asker"* rather than "live in". Summing
+across questions would not be a headcount — it would count one person
+once per question they answered — and `reach` is written out to say so,
+because it is the obvious "improvement" someone will make.
+
+It is a floor: a person who answered only a question this device holds no
+aggregate for is not in it. A floor is the right direction to be wrong in
+for a figure that size.
+
+### The tab row was sized for six and had seven
+
+`MirrorLensTabs` fell to 11.5px at `>= 6`, and Foresight (D126) arrived as
+a seventh without the ladder being re-measured — so seven tabs drew at the
+size six were measured at, in a row that never scrolls. That is the
+cramping the report was about, and the `>= 6` is why it never showed up as
+a change to anything. Now `>= 7 → 10.5`: at 320 CSS px each of seven tabs
+gets ~45px, "Foresight" needs ~52px at 11.5 and ~47px at 10.5, and the
+3px horizontal padding absorbs the rest.
+
+### Near: asked for, and refused by the data (NOT DONE)
+
+The owner asked for Near to work like the prototype's field — people
+around you, unnamed, showing only **gender and age**. It cannot be built
+from what exists, and the gap is not effort:
+
+- `v2_presence/{uid}` is **`allow read: if false`** — one of the three
+  denies CLAUDE.md keeps, and the only one whose reason is physical
+  safety.
+- The document holds `{cell, at}` and nothing else. There is no age and
+  no gender in it to show.
+- `LIVE.near` returns a COUNT. There is no API, client or server, that
+  answers "who is near me" in any form.
+
+So the honest options are a new capability, not a screen:
+
+1. **A callable that returns an anonymised neighbour list** — join
+   presence cells to the (world-readable, D98) profile anchors and return
+   age band + gender with no uid and no name. Buildable. It needs a
+   k-threshold, because "1 person · female · 25–34" in a sparse
+   kilometre is an identification, which is the whole reason presence is
+   denied in the first place.
+2. **Say no and leave Near as the counter** (D111's shape).
+
+Either way it changes a promise the app makes in its own words. The
+account panel says *"No other user can ever read your square; a count is
+all that comes back"*, and option 1 makes the second half false — so it
+is a rules/callable change, a privacy-copy change, a `check:public-copy`
+and `docs/data-inventory.md` change, and a store privacy-label review
+(D130), in one commit with tests. That is a decision about physical
+safety and it is the owner's to take with the cost stated, which is why
+this entry stops here rather than shipping a half of it.

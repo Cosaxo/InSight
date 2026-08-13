@@ -192,12 +192,16 @@ an emergency rules fix.
   with zero extra reads for candidate scores (they ride the voter
   lists' name resolution). Near is presence-only since D111; the city
   cohort is the City stop's. Since D119 the row is the stop's TAB BAR
-  (Answers · Overview · People · Compare · Explore · Scores, Answers
-  first) rather than a strip under the answer rows, and the cost gate the
-  old collapsed-by-default strip carried is now structural: a tab body
-  exists only while its tab is open, so Kindred and the similarity fold
-  each run on the tap that asks for them. The fields load behind one
-  bounded, session-cached loader (docs/MIRROR.md §2–3).
+  (Overview · Answers · People · Compare · Explore · Scores · Foresight)
+  rather than a strip under the answer rows, and since D135 **Overview
+  leads and is what a stop opens on** — the field is the sentence the
+  Mirror exists to say, and an empty one offers the Answers tab rather
+  than ceding the first screen. The cost gate the old collapsed-by-default
+  strip carried is still structural for the rest: a tab body exists only
+  while its tab is open, so Kindred runs on the tap that asks for it.
+  Overview's own fold is the exception and now runs on arrival — free on
+  re-entry (`state.testAggsLoaded`), and pinned as such. The fields load
+  behind one bounded, session-cached loader (docs/MIRROR.md §2–3).
 - **`window.MapStats` is real for two anchors and refuses for five, and
   the split is structural.** `age` and `edu` are breakdown dims, so since
   D99 `dist`/`mode` compute from the published cells. `job` is

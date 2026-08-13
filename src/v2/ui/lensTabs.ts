@@ -34,19 +34,40 @@ export const LENS_LABEL: Record<LensId, string> = {
 export type StopTabId = "answers" | "overview";
 
 /**
- * Answers and Overview, in row order — Answers first, and it is what a
+ * Overview and Answers, in row order — Overview first, and it is what a
  * stop opens on.
  *
- * The prototype's nav v2 puts Overview first. The field IS the screen
- * there, drawn from mirror-field-pops' invented people, so it is never
- * empty. Live, the constellation is a fold over completed test scores
- * (D112) and stays empty until a population has taken them, while the
- * answer rows publish from the first answer (D98). Opening a stop onto a
- * canvas reading "no country has answered the score questions yet" is
- * how the World stop reads today, and it is not what the stop is for.
- * Overview is one tap away and keeps its place directly after.
+ * REVERSED at D135, by the owner, against the prototype. The note this
+ * replaces argued for Answers-first and its reasoning was sound: the
+ * prototype's field is never empty because it is drawn from invented
+ * people, while the live constellation folds over completed test scores
+ * (D112) and stays empty until a population has taken them. Opening the
+ * World stop onto "no country has answered the score questions yet" was
+ * the case against.
+ *
+ * What changed is not that argument — it still holds — but what is done
+ * about it. The field is the stop's IDENTITY: "you at the centre, them
+ * arranged around you, distance = how unlike you" is the sentence the
+ * whole Mirror tab is built to say, and burying it one tap behind a list
+ * of answer rows made every stop open on the same screen with a different
+ * heading. An empty field is answered where it happens — the Overview
+ * body says what it is waiting for and points at the tab that is full
+ * today (see LiveSimilarityField's sparse arm) — rather than by putting a
+ * different tab in front of it.
  */
 export const TAB_LABEL: Record<StopTabId, string> = {
   answers: "Answers",
   overview: "Overview",
 };
+
+/**
+ * Row order for a cohort stop's own two tabs.
+ *
+ * Exported as a list rather than left to the caller's array literal
+ * because the ORDER is the decision above, and a second caller writing it
+ * out again is how the two would drift.
+ */
+export const STOP_TABS: StopTabId[] = ["overview", "answers"];
+
+/** What a cohort stop opens on. */
+export const DEFAULT_STOP_TAB: StopTabId = "overview";

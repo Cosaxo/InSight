@@ -21,7 +21,12 @@
 //   2. No invented headline. The prototype's "12.6k in Oslo" has no
 //      honest single source (population ≠ answers), so the field leads
 //      with people and places, and counts stay attached to what they
-//      count.
+//      count. AMENDED at D135: the stop above this one now DOES carry a
+//      figure, and the rule is what made it a different figure — it
+//      counts people who have answered here, not people who live here,
+//      and LiveCohortBody's `reach` is written out to say why that
+//      number is people rather than answers. The refusal was of the
+//      prototype's claim, never of a headline as such.
 //   3. A place below MIN_PLACE_AXES shared axes is listed as thin, never
 //      positioned — a position IS a claim.
 //
@@ -179,6 +184,31 @@ function SfCaption({ children }: { children: React.ReactNode }) {
   );
 }
 
+/**
+ * The way out of an empty field (D135).
+ *
+ * Overview is what a cohort stop OPENS on now, so its empty arms are no
+ * longer a drawer someone chose to look in — they are the first thing the
+ * stop says. An empty state that only explains itself is a dead end when
+ * it is also the landing screen, and the constellation is the slowest
+ * thing here to fill: it needs completed test scores, while the answer
+ * rows publish from the first answer (D98). So every empty arm offers the
+ * tab that has something today.
+ */
+function SfGoAnswers({ onGo }: { onGo?: () => void }) {
+  if (!onGo) return null;
+  return (
+    <div style={{ textAlign: "center", paddingBottom: 10 }}>
+      <button className="press" onClick={onGo}
+        style={{ border: "1px solid color-mix(in oklch, var(--rule), transparent 25%)", borderRadius: 999,
+          background: "var(--surface-2)", color: "var(--ink)", cursor: "pointer", padding: "8px 16px",
+          fontFamily: "var(--sans)", fontWeight: 800, fontSize: 12.5, WebkitAppearance: "none" }}>
+        See what they answered
+      </button>
+    </div>
+  );
+}
+
 function SfEmpty({ children }: { children: React.ReactNode }) {
   return (
     <div style={{ fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 600, color: "var(--ink-3)", lineHeight: 1.55, padding: "8px 2px 12px", textAlign: "center", maxWidth: 340, margin: "0 auto" }}>
@@ -266,7 +296,10 @@ function PersonCard({ p, myParsed }: { p: RankedPerson; myParsed: ParsedResults 
   );
 }
 
-function CityField({ myParsed }: { myParsed: ParsedResults | null }) {
+function CityField({ myParsed, onGoAnswers }: {
+  myParsed: ParsedResults | null;
+  onGoAnswers?: () => void;
+}) {
   const [picked, setPicked] = React.useState<string | null>(null);
   const city = LIVE.myCity;
   const place = city ? PLACES.parse(city) : null;
@@ -289,6 +322,7 @@ function CityField({ myParsed }: { myParsed: ParsedResults | null }) {
             : <>Nobody from {cityName} yet among the people on your questions —
               this fills in as more of the city answers.</>}
         </SfEmpty>
+        {!loading && <SfGoAnswers onGo={onGoAnswers} />}
       </div>
     );
   }
@@ -356,9 +390,10 @@ function PlaceCard({ p, label, myFlat }: {
   );
 }
 
-function PlacesField({ scope, myFlat }: {
+function PlacesField({ scope, myFlat, onGoAnswers }: {
   scope: "country" | "world";
   myFlat: Record<string, number> | null;
+  onGoAnswers?: () => void;
 }) {
   const [picked, setPicked] = React.useState<string | null>(null);
   const myCity = LIVE.myCity;
@@ -389,6 +424,7 @@ function PlacesField({ scope, myFlat }: {
             : <>No {what} has answered the score questions yet — profiles start
               with the first test answer.</>}
         </SfEmpty>
+        {!loading && <SfGoAnswers onGo={onGoAnswers} />}
       </div>
     );
   }
@@ -447,7 +483,11 @@ function PlacesField({ scope, myFlat }: {
 
 // ── the section host ─────────────────────────────────────────────────
 
-function SimilaritySection({ scope }: { scope: "city" | "country" | "world" }) {
+function SimilaritySection({ scope, onGoAnswers }: {
+  scope: "city" | "country" | "world";
+  /** Sends the reader to the Answers tab from an empty field (D135). */
+  onGoAnswers?: () => void;
+}) {
   const [, bump] = React.useReducer((n: number) => n + 1, 0);
   React.useEffect(() => LIVE.subscribe(bump), []);
   // Default-on (D112): the field is the stop's identity, so it loads with
@@ -458,7 +498,7 @@ function SimilaritySection({ scope }: { scope: "city" | "country" | "world" }) {
 
   const myParsed = parseTestResults(LIVE.myTestResults(), CORE_TEST_KINDS);
   if (scope === "city") {
-    return <CityField myParsed={myParsed} />;
+    return <CityField myParsed={myParsed} onGoAnswers={onGoAnswers} />;
   }
   // The viewer's own axes for the place fields: completed instruments
   // first, own answers to the bank's test items filling the gaps — real
@@ -469,7 +509,7 @@ function SimilaritySection({ scope }: { scope: "city" | "country" | "world" }) {
   // is worth to a scorer.
   const items = testItemMeta(LIVE.testFeedItems(), DEFS);
   const myFlat = myFlatAxes(myParsed, items, DEFS, voteIndices(LIVE.myVotes()));
-  return <PlacesField scope={scope} myFlat={myFlat} />;
+  return <PlacesField scope={scope} myFlat={myFlat} onGoAnswers={onGoAnswers} />;
 }
 
 export default SimilaritySection;

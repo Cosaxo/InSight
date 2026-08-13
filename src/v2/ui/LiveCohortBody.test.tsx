@@ -123,6 +123,27 @@ beforeEach(() => {
 });
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
+
+/**
+ * Mount a stop and open its Answers tab.
+ *
+ * D135 moved the landing tab to Overview, so the answer ROWS are a tab
+ * body now rather than the page. Every case below that asserts on a row
+ * has to open Answers first, and one helper is what keeps the next
+ * tab-order change a single edit instead of thirty.
+ *
+ * The click is conditional because two cases here mount a stop with no
+ * city, which returns the picker and has no tab row at all — the tab
+ * row's own existence is asserted in its own describe, not smuggled in
+ * here.
+ */
+function mountAnswers(scope: "city" | "country" | "world" = "city") {
+  const r = render(<LiveCohortBody scope={scope} />);
+  const t = screen.queryByRole("tab", { name: "Answers" });
+  if (t) fireEvent.click(t);
+  return r;
+}
+
 describe("LiveCohortBody · an absent cell is counted and named", () => {
   // Since D98 an absent cell means ZERO — nothing is withheld at any size.
   // The panel must still account for the gap in words, because a silent gap
@@ -135,7 +156,7 @@ describe("LiveCohortBody · an absent cell is counted and named", () => {
       ? { by: { city: { "Oslo, NO": { "0": 7, "1": 5 } } } }
       : { by: { city: { "Bergen, NO": { "0": 9, "1": 6 } } } };
 
-    render(<LiveCohortBody scope="city" />);
+    mountAnswers("city");
 
     expect(screen.getByText("First question")).toBeTruthy();
     // The absent one must NOT be drawn as a row…
@@ -150,7 +171,7 @@ describe("LiveCohortBody · an absent cell is counted and named", () => {
       ? { by: { city: { "Oslo, NO": { "0": 7 } } } }
       : { by: { city: { "Bergen, NO": { "0": 9 } } } };
 
-    render(<LiveCohortBody scope="city" />);
+    mountAnswers("city");
     expect(screen.getByText(missingLine(2, "Oslo"))).toBeTruthy();
   });
 
@@ -159,7 +180,7 @@ describe("LiveCohortBody · an absent cell is counted and named", () => {
     // branch — so it needs its own assertion or a regression there shows a
     // blank panel and nothing else.
     LIVE.aggFor = () => ({ by: { city: { "Bergen, NO": { "0": 9 } } } });
-    render(<LiveCohortBody scope="city" />);
+    mountAnswers("city");
     expect(screen.getByText(/Oslo is still filling up/i)).toBeTruthy();
     expect(screen.getByText(/the first one starts the count/i)).toBeTruthy();
     expect(screen.queryByText(/First question/)).toBeNull();
@@ -170,7 +191,7 @@ describe("LiveCohortBody · an absent cell is counted and named", () => {
     // state from "your cohort is too small", and claiming the latter would
     // tell the user something about Oslo that nobody knows.
     LIVE.aggFor = (qid) => qid === "q1" ? { by: { city: { "Oslo, NO": { "0": 7 } } } } : null;
-    render(<LiveCohortBody scope="city" />);
+    mountAnswers("city");
     expect(screen.getByText("First question")).toBeTruthy();
     expect(screen.queryByText(/withheld/i)).toBeNull();
   });
@@ -187,7 +208,7 @@ describe("LiveCohortBody · world scope shows what the aggregate holds", () => {
       ? { counts: { "0": 30, "1": 20 }, total: 50 }
       : { counts: {}, total: 0 };
 
-    render(<LiveCohortBody scope="world" />);
+    mountAnswers("world");
 
     expect(screen.getByText("First question")).toBeTruthy();
     expect(screen.queryByText("Second question")).toBeNull();
@@ -204,7 +225,7 @@ describe("LiveCohortBody · world scope shows what the aggregate holds", () => {
     // regression guard for the rename: if anything starts consulting a
     // `tooSmall` field again, this row disappears.
     LIVE.aggFor = () => ({ counts: { "0": 30, "1": 20 }, total: 50 });
-    render(<LiveCohortBody scope="world" />);
+    mountAnswers("world");
     expect(screen.getByText("First question")).toBeTruthy();
   });
 });
@@ -215,7 +236,7 @@ describe("LiveCohortBody · no city is a prompt, not an empty panel", () => {
     // city name. The panel says so at the moment it asks, which is the only
     // moment the claim is checkable by the person reading it.
     LIVE.myCity = "";
-    render(<LiveCohortBody scope="city" />);
+    mountAnswers("city");
     expect(screen.getByText(/City needs your city/i)).toBeTruthy();
     expect(screen.getByText(/only the city name is saved, never your coordinates/i)).toBeTruthy();
   });
@@ -226,7 +247,7 @@ describe("LiveCohortBody · no city is a prompt, not an empty panel", () => {
     // shipped saying "This needs a city", which read as the placeholder it
     // was — a device screenshot is what caught it.
     LIVE.myCity = "";
-    render(<LiveCohortBody scope="country" />);
+    mountAnswers("country");
     expect(screen.getByText(/Country needs a city/i)).toBeTruthy();
   });
 
@@ -235,7 +256,7 @@ describe("LiveCohortBody · no city is a prompt, not an empty panel", () => {
     // user had to find the profile's Basics card on their own. The empty
     // state now embeds the profile's own CityPicker, collapsed.
     LIVE.myCity = "";
-    render(<LiveCohortBody scope="city" />);
+    mountAnswers("city");
     expect(screen.getByRole("button", { name: /Choose your city/i })).toBeTruthy();
   });
 
@@ -248,7 +269,7 @@ describe("LiveCohortBody · no city is a prompt, not an empty panel", () => {
     vi.spyOn(PLACES, "load").mockResolvedValue(CATALOGUE);
     vi.spyOn(PLACES, "peek").mockReturnValue(CATALOGUE);
     LIVE.myCity = "";
-    render(<LiveCohortBody scope="city" />);
+    mountAnswers("city");
     fireEvent.click(screen.getByRole("button", { name: /Choose your city/i }));
     fireEvent.change(screen.getByRole("combobox", { name: /Search cities/i }), { target: { value: "Berg" } });
     fireEvent.click(await screen.findByRole("option", { name: /Bergen/i }));
@@ -261,7 +282,7 @@ describe("LiveCohortBody · no city is a prompt, not an empty panel", () => {
     // working World stop.
     LIVE.myCity = "";
     LIVE.aggFor = () => ({ counts: { "0": 30, "1": 20 }, total: 50, tooSmall: false });
-    render(<LiveCohortBody scope="world" />);
+    mountAnswers("world");
     expect(screen.getByText("The world")).toBeTruthy();
     expect(screen.getByText("First question")).toBeTruthy();
   });
@@ -277,7 +298,7 @@ describe("LiveCohortBody · with the counter on, the city derives itself (D92)",
     // checkable: only the name is saved.
     LIVE.myCity = "";
     LIVE.near.on = () => true;
-    render(<LiveCohortBody scope="city" />);
+    mountAnswers("city");
     expect(screen.getByText(/Finding your city/i)).toBeTruthy();
     expect(screen.getByText(/only its name will be saved, never your\s+coordinates/i)).toBeTruthy();
     await vi.waitFor(() => expect(setCityAnchor).toHaveBeenCalledWith("Oslo, NO"));
@@ -290,7 +311,7 @@ describe("LiveCohortBody · with the counter on, the city derives itself (D92)",
     // the picker stays, and the copy points at the counter — which lives
     // at the Near stop since D111 — as the hands-free path.
     LIVE.myCity = "";
-    render(<LiveCohortBody scope="city" />);
+    mountAnswers("city");
     expect(locateCity).not.toHaveBeenCalled();
     expect(screen.getByText(/City needs your city/i)).toBeTruthy();
     expect(screen.getByText(/Turning on the count at the Near stop fills it in/i)).toBeTruthy();
@@ -298,7 +319,7 @@ describe("LiveCohortBody · with the counter on, the city derives itself (D92)",
 
   it("never locates when a city is already set", () => {
     LIVE.near.on = () => true;
-    render(<LiveCohortBody scope="city" />);
+    mountAnswers("city");
     expect(locateCity).not.toHaveBeenCalled();
   });
 
@@ -309,7 +330,7 @@ describe("LiveCohortBody · with the counter on, the city derives itself (D92)",
     LIVE.myCity = "";
     LIVE.near.on = () => true;
     locateCity.mockImplementation(async () => ({ ok: false, reason: "timeout" }));
-    render(<LiveCohortBody scope="city" />);
+    mountAnswers("city");
     await vi.waitFor(() => expect(screen.queryByText(/Finding your city/i)).toBeNull());
     expect(setCityAnchor).not.toHaveBeenCalled();
     expect(screen.getByText(/City needs your city/i)).toBeTruthy();
@@ -322,7 +343,7 @@ describe("LiveCohortBody · with the counter on, the city derives itself (D92)",
     // that serves Near serves it identically.
     LIVE.myCity = "";
     LIVE.near.on = () => true;
-    render(<LiveCohortBody scope="country" />);
+    mountAnswers("country");
     await vi.waitFor(() => expect(setCityAnchor).toHaveBeenCalledWith("Oslo, NO"));
   });
 });
@@ -334,7 +355,7 @@ describe("LiveCohortBody · it shows counts, never people (D5)", () => {
     // whom existed. The replacement reads only aggregates — asserting that
     // by name is cheap and says exactly what D9 promised.
     LIVE.aggFor = () => ({ by: { city: { "Oslo, NO": { "0": 7, "1": 5 } } } });
-    const { container } = render(<LiveCohortBody scope="city" />);
+    const { container } = mountAnswers("city");
     const text = container.textContent || "";
     for (const name of ["Sigrid", "Bø", "match", "away"]) {
       expect(text.includes(name), `the cohort panel rendered "${name}"`).toBe(false);
@@ -363,7 +384,7 @@ describe("the panel prints no floor claim at all (D98)", () => {
 
   it("does not tell the user anything is being held back", () => {
     LIVE.aggFor = () => ({ by: { city: { "Oslo, NO": { "0": 7, "1": 5 } } } });
-    render(<LiveCohortBody scope="city" />);
+    mountAnswers("city");
     const text = document.body.textContent || "";
     expect(text).not.toMatch(/smaller than \d/);
     expect(text).not.toMatch(/withheld/i);
@@ -382,12 +403,12 @@ describe("the presence card stays out of the cohort panel (D111)", () => {
     // absence: a second copy of the counter behind a different stop is
     // the two-doors-to-one-room bug in presence form.
     LIVE.aggFor = () => ({ by: { city: { "Oslo, NO": { "0": 7, "1": 5 } } } });
-    render(<LiveCohortBody scope="city" />);
+    mountAnswers("city");
     expect(screen.queryByText(/Right now, around you/i)).toBeNull();
     cleanup();
 
     LIVE.aggFor = () => ({ counts: { "0": 3 }, total: 3 });
-    render(<LiveCohortBody scope="world" />);
+    mountAnswers("world");
     expect(screen.queryByText(/Right now, around you/i)).toBeNull();
   });
 });
@@ -431,14 +452,14 @@ describe("LiveCohortBody · the Answers lens can be narrowed and re-ordered", ()
     .filter((t): t is string => !!t);
 
   it("defaults to most answers first", () => {
-    render(<LiveCohortBody scope="city" />);
+    mountAnswers("city");
     expect(rowOrder()).toEqual([
       "Somewhere between", "Almost everyone agrees", "Dead heat",
     ]);
   });
 
   it("sorts by divisiveness, and by agreement as its exact inverse", () => {
-    render(<LiveCohortBody scope="city" />);
+    mountAnswers("city");
     fireEvent.click(screen.getByRole("button", { name: "Most divisive" }));
     const divisive = rowOrder();
     expect(divisive[0]).toBe("Dead heat");
@@ -449,7 +470,7 @@ describe("LiveCohortBody · the Answers lens can be narrowed and re-ordered", ()
   });
 
   it("filters to one subject and drops the rest", () => {
-    render(<LiveCohortBody scope="city" />);
+    mountAnswers("city");
     // Chips carry their own counts, so picking one is never a guess.
     fireEvent.click(screen.getByRole("button", { name: "Mind 2" }));
     expect(screen.queryByRole("button", { name: /Dead heat/ })).toBeNull();
@@ -459,7 +480,7 @@ describe("LiveCohortBody · the Answers lens can be narrowed and re-ordered", ()
   });
 
   it("expands a row into per-option counts and places you in the split", () => {
-    render(<LiveCohortBody scope="city" />);
+    mountAnswers("city");
     fireEvent.click(screen.getByRole("button", { name: /Almost everyone agrees/ }));
     // The point of expanding: 5% is too thin to label on the collapsed
     // stack, so the count only exists in this view.
@@ -472,7 +493,7 @@ describe("LiveCohortBody · the Answers lens can be narrowed and re-ordered", ()
   });
 
   it("says you have not answered rather than marking an option", () => {
-    render(<LiveCohortBody scope="city" />);
+    mountAnswers("city");
     fireEvent.click(screen.getByRole("button", { name: /Dead heat/ }));
     expect(screen.getByText(/you have not answered this one/i)).toBeTruthy();
     expect(screen.queryByText(/are with you/i)).toBeNull();
@@ -481,7 +502,7 @@ describe("LiveCohortBody · the Answers lens can be narrowed and re-ordered", ()
   it("hides the controls when there is nothing to narrow", () => {
     // One row: a chip row saying "All 1" is furniture.
     LIVE.aggregated = () => [ARCHIVE[0]];
-    render(<LiveCohortBody scope="city" />);
+    mountAnswers("city");
     expect(screen.queryByRole("button", { name: /^All / })).toBeNull();
     expect(screen.queryByRole("button", { name: "Most divisive" })).toBeNull();
   });
@@ -491,7 +512,7 @@ describe("LiveCohortBody · the Answers lens can be narrowed and re-ordered", ()
     // the next seed run. The sort must still work; the filter must not
     // render a single "All" chip that narrows nothing.
     LIVE.aggregated = () => ARCHIVE.map((q) => ({ ...q, branch: undefined }));
-    render(<LiveCohortBody scope="city" />);
+    mountAnswers("city");
     expect(screen.queryByRole("button", { name: /^All / })).toBeNull();
     expect(screen.getByRole("button", { name: "Most divisive" })).toBeTruthy();
   });
@@ -502,9 +523,9 @@ describe("LiveCohortBody · the Answers lens can be narrowed and re-ordered", ()
 // The layout the prototype has always specified and live mode never got:
 // Answers is a TAB beside the constellation and the four lenses, not the
 // page they hang under. What these cases hold is the pair of properties
-// the change is easy to get wrong on — that Answers is what a stop opens
-// on, and that the cost gate the old collapsed strip was carrying
-// survives the move.
+// the change is easy to get wrong on — WHICH tab a stop opens on (Overview
+// since D135, reversing D119), and how much of the cost gate the old
+// collapsed strip was carrying survives that reversal.
 describe("LiveCohortBody · the lens row is the stop's tabs", () => {
   const ARCHIVE = [
     { id: "q1", text: "Almost everyone agrees", branch: "Mind", type: "binary", options: [{ label: "Yes" }, { label: "No" }] },
@@ -526,18 +547,28 @@ describe("LiveCohortBody · the lens row is the stop's tabs", () => {
   const tab = (name: string) =>
     [...tabs().querySelectorAll('[role="tab"]')].find((b) => b.textContent?.trim() === name) as HTMLElement;
 
-  it("offers six tabs and opens on Answers", () => {
+  it("offers seven tabs, Overview first, and opens on it", () => {
     render(<LiveCohortBody scope="city" />);
-    for (const name of ["Answers", "Overview", "People", "Compare", "Explore", "Scores"]) {
-      expect(tab(name), `the row is missing its ${name} tab`).toBeTruthy();
-    }
-    expect(tab("Answers").getAttribute("aria-selected")).toBe("true");
-    // …and Answers is a body, not a label: the rows are on screen.
+    // Order matters and is asserted as order, not as membership: the
+    // decision D135 records is which tab leads, and a set check would
+    // pass for a row that had quietly gone back to Answers-first.
+    const names = [...tabs().querySelectorAll('[role="tab"]')].map((b) => b.textContent?.trim());
+    expect(names).toEqual(["Overview", "Answers", "People", "Compare", "Explore", "Scores", "Foresight"]);
+    expect(tab("Overview").getAttribute("aria-selected")).toBe("true");
+    // …and the answer rows are NOT on screen, because Answers is a peer
+    // tab now rather than the page the row hangs under.
+    expect(screen.queryByText("Almost everyone agrees")).toBeNull();
+  });
+
+  it("puts the answer rows one tap away", () => {
+    render(<LiveCohortBody scope="city" />);
+    fireEvent.click(tab("Answers"));
     expect(screen.getByText("Almost everyone agrees")).toBeTruthy();
   });
 
   it("swaps the body when a tab is picked, and puts it back", () => {
     render(<LiveCohortBody scope="city" />);
+    fireEvent.click(tab("Answers"));
     fireEvent.click(tab("Compare"));
     expect(tab("Compare").getAttribute("aria-selected")).toBe("true");
     expect(
@@ -550,9 +581,17 @@ describe("LiveCohortBody · the lens row is the stop's tabs", () => {
 
   it("costs nothing for a tab nobody opened, and pays as soon as one is", async () => {
     // The property the old collapsed strip existed for, restated for
-    // tabs: People pays for voter lists the viewer has not asked for and
-    // Overview pays for the similarity fold, so neither may run because
-    // the stop was opened.
+    // tabs: People pays for voter lists, so it may not run because the
+    // stop was merely opened.
+    //
+    // OVERVIEW IS NO LONGER IN THAT SET, and this case is where that cost
+    // is visible rather than assumed. D135 made it the landing tab, so
+    // the similarity fold now runs on arrival at every cohort stop — the
+    // deliberate price of the reversal. It stays affordable because
+    // loadSimilarity is bounded and session-cached (live.ts), so it is
+    // one load per session, not one per stop visit. Asserted in both
+    // directions below so the day it stops being one bounded load is a
+    // failure here rather than a line on a bill.
     //
     // Both bodies are React.lazy, so the flush matters: assert on a
     // synchronous render and the case passes for the wrong reason — the
@@ -569,12 +608,30 @@ describe("LiveCohortBody · the lens row is the stop's tabs", () => {
     // have run, had one been mounted.
     await act(async () => { for (let i = 0; i < 20; i++) await Promise.resolve(); });
     expect(kindred, "Kindred was fetched for a People tab nobody opened").not.toHaveBeenCalled();
-    expect(similarity, "the similarity fold ran for an Overview nobody opened").not.toHaveBeenCalled();
+    // The accepted cost of D135: Overview is the landing tab, so its fold
+    // has run — once.
+    expect(similarity, "Overview is the landing tab and its fold did not run").toHaveBeenCalledTimes(1);
 
     fireEvent.click(tab("People"));
     await vi.waitFor(() => {
       expect(kindred, "opening People fetched nothing — the gate above guards nothing").toHaveBeenCalled();
     });
-    expect(similarity, "Overview loaded behind another tab").not.toHaveBeenCalled();
+    // Leaving Overview and coming back CALLS the loader again — the tab
+    // body unmounts, so its mount effect fires afresh — and that is not a
+    // second read. The bound is in the store, not here: loadSimilarity
+    // early-returns on `similarityLoading`, and the getDocs sweep behind
+    // it is guarded by `state.testAggsLoaded`, which is set even when
+    // some docs come back absent. So the call is idempotent and the
+    // per-navigation cost is zero.
+    //
+    // Asserted as "called again" rather than "called once" because the
+    // first draft of this case claimed once, and that was a pin on the
+    // component's mount behaviour dressed up as a cost guarantee — it
+    // failed the moment it met a real re-mount. The cost claim belongs
+    // where the guard is; data/live's own suite owns it.
+    fireEvent.click(tab("Overview"));
+    await act(async () => { for (let i = 0; i < 20; i++) await Promise.resolve(); });
+    expect(similarity.mock.calls.length,
+      "re-opening Overview stopped calling the loader — check the mount effect").toBe(2);
   });
 });
