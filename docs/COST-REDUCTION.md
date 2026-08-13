@@ -1,0 +1,186 @@
+# Getting the bill down
+
+[`docs/COSTS.md`](COSTS.md) says what this costs.
+[`docs/COST-COMPARISON.md`](COST-COMPARISON.md) says whether that is a lot
+(cheap in absolute terms, badly shaped: cost per user rises 87× between 500
+and 500,000 DAU). This says what to do about it.
+
+Written 2026-08-13 against `f07cbf8`. Reproduce with
+`npm run costs:levers`. Every dollar comes from `scripts/cost-arith.mjs`
+and every grade from `scripts/cost-peers.mjs`; the only thing
+`scripts/cost-levers.mjs` adds is the list of changes, each expressed in
+the units of the thing it would change rather than as a saving — so no
+figure below is typed, and none can go stale while the constant beside it
+moves.
+
+## The short answer
+
+**Nothing, yet — and then one specific thing.**
+
+At today's size the bill is $0. At the size the launch plan aims for it is
+about $2/month. There is no version of this analysis where acting now is
+correct, and D7 already says so.
+
+But the question "how do we get this manageable" has a precise answer worth
+knowing in advance, because it is **not** the obvious one:
+
+| Path | 5 k DAU | 50 k DAU | 500 k DAU | slope (500 → 500 k) |
+| --- | ---: | ---: | ---: | ---: |
+| **As built** | $59 | $2,335 | $194,332 | 87× |
+| **A · Keep it live** | $16 | $531 | $39,546 | **239×** |
+| **B · Go polled** | $12 | $148 | **$1,524** | **15×** |
+| **C · B + single region** | $6 | $77 | **$810** | 16× |
+
+**Path B cuts the 500 k bill by 99.2%, from $194,332 to $1,524.** One
+change does nearly all of it.
+
+## Why there is no single answer
+
+The bill is two different problems at two different sizes:
+
+| DAU | boot | topUp | reseed | fanOut | reattach | rules | server | social | dominant |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| 500 | 21 | 42 | 3 | 15 | 28 | 6 | 14 | **219** | social |
+| 5,000 | 21 | 2 | 3 | 146 | 28 | 6 | 14 | **339** | social |
+| 50,000 | 21 | 2 | 3 | **1,458** | 28 | 6 | 14 | 339 | fanOut |
+| 500,000 | 21 | 2 | 3 | **14,583** | 28 | 6 | 14 | 339 | fanOut |
+
+Below ~10 k DAU the bill is `social` — the D98 surfaces reading other
+users' answers. It is **flat per user** and moves with a cap or an open
+rate, so it is cut by product decisions costing an afternoon.
+
+Above ~14 k DAU the bill is `fanOut` — every answer to the globally shared
+daily question, delivered to every attached listener. It is **quadratic in
+DAU** and no cap touches it. It is cut by publishing less or listening
+less, and by nothing else.
+
+A plan that fixes only one of those fixes the app at only one size.
+
+## Every lever, priced
+
+`[C]` client · `[P]` product · `[A]` architecture. Percentage off the
+total bill at that size:
+
+| Lever | 500 | 5 k | 50 k | 500 k |
+| --- | ---: | ---: | ---: | ---: |
+| `[C]` Single-region database | −50% | −44% | −37% | −35% |
+| `[C]` Stream today only (7 listeners → 1) | −10% | −4% | −1.0% | −0.1% |
+| `[C]` Persist the name cache across sessions | −41% | −16% | −4% | −0.5% |
+| `[P]` Kindred walks 4 lists, not 12 | −39% | −15% | −4% | −0.5% |
+| `[P]` Who-voted pages at 50, not 200 | −62% | −24% | −6% | −0.7% |
+| `[P]` Circle reads 100 answers/member, not 300 | −0.0% | −13% | −3% | −0.4% |
+| `[A]` Batch the mirror publish (×5) | −5% | −26% | −65% | −78% |
+| `[A]` Serve the bank off Hosting | −1% | −0.4% | −0.1% | −0.0% |
+| `[A]` **Poll instead of stream** | −17% | −36% | **−82%** | **−98%** |
+
+The shape of that table is the finding. **The social levers matter most on
+the left and are nearly worthless on the right; the fan-out levers are the
+reverse.** Cutting `VOTER_FETCH_CAP` to 50 removes 62% of the bill at 500
+DAU and 0.7% at 500 k. Polling removes 98% at 500 k and 17% at 500.
+
+Two notes on individual rows:
+
+- **Single-region is the only lever with a deadline.** A Firestore
+  database's location is fixed at creation, so this one stops being
+  available the moment the content seed runs. It is also the only lever
+  that costs nothing and changes nothing a user sees — the trade is
+  resilience to a region outage.
+- **Circle at 500 DAU shows −0.0%, which is not a rounding error.** The
+  cap only binds once accounts are old enough to have >100 answers; in a
+  fresh community it is not reached, so lowering it does nothing. It is a
+  lever that arms itself as the community ages.
+
+## What each path costs to build, and what a user notices
+
+The dollars above are computed. **These three columns are not**, and they
+are what actually decides the order:
+
+| Lever | Effort | Risk | What a user notices |
+| --- | --- | --- | --- |
+| Single-region database | one setting | **irreversible, has a deadline** | nothing, until a region outage |
+| Stream today only | hours | low | nothing — past days barely move |
+| Persist the name cache | hours | low — names are public (D98) | nothing; sheets get faster |
+| Kindred 12 → 4 | one constant | low | a thinner People lens |
+| Who-voted 200 → 50 | one constant + "load more" | low | "the latest 50 of N" |
+| Circle 300 → 100 | one constant | low | Circle compares over ~5 weeks, not ~13 |
+| Batch publish ×5 | days | medium | the live count steps in fives |
+| Bank off Hosting | days | low | nothing; cold boot faster |
+| **Poll instead of stream** | days | medium | **counts update on a timer, not instantly** |
+
+That last cell is the whole decision. Everything else on this page is
+arithmetic; whether today's count may lag a few seconds is a product
+question, and it is the one that unlocks 98% of the saving at scale.
+
+COSTS.md already calls it "a display cadence choice, not an architectural
+one", which is right — and worth restating as the trade it is: the daily
+question is answered once, by each person, in a four-hour morning window.
+The live count exists so a voter sees the room move. A poll on vote plus a
+slow timer shows the same room, a few seconds later.
+
+## The trap: cutting the bill without fixing the shape
+
+Path A is every lever **except** polling — the social trims plus ×5
+batching. It looks excellent: −93% at 500 DAU, −80% at 500 k. And it makes
+the problem **worse**:
+
+| Path | $/DAU/mo at 500 | at 500 k | slope |
+| --- | ---: | ---: | ---: |
+| As built | $0.00445 | $0.3887 | 87× |
+| **A · Keep it live** | $0.00033 | $0.07909 | **239×** |
+| B · Go polled | $0.00021 | $0.00305 | **15×** |
+| C · B + single region | $0.00010 | $0.00162 | 16× |
+
+That 239× looks like a bug and is not. Path A divides the small end by 13
+and the big end by 5, so the ratio between them necessarily rises. Every
+absolute number improves and the curve gets steeper.
+
+**This is the failure mode to watch for.** The cheap levers are genuinely
+worth doing and they buy time, but a plan made of only cheap levers will
+report large percentage savings while leaving the app's cost quadratic in
+its own success. Path A at 500 k DAU is still $39,546/month and still an
+F-to-D. Only the paths that stop streaming flatten the curve — B takes the
+slope from 87× to 15×, which is an ordinary app's shape.
+
+## What no lever here touches
+
+- **41 reads/user/day are irreducible** after path B — boot, rule
+  evaluation and server-side reads. Flat at every size, answer-driven, and
+  not worth attention: 41 against the 558 the app charges today.
+- **The auth billing mode.** COSTS.md finding 3, still open, still
+  console-only, and still the largest single line that could be wrong
+  without any code being wrong — four figures a month at 150 k MAU. It
+  outweighs every lever on this page below 50 k DAU and costs five minutes
+  to check.
+- **App Check enforcement on the Firestore API.** An unmetered read path is
+  not a lever, it is a hole: the arithmetic in COSTS.md puts a sustained
+  2,000 reads/sec at $3,110/month, which is larger than any saving here at
+  any size below 100 k DAU. It also cannot be armed during an incident —
+  the soak takes days — so it is a launch item that happens to be the
+  cheapest cost control available.
+
+## Recommendation
+
+1. **Now, before the seed: decide the region.** It is the only lever with a
+   deadline, it is worth 35–50% of every Firestore line forever, and it
+   costs one setting. If a single-region outage is an acceptable risk for
+   this app — and for a daily-question app it plausibly is — take it.
+2. **Now, and not for cost reasons: check the auth billing mode, and set up
+   App Check enforcement.** Both are larger than anything else here, both
+   are already on SHIP-CHECKLIST, and neither is a code change.
+3. **Not yet: everything else.** At launch sizes the entire lever list is
+   worth about $2/month. D7 is right.
+4. **The trigger is already written down.** COSTS.md's two walls sit at
+   ~14,145 and ~14,400 DAU, and they are the same trigger as this page's:
+   at that size the fan-out overtakes every flat source combined and the
+   shared aggregate starts losing writes to contention. **Build path B when
+   the app passes ~10 k DAU** — early enough to ship before either wall,
+   late enough that D7 still holds.
+5. **When you do build it, do the social trims in the same pass.** They are
+   an afternoon, they are what makes the small end cheap, and path B's
+   figures above assume them.
+
+The reassuring version: this app has a cost problem that is one change
+deep, the change is already described in COSTS.md, it is reversible, and
+the arithmetic says it is worth $190 k/month at the top row and nothing at
+all today. That is a good position — a known, priced, deferred fix with a
+numeric trigger, rather than a surprise.

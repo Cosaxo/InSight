@@ -22,105 +22,19 @@
 // printing a confident ratio. If a number here disagrees with
 // `npm run costs`, this file has a formatting bug, not a modelling one.
 //
-// WHAT IS NEW HERE is PEERS — externally sourced figures, which are a
-// different KIND of number from anything in cost-arith.mjs and are labelled
-// as such. Nothing in this repository can check them. So each one carries
-// the arithmetic that produced it and the URL it came from, and where a peer
-// publishes two figures that should agree, both are here and the script
-// prints the disagreement rather than picking a side.
+// THE PEERS ARE NOT HERE EITHER. `scripts/cost-peers.mjs` holds them and the
+// grade thresholds, because scripts/cost-levers.mjs needs the same two things
+// to say whether a proposed change helps — and a second copy of a JUDGEMENT
+// drifts as silently as a second copy of arithmetic, while carrying more
+// authority. Each peer there is externally sourced, checkable by nothing in
+// this repository, and carries the arithmetic that produced it, the URL it
+// came from, and which way the comparison is unfair.
 
 import { costModel, totalCost, B, SCENARIOS } from "./cost-arith.mjs";
+import { PEERS, OBJECT_STORAGE_GIB_MO, BENCH, rate, money, unit, int, x } from "./cost-peers.mjs";
 
 const regional = process.argv.includes("--regional");
 const { model } = costModel({ regional });
-
-// ── the peers ───────────────────────────────────────────────────
-//
-// Chosen to bracket the question rather than to flatter it. Snap is the
-// same CATEGORY (consumer social, per-DAU cost disclosed quarterly, which
-// almost nobody else does). The Firestore benchmark is the same STACK, so
-// it isolates "expensive for a Firebase app" from "Firebase is expensive".
-// Signal is the same PRIVACY posture with a full public breakdown. Wikimedia
-// is the read-heavy floor — the cheapest well-known thing that serves a
-// planet, which is the useful lower bound for an app whose bill is 70% reads.
-//
-// EVERY DENOMINATOR IS DIFFERENT and that is the trap in this table. Snap
-// publishes DAU; Signal publishes registered users; Wikimedia publishes
-// monthly unique devices. A per-DAU figure compared against a per-registered
-// -user figure flatters whichever side divides by the bigger number — so
-// each peer names its denominator and `skew` records which way the
-// comparison is unfair, in words, at the point of use. Getting this wrong
-// in the flattering direction is the one failure this table could commit
-// quietly.
-const PEERS = [
-  {
-    name: "Snap (Snapchat)",
-    what: "consumer social, video + AI/ML, 493 M DAU",
-    perUserMo: 1.675e9 / 12 / 493e6,
-    denom: "DAU",
-    basis: "FY2026 infra guidance $1.65–1.70 bn (midpoint) ÷ 12 ÷ 493 M Q2'26 DAU",
-    // The one peer that publishes the ratio directly, so it can be checked
-    // rather than trusted. Stated $0.86 per DAU per QUARTER in Q4'25; ÷3
-    // should land on the guidance-derived figure above, and does (0.287 vs
-    // 0.283, a 1.4% gap). Two independent routes agreeing is what makes
-    // this the anchor peer — the others have one route each.
-    crossCheck: { value: 0.86 / 3, label: "Q4'25 stated $0.86/DAU/quarter ÷ 3" },
-    source: "https://www.cnbc.com/2026/08/03/snap-q2-earnings-report-2026.html",
-    skew: "like-for-like — same denominator, so this row is the honest one",
-  },
-  {
-    name: "Typical Firestore consumer app",
-    what: "same stack, well-optimised, social features",
-    perUserMo: 298 / 100e3,
-    denom: "DAU",
-    basis: "$298/mo at 100 k DAU (published Firestore estimator worked example)",
-    crossCheck: { value: 5.4 / 3e3, label: "same source's 3 k DAU row, $5.40/mo" },
-    source: "https://mobile-squad.com/apps/firepulse/firestore-cost-estimator/",
-    // The two rows from this source disagree by 1.8x per user, which is not
-    // an error — it is a smaller app sitting further inside the free tier.
-    // Both are printed for exactly that reason.
-    skew: "like-for-like on stack and denominator; a vendor estimator, not an invoice",
-  },
-  {
-    name: "Signal",
-    what: "E2EE messenger, ~85 M users, full public breakdown",
-    perUserMo: 14e6 / 12 / 85e6,
-    denom: "registered users",
-    basis: "$14 M/yr total infra ÷ 12 ÷ 85 M users",
-    crossCheck: { value: 8e6 / 12 / 85e6, label: "ex-SMS ($6 M/yr registration fees removed)" },
-    source: "https://signal.org/blog/signal-is-expensive/",
-    // Registered users >> DAU, so dividing by it makes Signal look cheaper
-    // per head than a DAU-denominated peer would. The skew runs AGAINST
-    // InSight, which is the direction that keeps this table honest.
-    skew: "UNFAIR TO INSIGHT — registered users, not DAU, so Signal's true per-DAU figure is higher",
-  },
-  {
-    name: "Wikimedia / Wikipedia",
-    what: "read-heavy public content at planetary scale, on-prem",
-    perUserMo: 3.4e6 / 12 / 950e6,
-    denom: "monthly unique devices",
-    basis: "$3.4 M/yr internet hosting ÷ 12 ÷ ~950 M monthly unique devices",
-    crossCheck: null,
-    source: "https://meta.wikimedia.org/wiki/Wikimedia_Foundation_Annual_Plan/2025-2026/Budget_Overview",
-    skew: "UNFAIR TO INSIGHT — monthly uniques and owned hardware, not DAU on rented cloud",
-  },
-];
-
-// Raw object storage, for the data-level section. Not a peer app — a price,
-// and the point of quoting it is that InSight's $/GiB is four orders of
-// magnitude away from it, which is what "the bill is not about data" means
-// when you put a number on it.
-const OBJECT_STORAGE_GIB_MO = 0.023; // GCS/S3 standard, list
-
-const money = (n) =>
-  n === 0 ? "$0" : n < 0.01 ? "$" + n.toFixed(5) : n < 10 ? "$" + n.toFixed(2) : "$" + Math.round(n).toLocaleString();
-// Per-USER money needs more places than per-month money: the interesting
-// figures live between a tenth of a cent and forty cents, and %.2f rounds
-// the entire middle of this document to "$0.01".
-const unit = (n) => (n === 0 ? "$0" : "$" + n.toFixed(n < 0.1 ? 5 : 4));
-const int = (n) => Math.round(n).toLocaleString();
-const x = (n) =>
-  (n >= 100 ? Math.round(n).toLocaleString() : n >= 0.1 ? n.toFixed(1) : n.toFixed(2)) + "x";
 
 // The model's own scenario list, plus the two sizes the Firestore benchmark
 // publishes, so that peer can be compared at MATCHED size instead of by
@@ -134,7 +48,7 @@ const SIZES = [...SCENARIOS.map(([dau, mature, label]) => ({ dau, mature, label 
 const perDau = (dau, mature) => totalCost(model(dau, mature).cost) / dau;
 
 console.log(`\nInSight cost comparison — ${regional ? "single-region" : "nam5 multi-region"} prices`);
-console.log("InSight figures from scripts/cost-arith.mjs; peer figures from PEERS in this file\n");
+console.log("InSight figures from scripts/cost-arith.mjs; peer figures from scripts/cost-peers.mjs\n");
 
 // ── 1. unit economics ───────────────────────────────────────────
 // The headline is not the total — COSTS.md has the totals. It is the total
@@ -291,19 +205,6 @@ try {
 }
 
 // ── 6. the rating ───────────────────────────────────────────────
-// A letter grade is a judgement, not a computation, so the thresholds are
-// stated here rather than implied. They are set against the peer table above:
-// "cheap" means under the same-stack benchmark, "normal" means inside the
-// range the peers occupy, "expensive" means above the most expensive peer
-// that does strictly more work than InSight does.
-const BENCH = PEERS[1].perUserMo;  // same stack — the fairest single yardstick
-const rate = (pd) =>
-  pd === 0 ? ["A+", "free — inside the free tier"]
-    : pd < BENCH ? ["A", "cheaper than a typical app on the same stack"]
-      : pd < BENCH * 3 ? ["B", "normal for the stack"]
-        : pd < BENCH * 10 ? ["C", "expensive for what it does"]
-          : pd < PEERS[0].perUserMo ? ["D", "very expensive; approaching a video app's per-user cost"]
-            : ["F", "costs more per user than Snapchat, while doing far less"];
 console.log("\n\n6 · The rating");
 console.log("     DAU    $/DAU/mo    total/mo   grade   verdict");
 console.log("-".repeat(102));

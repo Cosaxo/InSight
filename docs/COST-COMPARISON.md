@@ -221,6 +221,10 @@ square of the population, and with it the entire slope this document is
 about. The fixed column is nearly flat in unit terms — an ordinary app's
 shape.
 
+[`docs/COST-REDUCTION.md`](COST-REDUCTION.md) takes this further — every
+lever priced individually, two stacked paths, and the trap that a plan made
+only of the cheap ones cuts the bill 80% while making the *slope* worse.
+
 **This is not an argument to build them now.** D7 is right: at launch sizes
 the saving is 41 cents a month, and the write-contention wall at ~14,400
 DAU (COSTS.md's wall 1) arrives at roughly the same size as the point where

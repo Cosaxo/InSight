@@ -391,6 +391,45 @@ export const CONTENTION_DAU = B.peakWindowMin * 60;
  * choice lives in here, so a caller that wants both regions gets two
  * independent models rather than a mutable global.
  */
+/**
+ * The `social` term, decomposed and with its bounds overridable.
+ *
+ * Split out of readsPerUser at D125 for two reasons. First, this is the
+ * largest read source below ~10 k DAU and the only one a product knob moves
+ * directly, so "what would halving Kindred be worth" is a question somebody
+ * will keep asking — and answering it by retyping the sub-terms into a
+ * planning script is exactly the second-copy failure D47 caught.
+ *
+ * Second, the overrides are in the CAPS' OWN UNITS rather than as ratios. A
+ * lever reading `{ kindredQuestions: 4 }` stays correct when KINDRED_QUESTIONS
+ * moves; a lever reading `scale: 0.717` is a hand-computed figure that goes
+ * stale silently, which is the one documentation error this repo keeps
+ * re-committing.
+ *
+ * Defaults are the shipped constants, so calling it with no overrides is the
+ * shipped app. `nameFactor` is the ×2 no-overlap ceiling on name resolution
+ * (COSTS.md): 2 is "every voter is a stranger whose profile must be read",
+ * 1 is "names are already known", and the truth is in between because crowds
+ * overlap and the session cache already exists.
+ */
+export function socialTerms(dau, mature, o = {}) {
+  const voterCap = o.voterCap ?? VOTER_FETCH_CAP;
+  const kindredQs = o.kindredQuestions ?? KINDRED_QUESTIONS;
+  const circleCap = o.circleAnswerCap ?? CIRCLE_ANSWER_CAP;
+  const names = o.nameFactor ?? 2;
+  // The crowd a capped fetch returns is min(cap, ~DAU): the daily deck is
+  // globally shared, so a question's crowd is roughly everyone active that
+  // day until the cap binds.
+  const crowd = Math.min(voterCap, dau);
+  return {
+    whoVoted: B.sheetOpens * crowd * names,
+    kindred: B.kindredViews * kindredQs * crowd * names,
+    // A member's answer set grows with account AGE, not DAU.
+    circle: B.circleOpens * B.circleFollows
+      * Math.min(circleCap, B.worldAnswers * (mature ? 90 : 10)),
+  };
+}
+
 export function costModel({ regional = false, bank = bankDocs() } = {}) {
   const P = priceSheet(regional);
 
@@ -404,7 +443,16 @@ export function costModel({ regional = false, bank = bankDocs() } = {}) {
   // which is the D67 failure recommitted while its correction note sat
   // forty lines up. If a key is added here, scripts/pulse.test.mjs pins
   // the key set and names the consumers that must move with it.
-  function readsPerUser(dau, { mature, staticBank = false, pollAggs = false }) {
+  // `publishEvery`, `deckListeners` and the social overrides are LEVER inputs
+  // (D125): each names a change somebody could make, in the units of the
+  // thing they would change, so scripts/cost-levers.mjs can price a plan
+  // without re-deriving any of this. Every default is the shipped value, so
+  // a caller that passes nothing models the shipped app — the property
+  // pulse.test.mjs pins.
+  function readsPerUser(dau, {
+    mature, staticBank = false, pollAggs = false,
+    publishEvery = PUBLISH_EVERY, deckListeners = DECK_DAYS, social: socialOpts = {},
+  }) {
     const boot = (1 + 1 + 1 + DECK_DAYS + 1 + 2 + 2) * B.boots;
     // A question under the floor is re-read at most once per 6 h, so roughly
     // one boot in four pays for it. Mature communities have few left.
@@ -431,7 +479,7 @@ export function costModel({ regional = false, bank = bankDocs() } = {}) {
     // the rest; the arithmetic below is what makes it visible.
     const listenerMin = B.onlineMin + B.bgCycles * (IDLE_DETACH_MS / 60_000);
     const concurrent = dau / (B.peakWindowMin / listenerMin);
-    const fanOut = pollAggs ? 0 : concurrent * (B.worldAnswers / PUBLISH_EVERY) / 3;
+    const fanOut = pollAggs ? 0 : concurrent * (B.worldAnswers / publishEvery) / 3;
     // The other half of the same trade, and the reason the detach is a
     // grace period rather than an immediate drop: coming back re-attaches
     // the deck listeners, and an onSnapshot attach delivers the document
@@ -440,7 +488,11 @@ export function costModel({ regional = false, bank = bankDocs() } = {}) {
     // size — the break-even is ~7 reads against the publish rate on the
     // shared daily — but it is not free, and an unnamed cost is the D67
     // failure however small it is.
-    const reattach = pollAggs ? 0 : B.bgCycles * DECK_DAYS;
+    // `deckListeners` is the lever: only TODAY's aggregate is hot, so a
+    // client that streams one document and fetches the other six once pays
+    // one read per cycle instead of DECK_DAYS. It does not touch fanOut —
+    // that term already charges the hot document only.
+    const reattach = pollAggs ? 0 : B.bgCycles * deckListeners;
     // Charged to the project on every answer create, on top of the write.
     const rules =
       B.worldAnswers * RULE_READS.world + B.duelAnswers * RULE_READS.duel;
@@ -461,18 +513,12 @@ export function costModel({ regional = false, bank = bankDocs() } = {}) {
     // returns is min(cap, ~DAU): the daily deck is globally shared, so a
     // question's crowd is roughly everyone active that day until the cap
     // binds at DAU ≈ VOTER_FETCH_CAP — above that, `social` is flat.
-    const crowd = Math.min(VOTER_FETCH_CAP, dau);
-    const whoVoted = B.sheetOpens * crowd * 2;
-    const kindred = B.kindredViews * KINDRED_QUESTIONS * crowd * 2;
-    // A member's answer set grows with account AGE, not DAU: ~3 world
-    // answers/day, ceilinged by the cap — ~90 days old in a mature
-    // community, ~10 in a fresh TestFlight one (the same flag the top-up
-    // uses for the same reason). The followers query and the member-name
-    // top-up are noise beside it.
-    const circle =
-      B.circleOpens * B.circleFollows
-      * Math.min(CIRCLE_ANSWER_CAP, B.worldAnswers * (mature ? 90 : 10));
-    const social = whoVoted + kindred + circle;
+    // Decomposed in socialTerms() above, which is also where the caps become
+    // overridable. Summed back to one key here because the key set is pinned
+    // (pulse.test.mjs) and load-bearing for pulse's stacked bar and COSTS.md's
+    // table — the sub-terms are a planning input, not a ninth read source.
+    const social = Object.values(socialTerms(dau, mature, socialOpts))
+      .reduce((a, b) => a + b, 0);
     return { boot, topUp, reseed, fanOut, reattach, rules, server, social };
   }
 

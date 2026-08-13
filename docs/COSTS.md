@@ -23,6 +23,10 @@ Wikimedia and a typical app on the same stack. Its finding is about shape
 rather than level: the totals below are small, and the **cost per user
 rises 87× between 500 and 500,000 DAU**, which is the fan-out of finding 2
 seen from the unit-economics side.
+[`docs/COST-REDUCTION.md`](COST-REDUCTION.md) prices the way out
+(`npm run costs:levers`): the recorded polling fix plus the social trims
+takes the 500 k row from $194,332 to $1,524 and the slope from 87× to 15×,
+and nothing on that page is worth building before ~10 k DAU.
 
 ## The unit economics, read out of the code
 
