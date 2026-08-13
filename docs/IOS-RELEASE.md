@@ -303,6 +303,23 @@ went 2 → 3 while 1 was still the highest build on App Store Connect, so build
 a **comparison, not a habit**: is `appBuild` already greater than the highest
 build in App Store Connect? If yes, run as-is.
 
+**Both directions have now fired, and the original one is the expensive
+one.** On 2026-08-13 run 18 uploaded build 12 and the post-upload bump was
+skipped, so `appBuild` sat at 12 with 12 already delivered. Nothing in the
+tree could see it: every gate passes at a stale build number, and the
+refusal would have come *after* the transfer — a full macOS run, at 10x,
+for a number. The over-eager bump costs an unused integer; the forgotten
+one costs ~150 minutes of quota.
+
+**So make the comparison against the runs, not against the docs.** The
+`Upload to App Store Connect` step's own conclusion is the record —
+`success` spent that build, `skipped` did not — and runs 15 and 16 (same
+commit, eight minutes apart, `skipped` then `success`) are the worked
+example. The runbook's prose said build 12 was "unspent" while it was
+being uploaded, because the sentence shipped in the very commit the run
+archived. A doc cannot see App Store Connect; the run list is the closest
+thing that can.
+
 Each is one line in the workflow. What no line fixes is the archive's
 signing style, which is why the reasoning for it is written out above
 rather than compressed into this table.

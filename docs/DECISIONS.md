@@ -13352,3 +13352,116 @@ and `docs/data-inventory.md` change, and a store privacy-label review
 (D130), in one commit with tests. That is a decision about physical
 safety and it is the owner's to take with the cost stated, which is why
 this entry stops here rather than shipping a half of it.
+## D136 · Build 13's pre-flight: a build was spent while this file said it was not
+
+**Decided:** 2026-08-13 · **Status:** binding · Extends runbook 2.4's
+comparison rule. The first firing of the forgotten-bump trap, which is the
+expensive direction and the one that had never happened.
+
+### The comparison first, because it is the half that decides
+
+`appBuild` is now **13**; build **12** is the highest on App Store Connect
+(run 18, `d0cf435`, 2026-08-13, 5m 32s, upload step `success`). So runbook
+2.4's test — *is `appBuild` greater than the highest build on ASC?* —
+passes and the next run goes as-is.
+
+It did not pass an hour earlier. **`appBuild` was 12 with build 12 already
+delivered**, because the bump that this convention puts immediately after
+an upload did not happen after run 18. Every gate in the tree passes at a
+stale build number — nothing here can see App Store Connect — and the
+refusal arrives *after* the binary transfers, so the cost would have been
+a full macOS run at 10x for an integer.
+
+Both directions of the trap have now fired, and they are not symmetric:
+
+| | Cost |
+| --- | --- |
+| Bumped too eagerly (2026-08-08, 2 → 3) | one unused integer; Apple only wants monotonic |
+| Bump forgotten (2026-08-13, after run 18) | ~150 minutes of quota, spent before the error appears |
+
+### What made it findable, and what made it hideable
+
+**Findable:** the upload step's own conclusion. `success` spent a build,
+`skipped` did not, and runs 15 and 16 — same commit, eight minutes apart,
+one of each — are the worked example already in 2.4.
+
+**Hideable:** the runbook said otherwise. The paragraph read *"Build 12 is
+pre-flighted and unspent as of 2026-08-13 (D130)"*, and it was written in
+`d0cf435` — the exact commit run 18 then archived and uploaded. The
+sentence was true when committed and false a few hours later, and no check
+could have caught it, because the fact it asserts lives at Apple.
+
+That is D73's shape one layer out (*pushed state has no endpoint to read
+back*) and D39's shape sharpened: not a figure that drifted slowly, but one
+falsified by the very act it was describing. **So 2.4's prose is a record
+and the run list is the procedure**, and where they disagree the runs win.
+Written into 2.4 in those words rather than left as a fixed number.
+
+### The standing store-side audit: nothing to re-type
+
+D130 made D116's audit standing for every release. Run against D131–D135,
+it terminates early and for a structural reason rather than by inspection:
+**the diff `d0cf435..HEAD` touches no `firestore.rules`, no `functions/`
+and no `docs/data-inventory.md`.** No collection was added, no server write
+changed, so no data type entered the app. `check:data-inventory` passing is
+that claim held mechanically rather than asserted.
+
+D134's sign-in gate is the one change that looks like it should move a
+declaration and does not: it calls `linkGoogle()` on the session that is
+already signed in, so it collects the email and display name that Google's
+default scopes already put on the Firebase Auth record — declared since the
+first submission. A wall changes *when* that happens, not *what*.
+
+### What build 13 carries, and why two of them are the point
+
+D131's written-down region decision, D132 and D133, D134's test-track wall
+and D135's Overview-first stops.
+
+**D132 and D133 are defects in build 12 itself**, which is what makes this
+release a fix rather than a cadence. D132 is the one that would justify it
+alone: `LIVE.myVotes()` is string-valued and the passive fold gated on
+`Number.isInteger`, so every instrument read *"0 of N answered"* to someone
+who had answered all of them, with no axis ever filling and no type
+reachable. Build 12 shipped that to the test track.
+
+### The wall is a 6.2 blocker, and this is the build that makes it concrete
+
+`ios-release.yml` defaults `VITE_REQUIRE_SIGNIN` to `true`, so build 13
+ships walled — correct for the test track, which is D134's whole argument.
+D134 also recorded that the public build must drop the wall or add Sign in
+with Apple, and left the choice open.
+
+What was missing was that the runbook's **6.2 reply text contradicts it in
+advance**: the drafted 4.8 answer says *"no account is required, and Google
+is an optional upgrade rather than a login wall"*, which describes the
+build the flag turns off. Sending it with a walled binary argues against
+the app in the reviewer's hands. 6.2 now carries the fork, the exact
+variable that resolves it, and the note that a wall is a 5.1.1(v) question
+before it is a 4.8 one — the expensive half, because it argues about the
+product rather than about a provider.
+
+Recorded here because the flag defaults ON: forgetting it is silent, and
+its symptom is a rejection rather than a red build.
+
+### Pre-flight, measured
+
+Every 6.1 gate passes. The full suite: **969** client tests, **203**
+function tests, **83** rules tests, **168** script tests, lint clean,
+`tsc -b`, `check:globals` at its baseline of **417**, and **28 of 29**
+check gates.
+
+The one failure is environmental and is not a defect: `check:web-firebase`
+reads `VITE_FIREBASE_*` from repository *variables* that exist only in CI,
+which is exactly why the workflow runs it after the build against `dist/`.
+`check:fn-runtime` is off the list D130 kept — it passes once
+`npm run build --prefix functions` has run, and this pre-flight ran it.
+`test:rules` needs `HTTPS_PROXY` unset, per CLAUDE.md.
+
+**`check:bundle` passing locally is the weakest green here**, and D134 is
+why: without a `VITE_SENTRY_DSN` the local build omits the 435 KB
+`prod-*.js` chunk, so the local total is measured against a ceiling the
+release build does not face. CI measures the bundle that ships.
+
+`apple.whatsNew` stays *"First release."* — it is a **version** field, not
+a build field, and `MARKETING_VERSION` is still 2.0.0 with 6.2 unticked, so
+there has been no first release for it to be new against (D74).
