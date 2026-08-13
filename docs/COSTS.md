@@ -32,9 +32,10 @@ Every constant below is sourced, not assumed:
 | One duel answer, again | +3 rule reads (group, reveal, question); the trigger's duel branch reads nothing | `isDuelAnswer`; "one blind write, no read" |
 | One ledger entry | +1 read the night it is scanned | `ledgerVelocityScan`, functions/src/velocity.ts (D54) |
 | One group-day reveal | `4 + 3m` reads for `m` members — 10 for a duo | `revealGroupDay`, functions/src/v2social.ts |
-| One who-voted sheet | ≤200 answer reads + ≤200 profile reads (names), once per question per session | `VOTER_FETCH_CAP`, src/v2/data/voters.ts (D102 — was unbounded, ~DAU reads per open) |
+| One who-voted sheet | ≤200 answer reads + ≤200 profile reads (names), once per question per session | `VOTER_FETCH_CAP`, src/v2/data/voters.ts (D102 — was unbounded, ~DAU reads per open). "Per session" became true on 2026-08-13: `loadVoters` guarded only on the fetch being IN FLIGHT, so the panel's `[qid]` effect re-ran the whole thing on every open, and this row described an intention rather than a behaviour |
 | One Kindred first view | ≤12 sheets' worth, shared with the sheet cache | `KINDRED_QUESTIONS`, src/v2/data/live.ts (D99) |
-| One Circle open | 1 + one query per member: ≤50 members × ≤300 answers, +1 followers query | `FOLLOW_CAP` / `CIRCLE_ANSWER_CAP`, src/v2/data/circle.ts (D101) |
+| One Circle open | 1 + one query per member: ≤50 members × ≤300 answers, +1 followers query | `FOLLOW_CAP` / `CIRCLE_ANSWER_CAP`, src/v2/data/circle.ts (D101). Also once per session since 2026-08-13, with `setFollowing` the one caller that may force a refetch — it changes the membership the fold is over |
+| One takes panel | ≤100 world takes per question, ≤500 per group, once per scope per session | `TAKE_FETCH_CAP` / `TAKE_GROUP_FETCH_CAP`, src/v2/data/live.ts — both caps and the cache are new on 2026-08-13; the world query had no `limit()` and returned roughly everyone who spoke that day |
 
 Note the shape of the third row. There is no "under the floor" any more
 (D98 removed the floor and the cadence both), so the mirror is rewritten
@@ -49,7 +50,9 @@ once a question matured, and that discount no longer exists.
 
 Behaviour assumptions (the soft numbers — stated, not buried): 3 world
 answers + 1 duel answer per active user per day, 1.4 app opens, 3 minutes
-of open app concentrated in D7's 4-hour morning window, MAU = 3 × DAU, one
+of open app plus 4 background→foreground cycles (so 7 listener-minutes —
+see the D124 note below, they are not the same number), concentrated in
+D7's 4-hour morning window, MAU = 3 × DAU, one
 reseed per week, and duels played in duos rather than larger groups — which
 is the *worse* case per user, because a reveal's fixed reads divide across
 the members it serves. Prices are Blaze, `nam5` multi-region; a
@@ -57,11 +60,11 @@ single-region database is roughly half.
 
 | Scenario | DAU | reads/day | writes/day | Firestore $/mo | Functions $/mo | **Total $/mo** |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| Launch / TestFlight | 50 | 7.6 K | 710 | 0.00 | 0.00 | **0.00** |
-| Friends-of-friends | 500 | 156 K | 7.1 K | 1.90 | 0.00 | **1.90** |
-| Real traction | 5,000 | 2.2 M | 71 K | 46 | 0.00 | **46** |
-| Scale | 50,000 | 50.5 M | 710 K | 1,222 | 1.60 | **1,224** |
-| Hit | 500,000 | 3.3 B | 7.1 M | 85,507 | 33 | **85,541** |
+| Launch / TestFlight | 50 | 9.1 K | 710 | 0.00 | 0.00 | **0.00** |
+| Friends-of-friends | 500 | 174 K | 7.1 K | 2.23 | 0.00 | **2.23** |
+| Real traction | 5,000 | 2.8 M | 71 K | 59 | 0.00 | **59** |
+| Scale | 50,000 | 93.5 M | 710 K | 2,334 | 1.60 | **2,335** |
+| Hit | 500,000 | 7.5 B | 7.1 M | 194,299 | 33 | **194,332** |
 
 The Firestore column includes network egress, which Google bills separately
 but Firestore is what serves. It is the softest line here — see the band
@@ -107,6 +110,35 @@ below.
 > `fetchVoters` was the app's one unbounded read, ~DAU documents per
 > sheet open. The bill below assumes the cap.
 
+> **Corrected 2026-08-13 (D124), and this one went UP because it got more
+> honest rather than because anything got worse.** The fan-out is linear in
+> how long a listener stays attached, and until this pass *nothing bounded
+> that*: `live.ts` tore listeners down on a uid change and on account
+> deletion, and nowhere else, so a resident WebView kept receiving publishes
+> for as long as the OS let it live. The model charged `onlineMin: 3` — a
+> fair guess at how long someone looks at the app, and simply not the
+> quantity Firestore was billing.
+>
+> The idle detach bounds it, and the arithmetic now says what it bounds it
+> *to*: `onlineMin + bgCycles × grace`, plus `DECK_DAYS` re-attach reads per
+> cycle (the new `reattach` column). At 4 background cycles a day that is 7
+> listener-minutes, not 3, so the fan-out column roughly doubles and the
+> totals move with it — **$46 → $59 at 5,000 DAU, $1,224 → $2,335 at
+> 50,000**. The pre-detach code was not cheaper than these figures; it had
+> no ceiling at all, and the old numbers were describing a best case as if
+> it were the case.
+>
+> `bgCycles` is a guess and is the most leveraged one in the file now that
+> the tail is closed. It is also the cheapest to settle: it is a question
+> about how often a phone is picked up, answerable from a week of real
+> usage.
+>
+> **This moves the wall ordering, and the direction is the bad one.** The
+> read crossover is now ~14,145 DAU against D7's write-contention wall at
+> 14,400 — the read line crosses *first*, by a margin well inside the error
+> on a guessed input. See the walls section, which no longer claims the
+> comfortable ordering.
+
 Two things fall out immediately. **Compute is free and stays free** —
 the trigger is 4 invocations per user per day at 200 ms, and Cloud Run's
 free tier (180 k vCPU-s/month) covers ~900 k answers/month on its own;
@@ -122,13 +154,13 @@ reading each other's answers.
 
 Per active user per day:
 
-| DAU | boot | agg top-up | reseed delta | **listener fan-out** | rule reads | server reads | **D98 surfaces** | total/user |
-| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| 50 | 21 | 42 | 3 | 1 | 6 | 14 | 66 | 152 |
-| 500 | 21 | 42 | 3 | 6 | 6 | 14 | 219 | 311 |
-| 5,000 | 21 | 2 | 3 | 63 | 6 | 14 | **339** | 447 |
-| 50,000 | 21 | 2 | 3 | **625** | 6 | 14 | 339 | 1,010 |
-| 500,000 | 21 | 2 | 3 | **6,250** | 6 | 14 | 339 | 6,635 |
+| DAU | boot | agg top-up | reseed delta | **listener fan-out** | re-attach | rule reads | server reads | **D98 surfaces** | total/user |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 50 | 21 | 42 | 3 | 1 | 28 | 6 | 14 | 66 | 181 |
+| 500 | 21 | 42 | 3 | 15 | 28 | 6 | 14 | 219 | 347 |
+| 5,000 | 21 | 2 | 3 | 146 | 28 | 6 | 14 | **339** | 558 |
+| 50,000 | 21 | 2 | 3 | **1,458** | 28 | 6 | 14 | 339 | 1,871 |
+| 500,000 | 21 | 2 | 3 | **14,583** | 28 | 6 | 14 | 339 | 14,996 |
 
 The fan-out is still the only source that grows without bound — five
 times steeper than the last run of this table, because D98 retired the
@@ -179,13 +211,18 @@ column, which is the direction a prediction should err.
 sentence here used to read "below 50 k DAU the whole per-user read cost is
 now the boot and the top-up — both flat, both cheap, neither worth
 optimising." At 5,000 DAU the real decomposition is **social 339**,
-fan-out 63, boot 21, server 14, rules 6, reseed 3, top-up 2: the feature
-family D98 exists for is now three quarters of the read bill, and the
-$7.26 this document used to quote at that size is $46. The conclusion
-mostly survives — $46/month is still nothing at 5,000 DAU — but for the
-first time the biggest line is one a product knob (an open rate, a cap)
-moves directly, rather than a boot cost only an architecture change
-could.
+fan-out 146, re-attach 28, boot 21, server 14, rules 6, reseed 3, top-up
+2 — and the figure this document has quoted at that size has gone $7.26 →
+$46 → $59 across three passes, without the app changing. The conclusion
+survives at this size ($59/month is still nothing at real traction), and
+what has changed twice now is *which* line is biggest and why.
+
+`social` is still the largest single term below ~10 k DAU, and it is the
+one a product knob moves directly. But the fan-out is no longer a distant
+second: at 5,000 DAU it is 146 against social's 339, and it is the only
+term that grows with the square of the population — so the two swap places
+just past 10 k, and the walls section below is now about that swap rather
+than about a comfortable gap.
 
 ## The egress band, and why it is a band
 
@@ -288,6 +325,62 @@ guess moves the wall 5× closer. It is the most leveraged soft number in the
 model and the cheapest one to find out: it is a question about behaviour,
 answerable from a week of real usage.
 
+### Finding 2b — the fan-out's input was bounded by nothing · **BOUNDED (2026-08-13)**
+
+> The finding above prices the fan-out and defers the fix, which is right.
+> This is the part that was not a scaling question at all: the term is
+> linear in `onlineMin`, and until now **no code bounded that number**.
+
+`B.onlineMin` is 3, and its comment used to read "minutes with the app
+actually open". That is a fair estimate of human attention and it is not
+what Firestore bills. What the fan-out charges for is minutes with a
+**listener attached**, and the only two teardown sites in `live.ts` were a
+uid change and account deletion — so a Capacitor WebView the OS kept
+resident went on receiving, and being billed for, every publish to today's
+aggregate for as long as it lived. The two quantities were equal by luck,
+and on native they are exactly the ones that come apart.
+
+Taken literally, with everything else in the model held still:
+
+| listener-minutes/user/day | 5 k DAU | 50 k DAU | crossover |
+| ---: | ---: | ---: | ---: |
+| 3 (assumed) | $46 | $1,224 | ~30,800 DAU |
+| 15 | $78 | $4,479 | ~6,150 DAU |
+| 60 | $200 | $16,689 | ~1,540 DAU |
+| 240 (a whole peak window) | $689 | $65,526 | ~385 DAU |
+
+The right-hand column is the one that matters more than the dollars. At 60
+the crossover falls **under D7's write-contention wall at 14,400**, which
+inverts the ordering the walls section calls the property worth keeping —
+the app is supposed to break technically at a size where the bill is still
+small, so that no surprise invoice can arrive before a surprise outage.
+This is the third time that ordering has been quietly inverted (D98 did it,
+D102 restored it), and the first time the cause was not arithmetic but an
+assumption about behaviour with nothing holding it up.
+
+**What was done.** `IDLE_DETACH_MS` (60 s) in `src/v2/data/live.ts`: hiding
+the app arms a timer, and the timer detaches exactly the set
+`resubscribeForToday()` restores. Armed rather than run, because
+re-attaching is not free — an `onSnapshot` attach delivers the document, so
+coming back costs a read per listener, and `wake()` is written around the
+ten-second app swap. Break-even is ~7 reads against the publish rate on the
+shared daily (~21 reads/min at 5 k DAU, ~2 at 500), so a minute is the
+right order at every size: the common swap stays free and the tail becomes
+one minute per backgrounding instead of one OS eviction.
+
+The number is read from source by `cost-arith.mjs` like `DECK_DAYS` and the
+four social caps, and `pulse.test.mjs` pins the `setTimeout` call site as
+well as the constant — a declaration nothing reads is a comment.
+`src/v2/data/idle-detach.test.ts` is the first thing in this tree that can
+tell an attached listener from a detached one; three of its six cases go
+red if the arming is removed, which is how the claim above is measured
+rather than asserted.
+
+**This does not close Finding 2.** The fan-out is still quadratic in DAU
+and polling is still the fix when it matters. What changed is that the
+coefficient is now a number the code enforces rather than one the model
+hoped for.
+
 ### Finding 3 — anonymous-first auth may be a per-install bill
 
 D3 makes the app anonymous-first: `signInAnonymously` runs on first open,
@@ -369,6 +462,165 @@ worth an incremental insert if circles grow; and a capped voters page has
 a natural cursor (`answeredAt`) if anyone ever needs page two. Neither is
 worth building before a user exists who would notice (D7's discipline).
 
+## The controls that are not in this repository
+
+Everything above this line predicts the bill. None of it **caps** the bill,
+and the distinction is the whole difference between "expensive" and "out of
+control". A prediction is only as good as the behaviour it assumed; a cap
+holds when the assumption is wrong, which is exactly when you need it.
+
+This document has been corrected four times (D47, D67, D102 twice), every
+time because a term was missing rather than mis-estimated. The honest
+reading of that record is not that the fifth correction has been found — it
+is that a fifth one exists and the model is not the thing that will catch
+it. What catches it is a control that fires on the *outcome* rather than on
+the forecast.
+
+There are four such controls, and **not one of them is observable from this
+repository**. No check, test or workflow can see any of them, which is
+D117's checkbox problem pointed at money rather than at deploys. So they
+are written down here, with the arithmetic that says why each one matters.
+
+**1 · A Cloud Billing budget. This does not exist, and it is the cheapest
+thing on this page.** Every other control below is a judgement call; this
+one is five minutes and an email address, and without it the first notice
+of any of the failures this document imagines is an invoice up to thirty
+days later.
+
+```
+gcloud billing budgets create \
+  --billing-account=<ACCOUNT_ID> \
+  --display-name="InSight" \
+  --budget-amount=50USD \
+  --filter-projects=projects/prvfire33 \
+  --threshold-rule=percent=0.5 \
+  --threshold-rule=percent=0.9 \
+  --threshold-rule=percent=1.0 \
+  --threshold-rule=percent=1.5
+```
+
+$50 is chosen against the table above, not by feel: the launch sizes model
+at $0–$2/month and 5,000 DAU at $46, so $50 is "traction arrived, or
+something is wrong", and the 150% rule still fires while the number is two
+figures. Raise it when a row of the table becomes real, not before.
+
+**A budget notifies; it does not cap.** There is no spend limit for
+Firestore — the only hard stop is a budget → Pub/Sub → function that
+detaches the billing account, which takes the app down with it. That is a
+real option and a deliberate one, not a default: for an app whose worst
+modelled month at launch size is $2, an outage is the more expensive
+failure. Recorded as available, not built (D7).
+
+**2 · App Check enforcement on the Firestore API.** SHIP-CHECKLIST's App
+Check step 4, not yet flipped. The callables enforce attestation in
+production and a gate proves it (`check:appcheck`) — but that gate covers
+`onCall` functions, and **the client does not read through them**. It reads
+Firestore directly, where enforcement is a console toggle nothing in this
+tree can see.
+
+What that leaves open is not a bug in the rules; it is what the rules say.
+Since D98 answers are public, and `firestore.rules` grants any signed-in
+account — including an anonymous one, minted for free on first open (D3) —
+a collection-group read of every `daily`/`feed`/`test`/`learn` answer.
+A security rule cannot rate-limit without a read, so there is no
+rules-shaped fix and none should be attempted. `ledgerVelocityScan` (D54)
+is detection and says so in its own header: "nothing here denies, delays or
+down-weights a vote." Detection does not stop a bill.
+
+The arithmetic, at the nam5 read price of $0.06/100 k:
+
+| sustained read rate | reads/day | $/day | $/month |
+| ---: | ---: | ---: | ---: |
+| 500/sec | 43 M | $26 | $778 |
+| 2,000/sec | 173 M | $104 | $3,110 |
+| 10,000/sec | 864 M | $518 | $15,552 |
+
+The corpus does not have to be large for this: the same documents can be
+re-read forever, and each read bills again. For scale, the modelled *peak*
+rate is 14/sec at 500 DAU and 155/sec at 5,000. App Check does not make
+this impossible — a determined attacker can drive a real device — but it
+removes the version that is a script and a laptop, which is the one that
+happens.
+
+**3 · Which auth billing mode the project is on.** Finding 3, unchanged and
+still the largest single line that could be wrong without any code being
+wrong. Also console-only.
+
+**4 · A notification channel on the alert policies.** `monitoring/` has
+four policies and `check:monitoring` proves the chain from log line to
+condition — but `notificationChannels` is `[]` in every file, filled in by
+`npm run monitoring:apply --email`. A policy with no channel evaluates
+correctly and pages nobody, which is the same false comfort every other
+gate in this repo exists to prevent, and the same shape as the known limit
+already recorded against the absence alert.
+
+**What was built here instead of a cap.**
+`monitoring/firestore-read-runaway.json` is the detection-latency half:
+billed reads above 500/sec sustained for five minutes. It is not a spend
+cap — it fires after the reads are billed — but it converts "find out in up
+to thirty days" into "find out in five minutes", and at that threshold the
+month is still worth about $780 rather than five figures. Its threshold is
+a launch-size threshold with the retune arithmetic in its own runbook; it
+must be raised before ~13,100 DAU, where the modelled peak crosses it.
+
+### What to actually do at 3am
+
+The alerts above tell you something is wrong. This is the part that stops
+it, and the useful discovery is that **the fastest lever already exists and
+is not armed**.
+
+**App Check enforcement on the Firestore API is the kill switch.** It is a
+console toggle, takes effect in minutes, needs no deploy, and it rejects
+unattested traffic *before* rule evaluation — which matters, because a
+security rule cannot shed cost: its `get()`s are billed on denied writes
+too, so "deny in the rules" is a way to keep paying. Enforcement is the
+only control in the project that makes a request cost nothing.
+
+The catch is the one that makes this a launch item rather than an incident
+item: **you cannot flip it during an incident if you never set it up.** The
+console sequence in SHIP-CHECKLIST — register the providers, ship builds
+carrying attestation, soak App Check → Metrics for 24–48 h until verified
+requests approach 100%, *then* enforce — takes days, and skipping the soak
+turns a cost incident into an outage for every real user at once. So the
+work has to be done in advance for the lever to exist at all.
+
+That reframes App Check step 4. It is filed as hardening, and it is really
+the incident-response plan: it is simultaneously the thing that prevents
+the cheap version of the attack and the thing you reach for when something
+else goes wrong. Nothing else on this page can be pulled at 3am — a rules
+deploy takes minutes and still bills its own reads, `APPCHECK_ENFORCE` only
+governs callables (and only in the loosening direction), and detaching the
+billing account takes the app down.
+
+**The graded breaker, designed and deliberately not built.** The natural
+complement is a `mode` field on `v2_meta/app` — a document `hydrate()`
+already reads once per boot, so it costs nothing to add — with the client
+skipping the discretionary reads when it is set: the D98 social surfaces
+(who-voted, Kindred, Circle, takes, similarity) at one level, the deck's
+snapshot listeners at the next. That is 339 of 447 reads/user/day at 5,000
+DAU for the first level and most of the rest for the second, and unlike
+App Check it degrades the app for *everyone* rather than only for
+unattested callers.
+
+It is not built here because it is not really a cost question. Every level
+of it changes what a user sees, and this repo's rule is that a UI claim
+needs something making it true — a Mirror stop that silently renders "could
+not ask" because an operator flipped a flag is the same class of failure as
+a privacy label with no rule behind it. The honest version needs a decision
+about what a degraded app *says*, and that is the owner's call rather than
+a cost pass's. Recorded with its arithmetic so it can be built in an hour
+when that decision is made.
+
+**Where the free tiers end**, since "still free" is the cheapest possible
+guardrail and worth knowing precisely: reads leave the 50 k/day free tier
+at **~177 DAU**, writes leave the 20 k/day tier at **~1,408 DAU**. (Read off
+the model's *immature* branch, which is how `SCENARIOS` classifies every
+size in that range; the mature branch would say ~149 and would be quoting
+a community that does not exist yet.) Below
+the first of those the infrastructure is genuinely $0 and no control
+matters. That is also why every alert here is sized for the second
+threshold rather than the first.
+
 ## The walls, in the order they are hit
 
 1. **~14,400 DAU — D7's write-contention ceiling.** All of a day's daily
@@ -377,17 +629,16 @@ worth building before a user exists who would notice (D7's discipline).
    5 k DAU, `1.00` at 14.4 k, `3.47` at 50 k. Past this, transactions
    retry and aggregation degrades. Already recorded, already costed, fix
    already named (shard the counter). **This binds first.**
-2. **~30,800 DAU — the read fan-out overtakes every flat source
+2. **~14,145 DAU — the read fan-out overtakes every flat source
    combined.** Finding 2. Not a failure, just the point where the bill
-   stops being about anything else. This row has now moved twice without
-   the fan-out itself changing shape, in opposite directions, and both
-   moves are worth keeping: D98's cadence removal made the fan-out five
-   times steeper, which pulled the crossover from ~18,200 down to
-   **~3,700 — below wall 1, inverting the ordering this section is
-   about** — and nobody reran the model to see it. D102's `social` term
-   then raised the flat baseline from 46 to 385 reads/user/day, pushing
-   the crossover back out to ~30,800. The ordering held for a day by
-   accident, and holds now by arithmetic.
+   stops being about anything else. This row has now moved three times
+   without the fan-out changing shape, and every move is worth keeping:
+   D98's cadence removal made it five times steeper, pulling the crossover
+   from ~18,200 to ~3,700 with nobody rerunning the model to see it; D102's
+   `social` term raised the flat baseline from 46 to 385 reads/user/day and
+   pushed it back to ~30,800; and D124 stopped charging listener time at a
+   guess it had no right to, which brought it to **~14,145 — 255 DAU inside
+   wall 1, which is not a margin.**
 3. **~50,000 MAU — the Identity Platform cliff**, if that is the billing
    mode. Finding 3.
 4. **~10,000 activations/day — Play Integrity's standard quota**, which
@@ -402,20 +653,29 @@ window and dying identically every night thereafter. D64 made it fold per
 page, so its memory is bounded by one page rather than by the window. The
 new ceiling has not been measured and no number is quoted for it here.
 
-Wall 1 arriving before wall 2 is the good ordering: the app breaks
-technically at a size where the bill is still ~$183/month, so there is no
-scenario where a surprise invoice arrives before a surprise outage. That
-is worth keeping true — and this pass is the proof it is a property to
-re-check rather than rely on, exactly as the previous version of this
-paragraph said: D98 *did* invert it (a 5× steeper fan-out against an
-unchanged baseline puts the crossover at ~3,700 DAU, a quarter of the
-wall), and the inversion sat unnoticed until the next full model run a
-day later. It is restored now because the D98 surfaces themselves raised
-the flat baseline eightfold — the feature family that endangered the
-ordering is what currently maintains it, which is not a stable
-arrangement. If the `social` open rates come in lower than guessed, the
-crossover moves back toward the wall; re-run the crossover line whenever
-one of those rates is measured.
+**The ordering this section was built on is gone, and pretending otherwise
+would be the most expensive sentence on the page.** Wall 1 before wall 2
+was the good arrangement: the app breaks technically at a size where the
+bill is still ~$183/month, so no surprise invoice can arrive before a
+surprise outage. Three versions of this paragraph have now asserted that
+property, and it has been false for part of the time each of them was
+committed. 14,145 against 14,400 is not "holds by arithmetic" — it is a
+tie, decided by `bgCycles`, a number nobody has measured.
+
+What that means in practice is narrower than it sounds and worth stating
+rather than dramatising. Both walls sit near 14 k DAU, both are a long way
+past launch, and the bill at that size is low four figures a month — so
+the actionable content is not "fix the fan-out now" (D7 still says no) but
+"stop relying on which one comes first." The two mitigations that were
+filed against wall 2 alone — polling instead of streaming, and the static
+bank — are now the mitigations for the pair, and the recorded fix for wall
+1 (shard the counter) no longer buys the head start it was chosen for.
+
+Three of the inputs deciding this are guesses: `bgCycles` (4), `onlineMin`
+(3) and the three D98 open rates. Every one is answerable from a week of
+real usage, and until one of them is measured this section is describing a
+coin toss with a precise-looking number on it. Re-run the crossover line
+the day any of them is.
 
 ## Everything that is not Firestore
 
@@ -428,7 +688,7 @@ one of those rates is measured.
 | FCM push | $0 |
 | App Check — reCAPTCHA v3 / DeviceCheck / Play Integrity | $0 |
 | Firebase Hosting (`web/`, static pages) | $0 |
-| Cloud Storage | $0 (bucket unused; see SHIP-CHECKLIST) |
+| Cloud Storage | $0 — and since 2026-08-13 that is true of the *rules* and not only of the app. `storage.rules` granted any signed-in account write on `users/{uid}/dailyPhotos/{filename}`: 8 MB an object, `{filename}` unbounded, so unbounded objects, unbounded stored bytes and unbounded egress reading them back — by a free anonymous account (D3), against a feature D4 removed and which no file in `src/` or `functions/src/` imports. Uploads are now closed; read and delete stay open because the erasure argument for keeping them (deleteAccount does not touch Storage) is about reaching a leftover object, not about accepting new ones |
 | Cloud Logging | $0 until ~500 k DAU, then ~$17/mo |
 | Firestore storage | 5.6 GiB after a year at 5 k DAU → $0.83/mo (4.0 GiB of documents, ×1.4 for index entries — a multiplier that was 1.0 in the model until D67, and would be ~5 without D64's `answers` exemptions; the indexed set has since grown by D86's `editedAt`, D98's who-voted composite and D102's `surface` re-enable, and 1.4 stays as the blended estimate) |
 | Network egress | in the Firestore column above, not free: $0–0.5/mo at 5 k DAU, **$7–147 at 50 k**, $647–14,686 at 500 k — see the band below |
@@ -445,17 +705,22 @@ does not scale down when usage does.
 
 ## The honest summary
 
-**Below ~1,000 DAU this app costs about $36/month, and $28 of that is the
+**Below ~1,000 DAU this app costs about $37/month, and $28 of that is the
 Apple developer program and a Claude subscription.** The infrastructure is
-effectively free at launch sizes — $0 at 50 DAU, ~$2 at 500, ~$6 at 1,000
-— and the number that moved in this pass is the mid-range: $46/month at
-5,000 DAU where this document used to say $7.26, three quarters of it the
-D98 surfaces doing exactly what D98 built them to do. $46 at real traction
-is still a trivially good trade; what changed is that the biggest line is
-now a product behaviour (how often people open who-voted, Kindred,
-Circle) rather than a fixed boot cost, so the first week of real usage
-can move this prediction in either direction by measuring three open
-rates.
+effectively free at launch sizes — $0 at 50 DAU, ~$2 at 500, ~$7 at 1,000
+— and $59/month at 5,000 DAU, where this document has previously said
+$7.26 and then $46. None of those three numbers described a different app.
+They described the same app modelled with progressively fewer missing
+terms, and the direction has been up every time, which is the single most
+useful thing this page can tell you about its own reliability.
+
+What changed in the D124 pass is less about the total than about its
+shape. The two biggest lines are now the D98 surfaces (a product
+behaviour, moved by an open rate or a cap) and the listener fan-out (an
+architecture property, moved only by polling instead of streaming), and
+they cross just past 10 k DAU. Below that, a week of real usage measuring
+three open rates and `bgCycles` moves this prediction more than any code
+change would.
 
 That is still the correct answer to "can I afford to launch this": yes, by
 a wide margin, and the cost of being wrong about demand is not measured in
@@ -536,9 +801,40 @@ surprise:
 - **Cloud Logging volume**, estimated in the fixed-cost table above but not
   derived from the actual log statements per invocation.
 - **The catalog trigger's third read**, above — deliberate, it is not live.
-- **Retries.** Every function invocation is priced once. `retry: true` on
+- **Retries.** ~~Every function invocation is priced once. `retry: true` on
   the answer trigger means an at-least-once delivery can bill twice, and
-  nothing here models the rate.
+  nothing here models the rate.~~ **Bounded 2026-08-13, and the answer is
+  reassuring enough to be worth stating rather than leaving open.** The
+  rate is still not modelled and does not need to be, because the *ceiling*
+  is: `setGlobalOptions` sets `maxInstances: 10` (functions/src/ops.ts) and
+  no per-function override raises it. Ten instances of the hot trigger's
+  shape (1 vCPU, 512 MiB) pegged for an entire month is 25.9 M vCPU-seconds
+  and 13.0 M GiB-seconds — **$649/month net of the free tier, and that is
+  the worst case for a runaway in any one function**: a retry storm, a
+  poison-pill redelivery loop, an accidental self-trigger, or a deliberate
+  flood. Compute cannot run away here. What it can do instead is throttle:
+  ten instances at concurrency 20 is 200 simultaneous folds, so past that
+  answers queue rather than cost more, which is the correct trade for this
+  app and worth knowing is the one being made.
+
+  **`maxInstances` is per function, not per deploy** — checked rather than
+  assumed, and the first draft of this paragraph had it wrong. Every one of
+  the 19 exported functions is stamped with its own 10, so the theoretical
+  ceiling if all of them pegged at once is $12,219/month rather than $649.
+  That case needs 19 simultaneous independent runaways and is not the one
+  to plan against; the $649 is. The verification is a two-line probe against
+  the built output (`__endpoint.maxInstances` on each export), which is also
+  how the count of 19 above is known — the same shape `check:fn-runtime`
+  already uses for memory and timeout.
+
+  Two things the cap does *not* cover, so the bound is not oversold. Each
+  retry re-issues the trigger's reads (`TRIGGER_READS.world` = 2), which
+  are billed on the Firestore side, not this one — a week-long backlog is
+  tens of millions of reads, tens of dollars, still small beside the
+  fan-out. And the correctness cost is the real one: while the trigger is
+  failing, the Mirror silently stops moving. That is what
+  `monitoring/onV2AnswerCreated-errors.json` watches, and it is the reason
+  that policy's runbook says to deploy a no-op body before fixing forward.
 - **The moderation and mod-queue jobs.** Daily, bounded by flag volume
   rather than DAU, and currently zero because no client can create a flag.
 - **`egress` on the functions side** — callable responses, which are

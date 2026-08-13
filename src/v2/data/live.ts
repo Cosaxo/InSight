@@ -1262,7 +1262,13 @@ const SOCIAL = {
   // exactly this list and the cache keys per question.
   async loadTakes(gid: string, qid?: string): Promise<void> {
     const key = takeScopeKey(gid, qid);
-    if (key == null || state.takesLoading[key]) return;
+    // Cache guard as well as in-flight guard — same omission, same effect
+    // as loadVoters above: LiveTakesPanel loads on a `[gid, qid]` effect,
+    // so without this every return to the panel re-ran the query. The
+    // failure path still leaves the key absent on purpose (a cached empty
+    // list reads exactly like a circle that never wrote a take), so a
+    // transient failure retries and a real empty result is kept.
+    if (key == null || state.takesLoading[key] || state.takes[key]) return;
     state.takesLoading[key] = true;
     try {
       const db = await getDb();
@@ -1274,12 +1280,14 @@ const SOCIAL = {
             where("qid", "==", qid),
             where("hidden", "==", false),
             orderBy("createdAt", "desc"),
+            limit(TAKE_FETCH_CAP),
           )
           : query(
             collection(db, "v2_takes"),
             where("gid", "==", gid),
             where("hidden", "==", false),
             orderBy("createdAt", "desc"),
+            limit(TAKE_GROUP_FETCH_CAP),
           ),
       );
       state.takes[key] = snap.docs.map((d) => takeFromDoc(d.id, d.data() as Record<string, unknown>));
@@ -1407,6 +1415,37 @@ const SOCIAL = {
 // for a world scope without naming the question — an impossible list, so
 // the store refuses it instead of minting a `world:undefined` key that
 // would alias every such mistake onto one phantom question.
+// ── the takes read bounds ────────────────────────────────────────
+//
+// Both `loadTakes` branches shipped with no `limit()` at all, which made
+// them the last unbounded read in the app — the shape D102 capped in
+// `fetchVoters` and did not look for anywhere else. They get two different
+// numbers because they are two different crowds, the same way
+// VOTER_FETCH_CAP and CIRCLE_ANSWER_CAP are.
+//
+// WORLD is the dangerous one and the reason this is not deferred. The
+// daily question is globally shared (`computeDeckIds` takes no uid), so
+// "takes on today's world question" is roughly everyone who spoke today —
+// the query returned ~DAU documents per open and grew linearly forever.
+// 100 is a display cap: a screen of talk, newest first, which is what the
+// panel renders anyway.
+const TAKE_FETCH_CAP = 100;
+
+// A GROUP's crowd is its own history, not the population, so this is a
+// ceiling rather than a display cap — high enough that no real circle
+// reaches it, low enough that the query cannot run away. It is deliberately
+// NOT 100: `takes()` filters this list by qid IN MEMORY (the group branch
+// keys on gid alone, and the D65 query-shape tests call loadTakes with no
+// qid), so a tight cap here would silently hide an older question's takes
+// behind newer chatter — a correctness bug bought with a rounding error.
+//
+// The better fix is to move `qid` into the group query and key on
+// `gid:qid`; the composite index for it is already committed
+// (firestore.indexes.json, v2_takes gid+qid+hidden+createdAt). That is a
+// behaviour change to a documented query shape rather than a bound, so it
+// is recorded here and not taken in a cost pass.
+const TAKE_GROUP_FETCH_CAP = 500;
+
 function takeScopeKey(gid: string, qid?: string): string | null {
   if (gid !== "world") return gid;
   return qid ? `world:${qid}` : null;
@@ -1684,7 +1723,18 @@ const LIVE = {
   // mounts when someone opens the who-voted sheet, so a feed of fifty
   // cards costs nothing until one is asked about.
   async loadVoters(qid: string): Promise<void> {
-    if (!qid || state.votersLoading[qid]) return;
+    // `state.voters[qid]` is the CACHE guard and `votersLoading` the
+    // in-flight one, and for a while only the second existed — so the
+    // declaration's "fetched on demand and held for the session" described
+    // an intent the code beside it did not implement, and every remount of
+    // the sheet re-ran the whole fetch. LiveVotersPanel loads on a
+    // `[qid]` effect, so that is once per open, not once per session:
+    // ≤200 answers plus name resolution, charged again on every tab
+    // return. Absent still means "we could not ask" and still retries —
+    // the error path deliberately leaves the key unset — while an empty
+    // array now means "nobody answered" and is kept, which is what
+    // distinguishing those two states was for.
+    if (!qid || state.votersLoading[qid] || state.voters[qid]) return;
     state.votersLoading[qid] = true;
     try {
       const db = await getDb();
@@ -1809,9 +1859,19 @@ const LIVE = {
   // place in the app that reads a named individual's whole answer set —
   // so unlike Kindred it costs a query per member and is loaded only
   // when the stop is opened.
-  async loadCircle(): Promise<void> {
+  async loadCircle(force = false): Promise<void> {
     const me = state.uid;
+    // The most expensive of the three: one query PER MEMBER, up to
+    // FOLLOW_CAP members x CIRCLE_ANSWER_CAP answers each. LiveCircleBody
+    // mounts it on an empty-dep effect, so before the cache guard every
+    // remount of the stop paid that again.
+    //
+    // `force` exists for exactly one caller: setFollowing, which changes
+    // the membership the fold is over and therefore genuinely needs the
+    // refetch it asks for. Making it a parameter rather than clearing
+    // state.circle keeps the "who may invalidate this" list to one site.
     if (!this.enabled || !me || state.circleLoading) return;
+    if (!force && state.circle) return;
     state.circleLoading = true;
     notify();
     try {
@@ -1871,7 +1931,7 @@ const LIVE = {
       } else {
         await circleMod.unfollow(db, me, uid);
       }
-      await this.loadCircle();
+      await this.loadCircle(true);
     } catch (err) {
       reportError(err, { where: "setFollowing" });
     }
@@ -2478,6 +2538,10 @@ let sessionRecoveryTried = false;
 // new one, or the two interleave and one account's answers render as the
 // other's.
 function resetForNewUid(uid: string): void {
+  // A detach armed under the OLD uid must not fire against the new one's
+  // listeners: it would drop them with nothing to re-attach until the next
+  // wake, which reads on screen as a deck that stopped updating.
+  cancelIdleDetach();
   try {
     state.groupsUnsub?.();
     Object.values(state.aggUnsubs).forEach((u) => { try { u(); } catch { /* best-effort */ } });
@@ -2737,14 +2801,78 @@ export function refreshLive(): Promise<void> {
 // attached or the deck has aged out.
 function wake(): void {
   if (torndown) return;
+  cancelIdleDetach();
   if (typeof navigator !== "undefined" && navigator.onLine === false) return;
   if (!state.ready) {
     void refreshLive().catch((err) => reportError(err, { where: "refreshLive.wake" }));
     return;
   }
   // Attaches listeners for the new day's deck if the date rolled over
-  // while the app was backgrounded; no-op otherwise.
+  // while the app was backgrounded — and, since the idle detach below,
+  // re-attaches whatever that dropped. Still a no-op for a session that
+  // never went idle.
   void resubscribeForToday();
+}
+
+// ── the idle detach (COSTS.md, the listener fan-out) ─────────────
+//
+// Backgrounding used to leave every snapshot listener attached. Nothing in
+// this file tore one down outside `resetForNewUid` and account deletion, so
+// a Capacitor WebView the OS keeps resident went on receiving — and being
+// billed for — every publish to today's aggregate for as long as it lived.
+//
+// That is not a small correction to the bill, because it is the input the
+// whole fan-out term is linear in. The cost model calls the input
+// `onlineMin` and glosses it "minutes with the app actually open"
+// (scripts/cost-arith.mjs), which is the number a person would estimate at
+// 3. What the fan-out actually charges for is minutes with a LISTENER
+// ATTACHED, and until this block those two were only equal by luck. At
+// `onlineMin` 60 the modelled bill at 50 k DAU goes from $1,224/mo to
+// $16,689, and the crossover where the fan-out overtakes every flat read
+// source moves from ~30,800 DAU to ~1,540 — under D7's write-contention
+// wall at 14,400, inverting the ordering COSTS.md names as the property
+// worth keeping (break technically before the invoice surprises anyone).
+//
+// WHY A GRACE PERIOD AND NOT AN IMMEDIATE DETACH. Re-attaching is not
+// free: an `onSnapshot` attach delivers the document once, so coming back
+// costs a read per listener. `wake()` above is written around the ten-
+// second app swap, and detaching on every hide would charge that swap 7
+// fresh deck reads to save a few seconds of fan-out. The break-even is the
+// ratio of the two: re-attach is ~7 reads flat, while staying attached
+// costs the publish rate on the shared daily, which is ~21 reads/minute at
+// 5,000 DAU and ~2 at 500. So a minute is comfortably the right order —
+// it makes the common swap free at every size, and it converts an
+// unbounded tail into a bounded 60 seconds.
+const IDLE_DETACH_MS = 60_000;
+let idleDetachTimer: ReturnType<typeof setTimeout> | null = null;
+
+function cancelIdleDetach(): void {
+  if (idleDetachTimer) {
+    clearTimeout(idleDetachTimer);
+    idleDetachTimer = null;
+  }
+}
+
+// Exactly the set `resubscribeForToday()` restores — agg and reveal — so
+// teardown and re-attach are the same list read twice. `groupsUnsub` is
+// deliberately NOT dropped: nothing re-attaches it short of a full
+// `refreshLive()`, and it is one listener on a membership query that
+// publishes when a group changes, not on the hot shared daily.
+function detachIdleListeners(): void {
+  Object.values(state.aggUnsubs).forEach((u) => { try { u(); } catch { /* best-effort */ } });
+  Object.values(state.revealUnsubs).forEach((u) => { try { u(); } catch { /* best-effort */ } });
+  state.aggUnsubs = {};
+  state.revealUnsubs = {};
+}
+
+// Exported for the test, which is the only way to prove this: a listener
+// that is still attached looks identical to one that is not until
+// something counts them.
+export function _idleDetachForTest(): { pending: boolean; run: () => void } {
+  return {
+    pending: idleDetachTimer !== null,
+    run: () => { cancelIdleDetach(); detachIdleListeners(); },
+  };
 }
 
 export async function initLive(timeoutMs = 2500): Promise<void> {
@@ -2818,6 +2946,15 @@ export async function initLive(timeoutMs = 2500): Promise<void> {
         cancelAggCache();
         writeAggCache();
       }
+      // …and stop paying for deliveries nobody is looking at. Armed rather
+      // than run, so the ten-second app swap this file is otherwise written
+      // around stays free — see IDLE_DETACH_MS.
+      cancelIdleDetach();
+      idleDetachTimer = setTimeout(() => {
+        idleDetachTimer = null;
+        if (torndown) return;
+        detachIdleListeners();
+      }, IDLE_DETACH_MS);
     });
   }
   // Whether boot loses the race (slow network) or fails outright, the

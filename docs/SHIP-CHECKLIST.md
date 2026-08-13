@@ -516,6 +516,45 @@ Until then links open the fallback page — degraded, not broken.
 
 ## 5 · Post-deploy ops toggles
 
+- **A Cloud Billing budget — five minutes, and the only thing on this page
+  that bounds a surprise rather than predicting one.** Nothing in this repo
+  can observe whether it exists, which is why it is a checklist line and not
+  a gate (D117's problem, pointed at money). Everything in docs/COSTS.md
+  forecasts the bill; a forecast is only as good as the behaviour it
+  assumed, and that document has been corrected four times for missing a
+  term rather than mis-estimating one. A budget fires on the outcome.
+
+  ```
+  gcloud billing budgets create \
+    --billing-account=<ACCOUNT_ID> \
+    --display-name="InSight" \
+    --budget-amount=50USD \
+    --filter-projects=projects/prvfire33 \
+    --threshold-rule=percent=0.5 \
+    --threshold-rule=percent=0.9 \
+    --threshold-rule=percent=1.0 \
+    --threshold-rule=percent=1.5
+  ```
+
+  $50 comes from the model, not from feel: launch sizes come out at $0–$2
+  a month and 5,000 DAU at $46, so $50 reads as "traction arrived, or
+  something is wrong", and the 150% rule still pages while the number is
+  two figures. Note what it does **not** do — a budget notifies, it does
+  not cap. Firestore has no spend limit; the only hard stop is a budget →
+  Pub/Sub → function that detaches the billing account, which takes the app
+  down with it, and for an app whose worst modelled launch month is $2 the
+  outage is the more expensive failure. Recorded as available, not built.
+
+- **Apply the alert policies with a channel** — `npm run monitoring:apply
+  --email you@example.com --apply`. `notificationChannels` is `[]` in all
+  four committed policies by design (the channel is per-operator, not
+  per-repo), and a policy with no channel evaluates correctly and pages
+  nobody. `monitoring/firestore-read-runaway.json` is the cost one: it
+  fires on billed reads above 500/sec sustained for five minutes, which is
+  ~37× the modelled peak at 500 DAU and about $780/month if it ran all
+  month. Raise it before ~13,100 DAU — the retune arithmetic is in the
+  policy's own runbook.
+
 - **TTL for the aggregate event ledger** (one-time, console or gcloud):
   `gcloud firestore fields ttls update expireAt --collection-group=v2_agg_events --enable-ttl --project=prvfire33`
   — the trigger stamps `expireAt` (+90 days, `LEDGER_RETENTION_DAYS`).
