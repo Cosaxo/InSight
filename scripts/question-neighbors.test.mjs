@@ -11,6 +11,7 @@ import {
   dailyIdOf,
   buildDomains,
   scanDomain,
+  ALLOW,
   batchEntryOf,
   scanBatch,
   foldWord,
@@ -173,6 +174,34 @@ describe("the live corpus", () => {
       "the closest legitimate pair moved — re-read it, then re-pin this",
     ).toBe("duel gp2~047 @ 0.400");
     expect(worst.s).toBeLessThan(GATE);
+  });
+
+  it("an ALLOWED pair is exempt from BOTH the gate and the margin", () => {
+    // The escape hatch this file's header advertises did not work until the
+    // first pair needed it. `closest` was computed before the exemption was
+    // consulted, so an allowed pair still counted as the margin-spender and
+    // the case above still failed — one test silenced, the other
+    // unsilenceable. ALLOW had been empty since D63, so nothing exercised
+    // it.
+    //
+    // Asserted against the real ALLOW rather than a fixture, and asserted
+    // structurally rather than by naming pk09~pk13: the entry is content
+    // and content moves, but the INVARIANT is that an exemption exempts
+    // from both. Pinned here because the two cases above only cover it
+    // while that particular pair happens to exist.
+    expect(ALLOW.size).toBeGreaterThan(0);
+    for (const [key, reason] of ALLOW) {
+      expect(reason, `${key} is exempt with no reason recorded`).toBeTruthy();
+    }
+    const allowedKeys = new Set(ALLOW.keys());
+    for (const name of ["daily", "feed", "duel", "pick", "learn"]) {
+      const { hits, closest } = scanDomain(domains[name]);
+      expect(hits.map((h) => h.key).filter((k) => allowedKeys.has(k))).toEqual([]);
+      if (closest) {
+        const key = [closest.a.id, closest.b.id].sort().join("~");
+        expect(allowedKeys.has(key), `${name}: closest pair ${key} is ALLOWED`).toBe(false);
+      }
+    }
   });
 
   it("still sees the ungated suggestion twins (the detector is alive)", () => {
