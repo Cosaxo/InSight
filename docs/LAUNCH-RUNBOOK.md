@@ -443,6 +443,20 @@ arithmetic.
       and came back with no answer changed** — the reasoning under two of
       them had gone stale, which is D130.
 
+      **BUILD 12 UPLOADED 2026-08-13** (run 18, `d0cf435`, 5m 30s, upload
+      step `success`): `UPLOAD SUCCEEDED with no errors`, delivery UUID
+      `3e3880c1-29f7-4ae6-98a2-7a18137f1289`, 5,959,190 bytes. Both APNs
+      gates passed — the archive's entitlement and, separately, the
+      exported `.ipa`'s — as did the D116 pre-flight. It went straight to
+      `upload = true` with no archive-only rehearsal, which is the same
+      shape as build 11 and is what 2.4 permits once signing is proven:
+      the rehearsal existed to prove the chain, and run 7 did that.
+
+      **`appBuild` is now 13**, bumped straight after that upload, which
+      is this section's whole convention — the workflow's own closing line
+      says it too. **Build 12 is the highest on App Store Connect**, so the
+      comparison passes for the next run as-is.
+
       **`npm run check:versions -- --fix` does NOT increment.** It
       propagates package.json's value into the two native projects and
       nothing more, so "run --fix to bump" is wrong and reports a cheerful
@@ -801,7 +815,8 @@ That is a tester-count problem, not a workflow problem.
       it for two policies is the worse trade. Both cover failures that look like nothing from the
       outside: the app keeps serving while the Mirror stops moving, or
       keeps moving while falling further behind. `DEPLOYMENT.md § Alerting`.
-- [x] **5.6 Version lockstep — holds at 2.0.0 build 12 (verified 2026-08-13).**
+- [x] **5.6 Version lockstep — holds at 2.0.0 build 13 (verified 2026-08-13,
+      after build 12's upload).**
       *This line said build 11 until 2026-08-13, one day after 2.4 bumped
       the number it quotes.* Harmless in itself and worth naming anyway: it
       is the D39 shape — a figure kept current by intention — inside the
