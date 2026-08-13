@@ -11737,3 +11737,130 @@ per render; it also means a passive result does not sync across devices
 the way a sit-down result did. Writing it would need a rule about which
 wins when two devices fold different answer sets, and that is a decision
 to take when a second device is a thing people actually have here.
+
+## D122 · Handles: the app gets an address, and a circle gains members by invitation
+
+**Decided:** 2026-08-13 · **Status:** binding. Owner's call, from
+"invite codes feel clunky — you should be able to add your friends and
+they accept". Both halves of that are decisions, and the second one is
+not the hard one.
+
+### The invite code was not clunky by accident
+
+It was the app's ONLY address. Before this:
+
+- `displayName` is free text, not unique, not indexed. Two Annas are
+  indistinguishable.
+- Live people search returns **nothing** — `samplePeople === false` makes
+  the section render empty, by design (D1: the demo cast must not reach a
+  live build).
+- The only humans who become reachable are the ones who surface in a
+  who-voted sheet or in Kindred: strangers ranked by likeness, not your
+  friends.
+
+So "add your friends" needed an addressing scheme before it could need an
+accept step, and removing the code without one would have removed the
+ability to reach a specific person at all.
+
+**The code is not deleted.** It is the only thing that reaches someone
+with no account yet, which for a young app is most of anyone's friends —
+so it survives inside the share link, where nobody reads it, and the
+first-run screen stops asking for it. What was clunky was being asked to
+*type* one; a link is a code you never see. The field is now behind
+"Have an invite code?", and opens itself when a tapped link prefills it.
+
+### Why an invitation needs consent when a follow does not
+
+D101 refused an accept step for follows and its reasoning holds: since
+D98 a follow grants no access the follower did not already have, so
+consent has nothing to protect.
+
+An invitation is different, and the line is clean: **joining a circle
+puts your name on a sealed daily answer that is then revealed to those
+people.** That IS access the other side does not otherwise have. Follows
+stay one-way and silent; invitations are offered and accepted.
+
+### Anyone may invite anyone
+
+Owner's call, and worth stating what it does and does not open. An
+invitation carries the inviter's handle and a circle name to someone who
+did not ask for either. It grants nothing until accepted, and reveals
+nothing about the invitee that D98 had not already published.
+`INVITES_PER_HOUR` is the whole defence against volume; declining is one
+tap and tells the inviter nothing, because a "declined" state would make
+refusing someone a message you have to send them — which is what makes
+people accept invitations they do not want.
+
+There is no server-side block to lean on: `data/mutes.ts` is local-only
+by design (D83). If invite spam becomes real, a block is the answer and
+it is not built here.
+
+### The registry, and the exposure it is
+
+`v2_handles/{handle}` — one document per taken handle, id = the canonical
+form, holding the uid. **Uniqueness is the DOCUMENT ID**, not a field, so
+it needs no index and no query, and a transaction that creates it simply
+fails when someone else got there first.
+
+Readable by any signed-in user, and **that is a real widening rather than
+a consequence of D98**. Public answers means "anyone holding your uid can
+read them". A readable registry means "anyone who knows your handle can
+find them". Those are different exposures, and this one is deliberate: a
+directory nobody may read cannot let a friend find you. What it is not is
+a listing — there is no query surface, only exact-id lookup, so the
+registry answers "is @olaf someone" and never "who is everyone".
+
+Writes are server-only on both surfaces, and for a reason rules cannot
+express: a claim is two writes that must not interleave (take the new
+key, release the old), and accepting an invitation appends to
+`memberUids` — the array `firestore.rules` reads to decide who may see a
+sealed duel answer. A client-writable membership array is a
+client-writable ACL.
+
+### Three things the gates caught
+
+**`handle` had to join the `v2_users` hasOnly allowlist.**
+`request.resource.data` is the RESULTING document, so once the callable
+has written a handle, a merge that only touches `displayName` still
+presents `handle` in its key set and `hasOnly` refuses it. Leave it off
+and claiming a handle silently freezes your display name forever — a
+failure that ships green. Mutation-checked: removing it fails exactly one
+rules case.
+
+**The Firestore SDK came back to first paint.** `data/handles.ts` and
+`data/invites.ts` statically imported `firebase/firestore`, and both are
+reached from `LiveDuelPanel` / `LivePrivacyPanel`, which are eager.
+check:bundle measured the eager graph at **1270 KB against a 955 KB
+ceiling** — precisely the tree as it stood before D110, which is the
+regression that gate was written to catch. Fixed by splitting on **what
+may be imported eagerly** rather than by subject: validation and wording
+stay with their features, the two reads moved to `data/socialFetch.ts`,
+which only live.ts reaches and only through a dynamic import inside an
+already-async method. Same shape `data/circle.ts` has. Back to 949 KB.
+
+**The live fixture and the pinned surface both refused to drift.**
+`vote.test.ts` pins `LIVE.social`'s members and `live-fixture.ts` has to
+match; adding eight members without listing them failed both, which is
+the pin working as documented.
+
+### The duplication that is deliberate
+
+`normalizeHandle` exists twice — `functions/src/pure.ts` and
+`data/handles.ts` — because `functions/` ships as its own package and
+there is no build graph joining them. The client copy exists so the field
+can answer while you type; the server copy exists because a client check
+is a courtesy and the callable is the gate. `handles.test.ts` reads the
+server file as TEXT and asserts the bounds, the charset and the reserved
+list match exactly, in both directions — the cheap version of one source.
+
+### Not done here
+
+- **No handle search-as-you-type.** Lookup is exact-id, which is what the
+  rules grant and all that "add @olaf" needs. A prefix search is a
+  listing and would need its own decision.
+- **No push on an invitation.** The only notification this product has
+  earned is "your reveal is out" (data/push.ts). An invitation waits
+  until you open the app.
+- **No handle on the who-voted sheet or Kindred rows.** Those name people
+  by `displayName` today; showing a handle there is how you would add
+  someone you met through their answers, and it is a follow-on.
