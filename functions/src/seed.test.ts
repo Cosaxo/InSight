@@ -60,6 +60,15 @@ function storedForm(q: typeof victim, overrides: Record<string, unknown> = {}) {
     surface: q.surface, seq: q.seq, type: q.type, domain: q.domain ?? null,
     prompt: q.prompt, options: q.options, topic: q.topic ?? null,
     axis: q.axis ?? null, test: q.test ?? null,
+    // continuum range/plane copy (D114) — emit-when-set, mirroring the
+    // payload, and in SEEDED_FIELDS, so the no-op test would report
+    // phantom writes for the dial/field entries without these
+    ...(typeof q.lo === "number" ? { lo: q.lo } : {}),
+    ...(typeof q.hi === "number" ? { hi: q.hi } : {}),
+    ...(typeof q.unit === "string" ? { unit: q.unit } : {}),
+    ...(Array.isArray(q.ends) ? { ends: q.ends } : {}),
+    ...(Array.isArray(q.ax) ? { ax: q.ax } : {}),
+    ...(Array.isArray(q.ay) ? { ay: q.ay } : {}),
     ...overrides,
   };
 }
@@ -103,6 +112,22 @@ describe("runSeedV2 refuses option-set edits to live questions (D58)", () => {
     await expect(runSeedV2(db)).rejects.toThrow(/option-set edit/i);
     // The one thing that must be true whatever else happens.
     expect(written[victim.id]).toBeUndefined();
+  });
+
+  it("freezes a dial's range with its options — a changed lo is a refused edit", async () => {
+    // D114: a continuum answer is a stored optionIdx into synthesized
+    // bucket labels, so the labels ARE positions on the range. A stored
+    // doc whose labels came from a different lo (the range the answers
+    // were actually cast on) must refuse the new set exactly like any
+    // option edit — otherwise every stored answer silently slides.
+    const dial = V2_QUESTIONS.find((q) => q.type === "dial")!;
+    const shifted = (dial.options as string[]).map((l, i) => (i === 0 ? "35–39 yrs" : l));
+    const { db, written } = fakeDb(allStored({
+      [dial.id]: storedForm(dial as typeof victim, { options: shifted, lo: 35 }),
+    }));
+
+    await expect(runSeedV2(db)).rejects.toThrow(/option-set edit/i);
+    expect(written[dial.id]).toBeUndefined();
   });
 
   it("names the question, the stored set and the desired set in the error", async () => {

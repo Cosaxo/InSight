@@ -1,18 +1,26 @@
 // @vitest-environment jsdom
 //
-// LiveCohortBody renders the Mirror's Near / Country / World stops from the
-// k-floored public aggregates. It is the panel with the most ways to lie
-// quietly, because everything it draws is a claim about a cohort:
+// LiveCohortBody renders the Mirror's City / Country / World stops from
+// the public aggregates — exact, unfloored, published from the first
+// answer since D98 (Near split off to NearLiveBody at D111). It is the
+// panel with the most ways to lie quietly, because everything it draws
+// is a claim about a cohort:
 //
-//   - an ABSENT breakdown cell means "below the floor", not "nobody answered".
-//     Dropping it silently is the failure this panel's `withheld` counter
-//     exists to prevent, and a counter is exactly the kind of thing that
-//     keeps compiling after it stops being correct.
-//   - at world scope the server's own `tooSmall` flag is authoritative, "an
-//     agg can carry stale counts while still being below it". Reading the
-//     counts instead would publish a split the floor withheld.
-//   - the floor NUMBER is printed to the user, so it has to be the floor the
-//     server actually enforces.
+//   - an ABSENT breakdown cell means ZERO — nobody in this cohort has
+//     answered — and dropping it silently is still the failure the counter
+//     under the list exists to prevent: a question that vanishes reads as
+//     "not asked here" rather than "not answered here". A counter is
+//     exactly the kind of thing that keeps compiling after it stops being
+//     correct.
+//   - "no aggregate document at all" is a THIRD state, distinct from both
+//     an empty cell and an answered one, and claiming either of the others
+//     for it would tell the user something nobody knows.
+//   - nothing consults `tooSmall`. The three bullets that stood here
+//     described the k-floor — an absent cell meaning "withheld", the
+//     server's flag beating stale counts, and the floor number being
+//     printed to the user — and D98 deleted all three along with the
+//     floor. The cases below are their inverses, kept so the flag's return
+//     would fail rather than quietly re-hide the app.
 //
 // The mount tests in test/smoke-live.test.jsx render this panel as part of
 // the app and prove it does not crash. That is a different question from
@@ -24,7 +32,7 @@
 // the ones the real store would never produce twice in a row.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
@@ -51,8 +59,20 @@ const LIVE = vi.hoisted(() => ({
   kindred: () => [] as Array<{ uid: string; name: string; like: { shared: number; same: number; pct: number } }>,
   kindredLoading: () => false,
   kindredDepth: () => 0,
-  // The Right now card (D84). Reassigned per case; the default is the
-  // supported-but-off pitch state.
+  // The constellation field (D112) mounts inside this panel too, lazily.
+  // Stubbed empty — data/similarity.test.ts owns the arithmetic and the
+  // field renders its honest empty state here, which is what these cases
+  // should scroll past.
+  loadSimilarity: async () => {},
+  similarityLoading: () => false,
+  testFeedItems: () => [] as Array<Record<string, unknown>>,
+  myTestResults: () => ({} as Record<string, unknown>),
+  kindredPeople: () => [] as Array<Record<string, unknown>>,
+  isFollowing: () => false,
+  setFollowing: async () => {},
+  // LIVE.near survives on the mock because the D92 city-derive effect
+  // still reads the grant state here; the CARD moved to NearLiveBody
+  // (D111), which has its own suite.
   near: {
     supported: () => true as boolean,
     on: () => false as boolean,
@@ -157,11 +177,12 @@ describe("LiveCohortBody · an absent cell is counted and named", () => {
 });
 
 describe("LiveCohortBody · world scope shows what the aggregate holds", () => {
-  it("withholds a question flagged tooSmall even when it carries counts", () => {
-    // The exact shape the comment in the panel warns about: an aggregate
-    // that still has counts on it from an earlier publish while the server
-    // now says it is below the floor. Rendering the counts would publish a
-    // a question with no answers at all.
+  it("leaves out a question whose aggregate has no answers on it", () => {
+    // Retitled at the D98 doc sweep: this used to read "withholds a
+    // question flagged tooSmall even when it carries counts", which is not
+    // what the body does — there is no flag anywhere in it. The state under
+    // test is `total: 0`, i.e. nobody has answered, and the panel accounts
+    // for it in words rather than drawing an empty row.
     LIVE.aggFor = (qid) => qid === "q1"
       ? { counts: { "0": 30, "1": 20 }, total: 50 }
       : { counts: {}, total: 0 };
@@ -195,7 +216,7 @@ describe("LiveCohortBody · no city is a prompt, not an empty panel", () => {
     // moment the claim is checkable by the person reading it.
     LIVE.myCity = "";
     render(<LiveCohortBody scope="city" />);
-    expect(screen.getByText(/Near needs a city/i)).toBeTruthy();
+    expect(screen.getByText(/City needs your city/i)).toBeTruthy();
     expect(screen.getByText(/only the city name is saved, never your coordinates/i)).toBeTruthy();
   });
 
@@ -266,13 +287,13 @@ describe("LiveCohortBody · with the counter on, the city derives itself (D92)",
   it("never locates while the counter is OFF — D9's ask is unchanged", () => {
     // The apply-not-suggest carve-out is scoped to the standing grant.
     // Without it, the panel must not touch the sensor: the ask renders,
-    // the picker stays, and the copy points at the counter as the
-    // hands-free path.
+    // the picker stays, and the copy points at the counter — which lives
+    // at the Near stop since D111 — as the hands-free path.
     LIVE.myCity = "";
     render(<LiveCohortBody scope="city" />);
     expect(locateCity).not.toHaveBeenCalled();
-    expect(screen.getByText(/Near needs a city/i)).toBeTruthy();
-    expect(screen.getByText(/Turning on the count above fills it in/i)).toBeTruthy();
+    expect(screen.getByText(/City needs your city/i)).toBeTruthy();
+    expect(screen.getByText(/Turning on the count at the Near stop fills it in/i)).toBeTruthy();
   });
 
   it("never locates when a city is already set", () => {
@@ -291,7 +312,7 @@ describe("LiveCohortBody · with the counter on, the city derives itself (D92)",
     render(<LiveCohortBody scope="city" />);
     await vi.waitFor(() => expect(screen.queryByText(/Finding your city/i)).toBeNull());
     expect(setCityAnchor).not.toHaveBeenCalled();
-    expect(screen.getByText(/Near needs a city/i)).toBeTruthy();
+    expect(screen.getByText(/City needs your city/i)).toBeTruthy();
     expect(screen.getByRole("button", { name: /Choose your city/i })).toBeTruthy();
     expect(locateCity).toHaveBeenCalledTimes(1);
   });
@@ -318,8 +339,12 @@ describe("LiveCohortBody · it shows counts, never people (D5)", () => {
     for (const name of ["Sigrid", "Bø", "match", "away"]) {
       expect(text.includes(name), `the cohort panel rendered "${name}"`).toBe(false);
     }
-    // …and it does show the thing it is for.
-    expect(text).toMatch(/12 answers/);
+    // …and it does show the thing it is for: the headline reading (7 of 12
+    // is 58% Yes) and the count behind it.
+    expect(text).toMatch(/58%/);
+    // getAllBy: this fixture gives both questions the same cell, so both
+    // rows carry the same count.
+    expect(screen.getAllByText("12").length, "the row does not say how many answered").toBeGreaterThan(0);
   });
 });
 
@@ -350,69 +375,20 @@ describe("the panel prints no floor claim at all (D98)", () => {
   });
 });
 
-describe("the Right now card (D84 — Near by radius)", () => {
-  it("renders on the Near stop even with NO city — radius needs none", () => {
-    // The whole point of the feature: Near stops being a dead end for a
-    // user who never picked a city. The card sits above the city ask.
-    LIVE.myCity = "";
+describe("the presence card stays out of the cohort panel (D111)", () => {
+  it("renders no Right-now card at any scope — Near owns it now", () => {
+    // The card lived here from D84 to D111 and its suite moved to
+    // NearLiveBody.test.tsx with it. What this panel must keep is the
+    // absence: a second copy of the counter behind a different stop is
+    // the two-doors-to-one-room bug in presence form.
+    LIVE.aggFor = () => ({ by: { city: { "Oslo, NO": { "0": 7, "1": 5 } } } });
     render(<LiveCohortBody scope="city" />);
-    expect(screen.getByText(/Right now, around you/i)).toBeTruthy();
-    expect(screen.getByRole("button", { name: /Turn on/i })).toBeTruthy();
-    // …and the city ask is still there beneath it.
-    expect(screen.getByText(/Near needs a city/i)).toBeTruthy();
-  });
+    expect(screen.queryByText(/Right now, around you/i)).toBeNull();
+    cleanup();
 
-  it("stays off the Country and World stops", () => {
-    LIVE.aggFor = () => ({ counts: { "0": 3 }, total: 3, tooSmall: false });
+    LIVE.aggFor = () => ({ counts: { "0": 3 }, total: 3 });
     render(<LiveCohortBody scope="world" />);
     expect(screen.queryByText(/Right now, around you/i)).toBeNull();
-  });
-
-  it("pitches honestly while off: a count, never who, kilometre-sized", () => {
-    render(<LiveCohortBody scope="city" />);
-    const text = document.body.textContent || "";
-    expect(text).toMatch(/a count, never\s+who/i);
-    expect(text).toMatch(/kilometre-sized grid square/i);
-    // No 500 m claim anywhere: the coarse permission cannot measure it,
-    // and the copy must not promise a radius the sensor cannot hold.
-    expect(text).not.toMatch(/500\s?m/i);
-  });
-
-  it("says just-you at zero, counts people above it, and 'a few' when floored", () => {
-    LIVE.near.on = () => true;
-    LIVE.near.count = () => 0;
-    render(<LiveCohortBody scope="city" />);
-    expect(screen.getByText(/Just you right now/i)).toBeTruthy();
-    cleanup();
-
-    LIVE.near.count = () => 3;
-    render(<LiveCohortBody scope="city" />);
-    expect(screen.getByText(/3 people with InSight within a couple of kilometres/i)).toBeTruthy();
-    cleanup();
-
-    // The restored-floor era (D81 revert): the server answers tooFew for
-    // 1-4 and the card says so without a number.
-    LIVE.near.count = () => null;
-    LIVE.near.tooFew = () => true;
-    render(<LiveCohortBody scope="city" />);
-    expect(screen.getByText(/A few people are around you/i)).toBeTruthy();
-  });
-
-  it("turn-on runs enable and a refusal lands as a sentence, not a dead card", async () => {
-    LIVE.near.enable = vi.fn(async () => ({ ok: false, reason: "denied" }));
-    render(<LiveCohortBody scope="city" />);
-    fireEvent.click(screen.getByRole("button", { name: /Turn on/i }));
-    expect(LIVE.near.enable).toHaveBeenCalled();
-    expect(await screen.findByText(/Near stays off until you allow location/i)).toBeTruthy();
-  });
-
-  it("turn-off calls disable — the doc-delete promise rides on it", async () => {
-    LIVE.near.on = () => true;
-    LIVE.near.count = () => 2;
-    LIVE.near.disable = vi.fn(async () => {});
-    render(<LiveCohortBody scope="city" />);
-    fireEvent.click(screen.getByRole("button", { name: /Turn off/i }));
-    expect(LIVE.near.disable).toHaveBeenCalled();
   });
 });
 
@@ -445,13 +421,18 @@ describe("LiveCohortBody · the Answers lens can be narrowed and re-ordered", ()
     LIVE.myVotes = () => ({ q1: "1" });
   });
 
-  const rowOrder = () => screen.getAllByRole("button", { expanded: false })
-    .map((b) => b.textContent || "")
-    .filter((t) => /agrees|heat|between/.test(t));
+  // Every row is a button carrying aria-expanded, open or closed — since
+  // D120 the FIRST one opens by default (the prototype's behaviour: a tab
+  // that opens onto a closed list reads as a table of contents), so
+  // selecting on `expanded: false` would silently drop the top row and
+  // make every ordering assertion below start at the second.
+  const rowOrder = () => [...document.querySelectorAll("button[aria-expanded]")]
+    .map((b) => (b.textContent || "").match(/Almost everyone agrees|Dead heat|Somewhere between/)?.[0])
+    .filter((t): t is string => !!t);
 
   it("defaults to most answers first", () => {
     render(<LiveCohortBody scope="city" />);
-    expect(rowOrder().map((t) => t.replace(/[+–]$/, ""))).toEqual([
+    expect(rowOrder()).toEqual([
       "Somewhere between", "Almost everyone agrees", "Dead heat",
     ]);
   });
@@ -459,13 +440,12 @@ describe("LiveCohortBody · the Answers lens can be narrowed and re-ordered", ()
   it("sorts by divisiveness, and by agreement as its exact inverse", () => {
     render(<LiveCohortBody scope="city" />);
     fireEvent.click(screen.getByRole("button", { name: "Most divisive" }));
-    const divisive = rowOrder().map((t) => t.replace(/[+–]$/, ""));
+    const divisive = rowOrder();
     expect(divisive[0]).toBe("Dead heat");
     expect(divisive[2]).toBe("Almost everyone agrees");
 
     fireEvent.click(screen.getByRole("button", { name: "Most agreed" }));
-    const agreed = rowOrder().map((t) => t.replace(/[+–]$/, ""));
-    expect(agreed).toEqual(divisive.slice().reverse());
+    expect(rowOrder()).toEqual(divisive.slice().reverse());
   });
 
   it("filters to one subject and drops the rest", () => {
@@ -478,22 +458,24 @@ describe("LiveCohortBody · the Answers lens can be narrowed and re-ordered", ()
     expect(screen.getByRole("button", { name: /Dead heat/ })).toBeTruthy();
   });
 
-  it("expands a row into per-option counts with your own answer named", () => {
+  it("expands a row into per-option counts and places you in the split", () => {
     render(<LiveCohortBody scope="city" />);
     fireEvent.click(screen.getByRole("button", { name: /Almost everyone agrees/ }));
-    // The point of expanding: 5% is too thin to label on the bar, so the
-    // count only exists in this view.
+    // The point of expanding: 5% is too thin to label on the collapsed
+    // stack, so the count only exists in this view.
     expect(screen.getByText("19")).toBeTruthy();
     expect(screen.getByText("1")).toBeTruthy();
     // Named, not merely tinted — a colour difference is not a reading.
-    expect(screen.getByText(/your answer/i)).toBeTruthy();
+    // Said as a sentence since D120, which is a stronger version of the
+    // same claim: it names your side AND how much of the room is on it.
+    expect(screen.getByText(/5% of Oslo are with you/i)).toBeTruthy();
   });
 
   it("says you have not answered rather than marking an option", () => {
     render(<LiveCohortBody scope="city" />);
     fireEvent.click(screen.getByRole("button", { name: /Dead heat/ }));
     expect(screen.getByText(/you have not answered this one/i)).toBeTruthy();
-    expect(screen.queryByText(/your answer/i)).toBeNull();
+    expect(screen.queryByText(/are with you/i)).toBeNull();
   });
 
   it("hides the controls when there is nothing to narrow", () => {
@@ -512,5 +494,87 @@ describe("LiveCohortBody · the Answers lens can be narrowed and re-ordered", ()
     render(<LiveCohortBody scope="city" />);
     expect(screen.queryByRole("button", { name: /^All / })).toBeNull();
     expect(screen.getByRole("button", { name: "Most divisive" })).toBeTruthy();
+  });
+});
+
+// ── the stop's tab row (D119) ─────────────────────────────────────────
+//
+// The layout the prototype has always specified and live mode never got:
+// Answers is a TAB beside the constellation and the four lenses, not the
+// page they hang under. What these cases hold is the pair of properties
+// the change is easy to get wrong on — that Answers is what a stop opens
+// on, and that the cost gate the old collapsed strip was carrying
+// survives the move.
+describe("LiveCohortBody · the lens row is the stop's tabs", () => {
+  const ARCHIVE = [
+    { id: "q1", text: "Almost everyone agrees", branch: "Mind", type: "binary", options: [{ label: "Yes" }, { label: "No" }] },
+  ];
+
+  // The cost case swaps two loaders on the shared mock; put them back so
+  // the leak stops at this describe rather than at the end of the file.
+  const realKindred = LIVE.loadKindred;
+  const realSimilarity = LIVE.loadSimilarity;
+
+  beforeEach(() => {
+    LIVE.aggregated = () => ARCHIVE;
+    LIVE.aggFor = () => ({ by: { city: { "Oslo, NO": { "0": 19, "1": 1 } } } });
+    LIVE.myVotes = () => ({});
+  });
+  afterEach(() => { LIVE.loadKindred = realKindred; LIVE.loadSimilarity = realSimilarity; });
+
+  const tabs = () => screen.getByRole("tablist", { name: /lenses/i });
+  const tab = (name: string) =>
+    [...tabs().querySelectorAll('[role="tab"]')].find((b) => b.textContent?.trim() === name) as HTMLElement;
+
+  it("offers six tabs and opens on Answers", () => {
+    render(<LiveCohortBody scope="city" />);
+    for (const name of ["Answers", "Overview", "People", "Compare", "Explore", "Scores"]) {
+      expect(tab(name), `the row is missing its ${name} tab`).toBeTruthy();
+    }
+    expect(tab("Answers").getAttribute("aria-selected")).toBe("true");
+    // …and Answers is a body, not a label: the rows are on screen.
+    expect(screen.getByText("Almost everyone agrees")).toBeTruthy();
+  });
+
+  it("swaps the body when a tab is picked, and puts it back", () => {
+    render(<LiveCohortBody scope="city" />);
+    fireEvent.click(tab("Compare"));
+    expect(tab("Compare").getAttribute("aria-selected")).toBe("true");
+    expect(
+      screen.queryByText("Almost everyone agrees"),
+      "the answer rows stayed on screen under another tab — the tabs are stacking, not swapping",
+    ).toBeNull();
+    fireEvent.click(tab("Answers"));
+    expect(screen.getByText("Almost everyone agrees")).toBeTruthy();
+  });
+
+  it("costs nothing for a tab nobody opened, and pays as soon as one is", async () => {
+    // The property the old collapsed strip existed for, restated for
+    // tabs: People pays for voter lists the viewer has not asked for and
+    // Overview pays for the similarity fold, so neither may run because
+    // the stop was opened.
+    //
+    // Both bodies are React.lazy, so the flush matters: assert on a
+    // synchronous render and the case passes for the wrong reason — the
+    // chunk simply has not resolved yet, which would be just as true if
+    // the body were mounted unconditionally. Each half therefore awaits a
+    // real settle, and the second half is what proves the first is
+    // measuring a gate rather than a pending import.
+    const kindred = vi.fn(async () => {});
+    const similarity = vi.fn(async () => {});
+    LIVE.loadKindred = kindred;
+    LIVE.loadSimilarity = similarity;
+    render(<LiveCohortBody scope="city" />);
+    // Long enough for a lazy chunk to have resolved and its effects to
+    // have run, had one been mounted.
+    await act(async () => { for (let i = 0; i < 20; i++) await Promise.resolve(); });
+    expect(kindred, "Kindred was fetched for a People tab nobody opened").not.toHaveBeenCalled();
+    expect(similarity, "the similarity fold ran for an Overview nobody opened").not.toHaveBeenCalled();
+
+    fireEvent.click(tab("People"));
+    await vi.waitFor(() => {
+      expect(kindred, "opening People fetched nothing — the gate above guards nothing").toHaveBeenCalled();
+    });
+    expect(similarity, "Overview loaded behind another tab").not.toHaveBeenCalled();
   });
 });

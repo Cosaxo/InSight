@@ -22,7 +22,7 @@ the count is zero**, which is a change from 2026-08-04: the Team ID and the
 `REVERSED_CLIENT_ID` were the other two and both are filled.
 
 `check:store-listing` and `check:versions` pass; the daily bank is at 90
-questions of 513 seeded; the production backend is deployed. **Measured
+questions of 510 seeded; the production backend is deployed. **Measured
 2026-08-04:** anonymous sign-in works (`accounts:signUp` returns an
 `idToken`, where it returned `ADMIN_ONLY_OPERATION` on 2026-08-03), the
 InSight web app is registered, and the default hosting site `prvfire33`
@@ -121,7 +121,7 @@ arithmetic.
 
 - [ ] **0.1 Seed the production question bank — run 2026-08-07 and already
       stale.** Actions → **Seed content** → Run workflow.
-      513 questions land in `v2_questions` — idempotent and, since D34,
+      510 questions land in `v2_questions` — idempotent and, since D34,
       cheap to repeat.
 
       **This step is now automatic for everything that follows it (D88):**
@@ -132,8 +132,13 @@ arithmetic.
       either way — `written: 0` means nothing landed.
 
       **It is unticked on purpose, and still is.** That run wrote **389**,
-      and the bank is **513** after the K=5 test expansion — so the
-      difference is in the repo and not in production. This is exactly the
+      and the bank is **510** after the K=5 test expansion, D103's
+      retirement of the Thinking test and D114's continuum questions — so
+      the difference is in the repo and not in production. Note that the gap now runs BOTH ways: 20
+      `test-cognitive-*` questions are live in `v2_questions` and no longer
+      in the bank, and a reseed does not retire them (`active` is only ever
+      written on first create). Flip those 20 to `active: false` in the
+      console and reseed with `bumpRev: true`. This is exactly the
       standing-instruction case: the box is not "seeded once", it is
       "seeded since the last content change", and every promotion (D30,
       D33) moves it back. **Reseed after merging anything that touches
@@ -188,6 +193,16 @@ arithmetic.
       step was written to catch is closed. What remains is confirming the
       deploy actually published — and 0.3 still owes a redeploy so the live
       terms page shows the filled legal values.
+
+      **D116 adds a fourth reason to redeploy, and it is the first that is
+      a correction rather than a fill-in.** `web/privacy.html` said world
+      takes are published "with no name attached" — twice, in the prose
+      and again in the who-can-see-what list — which D98 made false and
+      D106's rewrite of that very page carried through. The repo copy is
+      fixed; **the live page still says it** until hosting is redeployed.
+      A privacy policy promising an anonymity the app does not give is the
+      failure mode D106 exists to prevent, so this one should not wait for
+      a convenient deploy.
 - [x] **0.3 Fill the three legal values in `web/terms.html` — done
       2026-08-03.** `olaftaule01@gmail.com`, operator Olaf Taule,
       jurisdiction Norway, launching as a sole trader.
@@ -383,7 +398,33 @@ arithmetic.
       > **Is `appBuild` greater than the highest build in App Store
       > Connect?** If yes, run as-is. If no, bump, then run.
 
-      **It is at 3. Build 1 is the one on App Store Connect.**
+      **It is at 11. Build 10 is the highest one on App Store Connect**
+      (run 16, 2026-08-12 10:50Z, at `2933dc0` — its upload step reads
+      `success`). Run 15 eight minutes earlier is the archive-only
+      rehearsal this section prescribes, and its upload step reads
+      `skipped`: the pair confirms the gate works and that only one of
+      the two spent a number. Read off those two runs' own step lists
+      rather than from memory, which is the comparison above and not the
+      habit.
+
+      **BUILD 11 UPLOADED 2026-08-12** (run 17, `ac61c37`, 6m 37s, upload
+      step `success`). It carries everything merged since `2933dc0`:
+      D103's retired Thinking test and the dot-row rail, D104's test
+      users, D105's iOS focus-zoom fix, D107's location purpose string,
+      D108–D110's 327 KB off first paint, D111/D112's similarity maps,
+      D113/D114's continuum forms, D115's learn lane, and D116's
+      corrected store and privacy copy. It was the first run to carry the
+      D116 pre-flight (`check:public-copy`), which passed.
+
+      **`appBuild` is now 12**, bumped straight after that upload, which
+      is this section's whole convention. **Build 11 is the highest on App
+      Store Connect**, so the comparison passes for the next run as-is.
+
+      **`npm run check:versions -- --fix` does NOT increment.** It
+      propagates package.json's value into the two native projects and
+      nothing more, so "run --fix to bump" is wrong and reports a cheerful
+      `versions OK` at the OLD number. Edit `appBuild` by hand first, then
+      `--fix` carries it to `versionCode` and `CURRENT_PROJECT_VERSION`.
 
       *With a Mac, if you ever want to debug a signing failure
       interactively:* `npm run build && npx cap sync`, then `npm run ios`.
@@ -467,7 +508,7 @@ start.
       your own name.** There is no k-floor since D98: the first answer
       publishes exactly, so a count of 1 on your own device is that one
       answer and the who-voted sheet will name you. That is the product
-      working, not a leak — the 513 seeded questions are live regardless.
+      working, not a leak — the 510 seeded questions are live regardless.
       What used to sit here was the opposite warning (*"You're early"*
       under `AGG_MIN_N`, paused by D81 and removed entirely by D98).
 - [ ] **3.3 Walk the on-device verification list** — six checks, first
@@ -532,13 +573,30 @@ That is a tester-count problem, not a workflow problem.
       → `design/store/feature-graphic.png`, 1024×500, built from
       `mark.svg` and the app's own stylesheet so it cannot drift from the
       palette. Regenerate if the mark or tagline changes.
-- [x] **4.3 Marketing copy — pushed 2026-08-08.**
+- [ ] **4.3 Marketing copy — pushed 2026-08-08, CORRECTED 2026-08-12,
+      and the correction is not live until it is re-pushed (D116).**
       `design/store/listing.json` carries every field both consoles ask
       for; `npm run check:store-listing` holds each against its character
-      limit (all currently fit, the longest at 161/170). Edit the voice to
-      taste — it is a draft, not a decision, and re-pushing is one
-      dispatch. No placeholders remain: `shared.supportEmail` was filled
-      with 0.3's address on 2026-08-03.
+      limit (all currently fit, the longest at 161/170). No placeholders
+      remain: `shared.supportEmail` was filled with 0.3's address on
+      2026-08-03.
+
+      **Unticked on purpose, and this one is not a matter of voice.** The
+      description pushed on 08-08 was still selling the pre-D98 privacy
+      model to every visitor of the listing — *"Your answers are
+      owner-only. The database rules enforce it"* and *"Crowd numbers are
+      floored"*, under a header reading **BUILT SO THE PRIVACY CLAIMS ARE
+      TRUE**. The copy was accurate on the day it was pushed (08-08);
+      **D98 falsified it on 08-11** and it has been live and false since.
+      D106 swept that model out of `web/` and the docs the next day and
+      never enumerated this file. It also advertised five profiles after
+      D103 retired the Thinking test.
+
+      The repo copy is fixed and `npm run check:public-copy` now fails on
+      that vocabulary in `listing.json`, `web/*.html` and the privacy
+      panel. **App Store Connect still serves the old text**: nothing here
+      can read it, the same limitation as the age rating (D74/D75), so a
+      green tree is not a corrected listing. One dispatch fixes it.
 
       **You do not have to retype it into the web form.** **Actions → App
       Store metadata** pushes name, subtitle, privacy-policy URL,
@@ -631,15 +689,23 @@ That is a tester-count problem, not a workflow problem.
 
       *Play's Data Safety form is **[PARKED — D42]**.*
 
-- [ ] **4.5 The age rating — pushed 2026-08-08, and one answer moved on
-      08-09. Re-push.** All 22 attributes go in one dispatch of **Actions →
-      App Store metadata** with *apply* ticked.
+- [x] **4.5 The age rating — pushed 2026-08-08, `messagingAndChat`
+      re-pushed 08-09, and CONFIRMED in sync 2026-08-12.** All 22
+      attributes go in one dispatch of **Actions → App Store metadata**
+      with *apply* ticked.
 
-      **Unticked again on purpose.** `messagingAndChat` was filed `false`
-      and is now `true` (D79): D78 part 1 shipped the circle takes client
-      the day after the push, so App Store Connect holds an answer the repo
-      no longer makes. One dispatch fixes it — the other 21 will report as
-      already matching.
+      **Ticked on the strength of a dry run, not a memory.** This entry
+      stood open saying `messagingAndChat` was still `false` on App Store
+      Connect and needed a re-push (D79). It is not: the 08-12 dry run
+      reports `age rating: already matches app-privacy.json`, so run 8 on
+      08-09 had already carried it and this box outlived the work. The
+      cheap way to check is the dry run itself — *apply* unticked prints
+      the diff and writes nothing, which is what it is for.
+
+      That is the same class of error as D116, one layer out: **pushed
+      state and the box that tracks it drift in both directions.** D116
+      was a box that should have been open; this was a box that should
+      have been shut.
 
       **This is the standing shape of this step, not a one-off.** The age
       rating is pushed state, so it goes stale whenever a feature changes
@@ -712,7 +778,7 @@ That is a tester-count problem, not a workflow problem.
       it for two policies is the worse trade. Both cover failures that look like nothing from the
       outside: the app keeps serving while the Mirror stops moving, or
       keeps moving while falling further behind. `DEPLOYMENT.md § Alerting`.
-- [x] **5.6 Version lockstep — holds at 2.0.0 build 3 (2026-08-08).**
+- [x] **5.6 Version lockstep — holds at 2.0.0 build 11 (2026-08-12).**
       `npm run check:versions` (`--fix` writes package.json's values into
       both native projects). `appBuild` + android `versionCode` + iOS
       `CURRENT_PROJECT_VERSION` — five numbers across three files — move
@@ -731,16 +797,53 @@ That is a tester-count problem, not a workflow problem.
       uid by confirming it is *denied* the instrument it should not have —
       a silently dropped uid looks identical to one never added.
       `DEPLOYMENT.md § Operator continuity`.
+- [ ] **5.8 Put back the two access controls that were loosened on
+      2026-08-12 to unblock the build-11 release (D117).** Both were
+      deliberate, both are still off, and **nothing in this repo can see
+      either one** — no check, no test, no workflow. This box is the only
+      record that they are open.
+
+      1. **`production` → Deployment protection rules → Required
+         reviewers.** Re-check it, with yourself; *prevent self-review*
+         **off**; *allow administrators to bypass* **off**. That is 0.3's
+         configuration, and D87 is why it exists: the deploy and the seed
+         both draw the service-account key from that environment.
+      2. **GitHub App → Repository permissions → Actions: back to
+         `Read`.** `Read and write` lets an agent dispatch *any* workflow
+         in the repo, **iOS release with upload ticked included** — which
+         spends a build number and pushes to TestFlight irreversibly.
+
+      **Do 1 before there is anything in production worth protecting, and
+      2 as soon as the release dispatches are done.** They are independent
+      of each other; neither blocks the other.
+
+      Reversing #1 costs nothing. Reversing #2 costs the four clicks per
+      dispatch that #2 exists to save, which is the trade being made, and
+      it is the cheaper side once releases stop being daily.
 
 ## Phase 6 — Submit
 
 - [ ] **6.1 Pre-flight, before every archive and every upload:**
       ```bash
-      npm run check:store-copy      # must exit 0 — deliberately NOT in CI
-      npm run check:store-listing   # every field inside its store limit
+      npm run check:store-copy -- --ios  # must exit 0 — deliberately NOT in CI
+      npm run check:store-listing        # every field inside its store limit
+      npm run check:public-copy          # no retired-model claims in user-facing copy
       npm run check:versions
       npm run build && npx cap sync
       ```
+
+      **`--ios` is not optional here, and the bare command is what this
+      step used to say.** Under D42 the Play signing SHA-256 is parked, so
+      `check:store-copy` with no flag exits **1** on a placeholder that is
+      a permanent non-blocker (2.7) — which reads as a failed pre-flight
+      and invites someone to go filling in a fingerprint for a store that
+      is not being shipped to. `--ios` excuses that one and nothing else;
+      it is the same flag `ios-release.yml` hard-gates on.
+
+      `check:public-copy` joined the list at D116, and the release
+      workflow runs it too: the privacy panel is compiled into the binary,
+      so a false claim about who can read an answer ships to the phone
+      rather than staying in the repo.
 - [ ] **6.2 Submit to App Store review.** Budget one rejection round on
       guideline 4.8 (Sign in with Apple). **Do not pre-build it** — the
       reply is already drafted in `SHIP-CHECKLIST § hardening`: the app's

@@ -55,11 +55,11 @@ the verification — treat a successful seed as proof of both.
 3. **The remaining step: Actions → *Seed content* → Run workflow.** No
    sign-in, no dev machine, nothing to install.
 
-   513 questions land in `v2_questions`. Re-running is safe (idempotent,
+   510 questions land in `v2_questions`. Re-running is safe (idempotent,
    never resets the `active` kill switch) and, since D34, genuinely cheap:
    it rewrites only documents whose content changed and leaves `contentRev`
-   alone, so a reseed no longer costs every returning device a 513-read
-   bank refetch. The job summary reports `{written, skipped}` — a no-op
+   alone, so a reseed no longer costs every returning device a 510-read
+bank refetch. The job summary reports `{written, skipped}` — a no-op
    reseed reports `written: 0`.
 
    Tick **bump_rev** only after flipping a question's `active` flag **by
@@ -178,6 +178,19 @@ Both apps must be registered under `com.cosaxo.insight`:
     drift from the product's palette. Marketing copy lives in
     `design/store/listing.json`, held against both stores' character
     limits by `npm run check:store-listing`.
+
+    **Length is not the only thing that file gets wrong.** Both
+    descriptions were still selling the pre-D98 privacy model — *"Your
+    answers are owner-only"*, *"Crowd numbers are floored"*. That copy was
+    true when it was pushed on 2026-08-08; **D98 falsified it on 08-11**,
+    and D106's sweep on 08-12 corrected `web/` and the docs without ever
+    enumerating this file (D116). Pushed copy goes stale the same way the
+    age rating does, and for the same reason: nothing in the repo can read
+    what the store is serving. `npm run check:public-copy` now holds `listing.json`,
+    `web/*.html` and the in-app privacy panel against the retired model's
+    closed vocabulary; it runs in CI and on the iOS release pre-flight.
+    Character limits and truth are separate gates, and only one of them
+    was ever being checked.
 
     Both generators need Playwright, which is deliberately **not** a
     package.json dependency — `npm i -D playwright && npx playwright
@@ -502,6 +515,45 @@ Until then links open the fallback page — degraded, not broken.
       gone (check Firestore console).
 
 ## 5 · Post-deploy ops toggles
+
+- **A Cloud Billing budget — five minutes, and the only thing on this page
+  that bounds a surprise rather than predicting one.** Nothing in this repo
+  can observe whether it exists, which is why it is a checklist line and not
+  a gate (D117's problem, pointed at money). Everything in docs/COSTS.md
+  forecasts the bill; a forecast is only as good as the behaviour it
+  assumed, and that document has been corrected four times for missing a
+  term rather than mis-estimating one. A budget fires on the outcome.
+
+  ```
+  gcloud billing budgets create \
+    --billing-account=<ACCOUNT_ID> \
+    --display-name="InSight" \
+    --budget-amount=50USD \
+    --filter-projects=projects/prvfire33 \
+    --threshold-rule=percent=0.5 \
+    --threshold-rule=percent=0.9 \
+    --threshold-rule=percent=1.0 \
+    --threshold-rule=percent=1.5
+  ```
+
+  $50 comes from the model, not from feel: launch sizes come out at $0–$2
+  a month and 5,000 DAU at $46, so $50 reads as "traction arrived, or
+  something is wrong", and the 150% rule still pages while the number is
+  two figures. Note what it does **not** do — a budget notifies, it does
+  not cap. Firestore has no spend limit; the only hard stop is a budget →
+  Pub/Sub → function that detaches the billing account, which takes the app
+  down with it, and for an app whose worst modelled launch month is $2 the
+  outage is the more expensive failure. Recorded as available, not built.
+
+- **Apply the alert policies with a channel** — `npm run monitoring:apply
+  --email you@example.com --apply`. `notificationChannels` is `[]` in all
+  four committed policies by design (the channel is per-operator, not
+  per-repo), and a policy with no channel evaluates correctly and pages
+  nobody. `monitoring/firestore-read-runaway.json` is the cost one: it
+  fires on billed reads above 500/sec sustained for five minutes, which is
+  ~37× the modelled peak at 500 DAU and about $780/month if it ran all
+  month. Raise it before ~13,100 DAU — the retune arithmetic is in the
+  policy's own runbook.
 
 - **TTL for the aggregate event ledger** (one-time, console or gcloud):
   `gcloud firestore fields ttls update expireAt --collection-group=v2_agg_events --enable-ttl --project=prvfire33`

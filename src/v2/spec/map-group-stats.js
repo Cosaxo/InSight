@@ -25,13 +25,15 @@ import { MAP_ANCHOR_DIM, byOf, typicality } from '../data/cohort';
 // D98 published the per-anchor breakdown exactly, so `age` and `edu` now
 // have an arithmetic answer and take it (see data/cohort.ts, typicality).
 //
-// THE OTHER SIX STILL REFUSE, and not for want of a floor:
+// THE OTHER FIVE STILL REFUSE, and not for want of a floor:
 //   job         is `profession` — free text, deliberately never a
 //               breakdown dim (D8), so nothing aggregates it.
-//   big5, political, values, attachment, cognitive
+//   big5, political, values, attachment
 //               are test RESULTS. No cohort aggregate exists for them at
 //               all, so "how did similar personalities answer" has no
-//               source rather than a withheld one.
+//               source rather than a withheld one. (Six until D103
+//               retired `cognitive` — one fewer refusal, not one more
+//               answer.)
 // A live build therefore still gets null from those, through the same
 // fail-loud path — the demo keeps the hash, because in a demo the hash
 // IS the content.

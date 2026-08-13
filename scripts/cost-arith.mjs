@@ -69,7 +69,11 @@ function readNum(rel, re, what) {
       + "    which is the failure this function exists to prevent (D47).",
     );
   }
-  return Number(m[1]);
+  // Numeric separators stripped: `60_000` is a legal literal and reads
+  // better at millisecond scale, but Number("60_000") is NaN — which would
+  // propagate as a silent NaN through every table rather than throwing.
+  // A no-op for the `(\d+)` patterns above.
+  return Number(String(m[1]).replace(/_/g, ""));
 }
 
 // Deck listeners attached per boot — 7 onSnapshot subscriptions, and the
@@ -81,6 +85,49 @@ export const DECK_DAYS = readNum(
 // will re-check at most.
 export const AGG_CAP = readNum(
   "src/v2/data/live.ts", /const AGG_ID_CAP = (\d+)/, "AGG_ID_CAP");
+
+// How long a hidden app keeps its snapshot listeners before detaching them.
+//
+// This is the bound on `B.onlineMin` below, and it is pinned here for the
+// same reason the four social caps are: it is the only thing standing
+// between the fan-out term and an unbounded tail. Before it existed,
+// nothing tore a listener down outside a uid change or account deletion,
+// so a resident WebView kept paying for every publish to today's aggregate
+// for as long as the OS let it live — and `onlineMin` was a guess about
+// human behaviour being used as if it were a fact about the code.
+//
+// It is not a term in the arithmetic, deliberately: what it does is make
+// `onlineMin` MEAN what the model already assumed, rather than adding a
+// correction on top of a wrong number. Reading it from source is the
+// tripwire — delete the detach and `npm run costs` fails here rather than
+// going on quoting a bill that assumed it.
+export const IDLE_DETACH_MS = readNum(
+  "src/v2/data/live.ts", /const IDLE_DETACH_MS = ([\d_]+)/, "IDLE_DETACH_MS");
+
+// ── the D98 read surfaces (D102) ────────────────────────────────
+// Named who-voted, Kindred and Circle all read OTHER USERS' answers on
+// demand — the reversal's whole point, and a read family this model did
+// not have a term for. "Not modelled reads as free" is the D67 lesson;
+// these four bounds are what keep the family finite at all, so they are
+// pinned to source the same way DECK_DAYS is.
+
+// Voters one who-voted fetch returns, newest first (data/voters.ts). The
+// crowd on a shared daily question is roughly "everyone active that day",
+// so without this cap the sheet's cost is ~DAU reads per open.
+export const VOTER_FETCH_CAP = readNum(
+  "src/v2/data/voters.ts", /export const VOTER_FETCH_CAP = (\d+)/, "VOTER_FETCH_CAP");
+
+// Voter lists Kindred walks — the viewer's own most recent answers, one
+// capped who-voted query each (live.ts loadKindred).
+export const KINDRED_QUESTIONS = readNum(
+  "src/v2/data/live.ts", /const KINDRED_QUESTIONS = (\d+)/, "KINDRED_QUESTIONS");
+
+// Circle: accounts one user can follow, and answers read per member on a
+// stop open (data/circle.ts loadCircle — one query per member).
+export const FOLLOW_CAP = readNum(
+  "src/v2/data/circle.ts", /export const FOLLOW_CAP = (\d+)/, "FOLLOW_CAP");
+export const CIRCLE_ANSWER_CAP = readNum(
+  "src/v2/data/circle.ts", /export const CIRCLE_ANSWER_CAP = (\d+)/, "CIRCLE_ANSWER_CAP");
 
 // How often the public mirror is rewritten, in answers. Drives both the
 // mature write multiplier and the listener fan-out rate.
@@ -198,7 +245,40 @@ export const B = {
   worldAnswers: 3,     // daily + feed + learn
   duelAnswers: 1,
   boots: 1.4,          // app opens per active user per day
-  onlineMin: 3,        // minutes with the app actually open
+  // Minutes per user per day with a snapshot LISTENER ATTACHED — not, as
+  // this comment said until the idle detach shipped, "minutes with the app
+  // actually open". The two are the same number only if something detaches
+  // when the app is backgrounded, and for a long time nothing did: the only
+  // teardown sites in live.ts were a uid change and account deletion, so a
+  // resident WebView's listeners outlived the session that opened them and
+  // the fan-out term was linear in a quantity no code bounded.
+  //
+  // The gloss was the bug, not the value. 3 is a fair estimate of time
+  // spent looking at the app and always was; it was simply not what
+  // Firestore was billing. Taken literally the difference is the whole
+  // shape of the top rows — at 60 the 50k-DAU bill is $16,689/mo against
+  // $1,224, and the fan-out crossover drops from ~30,800 DAU to ~1,538,
+  // under D7's write-contention wall. IDLE_DETACH_MS above is what makes
+  // the estimate true rather than hopeful; it caps the tail at one minute
+  // per backgrounding instead of one OS eviction.
+  onlineMin: 3,
+  // Background→foreground cycles per user per day, and the newest soft
+  // number in this block. It exists because the idle detach (D124) changed
+  // the SHAPE of the fan-out input rather than only its value: what is
+  // billed is `onlineMin + bgCycles × grace`, plus DECK_DAYS re-attach
+  // reads per cycle. Before the detach, backgrounding cost an unbounded
+  // tail and this term would have been meaningless; after it, the tail is
+  // gone and this is what replaced it.
+  //
+  // 4 is a guess and a deliberately unflattering one — it says the app is
+  // picked up and put down four times a day, which is more than 1.4 boots
+  // implies because a boot is a cold start and a cycle is not. It is
+  // exactly the kind of number a week of real usage settles, and it sits
+  // here rather than inside the arithmetic so that it is visible as a
+  // guess. Note the direction of the trade: raising this makes the detach
+  // look worse and still never reaches the pre-detach cost, because that
+  // one had no ceiling at all.
+  bgCycles: 4,
   peakWindowMin: 240,  // D7's 4-hour morning window
   mauMultiple: 3,      // MAU = 3 x DAU
   reseedsPerMonth: 4,  // the launch plan's weekly promotion cadence
@@ -209,8 +289,8 @@ export const B = {
   // daily question per day consumed.
   //
   // Before this existed the model had only a binary staticBank toggle: full
-  // bank (369) or nothing (0). Neither is the shipped state, so the default
-  // table described the pre-D34 world and overstated reads by ~145 per user
+  // bank or nothing. Neither is the shipped state, so the default table
+  // described the pre-D34 world and overstated reads by ~145 per user
   // per day at every size — while COSTS.md's own prose already said the
   // real figure was ~3. Set to `bank` to recover the pre-D34 arithmetic.
   changedPerReseed: 7,
@@ -219,6 +299,17 @@ export const B = {
   // 4/m + 3, so a duo pays 5 reads per member per reveal where a 32-member
   // group pays 3.1. Raising this makes the reveal line cheaper, not dearer.
   duelGroupSize: 2,
+  // ── how often the D98 surfaces are opened (D102) ──
+  // The soft half of the `social` read term, and the same missing-input
+  // shape D47 found with changedPerReseed: the term is charged per OPEN,
+  // and nothing else in this block measures opens of a sheet. All three
+  // are guesses about curiosity, not facts about the code — stated here
+  // so the first week of real usage can correct a number instead of
+  // discovering a category.
+  sheetOpens: 0.15,   // who-voted sheets opened per user per day
+  kindredViews: 0.03, // People-lens (Kindred) first views per user per day
+  circleOpens: 0.1,   // Circle stop opens per user per day
+  circleFollows: 5,   // accounts a typical circle holds (the cap is 50)
 };
 
 // ── bytes, for the two lines the model billed as free (D67) ─────
@@ -240,14 +331,24 @@ export const BYTES = {
   aggDoc: 2_400,
   aggDocLow: 300,
   aggDocHigh: 7_000,
-  // Everything else a boot pulls: bank questions measure 206 B each as
-  // Firestore encodes them (78.4 KiB / 389 docs, counted from v2content.ts),
-  // profiles and group docs are the same order.
+  // Everything else a boot pulls: bank questions measure ~238 B each as
+  // Firestore encodes them (bank wire size over doc count — 119.3 KiB /
+  // 513 at D102; recompute from check-figures' bankKiB when the bank
+  // moves, which is how the previous figure here sat two promotion
+  // cycles stale). Profiles and group docs are the same order, and so are
+  // the answer docs the `social` term reads: optionIdx + surface + a
+  // six-field anchors snapshot.
   otherDoc: 250,
   // Index entries are billed as storage alongside the documents. The
   // multiplier is what index bytes add ON TOP of document bytes, and it is
-  // low BECAUSE of the answers exemptions (D64): that collection now carries
-  // one indexed field where it carried fifteen. Before them this was ~5x.
+  // low BECAUSE of the answers exemptions (D64), which still hold for
+  // eleven fields. The indexed set has grown since D64 wrote "one field
+  // where it carried fifteen": answeredAt gained editedAt beside it (D86),
+  // then the who-voted composite (D98) and the surface single-field that
+  // Circle's query needs (D102) — call it a handful of entries per answer
+  // against the ~15 the defaults would mint, so the pre-D64 figure was
+  // ~5x. 1.4 stays as the blended estimate across ALL collections; if it
+  // is ever re-derived, derive it from an invoice, not from this comment.
   indexMultiplier: 1.4,
 };
 
@@ -293,14 +394,16 @@ export const CONTENTION_DAU = B.peakWindowMin * 60;
 export function costModel({ regional = false, bank = bankDocs() } = {}) {
   const P = priceSheet(regional);
 
-  // Reads decompose into six sources — see COSTS.md "Where the reads
+  // Reads decompose into seven sources — see COSTS.md "Where the reads
   // actually go". Keeping them separate is the whole point: the totals are
   // unremarkable, the decomposition is where the findings live.
   //
-  // It was four until D67 added `rules` and `server`. Those two are flat in
-  // DAU and together are larger than boot's top-up, reseed and the whole
-  // fan-out combined at every size below ~10k DAU — which is to say the
-  // model's shape below the walls was wrong, not just its total.
+  // It was four until D67 added `rules` and `server`, and six until D102
+  // added `social` — the D98 surfaces (who-voted, Kindred, Circle) had
+  // been reading other users' answers for a day with no term at all,
+  // which is the D67 failure recommitted while its correction note sat
+  // forty lines up. If a key is added here, scripts/pulse.test.mjs pins
+  // the key set and names the consumers that must move with it.
   function readsPerUser(dau, { mature, staticBank = false, pollAggs = false }) {
     const boot = (1 + 1 + 1 + DECK_DAYS + 1 + 2 + 2) * B.boots;
     // A question under the floor is re-read at most once per 6 h, so roughly
@@ -308,7 +411,7 @@ export function costModel({ regional = false, bank = bankDocs() } = {}) {
     const topUp = ((mature ? 5 : AGG_CAP) / 4) * B.boots;
     // Charged per MAU, not per DAU: a monthly visitor pays for every
     // promotion since their last visit, not just the ones since yesterday.
-    // Post-D34 that is the delta (7 changed docs), not the bank (369) —
+    // Post-D34 that is the delta (7 changed docs), not the whole bank —
     // `staticBank` is the REMAINING unbuilt fix (serve the bank off Hosting,
     // which takes this to zero), not the one that shipped.
     const changed = staticBank ? 0 : B.changedPerReseed;
@@ -316,8 +419,28 @@ export function costModel({ regional = false, bank = bankDocs() } = {}) {
     // The quadratic one. Publishes scale with DAU; concurrent listeners
     // scale with DAU; every delivery is a billed read. ~1 of the 3 world
     // answers is the globally shared daily, which is the hot document.
-    const concurrent = dau / (B.peakWindowMin / B.onlineMin);
+    // LISTENER-minutes, not foreground minutes. The idle detach (D124)
+    // means a backgrounded app keeps listening for IDLE_DETACH_MS and then
+    // stops, so every background→foreground cycle adds one grace period to
+    // the time being billed. Before the detach this was unbounded and the
+    // model simply assumed `onlineMin`; now it is
+    //   foreground time + (cycles × grace)
+    // which is a number the code determines rather than one the model
+    // hopes for — but it is NOT `onlineMin` on its own, and saying so is
+    // the point. `bgCycles` is the new soft input and it is a guess like
+    // the rest; the arithmetic below is what makes it visible.
+    const listenerMin = B.onlineMin + B.bgCycles * (IDLE_DETACH_MS / 60_000);
+    const concurrent = dau / (B.peakWindowMin / listenerMin);
     const fanOut = pollAggs ? 0 : concurrent * (B.worldAnswers / PUBLISH_EVERY) / 3;
+    // The other half of the same trade, and the reason the detach is a
+    // grace period rather than an immediate drop: coming back re-attaches
+    // the deck listeners, and an onSnapshot attach delivers the document
+    // once. So each cycle costs DECK_DAYS reads, paid to avoid a whole
+    // background's worth of fan-out. It is a good trade at every modelled
+    // size — the break-even is ~7 reads against the publish rate on the
+    // shared daily — but it is not free, and an unnamed cost is the D67
+    // failure however small it is.
+    const reattach = pollAggs ? 0 : B.bgCycles * DECK_DAYS;
     // Charged to the project on every answer create, on top of the write.
     const rules =
       B.worldAnswers * RULE_READS.world + B.duelAnswers * RULE_READS.duel;
@@ -328,7 +451,29 @@ export function costModel({ regional = false, bank = bankDocs() } = {}) {
       + B.duelAnswers * TRIGGER_READS.duel
       + B.worldAnswers * VELOCITY_READS_PER_LEDGER_ENTRY
       + B.duelAnswers * revealReadsPerMember(B.duelGroupSize);
-    return { boot, topUp, reseed, fanOut, rules, server };
+    // The D98 surfaces (D102): who-voted, Kindred, Circle — a client
+    // reading OTHER users' answers on demand. One key rather than three
+    // because they are one mechanism at three surfaces; the split lives in
+    // the terms below. Each charges (answer docs + name resolution), and
+    // names are ≤1 profile doc per distinct voter on the first surface
+    // that sees them, ~0 after (session cache) — so the ×2 is the
+    // no-overlap ceiling, not the steady state. The crowd a capped fetch
+    // returns is min(cap, ~DAU): the daily deck is globally shared, so a
+    // question's crowd is roughly everyone active that day until the cap
+    // binds at DAU ≈ VOTER_FETCH_CAP — above that, `social` is flat.
+    const crowd = Math.min(VOTER_FETCH_CAP, dau);
+    const whoVoted = B.sheetOpens * crowd * 2;
+    const kindred = B.kindredViews * KINDRED_QUESTIONS * crowd * 2;
+    // A member's answer set grows with account AGE, not DAU: ~3 world
+    // answers/day, ceilinged by the cap — ~90 days old in a mature
+    // community, ~10 in a fresh TestFlight one (the same flag the top-up
+    // uses for the same reason). The followers query and the member-name
+    // top-up are noise beside it.
+    const circle =
+      B.circleOpens * B.circleFollows
+      * Math.min(CIRCLE_ANSWER_CAP, B.worldAnswers * (mature ? 90 : 10));
+    const social = whoVoted + kindred + circle;
+    return { boot, topUp, reseed, fanOut, reattach, rules, server, social };
   }
 
   // `aggBytes` selects which end of the published-aggregate size band to
@@ -340,9 +485,14 @@ export function costModel({ regional = false, bank = bankDocs() } = {}) {
     const { aggBytes = "aggDoc" } = opts;
     const r = readsPerUser(dau, { mature, ...opts });
     const reads = Object.values(r).reduce((a, b) => a + b, 0) * dau;
-    // Below the floor the public mirror is rewritten on EVERY answer; above
-    // it, once per five. The cold-start period is the expensive one.
-    const pub = mature ? 1 / PUBLISH_EVERY : 1;
+    // The public mirror is rewritten on every answer at every size — D98
+    // removed the cadence AND the floor, so there is no immature phase
+    // for a discount to differ from. This was `mature ? 1/PUBLISH_EVERY
+    // : 1` — a ternary both of whose arms became 1, wearing the floor's
+    // comment two decisions after the floor died. If batching ever
+    // returns (as a performance measure — PUBLISH_EVERY's note), it now
+    // discounts every phase, which is what a floorless world means.
+    const pub = 1 / PUBLISH_EVERY;
     const writes = dau * (B.worldAnswers * (1 + 2 + pub) + B.duelAnswers * 2 + 0.2);
     const deletes = dau * B.worldAnswers; // ledger TTL, 90 days later
     const inv = dau * (B.worldAnswers + B.duelAnswers);

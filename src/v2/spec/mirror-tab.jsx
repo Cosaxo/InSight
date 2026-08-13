@@ -6,37 +6,49 @@
 import React from 'react';
 import { HAPTIC } from './haptics.js';
 import { bindSwipeBack } from './swipe-back.js';
-// The three live Mirror bodies, as ordinary imports (D39's ratchet; the
-// procedure is in src/v2/README.md). All three are typed TSX in ui/ with
+// The live Mirror bodies, as ordinary imports (D39's ratchet; the
+// procedure is in src/v2/README.md). All are typed TSX in ui/ with
 // default exports, so nothing here needs the global scope to find them —
 // and the `typeof window.X === 'function'` guards that used to wrap each
 // one are GONE rather than kept: an imported binding cannot be unset, so
 // the guard could only ever be false during a load-order accident that
 // an import makes impossible. The data conditions beside them (`liveGeo`,
 // the stop id) are unchanged, because those guard data, not loading.
-import LiveCohortBody from '../ui/LiveCohortBody';
 import LiveGroupsMirrorBody from '../ui/LiveGroupsMirrorBody';
-// Circle is the one of the three that loads AFTER first paint, and the
-// reason is the bundle budget rather than taste: it and data/circle.ts
-// added 11 KB to the entry chunk, which put it over MAX_CHUNK_KB — the
-// ceiling the D100 commit deliberately left 3 KB of headroom under so
-// that the next eager addition would have to defer instead of argue.
+import NearLiveBody from '../ui/NearLiveBody';
+// Two of them load AFTER first paint, and the reason is the bundle budget
+// rather than taste.
 //
-// It is also the right one to defer on the merits. The Mirror opens on
-// You (the Map); Circle is two stops along and needs a network round
-// trip of its own before it can render anything, so the chunk fetch
-// overlaps work the stop was going to do regardless.
+// Circle went first: it and data/circle.ts added 11 KB to the entry chunk,
+// which put it over MAX_CHUNK_KB — the ceiling the D100 commit deliberately
+// left 3 KB of headroom under so that the next eager addition would have to
+// defer instead of argue. Cohort followed at D119, when the stop's tab row
+// spent the eager graph's last kilobyte (check:bundle, MAX_EAGER_KB).
+//
+// Both are also the right ones to defer ON THE MERITS, for one reason: the
+// Mirror opens on You (the Map). Circle is two stops along and City three,
+// and each needs a network round trip of its own before it can render
+// anything, so the chunk fetch overlaps work the stop was going to do
+// regardless. Deferring the Map or Near would not be — those are what the
+// tab opens with.
 const LiveCircleBody = React.lazy(() => import('../ui/LiveCircleBody'));
+const LiveCohortBody = React.lazy(() => import('../ui/LiveCohortBody'));
 
 // mirror-tab.jsx — MIRROR: one tab, one verb — see yourself against a population.
 // One telescope, seven stops, from fully retracted to fully extended:
 //   you     → the telescope retracted — you, alone, visualized (the Map)
 //   circle  → your people — close ties
 //   groups  → your named circles — The Crew, Book Club… (GroupsMirrorBody)
-//   near    → your city (D9; the demo field still shows the 5 km neighbours)
-//   city    → demo only — live mode drops it, because Near IS your city
+//   near    → who is around you right now — the presence count (D84/D111)
+//   city    → your city: its answers and its kindred constellation (D111)
 //   country → everyone in your country
 //   world   → everyone
+//
+// Near and City were one stop from D9 to D111 ("Near IS your city", City
+// dropped from the live ruler). D111 un-folded them: they answer different
+// questions — presence vs a profile anchor — and folding them meant the
+// scale lied about what it measured while the prototype's most distinctive
+// stop shipped dark.
 //
 // MIRROR_POPS below is still five: `pop` is the state the rest of the app
 // reads, and the last three stops all resolve to pop 'world' at a
@@ -74,17 +86,17 @@ const MIRROR_STOPS = [
   { id: 'world', label: 'World', pop: 'world', zoom: 'world' },
 ];
 const stopAccent = (id) => mirrorAccent((MIRROR_STOPS.find((s) => s.id === id) || MIRROR_STOPS[0]).pop);
-// D9 again, now on the axis: live mode drops City, because Near IS your
-// city there. Two stops onto one cohort is how a scale starts lying about
-// what it measures.
-const mirrorStops = (live) => (live ? MIRROR_STOPS.filter((s) => s.id !== 'city') : MIRROR_STOPS);
+// All seven stops in both modes since D111. The live ruler used to drop
+// City (D9: Near WAS your city, and two stops on one cohort is how a
+// scale starts lying) — the same rule now keeps them apart the other way:
+// Near is presence only, City is the city cohort only.
 
 // ─── the one selector — one graduated axis from You to World, every stop named ───
 // Tap a stop, or DRAG along the ruler to scrub through the populations: the
 // mirror follows your finger stop by stop, with a tick as each one passes. The
 // axis is a slider, so it should feel like one; vertical pans still scroll.
-function MirrorPopPicker({ stopId, onPick, live, big }) {
-  const stops = mirrorStops(live);
+function MirrorPopPicker({ stopId, onPick, big }) {
+  const stops = MIRROR_STOPS;
   const n = stops.length;
   const idx = Math.max(0, stops.findIndex(p => p.id === stopId));
   const accent = stopAccent(stopId);
@@ -230,12 +242,10 @@ function MirrorTab({ onPerson, pop, onPop, worldZoom, onZoom, firstRun, topNav, 
   const zoom = WORLD_ZOOMS.some(z => z.id === worldZoom) ? worldZoom : 'world';
   const scaleId = p.id === 'world' ? zoom : p.id;
   // The axis carries the world zooms as stops of its own, so a pick has to
-  // set both halves of the old two-level state — and `live` hides the City
-  // stop, which means a session that persisted zoom === 'city' would leave
-  // the axis with nothing selected. Resolve that to Country here, once.
+  // set both halves of the old two-level state. (The live City stop is
+  // back since D111, so a persisted zoom === 'city' needs no resolving.)
   const liveGeo = !!(window.LIVE && window.LIVE.enabled);
-  const shownZoom = liveGeo && zoom === 'city' ? 'country' : zoom;
-  const stopId = p.id === 'world' ? shownZoom : p.id;
+  const stopId = p.id === 'world' ? zoom : p.id;
   const pick = (s) => { if (s.pop === 'world') { onPop('world'); onZoom(s.zoom); } else onPop(s.pop); };
   // one horizontal axis across the whole app: a right-swipe here falls back onto
   // whatever sits immediately before Mirror on the current nav
@@ -254,16 +264,14 @@ function MirrorTab({ onPerson, pop, onPop, worldZoom, onZoom, firstRun, topNav, 
   // Every branch below therefore picks a BODY rather than returning its own
   // frame; the live-mode branches are this repo's, not the prototype's.
   const isYou = p.id === 'you';
-  // near and world — in live mode these are the same question at three
-  // radii, from the k-floored public aggregates, rendered as counts rather
-  // than people (D9). The demo fields below are prototype data: Near's six
-  // named neighbours never had a backend, and the v1 geohash one they were
-  // waiting for never produced a cell. Live gets the real thing or an
-  // honest empty state, never both.
-  //
-  // World's "City" zoom stop is gone rather than duplicated: Near IS your
-  // city now, and two identical panels behind different chips is how a UI
-  // starts disagreeing with itself.
+  // The geographic stops, live (D111): Near is the presence count and
+  // nothing else (NearLiveBody — the cell it reads is one of D98's three
+  // surviving denies, so a count is all it will ever draw), and City /
+  // Country / World are the public aggregates plus the similarity
+  // constellation (LiveCohortBody + LiveSimilarityField, D112). The demo
+  // fields below are prototype data — Near's six named neighbours never
+  // had a backend (D2) — so live gets the real thing or an honest empty
+  // state, never both.
   const isGeoLive = p.kind === 'geo' && liveGeo;
   // circle — your close ties. The 49 named people in relmap-core.js are
   // prototype data, so live mode never shows them; what it shows instead
@@ -288,14 +296,20 @@ function MirrorTab({ onPerson, pop, onPop, worldZoom, onZoom, firstRun, topNav, 
       </div>
     );
   } else if (isGeoLive) {
-    // A session that last used the City stop still has zoom === 'city'
-    // persisted. Resolve it to Country for both the panel and the control,
-    // so the control does not render with nothing selected.
-    const liveZoom = zoom === 'world' ? 'world' : 'country';
-    const scope = p.id === 'near' ? 'city' : liveZoom;
-    body = (
-      <div key={'geo-live:' + scope} className="tab-swap mf-flex" style={{ overflowY: 'auto' }}>
-        <LiveCohortBody scope={scope} />
+    // Near draws presence; the three world zooms map one-to-one onto the
+    // cohort scopes (D111).
+    body = p.id === 'near' ? (
+      <div key="near-live" className="tab-swap mf-flex" style={{ overflowY: 'auto' }}>
+        <NearLiveBody />
+      </div>
+    ) : (
+      <div key={'geo-live:' + zoom} className="tab-swap mf-flex" style={{ overflowY: 'auto' }}>
+        {/* null fallback, not a spinner — same reasoning as Circle's: the
+            body's own first frame is its heading and tab row, and a
+            spinner in front of that is one loading state too many. */}
+        <React.Suspense fallback={null}>
+          <LiveCohortBody scope={zoom} />
+        </React.Suspense>
       </div>
     );
   } else if (isCircleLive) {
@@ -342,7 +356,7 @@ function MirrorTab({ onPerson, pop, onPop, worldZoom, onZoom, firstRun, topNav, 
     <div ref={backRef} className={'fade-in' + (isYou ? '' : ' mf-flex')}
       style={isYou ? { '--accent': accentVar, height: '100%', display: 'flex', flexDirection: 'column' } : { '--accent': accentVar }}>
       <div style={isYou ? { flexShrink: 0, padding: '10px 14px 0' } : { flexShrink: 0 }}>
-        <MirrorPopPicker stopId={stopId} onPick={pick} live={liveGeo} big={topNav} />
+        <MirrorPopPicker stopId={stopId} onPick={pick} big={topNav} />
       </div>
       {tag}
       {body}

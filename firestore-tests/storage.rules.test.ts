@@ -13,6 +13,19 @@
 // confirmed empty — deleteAccount does not touch Storage, so revoking
 // access to objects that still exist would create an erasure gap rather
 // than close a hole. See docs/SHIP-CHECKLIST.md.
+//
+// UPLOADS ARE NOW CLOSED (2026-08-13), and the split is why this file
+// changed shape. The erasure argument above is about READ and DELETE — a
+// v1 user reaching a leftover object to remove it — and says nothing about
+// accepting new bytes. The write half was the project's only unbounded
+// egress surface: any anonymous account (D3 makes those free) could store
+// 8 MB per object with `{filename}` unbounded, so unbounded objects and
+// unbounded bytes to read back, against a docs/COSTS.md line that bills
+// Storage at "$0 (bucket unused)". Nothing in src/ or functions/src
+// imports firebase/storage at all, so no feature loses anything.
+//
+// The two suites below are therefore asymmetric on purpose: reads and
+// deletes keep their positive cases, uploads keep only negative ones.
 
 import { readFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
@@ -74,8 +87,13 @@ const photo = (storage: FirebaseStorage, uid: string, name = "a.jpg") =>
   ref(storage, `users/${uid}/dailyPhotos/${name}`);
 
 describe("storage: owner-only daily photos", () => {
-  it("the owner uploads and reads their own photo", async () => {
-    await assertSucceeds(uploadBytes(photo(asUser(OWNER), OWNER), small(), JPEG));
+  it("the owner reads their own leftover photo", async () => {
+    // Seeded out-of-band now, because the owner can no longer put it there
+    // themselves — which is the whole change. Read still works, so the
+    // erasure path this grant exists for is intact.
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await uploadBytes(photo(ctx.storage(), OWNER), small(), JPEG);
+    });
     await assertSucceeds(getBytes(photo(asUser(OWNER), OWNER)));
   });
 
@@ -99,23 +117,36 @@ describe("storage: owner-only daily photos", () => {
   });
 });
 
-describe("storage: upload validation", () => {
-  it("rejects a non-image content type", async () => {
-    await assertFails(uploadBytes(
-      photo(asUser(OWNER), OWNER, "not-a-photo.jpg"),
-      small(),
-      { contentType: "application/pdf" },
-    ));
+describe("storage: uploads are closed", () => {
+  // These used to assert the 8MB cap and the image/* content-type gate.
+  // Both are gone with the write grant, and asserting them here would now
+  // be asserting a bound on something that cannot happen — so the cases
+  // become "no upload succeeds", which is the stronger claim and the one
+  // the cost argument actually rests on. A valid small JPEG is the case
+  // that matters: if THAT fails, nothing weaker gets through.
+  it("the owner cannot upload, even a valid small image", async () => {
+    await assertFails(uploadBytes(photo(asUser(OWNER), OWNER, "ok.jpg"), small(), JPEG));
   });
 
-  it("rejects an upload over the 8MB cap", async () => {
+  it("the owner cannot overwrite an object that already exists", async () => {
+    // update is the same verb as create here; a rule that closed create and
+    // left update open would leave the bytes-per-object term unbounded even
+    // with the object COUNT fixed.
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await uploadBytes(photo(ctx.storage(), OWNER), small(), JPEG);
+    });
+    await assertFails(uploadBytes(photo(asUser(OWNER), OWNER), small(), JPEG));
+  });
+
+  it("a free anonymous account cannot upload under its own uid", async () => {
+    // The version that actually costs money: D3 mints one of these on first
+    // open, so "signed in" is not a scarcity of any kind.
+    await assertFails(uploadBytes(photo(asAnonAuth("anon2"), "anon2"), small(), JPEG));
+  });
+
+  it("an 8MB-plus upload fails too — now by the grant, not by the cap", async () => {
     const tooBig = new Uint8Array(8 * 1024 * 1024 + 1);
     await assertFails(uploadBytes(photo(asUser(OWNER), OWNER, "big.jpg"), tooBig, JPEG));
-  });
-
-  it("accepts a large-but-under-cap image", async () => {
-    const justUnder = new Uint8Array(8 * 1024 * 1024 - 1024);
-    await assertSucceeds(uploadBytes(photo(asUser(OWNER), OWNER, "ok.jpg"), justUnder, JPEG));
   });
 });
 

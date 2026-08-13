@@ -27,22 +27,45 @@
 // rules.test.ts). It is also what keeps sealed duel answers out: they
 // carry surface "group"/"duo" and are nobody's business until the reveal.
 
-import {
-  collectionGroup,
-  documentId,
-  getDocs,
-  orderBy,
-  query,
-  where,
-  type Firestore,
-} from "firebase/firestore";
-import { collection as fsCollection } from "firebase/firestore";
+// The API arrives through lib/firebase's memoised dynamic import, not a
+// static one (D110) — a static import here would put the 292 KB Firestore
+// SDK back in the first-paint graph, because live.ts imports this module
+// eagerly. The type import is erased and costs nothing.
+import { getFirestoreApi } from "../../lib/firebase";
+import type { Firestore } from "firebase/firestore";
+// Pure arithmetic, no Firebase anywhere in it — safe to import statically
+// without re-opening the first-paint hole the comment above closes.
+import { CORE_TEST_KINDS, parseTestResults, type ParsedResults } from "./similarity";
 
 // The surfaces a world answer can carry. Must match the array in
 // firestore.rules' collection-group grant exactly — a value here the rule
 // does not list makes the whole query fail closed, which is the safe
 // direction but an invisible one.
 export const WORLD_ANSWER_SURFACES = ["daily", "feed", "test", "learn"] as const;
+
+// Voters one fetch returns — the newest first, because the query already
+// orders by answeredAt desc (D102).
+//
+// This bound is what keeps the who-voted sheet from being the app's only
+// unbounded read. The daily question is globally shared (computeDeckIds
+// takes no uid), so its crowd is roughly "everyone active that day":
+// uncapped, one sheet open at 5,000 DAU is ~5,000 answer reads plus up to
+// that many profile reads for names — ~10,000 billed reads and a
+// multi-second list render for a single tap, growing linearly with DAU
+// forever. Every sibling fan-out already carries its bound
+// (CIRCLE_ANSWER_CAP, FOLLOW_CAP, KINDRED_QUESTIONS, AGG_ID_CAP); this
+// was the one that shipped without.
+//
+// 200 is a screen-and-a-half of names beyond anyone's patience (~7,000 px
+// of rows) and well above any launch-scale crowd, so at small sizes the
+// sheet is exhaustive and says nothing about it; when the cap binds, the
+// panel says "the latest 200" rather than presenting a truncation as the
+// whole room (LiveVotersPanel). Kindred inherits the same bound per
+// question: recency-biased, which is the honest bias for a likeness
+// ranking drawn from live lists. If a fuller list is ever worth having,
+// the answer is to PAGE from the cursor this ordering already provides —
+// not to raise the number quietly (the D101 rule).
+export const VOTER_FETCH_CAP = 200;
 
 // Firestore's `in` operator caps at 30 values per query (it was 10 before
 // 2023). Name resolution chunks on this.
@@ -130,12 +153,15 @@ export async function fetchVoters(
   qid: string,
   myUid: string | null,
   names: Record<string, string>,
+  scores?: Record<string, ParsedResults | null>,
 ): Promise<Voter[]> {
+  const { collectionGroup, getDocs, limit: fsLimit, orderBy, query, where } = await getFirestoreApi();
   const snap = await getDocs(query(
     collectionGroup(db, "answers"),
     where("qid", "==", qid),
     where("surface", "in", [...WORLD_ANSWER_SURFACES]),
     orderBy("answeredAt", "desc"),
+    fsLimit(VOTER_FETCH_CAP),
   ));
 
   const rows: Voter[] = [];
@@ -151,7 +177,7 @@ export async function fetchVoters(
     rows.push({ uid, optionIdx, anchors, name: "", isMe: uid === myUid });
   }
 
-  await resolveNames(db, rows.map((r) => r.uid), names);
+  await resolveNames(db, rows.map((r) => r.uid), names, scores);
   for (const r of rows) r.name = names[r.uid] || "";
   return rows;
 }
@@ -161,14 +187,26 @@ export async function fetchVoters(
  *
  * A uid whose profile read returns nothing is cached as "" rather than
  * left absent, so a nameless account is not re-fetched on every open.
+ *
+ * When a `scores` cache is passed (D112), the SAME read also fills uid →
+ * parsed test scores. The web SDK has no field mask, so the whole profile
+ * document — testResults included — was already on the wire every time
+ * this resolved a name; extracting scores here is the read the app
+ * already paid for, not a second one. `null` is cached for a profile with
+ * nothing usable, mirroring the "" convention, so absence is never
+ * re-fetched per open.
  */
 export async function resolveNames(
   db: Firestore,
   uids: readonly string[],
   names: Record<string, string>,
+  scores?: Record<string, ParsedResults | null>,
 ): Promise<void> {
-  const missing = uids.filter((u) => !(u in names));
+  const missing = uids.filter((u) => !(u in names) || (scores ? !(u in scores) : false));
   if (!missing.length) return;
+  const {
+    collection: fsCollection, documentId, getDocs, query, where,
+  } = await getFirestoreApi();
   for (const batch of chunkUids(missing)) {
     const snap = await getDocs(query(
       fsCollection(db, "v2_users"),
@@ -177,9 +215,13 @@ export async function resolveNames(
     for (const d of snap.docs) {
       const n = d.get("displayName");
       names[d.id] = typeof n === "string" ? n.trim().slice(0, 60) : "";
+      if (scores) scores[d.id] = parseTestResults(d.get("testResults"), CORE_TEST_KINDS);
     }
     // Anything the query did not return does not exist — cache the
     // absence so the next open does not re-ask for it.
-    for (const u of batch) if (!(u in names)) names[u] = "";
+    for (const u of batch) {
+      if (!(u in names)) names[u] = "";
+      if (scores && !(u in scores)) scores[u] = null;
+    }
   }
 }

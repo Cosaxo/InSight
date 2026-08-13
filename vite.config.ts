@@ -45,8 +45,8 @@ export default defineConfig(({ mode }) => {
       // Most of `--dir src` is pure logic and wants no DOM — a global
       // jsdom environment would slow every one of those files down for
       // the sake of one. Files opt in with the
-      // `// @vitest-environment jsdom` docblock instead; smoke.test.jsx
-      // is the only one today.
+      // `// @vitest-environment jsdom` docblock instead — the mount suites
+      // (`test/smoke-*.test.jsx`) and the panel suites carry it.
       //
       // setupFiles runs for ALL of them, so it must stay a no-op outside
       // jsdom — see the guard at the top of the file.

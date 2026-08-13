@@ -36,9 +36,9 @@ its question's branch and sitting further from the centre the more
 unusual it was — mastered Learn facts land on the same canvas. **Groups**
 is your named circles, their alignment computed from real reveal history.
 **Near**, **Country** and **World** are the same question at three radii.
-**Circle** is the one stop with nothing real behind it yet: v2 has no
-person-to-person graph, so live mode says so rather than showing the
-prototype's invented people.
+**Circle** is the accounts you follow, ranked by how alike your answers
+are (decision D101) — a follow is a bookmark, not a permission grant, so
+there is no request to send and nothing to accept.
 
 The slicing is the whole trick, and it costs one write. An answer is
 stored once, readable by anyone, carrying a snapshot of the profile
@@ -129,7 +129,7 @@ src/lib/           firebase init + anonymous-first auth + emulator wiring
 functions/src/     v2.ts (seed + aggregates) · v2social.ts (groups, duos,
                    reveals, push) · index.ts (account deletion)
 firestore.rules    the access model (public answers, exact aggs,
-                   member-only groups/reveals) — 73 emulator tests
+                   member-only groups/reveals) — 79 emulator tests
 firestore.rules.v1-archive  the retired v1 client rules (D4) — reference,
                    NOT deployed
 monitoring/        Cloud Monitoring policies, put live by
@@ -153,7 +153,7 @@ Local:
 - `npm run test:unit` — client store, pure deck logic, and the spec-layer
   mount tests (vitest + jsdom, no emulator).
 - `npm run test --prefix functions` — the aggregate fold, reveal and streak math.
-- `npm run test:rules` — 73 security-rules tests (Firestore + Storage)
+- `npm run test:rules` — 79 security-rules tests (Firestore + Storage)
   against the emulator. `npm run check:figures` holds this number and the
   one in the repo map above equal to the suites, because both said 40 for
   long enough to be quoted twice.

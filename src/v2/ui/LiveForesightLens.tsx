@@ -1,4 +1,4 @@
-// Foresight — the Mirror's fifth lens (D102).
+// Foresight — the Mirror's fifth lens (D125).
 //
 // v19's one new feature, and the last item on the nineteen-point list.
 // The prototype ships two card types; this is READ, the half whose truth

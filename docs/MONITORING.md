@@ -172,10 +172,17 @@ consoles, which are not in this repo and never will be.
 | Skip / pass / hesitation rates | QUESTION-FARM.md, "Deliberately out of scope" |
 | Per-user content selection, ad targeting profiles | MONETIZATION.md, "Ruled out by standing posture" |
 
-The second row is the one worth sitting with. The same suppression that
-stops a paying city identifying a person stops the owner doing it. That is
-the guarantee working, not a hole in the tooling — and if the tooling ever
-grows a way around it, the guarantee was never enforced in the first place.
+The second row used to read: "the same suppression that stops a paying city
+identifying a person stops the owner doing it." D98 deleted the suppression,
+so that sentence is now false in both halves, and the row survives for a
+different reason worth stating plainly. Nothing technical stops the owner
+slicing retention by anchor any more — the anchors are public and the fold
+is a query away. What stops it is that **this is an analytics decision, not
+a privacy one**: per-user funnels and engagement scoring are refused
+because they build the behavioural model MONETIZATION.md's standing posture
+rules out, and that refusal has to hold on its own now that no floor is
+carrying it. A guarantee that only survived because a side effect enforced
+it was never a decision; this row is the decision, taken deliberately.
 
 ## The fifth thing: instrumentation
 

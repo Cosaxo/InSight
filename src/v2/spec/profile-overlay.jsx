@@ -5,8 +5,8 @@
 // guards the wiring in CI.
 import React from 'react';
 import { Av, useDialog } from './primitives.jsx';
-import { ResultProfileCard } from './result-card.jsx';
-import { IS_TEST_RESULTS } from './test-definitions.js';
+import { ownProgress, ResultProfileCard } from './result-card.jsx';
+import { RP_TESTS } from './result-rose.jsx';
 
 // InSight — ProfileOverlay (your own profile) + the Politics cards.
 // The test flow lives in test-overlay.jsx; question banks in test-defs.js.
@@ -25,8 +25,7 @@ function ProfileOverlay({ onClose, me, lensBoxed }) {
     { id: 'politics',   label: 'Politics' },
     { id: 'values',     label: 'Values' },
     { id: 'attachment', label: 'Social' },
-    { id: 'thinking',   label: 'Thinking' },
-    // the minor instruments. Last on purpose: the five core tests are the
+    // the minor instruments. Last on purpose: the four core tests are the
     // profile, lenses are the footnotes that explain it.
     { id: 'lenses',     label: 'Lenses' },
   ];
@@ -55,19 +54,62 @@ function ProfileOverlay({ onClose, me, lensBoxed }) {
   const meta = labels[top.label];
 
   // ── one tab per test — the unified "results profile" card ──
-  // CTA only when a test has never been taken. A partial picture needs no
-  // nudge: the feed keeps filling it in as you answer.
-  const TestCTA = ({ k }) => {
-    const taken = !!IS_TEST_RESULTS[k];
-    if (taken) return null;
+  //
+  // WHAT USED TO BE HERE: a "Take this test →" button, shown whenever the
+  // test had no stored result. D121 removed it along with the sit-down
+  // flow behind it — the instruments fill from the feed and only from the
+  // feed — and a tab whose whole content was a button to a screen that no
+  // longer exists is worse than the empty one it was covering for.
+  //
+  // What stands in its place is the same page one step earlier: the
+  // instrument's own progress, its axes, and which of them are still too
+  // thin to read. Not a nudge — a reading of where the profile has got to,
+  // which is the only honest thing to show before there is a type.
+  const TestProgress = ({ k }) => {
+    const p = ownProgress(k);
+    if (!p || p.ready) return null;
+    const hue = (RP_TESTS[k] || {}).banner || 'var(--accent)';
+    const pct = Math.round((p.answered / Math.max(1, p.total)) * 100);
     return (
-      <button onClick={() => window.openTest ? window.openTest(k) : window.openOverlay('test')} style={{
-        width: '100%', padding: '13px', marginBottom: 14, cursor: 'pointer',
-        WebkitAppearance: 'none', appearance: 'none',
-        background: 'var(--ink)', color: 'var(--surface)',
-        border: 'none', borderRadius: 14,
-        fontFamily: 'var(--sans)', fontSize: 14.5, fontWeight: 700, letterSpacing: '-0.01em',
-      }}>Take this test →</button>
+      <div className="card" style={{ padding: 0, overflow: 'hidden', marginBottom: 14 }}>
+        <div style={{ height: 3, background: `color-mix(in oklch, ${hue} 14%, var(--surface-3))` }}>
+          <div style={{ height: '100%', width: `${pct}%`, background: hue }}></div>
+        </div>
+        <div style={{ padding: '15px 18px 17px' }}>
+          <div className="kicker" style={{ color: hue }}>{(RP_TESTS[k] || {}).kicker || 'Filling in'}</div>
+          <div style={{ fontFamily: 'var(--serif)', fontSize: 21, color: 'var(--ink)', marginTop: 4, letterSpacing: '-0.01em' }}>
+            {p.answered} of {p.total} answered
+          </div>
+          <div style={{ fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 500, color: 'var(--ink-2)', lineHeight: 1.5, marginTop: 7 }}>
+            {/* Says where the answers come from, because there is no longer
+                anywhere else they could. */}
+            Marked cards in the feed fill this in. There is no sitting down
+            for it — answer them when they come.
+          </div>
+          {/* The axes, and which are still a coin flip. An axis with one
+              answer behind it lands on an extreme more often than not, so
+              the card refuses a TYPE until every one of them has two —
+              and naming them is what makes the refusal legible instead of
+              looking like a stall. */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 14 }}>
+            {p.dims.map((d) => (
+              <div key={d.dim} style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                <span style={{ width: 96, flexShrink: 0, fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 600, color: 'var(--ink-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.label}</span>
+                <span style={{ flex: 1, height: 8, borderRadius: 999, background: 'var(--surface-3)', overflow: 'hidden' }}>
+                  <span style={{ display: 'block', height: '100%', width: `${Math.round((d.n / Math.max(1, d.items)) * 100)}%`, background: hue, opacity: 0.75 }}></span>
+                </span>
+                <span style={{ width: 40, textAlign: 'right', fontFamily: 'var(--sans)', fontSize: 11, fontWeight: 700, color: 'var(--ink-3)', fontVariantNumeric: 'tabular-nums' }}>{d.n}/{d.items}</span>
+              </div>
+            ))}
+          </div>
+          {!!p.thin.length && (
+            <div style={{ fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 500, color: 'var(--ink-3)', lineHeight: 1.5, marginTop: 12 }}>
+              Still thin: {p.thin.join(', ')}. Your type appears once every
+              side of this has at least two answers behind it.
+            </div>
+          )}
+        </div>
+      </div>
     );
   };
 
@@ -101,16 +143,6 @@ function ProfileOverlay({ onClose, me, lensBoxed }) {
     <ResultProfileCard testKey="attachment" archetype="The Constant" tagline="steady and affectionate — the friend who stays" />
   );
 
-  // No tagline: the other four hand ResultProfileCard a line off the demo
-  // persona (me.politicalIdentity, me.moralLabel), and `me` carries nothing
-  // for thinking style. The card reads its own archetype line from
-  // IS_ARCHETYPES rather than inventing one, which is the right default
-  // here anyway — an invented tagline on a live account's result would be
-  // the fabrication D1 forbids.
-  const ThinkingPanel = () => (
-    <ResultProfileCard testKey="cognitive" archetype="Thinking" />
-  );
-
   const dlg = useDialog(onClose, 'Your profile');
   return (
     <div className="overlay surface-tint" {...dlg} style={{ '--accent': 'var(--c-people)' }}>
@@ -120,8 +152,12 @@ function ProfileOverlay({ onClose, me, lensBoxed }) {
         <div style={{ width: 32, flexShrink: 0 }} />
       </div>
       <div className="app-body" style={{ paddingTop: 0 }}>
-        {/* compact identity row — the content is the star, not the header */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 16 }}>
+        {/* compact identity row — the content is the star, not the header.
+            Tightened 2026-08-12 with the double-inset fix above it: this
+            row sat under ~146px of doubled status-bar padding, so its own
+            52px avatar and 16px lead were the second half of a profile
+            that opened on a third of a screen saying "You". */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 10 }}>
           {(() => {
             const live = window.LIVE && window.LIVE.enabled;
             const nm = live ? (window.LIVE.displayName || 'You') : me.name;
@@ -131,10 +167,10 @@ function ProfileOverlay({ onClose, me, lensBoxed }) {
             const sub = live ? 'anonymous session — link Google below to keep it' : (me.location + ' · ' + me.country);
             return (
               <>
-                <Av init={init} hue={38} size={52} />
+                <Av init={init} hue={38} size={42} />
                 <div style={{ minWidth: 0 }}>
-                  <div style={{ fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 20, letterSpacing: '-0.02em', lineHeight: 1.15 }}>{nm}</div>
-                  <div style={{ fontFamily: 'var(--sans)', fontSize: 13, color: 'var(--ink-3)', marginTop: 3 }}>{sub}</div>
+                  <div style={{ fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 18, letterSpacing: '-0.02em', lineHeight: 1.15 }}>{nm}</div>
+                  <div style={{ fontFamily: 'var(--sans)', fontSize: 12.5, color: 'var(--ink-3)', marginTop: 2 }}>{sub}</div>
                 </div>
               </>
             );
@@ -153,11 +189,10 @@ function ProfileOverlay({ onClose, me, lensBoxed }) {
         <div key={sub} className="tab-swap" style={{ marginTop: 4 }}>
           {sub === 'general' && window.LIVE && window.LIVE.enabled && window.LivePrivacyPanel && <window.LivePrivacyPanel />}
           {sub === 'general' && <window.GeneralPanel onGo={setSub} />}
-          {sub === 'big5' && <><Big5Panel /><TestCTA k="big5" /></>}
-          {sub === 'politics' && <><PoliticsPanel /><TestCTA k="political" /></>}
-          {sub === 'values' && <><ValuesPanel /><TestCTA k="values" /></>}
-          {sub === 'attachment' && <><AttachmentPanel /><TestCTA k="attachment" /></>}
-          {sub === 'thinking' && <><ThinkingPanel /><TestCTA k="cognitive" /></>}
+          {sub === 'big5' && <><Big5Panel /><TestProgress k="big5" /></>}
+          {sub === 'politics' && <><PoliticsPanel /><TestProgress k="political" /></>}
+          {sub === 'values' && <><ValuesPanel /><TestProgress k="values" /></>}
+          {sub === 'attachment' && <><AttachmentPanel /><TestProgress k="attachment" /></>}
           {sub === 'lenses' && window.LensesPanel && <window.LensesPanel boxed={lensBoxed} />}
         </div>
       </div>

@@ -5,6 +5,7 @@
 // guards the wiring in CI.
 import React from 'react';
 import { MirrorLensRow } from './mirror-field.jsx';
+import { DUELS } from './duels-data.js';
 import { Kicker, Lazy } from './primitives.jsx';
 
 // group-mirror.jsx — the Mirror's GROUPS stop: your named circles as a cast
@@ -86,11 +87,10 @@ import { Kicker, Lazy } from './primitives.jsx';
 
   // ── Answers: the group's question history — verdicts, with a split bar ──
   function GroupAnswersCard({ g }) {
-    const D = window.DUELS;
-    const P = D.groupPortrait(g.id);
+    const P = DUELS.groupPortrait(g.id);
     const rows = [];
     for (let i = 1; i < 7; i++) {
-      const gp = D.groupPicks(g.id, i);
+      const gp = DUELS.groupPicks(g.id, i);
       const total = gp.counts.reduce((a, b) => a + b, 0) || 1;
       rows.push({ i, prompt: gp.q.prompt, maj: gp.q.options[gp.majority], n: total, k: gp.counts[gp.majority], mine: gp.mine, agree: gp.mine != null && gp.mine === gp.majority, mineLabel: gp.mine != null && gp.mine !== gp.majority ? gp.q.options[gp.mine] : null });
     }
@@ -127,9 +127,8 @@ import { Kicker, Lazy } from './primitives.jsx';
 
   // ── People: demographics + likeness — who they are, and how close each runs to you ──
   function GroupPeopleCard({ g }) {
-    const D = window.DUELS;
-    const P = D.groupPortrait(g.id);
-    const ms = D.groupMembers(g.id);
+    const P = DUELS.groupPortrait(g.id);
+    const ms = DUELS.groupMembers(g.id);
     // beeswarm: one shared likeness axis — everyone as a dot, distance from the
     // "you" anchor = how unlike you they run; stagger only breaks collisions
     const lo = Math.min(...ms.map((p) => p.match)) - 8;
@@ -195,11 +194,10 @@ import { Kicker, Lazy } from './primitives.jsx';
   const gmh = (s) => { let x = 2166136261 >>> 0; for (let i = 0; i < s.length; i++) { x ^= s.charCodeAt(i); x = Math.imul(x, 16777619); } return ((x >>> 8) % 1000) / 1000; };
 
   function GroupCompareCard({ g }) {
-    const D = window.DUELS;
-    const ms = D.groupMembers(g.id);
-    const P = D.groupPortrait(g.id);
+    const ms = DUELS.groupMembers(g.id);
+    const P = DUELS.groupPortrait(g.id);
     // how the group sees you — the crowns it has voted onto your head
-    const crowns = D.roleVotes(g.id).roles.filter((r) => r.winner === 'me' || (r.contested && r.second === 'me'));
+    const crowns = DUELS.roleVotes(g.id).roles.filter((r) => r.winner === 'me' || (r.contested && r.second === 'me'));
     // this group's collective, as a compare population — the shared groups
     // baseline nudged per-group (deterministic by id) so each circle has its own grain
     const pop = React.useMemo(() => {
@@ -207,7 +205,7 @@ import { Kicker, Lazy } from './primitives.jsx';
       if (!base) return null;
       const j = (k, v) => Math.max(6, Math.min(94, Math.round(v + (gmh('cb' + g.id + k) - 0.5) * 22)));
       const out = { label: g.name, n: ms.length };
-      ['big5', 'political', 'values', 'attachment', 'cognitive'].forEach((t) => {
+      ['big5', 'political', 'values', 'attachment'].forEach((t) => {
         out[t] = {};
         Object.entries(base[t] || {}).forEach(([k, v]) => { out[t][k] = j(t + k, v); });
       });
@@ -252,16 +250,14 @@ import { Kicker, Lazy } from './primitives.jsx';
   }
 
   function GroupsMirrorBody({ onPerson, topLenses }) {
-    const D = window.DUELS;
     const [, bump] = useReducer((x) => x + 1, 0);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- ported effect; see src/v2/README.md § Lint suppressions
-    useEffect(() => D.subscribe(bump), []);
-    const gs = D.groups();
+    useEffect(() => DUELS.subscribe(bump), []);
+    const gs = DUELS.groups();
     const [gid, setGid] = useState(gs[0] && gs[0].id);
     const [lensOpen, setLensOpen] = useState('__ov');
     const g = gs.find((x) => x.id === gid) || gs[0];
     if (!g) return null;
-    const P = D.groupPortrait(g.id);
+    const P = DUELS.groupPortrait(g.id);
     const align = Math.round((P.meWithMaj / Math.max(P.days, 1)) * 100);
     const lenses = [
       { id: 'answers', label: 'Answers', render: () => <GroupAnswersCard g={g}></GroupAnswersCard> },

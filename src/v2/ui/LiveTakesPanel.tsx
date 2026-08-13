@@ -246,7 +246,7 @@ function LtComposer({ gid, qid }: { gid: string; qid: string }) {
           aria-label="Add your take"
           style={{
             flex: 1, border: LT_LINE, borderRadius: 999, padding: "10px 16px",
-            fontFamily: "var(--sans)", fontSize: 13.5, fontWeight: 600,
+            fontFamily: "var(--sans)", fontSize: "var(--field-size)", fontWeight: 600,
             background: "var(--surface-2)", color: "var(--ink)", outline: "none", minWidth: 0,
           }}
         />

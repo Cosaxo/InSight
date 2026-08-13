@@ -43,12 +43,19 @@ export const LIVE_MEMBERS = [
   // Kindred (D99) — the People lens's ranking, derived on read from the
   // cached voter lists plus the viewer's own votes.
   "loadKindred", "kindred", "kindredLoading", "kindredDepth",
+  // Similarity (D112) — the constellation fields. `loadSimilarity` tops up
+  // the bank's test-item aggregates (once per session) and runs
+  // loadKindred; `kindredPeople` is kindred() plus frozen city and parsed
+  // scores; `testFeedItems` and `myTestResults` are the fold's other two
+  // ingredients, exposed so the typed layer never needs a bridge read.
+  "loadSimilarity", "similarityLoading", "kindredPeople",
+  "testFeedItems", "myTestResults",
   // The follow graph and the Circle stop (D101). `circle` returns null
   // while unfetched or failed and an array once known — same rule as
   // `voters`, because "could not ask" and "you follow nobody" are
   // different sentences the stop renders differently.
   "loadCircle", "circle", "circleLoading", "isFollowing", "setFollowing",
-  // Foresight (D102). The store holds the LOG; the score, the streak and
+  // Foresight (D125). The store holds the LOG; the score, the streak and
   // the per-dimension accuracy are pure folds the lens runs on it, so no
   // derived number lives here to disagree with its own rows.
   "loadForesight", "foresightLog", "foresightLoading", "scoreForesight",
@@ -59,7 +66,7 @@ export const LIVE_MEMBERS = [
   // failed exactly there.
   "bootError",
   "confirmedVotes", "dailyBank", "deck",
-  "deleteAccount", "demoInProd", "displayName",
+  "deleteAccount", "demoInProd", "displayName", "handle",
   // D86: the one repeatable answer write — moves an existing daily/feed/
   // test answer to a different option. Returns false without writing when
   // there is nothing to move or the 60s cooldown holds.
@@ -88,6 +95,11 @@ export const LIVE_SOCIAL_MEMBERS = [
   "bankQ", "createGroup", "groups", "joinGroup", "leaveGroup",
   "loadRevealHistory", "myDuelVote", "revealFor", "revealHistory",
   "romanticPoolReady", "setDuoMode", "todayKey", "todayQ", "voteDuel",
+  // Handles and invitations (D122) — the uid-addressed way into a circle.
+  // Listed here before any consumer reads them, for the reason the block
+  // below states: the pin is what makes the surface reviewed.
+  "acceptInvite", "claimHandle", "declineInvite", "inviteToGroup",
+  "invites", "invitesLoading", "loadInvites", "whoIs",
   // Circle takes and the report control (D1, docs/MODERATION.md). Listed
   // here before any JSX reads them: the pin is what makes the surface
   // reviewed, and a member added straight into a consumer is a member

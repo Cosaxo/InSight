@@ -26,11 +26,13 @@ import { IS_DATA } from "../spec/sample-data.js";
 import { IS_ARCHETYPES } from "../spec/archetype-data.js";
 import { FRIENDS } from "../spec/follows.js";
 import "../spec/mirror-field-pops.jsx"; // publishes MFP_SECTORS
-import "../spec/duels-data.js"; // publishes window.DUELS
+import { DUELS } from "../spec/duels-data.js";
 
 const people = IS_DATA.people;
 const byId = new Map(people.map((p) => [p.id, p]));
-const D = () => window.DUELS;
+// A thunk, not the binding, because every call site reads it lazily and
+// this keeps that shape unchanged now the store is an import (D108).
+const D = () => DUELS;
 
 describe("the circle roster", () => {
   it("gives every person the fields its consumers read", () => {

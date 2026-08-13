@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 //
-// The Foresight lens (D102). The engine's arithmetic has its own suite in
+// The Foresight lens (D125). The engine's arithmetic has its own suite in
 // data/foresight.test.ts; what these cases hold is the part a fold test
 // cannot see — the clock, and what the card SAYS when you are wrong.
 //

@@ -9,7 +9,11 @@
 // predicate checks `political === true` alongside `test === "political"`).
 // `branch`/`sub` are the daily bank's [branch, sub-branch] subject path
 // (D100) and are absent on every other surface, which carries no path.
-export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; branch?: string; sub?: string; axis: string | null; test: string | null; mode?: string; active?: boolean; political?: boolean; }
+// `lo`/`hi`/`unit`/`ends` (dial) and `ax`/`ay` (field) are the continuum
+// forms' range/plane copy (D114), absent everywhere else; their options
+// are synthesized bucket/cell labels, so the D52 option freeze freezes
+// the range with them.
+export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; branch?: string; sub?: string; axis: string | null; test: string | null; mode?: string; active?: boolean; political?: boolean; lo?: number; hi?: number; unit?: string; ends?: string[]; ax?: string[]; ay?: string[]; }
 export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "daily-000",
@@ -2810,6 +2814,217 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "food",
   "axis": null,
   "test": null
+ },
+ {
+  "id": "feed-dl1",
+  "surface": "feed",
+  "seq": 73,
+  "type": "dial",
+  "domain": null,
+  "prompt": "When does old age begin?",
+  "options": [
+   "40–44 yrs",
+   "44–48 yrs",
+   "48–53 yrs",
+   "53–57 yrs",
+   "57–61 yrs",
+   "61–65 yrs",
+   "65–69 yrs",
+   "69–73 yrs",
+   "73–78 yrs",
+   "78–82 yrs",
+   "82–86 yrs",
+   "86–90 yrs"
+  ],
+  "topic": "bigq",
+  "axis": null,
+  "test": null,
+  "lo": 40,
+  "hi": 90,
+  "unit": "yrs"
+ },
+ {
+  "id": "feed-dl2",
+  "surface": "feed",
+  "seq": 74,
+  "type": "dial",
+  "domain": null,
+  "prompt": "The right tip",
+  "options": [
+   "0–3%",
+   "3–5%",
+   "5–8%",
+   "8–10%",
+   "10–13%",
+   "13–15%",
+   "15–18%",
+   "18–20%",
+   "20–23%",
+   "23–25%",
+   "25–28%",
+   "28–30%"
+  ],
+  "topic": "dilemma",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 30,
+  "unit": "%"
+ },
+ {
+  "id": "feed-dl3",
+  "surface": "feed",
+  "seq": 75,
+  "type": "dial",
+  "domain": null,
+  "prompt": "Daily screen time — where does “too much” start?",
+  "options": [
+   "1–2 h",
+   "2–3 h",
+   "3–4 h",
+   "4–5 h",
+   "5–6 h",
+   "6–7 h",
+   "7–7 h",
+   "7–8 h",
+   "8–9 h",
+   "9–10 h",
+   "10–11 h",
+   "11–12 h"
+  ],
+  "topic": "dilemma",
+  "axis": null,
+  "test": null,
+  "lo": 1,
+  "hi": 12,
+  "unit": "h"
+ },
+ {
+  "id": "feed-dl4",
+  "surface": "feed",
+  "seq": 76,
+  "type": "dial",
+  "domain": null,
+  "prompt": "How much of your life is actually in your control?",
+  "options": [
+   "0–8%",
+   "8–17%",
+   "17–25%",
+   "25–33%",
+   "33–42%",
+   "42–50%",
+   "50–58%",
+   "58–67%",
+   "67–75%",
+   "75–83%",
+   "83–92%",
+   "92–100%"
+  ],
+  "topic": "bigq",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 100,
+  "unit": "%"
+ },
+ {
+  "id": "feed-fd1",
+  "surface": "feed",
+  "seq": 77,
+  "type": "field",
+  "domain": null,
+  "prompt": "Pineapple on pizza — place it",
+  "options": [
+   "tastes bad · high art",
+   "lean tastes bad · high art",
+   "lean tastes good · high art",
+   "tastes good · high art",
+   "tastes bad · middle",
+   "lean tastes bad · middle",
+   "lean tastes good · middle",
+   "tastes good · middle",
+   "tastes bad · a crime",
+   "lean tastes bad · a crime",
+   "lean tastes good · a crime",
+   "tastes good · a crime"
+  ],
+  "topic": "dilemma",
+  "axis": null,
+  "test": null,
+  "ax": [
+   "tastes bad",
+   "tastes good"
+  ],
+  "ay": [
+   "a crime",
+   "high art"
+  ]
+ },
+ {
+  "id": "feed-fd2",
+  "surface": "feed",
+  "seq": 78,
+  "type": "field",
+  "domain": null,
+  "prompt": "Small talk — place it",
+  "options": [
+   "painful · essential",
+   "lean painful · essential",
+   "lean pleasant · essential",
+   "pleasant · essential",
+   "painful · middle",
+   "lean painful · middle",
+   "lean pleasant · middle",
+   "pleasant · middle",
+   "painful · pointless",
+   "lean painful · pointless",
+   "lean pleasant · pointless",
+   "pleasant · pointless"
+  ],
+  "topic": "bigq",
+  "axis": null,
+  "test": null,
+  "ax": [
+   "painful",
+   "pleasant"
+  ],
+  "ay": [
+   "pointless",
+   "essential"
+  ]
+ },
+ {
+  "id": "feed-fd3",
+  "surface": "feed",
+  "seq": 79,
+  "type": "field",
+  "domain": null,
+  "prompt": "AI assistants, today — place them",
+  "options": [
+   "overhyped · exciting",
+   "lean overhyped · exciting",
+   "lean underrated · exciting",
+   "underrated · exciting",
+   "overhyped · middle",
+   "lean overhyped · middle",
+   "lean underrated · middle",
+   "underrated · middle",
+   "overhyped · scary",
+   "lean overhyped · scary",
+   "lean underrated · scary",
+   "underrated · scary"
+  ],
+  "topic": "bigq",
+  "axis": null,
+  "test": null,
+  "ax": [
+   "overhyped",
+   "underrated"
+  ],
+  "ay": [
+   "scary",
+   "exciting"
+  ]
  },
  {
   "id": "group-gu0",
@@ -5998,369 +6213,9 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": "attachment"
  },
  {
-  "id": "test-cognitive-00",
-  "surface": "test",
-  "seq": 110,
-  "type": "scale",
-  "domain": null,
-  "prompt": "I break a problem into pieces before I start on it.",
-  "options": [
-   "Strongly disagree",
-   "Disagree",
-   "Neutral",
-   "Agree",
-   "Strongly agree"
-  ],
-  "topic": "test",
-  "axis": "analyst",
-  "test": "cognitive"
- },
- {
-  "id": "test-cognitive-01",
-  "surface": "test",
-  "seq": 111,
-  "type": "scale",
-  "domain": null,
-  "prompt": "I want the numbers in front of me before I take a view.",
-  "options": [
-   "Strongly disagree",
-   "Disagree",
-   "Neutral",
-   "Agree",
-   "Strongly agree"
-  ],
-  "topic": "test",
-  "axis": "analyst",
-  "test": "cognitive"
- },
- {
-  "id": "test-cognitive-02",
-  "surface": "test",
-  "seq": 112,
-  "type": "scale",
-  "domain": null,
-  "prompt": "I check whether an argument actually follows.",
-  "options": [
-   "Strongly disagree",
-   "Disagree",
-   "Neutral",
-   "Agree",
-   "Strongly agree"
-  ],
-  "topic": "test",
-  "axis": "analyst",
-  "test": "cognitive"
- },
- {
-  "id": "test-cognitive-03",
-  "surface": "test",
-  "seq": 113,
-  "type": "scale",
-  "domain": null,
-  "prompt": "I would rather go with a hunch than work it through.",
-  "options": [
-   "Strongly disagree",
-   "Disagree",
-   "Neutral",
-   "Agree",
-   "Strongly agree"
-  ],
-  "topic": "test",
-  "axis": "analyst",
-  "test": "cognitive"
- },
- {
-  "id": "test-cognitive-04",
-  "surface": "test",
-  "seq": 114,
-  "type": "scale",
-  "domain": null,
-  "prompt": "I lose interest once a problem gets fiddly.",
-  "options": [
-   "Strongly disagree",
-   "Disagree",
-   "Neutral",
-   "Agree",
-   "Strongly agree"
-  ],
-  "topic": "test",
-  "axis": "analyst",
-  "test": "cognitive"
- },
- {
-  "id": "test-cognitive-05",
-  "surface": "test",
-  "seq": 115,
-  "type": "scale",
-  "domain": null,
-  "prompt": "I look for the pattern before I look at the parts.",
-  "options": [
-   "Strongly disagree",
-   "Disagree",
-   "Neutral",
-   "Agree",
-   "Strongly agree"
-  ],
-  "topic": "test",
-  "axis": "systems",
-  "test": "cognitive"
- },
- {
-  "id": "test-cognitive-06",
-  "surface": "test",
-  "seq": 116,
-  "type": "scale",
-  "domain": null,
-  "prompt": "I want to know how a thing fits into everything around it.",
-  "options": [
-   "Strongly disagree",
-   "Disagree",
-   "Neutral",
-   "Agree",
-   "Strongly agree"
-  ],
-  "topic": "test",
-  "axis": "systems",
-  "test": "cognitive"
- },
- {
-  "id": "test-cognitive-07",
-  "surface": "test",
-  "seq": 117,
-  "type": "scale",
-  "domain": null,
-  "prompt": "When something breaks I look upstream for the cause.",
-  "options": [
-   "Strongly disagree",
-   "Disagree",
-   "Neutral",
-   "Agree",
-   "Strongly agree"
-  ],
-  "topic": "test",
-  "axis": "systems",
-  "test": "cognitive"
- },
- {
-  "id": "test-cognitive-08",
-  "surface": "test",
-  "seq": 118,
-  "type": "scale",
-  "domain": null,
-  "prompt": "I would rather fix what is in front of me than ask why it keeps happening.",
-  "options": [
-   "Strongly disagree",
-   "Disagree",
-   "Neutral",
-   "Agree",
-   "Strongly agree"
-  ],
-  "topic": "test",
-  "axis": "systems",
-  "test": "cognitive"
- },
- {
-  "id": "test-cognitive-09",
-  "surface": "test",
-  "seq": 119,
-  "type": "scale",
-  "domain": null,
-  "prompt": "Diagrams and maps rarely help me think.",
-  "options": [
-   "Strongly disagree",
-   "Disagree",
-   "Neutral",
-   "Agree",
-   "Strongly agree"
-  ],
-  "topic": "test",
-  "axis": "systems",
-  "test": "cognitive"
- },
- {
-  "id": "test-cognitive-10",
-  "surface": "test",
-  "seq": 120,
-  "type": "scale",
-  "domain": null,
-  "prompt": "I can tell when the mood in a room has shifted.",
-  "options": [
-   "Strongly disagree",
-   "Disagree",
-   "Neutral",
-   "Agree",
-   "Strongly agree"
-  ],
-  "topic": "test",
-  "axis": "empath",
-  "test": "cognitive"
- },
- {
-  "id": "test-cognitive-11",
-  "surface": "test",
-  "seq": 121,
-  "type": "scale",
-  "domain": null,
-  "prompt": "I work out what someone wants before they say it.",
-  "options": [
-   "Strongly disagree",
-   "Disagree",
-   "Neutral",
-   "Agree",
-   "Strongly agree"
-  ],
-  "topic": "test",
-  "axis": "empath",
-  "test": "cognitive"
- },
- {
-  "id": "test-cognitive-12",
-  "surface": "test",
-  "seq": 122,
-  "type": "scale",
-  "domain": null,
-  "prompt": "I think about how a decision will land on people.",
-  "options": [
-   "Strongly disagree",
-   "Disagree",
-   "Neutral",
-   "Agree",
-   "Strongly agree"
-  ],
-  "topic": "test",
-  "axis": "empath",
-  "test": "cognitive"
- },
- {
-  "id": "test-cognitive-13",
-  "surface": "test",
-  "seq": 123,
-  "type": "scale",
-  "domain": null,
-  "prompt": "Other people's reasons are mostly a mystery to me.",
-  "options": [
-   "Strongly disagree",
-   "Disagree",
-   "Neutral",
-   "Agree",
-   "Strongly agree"
-  ],
-  "topic": "test",
-  "axis": "empath",
-  "test": "cognitive"
- },
- {
-  "id": "test-cognitive-14",
-  "surface": "test",
-  "seq": 124,
-  "type": "scale",
-  "domain": null,
-  "prompt": "I judge an idea on its merits and leave the people out of it.",
-  "options": [
-   "Strongly disagree",
-   "Disagree",
-   "Neutral",
-   "Agree",
-   "Strongly agree"
-  ],
-  "topic": "test",
-  "axis": "empath",
-  "test": "cognitive"
- },
- {
-  "id": "test-cognitive-15",
-  "surface": "test",
-  "seq": 125,
-  "type": "scale",
-  "domain": null,
-  "prompt": "I understand something once I have built it myself.",
-  "options": [
-   "Strongly disagree",
-   "Disagree",
-   "Neutral",
-   "Agree",
-   "Strongly agree"
-  ],
-  "topic": "test",
-  "axis": "maker",
-  "test": "cognitive"
- },
- {
-  "id": "test-cognitive-16",
-  "surface": "test",
-  "seq": 126,
-  "type": "scale",
-  "domain": null,
-  "prompt": "I would rather try it than read about it.",
-  "options": [
-   "Strongly disagree",
-   "Disagree",
-   "Neutral",
-   "Agree",
-   "Strongly agree"
-  ],
-  "topic": "test",
-  "axis": "maker",
-  "test": "cognitive"
- },
- {
-  "id": "test-cognitive-17",
-  "surface": "test",
-  "seq": 127,
-  "type": "scale",
-  "domain": null,
-  "prompt": "I learn a tool by opening it and pressing things.",
-  "options": [
-   "Strongly disagree",
-   "Disagree",
-   "Neutral",
-   "Agree",
-   "Strongly agree"
-  ],
-  "topic": "test",
-  "axis": "maker",
-  "test": "cognitive"
- },
- {
-  "id": "test-cognitive-18",
-  "surface": "test",
-  "seq": 128,
-  "type": "scale",
-  "domain": null,
-  "prompt": "I want the instructions before I touch anything.",
-  "options": [
-   "Strongly disagree",
-   "Disagree",
-   "Neutral",
-   "Agree",
-   "Strongly agree"
-  ],
-  "topic": "test",
-  "axis": "maker",
-  "test": "cognitive"
- },
- {
-  "id": "test-cognitive-19",
-  "surface": "test",
-  "seq": 129,
-  "type": "scale",
-  "domain": null,
-  "prompt": "I would rather plan it properly than start and adjust.",
-  "options": [
-   "Strongly disagree",
-   "Disagree",
-   "Neutral",
-   "Agree",
-   "Strongly agree"
-  ],
-  "topic": "test",
-  "axis": "maker",
-  "test": "cognitive"
- },
- {
   "id": "lq-moral-0",
   "surface": "test",
-  "seq": 130,
+  "seq": 110,
   "type": "scale",
   "domain": null,
   "prompt": "Someone suffering matters more than someone being wronged.",
@@ -6378,7 +6233,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "lq-moral-1",
   "surface": "test",
-  "seq": 131,
+  "seq": 111,
   "type": "scale",
   "domain": null,
   "prompt": "Cruelty is the worst thing a person can be.",
@@ -6396,7 +6251,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "lq-moral-2",
   "surface": "test",
-  "seq": 132,
+  "seq": 112,
   "type": "scale",
   "domain": null,
   "prompt": "People should get out what they put in — no more, no less.",
@@ -6414,7 +6269,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "lq-moral-3",
   "surface": "test",
-  "seq": 133,
+  "seq": 113,
   "type": "scale",
   "domain": null,
   "prompt": "Standing by your own people counts, even when they are wrong.",
@@ -6432,7 +6287,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "lq-moral-4",
   "surface": "test",
-  "seq": 134,
+  "seq": 114,
   "type": "scale",
   "domain": null,
   "prompt": "Respect for those in charge holds a society together.",
@@ -6450,7 +6305,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "lq-moral-5",
   "surface": "test",
-  "seq": 135,
+  "seq": 115,
   "type": "scale",
   "domain": null,
   "prompt": "Some things are degrading even when nobody is harmed.",
@@ -6468,7 +6323,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "lq-moral-6",
   "surface": "test",
-  "seq": 136,
+  "seq": 116,
   "type": "scale",
   "domain": null,
   "prompt": "Being told what to do is a harm in itself.",
@@ -6486,7 +6341,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "lq-moral-7",
   "surface": "test",
-  "seq": 137,
+  "seq": 117,
   "type": "scale",
   "domain": null,
   "prompt": "Rules I never agreed to have no hold on me.",
@@ -6504,7 +6359,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "lq-moral-8",
   "surface": "test",
-  "seq": 138,
+  "seq": 118,
   "type": "scale",
   "domain": null,
   "prompt": "Toughness does more good than tenderness.",
@@ -6522,7 +6377,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "lq-risk-0",
   "surface": "test",
-  "seq": 139,
+  "seq": 119,
   "type": "scale",
   "domain": null,
   "prompt": "I would put a month of savings into something volatile.",
@@ -6540,7 +6395,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "lq-risk-1",
   "surface": "test",
-  "seq": 140,
+  "seq": 120,
   "type": "scale",
   "domain": null,
   "prompt": "I read the fine print before signing anything with money in it.",
@@ -6558,7 +6413,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "lq-risk-2",
   "surface": "test",
-  "seq": 141,
+  "seq": 121,
   "type": "scale",
   "domain": null,
   "prompt": "I skip the check-up and assume it is nothing.",
@@ -6576,7 +6431,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "lq-risk-3",
   "surface": "test",
-  "seq": 142,
+  "seq": 122,
   "type": "scale",
   "domain": null,
   "prompt": "I will say the unpopular thing in a room that disagrees.",
@@ -6594,7 +6449,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "lq-risk-4",
   "surface": "test",
-  "seq": 143,
+  "seq": 123,
   "type": "scale",
   "domain": null,
   "prompt": "Steep, fast and slightly out of control is my idea of fun.",
@@ -6612,7 +6467,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "lq-risk-5",
   "surface": "test",
-  "seq": 144,
+  "seq": 124,
   "type": "scale",
   "domain": null,
   "prompt": "I would bend a rule if the outcome were clearly better.",
@@ -6630,7 +6485,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "lq-trust-0",
   "surface": "test",
-  "seq": 145,
+  "seq": 125,
   "type": "scale",
   "domain": null,
   "prompt": "Most people would give back a wallet they found.",
@@ -6648,7 +6503,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "lq-trust-1",
   "surface": "test",
-  "seq": 146,
+  "seq": 126,
   "type": "scale",
   "domain": null,
   "prompt": "You have to be careful — people take advantage.",
@@ -6666,7 +6521,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "lq-trust-2",
   "surface": "test",
-  "seq": 147,
+  "seq": 127,
   "type": "scale",
   "domain": null,
   "prompt": "For one group to gain, another has to lose.",
@@ -6685,7 +6540,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "lq-trust-3",
   "surface": "test",
-  "seq": 148,
+  "seq": 128,
   "type": "scale",
   "domain": null,
   "prompt": "Trade between countries leaves both better off.",
@@ -6704,7 +6559,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "lq-trust-4",
   "surface": "test",
-  "seq": 149,
+  "seq": 129,
   "type": "scale",
   "domain": null,
   "prompt": "In the long run, people get roughly what they deserve.",
@@ -6722,7 +6577,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "lq-trust-5",
   "surface": "test",
-  "seq": 150,
+  "seq": 130,
   "type": "scale",
   "domain": null,
   "prompt": "Where you end up is mostly where you started.",
@@ -6740,7 +6595,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "lq-time-0",
   "surface": "test",
-  "seq": 151,
+  "seq": 131,
   "type": "scale",
   "domain": null,
   "prompt": "€100 today beats €160 in a year.",
@@ -6758,7 +6613,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "lq-time-1",
   "surface": "test",
-  "seq": 152,
+  "seq": 132,
   "type": "scale",
   "domain": null,
   "prompt": "I plan further ahead than most people I know.",
@@ -6776,7 +6631,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "lq-time-2",
   "surface": "test",
-  "seq": 153,
+  "seq": 133,
   "type": "scale",
   "domain": null,
   "prompt": "I finish the boring part first and enjoy the rest after.",
@@ -6794,7 +6649,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "lq-time-3",
   "surface": "test",
-  "seq": 154,
+  "seq": 134,
   "type": "scale",
   "domain": null,
   "prompt": "If I want it, I buy it — I sort the rest out later.",
@@ -6812,7 +6667,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "lq-time-4",
   "surface": "test",
-  "seq": 155,
+  "seq": 135,
   "type": "scale",
   "domain": null,
   "prompt": "A decade from now feels real enough to save for.",
@@ -6830,7 +6685,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "lq-time-5",
   "surface": "test",
-  "seq": 156,
+  "seq": 136,
   "type": "scale",
   "domain": null,
   "prompt": "Waiting is easy when I know what is coming.",
@@ -6848,7 +6703,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "lq-taste-0",
   "surface": "test",
-  "seq": 157,
+  "seq": 137,
   "type": "scale",
   "domain": null,
   "prompt": "I would rather try an unknown dish than order the one I love.",
@@ -6866,7 +6721,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "lq-taste-1",
   "surface": "test",
-  "seq": 158,
+  "seq": 138,
   "type": "scale",
   "domain": null,
   "prompt": "I rewatch and relisten to the same things for years.",
@@ -6884,7 +6739,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "lq-taste-2",
   "surface": "test",
-  "seq": 159,
+  "seq": 139,
   "type": "scale",
   "domain": null,
   "prompt": "A film that needs a second viewing is a better film.",
@@ -6902,7 +6757,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "lq-taste-3",
   "surface": "test",
-  "seq": 160,
+  "seq": 140,
   "type": "scale",
   "domain": null,
   "prompt": "Earnest beats clever.",
@@ -6920,7 +6775,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "lq-taste-4",
   "surface": "test",
-  "seq": 161,
+  "seq": 141,
   "type": "scale",
   "domain": null,
   "prompt": "If everyone likes it, it has usually been sanded down.",
@@ -6938,7 +6793,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "lq-taste-5",
   "surface": "test",
-  "seq": 162,
+  "seq": 142,
   "type": "scale",
   "domain": null,
   "prompt": "I keep up with what most people are watching.",
@@ -6956,7 +6811,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "lq-conflict-0",
   "surface": "test",
-  "seq": 163,
+  "seq": 143,
   "type": "scale",
   "domain": null,
   "prompt": "I say it in the room rather than after.",
@@ -6974,7 +6829,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "lq-conflict-1",
   "surface": "test",
-  "seq": 164,
+  "seq": 144,
   "type": "scale",
   "domain": null,
   "prompt": "I let small things go to keep the peace.",
@@ -6992,7 +6847,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "lq-conflict-2",
   "surface": "test",
-  "seq": 165,
+  "seq": 145,
   "type": "scale",
   "domain": null,
   "prompt": "I would rather win the argument than end it.",
@@ -7010,7 +6865,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "lq-conflict-3",
   "surface": "test",
-  "seq": 166,
+  "seq": 146,
   "type": "scale",
   "domain": null,
   "prompt": "When it heats up I go quiet and leave.",
@@ -7028,7 +6883,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "lq-humor-0",
   "surface": "test",
-  "seq": 167,
+  "seq": 147,
   "type": "scale",
   "domain": null,
   "prompt": "I joke to make a room easier to be in.",
@@ -7046,7 +6901,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "lq-humor-1",
   "surface": "test",
-  "seq": 168,
+  "seq": 148,
   "type": "scale",
   "domain": null,
   "prompt": "When things go badly I can usually find it funny.",
@@ -7064,7 +6919,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "lq-humor-2",
   "surface": "test",
-  "seq": 169,
+  "seq": 149,
   "type": "scale",
   "domain": null,
   "prompt": "A good joke is worth someone being stung by it.",
@@ -7082,7 +6937,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "lq-humor-3",
   "surface": "test",
-  "seq": 170,
+  "seq": 150,
   "type": "scale",
   "domain": null,
   "prompt": "I get laughs by putting myself down.",
@@ -7100,7 +6955,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "lq-humor-4",
   "surface": "test",
-  "seq": 171,
+  "seq": 151,
   "type": "scale",
   "domain": null,
   "prompt": "A joke that needs a target isn’t worth telling.",
@@ -7118,7 +6973,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "lq-thinking-0",
   "surface": "test",
-  "seq": 172,
+  "seq": 152,
   "type": "scale",
   "domain": null,
   "prompt": "My first instinct is usually right.",
@@ -7136,7 +6991,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "lq-thinking-1",
   "surface": "test",
-  "seq": 173,
+  "seq": 153,
   "type": "scale",
   "domain": null,
   "prompt": "I want the numbers before I decide.",
@@ -7154,7 +7009,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "lq-thinking-2",
   "surface": "test",
-  "seq": 174,
+  "seq": 154,
   "type": "scale",
   "domain": null,
   "prompt": "I change my mind when the evidence changes.",
@@ -7172,7 +7027,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "lq-thinking-3",
   "surface": "test",
-  "seq": 175,
+  "seq": 155,
   "type": "scale",
   "domain": null,
   "prompt": "Sitting with not knowing is uncomfortable.",
@@ -7190,7 +7045,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "lq-culture-0",
   "surface": "test",
-  "seq": 176,
+  "seq": 156,
   "type": "scale",
   "domain": null,
   "prompt": "My choices are mine before they are my family’s.",
@@ -7208,7 +7063,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "lq-culture-1",
   "surface": "test",
-  "seq": 177,
+  "seq": 157,
   "type": "scale",
   "domain": null,
   "prompt": "What my community expects shapes what I do.",
@@ -7226,7 +7081,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "lq-culture-2",
   "surface": "test",
-  "seq": 178,
+  "seq": 158,
   "type": "scale",
   "domain": null,
   "prompt": "Breaking a social rule should have consequences.",
@@ -7244,7 +7099,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "lq-culture-3",
   "surface": "test",
-  "seq": 179,
+  "seq": 159,
   "type": "scale",
   "domain": null,
   "prompt": "Places work better when people are left to improvise.",
@@ -8888,6 +8743,176 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "The editor implies"
   ],
   "topic": "confused",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-anc9",
+  "surface": "learn",
+  "seq": 96,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Most of the Great Wall standing today was built by the…",
+  "options": [
+   "Qin dynasty",
+   "Han dynasty",
+   "Ming dynasty",
+   "Tang dynasty"
+  ],
+  "topic": "ancient",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-anc10",
+  "surface": "learn",
+  "seq": 97,
+  "type": "choice",
+  "domain": null,
+  "prompt": "When Cleopatra was born, the Great Pyramid was already…",
+  "options": [
+   "About 500 years old",
+   "About 1,000 years old",
+   "Newly built",
+   "About 2,500 years old"
+  ],
+  "topic": "ancient",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-anc11",
+  "surface": "learn",
+  "seq": 98,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The Library of Alexandria was lost…",
+  "options": [
+   "In one great fire",
+   "Gradually, over centuries",
+   "In an earthquake",
+   "To a flood"
+  ],
+  "topic": "ancient",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-anc12",
+  "surface": "learn",
+  "seq": 99,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The ancient Olympic Games were held in honour of…",
+  "options": [
+   "Apollo",
+   "Athena",
+   "Zeus",
+   "Hercules"
+  ],
+  "topic": "ancient",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-anc13",
+  "surface": "learn",
+  "seq": 100,
+  "type": "choice",
+  "domain": null,
+  "prompt": "A Roman gladiator fight usually ended…",
+  "options": [
+   "With the loser killed",
+   "With both men alive",
+   "With the crowd deciding",
+   "In a formal draw"
+  ],
+  "topic": "ancient",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-body9",
+  "surface": "learn",
+  "seq": 101,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Roughly how much of an adult's body weight is water?",
+  "options": [
+   "About 90%",
+   "About 60%",
+   "About 30%",
+   "About 75%"
+  ],
+  "topic": "body",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-body10",
+  "surface": "learn",
+  "seq": 102,
+  "type": "choice",
+  "domain": null,
+  "prompt": "At rest, how much of the brain is active?",
+  "options": [
+   "About 10%",
+   "Effectively all of it",
+   "About 25%",
+   "About half"
+  ],
+  "topic": "body",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-body11",
+  "surface": "learn",
+  "seq": 103,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Which blood type can donate to anyone?",
+  "options": [
+   "AB positive",
+   "A positive",
+   "O positive",
+   "O negative"
+  ],
+  "topic": "body",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-body12",
+  "surface": "learn",
+  "seq": 104,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Which organ filters waste out of the blood?",
+  "options": [
+   "The liver",
+   "The spleen",
+   "The kidneys",
+   "The pancreas"
+  ],
+  "topic": "body",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-body13",
+  "surface": "learn",
+  "seq": 105,
+  "type": "choice",
+  "domain": null,
+  "prompt": "A red blood cell lives for about…",
+  "options": [
+   "A week",
+   "Four months",
+   "A year",
+   "A day"
+  ],
+  "topic": "body",
   "axis": null,
   "test": null
  }

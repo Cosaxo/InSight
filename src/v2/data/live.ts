@@ -19,45 +19,98 @@
 // (decision D5) — this module never reads another user's documents.
 // Comments and who-voted stay OFF for live questions (decision D1).
 
-// All three of these were ALSO imported dynamically further down, at
-// seven call sites, which bought exactly nothing: a module that is
-// statically imported anywhere in a file is already in that file's chunk,
-// so `await import()` of it cannot defer a byte. Rollup said so for
-// lib/firebase every build (INEFFECTIVE_DYNAMIC_IMPORT); the other two
-// were the same shape without the warning. Static everywhere now — the
-// awaits implied a lazy boundary that did not exist.
-import {
-  clearIndexedDbPersistence,
-  collection,
-  deleteDoc,
-  doc,
-  documentId,
-  getDoc,
-  getDocs,
-  limit,
-  onSnapshot,
-  orderBy,
-  query,
-  serverTimestamp,
-  setDoc,
-  terminate,
-  Timestamp,
-  updateDoc,
-  where,
-} from "firebase/firestore";
-import { getFunctions, httpsCallable } from "firebase/functions";
+// ── the Firestore/Functions API, bound rather than imported (D110) ──
+//
+// These were static imports, and the note here used to explain why: seven
+// call sites had ALSO `await import()`ed them, which bought nothing, because
+// a module statically imported anywhere in a file is already in that file's
+// chunk. That reasoning was right and its conclusion — "static everywhere" —
+// was the wrong end to fix it from. live.ts is eager, so the static import
+// put the 292 KB Firestore SDK in the FIRST-PAINT graph of every build,
+// including one with no `VITE_FIREBASE_*` configured at all. Measured:
+// removing these two imports takes entry + every `modulepreload` from
+// 1270.2 KB to 943.0 KB — 327 KB, 26% of what a cold start must fetch and
+// parse before it can paint. The entry chunk does not move by a byte, which
+// is why neither of `check:bundle`'s old ceilings ever said a word.
+//
+// WHY THE 73 CALL SITES BELOW ARE UNCHANGED, and why that is safe rather
+// than lucky. Every Firestore use in this file sits in a scope that holds a
+// `db` — checked, all 73, including the eleven that take no db argument
+// (`Timestamp.fromMillis`, `serverTimestamp`, `documentId`). A `db` can be
+// obtained only from `getDb()`, which awaits lib/firebase's single memoised
+// `impl()` promise, which IS the dynamic import of firebaseImpl.ts, which
+// statically holds `firebase/firestore`. So binding these names off that
+// same promise makes every call site correct by the PROVENANCE of the value
+// it already uses — there is no load order to audit, and no site that could
+// be missed.
+//
+// The local `getDb` below is the whole mechanism. It shadows the import
+// deliberately: the 25 `await getDb()` sites in this file did not change
+// either, and a reader who follows one lands here.
+type FsApi = typeof import("firebase/firestore");
+type FnsApi = typeof import("firebase/functions");
+let clearIndexedDbPersistence!: FsApi["clearIndexedDbPersistence"];
+let collection!: FsApi["collection"];
+let deleteDoc!: FsApi["deleteDoc"];
+let doc!: FsApi["doc"];
+let documentId!: FsApi["documentId"];
+let getDoc!: FsApi["getDoc"];
+let getDocs!: FsApi["getDocs"];
+let limit!: FsApi["limit"];
+let onSnapshot!: FsApi["onSnapshot"];
+let orderBy!: FsApi["orderBy"];
+let query!: FsApi["query"];
+let serverTimestamp!: FsApi["serverTimestamp"];
+let setDoc!: FsApi["setDoc"];
+let terminate!: FsApi["terminate"];
+let Timestamp!: FsApi["Timestamp"];
+let updateDoc!: FsApi["updateDoc"];
+let where!: FsApi["where"];
+let getFunctions!: FnsApi["getFunctions"];
+let httpsCallable!: FnsApi["httpsCallable"];
+
 import {
   anonSignIn,
   firebaseEnabled,
-  getDb,
+  getDb as getDbRaw,
+  getFirestoreApi,
+  getFunctionsApi,
   googleSignOut,
   linkGoogle,
   subscribeToAuth,
 } from "../../lib/firebase";
+
+async function getDb(): Promise<import("firebase/firestore").Firestore> {
+  // Promise.all, not three awaits: all three resolve from the SAME memoised
+  // impl() promise, so this is one load however many callers race here.
+  const [db, fs, fns] = await Promise.all([
+    getDbRaw(), getFirestoreApi(), getFunctionsApi(),
+  ]);
+  ({
+    clearIndexedDbPersistence, collection, deleteDoc, doc, documentId, getDoc,
+    getDocs, limit, onSnapshot, orderBy, query, serverTimestamp, setDoc,
+    terminate, Timestamp, updateDoc, where,
+  } = fs);
+  ({ getFunctions, httpsCallable } = fns);
+  return db;
+}
 import { reportError, setSentryUser } from "../../lib/sentry";
 // The cross-user read (D98). Pure helpers + the two queries live there so
 // the grouping/sorting can be unit-tested without Firebase.
 import { fetchVoters, groupByOption, resolveNames, sortVoters, type Voter } from "./voters";
+// Handles and invitations (D122), TYPE-ONLY at module scope and imported
+// for real inside the methods that use them — the same shape data/circle
+// has below, and for the same measured reason.
+//
+// Both modules statically import `firebase/firestore`. live.ts is eager,
+// so a static import here drags the whole SDK back into the first-paint
+// chunk: check:bundle measured the eager graph at 1270 KB with it, against
+// a 955 KB ceiling. That is not a near miss — it is precisely the tree as
+// it stood before D110, which is the regression that gate was written to
+// catch. Every call site is already async and already awaits getDb(), so
+// the dynamic import costs no round trip that was not happening anyway.
+import type { Invite } from "./invites";
+import { type KindredPerson, type ParsedResults } from "./similarity";
 // Pure folds over the published breakdown, and the likeness metric behind
 // Kindred. No Firebase in there — this module supplies the documents.
 import { agreement, type Agreement } from "./cohort";
@@ -72,7 +125,7 @@ import { agreement, type Agreement } from "./cohort";
 // already await getDb(), so the import costs no round trip that was not
 // happening anyway.
 import type { Member as CircleMember } from "./circle";
-// Foresight (D102). Type-only at module scope; the fold and the writer
+// Foresight (D125). Type-only at module scope; the fold and the writer
 // are reached through the same dynamic import the circle uses, and for
 // the same reason — live.ts is eager and this cannot run until a lens
 // nobody has opened is opened.
@@ -153,6 +206,7 @@ const state = {
   profile: {
     displayName: "",
     testResults: {} as Record<string, unknown>,
+    handle: "",
     // The seven rules-validated anchor fields (D8). Snapshotted onto each
     // answer at vote time so an aggregate can slice by them without ever
     // reading a second document — and so a later profile edit cannot
@@ -203,21 +257,37 @@ const state = {
   // opening five questions re-reads the same regulars five times.
   // Session-scoped, and dropped by the purge with everything else.
   names: {} as Record<string, string>,
+  // uid → parsed test scores (D112), the `names` cache's sibling: filled
+  // by the SAME batched profile read (the web SDK has no field mask, so
+  // the whole document was on the wire whenever a name resolved — this
+  // keeps what was already paid for). null = fetched, nothing usable.
+  scores: {} as Record<string, ParsedResults | null>,
   // Kindred (D99): no cached ranking, only the flags. The ranking itself
   // is derived on read from `voters` + `votes`, so it cannot go stale
   // against its own inputs.
   kindredLoading: false,
   kindredAt: 0,
+  // Similarity (D112): the constellation fields' one-per-session agg
+  // top-up (the bank's core test items) and its in-flight flag.
+  similarityLoading: false,
+  testAggsLoaded: false,
   // The follow graph's loaded state (D101). null = not asked, or asked
   // and failed; [] = asked, and you follow nobody. The stop says
   // different things for those two.
   circle: null as CircleMember[] | null,
   circleLoading: false,
-  // Foresight verdicts, keyed by read id (D102). Loaded once per
+  // Foresight verdicts, keyed by read id (D125). Loaded once per
   // session on first open of the lens; a verdict is create-only server
   // side, so the local copy can never be stale in a way that matters.
   foresight: null as Record<string, ForesightVerdict> | null,
   foresightLoading: false,
+  // Open invitations to this account (D122). An empty array is a real
+  // answer here — "nobody has invited you" — so unlike `circle` there is
+  // no null state to distinguish from it: the inbox is fetched on the tap
+  // that opens a surface showing it, and a failed fetch reports through
+  // reportError rather than by making the list ambiguous.
+  invites: [] as Invite[],
+  invitesLoading: false,
 };
 
 // How many of the viewer's own answers the Kindred ranking reads across.
@@ -777,6 +847,7 @@ async function hydrate(): Promise<void> {
       const prof = await getDoc(doc(db, "v2_users", uid0));
       if (prof.exists()) {
         state.profile.displayName = (prof.get("displayName") as string) || "";
+        state.profile.handle = (prof.get("handle") as string) || "";
         state.profile.testResults =
           (prof.get("testResults") as Record<string, unknown>) || {};
         state.profile.anchors =
@@ -829,7 +900,11 @@ function feedCounts(q: QuestionDoc & { id: string }): number[] {
 // Replace the demo feed globals with live-shaped cards: real questions,
 // real k-floored counts, no seeded comments (D1 — renderEngage is also
 // gated off for q.live cards). Rankings/scales are deferred; every live
-// card renders through the options path.
+// card renders through the options path — EXCEPT the continuum forms
+// (dial/field, D114), which keep their bank type: their options are
+// synthesized bucket/cell labels, the per-option counts ARE the crowd's
+// distribution, and world-feed renders them through their own bodies
+// (curve / cloud) instead of option rows.
 function buildFeedGlobals(): void {
   if (!state.feedBank.length) return;
   const feed = state.feedBank
@@ -839,12 +914,21 @@ function buildFeedGlobals(): void {
       // inside the per-option map made this O(n^2) per card — and it
       // re-runs after every vote.
       const counts = feedCounts(q);
+      const continuum = q.type === "dial" || q.type === "field";
       return {
         id: q.id,
         cat: q.topic || "culture",
-        type: "vote",
+        type: continuum ? q.type : "vote",
         prompt: q.prompt,
         options: q.options.map((label, i) => ({ label, count: counts[i] })),
+        // the range/plane copy the card renders from, plus the footer's
+        // answer count — agg total, so it includes the viewer once folded
+        ...(continuum
+          ? {
+              lo: q.lo, hi: q.hi, unit: q.unit, ends: q.ends, ax: q.ax, ay: q.ay,
+              n: state.aggs[q.id]?.total ?? 0,
+            }
+          : {}),
         live: true,
         noCountsYet: !hasPublishedCounts(state.aggs[q.id]),
       };
@@ -1043,6 +1127,67 @@ const SOCIAL = {
   async joinGroup(code: string, displayName?: string) {
     return callable<{ gid: string; name: string }>("joinGroupV2", { code, displayName });
   },
+  // ── handles and invitations (D122) ──
+  //
+  // The uid-addressed way into a circle. joinGroup above survives for the
+  // share link — the only path that reaches someone with no account yet —
+  // but a code is no longer something a person types.
+  //
+  // `whoIs` reads the registry directly rather than through a callable:
+  // uniqueness is the document id, so the lookup is one getDoc against a
+  // rule that grants read and nothing else. A callable would add a cold
+  // start to a keystroke.
+  async whoIs(handle: string): Promise<string | null> {
+    const [db, mod] = await Promise.all([getDb(), import("./socialFetch")]);
+    return mod.uidForHandle(db, handle);
+  },
+  async claimHandle(handle: string) {
+    const out = await callable<{ handle: string }>("claimHandleV2", { handle });
+    state.profile.handle = out.handle;
+    notify();
+    return out;
+  },
+  async inviteToGroup(gid: string, to: string) {
+    return callable<{ ok: boolean }>("inviteToGroupV2", {
+      gid, to, displayName: state.profile.displayName,
+    });
+  },
+  async acceptInvite(gid: string) {
+    const out = await callable<{ gid: string; name: string }>("acceptGroupInviteV2", {
+      gid, displayName: state.profile.displayName,
+    });
+    await this.loadInvites();
+    return out;
+  },
+  async declineInvite(gid: string) {
+    const out = await callable<{ ok: boolean }>("declineGroupInviteV2", { gid });
+    await this.loadInvites();
+    return out;
+  },
+  invites(): Invite[] {
+    return state.invites;
+  },
+  invitesLoading(): boolean {
+    return state.invitesLoading;
+  },
+  // Fetched on demand, not subscribed. An invitation is not time-critical
+  // — the surfaces that show one are opened, not watched — and a live
+  // listener on a collection-group query anyone may write into is a bill
+  // a stranger controls.
+  async loadInvites(): Promise<void> {
+    if (!LIVE.enabled || !state.uid || state.invitesLoading) return;
+    state.invitesLoading = true;
+    notify();
+    try {
+      const [db, mod] = await Promise.all([getDb(), import("./socialFetch")]);
+      state.invites = await mod.fetchInvites(db, state.uid);
+    } catch (err) {
+      reportError(err, { where: "loadInvites" });
+    } finally {
+      state.invitesLoading = false;
+      notify();
+    }
+  },
   async leaveGroup(gid: string) {
     return callable<{ gid: string; deleted: boolean }>("leaveGroupV2", { gid });
   },
@@ -1127,7 +1272,13 @@ const SOCIAL = {
   // exactly this list and the cache keys per question.
   async loadTakes(gid: string, qid?: string): Promise<void> {
     const key = takeScopeKey(gid, qid);
-    if (key == null || state.takesLoading[key]) return;
+    // Cache guard as well as in-flight guard — same omission, same effect
+    // as loadVoters above: LiveTakesPanel loads on a `[gid, qid]` effect,
+    // so without this every return to the panel re-ran the query. The
+    // failure path still leaves the key absent on purpose (a cached empty
+    // list reads exactly like a circle that never wrote a take), so a
+    // transient failure retries and a real empty result is kept.
+    if (key == null || state.takesLoading[key] || state.takes[key]) return;
     state.takesLoading[key] = true;
     try {
       const db = await getDb();
@@ -1139,12 +1290,14 @@ const SOCIAL = {
             where("qid", "==", qid),
             where("hidden", "==", false),
             orderBy("createdAt", "desc"),
+            limit(TAKE_FETCH_CAP),
           )
           : query(
             collection(db, "v2_takes"),
             where("gid", "==", gid),
             where("hidden", "==", false),
             orderBy("createdAt", "desc"),
+            limit(TAKE_GROUP_FETCH_CAP),
           ),
       );
       state.takes[key] = snap.docs.map((d) => takeFromDoc(d.id, d.data() as Record<string, unknown>));
@@ -1272,6 +1425,37 @@ const SOCIAL = {
 // for a world scope without naming the question — an impossible list, so
 // the store refuses it instead of minting a `world:undefined` key that
 // would alias every such mistake onto one phantom question.
+// ── the takes read bounds ────────────────────────────────────────
+//
+// Both `loadTakes` branches shipped with no `limit()` at all, which made
+// them the last unbounded read in the app — the shape D102 capped in
+// `fetchVoters` and did not look for anywhere else. They get two different
+// numbers because they are two different crowds, the same way
+// VOTER_FETCH_CAP and CIRCLE_ANSWER_CAP are.
+//
+// WORLD is the dangerous one and the reason this is not deferred. The
+// daily question is globally shared (`computeDeckIds` takes no uid), so
+// "takes on today's world question" is roughly everyone who spoke today —
+// the query returned ~DAU documents per open and grew linearly forever.
+// 100 is a display cap: a screen of talk, newest first, which is what the
+// panel renders anyway.
+const TAKE_FETCH_CAP = 100;
+
+// A GROUP's crowd is its own history, not the population, so this is a
+// ceiling rather than a display cap — high enough that no real circle
+// reaches it, low enough that the query cannot run away. It is deliberately
+// NOT 100: `takes()` filters this list by qid IN MEMORY (the group branch
+// keys on gid alone, and the D65 query-shape tests call loadTakes with no
+// qid), so a tight cap here would silently hide an older question's takes
+// behind newer chatter — a correctness bug bought with a rounding error.
+//
+// The better fix is to move `qid` into the group query and key on
+// `gid:qid`; the composite index for it is already committed
+// (firestore.indexes.json, v2_takes gid+qid+hidden+createdAt). That is a
+// behaviour change to a documented query shape rather than a bound, so it
+// is recorded here and not taken in a cost pass.
+const TAKE_GROUP_FETCH_CAP = 500;
+
 function takeScopeKey(gid: string, qid?: string): string | null {
   if (gid !== "world") return gid;
   return qid ? `world:${qid}` : null;
@@ -1303,47 +1487,73 @@ const nearState = {
   updatedAt: 0,
   lastError: null as string | null,
   timer: null as ReturnType<typeof setInterval> | null,
-  busy: false,
+  inFlight: null as Promise<void> | null,
 };
 
-async function presenceBeat(): Promise<void> {
-  if (nearState.busy || !nearOptedIn() || !LIVE.enabled) return;
-  if (typeof document !== "undefined" && document.hidden) return;
-  nearState.busy = true;
+// One beat. `cell` lets a caller that ALREADY holds a fresh fix hand it over
+// instead of paying for a second one: enable() has just resolved a cell to
+// decide whether the opt-in could succeed at all, and asking the OS again one
+// tick later is a second round trip that can fail on its own — leaving the
+// switch ON, the count null, and the card reading "Counting…" with nothing
+// behind it. That is the shape the field reported: Near never connects.
+async function runBeat(cell?: string): Promise<void> {
   try {
-    const fix = await locateCell();
+    const fix = cell ? ({ ok: true, cell } as const) : await locateCell();
     if (!fix.ok) {
-      // A failed beat is quiet: permission was granted at opt-in, so this
-      // is indoors/transient. The stale count keeps its timestamp and the
-      // UI says how old it is rather than pretending.
+      // A failed beat does not un-opt-in: permission was granted at opt-in,
+      // so this is usually indoors/transient. It is NOT quiet, though —
+      // lastError is what the card reads to say why the count is missing or
+      // old, rather than counting forever.
       nearState.lastError = fix.reason;
       return;
     }
-    nearState.lastError = null;
     const uid = state.uid;
-    if (!uid) return;
+    // No session, no write and no count — and saying so beats clearing the
+    // error and then stalling with nothing to explain it.
+    if (!uid) { nearState.lastError = "unavailable"; return; }
     const db = await getDb();
     await setDoc(doc(db, "v2_presence", uid), { cell: fix.cell, at: serverTimestamp() });
     const res = await callable<{ n?: number; tooFew?: boolean }>("nearbyCountV2", { cell: fix.cell });
     nearState.tooFew = res.tooFew === true;
     nearState.count = typeof res.n === "number" ? res.n : nearState.tooFew ? null : 0;
     nearState.updatedAt = Date.now();
+    // Cleared only once a count is actually in hand: clearing it beside the
+    // fix (where it used to sit) marked the round healthy before the two
+    // calls that most often fail had run.
+    nearState.lastError = null;
   } catch (err) {
     nearState.lastError = "unavailable";
     reportError(err, { where: "presenceBeat" });
-  } finally {
-    nearState.busy = false;
-    notify();
   }
 }
 
-function startPresence(): void {
-  if (nearState.timer) return;
-  nearState.timer = setInterval(() => { void presenceBeat(); }, PRESENCE_BEAT_MS);
-  if (typeof document !== "undefined") {
-    document.addEventListener("visibilitychange", presenceOnVisible);
+// A beat already in flight IS this beat, so a second caller gets the same
+// promise rather than an instantly-resolved one. That is what lets the
+// card's "Try again" stop when there is an answer instead of one tick after
+// the tap.
+function presenceBeat(cell?: string): Promise<void> {
+  if (!nearOptedIn() || !LIVE.enabled) return Promise.resolve();
+  if (typeof document !== "undefined" && document.hidden) return Promise.resolve();
+  if (nearState.inFlight) return nearState.inFlight;
+  const run = runBeat(cell).finally(() => { nearState.inFlight = null; notify(); });
+  nearState.inFlight = run;
+  return run;
+}
+
+// Returns the first beat so a caller can wait for it — enable() does, and
+// that is the difference between a switch that flips to a number and one
+// that flips to "Counting…". Beating even when the loop is already running
+// is deliberate and cheap: the in-flight guard collapses a duplicate, and
+// the only caller that can hit it is a reconnect, where a fresh count is
+// what you want anyway.
+function startPresence(cell?: string): Promise<void> {
+  if (!nearState.timer) {
+    nearState.timer = setInterval(() => { void presenceBeat(); }, PRESENCE_BEAT_MS);
+    if (typeof document !== "undefined") {
+      document.addEventListener("visibilitychange", presenceOnVisible);
+    }
   }
-  void presenceBeat();
+  return presenceBeat(cell);
 }
 
 function presenceOnVisible(): void {
@@ -1391,7 +1601,17 @@ const NEAR = {
     const fix = await locateCell();
     if (!fix.ok) return { ok: false, reason: fix.reason };
     setNearOptIn(true);
-    startPresence();
+    // The fix just resolved goes straight into the first beat — see
+    // presenceBeat's `cell` — and the tap WAITS for it. The button is
+    // already spinning through the location fix; carrying it through the
+    // count is what makes the switch and the number appear together
+    // instead of flipping to "Counting…" and hoping.
+    //
+    // Still {ok:true} if that beat fails: the opt-in itself succeeded and
+    // presence IS being shared, so reverting the switch would be a lie
+    // about what the phone is doing. The card's stall row owns the
+    // explanation from here.
+    await startPresence(fix.cell);
     return { ok: true };
   },
   // Opt out: stop the loop AND delete the doc — "stop sharing" must not
@@ -1409,8 +1629,11 @@ const NEAR = {
       reportError(err, { where: "presenceDisable" });
     }
   },
-  refresh(): void {
-    void presenceBeat();
+  // Awaitable, so the card's "Try again" can show a pending state and stop
+  // when the beat actually settles. Fire-and-forget callers are unaffected —
+  // an ignored promise is the old behaviour.
+  refresh(): Promise<void> {
+    return presenceBeat();
   },
 };
 
@@ -1456,6 +1679,10 @@ const LIVE = {
   },
   get latestBuild(): number {
     return state.meta.latestBuild;
+  },
+  /** This account's handle, or "" before one is claimed (D122). */
+  get handle(): string {
+    return state.profile.handle;
   },
   get displayName(): string {
     return state.profile.displayName;
@@ -1506,11 +1733,22 @@ const LIVE = {
   // mounts when someone opens the who-voted sheet, so a feed of fifty
   // cards costs nothing until one is asked about.
   async loadVoters(qid: string): Promise<void> {
-    if (!qid || state.votersLoading[qid]) return;
+    // `state.voters[qid]` is the CACHE guard and `votersLoading` the
+    // in-flight one, and for a while only the second existed — so the
+    // declaration's "fetched on demand and held for the session" described
+    // an intent the code beside it did not implement, and every remount of
+    // the sheet re-ran the whole fetch. LiveVotersPanel loads on a
+    // `[qid]` effect, so that is once per open, not once per session:
+    // ≤200 answers plus name resolution, charged again on every tab
+    // return. Absent still means "we could not ask" and still retries —
+    // the error path deliberately leaves the key unset — while an empty
+    // array now means "nobody answered" and is kept, which is what
+    // distinguishing those two states was for.
+    if (!qid || state.votersLoading[qid] || state.voters[qid]) return;
     state.votersLoading[qid] = true;
     try {
       const db = await getDb();
-      state.voters[qid] = await fetchVoters(db, qid, state.uid, state.names);
+      state.voters[qid] = await fetchVoters(db, qid, state.uid, state.names, state.scores);
     } catch (err) {
       // Leave the key ABSENT rather than caching an empty list. The two
       // states render differently and must not be confused: absent is
@@ -1537,11 +1775,11 @@ const LIVE = {
   // A no-op once every uid is cached, which is the common case after the
   // first surface on a question has resolved them.
   async loadNames(uids: readonly string[]): Promise<void> {
-    const want = uids.filter((u) => u && !(u in state.names));
+    const want = uids.filter((u) => u && (!(u in state.names) || !(u in state.scores)));
     if (!want.length) return;
     try {
       const db = await getDb();
-      await resolveNames(db, want, state.names);
+      await resolveNames(db, want, state.names, state.scores);
     } catch (err) {
       reportError(err, { where: "loadNames" });
     } finally {
@@ -1631,9 +1869,19 @@ const LIVE = {
   // place in the app that reads a named individual's whole answer set —
   // so unlike Kindred it costs a query per member and is loaded only
   // when the stop is opened.
-  async loadCircle(): Promise<void> {
+  async loadCircle(force = false): Promise<void> {
     const me = state.uid;
+    // The most expensive of the three: one query PER MEMBER, up to
+    // FOLLOW_CAP members x CIRCLE_ANSWER_CAP answers each. LiveCircleBody
+    // mounts it on an empty-dep effect, so before the cache guard every
+    // remount of the stop paid that again.
+    //
+    // `force` exists for exactly one caller: setFollowing, which changes
+    // the membership the fold is over and therefore genuinely needs the
+    // refetch it asks for. Making it a parameter rather than clearing
+    // state.circle keeps the "who may invalidate this" list to one site.
     if (!this.enabled || !me || state.circleLoading) return;
+    if (!force && state.circle) return;
     state.circleLoading = true;
     notify();
     try {
@@ -1672,7 +1920,7 @@ const LIVE = {
   circleLoading(): boolean {
     return state.circleLoading;
   },
-  // ── Foresight (D102) ──
+  // ── Foresight (D125) ──
   //
   // The log, not the score. `recordOf`/`byDim` are pure folds the UI
   // runs on what this returns, so the store never holds a derived
@@ -1778,7 +2026,7 @@ const LIVE = {
       } else {
         await circleMod.unfollow(db, me, uid);
       }
-      await this.loadCircle();
+      await this.loadCircle(true);
     } catch (err) {
       reportError(err, { where: "setFollowing" });
     }
@@ -1786,6 +2034,103 @@ const LIVE = {
   /** How many of the viewer's questions the ranking has been able to read. */
   kindredDepth(): number {
     return state.kindredAt;
+  },
+
+  // ── Similarity: you against people and places, by scores (D112) ──
+  //
+  // The constellation fields' loader. Two ensures, both bounded and both
+  // session-cached:
+  //   1. aggregates for every core test item the bank carries — the cells
+  //      the place profiles fold. ≤110 docs in ≤4 batched `in` queries,
+  //      once per session, and only the ones the deck/archive has not
+  //      already cached.
+  //   2. the Kindred voter lists (loadKindred, its own bounds — D102).
+  // Candidate scores cost nothing here: they rode along with the voter
+  // lists' name resolution, because the profile document was already on
+  // the wire (see resolveNames).
+  async loadSimilarity(): Promise<void> {
+    if (!this.enabled || state.similarityLoading) return;
+    state.similarityLoading = true;
+    notify();
+    try {
+      if (!state.testAggsLoaded) {
+        const db = await getDb();
+        const missing = state.feedBank
+          .filter((q) => q.surface === "test" && q.test && !state.aggs[q.id])
+          .map((q) => q.id);
+        for (let i = 0; i < missing.length; i += 30) {
+          const chunk = missing.slice(i, i + 30);
+          const snap = await getDocs(query(
+            collection(db, "v2_question_aggs"),
+            where(documentId(), "in", chunk),
+          ));
+          snap.forEach((d) => {
+            state.aggs[d.id] = d.data() as AggDoc;
+          });
+        }
+        // Set even when some docs came back absent: absent means no
+        // answers yet (D98), which re-asking this session cannot change.
+        state.testAggsLoaded = true;
+      }
+      await this.loadKindred();
+    } catch (err) {
+      reportError(err, { where: "loadSimilarity" });
+    } finally {
+      state.similarityLoading = false;
+      notify();
+    }
+  },
+  similarityLoading(): boolean {
+    return state.similarityLoading;
+  },
+  // The bank's core test items — the same filter that publishes
+  // TEST_FEED_QS for the feed, exposed so the typed layer can join them
+  // to IS_TESTS for scoring metadata without a bridge read.
+  testFeedItems(): Array<QuestionDoc & { id: string }> {
+    return state.feedBank.filter((q) => q.surface === "test" && !!q.test);
+  },
+  // The viewer's own completed instruments — the same server+device merge
+  // publishTestResults dispatches, computed on read so a result saved a
+  // moment ago is already in it.
+  myTestResults(): Record<string, unknown> {
+    try {
+      const local = JSON.parse(localStorage.getItem("insight.testResults.v2") || "{}") || {};
+      return { ...state.profile.testResults, ...local };
+    } catch {
+      return { ...state.profile.testResults };
+    }
+  },
+  // Everyone the cached voter lists know — name, frozen city, answers
+  // overlap and parsed scores — the raw material data/similarity.ts's
+  // rankKindred sorts. Derived on read like kindred(), for the same
+  // staleness reason. The city is the anchor snapshot from their most
+  // recent cached answer, never their live profile (D8: reading the
+  // profile would re-cohort history and disagree with the aggregate).
+  kindredPeople(): KindredPerson[] {
+    const mine: Record<string, number> = {};
+    for (const [qid, opt] of Object.entries(state.votes)) {
+      if (qid.startsWith("g_")) continue;
+      const n = Number(opt);
+      if (Number.isFinite(n)) mine[qid] = n;
+    }
+    const theirs: Record<string, Record<string, number>> = {};
+    const city: Record<string, string> = {};
+    for (const [qid, rows] of Object.entries(state.voters)) {
+      for (const r of rows) {
+        if (r.uid === state.uid) continue;
+        (theirs[r.uid] || (theirs[r.uid] = {}))[qid] = r.optionIdx;
+        // Lists are newest-first, so the first city seen is the freshest
+        // frozen anchor this session holds for them.
+        if (!(r.uid in city) && r.anchors.city) city[r.uid] = r.anchors.city;
+      }
+    }
+    return Object.keys(theirs).map((uid) => ({
+      uid,
+      name: state.names[uid] || "",
+      city: city[uid] || "",
+      like: agreement(mine, theirs[uid]),
+      results: state.scores[uid] ?? null,
+    }));
   },
 
   // null while unfetched or failed; an array (possibly empty) once known.
@@ -2288,6 +2633,10 @@ let sessionRecoveryTried = false;
 // new one, or the two interleave and one account's answers render as the
 // other's.
 function resetForNewUid(uid: string): void {
+  // A detach armed under the OLD uid must not fire against the new one's
+  // listeners: it would drop them with nothing to re-attach until the next
+  // wake, which reads on screen as a deck that stopped updating.
+  cancelIdleDetach();
   try {
     state.groupsUnsub?.();
     Object.values(state.aggUnsubs).forEach((u) => { try { u(); } catch { /* best-effort */ } });
@@ -2323,13 +2672,28 @@ function resetForNewUid(uid: string): void {
   state.voters = {};
   state.votersLoading = {};
   state.names = {};
+  // Scores ride the name cache (D112) and carry the same reasoning: other
+  // people's data, held to save reads, nothing to outlive the session.
+  state.scores = {};
   state.kindredLoading = false;
   state.kindredAt = 0;
+  state.similarityLoading = false;
+  // state.aggs was dropped above, so the test-item top-up has to run
+  // again for the new account.
+  state.testAggsLoaded = false;
   state.circle = null;
   state.circleLoading = false;
+  // A verdict is about the PREVIOUS account's reads, and the log is
+  // keyed by slice rather than by uid, so leaving it would credit the
+  // new account with someone else's record.
   state.foresight = null;
   state.foresightLoading = false;
-  state.profile = { displayName: "", testResults: {}, anchors: {} };
+  // The inbox is per-account by definition — leaving it would show the
+  // previous account's invitations under the new one, which is the same
+  // class of leak resetForNewUid exists for.
+  state.invites = [];
+  state.invitesLoading = false;
+  state.profile = { displayName: "", handle: "", testResults: {}, anchors: {} };
   state.deckIds = [];
   state.deckDay = -1;
   state.ready = false;
@@ -2537,14 +2901,78 @@ export function refreshLive(): Promise<void> {
 // attached or the deck has aged out.
 function wake(): void {
   if (torndown) return;
+  cancelIdleDetach();
   if (typeof navigator !== "undefined" && navigator.onLine === false) return;
   if (!state.ready) {
     void refreshLive().catch((err) => reportError(err, { where: "refreshLive.wake" }));
     return;
   }
   // Attaches listeners for the new day's deck if the date rolled over
-  // while the app was backgrounded; no-op otherwise.
+  // while the app was backgrounded — and, since the idle detach below,
+  // re-attaches whatever that dropped. Still a no-op for a session that
+  // never went idle.
   void resubscribeForToday();
+}
+
+// ── the idle detach (COSTS.md, the listener fan-out) ─────────────
+//
+// Backgrounding used to leave every snapshot listener attached. Nothing in
+// this file tore one down outside `resetForNewUid` and account deletion, so
+// a Capacitor WebView the OS keeps resident went on receiving — and being
+// billed for — every publish to today's aggregate for as long as it lived.
+//
+// That is not a small correction to the bill, because it is the input the
+// whole fan-out term is linear in. The cost model calls the input
+// `onlineMin` and glosses it "minutes with the app actually open"
+// (scripts/cost-arith.mjs), which is the number a person would estimate at
+// 3. What the fan-out actually charges for is minutes with a LISTENER
+// ATTACHED, and until this block those two were only equal by luck. At
+// `onlineMin` 60 the modelled bill at 50 k DAU goes from $1,224/mo to
+// $16,689, and the crossover where the fan-out overtakes every flat read
+// source moves from ~30,800 DAU to ~1,540 — under D7's write-contention
+// wall at 14,400, inverting the ordering COSTS.md names as the property
+// worth keeping (break technically before the invoice surprises anyone).
+//
+// WHY A GRACE PERIOD AND NOT AN IMMEDIATE DETACH. Re-attaching is not
+// free: an `onSnapshot` attach delivers the document once, so coming back
+// costs a read per listener. `wake()` above is written around the ten-
+// second app swap, and detaching on every hide would charge that swap 7
+// fresh deck reads to save a few seconds of fan-out. The break-even is the
+// ratio of the two: re-attach is ~7 reads flat, while staying attached
+// costs the publish rate on the shared daily, which is ~21 reads/minute at
+// 5,000 DAU and ~2 at 500. So a minute is comfortably the right order —
+// it makes the common swap free at every size, and it converts an
+// unbounded tail into a bounded 60 seconds.
+const IDLE_DETACH_MS = 60_000;
+let idleDetachTimer: ReturnType<typeof setTimeout> | null = null;
+
+function cancelIdleDetach(): void {
+  if (idleDetachTimer) {
+    clearTimeout(idleDetachTimer);
+    idleDetachTimer = null;
+  }
+}
+
+// Exactly the set `resubscribeForToday()` restores — agg and reveal — so
+// teardown and re-attach are the same list read twice. `groupsUnsub` is
+// deliberately NOT dropped: nothing re-attaches it short of a full
+// `refreshLive()`, and it is one listener on a membership query that
+// publishes when a group changes, not on the hot shared daily.
+function detachIdleListeners(): void {
+  Object.values(state.aggUnsubs).forEach((u) => { try { u(); } catch { /* best-effort */ } });
+  Object.values(state.revealUnsubs).forEach((u) => { try { u(); } catch { /* best-effort */ } });
+  state.aggUnsubs = {};
+  state.revealUnsubs = {};
+}
+
+// Exported for the test, which is the only way to prove this: a listener
+// that is still attached looks identical to one that is not until
+// something counts them.
+export function _idleDetachForTest(): { pending: boolean; run: () => void } {
+  return {
+    pending: idleDetachTimer !== null,
+    run: () => { cancelIdleDetach(); detachIdleListeners(); },
+  };
 }
 
 export async function initLive(timeoutMs = 2500): Promise<void> {
@@ -2618,6 +3046,15 @@ export async function initLive(timeoutMs = 2500): Promise<void> {
         cancelAggCache();
         writeAggCache();
       }
+      // …and stop paying for deliveries nobody is looking at. Armed rather
+      // than run, so the ten-second app swap this file is otherwise written
+      // around stays free — see IDLE_DETACH_MS.
+      cancelIdleDetach();
+      idleDetachTimer = setTimeout(() => {
+        idleDetachTimer = null;
+        if (torndown) return;
+        detachIdleListeners();
+      }, IDLE_DETACH_MS);
     });
   }
   // Whether boot loses the race (slow network) or fails outright, the

@@ -22,7 +22,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
-import type { Voter } from "../data/voters";
+import { VOTER_FETCH_CAP, type Voter } from "../data/voters";
 
 const LIVE = vi.hoisted(() => ({
   // The follow control (D101) rides on every named row. Stubbed
@@ -36,6 +36,7 @@ const LIVE = vi.hoisted(() => ({
     return null as Voter[][] | null;
   },
   votersLoading: (qid: string) => { void qid; return false as boolean; },
+  aggFor: (qid: string) => { void qid; return null as { total?: number } | null; },
   subscribe: () => () => {},
 }));
 vi.mock("../data/live", () => ({ default: LIVE }));
@@ -52,6 +53,7 @@ beforeEach(() => {
   LIVE.loadVoters = vi.fn(async () => {});
   LIVE.votersByOption = () => null;
   LIVE.votersLoading = () => false;
+  LIVE.aggFor = () => null;
 });
 afterEach(cleanup);
 
@@ -152,5 +154,43 @@ describe("LiveVotersPanel · cost", () => {
     LIVE.enabled = false;
     const { container } = render(<LiveVotersPanel qid="q1" options={OPTS} />);
     expect(container.textContent).toBe("");
+  });
+});
+
+describe("LiveVotersPanel · the fetch cap (D102)", () => {
+  const fullPage = (): Voter[][] => [
+    Array.from({ length: VOTER_FETCH_CAP }, (_, i) => v({ uid: "u" + i, name: "P" + i })),
+    [],
+  ];
+
+  it("a full page is presented as the newest slice, sized against the room", () => {
+    // The fetch is bounded, newest first. When the page is full there are
+    // almost certainly more, and presenting the slice as the whole room
+    // would be the withheld-cell lie pointed the other way. The
+    // aggregate's total is what names the real size.
+    LIVE.votersByOption = fullPage;
+    LIVE.aggFor = () => ({ total: 1234 });
+    render(<LiveVotersPanel qid="q1" options={OPTS} />);
+    expect(screen.getByText(new RegExp(`the latest ${VOTER_FETCH_CAP}`, "i"))).toBeTruthy();
+    expect(screen.getByText(new RegExp(`1,234 have answered — these are the newest ${VOTER_FETCH_CAP}`))).toBeTruthy();
+  });
+
+  it("still says it is a slice when the aggregate is not in hand", () => {
+    // No aggregate does not mean no crowd — the sheet can be opened on a
+    // question whose agg the store has not fetched. The claim degrades to
+    // "the newest N" with no room size, never to silence.
+    LIVE.votersByOption = fullPage;
+    LIVE.aggFor = () => null;
+    render(<LiveVotersPanel qid="q1" options={OPTS} />);
+    expect(screen.getByText(new RegExp(`Showing the newest ${VOTER_FETCH_CAP} answers`))).toBeTruthy();
+  });
+
+  it("an unfilled page claims nothing about truncation", () => {
+    // Below the cap the list IS the room, and a "latest" qualifier would
+    // imply people the query did not leave out.
+    LIVE.votersByOption = () => [[v({ uid: "a", name: "Ada" })], []];
+    render(<LiveVotersPanel qid="q1" options={OPTS} />);
+    expect(screen.getByText(/who answered · 1/i)).toBeTruthy();
+    expect(screen.queryByText(/latest|newest/i)).toBeNull();
   });
 });

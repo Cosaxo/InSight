@@ -18,6 +18,7 @@
 // working from world-feed.jsx.
 import React from "react";
 import POKEDEX, { type Species } from "../data/pokedex";
+import ELEMENTS_CATALOG, { type Element } from "../data/elements";
 import { FILMS, ARTISTS, EMOJI, type CatalogEntry } from "../data/catalogs";
 
 const PS_LINE = "1px solid var(--rule)";
@@ -34,6 +35,9 @@ type DomainSpec = {
 };
 
 const speciesRow = (s: Species): Row => ({ id: s.dex, name: s.name, tag: `#${s.dex}` });
+// The tag is the atomic number — the same "the key is a fact worth showing"
+// call as the dex tag, and for elements the fact doubles as chemistry.
+const elementRow = (e: Element): Row => ({ id: e.z, name: e.name, tag: `#${e.z}` });
 const entryRow = (e: CatalogEntry): Row => ({ id: e.key, name: e.name });
 
 function catalogSpec(
@@ -79,6 +83,25 @@ const DOMAINS: Record<string, DomainSpec> = {
   },
   films: catalogSpec(FILMS, "Search films…", "one favourite — the crowd's canon reveals after"),
   artists: catalogSpec(ARTISTS, "Search artists…", "one favourite — the crowd's canon reveals after"),
+  elements: {
+    load: () => ELEMENTS_CATALOG.load().then((es) => es.map(elementRow)),
+    peek: () => {
+      const es = ELEMENTS_CATALOG.peek();
+      return es ? es.map(elementRow) : null;
+    },
+    search: (q, max) => {
+      const es = ELEMENTS_CATALOG.peek();
+      return es ? ELEMENTS_CATALOG.search(es, q, max).map(elementRow) : [];
+    },
+    placeholder: "Search the periodic table…",
+    hint: "one pick from 118 — the crowd's canon reveals after",
+    // A closed set, and a small one: name or symbol both search
+    // ("gold" and "au" find the same row).
+    noMatch:
+      "No match — all 118 elements are in here, by name or symbol " +
+      "(“gold”, “Au”). If chemistry truly failed you, “Not listed” " +
+      "below is the honest answer.",
+  },
   emoji: {
     ...catalogSpec(EMOJI, "Search emoji…", "one pick from 1,391 — the crowd's canon reveals after"),
     // A closed set, unlike the curated tops: every base emoji is here.
@@ -170,7 +193,7 @@ function PickSearch({ domain, accent, big, onPick, onNotListed }: PickSearchProp
     border: `1px solid color-mix(in oklch, ${accent} 45%, var(--rule))`,
     borderRadius: 12, outline: "none", WebkitAppearance: "none",
     appearance: "none", boxSizing: "border-box", width: "100%", minWidth: 0,
-    fontSize: big ? 16 : 15, padding: big ? "13px 14px" : "10px 12px",
+    fontSize: "var(--field-size)", padding: big ? "13px 14px" : "10px 12px",
   };
 
   if (!open) {

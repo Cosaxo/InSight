@@ -1,0 +1,99 @@
+// Validates the committed elements catalogue (public/elements.txt) against
+// the contract the `pick` picker parses it under.
+//
+// Deliberately does NOT regenerate from the `periodic-table` package — the
+// check-pokedex.mjs split: the source package is a one-off authoring tool,
+// and what can actually break at runtime is the committed file. Everything
+// the client assumes is checkable from the file alone: the line format, the
+// key contiguity that keeps stored answers resolving to the right element,
+// and name uniqueness so search results are unambiguous.
+//
+// Regeneration stays a manual step: `npm run build:elements`.
+import { readFileSync } from "node:fs";
+import { resolve, dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const FILE = join(root, "public", "elements.txt");
+
+let text;
+try {
+  text = readFileSync(FILE, "utf8");
+} catch {
+  console.error(`check:elements: ${FILE} is missing. Run \`npm run build:elements\`.`);
+  process.exit(1);
+}
+
+const errors = [];
+const lines = text.split("\n");
+let headerCount = null;
+let expectedZ = 1;
+const seenNames = new Set();
+
+for (let i = 0; i < lines.length; i++) {
+  const line = lines[i];
+  const at = `line ${i + 1}`;
+  if (line === "") {
+    if (i !== lines.length - 1) errors.push(`${at}: blank line inside the file`);
+    continue;
+  }
+  if (line.endsWith("\r")) {
+    errors.push(`${at}: CRLF line ending — the parser splits on \\n only`);
+    continue;
+  }
+  if (line.startsWith("#")) {
+    const m = line.match(/# (\d+) elements/);
+    if (m) headerCount = Number(m[1]);
+    continue;
+  }
+  const m = line.match(/^(\d+)\t(.+)$/);
+  if (!m) {
+    errors.push(`${at}: not \`z<TAB>name\`: ${JSON.stringify(line)}`);
+    continue;
+  }
+  const z = Number(m[1]);
+  const name = m[2];
+  // Contiguity is the load-bearing check: stored answers are atomic
+  // numbers, so a gap or reorder here is an element silently unresolvable —
+  // or worse, resolving to the wrong name.
+  if (z !== expectedZ) {
+    errors.push(`${at}: z ${z}, expected ${expectedZ} (keys must be contiguous from 1)`);
+  }
+  expectedZ = z + 1;
+  if (name !== name.trim()) errors.push(`${at}: name has surrounding whitespace`);
+  if (seenNames.has(name)) errors.push(`${at}: duplicate name ${JSON.stringify(name)}`);
+  seenNames.add(name);
+}
+
+const count = expectedZ - 1;
+if (headerCount === null) {
+  errors.push("header: no `# <n> elements` line to cross-check the count against");
+} else if (headerCount !== count) {
+  errors.push(`header says ${headerCount} elements, file has ${count}`);
+}
+
+// The functions-side ceiling must agree with the committed catalogue —
+// the check-pokedex.mjs argument: CATALOG_MAX_ELEMENT (functions/src/v2.ts)
+// is what the aggregate trigger validates entity keys against, so a
+// regenerated, larger catalogue (IUPAC does add rows, slowly) under a stale
+// ceiling means new elements that can be picked and never counted.
+const FN = join(root, "functions", "src", "v2.ts");
+try {
+  const m = readFileSync(FN, "utf8").match(/CATALOG_MAX_ELEMENT = (\d+)/);
+  if (!m) {
+    errors.push("functions/src/v2.ts: no CATALOG_MAX_ELEMENT constant to cross-check");
+  } else if (Number(m[1]) !== count) {
+    errors.push(
+      `CATALOG_MAX_ELEMENT is ${m[1]} in functions/src/v2.ts, catalogue has ${count} — move them together`,
+    );
+  }
+} catch {
+  errors.push("functions/src/v2.ts unreadable — cannot cross-check CATALOG_MAX_ELEMENT");
+}
+
+if (errors.length) {
+  console.error(`check:elements: ${errors.length} problem(s) in ${FILE}`);
+  for (const e of errors.slice(0, 20)) console.error(`  - ${e}`);
+  process.exit(1);
+}
+console.log(`check:elements: ${count} elements, keys contiguous, names unique`);

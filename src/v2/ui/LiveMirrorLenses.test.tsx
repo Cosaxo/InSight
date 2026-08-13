@@ -1,8 +1,13 @@
 // @vitest-environment jsdom
 //
-// The Mirror's live lens row (D99). The arithmetic has its own suite in
+// The Mirror's live lens BODIES (D99). The arithmetic has its own suite in
 // data/cohort.test.ts; what these cases hold is the part a fold test
-// cannot see — what the row SAYS, and what it costs.
+// cannot see — what a lens SAYS, and what it costs.
+//
+// Controlled since D119: the row is the stop's tab bar and lives with the
+// host (LiveCohortBody), so each case names its lens rather than tapping
+// for it. The claims below are unchanged — every one of them was always
+// about a lens body, never about the row that opened it.
 //
 // Three properties are worth more than the rest:
 //
@@ -19,7 +24,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import type { LensQuestion } from "./lensDefs";
+import type { LensId, LensQuestion } from "./lensDefs";
 
 const LIVE = vi.hoisted(() => ({
   enabled: true,
@@ -50,6 +55,11 @@ const Q: LensQuestion = {
   mine: 1,
 };
 
+// The row moved to the host at D119 (it is LiveCohortBody's tab bar now),
+// so a lens is chosen by prop rather than by tapping. `open` still drives
+// the controls INSIDE a lens — the dimension chips.
+const mount = (lens: LensId, qs: LensQuestion[] = [Q], shortName = "Oslo") =>
+  render(<LiveMirrorLenses lens={lens} qs={qs} shortName={shortName} />);
 const open = (name: RegExp) => fireEvent.click(screen.getByRole("button", { name }));
 
 beforeEach(() => {
@@ -60,36 +70,30 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
-describe("the lens row · cost", () => {
-  it("shows four lenses and opens none of them by default", () => {
-    render(<LiveMirrorLenses qs={[Q]} shortName="Oslo" />);
-    expect(screen.getByRole("button", { name: "People" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Compare" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Scores" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Explore" })).toBeTruthy();
-    // Collapsed: no lens body rendered, and nothing fetched.
-    expect(screen.queryByText(/most like you/i)).toBeNull();
+describe("the lens bodies · cost", () => {
+  // The GATE moved to the host at D119: the row is LiveCohortBody's tab
+  // bar and a lens body exists only while its tab is open, which
+  // LiveCohortBody.test.tsx holds. What is still this file's to prove is
+  // the other half — that mounting People is what costs, so the host's
+  // gate is gating something real.
+  it("fetches Kindred when People mounts, and never for another lens", () => {
+    mount("compare");
     expect(LIVE.loadKindred).not.toHaveBeenCalled();
-  });
-
-  it("fetches Kindred only once People is opened", () => {
-    render(<LiveMirrorLenses qs={[Q]} shortName="Oslo" />);
-    expect(LIVE.loadKindred).not.toHaveBeenCalled();
-    open(/People/);
+    cleanup();
+    mount("people");
     expect(LIVE.loadKindred).toHaveBeenCalledTimes(1);
   });
 
   it("renders nothing at all in demo mode", () => {
     LIVE.enabled = false;
-    const { container } = render(<LiveMirrorLenses qs={[Q]} shortName="Oslo" />);
+    const { container } = mount("people");
     expect(container.textContent).toBe("");
   });
 });
 
 describe("People", () => {
   it("shows the mix, and calls it answers rather than people", () => {
-    render(<LiveMirrorLenses qs={[Q]} shortName="Oslo" />);
-    open(/People/);
+    mount("people");
     expect(screen.getByText("25-34")).toBeTruthy();
     expect(screen.getByText("35-44")).toBeTruthy();
     expect(screen.getByText(/answers, not people/i)).toBeTruthy();
@@ -97,8 +101,7 @@ describe("People", () => {
 
   it("names Kindred with the metric spelled out beside it", () => {
     LIVE.kindred = () => [{ uid: "u2", name: "Ada", like: { shared: 6, same: 5, pct: 83 } }];
-    render(<LiveMirrorLenses qs={[Q]} shortName="Oslo" />);
-    open(/People/);
+    mount("people");
     expect(screen.getByText("Ada")).toBeTruthy();
     expect(screen.getByText("5/6 the same")).toBeTruthy();
     expect(screen.getByText("83%")).toBeTruthy();
@@ -109,29 +112,25 @@ describe("People", () => {
 
   it("renders an unnamed account as Someone", () => {
     LIVE.kindred = () => [{ uid: "u9", name: "", like: { shared: 4, same: 4, pct: 100 } }];
-    render(<LiveMirrorLenses qs={[Q]} shortName="Oslo" />);
-    open(/People/);
+    mount("people");
     expect(screen.getByText("Someone")).toBeTruthy();
     expect(screen.queryByText(/u9/)).toBeNull();
   });
 
   it("distinguishes 'still working' from 'nobody overlaps'", () => {
     LIVE.kindredLoading = () => true;
-    render(<LiveMirrorLenses qs={[Q]} shortName="Oslo" />);
-    open(/People/);
+    mount("people");
     expect(screen.getByText(/working out who answers like you/i)).toBeTruthy();
     expect(screen.queryByText(/nobody has answered enough/i)).toBeNull();
 
     cleanup();
     LIVE.kindredLoading = () => false;
-    render(<LiveMirrorLenses qs={[Q]} shortName="Oslo" />);
-    open(/People/);
+    mount("people");
     expect(screen.getByText(/nobody has answered enough/i)).toBeTruthy();
   });
 
   it("says which dimension is empty, not just 'no data'", () => {
-    render(<LiveMirrorLenses qs={[Q]} shortName="Oslo" />);
-    open(/People/);
+    mount("people");
     open(/^Education$/);
     expect(screen.getByText(/nobody here has filled in their education/i)).toBeTruthy();
   });
@@ -139,16 +138,14 @@ describe("People", () => {
 
 describe("Compare", () => {
   it("counts how often you went with the majority, against this population", () => {
-    render(<LiveMirrorLenses qs={[Q]} shortName="Oslo" />);
-    open(/Compare/);
+    mount("compare");
     // Own pick is option 1 ("No") at 40% — the minority — so 0 of 1.
     expect(screen.getByText(/against Oslo/i)).toBeTruthy();
     expect(screen.getByText(/40% here agreed/i)).toBeTruthy();
   });
 
   it("asks you to answer something rather than showing an empty frame", () => {
-    render(<LiveMirrorLenses qs={[{ ...Q, mine: -1 }]} shortName="Oslo" />);
-    open(/Compare/);
+    mount("compare", [{ ...Q, mine: -1 }]);
     expect(screen.getByText(/answer a few of today's questions/i)).toBeTruthy();
   });
 });
@@ -164,8 +161,7 @@ describe("Scores", () => {
   };
 
   it("averages an ordinal question and shows the scale it is out of", () => {
-    render(<LiveMirrorLenses qs={[RATED]} shortName="Oslo" />);
-    open(/Scores/);
+    mount("scores", [RATED]);
     expect(screen.getByText("6")).toBeTruthy();
     // "6.2" means opposite things out of 10 and out of 5, and one list
     // can hold both — so the denominator ships with every number.
@@ -173,15 +169,13 @@ describe("Scores", () => {
   });
 
   it("places your own score against theirs, with the direction named", () => {
-    render(<LiveMirrorLenses qs={[RATED]} shortName="Oslo" />);
-    open(/Scores/);
+    mount("scores", [RATED]);
     expect(screen.getByText("9")).toBeTruthy();
     expect(screen.getByText(/3 above them/)).toBeTruthy();
   });
 
   it("says so when you have not rated one, rather than implying a zero", () => {
-    render(<LiveMirrorLenses qs={[{ ...RATED, mine: -1 }]} shortName="Oslo" />);
-    open(/Scores/);
+    mount("scores", [{ ...RATED, mine: -1 }]);
     expect(screen.getByText(/you have not rated this/i)).toBeTruthy();
   });
 
@@ -190,8 +184,7 @@ describe("Scores", () => {
     // are different, not ordered — and a mean of it would render as a
     // confident number about nothing. The filter is on the bank's type,
     // because nothing in `counts` could tell the two apart.
-    render(<LiveMirrorLenses qs={[Q]} shortName="Oslo" />);
-    open(/Scores/);
+    mount("scores");
     expect(screen.getByText(/nothing rated yet/i)).toBeTruthy();
     expect(screen.queryByText("/ 2")).toBeNull();
   });
@@ -199,8 +192,7 @@ describe("Scores", () => {
   it("distinguishes 'no rated questions' from 'nobody answered them'", () => {
     // Two different emptinesses. Collapsing them into one "no data" is
     // the habit the withheld-cell era left behind (D98).
-    render(<LiveMirrorLenses qs={[{ ...RATED, counts: [0,0,0,0,0,0,0,0,0,0] }]} shortName="Oslo" />);
-    open(/Scores/);
+    mount("scores", [{ ...RATED, counts: [0,0,0,0,0,0,0,0,0,0] }]);
     expect(screen.getByText(/nobody here has answered a rated question/i)).toBeTruthy();
   });
 
@@ -212,8 +204,7 @@ describe("Scores", () => {
       options: ["1", "2", "3", "4", "5"], counts: [0, 0, 0, 3, 0], by: {}, mine: -1,
     };
     const rating: LensQuestion = { ...RATED, id: "r2", text: "Curiosity?", counts: [0,0,0,0,0,0,3,0,0,0], mine: -1 };
-    render(<LiveMirrorLenses qs={[rating, likert]} shortName="Oslo" />);
-    open(/Scores/);
+    mount("scores", [rating, likert]);
     const texts = screen.getAllByText(/Rest is fine\.|Curiosity\?/).map((n) => n.textContent);
     expect(texts).toEqual(["Rest is fine.", "Curiosity?"]);
   });
@@ -221,8 +212,7 @@ describe("Scores", () => {
 
 describe("Explore", () => {
   it("shows a slice's split and names the gap in points and direction", () => {
-    render(<LiveMirrorLenses qs={[Q]} shortName="Oslo" />);
-    open(/Explore/);
+    mount("explore");
     // The biggest age bucket leads; 25-34 is 90/10 against an overall
     // 60/40, so it is 30 points MORE likely to say Yes.
     expect(screen.getByText(/30 points/)).toBeTruthy();
@@ -230,16 +220,14 @@ describe("Explore", () => {
   });
 
   it("says 'same as everyone' rather than inventing a difference", () => {
-    render(<LiveMirrorLenses qs={[Q]} shortName="Oslo" />);
-    open(/Explore/);
+    mount("explore");
     open(/^Gender$/);
     // Both gender buckets match the overall split exactly.
     expect(screen.getByText(/same as everyone/i)).toBeTruthy();
   });
 
   it("says the dimension is empty when nobody carries it", () => {
-    render(<LiveMirrorLenses qs={[Q]} shortName="Oslo" />);
-    open(/Explore/);
+    mount("explore");
     open(/^City$/);
     expect(screen.getByText(/no answers carry a city yet/i)).toBeTruthy();
   });

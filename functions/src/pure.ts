@@ -19,6 +19,83 @@ export function inviteCodeFromBytes(bytes: Uint8Array): string {
   return out;
 }
 
+// ── handles (D122) ──────────────────────────────────────────────
+//
+// A handle is the app's first ADDRESS: the thing that lets one person
+// name another. Until it existed the only way to reach a specific
+// account was an invite code — a capability you had to type — which is
+// why circles were joined rather than offered.
+//
+// The rules this shape has to satisfy, in order of how much they matter:
+//
+//   1. ONE canonical form. `@Olaf`, `olaf` and ` OLAF ` are the same
+//      handle, or the uniqueness registry is not a registry. Casefold on
+//      the way in, store the fold as the key, and keep the typed form
+//      only as a display string.
+//   2. NO CONFUSABLES. `rn` vs `m` and `l` vs `I` are the impersonation
+//      surface every handle system grows. Latin letters, digits and one
+//      separator is not a complete answer to that, but it removes the
+//      whole non-ASCII half of it, which is where the industrial-grade
+//      lookalikes live.
+//   3. NOT A UID. Handles and uids must never be confusable by a reader
+//      or by a call site, so the minimum length is above the point where
+//      a handle could pass for something else, and the charset excludes
+//      the separators Firestore paths use.
+//
+// Pure so both halves can share it: the client validates as you type
+// (data/handles.ts re-exports the same rules) and the callable validates
+// again, because a client check is a courtesy and the callable is the
+// gate.
+
+/** Longest a handle may be, typed or stored. */
+export const HANDLE_MAX = 20;
+/** Shortest. Three is enough to be a name and long enough not to be noise. */
+export const HANDLE_MIN = 3;
+
+// Lowercase ASCII letters, digits, underscore. No dot (Firestore path
+// segments), no hyphen (visually close to en dash in a lot of fonts),
+// nothing outside ASCII.
+const HANDLE_RE = /^[a-z0-9_]+$/;
+
+/**
+ * The canonical key for a typed handle, or null if it is not one.
+ *
+ * Strips a leading `@` and surrounding space, lowercases, then validates.
+ * Returning null rather than throwing is deliberate — every caller has a
+ * different thing to say about a bad handle, and none of them wants a
+ * try/catch to say it.
+ */
+export function normalizeHandle(raw: unknown): string | null {
+  if (typeof raw !== "string") return null;
+  const h = raw.trim().replace(/^@+/, "").toLowerCase();
+  if (h.length < HANDLE_MIN || h.length > HANDLE_MAX) return null;
+  if (!HANDLE_RE.test(h)) return null;
+  // Leading digits are legal (a handle is not an identifier) but a handle
+  // that is ONLY digits reads as an id and would collide with every
+  // "search by number" affordance a future version grows.
+  if (/^[0-9]+$/.test(h)) return null;
+  // Reserved: words a handle must not be able to impersonate, because
+  // each of them already means something in this app's copy or its URLs.
+  if (RESERVED_HANDLES.has(h)) return null;
+  return h;
+}
+
+/**
+ * Names no account may hold.
+ *
+ * Two families: the app's own URL segments (a handle that is also a route
+ * makes "prvfire33.web.app/join" ambiguous the day handles get links),
+ * and the words the product uses to mean *the system rather than a
+ * person* — an account called `insight` or `admin` is a phishing kit.
+ */
+export const RESERVED_HANDLES = new Set([
+  "insight", "admin", "administrator", "root", "system", "support",
+  "help", "about", "privacy", "terms", "join", "invite", "invites",
+  "profile", "settings", "account", "me", "you", "everyone", "world",
+  "team", "staff", "official", "mod", "moderator", "null", "undefined",
+  "anonymous", "anon", "deleted",
+]);
+
 // ── day-key arithmetic (v2social) ───────────────────────────────
 
 export function utcDayKey(offsetDays = 0, nowMs: number = Date.now()): string {
@@ -1213,6 +1290,12 @@ export function modVerdictError(value: unknown): string | null {
 // and the seed only ever writes it on create.
 export const SEEDED_FIELDS = [
   "surface", "seq", "type", "domain", "prompt", "options", "topic", "axis", "test",
+  // The continuum forms' range/plane copy (D114). Array-valued entries
+  // (ends/ax/ay) ride the same element-wise compare options does; the
+  // emit-when-set payloads leave them undefined off the feed dial/field
+  // entries, and undefined-vs-missing compares equal below, so the other
+  // ~493 docs stay untouched.
+  "lo", "hi", "unit", "ends", "ax", "ay",
 ] as const;
 
 /**

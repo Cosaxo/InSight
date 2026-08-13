@@ -210,7 +210,9 @@ summary). Then:
   so in one PR-body line ("farm vintages trail editorial by X on
   evenness; this batch leans harder on the leaders' shapes"). This is
   the loop that makes the upscale self-correcting: the farm is measured
-  by the same k-floored aggregates as everything else, and a vintage
+  by the same public aggregates as everything else — exact and unfloored
+  since D98, so a thin vintage shows up in the scorecard from its first
+  answers rather than sitting invisible under a threshold — and a vintage
   that under-performs is a writing instruction, not a shrug.
 - **Propose retirements, never apply them.** The scorecard lists
   landslides with real volume under `retireProposals`. Cite them in the
@@ -251,12 +253,43 @@ restate an existing one in different clothes — check the whole `Q` array
 *and* the suggestion board seeds in `src/v2/spec/suggestions.js`. After
 writing, re-read each candidate against its nearest existing neighbour and
 drop it if a user would say "I already answered that." Since D63 the
-nearest neighbours are measured, not guessed: run
-`npm run check:neighbors -- --candidate "…" --options "A|B"` for each
-candidate (suggestion seeds ride along) and cite the top score in the PR
-body's one-line-per-question section. The same script gates CI at ≥ 0.5
-similarity within a surface. It is lexical — it catches rewordings, never
-synonyms — so the re-read stays the rule and the score is its floor.
+nearest neighbours are measured, not guessed, and since D123 the
+measurement covers the batch as well as the bank:
+
+```
+npm run check:neighbors -- --batch candidates.json
+```
+
+**Pre-flight the whole batch, not one question at a time.** The same
+candidates file `check:quality --batch` takes (§ the style check below)
+scores every candidate against its domain *and against its batch
+siblings*, prints one packet line each, and exits non-zero on any pair at
+or above the 0.5 gate. The sibling half is why the batch form is the rule
+now: `--candidate` run eight times compares eight questions to the bank
+and never to each other, and every lane's budget is bigger than one
+question (8/run here, 10/run learn). Two twins written in the same run
+used to reach CI — one human review too late. `--candidate "…" --options
+"A|B"` still works for a single lookup while writing; suggestion seeds
+ride along on daily either way.
+
+Each packet line carries **two** numbers — `top` against the bank and
+`batch` against the closest sibling — and the sibling number prints
+whatever it scores, including under the gate. Read it: a pair at 0.455
+passes the gate and is still two ways of asking one question ("Best seat
+on a long train ride?" against "Best place to sit on a long train
+journey?", the measured case). The gate decides what fails; you decide
+what is a dupe. Cite both numbers in the PR body's one-line-per-question
+section.
+
+What the gate now catches that it did not before D123: morphological
+rewrites ("Master one thing, or dabble in many?" against "Mastering one
+skill, or dabbling in many?" — 0.143 before, 0.600 now) and synonym
+rewrites the lexicon pairs ("Money buys happiness." against "Can wealth
+make you happy?" — 0.000 before, 0.500 now). What it still cannot catch:
+a paraphrase carried by words the lexicon does not pair, and any two
+prompts that ask one question through different imagery. **The re-read
+stays the rule and the score is its floor** — the gate got a bigger floor,
+not a promotion.
 
 **The mechanical style check is also part of writing (D97).** Write the
 batch's candidates to a JSON file and run
@@ -489,11 +522,59 @@ graduate across, so a merged learn card reaches production on the next
 reseed. **One gate instead of two means the PR review IS the production
 review.** Rules for a learn run:
 
-- **Budget ≤8 cards/run**, thinnest fields first (a field below 8 cards
-  cannot sustain the scheduler's spacing).
+- **Start every run with `npm run learn:budget -- --open <cards on the
+  open lane PR>`** (D115). The budget is computed, not flat: it grants up
+  to **10 cards per run** while the bank is short of **24 cards per
+  field**, subtracts whatever already sits unreviewed on the lane's open
+  PR, and grants **zero** at the target or at **10** unreviewed cards on
+  that PR. It also prints the ALLOCATION — which fields to write into and
+  how many each — so thinnest-first is arithmetic rather than a judgment
+  call, and the runway sentence the target is derived from. Zero means
+  the run is a logged no-op and review is the work.
+
+  This replaced D32's flat "≤8 cards/run, thinnest fields first", which
+  could not produce anything: every field holds exactly 8, the spacing
+  floor reads as the thinness test, so no field was ever thinnest. The
+  constants live in `scripts/learn-budget.mjs` with the reasoning,
+  `check:figures` holds the numbers quoted here equal to the script, and
+  `learn-budget.test.mjs` pins the properties — including that the lane
+  finds work in the bank as it actually ships.
+
+  A run writes at least **4 cards into any field it touches**. That is a
+  shape rule, not a volume one: one card each into ten fields cannot
+  demonstrate the difficulty spread the batch gate asks for, and a writer
+  holding one subject writes better cards than one hopping twelve.
+- **Spread the difficulty, and know what it is for.** `p` is the level
+  engine's only input, and it clamps to 24..92 — a card outside that is
+  one no reader is ever *at* the level for. `check:quality` fails a card
+  outside the clamp, a batch of three or more spanning under 20 points,
+  and a field whose whole card set spans under 20.
 - **The trap `t` is the product, not filler** — the PR body argues each
   card's trap individually: which wrong answer real people actually pick,
   and why. A card whose wrong options are noise is not an InSight card.
+- **Pre-flight the batch in its native shape** (D115). Write the cards as
+  the JSON you will append and run `npm run check:quality -- --batch
+  cards.json` — learn entries are accepted as `{id, f, q, a, c, t, p, k,
+  w}`, so the thing checked is the thing shipped. Paste each packet line
+  into the PR body beside its neighbor score, the daily lane's rule.
+- **Dedup against the bank AND against the batch**: `npm run
+  check:neighbors -- --batch cards.json` — the same file the quality
+  pre-flight takes, so the cards are checked in the shape they ship. It
+  reads the learn shape from `f`/`q`/`a`/`c` and scores prompt + correct
+  answer only (a field's cards share their distractors by construction),
+  and it compares the run's own cards to each other — a lane writing at
+  least 4 cards into a field is exactly where two cards testing one fact
+  come from. `--candidate "…" --options "<the correct answer>" --domain
+  learn` remains the single lookup while writing; pass the answer alone,
+  never the option set. The gate holds learn under 0.5 like every
+  surface; the re-read stays the rule, because only a human can tell
+  whether two differently-worded prompts test one fact.
+- **Authored option order is not the served order** (D115). `LEARN_ORDER`
+  permutes each card's options at render, so where you put the correct
+  answer in `a` is invisible to readers. Vary `c` anyway: a bank with
+  varied authored indices degrades gracefully if the permutation is ever
+  removed, and the 96 cards written before D115 — all of them `c: 0` —
+  are why that rule now exists.
 - **`p` is the authored cold-start estimate**, shown labeled ("our
   estimate") until a measured rate exists — never presented
   as measured (D1). Estimate honestly; it is also the difficulty input to
@@ -502,12 +583,21 @@ review.** Rules for a learn run:
   `check:content` validates ranges and c≠t, but only a human can check the
   fact. Cite a source for any card that could be contested.
 - **`k` is the map label**: 2–6 words, and it must be true standing alone.
+  Not a question and not a restatement of the prompt — `check:quality`
+  holds both.
 - **New fields or subjects are a human decision** proposed in the PR body,
   never added by the run (the map's group layout is structural).
 - Ids: next free suffix in the field's series (`cell9`, …); append at the
   end of `cards`; never renumber (answers key on `learn-<id>` forever).
-- Gates before the PR: `npm run check:content`, `check:globals`, `lint`,
-  `test:unit`, `build`. Same PR shape and run log as the daily job.
+  The same rule is why a shipped card's OPTIONS are never reordered or
+  edited: answers store `(qid, optionIdx)`, so a reorder silently re-keys
+  every answer already given and every aggregate cell built from them.
+  The fix for a bad option set is a better successor card, never an edit
+  — the daily lane's D30 re-key rule, and it binds here too.
+- Gates before the PR: `npm run check:content` (the seed regenerates —
+  run `npm run build:content` after the append), `check:quality`,
+  `check:neighbors`, `check:globals`, `lint`, `test:unit`, `build`. Same
+  PR shape and run log as the daily job.
 
 ## The duel lane (D40, adopted 2026-08-06 — single gate, learn-style)
 
@@ -533,9 +623,12 @@ recorded under Governance when taken. Rules for a duel run:
   (its entries carry `"active": false` — see D40's adoption record), new
   romantic entries ship dark too; once the operator lights the pool up,
   new entries ship active (no flag). The other pools always ship active.
-- **Dedup against all three pools**: `npm run check:neighbors --
-  --candidate "…" --domain duel` per candidate, plus the re-read — the
-  gate holds the duel domain under 0.5 like every surface.
+- **Dedup against all three pools, and against the batch**: `npm run
+  check:neighbors -- --batch candidates.json` (entries carrying
+  `"domain": "duel"`), plus the re-read — the gate holds the duel domain
+  under 0.5 like every surface, and the batch form also compares the
+  run's own ≤4 questions to each other (D123). `--candidate "…" --domain
+  duel` remains the single lookup.
 - **Read the signal first.** The scorecard's `duel` section (D40 part 3)
   scores plays, split, and — for 1v1 — the **guess-match rate**, the
   duel analogue of evenness: near 100% is a dead question (guessable by
@@ -564,21 +657,27 @@ recorded under Governance when taken. Rules, each load-bearing:
 
 - **Budget ≤6 questions/run, at most twice weekly to start.** The feed
   has no consumption clock to pace against, so the bound is signal
-  dilution: a fixed crowd spread over more questions clears the k-floor
-  on fewer of them. While the scorecard shows most feed questions
+  dilution: a fixed crowd spread over more questions leaves each one with
+  too few answers for its evenness score to mean anything. (Pre-D98 this
+  read "clears the k-floor on fewer of them". There is no floor now — the
+  counts publish from answer one — but a split measured on three answers
+  is noise either way, so the bound stands on the statistics rather than
+  on the publishing rule.) While the scorecard shows most feed questions
   unscored, the lane's job is breadth across the ten topics
   (thinnest-first, the coverage rule); raising the cadence is a D97
   amendment for when the scorecard shows the crowd keeping up.
-- **`vote` questions only.** `rank` is not live-servable (D12) and
-  `duel`-type feed cards are prototype legacy; a lane candidate is
-  always a plain vote. 2–4 options, feed shapes (`check:quality` holds
-  the measured bounds; `check:content` holds the seed shapes).
+- **Three authorable forms.** A plain `vote` (2–4 options) or one of the
+  two **continuum forms** (`dial` / `field`, live since D114); `rank` is
+  not live-servable (D12) and `duel`-type feed cards are prototype
+  legacy. `check:quality` holds the measured bounds; `check:content`
+  holds the seed shapes. A continuum question is written TWICE — the
+  content entry and its demo-pool twin — see § Continuum questions.
 - **Append only, at the end of `questions`**, ids continuing the `fNN`
-  series (scene-attached `sNN` entries are out of the lane's scope —
-  scenes are placeholder). Every append also adds the question's
-  provenance row (`content/provenance.json`, `source: "farm"`, the
-  run's date as batch) — `check:quality` fails a feed question without
-  one.
+  series (continuum ids continue `dlN` / `fdN`; scene-attached `sNN`
+  entries are out of the lane's scope — scenes are placeholder). Every
+  content append also adds the question's provenance row
+  (`content/provenance.json`, `source: "farm"`, the run's date as
+  batch) — `check:quality` fails a feed question without one.
 - **Topics from the taxonomy only** (`topics` in the same file);
   proposing a new topic is a PR-body note, never a silent addition. Mark
   politically charged questions `political: true` (D52's rule: the
@@ -590,11 +689,68 @@ recorded under Governance when taken. Rules, each load-bearing:
 - **Every farm hard rule inherits**: the product's voice, no
   place-scoped civic questions, never generated activity, PR-only
   output, the roll-up rule for open lane PRs, dedup
-  (`check:neighbors -- --candidate "…" --domain feed` plus the re-read),
-  the quality pre-flight, and the run log on issue #31.
+  (`check:neighbors -- --batch candidates.json` with `"surface": "feed"`
+  on each entry, plus the re-read), the quality pre-flight, and the run
+  log on issue #31.
 - Gates before the PR: `npm run check:content` (the seed regenerates —
   run `npm run build:content` after the append), `check:neighbors`,
   `check:quality`, `check:globals`, `lint`, `test:unit`, `build`.
+
+### Continuum questions (`dial` / `field`)
+
+Two forms where the answer is a position, not a pick (synced from
+standalone v20, made live by D114): a **dial** takes a value on a range
+and reveals the crowd as a curve with a median line; a **field** takes a
+dot on a 2-D plane and reveals the crowd as a cloud. Live, a continuum
+answer is an ordinary `optionIdx` into **synthesized** bucket/cell
+labels (12 range buckets for a dial; a 4×3 cell grid for a field —
+`scripts/gen-v2content.mjs`), so the existing rules, fold, by-cells and
+D86 edit machinery carry it unchanged, and the option freeze (D52)
+freezes the range with the labels: never touch a shipped `lo`/`hi`/
+`unit`/`ax`/`ay` — the seed refuses it as an option edit, correctly.
+
+**A continuum question is written twice, in one PR:**
+
+1. The **content entry** (`content/feed-questions.json`) — copy only:
+   `{ id, cat, type: 'dial', prompt, lo, hi, unit }` (or `ends`), /
+   `{ id, cat, type: 'field', prompt, ax, ay }`. NO crowd fields —
+   `check:quality` fails a content entry carrying texture, because an
+   authored crowd in the live bank would be a fabricated one. Options
+   are synthesized at `build:content`; never author them.
+2. The **demo-pool twin** (`src/v2/spec/world-feed-data.js`, the
+   `── dials & fields ──` block) — the same copy PLUS the authored crowd
+   texture the demo build renders (`med`, `dist`, `n` / `cloud`, `n`),
+   held to the same bar as the copy: `med` inside the range, `dist`
+   exactly 12 non-negative buckets shaped like a real crowd (one mode,
+   honest tails), `cloud` 1–4 `[x, y, count, spread]` clusters
+   totalling 8–60 dots (coords 0–100, y = 0 at the TOP), `n` a
+   believable answer count.
+
+**Writing them.** A dial earns its place when everyone holds a number on
+the same range and the interesting fact is *where* the numbers sit — a
+threshold ("when does old age begin?"), a norm ("the right tip"), a
+share ("how much of your life is in your control?"). The range must be
+the honest span of real answers, not drama: ends people actually hold.
+A field earns its place when two judgments are independent enough to
+disagree — taste × legitimacy, feeling × importance — and the corners
+are all inhabitable positions. Axis ends are judgments, not facts, and
+stay ≤14 chars — they compose into the synthesized cell labels the
+voters panel prints ("lean tastes good · middle").
+
+- Ids continue the `dlN` / `fdN` series; prefer the always-on channels
+  (`bigq` / `dilemma`) so the card reaches every demo feed — a subject
+  topic is right only when the question is truly subject-bound.
+- The content half carries a provenance row like any feed append.
+- Pre-flight: dials fit `--candidate` flags
+  (`node scripts/question-quality.mjs --candidate "…" --surface feed
+  --type dial --cat bigq --lo 40 --hi 90 --unit yrs --med 63
+  --dist "1,3,…" --n 5000` — the demo-twin form, texture included); a
+  field's cloud has no flag syntax, so pre-flight fields via `--batch`
+  with the full objects.
+- Budget: continuum candidates count inside the lane's ≤6/run, and lean
+  scarce — the feed reads best when a continuum card is an occasional
+  change of key, not a second genre (the hot sort pins one near the top;
+  a glut buys nothing).
 
 ## Deliberately out of scope (recorded so it stays a decision, not drift)
 
@@ -782,21 +938,25 @@ re-paced, or retired.
 
 | Routine | Schedule (UTC) | Fires into | Contract |
 | --- | --- | --- | --- |
-| InSight question farm | weekly Mon 07:00 — **D33 re-paces to daily 07:00, owner step pending** | maintainer's dev session | this file, the sections above |
+| InSight question farm (daily) | daily 07:00 (D33 re-pace taken 2026-08-11) — **prompt still pre-D33, refresh pending: owner step** | maintainer's dev session | this file, the sections above |
 | Daily catalog question | daily 08:00 | maintainer's dev session | § The daily catalog-question run |
 
-**The pending D33 re-pace (one owner step), now carrying D97's prompt
-refresh too.** A session that is not the
-Routine's bound session cannot edit it (measured 2026-08-01: both the
-prompt and the cron are refused org-wide from outside; re-measured
-2026-08-03 from a sibling remote session — `list_triggers` works, but
-`update_trigger` is refused for the prompt *and* for cron+name alone,
-so the constraint holds and this step really is dev-session-or-UI
-only). So the re-pace
-is done from the dev session itself — "update the question-farm Routine
-(trig_01REC4MfZ1D8qhYoZKxDPtdK): cron `0 7 * * *`, name 'InSight
-question farm (daily)', and replace the prompt with the canonical text
-in docs/QUESTION-FARM.md" — or in the claude.ai Routines UI. The same
+**The remaining owner step: the prompt swap.** The D33 re-pace itself
+was taken 2026-08-11, from a sibling remote session at the owner's
+direction — which re-measured the constraint and found it NARROWED:
+`update_trigger` now accepts cron+name from outside the bound session
+(both were refused 2026-08-01 org-wide and again 2026-08-03), but still
+refuses a prompt edit into a session that is not the caller's own, with
+an error saying exactly that. So the farm Routine now fires daily under
+its old pre-D33 prompt — tolerable only because that prompt already
+defers to this file ("read docs/QUESTION-FARM.md and follow it
+exactly"), and the D97 manual is what it will find; the stale summary
+(12/run, weekly language) is drift waiting to be obeyed, which is why
+the swap stays a real step, not a nice-to-have. Do it from the dev
+session itself — "update the question-farm Routine
+(trig_01REC4MfZ1D8qhYoZKxDPtdK): replace the prompt with the canonical
+text in docs/QUESTION-FARM.md" — or paste the canonical text in the
+claude.ai Routines UI. The same
 visit should refresh the daily-catalog Routine's prompt as well: its
 contract section carries the roll-up rule as of 2026-08-03, and while
 every prompt defers to this file ("re-read it every run"), a prompt
@@ -826,9 +986,12 @@ the manual's three priority lanes — replenishment first, demand takes
 everything replenishment leaves, coverage only what the signal lanes
 leave unclaimed — write the questions in the product's voice into the
 daily-question archive (src/v2/spec/daily-questions.js on origin/main),
-pre-flight every candidate (npm run check:neighbors -- --candidate and
-npm run check:quality -- --batch, packet lines pasted into the PR
-body), run the repo's gates (check:globals, lint, test:unit, build,
+pre-flight the whole batch from ONE candidates file (npm run
+check:neighbors -- --batch candidates.json and npm run check:quality --
+--batch candidates.json — the neighbors batch form also compares your
+own new questions to EACH OTHER, which per-candidate lookups never did;
+packet lines from both pasted into the PR body), run the repo's gates
+(check:globals, lint, test:unit, build,
 check:neighbors, check:quality), and open a pull request for human
 review. Learn per the manual's scorecard
 section: imitate the leaders' SHAPE, never their subject (a near-twin

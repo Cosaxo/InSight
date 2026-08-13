@@ -5,6 +5,7 @@
 // guards the wiring in CI.
 import React from 'react';
 import { IS_DATA } from './sample-data.js';
+import { DUELS } from './duels-data.js';
 import { HAPTIC } from './haptics.js';
 import { markNav } from './swipe-back.js';
 import { WPAL } from './world-palette.js';
@@ -122,8 +123,10 @@ const DOCK_STOPS = [
   { id: 'duo', label: '1v1', acc: 'var(--c-people)' },
 ];
 
-// Overlays that ship.
-const LIVE_OVERLAYS = ['profile', 'test', 'search', 'relmap'];
+// Overlays that ship. `test` left this list at D121 with the sit-down
+// flow it opened; `logic` was never in it (LogicOverlay opens through its
+// own path).
+const LIVE_OVERLAYS = ['profile', 'search', 'relmap'];
 
 // One exception in any of the ~450 components should cost a card, not the app.
 class ErrorBoundary extends React.Component {
@@ -174,26 +177,29 @@ function App() {
   // true once the daily feed has scrolled past its ruler — the wordmark steps
   // aside and the ruler takes the header
   const [docked, setDocked] = useState(false);
-  // which test to open TestOverlay on (null = selection screen)
-  const [testKind, setTestKind] = useState(null);
+  // The `testKind` state that stood here chose which test TestOverlay
+  // opened on. D121 removed the overlay: the four core instruments fill
+  // from the feed and only from the feed, so there is no test to open.
+  // (LogicOverlay stays — it is a sit-down instrument by construction,
+  // procedurally generated and server-scored, D57.)
 
   useEffect(() => { if (tab !== 'track') setDocked(false); }, [tab]);
 
   const mirrorPop = MIRROR_POP_IDS.includes(t.mirrorPop) ? t.mirrorPop : 'you';
   const worldZoom = WORLD_ZOOM_IDS.includes(t.worldZoom) ? t.worldZoom : 'world';
 
-  const closeAll = () => { setOv(null); setPerson(null); setCity(null); setTestKind(null); };
+  const closeAll = () => { setOv(null); setPerson(null); setCity(null); };
 
   // ── Android back ──────────────────────────────────────────────────
   // Without this the system back gesture calls finish() and quits the app
   // from anywhere — including with an overlay open, which reads as a crash.
   //
   // Peels ONE layer per press, in the order they sit on screen, and mirrors
-  // each overlay's own onClose rather than calling closeAll: `test` opened
-  // from the profile has to land back on the profile (backOv), not on the
-  // tab, exactly as its close button does. Returning false means nothing
-  // was left to close, and back at the root should exit — which is what
-  // Android users expect.
+  // each overlay's own onClose rather than calling closeAll: an overlay
+  // opened from the profile has to land back on the profile (backOv), not
+  // on the tab, exactly as its close button does. Returning false means
+  // nothing was left to close, and back at the root should exit — which is
+  // what Android users expect.
   //
   // Refs, not state: the listener is registered once, so reading `person`
   // or `ov` directly would close over their first values forever. backOv
@@ -206,7 +212,6 @@ function App() {
     const s = backState.current;
     if (s.person) { setPerson(null); return true; }
     if (s.city) { setCity(null); return true; }
-    if (s.ov === 'test') { setTestKind(null); s.backOv(); return true; }
     if (s.ov) { s.backOv(); return true; }
     // A non-default tab is a level of its own: back should return to the
     // daily before it offers to leave.
@@ -262,8 +267,18 @@ function App() {
         closeAll(); setOv(key);
         setOvBack(from === 'profile' && key !== 'profile' ? 'profile' : null);
       };
-      // `profile`, `search` and `relmap` are eager; only `test` waits.
-      return key === 'test' ? openDeferred(show) : show();
+      // All three are eager. `test` was the one that waited on the
+      // deferred overlay chunk, and it is gone (D121).
+      return show();
+    };
+    // Open the profile ON one of its tabs. The passive meter's rows used
+    // to open the sit-down flow for an instrument; they open its profile
+    // page instead, which needs a way to name the page. __profileSub is
+    // the overlay's own memory of the last tab, so writing it before the
+    // open is exactly what a returning visit does.
+    window.openProfileTab = (subId) => {
+      if (typeof subId === 'string' && subId) window.__profileSub = subId;
+      return window.openOverlay('profile');
     };
     window.goTab = (id) => {
       closeAll();
@@ -281,16 +296,10 @@ function App() {
       if (it.tab === 'mirror') { setTweak('mirrorPop', 'you'); setTab('mirror'); return; }
       setDailyMode(it.mode); setTab('track');
     };
-    // open the test flow — straight into a specific test, or the picker
-    window.openTest = (k) => {
-      const from = ovRef.current;
-      return openDeferred(() => {
-        closeAll();
-        setTestKind(k || null);
-        setOv('test');
-        setOvBack(from === 'profile' ? 'profile' : null);
-      });
-    };
+    // `window.openTest` stood here (D121). Every caller is gone with it —
+    // the profile's per-test CTA, the passive meter's sheet rows — and it
+    // is not left as a no-op: a global that resolves to a function which
+    // does nothing is how a dead affordance survives a deletion.
     // cross-link: any component can open a city's profile by name
     //
     // The lookup stays OUTSIDE openDeferred: a name that matches nothing
@@ -497,7 +506,6 @@ function App() {
               computes, rather than a window.LIVE read in the overlay, so the
               spec layer's coupling meter (D39 rule 4) stays flat. */}
           {ov === 'search' && <SearchOverlay onClose={() => setOv(null)} samplePeople={!liveOn} onPerson={(p) => { setOv(null); setPerson(p); }} onCity={(c) => { setOv(null); setCity(c); }} />}
-          {ov === 'test' && window.TestOverlay && <window.TestOverlay kind={testKind} onClose={() => { setTestKind(null); backOv(); }} onComplete={() => { setTestKind(null); backOv(); }} />}
           {ov === 'logic' && window.LogicOverlay && <window.LogicOverlay onClose={() => setOv(null)} />}
           {ov === 'relmap' && <RelationshipMapOverlay onClose={() => setOv(null)} />}
         </ErrorBoundary>
@@ -517,7 +525,7 @@ function App() {
         <TweakRadio label="Type marks" value={t.markStyle || 'slice'} options={['slice', 'ring', 'dots']} onChange={(v) => setTweak('markStyle', v)} />
         <TweakToggle label="Lenses: boxed cards" value={!!t.lensBoxed} onChange={(v) => setTweak('lensBoxed', v)} />
         <TweakSection label="Daily" />
-        <TweakButton label="Reset today's answers" secondary onClick={() => { if (window.DUELS) window.DUELS.resetToday(); setDailyKey((k) => k + 1); }} />
+        <TweakButton label="Reset today's answers" secondary onClick={() => { DUELS.resetToday(); setDailyKey((k) => k + 1); }} />
         <TweakSection label="World feed" />
         <TweakRadio label="Palette" value={t.wpal || 'full'} options={['full', 'family', 'one']} onChange={(v) => setTweak('wpal', v)} />
       </TweaksPanel>

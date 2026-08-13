@@ -14,6 +14,7 @@ import {
   sortVoters,
   uidFromAnswerPath,
   UID_CHUNK,
+  VOTER_FETCH_CAP,
   WORLD_ANSWER_SURFACES,
   type Voter,
 } from "./voters";
@@ -107,6 +108,24 @@ describe("uidFromAnswerPath", () => {
   it("returns null for a path that is not an answer", () => {
     expect(uidFromAnswerPath("v2_takes/t1")).toBeNull();
     expect(uidFromAnswerPath("v2_users")).toBeNull();
+  });
+});
+
+describe("the fetch cap (D102)", () => {
+  // The cap is on the QUERY, not applied to the result after the fact —
+  // slicing a returned array would still bill every document in the
+  // crowd, which is the entire cost this bound exists to remove.
+  // Source-scanned because the query needs an emulator to run; the same
+  // trade the surface-filter's rules case below takes.
+  it("fetchVoters carries the cap inside the query", () => {
+    const src = readFileSync(resolve(__dirname, "./voters.ts"), "utf8");
+    const q = src.match(/collectionGroup\(db, "answers"\)[\s\S]*?\)\);/);
+    expect(q, "fetchVoters' collection-group query was not found").not.toBeNull();
+    expect(q![0]).toMatch(/fsLimit\(VOTER_FETCH_CAP\)/);
+    // Newest-first is what makes a capped page mean "the latest N" rather
+    // than an arbitrary N — the ordering and the cap only work as a pair.
+    expect(q![0]).toMatch(/orderBy\("answeredAt", "desc"\)/);
+    expect(VOTER_FETCH_CAP).toBeGreaterThan(0);
   });
 });
 

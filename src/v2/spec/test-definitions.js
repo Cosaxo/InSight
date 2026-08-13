@@ -65,17 +65,29 @@ export const IS_TEST_RESULTS = {
       { id: 'easy',  label: 'Easygoing', value: 62, blurb: 'gives space' },
     ],
   },
-  cognitive: {
-    title: 'How you think',
-    taken: 'a month ago',
-    accent: 'oklch(0.50 0.12 220)',
-    dims: [
-      { id: 'analyst', label: 'Analyst', value: 62, blurb: '' },
-      { id: 'systems', label: 'Systems', value: 78, blurb: 'patterns first' },
-      { id: 'empath',  label: 'Empath',  value: 56, blurb: '' },
-      { id: 'maker',   label: 'Maker',   value: 64, blurb: '' },
-    ],
-  },
+};
+
+// ── one hue per instrument (D121) ──────────────────────────────────
+//
+// There were TWO of these, and they disagreed. `RP_TESTS[k].banner`
+// (result-rose.jsx) coloured the result card; `PASSIVE.META[k].accent`
+// (passive-progress.js) coloured the progress sheet's rings, pips and
+// rows. On values and attachment they were not even close — the sheet drew
+// Values in rose and Social in violet while the card drew Values violet
+// and Social green — so the same instrument changed colour between the
+// screen that says how full it is and the screen that says what it found.
+//
+// The sheet's palette wins because it is the one built from the app's own
+// tokens: --c-around / --c-world / --c-people are the same four accents
+// the daily's modes and the Mirror's stops already run on, so an
+// instrument reads as part of the app rather than as its own chart.
+// Violet has no token (nothing else in the app is violet), which is why
+// Social's is written out.
+export const TEST_HUE = {
+  big5:       'var(--c-around)',
+  political:  'var(--c-world)',
+  values:     'var(--c-people)',
+  attachment: 'oklch(0.52 0.13 320)',
 };
 
 // Typical-person baselines per dimension — used to show "you vs. most people".
@@ -85,15 +97,6 @@ export const IS_TEST_AVG = {
   political:  { econ: 50, auth: 52, foreign: 48, env: 55, tech: 60, estab: 55 },
   values:     { future: 52, circle: 45, hedonism: 55, meaning: 58, moral: 55, beauty: 60 },
   attachment: { warm: 64, loyal: 66, open: 56, play: 58, easy: 60 },
-  // Added with the cognitive bank. This key was absent while the demo
-  // persona already had a cognitive result, and absence is not neutral
-  // here: IS_profileRarity returns null without a baseline (no rarity
-  // readout on the card) and IS_archScores falls back to a flat 50 for
-  // every mode, which biases type matching toward whichever type sits
-  // nearest the midpoint. Empath highest because self-report on reading
-  // people runs high everywhere; maker lowest for the same reason in
-  // reverse.
-  cognitive:  { analyst: 58, systems: 55, empath: 62, maker: 52 },
 };
 
 // ── Persist completed results so a retake (or reload) keeps what you scored ──
@@ -342,55 +345,6 @@ export const IS_TESTS = {
         { q: "I find it hard to switch off and mess about.",          d: 'play', invert: true },
         { q: "A friend cancelling on me barely registers.",           d: 'easy' },
         { q: "It bothers me when a friend doesn't reply for days.",   d: 'easy', invert: true },
-      ],
-    },
-    // The fifth test, added 2026-08-10. Its dims, labels, population
-    // baselines and result copy all shipped long ago — the demo persona
-    // carries a `cognitive` result and segment-explorer, compare-breakdown,
-    // group-mirror, person-overlay and compare-pop all read it — but
-    // IS_TESTS had no `cognitive` key, and test-overlay.jsx offers exactly
-    // what IS_TESTS holds. So the profile could show you a thinking style
-    // and there was no way on earth to earn one; a live account saw the
-    // surfaces and never the test. Last in the object on purpose: adding it
-    // here rather than mid-object leaves the other four tests' emission
-    // order in v2content.ts alone.
-    //
-    // Dim ids and their meanings are not invented here — they are what
-    // explain-sheet.jsx has always said the four modes are.
-    cognitive: {
-      title: 'Thinking',
-      tag: 'how you get to an answer · 20 questions · 4 modes',
-      accent: 'oklch(0.50 0.12 220)',
-      dims: [
-        { id: 'analyst', label: 'Analyst', blurb: 'takes it apart' },
-        { id: 'systems', label: 'Systems', blurb: 'sees how it connects' },
-        { id: 'empath',  label: 'Empath',  blurb: 'reads the room' },
-        { id: 'maker',   label: 'Maker',   blurb: 'learns by building' },
-      ],
-      // Not poles of one axis: most people run two of these together, which
-      // is why every mode is scored on its own 0..100 and the test is not
-      // marked bipolar in RP_TESTS.
-      questions: [
-        { q: "I break a problem into pieces before I start on it.",   d: 'analyst' },
-        { q: "I want the numbers in front of me before I take a view.", d: 'analyst' },
-        { q: "I check whether an argument actually follows.",         d: 'analyst' },
-        { q: "I would rather go with a hunch than work it through.",  d: 'analyst', invert: true },
-        { q: "I lose interest once a problem gets fiddly.",           d: 'analyst', invert: true },
-        { q: "I look for the pattern before I look at the parts.",    d: 'systems' },
-        { q: "I want to know how a thing fits into everything around it.", d: 'systems' },
-        { q: "When something breaks I look upstream for the cause.",  d: 'systems' },
-        { q: "I would rather fix what is in front of me than ask why it keeps happening.", d: 'systems', invert: true },
-        { q: "Diagrams and maps rarely help me think.",               d: 'systems', invert: true },
-        { q: "I can tell when the mood in a room has shifted.",       d: 'empath' },
-        { q: "I work out what someone wants before they say it.",     d: 'empath' },
-        { q: "I think about how a decision will land on people.",     d: 'empath' },
-        { q: "Other people's reasons are mostly a mystery to me.",    d: 'empath', invert: true },
-        { q: "I judge an idea on its merits and leave the people out of it.", d: 'empath', invert: true },
-        { q: "I understand something once I have built it myself.",   d: 'maker' },
-        { q: "I would rather try it than read about it.",             d: 'maker' },
-        { q: "I learn a tool by opening it and pressing things.",     d: 'maker' },
-        { q: "I want the instructions before I touch anything.",      d: 'maker', invert: true },
-        { q: "I would rather plan it properly than start and adjust.", d: 'maker', invert: true },
       ],
     },
 };

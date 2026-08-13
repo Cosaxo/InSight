@@ -1,0 +1,35 @@
+{
+  "displayName": "Firestore write rate is far above anything the cost model predicts",
+  "documentation": {
+    "content": "Billed Firestore document writes are running at a rate no modelled size explains.\n\nWHY THERE IS A SECOND COST POLICY. `firestore-read-runaway.json` watches the term that dominates the bill, and docs/COSTS.md is emphatic that writes never exceed 3% of the total. Both of those are true of ORGANIC traffic, and neither is a reason to leave the write side unwatched: the read policy cannot see a write storm at all, so anything that writes without reading — a client loop calling `vote()`, a scripted flood of answers, a runaway server-side fan-out — runs under a green dashboard until the invoice. 'Small in the model' is not the same claim as 'bounded in an incident', and the gap between them is exactly what these two files exist to close.\n\nWrites are also worse per unit than reads: $0.18/100k against $0.06/100k on the nam5 sheet, three times the price. And one client write does not cost one write — the aggregate trigger turns each world answer into roughly four billed writes (the answer, the ledger event, the private aggregate, the published mirror), plus a deferred delete 90 days later. So a write flood is amplified about 4x on its way to the bill and 6x counting the delete, which is the opposite of the intuition 'writes are only 3%' leaves behind.\n\nWHAT FIRES IT. The built-in metric `firestore.googleapis.com/document/write_count`, summed and aligned as a rate — the same shape as the read policy, and a GCP metric rather than a log-based one, so there is no emit side to break and no METRICS entry is needed.\n\nTHE THRESHOLD. 150 writes/sec sustained for five minutes. From `npm run costs`, peak ≈ (writes/day) / 14,400: 0.5/sec at 500 DAU, 4.9 at 5,000, 49 at 50,000, 493 at 500,000. So 150 is ~30x the peak at real-traction size, and the modelled peak does not reach it until ~152,000 DAU — a much wider margin than the read policy has, because the write curve is flatter (writes are linear in answers, and the read curve carries the quadratic fan-out). Sustained 150 writes/sec is 13 M writes/day, about $23/day or $700/month.\n\nRETUNE with the same recipe as the read policy: take writes/day from the scenario row `npm run costs` prints for the size you are actually at, divide by 14,400, set to ~3x. Do not retune this one by copying the read policy's multiple — the two curves have different shapes.\n\nFIRST RESPONSE. Unlike a read spike, a write spike is usually WRITING SOMETHING, so the question is what. `v2_users/{uid}/answers/{qid}` is create-only with one legal update shape (D86), so a flood there is either a client loop or many accounts. Three causes, in order:\n\n1. A CLIENT LOOP calling `vote()` or the presence beat. Presence writes `v2_presence/{uid}` every 4 minutes per opted-in user and is the only unthrottled recurring client write in the app.\n2. SYBIL ANSWER TRAFFIC. Answers are one per (uid, qid) forever, so volume means accounts, not repeats — `ledgerVelocityScan` (D54) is the instrument, and its output is the input to the correction runbook in docs/DEPLOYMENT.md. Note it DETECTS and never denies, by design.\n3. A TRIGGER FAN-OUT. Check whether reads rose with writes: the aggregate trigger reads two documents per answer, so an organic surge moves both policies and a pure write flood moves only this one.\n\nWHAT THIS IS NOT. Not a spend cap — see the read policy's closing note and docs/COSTS.md, 'The controls that are not in this repository'. Also not a contention alert: `onV2AnswerCreated-contention.json` watches D7's per-document write ceiling, which is a throughput property of one hot question and fires at rates far below this one.",
+    "mimeType": "text/markdown"
+  },
+  "combiner": "OR",
+  "conditions": [
+    {
+      "displayName": "billed document writes above 150/sec for 5 minutes",
+      "conditionThreshold": {
+        "filter": "metric.type=\"firestore.googleapis.com/document/write_count\" AND resource.type=\"firestore_instance\"",
+        "comparison": "COMPARISON_GT",
+        "thresholdValue": 150,
+        "duration": "300s",
+        "aggregations": [
+          {
+            "alignmentPeriod": "60s",
+            "perSeriesAligner": "ALIGN_RATE",
+            "crossSeriesReducer": "REDUCE_SUM",
+            "groupByFields": ["resource.label.database_id"]
+          }
+        ]
+      }
+    }
+  ],
+  "alertStrategy": {
+    "notificationRateLimit": {
+      "period": "3600s"
+    },
+    "autoClose": "604800s"
+  },
+  "enabled": true,
+  "notificationChannels": []
+}

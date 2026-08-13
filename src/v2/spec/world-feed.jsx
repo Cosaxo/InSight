@@ -13,10 +13,14 @@ import LiveVotersPanel from '../ui/LiveVotersPanel';
 import { WPAL } from './world-palette.js';
 import { HAPTIC } from './haptics.js';
 import { WF_CATALOGS } from './world-catalogs.js';
+import { LEARN } from './learn-progress.js';
+import { LEARN_ORDER, LEARN_SPLIT_SRC } from './learn-data.js';
+import { SCENES } from './scenes.js';
 import { Sheet } from './primitives.jsx';
 // The feed's cadence arithmetic — extracted so the test exercises THIS loop
 // rather than a copy of it (D11's claim, D42's citation; see the module).
 import { interleaveFeed, partitionAnswered } from '../data/feed-interleave.ts';
+import { deferUntil, isDeferred, pruneDeferred } from '../data/deferQueue.ts';
 // The live world-takes surface (D83) — an ordinary ESM import of the typed
 // panel, like the data imports above, so the D39 coupling meter stays flat.
 import LiveTakesPanel from '../ui/LiveTakesPanel.tsx';
@@ -41,6 +45,11 @@ const WF_LS = 'insight.feedVotes.v1';
 const WF_REPLIES_LS = 'insight.feedReplies.v1';
 const WF_TAKES_LS = 'insight.feedTakes.v1';
 const WF_PASS_LS = 'insight.feedPass.v1';
+// The deferral list (D121) — id → when it may be served again. Its own key
+// rather than a value shape inside the pass list, because the two answer
+// different questions: a pass is "not this one" and holds forever, a
+// deferral is "not now" and expires.
+const WF_DEFER_LS = 'insight.feedDefer.v1';
 // where a vote lands on your Mirror — the ripple line after answering
 const WF_BRANCH = { food: 'Food', sport: 'Body', movies: 'Taste', music: 'Taste', tech: 'Mind', culture: 'Values', dilemma: 'Morals', event: 'Mind', people: 'Values', bigq: 'Values', fav: 'Taste' };
 const WF_TOPICS = window.WORLD_TOPICS || [];
@@ -91,7 +100,7 @@ function wfLoadTakes() {
   try { const v = JSON.parse(localStorage.getItem(WF_TAKES_LS) || '{}'); return v && typeof v === 'object' ? v : {}; }
   catch (e) { return {}; }
 }
-function wfVotes(q) { return q.type === 'rank' ? (q.votes || 0) : q.type === 'rate' ? (q.n || 0) : q.type === 'pick' ? (q.n || ((WF_CATALOGS[q.catalog] || {}).picks || 0)) : q.options ? q.options.reduce((a, o) => a + o.count, 0) : 0; }
+function wfVotes(q) { return q.type === 'rank' ? (q.votes || 0) : q.type === 'rate' || q.type === 'dial' || q.type === 'field' ? (q.n || 0) : q.type === 'pick' ? (q.n || ((WF_CATALOGS[q.catalog] || {}).picks || 0)) : q.options ? q.options.reduce((a, o) => a + o.count, 0) : 0; }
 
 
 
@@ -192,7 +201,7 @@ function WFFlipList({ rows, order, gap }) {
 const WF_FRIENDS = [{ name: 'Alex', init: 'A' }, { name: 'Mia', init: 'M' }, { name: 'Jordi', init: 'J' }, { name: 'Sara', init: 'S' }, { name: 'Noah', init: 'N' }, { name: 'Elif', init: 'E' }];
 
 class WorldFeed extends React.Component {
-  state = { votes: wfLoad(), knowRes: {}, pickQ: {}, pending: {}, open: {}, panels: {}, dims: {}, cutAxis: {}, boosts: {}, vh: 0, beat: null, sheet: null, sideFilter: null, reportFor: null, replyTo: null, replies: wfLoadReplies(), myTakes: wfLoadTakes(), minds: {}, ctrIdx: {}, takeSort: 'mind', whyFor: null, headHide: false, sort: 'hot', passed: wfLoadMap(WF_PASS_LS), ripple: null, liveTakesOpen: {}, editFor: {}, editHold: null, doneOpen: false };
+  state = { votes: wfLoad(), knowRes: {}, pickQ: {}, pending: {}, open: {}, panels: {}, dims: {}, cutAxis: {}, boosts: {}, vh: 0, beat: null, sheet: null, sideFilter: null, reportFor: null, replyTo: null, replies: wfLoadReplies(), myTakes: wfLoadTakes(), minds: {}, ctrIdx: {}, takeSort: 'mind', whyFor: null, headHide: false, sort: 'hot', passed: wfLoadMap(WF_PASS_LS), deferred: wfLoadMap(WF_DEFER_LS), ripple: null, liveTakesOpen: {}, editFor: {}, editHold: null, doneOpen: false };
 
   // Feature flags, carried over from the prototype so each idea can be
   // switched off from the host without editing this file. Default ON; the
@@ -231,7 +240,7 @@ class WorldFeed extends React.Component {
   componentDidMount() {
     this.applySnap(); this._retry = setTimeout(() => this.applySnap(), 400);
     // scenes followed elsewhere (orbit, suggestion card) appear here live
-    this._unsubScenes = window.SCENES ? window.SCENES.subscribe(() => this.forceUpdate()) : null;
+    this._unsubScenes = SCENES.subscribe(() => this.forceUpdate());
     // Reconcile with the live store. The feed seeds its votes from
     // localStorage at mount and never looked at LIVE again, so a vote the
     // server REFUSED — LIVE rolls it back and scrubs the WF_LS mirror —
@@ -266,7 +275,7 @@ class WorldFeed extends React.Component {
       })
       : null;
     this._unsubSubs = window.SUBTOPICS ? window.SUBTOPICS.subscribe(() => this.forceUpdate()) : null;
-    this._unsubLearn = window.LEARN ? window.LEARN.subscribe(() => this.forceUpdate()) : null;
+    this._unsubLearn = LEARN.subscribe(() => this.forceUpdate());
     this._unsubLF = window.LEARN_FEED ? window.LEARN_FEED.subscribe(() => this.forceUpdate()) : null;
     // The purge (data/live.ts, D51): this component PERSISTS four of its
     // maps (votes, passed, takes, replies) by spreading state back to the
@@ -280,7 +289,7 @@ class WorldFeed extends React.Component {
       // the OLD account's answered-ness, and a new account inheriting it
       // would open on a feed sorted by someone else's history.
       this._sunk = null;
-      this.setState({ votes: {}, passed: {}, myTakes: {}, replies: {}, knowRes: {}, pickQ: {}, editFor: {}, editHold: null });
+      this.setState({ votes: {}, passed: {}, deferred: {}, myTakes: {}, replies: {}, knowRes: {}, pickQ: {}, editFor: {}, editHold: null });
     };
     window.addEventListener('insight:local-purge', this._onPurge);
     // entrance: each card rises as it first scrolls into view (transform-only)
@@ -362,6 +371,22 @@ class WorldFeed extends React.Component {
       if (on) passed[id] = 1; else delete passed[id];
       try { localStorage.setItem(WF_PASS_LS, JSON.stringify(passed)); } catch { /* best-effort */ }
       return { passed };
+    });
+  }
+
+  // Defer a test or lens question — "not now", and it comes back (D121).
+  //
+  // Local only, for the same reason a pass is: a deferral is not an answer
+  // (D5), so recording one would either pollute the aggregate or need a
+  // second write path per question for something the user asked to be
+  // shown again later.
+  setDefer(id, on) {
+    this.setState((s) => {
+      const now = Date.now();
+      const deferred = pruneDeferred({ ...s.deferred }, now);
+      if (on) deferred[id] = deferUntil(now); else delete deferred[id];
+      try { localStorage.setItem(WF_DEFER_LS, JSON.stringify(deferred)); } catch { /* best-effort */ }
+      return { deferred };
     });
   }
 
@@ -523,15 +548,334 @@ class WorldFeed extends React.Component {
     );
   }
 
+  // ── dial: your answer is a point on a range; the reveal is the crowd's curve ──
+  // Live since D114: the bank carries dial/field docs whose options are
+  // synthesized bucket/cell labels, so a continuum answer is an ordinary
+  // optionIdx — the existing rules, fold, by-cells and edit cooldown all
+  // carry it unchanged. The RAW value stays local (WF_LS) for display;
+  // the bucket is what the world learns.
+  //
+  // These literals mirror scripts/gen-v2content.mjs (DIAL_BUCKETS /
+  // FIELD_COLS / FIELD_ROWS). A stored optionIdx is a position in that
+  // exact grid, so drifting here re-keys every live answer — the same
+  // reason D52 froze option sets.
+  dialBucket(q, val) { return Math.max(0, Math.min(11, Math.floor(((val - q.lo) / (q.hi - q.lo)) * 12))); }
+  dialBucketMid(q, i) { return q.lo + ((i + 0.5) / 12) * (q.hi - q.lo); }
+  fieldCell(x, y) { return Math.min(2, Math.floor(y / (100 / 3))) * 4 + Math.min(3, Math.floor(x / 25)); }
+  fieldCellMid(i) { return { x: ((i % 4) + 0.5) * 25, y: (Math.floor(i / 4) + 0.5) * (100 / 3) }; }
+
+  // your answer on a live card when this device has no raw value: the
+  // server bucket's midpoint — quantized is what the world stored, so
+  // quantized is what the card claims
+  dialVal(q) {
+    const v = this.state.votes[q.id];
+    if (v != null || !q.live || !LIVE.myVotes) return v;
+    const b = LIVE.myVotes()[q.id];
+    return b == null ? null : this.dialBucketMid(q, Number(b));
+  }
+  fieldVal(q) {
+    const v = this.state.votes[q.id];
+    if (v != null || !q.live || !LIVE.myVotes) return v;
+    const b = LIVE.myVotes()[q.id];
+    return b == null ? null : this.fieldCellMid(Number(b));
+  }
+
+  // the crowd's buckets on a live dial: per-option counts (they exclude
+  // the viewer — deck.ts countsFor) plus the viewer's own bucket back,
+  // wfPcts's convention, so the curve never draws an empty crowd right
+  // after you answered it
+  dialDist(q, v) {
+    const d = q.options.map((o) => o.count || 0);
+    if (v != null) { const b = this.dialBucket(q, v); d[b] = (d[b] || 0) + 1; }
+    return d;
+  }
+  // the value at the crowd's midpoint — the live "most say" line. The agg
+  // stores a histogram, never a sum (functions/src/v2.ts), so the median
+  // is derived here exactly as every average in the app is derived from
+  // its distribution.
+  dialMedOf(q, dist) {
+    const total = dist.reduce((a, b) => a + b, 0);
+    if (!total) return (q.lo + q.hi) / 2;
+    let acc = 0;
+    for (let i = 0; i < dist.length; i++) { acc += dist[i]; if (acc >= total / 2) return this.dialBucketMid(q, i); }
+    return (q.lo + q.hi) / 2;
+  }
+  // one by-cell (optionIdx → count) read as a dial: how many, and where
+  // their middle sits
+  dialCellAvg(q, cell) {
+    let n = 0, sum = 0;
+    for (const k of Object.keys(cell || {})) {
+      const c = cell[k] || 0;
+      n += c; sum += c * this.dialBucketMid(q, Number(k));
+    }
+    return n ? { n, avg: sum / n } : null;
+  }
+  // …and read as a field: the group's centre of mass on the plane
+  fieldCellCentroid(cell) {
+    let n = 0, cx = 0, cy = 0;
+    for (const k of Object.keys(cell || {})) {
+      const c = cell[k] || 0;
+      const m = this.fieldCellMid(Number(k));
+      n += c; cx += m.x * c; cy += m.y * c;
+    }
+    return n ? { n, x: cx / n, y: cy / n } : null;
+  }
+
+  setDial(q, val) {
+    HAPTIC.tap();
+    clearTimeout(this._hapT); this._hapT = setTimeout(() => HAPTIC.reveal(), 260);
+    // live: the bucket rides the ordinary vote path — create first, and a
+    // repeat answer from a device with no local raw value routes through
+    // the D86 edit exactly like setVote. A refused edit (the 60s cooldown)
+    // snaps the display back to the standing bucket rather than showing a
+    // value the server never heard.
+    if (q.live) {
+      const idx = this.dialBucket(q, val);
+      const prior = LIVE.myVotes ? LIVE.myVotes()[q.id] : null;
+      if (prior == null) { if (LIVE.vote) LIVE.vote(q.id, String(idx)); }
+      else if (Number(prior) !== idx && !(LIVE.editVote && LIVE.editVote(q.id, String(idx)))) {
+        val = this.dialBucketMid(q, Number(prior));
+      }
+    }
+    this._fresh = q.id;
+    this.setState((s) => {
+      const votes = { ...s.votes, [q.id]: val };
+      wfSave(votes);
+      return { votes };
+    });
+  }
+
+  dialFmt(q, v) { return Math.round(v) + (q.unit === '%' ? '%' : q.unit ? ' ' + q.unit : ''); }
+
+  // smooth area through the 12 crowd buckets (midpoint quadratics) — dist
+  // is a parameter because a live card derives it from bucket counts while
+  // a demo card reads its authored q.dist
+  dialPath(dist, W, H) {
+    const d = dist, max = Math.max(...d);
+    const pts = d.map((w, i) => [(i / (d.length - 1)) * W, H - 4 - (w / max) * (H - 12)]);
+    let path = 'M ' + pts[0][0] + ',' + pts[0][1];
+    for (let i = 1; i < pts.length - 1; i++) path += ' Q ' + pts[i][0] + ',' + pts[i][1] + ' ' + (pts[i][0] + pts[i + 1][0]) / 2 + ',' + (pts[i][1] + pts[i + 1][1]) / 2;
+    path += ' L ' + pts[pts.length - 1][0] + ',' + pts[pts.length - 1][1];
+    return path;
+  }
+
+  dialY(dist, frac, H) {
+    const d = dist, max = Math.max(...d);
+    const x = Math.max(0, Math.min(0.999, frac)) * (d.length - 1), i = Math.floor(x), t = x - i;
+    const w = d[i] * (1 - t) + d[Math.min(d.length - 1, i + 1)] * t;
+    return H - 4 - (w / max) * (H - 12);
+  }
+
+  renderDial(q, T, big) {
+    const v = this.dialVal(q);
+    const lo = q.lo, hi = q.hi;
+    const endTxt = q.ends || [this.dialFmt(q, lo), this.dialFmt(q, hi)];
+    const ends = { display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 600, color: 'var(--ink-3)' };
+    if (v == null) {
+      const pend = (this.state.dialPend || {})[q.id];
+      const frac = pend != null ? pend : 0.5;
+      const move = (e) => {
+        const r = e.currentTarget.getBoundingClientRect();
+        const f = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
+        this._dp = f;
+        this.setState((s) => ({ dialPend: { ...(s.dialPend || {}), [q.id]: f } }));
+      };
+      // keyboard: a drag surface is a slider, so it answers like one —
+      // arrows nudge the pending value, Enter commits it. The step is the
+      // range at drag resolution (~24 stops), floored at one whole unit
+      // because the committed value rounds anyway. (v20 ships pointer-only;
+      // the a11y ratchet is this tree's, so the control grew the keys —
+      // the D68 rule, enforcement over verbatim.)
+      const step = Math.max(1, Math.round((hi - lo) / 24)) / (hi - lo);
+      const nudge = (d) => {
+        const f = Math.max(0, Math.min(1, frac + d));
+        this.setState((s) => ({ dialPend: { ...(s.dialPend || {}), [q.id]: f } }));
+      };
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: big ? 12 : 9 }}>
+          <div style={{ alignSelf: 'center', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: big ? 40 : 32, letterSpacing: '-0.03em', color: pend != null ? WPAL.ink(T.color) : 'var(--ink-3)', fontVariantNumeric: 'tabular-nums', transition: 'color 0.15s' }}>{this.dialFmt(q, lo + frac * (hi - lo))}</div>
+          {/* data-nopan: this control OWNS its horizontal drag (OWNS_X,
+              swipe-back.js). touchAction:'none' stops the browser from
+              scrolling under the drag, but it does not stop touch events
+              reaching daily-split's mode-swipe listener on the scroller
+              above — so answering a dial also slid the mode axis, and past
+              1v1 that slide leaves the tab entirely. Same mark, same
+              reason, as the Mirror ruler. */}
+          <div role="slider" tabIndex={0} data-nopan="" aria-label={q.prompt + ' — arrow keys to adjust, Enter to answer'}
+            aria-valuemin={lo} aria-valuemax={hi} aria-valuenow={Math.round(lo + frac * (hi - lo))} aria-valuetext={this.dialFmt(q, lo + frac * (hi - lo))}
+            style={{ position: 'relative', height: 44, touchAction: 'none', cursor: 'pointer' }}
+            onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); move(e); }}
+            onPointerMove={(e) => { if (e.buttons) move(e); }}
+            onPointerUp={() => { if (this._dp != null) { this.setDial(q, Math.round(lo + this._dp * (hi - lo))); this._dp = null; } }}
+            onKeyDown={(e) => {
+              if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') { e.preventDefault(); nudge(-step); }
+              else if (e.key === 'ArrowRight' || e.key === 'ArrowUp') { e.preventDefault(); nudge(step); }
+              else if (e.key === 'Enter' && pend != null) { e.preventDefault(); this.setDial(q, Math.round(lo + frac * (hi - lo))); }
+            }}>
+            <span style={{ position: 'absolute', left: 0, right: 0, top: '50%', height: 6, marginTop: -3, borderRadius: 999, background: WPAL.wash(T.color, 12, 'var(--surface-3)') }}></span>
+            <span style={{ position: 'absolute', top: '50%', left: (frac * 100) + '%', transform: 'translate(-50%,-50%)', width: 28, height: 28, borderRadius: '50%', boxSizing: 'border-box', background: pend != null ? T.color : 'var(--surface)', border: pend != null ? '3px solid var(--surface)' : '2px solid ' + T.color, boxShadow: '0 1px 6px rgba(20,20,40,0.25)', transition: 'background 0.15s' }}></span>
+          </div>
+          <div style={ends}><span>{endTxt[0]}</span><span style={{ fontWeight: 500 }}>slide · let go to answer</span><span>{endTxt[1]}</span></div>
+        </div>
+      );
+    }
+    const W = 320, H = big ? 92 : 66;
+    // demo cards carry an authored crowd; live cards ARE the crowd —
+    // per-bucket counts from the aggregate, your own bucket added back
+    const dist = q.live ? this.dialDist(q, v) : q.dist;
+    const med = q.live ? this.dialMedOf(q, dist) : q.med;
+    const path = this.dialPath(dist, W, H);
+    const frac = (v - lo) / (hi - lo);
+    const medFrac = (med - lo) / (hi - lo);
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: big ? 12 : 9, animation: 'popIn .3s cubic-bezier(0.2,0.8,0.2,1)' }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 7 }}>
+          <span style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: big ? 34 : 26, letterSpacing: '-0.03em', color: WPAL.ink(T.color), fontVariantNumeric: 'tabular-nums' }}>{this.dialFmt(q, v)}</span>
+          <span style={{ fontWeight: 600, fontSize: 13, color: 'var(--ink-3)' }}>you</span>
+          <span style={{ marginLeft: 'auto', fontWeight: 700, fontSize: 13.5, color: 'var(--ink-2)' }}>most say {this.dialFmt(q, med)}</span>
+        </div>
+        <svg viewBox={'0 0 ' + W + ' ' + H} style={{ width: '100%', height: 'auto', display: 'block' }} aria-label={'How everyone answered, ' + endTxt[0] + ' to ' + endTxt[1]}>
+          <path d={path + ' L ' + W + ',' + H + ' L 0,' + H + ' Z'} fill={WPAL.wash(T.color, 20)} stroke="none"></path>
+          <path d={path} fill="none" stroke={T.color} strokeWidth="2.2" strokeLinejoin="round" strokeLinecap="round"></path>
+          <line x1={medFrac * W} y1={8} x2={medFrac * W} y2={H} stroke="var(--ink-3)" strokeWidth="1.2" strokeDasharray="3 3" opacity="0.55"></line>
+          <circle cx={frac * W} cy={this.dialY(dist, frac, H)} r="7" fill={T.color} stroke="var(--surface)" strokeWidth="2.5"></circle>
+        </svg>
+        <div style={ends}><span>{endTxt[0]}</span><span>{endTxt[1]}</span></div>
+      </div>
+    );
+  }
+
+  // ── field: drop a dot on a 2D plane; the reveal is the crowd as a cloud ──
+  setField(q, x, y) {
+    HAPTIC.tap();
+    clearTimeout(this._hapT); this._hapT = setTimeout(() => HAPTIC.reveal(), 260);
+    // live: same shape as setDial — the cell rides the vote path, a repeat
+    // from a raw-less device routes through the D86 edit, and a refused
+    // edit snaps the display to the standing cell's midpoint.
+    if (q.live) {
+      const idx = this.fieldCell(x, y);
+      const prior = LIVE.myVotes ? LIVE.myVotes()[q.id] : null;
+      if (prior == null) { if (LIVE.vote) LIVE.vote(q.id, String(idx)); }
+      else if (Number(prior) !== idx && !(LIVE.editVote && LIVE.editVote(q.id, String(idx)))) {
+        const m = this.fieldCellMid(Number(prior));
+        x = m.x; y = m.y;
+      }
+    }
+    this._fresh = q.id;
+    this.setState((s) => {
+      const votes = { ...s.votes, [q.id]: { x, y } };
+      wfSave(votes);
+      return { votes };
+    });
+  }
+
+  // seeded dots from the cloud spec [[cx, cy, count, spread], …] — y runs 0=top
+  fieldCloud(q) {
+    const dots = [];
+    (q.cloud || []).forEach((c, ci) => {
+      for (let i = 0; i < c[2]; i++) {
+        const a = wfHash(q.id + ':a' + ci + ':' + i) * Math.PI * 2;
+        const r = Math.sqrt(wfHash(q.id + ':r' + ci + ':' + i)) * c[3];
+        dots.push([Math.max(4, Math.min(96, c[0] + Math.cos(a) * r)), Math.max(6, Math.min(94, c[1] + Math.sin(a) * r * 0.9))]);
+      }
+    });
+    return dots;
+  }
+
+  // the live cloud: per-cell counts drawn as dots jittered inside their
+  // cell. Deterministic (wfHash) so the cloud holds still across renders,
+  // and scaled so a big crowd stays a sketch — ~60 dots — instead of a
+  // census; the jitter radii keep a dot inside its 25×33 cell.
+  fieldDots(q) {
+    const counts = q.options.map((o) => o.count || 0);
+    const total = counts.reduce((a, b) => a + b, 0);
+    if (!total) return [];
+    const scale = Math.min(1, 60 / total);
+    const dots = [];
+    counts.forEach((c, i) => {
+      const k = Math.max(c > 0 ? 1 : 0, Math.round(c * scale));
+      const m = this.fieldCellMid(i);
+      for (let j = 0; j < k; j++) {
+        const a = wfHash(q.id + ':la' + i + ':' + j) * Math.PI * 2;
+        const r = Math.sqrt(wfHash(q.id + ':lr' + i + ':' + j));
+        dots.push([
+          Math.max(4, Math.min(96, m.x + Math.cos(a) * r * 10)),
+          Math.max(6, Math.min(94, m.y + Math.sin(a) * r * 13)),
+        ]);
+      }
+    });
+    return dots;
+  }
+
+  // the crowd's centre of mass — the thin bar's "with the cluster" read.
+  // Null while nobody has answered (live) or the spec has no cloud (demo).
+  fieldCentroid(q) {
+    if (q.live) {
+      const counts = q.options.map((o) => o.count || 0);
+      const total = counts.reduce((a, b) => a + b, 0);
+      if (!total) return null;
+      let cx = 0, cy = 0;
+      counts.forEach((c, i) => { const m = this.fieldCellMid(i); cx += m.x * c; cy += m.y * c; });
+      return { x: cx / total, y: cy / total };
+    }
+    const c = this.fieldCloud(q);
+    if (!c.length) return null;
+    return { x: c.reduce((a, d) => a + d[0], 0) / c.length, y: c.reduce((a, d) => a + d[1], 0) / c.length };
+  }
+
+  renderField(q, T, big) {
+    const v = this.fieldVal(q);
+    const done = v != null;
+    const fresh = this._fresh === q.id;
+    const dots = done ? (q.live ? this.fieldDots(q) : this.fieldCloud(q)) : [];
+    const lab = (t, style) => <span style={{ position: 'absolute', fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 650, color: 'var(--ink-3)', letterSpacing: '0.02em', pointerEvents: 'none', ...style }}>{t}</span>;
+    // keyboard: arrows walk a pending ring around the plane, Enter drops
+    // the dot where it stands (center until moved — dead center is a
+    // position too). Same enforcement note as the dial: v20 is tap-only.
+    const pend = !done ? (this.state.fieldPend || {})[q.id] : null;
+    const nudge = (dx, dy) => {
+      const p = pend || { x: 50, y: 50 };
+      this.setState((s) => ({ fieldPend: { ...(s.fieldPend || {}), [q.id]: { x: Math.max(2, Math.min(98, p.x + dx)), y: Math.max(2, Math.min(98, p.y + dy)) } } }));
+    };
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: big ? 10 : 7 }}>
+        <div onClick={(e) => { if (done) return; const r = e.currentTarget.getBoundingClientRect(); this.setField(q, Math.round(((e.clientX - r.left) / r.width) * 100), Math.round(((e.clientY - r.top) / r.height) * 100)); }}
+          role="button" tabIndex={done ? -1 : 0}
+          aria-label={done ? q.prompt + ' — answered' : q.prompt + ' — ' + q.ax[0] + ' to ' + q.ax[1] + ' across, ' + q.ay[0] + ' to ' + q.ay[1] + ' up. Arrow keys to aim, Enter to place.'}
+          onKeyDown={(e) => {
+            if (done) return;
+            const s = 4;
+            if (e.key === 'ArrowLeft') { e.preventDefault(); nudge(-s, 0); }
+            else if (e.key === 'ArrowRight') { e.preventDefault(); nudge(s, 0); }
+            else if (e.key === 'ArrowUp') { e.preventDefault(); nudge(0, -s); }
+            else if (e.key === 'ArrowDown') { e.preventDefault(); nudge(0, s); }
+            else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); const p = pend || { x: 50, y: 50 }; this.setField(q, p.x, p.y); }
+          }}
+          style={{ position: 'relative', aspectRatio: big ? '1 / 1' : '4 / 3', borderRadius: 16, border: '1px solid color-mix(in oklch, ' + T.color + ' 35%, var(--rule))', background: WPAL.wash(T.color, 5), cursor: done ? 'default' : 'crosshair', overflow: 'hidden' }}>
+          <span style={{ position: 'absolute', left: 0, right: 0, top: '50%', height: 1, background: 'var(--rule)', opacity: 0.8 }}></span>
+          <span style={{ position: 'absolute', top: 0, bottom: 0, left: '50%', width: 1, background: 'var(--rule)', opacity: 0.8 }}></span>
+          {lab(q.ax[0], { left: 9, top: '50%', transform: 'translateY(-140%)' })}
+          {lab(q.ax[1], { right: 9, top: '50%', transform: 'translateY(-140%)' })}
+          {lab(q.ay[1], { top: 7, left: '50%', transform: 'translateX(8px)' })}
+          {lab(q.ay[0], { bottom: 7, left: '50%', transform: 'translateX(8px)' })}
+          {pend && <span style={{ position: 'absolute', left: pend.x + '%', top: pend.y + '%', width: 16, height: 16, margin: '-8px 0 0 -8px', borderRadius: '50%', boxSizing: 'border-box', border: '2px dashed ' + T.color, opacity: 0.7 }}></span>}
+          {done && dots.map(([x, y], i) => <span key={i} style={{ position: 'absolute', left: x + '%', top: y + '%', width: 7, height: 7, margin: '-3.5px 0 0 -3.5px', borderRadius: '50%', background: T.color, opacity: 0.38, animation: fresh ? 'popIn .4s ' + (i * 14) + 'ms cubic-bezier(0.2,0.8,0.2,1) backwards' : 'none' }}></span>)}
+          {done && <span style={{ position: 'absolute', left: v.x + '%', top: v.y + '%', width: 16, height: 16, margin: '-8px 0 0 -8px', borderRadius: '50%', boxSizing: 'border-box', background: 'var(--surface)', border: '3px solid ' + T.color, boxShadow: '0 1px 6px rgba(20,20,40,0.3)', animation: fresh ? 'popIn .3s cubic-bezier(0.2,0.8,0.2,1)' : 'none' }}></span>}
+        </div>
+        {!done && <span style={{ alignSelf: 'center', fontSize: 12.5, fontWeight: 500, color: 'var(--ink-3)' }}>tap where you land</span>}
+      </div>
+    );
+  }
+
   // the woven knowledge cards, planned ONCE per sitting. LEARN.plan re-derives
   // from your position in the deck, so calling it every render would reshuffle
   // the feed under you — the list is cached and only rebuilt when what you follow
   // (or the frequency) actually changes, never when you answer.
   knowQs(n, cats) {
-    const LF = window.LEARN_FEED, L = window.LEARN;
-    if (!LF || !L || !LF.every()) return [];
+    const LF = window.LEARN_FEED;
+    if (!LF || !LF.every()) return [];
     const muted = Object.keys(cats || {}).filter((k) => k.indexOf('lrn-') === 0 && cats[k] === false).sort().join(',');
-    const sig = LF.freq() + '|' + L.mine().map((f) => f.id).join(',') + '|' + muted;
+    const sig = LF.freq() + '|' + LEARN.mine().map((f) => f.id).join(',') + '|' + muted;
     if (this._kqSig !== sig || !this._kq) { this._kqSig = sig; this._kq = LF.cards(Math.max(14, n), cats); }
     return this._kq.slice(0, n);
   }
@@ -567,7 +911,7 @@ class WorldFeed extends React.Component {
       return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <input value={raw} onChange={(e) => this.setState((s) => ({ pickQ: { ...s.pickQ, [q.id]: e.target.value } }))} placeholder={'Search ' + C.total + ' ' + C.noun}
-            style={{ width: '100%', boxSizing: 'border-box', border: 'none', borderBottom: '1px solid color-mix(in oklch, var(--ink) 20%, var(--rule))', background: 'none', padding: '8px 2px', fontFamily: 'var(--sans)', fontSize: 15, fontWeight: 600, color: 'var(--ink)', outline: 'none' }} />
+            style={{ width: '100%', boxSizing: 'border-box', border: 'none', borderBottom: '1px solid color-mix(in oklch, var(--ink) 20%, var(--rule))', background: 'none', padding: '8px 2px', fontFamily: 'var(--sans)', fontSize: 'var(--field-size)', fontWeight: 600, color: 'var(--ink)', outline: 'none' }} />
           {term ? (
             hits.length ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -739,8 +1083,8 @@ class WorldFeed extends React.Component {
   // normal, in the app's own language. Answer blind, then see the split: exactly
   // the opinion feed's instrument, pointed at something with a right answer.
   setKnow(q, i) {
-    if (this.state.votes[q.id] != null || !window.LEARN) return;
-    const r = window.LEARN.answer(q.learn, i);
+    if (this.state.votes[q.id] != null) return;
+    const r = LEARN.answer(q.learn, i);
     if (!r) return;
     const votes = { ...this.state.votes, [q.id]: i };
     // The pick reaches state, not storage — wfSave strips lrn- entries, on
@@ -760,29 +1104,37 @@ class WorldFeed extends React.Component {
     return this.state.knowRes[q.id] || null;
   }
   renderKnow(q, T, big) {
-    const L = window.LEARN;
-    const card = L && L.card(q.learn);
+    const card = LEARN.card(q.learn);
     if (!card) return null;
     const r = this.knowOf(q);
     const my = this.state.votes[q.id];
     const fresh = !!this.state.knowRes[q.id];
-    const cs = L.stateOf(q.learn);
+    const cs = LEARN.stateOf(q.learn);
     const streakNow = r ? r.streak : (cs && cs.s === 'learning' ? cs.k : 0);
     const pale = WPAL.wash(T.color, 18, 'var(--surface-2)');
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {card.a.map((label, i) => {
-            const isC = !!r && i === r.correct;
-            const isMine = !!r && my === i;
-            const pct = r ? r.split[i] : 0;
+          {/* Display order, not authored order (learn-data.js LEARN_ORDER):
+              the bank's first 96 cards all authored the correct answer at
+              index 0, so mapping card.a straight down the screen made "tap
+              the top" a perfect score. `ai` is the AUTHORED index and is
+              what setKnow records —
+              stored answers stay keyed exactly as they always were. `slot` is
+              only where the button sits, so the reveal's stagger still runs
+              top to bottom. */}
+          {LEARN_ORDER(card).map((ai, slot) => {
+            const label = card.a[ai];
+            const isC = !!r && ai === r.correct;
+            const isMine = !!r && my === ai;
+            const pct = r ? r.split[ai] : 0;
             const showPct = !!r && (isC || (isMine && !r.ok));
             return (
-              <button key={i} className="press" disabled={!!r} onClick={() => this.setKnow(q, i)}
+              <button key={ai} className="press" disabled={!!r} onClick={() => this.setKnow(q, ai)}
                 style={{ position: 'relative', overflow: 'hidden', display: 'flex', alignItems: 'center', gap: 10, width: '100%', textAlign: 'left', minHeight: big ? 56 : 50, padding: big ? '14px 16px' : '12px 14px', borderRadius: 14, cursor: r ? 'default' : 'pointer', WebkitAppearance: 'none', transition: 'background .3s ease, color .3s ease',
                   border: isMine && !isC ? '1.5px solid var(--ink)' : WF_LINE,
                   background: isC ? WPAL.ink(T.color) : 'var(--surface-2)', color: isC ? '#fff' : r && !isMine ? 'var(--ink-3)' : 'var(--ink)' }}>
-                {r && !isC ? <span aria-hidden="true" style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: pct + '%', background: pale, transformOrigin: 'left', animation: fresh ? `wfBarIn .55s cubic-bezier(.2,.8,.2,1) calc(var(--rv-row) * ${i + 1.5}) both` : 'none' }}></span> : null}
+                {r && !isC ? <span aria-hidden="true" style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: pct + '%', background: pale, transformOrigin: 'left', animation: fresh ? `wfBarIn .55s cubic-bezier(.2,.8,.2,1) calc(var(--rv-row) * ${slot + 1.5}) both` : 'none' }}></span> : null}
                 <span style={{ position: 'relative', flex: 1, minWidth: 0, fontFamily: 'var(--sans)', fontWeight: isC ? 800 : 600, fontSize: big ? 16.5 : 15, lineHeight: 1.3, textWrap: 'pretty' }}>{label}</span>
                 {showPct ? <span style={{ position: 'relative', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12.5, fontVariantNumeric: 'tabular-nums' }}>{fresh ? <WfCount to={Math.round(pct)} animate={true}></WfCount> : Math.round(pct)}%</span> : null}
                 {isC ? <span style={{ position: 'relative', fontSize: 13, fontWeight: 800 }}>{'\u2713'}</span> : null}
@@ -791,7 +1143,7 @@ class WorldFeed extends React.Component {
             );
           })}
         </div>
-        {!r && streakNow > 0 ? <LMStreak k={streakNow} of={L.STREAK} col={T.color}></LMStreak> : null}
+        {!r && streakNow > 0 ? <LMStreak k={streakNow} of={LEARN.STREAK} col={T.color}></LMStreak> : null}
         {r ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, paddingTop: 1 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -803,17 +1155,17 @@ class WorldFeed extends React.Component {
                 </>
               ) : r.ok && r.wasKnown ? (
                 <>
-                  <LMStreak k={L.STREAK} of={L.STREAK} col={T.color}></LMStreak>
+                  <LMStreak k={LEARN.STREAK} of={LEARN.STREAK} col={T.color}></LMStreak>
                   <span style={{ flex: 1, fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 13.5, color: 'var(--ink-2)' }}>Still yours.</span>
                 </>
               ) : r.ok ? (
                 <>
-                  <LMStreak k={r.streak} of={L.STREAK} col={T.color}></LMStreak>
-                  <span style={{ flex: 1, fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 13.5, color: 'var(--ink-2)' }}>{L.STREAK - r.streak <= 1 ? 'One more and it\u2019s yours.' : (L.STREAK - r.streak) + ' more in a row.'}</span>
+                  <LMStreak k={r.streak} of={LEARN.STREAK} col={T.color}></LMStreak>
+                  <span style={{ flex: 1, fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 13.5, color: 'var(--ink-2)' }}>{LEARN.STREAK - r.streak <= 1 ? 'One more and it\u2019s yours.' : (LEARN.STREAK - r.streak) + ' more in a row.'}</span>
                 </>
               ) : (
                 <>
-                  <LMStreak k={0} of={L.STREAK} col={T.color}></LMStreak>
+                  <LMStreak k={0} of={LEARN.STREAK} col={T.color}></LMStreak>
                   <span style={{ flex: 1, fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 13.5, color: 'var(--ink-2)' }}>{r.lost ? 'Off your map — three in a row to win it back.' : 'Three in a row to earn it.'}</span>
                 </>
               )}
@@ -824,7 +1176,7 @@ class WorldFeed extends React.Component {
                 one it is. Demo builds carry their own honesty layers. */}
             {window.LIVE && window.LIVE.enabled ? (
               <div style={{ fontFamily: 'var(--sans)', fontSize: 11, color: 'var(--ink-3)', lineHeight: 1.45 }}>
-                {(window.LEARN_SPLIT_SRC ? window.LEARN_SPLIT_SRC(card) : 'estimate') === 'measured'
+                {LEARN_SPLIT_SRC(card) === 'measured'
                   ? 'Real answers from ' + (((window.LIVE.learnAgg && window.LIVE.learnAgg(card.id)) || {}).total || 5) + '+ players.'
                   : 'Our estimate — becomes measured once enough people have answered.'}
               </div>
@@ -1019,7 +1371,7 @@ class WorldFeed extends React.Component {
     return (
       <form onSubmit={(e) => { e.preventDefault(); const el = e.target.elements.why; const t = el.value.trim(); if (t) this.addTake(q.id, t); this.setState({ whyFor: null }); }} style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%' }}>
         <span style={{ width: 4, alignSelf: 'stretch', minHeight: 30, borderRadius: 2, background: col, flexShrink: 0 }}></span>
-        <input name="why" placeholder="Why?" style={{ flex: 1, minWidth: 0, border: 'none', borderBottom: WF_LINE, background: 'none', padding: '6px 2px', fontFamily: 'var(--sans)', fontSize: 13.5, fontWeight: 500, color: 'var(--ink)', outline: 'none' }} />
+        <input name="why" placeholder="Why?" style={{ flex: 1, minWidth: 0, border: 'none', borderBottom: WF_LINE, background: 'none', padding: '6px 2px', fontFamily: 'var(--sans)', fontSize: 'var(--field-size)', fontWeight: 500, color: 'var(--ink)', outline: 'none' }} />
         <button type="button" onClick={() => this.setState({ whyFor: null })} aria-label="Skip" style={{ border: 'none', background: 'none', padding: 4, cursor: 'pointer', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 15, color: 'var(--ink-3)', WebkitAppearance: 'none' }}>{'\u00d7'}</button>
       </form>
     );
@@ -1209,6 +1561,7 @@ class WorldFeed extends React.Component {
       const c = window.PLACESTATS ? window.PLACESTATS.cat(q.scope, q.catId) : null;
       return <span style={quiet}>{wfFmt(c ? c.n : (q.n || 0))} ratings</span>;
     }
+    if (q.type === 'dial' || q.type === 'field') return <span style={quiet}>{wfFmt(q.n || 0)} answers</span>;
     if (!q.options) return <span style={quiet}></span>;
     const mine = this.state.votes[q.id];
     const { total } = wfPcts(q.options.map((o) => o.count), mine);
@@ -1376,8 +1729,25 @@ class WorldFeed extends React.Component {
 
   answered(q) {
     const v = this.state.votes[q.id];
+    // a live continuum answer may exist only server-side (fresh device, no
+    // local raw value) — the bucket in myVotes is still an answer, and the
+    // card must show its reveal rather than offer the question again
+    if ((q.type === 'dial' || q.type === 'field') && v == null && q.live && LIVE.myVotes) {
+      return LIVE.myVotes()[q.id] != null;
+    }
     return q.type === 'rank' ? !!(v && v.order) : v != null;
   }
+
+  // The feed's source pool, read in one place by the two callers that need
+  // it: the stream itself and the topic sheet's per-channel counts.
+  //
+  // `window.` rather than an ESM import, and it is not a bridge relic:
+  // data/live.ts REPLACES this array wholesale on boot (buildFeedGlobals),
+  // so an imported binding would freeze the demo pool into a live build —
+  // exactly the failure spec-index.js records for the module-scope read in
+  // daily-split. One read behind one name keeps D39's meter honest about
+  // that: this file couples to the global once, not once per caller.
+  feedPool() { return window.WORLD_FEED_QS || []; }
 
   // ── takes + who-voted — open as bottom sheets (revealed only after answering) ──
   renderEngage(q, T, big) {
@@ -1431,8 +1801,11 @@ class WorldFeed extends React.Component {
             {/* D86: re-open the options on an answered plain vote. The
                 guard is the option-vote shape itself — catalog picks
                 (entity objects), ranks and know cards never store a
-                number here, and their server docs refuse edits anyway. */}
-            {q.options && typeof this.state.votes[q.id] === 'number' && !this.state.editFor[q.id] && (
+                number here, and their server docs refuse edits anyway.
+                Continuum cards are excluded by NAME: a live dial stores a
+                raw number locally, but its change path is re-answering
+                the control, not re-opening option rows it never had. */}
+            {q.options && q.type !== 'dial' && q.type !== 'field' && typeof this.state.votes[q.id] === 'number' && !this.state.editFor[q.id] && (
               <button className="press" onClick={() => this.setState((s) => ({ editFor: { ...s.editFor, [q.id]: true } }))} style={{ background: 'none', border: 'none', padding: '4px 0', display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', color: 'var(--ink)', WebkitAppearance: 'none', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12.5 }}>
                 <svg width={big ? 21 : 20} height={big ? 21 : 20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>
                 Change
@@ -1538,9 +1911,89 @@ class WorldFeed extends React.Component {
     );
   }
 
+  // dial/field surprise: the cut that sits furthest from where you put yourself.
+  // Always renders once answered — it is the card's door to the breakdown.
+  // On a DEMO card the values are texture (wfHash), the same standing as
+  // renderRateInsight's PLACESTATS read. On a LIVE card they are real
+  // by-cells (agg.by), and the line stays silent — returns null — until a
+  // cohort has at least three answers and a real gap to report, rather
+  // than inventing a lean from one person's dot.
+  renderDialInsight(q, T, big) {
+    const v = this.dialVal(q);
+    if (v == null) return null;
+    let best = null;
+    if (q.live) {
+      const by = this.liveBy(q);
+      if (!by) return null;
+      for (const dim of Object.keys(by)) {
+        for (const bucket of Object.keys(by[dim])) {
+          const r = this.dialCellAvg(q, by[dim][bucket]);
+          if (!r || r.n < 3) continue;
+          const d = Math.abs(r.avg - v);
+          if (!best || d > best.d) best = { dim, g: wfBucketLabel(dim, bucket), a: r.avg, d };
+        }
+      }
+      if (!best || best.d < (q.hi - q.lo) * 0.05) return null;
+    } else {
+      WF_CUTS().forEach((cut) => {
+        if (cut.id === 'friends') return;
+        WF_GRP(cut.id, null).forEach((g) => {
+          const a = this.dialGrpAvg(q, cut.id + ':' + g.label);
+          const d = Math.abs(a - v);
+          if (!best || d > best.d) best = { dim: cut.id, g: g.label, a, d };
+        });
+      });
+      if (!best) return null;
+    }
+    return this.insightLine(q, T, best.dim, best.g + ' · ' + this.dialFmt(q, Math.round(best.a)) + ' vs your ' + this.dialFmt(q, v));
+  }
+
+  renderFieldInsight(q, T, big) {
+    const v = this.fieldVal(q);
+    if (v == null) return null;
+    let best = null;
+    if (q.live) {
+      const by = this.liveBy(q);
+      if (!by) return null;
+      for (const dim of Object.keys(by)) {
+        for (const bucket of Object.keys(by[dim])) {
+          const r = this.fieldCellCentroid(by[dim][bucket]);
+          if (!r || r.n < 3) continue;
+          const d = Math.hypot(r.x - v.x, r.y - v.y);
+          if (!best || d > best.d) best = { dim, g: wfBucketLabel(dim, bucket), x: r.x, d };
+        }
+      }
+      if (!best || best.d < 18) return null;
+    } else {
+      WF_CUTS().forEach((cut) => {
+        if (cut.id === 'friends') return;
+        WF_GRP(cut.id, null).forEach((g) => {
+          const [x, y] = this.fieldGrpPos(q, WF_CUTKEY(cut.id, null) + ':' + g.label);
+          const d = Math.hypot(x - v.x, y - v.y);
+          if (!best || d > best.d) best = { dim: cut.id, g: g.label, x, d };
+        });
+      });
+      if (!best) return null;
+    }
+    const side = best.x > 50 === v.x > 50 ? 'far from you' : 'across the field from you';
+    return this.insightLine(q, T, best.dim, best.g + ' · ' + side);
+  }
+
+  insightLine(q, T, dim, text) {
+    return (
+      <button className="press" onClick={() => this.openSheet(q, T, 'stats', dim)} style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', boxSizing: 'border-box', border: WF_LINE, borderRadius: 14, background: 'var(--surface)', padding: '10px 14px', cursor: 'pointer', WebkitAppearance: 'none', textAlign: 'left' }}>
+        <span aria-hidden="true" style={{ width: 8, height: 8, borderRadius: '50%', background: T.color, flexShrink: 0 }}></span>
+        <span style={{ fontFamily: 'var(--sans)', fontWeight: 600, fontSize: 13.5, lineHeight: 1.3, color: 'var(--ink)', flex: 1, minWidth: 0, textWrap: 'pretty' }}>{text}</span>
+        <span aria-hidden="true" style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink-3)', flexShrink: 0 }}>→</span>
+      </button>
+    );
+  }
+
   renderInsight(q, T, big) {
     if (!this.opts.reveal) return null;
     if (q.type === 'rate') return this.renderRateInsight(q, T, big);
+    if (q.type === 'dial') return this.renderDialInsight(q, T, big);
+    if (q.type === 'field') return this.renderFieldInsight(q, T, big);
     if (!window.feedInsight || !q.options) return null;
     const mine = typeof this.state.votes[q.id] === 'number' ? this.state.votes[q.id] : null;
     const counts = q.options.map((o) => o.count);
@@ -1605,24 +2058,86 @@ class WorldFeed extends React.Component {
       </Sheet>, host);
   }
 
-  // ── follow more: topics (with their leaves) first, then communities ──
-  // Scenes are a local, client-side subscription (window.SCENES) — following
-  // one changes which questions the feed mixes in and nothing that leaves
-  // the device.
+  // ── your topics first, then more to follow: leaves, then communities ──
+  // Scenes are a local, client-side subscription (SCENES) — following one
+  // changes which questions the feed mixes in and nothing that leaves the
+  // device.
   renderAdd() {
-    const SC = window.SCENES;
     const ST = window.SUBTOPICS;
     const label = { fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--ink-3)', margin: '4px 2px 6px' };
+    // ── the topics that actually stock your feed ──────────────────────
+    //
+    // WHY THIS SECTION EXISTS. D96 was right to cut the demo communities:
+    // "Writing · 2.1K people · Murakami, Solnit, Knausgård" with a Follow
+    // button is a population invented about nobody, offered to a real user
+    // (D1). But cutting them left a sheet called "Add a topic" holding
+    // nothing but the Learn dial, and the owner read that on a device
+    // exactly as it looks — "interests seem to have been removed, only the
+    // sample data of fake amounts of users" (2026-08-12). Both halves of
+    // that sentence were true, and the second one was the fix.
+    //
+    // The honest replacement is the thing D96 part 3 already made true and
+    // never showed anyone: a live build runs EVERY subject its bank stocks,
+    // always on. So this names them, counts them out of the same pool the
+    // feed is built from, and gives each the mute the chip row has. Every
+    // number here is measured — questions in the bank, and how many of them
+    // you have answered. No member counts, no vibes, nothing this build
+    // cannot source.
+    //
+    // Channels only, not scenes and leaves: those two have a follow to
+    // remove and surfaces that own it (the profile's scenes card, search),
+    // while an always-on channel has no management surface anywhere else —
+    // it is exactly the set that looked deleted.
+    //
+    // `n > 0` filters the same way SUBTOPICS.offers() does, and for D96's
+    // reason rather than for tidiness: a room with nothing in it should not
+    // be advertised, and in a live build `places`/`fav` are precisely that
+    // (the bank mapper emits neither rate nor pick cards).
+    const catsOn = this.props.cats || {};
+    const onToggle = this.props.onToggle;
+    const stock = {};
+    this.feedPool().forEach((q) => {
+      if (!q || !q.cat) return;
+      const s = stock[q.cat] || (stock[q.cat] = { n: 0, done: 0 });
+      s.n++;
+      if (this.answered(q)) s.done++;
+    });
+    const mine = WF_CHANNELS.map((id) => WF_TOPIC[id]).filter(Boolean)
+      .map((t) => ({ ...t, ...(stock[t.id] || { n: 0, done: 0 }) }))
+      .filter((t) => t.n > 0);
+    const topicRow = (t) => {
+      const on = catsOn[t.id] !== false;
+      const col = WPAL.c(t.color);
+      return (
+        <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '11px 2px', borderTop: '0.5px solid color-mix(in oklch, var(--rule), transparent 25%)' }}>
+          {/* filled when the topic is on, ringed when muted — the same
+              on/off grammar the chip row's dot uses, so the two rails
+              read as one control seen twice */}
+          <span aria-hidden="true" style={on
+            ? { width: 9, height: 9, borderRadius: '50%', background: col, flexShrink: 0 }
+            : { width: 9, height: 9, borderRadius: '50%', background: 'transparent', boxShadow: `inset 0 0 0 1.5px ${col}`, flexShrink: 0 }}></span>
+          <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 1 }}>
+            <span style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 14.5, color: on ? 'var(--ink)' : 'var(--ink-3)' }}>{t.label}</span>
+            <span style={{ fontFamily: 'var(--sans)', fontWeight: 600, fontSize: 11.5, color: 'var(--ink-3)' }}>{t.n} question{t.n === 1 ? '' : 's'} · {t.done} answered{on ? '' : ' · muted'}</span>
+          </div>
+          {onToggle && (
+            <button className="press" onClick={() => onToggle(t.id)} aria-pressed={!on}
+              aria-label={(on ? 'Mute ' : 'Unmute ') + t.label}
+              style={{ flexShrink: 0, border: on ? '0.5px solid var(--rule)' : 'none', borderRadius: 999, padding: '7px 14px', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12.5, cursor: 'pointer', background: on ? 'var(--surface-2)' : 'var(--ink)', color: on ? 'var(--ink-2)' : 'var(--surface)', WebkitAppearance: 'none' }}>{on ? 'Mute' : 'Unmute'}</button>
+          )}
+        </div>
+      );
+    };
     // offers(), not all()/defs(): the stores decide what may be advertised —
     // stocked leaves only, and no demo communities in a live build (D96)
     const openLeaves = ST ? ST.offers().filter((s) => {
       if (ST.has(s.id)) return false;
-      const own = SC && SC.subOf ? SC.mine().some((g) => SC.subOf(g.id) === s.id) : false;
+      const own = SCENES.mine().some((g) => SCENES.subOf(g.id) === s.id);
       return !own;                                    // a followed community already covers its leaf
     }) : [];
-    const open = SC ? SC.offers().filter((g) => !SC.has(g.id)).sort((a, b) => b.match - a.match) : [];
-    const L = window.LEARN, LF = window.LEARN_FEED;
-    const learnOpen = L ? L.fields().filter((f) => !L.has(f.id)) : [];
+    const open = SCENES.offers().filter((g) => !SCENES.has(g.id)).sort((a, b) => b.match - a.match);
+    const LF = window.LEARN_FEED;
+    const learnOpen = LEARN.fields().filter((f) => !LEARN.has(f.id));
     const row = (key, col, name, meta, onFollow, ring) => (
       <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '11px 2px', borderTop: '0.5px solid color-mix(in oklch, var(--rule), transparent 25%)' }}>
         {col && <span aria-hidden="true" style={ring ? { width: 10, height: 10, borderRadius: '50%', background: 'transparent', boxShadow: `inset 0 0 0 2.5px ${col}`, flexShrink: 0 } : { width: 9, height: 9, borderRadius: '50%', background: col, flexShrink: 0 }}></span>}
@@ -1635,21 +2150,26 @@ class WorldFeed extends React.Component {
     );
     return (
       <div style={{ display: 'flex', flexDirection: 'column' }}>
-        {openLeaves.length ? <div style={label}>Topics</div> : null}
+        {mine.length ? <div style={label}>Your topics</div> : null}
+        {mine.map(topicRow)}
+        {openLeaves.length ? <div style={{ ...label, marginTop: mine.length ? 18 : 4 }}>Topics</div> : null}
         {openLeaves.map((s) => row(s.id, WPAL.c((WF_TOPIC[s.parent] || {}).color), s.label,
           `${(WF_TOPIC[s.parent] || {}).label || s.parent} · ${ST.count(s.id)} questions`,
           () => { ST.follow(s.id); this.forceUpdate(); }))}
-        {open.length ? <div style={{ ...label, marginTop: openLeaves.length ? 18 : 4 }}>Communities</div> : null}
-        {open.map((g) => row(g.id, SC && SC.colorOf ? SC.colorOf(g.id) : null, g.name,
+        {open.length ? <div style={{ ...label, marginTop: openLeaves.length || mine.length ? 18 : 4 }}>Communities</div> : null}
+        {open.map((g) => row(g.id, SCENES.colorOf(g.id), g.name,
           `${wfFmt(g.members)} people · ${g.vibe}`,
-          () => { SC.follow(g.id); this.forceUpdate(); }))}
-        {open.length === 0 && openLeaves.length === 0 && !learnOpen.length && (
+          () => { SCENES.follow(g.id); this.forceUpdate(); }))}
+        {/* "you follow every topic" is now only true when there is also
+            nothing to manage — with the channel list above it, an empty
+            offers() is no longer an empty sheet */}
+        {mine.length === 0 && open.length === 0 && openLeaves.length === 0 && !learnOpen.length && (
           <div style={{ fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 600, color: 'var(--ink-3)', textAlign: 'center', padding: '28px 0' }}>You follow every topic.</div>
         )}
         {/* knowledge — the frequency control lives where follows live, and stays
             coarse: how many fields you follow is already an intensity dial. */}
         {LF ? (
-          <div style={{ marginTop: open.length || openLeaves.length ? 20 : 2 }}>
+          <div style={{ marginTop: open.length || openLeaves.length || mine.length ? 20 : 2 }}>
             <div style={label}>Learn</div>
             <p style={{ margin: '0 2px 11px', fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 500, lineHeight: 1.45, color: 'var(--ink-3)', textWrap: 'pretty' }}>Questions with a right answer, mixed into the feed. Get one right and it lands on your map.</p>
             <div style={{ display: 'flex', gap: 4, padding: 3, border: '0.5px solid var(--rule)', background: 'var(--surface)', borderRadius: 999 }}>
@@ -1658,9 +2178,9 @@ class WorldFeed extends React.Component {
                 return <button key={v} className="press" onClick={() => { LF.setFreq(v); this.forceUpdate(); }} aria-pressed={on} style={{ flex: 1, border: 'none', borderRadius: 999, padding: '8px 0', cursor: 'pointer', WebkitAppearance: 'none', fontFamily: 'var(--sans)', fontWeight: on ? 800 : 600, fontSize: 12.5, background: on ? 'var(--ink)' : 'transparent', color: on ? 'var(--surface)' : 'var(--ink-3)', transition: 'background .2s ease, color .2s ease' }}>{v}</button>;
               })}
             </div>
-            {learnOpen.map((f) => row('lrn-' + f.id, WPAL.c(L.colorOf(f.id)), f.label,
-              `${(L.subject(f.subject) || {}).label || ''} · ${L.total(f.id)} cards`,
-              () => { L.follow(f.id); this.forceUpdate(); }, true))}
+            {learnOpen.map((f) => row('lrn-' + f.id, WPAL.c(LEARN.colorOf(f.id)), f.label,
+              `${(LEARN.subject(f.subject) || {}).label || ''} · ${LEARN.total(f.id)} cards`,
+              () => { LEARN.follow(f.id); this.forceUpdate(); }, true))}
           </div>
         ) : null}
         {/* the one in-reach way to propose a question, now that the rail's + adds topics */}
@@ -1675,16 +2195,15 @@ class WorldFeed extends React.Component {
   // Mirror your answer moves. Never the arguments — those live in the reveal.
   renderContext(q, T) {
     const bg = WF_BGTEXT(q);
-    const L = window.LEARN;
-    const kn = q.type === 'know' && L ? L.card(q.learn) : null;
-    const fd = kn ? L.field(q.f) : null;
+    const kn = q.type === 'know' ? LEARN.card(q.learn) : null;
+    const fd = kn ? LEARN.field(q.f) : null;
     const rows = [];
     if (kn) {
-      rows.push(['Field', fd ? fd.label + ' \u00b7 ' + ((L.subject(fd.subject) || {}).label || '') : '']);
+      rows.push(['Field', fd ? fd.label + ' \u00b7 ' + ((LEARN.subject(fd.subject) || {}).label || '') : '']);
       rows.push(['Crowd', kn.p + '% get this right']);
       rows.push(['On your map', 'Knowledge']);
     } else {
-      const scene = q.scene && window.SCENES ? window.SCENES.defs().find((g) => g.id === q.scene) : null;
+      const scene = q.scene ? SCENES.defs().find((g) => g.id === q.scene) : null;
       const leaf = q.sub ? WF_SUB(q.sub) : null;
       rows.push(['Asked in', scene ? scene.name : leaf ? leaf.label : T.label]);
       const cat = q.type === 'pick' ? WF_CATALOGS[q.catalog] : null;
@@ -1835,7 +2354,7 @@ class WorldFeed extends React.Component {
         )}
         {writing && (
           <form onSubmit={(e) => { e.preventDefault(); const inp = e.target.elements.reply; const v = inp.value.trim(); if (v) { this.addReply(key, v); this.setState((s) => ({ ctrIdx: { ...s.ctrIdx, [key]: (s.replies[key] || []).length + seeded.length } })); } }} style={{ display: 'flex', gap: 6, marginLeft: 40 }}>
-            <input name="reply" autoFocus autoComplete="off" autoCapitalize="sentences" enterKeyHint="send" placeholder={'Where is it wrong\u2026'} style={{ flex: 1, minWidth: 0, border: WF_LINE, borderRadius: 999, padding: '7px 12px', fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 500, background: 'var(--surface-2)', color: 'var(--ink)', outline: 'none' }} />
+            <input name="reply" autoFocus autoComplete="off" autoCapitalize="sentences" enterKeyHint="send" placeholder={'Where is it wrong\u2026'} style={{ flex: 1, minWidth: 0, border: WF_LINE, borderRadius: 999, padding: '7px 12px', fontFamily: 'var(--sans)', fontSize: 'var(--field-size)', fontWeight: 500, background: 'var(--surface-2)', color: 'var(--ink)', outline: 'none' }} />
             <button type="submit" style={{ border: 'none', borderRadius: 999, padding: '7px 13px', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12, cursor: 'pointer', background: 'var(--ink)', color: 'var(--surface)', WebkitAppearance: 'none' }}>Send</button>
           </form>
         )}
@@ -1910,7 +2429,7 @@ class WorldFeed extends React.Component {
           </div>
         ))}
         <form onSubmit={(e) => { e.preventDefault(); const inp = e.target.elements.take; const v = inp.value.trim(); if (v) { this.addTake(q.id, v); inp.value = ''; } }} style={{ display: 'flex', gap: 6, paddingTop: 2 }}>
-          <input name="take" placeholder={!this.answered(q) ? 'Answer first to add a take…' : 'Add your take…'} disabled={!this.answered(q)} style={{ flex: 1, minWidth: 0, border: WF_LINE, borderRadius: 999, padding: '8px 13px', fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 500, background: 'var(--surface)', color: 'var(--ink)', outline: 'none' }} />
+          <input name="take" placeholder={!this.answered(q) ? 'Answer first to add a take…' : 'Add your take…'} disabled={!this.answered(q)} style={{ flex: 1, minWidth: 0, border: WF_LINE, borderRadius: 999, padding: '8px 13px', fontFamily: 'var(--sans)', fontSize: 'var(--field-size)', fontWeight: 500, background: 'var(--surface)', color: 'var(--ink)', outline: 'none' }} />
           <button type="submit" style={{ border: 'none', borderRadius: 999, padding: '8px 14px', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12, cursor: 'pointer', background: 'var(--ink)', color: 'var(--surface)', WebkitAppearance: 'none' }}>Send</button>
         </form>
       </div>
@@ -2109,7 +2628,7 @@ class WorldFeed extends React.Component {
   // to one field of study. Bar = share of that group who got it right, sorted, on
   // one baseline, with the crowd's own rate as the hairline to read against.
   renderKnowStats(q, T) {
-    const L = window.LEARN, card = L && L.card(q.learn);
+    const card = LEARN.card(q.learn);
     if (!card) return null;
     const dim = WF_KNOW_CUTS.indexOf(this.state.dims[q.id]) >= 0 ? this.state.dims[q.id] : 'friends';
     const axis = this.state.cutAxis[q.id] || null, youBand = WF_YOU(dim, axis);
@@ -2185,7 +2704,7 @@ class WorldFeed extends React.Component {
     // a test driving this branch stubs the module the way
     // LiveCohortBody.test does, not through the window stand-in.
     if (LIVE.enabled) return null;
-    const L = window.LEARN, card = L && L.card(q.learn);
+    const card = LEARN.card(q.learn);
     if (!card) return null;
     const p = card.p;
     let best = null;
@@ -2213,7 +2732,207 @@ class WorldFeed extends React.Component {
     );
   }
 
+  // dial breakdown: every cut on the question's own range. Bar = that group's
+  // typical answer, hairline = yours — same grammar as the rate breakdown.
+  dialGrpAvg(q, key) { return Math.max(q.lo, Math.min(q.hi, q.med + (wfHash(q.id + ':' + key) - 0.5) * (q.hi - q.lo) * 0.34)); }
+
+  // one row of the dial breakdown, shared by the demo cuts and the live
+  // cohorts — the value is the only thing that differs in kind
+  dialTrackRow(q, T, v, label, color, a, n) {
+    const span = q.hi - q.lo;
+    return (
+      <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <span style={{ width: 94, flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 11.5, whiteSpace: 'nowrap', overflow: 'hidden' }}>
+          {color && <span aria-hidden="true" style={{ width: 7, height: 7, borderRadius: '50%', background: color, flexShrink: 0 }}></span>}
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }} title={n != null ? `${label} — ${n} answer${n === 1 ? '' : 's'}` : undefined}>{label}</span>
+        </span>
+        <span style={{ position: 'relative', flex: 1, height: 10 }}>
+          <span style={{ position: 'absolute', inset: 0, borderRadius: 999, background: 'color-mix(in oklch, ' + T.color + ' 9%, var(--surface-3))' }}></span>
+          <span style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: ((a - q.lo) / span * 100) + '%', borderRadius: 999, background: 'linear-gradient(90deg, color-mix(in oklch, ' + T.color + ', transparent 55%), ' + T.color + ')' }}></span>
+          {v != null && <span aria-hidden="true" style={{ position: 'absolute', top: -3, bottom: -3, left: 'calc(' + ((v - q.lo) / span * 100) + '% - 1px)', width: 2, borderRadius: 1, background: 'var(--ink)' }}></span>}
+        </span>
+        <span style={{ width: 40, flexShrink: 0, textAlign: 'right', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12.5, color: 'var(--ink)', fontVariantNumeric: 'tabular-nums' }}>{this.dialFmt(q, a)}</span>
+      </div>
+    );
+  }
+
+  // the live dial breakdown: real cohorts (agg.by), each row that group's
+  // actual average position on the range — the same arithmetic every
+  // average in the app uses, a histogram read at its midpoints
+  renderDialLiveStats(q, T) {
+    const by = this.liveBy(q);
+    const voters = <LiveVotersPanel qid={q.id} options={q.options.map((o) => o.label)} />;
+    if (!by) {
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+          <div style={{ fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 600, color: 'var(--ink-3)', lineHeight: 1.55, padding: '6px 2px', textWrap: 'pretty' }}>
+            Not enough answers yet to break this down by group.
+          </div>
+          {voters}
+        </div>
+      );
+    }
+    const v = this.dialVal(q);
+    const dims = WF_LIVE_DIMS.filter(([id]) => by[id]);
+    const dim = dims.some(([id]) => id === this.state.dims[q.id]) ? this.state.dims[q.id] : dims[0][0];
+    const rows = Object.keys(by[dim] || {})
+      .map((b) => ({ bucket: b, r: this.dialCellAvg(q, by[dim][b]) }))
+      .filter((x) => x.r)
+      .sort((a, b2) => b2.r.n - a.r.n);
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 13 }}>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          {dims.map(([id, label]) => (
+            <button key={id} onClick={() => this.setState((s) => ({ dims: { ...s.dims, [q.id]: id } }))} style={{ border: WF_LINE, borderRadius: 999, padding: '5px 12px', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 12, cursor: 'pointer', background: dim === id ? 'var(--ink)' : 'var(--surface)', color: dim === id ? 'var(--surface)' : 'var(--ink)', WebkitAppearance: 'none' }}>{label}</button>
+          ))}
+        </div>
+        {v != null && (
+          <div style={{ background: 'var(--ink)', color: 'var(--surface)', borderRadius: 12, padding: '12px 14px', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 14 }}>
+            You said {this.dialFmt(q, v)} · most say {this.dialFmt(q, this.dialMedOf(q, this.dialDist(q, v)))}
+          </div>
+        )}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
+          {rows.map((x) => this.dialTrackRow(q, T, v, wfBucketLabel(dim, x.bucket), null, x.r.avg, x.r.n))}
+        </div>
+        <div style={{ fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 600, color: 'var(--ink-3)', lineHeight: 1.5, textWrap: 'pretty' }}>
+          Each bar is where that group typically lands. Counts update in
+          steps of five, so small groups move in visible notches.
+        </div>
+        {voters}
+      </div>
+    );
+  }
+
+  renderDialStats(q, T) {
+    if (q.live) return this.renderDialLiveStats(q, T);
+    const dim = this.state.dims[q.id] || 'friends';
+    const axis = this.state.cutAxis[q.id] || null, cutKey = WF_CUTKEY(dim, axis), youBand = WF_YOU(dim, axis);
+    const v = this.state.votes[q.id];
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 13 }}>
+        {this.renderCutChips(q, dim)}
+        {(v != null || youBand) && (
+          <div style={{ background: 'var(--ink)', color: 'var(--surface)', borderRadius: 12, padding: '12px 14px', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 14, display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ flex: 1, minWidth: 0 }}>{v != null ? 'You said ' + this.dialFmt(q, v) + ' · most say ' + this.dialFmt(q, q.med) : 'What each group says'}</span>
+            {youBand && <span style={{ flexShrink: 0, fontSize: 12, fontWeight: 800, background: 'color-mix(in oklch, var(--surface) 22%, transparent)', borderRadius: 999, padding: '3px 10px' }}>You · {youBand}</span>}
+          </div>
+        )}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
+          {dim === 'friends'
+            ? WF_FRIENDS.map((f) => this.dialTrackRow(q, T, v, f.name, null, this.dialGrpAvg(q, 'f:' + f.name)))
+            : WF_GRP(dim, axis).map((g) => this.dialTrackRow(q, T, v, g.label, g.color, this.dialGrpAvg(q, cutKey + ':' + g.label)))}
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--sans)', fontSize: 11, fontWeight: 600, color: 'var(--ink-3)', padding: '0 40px 0 104px' }}>
+          <span>{(q.ends || [this.dialFmt(q, q.lo), this.dialFmt(q, q.hi)])[0]}</span><span>{(q.ends || [this.dialFmt(q, q.lo), this.dialFmt(q, q.hi)])[1]}</span>
+        </div>
+      </div>
+    );
+  }
+
+  // field breakdown: every group's centre placed on the same plane, named at
+  // the dot; your ring stays for the distance read.
+  fieldGrpPos(q, key) {
+    const c = this.fieldCloud(q);
+    const cx = c.reduce((a, d) => a + d[0], 0) / c.length, cy = c.reduce((a, d) => a + d[1], 0) / c.length;
+    return [Math.max(10, Math.min(90, cx + (wfHash(q.id + ':x:' + key) - 0.5) * 46)), Math.max(12, Math.min(88, cy + (wfHash(q.id + ':y:' + key) - 0.5) * 46))];
+  }
+
+  // the plane itself, shared by the demo cuts and the live cohorts:
+  // marks = [{ key, x, y, short, color? }], ring = your position
+  renderFieldPlane(q, T, marks, v) {
+    const lab = (t, style) => <span style={{ position: 'absolute', fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 650, color: 'var(--ink-3)', letterSpacing: '0.02em', pointerEvents: 'none', ...style }}>{t}</span>;
+    return (
+      <div style={{ position: 'relative', aspectRatio: '4 / 3', borderRadius: 16, border: '1px solid color-mix(in oklch, ' + T.color + ' 35%, var(--rule))', background: WPAL.wash(T.color, 5), overflow: 'hidden' }}>
+        <span style={{ position: 'absolute', left: 0, right: 0, top: '50%', height: 1, background: 'var(--rule)', opacity: 0.8 }}></span>
+        <span style={{ position: 'absolute', top: 0, bottom: 0, left: '50%', width: 1, background: 'var(--rule)', opacity: 0.8 }}></span>
+        {lab(q.ax[0], { left: 9, top: '50%', transform: 'translateY(-140%)' })}
+        {lab(q.ax[1], { right: 9, top: '50%', transform: 'translateY(-140%)' })}
+        {lab(q.ay[1], { top: 7, left: '50%', transform: 'translateX(8px)' })}
+        {lab(q.ay[0], { bottom: 7, left: '50%', transform: 'translateX(8px)' })}
+        {marks.map((g) => (
+          <span key={g.key} style={{ position: 'absolute', left: g.x + '%', top: g.y + '%', transform: 'translate(-50%,-50%)', display: 'flex', alignItems: 'center', gap: 4 }}>
+            <span style={{ width: 11, height: 11, borderRadius: '50%', flexShrink: 0, background: g.color || T.color, border: '2px solid var(--surface)', boxShadow: '0 1px 4px rgba(20,20,40,0.25)' }}></span>
+            <span style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 800, color: 'var(--ink-2)', whiteSpace: 'nowrap', textShadow: '0 0 4px var(--surface)' }}>{g.short}</span>
+          </span>
+        ))}
+        {v != null && <span style={{ position: 'absolute', left: v.x + '%', top: v.y + '%', width: 16, height: 16, margin: '-8px 0 0 -8px', borderRadius: '50%', boxSizing: 'border-box', background: 'var(--surface)', border: '3px solid ' + T.color, boxShadow: '0 1px 6px rgba(20,20,40,0.3)' }}></span>}
+      </div>
+    );
+  }
+
+  // the live field breakdown: each cohort's real centre of mass on the
+  // plane, from the same by-cells the who-voted breakdown reads
+  renderFieldLiveStats(q, T) {
+    const by = this.liveBy(q);
+    const voters = <LiveVotersPanel qid={q.id} options={q.options.map((o) => o.label)} />;
+    if (!by) {
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+          <div style={{ fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 600, color: 'var(--ink-3)', lineHeight: 1.55, padding: '6px 2px', textWrap: 'pretty' }}>
+            Not enough answers yet to break this down by group.
+          </div>
+          {voters}
+        </div>
+      );
+    }
+    const v = this.fieldVal(q);
+    const dims = WF_LIVE_DIMS.filter(([id]) => by[id]);
+    const dim = dims.some(([id]) => id === this.state.dims[q.id]) ? this.state.dims[q.id] : dims[0][0];
+    const marks = Object.keys(by[dim] || {})
+      .map((b) => ({ bucket: b, r: this.fieldCellCentroid(by[dim][b]) }))
+      .filter((x) => x.r)
+      .sort((a, b2) => b2.r.n - a.r.n)
+      .map((x) => ({ key: x.bucket, x: x.r.x, y: x.r.y, short: wfBucketLabel(dim, x.bucket) }));
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 13 }}>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          {dims.map(([id, label]) => (
+            <button key={id} onClick={() => this.setState((s) => ({ dims: { ...s.dims, [q.id]: id } }))} style={{ border: WF_LINE, borderRadius: 999, padding: '5px 12px', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 12, cursor: 'pointer', background: dim === id ? 'var(--ink)' : 'var(--surface)', color: dim === id ? 'var(--surface)' : 'var(--ink)', WebkitAppearance: 'none' }}>{label}</button>
+          ))}
+        </div>
+        {this.renderFieldPlane(q, T, marks, v)}
+        <div style={{ fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 600, color: 'var(--ink-3)', lineHeight: 1.5, textWrap: 'pretty' }}>
+          Each dot is where that group typically lands{v != null ? ' — the ring is you' : ''}. Counts update in steps of five, so small groups move in visible notches.
+        </div>
+        {voters}
+      </div>
+    );
+  }
+
+  renderFieldStats(q, T) {
+    if (q.live) return this.renderFieldLiveStats(q, T);
+    const dim = this.state.dims[q.id] || 'friends';
+    const axis = this.state.cutAxis[q.id] || null, cutKey = WF_CUTKEY(dim, axis), youBand = WF_YOU(dim, axis);
+    const v = this.state.votes[q.id];
+    const marks = (dim === 'friends'
+      ? WF_FRIENDS.map((f) => ({ label: f.name, short: f.init, key: 'f:' + f.name }))
+      : WF_GRP(dim, axis).map((g) => ({ label: g.label, short: g.label, color: g.color, key: cutKey + ':' + g.label }))
+    ).map((g) => {
+      const [x, y] = this.fieldGrpPos(q, g.key);
+      return { ...g, x, y };
+    });
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 13 }}>
+        {this.renderCutChips(q, dim)}
+        {(v != null || youBand) && (
+          <div style={{ background: 'var(--ink)', color: 'var(--surface)', borderRadius: 12, padding: '12px 14px', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 14, display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ flex: 1, minWidth: 0 }}>Where each group lands</span>
+            {youBand && <span style={{ flexShrink: 0, fontSize: 12, fontWeight: 800, background: 'color-mix(in oklch, var(--surface) 22%, transparent)', borderRadius: 999, padding: '3px 10px' }}>You · {youBand}</span>}
+          </div>
+        )}
+        {this.renderFieldPlane(q, T, marks, v)}
+        {v != null && <span style={{ alignSelf: 'center', fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 650, color: 'var(--ink-3)' }}>the ring is you</span>}
+      </div>
+    );
+  }
+
   renderStats(q, T) {
+    // Continuum forms carry their own sheets, live and demo alike: a live
+    // card reads real by-cells as averages/centroids (D114), a demo card
+    // its authored texture — the options-shaped panels below would draw a
+    // 12-bucket dial as twelve meaningless bars.
+    if (q.type === 'dial') return this.renderDialStats(q, T);
+    if (q.type === 'field') return this.renderFieldStats(q, T);
     const by = this.liveBy(q);
     // Named who-voted (D98) rides under the cohort breakdown on every live
     // card. Two different questions — "how did each group split" and "who
@@ -2393,7 +3112,7 @@ class WorldFeed extends React.Component {
     if (q.type === 'know') {
       const r = this.knowOf(q);
       if (!r) return null;
-      return <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><LMStreak k={r.streak} of={(window.LEARN || {}).STREAK || 3} col={T.color}></LMStreak><span style={{ fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 700, color: 'var(--ink-3)' }}>{r.ok ? 'right' : 'missed'}</span></div>;
+      return <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><LMStreak k={r.streak} of={LEARN.STREAK} col={T.color}></LMStreak><span style={{ fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 700, color: 'var(--ink-3)' }}>{r.ok ? 'right' : 'missed'}</span></div>;
     }
     if (q.type === 'rate') {
       const v = this.state.votes[q.id];
@@ -2404,6 +3123,17 @@ class WorldFeed extends React.Component {
       const done = this.state.votes[q.id];
       const m = done.order.filter((it, pos) => q.crowd[it] === pos + 1).length;
       return <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--ink-3)' }}>ranked{' · '}{m}/{q.items.length} with the crowd</span>;
+    }
+    if (q.type === 'dial') {
+      const v = this.dialVal(q);
+      const med = q.live ? this.dialMedOf(q, this.dialDist(q, v)) : q.med;
+      return <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--ink-3)' }}>you {this.dialFmt(q, v)} · most say {this.dialFmt(q, med)}</span>;
+    }
+    if (q.type === 'field') {
+      const v = this.fieldVal(q);
+      const c = this.fieldCentroid(q);
+      if (!c) return <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--ink-3)' }}>placed</span>;
+      return <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--ink-3)' }}>{Math.hypot(v.x - c.x, v.y - c.y) < 26 ? 'placed · with the cluster' : 'placed · out on your own'}</span>;
     }
     // selfOnly (D50): a thin bar is still a split — the collapsed card
     // keeps its silence too.
@@ -2421,12 +3151,19 @@ class WorldFeed extends React.Component {
 
   renderCard(q, flags) {
     const F = flags || {};
-    if (this.state.passed[q.id]) {
+    // Passed (permanent) and deferred (until tomorrow) draw the same slim
+    // row — the difference is what happens on the NEXT visit, where the
+    // deferred one is gone from the stream entirely rather than sitting
+    // here. Both stay tappable in THIS sitting so an accidental skip costs
+    // one tap to undo; the wait only starts mattering once the feed is
+    // rebuilt.
+    const held = this.state.passed[q.id] ? 'pass' : (this.state.deferred || {})[q.id] ? 'defer' : null;
+    if (held) {
       return (
-        <button key={q.id} onClick={() => this.setPass(q.id, false)} style={{ border: WF_LINE, borderRadius: 14, background: 'transparent', padding: '11px 14px', display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', textAlign: 'left', WebkitAppearance: 'none' }}>
+        <button key={q.id} onClick={() => (held === 'pass' ? this.setPass(q.id, false) : this.setDefer(q.id, false))} style={{ border: WF_LINE, borderRadius: 14, background: 'transparent', padding: '11px 14px', display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', textAlign: 'left', WebkitAppearance: 'none' }}>
           <span aria-hidden="true" style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--ink-3)', flexShrink: 0 }}></span>
           <span style={{ flex: 1, minWidth: 0, fontFamily: 'var(--sans)', fontWeight: 600, fontSize: 13, color: 'var(--ink-3)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{q.prompt}</span>
-          <span style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 11, color: 'var(--ink-3)', flexShrink: 0 }}>undo</span>
+          <span style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 11, color: 'var(--ink-3)', flexShrink: 0 }}>{held === 'defer' ? 'later \u00b7 undo' : 'undo'}</span>
         </button>
       );
     }
@@ -2436,15 +3173,15 @@ class WorldFeed extends React.Component {
     const lz = !tm && q.lens && window.LENSES ? window.LENSES.get(q.lens) : null;
     const mk = tm || (lz ? { label: lz.title, accent: `oklch(0.56 0.13 ${lz.hue})` } : null);
     // a knowledge card wears its field, coloured by its subject
-    const kn = q.type === 'know' && window.LEARN ? window.LEARN.field(q.f) : null;
+    const kn = q.type === 'know' ? LEARN.field(q.f) : null;
     // Favourites is a format channel, so the chip's hue can't also be the card's:
     // three catalogues rendering in one green loses the subject entirely. The
     // channel keeps the label, the catalogue supplies the colour.
     const cg = q.type === 'pick' ? WF_CATALOGS[q.catalog || q.domain] : null;
-    const T0 = kn ? { label: kn.label, color: window.LEARN.colorOf(q.f) } : cg && cg.hue ? { label: (WF_TOPIC[q.cat] || {}).label || q.cat, color: 'oklch(0.52 0.14 ' + cg.hue + ')' } : mk ? { label: mk.label, color: mk.accent } : (WF_TOPIC[q.cat] || { label: q.cat, color: 'var(--ink-3)' });
+    const T0 = kn ? { label: kn.label, color: LEARN.colorOf(q.f) } : cg && cg.hue ? { label: (WF_TOPIC[q.cat] || {}).label || q.cat, color: 'oklch(0.52 0.14 ' + cg.hue + ')' } : mk ? { label: mk.label, color: mk.accent } : (WF_TOPIC[q.cat] || { label: q.cat, color: 'var(--ink-3)' });
     // one gate for all four hue sources — see world-palette.js
     const T = { ...T0, color: WPAL.c(T0.color) };
-    const scene = !mk && !kn && q.scene && window.SCENES ? window.SCENES.defs().find((g) => g.id === q.scene) : null;
+    const scene = !mk && !kn && q.scene ? SCENES.defs().find((g) => g.id === q.scene) : null;
     const leaf = !mk && !kn && !q.scene && q.sub ? WF_SUB(q.sub) : null;
     const kickLabel = scene ? scene.name : (tm ? tm.label + ' test' : (lz ? lz.title : leaf ? leaf.label : T.label));
     // the quiet marker that this one has a right answer: a ring, not a filled dot
@@ -2524,13 +3261,25 @@ class WorldFeed extends React.Component {
         {q.type === 'duel' && this.renderDuel(q, T, snap)}
         {q.type === 'rank' && this.renderRank(q, T, snap)}
         {q.type === 'rate' && this.renderRate(q, T, snap)}
+        {q.type === 'dial' && this.renderDial(q, T, snap)}
+        {q.type === 'field' && this.renderField(q, T, snap)}
         {q.type === 'know' && this.renderKnow(q, T, snap)}
         {q.type === 'pick' && this.renderPick(q, T, snap)}
-        {/* skip: only before answering, and never on a test/lens question —
-            those fill an instrument, so a silent skip would read as a gap in
-            your own results rather than a question you passed on */}
-        {!answered && this.opts.pass && !mk && (
-          <button className="press" onClick={() => this.setPass(q.id, true)} style={{ alignSelf: 'center', border: 'none', background: 'none', padding: '6px 16px', marginTop: 2, cursor: 'pointer', fontFamily: 'var(--sans)', fontWeight: 500, fontSize: 13, color: 'var(--ink-3)', WebkitAppearance: 'none' }}>skip</button>
+        {/* Skip, before answering only, and it means two different things.
+            On a world card it is a PASS: permanent, sinks to a slim row,
+            "not this one".
+            On a test or lens card it is a DEFERRAL (D121): the card leaves
+            the feed and comes back tomorrow. These cards had no skip at
+            all, on the reasoning that a silent skip would read as a gap in
+            your own results — true of a pass, and the reason this is not
+            one. The instrument's denominator does not move, the profile
+            still names the axis as thin, and the question returns until it
+            is answered. "later" rather than "skip", because the word is
+            the promise. */}
+        {!answered && this.opts.pass && (
+          <button className="press"
+            onClick={() => (mk ? this.setDefer(q.id, true) : this.setPass(q.id, true))}
+            style={{ alignSelf: 'center', border: 'none', background: 'none', padding: '6px 16px', marginTop: 2, cursor: 'pointer', fontFamily: 'var(--sans)', fontWeight: 500, fontSize: 13, color: 'var(--ink-3)', WebkitAppearance: 'none' }}>{mk ? 'later' : 'skip'}</button>
         )}
         {answered && this.state.beat !== q.id && q.type !== 'know' && q.type !== 'pick' && this.renderEngage(q, T, snap)}
         {snap && !answered && <div aria-hidden="true" style={{ flex: '1 1 0' }}></div>}
@@ -2541,8 +3290,7 @@ class WorldFeed extends React.Component {
   // the feed-side twin of the orbit's suggested ring — one quiet card offering
   // a scene to follow; prefers one that adds a stream you don't have yet
   renderSuggestion(sugg, snap) {
-    const SC = window.SCENES;
-    const t = WF_TOPIC[SC.topicOf(sugg.id)] || null;
+    const t = WF_TOPIC[SCENES.topicOf(sugg.id)] || null;
     const col = t ? t.color : 'var(--ink-3)';
     return (
       <div key="scene-sugg" style={{ border: '1.5px dashed color-mix(in oklch, var(--rule), var(--ink) 20%)', borderRadius: 18, padding: '14px 15px', display: 'flex', alignItems: 'center', gap: 12, background: 'var(--surface)', boxSizing: 'border-box', scrollSnapAlign: snap ? 'start' : undefined }}>
@@ -2551,7 +3299,7 @@ class WorldFeed extends React.Component {
           <span style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 15 }}>{sugg.name}</span>
           <span style={{ fontFamily: 'var(--sans)', fontWeight: 600, fontSize: 11.5, color: 'var(--ink-3)' }}>suggested scene · {wfFmt(sugg.members)} people · {sugg.vibe}</span>
         </div>
-        <button className="press" onClick={() => SC.follow(sugg.id)} style={{ border: 'none', borderRadius: 999, padding: '8px 15px', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12.5, cursor: 'pointer', background: 'var(--ink)', color: 'var(--surface)', flexShrink: 0, WebkitAppearance: 'none' }}>Follow</button>
+        <button className="press" onClick={() => SCENES.follow(sugg.id)} style={{ border: 'none', borderRadius: 999, padding: '8px 15px', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12.5, cursor: 'pointer', background: 'var(--ink)', color: 'var(--surface)', flexShrink: 0, WebkitAppearance: 'none' }}>Follow</button>
       </div>
     );
   }
@@ -2568,25 +3316,24 @@ class WorldFeed extends React.Component {
       );
     }
     const { cats, onToggle } = this.props;
-    const SC = window.SCENES;
-    const scenes = SC ? SC.mine() : [];
+    const scenes = SCENES.mine();
     // topics pulled in by a live (followed + unmuted) scene — but a scene that
     // owns a subtopic pulls only that leaf, so the two never double up
     const ST = window.SUBTOPICS;
     const pulled = {};
     const leafOn = {};
     const owned = {};
-    if (SC) scenes.forEach((s) => {
-      const lf = SC.subOf ? SC.subOf(s.id) : null;
+    scenes.forEach((s) => {
+      const lf = SCENES.subOf(s.id);
       if (lf) owned[lf] = true;
       if (cats[s.id] === false) return;
       if (lf) { leafOn[lf] = true; return; }
-      const t = SC.topicOf(s.id); if (t) pulled[t] = true;
+      const t = SCENES.topicOf(s.id); if (t) pulled[t] = true;
     });
     if (ST) ST.mine().forEach((s) => { if (cats[s.id] !== false && !owned[s.id]) leafOn[s.id] = true; });
-    const qs = (window.WORLD_FEED_QS || []).filter((q) => q.scene
-      ? (SC ? SC.has(q.scene) && cats[q.scene] !== false : false)
-      : (q.sub && leafOn[q.sub]) || (WF_CHAN_SET[q.cat] ? cats[q.cat] !== false : (SC ? !!pulled[q.cat] : cats[q.cat] !== false)));
+    const qs = this.feedPool().filter((q) => q.scene
+      ? SCENES.has(q.scene) && cats[q.scene] !== false
+      : (q.sub && leafOn[q.sub]) || (WF_CHAN_SET[q.cat] ? cats[q.cat] !== false : !!pulled[q.cat]));
     // interleave streams round-robin so the feed reads as a mix, not blocks
     const byKey = {}; const keys = [];
     qs.forEach((q) => { const k = q.scene || q.sub || q.cat; if (!byKey[k]) { byKey[k] = []; keys.push(k); } byKey[k].push(q); });
@@ -2596,6 +3343,17 @@ class WorldFeed extends React.Component {
     // sort lenses: hot = the interleaved mix · top = most votes · new = latest first
     const sort = this.state.sort;
     const sorted = sort === 'top' ? [...qs].sort((a, b) => wfVotes(b) - wfVotes(a)) : sort === 'new' ? [...qs].reverse() : mixed;
+    // keep one continuum question (dial/field) pinned near the top of hot — the
+    // pin holds after answering, so the card doesn't jump away mid-read
+    if (sort === 'hot') {
+      if (!this._contPin || !sorted.some((q) => q.id === this._contPin)) {
+        const isCont = (q) => q.type === 'dial' || q.type === 'field';
+        const cq = sorted.find((q) => isCont(q) && this.state.votes[q.id] == null) || sorted.find(isCont);
+        this._contPin = cq && cq.id;
+      }
+      const ci = sorted.findIndex((q) => q.id === this._contPin);
+      if (ci > 1) { const [cq] = sorted.splice(ci, 1); sorted.splice(1, 0, cq); }
+    }
     // Fresh questions only, within whichever sort lens is on. The bank is
     // finite and served in a stable order, so every session used to open
     // on the same head of cards — the ones the user answered first — as a
@@ -2624,14 +3382,35 @@ class WorldFeed extends React.Component {
     // fresh-only treatment: the test stream walks its pool from index 0
     // every session, so it re-led with already-answered items in exactly
     // the way the world stream did.
-    const testSplit = partitionAnswered(window.TEST_FEED_QS || [], sunk);
-    const tqs = testSplit.fresh;
+    // PASSIVE.testFor() rather than the raw pool: a live bank can carry
+    // items for a test the app no longer has. Deleting a test from /content
+    // stops it being WRITTEN, not served — retiring a shipped question is an
+    // operator `active: false` flip (functions/src/v2.ts), so the 20
+    // `test-cognitive-*` docs D103 retired are still live and still arrive
+    // in TEST_FEED_QS. Unfiltered they would weave in as marked cards for a
+    // test with no bank, no result page and no progress row to land on.
+    // testFor() returns null for any key PASSIVE.META has dropped, so this
+    // fences the next retirement too without naming it.
+    const testSplit = partitionAnswered((window.TEST_FEED_QS || []).filter((q) => PASSIVE.testFor(q)), sunk);
+    // Deferred items leave the stream until their wait is up (D121).
+    //
+    // Sampled ONCE per build, like `sunk` above and for the same reason: a
+    // card deferred mid-scroll keeps its place until the next visit, so the
+    // tap that says "later" does not vanish the row under the thumb. It
+    // leaves on the next rebuild, which is when "later" starts.
+    //
+    // Filtered here rather than inside partitionAnswered because a deferral
+    // is not an answer: it must not join the `done` half, which is the
+    // record of what you have said.
+    const heldNow = Date.now();
+    const notHeld = (q) => !isDeferred(this.state.deferred, q.id, heldNow);
+    const tqs = testSplit.fresh.filter(notHeld);
     // LENS_FEED_QS is a builder, not an array: the lens pool differs between
     // demo and live, and liveness lands only after boot — so the feed asks
     // at build time rather than keeping a snapshot (lens-defs.js says why).
     const lensQs = window.LENS_FEED_QS;
     const lensSplit = partitionAnswered(typeof lensQs === 'function' ? lensQs() : [], sunk);
-    const lqs = lensSplit.fresh;
+    const lqs = lensSplit.fresh.filter(notHeld);
     // What the expander holds, in the same order the feed would have
     // shown it: the world's record first, then the test and lens streams'.
     const doneList = [...worldSplit.done, ...testSplit.done, ...lensSplit.done];
@@ -2673,20 +3452,17 @@ class WorldFeed extends React.Component {
       : null;
     // chip row = your scenes, your followed leaves, then the always-on channels
     const chips = [
-      ...scenes.map((s) => ({ id: s.id, label: s.name, color: window.SCENES && window.SCENES.colorOf ? window.SCENES.colorOf(s.id) : null, scene: true })),
+      ...scenes.map((s) => ({ id: s.id, label: s.name, color: SCENES.colorOf(s.id), scene: true })),
       ...(ST ? ST.mine().filter((s) => !owned[s.id]).map((s) => ({ id: s.id, label: s.label, color: WPAL.c((WF_TOPIC[s.parent] || {}).color) || null })) : []),
       ...WF_CHANNELS.map((id) => WF_TOPIC[id]).filter(Boolean).map((t) => ({ id: t.id, label: t.label })),
-      ...(window.LEARN ? window.LEARN.mine().map((fd) => ({ id: 'lrn-' + fd.id, label: fd.label, color: WPAL.c(window.LEARN.colorOf(fd.id)), know: true })) : []),
+      ...LEARN.mine().map((fd) => ({ id: 'lrn-' + fd.id, label: fd.label, color: WPAL.c(LEARN.colorOf(fd.id)), know: true })),
     ];
-    let sugg = null;
-    if (SC) {
-      // offers(), not defs(): a live build advertises no demo scene, so the
-      // dashed "suggested scene · 3.2K people" card simply never renders
-      // there (D96) — the same store-level gate the add sheet reads.
-      const cand = SC.offers().filter((g) => !SC.has(g.id));
-      cand.sort((a, b) => ((pulled[SC.topicOf(b.id)] ? 0 : 1) - (pulled[SC.topicOf(a.id)] ? 0 : 1)) || (b.match - a.match));
-      sugg = cand[0] || null;
-    }
+    // offers(), not defs(): a live build advertises no demo scene, so the
+    // dashed "suggested scene · 3.2K people" card simply never renders
+    // there (D96) — the same store-level gate the add sheet reads.
+    const cand = SCENES.offers().filter((g) => !SCENES.has(g.id));
+    cand.sort((a, b) => ((pulled[SCENES.topicOf(b.id)] ? 0 : 1) - (pulled[SCENES.topicOf(a.id)] ? 0 : 1)) || (b.match - a.match));
+    const sugg = cand[0] || null;
     const snap = this.props.density !== 'compact';
     return (
       <div ref={(n) => { this._root = n; }} style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 8 }}>

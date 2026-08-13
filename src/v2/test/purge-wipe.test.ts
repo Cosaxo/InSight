@@ -24,14 +24,11 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import "../spec/feed-read.js";
 import "../spec/follows.js";
-import "../spec/learn-data.js";
-import "../spec/learn-progress.js";
 import "../spec/learn-feed.js";
 import "../spec/test-definitions.js";
 import "../spec/passive-progress.js";
 import "../spec/pick-data.js";
 import "../spec/place-stats.js";
-import "../spec/scenes.js";
 import "../spec/world-subtopics.js";
 import "../spec/suggestions.js";
 import "../spec/world-feed-report.js";
@@ -41,7 +38,8 @@ import "../spec/world-feed-report.js";
 import { FRIENDS } from "../spec/follows.js";
 // @ts-expect-error TS7016 — untyped spec module
 import { DAILYQ } from "../spec/daily-questions.js";
-import "../spec/duels-data.js";
+// @ts-expect-error TS7016 — untyped spec module
+import { DUELS } from "../spec/duels-data.js";
 // @ts-expect-error TS7016 — untyped spec module
 import { IS_DATA } from "../spec/sample-data.js";
 // test-definitions left the global bridge (#85): the mirror and its persist
@@ -51,6 +49,14 @@ import { IS_TEST_RESULTS, persistTestResult } from "../spec/test-definitions.js"
 // …as is passive-progress since the same conversion sweep.
 // @ts-expect-error TS7016 — untyped spec module
 import { PASSIVE } from "../spec/passive-progress.js";
+// …and scenes since D108.
+// @ts-expect-error TS7016 — untyped spec module
+import { SCENES } from "../spec/scenes.js";
+// …and the Learn pair since D109.
+// @ts-expect-error TS7016 — untyped spec module
+import { LEARN } from "../spec/learn-progress.js";
+// @ts-expect-error TS7016 — untyped spec module
+import { LEARN_CARDS } from "../spec/learn-data.js";
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- the spec layer's
    window surface is untyped by design; these tests drive it as consumers do */
@@ -102,12 +108,12 @@ describe("module stores drop their memory on the purge (D51)", () => {
   });
 
   it("LEARN: the mastery map", () => {
-    const cards = W.LEARN_CARDS as { id: string }[];
-    W.LEARN.answer(cards[0].id, 0);
+    const cards = LEARN_CARDS as { id: string }[];
+    LEARN.answer(cards[0].id, 0);
     expect(stored("insight.learn.v3")).toContain(cards[0].id);
     purge();
     expect(stored("insight.learn.v3")).toBeNull();
-    W.LEARN.answer(cards[1].id, 0);
+    LEARN.answer(cards[1].id, 0);
     const after = stored("insight.learn.v3")!;
     expect(after).toContain(cards[1].id);
     expect(JSON.parse(after).c[cards[0].id]).toBeUndefined();
@@ -159,13 +165,13 @@ describe("module stores drop their memory on the purge (D51)", () => {
 
   it("SCENES: the follow list returns to the sample default", () => {
     const dflt = (IS_DATA.groups || []).filter((g: any) => g.joined).map((g: any) => g.id).sort();
-    W.SCENES.follow("purge-scene");
-    expect(W.SCENES.has("purge-scene")).toBe(true);
+    SCENES.follow("purge-scene");
+    expect(SCENES.has("purge-scene")).toBe(true);
     purge();
-    expect(W.SCENES.has("purge-scene")).toBe(false);
-    expect(W.SCENES.list().sort()).toEqual(dflt);
+    expect(SCENES.has("purge-scene")).toBe(false);
+    expect(SCENES.list().sort()).toEqual(dflt);
     expect(stored("insight.scenes.v1")).toBeNull();
-    W.SCENES.follow(dflt[0]); // idempotent follow persists defaults + itself
+    SCENES.follow(dflt[0]); // idempotent follow persists defaults + itself
     expect(stored("insight.scenes.v1")).not.toContain("purge-scene");
   });
 
@@ -192,12 +198,12 @@ describe("module stores drop their memory on the purge (D51)", () => {
   });
 
   it("DUELS: duel answers and social edits", () => {
-    W.DUELS.answerDuo("purge-p", { a: 1 });
-    expect(W.DUELS.myDuo("purge-p").a).toBe(1);
+    DUELS.answerDuo("purge-p", { a: 1 });
+    expect(DUELS.myDuo("purge-p").a).toBe(1);
     purge();
-    expect(W.DUELS.myDuo("purge-p").a).toBeUndefined();
+    expect(DUELS.myDuo("purge-p").a).toBeUndefined();
     expect(stored("insight.duels.v1")).toBeNull();
-    W.DUELS.answerDuo("purge-p2", { a: 0 });
+    DUELS.answerDuo("purge-p2", { a: 0 });
     const after = stored("insight.duels.v1")!;
     expect(after).toContain("purge-p2");
     expect(after).not.toContain("purge-p\"");

@@ -66,6 +66,14 @@ jobs:
       # and deliberately NOT on backend-checks.yml — nothing it says bears on
       # whether a rules fix is safe to deploy.
       - run: npm run check:labels
+      # A text field under 16px makes iOS zoom the whole app on focus, and
+      # the shell is position:fixed so nothing zooms it back — the app stays
+      # cropped across tabs and overlays until it is killed. `.search-field
+      # input` shipped at 15px and did exactly that (D105). Every gate above
+      # is blind to it: it is valid CSS, and the mount tests run in jsdom
+      # with vitest's CSS handling off, so the stylesheet size that caused it
+      # never resolves there at all. Client-only, off backend-checks.yml.
+      - run: npm run check:touch-zoom
       # Every store that persists insight.* state must hear the purge
       # (insight:local-purge, D51) — deleting the keys is only half the
       # wipe when the in-memory copy writes itself back on the next
@@ -91,6 +99,23 @@ jobs:
       # in three documents, because nothing compared them. Client/docs-only,
       # same placement rule as check:figures above.
       - run: npm run check:store-forms
+      # The retired privacy model, in copy a user reads. D106 swept the
+      # pre-D98 model out of the docs and declined to build a gate, on the
+      # correct ground that "the prose agrees with the rules" is not a
+      # static property. This is not that check: the retired model has a
+      # closed vocabulary (owner-only, k-anonymous, floored, a nameless
+      # take), and a fixed word list over an enumerated set of user-facing
+      # files is name-level, the same class as check:globals.
+      #
+      # It exists because D106's remedy was a discipline — name the
+      # user-facing pages in the decision — and the discipline missed the
+      # two surfaces it was not holding: design/store/listing.json, whose
+      # description had already been PUSHED to App Store Connect saying
+      # "Your answers are owner-only", and the privacy panel, which came
+      # out of D106's own rewrite calling world takes nameless. Same
+      # placement rule as check:store-forms above: client/docs-only, and
+      # deliberately off backend-checks.yml.
+      - run: npm run check:public-copy
       # Five version numbers that must move together across three files.
       - run: npm run check:versions
       # Near-duplicate questions across the banks (D63). Exact-dupe checks
@@ -118,6 +143,9 @@ jobs:
       # dex-number keys into this file, so a gap or reorder is an answer
       # resolving to the wrong species.
       - run: npm run check:pokedex
+      # …and for the elements catalogue, the other contiguous-key domain:
+      # stored answers are atomic numbers into public/elements.txt.
+      - run: npm run check:elements
       # …and for the QID-keyed catalogues (films/artists): the committed
       # files and the trigger's compiled-in key sets must agree exactly,
       # absence included — the gate runs before any catalogue exists (D15).
@@ -139,6 +167,12 @@ jobs:
       # right side of that line: client-only, and it reds a PR rather than
       # a store submission.
       - run: npm run check:ios-facebook
+      # The iOS location declarations, against what the app actually does.
+      # ITMS-90683 (2.0.0 build 10) is the reason it exists: a missing
+      # purpose string for an API only a transitive SwiftPM dependency
+      # names, reported by email after the upload transferred and the build
+      # number was spent. Same side of the line as the two above.
+      - run: npm run check:ios-location
 
   typecheck-build:
     runs-on: ubuntu-latest

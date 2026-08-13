@@ -229,12 +229,18 @@ export async function runAggTransaction(
 // generated and committed (D15).
 const CANON_TOP_N = 10;
 export const CATALOG_MAX_ENTITY = 1025;
+// Atomic numbers — contiguous like dex numbers, and the most stable keys
+// any domain here will get (IUPAC does not renumber). Must equal the count
+// in public/elements.txt; scripts/check-elements.mjs cross-checks this
+// line the same way check-pokedex.mjs holds CATALOG_MAX_ENTITY.
+export const CATALOG_MAX_ELEMENT = 118;
 const CATALOG_DOMAINS: Record<string, CatalogSpec> = {
   pokemon: { max: CATALOG_MAX_ENTITY },
   films: { keys: FILM_KEYS },
   artists: { keys: ARTIST_KEYS },
   // Unicode codepoints — sparse like QIDs, stable by Unicode policy.
   emoji: { keys: EMOJI_KEYS },
+  elements: { max: CATALOG_MAX_ELEMENT },
 };
 
 // ── content seed ────────────────────────────────────────────────
@@ -295,6 +301,19 @@ export async function runSeedV2(
       // whole bank to say nothing about four surfaces out of five.
       ...(typeof q.branch === "string" ? { branch: q.branch } : {}),
       ...(typeof q.sub === "string" ? { sub: q.sub } : {}),
+      // The continuum forms' range/plane copy (D114) — what the client
+      // renders the dial track and field plane from. Emit-when-set: only
+      // feed dial/field entries carry these. Their option labels are
+      // SYNTHESIZED from these fields at gen time, so a changed range
+      // changes the labels and lands in the D52 refusal below — the range
+      // is frozen with the options, which is correct: every stored
+      // optionIdx is a position on it.
+      ...(typeof q.lo === "number" ? { lo: q.lo } : {}),
+      ...(typeof q.hi === "number" ? { hi: q.hi } : {}),
+      ...(typeof q.unit === "string" ? { unit: q.unit } : {}),
+      ...(Array.isArray(q.ends) ? { ends: q.ends } : {}),
+      ...(Array.isArray(q.ax) ? { ax: q.ax } : {}),
+      ...(Array.isArray(q.ay) ? { ay: q.ay } : {}),
     };
     // Unchanged docs are not rewritten. Two things depend on this, and the
     // second is the expensive one: `updatedAt` only means something as an

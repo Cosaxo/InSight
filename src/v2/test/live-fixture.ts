@@ -1,8 +1,8 @@
 // A stand-in `window.LIVE` for mount tests, plus the feed globals live.ts
 // publishes alongside it.
 //
-// WHY THIS EXISTS. `test/smoke.test.jsx` mounts the whole app and proves the
-// screens paint — but only in DEMO mode. `window.LIVE` is undefined
+// WHY THIS EXISTS. The `test/smoke-*.test.jsx` suites mount the whole app and
+// prove the screens paint — but only in DEMO mode. `window.LIVE` is undefined
 // throughout it, so every `if (window.LIVE && window.LIVE.enabled)` branch in
 // the spec layer is dead code as far as the test suite is concerned. Those
 // branches are not incidental: they are where D9 drops the Mirror's City
@@ -155,6 +155,18 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     createGroup: async () => ({ gid: "g_test", inviteCode: "ABCD2345" }),
     joinGroup: async () => ({ gid: "g_test", name: "Test" }),
     leaveGroup: async () => ({ gid: "g_test", deleted: false }),
+    // Handles and invitations (D122). Empty and inert for the same reason
+    // the groups and takes below are: a seeded invitation would be sample
+    // data wearing a live badge, and "nobody has invited you" IS the live
+    // surface a new account opens on.
+    whoIs: async () => null,
+    claimHandle: async (handle: string) => ({ handle }),
+    inviteToGroup: async () => ({ ok: true }),
+    acceptInvite: async () => ({ gid: "g_test", name: "Test" }),
+    declineInvite: async () => ({ ok: true }),
+    invites: () => [],
+    invitesLoading: () => false,
+    loadInvites: async () => {},
     voteDuel: async () => {},
     setDuoMode: async () => {},
     romanticPoolReady: () => false,
@@ -195,6 +207,10 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     bootError: opts.demoInProd ? "auth/network-request-failed — fixture" : "",
     uid: "u_fixture",
     displayName: "Tester",
+    // No handle: an account that has not claimed one is the state a new
+    // install opens on, and it is the state the claim row has to render
+    // (D122).
+    handle: "",
     myCity: opts.myCity ?? "Oslo, NO",
     appBuild: 1,
     latestBuild: 1,
@@ -245,7 +261,7 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     // circle-split section rather than three empty states. Its answers
     // overlap the fixture deck on purpose — an empty overlap would make
     // the likeness line read "nothing in common yet" everywhere.
-    // Foresight (D102). An empty-but-loaded log: the lens then renders
+    // Foresight (D125). An empty-but-loaded log: the lens then renders
     // its first card rather than the "couldn't load" arm, which is what
     // a mount test needs to walk.
     loadForesight: async () => {},
@@ -286,6 +302,32 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     ],
     kindredLoading: () => false,
     kindredDepth: () => 6,
+    // Similarity (D112): Ada again, in the viewer's own city and with a
+    // stored Big Five, and the viewer scored too — so a live mount of the
+    // City field renders a POSITIONED, score-matched person rather than
+    // only the empty state. testFeedItems stays empty: the place fields'
+    // arithmetic has its own unit tests, and here an empty bank renders
+    // their honest "no scored answers yet" state, which is what a mount
+    // test should see from a fixture with no test-item aggregates.
+    loadSimilarity: async () => {},
+    similarityLoading: () => false,
+    testFeedItems: () => [],
+    myTestResults: () => ({
+      big5: { title: "Big Five", dims: [
+        { id: "O", label: "Openness", value: 70 },
+        { id: "C", label: "Conscientiousness", value: 55 },
+        { id: "E", label: "Extraversion", value: 40 },
+        { id: "A", label: "Agreeableness", value: 65 },
+        { id: "N", label: "Sensitivity", value: 45 },
+      ] },
+    }),
+    kindredPeople: () => [
+      {
+        uid: "u_other", name: "Ada", city: opts.myCity ?? "Oslo, NO",
+        like: { shared: 6, same: 5, pct: 83 },
+        results: { big5: { O: 80, C: 50, E: 45, A: 60, N: 50 } },
+      },
+    ],
     lensAgg: () => ((opts.lensBank ?? true)
       ? { counts: tooSmall ? [0, 0, 0, 0, 0] : [9, 6, 4, 3, 3], tooSmall }
       : null),

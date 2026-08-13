@@ -5,6 +5,7 @@
 // guards the wiring in CI.
 import React from 'react';
 import { FRIENDS } from './follows.js';
+import { LEARN } from './learn-progress.js';
 import { IS_DATA } from './sample-data.js';
 
 // learn-social.js — the friend layer for Learn. Deterministic per (friend, card)
@@ -40,11 +41,9 @@ window.LEARN_SOCIAL = (function () {
   // the field standing: who else is learning it, how far each has got, and how
   // many sit level with you
   function field(fid, yourKnown) {
-    const L = window.LEARN;
-    if (!L) return null;
     // Same live gate as onCard — synthetic standings stay demo-only.
     if (window.LIVE && window.LIVE.enabled) return null;
-    const total = L.total(fid);
+    const total = LEARN.total(fid);
     if (!total) return null;
     const rows = friends()
       .filter((p) => h2(p.id + '|f|' + fid) < 0.72)

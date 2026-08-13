@@ -3,14 +3,16 @@
 // The demo smoke test's other half: the same screens, mounted with
 // `window.LIVE` present and enabled.
 //
-// WHY A SECOND FILE. `smoke.test.jsx` runs with LIVE undefined, so every
+// WHY A SEPARATE FILE. The demo suites (`smoke-daily`, `smoke-topics`,
+// `smoke-mirror`, `smoke-nav`, `smoke-overlays`) run with LIVE undefined, so every
 // `if (window.LIVE && window.LIVE.enabled)` branch in the spec layer is
 // unreached by the suite. Two of those branches are load-bearing product
 // decisions rather than cosmetics:
 //
-//   D9  live mode drops the Mirror's City stop, because Near IS your city
-//       there and two stops resolving to one cohort is how a scale starts
-//       lying about what it measures.
+//   D111 the Mirror's Near and City stops are two different questions —
+//       presence vs the city cohort — and the live axis carries both.
+//       (From D9 to D111 live mode dropped City because Near WAS the
+//       city; the un-fold is asserted in both directions below.)
 //   D11 the feed's argument surfaces — named takes, counter-arguments,
 //       "minds moved", crossfire, friend dots — are unreachable from a live
 //       card, and a card below the k-floor shows neither the share numeral
@@ -201,27 +203,44 @@ describe("spec layer mounts in live mode", () => {
 });
 
 describe("the live gates hold in the DOM, not just in the source", () => {
-  // D9. The Mirror's axis is seven stops in demo mode and six in live mode,
-  // because Near IS your city there. Both directions are asserted: a test
-  // that only checked the live side would pass against an axis that had lost
-  // the stop everywhere.
+  // D111. The Mirror's axis is the same seven stops in both modes — the
+  // live ruler dropped City from D9 to D111 (Near WAS your city), and the
+  // un-fold is asserted in both directions: City is back, and Near really
+  // did become presence-only rather than a second door to the city cohort.
   // The stops are role="tab" on one tablist, not loose buttons — query them
   // as the axis they are, so a same-named control elsewhere on the screen
   // cannot satisfy or break this.
   const stopLabels = () =>
     screen.getAllByRole("tab").map((el) => el.getAttribute("aria-label"));
 
-  it("drops the Mirror's City stop in live mode and keeps it in demo", () => {
+  // Wait for the City stop's body to actually be on screen.
+  //
+  // This was a fixed `setTimeout(50)` in four cases and stopped being safe
+  // at D119, when LiveCohortBody joined Circle behind a React.lazy: 50 ms
+  // is a guess about how long a dynamic import takes, and under a loaded
+  // runner it lost — one of these four failed in a full `test:unit` and
+  // passed on its own, which is the signature. findByText polls until the
+  // body's own first line is there, so it waits exactly as long as it has
+  // to and no case that follows it can race the import.
+  const openCity = () => screen.findByText(/Everyone who picked this city/i);
+
+  it("keeps the City stop on the live ruler, and Near is presence-only (D111)", async () => {
     mountLive();
     fireEvent.click(screen.getByRole("button", { name: /^mirror$/i }));
     const liveAxis = stopLabels();
-    expect(liveAxis, "live mode still offers a City stop").not.toContain("City");
-    // Near and Country are the stops City resolves between. Asserting they
-    // survive is what stops the line above passing because the axis broke —
-    // the first draft of this test looked for buttons and "found" no City by
-    // finding nothing at all.
+    expect(liveAxis, "live mode lost the City stop — D9's drop is back").toContain("City");
     expect(liveAxis).toContain("Near");
     expect(liveAxis).toContain("Country");
+
+    // Near: the counter, and NOT the city cohort — the un-fold's other half.
+    fireEvent.click(screen.getByRole("tab", { name: "Near" }));
+    expect(screen.getByText(/Right now, around you/i)).toBeTruthy();
+    expect(screen.queryByText(/Everyone who picked this city/i)).toBeNull();
+
+    // City: the cohort, and NOT the counter.
+    fireEvent.click(screen.getByRole("tab", { name: "City" }));
+    await openCity();
+    expect(screen.queryByText(/Right now, around you/i)).toBeNull();
 
     cleanup();
     live.restore();
@@ -230,8 +249,36 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     fireEvent.click(screen.getByRole("button", { name: /^mirror$/i }));
     expect(
       stopLabels(),
-      "demo mode lost the City stop — the live gate is now unconditional",
+      "demo mode lost the City stop — the axis broke somewhere",
     ).toContain("City");
+  });
+
+  // D112. The City stop's constellation, on the real mount: the fixture
+  // carries one scored city-mate (Ada), so the field must render her as a
+  // positioned node — real name, score-based match — and none of the demo
+  // cast may ride along. The demo field this replaces invented "Anders K.
+  // · 92%" from constants; the assertion that no such name appears is the
+  // same one the search overlay and result cards already carry.
+  it("draws the City constellation from real people, never the demo cast", async () => {
+    const expectNoBoundary = mountLive();
+    fireEvent.click(screen.getByRole("button", { name: /^mirror$/i }));
+    fireEvent.click(screen.getByRole("tab", { name: "City" }));
+    await openCity();
+    // The constellation is the stop's Overview tab since D119 — a stop
+    // opens on Answers, so this walks one tab across to reach it.
+    fireEvent.click(screen.getByRole("tab", { name: "Overview" }));
+    // The field is a lazy chunk — await its caption, then the node.
+    expect(await screen.findByText(/kindred strangers in Oslo/i)).toBeTruthy();
+    const node = screen.getByRole("button", { name: /Ada · \d+% like you/ });
+    expect(node).toBeTruthy();
+    // Tapping the node opens the score comparison, basis named.
+    fireEvent.click(node);
+    expect(screen.getByText(/aligned with yours/i)).toBeTruthy();
+    // The prototype's sample people stay in the prototype.
+    for (const ghost of [/Anders/, /Ingrid/, /Petter V/, /Sigrid/]) {
+      expect(document.body.textContent).not.toMatch(ghost);
+    }
+    expectNoBoundary("mirror/live/city-constellation");
   });
 
   // D11 + D83. The engage block below renderEngage's `if (q.live)` early
@@ -301,36 +348,40 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     expect(screen.getByText(/No takes yet/i)).toBeTruthy();
   });
 
-  // D99's lens row, mounted on the Mirror's geographic stops. The row has
-  // its own suite; this is the wiring — that it reaches the real shell,
+  // D99's lens row, mounted on the Mirror's geographic stops — and since
+  // D119 the row IS the stop's navigation, with Answers a peer tab rather
+  // than the page the lenses hang under. The row and the lens bodies have
+  // their own suites; this is the wiring — that they reach the real shell,
   // through the spec layer's own render path, on the live body that
   // replaced the demo field.
-  it("brings the lens row back to a live Mirror stop", async () => {
+  it("gives a live Mirror stop its lens tabs, opening on Answers", async () => {
     localStorage.clear();
     mountLive();
     fireEvent.click(screen.getByRole("button", { name: /^mirror$/i }));
     // The Mirror opens on You (the Map), which is not a population — the
-    // lens row belongs to the geographic stops, so walk the ruler to Near.
-    fireEvent.click(screen.getByRole("tab", { name: "Near" }));
-    await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
-    // All four lenses. Scores joined the row at D100 — it was absent
-    // while this test read "the bank ships no `rate` questions", which
-    // was true of the prototype's place scorecard and not of the lens:
-    // the bank's `rating` and `scale` items are ordinal and average fine.
+    // lens row belongs to the geographic stops, so walk the ruler to City
+    // (Near is presence-only since D111 and carries no lenses).
+    fireEvent.click(screen.getByRole("tab", { name: "City" }));
+    await openCity();
+    // Seven tabs. The row is static since D119 — the LENS BODIES are still
+    // the lazy chunk, so unlike the old collapsed strip the navigation
+    // itself is on screen from the first frame and getBy is safe.
     //
-    // findBy, not getBy: the row is a React.lazy chunk since D101, so it
-    // arrives a tick after the panel it hangs under. Awaiting the FIRST
-    // button is what makes the three getBy calls below safe.
-    expect(await screen.findByRole("button", { name: "People" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Compare" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Scores" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Explore" })).toBeTruthy();
-    // Foresight (D102) — v19's own feature, and the last of the row.
-    expect(screen.getByRole("button", { name: "Foresight" })).toBeTruthy();
-    // Collapsed until asked for — the cost gate, on the real mount.
+    // Scores joined at D100 — it was absent while this test read "the
+    // bank ships no `rate` questions", which was true of the prototype's
+    // place scorecard and not of the lens: the bank's `rating` and
+    // `scale` items are ordinal and average fine.
+    // Foresight (D125) joined as the seventh: v19's own feature, and the
+    // only tab here that is a game rather than a reading.
+    for (const name of ["Answers", "Overview", "People", "Compare", "Scores", "Explore", "Foresight"]) {
+      expect(screen.getByRole("tab", { name }), `the row is missing its ${name} tab`).toBeTruthy();
+    }
+    expect(screen.getByRole("tab", { name: "Answers" }).getAttribute("aria-selected")).toBe("true");
+    // Nothing loaded for a tab nobody opened — the cost gate, on the real
+    // mount. Then the lens body arrives on the tap (findBy: its chunk).
     expect(screen.queryByText(/most like you/i)).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "People" }));
-    expect(screen.getByText(/most like you/i)).toBeTruthy();
+    fireEvent.click(screen.getByRole("tab", { name: "People" }));
+    expect(await screen.findByText(/most like you/i)).toBeTruthy();
   });
 
   // The Answers lens's own depth (D100), on the real mount. The panel
@@ -342,8 +393,8 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     localStorage.clear();
     mountLive();
     fireEvent.click(screen.getByRole("button", { name: /^mirror$/i }));
-    fireEvent.click(screen.getByRole("tab", { name: "Near" }));
-    await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
+    fireEvent.click(screen.getByRole("tab", { name: "City" }));
+    await openCity();
 
     // The fixture's two questions sit in different branches, so the chip
     // row offers both plus All.
@@ -351,10 +402,15 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     expect(screen.getByRole("button", { name: /^Mind 1$/ })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Most divisive" })).toBeTruthy();
 
-    // Expanding a row names the viewer's own answer rather than only
-    // tinting it — the assertion that would fail if the row rendered but
-    // the expander did nothing.
+    // The expander, both ways. Since D120 the FIRST row opens by default
+    // (the prototype's behaviour — a tab that opens onto a closed list
+    // reads as a table of contents), so this collapses it and re-opens it
+    // rather than assuming a closed start. Asserting only that a click
+    // sets aria-expanded=true would now pass against a row that was
+    // already open and whose toggle does nothing.
     const row = screen.getByRole("button", { name: /Would you rather know/ });
+    expect(row.getAttribute("aria-expanded"), "the first row did not open by default").toBe("true");
+    fireEvent.click(row);
     expect(row.getAttribute("aria-expanded")).toBe("false");
     fireEvent.click(row);
     expect(row.getAttribute("aria-expanded")).toBe("true");
@@ -365,7 +421,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     expect(screen.getByRole("button", { name: /Is a promise still binding/ })).toBeTruthy();
   });
 
-  // Foresight (D102), on the real mount. The lens suite covers the clock
+  // Foresight (D125), on the real mount. The lens suite covers the clock
   // and the scoring; what this covers is that the game is REACHABLE —
   // it hangs off a React.lazy chunk inside another React.lazy chunk
   // (LiveMirrorLenses inside LiveCohortBody), which is exactly the kind
@@ -400,12 +456,18 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     mountLive();
     fireEvent.click(screen.getByRole("button", { name: /^mirror$/i }));
     fireEvent.click(screen.getByRole("tab", { name: "Circle" }));
-    await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
 
-    // The retired empty state, gone.
+    // The member, named — awaited, not slept for. The body is a
+    // React.lazy chunk behind a null Suspense fallback (D101's bundle
+    // deferral), so "the tab is open" and "the body has rendered" are
+    // separated by a dynamic import whose duration is the machine's, not
+    // the test's: a fixed 50 ms lost that race on CI while passing every
+    // local run. findByText polls until the row exists or 3 s passes.
+    expect(await screen.findByText(/Ada/, {}, { timeout: 3000 })).toBeTruthy();
+    // The retired empty state, gone. AFTER the positive anchor on
+    // purpose: against the null fallback this assertion is vacuously
+    // true, so it only says something once the real body is in the DOM.
     expect(screen.queryByText(/aren.t built yet/i)).toBeNull();
-    // The member, named, with the mutual mark and the likeness metric.
-    expect(screen.getByText(/Ada/)).toBeTruthy();
     // The row's own mark, not the header's "1 of them follows you back".
     expect(screen.getByText(/^· follows you$/)).toBeTruthy();
     expect(screen.getByText("50%")).toBeTruthy();
@@ -496,7 +558,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
   // with Follow buttons, on a real device. The stores now refuse to
   // ADVERTISE either (SCENES.offers / SUBTOPICS.offers); what remains in
   // the sheet is real: the Learn dial and fields, and the suggest door.
-  // smoke.test.jsx holds the demo control — the same sheet with both
+  // smoke-topics.test.jsx holds the demo control — the same sheet with both
   // sections present.
   it("the add sheet offers no demo communities and no unstocked leaves — Learn stays", () => {
     const expectNoBoundary = mountLive();
@@ -511,6 +573,12 @@ describe("the live gates hold in the DOM, not just in the source", () => {
       "the live sheet advertised leaves the live bank does not stock",
     ).toBeNull();
     expect(screen.queryByText(/0 questions/), "an empty room was offered").toBeNull();
+    // Any population claim, not just the one string that shipped. The
+    // sheet grew a channel list on 2026-08-12 (the other half of D96 — see
+    // world-feed.jsx's renderAdd), and the whole point of that list is that
+    // every number on it is counted rather than claimed, so the assertion
+    // that used to be about one leaked row now covers the section too.
+    expect(screen.queryByText(/\d+ people/), "a fabricated population came back").toBeNull();
     expect(screen.getByText("Learn")).not.toBeNull();
     expect(screen.getByRole("button", { name: "lots" })).not.toBeNull();
     expect(screen.getByRole("button", { name: /suggest a question/i })).not.toBeNull();
@@ -774,7 +842,7 @@ describe("live mode never inherits the sample persona (D55)", () => {
     // The demo seed is module state in test-definitions.js and these cases
     // replace it. The purge listener restores it — the same path a uid
     // change takes — so the demo-mode cases in this file and in
-    // smoke.test.jsx do not inherit an emptied object.
+    // the demo suites do not inherit an emptied object.
     window.dispatchEvent(new Event("insight:local-purge"));
   });
 
@@ -819,11 +887,11 @@ describe("live mode never inherits the sample persona (D55)", () => {
     // returning anything, and mock mode is a shipped surface (README's
     // `npm run dev`, and the store screenshots are taken on it).
     const ring = anchorList();
-    // 8 since the cognitive bank landed: age/job/education plus one row per
-    // test, and the demo persona has a result for all five. It was 7 while
-    // `cognitive` had a result and no question bank, so map-anchors listed
-    // only four test rows.
-    expect(ring.length).toBe(8);
+    // 7: age/job/education plus one row per test, and the demo persona has
+    // a result for all four. It was 8 for the two days `cognitive` had both
+    // a bank and an anchor row — D103 retired the test, and the anchor went
+    // with it rather than lingering as a row whose value is always ''.
+    expect(ring.length).toBe(7);
     for (const demo of DEMO_RING) {
       expect(ring.some((r) => r.value === demo || r.value.startsWith(demo)))
         .toBe(true);
