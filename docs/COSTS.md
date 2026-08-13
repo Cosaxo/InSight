@@ -51,7 +51,7 @@ once a question matured, and that discount no longer exists.
 Behaviour assumptions (the soft numbers — stated, not buried): 3 world
 answers + 1 duel answer per active user per day, 1.4 app opens, 3 minutes
 of open app plus 4 background→foreground cycles (so 7 listener-minutes —
-see the D122 note below, they are not the same number), concentrated in
+see the D124 note below, they are not the same number), concentrated in
 D7's 4-hour morning window, MAU = 3 × DAU, one
 reseed per week, and duels played in duos rather than larger groups — which
 is the *worse* case per user, because a reveal's fixed reads divide across
@@ -110,7 +110,7 @@ below.
 > `fetchVoters` was the app's one unbounded read, ~DAU documents per
 > sheet open. The bill below assumes the cap.
 
-> **Corrected 2026-08-13 (D122), and this one went UP because it got more
+> **Corrected 2026-08-13 (D124), and this one went UP because it got more
 > honest rather than because anything got worse.** The fan-out is linear in
 > how long a listener stays attached, and until this pass *nothing bounded
 > that*: `live.ts` tore listeners down on a uid change and on account
@@ -492,6 +492,7 @@ gcloud billing budgets create \
   --billing-account=<ACCOUNT_ID> \
   --display-name="InSight" \
   --budget-amount=50USD \
+  --filter-projects=projects/prvfire33 \
   --threshold-rule=percent=0.5 \
   --threshold-rule=percent=0.9 \
   --threshold-rule=percent=1.0 \
@@ -635,7 +636,7 @@ threshold rather than the first.
    D98's cadence removal made it five times steeper, pulling the crossover
    from ~18,200 to ~3,700 with nobody rerunning the model to see it; D102's
    `social` term raised the flat baseline from 46 to 385 reads/user/day and
-   pushed it back to ~30,800; and D122 stopped charging listener time at a
+   pushed it back to ~30,800; and D124 stopped charging listener time at a
    guess it had no right to, which brought it to **~14,145 — 255 DAU inside
    wall 1, which is not a margin.**
 3. **~50,000 MAU — the Identity Platform cliff**, if that is the billing
@@ -713,7 +714,7 @@ They described the same app modelled with progressively fewer missing
 terms, and the direction has been up every time, which is the single most
 useful thing this page can tell you about its own reliability.
 
-What changed in the D122 pass is less about the total than about its
+What changed in the D124 pass is less about the total than about its
 shape. The two biggest lines are now the D98 surfaces (a product
 behaviour, moved by an open rate or a cap) and the listener fan-out (an
 architecture property, moved only by polling instead of streaming), and

@@ -263,7 +263,7 @@ export const B = {
   // per backgrounding instead of one OS eviction.
   onlineMin: 3,
   // Background→foreground cycles per user per day, and the newest soft
-  // number in this block. It exists because the idle detach (D122) changed
+  // number in this block. It exists because the idle detach (D124) changed
   // the SHAPE of the fan-out input rather than only its value: what is
   // billed is `onlineMin + bgCycles × grace`, plus DECK_DAYS re-attach
   // reads per cycle. Before the detach, backgrounding cost an unbounded
@@ -419,7 +419,7 @@ export function costModel({ regional = false, bank = bankDocs() } = {}) {
     // The quadratic one. Publishes scale with DAU; concurrent listeners
     // scale with DAU; every delivery is a billed read. ~1 of the 3 world
     // answers is the globally shared daily, which is the hot document.
-    // LISTENER-minutes, not foreground minutes. The idle detach (D122)
+    // LISTENER-minutes, not foreground minutes. The idle detach (D124)
     // means a backgrounded app keeps listening for IDLE_DETACH_MS and then
     // stops, so every background→foreground cycle adds one grace period to
     // the time being billed. Before the detach this was unbounded and the

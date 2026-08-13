@@ -243,7 +243,7 @@ const READ_SERIES = [
   { key: "topUp", label: "agg top-up", css: "--s2", why: "answered questions with no published counts yet, re-read at most once per 6h (the k-floor this used to wait out is gone — D98)" },
   { key: "reseed", label: "reseed refetch", css: "--s3", why: "the bank re-read after a contentRev bump — charged per MAU, not DAU" },
   { key: "fanOut", label: "listener fan-out", css: "--s4", why: "every publish on today's aggregate delivers to every listening client. DAU²/400 — the quadratic one" },
-  { key: "reattach", label: "listener re-attach", css: "--s8", why: "DECK_DAYS reads each time the app comes back and the idle detach has dropped its listeners — the price of bounding the fan-out's tail (D122)" },
+  { key: "reattach", label: "listener re-attach", css: "--s8", why: "DECK_DAYS reads each time the app comes back and the idle detach has dropped its listeners — the price of bounding the fan-out's tail (D124)" },
   { key: "rules", label: "rule reads", css: "--s5", why: "every get()/exists() in a security rule is a billed read — charged per ANSWER, not per open (D67)" },
   { key: "server", label: "server reads", css: "--s6", why: "the agg transaction, the nightly velocity scan walking the ledger, and the reveal pipeline (D67)" },
   { key: "social", label: "D98 surfaces", css: "--s7", why: "who-voted sheets, Kindred and Circle reading other users' answers on demand — capped per fetch, flat above VOTER_FETCH_CAP DAU (D102)" },

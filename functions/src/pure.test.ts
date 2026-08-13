@@ -4,7 +4,11 @@
 import { describe, it, expect } from "vitest";
 import {
   CODE_ALPHABET,
+  HANDLE_MAX,
+  HANDLE_MIN,
   inviteCodeFromBytes,
+  normalizeHandle,
+  RESERVED_HANDLES,
   utcDayKey,
   prevDayKey,
   shouldReveal,
@@ -1385,5 +1389,67 @@ describe("presence cells", () => {
   it("returns nothing for an illegal cell — the callable's own guard", () => {
     expect(presenceNeighbors("9000_0")).toEqual([]);
     expect(presenceNeighbors("junk")).toEqual([]);
+  });
+});
+
+// ── handles (D122) ────────────────────────────────────────────────
+//
+// The uniqueness registry is keyed on whatever this function returns, so
+// every case below is really one claim: two people who think they typed
+// the same handle must land on the same key, and two people who think
+// they typed different ones must not.
+
+describe("normalizeHandle", () => {
+  it("folds the ways one handle gets typed onto one key", () => {
+    for (const raw of ["olaf", "Olaf", "OLAF", "@olaf", " @Olaf ", "@@olaf"]) {
+      expect(normalizeHandle(raw), `"${raw}"`).toBe("olaf");
+    }
+  });
+
+  it("accepts letters, digits and underscore, and nothing else", () => {
+    expect(normalizeHandle("olaf_2")).toBe("olaf_2");
+    expect(normalizeHandle("a1_b2")).toBe("a1_b2");
+    // The rejected set is the point: a dot is a Firestore path segment, a
+    // slash is a path separator, and everything non-ASCII is where the
+    // industrial-grade lookalikes live.
+    for (const bad of ["ol.af", "ol/af", "ol af", "ol-af", "olaf!", "ólaf", "оlaf", "olaf​"]) {
+      expect(normalizeHandle(bad), `"${bad}" was accepted`).toBeNull();
+    }
+  });
+
+  it("holds the length bounds at both ends", () => {
+    expect(normalizeHandle("a".repeat(HANDLE_MIN - 1))).toBeNull();
+    expect(normalizeHandle("a".repeat(HANDLE_MIN))).toBe("a".repeat(HANDLE_MIN));
+    expect(normalizeHandle("a".repeat(HANDLE_MAX))).toBe("a".repeat(HANDLE_MAX));
+    expect(normalizeHandle("a".repeat(HANDLE_MAX + 1))).toBeNull();
+    // …and measures the CANONICAL form, not the typed one: "@" and the
+    // spaces around it are not part of the handle, so a name at the limit
+    // must not be refused for the sigil someone typed in front of it.
+    expect(normalizeHandle(` @${"a".repeat(HANDLE_MAX)} `)).toBe("a".repeat(HANDLE_MAX));
+  });
+
+  it("refuses an all-digit handle — that reads as an id, not a name", () => {
+    expect(normalizeHandle("12345")).toBeNull();
+    // One letter is enough to make it a name again.
+    expect(normalizeHandle("12345a")).toBe("12345a");
+  });
+
+  it("refuses the reserved names, sigil and casing included", () => {
+    // An account called `insight` or `support` is a phishing kit, and one
+    // called `join` collides with the app's own URL segments.
+    for (const word of ["insight", "admin", "support", "join", "privacy", "me"]) {
+      expect(RESERVED_HANDLES.has(word), `${word} is not on the list`).toBe(true);
+      expect(normalizeHandle(word), `"${word}" was claimable`).toBeNull();
+      expect(normalizeHandle(`@${word.toUpperCase()}`), `"@${word.toUpperCase()}" got through`).toBeNull();
+    }
+  });
+
+  it("returns null for anything that is not a string", () => {
+    // The callable hands this `request.data?.handle` straight from the
+    // wire, so every shape a JSON body can carry has to land on null
+    // rather than on a throw or a coerced key.
+    for (const bad of [undefined, null, 42, {}, [], true, { toString: () => "olaf" }]) {
+      expect(normalizeHandle(bad as unknown), String(bad)).toBeNull();
+    }
   });
 });

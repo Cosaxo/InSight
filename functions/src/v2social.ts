@@ -25,6 +25,7 @@ import {
   duelAggDelta,
   foldDuelAgg,
   inviteCodeFromBytes,
+  normalizeHandle,
   isPlausibleFcmToken,
   nextFcmTokens,
   nextStreak,
@@ -923,6 +924,187 @@ export const revealDuelsNowV2 = onCall({ region: REGION }, async (request) => {
   const dayKey = typeof request.data?.day === "string" ? request.data.day : undefined;
   const mode: ScanMode = request.data?.scan === "indexed" ? "indexed" : "full";
   return runDuelReveals(dayKey, mode);
+});
+
+// ── handles and invitations (D122) ──────────────────────────────────
+//
+// The four callables below replace the invite CODE as the way a circle
+// gains a member. The code stays — a share link is still the only way to
+// reach someone who has no account yet — but it stops being something a
+// person types, and joinGroupV2 stops being the only door.
+//
+// WHY THESE ARE CALLABLES AND NOT RULES. Both halves need a write that a
+// client cannot be trusted to make:
+//
+//   · A handle claim is TWO writes that must not interleave — take the
+//     new key, release the old one — and rules cannot express "atomic
+//     across two documents". A create-if-absent rule gets uniqueness
+//     right and renames wrong, which is worse than not having renames.
+//   · Accepting an invite appends to `memberUids`, and that array is what
+//     firestore.rules reads to decide who may see a group's sealed duel
+//     answers. A client-writable membership array is a client-writable
+//     ACL.
+
+/** How many invitations one account may send per hour. */
+const INVITES_PER_HOUR = 40;
+
+/**
+ * Claim (or change) this account's handle.
+ *
+ * `v2_handles/{handle}` is the registry: one document per taken handle,
+ * holding the uid. Uniqueness is the DOCUMENT ID, not a field — a
+ * transaction that creates it fails if someone else got there first, and
+ * no query or index is involved.
+ */
+export const claimHandleV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforceAppCheck: ENFORCE_APP_CHECK }, async (request) => {
+  if (!request.auth) throw new HttpsError("unauthenticated", "must be signed in");
+  const uid = request.auth.uid;
+  const handle = normalizeHandle(request.data?.handle);
+  if (!handle) throw new HttpsError("invalid-argument", "handle must be 3-20 chars: letters, digits, underscore");
+  const db = getFirestore();
+  const ref = db.collection("v2_handles").doc(handle);
+  const userRef = db.doc(`v2_users/${uid}`);
+  await db.runTransaction(async (tx) => {
+    const [snap, me] = await Promise.all([tx.get(ref), tx.get(userRef)]);
+    const prev = me.exists ? (me.get("handle") as string | undefined) : undefined;
+    if (snap.exists) {
+      // Re-claiming your own handle is a no-op rather than an error: the
+      // client retries on a dropped response, and a retry that reports
+      // "taken" about your own name is the worst possible message.
+      if (snap.get("uid") === uid) return;
+      throw new HttpsError("already-exists", "that handle is taken");
+    }
+    tx.set(ref, { uid, at: FieldValue.serverTimestamp() });
+    tx.set(userRef, { handle }, { merge: true });
+    // Release the old one LAST, inside the same transaction: if the take
+    // above fails the release must not have happened, or a failed rename
+    // costs the user the name they already had.
+    if (prev && prev !== handle) tx.delete(db.collection("v2_handles").doc(prev));
+  });
+  return { handle };
+});
+
+/**
+ * Invite an account to a circle, by uid.
+ *
+ * ANYONE MAY INVITE ANYONE (owner's call). That is a deliberate opening
+ * and it is worth stating what it does and does not expose: an invite
+ * carries the inviter's handle and the circle's name to someone who did
+ * not ask for either. It grants nothing — the invitee is not a member
+ * until they accept — and it reveals nothing about them to the inviter
+ * that D98 had not already published. The rate limit below is the whole
+ * defence against volume, and `hidden` on the invite is the recipient's.
+ */
+export const inviteToGroupV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforceAppCheck: ENFORCE_APP_CHECK }, async (request) => {
+  if (!request.auth) throw new HttpsError("unauthenticated", "must be signed in");
+  const uid = request.auth.uid;
+  const gid = String(request.data?.gid || "");
+  const to = String(request.data?.to || "");
+  if (!gid || !to) throw new HttpsError("invalid-argument", "gid and to required");
+  if (to === uid) throw new HttpsError("invalid-argument", "you are already here");
+  await assertInviteBudget(uid);
+  const db = getFirestore();
+  const gref = db.doc(`v2_groups/${gid}`);
+  const gsnap = await gref.get();
+  if (!gsnap.exists) throw new HttpsError("not-found", "no such circle");
+  const members: string[] = gsnap.get("memberUids") || [];
+  // Members only. An invite from a non-member would let anyone add anyone
+  // to any circle they can name the id of.
+  if (!members.includes(uid)) throw new HttpsError("permission-denied", "not a member");
+  if (members.includes(to)) throw new HttpsError("already-exists", "already a member");
+  const cap = gsnap.get("mode") === "duo" ? 2 : GROUP_CAP;
+  if (members.length >= cap) throw new HttpsError("resource-exhausted", "circle is full");
+  // The invitee must exist. Without this, a typo'd uid writes an invite
+  // nobody will ever see and the sender is told it worked.
+  const target = await db.doc(`v2_users/${to}`).get();
+  if (!target.exists) throw new HttpsError("not-found", "no such account");
+  await gref.collection("invites").doc(to).set({
+    // `to` is denormalised onto the doc because a collection-group query
+    // cannot filter on a document id — the same reason the follow graph
+    // carries it (data/circle.ts fetchFollowersOf).
+    to,
+    from: uid,
+    fromName: await callerName(uid, request.data?.displayName),
+    // The circle's NAME rides along so the invitee can read the invite
+    // without reading the group: v2_groups is member-gated because it
+    // carries inviteCode, and an invitee is by definition not a member yet.
+    groupName: gsnap.get("name") || "",
+    mode: gsnap.get("mode") || "group",
+    at: FieldValue.serverTimestamp(),
+  }, { merge: true });
+  return { ok: true };
+});
+
+async function assertInviteBudget(uid: string): Promise<void> {
+  const db = getFirestore();
+  const ref = db.collection("v2_ratelimits").doc(`invite_${uid}`);
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    const cutoff = Date.now() - 3600000;
+    const events: number[] = ((snap.exists && snap.get("events")) || [])
+      .filter((t: number) => t > cutoff);
+    if (events.length >= INVITES_PER_HOUR) {
+      throw new HttpsError("resource-exhausted", "too many invitations — try later");
+    }
+    events.push(Date.now());
+    tx.set(ref, { events, expireAt: new Date(Date.now() + 2 * 3600000) });
+  });
+}
+
+/**
+ * Accept an invitation — the only client-reachable path into memberUids
+ * besides the code.
+ */
+export const acceptGroupInviteV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforceAppCheck: ENFORCE_APP_CHECK }, async (request) => {
+  if (!request.auth) throw new HttpsError("unauthenticated", "must be signed in");
+  const uid = request.auth.uid;
+  const gid = String(request.data?.gid || "");
+  if (!gid) throw new HttpsError("invalid-argument", "gid required");
+  await assertMembershipCap(uid);
+  const db = getFirestore();
+  const gref = db.doc(`v2_groups/${gid}`);
+  const iref = gref.collection("invites").doc(uid);
+  const myName = await callerName(uid, request.data?.displayName);
+  const out = await db.runTransaction(async (tx) => {
+    const [gsnap, isnap] = await Promise.all([tx.get(gref), tx.get(iref)]);
+    // The invite is the authorisation. Without this check the callable is
+    // "join any circle by id" with extra steps.
+    if (!isnap.exists) throw new HttpsError("permission-denied", "no invitation");
+    if (!gsnap.exists) throw new HttpsError("not-found", "no such circle");
+    const members: string[] = gsnap.get("memberUids") || [];
+    if (members.includes(uid)) { tx.delete(iref); return { gid, name: gsnap.get("name") }; }
+    const cap = gsnap.get("mode") === "duo" ? 2 : GROUP_CAP;
+    // Checked INSIDE the transaction: two people accepting the last seat
+    // of a duo at once is the one race this callable can actually lose.
+    if (members.length >= cap) throw new HttpsError("resource-exhausted", "circle is full");
+    tx.update(gref, {
+      memberUids: FieldValue.arrayUnion(uid),
+      [`memberNames.${uid}`]: myName,
+      // Set on accept, not on invite: the days before you accepted are
+      // days you were not in the circle, and revealMembersFor scopes a
+      // reveal to the people who were in it that day.
+      [`memberJoinedAt.${uid}`]: FieldValue.serverTimestamp(),
+    });
+    tx.delete(iref);
+    return { gid, name: gsnap.get("name") };
+  });
+  return out;
+});
+
+/**
+ * Decline — and it is a plain delete, with nothing written back.
+ *
+ * The inviter is told nothing. A "declined" state would make refusing
+ * someone a message you have to send them, which is the thing that makes
+ * people accept invitations they do not want.
+ */
+export const declineGroupInviteV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforceAppCheck: ENFORCE_APP_CHECK }, async (request) => {
+  if (!request.auth) throw new HttpsError("unauthenticated", "must be signed in");
+  const gid = String(request.data?.gid || "");
+  if (!gid) throw new HttpsError("invalid-argument", "gid required");
+  const db = getFirestore();
+  await db.doc(`v2_groups/${gid}`).collection("invites").doc(request.auth.uid).delete();
+  return { ok: true };
 });
 
 // ── Near by radius: the presence count (D84) ────────────────────────

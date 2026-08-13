@@ -529,6 +529,7 @@ Until then links open the fallback page — degraded, not broken.
     --billing-account=<ACCOUNT_ID> \
     --display-name="InSight" \
     --budget-amount=50USD \
+    --filter-projects=projects/prvfire33 \
     --threshold-rule=percent=0.5 \
     --threshold-rule=percent=0.9 \
     --threshold-rule=percent=1.0 \

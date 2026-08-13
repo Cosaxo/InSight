@@ -6178,7 +6178,13 @@ it checks:**
 - **Synonym paraphrases.** A lexical metric scores a synonym rewrite at
   0. This gate is the measurable floor under the writing rule, not its
   replacement — the manual's re-read stands, now citing the measured
-  top score per question in PR bodies.
+  top score per question in PR bodies. **Narrowed by D123
+  (2026-08-13):** morphological rewrites and the synonym families a
+  reviewed lexicon pairs now score at or above the gate ("Money buys
+  happiness." against "Can wealth make you happy?" — 0.000 then, 0.500
+  now). The framing above is unchanged and only its arithmetic moved:
+  paraphrases outside the lexicon still score near zero, so the floor
+  got bigger and the re-read still stands.
 
 ## D33 amendment (2026-08-06) · Ordinal splits are measured on their axis
 
@@ -11738,7 +11744,282 @@ the way a sit-down result did. Writing it would need a rule about which
 wins when two devices fold different answer sets, and that is a decision
 to take when a second device is a thing people actually have here.
 
-## D122 · The bill gets its first ceilings: an idle detach, two unbounded reads closed, and the controls that live in a console
+## D122 · Handles: the app gets an address, and a circle gains members by invitation
+
+**Decided:** 2026-08-13 · **Status:** binding. Owner's call, from
+"invite codes feel clunky — you should be able to add your friends and
+they accept". Both halves of that are decisions, and the second one is
+not the hard one.
+
+### The invite code was not clunky by accident
+
+It was the app's ONLY address. Before this:
+
+- `displayName` is free text, not unique, not indexed. Two Annas are
+  indistinguishable.
+- Live people search returns **nothing** — `samplePeople === false` makes
+  the section render empty, by design (D1: the demo cast must not reach a
+  live build).
+- The only humans who become reachable are the ones who surface in a
+  who-voted sheet or in Kindred: strangers ranked by likeness, not your
+  friends.
+
+So "add your friends" needed an addressing scheme before it could need an
+accept step, and removing the code without one would have removed the
+ability to reach a specific person at all.
+
+**The code is not deleted.** It is the only thing that reaches someone
+with no account yet, which for a young app is most of anyone's friends —
+so it survives inside the share link, where nobody reads it, and the
+first-run screen stops asking for it. What was clunky was being asked to
+*type* one; a link is a code you never see. The field is now behind
+"Have an invite code?", and opens itself when a tapped link prefills it.
+
+### Why an invitation needs consent when a follow does not
+
+D101 refused an accept step for follows and its reasoning holds: since
+D98 a follow grants no access the follower did not already have, so
+consent has nothing to protect.
+
+An invitation is different, and the line is clean: **joining a circle
+puts your name on a sealed daily answer that is then revealed to those
+people.** That IS access the other side does not otherwise have. Follows
+stay one-way and silent; invitations are offered and accepted.
+
+### Anyone may invite anyone
+
+Owner's call, and worth stating what it does and does not open. An
+invitation carries the inviter's handle and a circle name to someone who
+did not ask for either. It grants nothing until accepted, and reveals
+nothing about the invitee that D98 had not already published.
+`INVITES_PER_HOUR` is the whole defence against volume; declining is one
+tap and tells the inviter nothing, because a "declined" state would make
+refusing someone a message you have to send them — which is what makes
+people accept invitations they do not want.
+
+There is no server-side block to lean on: `data/mutes.ts` is local-only
+by design (D83). If invite spam becomes real, a block is the answer and
+it is not built here.
+
+### The registry, and the exposure it is
+
+`v2_handles/{handle}` — one document per taken handle, id = the canonical
+form, holding the uid. **Uniqueness is the DOCUMENT ID**, not a field, so
+it needs no index and no query, and a transaction that creates it simply
+fails when someone else got there first.
+
+Readable by any signed-in user, and **that is a real widening rather than
+a consequence of D98**. Public answers means "anyone holding your uid can
+read them". A readable registry means "anyone who knows your handle can
+find them". Those are different exposures, and this one is deliberate: a
+directory nobody may read cannot let a friend find you. What it is not is
+a listing — there is no query surface, only exact-id lookup, so the
+registry answers "is @olaf someone" and never "who is everyone".
+
+Writes are server-only on both surfaces, and for a reason rules cannot
+express: a claim is two writes that must not interleave (take the new
+key, release the old), and accepting an invitation appends to
+`memberUids` — the array `firestore.rules` reads to decide who may see a
+sealed duel answer. A client-writable membership array is a
+client-writable ACL.
+
+### Three things the gates caught
+
+**`handle` had to join the `v2_users` hasOnly allowlist.**
+`request.resource.data` is the RESULTING document, so once the callable
+has written a handle, a merge that only touches `displayName` still
+presents `handle` in its key set and `hasOnly` refuses it. Leave it off
+and claiming a handle silently freezes your display name forever — a
+failure that ships green. Mutation-checked: removing it fails exactly one
+rules case.
+
+**The Firestore SDK came back to first paint.** `data/handles.ts` and
+`data/invites.ts` statically imported `firebase/firestore`, and both are
+reached from `LiveDuelPanel` / `LivePrivacyPanel`, which are eager.
+check:bundle measured the eager graph at **1270 KB against a 955 KB
+ceiling** — precisely the tree as it stood before D110, which is the
+regression that gate was written to catch. Fixed by splitting on **what
+may be imported eagerly** rather than by subject: validation and wording
+stay with their features, the two reads moved to `data/socialFetch.ts`,
+which only live.ts reaches and only through a dynamic import inside an
+already-async method. Same shape `data/circle.ts` has. Back to 949 KB.
+
+**The live fixture and the pinned surface both refused to drift.**
+`vote.test.ts` pins `LIVE.social`'s members and `live-fixture.ts` has to
+match; adding eight members without listing them failed both, which is
+the pin working as documented.
+
+### The duplication that is deliberate
+
+`normalizeHandle` exists twice — `functions/src/pure.ts` and
+`data/handles.ts` — because `functions/` ships as its own package and
+there is no build graph joining them. The client copy exists so the field
+can answer while you type; the server copy exists because a client check
+is a courtesy and the callable is the gate. `handles.test.ts` reads the
+server file as TEXT and asserts the bounds, the charset and the reserved
+list match exactly, in both directions — the cheap version of one source.
+
+### A billed read, caught by a tripwire I did not know about
+
+The invite rule's first draft let MEMBERS read the invitation list too,
+so a circle could show who had been asked and had not answered. That arm
+needed `get(/v2_groups/$(gid))` to check membership — and every `get()`
+in a rule is a **billed read**. `scripts/pulse.test.mjs` counts them and
+failed CI on 15 → 16.
+
+The fix was to delete the arm, not to bump the counter. Nothing in the
+client reads an invitation as a member (`fetchInvites` queries
+`to == me`), and re-inviting is already idempotent server-side —
+`inviteToGroupV2` writes with merge — so the arm bought nothing and
+charged for it on every read of every invite document. A negative rules
+case pins its absence.
+
+Worth recording because the local gates did not catch it: `npm run lint`
+passes, and the tripwire lives in `npm run test:scripts`, which is a
+separate step of CI's lint job. Running `lint` locally and calling that
+"the lint job" is the mistake; the job is eight steps.
+
+### Erasure, and the checklist that caught it
+
+The PR template's access-surface section asks whether `deleteAccount`
+still erases what a change adds, *including data about a user stored
+under another user's documents*. It did not, in three places, and none of
+them is reachable by phase 1b's `recursiveDelete` of the profile:
+
+- **The handle registry row is keyed by the NAME**, so it lives outside
+  the profile subtree entirely. Leaving it is wrong twice: the document
+  holds the uid, and the name stays unclaimable forever for an account
+  that no longer exists.
+- **An invitation TO the account** sits under someone else's group — the
+  same shape as an inbound follow, which D101 already sweeps.
+- **An invitation FROM the account** sits in a stranger's inbox carrying
+  the erased user's display name, which is the half that outlives an
+  erasure most visibly.
+
+Plus `v2_ratelimits/invite_{uid}`, added beside the `join_` ledger the
+existing arm already deleted. All four are swept now, each with a control
+in the erasure e2e — another account's handle and an invitation between
+two other people must survive — because a sweep that takes the collection
+rather than the matching rows looks correct from the deleted side and is
+a catastrophe from everyone else's. The run reports
+`handle: 1, invitesTo: 1, invitesFrom: 1`.
+
+### Not done here
+
+- **No handle search-as-you-type.** Lookup is exact-id, which is what the
+  rules grant and all that "add @olaf" needs. A prefix search is a
+  listing and would need its own decision.
+- **No push on an invitation.** The only notification this product has
+  earned is "your reveal is out" (data/push.ts). An invitation waits
+  until you open the app.
+- **No handle on the who-voted sheet or Kindred rows.** Those name people
+  by `displayName` today; showing a handle there is how you would add
+  someone you met through their answers, and it is a follow-on.
+## D123 · The dedup gate learns morphology and synonyms, and pre-flights the batch against itself
+
+**Date:** 2026-08-13 · **Status:** Adopted
+
+**The problem, in two halves.** D63 gave every question lane a measured
+near-duplicate gate and named its own limit honestly: "a lexical metric
+scores a synonym rewrite at 0." Two years of lane upscaling later that
+limit binds harder than it did at adoption. The metric compared surface
+words — stopwords dropped, plural `-s` folded — so two whole classes of
+rewrite arrived at the human re-read with a reassuring number attached:
+
+- **Morphology.** "Master one thing, or dabble in many?" against
+  "Mastering one skill, or dabbling in many?" scored **0.143**. The same
+  question, in gerunds.
+- **Synonyms.** "Money buys happiness." against "Can wealth make you
+  happy?" scored **0.000** — not one shared token, and the archive
+  already carries the first as `dq06`.
+
+The second half is coverage rather than metric. Every lane's pre-flight
+is `check:neighbors -- --candidate` **per question**, which scores N
+candidates against the bank and never against each other. When D33 capped
+the daily lane at 4/run that was a small hole; D97 raised it to 8 and
+D115 gave learn 10/run with a floor of 4 cards into any field it touches
+— a lane now writes enough questions in one sitting to duplicate itself.
+CI's corpus scan does catch such a pair, but only after the branch is
+pushed and the PR exists, which is one human review too late for a gate
+whose whole design rests on not spending review capacity.
+
+**The fix, both halves in `scripts/question-neighbors.mjs`.**
+
+1. **Folding before the sets are built.** Suffix stripping to a
+   *fixpoint*, then a concept lexicon of ~30 synonym families. The
+   fixpoint is load-bearing, not tidiness: a single pass lands "master"
+   on "mast" (the `-er` rule cannot tell an agent noun from a word that
+   merely ends in those letters) but "mastering" on "master", leaving two
+   forms of one word further apart than they started. Iterating puts both
+   on "mast" — over-stripping is harmless when applied equally to every
+   form; a stem two forms *disagree about* is not.
+2. **`--batch <file.json>`**, taking the same candidates file
+   `check:quality --batch` already takes, so one file pre-flights both
+   gates. It scores every candidate against its domain **and against its
+   batch siblings**, prints the packet line the PR body wants, and exits
+   non-zero on any pair ≥ GATE.
+
+**The suffix table is measured, not copied from a stemmer.** Every rule
+merges at least one real pair in this corpus; the whole table merges 70
+groups of the 1130-token vocabulary, and each group was read. That is how
+the two collisions in `KEEP` were found rather than shipped: `-ing` puts
+"meaning" on "mean", and the corpus runs both senses ("Suffering can give
+life meaning." and "Are people getting kinder, or meaner?"); `-est` makes
+Everest "ever". The same reading is why the `e`-restore carries Porter's
+CVC condition ("moved" → "move" but "asked" stays "ask"), why the trailing
+`e` drops only above 4 characters (keeping "care" off "car"), and why the
+bare `-y` rule was dropped entirely — it alone produced car/carry,
+part/party, milk/milky and earl/early.
+
+**The price, measured and accepted.** Recall this size is not free. The
+closest legitimate pair across the five domains moved **0.333 → 0.400**
+(daily 0.286 → 0.333, feed 0.222 → 0.250, duel 0.300 → 0.400, pick and
+learn unchanged), so headroom under the 0.5 gate narrowed from 0.167 to
+0.100. That is the right trade rather than a regression, because the pair
+spending it is genuinely close: duel `gp2` "Who gives the best advice?"
+against `047` "Better at giving advice, or taking it?" — two questions
+about advice that the old metric scored 0.167 only because it could not
+see "gives" and "giving" as one word. **GATE stays 0.5**, and `ALLOW`
+stays the escape hatch D63 built: if a legitimate pair ever crosses, the
+answer is an entry with a reason, not a quieter metric.
+`question-neighbors.test.mjs` pins the margin *and names the pair that
+spends it*, so the next change to the metric has to look at what it costs
+instead of discovering it on a farm run.
+
+**Two alternatives measured and rejected**, recorded so nobody
+re-derives them. Character-trigram Dice and the overlap coefficient both
+fire hardest on shared **voice**, not shared question: "Music is mostly
+for…" against "This decade is mostly for…" trigrams at 0.605, and
+"Cinema or sofa?" against "Best way to watch a final?" overlaps at 0.500.
+Either as a gate would fail the product's own house style — reusing a
+prompt frame is how the archive sounds like one voice.
+
+**What this does NOT change, so the writing rule survives its own
+improvement.** The gate still cannot see a paraphrase carried by words
+the lexicon does not pair — "Are people getting kinder, or meaner?"
+against "Is kindness rising or falling?" scores 0.167, one shared concept
+and nothing else — nor two prompts asking one question through different
+imagery. D63's framing is unchanged and only its arithmetic moved: this
+is the measurable floor under the writing rule, not its replacement. The
+farm manual still says re-read every candidate against its nearest
+neighbour, and `check:neighbors` still reports rather than decides.
+Cross-surface corpus pairs also stay out of the gate (D63) — a daily and
+a feed may run one tension at different depths. Batch *siblings* are
+compared across domains regardless, because that is a different claim: an
+editorial call about two questions already shipped is not a licence to
+write the same question twice today.
+
+**Adding to the lexicon.** Two rules, both about holding the false-positive
+rate at the zero it measures today: a family's members must include at
+least one word in the live corpus vocabulary (this pairs words *this*
+product's writers reach for, not a thesaurus), and the corpus scan re-runs
+after adding — a family that moves a domain's closest legitimate pair is
+a family that will fail a real question. Three entries were removed under
+exactly that rule and are named in the script so they are not re-proposed:
+"chance" from luck (it also means opportunity), "rest" from sleep (it also
+means remainder), and "reading" from book (the act is not the object).
+
+## D124 · The bill gets its first ceilings: an idle detach, two unbounded reads closed, and the controls that live in a console
 
 **Decided:** 2026-08-13 · **Status:** binding · Extends D7's discipline and
 docs/COSTS.md's four corrections (D47, D67, D102 twice).
