@@ -13465,3 +13465,34 @@ release build does not face. CI measures the bundle that ships.
 `apple.whatsNew` stays *"First release."* — it is a **version** field, not
 a build field, and `MARKETING_VERSION` is still 2.0.0 with 6.2 unticked, so
 there has been no first release for it to be new against (D74).
+
+### Outcome, recorded the same day
+
+**Build 13 was uploaded by run 19** (`0e65741`, 2026-08-13, 6m 58s, upload
+step `success`, 1m 49s of that on the transfer). Both silent-failure gates
+passed at both ends — the archive carried the Firebase config and the
+`.ipa` came out `aps-environment = production` after being re-signed for
+distribution.
+
+It ran from `main`, after the prep above was squash-merged. The alternative
+— dispatching from the prep branch — was declined for a reason worth
+keeping: a squash merge gives the branch commit no permanent home, so the
+`VITE_RELEASE_TAG` baked into a shipped binary would have resolved to a SHA
+that no longer exists on any branch. A build on the test track outlives the
+branch that made it.
+
+**`appBuild` went to 14 as soon as that step read `success`**, which is the
+convention this entry exists to record having been skipped. Doing it in the
+same session is the point: the gap between "uploaded" and "bumped" is the
+whole failure, and it is measured in minutes of attention rather than days.
+
+**One process defect found while watching the run, and it is not about
+Apple.** The first two attempts to watch run 19 polled `api.github.com`
+directly and got `403 GitHub access is not enabled for this session` —
+GitHub is reachable from this environment only through the MCP tools. A
+poller that cannot authenticate prints nothing and keeps looping, so its
+silence is indistinguishable from a build still running. That is the same
+shape as the two entitlement gates: **a check whose failure mode is silence
+reports success by default.** The fix was to stop the blind watcher rather
+than let it stand in for one — worth naming because the instinct is to
+leave it armed and assume no news is good news.

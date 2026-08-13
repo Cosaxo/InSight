@@ -448,11 +448,18 @@ arithmetic.
       procedure and this paragraph is only its record**: where the two
       disagree, the run list wins.
 
-      **`appBuild` is now 13**, bumped on 2026-08-13 as soon as run 18's
-      upload was confirmed. **Build 12 is the highest on App Store
-      Connect**, so the comparison passes for the next run as-is.
+      **BUILD 13 UPLOADED 2026-08-13** (run 19, `0e65741`, 6m 58s, upload
+      step `success`, 1m 49s on the transfer). It went from `main` after
+      the prep was merged, so the released commit has a permanent home
+      rather than living on a branch that a squash would orphan.
 
-      **Build 13 is pre-flighted and unspent as of 2026-08-13 (D136).**
+      **`appBuild` is now 14**, bumped as soon as run 19's upload step
+      read `success` — the convention applied on the same day it was
+      written down for having been skipped once. **Build 13 is the highest
+      on App Store Connect**, so the comparison passes for the next run
+      as-is.
+
+      **Build 13 was pre-flighted and is now spent (D136).**
       13 > 12, verified against run 18 rather than assumed. Every gate in
       6.1 passes, along with the full suite: 969 client tests, 203
       function tests, 83 rules tests, 168 script tests, lint, `tsc -b`,
@@ -837,15 +844,16 @@ That is a tester-count problem, not a workflow problem.
       it for two policies is the worse trade. Both cover failures that look like nothing from the
       outside: the app keeps serving while the Mirror stops moving, or
       keeps moving while falling further behind. `DEPLOYMENT.md § Alerting`.
-- [x] **5.6 Version lockstep — holds at 2.0.0 build 13 (verified 2026-08-13).**
-      *This line has now been stale twice, both times one bump behind 2.4 —
-      it said build 11 on 2026-08-13, and build 12 later the same day.*
-      Harmless in itself and worth naming twice: it is the D39 shape — a
-      figure kept current by intention — inside the very step whose job is
-      to notice numbers disagreeing. Twice is a pattern rather than a slip,
-      and the honest reading is that this number will be wrong again. The
-      checker reads the three files and never this sentence, so run the
-      command rather than reading this line.
+- [x] **5.6 Version lockstep — holds at 2.0.0 build 14 (verified 2026-08-13).**
+      *This line has now been stale three times, always one bump behind 2.4
+      — build 11, then 12, then 13, all on 2026-08-13.*
+      Harmless in itself and worth naming every time: it is the D39 shape —
+      a figure kept current by intention — inside the very step whose job is
+      to notice numbers disagreeing. Three times in one day is not a slip,
+      and the honest reading is that this number will be wrong again; it is
+      quoted here only because deleting it would not make the step easier to
+      trust. The checker reads the three files and never this sentence, so
+      run the command rather than reading this line.
       `npm run check:versions` (`--fix` writes package.json's values into
       both native projects). `appBuild` + android `versionCode` + iOS
       `CURRENT_PROJECT_VERSION` — five numbers across three files — move
