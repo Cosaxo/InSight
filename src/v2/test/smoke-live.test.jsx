@@ -430,8 +430,12 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     localStorage.clear();
     mountLive();
     fireEvent.click(screen.getByRole("button", { name: /^mirror$/i }));
-    fireEvent.click(screen.getByRole("tab", { name: "Near" }));
-    fireEvent.click(await screen.findByRole("button", { name: "Foresight" }));
+    // City, not Near: Near is presence-only since D111 and carries no
+    // lenses. The tab row itself is static (D119), so it is a getBy —
+    // only the lens BODY is behind a chunk.
+    fireEvent.click(screen.getByRole("tab", { name: "City" }));
+    await openCity();
+    fireEvent.click(screen.getByRole("tab", { name: "Foresight" }));
     // The fixture's breakdown carries several readable slices, so the
     // game deals a card rather than its not-enough-answers arm. Which
     // slice comes first is the engine's ranking and belongs to its own
