@@ -21,7 +21,7 @@ const LIVE = vi.hoisted(() => ({
     on: () => false as boolean,
     count: () => null as number | null,
     tooFew: () => false as boolean,
-    updatedAt: () => 0,
+    updatedAt: () => 0 as number,
     lastError: () => null as string | null,
     enable: vi.fn(async () => ({ ok: true } as { ok: boolean; reason?: string })),
     disable: vi.fn(async () => {}),
@@ -37,6 +37,9 @@ beforeEach(() => {
   LIVE.near.on = () => false;
   LIVE.near.count = () => null;
   LIVE.near.tooFew = () => false;
+  LIVE.near.lastError = () => null;
+  LIVE.near.updatedAt = () => 0;
+  LIVE.near.refresh = () => {};
 });
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
@@ -115,5 +118,59 @@ describe("the Right now card (D84 — moved with the stop)", () => {
     render(<NearLiveBody />);
     fireEvent.click(screen.getByRole("button", { name: /Turn off/i }));
     expect(LIVE.near.disable).toHaveBeenCalled();
+  });
+});
+
+// ── the stall (reported from a device: "Near seems to never connect") ──
+//
+// The switch goes on, the first beat fails, and every beat after it is four
+// minutes apart — so the card sat on "Counting…" for the rest of the
+// session. The store had the reason the whole time (LIVE.near.lastError(),
+// set on every failed beat) and the card read it NOWHERE: the only consumer
+// of that member in the tree was this file's mock. These cases pin that the
+// reason reaches the screen and that there is a way out of it that does not
+// involve restarting the app.
+describe("a beat that fails says so, and offers a way out", () => {
+  it("a permission revoked mid-run replaces 'Counting…' with the reason", () => {
+    LIVE.near.on = () => true;
+    LIVE.near.count = () => null;
+    LIVE.near.lastError = () => "denied";
+    render(<NearLiveBody />);
+    expect(screen.queryByText(/Counting/i), "the card is still counting a count that failed").toBeNull();
+    expect(screen.getByText(/switched off for InSight/i)).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Try again/i })).toBeTruthy();
+  });
+
+  it("keeps a count that arrived earlier and dates it, rather than dropping it", () => {
+    // A failed beat does not invalidate the last good one — it makes it
+    // old. Blanking the number would throw away the only true thing on the
+    // card; showing it undated would claim it is current.
+    LIVE.near.on = () => true;
+    LIVE.near.count = () => 4;
+    LIVE.near.updatedAt = () => Date.now() - 9 * 60_000;
+    LIVE.near.lastError = () => "timeout";
+    render(<NearLiveBody />);
+    expect(screen.getByText(/4 people with InSight/i)).toBeTruthy();
+    expect(screen.getByText(/9 min ago/i)).toBeTruthy();
+  });
+
+  it("Try again runs another beat", async () => {
+    LIVE.near.on = () => true;
+    LIVE.near.lastError = () => "unavailable";
+    LIVE.near.refresh = vi.fn(() => {});
+    render(<NearLiveBody />);
+    fireEvent.click(screen.getByRole("button", { name: /Try again/i }));
+    expect(LIVE.near.refresh).toHaveBeenCalled();
+  });
+
+  it("says nothing about a failure while the counter is off", () => {
+    // lastError outlives a turn-off only if stopPresence missed it; either
+    // way an error read off a switched-off counter is last session's, and
+    // the card must not put it under a pitch that has not been accepted.
+    LIVE.near.on = () => false;
+    LIVE.near.lastError = () => "denied";
+    render(<NearLiveBody />);
+    expect(screen.queryByText(/switched off for InSight/i)).toBeNull();
+    expect(screen.queryByRole("button", { name: /Try again/i })).toBeNull();
   });
 });

@@ -158,7 +158,7 @@ question behind one stop, and D111 un-folded them.
 an empty cell means. They draw counts — an absent cell is zero and the
 panel says so, because since D98 nothing is held back at any size.
 
-Each also leads with its **constellation** (D112): you at the centre,
+Each also carries its **constellation** (D112): you at the centre,
 distance = unlikeness, computed rather than invented. City arranges the
 people of your city, ranked primarily by test-score match (answer
 agreement as the named fallback); Country arranges your country's cities
@@ -167,10 +167,14 @@ and the place's real averages. Tapping a place opens its profile — the
 average score per instrument axis, your own tick on every bar, and the
 answer count behind each number.
 
-Under that, the lens row (D99): the mix of who answered, and Kindred —
-the accounts whose answers most match yours. The counts above them are
-still counts, which is the right shape for a stop whose question is "how
-did this place answer" rather than "who is here".
+**Since D119 the stop is a tab row, not a scroll** (§3): `Answers ·
+Overview · People · Compare · Explore · Scores`, one open at a time, the
+prototype's nav v2 with Answers leading. It used to be the constellation
+on top, the answer rows under it, and a collapsed lens strip at the
+bottom — so Answers was the page and everything else was a drawer. Answers
+opens by default because it is the half that publishes from the first
+answer (D98) while the constellation waits on completed test scores; the
+field is one tap away under **Overview**.
 
 Since D100 they draw the **archive** rather than the week:
 `LIVE.aggregated()` is every question this device holds an aggregate for,
@@ -227,16 +231,22 @@ a lens row again:
 
 | Lens | State | Source |
 | --- | --- | --- |
-| **Answers** | **live**, and thinner than the prototype's | `LiveCohortBody` itself. Missing: branch filter, sort-by-divisive, expand-a-row. All three are computable from what is already loaded |
+| **Answers** | **live**, a peer tab since D119, the prototype's row since D120 | `ui/LiveAnswerRows.tsx` — headline + thin stack + your answer, expanding into labelled option bars (or a histogram for a `rating`) and a where-you-sit sentence. Readings from `cohort.headlineFor` / `cohort.standingIn`. Still no "newest": nothing the client holds dates an answer, so the row prints the answer count where the prototype prints a date |
 | **People** | **live** | the mix is `mixFor` over the deck's aggregates; Kindred is `agreement` over the cached voter lists, bounded at 12 of your own answers × the latest 200 voters each (D102) |
 | **Compare** | **live** | `pctFor` on your own option, ranked least-typical first — no new read |
 | **Explore** | **live** | `divergence` across the six breakdown dims. The v18 test-pole axis is the one part with no source, since test results are not a dim |
 | **Scores** | **live since D100** | `meanScore` over the bank's ordinal questions (`rating` + `scale`), your own score ticked onto each bar. The prototype's *place* scorecard joins the day `rate` questions are written — the lens filters on type |
-| **the field itself** | **live since D112** | `LiveSimilarityField` — the constellation the demo bodies drew from constants, now computed: kindred by scores on City, place profiles on Country/World |
+| **the field itself** | **live since D112**, the **Overview** tab since D119 | `LiveSimilarityField` — the constellation the demo bodies drew from constants, now computed: kindred by scores on City, place profiles on Country/World |
 
-The row is collapsed by default: opening the Mirror pays for none of it,
-and Kindred — the only lens that can cost a read the app has not already
-made — fetches on first view of its own tab.
+The row is the stop's navigation (`ui/MirrorLensTabs`, the prototype's
+`MirrorLensRow` ported to TSX over the same CSS), and the cost gate the
+collapsed strip used to carry survives the move for free: a tab body
+exists only while its tab is open, so Kindred and the similarity fold —
+the two readings that can cost a query the app has not already made —
+each run on the tap that asks for them and never because the stop was
+opened. The bodies behind the row are lazy chunks; the row itself is
+not, because a suspense gap where the navigation should be is a stop
+that looks broken.
 
 ## 4 · The passive half: tests that fill themselves
 
@@ -249,6 +259,20 @@ the minor lenses only since D91 — under D50 their answers were
 device-local self-reports with nothing aggregated; against a bank with
 no lens rows a lens card still degrades to that acknowledgment rather
 than inventing a crowd.)
+
+**Passive for real since D121.** Until then the feed filled the progress
+RING and nothing else: the only writer of a result was a sit-down flow, so
+an account that had answered forty test cards still opened its profile on
+an empty tab with a "Take this test →" button. That flow is gone —
+`test-overlay.jsx`, `window.openTest`, the daily's fast path — and
+`data/passiveProfile.ts` scores the instrument from your own feed answers
+instead, publishing a result once **every axis has at least two** behind
+it. Below that the tab draws its own progress and names the thin axes
+rather than a type, because the card draws an archetype and a rarity
+percentile and one answer per axis can produce both. Test and lens cards
+also gained **"later"** (`data/deferQueue.ts`): a deferral, not a pass —
+the card leaves the feed and returns in 20 hours, and keeps returning
+until it is answered.
 
 That is the loop that makes the Mirror worth opening twice: an answer
 feeds a result, the result becomes a *cut line* other people's answers can
@@ -341,7 +365,12 @@ Two gaps are worth stating in prose because no badge covers them:
 | who may read any of it | `firestore.rules` |
 | named who-voted — the cross-user read | `src/v2/data/voters.ts`, `src/v2/ui/LiveVotersPanel.tsx` |
 | the cohort folds (mix, slice, divergence, typicality, likeness) | `src/v2/data/cohort.ts` |
-| the live lens row | `src/v2/ui/LiveMirrorLenses.tsx` |
+| the live lens bodies | `src/v2/ui/LiveMirrorLenses.tsx` |
+| the live stop's tab row (D119) | `src/v2/ui/MirrorLensTabs.tsx` + `ui/lensTabs.ts` |
+| the live answer rows (D120) | `src/v2/ui/LiveAnswerRows.tsx` (ported from `spec/mirror-answers.jsx`) |
+| the passive fold + its threshold (D121) | `src/v2/data/passiveProfile.ts` |
+| "later" on a test card (D121) | `src/v2/data/deferQueue.ts` |
+| one hue per instrument (D121) | `TEST_HUE` in `src/v2/spec/test-definitions.js` |
 
 ## 7 · The decisions this file leans on
 

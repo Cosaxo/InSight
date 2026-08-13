@@ -20,6 +20,7 @@ import { Sheet } from './primitives.jsx';
 // The feed's cadence arithmetic — extracted so the test exercises THIS loop
 // rather than a copy of it (D11's claim, D42's citation; see the module).
 import { interleaveFeed, partitionAnswered } from '../data/feed-interleave.ts';
+import { deferUntil, isDeferred, pruneDeferred } from '../data/deferQueue.ts';
 // The live world-takes surface (D83) — an ordinary ESM import of the typed
 // panel, like the data imports above, so the D39 coupling meter stays flat.
 import LiveTakesPanel from '../ui/LiveTakesPanel.tsx';
@@ -44,6 +45,11 @@ const WF_LS = 'insight.feedVotes.v1';
 const WF_REPLIES_LS = 'insight.feedReplies.v1';
 const WF_TAKES_LS = 'insight.feedTakes.v1';
 const WF_PASS_LS = 'insight.feedPass.v1';
+// The deferral list (D121) — id → when it may be served again. Its own key
+// rather than a value shape inside the pass list, because the two answer
+// different questions: a pass is "not this one" and holds forever, a
+// deferral is "not now" and expires.
+const WF_DEFER_LS = 'insight.feedDefer.v1';
 // where a vote lands on your Mirror — the ripple line after answering
 const WF_BRANCH = { food: 'Food', sport: 'Body', movies: 'Taste', music: 'Taste', tech: 'Mind', culture: 'Values', dilemma: 'Morals', event: 'Mind', people: 'Values', bigq: 'Values', fav: 'Taste' };
 const WF_TOPICS = window.WORLD_TOPICS || [];
@@ -195,7 +201,7 @@ function WFFlipList({ rows, order, gap }) {
 const WF_FRIENDS = [{ name: 'Alex', init: 'A' }, { name: 'Mia', init: 'M' }, { name: 'Jordi', init: 'J' }, { name: 'Sara', init: 'S' }, { name: 'Noah', init: 'N' }, { name: 'Elif', init: 'E' }];
 
 class WorldFeed extends React.Component {
-  state = { votes: wfLoad(), knowRes: {}, pickQ: {}, pending: {}, open: {}, panels: {}, dims: {}, cutAxis: {}, boosts: {}, vh: 0, beat: null, sheet: null, sideFilter: null, reportFor: null, replyTo: null, replies: wfLoadReplies(), myTakes: wfLoadTakes(), minds: {}, ctrIdx: {}, takeSort: 'mind', whyFor: null, headHide: false, sort: 'hot', passed: wfLoadMap(WF_PASS_LS), ripple: null, liveTakesOpen: {}, editFor: {}, editHold: null, doneOpen: false };
+  state = { votes: wfLoad(), knowRes: {}, pickQ: {}, pending: {}, open: {}, panels: {}, dims: {}, cutAxis: {}, boosts: {}, vh: 0, beat: null, sheet: null, sideFilter: null, reportFor: null, replyTo: null, replies: wfLoadReplies(), myTakes: wfLoadTakes(), minds: {}, ctrIdx: {}, takeSort: 'mind', whyFor: null, headHide: false, sort: 'hot', passed: wfLoadMap(WF_PASS_LS), deferred: wfLoadMap(WF_DEFER_LS), ripple: null, liveTakesOpen: {}, editFor: {}, editHold: null, doneOpen: false };
 
   // Feature flags, carried over from the prototype so each idea can be
   // switched off from the host without editing this file. Default ON; the
@@ -283,7 +289,7 @@ class WorldFeed extends React.Component {
       // the OLD account's answered-ness, and a new account inheriting it
       // would open on a feed sorted by someone else's history.
       this._sunk = null;
-      this.setState({ votes: {}, passed: {}, myTakes: {}, replies: {}, knowRes: {}, pickQ: {}, editFor: {}, editHold: null });
+      this.setState({ votes: {}, passed: {}, deferred: {}, myTakes: {}, replies: {}, knowRes: {}, pickQ: {}, editFor: {}, editHold: null });
     };
     window.addEventListener('insight:local-purge', this._onPurge);
     // entrance: each card rises as it first scrolls into view (transform-only)
@@ -365,6 +371,22 @@ class WorldFeed extends React.Component {
       if (on) passed[id] = 1; else delete passed[id];
       try { localStorage.setItem(WF_PASS_LS, JSON.stringify(passed)); } catch { /* best-effort */ }
       return { passed };
+    });
+  }
+
+  // Defer a test or lens question — "not now", and it comes back (D121).
+  //
+  // Local only, for the same reason a pass is: a deferral is not an answer
+  // (D5), so recording one would either pollute the aggregate or need a
+  // second write path per question for something the user asked to be
+  // shown again later.
+  setDefer(id, on) {
+    this.setState((s) => {
+      const now = Date.now();
+      const deferred = pruneDeferred({ ...s.deferred }, now);
+      if (on) deferred[id] = deferUntil(now); else delete deferred[id];
+      try { localStorage.setItem(WF_DEFER_LS, JSON.stringify(deferred)); } catch { /* best-effort */ }
+      return { deferred };
     });
   }
 
@@ -672,7 +694,14 @@ class WorldFeed extends React.Component {
       return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: big ? 12 : 9 }}>
           <div style={{ alignSelf: 'center', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: big ? 40 : 32, letterSpacing: '-0.03em', color: pend != null ? WPAL.ink(T.color) : 'var(--ink-3)', fontVariantNumeric: 'tabular-nums', transition: 'color 0.15s' }}>{this.dialFmt(q, lo + frac * (hi - lo))}</div>
-          <div role="slider" tabIndex={0} aria-label={q.prompt + ' — arrow keys to adjust, Enter to answer'}
+          {/* data-nopan: this control OWNS its horizontal drag (OWNS_X,
+              swipe-back.js). touchAction:'none' stops the browser from
+              scrolling under the drag, but it does not stop touch events
+              reaching daily-split's mode-swipe listener on the scroller
+              above — so answering a dial also slid the mode axis, and past
+              1v1 that slide leaves the tab entirely. Same mark, same
+              reason, as the Mirror ruler. */}
+          <div role="slider" tabIndex={0} data-nopan="" aria-label={q.prompt + ' — arrow keys to adjust, Enter to answer'}
             aria-valuemin={lo} aria-valuemax={hi} aria-valuenow={Math.round(lo + frac * (hi - lo))} aria-valuetext={this.dialFmt(q, lo + frac * (hi - lo))}
             style={{ position: 'relative', height: 44, touchAction: 'none', cursor: 'pointer' }}
             onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); move(e); }}
@@ -3122,12 +3151,19 @@ class WorldFeed extends React.Component {
 
   renderCard(q, flags) {
     const F = flags || {};
-    if (this.state.passed[q.id]) {
+    // Passed (permanent) and deferred (until tomorrow) draw the same slim
+    // row — the difference is what happens on the NEXT visit, where the
+    // deferred one is gone from the stream entirely rather than sitting
+    // here. Both stay tappable in THIS sitting so an accidental skip costs
+    // one tap to undo; the wait only starts mattering once the feed is
+    // rebuilt.
+    const held = this.state.passed[q.id] ? 'pass' : (this.state.deferred || {})[q.id] ? 'defer' : null;
+    if (held) {
       return (
-        <button key={q.id} onClick={() => this.setPass(q.id, false)} style={{ border: WF_LINE, borderRadius: 14, background: 'transparent', padding: '11px 14px', display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', textAlign: 'left', WebkitAppearance: 'none' }}>
+        <button key={q.id} onClick={() => (held === 'pass' ? this.setPass(q.id, false) : this.setDefer(q.id, false))} style={{ border: WF_LINE, borderRadius: 14, background: 'transparent', padding: '11px 14px', display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', textAlign: 'left', WebkitAppearance: 'none' }}>
           <span aria-hidden="true" style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--ink-3)', flexShrink: 0 }}></span>
           <span style={{ flex: 1, minWidth: 0, fontFamily: 'var(--sans)', fontWeight: 600, fontSize: 13, color: 'var(--ink-3)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{q.prompt}</span>
-          <span style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 11, color: 'var(--ink-3)', flexShrink: 0 }}>undo</span>
+          <span style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 11, color: 'var(--ink-3)', flexShrink: 0 }}>{held === 'defer' ? 'later \u00b7 undo' : 'undo'}</span>
         </button>
       );
     }
@@ -3229,11 +3265,21 @@ class WorldFeed extends React.Component {
         {q.type === 'field' && this.renderField(q, T, snap)}
         {q.type === 'know' && this.renderKnow(q, T, snap)}
         {q.type === 'pick' && this.renderPick(q, T, snap)}
-        {/* skip: only before answering, and never on a test/lens question —
-            those fill an instrument, so a silent skip would read as a gap in
-            your own results rather than a question you passed on */}
-        {!answered && this.opts.pass && !mk && (
-          <button className="press" onClick={() => this.setPass(q.id, true)} style={{ alignSelf: 'center', border: 'none', background: 'none', padding: '6px 16px', marginTop: 2, cursor: 'pointer', fontFamily: 'var(--sans)', fontWeight: 500, fontSize: 13, color: 'var(--ink-3)', WebkitAppearance: 'none' }}>skip</button>
+        {/* Skip, before answering only, and it means two different things.
+            On a world card it is a PASS: permanent, sinks to a slim row,
+            "not this one".
+            On a test or lens card it is a DEFERRAL (D121): the card leaves
+            the feed and comes back tomorrow. These cards had no skip at
+            all, on the reasoning that a silent skip would read as a gap in
+            your own results — true of a pass, and the reason this is not
+            one. The instrument's denominator does not move, the profile
+            still names the axis as thin, and the question returns until it
+            is answered. "later" rather than "skip", because the word is
+            the promise. */}
+        {!answered && this.opts.pass && (
+          <button className="press"
+            onClick={() => (mk ? this.setDefer(q.id, true) : this.setPass(q.id, true))}
+            style={{ alignSelf: 'center', border: 'none', background: 'none', padding: '6px 16px', marginTop: 2, cursor: 'pointer', fontFamily: 'var(--sans)', fontWeight: 500, fontSize: 13, color: 'var(--ink-3)', WebkitAppearance: 'none' }}>{mk ? 'later' : 'skip'}</button>
         )}
         {answered && this.state.beat !== q.id && q.type !== 'know' && q.type !== 'pick' && this.renderEngage(q, T, snap)}
         {snap && !answered && <div aria-hidden="true" style={{ flex: '1 1 0' }}></div>}
@@ -3346,13 +3392,25 @@ class WorldFeed extends React.Component {
     // testFor() returns null for any key PASSIVE.META has dropped, so this
     // fences the next retirement too without naming it.
     const testSplit = partitionAnswered((window.TEST_FEED_QS || []).filter((q) => PASSIVE.testFor(q)), sunk);
-    const tqs = testSplit.fresh;
+    // Deferred items leave the stream until their wait is up (D121).
+    //
+    // Sampled ONCE per build, like `sunk` above and for the same reason: a
+    // card deferred mid-scroll keeps its place until the next visit, so the
+    // tap that says "later" does not vanish the row under the thumb. It
+    // leaves on the next rebuild, which is when "later" starts.
+    //
+    // Filtered here rather than inside partitionAnswered because a deferral
+    // is not an answer: it must not join the `done` half, which is the
+    // record of what you have said.
+    const heldNow = Date.now();
+    const notHeld = (q) => !isDeferred(this.state.deferred, q.id, heldNow);
+    const tqs = testSplit.fresh.filter(notHeld);
     // LENS_FEED_QS is a builder, not an array: the lens pool differs between
     // demo and live, and liveness lands only after boot — so the feed asks
     // at build time rather than keeping a snapshot (lens-defs.js says why).
     const lensQs = window.LENS_FEED_QS;
     const lensSplit = partitionAnswered(typeof lensQs === 'function' ? lensQs() : [], sunk);
-    const lqs = lensSplit.fresh;
+    const lqs = lensSplit.fresh.filter(notHeld);
     // What the expander holds, in the same order the feed would have
     // shown it: the world's record first, then the test and lens streams'.
     const doneList = [...worldSplit.done, ...testSplit.done, ...lensSplit.done];

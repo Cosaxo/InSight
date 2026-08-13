@@ -67,6 +67,29 @@ export const IS_TEST_RESULTS = {
   },
 };
 
+// ── one hue per instrument (D121) ──────────────────────────────────
+//
+// There were TWO of these, and they disagreed. `RP_TESTS[k].banner`
+// (result-rose.jsx) coloured the result card; `PASSIVE.META[k].accent`
+// (passive-progress.js) coloured the progress sheet's rings, pips and
+// rows. On values and attachment they were not even close — the sheet drew
+// Values in rose and Social in violet while the card drew Values violet
+// and Social green — so the same instrument changed colour between the
+// screen that says how full it is and the screen that says what it found.
+//
+// The sheet's palette wins because it is the one built from the app's own
+// tokens: --c-around / --c-world / --c-people are the same four accents
+// the daily's modes and the Mirror's stops already run on, so an
+// instrument reads as part of the app rather than as its own chart.
+// Violet has no token (nothing else in the app is violet), which is why
+// Social's is written out.
+export const TEST_HUE = {
+  big5:       'var(--c-around)',
+  political:  'var(--c-world)',
+  values:     'var(--c-people)',
+  attachment: 'oklch(0.52 0.13 320)',
+};
+
 // Typical-person baselines per dimension — used to show "you vs. most people".
 // Grounded, not precise: enough to give every score a reference point.
 export const IS_TEST_AVG = {

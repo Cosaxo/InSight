@@ -32,7 +32,7 @@
 // the ones the real store would never produce twice in a row.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
@@ -339,8 +339,12 @@ describe("LiveCohortBody · it shows counts, never people (D5)", () => {
     for (const name of ["Sigrid", "Bø", "match", "away"]) {
       expect(text.includes(name), `the cohort panel rendered "${name}"`).toBe(false);
     }
-    // …and it does show the thing it is for.
-    expect(text).toMatch(/12 answers/);
+    // …and it does show the thing it is for: the headline reading (7 of 12
+    // is 58% Yes) and the count behind it.
+    expect(text).toMatch(/58%/);
+    // getAllBy: this fixture gives both questions the same cell, so both
+    // rows carry the same count.
+    expect(screen.getAllByText("12").length, "the row does not say how many answered").toBeGreaterThan(0);
   });
 });
 
@@ -417,13 +421,18 @@ describe("LiveCohortBody · the Answers lens can be narrowed and re-ordered", ()
     LIVE.myVotes = () => ({ q1: "1" });
   });
 
-  const rowOrder = () => screen.getAllByRole("button", { expanded: false })
-    .map((b) => b.textContent || "")
-    .filter((t) => /agrees|heat|between/.test(t));
+  // Every row is a button carrying aria-expanded, open or closed — since
+  // D120 the FIRST one opens by default (the prototype's behaviour: a tab
+  // that opens onto a closed list reads as a table of contents), so
+  // selecting on `expanded: false` would silently drop the top row and
+  // make every ordering assertion below start at the second.
+  const rowOrder = () => [...document.querySelectorAll("button[aria-expanded]")]
+    .map((b) => (b.textContent || "").match(/Almost everyone agrees|Dead heat|Somewhere between/)?.[0])
+    .filter((t): t is string => !!t);
 
   it("defaults to most answers first", () => {
     render(<LiveCohortBody scope="city" />);
-    expect(rowOrder().map((t) => t.replace(/[+–]$/, ""))).toEqual([
+    expect(rowOrder()).toEqual([
       "Somewhere between", "Almost everyone agrees", "Dead heat",
     ]);
   });
@@ -431,13 +440,12 @@ describe("LiveCohortBody · the Answers lens can be narrowed and re-ordered", ()
   it("sorts by divisiveness, and by agreement as its exact inverse", () => {
     render(<LiveCohortBody scope="city" />);
     fireEvent.click(screen.getByRole("button", { name: "Most divisive" }));
-    const divisive = rowOrder().map((t) => t.replace(/[+–]$/, ""));
+    const divisive = rowOrder();
     expect(divisive[0]).toBe("Dead heat");
     expect(divisive[2]).toBe("Almost everyone agrees");
 
     fireEvent.click(screen.getByRole("button", { name: "Most agreed" }));
-    const agreed = rowOrder().map((t) => t.replace(/[+–]$/, ""));
-    expect(agreed).toEqual(divisive.slice().reverse());
+    expect(rowOrder()).toEqual(divisive.slice().reverse());
   });
 
   it("filters to one subject and drops the rest", () => {
@@ -450,22 +458,24 @@ describe("LiveCohortBody · the Answers lens can be narrowed and re-ordered", ()
     expect(screen.getByRole("button", { name: /Dead heat/ })).toBeTruthy();
   });
 
-  it("expands a row into per-option counts with your own answer named", () => {
+  it("expands a row into per-option counts and places you in the split", () => {
     render(<LiveCohortBody scope="city" />);
     fireEvent.click(screen.getByRole("button", { name: /Almost everyone agrees/ }));
-    // The point of expanding: 5% is too thin to label on the bar, so the
-    // count only exists in this view.
+    // The point of expanding: 5% is too thin to label on the collapsed
+    // stack, so the count only exists in this view.
     expect(screen.getByText("19")).toBeTruthy();
     expect(screen.getByText("1")).toBeTruthy();
     // Named, not merely tinted — a colour difference is not a reading.
-    expect(screen.getByText(/your answer/i)).toBeTruthy();
+    // Said as a sentence since D120, which is a stronger version of the
+    // same claim: it names your side AND how much of the room is on it.
+    expect(screen.getByText(/5% of Oslo are with you/i)).toBeTruthy();
   });
 
   it("says you have not answered rather than marking an option", () => {
     render(<LiveCohortBody scope="city" />);
     fireEvent.click(screen.getByRole("button", { name: /Dead heat/ }));
     expect(screen.getByText(/you have not answered this one/i)).toBeTruthy();
-    expect(screen.queryByText(/your answer/i)).toBeNull();
+    expect(screen.queryByText(/are with you/i)).toBeNull();
   });
 
   it("hides the controls when there is nothing to narrow", () => {
@@ -484,5 +494,87 @@ describe("LiveCohortBody · the Answers lens can be narrowed and re-ordered", ()
     render(<LiveCohortBody scope="city" />);
     expect(screen.queryByRole("button", { name: /^All / })).toBeNull();
     expect(screen.getByRole("button", { name: "Most divisive" })).toBeTruthy();
+  });
+});
+
+// ── the stop's tab row (D119) ─────────────────────────────────────────
+//
+// The layout the prototype has always specified and live mode never got:
+// Answers is a TAB beside the constellation and the four lenses, not the
+// page they hang under. What these cases hold is the pair of properties
+// the change is easy to get wrong on — that Answers is what a stop opens
+// on, and that the cost gate the old collapsed strip was carrying
+// survives the move.
+describe("LiveCohortBody · the lens row is the stop's tabs", () => {
+  const ARCHIVE = [
+    { id: "q1", text: "Almost everyone agrees", branch: "Mind", type: "binary", options: [{ label: "Yes" }, { label: "No" }] },
+  ];
+
+  // The cost case swaps two loaders on the shared mock; put them back so
+  // the leak stops at this describe rather than at the end of the file.
+  const realKindred = LIVE.loadKindred;
+  const realSimilarity = LIVE.loadSimilarity;
+
+  beforeEach(() => {
+    LIVE.aggregated = () => ARCHIVE;
+    LIVE.aggFor = () => ({ by: { city: { "Oslo, NO": { "0": 19, "1": 1 } } } });
+    LIVE.myVotes = () => ({});
+  });
+  afterEach(() => { LIVE.loadKindred = realKindred; LIVE.loadSimilarity = realSimilarity; });
+
+  const tabs = () => screen.getByRole("tablist", { name: /lenses/i });
+  const tab = (name: string) =>
+    [...tabs().querySelectorAll('[role="tab"]')].find((b) => b.textContent?.trim() === name) as HTMLElement;
+
+  it("offers six tabs and opens on Answers", () => {
+    render(<LiveCohortBody scope="city" />);
+    for (const name of ["Answers", "Overview", "People", "Compare", "Explore", "Scores"]) {
+      expect(tab(name), `the row is missing its ${name} tab`).toBeTruthy();
+    }
+    expect(tab("Answers").getAttribute("aria-selected")).toBe("true");
+    // …and Answers is a body, not a label: the rows are on screen.
+    expect(screen.getByText("Almost everyone agrees")).toBeTruthy();
+  });
+
+  it("swaps the body when a tab is picked, and puts it back", () => {
+    render(<LiveCohortBody scope="city" />);
+    fireEvent.click(tab("Compare"));
+    expect(tab("Compare").getAttribute("aria-selected")).toBe("true");
+    expect(
+      screen.queryByText("Almost everyone agrees"),
+      "the answer rows stayed on screen under another tab — the tabs are stacking, not swapping",
+    ).toBeNull();
+    fireEvent.click(tab("Answers"));
+    expect(screen.getByText("Almost everyone agrees")).toBeTruthy();
+  });
+
+  it("costs nothing for a tab nobody opened, and pays as soon as one is", async () => {
+    // The property the old collapsed strip existed for, restated for
+    // tabs: People pays for voter lists the viewer has not asked for and
+    // Overview pays for the similarity fold, so neither may run because
+    // the stop was opened.
+    //
+    // Both bodies are React.lazy, so the flush matters: assert on a
+    // synchronous render and the case passes for the wrong reason — the
+    // chunk simply has not resolved yet, which would be just as true if
+    // the body were mounted unconditionally. Each half therefore awaits a
+    // real settle, and the second half is what proves the first is
+    // measuring a gate rather than a pending import.
+    const kindred = vi.fn(async () => {});
+    const similarity = vi.fn(async () => {});
+    LIVE.loadKindred = kindred;
+    LIVE.loadSimilarity = similarity;
+    render(<LiveCohortBody scope="city" />);
+    // Long enough for a lazy chunk to have resolved and its effects to
+    // have run, had one been mounted.
+    await act(async () => { for (let i = 0; i < 20; i++) await Promise.resolve(); });
+    expect(kindred, "Kindred was fetched for a People tab nobody opened").not.toHaveBeenCalled();
+    expect(similarity, "the similarity fold ran for an Overview nobody opened").not.toHaveBeenCalled();
+
+    fireEvent.click(tab("People"));
+    await vi.waitFor(() => {
+      expect(kindred, "opening People fetched nothing — the gate above guards nothing").toHaveBeenCalled();
+    });
+    expect(similarity, "Overview loaded behind another tab").not.toHaveBeenCalled();
   });
 });

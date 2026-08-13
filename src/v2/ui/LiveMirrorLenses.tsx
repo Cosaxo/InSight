@@ -27,9 +27,11 @@
 // city or your own outlook. The lens filters on TYPE, so place-rating
 // questions join it the day someone writes them, with no code change.
 //
-//   Answers  is not in this row because the panel this row sits inside IS
-//            the Answers lens (LiveCohortBody). D100 gave it the branch
-//            filter, the sort and the expand-a-row it was missing.
+//   Answers  is NOT in this file, and since D119 that is a division of
+//            labour rather than an absence: it is the host's own body
+//            (LiveCohortBody) and a peer tab in the row above, not the
+//            page these four hang under. D100 gave it the branch filter,
+//            the sort and the expand-a-row it was missing.
 //
 // Every reading here is drawn from documents already fetched for another
 // purpose — the deck's aggregates and the who-voted voter lists — with the
@@ -44,7 +46,7 @@ import {
 // The row's own types and labels live next door: eslint's react-refresh
 // rule wants a component file to export only components, and it is right
 // that a constant shared with the host does not belong in one.
-import { LENS_LABEL, ORDINAL_TYPES, type LensId, type LensQuestion } from "./lensDefs";
+import { ORDINAL_TYPES, type LensId, type LensQuestion } from "./lensDefs";
 
 const LL_LINE = "1px solid color-mix(in oklch, var(--rule), transparent 25%)";
 
@@ -391,37 +393,28 @@ function ScoresLens({ qs, shortName }: { qs: LensQuestion[]; shortName: string }
   );
 }
 
-// ── the row ─────────────────────────────────────────────────────────
+// ── the body ────────────────────────────────────────────────────────
+//
+// CONTROLLED SINCE D119. This module used to own the row as well: four
+// text buttons with their own open/closed state, sitting BELOW the answer
+// rows, collapsed by default. The row is now the stop's tab bar
+// (ui/MirrorLensTabs), Answers is a peer tab rather than the page these
+// lenses hang off, and the selection lives with the host — so this
+// renders one lens and nothing else.
+//
+// The cost gate that comment carried is unchanged and is now structural
+// rather than a default: a lens body exists only while its tab is the
+// open one, so People still pays for voter lists exactly when someone
+// asks for People and never because something scrolled into view.
 
-function LiveMirrorLenses({ qs, shortName }: { qs: LensQuestion[]; shortName: string }) {
-  const [lens, setLens] = React.useState<LensId | null>(null);
+function LiveMirrorLenses({ lens, qs, shortName }: {
+  lens: LensId;
+  qs: LensQuestion[];
+  shortName: string;
+}) {
   if (!LIVE.enabled) return null;
-
   return (
-    <div style={{ marginTop: 20, borderTop: LL_LINE, paddingTop: 14 }}>
-      <div style={{ display: "flex", gap: 18, marginBottom: lens ? 14 : 0 }}>
-        {(Object.keys(LENS_LABEL) as LensId[]).map((id) => {
-          const on = lens === id;
-          return (
-            <button key={id} aria-pressed={on} onClick={() => setLens(on ? null : id)} style={{
-              position: "relative", border: "none", background: "none", padding: "0 0 8px",
-              cursor: "pointer", fontFamily: "var(--sans)", fontSize: 13,
-              fontWeight: on ? 800 : 600, color: on ? "var(--ink)" : "var(--ink-3)",
-              WebkitAppearance: "none",
-            }}>
-              {LENS_LABEL[id]}
-              <span aria-hidden="true" style={{
-                position: "absolute", left: 0, right: 0, bottom: 0, height: 2.5, borderRadius: 99,
-                background: "var(--accent)", opacity: on ? 1 : 0,
-              }}></span>
-            </button>
-          );
-        })}
-      </div>
-      {/* Collapsed by default, and that is the cost gate as much as a
-          layout choice: People pays for voter lists the user has not
-          opened, so it must not load because the tab below it scrolled
-          into view. */}
+    <div style={{ paddingTop: 14 }}>
       {lens === "people" && <PeopleLens qs={qs} />}
       {lens === "compare" && <CompareLens qs={qs} shortName={shortName} />}
       {lens === "scores" && <ScoresLens qs={qs} shortName={shortName} />}

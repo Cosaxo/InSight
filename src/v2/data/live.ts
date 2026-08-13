@@ -1356,47 +1356,73 @@ const nearState = {
   updatedAt: 0,
   lastError: null as string | null,
   timer: null as ReturnType<typeof setInterval> | null,
-  busy: false,
+  inFlight: null as Promise<void> | null,
 };
 
-async function presenceBeat(): Promise<void> {
-  if (nearState.busy || !nearOptedIn() || !LIVE.enabled) return;
-  if (typeof document !== "undefined" && document.hidden) return;
-  nearState.busy = true;
+// One beat. `cell` lets a caller that ALREADY holds a fresh fix hand it over
+// instead of paying for a second one: enable() has just resolved a cell to
+// decide whether the opt-in could succeed at all, and asking the OS again one
+// tick later is a second round trip that can fail on its own — leaving the
+// switch ON, the count null, and the card reading "Counting…" with nothing
+// behind it. That is the shape the field reported: Near never connects.
+async function runBeat(cell?: string): Promise<void> {
   try {
-    const fix = await locateCell();
+    const fix = cell ? ({ ok: true, cell } as const) : await locateCell();
     if (!fix.ok) {
-      // A failed beat is quiet: permission was granted at opt-in, so this
-      // is indoors/transient. The stale count keeps its timestamp and the
-      // UI says how old it is rather than pretending.
+      // A failed beat does not un-opt-in: permission was granted at opt-in,
+      // so this is usually indoors/transient. It is NOT quiet, though —
+      // lastError is what the card reads to say why the count is missing or
+      // old, rather than counting forever.
       nearState.lastError = fix.reason;
       return;
     }
-    nearState.lastError = null;
     const uid = state.uid;
-    if (!uid) return;
+    // No session, no write and no count — and saying so beats clearing the
+    // error and then stalling with nothing to explain it.
+    if (!uid) { nearState.lastError = "unavailable"; return; }
     const db = await getDb();
     await setDoc(doc(db, "v2_presence", uid), { cell: fix.cell, at: serverTimestamp() });
     const res = await callable<{ n?: number; tooFew?: boolean }>("nearbyCountV2", { cell: fix.cell });
     nearState.tooFew = res.tooFew === true;
     nearState.count = typeof res.n === "number" ? res.n : nearState.tooFew ? null : 0;
     nearState.updatedAt = Date.now();
+    // Cleared only once a count is actually in hand: clearing it beside the
+    // fix (where it used to sit) marked the round healthy before the two
+    // calls that most often fail had run.
+    nearState.lastError = null;
   } catch (err) {
     nearState.lastError = "unavailable";
     reportError(err, { where: "presenceBeat" });
-  } finally {
-    nearState.busy = false;
-    notify();
   }
 }
 
-function startPresence(): void {
-  if (nearState.timer) return;
-  nearState.timer = setInterval(() => { void presenceBeat(); }, PRESENCE_BEAT_MS);
-  if (typeof document !== "undefined") {
-    document.addEventListener("visibilitychange", presenceOnVisible);
+// A beat already in flight IS this beat, so a second caller gets the same
+// promise rather than an instantly-resolved one. That is what lets the
+// card's "Try again" stop when there is an answer instead of one tick after
+// the tap.
+function presenceBeat(cell?: string): Promise<void> {
+  if (!nearOptedIn() || !LIVE.enabled) return Promise.resolve();
+  if (typeof document !== "undefined" && document.hidden) return Promise.resolve();
+  if (nearState.inFlight) return nearState.inFlight;
+  const run = runBeat(cell).finally(() => { nearState.inFlight = null; notify(); });
+  nearState.inFlight = run;
+  return run;
+}
+
+// Returns the first beat so a caller can wait for it — enable() does, and
+// that is the difference between a switch that flips to a number and one
+// that flips to "Counting…". Beating even when the loop is already running
+// is deliberate and cheap: the in-flight guard collapses a duplicate, and
+// the only caller that can hit it is a reconnect, where a fresh count is
+// what you want anyway.
+function startPresence(cell?: string): Promise<void> {
+  if (!nearState.timer) {
+    nearState.timer = setInterval(() => { void presenceBeat(); }, PRESENCE_BEAT_MS);
+    if (typeof document !== "undefined") {
+      document.addEventListener("visibilitychange", presenceOnVisible);
+    }
   }
-  void presenceBeat();
+  return presenceBeat(cell);
 }
 
 function presenceOnVisible(): void {
@@ -1444,7 +1470,17 @@ const NEAR = {
     const fix = await locateCell();
     if (!fix.ok) return { ok: false, reason: fix.reason };
     setNearOptIn(true);
-    startPresence();
+    // The fix just resolved goes straight into the first beat — see
+    // presenceBeat's `cell` — and the tap WAITS for it. The button is
+    // already spinning through the location fix; carrying it through the
+    // count is what makes the switch and the number appear together
+    // instead of flipping to "Counting…" and hoping.
+    //
+    // Still {ok:true} if that beat fails: the opt-in itself succeeded and
+    // presence IS being shared, so reverting the switch would be a lie
+    // about what the phone is doing. The card's stall row owns the
+    // explanation from here.
+    await startPresence(fix.cell);
     return { ok: true };
   },
   // Opt out: stop the loop AND delete the doc — "stop sharing" must not
@@ -1462,8 +1498,11 @@ const NEAR = {
       reportError(err, { where: "presenceDisable" });
     }
   },
-  refresh(): void {
-    void presenceBeat();
+  // Awaitable, so the card's "Try again" can show a pending state and stop
+  // when the beat actually settles. Fire-and-forget callers are unaffected —
+  // an ignored promise is the old behaviour.
+  refresh(): Promise<void> {
+    return presenceBeat();
   },
 };
 

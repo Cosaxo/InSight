@@ -4,17 +4,17 @@
 // test. The shared harness, and the reasoning for all five files, is in
 // ./mount-app.jsx.
 //
-// WHY THE CROSS-LINK OVERLAYS ARE HERE AT ALL. Six of them have no header
-// button: `test`, `relmap`, `logic` and `suggest` are opened by other
-// components calling `window.openTest()` / `window.openOverlay('relmap')` / …,
-// and `person` and `city` by name lookup into the sample data. Nothing mounted
-// them, which made them the largest block of this layer that no test executed —
-// ~130 KB of the shipped bundle, including the two biggest single components
-// after the feed (relmap.jsx and test-overlay.jsx).
+// WHY THE CROSS-LINK OVERLAYS ARE HERE AT ALL. Five of them have no header
+// button: `relmap`, `logic` and `suggest` are opened by other components
+// calling `window.openOverlay('relmap')` / …, and `person` and `city` by name
+// lookup into the sample data. Nothing mounted them, which made them the
+// largest block of this layer that no test executed — ~130 KB of the shipped
+// bundle, including the biggest single component after the feed (relmap.jsx).
 //
-// The retired-test block rides in the same file because it reaches the app the
-// same way (openTest) and because its picker cases and the cross-link cases
-// would otherwise pay for two separate app loads to walk the same screen.
+// SIX until D121, when `test` and the overlay behind it were deleted: the four
+// core instruments fill from the feed and have no sit-down flow. Every case
+// below that reached a surface through the picker now reaches it through the
+// profile, which is where those surfaces live.
 
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, screen } from "@testing-library/react";
@@ -27,15 +27,6 @@ vi.setConfig({ testTimeout: SMOKE_TIMEOUT_MS });
 registerSmokeHooks();
 
 describe("the overlays with no button — opened through window.*", () => {
-  it("opens the test flow on its picker", async () => {
-    const expectNoBoundary = mountApp();
-    // No argument = the selection screen rather than a specific test, which is
-    // the one state reachable without inventing a test kind.
-    await openVia("openTest");
-    expectOpened(/Take a\s*test/i, "test overlay");
-    expectNoBoundary("test overlay");
-  });
-
   it("opens the relationship map", async () => {
     const expectNoBoundary = mountApp();
     await openVia("openOverlay", "relmap");
@@ -139,7 +130,6 @@ describe("the overlays with no button — opened through window.*", () => {
   // passes again on revert.
   describe("a failed overlay chunk degrades rather than crashing", () => {
     const GUARDED = [
-      ["TestOverlay", "openTest", []],
       ["SuggestOverlay", "openSuggestions", []],
       ["LogicOverlay", "openLogicTest", []],
       ["PersonOverlay", "openPerson", () => [(IS_DATA.people || []).find((p) => p.name && !p.anon)]],
@@ -181,23 +171,9 @@ describe("the overlays with no button — opened through window.*", () => {
 // intact by construction, so nothing here would fail if the removal had also
 // taken Social with it.
 describe("the retired Thinking test is gone from every surface", () => {
-  it("is off the test picker, in both states", async () => {
-    const expectNoBoundary = mountApp();
-    await openVia("openTest");
-    // Both aria-labels the picker can mint for a test (test-overlay.jsx):
-    // "<title> result" with a saved result, "Start <title> — about N minutes"
-    // without. The demo persona used to carry a cognitive result, so the first
-    // is the one a stale registry entry would surface.
-    expect(
-      screen.queryByLabelText(/^Thinking result$/),
-      "the picker still offers the retired test",
-    ).toBeNull();
-    expect(
-      screen.queryByLabelText(/^Start Thinking/),
-      "the picker still offers the retired test to take",
-    ).toBeNull();
-    expectNoBoundary("test picker without the cognitive test");
-  });
+  // The picker case that stood first here went with the picker (D121). Its
+  // claim did not: the profile's sub-tab row is the surface that offers the
+  // instruments now, and the case below it already walks that row.
 
   it("is off the profile's sub-tab row", async () => {
     const expectNoBoundary = mountApp();
@@ -216,12 +192,15 @@ describe("the retired Thinking test is gone from every surface", () => {
     // The control, and the one case a careless removal fails: deleting a
     // registry key is easy to over-apply, and every assertion above passes just
     // as well on an app with no tests at all.
+    //
+    // Through the profile's sub-tab row since D121 — the picker this used to
+    // read is gone, and the row is where the four instruments are offered now.
     const expectNoBoundary = mountApp();
-    await openVia("openTest");
-    for (const title of ["Big Five", "Politics", "Values", "Social"]) {
+    fireEvent.click(screen.getByRole("button", { name: /^profile$/i }));
+    for (const label of ["Big 5", "Politics", "Values", "Social"]) {
       expect(
-        screen.queryByLabelText(new RegExp(`^(${title} result|Start ${title} )`)),
-        `the picker lost ${title} along with Thinking`,
+        screen.queryByRole("button", { name: new RegExp(`^${label}$`) }),
+        `the profile lost its ${label} tab along with Thinking`,
       ).not.toBeNull();
     }
     const { IS_TESTS } = await import("../spec/test-definitions.js");
@@ -231,6 +210,6 @@ describe("the retired Thinking test is gone from every surface", () => {
       "values",
       "attachment",
     ]);
-    expectNoBoundary("test picker with the four surviving tests");
+    expectNoBoundary("profile with the four surviving tests");
   });
 });

@@ -11362,3 +11362,378 @@ admission that nothing in CI checks those rules.
 That is worth stating plainly rather than dressing up: **two access
 controls are open, and the only thing that will close them is somebody
 reading a checkbox.**
+
+## D118 · Two gestures reported from a phone: a dial that stole the tab, and a Near that counted forever
+
+**Decided:** 2026-08-12 · **Status:** binding. Two defects, no shared
+code, one shared shape: both were states the tree could reach and had no
+words for, and both were invisible to every gate because every gate was
+name-level.
+
+### 1. The dial answered the page, not the question
+
+`world-feed.jsx`'s continuum control (`role="slider"`) carried
+`touchAction: 'none'` and pointer capture, which is the complete recipe
+for a drag surface **as far as the browser is concerned** — and none of
+it stops touch events from reaching `daily-split.jsx`'s mode-swipe
+listener on the scroller above. So dragging a dial slid the mode axis
+under it, and because `commit()` continues past 1v1 into the Mirror, a
+long drag left the tab.
+
+This is the same defect as the three 2026-08 iPhone bugs (`swipe-back.js`
+header) and the fix is the same one: `data-nopan`, which `OWNS_X` already
+matches. `touch-action` was never the mechanism — `OWNS_X` is.
+
+**Why it survived.** `swipe-back.test.js` proves the mechanism and
+`smoke-nav.test.jsx` proved the wiring for the ruler and the Map canvas,
+by name. A control that was never in either list is not covered by
+either. The new case is written over **every** `role="slider"` the mount
+finds rather than over the dial's id, so the next drag-to-answer control
+inherits the guard instead of needing to be remembered. Measured: it
+fails on the pre-fix tree naming the offending dial, and passes after.
+
+### 2. "Counting…" was the only word Near had for failure
+
+Reported as *Near seems to never connect*. `LIVE.near.lastError()` was
+set on every failed beat and read by **nothing in the tree** — its only
+consumer was the mock in `NearLiveBody.test.tsx`. So one failed beat
+(an indoor fix that timed out, a revoked permission, a callable that
+threw) left the card on "Counting…" for the rest of the session, with the
+next attempt four minutes away and no way to ask for one.
+
+Four changes, three of them about honesty and one about the cause:
+
+- **`enable()` takes one location fix, not two.** It resolved a cell to
+  decide whether the opt-in could succeed, dropped it, and let the first
+  beat ask the OS again a tick later. On a phone that second request is a
+  second chance to time out — and when it did, the switch was already ON
+  with no count behind it. That is the reported symptom, reachable with
+  nothing else broken. `presenceBeat(cell?)` now accepts the fix in hand.
+- **`enable()` waits for that beat.** The tap already spins through the
+  location fix; carrying it through the count is what makes the switch
+  and the number appear together. It still returns `{ok:true}` when the
+  beat fails — the opt-in succeeded and presence *is* being shared, so
+  reverting the switch would misdescribe what the phone is doing.
+- **`lastError` clears when a count arrives, not when the fix does.** It
+  was cleared immediately after `locateCell()` — before the write and the
+  callable, the two steps most likely to fail — so a beat that failed at
+  the network reported healthy on the way in and errored on the way out.
+- **The card reads it.** A failed beat now shows the reason and a
+  **Try again**; a count already on screen is kept and *dated*
+  ("Showing the count from 9 min ago") rather than blanked or passed off
+  as current. `refresh()` became awaitable, and a beat already in flight
+  is returned rather than an instantly-resolved promise, so the button
+  stops when there is an answer instead of one tick after the tap.
+
+**Why it survived.** `LIVE.near`'s members were pinned by name
+(`vote.test.ts`), the card was tested against hand-set states, and
+**nothing ever ran a beat**. `near-presence.test.ts` is the missing
+layer: it boots the store against narrow mocks and drives
+enable/refresh/disable. All seven cases fail on the pre-fix tree.
+
+### The thing both halves have in common
+
+Every guard that could have caught either one was name-level, and both
+defects are about a name that EXISTS being unused or a listener that
+exists being fed. That is the same lesson `check:globals` rule 3 and the
+mount suites were written for, one layer further in: a member with no
+consumer is not a stable API, it is a dead branch, and the way to find
+out which is to execute it.
+
+**Not done here, deliberately.** The presence loop's four-minute retry is
+unchanged — a failed beat still waits the full interval unless the user
+taps Try again. A backoff-and-retry ladder is the right eventual answer
+and is a behaviour change to a loop that writes to Firestore on every
+tick; it is not something to bolt on beside a display fix.
+
+## D119 · Answers becomes a tab: the live Mirror stop gets the prototype's nav v2
+
+**Decided:** 2026-08-12 · **Status:** binding. Reported from a phone
+alongside D118's two, with `InSight_standalone_21.html` attached as the
+spec: *world, city, near and the others should have the answers in an
+answers tab.*
+
+### What the live stop was, and why it read wrong
+
+The prototype's Mirror is two levels — **who** (the ruler) and **what**
+(a row of lenses under it) — and its nav v2 makes that row real tabs at
+the top of the screen, with the field as one of them. The repo has had
+that row since the port: `MirrorLensRow` in `spec/mirror-field.jsx`,
+`.mm-lensrow` / `.mm-lensbtn` / `.mm-lensthumb` in `styles.css` with all
+three `data-lens-style` variants. **Only the demo bodies ever used it.**
+
+Every stop with a live source replaces the whole body with a single
+panel, so `LiveCohortBody` grew its own arrangement instead: the
+constellation on top, the answer rows under it, and a collapsed
+four-button strip at the bottom. Answers was therefore the *page* and
+everything else a drawer under it — the opposite of the design, and
+visible in the report as a World stop whose whole first screen is a
+constellation saying nobody has answered the score questions yet.
+
+### The row, and one deliberate departure
+
+`Answers · Overview · People · Compare · Explore · Scores`, one open at a
+time, `ui/MirrorLensTabs.tsx`.
+
+**Ported, not imported.** `spec/mirror-field.jsx` carries the entire demo
+field — canvas, node layout, `mirror-field-pops`' invented people — so
+importing twenty lines of markup from it would drag all of that into the
+live chunk. The CSS is *not* duplicated: the row is the same three class
+names, so it inherits the demo row's look and every future change to it,
+once.
+
+**Answers leads, and the prototype puts Overview first.** That is the
+departure, and it is about the data rather than the design: the
+prototype's field IS its screen, drawn from constants, so it is never
+empty. Live, the constellation is a fold over completed test scores
+(D112) and stays empty until a population has taken them, while the
+answer rows publish from the first answer (D98). Opening a stop onto an
+empty canvas is exactly the complaint. Overview keeps the next seat.
+
+### The cost gate survives the move, and gets stricter
+
+`LiveMirrorLenses`'s row comment said collapsed-by-default *was* the cost
+gate — People pays for voter lists the user has not opened. Tabs keep it
+structurally rather than by default: a body exists only while its tab is
+open. `LiveMirrorLenses` is now controlled (a `lens` prop, no state, no
+row) and its suite selects by prop; the host's suite holds the gate, with
+both halves asserted — nothing fetched for a tab nobody opened, **and**
+Kindred fetched the moment People is. The second half is what stops the
+first from passing because a lazy chunk simply had not resolved.
+
+### The bundle gate caught two things, and the second one is a win
+
+First: `lensDefs.ts` was imported at runtime by the lazy lens chunk only.
+Reading a label map from it in the entry-side row made rolldown hoist it
+into a shared chunk the entry preloads — **+2 KB on the eager graph, one
+over `MAX_EAGER_KB`, for two dozen bytes of strings.** The labels moved to
+`ui/lensTabs.ts`, which only the row imports. Types may cross that seam
+(they are erased); values may not.
+
+Second, and the reason this section is not just an apology for 2 KB:
+`LiveCohortBody` was eager at all only because `spec-index.js` listed it
+for a `globalThis` bridge nobody uses any more — `mirror-tab.jsx` imports
+it directly. Putting it behind a `React.lazy`, exactly as Circle has been
+since D101 and for the identical reason (the Mirror opens on You; City is
+three stops along and needs a network round trip before it can render),
+took the eager graph from **954 KB to 946 KB** — 8 KB *below* where this
+session started.
+
+### One flake, found by running it and worth recording
+
+Four `smoke-live` cases walked to City and then asserted after a fixed
+`setTimeout(50)`. That was safe while the body was eager. Behind a lazy
+import it is a guess about how long a dynamic import takes, and under a
+loaded runner it lost — one case failed in a full `test:unit` and passed
+in isolation, which is the signature. They wait on `findByText` now. The
+general rule, since this tree has now hit it twice: **a fixed timeout
+next to a lazy boundary is a race, not a wait.**
+
+### Not done here
+
+Near, Circle and Groups keep their single-body layout. Near is presence
+and nothing else by construction (D111 — the cell is one of D98's three
+surviving denies), and Circle and Groups have no lens bodies to put in a
+row; giving either a tab bar with one tab in it would be furniture. The
+demo bodies are untouched: `mirrorLensTop` stays an off-by-default tweak
+over there, because the demo field's own arrangement is the prototype's
+and is not what was reported.
+
+## D120 · The live answer row becomes the prototype's answer row
+
+**Decided:** 2026-08-12 · **Status:** binding. The second half of the same
+report `InSight_standalone_21.html` came with. D119 moved Answers into a
+tab; this is what the tab draws.
+
+### The row the repo already had, and the one it shipped
+
+`spec/mirror-answers.jsx` is byte-identical to v21's — the port is in
+sync, and only the DEMO Mirror renders it. Live grew its own row: a
+full-width 30 px stacked bar with the percentages written inside it,
+expanding into a plain option / count / % list.
+
+The prototype's row is a different reading. Collapsed, it is three facts
+on one line — the **headline** ("58% Yes", or an average out of ten), the
+distribution as a **thin stack** with your own segment in accent, and
+**your answer** named beside it — so a list of them scans as *what did
+they say / where am I in it* rather than as a column of bar charts.
+Expanded, the options get labelled bars, a 1-10 `rating` gets a histogram
+instead, and a sentence says where you sit. The whole list sits in one
+card with a chip row, an inline sort, a "you" legend that names the accent
+mark **once** instead of on every row, and a Show-N-more at seven.
+
+All of it is ported. Three things are not:
+
+- **Newest, and the date furniture that carries it** — the same refusal
+  D100 made and for the same reason: nothing the client holds dates an
+  answer. The sticky month headers go with it. The row prints the answer
+  COUNT where the prototype prints a date, which is the thing live can say
+  truthfully and is also what decides how much the percentages are worth.
+- **`d[3] + d[4]` for a scale's agree share.** The prototype's Likerts are
+  always five long; the bank does not promise that, and a seven-point item
+  read at fixed indices would report its MIDDLE as agreement. It reads the
+  last two points off the end.
+- **Percentages as the source.** The prototype computes its average from
+  rounded percentages because that is all its `dist` holds. Live has the
+  raw counts.
+
+### The arithmetic went to data/, and pctFor was already there
+
+`headlineFor` and `standingIn` are pure folds in `data/cohort.ts` beside
+`divisiveness` and `meanScore`, returning **data** — `{kind:"average"|
+"agree"|"top"}` and `{kind:"below"|"above"|"with"}` — with the wording
+left to the row. That is what makes them testable without a DOM, and both
+return confident numbers where a wrong one looks exactly like a right one.
+
+A first draft of this had a local `pctOf` in the UI module. `pctFor` has
+been in `cohort.ts` the whole time, and its own comment says why that
+would have been a bug: *two surfaces rounding differently on the same
+numbers is how a 51/49 becomes a 51/48 one screen over.* The new
+headline's "62%, not 63%" test case exists to keep it going through
+`pctFor` rather than dividing locally.
+
+### Two bugs the tests found, both worth stating
+
+**The default-open row could not be closed.** The list opens its first row
+(the prototype's behaviour — a tab that opens onto a closed list reads as
+a table of contents), held as a sentinel in the open-row state rather than
+as an id. The toggle compared against the id, so the first tap on that row
+set the state it was already showing. The prototype computes `isOpen` once
+and uses it in both places; this did not. Found by rewriting smoke-live's
+expander case to **collapse before it expands** — the old version asserted
+only that a click sets `aria-expanded=true`, which passes against a row
+that was already open and whose toggle does nothing.
+
+**`getAllByRole("button", {expanded: false})`** silently dropped the top
+row once the first one opened by default, which would have started every
+ordering assertion at the second row. Both are the same shape: an
+assertion that keeps passing after the thing it describes changes.
+
+### Not done here
+
+The three geographic stops only. Groups' answer record
+(`GroupAnswersCard`) is demo data and Circle's split list is its own
+reading; neither is what was reported, and giving them this row would mean
+inventing the sources first.
+
+## D121 · The instruments become passive for real: no sit-down flow, a fold that scores, one hue, and a skip that comes back
+
+**Decided:** 2026-08-12 · **Status:** binding. Four asks from one report,
+with `InSight_standalone_21.html` and two screenshots attached: the test
+pages should look like the prototype's, tests should appear only passively
+in the feed with no active test-taking, score displays should use the same
+colour system, and a skipped test question should come back later rather
+than never or immediately.
+
+### 1 · The passive half was passive in the ring and nowhere else
+
+MIRROR.md §4 has said since D50 that the four core instruments have no
+test flow to sit down for — their items are ordinary feed cards and
+answering the feed fills them in. **That was true of the PROGRESS RING and
+of nothing else.** The only writer of a `testResults` entry was the
+sit-down flow, so a live account that had answered forty test cards opened
+its profile on an empty tab with a *Take this test →* button on it. That
+is the second screenshot, and it is the whole complaint.
+
+The fold that scores those answers has existed since D112, one directory
+over, used only to place a dot in the similarity field
+(`similarity.myAxisScores`). `data/passiveProfile.ts` is mostly a
+**threshold** around it, because the card it feeds draws an archetype, a
+rarity percentile and a "textbook fit" badge, and every one of those is a
+confident claim that two answers can produce.
+
+The threshold is **two answers on every axis** — every axis, not the
+average. One 5-point answer maps to one of {0, 25, 50, 75, 100} and lands
+an axis on an extreme more often than not; two is the smallest number that
+can disagree with itself. And a Big Five with thirty answers across four
+axes and none on the fifth is not 80% of a result, it is a result about a
+different instrument. Below the threshold the tab draws the instrument's
+own progress — per-axis coverage, and which axes are still too thin to
+read — which is the same page one step earlier rather than a nudge.
+
+### 2 · Removing the sit-down flow removed a second scorer
+
+`test-overlay.jsx` (439 lines), `window.openTest`, the `test` overlay
+route, and daily-split's one-question-a-tap fast path are gone. The
+LOGIC test stays: it is a sit-down instrument by construction —
+procedurally generated, server-scored, its result written by a callable
+the rules refuse to let a client mutate (D57).
+
+**daily-split's copy was already unreachable**, and finding that out is
+the reason to state it: `state.testOpen` initialised to `false` and the
+only other write in the file set it to `false` again, so no tap in the
+shipped app could open it. Deleting it changed no behaviour. What it
+changed is that the instruments now have exactly ONE scorer instead of
+two — the second one carried its own `scoreTestDaily`, its own progress
+storage and its own prefill-from-passive logic, all of which could drift
+from the fold that the Mirror was already using.
+
+The deletion also took the eager graph from 947 KB to **943 KB** and the
+spec layer's shared-global coupling from 426 to **417** (D39's ratchet,
+baseline lowered).
+
+### 3 · There were two colour systems, and they disagreed
+
+`RP_TESTS[k].banner` coloured the result card; `PASSIVE.META[k].accent`
+coloured the progress sheet's rings, pips and rows. On two of the four
+they were not close — the sheet drew Values in rose and Social in violet
+while the card drew Values violet and **Social green** — so an instrument
+changed colour between the screen that says how full it is and the screen
+that says what it found.
+
+`TEST_HUE` in test-definitions.js is the single source now, and it takes
+the SHEET's values rather than the card's: those are built from the app's
+own tokens (`--c-around` / `--c-world` / `--c-people`), the same four
+accents the daily's modes and the Mirror's stops run on, so an instrument
+reads as part of the app rather than as its own chart. Violet has no token
+because nothing else in the app is violet, which is why Social's is
+written out.
+
+### 4 · A skip that expires
+
+The feed's skip was deliberately withheld from test and lens cards, and
+world-feed.jsx said why: *those fill an instrument, so a silent skip would
+read as a gap in your own results rather than a question you passed on.*
+Right about the skip it had — a pass is permanent — and wrong about the
+question actually being asked, which is "not right now". With no skip at
+all, an item you do not want to answer sits in the same place every
+session until you do, and the instruments are exactly the cards people
+most want to pass on, because they are personal.
+
+So test and lens cards get **"later"** rather than "skip"
+(`data/deferQueue.ts`): the card leaves the feed and comes back after
+**20 hours**. Twenty rather than twenty-four so a user who opens the app
+at roughly the same time each day finds it waiting rather than four hours
+short of it — the same reason a streak is not enforced to the minute. A
+deferral measured in CARDS was the alternative and fails both ways: the
+feed is finite, so it would either expire inside the same sitting or
+outlast the pool and become a pass under another name.
+
+Nothing is recorded anywhere but the device (a deferral is not an answer,
+D5), the instrument's denominator does not move, and the profile still
+names the axis as thin — because it is.
+
+Two details that are decisions rather than implementation:
+
+- **Sampled once per feed build**, like `sunk` beside it. A card deferred
+  mid-scroll keeps its place until the next visit, so the tap that says
+  "later" does not vanish the row under the thumb.
+- **A malformed entry is NOT a deferral.** The map is device-local JSON
+  any past build may have written, and the fail-safe direction is
+  unambiguous: showing a question one more time costs a scroll, treating
+  garbage as a live deferral could hide an instrument's item forever.
+
+### What did not change
+
+The aggregate. Test items are ordinary questions whose option counts
+publish like any other's (D91), and none of this touches that — the fold
+reads the viewer's OWN votes, on the device, from data already loaded.
+
+### Not done here
+
+The passive result is computed on read and never written to
+`testResults`. That keeps one source of truth and costs a small recompute
+per render; it also means a passive result does not sync across devices
+the way a sit-down result did. Writing it would need a rule about which
+wins when two devices fold different answer sets, and that is a decision
+to take when a second device is a thing people actually have here.

@@ -6,28 +6,33 @@
 import React from 'react';
 import { HAPTIC } from './haptics.js';
 import { bindSwipeBack } from './swipe-back.js';
-// The three live Mirror bodies, as ordinary imports (D39's ratchet; the
-// procedure is in src/v2/README.md). All three are typed TSX in ui/ with
+// The live Mirror bodies, as ordinary imports (D39's ratchet; the
+// procedure is in src/v2/README.md). All are typed TSX in ui/ with
 // default exports, so nothing here needs the global scope to find them —
 // and the `typeof window.X === 'function'` guards that used to wrap each
 // one are GONE rather than kept: an imported binding cannot be unset, so
 // the guard could only ever be false during a load-order accident that
 // an import makes impossible. The data conditions beside them (`liveGeo`,
 // the stop id) are unchanged, because those guard data, not loading.
-import LiveCohortBody from '../ui/LiveCohortBody';
 import LiveGroupsMirrorBody from '../ui/LiveGroupsMirrorBody';
 import NearLiveBody from '../ui/NearLiveBody';
-// Circle is the one of the three that loads AFTER first paint, and the
-// reason is the bundle budget rather than taste: it and data/circle.ts
-// added 11 KB to the entry chunk, which put it over MAX_CHUNK_KB — the
-// ceiling the D100 commit deliberately left 3 KB of headroom under so
-// that the next eager addition would have to defer instead of argue.
+// Two of them load AFTER first paint, and the reason is the bundle budget
+// rather than taste.
 //
-// It is also the right one to defer on the merits. The Mirror opens on
-// You (the Map); Circle is two stops along and needs a network round
-// trip of its own before it can render anything, so the chunk fetch
-// overlaps work the stop was going to do regardless.
+// Circle went first: it and data/circle.ts added 11 KB to the entry chunk,
+// which put it over MAX_CHUNK_KB — the ceiling the D100 commit deliberately
+// left 3 KB of headroom under so that the next eager addition would have to
+// defer instead of argue. Cohort followed at D119, when the stop's tab row
+// spent the eager graph's last kilobyte (check:bundle, MAX_EAGER_KB).
+//
+// Both are also the right ones to defer ON THE MERITS, for one reason: the
+// Mirror opens on You (the Map). Circle is two stops along and City three,
+// and each needs a network round trip of its own before it can render
+// anything, so the chunk fetch overlaps work the stop was going to do
+// regardless. Deferring the Map or Near would not be — those are what the
+// tab opens with.
 const LiveCircleBody = React.lazy(() => import('../ui/LiveCircleBody'));
+const LiveCohortBody = React.lazy(() => import('../ui/LiveCohortBody'));
 
 // mirror-tab.jsx — MIRROR: one tab, one verb — see yourself against a population.
 // One telescope, seven stops, from fully retracted to fully extended:
@@ -299,7 +304,12 @@ function MirrorTab({ onPerson, pop, onPop, worldZoom, onZoom, firstRun, topNav, 
       </div>
     ) : (
       <div key={'geo-live:' + zoom} className="tab-swap mf-flex" style={{ overflowY: 'auto' }}>
-        <LiveCohortBody scope={zoom} />
+        {/* null fallback, not a spinner — same reasoning as Circle's: the
+            body's own first frame is its heading and tab row, and a
+            spinner in front of that is one loading state too many. */}
+        <React.Suspense fallback={null}>
+          <LiveCohortBody scope={zoom} />
+        </React.Suspense>
       </div>
     );
   } else if (isCircleLive) {

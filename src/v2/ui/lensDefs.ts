@@ -1,20 +1,23 @@
-// Types and labels for the Mirror's live lens row (D99).
+// Types and constants for the Mirror's live lens BODIES (D99).
 //
 // A separate module for a mechanical reason worth stating: eslint's
 // react-refresh rule requires a component file to export only components,
-// and LiveMirrorLenses.tsx needs to share both a label map and a question
-// shape with its host. The rule is right — a constant re-exported from a
+// and LiveMirrorLenses.tsx needs to share a question shape and a type
+// filter with its host. The rule is right — a constant re-exported from a
 // component file breaks fast refresh for everything that imports it.
 import type { ByMap } from "../data/cohort";
 
+/**
+ * The four lenses LiveMirrorLenses renders.
+ *
+ * Their LABELS are not here. This module is imported at runtime only by
+ * the lazy lens chunk; the tab row is entry-side, and a label map read
+ * from both would hoist this file into a shared chunk the entry has to
+ * preload — measured at +2 KB on the eager graph, which is over budget
+ * (check:bundle). The labels live in ./lensTabs, which only the row
+ * imports. The TYPE crossing that seam is free — it is erased.
+ */
 export type LensId = "people" | "compare" | "explore" | "scores";
-
-export const LENS_LABEL: Record<LensId, string> = {
-  people: "People",
-  compare: "Compare",
-  explore: "Explore",
-  scores: "Scores",
-};
 
 /**
  * The question types whose option INDEX carries magnitude, and so the
