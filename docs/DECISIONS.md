@@ -11853,6 +11853,26 @@ is a courtesy and the callable is the gate. `handles.test.ts` reads the
 server file as TEXT and asserts the bounds, the charset and the reserved
 list match exactly, in both directions — the cheap version of one source.
 
+### A billed read, caught by a tripwire I did not know about
+
+The invite rule's first draft let MEMBERS read the invitation list too,
+so a circle could show who had been asked and had not answered. That arm
+needed `get(/v2_groups/$(gid))` to check membership — and every `get()`
+in a rule is a **billed read**. `scripts/pulse.test.mjs` counts them and
+failed CI on 15 → 16.
+
+The fix was to delete the arm, not to bump the counter. Nothing in the
+client reads an invitation as a member (`fetchInvites` queries
+`to == me`), and re-inviting is already idempotent server-side —
+`inviteToGroupV2` writes with merge — so the arm bought nothing and
+charged for it on every read of every invite document. A negative rules
+case pins its absence.
+
+Worth recording because the local gates did not catch it: `npm run lint`
+passes, and the tripwire lives in `npm run test:scripts`, which is a
+separate step of CI's lint job. Running `lint` locally and calling that
+"the lint job" is the mistake; the job is eight steps.
+
 ### Erasure, and the checklist that caught it
 
 The PR template's access-surface section asks whether `deleteAccount`

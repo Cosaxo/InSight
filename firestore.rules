@@ -607,11 +607,20 @@ service cloud.firestore {
       // Invitations (D122) — the uid-addressed way into a circle, and
       // the reason the invite CODE stops being something a person types.
       //
-      // READ is the invitee or a member, and the asymmetry is the point:
-      // the invitee has to see it to answer it, and members have to see
-      // it so a circle does not invite the same person four times. It is
-      // NOT public, because "who was asked and has not answered" is a
-      // fact about the invitee that nobody published.
+      // READ IS THE INVITEE, AND ONLY THE INVITEE. A first draft also let
+      // members read the list, so a circle could show who had been asked
+      // and had not answered — and that arm cost a
+      // `get(/v2_groups/$(gid))` to check membership. Every get() in a
+      // rule is a BILLED READ, which scripts/pulse.test.mjs counts and
+      // which caught it: the tripwire went 15 → 16 for a screen that does
+      // not exist. Nothing in the client reads an invitation as a member
+      // (fetchInvites queries `to == me`), and re-inviting is already
+      // idempotent server-side — inviteToGroupV2 writes with merge — so
+      // the arm bought nothing and charged for it. If a pending-invites
+      // list is ever built, it comes back with its cost accounted for.
+      //
+      // Not public either way: "who was asked and has not answered" is a
+      // fact about the INVITEE, and nobody published it.
       //
       // WRITE is server-only, all three verbs. inviteToGroupV2 checks
       // membership, the cap and a rate budget; acceptGroupInviteV2 is
@@ -622,9 +631,7 @@ service cloud.firestore {
       // reason grander than symmetry: a client delete would work, and
       // one door is easier to keep correct than two.
       match /invites/{invitedUid} {
-        allow read: if request.auth != null
-          && (request.auth.uid == invitedUid
-            || request.auth.uid in get(/databases/$(database)/documents/v2_groups/$(gid)).data.memberUids);
+        allow read: if request.auth != null && request.auth.uid == invitedUid;
         allow write: if false;
       }
     }

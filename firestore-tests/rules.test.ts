@@ -1666,9 +1666,16 @@ describe("circle invitations (D122)", () => {
     await assertSucceeds(getDoc(doc(asUser(FRIEND), "v2_groups", GID, "invites", FRIEND)));
   });
 
-  it("members read it too, so a circle does not ask the same person twice", async () => {
+  it("even a member cannot read it — the read arm for that cost a billed get()", async () => {
+    // A first draft let members read the list so a circle could show who
+    // had been asked. That arm needed a membership get() on v2_groups,
+    // and scripts/pulse.test.mjs — which counts every get()/exists() in
+    // the rules because each is a BILLED READ — caught it going 15 → 16
+    // for a screen that does not exist. Nothing reads an invitation as a
+    // member, and re-inviting is idempotent server-side, so the arm
+    // bought nothing. This pins its absence.
     await seedInvite();
-    await assertSucceeds(getDoc(doc(asUser(OWNER), "v2_groups", GID, "invites", FRIEND)));
+    await assertFails(getDoc(doc(asUser(OWNER), "v2_groups", GID, "invites", FRIEND)));
   });
 
   it("a stranger reads nothing — who was asked is a fact about the invitee", async () => {
