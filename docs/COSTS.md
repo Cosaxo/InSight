@@ -705,15 +705,25 @@ surprise:
   reassuring enough to be worth stating rather than leaving open.** The
   rate is still not modelled and does not need to be, because the *ceiling*
   is: `setGlobalOptions` sets `maxInstances: 10` (functions/src/ops.ts) and
-  `HOT_TRIGGER` does not override it, so the whole deploy cannot exceed ten
-  concurrent instances. Ten instances pegged for an entire month is 25.9 M
-  vCPU-seconds and 13.0 M GiB-seconds — **$649/month net of the free tier,
-  and that is the worst case for every functions failure mode combined**: a
-  retry storm, a poison-pill redelivery loop, an accidental self-trigger, or
-  a deliberate flood. Compute cannot run away here. What it can do instead
-  is throttle: ten instances at concurrency 20 is 200 simultaneous folds,
-  so past that answers queue rather than cost more, which is the correct
-  trade for this app and worth knowing is the one being made.
+  no per-function override raises it. Ten instances of the hot trigger's
+  shape (1 vCPU, 512 MiB) pegged for an entire month is 25.9 M vCPU-seconds
+  and 13.0 M GiB-seconds — **$649/month net of the free tier, and that is
+  the worst case for a runaway in any one function**: a retry storm, a
+  poison-pill redelivery loop, an accidental self-trigger, or a deliberate
+  flood. Compute cannot run away here. What it can do instead is throttle:
+  ten instances at concurrency 20 is 200 simultaneous folds, so past that
+  answers queue rather than cost more, which is the correct trade for this
+  app and worth knowing is the one being made.
+
+  **`maxInstances` is per function, not per deploy** — checked rather than
+  assumed, and the first draft of this paragraph had it wrong. Every one of
+  the 19 exported functions is stamped with its own 10, so the theoretical
+  ceiling if all of them pegged at once is $12,219/month rather than $649.
+  That case needs 19 simultaneous independent runaways and is not the one
+  to plan against; the $649 is. The verification is a two-line probe against
+  the built output (`__endpoint.maxInstances` on each export), which is also
+  how the count of 19 above is known — the same shape `check:fn-runtime`
+  already uses for memory and timeout.
 
   Two things the cap does *not* cover, so the bound is not oversold. Each
   retry re-issues the trigger's reads (`TRIGGER_READS.world` = 2), which
