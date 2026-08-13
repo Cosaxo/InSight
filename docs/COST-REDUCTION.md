@@ -13,6 +13,48 @@ the units of the thing it would change rather than as a saving — so no
 figure below is typed, and none can go stale while the constant beside it
 moves.
 
+## Does any of this remove functionality?
+
+Asked after the plan below was first written, and the answer changed it —
+so it goes first. **Almost none of it does, and the part that saves the
+most money costs the product the least.**
+
+Each lever was checked against its *consumers*, not just against the model:
+
+| Lever | Removes functionality? |
+| --- | --- |
+| Single-region database | **No.** Nothing in the app changes. The trade is resilience to a whole-region outage. |
+| Serve the bank off Hosting | **No.** Cold boot gets faster. |
+| Persist the name cache | **No** — but it needs a TTL. `resolveNames` takes a caller-owned record, so persisting it means a renamed account shows its old name until the cache expires. |
+| Stream today only | **Almost none.** `computeDeckIds` returns today plus 6 back days and all are answerable, so past aggregates *do* move — just rarely. You would stop seeing a 4-day-old card tick while looking at it. |
+| **Poll instead of stream** | **Less than it sounds.** Other people's votes stop landing live. Your own vote still confirms — `scheduleAggRefresh` (live.ts:390) re-reads the aggregate 2.5 s after the write acks and clears the pending flag, on both the vote and D86 edit paths, with no listener involved. |
+| Who-voted 200 → 50 | **Yes, mildly.** Fewer faces per sheet. Honesty is automatic: `LiveVotersPanel` interpolates the cap (`the latest ${total}`), so copy and tests follow the constant. Wants the "load more" cursor to not be a pure loss. |
+| Circle 300 → 100 | **Yes, mildly.** Circle compares over ~5 weeks of a member's answers instead of ~13. |
+| Batch publish ×5 | **Yes, mildly.** The live count steps in fives. |
+| Kindred 12 → 4 | **Yes, genuinely.** The People lens ranks likeness over 4 shared questions instead of 12. It stays honest by itself — `LiveMirrorLenses` renders "across your last {kindredDepth()}" — but a likeness claim over 4 questions is a materially weaker claim. |
+
+That splits the plan cleanly, and the split is the useful part:
+
+| Path | 500 | 5 k | 50 k | 500 k | slope | what it costs the product |
+| --- | ---: | ---: | ---: | ---: | ---: | --- |
+| As built | $2.23 | $59 | $2,335 | $194,332 | 87× | — |
+| **Z · Zero product change** | $0.53 | $27 | $1,407 | $125,982 | 236× | **nothing** |
+| **Z + poll** | $0.45 | $14 | $163 | **$1,664** | **4×** | others' votes stop landing live |
+| B · Go polled | $0.10 | $12 | $148 | $1,524 | 15× | + thinner Kindred, Circle, who-voted |
+| C · B + single region | $0.05 | $6.20 | $77 | $810 | 16× | same as B |
+
+**Z + poll removes 99.1% of the bill and one product property.** It also
+produces the flattest curve of any path here — a 4× slope, better than the
+paths that trim the caps, because it removes the quadratic term without
+shrinking the flat baseline underneath it.
+
+Everything that genuinely thins a Mirror surface — Kindred, Circle,
+who-voted — is the difference between **$1,664 and $810 at 500 k DAU**, and
+nothing at all below 5 k. That is the entire product-degrading portion of
+this plan: about $850/month at a size the app may never reach.
+
+**So: don't trim the caps.** They are not where the money is.
+
 ## The short answer
 
 **Nothing, yet — and then one specific thing.**
@@ -172,12 +214,14 @@ slope from 87× to 15×, which is an ordinary app's shape.
 4. **The trigger is already written down.** COSTS.md's two walls sit at
    ~14,145 and ~14,400 DAU, and they are the same trigger as this page's:
    at that size the fan-out overtakes every flat source combined and the
-   shared aggregate starts losing writes to contention. **Build path B when
-   the app passes ~10 k DAU** — early enough to ship before either wall,
-   late enough that D7 still holds.
-5. **When you do build it, do the social trims in the same pass.** They are
-   an afternoon, they are what makes the small end cheap, and path B's
-   figures above assume them.
+   shared aggregate starts losing writes to contention. **Build path
+   Z + poll when the app passes ~10 k DAU** — early enough to ship before
+   either wall, late enough that D7 still holds.
+5. **Do not trim the caps.** Kindred, Circle and the who-voted page size
+   are the only levers that thin a Mirror surface, and together they are
+   worth ~$850/month at 500 k DAU and nothing below 5 k. They are the
+   worst ratio of product cost to money on this page. If the bill ever
+   makes them necessary, the fan-out is not fixed yet.
 
 The reassuring version: this app has a cost problem that is one change
 deep, the change is already described in COSTS.md, it is reversible, and

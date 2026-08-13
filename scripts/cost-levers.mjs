@@ -144,7 +144,16 @@ const LEVERS = [
     opts: { pollAggs: true },
     effort: "days",
     risk: "medium",
-    notices: "counts update on a timer, not instantly — a display cadence choice",
+    // CORRECTED after reading the consumers. This field first said the flat
+    // "counts update on a timer", which overstated the loss by implying the
+    // vote→counted transition rides the listener. It does not:
+    // `scheduleAggRefresh` (live.ts:390) already re-reads the aggregate 2.5 s
+    // after the write acks and clears `state.unaggregated`, and it is called
+    // on BOTH answer paths (the vote ack and D86's edit). The snapshot's own
+    // clear at live.ts:494 is a second, redundant route. So what polling
+    // actually costs is narrower than it sounds: OTHER people's votes
+    // arriving on the card while you watch it.
+    notices: "other people's votes stop landing live; your own still confirms in ~2.5 s",
   },
 ];
 
@@ -195,11 +204,33 @@ console.log("  is `fanOut` — quadratic in DAU, moved only by publishing or lis
 // rather than by adding section 1's percentages — which would double-count
 // the overlapping ones and land somewhere optimistic.
 //
-// Two paths rather than one ladder, because the choice between them is not
-// about money. It is whether today's count updates instantly.
+// Several paths rather than one ladder, because the choice between them is
+// not about money. Z and Z+poll differ by exactly one product property —
+// whether other people's votes land on the card while you watch — and that
+// one property is worth 98% of the bill at 500 k DAU. A and B differ from
+// them by whether the caps a Mirror stop reads are allowed to move.
 const pick = (...names) => merge(...names.map((n) => LEVERS.find((L) => L.name === n).opts));
 
 const PATHS = [
+  // Z first, because it is the one that answers "will this remove
+  // functionality" with "no". Every lever in it was checked against its
+  // CONSUMERS, not just against the model: nothing in it changes a cap a
+  // Mirror stop reads, a claim any copy makes, or a surface a user can
+  // open. It is here as its own path rather than as a note on the others
+  // because "what can we do that costs the product nothing" turns out to
+  // be a different and better question than "what is cheapest to build".
+  {
+    name: "Z · Zero product change",
+    opts: merge(pick("Stream today only", "Persist the name cache", "Serve the bank off Hosting"),
+      { regional: true }),
+    note: "no cap moves, no copy changes, no surface is thinner",
+  },
+  {
+    name: "Z + poll",
+    opts: merge(pick("Stream today only", "Persist the name cache", "Serve the bank off Hosting",
+      "Poll instead of stream"), { regional: true }),
+    note: "Z, plus the only trade: others' votes stop landing live",
+  },
   {
     name: "A · Keep it live",
     opts: pick("Stream today only", "Persist the name cache", "Kindred walks 4 lists, not 12",
@@ -222,7 +253,7 @@ const PATHS = [
   },
 ];
 
-console.log("\n\n3 · Stacked: two paths, and the region choice on top");
+console.log("\n\n3 · Stacked: what each combination costs, and what it costs the product");
 for (const P of PATHS) {
   console.log("\n" + P.name + " — " + P.note);
   console.log("     DAU     as built       after      saved    grade");
