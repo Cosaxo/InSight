@@ -416,50 +416,68 @@ arithmetic.
       > **Is `appBuild` greater than the highest build in App Store
       > Connect?** If yes, run as-is. If no, bump, then run.
 
-      **It is at 11. Build 10 is the highest one on App Store Connect**
-      (run 16, 2026-08-12 10:50Z, at `2933dc0` — its upload step reads
-      `success`). Run 15 eight minutes earlier is the archive-only
-      rehearsal this section prescribes, and its upload step reads
-      `skipped`: the pair confirms the gate works and that only one of
-      the two spent a number. Read off those two runs' own step lists
-      rather than from memory, which is the comparison above and not the
-      habit.
+      The way to make that comparison is to read the **upload step's own
+      conclusion** on the release runs — `success` spent a number,
+      `skipped` did not — rather than to read this file. Runs 15 and 16
+      are the worked example: same commit `2933dc0`, eight minutes apart,
+      `skipped` then `success`, so only one of the two spent a build.
 
-      **BUILD 11 UPLOADED 2026-08-12** (run 17, `ac61c37`, 6m 37s, upload
-      step `success`). It carries everything merged since `2933dc0`:
-      D103's retired Thinking test and the dot-row rail, D104's test
-      users, D105's iOS focus-zoom fix, D107's location purpose string,
-      D108–D110's 327 KB off first paint, D111/D112's similarity maps,
-      D113/D114's continuum forms, D115's learn lane, and D116's
-      corrected store and privacy copy. It was the first run to carry the
-      D116 pre-flight (`check:public-copy`), which passed.
+      **BUILD 12 UPLOADED 2026-08-13** (run 18, `d0cf435`, 5m 32s, upload
+      step `success`). Builds 11 and 12 went up a day apart — run 17
+      (`ac61c37`, 2026-08-12) carried D103–D116, and run 18 carried
+      D118–D129's handles, dedup gate, cost ceilings, who-voted turn,
+      Foresight read half and polled deck.
 
-      **`appBuild` is now 12**, bumped straight after that upload, which
-      is this section's whole convention. **Build 11 is the highest on App
-      Store Connect**, so the comparison passes for the next run as-is.
+      **The bump after run 18 did not happen, and that is the first time
+      this convention's FIRST half has been skipped.** The section above
+      warns about bumping too eagerly, because that is the way it had
+      failed before; this is the other way, and it is the expensive one.
+      `appBuild` sat at 12 with build 12 already on App Store Connect, so
+      the next run would have archived, exported, passed both gates,
+      transferred the binary and *then* been refused — a full run for a
+      number. It was caught on 2026-08-13 by making the comparison
+      against run 18's step list, which is the only thing in this
+      procedure that can catch it.
 
-      **Build 12 is pre-flighted and unspent as of 2026-08-13 (D130).** The
-      comparison was made rather than assumed — 12 > 11 — and every gate in
-      6.1 passes, along with the full suite: 944 client tests, 203 function
-      tests, 83 rules tests, lint, `tsc -b`, `check:globals` at its
-      baseline, and 19 of the remaining check gates. The two that do not
-      pass locally are both environmental and neither is a defect:
+      **What made it worth catching is that this file said otherwise.**
+      The paragraph here read *"Build 12 is pre-flighted and unspent"* —
+      written in `d0cf435`, which is the exact commit run 18 then
+      uploaded. The assertion was true when it was committed and false a
+      few hours later, and nothing in the repo can see App Store Connect
+      to notice (D73's shape, one layer out). **So the comparison is the
+      procedure and this paragraph is only its record**: where the two
+      disagree, the run list wins.
+
+      **`appBuild` is now 13**, bumped on 2026-08-13 as soon as run 18's
+      upload was confirmed. **Build 12 is the highest on App Store
+      Connect**, so the comparison passes for the next run as-is.
+
+      **Build 13 is pre-flighted and unspent as of 2026-08-13 (D136).**
+      13 > 12, verified against run 18 rather than assumed. Every gate in
+      6.1 passes, along with the full suite: 969 client tests, 203
+      function tests, 83 rules tests, 168 script tests, lint, `tsc -b`,
+      `check:globals` at its baseline, and 28 of the 29 check gates. The
+      one that does not pass locally is environmental and is not a defect:
       `check:web-firebase` reads `VITE_FIREBASE_*` from repository
-      *variables* that exist only in CI (which is the point of it running
-      after the build, in the workflow, against `dist/`), and
-      `check:fn-runtime` needs `npm run build --prefix functions` first —
-      it passes once built. **`test:rules` needs `HTTPS_PROXY` unset**, per
-      CLAUDE.md; with it set the emulator dies naming neither the host nor
-      the proxy.
+      *variables* that exist only in CI, which is the point of it running
+      after the build, in the workflow, against `dist/`. (`check:fn-runtime`
+      is no longer on that list — it passes once `npm run build --prefix
+      functions` has run, and this pre-flight ran it.) **`test:rules` needs
+      `HTTPS_PROXY` unset**, per CLAUDE.md; with it set the emulator dies
+      naming neither the host nor the proxy.
 
-      What build 12 carries that 11 did not: D118–D121's phone-reported
-      gesture and Answers-tab fixes, D122's handles and invitations,
-      D123's dedup gate, D124's cost ceilings, D125's who-voted turn,
-      D126–D128's Foresight read half, and D129's polled deck.
+      What build 13 carries that 12 did not: D131's written-down region
+      decision, **D132 and D133 — two defects found in build 12 itself**,
+      D134's test-track sign-in wall, and D135's Overview-first Mirror
+      stops. D132 is the one that justifies the release on its own: every
+      instrument read "0 of N answered" to someone who had answered them
+      all, because `LIVE.myVotes()` is string-valued and the fold gated on
+      `Number.isInteger`.
 
-      **The store-side audit that D116 made standing was run against those
-      and came back with no answer changed** — the reasoning under two of
-      them had gone stale, which is D130.
+      **`check:bundle` passing locally proves less than it looks.**
+      Without a Sentry DSN the local build omits a 435 KB chunk (D134,
+      docs/LOCAL-TESTING.md), so the release build is the larger one and
+      CI is where that ceiling is actually tested.
 
       **`npm run check:versions -- --fix` does NOT increment.** It
       propagates package.json's value into the two native projects and
@@ -819,13 +837,15 @@ That is a tester-count problem, not a workflow problem.
       it for two policies is the worse trade. Both cover failures that look like nothing from the
       outside: the app keeps serving while the Mirror stops moving, or
       keeps moving while falling further behind. `DEPLOYMENT.md § Alerting`.
-- [x] **5.6 Version lockstep — holds at 2.0.0 build 12 (verified 2026-08-13).**
-      *This line said build 11 until 2026-08-13, one day after 2.4 bumped
-      the number it quotes.* Harmless in itself and worth naming anyway: it
-      is the D39 shape — a figure kept current by intention — inside the
-      very step whose job is to notice numbers disagreeing. The checker
-      reads the three files and never this sentence, so run the command
-      rather than reading this line.
+- [x] **5.6 Version lockstep — holds at 2.0.0 build 13 (verified 2026-08-13).**
+      *This line has now been stale twice, both times one bump behind 2.4 —
+      it said build 11 on 2026-08-13, and build 12 later the same day.*
+      Harmless in itself and worth naming twice: it is the D39 shape — a
+      figure kept current by intention — inside the very step whose job is
+      to notice numbers disagreeing. Twice is a pattern rather than a slip,
+      and the honest reading is that this number will be wrong again. The
+      checker reads the three files and never this sentence, so run the
+      command rather than reading this line.
       `npm run check:versions` (`--fix` writes package.json's values into
       both native projects). `appBuild` + android `versionCode` + iOS
       `CURRENT_PROJECT_VERSION` — five numbers across three files — move
@@ -897,6 +917,42 @@ That is a tester-count problem, not a workflow problem.
       primary path is anonymous, no account is required, and Google is an
       optional upgrade rather than a login wall. Only add the Apple
       provider if a reviewer insists.
+
+      **That drafted reply is FALSE for any build this workflow makes
+      today, and the cause is a flag rather than a copy error.**
+      `ios-release.yml` sets `VITE_REQUIRE_SIGNIN` from
+      `vars.REQUIRE_SIGNIN` and **defaults it to `true`** (D134), so a
+      release build opens on a mandatory Google sign-in and nothing else
+      works until it succeeds. Every clause of the answer above — *no
+      account is required*, *an optional upgrade rather than a login wall*
+      — describes the build the flag turns OFF, not the one that ships by
+      default. Sending that reply with a walled binary argues against the
+      app the reviewer is holding, which is the same shape as a listing
+      contradicting its own nutrition label.
+
+      **So the submission build must either drop the wall or add Sign in
+      with Apple**, and D134 deliberately left which one open. Dropping it
+      is a repository variable and no code change: Settings → Secrets and
+      variables → Actions → **Variables** → set `REQUIRE_SIGNIN` to
+      `false`, then re-run *iOS release*. Anything other than the literal
+      `true` works — `signInRequired()` compares exactly, on purpose — but
+      set it explicitly rather than deleting it, so the next reader can see
+      which fork was taken. Adding Apple instead is a provider, a native
+      capability and a new review surface that `SHIP-CHECKLIST § 4.8` says
+      not to pre-build.
+
+      **The wall is also a 5.1.1(v) question, not only a 4.8 one**, and
+      that is the more expensive half: Apple expects an app to be usable
+      without an account unless its core features genuinely need one, and
+      this app's core loop demonstrably does not — it ran anonymously for
+      twelve builds. 4.8 costs a provider; 5.1.1(v) argues about the
+      product.
+
+      **This does not apply to the TestFlight builds**, which is the whole
+      point of D134 — the wall exists so a tester's fortnight of answers
+      cannot die with their handset. Build 13 is a test-track build and
+      ships walled on purpose. The flag becomes a blocker at exactly one
+      moment, which is this step.
 
       **This step used to end "…and no email or name is collected through
       it". It is deleted, and do not say it.** Google's default scopes put

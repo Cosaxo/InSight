@@ -775,6 +775,27 @@ Until then links open the fallback page — degraded, not broken.
   upgrade rather than a login wall. If a reviewer cites 4.8, reply with
   that — and **stop there**.
 
+  **Every word of that reply is conditional on a build flag, and the flag
+  defaults the wrong way for it (D134, D136).** `ios-release.yml` sets
+  `VITE_REQUIRE_SIGNIN` from `vars.REQUIRE_SIGNIN` and **defaults it to
+  `true`**, so a release build opens on a mandatory Google sign-in and
+  nothing else works until it succeeds. Against such a binary *"no account
+  is required"* and *"an optional upgrade rather than a login wall"* are
+  both false, and sending them would argue against the app the reviewer is
+  holding — the same failure as the deleted email clause below, one level
+  up: not a sentence that went stale, but one a build setting can falsify
+  on any given run.
+
+  So this reply is usable **only** from a build with `REQUIRE_SIGNIN` set
+  to `false`. The wall is right for TestFlight and wrong for submission;
+  D134 states that fork and leaves the choice — drop the wall, or build
+  Sign in with Apple — deliberately open. **Check the flag before quoting
+  this bullet**, and note that a wall raises 5.1.1(v) (an app should be
+  usable without an account unless its core features need one) before it
+  raises 4.8: this app's loop ran anonymously for twelve builds, so that
+  argument is about the product and costs more than adding a provider.
+  Runbook 6.2 carries the operational half.
+
   **This bullet used to add "and the app collects no email or name via
   Google either". Delete that from any reply; it is false.**
   `linkGoogle()` calls `new GoogleAuthProvider()` with no `addScope`
