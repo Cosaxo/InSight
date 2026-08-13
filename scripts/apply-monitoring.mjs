@@ -77,6 +77,12 @@ const POLICIES = [
   "monitoring/onV2AnswerCreated-errors.json",
   "monitoring/onV2AnswerCreated-contention.json",
   "monitoring/scheduledDuelReveals-silent.json",
+  // The odd one out, and deliberately so: the three above watch something
+  // breaking, this one watches the app working expensively. It reads a
+  // BUILT-IN Firestore metric rather than a log-based one, so it needs no
+  // METRICS entry above — there is no emit side to break, which also means
+  // check-monitoring's rule 3 has nothing to resolve for it.
+  "monitoring/firestore-read-runaway.json",
 ];
 
 if (!EMAIL) {

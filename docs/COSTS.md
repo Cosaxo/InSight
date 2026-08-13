@@ -288,6 +288,62 @@ guess moves the wall 5× closer. It is the most leveraged soft number in the
 model and the cheapest one to find out: it is a question about behaviour,
 answerable from a week of real usage.
 
+### Finding 2b — the fan-out's input was bounded by nothing · **BOUNDED (2026-08-13)**
+
+> The finding above prices the fan-out and defers the fix, which is right.
+> This is the part that was not a scaling question at all: the term is
+> linear in `onlineMin`, and until now **no code bounded that number**.
+
+`B.onlineMin` is 3, and its comment used to read "minutes with the app
+actually open". That is a fair estimate of human attention and it is not
+what Firestore bills. What the fan-out charges for is minutes with a
+**listener attached**, and the only two teardown sites in `live.ts` were a
+uid change and account deletion — so a Capacitor WebView the OS kept
+resident went on receiving, and being billed for, every publish to today's
+aggregate for as long as it lived. The two quantities were equal by luck,
+and on native they are exactly the ones that come apart.
+
+Taken literally, with everything else in the model held still:
+
+| listener-minutes/user/day | 5 k DAU | 50 k DAU | crossover |
+| ---: | ---: | ---: | ---: |
+| 3 (assumed) | $46 | $1,224 | ~30,800 DAU |
+| 15 | $78 | $4,479 | ~6,150 DAU |
+| 60 | $200 | $16,689 | ~1,540 DAU |
+| 240 (a whole peak window) | $689 | $65,526 | ~385 DAU |
+
+The right-hand column is the one that matters more than the dollars. At 60
+the crossover falls **under D7's write-contention wall at 14,400**, which
+inverts the ordering the walls section calls the property worth keeping —
+the app is supposed to break technically at a size where the bill is still
+small, so that no surprise invoice can arrive before a surprise outage.
+This is the third time that ordering has been quietly inverted (D98 did it,
+D102 restored it), and the first time the cause was not arithmetic but an
+assumption about behaviour with nothing holding it up.
+
+**What was done.** `IDLE_DETACH_MS` (60 s) in `src/v2/data/live.ts`: hiding
+the app arms a timer, and the timer detaches exactly the set
+`resubscribeForToday()` restores. Armed rather than run, because
+re-attaching is not free — an `onSnapshot` attach delivers the document, so
+coming back costs a read per listener, and `wake()` is written around the
+ten-second app swap. Break-even is ~7 reads against the publish rate on the
+shared daily (~21 reads/min at 5 k DAU, ~2 at 500), so a minute is the
+right order at every size: the common swap stays free and the tail becomes
+one minute per backgrounding instead of one OS eviction.
+
+The number is read from source by `cost-arith.mjs` like `DECK_DAYS` and the
+four social caps, and `pulse.test.mjs` pins the `setTimeout` call site as
+well as the constant — a declaration nothing reads is a comment.
+`src/v2/data/idle-detach.test.ts` is the first thing in this tree that can
+tell an attached listener from a detached one; three of its six cases go
+red if the arming is removed, which is how the claim above is measured
+rather than asserted.
+
+**This does not close Finding 2.** The fan-out is still quadratic in DAU
+and polling is still the fix when it matters. What changed is that the
+coefficient is now a number the code enforces rather than one the model
+hoped for.
+
 ### Finding 3 — anonymous-first auth may be a per-install bill
 
 D3 makes the app anonymous-first: `signInAnonymously` runs on first open,
@@ -368,6 +424,113 @@ circle (members × answer queries) to add one row — fine at 5 follows,
 worth an incremental insert if circles grow; and a capped voters page has
 a natural cursor (`answeredAt`) if anyone ever needs page two. Neither is
 worth building before a user exists who would notice (D7's discipline).
+
+## The controls that are not in this repository
+
+Everything above this line predicts the bill. None of it **caps** the bill,
+and the distinction is the whole difference between "expensive" and "out of
+control". A prediction is only as good as the behaviour it assumed; a cap
+holds when the assumption is wrong, which is exactly when you need it.
+
+This document has been corrected four times (D47, D67, D102 twice), every
+time because a term was missing rather than mis-estimated. The honest
+reading of that record is not that the fifth correction has been found — it
+is that a fifth one exists and the model is not the thing that will catch
+it. What catches it is a control that fires on the *outcome* rather than on
+the forecast.
+
+There are four such controls, and **not one of them is observable from this
+repository**. No check, test or workflow can see any of them, which is
+D117's checkbox problem pointed at money rather than at deploys. So they
+are written down here, with the arithmetic that says why each one matters.
+
+**1 · A Cloud Billing budget. This does not exist, and it is the cheapest
+thing on this page.** Every other control below is a judgement call; this
+one is five minutes and an email address, and without it the first notice
+of any of the failures this document imagines is an invoice up to thirty
+days later.
+
+```
+gcloud billing budgets create \
+  --billing-account=<ACCOUNT_ID> \
+  --display-name="InSight" \
+  --budget-amount=50USD \
+  --threshold-rule=percent=0.5 \
+  --threshold-rule=percent=0.9 \
+  --threshold-rule=percent=1.0 \
+  --threshold-rule=percent=1.5
+```
+
+$50 is chosen against the table above, not by feel: the launch sizes model
+at $0–$2/month and 5,000 DAU at $46, so $50 is "traction arrived, or
+something is wrong", and the 150% rule still fires while the number is two
+figures. Raise it when a row of the table becomes real, not before.
+
+**A budget notifies; it does not cap.** There is no spend limit for
+Firestore — the only hard stop is a budget → Pub/Sub → function that
+detaches the billing account, which takes the app down with it. That is a
+real option and a deliberate one, not a default: for an app whose worst
+modelled month at launch size is $2, an outage is the more expensive
+failure. Recorded as available, not built (D7).
+
+**2 · App Check enforcement on the Firestore API.** SHIP-CHECKLIST's App
+Check step 4, not yet flipped. The callables enforce attestation in
+production and a gate proves it (`check:appcheck`) — but that gate covers
+`onCall` functions, and **the client does not read through them**. It reads
+Firestore directly, where enforcement is a console toggle nothing in this
+tree can see.
+
+What that leaves open is not a bug in the rules; it is what the rules say.
+Since D98 answers are public, and `firestore.rules` grants any signed-in
+account — including an anonymous one, minted for free on first open (D3) —
+a collection-group read of every `daily`/`feed`/`test`/`learn` answer.
+A security rule cannot rate-limit without a read, so there is no
+rules-shaped fix and none should be attempted. `ledgerVelocityScan` (D54)
+is detection and says so in its own header: "nothing here denies, delays or
+down-weights a vote." Detection does not stop a bill.
+
+The arithmetic, at the nam5 read price of $0.06/100 k:
+
+| sustained read rate | reads/day | $/day | $/month |
+| ---: | ---: | ---: | ---: |
+| 500/sec | 43 M | $26 | $778 |
+| 2,000/sec | 173 M | $104 | $3,110 |
+| 10,000/sec | 864 M | $518 | $15,552 |
+
+The corpus does not have to be large for this: the same documents can be
+re-read forever, and each read bills again. For scale, the modelled *peak*
+rate is 14/sec at 500 DAU and 155/sec at 5,000. App Check does not make
+this impossible — a determined attacker can drive a real device — but it
+removes the version that is a script and a laptop, which is the one that
+happens.
+
+**3 · Which auth billing mode the project is on.** Finding 3, unchanged and
+still the largest single line that could be wrong without any code being
+wrong. Also console-only.
+
+**4 · A notification channel on the alert policies.** `monitoring/` has
+four policies and `check:monitoring` proves the chain from log line to
+condition — but `notificationChannels` is `[]` in every file, filled in by
+`npm run monitoring:apply --email`. A policy with no channel evaluates
+correctly and pages nobody, which is the same false comfort every other
+gate in this repo exists to prevent, and the same shape as the known limit
+already recorded against the absence alert.
+
+**What was built here instead of a cap.**
+`monitoring/firestore-read-runaway.json` is the detection-latency half:
+billed reads above 500/sec sustained for five minutes. It is not a spend
+cap — it fires after the reads are billed — but it converts "find out in up
+to thirty days" into "find out in five minutes", and at that threshold the
+month is still worth about $780 rather than five figures. Its threshold is
+a launch-size threshold with the retune arithmetic in its own runbook; it
+must be raised before ~13,100 DAU, where the modelled peak crosses it.
+
+**Where the free tiers end**, since "still free" is the cheapest possible
+guardrail and worth knowing precisely: reads leave the 50 k/day free tier
+at **~149 DAU**, writes leave the 20 k/day tier at **~1,408 DAU**. Below
+the first of those the infrastructure is genuinely $0 and no control
+matters. That is also why every alert here is sized for the second
+threshold rather than the first.
 
 ## The walls, in the order they are hit
 
