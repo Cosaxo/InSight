@@ -12716,3 +12716,131 @@ wall by a wide margin, which restores the ordering COSTS.md calls the
 property worth keeping: the app breaks technically at a size where the bill
 is still three figures a month.
 
+## D130 · Build 12's pre-flight: the label was right, the reasoning under it was stale
+
+**Decided:** 2026-08-13 · **Status:** binding · Extends D116 one layer down.
+Found by running D116's standing store-side audit against everything merged
+between builds 11 and 12.
+
+### The comparison first, because it is the cheap half
+
+`appBuild` is **12**, build **11** is the highest on App Store Connect
+(run 17, `ac61c37`, upload step `success`), so runbook 2.4's test —
+*is `appBuild` greater than the highest build on ASC?* — passes and the
+next run goes as-is. That is a comparison against two run logs, not a
+habit, which is the distinction 2.4 exists to make and which has already
+cost one build number.
+
+Everything in 6.1 passes, as does the full suite: 944 client tests, 203
+function tests, 83 rules tests, lint, `tsc -b`, `check:globals` at its
+baseline of 417, and 19 further check gates. Two fail locally and neither
+is a defect — `check:web-firebase` reads `VITE_FIREBASE_*` from repository
+*variables* that exist only in CI, which is precisely why the workflow runs
+it after the build against `dist/`; and `check:fn-runtime` wants
+`functions/lib`, so it passes once `npm run build --prefix functions` has
+run. `test:rules` needs `HTTPS_PROXY` unset, per CLAUDE.md.
+
+### What the audit was looking for, and what it found
+
+D116's finding was that pushed store state goes stale and **nothing in this
+repository can read App Store Connect**, so the audit is manual by
+construction. Builds 11 → 12 carry D118–D129, and two of those ship
+surfaces that store new things about a person: D122's handles and circle
+invitations, and D126's foresight verdicts.
+
+**No declared answer was wrong.** Nothing needs re-typing into App Store
+Connect, and that is the finding rather than the absence of one:
+
+- A **handle** is `User ID`, which was already Yes. Apple's own definition
+  of the type names it — *"any screen name, handle, account ID …"*.
+- **Foresight verdicts** are `Other User Content`, already Yes.
+- An **invitation** does not move `Emails or Text Messages`, and this was
+  checked against the write rather than the feature name:
+  `inviteToGroupV2` sets `to`, `from`, `fromName`, `groupName`, `mode`,
+  `at` — every field app-generated, nowhere for a sender to type.
+- The **age rating** is untouched: `userGeneratedContent` and
+  `messagingAndChat` were both already true, and "anyone may invite
+  anyone" adds social reach, not a new answer.
+- The **listing copy** is accurate, including *"Four profiles"* — verified
+  against `test-definitions.js` (`big5`, `political`, `values`,
+  `attachment`), not assumed from D116 having last corrected it. Nothing
+  renders a handle beside an answer, so *"leave it blank to appear as
+  Someone"* still holds: `nameFor` returns the display name with no
+  handle fallback.
+
+### What was actually wrong
+
+The attestations' **stated reasons**, which is the D116 failure one layer
+in. D116 was a false claim a user could read; this is a true claim resting
+on a sentence that had quietly stopped being true — invisible to a user,
+and read by whoever next decides whether a row still holds.
+
+1. `USER_ID`'s `$why` said *"The Firebase uid."* — the whole of it, in a
+   build that also ships a unique world-readable handle.
+2. STORE-FORMS.md § 3 said **"Nothing in the app lets one user send
+   anything to another user"**, and named *"any addressed surface"* as the
+   trigger that moves `EMAILS_OR_TEXT_MESSAGES`. D122 falsified the
+   sentence and half-met the trigger.
+3. `docs/data-inventory.md` — the document `app-privacy.json`'s own header
+   names as the thing its answers must agree with — had **no row** for the
+   handle registry, invitations, or foresight verdicts.
+
+The trigger is re-derived rather than patched: it is now **addressed AND
+carrying text its sender wrote**, and both halves are load-bearing. An
+invitation is a capability offered to one person, not a message sent to
+them. It moves the day a DM ships — or, far more cheaply and far more
+likely, the day someone adds a note field to an invite.
+
+Two hand-maintained figures were stale in passing, both the D39 shape:
+STORE-FORMS.md said *"declare these five"* over a seven-row table, and
+runbook 5.6 said build 11 one day after 2.4 bumped it to 12 — inside the
+step whose whole job is noticing numbers disagree.
+
+### The gate, and why a discipline was not enough this time
+
+`check:data-inventory` — every `match /X/{…}` in `firestore.rules` is named
+in `data-inventory.md`, or exempted with a written reason. A **name** check,
+the same class as `check:globals`, and deliberately not more: it does not
+read the row, verify who it says may read the collection, or notice a row
+gone stale in place. A name is cheap to check; a claim is not.
+
+**Five findings against the pre-fix tree, silent after**, measured by
+restoring the file from git rather than argued: `foresight`, `invites`,
+`v2_handles`, `v2_ratelimits`, `insight_ratelimits`.
+
+The case for building it rather than resolving to be careful is D106 → D116
+→ this. D106's remedy was a discipline and it failed twice — a forgotten
+surface, then a mis-rewritten one. D116 replaced its half with a file list
+and that half has held. This is the same argument one layer down, and the
+reason it is worth a script is in *what* the audit found: three collections,
+none exotic, all shipped in the ordinary way, none of them changing an
+answer. **A miss that changes no answer produces no symptom**, so the only
+thing that finds it is something that runs whether or not anyone suspects.
+
+Four exemptions, each with its reason in the script: `databases` (the rules
+wrapper, not a collection), `v2_questions` (content the app ships, not data
+it collects), `v2_meta` (global config), `v2_velocity` (one global cursor
+doc, D54). The rate-limit collections were **not** exempted — they are
+keyed by uid and erased by `deleteAccount`, so they got rows. The script
+also fails on a stale exemption, because an allowlist outliving the thing
+it excused is how a gate becomes a rubber stamp.
+
+**On `ci.yml`, deliberately not `backend-checks.yml`.** It reads
+`firestore.rules`, so it looks like it belongs on the backend path. It says
+nothing about whether a rule is *correct*, and there it would block an
+emergency rules fix over a missing documentation row — the exact trade
+CLAUDE.md names, and the reason the placement is written into the workflow
+comment rather than left to be re-derived.
+
+### Not done
+
+**No check that a row's CONTENT is true**, which is the obvious next ask
+and is refused for D116's own reason: a checker that pretends to parse a
+prose claim gives false confidence. The rows say who may read a collection;
+`firestore.rules` and the rules tests are what make that true, and they
+already exist. This gate closes "a collection shipped and nothing wrote it
+down", which is the failure that happened, three times, in one release.
+
+**Nothing re-pushed to App Store Connect.** No answer changed, so there is
+nothing to push — the listing and age rating already match. That is a
+conclusion from the audit, not a step skipped.

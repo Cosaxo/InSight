@@ -116,6 +116,16 @@ jobs:
       # placement rule as check:store-forms above: client/docs-only, and
       # deliberately off backend-checks.yml.
       - run: npm run check:public-copy
+      # Every collection the rules grant access to is named in
+      # data-inventory.md — the document app-privacy.json derives the App
+      # Store privacy label from (D130). A name check, like check:globals.
+      #
+      # Same placement rule again, and here it is load-bearing rather than
+      # tidy: this reads firestore.rules, so it LOOKS like it belongs on
+      # backend-checks.yml. It must not go there. It says nothing about
+      # whether a rule is correct, and on that path a missing doc row would
+      # block an emergency rules fix — the exact trade CLAUDE.md names.
+      - run: npm run check:data-inventory
       # Five version numbers that must move together across three files.
       - run: npm run check:versions
       # Near-duplicate questions across the banks (D63). Exact-dupe checks

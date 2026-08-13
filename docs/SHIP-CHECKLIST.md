@@ -298,6 +298,16 @@ Both apps must be registered under `com.cosaxo.insight`:
   from `docs/data-inventory.md`, which is the audited list; the draft
   below is that list translated into their categories.
 
+  **"Audited" is a gate as of D130, and it was a hope before that.** On
+  build 12's pre-flight the inventory turned out to be missing three
+  collections shipped since build 11 — D122's handle registry and circle
+  invitations, D126's foresight verdicts — two of them world-readable.
+  No declared answer was wrong (all three fall under types already
+  declared Yes), which is exactly why it went unnoticed: **a miss that
+  changes no answer produces no symptom.** `npm run check:data-inventory`
+  now holds every collection the rules reach to a row in that file, so
+  the sentence above is true by construction rather than by intention.
+
   > **[`STORE-FORMS.md`](STORE-FORMS.md) is the same answers as a
   > field-by-field sheet to transcribe**, including the categories to
   > leave *unticked* and why three of them look tickable but are not. Use
