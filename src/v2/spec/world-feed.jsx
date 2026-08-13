@@ -18,7 +18,7 @@ import { WPAL } from './world-palette.js';
 import { HAPTIC } from './haptics.js';
 import { WF_CATALOGS } from './world-catalogs.js';
 import { LEARN } from './learn-progress.js';
-import { LEARN_ORDER, LEARN_SPLIT, LEARN_SPLIT_SRC } from './learn-data.js';
+import { LEARN_ORDER, LEARN_RATE, LEARN_SPLIT, LEARN_SPLIT_SRC } from './learn-data.js';
 import { SCENES } from './scenes.js';
 import { Sheet } from './primitives.jsx';
 // The feed's cadence arithmetic — extracted so the test exercises THIS loop
@@ -2248,7 +2248,12 @@ class WorldFeed extends React.Component {
     const rows = [];
     if (kn) {
       rows.push(['Field', fd ? fd.label + ' \u00b7 ' + ((LEARN.subject(fd.subject) || {}).label || '') : '']);
-      rows.push(['Crowd', kn.p + '% get this right']);
+      // D132: this row read `kn.p` \u2014 the authored difficulty hint \u2014 and
+      // labelled it "Crowd", which is a claim about people. LEARN_RATE
+      // hands back the published first-attempt rate where there is one and
+      // says so; where there is not, the row says whose number it is.
+      const kr = LEARN_RATE(kn);
+      rows.push([kr.src === 'measured' ? 'Crowd' : 'Our estimate', kr.pct + '% get this right']);
       rows.push(['On your map', 'Knowledge']);
     } else {
       const scene = q.scene ? SCENES.defs().find((g) => g.id === q.scene) : null;
@@ -2629,21 +2634,48 @@ class WorldFeed extends React.Component {
   renderKnowStats(q, T) {
     const card = LEARN.card(q.learn);
     if (!card) return null;
-    const dim = WF_KNOW_CUTS.indexOf(this.state.dims[q.id]) >= 0 ? this.state.dims[q.id] : 'friends';
+    // D132 \u2014 the other half of D89. That decision refused the "BEd knows
+    // this best \u00b7 83%" headline on a live device because the ranking under
+    // it is hash noise over the DEMO cut groups. It refused the headline
+    // and left the sheet the headline opened into, which is the same
+    // fabrication with more of it: every row below is `wfKnowRate`, a hash
+    // of (card, cohort) \u2014 a per-cohort knowledge rate nobody has measured,
+    // drawn against a baseline nobody has measured either. So the cuts go
+    // the way MapStats' five null anchors went (D72): refused at the
+    // source, returning when a per-cohort learn aggregate exists to rank.
+    //
+    // The headline stays, because it has a true version \u2014 LEARN_RATE hands
+    // back the published first-attempt rate where there is one, and labels
+    // itself where there is not.
+    // The imported binding, not the window surface — same reason
+    // renderKnowInsight gives below, and check:globals rule 4 refuses new
+    // coupling either way.
+    const live = LIVE.enabled;
+    const dim = live ? 'friends' : (WF_KNOW_CUTS.indexOf(this.state.dims[q.id]) >= 0 ? this.state.dims[q.id] : 'friends');
     const axis = this.state.cutAxis[q.id] || null, youBand = WF_YOU(dim, axis);
-    const p = card.p;
+    const rate = LEARN_RATE(card);
+    const p = rate.pct;
     const r = this.knowOf(q);
     const S = window.LEARN_SOCIAL;
     const seen = S ? S.onCard(card) : [];
     const rows = dim === 'friends' ? [] : (() => { const gs = WF_GRP(dim, axis); return gs.map((g, i) => ({ ...g, rate: wfKnowRate(q.id, WF_CUTKEY(dim, axis) + ':' + g.label, p, wfKnowBias(dim, axis, gs.length, i)) })).sort((a, b) => b.rate - a.rate); })();
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 13 }}>
-        {this.renderCutChips(q, dim, WF_KNOW_CUTS)}
+        {live ? null : this.renderCutChips(q, dim, WF_KNOW_CUTS)}
         <div style={{ background: 'var(--ink)', color: 'var(--surface)', borderRadius: 12, padding: '12px 14px', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 14, display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ flex: 1, minWidth: 0 }}>{p + '% of people get this right'}</span>
+          <span style={{ flex: 1, minWidth: 0 }}>{live && rate.src === 'estimate' ? 'about ' + p + '% get this right \u2014 our estimate' : p + '% of people get this right'}</span>
           {r ? <span style={{ flexShrink: 0, fontSize: 12, fontWeight: 800, background: 'color-mix(in oklch, var(--surface) 22%, transparent)', borderRadius: 999, padding: '3px 10px' }}>{r.ok ? 'You did' : 'You didn\u2019t'}</span> : null}
         </div>
-        {dim === 'friends' ? (
+        {/* The cuts' honest absence, in the sheet that was built to hold
+            them \u2014 the same sentence shape the Foresight lens uses for a
+            slice with nothing behind it yet. */}
+        {live ? (
+          <div style={{ fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 500, color: 'var(--ink-3)', lineHeight: 1.5, padding: '4px 2px 10px' }}>
+            Who knows this \u2014 by age, country or schooling \u2014 needs the answers
+            broken down per group, and knowledge cards do not publish that
+            yet. The rate above is everyone at once.
+          </div>
+        ) : dim === 'friends' ? (
           seen.length ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {seen.slice().sort((a, b) => (b.ok ? 1 : 0) - (a.ok ? 1 : 0)).map((f) => (

@@ -12944,3 +12944,89 @@ the fold can, because votes hydrate from the server and the tally does
 not. The fold is the truthful one. Unifying them means the ring reading
 `ownProgress`, which is a behaviour change to a surface nobody has
 reported a problem with, so it waits for one.
+
+---
+
+## D132 · One card said "our estimate" in the feed and stated a measurement two taps away
+
+**Decided:** 2026-08-13 · **Status:** binding · A defect report from the
+build-12 device — *"Learn seems to still use some sample data"*. Completes
+D32's label seam and D89's refusal, both of which stopped one surface short.
+
+### What a live device was being shown
+
+`card.p` is an authoring field. The bank's own header says what it is for:
+*"% of the crowd who get it right. Doubles as difficulty (low p = hard), so
+'on your level' runs on real crowd data"* — it is the scheduler's input,
+written by whoever wrote the card.
+
+D32 built the seam that keeps it honest: `LEARN_SPLIT` returns the
+published first-attempt distribution once one exists and the authored model
+until then, `LEARN_SPLIT_SRC` says which, and the reveal's footer hangs off
+that — *"Our estimate — becomes measured once enough people have
+answered."*
+
+**Three other surfaces never consulted it**, and each printed `card.p` as a
+finished fact about people:
+
+- the Mirror Map's knowledge node — a filled bar and *"84% of people get
+  this right"*;
+- the ⓘ sheet's row, labelled **Crowd**, which is a word about people;
+- the "who knows this" panel's headline, in inverse type.
+
+So the same card, in one session, hedged in the feed and asserted on the
+map. The hedged one was the honest reading of the same number.
+
+### The panel was worse than unlabelled
+
+D89 refused the *"BEd knows this best · 83%"* row on a live device because
+its ranking is `wfKnowRate` — a hash of (card, cohort) over the DEMO cut
+groups. It refused the headline and left the sheet the headline opened
+into, where the same fabrication is drawn as a full distribution: every
+row a hash, sorted, bars against a hairline baseline, with *your* band
+marked. A refusal that removes the summary and keeps the detail has moved
+the claim rather than withdrawn it.
+
+The sheet stays reachable — it is the ⓘ-adjacent "Who knows this" panel,
+not only D89's button — so the gate has to be in the panel.
+
+### The fix
+
+`LEARN_RATE(card)` → `{ pct, src }`, next to `LEARN_SPLIT` and reading the
+same `learnMeasured`: the share who got it right, and where the number came
+from. All three surfaces use it, and each says "our estimate" in live mode
+when that is what it is. `card.c` indexes a measured split safely because
+`LEARN_ORDER` permutes on the way to the SCREEN and the buttons map back to
+authored indices before anything is recorded — the property its own note
+already had to guarantee for the aggregate to be meaningful at all.
+
+The cuts go the way MapStats' five null anchors went (D72): `renderKnowStats`
+forces the friends dim and drops the chips in live mode, so no live path
+reaches `WF_GRP` at all, and the sheet says what it cannot show rather than
+opening on an empty frame. It returns when a per-cohort learn aggregate
+exists to rank — the same "when there is a truth to read" condition D89 set.
+
+**Demo builds keep all of it, unhedged.** A demo's whole population is
+authored, and hedging one figure inside it would imply the others were
+measured — the inverse of the same error.
+
+### Not done, and one thing that is not a defect
+
+**The Map's `typ: c.p / 100`** (`map-tab.jsx`) still reads the authored
+value. It positions a node; it is not a number shown to anyone, and a
+layout hint does not make a claim.
+
+**Learn's card bank is authored content, not sample data**, and that is the
+half of the report that is working as designed: `content/learn-questions.json`
+is the source for both the client and the seeded Firestore docs (D32), the
+way the daily bank is. What was wrong was never the questions — it was the
+percentages beside them.
+
+**The learn-progress demo seed is correctly gated and was verified, not
+assumed.** A live build starts at a real zero (`freshS()` behind
+`VITE_V2_LIVE`, which `ios-release.yml` sets); probed directly. An install
+that once ran a non-live build keeps whatever `insight.learn.v3` holds,
+because that key is also where genuine progress lives and there is no way
+to tell the two apart after the fact. If a device shows pre-known cards, it
+is that, and the cure is the account delete — worth knowing before reading
+it as a live-mode bug.

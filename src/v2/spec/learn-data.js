@@ -141,6 +141,32 @@ function learnMeasured(card) {
 export function LEARN_SPLIT_SRC(card) {
   return learnMeasured(card) ? 'measured' : 'estimate';
 }
+
+/**
+ * The one number three surfaces outside the reveal want: the share of the
+ * crowd who get this card RIGHT, and where it came from.
+ *
+ * D132. LEARN_SPLIT above is the whole distribution and the reveal reads
+ * it carefully — it renders the measurement when there is one and says
+ * "our estimate" when there is not. Every OTHER surface read the authored
+ * `card.p` directly and printed it as a finished fact: the map node
+ * ("84% of people get this right"), the ⓘ sheet's Crowd row, and the
+ * "who knows this" panel's headline. So the same card said "our estimate"
+ * in the feed and stated a measurement two taps away, and the authored
+ * number — a content-authoring difficulty hint — was the one wearing the
+ * authority.
+ *
+ * `card.c` is safe as the index into a measured split: LEARN_ORDER
+ * permutes on the way to the SCREEN and the buttons map back to authored
+ * indices before anything is recorded (see its note above), so the
+ * aggregate's cells are keyed the way the definition is.
+ */
+export function LEARN_RATE(card) {
+  const measured = learnMeasured(card);
+  return measured
+    ? { pct: measured[card.c], src: 'measured' }
+    : { pct: card.p, src: 'estimate' };
+}
 export function LEARN_SPLIT(card) {
   const measured = learnMeasured(card);
   if (measured) return measured;
