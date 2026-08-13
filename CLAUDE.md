@@ -144,7 +144,10 @@ Two rules for working with it:
 
 Plus the non-test gates: `check:globals`, `check:labels`, `check:quality`
 (question form + provenance, D97), `check:public-copy` (the retired
-pre-D98 privacy vocabulary, in copy a user reads — D116), `check:versions`,
+pre-D98 privacy vocabulary, in copy a user reads — D116),
+`check:data-inventory` (every collection the rules reach is named in
+`docs/data-inventory.md`, which the store privacy label derives from —
+D130), `check:versions`,
 `check:bundle`, `check:deploy-targets`, `check:fn-runtime`,
 `check:appcheck`, and the
 catalogue drift gates `check:cities`, `check:pokedex`, `check:catalogs` —

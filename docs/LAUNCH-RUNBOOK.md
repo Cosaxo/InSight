@@ -420,6 +420,29 @@ arithmetic.
       is this section's whole convention. **Build 11 is the highest on App
       Store Connect**, so the comparison passes for the next run as-is.
 
+      **Build 12 is pre-flighted and unspent as of 2026-08-13 (D130).** The
+      comparison was made rather than assumed — 12 > 11 — and every gate in
+      6.1 passes, along with the full suite: 944 client tests, 203 function
+      tests, 83 rules tests, lint, `tsc -b`, `check:globals` at its
+      baseline, and 19 of the remaining check gates. The two that do not
+      pass locally are both environmental and neither is a defect:
+      `check:web-firebase` reads `VITE_FIREBASE_*` from repository
+      *variables* that exist only in CI (which is the point of it running
+      after the build, in the workflow, against `dist/`), and
+      `check:fn-runtime` needs `npm run build --prefix functions` first —
+      it passes once built. **`test:rules` needs `HTTPS_PROXY` unset**, per
+      CLAUDE.md; with it set the emulator dies naming neither the host nor
+      the proxy.
+
+      What build 12 carries that 11 did not: D118–D121's phone-reported
+      gesture and Answers-tab fixes, D122's handles and invitations,
+      D123's dedup gate, D124's cost ceilings, D125's who-voted turn,
+      D126–D128's Foresight read half, and D129's polled deck.
+
+      **The store-side audit that D116 made standing was run against those
+      and came back with no answer changed** — the reasoning under two of
+      them had gone stale, which is D130.
+
       **`npm run check:versions -- --fix` does NOT increment.** It
       propagates package.json's value into the two native projects and
       nothing more, so "run --fix to bump" is wrong and reports a cheerful
@@ -778,7 +801,13 @@ That is a tester-count problem, not a workflow problem.
       it for two policies is the worse trade. Both cover failures that look like nothing from the
       outside: the app keeps serving while the Mirror stops moving, or
       keeps moving while falling further behind. `DEPLOYMENT.md § Alerting`.
-- [x] **5.6 Version lockstep — holds at 2.0.0 build 11 (2026-08-12).**
+- [x] **5.6 Version lockstep — holds at 2.0.0 build 12 (verified 2026-08-13).**
+      *This line said build 11 until 2026-08-13, one day after 2.4 bumped
+      the number it quotes.* Harmless in itself and worth naming anyway: it
+      is the D39 shape — a figure kept current by intention — inside the
+      very step whose job is to notice numbers disagreeing. The checker
+      reads the three files and never this sentence, so run the command
+      rather than reading this line.
       `npm run check:versions` (`--fix` writes package.json's values into
       both native projects). `appBuild` + android `versionCode` + iOS
       `CURRENT_PROJECT_VERSION` — five numbers across three files — move

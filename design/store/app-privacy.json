@@ -33,7 +33,7 @@
       "type": "USER_ID",
       "linked": true,
       "purposes": ["APP_FUNCTIONALITY"],
-      "$why": "The Firebase uid. Anonymous by default (D3) — every install becomes one at first paint."
+      "$why": "The Firebase uid. Anonymous by default (D3) — every install becomes one at first paint. ALSO THE HANDLE since D122 (v2_users/{uid}.handle, plus the v2_handles registry keyed by the name): user-chosen, unique, and readable by any signed-in user. Apple's own definition of this type names it — 'any screen name, handle, account ID …' — so the handle lands in the row that was already Yes and the ANSWER does not move. The basis for it did, which is why this line says so: a row whose stated reason is stale is the D116 failure one layer in, and a future contributor deciding whether this row still holds reads this sentence."
     },
     {
       "category": "CONTACT_INFO",
@@ -83,7 +83,7 @@
     "$why": "Recorded so a reviewer's question has an answer and so a future contributor sees which absences were decided rather than forgotten. Three of these look tickable and are not:",
     "DEVICE_ID": "Device binding (D29) receives 2-3 bits from Apple DeviceCheck meaning 'an account was activated from this device recently'. The server stores no device identifier; the platforms hold the state. There is nothing for deleteAccount to erase because nothing is held.",
     "PRODUCT_INTERACTION": "data-inventory.md: no product analytics of any kind ship today. Adding any would change this row.",
-    "EMAILS_OR_TEXT_MESSAGES": "Still No, and still for the shape reason: a take is a POST — to a circle (D78 part 1) or, since D83, anonymously to the world — never a message to a person, and Apple files posts under User Content > Other User Content, which is already declared Yes above. So the CONTENT is declared either way and this row is about shape. It moves if a direct person-to-person surface ships. The age rating did move — messagingAndChat is true (D79) — because that question asks whether the app has chat at all rather than what category the text lands in, and the two forms genuinely diverge here.",
+    "EMAILS_OR_TEXT_MESSAGES": "Still No, and still for the shape reason: a take is a POST — to a circle (D78 part 1) or, since D83, anonymously to the world — never a message to a person, and Apple files posts under User Content > Other User Content, which is already declared Yes above. So the CONTENT is declared either way and this row is about shape. It moves if a direct person-to-person surface ships. The age rating did move — messagingAndChat is true (D79) — because that question asks whether the app has chat at all rather than what category the text lands in, and the two forms genuinely diverge here. D122's circle INVITATION is the first thing to test that trigger, and it does not trip it — checked against the write rather than the feature name: inviteToGroupV2 sets to, from, fromName, groupName, mode and at, and there is NO free-text field for a sender to write into. An invitation is a capability offered to one person, not a message sent to them. It would move this row the day an invite carries a note.",
     "others": [
       "PHONE_NUMBER", "PHYSICAL_ADDRESS", "OTHER_CONTACT_INFO", "HEALTH",
       "FITNESS", "PAYMENT_INFO", "CREDIT_INFO", "OTHER_FINANCIAL_INFO",

@@ -60,17 +60,29 @@ companies' apps or sites.
 
 **Every row below is therefore "Not used for tracking".**
 
-### Collected — declare these five
+### Collected — declare these seven
 
 | Apple category | Type | Linked? | Purpose | What it actually is |
 | --- | --- | --- | --- | --- |
-| Identifiers | **User ID** | Yes | App Functionality | The Firebase uid. Anonymous by default (D3) — every install becomes one at first paint |
+| Identifiers | **User ID** | Yes | App Functionality | The Firebase uid, anonymous by default (D3) — every install becomes one at first paint — **and the handle since D122**, which Apple's own definition of this type names ("any screen name, handle, account ID …"). See the note below the table |
 | Contact Info | **Email Address** | Yes | App Functionality | Only if the user links Google. See the warning below |
 | Contact Info | **Name** | Yes | App Functionality | Optional display name, shown in group and duel reveals |
 | User Content | **Other User Content** | Yes | App Functionality | Answers and test results |
 | Location | **Coarse Location** | Yes | App Functionality | City name only. **Never tick Precise** |
 | Sensitive Info | **Sensitive Info** | Yes | App Functionality | Politics test result (GDPR Art. 9); gender if entered |
 | Diagnostics | **Crash Data** | Yes | App Functionality | Sentry. **On by default** (D76), opt-out in the privacy panel, carries the uid only |
+
+**The handle (D122) lands in *User ID*, and the answer does not move.**
+Worth a line anyway, because the row's stated basis was "the Firebase uid"
+and that is no longer the whole of it. A handle is user-chosen, unique and
+readable by any signed-in user — `v2_users/{uid}.handle` plus the
+`v2_handles/{handle}` registry — and Apple's definition of this type names
+it outright: *"any screen name, handle, account ID, assigned user ID,
+customer number, or other user- or account-level ID"*. So nothing needs
+re-typing into App Store Connect; what needed correcting was the sentence a
+future reviewer checks the row against. That is the D116 failure one layer
+in — pushed state was right, the reasoning under it had gone stale — and it
+is the reason this note exists rather than a diff nobody would notice.
 
 ### Not collected — leave every one of these unticked
 
@@ -96,7 +108,10 @@ Three of those are worth knowing *why*, because each looks tickable:
   world — never a message to a person, and Apple files posts under *User
   Content → Other User Content* — already declared **Yes** above. The
   content is declared either way; this row is about shape. It moves if a
-  direct person-to-person surface ships.
+  surface ships that is addressed to a person **and** carries text its
+  sender wrote. D122's circle invitation is addressed and carries no such
+  text — there is no note field on the write — so it does not move this
+  row; §3 has the re-derivation and why both halves of that test matter.
 
   **The age rating did move** (`messagingAndChat` → `true`, D79) and the
   divergence is real rather than an inconsistency: that question asks
@@ -274,9 +289,30 @@ The two that are not simply "no content of that kind":
   **D98 does not trip that trigger, and the distinction is worth stating
   because it is close.** Answers and takes are now named and world-visible
   — but they are still POSTS, addressed to a question rather than to a
-  person. Nothing in the app lets one user send anything to another user.
-  The row moves the day a DM, a reply-to-person, or any addressed
-  surface ships; it does not move because the posts acquired names.
+  person. It does not move because the posts acquired names.
+
+  **D122 sharpened the trigger, because it is the first thing to half-meet
+  it.** This paragraph used to end "Nothing in the app lets one user send
+  anything to another user. The row moves the day a DM, a reply-to-person,
+  or any addressed surface ships" — and a circle invitation *is* an
+  addressed surface: `inviteToGroupV2` writes to
+  `v2_groups/{gid}/invites/{invitedUid}`, a document only that one invitee
+  may read. So the sentence is false as written and the trigger it stated
+  was too broad.
+
+  The row still does not move, and the re-derived reason is narrower than
+  "nothing is addressed": Apple's type is the **content** of emails or
+  text messages, and an invitation has no content field to declare. Read
+  off the write rather than the feature name — `to`, `from`, `fromName`,
+  `groupName`, `mode`, `at` — every one app-generated. There is nowhere
+  for a sender to type. An invitation is a **capability offered** to one
+  person, not a message sent to them, which is also why accepting it is
+  the only path that appends to `memberUids`.
+
+  So the trigger is **addressed AND carrying text its sender wrote**, and
+  both halves are load-bearing. It moves the day a DM or a reply-to-person
+  ships — or, much more cheaply and far more likely, the day someone adds
+  a note field to an invite.
 
 Two were measured rather than asserted, on the same scan the frequency
 answers came from:
