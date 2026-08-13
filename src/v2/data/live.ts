@@ -130,6 +130,10 @@ import type { Member as CircleMember } from "./circle";
 // the same reason — live.ts is eager and this cannot run until a lens
 // nobody has opened is opened.
 import type { Verdict as ForesightVerdict } from "./foresight";
+// Stated topic preferences (D127). A static import, unlike circle's: this
+// is applied on every feed rebuild rather than on a lens nobody opened,
+// and the module is a few hundred bytes of localStorage plumbing.
+import { applyInterests } from "./interests";
 // Pure deck-shaping logic lives in ./deck (unit-testable, no firebase);
 // this module passes its store state in.
 import {
@@ -947,7 +951,15 @@ function buildFeedGlobals(): void {
         live: true,
       };
     });
-  (window as unknown as Record<string, unknown>).WORLD_FEED_QS = feed;
+  // Stated topic preferences, applied to the FEED and nowhere else
+  // (D127). Muted topics drop out of the pool; "more" topics move
+  // forward as a stable partition. Applied here rather than at render
+  // because the pool is what a preference is about — and applied to this
+  // global only, which is what keeps the constraint checkable: the daily
+  // deck and every Mirror surface read their own sources and never see
+  // this call. data/interests.test.ts asserts the reader list.
+  (window as unknown as Record<string, unknown>).WORLD_FEED_QS =
+    applyInterests(feed, (q) => q.cat);
   (window as unknown as Record<string, unknown>).TEST_FEED_QS = tests;
   (window as unknown as Record<string, unknown>).WORLD_FEED_COMMENTS = {};
   LIVE.feedReady = true;

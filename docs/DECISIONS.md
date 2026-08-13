@@ -12377,3 +12377,75 @@ can be recomputed by the person reading it; this cannot. The mitigation
 that carries the most weight is the cheapest one — a rubric good enough
 that confirming a citation takes thirty seconds, because a confirmation
 step too expensive to do properly is a rubber stamp with extra latency.
+
+## D127 · You can say what you want more of; the app does not guess
+
+**Decided:** 2026-08-13 · **Status:** binding · Tier 1 of
+[`docs/ATTENTION.md`](ATTENTION.md).
+
+**Decision.** A three-state topic preference — Less · Normal · More —
+stated by tapping, stored on the device, applied to the **feed and
+nothing else**.
+
+### What it does not do, which is the reason it can exist
+
+`docs/MONITORING.md` § "Off the table" refuses per-user funnels,
+engagement scoring, skip/pass/hesitation rates and per-user content
+selection, and `data-inventory.md` — the audited list the store forms are
+answered from — says no product analytics of any kind ship. That refusal
+was re-affirmed *after* D98, as an analytics decision standing on its own
+rather than one the k-floor was carrying.
+
+**This crosses none of it, and the distinction is exact: a weight changes
+because someone tapped a control that said it would change it, and for no
+other reason.** Nothing observes a scroll, a dwell or a skip. A stated
+preference is the same kind of datum as the city in a profile — given
+deliberately, about oneself, collecting nothing about anybody. Inferring
+one from behaviour is tier 2 and is a different decision.
+
+It is also the better signal, which is why the plan starts here rather
+than settling here. One deliberate tap outweighs a hundred ambiguous
+scrolls: no dwell threshold, no seen-denominator, and no argument about
+whether scrolling past meant dislike or meant the bus arrived. **If
+people use this, most of tiers 2 and 3 is redundant, and finding that out
+is cheaper than building the model that guesses.**
+
+### The limit, and the test that holds it
+
+**The feed may adapt. The daily question and the Mirror may not.** One
+blind question a day, the same one for everyone, is what makes the
+populations comparable at all; a Mirror weighted toward the cohorts you
+engage with is a filter bubble wearing a Mirror's clothes, and the
+feature would quietly destroy the thing it decorates.
+
+That constraint **cannot fail loudly** — a narrowed Mirror still renders
+a perfectly convincing screen — so `interests.test.ts` asserts it by
+scanning the tree for importers of `data/interests` and comparing against
+an allowlist of two: `live.ts` (the feed pool) and the panel. A new
+reader has to be added there deliberately, and adding a Mirror module
+should feel wrong.
+
+### Three small shapes, each with a reason
+
+- **Three states, not a slider.** The states are what a person can mean
+  about a topic, and a number invites the app to start adjusting it —
+  which is tier 2 arriving by the back door.
+- **Neutral DELETES the key.** "I turned this back to normal" and "I
+  never said anything" are the same state, and storing them differently
+  would show a topic as touched after the user had undone it.
+- **A stored value that is not one of the three is dropped, not
+  clamped.** A 0.7 came from a version that meant something else, and
+  rounding it invents a preference nobody stated.
+
+An untagged card always survives the filter: an untagged card is not
+evidence of anything, and dropping it would let a content bug read as a
+user preference.
+
+### Costs
+
+Local only, like `data/mutes.ts` and for the same reason — so it does not
+follow you to a second device, which is the honest trade for collecting
+nothing. Bundle: ~2 KB, and `check:bundle`'s total goes 2170 → 2176. The
+panel is `React.lazy` from LivePrivacyPanel, which is right on the merits
+and moved the total by zero — the same "splitting relocates bytes"
+property the 2026-08-11 note recorded, holding again.

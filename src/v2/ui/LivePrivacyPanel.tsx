@@ -25,6 +25,11 @@ import { atHandle, handleProblem, normalizeHandle } from "../data/handles";
 // single edit (D3).
 import { SITE_ORIGIN as LP_SITE } from "../data/links";
 import { setTelemetryEnabled, telemetryEnabled } from "../../lib/sentry";
+// Lazy, for the bundle budget: this panel is eager (spec-index), and the
+// interests panel plus its store put the total 2 KB over. It is also the
+// right thing to defer on the merits — it renders inside the account
+// screen, which nothing on the first frame opens.
+const LiveInterestsPanel = React.lazy(() => import("./LiveInterestsPanel"));
 
 const LP_LINE = "1px solid color-mix(in oklch, var(--rule), transparent 25%)";
 
@@ -270,6 +275,21 @@ function LivePrivacyPanel() {
       </LpRow>
 
       {err && <div style={{ fontSize: 12, fontWeight: 600, color: "oklch(0.5 0.19 25)", marginTop: 8 }}>{err.replace(/^.*?: */, "")}</div>}
+
+      {/* Topic preferences (D127). Mounted INSIDE this panel rather than
+          beside it in profile-overlay.jsx: a second `window.X &&` lookup
+          there would raise the shared-global count, and D39's ratchet only
+          moves down. It also belongs here — this is the screen that says
+          what the app does with what it knows about you, and "you can tell
+          it what you want more of" is the same conversation. */}
+      <div style={{ marginTop: 26 }}>
+        {/* null fallback: the row above it is the panel's own last row,
+            so an empty gap for one frame reads as the screen still
+            drawing rather than as something missing. */}
+        <React.Suspense fallback={null}>
+          <LiveInterestsPanel />
+        </React.Suspense>
+      </div>
     </div>
   );
 }
