@@ -189,6 +189,37 @@ export function axisScores(
  * refusing until a sit-down test is done. The caller labels which basis a
  * number came from.
  */
+/**
+ * The store's vote map, in the shape every fold here wants.
+ *
+ * `LIVE.myVotes()` is `{ [qid]: optionId }` and the option id is a
+ * STRING — live.ts writes `String(optionIdx)` on hydrate and stores the
+ * caller's string on vote. Every scorer below asks `Number.isInteger(v)`,
+ * which is false for `"2"`, so a raw myVotes() folds to nothing at all:
+ * no axis gets an answer, `answered` counts zero, and the profile reports
+ * "0 of 30 answered" to someone who has answered thirty.
+ *
+ * That is exactly what shipped (D131). The conversion lived inline in
+ * ONE of the two callers, so the bug was invisible as a diff — the
+ * working call site and the broken one did not sit next to each other,
+ * and the broken one is `.jsx`, where the type that would have caught it
+ * is not checked. It lives here now because this module defines the
+ * numeric contract; a caller that forgets the conversion is a caller
+ * that did not use this function.
+ */
+export function voteIndices(
+  votes: Readonly<Record<string, string | number>>,
+): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const [qid, raw] of Object.entries(votes)) {
+    const n = Number(raw);
+    // Integer-and-in-range here rather than at each fold: "" coerces to 0,
+    // which would score an unanswered question as a strong disagree.
+    if (raw !== "" && Number.isInteger(n) && n >= 0 && n <= 4) out[qid] = n;
+  }
+  return out;
+}
+
 export function myAxisScores(
   test: string,
   def: TestDef,

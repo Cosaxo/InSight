@@ -12844,3 +12844,103 @@ down", which is the failure that happened, three times, in one release.
 **Nothing re-pushed to App Store Connect.** No answer changed, so there is
 nothing to push — the listing and age rating already match. That is a
 conclusion from the audit, not a step skipped.
+
+---
+
+## D131 · The profile said "0 of 30 answered" to someone who had answered thirty
+
+**Decided:** 2026-08-13 · **Status:** binding · A defect report from the
+build-12 device, fixed. Extends D121 (the passive fold) with the seam it
+was missing.
+
+### What shipped
+
+Every one of the four instruments read **zero answers, forever**. The
+profile's per-test tab drew "0 of N answered" with every axis listed as
+thin, no type could ever appear, and the Mirror's own-score fold behind it
+was empty. A device sat at *politics test · 6/30* on the feed's own ring
+and *0 of 30 answered* on the profile tab beside it, in the same session,
+two taps apart.
+
+### The bug is one type, crossed at one call
+
+`LIVE.myVotes()` is `{ [qid]: optionId }` and the option id is a **string**
+— `live.ts` writes `String(optionIdx)` on hydrate and stores the caller's
+string on vote. The scorers (`similarity.myAxisScores`,
+`passiveProfile.passiveTest`) declare `Record<string, number>` and gate on
+`Number.isInteger(v)`. `Number.isInteger("2")` is `false`, so every vote
+was discarded as malformed: no axis got an answer, `answered` counted
+nothing, and `ready` was never true.
+
+`result-card.jsx` passed the raw map. Nothing anywhere reported an error,
+because discarding a vote as out-of-shape is also the correct handling of
+a genuinely absent one — the bug's output is byte-identical to the honest
+empty state, which is why it survived a release and why the fix's test
+asserts **both** directions.
+
+### Why every guard and the whole suite were green
+
+Worth writing down, because each near-miss is a different lesson and only
+one of them is "add a test".
+
+- **`tsc -b` cannot see it.** `result-card.jsx` is `.jsx`. The parameter
+  type is declared, correct, and unchecked at exactly the call that broke.
+  This is the `vote.test.ts` lesson (a `window.LIVE` rename that passes
+  tsc because its consumers are `.jsx`) arriving through the other door:
+  not the member's NAME but its VALUE TYPE.
+- **The unit tests are green and right.** `passiveProfile.test.ts` and
+  `similarity.test.ts` pin the fold and the arithmetic thoroughly — with
+  numeric vote maps, because that is the declared type. A pure module
+  tested against its own signature cannot discover that its only real
+  caller does not honour it.
+- **The mount tests reach the screen and prove nothing about it.**
+  `live-fixture.ts` answers `testFeedItems: () => []`, and an empty bank
+  makes the fold return `null` before it can look at a vote. The fixture
+  says so in a comment — the place fields "have their own unit tests" —
+  which was true and, for this fold, exactly the gap.
+- **The correct conversion already existed**, four lines of it, inline in
+  `LiveSimilarityField.tsx`. One of the two callers converted and one did
+  not, in different files, so the diff that would have shown them
+  disagreeing was never written.
+
+### The fix, and where it is put
+
+`similarity.voteIndices(votes)` — the store's map, coerced to the option
+indices every fold here wants — used by both callers. Deliberately **not**
+a change to the scorers' guard: `Number.isInteger` refusing `"2"` is not
+the wrong rule, it is the right rule stated at the wrong distance from the
+store. A caller that forgets the conversion is now a caller that did not
+use the function, rather than one that wrote its own four lines correctly.
+
+It drops `""`, `"5"`, `"-1"` and `"1.5"` rather than coercing them. `""`
+is the one that matters: `Number("")` is `0`, which would score an
+unanswered question as a strong *disagree* — a wrong answer invented out
+of an absent one, which is worse than the bug being fixed.
+
+### The test is at the seam, because that is what was missing
+
+`test/passive-fold-live.test.jsx` drives `ownProgress`/`ownResult` through
+the real store surface with real bank items and **string** votes. Verified
+by reverting the fix: it fails `expected +0 to be 6` — the screenshot's
+number, reproduced.
+
+It also has to dispatch `insight:test-results` with `{}` first, and that is
+the second finding rather than test scaffolding. A live boot ends in
+`publishTestResults()`, which REPLACES `IS_TEST_RESULTS` and so clears the
+demo persona's baked scores. **The fixture never does this**, so a live
+mount test still carries the demo's Big Five, `ownResult` answers from the
+seed, and the passive path is unreachable. Left as a note here rather than
+fixed in the fixture: changing it moves every live mount test's starting
+state, which is a larger change than this defect earns.
+
+### Not done
+
+**The feed's ring and this fold still count differently.** The ring
+(`passive-progress.js`) tallies card ids in `localStorage` as they are
+answered; the fold counts votes joined to the instrument by prompt text.
+They agree on one device that answered everything in the feed, and they
+diverge for answers given on another device — the ring cannot see those,
+the fold can, because votes hydrate from the server and the tally does
+not. The fold is the truthful one. Unifying them means the ring reading
+`ownProgress`, which is a behaviour change to a surface nobody has
+reported a problem with, so it waits for one.

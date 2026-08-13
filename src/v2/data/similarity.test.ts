@@ -18,6 +18,7 @@ import {
   rankKindred,
   scoreMatch,
   testItemMeta,
+  voteIndices,
   type KindredPerson,
   type TestDefs,
 } from "./similarity";
@@ -295,6 +296,41 @@ describe("myFlatAxes — instruments first, own answers fill the gaps", () => {
 
   it("is null with neither — the field says so instead of centring a ghost", () => {
     expect(myFlatAxes(null, ITEMS, DEFS, {})).toBeNull();
+  });
+});
+
+// D131. The bug this pins was not in the arithmetic — every fold above was
+// right — it was in the one line that hands the store's vote map to it.
+// `LIVE.myVotes()` is `{ qid: "2" }`, the scorers ask `Number.isInteger`,
+// and `Number.isInteger("2")` is false: the profile told a user who had
+// answered thirty questions "0 of 30 answered", on every instrument,
+// permanently. The conversion existed and was correct in ONE of the two
+// call sites, which is why it read as fine.
+describe("voteIndices — the store's strings, as the folds want them", () => {
+  it("coerces the shape LIVE.myVotes() actually returns", () => {
+    expect(voteIndices({ a: "0", b: "2", c: "4" })).toEqual({ a: 0, b: 2, c: 4 });
+  });
+
+  it("passes numbers through, so a converted caller may convert twice", () => {
+    expect(voteIndices({ a: 3 })).toEqual({ a: 3 });
+  });
+
+  it("drops what is not an answer rather than coercing it to one", () => {
+    // "" → Number("") is 0, which would score as a strong disagree; the
+    // rest are out of the 0..4 agreement axis the instruments are written
+    // on, and a dial/field answer keyed by qid is exactly how one arrives.
+    expect(voteIndices({ blank: "", high: "5", neg: "-1", frac: "1.5", junk: "abc" }))
+      .toEqual({});
+  });
+
+  it("folds a string-valued map to the same scores as a numeric one", () => {
+    const strings = myAxisScores("big5", DEFS.big5, ITEMS,
+      voteIndices({ "test-big5-00": "4", "test-big5-01": "0", "test-big5-02": "3" }));
+    const numbers = myAxisScores("big5", DEFS.big5, ITEMS,
+      { "test-big5-00": 4, "test-big5-01": 0, "test-big5-02": 3 });
+    expect(strings).toEqual(numbers);
+    // …and that is not two empty arrays agreeing with each other.
+    expect(strings.length).toBe(2);
   });
 });
 

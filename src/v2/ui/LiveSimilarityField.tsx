@@ -40,6 +40,7 @@ import {
   rankKindred,
   testItemMeta,
   myFlatAxes,
+  voteIndices,
   type ParsedResults,
   type PlaceProfile,
   type RankedPerson,
@@ -462,13 +463,12 @@ function SimilaritySection({ scope }: { scope: "city" | "country" | "world" }) {
   // The viewer's own axes for the place fields: completed instruments
   // first, own answers to the bank's test items filling the gaps — real
   // data either way, and myFlatAxes labels neither as the other.
-  const myVotesNum: Record<string, number> = {};
-  for (const [qid, v] of Object.entries(LIVE.myVotes())) {
-    const n = Number(v);
-    if (Number.isFinite(n)) myVotesNum[qid] = n;
-  }
+  // This conversion used to be written out here, and being the only copy
+  // is what hid D131: result-card.jsx fed the fold a raw myVotes() and
+  // scored nobody. Shared now, so there is one definition of what a vote
+  // is worth to a scorer.
   const items = testItemMeta(LIVE.testFeedItems(), DEFS);
-  const myFlat = myFlatAxes(myParsed, items, DEFS, myVotesNum);
+  const myFlat = myFlatAxes(myParsed, items, DEFS, voteIndices(LIVE.myVotes()));
   return <PlacesField scope={scope} myFlat={myFlat} />;
 }
 
