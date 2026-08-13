@@ -13211,8 +13211,8 @@ refresh is a re-render per refresh.
 
 The gate wraps `<App />` at the root, so whatever implements it is in the
 first-paint graph of every build including the ones that can never render
-it. Measured: the screen put **3 KB** into an eager graph with 2 KB of
-headroom, and the gate failed. So the decision (`signInRequired`, a build
+it. Measured: the screen put **3 KB** into an eager graph that had no room
+for it, and the gate failed. So the decision (`signInRequired`, a build
 constant) stays eager and the SCREEN is a `React.lazy` chunk only a
 flagged build ever fetches — `check:bundle`'s own advice, followed rather
 than argued with. Eager graph is back within budget and the screen ships
@@ -13222,6 +13222,22 @@ The early return sits after the hooks, which is safe for a stated reason
 rather than by luck: Vite substitutes the flag at build time, so it is
 constant for the life of the process and the hook order cannot change
 between renders of one instance.
+
+The bundle ceiling moved with it: total **2175 → 2179 KB**, one new chunk,
+and `MAX_TOTAL_JS_KB` raised 2176 → 2180 with the note the script asks
+for. Deferring moved that number by ZERO — the total counts every chunk,
+so splitting relocates bytes and only deleting code moves it, which is the
+property D128's raise recorded and which held again. It is raised rather
+than trimmed because the bytes are a login screen.
+
+**And the gate caught it in CI after passing locally, which is worth more
+than the 4 KB.** `npm run build` without a `VITE_SENTRY_DSN` never emits
+the 435 KB `prod-*.js` chunk, so the local total read 1725 KB against a
+2176 ceiling — 451 KB of headroom that does not exist. Two different
+bundles, not a flaky gate. `docs/LOCAL-TESTING.md` now says how to build
+the one CI measures, and `check-bundle.mjs` says it at the constant.
+`MAX_EAGER_KB` is now at exactly its ceiling with no headroom left; the
+next addition to first paint has to be a dynamic import, not a raise.
 
 ### What was NOT built, and why
 

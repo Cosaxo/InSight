@@ -293,8 +293,42 @@ const INDEX_HTML = join(root, "dist", "index.html");
 // counts every chunk, so splitting relocates bytes and only deleting
 // code moves it. The deferral stays because the ENTRY chunk is the
 // ceiling with 10 KB of headroom, not because it paid here.
+//
+// 2176 → 2180 (2026-08-13): D134's sign-in wall — a screen the app did
+// not have. Measured against origin/main, both built WITH a Sentry DSN so
+// the numbers are the ones CI reads: total 2175 → 2179 (+4 KB, one new
+// chunk), eager 954 → 955.
+//
+// Same shape as the entry above, including the part that keeps being
+// re-learned: the deferral was tried FIRST, and it moved this number by
+// zero. Statically imported, the screen costs +3 KB eager (953 → 956 on a
+// local build); behind React.lazy it costs +1, which is the whole reason
+// MAX_EAGER_KB below is still green. The total did not care either way,
+// because it counts every chunk — splitting relocates bytes, only
+// deleting code moves the total. Raised rather than trimmed because the
+// bytes are a login screen, and shrinking one to fit a budget costs a
+// user something and saves nobody anything.
+//
+// TWO THINGS FOR WHOEVER TOUCHES THIS NEXT, both found the hard way on
+// the run that failed (CI run 379):
+//
+//   1. `npm run build` LOCALLY DOES NOT BUILD WHAT CI BUILDS. Without a
+//      `VITE_SENTRY_DSN` there is no 435 KB `prod-*.js` chunk, so the
+//      local total came out at 1725 KB against a 2176 ceiling — 451 KB of
+//      false headroom. This gate passed locally and failed on the PR, and
+//      that is not flakiness, it is two different bundles. The EAGER
+//      number is trustworthy either way (Sentry is deferred and absent
+//      from the preload list — the row in the table above). Trust a local
+//      run for the eager graph; export a dummy DSN before trusting it for
+//      the total.
+//   2. MAX_EAGER_KB now has NO headroom — CI measures exactly 955. The
+//      ~11 KB the note above records is spent. The next thing added to
+//      the first-paint graph fails this gate, which is the gate working,
+//      and the answer is a dynamic import rather than a raise: the whole
+//      argument for this constant is that 1280 would let the Firestore
+//      SDK back into first paint silently.
 const MAX_CHUNK_KB = 735;
-const MAX_TOTAL_JS_KB = 2176;
+const MAX_TOTAL_JS_KB = 2180;
 const MAX_EAGER_KB = 955;
 
 let files;
