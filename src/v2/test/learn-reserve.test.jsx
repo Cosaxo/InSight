@@ -19,6 +19,7 @@ import { beforeAll, afterEach, describe, expect, it, vi } from "vitest";
 import React from "react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { LEARN as L } from "../spec/learn-progress.js";
+import LIVE from "../data/live";
 
 vi.setConfig({ testTimeout: 15000 });
 
@@ -85,4 +86,41 @@ describe("a due learn card is re-served answerable (D95)", () => {
   // from wiping the on-screen reveal — is pinned in learn-split.test.ts
   // beside the D89 pin: it needs a live notify mid-reveal, which this demo
   // harness cannot drive, and that file already reads world-feed.jsx.
+});
+
+describe("the crowd-split prefetch asks for the cards it is serving (D125)", () => {
+  // Two ids for one card, one character apart in effect. LEARN_FEED wraps
+  // each card as a feed question keyed "lrn-<card>", while the aggregate
+  // is "learn-<card>" — built from `.learn`. Passing the question id asks
+  // for "learn-lrn-<card>", which nothing has ever written, and the
+  // failure mode is the exact symptom the prefetch exists to remove: no
+  // document, a null cache entry, and the authored estimate on every
+  // reveal forever. Nothing else in the tree can tell the two apart, so
+  // this case is the guard.
+  it("passes bare card ids, never the lrn- question ids", () => {
+    const seen = [];
+    // Patched on the STORE MODULE, the way live-fixture does it: the feed
+    // reads its imported binding for this call (D39's meter), so a
+    // window.LIVE stub would not be consulted. This suite runs in demo
+    // mode, where the real loadLearnAggs early-returns — so the spy is the
+    // only witness to the argument, which is the half that can be wrong
+    // silently.
+    const target = LIVE;
+    const prev = Object.getOwnPropertyDescriptor(target, "loadLearnAggs");
+    Object.defineProperty(target, "loadLearnAggs", {
+      value: (ids) => { seen.push(...ids); return Promise.resolve(); },
+      writable: true, configurable: true,
+    });
+    try {
+      mountFeed();
+    } finally {
+      if (prev) Object.defineProperty(target, "loadLearnAggs", prev);
+      else delete target.loadLearnAggs;
+    }
+    expect(seen.length, "the feed planned no learn cards — the pin has nothing to guard").toBeGreaterThan(0);
+    for (const id of seen) {
+      expect(id, "a question id reached the aggregate prefetch").not.toMatch(/^lrn-/);
+      expect(L.card(id), `${id} is not a learn card id`).toBeTruthy();
+    }
+  });
 });
