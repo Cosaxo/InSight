@@ -1192,12 +1192,14 @@ const SOCIAL = {
             where("qid", "==", qid),
             where("hidden", "==", false),
             orderBy("createdAt", "desc"),
+            limit(TAKE_FETCH_CAP),
           )
           : query(
             collection(db, "v2_takes"),
             where("gid", "==", gid),
             where("hidden", "==", false),
             orderBy("createdAt", "desc"),
+            limit(TAKE_GROUP_FETCH_CAP),
           ),
       );
       state.takes[key] = snap.docs.map((d) => takeFromDoc(d.id, d.data() as Record<string, unknown>));
@@ -1325,6 +1327,37 @@ const SOCIAL = {
 // for a world scope without naming the question — an impossible list, so
 // the store refuses it instead of minting a `world:undefined` key that
 // would alias every such mistake onto one phantom question.
+// ── the takes read bounds ────────────────────────────────────────
+//
+// Both `loadTakes` branches shipped with no `limit()` at all, which made
+// them the last unbounded read in the app — the shape D102 capped in
+// `fetchVoters` and did not look for anywhere else. They get two different
+// numbers because they are two different crowds, the same way
+// VOTER_FETCH_CAP and CIRCLE_ANSWER_CAP are.
+//
+// WORLD is the dangerous one and the reason this is not deferred. The
+// daily question is globally shared (`computeDeckIds` takes no uid), so
+// "takes on today's world question" is roughly everyone who spoke today —
+// the query returned ~DAU documents per open and grew linearly forever.
+// 100 is a display cap: a screen of talk, newest first, which is what the
+// panel renders anyway.
+const TAKE_FETCH_CAP = 100;
+
+// A GROUP's crowd is its own history, not the population, so this is a
+// ceiling rather than a display cap — high enough that no real circle
+// reaches it, low enough that the query cannot run away. It is deliberately
+// NOT 100: `takes()` filters this list by qid IN MEMORY (the group branch
+// keys on gid alone, and the D65 query-shape tests call loadTakes with no
+// qid), so a tight cap here would silently hide an older question's takes
+// behind newer chatter — a correctness bug bought with a rounding error.
+//
+// The better fix is to move `qid` into the group query and key on
+// `gid:qid`; the composite index for it is already committed
+// (firestore.indexes.json, v2_takes gid+qid+hidden+createdAt). That is a
+// behaviour change to a documented query shape rather than a bound, so it
+// is recorded here and not taken in a cost pass.
+const TAKE_GROUP_FETCH_CAP = 500;
+
 function takeScopeKey(gid: string, qid?: string): string | null {
   if (gid !== "world") return gid;
   return qid ? `world:${qid}` : null;

@@ -29,6 +29,8 @@ interface Constraint {
   op?: string;
   value?: unknown;
   dir?: string;
+  /** The cap, carried so a retune has to come through these assertions. */
+  n?: number;
 }
 
 const h = vi.hoisted(() => ({
@@ -111,7 +113,7 @@ vi.mock("firebase/firestore", () => {
     where: (field: string, op: string, value: unknown): Constraint =>
       ({ kind: "where", field, op, value }),
     orderBy: (field: string, dir?: string): Constraint => ({ kind: "orderBy", field, dir }),
-    limit: (): Constraint => ({ kind: "limit" }),
+    limit: (n: number): Constraint => ({ kind: "limit", n }),
     documentId: (): Constraint => ({ kind: "documentId" }),
     serverTimestamp: () => ({ __kind: "serverTimestamp" }),
     Timestamp: { fromMillis: (ms: number) => ({ ms }) },
@@ -268,6 +270,10 @@ describe("loadTakes query shape (D65)", () => {
       { kind: "where", field: "gid", op: "==", value: GID },
       { kind: "where", field: "hidden", op: "==", value: false },
       { kind: "orderBy", field: "createdAt", dir: "desc" },
+      // A ceiling, not a display cap — this branch filters by qid in
+      // memory, so a tight limit would hide an old question's takes behind
+      // newer chatter. Pinned by value so a retune passes through here.
+      { kind: "limit", n: 500 },
     ]);
   });
 
@@ -279,8 +285,11 @@ describe("loadTakes query shape (D65)", () => {
     expect(LIVE.social.takes(GID).map((t) => t.id)).toEqual(["t1", "t2"]);
     expect(LIVE.social.takes(GID, "q_2").map((t) => t.id)).toEqual(["t2"]);
     // A qid equality would need a second composite index for a list one
-    // circle big — so the constraint count must stay at three.
-    expect(takesQuery()?.constraints).toHaveLength(3);
+    // circle big — so the WHERE count must stay at two. Counted by kind
+    // rather than by array length, which is what this always meant: the
+    // limit() added for the read bound is not a filter and does not change
+    // which index serves the query.
+    expect(takesQuery()?.constraints.filter((c) => c.kind === "where")).toHaveLength(2);
   });
 
   it("leaves the list absent after a failed fetch rather than caching empty", async () => {
@@ -319,6 +328,9 @@ describe("world takes", () => {
       { kind: "where", field: "qid", op: "==", value: "q_1" },
       { kind: "where", field: "hidden", op: "==", value: false },
       { kind: "orderBy", field: "createdAt", dir: "desc" },
+      // The world question is globally shared, so this crowd is ~DAU and
+      // the query returned all of it until the cap. A screen of talk.
+      { kind: "limit", n: 100 },
     ]);
   });
 

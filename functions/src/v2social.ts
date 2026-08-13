@@ -946,12 +946,40 @@ export const nearbyCountV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforce
   const db = getFirestore();
   const cells = presenceNeighbors(cell as string);
   const freshAfter = Timestamp.fromMillis(Date.now() - PRESENCE_TTL_MIN * 60_000);
-  // One query: `in` on ≤10 values is a single indexed read per matching
-  // doc, and the neighborhood is exactly 6-9 cells (pole rows drop).
-  const snap = await db.collection("v2_presence")
+  // COUNTED, NOT FETCHED. This used to `.get()` the neighborhood and take
+  // `snap.docs.length`, which materialises — and pays a billed read for —
+  // every presence document in 6-9 cells purely to arrive at an integer.
+  // Firestore bills an aggregation at roughly one read per 1,000 index
+  // entries scanned, so a crowded neighborhood costs ~1 read instead of
+  // one per person, and the cost stops being linear in local density.
+  //
+  // That linearity was the problem, not the absolute number: every client
+  // with Near on beats this callable every PRESENCE_BEAT_MS (4 minutes),
+  // so a dense cell charged (people nearby) x (beats) — the same quantity
+  // twice, which is quadratic in exactly the situation the feature is for.
+  // A festival is the worst case and the one it is built to serve.
+  //
+  // No limit() is needed now and one would be wrong: an aggregation's cost
+  // is already sub-linear, and capping it would silently under-report the
+  // crowd rather than bound anything worth bounding.
+  const agg = await db.collection("v2_presence")
     .where("cell", "in", cells)
     .where("at", ">", freshAfter)
+    .count()
     .get();
-  const n = snap.docs.filter((d) => d.id !== request.auth?.uid).length;
+  const total = agg.data().count;
+  // Self-exclusion, still exact. The count above cannot filter, so the
+  // caller's own row is looked up directly: one read rather than the whole
+  // neighborhood. In the app's own flow this is always a hit — runBeat
+  // writes `v2_presence/{uid}` and awaits it before calling — but the
+  // callable is reachable with any cell, so "is my row actually in this
+  // neighborhood, and fresh?" is asked rather than assumed. Subtracting a
+  // blind 1 would under-count by one for any caller who is not there.
+  const own = await db.collection("v2_presence").doc(request.auth.uid).get();
+  const ownAt = own.get("at") as Timestamp | undefined;
+  const countsSelf = own.exists
+    && cells.includes(own.get("cell") as string)
+    && !!ownAt && ownAt.toMillis() > freshAfter.toMillis();
+  const n = Math.max(0, total - (countsSelf ? 1 : 0));
   return { n };
 });
