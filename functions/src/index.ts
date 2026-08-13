@@ -174,6 +174,9 @@ export const deleteAccount = onCall(
       // an account that had followers is the signal that the index is
       // missing rather than that nobody followed them.
       othersFollows: 0,
+      handle: 0,
+      invitesTo: 0,
+      invitesFrom: 0,
       // Reveal docs scrubbed of this uid (phase 1c-bis). Reported for the
       // same reason as modQueueOrphans: it is the number that tells an
       // operator whether the collection-group sweep actually reached
@@ -507,6 +510,52 @@ export const deleteAccount = onCall(
       failed.push("othersFollows");
     }
 
+    // 3b. The handle registry (D122). `v2_handles/{handle}` is keyed by
+    //     the NAME, not the uid, so recursiveDelete of v2_users/{uid} in
+    //     phase 1b does not reach it — and leaving it behind is wrong
+    //     twice over: the document holds this uid, and the name stays
+    //     unclaimable by anyone, forever, for an account that no longer
+    //     exists.
+    //
+    //     Read from the profile before phase 1b deletes it? No — the
+    //     profile is already gone by here, so this queries the registry
+    //     by uid instead. One equality read on a collection nobody else
+    //     writes; a stale handle is worth more than the index saved.
+    try {
+      const handleQuery = db.collection("v2_handles").where("uid", "==", uid);
+      counts.handle = await deleteQueryDocs(handleQuery);
+    } catch (err) {
+      logger.error("[deleteAccount] handle release failed:", err);
+      failed.push("handle");
+    }
+
+    // 3c. Circle invitations, BOTH directions (D122) — the same shape as
+    //     the inbound follows above, and the same reason it is not
+    //     covered by phase 1b: these documents live under someone else's
+    //     group.
+    //
+    //     `to == uid` is this account's unanswered inbox, sitting in
+    //     other people's circles. `from == uid` is the harder half: an
+    //     invitation this account SENT carries its display name, so
+    //     leaving it means an erased user's name stays in a stranger's
+    //     inbox until they happen to decline it.
+    try {
+      counts.invitesTo = await deleteQueryDocs(
+        db.collectionGroup("invites").where("to", "==", uid),
+      );
+    } catch (err) {
+      logger.error("[deleteAccount] inbound invites wipe failed:", err);
+      failed.push("invitesTo");
+    }
+    try {
+      counts.invitesFrom = await deleteQueryDocs(
+        db.collectionGroup("invites").where("from", "==", uid),
+      );
+    } catch (err) {
+      logger.error("[deleteAccount] outbound invites wipe failed:", err);
+      failed.push("invitesFrom");
+    }
+
     // 4. Other users' relations pointing at this user via linkedUid.
     //    Requires a collection-group index on linkedUid.
     try {
@@ -525,6 +574,10 @@ export const deleteAccount = onCall(
     try {
       await db.collection("insight_ratelimits").doc(uid).delete();
       await db.collection("v2_ratelimits").doc(`join_${uid}`).delete();
+      // D122's invitation budget, keyed the same way. Added with the
+      // callable rather than after someone noticed the ledger surviving
+      // an erasure.
+      await db.collection("v2_ratelimits").doc(`invite_${uid}`).delete();
     } catch (err) {
       logger.error("[deleteAccount] rate-limit ledger wipe failed:", err);
       failed.push("ratelimits");

@@ -109,6 +109,33 @@ await adb.doc(`v2_users/${OTHER}/following/${uid}`).set({ to: uid, at: new Date(
 // correct one from the deleted account's side.
 await adb.doc(`v2_users/${OTHER}/following/third_party`).set({ to: "third_party", at: new Date() });
 
+// Handles and invitations (D122). Three shapes, and only the first is
+// reachable by phase 1b's recursiveDelete of the profile:
+//
+//   · the handle registry row is keyed by the NAME, not the uid, so it
+//     lives outside the profile subtree entirely — and leaving it means
+//     the name stays unclaimable forever for an account that is gone;
+//   · an invitation TO this account sits under someone else's group;
+//   · an invitation FROM this account sits in a stranger's inbox with
+//     this account's display name on it, which is the half that outlives
+//     an erasure most visibly.
+await adb.doc("v2_handles/erasable").set({ uid, at: new Date() });
+await adb.doc(`v2_groups/${SHARED}/invites/${uid}`).set({
+  to: uid, from: OTHER, fromName: "Other", groupName: "Shared", mode: "group", at: new Date(),
+});
+await adb.doc(`v2_groups/${SHARED}/invites/third_party`).set({
+  to: "third_party", from: uid, fromName: "Mine", groupName: "Shared", mode: "group", at: new Date(),
+});
+// Two controls, same shape as the follow one above: another account's
+// handle, and an invitation between two other people in a circle this
+// account was in. A sweep that took the collection rather than the
+// matching rows would look correct from the deleted side and be a
+// catastrophe from everyone else's.
+await adb.doc("v2_handles/somebodyelse").set({ uid: OTHER, at: new Date() });
+await adb.doc(`v2_groups/${SHARED}/invites/fourth_party`).set({
+  to: "fourth_party", from: OTHER, fromName: "Other", groupName: "Shared", mode: "group", at: new Date(),
+});
+
 // a group only they belong to → should be removed outright
 await adb.doc(`v2_groups/${SOLO}`).set({
   name: "Solo", mode: "group", ownerUid: uid, memberUids: [uid], streak: 0,
@@ -308,6 +335,9 @@ for (const [path, label] of [
   // living in the moderation queue's copy of them.
   [`v2_mod_queue/${MY_TAKE}`, "the queue's copy of their take"],
   [`v2_agg_events/evt_mine`, "their agg-ledger entry"],
+  ["v2_handles/erasable", "their handle — the name goes back into circulation"],
+  [`v2_groups/${SHARED}/invites/${uid}`, "an invitation TO them, under someone else's circle"],
+  [`v2_groups/${SHARED}/invites/third_party`, "an invitation FROM them, carrying their name"],
 ]) await mustBeGone(path, label);
 
 // …including the organic entry, whose id nobody knows — so ask by query,
@@ -343,6 +373,13 @@ ok("someone else's ledger entry and the anonymous tally both survive");
 if (!(await exists(`v2_users/${OTHER}/following/third_party`)))
   fail("the follow sweep took someone else's whole following list, not just the rows pointing here");
 ok("someone else's other follows survive — the sweep matched on `to`, not on the collection");
+
+// The same control for D122's two sweeps.
+if (!(await exists("v2_handles/somebodyelse")))
+  fail("the handle sweep took another account's handle — it matched the collection, not the uid");
+if (!(await exists(`v2_groups/${SHARED}/invites/fourth_party`)))
+  fail("the invite sweep took an invitation between two other people");
+ok("another account's handle and other people's invitations survive");
 
 // ── the shared group survives, scrubbed ──
 const shared = await adb.doc(`v2_groups/${SHARED}`).get();

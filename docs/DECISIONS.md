@@ -11853,6 +11853,31 @@ is a courtesy and the callable is the gate. `handles.test.ts` reads the
 server file as TEXT and asserts the bounds, the charset and the reserved
 list match exactly, in both directions — the cheap version of one source.
 
+### Erasure, and the checklist that caught it
+
+The PR template's access-surface section asks whether `deleteAccount`
+still erases what a change adds, *including data about a user stored
+under another user's documents*. It did not, in three places, and none of
+them is reachable by phase 1b's `recursiveDelete` of the profile:
+
+- **The handle registry row is keyed by the NAME**, so it lives outside
+  the profile subtree entirely. Leaving it is wrong twice: the document
+  holds the uid, and the name stays unclaimable forever for an account
+  that no longer exists.
+- **An invitation TO the account** sits under someone else's group — the
+  same shape as an inbound follow, which D101 already sweeps.
+- **An invitation FROM the account** sits in a stranger's inbox carrying
+  the erased user's display name, which is the half that outlives an
+  erasure most visibly.
+
+Plus `v2_ratelimits/invite_{uid}`, added beside the `join_` ledger the
+existing arm already deleted. All four are swept now, each with a control
+in the erasure e2e — another account's handle and an invitation between
+two other people must survive — because a sweep that takes the collection
+rather than the matching rows looks correct from the deleted side and is
+a catastrophe from everyone else's. The run reports
+`handle: 1, invitesTo: 1, invitesFrom: 1`.
+
 ### Not done here
 
 - **No handle search-as-you-type.** Lookup is exact-id, which is what the
