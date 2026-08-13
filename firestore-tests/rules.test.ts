@@ -1587,3 +1587,120 @@ describe("presence (D84 — Near by radius)", () => {
     await assertFails(setDoc(ref, cellDoc({ at: new Date() })));          // not request.time
   });
 });
+
+// ── handles and invitations (D122) ─────────────────────────────────
+//
+// The two surfaces that replace the typed invite code. Both are
+// server-written, so most of what these cases prove is what a client
+// CANNOT do — which is the half that matters, because accepting an
+// invitation is one hop from `memberUids`, and `memberUids` is the array
+// this rules file reads to decide who may see a sealed duel answer.
+describe("handles: the account registry (D122)", () => {
+  const seedHandle = () => seed(async (db) => {
+    await setDoc(doc(db, "v2_handles", "olaf"), { uid: OWNER, at: new Date() });
+  });
+
+  it("anyone signed in can look a handle up — that is what it is for", async () => {
+    await seedHandle();
+    // A directory nobody may read cannot let a friend find you, which is
+    // the entire purpose. Deliberately wider than D98: that made answers
+    // readable to anyone holding your uid, this makes you findable by
+    // name. Recorded as its own decision rather than assumed.
+    await assertSucceeds(getDoc(doc(asUser(STRANGER), "v2_handles", "olaf")));
+  });
+
+  it("nobody claims, moves or frees a handle from a client", async () => {
+    await seedHandle();
+    // Uniqueness is the document id, and a client create would race the
+    // registry. Every verb is server-only.
+    await assertFails(setDoc(doc(asUser(STRANGER), "v2_handles", "newname"), { uid: STRANGER }));
+    // The impersonation case: taking a name someone already holds.
+    await assertFails(setDoc(doc(asUser(STRANGER), "v2_handles", "olaf"), { uid: STRANGER }));
+    // …and the denial-of-service one: freeing someone else's.
+    await assertFails(deleteDoc(doc(asUser(STRANGER), "v2_handles", "olaf")));
+    // Not even your own — claimHandleV2 owns the release half of a rename.
+    await assertFails(deleteDoc(doc(asUser(OWNER), "v2_handles", "olaf")));
+  });
+
+  it("a client cannot write or rewrite the handle on its own profile", async () => {
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_users", OWNER), {
+      displayName: "Olaf", handle: "olaf",
+    }));
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_users", OWNER), { displayName: "Olaf", handle: "olaf" });
+    });
+    await assertFails(updateDoc(doc(asUser(OWNER), "v2_users", OWNER), { handle: "someoneelse" }));
+  });
+
+  it("…but a profile that HAS a handle can still edit everything else", async () => {
+    // The failure this exists for ships green: request.resource.data is
+    // the RESULTING document, so once the callable has written a handle,
+    // a merge that only touches displayName still presents `handle` in
+    // its key set. Leave it off the hasOnly allowlist and claiming a
+    // handle silently freezes your display name forever.
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_users", OWNER), { displayName: "Olaf", handle: "olaf" });
+    });
+    await assertSucceeds(updateDoc(doc(asUser(OWNER), "v2_users", OWNER), { displayName: "Olaf H." }));
+  });
+});
+
+describe("circle invitations (D122)", () => {
+  const GID = "g_inv";
+  const seedInvite = () => seed(async (db) => {
+    await setDoc(doc(db, "v2_groups", GID), {
+      name: "The Crew", mode: "group", ownerUid: OWNER,
+      memberUids: [OWNER], inviteCode: "ABCD2345", streak: 0,
+    });
+    await setDoc(doc(db, "v2_groups", GID, "invites", FRIEND), {
+      to: FRIEND, from: OWNER, fromName: "Olaf", groupName: "The Crew", mode: "group",
+      at: new Date(),
+    });
+  });
+
+  it("the invitee reads their invitation", async () => {
+    await seedInvite();
+    // They have to: the group document itself is member-gated (it carries
+    // the invite code), and an invitee is by definition not a member yet —
+    // which is why the circle's name is denormalised onto this doc.
+    await assertSucceeds(getDoc(doc(asUser(FRIEND), "v2_groups", GID, "invites", FRIEND)));
+  });
+
+  it("members read it too, so a circle does not ask the same person twice", async () => {
+    await seedInvite();
+    await assertSucceeds(getDoc(doc(asUser(OWNER), "v2_groups", GID, "invites", FRIEND)));
+  });
+
+  it("a stranger reads nothing — who was asked is a fact about the invitee", async () => {
+    await seedInvite();
+    await assertFails(getDoc(doc(asUser(STRANGER), "v2_groups", GID, "invites", FRIEND)));
+  });
+
+  it("nobody writes an invitation from a client, in any direction", async () => {
+    await seedInvite();
+    // Inviting yourself into someone's circle is the attack this refuses:
+    // without it, "write an invite, accept it" is join-any-circle-by-id.
+    await assertFails(setDoc(doc(asUser(STRANGER), "v2_groups", GID, "invites", STRANGER), {
+      to: STRANGER, from: OWNER, groupName: "The Crew", at: new Date(),
+    }));
+    // A member cannot hand-write one either — inviteToGroupV2 owns the
+    // cap and the rate budget, and a rule cannot express either.
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_groups", GID, "invites", STRANGER), {
+      to: STRANGER, from: OWNER, groupName: "The Crew", at: new Date(),
+    }));
+    // Not even declining: acceptGroupInviteV2 and declineGroupInviteV2
+    // are the two doors, and one door is easier to keep correct than two.
+    await assertFails(deleteDoc(doc(asUser(FRIEND), "v2_groups", GID, "invites", FRIEND)));
+  });
+
+  it("an invitation is not membership — the group stays shut until accept", async () => {
+    await seedInvite();
+    // The whole point of the accept step: being invited grants nothing.
+    // FRIEND can read the invite above and still not the circle.
+    await assertFails(getDoc(doc(asUser(FRIEND), "v2_groups", GID)));
+    // …and cannot let themselves in.
+    await assertFails(updateDoc(doc(asUser(FRIEND), "v2_groups", GID), {
+      memberUids: [OWNER, FRIEND],
+    }));
+  });
+});

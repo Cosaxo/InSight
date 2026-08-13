@@ -121,8 +121,22 @@ service cloud.firestore {
       allow create, update: if request.auth != null && request.auth.uid == uid
         && request.resource.data.keys().hasOnly([
           "displayName", "anchors", "anon", "createdAt", "updatedAt",
-          "testResults",
+          "testResults", "handle",
         ])
+        // `handle` is on the ALLOWLIST but immutable to the client, the
+        // same shape testResults.logic has below and for a related
+        // reason: claimHandleV2 (admin SDK) owns it, because the claim is
+        // a two-document transaction against the v2_handles registry.
+        //
+        // It has to be listed at all because request.resource.data is the
+        // RESULTING document: once the callable has written a handle, a
+        // client merge that only touches displayName still presents
+        // `handle` in its key set, and hasOnly would refuse it. Leaving it
+        // off would mean claiming a handle silently froze your display
+        // name forever — the kind of failure that ships green.
+        && (!("handle" in request.resource.data)
+          || (resource != null
+            && request.resource.data.handle == resource.data.get("handle", null)))
         // testResults.logic is the VERIFIED logic score, written only by
         // logicSubmitV2 (admin SDK bypasses rules) after server-side
         // scoring — a client-writable copy would be a forgeable one (D57).
@@ -589,6 +603,57 @@ service cloud.firestore {
         allow read: if request.auth != null;
         allow write: if false;
       }
+
+      // Invitations (D122) — the uid-addressed way into a circle, and
+      // the reason the invite CODE stops being something a person types.
+      //
+      // READ is the invitee or a member, and the asymmetry is the point:
+      // the invitee has to see it to answer it, and members have to see
+      // it so a circle does not invite the same person four times. It is
+      // NOT public, because "who was asked and has not answered" is a
+      // fact about the invitee that nobody published.
+      //
+      // WRITE is server-only, all three verbs. inviteToGroupV2 checks
+      // membership, the cap and a rate budget; acceptGroupInviteV2 is
+      // the only thing that may append to memberUids — which is the
+      // array THIS FILE reads to decide who may see a sealed duel
+      // answer, so a client-writable invite would be a client-writable
+      // ACL one hop away. Decline goes through a callable too, for no
+      // reason grander than symmetry: a client delete would work, and
+      // one door is easier to keep correct than two.
+      match /invites/{invitedUid} {
+        allow read: if request.auth != null
+          && (request.auth.uid == invitedUid
+            || request.auth.uid in get(/databases/$(database)/documents/v2_groups/$(gid)).data.memberUids);
+        allow write: if false;
+      }
+    }
+
+    // ─── handles: the account registry (D122) ──────────────────────
+    //
+    // One document per taken handle, id = the canonical (lowercased,
+    // sigil-stripped) form, holding the uid. Uniqueness is the DOCUMENT
+    // ID rather than a field, so it needs no index and no query — and a
+    // transaction that creates it simply fails when someone else got
+    // there first.
+    //
+    // READABLE BY ANY SIGNED-IN USER, and that is a real widening rather
+    // than a consequence of D98. D98 made answers public, which means
+    // "anyone holding your uid can read them"; a readable registry means
+    // "anyone who knows your handle can find them". Those are different
+    // exposures and this one is deliberate: a handle exists precisely so
+    // a friend can find you, and a directory nobody may read cannot do
+    // that. What it is NOT is a listing — there is no query surface here
+    // that enumerates handles, only an exact-id lookup, so the registry
+    // answers "is @olaf someone" and never "who is everyone".
+    //
+    // WRITE is server-only. A claim is two writes that must not
+    // interleave (take the new key, release the old), and rules cannot
+    // express atomicity across two documents: a create-if-absent rule
+    // gets uniqueness right and renames wrong.
+    match /v2_handles/{handle} {
+      allow read: if request.auth != null;
+      allow write: if false;
     }
 
     // ─── moderation substrate (docs/MODERATION.md, D22) ────────────

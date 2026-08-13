@@ -581,7 +581,11 @@ export const deleteAccount = onCall(
 // ── v2 (daily/mirror core loop) ─────────────────────────────────
 export { seedContentV2, onV2AnswerCreated, onV2AnswerUpdated } from "./v2";
 export {
+  acceptGroupInviteV2,
+  claimHandleV2,
   createGroupV2,
+  declineGroupInviteV2,
+  inviteToGroupV2,
   joinGroupV2,
   leaveGroupV2,
   nearbyCountV2,
