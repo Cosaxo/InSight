@@ -3278,7 +3278,18 @@ export async function initLive(timeoutMs = 2500): Promise<void> {
     // into the panel. Fail-safe (it could only under-claim), but wrong on
     // screen, and profile-overlay.jsx hardcodes the same sentence with no
     // check at all.
+    //
+    // …and ANNOUNCE it when it changes (D133). The anonymous → Google
+    // upgrade keeps the uid, so this callback set `linked` and then fell
+    // past every branch below without a notify(): the flag was correct and
+    // no subscriber was told. LivePrivacyPanel papered over it with a local
+    // `linkedNow` set after its own await, which works exactly where the
+    // link was started; a boot gate elsewhere on screen would have waited
+    // forever. Only on a CHANGE — this callback also fires for token
+    // refreshes, and a notify per refresh is a re-render per refresh.
+    const wasLinked = state.linked;
     state.linked = !!user && user.isAnonymous === false;
+    const linkedChanged = state.linked !== wasLinked;
     const next = user?.uid || null;
     if (next && state.uid && next !== state.uid) {
       resetForNewUid(next);
@@ -3286,8 +3297,10 @@ export async function initLive(timeoutMs = 2500): Promise<void> {
     }
     if (next && !state.uid) {
       state.uid = next;
+      if (linkedChanged) notify();
       return;
     }
+    if (linkedChanged) notify();
     if (!next && state.uid) {
       // Session lost. Deliberately do NOT flip enabled=false: the deck and
       // the bank on screen are still valid, and blanking to demo data is a

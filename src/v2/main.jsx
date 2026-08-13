@@ -15,6 +15,11 @@ import './data/back';
 import './data/places';
 import { reportError, sentryInit } from '../lib/sentry';
 import { initDeepLinks } from './data/links';
+// The first-launch account wall, off unless VITE_REQUIRE_SIGNIN=true (D133).
+// A pass-through in every other build, and the SCREEN behind it is a
+// dynamic import — so what this line costs first paint is the decision,
+// not the wall.
+import SignInGate from './ui/SignInGate';
 
 // Crash reporting first, so a boot error is the first thing captured.
 // No-op without VITE_SENTRY_DSN; on by default with one, honouring the
@@ -32,7 +37,12 @@ initDeepLinks();
 initLive().finally(() => {
   const App = globalThis.App;
   const root = createRoot(document.getElementById('root'));
-  root.render(<App />);
+  // Wrapped on every render below, not only the first: the root element
+  // type has to stay identical or React remounts App and it loses its
+  // state — the same reason the re-render after loadWorldFeed is written
+  // the way it is.
+  const tree = () => <SignInGate><App /></SignInGate>;
+  root.render(tree());
 
   // The world feed (85 KB) is deliberately NOT part of that first render —
   // see loadWorldFeed() in spec-index.js. Started here rather than on the
@@ -48,7 +58,7 @@ initLive().finally(() => {
   // A failed chunk costs the feed, not the app: the guard that makes this
   // lazy load possible is the same one that makes its failure survivable.
   loadWorldFeed().then(
-    () => root.render(<App />),
+    () => root.render(tree()),
     (err) => reportError(err, { where: 'loadWorldFeed' }),
   );
 

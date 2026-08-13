@@ -327,6 +327,18 @@ revisited if the app ever ships custom crypto** — local encryption of
 cached answers, for instance — because it is an attestation on every
 upload, not a note.
 
+**Amendment (2026-08-13) — the wall exists, on the test track only (D133).**
+`VITE_REQUIRE_SIGNIN=true` puts a Google sign-in in front of the app before
+it can be used. That is the thing this record says never to build, and it is
+scoped to the build that sets the flag — `ios-release.yml`, i.e. TestFlight.
+The public build's answer is unchanged and the flag is how it stays
+unchanged: dropping the wall is a repository variable, not a diff.
+
+The mechanism is still this decision's, which is why the cost is a tap and
+not a history: `initLive()` has already signed the session in anonymously by
+the time the gate paints, so the button LINKS — same uid, every answer kept.
+D133 has the argument for why a test build is the one place it is worth it.
+
 ## D4 · The v1 shelf, and the legacy boundary
 
 **Decision.** v1 ships the frozen spec (`design/InSight_standalone_9.html`):
@@ -13030,3 +13042,97 @@ because that key is also where genuine progress lives and there is no way
 to tell the two apart after the fact. If a device shows pre-known cards, it
 is that, and the cure is the account delete — worth knowing before reading
 it as a live-mode bug.
+
+---
+
+## D133 · The test track gets a wall; the public build does not
+
+**Decided:** 2026-08-13 · **Status:** binding · Amends D3 for one build.
+Owner decision, taken against the alternatives below rather than by
+default.
+
+**Decision.** With `VITE_REQUIRE_SIGNIN=true`, the app opens on a Google
+sign-in and nothing else works until it succeeds. `ios-release.yml` sets
+it; nothing else does. Every other build — the dev server, the demo
+bundle, the whole test suite — compiles the gate to a pass-through, so
+D3's "never a wall" remains what the public build ships.
+
+### Why a wall is worth it HERE and nowhere else
+
+D3's fear is losing a user's history to a login. On the test track the
+same fear points the other way. D6 turned Android system backup off (it
+would have copied the local cache to Google Drive) and iOS never had it,
+so an unlinked anonymous session lives on ONE phone and dies with it —
+the account panel says exactly this, and D122's handles and D126's
+foresight streaks made it more expensive to be true. A tester who answers
+for two weeks and then replaces a handset has produced nothing, and
+nobody finds out until the numbers do not add up.
+
+A public user who bounces off a login is a user lost. A tester was going
+to sign in anyway; the only question was whether they did it before or
+after the data mattered.
+
+### What makes it cheap: it links, it does not sign in
+
+`initLive()` has already signed the session in anonymously by the time the
+gate paints, so the button calls `linkGoogle()` — same uid, every answer
+already given kept. This matters for the release it ships in: a tester who
+has been answering under build 12 does not lose that history the first
+time the gate appears. A gate that called `googleSignIn()` would have
+stranded it silently, which is why the test that pins the difference
+asserts on WHICH call is made rather than on the screen going away.
+
+Two states the naive version gets wrong, both handled:
+
+- **The Google account is already an InSight account.** Firebase refuses
+  the link rather than merging (correct — two histories cannot become
+  one). The only way on abandons this session, so it is a second, named
+  button — *"Sign in and leave this phone's answers"* — with a way back
+  beside it. The first tap never does it.
+- **Boot did not attach.** The gate does NOT fall through to the demo app.
+  A build whose whole premise is "your answers are kept" must not hand
+  someone sample questions, because they would not be kept and nothing on
+  screen would say so. It shows `bootError` and a retry — the D77
+  argument, that a phone has no console to ask.
+
+### A store fix came out of it
+
+`state.linked` was set on every auth callback and **announced on none**.
+The anonymous → Google upgrade keeps the uid, so the callback fell past
+every branch without a `notify()`: the flag was correct and no subscriber
+was told. `LivePrivacyPanel` had papered over it with a local `linkedNow`
+set after its own await — which works exactly where the link was started,
+and would have left this gate up forever. It now notifies on a CHANGE
+only; this callback also fires for token refreshes, and a notify per
+refresh is a re-render per refresh.
+
+### Two files, because `check:bundle` said so
+
+The gate wraps `<App />` at the root, so whatever implements it is in the
+first-paint graph of every build including the ones that can never render
+it. Measured: the screen put **3 KB** into an eager graph with 2 KB of
+headroom, and the gate failed. So the decision (`signInRequired`, a build
+constant) stays eager and the SCREEN is a `React.lazy` chunk only a
+flagged build ever fetches — `check:bundle`'s own advice, followed rather
+than argued with. Eager graph is back within budget and the screen ships
+as its own chunk.
+
+The early return sits after the hooks, which is safe for a stated reason
+rather than by luck: Vite substitutes the flag at build time, so it is
+constant for the life of the process and the hook order cannot change
+between renders of one instance.
+
+### What was NOT built, and why
+
+**Sign in with Apple.** SHIP-CHECKLIST §4.8 already records that Google
+being the only third-party sign-in makes Apple's equivalent mandatory *for
+the App Store review*, and its own advice is *"do not pre-build this — an
+unused sign-in path is its own review surface."* A wall changes when that
+bill comes due, not whether: **the public build must either drop the wall
+or add Apple sign-in before submission.** Written here because the flag
+makes it easy to forget which of those was chosen.
+
+**No prompt-instead-of-wall middle ground.** It was the alternative and it
+was declined by the owner. Recorded because it is the obvious thing to
+reach for if the wall proves too costly, and the flag makes that reversal
+a variable rather than a rewrite.
