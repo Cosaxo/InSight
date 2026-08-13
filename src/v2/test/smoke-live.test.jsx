@@ -264,8 +264,11 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     fireEvent.click(screen.getByRole("button", { name: /^mirror$/i }));
     fireEvent.click(screen.getByRole("tab", { name: "City" }));
     await openCity();
-    // The constellation is the stop's Overview tab since D119 — a stop
-    // opens on Answers, so this walks one tab across to reach it.
+    // The constellation is the stop's Overview tab, and since D135 it is
+    // also the one a stop OPENS on — no walk needed. The click stays as a
+    // no-op rather than being deleted: it costs nothing, and it is what
+    // keeps this case measuring the field rather than the tab order,
+    // which has now moved twice.
     fireEvent.click(screen.getByRole("tab", { name: "Overview" }));
     // The field is a lazy chunk — await its caption, then the node.
     expect(await screen.findByText(/kindred strangers in Oslo/i)).toBeTruthy();
@@ -350,11 +353,12 @@ describe("the live gates hold in the DOM, not just in the source", () => {
 
   // D99's lens row, mounted on the Mirror's geographic stops — and since
   // D119 the row IS the stop's navigation, with Answers a peer tab rather
-  // than the page the lenses hang under. The row and the lens bodies have
-  // their own suites; this is the wiring — that they reach the real shell,
-  // through the spec layer's own render path, on the live body that
-  // replaced the demo field.
-  it("gives a live Mirror stop its lens tabs, opening on Answers", async () => {
+  // than the page the lenses hang under. D135 then moved the LANDING tab
+  // to Overview, so the field is what a stop opens on. The row and the
+  // lens bodies have their own suites; this is the wiring — that they
+  // reach the real shell, through the spec layer's own render path, on
+  // the live body that replaced the demo field.
+  it("gives a live Mirror stop its lens tabs, opening on Overview", async () => {
     localStorage.clear();
     mountLive();
     fireEvent.click(screen.getByRole("button", { name: /^mirror$/i }));
@@ -376,9 +380,11 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     for (const name of ["Answers", "Overview", "People", "Compare", "Scores", "Explore", "Foresight"]) {
       expect(screen.getByRole("tab", { name }), `the row is missing its ${name} tab`).toBeTruthy();
     }
-    expect(screen.getByRole("tab", { name: "Answers" }).getAttribute("aria-selected")).toBe("true");
+    expect(screen.getByRole("tab", { name: "Overview" }).getAttribute("aria-selected")).toBe("true");
     // Nothing loaded for a tab nobody opened — the cost gate, on the real
-    // mount. Then the lens body arrives on the tap (findBy: its chunk).
+    // mount. People is the one that still carries it; Overview's own fold
+    // now runs on arrival, which is D135's accepted price. Then the lens
+    // body arrives on the tap (findBy: its chunk).
     expect(screen.queryByText(/most like you/i)).toBeNull();
     fireEvent.click(screen.getByRole("tab", { name: "People" }));
     expect(await screen.findByText(/most like you/i)).toBeTruthy();
@@ -395,6 +401,8 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     fireEvent.click(screen.getByRole("button", { name: /^mirror$/i }));
     fireEvent.click(screen.getByRole("tab", { name: "City" }));
     await openCity();
+    // Answers is a peer tab and no longer the landing one (D135).
+    fireEvent.click(screen.getByRole("tab", { name: "Answers" }));
 
     // The fixture's two questions sit in different branches, so the chip
     // row offers both plus All.

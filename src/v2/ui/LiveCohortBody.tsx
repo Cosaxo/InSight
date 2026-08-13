@@ -56,7 +56,7 @@ import MirrorLensTabs from "./MirrorLensTabs";
 // ordinary import, not lazy: this body IS the default tab, and it rides
 // this module's own lazy chunk (D119) either way.
 import LiveAnswerRows, { type AnswerRow } from "./LiveAnswerRows";
-import { LENS_LABEL, TAB_LABEL, type LensTab } from "./lensTabs";
+import { DEFAULT_STOP_TAB, LENS_LABEL, STOP_TABS, TAB_LABEL, type LensTab } from "./lensTabs";
 import type { LensId, LensQuestion } from "./lensDefs";
 import { byOf } from "../data/cohort";
 // An ordinary import, not a globalThis lookup — same note as LiveDuelPanel's
@@ -69,6 +69,21 @@ export type CohortScope = "city" | "country" | "world";
 
 // The Right now card (D84) lived here while Near was the city stop (D9);
 // it moved to ui/NearLiveBody.tsx when D111 gave presence its own stop.
+
+/**
+ * Compact figure for the hero — 340, 9.4k, 1.2M.
+ *
+ * Deliberately NOT spec/sample-data.js's `fmtPop`, which is the same five
+ * lines. That module is the demo persona's data; a live body importing it
+ * for a number formatter is the coupling D1's discipline exists to
+ * prevent, and the next person to grep "who reads sample-data" would find
+ * a live file and have to work out that it was only arithmetic.
+ */
+function fmtReach(n: number): string {
+  if (n >= 1e6) { const v = n / 1e6; return `${v >= 10 ? Math.round(v) : Math.round(v * 10) / 10}M`; }
+  if (n >= 1000) { const v = n / 1000; return `${v >= 10 ? Math.round(v) : Math.round(v * 10) / 10}k`; }
+  return String(n);
+}
 
 function LnNote({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -92,7 +107,7 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
   // the three scopes mount as separate elements (mirror-tab keys the body
   // on the zoom), so each stop keeps its own place and switching scope
   // lands on Answers, which is the one tab every scope always has.
-  const [tab, setTab] = React.useState<string>("answers");
+  const [tab, setTab] = React.useState<string>(DEFAULT_STOP_TAB);
 
   const city = LIVE.myCity;
   const place = city ? PLACES.parse(city) : null;
@@ -230,6 +245,31 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
     });
   }
 
+  /**
+   * The hero figure: how many people this mirror reflects.
+   *
+   * THE PROTOTYPE'S NUMBER DOES NOT EXIST HERE, and that is the whole
+   * problem this solves rather than copies. "12.6k in Oslo" is a
+   * RESIDENTS count — a population, which the app has never had and
+   * cannot get — and LiveSimilarityField's honesty rule 2 refused it for
+   * exactly that reason: population is not answers.
+   *
+   * What D98 does make available is this: counts are exact and publish
+   * from the first answer, and one person answers a question at most once
+   * (create-only, D5/D86 — an edit MOVES a vote between options, it never
+   * adds one). So the largest single-question count from this cohort is a
+   * number of DISTINCT PEOPLE, not of answers. Summing across questions
+   * would not be — it would count the same person once per question they
+   * answered, which is the mistake this is written out to avoid.
+   *
+   * It is a floor, not a total: someone who answered only a question this
+   * device holds no aggregate for is not in it. A floor is the right
+   * direction to be wrong in for a figure this size, and the unit beside
+   * it says "have answered" rather than "live here", so the sentence is
+   * true as written.
+   */
+  const reach = rows.reduce((m, r) => Math.max(m, r.n), 0);
+
   // The same archive, shaped for the lenses. Assembled once here rather
   // than four times inside them: all four walk every question, and the
   // questions plus their aggregates are already in hand.
@@ -262,11 +302,10 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
   // and disappearing tabs would make the row's shape a second, quieter
   // claim about the data.
   const tabs: LensTab[] = [
-    { id: "answers", label: TAB_LABEL.answers },
-    { id: "overview", label: TAB_LABEL.overview },
+    ...STOP_TABS.map((id) => ({ id, label: TAB_LABEL[id] })),
     ...(Object.keys(LENS_LABEL) as LensId[]).map((id) => ({ id, label: LENS_LABEL[id] })),
   ];
-  const openTab = tabs.some((t) => t.id === tab) ? tab : "answers";
+  const openTab = tabs.some((t) => t.id === tab) ? tab : DEFAULT_STOP_TAB;
 
   return (
     <div className="fade-in" style={{ padding: "4px 16px 26px", "--accent": accent } as React.CSSProperties}>
@@ -274,7 +313,27 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
         <div className="kicker">
           {scope === "city" ? "Your city" : scope === "country" ? "Your country" : "Everyone"}
         </div>
-        <div style={{ fontFamily: "var(--serif)", fontSize: 25, letterSpacing: "-0.01em", color: "var(--ink)", marginTop: 2 }}>{heading}</div>
+        {/* The prototype's MFHeader shape restored (D135): kicker, then a
+            FIGURE, then what it counts. The stop used to lead with the
+            place name alone, which says where the mirror is pointed and
+            nothing about how big it is — and "how many people am I being
+            measured against" is the first thing a population screen owes
+            its reader.
+
+            The figure is `reach` below, and its unit is written out rather
+            than implied because the honest number is not the one the
+            prototype showed. See the note there. */}
+        <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginTop: 3, flexWrap: "wrap" }}>
+          <span style={{ fontFamily: "var(--sans)", fontSize: 29, letterSpacing: "-0.01em", color: "var(--ink)", lineHeight: 1 }}>
+            {reach ? fmtReach(reach) : "—"}
+          </span>
+          <span style={{ fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 500, color: "var(--ink-3)", minWidth: 0 }}>
+            {reach
+              ? <>{reach === 1 ? "person has" : "people have"} answered {scope === "world" ? "somewhere" : <>in {shortName}</>}</>
+              : <>nobody has answered {scope === "world" ? "yet" : <>in {shortName} yet</>}</>}
+          </span>
+        </div>
+        <div style={{ fontFamily: "var(--serif)", fontSize: 25, letterSpacing: "-0.01em", color: "var(--ink)", marginTop: 6 }}>{heading}</div>
         <div style={{ fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 500, color: "var(--ink-3)", marginTop: 4, lineHeight: 1.5 }}>
           {/* Was "on today's questions" when this read the seven-day
               pager. It reads the archive now (D100), so the old line
@@ -324,7 +383,10 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
       {openTab === "overview" && (
         <div className="fade-in" role="tabpanel" aria-label={TAB_LABEL.overview}>
           <React.Suspense fallback={null}>
-            <SimilaritySection scope={scope} />
+            {/* Overview is the landing tab (D135), so its empty arms get a
+                way out — see SfGoAnswers. The host owns the tab state, so
+                the field cannot switch tabs itself. */}
+            <SimilaritySection scope={scope} onGoAnswers={() => setTab("answers")} />
           </React.Suspense>
         </div>
       )}

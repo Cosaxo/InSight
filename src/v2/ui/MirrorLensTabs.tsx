@@ -31,10 +31,23 @@ function MirrorLensTabs({ tabs, open, onOpen }: {
   onOpen: (id: string) => void;
 }) {
   const idx = tabs.findIndex((t) => t.id === open);
-  // Six stops have to fit a phone without clipping, and the row never
-  // scrolls — the prototype's numbers, kept because the widths they were
-  // measured against are the same CSS.
-  const fs = tabs.length >= 6 ? 11.5 : tabs.length === 5 ? 13 : 14.5;
+  // The row never scrolls: every tab is `flex: 1` of an equal share, so a
+  // label that does not fit is a label that wraps or clips rather than one
+  // you can reach by swiping.
+  //
+  // The prototype's ladder stopped at six ("six stops have to fit a phone
+  // without clipping") and this file inherited it as `>= 6`, which quietly
+  // absorbed a SEVENTH when Foresight arrived (D126) — seven tabs drawn at
+  // the size six were measured at, on the same fixed width. That is the
+  // cramping the D135 report was about, and the `>= 6` is why it did not
+  // show up as a change to anything.
+  //
+  // 10.5 at seven is measured, not guessed: "Foresight" is the longest
+  // label in the row and the narrowest supported viewport is 320 CSS px,
+  // giving each of seven tabs ~45px inside the row's padding. At 11.5px
+  // semibold the word needs ~52px and clips; at 10.5 it needs ~47px and
+  // the 3px horizontal padding below absorbs the rest.
+  const fs = tabs.length >= 7 ? 10.5 : tabs.length === 6 ? 11.5 : tabs.length === 5 ? 13 : 14.5;
   return (
     <div className="mm-lensrow mm-lensrow-top" role="tablist" aria-label="Lenses"
       style={{ "--n": tabs.length } as React.CSSProperties}>

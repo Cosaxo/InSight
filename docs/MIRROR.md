@@ -167,14 +167,29 @@ and the place's real averages. Tapping a place opens its profile — the
 average score per instrument axis, your own tick on every bar, and the
 answer count behind each number.
 
-**Since D119 the stop is a tab row, not a scroll** (§3): `Answers ·
-Overview · People · Compare · Explore · Scores`, one open at a time, the
-prototype's nav v2 with Answers leading. It used to be the constellation
-on top, the answer rows under it, and a collapsed lens strip at the
-bottom — so Answers was the page and everything else was a drawer. Answers
-opens by default because it is the half that publishes from the first
-answer (D98) while the constellation waits on completed test scores; the
-field is one tap away under **Overview**.
+**Since D119 the stop is a tab row, not a scroll** (§3): `Overview ·
+Answers · People · Compare · Explore · Scores · Foresight`, one open at a
+time, the prototype's nav v2. It used to be the constellation on top, the
+answer rows under it, and a collapsed lens strip at the bottom — so
+Answers was the page and everything else was a drawer.
+
+**D135 put Overview first and made it the landing tab**, reversing D119's
+order against the prototype. The reason D119 led with Answers still
+holds — the rows publish from the first answer (D98) while the
+constellation waits on completed test scores — so the empty field answers
+it in place: every empty arm offers *"See what they answered"* rather
+than ceding the first screen. The cost is that the similarity fold now
+runs on arrival at every cohort stop; it is free on re-entry
+(`state.testAggsLoaded`), and `LiveCohortBody.test.tsx` pins that.
+
+The stop also leads with a **figure** now, the prototype's MFHeader shape:
+the largest single-question count from the cohort, which is a headcount
+rather than an answer count because one person answers a question at most
+once (D5 create-only; D86's edit moves a vote rather than adding one). It
+is a floor, and its unit says "have answered here" — never the
+prototype's "12.6k in Oslo", which is a residents count the app has never
+had (LiveSimilarityField honesty rule 2, amended at D135 rather than
+dropped).
 
 Since D100 they draw the **archive** rather than the week:
 `LIVE.aggregated()` is every question this device holds an aggregate for,

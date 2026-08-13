@@ -327,8 +327,23 @@ const INDEX_HTML = join(root, "dist", "index.html");
 //      and the answer is a dynamic import rather than a raise: the whole
 //      argument for this constant is that 1280 would let the Firestore
 //      SDK back into first paint silently.
+//
+// 2180 → 2182 (2026-08-13): D135's cohort hero and the field's way out of
+// an empty Overview — 2179 → 2181, all of it inside the already-lazy
+// cohort and similarity chunks, so the eager graph did not move (955,
+// still at its ceiling).
+//
+// Two raises in one day is worth a word, because the pattern is the thing
+// to watch rather than the 6 KB: both were UI a user asked for, both were
+// measured against origin/main with a DSN, and neither touched first
+// paint. The ceiling that is actually defending anything here is
+// MAX_EAGER_KB — it has no headroom and cannot be raised without giving
+// back the Firestore-SDK guarantee. This one is a drift alarm, and an
+// alarm that fires on every intentional change is one nobody reads, so if
+// a third raise lands this week the question to ask is whether the total
+// wants a wider band, not whether the app should be smaller.
 const MAX_CHUNK_KB = 735;
-const MAX_TOTAL_JS_KB = 2180;
+const MAX_TOTAL_JS_KB = 2182;
 const MAX_EAGER_KB = 955;
 
 let files;
