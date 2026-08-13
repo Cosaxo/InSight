@@ -274,6 +274,28 @@
       53: 2,  // Iodine (I) — below the floor
       0: 8,   // Not listed
     },
+    // daily catalog-question run, 2026-08-13 — wordcraft, the elements
+    // turn (pk09's canon crossing domains): the name, not the atom.
+    // Molybdenum is a mouth-feel masterpiece, Praseodymium a keyboard
+    // dare, and four elements are named after one Swedish village —
+    // Ytterbium carries that flag here.
+    pk13: {
+      42: 28, // Molybdenum (Mo) — say it out loud, you'll vote for it
+      59: 22, // Praseodymium (Pr)
+      83: 19, // Bismuth (Bi)
+      51: 16, // Antimony (Sb) — sounds like a betrayal
+      40: 13, // Zirconium (Zr)
+      70: 11, // Ytterbium (Yb) — one village, four elements
+      80: 10, // Mercury (Hg) — a god, a planet, and the letters match nothing
+      36: 9,  // Krypton (Kr) — the Superman vote
+      22: 8,  // Titanium (Ti)
+      10: 7,  // Neon (Ne) — new, said in Greek, forever
+      74: 5,  // Tungsten (W) — "heavy stone"; clears the floor, folds
+      33: 5,  // Arsenic (As) — same
+      64: 3,  // Gadolinium (Gd) — below the floor
+      41: 2,  // Niobium (Nb) — below the floor
+      0: 8,   // Not listed
+    },
   };
 
   // Baked demo segment slices, per question: how each cohort orders the
@@ -419,6 +441,18 @@
         Men: { 18: 11, 26: 8, 74: 6, 6: 6, 11: 5 },
       },
     },
+    pk13: {
+      ageBand: {
+        // Krypton and Bismuth are internet-native votes; the Latinate
+        // tongue-twisters hold with age
+        '18-24': { 36: 8, 83: 7, 42: 6, 10: 5, 80: 4 },
+        '25-34': { 42: 9, 59: 7, 51: 6, 83: 5, 70: 4 },
+      },
+      gender: {
+        Women: { 83: 8, 42: 7, 10: 6, 59: 5, 80: 5 },
+        Men: { 42: 10, 36: 7, 51: 6, 22: 5, 59: 5 },
+      },
+    },
   };
 
   const api = {
@@ -540,5 +574,8 @@
     // 2026-08-12 daily run: identity — the canon that crosses domains
     // the way favouritism does; chemistry supplies the self-images.
     { id: 'pk12', cat: 'fav', type: 'pick', domain: 'elements', prompt: 'The element you’d be?', n: 171 },
+    // 2026-08-13 daily run: wordcraft — the name, not the atom; the
+    // canon pk09 proved, crossing domains like identity did.
+    { id: 'pk13', cat: 'fav', type: 'pick', domain: 'elements', prompt: 'The best-named element?', n: 166 },
   ];
 })();
