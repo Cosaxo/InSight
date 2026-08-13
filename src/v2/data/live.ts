@@ -2392,6 +2392,10 @@ let sessionRecoveryTried = false;
 // new one, or the two interleave and one account's answers render as the
 // other's.
 function resetForNewUid(uid: string): void {
+  // A detach armed under the OLD uid must not fire against the new one's
+  // listeners: it would drop them with nothing to re-attach until the next
+  // wake, which reads on screen as a deck that stopped updating.
+  cancelIdleDetach();
   try {
     state.groupsUnsub?.();
     Object.values(state.aggUnsubs).forEach((u) => { try { u(); } catch { /* best-effort */ } });
@@ -2646,14 +2650,78 @@ export function refreshLive(): Promise<void> {
 // attached or the deck has aged out.
 function wake(): void {
   if (torndown) return;
+  cancelIdleDetach();
   if (typeof navigator !== "undefined" && navigator.onLine === false) return;
   if (!state.ready) {
     void refreshLive().catch((err) => reportError(err, { where: "refreshLive.wake" }));
     return;
   }
   // Attaches listeners for the new day's deck if the date rolled over
-  // while the app was backgrounded; no-op otherwise.
+  // while the app was backgrounded — and, since the idle detach below,
+  // re-attaches whatever that dropped. Still a no-op for a session that
+  // never went idle.
   void resubscribeForToday();
+}
+
+// ── the idle detach (COSTS.md, the listener fan-out) ─────────────
+//
+// Backgrounding used to leave every snapshot listener attached. Nothing in
+// this file tore one down outside `resetForNewUid` and account deletion, so
+// a Capacitor WebView the OS keeps resident went on receiving — and being
+// billed for — every publish to today's aggregate for as long as it lived.
+//
+// That is not a small correction to the bill, because it is the input the
+// whole fan-out term is linear in. The cost model calls the input
+// `onlineMin` and glosses it "minutes with the app actually open"
+// (scripts/cost-arith.mjs), which is the number a person would estimate at
+// 3. What the fan-out actually charges for is minutes with a LISTENER
+// ATTACHED, and until this block those two were only equal by luck. At
+// `onlineMin` 60 the modelled bill at 50 k DAU goes from $1,224/mo to
+// $16,689, and the crossover where the fan-out overtakes every flat read
+// source moves from ~30,800 DAU to ~1,540 — under D7's write-contention
+// wall at 14,400, inverting the ordering COSTS.md names as the property
+// worth keeping (break technically before the invoice surprises anyone).
+//
+// WHY A GRACE PERIOD AND NOT AN IMMEDIATE DETACH. Re-attaching is not
+// free: an `onSnapshot` attach delivers the document once, so coming back
+// costs a read per listener. `wake()` above is written around the ten-
+// second app swap, and detaching on every hide would charge that swap 7
+// fresh deck reads to save a few seconds of fan-out. The break-even is the
+// ratio of the two: re-attach is ~7 reads flat, while staying attached
+// costs the publish rate on the shared daily, which is ~21 reads/minute at
+// 5,000 DAU and ~2 at 500. So a minute is comfortably the right order —
+// it makes the common swap free at every size, and it converts an
+// unbounded tail into a bounded 60 seconds.
+const IDLE_DETACH_MS = 60_000;
+let idleDetachTimer: ReturnType<typeof setTimeout> | null = null;
+
+function cancelIdleDetach(): void {
+  if (idleDetachTimer) {
+    clearTimeout(idleDetachTimer);
+    idleDetachTimer = null;
+  }
+}
+
+// Exactly the set `resubscribeForToday()` restores — agg and reveal — so
+// teardown and re-attach are the same list read twice. `groupsUnsub` is
+// deliberately NOT dropped: nothing re-attaches it short of a full
+// `refreshLive()`, and it is one listener on a membership query that
+// publishes when a group changes, not on the hot shared daily.
+function detachIdleListeners(): void {
+  Object.values(state.aggUnsubs).forEach((u) => { try { u(); } catch { /* best-effort */ } });
+  Object.values(state.revealUnsubs).forEach((u) => { try { u(); } catch { /* best-effort */ } });
+  state.aggUnsubs = {};
+  state.revealUnsubs = {};
+}
+
+// Exported for the test, which is the only way to prove this: a listener
+// that is still attached looks identical to one that is not until
+// something counts them.
+export function _idleDetachForTest(): { pending: boolean; run: () => void } {
+  return {
+    pending: idleDetachTimer !== null,
+    run: () => { cancelIdleDetach(); detachIdleListeners(); },
+  };
 }
 
 export async function initLive(timeoutMs = 2500): Promise<void> {
@@ -2727,6 +2795,15 @@ export async function initLive(timeoutMs = 2500): Promise<void> {
         cancelAggCache();
         writeAggCache();
       }
+      // …and stop paying for deliveries nobody is looking at. Armed rather
+      // than run, so the ten-second app swap this file is otherwise written
+      // around stays free — see IDLE_DETACH_MS.
+      cancelIdleDetach();
+      idleDetachTimer = setTimeout(() => {
+        idleDetachTimer = null;
+        if (torndown) return;
+        detachIdleListeners();
+      }, IDLE_DETACH_MS);
     });
   }
   // Whether boot loses the race (slow network) or fails outright, the
