@@ -39,6 +39,10 @@ const h = vi.hoisted(() => ({
   // asking for a document id nobody writes — getDocs returns nothing, the
   // cache holds null, and every reveal shows the authored estimate. That
   // is indistinguishable from "no data yet" unless the REQUEST is visible.
+  //
+  // The D129 deck poll reads through the same arm — it replaced a snapshot
+  // listener the tests used to push into, so its fixtures are a document set
+  // rather than a callback, and they land in this same map.
   aggDocs: [] as FakeSnapshotDoc[],
   aggIdQueries: [] as string[][],
   // live.ts observes auth for the whole session; capture the callback so a
@@ -120,6 +124,12 @@ vi.mock("firebase/firestore", () => {
       // Lets a test simulate a network failure mid-hydrate.
       if (h.getDocsImpl) return Promise.reject(h.getDocsImpl());
       if (q?.path === "v2_questions") return Promise.resolve(snapOf(h.bankDocs));
+      // main's version, kept whole: it records the id list and returns only
+      // the matching documents, which the learn-split cases below assert on.
+      // The D129 poll reads through this same arm — `refreshAggs` queries
+      // `documentId() in deckIds` — so its fixtures are filtered by deck
+      // membership rather than returned wholesale. That is the more faithful
+      // mock of the two and the poll needs no special case.
       if (q?.path === "v2_question_aggs") {
         const ids = (q.parts || [])
           .filter((p) => p && p.__kind === "where" && Array.isArray(p.value))
@@ -234,6 +244,7 @@ beforeEach(() => {
   h.reportError.mockClear();
   h.setDocImpl = null;
   h.getDocsImpl = null;
+  h.aggDocs.length = 0;
   h.authCb = null;
   h.setDocCalls.length = 0;
   h.updateDocImpl = null;
@@ -337,7 +348,7 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     expect(cached.votes).toMatchObject({ q_1: "0" });
   });
 
-  it("does NOT confirm an unacked vote when an agg snapshot lands mid-flight", async () => {
+  it("does NOT confirm an unacked vote when an agg poll lands mid-flight", async () => {
     const LIVE = await bootLive();
     const d = deferred();
     h.setDocImpl = () => d.promise;
@@ -346,13 +357,16 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     await flush(); // write in flight
 
     // A stranger's vote folds into the public aggregate while our
-    // setDoc is still pending — the regression this split fixes.
-    const aggListener = h.snapshots.find((s) => s.path === "v2_question_aggs/q_1");
-    expect(aggListener).toBeDefined();
-    aggListener!.next({
-      exists: () => true,
-      data: () => ({ counts: { "0": 3, "1": 1 }, total: 4, tooSmall: false }),
+    // setDoc is still pending — the regression this split fixes. The
+    // aggregate arrives on a poll rather than a snapshot since D129, and
+    // the contract is unchanged: a fresh aggregate must not confirm a
+    // write the server has not acknowledged.
+    h.aggDocs.push({
+      id: "q_1",
+      data: { counts: { "0": 3, "1": 1 }, total: 4, tooSmall: false },
     });
+    const mod = await import("./live");
+    await mod._aggPollForTest().tick();
 
     expect(LIVE.myVotes()).toMatchObject({ q_1: "1" });
     expect(LIVE.confirmedVotes()).not.toHaveProperty("q_1"); // still unacked
@@ -568,13 +582,18 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
   // test runs next. Each case waits out the window instead.
   const AGG_LS = "insight.aggsCache.v1";
   const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-  const emitAgg = (total: number) => {
-    const l = h.snapshots.find((s) => s.path === "v2_question_aggs/q_1");
-    expect(l).toBeDefined();
-    l!.next({
-      exists: () => true,
-      data: () => ({ counts: { "0": total, "1": 0 }, total, tooSmall: false }),
+  // Stage the aggregate and run one poll tick — the same body the interval
+  // runs, so these cases still drive the real refresh path (D129). It is
+  // async now, where the snapshot callback was synchronous, which is why
+  // every caller below awaits it.
+  const emitAgg = async (total: number) => {
+    h.aggDocs.length = 0;
+    h.aggDocs.push({
+      id: "q_1",
+      data: { counts: { "0": total, "1": 0 }, total, tooSmall: false },
     });
+    const mod = await import("./live");
+    await mod._aggPollForTest().tick();
   };
   const aggWrites = (spy: { mock: { calls: unknown[][] } }) =>
     spy.mock.calls.filter((c) => c[0] === AGG_LS).length;
@@ -584,7 +603,7 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     await sleep(1200); // let boot's own write land, so the spy counts only ours
     const spy = vi.spyOn(storage, "setItem");
 
-    for (let i = 1; i <= 5; i++) emitAgg(i);
+    for (let i = 1; i <= 5; i++) await emitAgg(i);
     // Nothing synchronous — that is the whole point; the handler used to
     // stringify the map five times right here.
     expect(aggWrites(spy)).toBe(0);
@@ -618,15 +637,23 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     await sleep(1200);
     expect(storage.getItem(AGG_LS)).not.toBeNull(); // boot wrote one
 
-    emitAgg(9); // schedules a write…
+    await emitAgg(9); // schedules a write…
+    // Emptied BEFORE the uid change, not after. Since D129 the aggregate is
+    // FETCHED rather than pushed, so the new session polls during the drain
+    // below — and an aggregate is public data, so a new uid re-reading the
+    // same q_1 is correct behaviour rather than a leak. Leaving the fixture
+    // staged would let this case pass (or fail) on that honest re-read
+    // instead of on the thing it is about: the previous account's in-flight
+    // write not surviving the purge.
+    h.aggDocs.length = 0;
     expect(h.authCb).toBeTypeOf("function");
     h.authCb!({ uid: "someone_else" }); // …and the purge lands first
     await flush();
     expect(storage.getItem(AGG_LS)).toBeNull();
 
     // Past the window the pending write would have fired in: the key may be
-    // back (the new uid's own listener writes it), but never with the
-    // previous account's counts in it.
+    // back (the new uid's own poll writes it), but never carrying the counts
+    // the previous account's in-flight write was holding.
     await sleep(1200);
     expect(JSON.parse(storage.getItem(AGG_LS) || "{}")).not.toHaveProperty("q_1");
   });
@@ -639,7 +666,7 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     await sleep(1200);
     const spy = vi.spyOn(storage, "setItem");
 
-    emitAgg(7);
+    await emitAgg(7);
     expect(aggWrites(spy)).toBe(0); // still pending
 
     expect(listeners.document.visibilitychange).toBeTypeOf("function");
@@ -720,18 +747,32 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     expect(dial!.options).toHaveLength(12);
   });
 
-  it("reports and re-notifies when an agg listener errors", async () => {
+  it("reports a failed agg poll and leaves the cached counts standing", async () => {
+    // Was "reports and re-notifies when an agg listener errors". The
+    // listener is gone (D129) and its error arm with it, but the contract
+    // it protected is not: a refresh that fails must be reported and must
+    // not blank the counts already on screen. Degrading to stale-but-
+    // present is the whole reason the poll is best-effort.
     const LIVE = await bootLive();
+    h.aggDocs.push({
+      id: "q_1",
+      data: { counts: { "0": 5, "1": 2 }, total: 7, tooSmall: false },
+    });
+    const mod = await import("./live");
+    await mod._aggPollForTest().tick();
+    const before = LIVE.deck()[0];
+
     const listener = vi.fn();
     LIVE.subscribe(listener);
+    const boom = new Error("offline");
+    h.getDocsImpl = () => boom;
+    await mod._aggPollForTest().tick();
+    h.getDocsImpl = null;
 
-    const aggListener = h.snapshots.find((s) => s.path === "v2_question_aggs/q_1");
-    expect(aggListener?.error).toBeDefined();
-    const boom = new Error("listener torn down");
-    aggListener!.error!(boom);
-
-    expect(h.reportError).toHaveBeenCalledWith(boom, { where: "aggListener", qid: "q_1" });
-    expect(listener).toHaveBeenCalled();
+    expect(h.reportError).toHaveBeenCalledWith(boom, { where: "refreshAggs" });
+    // The counts the failed poll could not refresh are still the ones the
+    // last good poll left.
+    expect(LIVE.deck()[0]).toMatchObject({ id: before.id });
   });
 });
 
@@ -810,8 +851,14 @@ describe("window.LIVE public surface", () => {
 // estimate whatever the crowd had answered. The arithmetic was never
 // wrong; nothing ever reached it.
 describe("LIVE.loadLearnAggs — warming the split before the tap (D125)", () => {
+  // Boot itself now issues one `v2_question_aggs` query — the D129 deck
+  // refresh that replaced the snapshot listeners — so the cases below that
+  // assert on the FULL query list clear it first. They are about what
+  // loadLearnAggs asks for, which is what their names say; folding the deck
+  // read into the expectation would couple them to DECK_DAYS for no reason.
   it("asks for learn-<card>, deduped, in one batched query", async () => {
     const LIVE = await bootLive();
+    h.aggIdQueries.length = 0;
     await LIVE.loadLearnAggs(["cap6", "cell1", "cap6"]);
     expect(h.aggIdQueries).toEqual([["learn-cap6", "learn-cell1"]]);
   });
@@ -845,6 +892,7 @@ describe("LIVE.loadLearnAggs — warming the split before the tap (D125)", () =>
     // One read per distinct card per session is the budget learnAgg
     // always had; warming may move when it is paid, never how often.
     const LIVE = await bootLive();
+    h.aggIdQueries.length = 0;
     await LIVE.loadLearnAggs(["cap6"]);
     await LIVE.loadLearnAggs(["cap6", "cap7"]);
     expect(h.aggIdQueries).toEqual([["learn-cap6"], ["learn-cap7"]]);
@@ -866,6 +914,7 @@ describe("LIVE.loadLearnAggs — warming the split before the tap (D125)", () =>
     // No project, no aggregates, and a read would be a network call a demo
     // build must never make.
     const LIVE = await bootLive();
+    h.aggIdQueries.length = 0;
     Object.defineProperty(LIVE, "enabled", { value: false, configurable: true });
     await LIVE.loadLearnAggs(["cap6"]);
     expect(h.aggIdQueries).toEqual([]);

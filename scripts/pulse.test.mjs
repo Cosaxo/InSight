@@ -30,6 +30,7 @@ import { renderPulse } from "./pulse-render.mjs";
 import {
   costModel, DECK_DAYS, AGG_CAP, PUBLISH_EVERY, TRIG, B, writesPerSec, CONTENTION_DAU,
   VOTER_FETCH_CAP, KINDRED_QUESTIONS, FOLLOW_CAP, CIRCLE_ANSWER_CAP, IDLE_DETACH_MS,
+  AGG_POLL_MS, POLL_DOCS,
 } from "./cost-arith.mjs";
 
 const read = (rel) => readFileSync(join(ROOT, rel), "utf8");
@@ -65,6 +66,41 @@ describe("cost-arith reads its constants from source, not from memory", () => {
     // enough that a backgrounded phone is not a standing charge.
     expect(IDLE_DETACH_MS).toBeGreaterThanOrEqual(10_000);
     expect(IDLE_DETACH_MS).toBeLessThanOrEqual(15 * 60_000);
+  });
+
+  it("AGG_POLL_MS matches live.ts, and the poll is actually armed", () => {
+    const live = read("src/v2/data/live.ts");
+    expect(AGG_POLL_MS).toBe(
+      Number(live.match(/AGG_POLL_MS = ([\d_]+)/)[1].replace(/_/g, "")));
+    // Same rule as the detach above: a constant nothing reads is a comment.
+    expect(live).toMatch(/aggPollTimer = setInterval\(/);
+    // And the thing that makes the polled term cheap — one document per
+    // tick, not the whole deck. If the slice widens, POLL_DOCS must move
+    // with it or the model understates the replacement's own cost.
+    expect(live).toMatch(/refreshAggs\(state\.deckIds\.slice\(0, 1\)\)/);
+    expect(POLL_DOCS).toBe(1);
+  });
+
+  it("polling is charged as a real cost, not as zero (D129)", () => {
+    // THE REGRESSION THIS PINS, twice over. `pollAggs` set fanOut and
+    // reattach to 0 — it modelled the fix for the fan-out as free, which is
+    // the D67 failure aimed at our own remedy. And polling is now the
+    // DEFAULT rather than an option, because it is what ships; a model whose
+    // default still streamed would describe an app that no longer exists,
+    // which is the D47 failure. `streamAggs` recovers the pre-D129
+    // arithmetic, because that is what COSTS.md finding 2 documents.
+    const { readsPerUser } = costModel({});
+    const polled = readsPerUser(50_000, { mature: true });
+    expect(polled.fanOut).toBeGreaterThan(0);
+    expect(polled.reattach).toBeGreaterThan(0);
+    // Flat in DAU is the property that matters — nobody else's behaviour
+    // appears in a polled client's read count. Streamed, these differ by
+    // a factor of ten.
+    expect(readsPerUser(500_000, { mature: true }).fanOut)
+      .toBeCloseTo(polled.fanOut, 10);
+    // …and still far cheaper than streaming, which is the point.
+    expect(polled.fanOut)
+      .toBeLessThan(readsPerUser(50_000, { mature: true, streamAggs: true }).fanOut / 10);
   });
 
   it("the D98-surface bounds match their sources (D102)", () => {

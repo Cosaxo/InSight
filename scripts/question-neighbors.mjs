@@ -132,7 +132,26 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 // Discipline: prefer rewriting or dropping the newer question — an entry
 // here is a recorded exception, not a convenience. Empty today; the
 // measured in-domain maximum is 0.333.
-const ALLOW = new Map([]);
+export const ALLOW = new Map([
+  // The first entry since D63 built this hatch, and it is the case the
+  // header predicted: "a future family of questions pushes a legitimate
+  // pair past 0.5".
+  //
+  // pk09 "The best Pokémon name?" against pk13 "The best-named element?"
+  // scores 0.500 on `best` + `name`, which is the entire overlap. The
+  // domains are disjoint (pokemon / elements), the option sets share no
+  // member, and pk13's own source comment names pk09 as the canon it is
+  // modelled on — this is a question SHAPE being reused across catalogues,
+  // deliberately, and the shape is what the metric can see.
+  //
+  // Recorded rather than rewritten because rewriting either prompt to dodge
+  // the scorer would make it worse English to satisfy a lexical measure —
+  // the failure mode this file's header rejects for the metric is the same
+  // one it would be committing in the content. If "the best-named X" grows
+  // a third member, that is the moment to ask whether the family is a
+  // template rather than to add a third exemption.
+  ["pk09~pk13", "different catalogues, shared question shape: `best`+`name` is the whole overlap"],
+]);
 
 export const GATE = 0.5;
 
@@ -408,11 +427,22 @@ export function scanDomain(list) {
   for (let i = 0; i < list.length; i++) {
     for (let j = i + 1; j < list.length; j++) {
       const s = similarity(list[i].tokens, list[j].tokens);
-      if (!closest || s > closest.s) closest = { s, a: list[i], b: list[j] };
-      if (s >= GATE) {
-        const key = [list[i].id, list[j].id].sort().join("~");
-        if (!ALLOW.has(key)) hits.push({ s, a: list[i], b: list[j], key });
-      }
+      const key = [list[i].id, list[j].id].sort().join("~");
+      const allowed = ALLOW.has(key);
+      // `closest` skips ALLOWED pairs, and that is what makes ALLOW work at
+      // all. It used to be computed before the exemption was consulted, so
+      // an allowed pair still counted as the margin-spender — and the
+      // "keeps a measured margin under GATE" case asserts `closest.s <
+      // GATE`. An ALLOW entry therefore silenced one test and could never
+      // silence the other, which made the escape hatch this file's header
+      // advertises unusable. Nobody noticed because ALLOW was empty from
+      // D63 until the first pair actually needed it.
+      //
+      // The test's own words are the specification: it names this "the
+      // closest LEGITIMATE pair", and a pair carrying a written exemption is
+      // an accepted one rather than a legitimate near-miss.
+      if (!allowed && (!closest || s > closest.s)) closest = { s, a: list[i], b: list[j] };
+      if (s >= GATE && !allowed) hits.push({ s, a: list[i], b: list[j], key });
     }
   }
   return { hits, closest };

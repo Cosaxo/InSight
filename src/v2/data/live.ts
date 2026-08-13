@@ -205,7 +205,6 @@ const state = {
   // In-memory on purpose: after a relaunch the server arm still enforces,
   // and the rollback path already handles that refusal.
   editedAt: {} as Record<string, number>,
-  aggUnsubs: {} as Record<string, () => void>,
   // ── social (groups & duos) ──
   profile: {
     displayName: "",
@@ -259,7 +258,14 @@ const state = {
   // uid → display name ("" for an account that has set none). Shared by
   // every question's voter list, because crowds overlap: without this,
   // opening five questions re-reads the same regulars five times.
-  // Session-scoped, and dropped by the purge with everything else.
+  //
+  // PERSISTED since D129 (it was session-scoped, and said so here). The
+  // same regulars answer the same shared daily every morning, so paying for
+  // their profiles again on every cold boot bought nothing. Cross-account
+  // leakage — the hazard the old note was really about — is unchanged: the
+  // disk copy is uid-stamped, refuses to load under another account, and is
+  // swept by purgeLocalTrace. See the PROFILE_LS block for the TTL and the
+  // staleness trade it buys.
   names: {} as Record<string, string>,
   // uid → parsed test scores (D112), the `names` cache's sibling: filled
   // by the SAME batched profile read (the web SDK has no field mask, so
@@ -359,6 +365,102 @@ function cacheVote(aid: string, optionIdx: number): void {
   } catch {
     /* best-effort */
   }
+}
+
+// ── the profile cache, on disk (D129) ────────────────────────────
+//
+// `state.names`/`state.scores` used to die with the session, and its
+// declaration said so: "held only to save reads, and nothing about it
+// should outlive the session that fetched it." That sentence conflated two
+// properties which are separable, and separating them is this block:
+//
+//   CROSS-ACCOUNT leakage is the real hazard, and it still cannot happen.
+//   The payload is stamped with the uid that fetched it and refuses to load
+//   under any other, `resetForNewUid` still empties the in-memory maps, and
+//   `purgeLocalTrace` sweeps every `insight.*` key including this one.
+//
+//   DURABILITY WITHIN ONE ACCOUNT was never a hazard, only an assumption.
+//   The names are public (D98) and the same regulars answer the same daily
+//   question every morning, so re-reading their profiles on every cold boot
+//   bought nothing. COSTS.md's `social` term is the second-largest read
+//   source below 10 k DAU and name resolution is half of it.
+//
+// BOTH halves are persisted, not just names, and that is load-bearing:
+// `fetchVoters` passes `scores` to `resolveNames`, whose `missing` filter
+// requires a uid to be present in BOTH maps. Persisting names alone would
+// leave every profile read exactly where it was and save nothing — the
+// cache would look like it was working while the reads continued.
+//
+// THE TRADE, stated because it is real: a display name is a snapshot, so an
+// account that renames shows its old name on other people's screens until
+// the entry expires. PROFILE_TTL_MS is that window, and it is the whole
+// reason there is a TTL rather than an unbounded cache.
+const PROFILE_LS = "insight.profileCache.v1";
+const PROFILE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+// Entries kept, newest first. A voter list is capped at VOTER_FETCH_CAP and
+// a curious user opens many, so this map is the one client cache with no
+// natural ceiling — localStorage quota is ~5 MB and a blown quota throws on
+// EVERY key, not just this one.
+const PROFILE_CACHE_CAP = 800;
+let profileCacheTimer: ReturnType<typeof setTimeout> | null = null;
+// uid → when this device first learned the name. Module-level rather than in
+// `state`, because it is bookkeeping for the disk format and nothing renders
+// from it. Seeded on load so a returning entry keeps its original age and
+// actually expires.
+const profileSeen = new Map<string, number>();
+
+function loadProfileCache(): void {
+  try {
+    const raw = JSON.parse(localStorage.getItem(PROFILE_LS) || "null");
+    if (!raw || raw.owner !== state.uid || !raw.e) return;
+    const now = Date.now();
+    for (const [uid, v] of Object.entries(raw.e as Record<string, {
+      n?: string; s?: Record<string, Record<string, number>> | null; t?: number;
+    }>)) {
+      if (!v || typeof v.t !== "number" || now - v.t > PROFILE_TTL_MS) continue;
+      state.names[uid] = typeof v.n === "string" ? v.n : "";
+      // `undefined` and `null` mean different things here: absent = never
+      // fetched (so resolveNames must ask), null = fetched and this account
+      // has no usable results. Only the second is cacheable.
+      if (v.s !== undefined) state.scores[uid] = v.s;
+      profileSeen.set(uid, v.t);
+    }
+  } catch {
+    /* corrupt or unavailable — treat as empty */
+  }
+}
+
+function writeProfileCache(): void {
+  if (torndown || !state.uid) return;
+  try {
+    const now = Date.now();
+    const uids = Object.keys(state.names)
+      .filter((u) => now - (profileSeen.get(u) ?? now) <= PROFILE_TTL_MS)
+      .sort((a, b) => (profileSeen.get(b) ?? 0) - (profileSeen.get(a) ?? 0))
+      .slice(0, PROFILE_CACHE_CAP);
+    const e: Record<string, unknown> = {};
+    for (const u of uids) {
+      e[u] = { n: state.names[u], s: state.scores[u], t: profileSeen.get(u) ?? now };
+    }
+    localStorage.setItem(PROFILE_LS, JSON.stringify({ owner: state.uid, e }));
+  } catch {
+    /* best-effort: quota, private mode, no storage */
+  }
+}
+
+// Coalesced on the same reasoning as the agg cache below: `resolveNames`
+// fills the map in batches of 30 and three surfaces call it in a row, so an
+// eager write would serialise the whole map several times per sheet open.
+function saveProfileCache(): void {
+  const now = Date.now();
+  for (const u of Object.keys(state.names)) {
+    if (!profileSeen.has(u)) profileSeen.set(u, now);
+  }
+  if (torndown || profileCacheTimer) return;
+  profileCacheTimer = setTimeout(() => {
+    profileCacheTimer = null;
+    writeProfileCache();
+  }, AGG_CACHE_MS);
 }
 
 // How long a burst of agg snapshots is allowed to coalesce into one write.
@@ -482,46 +584,110 @@ function buildS(
   return buildSPure(q, back, voteCtx(q.id), new Date());
 }
 
-async function subscribeAggs(): Promise<void> {
-  const db = await getDb();
-  const wanted = new Set(state.deckIds);
-  // drop stale subscriptions (deck rolled over past midnight)
-  for (const qid of Object.keys(state.aggUnsubs)) {
-    if (!wanted.has(qid)) {
-      state.aggUnsubs[qid]();
-      delete state.aggUnsubs[qid];
-    }
+// ── deck aggregates: polled, not streamed (D129) ─────────────────
+//
+// This was seven `onSnapshot` listeners, one per deck day, and it was the
+// single most expensive thing in the app. The daily question is globally
+// SHARED (computeDeckIds takes no uid), which is what makes a cohort fill
+// at ten users — and it also meant every answer anyone gave published a new
+// aggregate that fanned out to every client currently watching, each
+// delivery a billed read. COSTS.md finding 2: reads ≈ DAU²/80, 94% of the
+// bill at 500 k DAU, and the only term in the model that grew superlinearly.
+//
+// WHAT THIS COSTS THE PRODUCT, stated plainly because it is a real trade
+// and not a free win: other people's votes no longer land on the card while
+// you are looking at it. They arrive on the next poll instead. Your OWN
+// vote is unaffected — `scheduleAggRefresh` below already re-read the
+// aggregate 2.5 s after the write acked and cleared `unaggregated`, on both
+// the vote and the D86 edit path, so the vote → counted transition never
+// depended on the listener at all. The snapshot's own clear was a second,
+// redundant route.
+//
+// WHY ONLY TODAY IS POLLED. `computeDeckIds` returns today plus six back
+// days and all seven are answerable, so the older aggregates do move — just
+// rarely, and nobody is watching a four-day-old card for a live tick. The
+// full deck is refreshed on boot and on every foreground; the repeating
+// timer asks about today alone. That is 1 document per poll rather than 7,
+// which is what keeps the replacement genuinely cheap rather than merely
+// cheaper.
+const AGG_POLL_MS = 60_000;
+let aggPollTimer: ReturnType<typeof setInterval> | null = null;
+
+/**
+ * Read the given aggregates once and fold them into the store.
+ *
+ * Batched through a single `documentId() in` query: Firestore bills per
+ * document either way, so this buys latency rather than reads — but the
+ * deck is 7 ids and the `in` limit is 30, so the whole deck is one round
+ * trip. Best-effort by design; a failed refresh leaves the cached counts
+ * in place and the next tick tries again, which is the same degradation
+ * the listener had on error.
+ */
+async function refreshAggs(qids: readonly string[]): Promise<void> {
+  if (torndown || !qids.length) return;
+  try {
+    const db = await getDb();
+    const snap = await getDocs(query(
+      collection(db, "v2_question_aggs"),
+      where(documentId(), "in", qids.slice(0, 30)),
+    ));
+    snap.docs.forEach((d) => {
+      state.aggs[d.id] = d.data() as AggDoc;
+      // Same rule the snapshot handler applied: a fresh aggregate means the
+      // trigger has (very likely) folded the vote in, so stop
+      // double-counting it. A premature clear self-heals on the next read.
+      if (d.id in state.unaggregated && state.votes[d.id]) {
+        delete state.unaggregated[d.id];
+      }
+    });
+    state.stats.aggsFetched += snap.size;
+    saveAggCache();
+    notify();
+  } catch (err) {
+    reportError(err, { where: "refreshAggs" });
   }
-  state.deckIds.forEach((qid) => {
-    if (state.aggUnsubs[qid]) return;
-    state.aggUnsubs[qid] = onSnapshot(
-      doc(db, "v2_question_aggs", qid),
-      (snap) => {
-        if (snap.exists()) {
-          state.aggs[qid] = snap.data() as AggDoc;
-          saveAggCache();
-          // A post-vote agg snapshot means the trigger has (very likely)
-          // folded the vote in; stop double-tracking it. A premature
-          // clear self-heals on the next snapshot. (Only the display
-          // flag clears here — write acknowledgement is tracked
-          // separately in state.inflight.)
-          if (qid in state.unaggregated && state.votes[qid]) {
-            delete state.unaggregated[qid];
-          }
-        }
-        notify();
-      },
-      (err) => {
-        // An errored listener is dead server-side; leaving its stale
-        // unsub in aggUnsubs would make the guard above block any
-        // re-listen for the session. Drop it so the next subscribeAggs
-        // pass (e.g. midnight rollover in deck()) can re-attach.
-        reportError(err, { where: "aggListener", qid });
-        delete state.aggUnsubs[qid];
-        notify();
-      },
-    );
-  });
+}
+
+function stopAggPoll(): void {
+  if (aggPollTimer) {
+    clearInterval(aggPollTimer);
+    aggPollTimer = null;
+  }
+}
+
+/**
+ * Refresh the whole deck now, then keep today's aggregate fresh on a timer.
+ *
+ * Idempotent, because every caller of the old `subscribeAggs` was: boot,
+ * the midnight rollover, and every foreground. The interval is cleared and
+ * re-armed rather than left running, so a rollover repoints the poll at the
+ * new day's question without leaking the old timer.
+ *
+ * Unlike a listener, a timer costs nothing to drop and nothing to restore —
+ * so this stops IMMEDIATELY on hide rather than after a grace period. The
+ * grace in IDLE_DETACH_MS exists because re-attaching an `onSnapshot`
+ * re-delivers the document; re-arming a `setInterval` reads nothing until
+ * it next fires.
+ */
+async function startAggPoll(): Promise<void> {
+  // `torndown` only. NOT `state.ready` — this runs from inside hydrate(),
+  // and `ready` does not flip until hydrate AND hydrateSocial have both
+  // returned, so guarding on it makes the boot call a silent no-op and the
+  // deck renders with no counts until the first foreground. The old
+  // `subscribeAggs` had no readiness guard for the same reason;
+  // `resubscribeForToday` keeps one because it is a re-entry point.
+  if (torndown) return;
+  stopAggPoll();
+  await refreshAggs(state.deckIds);
+  if (torndown) return;
+  aggPollTimer = setInterval(() => {
+    // Today only — deckIds[0] is back=0 by computeDeckIds' construction.
+    // Guarded on visibility as well as on the hide handler, because a tab
+    // that is hidden without firing visibilitychange (some WebViews on
+    // resume-from-kill) would otherwise poll unseen.
+    if (torndown || (typeof document !== "undefined" && document.hidden)) return;
+    void refreshAggs(state.deckIds.slice(0, 1));
+  }, AGG_POLL_MS);
 }
 
 function computeDeck(): void {
@@ -874,7 +1040,12 @@ async function hydrate(): Promise<void> {
     publishTestResults();
   }
 
-  await subscribeAggs();
+  // Other people's names and scores, from this account's previous sessions
+  // (D129). After the profile block because it is keyed on state.uid, and
+  // before the deck poll only because nothing here depends on the order.
+  loadProfileCache();
+
+  await startAggPoll();
 
   // Feed vote hydration: the spec's feed keeps its voted-state in
   // localStorage (WF_LS) — mirror the Firestore answers into it so
@@ -1761,6 +1932,7 @@ const LIVE = {
     try {
       const db = await getDb();
       state.voters[qid] = await fetchVoters(db, qid, state.uid, state.names, state.scores);
+      saveProfileCache();
     } catch (err) {
       // Leave the key ABSENT rather than caching an empty list. The two
       // states render differently and must not be confused: absent is
@@ -1792,6 +1964,7 @@ const LIVE = {
     try {
       const db = await getDb();
       await resolveNames(db, want, state.names, state.scores);
+      saveProfileCache();
     } catch (err) {
       reportError(err, { where: "loadNames" });
     } finally {
@@ -2271,15 +2444,16 @@ const LIVE = {
     // (permission-denied) against the deleted account's query.
     try {
       state.groupsUnsub?.();
-      // The agg and reveal snapshot listeners are uid-scoped too, and
-      // their handlers write the caches the purge below is about to clear.
-      Object.values(state.aggUnsubs).forEach((u) => { try { u(); } catch { /* best-effort */ } });
+      // The reveal listeners are uid-scoped too, and their handlers write
+      // the caches the purge below is about to clear. The deck aggregates
+      // are polled rather than streamed (D129), so there is a timer to stop
+      // here instead of a listener to unsubscribe.
+      stopAggPoll();
       Object.values(state.revealUnsubs).forEach((u) => { try { u(); } catch { /* best-effort */ } });
     } catch {
       /* best-effort */
     }
     state.groupsUnsub = null;
-    state.aggUnsubs = {};
     state.revealUnsubs = {};
     // The offline mirror, which localStorage is not. firebaseImpl.ts enables
     // persistentLocalCache() unconditionally, and hydrate reads the whole
@@ -2718,13 +2892,12 @@ function resetForNewUid(uid: string): void {
   cancelIdleDetach();
   try {
     state.groupsUnsub?.();
-    Object.values(state.aggUnsubs).forEach((u) => { try { u(); } catch { /* best-effort */ } });
+    stopAggPoll();
     Object.values(state.revealUnsubs).forEach((u) => { try { u(); } catch { /* best-effort */ } });
   } catch {
     /* best-effort */
   }
   state.groupsUnsub = null;
-  state.aggUnsubs = {};
   state.revealUnsubs = {};
   state.votes = {};
   state.inflight = {};
@@ -2752,8 +2925,19 @@ function resetForNewUid(uid: string): void {
   state.votersLoading = {};
   state.names = {};
   // Scores ride the name cache (D112) and carry the same reasoning: other
-  // people's data, held to save reads, nothing to outlive the session.
+  // people's data, held to save reads.
   state.scores = {};
+  // The disk copy is swept by purgeLocalTrace below (it removes every
+  // `insight.*` key), but the age map is module state that no sweep
+  // reaches — and a survivor would hand the NEXT account's entries the
+  // previous one's timestamps, so they would expire early or late by an
+  // arbitrary amount. Cancel the queued write for the same reason
+  // cancelAggCache is called: it would re-create the key just removed.
+  profileSeen.clear();
+  if (profileCacheTimer) {
+    clearTimeout(profileCacheTimer);
+    profileCacheTimer = null;
+  }
   state.kindredLoading = false;
   state.kindredAt = 0;
   state.similarityLoading = false;
@@ -2882,8 +3066,8 @@ function purgeLocalTrace(): void {
 // Re-attach the day's listeners after a rollover. Called from the wake
 // handler rather than from deck(), so that a render never triggers
 // network work. Cheap and idempotent when the day has not changed:
-// subscribeAggs drops listeners for questions no longer in the deck and
-// skips ones already attached.
+// startAggPoll refreshes the whole deck and re-arms the timer on the new
+// day's question, so a rollover needs no separate teardown.
 async function resubscribeForToday(): Promise<void> {
   if (torndown || !state.ready) return;
   try {
@@ -2891,7 +3075,7 @@ async function resubscribeForToday(): Promise<void> {
       computeDeck();
       notify();
     }
-    await subscribeAggs();
+    await startAggPoll();
     const db = await getDb();
     subscribeReveals(db);
   } catch (err) {
@@ -3032,16 +3216,34 @@ function cancelIdleDetach(): void {
   }
 }
 
-// Exactly the set `resubscribeForToday()` restores — agg and reveal — so
-// teardown and re-attach are the same list read twice. `groupsUnsub` is
-// deliberately NOT dropped: nothing re-attaches it short of a full
-// `refreshLive()`, and it is one listener on a membership query that
-// publishes when a group changes, not on the hot shared daily.
+// Exactly the set `resubscribeForToday()` restores, which since D129 is the
+// reveal listeners alone — the deck aggregates are polled, and the poll is
+// stopped on hide by the visibility handler rather than waiting out the
+// grace period. `groupsUnsub` is deliberately NOT dropped: nothing
+// re-attaches it short of a full `refreshLive()`, and it is one listener on
+// a membership query that publishes when a group changes, not on the hot
+// shared daily.
+//
+// The grace period still earns its keep for reveals, for the reason it
+// always did: re-attaching an `onSnapshot` re-delivers the document, so
+// dropping them on the ten-second app swap `wake()` is written around would
+// cost more than it saves. The poll needs no such care — re-arming a timer
+// reads nothing until it fires — which is why the two are handled
+// differently here rather than uniformly.
 function detachIdleListeners(): void {
-  Object.values(state.aggUnsubs).forEach((u) => { try { u(); } catch { /* best-effort */ } });
   Object.values(state.revealUnsubs).forEach((u) => { try { u(); } catch { /* best-effort */ } });
-  state.aggUnsubs = {};
   state.revealUnsubs = {};
+}
+
+// Exported for the test, for the same reason `_idleDetachForTest` is: a
+// timer that is still armed looks identical to one that is not until
+// something asks. `tick()` runs exactly what the interval body runs, so a
+// test drives the real refresh path rather than a re-implementation of it.
+export function _aggPollForTest(): { running: boolean; tick: () => Promise<void> } {
+  return {
+    running: aggPollTimer !== null,
+    tick: () => refreshAggs(state.deckIds.slice(0, 1)),
+  };
 }
 
 // Exported for the test, which is the only way to prove this: a listener
@@ -3125,6 +3327,10 @@ export async function initLive(timeoutMs = 2500): Promise<void> {
         cancelAggCache();
         writeAggCache();
       }
+      // The deck poll stops NOW, not after the grace period: a timer costs
+      // nothing to drop and nothing to re-arm, so there is no swap to
+      // protect. `startAggPoll()` on the next foreground restores it.
+      stopAggPoll();
       // …and stop paying for deliveries nobody is looking at. Armed rather
       // than run, so the ten-second app swap this file is otherwise written
       // around stays free — see IDLE_DETACH_MS.

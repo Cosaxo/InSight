@@ -12585,3 +12585,134 @@ nothing. Bundle: ~2 KB, and `check:bundle`'s total goes 2170 → 2176. The
 panel is `React.lazy` from LivePrivacyPanel, which is right on the merits
 and moved the total by zero — the same "splitting relocates bytes"
 property the 2026-08-11 note recorded, holding again.
+## D129 · The fan-out is gone: the deck is polled, and the cost curve is flat
+
+**Decided:** 2026-08-13 · **Status:** binding · Closes docs/COSTS.md
+finding 2, which D34 and D124 had bounded but not removed. Owner-directed,
+against D7's "record it, do not build it yet" — the owner read the priced
+comparison and chose to build.
+
+**The question this answers** is the one D7 deferred: the listener fan-out
+was the only read source growing superlinearly in DAU, and every previous
+pass bounded its coefficient rather than removing its shape. This removes
+the shape.
+
+### What was wrong
+
+`subscribeAggs()` attached seven `onSnapshot` listeners, one per deck day.
+The daily question is globally SHARED (`computeDeckIds` takes no uid),
+which is what makes a cohort fill at ten users — and it also meant every
+answer anyone gave published a new aggregate that fanned out to every
+client then watching, each delivery a billed read. `DAU²/80` reads a day:
+94% of the bill at 500 k DAU.
+
+Two earlier passes narrowed it without changing it. D34 killed the reseed
+refetch; D124 added `IDLE_DETACH_MS` so a backgrounded WebView stopped
+paying. Both are still right and neither touched the exponent.
+
+### What was done
+
+`startAggPoll()` replaces the listeners. The whole deck is read once on
+boot and on each foreground; a `setInterval` then re-reads **today alone**
+every `AGG_POLL_MS` (60 s) while the app is visible. Polling stops
+immediately on hide, with no grace period — the grace in `IDLE_DETACH_MS`
+exists because re-attaching an `onSnapshot` re-delivers the document, and
+re-arming a timer reads nothing until it fires. The idle detach survives
+for the reveal listeners, which is now all it owns.
+
+Only today is polled because only today is hot. The six back days are
+answerable, so their aggregates do move — rarely, and nobody watches a
+four-day-old card for a live tick. Polling seven documents a minute would
+have traded a quadratic term for a flat one seven times larger than
+necessary.
+
+**What it costs the product, stated because it is a real trade:** other
+people's votes no longer land on the card while you are looking at it.
+Your own vote is unaffected, and that was verified rather than assumed —
+`scheduleAggRefresh` already re-read the aggregate 2.5 s after the write
+acked and cleared `unaggregated`, on both the vote and the D86 edit path.
+The snapshot's clear was a second, redundant route. The first draft of the
+lever analysis claimed polling cost the vote→counted transition; reading
+the consumers showed it never did.
+
+### The arithmetic
+
+| DAU | streamed (pre-D125) | polled | saving |
+| ---: | ---: | ---: | ---: |
+| 500 | $2.23 | $2.12 | −4.7% |
+| 5,000 | $59 | $41 | −31.4% |
+| 50,000 | $2,335 | $440 | −81.2% |
+| 500,000 | $194,332 | $4,448 | **−97.7%** |
+
+The totals matter less than the shape. Reads per user per day are now
+**flat at 416 across every size** — the decomposition has no DAU term left
+in it. Cost per user goes from rising 87× between 500 and 500 k DAU to
+rising 2.1×, and the whole of that residue is the free tier at the small
+end. Every scenario grades **B** against the same-stack benchmark, where
+the range used to run A+ through F.
+
+### Two corrections this pass forced, both in the model rather than the app
+
+**`pollAggs` charged zero.** The lever that priced this fix modelled it as
+free — `fanOut` and `reattach` both set to 0. That is D67's "not modelled
+reads as free" aimed at our own remedy, and it is worse than the usual
+case because the entire argument for the change rested on that term. A
+poll costs `(visible minutes / interval) × POLL_DOCS` reads a day plus one
+foreground refresh per cycle. Charged honestly the 500 k figure is $4,448
+rather than the $1,664 the free-poll model promised, and `AGG_POLL_MS` is
+now read from `live.ts` the way `IDLE_DETACH_MS` is, so the two cannot
+drift. `pulse.test.mjs` pins that it is non-zero and flat in DAU.
+
+**The model's default still streamed.** Once polling shipped, a default
+that streamed described an app that no longer exists — the D47 failure.
+The flag is inverted: polling is the baseline and `streamAggs` recovers the
+pre-D125 arithmetic, kept because that is what finding 2 documents.
+
+### The name cache, and a note that conflated two things
+
+`state.names`/`state.scores` are persisted to `insight.profileCache.v1`,
+uid-stamped, with a 7-day TTL. Its declaration used to say the cache
+"should not outlive the session that fetched it", which ran two properties
+together. Cross-account leakage is the real hazard and is unchanged: the
+payload refuses to load under another uid, `resetForNewUid` still empties
+the maps, `purgeLocalTrace` sweeps the key. Durability *within* one account
+was never a hazard, only an assumption — the names are public (D98) and the
+same regulars answer the same daily every morning.
+
+**Both maps are persisted, and that is load-bearing.** `fetchVoters` passes
+`scores` to `resolveNames`, whose `missing` filter requires a uid in BOTH.
+A names-only cache would have left every profile read where it was while
+appearing to work — it fails silently, which is why
+`src/v2/data/profile-cache.test.ts` exists and why that is its first case.
+
+**The trade:** a renamed account shows its old name to other people until
+the entry expires. Seven days is that window.
+
+### What was deliberately NOT done
+
+- **The static bank.** Worth $26/month at 500 k DAU and days of build and
+  Hosting work. Priced, skipped, still recorded in COSTS.md finding 1.
+- **The cap trims** (Kindred 12→4, voters 200→50, Circle 300→100). They are
+  the only levers that thin a Mirror surface and together they are worth
+  less than the region choice. Needing them would mean something else
+  regressed.
+- **Batching the mirror publish.** It was worth −78% before this pass and is
+  worth −0.0% after: it divided the fan-out, and there is no fan-out. Left
+  in the lever table at that value, because a lever that *became* worthless
+  is more informative than one that was quietly deleted.
+- **Refreshing only today on foreground.** `reattach` is now the
+  second-largest client term (bgCycles × DECK_DAYS). Worth ~5%; recorded,
+  not built, because a back day's count would then lag until a cold boot.
+- **The region.** Still worth 47–50% of every Firestore line, still a
+  console decision, still fixed at database creation. It is now the largest
+  single lever left and the only one with a deadline.
+
+### What this does to the walls
+
+COSTS.md's wall 2 — the read crossover at ~14,145 DAU — is gone; there is
+no term left for the fan-out to overtake anything with. D7's
+write-contention wall at ~14,400 DAU is untouched and is now the first
+wall by a wide margin, which restores the ordering COSTS.md calls the
+property worth keeping: the app breaks technically at a size where the bill
+is still three figures a month.
+

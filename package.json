@@ -48,6 +48,8 @@
     "farm:budget": "node scripts/farm-budget.mjs",
     "learn:budget": "node scripts/learn-budget.mjs",
     "costs": "node scripts/cost-model.mjs",
+    "costs:compare": "node scripts/cost-compare.mjs",
+    "costs:levers": "node scripts/cost-levers.mjs",
     "pulse": "node scripts/pulse.mjs",
     "build:emoji": "node scripts/build-emoji.mjs",
     "check:ios-spm": "node scripts/check-ios-spm.mjs",
