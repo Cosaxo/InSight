@@ -262,6 +262,23 @@ export const B = {
   // the estimate true rather than hopeful; it caps the tail at one minute
   // per backgrounding instead of one OS eviction.
   onlineMin: 3,
+  // Background→foreground cycles per user per day, and the newest soft
+  // number in this block. It exists because the idle detach (D122) changed
+  // the SHAPE of the fan-out input rather than only its value: what is
+  // billed is `onlineMin + bgCycles × grace`, plus DECK_DAYS re-attach
+  // reads per cycle. Before the detach, backgrounding cost an unbounded
+  // tail and this term would have been meaningless; after it, the tail is
+  // gone and this is what replaced it.
+  //
+  // 4 is a guess and a deliberately unflattering one — it says the app is
+  // picked up and put down four times a day, which is more than 1.4 boots
+  // implies because a boot is a cold start and a cycle is not. It is
+  // exactly the kind of number a week of real usage settles, and it sits
+  // here rather than inside the arithmetic so that it is visible as a
+  // guess. Note the direction of the trade: raising this makes the detach
+  // look worse and still never reaches the pre-detach cost, because that
+  // one had no ceiling at all.
+  bgCycles: 4,
   peakWindowMin: 240,  // D7's 4-hour morning window
   mauMultiple: 3,      // MAU = 3 x DAU
   reseedsPerMonth: 4,  // the launch plan's weekly promotion cadence
@@ -402,8 +419,28 @@ export function costModel({ regional = false, bank = bankDocs() } = {}) {
     // The quadratic one. Publishes scale with DAU; concurrent listeners
     // scale with DAU; every delivery is a billed read. ~1 of the 3 world
     // answers is the globally shared daily, which is the hot document.
-    const concurrent = dau / (B.peakWindowMin / B.onlineMin);
+    // LISTENER-minutes, not foreground minutes. The idle detach (D122)
+    // means a backgrounded app keeps listening for IDLE_DETACH_MS and then
+    // stops, so every background→foreground cycle adds one grace period to
+    // the time being billed. Before the detach this was unbounded and the
+    // model simply assumed `onlineMin`; now it is
+    //   foreground time + (cycles × grace)
+    // which is a number the code determines rather than one the model
+    // hopes for — but it is NOT `onlineMin` on its own, and saying so is
+    // the point. `bgCycles` is the new soft input and it is a guess like
+    // the rest; the arithmetic below is what makes it visible.
+    const listenerMin = B.onlineMin + B.bgCycles * (IDLE_DETACH_MS / 60_000);
+    const concurrent = dau / (B.peakWindowMin / listenerMin);
     const fanOut = pollAggs ? 0 : concurrent * (B.worldAnswers / PUBLISH_EVERY) / 3;
+    // The other half of the same trade, and the reason the detach is a
+    // grace period rather than an immediate drop: coming back re-attaches
+    // the deck listeners, and an onSnapshot attach delivers the document
+    // once. So each cycle costs DECK_DAYS reads, paid to avoid a whole
+    // background's worth of fan-out. It is a good trade at every modelled
+    // size — the break-even is ~7 reads against the publish rate on the
+    // shared daily — but it is not free, and an unnamed cost is the D67
+    // failure however small it is.
+    const reattach = pollAggs ? 0 : B.bgCycles * DECK_DAYS;
     // Charged to the project on every answer create, on top of the write.
     const rules =
       B.worldAnswers * RULE_READS.world + B.duelAnswers * RULE_READS.duel;
@@ -436,7 +473,7 @@ export function costModel({ regional = false, bank = bankDocs() } = {}) {
       B.circleOpens * B.circleFollows
       * Math.min(CIRCLE_ANSWER_CAP, B.worldAnswers * (mature ? 90 : 10));
     const social = whoVoted + kindred + circle;
-    return { boot, topUp, reseed, fanOut, rules, server, social };
+    return { boot, topUp, reseed, fanOut, reattach, rules, server, social };
   }
 
   // `aggBytes` selects which end of the published-aggregate size band to

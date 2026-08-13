@@ -92,10 +92,10 @@ describe("cost-arith reads its constants from source, not from memory", () => {
     // list, in that order of harm.
     const { readsPerUser } = costModel({});
     expect(Object.keys(readsPerUser(5000, { mature: true })))
-      .toEqual(["boot", "topUp", "reseed", "fanOut", "rules", "server", "social"]);
+      .toEqual(["boot", "topUp", "reseed", "fanOut", "reattach", "rules", "server", "social"]);
     const series = read("scripts/pulse-render.mjs").match(/key: "(\w+)"/g)
       .map((s) => s.slice(6, -1));
-    expect(series).toEqual(["boot", "topUp", "reseed", "fanOut", "rules", "server", "social"]);
+    expect(series).toEqual(["boot", "topUp", "reseed", "fanOut", "reattach", "rules", "server", "social"]);
   });
 
   it("the social term is flat above the voter cap, and only above it", () => {

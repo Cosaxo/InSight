@@ -50,7 +50,9 @@ once a question matured, and that discount no longer exists.
 
 Behaviour assumptions (the soft numbers — stated, not buried): 3 world
 answers + 1 duel answer per active user per day, 1.4 app opens, 3 minutes
-of open app concentrated in D7's 4-hour morning window, MAU = 3 × DAU, one
+of open app plus 4 background→foreground cycles (so 7 listener-minutes —
+see the D122 note below, they are not the same number), concentrated in
+D7's 4-hour morning window, MAU = 3 × DAU, one
 reseed per week, and duels played in duos rather than larger groups — which
 is the *worse* case per user, because a reveal's fixed reads divide across
 the members it serves. Prices are Blaze, `nam5` multi-region; a
@@ -58,11 +60,11 @@ single-region database is roughly half.
 
 | Scenario | DAU | reads/day | writes/day | Firestore $/mo | Functions $/mo | **Total $/mo** |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| Launch / TestFlight | 50 | 7.6 K | 710 | 0.00 | 0.00 | **0.00** |
-| Friends-of-friends | 500 | 156 K | 7.1 K | 1.90 | 0.00 | **1.90** |
-| Real traction | 5,000 | 2.2 M | 71 K | 46 | 0.00 | **46** |
-| Scale | 50,000 | 50.5 M | 710 K | 1,222 | 1.60 | **1,224** |
-| Hit | 500,000 | 3.3 B | 7.1 M | 85,507 | 33 | **85,541** |
+| Launch / TestFlight | 50 | 9.1 K | 710 | 0.00 | 0.00 | **0.00** |
+| Friends-of-friends | 500 | 174 K | 7.1 K | 2.23 | 0.00 | **2.23** |
+| Real traction | 5,000 | 2.8 M | 71 K | 59 | 0.00 | **59** |
+| Scale | 50,000 | 93.5 M | 710 K | 2,334 | 1.60 | **2,335** |
+| Hit | 500,000 | 7.5 B | 7.1 M | 194,299 | 33 | **194,332** |
 
 The Firestore column includes network egress, which Google bills separately
 but Firestore is what serves. It is the softest line here — see the band
@@ -108,6 +110,35 @@ below.
 > `fetchVoters` was the app's one unbounded read, ~DAU documents per
 > sheet open. The bill below assumes the cap.
 
+> **Corrected 2026-08-13 (D122), and this one went UP because it got more
+> honest rather than because anything got worse.** The fan-out is linear in
+> how long a listener stays attached, and until this pass *nothing bounded
+> that*: `live.ts` tore listeners down on a uid change and on account
+> deletion, and nowhere else, so a resident WebView kept receiving publishes
+> for as long as the OS let it live. The model charged `onlineMin: 3` — a
+> fair guess at how long someone looks at the app, and simply not the
+> quantity Firestore was billing.
+>
+> The idle detach bounds it, and the arithmetic now says what it bounds it
+> *to*: `onlineMin + bgCycles × grace`, plus `DECK_DAYS` re-attach reads per
+> cycle (the new `reattach` column). At 4 background cycles a day that is 7
+> listener-minutes, not 3, so the fan-out column roughly doubles and the
+> totals move with it — **$46 → $59 at 5,000 DAU, $1,224 → $2,335 at
+> 50,000**. The pre-detach code was not cheaper than these figures; it had
+> no ceiling at all, and the old numbers were describing a best case as if
+> it were the case.
+>
+> `bgCycles` is a guess and is the most leveraged one in the file now that
+> the tail is closed. It is also the cheapest to settle: it is a question
+> about how often a phone is picked up, answerable from a week of real
+> usage.
+>
+> **This moves the wall ordering, and the direction is the bad one.** The
+> read crossover is now ~14,145 DAU against D7's write-contention wall at
+> 14,400 — the read line crosses *first*, by a margin well inside the error
+> on a guessed input. See the walls section, which no longer claims the
+> comfortable ordering.
+
 Two things fall out immediately. **Compute is free and stays free** —
 the trigger is 4 invocations per user per day at 200 ms, and Cloud Run's
 free tier (180 k vCPU-s/month) covers ~900 k answers/month on its own;
@@ -123,13 +154,13 @@ reading each other's answers.
 
 Per active user per day:
 
-| DAU | boot | agg top-up | reseed delta | **listener fan-out** | rule reads | server reads | **D98 surfaces** | total/user |
-| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| 50 | 21 | 42 | 3 | 1 | 6 | 14 | 66 | 152 |
-| 500 | 21 | 42 | 3 | 6 | 6 | 14 | 219 | 311 |
-| 5,000 | 21 | 2 | 3 | 63 | 6 | 14 | **339** | 447 |
-| 50,000 | 21 | 2 | 3 | **625** | 6 | 14 | 339 | 1,010 |
-| 500,000 | 21 | 2 | 3 | **6,250** | 6 | 14 | 339 | 6,635 |
+| DAU | boot | agg top-up | reseed delta | **listener fan-out** | re-attach | rule reads | server reads | **D98 surfaces** | total/user |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 50 | 21 | 42 | 3 | 1 | 28 | 6 | 14 | 66 | 181 |
+| 500 | 21 | 42 | 3 | 15 | 28 | 6 | 14 | 219 | 347 |
+| 5,000 | 21 | 2 | 3 | 146 | 28 | 6 | 14 | **339** | 558 |
+| 50,000 | 21 | 2 | 3 | **1,458** | 28 | 6 | 14 | 339 | 1,871 |
+| 500,000 | 21 | 2 | 3 | **14,583** | 28 | 6 | 14 | 339 | 14,996 |
 
 The fan-out is still the only source that grows without bound — five
 times steeper than the last run of this table, because D98 retired the
@@ -180,13 +211,18 @@ column, which is the direction a prediction should err.
 sentence here used to read "below 50 k DAU the whole per-user read cost is
 now the boot and the top-up — both flat, both cheap, neither worth
 optimising." At 5,000 DAU the real decomposition is **social 339**,
-fan-out 63, boot 21, server 14, rules 6, reseed 3, top-up 2: the feature
-family D98 exists for is now three quarters of the read bill, and the
-$7.26 this document used to quote at that size is $46. The conclusion
-mostly survives — $46/month is still nothing at 5,000 DAU — but for the
-first time the biggest line is one a product knob (an open rate, a cap)
-moves directly, rather than a boot cost only an architecture change
-could.
+fan-out 146, re-attach 28, boot 21, server 14, rules 6, reseed 3, top-up
+2 — and the figure this document has quoted at that size has gone $7.26 →
+$46 → $59 across three passes, without the app changing. The conclusion
+survives at this size ($59/month is still nothing at real traction), and
+what has changed twice now is *which* line is biggest and why.
+
+`social` is still the largest single term below ~10 k DAU, and it is the
+one a product knob moves directly. But the fan-out is no longer a distant
+second: at 5,000 DAU it is 146 against social's 339, and it is the only
+term that grows with the square of the population — so the two swap places
+just past 10 k, and the walls section below is now about that swap rather
+than about a comfortable gap.
 
 ## The egress band, and why it is a band
 
@@ -592,17 +628,16 @@ threshold rather than the first.
    5 k DAU, `1.00` at 14.4 k, `3.47` at 50 k. Past this, transactions
    retry and aggregation degrades. Already recorded, already costed, fix
    already named (shard the counter). **This binds first.**
-2. **~30,800 DAU — the read fan-out overtakes every flat source
+2. **~14,145 DAU — the read fan-out overtakes every flat source
    combined.** Finding 2. Not a failure, just the point where the bill
-   stops being about anything else. This row has now moved twice without
-   the fan-out itself changing shape, in opposite directions, and both
-   moves are worth keeping: D98's cadence removal made the fan-out five
-   times steeper, which pulled the crossover from ~18,200 down to
-   **~3,700 — below wall 1, inverting the ordering this section is
-   about** — and nobody reran the model to see it. D102's `social` term
-   then raised the flat baseline from 46 to 385 reads/user/day, pushing
-   the crossover back out to ~30,800. The ordering held for a day by
-   accident, and holds now by arithmetic.
+   stops being about anything else. This row has now moved three times
+   without the fan-out changing shape, and every move is worth keeping:
+   D98's cadence removal made it five times steeper, pulling the crossover
+   from ~18,200 to ~3,700 with nobody rerunning the model to see it; D102's
+   `social` term raised the flat baseline from 46 to 385 reads/user/day and
+   pushed it back to ~30,800; and D122 stopped charging listener time at a
+   guess it had no right to, which brought it to **~14,145 — 255 DAU inside
+   wall 1, which is not a margin.**
 3. **~50,000 MAU — the Identity Platform cliff**, if that is the billing
    mode. Finding 3.
 4. **~10,000 activations/day — Play Integrity's standard quota**, which
@@ -617,20 +652,29 @@ window and dying identically every night thereafter. D64 made it fold per
 page, so its memory is bounded by one page rather than by the window. The
 new ceiling has not been measured and no number is quoted for it here.
 
-Wall 1 arriving before wall 2 is the good ordering: the app breaks
-technically at a size where the bill is still ~$183/month, so there is no
-scenario where a surprise invoice arrives before a surprise outage. That
-is worth keeping true — and this pass is the proof it is a property to
-re-check rather than rely on, exactly as the previous version of this
-paragraph said: D98 *did* invert it (a 5× steeper fan-out against an
-unchanged baseline puts the crossover at ~3,700 DAU, a quarter of the
-wall), and the inversion sat unnoticed until the next full model run a
-day later. It is restored now because the D98 surfaces themselves raised
-the flat baseline eightfold — the feature family that endangered the
-ordering is what currently maintains it, which is not a stable
-arrangement. If the `social` open rates come in lower than guessed, the
-crossover moves back toward the wall; re-run the crossover line whenever
-one of those rates is measured.
+**The ordering this section was built on is gone, and pretending otherwise
+would be the most expensive sentence on the page.** Wall 1 before wall 2
+was the good arrangement: the app breaks technically at a size where the
+bill is still ~$183/month, so no surprise invoice can arrive before a
+surprise outage. Three versions of this paragraph have now asserted that
+property, and it has been false for part of the time each of them was
+committed. 14,145 against 14,400 is not "holds by arithmetic" — it is a
+tie, decided by `bgCycles`, a number nobody has measured.
+
+What that means in practice is narrower than it sounds and worth stating
+rather than dramatising. Both walls sit near 14 k DAU, both are a long way
+past launch, and the bill at that size is low four figures a month — so
+the actionable content is not "fix the fan-out now" (D7 still says no) but
+"stop relying on which one comes first." The two mitigations that were
+filed against wall 2 alone — polling instead of streaming, and the static
+bank — are now the mitigations for the pair, and the recorded fix for wall
+1 (shard the counter) no longer buys the head start it was chosen for.
+
+Three of the inputs deciding this are guesses: `bgCycles` (4), `onlineMin`
+(3) and the three D98 open rates. Every one is answerable from a week of
+real usage, and until one of them is measured this section is describing a
+coin toss with a precise-looking number on it. Re-run the crossover line
+the day any of them is.
 
 ## Everything that is not Firestore
 
@@ -660,17 +704,22 @@ does not scale down when usage does.
 
 ## The honest summary
 
-**Below ~1,000 DAU this app costs about $36/month, and $28 of that is the
+**Below ~1,000 DAU this app costs about $37/month, and $28 of that is the
 Apple developer program and a Claude subscription.** The infrastructure is
-effectively free at launch sizes — $0 at 50 DAU, ~$2 at 500, ~$6 at 1,000
-— and the number that moved in this pass is the mid-range: $46/month at
-5,000 DAU where this document used to say $7.26, three quarters of it the
-D98 surfaces doing exactly what D98 built them to do. $46 at real traction
-is still a trivially good trade; what changed is that the biggest line is
-now a product behaviour (how often people open who-voted, Kindred,
-Circle) rather than a fixed boot cost, so the first week of real usage
-can move this prediction in either direction by measuring three open
-rates.
+effectively free at launch sizes — $0 at 50 DAU, ~$2 at 500, ~$7 at 1,000
+— and $59/month at 5,000 DAU, where this document has previously said
+$7.26 and then $46. None of those three numbers described a different app.
+They described the same app modelled with progressively fewer missing
+terms, and the direction has been up every time, which is the single most
+useful thing this page can tell you about its own reliability.
+
+What changed in the D122 pass is less about the total than about its
+shape. The two biggest lines are now the D98 surfaces (a product
+behaviour, moved by an open rate or a cap) and the listener fan-out (an
+architecture property, moved only by polling instead of streaming), and
+they cross just past 10 k DAU. Below that, a week of real usage measuring
+three open rates and `bgCycles` moves this prediction more than any code
+change would.
 
 That is still the correct answer to "can I afford to launch this": yes, by
 a wide margin, and the cost of being wrong about demand is not measured in
