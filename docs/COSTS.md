@@ -14,6 +14,16 @@ costs, including the read decomposition, the egress band and the crossover
 the walls section quotes — the arithmetic lives in
 `scripts/cost-arith.mjs`, which `scripts/pulse.test.mjs` holds to the tree.
 
+This document answers *what will this cost*. It deliberately does not
+answer *is that a lot*, because that needs a denominator the model cannot
+supply — somebody else's invoice.
+[`docs/COST-COMPARISON.md`](COST-COMPARISON.md) is that comparison
+(`npm run costs:compare`), rating these same figures against Snap, Signal,
+Wikimedia and a typical app on the same stack. Its finding is about shape
+rather than level: the totals below are small, and the **cost per user
+rises 87× between 500 and 500,000 DAU**, which is the fan-out of finding 2
+seen from the unit-economics side.
+
 ## The unit economics, read out of the code
 
 Every constant below is sourced, not assumed:
