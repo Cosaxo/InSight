@@ -63,7 +63,7 @@ console.log("\nreads per user per day, by source — the decomposition is the fi
   }
 }
 
-// Polling shipped at D125, so it is the BASELINE above, not a fix below.
+// Polling shipped at D129, so it is the BASELINE above, not a fix below.
 // What remains unbuilt is the static bank — and its saving is small enough
 // that this table now mostly documents how little is left to win on the
 // boot path. Kept rather than deleted: "the remaining fix is worth almost
@@ -81,11 +81,11 @@ for (const [dau, mature] of SCENARIOS) {
   );
 }
 
-// What D125 bought, kept as a table because the alternative is a sentence
-// nobody can re-derive. `streamAggs` recovers the pre-D125 arithmetic —
+// What D129 bought, kept as a table because the alternative is a sentence
+// nobody can re-derive. `streamAggs` recovers the pre-D129 arithmetic —
 // seven onSnapshot listeners on the deck, every stranger's answer a billed
 // delivery — which is what COSTS.md finding 2 documents.
-console.log("\nwhat polling replaced: the streamed deck (pre-D125), for the record");
+console.log("\nwhat polling replaced: the streamed deck (pre-D129), for the record");
 console.log("     DAU     streamed       polled       saving");
 console.log("-".repeat(46));
 for (const [dau, mature] of SCENARIOS) {

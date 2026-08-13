@@ -3,7 +3,7 @@
 // The deck aggregates, at the store — COSTS.md's listener fan-out, which was
 // the one read source in the model that grew superlinearly in DAU.
 //
-// REWRITTEN AT D125, and the premise inverted. This file used to prove the
+// REWRITTEN AT D129, and the premise inverted. This file used to prove the
 // fan-out was BOUNDED: seven `onSnapshot` listeners existed and were torn
 // down after a minute of being hidden. They do not exist any more — the deck
 // is polled — so the claim worth pinning got stronger and the old cases got
@@ -133,7 +133,7 @@ function setHidden(v: boolean): void {
   document.dispatchEvent(new Event("visibilitychange"));
 }
 
-// Since D125 the only listeners the idle detach owns are the per-group
+// Since D129 the only listeners the idle detach owns are the per-group
 // reveal ones — the aggregate listeners it was built for do not exist any
 // more. `groupsUnsub` is deliberately NOT dropped (nothing short of a full
 // refreshLive() re-attaches it), which is why the cases below name the
@@ -184,13 +184,13 @@ afterEach(() => {
   delete (document as unknown as Record<string, unknown>).hidden;
 });
 
-describe("deck aggregates are polled, not streamed (D125)", () => {
+describe("deck aggregates are polled, not streamed (D129)", () => {
   const aggSubs = () => h.subs.filter((x) => x.path?.startsWith("v2_question_aggs"));
 
   it("attaches NO snapshot listener to the deck aggregates", async () => {
     await bootLive();
     // The assertion the bill cares about, and the inverse of what this file
-    // asserted before D125. Every one of these was a live subscription to a
+    // asserted before D129. Every one of these was a live subscription to a
     // globally-shared document, re-delivered on every stranger's answer.
     expect(aggSubs()).toHaveLength(0);
   });

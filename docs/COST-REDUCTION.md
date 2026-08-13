@@ -1,6 +1,6 @@
 # Getting the bill down
 
-> **Partly executed, 2026-08-13 (D125).** The owner read the analysis below
+> **Partly executed, 2026-08-13 (D129).** The owner read the analysis below
 > and chose to build the big one rather than defer it. The deck is polled
 > instead of streamed, and the voter name cache is persisted. What that did:
 >
@@ -32,7 +32,7 @@
 > trims are still the worst ratio of product cost to money and are still
 > not recommended. Batching the mirror publish has gone from −78% to −0.0%,
 > because it divided a fan-out that no longer exists. Numbers below the
-> fold are pre-D125; `npm run costs:levers` prints today's.
+> fold are pre-D129; `npm run costs:levers` prints today's.
 
 [`docs/COSTS.md`](COSTS.md) says what this costs.
 [`docs/COST-COMPARISON.md`](COST-COMPARISON.md) says whether that is a lot

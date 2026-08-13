@@ -261,6 +261,13 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     // circle-split section rather than three empty states. Its answers
     // overlap the fixture deck on purpose — an empty overlap would make
     // the likeness line read "nothing in common yet" everywhere.
+    // Foresight (D126). An empty-but-loaded log: the lens then renders
+    // its first card rather than the "couldn't load" arm, which is what
+    // a mount test needs to walk.
+    loadForesight: async () => {},
+    foresightLog: () => ({}) as Record<string, unknown>,
+    foresightLoading: () => false,
+    scoreForesight: async () => {},
     loadCircle: async () => {},
     circle: () => [
       {
@@ -357,6 +364,10 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     // is exactly the honest cold-start state the live tests should see.
     learnAnswer: () => {},
     learnAgg: () => null,
+    // The D125 warm-up. A no-op here for the same reason learnAgg returns
+    // null: the fixture has no aggregates, so the honest state it renders
+    // is the labelled estimate.
+    loadLearnAggs: async () => {},
     linkGoogle: async () => {},
     // Anonymous-first (D3) is the default state, so that is what the fixture
     // renders — the branch the privacy panel and profile overlay both

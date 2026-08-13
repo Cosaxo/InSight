@@ -8,7 +8,7 @@
 import type { ByMap } from "../data/cohort";
 
 /**
- * The four lenses LiveMirrorLenses renders.
+ * The five lenses LiveMirrorLenses renders.
  *
  * Their LABELS are not here. This module is imported at runtime only by
  * the lazy lens chunk; the tab row is entry-side, and a label map read
@@ -17,7 +17,7 @@ import type { ByMap } from "../data/cohort";
  * (check:bundle). The labels live in ./lensTabs, which only the row
  * imports. The TYPE crossing that seam is free — it is erased.
  */
-export type LensId = "people" | "compare" | "explore" | "scores";
+export type LensId = "people" | "compare" | "explore" | "scores" | "foresight";
 
 /**
  * The question types whose option INDEX carries magnitude, and so the

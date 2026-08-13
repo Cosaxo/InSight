@@ -4,17 +4,21 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+// The live who-voted sheet, cohort-first (D125) — it owns the cohort
+// choice, the split drawn for it and the named roster underneath, which
+// used to be three panels stacked here.
+//
 // An ordinary import, not a globalThis lookup: D39's ratchet only moves
 // down, and this panel's one consumer is this file. Static rather than
 // listed in spec-index on purpose — world-feed is deferred past first
 // paint (D25), so importing it here keeps it in the deferred chunk
 // instead of pulling it into the first-paint bundle.
-import LiveVotersPanel from '../ui/LiveVotersPanel';
+import LiveBreakdownPanel from '../ui/LiveBreakdownPanel';
 import { WPAL } from './world-palette.js';
 import { HAPTIC } from './haptics.js';
 import { WF_CATALOGS } from './world-catalogs.js';
 import { LEARN } from './learn-progress.js';
-import { LEARN_ORDER, LEARN_SPLIT_SRC } from './learn-data.js';
+import { LEARN_ORDER, LEARN_SPLIT, LEARN_SPLIT_SRC } from './learn-data.js';
 import { SCENES } from './scenes.js';
 import { Sheet } from './primitives.jsx';
 // The feed's cadence arithmetic — extracted so the test exercises THIS loop
@@ -144,15 +148,12 @@ const WF_SUBS = (dim) => (window.VOTECUTS ? window.VOTECUTS.subs(dim) : null);
 const WF_GRP = (dim, ax) => (window.VOTECUTS ? window.VOTECUTS.groups(dim, ax) : []);
 const WF_CUTKEY = (dim, ax) => (ax ? dim + ':' + ax : dim);
 const WF_YOU = (dim, ax) => (window.VOTECUTS ? window.VOTECUTS.you(dim, ax) : null);
-// Live breakdown dimensions, in display order. Must stay a subset of
-// BREAKDOWN_DIMS (functions/src/pure.ts) — a dimension the server never
-// publishes would render an empty chip. `profession` is collected but not
-// sliced by (D8), and `friends` is demo-only: a named who-voted at world
-// scale is exactly what D1 rules out.
-const WF_LIVE_DIMS = [
-  ['ageBand', 'Age'], ['gender', 'Gender'], ['city', 'City'], ['country', 'Country'],
-  ['education', 'Education'], ['relationship', 'Relationship'],
-];
+// The live breakdown dimensions used to be listed here as WF_LIVE_DIMS, a
+// hand-kept copy of BREAKDOWN_DIMS (functions/src/pure.ts). D125 moved the
+// live sheet into ui/LiveBreakdownPanel, which reads COHORT_DIMS from
+// data/cohort.ts — one list, typed, already shared with the Mirror's
+// lenses, and one fewer place for the client's idea of the dimensions to
+// drift from the server's.
 
 // Bucket keys are stored canonically so that one cohort is one key
 // worldwide — `country` is the ISO code and `city` is "Oslo, NO" (D9). That
@@ -299,6 +300,9 @@ class WorldFeed extends React.Component {
   }
   componentDidUpdate() { this.applySnap(); }
   componentWillUnmount() {
+    // The learn-agg prefetch (D125) resolves after an await, so it can land
+    // on an unmounted feed — a tab switch mid-fetch is the ordinary case.
+    this._mounted = false;
     clearTimeout(this._retry);
     clearTimeout(this._sheetT);
     clearTimeout(this._rippleT);
@@ -876,7 +880,39 @@ class WorldFeed extends React.Component {
     if (!LF || !LF.every()) return [];
     const muted = Object.keys(cats || {}).filter((k) => k.indexOf('lrn-') === 0 && cats[k] === false).sort().join(',');
     const sig = LF.freq() + '|' + LEARN.mine().map((f) => f.id).join(',') + '|' + muted;
-    if (this._kqSig !== sig || !this._kq) { this._kqSig = sig; this._kq = LF.cards(Math.max(14, n), cats); }
+    if (this._kqSig !== sig || !this._kq) {
+      this._kqSig = sig; this._kq = LF.cards(Math.max(14, n), cats);
+      // Warm the crowd splits for the whole plan, here (D125). This is the
+      // one moment that is guaranteed to precede every tap in the sitting,
+      // and LIVE.learnAgg is a read-through cache whose first call always
+      // returns null — so before this line the measured split was
+      // unreachable by construction: the first call for a card was the one
+      // LEARN.answer() makes at the instant of the tap, and it got null
+      // every time, on every card, at any crowd size.
+      //
+      // forceUpdate on completion because the feed deliberately does not
+      // re-render on every store notify (componentDidMount's reconcile
+      // returns null when no vote moved), and a card tapped inside the
+      // fetch window would otherwise keep the estimate it was rendered
+      // with. Renders are cheap here; the read is the thing that is not.
+      //
+      // The imported binding, not window.LIVE: D39's meter counts
+      // cross-module global reads and only moves down, so a new read here
+      // would have to be paid for by converting something else.
+      if (LIVE.loadLearnAggs) {
+        // `.learn`, NOT `.id`. LEARN_FEED wraps each card as a feed
+        // question whose id is "lrn-<card>" while the card itself — and
+        // therefore the "learn-<card>" aggregate — is `.learn`. Passing
+        // `.id` asks for "learn-lrn-cap6", which no document has ever
+        // been written under, and the failure is silent in the worst
+        // way: getDocs returns nothing, the cache holds null, and every
+        // reveal shows the authored estimate. Exactly the bug this
+        // prefetch exists to fix, wearing its fix's clothes.
+        const ids = this._kq.map((c) => c.learn);
+        void Promise.resolve(LIVE.loadLearnAggs(ids))
+          .then(() => { if (this._mounted !== false) this.forceUpdate(); }, () => {});
+      }
+    }
     return this._kq.slice(0, n);
   }
 
@@ -1109,6 +1145,18 @@ class WorldFeed extends React.Component {
     const r = this.knowOf(q);
     const my = this.state.votes[q.id];
     const fresh = !!this.state.knowRes[q.id];
+    // The split and its provenance, read TOGETHER at render (D125).
+    //
+    // `r.split` is still returned by LEARN.answer and is still the same
+    // arithmetic — but it is frozen at the instant of the tap, while the
+    // footer below re-evaluates LEARN_SPLIT_SRC on every render. Those two
+    // drifted apart the moment an aggregate arrived late: the bars kept the
+    // authored estimate and the line under them started saying "Real
+    // answers from N+ players". An authored number labelled as a
+    // measurement is exactly what D32 built this seam to prevent, so the
+    // numbers now come from the same evaluation as the label.
+    const split = r ? LEARN_SPLIT(card) : null;
+    const src = r ? LEARN_SPLIT_SRC(card) : null;
     const cs = LEARN.stateOf(q.learn);
     const streakNow = r ? r.streak : (cs && cs.s === 'learning' ? cs.k : 0);
     const pale = WPAL.wash(T.color, 18, 'var(--surface-2)');
@@ -1127,7 +1175,7 @@ class WorldFeed extends React.Component {
             const label = card.a[ai];
             const isC = !!r && ai === r.correct;
             const isMine = !!r && my === ai;
-            const pct = r ? r.split[ai] : 0;
+            const pct = split ? split[ai] : 0;
             const showPct = !!r && (isC || (isMine && !r.ok));
             return (
               <button key={ai} className="press" disabled={!!r} onClick={() => this.setKnow(q, ai)}
@@ -1176,7 +1224,7 @@ class WorldFeed extends React.Component {
                 one it is. Demo builds carry their own honesty layers. */}
             {window.LIVE && window.LIVE.enabled ? (
               <div style={{ fontFamily: 'var(--sans)', fontSize: 11, color: 'var(--ink-3)', lineHeight: 1.45 }}>
-                {LEARN_SPLIT_SRC(card) === 'measured'
+                {src === 'measured'
                   ? 'Real answers from ' + (((window.LIVE.learnAgg && window.LIVE.learnAgg(card.id)) || {}).total || 5) + '+ players.'
                   : 'Our estimate — becomes measured once enough people have answered.'}
               </div>
@@ -2467,65 +2515,16 @@ class WorldFeed extends React.Component {
     return by && Object.keys(by).length ? by : null;
   }
 
-  renderLiveStats(q, T, by) {
-    const dims = WF_LIVE_DIMS.filter(([id]) => by[id]);
-    const dim = dims.some(([id]) => id === this.state.dims[q.id])
-      ? this.state.dims[q.id] : dims[0][0];
-    const buckets = by[dim] || {};
-    // Biggest cohort first — the ordering the eye wants, and it keeps the
-    // withheld tail (which we cannot show at all) out of the way.
-    const rows = Object.keys(buckets)
-      .map((b) => {
-        const cell = buckets[b];
-        const n = Object.keys(cell).reduce((a, k) => a + cell[k], 0);
-        return { bucket: b, cell, n };
-      })
-      .sort((a, b2) => b2.n - a.n);
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-          {dims.map(([id, label]) => (
-            <button key={id} onClick={() => this.setState((s) => ({ dims: { ...s.dims, [q.id]: id } }))} style={{ border: WF_LINE, borderRadius: 999, padding: '5px 12px', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 12, cursor: 'pointer', background: dim === id ? 'var(--ink)' : 'var(--surface)', color: dim === id ? 'var(--surface)' : 'var(--ink)', WebkitAppearance: 'none' }}>{label}</button>
-          ))}
-        </div>
-        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-          {q.options.map((o, i) => (
-            <span key={i} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11.5, fontWeight: 700 }}>
-              <span style={{ width: 11, height: 11, borderRadius: 4, background: wfShade(T.color, i), display: 'inline-block' }}></span>{o.label}
-            </span>
-          ))}
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {rows.map((r) => {
-            const ps = q.options.map((_, oi) => Math.round(((r.cell[String(oi)] || 0) / r.n) * 100));
-            // rounding drift lands on the largest share, so the bar is full
-            const drift = 100 - ps.reduce((a, b2) => a + b2, 0);
-            if (drift) ps[ps.indexOf(Math.max(...ps))] += drift;
-            return (
-              <div key={r.bucket} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
-                  <span style={{ fontWeight: 800, fontSize: 12 }}>{wfBucketLabel(dim, r.bucket)}</span>
-                  <span style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--ink-3)' }}>{wfFmt(r.n)} {r.n === 1 ? 'vote' : 'votes'}</span>
-                </div>
-                <div style={{ display: 'flex', height: 30, border: WF_LINE, borderRadius: 9, overflow: 'hidden', background: 'var(--surface)' }}>
-                  {ps.map((p, oi) => (
-                    <span key={oi} style={{ width: p + '%', background: wfShade(T.color, oi), display: 'flex', alignItems: 'center', justifyContent: 'center', color: wfShadeText(oi), fontSize: 10.5, fontWeight: 800, overflow: 'hidden' }}>{p >= 14 ? p + '%' : ''}</span>
-                  ))}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-        {/* Absent cohorts are WITHHELD, not empty. Saying so is the point:
-            the floor is the product's claim, so the UI has to name it
-            rather than quietly show a shorter list. */}
-        <div style={{ fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 600, color: 'var(--ink-3)', lineHeight: 1.5, textWrap: 'pretty' }}>
-          Only groups with enough answers to stay anonymous are shown, and
-          counts update in steps of five — so these are floors, not
-          live totals. The rest appear as more people answer.
-        </div>
-      </div>
-    );
+  // The viewer's own option index on a live card, or -1 (D125). Local
+  // state first because it holds the answer given this sitting before the
+  // store has confirmed it; the store's map is the fallback for a card
+  // answered on another device or in an earlier session.
+  liveMine(q) {
+    const local = this.state.votes[q.id];
+    if (typeof local === 'number') return local;
+    const stored = LIVE.myVotes ? LIVE.myVotes()[q.id] : null;
+    const n = stored == null ? NaN : Number(stored);
+    return Number.isInteger(n) ? n : -1;
   }
 
   // ── the cut control: which slice of the world, then — for a test — which of
@@ -2756,50 +2755,51 @@ class WorldFeed extends React.Component {
     );
   }
 
-  // the live dial breakdown: real cohorts (agg.by), each row that group's
-  // actual average position on the range — the same arithmetic every
-  // average in the app uses, a histogram read at its midpoints
+  // The live dial breakdown, cohort-first (D125). The panel above owns the
+  // choice of cohort; this draws where THAT cohort lands on the range,
+  // with everyone's position beside it for the comparison.
+  //
+  // It used to draw every cohort at once — six or twelve tracks stacked —
+  // which reads as a chart of the crowd rather than an answer to "where
+  // would this land if I were asking people like X". The chips give you
+  // each cohort a tap apart, and the rows below them are the same names
+  // and the same divergence the options-shaped sheet shows.
   renderDialLiveStats(q, T) {
-    const by = this.liveBy(q);
-    const voters = <LiveVotersPanel qid={q.id} options={q.options.map((o) => o.label)} />;
-    if (!by) {
-      return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-          <div style={{ fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 600, color: 'var(--ink-3)', lineHeight: 1.55, padding: '6px 2px', textWrap: 'pretty' }}>
-            Not enough answers yet to break this down by group.
-          </div>
-          {voters}
-        </div>
-      );
-    }
     const v = this.dialVal(q);
-    const dims = WF_LIVE_DIMS.filter(([id]) => by[id]);
-    const dim = dims.some(([id]) => id === this.state.dims[q.id]) ? this.state.dims[q.id] : dims[0][0];
-    const rows = Object.keys(by[dim] || {})
-      .map((b) => ({ bucket: b, r: this.dialCellAvg(q, by[dim][b]) }))
-      .filter((x) => x.r)
-      .sort((a, b2) => b2.r.n - a.r.n);
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 13 }}>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-          {dims.map(([id, label]) => (
-            <button key={id} onClick={() => this.setState((s) => ({ dims: { ...s.dims, [q.id]: id } }))} style={{ border: WF_LINE, borderRadius: 999, padding: '5px 12px', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 12, cursor: 'pointer', background: dim === id ? 'var(--ink)' : 'var(--surface)', color: dim === id ? 'var(--surface)' : 'var(--ink)', WebkitAppearance: 'none' }}>{label}</button>
-          ))}
-        </div>
-        {v != null && (
-          <div style={{ background: 'var(--ink)', color: 'var(--surface)', borderRadius: 12, padding: '12px 14px', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 14 }}>
-            You said {this.dialFmt(q, v)} · most say {this.dialFmt(q, this.dialMedOf(q, this.dialDist(q, v)))}
-          </div>
-        )}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
-          {rows.map((x) => this.dialTrackRow(q, T, v, wfBucketLabel(dim, x.bucket), null, x.r.avg, x.r.n))}
-        </div>
-        <div style={{ fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 600, color: 'var(--ink-3)', lineHeight: 1.5, textWrap: 'pretty' }}>
-          Each bar is where that group typically lands. Counts update in
-          steps of five, so small groups move in visible notches.
-        </div>
-        {voters}
-      </div>
+      <LiveBreakdownPanel
+        qid={q.id}
+        options={q.options.map((o) => o.label)}
+        mine={this.liveMine(q)}
+        renderBody={(counts, pick, overall) => {
+          const cur = this.dialCellAvg(q, counts);
+          const all = this.dialCellAvg(q, overall);
+          if (!cur) return null;
+          return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
+              {v != null && (
+                <div style={{ background: 'var(--ink)', color: 'var(--surface)', borderRadius: 12, padding: '12px 14px', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 14 }}>
+                  You said {this.dialFmt(q, v)} · {pick.dim ? pick.label + ' say ' : 'most say '}{this.dialFmt(q, this.dialMedOf(q, counts))}
+                </div>
+              )}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
+                {this.dialTrackRow(q, T, v, pick.label, null, cur.avg, cur.n)}
+                {/* The baseline, drawn only when a cohort is selected —
+                    against "Everyone" it would be the same row twice. */}
+                {!!pick.dim && all && this.dialTrackRow(q, T, v, 'Everyone', null, all.avg, all.n)}
+              </div>
+              <div style={{ fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 600, color: 'var(--ink-3)', lineHeight: 1.5, textWrap: 'pretty' }}>
+                {pick.dim && all
+                  ? <>{pick.label} land {Math.abs(Math.round(cur.avg - all.avg)) < 1
+                    ? <>where everyone does</>
+                    : <><strong style={{ color: 'var(--ink-2)' }}>{this.dialFmt(q, Math.abs(cur.avg - all.avg))}</strong> {cur.avg > all.avg ? 'higher' : 'lower'} than everyone</>}
+                    {v != null ? <>, and you said {this.dialFmt(q, v)}</> : null}.</>
+                  : <>Where the answers typically land{v != null ? ' — the line is you' : ''}.</>}
+              </div>
+            </div>
+          );
+        }}
+      />
     );
   }
 
@@ -2860,42 +2860,36 @@ class WorldFeed extends React.Component {
     );
   }
 
-  // the live field breakdown: each cohort's real centre of mass on the
-  // plane, from the same by-cells the who-voted breakdown reads
+  // The live field breakdown, cohort-first (D125) — the same reversal the
+  // dial gets above, on the plane: the selected cohort's real centre of
+  // mass, with everyone's beside it and your own answer as the ring.
   renderFieldLiveStats(q, T) {
-    const by = this.liveBy(q);
-    const voters = <LiveVotersPanel qid={q.id} options={q.options.map((o) => o.label)} />;
-    if (!by) {
-      return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-          <div style={{ fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 600, color: 'var(--ink-3)', lineHeight: 1.55, padding: '6px 2px', textWrap: 'pretty' }}>
-            Not enough answers yet to break this down by group.
-          </div>
-          {voters}
-        </div>
-      );
-    }
     const v = this.fieldVal(q);
-    const dims = WF_LIVE_DIMS.filter(([id]) => by[id]);
-    const dim = dims.some(([id]) => id === this.state.dims[q.id]) ? this.state.dims[q.id] : dims[0][0];
-    const marks = Object.keys(by[dim] || {})
-      .map((b) => ({ bucket: b, r: this.fieldCellCentroid(by[dim][b]) }))
-      .filter((x) => x.r)
-      .sort((a, b2) => b2.r.n - a.r.n)
-      .map((x) => ({ key: x.bucket, x: x.r.x, y: x.r.y, short: wfBucketLabel(dim, x.bucket) }));
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 13 }}>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-          {dims.map(([id, label]) => (
-            <button key={id} onClick={() => this.setState((s) => ({ dims: { ...s.dims, [q.id]: id } }))} style={{ border: WF_LINE, borderRadius: 999, padding: '5px 12px', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 12, cursor: 'pointer', background: dim === id ? 'var(--ink)' : 'var(--surface)', color: dim === id ? 'var(--surface)' : 'var(--ink)', WebkitAppearance: 'none' }}>{label}</button>
-          ))}
-        </div>
-        {this.renderFieldPlane(q, T, marks, v)}
-        <div style={{ fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 600, color: 'var(--ink-3)', lineHeight: 1.5, textWrap: 'pretty' }}>
-          Each dot is where that group typically lands{v != null ? ' — the ring is you' : ''}. Counts update in steps of five, so small groups move in visible notches.
-        </div>
-        {voters}
-      </div>
+      <LiveBreakdownPanel
+        qid={q.id}
+        options={q.options.map((o) => o.label)}
+        mine={this.liveMine(q)}
+        renderBody={(counts, pick, overall) => {
+          const cur = this.fieldCellCentroid(counts);
+          const all = this.fieldCellCentroid(overall);
+          if (!cur) return null;
+          const marks = [{ key: 'cohort', x: cur.x, y: cur.y, short: pick.label }];
+          // Only when a cohort is selected: against "Everyone" the two
+          // centroids are the same point and would draw one dot twice.
+          if (pick.dim && all) marks.push({ key: 'all', x: all.x, y: all.y, short: 'Everyone', color: 'var(--ink-3)' });
+          return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
+              {this.renderFieldPlane(q, T, marks, v)}
+              <div style={{ fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 600, color: 'var(--ink-3)', lineHeight: 1.5, textWrap: 'pretty' }}>
+                {pick.dim
+                  ? <>Where {pick.label} typically land, against everyone{v != null ? ' — the ring is you' : ''}.</>
+                  : <>Where the answers typically land{v != null ? ' — the ring is you' : ''}.</>}
+              </div>
+            </div>
+          );
+        }}
+      />
     );
   }
 
@@ -2933,33 +2927,19 @@ class WorldFeed extends React.Component {
     // 12-bucket dial as twelve meaningless bars.
     if (q.type === 'dial') return this.renderDialStats(q, T);
     if (q.type === 'field') return this.renderFieldStats(q, T);
-    const by = this.liveBy(q);
-    // Named who-voted (D98) rides under the cohort breakdown on every live
-    // card. Two different questions — "how did each group split" and "who
-    // actually answered" — and the second one is the whole reason the
-    // privacy model came off, so it is not hidden behind a second tap.
-    const voters = q.live
-      ? <LiveVotersPanel qid={q.id} options={q.options.map((o) => o.label)} />
-      : null;
-    if (by) {
-      return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-          {this.renderLiveStats(q, T, by)}
-          {voters}
-        </div>
-      );
-    }
-    // A live question with no breakdown yet still has voters — one answer
-    // is enough for this panel and not enough for a cross-tab, so the
-    // cohort half says so and the named half renders anyway.
+    // The whole live sheet, cohort-first (D125). One component owns the
+    // cohort choice, the split drawn FOR that cohort, and the names under
+    // it. The three used to be independent stacked panels and every one of
+    // them answered "who is in this crowd" — none answered "what does this
+    // question look like from where they are standing", which is the
+    // reading a breakdown is for.
     if (q.live) {
       return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-          <div style={{ fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 600, color: 'var(--ink-3)', lineHeight: 1.55, padding: '6px 2px', textWrap: 'pretty' }}>
-            Not enough answers yet to break this down by group.
-          </div>
-          {voters}
-        </div>
+        <LiveBreakdownPanel
+          qid={q.id}
+          options={q.options.map((o) => o.label)}
+          mine={this.liveMine(q)}
+        />
       );
     }
     if (q.type === 'pick') return this.renderPickStats(q, T);
@@ -3547,6 +3527,5 @@ window.WorldFeed = WorldFeed;
 ;globalThis.WF_CHANNELS = typeof WF_CHANNELS === 'undefined' ? globalThis.WF_CHANNELS : WF_CHANNELS;
 ;globalThis.WF_CHAN_SET = typeof WF_CHAN_SET === 'undefined' ? globalThis.WF_CHAN_SET : WF_CHAN_SET;
 ;globalThis.WF_LINE = typeof WF_LINE === 'undefined' ? globalThis.WF_LINE : WF_LINE;
-;globalThis.WF_LIVE_DIMS = typeof WF_LIVE_DIMS === 'undefined' ? globalThis.WF_LIVE_DIMS : WF_LIVE_DIMS;
 ;globalThis.WF_GROUPS = typeof WF_GROUPS === 'undefined' ? globalThis.WF_GROUPS : WF_GROUPS;
 ;globalThis.WF_FRIENDS = typeof WF_FRIENDS === 'undefined' ? globalThis.WF_FRIENDS : WF_FRIENDS;

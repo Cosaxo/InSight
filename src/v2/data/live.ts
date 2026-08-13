@@ -125,6 +125,15 @@ import { agreement, type Agreement } from "./cohort";
 // already await getDb(), so the import costs no round trip that was not
 // happening anyway.
 import type { Member as CircleMember } from "./circle";
+// Foresight (D126). Type-only at module scope; the fold and the writer
+// are reached through the same dynamic import the circle uses, and for
+// the same reason — live.ts is eager and this cannot run until a lens
+// nobody has opened is opened.
+import type { Verdict as ForesightVerdict } from "./foresight";
+// Stated topic preferences (D128). A static import, unlike circle's: this
+// is applied on every feed rebuild rather than on a lens nobody opened,
+// and the module is a few hundred bytes of localStorage plumbing.
+import { applyInterests } from "./interests";
 // Pure deck-shaping logic lives in ./deck (unit-testable, no firebase);
 // this module passes its store state in.
 import {
@@ -250,7 +259,7 @@ const state = {
   // every question's voter list, because crowds overlap: without this,
   // opening five questions re-reads the same regulars five times.
   //
-  // PERSISTED since D125 (it was session-scoped, and said so here). The
+  // PERSISTED since D129 (it was session-scoped, and said so here). The
   // same regulars answer the same shared daily every morning, so paying for
   // their profiles again on every cold boot bought nothing. Cross-account
   // leakage — the hazard the old note was really about — is unchanged: the
@@ -277,6 +286,11 @@ const state = {
   // different things for those two.
   circle: null as CircleMember[] | null,
   circleLoading: false,
+  // Foresight verdicts, keyed by read id (D126). Loaded once per
+  // session on first open of the lens; a verdict is create-only server
+  // side, so the local copy can never be stale in a way that matters.
+  foresight: null as Record<string, ForesightVerdict> | null,
+  foresightLoading: false,
   // Open invitations to this account (D122). An empty array is a real
   // answer here — "nobody has invited you" — so unlike `circle` there is
   // no null state to distinguish from it: the inbox is fetched on the tap
@@ -353,7 +367,7 @@ function cacheVote(aid: string, optionIdx: number): void {
   }
 }
 
-// ── the profile cache, on disk (D125) ────────────────────────────
+// ── the profile cache, on disk (D129) ────────────────────────────
 //
 // `state.names`/`state.scores` used to die with the session, and its
 // declaration said so: "held only to save reads, and nothing about it
@@ -570,7 +584,7 @@ function buildS(
   return buildSPure(q, back, voteCtx(q.id), new Date());
 }
 
-// ── deck aggregates: polled, not streamed (D125) ─────────────────
+// ── deck aggregates: polled, not streamed (D129) ─────────────────
 //
 // This was seven `onSnapshot` listeners, one per deck day, and it was the
 // single most expensive thing in the app. The daily question is globally
@@ -1027,7 +1041,7 @@ async function hydrate(): Promise<void> {
   }
 
   // Other people's names and scores, from this account's previous sessions
-  // (D125). After the profile block because it is keyed on state.uid, and
+  // (D129). After the profile block because it is keyed on state.uid, and
   // before the deck poll only because nothing here depends on the order.
   loadProfileCache();
 
@@ -1108,7 +1122,15 @@ function buildFeedGlobals(): void {
         live: true,
       };
     });
-  (window as unknown as Record<string, unknown>).WORLD_FEED_QS = feed;
+  // Stated topic preferences, applied to the FEED and nowhere else
+  // (D128). Muted topics drop out of the pool; "more" topics move
+  // forward as a stable partition. Applied here rather than at render
+  // because the pool is what a preference is about — and applied to this
+  // global only, which is what keeps the constraint checkable: the daily
+  // deck and every Mirror surface read their own sources and never see
+  // this call. data/interests.test.ts asserts the reader list.
+  (window as unknown as Record<string, unknown>).WORLD_FEED_QS =
+    applyInterests(feed, (q) => q.cat);
   (window as unknown as Record<string, unknown>).TEST_FEED_QS = tests;
   (window as unknown as Record<string, unknown>).WORLD_FEED_COMMENTS = {};
   LIVE.feedReady = true;
@@ -2083,6 +2105,91 @@ const LIVE = {
   circleLoading(): boolean {
     return state.circleLoading;
   },
+  // ── Foresight (D126) ──
+  //
+  // The log, not the score. `recordOf`/`byDim` are pure folds the UI
+  // runs on what this returns, so the store never holds a derived
+  // number that could disagree with the rows it came from.
+  async loadForesight(): Promise<void> {
+    const me = state.uid;
+    if (!this.enabled || !me || state.foresightLoading || state.foresight) return;
+    state.foresightLoading = true;
+    notify();
+    try {
+      const db = await getDb();
+      const snap = await getDocs(collection(db, "v2_users", me, "foresight"));
+      const out: Record<string, ForesightVerdict> = {};
+      snap.docs.forEach((d) => {
+        const v = d.data();
+        const guess = Number(v.guess);
+        const answerIdx = Number(v.answerIdx);
+        out[d.id] = {
+          id: d.id,
+          qid: String(v.qid || ""),
+          dim: String(v.dim || ""),
+          bucket: String(v.bucket || ""),
+          guess,
+          // DERIVED here, never read from the document — the rules do not
+          // allow it to be stored, precisely so it cannot be asserted.
+          correct: guess >= 0 && guess === answerIdx,
+          // Same tolerance takeFromDoc needs: a serverTimestamp echoed
+          // from the local cache before the server acks reads back null,
+          // and 0 sorts it first rather than throwing on .toMillis.
+          at: (v.at as { toMillis?: () => number } | null)?.toMillis?.() || 0,
+        };
+      });
+      state.foresight = out;
+    } catch (err) {
+      reportError(err, { where: "loadForesight" });
+      // null keeps "could not ask" distinct from "nothing played" — the
+      // same rule voters() and circle() follow.
+      state.foresight = null;
+    } finally {
+      state.foresightLoading = false;
+      notify();
+    }
+  },
+  foresightLog(): Record<string, ForesightVerdict> | null {
+    return state.foresight;
+  },
+  foresightLoading(): boolean {
+    return state.foresightLoading;
+  },
+  /**
+   * Record one read. Create-only server-side, so a second call for the
+   * same slice is refused by the rules rather than overwriting — the
+   * local guard below is a courtesy, not the enforcement.
+   */
+  async scoreForesight(
+    readId: string, qid: string, dim: string, bucket: string,
+    guess: number, answerIdx: number, n: number,
+  ): Promise<void> {
+    const me = state.uid;
+    if (!this.enabled || !me || !readId) return;
+    if (state.foresight && readId in state.foresight) return;
+    // Optimistic: the verdict is already decided by data the client
+    // holds, so waiting on the write to reveal the answer would add a
+    // round trip to a screen whose whole point is a ten-second clock.
+    const local: ForesightVerdict = {
+      id: readId, qid, dim, bucket, guess,
+      correct: guess >= 0 && guess === answerIdx,
+      at: Date.now(),
+    };
+    state.foresight = { ...(state.foresight || {}), [readId]: local };
+    notify();
+    try {
+      const db = await getDb();
+      await setDoc(doc(db, "v2_users", me, "foresight", readId), {
+        qid, dim, bucket, guess, answerIdx, n, at: serverTimestamp(),
+      });
+    } catch (err) {
+      // The row stays in the local log. A verdict that failed to persist
+      // is still a verdict the player saw scored, and dropping it from
+      // the screen would look like the miss never happened.
+      reportError(err, { where: "scoreForesight" });
+    }
+  },
+
   /** Whether the viewer follows `uid` — answered from the loaded list. */
   isFollowing(uid: string): boolean {
     return !!state.circle?.some((m) => m.uid === uid);
@@ -2339,7 +2446,7 @@ const LIVE = {
       state.groupsUnsub?.();
       // The reveal listeners are uid-scoped too, and their handlers write
       // the caches the purge below is about to clear. The deck aggregates
-      // are polled rather than streamed (D125), so there is a timer to stop
+      // are polled rather than streamed (D129), so there is a timer to stop
       // here instead of a listener to unsubscribe.
       stopAggPoll();
       Object.values(state.revealUnsubs).forEach((u) => { try { u(); } catch { /* best-effort */ } });
@@ -2451,6 +2558,22 @@ const LIVE = {
           // suppress and nothing to re-argue under D8's floors.
           anchors: {},
         });
+        // Your own answer joins the count you are about to be shown (D125)
+        // — one re-read, once, after the write lands. REPLACE rather than
+        // invalidate: dropping the entry would make the next render fall
+        // back to the authored estimate while the re-read is in flight,
+        // which is the reveal you are looking at changing to the WORSE
+        // source. The old value stands until a newer one exists.
+        //
+        // It races the aggregate trigger and will often lose, which is
+        // fine and is why there is no retry: the split is a claim about
+        // the crowd, one answer does not move it, and the next sitting's
+        // prefetch reads it settled.
+        const fresh = await getDoc(doc(db, "v2_question_aggs", qid));
+        if (fresh.exists()) {
+          state.learnAggs[qid] = fresh.data() as AggDoc;
+          notify();
+        }
       } catch (err) {
         reportError(err, { where: "learnAnswer" });
       }
@@ -2461,6 +2584,15 @@ const LIVE = {
   // card returns null (the authored estimate renders, labeled) and kicks
   // one getDoc; if a published agg exists, notify() re-renders subscribers
   // with the measured split. One read per distinct card per session.
+  //
+  // THE FIRST CALL RETURNING NULL IS WHY loadLearnAggs EXISTS (D125). This
+  // is a read-through cache with no way to await it, and until D125 the
+  // ONLY caller was LEARN_SPLIT — which runs inside LEARN.answer(), i.e.
+  // at the instant of the tap. So the first call for every card was always
+  // the one deciding that card's reveal, always returned null, and every
+  // learn split the app has ever drawn was therefore the authored
+  // estimate, at any crowd size. The fix is to warm the cache before the
+  // tap rather than to make this function await.
   learnAgg(cardId: string): AggDoc | null {
     const qid = "learn-" + cardId;
     if (qid in state.learnAggs) return state.learnAggs[qid];
@@ -2479,6 +2611,48 @@ const LIVE = {
       }
     })();
     return null;
+  },
+  // Warm the cache for a whole serve plan, batched (D125).
+  //
+  // Called when the feed PLANS its learn cards, which is the one moment
+  // that happens before any of them can be tapped. One `in` query per 30
+  // cards — the same shape hydrate uses for world aggregates — against one
+  // getDoc per card if learnAgg were kicked in a loop.
+  //
+  // Cards already in the cache are skipped, so a re-plan inside a sitting
+  // costs nothing and the per-session read budget is unchanged: still at
+  // most one read per distinct card, just paid earlier and in bulk.
+  //
+  // Resolves when the cache is settled so the caller can re-render — the
+  // notify() below covers subscribers, and the promise covers the feed,
+  // which deliberately does not re-render on every store notify.
+  async loadLearnAggs(cardIds: readonly string[]): Promise<void> {
+    if (!this.enabled) return;
+    const want = [...new Set(cardIds.map((id) => "learn-" + id))]
+      .filter((qid) => !(qid in state.learnAggs));
+    if (!want.length) return;
+    // Claimed before the await so a second plan build in the same tick
+    // does not re-request the same ids.
+    for (const qid of want) state.learnAggs[qid] = null;
+    try {
+      const db = await getDb();
+      const chunks: string[][] = [];
+      for (let i = 0; i < want.length; i += 30) chunks.push(want.slice(i, i + 30));
+      const snaps = await Promise.all(chunks.map((chunk) =>
+        getDocs(query(collection(db, "v2_question_aggs"), where(documentId(), "in", chunk)))));
+      let found = 0;
+      for (const snap of snaps) {
+        for (const d of snap.docs) {
+          state.learnAggs[d.id] = d.data() as AggDoc;
+          found++;
+        }
+        state.stats.aggsFetched += snap.size;
+      }
+      if (found) notify();
+    } catch (err) {
+      // The null entries stand: the estimate renders, labeled as one.
+      reportError(err, { where: "loadLearnAggs" });
+    }
   },
   enabled: false,
   // True when this is a LIVE build (VITE_V2_LIVE) whose boot has NOT
@@ -2772,6 +2946,11 @@ function resetForNewUid(uid: string): void {
   state.testAggsLoaded = false;
   state.circle = null;
   state.circleLoading = false;
+  // A verdict is about the PREVIOUS account's reads, and the log is
+  // keyed by slice rather than by uid, so leaving it would credit the
+  // new account with someone else's record.
+  state.foresight = null;
+  state.foresightLoading = false;
   // The inbox is per-account by definition — leaving it would show the
   // previous account's invitations under the new one, which is the same
   // class of leak resetForNewUid exists for.
@@ -3037,7 +3216,7 @@ function cancelIdleDetach(): void {
   }
 }
 
-// Exactly the set `resubscribeForToday()` restores, which since D125 is the
+// Exactly the set `resubscribeForToday()` restores, which since D129 is the
 // reveal listeners alone — the deck aggregates are polled, and the poll is
 // stopped on hide by the visibility handler rather than waiting out the
 // grace period. `groupsUnsub` is deliberately NOT dropped: nothing

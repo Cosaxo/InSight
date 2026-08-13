@@ -141,7 +141,7 @@ const LEVERS = [
   },
   {
     band: "architecture",
-    name: "[SHIPPED D125] Poll instead of stream",
+    name: "[SHIPPED D129] Poll instead of stream",
     change: "no onSnapshot on the deck; fetch on vote + a slow timer",
     // Inverted: this is what the app does now, so the "lever" is what
     // REVERTING would cost. Kept in the list rather than deleted, because a
@@ -176,7 +176,7 @@ console.log("1 · Each lever on its own, against the app as built");
 console.log("                                                " +
   SIZES.map((s) => int(s.dau).padStart(11)).join(""));
 console.log("-".repeat(46 + 11 * SIZES.length));
-console.log("as built (post-D125)".padEnd(46) + SIZES.map((s) => money(evaluate(s.dau, s.mature)).padStart(11)).join(""));
+console.log("as built (post-D129)".padEnd(46) + SIZES.map((s) => money(evaluate(s.dau, s.mature)).padStart(11)).join(""));
 console.log("-".repeat(46 + 11 * SIZES.length));
 for (const L of LEVERS) {
   // A shipped lever's opts describe the OLD world, so the comparison runs

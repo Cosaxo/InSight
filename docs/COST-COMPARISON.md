@@ -1,6 +1,6 @@
 # Is that a lot? InSight's bill against other apps'
 
-> **Superseded in its conclusion by D125 (2026-08-13), and kept for its
+> **Superseded in its conclusion by D129 (2026-08-13), and kept for its
 > method.** This page's finding was that the app was cheap in absolute terms
 > and badly shaped — cost per user rising 87× between 500 and 500,000 DAU,
 > and passing Snapchat's per-user infrastructure cost at ~361 k DAU. That
@@ -8,7 +8,7 @@
 > gone, and the same script prints a **flat 2.1× rise and a B at every
 > size**. The peer table, the denominators and the skews below are unchanged
 > and still the way to re-run this; the grades and multiples in the prose
-> are the pre-D125 ones. `npm run costs:compare` prints today's.
+> are the pre-D129 ones. `npm run costs:compare` prints today's.
 
 [`docs/COSTS.md`](COSTS.md) answers *what will this cost*. This answers *is
 that a lot*, which is a different question and needs something the model

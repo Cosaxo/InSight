@@ -22,7 +22,7 @@ supply — somebody else's invoice.
 Wikimedia and a typical app on the same stack. Its finding is about shape
 rather than level. When it was written the totals below were small and the
 **cost per user rose 87× between 500 and 500,000 DAU** — the fan-out of
-finding 2, seen from the unit-economics side. **D125 closed that**: the
+finding 2, seen from the unit-economics side. **D129 closed that**: the
 rise is now 2.1×, essentially all of it the free tier at the small end, and
 every scenario grades B against a same-stack peer where the range used to
 run A+ through F. [`docs/COST-REDUCTION.md`](COST-REDUCTION.md)
@@ -40,7 +40,7 @@ Every constant below is sourced, not assumed:
 | …plus the ledger's death | 1 delete, 90 days later | `LEDGER_RETENTION_DAYS` |
 | One duel answer | 1 client write + 1 `pendingDays` arrayUnion | v2.ts group branch |
 | One trigger invocation | 512 MiB, 1 vCPU, concurrency 20, ~200 ms | `HOT_TRIGGER`, functions/src/ops.ts |
-| One warm boot | ~15 reads (meta, profile, answers query, 7 deck aggregates, groups, 2 group docs, 2 reveals) | `hydrate()`, src/v2/data/live.ts. The deck reads are one batched fetch since D125, not seven listener attachments |
+| One warm boot | ~15 reads (meta, profile, answers query, 7 deck aggregates, groups, 2 group docs, 2 reveals) | `hydrate()`, src/v2/data/live.ts. The deck reads are one batched fetch since D129, not seven listener attachments |
 | One cold boot | **+510 reads** — the whole question bank | `V2_QUESTIONS`, 510 docs / 119.1 KiB of JSON |
 | Agg top-up | ≤120 reads, ≤1 per qid per 6 h | `AGG_ID_CAP`, `AGG_RECHECK_MS` |
 | One world answer, again | +1 **rule** read (the question doc) + 2 **server** reads (ledger event, private agg) | `isWorldAnswer` in firestore.rules; the `runAggTransaction` in v2.ts |
@@ -65,7 +65,7 @@ once a question matured, and that discount no longer exists.
 
 Behaviour assumptions (the soft numbers — stated, not buried): 3 world
 answers + 1 duel answer per active user per day, 1.4 app opens, 3 minutes
-of open app plus 4 background→foreground cycles (which since D125 sets the
+of open app plus 4 background→foreground cycles (which since D129 sets the
 poll count and the foreground refreshes rather than listener-minutes),
 concentrated in
 D7's 4-hour morning window, MAU = 3 × DAU, one
@@ -82,7 +82,7 @@ single-region database is roughly half.
 | Scale | 50,000 | 20.8 M | 710 K | 438 | 1.60 | **440** |
 | Hit | 500,000 | 208 M | 7.1 M | 4,415 | 33 | **4,448** |
 
-> **D125 (2026-08-13) — the deck is polled, and this table changed shape
+> **D129 (2026-08-13) — the deck is polled, and this table changed shape
 > rather than size.** The seven `onSnapshot` listeners are gone; the client
 > reads the deck on boot and each foreground, then re-reads *today alone*
 > once a minute while visible. The 500 k row falls from $194,332 to $4,448,
@@ -188,7 +188,7 @@ Per active user per day:
 | 500,000 | 21 | 2 | 3 | 3 | 28 | 6 | 14 | 339 | 416 |
 
 **Every column is now flat in DAU, and that is the headline.** The
-`fanOut` column above is the poll (D125) — three reads a day, because the
+`fanOut` column above is the poll (D129) — three reads a day, because the
 client re-reads today's aggregate once a minute while visible, and nobody
 else's behaviour appears in the expression. It used to read 1 / 15 / 146 /
 1,458 / 14,583 down that column. `re-attach` (28) is now the second-largest
@@ -196,7 +196,7 @@ client term and the next one worth looking at; it is `bgCycles × DECK_DAYS`,
 the whole-deck refresh on each foreground.
 
 The paragraph below is kept as written, because it is what the table said
-before D125 and finding 2 is the record of why it no longer does.
+before D129 and finding 2 is the record of why it no longer does.
 
 ~~The fan-out is still the only source that grows without bound~~ — five
 times steeper than the last run of this table, because D98 retired the
@@ -332,7 +332,7 @@ CDN-cached, one conditional GET instead of any billable reads. That
 removes the cold-boot 369 as well as the delta — but the cold boot is
 once per device, so it is now a rounding error. Deferred.
 
-### Finding 2 — the deck listeners are quadratic in DAU · **FIXED (D125)**
+### Finding 2 — the deck listeners are quadratic in DAU · **FIXED (D129)**
 
 > Closed 2026-08-13. `subscribeAggs` is gone. The client reads the deck on
 > boot and on each foreground, then re-reads **today alone** once a minute
@@ -678,14 +678,14 @@ threshold rather than the first.
 
 ## The walls, in the order they are hit
 
-> **D125 reordered this list, and in the good direction.** Wall 2 is gone —
+> **D129 reordered this list, and in the good direction.** Wall 2 is gone —
 > there is no fan-out left for anything to overtake — so D7's
 > write-contention ceiling is now the first wall by a wide margin, and the
 > property this section calls "worth keeping" holds again with room to
 > spare: the app breaks technically at ~14,400 DAU, where the bill is about
 > $130/month. The paragraph below the list, which says that ordering is gone
 > and that pretending otherwise would be the most expensive sentence on the
-> page, described the pre-D125 tree; it is kept because the reasoning is
+> page, described the pre-D129 tree; it is kept because the reasoning is
 > still the reasoning, and because this is the third time the ordering has
 > moved.
 
@@ -777,11 +777,11 @@ effectively free at launch sizes — $0 at 50 DAU, ~$2 at 500 — and
 $41/month at 5,000 DAU, where this document has previously said $7.26,
 then $46, then $59. The first three described the same app modelled with
 progressively fewer missing terms, and the direction was up every time.
-**$41 is the first one that is lower because the app changed** (D125), and
+**$41 is the first one that is lower because the app changed** (D129), and
 the distinction matters: this page's own reliability record is about
 missing terms, not about optimism.
 
-What changed in the D125 pass is entirely about shape. There is one big
+What changed in the D129 pass is entirely about shape. There is one big
 line left — the D98 surfaces, at 339 of 416 reads per user per day — and
 it is a product behaviour, moved by an open rate or a cap rather than by
 architecture. Nothing in the decomposition scales with DAU any more. So a
@@ -797,7 +797,7 @@ Three caveats worth carrying:
 
 - **The bill is almost entirely reads, and the biggest read line is now
   the product working as designed.** The boot-era sources are dealt with:
-  the cache-bust is closed (D34) and the listener fan-out is closed (D125,
+  the cache-bust is closed (D34) and the listener fan-out is closed (D129,
   polled rather than streamed), and rule/server traffic is flat and small. What remains is
   the `social` column — the D98 surfaces reading each other's answers —
   which is bounded by four pinned caps (Finding 4) and priced by three

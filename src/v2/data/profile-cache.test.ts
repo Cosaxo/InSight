@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 //
-// The profile cache on disk (D125) — names and test scores for OTHER people,
+// The profile cache on disk (D129) — names and test scores for OTHER people,
 // kept between sessions so the same regulars are not re-read every cold boot.
 //
 // WHY THIS FILE EXISTS. `state.names` was session-scoped and its declaration

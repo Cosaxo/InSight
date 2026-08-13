@@ -81,13 +81,13 @@ describe("cost-arith reads its constants from source, not from memory", () => {
     expect(POLL_DOCS).toBe(1);
   });
 
-  it("polling is charged as a real cost, not as zero (D125)", () => {
+  it("polling is charged as a real cost, not as zero (D129)", () => {
     // THE REGRESSION THIS PINS, twice over. `pollAggs` set fanOut and
     // reattach to 0 — it modelled the fix for the fan-out as free, which is
     // the D67 failure aimed at our own remedy. And polling is now the
     // DEFAULT rather than an option, because it is what ships; a model whose
     // default still streamed would describe an app that no longer exists,
-    // which is the D47 failure. `streamAggs` recovers the pre-D125
+    // which is the D47 failure. `streamAggs` recovers the pre-D129
     // arithmetic, because that is what COSTS.md finding 2 documents.
     const { readsPerUser } = costModel({});
     const polled = readsPerUser(50_000, { mature: true });

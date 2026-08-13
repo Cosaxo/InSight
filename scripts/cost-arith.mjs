@@ -104,7 +104,7 @@ export const AGG_CAP = readNum(
 export const IDLE_DETACH_MS = readNum(
   "src/v2/data/live.ts", /const IDLE_DETACH_MS = ([\d_]+)/, "IDLE_DETACH_MS");
 
-// How often the deck's aggregate is re-read while the app is visible (D125).
+// How often the deck's aggregate is re-read while the app is visible (D129).
 //
 // Read from source for the same reason IDLE_DETACH_MS is: it is now the
 // coefficient on the term that REPLACED the fan-out, and a model that
@@ -116,7 +116,7 @@ export const IDLE_DETACH_MS = readNum(
 // not — it is (minutes visible / interval) reads per user per day, plus one
 // per foreground. Small, but "not modelled reads as free" is the exact D67
 // failure, and it is worse here than usual because this is the term the
-// whole cost case for D125 rests on. Pricing your own fix at zero is how
+// whole cost case for D129 rests on. Pricing your own fix at zero is how
 // you find out later that it was only mostly a fix.
 export const AGG_POLL_MS = readNum(
   "src/v2/data/live.ts", /const AGG_POLL_MS = ([\d_]+)/, "AGG_POLL_MS");
@@ -418,7 +418,7 @@ export const CONTENTION_DAU = B.peakWindowMin * 60;
 /**
  * The `social` term, decomposed and with its bounds overridable.
  *
- * Split out of readsPerUser at D125 for two reasons. First, this is the
+ * Split out of readsPerUser at D129 for two reasons. First, this is the
  * largest read source below ~10 k DAU and the only one a product knob moves
  * directly, so "what would halving Kindred be worth" is a question somebody
  * will keep asking — and answering it by retyping the sub-terms into a
@@ -468,7 +468,7 @@ export function costModel({ regional = false, bank = bankDocs() } = {}) {
   // forty lines up. If a key is added here, scripts/pulse.test.mjs pins
   // the key set and names the consumers that must move with it.
   // `publishEvery`, `deckListeners` and the social overrides are LEVER inputs
-  // (D125): each names a change somebody could make, in the units of the
+  // (D129): each names a change somebody could make, in the units of the
   // thing they would change, so scripts/cost-levers.mjs can price a plan
   // without re-deriving any of this. Every default is the shipped value, so
   // a caller that passes nothing models the shipped app — the property
@@ -530,7 +530,7 @@ export function costModel({ regional = false, bank = bankDocs() } = {}) {
     // stating: `startAggPoll` refreshes the WHOLE deck on every foreground,
     // not just today, because the six back days are answerable and a card
     // showing week-old counts is the thing polling must not become. So the
-    // term survives D125 unchanged at DECK_DAYS per cycle — the saving was
+    // term survives D129 unchanged at DECK_DAYS per cycle — the saving was
     // entirely in the fan-out, and this is now the SECOND-largest client
     // term precisely because the largest one went away.
     //

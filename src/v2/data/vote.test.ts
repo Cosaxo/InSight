@@ -29,15 +29,22 @@ const h = vi.hoisted(() => ({
   // per-test knobs (reset in beforeEach)
   setDocImpl: null as null | (() => Promise<void>),
   getDocsImpl: null as null | (() => Error),
-  // Aggregates the polled read returns (D125). Was a snapshot listener
-  // the test pushed into; the deck is fetched now, so the fixture is a
-  // document set rather than a callback.
-  aggDocs: [] as FakeSnapshotDoc[],
   setDocCalls: [] as Array<{ path: string; data: Record<string, unknown> }>,
   // the D86 edit path writes through updateDoc, never setDoc
   updateDocImpl: null as null | (() => Promise<void>),
   updateDocCalls: [] as Array<{ path: string; data: Record<string, unknown> }>,
   bankDocs: [] as FakeSnapshotDoc[],
+  // Documents `v2_question_aggs` queries resolve to, and the id lists they
+  // were asked for (D125). The learn prefetch's whole failure mode is
+  // asking for a document id nobody writes — getDocs returns nothing, the
+  // cache holds null, and every reveal shows the authored estimate. That
+  // is indistinguishable from "no data yet" unless the REQUEST is visible.
+  //
+  // The D129 deck poll reads through the same arm — it replaced a snapshot
+  // listener the tests used to push into, so its fixtures are a document set
+  // rather than a callback, and they land in this same map.
+  aggDocs: [] as FakeSnapshotDoc[],
+  aggIdQueries: [] as string[][],
   // live.ts observes auth for the whole session; capture the callback so a
   // test can drive a uid change or a revoked session.
   authCb: null as null | ((u: { uid: string } | null) => void),
@@ -102,8 +109,10 @@ vi.mock("firebase/firestore", () => {
   return {
     collection: (_db: unknown, ...path: string[]) => ref("collection", path),
     doc: (_db: unknown, ...path: string[]) => ref("doc", path),
-    query: (src: { path?: string }) => ({ __kind: "query", path: src?.path }),
-    where: () => ({ __kind: "where" }),
+    query: (src: { path?: string }, ...parts: unknown[]) => ({
+      __kind: "query", path: src?.path, parts,
+    }),
+    where: (_field: unknown, _op: unknown, value: unknown) => ({ __kind: "where", value }),
     orderBy: () => ({ __kind: "orderBy" }),
     limit: () => ({ __kind: "limit" }),
     documentId: () => ({ __kind: "documentId" }),
@@ -111,11 +120,23 @@ vi.mock("firebase/firestore", () => {
     Timestamp: { fromMillis: (ms: number) => ({ ms }) },
     getDoc: () =>
       Promise.resolve({ exists: () => false, get: () => undefined, data: () => ({}) }),
-    getDocs: (q: { path?: string }) => {
+    getDocs: (q: { path?: string; parts?: Array<{ __kind: string; value?: unknown }> }) => {
       // Lets a test simulate a network failure mid-hydrate.
       if (h.getDocsImpl) return Promise.reject(h.getDocsImpl());
       if (q?.path === "v2_questions") return Promise.resolve(snapOf(h.bankDocs));
-      if (q?.path === "v2_question_aggs") return Promise.resolve(snapOf(h.aggDocs));
+      // main's version, kept whole: it records the id list and returns only
+      // the matching documents, which the learn-split cases below assert on.
+      // The D129 poll reads through this same arm — `refreshAggs` queries
+      // `documentId() in deckIds` — so its fixtures are filtered by deck
+      // membership rather than returned wholesale. That is the more faithful
+      // mock of the two and the poll needs no special case.
+      if (q?.path === "v2_question_aggs") {
+        const ids = (q.parts || [])
+          .filter((p) => p && p.__kind === "where" && Array.isArray(p.value))
+          .flatMap((p) => p.value as string[]);
+        h.aggIdQueries.push(ids);
+        return Promise.resolve(snapOf(h.aggDocs.filter((d) => ids.includes(d.id))));
+      }
       return Promise.resolve(snapOf([]));
     },
     onSnapshot: (
@@ -232,6 +253,8 @@ beforeEach(() => {
   h.cacheTeardown.length = 0;
   h.clearCacheImpl = null;
   h.hangSignIn = false;
+  h.aggDocs.length = 0;
+  h.aggIdQueries.length = 0;
   h.bankDocs = [
     {
       id: "q_1",
@@ -335,7 +358,7 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
 
     // A stranger's vote folds into the public aggregate while our
     // setDoc is still pending — the regression this split fixes. The
-    // aggregate arrives on a poll rather than a snapshot since D125, and
+    // aggregate arrives on a poll rather than a snapshot since D129, and
     // the contract is unchanged: a fresh aggregate must not confirm a
     // write the server has not acknowledged.
     h.aggDocs.push({
@@ -560,7 +583,7 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
   const AGG_LS = "insight.aggsCache.v1";
   const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
   // Stage the aggregate and run one poll tick — the same body the interval
-  // runs, so these cases still drive the real refresh path (D125). It is
+  // runs, so these cases still drive the real refresh path (D129). It is
   // async now, where the snapshot callback was synchronous, which is why
   // every caller below awaits it.
   const emitAgg = async (total: number) => {
@@ -615,7 +638,7 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     expect(storage.getItem(AGG_LS)).not.toBeNull(); // boot wrote one
 
     await emitAgg(9); // schedules a write…
-    // Emptied BEFORE the uid change, not after. Since D125 the aggregate is
+    // Emptied BEFORE the uid change, not after. Since D129 the aggregate is
     // FETCHED rather than pushed, so the new session polls during the drain
     // below — and an aggregate is public data, so a new uid re-reading the
     // same q_1 is correct behaviour rather than a leak. Leaving the fixture
@@ -726,7 +749,7 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
 
   it("reports a failed agg poll and leaves the cached counts standing", async () => {
     // Was "reports and re-notifies when an agg listener errors". The
-    // listener is gone (D125) and its error arm with it, but the contract
+    // listener is gone (D129) and its error arm with it, but the contract
     // it protected is not: a refresh that fails must be reported and must
     // not blank the counts already on screen. Degrading to stale-but-
     // present is the whole reason the poll is best-effort.
@@ -815,6 +838,86 @@ describe("window.LIVE public surface", () => {
     const LIVE = await bootLive();
     const near = (LIVE as unknown as { near: Record<string, unknown> }).near;
     expect(Object.keys(near).sort()).toEqual([...EXPECTED_NEAR].sort());
+  });
+});
+
+// The learn crowd split, warmed before the tap (D125).
+//
+// learnAgg is a read-through cache that returns null on the first call for
+// a card and kicks a background getDoc. Its only caller ran inside
+// LEARN.answer() — at the instant of the tap — so the first call for every
+// card was the one deciding that card's reveal, it returned null every
+// time, and every learn split the app has ever drawn was the authored
+// estimate whatever the crowd had answered. The arithmetic was never
+// wrong; nothing ever reached it.
+describe("LIVE.loadLearnAggs — warming the split before the tap (D125)", () => {
+  // Boot itself now issues one `v2_question_aggs` query — the D129 deck
+  // refresh that replaced the snapshot listeners — so the cases below that
+  // assert on the FULL query list clear it first. They are about what
+  // loadLearnAggs asks for, which is what their names say; folding the deck
+  // read into the expectation would couple them to DECK_DAYS for no reason.
+  it("asks for learn-<card>, deduped, in one batched query", async () => {
+    const LIVE = await bootLive();
+    h.aggIdQueries.length = 0;
+    await LIVE.loadLearnAggs(["cap6", "cell1", "cap6"]);
+    expect(h.aggIdQueries).toEqual([["learn-cap6", "learn-cell1"]]);
+  });
+
+  it("makes the very next learnAgg read a hit rather than a null", async () => {
+    // The property the whole change rests on: after this, the tap's read
+    // — which cannot await — has the measurement in hand.
+    h.aggDocs = [{ id: "learn-cap6", data: { total: 40, counts: { "0": 30, "1": 10 } } }];
+    const LIVE = await bootLive();
+    await LIVE.loadLearnAggs(["cap6"]);
+    expect(LIVE.learnAgg("cap6")).toEqual({ total: 40, counts: { "0": 30, "1": 10 } });
+  });
+
+  it("is what the reveal was missing — an unwarmed read is null however much data exists", async () => {
+    // The same session, the same published aggregate, and no warm-up: the
+    // shipped behaviour up to D125, and the reason the authored estimate
+    // was not a cold-start state but a permanent one.
+    h.aggDocs = [{ id: "learn-cap6", data: { total: 40, counts: { "0": 30, "1": 10 } } }];
+    const LIVE = await bootLive();
+    expect(LIVE.learnAgg("cap6")).toBeNull();
+  });
+
+  it("warms only what it was asked for", async () => {
+    h.aggDocs = [{ id: "learn-cap6", data: { total: 40, counts: { "0": 30 } } }];
+    const LIVE = await bootLive();
+    await LIVE.loadLearnAggs(["cap7"]);
+    expect(LIVE.learnAgg("cap6")).toBeNull();
+  });
+
+  it("never re-requests a card the session already holds", async () => {
+    // One read per distinct card per session is the budget learnAgg
+    // always had; warming may move when it is paid, never how often.
+    const LIVE = await bootLive();
+    h.aggIdQueries.length = 0;
+    await LIVE.loadLearnAggs(["cap6"]);
+    await LIVE.loadLearnAggs(["cap6", "cap7"]);
+    expect(h.aggIdQueries).toEqual([["learn-cap6"], ["learn-cap7"]]);
+  });
+
+  it("leaves the estimate standing when the fetch fails", async () => {
+    // A failed warm-up must cost the measurement, never the reveal: the
+    // cache keeps its null, LEARN_SPLIT falls back to the authored model,
+    // and the footer says so. Silence here would be the honest outcome
+    // rendered as a crash.
+    const LIVE = await bootLive();
+    h.getDocsImpl = () => new Error("offline");
+    await expect(LIVE.loadLearnAggs(["cap6"])).resolves.toBeUndefined();
+    expect(LIVE.learnAgg("cap6")).toBeNull();
+    expect(h.reportError).toHaveBeenCalled();
+  });
+
+  it("does nothing at all in demo mode", async () => {
+    // No project, no aggregates, and a read would be a network call a demo
+    // build must never make.
+    const LIVE = await bootLive();
+    h.aggIdQueries.length = 0;
+    Object.defineProperty(LIVE, "enabled", { value: false, configurable: true });
+    await LIVE.loadLearnAggs(["cap6"]);
+    expect(h.aggIdQueries).toEqual([]);
   });
 });
 
