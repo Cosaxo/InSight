@@ -88,7 +88,7 @@ describe("a due learn card is re-served answerable (D95)", () => {
   // harness cannot drive, and that file already reads world-feed.jsx.
 });
 
-describe("the crowd-split prefetch asks for the cards it is serving (D122)", () => {
+describe("the crowd-split prefetch asks for the cards it is serving (D124)", () => {
   // Two ids for one card, one character apart in effect. LEARN_FEED wraps
   // each card as a feed question keyed "lrn-<card>", while the aggregate
   // is "learn-<card>" — built from `.learn`. Passing the question id asks

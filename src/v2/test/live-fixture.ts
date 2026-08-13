@@ -155,6 +155,18 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     createGroup: async () => ({ gid: "g_test", inviteCode: "ABCD2345" }),
     joinGroup: async () => ({ gid: "g_test", name: "Test" }),
     leaveGroup: async () => ({ gid: "g_test", deleted: false }),
+    // Handles and invitations (D122). Empty and inert for the same reason
+    // the groups and takes below are: a seeded invitation would be sample
+    // data wearing a live badge, and "nobody has invited you" IS the live
+    // surface a new account opens on.
+    whoIs: async () => null,
+    claimHandle: async (handle: string) => ({ handle }),
+    inviteToGroup: async () => ({ ok: true }),
+    acceptInvite: async () => ({ gid: "g_test", name: "Test" }),
+    declineInvite: async () => ({ ok: true }),
+    invites: () => [],
+    invitesLoading: () => false,
+    loadInvites: async () => {},
     voteDuel: async () => {},
     setDuoMode: async () => {},
     romanticPoolReady: () => false,
@@ -195,6 +207,10 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     bootError: opts.demoInProd ? "auth/network-request-failed — fixture" : "",
     uid: "u_fixture",
     displayName: "Tester",
+    // No handle: an account that has not claimed one is the state a new
+    // install opens on, and it is the state the claim row has to render
+    // (D122).
+    handle: "",
     myCity: opts.myCity ?? "Oslo, NO",
     appBuild: 1,
     latestBuild: 1,
@@ -341,7 +357,7 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     // is exactly the honest cold-start state the live tests should see.
     learnAnswer: () => {},
     learnAgg: () => null,
-    // The D122 warm-up. A no-op here for the same reason learnAgg returns
+    // The D124 warm-up. A no-op here for the same reason learnAgg returns
     // null: the fixture has no aggregates, so the honest state it renders
     // is the labelled estimate.
     loadLearnAggs: async () => {},

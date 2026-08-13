@@ -98,6 +98,18 @@ import { reportError, setSentryUser } from "../../lib/sentry";
 // The cross-user read (D98). Pure helpers + the two queries live there so
 // the grouping/sorting can be unit-tested without Firebase.
 import { fetchVoters, groupByOption, resolveNames, sortVoters, type Voter } from "./voters";
+// Handles and invitations (D122), TYPE-ONLY at module scope and imported
+// for real inside the methods that use them — the same shape data/circle
+// has below, and for the same measured reason.
+//
+// Both modules statically import `firebase/firestore`. live.ts is eager,
+// so a static import here drags the whole SDK back into the first-paint
+// chunk: check:bundle measured the eager graph at 1270 KB with it, against
+// a 955 KB ceiling. That is not a near miss — it is precisely the tree as
+// it stood before D110, which is the regression that gate was written to
+// catch. Every call site is already async and already awaits getDb(), so
+// the dynamic import costs no round trip that was not happening anyway.
+import type { Invite } from "./invites";
 import { type KindredPerson, type ParsedResults } from "./similarity";
 // Pure folds over the published breakdown, and the likeness metric behind
 // Kindred. No Firebase in there — this module supplies the documents.
@@ -189,6 +201,7 @@ const state = {
   profile: {
     displayName: "",
     testResults: {} as Record<string, unknown>,
+    handle: "",
     // The seven rules-validated anchor fields (D8). Snapshotted onto each
     // answer at vote time so an aggregate can slice by them without ever
     // reading a second document — and so a later profile edit cannot
@@ -258,6 +271,13 @@ const state = {
   // different things for those two.
   circle: null as CircleMember[] | null,
   circleLoading: false,
+  // Open invitations to this account (D122). An empty array is a real
+  // answer here — "nobody has invited you" — so unlike `circle` there is
+  // no null state to distinguish from it: the inbox is fetched on the tap
+  // that opens a surface showing it, and a failed fetch reports through
+  // reportError rather than by making the list ambiguous.
+  invites: [] as Invite[],
+  invitesLoading: false,
 };
 
 // How many of the viewer's own answers the Kindred ranking reads across.
@@ -817,6 +837,7 @@ async function hydrate(): Promise<void> {
       const prof = await getDoc(doc(db, "v2_users", uid0));
       if (prof.exists()) {
         state.profile.displayName = (prof.get("displayName") as string) || "";
+        state.profile.handle = (prof.get("handle") as string) || "";
         state.profile.testResults =
           (prof.get("testResults") as Record<string, unknown>) || {};
         state.profile.anchors =
@@ -1095,6 +1116,67 @@ const SOCIAL = {
   },
   async joinGroup(code: string, displayName?: string) {
     return callable<{ gid: string; name: string }>("joinGroupV2", { code, displayName });
+  },
+  // ── handles and invitations (D122) ──
+  //
+  // The uid-addressed way into a circle. joinGroup above survives for the
+  // share link — the only path that reaches someone with no account yet —
+  // but a code is no longer something a person types.
+  //
+  // `whoIs` reads the registry directly rather than through a callable:
+  // uniqueness is the document id, so the lookup is one getDoc against a
+  // rule that grants read and nothing else. A callable would add a cold
+  // start to a keystroke.
+  async whoIs(handle: string): Promise<string | null> {
+    const [db, mod] = await Promise.all([getDb(), import("./socialFetch")]);
+    return mod.uidForHandle(db, handle);
+  },
+  async claimHandle(handle: string) {
+    const out = await callable<{ handle: string }>("claimHandleV2", { handle });
+    state.profile.handle = out.handle;
+    notify();
+    return out;
+  },
+  async inviteToGroup(gid: string, to: string) {
+    return callable<{ ok: boolean }>("inviteToGroupV2", {
+      gid, to, displayName: state.profile.displayName,
+    });
+  },
+  async acceptInvite(gid: string) {
+    const out = await callable<{ gid: string; name: string }>("acceptGroupInviteV2", {
+      gid, displayName: state.profile.displayName,
+    });
+    await this.loadInvites();
+    return out;
+  },
+  async declineInvite(gid: string) {
+    const out = await callable<{ ok: boolean }>("declineGroupInviteV2", { gid });
+    await this.loadInvites();
+    return out;
+  },
+  invites(): Invite[] {
+    return state.invites;
+  },
+  invitesLoading(): boolean {
+    return state.invitesLoading;
+  },
+  // Fetched on demand, not subscribed. An invitation is not time-critical
+  // — the surfaces that show one are opened, not watched — and a live
+  // listener on a collection-group query anyone may write into is a bill
+  // a stranger controls.
+  async loadInvites(): Promise<void> {
+    if (!LIVE.enabled || !state.uid || state.invitesLoading) return;
+    state.invitesLoading = true;
+    notify();
+    try {
+      const [db, mod] = await Promise.all([getDb(), import("./socialFetch")]);
+      state.invites = await mod.fetchInvites(db, state.uid);
+    } catch (err) {
+      reportError(err, { where: "loadInvites" });
+    } finally {
+      state.invitesLoading = false;
+      notify();
+    }
   },
   async leaveGroup(gid: string) {
     return callable<{ gid: string; deleted: boolean }>("leaveGroupV2", { gid });
@@ -1548,6 +1630,10 @@ const LIVE = {
   },
   get latestBuild(): number {
     return state.meta.latestBuild;
+  },
+  /** This account's handle, or "" before one is claimed (D122). */
+  get handle(): string {
+    return state.profile.handle;
   },
   get displayName(): string {
     return state.profile.displayName;
@@ -2131,7 +2217,7 @@ const LIVE = {
           // suppress and nothing to re-argue under D8's floors.
           anchors: {},
         });
-        // Your own answer joins the count you are about to be shown (D122)
+        // Your own answer joins the count you are about to be shown (D124)
         // — one re-read, once, after the write lands. REPLACE rather than
         // invalidate: dropping the entry would make the next render fall
         // back to the authored estimate while the re-read is in flight,
@@ -2158,8 +2244,8 @@ const LIVE = {
   // one getDoc; if a published agg exists, notify() re-renders subscribers
   // with the measured split. One read per distinct card per session.
   //
-  // THE FIRST CALL RETURNING NULL IS WHY loadLearnAggs EXISTS (D122). This
-  // is a read-through cache with no way to await it, and until D122 the
+  // THE FIRST CALL RETURNING NULL IS WHY loadLearnAggs EXISTS (D124). This
+  // is a read-through cache with no way to await it, and until D124 the
   // ONLY caller was LEARN_SPLIT — which runs inside LEARN.answer(), i.e.
   // at the instant of the tap. So the first call for every card was always
   // the one deciding that card's reveal, always returned null, and every
@@ -2185,7 +2271,7 @@ const LIVE = {
     })();
     return null;
   },
-  // Warm the cache for a whole serve plan, batched (D122).
+  // Warm the cache for a whole serve plan, batched (D124).
   //
   // Called when the feed PLANS its learn cards, which is the one moment
   // that happens before any of them can be tapped. One `in` query per 30
@@ -2505,7 +2591,12 @@ function resetForNewUid(uid: string): void {
   state.testAggsLoaded = false;
   state.circle = null;
   state.circleLoading = false;
-  state.profile = { displayName: "", testResults: {}, anchors: {} };
+  // The inbox is per-account by definition — leaving it would show the
+  // previous account's invitations under the new one, which is the same
+  // class of leak resetForNewUid exists for.
+  state.invites = [];
+  state.invitesLoading = false;
+  state.profile = { displayName: "", handle: "", testResults: {}, anchors: {} };
   state.deckIds = [];
   state.deckDay = -1;
   state.ready = false;

@@ -62,7 +62,7 @@ export const LIVE_MEMBERS = [
   // failed exactly there.
   "bootError",
   "confirmedVotes", "dailyBank", "deck",
-  "deleteAccount", "demoInProd", "displayName",
+  "deleteAccount", "demoInProd", "displayName", "handle",
   // D86: the one repeatable answer write — moves an existing daily/feed/
   // test answer to a different option. Returns false without writing when
   // there is nothing to move or the 60s cooldown holds.
@@ -70,7 +70,7 @@ export const LIVE_MEMBERS = [
   "enabled", "feedReady",
   // `learnAgg` is a read-through cache whose first call for a card always
   // returns null, and its only caller runs at the instant of the tap — so
-  // until D122 every learn reveal drew the authored estimate whatever the
+  // until D124 every learn reveal drew the authored estimate whatever the
   // crowd had answered. `loadLearnAggs` is the warm-up the feed runs when
   // it PLANS the sitting's learn cards, which is the one moment guaranteed
   // to precede every tap in it.
@@ -97,6 +97,11 @@ export const LIVE_SOCIAL_MEMBERS = [
   "bankQ", "createGroup", "groups", "joinGroup", "leaveGroup",
   "loadRevealHistory", "myDuelVote", "revealFor", "revealHistory",
   "romanticPoolReady", "setDuoMode", "todayKey", "todayQ", "voteDuel",
+  // Handles and invitations (D122) — the uid-addressed way into a circle.
+  // Listed here before any consumer reads them, for the reason the block
+  // below states: the pin is what makes the surface reviewed.
+  "acceptInvite", "claimHandle", "declineInvite", "inviteToGroup",
+  "invites", "invitesLoading", "loadInvites", "whoIs",
   // Circle takes and the report control (D1, docs/MODERATION.md). Listed
   // here before any JSX reads them: the pin is what makes the surface
   // reviewed, and a member added straight into a consumer is a member

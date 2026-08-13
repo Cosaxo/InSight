@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 //
-// The reversal D122 is for. The sheet's job is not "who is in this crowd"
+// The reversal D124 is for. The sheet's job is not "who is in this crowd"
 // — it is "what does this question look like from where someone else is
-// standing", and until D122 nothing on the screen answered that: the
+// standing", and until D124 nothing on the screen answered that: the
 // breakdown drew every cohort as a bar in a chart of the crowd, and under
 // it the roster listed each voter's age, gender and city beside their
 // name. Both halves described the PEOPLE. Neither redrew the ANSWER.
@@ -101,7 +101,7 @@ describe("LiveBreakdownPanel · the split is drawn FOR a cohort", () => {
   });
 
   it("picking a cohort redraws the SAME options with THAT cohort's numbers", () => {
-    // The whole point. Before D122 this tap changed which rows of a
+    // The whole point. Before D124 this tap changed which rows of a
     // crowd-chart were highlighted; the answer itself never moved.
     render(<LiveBreakdownPanel qid="q1" options={OPTS} />);
     fireEvent.click(chip("Age"));

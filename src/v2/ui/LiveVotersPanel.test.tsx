@@ -213,7 +213,7 @@ describe("LiveVotersPanel · the fetch cap (D102)", () => {
   });
 });
 
-describe("LiveVotersPanel · scoped to one cohort (D122)", () => {
+describe("LiveVotersPanel · scoped to one cohort (D124)", () => {
   const mixed = (): Voter[][] => [
     [v({ uid: "a", name: "Ada", anchors: { ageBand: "25-34", city: "Oslo, NO" } })],
     [v({ uid: "b", name: "Bea", anchors: { ageBand: "55-64", city: "Oslo, NO" } })],

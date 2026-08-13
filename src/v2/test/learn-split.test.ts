@@ -123,7 +123,7 @@ describe("LEARN_ORDER breaks the positional tell", () => {
   });
 });
 
-describe("the reveal reads its split and its label together (D122)", () => {
+describe("the reveal reads its split and its label together (D124)", () => {
   // The defect: LEARN.answer() evaluates LEARN_SPLIT once, at the instant
   // of the tap, and renderKnow used to render `r.split` — a frozen copy —
   // while the footer below it re-evaluated LEARN_SPLIT_SRC on every
@@ -156,7 +156,7 @@ describe("the reveal reads its split and its label together (D122)", () => {
   });
 });
 
-describe("the measured split is reachable at all (D122)", () => {
+describe("the measured split is reachable at all (D124)", () => {
   // The bug this half fixes was not in the arithmetic — the cases at the
   // top of this file prove learnMeasured folds a published agg correctly.
   // It was in the plumbing: LIVE.learnAgg is a read-through cache whose
