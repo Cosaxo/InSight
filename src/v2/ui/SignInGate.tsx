@@ -3,9 +3,16 @@
 // WHY THIS IS TWO FILES. The wall wraps `<App />` at the root, so whatever
 // implements it is in the first-paint graph of EVERY build — including the
 // ones where the flag is off and it can never render. Measured: the screen
-// itself put 3 KB into an eager graph that had 2 KB of headroom left
+// itself put 3 KB into an eager graph that had no room for it
 // (`npm run check:bundle`), which is the gate telling the truth — a screen
 // one build shows is not first-paint weight for the other builds.
+//
+// No headroom figure here on purpose. The first draft said "2 KB of
+// headroom left" and that was a number from a LOCAL build, where the
+// absent Sentry chunk makes the totals disagree with CI's — the same trap
+// that failed this branch's first CI run, written into a comment. The
+// ceilings and the arithmetic live in scripts/check-bundle.mjs; this file
+// says only which way the deferral went.
 //
 // So the decision stays eager and tiny (`signInRequired`, a build
 // constant), and the SCREEN is a dynamic import that only a build with the
