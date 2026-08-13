@@ -371,7 +371,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     // bank ships no `rate` questions", which was true of the prototype's
     // place scorecard and not of the lens: the bank's `rating` and
     // `scale` items are ordinal and average fine.
-    // Foresight (D125) joined as the seventh: v19's own feature, and the
+    // Foresight (D126) joined as the seventh: v19's own feature, and the
     // only tab here that is a game rather than a reading.
     for (const name of ["Answers", "Overview", "People", "Compare", "Scores", "Explore", "Foresight"]) {
       expect(screen.getByRole("tab", { name }), `the row is missing its ${name} tab`).toBeTruthy();
@@ -421,7 +421,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     expect(screen.getByRole("button", { name: /Is a promise still binding/ })).toBeTruthy();
   });
 
-  // Foresight (D125), on the real mount. The lens suite covers the clock
+  // Foresight (D126), on the real mount. The lens suite covers the clock
   // and the scoring; what this covers is that the game is REACHABLE —
   // it hangs off a React.lazy chunk inside another React.lazy chunk
   // (LiveMirrorLenses inside LiveCohortBody), which is exactly the kind

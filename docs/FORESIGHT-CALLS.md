@@ -1,6 +1,6 @@
 # CALL — the half of Foresight that asserts a fact
 
-**Status: design only. No code exists.** D125 shipped Foresight's READ
+**Status: design only. No code exists.** D126 shipped Foresight's READ
 half; this is the write-up of the other half, requested before any of it
 is built. Read it as a proposal with the failure modes named, not as a
 description of the tree.
@@ -210,7 +210,7 @@ to spam.
 
 ### No verdict document
 
-Unlike a READ verdict (D125), **a call needs no new write to be scored**.
+Unlike a READ verdict (D126), **a call needs no new write to be scored**.
 The player's answer and the outcome are both readable, so the client
 joins them. This falls out of the design rather than being engineered,
 and it is worth stating because the obvious implementation invents a
@@ -247,7 +247,7 @@ would be an exception wearing a clean-result costume.
 **What still gets published either way:** the inputs the grader used —
 the aggregate snapshot for tier A, the URL, the raw fetched value and the
 timestamp for tier B. The basis sits beside the claim, which is the same
-posture as D98's model and D125's frozen `answerIdx`, and it is what lets
+posture as D98's model and D126's frozen `answerIdx`, and it is what lets
 a player check the grade rather than trust it.
 
 ## 6 · Rules and who may write what
@@ -260,12 +260,12 @@ a player check the grade rather than trust it.
 
 `outcomeIdx` must never be client-writable. If it were, every score in
 the feature would be forgeable in one request — a strictly worse version
-of the limitation D125 already records about its own client-written
+of the limitation D126 already records about its own client-written
 `answerIdx`, because there the basis is published and checkable and here
 it would be the basis.
 
 Publishing `inputs` is what keeps the claim honest: the basis sits beside
-the assertion, the same posture as D98's whole model and D125's frozen
+the assertion, the same posture as D98's whole model and D126's frozen
 `answerIdx`. For tier A it is stronger than that — the input IS a
 published aggregate, so a player can recompute the grade rather than
 merely inspect it.
@@ -337,6 +337,6 @@ Routine turn. No per-answer server work — scoring is a client-side join
   aggregate and each is a different kind of thinking. This is the
   interesting design work and it is entirely unblocked.
 - **Crowd-relative scoring.** "You called it and 82% didn't" is a strong
-  reading and needs the same collection-group query D125 defers.
-- **The Map's Foresight branch.** Still unbuilt for both halves; D125 §
+  reading and needs the same collection-group query D126 defers.
+- **The Map's Foresight branch.** Still unbuilt for both halves; D126 §
   "Also not built" has the reason.

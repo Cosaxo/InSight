@@ -282,7 +282,7 @@ const INDEX_HTML = join(root, "dist", "index.html");
 // a win for the reason MAX_CHUNK_KB did at 940 → 850: at 1280 the Firestore
 // SDK could silently return to the eager graph and this script would print
 // OK. 955 leaves ~11 KB, the same headroom the last raise of the total left.
-// 2170 → 2176 (2026-08-13): D127's stated topic preferences — the
+// 2170 → 2176 (2026-08-13): D128's stated topic preferences — the
 // interests store and its panel, ~2 KB of real product.
 //
 // Raised rather than deferred, and the deferral was TRIED first: the

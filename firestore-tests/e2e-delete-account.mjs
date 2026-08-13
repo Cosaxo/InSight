@@ -101,7 +101,7 @@ await adb.doc(`insight_users/${OTHER}/relations/r1`).set({ linkedUid: uid });
 // else's uid and needs phase 3b's collection-group sweep to find it —
 // which is the whole reason the row carries `to` as a field, since a
 // collection-group query cannot filter on a document id.
-// Foresight verdicts (D125) live under the account's own subtree, so
+// Foresight verdicts (D126) live under the account's own subtree, so
 // phase 1b's recursive delete is what takes them — the same property the
 // push and following subcollections rely on. Seeded so "covered by the
 // subtree wipe" is a tested claim rather than an assumed one.

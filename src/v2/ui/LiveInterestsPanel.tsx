@@ -1,4 +1,4 @@
-// The topic preferences panel (D127) — what the app thinks you want,
+// The topic preferences panel (D128) — what the app thinks you want,
 // where you say it rather than where it guesses.
 //
 // This is tier 1 of docs/ATTENTION.md and the whole of what ships: every

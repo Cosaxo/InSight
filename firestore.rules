@@ -220,7 +220,7 @@ service cloud.firestore {
         allow update: if false;
       }
 
-      // Foresight verdicts (D125) — one scored read of a population slice.
+      // Foresight verdicts (D126) — one scored read of a population slice.
       //
       // CREATE-ONLY, and here that is the whole integrity model rather
       // than a tidiness rule. A verdict is a claim about a guess you

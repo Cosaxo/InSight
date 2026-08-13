@@ -1,4 +1,4 @@
-// Foresight's read engine (D125). Every case here is about FAIRNESS or
+// Foresight's read engine (D126). Every case here is about FAIRNESS or
 // about a fold that is silently wrong — a game that marks you wrong on a
 // coin toss, or a streak that reads differently on two devices, both
 // render a perfectly convincing screen.

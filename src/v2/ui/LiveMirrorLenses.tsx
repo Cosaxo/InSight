@@ -43,11 +43,15 @@ import {
   COHORT_DIMS, DIM_LABEL, divergence, meanScore, mixFor, pctFor, sliceSplit,
   type Score,
 } from "../data/cohort";
+// D125: these two lenses printed the raw bucket KEY, so a country row read
+// "NO" and a city row "Oslo, NO". One resolver, shared with the feed's
+// breakdown sheet, so the same cohort is named the same everywhere.
+import { bucketLabel } from "./cohortLabels";
 // The row's own types and labels live next door: eslint's react-refresh
 // rule wants a component file to export only components, and it is right
 // that a constant shared with the host does not belong in one.
 import { ORDINAL_TYPES, type LensId, type LensQuestion } from "./lensDefs";
-// The fifth lens (D125). An ordinary import: this whole module is
+// The fifth lens (D126). An ordinary import: this whole module is
 // already behind a React.lazy from LiveCohortBody, so Foresight rides
 // the same deferred chunk and needs no boundary of its own — and it must
 // NOT reach for ./lensTabs, which is entry-side (D119).
@@ -147,7 +151,7 @@ function PeopleLens({ qs }: { qs: LensQuestion[] }) {
           <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
             {rows.map((r) => (
               <div key={r.b} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <span style={{ width: 110, flexShrink: 0, fontFamily: "var(--sans)", fontWeight: 700, fontSize: 12.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.b}</span>
+                <span style={{ width: 110, flexShrink: 0, fontFamily: "var(--sans)", fontWeight: 700, fontSize: 12.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{bucketLabel(dim, r.b)}</span>
                 <span style={{ flex: 1, height: 8, borderRadius: 4, background: "var(--surface-2)", overflow: "hidden" }}>
                   <span style={{ display: "block", height: "100%", width: `${Math.round((r.n / (total || 1)) * 100)}%`, background: "var(--accent)" }}></span>
                 </span>
@@ -259,6 +263,9 @@ function ExploreLens({ qs }: { qs: LensQuestion[] }) {
   }
   const buckets = Object.keys(tally).sort((a, b) => tally[b] - tally[a]);
   const picked = buckets.includes(bucket) ? bucket : buckets[0] || "";
+  // The name for the sentences below. `picked` stays the KEY — it is what
+  // indexes the fold — and only the copy is resolved (D125).
+  const pickedName = picked ? bucketLabel(dim, picked) : "";
 
   // The rows this slice disagrees with everyone about, most first.
   const rows = picked
@@ -294,18 +301,18 @@ function ExploreLens({ qs }: { qs: LensQuestion[] }) {
                 fontFamily: "var(--sans)", fontWeight: 700, fontSize: 12,
                 background: picked === b ? "var(--accent)" : "var(--surface)",
                 color: picked === b ? "#fff" : "var(--ink-2)", WebkitAppearance: "none",
-              }}>{b} · {tally[b]}</button>
+              }}>{bucketLabel(dim, b)} · {tally[b]}</button>
             ))}
           </div>
           {!rows.length ? (
-            <LlEmpty>Nobody in {picked} has answered these yet.</LlEmpty>
+            <LlEmpty>Nobody in {pickedName} has answered these yet.</LlEmpty>
           ) : rows.map((r) => (
             <div key={r!.q.id} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               <span style={{ fontFamily: "var(--serif)", fontSize: 14.5, color: "var(--ink)", lineHeight: 1.35 }}>{r!.q.text}</span>
               <LlBar pct={r!.split} labels={r!.q.options} mark={r!.q.mine >= 0 ? r!.q.mine : undefined} />
               <span style={{ fontFamily: "var(--sans)", fontSize: 11.5, fontWeight: 600, color: "var(--ink-3)" }}>
                 {r!.gap > 0
-                  ? <>{picked} are <strong style={{ color: "var(--ink-2)" }}>{r!.gap} points</strong> {r!.split[r!.on] > r!.overall[r!.on] ? "more" : "less"} likely to say {r!.q.options[r!.on]}</>
+                  ? <>{pickedName} are <strong style={{ color: "var(--ink-2)" }}>{r!.gap} points</strong> {r!.split[r!.on] > r!.overall[r!.on] ? "more" : "less"} likely to say {r!.q.options[r!.on]}</>
                   : <>Same as everyone.</>}
               </span>
             </div>

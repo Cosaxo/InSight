@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 //
-// Stated topic preferences (D127). Two kinds of case here, and the second
+// Stated topic preferences (D128). Two kinds of case here, and the second
 // kind is the more important one:
 //
 //   · the store behaves (three states, persistence, the purge);

@@ -55,7 +55,7 @@ export const LIVE_MEMBERS = [
   // `voters`, because "could not ask" and "you follow nobody" are
   // different sentences the stop renders differently.
   "loadCircle", "circle", "circleLoading", "isFollowing", "setFollowing",
-  // Foresight (D125). The store holds the LOG; the score, the streak and
+  // Foresight (D126). The store holds the LOG; the score, the streak and
   // the per-dimension accuracy are pure folds the lens runs on it, so no
   // derived number lives here to disagree with its own rows.
   "loadForesight", "foresightLog", "foresightLoading", "scoreForesight",
@@ -72,7 +72,13 @@ export const LIVE_MEMBERS = [
   // there is nothing to move or the 60s cooldown holds.
   "editVote",
   "enabled", "feedReady",
-  "latestBuild", "learnAgg", "learnAnswer",
+  // `learnAgg` is a read-through cache whose first call for a card always
+  // returns null, and its only caller runs at the instant of the tap — so
+  // until D125 every learn reveal drew the authored estimate whatever the
+  // crowd had answered. `loadLearnAggs` is the warm-up the feed runs when
+  // it PLANS the sitting's learn cards, which is the one moment guaranteed
+  // to precede every tap in it.
+  "latestBuild", "learnAgg", "learnAnswer", "loadLearnAggs",
   // D91: the live half of a lens card — counts for a seeded lens question,
   // null when the bank carries none (the selfOnly fallback's cue).
   "lensAgg",

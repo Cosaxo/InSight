@@ -977,10 +977,10 @@ describe("v2 follow graph (D101 — Circle)", () => {
   });
 });
 
-// Foresight verdicts (D125). One scored read of a population slice, and
+// Foresight verdicts (D126). One scored read of a population slice, and
 // the only thing that makes the record mean anything is that a verdict
 // cannot be rewritten after the answer is on screen.
-describe("v2 foresight verdicts (D125)", () => {
+describe("v2 foresight verdicts (D126)", () => {
   const fRef = (as: string, owner: string, id = "q1__ageBand__25-34") =>
     doc(asUser(as), "v2_users", owner, "foresight", id);
   const verdict = (over: Record<string, unknown> = {}) => ({

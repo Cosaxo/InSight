@@ -1,4 +1,4 @@
-// Foresight — how well you can read a population (D125).
+// Foresight — how well you can read a population (D126).
 //
 // v19's one new feature, and the only item on the 19-point list still
 // unbuilt. The prototype ships it as two card types:
@@ -286,6 +286,6 @@ export function revealFor(read: Read, by: ByMap | undefined): number[] | null {
 // down here rather than built.
 //
 // DESIGNED, NOT BUILT: docs/FORESIGHT-CALLS.md has the schema, the
-// rubric format and the failure modes; D126 records the rule the whole
+// rubric format and the failure modes; D127 records the rule the whole
 // design turns on — a machine may PROPOSE an outcome and may never be
 // the REASON one is believed. Read that before adding anything here.

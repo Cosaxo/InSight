@@ -25,7 +25,7 @@ export const LENS_LABEL: Record<LensId, string> = {
   explore: "Explore",
   scores: "Scores",
   // v19's own feature, and the only lens that is a GAME rather than a
-  // reading (D125). Last in the row because it is the one you play after
+  // reading (D126). Last in the row because it is the one you play after
   // the others have taught you what a population looks like.
   foresight: "Foresight",
 };

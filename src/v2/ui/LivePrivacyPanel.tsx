@@ -276,7 +276,7 @@ function LivePrivacyPanel() {
 
       {err && <div style={{ fontSize: 12, fontWeight: 600, color: "oklch(0.5 0.19 25)", marginTop: 8 }}>{err.replace(/^.*?: */, "")}</div>}
 
-      {/* Topic preferences (D127). Mounted INSIDE this panel rather than
+      {/* Topic preferences (D128). Mounted INSIDE this panel rather than
           beside it in profile-overlay.jsx: a second `window.X &&` lookup
           there would raise the shared-global count, and D39's ratchet only
           moves down. It also belongs here — this is the screen that says

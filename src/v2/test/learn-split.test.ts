@@ -119,7 +119,102 @@ describe("LEARN_ORDER breaks the positional tell", () => {
     const block = src.slice(start, src.indexOf("</button>", start));
     expect(block).toMatch(/onClick=\{\(\) => this\.setKnow\(q, ai\)\}/);
     expect(block).toMatch(/const isC = !!r && ai === r\.correct;/);
-    expect(block).toMatch(/const pct = r \? r\.split\[ai\] : 0;/);
+    expect(block).toMatch(/const pct = split \? split\[ai\] : 0;/);
+  });
+});
+
+describe("the reveal reads its split and its label together (D125)", () => {
+  // The defect: LEARN.answer() evaluates LEARN_SPLIT once, at the instant
+  // of the tap, and renderKnow used to render `r.split` — a frozen copy —
+  // while the footer below it re-evaluated LEARN_SPLIT_SRC on every
+  // render. One aggregate arriving late and the two disagreed: authored
+  // bars under the sentence "Real answers from N+ players", which is
+  // precisely the fabrication D32's seam exists to prevent.
+  //
+  // Source-pinned rather than mounted, like the D89/D95 cases above: the
+  // behaviour IS which expression the two readings come from, and driving
+  // it through a mount would need a live store notify mid-reveal.
+  const src = readFileSync(resolve(__dirname, "../spec/world-feed.jsx"), "utf8");
+  const body = src.slice(
+    src.indexOf("renderKnow(q, T, big) {"),
+    src.indexOf("renderPick(q, T, big) {"),
+  );
+
+  it("both readings are render-time locals, computed side by side", () => {
+    expect(body, "renderKnow moved — repoint this pin").toBeTruthy();
+    expect(body).toMatch(/const split = r \? LEARN_SPLIT\(card\) : null;/);
+    expect(body).toMatch(/const src = r \? LEARN_SPLIT_SRC\(card\) : null;/);
+  });
+
+  it("neither the bars nor the footer re-reads the frozen answer result", () => {
+    // The answer result still CARRIES its split (same arithmetic, and
+    // callers outside the feed may want it); what must not come back is
+    // this renderer indexing into it, or the footer calling
+    // LEARN_SPLIT_SRC a second time on its own.
+    expect(body).not.toMatch(/r\.split\[/);
+    expect(body.match(/LEARN_SPLIT_SRC\(/g) || []).toHaveLength(1);
+  });
+});
+
+describe("the measured split is reachable at all (D125)", () => {
+  // The bug this half fixes was not in the arithmetic — the cases at the
+  // top of this file prove learnMeasured folds a published agg correctly.
+  // It was in the plumbing: LIVE.learnAgg is a read-through cache whose
+  // first call for a card ALWAYS returns null, and its only caller ran
+  // inside LEARN.answer() at the instant of the tap. So the first call for
+  // every card was the one deciding that card's reveal, and every learn
+  // split the app drew was the authored estimate whatever the crowd had
+  // answered.
+  it("a cold cache reads as an estimate, and warms into a measurement", () => {
+    // The real cache contract: learnAgg returns null — repeatedly, not
+    // once — until its background fetch lands, then the data. So a cold
+    // read is the estimate no matter how big the crowd is, and the SAME
+    // card flips to measured once something has warmed it.
+    //
+    // This is also the exact instant the old renderer went wrong: it froze
+    // the estimate into the answer result before the flip and re-read the
+    // label after it.
+    const agg = { tooSmall: false, total: 40, counts: { "0": 30, "1": 10 } };
+    let landed = false;
+    W.LIVE = { enabled: true, learnAgg: () => (landed ? agg : null) };
+
+    expect(LEARN_SPLIT_SRC(card)).toBe("estimate");
+    expect(LEARN_SPLIT(card)[card.c]).toBe(card.p);
+
+    landed = true;
+    expect(LEARN_SPLIT_SRC(card)).toBe("measured");
+    expect(LEARN_SPLIT(card)).toEqual([75, 25, 0, 0]);
+  });
+
+  it("both readings agree at every instant, so one render can trust them", () => {
+    // The property renderKnow depends on: at any single moment the source
+    // label and the numbers describe the same thing. Nothing here can hold
+    // that for a renderer that samples them at two different moments,
+    // which is why the pin above exists as well.
+    const agg = { tooSmall: false, total: 40, counts: { "0": 30, "1": 10 } };
+    let landed = false;
+    W.LIVE = { enabled: true, learnAgg: () => (landed ? agg : null) };
+    for (const expected of [false, true]) {
+      landed = expected;
+      const measured = LEARN_SPLIT_SRC(card) === "measured";
+      const split = LEARN_SPLIT(card);
+      expect(measured).toBe(expected);
+      expect(split[card.c] === card.p).toBe(!expected);
+    }
+  });
+
+  it("the feed warms the plan it just built, not the card it is drawing", () => {
+    // Warming per-card at render would be one read per card per render and
+    // would still lose the race with the tap. knowQs is the one moment
+    // that is guaranteed to precede every tap in the sitting.
+    const src = readFileSync(resolve(__dirname, "../spec/world-feed.jsx"), "utf8");
+    const start = src.indexOf("knowQs(n, cats) {");
+    expect(start, "knowQs moved — repoint this pin").toBeGreaterThan(-1);
+    const block = src.slice(start, src.indexOf("\n  }", start));
+    expect(block).toMatch(/loadLearnAggs\(ids\)/);
+    // Inside the re-plan branch: a plan that did not change must not
+    // re-request, and the guard is the `_kqSig` comparison above it.
+    expect(block.indexOf("this._kqSig = sig")).toBeLessThan(block.indexOf("loadLearnAggs"));
   });
 });
 

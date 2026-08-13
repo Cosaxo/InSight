@@ -12143,7 +12143,143 @@ changes what a user sees, and a Mirror stop silently rendering "could not
 ask" because an operator flipped a flag is the same class of failure as a
 privacy label with no rule behind it. It needs a decision about what a
 degraded app *says*, which is an owner's call and not a cost pass's.
-## D125 · Foresight — the read half, on a truth that now exists
+
+## D125 · The breakdown was pointed at the crowd, and Learn's measured split was unreachable by construction
+
+**Decided:** 2026-08-13 · **Status:** binding. Two reports from a phone,
+with screenshots: a learn reveal still showing "Our estimate" for what
+people answered, and a who-voted sheet listing every voter's age, gender,
+city and education instead of showing what the answer looks like for one
+cohort or another.
+
+### 1 · The sheet described the people and never redrew the answer
+
+The live who-voted sheet was three stacked panels. The breakdown drew one
+bar per cohort — six rows of a crowd chart. Under it the roster listed
+each voter with their anchors beside their name. Both halves read in the
+same direction: *here are the people, here is what each of them is.*
+
+Neither answered the question a breakdown is for. **The split was never
+redrawn for anybody** — it was only ever annotated with who was in it. A
+reader who wants to know what a question looks like from where someone
+else is standing could not find out, on a screen built for exactly that.
+
+So the axis flips. `ui/LiveBreakdownPanel.tsx` puts the cohort control on
+top — Everyone, then the dims the server actually published for this
+question, then that dim's buckets with their counts — and everything below
+it is that cohort's reading of this one question: the same options in the
+same order the card showed them, carrying that cohort's numbers, with your
+own pick marked and one line naming where they part company with everyone.
+
+**"Everyone" is a real cohort, not an off switch.** It is the plain
+published split, so the first frame is what the card already showed and
+every other frame is a comparison against it.
+
+The roster stays and is now the tail of an answer rather than the answer,
+**scoped to the cohort above it** — "41% here said Wellington" and the
+names under it are the same forty-one people. It filters on the answer's
+frozen anchors (D8), the same snapshot the aggregate folds, because
+filtering on live profiles would put a different set of names under a
+number that did not move. The chip for the scoping dim is dropped from
+each row: repeating "25-34" on every row of a list headed *in 25-34*
+spends the line on the one fact the rows have in common.
+
+The dial and the field keep their own bodies through a render prop — a
+continuum reads as a POSITION, so those draw the cohort's real average or
+centroid against everyone's, and own their comparison sentence. The
+generic "N points more likely to say X" is true about a histogram bucket
+and useless about a range, so it stands down when a custom body is given.
+
+**Cost: zero extra reads.** Every cohort comes out of the aggregate
+already fetched for the card, and the roster keeps its single bounded
+fetch-on-open. Switching cohorts is arithmetic on data in hand, and a test
+pins that.
+
+Two things fell out of the deletion. `WF_LIVE_DIMS` — a hand-kept copy of
+`BREAKDOWN_DIMS` in the spec layer — is gone; the panel reads `COHORT_DIMS`
+from `data/cohort.ts`, which the Mirror's lenses already share. And the
+old panel's footer still promised *"only groups with enough answers to stay
+anonymous are shown … these are floors, not live totals"*, which stopped
+being true at D98; it was dead copy behind a live gate, and it is gone with
+the code that drew it.
+
+### 2 · Bucket keys were reaching the screen as keys
+
+`bucketLabel` (`ui/cohortLabels.ts`) is one resolver now. Before this there
+were two conversions and one omission: world-feed's `wfBucketLabel` off
+`window.PLACES`, the new panel's, and the Mirror's People and Explore
+lenses, which printed the raw key — so a country row read **"NO"** and a
+sentence read *"NO are 14 points more likely…"*. The keys stay canonical
+where they are stored and indexed (D9); only the copy is resolved.
+
+### 3 · Learn's measured split had never once been drawn
+
+The seam D32 built is correct and is unit-tested: once a card's public
+aggregate exists, `LEARN_SPLIT` returns the real first-attempt rates and
+`LEARN_SPLIT_SRC` says "measured". **Nothing ever reached it.**
+
+`LIVE.learnAgg` is a read-through cache — it cannot await, because
+`LEARN_SPLIT` runs in a render path — so the first call for a card returns
+`null` and kicks one `getDoc`. Its only caller was `LEARN_SPLIT`, which
+runs inside `LEARN.answer()`, **at the instant of the tap**. So the first
+call for every card was the one deciding that card's reveal, it returned
+null every time, and every learn split the app has ever drawn was the
+authored estimate — at any crowd size, in every session, on every card.
+The estimate was not a cold-start state. It was the only state.
+
+`LIVE.loadLearnAggs(cardIds)` warms the cache when the feed PLANS its
+learn cards, which is the one moment guaranteed to precede every tap in
+the sitting. One `in` query per 30 cards against one `getDoc` per card,
+skipping anything already cached, so the per-session budget is unchanged —
+at most one read per distinct card, paid earlier and in bulk.
+
+**The prefetch takes `.learn`, not `.id`, and that is a decision because
+the wrong one is silent.** LEARN_FEED wraps each card as a feed question
+keyed `lrn-<card>` while the aggregate is `learn-<card>`. Passing the
+question id asks for `learn-lrn-cap6`, which nothing has ever written —
+and the failure renders as no document, a null cache entry, and the
+authored estimate forever, i.e. as the exact bug being fixed. It was
+written wrong the first time; `learn-reserve.test.jsx` now fails on it.
+
+### 4 · …and the label had already drifted from the numbers
+
+`renderKnow` drew `r.split`, frozen into the answer result at the tap,
+while the footer below re-evaluated `LEARN_SPLIT_SRC` on every render.
+Those diverge the moment an aggregate lands late: authored bars under the
+sentence *"Real answers from N+ players"*. That is an authored number
+labelled as a measurement, which is the one thing D32's seam exists to
+prevent. Both readings are now render-time locals computed side by side,
+so they cannot disagree, and a late aggregate upgrades the bars and the
+label together.
+
+`learnAnswer` also re-reads the aggregate once after its own write lands —
+REPLACING the cached value rather than invalidating it, because dropping
+the entry would make the next render fall back to the estimate while the
+re-read is in flight, i.e. change the reveal you are looking at to the
+worse source. It races the trigger and often loses; there is no retry,
+because the split is a claim about the crowd and one answer does not move
+it.
+
+### What did not change
+
+The arithmetic, on either half. `LEARN_SPLIT`'s fold and `data/cohort.ts`'s
+were already right and already tested; both bugs were plumbing and
+direction. No rule, no trigger, no aggregate shape moved, and the
+who-voted read is the same bounded query it has been since D102.
+
+### Not done here
+
+- **The roster still keeps a row for every option, including the empty
+  ones**, so a twelve-bucket dial still draws a column of *"Nobody yet."*
+  under the answer. The invariant has a reason — a missing column reads as
+  a missing option — and it is now below the real reading rather than
+  instead of it, which is the part that mattered. Collapsing empty columns
+  is a separate call about that invariant.
+- **A learn card answered before the warm-up lands still shows the
+  estimate for that reveal.** The plan's prefetch forces one re-render on
+  completion, which covers the window in practice; the guarantee would
+  need `LEARN_SPLIT` to be able to await, and it cannot.
+## D126 · Foresight — the read half, on a truth that now exists
 
 **Decided:** 2026-08-12 · **Status:** binding · Follow-on to D98/D99.
 
@@ -12266,7 +12402,7 @@ built.
   it would rank is client-written (above). Worth doing after
   server-scoring, not before.
 
-## D126 · A machine may propose an outcome, never be the reason one is believed
+## D127 · A machine may propose an outcome, never be the reason one is believed
 
 **Decided:** 2026-08-12 · **Status:** binding · **Applied:** not yet — no
 code exists. The design is [`docs/FORESIGHT-CALLS.md`](FORESIGHT-CALLS.md).
@@ -12378,7 +12514,7 @@ that carries the most weight is the cheapest one — a rubric good enough
 that confirming a citation takes thirty seconds, because a confirmation
 step too expensive to do properly is a rubber stamp with extra latency.
 
-## D127 · You can say what you want more of; the app does not guess
+## D128 · You can say what you want more of; the app does not guess
 
 **Decided:** 2026-08-13 · **Status:** binding · Tier 1 of
 [`docs/ATTENTION.md`](ATTENTION.md).

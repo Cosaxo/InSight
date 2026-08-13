@@ -1,4 +1,4 @@
-// Stated topic preferences — "more of this", "less of this" (D127, tier 1
+// Stated topic preferences — "more of this", "less of this" (D128, tier 1
 // of docs/ATTENTION.md).
 //
 // WHAT THIS IS NOT, and the distinction is the whole reason it can exist.
