@@ -12279,3 +12279,309 @@ who-voted read is the same bounded query it has been since D102.
   estimate for that reveal.** The plan's prefetch forces one re-render on
   completion, which covers the window in practice; the guarantee would
   need `LEARN_SPLIT` to be able to await, and it cannot.
+## D126 · Foresight — the read half, on a truth that now exists
+
+**Decided:** 2026-08-12 · **Status:** binding · Follow-on to D98/D99.
+
+**Decision.** The Mirror's lens row gains a fifth lens, **Foresight**: a
+ten-second game asking which option one demographic slice picked most,
+scored against the published cell. Verdicts persist at
+`v2_users/{uid}/foresight/{readId}`, create-only.
+
+This is the last of the nineteen items on the 2026-08-11 list, and the
+only one that came from v19 rather than v18.
+
+### READ was not buildable before, and the reason is exact
+
+v19 ships Foresight as two card types. **READ** asks which side a slice
+picked; **CALL** seals a real-world event now and scores it when it
+resolves.
+
+The prototype's READ derives its answer from `wfHash(qid + dim + bucket)`
+— an invented truth, chosen to be *stable* rather than *correct*, because
+under the old model most cohort cells were below the k-floor and were
+never published. The game could be played and could not be scored: there
+was nothing to be right about.
+
+D98 published every cell at every size and D99 put the fold in
+`data/cohort.ts`, so the answer is now a lookup — **the same lookup the
+Explore lens draws and the same numbers the who-voted sheet lists by
+name**. A read can therefore never disagree with the screen behind it,
+which is the property the hash was reaching for and could only
+approximate.
+
+### Two thresholds that are about fairness, not disclosure
+
+`READ_MIN_N` (8) and `READ_MIN_LEAD` (12 points) both look like the floor
+D98 deleted and neither is. Nothing is withheld: Explore draws these
+cells at any size. The question is whether a QUESTION IS FAIR.
+
+- A three-answer slice has a "most picked" that one more answer flips.
+- A 51/49 slice has a technically correct answer nobody could read.
+
+Scoring either teaches the player the game is arbitrary. Raising the
+numbers makes the deck harder to fill; lowering them makes it dishonest.
+Both have a case that names which failure it is preventing.
+
+A timeout scores as a **miss, not a skip** — a card you can let expire
+for free makes waiting the best play whenever you are unsure, and the
+clock becomes decoration.
+
+### `correct` is derived, never stored
+
+The verdict row carries `guess` and `answerIdx` — the slice's top option
+**at guess time** — and nothing else about the outcome. Correctness is
+computed by whoever reads the row.
+
+- A stored boolean would be an unfalsifiable claim about a computable
+  fact.
+- `answerIdx` is frozen rather than recomputed because **the cell moves**:
+  a slice that says Yes today may say No next month, and re-deriving
+  would silently flip old verdicts.
+
+Create-only is the integrity model, not tidiness: if a verdict could be
+rewritten, every wrong read would become a right one the moment the
+answer appeared. Delete is closed for the same reason — the doc id is the
+slice, so delete-and-replay would be a re-roll. Answers get one edit
+shape (D86) because moving your opinion is a real act; changing what you
+guessed after seeing the answer is not.
+
+**Honest limit, recorded rather than papered over:** `answerIdx` is
+client-written, so a determined client can write a verdict matching
+whatever it guessed. The basis is published beside the claim, which makes
+the lie visible rather than impossible. Real verification means scoring
+server-side against the aggregate — the shape D57 uses for the logic test
+— and is worth building the day this score buys anything. Today it buys a
+number on your own screen.
+
+### Placed on the Mirror, not in the feed
+
+The prototype puts these cards in the world feed. This ships them as a
+lens because the lens row is already where a population gets read, and
+because a read is scoped to a POPULATION: on Near you are reading slices
+of your city, on World slices of everyone, and the ruler above already
+says which. In the feed that scope would have to be restated on every
+card. The feed placement stays open as a follow-on and needs no engine
+change — `readsFrom` takes questions and returns reads.
+
+### What CALL needs, and why it is not built
+
+The machinery is small: a question with `resolvesAt` and an `outcomeIdx`
+written after the fact, an answer sealed until then (the duel seal
+already proves that shape), and the same verdict fold. What it needs and
+does not have is **an outcome nobody can fake**:
+
+1. **Events.** The bank ships none, and unlike D100's Scores there is no
+   equivalent hiding in it — a `rating` question is ordinal whatever its
+   subject, but no existing question is about a future fact.
+2. **A resolver.** Someone has to write `outcomeIdx` when the match ends.
+   That is an operator process with an SLA, not a function: an unresolved
+   call is worse than a missing feature, because it takes the player's
+   guess and never comes back.
+3. **D1.** Seeding events with invented outcomes to fill the frame is the
+   one thing the no-synthetic-data rule forbids outright — and is exactly
+   what the prototype does (four settled events, hardcoded).
+
+The variant needing neither an author nor a resolver is a call on the
+app's OWN future data — "will tomorrow's question split past 60/40?" —
+which the aggregate settles by itself. That is a different card from the
+prototype's and a product decision, so it is written down rather than
+built.
+
+### Also not built from v19's Foresight
+
+- **The Map's Foresight branch** (`map-fore-card.jsx`, `g-fore` as a 7th
+  over-category, the `map-tab` fold). The Map files *answers*; a read is
+  a guess about someone else, and v19 excludes fore leaves from the
+  answer count for exactly that reason ("aims, not answers"). Putting
+  them on the same canvas needs the seventh category and a rule for what
+  a fore leaf's distance-from-centre means, neither of which is obvious.
+- **Crowd-relative percentiles** ("you read better than 78% of people").
+  Every verdict is world-readable, so this is a collection-group query
+  away — but it is a query the app does not otherwise make, and the score
+  it would rank is client-written (above). Worth doing after
+  server-scoring, not before.
+
+## D127 · A machine may propose an outcome, never be the reason one is believed
+
+**Decided:** 2026-08-12 · **Status:** binding · **Applied:** not yet — no
+code exists. The design is [`docs/FORESIGHT-CALLS.md`](FORESIGHT-CALLS.md).
+
+**Decision.** Foresight's CALL half — an event sealed now and scored when
+it resolves (D125 shipped READ) — is designed but not built. When it is
+built, **only questions whose outcome a machine can execute are
+admitted**, and the inputs the grader used are stored and published
+beside the outcome.
+
+### The reason this needed a decision rather than a ticket
+
+Every number InSight displays today is arithmetic on its own data. A
+cohort split, a likeness percentage, a Scores mean, a READ verdict — all
+folds over documents the reader can open and recompute. When the app says
+"48% of people your age agreed", anyone can check it.
+
+A resolved CALL is not that. It is the app **asserting a fact about the
+world**, and reading its own documents cannot verify the claim. If it
+says Arsenal won and Arsenal did not, there is nothing to recompute —
+only a wrong answer marking real users wrong, with no arithmetic to
+appeal to. That is a category change, and it is the decision; the
+plumbing is small.
+
+### What was proposed, and what survived
+
+The proposal was to have Claude author the questions and grade the
+outcomes. The first half is already how this repo works and needs no new
+decision: `docs/QUESTION-FARM.md` runs a Routine that proposes questions
+and opens a PR, D97 gates them, and D1 permits machine-authored *content*
+— what it forbids is fabricated *activity*.
+
+The second half does not follow from the first, and the farm's rule 4
+("never generate answers, votes, takes, or people") does not literally
+cover it. Hence the rule this decision adds:
+
+> A machine may **propose** an outcome. It may never be the **reason** an
+> outcome is believed. The reason is the citation, and a human confirms
+> the citation supports the outcome before anyone is scored.
+
+**Amended the same day, on the owner's constraint: "these also have to be
+verifiable and gradable by you."** That is a stronger rule than the one
+above and it replaces the human-confirms-everything step, because it puts
+the requirement on the QUESTION rather than on the reviewer.
+
+A call is admitted only when its outcome can be **executed**, in one of
+two tiers: **A**, self-resolving on the app's own published aggregate
+("will tomorrow's question split past 60/40?"), graded by arithmetic with
+no network and no model in the loop; or **B**, a machine-readable source
+where the rubric names an endpoint, a path and a value→option map, graded
+by one fetch and a comparison. Prose sources and model recall are refused
+outright — they are where every failure mode lives.
+
+The rubric stops being a sentence and becomes **executable data**, which
+makes "gradable" testable rather than hoped for: `check:calls` dry-runs
+every rubric before its question ships, and a rubric that cannot already
+return a well-formed provisional answer is not admitted. A rubric that
+cannot run today will not run in May.
+
+The human moves from confirming every resolution to handling the
+**exceptions** — an endpoint that moved, a value outside the map, a void.
+That is only defensible because tiers C and D never entered the bank; if
+they had, every row would be an exception in disguise.
+
+**Tier A ships first and alone.** It is the only kind verifiable end to
+end, it needs no operator and no external dependency, and it keeps the
+property that makes every other number in this app defensible: the reader
+can recompute it.
+
+Rejected for the first version, and still rejected: auto-resolution of
+prose-sourced or recalled outcomes. It is the obvious efficiency and it
+inverts D87's posture for the one write in the app that cannot be
+recomputed.
+
+Rejected outright: resolution from model memory with no citation. That is
+the one shape where a confident hallucination silently marks real users
+wrong and leaves nothing to appeal to.
+
+### Three design points that are load-bearing
+
+- **The rubric is written at authoring time**, in the same PR as the
+  question — the exact fact that settles it, the named source, and when
+  it becomes knowable. It moves the hard judgement to a moment a human is
+  already reviewing, and it is the filter: **if a crisp rubric cannot be
+  written, the question is not a call.**
+- **VOID (`outcomeIdx: -1`) is a first-class outcome, not an error path.**
+  An unresolved call is worse than a missing feature: it takes the
+  player's guess and never comes back. Void has to be easy, or a reviewer
+  reaches for a plausible answer instead of admitting the question was
+  bad.
+- **Outcomes live in `v2_call_outcomes/{qid}`, not on the question doc.**
+  `runSeedV2` diffs each question against its stored payload and skips
+  unchanged docs, which is what keeps `updatedAt` meaningful as an
+  incremental cursor; operational state inside content the seed owns
+  would fight it on every reseed.
+
+Two things fall out rather than being engineered, and both are recorded
+so the next reader does not build them: **a call needs no verdict
+document** (the answer and the outcome are both readable, so the client
+joins them), and **it needs no new seal** (the daily's blind-then-reveal
+already stops you reading the room before you play).
+
+### The residual, stated
+
+This design reduces the chance of the app asserting a falsehood. It does
+not eliminate it, and no version of it can. Everything else the app says
+can be recomputed by the person reading it; this cannot. The mitigation
+that carries the most weight is the cheapest one — a rubric good enough
+that confirming a citation takes thirty seconds, because a confirmation
+step too expensive to do properly is a rubber stamp with extra latency.
+
+## D128 · You can say what you want more of; the app does not guess
+
+**Decided:** 2026-08-13 · **Status:** binding · Tier 1 of
+[`docs/ATTENTION.md`](ATTENTION.md).
+
+**Decision.** A three-state topic preference — Less · Normal · More —
+stated by tapping, stored on the device, applied to the **feed and
+nothing else**.
+
+### What it does not do, which is the reason it can exist
+
+`docs/MONITORING.md` § "Off the table" refuses per-user funnels,
+engagement scoring, skip/pass/hesitation rates and per-user content
+selection, and `data-inventory.md` — the audited list the store forms are
+answered from — says no product analytics of any kind ship. That refusal
+was re-affirmed *after* D98, as an analytics decision standing on its own
+rather than one the k-floor was carrying.
+
+**This crosses none of it, and the distinction is exact: a weight changes
+because someone tapped a control that said it would change it, and for no
+other reason.** Nothing observes a scroll, a dwell or a skip. A stated
+preference is the same kind of datum as the city in a profile — given
+deliberately, about oneself, collecting nothing about anybody. Inferring
+one from behaviour is tier 2 and is a different decision.
+
+It is also the better signal, which is why the plan starts here rather
+than settling here. One deliberate tap outweighs a hundred ambiguous
+scrolls: no dwell threshold, no seen-denominator, and no argument about
+whether scrolling past meant dislike or meant the bus arrived. **If
+people use this, most of tiers 2 and 3 is redundant, and finding that out
+is cheaper than building the model that guesses.**
+
+### The limit, and the test that holds it
+
+**The feed may adapt. The daily question and the Mirror may not.** One
+blind question a day, the same one for everyone, is what makes the
+populations comparable at all; a Mirror weighted toward the cohorts you
+engage with is a filter bubble wearing a Mirror's clothes, and the
+feature would quietly destroy the thing it decorates.
+
+That constraint **cannot fail loudly** — a narrowed Mirror still renders
+a perfectly convincing screen — so `interests.test.ts` asserts it by
+scanning the tree for importers of `data/interests` and comparing against
+an allowlist of two: `live.ts` (the feed pool) and the panel. A new
+reader has to be added there deliberately, and adding a Mirror module
+should feel wrong.
+
+### Three small shapes, each with a reason
+
+- **Three states, not a slider.** The states are what a person can mean
+  about a topic, and a number invites the app to start adjusting it —
+  which is tier 2 arriving by the back door.
+- **Neutral DELETES the key.** "I turned this back to normal" and "I
+  never said anything" are the same state, and storing them differently
+  would show a topic as touched after the user had undone it.
+- **A stored value that is not one of the three is dropped, not
+  clamped.** A 0.7 came from a version that meant something else, and
+  rounding it invents a preference nobody stated.
+
+An untagged card always survives the filter: an untagged card is not
+evidence of anything, and dropping it would let a content bug read as a
+user preference.
+
+### Costs
+
+Local only, like `data/mutes.ts` and for the same reason — so it does not
+follow you to a second device, which is the honest trade for collecting
+nothing. Bundle: ~2 KB, and `check:bundle`'s total goes 2170 → 2176. The
+panel is `React.lazy` from LivePrivacyPanel, which is right on the merits
+and moved the total by zero — the same "splitting relocates bytes"
+property the 2026-08-11 note recorded, holding again.

@@ -51,6 +51,39 @@ export default defineConfig(({ mode }) => {
       // setupFiles runs for ALL of them, so it must stay a no-op outside
       // jsdom — see the guard at the top of the file.
       setupFiles: ['./src/v2/test/setup-dom.ts'],
+      // Worker threads, not child processes — and this is a bug fix, not
+      // a preference.
+      //
+      // On the default `forks` pool, `test:unit` exits 1 with 779/779
+      // PASSED and one unhandled
+      // `[vitest-worker]: Timeout calling "onTaskUpdate"`. A green suite
+      // reported as a failure is the worst shape a gate can take: the
+      // next person to see it reaches for the re-run button, and the
+      // button eventually works, and the gate quietly stops meaning
+      // anything.
+      //
+      // WHY IT HAPPENS. `onTaskUpdate` is not in the fire-and-forget
+      // `eventNames` list (vitest/dist/chunks/rpc.*.js), so a worker
+      // AWAITS an ack for every task-state change. The forks pool
+      // carries that over Node's child-process IPC — `process.send` and
+      // a serialized pipe — and `smoke.test.jsx` mounts the whole spec
+      // layer 35 times for ~85 s of an ~87 s run. Under that load the
+      // pipe backs up and an ack misses its window. The threads pool
+      // uses a MessageChannel instead and does not.
+      //
+      // MEASURED, not reasoned about: forks failed 3/3 locally (and
+      // twice on CI), threads passed 2/2 on the same tree, same machine,
+      // same minute. Two cheaper candidates were tried first and BOTH
+      // FAILED, which is why neither is here — `--reporter=dot` (the
+      // ack is sent whatever the reporter does) and capping the pool to
+      // two workers, which made it worse by lengthening the run and is
+      // what first reproduced it off CI.
+      //
+      // The honest cost: threads share a process, so a test that leaks a
+      // global leaks it further than it used to. Nothing in this suite
+      // does — jsdom is per-file via the environment docblock — but if a
+      // strange cross-file failure ever appears, start here.
+      pool: 'threads',
       // Coverage is REPORT-ONLY and deliberately scoped, not a gate.
       //
       // What it is for: src/v2/data is pure, typed, and holds the client

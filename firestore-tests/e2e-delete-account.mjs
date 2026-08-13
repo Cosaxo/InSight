@@ -101,6 +101,13 @@ await adb.doc(`insight_users/${OTHER}/relations/r1`).set({ linkedUid: uid });
 // else's uid and needs phase 3b's collection-group sweep to find it —
 // which is the whole reason the row carries `to` as a field, since a
 // collection-group query cannot filter on a document id.
+// Foresight verdicts (D126) live under the account's own subtree, so
+// phase 1b's recursive delete is what takes them — the same property the
+// push and following subcollections rely on. Seeded so "covered by the
+// subtree wipe" is a tested claim rather than an assumed one.
+await adb.doc(`v2_users/${uid}/foresight/daily-000__ageBand__25-34`).set({
+  qid: "daily-000", dim: "ageBand", bucket: "25-34", guess: 0, answerIdx: 0, n: 20, at: new Date(),
+});
 await adb.doc(`v2_users/${uid}/following/${OTHER}`).set({ to: OTHER, at: new Date() });
 await adb.doc(`v2_users/${OTHER}/following/${uid}`).set({ to: uid, at: new Date() });
 // The control: OTHER's follow of a third party must survive. A sweep that
@@ -329,6 +336,7 @@ for (const [path, label] of [
   [`v2_flags/${MY_TAKE}_${uid}`, "their flag on their own take"],
   [`v2_flags/${THEIR_TAKE}_${uid}`, "their flag on someone else's take"],
   [`v2_users/${uid}/following/${OTHER}`, "the account's own follow"],
+  [`v2_users/${uid}/foresight/daily-000__ageBand__25-34`, "a foresight verdict"],
   [`v2_users/${OTHER}/following/${uid}`, "someone else's follow OF this account"],
   [`v2_presence/${uid}`, "their presence cell"],
   // The gap this leg exists for: the take was erased, and its words went on

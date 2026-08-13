@@ -18,12 +18,16 @@ export interface LensTab {
   label: string;
 }
 
-/** The four lens bodies, by the name the row shows for each. */
+/** The five lens bodies, by the name the row shows for each. */
 export const LENS_LABEL: Record<LensId, string> = {
   people: "People",
   compare: "Compare",
   explore: "Explore",
   scores: "Scores",
+  // v19's own feature, and the only lens that is a GAME rather than a
+  // reading (D126). Last in the row because it is the one you play after
+  // the others have taught you what a population looks like.
+  foresight: "Foresight",
 };
 
 /** A cohort stop's own two tabs, beside the four lenses. */

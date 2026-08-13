@@ -214,6 +214,11 @@ these lenses its population can support:
   sync — a pole of any test you have taken, with your own pole marked and
   a "like me" shortcut) and see what that slice believes, led by where it
   *differs* from everyone. The globe only.
+- **Foresight** — v19's own addition and the row's only game: ten seconds
+  to say which option a slice picked, scored against the published cell.
+  **Live since D126**, as the READ half only; what CALL is waiting on is
+  in that decision. Placed here rather than in the feed because a read is
+  scoped to the population the ruler above already names.
 
 **Read that as the design, not as today's live build — and read the
 reason carefully, because it changed.** The lens row lives inside the demo

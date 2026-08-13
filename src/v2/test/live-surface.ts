@@ -55,6 +55,10 @@ export const LIVE_MEMBERS = [
   // `voters`, because "could not ask" and "you follow nobody" are
   // different sentences the stop renders differently.
   "loadCircle", "circle", "circleLoading", "isFollowing", "setFollowing",
+  // Foresight (D126). The store holds the LOG; the score, the streak and
+  // the per-dimension accuracy are pure folds the lens runs on it, so no
+  // derived number lives here to disagree with its own rows.
+  "loadForesight", "foresightLog", "foresightLoading", "scoreForesight",
   // The reason boot did not attach, rendered under the "Sample questions ·
   // reconnecting…" pill when it is tapped. It exists because that label
   // said a real user was on demo content without saying why, and an
