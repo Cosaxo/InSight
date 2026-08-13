@@ -15,6 +15,11 @@
 // keeps the spec layer's render-time lookup working unchanged.
 import React from "react";
 import LIVE from "../data/live";
+// The handle is claimed here because this is where identity already
+// lives — the display name is next door, and the two are different
+// things: a name is what a reveal calls you, a handle is how someone
+// finds you (D122).
+import { atHandle, handleProblem, normalizeHandle } from "../data/handles";
 // The hosted origin for the legal pages. Lives in data/links.ts now so
 // invites and legal links share one constant — a domain change stays a
 // single edit (D3).
@@ -46,6 +51,9 @@ function LivePrivacyPanel() {
     try { return localStorage.getItem("insight.displayName.v1") || ""; } catch { return ""; }
   });
   const [saved, setSaved] = React.useState(false);
+  const [handle, setHandle] = React.useState("");
+  const [hBusy, setHBusy] = React.useState(false);
+  const [hMsg, setHMsg] = React.useState<string | null>(null);
   const [busy, setBusy] = React.useState(false);
   const [confirmDel, setConfirmDel] = React.useState(false);
   // Derived from auth via the store, not local state seeded to false: the
@@ -68,6 +76,28 @@ function LivePrivacyPanel() {
       setSaved(true); setTimeout(() => setSaved(false), 1800);
     } catch (e) { setErr(String((e instanceof Error && e.message) || e)); }
     setBusy(false);
+  };
+  const saveHandle = async () => {
+    const h = normalizeHandle(handle);
+    // The button is disabled without one, so this is the belt on the
+    // braces — and it is the same fold the callable runs, so a handle
+    // that gets here is one the server will accept or refuse on
+    // availability alone.
+    if (!h) return;
+    setHBusy(true); setHMsg(null);
+    try {
+      await LIVE.social.claimHandle(h);
+      setHandle("");
+      setHMsg(`Claimed ${atHandle(h)}`);
+      setTimeout(() => setHMsg(null), 2400);
+    } catch (e) {
+      // "already-exists" is the ONE failure worth its own sentence: it is
+      // the common one, it is not the user's mistake, and the raw
+      // callable message is a Firebase error code.
+      const raw = String((e instanceof Error && e.message) || e);
+      setHMsg(/already-exists|taken/i.test(raw) ? `${atHandle(h)} is taken.` : raw.replace(/^.*?: */, ""));
+    }
+    setHBusy(false);
   };
   const link = async () => {
     setBusy(true); setErr(null);
@@ -105,6 +135,39 @@ function LivePrivacyPanel() {
           {btn(saved ? "Saved ✓" : "Save", saveName)}
         </div>
       </LpRow>
+
+      {/* The handle. Under the name on purpose: the name is what a reveal
+          calls you and can be anything, the handle is unique and is how a
+          friend reaches you — and someone reading top to bottom meets
+          them in that order. */}
+      <LpRow title={LIVE.handle ? `Your handle · ${atHandle(LIVE.handle)}` : "Your handle"}
+        sub={LIVE.handle
+          ? "Friends add you by this. Changing it frees the old one for someone else."
+          : "Claim a handle so friends can add you to a circle without swapping codes."}>
+        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+          <input value={handle} onChange={(e) => setHandle(e.target.value)}
+            placeholder={LIVE.handle ? atHandle(LIVE.handle) : "@yourname"}
+            autoCapitalize="none" autoCorrect="off" spellCheck={false}
+            aria-label="Your handle"
+            style={{ border: LP_LINE, borderRadius: 9, padding: "8px 11px", width: 132,
+              fontFamily: "var(--sans)", fontSize: "var(--field-size)", fontWeight: 600, color: "var(--ink)",
+              background: "var(--surface-2)", outline: "none", minWidth: 0 }} />
+          <button className="press" onClick={() => void saveHandle()}
+            disabled={hBusy || !normalizeHandle(handle)}
+            style={{ border: LP_LINE, borderRadius: 999, cursor: hBusy ? "default" : "pointer", padding: "8px 15px",
+              fontFamily: "var(--sans)", fontWeight: 800, fontSize: 12.5, WebkitAppearance: "none",
+              background: "var(--surface-2)", color: "var(--ink)",
+              opacity: hBusy || !normalizeHandle(handle) ? 0.5 : 1, whiteSpace: "nowrap" }}>
+            {hBusy ? "…" : LIVE.handle ? "Change" : "Claim"}
+          </button>
+        </div>
+      </LpRow>
+      {(handleProblem(handle) || hMsg) && (
+        <div role="status" style={{ fontFamily: "var(--sans)", fontSize: 12, fontWeight: 600,
+          color: "var(--ink-2)", margin: "-6px 0 10px" }}>
+          {handleProblem(handle) || hMsg}
+        </div>
+      )}
 
       <LpRow title="Sign-in"
         sub={linked
