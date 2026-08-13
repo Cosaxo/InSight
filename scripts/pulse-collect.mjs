@@ -38,7 +38,7 @@ export function collectCost(regional) {
 
   const scenarios = SCENARIOS.map(([dau, mature, label]) => {
     const now = model(dau, mature);
-    const fixed = model(dau, mature, { staticBank: true, pollAggs: true });
+    const fixed = model(dau, mature, { staticBank: true });
     const wps = writesPerSec(dau);
     return {
       label, dau, mature,

@@ -241,7 +241,7 @@ console.log("     DAU     as built    with fixes    saved   grade: now -> fixed"
 console.log("-".repeat(102));
 for (const s of SIZES) {
   const now = totalCost(model(s.dau, s.mature).cost);
-  const fixed = totalCost(model(s.dau, s.mature, { staticBank: true, pollAggs: true }).cost);
+  const fixed = totalCost(model(s.dau, s.mature, { staticBank: true }).cost);
   console.log(
     int(s.dau).padStart(8) + money(now).padStart(13) + money(fixed).padStart(14) +
     money(now - fixed).padStart(9) + "    " +

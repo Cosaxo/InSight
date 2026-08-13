@@ -1,5 +1,39 @@
 # Getting the bill down
 
+> **Partly executed, 2026-08-13 (D125).** The owner read the analysis below
+> and chose to build the big one rather than defer it. The deck is polled
+> instead of streamed, and the voter name cache is persisted. What that did:
+>
+> | DAU | before | after | |
+> | ---: | ---: | ---: | --- |
+> | 500 | $2.23 | **$2.12** | −4.7% |
+> | 5,000 | $59 | **$41** | −31.4% |
+> | 50,000 | $2,335 | **$440** | −81.2% |
+> | 500,000 | $194,332 | **$4,448** | **−97.7%** |
+>
+> The totals matter less than the shape: **reads per user per day are now
+> flat at 416 at every size**, cost per user rises 2.1× between 500 and
+> 500 k DAU rather than 87×, and every scenario grades B. Snap and Signal
+> are now never overtaken at any size.
+>
+> **It saved less than this page promised, and the reason is instructive.**
+> The lever arithmetic priced polling at *zero* — `pollAggs` set both
+> `fanOut` and `reattach` to 0 — so the $1,524 figure below for path B was
+> a fix modelled as free. Charged honestly a poll costs
+> `(visible minutes / interval)` reads a day, and the 500 k row lands at
+> $4,448. That is D67's "not modelled reads as free" pointed at our own
+> remedy, which is the worst place for it: the entire case for the change
+> rested on that one term. `AGG_POLL_MS` is now read from source and
+> `pulse.test.mjs` pins the term non-zero.
+>
+> **The rest of this page still stands and is now the remaining work.** The
+> region is untaken and is the largest single lever left (47–50% of every
+> Firestore line, one console setting, fixed at database creation). The cap
+> trims are still the worst ratio of product cost to money and are still
+> not recommended. Batching the mirror publish has gone from −78% to −0.0%,
+> because it divided a fan-out that no longer exists. Numbers below the
+> fold are pre-D125; `npm run costs:levers` prints today's.
+
 [`docs/COSTS.md`](COSTS.md) says what this costs.
 [`docs/COST-COMPARISON.md`](COST-COMPARISON.md) says whether that is a lot
 (cheap in absolute terms, badly shaped: cost per user rises 87× between 500

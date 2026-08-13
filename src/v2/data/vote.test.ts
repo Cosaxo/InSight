@@ -29,6 +29,10 @@ const h = vi.hoisted(() => ({
   // per-test knobs (reset in beforeEach)
   setDocImpl: null as null | (() => Promise<void>),
   getDocsImpl: null as null | (() => Error),
+  // Aggregates the polled read returns (D125). Was a snapshot listener
+  // the test pushed into; the deck is fetched now, so the fixture is a
+  // document set rather than a callback.
+  aggDocs: [] as FakeSnapshotDoc[],
   setDocCalls: [] as Array<{ path: string; data: Record<string, unknown> }>,
   // the D86 edit path writes through updateDoc, never setDoc
   updateDocImpl: null as null | (() => Promise<void>),
@@ -110,7 +114,9 @@ vi.mock("firebase/firestore", () => {
     getDocs: (q: { path?: string }) => {
       // Lets a test simulate a network failure mid-hydrate.
       if (h.getDocsImpl) return Promise.reject(h.getDocsImpl());
-      return Promise.resolve(q?.path === "v2_questions" ? snapOf(h.bankDocs) : snapOf([]));
+      if (q?.path === "v2_questions") return Promise.resolve(snapOf(h.bankDocs));
+      if (q?.path === "v2_question_aggs") return Promise.resolve(snapOf(h.aggDocs));
+      return Promise.resolve(snapOf([]));
     },
     onSnapshot: (
       target: { path?: string },
@@ -217,6 +223,7 @@ beforeEach(() => {
   h.reportError.mockClear();
   h.setDocImpl = null;
   h.getDocsImpl = null;
+  h.aggDocs.length = 0;
   h.authCb = null;
   h.setDocCalls.length = 0;
   h.updateDocImpl = null;
@@ -318,7 +325,7 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     expect(cached.votes).toMatchObject({ q_1: "0" });
   });
 
-  it("does NOT confirm an unacked vote when an agg snapshot lands mid-flight", async () => {
+  it("does NOT confirm an unacked vote when an agg poll lands mid-flight", async () => {
     const LIVE = await bootLive();
     const d = deferred();
     h.setDocImpl = () => d.promise;
@@ -327,13 +334,16 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     await flush(); // write in flight
 
     // A stranger's vote folds into the public aggregate while our
-    // setDoc is still pending — the regression this split fixes.
-    const aggListener = h.snapshots.find((s) => s.path === "v2_question_aggs/q_1");
-    expect(aggListener).toBeDefined();
-    aggListener!.next({
-      exists: () => true,
-      data: () => ({ counts: { "0": 3, "1": 1 }, total: 4, tooSmall: false }),
+    // setDoc is still pending — the regression this split fixes. The
+    // aggregate arrives on a poll rather than a snapshot since D125, and
+    // the contract is unchanged: a fresh aggregate must not confirm a
+    // write the server has not acknowledged.
+    h.aggDocs.push({
+      id: "q_1",
+      data: { counts: { "0": 3, "1": 1 }, total: 4, tooSmall: false },
     });
+    const mod = await import("./live");
+    await mod._aggPollForTest().tick();
 
     expect(LIVE.myVotes()).toMatchObject({ q_1: "1" });
     expect(LIVE.confirmedVotes()).not.toHaveProperty("q_1"); // still unacked
@@ -549,13 +559,18 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
   // test runs next. Each case waits out the window instead.
   const AGG_LS = "insight.aggsCache.v1";
   const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-  const emitAgg = (total: number) => {
-    const l = h.snapshots.find((s) => s.path === "v2_question_aggs/q_1");
-    expect(l).toBeDefined();
-    l!.next({
-      exists: () => true,
-      data: () => ({ counts: { "0": total, "1": 0 }, total, tooSmall: false }),
+  // Stage the aggregate and run one poll tick — the same body the interval
+  // runs, so these cases still drive the real refresh path (D125). It is
+  // async now, where the snapshot callback was synchronous, which is why
+  // every caller below awaits it.
+  const emitAgg = async (total: number) => {
+    h.aggDocs.length = 0;
+    h.aggDocs.push({
+      id: "q_1",
+      data: { counts: { "0": total, "1": 0 }, total, tooSmall: false },
     });
+    const mod = await import("./live");
+    await mod._aggPollForTest().tick();
   };
   const aggWrites = (spy: { mock: { calls: unknown[][] } }) =>
     spy.mock.calls.filter((c) => c[0] === AGG_LS).length;
@@ -565,7 +580,7 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     await sleep(1200); // let boot's own write land, so the spy counts only ours
     const spy = vi.spyOn(storage, "setItem");
 
-    for (let i = 1; i <= 5; i++) emitAgg(i);
+    for (let i = 1; i <= 5; i++) await emitAgg(i);
     // Nothing synchronous — that is the whole point; the handler used to
     // stringify the map five times right here.
     expect(aggWrites(spy)).toBe(0);
@@ -599,15 +614,23 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     await sleep(1200);
     expect(storage.getItem(AGG_LS)).not.toBeNull(); // boot wrote one
 
-    emitAgg(9); // schedules a write…
+    await emitAgg(9); // schedules a write…
+    // Emptied BEFORE the uid change, not after. Since D125 the aggregate is
+    // FETCHED rather than pushed, so the new session polls during the drain
+    // below — and an aggregate is public data, so a new uid re-reading the
+    // same q_1 is correct behaviour rather than a leak. Leaving the fixture
+    // staged would let this case pass (or fail) on that honest re-read
+    // instead of on the thing it is about: the previous account's in-flight
+    // write not surviving the purge.
+    h.aggDocs.length = 0;
     expect(h.authCb).toBeTypeOf("function");
     h.authCb!({ uid: "someone_else" }); // …and the purge lands first
     await flush();
     expect(storage.getItem(AGG_LS)).toBeNull();
 
     // Past the window the pending write would have fired in: the key may be
-    // back (the new uid's own listener writes it), but never with the
-    // previous account's counts in it.
+    // back (the new uid's own poll writes it), but never carrying the counts
+    // the previous account's in-flight write was holding.
     await sleep(1200);
     expect(JSON.parse(storage.getItem(AGG_LS) || "{}")).not.toHaveProperty("q_1");
   });
@@ -620,7 +643,7 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     await sleep(1200);
     const spy = vi.spyOn(storage, "setItem");
 
-    emitAgg(7);
+    await emitAgg(7);
     expect(aggWrites(spy)).toBe(0); // still pending
 
     expect(listeners.document.visibilitychange).toBeTypeOf("function");
@@ -701,18 +724,32 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     expect(dial!.options).toHaveLength(12);
   });
 
-  it("reports and re-notifies when an agg listener errors", async () => {
+  it("reports a failed agg poll and leaves the cached counts standing", async () => {
+    // Was "reports and re-notifies when an agg listener errors". The
+    // listener is gone (D125) and its error arm with it, but the contract
+    // it protected is not: a refresh that fails must be reported and must
+    // not blank the counts already on screen. Degrading to stale-but-
+    // present is the whole reason the poll is best-effort.
     const LIVE = await bootLive();
+    h.aggDocs.push({
+      id: "q_1",
+      data: { counts: { "0": 5, "1": 2 }, total: 7, tooSmall: false },
+    });
+    const mod = await import("./live");
+    await mod._aggPollForTest().tick();
+    const before = LIVE.deck()[0];
+
     const listener = vi.fn();
     LIVE.subscribe(listener);
+    const boom = new Error("offline");
+    h.getDocsImpl = () => boom;
+    await mod._aggPollForTest().tick();
+    h.getDocsImpl = null;
 
-    const aggListener = h.snapshots.find((s) => s.path === "v2_question_aggs/q_1");
-    expect(aggListener?.error).toBeDefined();
-    const boom = new Error("listener torn down");
-    aggListener!.error!(boom);
-
-    expect(h.reportError).toHaveBeenCalledWith(boom, { where: "aggListener", qid: "q_1" });
-    expect(listener).toHaveBeenCalled();
+    expect(h.reportError).toHaveBeenCalledWith(boom, { where: "refreshAggs" });
+    // The counts the failed poll could not refresh are still the ones the
+    // last good poll left.
+    expect(LIVE.deck()[0]).toMatchObject({ id: before.id });
   });
 });
 

@@ -56,7 +56,13 @@ const SIZES = SCENARIOS.map(([dau, mature, label]) => ({ dau, mature, label }));
 const cut = (base, after) => {
   if (base === 0) return "—";
   const p = (1 - after / base) * 100;
-  return "-" + (p >= 99 || p < 1 ? p.toFixed(1) : p.toFixed(0)) + "%";
+  // A negative saving is an INCREASE. It happens for real — a shipped lever
+  // compared the wrong way round, or one that trades a term for a bigger
+  // one — and the first draft of this printed "--40.1%", which reads as a
+  // typo rather than as the sign error it was.
+  const sign = p < 0 ? "+" : "-";
+  const a = Math.abs(p);
+  return sign + (a >= 99 || a < 1 ? a.toFixed(1) : a.toFixed(0)) + "%";
 };
 
 // ── the levers ──────────────────────────────────────────────────
@@ -76,21 +82,17 @@ const LEVERS = [
   },
   {
     band: "client",
-    name: "Stream today only",
-    change: "DECK_DAYS listeners -> 1 live + 6 fetched once (deckListeners: 1)",
+    name: "Refresh only today on foreground",
+    change: "reattach reads DECK_DAYS -> 1 (the back days keep their boot values)",
     opts: { deckListeners: 1 },
     effort: "hours",
     risk: "low",
-    notices: "nothing — past days' aggregates barely move",
-  },
-  {
-    band: "client",
-    name: "Persist the name cache",
-    change: "name resolution across sessions, not per session (nameFactor: 1)",
-    opts: { social: { nameFactor: 1 } },
-    effort: "hours",
-    risk: "low — names are already public (D98)",
-    notices: "nothing; sheets get faster",
+    // Now the SECOND-largest client term, because polling removed the one
+    // that used to dwarf it: `reattach` is bgCycles x DECK_DAYS reads a day
+    // against the poll's own handful. The app refreshes the whole deck on
+    // every foreground, which is the conservative choice; this lever is the
+    // less conservative one.
+    notices: "a back day's count can lag until the next cold boot",
   },
   {
     band: "product",
@@ -139,11 +141,15 @@ const LEVERS = [
   },
   {
     band: "architecture",
-    name: "Poll instead of stream",
-    change: "no onSnapshot on the deck; fetch on vote + a slow timer (pollAggs)",
-    opts: { pollAggs: true },
-    effort: "days",
-    risk: "medium",
+    name: "[SHIPPED D125] Poll instead of stream",
+    change: "no onSnapshot on the deck; fetch on vote + a slow timer",
+    // Inverted: this is what the app does now, so the "lever" is what
+    // REVERTING would cost. Kept in the list rather than deleted, because a
+    // lever table that silently drops its biggest entry the day it ships
+    // teaches the next reader that the fan-out was never the problem.
+    opts: { streamAggs: true },
+    effort: "shipped",
+    risk: "shipped",
     // CORRECTED after reading the consumers. This field first said the flat
     // "counts update on a timer", which overstated the loss by implying the
     // vote→counted transition rides the listener. It does not:
@@ -154,6 +160,7 @@ const LEVERS = [
     // actually costs is narrower than it sounds: OTHER people's votes
     // arriving on the card while you watch it.
     notices: "other people's votes stop landing live; your own still confirms in ~2.5 s",
+    shipped: true,
   },
 ];
 
@@ -166,14 +173,20 @@ console.log("dollars from scripts/cost-arith.mjs, grades from scripts/cost-peers
 // a column of individually-true savings would sum to more than exists. The
 // stacking is section 3's job, and it is computed rather than added up.
 console.log("1 · Each lever on its own, against the app as built");
-console.log("                                        " +
+console.log("                                                " +
   SIZES.map((s) => int(s.dau).padStart(11)).join(""));
-console.log("-".repeat(38 + 11 * SIZES.length));
-console.log("as built".padEnd(38) + SIZES.map((s) => money(evaluate(s.dau, s.mature)).padStart(11)).join(""));
-console.log("-".repeat(38 + 11 * SIZES.length));
+console.log("-".repeat(46 + 11 * SIZES.length));
+console.log("as built (post-D125)".padEnd(46) + SIZES.map((s) => money(evaluate(s.dau, s.mature)).padStart(11)).join(""));
+console.log("-".repeat(46 + 11 * SIZES.length));
 for (const L of LEVERS) {
-  const saved = SIZES.map((s) => cut(evaluate(s.dau, s.mature), evaluate(s.dau, s.mature, L.opts)));
-  console.log(`[${L.band[0].toUpperCase()}] ${L.name}`.padEnd(38) + saved.map((v) => v.padStart(11)).join(""));
+  // A shipped lever's opts describe the OLD world, so the comparison runs
+  // the other way round: what reverting would ADD, not what applying would
+  // save. Printing it with the same sign as the unbuilt ones would be a
+  // straightforward lie about which direction the app has moved.
+  const saved = SIZES.map((s) => (L.shipped
+    ? cut(evaluate(s.dau, s.mature, L.opts), evaluate(s.dau, s.mature))
+    : cut(evaluate(s.dau, s.mature), evaluate(s.dau, s.mature, L.opts))));
+  console.log(`[${L.band[0].toUpperCase()}] ${L.name}`.padEnd(46) + saved.map((v) => v.padStart(11)).join(""));
 }
 console.log("\n  Percentages, not dollars, because the dollars differ by four orders of");
 console.log("  magnitude across this row and the SHAPE is the thing to read: the social");
@@ -220,34 +233,33 @@ const PATHS = [
   // because "what can we do that costs the product nothing" turns out to
   // be a different and better question than "what is cheapest to build".
   {
-    name: "Z · Zero product change",
-    opts: merge(pick("Stream today only", "Persist the name cache", "Serve the bank off Hosting"),
-      { regional: true }),
-    note: "no cap moves, no copy changes, no surface is thinner",
+    name: "R · Region only",
+    opts: { regional: true },
+    note: "the one remaining zero-product-change lever, and it has a deadline",
   },
   {
-    name: "Z + poll",
-    opts: merge(pick("Stream today only", "Persist the name cache", "Serve the bank off Hosting",
-      "Poll instead of stream"), { regional: true }),
-    note: "Z, plus the only trade: others' votes stop landing live",
+    name: "R + the remaining client trim",
+    opts: merge(pick("Refresh only today on foreground", "Serve the bank off Hosting"),
+      { regional: true, streamAggs: false }),
+    note: "nothing a user can see, beyond a back day's count lagging a boot",
   },
   {
     name: "A · Keep it live",
-    opts: pick("Stream today only", "Persist the name cache", "Kindred walks 4 lists, not 12",
-      "Who-voted pages at 50", "Circle reads 100 answers/member", "Batch the mirror publish (x5)",
+    opts: pick("Kindred walks 4 lists, not 12", "Who-voted pages at 50",
+      "Circle reads 100 answers/member", "Batch the mirror publish (x5)",
       "Serve the bank off Hosting"),
-    note: "everything except polling — counts still stream, in steps of five",
+    note: "the cap trims on top of what shipped — the product-degrading path",
   },
   {
     name: "B · Go polled",
-    opts: pick("Persist the name cache", "Kindred walks 4 lists, not 12", "Who-voted pages at 50",
-      "Circle reads 100 answers/member", "Serve the bank off Hosting", "Poll instead of stream"),
-    note: "the recorded fix, plus the social trims",
+    opts: pick("Kindred walks 4 lists, not 12", "Who-voted pages at 50",
+      "Circle reads 100 answers/member", "Serve the bank off Hosting"),
+    note: "same as A without the publish batching",
   },
   {
     name: "C · B + single region",
-    opts: merge(pick("Persist the name cache", "Kindred walks 4 lists, not 12", "Who-voted pages at 50",
-      "Circle reads 100 answers/member", "Serve the bank off Hosting", "Poll instead of stream"),
+    opts: merge(pick("Kindred walks 4 lists, not 12", "Who-voted pages at 50",
+      "Circle reads 100 answers/member", "Serve the bank off Hosting"),
     { regional: true }),
     note: "the same, on a single-region database — decide before the seed",
   },

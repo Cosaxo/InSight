@@ -104,6 +104,30 @@ export const AGG_CAP = readNum(
 export const IDLE_DETACH_MS = readNum(
   "src/v2/data/live.ts", /const IDLE_DETACH_MS = ([\d_]+)/, "IDLE_DETACH_MS");
 
+// How often the deck's aggregate is re-read while the app is visible (D125).
+//
+// Read from source for the same reason IDLE_DETACH_MS is: it is now the
+// coefficient on the term that REPLACED the fan-out, and a model that
+// hard-coded it would go stale the first time somebody tuned the interval
+// for responsiveness without thinking about the bill.
+//
+// The honesty note this constant exists to fix: `pollAggs` used to set both
+// `fanOut` and `reattach` to ZERO, i.e. it modelled polling as free. It is
+// not — it is (minutes visible / interval) reads per user per day, plus one
+// per foreground. Small, but "not modelled reads as free" is the exact D67
+// failure, and it is worse here than usual because this is the term the
+// whole cost case for D125 rests on. Pricing your own fix at zero is how
+// you find out later that it was only mostly a fix.
+export const AGG_POLL_MS = readNum(
+  "src/v2/data/live.ts", /const AGG_POLL_MS = ([\d_]+)/, "AGG_POLL_MS");
+
+// Documents one poll tick reads. ONE — only today's aggregate is hot, so
+// `startAggPoll` ticks on `deckIds.slice(0, 1)` while the other six are
+// refreshed on boot and on each foreground (which is what `reattach`
+// charges). If that slice ever widens, this is the number that moves, and
+// src/v2/data/idle-detach.test.ts is what fails first.
+export const POLL_DOCS = 1;
+
 // ── the D98 read surfaces (D102) ────────────────────────────────
 // Named who-voted, Kindred and Circle all read OTHER USERS' answers on
 // demand — the reversal's whole point, and a read family this model did
@@ -450,7 +474,7 @@ export function costModel({ regional = false, bank = bankDocs() } = {}) {
   // a caller that passes nothing models the shipped app — the property
   // pulse.test.mjs pins.
   function readsPerUser(dau, {
-    mature, staticBank = false, pollAggs = false,
+    mature, staticBank = false, streamAggs = false,
     publishEvery = PUBLISH_EVERY, deckListeners = DECK_DAYS, social: socialOpts = {},
   }) {
     const boot = (1 + 1 + 1 + DECK_DAYS + 1 + 2 + 2) * B.boots;
@@ -479,7 +503,16 @@ export function costModel({ regional = false, bank = bankDocs() } = {}) {
     // the rest; the arithmetic below is what makes it visible.
     const listenerMin = B.onlineMin + B.bgCycles * (IDLE_DETACH_MS / 60_000);
     const concurrent = dau / (B.peakWindowMin / listenerMin);
-    const fanOut = pollAggs ? 0 : concurrent * (B.worldAnswers / publishEvery) / 3;
+    // Polling is NOT free, and this term used to say it was. What a polled
+    // client pays is one tick per AGG_POLL_MS of VISIBLE time — onlineMin,
+    // not listenerMin, because the poll stops on hide with no grace period
+    // (a timer costs nothing to re-arm, unlike an onSnapshot re-attach).
+    // Flat in DAU, which is the entire point: the streamed version was
+    // quadratic because every stranger's answer was a delivery, and nobody
+    // else's behaviour appears in the polled expression at all.
+    const fanOut = streamAggs
+      ? concurrent * (B.worldAnswers / publishEvery) / 3
+      : (B.onlineMin / (AGG_POLL_MS / 60_000)) * POLL_DOCS;
     // The other half of the same trade, and the reason the detach is a
     // grace period rather than an immediate drop: coming back re-attaches
     // the deck listeners, and an onSnapshot attach delivers the document
@@ -492,7 +525,20 @@ export function costModel({ regional = false, bank = bankDocs() } = {}) {
     // client that streams one document and fetches the other six once pays
     // one read per cycle instead of DECK_DAYS. It does not touch fanOut —
     // that term already charges the hot document only.
-    const reattach = pollAggs ? 0 : B.bgCycles * deckListeners;
+    //
+    // Polling does not make this zero either, and for a reason worth
+    // stating: `startAggPoll` refreshes the WHOLE deck on every foreground,
+    // not just today, because the six back days are answerable and a card
+    // showing week-old counts is the thing polling must not become. So the
+    // term survives D125 unchanged at DECK_DAYS per cycle — the saving was
+    // entirely in the fan-out, and this is now the SECOND-largest client
+    // term precisely because the largest one went away.
+    //
+    // One expression for both arms, because `deckListeners` means the same
+    // quantity either way: documents this client pays for on each return to
+    // the foreground. Streamed they were re-attached listeners, polled they
+    // are re-read documents, and Firestore bills them identically.
+    const reattach = B.bgCycles * deckListeners;
     // Charged to the project on every answer create, on top of the write.
     const rules =
       B.worldAnswers * RULE_READS.world + B.duelAnswers * RULE_READS.duel;

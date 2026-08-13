@@ -63,15 +63,38 @@ console.log("\nreads per user per day, by source — the decomposition is the fi
   }
 }
 
-console.log("\nwith both read fixes: static bank + polled deck aggregates");
+// Polling shipped at D125, so it is the BASELINE above, not a fix below.
+// What remains unbuilt is the static bank — and its saving is small enough
+// that this table now mostly documents how little is left to win on the
+// boot path. Kept rather than deleted: "the remaining fix is worth almost
+// nothing" is a finding, and deleting the table would leave nobody able to
+// see it.
+console.log("\nwith the ONE remaining read fix: the question bank served off Hosting");
 console.log("     DAU     TOTAL $/mo      saving");
 console.log("-".repeat(38));
 for (const [dau, mature] of SCENARIOS) {
   const before = model(dau, mature);
-  const after = model(dau, mature, { staticBank: true, pollAggs: true });
+  const after = model(dau, mature, { staticBank: true });
   console.log(
     int(dau).padStart(8) + ("$" + money(totalCost(after.cost))).padStart(15) +
     ("$" + money(totalCost(before.cost) - totalCost(after.cost))).padStart(12),
+  );
+}
+
+// What D125 bought, kept as a table because the alternative is a sentence
+// nobody can re-derive. `streamAggs` recovers the pre-D125 arithmetic —
+// seven onSnapshot listeners on the deck, every stranger's answer a billed
+// delivery — which is what COSTS.md finding 2 documents.
+console.log("\nwhat polling replaced: the streamed deck (pre-D125), for the record");
+console.log("     DAU     streamed       polled       saving");
+console.log("-".repeat(46));
+for (const [dau, mature] of SCENARIOS) {
+  const streamed = totalCost(model(dau, mature, { streamAggs: true }).cost);
+  const polled = totalCost(model(dau, mature).cost);
+  console.log(
+    int(dau).padStart(8) + ("$" + money(streamed)).padStart(13) +
+    ("$" + money(polled)).padStart(13) +
+    (streamed ? "-" + ((1 - polled / streamed) * 100).toFixed(1) + "%" : "—").padStart(13),
   );
 }
 
