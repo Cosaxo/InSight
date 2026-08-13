@@ -11737,3 +11737,128 @@ per render; it also means a passive result does not sync across devices
 the way a sit-down result did. Writing it would need a rule about which
 wins when two devices fold different answer sets, and that is a decision
 to take when a second device is a thing people actually have here.
+
+## D122 · The bill gets its first ceilings: an idle detach, two unbounded reads closed, and the controls that live in a console
+
+**Decided:** 2026-08-13 · **Status:** binding · Extends D7's discipline and
+docs/COSTS.md's four corrections (D47, D67, D102 twice).
+
+**The question this answers** is not "what does it cost" — COSTS.md has
+answered that carefully five times — but "what stops it". Every number in
+that document predicts the bill from assumed behaviour. None of them caps
+it. That gap is the difference between expensive and out of control, and
+it is the whole subject here.
+
+### The finding that reorders the walls
+
+`B.onlineMin` is 3, and its comment read "minutes with the app actually
+open". The fan-out term is linear in it, and what Firestore bills is
+minutes with a **listener attached**. The only two teardown sites in
+`live.ts` were a uid change and account deletion, so a resident Capacitor
+WebView kept receiving — and paying for — every publish to today's
+aggregate for as long as the OS let it live. The gloss was the bug: 3 is a
+fair estimate of human attention and simply was not the quantity being
+charged.
+
+| listener-minutes/user/day | 5 k DAU | 50 k DAU | fan-out crossover |
+| ---: | ---: | ---: | ---: |
+| 3 (assumed) | $46 | $1,224 | ~30,800 DAU |
+| 15 | $78 | $4,479 | ~6,150 DAU |
+| 60 | $200 | $16,689 | ~1,540 DAU |
+| 240 | $689 | $65,526 | ~385 DAU |
+
+At 60 the crossover falls under D7's write-contention wall (14,400),
+inverting the ordering COSTS.md calls the property worth keeping — the app
+should break technically before a surprise invoice can arrive. That
+ordering has now been inverted three times (D98 did it, D102 restored it,
+this found it standing on nothing) and it is the third time by a different
+mechanism, which is the argument for it being *checked* rather than relied
+on.
+
+**`IDLE_DETACH_MS` = 60 s.** Armed on hide rather than run, because
+re-attaching costs a read per listener and `wake()` is written around the
+ten-second app swap; break-even is ~7 reads against ~21 reads/min of
+publishes at 5 k DAU. The detached set is exactly what
+`resubscribeForToday()` restores, so teardown and re-attach are one list
+read twice. `groupsUnsub` is excluded — nothing short of `refreshLive()`
+re-attaches it.
+
+### Two unbounded reads, both the shape D102 capped and did not go looking for
+
+- **`nearbyCountV2`** fetched every presence document in a 3×3
+  neighbourhood to return `snap.docs.length`. Now an aggregation `count()`,
+  billed at roughly one read per 1,000 index entries. The linearity was the
+  problem rather than the number: every client with Near on beats it every
+  4 minutes, so a dense cell charged (people nearby) × (beats). Self-
+  exclusion stays exact by reading the caller's own row rather than
+  subtracting a blind 1, which would under-count for a caller who is not
+  there.
+- **`loadTakes`** carried no `limit()` on either branch. World is the
+  dangerous half — the daily question is globally shared, so its takes are
+  ~DAU documents per open — and is capped at 100. The group branch takes
+  500 as a *ceiling* rather than a display cap, because `takes()` filters
+  that list by qid in memory and a tight limit would hide an older
+  question's takes behind newer chatter. Moving qid into the group query is
+  the better fix, the composite index is already committed, and it is a
+  change to a query shape D65 documents rather than a bound — recorded, not
+  taken here.
+
+### What is bounded that nobody had costed
+
+`maxInstances: 10` caps a runaway in any one function at **$649/month** —
+every functions failure mode at once: retry storm, poison-pill loop,
+accidental self-trigger, flood. Compute cannot run away. It is per function
+rather than per deploy, checked with a probe rather than assumed after the
+first draft of the note got it wrong. `check:fn-runtime` now asserts it
+alongside memory and timeout, because the prose made it load-bearing and
+nothing held it there.
+
+### The storage grant, split rather than denied
+
+`storage.rules` let any signed-in account — anonymous, therefore free (D3)
+— write 8 MB objects under an unbounded `{filename}`, on a path D4 retired
+and nothing imports. Unbounded objects, bytes and egress, against a COSTS
+line reading "$0 (bucket unused)".
+
+The obvious fix is a flat deny and it is wrong: the grant is deliberate,
+and the recorded reason is that `deleteAccount` does not touch Storage, so
+revoking access to objects that still exist opens an erasure gap. That
+argument is about read and delete. **Uploads are closed; read and delete
+stay.** The erasure property is untouched and the egress surface is gone.
+
+### The controls that are not in this repository
+
+Four things cap a bad month and **no check, test or workflow can observe
+any of them** — D117's checkbox problem pointed at money: a Cloud Billing
+budget (does not exist; the cheapest item on the page), App Check
+enforcement on the Firestore API, the auth billing mode, and a notification
+channel on the alert policies (`[]` in all five files).
+
+**App Check enforcement is the kill switch**, and the discovery worth
+recording is that it cannot be flipped during an incident unless it was set
+up before one: the register → soak → enforce sequence takes days, and
+skipping the soak turns a cost incident into an outage. So SHIP-CHECKLIST
+step 4 is not hardening, it is the incident-response plan. Nothing else can
+be pulled at 3am — a rules deploy still bills its own `get()`s (rule reads
+are charged on denied writes too, so denying is a way to keep paying),
+`APPCHECK_ENFORCE` governs only callables and only loosens, and detaching
+billing takes the app down.
+
+Two new policies watch the outcome rather than the forecast:
+`firestore-read-runaway.json` (500 reads/sec sustained 5 min) and
+`firestore-write-runaway.json` (150/sec). Neither is a spend cap — Firestore
+has none — but they convert "find out in up to thirty days" into "find out
+in five minutes", which at those thresholds is the difference between a
+$780 month and a five-figure one. Both thresholds are launch-sized and
+carry their retune arithmetic; the read one must be raised before ~13,100
+DAU.
+
+### Recorded, not built
+
+A graded breaker on `v2_meta/app` — a document `hydrate()` already reads, so
+the flag is free — gating the D98 social surfaces (339 of 447 reads/user/day
+at 5 k DAU) and then the deck listeners. Not built because every level of it
+changes what a user sees, and a Mirror stop silently rendering "could not
+ask" because an operator flipped a flag is the same class of failure as a
+privacy label with no rule behind it. It needs a decision about what a
+degraded app *says*, which is an owner's call and not a cost pass's.

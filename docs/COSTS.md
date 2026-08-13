@@ -525,6 +525,54 @@ month is still worth about $780 rather than five figures. Its threshold is
 a launch-size threshold with the retune arithmetic in its own runbook; it
 must be raised before ~13,100 DAU, where the modelled peak crosses it.
 
+### What to actually do at 3am
+
+The alerts above tell you something is wrong. This is the part that stops
+it, and the useful discovery is that **the fastest lever already exists and
+is not armed**.
+
+**App Check enforcement on the Firestore API is the kill switch.** It is a
+console toggle, takes effect in minutes, needs no deploy, and it rejects
+unattested traffic *before* rule evaluation — which matters, because a
+security rule cannot shed cost: its `get()`s are billed on denied writes
+too, so "deny in the rules" is a way to keep paying. Enforcement is the
+only control in the project that makes a request cost nothing.
+
+The catch is the one that makes this a launch item rather than an incident
+item: **you cannot flip it during an incident if you never set it up.** The
+console sequence in SHIP-CHECKLIST — register the providers, ship builds
+carrying attestation, soak App Check → Metrics for 24–48 h until verified
+requests approach 100%, *then* enforce — takes days, and skipping the soak
+turns a cost incident into an outage for every real user at once. So the
+work has to be done in advance for the lever to exist at all.
+
+That reframes App Check step 4. It is filed as hardening, and it is really
+the incident-response plan: it is simultaneously the thing that prevents
+the cheap version of the attack and the thing you reach for when something
+else goes wrong. Nothing else on this page can be pulled at 3am — a rules
+deploy takes minutes and still bills its own reads, `APPCHECK_ENFORCE` only
+governs callables (and only in the loosening direction), and detaching the
+billing account takes the app down.
+
+**The graded breaker, designed and deliberately not built.** The natural
+complement is a `mode` field on `v2_meta/app` — a document `hydrate()`
+already reads once per boot, so it costs nothing to add — with the client
+skipping the discretionary reads when it is set: the D98 social surfaces
+(who-voted, Kindred, Circle, takes, similarity) at one level, the deck's
+snapshot listeners at the next. That is 339 of 447 reads/user/day at 5,000
+DAU for the first level and most of the rest for the second, and unlike
+App Check it degrades the app for *everyone* rather than only for
+unattested callers.
+
+It is not built here because it is not really a cost question. Every level
+of it changes what a user sees, and this repo's rule is that a UI claim
+needs something making it true — a Mirror stop that silently renders "could
+not ask" because an operator flipped a flag is the same class of failure as
+a privacy label with no rule behind it. The honest version needs a decision
+about what a degraded app *says*, and that is the owner's call rather than
+a cost pass's. Recorded with its arithmetic so it can be built in an hour
+when that decision is made.
+
 **Where the free tiers end**, since "still free" is the cheapest possible
 guardrail and worth knowing precisely: reads leave the 50 k/day free tier
 at **~177 DAU**, writes leave the 20 k/day tier at **~1,408 DAU**. (Read off
