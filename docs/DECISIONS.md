@@ -6178,7 +6178,13 @@ it checks:**
 - **Synonym paraphrases.** A lexical metric scores a synonym rewrite at
   0. This gate is the measurable floor under the writing rule, not its
   replacement — the manual's re-read stands, now citing the measured
-  top score per question in PR bodies.
+  top score per question in PR bodies. **Narrowed by D123
+  (2026-08-13):** morphological rewrites and the synonym families a
+  reviewed lexicon pairs now score at or above the gate ("Money buys
+  happiness." against "Can wealth make you happy?" — 0.000 then, 0.500
+  now). The framing above is unchanged and only its arithmetic moved:
+  paraphrases outside the lexicon still score near zero, so the floor
+  got bigger and the re-read still stands.
 
 ## D33 amendment (2026-08-06) · Ordinal splits are measured on their axis
 
@@ -11909,3 +11915,106 @@ a catastrophe from everyone else's. The run reports
 - **No handle on the who-voted sheet or Kindred rows.** Those name people
   by `displayName` today; showing a handle there is how you would add
   someone you met through their answers, and it is a follow-on.
+## D123 · The dedup gate learns morphology and synonyms, and pre-flights the batch against itself
+
+**Date:** 2026-08-13 · **Status:** Adopted
+
+**The problem, in two halves.** D63 gave every question lane a measured
+near-duplicate gate and named its own limit honestly: "a lexical metric
+scores a synonym rewrite at 0." Two years of lane upscaling later that
+limit binds harder than it did at adoption. The metric compared surface
+words — stopwords dropped, plural `-s` folded — so two whole classes of
+rewrite arrived at the human re-read with a reassuring number attached:
+
+- **Morphology.** "Master one thing, or dabble in many?" against
+  "Mastering one skill, or dabbling in many?" scored **0.143**. The same
+  question, in gerunds.
+- **Synonyms.** "Money buys happiness." against "Can wealth make you
+  happy?" scored **0.000** — not one shared token, and the archive
+  already carries the first as `dq06`.
+
+The second half is coverage rather than metric. Every lane's pre-flight
+is `check:neighbors -- --candidate` **per question**, which scores N
+candidates against the bank and never against each other. When D33 capped
+the daily lane at 4/run that was a small hole; D97 raised it to 8 and
+D115 gave learn 10/run with a floor of 4 cards into any field it touches
+— a lane now writes enough questions in one sitting to duplicate itself.
+CI's corpus scan does catch such a pair, but only after the branch is
+pushed and the PR exists, which is one human review too late for a gate
+whose whole design rests on not spending review capacity.
+
+**The fix, both halves in `scripts/question-neighbors.mjs`.**
+
+1. **Folding before the sets are built.** Suffix stripping to a
+   *fixpoint*, then a concept lexicon of ~30 synonym families. The
+   fixpoint is load-bearing, not tidiness: a single pass lands "master"
+   on "mast" (the `-er` rule cannot tell an agent noun from a word that
+   merely ends in those letters) but "mastering" on "master", leaving two
+   forms of one word further apart than they started. Iterating puts both
+   on "mast" — over-stripping is harmless when applied equally to every
+   form; a stem two forms *disagree about* is not.
+2. **`--batch <file.json>`**, taking the same candidates file
+   `check:quality --batch` already takes, so one file pre-flights both
+   gates. It scores every candidate against its domain **and against its
+   batch siblings**, prints the packet line the PR body wants, and exits
+   non-zero on any pair ≥ GATE.
+
+**The suffix table is measured, not copied from a stemmer.** Every rule
+merges at least one real pair in this corpus; the whole table merges 70
+groups of the 1130-token vocabulary, and each group was read. That is how
+the two collisions in `KEEP` were found rather than shipped: `-ing` puts
+"meaning" on "mean", and the corpus runs both senses ("Suffering can give
+life meaning." and "Are people getting kinder, or meaner?"); `-est` makes
+Everest "ever". The same reading is why the `e`-restore carries Porter's
+CVC condition ("moved" → "move" but "asked" stays "ask"), why the trailing
+`e` drops only above 4 characters (keeping "care" off "car"), and why the
+bare `-y` rule was dropped entirely — it alone produced car/carry,
+part/party, milk/milky and earl/early.
+
+**The price, measured and accepted.** Recall this size is not free. The
+closest legitimate pair across the five domains moved **0.333 → 0.400**
+(daily 0.286 → 0.333, feed 0.222 → 0.250, duel 0.300 → 0.400, pick and
+learn unchanged), so headroom under the 0.5 gate narrowed from 0.167 to
+0.100. That is the right trade rather than a regression, because the pair
+spending it is genuinely close: duel `gp2` "Who gives the best advice?"
+against `047` "Better at giving advice, or taking it?" — two questions
+about advice that the old metric scored 0.167 only because it could not
+see "gives" and "giving" as one word. **GATE stays 0.5**, and `ALLOW`
+stays the escape hatch D63 built: if a legitimate pair ever crosses, the
+answer is an entry with a reason, not a quieter metric.
+`question-neighbors.test.mjs` pins the margin *and names the pair that
+spends it*, so the next change to the metric has to look at what it costs
+instead of discovering it on a farm run.
+
+**Two alternatives measured and rejected**, recorded so nobody
+re-derives them. Character-trigram Dice and the overlap coefficient both
+fire hardest on shared **voice**, not shared question: "Music is mostly
+for…" against "This decade is mostly for…" trigrams at 0.605, and
+"Cinema or sofa?" against "Best way to watch a final?" overlaps at 0.500.
+Either as a gate would fail the product's own house style — reusing a
+prompt frame is how the archive sounds like one voice.
+
+**What this does NOT change, so the writing rule survives its own
+improvement.** The gate still cannot see a paraphrase carried by words
+the lexicon does not pair — "Are people getting kinder, or meaner?"
+against "Is kindness rising or falling?" scores 0.167, one shared concept
+and nothing else — nor two prompts asking one question through different
+imagery. D63's framing is unchanged and only its arithmetic moved: this
+is the measurable floor under the writing rule, not its replacement. The
+farm manual still says re-read every candidate against its nearest
+neighbour, and `check:neighbors` still reports rather than decides.
+Cross-surface corpus pairs also stay out of the gate (D63) — a daily and
+a feed may run one tension at different depths. Batch *siblings* are
+compared across domains regardless, because that is a different claim: an
+editorial call about two questions already shipped is not a licence to
+write the same question twice today.
+
+**Adding to the lexicon.** Two rules, both about holding the false-positive
+rate at the zero it measures today: a family's members must include at
+least one word in the live corpus vocabulary (this pairs words *this*
+product's writers reach for, not a thesaurus), and the corpus scan re-runs
+after adding — a family that moves a domain's closest legitimate pair is
+a family that will fail a real question. Three entries were removed under
+exactly that rule and are named in the script so they are not re-proposed:
+"chance" from luck (it also means opportunity), "rest" from sleep (it also
+means remainder), and "reading" from book (the act is not the object).

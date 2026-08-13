@@ -253,12 +253,43 @@ restate an existing one in different clothes — check the whole `Q` array
 *and* the suggestion board seeds in `src/v2/spec/suggestions.js`. After
 writing, re-read each candidate against its nearest existing neighbour and
 drop it if a user would say "I already answered that." Since D63 the
-nearest neighbours are measured, not guessed: run
-`npm run check:neighbors -- --candidate "…" --options "A|B"` for each
-candidate (suggestion seeds ride along) and cite the top score in the PR
-body's one-line-per-question section. The same script gates CI at ≥ 0.5
-similarity within a surface. It is lexical — it catches rewordings, never
-synonyms — so the re-read stays the rule and the score is its floor.
+nearest neighbours are measured, not guessed, and since D123 the
+measurement covers the batch as well as the bank:
+
+```
+npm run check:neighbors -- --batch candidates.json
+```
+
+**Pre-flight the whole batch, not one question at a time.** The same
+candidates file `check:quality --batch` takes (§ the style check below)
+scores every candidate against its domain *and against its batch
+siblings*, prints one packet line each, and exits non-zero on any pair at
+or above the 0.5 gate. The sibling half is why the batch form is the rule
+now: `--candidate` run eight times compares eight questions to the bank
+and never to each other, and every lane's budget is bigger than one
+question (8/run here, 10/run learn). Two twins written in the same run
+used to reach CI — one human review too late. `--candidate "…" --options
+"A|B"` still works for a single lookup while writing; suggestion seeds
+ride along on daily either way.
+
+Each packet line carries **two** numbers — `top` against the bank and
+`batch` against the closest sibling — and the sibling number prints
+whatever it scores, including under the gate. Read it: a pair at 0.455
+passes the gate and is still two ways of asking one question ("Best seat
+on a long train ride?" against "Best place to sit on a long train
+journey?", the measured case). The gate decides what fails; you decide
+what is a dupe. Cite both numbers in the PR body's one-line-per-question
+section.
+
+What the gate now catches that it did not before D123: morphological
+rewrites ("Master one thing, or dabble in many?" against "Mastering one
+skill, or dabbling in many?" — 0.143 before, 0.600 now) and synonym
+rewrites the lexicon pairs ("Money buys happiness." against "Can wealth
+make you happy?" — 0.000 before, 0.500 now). What it still cannot catch:
+a paraphrase carried by words the lexicon does not pair, and any two
+prompts that ask one question through different imagery. **The re-read
+stays the rule and the score is its floor** — the gate got a bigger floor,
+not a promotion.
 
 **The mechanical style check is also part of writing (D97).** Write the
 batch's candidates to a JSON file and run
@@ -526,13 +557,18 @@ review.** Rules for a learn run:
   cards.json` — learn entries are accepted as `{id, f, q, a, c, t, p, k,
   w}`, so the thing checked is the thing shipped. Paste each packet line
   into the PR body beside its neighbor score, the daily lane's rule.
-- **Dedup against the bank**: `npm run check:neighbors -- --candidate "…"
-  --options "<the correct answer>" --domain learn` per candidate. The
-  learn domain scores prompt + correct answer only — a field's cards
-  share their distractors by construction — so pass the answer alone,
-  not the option set. The gate holds learn under 0.5 like every surface;
-  the re-read stays the rule, because only a human can tell whether two
-  differently-worded prompts test one fact.
+- **Dedup against the bank AND against the batch**: `npm run
+  check:neighbors -- --batch cards.json` — the same file the quality
+  pre-flight takes, so the cards are checked in the shape they ship. It
+  reads the learn shape from `f`/`q`/`a`/`c` and scores prompt + correct
+  answer only (a field's cards share their distractors by construction),
+  and it compares the run's own cards to each other — a lane writing at
+  least 4 cards into a field is exactly where two cards testing one fact
+  come from. `--candidate "…" --options "<the correct answer>" --domain
+  learn` remains the single lookup while writing; pass the answer alone,
+  never the option set. The gate holds learn under 0.5 like every
+  surface; the re-read stays the rule, because only a human can tell
+  whether two differently-worded prompts test one fact.
 - **Authored option order is not the served order** (D115). `LEARN_ORDER`
   permutes each card's options at render, so where you put the correct
   answer in `a` is invisible to readers. Vary `c` anyway: a bank with
@@ -587,9 +623,12 @@ recorded under Governance when taken. Rules for a duel run:
   (its entries carry `"active": false` — see D40's adoption record), new
   romantic entries ship dark too; once the operator lights the pool up,
   new entries ship active (no flag). The other pools always ship active.
-- **Dedup against all three pools**: `npm run check:neighbors --
-  --candidate "…" --domain duel` per candidate, plus the re-read — the
-  gate holds the duel domain under 0.5 like every surface.
+- **Dedup against all three pools, and against the batch**: `npm run
+  check:neighbors -- --batch candidates.json` (entries carrying
+  `"domain": "duel"`), plus the re-read — the gate holds the duel domain
+  under 0.5 like every surface, and the batch form also compares the
+  run's own ≤4 questions to each other (D123). `--candidate "…" --domain
+  duel` remains the single lookup.
 - **Read the signal first.** The scorecard's `duel` section (D40 part 3)
   scores plays, split, and — for 1v1 — the **guess-match rate**, the
   duel analogue of evenness: near 100% is a dead question (guessable by
@@ -650,8 +689,9 @@ recorded under Governance when taken. Rules, each load-bearing:
 - **Every farm hard rule inherits**: the product's voice, no
   place-scoped civic questions, never generated activity, PR-only
   output, the roll-up rule for open lane PRs, dedup
-  (`check:neighbors -- --candidate "…" --domain feed` plus the re-read),
-  the quality pre-flight, and the run log on issue #31.
+  (`check:neighbors -- --batch candidates.json` with `"surface": "feed"`
+  on each entry, plus the re-read), the quality pre-flight, and the run
+  log on issue #31.
 - Gates before the PR: `npm run check:content` (the seed regenerates —
   run `npm run build:content` after the append), `check:neighbors`,
   `check:quality`, `check:globals`, `lint`, `test:unit`, `build`.
@@ -946,9 +986,12 @@ the manual's three priority lanes — replenishment first, demand takes
 everything replenishment leaves, coverage only what the signal lanes
 leave unclaimed — write the questions in the product's voice into the
 daily-question archive (src/v2/spec/daily-questions.js on origin/main),
-pre-flight every candidate (npm run check:neighbors -- --candidate and
-npm run check:quality -- --batch, packet lines pasted into the PR
-body), run the repo's gates (check:globals, lint, test:unit, build,
+pre-flight the whole batch from ONE candidates file (npm run
+check:neighbors -- --batch candidates.json and npm run check:quality --
+--batch candidates.json — the neighbors batch form also compares your
+own new questions to EACH OTHER, which per-candidate lookups never did;
+packet lines from both pasted into the PR body), run the repo's gates
+(check:globals, lint, test:unit, build,
 check:neighbors, check:quality), and open a pull request for human
 review. Learn per the manual's scorecard
 section: imitate the leaders' SHAPE, never their subject (a near-twin
