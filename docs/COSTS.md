@@ -699,9 +699,30 @@ surprise:
 - **Cloud Logging volume**, estimated in the fixed-cost table above but not
   derived from the actual log statements per invocation.
 - **The catalog trigger's third read**, above — deliberate, it is not live.
-- **Retries.** Every function invocation is priced once. `retry: true` on
+- **Retries.** ~~Every function invocation is priced once. `retry: true` on
   the answer trigger means an at-least-once delivery can bill twice, and
-  nothing here models the rate.
+  nothing here models the rate.~~ **Bounded 2026-08-13, and the answer is
+  reassuring enough to be worth stating rather than leaving open.** The
+  rate is still not modelled and does not need to be, because the *ceiling*
+  is: `setGlobalOptions` sets `maxInstances: 10` (functions/src/ops.ts) and
+  `HOT_TRIGGER` does not override it, so the whole deploy cannot exceed ten
+  concurrent instances. Ten instances pegged for an entire month is 25.9 M
+  vCPU-seconds and 13.0 M GiB-seconds — **$649/month net of the free tier,
+  and that is the worst case for every functions failure mode combined**: a
+  retry storm, a poison-pill redelivery loop, an accidental self-trigger, or
+  a deliberate flood. Compute cannot run away here. What it can do instead
+  is throttle: ten instances at concurrency 20 is 200 simultaneous folds,
+  so past that answers queue rather than cost more, which is the correct
+  trade for this app and worth knowing is the one being made.
+
+  Two things the cap does *not* cover, so the bound is not oversold. Each
+  retry re-issues the trigger's reads (`TRIGGER_READS.world` = 2), which
+  are billed on the Firestore side, not this one — a week-long backlog is
+  tens of millions of reads, tens of dollars, still small beside the
+  fan-out. And the correctness cost is the real one: while the trigger is
+  failing, the Mirror silently stops moving. That is what
+  `monitoring/onV2AnswerCreated-errors.json` watches, and it is the reason
+  that policy's runbook says to deploy a no-op body before fixing forward.
 - **The moderation and mod-queue jobs.** Daily, bounded by flag volume
   rather than DAU, and currently zero because no client can create a flag.
 - **`egress` on the functions side** — callable responses, which are
