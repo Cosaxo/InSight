@@ -23,6 +23,11 @@ const PM_LINE = '1px solid color-mix(in oklch, var(--rule), transparent 25%)';
 // keeps the designed size and `.h-scroll` turns the overflow into the app's
 // standard rail: hidden scrollbar, and edge-fade.js marks data-ef so the cut
 // edge reads as "there's more" rather than as a layout bug.
+// Which profile tab each instrument lives on — the sheet's rows go there
+// now that there is no test to open (D121). Profile-overlay's own SUBTABS
+// ids, and the one place the two vocabularies meet.
+const PM_SUB = { big5: 'big5', political: 'politics', values: 'values', attachment: 'attachment' };
+
 const PM_DOT_W = 22;
 const PM_DOT_GAP = 6;
 
@@ -116,20 +121,28 @@ function PassiveMeter() {
               <button onClick={close} aria-label="Close" style={{ border: 'none', background: 'var(--surface-2)', width: 26, height: 26, borderRadius: '50%', cursor: 'pointer', fontSize: 13, fontWeight: 800, color: 'var(--ink-2)', flexShrink: 0, WebkitAppearance: 'none' }}>{'\u2715'}</button>
             </div>
             <div className="wf-sheet-body" style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <div style={{ fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 500, color: 'var(--ink-2)', lineHeight: 1.45, padding: '0 2px 10px' }}>Marked cards in the feed fill these in — or finish one in a sitting.</div>
+              {/* "…— or finish one in a sitting" until D121, which is when
+                  the sitting stopped existing. The feed is the only way in
+                  now, and the sheet says so rather than offering a door
+                  that was removed. */}
+              <div style={{ fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 500, color: 'var(--ink-2)', lineHeight: 1.45, padding: '0 2px 10px' }}>Marked cards in the feed fill these in — answer them as they come.</div>
               {P.KEYS.map((k) => {
                 const m = P.META[k], full = P.complete(k), n = P.needed(k), done = P.done(k);
                 // the row takes the colour of the type you currently ARE, so the mark,
                 // its name and the dots read as one thing — the same value the chip's
                 // ring outside is already showing
                 const { standing, col, sp } = passiveStanding(k);
-                const go = () => { close(); setTimeout(() => { if (window.openTest) window.openTest(k); else if (window.openOverlay) window.openOverlay('test'); }, 240); };
+                // The row opened the sit-down flow on this test until D121.
+                // It goes to the profile's tab for the instrument instead —
+                // the place its axes, its progress and (once there is one)
+                // its type actually live.
+                const go = () => { close(); setTimeout(() => { if (window.openProfileTab) window.openProfileTab(PM_SUB[k] || 'general'); }, 240); };
                 return (
-                  <button key={k} onClick={full ? undefined : go} disabled={full} aria-label={m.label + ' \u2014 ' + (standing ? standing + ' \u2014 ' : '') + done + ' of ' + n + (full ? ' \u2014 complete' : ' \u2014 tap to finish')} style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 11, width: '100%', textAlign: 'left', border: 'none', borderTop: PM_LINE, borderRadius: 0, background: 'none', padding: '15px 2px 17px', cursor: full ? 'default' : 'pointer', WebkitAppearance: 'none' }}>
+                  <button key={k} onClick={go} aria-label={m.label + ' \u2014 ' + (standing ? standing + ' \u2014 ' : '') + done + ' of ' + n + (full ? ' \u2014 complete' : '') + ' \u2014 open in your profile'} style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 11, width: '100%', textAlign: 'left', border: 'none', borderTop: PM_LINE, borderRadius: 0, background: 'none', padding: '15px 2px 17px', cursor: 'pointer', WebkitAppearance: 'none' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                         <span style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 17, letterSpacing: '-0.02em', color: full ? 'var(--ink-2)' : 'var(--ink)', flex: 1, minWidth: 0 }}>{m.label}</span>
-                        {!full && <span aria-hidden="true" style={{ fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 19, lineHeight: 1, color: 'var(--ink-3)', flexShrink: 0 }}>{'\u203A'}</span>}
+                        <span aria-hidden="true" style={{ fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 19, lineHeight: 1, color: 'var(--ink-3)', flexShrink: 0 }}>{'\u203A'}</span>
                       </div>
                       {/* where you stand right now — provisional while segments are unfilled */}
                       {standing && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>{TypeMark ? <TypeMark testKey={k} name={standing} size={18}></TypeMark> : null}<span style={{ fontFamily: 'var(--sans)', fontWeight: 650, fontSize: 13, letterSpacing: '-0.01em', color: `color-mix(in oklch, ${col} 78%, var(--ink))` }}>{standing}</span></span>}

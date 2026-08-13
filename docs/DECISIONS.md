@@ -11615,3 +11615,125 @@ The three geographic stops only. Groups' answer record
 (`GroupAnswersCard`) is demo data and Circle's split list is its own
 reading; neither is what was reported, and giving them this row would mean
 inventing the sources first.
+
+## D121 · The instruments become passive for real: no sit-down flow, a fold that scores, one hue, and a skip that comes back
+
+**Decided:** 2026-08-12 · **Status:** binding. Four asks from one report,
+with `InSight_standalone_21.html` and two screenshots attached: the test
+pages should look like the prototype's, tests should appear only passively
+in the feed with no active test-taking, score displays should use the same
+colour system, and a skipped test question should come back later rather
+than never or immediately.
+
+### 1 · The passive half was passive in the ring and nowhere else
+
+MIRROR.md §4 has said since D50 that the four core instruments have no
+test flow to sit down for — their items are ordinary feed cards and
+answering the feed fills them in. **That was true of the PROGRESS RING and
+of nothing else.** The only writer of a `testResults` entry was the
+sit-down flow, so a live account that had answered forty test cards opened
+its profile on an empty tab with a *Take this test →* button on it. That
+is the second screenshot, and it is the whole complaint.
+
+The fold that scores those answers has existed since D112, one directory
+over, used only to place a dot in the similarity field
+(`similarity.myAxisScores`). `data/passiveProfile.ts` is mostly a
+**threshold** around it, because the card it feeds draws an archetype, a
+rarity percentile and a "textbook fit" badge, and every one of those is a
+confident claim that two answers can produce.
+
+The threshold is **two answers on every axis** — every axis, not the
+average. One 5-point answer maps to one of {0, 25, 50, 75, 100} and lands
+an axis on an extreme more often than not; two is the smallest number that
+can disagree with itself. And a Big Five with thirty answers across four
+axes and none on the fifth is not 80% of a result, it is a result about a
+different instrument. Below the threshold the tab draws the instrument's
+own progress — per-axis coverage, and which axes are still too thin to
+read — which is the same page one step earlier rather than a nudge.
+
+### 2 · Removing the sit-down flow removed a second scorer
+
+`test-overlay.jsx` (439 lines), `window.openTest`, the `test` overlay
+route, and daily-split's one-question-a-tap fast path are gone. The
+LOGIC test stays: it is a sit-down instrument by construction —
+procedurally generated, server-scored, its result written by a callable
+the rules refuse to let a client mutate (D57).
+
+**daily-split's copy was already unreachable**, and finding that out is
+the reason to state it: `state.testOpen` initialised to `false` and the
+only other write in the file set it to `false` again, so no tap in the
+shipped app could open it. Deleting it changed no behaviour. What it
+changed is that the instruments now have exactly ONE scorer instead of
+two — the second one carried its own `scoreTestDaily`, its own progress
+storage and its own prefill-from-passive logic, all of which could drift
+from the fold that the Mirror was already using.
+
+The deletion also took the eager graph from 947 KB to **943 KB** and the
+spec layer's shared-global coupling from 426 to **417** (D39's ratchet,
+baseline lowered).
+
+### 3 · There were two colour systems, and they disagreed
+
+`RP_TESTS[k].banner` coloured the result card; `PASSIVE.META[k].accent`
+coloured the progress sheet's rings, pips and rows. On two of the four
+they were not close — the sheet drew Values in rose and Social in violet
+while the card drew Values violet and **Social green** — so an instrument
+changed colour between the screen that says how full it is and the screen
+that says what it found.
+
+`TEST_HUE` in test-definitions.js is the single source now, and it takes
+the SHEET's values rather than the card's: those are built from the app's
+own tokens (`--c-around` / `--c-world` / `--c-people`), the same four
+accents the daily's modes and the Mirror's stops run on, so an instrument
+reads as part of the app rather than as its own chart. Violet has no token
+because nothing else in the app is violet, which is why Social's is
+written out.
+
+### 4 · A skip that expires
+
+The feed's skip was deliberately withheld from test and lens cards, and
+world-feed.jsx said why: *those fill an instrument, so a silent skip would
+read as a gap in your own results rather than a question you passed on.*
+Right about the skip it had — a pass is permanent — and wrong about the
+question actually being asked, which is "not right now". With no skip at
+all, an item you do not want to answer sits in the same place every
+session until you do, and the instruments are exactly the cards people
+most want to pass on, because they are personal.
+
+So test and lens cards get **"later"** rather than "skip"
+(`data/deferQueue.ts`): the card leaves the feed and comes back after
+**20 hours**. Twenty rather than twenty-four so a user who opens the app
+at roughly the same time each day finds it waiting rather than four hours
+short of it — the same reason a streak is not enforced to the minute. A
+deferral measured in CARDS was the alternative and fails both ways: the
+feed is finite, so it would either expire inside the same sitting or
+outlast the pool and become a pass under another name.
+
+Nothing is recorded anywhere but the device (a deferral is not an answer,
+D5), the instrument's denominator does not move, and the profile still
+names the axis as thin — because it is.
+
+Two details that are decisions rather than implementation:
+
+- **Sampled once per feed build**, like `sunk` beside it. A card deferred
+  mid-scroll keeps its place until the next visit, so the tap that says
+  "later" does not vanish the row under the thumb.
+- **A malformed entry is NOT a deferral.** The map is device-local JSON
+  any past build may have written, and the fail-safe direction is
+  unambiguous: showing a question one more time costs a scroll, treating
+  garbage as a live deferral could hide an instrument's item forever.
+
+### What did not change
+
+The aggregate. Test items are ordinary questions whose option counts
+publish like any other's (D91), and none of this touches that — the fold
+reads the viewer's OWN votes, on the device, from data already loaded.
+
+### Not done here
+
+The passive result is computed on read and never written to
+`testResults`. That keeps one source of truth and costs a small recompute
+per render; it also means a passive result does not sync across devices
+the way a sit-down result did. Writing it would need a rule about which
+wins when two devices fold different answer sets, and that is a decision
+to take when a second device is a thing people actually have here.

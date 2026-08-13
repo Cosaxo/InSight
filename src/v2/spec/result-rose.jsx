@@ -12,10 +12,15 @@ import React from 'react';
 //   3. pole rows — the same scores on their bipolar axes, vs most people
 // Colours link chart ↔ rows, so almost no labels are repeated.
 
+// The banners come from test-definitions' TEST_HUE (D121) — one hue per
+// instrument, shared with the progress sheet, so the card and the ring
+// that fills it are never two different colours for one test.
+import { TEST_HUE } from './test-definitions.js';
+
 // ── Per-test config: banner colour, hue per dimension, pole pairs ──
 export const RP_TESTS = {
   big5: {
-    banner: 'oklch(0.48 0.11 30)',
+    banner: TEST_HUE.big5,
     kicker: 'Personality · Big Five',
     hues: { O: 50, C: 75, E: 95, A: 25, N: 0 },
     poles: {
@@ -27,7 +32,7 @@ export const RP_TESTS = {
     },
   },
   political: {
-    banner: 'oklch(0.46 0.095 240)',
+    banner: TEST_HUE.political,
     kicker: 'Politics · Six axes',
     bipolar: true,
     hues: { econ: 235, auth: 265, foreign: 195, env: 170, tech: 215, estab: 285 },
@@ -41,7 +46,7 @@ export const RP_TESTS = {
     },
   },
   values: {
-    banner: 'oklch(0.45 0.10 320)',
+    banner: TEST_HUE.values,
     kicker: 'Values · Six tensions',
     bipolar: true,
     hues: { future: 322, circle: 344, hedonism: 6, meaning: 28, moral: 282, beauty: 312 },
@@ -55,7 +60,7 @@ export const RP_TESTS = {
     },
   },
   attachment: {
-    banner: 'oklch(0.47 0.09 155)',
+    banner: TEST_HUE.attachment,
     kicker: 'Social · The friend you are',
     hues: { warm: 120, loyal: 150, open: 180, play: 95, easy: 205 },
     poles: {

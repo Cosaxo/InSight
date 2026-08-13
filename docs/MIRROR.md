@@ -260,6 +260,20 @@ device-local self-reports with nothing aggregated; against a bank with
 no lens rows a lens card still degrades to that acknowledgment rather
 than inventing a crowd.)
 
+**Passive for real since D121.** Until then the feed filled the progress
+RING and nothing else: the only writer of a result was a sit-down flow, so
+an account that had answered forty test cards still opened its profile on
+an empty tab with a "Take this test →" button. That flow is gone —
+`test-overlay.jsx`, `window.openTest`, the daily's fast path — and
+`data/passiveProfile.ts` scores the instrument from your own feed answers
+instead, publishing a result once **every axis has at least two** behind
+it. Below that the tab draws its own progress and names the thin axes
+rather than a type, because the card draws an archetype and a rarity
+percentile and one answer per axis can produce both. Test and lens cards
+also gained **"later"** (`data/deferQueue.ts`): a deferral, not a pass —
+the card leaves the feed and returns in 20 hours, and keeps returning
+until it is answered.
+
 That is the loop that makes the Mirror worth opening twice: an answer
 feeds a result, the result becomes a *cut line* other people's answers can
 be read through (`VOTECUTS` — demographics first, then the four tests,
@@ -354,6 +368,9 @@ Two gaps are worth stating in prose because no badge covers them:
 | the live lens bodies | `src/v2/ui/LiveMirrorLenses.tsx` |
 | the live stop's tab row (D119) | `src/v2/ui/MirrorLensTabs.tsx` + `ui/lensTabs.ts` |
 | the live answer rows (D120) | `src/v2/ui/LiveAnswerRows.tsx` (ported from `spec/mirror-answers.jsx`) |
+| the passive fold + its threshold (D121) | `src/v2/data/passiveProfile.ts` |
+| "later" on a test card (D121) | `src/v2/data/deferQueue.ts` |
+| one hue per instrument (D121) | `TEST_HUE` in `src/v2/spec/test-definitions.js` |
 
 ## 7 · The decisions this file leans on
 

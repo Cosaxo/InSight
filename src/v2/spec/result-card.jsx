@@ -9,8 +9,31 @@ import { ExplainBtn, ExplainSheet, EX_GLYPH } from './explain-sheet.jsx';
 import { RP_TESTS, RoseMini, TestRose } from './result-rose.jsx';
 import { IS_DATA } from './sample-data.js';
 import { Av } from './primitives.jsx';
-import { IS_TEST_AVG, IS_TEST_RESULTS } from './test-definitions.js';
+import { IS_TESTS, IS_TEST_AVG, IS_TEST_RESULTS } from './test-definitions.js';
 import { PASSIVE } from './passive-progress.js';
+// The passive fold (D121). Live mode has no sit-down flow, so a test with
+// no stored result is scored from the viewer's own feed answers — once
+// every axis has enough behind it to be worth a type.
+import { passiveResult, passiveTest } from '../data/passiveProfile.ts';
+
+// This test's own reading of the viewer, or null. Stored results always
+// win: a sit-down result from before D121 is a finished instrument and the
+// fold is an estimate of the same thing from fewer answers.
+export function ownResult(testKey) {
+  const stored = IS_TEST_RESULTS[testKey];
+  if (stored) return stored;
+  if (!LIVE.enabled) return null;
+  const def = IS_TESTS[testKey];
+  return passiveResult(passiveTest(testKey, def, LIVE.testFeedItems(), IS_TESTS, LIVE.myVotes()), def ? def.title : testKey);
+}
+
+// …and how far off it is when it is null. Separate from ownResult because
+// a surface that has nothing to draw still has something true to SAY, and
+// the two callers want different halves.
+export function ownProgress(testKey) {
+  if (!LIVE.enabled) return null;
+  return passiveTest(testKey, IS_TESTS[testKey], LIVE.testFeedItems(), IS_TESTS, LIVE.myVotes());
+}
 
 // result-card.jsx — test profile cards: each test keeps the shared banner
 // language but owns its NATIVE geometry:
@@ -180,7 +203,7 @@ function DifferRows({ testKey, R, cfg }) {
 export function ResultProfileCard({ testKey, archetype, tagline }) {
   const [typesOpen, setTypesOpen] = React.useState(false);
   const [explain, setExplain] = React.useState(false);
-  const R = IS_TEST_RESULTS[testKey];
+  const R = ownResult(testKey);
   const cfg = RP_TESTS[testKey];
   if (!R || !cfg || !R.dims || !R.dims.length) return null;
   const arch = window.IS_matchArchetype ? window.IS_matchArchetype(testKey, R.dims) : null;
@@ -215,9 +238,19 @@ export function ResultProfileCard({ testKey, archetype, tagline }) {
   })();
   const typeLine = arch ? arch.list[you].line : null;
   const sigDims = (a) => R.dims.map(d => ({ id: d.id, label: d.id, value: a.sig[d.id] != null ? a.sig[d.id] : 50 }));
-  // passive coverage: how much of this test the feed has mapped so far
-  const pct = PASSIVE.pct(testKey);
-  const nLeft = Math.max(0, PASSIVE.needed(testKey) - PASSIVE.done(testKey));
+  // Passive coverage: how much of this test the feed has mapped so far.
+  //
+  // In live mode the fold's own numbers, not PASSIVE's. PASSIVE counts a
+  // device-local `seen` map against the LOCAL instrument's length, so on a
+  // second device it reads zero for a profile that is complete, and it
+  // counts nothing the bank served that the definition no longer defines.
+  // R.answered / R.total come from the same join that produced the dims,
+  // so the bar and the chart above it are one reading. (PASSIVE stays the
+  // source in demo mode, where its seeded stagger IS the content.)
+  const pct = R.passive ? Math.round((R.answered / Math.max(1, R.total)) * 100) : PASSIVE.pct(testKey);
+  const nLeft = R.passive
+    ? Math.max(0, R.total - R.answered)
+    : Math.max(0, PASSIVE.needed(testKey) - PASSIVE.done(testKey));
   const avg = IS_TEST_AVG[testKey];
   const hero = TestRose ? <TestRose testKey={testKey} dims={R.dims} animate={true} /> : null;
   const otherAxes = null;

@@ -109,7 +109,9 @@ import './spec/test-feed-data.js';
 // still load-bearing (rule 2).
 import './spec/lens-defs.js';
 import './spec/passive-meter.jsx';
-// test-overlay.jsx loads after first paint — see loadOverlays() below.
+// test-overlay.jsx stood here (deferred, see loadOverlays below) until D121
+// deleted it: the four core instruments fill from the feed and have no
+// sit-down flow, so there was nothing left for it to open.
 import './spec/lens-cards.jsx';
 import './spec/profile-overlay.jsx';
 // person-mindmap.jsx, person-overlay.jsx, city-overlay.jsx and
@@ -225,9 +227,9 @@ export const loadWorldFeed = retryable(async () => {
 // await IS the synchronisation, so there is no window in which an overlay
 // is open and its module is missing.
 //
-// That also means the guards at the render sites (`window.TestOverlay &&`
+// That also means the guards at the render sites (`window.LogicOverlay &&`
 // …) are a second line rather than the mechanism. Without the awaits they
-// would be actively wrong: `setOv('test')` with the chunk still in flight
+// would be actively wrong: `setOv(k)` with the chunk still in flight
 // renders nothing, and nothing is scheduled to re-read the global, so the
 // overlay would stay blank until some unrelated state change. Guard alone
 // is not enough here — that is the difference between this group and the
@@ -258,7 +260,6 @@ export const loadWorldFeed = retryable(async () => {
 // each of them into a tap that does nothing, permanently. Now the second tap
 // re-attempts the import; nothing else had to change to get that.
 export const loadOverlays = retryable(async () => {
-  await import('./spec/test-overlay.jsx');
   await import('./spec/person-mindmap.jsx');
   await import('./spec/person-overlay.jsx');
   await import('./spec/city-overlay.jsx');

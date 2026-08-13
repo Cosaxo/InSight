@@ -13,7 +13,7 @@
 // not loaded. Importing the name from its real owner removed the edge, and
 // converting test-definitions.js made that fallback dead code, so it went too.
 import React from 'react';
-import { IS_TESTS, IS_TEST_RESULTS } from './test-definitions.js';
+import { IS_TESTS, IS_TEST_RESULTS, TEST_HUE } from './test-definitions.js';
 
 // passive-progress.js — progress for the five core tests. Only a test's OWN
 // questions count: they surface as marked cards in the World feed (TEST_FEED_QS)
@@ -21,11 +21,15 @@ import { IS_TESTS, IS_TEST_RESULTS } from './test-definitions.js';
 // Staggered demo seeds included. Plain script.
 export const PASSIVE = (function () {
   const LS = 'insight.passive.v1';
+  // The accents were written out here and again as RP_TESTS banners, and
+  // the two copies had drifted apart on two of the four tests (D121).
+  // TEST_HUE is the single source now; the labels stay, because the sheet
+  // says "Big 5" where the profile tab says "Personality · Big Five".
   const META = {
-    big5:       { label: 'Big 5',    accent: 'var(--c-around)' },
-    political:  { label: 'Politics', accent: 'var(--c-world)' },
-    values:     { label: 'Values',   accent: 'var(--c-people)' },
-    attachment: { label: 'Social',   accent: 'oklch(0.52 0.13 320)' },
+    big5:       { label: 'Big 5',    accent: TEST_HUE.big5 },
+    political:  { label: 'Politics', accent: TEST_HUE.political },
+    values:     { label: 'Values',   accent: TEST_HUE.values },
+    attachment: { label: 'Social',   accent: TEST_HUE.attachment },
   };
   const KEYS = Object.keys(META);
   // demo stagger: how many of each test's own questions you've already answered

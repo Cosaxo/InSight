@@ -54,9 +54,6 @@ const EXEMPT = {
   "src/lib/sentry.ts":
     "the telemetry opt-in flag is read from storage on every check — no "
     + "in-memory copy exists to go stale",
-  "src/v2/spec/test-overlay.jsx":
-    "saves read the progress map fresh from storage each time and touch "
-    + "only their own test's entry — nothing old is spread back",
   "src/v2/data/logic-score.ts":
     "stateless helpers (D53): the result loads per mount and every save "
     + "writes a whole fresh attempt — no module-scope copy exists to go "

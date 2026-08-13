@@ -69,82 +69,22 @@ class DailySplit extends React.Component {
     mapToast: null, pressing: false, editHold: null,
     group: {},
     cats: this.loadWorldCats(),
-    testProg: this.loadTestProg(), testJustDone: null, testOpen: false, testRetake: null,
     // which daily's live world-takes panel is open (D83) — id, not boolean,
     // so paging to another day closes it implicitly
     liveTakes: null,
   };
 
-  // ── tests, fed into the daily as their own category ──
-  // Questions come from the same pool as the profile's tests (window.IS_TESTS)
-  // and progress/results share the same storage, so both stay in sync.
-  get testDefs() { return IS_TESTS; }
-  loadTestProg() {
-    try { const v = JSON.parse(localStorage.getItem('insight.testProgress.v1') || '{}'); return v && typeof v === 'object' ? v : {}; }
-    catch (e) { return {}; }
-  }
-  saveTestProg(p) { try { localStorage.setItem('insight.testProgress.v1', JSON.stringify(p)); } catch { /* best-effort */ } PASSIVE.poke(); }
-  testStats() {
-    const defs = this.testDefs, prog = this.state.testProg, P = PASSIVE;
-    let total = 0, done = 0;
-    Object.entries(defs).forEach(([k, T]) => {
-      total += T.questions.length;
-      done += P.done(k); // passive feed coverage + explicit answers
-    });
-    const pct = total ? Math.round(done / total * 100) : 0;
-    // active test: an explicit retake first, then anything in progress
-    // (even over a saved result — a retake survives leaving the tab), then first not taken
-    let active = this.state.testRetake && defs[this.state.testRetake] ? this.state.testRetake : null;
-    if (!active) active = Object.keys(defs).find(k => prog[k] && Array.isArray(prog[k].answers) && prog[k].answers.length);
-    if (!active) active = Object.keys(defs).find(k => !PASSIVE.complete(k));
-    return { pct, total, done, active };
-  }
-  scoreTestDaily(kind, T, ans) {
-    const totals = {}, counts = {};
-    T.questions.forEach((q, i) => {
-      const v = ans[i] ?? 2;
-      const norm = q.invert ? 4 - v : v;
-      totals[q.d] = (totals[q.d] || 0) + norm;
-      counts[q.d] = (counts[q.d] || 0) + 1;
-    });
-    const pop = IS_TEST_AVG[kind] || {};
-    return T.dims.map(d => ({ ...d, value: Math.round(((counts[d.id] ? totals[d.id] / counts[d.id] : 2) / 4) * 100), avg: pop[d.id] ?? 50 }));
-  }
-  answerTest(kind, i) {
-    const T = this.testDefs[kind];
-    this.setState(s => {
-      const prog = { ...s.testProg };
-      let cur = prog[kind] && Array.isArray(prog[kind].answers)
-        ? { step: prog[kind].step || 0, answers: prog[kind].answers.slice() }
-        : null;
-      if (!cur) {
-        // fresh start: resume past what the feed already mapped (not on a retake)
-        const pre = (s.testRetake !== kind && !PASSIVE.complete(kind)) ? PASSIVE.prefill(kind) : [];
-        cur = { step: pre.length, answers: pre.slice() };
-      }
-      cur.answers[cur.step] = i; cur.step += 1;
-      if (cur.step >= T.questions.length) {
-        const dims = this.scoreTestDaily(kind, T, cur.answers);
-        const result = { title: T.title, taken: 'just now', accent: T.accent, dims };
-        // The `else` branch here rebound window.IS_TEST_RESULTS when
-        // test-definitions.js had not loaded yet. That made daily-split a
-        // SECOND writer of the name, which is the whole reason the coupling
-        // meter drew a daily-split → passive-progress → daily-split cycle
-        // (src/v2/README.md's "what NOT to start with"). An imported binding
-        // cannot be unset, so the fallback is unreachable and the cycle with
-        // it.
-        persistTestResult(kind, result);
-        PASSIVE.markComplete(kind);
-        delete prog[kind];
-        this.saveTestProg(prog);
-        return { testProg: prog, testJustDone: kind, testRetake: null };
-      }
-      prog[kind] = cur;
-      this.saveTestProg(prog);
-      return { testProg: prog, testJustDone: null };
-    });
-  }
-
+  // THE TEST FAST PATH LIVED HERE, and D121 removed it along with the
+  // sit-down overlay. `testDefs` / `testStats` / `scoreTestDaily` /
+  // `answerTest` / `loadTestProg` / `saveTestProg` drove a one-question-a-tap
+  // run of an instrument inside the daily tab, reached by `state.testOpen`.
+  //
+  // It was already unreachable: `testOpen` initialised to false and the only
+  // other write in the file set it to false again, so no tap in the shipped
+  // app could open it. Deleting it is therefore not a behaviour change — it
+  // is the removal of a second scorer for the instruments, which is the part
+  // that mattered. The instruments now have exactly one: the fold over your
+  // feed answers (data/passiveProfile.ts).
   // vote lands on the map — a brief confirmation that fades on its own
   showMapToast(id) {
     clearTimeout(this._toastT);
@@ -158,7 +98,7 @@ class DailySplit extends React.Component {
     // removed, and it stays mounted across a uid change — drop them, or
     // one interaction writes the previous account's maps back. votes
     // clears too; the live-update sync refills it for the new uid.
-    this._onPurge = () => this.setState({ dreplies: {}, cats: {}, testProg: {}, votes: {} });
+    this._onPurge = () => this.setState({ dreplies: {}, cats: {}, votes: {} });
     window.addEventListener('insight:local-purge', this._onPurge);
     // The mode switcher belongs in the app header, which is rendered by a
     // component above this one — so it is portaled into a slot app-shell
@@ -307,9 +247,7 @@ class DailySplit extends React.Component {
   }
 
   get modeAccent() {
-    return this.state.mode === 'world' && this.state.testOpen
-      ? 'var(--ochre)'
-      : ({ world: 'var(--c-around)', group: 'var(--c-likeness)', duo: 'var(--c-people)' })[this.state.mode];
+    return ({ world: 'var(--c-around)', group: 'var(--c-likeness)', duo: 'var(--c-people)' })[this.state.mode];
   }
   // lift the mode's accent onto the app root so the header wordmark and tab
   // bar glide with it — .app transitions --accent, so switches crossfade.
@@ -382,7 +320,7 @@ class DailySplit extends React.Component {
     const next = { ...this.state.cats, [id]: !(this.state.cats[id] !== false) };
     if (!WORLD_TOPICS_V2.some(c => next[c.id] !== false)) return; // keep at least one topic on
     try { localStorage.setItem('insight.worldCats', JSON.stringify(next)); } catch { /* best-effort */ }
-    this.setState({ cats: next, idx: 0, earlierOpen: false, feedOpen: false, tab: null, condensed: false, filter: 'all', testOpen: false });
+    this.setState({ cats: next, idx: 0, earlierOpen: false, feedOpen: false, tab: null, condensed: false, filter: 'all' });
   }
   // sides get distinct hues rotated from the topic's — same oklch family
   // (one lightness+chroma tier), so the choice has real contrast but every
@@ -578,7 +516,6 @@ class DailySplit extends React.Component {
     const mode = st.mode;
     const accents = { world: 'var(--c-around)', group: 'var(--c-likeness)', duo: 'var(--c-people)' };
     const showChips = this.props.chips === true;
-    const TSTAT = this.testStats();
     const av = (bg, sz, fs) => ({ width: sz, height: sz, borderRadius: '50%', background: bg, color: '#fff', fontFamily: BRIC, fontWeight: 800, fontSize: fs, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 });
     // one card spec everywhere: .card's border, radius 18, --shadow-card (no colored offsets)
     // flat, recessed on the card — no float/gloss, so it sits with the flat feed cards below
@@ -648,7 +585,7 @@ class DailySplit extends React.Component {
     // topic chips — off by default (Tweaks can bring them back); quiet, lowercase, no shouting
     const chipRow = showChips ? h('div', { className: 'h-scroll', style: { display: 'flex', gap: 6, flexWrap: 'nowrap', overflowX: 'auto' } },
       WORLD_TOPICS_V2.map(c => {
-          const on = !st.testOpen && st.cats[c.id] !== false;
+          const on = st.cats[c.id] !== false;
           return h('button', { key: c.id, onClick: () => this.toggleCat(c.id), 'aria-pressed': on, style: {
             border: '0.5px solid ' + (on ? 'color-mix(in oklch, var(--c-around) 45%, transparent)' : 'var(--rule)'),
             background: on ? 'color-mix(in oklch, var(--c-around) 8%, transparent)' : 'transparent',
@@ -932,65 +869,6 @@ class DailySplit extends React.Component {
     const groupBody = liveDuels ? h(window.LiveDuelPanel, { key: 'live-group', mode: 'group' }) : h(window.GroupDailyBody || 'div', { key: 'group-daily' });
     const duoBody = liveDuels ? h(window.LiveDuelPanel, { key: 'live-duo', mode: 'duo' }) : h(window.DuoBody || 'div', { key: 'duo-daily' });
 
-    // ===== TEST =====
-    const testBody = (() => {
-      const OCHRE = 'var(--ochre-ink)';
-      const defs = this.testDefs;
-
-      // just finished a test — one clear payoff card
-      if (st.testJustDone && defs[st.testJustDone]) {
-        const k = st.testJustDone, T = defs[k];
-        const saved = IS_TEST_RESULTS[k];
-        const top = saved ? [...saved.dims].sort((a, b) => b.value - a.value)[0] : null;
-        return h('div', { style: col(13) },
-          h('div', { style: { ...col(12), border: LINE, borderRadius: 18, background: 'var(--surface-2)', boxShadow: 'var(--shadow-card)', padding: '20px 18px', textAlign: 'center', animation: 'popIn .35s cubic-bezier(0.2,0.8,0.2,1)' } },
-            h('div', { style: { display: 'flex', justifyContent: 'center' } },
-              h('span', { style: { background: OCHRE, color: '#fff', fontFamily: BRIC, fontWeight: 800, fontSize: 15, padding: '8px 18px', borderRadius: 999 } }, T.title + ' complete')),
-            top && h('div', null,
-              h('div', { style: { fontSize: 11, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--ink-3)' } }, 'Strongest'),
-              h('div', { style: { fontFamily: BRIC, fontWeight: 800, fontSize: 26, letterSpacing: -0.5, marginTop: 3 } }, top.label + ' \u00b7 ' + top.value)),
-            h('button', { onClick: () => this.setState({ testJustDone: null }), style: { alignSelf: 'center', border: 'none', borderRadius: 12, padding: '11px 20px', fontWeight: 800, fontSize: 14, cursor: 'pointer', background: INK, color: PAPER } }, TSTAT.active ? 'Next test \u203A' : 'Done')));
-      }
-
-      // everything answered — the picture stays current from daily play, so
-      // there is nothing to re-take here; just show what has been mapped.
-      if (!TSTAT.active) {
-        return h('div', { style: col(13) },
-          h('div', { style: { border: LINE, borderRadius: 16, background: 'var(--surface-2)', padding: '18px 16px', ...col(12) } },
-            h('div', { style: { textAlign: 'center', ...col(5) } },
-              h('span', { style: { fontFamily: BRIC, fontWeight: 800, fontSize: 22 } }, 'Fully mapped'),
-              h('span', { style: { fontSize: 13, fontWeight: 600, color: 'var(--ink-2)' } }, 'Your answers keep it current.')),
-            h('div', { style: col(8) },
-              Object.entries(defs).map(([tk, TT]) => h('div', { key: tk, style: { display: 'flex', alignItems: 'center', gap: 10, width: '100%', border: LINE, borderRadius: 12, background: 'var(--surface)', padding: '10px 13px' } },
-                h('span', { style: { width: 9, height: 9, borderRadius: '50%', background: TT.accent, flexShrink: 0 } }),
-                h('span', { style: { flex: 1, minWidth: 0, fontWeight: 800, fontSize: 14, color: INK } }, TT.title),
-                h('span', { style: { fontWeight: 800, fontSize: 13, color: OCHRE, flexShrink: 0 } }, '\u2713'))))));
-      }
-
-      // one question a tap — same pool, same progress as the profile's tests
-      const k = TSTAT.active, T = defs[k];
-      const base = (st.testRetake !== k && !PASSIVE.complete(k)) ? PASSIVE.passiveDone(k) : 0;
-      const cur = st.testProg[k] && Array.isArray(st.testProg[k].answers) ? st.testProg[k] : { step: base, answers: [] };
-      const qi = Math.min(cur.step || 0, T.questions.length - 1);
-      const LIKERT = ['Strongly disagree', 'Disagree', 'Neither', 'Agree', 'Strongly agree'];
-      return h('div', { style: col(13) },
-        h('div', { style: { display: 'flex', alignItems: 'center', gap: 10 } },
-          h('span', { style: { background: 'color-mix(in oklch, var(--ochre) 9%, transparent)', border: '1px solid color-mix(in oklch, var(--ochre) 42%, transparent)', color: OCHRE, fontWeight: 800, fontSize: 11.5, letterSpacing: '0.08em', textTransform: 'uppercase', padding: '5px 11px', borderRadius: 999 } }, T.title),
-          h('span', { style: { border: LINE, fontWeight: 700, fontSize: 12, padding: '4px 10px', borderRadius: 999 } }, (qi + 1) + ' of ' + T.questions.length)),
-        base > 0 && h('span', { style: { fontSize: 12, fontWeight: 600, color: 'var(--ink-3)', marginTop: -6 } }, 'first ' + base + ' mapped from your feed answers — picking up from there'),
-        h('div', { key: k + ':' + qi, style: { ...col(13), animation: 'popIn .3s cubic-bezier(0.2,0.8,0.2,1)' } },
-          h('div', { style: { fontFamily: BRIC, fontWeight: 800, fontSize: 27, lineHeight: 1.12, letterSpacing: -0.7, textWrap: 'balance' } }, T.questions[qi].q),
-          h('div', { style: col(9) },
-            LIKERT.map((label, i) => {
-              const intensity = Math.abs(i - 2);
-              const dot = 10 + intensity * 5;
-              return h('button', { key: label, onClick: () => this.answerTest(k, i), style: { ...optBtn(OCHRE), padding: '12px 16px' } },
-                h('span', { style: { width: 22, height: 22, flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' } },
-                  h('span', { style: { width: dot, height: dot, borderRadius: '50%', boxSizing: 'border-box', border: '1.5px solid ' + (i === 2 ? 'var(--ink-3)' : OCHRE), background: i === 2 ? 'transparent' : 'color-mix(in oklch, ' + OCHRE + ' ' + (intensity === 2 ? 100 : 25) + '%, transparent)' } })),
-                h('span', { style: { fontWeight: 750, fontSize: 15.5, color: INK } }, label));
-            }))));
-    })();
-
     // ===== chrome =====
     const pendG = DUELS.groupsPending();
     const pendD = DUELS.pendingDuos();
@@ -1006,8 +884,7 @@ class DailySplit extends React.Component {
       MODE_TABS.map(m => h('button', { key: m.id, className: 'sd-switch-btn' + (mode === m.id ? ' is-on' : ''), onClick: () => this.switchMode(m.id), style: { '--sw-acc': accents[m.id] } }, m.label,
         badges[m.id] && h('span', { style: { marginLeft: 6, minWidth: 15, height: 15, padding: '0 4px', borderRadius: 999, background: 'var(--c-around)', color: '#fff', fontSize: 9.5, fontWeight: 800, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', boxSizing: 'border-box' } }, badges[m.id]))));
 
-    const body = mode === 'world'
-      ? (st.testOpen ? h('div', { style: col(13) }, chipRow, testBody) : worldBody)
+    const body = mode === 'world' ? worldBody
       : mode === 'group' ? groupBody : duoBody;
 
     return {
