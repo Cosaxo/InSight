@@ -46,6 +46,15 @@ for (const [name, fn] of Object.entries(mod)) {
       mem: ep.availableMemoryMb,
       timeout: ep.timeoutSeconds,
       concurrency: ep.concurrency,
+      // The compute bill's only hard ceiling, and until it was asserted
+      // here the only thing holding it up was setGlobalOptions being
+      // inherited. docs/COSTS.md now quotes it as the bound on every
+      // functions failure mode — a retry storm, a poison-pill redelivery
+      // loop, a flood — at $649/month for one function pegged all month.
+      // A per-function override that dropped it, or a future export that
+      // set maxInstances: null to "scale freely", would leave that
+      // paragraph asserting a ceiling that no longer exists.
+      maxInst: ep.maxInstances,
     });
   }
 }
@@ -59,17 +68,18 @@ if (!rows.length) {
   process.exit(1);
 }
 
-const bare = rows.filter((r) => r.mem == null || r.timeout == null);
+const bare = rows.filter((r) => r.mem == null || r.timeout == null || r.maxInst == null);
 for (const r of rows) {
   console.log(
     `  ${r.name.padEnd(26)} mem=${String(r.mem).padStart(5)}MiB `
-    + `timeout=${String(r.timeout).padStart(4)}s concurrency=${r.concurrency}`,
+    + `timeout=${String(r.timeout).padStart(4)}s concurrency=${r.concurrency}`
+    + ` maxInstances=${r.maxInst}`,
   );
 }
 
 if (bare.length) {
   console.error(
-    `\n${bare.length} function(s) still on the gen-2 defaults (256MiB / 60s):`,
+    `\n${bare.length} function(s) missing an explicit memory, timeout or maxInstances:`,
   );
   for (const r of bare) console.error(`  - ${r.name}`);
   console.error(
@@ -79,4 +89,7 @@ if (bare.length) {
   process.exit(1);
 }
 
-console.log(`\nfn-runtime OK — ${rows.length} functions, all with explicit memory and timeout`);
+console.log(
+  `\nfn-runtime OK — ${rows.length} functions, all with explicit memory, `
+  + "timeout and maxInstances (the compute ceiling)",
+);

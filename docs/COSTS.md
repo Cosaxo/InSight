@@ -527,7 +527,10 @@ must be raised before ~13,100 DAU, where the modelled peak crosses it.
 
 **Where the free tiers end**, since "still free" is the cheapest possible
 guardrail and worth knowing precisely: reads leave the 50 k/day free tier
-at **~149 DAU**, writes leave the 20 k/day tier at **~1,408 DAU**. Below
+at **~177 DAU**, writes leave the 20 k/day tier at **~1,408 DAU**. (Read off
+the model's *immature* branch, which is how `SCENARIOS` classifies every
+size in that range; the mature branch would say ~149 and would be quoting
+a community that does not exist yet.) Below
 the first of those the infrastructure is genuinely $0 and no control
 matters. That is also why every alert here is sized for the second
 threshold rather than the first.
@@ -591,7 +594,7 @@ one of those rates is measured.
 | FCM push | $0 |
 | App Check — reCAPTCHA v3 / DeviceCheck / Play Integrity | $0 |
 | Firebase Hosting (`web/`, static pages) | $0 |
-| Cloud Storage | $0 (bucket unused; see SHIP-CHECKLIST) |
+| Cloud Storage | $0 — and since 2026-08-13 that is true of the *rules* and not only of the app. `storage.rules` granted any signed-in account write on `users/{uid}/dailyPhotos/{filename}`: 8 MB an object, `{filename}` unbounded, so unbounded objects, unbounded stored bytes and unbounded egress reading them back — by a free anonymous account (D3), against a feature D4 removed and which no file in `src/` or `functions/src/` imports. Uploads are now closed; read and delete stay open because the erasure argument for keeping them (deleteAccount does not touch Storage) is about reaching a leftover object, not about accepting new ones |
 | Cloud Logging | $0 until ~500 k DAU, then ~$17/mo |
 | Firestore storage | 5.6 GiB after a year at 5 k DAU → $0.83/mo (4.0 GiB of documents, ×1.4 for index entries — a multiplier that was 1.0 in the model until D67, and would be ~5 without D64's `answers` exemptions; the indexed set has since grown by D86's `editedAt`, D98's who-voted composite and D102's `surface` re-enable, and 1.4 stays as the blended estimate) |
 | Network egress | in the Firestore column above, not free: $0–0.5/mo at 5 k DAU, **$7–147 at 50 k**, $647–14,686 at 500 k — see the band below |
