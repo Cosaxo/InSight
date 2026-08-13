@@ -13,7 +13,7 @@ import { resolve } from "node:path";
 // Named imports from an untyped .js spec module (D109) — the suppressions are
 // scoped to exactly that (TS7016), the purge-wipe precedent.
 // @ts-expect-error TS7016 — untyped spec module
-import { LEARN_CARDS, LEARN_ORDER as orderAny, LEARN_SPLIT as splitAny, LEARN_SPLIT_SRC } from "../spec/learn-data.js";
+import { LEARN_CARDS, LEARN_ORDER as orderAny, LEARN_RATE as rateAny, LEARN_SPLIT as splitAny, LEARN_SPLIT_SRC } from "../spec/learn-data.js";
 
 interface LearnCard {
   id: string;
@@ -32,6 +32,8 @@ const card = (LEARN_CARDS as LearnCard[])[0]; // cell1 — correct index 0, 4 op
 // here rather than annotated at each call site.
 const LEARN_SPLIT: (c: LearnCard) => number[] = splitAny;
 const LEARN_ORDER: (c: LearnCard) => number[] = orderAny;
+const LEARN_RATE: (c: LearnCard) => { pct: number; src: string } = rateAny;
+const ALL_CARDS = LEARN_CARDS as LearnCard[];
 
 afterEach(() => {
   delete W.LIVE;
@@ -251,5 +253,74 @@ describe("the LIVE reconcile leaves lrn- votes alone (D95)", () => {
     expect(start, "the LIVE reconcile moved — repoint this pin").toBeGreaterThan(-1);
     const block = src.slice(start, src.indexOf("this._unsubSubs", start));
     expect(block).toMatch(/if \(id\.indexOf\('lrn-'\) === 0\) continue;/);
+  });
+});
+
+describe("LEARN_RATE — one crowd rate, and where it came from (D133)", () => {
+  // D32's label seam covered the reveal's SPLIT and nothing else. Three
+  // other surfaces printed the authored `p` — a content-authoring
+  // difficulty hint — as a finished measurement about people: the Map's
+  // knowledge node, the ⓘ sheet's Crowd row, and the "who knows this"
+  // headline. So one card said "our estimate" in the feed and stated a
+  // measurement two taps away, and the number wearing the authority was
+  // the invented one.
+  it("demo: the authored rate, reported as an estimate", () => {
+    expect(LEARN_RATE(card)).toEqual({ pct: card.p, src: "estimate" });
+  });
+
+  it("live with a published agg: the measured first-attempt rate", () => {
+    // 6 of 9 got it right, and `c` is the AUTHORED correct index — which is
+    // the index the aggregate is keyed on, because LEARN_ORDER permutes on
+    // the way to the screen and the buttons map back before recording.
+    W.LIVE = {
+      enabled: true,
+      learnAgg: () => ({ tooSmall: false, total: 9, counts: { "0": 6, "1": 3 } }),
+    };
+    expect(LEARN_RATE(card)).toEqual({ pct: 67, src: "measured" });
+  });
+
+  it("live but cold: back to the authored rate, still labelled", () => {
+    W.LIVE = { enabled: true, learnAgg: () => null };
+    expect(LEARN_RATE(card)).toEqual({ pct: card.p, src: "estimate" });
+  });
+
+  it("agrees with LEARN_SPLIT on every card in the bank", () => {
+    // The two must never disagree about the same card: the reveal draws the
+    // distribution and these surfaces draw one bar of it, and a user who
+    // reads both in one session is comparing them.
+    for (const c of ALL_CARDS) {
+      expect(LEARN_RATE(c).pct, `${c.id}`).toBe(LEARN_SPLIT(c)[c.c]);
+      expect(LEARN_RATE(c).src, `${c.id}`).toBe(LEARN_SPLIT_SRC(c));
+    }
+  });
+});
+
+describe("the who-knows-this cuts are demo furniture too (D133)", () => {
+  // D89 refused the "<group> knows this best" HEADLINE on a live device and
+  // left the sheet it opened into, which draws the same fabrication as a
+  // full distribution: every row is wfKnowRate — a hash of (card, cohort) —
+  // against a baseline nobody measured either. Same source-pin style as the
+  // D89 case above, for the same reason: the behaviour IS the gate.
+  const src = readFileSync(resolve(__dirname, "../spec/world-feed.jsx"), "utf8");
+  const start = src.indexOf("renderKnowStats(q, T) {");
+  const block = src.slice(start, src.indexOf("renderKnowInsight(q, T) {", start));
+
+  it("forces the friends cut and hides the chips in live mode", () => {
+    expect(start, "renderKnowStats moved — repoint this pin").toBeGreaterThan(-1);
+    expect(block).toMatch(/const live = LIVE\.enabled;/);
+    // The dim is decided before anything ranks, so no live path can reach
+    // WF_GRP at all — the rows are computed from `dim`.
+    expect(block).toMatch(/const dim = live \? 'friends' :/);
+    expect(block).toMatch(/\{live \? null : this\.renderCutChips\(/);
+  });
+
+  it("draws its headline from LEARN_RATE, not the authored p", () => {
+    expect(block).toMatch(/const rate = LEARN_RATE\(card\);/);
+    expect(block).toMatch(/const p = rate\.pct;/);
+    expect(block).toMatch(/rate\.src === 'estimate'/);
+  });
+
+  it("says what it cannot show instead of leaving an empty sheet", () => {
+    expect(block).toMatch(/do not publish that/);
   });
 });

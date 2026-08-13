@@ -124,6 +124,22 @@ from the top of this file in place, 8 tests across `follow-seeds`,
 they assert the demo furniture that `VITE_V2_LIVE=true` is supposed to remove.
 Measured 2026-08-12: 767/767 without it, 759/767 with it.
 
+`npm run check:bundle` needs a **`VITE_SENTRY_DSN`** in the build it
+measures, or its *total* is meaningless locally:
+
+```bash
+VITE_SENTRY_DSN="https://example@o0.ingest.sentry.io/0" npm run build
+VITE_SENTRY_DSN="https://example@o0.ingest.sentry.io/0" npm run check:bundle
+```
+
+Without one, `sentryInit()` no-ops and the 435 KB `prod-*.js` chunk is
+never emitted, so a local run reported 1725 KB against a 2176 KB ceiling —
+451 KB of headroom that does not exist. The value is a dummy: nothing
+sends, the point is only that the chunk gets built. This is not
+flakiness when CI then fails; it is two different bundles. The *eager
+graph* number is trustworthy either way, because Sentry is deferred and
+never appears in the preload list.
+
 ## Sandbox/CI note
 
 Behind an egress proxy, run the emulator suites with `HTTPS_PROXY`

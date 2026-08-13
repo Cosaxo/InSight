@@ -15,6 +15,10 @@ import { PASSIVE } from './passive-progress.js';
 // no stored result is scored from the viewer's own feed answers — once
 // every axis has enough behind it to be worth a type.
 import { passiveResult, passiveTest } from '../data/passiveProfile.ts';
+// LIVE.myVotes() is string-valued ({ qid: "2" }) and the fold wants option
+// INDICES — see data/similarity.ts voteIndices for what passing the raw map
+// did (D132: every instrument stuck at "0 of N answered", forever).
+import { voteIndices } from '../data/similarity.ts';
 
 // This test's own reading of the viewer, or null. Stored results always
 // win: a sit-down result from before D121 is a finished instrument and the
@@ -24,7 +28,7 @@ export function ownResult(testKey) {
   if (stored) return stored;
   if (!LIVE.enabled) return null;
   const def = IS_TESTS[testKey];
-  return passiveResult(passiveTest(testKey, def, LIVE.testFeedItems(), IS_TESTS, LIVE.myVotes()), def ? def.title : testKey);
+  return passiveResult(passiveTest(testKey, def, LIVE.testFeedItems(), IS_TESTS, voteIndices(LIVE.myVotes())), def ? def.title : testKey);
 }
 
 // …and how far off it is when it is null. Separate from ownResult because
@@ -32,7 +36,7 @@ export function ownResult(testKey) {
 // the two callers want different halves.
 export function ownProgress(testKey) {
   if (!LIVE.enabled) return null;
-  return passiveTest(testKey, IS_TESTS[testKey], LIVE.testFeedItems(), IS_TESTS, LIVE.myVotes());
+  return passiveTest(testKey, IS_TESTS[testKey], LIVE.testFeedItems(), IS_TESTS, voteIndices(LIVE.myVotes()));
 }
 
 // result-card.jsx — test profile cards: each test keeps the shared banner

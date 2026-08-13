@@ -128,6 +128,15 @@ jobs:
         env:
           CAPACITOR_BUILD: "1"
           VITE_V2_LIVE: "true"
+          # D134 — the test track requires an account before the app opens,
+          # which reverses D3's "never a wall" for this build and only this
+          # build. A repository variable rather than a literal so the public
+          # release can drop the wall without a code change: set
+          # REQUIRE_SIGNIN to anything other than "true" (or unset it) and
+          # the gate compiles to a pass-through. Anonymous-first is still
+          # what src/v2/data/live.ts does — the gate LINKS that session, so
+          # the uid and every answer already given survive the upgrade.
+          VITE_REQUIRE_SIGNIN: ${{ vars.REQUIRE_SIGNIN || 'true' }}
           VITE_FIREBASE_API_KEY: ${{ vars.VITE_FIREBASE_API_KEY }}
           VITE_FIREBASE_AUTH_DOMAIN: ${{ vars.VITE_FIREBASE_AUTH_DOMAIN }}
           VITE_FIREBASE_PROJECT_ID: ${{ vars.VITE_FIREBASE_PROJECT_ID }}

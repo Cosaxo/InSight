@@ -327,6 +327,18 @@ revisited if the app ever ships custom crypto** — local encryption of
 cached answers, for instance — because it is an attestation on every
 upload, not a note.
 
+**Amendment (2026-08-13) — the wall exists, on the test track only (D134).**
+`VITE_REQUIRE_SIGNIN=true` puts a Google sign-in in front of the app before
+it can be used. That is the thing this record says never to build, and it is
+scoped to the build that sets the flag — `ios-release.yml`, i.e. TestFlight.
+The public build's answer is unchanged and the flag is how it stays
+unchanged: dropping the wall is a repository variable, not a diff.
+
+The mechanism is still this decision's, which is why the cost is a tap and
+not a history: `initLive()` has already signed the session in anonymously by
+the time the gate paints, so the button LINKS — same uid, every answer kept.
+D134 has the argument for why a test build is the one place it is worth it.
+
 ## D4 · The v1 shelf, and the legacy boundary
 
 **Decision.** v1 ships the frozen spec (`design/InSight_standalone_9.html`):
@@ -12948,3 +12960,296 @@ document's recurring defect (D39, `check:figures`) committed in the entry
 least able to afford it. Now current, and sized at the model's own scenario
 sizes so the next reader can regenerate it.
 
+## D132 · The profile said "0 of 30 answered" to someone who had answered thirty
+
+**Decided:** 2026-08-13 · **Status:** binding · A defect report from the
+build-12 device, fixed. Extends D121 (the passive fold) with the seam it
+was missing.
+
+### What shipped
+
+Every one of the four instruments read **zero answers, forever**. The
+profile's per-test tab drew "0 of N answered" with every axis listed as
+thin, no type could ever appear, and the Mirror's own-score fold behind it
+was empty. A device sat at *politics test · 6/30* on the feed's own ring
+and *0 of 30 answered* on the profile tab beside it, in the same session,
+two taps apart.
+
+### The bug is one type, crossed at one call
+
+`LIVE.myVotes()` is `{ [qid]: optionId }` and the option id is a **string**
+— `live.ts` writes `String(optionIdx)` on hydrate and stores the caller's
+string on vote. The scorers (`similarity.myAxisScores`,
+`passiveProfile.passiveTest`) declare `Record<string, number>` and gate on
+`Number.isInteger(v)`. `Number.isInteger("2")` is `false`, so every vote
+was discarded as malformed: no axis got an answer, `answered` counted
+nothing, and `ready` was never true.
+
+`result-card.jsx` passed the raw map. Nothing anywhere reported an error,
+because discarding a vote as out-of-shape is also the correct handling of
+a genuinely absent one — the bug's output is byte-identical to the honest
+empty state, which is why it survived a release and why the fix's test
+asserts **both** directions.
+
+### Why every guard and the whole suite were green
+
+Worth writing down, because each near-miss is a different lesson and only
+one of them is "add a test".
+
+- **`tsc -b` cannot see it.** `result-card.jsx` is `.jsx`. The parameter
+  type is declared, correct, and unchecked at exactly the call that broke.
+  This is the `vote.test.ts` lesson (a `window.LIVE` rename that passes
+  tsc because its consumers are `.jsx`) arriving through the other door:
+  not the member's NAME but its VALUE TYPE.
+- **The unit tests are green and right.** `passiveProfile.test.ts` and
+  `similarity.test.ts` pin the fold and the arithmetic thoroughly — with
+  numeric vote maps, because that is the declared type. A pure module
+  tested against its own signature cannot discover that its only real
+  caller does not honour it.
+- **The mount tests reach the screen and prove nothing about it.**
+  `live-fixture.ts` answers `testFeedItems: () => []`, and an empty bank
+  makes the fold return `null` before it can look at a vote. The fixture
+  says so in a comment — the place fields "have their own unit tests" —
+  which was true and, for this fold, exactly the gap.
+- **The correct conversion already existed**, four lines of it, inline in
+  `LiveSimilarityField.tsx`. One of the two callers converted and one did
+  not, in different files, so the diff that would have shown them
+  disagreeing was never written.
+
+### The fix, and where it is put
+
+`similarity.voteIndices(votes)` — the store's map, coerced to the option
+indices every fold here wants — used by both callers. Deliberately **not**
+a change to the scorers' guard: `Number.isInteger` refusing `"2"` is not
+the wrong rule, it is the right rule stated at the wrong distance from the
+store. A caller that forgets the conversion is now a caller that did not
+use the function, rather than one that wrote its own four lines correctly.
+
+It drops `""`, `"5"`, `"-1"` and `"1.5"` rather than coercing them. `""`
+is the one that matters: `Number("")` is `0`, which would score an
+unanswered question as a strong *disagree* — a wrong answer invented out
+of an absent one, which is worse than the bug being fixed.
+
+### The test is at the seam, because that is what was missing
+
+`test/passive-fold-live.test.jsx` drives `ownProgress`/`ownResult` through
+the real store surface with real bank items and **string** votes. Verified
+by reverting the fix: it fails `expected +0 to be 6` — the screenshot's
+number, reproduced.
+
+It also has to dispatch `insight:test-results` with `{}` first, and that is
+the second finding rather than test scaffolding. A live boot ends in
+`publishTestResults()`, which REPLACES `IS_TEST_RESULTS` and so clears the
+demo persona's baked scores. **The fixture never does this**, so a live
+mount test still carries the demo's Big Five, `ownResult` answers from the
+seed, and the passive path is unreachable. Left as a note here rather than
+fixed in the fixture: changing it moves every live mount test's starting
+state, which is a larger change than this defect earns.
+
+### Not done
+
+**The feed's ring and this fold still count differently.** The ring
+(`passive-progress.js`) tallies card ids in `localStorage` as they are
+answered; the fold counts votes joined to the instrument by prompt text.
+They agree on one device that answered everything in the feed, and they
+diverge for answers given on another device — the ring cannot see those,
+the fold can, because votes hydrate from the server and the tally does
+not. The fold is the truthful one. Unifying them means the ring reading
+`ownProgress`, which is a behaviour change to a surface nobody has
+reported a problem with, so it waits for one.
+
+---
+
+## D133 · One card said "our estimate" in the feed and stated a measurement two taps away
+
+**Decided:** 2026-08-13 · **Status:** binding · A defect report from the
+build-12 device — *"Learn seems to still use some sample data"*. Completes
+D32's label seam and D89's refusal, both of which stopped one surface short.
+
+### What a live device was being shown
+
+`card.p` is an authoring field. The bank's own header says what it is for:
+*"% of the crowd who get it right. Doubles as difficulty (low p = hard), so
+'on your level' runs on real crowd data"* — it is the scheduler's input,
+written by whoever wrote the card.
+
+D32 built the seam that keeps it honest: `LEARN_SPLIT` returns the
+published first-attempt distribution once one exists and the authored model
+until then, `LEARN_SPLIT_SRC` says which, and the reveal's footer hangs off
+that — *"Our estimate — becomes measured once enough people have
+answered."*
+
+**Three other surfaces never consulted it**, and each printed `card.p` as a
+finished fact about people:
+
+- the Mirror Map's knowledge node — a filled bar and *"84% of people get
+  this right"*;
+- the ⓘ sheet's row, labelled **Crowd**, which is a word about people;
+- the "who knows this" panel's headline, in inverse type.
+
+So the same card, in one session, hedged in the feed and asserted on the
+map. The hedged one was the honest reading of the same number.
+
+### The panel was worse than unlabelled
+
+D89 refused the *"BEd knows this best · 83%"* row on a live device because
+its ranking is `wfKnowRate` — a hash of (card, cohort) over the DEMO cut
+groups. It refused the headline and left the sheet the headline opened
+into, where the same fabrication is drawn as a full distribution: every
+row a hash, sorted, bars against a hairline baseline, with *your* band
+marked. A refusal that removes the summary and keeps the detail has moved
+the claim rather than withdrawn it.
+
+The sheet stays reachable — it is the ⓘ-adjacent "Who knows this" panel,
+not only D89's button — so the gate has to be in the panel.
+
+### The fix
+
+`LEARN_RATE(card)` → `{ pct, src }`, next to `LEARN_SPLIT` and reading the
+same `learnMeasured`: the share who got it right, and where the number came
+from. All three surfaces use it, and each says "our estimate" in live mode
+when that is what it is. `card.c` indexes a measured split safely because
+`LEARN_ORDER` permutes on the way to the SCREEN and the buttons map back to
+authored indices before anything is recorded — the property its own note
+already had to guarantee for the aggregate to be meaningful at all.
+
+The cuts go the way MapStats' five null anchors went (D72): `renderKnowStats`
+forces the friends dim and drops the chips in live mode, so no live path
+reaches `WF_GRP` at all, and the sheet says what it cannot show rather than
+opening on an empty frame. It returns when a per-cohort learn aggregate
+exists to rank — the same "when there is a truth to read" condition D89 set.
+
+**Demo builds keep all of it, unhedged.** A demo's whole population is
+authored, and hedging one figure inside it would imply the others were
+measured — the inverse of the same error.
+
+### Not done, and one thing that is not a defect
+
+**The Map's `typ: c.p / 100`** (`map-tab.jsx`) still reads the authored
+value. It positions a node; it is not a number shown to anyone, and a
+layout hint does not make a claim.
+
+**Learn's card bank is authored content, not sample data**, and that is the
+half of the report that is working as designed: `content/learn-questions.json`
+is the source for both the client and the seeded Firestore docs (D32), the
+way the daily bank is. What was wrong was never the questions — it was the
+percentages beside them.
+
+**The learn-progress demo seed is correctly gated and was verified, not
+assumed.** A live build starts at a real zero (`freshS()` behind
+`VITE_V2_LIVE`, which `ios-release.yml` sets); probed directly. An install
+that once ran a non-live build keeps whatever `insight.learn.v3` holds,
+because that key is also where genuine progress lives and there is no way
+to tell the two apart after the fact. If a device shows pre-known cards, it
+is that, and the cure is the account delete — worth knowing before reading
+it as a live-mode bug.
+
+---
+
+## D134 · The test track gets a wall; the public build does not
+
+**Decided:** 2026-08-13 · **Status:** binding · Amends D3 for one build.
+Owner decision, taken against the alternatives below rather than by
+default.
+
+**Decision.** With `VITE_REQUIRE_SIGNIN=true`, the app opens on a Google
+sign-in and nothing else works until it succeeds. `ios-release.yml` sets
+it; nothing else does. Every other build — the dev server, the demo
+bundle, the whole test suite — compiles the gate to a pass-through, so
+D3's "never a wall" remains what the public build ships.
+
+### Why a wall is worth it HERE and nowhere else
+
+D3's fear is losing a user's history to a login. On the test track the
+same fear points the other way. D6 turned Android system backup off (it
+would have copied the local cache to Google Drive) and iOS never had it,
+so an unlinked anonymous session lives on ONE phone and dies with it —
+the account panel says exactly this, and D122's handles and D126's
+foresight streaks made it more expensive to be true. A tester who answers
+for two weeks and then replaces a handset has produced nothing, and
+nobody finds out until the numbers do not add up.
+
+A public user who bounces off a login is a user lost. A tester was going
+to sign in anyway; the only question was whether they did it before or
+after the data mattered.
+
+### What makes it cheap: it links, it does not sign in
+
+`initLive()` has already signed the session in anonymously by the time the
+gate paints, so the button calls `linkGoogle()` — same uid, every answer
+already given kept. This matters for the release it ships in: a tester who
+has been answering under build 12 does not lose that history the first
+time the gate appears. A gate that called `googleSignIn()` would have
+stranded it silently, which is why the test that pins the difference
+asserts on WHICH call is made rather than on the screen going away.
+
+Two states the naive version gets wrong, both handled:
+
+- **The Google account is already an InSight account.** Firebase refuses
+  the link rather than merging (correct — two histories cannot become
+  one). The only way on abandons this session, so it is a second, named
+  button — *"Sign in and leave this phone's answers"* — with a way back
+  beside it. The first tap never does it.
+- **Boot did not attach.** The gate does NOT fall through to the demo app.
+  A build whose whole premise is "your answers are kept" must not hand
+  someone sample questions, because they would not be kept and nothing on
+  screen would say so. It shows `bootError` and a retry — the D77
+  argument, that a phone has no console to ask.
+
+### A store fix came out of it
+
+`state.linked` was set on every auth callback and **announced on none**.
+The anonymous → Google upgrade keeps the uid, so the callback fell past
+every branch without a `notify()`: the flag was correct and no subscriber
+was told. `LivePrivacyPanel` had papered over it with a local `linkedNow`
+set after its own await — which works exactly where the link was started,
+and would have left this gate up forever. It now notifies on a CHANGE
+only; this callback also fires for token refreshes, and a notify per
+refresh is a re-render per refresh.
+
+### Two files, because `check:bundle` said so
+
+The gate wraps `<App />` at the root, so whatever implements it is in the
+first-paint graph of every build including the ones that can never render
+it. Measured: the screen put **3 KB** into an eager graph that had no room
+for it, and the gate failed. So the decision (`signInRequired`, a build
+constant) stays eager and the SCREEN is a `React.lazy` chunk only a
+flagged build ever fetches — `check:bundle`'s own advice, followed rather
+than argued with. Eager graph is back within budget and the screen ships
+as its own chunk.
+
+The early return sits after the hooks, which is safe for a stated reason
+rather than by luck: Vite substitutes the flag at build time, so it is
+constant for the life of the process and the hook order cannot change
+between renders of one instance.
+
+The bundle ceiling moved with it: total **2175 → 2179 KB**, one new chunk,
+and `MAX_TOTAL_JS_KB` raised 2176 → 2180 with the note the script asks
+for. Deferring moved that number by ZERO — the total counts every chunk,
+so splitting relocates bytes and only deleting code moves it, which is the
+property D128's raise recorded and which held again. It is raised rather
+than trimmed because the bytes are a login screen.
+
+**And the gate caught it in CI after passing locally, which is worth more
+than the 4 KB.** `npm run build` without a `VITE_SENTRY_DSN` never emits
+the 435 KB `prod-*.js` chunk, so the local total read 1725 KB against a
+2176 ceiling — 451 KB of headroom that does not exist. Two different
+bundles, not a flaky gate. `docs/LOCAL-TESTING.md` now says how to build
+the one CI measures, and `check-bundle.mjs` says it at the constant.
+`MAX_EAGER_KB` is now at exactly its ceiling with no headroom left; the
+next addition to first paint has to be a dynamic import, not a raise.
+
+### What was NOT built, and why
+
+**Sign in with Apple.** SHIP-CHECKLIST §4.8 already records that Google
+being the only third-party sign-in makes Apple's equivalent mandatory *for
+the App Store review*, and its own advice is *"do not pre-build this — an
+unused sign-in path is its own review surface."* A wall changes when that
+bill comes due, not whether: **the public build must either drop the wall
+or add Apple sign-in before submission.** Written here because the flag
+makes it easy to forget which of those was chosen.
+
+**No prompt-instead-of-wall middle ground.** It was the alternative and it
+was declined by the owner. Recorded because it is the obvious thing to
+reach for if the wall proves too costly, and the flag makes that reversal
+a variable rather than a rewrite.
