@@ -69,7 +69,11 @@ function readNum(rel, re, what) {
       + "    which is the failure this function exists to prevent (D47).",
     );
   }
-  return Number(m[1]);
+  // Numeric separators stripped: `60_000` is a legal literal and reads
+  // better at millisecond scale, but Number("60_000") is NaN — which would
+  // propagate as a silent NaN through every table rather than throwing.
+  // A no-op for the `(\d+)` patterns above.
+  return Number(String(m[1]).replace(/_/g, ""));
 }
 
 // Deck listeners attached per boot — 7 onSnapshot subscriptions, and the
@@ -81,6 +85,24 @@ export const DECK_DAYS = readNum(
 // will re-check at most.
 export const AGG_CAP = readNum(
   "src/v2/data/live.ts", /const AGG_ID_CAP = (\d+)/, "AGG_ID_CAP");
+
+// How long a hidden app keeps its snapshot listeners before detaching them.
+//
+// This is the bound on `B.onlineMin` below, and it is pinned here for the
+// same reason the four social caps are: it is the only thing standing
+// between the fan-out term and an unbounded tail. Before it existed,
+// nothing tore a listener down outside a uid change or account deletion,
+// so a resident WebView kept paying for every publish to today's aggregate
+// for as long as the OS let it live — and `onlineMin` was a guess about
+// human behaviour being used as if it were a fact about the code.
+//
+// It is not a term in the arithmetic, deliberately: what it does is make
+// `onlineMin` MEAN what the model already assumed, rather than adding a
+// correction on top of a wrong number. Reading it from source is the
+// tripwire — delete the detach and `npm run costs` fails here rather than
+// going on quoting a bill that assumed it.
+export const IDLE_DETACH_MS = readNum(
+  "src/v2/data/live.ts", /const IDLE_DETACH_MS = ([\d_]+)/, "IDLE_DETACH_MS");
 
 // ── the D98 read surfaces (D102) ────────────────────────────────
 // Named who-voted, Kindred and Circle all read OTHER USERS' answers on
@@ -223,7 +245,23 @@ export const B = {
   worldAnswers: 3,     // daily + feed + learn
   duelAnswers: 1,
   boots: 1.4,          // app opens per active user per day
-  onlineMin: 3,        // minutes with the app actually open
+  // Minutes per user per day with a snapshot LISTENER ATTACHED — not, as
+  // this comment said until the idle detach shipped, "minutes with the app
+  // actually open". The two are the same number only if something detaches
+  // when the app is backgrounded, and for a long time nothing did: the only
+  // teardown sites in live.ts were a uid change and account deletion, so a
+  // resident WebView's listeners outlived the session that opened them and
+  // the fan-out term was linear in a quantity no code bounded.
+  //
+  // The gloss was the bug, not the value. 3 is a fair estimate of time
+  // spent looking at the app and always was; it was simply not what
+  // Firestore was billing. Taken literally the difference is the whole
+  // shape of the top rows — at 60 the 50k-DAU bill is $16,689/mo against
+  // $1,224, and the fan-out crossover drops from ~30,800 DAU to ~1,538,
+  // under D7's write-contention wall. IDLE_DETACH_MS above is what makes
+  // the estimate true rather than hopeful; it caps the tail at one minute
+  // per backgrounding instead of one OS eviction.
+  onlineMin: 3,
   peakWindowMin: 240,  // D7's 4-hour morning window
   mauMultiple: 3,      // MAU = 3 x DAU
   reseedsPerMonth: 4,  // the launch plan's weekly promotion cadence
