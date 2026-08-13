@@ -1,16 +1,49 @@
 # The frozen design spec
 
-**`InSight_standalone_18.html` is the reference design** — the version the
-product is built to, and the file `scripts/style-diff.mjs` compares the
-app against.
+**`InSight_standalone_23.html` is the vision** — supplied by the owner on
+2026-08-13 and now committed. **`InSight_standalone_18.html` is still what
+`scripts/style-diff.mjs` compares against**, and the two are different jobs:
+v23 says where the product is going, v18 is the target the tree is currently
+measured to. Re-pointing style-diff is a sync, not a file swap, so it happens
+when the work lands rather than the day the file arrives.
 
-A v20 standalone exists (maintainer-supplied) and is **partially** synced:
-D113 took its two continuum feed forms (`dial`/`field`) and the redrawn
-compare rose (D114 made the forms live), and lists what remains
-(Predictions/Foresight, Born or built, shell groundwork). v18 stays the
-committed reference until a full sync moves it — a partial sync must not
-re-point this file, or style-diff and the next sync both aim at a target
-that half-describes the tree.
+A v20 standalone was **partially** synced: D113 took its two continuum feed
+forms (`dial`/`field`) and the redrawn compare rose (D114 made the forms
+live). A partial sync must not re-point the style-diff target, or style-diff
+and the next sync both aim at something that half-describes the tree.
+
+## How to read these files — they are bundles, not source
+
+Both are ~2 MB with 397 lines: a `<script type="__bundler/manifest">` holding
+every module gzipped and base64'd. Grepping the raw HTML finds almost nothing
+and reading it whole is hopeless. Unpack it instead — the manifest is JSON of
+`{uuid: {mime, compressed, data}}`, so base64-decode each `data`, gunzip when
+`compressed`, and each module arrives with its filename in the first comment
+line (`// mirror-field.jsx — …`). v23 unpacks to **109** modules, v18 to 99.
+UUIDs are regenerated per bundle, so diff by module NAME, never by uuid.
+
+## What v23 changes over v18, measured
+
+Twelve modules are new: `patterns-core.js` + `patterns-tab.jsx` (three lenses
+over one population), `predict-data.js` + `predict-cards.jsx` and
+`map-fore-card.jsx` (Predictions/Foresight), `paths-data.js` +
+`paths-card.jsx` (CROSSROADS branching stories), `trait-links.js` +
+`trait-web.jsx` (cross-test threads), `nature-data.js` (Born-or-built), and
+two `RelationshipMap` splits.
+
+Nine changed, and one dominates: `world-feed.jsx` **+24 KB**, almost all of it
+the dial/field continuum breakdowns (`dialBreakdown`, `fieldBreakdown`,
+`renderCutChips`) — *"bar = that group's typical answer, hairline = yours,
+same grammar as the rate breakdown."* Then `result-card.jsx` (+3.3 KB),
+`world-feed-data.js` (+1.8 KB), the map constellation (+2.3 KB),
+`map-groups.js`, `compare-breakdown.jsx`, `duo-daily.jsx`, `General.jsx`,
+`personmindmap`.
+
+**`mirror-field.jsx`, `mirror-field-pops.jsx`, `mirror-tab.jsx`,
+`place-stats.jsx` and `votecuts` are byte-identical between v18 and v23.**
+That is worth knowing before blaming a missing file for a wrong screen: where
+the live Mirror stops or the who-voted cuts diverge from the vision, they
+diverge from the committed v18 reference too, and have since the port.
 
 The earlier v9 prototype and the extracted `spec-modules/`
 directory were deleted on 2026-07-29, v14 on 2026-07-30, v15 on
