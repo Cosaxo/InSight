@@ -320,6 +320,14 @@ always one event behind the fact it is asserting. **The post-upload bump is
 still the right habit — it is just not a guarantee**, and the only thing
 that is, is reading the run list before dispatching.
 
+**Run 20 (`8cf48a1`, 2026-08-14, upload step `success`) delivered build 14,
+and `appBuild` went to 15 in the same session, off that step's
+conclusion.** That is the habit working for the first time in three
+releases, and it is worth naming what made the difference: the bump was
+done while the run's own step list was on screen, rather than deferred to
+whoever opened the repo next. The gap the last two fell into is the one
+between "the upload finished" and "someone came back to the tree".
+
 **So make the comparison against the runs, not against the docs.** The
 `Upload to App Store Connect` step's own conclusion is the record —
 `success` spent that build, `skipped` did not — and runs 15 and 16 (same

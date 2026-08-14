@@ -448,12 +448,19 @@ arithmetic.
       procedure and this paragraph is only its record**: where the two
       disagree, the run list wins.
 
+      **BUILD 14 WAS UPLOADED BY RUN 20** (`8cf48a1`, 2026-08-14 16:39Z,
+      7m 32s, upload step `success`, 1m 42s of it transfer). Both APNs
+      gates passed and the Firebase config was verified in the archive and
+      again in the exported `.ipa`. **`appBuild` is now 15**, bumped
+      immediately after that conclusion was read — the convention D142 and
+      D143 exist because it was skipped twice running.
+
       **BUILD 13 WAS UPLOADED BY RUN 19** (`0e65741`, 2026-08-13 20:19Z,
       6m 58s, upload step `success`) — the run dispatched from the very
-      commit that wrote the paragraph below. **`appBuild` is now 14**,
-      bumped 2026-08-14 during build 14's pre-flight (D143), and **build
-      13 is the highest on App Store Connect**, so the comparison passes
-      for the next run as-is.
+      commit that wrote the paragraph below.
+
+      *This file states what finished runs did. It does not state what is
+      unspent, and the section below is why.*
 
       **THE PARAGRAPH BELOW IS KEPT AS A RECORD OF THE TRAP FIRING A THIRD
       TIME, AND IT IS WRONG.** It says build 13 is unspent; run 19 spent
