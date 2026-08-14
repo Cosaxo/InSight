@@ -542,6 +542,38 @@ arithmetic.
       caveat to remember. The release workflow runs the same gate on its
       own `dist/`, which is the copy that gets signed.
 
+      **Build 15 pre-flighted 2026-08-14 (D153) — and nothing was
+      bumped, which is the finding.** Run 20's `Upload to App Store
+      Connect` step reads `success` and `appBuild` at `8cf48a1` was 14, so
+      build 14 is spent and the tree's 15 is already ahead. The question
+      above answers *run as-is*. **Three pre-flights in a row opened on a
+      spent number and this one does not**, because run 20's post-upload
+      bump landed in the session that read its step list — the one thing
+      D143 named as making the difference.
+
+      Measured, not asserted: 1064 client, 214 function, 183 script and 89
+      rules tests, `lint`, `tsc -b`, `check:globals` at its 412 baseline,
+      and every check gate. `check:store-copy` passes with `--ios` (D42's
+      parked Play fingerprint is the one placeholder) and
+      `check:web-firebase` is environmental, as below. CI run 436
+      (`2423e4f`) is green across all nine jobs, `native-sync-drift`
+      included — which is the one that speaks to this release, since build
+      15 carries `@capacitor/ios` 8.3.3 → 8.4.2 and two more shell-facing
+      bumps.
+
+      **`check:bundle` is green on the shipping bundle for the first time
+      at a pre-flight**: 2255 KB total against 2265, 969 KB eager against
+      978. It was the yield of both previous pre-flights and, at D143, red
+      on a bundle nobody installs; D144 re-pointed it. Both numbers now sit
+      single-digit KB under their ceilings, so the next feature of any size
+      meets one of them.
+
+      *One test failed once under parallel load and passed 3/3 alone and
+      1064/1064 on two clean runs —* `learn-reserve.test.jsx` spends ~10.8 s
+      of the 15 s timeout it sets itself, so a loaded runner can exhaust it.
+      D153 has the arithmetic; read it before calling a red there a D95
+      regression.
+
       **`npm run check:versions -- --fix` does NOT increment.** It
       propagates package.json's value into the two native projects and
       nothing more, so "run --fix to bump" is wrong and reports a cheerful
