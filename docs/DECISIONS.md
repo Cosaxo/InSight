@@ -14331,3 +14331,118 @@ about. If a future build profile is added, it needs a line here and in both
 workflows, and nothing enforces that but review. Recorded rather than
 solved: the alternative is a build-profile manifest emitted into `dist/`,
 which is more machinery than one flag currently justifies.
+
+## D145 · Four question lanes, two of which had never run: the learn and feed Routines, a feed regulator, and a weekday for catalogues
+
+**Decided:** 2026-08-14 · **Status:** built on
+`claude/question-generation-rates-5kiz6c` (owner's direction: "wire up
+the learn and feed lane routines … new catalogues are not created they
+should be"), ships when that branch's PR merges.
+
+**What the audit found, before any of it was fixed.** Eight surfaces
+generate questions; two Routines existed. Counting the lanes rather than
+the contracts:
+
+| Lane | Contract | Routine | Output at audit |
+| --- | --- | --- | --- |
+| daily archive | D97 | daily 07:00 | **0 in 15 days** — every logged run a no-op |
+| catalog pick | this manual | daily 08:00 | ~1/day (pk11–pk14) |
+| catalog **domains** | § Creating new catalogues | (the same 08:00 slot) | 1 in 15 days |
+| learn cards | D32 → D115 | **none** | 0 |
+| feed questions | D97 | **none** | **0 ever** — all 82 provenance rows read `editorial` |
+| duel | D40 | none (deliberate) | 0 |
+| pulse | D139 | none (deliberate) | 0 |
+| community | D138 | n/a — human | 0 promoted |
+
+Two different failures wearing the same zero. Learn and feed had
+complete contracts and nothing calling them: D115 gave the learn lane a
+budget that could produce and left it uncalled, so the bank sat 182 cards
+short of its own target with a grantable budget of 10 and no run to
+spend it. The daily farm is the opposite — it fires every morning and
+places nothing, because `farm-budget` grants 8 while a pre-launch
+scorecard blinds lanes 1–2 and coverage's floor is met everywhere. **That
+one is not fixed here**, deliberately: its unblock is a scorecard refresh
+(`FIREBASE_API_KEY` in an operator shell or the remote environment), an
+operator step the run log has now named four times.
+
+**Decision, four parts.**
+
+1. **A Routine each for learn (`0 9 * * 1,4`) and feed (`30 9 * * 2,5`)**,
+   bound to the same dev session as the two working lanes, staggered off
+   07:00/08:00 and off each other because four lanes share one checkout.
+   Ids are in the manual's inventory; both were created with exactly the
+   configuration the two proven Routines carry — no stored MCP
+   connectors, same environment — because the GitHub tools a run needs to
+   log on issue #31 come from the bound session, and a tidier-looking
+   configuration would have been an untested one.
+2. **`scripts/feed-budget.mjs`, a regulator before a schedule.** The feed
+   lane's "≤6/run, at most twice weekly" was the flat shape D97 and D115
+   had to remove from the other two lanes, and handing a flat cap to a
+   scheduled job is how D33's binding constraint gets violated on a
+   timer. The arithmetic is learn's, against a different quantity: the
+   feed has no consumption clock, so the deficit is per-topic BREADTH
+   toward `TOPIC_TARGET` 12 — the depth `dilemma` already carries — and
+   only SERVABLE forms count, because `rank` (D12) and legacy `duel`
+   cards would let a topic read as covered on questions nobody can meet
+   (`sport` is 13 entries and 10 servable ones). `RUN_CAP` stays at
+   D97's 6 and is the one cap a regulator does not justify raising: this
+   lane is bounded by signal dilution, and no regulator makes a thin
+   crowd thicker. `feed-budget.test.mjs` pins the properties, including
+   the one D115 was written for — that the lane finds work in the bank as
+   it actually ships.
+3. **Sunday builds a catalogue.** "From time to time … when the
+   honest-question well runs thin" could not schedule anything: a
+   competent run asks it while holding a domain with one usable seat
+   left, and one seat is always enough for today's card. Measured — the
+   elements domain landed 08-11 and the four days after it produced four
+   more elements cards. A fixed weekday asks a question a run can
+   answer. Two standing blockers fall with it: a domain branch is cut
+   from `origin/main` (the 08-07→09 no-ops deferred three domain days
+   over review coupling, which comes from one branch CONTAINING another,
+   not from two being open), and the reachable source path is recorded
+   rather than re-discovered — `registry.npmjs.org` answers through the
+   session proxy, `query.wikidata.org` is refused at CONNECT, so
+   films/artists stay the D15 operator step.
+4. **Every question carries a category, and now the gates say so.**
+   `check:quality` required `cat` on daily and `f` on learn, validated
+   feed's `cat` only when present, and had no rule for pick at all —
+   despite the catalog contract's "Every card carries a `cat`, always".
+   All 372 questions in the tree carry one, so nothing was broken; what
+   was missing was the gate, and "true in the data" stops being the same
+   as "true" once a schedule rather than a human is writing. Pick files
+   against `WORLD_TOPICS`, not the feed taxonomy: `fav` — the id all
+   thirteen cards use — is a real topic the feed's chip row filters out.
+
+**A new category is still never created by a run** (§ When no category
+fits, new). A category here is a `CAT_META` hue, a Map anchor with
+relations, a chip, and for learn a group in the Map's layout — a job
+that could add one because a question did not fit is a job that redraws
+the Map to make its own writing easier. What changed is the disposal
+rule, which was soft enough to be unobservable: a question fitting no
+category is **dropped**, and the category proposed in the PR body AND
+the run's issue #31 comment. Both, because the run log is where three
+runs proposing the same missing top becomes an argument rather than an
+anecdote. The pulse is the one surface with no category at all, by
+D139's own decision — its Map branch is the unported seventh
+over-category, the D126 boundary.
+
+**Not done, deliberately:** the daily farm's scorecard unblock (an
+operator step, above); a duel Routine (a fifth scheduled lane is a
+decision for after these two have shown what they cost at the gate);
+raising the feed cap (the D97 amendment, waiting on a crowd); any
+change to the pulse roster (D139's "the roster is a constant until a
+second one earns its place" is exactly right — an over-time question
+consumes nothing, so its generation rate should be the lowest of any
+surface, and near-zero is the correct rate rather than a gap).
+
+**Enforcement:** `feed-budget.test.mjs` (15 cases: the ships-today
+property, the cap, the target, open-PR subtraction, thinnest-first
+water-filling, the no-MIN_CHUNK spread that distinguishes this lane from
+learn's, servable-only counting, convergence, and the signal line's
+three modes); three new `check:figures` pins holding the manual's feed
+numbers equal to the script — verified to bite by moving `TOPIC_TARGET`
+and watching it fail; the two new `check:quality` topic rules, verified
+to bite on a cat-less pick card and a cat-less feed question. Green at
+commit: 26 figures, 372 questions, 183 script tests, lint,
+`check:content`, `check:globals`, `check:labels`, `test:unit`, both
+builds.
