@@ -19,7 +19,7 @@
 // nothing here cross-tabs ANSWERS by type: that is tier 2, a recorded
 // decision this module deliberately does not take (D8's surviving half).
 import LIVE from "./live";
-import type { KindredPerson } from "./similarity";
+import type { KindredPerson, ParsedResults } from "./similarity";
 // @ts-expect-error TS7016 — untyped spec module (additive exports, D141)
 import { ARCHETYPES, matchArchetype } from "../spec/archetype-data.js";
 
@@ -61,8 +61,35 @@ const typeOfDims = (dims: Dim[] | undefined | null): string | null => {
   return m ? m.list[m.idx].name : null;
 };
 
-export const typeOfPerson = (p: KindredPerson): string | null =>
-  typeOfDims(p.results?.[TYPE_TEST]?.dims as Dim[] | undefined);
+/**
+ * A cross-user result, as `parseTestResults` leaves it: kind → dimId →
+ * value. `matchArchetype` wants `[{id, value}]`, so the two shapes have to
+ * be joined somewhere, and here is the only place that knows both.
+ *
+ * THIS IS WHERE D141 SHIPPED BROKEN, and the shape is the whole story.
+ * `typeOfPerson` read `p.results[TYPE_TEST].dims` — the RAW profile shape
+ * that `myType` reads off `LIVE.myTestResults()`, which does carry a
+ * `dims` array. But `KindredPerson.results` has been through
+ * `parseTestResults`, which flattens the array to an axes map, so `.dims`
+ * on it is `undefined` for every person who ever had a result. That fed
+ * `matchArchetype(key, undefined)`, which returns null, so `typeOfPerson`
+ * returned null UNCONDITIONALLY: `typeMixFor` filtered its whole sample
+ * away, `typedN` was always 0, and the type-mix card drew its "nothing
+ * typed here" empty state on every population in live mode.
+ *
+ * Nothing caught it. The module had no test, the two shapes are both
+ * `Record`s so the `as Dim[]` cast silenced tsc, and the empty state is
+ * indistinguishable from a genuinely thin population — the card was
+ * *designed* to say that, so it looked like it was working.
+ * Measured with a probe before this fix, not reasoned about.
+ */
+export const typeOfParsed = (results: ParsedResults | null | undefined): string | null => {
+  const axes = results?.[TYPE_TEST];
+  if (!axes) return null;
+  return typeOfDims(Object.entries(axes).map(([id, value]) => ({ id, value })));
+};
+
+export const typeOfPerson = (p: KindredPerson): string | null => typeOfParsed(p.results);
 
 /** Your own type, from your Big Five result — null until the passive fold
  * has published one (the card then says so instead of inventing one). */

@@ -11,19 +11,18 @@
 //
 //   - picking a cohort must change the numbers under it, to that cohort's
 //     numbers, on the question's own options in the question's own order;
-//   - "Everyone" is the plain published split, so that frame agrees with
-//     the card that opened it;
+//   - "Everyone" is the default and is the plain published split, so the
+//     first frame agrees with the card that opened it;
+//   - D148 moved that third case. There used to be a ROSTER under every
+//     cohort — each voter's name with their age, gender, city and
+//     education beside it — and the case here held it to the same
+//     population as the count above it. The roster is gone from cohorts
+//     entirely, D146's type cut included: a directory of strangers
+//     annotated with their demographics is not what a result screen is
+//     for. Names now live on ONE cut, Friends, where "who" is the
+//     question; the cases below hold that line in both directions;
 //   - an empty cohort must read as zero and say so — since D98 an absent
 //     cell IS zero, and the old "withheld" reading is gone with the floor.
-//
-// D148 moved the third original case. There used to be a ROSTER under
-// every cohort — each voter's name with their age, gender, city and
-// education printed beside it — and the case here held it to the same
-// population as the count above it. The roster is gone from cohorts
-// entirely: a directory of strangers annotated with their demographics is
-// not what a result screen is for, and on "Everyone" it was a directory of
-// everybody. Names now live on ONE cut, Friends, where "who" is the
-// question being asked; the cases below hold that line in both directions.
 //
 // `../data/live` is mocked rather than booted: it imports Firebase, and
 // the arithmetic these draw is unit-tested in data/cohort.test.ts.
@@ -40,14 +39,22 @@ const LIVE = vi.hoisted(() => ({
   },
   anchors: () => ({}) as Record<string, string>,
   subscribe: () => () => {},
-  // The Friends cut rides inside this panel, so its store surface is here
-  // too: the follow SET (one query) plus the voter list it intersects.
+  // The Friends cut rides inside this panel (D148), so its store surface
+  // is here too: the follow SET (one query) plus the voter list it
+  // intersects — the same list D146's type fold already loads.
   loadVoters: vi.fn(async (qid: string) => { void qid; }),
   voters: (qid: string) => { void qid; return null as Voter[] | null; },
   votersLoading: (qid: string) => { void qid; return false as boolean; },
   loadFollows: vi.fn(async () => {}),
   follows: () => null as string[] | null,
   followsLoading: () => false as boolean,
+  // The type cut (data/typeSplit.ts) and `typeMix.myType`, which reads the
+  // viewer's own result off the store the same way.
+  voterScores: (qid: string) => {
+    void qid;
+    return null as { uid: string; optionIdx: number; results: unknown }[] | null;
+  },
+  myTestResults: () => ({}) as Record<string, unknown>,
 }));
 vi.mock("../data/live", () => ({ default: LIVE }));
 
@@ -86,6 +93,8 @@ beforeEach(() => {
   LIVE.follows = () => [];
   LIVE.followsLoading = () => false;
   LIVE.loadFollows = vi.fn(async () => {});
+  LIVE.voterScores = () => null;
+  LIVE.myTestResults = () => ({});
 });
 afterEach(cleanup);
 
@@ -195,9 +204,8 @@ describe("LiveBreakdownPanel · what it will not claim", () => {
 
   it("costs no reads to change cohort", () => {
     // Every cohort comes out of the aggregate already fetched for the
-    // card, so switching cohorts must cost nothing. Nothing is fetched at
-    // all until the Friends cut is opened (D148) — the cohort reading is
-    // pure arithmetic on the aggregate.
+    // card. The roster's one fetch-on-open is the sheet's entire cost, and
+    // switching cohorts must not add to it.
     render(<LiveBreakdownPanel qid="q1" options={OPTS} />);
     expect(LIVE.loadVoters).toHaveBeenCalledTimes(0);
     fireEvent.click(chip("Age"));
@@ -205,8 +213,10 @@ describe("LiveBreakdownPanel · what it will not claim", () => {
     fireEvent.click(chip("Country"));
     expect(LIVE.loadVoters).toHaveBeenCalledTimes(0);
   });
+});
 
-  it("names nobody under a cohort — a cohort answers in percentages", () => {
+describe("LiveBreakdownPanel · a cohort answers in percentages (D148)", () => {
+  it("names nobody under Everyone, or under any demographic cut", () => {
     // The D148 line, in the direction that matters. Everyone and every
     // demographic cut are readings of a crowd; a list of that crowd's
     // members, annotated with their age and city, is a different screen
@@ -361,5 +371,171 @@ describe("LiveBreakdownPanel · continuum forms bring their own body", () => {
       counts: [3, 5, 2], label: "55-64", overall: [18, 9, 3],
     });
     expect(screen.queryByText(/points/)).toBeNull();
+  });
+});
+
+// ── the type cut ────────────────────────────────────────────────────
+//
+// The one cut on this sheet that is NOT a published cell. It folds the
+// session's cached voter list against those voters' current profile
+// scores (data/typeSplit.ts), which buys the reading the anchors snapshot
+// could never give — a type applies to answers given before the person
+// was typed — at the cost of being a bounded sample sitting beside exact
+// numbers. These cases are about that seam: the cut works, and it never
+// passes itself off as the census next to it.
+
+/** A voter row carrying a real Big Five, as `LIVE.voterScores` returns them. */
+const scored = (uid: string, optionIdx: number, dims: Record<string, number> | null) => ({
+  uid,
+  optionIdx,
+  results: dims ? { big5: dims } : null,
+});
+
+const QUIET = { O: 72, C: 55, E: 15, A: 58, N: 50 };
+const LOUD = { O: 60, C: 32, E: 90, A: 58, N: 45 };
+
+/** n typed voters of one profile, all on one option. */
+const scoredMany = (tag: string, optionIdx: number, dims: Record<string, number>, n: number) =>
+  Array.from({ length: n }, (_, i) => scored(`${tag}${i}`, optionIdx, dims));
+
+describe("LiveBreakdownPanel · the type cut", () => {
+  it("offers a Type chip after the published dims", () => {
+    render(<LiveBreakdownPanel qid="q1" options={OPTS} />);
+    expect(chip("Type")).toBeTruthy();
+    // Everyone stays the default; adding a cut must not move the landing.
+    expect(chip("Everyone").getAttribute("aria-pressed")).toBe("true");
+  });
+
+  it("asks for the voter list when opened, so it cannot wait on a hidden roster", () => {
+    // Both empty states render INSTEAD of the roster, and the roster is
+    // what fetches — so without this the cut would sit on "Reading who
+    // answered…" forever.
+    render(<LiveBreakdownPanel qid="q1" options={OPTS} />);
+    fireEvent.click(chip("Type"));
+    expect(LIVE.loadVoters).toHaveBeenCalledWith("q1");
+  });
+
+  it("says it is still reading rather than claiming nobody is typed", () => {
+    LIVE.voterScores = () => null;
+    render(<LiveBreakdownPanel qid="q1" options={OPTS} />);
+    fireEvent.click(chip("Type"));
+    expect(screen.getByText(/Reading who answered/)).toBeTruthy();
+  });
+
+  it("distinguishes 'nobody has a result' from 'still loading'", () => {
+    LIVE.voterScores = () => [scored("a", 0, null), scored("b", 1, null)];
+    render(<LiveBreakdownPanel qid="q1" options={OPTS} />);
+    fireEvent.click(chip("Type"));
+    expect(screen.queryByText(/Reading who answered/)).toBeNull();
+    expect(screen.getByText(/Nobody among the 2 answers here has a readable Big Five/)).toBeTruthy();
+  });
+
+  it("redraws the question's own options with that type's numbers", () => {
+    // 60 typed voters, so shares are allowed. Counts are deliberately
+    // UNEQUAL (40 against 20): on a tie the chips fall back to
+    // alphabetical order, which would make "the first chip" depend on
+    // archetype names rather than on the fixture.
+    LIVE.voterScores = () => [
+      ...scoredMany("q", 0, QUIET, 40),
+      ...scoredMany("l", 1, LOUD, 10),
+      ...scoredMany("m", 2, LOUD, 10),
+    ];
+    render(<LiveBreakdownPanel qid="q1" options={OPTS} />);
+    fireEvent.click(chip("Type"));
+    // The most numerous type opens by default.
+    expect(chip(/· 40$/).getAttribute("aria-pressed")).toBe("true");
+    expect(pctRow("Beach")).toMatch(/100%/);
+    expect(pctRow("City break")).toMatch(/0%/);
+  });
+
+  it("switching type switches the numbers, on the same options", () => {
+    LIVE.voterScores = () => [
+      ...scoredMany("q", 0, QUIET, 40),
+      ...scoredMany("l", 1, LOUD, 20),
+    ];
+    render(<LiveBreakdownPanel qid="q1" options={OPTS} />);
+    fireEvent.click(chip("Type"));
+    expect(pctRow("Beach")).toMatch(/100%/);
+    // Addressed by its count rather than its name: the archetype the
+    // fixture matches is the matcher's business, not this test's.
+    fireEvent.click(chip(/· 20$/));
+    expect(pctRow("City break")).toMatch(/100%/);
+    expect(pctRow("Beach")).toMatch(/0%/);
+  });
+
+  it("states its basis every time, and names both denominators", () => {
+    LIVE.voterScores = () => [
+      ...scoredMany("q", 0, QUIET, 60),
+      ...Array.from({ length: 5 }, (_, i) => scored(`x${i}`, 1, null)),
+    ];
+    render(<LiveBreakdownPanel qid="q1" options={OPTS} />);
+    fireEvent.click(chip("Type"));
+    // 65 read, 60 of them typed — the gap is the honesty of the card and
+    // the two numbers are never blurred into one.
+    expect(screen.getByText(/Of the 65 answers this session has read, 60 carry a Big Five/)).toBeTruthy();
+  });
+
+  it("says out loud that it counts answers given before the person was typed", () => {
+    // The property that made this cut worth building instead of the
+    // forward-only breakdown dim. If the UI stops saying it, a reader has
+    // no way to tell this cut from one that started accruing at ship date.
+    LIVE.voterScores = () => scoredMany("q", 0, QUIET, 60);
+    render(<LiveBreakdownPanel qid="q1" options={OPTS} />);
+    fireEvent.click(chip("Type"));
+    expect(screen.getByText(/counts answers given before they were typed/)).toBeTruthy();
+  });
+
+  it("shows counts, not shares, when the typed sample is too thin", () => {
+    // 10 typed people cannot carry a percentage: one of them changing
+    // their mind moves it ten points.
+    LIVE.voterScores = () => scoredMany("q", 0, QUIET, 10);
+    render(<LiveBreakdownPanel qid="q1" options={OPTS} />);
+    fireEvent.click(chip("Type"));
+    expect(screen.getByText(/Too few for shares, so these are counts/)).toBeTruthy();
+    expect(pctRow("Beach")).toMatch(/10/);
+    expect(pctRow("Beach")).not.toMatch(/%/);
+  });
+
+  it("compares a type against the TYPED sample, not against the published census", () => {
+    // The arithmetic trap. Overall here is 60/30/10 published; the typed
+    // sample is 30 Beach / 30 City break = 50/50. QUIET is 100% Beach, so
+    // the honest gap is 50 points against the typed sample — not 40
+    // against the census, which would fold the sample's own bias into a
+    // number presented as the type's.
+    LIVE.voterScores = () => [
+      ...scoredMany("q", 0, QUIET, 30),
+      ...scoredMany("l", 1, LOUD, 30),
+    ];
+    render(<LiveBreakdownPanel qid="q1" options={OPTS} />);
+    fireEvent.click(chip("Type"));
+    expect(screen.getByText(/50 points/)).toBeTruthy();
+    expect(screen.getByText(/than the typed people here/)).toBeTruthy();
+  });
+
+  it("does not hand a bounded sample to a continuum body", () => {
+    // A dial's track reads as the population's position. renderBody is
+    // fed published cells only; the type cut draws the plain rows.
+    LIVE.voterScores = () => scoredMany("q", 0, QUIET, 60);
+    render(
+      <LiveBreakdownPanel
+        qid="q1"
+        options={OPTS}
+        renderBody={(counts, pick) => <div>body for {pick.label} {counts.join("/")}</div>}
+      />,
+    );
+    fireEvent.click(chip("Type"));
+    expect(screen.queryByText(/^body for/)).toBeNull();
+  });
+
+  it("leaves the published cuts exactly as they were", () => {
+    // The regression that matters most: a new chip must not disturb the
+    // census readings beside it.
+    LIVE.voterScores = () => scoredMany("q", 0, QUIET, 60);
+    render(<LiveBreakdownPanel qid="q1" options={OPTS} />);
+    fireEvent.click(chip("Type"));
+    fireEvent.click(chip("Age"));
+    fireEvent.click(chip(/^25-34 · 20/));
+    expect(pctRow("Beach")).toMatch(/75%/);
+    expect(screen.queryByText(/carry a Big Five/)).toBeNull();
   });
 });

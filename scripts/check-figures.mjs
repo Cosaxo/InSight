@@ -163,6 +163,11 @@ const budgetConst = constFrom("scripts/farm-budget.mjs");
 // section of QUESTION-FARM.md is what a run obeys, so a drifted cap there
 // hands it a budget the script does not compute.
 const learnConst = constFrom("scripts/learn-budget.mjs");
+// The feed regulator's constants. This lane's cap is bounded by signal
+// dilution rather than by the regulator, so the figure gate matters MORE here,
+// not less: a manual quoting a bigger number than the script computes is the
+// one way a run could be told to spread the crowd thinner than the design says.
+const feedConst = constFrom("scripts/feed-budget.mjs");
 
 const FIGURES = [
   {
@@ -358,6 +363,34 @@ const FIGURES = [
     re: /at least \*\*(\d+) cards into any field it touches\*\*/,
     actual: learnConst("MIN_CHUNK"),
     fix: (n) => `"at least **${n} cards into any field it touches**"`,
+  },
+  // The three feed-lane figures, quoted in § The feed lane. Same reasoning as
+  // the other two lanes': the section is what a scheduled run obeys, so a cap
+  // drifted there hands the run a budget feed-budget.mjs does not compute.
+  {
+    file: "docs/QUESTION-FARM.md",
+    what: "the feed lane's per-run cap (RUN_CAP)",
+    // "feed questions", not "questions": the daily lane's own RUN_CAP sentence
+    // reads "up to **8 questions per run**" and appears first in the file, so
+    // a shared pattern would silently check the feed's cap against the daily's
+    // number. Distinct figures need distinct sentences.
+    re: /\*\*(\d+) feed questions per run\*\*/,
+    actual: feedConst("RUN_CAP"),
+    fix: (n) => `"**${n} feed questions per run**"`,
+  },
+  {
+    file: "docs/QUESTION-FARM.md",
+    what: "the feed per-topic breadth target (TOPIC_TARGET)",
+    re: /\*\*(\d+)\s*\n?\s*servable questions per\s*\n?\s*topic\*\*/,
+    actual: feedConst("TOPIC_TARGET"),
+    fix: (n) => `"**${n} servable questions per topic**"`,
+  },
+  {
+    file: "docs/QUESTION-FARM.md",
+    what: "the feed open-PR review ceiling (OPEN_MAX)",
+    re: /\*\*(\d+)\*\* unreviewed questions on\s*\n?\s*that PR/,
+    actual: feedConst("OPEN_MAX"),
+    fix: (n) => `"**${n}** unreviewed questions on that PR"`,
   },
 ];
 

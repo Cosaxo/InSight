@@ -166,3 +166,36 @@ describe("LivePrivacyPanel · off in demo mode", () => {
     expect(container.textContent).toBe("");
   });
 });
+
+describe("LivePrivacyPanel · the type cut's disclosure", () => {
+  // Pinned for the same reason the takes bullet is: the claim it replaces
+  // ("a test result is never a breakdown dim, so nothing is ever
+  // cross-tabbed by it") was TRUE and is now only half true, and the half
+  // that died is the half a user would want to know. A future sweep that
+  // deletes this bullet to tidy the list has to argue with an assertion.
+  const typeBullet = () => {
+    render(<LivePrivacyPanel />);
+    const li = [...document.querySelectorAll("li")]
+      .find((el) => /Big Five/i.test(el.textContent || ""));
+    if (!li) throw new Error("no bullet about the type cut — the disclosure lost it entirely");
+    return li.textContent || "";
+  };
+
+  it("says answers can be grouped by type", () => {
+    expect(typeBullet()).toMatch(/grouped by your Big Five type/i);
+  });
+
+  it("says the grouping reaches answers given before the type existed", () => {
+    // The retroactive half. It is the one property a reader cannot guess
+    // from "answers are public" plus "results are public", because every
+    // other cut on the same sheet is frozen at vote time.
+    expect(typeBullet()).toMatch(/before you had a type/i);
+  });
+
+  it("keeps the Art. 9 instruments out of it, in writing", () => {
+    // data/typeMix.TYPE_TEST is the enforcement; this is the promise.
+    // They are pinned in two places on purpose — the code one is a
+    // constant a refactor could widen without touching any copy.
+    expect(typeBullet()).toMatch(/politics, values and social results are never used/i);
+  });
+});

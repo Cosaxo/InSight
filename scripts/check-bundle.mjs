@@ -17,6 +17,55 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const ASSETS = join(root, "dist", "assets");
 const INDEX_HTML = join(root, "dist", "index.html");
 
+// ── WHICH BUNDLE THIS IS, AND WHY THE SCRIPT REFUSES TO GUESS ───────
+//
+// Every ceiling below describes the bundle that SHIPS, and for a long
+// time none of them measured it. `ios-release.yml` is the only workflow
+// that sets VITE_V2_LIVE=true, and it never ran this script; `ci.yml` ran
+// this script on a build with the flag unset. So the gated bundle was one
+// nobody installs and the installed one was ungated — for every build
+// through 14 (D144).
+//
+// The gap is not academic and not small: with the flag set the same tree
+// builds 67 chunks instead of 63, +12 KB of total JS, and **+9 KB in the
+// eager graph** — the number whose entire job is to keep a 293 KB
+// Firestore SDK and a 445 KB Sentry SDK out of first paint. Measured at
+// build 14: 2232/972 live against 2220/963 demo, against ceilings of
+// 2230/966. The live bundle was over BOTH and CI said OK, four times.
+//
+// CAPACITOR_BUILD is NOT what moves it, which is worth writing down
+// because it is the variable that looks responsible. It only waives
+// vite.config.ts's reCAPTCHA-key guard (a native client attests through
+// DeviceCheck and never reads the key) and defines nothing, so it cannot
+// change a byte of output. VITE_V2_LIVE alone reproduces the entire
+// delta — verified by building with each in isolation.
+//
+// Hence this guard rather than a second set of "native" ceilings. A
+// second set would have been the obvious fix and the wrong one: it leaves
+// the two profiles both gated and both plausible, so the next person
+// still has to know which command produced which numbers. Refusing to
+// grade the wrong artifact is the property that cannot rot.
+const DEMO = process.argv.includes("--demo");
+if (!DEMO && process.env.VITE_V2_LIVE !== "true") {
+  console.error(
+    "check-bundle: this gate describes the SHIPPING bundle, and dist/ was\n"
+    + "not built as one — VITE_V2_LIVE is "
+    + (process.env.VITE_V2_LIVE === undefined
+      ? "unset"
+      : `"${process.env.VITE_V2_LIVE}"`)
+    + " for this process.\n\n"
+    + "  Build and check the bundle that ships:\n"
+    + "    VITE_V2_LIVE=true VITE_SENTRY_DSN=https://ci@example.invalid/0 npm run build\n"
+    + "    VITE_V2_LIVE=true npm run check:bundle\n\n"
+    + "  The DSN is load-bearing too and for a different reason: without it\n"
+    + "  the 445 KB Sentry chunk is provably dead and rolldown drops it, so\n"
+    + "  the TOTAL comes out ~450 KB light. Any non-empty string restores it.\n\n"
+    + "  To measure a demo build on purpose, pass --demo. That reports the\n"
+    + "  numbers and applies no ceiling, because they are not this app's.",
+  );
+  process.exit(1);
+}
+
 // Current largest chunk is the entry, 723.4 KB. The spec layer used to load
 // in one piece, and this comment used to say check-spec-globals required that —
 // it does not. Rule 2 substring-matches the './spec/…' strings in
@@ -390,8 +439,52 @@ const INDEX_HTML = join(root, "dist", "index.html");
 // open. First paint did not move, and the Firestore-SDK guarantee the
 // eager constant exists for is intact. A raise here would have been the
 // thing to refuse.
+//
+// 2230 → 2245 (2026-08-14): NOT growth, and reading it as growth is the
+// mistake this entry exists to prevent. The guard at the top of this file
+// changed what these numbers DESCRIBE — from the demo bundle to the
+// shipping one — and the shipping one measures 2233 on the same commit
+// the demo measures 2220. Nothing was added; the ruler moved onto the
+// right object. D144 has the arithmetic.
+//
+// The ~12 KB band is sized for a hazard rather than picked. `ci.yml`
+// builds with a dummy Sentry DSN and no Firebase config; `ios-release.yml`
+// builds with the real DSN and the real `VITE_FIREBASE_*`, worth +1 KB of
+// total (2232 → 2233, both measured). Set this at the CI figure and the
+// RELEASE build fails a gate CI had just passed — on a macOS runner, after
+// the archive, at the most expensive moment available. The band covers the
+// config delta because it has to.
+//
+// 2245 → 2265 (2026-08-14): D148-D151 — the takes' side badges and side
+// filter, the who-voted sheet's Friends cut, Learn's real per-option
+// counts, Near's anonymous field, the account-creation questions and the
+// People lens rebuilt to the prototype's shape. Measured the way the
+// guard above now insists: `VITE_V2_LIVE=true` with a DSN, 2255 against
+// the 2245 ceiling.
+//
+// Fifth firing, same shape as the four before it: features that were
+// asked for, and the alarm has still never been the thing that found a
+// problem. The band is the 10 KB convention the 2230 entry set, taken
+// above the measured 2255.
+//
+// WHAT IS NOT BEING RAISED, again, is MAX_EAGER_KB — 969 against 978 on
+// this same build, with room left. Every one of those surfaces is behind
+// a tap or a stop: the profile-setup screen is a dynamic import from
+// main.jsx (D150 records why the obvious gate component would not fit),
+// the Near field and the Circle/Groups fields are React.lazy, and the
+// People lens rides the lens chunk that already existed.
+//
+// It went DOWN on the way, which is the part worth recording. The rebuild
+// landed a fraction over the eager ceiling, and the fix was not to trim
+// the feature but to find weight that should never have been eager:
+// LiveTakesPanel was statically imported by daily-split.jsx and
+// LiveDuelPanel — both the daily tab — so ~40 KB of takes thread was
+// preloaded for a surface that renders behind a "Takes" tap or under a
+// revealed duel. Both are React.lazy now. That is the trade this gate is
+// for: the total is a drift alarm, the eager graph is the guarantee, and
+// paying for a feature out of first paint is the wrong pocket.
 const MAX_CHUNK_KB = 735;
-const MAX_TOTAL_JS_KB = 2230;
+const MAX_TOTAL_JS_KB = 2265;
 // 955 → 966 (2026-08-14): D139's pulse card — the second fixed instrument
 // on the FIRST screen, so its card, its store's demo furniture and the
 // two LIVE members are legitimately eager (~10 KB min). What is not
@@ -399,7 +492,27 @@ const MAX_TOTAL_JS_KB = 2230;
 // card's own tap, and the store's live loaders (template + 21 per-day
 // aggs) are dynamic inside ensureLive(). Headroom left: ~5 KB, the same
 // posture as the 955 raise.
-const MAX_EAGER_KB = 966;
+//
+// 966 → 978 (2026-08-14): the same re-pointing as the total above, and
+// this is the half where it mattered. The shipping bundle's eager graph is
+// **972** where the demo bundle's is 963, so first paint has been 6 KB
+// over this ceiling since build 12 or earlier with nothing able to say so.
+// The +9 KB is spread across small chunks the live path pulls in — the
+// largest single one is a 1.2 KB Sentry SHIM, not the SDK.
+//
+// THE GUARANTEE IS INTACT, and it was checked rather than assumed, because
+// "the eager ceiling has been wrong for four builds" is exactly the shape
+// of report that ends with an SDK in first paint. Neither big lazy chunk
+// is preloaded in the live build: `dist/index.html` names 23 modules and
+// the largest is 40 KB — no 293 KB `index.esm-*` (Firestore), no 445 KB
+// `prod-*` (Sentry). Both were verified absent from the modulepreload list
+// at the same commit these numbers come from.
+//
+// 978 is still a ceiling and still not raiseable on request. The doctrine
+// from the 955 entry holds at the new figure: either SDK rejoining first
+// paint lands at 1265 or 1417, so any ceiling near 978 catches it, and the
+// 6 KB band is headroom for a feature rather than room for a library.
+const MAX_EAGER_KB = 978;
 
 let files;
 try {
@@ -477,10 +590,57 @@ for (const s of sized.slice(0, 5)) {
 console.log(`  ${totalKb.toFixed(0).padStart(5)} KB  total across ${sized.length} chunks`);
 console.log(`  ${eagerKb.toFixed(0).padStart(5)} KB  eager graph — entry + ${eager.length - 1} modulepreload(s)`);
 
+if (DEMO) {
+  console.log(
+    "\n--demo: this is NOT the bundle that ships, so no ceiling was applied.\n"
+    + "  The shipping build sets VITE_V2_LIVE=true and measures larger — at\n"
+    + "  build 14, +12 KB of total and +9 KB of eager graph. Numbers above are\n"
+    + "  for comparison only and must not be quoted as this app's size.",
+  );
+  process.exit(0);
+}
+
 let failed = false;
 for (const s of over) {
   console.error(`\nOVER per-chunk budget: ${s.f} is ${s.kb.toFixed(0)} KB (max ${MAX_CHUNK_KB} KB)`);
   failed = true;
+}
+
+// ── the SDK rule ────────────────────────────────────────────────────
+//
+// MAX_EAGER_KB's stated purpose is keeping the Firestore (293 KB) and
+// Sentry (445 KB) SDKs out of first paint, but it only does that as a side
+// effect of arithmetic: it is one number covering 23 chunks, so it holds
+// exactly as long as nobody raises it. It has been raised four times in
+// four days, twice by me, and D144 raised it while REPORTING that first
+// paint had been over budget unnoticed for four builds. A guarantee that
+// survives only while a number stays small is not one.
+//
+// So state it directly. The entry chunk is exempt and covered by
+// MAX_CHUNK_KB; every OTHER member of the eager set is a module first paint
+// fetches before it can paint, and none of them has any business being
+// library-sized. The largest today is 40 KB, so 200 leaves a wide berth for
+// a legitimately chunky component while still catching either SDK by a
+// factor of at least 1.4.
+//
+// This is the rule that would have caught the pre-D110 tree, where
+// data/live.ts imported firebase/firestore statically and 292 KB of SDK was
+// preloaded on every cold start for months: the per-chunk ceiling saw
+// 292 < 735 and the total counted it either way.
+const MAX_EAGER_CHUNK_KB = 200;
+for (const s of eager.slice(1)) {
+  if (s.kb > MAX_EAGER_CHUNK_KB) {
+    console.error(
+      `\nOVER eager per-chunk budget: ${s.f} is ${s.kb.toFixed(0)} KB in the`
+      + ` FIRST-PAINT set (max ${MAX_EAGER_CHUNK_KB} KB outside the entry).`,
+    );
+    console.error(
+      "  A chunk this size in the modulepreload list is a library, not a\n"
+      + "  component — most likely an SDK that became a static import. Make it\n"
+      + "  dynamic again; do not raise this number to fit it.",
+    );
+    failed = true;
+  }
 }
 if (totalKb > MAX_TOTAL_JS_KB) {
   console.error(`\nOVER total budget: ${totalKb.toFixed(0)} KB (max ${MAX_TOTAL_JS_KB} KB)`);
@@ -508,4 +668,11 @@ if (failed) {
   process.exit(1);
 }
 
-console.log("bundle budget OK");
+// Name the artifact, not just the verdict. Every failure this gate has had
+// was a question of WHICH bundle got measured, so a log line saying "OK"
+// without saying "of what" is the one that let four builds through.
+console.log(
+  `bundle budget OK — SHIPPING bundle (VITE_V2_LIVE=true), `
+  + `${totalKb.toFixed(0)} KB total / ${eagerKb.toFixed(0)} KB eager `
+  + `(max ${MAX_TOTAL_JS_KB} / ${MAX_EAGER_KB})`,
+);

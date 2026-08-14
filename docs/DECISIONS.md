@@ -14235,6 +14235,392 @@ spends ~150 minutes of macOS quota at 10x. `whatsNew` stays *"First
 release."*: it is a version field, `MARKETING_VERSION` is still 2.0.0, and
 6.2 is unticked (D74).
 
+## D144 · The bundle gate weighs the bundle that ships, and refuses to weigh any other
+
+**Decided:** 2026-08-14 · **Status:** binding · Closes the gap D143 opened
+and deliberately left open. Changes what `check:bundle` measures, where it
+runs, and what it will refuse to do.
+
+**The defect.** `ios-release.yml` is the only workflow that sets
+`VITE_V2_LIVE=true`, and it never ran `check:bundle`. `ci.yml` ran
+`check:bundle` with the flag unset. So the gated bundle was one nobody
+installs and the installed one was ungated — through build 14, which is
+already on App Store Connect.
+
+Measured at `0826cd8`, same tree, one variable apart:
+
+| build | chunks | total | eager | preloads |
+| --- | ---: | ---: | ---: | ---: |
+| demo (what `ci.yml` gated) | 63 | 2220 KB | 963 KB | 22 |
+| shipping (`VITE_V2_LIVE=true`) | 67 | 2232 KB | **972 KB** | 23 |
+| shipping + real config (release) | 67 | 2233 KB | **973 KB** | 23 |
+
+Against the ceilings in force (2230 / 966) the shipping bundle was over
+**both**, and had been over the eager one since at least build 12. First
+paint — the number whose whole job is keeping a 293 KB Firestore SDK and a
+445 KB Sentry SDK out of a cold start — was 6 KB past its ceiling for four
+releases and nothing in the tree could say so.
+
+**`CAPACITOR_BUILD=1` is not the cause, and that matters because it is the
+variable that looks like it.** It only waives `vite.config.ts`'s
+reCAPTCHA-key guard — a native client attests through DeviceCheck and never
+reads the key — and defines nothing, so it cannot change a byte of output.
+Building with each flag in isolation, `VITE_V2_LIVE` alone reproduces the
+entire delta and `CAPACITOR_BUILD` reproduces none of it. D143 named the
+native build as the unweighed one, which was true by accident: the release
+sets both, and the other one was doing the work.
+
+**What was NOT done: a second set of "native" ceilings.** That was the
+obvious shape and it is what D143 sketched (`check:bundle --native`). It is
+wrong because it leaves two profiles both gated and both plausible, so
+every future reader still has to know which command produced which numbers
+— the same question that produced this defect. Ceilings that describe one
+artifact, and a gate that refuses the others, has no such question in it.
+
+**The three changes.**
+
+1. **`check:bundle` refuses to grade a non-shipping build.** It reads
+   `VITE_V2_LIVE` from its own environment and exits 1 unless it is
+   `"true"`, naming the command to run. `--demo` measures a demo build
+   deliberately, prints the numbers and applies no ceiling. The success
+   line now names the artifact — `bundle budget OK — SHIPPING bundle` —
+   because every failure this gate has had was about *which* bundle, and
+   an "OK" that does not say "of what" is what let four builds through.
+2. **`ci.yml` builds the shipping shape** (`VITE_V2_LIVE: "true"` beside
+   the dummy DSN) and passes the flag to the check step as well. Repeated
+   rather than hoisted to job level on purpose: passing it twice is the
+   assertion that the two steps agree about their subject.
+3. **`ios-release.yml` runs the gate on its own `dist/`** — the literal
+   JavaScript about to be signed, before `cap sync`, costing ~1s and no
+   extra build. This is the half that cannot rot: a gate running in the
+   job that builds and signs the artifact has no way to measure a
+   different one.
+
+**Ceilings re-pointed, not raised.** 2230 → 2245 and 966 → 978 describe the
+same tree measured on the right object. The ~12 KB and ~6 KB bands are
+sized for a specific hazard: `ci.yml` builds with a dummy DSN and no
+Firebase config while `ios-release.yml` builds with the real ones, worth
++1 KB of total and +1 KB of eager (2232/972 → 2233/973, both measured). Set
+the ceilings at CI's figures and the release fails a gate CI had just
+passed — on a macOS runner, after the archive, at the most expensive moment
+available.
+
+**A fourth number, because the guarantee was only ever arithmetic.**
+`MAX_EAGER_KB` protects first paint as a side effect of one total covering
+23 chunks, which holds exactly as long as nobody raises it — and it was
+raised four times in four days, twice while reporting that first paint was
+already over. `MAX_EAGER_CHUNK_KB = 200` states the rule directly: outside
+the entry chunk, no member of the eager set may be library-sized. Today's
+largest is 40 KB, so it catches either SDK by a factor of at least 1.4 with
+wide berth for a chunky component. It is the rule that would have caught
+the pre-D110 tree, where 292 KB of Firestore SDK was preloaded on every
+cold start for months while the per-chunk ceiling saw 292 < 735.
+
+**Verified rather than assumed, and one of these was the point of the
+exercise:** both SDKs are absent from the shipping build's modulepreload
+list — 23 modules, largest 40 KB, no 293 KB `index.esm-*` and no 445 KB
+`prod-*`. "The eager ceiling has been wrong for four builds" is exactly the
+report that ends with an SDK in first paint, so it was checked before the
+ceiling moved. The refusal path, the `--demo` path and the new per-chunk
+rule were each exercised — the last by temporarily lowering it to 30 KB and
+confirming it fires on the four 34–41 KB eager chunks and exits 1.
+
+**What this does not fix.** The gate still cannot see a bundle built with
+flags nobody wrote down; it can only refuse the one wrong shape it knows
+about. If a future build profile is added, it needs a line here and in both
+workflows, and nothing enforces that but review. Recorded rather than
+solved: the alternative is a build-profile manifest emitted into `dist/`,
+which is more machinery than one flag currently justifies.
+
+## D145 · Four question lanes, two of which had never run: the learn and feed Routines, a feed regulator, and a weekday for catalogues
+
+**Decided:** 2026-08-14 · **Status:** built on
+`claude/question-generation-rates-5kiz6c` (owner's direction: "wire up
+the learn and feed lane routines … new catalogues are not created they
+should be"), ships when that branch's PR merges.
+
+**What the audit found, before any of it was fixed.** Eight surfaces
+generate questions; two Routines existed. Counting the lanes rather than
+the contracts:
+
+| Lane | Contract | Routine | Output at audit |
+| --- | --- | --- | --- |
+| daily archive | D97 | daily 07:00 | **0 in 15 days** — every logged run a no-op |
+| catalog pick | this manual | daily 08:00 | ~1/day (pk11–pk14) |
+| catalog **domains** | § Creating new catalogues | (the same 08:00 slot) | 1 in 15 days |
+| learn cards | D32 → D115 | **none** | 0 |
+| feed questions | D97 | **none** | **0 ever** — all 82 provenance rows read `editorial` |
+| duel | D40 | none (deliberate) | 0 |
+| pulse | D139 | none (deliberate) | 0 |
+| community | D138 | n/a — human | 0 promoted |
+
+Two different failures wearing the same zero. Learn and feed had
+complete contracts and nothing calling them: D115 gave the learn lane a
+budget that could produce and left it uncalled, so the bank sat 182 cards
+short of its own target with a grantable budget of 10 and no run to
+spend it. The daily farm is the opposite — it fires every morning and
+places nothing, because `farm-budget` grants 8 while a pre-launch
+scorecard blinds lanes 1–2 and coverage's floor is met everywhere. **That
+one is not fixed here**, deliberately: its unblock is a scorecard refresh
+(`FIREBASE_API_KEY` in an operator shell or the remote environment), an
+operator step the run log has now named four times.
+
+**Decision, four parts.**
+
+1. **A Routine each for learn (`0 9 * * 1,4`) and feed (`30 9 * * 2,5`)**,
+   bound to the same dev session as the two working lanes, staggered off
+   07:00/08:00 and off each other because four lanes share one checkout.
+   Ids are in the manual's inventory; both were created with exactly the
+   configuration the two proven Routines carry — no stored MCP
+   connectors, same environment — because the GitHub tools a run needs to
+   log on issue #31 come from the bound session, and a tidier-looking
+   configuration would have been an untested one.
+2. **`scripts/feed-budget.mjs`, a regulator before a schedule.** The feed
+   lane's "≤6/run, at most twice weekly" was the flat shape D97 and D115
+   had to remove from the other two lanes, and handing a flat cap to a
+   scheduled job is how D33's binding constraint gets violated on a
+   timer. The arithmetic is learn's, against a different quantity: the
+   feed has no consumption clock, so the deficit is per-topic BREADTH
+   toward `TOPIC_TARGET` 12 — the depth `dilemma` already carries — and
+   only SERVABLE forms count, because `rank` (D12) and legacy `duel`
+   cards would let a topic read as covered on questions nobody can meet
+   (`sport` is 13 entries and 10 servable ones). `RUN_CAP` stays at
+   D97's 6 and is the one cap a regulator does not justify raising: this
+   lane is bounded by signal dilution, and no regulator makes a thin
+   crowd thicker. `feed-budget.test.mjs` pins the properties, including
+   the one D115 was written for — that the lane finds work in the bank as
+   it actually ships.
+3. **Sunday builds a catalogue.** "From time to time … when the
+   honest-question well runs thin" could not schedule anything: a
+   competent run asks it while holding a domain with one usable seat
+   left, and one seat is always enough for today's card. Measured — the
+   elements domain landed 08-11 and the four days after it produced four
+   more elements cards. A fixed weekday asks a question a run can
+   answer. Two standing blockers fall with it: a domain branch is cut
+   from `origin/main` (the 08-07→09 no-ops deferred three domain days
+   over review coupling, which comes from one branch CONTAINING another,
+   not from two being open), and the reachable source path is recorded
+   rather than re-discovered — `registry.npmjs.org` answers through the
+   session proxy, `query.wikidata.org` is refused at CONNECT, so
+   films/artists stay the D15 operator step.
+4. **Every question carries a category, and now the gates say so.**
+   `check:quality` required `cat` on daily and `f` on learn, validated
+   feed's `cat` only when present, and had no rule for pick at all —
+   despite the catalog contract's "Every card carries a `cat`, always".
+   All 372 questions in the tree carry one, so nothing was broken; what
+   was missing was the gate, and "true in the data" stops being the same
+   as "true" once a schedule rather than a human is writing. Pick files
+   against `WORLD_TOPICS`, not the feed taxonomy: `fav` — the id all
+   thirteen cards use — is a real topic the feed's chip row filters out.
+
+**A new category is still never created by a run** (§ When no category
+fits, new). A category here is a `CAT_META` hue, a Map anchor with
+relations, a chip, and for learn a group in the Map's layout — a job
+that could add one because a question did not fit is a job that redraws
+the Map to make its own writing easier. What changed is the disposal
+rule, which was soft enough to be unobservable: a question fitting no
+category is **dropped**, and the category proposed in the PR body AND
+the run's issue #31 comment. Both, because the run log is where three
+runs proposing the same missing top becomes an argument rather than an
+anecdote. The pulse is the one surface with no category at all, by
+D139's own decision — its Map branch is the unported seventh
+over-category, the D126 boundary.
+
+**Not done, deliberately:** the daily farm's scorecard unblock (an
+operator step, above); a duel Routine (a fifth scheduled lane is a
+decision for after these two have shown what they cost at the gate);
+raising the feed cap (the D97 amendment, waiting on a crowd); any
+change to the pulse roster (D139's "the roster is a constant until a
+second one earns its place" is exactly right — an over-time question
+consumes nothing, so its generation rate should be the lowest of any
+surface, and near-zero is the correct rate rather than a gap).
+
+**Enforcement:** `feed-budget.test.mjs` (15 cases: the ships-today
+property, the cap, the target, open-PR subtraction, thinnest-first
+water-filling, the no-MIN_CHUNK spread that distinguishes this lane from
+learn's, servable-only counting, convergence, and the signal line's
+three modes); three new `check:figures` pins holding the manual's feed
+numbers equal to the script — verified to bite by moving `TOPIC_TARGET`
+and watching it fail; the two new `check:quality` topic rules, verified
+to bite on a cat-less pick card and a cat-less feed question. Green at
+commit: 26 figures, 372 questions, 183 script tests, lint,
+`check:content`, `check:globals`, `check:labels`, `test:unit`, both
+builds.
+## D146 · The type cut — how each type answered, folded on the client, retroactive by construction
+
+**Decided:** 2026-08-14 · **Status:** binding. From an owner's question:
+*if I answer a question and get a test score later, does the score count
+on the questions I already answered?*
+
+The honest answer at the time was **no, and never** — and the interesting
+part is that the "never" was not a timing problem. Test results have never
+been in the anchors snapshot, so `spec/map-group-stats.js` refuses all four
+instruments and every "how did people like me answer" cut on the app is
+demographic. The one cut this product is actually about was the one it
+could not draw.
+
+### 1 · Why the recorded plan would have answered "no" permanently
+
+`NEXT-FUNCTIONALITY §3 tier 2` had already costed the fix as a **new
+breakdown dim**: match the archetype at vote time, stamp it into
+`anchorsFrom`, add it to `BREAKDOWN_DIMS`, accumulate cells from ship date.
+That plan states its own limit and accepts it — *"forward-only, and say so.
+Answers have never carried scores, so there is nothing to backfill."*
+
+Which is exactly the question, answered no. Worse than it sounds, because
+the four instruments are **passive** (D50/D121): a score is not an event,
+it is a running fold that moves every time another test card is answered.
+So a stamp is wrong twice — it freezes a value that is still converging,
+and it freezes it per answer, so a user's own history ends up smeared
+across whatever types they were passing through. The alternatives are both
+bad: rewrite past answers (D86 forbids it, and it is O(answers) aggregate
+writes against a document with D7's ~1 write/sec ceiling, re-run every
+time a band flips), or leave the cut blank for all existing answers
+forever.
+
+### 2 · The snapshot was never the only place the join could happen
+
+Since D98 answers are public and `testResults` is world-readable; since
+D112 `voters.resolveNames` parses scores out of **the same profile
+document it already reads for a name** — the web SDK has no field mask, so
+they were on the wire regardless. So for any question the session has
+opened, the client already holds: who answered, what they picked, and what
+their scores are. Grouping is arithmetic on data in hand.
+
+**No new read, no new field, no new cell, no stamp, nothing to backfill —
+and it reads everyone's CURRENT type against the answers they ALREADY
+gave.** Take your test items in month three and month one regroups itself.
+That is the property the dim could not have at any price, and it is the
+answer to the question that prompted this.
+
+`data/typeSplit.ts` (pure), `LIVE.voterScores` (a join, no arithmetic), and
+a `Type` chip on `LiveBreakdownPanel`.
+
+### 3 · What it costs, and where the cost is stated
+
+The published cells are a **census**; this is a **sample** — the latest
+`VOTER_FETCH_CAP` voters (D102), thinned to those carrying a readable Big
+Five. Two numbers, kept apart on purpose (`sampleN`, `typedN`), because the
+card has to say which denominator a share is out of. Under
+`TYPE_SPLIT_SMALL` (60) it draws **counts, not shares** — and the bar fill
+switches to a magnitude scale with them, because a fill drawn as a share of
+100 makes the claim visually even when the label says "3".
+
+One arithmetic trap, pinned in `typeSplit.test.ts`: divergence is computed
+against **the typed sample's own overall**, never against `agg.counts`.
+Comparing a sampled cohort to an exact census folds the sample's bias into
+a number presented as the type's; comparing within the sample cancels it.
+
+The `Type` chip sits last, after the published dims, and the basis line
+under the bars is the disclosure after the tap. `renderBody` is deliberately
+NOT offered the type cut — a dial's track reads as the population's
+position, and a bounded sample must not be drawn on it.
+
+### 4 · It narrows a standing claim, so the claim moved
+
+`docs/data-inventory.md` said a test result is *"never a breakdown dim, so
+nothing is ever cross-tabbed by it (D8)"*. The first half stands exactly —
+no dim, no stamp, no cell, and the SERVER still never slices an aggregate
+by a result. The second half is now false: the client performs and
+displays the cross-tab.
+
+Nothing new is exposed — the fold is over two things that already publish,
+and any reader could have computed it — but *"the app groups my answers by
+my personality type and shows that to strangers"* is not something a user
+should have to derive from two other bullets, and the retroactive half is
+the part they cannot guess. So the privacy panel says it, pinned in its
+test, and the inventory carries the narrower claim.
+
+**Big Five only, and enforced rather than intended.** `typeMix.TYPE_TEST`
+is the single constant the fold reads; politics, values and attachment
+never group answers. The politics result is the Art. 9 field, and D98
+reversed D44 on the *items'* counts, not on cross-tabbing by result.
+Pinned in two places on purpose: the constant is a thing a refactor could
+widen without touching any copy.
+
+### 5 · The bug this uncovered: D141's card was dead on arrival
+
+`typeOfPerson` read `results[TYPE_TEST].dims` off a `KindredPerson` —
+the RAW profile shape, on a value that has been through
+`parseTestResults` and is a FLAT axes map with no `dims` key. It returned
+**null for every person, always**: `typeMixFor` filtered its whole sample
+away, `typedN` was always 0, and the type-mix card drew its "nothing typed
+here" empty state on every population in live mode, from the day it
+shipped (2026-08-14, one day).
+
+Nothing caught it, and each reason is worth keeping. Both shapes are
+`Record`s, so the `as Dim[]` cast satisfied `tsc`. The module had **no
+test at all**. And the failure mode is a legitimate empty state the card
+was *designed* to draw — so it looked like a thin population rather than a
+broken join. `myType()` was fine throughout, because it reads the raw
+store value, which is what made the mismatch invisible on the one surface
+anyone would have checked.
+
+Measured with a probe before the fix, not reasoned about. The join now
+lives in one place (`typeOfParsed`), `typeOfPerson` delegates to it, and
+`typeMix.test.ts` exists — including a case pinning that the parsed shape
+has no `dims`, so a future change to `parseTestResults` cannot make the
+rest pass for the wrong reason.
+
+**Deferred, with the arithmetic.** Tier 2's exact dim is NOT adopted and
+NOT rejected: this cut is what tier 2's recommendation asked for before
+deciding — *"hold tier 2 until tier 1 shows people actually pivot on
+types"* — and it is now a concrete surface to argue from rather than a
+hypothetical. If it earns the dim, the dim buys exactness and a census,
+and pays for it in the one currency this fold does not spend: it can only
+ever describe answers given after it ships. The two are complements, not
+alternatives; a dim would leave this cut in place for the history it
+cannot see.
+
+## D147 · The functions tsconfig moves to `node16`, and the emit format is the part that mattered
+
+**Decided:** 2026-08-14 · **Status:** binding · Unblocks the TypeScript 7
+bump in `/functions` (Dependabot #16), which had been red since 3 August.
+
+**The defect.** TypeScript 7 removed the `node10` module-resolution
+algorithm, which `functions/tsconfig.json` selected under its old name
+(`"moduleResolution": "node"`), and stopped inferring `rootDir`. Two
+errors, both about configuration rather than code:
+
+```
+tsconfig.json(6,5):  error TS5011: 'rootDir' must be explicitly set
+tsconfig.json(10,25): error TS5108: Option 'moduleResolution=node10' has been removed
+```
+
+Nothing in `src/` was wrong. The build simply could not start.
+
+**The fix, and the trap inside it.** `module` and `moduleResolution` both
+move to `node16` — they are not independently selectable, so the pair
+moves together — and `rootDir` is named explicitly as `src`, which is the
+value the compiler was already inferring.
+
+The part worth recording is what `node16` does NOT do. It is not a switch
+to ESM. `node16` derives each file's emit format from the nearest
+`package.json`, and `functions/package.json` carries no `"type"` field, so
+every file still emits CommonJS. Verified rather than assumed, on both
+compilers, by counting the markers in `functions/lib/index.js`:
+
+| Compiler | `exports.` / `Object.defineProperty(exports` | bare `import`/`export` |
+| --- | --- | --- |
+| 5.9.3 (before, and after) | 28 | 0 |
+| 7.0.2 (after) | 28 | 0 |
+
+That column is the whole reason this has an entry. An ESM emit here would
+have compiled, passed `check:fn-runtime` (which asks whether
+`functions/lib/index.js` exists, not what module system it speaks),
+deployed green, and then failed at runtime on every function — the exact
+shape of failure this repo keeps writing gates against. The count is the
+gate a human can run.
+
+**Ordering.** The tsconfig lands BEFORE the compiler bump, not with it:
+`node16` is valid on 5.9.3, so the change is a no-op on the current
+toolchain and the tree stays green at every commit. `check:fn-runtime`,
+`check:appcheck`, `check:deploy-targets` and the 214 functions tests pass
+on both compilers.
+
+**Not decided here.** The root project stays on its own TypeScript. This
+entry is scoped to `/functions`, whose `tsconfig.json` is separate and
+whose output is the only one that gets deployed to Cloud Functions.
 ## D148 · Sides, friends and real counts: three surfaces stop guessing
 
 **Decided:** 2026-08-14 · **Status:** binding · Owner decisions, taken
