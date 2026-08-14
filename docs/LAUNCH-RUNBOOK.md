@@ -448,6 +448,13 @@ arithmetic.
       procedure and this paragraph is only its record**: where the two
       disagree, the run list wins.
 
+      **BUILD 15 WAS UPLOADED BY RUN 21** (`3c03752`, 2026-08-14 20:58Z,
+      7m 05s, upload step `success`, 1m 26s of it transfer). Both APNs
+      gates passed and the Firebase config was verified in the archive and
+      again in the exported `.ipa`. **`appBuild` is now 16**, bumped off
+      that step's conclusion in the same session — the second consecutive
+      release where the habit held rather than being reconstructed later.
+
       **BUILD 14 WAS UPLOADED BY RUN 20** (`8cf48a1`, 2026-08-14 16:39Z,
       7m 32s, upload step `success`, 1m 42s of it transfer). Both APNs
       gates passed and the Firebase config was verified in the archive and
