@@ -60,6 +60,14 @@ const EXEMPT = {
   revealDuelsNowV2:
     "operator callable, the scheduled scan's manual lever (D19 rollback "
     + "runbook); gated on SEED_ADMIN_UIDS",
+  fetchSuggestionsV2:
+    "operator callable, invoked from the maintainer's dev session to read "
+    + "the suggestion queue (docs/NEXT-FUNCTIONALITY.md §6) — no attested "
+    + "app to call from; gated on SEED_ADMIN_UIDS",
+  reviewSuggestionV2:
+    "operator callable, the suggestion queue's verdict instrument — same "
+    + "caller and same reason as fetchSuggestionsV2; gated on "
+    + "SEED_ADMIN_UIDS",
 
   // Moderation instruments (assertModerator, MOD_UIDS). The moderation
   // Routine runs in a dedicated low-privilege environment with no repo

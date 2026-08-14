@@ -1200,6 +1200,52 @@ describe("v2 meta + server-only collections", () => {
   });
 });
 
+describe("question suggestions (docs/NEXT-FUNCTIONALITY.md §6)", () => {
+  const SID = `${OWNER}_sg1`;
+  const seedSuggestion = () => seed(async (db) => {
+    await setDoc(doc(db, "v2_suggestions", SID), {
+      uid: OWNER, prompt: "Dogs or cats?", type: "binary",
+      options: ["Dogs", "Cats"], topicHint: null, audienceHint: null,
+      cadenceHint: null, credit: false, status: "review", at: serverTimestamp(),
+    });
+  });
+
+  it("the author reads their own row; a stranger and the signed-out do not", async () => {
+    await seedSuggestion();
+    await assertSucceeds(getDoc(doc(asUser(OWNER), "v2_suggestions", SID)));
+    await assertFails(getDoc(doc(asUser(STRANGER), "v2_suggestions", SID)));
+    await assertFails(getDoc(doc(asSignedOut(), "v2_suggestions", SID)));
+  });
+
+  it("the pool is not listable — only a mine-only query passes (the D65 shape)", async () => {
+    await seedSuggestion();
+    await assertSucceeds(getDocs(query(
+      collection(asUser(OWNER), "v2_suggestions"),
+      where("uid", "==", OWNER),
+    )));
+    // No filter, or a filter naming someone else: refused wholesale.
+    await assertFails(getDocs(collection(asUser(OWNER), "v2_suggestions")));
+    await assertFails(getDocs(query(
+      collection(asUser(STRANGER), "v2_suggestions"),
+      where("uid", "==", OWNER),
+    )));
+  });
+
+  it("no client writes: the callable is the only door, and the author cannot settle their own status", async () => {
+    await seedSuggestion();
+    // A direct create would skip the budget, the App Check attestation
+    // and the sold-inventory tripwire — the three checks that are the
+    // reason this is a callable at all.
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_suggestions", `${OWNER}_sg2`), {
+      uid: OWNER, prompt: "Should Oslo ban cars downtown?", type: "binary",
+      options: [], topicHint: null, audienceHint: null, cadenceHint: null,
+      credit: false, status: "review", at: serverTimestamp(),
+    }));
+    await assertFails(updateDoc(doc(asUser(OWNER), "v2_suggestions", SID), { status: "picked" }));
+    await assertFails(deleteDoc(doc(asUser(OWNER), "v2_suggestions", SID)));
+  });
+});
+
 describe("moderation substrate: takes + flags (docs/MODERATION.md, D22)", () => {
   const GID = "g_mod";
   const seedCircle = () => seed(async (db) => {

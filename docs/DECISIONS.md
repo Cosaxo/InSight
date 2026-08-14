@@ -13465,3 +13465,79 @@ release build does not face. CI measures the bundle that ships.
 `apple.whatsNew` stays *"First release."* — it is a **version** field, not
 a build field, and `MARKETING_VERSION` is still 2.0.0 with 6.2 unticked, so
 there has been no first release for it to be new against (D74).
+
+## D137 · The suggestion board gets a server: a budgeted door, an author-only read, and the same human gate
+
+**Decided:** 2026-08-14 · **Status:** built on
+`claude/new-functionality-planning-82qywb` (owner's direction: "start
+building the suggestions backend"), ships when that branch's PR merges ·
+Design: [`docs/NEXT-FUNCTIONALITY.md`](NEXT-FUNCTIONALITY.md) §6.
+
+**Decision.** "Suggest a question" — in the spec layer since the port,
+faked onto localStorage — gets its v1 backend: `v2_suggestions`, written
+only by the `suggestQuestionV2` callable, read only by its author and by
+two operator instruments, feeding the promotion path that already
+existed. Four shapes carry the design, each borrowed from a surface that
+already proved it:
+
+- **The write path is a callable, not a rules grant**, because its three
+  checks cannot live in rules: App Check attestation (D36), a
+  3-per-rolling-day budget (the D122 invite ledger's sliding window, in
+  `v2_ratelimits/suggest_{uid}`), and the sold-inventory tripwire —
+  QUESTION-FARM hard rule 6's place+civic conjunction, declined at the
+  door with the reason (that subject is the paid research path,
+  MONETIZATION.md path 1) rather than reviewed and silently dropped. The
+  budget is priced on D33's spine: a human reads every row, so intake is
+  paced to what review can absorb. A declined ask spends no budget, and
+  the e2e orders its legs to prove that rather than assume it.
+- **The author reads their own rows and nobody else's** — the board can
+  say "in review / picked / declined" without a public pool. NOT a
+  privacy floor (D98 retired those): an unreviewed free-text queue is a
+  moderation surface, and a public voting board is a second UGC surface
+  that gets its own decision if it ever ships. List queries carry
+  `uid == request.auth.uid` or Firestore refuses them wholesale (the D65
+  value-test shape).
+- **Review is two operator callables** (`fetchSuggestionsV2`,
+  `reviewSuggestionV2` — assertOperator, App Check exempt with the
+  recorded reason: the caller is a dev session with no attested app).
+  One verdict per row, `picked` or `declined` with a ≤280-char note;
+  re-judging a settled row refuses, so a "picked" the author saw cannot
+  silently become a "declined" — the moderation log's generation lesson
+  in the one-shot form this queue needs. **`picked` marks, it does not
+  publish**: promotion into the banks stays the human PR path that
+  predates this record (`npm run promote -- --source community`, D97's
+  provenance rows — the vintage was first-class before any row existed
+  to carry it).
+- **No public byline.** `credit` records that the author wants one, for
+  the day a decision grants it; flag authorship is a standing deny for
+  retaliation reasons, and a byline on a live question is the same shape
+  of exposure pointed the other way.
+
+**Erasure and the inventories, in the same change rather than after an
+audit:** deleteAccount phase 4d sweeps the rows by uid and 4b takes the
+budget ledger; the erasure e2e asserts both AND that a stranger's row
+survives. `docs/data-inventory.md` gains the row and the ledger mention
+(check:data-inventory), the three functions join the deploy `--only`
+list (check:deploy-targets) and the App Check ledger (check:appcheck),
+and the review query's `(status, at)` composite index ships in
+`firestore.indexes.json`.
+
+**Costs, priced:** one transaction + one create per accepted submission,
+budget-bounded at 3/uid/day; the review fetch is one indexed query
+capped at 200 rows; no listeners, no new triggers, no per-user fan-out.
+The collection's growth ceiling is the budget times the user count, and
+the review instruments never read more than the cap per call.
+
+**Not built, deliberately:** the public voting board and its upvotes
+(a moderation surface — own decision); client wiring (the spec board
+still writes localStorage until the live states land, with the §8 design
+pass); any write path into `content/` (the two-gate shape is the point).
+The tripwire's watchlist is a pinned copy of question-quality.mjs's —
+a Cloud Function cannot read a repo script at runtime — and the unit
+test carries the canonical cases so drift in either copy fails loudly.
+
+**Enforcement:** 3 rules tests (author-only read, mine-only list, no
+client writes); unit tests on the validator and tripwire; e2e loop leg
+11 drives the callable door, both refusal codes, the budget trip, the
+stranger denial and the operator loop against the real emulated
+functions; the erasure e2e covers phase 4d both directions.

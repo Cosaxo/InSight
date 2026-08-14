@@ -592,5 +592,82 @@ ok("learn crowd stat: 5 first attempts, exact through per-answer publishes, 3/5 
     setDoc(doc(db, "v2_presence", uid), { cell: "59.913_10.752", at: serverTimestamp() }));
 }
 
+// 11 · Suggest a question (docs/NEXT-FUNCTIONALITY.md §6): the callable
+// door, its refusals in their specific codes, and the operator loop. The
+// budget and the sold-inventory tripwire live only in the callable —
+// rules.test.ts proves clients cannot write around it.
+{
+  // The moderation e2e's discipline: demand the SPECIFIC refusal.
+  const expectCode = async (label, code, op) => {
+    try {
+      await op();
+    } catch (e) {
+      if (e?.code === code) return ok(label);
+      return fail(`${label} — expected ${code}, got ${e?.code || e}`);
+    }
+    fail(`${label} — the operation was ALLOWED`);
+  };
+
+  const sub = await httpsCallable(fns, "suggestQuestionV2")({
+    prompt: "Window seat or aisle seat?", type: "binary",
+    options: ["Window", "Aisle"], topic: "travel", cadenceHint: "once", credit: true,
+  });
+  if (!sub.data?.id) fail("suggestQuestionV2 returned " + JSON.stringify(sub.data));
+  const mine = await getDoc(doc(db, "v2_suggestions", sub.data.id));
+  if (!mine.exists() || mine.get("status") !== "review" || mine.get("uid") !== uid) {
+    fail("own suggestion unreadable or malformed: " + JSON.stringify(mine.data()));
+  }
+  ok("suggestion queued through the callable; the author reads it in review");
+
+  // The sold-inventory decline (QUESTION-FARM hard rule 6 at the door).
+  // Deliberately BEFORE the budget legs: a declined ask must not spend
+  // the day's budget, and running it first would mask that if it did.
+  await expectCode("place-scoped civic ask declined at the door",
+    "functions/failed-precondition",
+    () => httpsCallable(fns, "suggestQuestionV2")({
+      prompt: "Should Oslo ban cars downtown?", type: "binary", options: ["Yes", "No"],
+    }));
+  await expectCode("formless submission refused",
+    "functions/invalid-argument",
+    () => httpsCallable(fns, "suggestQuestionV2")({ prompt: "   " }));
+
+  // The daily budget: the decline above spent nothing, so two more pass
+  // and the fourth is the one that trips.
+  await httpsCallable(fns, "suggestQuestionV2")({ prompt: "Early bird or night owl?", type: "binary", options: ["Early bird", "Night owl"] });
+  await httpsCallable(fns, "suggestQuestionV2")({ prompt: "Cook, or be cooked for?", type: "binary", options: ["Cook", "Be cooked for"] });
+  await expectCode("fourth suggestion of the day refused (the review-pace budget)",
+    "functions/resource-exhausted",
+    () => httpsCallable(fns, "suggestQuestionV2")({ prompt: "Sweet or salty?", type: "binary", options: ["Sweet", "Salty"] }));
+
+  // A second account cannot read the row — mine-only, through the rules.
+  const sgApp = initializeApp({ projectId: "demo-insight", apiKey: "demo", appId: "demo" }, "sugg1");
+  const sgAuth = getAuth(sgApp); connectAuthEmulator(sgAuth, "http://127.0.0.1:9099", { disableWarnings: true });
+  const sgDb = getFirestore(sgApp); connectFirestoreEmulator(sgDb, "127.0.0.1", 8080);
+  await signInAnonymously(sgAuth);
+  await expectDenied("stranger reading a suggestion refused", () =>
+    getDoc(doc(sgDb, "v2_suggestions", sub.data.id)));
+
+  // The operator loop: fetch lists the pending rows, a verdict settles
+  // one, and a settled row cannot be re-judged (assertOperator admits any
+  // signed-in caller under the emulator, the moderation e2e's note).
+  const fetched = await httpsCallable(fns, "fetchSuggestionsV2")({});
+  const ids = (fetched.data?.items || []).map((i) => i.id);
+  if (!ids.includes(sub.data.id)) fail("operator fetch missing the queued row: " + JSON.stringify(ids));
+  ok("operator fetch lists the pending queue (" + ids.length + " rows)");
+  const rv = await httpsCallable(fns, "reviewSuggestionV2")({ id: sub.data.id, verdict: "picked", note: "clean split" });
+  if (!rv.data?.ok) fail("review refused: " + JSON.stringify(rv.data));
+  const picked = await getDoc(doc(db, "v2_suggestions", sub.data.id));
+  if (picked.get("status") !== "picked" || picked.get("note") !== "clean split") {
+    fail("verdict not applied: " + JSON.stringify(picked.data()));
+  }
+  ok("operator verdict applied; the author's board would read picked");
+  await expectCode("re-judging a settled row refused",
+    "functions/already-exists",
+    () => httpsCallable(fns, "reviewSuggestionV2")({ id: sub.data.id, verdict: "declined" }));
+  await expectCode("verdict on a row that does not exist refused",
+    "functions/failed-precondition",
+    () => httpsCallable(fns, "reviewSuggestionV2")({ id: "ghost", verdict: "picked" }));
+}
+
 console.log("\nALL E2E CHECKS PASSED");
 process.exit(0);

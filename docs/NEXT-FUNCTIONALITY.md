@@ -456,7 +456,10 @@ about today's schema should be bent in anticipation.
 what type, one-off or repeating — and a path from there to the banks.
 
 **Verdict: build; it is the shortest distance to shipped value on this
-list, and it feeds §1.** What exists: the composer + board UI
+list, and it feeds §1.** *Status 2026-08-14: the v1 backend below is
+BUILT on this branch — D137 is the record. The spec board still writes
+localStorage until the client wiring lands, with §8's live-states design
+pass.* What exists: the composer + board UI
 (`src/v2/spec/suggestions.jsx`, opened from the feed sheet), a seeded
 demo store with statuses `review`/`picked`
 (`src/v2/spec/suggestions.js` — "moderation is faked here" is its own

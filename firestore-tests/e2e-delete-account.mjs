@@ -197,6 +197,23 @@ await adb.doc(`v2_takes/${MY_TAKE}`).set({
   gid: SHARED, authorUid: uid, qid: "q1", text: "words that must not outlive the account",
 });
 await adb.doc(`v2_flags/${MY_TAKE}_${uid}`).set({ takeId: MY_TAKE, gid: SHARED, uid });
+
+// question suggestions (docs/NEXT-FUNCTIONALITY.md §6): free text keyed to
+// the account, plus the budget ledger the callable keeps. OTHER's row is
+// the control — the sweep queries on uid and must not take the queue with
+// it. Seeded with admin like the takes; the callable's own behaviour is
+// the loop e2e's job.
+await adb.doc(`v2_suggestions/${uid}_e2e`).set({
+  uid, prompt: "a suggestion that must not outlive the account",
+  type: "binary", options: ["a", "b"], topicHint: null, audienceHint: null,
+  cadenceHint: null, credit: false, status: "review", at: new Date(),
+});
+await adb.doc(`v2_suggestions/${OTHER}_e2e`).set({
+  uid: OTHER, prompt: "someone else's suggestion",
+  type: "binary", options: ["a", "b"], topicHint: null, audienceHint: null,
+  cadenceHint: null, credit: false, status: "review", at: new Date(),
+});
+await adb.doc(`v2_ratelimits/suggest_${uid}`).set({ events: [Date.now()] });
 // The presence doc (D84): the one location-shaped datum an account can
 // hold, and the wipe must take it — a cell that outlives its account is a
 // standing "someone was here" nobody can retract.
@@ -258,6 +275,9 @@ for (const [path, label] of [
   [`v2_mod_queue/${THEIR_TAKE}`, "the queue's copy of someone else's take"],
   [`v2_agg_events/evt_mine`, "their agg-ledger entry"],
   [`v2_agg_events/evt_theirs`, "someone else's agg-ledger entry"],
+  [`v2_suggestions/${uid}_e2e`, "their question suggestion"],
+  [`v2_suggestions/${OTHER}_e2e`, "someone else's question suggestion"],
+  [`v2_ratelimits/suggest_${uid}`, "their suggestion budget ledger"],
 ]) await mustExist(path, label);
 ok("seeded every wipe phase, and verified it landed");
 
@@ -342,6 +362,8 @@ for (const [path, label] of [
   // The gap this leg exists for: the take was erased, and its words went on
   // living in the moderation queue's copy of them.
   [`v2_mod_queue/${MY_TAKE}`, "the queue's copy of their take"],
+  [`v2_suggestions/${uid}_e2e`, "their question suggestion (phase 4d)"],
+  [`v2_ratelimits/suggest_${uid}`, "their suggestion budget ledger"],
   [`v2_agg_events/evt_mine`, "their agg-ledger entry"],
   ["v2_handles/erasable", "their handle — the name goes back into circulation"],
   [`v2_groups/${SHARED}/invites/${uid}`, "an invitation TO them, under someone else's circle"],
@@ -366,6 +388,9 @@ if (theirQueued.get("text") !== "someone else's words") fail("someone else's que
 if (theirQueued.get("escalations") !== 1) fail("someone else's escalation count was lost");
 if (!(await exists(`v2_takes/${THEIR_TAKE}`))) fail("someone else's take was deleted");
 ok("someone else's take, its queue entry and its escalation count survive untouched");
+if (!(await exists(`v2_suggestions/${OTHER}_e2e`)))
+  fail("someone else's suggestion was deleted — the sweep matched more than the uid");
+ok("someone else's question suggestion survives");
 
 // The ledger sweep is a uid query, and this is why it has to be: another
 // account's attribution record must outlive this deletion, or one erasure

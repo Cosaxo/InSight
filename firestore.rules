@@ -869,6 +869,28 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // ── "Suggest a question" (docs/NEXT-FUNCTIONALITY.md §6) ───────────
+    //
+    // Written only by suggestQuestionV2: the write path needs three
+    // checks rules cannot express — App Check attestation (D36), the
+    // per-uid daily budget, and the sold-inventory tripwire (QUESTION-
+    // FARM.md hard rule 6). The AUTHOR reads their own rows so the board
+    // can show "in review / picked / declined"; the pool is deliberately
+    // not world-readable in v1 — a public voting board is a second UGC
+    // surface with the takes' moderation load, and it gets its own
+    // decision if it ships. NOT a privacy floor (D98 retired those):
+    // an unreviewed free-text queue is a moderation surface, and the
+    // review instruments (fetchSuggestionsV2 / reviewSuggestionV2,
+    // operator-gated) are its only other door.
+    //
+    // A list query must filter uid == request.auth.uid or Firestore
+    // refuses it wholesale — the D65 value-test shape.
+    match /v2_suggestions/{sid} {
+      allow read: if request.auth != null
+        && resource.data.uid == request.auth.uid;
+      allow write: if false;
+    }
+
     // ── Near-by-radius presence (D84) ──────────────────────────────
     //
     // One doc per opted-in user: a ~1 km grid cell and a freshness stamp,
