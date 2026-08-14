@@ -77,6 +77,45 @@ export function profileSetupNeeded(): boolean {
  */
 let mounted: { root: ReturnType<typeof createRoot>; host: HTMLElement } | null = null;
 
+/**
+ * Take the screen off the page without recording that anything was asked.
+ *
+ * Deferred by a tick, because unmounting a root from inside its own render
+ * pass is the one thing React asks callers not to do.
+ */
+function teardown(): void {
+  setTimeout(() => {
+    if (!mounted) return;
+    mounted.root.unmount();
+    mounted.host.remove();
+    mounted = null;
+  }, 0);
+}
+
+/**
+ * The purge, heard (D51's contract, `check:purge`).
+ *
+ * `profileSetupSeen()` keeps no in-memory copy — it reads localStorage on
+ * every call — so the FLAG cannot go stale the way the stores this gate
+ * was written for do. What can is the SCREEN: `purgeLocalTrace` fires on
+ * account deletion and on a uid change, and a setup screen already on the
+ * page belongs to the session that just ended. Left up, its next tap would
+ * call `markProfileSetupSeen()` and write the key the purge had just
+ * removed — under the NEW uid, so the new account would never be asked.
+ * A narrow window, and exactly the resurrection this gate exists to catch.
+ *
+ * So the screen goes, and the flag is not written on the way out. The next
+ * boot finds no key and an empty anchor map, and asks — which is the right
+ * thing to do with an account that has answered nothing.
+ *
+ * Registered at module scope, which is safe because this module is only
+ * reached through main.jsx's dynamic import: if the chunk never loaded
+ * there is no screen and no state to drop.
+ */
+if (typeof window !== "undefined") {
+  window.addEventListener("insight:local-purge", teardown);
+}
+
 export function mountProfileSetup(): void {
   if (mounted || typeof document === "undefined") return;
   if (!profileSetupNeeded()) return;
@@ -90,14 +129,7 @@ export function mountProfileSetup(): void {
     // crash on the way out cannot re-ask the same seven questions on the
     // next boot.
     markProfileSetupSeen();
-    // Deferred, because unmounting a root from inside its own render pass
-    // is the one thing React asks callers not to do.
-    setTimeout(() => {
-      if (!mounted) return;
-      mounted.root.unmount();
-      mounted.host.remove();
-      mounted = null;
-    }, 0);
+    teardown();
   };
   root.render(<LiveProfileSetup onDone={close} />);
 }

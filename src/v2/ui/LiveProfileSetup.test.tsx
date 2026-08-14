@@ -238,3 +238,46 @@ describe("mounting", () => {
     expect(screen.queryByText(/A few things about you/i)).toBeNull();
   });
 });
+
+// ── the purge, heard (D51's contract, check:purge) ───────────────────
+describe("an account deletion takes the screen with it", () => {
+  it("drops the screen and writes no flag on insight:local-purge", async () => {
+    // The flag itself cannot go stale — profileSetupSeen reads storage on
+    // every call. What can is the SCREEN: purgeLocalTrace fires on account
+    // deletion and on a uid change, and a setup screen already up belongs
+    // to the session that just ended. Left there, its next tap would write
+    // the key the purge had just removed, under the NEW uid, and the new
+    // account would never be asked.
+    mount();
+    expect(screen.getByText(/A few things about you/i)).toBeTruthy();
+
+    // The purge: the dispatcher clears the keys, then announces.
+    localStorage.clear();
+    await act(async () => {
+      window.dispatchEvent(new Event("insight:local-purge"));
+      await new Promise((r) => setTimeout(r, 5));
+    });
+
+    expect(screen.queryByText(/A few things about you/i)).toBeNull();
+    // Nothing written on the way out — so the next boot asks, which is the
+    // right thing to do with an account that has answered nothing.
+    expect(localStorage.getItem(PROFILE_SETUP_LS)).toBeNull();
+    expect(profileSetupNeeded()).toBe(true);
+  });
+
+  it("lets the screen mount again afterwards", async () => {
+    // The teardown has to clear the module's own `mounted` handle, or the
+    // idempotence guard would refuse every later mount for the life of the
+    // session.
+    mount();
+    localStorage.clear();
+    await act(async () => {
+      window.dispatchEvent(new Event("insight:local-purge"));
+      await new Promise((r) => setTimeout(r, 5));
+    });
+    mount();
+    expect(screen.getAllByText(/A few things about you/i)).toHaveLength(1);
+    fireEvent.click(screen.getByRole("button", { name: /Skip for now/ }));
+    await settle();
+  });
+});
