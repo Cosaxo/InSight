@@ -2751,6 +2751,49 @@ const LIVE = {
     });
     return out;
   },
+  // ── the daily pulse (D138) ──────────────────────────────────────
+  // One answer per day, id {baseQid}_{day} — the duel answers' shape on
+  // a world-public surface. Create-only mirrors the rules: no re-pick
+  // today, and the doc id is the discipline.
+  votePulse(baseQid: string, optionIdx: number): Promise<void> {
+    const uid = state.uid;
+    if (!uid || !Number.isInteger(optionIdx) || optionIdx < 0) return Promise.resolve();
+    const day = utcDayKey(0);
+    const aid = `${baseQid}_${day}`;
+    if (state.votes[aid]) return Promise.resolve();
+    state.votes[aid] = String(optionIdx);
+    notify();
+    return (async () => {
+      try {
+        const db = await getDb();
+        await setDoc(doc(db, "v2_users", uid, "answers", aid), {
+          qid: aid,
+          baseQid,
+          day,
+          surface: "pulse",
+          optionIdx,
+          answeredAt: serverTimestamp(),
+          anchors: answerAnchors(),
+        });
+        cacheVote(aid, optionIdx);
+      } catch (err) {
+        delete state.votes[aid];
+        notify();
+        reportError(err, { where: "votePulse", qid: aid });
+      }
+    })();
+  },
+  /** Every pulse day this device knows it answered: day → optionIdx.
+   * Derived from the hydrated vote mirror, so a second device's answers
+   * arrive with ordinary hydration and no extra read. */
+  pulseVotes(baseQid: string): Record<string, number> {
+    const out: Record<string, number> = {};
+    const prefix = `${baseQid}_`;
+    for (const [aid, v] of Object.entries(state.votes)) {
+      if (aid.startsWith(prefix)) out[aid.slice(prefix.length)] = Number(v);
+    }
+    return out;
+  },
   vote(qid: string, optionId: string): void {
     if (state.votes[qid]) return; // one answer per question, mirroring rules
     const optionIdx = Number(optionId);

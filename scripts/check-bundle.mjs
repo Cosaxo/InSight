@@ -344,7 +344,14 @@ const INDEX_HTML = join(root, "dist", "index.html");
 // wants a wider band, not whether the app should be smaller.
 const MAX_CHUNK_KB = 735;
 const MAX_TOTAL_JS_KB = 2182;
-const MAX_EAGER_KB = 955;
+// 955 → 966 (2026-08-14): D138's pulse card — the second fixed instrument
+// on the FIRST screen, so its card, its store's demo furniture and the
+// two LIVE members are legitimately eager (~10 KB min). What is not
+// first-screen stayed out: the trends chart is React.lazy behind the
+// card's own tap, and the store's live loaders (template + 21 per-day
+// aggs) are dynamic inside ensureLive(). Headroom left: ~5 KB, the same
+// posture as the 955 raise.
+const MAX_EAGER_KB = 966;
 
 let files;
 try {

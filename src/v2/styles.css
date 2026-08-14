@@ -315,6 +315,7 @@
   --c-groups: oklch(0.53 0.14 85);    /* gold    */
   --c-people: oklch(0.52 0.14 8);     /* rose — pulled off sienna's hue so 1v1 reads distinct from World */
   --c-likeness: oklch(0.52 0.14 195);  /* petrol — "blueprint" of a person */
+  --pulse: oklch(0.52 0.14 282);      /* violet — the daily pulse (D138), one hue throughout */
   --sienna: var(--c-around);
   --sage: var(--c-city);
   --ochre: oklch(0.70 0.135 78);
@@ -1461,6 +1462,7 @@ button.card:active,
   --c-groups:   oklch(0.555 0.111 85);
   --c-people:   oklch(0.555 0.200 8);
   --c-likeness: oklch(0.555 0.092 195);
+  --pulse:      oklch(0.555 0.135 282);
   --c-city-ink: oklch(0.52 0.144 150);
 }
 

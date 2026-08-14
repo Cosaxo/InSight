@@ -333,6 +333,21 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
       : null),
     myVotes: () => ({ ...votes }),
     confirmedVotes: () => ({ ...votes }),
+    // The daily pulse (D138): the fixture mirrors the real pair — the
+    // day-keyed create into the same votes map, and the derived
+    // day → optionIdx view over it.
+    votePulse: (baseQid: string, optionIdx: number) => {
+      const aid = `${baseQid}_${new Date().toISOString().slice(0, 10)}`;
+      if (!votes[aid]) votes[aid] = String(optionIdx);
+      return Promise.resolve();
+    },
+    pulseVotes: (baseQid: string) => {
+      const out: Record<string, number> = {};
+      for (const [aid, v] of Object.entries(votes)) {
+        if (aid.startsWith(`${baseQid}_`)) out[aid.slice(baseQid.length + 1)] = Number(v);
+      }
+      return out;
+    },
     // (qid, optionId) — both strings. The spec layer calls this as
     // `window.LIVE.vote(id, String(val))`, and the first draft of this
     // fixture took a question OBJECT: the surface pin cannot catch that,

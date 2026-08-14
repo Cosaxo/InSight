@@ -13546,3 +13546,72 @@ client writes); unit tests on the validator and tripwire; e2e loop leg
 11 drives the callable door, both refusal codes, the budget trip, the
 stranger denial and the operator loop against the real emulated
 functions; the erasure e2e covers phase 4d both directions.
+
+## D138 · The daily pulse: one question asked every day, folded per day by the trigger that did not change
+
+**Decided:** 2026-08-14 · **Status:** built on
+`claude/new-functionality-planning-82qywb` (owner's direction: "do the
+next step" against docs/NEXT-FUNCTIONALITY.md §2, with the v24 design in
+hand), ships when that branch's PR merges.
+
+**Decision.** The over-time question machinery ships, exactly the §2
+shape: a pulse question is ONE template doc in the bank (surface
+`pulse`, exactly five ordered steps — the chart's y-axis), and an answer
+is a day-keyed doc `{baseQid}_{day}` in the ordinary answers
+subcollection — the duel answers' id discipline and day window on a
+world-public surface. One answer per (person, day) is the doc id;
+create-only in v1, so "you said what you said today" holds structurally
+(the D86 arm's surface list keeps pulse out); the answers are public
+like every answer (both read fences carry `pulse`), and they carry the
+D29 binding because they feed a published aggregate.
+
+**The load-bearing property, proven rather than assumed:** the aggregate
+trigger needed NO changes. Its vote branch never reads the question doc
+— the rules did the validating — so a composite qid folds into a
+PER-DAY aggregate pair (`v2_aggs_private/{qid_day}`,
+`v2_question_aggs/{qid_day}`), anchors breakdown included, minted by the
+transaction's own `set`. Per-day docs are the right grain: a single
+growing series doc would fight the 1 MiB ceiling and the shipped-whole
+egress bill. The e2e leg drives it end to end. What DID change, each
+small: the velocity scan's impossible-volume ceiling grows by exactly
+`PULSE_BANK_SIZE × 90` (one entry per template per ledger-TTL day),
+`check:content`/`check:quality` learned the surface (five steps, id
+shape refusing the day-separator underscore), and the client bank is
+untouched — the card fetches its template directly.
+
+**The reading keeps the design's honesty rules as contract**
+(`design/standalone-v24/pulse-*` headers, ported typed into
+`ui/PulseCard.tsx` / `ui/PulseTrends.tsx` / `data/pulse.ts`): no
+smoothing, no interpolation — a missing day breaks the line; absent ≠
+zero, and the panel says which days had nobody; a day under `THIN` (20)
+answers is counted and listed, never positioned — a placement gate about
+statistical honesty, not a privacy floor (everything publishes, D98);
+every reading carries its n; streaks are client-derived, no server
+state. Costs: your own series is a fold over the hydrated vote mirror
+(zero reads); the crowd is one bounded 21-id `documentId()` in-query per
+UTC day per session (docs/COSTS.md row). The card is first-screen
+product beside the blind daily, so the eager-bundle ceiling moved
+955 → 966 with its note; the chart is lazy behind the card's own tap.
+
+**The first live pulse is deliberately neutral** — `pulse-pace`, "What
+pace was today?" — because the design's own demo question ("How is
+today going?") is wellbeing tracking, which moves the store forms
+(Health sits on the not-collected list) and waits on its own recorded
+decision. Swapping the content file is the whole change when that
+lands; the demo room keeps the design's question meanwhile.
+
+**Not built, deliberately:** a same-day edit window (create-only is the
+v1 posture; a rules arm with its own cooldown is the follow-up if
+mis-taps prove real); the Map's pulse branch (the design's `mapTree`
+stays unported — the seventh over-category is its own decision, the
+D126 boundary); more pulse questions (the roster is a constant until a
+second one earns its place); any scheduled minting (there is nothing to
+mint — the template is the only doc).
+
+**Enforcement:** three rules tests (the day window, the id discipline,
+the template's bound/kill-switch/surface answers); the e2e leg (per-day
+fold with breakdown, same-day duplicate refused); the velocity ceiling's
+constants beside their reasoning; `check:content` + `check:quality` on
+the surface; the LIVE member pins and the smoke fixture carrying
+`votePulse`/`pulseVotes`; 969 unit tests, 89 rules tests, the bundle
+and figure gates green at commit.

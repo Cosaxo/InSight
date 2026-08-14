@@ -131,7 +131,7 @@ having it. Ship it when the suggestion queue exists to feed it.
 **The wanted thing:** a question type where the point is the series —
 "mood today" — and, eventually, scores tracked the same way.
 
-**Verdict: build. This is the strongest idea on the list.** It creates a
+**Verdict: build. This is the strongest idea on the list.** *Status 2026-08-14: BUILT on this branch — D138 is the record. The machinery, the per-day fold, the card and the Trends reading are live with the neutral first question; mood stays the owner's store-forms decision.* It creates a
 daily habit the product currently only gets from the one blind question,
 and it produces a genuinely new Mirror reading — your line against your
 city's line — that no existing surface can fake. It is also the one idea

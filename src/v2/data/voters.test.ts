@@ -131,7 +131,7 @@ describe("the fetch cap (D102)", () => {
 
 describe("the surface filter", () => {
   it("lists exactly the world surfaces, and never a duel one", () => {
-    expect([...WORLD_ANSWER_SURFACES]).toEqual(["daily", "feed", "test", "learn"]);
+    expect([...WORLD_ANSWER_SURFACES]).toEqual(["daily", "feed", "test", "learn", "pulse"]);
     // Duel surfaces must NOT appear: they are sealed until the reveal,
     // and the rule refuses them anyway — but a query that asks for them
     // is refused WHOLESALE, so adding one here would break every voter
