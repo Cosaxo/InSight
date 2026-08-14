@@ -14571,3 +14571,99 @@ and pays for it in the one currency this fold does not spend: it can only
 ever describe answers given after it ships. The two are complements, not
 alternatives; a dim would leave this cut in place for the history it
 cannot see.
+
+## D147 · The Map's mainstream boundary is sized by the map, not by a constant
+
+**Decided:** 2026-08-14 · **Status:** binding. From a screenshot with the
+report *"the sketched circle gets awkwardly large at small amounts of
+data"*: two branches, seven answers, and the boundary ring running to
+both edges of the canvas with nothing inside it.
+
+### 1 · The bug is the ratio, and it was measured
+
+`.mmt-ground::after` was a flat `640px` circle in world space. The Map's
+canvas fits itself to whatever is on it (`fitAllTarget`), so the fewer
+answers you have the harder it zooms in — and a fixed circle grows on
+screen exactly as the map shrinks. Probed against the real layout engine
+on a 390×700 canvas, as a share of canvas width:
+
+| branches × answers | reach | fit z | old 640px circle |
+| --- | --- | --- | --- |
+| 1 × 1 | 505 | 0.557 | **91%** |
+| 2 × 2 | 484 | 0.557 | **91%** |
+| 3 × 3 | 512 | 0.351 | 58% |
+| 5 × 5 (+subs) | 685 | 0.283 | 46% |
+| 7 × 6 (+subs) | 963 | 0.217 | 36% |
+| 9 × 8 (+subs) | 1227 | 0.168 | 28% |
+
+The circle was tuned at the bottom of that table and shipped at the top of
+it. The reported screenshot reproduces from these numbers: 640 × 0.557 on
+a 390-wide canvas is the balloon in the picture.
+
+### 2 · A share of the constellation's reach, floored at the anchors
+
+`mtClusterLayout` now returns `ring`, and the stylesheet reads it as
+`calc(var(--ring, 320px) * 2)`:
+
+```
+ring = max(205, 0.26 × reach)      reach = the outermost node the layout placed
+```
+
+**`reach`, because that is what the fit measures too** — sizing against the
+same quantity as the zoom is what makes the on-screen share hold steady
+(27–37% from three branches up, against 28–91% before). **0.26, because it
+leaves a filled-out map exactly where it is**: 0.26 × 1227 ≈ 319, and the
+constant it replaces was 320. Nobody with a full map sees this change.
+
+**205, because it is the layout's own floor** — step 4 refuses to place a
+dot inside 205, and the profile ring sits at 170 with its labels just
+outside. Below that the boundary stops being a horizon and becomes a
+second circle competing with the anchors for the same hole. The floor
+binds up to about five branches, which is most maps, so in practice the
+small-map answer is "205" rather than a formula.
+
+That floor has a consequence the fixed circle never had: at ring stage the
+boundary can now sit 35px outside the anchors at full strength. So it
+joins the list of outer-map furniture that steps back while You holds the
+stage — `.mmt-root.is-ringstage .mmt-ground::after`, at the same 0.22 as
+the limbs. It was only ever absent from that list because 320 was far
+enough away for nobody to notice.
+
+### 3 · What this does NOT fix, stated because the comment above it claims otherwise
+
+The line's own comment says *"inside this ring you're with the crowd,
+outside it the take is rarer; distance means something"*. The probe says
+that is aspirational at every data size: across all nine shapes measured,
+between **0 and 4%** of dots landed inside the old circle. Radial position
+is dominated by which cloud a dot belongs to (`R1 = 330`, `CLEAR = 150`),
+and typicality only moves it ±50 within that cloud — so a single circle
+cannot separate typical from rare while clouds are placed on a common
+orbit. Sizing the ring does not change that, and a quantile ring (the
+obvious "make the claim true" fix) is worse on the reported bug, not
+better: the 25th percentile of dot radii at two branches is 427, which
+draws a circle **122%** of the canvas width.
+
+Deferred deliberately. Making the claim true is a layout change — pulling
+common answers meaningfully inward across clouds — not a ring change, and
+it would move every dot on every map to fix a line nobody complained
+about. What ships here is the ring as a horizon that scales; the claim
+stays on the list.
+
+### 4 · Guarded by `test/map-ring.test.js`
+
+The arithmetic had no test and could not get one from the mount suites:
+jsdom reports `clientWidth` 0, so `MapTab` returns its empty shell and the
+ground never renders. The wiring is a CSS custom property, which `tsc`,
+eslint and `check:globals` are all blind to — drop it and the stylesheet
+falls back to the 640px circle *silently*, which is green tests and the
+old bug. So the file does both halves: real assertions on the numbers, and
+a source-text pin on the three files that have to agree about `--ring`.
+The pin proves the property is passed and read, not that it lands on
+screen; the honest way to close that last gap is a mount with stubbed
+element sizes, and the Mirror mount is already the slowest case in the
+suite.
+
+`person-mindmap.jsx` draws the same ground from the same engine and gets
+the same treatment. It is the small-map case at its worst — a stranger
+with three answers — and only the profile *portrait* (`is-still`) hides
+the line.

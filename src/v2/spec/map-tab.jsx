@@ -201,12 +201,14 @@ function MapTab({ rail = true, anchorsOn = true, recency = true, fields: fieldsO
 
   const AR = 170;
   const laid = useMemo(() => {
-    const { pos: p, fields: f } = mtClusterLayout(nodes, cats);
+    const { pos: p, fields: f, ring } = mtClusterLayout(nodes, cats);
+    // anchors land AFTER the ring is measured, on purpose: they are furniture
+    // at a fixed AR, not part of the constellation the boundary is sized to.
     anchors.forEach((a, i) => {
       const ang = -Math.PI / 2 + (i * 2 * Math.PI) / (anchors.length || 1);
       p['ax-' + a.id] = { x: Math.cos(ang) * AR, y: Math.sin(ang) * AR };
     });
-    return { pos: p, fields: f };
+    return { pos: p, fields: f, ring };
   }, [nodes, cats, anchors]);
   const pos = laid.pos;
 
@@ -765,7 +767,10 @@ function MapTab({ rail = true, anchorsOn = true, recency = true, fields: fieldsO
         onPointerCancel={onPointerUp}
       >
         <div className={'mmt-world' + (moving ? ' is-moving' : '')} style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.z})` }}>
-          <div className="mmt-ground" aria-hidden="true"></div>
+          {/* --ring is the mainstream boundary's RADIUS; the stylesheet doubles
+              it. Unset it and .mmt-ground::after falls back to the old fixed
+              circle, silently — the wiring is pinned in test/map-ring.test.js. */}
+          <div className="mmt-ground" style={{ '--ring': laid.ring + 'px' }} aria-hidden="true"></div>
           {fieldsOn ? laid.fields.map((f) => {
             const cat = cats.find((c) => c.id === f.id);
             if (!cat) return null;

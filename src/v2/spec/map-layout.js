@@ -147,7 +147,31 @@ function mtClusterLayout(nodes, cats) {
   });
   // territory fields — one soft hue landmass per branch
   const fields = cl.map((c) => ({ id: c.id, x: c.x, y: c.y * VS, r: c.radius }));
-  return { pos, fields };
+
+  // 5 · the mainstream boundary — a ring sized by the map, not a constant.
+  // It lives in CSS (.mmt-ground::after) and used to be a flat 640px circle,
+  // which is a sane size only for a map that has filled out. The canvas fits
+  // itself to whatever is on it, so the fewer answers you have the harder it
+  // zooms in and the bigger that fixed circle draws: measured on a 390×700
+  // canvas it covers 91% of the width at one or two branches, against 28% at
+  // nine — a balloon around three dots, which is what got reported.
+  //
+  // So take a share of the constellation's own reach. Same measure the fit
+  // uses (the outermost thing on the map), so the ring holds a steady ~28-37%
+  // of the width at every size, and 0.26 is the share that leaves a full map
+  // exactly where it is today (0.26 × 1227 ≈ 319, was 320).
+  //
+  // The floor is the layout's own: step 4 refuses to place a dot inside 205,
+  // and the profile ring sits at 170 with its labels just outside. A boundary
+  // drawn inside either would be a second circle competing with the anchors
+  // for the same hole rather than a horizon around them.
+  const RING_SHARE = 0.26, RING_MIN = 205;
+  let reach = 0;
+  for (const id in pos) {
+    if (id === 'root') continue;
+    reach = Math.max(reach, Math.hypot(pos[id].x, pos[id].y));
+  }
+  return { pos, fields, ring: Math.max(RING_MIN, RING_SHARE * reach) };
 }
 
   window.MapTabLayout = { mtSlug, mtHash, mtTopCat, mtClusterLayout, MT_ZLAB };
