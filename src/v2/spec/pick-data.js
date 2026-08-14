@@ -296,6 +296,28 @@
       41: 2,  // Niobium (Nb) — below the floor
       0: 8,   // Not listed
     },
+    // daily catalog-question run, 2026-08-14 — dread, the elements turn
+    // (pk02/pk10's canon reaching its third domain): danger, not
+    // affection. Chemistry's villains are a different cast from its
+    // mascots — favouritism's board (gold, carbon, neon) shares nothing
+    // with this one, and history supplies every vote.
+    pk14: {
+      94: 27, // Plutonium (Pu) — named for the underworld, used accordingly
+      80: 23, // Mercury (Hg) — beautiful, liquid, patient
+      33: 19, // Arsenic (As) — a whole genre of crime fiction runs on it
+      92: 16, // Uranium (U) — the famous one
+      84: 13, // Polonium (Po) — the cup of tea that made the news
+      9: 11,  // Fluorine (F) — the chemists' vote; reacts with nearly everything
+      17: 9,  // Chlorine (Cl) — the one that has been a weapon
+      82: 8,  // Lead (Pb) — slow, and everywhere
+      88: 7,  // Radium (Ra) — the watch-dial girls
+      55: 6,  // Cesium (Cs) — explodes on contact with water
+      81: 5,  // Thallium (Tl) — "the poisoner's poison"; clears the floor, folds
+      48: 5,  // Cadmium (Cd) — same
+      4: 3,   // Beryllium (Be) — the quiet one chemists respect; below the floor
+      87: 2,  // Francium (Fr) — too rare to ever hurt anyone; below the floor
+      0: 8,   // Not listed
+    },
   };
 
   // Baked demo segment slices, per question: how each cohort orders the
@@ -453,6 +475,18 @@
         Men: { 42: 10, 36: 7, 51: 6, 22: 5, 59: 5 },
       },
     },
+    pk14: {
+      ageBand: {
+        // the fissile votes are internet-native; the slow historical
+        // poisons — mercury, arsenic, lead — hold with age
+        '18-24': { 94: 9, 92: 7, 84: 6, 9: 5, 33: 4 },
+        '25-34': { 94: 8, 80: 7, 33: 6, 84: 5, 17: 4 },
+      },
+      gender: {
+        Women: { 33: 8, 80: 7, 84: 6, 94: 5, 88: 4 },
+        Men: { 94: 10, 92: 8, 9: 6, 80: 5, 17: 5 },
+      },
+    },
   };
 
   const api = {
@@ -577,5 +611,9 @@
     // 2026-08-13 daily run: wordcraft — the name, not the atom; the
     // canon pk09 proved, crossing domains like identity did.
     { id: 'pk13', cat: 'fav', type: 'pick', domain: 'elements', prompt: 'The best-named element?', n: 166 },
+    // 2026-08-14 daily run: dread — the fear canon's third domain (pk02,
+    // pk10). Danger ranks the poisons and the fissile, a cast no
+    // affection or identity question ever surfaces.
+    { id: 'pk14', cat: 'fav', type: 'pick', domain: 'elements', prompt: 'The most dangerous element?', n: 162 },
   ];
 })();
