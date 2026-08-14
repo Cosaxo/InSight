@@ -91,7 +91,7 @@ service cloud.firestore {
       return anchors is map
         && anchors.keys().hasOnly([
           "city", "country", "ageBand", "gender",
-          "profession", "education", "relationship",
+          "profession", "education", "relationship", "heightBand",
         ])
         && isOptionalShortString(anchors.get("city", null), 80)
         && isOptionalShortString(anchors.get("country", null), 80)
@@ -99,7 +99,8 @@ service cloud.firestore {
         && isOptionalShortString(anchors.get("gender", null), 40)
         && isOptionalShortString(anchors.get("profession", null), 80)
         && isOptionalShortString(anchors.get("education", null), 80)
-        && isOptionalShortString(anchors.get("relationship", null), 40);
+        && isOptionalShortString(anchors.get("relationship", null), 40)
+        && isOptionalShortString(anchors.get("heightBand", null), 20);
     }
 
     // v2 profile — READABLE BY ANY SIGNED-IN USER (D98). The display
@@ -300,7 +301,7 @@ service cloud.firestore {
         // the query walks past).
         allow read: if request.auth != null
           && (request.auth.uid == uid
-            || resource.data.surface in ["daily", "feed", "test", "learn"]);
+            || resource.data.surface in ["daily", "feed", "test", "learn", "pulse"]);
 
         // D29 device binding: aggregate-feeding answers require the account
         // to have passed one silent per-device activation (activateDeviceV2
@@ -447,6 +448,49 @@ service cloud.firestore {
             && request.resource.data.get("guessIdx", 0) < duelIndexSpace();
         }
 
+        // The daily pulse (D139): the same question answered once per
+        // DAY, id {baseQid}_{day} — one answer per (person, day) is the
+        // doc id, the duel answers' move, and the day window below is
+        // theirs verbatim (back 4d for an offline queue, forward 2d
+        // because day keys are UTC and UTC+14 is already tomorrow).
+        // Create-only in v1, deliberately: the D86 edit arm's surface
+        // list keeps pulse out, so "you said what you said today" holds
+        // structurally, and delete is closed like every answer. The
+        // aggregate trigger folds the composite qid into a PER-DAY
+        // aggregate doc with no changes of its own — that grain is the
+        // whole design (docs/NEXT-FUNCTIONALITY.md §2).
+        function isPulseAnswer() {
+          return request.resource.data.keys().hasOnly([
+              "qid", "baseQid", "day", "surface", "optionIdx", "answeredAt", "anchors",
+            ])
+            && request.resource.data.surface == "pulse"
+            && request.resource.data.baseQid is string
+            && request.resource.data.day is string
+            && request.resource.data.day.matches('[0-9]{4}-[0-9]{2}-[0-9]{2}')
+            && timestamp.date(
+                 int(request.resource.data.day[0:4]),
+                 int(request.resource.data.day[5:7]),
+                 int(request.resource.data.day[8:10]))
+               > request.time - duration.value(4, 'd')
+            && timestamp.date(
+                 int(request.resource.data.day[0:4]),
+                 int(request.resource.data.day[5:7]),
+                 int(request.resource.data.day[8:10]))
+               < request.time + duration.value(2, 'd')
+            && aid == request.resource.data.baseQid + "_" + request.resource.data.day
+            && request.resource.data.qid == aid
+            // The TEMPLATE is what the bank holds — one doc per pulse
+            // question forever, never one per day — and it answers for
+            // the option bound, the kill switch, and the surface claim.
+            && get(/databases/$(database)/documents/v2_questions/$(request.resource.data.baseQid))
+                 .data.get("surface", "daily") == "pulse"
+            && get(/databases/$(database)/documents/v2_questions/$(request.resource.data.baseQid))
+                 .data.get("active", true) == true
+            && request.resource.data.optionIdx
+              < get(/databases/$(database)/documents/v2_questions/$(request.resource.data.baseQid))
+                  .data.options.size();
+        }
+
         // The index space BOTH duel indexes live in: the question's own
         // options, or — for "pick" questions, which carry none, because
         // their options ARE the group — the member count. Repeated get()s
@@ -470,7 +514,11 @@ service cloud.firestore {
               // functions/src/v2social.ts) or members past the 20th become
               // unpickable on every "pick" day.
               && request.resource.data.optionIdx < 64
-              && ((isWorldAnswer() && deviceBound()) || isDuelAnswer()))
+              && ((isWorldAnswer() && deviceBound())
+                || isDuelAnswer()
+                // Pulse answers feed a published aggregate, so they carry
+                // the same D29 binding the world surfaces do.
+                || (isPulseAnswer() && deviceBound())))
             // Catalog answers carry `entity` instead — the optionIdx block
             // must not apply, and each branch's hasOnly keeps the other
             // field out. They feed aggregates, so they carry the D29
@@ -554,7 +602,7 @@ service cloud.firestore {
     // collection anywhere else in future silently joins this grant.
     match /{path=**}/answers/{aid} {
       allow read: if request.auth != null
-        && resource.data.surface in ["daily", "feed", "test", "learn"];
+        && resource.data.surface in ["daily", "feed", "test", "learn", "pulse"];
     }
 
     // App/content metadata — contentRev (bank cache invalidation),
@@ -867,6 +915,28 @@ service cloud.firestore {
     }
     match /v2_mod_verdicts/{takeId} {
       allow read, write: if false;
+    }
+
+    // ── "Suggest a question" (docs/NEXT-FUNCTIONALITY.md §6) ───────────
+    //
+    // Written only by suggestQuestionV2: the write path needs three
+    // checks rules cannot express — App Check attestation (D36), the
+    // per-uid daily budget, and the sold-inventory tripwire (QUESTION-
+    // FARM.md hard rule 6). The AUTHOR reads their own rows so the board
+    // can show "in review / picked / declined"; the pool is deliberately
+    // not world-readable in v1 — a public voting board is a second UGC
+    // surface with the takes' moderation load, and it gets its own
+    // decision if it ships. NOT a privacy floor (D98 retired those):
+    // an unreviewed free-text queue is a moderation surface, and the
+    // review instruments (fetchSuggestionsV2 / reviewSuggestionV2,
+    // operator-gated) are its only other door.
+    //
+    // A list query must filter uid == request.auth.uid or Firestore
+    // refuses it wholesale — the D65 value-test shape.
+    match /v2_suggestions/{sid} {
+      allow read: if request.auth != null
+        && resource.data.uid == request.auth.uid;
+      allow write: if false;
     }
 
     // ── Near-by-radius presence (D84) ──────────────────────────────

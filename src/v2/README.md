@@ -174,7 +174,7 @@ one rule, so each is individually visible and greppable:
 git grep -c "eslint-disable-next-line" -- src/v2/spec   # the live count
 ```
 
-That count is **30 across 13 files**. It is quoted here rather than left to
+That count is **29 across 12 files**. It is quoted here rather than left to
 the reader because this section previously claimed 42 long after the number
 had moved — a stale figure in the one paragraph whose job is to size the
 debt.
@@ -450,7 +450,7 @@ what is still crossing it.
 **Rule 4** counts every site where one file reads a name another file
 assigns to global scope, per file, and the number may only go down. The
 baseline is in `scripts/check-spec-globals.mjs`; `npm run check:globals`
-prints the current total on every run. The count today is **416 across 42
+prints the current total on every run. The count today is **414 across 42
 files**, down from 799 when the ratchet landed.
 
 The mechanism needs no bookkeeping, which is what makes it usable. The

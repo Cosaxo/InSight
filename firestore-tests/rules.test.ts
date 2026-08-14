@@ -474,6 +474,86 @@ describe("v2 profile", () => {
   });
 });
 
+describe("the daily pulse (D139): one answer per day, day-keyed like a duel's", () => {
+  const BASE = "pulse-pace";
+  const seedPulse = () => seed(async (db) => {
+    await setDoc(doc(db, "v2_questions", BASE), {
+      surface: "pulse", seq: 0, type: "pulse", prompt: "What pace was today?",
+      options: ["Crawling", "Dragging", "Steady", "Brisk", "Flying"], active: true,
+    });
+    await setDoc(doc(db, "v2_questions", "daily-000"), {
+      surface: "daily", seq: 0, type: "binary",
+      prompt: "Pineapple?", options: ["Yes", "No"], active: true,
+    });
+  });
+  const pulseAnswer = (day: string, over: Record<string, unknown> = {}) => ({
+    qid: `${BASE}_${day}`, baseQid: BASE, day, surface: "pulse", optionIdx: 3,
+    answeredAt: serverTimestamp(), anchors: {}, ...over,
+  });
+
+  it("today lands; the second answer to the same day is an update and refused", async () => {
+    await seedPulse();
+    const day = dayOffset(0);
+    const ref = doc(asUser(OWNER), "v2_users", OWNER, "answers", `${BASE}_${day}`);
+    await assertSucceeds(setDoc(ref, pulseAnswer(day)));
+    // setDoc on the existing doc is an UPDATE, and the D86 arm's surface
+    // list keeps pulse out — "you said what you said today" (create-only
+    // v1, docs/NEXT-FUNCTIONALITY.md §2).
+    await assertFails(setDoc(ref, pulseAnswer(day, { optionIdx: 1 })));
+    await assertFails(updateDoc(ref, { optionIdx: 1, editedAt: serverTimestamp() }));
+    // …and it is public like every answer (D98), pulse included.
+    await assertSucceeds(getDoc(doc(asUser(STRANGER), "v2_users", OWNER, "answers", `${BASE}_${day}`)));
+  });
+
+  it("the day window and the id discipline hold — the duel answers' bounds verbatim", async () => {
+    await seedPulse();
+    const old = dayOffset(-6);
+    const future = dayOffset(3);
+    const day = dayOffset(0);
+    await assertFails(setDoc(
+      doc(asUser(OWNER), "v2_users", OWNER, "answers", `${BASE}_${old}`),
+      pulseAnswer(old),
+    ));
+    await assertFails(setDoc(
+      doc(asUser(OWNER), "v2_users", OWNER, "answers", `${BASE}_${future}`),
+      pulseAnswer(future),
+    ));
+    // doc id must be {baseQid}_{day}, and qid must equal it
+    await assertFails(setDoc(
+      doc(asUser(OWNER), "v2_users", OWNER, "answers", `${BASE}_wrong`),
+      pulseAnswer(day),
+    ));
+    await assertFails(setDoc(
+      doc(asUser(OWNER), "v2_users", OWNER, "answers", `${BASE}_${day}`),
+      pulseAnswer(day, { qid: BASE }),
+    ));
+  });
+
+  it("the template answers for the bound, the kill switch, and the surface claim", async () => {
+    await seedPulse();
+    const day = dayOffset(0);
+    // optionIdx beyond the five steps
+    await assertFails(setDoc(
+      doc(asUser(OWNER), "v2_users", OWNER, "answers", `${BASE}_${day}`),
+      pulseAnswer(day, { optionIdx: 5 }),
+    ));
+    // a daily template cannot be answered as a pulse — the surface claim
+    // reads off the TEMPLATE, so the composite id buys no second series
+    await assertFails(setDoc(
+      doc(asUser(OWNER), "v2_users", OWNER, "answers", `daily-000_${day}`),
+      pulseAnswer(day, { qid: `daily-000_${day}`, baseQid: "daily-000" }),
+    ));
+    // the kill switch stops the series
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_questions", BASE), { active: false }, { merge: true });
+    });
+    await assertFails(setDoc(
+      doc(asUser(OWNER), "v2_users", OWNER, "answers", `${BASE}_${day}`),
+      pulseAnswer(day),
+    ));
+  });
+});
+
 describe("v2 answers (world-readable since D98; option edits only — D86)", () => {
   const QID = "daily-000";
   const seedQuestion = () => seed(async (db) => {
@@ -1197,6 +1277,52 @@ describe("v2 meta + server-only collections", () => {
     await assertFails(setDoc(doc(asUser(OWNER), "v2_meta", "content"), { contentRev: 99 }));
     await assertFails(getDoc(doc(asUser(OWNER), "v2_ratelimits", OWNER)));
     await assertFails(setDoc(doc(asUser(OWNER), "v2_ratelimits", OWNER), { events: [] }));
+  });
+});
+
+describe("question suggestions (docs/NEXT-FUNCTIONALITY.md §6)", () => {
+  const SID = `${OWNER}_sg1`;
+  const seedSuggestion = () => seed(async (db) => {
+    await setDoc(doc(db, "v2_suggestions", SID), {
+      uid: OWNER, prompt: "Dogs or cats?", type: "binary",
+      options: ["Dogs", "Cats"], topicHint: null, audienceHint: null,
+      cadenceHint: null, credit: false, status: "review", at: serverTimestamp(),
+    });
+  });
+
+  it("the author reads their own row; a stranger and the signed-out do not", async () => {
+    await seedSuggestion();
+    await assertSucceeds(getDoc(doc(asUser(OWNER), "v2_suggestions", SID)));
+    await assertFails(getDoc(doc(asUser(STRANGER), "v2_suggestions", SID)));
+    await assertFails(getDoc(doc(asSignedOut(), "v2_suggestions", SID)));
+  });
+
+  it("the pool is not listable — only a mine-only query passes (the D65 shape)", async () => {
+    await seedSuggestion();
+    await assertSucceeds(getDocs(query(
+      collection(asUser(OWNER), "v2_suggestions"),
+      where("uid", "==", OWNER),
+    )));
+    // No filter, or a filter naming someone else: refused wholesale.
+    await assertFails(getDocs(collection(asUser(OWNER), "v2_suggestions")));
+    await assertFails(getDocs(query(
+      collection(asUser(STRANGER), "v2_suggestions"),
+      where("uid", "==", OWNER),
+    )));
+  });
+
+  it("no client writes: the callable is the only door, and the author cannot settle their own status", async () => {
+    await seedSuggestion();
+    // A direct create would skip the budget, the App Check attestation
+    // and the sold-inventory tripwire — the three checks that are the
+    // reason this is a callable at all.
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_suggestions", `${OWNER}_sg2`), {
+      uid: OWNER, prompt: "Should Oslo ban cars downtown?", type: "binary",
+      options: [], topicHint: null, audienceHint: null, cadenceHint: null,
+      credit: false, status: "review", at: serverTimestamp(),
+    }));
+    await assertFails(updateDoc(doc(asUser(OWNER), "v2_suggestions", SID), { status: "picked" }));
+    await assertFails(deleteDoc(doc(asUser(OWNER), "v2_suggestions", SID)));
   });
 });
 

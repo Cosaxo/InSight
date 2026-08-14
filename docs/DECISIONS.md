@@ -13877,3 +13877,226 @@ time would fail there rather than in review.
 on the unmodified tree: an unfilled Play signing fingerprint and unset
 release env vars. Both are release gates, on neither `ci.yml` nor
 `backend-checks.yml`, and untouched by this pass.
+## D138 · The suggestion board gets a server: a budgeted door, an author-only read, and the same human gate
+
+**Decided:** 2026-08-14 · **Status:** built on
+`claude/new-functionality-planning-82qywb` (owner's direction: "start
+building the suggestions backend"), ships when that branch's PR merges ·
+Design: [`docs/NEXT-FUNCTIONALITY.md`](NEXT-FUNCTIONALITY.md) §6.
+
+**Decision.** "Suggest a question" — in the spec layer since the port,
+faked onto localStorage — gets its v1 backend: `v2_suggestions`, written
+only by the `suggestQuestionV2` callable, read only by its author and by
+two operator instruments, feeding the promotion path that already
+existed. Four shapes carry the design, each borrowed from a surface that
+already proved it:
+
+- **The write path is a callable, not a rules grant**, because its three
+  checks cannot live in rules: App Check attestation (D36), a
+  3-per-rolling-day budget (the D122 invite ledger's sliding window, in
+  `v2_ratelimits/suggest_{uid}`), and the sold-inventory tripwire —
+  QUESTION-FARM hard rule 6's place+civic conjunction, declined at the
+  door with the reason (that subject is the paid research path,
+  MONETIZATION.md path 1) rather than reviewed and silently dropped. The
+  budget is priced on D33's spine: a human reads every row, so intake is
+  paced to what review can absorb. A declined ask spends no budget, and
+  the e2e orders its legs to prove that rather than assume it.
+- **The author reads their own rows and nobody else's** — the board can
+  say "in review / picked / declined" without a public pool. NOT a
+  privacy floor (D98 retired those): an unreviewed free-text queue is a
+  moderation surface, and a public voting board is a second UGC surface
+  that gets its own decision if it ever ships. List queries carry
+  `uid == request.auth.uid` or Firestore refuses them wholesale (the D65
+  value-test shape).
+- **Review is two operator callables** (`fetchSuggestionsV2`,
+  `reviewSuggestionV2` — assertOperator, App Check exempt with the
+  recorded reason: the caller is a dev session with no attested app).
+  One verdict per row, `picked` or `declined` with a ≤280-char note;
+  re-judging a settled row refuses, so a "picked" the author saw cannot
+  silently become a "declined" — the moderation log's generation lesson
+  in the one-shot form this queue needs. **`picked` marks, it does not
+  publish**: promotion into the banks stays the human PR path that
+  predates this record (`npm run promote -- --source community`, D97's
+  provenance rows — the vintage was first-class before any row existed
+  to carry it).
+- **No public byline.** `credit` records that the author wants one, for
+  the day a decision grants it; flag authorship is a standing deny for
+  retaliation reasons, and a byline on a live question is the same shape
+  of exposure pointed the other way.
+
+**Erasure and the inventories, in the same change rather than after an
+audit:** deleteAccount phase 4d sweeps the rows by uid and 4b takes the
+budget ledger; the erasure e2e asserts both AND that a stranger's row
+survives. `docs/data-inventory.md` gains the row and the ledger mention
+(check:data-inventory), the three functions join the deploy `--only`
+list (check:deploy-targets) and the App Check ledger (check:appcheck),
+and the review query's `(status, at)` composite index ships in
+`firestore.indexes.json`.
+
+**Costs, priced:** one transaction + one create per accepted submission,
+budget-bounded at 3/uid/day; the review fetch is one indexed query
+capped at 200 rows; no listeners, no new triggers, no per-user fan-out.
+The collection's growth ceiling is the budget times the user count, and
+the review instruments never read more than the cap per call.
+
+**Not built, deliberately:** the public voting board and its upvotes
+(a moderation surface — own decision); any write path into `content/`
+(the two-gate shape is the point). *(The client wiring was on this list
+for a few hours: the same day, the designer's standalone v24 delivered
+the §8 board design and the port landed it live — the store converted
+off the global bridge, submissions through the callable, real statuses
+under "Yours", the community lenses wearing the preview tag until a
+public pool is a decision. `design/standalone-v24/README.md` tracks the
+remaining ports.)*
+The tripwire's watchlist is a pinned copy of question-quality.mjs's —
+a Cloud Function cannot read a repo script at runtime — and the unit
+test carries the canonical cases so drift in either copy fails loudly.
+
+**Enforcement:** 3 rules tests (author-only read, mine-only list, no
+client writes); unit tests on the validator and tripwire; e2e loop leg
+11 drives the callable door, both refusal codes, the budget trip, the
+stranger denial and the operator loop against the real emulated
+functions; the erasure e2e covers phase 4d both directions.
+
+## D139 · The daily pulse: one question asked every day, folded per day by the trigger that did not change
+
+**Decided:** 2026-08-14 · **Status:** built on
+`claude/new-functionality-planning-82qywb` (owner's direction: "do the
+next step" against docs/NEXT-FUNCTIONALITY.md §2, with the v24 design in
+hand), ships when that branch's PR merges.
+
+**Decision.** The over-time question machinery ships, exactly the §2
+shape: a pulse question is ONE template doc in the bank (surface
+`pulse`, exactly five ordered steps — the chart's y-axis), and an answer
+is a day-keyed doc `{baseQid}_{day}` in the ordinary answers
+subcollection — the duel answers' id discipline and day window on a
+world-public surface. One answer per (person, day) is the doc id;
+create-only in v1, so "you said what you said today" holds structurally
+(the D86 arm's surface list keeps pulse out); the answers are public
+like every answer (both read fences carry `pulse`), and they carry the
+D29 binding because they feed a published aggregate.
+
+**The load-bearing property, proven rather than assumed:** the aggregate
+trigger needed NO changes. Its vote branch never reads the question doc
+— the rules did the validating — so a composite qid folds into a
+PER-DAY aggregate pair (`v2_aggs_private/{qid_day}`,
+`v2_question_aggs/{qid_day}`), anchors breakdown included, minted by the
+transaction's own `set`. Per-day docs are the right grain: a single
+growing series doc would fight the 1 MiB ceiling and the shipped-whole
+egress bill. The e2e leg drives it end to end. What DID change, each
+small: the velocity scan's impossible-volume ceiling grows by exactly
+`PULSE_BANK_SIZE × 90` (one entry per template per ledger-TTL day),
+`check:content`/`check:quality` learned the surface (five steps, id
+shape refusing the day-separator underscore), and the client bank is
+untouched — the card fetches its template directly.
+
+**The reading keeps the design's honesty rules as contract**
+(`design/standalone-v24/pulse-*` headers, ported typed into
+`ui/PulseCard.tsx` / `ui/PulseTrends.tsx` / `data/pulse.ts`): no
+smoothing, no interpolation — a missing day breaks the line; absent ≠
+zero, and the panel says which days had nobody; a day under `THIN` (20)
+answers is counted and listed, never positioned — a placement gate about
+statistical honesty, not a privacy floor (everything publishes, D98);
+every reading carries its n; streaks are client-derived, no server
+state. Costs: your own series is a fold over the hydrated vote mirror
+(zero reads); the crowd is one bounded 21-id `documentId()` in-query per
+UTC day per session (docs/COSTS.md row). The card is first-screen
+product beside the blind daily, so the eager-bundle ceiling moved
+955 → 966 with its note; the chart is lazy behind the card's own tap.
+
+**The first live pulse is deliberately neutral** — `pulse-pace`, "What
+pace was today?" — because the design's own demo question ("How is
+today going?") is wellbeing tracking, which moves the store forms
+(Health sits on the not-collected list) and waits on its own recorded
+decision. Swapping the content file is the whole change when that
+lands; the demo room keeps the design's question meanwhile.
+
+**Not built, deliberately:** a same-day edit window (create-only is the
+v1 posture; a rules arm with its own cooldown is the follow-up if
+mis-taps prove real); the Map's pulse branch (the design's `mapTree`
+stays unported — the seventh over-category is its own decision, the
+D126 boundary); more pulse questions (the roster is a constant until a
+second one earns its place); any scheduled minting (there is nothing to
+mint — the template is the only doc).
+
+**Enforcement:** three rules tests (the day window, the id discipline,
+the template's bound/kill-switch/surface answers); the e2e leg (per-day
+fold with breakdown, same-day duplicate refused); the velocity ceiling's
+constants beside their reasoning; `check:content` + `check:quality` on
+the surface; the LIVE member pins and the smoke fixture carrying
+`votePulse`/`pulseVotes`; 969 unit tests, 89 rules tests, the bundle
+and figure gates green at commit.
+
+## D140 · Height joins the anchors — a band select, never a centimetre field
+
+**Decided:** 2026-08-14 · **Status:** built on
+`claude/new-functionality-planning-82qywb` (docs/NEXT-FUNCTIONALITY.md §4
+adopted by the owner's "do the remaining ones"), ships with that
+branch's PR.
+
+**Decision.** `heightBand` becomes the seventh breakdown dimension and
+the eighth anchor key: a six-value closed vocabulary (`Under 160 cm` …
+`190 cm or taller`, plus `Prefer not to say` as a real option), a
+`<select>` on the Basics card beside gender — never a centimetre input,
+because the band IS what is collected. That is the profile's own
+coarse-by-construction posture (the birthday → age band fold, the
+coordinate → city fold) taken one step simpler: with no precise number
+on the device there is nothing to fold and nothing to leak.
+
+**The full new-dim checklist ran, and it is the §3-tier-2 rehearsal:**
+`BREAKDOWN_DIMS`/`BREAKDOWN_DIM_VOCAB` (+ the worst-case arithmetic,
+6 → 7 dims, ~3.4k integers, still tens of KB), `isValidV2Anchors`,
+`ANCHOR_FIELDS`, `COHORT_DIMS`/`DIM_LABEL` (Explore's chips and every
+breakdown sheet pick the dim up from there with no further wiring), the
+`anchors.heightBand` index exemption (the D64 storage-cost regression
+the checklist exists to not forget), `check:anchors` holding vocab and
+select equal (now 5 closed vocabularies), the privacy panel's bluntest
+sentence gaining "height band", and the data-inventory rows. Old
+answers carry no band and fold into no height cell — absent-is-skipped,
+the D99 `cohortN` honesty already covers thin new dims.
+
+**Not done, deliberately:** weight/BMI (the §4 trilemma stands — its
+least-bad shape re-imports the suppression floor); a Map anchor-ring
+row for height (the ring is its own surface; the dim already serves
+Explore and the breakdowns); backfill (there is nothing to backfill
+from — the band never existed before this).
+
+## D141 · Types leave the profile — tier 1, arithmetic on what is already public
+
+**Decided:** 2026-08-14 · **Status:** built on
+`claude/new-functionality-planning-82qywb` (docs/NEXT-FUNCTIONALITY.md §3
+tier 1, the v24 type-mix design), ships with that branch's PR.
+
+**Decision.** The People lens gains "Types here" — the v24 design's
+TypeChip + TypeMixCard ported typed (`data/typeMix.ts`,
+`ui/TypeMixCard.tsx`): who is in this population by Big Five archetype,
+over a STATED basis, with the people you can actually see under it and
+your own type first in the chip row — which IS the "same type as you"
+shortcut. Every count is out of the session's cached voter sample (the
+D102 bound, said on the card), a type under 8 is listed never ranked,
+under 40 typed people the card shows counts and says shares would lie,
+and a type nobody carries is named as missing. Big Five only,
+deliberately — the politics types stay on the profile.
+
+**Tier 1's whole claim: no new anything.** The fold is arithmetic over
+the voter cache Kindred already loads and the world-readable
+`testResults` the similarity field already parses — no new reads, no new
+collection, no new dim, and nothing cross-tabs ANSWERS by type (that is
+tier 2, the recorded D8 amendment this deliberately does not take). The
+coupling ratchet did not move: `archetype-data.js` gained ADDITIVE named
+exports (its globals stay for the spec consumers; an import is not a
+reference the scanner counts), and `type-marks.jsx` already exported
+`TypeMark` from an earlier partial conversion.
+
+**Not built, deliberately:** tier 2 (type as a breakdown dim — its own
+record, and D140's checklist is the rehearsal); type-vs-type answer
+splits (the same tier-2 boundary); the demo room's type-mix card (the
+design's demo rosters stay in `design/standalone-v24/`, the live card is
+live-only); types from the other three instruments.
+
+**Amended the same day (standalone v25 + the owner's direction):** the
+card is SHARES ONLY — "a reading, not a directory: no people, only
+proportions" — one neutral bar per type with your row in the accent,
+and it sits BELOW Kindred on the People lens. The per-person fold
+survives in `data/typeMix.ts` for whatever consumer earns it next; the
+people rows and the per-type roster left the card.

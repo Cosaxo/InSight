@@ -339,7 +339,7 @@ export const TAKE_MAX_CHARS = 280;
 // ruleset can be diffed against each other by eye.
 const ANCHOR_FIELDS: Record<string, number> = {
   city: 80, country: 80, ageBand: 20, gender: 40,
-  profession: 80, education: 80, relationship: 40,
+  profession: 80, education: 80, relationship: 40, heightBand: 20,
 };
 
 // The snapshot written onto an answer. A copy, so a later profile edit
@@ -841,7 +841,13 @@ async function hydrate(): Promise<void> {
     /* cache is best-effort */
   }
   const sorted = all.slice().sort((a, b) => (a.seq || 0) - (b.seq || 0));
-  const active = sorted.filter((q) => q.active !== false);
+  // `until` is the current-events serving window (docs/NEXT-FUNCTIONALITY
+  // §1): a feed entry past its UTC day stops being OFFERED — the answers
+  // and the aggregate persist, the archive is the product. Feed-only by
+  // the gates (check:content), so the daily tombstone note below is
+  // untouched; `active: false` remains the hard, server-enforced kill.
+  const fresh = (q: { until?: string }) => !q.until || q.until >= utcDayKey(0);
+  const active = sorted.filter((q) => q.active !== false && fresh(q));
 
   // Allowlist split per surface — pure and unit-tested in deck.ts
   // (splitBanks carries the why-comments: playability, the D12 rank
@@ -2784,6 +2790,49 @@ const LIVE = {
     Object.keys(state.votes).forEach((k) => {
       if (!(k in state.inflight)) out[k] = state.votes[k];
     });
+    return out;
+  },
+  // ── the daily pulse (D139) ──────────────────────────────────────
+  // One answer per day, id {baseQid}_{day} — the duel answers' shape on
+  // a world-public surface. Create-only mirrors the rules: no re-pick
+  // today, and the doc id is the discipline.
+  votePulse(baseQid: string, optionIdx: number): Promise<void> {
+    const uid = state.uid;
+    if (!uid || !Number.isInteger(optionIdx) || optionIdx < 0) return Promise.resolve();
+    const day = utcDayKey(0);
+    const aid = `${baseQid}_${day}`;
+    if (state.votes[aid]) return Promise.resolve();
+    state.votes[aid] = String(optionIdx);
+    notify();
+    return (async () => {
+      try {
+        const db = await getDb();
+        await setDoc(doc(db, "v2_users", uid, "answers", aid), {
+          qid: aid,
+          baseQid,
+          day,
+          surface: "pulse",
+          optionIdx,
+          answeredAt: serverTimestamp(),
+          anchors: answerAnchors(),
+        });
+        cacheVote(aid, optionIdx);
+      } catch (err) {
+        delete state.votes[aid];
+        notify();
+        reportError(err, { where: "votePulse", qid: aid });
+      }
+    })();
+  },
+  /** Every pulse day this device knows it answered: day → optionIdx.
+   * Derived from the hydrated vote mirror, so a second device's answers
+   * arrive with ordinary hydration and no extra read. */
+  pulseVotes(baseQid: string): Record<string, number> {
+    const out: Record<string, number> = {};
+    const prefix = `${baseQid}_`;
+    for (const [aid, v] of Object.entries(state.votes)) {
+      if (aid.startsWith(prefix)) out[aid.slice(prefix.length)] = Number(v);
+    }
     return out;
   },
   vote(qid: string, optionId: string): void {

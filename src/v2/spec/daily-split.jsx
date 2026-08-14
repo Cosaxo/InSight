@@ -22,6 +22,7 @@ import LIVE from '../data/live';
 // The live world-takes surface (D83) — ordinary ESM import of the typed
 // panel, so the D39 coupling meter stays flat.
 import LiveTakesPanel from '../ui/LiveTakesPanel.tsx';
+import PulseCard from '../ui/PulseCard.tsx';
 import ReactDOM from 'react-dom';
 import { IS_TESTS, IS_TEST_AVG, IS_TEST_RESULTS, persistTestResult } from './test-definitions.js';
 import { PASSIVE } from './passive-progress.js';
@@ -859,6 +860,11 @@ class DailySplit extends React.Component {
         h('span', { 'aria-hidden': true, style: { display: 'flex', gap: 1.5, width: 66, height: 9, borderRadius: 999, overflow: 'hidden', flexShrink: 0 } },
           S.options.map((o, i) => h('span', { key: o.id, title: o.label + ' \u00b7 ' + rp[i] + '%', style: { width: rp[i] + '%', background: myVote === o.id ? o.color : 'color-mix(in oklch, ' + o.color + ' 32%, var(--surface-3))' } })))),
       dailyCard,
+      // The daily pulse (D139): the second fixed instrument on the World
+      // day, compact, beside the blind daily — same contract (answer
+      // before you see anyone), one hue, and the trends reading opens
+      // from the card itself.
+      h(PulseCard, { key: 'pulse' }),
       sheetNode,
       feedNode);
 

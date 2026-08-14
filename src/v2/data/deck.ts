@@ -49,6 +49,9 @@ export interface QuestionDoc {
   sub?: string;
   test: string | null;
   active: boolean;
+  // Current-events serving window (D-plan §1): a feed entry past this
+  // UTC day stops being OFFERED; answers and aggregate persist.
+  until?: string;
   // Pool scope for duel questions (D40 part 4): absent = the shared pool;
   // "romantic" = served only to duos whose doc says duoMode: "romantic".
   // Absent everywhere else — the seed emits it only when set.

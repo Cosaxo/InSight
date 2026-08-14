@@ -68,6 +68,10 @@ const LIVE = vi.hoisted(() => ({
   testFeedItems: () => [] as Array<Record<string, unknown>>,
   myTestResults: () => ({} as Record<string, unknown>),
   kindredPeople: () => [] as Array<Record<string, unknown>>,
+  // The types-here card (D141/v25) below Kindred reads the viewer's
+  // anchors for its basis label. Stubbed empty — the card draws its
+  // honest empty state and these cases scroll past it.
+  anchors: () => ({} as Record<string, string>),
   isFollowing: () => false,
   setFollowing: async () => {},
   // LIVE.near survives on the mock because the D92 city-derive effect

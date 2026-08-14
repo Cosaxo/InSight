@@ -66,6 +66,11 @@ const ID_SHAPE = {
   // (lens-defs.js) and devices hold local state keyed by them (D91).
   test: /^(test-[a-z0-9]+-\d{2}|lq-[a-z]+-\d{1,2})$/,
   learn: /^learn-[a-z0-9]+$/,
+  // The daily pulse's TEMPLATE ids (D139). Answers are keyed
+  // {baseQid}_{day} against these, so the shape is forever like all of
+  // them — and it must never admit an underscore, which is the day
+  // separator the rules parse on.
+  pulse: /^pulse-[a-z0-9]+$/,
 };
 const seenIds = new Set();
 for (const q of entries) {
@@ -90,6 +95,14 @@ const RATING = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"];
 const same = (a, b) => a.length === b.length && a.every((x, i) => x === b[i]);
 for (const q of entries) {
   if (!q.prompt || !q.prompt.trim()) errors.push(`${q.id}: empty prompt`);
+  // The current-events serving window (docs/NEXT-FUNCTIONALITY.md §1):
+  // feed-only — no other surface serves by date (the daily deck is
+  // positional), and the client filter compares UTC day-key strings, so
+  // the shape must be exactly that.
+  if (q.until !== undefined) {
+    if (q.surface !== "feed") errors.push(`${q.id}: \`until\` is the feed's current-events window — no other surface carries it`);
+    else if (!/^\d{4}-\d{2}-\d{2}$/.test(q.until)) errors.push(`${q.id}: \`until\` must be a YYYY-MM-DD UTC day key`);
+  }
   if (q.type === "scale") {
     // Lens items run the client's agree-FIRST scale (lens-defs.js SCALE):
     // stored optionIdx indexes it, and world-feed's `4 - val` store
@@ -99,6 +112,16 @@ for (const q of entries) {
     if (!same(q.options, want)) errors.push(`${q.id}: scale options are not the 5-point agree scale`);
   } else if (q.type === "rating") {
     if (!same(q.options, RATING)) errors.push(`${q.id}: rating options are not "1".."10"`);
+  } else if (q.type === "pulse") {
+    // The pulse's chart maps optionIdx 0..4 onto the 1..5 step axis
+    // (ui/PulseTrends), so a pulse question has EXACTLY five authored
+    // steps — a 3-step pulse would silently draw on the wrong scale.
+    if (q.surface !== "pulse") errors.push(`${q.id}: pulse type outside the pulse surface`);
+    if (q.options.length !== 5 || q.options.some((o) => !o || !o.trim())) {
+      errors.push(`${q.id}: a pulse question carries exactly five non-empty steps`);
+    }
+  } else if (q.surface === "pulse") {
+    errors.push(`${q.id}: the pulse surface carries only pulse-type questions`);
   } else if (q.surface === "group" && q.topic === "pick") {
     if (q.options.length !== 0) errors.push(`${q.id}: pick questions carry no options`);
   } else if (q.type === "dial" || q.type === "field") {

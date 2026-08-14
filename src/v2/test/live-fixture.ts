@@ -335,6 +335,21 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
       : null),
     myVotes: () => ({ ...votes }),
     confirmedVotes: () => ({ ...votes }),
+    // The daily pulse (D139): the fixture mirrors the real pair — the
+    // day-keyed create into the same votes map, and the derived
+    // day → optionIdx view over it.
+    votePulse: (baseQid: string, optionIdx: number) => {
+      const aid = `${baseQid}_${new Date().toISOString().slice(0, 10)}`;
+      if (!votes[aid]) votes[aid] = String(optionIdx);
+      return Promise.resolve();
+    },
+    pulseVotes: (baseQid: string) => {
+      const out: Record<string, number> = {};
+      for (const [aid, v] of Object.entries(votes)) {
+        if (aid.startsWith(`${baseQid}_`)) out[aid.slice(baseQid.length + 1)] = Number(v);
+      }
+      return out;
+    },
     // One Crossroads story (D136), shaped exactly as buildFeedGlobals emits
     // it: eight per-ending counts in PATH_ENDINGS order, and a total. The
     // counts are lopsided on purpose — a flat eight would make every branch

@@ -264,6 +264,7 @@ export function loadCorpus() {
   const feed = JSON.parse(readFileSync(join(root, "content", "feed-questions.json"), "utf8"));
   const duel = JSON.parse(readFileSync(join(root, "content", "duel-questions.json"), "utf8"));
   const seed = JSON.parse(readFileSync(join(root, "content", "daily-questions.json"), "utf8"));
+  const pulse = JSON.parse(readFileSync(join(root, "content", "pulse-questions.json"), "utf8")).questions;
   const pick = extractLiteral(
     readFileSync(join(root, "src", "v2", "spec", "pick-data.js"), "utf8"),
     "window.PICK_QS = [",
@@ -291,6 +292,7 @@ export function loadCorpus() {
     duel: [...duel.group, ...duel.oneVsOne, ...(duel.romantic ?? [])],
     pick,
     learn,
+    pulse,
     learnLevels: learnLevelBounds(),
     continuum: wfd.filter((q) => q.type === "dial" || q.type === "field"),
   };
@@ -546,6 +548,18 @@ export function checkQuestion(q, surface, ctx, mode = {}) {
   // options, c/t in range, c≠t, p in 1..99, k 2..6 words) is deliberately
   // absent — two gates disagreeing about the same rule is how one of them
   // gets edited to match the other and both stop meaning anything.
+  if (surface === "feed" && q.until !== undefined && !/^\d{4}-\d{2}-\d{2}$/.test(String(q.until))) {
+    err("type-shape", "`until` (the current-events window) must be a YYYY-MM-DD UTC day key");
+  }
+
+  if (surface === "pulse") {
+    // The trends y-axis is the 1..5 step scale (D139): exactly five
+    // ordered steps, no more forms. The universal rules above already
+    // hold the prompt/option bounds and the place tripwire.
+    if (q.type !== "pulse") err("type-shape", `pulse questions carry type "pulse", not ${JSON.stringify(q.type)}`);
+    if ((q.options || []).length !== 5) err("type-shape", "a pulse question carries exactly five steps");
+  }
+
   if (surface === "learn") {
     const seen = new Map();
     for (const o of opts) {
@@ -890,6 +904,10 @@ if (invokedDirectly) {
   corpus.learn.cards.forEach((card) => {
     const { errs, warn } = checkQuestion(learnView(card), "learn", corpus);
     report("learn", card.id, errs, warn);
+  });
+  corpus.pulse.forEach((q) => {
+    const { errs, warn } = checkQuestion(q, "pulse", corpus);
+    report("pulse", q.id, errs, warn);
   });
   for (const e of checkLearnFields(corpus)) {
     failed = true;

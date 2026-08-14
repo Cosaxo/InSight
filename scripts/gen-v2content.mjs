@@ -132,6 +132,7 @@ export const CONTENT_SOURCES = {
   tests: "tests.json",
   lenses: "lenses.json",
   learn: "learn-questions.json",
+  pulse: "pulse-questions.json",
 };
 
 export function loadContent() {
@@ -143,7 +144,7 @@ export function loadContent() {
 }
 
 // Builds the entries in emission order: daily → feed → group → duo →
-// romantic → test → learn. `seq` is per-surface and contiguous (the
+// romantic → test → learn → pulse. `seq` is per-surface and contiguous (the
 // romantic pool continues the duo surface's counter); note the test surface
 // runs ONE counter across all four tests (test-political-00 has seq 10, not 0).
 // Property order in each entry is load-bearing — JSON.stringify preserves
@@ -161,7 +162,7 @@ function requireId(q, where) {
 }
 
 export function buildEntries(content = loadContent()) {
-  const { daily, feed, duel, tests, lenses, learn } = content;
+  const { daily, feed, duel, tests, lenses, learn, pulse } = content;
   const entries = [];
 
   // `active: false` retires an entry from serving without touching its id
@@ -254,6 +255,12 @@ export function buildEntries(content = loadContent()) {
       ...(Array.isArray(q.ends) ? { ends: q.ends } : {}),
       ...(Array.isArray(q.ax) ? { ax: q.ax } : {}),
       ...(Array.isArray(q.ay) ? { ay: q.ay } : {}),
+      // Current-events window (docs/NEXT-FUNCTIONALITY.md §1): a feed
+      // entry with `until` stops being SERVED after that UTC day — a
+      // client-side serving filter, emit-when-set. `active: false`
+      // remains the hard, server-enforced kill; answers and aggregates
+      // persist either way (the archive is the product).
+      ...(typeof q.until === "string" ? { until: q.until } : {}),
       // A path's story — the tree the card walks and the endings it names.
       // Emit-when-set for the same reason as the continuum copy above: no
       // other feed entry carries them, and writing them as null would
@@ -407,6 +414,28 @@ export function buildEntries(content = loadContent()) {
     });
   });
 
+  // The daily pulse (D139): TEMPLATE docs, one per pulse question — the
+  // answers are day-keyed against the template's id ({baseQid}_{day},
+  // firestore.rules isPulseAnswer), so the bank holds one doc per pulse
+  // question forever, never one per day. Exactly five options each (the
+  // trends y-axis is the 1..5 step scale); appended last so every
+  // existing surface's seq and bytes stay put.
+  (pulse?.questions ?? []).forEach((q, i) => {
+    entries.push({
+      id: `pulse-${requireId(q, `pulse-questions.json[${i}]`)}`,
+      surface: "pulse",
+      seq: i,
+      type: "pulse",
+      domain: null,
+      prompt: q.prompt,
+      options: q.options,
+      topic: null,
+      axis: null,
+      test: null,
+      ...flags(q),
+    });
+  });
+
   return entries;
 }
 
@@ -428,7 +457,7 @@ const HEADER =
   "// forms' range/plane copy (D114), absent everywhere else; their options\n" +
   "// are synthesized bucket/cell labels, so the D52 option freeze freezes\n" +
   "// the range with them.\n" +
-  "export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; branch?: string; sub?: string; axis: string | null; test: string | null; mode?: string; active?: boolean; political?: boolean; lo?: number; hi?: number; unit?: string; ends?: string[]; ax?: string[]; ay?: string[]; title?: string; intro?: string; hue?: number; nodes?: Record<string, { q: string; a: Array<{ t: string }> }>; endings?: Record<string, { name: string; line: string }>; }\n" +
+  "export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; branch?: string; sub?: string; axis: string | null; test: string | null; mode?: string; active?: boolean; political?: boolean; until?: string; lo?: number; hi?: number; unit?: string; ends?: string[]; ax?: string[]; ay?: string[]; title?: string; intro?: string; hue?: number; nodes?: Record<string, { q: string; a: Array<{ t: string }> }>; endings?: Record<string, { name: string; line: string }>; }\n" +
   "export const V2_QUESTIONS: V2SeedQuestion[] = ";
 
 export function generate(content = loadContent()) {

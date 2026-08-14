@@ -41,7 +41,7 @@ import { CORE_TEST_KINDS, parseTestResults, type ParsedResults } from "./similar
 // firestore.rules' collection-group grant exactly — a value here the rule
 // does not list makes the whole query fail closed, which is the safe
 // direction but an invisible one.
-export const WORLD_ANSWER_SURFACES = ["daily", "feed", "test", "learn"] as const;
+export const WORLD_ANSWER_SURFACES = ["daily", "feed", "test", "learn", "pulse"] as const;
 
 // Voters one fetch returns — the newest first, because the query already
 // orders by answeredAt desc (D102).

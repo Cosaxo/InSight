@@ -13,7 +13,7 @@
 // forms' range/plane copy (D114), absent everywhere else; their options
 // are synthesized bucket/cell labels, so the D52 option freeze freezes
 // the range with them.
-export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; branch?: string; sub?: string; axis: string | null; test: string | null; mode?: string; active?: boolean; political?: boolean; lo?: number; hi?: number; unit?: string; ends?: string[]; ax?: string[]; ay?: string[]; title?: string; intro?: string; hue?: number; nodes?: Record<string, { q: string; a: Array<{ t: string }> }>; endings?: Record<string, { name: string; line: string }>; }
+export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; branch?: string; sub?: string; axis: string | null; test: string | null; mode?: string; active?: boolean; political?: boolean; until?: string; lo?: number; hi?: number; unit?: string; ends?: string[]; ax?: string[]; ay?: string[]; title?: string; intro?: string; hue?: number; nodes?: Record<string, { q: string; a: Array<{ t: string }> }>; endings?: Record<string, { name: string; line: string }>; }
 export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "daily-000",
@@ -9187,6 +9187,24 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "A day"
   ],
   "topic": "body",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "pulse-pace",
+  "surface": "pulse",
+  "seq": 0,
+  "type": "pulse",
+  "domain": null,
+  "prompt": "What pace was today?",
+  "options": [
+   "Crawling",
+   "Dragging",
+   "Steady",
+   "Brisk",
+   "Flying"
+  ],
+  "topic": null,
   "axis": null,
   "test": null
  }

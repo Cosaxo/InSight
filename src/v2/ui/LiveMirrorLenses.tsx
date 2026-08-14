@@ -47,6 +47,7 @@ import {
 // "NO" and a city row "Oslo, NO". One resolver, shared with the feed's
 // breakdown sheet, so the same cohort is named the same everywhere.
 import { bucketLabel } from "./cohortLabels";
+import TypeMixCard from "./TypeMixCard";
 // The row's own types and labels live next door: eslint's react-refresh
 // rule wants a component file to export only components, and it is right
 // that a constant shared with the host does not belong in one.
@@ -108,7 +109,7 @@ function LlEmpty({ children }: { children: React.ReactNode }) {
 // is in this population (the mix) and which of them are like you
 // (Kindred).
 
-function PeopleLens({ qs }: { qs: LensQuestion[] }) {
+function PeopleLens({ qs, scope }: { qs: LensQuestion[]; scope: "city" | "country" | "world" }) {
   const [dim, setDim] = React.useState<string>("ageBand");
   React.useEffect(() => { void LIVE.loadKindred(); }, []);
   const [, bump] = React.useReducer((n: number) => n + 1, 0);
@@ -210,6 +211,12 @@ function PeopleLens({ qs }: { qs: LensQuestion[] }) {
           </div>
         )}
       </div>
+
+      {/* Types here (D141, v25 shape — owner's direction): the share of
+          each type in this population, BELOW Kindred. A reading, not a
+          directory — no people, only proportions, over the same cached
+          voter sample Kindred reads. */}
+      <TypeMixCard scope={scope} />
     </div>
   );
 }
@@ -418,15 +425,16 @@ function ScoresLens({ qs, shortName }: { qs: LensQuestion[]; shortName: string }
 // open one, so People still pays for voter lists exactly when someone
 // asks for People and never because something scrolled into view.
 
-function LiveMirrorLenses({ lens, qs, shortName }: {
+function LiveMirrorLenses({ lens, qs, shortName, scope = "city" }: {
   lens: LensId;
   qs: LensQuestion[];
   shortName: string;
+  scope?: "city" | "country" | "world";
 }) {
   if (!LIVE.enabled) return null;
   return (
     <div style={{ paddingTop: 14 }}>
-      {lens === "people" && <PeopleLens qs={qs} />}
+      {lens === "people" && <PeopleLens qs={qs} scope={scope} />}
       {lens === "compare" && <CompareLens qs={qs} shortName={shortName} />}
       {lens === "scores" && <ScoresLens qs={qs} shortName={shortName} />}
       {lens === "explore" && <ExploreLens qs={qs} />}
