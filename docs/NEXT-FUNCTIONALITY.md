@@ -37,10 +37,12 @@ Two discoveries reshaped the owner's list more than any opinion could:
 | Mood as the first pulse question | **Decide separately** | S on top | Mood tracking moves the store forms (Health is "not collected" today) and makes a public per-person series — both are owner decisions, not engineering. |
 | Types focus | **Build tier 1 now; tier 2 is a real decision** | M / L | Tier 1 rides data that is already public. Tier 2 (type as a breakdown dim) amends the standing "a test result is never a breakdown dim" claim (D8, `docs/data-inventory.md`). |
 | Height | **Build** — a banded anchor, the age-band pattern | M | Bands, never centimetres, server-side; the device folds and discards the number the way `locate.ts` folds coordinates. |
-| Weight / BMI | **Defer, deliberately** | — | Profiles are world-readable (D98): a public weight is a harassment surface, and Health flips on the store forms. Recorded below so it stays a decision. |
-| Facial symmetry | **Refuse** | — | Biometric processing against an app whose whole posture is coarse-by-construction; "Photos: not collected" is a load-bearing store answer; the reading itself is junk science. |
+| Weight / BMI | **Defer, deliberately** | — | Anonymity does not rescue it (§4): the interesting reading needs a join to answers, and every join shape has a named structural cost. |
+| Facial symmetry | **Refuse** | — | The anonymous variants fail the same trilemma (§4), and the measurement itself is junk on a phone camera regardless of where the result goes. |
 | Genetics | **Refuse for now** (the owner already said "future") | — | Art. 9 data cannot live in a world-readable profile; an acceptable version is a separate consented tier, i.e. a different product posture. |
 | Suggest a question | **Build — the shortest distance to value** | M | The UI, the dedup gate and the `community` provenance source all exist; what is missing is a collection, a callable and the human gate wiring. |
+| Paid featured questions | **Build the contract path now; self-serve later** | S then L | Already the recorded primary revenue intent (`docs/MONETIZATION.md`). The notes refuse a *delivery* auction and precise targeting; a price auction over capped, disclosed slots survives both (§6). |
+| Predictions (Foresight CALL) | **Designed in already; tier A buildable now** | M | The blocker was never stakes or money — it is resolution integrity (D127). Tier A self-resolves on the app's own aggregates; tier B is how news predictions arrive. |
 
 ## 1 · Current events — a category that stops being asked
 
@@ -93,6 +95,25 @@ can already turn the tap down themselves.
   the executable-rubric constraint, and it must arrive through that door
   or not at all. The current-events lane should refuse prediction-shaped
   prompts and point at the CALL design.
+
+  **Predictions are designed in, and money was never the blocker** —
+  worth stating because "why no predictions?" is a fair question with a
+  non-obvious answer. Foresight READ is live (D126). What holds CALL is
+  not stakes, gambling optics or anything money-shaped; it is that a
+  resolved call is the one number in the app the reader cannot recompute
+  — the app *asserting a fact about the world* — and a wrong or
+  never-resolved outcome marks real users wrong with nothing to appeal
+  to (D127's own words: an unresolved call takes the player's guess and
+  never comes back). D127's answer is admission criteria, not refusal:
+  **tier A** calls — self-resolving on the app's own published
+  aggregates ("will tomorrow's daily split past 60/40?") — are graded by
+  arithmetic, need no operator and no external source, and are
+  **buildable today**; **tier B** — a machine-readable source with an
+  executable rubric (`check:calls` dry-runs it before the question
+  ships), VOID as a first-class outcome — is exactly how sports and
+  news predictions arrive. If predictions feel missing, the honest next
+  step is tier A now and the first tier-B rubric as the pilot for the
+  current-events lane, not a relaxation of D127.
 - **This is an editorial lane, not a farm lane.** Timeliness needs a
   human anyway; place-scoped civic questions are sold inventory (farm
   hard rule 6 / `docs/MONETIZATION.md`); and a news question written by
@@ -347,6 +368,42 @@ If it is ever picked up: band-on-device only (raw kg never leaves,
 the height pattern), its own decision record, forms moved in the same
 PR.
 
+**Does "anonymous" change the answer? (asked 2026-08-14, answered with
+the mechanism rather than a repeated no.)** The value of a body
+measurement here is the *join* — "do people with X answer differently" —
+and an anonymous join has exactly three shapes in this architecture,
+each with a named cost:
+
+1. **On-device only, nothing leaves.** The ATTENTION.md tier-2 shape:
+   legally quiet, store forms untouched. But it can produce no
+   cross-user reading at all — the one thing the feature was for. It is
+   a private toy, not a Mirror surface.
+2. **Unattributed uploads** (no uid — the `v2_logic_norms` /
+   ATTENTION tier-3 shape). To carry the join, the device would have to
+   upload band×question×option tallies itself — and client-written
+   counts are forgeable: no ledger dedup, no D28 ring-subtraction, one
+   hostile device inflates any cell it likes. That breaks the one
+   property `docs/MONETIZATION.md` names as the sellable asset — counts
+   that are provably not fabricated. The logic histogram gets away with
+   anonymity precisely because it never joins to anything.
+3. **Attributed but denied** — a fourth deny (the presence-cell shape):
+   the band lives on the profile where no user can read it, the server
+   folds it into `by` cells, the app publishes the cross-tab without
+   publishing anyone's band. Coherent — and it quietly re-orders D98:
+   exact cells over a *secret* field deanonymize at small n (a
+   three-person cohort with public voter lists narrows to persons),
+   which is precisely the arithmetic the old k-floor existed for. D98
+   could delete the floor because the underlying answers were public
+   anyway; that argument does not cover a denied field, so this shape
+   means rebuilding suppression machinery for one dimension.
+
+So anonymity does not rescue these: shape 1 has no value, shape 2 has no
+integrity, shape 3 re-imports the floor. For BMI, shape 3 is the
+least-bad version if it is ever truly wanted — a large structural cost
+for a crude instrument, which is why the verdict stays *defer*. For
+faces, the trilemma is moot anyway, because the objections below attach
+to the capture and the measurement, not to where the result is stored.
+
 **Facial symmetry — refuse, and this document recommends not revisiting.**
 
 - It requires camera capture and face-geometry processing — biometric
@@ -356,11 +413,15 @@ PR.
 - "Photos or Videos: not collected" is a load-bearing store answer
   (`docs/STORE-FORMS.md`), and the sensitive-info row is already a
   careful Yes for the politics result alone.
-- The symmetry→personality literature is weak to null; the app that
-  refuses to fabricate a crowd should not ship a pseudo-measurement as a
-  profile fact (D1's spirit, applied to input rather than output).
-- Under D98 the reading would be world-readable — a face-scoring surface
-  on every profile.
+- The measurement is junk at the source, before the science is even
+  reached: a selfie's symmetry score is dominated by pose, lens
+  distortion and lighting — it measures the camera session, not the
+  face. And the symmetry→personality literature is weak to null anyway;
+  the app that refuses to fabricate a crowd should not ship a
+  pseudo-measurement as an input (D1's spirit, pointed at collection).
+- In the attributed version the reading would be world-readable under
+  D98 — a face-scoring surface on every profile; the anonymous versions
+  fail the trilemma above instead.
 
 The legitimate itch behind it — "does appearance correlate with
 answers" — is served honestly by height (§ above) and by one-time
@@ -445,6 +506,70 @@ was designed and never fed.
   tests, and an e2e in the moderation transport's discipline
   (`expectCode` on the specific refusal, not a bare try/catch).
 
+### The paid half — featured questions ARE the recorded business
+
+**The wanted thing (added 2026-08-14):** the suggestion action doubles
+as the revenue engine — pay to get a question featured, to a given
+cohort for a given window, and read the data it produces; auction-like.
+
+**Verdict: yes to the business — it is already the plan's primary
+recorded intent — and most of the machinery is the sections above.**
+`docs/MONETIZATION.md` names paid geo-insight as path 1 ("cities and
+countries wanting to know their citizens", explicitly why farm hard rule
+6 keeps that inventory from being given away) and sponsored questions as
+path 2, designed with constraints recorded. The suggestion composer is
+the natural funnel: the free path ends at the community gate, and "want
+it asked prominently / to a place / this week?" is the paid door beside
+it.
+
+What the recorded notes already grant the buyer, post-D98, is more than
+it sounds: the public window now includes the exact split, the full
+per-anchor breakdowns and the named voter lists — everything a signed-in
+user sees. "Collect the data you want" is therefore mostly *already the
+default*; MONETIZATION.md's own framing is that a buyer pays for a
+convenience over data they could read themselves. Packaging that public
+data nicely (a report assembled from published numbers) sells the
+convenience without crossing the line below.
+
+Three recorded lines, and what each actually forbids:
+
+- **"A buyer gets no read path a signed-in user does not have."** No
+  private questions, no buyer-only export or API, no server-side report
+  computed for one customer. This is the line `firestore.rules` can
+  hold, and it is what keeps the honesty pitch alive with money in the
+  room. It does *not* forbid selling placement, audience, timing, or
+  off-platform packaging of public numbers.
+- **"Priority is a bounded cadence, never an auction."** Read precisely,
+  this refuses *auction-driven delivery* — bidding deciding what people
+  see, the engagement dynamic the product defines itself against. It
+  does not obviously refuse **auction-priced slots**: a fixed, capped,
+  disclosed inventory (say one sponsored card per N in the interleave,
+  one place-question per city per window) whose *price* is set by
+  sealed bids. Delivery stays identical however much anyone paid; the
+  bid only decides which buyer got the scarce week. If the owner wants
+  the auction feel, that is the version to graduate into a decision
+  record — reshaping the note knowingly, since MONETIZATION.md says
+  picking up or reshaping any path graduates to DECISIONS.md.
+- **Targeting and sponsorship must not compound.** "To a given group for
+  a given time" lands inside this as: coarse, *disclosed* audience tags
+  (the QUESTION-FARM audience-tags design — tags on content, selection
+  on device, never server-side per-user selection) plus the same `until`
+  window §1 builds for current events. A paid question is literally an
+  ordinary question with a sponsor provenance row, a disclosure mark, a
+  window, and at most coarse tags. Precise targeting is the refused
+  compounding; and paid questions injected into private circles' duels
+  is a different, worse thing this note recommends never doing.
+
+**Sequencing, priced honestly:** the first buyer needs ~zero code —
+MONETIZATION.md already records that a place-scoped question is an
+ordinary question, arriving through a human contract path with
+invoicing outside the repo. So: sell contract-path deals as soon as
+there is traffic worth buying; the disclosure mark + `sponsor`
+provenance + window/tag fields are the first real build (S, mostly §1's
+machinery); a self-serve in-app purchase flow is the last build (L), and
+commerce should stay on the web/contract side regardless — the app
+displays disclosed content, it does not run a checkout.
+
 ## 7 · Order of work
 
 1. **Suggestions v1** (§6) — no schema collisions, mostly existing
@@ -457,9 +582,16 @@ was designed and never fed.
 4. **Types tier 1** (§3) — visible product on data already public.
 5. **Pulse machinery + one neutral pulse question** (§2) — the largest
    build; everything above is independent of it.
-6. **Then decide, each with its own record:** mood as a pulse question
+6. **The paid path, in step with traction** (§6): contract-path deals
+   need no code and can start whenever there is an audience worth
+   buying; the disclosure mark + provenance + window/tag fields ride
+   §1's build; self-serve commerce last. **Tier A Foresight CALLs**
+   (§1) slot in whenever prediction appetite shows — they are
+   self-contained.
+7. **Then decide, each with its own record:** mood as a pulse question
    (store forms + first-serve copy); result history; types tier 2
-   (the D8 amendment); longitudinal re-testing.
+   (the D8 amendment); longitudinal re-testing; auction-priced slots
+   (the reshaped path-2 note); tier B CALLs for news predictions.
 
 **Not doing, restated:** facial symmetry; genetics under the current
 posture; weight/BMI without its own record; current events on the daily
