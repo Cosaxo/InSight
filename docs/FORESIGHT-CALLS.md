@@ -1,5 +1,16 @@
 # CALL — the half of Foresight that asserts a fact
 
+> **SUPERSEDED 2026-08-14 by [`PREDICT.md`](PREDICT.md) (D137).** Kept as
+> history rather than rewritten, so a reader can tell a reversal from a
+> mistake. Three things here are now wrong and are marked inline where
+> they appear: §4's "create-only" answer (D86 had already unlocked the
+> edit — the hole is real and PREDICT.md §6 closes it), §4's `surface:
+> "call"` (superseded by `surface: "feed"` + `type: "call"`, which needs
+> no rules edit at all), and §11's "never adding tier B is a legitimate
+> end state" (reversed by the owner — real events are the feature).
+> Everything else — D127's rule, the tiers, VOID, the outcome collection,
+> the dry-run gate — stands and is carried forward.
+
 **Status: design only. No code exists.** D126 shipped Foresight's READ
 half; this is the write-up of the other half, requested before any of it
 is built. Read it as a proposal with the failure modes named, not as a
@@ -160,6 +171,13 @@ and the difference is that a machine enforces this one.
 
 ### The question — `v2_questions/{id}`, `surface: "call"`
 
+> **Superseded (D137).** A call rides the feed bank instead —
+> `surface: "feed"`, `type: "call"` — which is what D114 did for the
+> continuum forms and D136 for Crossroads. It needs *no* rules edit on the
+> create path, and the crowd-forecast reading falls out of the aggregate
+> for free. The two one-word rules changes below are therefore not needed;
+> two different ones are (PREDICT.md §6).
+
 Rides the existing seed path (`scripts/gen-v2content.mjs` →
 `functions/src/v2content.ts` → `seedContentV2`) with two new fields:
 
@@ -198,6 +216,13 @@ note       : string      optional, required on a void
 No new collection. A call is answered exactly like a world question:
 create-only, `optionIdx`, the D8 anchors snapshot. Two rules changes are
 needed and both are one-word:
+
+> **Wrong when written, and the error is load-bearing (D137).** World
+> answers have not been create-only since D86 (2026-08-10, two days before
+> this document): `firestore.rules:509` admits an `optionIdx` edit on any
+> daily/feed/test answer. Combined with §"No verdict document" below, that
+> means outcome publishes → edit your answer → score a hit. PREDICT.md §6
+> closes it with one term on a `get()` the rule already performs.
 
 - `isWorldAnswer()`'s surface list (`firestore.rules:332`) gains
   `"call"`, as does the matching question-surface check below it.
@@ -331,6 +356,14 @@ Routine turn. No per-answer server work — scoring is a client-side join
   real — tier A is self-contained. Every remaining risk in §9 belongs to
   B, so shipping A alone and never adding B is a legitimate end state,
   not a half-built one.
+  > **Reversed 2026-08-14 (D137).** Predicting real events *is* the
+  > feature; a channel that can only ask about its own aggregate is not
+  > the product. Tier B ships, with four rules carrying the risk this
+  > paragraph was avoiding — two independent sources with disagreement as
+  > a void, a 24-hour stability window, a committed host allowlist, and
+  > the fetch inputs published beside the claim (PREDICT.md §4). Tier A
+  > stays, as the warm-up that proves the pipe with nothing that can go
+  > wrong.
 - **Which tier-A tests to offer.** `topShareAtLeast` is the obvious one;
   "will these two slices disagree", "will turnout beat yesterday" and
   "will the leading option change" are all arithmetic on the same

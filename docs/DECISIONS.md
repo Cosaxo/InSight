@@ -13695,3 +13695,150 @@ the eager graph for a card that cannot render until the feed chunk lands.
 Firestore SDK out of first paint — so the fold moved into `LIVE.pathQs()`
 and runs on call. Eager is unmoved at 955; only the total drift alarm rose,
 2182 → 2184, with the question the script asks recorded at the constant.
+
+## D137 · Predict: one channel, and real events are the point
+
+**Decided:** 2026-08-14 · **Status:** proposed · **Applied:** not yet — no
+code exists. The design is [`docs/PREDICT.md`](PREDICT.md), which
+supersedes [`FORESIGHT-CALLS.md`](FORESIGHT-CALLS.md).
+
+The status line is deliberate. **The reversal in part 1 is the owner's**
+and is what this record exists to capture; the mechanism under it is a
+proposal, and per this file's own rule it binds nothing until the status
+is flipped.
+
+### 1 · Tier B ships. The reversal, and whose it is
+
+D127 admitted two grading tiers — **A**, self-resolving on the app's own
+published aggregate, and **B**, a machine-readable source graded by fetch
+and comparison — and recommended shipping A alone.
+`FORESIGHT-CALLS.md` §11 went further: *"shipping A alone and never adding
+B is a legitimate end state, not a half-built one."*
+
+**Reversed by the owner, 2026-08-14: predicting real events is the
+feature.** A prediction channel that can only ask about its own aggregate
+is not the product anyone wanted, and the deferral read to its author as
+the interesting half quietly disappearing. Tier A is kept — it is free
+once the pipe exists and it is the only kind recomputable end to end — but
+as the warm-up, not the destination.
+
+C (prose sources) and D (model recall) stay refused, and D127's rule is
+untouched: **a machine may propose an outcome and may never be the reason
+one is believed.** The reason is the executed rubric; its inputs publish
+with the result.
+
+### 2 · What makes an unverifiable claim safe enough
+
+Tier B is the one thing this app does that its reader cannot recompute.
+Four rules carry that, and the first is new:
+
+- **Two independent sources; disagreement is a void.** One extra fetch
+  turns *the app asserted a falsehood* into *the app declined to assert*.
+  For this codebase that is the right trade every time, and it is the rule
+  that changes the risk class rather than merely lowering the odds.
+- **Stable across two runs, 24 hours apart** — kills provisional results,
+  mid-correction sources and the vandalism window on anything
+  community-edited, for one day of latency on a question authored months
+  ahead.
+- **A committed host allowlist.** Without it a merged rubric is an
+  arbitrary outbound fetch executed by a privileged server, and a reviewer
+  approving prose would be approving a request they never read. Enforced
+  offline by `check:calls`, so it cannot be waived by a rubric that looks
+  fine.
+- **The basis ships with the claim** — both urls, both raw values, both
+  fetch times, printed on the card. Same posture as D98 and D126's frozen
+  `answerIdx`.
+
+**Tier B is the first outbound egress in `functions/`.** Nothing in this
+backend currently reaches the public internet. Timeouts, retry bounds and
+what a hung fetch does to a scheduled run are a first design, not a
+default.
+
+### 3 · Two corrections to `FORESIGHT-CALLS.md`, one of them a hole
+
+**A call answered as designed is forgeable in one request.** That document
+says a call answer is "create-only" (§4) and separately, correctly, that a
+call needs **no verdict document** — the client joins the answer to the
+outcome. World answers stopped being create-only at D86, two days before
+it was written: `firestore.rules:509` admits an `optionIdx` edit on any
+daily/feed/test answer. So: outcome publishes → edit your answer → score a
+hit, with nothing anywhere that froze the guess. The fix is one term on a
+`get()` the update arm already performs. A prediction you can revise after
+the fact is not a prediction — this file's own sentence about foresight
+verdicts.
+
+**A call rides the feed bank rather than minting a surface.**
+`surface: "feed"`, `type: "call"` — what D114 did for the continuum forms
+and D136 for Crossroads. The create rule, the trigger, the ledger, the
+by-cells, the D86 cooldown and the voters panel all carry it unchanged, so
+the two one-word rules edits `FORESIGHT-CALLS.md` §4 asks for are not
+needed. It also means the crowd's forecast, sliced by `agg.by`, arrives
+for free — which is the product (part 5).
+
+### 4 · READ has a surface again, and it was never a build
+
+D126 built READ; D136 took it off the Mirror and kept the machinery. The
+move to the feed is the follow-on D126 itself named, and **D126's stated
+objection to the feed does not survive the code**: it argued a read there
+would have to restate its population scope, because the Mirror's ruler
+supplied it. It did not. `COHORT_DIMS` is global and the card already
+prints `Age · 25–34 · 41 answers`. Re-placing it costs no rules, no
+functions, no content and no seed.
+
+### 5 · Why this app should do prediction at all
+
+Not the score. A call's answers are ordinary feed answers, so `agg.by`
+fills itself and the card can say *71% of the world thinks Yes — 38% of
+over-55s do*: a crowd forecast cut by who made it, which exists nowhere
+else. And when it resolves, `byDim` — the fold that today says "you read
+age well and education badly" — answers **which slices of humanity read
+the future better**, unchanged.
+
+That is the Mirror's thesis pointed at the future, and it is the argument
+for building this rather than a leaderboard. Stated in the design as a
+constraint on the surface: the score is the least interesting output and
+must never be its headline.
+
+**No stakes, no payouts, no positions**, recorded once so it does not need
+re-deciding: this is a game about being right, not a market, and keeping
+it that way keeps the app out of a regulatory surface the store forms
+would have to answer for.
+
+### 6 · Three things the design says out loud rather than discovering later
+
+- **The aggregate has no time axis**, so a tier-A grade is a *snapshot*.
+  The published `inputs` makes it checkable, not re-derivable — shares
+  keep moving. A genuine step down from every other number in the app, and
+  the price of the feature.
+- **A call moves the crowd it predicts.** A call about a question in the
+  same feed is read by the people who then answer that question. Bounded
+  by `closesAt` — a field kept separate from `resolvesAt` for exactly this
+  reason — and named on the card rather than papered over.
+- **A call on a settled question is a lookup, not a game**, because the
+  target's split is public. So targets ship in the same batch as their
+  call, with an empty aggregate at close.
+
+### 7 · Two mechanical traps the tree already knows about
+
+Both are D136's, and both were silent there:
+
+- **`closesAt`/`resolvesAt` are day-key strings, not Timestamps.**
+  `seedValueMatches` bottoms out at `(a ?? null) === (b ?? null)`, so a
+  Timestamp never matches and the doc rewrites on every seed run while
+  reporting itself as legitimate drift. Rules already parse the shape
+  (`timestamp.date(int(day[0:4]), …)`, the duel key idiom), and day
+  granularity retires the timezone failure mode D127 carried.
+- **The rubric's value map is a list of pairs, not an object.** The seed
+  refuses empty or dotted map keys because Firestore does, so a map keyed
+  on a real-world name (`"A.C. Milan"`) fails at seed time and nothing
+  before it.
+
+### What proves it
+
+Nothing yet — no code exists, which is why the status is proposed. What
+the design commits to proving, when it is built: two `rules.test.ts` cases
+for the frozen guess and the closed window; `gradeCall` under the
+functions suite (pure, no emulator); `check:calls` offline on the lint
+path, deliberately not pointed at live Firestore or the live internet, so
+`backend-checks.yml` keeps guarding a PR and production with the same run
+and no third-party endpoint can block an emergency rules fix.
