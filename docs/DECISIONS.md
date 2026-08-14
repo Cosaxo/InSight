@@ -15011,7 +15011,120 @@ behind a "Takes" tap or under a revealed duel. Both imports are
 Eager graph **966 → 958 KB**, so this change ends with 8 KB more headroom
 than it started with, and the panel loads on the tap that asks for it.
 
-## D153 · The Map's mainstream boundary is sized by the map, not by a constant
+## D153 · Build 15's pre-flight: the first one where the number was already right
+
+**Decided:** 2026-08-14 · **Status:** binding · Fourth consecutive release
+pre-flight (D130, D142, D143) and the first whose build-number comparison
+answers *run as-is*. Changes no code. `appBuild` is **not** bumped here,
+and that is the finding rather than an omission.
+
+### The comparison, made against the runs
+
+Run 20 (`8cf48a1`, 2026-08-14 16:39Z, 7m 32s) has `Upload to App Store
+Connect` = **`success`**, and `appBuild` at that commit was **14**. So
+build 14 is spent. `appBuild` in the tree is **15**. Fifteen is greater
+than fourteen, so runbook 2.4's question — *is `appBuild` greater than the
+highest build in App Store Connect?* — answers yes, and the procedure says
+run as-is.
+
+**Three pre-flights in a row bumped; this one does not, and the difference
+is D143's habit finally holding.** D142 and D143 each opened on a spent
+build number sitting in the tree, because the post-upload bump had been
+skipped twice running. Run 20's bump landed in the same session that read
+the run's step list (`0826cd8`), which is the one thing D143 identified as
+making the difference — the gap it kept falling into was between "the
+upload finished" and "someone came back to the tree". So the expected
+yield of this pre-flight, a spent number, is absent because the previous
+one's fix worked.
+
+**What is NOT written here is the sentence that has been wrong three
+times.** D130, D142 and D143 each recorded a build as "pre-flighted and
+unspent" in the very commit the next run uploaded. The claim is not
+storable: the run is dispatched *from* the commit that makes it, and
+nothing in the tree can read App Store Connect (D73's shape, one layer
+out). This entry records what run 20 **did** and the comparison as of
+this commit. Whoever dispatches next re-makes it against the run list,
+because by then this paragraph is a historical statement and the run list
+is not.
+
+### The bundle gate, green on the artifact that ships
+
+`check:bundle` was the yield of the last two pre-flights — red both times,
+and at D143 red on a bundle nobody installs. D144 re-pointed it, so this
+is the first pre-flight where the gate was aimed at the shipping artifact
+from the start and its green therefore means what it says:
+
+| | measured | ceiling | headroom |
+| --- | --- | --- | --- |
+| total JS | 2255 KB | 2265 | 10 KB |
+| eager graph | 969 KB | 978 | 9 KB |
+
+72 chunks, built the way `ios-release.yml` builds — `VITE_V2_LIVE=true`,
+`CAPACITOR_BUILD=1`, and a non-empty `VITE_SENTRY_DSN`, without which the
+Sentry chunk is absent and the total comes out ~450 KB light on a bundle
+nobody ships. **That chunk is one file under two numbers**, which is worth
+settling here because both are already in the docs: `dist/assets/prod-*.js`
+is 445,598 bytes — `check:bundle` prints **435 KB** because it counts KiB,
+while D144's prose and runbook 2.4 say **445 KB**, the decimal reading. The
+table above is in the script's units throughout. **Both numbers are single-digit-KB from their
+ceilings**, which is not a defect and is worth naming: D152 bought 8 KB of
+eager headroom by making `LiveTakesPanel` lazy, and this measurement is
+what that headroom now looks like from the release path. The next feature
+of any size meets one of these two constants.
+
+### Measured, not asserted
+
+1064 client tests (73 files), 214 function, 183 script, 89 rules; `lint`,
+`tsc -b`, `check:globals` at its **412** baseline, unmoved. Every check
+gate passes. Two carry footnotes, neither a defect:
+
+- **`check:store-copy`** fails bare and passes with `--ios`, which is the
+  flag the release workflow uses. The one placeholder is D42's parked Play
+  signing fingerprint.
+- **`check:web-firebase`** reads `VITE_FIREBASE_*` from repository
+  *variables* that exist only in CI. It passes here against an injected
+  config, which proves the gate's mechanism and not the real values; the
+  run that matters is the workflow's, against its own `dist/`.
+
+`test:rules` and the three e2e suites are green locally and on CI run 436
+(`2423e4f`), whose nine jobs are all `success` at this tree — including
+`native-sync-drift`, which is the one that speaks to this release: build
+15 carries **`@capacitor/ios` 8.3.3 → 8.4.2**, `@capacitor/cli` → 8.5.0
+and `@capacitor/splash-screen` → 8.0.2, and `cap sync` produces no drift
+against the committed shell.
+
+**`test:rules` needs `HTTPS_PROXY` unset**, per CLAUDE.md. Verified again
+here rather than taken on trust: with it set the functions emulator dies
+naming neither the host nor the proxy; unset, all 89 pass.
+
+### One measurement that was not clean, and why it is not a blocker
+
+`src/v2/test/learn-reserve.test.jsx` failed once — the D95 re-serve case,
+one of 1064 — on a run where three other suites were executing
+concurrently. It then passed 3/3 standalone and 1064/1064 on two clean
+full runs, and CI is green at this commit.
+
+The arithmetic says contention rather than flake-for-unknown-reasons:
+**the file needs ~10.8 s of test time against the 15 s `testTimeout` it
+sets itself**, so roughly 4 s of margin, and it spends that budget on a
+full `growFeed()` render in jsdom. Three parallel suites is enough to eat
+4 s. Recorded rather than fixed because the fix is a judgement about the
+test's budget that a release pre-flight should not be making silently —
+**but the margin is thin enough that it will fire again on a loaded
+runner**, and the next person to see it red should read this paragraph
+before assuming a regression in D95.
+
+### What build 15 carries that 14 did not
+
+Twenty-one commits. D144's re-pointed bundle gate, D145's four question
+lanes and feed regulator, D146's type cut, D147's `node16` functions
+tsconfig, D148's Routine prompts, and the four that #179 landed together:
+**D149's sides, friends and real counts**, D150's Near-as-a-field with
+nobody named, D151's general info asked at the start, and D152's Explore /
+People / Circle / Groups reshaping. Plus the dependency bumps above and
+`firebase-admin` 14 / `firebase-functions` 7 on the backend.
+
+## D154 · The Map's mainstream boundary is sized by the map, not by a constant
 
 **Decided:** 2026-08-14 · **Status:** binding. From a screenshot with the
 report *"the sketched circle gets awkwardly large at small amounts of
