@@ -14621,3 +14621,79 @@ on both compilers.
 **Not decided here.** The root project stays on its own TypeScript. This
 entry is scoped to `/functions`, whose `tsconfig.json` is separate and
 whose output is the only one that gets deployed to Cloud Functions.
+
+
+## D148 · The Routine prompts catch up with their contracts, by the only mechanism that works
+
+**Decided:** 2026-08-14 · **Status:** taken — both Routines recreated
+and verified live; the manual half ships on
+`claude/question-generation-rates-5kiz6c`.
+
+**Decision.** All four lane Routines now fire under prompts that match
+their contracts. Two did not: the farm's predated D33 (it still
+summarised a weekly cadence and a 12/run cap) and the catalog's
+predated both the 2026-08-03 roll-up rule and D145's Sunday domain
+slot — so it told a run to open one branch per day and never mentioned
+the deliverable that D145 exists to schedule. Both were tolerable only
+because every prompt defers to this manual and re-reads it each firing;
+"the prompt is wrong but it tells you to read the right thing" is not a
+posture to keep, because the summary is what a run acts on when it is
+in a hurry.
+
+**Why the catalog prompt drifted twice and the farm's only once: it was
+never written down.** `QUESTION-FARM.md` pinned canonical text for the
+farm and, at D145, for learn and feed — but never for the catalog lane,
+whose prompt lived only inside the Routine. A contract change had
+nothing to update alongside it, and nothing to diff against afterwards.
+The catalog's canonical block now exists, which is the durable half of
+this record; the swap is the perishable half.
+
+**The mechanism, measured rather than assumed.** `update_trigger`
+refused a prompt edit for the third time (2026-08-01 org-wide,
+2026-08-03, and again today), verbatim: *editing the prompt of a
+routine whose fires deliver into a session that is not your own is not
+available via this tool*. `ListAgents` reports no reachable agents, so
+the bound session cannot be asked to run the edit on itself either.
+What works is that `create_trigger` accepts a `persistent_session_id`
+aimed at another session — the same mechanism D145's lanes were made
+with — so delete-and-recreate is a working swap. At the owner's
+explicit direction that is what was done: create the replacements
+first and verify them (a failed create must not leave a lane dark),
+then delete the originals, then update the ids in the manual's
+inventory. Both lanes were ~13 hours from their next fire throughout.
+
+**What it cost, stated rather than glossed:** the two Routines lost
+their creation dates, their fire history and their ids
+(`trig_01REC4Mf…` → `trig_01DZQC4E…`, `trig_01HDn61h…` →
+`trig_01RVeFZ4…`). Small here, because issue #31 is this project's real
+run log and the trigger telemetry was never the record — but it is
+spent, not recoverable, which is why the manual now says to prefer
+`update_trigger` from the bound session or the Routines UI and to fall
+back to this only with the owner's say-so.
+
+**The asymmetry worth remembering:** a prompt can be WRITTEN from a
+sibling session and cannot be READ from one. There is no way to diff a
+live Routine against its canonical block from here, and no CI gate can
+reach the account's Routines either. So the canonical blocks in
+`QUESTION-FARM.md` are not a copy of the truth, they ARE the record —
+which is the argument for the catalog block existing and for the rule
+that any prompt change updates both halves in one PR.
+
+**Also folded in:** the farm's canonical text gained D145's category
+disposal rule (a question fitting no `cat`/`alts` top is dropped and
+the category proposed in the PR body and the issue #31 comment), which
+it had not carried because D145 wrote the rule after the prompt block.
+
+**Not done, deliberately:** any gate over prompt drift (nothing in CI
+can read a Routine); firing either Routine to test the new prompt (an
+off-schedule fire does real work — opens PRs — and tomorrow's scheduled
+run is the honest test); the daily farm's scorecard unblock, which is
+still the operator step that keeps that lane at zero regardless of what
+its prompt says.
+
+**Enforcement:** the four ids and their crons are in the manual's
+inventory with the "all four match as of 2026-08-14" line; the four
+canonical blocks are the diffable record; `check:figures`,
+`check:quality`, `check:content`, `check:globals`, `check:labels`,
+`check:versions`, lint, 183 script tests and 984 unit tests green at
+commit.
