@@ -448,12 +448,19 @@ arithmetic.
       procedure and this paragraph is only its record**: where the two
       disagree, the run list wins.
 
+      **BUILD 14 WAS UPLOADED BY RUN 20** (`8cf48a1`, 2026-08-14 16:39Z,
+      7m 32s, upload step `success`, 1m 42s of it transfer). Both APNs
+      gates passed and the Firebase config was verified in the archive and
+      again in the exported `.ipa`. **`appBuild` is now 15**, bumped
+      immediately after that conclusion was read — the convention D142 and
+      D143 exist because it was skipped twice running.
+
       **BUILD 13 WAS UPLOADED BY RUN 19** (`0e65741`, 2026-08-13 20:19Z,
       6m 58s, upload step `success`) — the run dispatched from the very
-      commit that wrote the paragraph below. **`appBuild` is now 14**,
-      bumped 2026-08-14 during build 14's pre-flight (D143), and **build
-      13 is the highest on App Store Connect**, so the comparison passes
-      for the next run as-is.
+      commit that wrote the paragraph below.
+
+      *This file states what finished runs did. It does not state what is
+      unspent, and the section below is why.*
 
       **THE PARAGRAPH BELOW IS KEPT AS A RECORD OF THE TRAP FIRING A THIRD
       TIME, AND IT IS WRONG.** It says build 13 is unspent; run 19 spent
@@ -525,10 +532,15 @@ arithmetic.
       profile. Both are written out in docs/STORE-FORMS.md, the second with
       the trip-wire that flips it (weight, or anything that makes a BMI).
 
-      **`check:bundle` passing locally proves less than it looks.**
-      Without a Sentry DSN the local build omits a 435 KB chunk (D134,
-      docs/LOCAL-TESTING.md), so the release build is the larger one and
-      CI is where that ceiling is actually tested.
+      **`check:bundle` used to pass locally on a bundle nobody ships, and
+      since D144 it refuses to.** Two variables decide which artifact you
+      are weighing: without `VITE_SENTRY_DSN` the build omits a 445 KB
+      chunk, and without `VITE_V2_LIVE=true` it is the demo bundle — 12 KB
+      lighter in total and 9 KB lighter in the eager graph than the one
+      that installs. The script now exits 1 unless the second is set, so
+      the answer is the command in docs/LOCAL-TESTING.md rather than a
+      caveat to remember. The release workflow runs the same gate on its
+      own `dist/`, which is the copy that gets signed.
 
       **`npm run check:versions -- --fix` does NOT increment.** It
       propagates package.json's value into the two native projects and
