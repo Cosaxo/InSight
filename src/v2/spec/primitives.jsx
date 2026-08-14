@@ -56,13 +56,6 @@ export function anonName(p) {
   }
   return p.name || '';
 }
-// First-name variant for inline prose; strangers collapse to "they".
-export function anonFirst(p) {
-  if (!p) return 'they';
-  if (p.anon) return 'they';
-  return (p.name || 'they').split(' ')[0];
-}
-
 export function Kicker({ children }) { return <div className="kicker">{children}</div>; }
 
 // Chapter divider — groups a tab's cards into a clear section: a quiet rule + bold title.

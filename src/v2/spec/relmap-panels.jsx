@@ -1,19 +1,24 @@
 // Ported from design/spec-modules/relmap-panels.jsx (the historical prototype — no sync
 // script survives; THIS file is the live source now, hand-edits and all).
-// Cross-module references resolve through the shared global scope and
-// spec-index.js load order is semantic — scripts/check-spec-globals.mjs
-// guards the wiring in CI.
+//
+// Converted off the global bridge in D137 (D39, "convert on touch"). Its one
+// consumer — relmap.jsx — read the two panels with `const { RMPersonPanel,
+// RMHubPanel } = window`, a form neither the checker nor eslint could see: the
+// destructuring registered both names as LOCALS, so the tags resolved locally,
+// the window bag looked like it had two dead entries, and a rename here would
+// have been caught by nothing. Real imports make the edge visible to both.
+// `window.openPerson` below is still a global read — that owner has not moved.
 import React from 'react';
+import { RMCore } from './relmap-core.js';
 
 // RelationshipMap — the selected-person and selected-circle detail panels.
-(function () {
-  const { P } = window.RMCore;
-  const SANS = "'Hanken Grotesk', sans-serif";
-  const SERIF = SANS;
-  const upLabel = { fontFamily: SANS, fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: P.ink3 };
-  const card = { background: P.card, border: '1px solid ' + P.cardBorder, boxShadow: P.shadow };
+const { P } = RMCore;
+const SANS = "'Hanken Grotesk', sans-serif";
+const SERIF = SANS;
+const upLabel = { fontFamily: SANS, fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: P.ink3 };
+const card = { background: P.card, border: '1px solid ' + P.cardBorder, boxShadow: P.shadow };
 
-  function RMPersonPanel({ s, onSelect, onClose }) {
+export function RMPersonPanel({ s, onSelect, onClose }) {
       const cardBtn = { display: 'inline-flex', alignItems: 'center', gap: 7, padding: '6px 11px 6px 9px', borderRadius: 100, border: '1px solid ' + P.rule, background: P.canvas, cursor: 'pointer', fontFamily: SANS, fontSize: 13, color: P.ink2 };
       return (
         <div className="rm-scroll" style={{ position: 'absolute', left: 12, right: 12, bottom: 12, borderRadius: 20, padding: '18px 20px', maxHeight: 'min(62%, 450px)', display: 'flex', flexDirection: 'column', overflowY: 'auto', overflowX: 'hidden', zIndex: 7, animation: 'rmSheetUp 0.34s cubic-bezier(0.16,1,0.3,1) both', ...card, boxShadow: P.panelShadow }}>
@@ -93,7 +98,7 @@ import React from 'react';
       );
     }
 
-  function RMHubPanel({ h, onSelect, onDrill, onClose }) {
+export function RMHubPanel({ h, onSelect, onDrill, onClose }) {
       const cardBtn = { display: 'inline-flex', alignItems: 'center', gap: 7, padding: '6px 11px 6px 9px', borderRadius: 100, border: '1px solid ' + P.rule, background: P.canvas, cursor: 'pointer', fontFamily: SANS, fontSize: 13, color: P.ink2 };
       return (
         <div className="rm-scroll" style={{ position: 'absolute', left: 12, right: 12, bottom: 12, maxHeight: 'min(62%, 450px)', overflowY: 'auto', overflowX: 'hidden', borderRadius: 20, padding: '18px 20px', display: 'flex', flexDirection: 'column', zIndex: 7, animation: 'rmSheetUp 0.34s cubic-bezier(0.16,1,0.3,1) both', ...card, boxShadow: P.panelShadow }}>
@@ -149,7 +154,4 @@ import React from 'react';
         </div>
       );
     }
-
-  Object.assign(window, { RMPersonPanel, RMHubPanel });
-})();
 

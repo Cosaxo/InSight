@@ -441,6 +441,6 @@ import ReactDOM from 'react-dom';
     );
   }
 
-  Object.assign(window, { GroupDailyBody, GDAv, GDMark });
+  Object.assign(window, { GroupDailyBody, GDAv });
 })();
 

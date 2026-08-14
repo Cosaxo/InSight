@@ -15,8 +15,11 @@ let on: boolean = (() => {
   try { return localStorage.getItem(LS) === "1"; } catch { return false; }
 })();
 
-const listeners = new Set<() => void>();
-
+// No subscriber list. This store carried one, plus a subscribeNearOptIn to
+// feed it, from D84 until D137 — nothing ever subscribed, so the Set was
+// permanently empty and both notify loops were no-ops. The single reader
+// (live.ts) calls nearOptedIn() at the point of use, which is why the
+// subscription was never needed. Re-add both together if that changes.
 export function nearOptedIn(): boolean {
   return on;
 }
@@ -28,19 +31,11 @@ export function setNearOptIn(next: boolean): void {
     if (next) localStorage.setItem(LS, "1");
     else localStorage.removeItem(LS);
   } catch { /* best-effort — the in-memory choice still holds this session */ }
-  listeners.forEach((f) => { try { f(); } catch { /* one listener must not stop the rest */ } });
 }
 
-export function subscribeNearOptIn(f: () => void): () => void {
-  listeners.add(f);
-  return () => listeners.delete(f);
-}
-
-// D51: every local store hears the purge. Notify without re-writing — the
-// wipe just removed the key, and saving would re-create it.
+// D51: every local store hears the purge. Drop to the fresh-boot value
+// without re-writing — the wipe just removed the key, and saving would
+// re-create it.
 if (typeof window !== "undefined") {
-  window.addEventListener("insight:local-purge", () => {
-    on = false;
-    listeners.forEach((f) => { try { f(); } catch { /* see above */ } });
-  });
+  window.addEventListener("insight:local-purge", () => { on = false; });
 }

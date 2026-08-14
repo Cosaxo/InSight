@@ -13695,3 +13695,185 @@ the eager graph for a card that cannot render until the feed chunk lands.
 Firestore SDK out of first paint — so the fold moved into `LIVE.pathQs()`
 and runs on call. Eager is unmoved at 955; only the total drift alarm rose,
 2182 → 2184, with the question the script asks recorded at the constant.
+
+---
+
+## D137 · The bridge kept the names nobody was crossing on
+
+**Decided:** 2026-08-14 · **Status:** binding · A cleanup pass, taken
+against the whole tree rather than a feature. Extends D39's ratchet with a
+fifth rule; removes nothing any user or any test could see.
+
+The ask was to remove what is old and unused. Most of what *looks* old here
+is not: `firestore.rules.v1-archive`, `scrub-v1-discoverable.mjs` and
+`design/InSight_standalone_18.html` are all load-bearing reference, each
+cited from somewhere that would be poorer without it, and every script in
+`scripts/` is wired to `package.json` or a workflow. What was actually dead
+was invisible instead, and it was invisible for a structural reason.
+
+### The class: a publication nobody reads
+
+D39 says "convert on touch", and the honest shape of a conversion is to
+export the name and leave `globalThis.X = X` beneath it for the consumers
+that have not moved — the two live side by side until the last consumer
+does. Nothing ever went back for the line. Seventeen of them had piled up:
+
+- **seven `ui/Live*` panels** — Breakdown, Circle, Cohort, GroupsMirror,
+  Interests, Takes, Voters. Every consumer imports the panel it renders;
+  one of the comments said so out loud ("world-feed.jsx imports it
+  directly; this is here for parity with its sibling panels"), which is a
+  publication kept for symmetry with publications that were also dead.
+- **`MirrorLensRow`**, under a comment promising "the sites that have not
+  moved" — group-mirror.jsx and mirror-field-pops.jsx had both moved.
+- **`ELEMENTS_CATALOG`**, whose sibling catalogues (places, pokedex) never
+  published at all, so the bridge here was a one-off, not a convention.
+- **six components published out of the only file that used them** —
+  `GDMark`, `LensCard`, `LensRow`, `MTAnchorChips`, `DuoDomains`,
+  `IS_typeColor`/`IS_typeSplit` (aliases of two names already exported).
+- **`DuoDots`**, which was not merely over-published: declared, published,
+  and rendered by nothing. That one was dead code, and it is deleted.
+
+None of these could break — a name nobody reads cannot render wrong — which
+is precisely why they survived. Rule 1 asks the opposite question (a
+reference with no assignment); **rule 4 counts READS, and there were none**,
+so the meter this repo built to find exactly this kind of residue was
+structurally blind to it. No gate was asking.
+
+They are not free. Each is a claim that the bridge is load-bearing for that
+name, so it reads as coupling to anyone planning a conversion — and it is
+indistinguishable by eye from the publication that *is* still carrying a
+consumer.
+
+**`check:globals` gains rule 5**: a name assigned to global scope that
+nothing in the scanned set reads. It has the `check-appcheck` escape hatch —
+`PUBLISHED_FOR_OUTSIDE`, name to reason, for a reader the scanner cannot see
+— and a stale entry fails too, in both directions: listing a name nothing
+assigns any more, and listing a name that *is* read in-tree. The list is
+empty, which is the preferred state; an entry is a name the rule stops
+checking. Verified by measurement rather than reading: re-adding one removed
+line reds the gate, and both stale branches were driven with a planted entry.
+
+### The blind spot underneath it
+
+Two names looked dead and were not. `relmap.jsx` read its panels with
+`const { RMPersonPanel, RMHubPanel } = window` — and the scanner records a
+destructured name as a **local**, so `<RMPersonPanel/>` resolved locally,
+the two window entries read as dead, and rule 4 never counted the edge.
+A rename in `relmap-panels.jsx` would have been caught by nothing: not rule
+1, not `no-undef`, not `tsc`.
+
+CLAUDE.md's instruction for this is to fix the scanner, not to except the
+name — but here the honest fix is cheaper than the scanner change, because
+teaching the scanner to see the read would have *raised* the ratchet, which
+only moves down. So `relmap-panels.jsx` converted instead (D39, on touch):
+two `export function`s, an import at the consumer, and its own
+`window.RMCore` read became the ESM import that `relmap.jsx` already used.
+The blind spot is gone because the construct is gone. **Coupling 417 → 416**
+across 42 files; `spec-index.js` drops the line, since `relmap.jsx` now
+imports the module and rule 2 asks whether a file loads.
+
+### Three smaller things, same character
+
+**Dead code, not just dead exports.** Only three symbols in `src/` and
+`functions/` are declared and referenced nowhere at all: `anonFirst`,
+`unmuteAuthor`, `subscribeNearOptIn`. All three are deleted. Everything else
+that a naive unused-export scan flags is used inside its own file, and
+dropping the keyword would be churn, so it stays. Removing
+`subscribeNearOptIn` exposed the rest of its machinery: with no subscriber,
+`near.ts`'s listener Set was permanently empty and both notify loops were
+no-ops, so they go with it — the purge listener stays, and `check:purge`
+still holds.
+
+**`unmuteAuthor` deserves naming, because deleting it removes the only code
+that could have closed a product gap:** there is no way to un-mute an author.
+There never was — no surface ever called it — so the only route back today
+is the account panel's local purge (D51). Deleted rather than kept as
+scaffolding: a half-built API reads as a shipped feature, and the gap is
+easier to see when the function is not there. A note sits at the deletion
+site. **This is a deferral, not a fix.**
+
+**Four raw NUL bytes, in four files.** `LiveAnswerRows.tsx` wrote a
+collision-proof sentinel as a literal `0x00` rather than an escape; so did
+`links.test.ts`, `check-content.mjs` and `check-anchors.mjs`. The runtime
+value is right and every node-based gate reads them fine — but `grep` calls
+such a file **binary and skips it silently**, which means two of the four
+were guard scripts that no shell-level search could see into. Rewritten as
+the six-character escape: identical strings, files back to text. Found by
+accident, while grepping for something else — which is the point.
+
+**Orphaned CSS.** 16 class selectors that no source file, and not the
+prototype either, ever names — a whole unshipped `.ed-*` reveal animation
+set, the `.mmt-spec*` duo spectrum, three `.mmt-gwho*`/`.mmt-gself` rules
+and `.tape` — plus the nine `@keyframes` left with no user once they went
+(40 → 31). **78 lines.** Sound only because the app builds no class names
+dynamically: there is not one interpolated `className` in the tree, checked
+before cutting. Six further selectors are named by the prototype but not the
+app and were **left alone** — that file is the reference design, and
+`style-diff.mjs` reads it. `toastFade` looks unused in the stylesheet and is
+not: three call sites apply it through an inline `animation:`, which is why
+the keyframe sweep was run against `src/` and not against the CSS alone.
+
+### And two files under `/content` that nothing read
+
+Found on a second pass, after the first was fairly asked whether that was
+really all. It was not, and the miss is instructive: the first sweep asked
+"is this code reachable", which is the wrong question for a **data** file.
+
+`content/archetypes.json` (12 KB) and `content/scenes.json` are read by no
+script and no source. The generator loads six banks; these are not among
+them, and nothing else opens them. Their only mention anywhere was a row in
+`content/README.md` — a document whose opening line calls `/content` "the
+source of truth".
+
+**`archetypes.json` had diverged from the thing it mirrors**, which makes it
+worse than dead weight. Its live counterpart is `src/v2/spec/archetype-data.js`
+("THIS file is the live source now, hand-edits and all"), and the two now
+disagree on nearly every name in the set — `The Explorer` / `The Architect` /
+`The Anchor` against the shipped `The Enthusiast` / `The Planner` /
+`The Dependable`. A person editing the JSON would have believed they had
+changed the app's archetypes. They would have changed nothing. That is the
+same call, on the same grounds, as `design/spec-modules/` (deleted
+2026-07-29 once the copies had diverged); both live in git history.
+`scenes.json` is the same shape against `src/v2/spec/scenes.js`, just smaller.
+
+**`check:content` gains the rule**, in the shape the other lists here use: a
+`.json` under `/content` is a generator input or it is named in `NOT_SEEDED`
+with its reason, and a stale entry fails both ways (listed but absent, listed
+but loaded). The generator's six filenames stopped being six inline literals
+and became `CONTENT_SOURCES`, so the gate and the loader cannot disagree.
+Verified by planting an unread file and a stale entry; both red.
+
+**The README was stale in every direction at once**, which is why nothing
+caught the orphans: it pointed at `InSight_standalone_14.html` (the tree has
+18), said the feed bank held 73 questions (82) and the 1v1 bank 20 (30), and
+omitted three files that *are* consumed — `lenses.json`, `learn-questions.json`
+and `scorecard.json`. `check:figures` does not read this file, so none of it
+was load-bearing anywhere. Corrected against `check:content`'s own output.
+
+Deleting both changed nothing that ships: `npm run build:content` regenerates
+`functions/src/v2content.ts` byte-identically, and `check:content` still
+reports 512 questions.
+
+### What proves it
+
+`lint`, `tsc -b` + `vite build` (CI-equivalent, with the DSN set),
+`test:unit` (71 files, **984 cases**), `functions` (**208**), `test:rules`
+(**83**), `test:scripts`, `check:globals` (275 defined, 275 referenced —
+**equal for the first time**), `check:bundle` (eager graph unmoved at 954
+KB), `check:figures`, `check:a11y`, `check:labels`, `check:purge`,
+`check:touch-zoom`, `check:public-copy`, `check:data-inventory`,
+`check:versions`, `check:store-forms`, `check:monitoring`, `check:quality`,
+`check:content`, `check:neighbors`, the six catalogue gates,
+`check:logic-sync`, `check:deploy-targets`, `check:appcheck`,
+`check:fn-runtime` and the three iOS gates — all green.
+
+No new test cases, and that is the correct outcome: this pass removed code
+that nothing executed. What guards it is rule 5, which is a gate rather than
+a case, and the 984 existing ones — the mount suites walk both tabs and every
+overlay, so a name removed from the bridge that something did read at render
+time would fail there rather than in review.
+
+`check:store-copy` and `check:web-firebase` fail here and failed identically
+on the unmodified tree: an unfilled Play signing fingerprint and unset
+release env vars. Both are release gates, on neither `ci.yml` nor
+`backend-checks.yml`, and untouched by this pass.

@@ -438,10 +438,19 @@ meter does not run — it gets described, which is a comfortable place for it
 to sit given that rules 1-3 of `check:globals` make the convention
 survivable enough to live with indefinitely.
 
+**Rule 5** is the one that keeps the meter honest, and it was added late
+(D137) after 17 dead publications had accumulated where nothing was
+looking. A conversion's honest shape leaves `globalThis.X = X` beneath the
+new export for the consumers that have not moved — so when the last one
+moves, the line is residue. Rule 4 cannot see it: rule 4 counts *reads*,
+and a publication nobody reads has none. Rule 5 asks the mirror of rule 1
+— an assignment whose references went away — so what is on the bridge is
+what is still crossing it.
+
 **Rule 4** counts every site where one file reads a name another file
 assigns to global scope, per file, and the number may only go down. The
 baseline is in `scripts/check-spec-globals.mjs`; `npm run check:globals`
-prints the current total on every run. The count today is **417 across 42
+prints the current total on every run. The count today is **416 across 42
 files**, down from 799 when the ratchet landed.
 
 The mechanism needs no bookkeeping, which is what makes it usable. The

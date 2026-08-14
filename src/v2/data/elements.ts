@@ -130,7 +130,12 @@ export function searchElements(elements: Element[], q: string, max = 40): Elemen
   return hits.slice(0, max).map((h) => h.e);
 }
 
-// ── the spec-layer bridge ──────────────────────────────────────────────
+// ── the picker's view of this catalogue ────────────────────────────────
+//
+// An ordinary default export: ui/PickSearch is the only consumer and it
+// imports this file. It published itself onto globalThis until D137, back
+// when the spec layer looked catalogues up by name — nothing did any more,
+// and its siblings (places, pokedex) never published at all.
 
 const ELEMENTS_CATALOG = {
   NOT_LISTED,
@@ -141,15 +146,5 @@ const ELEMENTS_CATALOG = {
   nameOf: elementName,
   key: (e: Element) => String(e.z),
 };
-
-declare global {
-  interface Window {
-    ELEMENTS_CATALOG?: typeof ELEMENTS_CATALOG;
-  }
-}
-
-// Object.assign rather than `globalThis.ELEMENTS_CATALOG = …` — the
-// places.ts argument (TS7017), and the form the scanner matches.
-Object.assign(globalThis, { ELEMENTS_CATALOG });
 
 export default ELEMENTS_CATALOG;

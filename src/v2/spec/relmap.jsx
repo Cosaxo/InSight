@@ -5,6 +5,7 @@
 // guards the wiring in CI.
 import React from 'react';
 import { RMCore } from './relmap-core.js';
+import { RMPersonPanel, RMHubPanel } from './relmap-panels.jsx';
 import { useDialog } from './primitives.jsx';
 
 // RelationshipMap — a force-directed map of your people.
@@ -16,7 +17,6 @@ import { useDialog } from './primitives.jsx';
   const { DEFAULT_GROUPS, AGE_BANDS, ageBand, ageColor, statusMeta, yearsWord,
     politicalColor, personalityColor, politicalLabel, personalityLabel,
     P, groupDefs, buildGraph, defaultPeople } = RMCore;
-  const { RMPersonPanel, RMHubPanel } = window;
 
   class RelationshipMap extends React.Component {
     constructor(props) {
