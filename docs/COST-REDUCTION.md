@@ -64,7 +64,7 @@ Each lever was checked against its *consumers*, not just against the model:
 | Persist the name cache | **No** — but it needs a TTL. `resolveNames` takes a caller-owned record, so persisting it means a renamed account shows its old name until the cache expires. |
 | Stream today only | **Almost none.** `computeDeckIds` returns today plus 6 back days and all are answerable, so past aggregates *do* move — just rarely. You would stop seeing a 4-day-old card tick while looking at it. |
 | **Poll instead of stream** | **Less than it sounds.** Other people's votes stop landing live. Your own vote still confirms — `scheduleAggRefresh` (live.ts:390) re-reads the aggregate 2.5 s after the write acks and clears the pending flag, on both the vote and D86 edit paths, with no listener involved. |
-| Who-voted 200 → 50 | **Yes, mildly.** Fewer faces per sheet. Honesty is automatic: `LiveVotersPanel` interpolates the cap (`the latest ${total}`), so copy and tests follow the constant. Wants the "load more" cursor to not be a pure loss. |
+| Who-voted 200 → 50 | **Yes, mildly.** Fewer faces per sheet. Honesty is automatic: the Friends cut interpolates the cap (`the newest ${VOTER_FETCH_CAP}`), so copy and tests follow the constant. Wants the "load more" cursor to not be a pure loss. |
 | Circle 300 → 100 | **Yes, mildly.** Circle compares over ~5 weeks of a member's answers instead of ~13. |
 | Batch publish ×5 | **Yes, mildly.** The live count steps in fives. |
 | Kindred 12 → 4 | **Yes, genuinely.** The People lens ranks likeness over 4 shared questions instead of 12. It stays honest by itself — `LiveMirrorLenses` renders "across your last {kindredDepth()}" — but a likeness claim over 4 questions is a materially weaker claim. |

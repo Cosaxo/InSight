@@ -14234,3 +14234,218 @@ dispatch is `upload = true` on *iOS release*, it is outward-facing, and it
 spends ~150 minutes of macOS quota at 10x. `whatsNew` stays *"First
 release."*: it is a version field, `MARKETING_VERSION` is still 2.0.0, and
 6.2 is unticked (D74).
+
+## D144 · Sides, friends and real counts: three surfaces stop guessing
+
+**Decided:** 2026-08-14 · **Status:** binding · Owner decisions, taken
+against the prototype (`InSight_standalone_25.html`). Amends D125's sheet
+and D32's learn seam; leaves D98's cross-user read intact and builds on
+it.
+
+Three faults reported against the release, and one posture behind all
+three: **a screen that could not get the true number drew a plausible one
+instead.** Where the true number existed, nothing had been pointed at it;
+where it did not, something authored stood in for it.
+
+### 1 · A take carries the side its author voted, and the list filters by it
+
+`LiveTakesPanel` drew every take as a name and a paragraph in one
+undifferentiated column — on a surface whose entire subject is that people
+disagree. "What does the other side say" is the second thing anyone wants
+from an argument, and scrolling for it is not an answer.
+
+**Where the side comes from is the decision.** Not from the take document
+— `v2_takes` accepts a fixed field list and carries no vote, and widening
+it would have meant a rules change plus a claim that could drift from the
+author's actual answer. It comes from the answer itself, through the
+collection-group read the who-voted sheet already makes (`data/voters.ts`).
+So the badge and the split above it cannot disagree, and on a question
+whose voters are already in the store it costs nothing at all.
+
+Gated on the caller passing `options`: a dial, a field, a catalogue pick
+and a sealed duel row all reach this panel, and only an options-shaped
+question has sides to badge. A duel passes nothing on purpose — its
+answers are sealed until the reveal, and a badge there is the leak the
+seal exists to prevent.
+
+### 2 · The who-voted sheet gains a Friends cut and loses its roster
+
+D125 flipped the sheet's axis so a cohort's numbers redraw the question.
+It kept the roster underneath: every voter's name with their age, gender,
+city and education beside it, under every cohort, "Everyone" included.
+
+Read from the top that is a **directory of strangers annotated with their
+demographics**, which is not what anyone opens a result to see — and on
+the Everyone cut it is a directory of everybody who has ever answered. So
+the names move to the one cut where "who" is the question being asked, and
+every other cut answers in percentages, which is what a cohort reading is.
+
+This does **not** retire D98. The Friends cut is built on the same
+cross-user read, and People, Compare and the City constellation still name
+people. What it retires is the roster as the answer to "how did everyone
+vote". `ui/LiveVotersPanel.tsx` is deleted — nothing imported it any more.
+
+**The cut is a membership test, not a fold.** `LIVE.loadFollows` is the
+follow SET in one query, intersected with the voter list already in hand.
+Calling `loadCircle` for it would be up to `FOLLOW_CAP` queries to answer
+a membership question. The two caches are kept in step deliberately —
+`loadCircle` fills this one, `setFollowing` clears both — because two
+caches that can disagree about who your friends are is the bug that note
+exists to prevent.
+
+Friends who have not answered are not listed, and the headline counts only
+those who did: "4 of 6" means four of the six who answered, which is the
+only version of that sentence this data supports.
+
+### 3 · Learn shows how many people actually picked each option
+
+D32 built a seam: the published aggregate when there was one, otherwise
+the authored `card.p` estimate with a footer saying which. Honest, and
+still the wrong thing on screen.
+
+`p` is a **content-authoring difficulty hint** — a number a writer typed
+while writing the card. Drawn as bars it looks like a reading of a crowd
+however the footer is worded, because a reader reads the bars. So in a
+live build the estimate is gone: `LEARN_SPLIT` and `LEARN_RATE` return
+nothing (`pct: null`, never `0` — the D72 shape, so a caller that forgets
+the check fails a test instead of claiming nobody gets the card right),
+and `LEARN_COUNTS` carries the raw per-option counts.
+
+The reveal leads with the count — "31 people · 62%" — because the count is
+the fact and the share is the reading. A card nobody else has answered
+says exactly that.
+
+Two smaller lies went with it. "Real answers from N+ players" had a
+`|| 5` floor under it, printing "5+ players" for a card two people had
+answered; it reports the real total now. And the ⓘ sheet's Crowd row is
+dropped entirely rather than shown empty.
+
+The **demo keeps the authored model**: there the fabricated crowd is the
+content, and there is no aggregate that could ever replace it.
+
+### What this cost, and what it did not
+
+`check:globals` rule 4: 414 → 412, baseline and the README figure lowered
+with it. `learn-data.js` gained a second reader of `window.LIVE` and keeps
+exactly one reference site (a `liveStore()` accessor both go through), so
+the meter stayed flat where it would otherwise have gone up.
+
+## D145 · Near is a field again, and nobody in it is named
+
+**Decided:** 2026-08-14 · **Status:** binding · Owner decision, taken
+against the prototype's Near stop. Amends D111's live body; leaves D98's
+presence deny exactly where it was.
+
+`NearLiveBody` drew a count and a sentence pointing at City, and its own
+header said that was permanent: the presence cell is one of D98's three
+surviving denies, so a count is all the server returns and "the only thing
+this stop will ever draw".
+
+**Every word of that is still true and it was still the wrong
+conclusion.** It answered a question about the presence cell with a
+decision about the whole screen. Near asks *who is around me*, and the app
+knows something true about that which it was already drawing one stop over
+— the people of your city, ranked by how close their scores sit to yours
+(D112). The refusal was of a claim nobody had to make.
+
+So the stop is the prototype's shape again: a figure at the top, a crowd
+around you, distance = unlikeness.
+
+**The one difference from every other field in the Mirror is the deny,
+drawn.** `kind: "anon"` renders a body-and-head glyph with no initials, no
+label, no role, no tab stop and no pick handler. A field you can tap a
+person out of is a directory, which is exactly what Near must not become —
+so the field shows the SHAPE of a crowd and offers no way into it.
+
+**Two numbers, each attached to what it counts** (D112's honesty rule 2,
+applied rather than cited): the figure is phones near you right now, the
+ring is people in your city, and each carries its own caption. One caption
+spanning both is how a screen starts claiming it knows who is standing
+next to you.
+
+Cost: the field rides `LIVE.loadSimilarity`, the same bounded
+session-cached loader the City stop's field uses — so arriving here after
+City pays nothing, and arriving before it warms what City is about to
+want. Lazy from `NearLiveBody`, which `mirror-tab` imports eagerly: a
+static import would have put the similarity fold and the instrument
+definitions in the entry chunk for a stop most sessions never open.
+
+## D146 · The general info is asked at the start, because an answer cannot be re-filed
+
+**Decided:** 2026-08-14 · **Status:** binding · Owner decision. Adds a
+screen; changes no rule and no vocabulary.
+
+Every anchor an answer snapshots (D8) — age band, gender, city, country,
+education, profession, relationship, height — was collected in exactly one
+place: the profile overlay's Basics card, four taps deep, behind a pencil
+icon. **Nothing ever asked for it.**
+
+So the common shape of a real account was: answer for a week, discover the
+card, and find the week's answers stamped with `{}`. That is not
+cosmetic. Answers are create-only (D5, amended by D86 to an
+`optionIdx`-only edit), so an anchor missing at vote time is missing from
+that answer **forever** — the trigger folded it into no breakdown cell and
+no later profile edit can move it. Every cohort screen in the Mirror reads
+those cells. A user who fills the card in during week two has a first week
+that contributes to nothing but the total.
+
+The questions are now asked once, at the top, where answering costs a
+minute and not answering costs nothing yet.
+
+**It is an ask, not a wall.** Every field is skippable and the whole
+screen dismissible — D3 is anonymous-first and the upgrade is "never a
+wall", and a required demographic form is how you teach people to lie to
+one. What skipping costs is stated plainly instead. The pitch is the
+mechanism rather than a benefit ("personalise your experience" would be a
+lie — none of this changes what you are shown), because the mechanism *is*
+the reason.
+
+**One vocabulary, in a file of its own.** `spec/profile-vitals.js` now
+holds the lists and `anchorsFrom`; the Basics card and this screen both
+import them. That matters more than tidiness: `check:anchors` holds four
+of those lists equal to `BREAKDOWN_DIM_VOCAB` in `functions/src/pure.ts`,
+so a label typed a second time in a second file would pass tsc, eslint and
+every gate and silently stop that level counting. The script was repointed
+at the new file in the same change.
+
+**Both halves of the write, for the reason `setCityAnchor` documents at
+length:** `GeneralPanel` mirrors `anchorsFrom(vitals)` into `saveAnchors`
+on every mount (deliberately — it is how a fabricated anchor gets
+repaired), so anchors written only server-side would survive exactly until
+the profile overlay next opened and then be replaced by the blob's empty
+vitals. `mergeProfileVitals` is that write, factored out.
+
+### The bundle gate decided the shape
+
+The obvious build is a gate component wrapping `<App />`, which `main.jsx`
+must then import statically. `check:bundle` measured the decision alone at
+**1 KB over `MAX_EAGER_KB`** — the constant that keeps the Firestore SDK
+out of first paint, which has had no headroom since D139 and whose own
+note says a raise there "would have been the thing to refuse".
+
+So the decision travels with the screen: `main.jsx` reaches it through a
+dynamic import beside `loadWorldFeed`/`loadOverlays`, and it mounts its
+**own root** rather than joining App's tree — the screen is
+`position: fixed` with its own ground and needs no part of it, and
+`main.jsx`'s own comment warns that changing the root element type
+remounts App and loses its state. First paint did not move: 966 KB before
+and after.
+
+Two intermediate shapes were measured and rejected on the way, both worth
+recording because both looked free:
+
+- A shared `profileSetupState.ts` imported by **both** an eager gate and
+  the lazy screen. Rollup groups a module shared that way with the eager
+  side and drags the lazy side's imports with it — the whole profile panel
+  landed in the eager graph.
+- Importing the vocabulary from `profile-general.jsx`, which `spec-index`
+  imports eagerly. Rollup extracted the panel into a shared chunk first
+  paint still preloads, +19 KB. Hence the separate vitals module.
+
+**The flag is local**, not on the profile document: it records that a
+SCREEN was shown, which is a fact about an install rather than an account.
+The cost of being wrong is one extra ask on a new device, against a
+Firestore read on every cold start to avoid it. And "needs asking" is *has
+no anchor at all*, not *has all of them* — an account that filled the
+Basics card in before this existed must not be asked again, and one that
+deliberately answered two of seven has already been asked.

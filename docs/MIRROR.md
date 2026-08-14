@@ -21,7 +21,9 @@ today and which are still the prototype's furniture.
 >
 > The read path exists as of the same change: `data/voters.ts` does the
 > collection-group query on `answers` plus batched uid→name resolution,
-> and `ui/LiveVotersPanel.tsx` is its first consumer. Where a surface
+> and its consumers are the who-voted sheet's Friends cut
+> (`ui/LiveBreakdownPanel.tsx`), the takes panel's side badges and the
+> City constellation. Where a surface
 > below is still missing, it is missing because **nobody has pointed it
 > at that path yet** — a backlog item, not a policy.
 
@@ -109,7 +111,7 @@ single ruler you can drag along; the stop you pick recolors the whole tab.
 | **You** | the Map — you, alone, visualized | your own answers, hydrated from Firestore into `DAILYQ` | yes, except the typicality stats (§5), which are mock and refused |
 | **Circle** | your close ties | the follow graph (`v2_users/{uid}/following`) + those accounts' answers | yes since D101 — a one-way follow, ranked by likeness |
 | **Groups** | your named circles | real reveal history, `groupPortrait.ts` | yes |
-| **Near** | who is around you right now — the radius counter (D84), count only | `nearbyCountV2`; the presence cell stays one of D98's three denies | yes — presence only since D111 |
+| **Near** | who is around you right now — the radius counter (D84), over an anonymous field (D145) | `nearbyCountV2` for the count; the field is the city fold, drawn unnamed. The presence cell stays one of D98's three denies | yes |
 | **City** | your city: answers, lenses, and the kindred constellation | `v2_question_aggs.by.city[your city]`; kindred from voter lists + `testResults` (D112) | yes since D111/D112 — its own stop again |
 | **Country** | everyone in your country, plus its cities placed by score likeness | `v2_question_aggs.by.country[…]`; city profiles folded from `by.city` (D112) | yes |
 | **World** | everyone, plus countries placed by score likeness | `v2_question_aggs.counts`; country profiles from `by.country` (D112) | yes |
@@ -147,11 +149,26 @@ What the demo body showed and this one does not — trait axes, compare
 populations, "how they see you" crowns — is unbuilt rather than refused
 since D98: the members' answers and test results are all readable now.
 
-**Near.** The Right-now radius counter (D84), and nothing else since
-D111: how many opted-in phones are within a couple of kilometres, as a
-count the server computes from a cell no user can read. It stopped being
-"your city" — that fold (D9) put a presence question and a cohort
-question behind one stop, and D111 un-folded them.
+**Near.** The Right-now radius counter (D84) — how many opted-in phones
+are within a couple of kilometres, as a count the server computes from a
+cell no user can read — and, since D145, the field around it. It stopped
+being "your city" at D111: that fold (D9) put a presence question and a
+cohort question behind one stop.
+
+D111's body said the counter was all this stop would ever draw, and D145
+records why that was half right. The presence cell really is unreadable
+and always will be; what did not follow is that the SCREEN had nothing
+else true to show. The people of your city ranked by score likeness are
+real and were already drawn one stop over, so Near draws them too —
+**anonymously**. `kind: "anon"` in `LiveSimilarityField` is a node with no
+initials, no label, no role and no pick handler: the shape of a crowd,
+with no way into it. A field you can tap a person out of is a directory,
+which is the one thing this stop must not become.
+
+Two numbers, each captioned by what it counts (honesty rule 2 below): the
+figure is phones near you *right now*, the ring is people in your *city*.
+One caption spanning both is how a screen starts claiming it knows who is
+standing next to you.
 
 **City / Country / World.** One question at three radii, one renderer
 (`LiveCohortBody`): three renderers would eventually disagree about what
@@ -391,7 +408,7 @@ Two gaps are worth stating in prose because no badge covers them:
 | the daily record | `src/v2/spec/mirror-answers.jsx` |
 | the Map | `src/v2/spec/map-tab.jsx` (+ `map-*.js*`) |
 | City / Country / World, live | `src/v2/ui/LiveCohortBody.tsx` |
-| Near, live — the presence counter alone (D111) | `src/v2/ui/NearLiveBody.tsx` |
+| Near, live — the presence counter and its unnamed field (D111, D145) | `src/v2/ui/NearLiveBody.tsx` |
 | the constellations, live (D112) | `src/v2/ui/LiveSimilarityField.tsx` |
 | the similarity folds (profiles, matches, ranking) | `src/v2/data/similarity.ts` |
 | Groups, live | `src/v2/ui/LiveGroupsMirrorBody.tsx` + `data/groupPortrait.ts` |
@@ -401,7 +418,7 @@ Two gaps are worth stating in prose because no badge covers them:
 | the cut list every breakdown reads | `src/v2/spec/vote-cuts.js` |
 | the fold (no floor, no suppression — D98) | `functions/src/pure.ts`, `functions/src/v2.ts` |
 | who may read any of it | `firestore.rules` |
-| named who-voted — the cross-user read | `src/v2/data/voters.ts`, `src/v2/ui/LiveVotersPanel.tsx` |
+| the cross-user read, and the cuts built on it (D144) | `src/v2/data/voters.ts`, `src/v2/ui/LiveBreakdownPanel.tsx` (Friends), `src/v2/ui/LiveTakesPanel.tsx` (sides) |
 | a live card's who-voted sheet, cohort-first (D125) | `src/v2/ui/LiveBreakdownPanel.tsx` |
 | bucket key → the name a reader sees (D125) | `src/v2/ui/cohortLabels.ts` |
 | the cohort folds (mix, slice, divergence, typicality, likeness) | `src/v2/data/cohort.ts` |

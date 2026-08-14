@@ -153,10 +153,11 @@ import './ui/PickSearch';
 // NB: no other ui/ panel is listed here, and the reason is now the same one
 // for all of them: nothing looks them up by name. Every remaining consumer
 // imports the panel it renders, so the ESM graph loads it (rule 2 asks
-// whether a file LOADS, not whether this file names it). ui/LiveVotersPanel,
-// ui/LiveCircleBody and ui/LiveCohortBody additionally must not be listed —
+// whether a file LOADS, not whether this file names it). ui/LiveCircleBody,
+// ui/LiveCohortBody and ui/profileSetup additionally must not be listed —
 // each is reached only past first paint (D25's deferred group; a React.lazy
-// for Circle and, since D119, for Cohort), so a line here would drag it into
+// for Circle and, since D119, for Cohort; main.jsx's own dynamic import for
+// the account-creation questions, D146), so a line here would drag it into
 // the eager bundle, which is the whole thing the deferral bought.
 //
 // ui/LiveGroupsMirrorBody and ui/LiveTakesPanel were listed until D137 for a

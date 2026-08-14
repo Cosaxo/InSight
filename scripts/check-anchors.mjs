@@ -3,9 +3,12 @@
 //
 // WHY THIS IS A GATE. `foldAnchors` (functions/src/pure.ts) checks a value
 // against BREAKDOWN_DIM_VOCAB before it may claim one of the 24 bucket slots
-// in a dimension. The values a real user can send come from the <select>s in
-// src/v2/spec/profile-general.jsx. Nothing but this script holds those two
-// lists equal, and every way they can drift is silent:
+// in a dimension. The values a real user can send come from the <select>s the
+// client renders, and since D146 there are TWO screens that render them — the
+// profile's Basics card and the account-creation questions — both fed from
+// one list module, src/v2/spec/profile-vitals.js, which is the client side
+// read below. Nothing but this script holds that module and the server's
+// vocabulary equal, and every way they can drift is silent:
 //
 //   - a label edited on the client stops matching, so that answer folds into
 //     NO bucket — the answer still writes, the aggregate just never counts
@@ -35,7 +38,7 @@ import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const PURE = "functions/src/pure.ts";
-const PROFILE = "src/v2/spec/profile-general.jsx";
+const PROFILE = "src/v2/spec/profile-vitals.js";
 
 const pure = readFileSync(resolve(root, PURE), "utf8");
 const profile = readFileSync(resolve(root, PROFILE), "utf8");
@@ -66,8 +69,8 @@ const REJECT = classMatch ? new RegExp(classMatch[1].slice(1, -1)) : null;
 
 // A bracketed array literal of single- or double-quoted strings, starting at
 // `from`. Written by hand because both sides are source files rather than
-// data, and neither may be imported: pure.ts is TypeScript, and
-// profile-general.jsx registers globals as an import side effect.
+// data, and neither may be imported: pure.ts is TypeScript, and this script
+// runs as a plain node module outside the Vite graph the spec layer needs.
 function arrayLiteralAt(src, from, what) {
   const open = src.indexOf("[", from);
   const close = src.indexOf("]", open);
