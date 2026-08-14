@@ -530,8 +530,13 @@ per-chunk one is improved by relocating bytes into another preloaded
 chunk, and the total counts Sentry, the world-feed group and the overlays,
 which first paint never fetches.
 
-`check:bundle` holds **three** numbers now, and `MAX_EAGER_KB` is the one
+`check:bundle` holds **four** numbers now, and `MAX_EAGER_KB` is the one
 to quote for a first-paint claim — the script prints it on every run.
+The fourth is D144's `MAX_EAGER_CHUNK_KB`, which says the same thing as
+`MAX_EAGER_KB` in a form that cannot be raised away: no member of the
+eager set except the entry may be library-sized. `MAX_EAGER_KB` protects
+first paint only while nobody raises it, and it was raised four times in
+four days.
 D110 was the first thing it found: 292 KB of Firestore SDK had been
 preloaded on every cold start, in every build, including ones with no
 Firebase config at all. The eager graph is **944 KB**, down from 1270.2.
