@@ -15402,3 +15402,54 @@ the live reveal carries the **takes** thread and the sample had no thread
 to carry. By the time most people open the tab they have already answered;
 burying the app's only conversation surface behind a dot tap is not a
 trade the prototype was making.
+
+### 7 · The sweep the same message asked for, and what it found
+
+*"There is other small design choises you also have missed from the sample
+so you should have a look through it."* Done mechanically rather than by
+eye: 105 prototype modules matched by header comment against `src/v2/spec/`
+(62 pairs), each diffed with the port's mechanical noise normalised away —
+`window.`/`globalThis.` prefixes, the IIFE-to-ESM scaffolding, the
+`Sheet` extraction — and every remaining prototype-only block read.
+
+**The port is faithful.** Nearly every surviving difference is an
+already-recorded divergence: D103's cognitive retirement (`CB_EXTRA_CFG`),
+D111's seven stops against the prototype's five, the two dead guards D137
+deleted (`GroupLevelBreakdown`, `GroupCompare`), the live folds that
+replaced `PASSIVE`'s device-local counts, and the `role="button"` divs
+`check:a11y` turned into real buttons.
+
+**One thing was shipped from it.** The prototype labels a person with
+their type's MARK wherever one is listed (`TypeChip`, drawn from
+`type-marks.jsx`). The live Kindred card had the type's NAME beside a dot
+coloured by `angleHash(uid)` — decorative, and sitting in the one place on
+the card a reader would take for a reading. It now draws `TypeMark`, the
+same glyph `TypeMixCard` gives each type, so a badge on a person and a row
+in a population are one object. Mutation-checked: the test fails against
+the dot.
+
+**Three prototype features are absent, and stay absent for now.** Named
+here so the next pass starts from a list rather than another diff, which
+is what D113 §"What v20 has that this tree still does not" was for — two
+of its four entries are still open:
+
+- **Born or built** (`nature-data.js` + `result-card.jsx`'s `NatureRows`):
+  per-dimension heritability from twin studies, as a bar per dimension on
+  every test result card. Static reference data, no live read, no D1
+  problem — but its `cognitive` entry collides with D103 and has to be
+  dropped or re-recorded when taken, and the framing ("population
+  estimates: about differences between people, never a slice of one
+  person") is load-bearing copy, not a caption. Carried from D113.
+- **Predictions** (`predict-data.js`, `predict-cards.jsx`): CALL/READ
+  cards on a ten-second clock, as a feed channel. A whole game with a
+  resolution pipeline behind it. Carried from D113.
+- **What moves together** (`trait-links.js`, `trait-web.jsx`): known
+  cross-test correlations checked against your own results, on the
+  profile's General panel — "the rule you break is the most individual
+  thing the data can say about you". NOT on D113's list, so this is a new
+  entry: either it arrived after v20 or it was missed. Pure client-side
+  over results already on the device.
+
+None is a small design choice, which is what the message asked about, and
+each is a screen's worth of work with its own honesty questions. They are
+a list to choose from, not a queue to run.

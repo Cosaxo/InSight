@@ -26,7 +26,9 @@ const LIVE = vi.hoisted(() => {
   const social = {
     groups: () => [] as Array<Record<string, unknown>>,
     todayQ: () => null as Record<string, unknown> | null,
-    myDuelVote: () => null as { optionIdx: number } | null,
+    // Takes the gid since D156 — the rail asks per circle which ones
+    // still want you, so a fixture with two circles has to answer for both.
+    myDuelVote: (gid?: string) => { void gid; return null as { optionIdx: number } | null; },
     revealFor: () => null as Record<string, unknown> | null,
     // Day browsing (D156). The card draws one dot per readable reveal and
     // folds the duo's read-runs out of the same list, so the mock answers
@@ -553,7 +555,7 @@ describe("LiveDuelPanel · the rail", () => {
       { ...DUO, id: "g2", memberUids: ["u_me", "u_bo"], memberNames: { u_me: "Me", u_bo: "Bo" } },
     ];
     // g1 played, g2 has not
-    LIVE.social.myDuelVote = (gid: string) => (gid === "g1" ? { optionIdx: 0 } : null);
+    LIVE.social.myDuelVote = (gid?: string) => (gid === "g1" ? { optionIdx: 0 } : null);
     render(<LiveDuelPanel mode="duo" />);
 
     expect(screen.getByRole("button", { name: /Ada — done for today/i })).toBeTruthy();
