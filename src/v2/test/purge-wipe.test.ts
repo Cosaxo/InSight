@@ -57,6 +57,9 @@ import { SCENES } from "../spec/scenes.js";
 import { LEARN } from "../spec/learn-progress.js";
 // @ts-expect-error TS7016 — untyped spec module
 import { LEARN_CARDS } from "../spec/learn-data.js";
+// …and the suggestion store with the v24 board sync (D137's client half).
+// @ts-expect-error TS7016 — untyped spec module
+import { SUGGESTIONS } from "../spec/suggestions.js";
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- the spec layer's
    window surface is untyped by design; these tests drive it as consumers do */
@@ -185,13 +188,18 @@ describe("module stores drop their memory on the purge (D51)", () => {
     expect(stored("insight.subtopics.v1")).toContain("sub_tennis"); // the unfollow did not survive
   });
 
-  it("SUGGESTIONS: authored questions stop rendering as the new account's 'You'", () => {
-    W.SUGGESTIONS.submit({ prompt: "purge-sentinel-question", type: "binary", options: ["a", "b"] });
-    expect(W.SUGGESTIONS.counts().mine).toBe(1);
+  it("SUGGESTIONS: authored questions stop rendering as the new account's 'You'", async () => {
+    await SUGGESTIONS.submit({ prompt: "purge-sentinel-question", type: "binary", options: ["a", "b"] });
+    // Your first real submission takes the board over from the demo trio
+    // (the v24 rule: the demo rows exist only until you have made your own).
+    expect(SUGGESTIONS.counts().mine).toBe(1);
     purge();
-    expect(W.SUGGESTIONS.counts().mine).toBe(0);
+    // Post-purge the demo trio returns — baked content, identical for every
+    // account, so nothing of the PREVIOUS account survives in it. What must
+    // be gone is the sentinel, asserted below on the persisted payload.
+    expect(SUGGESTIONS.counts().mine).toBe(3);
     expect(stored("insight.suggestions.v1")).toBeNull();
-    W.SUGGESTIONS.toggleVote("sg01");
+    SUGGESTIONS.toggleVote("sg01");
     const after = stored("insight.suggestions.v1")!;
     expect(after).toContain("sg01");
     expect(after).not.toContain("purge-sentinel-question");

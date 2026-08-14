@@ -456,10 +456,13 @@ about today's schema should be bent in anticipation.
 what type, one-off or repeating — and a path from there to the banks.
 
 **Verdict: build; it is the shortest distance to shipped value on this
-list, and it feeds §1.** *Status 2026-08-14: the v1 backend below is
-BUILT on this branch — D137 is the record. The spec board still writes
-localStorage until the client wiring lands, with §8's live-states design
-pass.* What exists: the composer + board UI
+list, and it feeds §1.** *Status 2026-08-14: DONE end to end on this
+branch — the v1 backend (D137) and, same day, the v24 board design
+ported live: submissions ride the callable, "Yours" shows real
+review/picked/declined states with the reviewer's note, refusals render
+the server's own message, and the community lenses wear the preview tag
+until a public pool is its own decision. The store came off the global
+bridge with the port (coupling 417 → 415).* What exists: the composer + board UI
 (`src/v2/spec/suggestions.jsx`, opened from the feed sheet), a seeded
 demo store with statuses `review`/`picked`
 (`src/v2/spec/suggestions.js` — "moderation is faked here" is its own
@@ -639,6 +642,8 @@ token (D105).
    (in review / picked / declined with a reason), the composer's hint
    pickers (type · cadence · audience), the kind decline for
    place-scoped asks, and the paid door beside the free gate.
+   **Delivered in standalone v24 and ported live 2026-08-14**
+   (`design/standalone-v24/README.md` tracks the rest).
 5. **Current-events chrome (§1)** — a "closes in N days" chip, the
    `now` kicker, and the archived "asked 12–19 Aug" label on answer
    rows. Small.

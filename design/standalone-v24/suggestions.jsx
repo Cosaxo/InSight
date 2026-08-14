@@ -1,16 +1,3 @@
-// Ported from design/spec-modules/suggestions.jsx (the historical prototype),
-// re-synced 2026-08-14 from design/standalone-v24/suggestions.jsx — the §8
-// handoff's board redesign: hint pickers, the your-submissions states, kind
-// declines, the paid door. The store arrives by IMPORT now (converted with it);
-// SuggestOverlay stays on `window` because app-shell reads deferred overlays
-// off `window` DELIBERATELY — a failed chunk must degrade to a blank, not a
-// ReferenceError (smoke-overlays.test.jsx mutation-checks exactly that).
-import React from 'react';
-import { useDialog } from './primitives.jsx';
-import { WPAL } from './world-palette.js';
-import { SUGGESTIONS } from './suggestions.js';
-import LIVE from '../data/live';
-
 // suggestions.jsx — "Suggest a question": community board + composer (overlay).
 // Propose a question, upvote others; the top, once reviewed, become Dailies.
 // Speaks the app's current voice: sans, oklch hue family, no mono micro-labels.
@@ -18,18 +5,13 @@ const { useState: useSgState } = React;
 
 function useSuggestions() {
   const [, bump] = useSgState(0);
-  React.useEffect(() => {
-    // One-shot load of your real rows when the board opens (live only) —
-    // the store is eager, the query is not (D124/D129 posture).
-    SUGGESTIONS.ensureLive();
-    return SUGGESTIONS.subscribe(() => bump((x) => x + 1));
-  }, [bump]);
-  return SUGGESTIONS;
+  React.useEffect(() => window.SUGGESTIONS.subscribe(() => bump((x) => x + 1)), []);
+  return window.SUGGESTIONS;
 }
 
-const sgHueCol = (hue) => WPAL.c('oklch(0.52 0.14 ' + (hue != null ? hue : 40) + ')');
+const sgHueCol = (hue) => window.WPAL.c('oklch(0.52 0.14 ' + (hue != null ? hue : 40) + ')');
 // same side-hue rotation the daily uses — the preview feels like the real thing
-const sgOptCol = (tc, i, n) => WPAL.opt(tc, i, n);
+const sgOptCol = (tc, i, n) => window.WPAL.opt(tc, i, n);
 const sgLabel = { fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: 'var(--ink-3)' };
 
 // answer-shape mark: 2 dots = this-or-that, 3 = dilemma/choice, line = scale.
@@ -138,9 +120,7 @@ function SgPick({ label, options, value, onPick }) {
 }
 
 // ── your submissions: status first, and a decline that states the standard it
-// missed, the reason behind it, and — where one exists — the way forward. A
-// LIVE row hides the backing count (nothing counts backing yet — a number
-// here would be invented) and shows the review's own note as the reason.
+// missed, the number behind it, and the way forward.
 function SgMine({ s, SG, onResend }) {
   const col = sgHueCol(s.hue);
   const d = SG.declineOf(s);
@@ -161,13 +141,13 @@ function SgMine({ s, SG, onResend }) {
         <span style={{ fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)' }}>
           {s.status === 'picked' && s.ran ? s.ran : SG.audienceLabel(s.audience) + ' · ' + SG.cadenceLabel(s.cadence)}
         </span>
-        {s.live ? null : <span style={{ fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 700, color: 'var(--ink-3)' }}>· {votes} backing</span>}
+        <span style={{ fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 700, color: 'var(--ink-3)' }}>· {votes} backing</span>
       </div>
       {d ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, borderTop: '0.5px solid color-mix(in oklch, var(--rule), transparent 25%)', paddingTop: 10 }}>
           <span style={{ fontFamily: 'var(--sans)', fontSize: 13.5, fontWeight: 800, letterSpacing: '-0.01em' }}>{d.line}</span>
           <span style={{ fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)', lineHeight: 1.5, textWrap: 'pretty' }}>{d.why}</span>
-          {d.offer ? <span style={{ fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)', lineHeight: 1.5, textWrap: 'pretty' }}>{d.offer}</span> : null}
+          <span style={{ fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)', lineHeight: 1.5, textWrap: 'pretty' }}>{d.offer}</span>
           {d.offerAudience ? (
             <button className="press" onClick={() => onResend(s, d.offerAudience)} style={{ alignSelf: 'flex-start', marginTop: 2, padding: '9px 15px', borderRadius: 999, cursor: 'pointer', WebkitAppearance: 'none', border: 'none', background: 'var(--ink)', color: 'var(--surface)', fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 800 }}>
               Send it for {SG.audienceLabel(d.offerAudience)}
@@ -180,7 +160,7 @@ function SgMine({ s, SG, onResend }) {
 }
 
 const sgInput = {
-  width: '100%', boxSizing: 'border-box', fontFamily: 'var(--sans)', fontSize: 'var(--field-size)', fontWeight: 600, color: 'var(--ink)',
+  width: '100%', boxSizing: 'border-box', fontFamily: 'var(--sans)', fontSize: 15.5, fontWeight: 600, color: 'var(--ink)',
   background: 'var(--surface)', border: '0.5px solid var(--rule)', borderRadius: 12, padding: '12px 13px', outline: 'none',
 };
 
@@ -192,10 +172,6 @@ function SgForm({ SG, onDone, onCancel }) {
   const [cadence, setCadence] = useSgState('once');
   const [audience, setAudience] = useSgState('world');
   const [feat, setFeat] = useSgState(false);
-  const [sending, setSending] = useSgState(false);
-  // the server's refusal, shown verbatim — the messages are written to be
-  // shown (the budget, the paid-path decline, a form bound)
-  const [refusal, setRefusal] = useSgState(null);
   const topics = window.WORLD_TOPICS || [];
   const topic = topics.find((t) => t.id === topicId) || null;
   const hue = topic ? parseFloat((topic.color.match(/([\d.]+)\)/) || [])[1]) : 282;
@@ -204,15 +180,8 @@ function SgForm({ SG, onDone, onCancel }) {
   const chooseType = (t) => { setType(t); const n = t === 'binary' ? 2 : t === 'dilemma' ? 3 : 4; setOpts(Array.from({ length: n }, (_, i) => opts[i] || '')); };
   const setOpt = (i, v) => setOpts((o) => o.map((x, j) => (j === i ? v : x)));
   const filled = opts.filter((o) => o.trim());
-  const valid = prompt.trim() && (!needOpts || filled.length >= 2) && !sending;
-  const submit = async () => {
-    if (!valid) return;
-    setSending(true); setRefusal(null);
-    const res = await SG.submit({ prompt, type, options: needOpts ? opts : [], topic: topic ? topic.label : '', hue, cadence, audience });
-    setSending(false);
-    if (res && res.ok === false) { setRefusal(res.message); return; }
-    onDone();
-  };
+  const valid = prompt.trim() && (!needOpts || filled.length >= 2);
+  const submit = () => { if (!valid) return; SG.submit({ prompt, type, options: needOpts ? opts : [], topic: topic ? topic.label : '', hue, cadence, audience }); onDone(); };
 
   return (
     <div className="card" style={{ marginBottom: 16 }}>
@@ -238,7 +207,7 @@ function SgForm({ SG, onDone, onCancel }) {
       {needOpts ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 7, marginTop: 10 }}>
           {opts.map((o, i) => (
-            <input key={i} value={o} onChange={(e) => setOpt(i, e.target.value)} placeholder={'Option ' + (i + 1) + (i > 1 ? ' (optional)' : '')} style={{ ...sgInput, padding: '10px 13px' }}></input>
+            <input key={i} value={o} onChange={(e) => setOpt(i, e.target.value)} placeholder={'Option ' + (i + 1) + (i > 1 ? ' (optional)' : '')} style={{ ...sgInput, fontSize: 14, padding: '10px 13px' }}></input>
           ))}
         </div>
       ) : null}
@@ -299,20 +268,14 @@ function SgForm({ SG, onDone, onCancel }) {
           background: valid ? 'var(--accent)' : 'var(--surface-3)', border: 'none', WebkitAppearance: 'none',
           color: valid ? '#fff' : 'var(--ink-3)', fontFamily: 'var(--sans)', fontSize: 14.5, fontWeight: 800,
           transition: 'background .18s, color .18s',
-        }}>{sending ? 'Sending…' : 'Submit for review'}</button>
+        }}>Submit for review</button>
       </div>
-      {refusal ? (
-        <div role="alert" style={{ marginTop: 10, fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 650, color: 'var(--ink)', background: 'var(--surface-2)', border: '0.5px solid var(--rule)', borderRadius: 10, padding: '10px 12px', lineHeight: 1.5, textWrap: 'pretty' }}>{refusal}</div>
-      ) : null}
       <div style={{ marginTop: 9, fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 600, color: 'var(--ink-3)', lineHeight: 1.4 }}>
         Reviewed before picking — the most-upvoted become Dailies.
       </div>
 
       {/* the paid door, beside the free path — never instead of it. What money
-          buys is the window and the queue, never the review and never the frame
-          (docs/MONETIZATION.md; docs/NEXT-FUNCTIONALITY.md §6). Live, the door
-          is honest about its state: the paid path is a human contract today,
-          so the button names that instead of pretending a checkout exists. */}
+          buys is the window and the queue, never the review and never the frame. */}
       <div style={{ marginTop: 14, border: '1px solid color-mix(in oklch, var(--ink) 20%, var(--rule))', borderRadius: 14, overflow: 'hidden' }}>
         <button className="press" onClick={() => setFeat(!feat)} aria-expanded={feat} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 9, padding: '11px 13px', border: 'none', background: 'var(--surface)', cursor: 'pointer', WebkitAppearance: 'none', textAlign: 'left' }}>
           <span aria-hidden="true" style={{ width: 10, height: 10, borderRadius: 2, background: 'var(--ink)', flexShrink: 0 }}></span>
@@ -333,15 +296,9 @@ function SgForm({ SG, onDone, onCancel }) {
             <span style={{ fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 600, color: 'var(--ink-3)', lineHeight: 1.5 }}>
               You get the counts and the standard cuts — never names.
             </span>
-            {LIVE.enabled ? (
-              <span style={{ fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 700, color: 'var(--ink-3)', lineHeight: 1.5 }}>
-                Not open for self-serve yet — featured questions are arranged directly for now. Submit free above and it keeps its place in the queue.
-              </span>
-            ) : (
-              <button className="press" onClick={async () => { if (!valid) return; setSending(true); const res = await SG.submit({ prompt, type, options: needOpts ? opts : [], topic: topic ? topic.label : '', hue, cadence, audience, featured: true }); setSending(false); if (res && res.ok === false) { setRefusal(res.message); return; } onDone(); }} disabled={!valid} style={{ alignSelf: 'flex-start', padding: '10px 16px', borderRadius: 999, cursor: valid ? 'pointer' : 'default', WebkitAppearance: 'none', border: '1px solid var(--ink)', background: valid ? 'var(--surface)' : 'var(--surface-3)', color: valid ? 'var(--ink)' : 'var(--ink-3)', fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 800 }}>
-                Price it for {SG.audienceLabel(audience)} →
-              </button>
-            )}
+            <button className="press" onClick={() => { if (!valid) return; SG.submit({ prompt, type, options: needOpts ? opts : [], topic: topic ? topic.label : '', hue, cadence, audience, featured: true }); onDone(); }} disabled={!valid} style={{ alignSelf: 'flex-start', padding: '10px 16px', borderRadius: 999, cursor: valid ? 'pointer' : 'default', WebkitAppearance: 'none', border: '1px solid var(--ink)', background: valid ? 'var(--surface)' : 'var(--surface-3)', color: valid ? 'var(--ink)' : 'var(--ink-3)', fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 800 }}>
+              Price it for {SG.audienceLabel(audience)} →
+            </button>
           </div>
         ) : null}
       </div>
@@ -361,20 +318,14 @@ function sgSort(list, lens) {
 }
 
 function SuggestOverlay({ onClose }) {
-  const dlg = useDialog(onClose, 'Suggest a question');
   const SG = useSuggestions();
   const [formOpen, setFormOpen] = useSgState(false);
   const [lens, setLens] = useSgState('top');
   const c = SG.counts();
   const shown = sgSort(SG.all(), lens);
   const max = Math.max(1, ...SG.all().map((x) => x.liveVotes));
-  // The community lenses draw the seeded demo board — there is no live pool
-  // yet (a public voting board is its own decision, D137's "not built"). In a
-  // live build they wear the app's preview tag instead of pretending; "Yours"
-  // is real data and wears nothing.
-  const communityPreview = LIVE.enabled && lens !== 'mine';
   return (
-    <div className="overlay" {...dlg}>
+    <div className="overlay">
       <div className="app-header">
         <button className="avatar-btn" onClick={onClose}>✕</button>
         <div className="h-title">suggest a <em>question</em></div>
@@ -408,11 +359,6 @@ function SuggestOverlay({ onClose }) {
             );
           })}
         </div>
-        {communityPreview ? (
-          <div style={{ margin: '-4px 2px 12px', fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 700, color: 'var(--ink-3)' }}>
-            Preview · sample suggestions until the community board goes live — yours are real, under Yours
-          </div>
-        ) : null}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {lens === 'mine'
             ? shown.slice().sort((a, b) => a.days - b.days).map((x) => (
@@ -430,8 +376,4 @@ function SuggestOverlay({ onClose }) {
   );
 }
 
-// The one deliberate global this module keeps: app-shell reads deferred
-// overlays off `window` so a failed chunk degrades to a blank instead of a
-// ReferenceError (smoke-overlays.test.jsx mutation-checks it). Everything
-// else this file used to publish is gone with the conversion.
-Object.assign(window, { SuggestOverlay });
+Object.assign(window, { SuggestOverlay, useSuggestions });

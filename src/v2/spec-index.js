@@ -9,7 +9,13 @@ import './spec/sample-data.js';
 import './spec/archetype-data.js';
 import './spec/compare-pop.js';
 import './spec/daily-questions.js';
-import './spec/suggestions.js';
+// suggestions.js moved to the loadOverlays group (still listed, still in
+// order — the D25 move): the board's store carries the v24 seed/decline
+// furniture, and check:bundle's eager budget is why a closed board must
+// not cost a byte at boot. Its purge listener attaches when the group
+// loads, which is safe: purgeLocalTrace removes the insight.* keys
+// itself, and a module that never loaded holds no in-memory state for
+// the listener to clear.
 import './spec/demographics.js';
 import './spec/follows.js';
 import './spec/scenes.js';
@@ -263,6 +269,7 @@ export const loadOverlays = retryable(async () => {
   await import('./spec/person-mindmap.jsx');
   await import('./spec/person-overlay.jsx');
   await import('./spec/city-overlay.jsx');
+  await import('./spec/suggestions.js');
   await import('./spec/suggestions.jsx');
   await import('./spec/logic-test.jsx');
 });

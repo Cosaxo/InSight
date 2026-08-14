@@ -13529,9 +13529,14 @@ The collection's growth ceiling is the budget times the user count, and
 the review instruments never read more than the cap per call.
 
 **Not built, deliberately:** the public voting board and its upvotes
-(a moderation surface — own decision); client wiring (the spec board
-still writes localStorage until the live states land, with the §8 design
-pass); any write path into `content/` (the two-gate shape is the point).
+(a moderation surface — own decision); any write path into `content/`
+(the two-gate shape is the point). *(The client wiring was on this list
+for a few hours: the same day, the designer's standalone v24 delivered
+the §8 board design and the port landed it live — the store converted
+off the global bridge, submissions through the callable, real statuses
+under "Yours", the community lenses wearing the preview tag until a
+public pool is a decision. `design/standalone-v24/README.md` tracks the
+remaining ports.)*
 The tripwire's watchlist is a pinned copy of question-quality.mjs's —
 a Cloud Function cannot read a repo script at runtime — and the unit
 test carries the canonical cases so drift in either copy fails loudly.
