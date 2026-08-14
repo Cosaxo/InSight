@@ -35,8 +35,17 @@ import React from "react";
 import LIVE, { TAKE_MAX_CHARS } from "../data/live";
 import type { TakeDoc } from "../data/live";
 import { isMutedAuthor, muteAuthor, subscribeMutes } from "../data/mutes";
+// The app's one option-colour function, so a side wears the same hue in the
+// takes list that it wears on the card's own result rows.
+// @ts-expect-error TS7016 — untyped spec module (the LiveSimilarityField pattern)
+import { WPAL } from "../spec/world-palette.js";
 
 const LT_LINE = "1px solid color-mix(in oklch, var(--rule), transparent 25%)";
+
+/** The fill a side wears — index into the question's own option order. */
+function sideFill(i: number, n: number): string {
+  return WPAL.opt("var(--accent)", i, n, true) as string;
+}
 
 interface LiveGroupLite {
   id: string;
@@ -48,15 +57,31 @@ function ltErr(e: unknown): string {
 }
 
 // Same initial-disc vocabulary the Groups mirror uses, so a circle's people
-// look like themselves across the two surfaces.
-function LtMark({ name }: { name: string }) {
+// look like themselves across the two surfaces — but wearing the author's
+// SIDE when their side is known (D144). An argument reads completely
+// differently once you can see which way the person arguing it voted, and
+// the disc is the cheapest place to say it: it is already on every row, so
+// scanning for "who is on my side" costs no extra ink.
+function LtMark({ name, fill }: { name: string; fill?: string }) {
   const init = (name || "?").trim().slice(0, 1).toUpperCase() || "?";
   return (
     <span aria-hidden="true" style={{
       width: 30, height: 30, borderRadius: "50%", flexShrink: 0, display: "flex",
       alignItems: "center", justifyContent: "center", fontFamily: "var(--sans)",
-      fontWeight: 800, fontSize: 11.5, background: "var(--surface-3)", color: "var(--ink-2)",
+      fontWeight: 800, fontSize: 11.5,
+      background: fill || "var(--surface-3)", color: fill ? "#fff" : "var(--ink-2)",
     }}>{init}</span>
+  );
+}
+
+/** The side chip beside a name — the option label, in that option's ink. */
+function LtSide({ label, fill }: { label: string; fill: string }) {
+  return (
+    <span style={{
+      background: fill, color: "#fff", fontFamily: "var(--sans)", fontSize: 10.5,
+      fontWeight: 800, padding: "2px 8px", borderRadius: 999, whiteSpace: "nowrap",
+      maxWidth: 150, overflow: "hidden", textOverflow: "ellipsis",
+    }}>{label}</span>
   );
 }
 
@@ -72,12 +97,14 @@ function ltWhen(ms: number): string {
 
 // ── one take, with the control that flags it ─────────────────────────
 
-function LtTakeRow({ take, gid, name, mine, world }: {
+function LtTakeRow({ take, gid, name, mine, world, side }: {
   take: TakeDoc;
   gid: string;
   name: string;
   mine: boolean;
   world?: boolean;
+  /** Which option this author picked, when it is known. */
+  side?: { label: string; fill: string } | null;
 }) {
   const [confirming, setConfirming] = React.useState(false);
   // The world row's second control (guideline 1.2's block): local, silent,
@@ -128,12 +155,13 @@ function LtTakeRow({ take, gid, name, mine, world }: {
       padding: "10px 12px", display: "flex", flexDirection: "column", gap: 8,
     }}>
       <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
-        <LtMark name={mine ? "You" : name} />
+        <LtMark name={mine ? "You" : name} fill={side?.fill} />
         <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 3 }}>
-          <div style={{ display: "flex", alignItems: "baseline", gap: 7 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
             <span style={{ fontFamily: "var(--sans)", fontWeight: 800, fontSize: 12.5, color: "var(--ink)" }}>
               {mine ? "You" : name}
             </span>
+            {side && <LtSide label={side.label} fill={side.fill} />}
             <span style={{ fontFamily: "var(--sans)", fontSize: 10.5, fontWeight: 600, color: "var(--ink-3)" }}>
               {ltWhen(take.createdAt)}
             </span>
@@ -273,8 +301,22 @@ function LtComposer({ gid, qid }: { gid: string; qid: string }) {
 
 // ── the panel ────────────────────────────────────────────────────────
 
-function LiveTakesPanel({ gid, qid }: { gid: string; qid: string }) {
+function LiveTakesPanel({ gid, qid, options }: {
+  gid: string;
+  qid: string;
+  /**
+   * The question's option labels, in the question's own order (D144).
+   *
+   * Given them, every take carries the side its author voted and the list
+   * gains a side filter. Omitted, the panel is exactly what it was — the
+   * duel rows pass nothing, because a sealed duel's answers are not
+   * readable until the reveal and a badge there would be the leak the
+   * seal exists to prevent.
+   */
+  options?: string[];
+}) {
   const [, tick] = React.useState(0);
+  const [side, setSide] = React.useState(-1);
   React.useEffect(() => LIVE.subscribe(() => tick((t) => t + 1)), []);
   React.useEffect(() => subscribeMutes(() => tick((t) => t + 1)), []);
   // One fetch per scope per session; the store holds the list. Takes are
@@ -282,19 +324,49 @@ function LiveTakesPanel({ gid, qid }: { gid: string; qid: string }) {
   // a surface most days nobody writes in. qid rides along for the world
   // scope, whose query and cache are per-question; a circle ignores it.
   React.useEffect(() => { void LIVE.social.loadTakes(gid, qid); }, [gid, qid]);
+  // WHERE A SIDE COMES FROM (D144). Not from the take document — `v2_takes`
+  // accepts a fixed field list and carries no vote — but from the answer
+  // the author already wrote, through the same collection-group read the
+  // who-voted sheet uses. So the badge is the author's real answer rather
+  // than a second claim that could disagree with it, and on a card whose
+  // who-voted sheet has been opened it costs nothing at all: one query per
+  // question per session, cached in the store.
+  //
+  // Gated on `options` so the panel keeps its old cost when a caller has
+  // no option list to badge with.
+  const wantSides = !!(options && options.length);
+  React.useEffect(() => {
+    if (wantSides && qid) void LIVE.loadVoters(qid);
+  }, [wantSides, qid]);
   // Read before the hooks below so they can depend on it — the early
   // `return null` guard sits after every hook, which is what keeps the
   // hook order stable across the enabled/disabled flip.
   const takesForNames = LIVE.enabled && gid && qid ? LIVE.social.takes(gid, qid) : [];
+  const voters = LIVE.enabled && wantSides ? LIVE.voters(qid) : null;
+  // uid → the option they picked. Built off the voter list, so an author
+  // who has not answered this question simply has no side and renders
+  // without a badge rather than with a guessed one.
+  const sideOf = React.useMemo(() => {
+    const m: Record<string, number> = {};
+    for (const v of voters || []) m[v.uid] = v.optionIdx;
+    return m;
+  }, [voters]);
   // World takes carry `authorUid` and no author name, so the names have to
   // be resolved separately (D98). Batched, into the same session cache the
   // voters panel fills — a question whose who-voted sheet has already been
   // opened usually pays nothing here. Circle takes skip it: their names
   // ride on the group document already.
-  const authorUids = takesForNames.map((t) => t.authorUid);
-  const authorKey = authorUids.join(",");
+  //
+  // Only the authors the voter read did NOT already resolve: when sides are
+  // wanted, loadVoters resolves a name for everyone who answered, which is
+  // almost every author. Asking for those again would be a second profile
+  // read for the same documents on every first open.
+  const authorKey = takesForNames
+    .map((t) => t.authorUid)
+    .filter((u) => !(wantSides && voters && u in sideOf))
+    .join(",");
   React.useEffect(() => {
-    // authorKey (a joined string), not authorUids: a fresh array identity
+    // authorKey (a joined string), not an array: a fresh array identity
     // every render would re-run this effect forever.
     if (gid === "world" && authorKey) void LIVE.loadNames(authorKey.split(","));
   }, [gid, authorKey]);
@@ -309,14 +381,32 @@ function LiveTakesPanel({ gid, qid }: { gid: string; qid: string }) {
   // The mute filter is display-only and local (data/mutes.ts) — the block
   // control 1.2 expects. Your own take always shows, muted or not: you
   // cannot lose your own words to a fat-fingered self-mute.
-  const takes = LIVE.social.takes(gid, qid)
+  const all = LIVE.social.takes(gid, qid)
     .filter((t) => !world || t.authorUid === uid || !isMutedAuthor(t.authorUid));
   const group = world ? undefined : (LIVE.social.groups() as LiveGroupLite[]).find((g) => g.id === gid);
   const names = group?.memberNames || {};
+  const opts = options || [];
+  const sideFor = (u: string) => {
+    const i = wantSides ? sideOf[u] : undefined;
+    return typeof i === "number" && i >= 0 && i < opts.length
+      ? { label: opts[i], fill: sideFill(i, opts.length) }
+      : null;
+  };
+  // How many takes sit on each side, so the filter row can carry its own
+  // counts and an empty side can say so rather than opening onto nothing.
+  const perSide = opts.map((_, i) => all.filter((t) => sideOf[t.authorUid] === i).length);
+  // The row appears only once a side is actually known for someone: before
+  // the voter read lands, chips that all read 0 would be a filter over a
+  // list the panel cannot yet sort.
+  const canFilter = wantSides && perSide.some((n) => n > 0);
+  const openSide = canFilter && side >= 0 && side < opts.length ? side : -1;
+  const takes = openSide < 0 ? all : all.filter((t) => sideOf[t.authorUid] === openSide);
   // World scope: one take per person per question — the doc id enforces it
   // (qid_uid, rules), so the composer folds away instead of inviting a
-  // write the server must refuse.
-  const mineAlready = world && !!uid && takes.some((t) => t.authorUid === uid);
+  // write the server must refuse. Measured on the WHOLE list, not the
+  // filtered one: a side filter must not offer a composer the rules will
+  // bounce just because your own take is currently hidden by it.
+  const mineAlready = world && !!uid && all.some((t) => t.authorUid === uid);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10, width: "100%" }}>
@@ -324,6 +414,35 @@ function LiveTakesPanel({ gid, qid }: { gid: string; qid: string }) {
         <span style={{ fontFamily: "var(--sans)", fontSize: 10.5, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--ink-3)" }}>
           Takes · posted under your name
         </span>
+      )}
+      {/* Filter by side (D144). The prototype's Takes sheet has led with
+          this row since the first build and the live panel never had it:
+          "what does the other side say" is the second thing anyone wants
+          from an argument, and scrolling for it is not an answer. Pure
+          display — every take is already in hand, so a chip costs no
+          read. */}
+      {canFilter && (
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          <button onClick={() => setSide(-1)} aria-pressed={openSide < 0} style={{
+            border: LT_LINE, borderRadius: 999, padding: "5px 12px", cursor: "pointer",
+            fontFamily: "var(--sans)", fontWeight: 700, fontSize: 12, WebkitAppearance: "none",
+            background: openSide < 0 ? "var(--ink)" : "var(--surface)",
+            color: openSide < 0 ? "var(--surface)" : "var(--ink-2)", whiteSpace: "nowrap",
+          }}>All · {all.length}</button>
+          {opts.map((label, i) => {
+            const on = openSide === i;
+            const fill = sideFill(i, opts.length);
+            return (
+              <button key={i} onClick={() => setSide(on ? -1 : i)} aria-pressed={on} style={{
+                border: on ? `1px solid ${fill}` : LT_LINE, borderRadius: 999, padding: "5px 12px",
+                cursor: "pointer", fontFamily: "var(--sans)", fontWeight: 700, fontSize: 12,
+                WebkitAppearance: "none", background: on ? fill : "var(--surface)",
+                color: on ? "#fff" : "var(--ink-2)", whiteSpace: "nowrap",
+                maxWidth: 190, overflow: "hidden", textOverflow: "ellipsis",
+              }}>{label} · {perSide[i]}</button>
+            );
+          })}
+        </div>
       )}
       {takes.map((t) => (
         <LtTakeRow
@@ -346,11 +465,14 @@ function LiveTakesPanel({ gid, qid }: { gid: string; qid: string }) {
             : (names[t.authorUid] || "Member")}
           mine={!!uid && t.authorUid === uid}
           world={world}
+          side={sideFor(t.authorUid)}
         />
       ))}
       {!takes.length && (
         <span style={{ fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 600, color: "var(--ink-3)" }}>
-          No takes yet. Say the first thing.
+          {openSide >= 0
+            ? <>Nobody who picked {opts[openSide]} has written a take yet.</>
+            : <>No takes yet. Say the first thing.</>}
         </span>
       )}
       {mineAlready ? (

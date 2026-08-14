@@ -112,15 +112,43 @@ export function LEARN_ORDER(card) {
 }
 
 // ── the crowd split ─────────────────────────────────────────────────────────
-// Two sources, one seam (D32). In live mode, once a card's k-floored public
-// aggregate has cleared the floor, the split IS the measurement — real
-// first attempts, normalised to percentages. Until then (and in the demo)
-// it falls back to the authored model below: correct takes p%, the rest
-// goes mostly to the trap. LEARN_SPLIT_SRC tells the reveal which source
-// this card renders from, so the authored number is never shown unlabeled
-// (D1) — the reveal's footer copy hangs off it.
-function learnMeasured(card) {
-  const L = window.LIVE;
+// Two sources, one seam (D32) — and since D144 the LIVE build has only one
+// of them.
+//
+// The seam was: use the published aggregate when there is one, otherwise
+// fall back to the authored model below (correct takes p%, the rest goes
+// mostly to the trap), labelled "our estimate" so it never passes as
+// measured. Honest, and still the wrong thing to draw. `p` is a
+// content-authoring difficulty hint — a number a writer typed while
+// writing the card — and rendering it as a bar chart of what other people
+// answered makes it look like a reading of a crowd no matter what the
+// footer says. A reader does not read the footer; they read the bars.
+//
+// So in live mode the estimate is gone. A card with no answers behind it
+// yet says exactly that, and a card with answers shows HOW MANY people
+// picked each option — counts, not just shares, because "31 people picked
+// this" is a fact and "62%" of an unstated denominator is halfway back to
+// the estimate. The demo build keeps the authored model: there the
+// fabricated crowd IS the content, and there is no aggregate to replace it.
+// The store, read at CALL time. ONE reference site on purpose: this is the
+// file's only shared-global coupling (see the header), so the two readers
+// below go through this rather than each reaching for the name — which is
+// what keeps check:globals rule 4 flat across D144, and leaves exactly one
+// line for the LIVE conversion to take.
+const liveStore = () => window.LIVE;
+function learnLive() {
+  const L = liveStore();
+  return !!(L && L.enabled);
+}
+/**
+ * The real per-option counts, or null when nothing has been measured.
+ *
+ * `card.c` and the aggregate's cells are keyed the same way: LEARN_ORDER
+ * permutes on the way to the SCREEN and the buttons map back to authored
+ * indices before anything is recorded (see its note above).
+ */
+export function LEARN_COUNTS(card) {
+  const L = liveStore();
   if (!(L && L.enabled && L.learnAgg)) return null;
   const agg = L.learnAgg(card.id);
   if (!agg || !agg.counts) return null;
@@ -133,13 +161,25 @@ function learnMeasured(card) {
     total += c;
   }
   if (total <= 0) return null;
-  const pcts = counts.map((c) => Math.floor((c / total) * 100));
+  return { counts, total };
+}
+function learnMeasured(card) {
+  const m = LEARN_COUNTS(card);
+  if (!m) return null;
+  const pcts = m.counts.map((c) => Math.floor((c / m.total) * 100));
   let rem = 100 - pcts.reduce((a, b) => a + b, 0);
   for (let i = 0; rem > 0; i = (i + 1) % pcts.length, rem--) pcts[i]++;
   return pcts;
 }
+/**
+ * Which source a card's numbers come from: 'measured', or 'none' in a live
+ * build with nothing published yet. Never 'estimate' in live mode — the
+ * estimate does not render there at all, so a label for it would describe
+ * something that is not on screen.
+ */
 export function LEARN_SPLIT_SRC(card) {
-  return learnMeasured(card) ? 'measured' : 'estimate';
+  if (learnMeasured(card)) return 'measured';
+  return learnLive() ? 'none' : 'estimate';
 }
 
 /**
@@ -163,13 +203,20 @@ export function LEARN_SPLIT_SRC(card) {
  */
 export function LEARN_RATE(card) {
   const measured = learnMeasured(card);
-  return measured
-    ? { pct: measured[card.c], src: 'measured' }
-    : { pct: card.p, src: 'estimate' };
+  if (measured) return { pct: measured[card.c], src: 'measured' };
+  // D144: no authored fallback in a live build. Every caller already had
+  // to branch on `src` to label the estimate; they now render absence
+  // instead, which is one fewer number on screen and the only one that
+  // was not a measurement. `pct` is null rather than 0 so a caller that
+  // forgets the check draws nothing readable and fails a test, rather
+  // than quietly claiming nobody gets the card right (the D72 shape).
+  if (learnLive()) return { pct: null, src: 'none' };
+  return { pct: card.p, src: 'estimate' };
 }
 export function LEARN_SPLIT(card) {
   const measured = learnMeasured(card);
   if (measured) return measured;
+  if (learnLive()) return null;
   const n = card.a.length;
   let h = 0;
   for (let i = 0; i < card.id.length; i++) h = (h * 31 + card.id.charCodeAt(i)) >>> 0;

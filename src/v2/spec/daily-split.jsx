@@ -823,7 +823,11 @@ class DailySplit extends React.Component {
         h('button', { className: 'press', 'aria-expanded': st.liveTakes === S.id, onClick: () => this.setState(s => ({ liveTakes: s.liveTakes === S.id ? null : S.id })), style: { alignSelf: 'center', ...icoBtn(st.liveTakes === S.id) } },
           svgI('<path d="M6.5 4.5h11a2 2 0 0 1 2 2V13a2 2 0 0 1-2 2H11l-4 3.8V15h-.5a2 2 0 0 1-2-2V6.5a2 2 0 0 1 2-2z"/>', 17),
           'Takes'),
-        st.liveTakes === S.id && h(LiveTakesPanel, { gid: 'world', qid: S.id })),
+        // The daily's options in the question's own order, so each take
+        // carries its author's side and the list can be filtered by side
+        // (D144). Same order the aggregate's cells are keyed in, which is
+        // what lets the badge and the split agree.
+        st.liveTakes === S.id && h(LiveTakesPanel, { gid: 'world', qid: S.id, options: S.options.map(o => o.label) })),
       // D1: NAMED comments and who-voted identities stay circle-scoped —
       // these sheets are the demo's, with seeded named people, so they are
       // demo-only and also suppressed when a live build is showing the mock
