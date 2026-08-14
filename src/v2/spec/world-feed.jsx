@@ -34,6 +34,11 @@ import LiveTakesPanel from '../ui/LiveTakesPanel.tsx';
 import LIVE from '../data/live.ts';
 import ReactDOM from 'react-dom';
 import { PASSIVE } from './passive-progress.js';
+// Crossroads (D136). Imported, not read off window — rule 4 refuses new
+// coupling. The ESM graph carries it and its store into THIS chunk, which
+// is the deferred feed group (spec-index.js), so neither reaches first
+// paint; check:bundle's eager ceiling has no headroom for either.
+import { PathsCard } from './paths-card.jsx';
 import {
   wfCatArt, wfFmt, wfHash, wfKnowBias, wfKnowRate, wfPcts, wfPickGroup,
   wfRateAvg, wfRateBg, wfRateInk, wfShadeText, wfTileArt, wfTint,
@@ -3511,6 +3516,16 @@ class WorldFeed extends React.Component {
         </div>
         {feedList.map((q, i) => (
           <React.Fragment key={q.id}>
+            {/* Crossroads sits at the head of the feed, and ONLY in a demo
+                build (D136). Every branch share it draws is authored — see
+                PATHS.flowOf — so in a live build the card would print
+                invented crowd figures beside real ones, with nothing on
+                screen telling them apart. That is the case D1 forbids
+                outright, and the same reason D113 shipped the continuum
+                forms demo-only until D114 gave them a real fold. The live
+                path needs no backend change and is written down in the
+                D-record; until it is built, this is a demo surface. */}
+            {i === 0 && !LIVE.enabled && <PathsCard />}
             {sugg && i === 2 && this.renderSuggestion(sugg, snap)}
             {this.renderCard(q, { closing: q.id === closingId })}
           </React.Fragment>

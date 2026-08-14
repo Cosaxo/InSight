@@ -13465,3 +13465,135 @@ release build does not face. CI measures the bundle that ships.
 `apple.whatsNew` stays *"First release."* — it is a **version** field, not
 a build field, and `MARKETING_VERSION` is still 2.0.0 with 6.2 unticked, so
 there has been no first release for it to be new against (D74).
+
+## D136 · The Mirror stop loses two tabs, and Crossroads arrives demo-only
+
+**Decided:** 2026-08-14 · **Status:** binding · Owner decisions, taken
+against the prototype (`InSight_standalone_23.html`). Reshapes D119's tab
+row and completes the move D135 started; withdraws D126's lens placement
+without touching its engine.
+
+Three changes asked for together, recorded together because two of them
+are the same change to the same row and the third is the reason the row
+had room.
+
+### 1 · Overview stops being a tab and becomes the head of the stop
+
+D119 made the constellation a tab and put Answers first. D135 reversed
+the order so a stop opened on the field. This takes the step both were
+feeling for: **the field is not a tab at all.** It draws above the row,
+always, and stays drawn while any tab is open.
+
+The argument is D135's own, followed through. The field is the stop's
+IDENTITY — *you at the centre, them arranged around you, distance = how
+unlike you* is the sentence the whole Mirror exists to say — and a tab is
+the wrong furniture for an identity, because a tab is a thing you can be
+looking away from. "Overview leads" was the closest the row could get to
+that while the row still owned the whole screen. This is also the
+prototype's own layout (`spec/mirror-field-pops.jsx` renders MFHeader →
+field → lens row), which both tabbed versions had diverged from in
+opposite directions.
+
+**The cost did not move, and one cost went away.** Overview's fold runs on
+arrival — the same call count as when it was the landing tab, because a
+stop always opened on it, and `loadSimilarity` still early-returns on
+`similarityLoading` behind a `state.testAggsLoaded` guard. What changed is
+*navigating* the row: the field used to unmount and re-mount when you left
+Overview and came back, firing the loader a second time (harmless, and
+asserted as such in D135's case). It now sits outside the tab conditional
+and never unmounts, so row navigation costs nothing at all. The test was
+tightened from "called twice" to "still called once".
+
+**The row opens on Answers, not on nothing**, though the prototype's row
+starts collapsed. The prototype can afford that because its field is drawn
+from invented people and is never empty; the live constellation folds over
+completed test scores (D112) and is empty until a population has taken
+them. Closed-by-default would render an empty field above a closed row — a
+blank stop, which is the failure D135 was fixing.
+
+### 2 · Foresight leaves the Mirror
+
+The lens row is where a population gets READ, and Foresight was the only
+entry in it that was a GAME. It is off the row.
+
+**The engine is untouched and that is deliberate.** `data/foresight.ts`,
+the verdict rules at `v2_users/{uid}/foresight/{readId}`,
+`LiveForesightLens.tsx` and both suites all stand. D126 already named the
+feed as the open follow-on for this game and recorded that it needs no
+engine change to move there (`readsFrom` takes questions and returns
+reads) — which is also where the prototype puts it. Removing the surface
+is not a judgement on the engine.
+
+**What this leaves dark, said plainly:** Foresight has no surface today.
+That is the cost of the change, and the reason the machinery is being kept
+rather than deleted is that the placement question is open, not closed.
+The mount test that walked to it (`smoke-live`, "reaches the Foresight game
+through two lazy boundaries") is DELETED rather than skipped — what it
+asserted was reachability through a tab, and there is no tab; a skipped
+case would read as a broken feature instead of a removed surface. The lens
+body's own suite renders it directly and still covers the clock and the
+scoring.
+
+**The row is five wide now** — Answers plus four lenses — so
+`MirrorLensTabs`' size ladder lands on its `=== 5 → 13` rung. The 6 and 7
+rungs stay: they cost two comparisons, and D135's finding was that a
+seventh tab arrived without anyone re-measuring the width it had to fit.
+
+### 3 · Crossroads, and why it is demo-only
+
+Branching micro-stories in the feed: three forks deep, eight endings, no
+score. The reveal is the TREE — the crowd's flow through every branch as
+stroke width, your road inked, your ending named, and how rare the walk
+was. `spec/paths-data.js` + `spec/paths-card.jsx`, at the head of the feed.
+
+**Every crowd figure it draws is authored.** The `p` on each choice was
+written to make the tree read well, and no walk anyone takes moves it. On
+a live feed that card would print *"you and 12% ended here"* beside real
+splits with nothing on screen telling the two apart, which is D1's case
+exactly. So the card renders only when `!LIVE.enabled` — the same shape
+D113 §1 used for the continuum forms until D114 gave them a real fold.
+Both halves of that gate are pinned on real mounts (`smoke-daily`:
+it IS in the demo feed; `smoke-live`: it is NOT in a live one), because a
+gate asserted only in the direction it currently points passes just as
+happily inverted.
+
+**The live path needs no backend change, and is written down here rather
+than built.** A finished walk is one of eight endings, so it stores as an
+ordinary `optionIdx` 0..7 — under the fold's existing ceiling (idx > 19 is
+dropped, `functions/src/v2.ts`) and under the by-cell budget, exactly as
+D114 sized the dial's twelve buckets. A branch's share is then the summed
+counts of the endings beneath it, which is arithmetic on marginals the
+aggregate already publishes. What it additionally needs: a `path` entry in
+`check:quality`'s `FEED_TYPES` closed list with a validator for the node
+tree, transport of the story through `gen-v2content` → seed → deck, and
+synthesized 8-option labels at build. None of that is a schema change, and
+none of it is done.
+
+**Three deliberate differences from the prototype's files:**
+
+- **Named exports, not `window.PATHS` / `window.PathsCard`.** New
+  cross-module reads fail `check:globals` rule 4, whose count may only go
+  down. Coupling held at its baseline across this change.
+- **No `mapTree()`.** The prototype files finished walks onto the Map as a
+  `g-paths` over-category. That needs `map-tab.jsx` — which is eager — to
+  read the store, and `MAX_EAGER_KB` is at exactly its ceiling with no
+  headroom (D134). Reading it off the bridge instead would buy the bytes
+  and spend the ratchet. Both doors are shut until one of the two budgets
+  moves, so the function is omitted rather than shipped uncalled.
+- **The `.ar-*` CSS family was renamed to `.pp-*`.** The prototype styles
+  this card's head, title, rule, chips and footer with the class family of
+  an "Arena" card that exists in neither tree, and whose `--ar-c` /
+  `--ar-ink` this card never sets — it sets `--pp-*` and overrides the
+  colour inline at every site. Importing that namespace would have landed
+  six rules under a prefix with no owner, styled by variables nothing
+  defines.
+
+### What proves it
+
+`test:unit` (70 files), `lint`, `tsc -b`, `check:globals` (coupling
+unchanged at its baseline) all green. New cases: the card's walk, its
+persistence across unmount, the store's refusal of a fourth choice, the
+flow arithmetic, and both halves of the demo gate. Changed cases: the tab
+row's shape and lead, the constellation's position relative to the row
+(asserted as document order, so "above" holds for a screen reader too),
+and the navigation-cost pin tightened from two calls to one.

@@ -17,7 +17,13 @@ import type { ByMap } from "../data/cohort";
  * (check:bundle). The labels live in ./lensTabs, which only the row
  * imports. The TYPE crossing that seam is free — it is erased.
  */
-export type LensId = "people" | "compare" | "explore" | "scores" | "foresight";
+// `foresight` left this union at D136, when the owner took the lens off the
+// Mirror. The ENGINE did not go with it: data/foresight.ts, its verdict
+// rules and LiveForesightLens.tsx all stand, tested, waiting for the
+// placement D126 already named as the open follow-on — the feed, where the
+// prototype puts it. Re-adding the lens is re-adding this member and the
+// three lines that read it.
+export type LensId = "people" | "compare" | "explore" | "scores";
 
 /**
  * The question types whose option INDEX carries magnitude, and so the

@@ -66,6 +66,19 @@ describe("the daily tab", () => {
     expectNoBoundary("demo suggestion card");
   });
 
+  // Crossroads (D136) sits at the head of the feed in a DEMO build. This is
+  // the positive half of its gate; smoke-live.test.jsx owns the negative
+  // half, and the two together are what make `!LIVE.enabled` in
+  // world-feed.jsx mean something. Asserted on the real mount rather than
+  // in the card's own suite because the card renders perfectly well in
+  // isolation whether or not anything ever puts it on screen — which is
+  // the failure this catches.
+  it("puts Crossroads at the head of the demo feed", () => {
+    const expectNoBoundary = mountApp();
+    expect(screen.getByText("Crossroads"), "the Crossroads card is not in the demo feed").toBeTruthy();
+    expectNoBoundary("crossroads card");
+  });
+
   it("parks a previously answered feed card behind the Answered expander", () => {
     // Release feedback, twice: "I keep seeing things I have answered", then
     // "answered questions shouldn't appear in the feed at all". A card answered
