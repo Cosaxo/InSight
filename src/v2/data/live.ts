@@ -830,7 +830,13 @@ async function hydrate(): Promise<void> {
     /* cache is best-effort */
   }
   const sorted = all.slice().sort((a, b) => (a.seq || 0) - (b.seq || 0));
-  const active = sorted.filter((q) => q.active !== false);
+  // `until` is the current-events serving window (docs/NEXT-FUNCTIONALITY
+  // §1): a feed entry past its UTC day stops being OFFERED — the answers
+  // and the aggregate persist, the archive is the product. Feed-only by
+  // the gates (check:content), so the daily tombstone note below is
+  // untouched; `active: false` remains the hard, server-enforced kill.
+  const fresh = (q: { until?: string }) => !q.until || q.until >= utcDayKey(0);
+  const active = sorted.filter((q) => q.active !== false && fresh(q));
 
   // Allowlist split per surface — pure and unit-tested in deck.ts
   // (splitBanks carries the why-comments: playability, the D12 rank

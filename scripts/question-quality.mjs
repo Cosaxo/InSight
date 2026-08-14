@@ -437,6 +437,10 @@ export function checkQuestion(q, surface, ctx, mode = {}) {
   // options, c/t in range, c≠t, p in 1..99, k 2..6 words) is deliberately
   // absent — two gates disagreeing about the same rule is how one of them
   // gets edited to match the other and both stop meaning anything.
+  if (surface === "feed" && q.until !== undefined && !/^\d{4}-\d{2}-\d{2}$/.test(String(q.until))) {
+    err("type-shape", "`until` (the current-events window) must be a YYYY-MM-DD UTC day key");
+  }
+
   if (surface === "pulse") {
     // The trends y-axis is the 1..5 step scale (D138): exactly five
     // ordered steps, no more forms. The universal rules above already

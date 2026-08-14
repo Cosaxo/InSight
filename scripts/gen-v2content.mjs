@@ -227,6 +227,12 @@ export function buildEntries(content = loadContent()) {
       ...(Array.isArray(q.ends) ? { ends: q.ends } : {}),
       ...(Array.isArray(q.ax) ? { ax: q.ax } : {}),
       ...(Array.isArray(q.ay) ? { ay: q.ay } : {}),
+      // Current-events window (docs/NEXT-FUNCTIONALITY.md §1): a feed
+      // entry with `until` stops being SERVED after that UTC day — a
+      // client-side serving filter, emit-when-set. `active: false`
+      // remains the hard, server-enforced kill; answers and aggregates
+      // persist either way (the archive is the product).
+      ...(typeof q.until === "string" ? { until: q.until } : {}),
       ...flags(q),
     });
   });
@@ -403,7 +409,7 @@ const HEADER =
   "// forms' range/plane copy (D114), absent everywhere else; their options\n" +
   "// are synthesized bucket/cell labels, so the D52 option freeze freezes\n" +
   "// the range with them.\n" +
-  "export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; branch?: string; sub?: string; axis: string | null; test: string | null; mode?: string; active?: boolean; political?: boolean; lo?: number; hi?: number; unit?: string; ends?: string[]; ax?: string[]; ay?: string[]; }\n" +
+  "export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; branch?: string; sub?: string; axis: string | null; test: string | null; mode?: string; active?: boolean; political?: boolean; until?: string; lo?: number; hi?: number; unit?: string; ends?: string[]; ax?: string[]; ay?: string[]; }\n" +
   "export const V2_QUESTIONS: V2SeedQuestion[] = ";
 
 export function generate(content = loadContent()) {
