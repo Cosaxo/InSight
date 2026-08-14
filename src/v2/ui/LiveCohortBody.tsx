@@ -394,7 +394,7 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
       {openTab !== "answers" && openTab !== "overview" && (
         <div className="fade-in" role="tabpanel" aria-label={LENS_LABEL[openTab as LensId]}>
           <React.Suspense fallback={null}>
-            <LiveMirrorLenses lens={openTab as LensId} qs={lensQs} shortName={shortName} />
+            <LiveMirrorLenses lens={openTab as LensId} qs={lensQs} shortName={shortName} scope={scope} />
           </React.Suspense>
         </div>
       )}

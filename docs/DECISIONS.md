@@ -13649,3 +13649,36 @@ least-bad shape re-imports the suppression floor); a Map anchor-ring
 row for height (the ring is its own surface; the dim already serves
 Explore and the breakdowns); backfill (there is nothing to backfill
 from — the band never existed before this).
+
+## D140 · Types leave the profile — tier 1, arithmetic on what is already public
+
+**Decided:** 2026-08-14 · **Status:** built on
+`claude/new-functionality-planning-82qywb` (docs/NEXT-FUNCTIONALITY.md §3
+tier 1, the v24 type-mix design), ships with that branch's PR.
+
+**Decision.** The People lens gains "Types here" — the v24 design's
+TypeChip + TypeMixCard ported typed (`data/typeMix.ts`,
+`ui/TypeMixCard.tsx`): who is in this population by Big Five archetype,
+over a STATED basis, with the people you can actually see under it and
+your own type first in the chip row — which IS the "same type as you"
+shortcut. Every count is out of the session's cached voter sample (the
+D102 bound, said on the card), a type under 8 is listed never ranked,
+under 40 typed people the card shows counts and says shares would lie,
+and a type nobody carries is named as missing. Big Five only,
+deliberately — the politics types stay on the profile.
+
+**Tier 1's whole claim: no new anything.** The fold is arithmetic over
+the voter cache Kindred already loads and the world-readable
+`testResults` the similarity field already parses — no new reads, no new
+collection, no new dim, and nothing cross-tabs ANSWERS by type (that is
+tier 2, the recorded D8 amendment this deliberately does not take). The
+coupling ratchet did not move: `archetype-data.js` gained ADDITIVE named
+exports (its globals stay for the spec consumers; an import is not a
+reference the scanner counts), and `type-marks.jsx` already exported
+`TypeMark` from an earlier partial conversion.
+
+**Not built, deliberately:** tier 2 (type as a breakdown dim — its own
+record, and D139's checklist is the rehearsal); type-vs-type answer
+splits (the same tier-2 boundary); the demo room's type-mix card (the
+design's demo rosters stay in `design/standalone-v24/`, the live card is
+live-only); types from the other three instruments.

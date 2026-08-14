@@ -258,7 +258,7 @@ who-voted cut list) plus Explore's test-pole chips are the prototype's
 type/axis cuts, with `docs/MIRROR.md` recording the exact reason they
 are dark: *test results are not a dim.*
 
-**Tier 1 — build now, no decision needed.** Everything reads data that
+**Tier 1 — build now, no decision needed.** *Status 2026-08-14: BUILT — D140; the type-mix card is live on the People lens.* Everything reads data that
 is already public and mostly already fetched:
 
 - A **type chip** on people rows — Kindred, the similarity field's person

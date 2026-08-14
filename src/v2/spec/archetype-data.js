@@ -312,3 +312,10 @@ window.IS_matchArchetype = function (testKey, dims) {
 };
 
 window.IS_ARCHETYPES = IS_ARCHETYPES;
+
+// Named exports for typed consumers (data/typeMix.ts, D140) — ADDITIVE:
+// the globals above stay until this module's full conversion, existing
+// spec consumers keep reading them, and the coupling ratchet counts
+// references, which an import is not.
+export const ARCHETYPES = IS_ARCHETYPES;
+export const matchArchetype = window.IS_matchArchetype;

@@ -18,7 +18,7 @@ globals: `check:globals` rule 4 only goes down.
 | --- | --- | --- |
 | `suggestions.js` / `suggestions.jsx` | §8 item 4 — board live states, hint pickers, the paid door | **ported** (same-day): the live wiring rides D137's backend |
 | `pulse-card.jsx` / `pulse-data.js` / `pulse-trends.jsx` | §8 item 1 — the pulse card + Trends reading | **ported** (D138): `data/pulse.ts` + `ui/PulseCard.tsx` + `ui/PulseTrends.tsx`; the `mapTree` half stays unported (the Map's seventh category is its own decision) |
-| `type-mix.js` / `type-mix.jsx` | §8 item 2 — type chips + the People type filter | waiting on types tier 1 (§3) |
+| `type-mix.js` / `type-mix.jsx` | §8 item 2 — type chips + the People type filter | **ported** (D140): `data/typeMix.ts` + `ui/TypeMixCard.tsx` on the People lens; the demo rosters stay here |
 | `paid-data.js` | §8 item 3 — the sponsored/PAID chrome | waiting on the paid path's first build (§6) |
 
 Worth reading before any port: the pulse and type-mix headers carry the
