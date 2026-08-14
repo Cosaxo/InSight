@@ -14572,8 +14572,58 @@ ever describe answers given after it ships. The two are complements, not
 alternatives; a dim would leave this cut in place for the history it
 cannot see.
 
+## D147 · The functions tsconfig moves to `node16`, and the emit format is the part that mattered
 
-## D147 · The Routine prompts catch up with their contracts, by the only mechanism that works
+**Decided:** 2026-08-14 · **Status:** binding · Unblocks the TypeScript 7
+bump in `/functions` (Dependabot #16), which had been red since 3 August.
+
+**The defect.** TypeScript 7 removed the `node10` module-resolution
+algorithm, which `functions/tsconfig.json` selected under its old name
+(`"moduleResolution": "node"`), and stopped inferring `rootDir`. Two
+errors, both about configuration rather than code:
+
+```
+tsconfig.json(6,5):  error TS5011: 'rootDir' must be explicitly set
+tsconfig.json(10,25): error TS5108: Option 'moduleResolution=node10' has been removed
+```
+
+Nothing in `src/` was wrong. The build simply could not start.
+
+**The fix, and the trap inside it.** `module` and `moduleResolution` both
+move to `node16` — they are not independently selectable, so the pair
+moves together — and `rootDir` is named explicitly as `src`, which is the
+value the compiler was already inferring.
+
+The part worth recording is what `node16` does NOT do. It is not a switch
+to ESM. `node16` derives each file's emit format from the nearest
+`package.json`, and `functions/package.json` carries no `"type"` field, so
+every file still emits CommonJS. Verified rather than assumed, on both
+compilers, by counting the markers in `functions/lib/index.js`:
+
+| Compiler | `exports.` / `Object.defineProperty(exports` | bare `import`/`export` |
+| --- | --- | --- |
+| 5.9.3 (before, and after) | 28 | 0 |
+| 7.0.2 (after) | 28 | 0 |
+
+That column is the whole reason this has an entry. An ESM emit here would
+have compiled, passed `check:fn-runtime` (which asks whether
+`functions/lib/index.js` exists, not what module system it speaks),
+deployed green, and then failed at runtime on every function — the exact
+shape of failure this repo keeps writing gates against. The count is the
+gate a human can run.
+
+**Ordering.** The tsconfig lands BEFORE the compiler bump, not with it:
+`node16` is valid on 5.9.3, so the change is a no-op on the current
+toolchain and the tree stays green at every commit. `check:fn-runtime`,
+`check:appcheck`, `check:deploy-targets` and the 214 functions tests pass
+on both compilers.
+
+**Not decided here.** The root project stays on its own TypeScript. This
+entry is scoped to `/functions`, whose `tsconfig.json` is separate and
+whose output is the only one that gets deployed to Cloud Functions.
+
+
+## D148 · The Routine prompts catch up with their contracts, by the only mechanism that works
 
 **Decided:** 2026-08-14 · **Status:** taken — both Routines recreated
 and verified live; the manual half ships on

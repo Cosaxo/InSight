@@ -99,7 +99,7 @@
   },
   "devDependencies": {
     "@capacitor/android": "^8.3.3",
-    "@capacitor/cli": "^8.3.3",
+    "@capacitor/cli": "^8.5.0",
     "@capacitor/ios": "^8.4.2",
     "@eslint/js": "^9.39.4",
     "@firebase/rules-unit-testing": "5.0.1",
