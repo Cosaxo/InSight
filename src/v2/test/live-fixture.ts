@@ -291,6 +291,14 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
       [{ uid: "u_other", optionIdx: 1, anchors: {}, name: "", isMe: false }],
     ],
     votersLoading: () => false,
+    // The who-voted sheet's type cut (data/typeSplit.ts). Both branches
+    // reachable from one list: `u_fixture` carries a readable Big Five and
+    // types, `u_other` has none and lands in the gap between `sampleN` and
+    // `typedN` that the card's basis line exists to state.
+    voterScores: () => [
+      { uid: "u_fixture", optionIdx: 0, results: { big5: { O: 72, C: 55, E: 15, A: 58, N: 50 } } },
+      { uid: "u_other", optionIdx: 1, results: null },
+    ],
     // The world-takes author name path (D98). One known author so a live
     // mount renders a real name, and anything else falls back to
     // "Someone" — both branches reachable from the fixture.

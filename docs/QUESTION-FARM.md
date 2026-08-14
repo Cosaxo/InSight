@@ -1065,13 +1065,13 @@ re-paced, or retired.
 
 | Routine | Trigger id | Schedule (UTC) | Contract |
 | --- | --- | --- | --- |
-| InSight question farm (daily) | `trig_01DZQC4E2AA7oYmbvYpmxk2k` | `0 7 * * *` — daily 07:00 (D33 re-pace 2026-08-11; recreated D146) | this file, the sections above |
-| Daily catalog question | `trig_01RVeFZ454aY9shH58fH3rQH` | `0 8 * * *` — cards Mon–Sat, domain build Sunday (D145; recreated D146) | § The daily catalog-question run |
+| InSight question farm (daily) | `trig_01DZQC4E2AA7oYmbvYpmxk2k` | `0 7 * * *` — daily 07:00 (D33 re-pace 2026-08-11; recreated D147) | this file, the sections above |
+| Daily catalog question | `trig_01RVeFZ454aY9shH58fH3rQH` | `0 8 * * *` — cards Mon–Sat, domain build Sunday (D145; recreated D147) | § The daily catalog-question run |
 | InSight learn lane | `trig_017bNWxHkLQYDo97YuajmBh4` | `0 9 * * 1,4` — Mon + Thu 09:00 (D145) | § The learn-card lane |
 | InSight feed lane | `trig_01Rf5CD8mpffKf9hYEr2ZKqj` | `30 9 * * 2,5` — Tue + Fri 09:30 (D145) | § The feed lane |
 
 **All four live prompts match their canonical blocks below as of
-2026-08-14 (D146)** — the first time that has been true of all of them
+2026-08-14 (D147)** — the first time that has been true of all of them
 at once. The farm's and the catalog's carry new ids because the swap
 was done by delete-and-recreate; see the paragraph below for why, and
 for what that cost.
@@ -1108,7 +1108,7 @@ direction — which re-measured the constraint and found it NARROWED:
 refuses a prompt edit into a session that is not the caller's own, with
 an error saying exactly that.
 
-**TAKEN 2026-08-14 (D146) — and the constraint is still there; it was
+**TAKEN 2026-08-14 (D147) — and the constraint is still there; it was
 gone around, not lifted.** Re-measured a third time first, still
 refused, verbatim: `update_trigger: editing the prompt of a routine
 whose fires deliver into a session that is not your own is not
@@ -1205,7 +1205,7 @@ do not disturb uncommitted work — if the tree is dirty, stash or use a
 separate git worktree.
 ```
 
-The daily-catalog Routine's canonical prompt. **It had none until D146**,
+The daily-catalog Routine's canonical prompt. **It had none until D147**,
 which is the whole reason its prompt drifted twice without anyone
 noticing: the farm's prompt was pinned here and kept in step, and the
 catalog's lived only in the Routine, so the roll-up rule (2026-08-03)

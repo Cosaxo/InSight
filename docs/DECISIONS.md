@@ -14446,8 +14446,134 @@ to bite on a cat-less pick card and a cat-less feed question. Green at
 commit: 26 figures, 372 questions, 183 script tests, lint,
 `check:content`, `check:globals`, `check:labels`, `test:unit`, both
 builds.
+## D146 · The type cut — how each type answered, folded on the client, retroactive by construction
 
-## D146 · The Routine prompts catch up with their contracts, by the only mechanism that works
+**Decided:** 2026-08-14 · **Status:** binding. From an owner's question:
+*if I answer a question and get a test score later, does the score count
+on the questions I already answered?*
+
+The honest answer at the time was **no, and never** — and the interesting
+part is that the "never" was not a timing problem. Test results have never
+been in the anchors snapshot, so `spec/map-group-stats.js` refuses all four
+instruments and every "how did people like me answer" cut on the app is
+demographic. The one cut this product is actually about was the one it
+could not draw.
+
+### 1 · Why the recorded plan would have answered "no" permanently
+
+`NEXT-FUNCTIONALITY §3 tier 2` had already costed the fix as a **new
+breakdown dim**: match the archetype at vote time, stamp it into
+`anchorsFrom`, add it to `BREAKDOWN_DIMS`, accumulate cells from ship date.
+That plan states its own limit and accepts it — *"forward-only, and say so.
+Answers have never carried scores, so there is nothing to backfill."*
+
+Which is exactly the question, answered no. Worse than it sounds, because
+the four instruments are **passive** (D50/D121): a score is not an event,
+it is a running fold that moves every time another test card is answered.
+So a stamp is wrong twice — it freezes a value that is still converging,
+and it freezes it per answer, so a user's own history ends up smeared
+across whatever types they were passing through. The alternatives are both
+bad: rewrite past answers (D86 forbids it, and it is O(answers) aggregate
+writes against a document with D7's ~1 write/sec ceiling, re-run every
+time a band flips), or leave the cut blank for all existing answers
+forever.
+
+### 2 · The snapshot was never the only place the join could happen
+
+Since D98 answers are public and `testResults` is world-readable; since
+D112 `voters.resolveNames` parses scores out of **the same profile
+document it already reads for a name** — the web SDK has no field mask, so
+they were on the wire regardless. So for any question the session has
+opened, the client already holds: who answered, what they picked, and what
+their scores are. Grouping is arithmetic on data in hand.
+
+**No new read, no new field, no new cell, no stamp, nothing to backfill —
+and it reads everyone's CURRENT type against the answers they ALREADY
+gave.** Take your test items in month three and month one regroups itself.
+That is the property the dim could not have at any price, and it is the
+answer to the question that prompted this.
+
+`data/typeSplit.ts` (pure), `LIVE.voterScores` (a join, no arithmetic), and
+a `Type` chip on `LiveBreakdownPanel`.
+
+### 3 · What it costs, and where the cost is stated
+
+The published cells are a **census**; this is a **sample** — the latest
+`VOTER_FETCH_CAP` voters (D102), thinned to those carrying a readable Big
+Five. Two numbers, kept apart on purpose (`sampleN`, `typedN`), because the
+card has to say which denominator a share is out of. Under
+`TYPE_SPLIT_SMALL` (60) it draws **counts, not shares** — and the bar fill
+switches to a magnitude scale with them, because a fill drawn as a share of
+100 makes the claim visually even when the label says "3".
+
+One arithmetic trap, pinned in `typeSplit.test.ts`: divergence is computed
+against **the typed sample's own overall**, never against `agg.counts`.
+Comparing a sampled cohort to an exact census folds the sample's bias into
+a number presented as the type's; comparing within the sample cancels it.
+
+The `Type` chip sits last, after the published dims, and the basis line
+under the bars is the disclosure after the tap. `renderBody` is deliberately
+NOT offered the type cut — a dial's track reads as the population's
+position, and a bounded sample must not be drawn on it.
+
+### 4 · It narrows a standing claim, so the claim moved
+
+`docs/data-inventory.md` said a test result is *"never a breakdown dim, so
+nothing is ever cross-tabbed by it (D8)"*. The first half stands exactly —
+no dim, no stamp, no cell, and the SERVER still never slices an aggregate
+by a result. The second half is now false: the client performs and
+displays the cross-tab.
+
+Nothing new is exposed — the fold is over two things that already publish,
+and any reader could have computed it — but *"the app groups my answers by
+my personality type and shows that to strangers"* is not something a user
+should have to derive from two other bullets, and the retroactive half is
+the part they cannot guess. So the privacy panel says it, pinned in its
+test, and the inventory carries the narrower claim.
+
+**Big Five only, and enforced rather than intended.** `typeMix.TYPE_TEST`
+is the single constant the fold reads; politics, values and attachment
+never group answers. The politics result is the Art. 9 field, and D98
+reversed D44 on the *items'* counts, not on cross-tabbing by result.
+Pinned in two places on purpose: the constant is a thing a refactor could
+widen without touching any copy.
+
+### 5 · The bug this uncovered: D141's card was dead on arrival
+
+`typeOfPerson` read `results[TYPE_TEST].dims` off a `KindredPerson` —
+the RAW profile shape, on a value that has been through
+`parseTestResults` and is a FLAT axes map with no `dims` key. It returned
+**null for every person, always**: `typeMixFor` filtered its whole sample
+away, `typedN` was always 0, and the type-mix card drew its "nothing typed
+here" empty state on every population in live mode, from the day it
+shipped (2026-08-14, one day).
+
+Nothing caught it, and each reason is worth keeping. Both shapes are
+`Record`s, so the `as Dim[]` cast satisfied `tsc`. The module had **no
+test at all**. And the failure mode is a legitimate empty state the card
+was *designed* to draw — so it looked like a thin population rather than a
+broken join. `myType()` was fine throughout, because it reads the raw
+store value, which is what made the mismatch invisible on the one surface
+anyone would have checked.
+
+Measured with a probe before the fix, not reasoned about. The join now
+lives in one place (`typeOfParsed`), `typeOfPerson` delegates to it, and
+`typeMix.test.ts` exists — including a case pinning that the parsed shape
+has no `dims`, so a future change to `parseTestResults` cannot make the
+rest pass for the wrong reason.
+
+**Deferred, with the arithmetic.** Tier 2's exact dim is NOT adopted and
+NOT rejected: this cut is what tier 2's recommendation asked for before
+deciding — *"hold tier 2 until tier 1 shows people actually pivot on
+types"* — and it is now a concrete surface to argue from rather than a
+hypothetical. If it earns the dim, the dim buys exactness and a census,
+and pays for it in the one currency this fold does not spend: it can only
+ever describe answers given after it ships. The two are complements, not
+alternatives; a dim would leave this cut in place for the history it
+cannot see.
+
+
+## D147 · The Routine prompts catch up with their contracts, by the only mechanism that works
 
 **Decided:** 2026-08-14 · **Status:** taken — both Routines recreated
 and verified live; the manual half ships on

@@ -2356,6 +2356,25 @@ const LIVE = {
   votersLoading(qid: string): boolean {
     return !!state.votersLoading[qid];
   },
+  // The same list joined to the scores the SAME profile read already
+  // parsed (D112) — what data/typeSplit.ts folds into a per-type reading
+  // of the question. A join and nothing else: the arithmetic is pure and
+  // lives one module over, so the store never becomes a second place
+  // where a type is decided.
+  //
+  // The uid rides along because the roster under the split has to be
+  // filterable to exactly the people the bars counted; a type is not an
+  // anchor, so the dim/bucket scoping every other cut uses cannot reach
+  // it (LiveVotersPanel's `uids`).
+  voterScores(qid: string): { uid: string; optionIdx: number; results: ParsedResults | null }[] | null {
+    const rows = state.voters[qid];
+    if (!rows) return null;
+    return rows.map((r) => ({
+      uid: r.uid,
+      optionIdx: r.optionIdx,
+      results: state.scores[r.uid] ?? null,
+    }));
+  },
 
   lensAgg(qid: string): { counts: number[]; noCountsYet: boolean } | null {
     const q = state.feedBank.find((x) => x.id === qid && x.surface === "test");

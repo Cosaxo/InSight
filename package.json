@@ -87,7 +87,7 @@
     "@capacitor/geolocation": "^8.2.0",
     "@capacitor/keyboard": "^8.0.3",
     "@capacitor/push-notifications": "^8.1.2",
-    "@capacitor/splash-screen": "^8.0.1",
+    "@capacitor/splash-screen": "^8.0.2",
     "@capacitor/status-bar": "^8.0.2",
     "@sentry/browser": "10.60.0",
     "@sentry/capacitor": "^4.2.0",
@@ -95,12 +95,12 @@
     "capacitor-firebase-app-check": "npm:@capacitor-firebase/app-check@^8.3.0",
     "firebase": "^12.13.0",
     "react": "^19.2.4",
-    "react-dom": "^19.2.4"
+    "react-dom": "^19.2.8"
   },
   "devDependencies": {
     "@capacitor/android": "^8.3.3",
     "@capacitor/cli": "^8.3.3",
-    "@capacitor/ios": "^8.3.3",
+    "@capacitor/ios": "^8.4.2",
     "@eslint/js": "^9.39.4",
     "@firebase/rules-unit-testing": "5.0.1",
     "@testing-library/dom": "^10.4.1",

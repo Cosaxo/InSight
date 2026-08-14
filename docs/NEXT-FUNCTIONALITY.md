@@ -278,6 +278,7 @@ is already public and mostly already fetched:
   what the profile already shows — see tier 2.
 
 **Tier 2 — a real decision, written here so it is not drifted into.**
+*Status 2026-08-14: the exact dim is still UNTAKEN, but the reading it was the price of now ships without it — D146 folds "how did each type answer this question" on the client, from the cached voter lists plus public `testResults`. It is a sample rather than a census and says so, and it has the one property the dim cannot have: it reads everyone's CURRENT type against answers they ALREADY gave, so the "forward-only, nothing to backfill" line below is exactly what it routes around. The two are complements — if the dim is adopted for exactness, the client fold stays for the history the dim can never see. The recommendation below is satisfied on its own terms: there is now a concrete surface to argue the dim from.*
 Making "how did each type answer this question" *exact* means the type
 becomes a breakdown dim: stamped into the anchors snapshot at vote time,
 folded by `BREAKDOWN_DIMS`. That amends a standing, user-facing claim —
