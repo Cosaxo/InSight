@@ -14621,7 +14621,7 @@ on both compilers.
 **Not decided here.** The root project stays on its own TypeScript. This
 entry is scoped to `/functions`, whose `tsconfig.json` is separate and
 whose output is the only one that gets deployed to Cloud Functions.
-## D148 · Sides, friends and real counts: three surfaces stop guessing
+## D149 · Sides, friends and real counts: three surfaces stop guessing
 
 **Decided:** 2026-08-14 · **Status:** binding · Owner decisions, taken
 against the prototype (`InSight_standalone_25.html`). Amends D125's sheet
@@ -14716,7 +14716,7 @@ with it. `learn-data.js` gained a second reader of `window.LIVE` and keeps
 exactly one reference site (a `liveStore()` accessor both go through), so
 the meter stayed flat where it would otherwise have gone up.
 
-## D149 · Near is a field again, and nobody in it is named
+## D150 · Near is a field again, and nobody in it is named
 
 **Decided:** 2026-08-14 · **Status:** binding · Owner decision, taken
 against the prototype's Near stop. Amends D111's live body; leaves D98's
@@ -14756,7 +14756,7 @@ want. Lazy from `NearLiveBody`, which `mirror-tab` imports eagerly: a
 static import would have put the similarity fold and the instrument
 definitions in the entry chunk for a stop most sessions never open.
 
-## D150 · The general info is asked at the start, because an answer cannot be re-filed
+## D151 · The general info is asked at the start, because an answer cannot be re-filed
 
 **Decided:** 2026-08-14 · **Status:** binding · Owner decision. Adds a
 screen; changes no rule and no vocabulary.
@@ -14836,7 +14836,7 @@ no anchor at all*, not *has all of them* — an account that filled the
 Basics card in before this existed must not be asked again, and one that
 deliberately answered two of seven has already been asked.
 
-## D151 · Explore is the World's; the People lens gets its shape back; Circle and Groups get theirs
+## D152 · Explore is the World's; the People lens gets its shape back; Circle and Groups get theirs
 
 **Decided:** 2026-08-14 · **Status:** binding · Owner decisions, taken
 against the prototype (`InSight_standalone_25.html`). Amends D99's lens
@@ -14923,7 +14923,7 @@ stay in the list below, which carries everyone.
 
 ### The bundle, which paid for all of it
 
-The rebuild landed one fraction over `MAX_EAGER_KB` — the constant D150
+The rebuild landed one fraction over `MAX_EAGER_KB` — the constant D151
 already recorded as the one not to raise. The fix was not to trim the
 feature but to find weight that should never have been eager:
 **`LiveTakesPanel` was in the first-paint graph**, statically imported by

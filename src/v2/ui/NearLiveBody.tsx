@@ -1,5 +1,5 @@
 // NearLiveBody — the Mirror's Near stop in live mode: the Right-now
-// radius counter (D84), and since D149 the constellation around it.
+// radius counter (D84), and since D150 the constellation around it.
 //
 // Near used to be "your city" (D9): this counter sitting above the city
 // cohort's answer rows. D111 un-folded that. City is its own stop again —
@@ -8,7 +8,7 @@
 // keyed to a profile anchor; Near is "who is around me right now", keyed
 // to a phone's presence. One stop per cohort, in both directions.
 //
-// WHAT THIS FILE USED TO SAY, AND WHY IT WAS HALF RIGHT (D149).
+// WHAT THIS FILE USED TO SAY, AND WHY IT WAS HALF RIGHT (D150).
 //
 // It said Near would never be more than a count: the presence cell is one
 // of the three denies D98 deliberately kept (physical safety — it records
@@ -187,7 +187,7 @@ function NearNowCard() {
 }
 
 // The stop's headline, the prototype's shape: kicker, one big figure, one
-// line of unit under it (D149).
+// line of unit under it (D150).
 //
 // The figure is the presence count and the unit says so, in the same
 // breath as the place — "within a couple of kilometres · Grünerløkka" is

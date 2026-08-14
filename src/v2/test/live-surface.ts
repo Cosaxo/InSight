@@ -60,7 +60,7 @@ export const LIVE_MEMBERS = [
   // `voters`, because "could not ask" and "you follow nobody" are
   // different sentences the stop renders differently.
   "loadCircle", "circle", "circleLoading", "isFollowing", "setFollowing",
-  // The same graph one query deep (D148): the follow SET, without the
+  // The same graph one query deep (D149): the follow SET, without the
   // per-member answer fan-out `circle` pays for. The who-voted sheet's
   // Friends cut intersects it with a voter list it already holds, so a
   // friend's answer costs one read rather than up to FOLLOW_CAP of them.

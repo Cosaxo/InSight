@@ -4,7 +4,7 @@
 // WHY THIS IS A GATE. `foldAnchors` (functions/src/pure.ts) checks a value
 // against BREAKDOWN_DIM_VOCAB before it may claim one of the 24 bucket slots
 // in a dimension. The values a real user can send come from the <select>s the
-// client renders, and since D150 there are TWO screens that render them — the
+// client renders, and since D151 there are TWO screens that render them — the
 // profile's Basics card and the account-creation questions — both fed from
 // one list module, src/v2/spec/profile-vitals.js, which is the client side
 // read below. Nothing but this script holds that module and the server's

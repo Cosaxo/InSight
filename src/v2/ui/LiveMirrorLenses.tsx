@@ -48,7 +48,7 @@ import {
 // breakdown sheet, so the same cohort is named the same everywhere.
 import { bucketLabel } from "./cohortLabels";
 import TypeMixCard from "./TypeMixCard";
-// The People lens draws people rather than listing them (D151): the
+// The People lens draws people rather than listing them (D152): the
 // prototype's match ring, a per-person hue, and the place name behind a
 // city key.
 import PLACES from "../data/places";
@@ -113,7 +113,7 @@ function LlEmpty({ children }: { children: React.ReactNode }) {
 
 // ── People ──────────────────────────────────────────────────────────
 //
-// THE PROTOTYPE'S SHAPE, RESTORED (D151). This lens shipped as a chip row
+// THE PROTOTYPE'S SHAPE, RESTORED (D152). This lens shipped as a chip row
 // over horizontal bars, then a flat list of names with a percentage each.
 // Every number on it was real and the screen said almost nothing: a bar
 // chart of age bands is a fact about a form people filled in, and a name

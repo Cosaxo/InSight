@@ -13,7 +13,7 @@
 //     numbers, on the question's own options in the question's own order;
 //   - "Everyone" is the default and is the plain published split, so the
 //     first frame agrees with the card that opened it;
-//   - D148 moved that third case. There used to be a ROSTER under every
+//   - D149 moved that third case. There used to be a ROSTER under every
 //     cohort — each voter's name with their age, gender, city and
 //     education beside it — and the case here held it to the same
 //     population as the count above it. The roster is gone from cohorts
@@ -39,7 +39,7 @@ const LIVE = vi.hoisted(() => ({
   },
   anchors: () => ({}) as Record<string, string>,
   subscribe: () => () => {},
-  // The Friends cut rides inside this panel (D148), so its store surface
+  // The Friends cut rides inside this panel (D149), so its store surface
   // is here too: the follow SET (one query) plus the voter list it
   // intersects — the same list D146's type fold already loads.
   loadVoters: vi.fn(async (qid: string) => { void qid; }),
@@ -188,7 +188,7 @@ describe("LiveBreakdownPanel · what it will not claim", () => {
     // No split — not a row of 0% bars, which would read as a measured
     // unanimity — and no demographic chips, because there is nothing to
     // slice. Friends survives: a friend can answer a second after you do,
-    // and the chip is how you go and look (D148).
+    // and the chip is how you go and look (D149).
     expect(screen.queryByText("0%")).toBeNull();
     expect(screen.queryByRole("button", { name: "Age" })).toBeNull();
     expect(chip("Friends")).toBeTruthy();
@@ -215,9 +215,9 @@ describe("LiveBreakdownPanel · what it will not claim", () => {
   });
 });
 
-describe("LiveBreakdownPanel · a cohort answers in percentages (D148)", () => {
+describe("LiveBreakdownPanel · a cohort answers in percentages (D149)", () => {
   it("names nobody under Everyone, or under any demographic cut", () => {
-    // The D148 line, in the direction that matters. Everyone and every
+    // The D149 line, in the direction that matters. Everyone and every
     // demographic cut are readings of a crowd; a list of that crowd's
     // members, annotated with their age and city, is a different screen
     // and was never the one anyone opened a result to see.
@@ -246,7 +246,7 @@ describe("LiveBreakdownPanel · a cohort answers in percentages (D148)", () => {
   });
 });
 
-// ── the one cut that answers with people (D148) ──────────────────────
+// ── the one cut that answers with people (D149) ──────────────────────
 describe("LiveBreakdownPanel · the Friends cut", () => {
   const FRIENDS = ["f1", "f2", "f3"];
 

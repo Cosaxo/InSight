@@ -15,7 +15,7 @@ import { PROFILE_GENERAL_LS } from '../data/cityAnchor';
 import PLACES from '../data/places';
 import { SCENES } from './scenes.js';
 // The vitals vocabulary and the anchor mapping, in their own module since
-// D150 — the Basics card below and ui/LiveProfileSetup.tsx (the
+// D151 — the Basics card below and ui/LiveProfileSetup.tsx (the
 // account-creation questions) must ask with the same words, and
 // check:anchors reads that file for the client half of its comparison.
 import {

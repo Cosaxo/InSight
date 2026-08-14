@@ -1208,7 +1208,7 @@ class WorldFeed extends React.Component {
     // numbers now come from the same evaluation as the label.
     const split = r ? LEARN_SPLIT(card) : null;
     const src = r ? LEARN_SPLIT_SRC(card) : null;
-    // The counts behind the split. D148: what a reveal shows is HOW MANY
+    // The counts behind the split. D149: what a reveal shows is HOW MANY
     // people picked each option, so the number is carried rather than
     // recovered from a percentage — 62% of an unstated denominator is a
     // share of nothing in particular, and it was the shape the authored
@@ -1245,7 +1245,7 @@ class WorldFeed extends React.Component {
                   background: isC ? WPAL.ink(T.color) : 'var(--surface-2)', color: isC ? '#fff' : r && !isMine ? 'var(--ink-3)' : 'var(--ink)' }}>
                 {r && !isC && split ? <span aria-hidden="true" style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: pct + '%', background: pale, transformOrigin: 'left', animation: fresh ? `wfBarIn .55s cubic-bezier(.2,.8,.2,1) calc(var(--rv-row) * ${slot + 1.5}) both` : 'none' }}></span> : null}
                 <span style={{ position: 'relative', flex: 1, minWidth: 0, fontFamily: 'var(--sans)', fontWeight: isC ? 800 : 600, fontSize: big ? 16.5 : 15, lineHeight: 1.3, textWrap: 'pretty' }}>{label}</span>
-                {/* How many people actually picked this one (D148). The
+                {/* How many people actually picked this one (D149). The
                     count leads and the share follows it, because the
                     count is the fact and the share is the reading. */}
                 {showPct ? <span style={{ position: 'relative', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12.5, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
@@ -1285,7 +1285,7 @@ class WorldFeed extends React.Component {
                 </>
               )}
             </div>
-            {/* D148: in a live build the numbers above are answers or they
+            {/* D149: in a live build the numbers above are answers or they
                 are absent. The old third state — the authored estimate,
                 labelled — is gone, so this line names the crowd it counted
                 or says there is not one yet.
@@ -1935,7 +1935,7 @@ class WorldFeed extends React.Component {
             )}
           </div>
           {/* The option labels give every take its author's side and the
-              list its side filter (D148). Guarded on the shape rather
+              list its side filter (D149). Guarded on the shape rather
               than passed blind: a dial, a field, a catalogue pick and a
               rank card all reach this row, and only an options-shaped
               question has sides to badge. */}
@@ -2334,7 +2334,7 @@ class WorldFeed extends React.Component {
       // hands back the published first-attempt rate where there is one and
       // says so; where there is not, the row says whose number it is.
       const kr = LEARN_RATE(kn);
-      // D148: no row at all when nothing has been measured. "Crowd — null%"
+      // D149: no row at all when nothing has been measured. "Crowd — null%"
       // and "Our estimate" are both worse than the sheet simply not
       // carrying a line about a crowd that has not answered yet.
       if (kr.pct != null) rows.push([kr.src === 'measured' ? 'Crowd' : 'Our estimate', kr.pct + '% get this right']);
@@ -2747,7 +2747,7 @@ class WorldFeed extends React.Component {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 13 }}>
         {live ? null : this.renderCutChips(q, dim, WF_KNOW_CUTS)}
         <div style={{ background: 'var(--ink)', color: 'var(--surface)', borderRadius: 12, padding: '12px 14px', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 14, display: 'flex', alignItems: 'center', gap: 10 }}>
-          {/* D148: the estimate is gone from live builds, so the three
+          {/* D149: the estimate is gone from live builds, so the three
               cases here are a measurement, the demo's authored figure, and
               a live card nobody else has answered \u2014 which says so rather
               than printing a number nobody measured. */}

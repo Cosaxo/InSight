@@ -411,7 +411,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     for (const name of ["Answers", "People", "Compare", "Scores"]) {
       expect(screen.getByRole("tab", { name }), `the row is missing its ${name} tab`).toBeTruthy();
     }
-    // Explore is the WORLD's lens and this is the City stop (D151). Its
+    // Explore is the WORLD's lens and this is the City stop (D152). Its
     // reading needs "everyone" as its baseline; at City it would compare a
     // slice of one city against that city. Asserted on the real mount for
     // the same reason the removals below are — the row is assembled from
@@ -430,7 +430,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     // mount. People is the one that still carries it; the field's own fold
     // runs on arrival, which is D135's accepted price and D136 leaves
     // unchanged. Then the lens body arrives on the tap (findBy: its chunk).
-    // "Kindred" since D151 — the section was headed "Most like you" while
+    // "Kindred" since D152 — the section was headed "Most like you" while
     // it was a list of names; the prototype's name came back with the
     // prototype's shape.
     expect(screen.queryByText(/the fuller the ring/i)).toBeNull();
@@ -509,7 +509,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     // separated by a dynamic import whose duration is the machine's, not
     // the test's: a fixed 50 ms lost that race on CI while passing every
     // local run. findByText polls until the row exists or 3 s passes.
-    // getAllBy: since D151 the stop draws its constellation above the
+    // getAllBy: since D152 the stop draws its constellation above the
     // list, so a member with a likeness appears twice — once as a node,
     // once as a row. Both are her, and that IS the fix.
     expect((await screen.findAllByText(/Ada/, {}, { timeout: 3000 })).length).toBeGreaterThan(0);
@@ -530,7 +530,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
   // mounted from the who-voted sheet of a live card, on the real shell,
   // through the spec layer's own render path.
   //
-  // D148 moved WHERE the names are. The sheet used to list every voter
+  // D149 moved WHERE the names are. The sheet used to list every voter
   // under every cohort, "Everyone" included, with their age and city
   // printed beside them; it now answers cohorts in percentages and names
   // people on one cut — Friends. So this walks to that cut, which is also
@@ -551,7 +551,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     fireEvent.click(whoVoted);
     await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
 
-    // The cohort the sheet opens on names nobody. This is the D148 line
+    // The cohort the sheet opens on names nobody. This is the D149 line
     // executed rather than asserted in source: the fixture's voters are
     // right there in the store, and the Everyone body must still be a
     // split rather than a directory of them.

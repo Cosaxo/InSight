@@ -157,7 +157,7 @@ import './ui/PickSearch';
 // ui/LiveCohortBody and ui/profileSetup additionally must not be listed —
 // each is reached only past first paint (D25's deferred group; a React.lazy
 // for Circle and, since D119, for Cohort; main.jsx's own dynamic import for
-// the account-creation questions, D150), so a line here would drag it into
+// the account-creation questions, D151), so a line here would drag it into
 // the eager bundle, which is the whole thing the deferral bought.
 //
 // ui/LiveGroupsMirrorBody and ui/LiveTakesPanel were listed until D137 for a

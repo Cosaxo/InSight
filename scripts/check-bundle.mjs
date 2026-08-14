@@ -455,7 +455,7 @@ if (!DEMO && process.env.VITE_V2_LIVE !== "true") {
 // the archive, at the most expensive moment available. The band covers the
 // config delta because it has to.
 //
-// 2245 → 2265 (2026-08-14): D148-D151 — the takes' side badges and side
+// 2245 → 2265 (2026-08-14): D149-D152 — the takes' side badges and side
 // filter, the who-voted sheet's Friends cut, Learn's real per-option
 // counts, Near's anonymous field, the account-creation questions and the
 // People lens rebuilt to the prototype's shape. Measured the way the
@@ -470,7 +470,7 @@ if (!DEMO && process.env.VITE_V2_LIVE !== "true") {
 // WHAT IS NOT BEING RAISED, again, is MAX_EAGER_KB — 969 against 978 on
 // this same build, with room left. Every one of those surfaces is behind
 // a tap or a stop: the profile-setup screen is a dynamic import from
-// main.jsx (D150 records why the obvious gate component would not fit),
+// main.jsx (D151 records why the obvious gate component would not fit),
 // the Near field and the Circle/Groups fields are React.lazy, and the
 // People lens rides the lens chunk that already existed.
 //

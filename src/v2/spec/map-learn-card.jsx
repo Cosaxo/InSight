@@ -28,7 +28,7 @@ function MTLearnCard({ node }) {
   // reveal already labels it.
   const rate = LEARN_RATE(card);
   const est = rate.src === 'estimate';
-  // D148: a live build has no estimate to hedge. `pct` is null until the
+  // D149: a live build has no estimate to hedge. `pct` is null until the
   // card has been answered by somebody, and this card draws no bar and
   // makes no claim until then — the fact is on your map either way, which
   // is what this card is actually for.
@@ -47,7 +47,7 @@ function MTLearnCard({ node }) {
           {/* "about" carries the hedge in the sentence itself, so the number
               is never alone on the screen making a claim it cannot support.
               Only in the DEMO now: a live build has no estimate to hedge
-              (D148), and says plainly that nobody else has answered yet. */}
+              (D149), and says plainly that nobody else has answered yet. */}
           <span style={{ flex: 1, fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)' }}>
             {none
               ? 'Nobody else has answered this one yet.'

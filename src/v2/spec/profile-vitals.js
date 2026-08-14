@@ -1,5 +1,5 @@
 // profile-vitals.js — the vitals vocabulary, and the map from it onto the
-// eight anchor keys (D150).
+// eight anchor keys (D151).
 //
 // WHY ITS OWN FILE. These lists are not styling. `check:anchors` holds
 // four of them equal to BREAKDOWN_DIM_VOCAB in functions/src/pure.ts —

@@ -16,7 +16,7 @@ import { consumeJoinCode, inviteLinkFor } from "../data/links";
 // yet; it is no longer something anyone types.
 import { atHandle, handleProblem, normalizeHandle } from "../data/handles";
 import { inviteLine, type Invite } from "../data/invites";
-// LAZY, and that is a measurement rather than a style (D151). Not a
+// LAZY, and that is a measurement rather than a style (D152). Not a
 // globalThis lookup either way — both panels are typed TSX in this
 // directory and D39's ratchet only moves down — but this panel is reached
 // from the daily tab, which is eager and first-screen. A static import put

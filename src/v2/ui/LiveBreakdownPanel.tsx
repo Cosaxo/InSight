@@ -31,7 +31,7 @@
 // cohorts is arithmetic on data in hand and costs no reads at all. The
 // Friends cut underneath keeps its own single fetch-on-open, bounded.
 //
-// TWO CHANGES AT D148, AND THEY ARE ONE CHANGE.
+// TWO CHANGES AT D149, AND THEY ARE ONE CHANGE.
 //
 // The sheet had a roster of NAMES under every cohort — "Everyone" and, at
 // D146, "Type" included — with each person's age, gender, city and
@@ -422,7 +422,7 @@ function LiveBreakdownPanel({ qid, options, mine = -1, renderBody }: {
           The dim row picks an axis, the bucket row picks a place on it,
           and everything below is drawn for that place. */}
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-        {/* Friends leads (D148), where the prototype has always put it: of
+        {/* Friends leads (D149), where the prototype has always put it: of
             every cut on this sheet it is the only one whose answer is
             people rather than a percentage, and it is the one a reader
             wants first. */}
@@ -570,7 +570,7 @@ function LiveBreakdownPanel({ qid, options, mine = -1, renderBody }: {
         </div>
       )}
 
-      {/* No roster under a cohort (D148). "Everyone", every demographic
+      {/* No roster under a cohort (D149). "Everyone", every demographic
           cut and D146's type cut all answer in percentages; the only cut
           that names people is Friends, because there "who" IS the question
           being asked. */}

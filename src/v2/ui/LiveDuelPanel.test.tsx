@@ -367,7 +367,7 @@ describe("LiveDuelPanel · takes hang off the reveal, never the sealed question"
     });
     render(<LiveDuelPanel mode="duo" />);
 
-    // findBy, not getBy: the takes panel is a React.lazy chunk since D151
+    // findBy, not getBy: the takes panel is a React.lazy chunk since D152
     // (it was 40 KB of first-paint weight for a thread behind a reveal),
     // so the composer arrives one dynamic import after the reveal does.
     expect(await screen.findByLabelText("Add your take")).toBeTruthy();

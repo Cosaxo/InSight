@@ -40,7 +40,7 @@ const LIVE = vi.hoisted(() => ({
   // reachable in the same fixture.
   nameFor: (uid: string) => (uid === "u_me" ? "Me" : uid === "u_named" ? "Ada" : ""),
   loadNames: vi.fn(async () => {}),
-  // The side join (D148): a take's author wears the option they answered
+  // The side join (D149): a take's author wears the option they answered
   // with, read off the voter list rather than off the take document.
   loadVoters: vi.fn(async () => {}),
   voterList: null as Array<{ uid: string; optionIdx: number }> | null,
@@ -355,7 +355,7 @@ describe("the world mute control (guideline 1.2's block)", () => {
   });
 });
 
-// ── which side is talking (D148) ─────────────────────────────────────
+// ── which side is talking (D149) ─────────────────────────────────────
 //
 // A take is an argument, and an argument reads completely differently once
 // you know which way the person making it voted. The panel had no idea:
