@@ -27,7 +27,7 @@ Free text is ruled out, for reasons that are each individually sufficient:
   research problem, not a cleanup task, and it is never finished — the
   counts stop being honest the moment normalization merges or splits
   entities behind the scenes.
-- **The k-floor shreds the long tail.** Free text fragments one answer into
+- **The long tail shreds itself.** Free text fragments one answer into
   many sub-floor buckets. This repo has already lived it: the pre-D9 profile
   stored free-text places, and "Norway"/"norway"/"NO" became three cohorts,
   none publishable (see the history note in `functions/src/pure.ts`).
@@ -107,7 +107,7 @@ Feed card shape mirrors `rate` (the v15 precedent for a type that feeds its
 own surface): `{ id, cat, type: 'pick', domain: 'pokemon', prompt }`.
 Unanswered, the card is a search field over the catalogue (the `CityPicker`
 interaction, restyled to the feed) plus "Not listed". The answer written is
-`{ entity: <key> }` — create-only, owner-only, same as every other answer
+`{ entity: <key> }` — create-only, owner-written and world-readable, same as every other answer
 (D5 unchanged).
 
 Server-side validation cannot live in `firestore.rules` (a thousand-entry
@@ -121,42 +121,61 @@ create-only doc — worthless to the aggregate, harmless to everyone else.
 A favourite-of-1,000 has no 52/48 to stage. The reveal is a **leaderboard**:
 
 - Publish the **top N entities (N = 10)** whose counts clear the per-bucket
-  floor (`AGG_MIN_N = 5`), rewritten every `PUBLISH_EVERY = 5` answers —
+  board (`canonTopN`, a display cap — no floor since D98), rewritten on every answer —
   the existing D7 cadence, unchanged.
 - Everything else folds into one **"everyone else" bucket** = total −
-  published. The subtraction-leak rule already in `pure.ts` applies: if
-  exactly one entity sits below the floor, its count would be recoverable
-  from the remainder, so the fold must cover at least two suppressed
-  entities or publish nothing finer than the total. This is the same
-  complementary-suppression argument, pointed at entities instead of
-  demographic cells.
+  published, and `rest` now means exactly what a reader always assumed:
+  the tail outside the top N. **D98 deleted the three disclosure rules
+  this bullet used to carry** — the below-floor drop, the boundary
+  tie-group fold, and the complementary suppression that folded one extra
+  row when a single hidden entity would have been recoverable as
+  `total - published`. Every one of them was protecting a count against a
+  reader who can now read the answers themselves. `canonTopN` keeps the
+  code comment recording what it stopped doing.
 - Capping at N bounds the public doc size regardless of catalogue size, and
-  keeps the reveal readable. Ties at the boundary fold into the bucket.
-- The fold also carries **two aggregate scalars**: how many distinct entries
-  it covers and whether every one is still below the floor. They power the
-  honest tail copy ("47 votes across 30+ other films — none with 5 yet")
-  and the spots-claimed line on a sparse board. Neither enumerates: the
-  entity count renders only when the fold covers at least two entries (the
-  same subtraction-leak rule as above) and stepped down to fives, so it
-  never ticks per answer (the delta-disclosure rule). The demo store
-  (`pick-data.js` `canon()`) publishes the same shape.
-- **Your own pick always shows to you** — it is your own answer, no floor
-  applies (the `feed-read.js` argument). When it is below the floor the
-  copy says so honestly: "You: Mudkip — too few Mudkip picks yet to count."
+  keeps the reveal readable — the **only** reason the cap survives, now
+  that it is not also a disclosure control. Ties at the boundary are
+  ranked, not folded: entities with equal counts sort by key so equal
+  inputs give equal outputs, and the client re-sorts anyway.
+- The published document is `{ total, top, rest, by }` and nothing else.
+  An earlier version of this section described two extra scalars — how
+  many distinct entries the tail covered, and whether all of them were
+  still below the floor — feeding tail copy like "47 votes across 30+
+  other films — none with 5 yet". Neither field exists; both were shapes
+  of the floor, and the honest tail line is now just `rest` against
+  `total`.
+- **An entity with one vote is as publishable as one with a thousand**,
+  so your own pick shows on the board like anyone else's rather than
+  needing the "it is your own answer" carve-out the `feed-read.js`
+  argument used to supply.
+
+**The demo store has not followed, and that is a known divergence rather
+than a second opinion.** `pick-data.js` `canon()` still filters on its own
+`AGG_MIN_N` and still returns `restEntities` / `restBelowFloor`, so a mock
+build hides tail entities the live app would draw and computes two scalars
+the live document does not carry. It is prototype furniture on the demo
+path only — no live surface reads it — but a reader comparing the two
+stores should know which one is current. Converting it is a behaviour
+change to mock mode, so it is left for whoever next touches that file.
 
 ## What is deferred, with the arithmetic
 
 **Per-anchor breakdowns (`agg.by`) do not apply to `pick` questions in v1.**
-The existing breakdown floor is per cell. A split of 1,000 entities across
-6 dimensions × ~4 buckets each needs a cell of ≥ 5 *per entity per bucket*:
-even a question with 10,000 answers spread over a realistic favourite
-distribution leaves all but the top handful of (entity × bucket) cells below
-the floor, and the suppression bookkeeping across ~24,000 cells buys almost
-nothing visible. If demand appears, the viable form is breakdowns **for the
-published top-N only** — 10 entities × 6 dims is the same cell count a vote
+As first written this was a floor argument: a split of 1,000 entities across
+6 dimensions × ~4 buckets each needed a cell of ≥ 5 *per entity per bucket*,
+so all but the top handful of (entity × bucket) cells sat below the floor
+and the suppression bookkeeping across ~24,000 cells bought almost nothing
+visible. If demand appeared, the viable form was breakdowns **for the
+published top-N only** — 10 entities × 6 dims, the same cell count a vote
 question already handles. *(Demand appeared the same day this shipped; the
-top-N-only form is now built — D17. The full-catalogue arithmetic above
-still stands.)*
+top-N-only form is now built — D17.)*
+
+**D98 removed the floor half of that argument and left the arithmetic
+standing.** Every cell publishes now, so nothing is suppressed and there is
+no bookkeeping — but 24,000 cells in one document is a **size** problem
+against Firestore's 1 MiB limit, and 24,000 cells on one screen is a
+legibility problem. Top-N-only remains the shipped form for those two
+reasons, which were always the durable ones.
 
 **"Not listed" is a real bucket but never enumerated** — it publishes as a
 count only. The moment it dominates a domain, that is the signal the curated
@@ -180,7 +199,7 @@ catalogue is stale, not a prompt to collect strings.
    demo-only data, behind the existing demo/live seam.
 3. Aggregate trigger: per-entity buckets, top-N + fold, the two floors
    above; rules test asserting a `pick` answer doc is create-only and
-   owner-only like every other answer; a `pure.ts` test for the fold's
+   owner-written like every other answer; a `pure.ts` test for the fold's
    subtraction rule that **fails without the change**.
 4. Films/artists catalogues from Wikidata, only after the Pokémon pilot
    proves the reveal is worth reading.

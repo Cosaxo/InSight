@@ -3,6 +3,14 @@
 // Cross-module references resolve through the shared global scope and
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
+//
+// An ordinary import, not the window.LIVE lookups this file carried — the
+// typed module is importable from spec (map-anchors precedent), and the
+// two freed reference sites are what pay for lensAgg's read below under
+// check:globals rule 4. `.enabled`/`.lensAgg` are data conditions and
+// stay: enabled is false for the whole of mock mode, and lensAgg answers
+// null against a bank that has no lens rows.
+import LIVE from '../data/live';
 
 // lens-defs.js — the MINOR instruments ("lenses"). Smaller than the four core
 // tests: 4–8 questions each, no archetype, no rarity banner. They live on the
@@ -49,6 +57,12 @@ window.IS_LENSES = [
       { q: 'Some things are degrading even when nobody is harmed.', d: 'sanctity' },
       { q: 'Being told what to do is a harm in itself.', d: 'liberty' },
       { q: 'Rules I never agreed to have no hold on me.', d: 'liberty' },
+      // APPENDED, never inserted: lens answers and feed ids (lq-<lens>-<qi>)
+      // are index-keyed, so only the tail is safe to grow. This is the
+      // lens's one reverse-keyed item — without any, an agree-with-
+      // everything response style scores as a full moral profile (the same
+      // acquiescence hole the W2 expansion closed for big5/attachment).
+      { q: 'Toughness does more good than tenderness.', d: 'care', invert: true },
     ],
   },
   {
@@ -78,7 +92,7 @@ window.IS_LENSES = [
     viz: 'spine',
     dims: [
       { id: 'trust',     label: 'Strangers', poles: ['wary', 'trusting'],      demo: 64 },
-      { id: 'zerosum',   label: 'The pie',   poles: ['grows', 'is fixed'],     demo: 29 },
+      { id: 'zerosum',   label: 'Gains',     poles: ['grows', 'is fixed'],     demo: 29 },
       { id: 'justworld', label: 'Outcomes',  poles: ['luck', 'deserved'],      demo: 37 },
     ],
     seed: 0.5,
@@ -153,7 +167,7 @@ window.IS_LENSES = [
       { id: 'affiliative', label: 'Warm',      demo: 78 },
       { id: 'selfenh',     label: 'Wry',       demo: 61 },
       { id: 'aggressive',  label: 'Cutting',   demo: 34 },
-      { id: 'selfdef',     label: 'Self-cost', demo: 42 },
+      { id: 'selfdef',     label: 'At myself', demo: 42 },
     ],
     seed: 0.25,
     questions: [
@@ -161,6 +175,9 @@ window.IS_LENSES = [
       { q: 'When things go badly I can usually find it funny.', d: 'selfenh' },
       { q: 'A good joke is worth someone being stung by it.', d: 'aggressive' },
       { q: 'I get laughs by putting myself down.', d: 'selfdef' },
+      // Appended (index-keyed — see the moral lens note): the reverse-keyed
+      // item this lens shipped without.
+      { q: 'A joke that needs a target isn’t worth telling.', d: 'aggressive', invert: true },
     ],
   },
   {
@@ -226,7 +243,7 @@ window.LENSES = (function () {
   // only so the prototype shows all progress states at once. Same Proxy
   // shape as passive-progress.js's SEED, deliberately: one idiom for
   // "demo-only number" across the spec layer.
-  const liveOn = () => !!(window.LIVE && window.LIVE.enabled);
+  const liveOn = () => !!LIVE.enabled;
   const seedOf = (l) => (liveOn() ? 0 : (l.seed || 0));
   // weight of the typical-person prior in your own score. Nonzero only in
   // demo mode, where a half-answered lens still needs to draw something.
@@ -306,38 +323,101 @@ window.LENSES = (function () {
     return q.lens;
   }
   function mapped() { return KEYS.filter(complete).length; }
-  // wipe on account deletion / uid change, same contract as the other stores
+  // the public wipe. The account-deletion / uid-change contract is served
+  // by the insight:local-purge listener below, not by callers of this.
   function reset() { st = { ans: {}, seen: {} }; save(); notify(); }
-  return { KEYS, all: window.IS_LENSES, get, needed, done, pct, complete, seedCount, nextIdx, score, typical, answer, record, subscribe, mapped, reset, poke: notify };
+  // live.ts's purgeLocalTrace() removes every insight.* key on account
+  // deletion and uid change, then announces it. Drop the in-memory copy
+  // too: the uid-change path has no reload behind it, so without this the
+  // next answer()'s save() would write the previous account's lens answers
+  // straight back under the new uid. Deliberately NOT reset() — no save():
+  // re-creating the key the purge just removed, even empty, works against
+  // "remove every local trace".
+  window.addEventListener('insight:local-purge', () => { st = { ans: {}, seen: {} }; notify(); });
+  // liveOn is published for LENS_FEED_QS below: its pool differs between
+  // demo and live, and re-deriving the flag there would mean a second
+  // window.LIVE read for a fact this store already owns. It is the LENS
+  // store's mode, not a general "is the app live" check — that stays
+  // window.LIVE.enabled.
+  return { KEYS, all: window.IS_LENSES, get, needed, done, pct, complete, seedCount, nextIdx, score, typical, answer, record, subscribe, mapped, reset, liveOn, poke: notify };
 })();
 // ── the lenses' own questions, for the World feed ───────────────────────────
 // Deliberately thinner than TEST_FEED_QS: the core tests still own the feed.
+//
+// A FUNCTION, not a module-scope array. LIVE.enabled flips only after the
+// async boot (data/live.ts initLive), long after this module evaluates — so
+// a pool snapshotted here is always the DEMO one: seedCount() excludes each
+// lens's seeded prefix as "already answered". Live mode starts every lens at
+// a real zero, so freezing that snapshot in cost live users every one of
+// those prefix questions (~20 of the 50 items) — for a feed-only user,
+// `moral` could never pass 4 of 8. Rebuilt lazily instead; world-feed calls
+// this on every feed build.
 window.LENS_FEED_QS = (function () {
-  const L = window.LENSES; if (!L) return [];
   function h(s) { let x = 17; for (let i = 0; i < s.length; i++) x = Math.imul(x ^ s.charCodeAt(i), 2654435761); return ((x ^ (x >>> 11)) >>> 0) / 4294967295; }
+  // Agree-FIRST, and the seeded bank's lens rows carry the same five in the
+  // same order (content/lenses.json → LENS_SCALE, drift-gated by
+  // check:content): stored optionIdx indexes this list, and world-feed's
+  // `4 - val` store inversion depends on the order.
   const SCALE = ['Strongly agree', 'Agree', 'Neutral', 'Disagree', 'Strongly disagree'];
-  const perLens = L.all.map((l) => {
-    const from = L.seedCount(l.id);
-    return l.questions.slice(from).map((q, i) => {
-      const qi = from + i, id = 'lq-' + l.id + '-' + qi;
-      const peak = Math.floor(h(id) * SCALE.length);
-      const options = SCALE.map((label, oi) => {
-        const w = 1 / (1 + Math.abs(oi - peak)) + h(id + ':' + oi) * 0.45;
-        return { label, count: Math.round(180 + w * 1900) };
+  function build() {
+    const L = window.LENSES; if (!L) return [];
+    const live = L.liveOn();
+    const perLens = L.all.map((l) => {
+      const from = L.seedCount(l.id); // 0 in live mode — every question enters
+      return l.questions.slice(from).map((q, i) => {
+        const qi = from + i, id = 'lq-' + l.id + '-' + qi;
+        const peak = Math.floor(h(id) * SCALE.length);
+        // AUTHORED counts — demo furniture. A live card never renders them:
+        // it either replaces them with the measured counts below or carries
+        // selfOnly, which keeps every crowd surface off the card.
+        const options = SCALE.map((label, oi) => {
+          const w = 1 / (1 + Math.abs(oi - peak)) + h(id + ':' + oi) * 0.45;
+          return { label, count: Math.round(180 + w * 1900) };
+        });
+        // tier 2 lenses surface at half the rate of tier 1
+        const card = { id, lens: l.id, qi, tier: l.tier, cat: 'lens', type: 'vote', prompt: q.q, options };
+        if (live) {
+          // D91 (reversing D50's device-only half): lens items are seeded
+          // world questions now, so a live card draws the same k-floored
+          // counts every feed card does — and the answer still records to
+          // the on-device instrument (world-feed setVote calls both).
+          const agg = LIVE.lensAgg(id);
+          if (agg) {
+            card.options = SCALE.map((label, oi) => ({ label, count: agg.counts[oi] || 0 }));
+            card.live = true;
+            card.noCountsYet = agg.noCountsYet;
+          } else {
+            // The bank has no lens rows — a pre-D91 backend. The counts
+            // above are authored, not measured, so the D50 treatment
+            // stays: every crowd surface off, acknowledge the local write.
+            card.selfOnly = true;
+          }
+        }
+        return card;
       });
-      // tier 2 lenses surface at half the rate of tier 1
-      return { id, lens: l.id, qi, tier: l.tier, cat: 'lens', type: 'vote', prompt: q.q, options };
     });
-  });
-  const t1 = [], t2 = [];
-  for (let i = 0; perLens.some((p) => i < p.length); i++) {
-    perLens.forEach((p) => { if (i < p.length) (p[i].tier === 1 ? t1 : t2).push(p[i]); });
+    const t1 = [], t2 = [];
+    for (let i = 0; perLens.some((p) => i < p.length); i++) {
+      perLens.forEach((p) => { if (i < p.length) (p[i].tier === 1 ? t1 : t2).push(p[i]); });
+    }
+    // weave: two tier-1 questions for every tier-2 one
+    const out = []; let a = 0, b = 0;
+    while (a < t1.length || b < t2.length) {
+      for (let k = 0; k < 2 && a < t1.length; k++) out.push(t1[a++]);
+      if (b < t2.length) out.push(t2[b++]);
+    }
+    return out;
   }
-  // weave: two tier-1 questions for every tier-2 one
-  const out = []; let a = 0, b = 0;
-  while (a < t1.length || b < t2.length) {
-    for (let k = 0; k < 2 && a < t1.length; k++) out.push(t1[a++]);
-    if (b < t2.length) out.push(t2[b++]);
-  }
-  return out;
+  // Memoised in DEMO mode only, where the pool is static. A live pool
+  // carries measured counts that move with every vote and agg refresh, so
+  // it is rebuilt per call — world-feed calls this once per feed build,
+  // which is exactly the cadence TEST_FEED_QS gets rebuilt at
+  // (buildFeedGlobals), just pull instead of push.
+  let demoBuilt = null;
+  return function () {
+    const L = window.LENSES;
+    if (L && L.liveOn()) { demoBuilt = null; return build(); }
+    if (!demoBuilt) demoBuilt = build();
+    return demoBuilt;
+  };
 })();

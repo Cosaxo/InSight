@@ -1,9 +1,19 @@
 // Ported from design/spec-modules/duels-data.js (the historical prototype — no sync
-// script survives; THIS file is the live source now, hand-edits and all).
-// Cross-module references resolve through the shared global scope and
-// spec-index.js load order is semantic — scripts/check-spec-globals.mjs
-// guards the wiring in CI.
+// script survives; THIS file is the live source of the BEHAVIOR, hand-edits
+// and all). The group/1v1 banks themselves moved to
+// content/duel-questions.json (2026-08-03, the D32 learn-data shape): one
+// source feeds both this module and the seeded Firestore bank via
+// scripts/gen-v2content.mjs, so the demo banks and the live docs cannot
+// drift. (A static JSON import, not a cross-module import — the spec
+// layer's no-imports convention bans load-order coupling between modules,
+// which data has none of.)
+// OFF THE GLOBAL BRIDGE (D108): `DUELS` is a named export, not a
+// `window.DUELS`, so its nine consumers hold it as a module binding that
+// load order cannot leave unset. Nothing here publishes to global scope.
 import React from 'react';
+import DUEL_CONTENT from '../../../content/duel-questions.json';
+import { FRIENDS } from './follows.js';
+import { IS_DATA } from './sample-data.js';
 
 // duels-data.js — the "know each other" layer.
 //  · GROUP: one question a day for each named circle; answers sealed until
@@ -12,7 +22,15 @@ import React from 'react';
 //    both sides reveal tomorrow. 1v1s start with an invite (friends only).
 // Partner behaviour is deterministic mock; your own answers, your custom
 // groups and your invites persist to localStorage. The circle = your friends
-// (window.FRIENDS). Read/being-read scores feed the Map's People branch.
+// (FRIENDS). Read/being-read scores feed the Map's People branch.
+//
+// The binding is hoisted above the IIFE and assigned inside it — the shape
+// DAILYQ, FRIENDS and SCENES took, and for the same reason: the wrapper is
+// vestigial (an ESM module already has its own scope) but unwrapping it
+// re-indents 490 lines and would bury the one real edit in a whitespace
+// diff. ESM exports are live and this module finishes evaluating before any
+// importer's body runs, so consumers always see the object.
+export let DUELS;
 (function () {
   const DAYS = ['Today', 'Yesterday', 'Tue', 'Mon', 'Sun', 'Sat', 'Fri'];
   function h01(s) {
@@ -23,26 +41,43 @@ import React from 'react';
 
   // ── persistence — your answers + your social edits ─────────────────────────
   const LS = 'insight.duels.v1';
+  // One shape for the cold load AND the purge listener below — a field
+  // added here is automatically fresh in both, so they cannot diverge.
+  function normalize(v) {
+    const s = v && typeof v === 'object' ? v : {};
+    s.groups = s.groups || {};   // gid → { dayId → your option index }
+    s.duo = s.duo || {};         // pid → { a: your answer idx, g: your guess idx } (today)
+    s.duoList = Array.isArray(s.duoList) ? s.duoList : null; // active 1v1 pids (null = seed)
+    s.duoInv = s.duoInv || {};   // pid → invite ts (waiting on them)
+    s.myGroups = Array.isArray(s.myGroups) ? s.myGroups : []; // custom groups
+    s.groupIds = s.groupIds || {};   // seeded-gid → edited member ids
+    s.groupPend = s.groupPend || {}; // gid → { pid → invite ts }
+    s.left = Array.isArray(s.left) ? s.left : []; // gids you left
+    s.duoMode = s.duoMode || {}; // pid → 'friends' | 'romantic' (which pool this 1v1 draws from)
+    return s;
+  }
   let S;
-  try { S = JSON.parse(localStorage.getItem(LS) || '{}'); } catch (e) { S = {}; }
-  if (!S || typeof S !== 'object') S = {};
-  S.groups = S.groups || {};   // gid → { dayId → your option index }
-  S.duo = S.duo || {};         // pid → { a: your answer idx, g: your guess idx } (today)
-  S.duoList = Array.isArray(S.duoList) ? S.duoList : null; // active 1v1 pids (null = seed)
-  S.duoInv = S.duoInv || {};   // pid → invite ts (waiting on them)
-  S.myGroups = Array.isArray(S.myGroups) ? S.myGroups : []; // custom groups
-  S.groupIds = S.groupIds || {};   // seeded-gid → edited member ids
-  S.groupPend = S.groupPend || {}; // gid → { pid → invite ts }
-  S.left = Array.isArray(S.left) ? S.left : []; // gids you left
-  S.duoMode = S.duoMode || {}; // pid → 'friends' | 'romantic' (which pool this 1v1 draws from)
+  try { S = normalize(JSON.parse(localStorage.getItem(LS) || '{}')); } catch (e) { S = normalize({}); }
   const listeners = new Set();
   const fire = () => listeners.forEach((f) => { try { f(); } catch (e) { /* one listener throwing must not stop the others being notified. */ } });
   const save = () => { try { localStorage.setItem(LS, JSON.stringify(S)); } catch (e) { /* localStorage can throw: private mode, quota, disabled storage. Persistence here is best-effort and the in-memory state stays correct. */ } fire(); };
+  // The purge (data/live.ts, D51): drop your duel answers, groups and 1v1
+  // edits too, or the next answer's save() writes the previous account's
+  // back under the new uid. fire() without save() — do not re-create the
+  // purged key.
+  window.addEventListener('insight:local-purge', () => { S = normalize({}); fire(); });
 
   // ── the circle — your friends ───────────────────────────────────────────────
-  const IDS = ['f1', 'f2', 'f4', 'f6', 'f3']; // fallback if FRIENDS is absent
-  const allPeople = () => (window.IS_DATA && window.IS_DATA.people) || [];
-  const circleIds = () => (window.FRIENDS ? window.FRIENDS.list() : IDS);
+  // Fallback if FRIENDS is absent, and the first-run 1v1 roster (duoList).
+  // Eight rather than five so the daily's 1v1 rail, the Map's People branch
+  // and impressions() all run at a size where they have to rank; the other
+  // seeded friends stay unpaired on purpose — they are what duoAvailable()
+  // offers. Every id here must be in follows.js SEED too, since duoIds()
+  // filters the list through FRIENDS.isFriend and a non-friend would sit in
+  // storage invisible.
+  const IDS = ['f1', 'f2', 'f4', 'f6', 'f3', 'f12', 'f17', 'f14'];
+  const allPeople = () => IS_DATA.people || [];
+  const circleIds = () => (FRIENDS ? FRIENDS.list() : IDS);
   function members() { return circleIds().map((id) => allPeople().find((p) => p.id === id)).filter(Boolean); }
   const personOf = (pid) => allPeople().find((p) => p.id === pid);
 
@@ -72,37 +107,25 @@ import React from 'react';
   // about one of you) and 'us' (options describe the group — feeds its portrait).
   // Mostly 'us' (feeds the portrait) + verdict 'pick's. Role-cast scenarios
   // (heist/island/sitcom/zombie) live ONLY in SCENARIOS — no duplicates here.
-  const GROUP_QS = [
-    { id: 'gu0', kind: 'us', prompt: 'What actually holds this group together?', options: ['Food', 'Banter', 'Showing up', 'History'] },
-    { id: 'gp0', kind: 'pick', prompt: "Who'd survive longest in the wild?" },
-    { id: 'gu1', kind: 'us', prompt: "This group's superpower?", options: ['Honesty', 'Loyalty', 'Chaos', 'Calm'] },
-    { id: 'gd3', prompt: 'Best dinner together: cook, or book a table?', options: ['Cook together', 'Book a table'] },
-    { id: 'gu3', kind: 'us', prompt: 'When we disagree, we…', options: ['Talk it out', 'Vote', 'Let it slide', 'Loudest wins'] },
-    { id: 'gp1', kind: 'pick', prompt: 'Who replies to the group chat within a minute?' },
-    { id: 'gu4', kind: 'us', prompt: 'A stranger joins us for an evening. They leave thinking…', options: ['So loud', 'So close', 'So weird', 'So fun'] },
-    { id: 'gd0', prompt: 'A winter cabin with no wifi. How long do you last?', options: ['One night', 'A weekend', 'A week', 'Move me in'] },
-    { id: 'gu5', kind: 'us', prompt: 'What are we most likely to be late for?', options: ['Nothing', 'Everything', 'Dinner', 'The airport'] },
-    { id: 'gp2', kind: 'pick', prompt: 'Who gives the best advice?' },
-    { id: 'gu2', kind: 'us', prompt: 'Our default plan on a free Friday?', options: ['Big dinner', 'Out out', 'Sofa + film', 'Spontaneous'] },
-    { id: 'gd4', prompt: 'A surprise party for you — love it or dread it?', options: ['Love it', 'Dread it'] },
-    { id: 'gu6', kind: 'us', prompt: 'The thing we never say out loud?', options: ['I miss you', 'You were right', 'I need help', 'We say everything'] },
-    { id: 'gp3', kind: 'pick', prompt: 'Who would you call from jail at 3am?' },
-    { id: 'gu7', kind: 'us', prompt: 'In ten years, this group is…', options: ['Same but older', 'Scattered, still close', 'Neighbours', 'A yearly reunion'] },
-    { id: 'gd6', prompt: 'On the road trip, you are the…', options: ['Driver', 'DJ', 'Navigator', 'Snacks'] },
-    { id: 'gu8', kind: 'us', prompt: 'Our group chat is mostly…', options: ['Plans', 'Memes', 'Life updates', 'Silence'] },
-    { id: 'gp4', kind: 'pick', prompt: 'Who changes the plan at the last minute?' },
-    { id: 'gu9', kind: 'us', prompt: 'What would break this group?', options: ['Nothing', 'Distance', 'Money', 'A secret'] },
-    { id: 'gd7', prompt: 'Group holiday: one house together, or rooms apart?', options: ['One house', 'Rooms apart'] },
-    { id: 'gp5', kind: 'pick', prompt: 'Who secretly runs this group?' },
-    { id: 'gu10', kind: 'us', prompt: 'Our best time together is usually…', options: ['Late night', 'Long dinner', 'Outdoors', 'Doing nothing'] },
-    { id: 'gp6', kind: 'pick', prompt: 'Who would win a group argument on a technicality?' },
-    { id: 'gu11', kind: 'us', prompt: 'New person wants in. We are…', options: ['Open door', 'Slow to warm', 'Full — sorry', 'Depends who'] },
-  ];
+  // The bank lives in content/duel-questions.json — the same file
+  // gen-v2content.mjs seeds the live Firestore bank from, so demo and live
+  // can never drift (single source, the D32 shape). Array order is the
+  // rotation order and is deliberately interleaved: append, never sort.
+  const GROUP_QS = DUEL_CONTENT.group;
   // seeded groups — each runs the shared pool at its own offset
+  //
+  // Four sizes on purpose (7 · 4 · 2 · 5): a group's portrait, its
+  // togetherness and its role casts all read differently at two members than
+  // at seven, and 'pick' questions build their options from the members
+  // (activeMembers + 'You'), so the largest group is also the widest option
+  // list the daily has to lay out. gBase() offsets each group by its index ×
+  // 3 into the 24-question pool, so a fourth group starts at 9 and still has
+  // its own week.
   const GROUPS = [
-    { id: 'g1', name: 'The Crew', ids: ['f1', 'f2', 'f4', 'f6', 'f3'] },
-    { id: 'g2', name: 'Book Club', ids: ['f2', 'f3', 'f6'] },
+    { id: 'g1', name: 'The Crew', ids: ['f1', 'f2', 'f4', 'f6', 'f3', 'f12', 'f14'] },
+    { id: 'g2', name: 'Book Club', ids: ['f2', 'f3', 'f6', 'f22'] },
     { id: 'g3', name: 'The Cousins', ids: ['f1', 'f4'] },
+    { id: 'g4', name: 'The Long Table', ids: ['f2', 'f6', 'f8', 'f10', 'f9'] },
   ];
   // seeded (minus left, with member edits) + your custom groups
   function groupDefs() {
@@ -261,67 +284,94 @@ import React from 'react';
   // them. Mixed option counts (2–4): more options = a right guess means more.
   // Ordered light → deep: early days stay easy, long streaks earn the
   // revealing ones (duoQ walks the pool by streak depth, not at random).
-  const DUO_QS = [
-    { prompt: 'Plans get cancelled last minute. First feeling?', options: ['Relief', 'Annoyed'] },
-    { prompt: 'Phone rings, unknown number.', options: ['Answer', 'Ignore', 'Text back later'] },
-    { prompt: 'A compliment in front of everyone — love it or squirm?', options: ['Love it', 'Squirm'] },
-    { prompt: 'Running late. Their text says…', options: ['"5 min" (it\u2019s 20)', 'The honest ETA', 'Nothing — just arrives'] },
-    { prompt: 'The food arrives wrong. Say something?', options: ['Say something', 'Eat it anyway'] },
-    { prompt: 'Lost in a new city. They…', options: ['Ask someone', 'Map it out', 'Just wander'] },
-    { prompt: 'A free Saturday, zero plans. Bliss or restless?', options: ['Bliss', 'Restless'] },
-    { prompt: 'Karaoke machine appears.', options: ['Grabs the mic', 'One duet, then done', 'Vanishes'] },
-    { prompt: 'Someone takes their joke too far. Laugh it off, or say so?', options: ['Laugh it off', 'Say so'] },
-    { prompt: 'Big decision to make. How do they call it?', options: ['Gut', 'A list', 'Ask everyone', 'Sleep on it'] },
-    { prompt: 'Cry in a film — freely, or fight it?', options: ['Freely', 'Fight it'] },
-    { prompt: 'Ideal holiday day?', options: ['Packed itinerary', 'One plan, then drift', 'Pool. Book. Done.'] },
-    { prompt: 'They win €10k. First move?', options: ['Save it', 'Book a trip that night', 'Treat someone else', 'Spend a little now'] },
-    { prompt: 'An old friend owes an apology. Bring it up, or let it go?', options: ['Bring it up', 'Let it go'] },
-    { prompt: 'Deep talk at 2am, or a proper night of sleep?', options: ['The talk', 'The sleep'] },
-    { prompt: 'When hurt, they go…', options: ['Quiet', 'Loud', 'Busy'] },
-    { prompt: 'Hard truth or comfortable silence?', options: ['Hard truth', 'Silence'] },
-    { prompt: 'After a brutal week, what refills them?', options: ['People', 'Solitude', 'Movement', 'Sleep'] },
-    { prompt: 'A week alone in a cabin. Gift or sentence?', options: ['Gift', 'Sentence'] },
-    { prompt: 'Old age: surrounded, or independent?', options: ['Surrounded', 'Independent'] },
-  ];
+  // Bank in content/duel-questions.json, single source as GROUP_QS above.
+  // JSON entries carry an `id` the live seed keys on; unused here — demo
+  // duo state keys on the partner, not the question. The light → deep
+  // ordering contract travels with the JSON: append deep.
+  const DUO_QS = DUEL_CONTENT.oneVsOne;
   // The same game, aimed at a person you share a life with rather than a friend:
   // the tells are domestic, and the deep end is about what happens next. Same
   // shape as DUO_QS — light → deep, 2–4 options — so the ladder is identical.
-  const DUO_QS_ROMANTIC = [
-    { prompt: 'A free evening, both home. Ideal version?', options: ['Out somewhere', 'Sofa, one film', 'Cooking together'] },
-    { prompt: 'How do they like being woken?', options: ['Slowly, with coffee', 'Left alone', 'Talked at immediately'] },
-    { prompt: 'A good apology from them looks like…', options: ['Words', 'A gesture', 'Time, then normal'] },
-    { prompt: 'You are 20 minutes late to dinner. Their read?', options: ['Fine, orders a drink', 'Says nothing, remembers it'] },
-    { prompt: 'Love lands hardest as…', options: ['Being told', 'Being helped', 'Being touched', 'Being chosen'] },
-    { prompt: 'Mid-argument, they want…', options: ['To finish it now', 'A pause', 'Space, then dinner'] },
-    { prompt: 'The better anniversary?', options: ['A plan they made', 'A day with nothing in it'] },
-    { prompt: 'Money in this relationship should be…', options: ['Fully shared', 'Mostly shared', 'Separate, split bills'] },
-    { prompt: 'Their idea of being taken care of?', options: ['Food made', 'Admin handled', 'Left in peace', 'Asked about'] },
-    { prompt: 'A whole weekend together, no phones. Bliss or too much?', options: ['Bliss', 'Too much'] },
-    { prompt: 'They had a hard day and did not say so. The tell?', options: ['Goes quiet', 'Cleans something', 'Talks about nothing else'] },
-    { prompt: 'Five years out, they picture…', options: ['Same city, more room', 'Somewhere new', 'Somewhere quiet'] },
-    { prompt: 'A big decision that affects you both. They…', options: ['Decide together, slowly', 'Want you to choose', 'Already decided'] },
-    { prompt: 'Would they tell you a truth that would hurt for a week?', options: ['Yes', 'Only if asked', 'No'] },
-    { prompt: 'Jealousy shows up in them as…', options: ['A question', 'A joke', 'Silence', "It doesn't"] },
-    { prompt: 'Kids, someday?', options: ['Yes', 'Open to it', 'No'] },
-    { prompt: 'The thing they would never compromise on?', options: ['Where they live', 'Their work', 'Their people', 'Their solitude'] },
-    { prompt: 'If you needed a year somewhere else, they would…', options: ['Come', 'Wait', 'Ask you not to go'] },
-    { prompt: 'What would make them feel most loved this year?', options: ['More time', 'More plans', 'More calm', 'More honesty'] },
-    { prompt: 'Old age, the two of you: side by side, or side by side and busy?', options: ['Side by side', 'Busy, together'] },
-  ];
+  // Graduated to content/duel-questions.json (D40 part 4, adopted
+  // 2026-08-06): same single source as the two banks above, and the seed
+  // now carries the pool to production, where a duo doc's `duoMode` selects
+  // it (deck.ts duelQFor). The seeded entries ship `active: false` until
+  // the mode-aware client is the fleet — an older duelQFor has no pool
+  // filter, so an active romantic doc would rotate into FRIEND duels.
+  const DUO_QS_ROMANTIC = DUEL_CONTENT.romantic;
+  // Three rows, never more: DOMAIN_MIN is 4 correct reads EACH way, so a fourth
+  // lens pushes a full chart from ~12 days out to ~16 — and three rows read at a
+  // glance where five become a table.
+  //
+  // The third row is mode-specific, because the weak lens differs by relationship.
+  // Friends rarely see each other under real pressure and almost never test each
+  // other's five-year plan; the live gap between friends is the MIRROR — do you
+  // know how they see you. For a partner the future IS the loaded one (money,
+  // kids, moving), so romantic keeps 'ahead'.
+  const DOMAIN_DEFS = {
+    day:    { id: 'day',    label: 'everyday',         noun: 'everyday self' },
+    heat:   { id: 'heat',   label: 'under pressure',   noun: 'pressure' },
+    ahead:  { id: 'ahead',  label: "what's ahead",     noun: 'future' },
+    mirror: { id: 'mirror', label: 'how they see you', noun: 'self-image' },
+  };
+  const DOMAIN_SET = { friends: ['day', 'heat', 'mirror'], romantic: ['day', 'heat', 'ahead'] };
+  const domainsFor = (mode) => DOMAIN_SET[mode === 'romantic' ? 'romantic' : 'friends'].map((k) => DOMAIN_DEFS[k]);
+  const DOMAINS = domainsFor('friends');
+  const DOMAIN_MIN = 4; // fewer plays than this and the row is absent, not thin
+  // qualifying rows only — a row of one dot is noise dressed as insight
+  function domainRows(duo) {
+    if (!duo || !duo.domains) return [];
+    return domainsFor(duo.mode).map((D) => {
+      const d = duo.domains[D.id]; if (!d) return null;
+      if (d.read.length < DOMAIN_MIN || d.by.length < DOMAIN_MIN) return null;
+      return { ...D, read: d.read, by: d.by, byMissed: d.by.filter((x) => !x).length, byRate: d.by.filter((x) => !x).length / d.by.length };
+    }).filter(Boolean);
+  }
+  // the one place they read you worst — only if it CLEARLY stands out. Compared
+  // as a RATE: rows hold different numbers of plays, and a raw miss count just
+  // crowns whichever lens has been played most.
+  function weakDomain(duo) {
+    const rows = domainRows(duo); if (rows.length < 2) return null;
+    const s = rows.slice().sort((a, b) => b.byRate - a.byRate);
+    return s[0].byRate - s[1].byRate >= 0.2 ? s[0] : null;
+  }
   const DUO_POOL = (pid) => (duoMode(pid) === 'romantic' ? DUO_QS_ROMANTIC : DUO_QS);
   function duoMode(pid) { return S.duoMode[pid] === 'romantic' ? 'romantic' : 'friends'; }
   function setDuoMode(pid, mode) { S.duoMode[pid] = mode === 'romantic' ? 'romantic' : 'friends'; save(); }
-  // days already played (and revealed) with each partner; 0 = never played
-  const PLAYED = { f1: 6, f2: 5, f4: 3, f6: 2, f3: 0 };
+  // days already played (and revealed) with each partner; 0 = never played.
+  // A partner absent from these three tables is not broken — they read as a
+  // never-played pair (state 'start', no history), which is what a freshly
+  // accepted 1v1 is. The seeded eight carry a spread instead, because the
+  // things that only appear at depth need it: domainRows() hides a lens
+  // under DOMAIN_MIN (4 each way), ReadRun switches encoding on the span, and
+  // weakDomain() compares RATES, so a long record and a short one have to
+  // coexist for that comparison to mean anything.
+  const PLAYED = { f1: 24, f2: 5, f4: 3, f6: 2, f3: 0, f12: 16, f17: 11, f14: 6 };
   // how well YOU tend to read them / how well THEY tend to read you
-  const READ_SKILL = { f1: 0.85, f2: 0.72, f4: 0.5, f6: 0.34, f3: 0.5 };
-  const BY_SKILL = { f1: 0.9, f2: 0.75, f4: 0.4, f6: 0.62, f3: 0.5 };
+  const READ_SKILL = { f1: 0.85, f2: 0.72, f4: 0.5, f6: 0.34, f3: 0.5, f12: 0.66, f17: 0.45, f14: 0.8 };
+  const BY_SKILL = { f1: 0.9, f2: 0.75, f4: 0.4, f6: 0.62, f3: 0.5, f12: 0.72, f17: 0.58, f14: 0.42 };
+  // …and it is UNEVEN across domains — the whole point of the split. Without
+  // this, per-domain differences are just noise and the record says nothing.
+  const DOMAIN_BIAS = {
+    f1: { read: { day: 1.1, heat: 1.0, mirror: 0.6, ahead: 0.55 }, by: { day: 1.1, heat: 0.5, mirror: 0.95, ahead: 0.95 } },
+    // The second long record, biased the other way round: f1's blind spot is
+    // pressure, f12's is the everyday. With only one authored partner every
+    // weakDomain() readout on the Map came from the same person, so a bug
+    // that hardcoded f1's shape would have looked correct.
+    f12: { read: { day: 0.7, heat: 1.15, mirror: 1.0, ahead: 0.9 }, by: { day: 0.25, heat: 1.1, mirror: 1.05, ahead: 0.9 } },
+  };
+  function bias(pid, side, dom) {
+    const b = DOMAIN_BIAS[pid];
+    if (b && b[side] && b[side][dom] != null) return b[side][dom];
+    return 0.75 + h01('db' + pid + side + dom) * 0.5; // deterministic spread
+  }
+  const skillFor = (base, pid, side, dom) => Math.max(0.05, Math.min(0.97, (base || 0.5) * bias(pid, side, dom)));
   // partner already played today? (deterministic demo state)
-  const PARTNER_TODAY = { f1: true, f2: false, f4: true, f6: false, f3: false };
+  const PARTNER_TODAY = { f1: true, f2: false, f4: true, f6: false, f3: false, f12: true, f17: false, f14: true };
 
   // active 1v1 pids — seeded to the circle on first run, friends only
   function duoList() { if (!S.duoList) S.duoList = IDS.slice(); return S.duoList; }
-  const duoIds = () => duoList().filter((pid) => !window.FRIENDS || window.FRIENDS.isFriend(pid));
+  const duoIds = () => duoList().filter((pid) => FRIENDS.isFriend(pid));
   function duoAvailable() { return members().filter((p) => !duoList().includes(p.id) && S.duoInv[p.id] == null); }
   function startDuo(pid) { if (duoList().includes(pid) || S.duoInv[pid] != null) return; S.duoInv[pid] = Date.now(); ensureTimer(); save(); }
   function cancelDuo(pid) { delete S.duoInv[pid]; save(); }
@@ -334,7 +384,10 @@ import React from 'react';
     const depth = Math.max(played - dayIdx, 0); // 0 = first day together
     const jit = Math.floor(h01('dqb' + pid + ':' + dayIdx) * 2);
     const pool = DUO_POOL(pid);
-    return pool[Math.min(depth * 2 + jit, pool.length - 1)];
+    const step = depth * 2 + jit;
+    // past the deep end, wrap instead of clamping — a long streak kept
+    // re-serving the last question forever, so late days carried no domain
+    return pool[step < pool.length ? step : pool.length - 1 - (step % pool.length)];
   }
   // one duel day; dayIdx 0 = today (yours from localStorage), 1+ = seeded history
   function duoDay(pid, dayIdx) {
@@ -346,9 +399,9 @@ import React from 'react';
     const myAns = dayIdx === 0 ? ((S.duo[pid] || {}).a != null ? S.duo[pid].a : null)
       : Math.floor(h01('da' + key) * n);
     const myGuess = dayIdx === 0 ? ((S.duo[pid] || {}).g != null ? S.duo[pid].g : null)
-      : (h01('dg' + key) < (READ_SKILL[pid] || 0.5) ? theirAns : wrong(theirAns, 'dgw' + key));
+      : (h01('dg' + key) < skillFor(READ_SKILL[pid], pid, 'read', q.d) ? theirAns : wrong(theirAns, 'dgw' + key));
     const theirGuess = dayIdx === 0 ? null
-      : (h01('tg' + key) < (BY_SKILL[pid] || 0.5) ? myAns : wrong(myAns, 'tgw' + key));
+      : (h01('tg' + key) < skillFor(BY_SKILL[pid], pid, 'by', q.d) ? myAns : wrong(myAns, 'tgw' + key));
     const revealed = dayIdx >= 1 && dayIdx <= (PLAYED[pid] || 0);
     return {
       q, myAns, myGuess, theirAns, theirGuess, revealed,
@@ -373,18 +426,31 @@ import React from 'react';
       const read = { right: 0, total: played };
       const readBy = { right: 0, total: played };
       const misses = []; // where THEY misread YOU — your impression gap
+      // the same tally split by what the question was ABOUT: which parts of
+      // each other you actually read. Gated in the UI until deep enough.
+      const domains = {}; domainsFor(duoMode(p.id)).forEach((k) => { domains[k.id] = { read: [], by: [] }; });
       for (let d = 1; d <= played; d++) {
         const day = duoDay(p.id, d);
         if (day.readRight) read.right++;
-        if (day.byRight) readBy.right++;
-        else misses.push({ pid: p.id, name: p.name, dayIdx: d, q: day.q.prompt, guessed: day.q.options[day.theirGuess], actual: day.q.options[day.myAns] });
+        // `misses` keeps its own `else` — v17 inserted the domain tally
+        // between these two statements and orphaned it onto `if (dm)`, so
+        // impressions filled with every day whose question had no domain
+        // instead of every day they misread you. Braces, so the next
+        // insertion here cannot repeat it.
+        if (day.byRight) {
+          readBy.right++;
+        } else {
+          misses.push({ pid: p.id, name: p.name, dayIdx: d, q: day.q.prompt, guessed: day.q.options[day.theirGuess], actual: day.q.options[day.myAns] });
+        }
+        const dm = domains[day.q.d];
+        if (dm) { dm.read.push(!!day.readRight); dm.by.push(!!day.byRight); }
       }
       const state = duoState(p.id);
       const streak = played + (state === 'sealed' ? 1 : 0);
-      return { ...p, played, read, readBy, misses, state, streak, mode: duoMode(p.id) };
+      return { ...p, played, read, readBy, domains, misses, state, streak, mode: duoMode(p.id) };
     });
     const invited = Object.keys(S.duoInv).map((pid) => personOf(pid)).filter(Boolean)
-      .map((p) => ({ ...p, played: 0, read: { right: 0, total: 0 }, readBy: { right: 0, total: 0 }, misses: [], state: 'invited', streak: 0, mode: duoMode(p.id) }));
+      .map((p) => ({ ...p, played: 0, read: { right: 0, total: 0 }, readBy: { right: 0, total: 0 }, domains: null, misses: [], state: 'invited', streak: 0, mode: duoMode(p.id) }));
     return live.concat(invited);
   }
   function pendingDuos() { return partners().filter((p) => p.state === 'turn' || p.state === 'start').length; }
@@ -455,18 +521,18 @@ import React from 'react';
     return { scenarios: SCENARIOS, roles, targets };
   }
 
-  window.DUELS = {
+  DUELS = {
     DAYS, members, personOf,
     groups, groupQ, groupDays, groupMembers, groupPicks, myGroup, answerGroup, groupDone, groupsPending, groupInToday, groupAlignment, groupPortrait,
     createGroup, addGroupMembers, removeGroupMember, leaveGroup,
     SCENARIOS, roleVotes,
     duoQ, duoDay, myDuo, answerDuo, partnerToday, duoState, partners, pendingDuos, impressions,
-    duoMode, setDuoMode,
+    duoMode, setDuoMode, DOMAINS, domainsFor, domainRows, weakDomain,
     duoAvailable, startDuo, cancelDuo, endDuo,
     resetToday,
     subscribe: (f) => { listeners.add(f); return () => listeners.delete(f); },
   };
   // circle changes (befriend / unfriend) ripple into duos & groups
-  if (window.FRIENDS) window.FRIENDS.subscribe(fire);
+  FRIENDS.subscribe(fire);
 })();
 

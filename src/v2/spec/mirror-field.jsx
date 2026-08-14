@@ -4,6 +4,9 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import { IS_DATA, fmtPop } from './sample-data.js';
+import { Av, Lazy, MatchRing } from './primitives.jsx';
+import { WPAL } from './world-palette.js';
 
 // mirror-field.jsx — the Mirror rendered as a FIELD, not a scroll of cards.
 // One grammar for every population (borrowed from the Map tab):
@@ -18,7 +21,7 @@ const MF_W = 380, MF_H = 404, MF_CX = 190, MF_CY = 196;
 const mfRadius = (m) => Math.max(46, Math.min(164, 48 + ((95 - m) / 45) * 112));
 
 // scenes carry their topic hue (shared with the feed chips) — one formula everywhere
-const mfGroupFill = (hue) => hue != null ? `color-mix(in oklch, var(--accent) 45%, oklch(0.60 0.12 ${hue}))` : 'var(--accent)';
+const mfGroupFill = (hue) => hue != null ? WPAL.c(`oklch(0.52 0.12 ${hue})`) : 'var(--accent)';
 
 // banded radius: the node keeps its likeness ordering but inside a fixed ring band
 // (groups: yours inside the dotted threshold, suggested beyond it)
@@ -83,6 +86,7 @@ function mfLayout(nodes, seedDeg = -84) {
 // no dashes, no polygons.
 function MFNode({ n, on, onTap, i, hideLabel }) {
   const size = n.size || 13;
+  const dim = hideLabel && !on;
   // colour carries match too — a deeper accent = more like you (reinforces radius,
   // so hue never reads as random decoration)
   const mix = Math.round(Math.max(62, Math.min(100, n.match != null ? n.match : 70)));
@@ -96,6 +100,9 @@ function MFNode({ n, on, onTap, i, hideLabel }) {
   return (
     <g className="mf-node" onClick={(e) => { e.stopPropagation(); onTap(n); }} style={{
       cursor: 'pointer', transformBox: 'fill-box', transformOrigin: 'center',
+      // unlabelled dots sit back a step, so the labelled few read as an edited
+      // choice rather than an unfinished one
+      opacity: dim ? 0.62 : 1, transition: 'opacity .3s ease',
       '--dx': (r1 * 6 - 3).toFixed(1) + 'px', '--dy': (r2 * 6 - 3).toFixed(1) + 'px',
       animation: `mfIn 0.5s cubic-bezier(0.2,0.8,0.2,1) ${0.06 + i * 0.045}s both, mfDrift ${(4.5 + r3 * 3).toFixed(1)}s ease-in-out ${(0.7 + r1 * 2).toFixed(1)}s infinite alternate`,
     }}>
@@ -367,7 +374,7 @@ function MFDetail({ node, onPerson, onJoin, onLeave, joined }) {
       </MatchRing>
     );
     title = d.name;
-    sub = `${window.fmtPop(d.members)} people · ${d.vibe}`;
+    sub = `${fmtPop(d.members)} people · ${d.vibe}`;
     action = joined
       ? btn('Unfollow', () => onLeave(d.id))
       : btn('Follow', () => onJoin(d.id), true);
@@ -375,7 +382,7 @@ function MFDetail({ node, onPerson, onJoin, onLeave, joined }) {
     av = <MatchRing pct={node.match} color={`oklch(0.5 0.13 ${hue})`} size={52}><span style={{ width: 13, height: 13, borderRadius: '50%', background: `oklch(0.63 0.13 ${hue})` }}></span></MatchRing>;
     title = d.name || node.label;
     sub = node.home ? 'where you live now' : [d.country, d.mood].filter(Boolean).join(' · ');
-    const known = window.IS_DATA.cities && window.IS_DATA.cities.some((c) => c.name === title);
+    const known = IS_DATA.cities && IS_DATA.cities.some((c) => c.name === title);
     if (known && window.openCity) action = btn('Explore →', () => window.openCity(title));
   }
 
@@ -397,6 +404,28 @@ function MFDetail({ node, onPerson, onJoin, onLeave, joined }) {
         )}
       </div>
       {action}
+    </div>
+  );
+}
+
+// ─── nav v2: the lens row alone, promoted to the top of the screen. The row is
+// real tabs and "Overview" is the field itself, so all navigation sits above
+// the content instead of hiding at the bottom edge.
+// Exported by name (D39, "convert on touch"): the Mirror bodies import it.
+// It stayed on the window bag as well until D137, for sites that had all
+// already moved — group-mirror.jsx and mirror-field-pops.jsx import it.
+export function MirrorLensRow({ lenses, open, onOpen }) {
+  const idx = lenses.findIndex((l) => l.id === open);
+  // six stops have to fit a phone without clipping — the row never scrolls
+  const fs = lenses.length >= 6 ? 11.5 : lenses.length === 5 ? 13 : 14.5;
+  return (
+    <div className="mm-lensrow mm-lensrow-top" role="tablist" aria-label="Lenses" style={{ '--n': lenses.length }}>
+      <span className={'mm-lensthumb' + (idx < 0 ? ' is-off' : '')} style={{ transform: `translateX(${Math.max(0, idx) * 100}%)` }} aria-hidden="true"></span>
+      {lenses.map((l) => (
+        <button key={l.id} data-lens={l.id} role="tab" aria-selected={open === l.id}
+          className={'mm-lensbtn' + (open === l.id ? ' is-on' : '')} style={{ fontSize: fs, padding: '10px 3px' }}
+          onClick={() => onOpen(l.id)}>{l.label}</button>
+      ))}
     </div>
   );
 }

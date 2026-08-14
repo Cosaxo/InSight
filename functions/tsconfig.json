@@ -1,13 +1,26 @@
 {
   "compilerOptions": {
-    "module": "commonjs",
+    // `node16` rather than `commonjs`/`node`, and the two must move
+    // together — TypeScript 7 REMOVED `moduleResolution: node` (the old
+    // "node10" algorithm) outright, so the previous pair stops compiling
+    // the moment the toolchain crosses that line. This is not a switch to
+    // ESM: `node16` picks the emit format from the nearest package.json,
+    // and functions/package.json has no `"type"` field, so every file
+    // still emits CommonJS exactly as before. That distinction is
+    // load-bearing — an ESM emit here would deploy and then fail at
+    // runtime on every function, which no build gate would have caught.
+    "module": "node16",
+    "moduleResolution": "node16",
+    // Explicit because TS7 refuses to infer it (TS5011). The inferred
+    // value was already "./src"; naming it changes nothing about the
+    // output layout, it just stops the compiler guessing.
+    "rootDir": "src",
     "noImplicitReturns": true,
     "noUnusedLocals": true,
     "outDir": "lib",
     "sourceMap": true,
     "strict": true,
     "target": "es2022",
-    "moduleResolution": "node",
     "esModuleInterop": true,
     "skipLibCheck": true
   },

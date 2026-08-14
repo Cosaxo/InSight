@@ -215,6 +215,7 @@
   "oneVsOne": [
     {
       "id": "000",
+      "d": "day",
       "prompt": "Plans get cancelled last minute. First feeling?",
       "options": [
         "Relief",
@@ -223,6 +224,7 @@
     },
     {
       "id": "001",
+      "d": "day",
       "prompt": "Phone rings, unknown number.",
       "options": [
         "Answer",
@@ -232,6 +234,7 @@
     },
     {
       "id": "002",
+      "d": "day",
       "prompt": "A compliment in front of everyone — love it or squirm?",
       "options": [
         "Love it",
@@ -239,8 +242,20 @@
       ]
     },
     {
+      "id": "040",
+      "d": "mirror",
+      "prompt": "The word that fits them best?",
+      "options": [
+        "Warm",
+        "Sharp",
+        "Steady",
+        "Restless"
+      ]
+    },
+    {
       "id": "003",
-      "prompt": "Running late. Their text says…",
+      "d": "day",
+      "prompt": "Running late. The text says…",
       "options": [
         "\"5 min\" (it’s 20)",
         "The honest ETA",
@@ -249,6 +264,7 @@
     },
     {
       "id": "004",
+      "d": "heat",
       "prompt": "The food arrives wrong. Say something?",
       "options": [
         "Say something",
@@ -256,7 +272,19 @@
       ]
     },
     {
+      "id": "041",
+      "d": "mirror",
+      "prompt": "Their best quality, in one word?",
+      "options": [
+        "Loyalty",
+        "Humour",
+        "Honesty",
+        "Nerve"
+      ]
+    },
+    {
       "id": "005",
+      "d": "day",
       "prompt": "Lost in a new city. They…",
       "options": [
         "Ask someone",
@@ -266,6 +294,7 @@
     },
     {
       "id": "006",
+      "d": "day",
       "prompt": "A free Saturday, zero plans. Bliss or restless?",
       "options": [
         "Bliss",
@@ -274,6 +303,7 @@
     },
     {
       "id": "007",
+      "d": "day",
       "prompt": "Karaoke machine appears.",
       "options": [
         "Grabs the mic",
@@ -282,8 +312,19 @@
       ]
     },
     {
+      "id": "042",
+      "d": "mirror",
+      "prompt": "In a room of strangers, they are…",
+      "options": [
+        "Working the room",
+        "Talking to one person",
+        "Near the door"
+      ]
+    },
+    {
       "id": "008",
-      "prompt": "Someone takes their joke too far. Laugh it off, or say so?",
+      "d": "heat",
+      "prompt": "Someone's joke goes too far. Laugh it off, or say so?",
       "options": [
         "Laugh it off",
         "Say so"
@@ -291,7 +332,8 @@
     },
     {
       "id": "009",
-      "prompt": "Big decision to make. How do they call it?",
+      "d": "heat",
+      "prompt": "A big decision lands. How do you call it?",
       "options": [
         "Gut",
         "A list",
@@ -301,6 +343,7 @@
     },
     {
       "id": "010",
+      "d": "heat",
       "prompt": "Cry in a film — freely, or fight it?",
       "options": [
         "Freely",
@@ -308,7 +351,19 @@
       ]
     },
     {
+      "id": "043",
+      "d": "mirror",
+      "prompt": "You would call them first for…",
+      "options": [
+        "A crisis",
+        "A laugh",
+        "Advice",
+        "A favour"
+      ]
+    },
+    {
       "id": "011",
+      "d": "day",
       "prompt": "Ideal holiday day?",
       "options": [
         "Packed itinerary",
@@ -317,8 +372,20 @@
       ]
     },
     {
+      "id": "044",
+      "d": "mirror",
+      "prompt": "What about them would surprise a stranger?",
+      "options": [
+        "How soft",
+        "How stubborn",
+        "How funny",
+        "How serious"
+      ]
+    },
+    {
       "id": "012",
-      "prompt": "They win €10k. First move?",
+      "d": "day",
+      "prompt": "A surprise windfall lands. First move?",
       "options": [
         "Save it",
         "Book a trip that night",
@@ -328,6 +395,7 @@
     },
     {
       "id": "013",
+      "d": "heat",
       "prompt": "An old friend owes an apology. Bring it up, or let it go?",
       "options": [
         "Bring it up",
@@ -336,6 +404,7 @@
     },
     {
       "id": "014",
+      "d": "day",
       "prompt": "Deep talk at 2am, or a proper night of sleep?",
       "options": [
         "The talk",
@@ -343,8 +412,19 @@
       ]
     },
     {
+      "id": "045",
+      "d": "mirror",
+      "prompt": "Are they easy to know?",
+      "options": [
+        "Yes",
+        "Takes a while",
+        "No"
+      ]
+    },
+    {
       "id": "015",
-      "prompt": "When hurt, they go…",
+      "d": "heat",
+      "prompt": "When hurt, you go…",
       "options": [
         "Quiet",
         "Loud",
@@ -353,15 +433,28 @@
     },
     {
       "id": "016",
-      "prompt": "Hard truth or comfortable silence?",
+      "d": "heat",
+      "prompt": "Hear the hard truth, or keep the comfortable silence?",
       "options": [
         "Hard truth",
         "Silence"
       ]
     },
     {
+      "id": "046",
+      "d": "mirror",
+      "prompt": "Their most underrated trait?",
+      "options": [
+        "Patience",
+        "Taste",
+        "Generosity",
+        "Judgement"
+      ]
+    },
+    {
       "id": "017",
-      "prompt": "After a brutal week, what refills them?",
+      "d": "heat",
+      "prompt": "After a brutal week, what refills you?",
       "options": [
         "People",
         "Solitude",
@@ -370,7 +463,17 @@
       ]
     },
     {
+      "id": "047",
+      "d": "mirror",
+      "prompt": "Better at giving advice, or taking it?",
+      "options": [
+        "Giving",
+        "Taking"
+      ]
+    },
+    {
       "id": "018",
+      "d": "day",
       "prompt": "A week alone in a cabin. Gift or sentence?",
       "options": [
         "Gift",
@@ -378,12 +481,258 @@
       ]
     },
     {
+      "id": "048",
+      "d": "mirror",
+      "prompt": "The role they play between you two?",
+      "options": [
+        "The steady one",
+        "The instigator",
+        "The listener",
+        "The truth-teller"
+      ]
+    },
+    {
       "id": "019",
+      "d": "day",
       "prompt": "Old age: surrounded, or independent?",
       "options": [
         "Surrounded",
         "Independent"
       ]
+    },
+    {
+      "id": "049",
+      "d": "mirror",
+      "prompt": "What would they want to be remembered for?",
+      "options": [
+        "Kindness",
+        "Their work",
+        "Being fun",
+        "Being right"
+      ]
+    }
+  ],
+  "romantic": [
+    {
+      "id": "020",
+      "d": "day",
+      "prompt": "A free evening, both home. Ideal version?",
+      "options": [
+        "Out somewhere",
+        "Sofa, one film",
+        "Cooking together"
+      ],
+      "active": false
+    },
+    {
+      "id": "021",
+      "d": "day",
+      "prompt": "How do they like being woken?",
+      "options": [
+        "Slowly, with coffee",
+        "Left alone",
+        "Talked at immediately"
+      ],
+      "active": false
+    },
+    {
+      "id": "022",
+      "d": "heat",
+      "prompt": "A good apology from them looks like…",
+      "options": [
+        "Words",
+        "A gesture",
+        "Time, then normal"
+      ],
+      "active": false
+    },
+    {
+      "id": "023",
+      "d": "heat",
+      "prompt": "You are 20 minutes late to dinner. Their read?",
+      "options": [
+        "Fine, orders a drink",
+        "Says nothing, remembers it"
+      ],
+      "active": false
+    },
+    {
+      "id": "024",
+      "d": "day",
+      "prompt": "Love lands hardest as…",
+      "options": [
+        "Being told",
+        "Being helped",
+        "Being touched",
+        "Being chosen"
+      ],
+      "active": false
+    },
+    {
+      "id": "025",
+      "d": "heat",
+      "prompt": "Mid-argument, they want…",
+      "options": [
+        "To finish it now",
+        "A pause",
+        "Space, then dinner"
+      ],
+      "active": false
+    },
+    {
+      "id": "026",
+      "d": "day",
+      "prompt": "The better anniversary?",
+      "options": [
+        "A plan they made",
+        "A day with nothing in it"
+      ],
+      "active": false
+    },
+    {
+      "id": "027",
+      "d": "ahead",
+      "prompt": "Money in this relationship should be…",
+      "options": [
+        "Fully shared",
+        "Mostly shared",
+        "Separate, split bills"
+      ],
+      "active": false
+    },
+    {
+      "id": "028",
+      "d": "day",
+      "prompt": "Their idea of being taken care of?",
+      "options": [
+        "Food made",
+        "Admin handled",
+        "Left in peace",
+        "Asked about"
+      ],
+      "active": false
+    },
+    {
+      "id": "029",
+      "d": "day",
+      "prompt": "A whole weekend together, no phones. Bliss or too much?",
+      "options": [
+        "Bliss",
+        "Too much"
+      ],
+      "active": false
+    },
+    {
+      "id": "030",
+      "d": "heat",
+      "prompt": "They had a hard day and did not say so. The tell?",
+      "options": [
+        "Goes quiet",
+        "Cleans something",
+        "Talks about nothing else"
+      ],
+      "active": false
+    },
+    {
+      "id": "031",
+      "d": "ahead",
+      "prompt": "Five years out, they picture…",
+      "options": [
+        "Same city, more room",
+        "Somewhere new",
+        "Somewhere quiet"
+      ],
+      "active": false
+    },
+    {
+      "id": "032",
+      "d": "ahead",
+      "prompt": "A big decision that affects you both. They…",
+      "options": [
+        "Decide together, slowly",
+        "Want you to choose",
+        "Already decided"
+      ],
+      "active": false
+    },
+    {
+      "id": "033",
+      "d": "heat",
+      "prompt": "Would they tell you a truth that would hurt for a week?",
+      "options": [
+        "Yes",
+        "Only if asked",
+        "No"
+      ],
+      "active": false
+    },
+    {
+      "id": "034",
+      "d": "heat",
+      "prompt": "Jealousy shows up in them as…",
+      "options": [
+        "A question",
+        "A joke",
+        "Silence",
+        "It doesn't"
+      ],
+      "active": false
+    },
+    {
+      "id": "035",
+      "d": "ahead",
+      "prompt": "Kids, someday?",
+      "options": [
+        "Yes",
+        "Open to it",
+        "No"
+      ],
+      "active": false
+    },
+    {
+      "id": "036",
+      "d": "ahead",
+      "prompt": "The thing they would never compromise on?",
+      "options": [
+        "Where they live",
+        "Their work",
+        "Their people",
+        "Their solitude"
+      ],
+      "active": false
+    },
+    {
+      "id": "037",
+      "d": "ahead",
+      "prompt": "If you needed a year somewhere else, they would…",
+      "options": [
+        "Come",
+        "Wait",
+        "Ask you not to go"
+      ],
+      "active": false
+    },
+    {
+      "id": "038",
+      "d": "ahead",
+      "prompt": "What would make them feel most loved this year?",
+      "options": [
+        "More time",
+        "More plans",
+        "More calm",
+        "More honesty"
+      ],
+      "active": false
+    },
+    {
+      "id": "039",
+      "d": "ahead",
+      "prompt": "Old age, the two of you: side by side, or side by side and busy?",
+      "options": [
+        "Side by side",
+        "Busy, together"
+      ],
+      "active": false
     }
   ]
 }

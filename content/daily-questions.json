@@ -151,7 +151,7 @@
   {
     "id": "006",
     "type": "dilemma",
-    "prompt": "You find €500 in cash on an empty street. What do you do?",
+    "prompt": "You find a week's pay in cash on an empty street. What do you do?",
     "tag": "Found €500",
     "options": [
       "Keep it",
@@ -273,7 +273,7 @@
   {
     "id": "011",
     "type": "dilemma",
-    "prompt": "A job you would love means moving somewhere your partner would hate. Do you take it?",
+    "prompt": "A job you would love means moving somewhere the person closest to you would hate. Do you take it?",
     "tag": "Job or partner",
     "options": [
       "Take it",
@@ -363,7 +363,8 @@
         "Morals",
         "Institutions"
       ]
-    ]
+    ],
+    "political": true
   },
   {
     "id": "015",

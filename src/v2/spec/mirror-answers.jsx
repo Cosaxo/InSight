@@ -4,6 +4,8 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import { DAILYQ } from './daily-questions.js';
+import { TabSection } from './primitives.jsx';
 
 // mirror-answers.jsx — "The daily record" on Mirror: every daily question,
 // answered by the population the mirror currently reflects. Category chips
@@ -18,7 +20,7 @@ import React from 'react';
 
   function useDailySub() {
     const [, bump] = useReducer((x) => x + 1, 0);
-    useEffect(() => window.DAILYQ.subscribe(bump), []);
+    useEffect(() => DAILYQ.subscribe(bump), []);
   }
 
   // ── collapsed stack: one thin bar, your segment in accent ─────────────────
@@ -89,7 +91,7 @@ import React from 'react';
             <div key={i} style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
               {mine === i
                 ? <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--accent)' }}></span>
-                : (i === 0 || i === 9) ? <span style={{ fontFamily: 'var(--sans)', fontSize: 8.5, color: 'var(--ink-3)' }}>{i + 1}</span> : null}
+                : (i === 0 || i === 9) ? <span style={{ fontFamily: 'var(--sans)', fontSize: 10, fontWeight: 700, color: 'var(--ink-3)' }}>{i + 1}</span> : null}
             </div>
           ))}
         </div>
@@ -102,7 +104,7 @@ import React from 'react';
 
   // ── one question row ───────────────────────────────────────────────────────
   function MARow({ q, audId, open, onToggle, showDate }) {
-    const DQ = window.DAILYQ;
+    const DQ = DAILYQ;
     const dist = q.dist[audId];
     const mine = DQ.myAnswer(q);
     const head = DQ.headline(q, audId);
@@ -116,21 +118,21 @@ import React from 'react';
         }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
             <span style={{ flex: 1, minWidth: 0, fontFamily: 'var(--sans)', fontSize: 14, fontWeight: 650, letterSpacing: '-0.01em', color: 'var(--ink)', lineHeight: 1.3 }}>{q.prompt}</span>
-            {showDate && <span style={{ flexShrink: 0, fontFamily: 'var(--sans)', fontSize: 9, letterSpacing: '0.05em', color: 'var(--ink-3)', opacity: 0.65 }}>{q.dateLabel.toUpperCase()}</span>}
+            {showDate && <span style={{ flexShrink: 0, fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 700, letterSpacing: '0.09em', color: 'var(--ink-3)' }}>{q.dateLabel.toUpperCase()}</span>}
           </div>
-          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10, marginTop: 9 }}>
-            <span style={{ minWidth: 0, fontFamily: 'var(--sans)', fontSize: 12.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 9 }}>
+            <span style={{ flexShrink: 0, maxWidth: '46%', fontFamily: 'var(--sans)', fontSize: 12.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               <span style={{ fontWeight: 800, color: 'var(--accent)' }}>{head.big}{head.unit || ''}</span>
               <span style={{ fontWeight: 600, color: 'var(--ink-2)' }}> {head.sub}</span>
             </span>
+            <div style={{ flex: 1, minWidth: 44 }}><MAStack q={q} dist={dist} mine={mine} /></div>
             {mineLabel && (
-              <span style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 5, fontFamily: 'var(--sans)', fontSize: 11, fontWeight: 600, color: 'var(--ink-3)', maxWidth: '45%' }}>
+              <span style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 5, fontFamily: 'var(--sans)', fontSize: 11, fontWeight: 600, color: 'var(--ink-2)', maxWidth: '32%' }}>
                 <span style={{ width: 11, height: 11, borderRadius: '50%', background: 'var(--accent)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><span style={{ width: 4, height: 4, borderRadius: '50%', background: 'var(--surface)' }}></span></span>
-                <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>you · {mineLabel}</span>
+                <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{mineLabel}</span>
               </span>
             )}
           </div>
-          <div style={{ marginTop: 7 }}><MAStack q={q} dist={dist} mine={mine} /></div>
         </button>
         {open && (
           <div className="fade-in">
@@ -156,10 +158,10 @@ import React from 'react';
   // ── the section ────────────────────────────────────────────────────────────
   function MirrorAnswers({ audId }) {
     useDailySub();
-    const DQ = window.DAILYQ;
+    const DQ = DAILYQ;
     const [cat, setCat] = useState('all');
     const [sort, setSort] = useState('new');
-    const [open, setOpen] = useState(null);
+    const [open, setOpen] = useState('\u0000first');
     const [all, setAll] = useState(false);
     const [browse, setBrowse] = useState(false);
 
@@ -179,18 +181,18 @@ import React from 'react';
 
     const LIMIT = 7;
     const shown = all ? list : list.slice(0, LIMIT);
+    const anyMine = shown.some((q) => DQ.myAnswer(q) != null);
 
     return (
       <div>
         <TabSection title="What they answered" sub={`every daily question, as ${aud.label || 'they'} answered it`} />
 
-        {/* one control band: category chips (scroll, or expand to see all) + sort */}
-        <div style={{ display: 'flex', alignItems: browse ? 'flex-start' : 'center', gap: 10, margin: '0 -4px 10px' }}>
-        <div className={browse ? '' : 'subnav--scroll'} style={{ flex: 1, minWidth: 0, display: 'flex', gap: 7, overflowX: browse ? 'visible' : 'auto', flexWrap: browse ? 'wrap' : 'nowrap', padding: '2px 4px' }}>
+        {/* two bands, not one: chips overflowed into the sort row and clipped it */}
+        <div className={browse ? '' : 'subnav--scroll'} style={{ display: 'flex', gap: 7, overflowX: browse ? 'visible' : 'auto', flexWrap: browse ? 'wrap' : 'nowrap', padding: '2px 4px', margin: '0 -4px 8px' }}>
           {['all', ...cats].map((c) => {
             const on = cat === c;
             return (
-              <button key={c} className="pill press" onClick={() => { setCat(c); setAll(false); setOpen(null); }} style={{
+              <button key={c} className="pill press" onClick={() => { setCat(c); setAll(false); setOpen('\u0000first'); }} style={{
                 flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 6,
                 background: on ? 'var(--accent)' : 'var(--surface)',
                 color: on ? 'var(--surface)' : 'var(--ink-2)',
@@ -200,9 +202,17 @@ import React from 'react';
             );
           })}
         </div>
-        <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 10, paddingLeft: 10, borderLeft: '0.5px solid var(--rule)', paddingTop: browse ? 4 : 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+          {/* names the accent mark once, instead of a "you ·" prefix on every row */}
+          {anyMine && (
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, flexShrink: 0, fontFamily: 'var(--sans)', fontSize: 11, fontWeight: 600, color: 'var(--ink-3)' }}>
+              <span style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--accent)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><span style={{ width: 3.5, height: 3.5, borderRadius: '50%', background: 'var(--surface)' }}></span></span>
+              you
+            </span>
+          )}
+          <span style={{ flex: 1 }}></span>
           <button className="press" onClick={() => setBrowse(!browse)} aria-label={browse ? 'Collapse topics' : 'Show all topics'} title={browse ? 'Collapse topics' : 'Show all topics'} style={{
-            background: 'none', border: 'none', padding: '2px 0', cursor: 'pointer',
+            background: 'none', border: 'none', padding: '2px 0', cursor: 'pointer', flexShrink: 0,
             fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: browse ? 750 : 500, color: browse ? 'var(--ink)' : 'var(--ink-3)',
             display: 'inline-flex', alignItems: 'center', gap: 4,
           }}>Topics <span aria-hidden="true" style={{ fontSize: 8.5, transform: browse ? 'rotate(180deg)' : 'none', display: 'inline-block' }}>{'\u25BC'}</span></button>
@@ -210,7 +220,7 @@ import React from 'react';
             const on = sort === s.id;
             return (
               <button key={s.id} className="press" onClick={() => { setSort(s.id); setAll(false); }} style={{
-                background: 'none', border: 'none', padding: '2px 0', cursor: 'pointer',
+                background: 'none', border: 'none', padding: '2px 0', cursor: 'pointer', flexShrink: 0,
                 fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: on ? 750 : 500,
                 color: on ? 'var(--ink)' : 'var(--ink-3)',
                 borderBottom: on ? '1.5px solid var(--accent)' : '1.5px solid transparent',
@@ -218,17 +228,17 @@ import React from 'react';
             );
           })}
         </div>
-        </div>
 
         {/* rows */}
         <div className="card" style={{ marginBottom: 14, paddingTop: 3, paddingBottom: 3 }}>
           {shown.map((q, i) => {
             const m = (q.dateLabel || '').split(' ')[1] || '';
             const pm = i > 0 ? ((shown[i - 1].dateLabel || '').split(' ')[1] || '') : null;
+            const isOpen = open === '\u0000first' ? i === 0 : open === q.id;
             return (
               <div key={q.id} style={{ borderTop: i === 0 ? 'none' : '0.5px solid var(--rule)' }}>
-                {sort === 'new' && m !== pm && <div style={{ padding: '10px 0 0', fontFamily: 'var(--sans)', fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--ink-3)' }}>{m}</div>}
-                <MARow q={q} audId={audId} open={open === q.id} onToggle={() => setOpen(open === q.id ? null : q.id)} showDate={sort !== 'new'} />
+                {sort === 'new' && m !== pm && <div style={{ position: 'sticky', top: 0, zIndex: 3, background: 'var(--surface-2)', padding: '9px 0 5px', fontFamily: 'var(--sans)', fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--ink-3)' }}>{m}</div>}
+                <MARow q={q} audId={audId} open={isOpen} onToggle={() => setOpen(isOpen ? '' : q.id)} showDate={sort !== 'new'} />
               </div>
             );
           })}

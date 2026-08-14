@@ -14,7 +14,7 @@
 // left out (a work-in-progress trigger, say).
 
 import { readFileSync } from "node:fs";
-import { resolve, dirname } from "node:path";
+import { resolve, dirname, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -23,8 +23,18 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 // listed: the hardcoded list this replaced silently missed the first new
 // module added after it (moderation.ts) — three functions built, tested,
 // green, and invisible to the one gate whose whole job is catching that.
+// RECURSIVE. `readdirSync` without it returns directory ENTRIES, which the
+// .ts filter then drops silently — so a callable in functions/src/duels/
+// would be invisible here and in check-appcheck.mjs, and neither script's
+// vacuity counter can save it: both count only what they read. Latent while
+// functions/src is flat, which is exactly how the moderation.ts miss this
+// script's own comment records happened.
 import { readdirSync } from "node:fs";
-const SOURCES = readdirSync(resolve(dirname(fileURLToPath(import.meta.url)), "..", "functions", "src"))
+const SOURCES = readdirSync(
+  resolve(dirname(fileURLToPath(import.meta.url)), "..", "functions", "src"),
+  { recursive: true },
+)
+  .map((f) => String(f).split(sep).join("/"))
   .filter((f) => f.endsWith(".ts") && !f.endsWith(".test.ts"))
   .map((f) => `functions/src/${f}`);
 const WORKFLOW = ".github/workflows/firebase-deploy.yml";
@@ -69,6 +79,51 @@ if (!only) {
 const deployed = new Set(
   [...only[1].matchAll(/functions:([A-Za-z0-9_]+)/g)].map((m) => m[1]),
 );
+
+// …and no deploy may combine --force with a firestore target.
+//
+// --force is a deploy-wide flag. firebase-tools reads it as
+// `shouldDeleteIndexes = options.force` and `shouldDeleteFields =
+// options.force` (lib/firestore/api.js), so `--force --only
+// "firestore:indexes,functions:…"` deletes every index and field override
+// the live project holds that firestore.indexes.json does not name — and
+// that file names exactly one index (the v2_takes list composite, D65).
+// The two the repo asks an operator to create by hand (the v2_agg_events
+// TTL of LAUNCH-RUNBOOK §5.1, and the composite index v2social.ts names
+// for the duel scan) are exactly the shape it removes.
+//
+// The flag is still needed for retry-enabled triggers, hence a split rather
+// than a ban: --force on the functions-only step, no --force on the
+// rules+indexes one. Checked here rather than left to review because the
+// deletion is silent, the run stays green, and the symptom arrives whenever
+// the TTL next mattered.
+// Comments are stripped first: the prose above the split step names both
+// `--force` and a firestore target, and a scanner that reads its own
+// explanation as the thing it forbids is worse than no scanner. (The same
+// mistake check:globals rule 2 used to make on spec-index.js.)
+const steps = workflow
+  .split("\n")
+  .filter((l) => !/^\s*#/.test(l))
+  .join("\n")
+  .split(/^\s*- name:/m);
+
+const forcedFirestore = steps.filter(
+  (s) => /npx firebase deploy/.test(s)
+    && /--force\b/.test(s)
+    && /--only\s+"[^"]*firestore:/.test(s),
+);
+
+if (forcedFirestore.length) {
+  console.error(
+    `check-deploy-targets: ${WORKFLOW} deploys a firestore target under --force.\n`
+    + forcedFirestore.map((s) => `    ${s.trim().replace(/\s+/g, " ").slice(0, 160)}…`).join("\n")
+    + "\n\n  --force makes firebase-tools DELETE every index and field override the\n"
+    + "  project holds that firestore.indexes.json does not list. Split the step:\n"
+    + '  `--only "firestore:rules,firestore:indexes"` with no --force, then\n'
+    + '  `--force --only "functions:…"`.',
+  );
+  process.exit(1);
+}
 
 const missing = exported.filter((f) => !deployed.has(f.name) && !allowed.has(f.name));
 const stale = [...deployed].filter((n) => !exported.some((f) => f.name === n));

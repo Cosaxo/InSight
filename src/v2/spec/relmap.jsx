@@ -4,6 +4,9 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import { RMCore } from './relmap-core.js';
+import { RMPersonPanel, RMHubPanel } from './relmap-panels.jsx';
+import { useDialog } from './primitives.jsx';
 
 // RelationshipMap — a force-directed map of your people.
 // You sit at the center; each circle (family, friends, work…) gathers around its
@@ -13,8 +16,7 @@ import React from 'react';
 (function () {
   const { DEFAULT_GROUPS, AGE_BANDS, ageBand, ageColor, statusMeta, yearsWord,
     politicalColor, personalityColor, politicalLabel, personalityLabel,
-    P, groupDefs, buildGraph, defaultPeople } = window.RMCore;
-  const { RMPersonPanel, RMHubPanel } = window;
+    P, groupDefs, buildGraph, defaultPeople } = RMCore;
 
   class RelationshipMap extends React.Component {
     constructor(props) {
@@ -27,18 +29,48 @@ import React from 'react';
       this.state = {
         selectedId: null, hoveredId: null, hoveredLegend: null,
         query: '', mode: props.initialView || 'circles', lensAxis: null, layout: 'web',
-        zoom: 1, panX: 0, panY: 0, positions: {}, focusGroup: null, searchOpen: false,
-        groups: DEFAULT_GROUPS, people: defaultPeople(),
-        adding: false, newLabel: '', editing: false,
+        zoom: 1, panX: 0, panY: 0, positions: {}, focusGroup: null, searchOpen: false, drill: [],
+        groups: this.applyNames(DEFAULT_GROUPS), people: this.applyRel(defaultPeople()),
+        adding: false, newLabel: '', editing: false, dropGroup: null,
       };
       this.setSvg = (el) => { this.svgEl = el; };
       ['onPointerDown', 'onPointerMove', 'onPointerUp', 'onWheel'].forEach(m => { this[m] = this[m].bind(this); });
     }
     componentDidMount() {
       if (this.svgEl && !this.props.compact && !this.props.embedded) this.svgEl.addEventListener('wheel', this.onWheel, { passive: false });
+      this._onWinResize = () => this.measure();
+      window.addEventListener('resize', this._onWinResize);
+      // The purge (data/live.ts, D51): the relation/rename overrides live in
+      // insight.rmRelations.v1 and are baked into this component's state at
+      // construction — a mounted map would keep the previous account's circles
+      // until remount, and the next drag would persist them back. Re-derive
+      // from (now-empty) storage instead; no save(), which would re-create
+      // the purged key. An unmounted map needs nothing: the constructor
+      // re-reads storage on the next mount.
+      this._onPurge = () => this.setState({
+        groups: this.applyNames(DEFAULT_GROUPS), people: this.applyRel(defaultPeople()),
+        positions: {}, drill: [], selectedId: null, hoveredLegend: null, focusGroup: null, dropGroup: null, editing: false,
+      });
+      window.addEventListener('insight:local-purge', this._onPurge);
+      this.measure();
     }
     componentWillUnmount() {
       if (this.svgEl) this.svgEl.removeEventListener('wheel', this.onWheel);
+      if (this._onWinResize) window.removeEventListener('resize', this._onWinResize);
+      if (this._onPurge) window.removeEventListener('insight:local-purge', this._onPurge);
+    }
+
+    // How many CSS px one graph unit draws at. Label sizes are authored in
+    // graph units, so without this a name reads at 12px in one frame and 5px
+    // in another purely because the viewBox is fitted differently. Measured
+    // once the frame exists, then only on a real window resize.
+    measure() {
+      if (!this.svgEl) return;
+      const r = this.svgEl.getBoundingClientRect();
+      if (r.width < 20 || r.height < 20) { if ((this._mTries = (this._mTries || 0) + 1) < 30) setTimeout(() => this.measure(), 120); return; }
+      const g = this.ensureGraph();
+      const s = Math.min(r.width / g.W, r.height / g.H);
+      if (s > 0 && Math.abs(s - (this.state.pxScale || 0)) > 0.004) this.setState({ pxScale: s });
     }
 
     // Keep the view from zooming out past its fitted size (zoom < 1) or being
@@ -58,13 +90,43 @@ import React from 'react';
     ensureGraph() {
       const st = this.state;
       const portrait = this.props.compact || this.props.embedded;
-      const sig = (this.props.compact ? 'c#' : this.props.embedded ? 'e#' : 'f#') + st.layout + '#' + st.groups.map(g => g.key + ':' + g.hue + ':' + g.label).join('|') + '#' + st.people.map(p => p.group + '/' + p.name).join(',');
-      // Compact preview / embedded tab live in a tall phone-width frame — lay the
-      // graph out portrait so it fills the frame instead of letterboxing a landscape fit.
-      if (this._sig !== sig) { this._g = portrait ? buildGraph(st.groups, st.people, 660, 900, 0.05, this.props.compact ? 'web' : st.layout) : buildGraph(st.groups, st.people, 1000, 680, 0.012, st.layout); this._sig = sig; }
+      const dv = RMCore.drillView(st.groups, st.people, st.drill);
+      // Group membership must be in the signature: moving someone between circles
+      // changes no person count and no name, so without this the graph is never
+      // rebuilt and a reassignment silently does nothing.
+      const gc = {}; st.people.forEach((p) => { gc[p.group] = (gc[p.group] || 0) + 1; });
+      const gsig = Object.keys(gc).sort().map((k) => k + gc[k]).join(',');
+      const sig = (this.props.compact ? 'c#' : this.props.embedded ? 'e#' : 'f#') + st.layout + '#' + st.groups.map(g => g.key + ':' + g.hue + ':' + g.label).join('|')
+        + '#' + st.people.length + '/' + (st.people[0] || {}).name + '/' + (st.people[st.people.length - 1] || {}).name + '#' + (st.drill || []).join('>') + '#' + gsig;
+      // Every frame here is a tall phone — lay the graph out portrait so it
+      // fills the screen. (The full map used to build a 1000×680 landscape and
+      // letterbox it into the middle third, which shrank the whole graph and
+      // its labels to about 40% and left dead space above and below.)
+      if (this._sig !== sig) {
+        this._g = buildGraph(dv.groups, dv.people, 660, portrait ? 900 : 760, 0.05, this.props.compact ? 'web' : st.layout);
+        this._g.G = groupDefs(dv.groups);
+        this._g.drillLabel = dv.label; this._g.drillLevel = dv.level;
+        this._sig = sig;
+      }
       return this._g;
     }
 
+    // a disc is a promise that the people inside are reachable — tapping one
+    // goes down a level rather than selecting an aggregate you can't inspect
+    drillInto(key) {
+      if (key == null) return;
+      this.setState(s => ({ drill: [...s.drill, key], zoom: 1, panX: 0, panY: 0, positions: {}, selectedId: null, hoveredLegend: null, focusGroup: null }));
+    }
+    drillOut() {
+      this.setState(s => ({ drill: s.drill.slice(0, -1), zoom: 1, panX: 0, panY: 0, positions: {}, selectedId: null, hoveredLegend: null, focusGroup: null }));
+    }
+    setScale(n) {
+      if (RMCore.setMapScale) RMCore.setMapScale(n);
+      // applyRel here too (the prototype forgets it): the overrides persist by
+      // NAME so a rebuilt roster can honour them, and a scale switch that snaps
+      // a dragged person back to their default circle reads as a lost edit.
+      this.setState({ people: this.applyRel(RMCore.peopleAtScale(n)), drill: [], positions: {}, selectedId: null, hoveredLegend: null, focusGroup: null, zoom: 1, panX: 0, panY: 0 });
+    }
     newHue() {
       const used = this.state.groups.map(g => g.hue);
       const palette = [12, 128, 268, 50, 340, 95, 222, 175, 215, 62, 110, 290];
@@ -72,6 +134,66 @@ import React from 'react';
       return Math.floor(Math.random() * 360);
     }
     startAdd() { this.setState({ adding: true, newLabel: '' }); }
+    // ── relation = which wedge you sit in, set by dragging ────────────────────
+    // The layout already places people by circle, so the map IS the control:
+    // drop someone nearer another hub and that becomes how you know them. No
+    // form, no dropdown, and the gesture teaches the map's own encoding.
+    // Overrides persist by name; renames persist by key.
+    LS_REL = 'insight.rmRelations.v1';
+    loadRel() { try { return JSON.parse(localStorage.getItem('insight.rmRelations.v1') || '{}') || {}; } catch (e) { return {}; } }
+    saveRel(patch) {
+      const cur = this.loadRel();
+      try { localStorage.setItem('insight.rmRelations.v1', JSON.stringify({ ...cur, ...patch })); } catch (e) { /* localStorage can throw: private mode, quota, disabled storage. Best-effort — the in-memory state stays correct. */ }
+    }
+    applyRel(people) {
+      const by = this.loadRel().by || {};
+      return people.map((p) => (by[p.name] ? { ...p, group: by[p.name] } : p));
+    }
+    applyNames(groups) {
+      const names = this.loadRel().names || {};
+      return groups.map((g) => (names[g.key] ? { ...g, label: names[g.key] } : g));
+    }
+    renameGroup(key, label) {
+      const groups = this.state.groups.map((g) => (g.key === key ? { ...g, label } : g));
+      this.setState({ groups });
+      const names = { ...(this.loadRel().names || {}) }; names[key] = label;
+      this.saveRel({ names });
+    }
+    // a person node at the top level — hubs, You, and drill views are not draggable
+    canSetRelation(nodeId) {
+      if (nodeId == null || nodeId === 0) return false;
+      if ((this.state.drill || []).length) return false;
+      const n = this.ensureGraph().byId[nodeId];
+      return !!n && !n.isHub;
+    }
+    // Which circle does this point belong to? Considers hubs *and* their members,
+    // so dropping onto a cluster of nodes counts as dropping on that circle —
+    // the whole visible blob is the target, not just the hub dot.
+    nearestHub(x, y) {
+      const g = this._g; if (!g) return null;
+      const P0 = this.state.positions;
+      let best = null, bd = Infinity;
+      g.nodes.forEach((n) => {
+        if (n.id === 0) return;
+        const p = P0[n.id] || n;
+        // members count from a bit further out than their own radius
+        const d = Math.hypot(p.x - x, p.y - y) - (n.isHub ? (n.r || 0) + 40 : (n.r || 0) + 10);
+        if (d < bd) { bd = d; best = n; }
+      });
+      // no distance cap — whichever circle is nearest IS the target. A cap meant a
+      // drop landing between clusters silently sprang back and read as broken.
+      return best || null;
+    }
+    setRelation(nodeId, key) {
+      const node = this.ensureGraph().byId[nodeId];
+      if (!node || !key) return;
+      const people = this.state.people.map((p) => (p.name === node.name ? { ...p, group: key } : p));
+      const by = { ...(this.loadRel().by || {}) }; by[node.name] = key;
+      this.saveRel({ by });
+      // clearing the pins lets the layout carry them into their new wedge — the
+      // move is the confirmation, so nothing has to say “saved”
+      this.setState({ people, positions: {}, dropGroup: null, selectedId: null, hoveredLegend: null });
+    }
     cancelAdd() { this.setState({ adding: false, newLabel: '' }); }
     confirmAdd() {
       const label = (this.state.newLabel || '').trim();
@@ -123,11 +245,23 @@ import React from 'react';
       const ctm = this.svgEl && this.svgEl.getScreenCTM ? this.svgEl.getScreenCTM() : null;
       const s = ctm ? ctm.a : 1;
       if (d.nodeId != null) {
+        // only people can be moved at all, and only to change circle — dragging a
+        // hub or You would otherwise let the layout be rearranged by hand
+        if (!this.canSetRelation(d.nodeId)) {
+          this.setState(this.clampView(this.state.zoom, this.state.panX + dx / s, this.state.panY + dy / s));
+          return;
+        }
         if (d.moved > 4) {
           const u = this.toUser(e.clientX, e.clientY);
           const { zoom, panX, panY } = this.state;
-          const positions = { ...this.state.positions, [d.nodeId]: { x: (u.x - panX) / zoom, y: (u.y - panY) / zoom } };
-          this.setState({ positions });
+          const lx = (u.x - panX) / zoom, ly = (u.y - panY) / zoom;
+          const positions = { ...this.state.positions, [d.nodeId]: { x: lx, y: ly } };
+          const patch = { positions };
+          const hub = this.nearestHub(lx, ly);
+          const key = hub ? hub.group : null;
+          d.dropKey = key;
+          if (this.state.dropGroup !== key) patch.dropGroup = key;
+          this.setState(patch);
         }
       } else {
         this.setState(this.clampView(this.state.zoom, this.state.panX + dx / s, this.state.panY + dy / s));
@@ -139,11 +273,23 @@ import React from 'react';
       if (this.pinch) { if (this.pointers.size < 2) this.pinch = null; this.drag = null; return; }
       const d = this.drag; if (!d) return;
       this.drag = null;
+      // dropped in another circle — that IS the edit
+      if (d.moved >= 5 && d.nodeId != null && d.dropKey && this.canSetRelation(d.nodeId)) {
+        const node = this.ensureGraph().byId[d.nodeId];
+        if (node && node.group !== d.dropKey) { this.setRelation(d.nodeId, d.dropKey); return; }
+      }
+      // Otherwise snap back. Distance from You encodes closeness, so a person
+      // never keeps a hand-placed spot — only their circle is yours to change.
+      if (d.nodeId != null && d.moved >= 5 && this.state.positions[d.nodeId]) {
+        const positions = { ...this.state.positions }; delete positions[d.nodeId];
+        this.setState({ positions, dropGroup: null });
+      } else if (this.state.dropGroup) this.setState({ dropGroup: null });
       if (d.moved < 5) {
         if (d.nodeId != null) {
           this.lastTap = null;
           const node = this.ensureGraph().byId[d.nodeId];
-          if (node && node.isHub && this.state.focusGroup !== node.group) this.focusOnGroup(node.group);
+          if (node && node.isHub && node.collapsed && this.state.drill.length < 4) this.drillInto(node.drillKey);
+          else if (node && node.isHub && this.state.focusGroup !== node.group) this.focusOnGroup(node.group);
           else this.setState(s => ({ selectedId: s.selectedId === d.nodeId ? null : d.nodeId, hoveredLegend: null, query: '' }));
         } else {
           const now = Date.now(), lt = this.lastTap;
@@ -195,12 +341,16 @@ import React from 'react';
 
     computeVals() {
       const g = this.ensureGraph();
-      const G = groupDefs(this.state.groups);
+      const G = g.G || groupDefs(this.state.groups);
       const st = this.state;
       const { selectedId, hoveredId, hoveredLegend, query, mode, zoom, panX, panY, positions } = st;
       const q = (query || '').trim().toLowerCase();
 
       const posOf = (id) => positions[id] || { x: g.byId[id].cx, y: g.byId[id].cy };
+      // text in graph units → text at a fixed size on screen. Labels grow a
+      // little as you zoom in (0.8) rather than tracking the zoom outright.
+      const sc = st.pxScale || (this.props.embedded ? 0.5 : 0.55);
+      const upx = (t) => t / sc / Math.max(1, zoom * 0.8);
       // ── test lenses: stable per-person values for the active test ──
       const RL = window.RMLenses;
       const isLens = RL && RL.TESTS[mode];
@@ -214,7 +364,11 @@ import React from 'react';
             : RL.personVals(n.name, mode, n.political, n.personality);
         });
         g.nodes.forEach(n => {
-          if (n.isHub) lensVals[n.id] = RL.meanVals(g.groupMembers[n.group].map(id => lensVals[id]), mode);
+          if (!n.isHub) return;
+          const ids = g.groupMembers[n.group] || [];
+          if (ids.length) { lensVals[n.id] = RL.meanVals(ids.map(id => lensVals[id]), mode); return; }
+          const src = (g.groupPeople[n.group] || []).slice(0, 300);
+          lensVals[n.id] = RL.meanVals(src.map(q => RL.personVals(q.name, mode, q.political, q.personality)), mode);
         });
       }
       const lensColor = (id) => {
@@ -225,16 +379,16 @@ import React from 'react';
       const colorOf = (n) => {
         if (isLens) return lensColor(n.id);
         if (n.isHub) {
-          if (n.avgAge == null) return G[n.group].color;
+          if (n.avgAge == null) return (G[n.group] || {}).color || P.ink3;
           if (mode === 'age') return ageColor(n.avgAge);
-          return G[n.group].color;
+          return (G[n.group] || {}).color || P.ink3;
         }
         if (n.id === 0) {
           if (mode === 'age') return ageColor(n.age);
           return P.youDot;
         }
         if (mode === 'age') return ageColor(n.age);
-        return G[n.group].color;
+        return (G[n.group] || {}).color || P.ink3;
       };
       const colorById = (id) => colorOf(g.byId[id]);
 
@@ -244,7 +398,8 @@ import React from 'react';
         legendTitle = 'Circles';
         legend = Object.keys(g.groupMembers).map(key => {
           legendSets[key] = new Set([0, g.groupHubId[key], ...g.groupMembers[key]]);
-          return { key, label: G[key].label, color: G[key].color, count: g.groupMembers[key].length, removable: true };
+          const gd = G[key] || {};
+          return { key, label: gd.label || key, color: gd.color, count: g.groupCounts[key], removable: true };
         });
       } else if (mode === 'age') {
         legendTitle = 'Age';
@@ -298,16 +453,21 @@ import React from 'react';
         const labelShown = dimmed ? focus.has(n.id) : (g.keyNodes.has(n.id) || (zoomNames && !n.isHub && n.id !== 0));
         const showInit = (n.isHub || n.id === 0 || n.id === activeId) && (!dimmed || inFocus);
         return {
-          id: n.id, name: n.name, cx: p.x, cy: p.y, r: n.r, hitR: Math.max(n.r + 8, 22 / zoom),
+          id: n.id, name: n.name, cx: p.x, cy: p.y, r: n.r, hitR: Math.max(n.r + 16, 34 / zoom),
           fill: col, color: col, stroke: P.nodeStroke, strokeW: n.isHub ? 2 : 1.5,
           opacity: inFocus ? 1 : 0.12,
           ringR: n.r + (n.isHub ? 7 : 6), ringOpacity: isActive ? 0.9 : (n.isHub ? 0.4 : 0),
-          labelY: p.y + n.r + (n.isHub ? 17 : 14),
-          labelSize: n.id === 0 ? 15 : (n.isHub ? 14 : Math.max(7.5, (n.closeness >= 4 ? 12.5 : 11.5) / Math.max(1, zoom * 0.72))),
-          labelWeight: (n.id === 0 || n.isHub) ? 700 : (isActive ? 700 : 500),
+          labelX: n.ang != null ? p.x + Math.cos(n.ang) * (n.r + 19) : p.x,
+          labelY: n.ang != null ? p.y + Math.sin(n.ang) * (n.r + 19) + 5 : p.y + n.r + (n.isHub ? 17 : 14),
+          labelAnchor: n.ang == null ? 'middle' : (Math.cos(n.ang) > 0.35 ? 'start' : Math.cos(n.ang) < -0.35 ? 'end' : 'middle'),
+          labelSize: n.isHub ? upx(n.collapsed ? 13 : 12) : upx(n.closeness >= 4 ? 11.5 : 10.5),
+          labelWeight: n.isHub ? 700 : (isActive ? 700 : 500),
           labelFill: n.isHub ? col : P.ink2,
-          labelOpacity: labelShown ? 1 : 0,
-          initials: n.initials, initSize: n.isHub ? 13 : Math.max(9, n.r * 0.8), initOpacity: showInit ? 1 : 0,
+          // the centre node already says You inside it — no second label
+          labelOpacity: (labelShown && n.id !== 0) ? 1 : 0,
+          initials: n.initials,
+          initSize: n.isHub ? (n.collapsed ? Math.min(n.r * 0.62, upx(21)) : Math.min(n.r * 0.9, upx(10))) : Math.max(9, n.r * 0.8),
+          initOpacity: showInit ? 1 : 0,
         };
       });
 
@@ -323,10 +483,11 @@ import React from 'react';
         const bow = (e.hub ? 0.10 : 0.16) * len * sign;
         const cpx = mx + (-dy / len) * bow, cpy = my + (dx / len) * bow;
         const d = 'M ' + a.x + ' ' + a.y + ' Q ' + cpx + ' ' + cpy + ' ' + b.x + ' ' + b.y;
-        let stroke = lightEdge, width = e.hub ? 1.1 : baseW, opacity;
-        if (!dimmed) opacity = st.layout === 'rings' ? (e.hub ? 0.10 : 0.05) : (e.hub ? 0.34 : (0.14 + e.strength * 0.06));
+        const hubW = g.discMode ? 1.6 : 0.7 + e.strength * 0.34;
+        let stroke = lightEdge, width = e.hub ? hubW : baseW, opacity;
+        if (!dimmed) opacity = st.layout === 'rings' ? (e.hub ? 0.10 : 0.05) : (e.hub ? (g.discMode ? 0.5 : 0.34) : (0.14 + e.strength * 0.06));
         else if (touchesActive) { stroke = colorById(activeId); width = baseW + 0.8; opacity = 0.82; }
-        else if (inFocus) { width = e.hub ? 1.1 : baseW; opacity = e.hub ? 0.4 : 0.26; }
+        else if (inFocus) { width = e.hub ? hubW : baseW; opacity = e.hub ? 0.55 : 0.26; }
         else { width = 1; opacity = 0.04; }
         return { d, stroke, width, opacity };
       });
@@ -334,7 +495,7 @@ import React from 'react';
       let selected = null;
       if (selectedId != null && !g.byId[selectedId].isHub) {
         const s = g.byId[selectedId];
-        const gd = G[s.group];
+        const gd = G[s.group] || { label: s.group, color: P.ink3, tint: P.chipBg };
         const neighborIds = [...g.adj[selectedId]].filter(id => id !== selectedId && id !== 0 && !g.byId[id].isHub);
         const mutuals = neighborIds.slice(0, 12).map(id => ({ id, name: g.byId[id].name, color: colorById(id) }));
         const totalN = neighborIds.length;
@@ -345,6 +506,15 @@ import React from 'react';
           location: s.location, color: gd.color, tint: gd.tint, groupLabel: gd.label,
           politicalLabel: politicalLabel(s.political), personalityLabel: personalityLabel(s.personality),
           politicalColor: politicalColor(s.political), personalityColor: personalityColor(s.personality),
+          // all four instruments, each in its own type's colour — the same reading
+          // the test lenses use, so a person's standing never depends on the mode
+          standings: ['big5', 'politics', 'values', 'social'].map((k) => {
+            const T = RL.TESTS[k];
+            const v = s.id === 0 ? (RL.youVals(k) || RL.personVals('You', k, 3, 3))
+                                 : RL.personVals(s.name, k, s.political, s.personality);
+            const ty = T.typeOf(v);
+            return { k, label: T.label, value: ty.label, color: ty.color };
+          }),
           yearsLabel: yearsWord(s.years), age: s.age, ageColor: ageColor(s.age), mutuals,
           lastLabel: s.id === 0 ? '—' : s.lastLabel,
           statusLabel: sm.label, statusColor: sm.color, statusTint: sm.tint,
@@ -376,9 +546,9 @@ import React from 'react';
       let selectedHub = null;
       if (selectedId != null && g.byId[selectedId].isHub) {
         const h = g.byId[selectedId];
-        const gd = G[h.group];
-        const members = g.groupMembers[h.group].map(id => ({ id, name: g.byId[id].name, color: colorById(id) }));
-        const cnt = g.groupMembers[h.group].length;
+        const gd = G[h.group] || { label: h.group, color: P.ink3, tint: P.chipBg };
+        const members = (g.groupMembers[h.group] || []).map(id => ({ id, name: g.byId[id].name, color: colorById(id) }));
+        const cnt = g.groupCounts[h.group];
         selectedHub = {
           name: gd.label, color: gd.color, tint: gd.tint, count: cnt,
           countLabel: cnt + ' people in this circle',
@@ -388,19 +558,25 @@ import React from 'react';
             { label: 'Personality', value: personalityLabel(h.avgPersonality), color: personalityColor(h.avgPersonality) },
             { label: 'Age', value: h.avgAge != null ? '~' + Math.round(h.avgAge) : '—', color: ageColor(Math.round(h.avgAge || 34)) },
           ],
-          members,
+          members, drillKey: h.drillKey,
+          drillable: !!h.collapsed && (st.drill || []).length < 4,
+          names: h.collapsed ? (g.groupPeople[h.group] || []).map(q => q.name) : null,
         };
       }
 
       const degOf = (id) => g.adj[id].size - 1;
       let big = Object.keys(g.groupMembers)[0];
-      Object.keys(g.groupMembers).forEach(kk => { if (big && g.groupMembers[kk].length > g.groupMembers[big].length) big = kk; });
+      Object.keys(g.groupCounts).forEach(kk => { if (big && g.groupCounts[kk] > g.groupCounts[big]) big = kk; });
       let mostId = null;
       g.nodes.forEach(n => { if (n.id !== 0 && !n.isHub && (mostId == null || degOf(n.id) > degOf(mostId))) mostId = n.id; });
       const stats = [
         { label: 'Connections', value: '' + g.peopleCount },
-        { label: 'Largest circle', value: big ? G[big].label + ' · ' + g.groupMembers[big].length : '—' },
-        { label: 'Most connected', value: mostId != null ? g.byId[mostId].name + ' · ' + degOf(mostId) : '—' },
+        { label: 'Largest circle', value: big ? ((G[big] || {}).label || big) + ' · ' + g.groupCounts[big] : '—' },
+        // "Most connected" needs peer nodes, which a disc view doesn't draw —
+        // an em dash is not a statistic, so at scale it reports closeness instead
+        g.discMode
+          ? { label: 'Close ties', value: '' + Object.keys(g.groupPeople).reduce((s, k) => s + g.groupPeople[k].filter(q => q.closeness >= 4).length, 0) }
+          : { label: 'Most connected', value: mostId != null ? g.byId[mostId].name + ' · ' + degOf(mostId) : '—' },
       ];
 
       const modes = [['circles', 'Circles'], ['age', 'Age'], ['big5', 'Big 5'], ['politics', 'Politics'], ['values', 'Values'], ['social', 'Social']];
@@ -412,12 +588,13 @@ import React from 'react';
         selected, hasSelected: selected != null, selectedHub,
         totalPeople: g.peopleCount, groupCount: Object.keys(g.groupMembers).length,
         stats,
-        showStatsPanel: selected == null && selectedHub == null && zoom === 1 && !q && !st.focusGroup,
+        showStatsPanel: selected == null && selectedHub == null && zoom === 1 && !q && !st.focusGroup && !(st.drill || []).length,
         editable: mode === 'circles',
         hasQuery: q.length > 0, resultText: resultCount === 0 ? 'No matches' : (resultCount === 1 ? '1 match' : resultCount + ' matches'),
         showReset: zoom !== 1 || panX !== 0 || panY !== 0 || Object.keys(positions).length > 0,
         ringGuides: st.layout === 'rings' ? g.ringGuides : null, ringCenter: posOf(0),
         focusLabel: st.focusGroup && G[st.focusGroup] ? G[st.focusGroup].label : null,
+        drillLabel: g.drillLabel, drillDepth: (st.drill || []).length, scale: RMCore.mapScale ? RMCore.mapScale() : 0,
       };
     }
 
@@ -452,13 +629,33 @@ import React from 'react';
                   onMouseEnter={() => { if (!this.drag && !compact) this.setState({ hoveredId: n.id }); }}
                   onMouseLeave={() => { if (!this.drag && !compact) this.setState({ hoveredId: null }); }}
                   style={{ cursor: 'pointer', transition: 'opacity 0.3s ease' }}>
-                  <circle cx={n.cx} cy={n.cy} r={n.hitR} fill="transparent" stroke="none"></circle>
+                  <circle cx={n.cx} cy={n.cy} r={Math.max(n.hitR, n.r + 15)} fill="transparent" stroke="none"></circle>
                   {n.id === 0 && <circle className="rm-you-pulse" cx={n.cx} cy={n.cy} r={n.r + 4} fill={n.fill}></circle>}
                   <circle cx={n.cx} cy={n.cy} r={n.ringR} fill="none" stroke={n.color} strokeWidth="1.5" opacity={n.ringOpacity} style={{ transition: 'opacity 0.25s ease' }} />
                   <circle cx={n.cx} cy={n.cy} r={n.r} fill={n.fill} stroke={n.stroke} strokeWidth={n.strokeW} style={{ transition: 'fill 0.3s ease' }} />
                   <text x={n.cx} y={n.cy} textAnchor="middle" dominantBaseline="central" fontFamily="var(--sans)" fontSize={n.initSize} fontWeight="600" fill="oklch(0.99 0.005 90)" opacity={n.initOpacity} style={{ pointerEvents: 'none', transition: 'opacity 0.25s ease' }}>{n.initials}</text>
-                  <text x={n.cx} y={n.labelY} textAnchor="middle" fontFamily="var(--sans)" fontSize={n.labelSize} fontWeight={n.labelWeight} fill={n.labelFill} opacity={n.labelOpacity} style={{ transition: 'opacity 0.25s ease', pointerEvents: 'none' }}>{n.name}</text>
                 </g>
+              ))}
+            </g>
+            {/* drop target — while a person is in hand, the circle they would land in
+                is ringed, so the gesture is aimed rather than guessed */}
+            {this.state.dropGroup && this.drag ? (() => {
+              const hub = (this._g.nodes || []).find((x) => x.isHub && x.group === this.state.dropGroup);
+              const vn = hub ? v.nodes.find((x) => x.id === hub.id) : null;
+              if (!vn) return null;
+              return (
+                <circle cx={vn.cx} cy={vn.cy} r={vn.r + 30} fill="none" stroke={vn.color} strokeWidth="2.5"
+                  strokeDasharray="6 6" opacity="0.95" style={{ pointerEvents: 'none' }}></circle>
+              );
+            })() : null}
+            {/* labels last, and haloed — a circle name has to stay readable where
+                it crosses its own cluster of dots */}
+            <g style={{ pointerEvents: 'none' }}>
+              {v.nodes.map((n) => (
+                <text key={'l' + n.id} x={n.labelX != null ? n.labelX : n.cx} y={n.labelY} textAnchor={n.labelAnchor || 'middle'} fontFamily="var(--sans)"
+                  fontSize={n.labelSize} fontWeight={n.labelWeight} fill={n.labelFill}
+                  opacity={n.labelOpacity * n.opacity}
+                  style={{ transition: 'opacity 0.25s ease', stroke: P.canvas, strokeWidth: n.labelSize * 0.34, strokeLinejoin: 'round', paintOrder: 'stroke' }}>{n.name}</text>
               ))}
             </g>
           </g>
@@ -487,7 +684,7 @@ import React from 'react';
         edges: v.edges.map(e => ({ ...e, opacity: Math.min(0.7, e.opacity * 2.4), width: e.width + 0.5 })),
       };
       return (
-        <button type="button" className="btn-bare" onClick={this.props.onOpen} aria-label="Explore your relationship map" style={{ position: 'relative', width: '100%', height: '100%', background: P.canvas, overflow: 'hidden', cursor: 'pointer', borderRadius: 'inherit' }}>
+        <button type="button" className="btn-bare" onClick={this.props.onOpen} aria-label="Open the circle map" style={{ position: 'relative', width: '100%', height: '100%', background: P.canvas, overflow: 'hidden', cursor: 'pointer', borderRadius: 'inherit' }}>
           {this.graphSvg(cv, true)}
           {/* legend chips, compact */}
           <div style={{ position: 'absolute', left: 14, bottom: 12, right: 14, display: 'flex', flexWrap: 'wrap', gap: '5px 12px', pointerEvents: 'none' }}>
@@ -510,7 +707,7 @@ import React from 'react';
       const st = this.state;
       const SANS = "'Hanken Grotesk', sans-serif";
       const SERIF = "'Hanken Grotesk', sans-serif";
-      const inputStyle = { border: '1px solid ' + P.rule, outline: 'none', background: P.card, borderRadius: 8, padding: '7px 10px', fontFamily: SANS, fontSize: 13, color: P.ink };
+      const inputStyle = { border: '1px solid ' + P.rule, outline: 'none', background: P.card, borderRadius: 8, padding: '7px 10px', fontFamily: SANS, fontSize: 'var(--field-size)', color: P.ink };
       const card = { background: P.card, border: '1px solid ' + P.cardBorder, boxShadow: P.shadow };
       const pillBg = { background: P.card, border: '1px solid ' + P.rule, boxShadow: P.shadow };
       const upLabel = { fontFamily: SANS, fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: P.ink3 };
@@ -539,8 +736,8 @@ import React from 'react';
               style={{ position: 'absolute', top: 12, right: 14, zIndex: 7, display: 'flex', alignItems: 'center', gap: 6, padding: '7px 13px', borderRadius: 100, border: '1px solid ' + P.rule, background: P.card, boxShadow: P.shadow, cursor: 'pointer', fontFamily: SANS, fontSize: 12, fontWeight: 700, color: P.ink2, whiteSpace: 'nowrap' }}>
               Full map <span style={{ fontSize: 13, lineHeight: 1 }}>↗</span></button>
           )}
-          {this.props.embedded && (v.focusLabel || v.showReset) && (
-            <button onClick={(e) => { e.stopPropagation(); this.setState({ zoom: 1, panX: 0, panY: 0, positions: {}, focusGroup: null }); }}
+          {this.props.embedded && (v.focusLabel || v.showReset || v.drillDepth > 0) && (
+            <button onClick={(e) => { e.stopPropagation(); this.setState({ zoom: 1, panX: 0, panY: 0, positions: {}, focusGroup: null, drill: [] }); }}
               style={{ position: 'absolute', top: 12, left: 14, zIndex: 6, cursor: 'pointer', fontFamily: SANS, fontSize: 12, fontWeight: 600, padding: '7px 13px', borderRadius: 100, color: P.ink2, background: P.card, border: '1px solid ' + P.rule, boxShadow: P.shadow }}>{v.focusLabel ? '← All circles' : 'Reset view'}</button>
           )}
 
@@ -551,7 +748,8 @@ import React from 'react';
               <div style={{ display: 'flex', alignItems: 'center', gap: 9, borderRadius: 100, padding: '8px 14px', width: '100%', boxSizing: 'border-box', ...pillBg }}>
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={P.ink3} strokeWidth="2.2" strokeLinecap="round"><circle cx="11" cy="11" r="7"></circle><line x1="16.5" y1="16.5" x2="21" y2="21"></line></svg>
                 <input autoFocus value={st.query} onChange={(e) => this.setState({ query: e.target.value, selectedId: null })} placeholder="Search people…"
-                  style={{ border: 'none', outline: 'none', background: 'transparent', fontFamily: SANS, fontSize: 13.5, color: P.ink, flex: 1, minWidth: 0 }} />
+                  autoComplete="off" autoCorrect="off" autoCapitalize="none" spellCheck={false} inputMode="search" enterKeyHint="search"
+                  style={{ border: 'none', outline: 'none', background: 'transparent', fontFamily: SANS, fontSize: 'var(--field-size)', color: P.ink, flex: 1, minWidth: 0 }} />
                 {v.hasQuery && <span style={{ fontFamily: SANS, fontSize: 12, color: P.ink3, whiteSpace: 'nowrap' }}>{v.resultText}</span>}
                 <button onClick={(e) => { e.stopPropagation(); this.setState({ searchOpen: false, query: '' }); }} aria-label="Close search"
                   style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: P.ink3, fontSize: 16, lineHeight: 1, padding: 0 }}>×</button>
@@ -586,7 +784,17 @@ import React from 'react';
                     style={{ border: 'none', cursor: 'pointer', fontFamily: SANS, fontSize: 11.5, fontWeight: 600, padding: '5px 11px', borderRadius: 100, background: st.layout === k ? P.ink : 'transparent', color: st.layout === k ? P.canvas : P.ink3, transition: 'background 0.2s ease, color 0.2s ease' }}>{lab}</button>
                 ))}
               </div>
-              {v.focusLabel && (
+              <div style={{ display: 'flex', gap: 2, borderRadius: 100, padding: 3, ...pillBg }} title="Scale harness">
+                {[['Real', 0], ['60', 60], ['300', 300], ['1200', 1200]].map(([lab, n]) => (
+                  <button key={lab} onClick={(e) => { e.stopPropagation(); if (v.scale !== n) this.setScale(n); }}
+                    style={{ border: 'none', cursor: 'pointer', fontFamily: SANS, fontSize: 11.5, fontWeight: 600, padding: '5px 10px', borderRadius: 100, background: v.scale === n ? P.ink : 'transparent', color: v.scale === n ? P.canvas : P.ink2 }}>{lab}</button>
+                ))}
+              </div>
+              {v.drillDepth > 0 && (
+                <button onClick={(e) => { e.stopPropagation(); this.drillOut(); }}
+                  style={{ cursor: 'pointer', fontFamily: SANS, fontSize: 12.5, fontWeight: 600, padding: '7px 13px', borderRadius: 100, color: P.ink, ...pillBg }}>{'\u2190 '}{v.drillLabel}</button>
+              )}
+              {v.focusLabel && v.drillDepth === 0 && (
                 <button onClick={(e) => { e.stopPropagation(); this.setState({ focusGroup: null, zoom: 1, panX: 0, panY: 0 }); }}
                   style={{ cursor: 'pointer', fontFamily: SANS, fontSize: 12.5, fontWeight: 600, padding: '7px 13px', borderRadius: 100, color: P.ink, ...pillBg }}>← All circles</button>
               )}
@@ -600,7 +808,7 @@ import React from 'react';
 
           {/* zoom buttons */}
           {!this.props.embedded && !v.selected && !v.selectedHub && (
-            <div style={{ position: 'absolute', right: 16, top: '50%', transform: 'translateY(-50%)', display: 'flex', flexDirection: 'column', gap: 6, zIndex: 5 }}>
+            <div style={{ position: 'absolute', right: 16, bottom: 216, display: 'flex', flexDirection: 'column', gap: 6, zIndex: 5 }}>
               {[['+', 1.35], ['−', 1 / 1.35]].map(([lab, f]) => (
                 <button key={lab} onClick={(e) => { e.stopPropagation(); this.zoomStep(f); }} aria-label={lab === '+' ? 'Zoom in' : 'Zoom out'}
                   style={{ width: 34, height: 34, borderRadius: '50%', border: '1px solid ' + P.rule, cursor: 'pointer', fontSize: 17, lineHeight: 1, color: P.ink2, display: 'flex', alignItems: 'center', justifyContent: 'center', background: P.card, boxShadow: P.shadow }}>{lab}</button>
@@ -614,7 +822,7 @@ import React from 'react';
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 2 }}>
               <span style={{ ...upLabel, letterSpacing: '0.12em' }}>{v.legendTitle}</span>
               {v.editable && (
-                <button onClick={(e) => { e.stopPropagation(); this.setState(s => ({ editing: !s.editing, adding: false })); }}
+                <button className="tap44" onClick={(e) => { e.stopPropagation(); this.setState(s => ({ editing: !s.editing, adding: false })); }}
                   style={{ border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: SANS, fontSize: 12, fontWeight: 600, color: P.faint, padding: 0 }}>{st.editing ? 'Done' : 'Edit'}</button>
               )}
             </div>
@@ -622,30 +830,30 @@ import React from 'react';
               <div key={gp.key} onMouseEnter={() => this.setState({ hoveredLegend: gp.key, selectedId: null })}
                 style={{ display: 'flex', alignItems: 'center', gap: 10, opacity: gp.rowOpacity, transition: 'opacity 0.2s ease' }}>
                 <span style={{ width: 11, height: 11, borderRadius: '50%', background: gp.color, flex: 'none' }}></span>
-                <span style={{ fontFamily: SANS, fontSize: 13.5, fontWeight: 500, color: P.ink2 }}>{gp.label}</span>
+                {st.editing ? (
+                  <input value={gp.label} onChange={(e) => this.renameGroup(gp.key, e.target.value)}
+                    // stopPropagation on Escape: this field sits inside the
+                    // relmap dialog, whose Escape closes the whole overlay.
+                    // Leaving the rename should not also close the map.
+                    onClick={(e) => e.stopPropagation()} onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); else if (e.key === 'Escape') { e.stopPropagation(); e.currentTarget.blur(); } }}
+                    aria-label={'Rename ' + gp.label} autoComplete="off" autoCapitalize="words" enterKeyHint="done"
+                    style={{ ...inputStyle, width: 132, fontWeight: 500, padding: '4px 8px' }} />
+                ) : (
+                  <span style={{ fontFamily: SANS, fontSize: 13.5, fontWeight: 500, color: P.ink2 }}>{gp.label}</span>
+                )}
                 {st.editing && gp.removable && st.groups.length > 1 && (
                   <button onClick={(e) => { e.stopPropagation(); this.removeGroup(gp.key); }} title="Remove circle"
                     style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: P.faint, width: 18, height: 18, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, lineHeight: 1, padding: 0 }}>×</button>
                 )}
               </div>
             ))}
-            {v.editable && st.editing && (st.adding ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
-                <input value={st.newLabel} onChange={(e) => this.setState({ newLabel: e.target.value })}
-                  // stopPropagation on Escape: this field sits inside the
-                  // relmap dialog, whose Escape closes the whole overlay.
-                  // Cancelling the rename should not also close the map.
-                  onKeyDown={(e) => { if (e.key === 'Enter') this.confirmAdd(); else if (e.key === 'Escape') { e.stopPropagation(); this.cancelAdd(); } }}
-                  placeholder="Circle name…" style={{ ...inputStyle, width: 116 }} autoFocus />
-                <button onClick={(e) => { e.stopPropagation(); this.confirmAdd(); }} style={{ border: 'none', background: P.ink, color: P.canvas, cursor: 'pointer', padding: '8px 13px', borderRadius: 8, fontFamily: SANS, fontSize: 13, fontWeight: 600 }}>Add</button>
-                <button onClick={(e) => { e.stopPropagation(); this.cancelAdd(); }} title="Cancel" style={{ border: 'none', background: P.chipBg2, color: P.ink2, cursor: 'pointer', width: 31, height: 31, borderRadius: 8, fontSize: 16, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
-              </div>
-            ) : (
-              <button onClick={(e) => { e.stopPropagation(); this.startAdd(); }}
-                style={{ display: 'flex', alignItems: 'center', gap: 7, border: '1px solid ' + P.faint, background: 'transparent', cursor: 'pointer', padding: '7px 12px', borderRadius: 9, color: P.ink3, fontFamily: SANS, fontSize: 13, fontWeight: 500, marginTop: 3, alignSelf: 'flex-start' }}>
-                <span style={{ fontSize: 15, lineHeight: 1, marginTop: -1 }}>+</span>Add circle
-              </button>
-            ))}
+            {/* Relations are a fixed set — the six wedges ARE the map's geometry, so
+                adding a seventh resizes every one of them and breaks cross-circle
+                comparison. Renaming is free. Anything genuinely custom is a GROUP
+                (The Crew, Book Club), which lives in duels-data.js, not here. */}
+            {v.editable && st.editing && (
+              <span style={{ fontFamily: SANS, fontSize: 11.5, lineHeight: 1.45, color: P.faint, marginTop: 4, maxWidth: 210 }}>Rename to suit you. Drag anyone on the map into another circle to change how you know them.</span>
+            )}
           </div>
           )}
 
@@ -664,7 +872,7 @@ import React from 'react';
           {/* selected person panel */}
           {v.selected && <RMPersonPanel s={v.selected} onSelect={(id) => this.setState({ selectedId: id })} onClose={() => this.setState({ selectedId: null })} />}
           {/* selected hub panel */}
-          {v.selectedHub && <RMHubPanel h={v.selectedHub} onSelect={(id) => this.setState({ selectedId: id })} onClose={() => this.setState({ selectedId: null })} />}
+          {v.selectedHub && <RMHubPanel h={v.selectedHub} onSelect={(id) => this.setState({ selectedId: id })} onDrill={(k) => this.drillInto(k)} onClose={() => this.setState({ selectedId: null })} />}
         </div>
       );
     }

@@ -202,13 +202,22 @@ function foldedNames(places: Place[]): string[] {
  * Search the catalogue. Prefix matches rank above interior matches, and
  * population breaks ties — so "york" offers New York before York, and
  * "san" offers San Antonio before Santa Rosa.
+ *
+ * `hint` is a country code that ranks first in the BLANK state only
+ * (regionHint below is where it comes from). A typed query ignores it
+ * entirely: typing is the user answering the question themselves.
  */
-export function searchPlaces(places: Place[], q: string, max = 40): Place[] {
+export function searchPlaces(places: Place[], q: string, max = 40, hint = ""): Place[] {
   const needle = fold(q.trim());
   if (!needle) {
-    // No query: the largest cities in the world, which is a more useful
-    // blank state than the alphabetically-first ones in Andorra.
-    return [...places].sort((a, b) => b.popK - a.popK).slice(0, max);
+    // No query: the hint country's cities first — Oslo and Bergen on a
+    // phone whose clock says Europe/Oslo — then the largest cities in the
+    // world, which was always a more useful blank state than the
+    // alphabetically-first ones in Andorra, and now starts at home.
+    return [...places]
+      .sort((a, b) =>
+        Number(b.country === hint) - Number(a.country === hint) || b.popK - a.popK)
+      .slice(0, max);
   }
   const names = foldedNames(places);
   const hits: { p: Place; rank: number }[] = [];
@@ -221,6 +230,68 @@ export function searchPlaces(places: Place[], q: string, max = 40): Place[] {
   }
   hits.sort((a, b) => a.rank - b.rank || b.p.popK - a.p.popK);
   return hits.slice(0, max).map((h) => h.p);
+}
+
+// ── the blank-state region hint (D90) ──────────────────────────────────
+
+/**
+ * The catalogue country a clock zone names, or "".
+ *
+ * "Europe/Oslo" names Oslo; when the catalogue knows that city, its country
+ * is the hint. Pure — the zone arrives as an argument, so no ordering test
+ * can inherit the machine it runs on (places.test.ts asserts blank-state
+ * order on a fixture that contains Oslo; an internal Intl read here would
+ * make that assertion flip with the developer's wall clock).
+ */
+export function zoneCountry(places: Place[], zone: string): string {
+  // The city is the last path segment, underscores as spaces — which also
+  // reads three-segment zones ("America/Argentina/Buenos_Aires"). Folded
+  // like the search, so "America/Sao_Paulo" still finds São Paulo.
+  const city = fold((zone.split("/").pop() || "").replace(/_/g, " "));
+  if (!city) return "";
+  const names = foldedNames(places);
+  // Two ranks, because IANA shortens: "America/New_York" names New York
+  // City, "Asia/Kuwait" Kuwait City. 0 = the name itself; 1 = the name
+  // continues after a word break — the break is required so "london" stays
+  // out of "londonderry". Exact wins over prefix, and within a rank the
+  // most populous namesake wins (Dublin IE over Dublin US): a zone is
+  // named after its region's principal city.
+  let best: Place | null = null;
+  let bestRank = 2;
+  for (let i = 0; i < places.length; i++) {
+    const n = names[i];
+    const rank = n === city ? 0
+      : n.startsWith(city) && n.charCodeAt(city.length) === 32 ? 1
+      : 2;
+    if (rank === 2) continue;
+    if (rank < bestRank || (rank === bestRank && (!best || places[i].popK > best.popK))) {
+      best = places[i];
+      bestRank = rank;
+    }
+  }
+  return best ? best.country : "";
+}
+
+/**
+ * zoneCountry for the clock THIS device is set to (D90).
+ *
+ * A hint, not a location: the IANA zone id is a setting the app already
+ * renders every date with — no permission prompt, no sensor, no network,
+ * no IP lookup — and it produces a sort order for the picker's blank
+ * state, then is dropped. Never stored, never sent, never written to the
+ * profile; the anchor is still only ever the city the user taps. The
+ * NEAREST city stays behind the located tap (D9): a clock can say
+ * "Norway", it cannot say where you are. A zone the catalogue cannot name
+ * at all ("Etc/UTC", the tiny county zones) returns "" and the blank
+ * state stays the world's: a hint may miss, it must not guess.
+ */
+export function regionHint(places: Place[]): string {
+  try {
+    return zoneCountry(places, Intl.DateTimeFormat().resolvedOptions().timeZone || "");
+  } catch {
+    // The same very-old-WebView guard countryName() carries.
+    return "";
+  }
 }
 
 // ── nearest city ───────────────────────────────────────────────────────
@@ -289,6 +360,7 @@ const PLACES = {
   load: loadPlaces,
   peek: peekPlaces,
   search: searchPlaces,
+  regionHint,
   nearest: nearestPlace,
   key: placeKey,
   label: placeLabel,

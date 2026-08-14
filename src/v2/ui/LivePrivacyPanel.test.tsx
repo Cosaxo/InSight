@@ -114,6 +114,49 @@ describe("LivePrivacyPanel · a refused deletion is shown, not swallowed", () =>
   });
 });
 
+describe("LivePrivacyPanel · the disclosure does not promise anonymity the app never gives", () => {
+  // The header comment above says copy is not worth a test that only
+  // re-types it. These two are the exception, and they are here because
+  // the copy went wrong exactly once in each direction.
+  //
+  // The takes bullet claimed world takes appear "always without a name"
+  // from the D106 sweep until this test existed, while LiveTakesPanel
+  // rendered LIVE.nameFor(authorUid) under a "posted under your name"
+  // header — a panel whose entire purpose is matching what the app SAYS
+  // to what the rules DO, promising an anonymity the rules never gave.
+  //
+  // So these assert on the *vocabulary of the retired model* rather than
+  // on today's sentence: a rewrite may say this any way it likes, but it
+  // may not go back to claiming namelessness or a floor.
+  // Scoped to the takes bullet, not the whole panel: "anonymous" is
+  // correct twice elsewhere here — the D3 anonymous session and the
+  // uid-only crash reports — so a panel-wide negative match would forbid
+  // two true sentences to catch one false one.
+  const takesBullet = () => {
+    render(<LivePrivacyPanel />);
+    const li = [...document.querySelectorAll("li")]
+      .find((el) => /\btakes?\b/i.test(el.textContent || ""));
+    if (!li) throw new Error("no bullet about takes — the disclosure lost it entirely");
+    return li.textContent || "";
+  };
+
+  it("says takes carry the author's name, and does not call them nameless", () => {
+    const text = takesBullet();
+    expect(text).toMatch(/posted under your name/i);
+    expect(text).not.toMatch(/without a name|anonymous|nameless|no names/i);
+  });
+
+  it("does not re-promise the k-floor anywhere in the disclosure", () => {
+    // The floor died at D98. The panel states the inverse — a count of 1
+    // is visibly one person — and that is the claim that must survive,
+    // because it is the one a user needs before answering.
+    render(<LivePrivacyPanel />);
+    const text = document.body.textContent || "";
+    expect(text).toMatch(/exact from the very first answer/i);
+    expect(text).not.toMatch(/k-anonym|floored|withheld until|minimum (?:group|cohort)/i);
+  });
+});
+
 describe("LivePrivacyPanel · off in demo mode", () => {
   it("renders nothing when LIVE is disabled", () => {
     // The panel makes claims about a real account. In demo mode there is no
@@ -121,5 +164,38 @@ describe("LivePrivacyPanel · off in demo mode", () => {
     LIVE.enabled = false;
     const { container } = render(<LivePrivacyPanel />);
     expect(container.textContent).toBe("");
+  });
+});
+
+describe("LivePrivacyPanel · the type cut's disclosure", () => {
+  // Pinned for the same reason the takes bullet is: the claim it replaces
+  // ("a test result is never a breakdown dim, so nothing is ever
+  // cross-tabbed by it") was TRUE and is now only half true, and the half
+  // that died is the half a user would want to know. A future sweep that
+  // deletes this bullet to tidy the list has to argue with an assertion.
+  const typeBullet = () => {
+    render(<LivePrivacyPanel />);
+    const li = [...document.querySelectorAll("li")]
+      .find((el) => /Big Five/i.test(el.textContent || ""));
+    if (!li) throw new Error("no bullet about the type cut — the disclosure lost it entirely");
+    return li.textContent || "";
+  };
+
+  it("says answers can be grouped by type", () => {
+    expect(typeBullet()).toMatch(/grouped by your Big Five type/i);
+  });
+
+  it("says the grouping reaches answers given before the type existed", () => {
+    // The retroactive half. It is the one property a reader cannot guess
+    // from "answers are public" plus "results are public", because every
+    // other cut on the same sheet is frozen at vote time.
+    expect(typeBullet()).toMatch(/before you had a type/i);
+  });
+
+  it("keeps the Art. 9 instruments out of it, in writing", () => {
+    // data/typeMix.TYPE_TEST is the enforcement; this is the promise.
+    // They are pinned in two places on purpose — the code one is a
+    // constant a refactor could widen without touching any copy.
+    expect(typeBullet()).toMatch(/politics, values and social results are never used/i);
   });
 });

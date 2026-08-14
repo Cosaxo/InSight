@@ -160,7 +160,7 @@
         "Splits the cell"
       ],
       "c": 0,
-      "t": 2,
+      "t": 3,
       "p": 44,
       "k": "Lysosomes break down waste"
     },
@@ -653,7 +653,7 @@
     {
       "id": "sol6",
       "f": "solar",
-      "q": "Reclassified as a dwarf planet in 2006:",
+      "q": "Demoted from planet to dwarf planet in 2006:",
       "a": [
         "Pluto",
         "Ceres",
@@ -1542,6 +1542,162 @@
       "t": 1,
       "p": 46,
       "k": "Speakers imply, listeners infer"
+    },
+    {
+      "id": "anc9",
+      "f": "ancient",
+      "q": "Most of the Great Wall standing today was built by the…",
+      "a": [
+        "Qin dynasty",
+        "Han dynasty",
+        "Ming dynasty",
+        "Tang dynasty"
+      ],
+      "c": 2,
+      "t": 0,
+      "p": 34,
+      "k": "Great Wall: mostly Ming",
+      "w": "Qin's walls were rammed earth; the stone wall tourists walk is 1,500 years younger."
+    },
+    {
+      "id": "anc10",
+      "f": "ancient",
+      "q": "When Cleopatra was born, the Great Pyramid was already…",
+      "a": [
+        "About 500 years old",
+        "About 1,000 years old",
+        "Newly built",
+        "About 2,500 years old"
+      ],
+      "c": 3,
+      "t": 0,
+      "p": 31,
+      "k": "Pyramid long predates Cleopatra",
+      "w": "She lived nearer in time to the Moon landing than to the Great Pyramid."
+    },
+    {
+      "id": "anc11",
+      "f": "ancient",
+      "q": "The Library of Alexandria was lost…",
+      "a": [
+        "In one great fire",
+        "Gradually, over centuries",
+        "In an earthquake",
+        "To a flood"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 38,
+      "k": "Alexandria's library faded slowly",
+      "w": "No single fire ended it — funding cuts, wars and neglect did, across centuries."
+    },
+    {
+      "id": "anc12",
+      "f": "ancient",
+      "q": "The ancient Olympic Games were held in honour of…",
+      "a": [
+        "Apollo",
+        "Athena",
+        "Zeus",
+        "Hercules"
+      ],
+      "c": 2,
+      "t": 0,
+      "p": 61,
+      "k": "Olympic Games honoured Zeus"
+    },
+    {
+      "id": "anc13",
+      "f": "ancient",
+      "q": "A Roman gladiator fight usually ended…",
+      "a": [
+        "With the loser killed",
+        "With both men alive",
+        "With the crowd deciding",
+        "In a formal draw"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 36,
+      "k": "Most gladiators survived their fights",
+      "w": "A trained gladiator cost a fortune to keep; killing one threw that money away."
+    },
+    {
+      "id": "body9",
+      "f": "body",
+      "q": "Roughly how much of an adult's body weight is water?",
+      "a": [
+        "About 90%",
+        "About 60%",
+        "About 30%",
+        "About 75%"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 47,
+      "k": "Bodies are ~60% water"
+    },
+    {
+      "id": "body10",
+      "f": "body",
+      "q": "At rest, how much of the brain is active?",
+      "a": [
+        "About 10%",
+        "Effectively all of it",
+        "About 25%",
+        "About half"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 52,
+      "k": "The whole brain stays active",
+      "w": "The 10% claim has no source in neuroscience — scans light the whole organ up."
+    },
+    {
+      "id": "body11",
+      "f": "body",
+      "q": "Which blood type can donate to anyone?",
+      "a": [
+        "AB positive",
+        "A positive",
+        "O positive",
+        "O negative"
+      ],
+      "c": 3,
+      "t": 0,
+      "p": 58,
+      "k": "O negative donates to anyone",
+      "w": "AB positive is the opposite — the universal recipient, not the universal donor."
+    },
+    {
+      "id": "body12",
+      "f": "body",
+      "q": "Which organ filters waste out of the blood?",
+      "a": [
+        "The liver",
+        "The spleen",
+        "The kidneys",
+        "The pancreas"
+      ],
+      "c": 2,
+      "t": 0,
+      "p": 77,
+      "k": "Kidneys filter the blood"
+    },
+    {
+      "id": "body13",
+      "f": "body",
+      "q": "A red blood cell lives for about…",
+      "a": [
+        "A week",
+        "Four months",
+        "A year",
+        "A day"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 33,
+      "k": "Red cells last four months"
     }
   ]
 }

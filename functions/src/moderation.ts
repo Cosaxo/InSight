@@ -20,7 +20,13 @@ import { onCall, HttpsError, type CallableRequest } from "firebase-functions/v2/
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { logger } from "firebase-functions";
 import { LIGHT_CALLABLE, LIGHT_UNBOUNDED } from "./ops";
-import { buildModQueueFrom, carriedEscalations, modVerdictError, modVerdictId } from "./pure";
+import {
+  buildModQueueFrom,
+  carriedEscalations,
+  modVerdictError,
+  modVerdictId,
+  tallyFlagsInto,
+} from "./pure";
 
 const REGION = "us-central1";
 
@@ -29,7 +35,17 @@ const REGION = "us-central1";
 const MOD_QUEUE_MIN_FLAGS = 3;
 const MOD_QUEUE_SIZE = 25;
 const MOD_RUN_CAP = 50;
-export const MOD_ADVISORY = true;
+// FALSE since D83 (2026-08-10): world takes shipped, and D78 made this
+// flip their hard prerequisite — at world scale, circle-scope trust can no
+// longer stand in for enforcement. The header note asked the flip to cite
+// the advisory phase's track record; there is none to cite (the advisory
+// window closed with zero users and an empty verdict log), and that
+// deviation is recorded in D83 rather than papered over. Until the
+// low-privilege Routine lands (still blocked, docs/MODERATION.md), the
+// only verdict source is a MOD_UIDS operator acting by hand — a remove
+// verdict now actually hides, so the blast radius of a wrong one is real
+// and bounded by MOD_RUN_CAP.
+export const MOD_ADVISORY = false;
 
 function modUids(): string[] {
   return (process.env.MOD_UIDS || "")
@@ -55,19 +71,53 @@ function assertModerator(request: CallableRequest): void {
 // ── the queue: server-picked targets ────────────────────────────
 
 // Daily, an hour before the moderation Routine's slot, so the run always
-// judges a fresh queue. Scans all flags; flags are one small doc per
-// (user, take) and the count is bounded by real user behavior, but the
-// work is unbounded in principle, so it keeps the long deadline.
+// judges a fresh queue. Reads every flag, a page at a time — the collection
+// is unbounded (see below), so the work is unbounded too and it keeps the
+// long deadline. What it HOLDS is bounded by the number of distinct takes,
+// which is what made paging worth doing rather than raising the memory.
 async function runBuildModQueue(): Promise<void> {
     const db = getFirestore();
-    const flags = await db.collection("v2_flags").get();
-    const counts: Record<string, number> = {};
-    for (const f of flags.docs) {
-      const takeId = f.get("takeId");
-      if (typeof takeId === "string" && takeId) {
-        counts[takeId] = (counts[takeId] || 0) + 1;
-      }
+    // PAGED, not `.get()` on the collection.
+    //
+    // v2_flags has no upper bound. MOD_ADVISORY makes the keep-verdict sweep
+    // below the only path that deletes a flag, and it is dead code while
+    // advisory is on; deleteAccount removes one uid's; nothing else does, and
+    // there is no TTL. So the collection only grows, and materialising it
+    // here put a snapshot of every flag ever cast on a 256 MiB instance
+    // (LIGHT_UNBOUNDED, whose ops.ts rationale describes a STREAMING
+    // recursiveDelete). At roughly 1.2 KB of heap per snapshot doc that is
+    // an OOM somewhere above 100k flags — well before the 480 s deadline the
+    // comment above reasons about, and the failure is silent in-band: the
+    // stale queue keeps serving, `queuedAt` never advances, so `gen` freezes
+    // and every re-judgement throws already-exists. buildModQueueNow shares
+    // these options, so the manual recovery lever died the same way.
+    //
+    // What is retained now is one counter per DISTINCT take rather than one
+    // object per flag. That is not a hard bound either — it grows with the
+    // number of takes ever flagged — but it is the smallest thing the queue
+    // can be built from, and it is smaller than the flag count by however
+    // many people flagged the same take. The real bound is retention, and
+    // that is a policy decision this does not take (D55 §11).
+    //
+    // tallyFlagsInto, not an object literal keyed in place: takeId is a
+    // client-chosen document id, and the prototype names read back truthy
+    // (see tallyFlags in pure.ts — a take posted as `constructor` was
+    // unqueueable however often it was flagged).
+    const FLAG_PAGE = 1000;
+    const tally = new Map<string, number>();
+    let flagCursor: FirebaseFirestore.QueryDocumentSnapshot | null = null;
+    let flagCount = 0;
+    for (;;) {
+      let fq = db.collection("v2_flags").orderBy("__name__").limit(FLAG_PAGE);
+      if (flagCursor) fq = fq.startAfter(flagCursor);
+      const page = await fq.get();
+      if (page.empty) break;
+      tallyFlagsInto(tally, page.docs.map((f) => f.get("takeId")));
+      flagCount += page.size;
+      if (page.size < FLAG_PAGE) break;
+      flagCursor = page.docs[page.docs.length - 1];
     }
+    const counts = Object.fromEntries(tally);
     const queue = buildModQueueFrom(counts, MOD_QUEUE_MIN_FLAGS, MOD_QUEUE_SIZE);
 
     // Rebuild wholesale: stale entries (verdicted, or takes since deleted)
@@ -84,14 +134,19 @@ async function runBuildModQueue(): Promise<void> {
     // replaced, but escalation is a message to a human that the rebuild was
     // silently eating (carriedEscalations, pure.ts). Read off the entry
     // being deleted, in the same fetch, so this costs no extra query.
-    const priorEscalations: Record<string, number> = {};
+    // Keyed by document id, which is the take id — client-chosen, so a Map
+    // for the same reason tallyFlags is one. On an object literal the miss
+    // path `priorEscalations[item.takeId] || 0` returns the Object
+    // CONSTRUCTOR for a take called `constructor`, and that function is what
+    // would be written to the queue entry's `escalations` field below.
+    const priorEscalations = new Map<string, number>();
     for (const doc of existing.docs) {
       const n = carriedEscalations({
         escalations: doc.get("escalations"),
         escalated: doc.get("escalated"),
         advisoryVerdict: doc.get("advisoryVerdict"),
       });
-      if (n > 0) priorEscalations[doc.id] = n;
+      if (n > 0) priorEscalations.set(doc.id, n);
     }
     const batch = db.batch();
     for (const doc of existing.docs) batch.delete(doc.ref);
@@ -101,8 +156,13 @@ async function runBuildModQueue(): Promise<void> {
       const take = await db.collection("v2_takes").doc(item.takeId).get();
       // A vanished take has nothing to moderate; an already-hidden one is
       // settled. Both fall out of the queue silently.
+      //
+      // Deliberately a truthiness test rather than `=== true`: `hidden` is a
+      // boolean now (D65), but a take hidden before that change carries the
+      // old annotation MAP here, and a map is truthy while `=== true` would
+      // silently re-queue every one of them.
       if (!take.exists || take.get("hidden")) continue;
-      const escalations = priorEscalations[item.takeId] || 0;
+      const escalations = priorEscalations.get(item.takeId) || 0;
       if (escalations > 0) carried += 1;
       batch.set(db.collection("v2_mod_queue").doc(item.takeId), {
         takeId: item.takeId,
@@ -120,7 +180,7 @@ async function runBuildModQueue(): Promise<void> {
     await batch.commit();
     logger.info(
       `[mod] queue rebuilt: ${queued} queued of ${queue.length} over-threshold ` +
-        `(${flags.size} flags total, floor ${MOD_QUEUE_MIN_FLAGS}); ` +
+        `(${flagCount} flags over ${tally.size} takes, floor ${MOD_QUEUE_MIN_FLAGS}); ` +
         `${carried} carrying a prior escalation`,
     );
 }
@@ -242,8 +302,15 @@ export const submitModVerdict = onCall({ ...LIGHT_CALLABLE, region: REGION }, as
       return;
     }
     if (verdict === "remove") {
+      // Two fields, because they answer to two different readers. `hidden`
+      // is the BOOLEAN the read rule compares against — it has to be a bare
+      // equality or the gate stops being enforceable on a list query (D65,
+      // and the long comment on that rule). `hiddenMeta` is the annotation
+      // this used to write into `hidden` itself: nobody's access decision
+      // turns on it, it exists so an appeal can be answered.
       tx.update(db.collection("v2_takes").doc(takeId), {
-        hidden: { by: "mod", policyLine, runId, at: FieldValue.serverTimestamp() },
+        hidden: true,
+        hiddenMeta: { by: "mod", policyLine, runId, at: FieldValue.serverTimestamp() },
       });
       tx.delete(queueRef);
     } else if (verdict === "keep") {

@@ -4,6 +4,9 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import { Av, useDialog } from './primitives.jsx';
+import { ownProgress, ResultProfileCard } from './result-card.jsx';
+import { RP_TESTS } from './result-rose.jsx';
 
 // InSight — ProfileOverlay (your own profile) + the Politics cards.
 // The test flow lives in test-overlay.jsx; question banks in test-defs.js.
@@ -51,53 +54,93 @@ function ProfileOverlay({ onClose, me, lensBoxed }) {
   const meta = labels[top.label];
 
   // ── one tab per test — the unified "results profile" card ──
-  // take/retake button, at the foot of each test's tab
-  const TestCTA = ({ k }) => {
-    const P = window.PASSIVE;
-    const taken = !!(window.IS_TEST_RESULTS || {})[k];
-    const nLeft = P && !P.complete(k) ? P.needed(k) - P.done(k) : 0;
+  //
+  // WHAT USED TO BE HERE: a "Take this test →" button, shown whenever the
+  // test had no stored result. D121 removed it along with the sit-down
+  // flow behind it — the instruments fill from the feed and only from the
+  // feed — and a tab whose whole content was a button to a screen that no
+  // longer exists is worse than the empty one it was covering for.
+  //
+  // What stands in its place is the same page one step earlier: the
+  // instrument's own progress, its axes, and which of them are still too
+  // thin to read. Not a nudge — a reading of where the profile has got to,
+  // which is the only honest thing to show before there is a type.
+  const TestProgress = ({ k }) => {
+    const p = ownProgress(k);
+    if (!p || p.ready) return null;
+    const hue = (RP_TESTS[k] || {}).banner || 'var(--accent)';
+    const pct = Math.round((p.answered / Math.max(1, p.total)) * 100);
     return (
-      <button onClick={() => window.openTest ? window.openTest(k) : window.openOverlay('test')} style={{
-        width: '100%', padding: '13px', marginBottom: 14, cursor: 'pointer',
-        WebkitAppearance: 'none', appearance: 'none',
-        background: taken && !nLeft ? 'var(--surface-2)' : 'var(--ink)',
-        color: taken && !nLeft ? 'var(--ink)' : 'var(--surface)',
-        border: taken && !nLeft ? '0.5px solid var(--rule)' : 'none', borderRadius: 14,
-        fontFamily: 'var(--sans)', fontSize: 14.5, fontWeight: 700, letterSpacing: '-0.01em',
-      }}>{nLeft ? `Finish the test — ${nLeft} question${nLeft === 1 ? '' : 's'} left` : taken ? 'Retake this test' : 'Take this test'} →</button>
+      <div className="card" style={{ padding: 0, overflow: 'hidden', marginBottom: 14 }}>
+        <div style={{ height: 3, background: `color-mix(in oklch, ${hue} 14%, var(--surface-3))` }}>
+          <div style={{ height: '100%', width: `${pct}%`, background: hue }}></div>
+        </div>
+        <div style={{ padding: '15px 18px 17px' }}>
+          <div className="kicker" style={{ color: hue }}>{(RP_TESTS[k] || {}).kicker || 'Filling in'}</div>
+          <div style={{ fontFamily: 'var(--serif)', fontSize: 21, color: 'var(--ink)', marginTop: 4, letterSpacing: '-0.01em' }}>
+            {p.answered} of {p.total} answered
+          </div>
+          <div style={{ fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 500, color: 'var(--ink-2)', lineHeight: 1.5, marginTop: 7 }}>
+            {/* Says where the answers come from, because there is no longer
+                anywhere else they could. */}
+            Marked cards in the feed fill this in. There is no sitting down
+            for it — answer them when they come.
+          </div>
+          {/* The axes, and which are still a coin flip. An axis with one
+              answer behind it lands on an extreme more often than not, so
+              the card refuses a TYPE until every one of them has two —
+              and naming them is what makes the refusal legible instead of
+              looking like a stall. */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 14 }}>
+            {p.dims.map((d) => (
+              <div key={d.dim} style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                <span style={{ width: 96, flexShrink: 0, fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 600, color: 'var(--ink-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.label}</span>
+                <span style={{ flex: 1, height: 8, borderRadius: 999, background: 'var(--surface-3)', overflow: 'hidden' }}>
+                  <span style={{ display: 'block', height: '100%', width: `${Math.round((d.n / Math.max(1, d.items)) * 100)}%`, background: hue, opacity: 0.75 }}></span>
+                </span>
+                <span style={{ width: 40, textAlign: 'right', fontFamily: 'var(--sans)', fontSize: 11, fontWeight: 700, color: 'var(--ink-3)', fontVariantNumeric: 'tabular-nums' }}>{d.n}/{d.items}</span>
+              </div>
+            ))}
+          </div>
+          {!!p.thin.length && (
+            <div style={{ fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 500, color: 'var(--ink-3)', lineHeight: 1.5, marginTop: 12 }}>
+              Still thin: {p.thin.join(', ')}. Your type appears once every
+              side of this has at least two answers behind it.
+            </div>
+          )}
+        </div>
+      </div>
     );
   };
 
+  // CONVERTED off the shared-global bridge (D39, "convert on touch"):
+  // adding the fifth panel below would have taken this file's cross-module
+  // global count UP, which check:globals rule 4 refuses. ResultProfileCard
+  // is a named export of result-card.jsx, which spec-index.js imports
+  // eagerly and BEFORE this file, so the import is sound.
+  //
+  // Every fallback the five panels used to carry is gone with it, and that
+  // is the conversion rather than a tidy-up: each one guarded LOAD ORDER
+  // ("has result-card.jsx evaluated yet?"), and an imported binding cannot
+  // be unset. The AttachmentPanel chain even said so — "unreachable today
+  // … written defensively anyway, because load order in this layer is
+  // exactly what changes" — and a static import is what stops it changing.
+  // No data guard was removed: none of them guarded data. The card still
+  // returns null on its own for a test with no result or no RP_TESTS entry.
   const Big5Panel = () => (
-    window.ResultProfileCard
-      ? <window.ResultProfileCard testKey="big5" archetype={meta.name} tagline={meta.tag} />
-      : <TestVizCard testKey="big5" />
+    <ResultProfileCard testKey="big5" archetype={meta.name} tagline={meta.tag} />
   );
 
   const PoliticsPanel = () => (
-    <>
-      {window.ResultProfileCard && <window.ResultProfileCard testKey="political" archetype={me.politicalIdentity.name} tagline={me.politicalIdentity.tag} />}
-    </>
+    <ResultProfileCard testKey="political" archetype={me.politicalIdentity.name} tagline={me.politicalIdentity.tag} />
   );
 
   const ValuesPanel = () => (
-    window.ResultProfileCard
-      ? <window.ResultProfileCard testKey="values" archetype={me.moralLabel} tagline="beauty and meaning pull hardest" />
-      : (window.ValuesTiltCard ? <window.ValuesTiltCard me={me} /> : null)
+    <ResultProfileCard testKey="values" archetype={me.moralLabel} tagline="beauty and meaning pull hardest" />
   );
 
   const AttachmentPanel = () => (
-    window.ResultProfileCard
-      ? <window.ResultProfileCard testKey="attachment" archetype="The Constant" tagline="steady and affectionate — the friend who stays" />
-      // Third fallback reads off window like the two before it, because
-      // TestResultCard now ships in the after-first-paint overlay chunk
-      // (loadOverlays) while this overlay is eager — a bare identifier
-      // would be a ReferenceError rather than a blank. Unreachable today:
-      // ResultProfileCard and AttachmentCard are both eager, so the first
-      // branch always wins. Written defensively anyway, because "the other
-      // two are eager" is a fact about load order, and load order in this
-      // layer is exactly what changes.
-      : (window.AttachmentCard ? <window.AttachmentCard /> : (window.TestResultCard ? <window.TestResultCard testKey="attachment" /> : null))
+    <ResultProfileCard testKey="attachment" archetype="The Constant" tagline="steady and affectionate — the friend who stays" />
   );
 
   const dlg = useDialog(onClose, 'Your profile');
@@ -106,11 +149,15 @@ function ProfileOverlay({ onClose, me, lensBoxed }) {
       <div className="app-header">
         <button className="avatar-btn" onClick={onClose}>✕</button>
         <div className="h-title">Your <em>profile</em></div>
-        <div style={{ width: 36 }} />
+        <div style={{ width: 32, flexShrink: 0 }} />
       </div>
       <div className="app-body" style={{ paddingTop: 0 }}>
-        {/* compact identity row — the content is the star, not the header */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 16 }}>
+        {/* compact identity row — the content is the star, not the header.
+            Tightened 2026-08-12 with the double-inset fix above it: this
+            row sat under ~146px of doubled status-bar padding, so its own
+            52px avatar and 16px lead were the second half of a profile
+            that opened on a third of a screen saying "You". */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 10 }}>
           {(() => {
             const live = window.LIVE && window.LIVE.enabled;
             const nm = live ? (window.LIVE.displayName || 'You') : me.name;
@@ -120,10 +167,10 @@ function ProfileOverlay({ onClose, me, lensBoxed }) {
             const sub = live ? 'anonymous session — link Google below to keep it' : (me.location + ' · ' + me.country);
             return (
               <>
-                <Av init={init} hue={38} size={52} />
+                <Av init={init} hue={38} size={42} />
                 <div style={{ minWidth: 0 }}>
-                  <div style={{ fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 20, letterSpacing: '-0.02em', lineHeight: 1.15 }}>{nm}</div>
-                  <div style={{ fontFamily: 'var(--sans)', fontSize: 13, color: 'var(--ink-3)', marginTop: 3 }}>{sub}</div>
+                  <div style={{ fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 18, letterSpacing: '-0.02em', lineHeight: 1.15 }}>{nm}</div>
+                  <div style={{ fontFamily: 'var(--sans)', fontSize: 12.5, color: 'var(--ink-3)', marginTop: 2 }}>{sub}</div>
                 </div>
               </>
             );
@@ -132,27 +179,20 @@ function ProfileOverlay({ onClose, me, lensBoxed }) {
 
         {/* sticky sub-tab nav — frosted so content scrolls beneath it */}
         <div className="profile-subnav">
-          <div className="subnav" style={{ display: 'inline-flex', gap: 4, background: 'var(--surface-3)', borderRadius: 999, padding: 3, border: '0.5px solid var(--rule)', maxWidth: '100%', overflowX: 'auto', flexWrap: 'nowrap', justifyContent: 'flex-start', scrollbarWidth: 'none' }}>
-            {SUBTABS.map(s => {
-              const on = s.id === sub;
-              return (
-                <button key={s.id} onClick={() => setSub(s.id)} className={"subnav-btn" + (on ? ' is-on' : '')} style={{
-                  flex: '0 0 auto', padding: '8px 11px', borderRadius: 999, border: 'none', cursor: 'pointer',
-                  WebkitAppearance: 'none', appearance: 'none',
-                  fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 600, letterSpacing: '0.01em', whiteSpace: 'nowrap',
-                }}>{s.label}</button>
-              );
-            })}
+          <div className="subnav subnav--scroll" style={{ maxWidth: '100%' }}>
+            {SUBTABS.map(s => (
+              <button key={s.id} onClick={() => setSub(s.id)} className={"subnav-btn" + (s.id === sub ? ' is-on' : '')}>{s.label}</button>
+            ))}
           </div>
         </div>
 
         <div key={sub} className="tab-swap" style={{ marginTop: 4 }}>
           {sub === 'general' && window.LIVE && window.LIVE.enabled && window.LivePrivacyPanel && <window.LivePrivacyPanel />}
           {sub === 'general' && <window.GeneralPanel onGo={setSub} />}
-          {sub === 'big5' && <><Big5Panel /><TestCTA k="big5" /></>}
-          {sub === 'politics' && <><PoliticsPanel /><TestCTA k="political" /></>}
-          {sub === 'values' && <><ValuesPanel /><TestCTA k="values" /></>}
-          {sub === 'attachment' && <><AttachmentPanel /><TestCTA k="attachment" /></>}
+          {sub === 'big5' && <><Big5Panel /><TestProgress k="big5" /></>}
+          {sub === 'politics' && <><PoliticsPanel /><TestProgress k="political" /></>}
+          {sub === 'values' && <><ValuesPanel /><TestProgress k="values" /></>}
+          {sub === 'attachment' && <><AttachmentPanel /><TestProgress k="attachment" /></>}
           {sub === 'lenses' && window.LensesPanel && <window.LensesPanel boxed={lensBoxed} />}
         </div>
       </div>

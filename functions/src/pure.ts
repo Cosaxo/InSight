@@ -19,6 +19,83 @@ export function inviteCodeFromBytes(bytes: Uint8Array): string {
   return out;
 }
 
+// ── handles (D122) ──────────────────────────────────────────────
+//
+// A handle is the app's first ADDRESS: the thing that lets one person
+// name another. Until it existed the only way to reach a specific
+// account was an invite code — a capability you had to type — which is
+// why circles were joined rather than offered.
+//
+// The rules this shape has to satisfy, in order of how much they matter:
+//
+//   1. ONE canonical form. `@Olaf`, `olaf` and ` OLAF ` are the same
+//      handle, or the uniqueness registry is not a registry. Casefold on
+//      the way in, store the fold as the key, and keep the typed form
+//      only as a display string.
+//   2. NO CONFUSABLES. `rn` vs `m` and `l` vs `I` are the impersonation
+//      surface every handle system grows. Latin letters, digits and one
+//      separator is not a complete answer to that, but it removes the
+//      whole non-ASCII half of it, which is where the industrial-grade
+//      lookalikes live.
+//   3. NOT A UID. Handles and uids must never be confusable by a reader
+//      or by a call site, so the minimum length is above the point where
+//      a handle could pass for something else, and the charset excludes
+//      the separators Firestore paths use.
+//
+// Pure so both halves can share it: the client validates as you type
+// (data/handles.ts re-exports the same rules) and the callable validates
+// again, because a client check is a courtesy and the callable is the
+// gate.
+
+/** Longest a handle may be, typed or stored. */
+export const HANDLE_MAX = 20;
+/** Shortest. Three is enough to be a name and long enough not to be noise. */
+export const HANDLE_MIN = 3;
+
+// Lowercase ASCII letters, digits, underscore. No dot (Firestore path
+// segments), no hyphen (visually close to en dash in a lot of fonts),
+// nothing outside ASCII.
+const HANDLE_RE = /^[a-z0-9_]+$/;
+
+/**
+ * The canonical key for a typed handle, or null if it is not one.
+ *
+ * Strips a leading `@` and surrounding space, lowercases, then validates.
+ * Returning null rather than throwing is deliberate — every caller has a
+ * different thing to say about a bad handle, and none of them wants a
+ * try/catch to say it.
+ */
+export function normalizeHandle(raw: unknown): string | null {
+  if (typeof raw !== "string") return null;
+  const h = raw.trim().replace(/^@+/, "").toLowerCase();
+  if (h.length < HANDLE_MIN || h.length > HANDLE_MAX) return null;
+  if (!HANDLE_RE.test(h)) return null;
+  // Leading digits are legal (a handle is not an identifier) but a handle
+  // that is ONLY digits reads as an id and would collide with every
+  // "search by number" affordance a future version grows.
+  if (/^[0-9]+$/.test(h)) return null;
+  // Reserved: words a handle must not be able to impersonate, because
+  // each of them already means something in this app's copy or its URLs.
+  if (RESERVED_HANDLES.has(h)) return null;
+  return h;
+}
+
+/**
+ * Names no account may hold.
+ *
+ * Two families: the app's own URL segments (a handle that is also a route
+ * makes "prvfire33.web.app/join" ambiguous the day handles get links),
+ * and the words the product uses to mean *the system rather than a
+ * person* — an account called `insight` or `admin` is a phishing kit.
+ */
+export const RESERVED_HANDLES = new Set([
+  "insight", "admin", "administrator", "root", "system", "support",
+  "help", "about", "privacy", "terms", "join", "invite", "invites",
+  "profile", "settings", "account", "me", "you", "everyone", "world",
+  "team", "staff", "official", "mod", "moderator", "null", "undefined",
+  "anonymous", "anon", "deleted",
+]);
+
 // ── day-key arithmetic (v2social) ───────────────────────────────
 
 export function utcDayKey(offsetDays = 0, nowMs: number = Date.now()): string {
@@ -77,6 +154,33 @@ export function prunePendingDays(
   return out;
 }
 
+// WHICH DAYS a run looks at, and this is the half that used to be wrong.
+//
+// The scan asked about exactly one day — `utcDayKey(-1)` — and the schedule
+// never passed one, so a group-day was eligible for reveal during the single
+// UTC day after it and never again. That is not the window the rest of the
+// system works in: firestore.rules accepts a duel answer up to FOUR days
+// late (deliberately, so a client flushing a queue after ~3 days offline
+// still lands its vote), and onV2AnswerCreated re-adds the day to
+// `pendingDays` whenever one arrives. So an answer syncing on D+2 re-opened
+// day D, correctly, into a scan that would never ask about day D again.
+// Nothing errored: both members had answered, the day sat pending forever,
+// and the duo's streak stayed at whatever the earlier empty settle left it.
+//
+// The window is PENDING_DAYS_KEEP, because that is already the bound the
+// pruning uses — a pending day older than that can never gain another answer
+// and is dropped. Matching them means the scan asks about exactly the days
+// that can still change, which is the definition `pendingDays` was given.
+//
+// Steady-state cost is five extra indexed queries per run that return
+// nothing. An explicit `dayKey` still means that day alone: the operator
+// lever and the e2e both pass one, and narrowing is what an operator
+// reaching for it during an incident usually wants.
+export function scanDays(dayKey?: string, nowMs: number = Date.now()): string[] {
+  if (dayKey) return [dayKey];
+  return Array.from({ length: PENDING_DAYS_KEEP }, (_, i) => utcDayKey(-(i + 1), nowMs));
+}
+
 // ── reveal conditions + streaks (v2social) ──────────────────────
 
 // The two reveal conditions (decision D5):
@@ -96,15 +200,272 @@ export function nextStreak(
   return lastRevealDay === prevDayKey(dayKey) ? currentStreak + 1 : 1;
 }
 
-// ── k-anonymity gate (v2) ───────────────────────────────────────
+// Who a day's reveal may be shown to.
+//
+// The reveal doc carries its own `members` array and firestore.rules gates
+// the read on THAT, not on the group's current membership — which is what
+// makes the guarantee retroactive in one direction: joining tomorrow does
+// not hand you every past day, and leaving does not retract the days you
+// played. The array was the membership AT REVEAL TIME, and that is a
+// different thing from membership on the day being revealed.
+//
+// The gap it left is one scan wide, every day. Day D is revealed by the D+1
+// scan, which runs `every 120 minutes` — so anyone who joined between
+// 00:00 UTC and that scan was a current member when the snapshot was taken,
+// went into `members`, and could read day D's votes and names for a day they
+// were not in the group for. `revealGroupDay`'s own comment claimed to have
+// closed this by preferring the page snapshot to a fresher read, but both
+// reads happen on D+1, so it only ever closed the seconds between them.
+//
+// The bound is the END of the day being revealed, not its start: someone who
+// joined midway through day D was there for it and may have played it.
+//
+// …and anyone who DID play the day is included whatever their join time
+// says. firestore.rules accepts a duel answer up to four days late, so a
+// member can legitimately land a vote for a day that precedes their join —
+// an offline client flushing a queue, or a fresh group playing a recent day.
+// Excluding them would publish a reveal containing their own vote that they
+// alone cannot read, and "you see the days you played" is the invariant the
+// e2e already asserts.
+//
+// KNOWN RESIDUAL, recorded rather than papered over: that clause is also an
+// unlock. Join a group, backfill an answer for a day inside the four-day
+// window, and the reveal admits you. It is strictly narrower than what this
+// replaces — passive joining now reveals nothing, and the unlock costs a
+// visible vote in the circle's own reveal — but it is not nothing. Closing
+// it means bounding the write, not the read: firestore.rules would have to
+// refuse a duel answer for a day preceding the member's join. That is a
+// change to the densest rule in the file, whose failure mode is a vote that
+// silently vanishes, and it would refuse the legitimate fresh-group case
+// above. Left for a decision of its own (D55 §9).
+//
+// A uid with NO recorded join time is included, and that is not a fallback —
+// it is the correct answer. The field is written by createGroupV2 and
+// joinGroupV2 from the day this shipped, so its absence means the member
+// joined before that, which is necessarily before any day this function will
+// ever be asked about. Reading absence as "unknown, exclude" would blank
+// every reveal for every group that existed on deploy day.
+//
+// Takes plain millis rather than Timestamps so this stays firebase-free like
+// the rest of the module; the caller converts.
+export function revealMembersFor(
+  members: readonly string[],
+  joinedAtMs: Record<string, unknown>,
+  dayKey: string,
+  playedUids: readonly string[] = [],
+): string[] {
+  const dayEnd = Date.parse(`${dayKey}T00:00:00Z`) + 86400000;
+  // Server-generated (utcDayKey), so this is unreachable in the pipeline. It
+  // degrades to the previous behaviour rather than to an empty array: a
+  // reveal nobody can read is a worse failure than one scoped too widely,
+  // and a malformed day key means the reveal is already wrong.
+  if (!Number.isFinite(dayEnd)) return [...members];
+  const played = new Set(playedUids);
+  return members.filter((uid) => {
+    if (played.has(uid)) return true;
+    const at = Object.prototype.hasOwnProperty.call(joinedAtMs, uid)
+      ? joinedAtMs[uid]
+      : undefined;
+    if (typeof at !== "number" || !Number.isFinite(at)) return true;
+    return at < dayEnd;
+  });
+}
 
-// The k-floor decision in one place: a bucket is publishable only at
-// or above its floor. Buckets below it are dropped (or deleted).
-// Sole caller is publishableBreakdown below, since D13 removed the v1
-// geo aggregates this was also shared with — kept separate anyway, so
-// the floor stays one named decision rather than an inline `>=`.
-export function meetsKFloor(count: number, floor: number): boolean {
-  return count >= floor;
+// ── the duel question-level signal (D40 part 3) ─────────────────
+//
+// Duel answers never reach the world aggregates — the trigger
+// short-circuits them into the sealed reveal path, and that stays. This is
+// the deliberately smaller aggregate written WHERE THE ANSWERS ARE ALREADY
+// BEING READ: at reveal time, summed across ALL groups, k-floored like
+// every published number. What it may never contain: gids, uids, names,
+// member sets, per-group anything, or anything below the floor. The
+// privacy arithmetic is D40's: every input is a vote the group's own
+// members already see with names attached at reveal, so the cross-group,
+// floored sum is strictly less revealing than the reveal itself.
+
+export interface DuelVoteLike {
+  optionIdx: number;
+  guessIdx?: number;
+}
+
+export interface DuelAggState {
+  plays: number; // group-days revealed
+  total: number; // persons counted — the unit the k-floor applies to
+  counts: Record<string, number>; // per-option, bank-option questions only
+  guessTotal: number; // duo guesses cast (both partners may guess)
+  guessMatches: number; // …of which called the partner's actual pick
+}
+
+/**
+ * The question a group-day reveal is published under, given the qid each
+ * member's answer carried.
+ *
+ * Members compute the day's question independently — `duelQFor` in
+ * src/v2/data/deck.ts is a pure function of (gid, utcDay, bank), and the
+ * BANK LENGTH is the modulus. So a promotion, or an `active:false` flip,
+ * remaps the rotation for whoever refreshes their cached bank first, and
+ * two members can legitimately answer different questions on the same day
+ * with no hacked client involved. Rules cannot catch it: they check that
+ * the qid exists in the bank, which both of them do.
+ *
+ * This used to be `qid = qid || s.get("qid")` — first counted answer wins,
+ * which meant the group's published question depended on the order of
+ * `memberUids`. Plurality instead: the question the most members actually
+ * answered. Ties break on lexical qid order, so the result is a function
+ * of the votes alone and a retried transaction cannot pick differently.
+ *
+ * Returns null only when no answer carried a usable qid.
+ */
+export function revealQid(qids: readonly unknown[]): string | null {
+  const counts = new Map<string, number>();
+  for (const q of qids) {
+    if (typeof q !== "string" || !q) continue;
+    counts.set(q, (counts.get(q) || 0) + 1);
+  }
+  let best: string | null = null;
+  let bestN = 0;
+  // Sorted, then strictly-greater: the lowest qid wins a tie, and the scan
+  // order is the sort's rather than the Map's insertion order (which is the
+  // member order this function exists to stop depending on).
+  for (const [qid, n] of [...counts.entries()].sort((a, b) =>
+    a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0,
+  )) {
+    if (n > bestN) {
+      best = qid;
+      bestN = n;
+    }
+  }
+  return best;
+}
+
+/**
+ * The subset of a reveal's votes that may be folded into `qid`'s aggregate:
+ * those actually cast on it.
+ *
+ * The reveal doc still carries every vote — dropping one there is the
+ * "silently discarded" outcome revealGroupDay's transaction is built to
+ * avoid, and a member who played deserves to appear in their group's
+ * reveal whatever their client's bank said. But the cross-group aggregate
+ * is a different artefact with a different guarantee: it is read as "how
+ * this question went", so a vote cast on another question is not a
+ * rounding error there, it is a wrong number under the wrong prompt.
+ *
+ * Order is preserved, because duelAggDelta pairs a duo's two votes
+ * positionally to score guesses.
+ */
+export function votesMatchingQid<T>(
+  entries: readonly { qid: unknown; vote: T }[],
+  qid: string | null,
+): T[] {
+  if (!qid) return [];
+  return entries.filter((e) => e.qid === qid).map((e) => e.vote);
+}
+
+/**
+ * The reveal doc's `votes` map, with each vote stamped with its own qid when
+ * that is not the question the day is published under.
+ *
+ * The stamp is what lets the reveal CARD render an answer under the prompt
+ * its author was actually shown (D71). Without it the card had one qid for
+ * the whole day and put every answer under it — a line with a member's name
+ * on it, asserting something they never said.
+ *
+ * Absent means "the revealed question", so the common case writes exactly the
+ * document it wrote before, and every reveal written before D71 reads
+ * correctly with no migration.
+ */
+export function revealVotes<T extends object>(
+  entries: readonly { uid: string; qid: unknown; vote: T }[],
+  qid: string | null,
+): Record<string, T | (T & { qid: string })> {
+  const out: Record<string, T | (T & { qid: string })> = {};
+  for (const e of entries) {
+    out[e.uid] =
+      typeof e.qid === "string" && e.qid && e.qid !== qid
+        ? { ...e.vote, qid: e.qid }
+        : e.vote;
+  }
+  return out;
+}
+
+/**
+ * One reveal's contribution. `optionCount` is the question's bank-option
+ * count — 0 for `pick` questions, whose optionIdx values index each
+ * group's OWN member list and are meaningless summed across groups (the
+ * D12 lesson: wrong-shaped data is worse than none), so a pick publishes
+ * plays and total only. An out-of-range optionIdx (a pair that answered
+ * across a pool flip, or bank drift) stays in `total` — it is a real
+ * person's play — but folds into no count, so Σcounts ≤ total by design.
+ * Guesses are scored only when the duo's BOTH answers are in range (the
+ * pair coherently played this question) and the guess itself names a real
+ * option; a guess compared against a different question's answer would be
+ * noise wearing a number.
+ *
+ * CALLERS MUST PASS ONLY VOTES CAST ON THIS QUESTION. The range filter
+ * above catches an out-of-range index, but a vote cast on a DIFFERENT
+ * question whose index happens to be in range for this one is
+ * indistinguishable here — it lands in a real bucket of a published,
+ * k-floored aggregate. `revealQid` picks the question and
+ * `votesMatchingQid` does the filtering; this function cannot.
+ */
+export function duelAggDelta(
+  votes: readonly DuelVoteLike[],
+  mode: string,
+  optionCount: number,
+): DuelAggState {
+  const counts: Record<string, number> = {};
+  const inRange = (i: unknown): i is number =>
+    typeof i === "number" && Number.isInteger(i) && i >= 0 && i < optionCount;
+  for (const v of votes) {
+    if (inRange(v.optionIdx)) counts[String(v.optionIdx)] = (counts[String(v.optionIdx)] || 0) + 1;
+  }
+  let guessTotal = 0;
+  let guessMatches = 0;
+  if (mode === "duo" && votes.length === 2 && inRange(votes[0].optionIdx) && inRange(votes[1].optionIdx)) {
+    for (let i = 0; i < 2; i++) {
+      const guess = votes[i].guessIdx;
+      if (!inRange(guess)) continue;
+      guessTotal++;
+      if (guess === votes[1 - i].optionIdx) guessMatches++;
+    }
+  }
+  return { plays: 1, total: votes.length, counts, guessTotal, guessMatches };
+}
+
+/** Fold a delta onto the stored private state, tolerating an absent or
+ *  malformed prior doc — the first reveal of a question creates it. */
+export function foldDuelAgg(prev: unknown, delta: DuelAggState): DuelAggState {
+  const p = (prev && typeof prev === "object" ? prev : {}) as Record<string, unknown>;
+  const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : 0);
+  const counts: Record<string, number> = {};
+  const pc = p.counts;
+  if (pc && typeof pc === "object") {
+    for (const [k, v] of Object.entries(pc as Record<string, unknown>)) counts[k] = num(v);
+  }
+  for (const [k, v] of Object.entries(delta.counts)) counts[k] = (counts[k] || 0) + v;
+  return {
+    plays: num(p.plays) + delta.plays,
+    total: num(p.total) + delta.total,
+    counts,
+    guessTotal: num(p.guessTotal) + delta.guessTotal,
+    guessMatches: num(p.guessMatches) + delta.guessMatches,
+  };
+}
+
+/** The public mirror of a duel aggregate, written on every fold (D98 —
+ *  there is no floor and no cadence). Guess fields publish only when a
+ *  guess exists, counts only when any vote landed in range — absent keys,
+ *  not zeroes, so a pick question's doc never grows fields that would
+ *  invite reading meaning into them. */
+export function publishableDuelAgg(state: DuelAggState): Record<string, unknown> {
+  return {
+    plays: state.plays,
+    total: state.total,
+    ...(Object.keys(state.counts).length ? { counts: state.counts } : {}),
+    ...(state.guessTotal > 0
+      ? { guessTotal: state.guessTotal, guessMatches: state.guessMatches }
+      : {}),
+  };
 }
 
 // ── per-anchor breakdowns (v2) ──────────────────────────────────
@@ -137,16 +498,15 @@ export function meetsKFloor(count: number, floor: number): boolean {
 //    and published none of them. It now carries the ISO code derived from
 //    the picked city, which is why that dimension starts working at all.
 //
-// 2. K-ANONYMITY THAT SURVIVES SUBTRACTION. Suppressing buckets below the
-//    floor is not sufficient on its own. If a dimension has exactly one
-//    suppressed bucket and a reader knows the dimension's total, that bucket
-//    is recoverable by subtracting the published ones — the floor would be
-//    decorative. publishableBreakdown therefore applies COMPLEMENTARY
-//    SUPPRESSION: if suppressing the sub-floor buckets would leave exactly one
-//    hole, the smallest surviving bucket is suppressed too, so there are always
-//    either zero holes or at least two. Standard practice in statistical
-//    disclosure control, and the reason this is a pure function with its own
-//    tests rather than three lines inside the trigger.
+// 2. NO SUPPRESSION OF ANY KIND (D98). This constraint used to read
+//    "k-anonymity that survives subtraction", and it drove complementary
+//    suppression: a lone hole plus a known total is recoverable by
+//    subtraction, so the floor had to take a second bucket with it. None
+//    of that runs now — every bucket publishes, at every size — because
+//    the answers the buckets are folded from are themselves readable.
+//    The paragraph stays as the record of what was removed and why it
+//    existed, which is the thing a future reader will want if anyone ever
+//    proposes putting it back.
 //
 //    WHAT THE FLOOR DOES NOT DO, stated here because the wording used to
 //    imply otherwise. The unit the floor applies to is the BUCKET — the sum
@@ -180,11 +540,12 @@ export const BREAKDOWN_DIMS = [
   "country",
   "education",
   "relationship",
+  "heightBand",
 ] as const;
 export type BreakdownDim = (typeof BREAKDOWN_DIMS)[number];
 
-// Per-dimension distinct-value cap. 6 dims x 24 buckets x up to 20 options is
-// ~2.9k integers worst case — tens of KB against Firestore's 1 MiB limit,
+// Per-dimension distinct-value cap. 7 dims x 24 buckets x up to 20 options is
+// ~3.4k integers worst case — tens of KB against Firestore's 1 MiB limit,
 // with room for the plain counts alongside.
 export const BREAKDOWN_MAX_BUCKETS = 24;
 // Bucket labels are stored as map keys; anything longer is a free-text field
@@ -194,16 +555,32 @@ export const BREAKDOWN_MAX_LABEL = 40;
 // Dimensions whose values come from a closed vocabulary get their shape
 // checked here as well as at the source.
 //
-// The bucket cap is first-come-first-served, so 24 junk values arriving
-// early would crowd out every real one for that question — and anchors are
-// written by the CLIENT onto its own answer doc, where firestore.rules can
-// only enforce a length. Anyone could mint 24 nonsense cities and blank the
-// dimension for everybody. Shape-checking `city` closes that, and it also
-// keeps the free text sitting in pre-D9 profiles ("oslo", "Oslo, Norway")
-// from competing for slots with the catalogue values.
+// The bucket cap is a scarce resource, and anchors are written by the CLIENT
+// onto its own answer doc where firestore.rules can only enforce a length —
+// so whoever fills the slots first decides what the dimension can ever show.
+// 24 nonsense values blank it for everybody, permanently: nothing evicts a
+// bucket, and `by` is carried forward across every publish.
 //
-// The other dimensions are short fixed lists chosen from <select>s; a bogus
-// value there costs one suppressed sub-floor bucket, not the dimension.
+// Two different defences, because the dimensions are two different shapes.
+//
+// FOUR OF THEM HAVE A CLOSED VOCABULARY, and it is SHORTER THAN THE CAP.
+// ageBand/gender/education/relationship come from <select>s of 7, 4, 15 and 6
+// values; checking membership means the dimension cannot be exhausted at all,
+// because there are fewer legal buckets than slots. That is the real fix and
+// it is available here and nowhere else — the rules layer cannot hold a
+// vocabulary, and the client choosing from a list says nothing about what a
+// script sends. `npm run check:anchors` holds these equal to the <select>
+// lists in src/v2/spec/profile-general.jsx, the way check-cities.mjs holds
+// the city catalogue to its own rules.
+//
+// This used to say a bogus value in these four "costs one suppressed
+// sub-floor bucket, not the dimension". That was wrong in the same way the
+// city note was right: 24 of them cost the dimension.
+//
+// CITY AND COUNTRY CANNOT BE CLOSED THAT WAY — 10,929 places and ~249
+// countries against 24 slots — so membership would still leave them
+// exhaustible with real values. Their shapes stay, and the cap itself
+// changed instead: see the eviction rule in foldAnchors.
 const BREAKDOWN_DIM_SHAPE: Partial<Record<BreakdownDim, RegExp>> = {
   // "Oslo, NO" — a catalogue name and an ISO 3166-1 alpha-2 code. Must
   // agree with placeKey() in src/v2/data/places.ts.
@@ -211,6 +588,42 @@ const BREAKDOWN_DIM_SHAPE: Partial<Record<BreakdownDim, RegExp>> = {
   // ISO 3166-1 alpha-2, derived client-side from the picked city.
   country: /^[A-Z]{2}$/,
 };
+
+// The closed vocabularies, verbatim from the profile's <select>s. Every value
+// must survive breakdownBucket and fit BREAKDOWN_MAX_LABEL, and every list
+// must be shorter than BREAKDOWN_MAX_BUCKETS — check:anchors asserts all
+// three, and the last is the one that makes exhaustion impossible rather
+// than merely harder.
+//
+// `Vocational / trade` is deliberately spelled "Vocational or trade" here
+// AND in the profile: the slash is in breakdownBucket's rejected class, so
+// the shipped option folded into no bucket at all from the day it was added.
+// Nothing surfaced it — the answer wrote, the aggregate just never counted
+// it — which is precisely the silence check:anchors now closes.
+export const BREAKDOWN_DIM_VOCAB: Partial<Record<BreakdownDim, readonly string[]>> = {
+  ageBand: ["Under 18", "18-24", "25-34", "35-44", "45-54", "55-64", "65+"],
+  gender: ["Woman", "Man", "Non-binary", "Prefer not to say"],
+  education: [
+    "Primary school", "Middle school", "High school", "Vocational or trade",
+    "Some college", "Associate degree", "Bachelor's", "Postgraduate diploma",
+    "Master's", "MBA", "Doctorate", "Postdoctoral",
+    "Professional certification", "Self-taught", "Other",
+  ],
+  relationship: [
+    "Single", "Dating", "Partnered", "Married", "It’s complicated",
+    "Prefer not to say",
+  ],
+  // D140: banded like ageBand, coarse on purpose — the band IS what is
+  // collected (the profile offers no centimetre field to fold from).
+  heightBand: [
+    "Under 160 cm", "160-169 cm", "170-179 cm", "180-189 cm",
+    "190 cm or taller", "Prefer not to say",
+  ],
+};
+
+const VOCAB_SETS: Partial<Record<BreakdownDim, ReadonlySet<string>>> = Object.fromEntries(
+  Object.entries(BREAKDOWN_DIM_VOCAB).map(([dim, vals]) => [dim, new Set(vals)]),
+);
 
 export type BreakdownCounts = Record<string, Record<string, Record<string, number>>>;
 
@@ -223,13 +636,109 @@ export function breakdownBucket(value: unknown, dim?: BreakdownDim): string | nu
   const v = value.trim();
   if (!v || v.length > BREAKDOWN_MAX_LABEL) return null;
   if (/[./[\]*~]/.test(v)) return null;
+  // A label already keyed on Object.prototype is not a bucket name — it is a
+  // write into the prototype chain. The folds below do
+  // `byDim[bucket] || (byDim[bucket] = {})`, and with bucket === "__proto__"
+  // that assignment sets the PROTOTYPE rather than a property; the per-option
+  // counter beneath it then increments a field every later object in the
+  // process inherits. Measured, not reasoned: one answer carrying
+  // `anchors: { gender: "__proto__" }` makes an unrelated question publish
+  // `{"f":{"1":6}}` for five voters — counts nobody cast, on every question
+  // that instance goes on to serve. "constructor" and "toString" are the same
+  // shape one step weaker: they read back truthy and so also walk past the
+  // BREAKDOWN_MAX_BUCKETS check.
+  //
+  // This is the only place it can be caught. firestore.rules can bound an
+  // anchor's LENGTH and nothing else (the reason BREAKDOWN_DIM_SHAPE exists
+  // above), and four of the six dimensions have no closed vocabulary to check
+  // against — so a free anonymous account can put any 40-char string here.
+  //
+  // Membership in the prototype rather than a blocklist: a list of names the
+  // language owns is a list this repo would have to maintain against it.
+  if (v in ({} as Record<string, unknown>)) return null;
   const shape = dim && BREAKDOWN_DIM_SHAPE[dim];
   if (shape && !shape.test(v)) return null;
+  const vocab = dim && VOCAB_SETS[dim];
+  if (vocab && !vocab.has(v)) return null;
   return v;
+}
+
+// Make room for a new bucket in a dimension that is at its cap, or return
+// false to refuse it.
+//
+// The cap has to hold — it is the document-growth bound D7's arithmetic
+// rests on — but WHICH buckets hold the slots was first-come-first-served,
+// and that is what made the dimension attackable: a bucket below the floor
+// is suppressed from every publish, so it occupies a slot while showing
+// nobody anything. 24 of those arriving early blanked `city` permanently,
+// and no vocabulary can prevent it there because the catalogue is 10,929
+// places against 24 slots — the attacker only needs real city names.
+//
+// So a sub-floor bucket is evictable and a publishable one is not. The
+// smallest goes, and only if it is genuinely below the floor; once every
+// slot holds a cohort large enough to publish, the cap refuses again and the
+// long tail degrades exactly as it always did.
+//
+// What eviction costs, stated because it is a real loss and not a rounding
+// one: the evicted bucket's partial count is discarded, so a value that
+// re-appears restarts from zero and undercounts by up to `floor - 1`. That
+// is bounded, it only ever applies to counts no reader has seen, and the
+// alternative it replaces is a dimension that shows nothing at all for the
+// life of the question.
+//
+// AMONG EQUALS IT IS FIRST-IN-FIRST-OUT, and that is not incidental — the
+// scan keeps the first key at the minimum (`<`, not `<=`), and insertion
+// order is Firestore's map order. So a dimension whose buckets all sit at one
+// answer does churn, oldest out. That has to be true for this to work at all:
+// the attack state IS 24 buckets of one answer each, and a rule that
+// protected incumbents there would protect exactly the junk.
+//
+// What it costs is the long tail, which is where the cap was already
+// documented to degrade. What it buys is that recurrence wins: a value that
+// comes back grows past the churn and, at the floor, stops being evictable at
+// all. Nothing published can be taken away.
+// The eviction threshold — a bucket holding FEWER than this many answers
+// may be dropped to make room for a new one; at or above it, nothing
+// published is ever taken away.
+//
+// This used to be AGG_MIN_N, and reusing the k-floor here was a coincidence
+// of numbers rather than a shared idea. D98 deleted the k-floor, and
+// threading 0 or dropping the parameter would have made NOTHING evictable —
+// silently restoring the cap-exhaustion attack this function exists to stop
+// (24 junk `city` values permanently blanking the city dimension for a
+// question), with every test still green.
+//
+// So it gets its own name and its own reason. This is a DOCUMENT-GROWTH
+// bound: Firestore caps the map, the cap is a scarce resource, and churn
+// among one-answer buckets is how a recurring real value beats a burst of
+// junk. It has nothing to do with who may see what.
+export const BUCKET_EVICT_BELOW = 5;
+
+function evictForNewBucket(
+  byDim: Record<string, Record<string, number>>,
+): boolean {
+  const keys = Object.keys(byDim);
+  if (keys.length < BREAKDOWN_MAX_BUCKETS) return true;
+  let victim: string | null = null;
+  let victimTotal: number = BUCKET_EVICT_BELOW;
+  for (const k of keys) {
+    const n = bucketTotal(byDim[k]);
+    if (n < victimTotal) {
+      victim = k;
+      victimTotal = n;
+    }
+  }
+  if (victim === null) return false;
+  delete byDim[victim];
+  return true;
 }
 
 // Fold one answer's anchors into the running breakdown. Mutates and returns
 // `into` so the trigger can keep this inside its existing transaction.
+//
+// Took a `floor` argument until D98, threaded through to the bucket
+// eviction above. The eviction now names its own constant, and there is no
+// other floor left in this path — every cell folded here is published.
 export function foldAnchors(
   into: BreakdownCounts,
   anchors: unknown,
@@ -241,13 +750,81 @@ export function foldAnchors(
     const bucket = breakdownBucket(src[dim], dim);
     if (bucket === null) continue;
     const byDim = into[dim] || (into[dim] = {});
-    // Cap reached and this is a new bucket: drop it rather than grow the
-    // document. Existing buckets keep counting, so the cap degrades the
-    // long tail rather than freezing the dimension.
-    if (!byDim[bucket] && Object.keys(byDim).length >= BREAKDOWN_MAX_BUCKETS) continue;
+    if (!byDim[bucket] && !evictForNewBucket(byDim)) continue;
     const cell = byDim[bucket] || (byDim[bucket] = {});
     const k = String(optionIdx);
     cell[k] = (cell[k] || 0) + 1;
+  }
+  return into;
+}
+
+// ── the edit delta (D86) ────────────────────────────────────────
+//
+// An answer edit is a -old/+new move with the total UNCHANGED — the person
+// was already counted, they just hold a different option now. Two helpers
+// rather than one because the two maps carry different guarantees and fail
+// differently when the old vote is not where it should be.
+
+// Move one vote between options in the exact counts. Returns false —
+// WITHOUT touching the map — when the old option holds no votes, which has
+// exactly one honest meaning: this edit's create event has not folded yet
+// (Eventarc orders nothing between a doc's create and update deliveries).
+// The caller throws on false so the platform's retry re-delivers the edit
+// after the create lands. Applying blindly instead would clamp at zero and
+// corrupt: -old/+new and +old commute ONLY while no step clamps.
+export function retargetCounts(
+  counts: Record<string, number>,
+  fromIdx: number,
+  toIdx: number,
+): boolean {
+  const from = String(fromIdx);
+  if (!((counts[from] || 0) >= 1)) return false;
+  counts[from] -= 1;
+  // A zero count never occurs on the create path (keys are minted by
+  // incrementing), so keep that invariant rather than shipping 0-rows.
+  if (counts[from] === 0) delete counts[from];
+  const to = String(toIdx);
+  counts[to] = (counts[to] || 0) + 1;
+  return true;
+}
+
+// Move one vote between options inside the breakdown, in exactly the cells
+// the create-time fold used: the anchors SNAPSHOT is frozen on the answer
+// doc (rules refuse changing it), so recomputing the bucket per dim lands
+// on the same cell without any per-answer fold receipt existing anywhere.
+//
+// Bucket totals are invariant under this — the floor's quantity does not
+// move, so nothing published can be un-earned by an edit.
+//
+// Where the old vote is NOT represented — bucket missing (create-time cap
+// skip, or evicted since) or the cell's old-option count empty (the bucket
+// was evicted and re-minted by other people's answers) — the dimension is
+// SKIPPED entirely, increment included. Incrementing anyway would inflate
+// the bucket total by an answer that is not in it, which breaks the one
+// guarantee the fold keeps under cap churn. The skip means an edited vote
+// can stay filed under its old option in a slice its create folded into:
+// bounded to ±1 per cell, the same documented degradation the eviction cap
+// already accepts, and self-correcting when the bucket next churns.
+// (Unlike retargetCounts this is NOT a retry signal — absence here is a
+// legitimate permanent state, and a throw would retry forever against it.)
+export function retargetAnchors(
+  into: BreakdownCounts,
+  anchors: unknown,
+  fromIdx: number,
+  toIdx: number,
+): BreakdownCounts {
+  if (!anchors || typeof anchors !== "object") return into;
+  const src = anchors as Record<string, unknown>;
+  const from = String(fromIdx);
+  const to = String(toIdx);
+  for (const dim of BREAKDOWN_DIMS) {
+    const bucket = breakdownBucket(src[dim], dim);
+    if (bucket === null) continue;
+    const cell = (into[dim] || {})[bucket];
+    if (!cell || !((cell[from] || 0) >= 1)) continue;
+    cell[from] -= 1;
+    if (cell[from] === 0) delete cell[from];
+    cell[to] = (cell[to] || 0) + 1;
   }
   return into;
 }
@@ -262,96 +839,50 @@ function bucketTotal(bucket: Record<string, number>): number {
   return n;
 }
 
-// The publishable view: every bucket whose TOTAL is at or above the floor,
-// with complementary suppression so no single bucket is recoverable by
-// subtraction. A dimension with nothing left to say is omitted entirely
-// rather than published empty.
+// Since D98 there is no publishable VIEW distinct from the fold: the
+// breakdown the trigger accumulates is the breakdown it publishes, whole,
+// on every answer.
 //
-// The per-option counts inside a surviving bucket are published as they
-// stand — the floor is a bound on cohort size, not on how lopsided a cohort
-// is allowed to be. Constraint 2 above has the reasoning and D18 the
-// arithmetic; `publishes a lopsided split inside a bucket at the floor` in
-// pure.test.ts pins it so the property stays deliberate.
-export function publishableBreakdown(
-  by: BreakdownCounts,
-  floor: number,
-): BreakdownCounts {
-  const out: BreakdownCounts = {};
-  for (const dim of Object.keys(by)) {
-    const buckets = by[dim] || {};
-    const rows = Object.keys(buckets).map((b) => ({
-      bucket: b,
-      total: bucketTotal(buckets[b]),
-    }));
-    const kept = rows.filter((r) => meetsKFloor(r.total, floor));
-    const suppressed = rows.length - kept.length;
-    // Exactly one hole is a hole with a name on it — take the smallest
-    // survivor down with it so at least two buckets are unknown.
-    if (suppressed === 1 && kept.length > 0) {
-      let smallest = 0;
-      for (let i = 1; i < kept.length; i++) {
-        if (kept[i].total < kept[smallest].total) smallest = i;
-      }
-      kept.splice(smallest, 1);
-    }
-    // One surviving bucket says "everyone we can show you is in this
-    // bucket", which is a population statement, not a split. Two is the
-    // minimum that reads as a comparison.
-    if (kept.length < 2) continue;
-    const dimOut: Record<string, Record<string, number>> = {};
-    for (const r of kept) dimOut[r.bucket] = { ...buckets[r.bucket] };
-    out[dim] = dimOut;
-  }
-  return out;
-}
-
-// ── when the public mirror may be rewritten ─────────────────────
+// What stood here, and what each piece defended, so the reasoning is not
+// simply lost:
 //
-// The k-floor stops a reader recovering an individual's answer from a tiny
-// cohort. It does NOT, on its own, stop them recovering one from the
-// PUBLISHED DOCUMENT'S HISTORY — and clients hold an onSnapshot on it.
-// Rewriting on every answer streams a sequence like
+//   publishableBreakdown  dropped every bucket under the k-floor, then
+//                         applied COMPLEMENTARY SUPPRESSION — if exactly
+//                         one bucket was hidden, the smallest survivor went
+//                         too, because one hole plus a known total is a
+//                         subtraction away from being no floor at all — and
+//                         omitted a dimension left with fewer than two
+//                         buckets, since one surviving bucket is a
+//                         population statement rather than a split.
+//   steppedBreakdown      re-emitted a bucket's PREVIOUS published value
+//                         until it had grown by k, because the publish
+//                         cadence was counted in answers to the question
+//                         while the number on screen was a count per
+//                         bucket — so one anchored answer in a window moved
+//                         all six dimensions at once and disclosed a whole
+//                         {ageBand, gender, city, country, education,
+//                         relationship} tuple joined to one option.
+//   publishBreakdown      composed the two in one place, because the trigger
+//                         once stored one and published the other and a
+//                         bucket suppressed at first publication then needed
+//                         twice the floor to ever appear (caught by the e2e).
+//   shouldPublishAgg      bounded how often the public document was
+//                         rewritten, so a snapshot-watcher could not
+//                         attribute a single step to a single person.
 //
-//   {0:2, 1:3}  →  {0:2, 1:4}  →  {0:3, 1:4}
-//
-// where every step is exactly one person's choice, attributable by arrival
-// time. Past the floor, that discloses every individual vote regardless of
-// how large the cohort grew — which is the floor's whole purpose, defeated
-// by the update cadence rather than by the numbers.
-//
-// So the same k applies to the INCREMENT, not just the total: a publish
-// happens only once `every` further answers have landed, and each observed
-// delta therefore aggregates that many votes. The document lags by at most
-// `every - 1` answers; the private doc keeps the exact running total, so
-// nothing is lost.
-//
-// Residual, stated rather than papered over: this is k-anonymity, so a
-// reader who already knows `every - 1` of the votes in a step can infer the
-// last one. That is the same bound the floor itself carries, not a new
-// weakness — and it needs collusion with almost everyone in the step.
-//
-// `floor` should be a multiple of `every`, or the first publish waits for
-// the next multiple above it. That is safe (it only delays), so it is not
-// enforced — but it is why AGG_MIN_N and PUBLISH_EVERY are both 5.
-export function shouldPublishAgg(
-  total: number,
-  floor: number,
-  every: number,
-): boolean {
-  if (total < floor) return false;
-  if (every <= 1) return true;
-  return total % every === 0;
-}
+// Every one of those defends against reconstructing an individual's answer
+// from an aggregate. D98 publishes the answers themselves, so all four
+// defended a door standing next to an open wall — at the cost of a lagging,
+// hole-punched breakdown that made the Mirror look broken.
 
 // ─── catalog questions: key validation + the leaderboard fold ───────────
 //
 // docs/CATALOG-QUESTIONS.md. A catalog answer is one pick from a shipped
 // catalogue of ~1,025 entities, stored as the entry's integer key (0 is the
 // "Not listed" bucket). A favourite-of-a-thousand has no 52/48 to stage, so
-// the reveal is a canon, not a split: the top N entities above the k-floor,
-// and ONE "everyone else" bucket covering everything suppressed — which is
-// the same complementary-suppression argument as publishableBreakdown,
-// pointed at entities instead of demographic cells.
+// the reveal is a canon, not a split: the top N entities, and ONE
+// "everyone else" bucket for the tail. Since D98 that cut is a DISPLAY
+// size — a board of 1,025 rows is unreadable — and no longer a floor.
 
 /**
  * How a domain's catalogue defines its key space. Contiguous catalogues
@@ -405,11 +936,27 @@ export type CanonCounts = Record<string, number>;
  *   folds with it. Conservative on purpose: a nonzero "Not listed" count
  *   inside `rest` would often mask the hole, but "often" is not a floor.
  */
-export function publishableCanon(
+// The published leaderboard: the `topN` biggest entities, with everything
+// else summed into `rest`.
+//
+// This was `publishableCanon`, and it did three more things, all of which
+// D98 deleted:
+//   · dropped every entity below the k-floor;
+//   · folded a boundary TIE GROUP whole, so equals were never ranked
+//     arbitrarily by which side of the floor they fell;
+//   · folded one extra row whenever exactly one entity had been hidden,
+//     because a single hole is recoverable as `total - published`.
+// Every one of those is a disclosure rule. With answers public, `rest`
+// means what a reader always assumed it meant — the tail outside the top
+// N — and an entity with one vote is as publishable as one with a
+// thousand.
+//
+// It can no longer return null: there is nothing left that can suppress
+// every row, so an empty board is just an empty catalogue question.
+export function canonTopN(
   ent: CanonCounts,
-  floor: number,
   topN: number,
-): { top: CanonCounts; rest: number } | null {
+): { top: CanonCounts; rest: number } {
   let total = 0;
   for (const k of Object.keys(ent)) total += ent[k];
   const rows = Object.keys(ent)
@@ -419,23 +966,7 @@ export function publishableCanon(
   // Count desc; key asc only so equal inputs give equal outputs — the
   // published map is unordered and the client re-sorts anyway.
   rows.sort((a, b) => b.n - a.n || Number(a.k) - Number(b.k));
-  const cleared = rows.filter((r) => meetsKFloor(r.n, floor));
-  let kept = cleared.slice(0, topN);
-  // A floor cut cannot tie (below-floor < floor <= kept), so the boundary
-  // tie only exists where the topN cap did the cutting.
-  if (cleared.length > kept.length && kept.length > 0) {
-    const boundary = kept[kept.length - 1].n;
-    if (cleared[kept.length].n === boundary) {
-      kept = kept.filter((r) => r.n > boundary);
-    }
-  }
-  // rows, not cleared: the recoverable-hole count is over every answered
-  // entity a reader could name, whether the floor or the cap folded it.
-  if (rows.length - kept.length === 1 && kept.length > 0) {
-    const smallest = kept[kept.length - 1].n;
-    kept = kept.filter((r) => r.n > smallest);
-  }
-  if (kept.length === 0) return null;
+  const kept = rows.slice(0, topN);
   const top: CanonCounts = {};
   let shown = 0;
   for (const r of kept) {
@@ -476,7 +1007,9 @@ export function foldCanonAnchors(
     const bucket = breakdownBucket(src[dim], dim);
     if (bucket === null) continue;
     const byDim = into[dim] || (into[dim] = {});
-    if (!byDim[bucket] && Object.keys(byDim).length >= BREAKDOWN_MAX_BUCKETS) continue;
+    // Same bucket cap and the same eviction rule as foldAnchors — the
+    // slots are just as attackable here, and for the same reason.
+    if (!byDim[bucket] && !evictForNewBucket(byDim)) continue;
     const cell = byDim[bucket] || (byDim[bucket] = {});
     if (!cell[entityKey] && Object.keys(cell).length >= CANON_BY_MAX_ENTITIES) continue;
     cell[entityKey] = (cell[entityKey] || 0) + 1;
@@ -486,11 +1019,10 @@ export function foldCanonAnchors(
 
 /**
  * The publishable form of a catalog breakdown: every cell restricted to
- * the entities the canon actually published. The caller then hands the
- * result to publishableBreakdown, whose bucket-cohort floor, complementary
- * suppression and minimum-comparison rules apply unchanged — D8's
- * k-argument carries over exactly (a per-entity count of 1 inside a
- * ≥floor bucket says "one of these five", never which one).
+ * the entities the canon actually published — a segment ordering for an
+ * entity absent from the board has nothing to order. Bounding the
+ * document is now its only job (D98 removed the floors that used to
+ * follow it).
  *
  * Two deliberate conservatisms, recorded in D17:
  * - the floor then applies to the SHOWN total (top-N answers in the
@@ -575,6 +1107,53 @@ export function nextFcmTokens(
 // non-remove, is invalid by construction so every removal is citable.
 
 export const MOD_POLICY_LINES = ["H1", "H2", "H3", "H4", "H5"] as const;
+
+/**
+ * Tally one flag per takeId.
+ *
+ * A Map rather than an object literal, because the KEY IS CLIENT-CHOSEN: the
+ * flag's `takeId` is the take's document id, and firestore.rules lets any
+ * circle member pick that id when they create the take (the rules constrain
+ * its fields, never its name). On a plain object, `counts[takeId] || 0` reads
+ * back through the prototype for `constructor`, `toString`, `valueOf` and the
+ * rest — so `counts["constructor"] = (counts["constructor"] || 0) + 1` yields
+ * the string `"function Object() { [native code] }1111111111"`, every
+ * comparison in buildModQueueFrom against it is NaN-false, and the take is
+ * never queued however many people flag it. A take that cannot enter the
+ * queue cannot be moderated at all: permanent immunity, chosen at post time,
+ * with nothing logged.
+ *
+ * Firestore's own reserved-id rule (`__.*__`) is the only reason "__proto__"
+ * is not also reachable here, which is not a guarantee this module should be
+ * resting on.
+ *
+ * Pure, so the shape is pinned without an emulator — the emulator run that
+ * found this had to create a take called `constructor` to see it.
+ */
+export function tallyFlags(takeIds: readonly unknown[]): Record<string, number> {
+  return Object.fromEntries(tallyFlagsInto(new Map(), takeIds));
+}
+
+/**
+ * The same tally, one page at a time.
+ *
+ * `v2_flags` has no upper bound — MOD_ADVISORY makes the keep-verdict sweep
+ * that deletes flags dead code, nothing else deletes them, and there is no
+ * TTL — so the caller pages through it and folds each page in rather than
+ * materialising the collection. What is retained is one entry per DISTINCT
+ * take, which is smaller than the flag count by however many people flagged
+ * the same take, and is the smallest thing the queue can be built from.
+ */
+export function tallyFlagsInto(
+  counts: Map<string, number>,
+  takeIds: readonly unknown[],
+): Map<string, number> {
+  for (const takeId of takeIds) {
+    if (typeof takeId !== "string" || !takeId) continue;
+    counts.set(takeId, (counts.get(takeId) || 0) + 1);
+  }
+  return counts;
+}
 
 /**
  * Fold raw flag counts into the queue: takes at or above the flag
@@ -718,7 +1297,56 @@ export function modVerdictError(value: unknown): string | null {
 // and the seed only ever writes it on create.
 export const SEEDED_FIELDS = [
   "surface", "seq", "type", "domain", "prompt", "options", "topic", "axis", "test",
+  // The continuum forms' range/plane copy (D114). Array-valued entries
+  // (ends/ax/ay) ride the same element-wise compare options does; the
+  // emit-when-set payloads leave them undefined off the feed dial/field
+  // entries, and undefined-vs-missing compares equal below, so the other
+  // ~493 docs stay untouched.
+  "lo", "hi", "unit", "ends", "ax", "ay",
+  // Crossroads' story (D136). `nodes` and `endings` are OBJECTS, which is
+  // why the comparison below grew a structural arm — without one they
+  // compare by reference, never match, and the seed rewrites both path docs
+  // on every run while reporting them as changes.
+  //
+  // They belong here for the same reason `prompt` does: the tree is the
+  // question. A fixed typo in a fork, or a reworded ending line, is a
+  // content change that has to reach production, and a field the seed does
+  // not compare is a field an edit can never move. (The ending NAMES are
+  // the doc's `options`, already compared and already frozen by D52 — so
+  // renaming one is refused rather than written, which is correct: every
+  // stored walk is one of those names.)
+  "title", "intro", "hue", "nodes", "endings",
 ] as const;
+
+/**
+ * Structural equality for a seeded field.
+ *
+ * Deliberately NOT `JSON.stringify(a) === JSON.stringify(b)`: Firestore does
+ * not promise key order on read, and two objects that say the same thing in
+ * a different order would compare unequal — which is the phantom-rewrite
+ * failure this function exists to avoid, wearing a disguise.
+ *
+ * Strict about null vs undefined at the leaves for the reason
+ * `seedDocMatches` records: a doc seeded before a field existed reads it
+ * back as undefined, and treating that as equal to null would leave old
+ * docs permanently un-upgraded.
+ */
+function seedValueMatches(a: unknown, b: unknown): boolean {
+  if (Array.isArray(b)) {
+    if (!Array.isArray(a) || a.length !== b.length) return false;
+    return b.every((v, i) => seedValueMatches((a as unknown[])[i], v));
+  }
+  if (b && typeof b === "object") {
+    if (!a || typeof a !== "object" || Array.isArray(a)) return false;
+    const ao = a as Record<string, unknown>;
+    const bo = b as Record<string, unknown>;
+    const ak = Object.keys(ao);
+    const bk = Object.keys(bo);
+    if (ak.length !== bk.length) return false;
+    return bk.every((k) => k in ao && seedValueMatches(ao[k], bo[k]));
+  }
+  return (a ?? null) === (b ?? null);
+}
 
 /**
  * True when `existing` already carries every seeded field of `desired`.
@@ -736,14 +1364,119 @@ export function seedDocMatches(
 ): boolean {
   if (!existing) return false;
   for (const f of SEEDED_FIELDS) {
-    const a = existing[f];
-    const b = desired[f];
-    if (Array.isArray(b)) {
-      if (!Array.isArray(a) || a.length !== b.length) return false;
-      for (let i = 0; i < b.length; i++) if (a[i] !== b[i]) return false;
-    } else if ((a ?? null) !== (b ?? null)) {
-      return false;
-    }
+    if (!seedValueMatches(existing[f], desired[f])) return false;
   }
   return true;
 }
+
+// ── the one seeded field that may never be edited (D52) ─────────
+//
+// Answers store `(qid, optionIdx)` and nothing else — that is what makes
+// them cheap, and it is why D52 records "shipped option sets are never
+// edited" as an invariant rather than a preference. Swap two options on a
+// live question and every historical vote silently changes meaning: the
+// counts do not move, the aggregates do not recompute, and nothing anywhere
+// reports that the answer to "which do you prefer?" now says the opposite.
+// It is the D30 re-key class, applied retroactively to data already
+// collected.
+//
+// Until now that invariant was enforced by a human reading the diff. The
+// seed itself would take an edited `options` array straight through
+// `seedDocMatches` (which returns false on ANY changed field, including this
+// one) and `batch.set(…, { merge: true })` it over the live doc. A content
+// review that got it right every time so far is a record, not a mechanism.
+//
+// Deliberately narrow. `prompt` edits ARE allowed — D52's own fix list is
+// mostly prompt rewrites that preserve a question's meaning, and a prompt
+// carries no index that an answer refers to. Only `options` re-keys stored
+// data. Length changes count: appending an option changes no existing
+// index, but it changes what a question means to everyone who already
+// answered it without that choice, and D52's appends are to BANKS (new
+// questions), never to a shipped question's option list.
+export interface SeedOptionConflict {
+  qid: string;
+  stored: string[];
+  desired: string[];
+}
+
+/**
+ * The option-set edit `desired` would make to an already-stored question,
+ * or null when there is none. `stored` is undefined for a doc that does not
+ * exist yet — a create is never a conflict, only a rewrite is.
+ *
+ * Non-array or absent stored options are treated as "nothing to protect":
+ * a question seeded before the field existed has no votes keyed to an
+ * index it never had.
+ */
+export function seedOptionConflict(
+  qid: string,
+  stored: Record<string, unknown> | null | undefined,
+  desired: Record<string, unknown>,
+): SeedOptionConflict | null {
+  if (!stored) return null;
+  const a = stored.options;
+  const b = desired.options;
+  if (!Array.isArray(a) || !Array.isArray(b)) return null;
+  const same = a.length === b.length && a.every((v, i) => v === b[i]);
+  if (same) return null;
+  return { qid, stored: a.map(String), desired: b.map(String) };
+}
+
+/** One line per conflict, for the log and the operator's error. */
+export function describeSeedOptionConflicts(
+  conflicts: readonly SeedOptionConflict[],
+): string {
+  return conflicts
+    .map((c) => `${c.qid}: [${c.stored.join(" | ")}] -> [${c.desired.join(" | ")}]`)
+    .join("; ");
+}
+
+// ── presence cells (D84 — Near by radius) ───────────────────────────
+//
+// The server half of the ~1 km presence grid. The CLIENT computes a cell
+// from a fix and discards the coordinate (src/v2/data/geo.ts); what
+// arrives here is only the cell id, and these two functions are the whole
+// vocabulary the server has for it: is it a legal cell, and which nine
+// cells make up "around you". The grid contract (0.01°, "la_lo" ids) is
+// pinned to the same vectors on both sides by the two test suites — the
+// floor.ts drift pattern, because a client and server disagreeing about
+// cell shape fails soft (empty counts) and would read as "nobody nearby".
+
+const PRESENCE_LAT_MIN = Math.floor(-90 / 0.01);   // -9000
+const PRESENCE_LAT_MAX = Math.ceil(90 / 0.01) - 1; //  8999
+const PRESENCE_LON_MIN = Math.floor(-180 / 0.01);  // -18000
+const PRESENCE_LON_SPAN = 36000;
+
+export function presenceCellOk(cell: unknown): boolean {
+  if (typeof cell !== "string" || !/^-?\d{1,4}_-?\d{1,5}$/.test(cell)) return false;
+  const [la, lo] = cell.split("_").map(Number);
+  return la >= PRESENCE_LAT_MIN && la <= PRESENCE_LAT_MAX
+    && lo >= PRESENCE_LON_MIN && lo < PRESENCE_LON_MIN + PRESENCE_LON_SPAN;
+}
+
+/**
+ * The 3×3 neighborhood around a cell — the query set for "around you".
+ * Longitude wraps at the antimeridian; latitude rows beyond the poles are
+ * dropped rather than wrapped (there is nothing on the far side of a pole
+ * but the same hemisphere again, and a presence count is not worth the
+ * cleverness).
+ */
+export function presenceNeighbors(cell: string): string[] {
+  if (!presenceCellOk(cell)) return [];
+  const [la, lo] = cell.split("_").map(Number);
+  const out: string[] = [];
+  for (let dLa = -1; dLa <= 1; dLa++) {
+    const nla = la + dLa;
+    if (nla < PRESENCE_LAT_MIN || nla > PRESENCE_LAT_MAX) continue;
+    for (let dLo = -1; dLo <= 1; dLo++) {
+      let nlo = lo + dLo;
+      if (nlo < PRESENCE_LON_MIN) nlo += PRESENCE_LON_SPAN;
+      if (nlo >= PRESENCE_LON_MIN + PRESENCE_LON_SPAN) nlo -= PRESENCE_LON_SPAN;
+      out.push(`${nla}_${nlo}`);
+    }
+  }
+  return out;
+}
+
+/** Presence docs older than this many minutes do not count as "here". */
+export const PRESENCE_TTL_MIN = 10;

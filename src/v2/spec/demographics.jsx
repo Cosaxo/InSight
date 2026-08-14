@@ -4,42 +4,48 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import { TabSection } from './primitives.jsx';
 
 // demographics.jsx — one reusable "who they are" card, driven by audience id.
-// Age histogram (with a YOU pin), a gender split bar, and an audience-specific
+// Age histogram (with a YOU band), a gender split bar, and an audience-specific
 // third breakdown (origin / continent / relation / circle).
+//
+// Nothing here is annotated in 8px type: the age bars carry their value as
+// height alone, the gender shares ride inside their own segments, and each
+// third-dimension figure sits at the end of its bar. One read-once key ("you")
+// stands in for every label the chart used to print over itself.
 const { useState: useDemoState } = React;
 
-// One hue, graded tints — no multi-color coding.
+// One hue, graded tints — no multi-color coding. The first step is deep enough
+// to carry a light numeral; the other two carry ink.
 const GENDER_TINTS = [
-  'color-mix(in oklch, var(--accent) 85%, var(--surface-2))',
-  'color-mix(in oklch, var(--accent) 42%, var(--surface-2))',
-  'color-mix(in oklch, var(--accent) 16%, var(--surface-2))',
+  'color-mix(in oklch, var(--accent) 96%, var(--surface-2))',
+  'color-mix(in oklch, var(--accent) 40%, var(--surface-2))',
+  'color-mix(in oklch, var(--accent) 15%, var(--surface-2))',
 ];
+// a share narrower than this can't hold its own numeral — it reads in the key
+const FITS = 15;
 
 function GenderBar({ gender }) {
-  const G = window.DEMOGRAPHICS.GENDER;
+  const segs = window.DEMOGRAPHICS.GENDER
+    .map((g, i) => ({ ...g, v: gender[g.k] || 0, tint: GENDER_TINTS[i], deep: i === 0 }))
+    .filter((s) => s.v > 0);
+  const fmt = (v) => (v % 1 ? v.toFixed(1) : v) + '%';
   return (
     <div>
-      <div style={{ display: 'flex', height: 16, borderRadius: 999, overflow: 'hidden', border: '0.5px solid var(--rule)' }}>
-        {G.map((g, i) => {
-          const v = gender[g.k] || 0;
-          if (v <= 0) return null;
-          return <div key={g.k} title={`${g.label} ${v}%`} style={{ width: v + '%', background: GENDER_TINTS[i] }} />;
-        })}
+      <div style={{ display: 'flex', height: 26, borderRadius: 999, overflow: 'hidden', border: '0.5px solid var(--rule)' }}>
+        {segs.map((s) => (
+          <div key={s.k} title={`${s.label} ${fmt(s.v)}`} style={{ width: s.v + '%', background: s.tint, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            {s.v >= FITS && <span style={{ fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 800, letterSpacing: '-0.01em', color: s.deep ? 'var(--surface-2)' : 'var(--ink)' }}>{fmt(s.v)}</span>}
+          </div>
+        ))}
       </div>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginTop: 8 }}>
-        {G.map((g, i) => {
-          const v = gender[g.k] || 0;
-          if (v <= 0) return null;
-          return (
-            <span key={g.k} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-              <span style={{ width: 8, height: 8, borderRadius: '50%', background: GENDER_TINTS[i], flexShrink: 0 }} />
-              <span style={{ fontFamily: 'var(--sans)', fontSize: 10, letterSpacing: '0.04em', color: 'var(--ink-2)' }}>{g.label.toUpperCase()}</span>
-              <span style={{ fontFamily: 'var(--sans)', fontSize: 13, color: 'var(--ink)' }}>{v % 1 ? v.toFixed(1) : v}%</span>
-            </span>
-          );
-        })}
+      <div className="legend" style={{ marginTop: 9 }}>
+        {segs.map((s) => (
+          <span key={s.k} style={{ '--lgc': s.tint }}>
+            <span className="lg-dot"></span>{s.label}{s.v < FITS ? ' ' + fmt(s.v) : ''}
+          </span>
+        ))}
       </div>
     </div>
   );
@@ -48,30 +54,27 @@ function GenderBar({ gender }) {
 function AgeHistogram({ age, youBand }) {
   const bands = window.DEMOGRAPHICS.AGE_BANDS;
   const total = age.reduce((a, b) => a + b, 0) || 1;
-  const pct = age.map(v => (v / total) * 100);
+  const pct = age.map((v) => (v / total) * 100);
   const max = Math.max(...pct, 1);
-  const H = 70;
+  const H = 82;
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'flex-end', gap: 5, height: H }}>
         {pct.map((p, i) => {
           const you = i === youBand;
           return (
-            <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', height: '100%' }}>
-              {you && <div style={{ fontFamily: 'var(--sans)', fontSize: 8.5, color: 'var(--accent)', letterSpacing: '0.06em', marginBottom: 2 }}>YOU</div>}
-              <div style={{ fontFamily: 'var(--sans)', fontSize: 9, color: you ? 'var(--accent)' : 'var(--ink-3)', marginBottom: 3 }}>{Math.round(p)}</div>
-              <div style={{
-                width: '100%', height: Math.max(2, (p / max) * (H - 26)), borderRadius: 3,
-                background: you ? 'var(--accent)' : 'var(--surface-3)',
-                border: you ? 'none' : '0.5px solid var(--rule)',
-              }} />
-            </div>
+            <div key={i} title={`${bands[i]} · ${Math.round(p)}%`} style={{
+              flex: 1, height: Math.max(3, (p / max) * H), borderRadius: '5px 5px 2px 2px',
+              background: you ? 'var(--accent)' : 'var(--surface-3)',
+              border: you ? 'none' : '0.5px solid var(--rule)',
+            }} />
           );
         })}
       </div>
-      <div style={{ display: 'flex', gap: 5, marginTop: 5 }}>
+      <div style={{ display: 'flex', gap: 5, marginTop: 7 }}>
         {bands.map((b, i) => (
-          <div key={b} style={{ flex: 1, textAlign: 'center', fontFamily: 'var(--sans)', fontSize: 8, letterSpacing: '0.01em', color: i === youBand ? 'var(--accent)' : 'var(--ink-3)' }}>{b}</div>
+          <div key={b} className={'klabel' + (i === youBand ? ' klabel--accent' : '')}
+            style={{ flex: 1, minWidth: 0, textAlign: 'center', letterSpacing: '0.01em', fontWeight: i === youBand ? 800 : 700 }}>{b}</div>
         ))}
       </div>
     </div>
@@ -79,19 +82,39 @@ function AgeHistogram({ age, youBand }) {
 }
 
 function ThirdBars({ rows }) {
-  const max = Math.max(...rows.map(r => r.v), 1);
+  const max = Math.max(...rows.map((r) => r.v), 1);
+  const fill = 'color-mix(in oklch, var(--accent) 58%, var(--surface-2))';
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-      {rows.map((r, i) => (
-        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 132, flexShrink: 0, fontFamily: 'var(--sans)', fontSize: 13, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'right' }}>{r.k}</div>
-          <div style={{ flex: 1, height: 12, background: 'var(--surface-3)', borderRadius: 999, overflow: 'hidden', border: '0.5px solid var(--rule)' }}>
-            <div style={{ width: (r.v / max) * 100 + '%', height: '100%', background: 'var(--accent)', borderRadius: 999, opacity: 0.75 }} />
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      {rows.map((r, i) => {
+        const w = (r.v / max) * 100;
+        const inside = w >= 30;
+        return (
+          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ width: 118, flexShrink: 0, fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)', textAlign: 'right', lineHeight: 1.2, textWrap: 'pretty' }}>{r.k}</div>
+            <div style={{ flex: 1, minWidth: 0, height: 22, position: 'relative', background: 'var(--surface-3)', borderRadius: 999, border: '0.5px solid var(--rule)', overflow: 'hidden' }}>
+              <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: w + '%', background: fill, borderRadius: 999 }} />
+              <span style={{
+                position: 'absolute', top: 0, bottom: 0, left: w + '%', display: 'flex', alignItems: 'center',
+                transform: inside ? 'translateX(-100%)' : 'none',
+                padding: inside ? '0 9px 0 0' : '0 0 0 8px',
+                fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 700, letterSpacing: '-0.01em',
+                color: inside ? 'var(--ink)' : 'var(--ink-3)',
+              }}>{r.v}%</span>
+            </div>
           </div>
-          <div style={{ width: 30, flexShrink: 0, fontFamily: 'var(--sans)', fontSize: 11, color: 'var(--ink-3)', textAlign: 'right' }}>{r.v}%</div>
-        </div>
-      ))}
+        );
+      })}
     </div>
+  );
+}
+
+// the card's one key: accent means you. Read once, covers every chart below.
+function YouKey() {
+  return (
+    <span className="legend">
+      <span style={{ '--lgc': 'var(--accent)' }}><span className="lg-dot"></span>you</span>
+    </span>
   );
 }
 
@@ -103,40 +126,37 @@ function DemographicsCard({ audId }) {
       <TabSection title={d.title} sub={d.sub} />
       <div className="card" style={{ marginBottom: 14 }}>
         {/* headline */}
-        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, paddingBottom: 14, borderBottom: '0.5px solid var(--rule)' }}>
-          <div>
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 14, paddingBottom: 14, borderBottom: '0.5px solid var(--rule)' }}>
+          <div style={{ minWidth: 0 }}>
             <div className="fig-num" style={{ fontSize: 30 }}><em>{d.count}</em></div>
-            <div style={{ fontFamily: 'var(--sans)', fontSize: 10, letterSpacing: '0.06em', color: 'var(--ink-3)', marginTop: 2 }}>{d.countLabel.toUpperCase()}</div>
+            <div className="klabel" style={{ marginTop: 3 }}>{d.countLabel}</div>
           </div>
-          <div style={{ textAlign: 'right' }}>
+          <div style={{ textAlign: 'right', flexShrink: 0 }}>
             <div className="fig-num" style={{ fontSize: 30 }}><em>{d.medianAge}</em></div>
-            <div style={{ fontFamily: 'var(--sans)', fontSize: 10, letterSpacing: '0.06em', color: 'var(--ink-3)', marginTop: 2 }}>MEDIAN AGE</div>
+            <div className="klabel" style={{ marginTop: 3 }}>Median age</div>
           </div>
         </div>
 
         {/* age */}
-        <div style={{ marginTop: 14 }}>
-          <div style={{ fontFamily: 'var(--sans)', fontSize: 10, letterSpacing: '0.1em', color: 'var(--ink-3)', marginBottom: 10 }}>AGE · % OF GROUP</div>
+        <div style={{ marginTop: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, marginBottom: 11 }}>
+            <span className="klabel">Age</span>
+            <YouKey />
+          </div>
           <AgeHistogram age={d.age} youBand={d.youBand} />
         </div>
 
         {/* gender */}
-        <div style={{ marginTop: 16 }}>
-          <div style={{ fontFamily: 'var(--sans)', fontSize: 10, letterSpacing: '0.1em', color: 'var(--ink-3)', marginBottom: 8 }}>GENDER</div>
+        <div style={{ marginTop: 18 }}>
+          <div className="klabel" style={{ marginBottom: 9 }}>Gender</div>
           <GenderBar gender={d.gender} />
         </div>
 
         {/* third dimension */}
-        <div style={{ marginTop: 16 }}>
-          <div style={{ fontFamily: 'var(--sans)', fontSize: 10, letterSpacing: '0.1em', color: 'var(--ink-3)', marginBottom: 10 }}>{d.thirdLabel}</div>
+        <div style={{ marginTop: 18 }}>
+          <div className="klabel" style={{ marginBottom: 10 }}>{d.thirdLabel}</div>
           <ThirdBars rows={d.third} />
         </div>
-
-        {d.note && (
-          <div className="margin-note" style={{ fontSize: 15, marginTop: 14, paddingTop: 12, borderTop: '0.5px solid var(--rule)', lineHeight: 1.5 }}>
-            {d.note}
-          </div>
-        )}
       </div>
     </div>
   );

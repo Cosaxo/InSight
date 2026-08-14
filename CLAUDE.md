@@ -1,14 +1,40 @@
 # Working in this repo
 
-InSight is a two-tab app (daily · mirror): one blind question a day, then
-how everyone split; plus sealed group/1v1 duels revealed the next day.
-React 19 + TypeScript + Vite, Capacitor shells for iOS/Android, Firebase
-(anonymous-first auth, Firestore, Cloud Functions).
+InSight is a two-tab app (daily · mirror). The **daily** tab is where you
+answer: one blind question a day, a finite feed under it, and sealed
+group/1v1 duels revealed the next day. The **mirror** tab is what those
+answers become — seven stops from *you* to *the world*, each reading the
+same exact aggregates through a different cut of the anchors an
+answer carried when it was written, plus the Map that files every answer
+you've given into a constellation. Answering is the smaller half — the
+Mirror's modules outweigh the daily's and the feed's put together — and
+[`docs/MIRROR.md`](docs/MIRROR.md) is the read path: which stop draws
+what, from where, and which parts are still prototype data. Read it
+before changing anything on that tab. React 19 + TypeScript + Vite,
+Capacitor shells for iOS/Android, Firebase (anonymous-first auth,
+Firestore, Cloud Functions).
 
-The product's claim is that its privacy guarantees are **enforced**, not
-promised. That is the lens for most decisions here: if the UI says
-something about who can see what, `firestore.rules` or a Cloud Function
-has to make it true, and a test has to prove it.
+**Answers are public (D98).** Any signed-in user may read any other
+user's answers and profile; population counts are exact and publish from
+the first answer. There is no k-anonymity floor, no publish cadence, no
+suppressed cells and no special-category carve-out. Showing how one
+person's answers link to everyone else's IS the product, and the previous
+model — answers owner-only, everything floored — could not draw that
+picture, which is why most of the Mirror shipped dark.
+
+What survives from the old lens is the *discipline*, pointed the other
+way: if the UI says something about who can see what, `firestore.rules`
+or a Cloud Function has to make it true, and a test has to prove it. The
+account panel now says plainly that answers are public, because a user
+learning that from a stranger quoting their vote would be the same
+failure as the reverse.
+
+Three denies remain, none about answers, each labelled at its own path in
+`firestore.rules`: the unscored logic answer key (anti-cheat), flag
+authorship (anti-retaliation) and the presence cell (physical safety —
+D98 published what people answered, not where their phone is standing).
+Duel answers stay sealed until the next-day reveal, enforced as a
+`surface` test: that is game timing, not privacy.
 
 Binding decisions live in [`docs/DECISIONS.md`](docs/DECISIONS.md) (D1–D7)
 and stay binding until an explicitly recorded reversal.
@@ -35,12 +61,33 @@ paint via `loadWorldFeed()` (D25) — still listed, still in order, just
 awaited in sequence instead of imported at the top.
 
 This is deliberate and temporary (see `src/v2/README.md`), but it is
-load-bearing today. Four guards make it survivable, and all four exist
-because something real slipped through:
+load-bearing today — and "temporary" only became true when something
+started measuring it (D39; see **The convention is shrinking** below).
+
+Six modules are already off the bridge: `primitives.jsx`, `sample-data.js`,
+`daily-questions.js`, `world-catalogs.js`, `follows.js` and
+`result-rose.jsx` are ordinary ESM modules with named exports. They are
+still listed in `spec-index.js`, but nothing waits on their side effects —
+the line is inertia plus rule 2, not a dependency.
+
+**Rule 2 asks whether a file LOADS, not whether `spec-index.js` names it.**
+A spec module imported by another spec module satisfies it through the ESM
+graph (`world-feed.jsx` → `world-feed-math.js` is the long-standing case;
+`world-feed.jsx` → `paths-card.jsx` → `paths-data.js` is D136's). So a NEW
+ESM module does not need a line here at all, and adding one to the eager
+list would drag it into the entry chunk — which for anything reached past
+first paint is the opposite of what you want. Add the line only when the
+module is a side effect nothing imports.
+
+Four guards make the rest survivable, and all four exist because something
+real slipped through:
 
 - `npm run check:globals` — dangling `window.X` references, files
-  `spec-index.js` forgot, **and undefined JSX tags**. That last rule found
-  a live `ReferenceError` on the Mirror tab the day it was added.
+  `spec-index.js` forgot, **undefined JSX tags**, and **publications
+  nothing reads**. The tags rule found a live `ReferenceError` on the
+  Mirror tab the day it was added; the publications rule (rule 5) swept 17
+  dead `globalThis.X = X` lines the day it was added (D137) — the residue
+  of conversions that exported the name and never went back for the line.
 - `no-undef` is **ON** for the spec layer, seeded from that same scanner
   (`scripts/spec-globals.mjs`, shared by the checker and `eslint.config.js`).
   It was off for a long time, which is how two `ReferenceError`s shipped.
@@ -50,9 +97,10 @@ because something real slipped through:
 - `src/v2/data/vote.test.ts` pins the `window.LIVE` member surface, because
   renaming a member there passes tsc (consumers are `.jsx`), eslint and
   check:globals — then blanks the Map on a device.
-- `src/v2/test/smoke.test.jsx` mounts `App` in jsdom and walks both tabs
-  and two overlays. The three guards above are all **name**-level; this is
-  the only one that executes a render. Measured, not assumed: injecting
+- `src/v2/test/smoke-*.test.jsx` (five files over one harness,
+  `test/mount-app.jsx`) mount `App` in jsdom and walk both tabs and every
+  overlay. The three guards above are all **name**-level; these are the only
+  ones that execute a render. Measured, not assumed: injecting
   `window.FEEDREAD.statsTypo()` into `MirrorTab` leaves check:globals,
   eslint and `tsc -b` green, and fails only here.
   **Assert on the `ErrorBoundary`, not on a thrown error** — `app-shell`
@@ -63,21 +111,61 @@ because something real slipped through:
 are **not** exempt from the convention: `live.ts` publishes `window.LIVE`
 and both `ui/` panels `Object.assign` onto `globalThis` on purpose.
 
+**The convention is shrinking, and there is a number for it.** Those four
+guards make the bridge safe, which also made it comfortable enough to keep
+forever — the migration section in `src/v2/README.md` sat there unmeasured
+from the port until D39. `check:globals` **rule 4** is the counterweight:
+it counts every cross-module shared-global reference, per file, and the
+count may only go **down**. New coupling fails CI; converting a module
+lowers the number and also fails, asking for the baseline to come down with
+it. Run `npm run check:globals` for the live figure — it is deliberately
+not quoted in prose here, because a hand-maintained figure is the one
+documentation error this repo keeps re-committing (D39, `check:figures`).
+
+Two rules for working with it:
+
+- **Convert on touch, and transpose the meter before you plan.** This
+  paragraph twice claimed the cheap seam was exhausted and was twice wrong
+  (D39's follow-ups, then D108) — both times because rule 4 reports per
+  **consumer**, which is the right shape for a ratchet and the wrong shape
+  for planning. Build the provider view out of `spec-globals.mjs`'s own
+  `definedBy`/`referenced` maps and the remaining single-writer providers
+  fall out sorted. `src/v2/README.md` has the procedure and the traps.
+- **A conversion removes the load-order condition, never the data one.**
+  `(window.X || {})`, `X?.`, `if (X)` and `X && …` around a converted
+  module are dead — an imported binding cannot be unset. So is
+  `X.member ? X.member() : fallback` on a member the object literal always
+  defines, and so is a local fallback that recomputes the store's own
+  default (D108 found six of the first and two of the second). The inner
+  `|| []` on `.people` is not; that guards missing data. The guard shapes
+  are a list, not a pattern, so grep the name and read every site.
+- **Expect a conversion to RAISE the suppression count before it lowers
+  it.** The React Compiler cannot resolve a value arriving through global
+  scope, so it bails out of the component — which means the bridge has been
+  hiding `react-hooks` findings, not just costing coupling (D108, verified
+  by linting the pre-change files).
+
 ### 2. There are four test runners, and they are not interchangeable
 
 | Command | What it covers | Needs |
 | --- | --- | --- |
 | `npm run test:unit` | client store, pure deck logic, spec-layer mount tests | nothing |
-| `npm run test --prefix functions` | k-anon floor, reveal, streak math | nothing |
+| `npm run test --prefix functions` | aggregate fold, reveal, streak math | nothing |
 | `npm run test:rules` | Firestore **and** Storage rules | Java 21 |
 | `npm run test:e2e` / `:erasure` / `:moderation` | full loop, erasure, moderation transport — real emulated functions | Java 21 |
 
-Plus the non-test gates: `check:globals`, `check:labels`, `check:versions`,
+Plus the non-test gates: `check:globals`, `check:labels`, `check:quality`
+(question form + provenance, D97), `check:public-copy` (the retired
+pre-D98 privacy vocabulary, in copy a user reads — D116),
+`check:data-inventory` (every collection the rules reach is named in
+`docs/data-inventory.md`, which the store privacy label derives from —
+D130), `check:versions`,
 `check:bundle`, `check:deploy-targets`, `check:fn-runtime`,
-`check:appcheck`, and the catalogue drift gates `check:cities`,
-`check:pokedex`, `check:catalogs` — the last two also run on the deploy
-path, because the aggregate trigger validates answer keys against the
-committed catalogues (D14–D17; docs/CATALOG-QUESTIONS.md).
+`check:appcheck`, and the
+catalogue drift gates `check:cities`, `check:pokedex`, `check:catalogs` —
+the last two also run on the deploy path, because the aggregate trigger
+validates answer keys against the committed catalogues (D14–D17;
+docs/CATALOG-QUESTIONS.md).
 
 `check:appcheck` is on the deploy path too: every callable must demand App
 Check attestation or be named in the script's exemption list with the
@@ -96,15 +184,64 @@ an emergency rules fix.
   `export { x } from "./v2"` is a hoisted re-export, so v2's functions are
   defined before any statement in index's body runs. Options set there
   would silently miss every v2 function. `check:fn-runtime` guards it.
-- **Answers are create-only and immutable.** Not an oversight — it is what
-  makes the counts honest (D5). Do not add an update path.
+- **Answers are create-only, with ONE update shape (D86).** D5's
+  immutability was amended 2026-08-10: an `optionIdx`-only edit (plus an
+  `editedAt` stamp) is legal on daily/feed/test answers, and
+  `onV2AnswerUpdated` folds the -old/+new delta through the same ledger.
+  Everything else stays frozen — anchors, answeredAt, learn, duels,
+  catalog — and the counts stay honest because the trigger moves them,
+  not because the doc cannot change. Do not widen the edit surface.
+- **A live Mirror stop carries all five lenses (D99/D100) and, since
+  D112, its constellation.** Answers · People · Compare · Explore are
+  pure folds over `agg.by` (`src/v2/data/cohort.ts`) plus the D98 voter
+  lists; Scores joined at D100 over the bank's ordinal questions (the
+  old "no `rate` questions" refusal was about the prototype's *place*
+  scorecard, which still waits on content). The similarity fields
+  (`src/v2/data/similarity.ts`, `ui/LiveSimilarityField.tsx`) are the
+  permanent head of the City/Country/World stops: your city's people ranked primarily by
+  test-score match, cities and countries placed by their real
+  average-score profiles — all folded from data that already publishes,
+  with zero extra reads for candidate scores (they ride the voter
+  lists' name resolution). Near is presence-only since D111; the city
+  cohort is the City stop's. Since D119 the row is the stop's TAB BAR
+  rather than a strip under the answer rows, and **D136 reshaped it to
+  Answers · People · Compare · Explore · Scores**: the field left the row
+  to draw ABOVE it always (D119 made it a tab, D135 made it the landing
+  tab, D136 finished the move — the field is the sentence the Mirror
+  exists to say, and a tab is something you can be looking away from),
+  and Foresight left the Mirror altogether because a row of readings is
+  the wrong home for a game. Its engine and rules stand, unplaced. An
+  empty field offers the Answers tab rather than ceding the screen. The
+  cost gate the old collapsed-by-default strip carried is still
+  structural for the rest: a tab body exists only while its tab is open,
+  so Kindred runs on the tap that asks for it. The field's own fold is
+  the exception and runs on arrival — free on re-entry
+  (`state.testAggsLoaded`), and since it no longer unmounts, row
+  navigation costs nothing; both pinned. The fields load behind one
+  bounded, session-cached loader (docs/MIRROR.md §2–3).
+- **`window.MapStats` is real for two anchors and refuses for five, and
+  the split is structural.** `age` and `edu` are breakdown dims, so since
+  D99 `dist`/`mode` compute from the published cells. `job` is
+  profession — deliberately never a dim (D8) — and the four test anchors
+  are results nothing aggregates per cohort, so those return **null**,
+  as does `dimVal` everywhere. Null rather than a gate at each call site
+  (D72), so a consumer that forgets the check fails a test instead of
+  quietly fabricating — which is exactly what made the two fixable ones
+  findable. `groupLabel` answers in both modes: it is a noun for the
+  cohort, not a claim about it.
 - **`src/v2/spec/` is the only copy of the spec layer.** The extracted
   prototype modules (`design/spec-modules/`) were deleted 2026-07-29 once
   the port was complete and they had diverged — they live in git history.
   Ported files still cite them in header comments as provenance.
-- **The e2e cannot run in a sandbox that blocks
-  `firebase-public.firebaseio.com`** — the functions emulator will not
-  start. That is environmental, not a broken test.
+- **The e2e in a sandbox that blocks `firebase-public.firebaseio.com`
+  needs `HTTPS_PROXY` unset, not a policy change.** The functions
+  emulator will not start with the variable set: firebase-tools parses
+  the proxy's 403 body as JSON and dies registering the Firestore
+  trigger, naming neither the host nor the proxy. Unset it and the same
+  fetch fails as a connection error, which firebase-tools tolerates —
+  all three suites pass. Environmental, not a broken test, and **not a
+  reason to widen an egress allowlist** before trying the variable.
+  docs/LOCAL-TESTING.md § Sandbox/CI note has the failure text.
 
 ## House style
 

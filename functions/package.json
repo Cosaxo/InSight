@@ -30,8 +30,8 @@
     "which already carries the note about 14's ESM-modular export shape."
   ],
   "dependencies": {
-    "firebase-admin": "^13.10.0",
-    "firebase-functions": "^6.6.0",
+    "firebase-admin": "^14.2.0",
+    "firebase-functions": "^7.3.2",
     "google-auth-library": "^9.15.1"
   },
   "devDependencies": {
@@ -42,18 +42,39 @@
   "//overrides": [
     "Advisories in the Google Cloud SDK chain under firebase-admin. These are",
     "the DEPLOYED runtime, so unlike the root tree's dev-only findings they are",
-    "worth clearing. Pinning the four transitive packages takes the audit to 0.",
+    "worth clearing. Pinning these transitive packages takes the audit to 0.",
     "",
-    "Do NOT 'fix' this by bumping firebase-functions to 7.x and firebase-admin",
-    "to 14.x instead — measured, that makes it worse (9 moderate becomes 13,",
-    "7 of them high), and firebase-functions 6.x peer-requires firebase-admin",
-    "^11 || ^12 || ^13 anyway, so the major bump is not available on its own.",
-    "Revisit when this package moves to firebase-functions 7.x deliberately."
+    "gaxios IS NOT IN THIS LIST, and must not be added back. Overriding it to",
+    "^7.1.5 took the ENTIRE BACKEND DOWN for at least a day (2026-08-06/07):",
+    "gcp-metadata@6.1.1 asks for gaxios ^6.1.1 and reads response headers as a",
+    "plain object, res.headers['metadata-flavor']. gaxios 7 returns a fetch",
+    "Headers object, where that lookup is always undefined — so every function",
+    "threw 'Invalid response from metadata service: incorrect Metadata-Flavor",
+    "header. Expected Google, got no header' and could not authenticate to any",
+    "Google API. scheduledDuelReveals failed every two hours, buildModQueue and",
+    "ledgerVelocityScan daily, and seedContentV2 on every call.",
+    "",
+    "Nothing caught it: the emulator supplies its own credentials, so no test",
+    "touches the metadata path, and every gate stayed green. `npm audit` was",
+    "the only thing measuring, and it was measuring the wrong property.",
+    "",
+    "Removing it costs NOTHING — the audit is still 0, because the advisory it",
+    "was added for is fixed upstream in gaxios 6.7.1, which is what",
+    "gcp-metadata now resolves. Verified, not assumed.",
+    "",
+    "The general lesson for the next override here: these force a version on a",
+    "package that DECLARED a different range, so each one is a compatibility",
+    "assertion nothing tests. Prefer upgrading the dependent.",
+    "",
+    "Do NOT 'fix' advisories by bumping firebase-functions to 7.x and",
+    "firebase-admin to 14.x instead — measured, that makes it worse (9 moderate",
+    "becomes 13, 7 of them high), and firebase-functions 6.x peer-requires",
+    "firebase-admin ^11 || ^12 || ^13 anyway, so the major bump is not available",
+    "on its own. Revisit when this package moves to firebase-functions 7.x."
   ],
   "overrides": {
     "uuid": "^11.1.0",
     "teeny-request": "^10.1.0",
-    "gaxios": "^7.1.5",
     "retry-request": "^8.0.0"
   }
 }

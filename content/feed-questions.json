@@ -191,7 +191,8 @@
           "label": "Japanese",
           "count": 6400
         }
-      ]
+      ],
+      "active": false
     },
     {
       "id": "f09",
@@ -393,7 +394,8 @@
           "label": "Heresy",
           "count": 7300
         }
-      ]
+      ],
+      "active": false
     },
     {
       "id": "f21",
@@ -409,7 +411,8 @@
           "label": "Melody",
           "count": 6800
         }
-      ]
+      ],
+      "active": false
     },
     {
       "id": "f22",
@@ -464,7 +467,8 @@
           "label": "Silence",
           "count": 1900
         }
-      ]
+      ],
+      "active": false
     },
     {
       "id": "f25",
@@ -708,7 +712,7 @@
       "id": "f39",
       "cat": "dilemma",
       "type": "vote",
-      "prompt": "$1M now, but a stranger somewhere loses everything. Press the button?",
+      "prompt": "A million now, but a stranger somewhere loses everything. Press the button?",
       "options": [
         {
           "label": "Press",
@@ -734,7 +738,8 @@
           "label": "Never",
           "count": 8400
         }
-      ]
+      ],
+      "active": false
     },
     {
       "id": "f41",
@@ -814,7 +819,8 @@
           "label": "A right, not a duty",
           "count": 5600
         }
-      ]
+      ],
+      "political": true
     },
     {
       "id": "f46",
@@ -830,7 +836,8 @@
           "label": "Fantasy",
           "count": 2700
         }
-      ]
+      ],
+      "political": true
     },
     {
       "id": "f47",
@@ -846,7 +853,8 @@
           "label": "Keep cars",
           "count": 3900
         }
-      ]
+      ],
+      "political": true
     },
     {
       "id": "f48",
@@ -962,7 +970,8 @@
           "label": "It can’t",
           "count": 4300
         }
-      ]
+      ],
+      "active": false
     },
     {
       "id": "f55",
@@ -1213,7 +1222,7 @@
     {
       "id": "s13",
       "scene": "chess",
-      "cat": "bigq",
+      "cat": "culture",
       "type": "vote",
       "prompt": "Blitz or classical?",
       "options": [
@@ -1230,7 +1239,7 @@
     {
       "id": "s14",
       "scene": "chess",
-      "cat": "bigq",
+      "cat": "culture",
       "type": "vote",
       "prompt": "Best first move",
       "options": [
@@ -1251,7 +1260,7 @@
     {
       "id": "s15",
       "scene": "chess",
-      "cat": "bigq",
+      "cat": "culture",
       "type": "vote",
       "prompt": "A draw offer from a stronger player — take it?",
       "options": [
@@ -1298,6 +1307,328 @@
           "count": 600
         }
       ]
+    },
+    {
+      "id": "dl1",
+      "cat": "bigq",
+      "type": "dial",
+      "prompt": "When does old age begin?",
+      "lo": 40,
+      "hi": 90,
+      "unit": "yrs"
+    },
+    {
+      "id": "dl2",
+      "cat": "dilemma",
+      "type": "dial",
+      "prompt": "The right tip",
+      "lo": 0,
+      "hi": 30,
+      "unit": "%"
+    },
+    {
+      "id": "dl3",
+      "cat": "dilemma",
+      "type": "dial",
+      "prompt": "Daily screen time — where does “too much” start?",
+      "lo": 1,
+      "hi": 12,
+      "unit": "h"
+    },
+    {
+      "id": "dl4",
+      "cat": "bigq",
+      "type": "dial",
+      "prompt": "How much of your life is actually in your control?",
+      "lo": 0,
+      "hi": 100,
+      "unit": "%"
+    },
+    {
+      "id": "fd1",
+      "cat": "dilemma",
+      "type": "field",
+      "prompt": "Pineapple on pizza — place it",
+      "ax": [
+        "tastes bad",
+        "tastes good"
+      ],
+      "ay": [
+        "a crime",
+        "high art"
+      ]
+    },
+    {
+      "id": "fd2",
+      "cat": "bigq",
+      "type": "field",
+      "prompt": "Small talk — place it",
+      "ax": [
+        "painful",
+        "pleasant"
+      ],
+      "ay": [
+        "pointless",
+        "essential"
+      ]
+    },
+    {
+      "id": "fd3",
+      "cat": "bigq",
+      "type": "field",
+      "prompt": "AI assistants, today — place them",
+      "ax": [
+        "overhyped",
+        "underrated"
+      ],
+      "ay": [
+        "scary",
+        "exciting"
+      ]
+    },
+    {
+      "id": "pt1",
+      "cat": "dilemma",
+      "type": "path",
+      "hue": 20,
+      "title": "The Wallet",
+      "prompt": "The Wallet — a wallet, a bus, and nobody watching",
+      "intro": "The last bus home. On the seat beside you: a wallet, fat with cash. No cameras. No one else aboard.",
+      "nodes": {
+        "_": {
+          "q": "It sits there, heavier than it should be.",
+          "a": [
+            {
+              "t": "Open it"
+            },
+            {
+              "t": "Hand it to the driver, unopened"
+            }
+          ]
+        },
+        "A": {
+          "q": "A student ID. 4,000 in cash. A clinic appointment slip for Thursday.",
+          "a": [
+            {
+              "t": "Track them down yourself"
+            },
+            {
+              "t": "Keep the cash, mail the rest back"
+            }
+          ]
+        },
+        "B": {
+          "q": "The driver shrugs without looking. \"Lost box is broken. Your call, friend.\"",
+          "a": [
+            {
+              "t": "Take it back — handle it yourself"
+            },
+            {
+              "t": "Leave it on the seat"
+            }
+          ]
+        },
+        "AA": {
+          "q": "You find them in an hour online. They answer, voice shaking with relief — and offer a reward.",
+          "a": [
+            {
+              "t": "Refuse the reward"
+            },
+            {
+              "t": "Take it — fair is fair"
+            }
+          ]
+        },
+        "AB": {
+          "q": "A week passes. The clinic slip keeps surfacing in your mind like a splinter.",
+          "a": [
+            {
+              "t": "Mail the cash after all"
+            },
+            {
+              "t": "Spend it"
+            }
+          ]
+        },
+        "BA": {
+          "q": "The ID shows an address two streets from yours. Thursday is tomorrow.",
+          "a": [
+            {
+              "t": "The doorstep, in person"
+            },
+            {
+              "t": "The police station drop-box"
+            }
+          ]
+        },
+        "BB": {
+          "q": "The doors hiss shut. Through the window you watch the wallet ride away.",
+          "a": [
+            {
+              "t": "Chase the bus to the next stop"
+            },
+            {
+              "t": "Walk home"
+            }
+          ]
+        }
+      },
+      "endings": {
+        "AAA": {
+          "name": "The Quiet Good",
+          "line": "No reward, no witness. You did it for the version of you that was watching."
+        },
+        "AAB": {
+          "name": "The Honest Trade",
+          "line": "Everyone leaves whole. Virtue doesn’t have to be free."
+        },
+        "ABA": {
+          "name": "The Long Way Round",
+          "line": "The splinter won. Later than right, but right."
+        },
+        "ABB": {
+          "name": "Finders, Keepers",
+          "line": "The money spent easily. Thursday came and went somewhere else."
+        },
+        "BAA": {
+          "name": "The Doorstep",
+          "line": "A stranger’s face, changing as they understand. Worth the walk."
+        },
+        "BAB": {
+          "name": "By the Book",
+          "line": "Clean hands, proper channels. The story ends without your name in it."
+        },
+        "BBA": {
+          "name": "The Second Chance",
+          "line": "Lungs burning at the next stop. Some choices allow one revision."
+        },
+        "BBB": {
+          "name": "Not My Story",
+          "line": "You never found out. That was the choice, too."
+        }
+      }
+    },
+    {
+      "id": "pt2",
+      "cat": "dilemma",
+      "type": "path",
+      "hue": 255,
+      "title": "The Wrong Text",
+      "prompt": "The Wrong Text — a message that was not meant for you",
+      "intro": "Your boss texts you at 23:40: \"Offer the role to the other one. Don’t tell K yet.\" You are K.",
+      "nodes": {
+        "_": {
+          "q": "The message glows in the dark. Typing dots appear, then vanish.",
+          "a": [
+            {
+              "t": "\"I think this wasn’t meant for me.\""
+            },
+            {
+              "t": "Say nothing. Screenshot it."
+            }
+          ]
+        },
+        "A": {
+          "q": "Your phone rings ten seconds later. A flustered voice offers \"a proper chat tomorrow.\"",
+          "a": [
+            {
+              "t": "Take the chat, ask it straight"
+            },
+            {
+              "t": "Decline — start job-hunting tonight"
+            }
+          ]
+        },
+        "B": {
+          "q": "Next morning they greet you like nothing happened. The role posting closes Friday.",
+          "a": [
+            {
+              "t": "Confront them before Friday"
+            },
+            {
+              "t": "Quietly interview elsewhere"
+            }
+          ]
+        },
+        "AA": {
+          "q": "Across the desk they don’t deny it. \"The decision wasn’t final,\" they say. It sounds final.",
+          "a": [
+            {
+              "t": "Negotiate to stay — on new terms"
+            },
+            {
+              "t": "Resign in the meeting"
+            }
+          ]
+        },
+        "AB": {
+          "q": "Three interviews in a week. One offer arrives — smaller title, better people.",
+          "a": [
+            {
+              "t": "Tell your team why you’re going"
+            },
+            {
+              "t": "Ghost gracefully"
+            }
+          ]
+        },
+        "BA": {
+          "q": "Thursday, empty meeting room. You have the screenshot. They have a story ready.",
+          "a": [
+            {
+              "t": "Show the screenshot"
+            },
+            {
+              "t": "Bluff — \"I’ve heard rumours\""
+            }
+          ]
+        },
+        "BB": {
+          "q": "The rival offer lands Friday morning — same pay, a team that actually wanted you.",
+          "a": [
+            {
+              "t": "Accept it"
+            },
+            {
+              "t": "Stay anyway"
+            }
+          ]
+        }
+      },
+      "endings": {
+        "AAA": {
+          "name": "The Renegotiator",
+          "line": "You stayed — but the terms are yours now, and everyone knows it."
+        },
+        "AAB": {
+          "name": "The Clean Exit",
+          "line": "Shortest resignation letter in company history. No regrets by Tuesday."
+        },
+        "ABA": {
+          "name": "The Whistle",
+          "line": "The team heard the truth. Some doors close loudly and that’s fine."
+        },
+        "ABB": {
+          "name": "The Quiet Departure",
+          "line": "No scene, no speech. Your absence said it."
+        },
+        "BAA": {
+          "name": "Cards on the Table",
+          "line": "The screenshot did the talking. Their face did the confessing."
+        },
+        "BAB": {
+          "name": "The Poker Face",
+          "line": "You never showed your hand. They folded anyway."
+        },
+        "BBA": {
+          "name": "The Better Door",
+          "line": "Monday, new desk. The old boss still doesn’t know you knew."
+        },
+        "BBB": {
+          "name": "The Long Game",
+          "line": "You stayed with the receipts. Leverage keeps better than anger."
+        }
+      }
     }
   ]
 }

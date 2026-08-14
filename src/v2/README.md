@@ -1,6 +1,6 @@
 # InSight v2 — the ported app
 
-This is the frozen spec (`design/InSight_standalone_15.html`) running under
+This is the frozen spec (`design/InSight_standalone_18.html`) running under
 Vite. `index.html` points at `main.jsx`; the journal-era app lives in
 git history (decision D4) — `src/legacy/` was deleted after Phase 5 shipped,
 and its Firestore rules were retired to `firestore.rules.v1-archive`.
@@ -82,21 +82,26 @@ by the `'./spec/…'` strings inside `import()` exactly as by static imports
 (verified by probe, not assumed). Rule 1 is name-level and cannot see load
 *order* at all. So neither one would notice if `loadWorldFeed` dropped a
 module or stopped resolving — the feed would simply never appear. The mount
-tests carry that: `smoke.test.jsx` asserts **both** shapes, the daily tab
-with `window.WorldFeed` deleted (the frame before the chunk lands) and the
-feed present after `loadWorldFeed()` resolves. Either alone passes while
+tests carry that: `smoke-daily.test.jsx` asserts **both** shapes, the daily
+tab with `window.WorldFeed` deleted (the frame before the chunk lands) and
+the feed present after `loadWorldFeed()` resolves. Either alone passes while
 the other half is broken.
 
-Both mount suites `await loadWorldFeed()` in `beforeAll`. Without it every
-D11 case in `smoke-live.test.jsx` would assert on a tab that never rendered
-a feed card — a vacuous pass, and the largest module in the layer would
-quietly leave the suite.
+Every mount suite `await`s `loadWorldFeed()` in `beforeAll` — the demo five
+through the shared harness (`test/mount-app.jsx`), `smoke-live.test.jsx` in
+its own. Without it every D11 case in `smoke-live.test.jsx` would assert on a
+tab that never rendered a feed card — a vacuous pass, and the largest module
+in the layer would quietly leave the suite. It has to be in the SHARED hook
+rather than in the one file that visibly needs it, because vitest's module
+cache is per worker: after D108's split no file can assume another already
+paid for the load.
 
 ## …and so are the five no-button overlays
 
 `loadOverlays()` (D38) defers `test-overlay`, `person-mindmap`,
-`person-overlay`, `city-overlay`, `suggestions`, `data/logic-gen` and
-`logic-test` — the overlays with no control in the header or tabbar, reached
+`person-overlay`, `city-overlay`, `suggestions` and `logic-test` (which
+imports `data/logic-gen` directly since D51, pulling it into the same
+chunk) — the overlays with no control in the header or tabbar, reached
 only through the `window.open*` cross-links. Entry chunk 922 → 837 KB.
 
 **The synchronisation is different from the feed's, and that difference is
@@ -123,8 +128,8 @@ one.
 **Two gates, and what each does not cover.** `check:bundle`'s per-chunk
 ceiling came down 940 → 850 with the win, and its header records exactly
 which regressions that catches (measured, not assumed — the smallest single
-module can still slip under the headroom). `smoke.test.jsx` gained five
-cases that delete each global and assert the shell degrades to a blank
+module can still slip under the headroom). `smoke-overlays.test.jsx` carries
+five cases that delete each global and assert the shell degrades to a blank
 rather than a `ReferenceError`; those were mutation-checked by restoring the
 bare identifiers one at a time. Neither gate can see eager-vs-lazy itself:
 re-adding a static import to `spec-index.js` leaves every test green and is
@@ -169,7 +174,7 @@ one rule, so each is individually visible and greppable:
 git grep -c "eslint-disable-next-line" -- src/v2/spec   # the live count
 ```
 
-That count is **30 across 15 files**. It is quoted here rather than left to
+That count is **29 across 12 files**. It is quoted here rather than left to
 the reader because this section previously claimed 42 long after the number
 had moved — a stale figure in the one paragraph whose job is to size the
 debt.
@@ -180,6 +185,19 @@ however loudly the paragraph around it says not to let that happen. So
 `npm run check:a11y` now recomputes this sentence's numbers and fails if
 they disagree with the tree — which is why there is no longer an "as of"
 date on it. It is current or CI is red.
+
+**The count went UP with D108, and that is the finding rather than a
+regression.** Converting `DUELS` off the bridge retired four
+`exhaustive-deps` suppressions for free — an imported binding is a stable
+dep where `window.DUELS` was an expression eslint could not prove stable —
+and then surfaced six `refs` findings that had never been reported at all.
+The React Compiler cannot resolve a value that arrives through global scope,
+so it had been bailing out of `DuoBody` and `GroupDailyBody` entirely.
+Verified rather than inferred: the two files at the previous commit lint
+clean, and the only change to either is the import. So the global bridge was
+not merely costing coupling, it was **suppressing the measurement of this
+debt** — 31 was an understatement, and every remaining conversion should be
+expected to raise this number before it lowers it.
 
 They are **deferred, not judged correct**. They are React Compiler
 findings — `exhaustive-deps`, `refs`, `purity`,
@@ -195,25 +213,51 @@ the failure mode this section exists to prevent.
 
 ## Mount tests
 
-`test/smoke.test.jsx` mounts `App` in jsdom and walks the surfaces the
-header and tabbar reach — both tabs, the profile overlay, the search
-overlay — plus the six with **no button at all**: `test`, `relmap`,
-`logic`, `suggest`, `person` and `city`, which other components open by
-calling `window.openTest()` / `window.openOverlay('relmap')` / … and which
-consequently nothing executed. That was the largest unmounted block left in
-this layer: ~130 KB of the shipped bundle, including the two biggest single
-components after the feed. `test/setup-dom.ts` stubs the browser APIs jsdom
-lacks (`matchMedia`, the two observers, `scrollTo`, canvas contexts).
+Five files over one harness (`test/mount-app.jsx`), which together mount
+`App` in jsdom and walk the surfaces the header and tabbar reach — both tabs,
+the profile overlay, the search overlay — plus the six with **no button at
+all**: `test`, `relmap`, `logic`, `suggest`, `person` and `city`, which other
+components open by calling `window.openTest()` /
+`window.openOverlay('relmap')` / … and which consequently nothing executed.
+That was the largest unmounted block left in this layer: ~130 KB of the
+shipped bundle, including the two biggest single components after the feed.
+`test/setup-dom.ts` stubs the browser APIs jsdom lacks (`matchMedia`, the two
+observers, `scrollTo`, canvas contexts).
 
-It exists because **this layer's characteristic bug is invisible to every
+| file | what it owns |
+| --- | --- |
+| `smoke-daily.test.jsx` | `App` exists; the daily tab; the feed's two shapes (before and after its chunk) |
+| `smoke-topics.test.jsx` | the add-a-topic sheet — demo furniture, the channel list, and a mute reaching the chip row |
+| `smoke-mirror.test.jsx` | the mirror tab, the Explore lens, the two header overlays, and three demo controls for `smoke-live` |
+| `smoke-nav.test.jsx` | the v17 ruler-as-nav (D43) and the surfaces that own their own drag |
+| `smoke-overlays.test.jsx` | the six cross-link overlays, the five degrade-on-missing-chunk cases, and the retired Thinking test (D103) |
+
+**Why five and not one (D108).** It was one file with 32 cases. Vitest
+schedules a FILE to a worker, so a single file is a hard serial floor however
+many cores the runner has — and that one was **90.2 s of a 92.2 s `test:unit`
+wall clock**, with the other fifty files finishing inside it. Split, the
+longest mount file is 32.7 s and the suite's longest file is
+`smoke-live.test.jsx` at 34.8 s, which was never the bottleneck before.
+
+Two things that measurement did **not** buy, recorded so nobody re-derives
+them: on a 4-core runner (which is what `ubuntu-latest` gives) the wall clock
+went 87 → 71 s rather than to the ~35 s the single-file floor suggested,
+because with the floor gone it is the aggregate that binds, not any one file;
+and per-TEST durations are unchanged (slowest 9.0 s either way), so this does
+**not** relax the reason `test:coverage` is scoped to `src/v2/data` — that
+constraint is the 15 s per-test timeout under v8 instrumentation, which a file
+split cannot move.
+
+They exist because **this layer's characteristic bug is invisible to every
 other gate.** A global that is defined but undefined *at render time* —
 load order in `spec-index.js` is semantic, and a renamed member passes
 name-level checks — throws only when the component paints. Verified, not
 assumed: injecting `window.FEEDREAD.statsTypo()` into `MirrorTab` leaves
-`check:globals`, `eslint` and `tsc -b` all green, and fails the mirror
-case here with `TypeError: window.FEEDREAD.statsTypo is not a function`.
+`check:globals`, `eslint` and `tsc -b` all green, and fails the mirror case
+in `smoke-mirror.test.jsx` with `TypeError: window.FEEDREAD.statsTypo is not
+a function`.
 
-Two things to know before extending it:
+Two things to know before extending them:
 
 - **Assert on the boundary, not on a thrown error.** `app-shell` wraps
   both tabs and every overlay in `ErrorBoundary`, so a crashed screen
@@ -228,7 +272,12 @@ Two things to know before extending it:
   mutation-checked: neutering the opener fails all six on the copy
   assertion, and injecting `window.NOPE.boom()` into each of the six
   components fails exactly its own case on the boundary.
-- **It is a smoke test.** It proves the screens mount, not that they are
+- **Put a new case in the file that already loads its screen**, and add a
+  file only when one crosses ~30 s. Every file pays its own `spec-index`
+  import (the module cache is per worker), so five files cost ~14 s more
+  total work than one did — worth it to delete a 90 s serial floor, not worth
+  it per case.
+- **They are smoke tests.** They prove the screens mount, not that they are
   right. For the spec layer that is still all there is; the hand-written
   panels now have their own suites (below), and the
   `eslint-disable-next-line` list above remains the work queue for the
@@ -252,7 +301,7 @@ what they claim.
 
 | suite | the property it exists for |
 | --- | --- |
-| `LiveCohortBody` | an absent breakdown cell is WITHHELD, not zero, and is counted and named; the server's `tooSmall` flag beats any counts on the document; the printed floor equals `AGG_MIN_N` |
+| `LiveCohortBody` | an absent breakdown cell means ZERO and is still counted and named in words, because a silent gap reads as "this question doesn't exist here"; a question with no aggregate at all is a different state from an empty cohort and is not counted as either; nothing consults a `tooSmall` field (D98 — the row exists to catch its return) |
 | `LiveGroupsMirrorBody` | nobody is named on fewer than `MIN_SHARED` days; duos are excluded; alignment counts days *played*, not days revealed |
 | `LiveDuelPanel` | before a reveal only your own pick is on screen; the duo card states the both-play condition rather than promising a reveal |
 | `CityPicker` | every emitted value matches the server's own city shape; all five location failures land somewhere usable; a located city is suggested, never applied |
@@ -280,7 +329,7 @@ Two conventions worth copying if you add another:
 
 ### …and `test/smoke-live.test.jsx`, the other half
 
-`smoke.test.jsx` runs with `window.LIVE` **undefined**, so every
+The `smoke-*.test.jsx` set runs with `window.LIVE` **undefined**, so every
 `if (window.LIVE && window.LIVE.enabled)` branch in this layer was
 unexercised by the suite. Those branches are where D9 drops the Mirror's
 City stop and where D11 keeps takes, counter-arguments and friend dots off
@@ -289,9 +338,11 @@ once by hand.
 
 `test/live-fixture.ts` installs a stand-in `window.LIVE` plus the feed
 globals `buildFeedGlobals()` publishes, and `smoke-live.test.jsx` walks the
-same surfaces with it, in six shapes: the happy path, below the k-floor
-(`aggFor` returns `{ tooSmall: true }` with **no** counts — its own render),
-the `demoInProd` fallback, and a profile with no city.
+same surfaces with it, in six shapes: the happy path, an aggregate with no
+counts on it (`aggFor` returns `{ tooSmall: true }` and **no** counts — the
+fixture keeps the retired flag deliberately, so the suite proves a stray
+`tooSmall` changes nothing and the render is driven by the absence of
+counts alone), the `demoInProd` fallback, and a profile with no city.
 
 Three things learned by making it, all now load-bearing:
 
@@ -323,18 +374,39 @@ It is separate from `npm run lint` because that script carries
 "warn" tier to hold existing debt, and the alternative would be the blanket
 disable this file's Lint suppressions section exists to prevent.
 
-The baseline is **11**: 9 in `spec/`, plus two deliberate `autoFocus` keeps
-on picker search fields. It opened at 69 and came down in three steps — D23
+The baseline is **8**: 6 in `spec/`, plus two deliberate `autoFocus` keeps
+on picker search fields. It opened at 69 and came down in four steps — D23
 turned the mouse-only controls into buttons, D24 made every overlay and
-sheet a real modal dialog, and D35 gave the Basics editor's selects explicit
+sheet a real modal dialog, D35 gave the Basics editor's selects explicit
 `htmlFor`/`id` pairs, which cleared `label-has-associated-control` entirely
 and uncovered a real defect on the way (the label wrapping `CityPicker` was
 winning the accessible-name computation, so the chosen city never reached a
-screen reader). What is left in `spec/` is six `no-autofocus` findings and
-three div-with-onClick sites. They are deferred for the same reason as the
-React Compiler ones — adding key handlers and focus behaviour to ported
-components no test asserts the interaction of is the blind change that trade
-refuses. Fix them behind interaction tests, not ahead of them.
+screen reader), and D49 made the post-vote beat's Skip control a real
+button.
+
+What is left is **seven `no-autofocus` findings** and **one
+`no-static-element-interactions`** in `tweaks-panel.jsx`, the host-era debug
+panel rather than a user surface. (The v18 sync retired one more autofocus
+with the relmap add-circle input it replaced by rename-in-place.)
+
+That sentence used to say "six `no-autofocus` findings and three
+div-with-onClick sites", and both halves were wrong in a way worth naming,
+because `check:a11y` did not catch either: it holds the TOTAL and the
+per-file counts, not the breakdown by rule. There were eight autofocus
+findings, not six. And the three were not three sites — they were three
+rules firing on **one** element (`click-events-have-key-events`,
+`interactive-supports-focus`, `no-static-element-interactions`), so the
+work described as three deferred fixes was one, and it took an afternoon.
+A count kept by hand drifts even inside a paragraph whose own file is
+gate-enforced; prefer "run the gate" to a number, and where a number is
+load-bearing, make the gate own it.
+
+The remaining autofocus findings stay deferred for the reason the React
+Compiler ones do — changing focus behaviour in ported components no test
+asserts the interaction of is the blind change that trade refuses. Fix them
+behind interaction tests, not ahead of them:
+`test/consequence-beat.test.jsx` is what that looks like, and
+`test/dialog.test.jsx` is the precedent it follows.
 
 Per file, not a total, so a fix in one file cannot pay for a regression in
 another. Lowering it is the script's own output: fix something, run it, and
@@ -357,3 +429,285 @@ it from `spec-index.js`'s implicit dependency web. The mock data stores
 (`sample-data.js`, `duels-data.js`, `daily-questions.js`, `passive-progress.js`,
 `scenes.js`, `follows.js`) are the seams where Firestore plugs in — each
 already funnels all reads/writes through one `window.*` API object.
+
+### …and it now has a meter
+
+That paragraph has been here since the port, and until 2026-08-03 nothing
+measured whether any of it was happening. It was not. A migration with no
+meter does not run — it gets described, which is a comfortable place for it
+to sit given that rules 1-3 of `check:globals` make the convention
+survivable enough to live with indefinitely.
+
+**Rule 5** is the one that keeps the meter honest, and it was added late
+(D137) after 17 dead publications had accumulated where nothing was
+looking. A conversion's honest shape leaves `globalThis.X = X` beneath the
+new export for the consumers that have not moved — so when the last one
+moves, the line is residue. Rule 4 cannot see it: rule 4 counts *reads*,
+and a publication nobody reads has none. Rule 5 asks the mirror of rule 1
+— an assignment whose references went away — so what is on the bridge is
+what is still crossing it.
+
+**Rule 4** counts every site where one file reads a name another file
+assigns to global scope, per file, and the number may only go down. The
+baseline is in `scripts/check-spec-globals.mjs`; `npm run check:globals`
+prints the current total on every run. The count today is **414 across 42
+files**, down from 799 when the ratchet landed.
+
+The mechanism needs no bookkeeping, which is what makes it usable. The
+scanner already suppresses a JSX reference when the file declares the name
+locally, and `import { Chip } from './primitives.jsx'` is a local
+declaration — so converting a consumer takes its sites to zero by itself.
+
+### `primitives.jsx` is converted — what it cost, and what it taught
+
+The first module off the bridge, chosen because it has the most consumers
+(22 by the ratchet's count) and depends on nothing itself. Its eleven names
+are plain named exports; **it publishes nothing to `globalThis` at all**,
+because all 24 consumers moved in the same change. 799 → 755.
+
+The plan here said to leave a `globalThis.X = X` compat line beneath the
+exports so unconverted consumers keep working. That was not needed once it
+turned out the consumer set was closed — 24 files, all in `spec/`, with the
+only other mentions of these names being three comments. **Check for that
+before assuming a compat line is required**: a provider whose consumers all
+fit in one change is cheaper to finish than to bridge, and a compat line
+nobody needs is dead code with a deletion ticket attached.
+
+Three things worth knowing before converting the next one:
+
+- **`window.X` sites do not convert themselves.** `result-card.jsx` held
+  `{window.Av ? … <window.Av /> …}` — a defensive guard that existed only
+  because load order could leave the global unset. An import cannot be
+  unset, so the guard went with the conversion rather than being rewritten
+  as `{Av ? …}`.
+- **Two different gates catch a missed consumer, and neither catches both
+  cases.** A JSX reference (`<Sheet/>`) is invisible to eslint — base
+  `no-undef` does not treat JSX tag names as identifier references — and is
+  caught by `check:globals` rule 1. A bare call (`useDialog(…)`) is the
+  reverse: rule 1 never sees it, `no-undef` reports it. Both were verified
+  by deleting an import and watching the right gate fail.
+- **`h(Foo, …)` was invisible to both the checker and the ratchet** until
+  this change added a rule for it. `daily-split.jsx` renders
+  `h(Sheet, {…})`, which is a cross-module reference written through a
+  createElement alias. One site layer-wide, but it was a hole in a ratchet
+  whose whole job is that the number cannot be gamed.
+
+### `sample-data.js` is converted too
+
+The second, and the largest data module in the layer (719 lines).
+`IS_DATA` and `fmtPop` are exports; nothing assigns to `window` here
+either. 755 → 726, and `scenes.js` became the first file in the layer with
+**no cross-module global references at all**.
+
+Two things differed from `primitives.jsx`, both worth expecting again:
+
+- **The consumer set was NOT closed.** The mount suites read
+  `IS_DATA` to pick a real person and city for the overlay cases, so the
+  conversion reached into `test/` as well as `spec/`. Check `ui/`, `data/`,
+  `test/` and `main.jsx` before assuming a provider's consumers all live in
+  `spec/` — the grep is cheap and the answer decides whether a compat line
+  is needed.
+- **Every reference was `window.IS_DATA`, not a bare name**, so nine of
+  them carried `(window.IS_DATA || {})` or `window.IS_DATA?.` — the same
+  might-not-be-loaded guard `result-card.jsx` had around `Av`. Those are
+  gone: an imported const cannot be unset, and `sample-data.js` depends on
+  nothing so no cycle can put it in TDZ. The **inner** `|| []` / `|| {}` on
+  `.groups`, `.people` and `.me` stayed — those guard missing *data*, which
+  is a real condition and nothing to do with module loading.
+
+**One bundle effect worth not misreading.** The entry chunk went 853 → 818
+KB, and that is not 35 KB saved: `sample-data` became its own chunk that
+first paint still preloads, because `app-shell` imports it eagerly. Total
+JS is unchanged at 1529 KB. `check:bundle` asserts a total precisely so a
+split cannot read as a win — see its header.
+
+**And the general form of that is now measured, and gated (D109, D110).**
+It is not a quirk of this one conversion: across D108 and D109 the entry
+chunk fell 728.5 → 685.2 KB while **entry + every `modulepreload` fell
+1271.1 → 1270.2** — 43 KB off the gated number, 0.9 KB off first paint.
+Neither of `check:bundle`'s original two ceilings is the eager graph: the
+per-chunk one is improved by relocating bytes into another preloaded
+chunk, and the total counts Sentry, the world-feed group and the overlays,
+which first paint never fetches.
+
+`check:bundle` holds **four** numbers now, and `MAX_EAGER_KB` is the one
+to quote for a first-paint claim — the script prints it on every run.
+The fourth is D144's `MAX_EAGER_CHUNK_KB`, which says the same thing as
+`MAX_EAGER_KB` in a form that cannot be raised away: no member of the
+eager set except the entry may be library-sized. `MAX_EAGER_KB` protects
+first paint only while nobody raises it, and it was raised four times in
+four days.
+D110 was the first thing it found: 292 KB of Firestore SDK had been
+preloaded on every cold start, in every build, including ones with no
+Firebase config at all. The eager graph is **944 KB**, down from 1270.2.
+
+### `daily-questions.js` — the first one that was not a pure provider
+
+726 → 708, and `mirror-answers.jsx` joins `scenes.js` at zero. Two new
+shapes here, both of which will recur:
+
+- **It is wrapped in an IIFE**, so `api` was not reachable at module top
+  level to export. The wrapper is vestigial — an ESM module already has its
+  own scope, and it is what this file needed when every module shared one —
+  but unwrapping re-indents 480 lines and would bury four real edits in a
+  whitespace diff. The binding is hoisted instead: `export let DAILYQ;`
+  above the IIFE, assigned inside it. ESM exports are live and the module
+  finishes evaluating before any importer's body runs, so consumers always
+  see the object. Unwrap it in its own commit if it is ever worth doing.
+- **It reads `window.LIVE` itself**, so unlike the first two it is not a
+  pure provider — it has 3 outgoing references of its own, which stay.
+  Converting what a module *provides* is independent of what it *consumes*;
+  do not wait for a module to be a leaf before exporting from it.
+
+**This is the conversion that removed a real fragility rather than just
+syntax.** `map-branches.js` reads `DAILYQ.EMERGENT_CATS` at
+module-evaluation time — not inside a component, not on an event. It worked
+only because `spec-index.js` lists `daily-questions.js` (5th) before
+`map-branches.js` (11th); reordering those two lines would have silently
+dropped seven map categories, with no error anywhere. That ordering is now
+a module-graph guarantee. Verified by probe rather than assumed: all seven
+(`top-sport`, `top-film`, `top-food`, `top-travel`, `top-mind`,
+`top-morals`, `top-music`) still merge after the change.
+
+### `world-catalogs.js` — half of it converts, and the meter had a bug
+
+708 → 691, in two independent parts.
+
+**The module owns two names and only one of them is its export.**
+`WF_CATALOGS` is a plain data object with a single writer, and it converted
+like the others (6 sites in `world-feed.jsx`, all of them the same
+`(window.WF_CATALOGS || {})` load-order guard). `WORLD_FEED_QS` did **not**,
+and deliberately: `world-feed-data.js` creates the pool, this file and
+`world-subtopics.js` append to it, and `data/live.ts` replaces it wholesale
+in live mode. Four writers and a live/demo boundary is a design change —
+an owning module with an add/replace API — not a mechanical conversion. The
+append site carries that reasoning inline.
+
+**And it exposed a real defect in the ratchet.** `definedBy` was a
+first-assignment-wins map, so a multi-writer global got one arbitrary owner
+picked by readdir order. `world-catalogs.js` sorts before
+`world-feed-data.js`, so it was recorded as owning `WORLD_FEED_QS` — and
+`world-feed-data.js`'s five reads of **the global it creates itself** were
+counted as coupling to a file that only appends to it. The map is a
+`Map<name, Set<file>>` now and rule 4 asks "does this file assign the
+name?", which is a question with an answer when several do. That correction
+alone removed **11 false positives**, so part of this change's drop is the
+meter getting more honest rather than the tree getting better — worth
+separating, because a ratchet that miscounts in the flattering direction is
+the one failure it cannot report itself.
+
+### `follows.js` — and the guard shape the previous conversions missed
+
+691 → 673. `FRIENDS` is IIFE-wrapped like `DAILYQ` and got the same hoisted
+`export let`. Its 18 sites across four consumers were dense in presence
+guards — six of them — including one more module-scope read:
+`duels-data.js` ends with `FRIENDS.subscribe(fire)` so circle changes ripple
+into duos and groups, and it was written `if (window.FRIENDS)
+window.FRIENDS.subscribe(fire)`. A reorder of `spec-index.js` would have
+dropped that subscription silently, exactly like `map-branches.js`.
+Probed rather than assumed: inviting a friend still fires the DUELS
+listeners.
+
+**A miss from the `sample-data.js` conversion, fixed here.** That change
+removed the `(window.IS_DATA || {})` and `window.IS_DATA?.` guard shapes by
+explicit rewrite, and then renamed everything else in bulk — which left four
+sites reading `(IS_DATA && IS_DATA.people) || []`. Dead in exactly the same
+way, and invisible to every gate, because a redundant `&&` is valid code
+that does the right thing.
+
+The lesson for the next conversion is that the guard shapes are a list, not
+a pattern: `(X || {})`, `X?.`, `X ? … : …`, `!X || …`, `X && …`, and
+`if (X) …`. Grep for the name and read every site; do not assume the bulk
+rename caught the guards.
+
+### `result-rose.jsx` — the last pure provider, and where this stops
+
+673 → 657. Four exports (`RP_TESTS`, `RoseMini`, `PoleRows`, `TestRose`)
+and all seven `(window.RP_TESTS || {})` guards gone.
+
+**Four of its eight globals had no consumers at all.** `RosePetals`,
+`rpPetal`, `rpDeep` and `rpDot` were published because the porter
+registered every top-level declaration, not because anything wanted them.
+As a real module they are simply private, so the conversion removed eight
+names from the global namespace to export four. Expect that ratio again —
+the bridge published everything, so a converted module usually exports
+fewer names than it used to publish.
+
+**This was called the end of the cheap seam**, on the reading that the six
+converted modules were pure providers and everything left was a consumer
+whose own providers sat in an import cycle. The second half of that was
+wrong — see the next section.
+
+### `test-definitions.js` + `passive-progress.js` — and a cycle that was not one
+
+657 → 540, the largest single drop since the ratchet landed, across 18
+consumer files. Both modules had been named in this file as the ones
+**not** to start with, on the grounds that they formed import cycles:
+`test-definitions.js ↔ daily-split.jsx`, and a six-hop loop through
+`app-shell.jsx → passive-meter.jsx → passive-progress.js →
+test-definitions.js → daily-split.jsx → world-feed.jsx → app-shell.jsx`.
+
+**Neither cycle existed.** Checked by building the reference graph out of
+`spec-globals.mjs`'s own `definedBy`/`referenced` maps — the same data
+rule 4 counts — rather than by reading the paragraph again:
+
+- `test-definitions.js` had **no outgoing reference into `daily-split.jsx`
+  at all**, and only one outgoing edge of any kind: `window.LIVE`. It was a
+  pure provider with 17 consumers the whole time. The claimed edge back to
+  `daily-split.jsx` was never there.
+- `passive-progress.js` did produce a real edge, and it was an artifact of
+  the same multi-writer attribution that `world-catalogs.js` exposed once
+  already. It read `IS_TEST_RESULTS`; `test-definitions.js` creates that
+  object, and `daily-split.jsx` **also assigned it** — in an `else` branch
+  that ran only when `test-definitions.js` had not loaded. `definedBy` is a
+  `Set`, so the graph drew an edge to both writers, and the second one
+  closed a loop.
+
+So the fallback was the cycle. Converting `test-definitions.js` made
+`persistTestResult` always present, which made that `else` unreachable;
+deleting it removed `daily-split.jsx` as a writer of the name, and the loop
+with it. The lesson is the one the `WORLD_FEED_QS` correction already
+taught, arriving from the other direction: **a multi-writer global does not
+just miscount the meter, it can invent a dependency that no code has.**
+Verify a cycle against the graph before planning around it — this one had
+been load-bearing in the docs for long enough to defer its own fix.
+
+Two shapes worth expecting again:
+
+- **A defensive fallback is a second writer.** `daily-split.jsx`'s
+  `else { window.IS_TEST_RESULTS = window.IS_TEST_RESULTS || {}; … }` was
+  the same class of thing as `result-card.jsx`'s `{window.Av ? …}` — a
+  guard that existed only because a global could be unset. It read as
+  robustness and behaved as coupling.
+- **`window.X` and the exported name need not match.** Consumers reached
+  the persist function as `window.IS_persistTestResult`; the function is
+  `persistTestResult` and exports under that name. The bridge let a
+  publisher rename what it published, so do not assume the global's
+  spelling is the export's.
+
+What remains at 540 is genuinely consumer-side: `world-feed.jsx` (155),
+`app-shell.jsx` (43), `profile-overlay.jsx` (28), `profile-general.jsx`
+(22), `result-card.jsx` (17). `daily-split.jsx` and `test-overlay.jsx`,
+which this change took to 0 and 2, are no longer on that list.
+
+**These two are still worth moving to `data/` eventually** — as typed,
+tested modules, the way `deck.ts` and `groupPortrait.ts` were extracted.
+`passive-progress.js` in particular is pure arithmetic over a store
+(`pct`, `done`, `passiveDone`, `prefill`) with no JSX and no test. That is
+now an ordinary refactor rather than a cycle-breaking prerequisite, which
+is the whole difference this change made.
+
+**What NOT to start with.** The layer still has reference cycles, and they
+are still where the global bridge is load-bearing rather than merely
+legacy: ESM handles cyclic value bindings badly, and the failure is a
+temporal-dead-zone error that appears only at render, which is this layer's
+worst class of bug. What is deliberately **not** written here is which
+files, or how many. That is a question for the graph, and a hand-maintained
+answer in this paragraph is what deferred these two modules for the whole
+life of the port. Build the edges from `collectSpecGlobals()`'s
+`definedBy`/`referenced` maps and read the answer off the tree.
+
+Two things that probe cheaply and are worth doing before planning around a
+cycle at all: a global-reference cycle is not an ESM import cycle (`spec/`
+currently has none of the latter), and a name with more than one writer can
+manufacture an edge that no code actually has.

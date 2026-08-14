@@ -4,12 +4,61 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import LIVE from '../data/live';
+import { MAP_ANCHOR_DIM, byOf, typicality } from '../data/cohort';
 
-// InSight — mock group statistics for the Map tab.
-// For any (question × anchor-group) pair, returns a plausible, DETERMINISTIC
-// distribution of how "people like you" answered. Fake but stable data:
-// the same question + group always yields the same numbers.
+// InSight — group statistics for the Map tab.
+//
+// For a (question × anchor-group) pair: how did people who share that
+// anchor with you answer? Since D99 this is REAL for the two anchors that
+// map onto a breakdown dim, and still refuses for the rest.
+//
+// THE HISTORY MATTERS, because the refusal is what made the fix findable.
+// Every number here used to be a hash of the question id — plausible,
+// stable, and about nobody. D72 stopped it rendering in live mode rather
+// than deleting it, on the grounds that "48% of people your age chose the
+// same" sits beside a real answer and a real age band on the one Mirror
+// stop that carries no Preview tag. Returning null rather than gating at
+// the five call sites was the deliberate part: a consumer that forgot the
+// check threw in smoke-live.test.jsx instead of quietly fabricating.
+//
+// D98 published the per-anchor breakdown exactly, so `age` and `edu` now
+// have an arithmetic answer and take it (see data/cohort.ts, typicality).
+//
+// THE OTHER FIVE STILL REFUSE, and not for want of a floor:
+//   job         is `profession` — free text, deliberately never a
+//               breakdown dim (D8), so nothing aggregates it.
+//   big5, political, values, attachment
+//               are test RESULTS. No cohort aggregate exists for them at
+//               all, so "how did similar personalities answer" has no
+//               source rather than a withheld one. (Six until D103
+//               retired `cognitive` — one fewer refusal, not one more
+//               answer.)
+// A live build therefore still gets null from those, through the same
+// fail-loud path — the demo keeps the hash, because in a demo the hash
+// IS the content.
+//
+// `groupLabel` answers in both modes either way: it is a noun for the
+// cohort, not a claim about it.
 (function () {
+  // The demo's hash may run whenever we are not live. In live mode an
+  // anchor answers only if it maps to a breakdown dim AND the viewer has
+  // that anchor filled in AND the cohort has answers — checked per call
+  // in liveTypicality below, which returns null for every other case.
+  const refuses = () => !!LIVE.enabled;
+
+  // The real reading, or null. Null means "no source" (an anchor that is
+  // not a dim, a profile field the user has not filled in) or "no data"
+  // (nobody in that cohort has answered this yet) — the caller renders
+  // absence for both, because both are honestly "not measured".
+  function liveTypicality(qid, anchorId, nOpts, myIdx) {
+    const dim = MAP_ANCHOR_DIM[anchorId];
+    if (!dim) return null;
+    const bucket = (LIVE.anchors() || {})[dim];
+    if (!bucket) return null;
+    return typicality(byOf(LIVE.aggFor(qid)), dim, bucket, myIdx == null ? -1 : myIdx, nOpts);
+  }
+
   function h(s) {
     let x = 9;
     for (let i = 0; i < s.length; i++) x = (x * 33 + s.charCodeAt(i)) % 9973;
@@ -19,6 +68,19 @@ import React from 'react';
   // % per option, integers summing to 100. Biased so the group's most common
   // answer matches YOURS roughly 60% of the time — agreement, not an echo.
   function dist(qid, anchorId, nOpts, myIdx) {
+    if (refuses()) {
+      // Live: the published cell, as percentages. Same shape the hash
+      // returned, so every call site is unchanged.
+      const t = liveTypicality(qid, anchorId, nOpts, myIdx);
+      if (!t) return null;
+      const cell = byOf(LIVE.aggFor(qid))[MAP_ANCHOR_DIM[anchorId]][(LIVE.anchors() || {})[MAP_ANCHOR_DIM[anchorId]]];
+      const counts = Array.from({ length: Math.max(2, nOpts) }, (_, i) => cell[String(i)] || 0);
+      const total = counts.reduce((a, b) => a + b, 0) || 1;
+      const pct = counts.map((c) => Math.round((c / total) * 100));
+      const drift = 100 - pct.reduce((a, b) => a + b, 0);
+      if (drift) pct[pct.indexOf(Math.max(...pct))] += drift;
+      return pct;
+    }
     const n = Math.max(2, nOpts);
     const w = [];
     for (let i = 0; i < n; i++) w.push(0.3 + h(qid + '|' + anchorId + '|' + i));
@@ -37,7 +99,16 @@ import React from 'react';
 
   function mode(qid, anchorId, nOpts, myIdx) {
     const d = dist(qid, anchorId, nOpts, myIdx);
-    return d.indexOf(Math.max(...d));
+    return d ? d.indexOf(Math.max(...d)) : null;
+  }
+
+  // How many answers the live reading rests on — null in demo mode and
+  // wherever dist() refuses. The Map uses it to say "of 6" rather than
+  // presenting a 50% drawn from two people as though it were a finding.
+  function cohortN(qid, anchorId, nOpts, myIdx) {
+    if (!refuses()) return null;
+    const t = liveTypicality(qid, anchorId, nOpts, myIdx);
+    return t ? t.n : null;
   }
 
   const LABELS = {
@@ -54,12 +125,13 @@ import React from 'react';
   // Group's 0..100 score on one test dimension. Deterministic; sits near the
   // user (it's a "people like you" group) with a drift toward the middle.
   function dimVal(anchorId, dimId, myVal) {
+    if (refuses()) return null;
     const off = (h(anchorId + '·' + dimId) - 0.5) * 36; // ±18
     const pull = 0.12 + h(dimId + '·' + anchorId) * 0.14; // slight regression to 50
     const v = myVal + off + (50 - myVal) * pull;
     return Math.max(3, Math.min(97, Math.round(v)));
   }
 
-  window.MapStats = { dist, mode, groupLabel, dimVal };
+  window.MapStats = { dist, mode, groupLabel, dimVal, cohortN };
 })();
 

@@ -50,9 +50,9 @@ jobs:
     # touching this file.
     environment: production
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "22"
           cache: npm
@@ -147,14 +147,39 @@ jobs:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/sa-key.json
         run: npx firebase deploy --project prvfire33 --non-interactive --only "storage"
 
+      # Rules and indexes go WITHOUT --force, and that is the whole point of
+      # the split. --force is a deploy-wide flag, not a functions one: in
+      # firebase-tools it sets `shouldDeleteIndexes` and `shouldDeleteFields`
+      # (lib/firestore/api.js), so under --force this step deletes every index
+      # and field override the project holds that firestore.indexes.json does
+      # not — and that file names exactly one (the v2_takes list composite,
+      # D65), so everything else the project holds is at risk.
+      #
+      # Two things the repo asks an operator to create by hand are exactly
+      # that: the TTL on v2_agg_events.expireAt (LAUNCH-RUNBOOK §5.1,
+      # SHIP-CHECKLIST — the 90-day retention bound D28 rests on) and the
+      # composite index v2social.ts tells them to add if the duel scan ever
+      # throws FAILED_PRECONDITION. Combined with --force, the next push
+      # touching functions/** silently undid both, green.
+      #
+      # Non-interactive WITHOUT --force logs the would-be deletions and
+      # continues, which is the direction this has to fail in. Enforced by
+      # `npm run check:deploy-targets`.
+      - name: Deploy rules + indexes
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/sa-key.json
+        run: >
+          npx firebase deploy --project prvfire33 --non-interactive
+          --only "firestore:rules,firestore:indexes"
+
       # --force is required for non-interactive deploys of retry-enabled
-      # triggers (docs/DEPLOYMENT.md).
-      - name: Deploy rules + functions
+      # triggers (docs/DEPLOYMENT.md) — and now reaches nothing but functions.
+      - name: Deploy functions
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/sa-key.json
         run: >
           npx firebase deploy --project prvfire33 --non-interactive --force
-          --only "firestore:rules,firestore:indexes,functions:deleteAccount,functions:seedContentV2,functions:onV2AnswerCreated,functions:createGroupV2,functions:joinGroupV2,functions:leaveGroupV2,functions:registerPushToken,functions:scheduledDuelReveals,functions:revealDuelsNowV2,functions:buildModQueue,functions:buildModQueueNow,functions:fetchModQueue,functions:submitModVerdict,functions:activateDeviceV2"
+          --only "functions:deleteAccount,functions:seedContentV2,functions:onV2AnswerCreated,functions:onV2AnswerUpdated,functions:createGroupV2,functions:joinGroupV2,functions:leaveGroupV2,functions:claimHandleV2,functions:inviteToGroupV2,functions:acceptGroupInviteV2,functions:declineGroupInviteV2,functions:nearbyCountV2,functions:registerPushToken,functions:scheduledDuelReveals,functions:revealDuelsNowV2,functions:buildModQueue,functions:buildModQueueNow,functions:fetchModQueue,functions:submitModVerdict,functions:activateDeviceV2,functions:ledgerVelocityScan,functions:logicStartV2,functions:logicSubmitV2,functions:suggestQuestionV2,functions:fetchSuggestionsV2,functions:reviewSuggestionV2"
 
       # The legal pages and the landing page they are reached from. Both
       # stores refuse a submission without a reachable privacy-policy URL,

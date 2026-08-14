@@ -4,6 +4,9 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import { RevealClock } from './reveal-clock.js';
+import { DUELS } from './duels-data.js';
+import { Sheet } from './primitives.jsx';
 import ReactDOM from 'react-dom';
 
 // group-daily.jsx — the daily tab's GROUP mode. Groups are named circles
@@ -28,20 +31,30 @@ import ReactDOM from 'react-dom';
         width: size, height: size, borderRadius: 11, flexShrink: 0,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         fontFamily: 'var(--sans)', fontWeight: 800, fontSize: Math.round(size * 0.38), letterSpacing: '-0.02em',
-        color: '#fff', background: `oklch(0.58 0.11 ${ghue(g)})`, opacity: faded ? 0.4 : 1,
+        color: '#fff', background: `oklch(0.52 0.12 ${ghue(g)})`, opacity: faded ? 0.4 : 1,
         transition: 'opacity .18s',
       }}>{ginit(g.name)}</span>
     );
   }
 
-  function GDAv({ p, size = 22, dim }) {
+  // The avatar IS the link to a person — one rule across the daily, the duo and
+  // the group bodies, so an initial circle always means "open them".
+  function GDAv({ p, size = 22, dim, plain }) {
+    const open = (e) => { if (!p || p.me) return; e.stopPropagation(); if (window.openPerson) window.openPerson(p); };
+    const linked = !!(p && !p.me && !plain && window.openPerson);
     return (
-      <span title={p.name + (p.pending ? ' · invited' : '')} style={{
+      <span title={p.name + (p.pending ? ' · invited' : '')}
+        role={linked ? 'button' : undefined} tabIndex={linked ? 0 : undefined}
+        aria-label={linked ? p.name + ' — open profile' : undefined}
+        onClick={linked ? open : undefined}
+        onKeyDown={linked ? ((e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(e); } }) : undefined}
+        style={{
         width: size, height: size, borderRadius: '50%', flexShrink: 0,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         fontFamily: 'var(--sans)', fontWeight: 800, fontSize: Math.round(size * 0.4),
-        color: '#fff', background: `oklch(0.62 0.12 ${p.hue})`,
+        color: '#fff', background: `oklch(0.52 0.13 ${p.hue})`,
         opacity: dim ? 0.28 : 1, boxShadow: '0 0 0 1.5px var(--surface-2)',
+        cursor: linked ? 'pointer' : 'default',
       }}>{p.init}</span>
     );
   }
@@ -58,8 +71,7 @@ import ReactDOM from 'react-dom';
 
   // revealed answers for one day — names on the options, majority carries the bar
   function GDReveal({ gid, dayIdx }) {
-    const D = window.DUELS;
-    const { q, rows, mine, counts, majority } = D.groupPicks(gid, dayIdx);
+    const { q, rows, mine, counts, majority } = DUELS.groupPicks(gid, dayIdx);
     const total = counts.reduce((a, b) => a + b, 0) || 1;
     const youRow = q.kind === 'pick' ? rows.find((r) => r.label === 'You') : null;
     return (
@@ -128,16 +140,15 @@ import ReactDOM from 'react-dom';
 
   // ── one group card — fills the view, snaps into place ──
   function GroupCard({ g, vh, nextName, first }) {
-    const D = window.DUELS;
     const [day, setDay] = useState(0);
     const [mg, setMg] = useState(false);
     const [mgClosing, setMgClosing] = useState(false);
     const [confirmLeave, setConfirmLeave] = useState(false);
     const closeMg = () => { if (mgClosing) return; setMgClosing(true); setTimeout(() => { setMg(false); setMgClosing(false); setConfirmLeave(false); }, 230); };
-    const days = D.groupDays(g.id);
+    const days = DUELS.groupDays(g.id);
     const d = days[day];
     const nInvited = g.members.filter((m) => m.pending).length;
-    const addable = D.members().filter((f) => !g.members.some((m) => m.id === f.id));
+    const addable = DUELS.members().filter((f) => !g.members.some((m) => m.id === f.id));
     const prompt = (s, fs) => (
       <div style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: fs, lineHeight: 1.12, letterSpacing: -0.6, textWrap: 'pretty' }}>{s}</div>
     );
@@ -165,7 +176,7 @@ import ReactDOM from 'react-dom';
                   <span style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 13.5 }}>{m.name}</span>
                   <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--ink-3)' }}>{m.pending ? 'invited · waiting' : m.rel}</span>
                 </span>
-                <button onClick={() => D.removeGroupMember(g.id, m.id)} aria-label={'Remove ' + m.name}
+                <button onClick={() => DUELS.removeGroupMember(g.id, m.id)} aria-label={'Remove ' + m.name}
                   style={{ flexShrink: 0, border: 'none', background: 'var(--surface-3)', color: 'var(--ink-2)', width: 24, height: 24, borderRadius: '50%', cursor: 'pointer', fontSize: 11, fontWeight: 800, WebkitAppearance: 'none' }}>{'\u2715'}</button>
               </div>
             ))}
@@ -174,9 +185,9 @@ import ReactDOM from 'react-dom';
                 <span className="kicker" style={{ marginBottom: 0 }}>Add from your circle</span>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
                   {addable.map((f) => (
-                    <button key={f.id} className="press" onClick={() => D.addGroupMembers(g.id, [f.id])}
+                    <button key={f.id} className="press" onClick={() => DUELS.addGroupMembers(g.id, [f.id])}
                       style={{ display: 'flex', alignItems: 'center', gap: 7, border: LINE, borderRadius: 999, background: 'var(--surface-2)', padding: '5px 13px 5px 6px', cursor: 'pointer', WebkitAppearance: 'none' }}>
-                      <GDAv p={f} size={22}></GDAv>
+                      <GDAv p={f} size={22} plain></GDAv>
                       <span style={{ fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 12.5, color: 'var(--ink)' }}>+ {f.name.split(' ')[0]}</span>
                     </button>
                   ))}
@@ -187,7 +198,7 @@ import ReactDOM from 'react-dom';
               {confirmLeave ? (
                 <React.Fragment>
                   <span style={{ flex: 1, fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)' }}>Leave {g.name}?</span>
-                  <button onClick={() => { closeMg(); setTimeout(() => D.leaveGroup(g.id), 240); }} style={{ border: 'none', background: 'var(--ochre)', color: '#fff', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12, padding: '7px 15px', borderRadius: 999, cursor: 'pointer', WebkitAppearance: 'none' }}>Leave</button>
+                  <button onClick={() => { closeMg(); setTimeout(() => DUELS.leaveGroup(g.id), 240); }} style={{ border: 'none', background: 'var(--ochre-ink)', color: '#fff', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12, padding: '7px 15px', borderRadius: 999, cursor: 'pointer', WebkitAppearance: 'none' }}>Leave</button>
                   <button onClick={() => setConfirmLeave(false)} style={{ border: LINE, background: 'var(--surface-2)', color: 'var(--ink)', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 12, padding: '7px 13px', borderRadius: 999, cursor: 'pointer', WebkitAppearance: 'none' }}>Stay</button>
                 </React.Fragment>
               ) : (
@@ -200,7 +211,7 @@ import ReactDOM from 'react-dom';
     let body;
     if (day > 0) {
       // an earlier day, browsed via the dots — full reveal
-      const gp = D.groupPicks(g.id, day);
+      const gp = DUELS.groupPicks(g.id, day);
       body = (
         <div style={col(12)} key={'past' + day}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -215,9 +226,9 @@ import ReactDOM from 'react-dom';
         </div>
       );
     } else {
-      const mine = D.myGroup(g.id, 0);
+      const mine = DUELS.myGroup(g.id, 0);
       const answered = mine != null;
-      const inT = D.groupInToday(g.id);
+      const inT = DUELS.groupInToday(g.id);
       body = answered ? (
         <div style={{ ...col(18), animation: 'popIn .35s cubic-bezier(0.2,0.8,0.2,1)' }} key="done">
           {prompt(d.prompt, 24)}
@@ -236,8 +247,8 @@ import ReactDOM from 'react-dom';
                   counts to LOCAL midnight while the reveal is keyed on a UTC
                   day, so this is a sense of the evening closing, not a promise
                   about the server (reveal-clock.js says why). */}
-              {first && window.RevealClock
-                ? <window.RevealClock prefix="Reveals in"></window.RevealClock>
+              {first
+                ? <RevealClock prefix="Reveals in"></RevealClock>
                 : (nextName ? 'Reveals tomorrow \u00b7 swipe down for ' + nextName : 'Reveals tomorrow')}
             </div>
           </div>
@@ -256,12 +267,12 @@ import ReactDOM from 'react-dom';
             {d.options.map((o, i) => {
               const mem = d.kind === 'pick' ? g.members.find((p) => p.name.split(' ')[0] === o) : null;
               return (
-                <button key={o} className="press" onClick={() => D.answerGroup(g.id, i)} style={{
+                <button key={o} className="press" onClick={() => DUELS.answerGroup(g.id, i)} style={{
                   background: `color-mix(in oklch, ${ACC} 7%, var(--surface))`, border: `1px solid color-mix(in oklch, ${ACC} 30%, var(--rule))`, borderRadius: 16,
                   boxShadow: 'none', padding: '14px 16px', gap: 11, minHeight: 54,
                   display: 'flex', alignItems: 'center', cursor: 'pointer', textAlign: 'left', WebkitAppearance: 'none',
                 }}>
-                  {d.kind === 'pick' && (mem ? <GDAv p={mem} size={26}></GDAv> : <YouChip size={26}></YouChip>)}
+                  {d.kind === 'pick' && (mem ? <GDAv p={mem} size={26} plain></GDAv> : <YouChip size={26}></YouChip>)}
                   <span style={{ fontWeight: 700, fontSize: 16, color: 'var(--ink)' }}>{o}</span>
                 </button>
               );
@@ -275,7 +286,7 @@ import ReactDOM from 'react-dom';
     const dots = (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 6 }}>
         {days.map((q) => q.idx).reverse().map((i) => {
-          const done = i > 0 || D.groupDone(g.id);
+          const done = i > 0 || DUELS.groupDone(g.id);
           const cur = i === day;
           return (
             <button key={i} onClick={() => setDay(i)} title={days[i].prompt}
@@ -295,7 +306,7 @@ import ReactDOM from 'react-dom';
 
     return (
       <div data-group-card={g.id} style={{
-        minHeight: (day === 0 && D.myGroup(g.id, 0) != null) ? 0 : Math.min(Math.max((vh || 540) - 190, 250), 380),
+        minHeight: (day === 0 && DUELS.myGroup(g.id, 0) != null) ? 0 : Math.min(Math.max((vh || 540) - 190, 250), 380),
         boxSizing: 'border-box',
         scrollSnapAlign: 'start', scrollSnapStop: 'always',
         display: 'flex', flexDirection: 'column', gap: 16,
@@ -310,23 +321,32 @@ import ReactDOM from 'react-dom';
   }
 
   function GroupDailyBody() {
-    const D = window.DUELS;
     const [, bump] = useReducer((x) => x + 1, 0);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- ported effect; see src/v2/README.md § Lint suppressions
-    useEffect(() => D.subscribe(bump), []);
-    const gs = D.groups();
+    useEffect(() => DUELS.subscribe(bump), []);
+    const gs = DUELS.groups();
     // pending first, frozen at mount — answering must not reshuffle the stack
     const orderRef = useRef(null);
+    // SURFACED BY D108, not introduced by it: while the store arrived as
+    // `window.DUELS` the React Compiler could not resolve it and bailed out of
+    // this component, so the lazy-ref block below went unreported. Verified by
+    // probe — the file at the previous commit lints clean, and only the import
+    // changed. Deferred on the same terms as every other Compiler finding here
+    // (src/v2/README.md § Lint suppressions); the fix, behind a test that
+    // asserts the order really is frozen, is `const [order] = useState(() => …)`
+    // — the same once-only computation in the shape the Compiler accepts.
+    // eslint-disable-next-line react-hooks/refs -- lazy ref init, see above
     if (!orderRef.current) orderRef.current = [...gs].sort((a, b) => (a.done ? 1 : 0) - (b.done ? 1 : 0)).map((x) => x.id);
     // groups created after mount append at the end — nothing reshuffles
+    // eslint-disable-next-line react-hooks/refs -- same lazy-ref block, see above
     const ordered = orderRef.current.map((id) => gs.find((x) => x.id === id)).filter(Boolean)
+    // eslint-disable-next-line react-hooks/refs -- same lazy-ref block, see above
       .concat(gs.filter((x) => !orderRef.current.includes(x.id)));
     const [addOpen, setAddOpen] = useState(false);
     const [closing, setClosing] = useState(false);
     const [gname, setGname] = useState('');
     const [sel, setSel] = useState([]);
     const closeAdd = () => { if (closing) return; setClosing(true); setTimeout(() => { setAddOpen(false); setClosing(false); setGname(''); setSel([]); }, 230); };
-    const friends = D.members();
+    const friends = DUELS.members();
     const toggleSel = (id) => setSel((s) => (s.includes(id) ? s.filter((x) => x !== id) : s.concat(id)));
     const canCreate = gname.trim().length > 0 && sel.length >= 2;
     const [cur, setCur] = useState(ordered[0] && ordered[0].id);
@@ -390,8 +410,8 @@ import ReactDOM from 'react-dom';
                 <button onClick={closeAdd} aria-label="Close" style={{ border: 'none', background: 'var(--surface-2)', width: 26, height: 26, borderRadius: '50%', cursor: 'pointer', fontSize: 12, color: 'var(--ink-2)', WebkitAppearance: 'none' }}>{'\u2715'}</button>
               </div>
               <div className="wf-sheet-body" style={{ display: 'flex', flexDirection: 'column', gap: 13 }}>
-                <input value={gname} onChange={(e) => setGname(e.target.value)} placeholder="Group name" maxLength={24} autoFocus
-                  style={{ width: '100%', boxSizing: 'border-box', border: LINE, borderRadius: 13, background: 'var(--surface-2)', padding: '12px 14px', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 15.5, color: 'var(--ink)', outline: 'none' }} />
+                <input value={gname} onChange={(e) => setGname(e.target.value)} placeholder="Group name" maxLength={24} autoFocus autoComplete="off" autoCapitalize="words" enterKeyHint="done"
+                  style={{ width: '100%', boxSizing: 'border-box', border: LINE, borderRadius: 13, background: 'var(--surface-2)', padding: '12px 14px', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 'var(--field-size)', color: 'var(--ink)', outline: 'none' }} />
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   <span className="kicker" style={{ marginBottom: 0 }}>Who{'\u2019'}s in {'\u00b7'} pick at least 2</span>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
@@ -401,7 +421,7 @@ import ReactDOM from 'react-dom';
                         <button key={f.id} className="press" onClick={() => toggleSel(f.id)} aria-pressed={on}
                           style={{ display: 'flex', alignItems: 'center', gap: 7, borderRadius: 999, padding: '5px 13px 5px 6px', cursor: 'pointer', WebkitAppearance: 'none',
                             border: on ? `1.5px solid ${ACC}` : LINE, background: on ? `color-mix(in oklch, ${ACC} 12%, var(--surface-2))` : 'var(--surface-2)' }}>
-                          <GDAv p={f} size={22}></GDAv>
+                          <GDAv p={f} size={22} plain></GDAv>
                           <span style={{ fontFamily: 'var(--sans)', fontWeight: on ? 800 : 700, fontSize: 12.5, color: 'var(--ink)' }}>{f.name.split(' ')[0]}</span>
                         </button>
                       );
@@ -409,7 +429,7 @@ import ReactDOM from 'react-dom';
                   </div>
                 </div>
                 <button className="press" disabled={!canCreate}
-                  onClick={() => { const gid = D.createGroup(gname, sel); closeAdd(); setTimeout(() => jump(gid), 300); }}
+                  onClick={() => { const gid = DUELS.createGroup(gname, sel); closeAdd(); setTimeout(() => jump(gid), 300); }}
                   style={{ border: 'none', borderRadius: 999, padding: '12px 20px', cursor: canCreate ? 'pointer' : 'default', WebkitAppearance: 'none',
                     fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 14.5,
                     background: canCreate ? 'var(--ink)' : 'var(--surface-3)', color: canCreate ? 'var(--surface)' : 'var(--ink-3)', transition: 'background .15s, color .15s' }}>
@@ -421,6 +441,6 @@ import ReactDOM from 'react-dom';
     );
   }
 
-  Object.assign(window, { GroupDailyBody, GDAv, GDMark });
+  Object.assign(window, { GroupDailyBody, GDAv });
 })();
 

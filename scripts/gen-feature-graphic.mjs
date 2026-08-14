@@ -26,7 +26,7 @@
 // behind the app icon in store promos), so the composition stays
 // centred with generous margins and nothing load-bearing near an edge.
 
-import { mkdirSync, writeFileSync, readFileSync } from "node:fs";
+import { mkdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { ROOT, loadPlaywright, ensureServer, pngSize } from "./store-render.mjs";
 

@@ -8,6 +8,7 @@ import React from 'react';
 // RelationshipMap — core: demo data, palette, color scales, and the
 // force-directed / rings layout engine. No JSX — loads as a plain script.
 // View lives in relationship-map.jsx, detail panels in relationship-map-panels.jsx.
+let RMCoreExport;
 (function () {
   // ── deterministic PRNG ──
   function rng(seed) {
@@ -19,6 +20,24 @@ import React from 'react';
       return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
     };
   }
+
+  // ── SCALE RULES ────────────────────────────────────────────────────────────
+  // Showing every person is the GOOD view and the default — it's the one that
+  // reads as a constellation of people rather than a chart of quantities. Discs
+  // are the fallback for when the frame genuinely cannot hold them, not a
+  // preference. So the trigger is a whole-view budget (INDIV_MAX), never a
+  // single big circle: 60 people with one crowded circle still draws everyone.
+  // Above the budget a dot is smaller than a fingertip and the field reads as
+  // texture — then circles become discs whose radius carries magnitude, every
+  // one drillable (drillView) until individuals fit again.
+  // Never encode a value in positional jitter: at scale the eye reads texture
+  // as signal and the chart gets more confident-looking as it gets less true.
+  const INDIV_MAX = 72;     // people drawn individually before the view collapses
+  const CLUSTER_MAX = 12;   // countability limit — sets the disc radius baseline
+  const DISC_R_CAP = 88;
+  const EDGE_KEEP = 60;     // top-N peer edges drawn; the rest are omitted
+  const clusterR = (n) => Math.max(27, Math.min(DISC_R_CAP,
+    27 * (1 + 0.78 * Math.log10(Math.max(n, CLUSTER_MAX) / CLUSTER_MAX))));
 
   const DEFAULT_GROUPS = [
     { key: 'family',    label: 'Family',        hue: 30 },
@@ -160,7 +179,7 @@ import React from 'react';
   //    the embedded map sits INSIDE the page instead of reading as a cool card.
   //    The canvas drinks a whisper of the page accent for the tab's tint. ──
   const P = {
-    canvas: 'var(--rm-canvas, color-mix(in oklch, var(--accent, oklch(0.55 0.14 150)) 3.5%, oklch(0.982 0.004 75)))',
+    canvas: 'var(--rm-canvas, color-mix(in oklch, var(--accent, oklch(0.52 0.14 150)) 3.5%, oklch(0.982 0.004 75)))',
     card: 'oklch(0.996 0.0025 80)',
     cardBorder: 'oklch(0.915 0.006 74)',
     rule: 'oklch(0.905 0.006 74)',
@@ -168,8 +187,8 @@ import React from 'react';
     ink: 'oklch(0.216 0.011 70)',
     inkName: 'oklch(0.20 0.011 70)',
     ink2: 'oklch(0.41 0.011 68)',
-    ink3: 'oklch(0.55 0.010 68)',
-    faint: 'oklch(0.63 0.011 68)',
+    ink3: 'oklch(0.51 0.010 68)',
+    faint: 'oklch(0.53 0.011 68)',
     body: 'oklch(0.5 0.011 68)',
     youDot: 'oklch(0.25 0.010 70)',
     chipBg: 'oklch(0.945 0.005 74)',
@@ -195,6 +214,7 @@ import React from 'react';
 
   // ── build the force-directed graph ──
   function buildGraph(groups, people, W, H, gravity, layout) {
+    people = people || [];
     const G = groupDefs(groups);
     W = W || 1000; H = H || 680; gravity = gravity || 0.012;
     const nodes = [{
@@ -203,11 +223,19 @@ import React from 'react';
       location: 'Seattle, WA', years: 0, closeness: 5, age: YOU_AGE, initials: 'You',
       lastContactDays: 0, status: 'in', lastLabel: '—', r: 24, x: 0, y: 0,
     }];
-    const groupMembers = {}, validGroup = {};
-    groups.forEach(grp => { groupMembers[grp.key] = []; validGroup[grp.key] = true; });
+    const groupMembers = {}, validGroup = {}, groupPeople = {}, groupCounts = {}, collapsed = {};
+    groups.forEach(grp => { groupMembers[grp.key] = []; groupPeople[grp.key] = []; validGroup[grp.key] = true; });
+    people.forEach((p) => { if (validGroup[p.group]) groupPeople[p.group].push(p); });
+    // the threshold that makes the whole thing scale: a big circle keeps its
+    // people as DATA but draws one disc, so 1200 people is still ~7 marks and
+    // the layout never runs its O(n²) passes over a crowd.
+    Object.keys(groupPeople).forEach(gk => { groupCounts[gk] = groupPeople[gk].length; });
+    const drawn = Object.keys(groupCounts).reduce((s, gk) => s + groupCounts[gk], 0);
+    const discMode = drawn > INDIV_MAX;
+    Object.keys(groupCounts).forEach(gk => { collapsed[gk] = discMode; });
     const cad = { 5: 7, 4: 21, 3: 60, 2: 150, 1: 330 };
     people.forEach((p) => {
-      if (!validGroup[p.group]) return;
+      if (!validGroup[p.group] || collapsed[p.group]) return;
       const id = nodes.length;
       groupMembers[p.group].push(id);
       const r = rng(id * 977 + 13)();
@@ -227,20 +255,23 @@ import React from 'react';
     Object.keys(groupMembers).forEach(gk => {
       const id = nodes.length;
       groupHubId[gk] = id;
-      const mem = groupMembers[gk];
-      const count = mem.length;
-      const mean = (f) => count ? mem.reduce((s, mid) => s + nodes[mid][f], 0) / count : null;
+      const src = groupPeople[gk] || [];
+      const count = src.length;
+      const mean = (f) => count ? src.reduce((s, q) => s + (q[f] || 0), 0) / count : null;
       nodes.push({
         id, name: G[gk].label, group: gk, isHub: true,
+        collapsed: !!collapsed[gk], count,
         avgPolitical: mean('political'), avgPersonality: mean('personality'), avgCloseness: mean('closeness'), avgAge: mean('age'),
+        drillKey: gk,
         relationship: 'Your ' + G[gk].label.toLowerCase() + ' circle',
         note: count + ' people gather in this circle. Tap any name to explore the connection.',
         location: '—', years: 0, closeness: 5, initials: String(count),
-        lastContactDays: 0, status: 'in', lastLabel: '—', r: 19, x: 0, y: 0,
+        lastContactDays: 0, status: 'in', lastLabel: '—',
+        r: collapsed[gk] ? clusterR(count) : 19, x: 0, y: 0,
       });
     });
-    const allPeople = nodes.filter(n => n.id !== 0 && !n.isHub);
-    const pmean = (f) => allPeople.length ? allPeople.reduce((s, n) => s + n[f], 0) / allPeople.length : 3;
+    const allPeople = people.filter(p => validGroup[p.group]);
+    const pmean = (f) => allPeople.length ? allPeople.reduce((s, n) => s + (n[f] || 0), 0) / allPeople.length : 3;
     nodes[0].avgPolitical = pmean('political');
     nodes[0].avgPersonality = pmean('personality');
     nodes[0].avgCloseness = pmean('closeness');
@@ -253,7 +284,7 @@ import React from 'react';
     const addE = (a, b, s, hub) => { if (a != null && b != null && a !== b) edges.push({ a, b, strength: s, hub: !!hub }); };
     Object.keys(groupHubId).forEach(gk => {
       addE(0, groupHubId[gk], 2.6, true);
-      groupMembers[gk].forEach(id => addE(groupHubId[gk], id, 2.0, true));
+      groupMembers[gk].forEach(id => addE(groupHubId[gk], id, 1.2 + (nodes[id].closeness || 3) * 0.45, true));
     });
     Object.keys(groupMembers).forEach(gk => {
       const ids = groupMembers[gk];
@@ -263,13 +294,31 @@ import React from 'react';
       }
     });
     CROSS_LINKS.forEach(([a, b]) => addE(idByName[a], idByName[b], 2));
+    // at scale you show the strongest ties, not every tie: a hairball is not a
+    // map. Hub spokes are structural and always kept.
+    if (edges.filter(e => !e.hub).length > EDGE_KEEP) {
+      const hubs = edges.filter(e => e.hub);
+      const peers = edges.filter(e => !e.hub).sort((a, b) => b.strength - a.strength).slice(0, EDGE_KEEP);
+      edges.length = 0; edges.push(...hubs, ...peers);
+    }
 
     const adj = {};
     nodes.forEach(n => { adj[n.id] = new Set([n.id]); });
     edges.forEach(e => { adj[e.a].add(e.b); adj[e.b].add(e.a); });
 
     const N = nodes.length;
-    if (layout === 'rings') {
+    if (discMode) {
+      const hubs = Object.keys(groupHubId).map(gk => nodes[groupHubId[gk]]);
+      const GAP = 30;
+      const need = hubs.reduce((s, h) => s + 2 * h.r + GAP, 0) / (Math.PI * 2);
+      const maxR = hubs.reduce((m, h) => Math.max(m, h.r), 0);
+      const ring = Math.max(need, maxR + nodes[0].r + 44);
+      hubs.forEach((h, i) => {
+        const a = -Math.PI / 2 + (i / hubs.length) * Math.PI * 2;
+        h.x = Math.cos(a) * ring; h.y = Math.sin(a) * ring; h.ang = a;
+      });
+      nodes[0].x = 0; nodes[0].y = 0;
+    } else if (layout === 'rings') {
       // concentric rings: closeness = distance from You, circles as wedges
       const BANDS = { 5: 92, 4: 148, 3: 204, 2: 260, 1: 316 };
       const keys = Object.keys(groupMembers);
@@ -351,10 +400,15 @@ import React from 'react';
     }
     }
 
+    // Measure the LABEL too. A disc label sits outside its circle, so fitting on
+    // radii alone guarantees the longest circle names get cut off at the edges.
     let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
     nodes.forEach(n => {
-      minX = Math.min(minX, n.x - n.r); maxX = Math.max(maxX, n.x + n.r);
-      minY = Math.min(minY, n.y - n.r); maxY = Math.max(maxY, n.y + n.r);
+      const lw = n.isHub && discMode ? String(n.name).length * 7.4 : 0;
+      const halfW = Math.max(n.r, n.r + lw * (n.ang != null ? Math.abs(Math.cos(n.ang)) : 0));
+      const halfH = n.isHub && discMode ? n.r + 20 : n.r;
+      minX = Math.min(minX, n.x - halfW); maxX = Math.max(maxX, n.x + halfW);
+      minY = Math.min(minY, n.y - halfH); maxY = Math.max(maxY, n.y + halfH);
     });
     const pad = 50, spanX = maxX - minX, spanY = maxY - minY;
     const scale = Math.min((W - pad * 2) / spanX, (H - pad * 2) / spanY);
@@ -366,7 +420,7 @@ import React from 'react';
     // Final de-overlap in render space. The layout-space collision pass mixes
     // viewBox-unit radii with layout-unit positions, so true spacing is resolved
     // here on cx/cy with the actual drawn radii, then refit so nothing clips.
-    if (layout !== 'rings') {
+    if (layout !== 'rings' && !discMode) {
       const cx0 = nodes[0].cx, cy0 = nodes[0].cy;
       for (let pass = 0; pass < 90; pass++) {
         for (let i = 0; i < N; i++) {
@@ -395,7 +449,112 @@ import React from 'react';
     const byId = {}; nodes.forEach(n => { byId[n.id] = n; });
     // Label only You + the circle hubs at rest; people-names appear on hover/select.
     const keyNodes = new Set([0, ...Object.values(groupHubId)]);
-    return { nodes, edges, adj, groupMembers, groupHubId, peopleCount: allPeople.length, byId, keyNodes, W, H, ringGuides };
+    return { nodes, edges, adj, discMode, groupMembers, groupPeople, groupCounts, collapsed, groupHubId, peopleCount: allPeople.length, byId, keyNodes, W, H, ringGuides };
+  }
+
+  // ── the scale harness ──────────────────────────────────────────────────────
+  // Hand-written PEOPLE is ~40. Nothing about scale is judgeable at 40, so we
+  // can generate a believably skewed graph at any size, deterministically.
+  const SYN_NAMES = ('Ana Ben Cara Dev Elin Finn Gia Hugo Iris Jonas Kira Lars Mira Nils Oona Pia Quinn Rune Saga Timo Ulla Vera Wim Xenia Yara Zack Alma Bo Cleo Dane Eva Fritz Greta Hans Ida Jo Kai Lena Milo Nora Otto Petra Rosa Sten Tove Uma Vidar Wren Yusuf Zoya').split(' ');
+  const SYN_SURN = 'KLMNRSTBHDFGPVW'.split('');
+  const SYN_MIX = [
+    { key: 'family', w: 0.04, close: [5, 5, 4, 4, 3] },
+    { key: 'close', w: 0.05, close: [5, 4, 4, 4, 3] },
+    { key: 'friends', w: 0.42, close: [4, 3, 3, 2, 2] },
+    { key: 'work', w: 0.24, close: [3, 2, 2, 2, 1] },
+    { key: 'school', w: 0.13, close: [2, 2, 1, 1, 1] },
+    { key: 'community', w: 0.12, close: [2, 1, 1, 1, 1] },
+  ];
+  const CITIES = ['Seattle, WA', 'Portland, OR', 'Denver, CO', 'Austin, TX', 'Chicago, IL', 'Lisbon, PT', 'Berlin, DE', 'Boise, ID'];
+  function syntheticPeople(total) {
+    const r = rng(20260804);
+    const out = [];
+    SYN_MIX.forEach((m) => {
+      const n = Math.max(1, Math.round(total * m.w));
+      for (let i = 0; i < n; i++) {
+        const idx = out.length;
+        const nm = SYN_NAMES[idx % SYN_NAMES.length] + ' ' + SYN_SURN[Math.floor(r() * SYN_SURN.length)] + '.';
+        const closeness = m.close[Math.floor(r() * m.close.length)];
+        out.push({
+          name: nm + (idx >= SYN_NAMES.length ? ' ' + Math.floor(idx / SYN_NAMES.length + 1) : ''),
+          group: m.key, relationship: '—', note: '',
+          location: CITIES[Math.floor(r() * CITIES.length)],
+          years: 1 + Math.floor(r() * 25), closeness,
+          age: 22 + Math.floor(r() * 45),
+          political: 1 + Math.floor(r() * 5), personality: 1 + Math.floor(r() * 5),
+        });
+      }
+    });
+    return out;
+  }
+  // in-memory only — deliberately not persisted
+  let SCALE = 0;
+  function mapScale() { return SCALE; }
+  function setMapScale(n) { SCALE = n || 0; }
+  const peopleAtScale = (n) => (n ? syntheticPeople(n) : defaultPeople());
+
+  // ── drill levels ───────────────────────────────────────────────────────────
+  // Every level is the SAME rule (dots at ≤12, a disc above), so drilling needs
+  // no new layout — only remapped inputs. circles → closeness bands → alpha
+  // buckets → individuals. Any person is reachable in at most three taps.
+  const BAND_DEF = [
+    { key: 'b5', c: 5, label: 'Very close', hue: 25 },
+    { key: 'b4', c: 4, label: 'Close', hue: 45 },
+    { key: 'b3', c: 3, label: 'Friendly', hue: 65 },
+    { key: 'b2', c: 2, label: 'Acquaintance', hue: 85 },
+    { key: 'b1', c: 1, label: 'Distant', hue: 95 },
+  ];
+  const ALPHA_BUCKETS = [['A', 'F'], ['G', 'L'], ['M', 'R'], ['S', 'Z']];
+  const alphaKey = (name) => {
+    const ch = String(name).toUpperCase().charCodeAt(0);
+    const b = ALPHA_BUCKETS.find(([a, z]) => ch >= a.charCodeAt(0) && ch <= z.charCodeAt(0)) || ALPHA_BUCKETS[3];
+    return b[0] + '\u2013' + b[1];
+  };
+  const DRILL_MAX = 4; // circles → bands → A–F → letter; past this it's a list
+  function drillView(groups, people, path) {
+    path = (path || []).slice(0, DRILL_MAX);
+    if (!path.length) return { groups, people, level: 0, label: null };
+    const gk = path[0];
+    const gdef = (groups || DEFAULT_GROUPS).find((g) => g.key === gk);
+    let set = people.filter((p) => p.group === gk);
+    const trail = [gdef ? gdef.label : gk];
+    if (path.length === 1) {
+      const bands = BAND_DEF.filter((b) => set.some((p) => p.closeness === b.c));
+      return { groups: bands, people: set.map((p) => ({ ...p, group: 'b' + p.closeness })), level: 1, label: trail.join(' \u00b7 '), hue: gdef && gdef.hue };
+    }
+    const bd = BAND_DEF.find((b) => b.key === path[1]);
+    if (bd) { set = set.filter((p) => p.closeness === bd.c); trail.push(bd.label); }
+    if (path.length === 2) {
+      const keys = [];
+      set.forEach((p) => { const k = alphaKey(p.name); if (!keys.includes(k)) keys.push(k); });
+      keys.sort();
+      return {
+        groups: keys.map((k, i) => ({ key: k, label: k, hue: (gdef && gdef.hue != null ? gdef.hue : 30) + i * 9 })),
+        people: set.map((p) => ({ ...p, group: alphaKey(p.name) })),
+        level: 2, label: trail.join(' \u00b7 '), hue: gdef && gdef.hue,
+      };
+    }
+    set = set.filter((p) => alphaKey(p.name) === path[2]);
+    trail.push(path[2]);
+    const baseHue = gdef && gdef.hue != null ? gdef.hue : 30;
+    if (path.length === 3) {
+      const letters = [];
+      set.forEach((p) => { const L = String(p.name)[0].toUpperCase(); if (!letters.includes(L)) letters.push(L); });
+      letters.sort();
+      return {
+        groups: letters.map((L, i) => ({ key: L, label: L, hue: baseHue + i * 7 })),
+        people: set.map((p) => ({ ...p, group: String(p.name)[0].toUpperCase() })),
+        level: 3, label: trail.join(' \u00b7 '), hue: gdef && gdef.hue,
+      };
+    }
+    const L = path[3];
+    set = set.filter((p) => String(p.name)[0].toUpperCase() === L);
+    trail.push(L);
+    return {
+      groups: [{ key: L, label: L, hue: baseHue }],
+      people: set.map((p) => ({ ...p, group: L })),
+      level: 4, leaf: true, label: trail.join(' \u00b7 '), hue: gdef && gdef.hue,
+    };
   }
 
   function defaultPeople() {
@@ -406,11 +565,16 @@ import React from 'react';
     });
   }
 
-  window.RMCore = {
+  // Converted off the shared-global bridge (D39, "convert on touch"):
+  // relmap.jsx imports this by name. The window mirror below stays for the
+  // panels and lenses that have not moved.
+  RMCoreExport = {
     rng, DEFAULT_GROUPS, TRAITS, PEOPLE, CROSS_LINKS, YOU_AGE, AGES,
     AGE_BANDS, ageBand, ageColor, closenessColor, reconnectColor, statusMeta,
     closenessWord, yearsWord, humanizeDays, politicalColor, personalityColor,
     politicalLabel, personalityLabel, P, groupDefs, buildGraph, defaultPeople,
+    CLUSTER_MAX, INDIV_MAX, clusterR, syntheticPeople, peopleAtScale, mapScale, setMapScale, drillView, BAND_DEF,
   };
 })();
-
+export const RMCore = RMCoreExport;
+window.RMCore = RMCore;

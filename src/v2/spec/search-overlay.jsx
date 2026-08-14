@@ -4,6 +4,12 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import { WPAL } from './world-palette.js';
+import { FRIENDS } from './follows.js';
+import { DAILYQ } from './daily-questions.js';
+import { IS_DATA } from './sample-data.js';
+import { SCENES } from './scenes.js';
+import { Av, AnonAv, anonName, useDialog } from './primitives.jsx';
 
 // search-overlay.jsx — one field, three kinds of answer: questions, topics, people.
 // A question hit is the real question: tap it and the feed's own card opens in
@@ -121,7 +127,7 @@ function SrchTopicRow({ item, query, onToggle }) {
   );
 }
 
-function SearchOverlay({ onClose, onPerson }) {
+function SearchOverlay({ onClose, onPerson, samplePeople }) {
   const dlg = useDialog(onClose, 'Search');
   const [q, setQ] = useSrchState('');
   const [openQ, setOpenQ] = useSrchState(null);
@@ -132,16 +138,16 @@ function SearchOverlay({ onClose, onPerson }) {
   useSrchEffect(() => { const t = setTimeout(() => ref.current && ref.current.focus(), 80); return () => clearTimeout(t); }, []);
 
   const query = q.trim().toLowerCase();
-  const D = window.IS_DATA;
+  const D = IS_DATA;
   const TOPIC = useSrchMemo(() => Object.fromEntries((window.WORLD_TOPICS || []).map((t) => [t.id, t])), []);
   const ST = window.SUBTOPICS;
-  const SC = window.SCENES;
 
   // the label a question wears — the leaf if it has one, else its topic
   const labelOf = (qq) => {
-    if (qq.scene && SC) { const g = SC.defs().find((x) => x.id === qq.scene); if (g) return { label: g.name, color: SC.colorOf ? SC.colorOf(g.id) : 'var(--ink-3)' }; }
-    if (qq.sub && ST) { const s = ST.get(qq.sub); if (s) return { label: s.label, color: (TOPIC[s.parent] || {}).color || 'var(--ink-3)' }; }
-    return TOPIC[qq.cat] || { label: qq.cat, color: 'var(--ink-3)' };
+    if (qq.scene) { const g = SCENES.defs().find((x) => x.id === qq.scene); if (g) return { label: g.name, color: SCENES.colorOf(g.id) }; }
+    if (qq.sub && ST) { const s = ST.get(qq.sub); if (s) return { label: s.label, color: WPAL.c((TOPIC[s.parent] || {}).color) || 'var(--ink-3)' }; }
+    const t0 = TOPIC[qq.cat];
+    return t0 ? { label: t0.label, color: WPAL.c(t0.color) } : { label: qq.cat, color: 'var(--ink-3)' };
   };
 
   // questions — the whole pool, not just what you follow: search is how you
@@ -165,27 +171,29 @@ function SearchOverlay({ onClose, onPerson }) {
       return out;
     }
     return pool
-      .map((x) => ({ x, s: srchQScore(x, query, labelOf(x).label) - (srchAnswered(x, votes) ? 2 : 0) }))
+      .map((x) => ({ x, s: srchQScore(x, query, labelOf(x).label) }))
       .filter((r) => r.s >= 0)
       .sort((a, b) => b.s - a.s
         || (srchAnswered(a.x, votes) ? 1 : 0) - (srchAnswered(b.x, votes) ? 1 : 0)
         || srchQVotes(b.x) - srchQVotes(a.x))
-      .slice(0, 10)
+      .slice(0, 12)
       .map((r) => r.x);
   }, [query, votes]);
 
-  // topics you can subscribe to: followable leaves and scenes
+  // topics you can subscribe to: followable leaves and scenes — offers(),
+  // not all()/defs(), so search advertises exactly what the add sheet does:
+  // stocked leaves only, and no demo communities in a live build (D96)
   const topics = useSrchMemo(() => {
     if (!query) return [];
     const out = [];
-    if (ST) ST.all().forEach((s) => {
+    if (ST) ST.offers().forEach((s) => {
       if (!srchMatch(s.label, query)) return;
       out.push({ id: s.id, label: s.label, color: (TOPIC[s.parent] || {}).color || 'var(--ink-3)', n: ST.count(s.id), on: ST.has(s.id), toggle: () => ST.toggle(s.id) });
     });
-    if (SC) SC.defs().forEach((g) => {
+    SCENES.offers().forEach((g) => {
       if (!srchMatch(g.name, query)) return;
       const n = (window.WORLD_FEED_QS || []).filter((x) => x.scene === g.id).length;
-      out.push({ id: g.id, label: g.name, color: SC.colorOf ? SC.colorOf(g.id) : 'var(--ink-3)', n, on: SC.has(g.id), toggle: () => SC.toggle(g.id) });
+      out.push({ id: g.id, label: g.name, color: SCENES.colorOf(g.id), n, on: SCENES.has(g.id), toggle: () => SCENES.toggle(g.id) });
     });
     // a leaf and a scene can share a name — keep the richer room, not both
     const seen = {};
@@ -198,26 +206,33 @@ function SearchOverlay({ onClose, onPerson }) {
   // the daily archive — a different mechanism (it lives on the Daily tab), so it
   // gets its own group and simply takes you there instead of faking a card
   const dailies = useSrchMemo(() => {
-    const DQ = window.DAILYQ;
+    const DQ = DAILYQ;
     if (!query || !DQ) return [];
     return DQ.questions
-      .map((x) => ({ x, s: srchQScore({ prompt: x.prompt, options: (x.options || []).map((l) => ({ label: l })) }, query, '') }))
+      .map((x) => ({ x, s: srchQScore({ prompt: x.prompt, options: (x.options || []).map((l) => ({ label: l })) }, query, [x.tag].concat(x.cat || []).filter(Boolean).join(' ')) }))
       .filter((r) => r.s >= 0)
       .sort((a, b) => b.s - a.s)
-      .slice(0, 4)
+      .slice(0, 8)
       .map((r) => {
         const mine = DQ.myAnswer(r.x);
         return { id: r.x.id, prompt: r.x.prompt, said: mine != null && r.x.options ? r.x.options[mine] : null };
       });
   }, [query]);
 
-  // no query — your friends; with a query — everyone you can reach
+  // no query — your friends; with a query — everyone you can reach.
+  // Every one of these people is a sample-data persona, and so is every
+  // subtitle ("sister · since birth · 86% match") — claims about nobody.
+  // In a live build the section renders empty instead (samplePeople is
+  // false there): v2 has no person-to-person graph (D3), and a real user
+  // reading an invented sister into their search is the D1 fabrication
+  // this store predates.
   const people = useSrchMemo(() => {
-    const friends = (window.FRIENDS ? window.FRIENDS.list() : []).map(id => (D.people || []).find(p => p.id === id)).filter(Boolean);
+    if (samplePeople === false) return [];
+    const friends = FRIENDS.list().map(id => (D.people || []).find(p => p.id === id)).filter(Boolean);
     if (!query) return friends;
     const all = friends.concat((D.nearby || []).filter(n => !friends.some(f => f.id === n.id)));
     return all.filter(p => srchMatch(p.name + ' ' + (p.role || p.rel || '') + ' ' + (p.interests || []).map(i => i.t || i).join(' '), query));
-  }, [query]);
+  }, [query, samplePeople]);
 
   const nothing = !questions.length && !topics.length && !people.length && !dailies.length;
   const go = (fn) => { onClose(); fn(); };
@@ -253,6 +268,7 @@ function SearchOverlay({ onClose, onPerson }) {
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="7"></circle><line x1="16.5" y1="16.5" x2="21" y2="21"></line></svg>
           </span>
           <input ref={ref} value={q} onChange={e => { setQ(e.target.value); setOpenQ(null); }} placeholder="Questions, topics, people…"
+            autoComplete="off" autoCorrect="off" autoCapitalize="none" spellCheck={false} inputMode="search" enterKeyHint="search"
             onKeyDown={e => { if (e.key === 'Escape') onClose(); }} />
           {q && <button onClick={() => { setQ(''); setOpenQ(null); }} style={{ border: 'none', background: 'var(--rule)', color: 'var(--ink-2)', width: 18, height: 18, borderRadius: 999, fontSize: 11, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>✕</button>}
         </div>

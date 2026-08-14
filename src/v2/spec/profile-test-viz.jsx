@@ -4,18 +4,24 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import { Kicker } from './primitives.jsx';
+import { IS_TEST_AVG, IS_TEST_RESULTS } from './test-definitions.js';
 
 // profile-test-viz.jsx — distinctive visuals for the per-test profile tabs.
 // Each test gets a recognizable hero chart rather than the generic dot-line:
 //   · Social     → a five-spoke radar of the kind of friend & partner you are
 //   · Cognitive  → a four-axis radar of thinking styles
-// All read from window.IS_TEST_RESULTS so they stay in sync with retakes.
+// All read the IS_TEST_RESULTS binding so they stay in sync with retakes —
+// and with live hydration, which replaces that object's contents in place
+// (test-definitions.js). It was `window.IS_TEST_RESULTS` until the D39
+// conversion; the global has no readers now and data/live.ts stopped
+// writing it.
 
 const { useState: usePTV } = React;
 
 // shared: pull a test result + its sorted dims
 function ptvResult(testKey) {
-  const R = (window.IS_TEST_RESULTS || {})[testKey];
+  const R = IS_TEST_RESULTS[testKey];
   if (!R) return null;
   return R;
 }
@@ -31,7 +37,7 @@ function TestHeroRow({ R, accent, taken }) {
         display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', lineHeight: 1,
       }}>
         <span style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 24, letterSpacing: '-0.02em' }}>{top.value}</span>
-        <span style={{ fontFamily: 'var(--sans)', fontSize: 9.5, fontWeight: 700, letterSpacing: '0.06em', opacity: 0.7, marginTop: 2 }}>/ 100</span>
+        <span style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 700, letterSpacing: '0.09em', marginTop: 2 }}>/ 100</span>
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 700, color: 'var(--ink-3)', letterSpacing: '0.09em', textTransform: 'uppercase' }}>Strongest</div>
@@ -65,7 +71,7 @@ function AttachmentCard({ accent }) {
       <TestHeroRow R={R} accent={a} />
       <div style={{ marginTop: 16, paddingTop: 16, borderTop: '0.5px solid var(--rule)', display: 'flex', flexDirection: 'column', gap: 13 }}>
         {[...R.dims].sort((m, n) => n.value - m.value).map(d => {
-          const t = ((window.IS_TEST_AVG || {}).attachment || {})[d.id];
+          const t = (IS_TEST_AVG.attachment || {})[d.id];
           return (
             <div key={d.id} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <span style={{ width: 74, flexShrink: 0, fontFamily: 'var(--sans)', fontSize: 13.5, fontWeight: 600, color: 'var(--ink)' }}>{d.label}</span>
@@ -121,7 +127,7 @@ function ValuesTiltCard({ me, accent }) {
   const a = accent || 'var(--c-people)';
   const morals = me.morals || {};
   // "most people" baseline, from the saved-test averages (0..100 → −100..100)
-  const avg = (window.IS_TEST_AVG || {}).values || {};
+  const avg = IS_TEST_AVG.values || {};
   const typ = (id) => (avg[id] != null ? avg[id] * 2 - 100 : null);
 
   const clamp = (n) => Math.max(0, Math.min(100, n));
@@ -166,7 +172,7 @@ function ValuesTiltCard({ me, accent }) {
             return {
               fontFamily: 'var(--sans)', fontSize: 12.5, whiteSpace: 'nowrap', letterSpacing: '0.01em',
               fontWeight: isLean ? 700 : 500,
-              color: isLean ? a : 'var(--ink-3)', opacity: isLean ? 1 : 0.7,
+              color: isLean ? a : 'var(--ink-3)',
               transition: 'color .15s',
             };
           };

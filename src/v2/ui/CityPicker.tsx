@@ -82,9 +82,13 @@ function CityPicker({ value, onChange, inputStyle }: CityPickerProps) {
     return () => document.removeEventListener("pointerdown", onDown);
   }, [open]);
 
+  // The blank-state hint (D90): the clock's country, once per catalogue.
+  // "" — no zone, or a zone city the catalogue does not know — keeps the
+  // world's population order.
+  const hint = React.useMemo(() => (places ? PLACES.regionHint(places) : ""), [places]);
   const results = React.useMemo(
-    () => (places ? PLACES.search(places, q, 40) : []),
-    [places, q],
+    () => (places ? PLACES.search(places, q, 40, hint) : []),
+    [places, q, hint],
   );
   React.useEffect(() => { setHi(0); }, [q]);
 
@@ -149,7 +153,11 @@ function CityPicker({ value, onChange, inputStyle }: CityPickerProps) {
     fontFamily: "var(--sans)", color: "var(--ink)", background: "var(--surface)",
     border: CP_LINE, borderRadius: 10, outline: "none", WebkitAppearance: "none",
     appearance: "none", boxSizing: "border-box", width: "100%", minWidth: 0,
-    fontSize: 15, padding: "8px 11px", ...inputStyle,
+    padding: "8px 11px", ...inputStyle,
+    // AFTER the spread on purpose: a caller passing a smaller size would
+    // hand iOS a reason to zoom the whole app on focus (styles.css
+    // § --field-size). Everything else here stays overridable.
+    fontSize: "var(--field-size)",
   };
 
   if (!open) {
@@ -178,8 +186,12 @@ function CityPicker({ value, onChange, inputStyle }: CityPickerProps) {
 
   return (
     <div ref={boxRef} style={{ position: "relative" }}>
+      {/* aria-activedescendant: without it `hi` is a background colour, so a
+          screen-reader user hears nothing as the highlight moves and Enter
+          commits a city whose name was never announced. */}
       <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={onKeyDown}
         role="combobox" aria-expanded aria-controls="citypicker-list" aria-autocomplete="list"
+        aria-activedescendant={results[hi] ? `citypicker-opt-${results[hi].country}-${results[hi].name}` : undefined}
         aria-label="Search cities" placeholder="Search cities…" style={base} />
       <div role="listbox" id="citypicker-list" style={{
         position: "absolute", zIndex: 40, left: 0, right: 0, top: "calc(100% + 4px)",
@@ -192,7 +204,9 @@ function CityPicker({ value, onChange, inputStyle }: CityPickerProps) {
         {locateSupported() && !q && (
           <div style={{ borderBottom: CP_LINE, padding: "9px 13px" }}>
             {suggest ? (
-              <button type="button" onPointerDown={(e) => { e.preventDefault(); pick(suggest.place); }}
+              <button type="button"
+                onPointerDown={(e) => { e.preventDefault(); }}
+                onClick={() => pick(suggest.place)}
                 style={{ display: "block", width: "100%", textAlign: "left", cursor: "pointer",
                   border: "none", background: "transparent", padding: 0,
                   fontFamily: "var(--sans)", fontSize: 14, fontWeight: 700, color: "var(--ink)" }}>
@@ -202,7 +216,9 @@ function CityPicker({ value, onChange, inputStyle }: CityPickerProps) {
                 </span>
               </button>
             ) : (
-              <button type="button" onPointerDown={(e) => { e.preventDefault(); void locate(); }}
+              <button type="button"
+                onPointerDown={(e) => { e.preventDefault(); }}
+                onClick={() => { void locate(); }}
                 disabled={locating}
                 style={{ display: "block", width: "100%", textAlign: "left",
                   cursor: locating ? "default" : "pointer", border: "none", background: "transparent",
@@ -217,25 +233,31 @@ function CityPicker({ value, onChange, inputStyle }: CityPickerProps) {
           </div>
         )}
         {err && (
-          <div style={{ padding: "12px 13px", fontSize: 13, fontWeight: 600, color: "oklch(0.5 0.19 25)" }}>
+          <div role="status" style={{ padding: "12px 13px", fontSize: 13, fontWeight: 600, color: "oklch(0.5 0.19 25)" }}>
             Couldn&apos;t load the city list. Close and try again.
           </div>
         )}
         {!err && !places && (
-          <div style={{ padding: "12px 13px", fontSize: 13, fontWeight: 500, color: "var(--ink-3)" }}>Loading…</div>
+          <div role="status" style={{ padding: "12px 13px", fontSize: 13, fontWeight: 500, color: "var(--ink-3)" }}>Loading…</div>
         )}
         {!err && places && !results.length && (
-          <div style={{ padding: "12px 13px", fontSize: 13, fontWeight: 500, color: "var(--ink-3)", lineHeight: 1.5 }}>
+          <div role="status" style={{ padding: "12px 13px", fontSize: 13, fontWeight: 500, color: "var(--ink-3)", lineHeight: 1.5 }}>
             No match. The list holds cities above ~50,000 people plus every
             capital — pick the nearest one.
           </div>
         )}
         {!err && results.map((p, i) => (
-          <button key={`${p.country}/${p.name}`} type="button" role="option" aria-selected={i === hi}
+          <button key={`${p.country}/${p.name}`} type="button" role="option"
+            id={`citypicker-opt-${p.country}-${p.name}`} aria-selected={i === hi}
             onPointerEnter={() => setHi(i)}
-            // pointerdown, not click: the outside-tap handler above runs on
-            // pointerdown and would close the list before click fired.
-            onPointerDown={(e) => { e.preventDefault(); pick(p); }}
+            // preventDefault on pointerdown, ACT on click. The outside-tap
+            // handler above runs on pointerdown and would close the list
+            // before click fired — hence the first half. Acting there too
+            // made these dead to the keyboard and to assistive tech, which
+            // activate by dispatching a synthesized CLICK and never a
+            // pointer event. Mouse and touch emit both, in this order.
+            onPointerDown={(e) => { e.preventDefault(); }}
+            onClick={() => pick(p)}
             style={{
               display: "block", width: "100%", textAlign: "left", cursor: "pointer",
               border: "none", borderBottom: CP_LINE, padding: "9px 13px",

@@ -4,6 +4,8 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import { Kicker } from './primitives.jsx';
+import { IS_TEST_AVG, IS_TEST_RESULTS } from './test-definitions.js';
 
 // ─── Test result visualizations — one unified language for every test ───
 // "Radar": a polygon plotted across one axis per dimension; the filled shape
@@ -75,10 +77,10 @@ function VizRange({ R, accent, compact }) {
 
 // ── Saved-result card (reusable) — dial + colour-keyed legend ──
 function TestVizCard({ testKey, accent }) {
-  const R = (window.IS_TEST_RESULTS || {})[testKey];
+  const R = IS_TEST_RESULTS[testKey];
   if (!R) return null;
   const a = accent || R.accent;
-  const avg = (window.IS_TEST_AVG || {})[testKey] || {};
+  const avg = IS_TEST_AVG[testKey] || {};
   const Rx = { ...R, dims: R.dims.map(d => ({ ...d, avg: avg[d.id] })) };
   return (
     <div className="card" style={{ marginBottom: 14 }}>

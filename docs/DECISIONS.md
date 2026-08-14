@@ -144,6 +144,26 @@ worth buying before invites are a growth loop rather than a test
 convenience — it attaches to the same hosting target with no code change
 beyond `LP_SITE` in `LivePrivacyPanel.tsx`.
 
+**Amendment (2026-08-03) — reconsidered against the fake-user worry, and
+two facts measured.** The owner asked whether anonymous sign-in is at
+odds with the fake-account defense, pre-launch being the last cheap
+moment to change course. The analysis, recorded so the question stays
+answered: identity requirements are a *weaker* defense than what is
+built — emails and Google accounts are farmable in minutes, while D29
+binds counted answers to device attestation (one physical device, a
+bounded number of accounts) and D36 binds callables to the real app
+binary. Requiring accounts would also create the PII surface the product
+defines itself against (D1/D8 posture, the store listing's "no account
+required", the erasure story) while buying nothing attestation does not
+already buy better. D3 stands; the escalation path if attestation ever
+proves insufficient is tightening device-bind (D37's levers), not
+identity. Measured the same day: the **Anonymous provider was never
+enabled in prvfire33** (`accounts:signUp` → `ADMIN_ONLY_OPERATION` with
+the valid public key) — every doc that said "keep Anonymous enabled"
+assumed a state that did not exist. Runbook step 1.3 and SHIP-CHECKLIST
+§2 corrected from "confirm" to "enable"; the scorecard fetch (D33 Phase
+A) waits on the same toggle.
+
 ## D7 · Backend scale ceilings — recorded, not engineered around
 
 **Decision.** Fix what breaks at any size; write down what breaks at scale
@@ -306,6 +326,18 @@ its own, which is the standard exemption. **This declaration must be
 revisited if the app ever ships custom crypto** — local encryption of
 cached answers, for instance — because it is an attestation on every
 upload, not a note.
+
+**Amendment (2026-08-13) — the wall exists, on the test track only (D134).**
+`VITE_REQUIRE_SIGNIN=true` puts a Google sign-in in front of the app before
+it can be used. That is the thing this record says never to build, and it is
+scoped to the build that sets the flag — `ios-release.yml`, i.e. TestFlight.
+The public build's answer is unchanged and the flag is how it stays
+unchanged: dropping the wall is a repository variable, not a diff.
+
+The mechanism is still this decision's, which is why the cost is a tap and
+not a history: `initLive()` has already signed the session in anonymously by
+the time the gate paints, so the button LINKS — same uid, every answer kept.
+D134 has the argument for why a test build is the one place it is worth it.
 
 ## D4 · The v1 shelf, and the legacy boundary
 
@@ -534,6 +566,18 @@ as deployed infrastructure. It now says what is true.
 > why the geohash Near was not revived — but any sentence below claiming
 > the app never asks for location is now false. The store label is Coarse
 > Location.
+>
+> **Narrowed again by [D92](#d92--a-standing-location-grant-fills-the-city-in--suggested-never-applied-narrows-to-the-no-grant-state)
+> (2026-08-11).** "A located city is suggested, never applied" now holds
+> only while the Right-now counter (D84) is off. With the counter on — an
+> explicit, revocable location grant — Near resolves and applies the city
+> itself, still saving only the name.
+>
+> **Partially reversed by [D111](#d111--near-and-city-are-two-stops-again-presence-is-not-a-place)
+> (2026-08-12).** The *fold* is unwound: City is its own live stop again
+> and Near is the D84 counter alone. Everything else here survives — the
+> city as the unit, the catalogue, the coarse on-device locate and D92's
+> standing-grant apply all moved to the City stop unchanged.
 
 
 **Decision.** The Mirror's Near population is the city the user **picks from
@@ -3025,6 +3069,16 @@ Check token exists to send.
   the call that checklist step is written around, which makes this the one
   exemption that must not be "tidied up" without rewriting the seeding
   procedure first.
+
+  > **Amendment, 2026-08-06.** "From a browser console" was never true. The
+  > app has no browser build — hosting serves `web/` (home, join, privacy,
+  > terms) and the app ships as the native iOS shell — so the caller this
+  > exemption was granted for did not exist. **The exemption stands
+  > unchanged**, and for the same reason: the seed is now invoked by the
+  > *Seed content* workflow (`scripts/seed-content.mjs`), which carries no
+  > App Check token either. Only the description was wrong, in all three
+  > places it was written down — here, `check-appcheck.mjs` and
+  > `functions/src/v2.ts`.
 - `revealDuelsNowV2` — the scheduled scan's manual lever, reached from a
   console during an incident (DEPLOYMENT.md → rollback) and by the e2e. A
   control that fails when it is most needed is not a control.
@@ -3379,3 +3433,11267 @@ the candidates: the data layer's weak spots are `live.ts` (58% statements,
 and `push.ts` at zero — the latter two by nature, since D9's four location
 failure paths were driven in a real browser rather than in jsdom. Extract
 against that report, one module per change.
+
+---
+
+## D39 · The spec-layer migration gets a meter, and two figures get a gate
+
+**Date:** 2026-08-03 · **Status:** Adopted
+
+**Decision.** `check:globals` gains a fourth rule: the number of
+cross-module shared-global references, counted **per file**, may only go
+down. The baseline is 799 sites across 57 files. New coupling fails CI;
+removed coupling also fails, asking for the baseline to come down with it.
+
+### Why a ratchet and not a plan
+
+`src/v2/README.md` has carried a "Migration path (Phase 2+)" section since
+the port landed, and `CLAUDE.md` calls the shared-global convention
+"deliberate and temporary". Thirty-eight records later it is neither
+finished nor started. Nothing measured it, so there was never a moment
+where anyone had to notice.
+
+The uncomfortable part is that the four existing guards are *why*. Each one
+absorbs a class of bug the convention creates — dangling references,
+forgotten imports, undefined JSX tags, globals that exist but are wrong at
+render time — and together they make the layer survivable enough to keep
+indefinitely. That is a good outcome for correctness and a bad one for the
+migration: the guards removed the pain that would otherwise have argued for
+leaving. Rule 4 is the counterweight, and it is the smallest thing that
+could be: not a deadline, not a target number, only a direction.
+
+### What it counts, and why the mechanism needs no bookkeeping
+
+Every site where a file reads a name **another** file in the scanned set
+assigns to global scope — `window.LIVE`, `<Chip/>`, `globalThis.DUELS`.
+That is the coupling itself rather than a proxy for it.
+
+The scanner already suppresses a JSX reference when the file declares the
+name locally, and an `import { Chip }` is a local declaration. So
+converting a consumer to a real import drops its sites to zero on its own,
+with nothing to update by hand. Verified by performing both mutations
+before trusting the rule: adding `window.DUELS` to `vote-cuts.js` fails it
+upward (1 → 2), and rewriting `logic-test.jsx`'s `window.LOGIC_GEN` as an
+import fails it downward (1 → 0) with the replacement literal printed.
+
+### The order this implies, which is not the order intuition gives
+
+The graph was measured rather than guessed: 81 files, 319 owned globals,
+230 file→file edges, 20 cycles. It is not uniformly tangled. **28 files are
+pure providers** — consumed by others, depending on nothing themselves —
+and those can convert with no load-order risk at all, `primitives.jsx` (22
+consumers) first. Each moves as an `export` plus a `globalThis.X = X`
+compat line, so unconverted consumers keep working and the count does not
+move until they follow.
+
+The cycles are the part to leave alone, and they cluster on
+`daily-split.jsx`, `test-definitions.js` and `app-shell.jsx`. ESM handles
+cyclic value bindings badly and fails at render, which is this layer's
+worst class of bug. Those dissolve by extraction into `data/` — the move
+`deck.ts` and `groupPortrait.ts` already demonstrate — not by conversion in
+place.
+
+### And the figures gate, for the fourth instance of one error
+
+`npm run check:figures` holds README.md's quoted test counts equal to the
+suites. It exists because the count said **40 in two places while the rules
+suite ran 44**.
+
+That is the fourth instance of a single failure: the spec layer's
+suppression count went stale twice (42, then 27) — the second time inside
+the paragraph explaining that it is quoted inline *because* it had gone
+stale before — and the a11y baseline once (19 after a pass took it to 11).
+D35 closed those three by making `check:a11y` recompute them. The lesson
+generalises and had not been generalised: a number that lives in prose and
+in the tree needs something holding them equal, and a paragraph asking
+people to keep it current is not that something.
+
+It is a separate script rather than a fifth job for `check-a11y.mjs`,
+because a doc mismatch reported by a gate named "a11y" reads as an
+accessibility regression — the confusion that script's own header warns
+about. It is on `ci.yml` and deliberately **not** on `backend-checks.yml`:
+a stale README figure says nothing about whether a rules fix is safe to
+deploy, and nothing that cannot answer that question gets to block one.
+
+Coverage percentages are out of scope and the script says so — they need a
+full coverage run, and the prose already hedges them as "what it says
+today".
+
+---
+
+## D7 amendment (2026-08-03) · The retry-logging trigger now has an instrument
+
+D7 names the condition for revisiting the sharding decision: "when
+`onV2AnswerCreated` starts logging transaction retries." **It never logged
+them**, and `docs/DEPLOYMENT.md` separately claimed the error alert was how
+that signal reached anyone. Both were describing a path with no source at
+either end.
+
+Contention is not an error. Firestore's SDK retries an ABORTED transaction
+inside `runTransaction`; the write commits, nothing is logged above INFO,
+and a policy filtering `severity>=ERROR` cannot match the condition however
+severe it gets. The only place a retry is visible is inside the callback,
+by counting its own invocations — which is what `runAggTransaction`
+(`functions/src/v2.ts`) now does, logging at three attempts with the `qid`
+attached. Three, not two: one attempt is the normal case and two is
+ordinary interleaving.
+
+`monitoring/onV2AnswerCreated-contention.json` and a log-based metric turn
+that into an alert; both are applied by hand, like the error policy, and
+for the same reason (the deploy service account has no monitoring role).
+
+**A correction to this record's own framing while here.** D7 says of the
+uniform publish cadence: "the public mirror is not rewritten on every
+answer — it publishes every 5th, cutting writes to `pubRef` by ~80%." True,
+and it reads as though the ceiling moved. It did not. `privRef` is written
+on **every** answer inside the same transaction, and a transaction is
+bounded by its most contended document, so the ~1 write/sec/question
+ceiling is exactly where the arithmetic above puts it. `PUBLISH_EVERY`
+bought a disclosure fix and a cost reduction, not headroom.
+
+**What would move it**, when the instrument says it is time: shard
+`v2_aggs_private/{qid}` alone. D7 priced sharding as XL on the basis of "N
+shard docs, a periodic roll-up, a new scheduled function, a deploy-allowlist
+edit" — but two of those four fall away if only the private document is
+sharded, because the publish path already runs 1-in-5 and is already the
+only reader of the total. It sums the shards there. No roll-up job, no new
+function, no allowlist entry. At N=10 the cost is ~2 extra reads per answer
+amortised for 10× the headroom, and the e2e's exact-count assertions need
+one helper rather than two rewrites. Still not worth doing at zero users;
+worth recording as an M rather than an XL, so the decision is made against
+the real price.
+
+### D39 amendment (2026-08-03) · `primitives.jsx` is converted, and the ratchet had a hole
+
+The first module is off the bridge. `primitives.jsx` — the layer's most
+consumed provider, and one that depends on nothing itself — now exports its
+eleven names and **publishes nothing to `globalThis` at all**. All 24
+consumers import them. **799 → 755.**
+
+**The compat line this record recommended turned out to be unnecessary**,
+and that is worth carrying forward rather than quietly dropping. D39 says to
+export with `globalThis.X = X` beneath so unconverted consumers keep
+working. That is the right shape when the consumer set is open-ended; here
+it was closed — 24 files, all in `spec/`, with the only other mentions of
+these names being three comments in `ui/` and `test/`. Checking that first
+turns a two-step migration into a one-step one, and avoids leaving dead
+compat behind. The rule to carry: grep for the full consumer set before
+assuming a bridge is needed.
+
+### The hole, found by doing the work rather than by review
+
+`daily-split.jsx` renders `h(Sheet, {…})` — a cross-module reference
+written through a `React.createElement` alias. **Rule 3 could not see it**
+(not a JSX tag), **rule 1 could not see it** (not `window.X`), and so
+**rule 4 did not count it**. Only `no-undef` was watching, and `no-undef`
+counts nothing.
+
+That is worse than an undercount by one. A ratchet whose job is that the
+number cannot go up was bypassable by writing the reference in a different
+syntax. The scanner now matches `h(Capitalised…)` the same way it matches a
+tag, with the same local-declaration suppression.
+
+Fixing it exposed a second scanner defect underneath, which is why the
+first one mattered: `const st = this.state, h = React.createElement, F =
+React.Fragment;` declares `F` locally, but the local-name scan only ever
+looked at the **first** declarator in a list, so `h(F, …)` immediately
+reported `F` as an undefined global. Per this repo's standing rule — if a
+gate fires on a legitimate name, fix the scanner, never add an exception —
+the declarator-list case is now handled. Neither defect changed the count
+(both names resolve locally), so the baseline is unaffected; what changed
+is that the count can no longer be avoided.
+
+### Two gates, and neither covers both reference styles
+
+Verified by deleting an import and watching which gate failed:
+
+| reference | caught by | why not the other |
+| --- | --- | --- |
+| `<Sheet/>` | `check:globals` rule 1 | base `no-undef` does not treat JSX tag names as identifier references |
+| `useDialog(…)` | eslint `no-undef` | rule 1 only matches `window.X`, and rule 3 only capitalised tags |
+
+Worth stating because the obvious assumption — that `npm run lint` going
+green means no bare references survive a conversion — is false, and it was
+the assumption in play when `result-card.jsx`'s two `window.Av` sites went
+unconverted. Lint passed; `check:globals` caught them.
+
+Those two were a defensive guard, `{window.Av ? … <window.Av /> …}`, which
+only existed because load order could leave the global unset. An import
+cannot be unset, so the guard was deleted rather than rewritten — the
+conversion removes the condition, not just the prefix.
+
+**The figure in `src/v2/README.md` is gate-checked**, in
+`check-spec-globals.mjs` rather than in `check-figures.mjs`, because that
+script owns the count and a second implementation of it would be the drift
+the gate exists to prevent.
+
+### D39 amendment (2026-08-03, later) · `sample-data.js` converted — 755 → 726
+
+The second module off the bridge, and the layer's largest data module (719
+lines). `IS_DATA` and `fmtPop` are exports; nothing assigns to `window`.
+`scenes.js` is now the first file in `spec/` with **no cross-module global
+references at all**, which is the shape the migration is aiming at one file
+at a time.
+
+Two differences from `primitives.jsx`, both of which generalise:
+
+**The consumer set was not closed.** `test/smoke.test.jsx` reads `IS_DATA`
+to pick a real person and city for its overlay cases — using the fixture
+rather than hardcoding a name, deliberately, so the test does not silently
+stop finding anybody when the sample data is edited. So the conversion
+reached into `test/`. The previous amendment's rule stands and gets sharper:
+grep `ui/`, `data/`, `test/` and `main.jsx` before assuming a provider's
+consumers live only in `spec/`, because that answer is what decides whether
+a compat line is needed at all.
+
+**Every reference was `window.IS_DATA`, not a bare name.** Nine carried
+`(window.IS_DATA || {})` or `window.IS_DATA?.` — the same
+might-not-be-loaded guard `result-card.jsx` had around `Av`, and dead for
+the same reason: an imported const cannot be unset, and `sample-data.js`
+depends on nothing, so no cycle can put it in TDZ. Removed. The **inner**
+`|| []` / `|| {}` on `.groups`, `.people`, `.me` stayed — those guard
+missing data rather than a missing module, and conflating the two would
+have deleted real defensive code.
+
+That distinction is the one to carry: converting a provider removes the
+load-order condition, never the data condition.
+
+**The bundle number moved and it is not a win.** Entry chunk 853 → 818 KB,
+because `sample-data` became its own chunk — one that first paint still
+preloads, since `app-shell` imports it eagerly. Total JS is unchanged at
+1529 KB. This is exactly the case `check:bundle`'s header predicts ("a
+per-chunk limit alone is dodged by splitting one large chunk into two
+merely-large ones"), and the reason it asserts a total as well. Recorded so
+that the extra headroom under the 850 KB ceiling is not read as room that
+was earned.
+
+### D39 amendment (2026-08-03, third) · `daily-questions.js` — 726 → 708
+
+The first conversion where the module was **not** a pure provider, and the
+first where the conversion removed a real fragility rather than a syntax.
+
+**It is not a leaf, and that did not matter.** `daily-questions.js` reads
+`window.LIVE` in three places, so unlike `primitives.jsx` and
+`sample-data.js` it carries outgoing coupling of its own — which stays.
+Converting what a module *provides* is independent of what it *consumes*;
+the earlier records' "providers that depend on nothing" ordering is about
+load-order risk being zero, not a precondition. Do not wait for a module to
+be a leaf before exporting from it.
+
+**The IIFE.** `window.DAILYQ = api` sat inside a `(function(){…})()`
+wrapper, so `api` was not reachable at module top level. The wrapper is
+vestigial — an ESM module already has its own scope, and it is what this
+file needed when every module shared one — but unwrapping it re-indents 480
+lines and would bury four real edits in a whitespace diff. So the binding is
+hoisted (`export let DAILYQ;` above, assigned inside) rather than the
+wrapper removed. ESM exports are live and the module finishes evaluating
+before any importer's body runs, so a consumer never sees the hole. Recorded
+because the next IIFE-wrapped module should get the same treatment and not a
+reflexive de-indent.
+
+### The fragility this one removed
+
+`map-branches.js` reads `DAILYQ.EMERGENT_CATS` at **module-evaluation
+time** — not in a component, not on an event — to merge seven topical
+categories into the Map's category list. It worked only because
+`spec-index.js` lists `daily-questions.js` fifth and `map-branches.js`
+eleventh. Swapping those two lines would have dropped all seven categories
+**silently**: the old code was `if (window.DAILYQ && Array.isArray(…))`, so
+an unset global meant the merge simply did not happen, with no error
+anywhere and a Map that looked plausible.
+
+That is precisely the failure class CLAUDE.md describes the spec layer's
+load order as carrying, and it is now a module-graph guarantee instead of a
+property of a list nobody may reorder. The presence half of that guard is
+gone with it; the `Array.isArray` half stays, per the rule from the
+`sample-data.js` amendment — a conversion removes the load-order condition,
+never the data one.
+
+**Verified by probe rather than by reasoning**, since a silent no-op is the
+exact failure: all seven (`top-sport`, `top-film`, `top-food`, `top-travel`,
+`top-mind`, `top-morals`, `top-music`) still merge into `MapLens.CATS`
+after the change.
+
+Entry chunk 818 → 793 KB, same relocation-not-saving as the last one —
+total JS unchanged at 1529 KB across 34 chunks.
+
+### D39 amendment (2026-08-03, fourth) · `world-catalogs.js` — 708 → 691, and the meter was overcounting
+
+Two independent things, worth separating because only one of them is the
+tree improving.
+
+**Half the module converts.** `world-catalogs.js` assigns two names and only
+one is its export. `WF_CATALOGS` is a plain data object with a single
+writer; it converted like the others, and all six consumer sites in
+`world-feed.jsx` carried the same `(window.WF_CATALOGS || {})` load-order
+guard, now gone.
+
+`WORLD_FEED_QS` did **not** convert, deliberately. It has four writers:
+`world-feed-data.js` creates the pool, this file and `world-subtopics.js`
+append to it, and `data/live.ts` replaces it wholesale in live mode — which
+is how D11's guarantee that demo catalogue cards never reach live surfaces
+is implemented. Making that an ESM export means designing an owning module
+with an add/replace API and moving four writers onto it, across the
+live/demo boundary. That is a design change, not a conversion, and it does
+not belong in a batch of mechanical ones. The append site now carries that
+reasoning inline so the next person does not have to re-derive it.
+
+**The ratchet was overcounting, and this is how it surfaced.** `definedBy`
+was a first-assignment-wins map, so a multi-writer global got one arbitrary
+owner decided by `readdir` order. `world-catalogs.js` sorts before
+`world-feed-data.js`, so it was recorded as owning `WORLD_FEED_QS` — and
+`world-feed-data.js`'s five reads of **the global it creates itself** were
+counted as coupling to a file that merely appends to it. Same for
+`world-subtopics.js`.
+
+It is now `Map<name, Set<file>>`, and rule 4 asks "does this file assign
+this name?" — a question that still has an answer when several files do.
+**11 of this change's 17-site drop are that correction**, not converted
+code.
+
+Recorded at this length because of what the failure was: a ratchet
+miscounting in the *flattering* direction is the one error it cannot report
+about itself. The number went down for a reason that was not progress, and
+the only thing standing between that and a quietly wrong meter was someone
+reading the attribution while doing an unrelated conversion. The first
+multi-writer global to be converted would have moved the count in the wrong
+direction and looked like a regression.
+
+### D39 amendment (2026-08-03, fifth) · `follows.js` — 691 → 673, and a guard shape the earlier conversions missed
+
+`FRIENDS` is IIFE-wrapped like `DAILYQ` and took the same hoisted
+`export let`. Its 18 sites across four consumers were unusually dense in
+presence guards — six of them — and one was another module-scope read:
+`duels-data.js` ends with `FRIENDS.subscribe(fire)`, which is what makes a
+befriend or unfriend ripple into duos and groups. It was written
+`if (window.FRIENDS) window.FRIENDS.subscribe(fire)`, so reordering
+`spec-index.js` would have dropped the subscription **silently** — the same
+failure `map-branches.js` carried, in a different feature. Probed rather
+than reasoned about: inviting a friend still fires the DUELS listeners.
+
+**A miss from the `sample-data.js` conversion, found and fixed here.** That
+change removed the `(window.IS_DATA || {})` and `window.IS_DATA?.` shapes by
+explicit rewrite and then renamed the rest in bulk. That left four sites
+reading `(IS_DATA && IS_DATA.people) || []` — dead for the same reason the
+others were, and invisible to every gate in the tree, because a redundant
+`&&` is valid code that computes the right answer.
+
+Worth recording as a method correction rather than a typo. The guard shapes
+are a **list**, not a pattern:
+
+    (X || {})      X?.        X ? … : …
+    !X || …        X && …     if (X) …
+
+Grep the name and read every site. A bulk rename is the right tool for the
+reference itself and the wrong tool for the conditions around it, and
+nothing downstream will tell you — `check:globals` sees no coupling, eslint
+sees valid code, and the tests pass because the guard evaluates true.
+
+### D39 amendment (2026-08-03, sixth) · `result-rose.jsx` — 673 → 657, and the seam is exhausted
+
+Four exports (`RP_TESTS`, `RoseMini`, `PoleRows`, `TestRose`), sixteen
+sites, and all seven `(window.RP_TESTS || {})` guards.
+
+**Half its globals had no consumers.** `RosePetals`, `rpPetal`, `rpDeep`
+and `rpDot` were on `window` because the port registered every top-level
+declaration, not because anything read them. As a real module they are
+private, so this removed **eight** names from the global namespace to
+export four. That ratio should be expected again: the bridge published
+everything, so a converted module usually exports fewer names than it used
+to publish. Global count across the layer is now 310, from 334 when the
+ratchet landed.
+
+### Where this stops, and why
+
+Six providers converted, 799 → 657 (**18%**). The pure-provider list is now
+empty, and the remaining 657 references are not more of the same work.
+
+They are concentrated in files that are **consumers**, not providers:
+`world-feed.jsx` (165), `daily-split.jsx` (79), `app-shell.jsx` (51),
+`mirror-field-pops.jsx` (33), `map-tab.jsx` (30), `test-overlay.jsx` (27).
+Their providers are the cycle cluster — `test-definitions.js`,
+`passive-progress.js`, and `daily-split.jsx` itself, which is both. An ESM
+cycle fails at render with a temporal-dead-zone error, and a render-time
+failure in ported JSX is precisely this layer's worst bug class and the
+reason four guards exist.
+
+So the next step is **not** another conversion. It is the extraction this
+record already names: `passive-progress` and `test-definitions` are a store
+and a schema, neither needs JSX, and moving them to `data/` as typed tested
+modules dissolves both cycles as a side effect. That is a different size of
+change and wants planning, not momentum.
+
+**What the six conversions actually bought**, stated plainly so the next
+decision is made on evidence:
+
+- Three live load-order landmines removed — module-scope reads behind
+  presence guards, where reordering `spec-index.js` would have silently
+  dropped a feature with no error: `map-branches.js` (seven map
+  categories), `duels-data.js` (circle changes rippling into duos and
+  groups), and `world-feed-data.js`'s pool ordering, which is now a
+  dependency rather than a comment.
+- Three defects in the gate itself: the `h(Foo, …)` blind spot, the
+  multi-writer mis-attribution that overcounted by 11, and the
+  declarator-list local-name miss.
+- 24 dead load-order guards deleted, and 24 names off `window`.
+- **No behaviour change, no bundle saving, no user-visible effect.** Entry
+  chunk moved 858 → ~790 KB and total JS did not move at all; that is
+  chunking, not weight.
+
+The honest read: this was worth doing at the price it cost, because each
+conversion was an afternoon and each surfaced something real. The next
+tranche costs considerably more and surfaces less, and this project's
+binding constraint is a launch checklist with unticked device verification,
+not the elegance of its module graph. The ratchet is what makes stopping
+safe — the number cannot go back up, so the work can resume opportunistically
+(**convert on touch**: when a feature takes you into a spec file, convert
+the providers it reads first) rather than as a project.
+
+## D40 · Duels get a content lane and a question-level signal
+
+**Date:** 2026-08-03 · **Status:** Adopted (owner-directed, 2026-08-06 —
+"do the D40 duel lane"; what shipped and the deltas from this proposal
+are in the D40 adoption record at the end of this file)
+
+**Proposal.** Give the group/1v1 duel banks what every other content
+surface already has: a growth path (a lane under `docs/QUESTION-FARM.md`
+governance) and a feedback signal (a k-floored, cross-group,
+question-level aggregate written at reveal time). Four separately
+adoptable parts, smallest first.
+
+**Why duels, and why now — the arithmetic.** The 1v1 bank is 20
+questions and live rotation is `bank[(hash(gid) + utcDay) % len]`
+(`duelQFor`, `src/v2/data/deck.ts`): an active pair sees the whole pool
+in 20 days and repeats from day 21. Groups: 24 questions, repeats from
+day 25. Compare the daily surface: 90 questions (~13 weeks of runway
+with zero promotion, D30), a daily farm lane, a scorecard (D33), and a
+promotion path. Duels are the surface whose streak mechanics most
+reward daily return, and the only one with no lane, no signal, and no
+growth path — before 2026-08-03 the word "duel" did not appear in
+QUESTION-FARM.md at all. Meanwhile 20 finished romantic-mode 1v1
+questions (`DUO_QS_ROMANTIC`, `src/v2/spec/duels-data.js`) sit
+spec-only, unreachable by the live app.
+
+### Part 1 — single-source banks (the read side is taken)
+
+`src/v2/spec/duels-data.js` now imports `content/duel-questions.json`
+for `GROUP_QS`/`DUO_QS` instead of carrying hand-duplicated copies —
+the D32 learn-data shape, landed alongside this record after verifying
+the spec arrays were byte-identical to the JSON (group) or identical
+minus the seed's `id` fields (1v1, which the demo never reads: its duo
+state keys on the partner, not the question). This is a pure
+consolidation, no behavior change, and it is the precondition for any
+lane: a lane that writes two copies of a bank is a drift generator.
+
+### Part 2 — a duel lane (single gate, learn-style)
+
+`content/duel-questions.json` seeds production on the next reseed, so —
+exactly as D32 recorded for learn cards — a merged duel-question PR IS
+the production review; one gate, production-level bar. Lane rules on
+adoption (to be written into QUESTION-FARM.md as the contract):
+budget-capped (suggest ≤4/run, at most weekly to start), append-only at
+the end of each array (group order is rotation order — interleaved,
+never sorted; 1v1 order is the spec ladder's light → deep, so deep
+questions append naturally), ids continue each series, and every farm
+hard rule inherits: dedup against both banks, the product's voice, no
+place-scoped questions, PR-only output, run log on issue #31. Duel-bank
+growth shifts future rotation only (D30: reveal docs store the answered
+qid, so history never remaps).
+
+### Part 3 — the signal (the real decision in this record)
+
+Duel answers never reach `v2_question_aggs` — the aggregate trigger
+short-circuits group/duo answers into the sealed reveal path
+(`functions/src/v2.ts`), which is correct and stays. The proposal is a
+separate, deliberately smaller aggregate written where the answers are
+already being read anyway: at reveal time, `revealGroupDay` increments
+a per-question document — plays, per-option counts, and for 1v1 the
+guess-match count — aggregated across ALL groups, k-floored with the
+same `AGG_MIN_N`/`tooSmall` discipline as every published number.
+
+What it may never contain: gids, uids, names, member sets, per-group
+anything, or anything below the floor. The privacy arithmetic: every
+input is a vote the group's own members already see with names attached
+at reveal; the aggregate is strictly less revealing than the reveal
+itself, summed across groups and floored — the same "the floor did the
+privacy work" argument D33 recorded for the scorecard. The cost
+arithmetic: zero extra reads (the reveal transaction already holds
+every counted answer) and one extra doc write per group per day.
+
+The guess-match rate is the duel analogue of evenness: matches near
+100% mean no tension (a dead duel question), matches near chance mean
+the question has no tells (noise) — the good zone is the band between,
+"guessable if you truly know them" as a number. With this doc in
+`v2_question_aggs` (namespaced ids, e.g. `duel-<qid>`) the scorecard's
+`--fetch` already downloads it; scoring duels becomes a small
+`score()` extension, and the lane in Part 2 gets leaders and laggards
+on day one.
+
+### Part 4 — graduate the romantic pool
+
+Move `DUO_QS_ROMANTIC` into `content/duel-questions.json` under a
+`mode: 'romantic'` field, seed it, and let the live 1v1 select its pool
+by the pair's chosen mode (the spec layer's `duoMode`/`setDuoMode` is
+the reference behavior; live needs a mode on the duo doc and a picker
+in `LiveDuelPanel`). Until the mode plumbing exists, romantic entries
+must NOT be appended to the shared pool — they would rotate into
+friend-pair duels. This part doubles the 1v1 bank with content that is
+already written and reviewed.
+
+**What stays true until adoption.** QUESTION-FARM.md hard rule 2 stands:
+no scheduled run touches `content/duel-questions.json`; no duel
+aggregate exists; the romantic pool stays spec-only. Part 1 alone is
+live, because it changes no behavior and closes a real drift seam.
+
+**Alternatives considered.** Mining the sealed reveal docs offline for
+question quality — rejected: it needs production credentials and reads
+group-scoped documents, exactly what the committed-scorecard shape
+(D33) exists to avoid. Client-side duel telemetry — rejected: the
+skip/pass line (a pass is local-only; server collection is a privacy
+decision this record does not make). Doing nothing — rejected with the
+runway numbers above: repeats begin on day 21 for precisely the
+most-engaged pairs.
+
+## D41 · The two stores' account types are decided separately — Play as an organization, Apple as an individual
+
+**Date:** 2026-08-03 · **Status:** Adopted (owner-confirmed — the closed-testing
+path was rejected outright, and this write-up requested in the same exchange)
+
+**Decision.** The Google Play Console account is opened as an
+**organization** account, backed by a Norwegian enkeltpersonforetak (ENK)
+and a D-U-N-S number. The Apple Developer Program enrollment stays an
+**individual** enrollment (LAUNCH-RUNBOOK 1.1, unchanged). The account
+type is decided per store, not once for both.
+
+**Why.** Google's closed-testing requirement — 12 opted-in testers for 14
+continuous days before a production-access application, itself reviewed in
+up to ~7 days — binds **personal** developer accounts created on or after
+2023-11-13. Organization accounts, verified with a D-U-N-S number, are
+exempt from it entirely. There is no waiver, no small-developer carve-out,
+and no appeal, so the account type at creation is the whole decision.
+
+**The arithmetic.**
+
+| | Personal | Organization |
+| --- | --- | --- |
+| Closed testing | 14 continuous days, 12 testers who install *and stay opted in* | none |
+| Production access review | up to ~7 days | up to ~7 days |
+| Setup before either | none | ENK registration + D-U-N-S + Google's org verification |
+| Realistic total | 3–4 weeks | 1–3 weeks |
+| How it fails | a tester uninstalls on day 11 and the clock restarts | waiting, but nothing resets |
+
+The organization path is not reliably *faster* in the worst case — a
+D-U-N-S is free but D&B quotes up to ~30 business days, commonly ~1–2
+weeks. It is better on two axes that matter more than the median: the wait
+is parallelizable dead time rather than active recruiting, and it has no
+reset condition. The 14 days are *continuous*; dropping below 12 opted-in
+testers restarts them, which makes the personal path's 3–4 weeks a floor
+rather than an estimate.
+
+**The correction this record makes.** SHIP-CHECKLIST §3 read "launching as
+a sole trader was chosen instead (LAUNCH-RUNBOOK 1.1 — enrolling as an
+organization first costs 1–2 weeks of D-U-N-S verification for nothing
+launch needs)". That reasoning is sound and stays true **for Apple**, where
+an organization enrollment buys nothing launch needs. It was then carried
+across to Play as if it settled both stores. On Play the same 1–2 weeks buy
+the removal of a 3–4 week gate, so the trade inverts. Two stores, two
+answers, one sentence that had only considered one of them.
+
+**Do not open a personal account first.** Sources disagree on whether Play
+Console supports converting personal → organization at all; the ones that
+say it does disagree on whether the testing requirement follows the
+converted account. The clean move is to pick organization at creation,
+which makes the question moot. The account had not been opened when this
+was decided (LAUNCH-RUNBOOK 1.2 unchecked), so the option was free — it
+would not have been a week later, where the fallback is a second account
+plus an app transfer.
+
+**Precondition, and what it does not change.** An ENK is registered by
+notifying Brønnøysundregistrene via Altinn; registration in Enhetsregisteret
+is free and yields an organisasjonsnummer, which is what a D-U-N-S
+application needs. An ENK is not a separate legal person — the operator is
+still Olaf Taule — so `web/terms.html`'s operator and jurisdiction values
+stand as written. **If the ENK is registered under a business name, revisit
+that page**: the operator line should then name the entity a user would
+actually be contracting with, and `check:store-copy` cannot see the
+difference between a correct name and a stale one.
+
+**Alternatives considered.**
+
+- **Tester-exchange groups and paid tester farms** — rejected. They exist,
+  Google actively polices them, and the downside is account termination:
+  a bet that risks the account to save 14 days on it.
+- **Open testing instead of closed** — rejected as unavailable, not as
+  unattractive. The requirement names closed testing specifically; an open
+  track does not satisfy it.
+- **An existing pre-2023-11-13 developer account** — genuinely exempt, and
+  the cheapest path if one exists. Checked and none is held; recorded so
+  the option is not rediscovered as new.
+- **Shipping iOS first and deciding Play later** — not an alternative but a
+  fact that holds under either choice, and the reason this decision is not
+  urgent for the iOS date. Apple has no equivalent gate; iOS can be live in
+  ~2 weeks regardless.
+
+**Sourcing, stated because it is weaker than this file's norm.** Google's
+own support pages could not be read directly — the network policy of the
+environment this was researched from returned 403 at the proxy for every
+outbound host — so the exemption and the timelines come from search results
+and secondary write-ups, not from the primary policy page. That is enough
+to choose an account type at creation, when the choice is free; it is not
+enough to spend money on. **Confirm the exemption in the Play Console
+account-type flow before paying for a D-U-N-S expedite**, and if it turns
+out not to hold, the fallback is the 12×14 path with nothing lost but a
+wait that overlapped Apple's anyway.
+
+## D42 · InSight launches on iOS alone; Play is deferred, and the path to it gets cheaper while it waits
+
+**Date:** 2026-08-04 · **Status:** Adopted (owner-confirmed: "iphone only
+launch is fine for now")
+
+**Decision.** Ship the App Store first and alone. Google Play is deferred
+indefinitely and revisited **after** iOS has an installed base, not on a
+date. No ENK is registered, no D-U-N-S applied for, and no Play Console
+account opened until that review says to.
+
+**Why, and this is the part that is not obvious.** The two routes onto
+Play have costs that move in **opposite directions over time**, so
+deferring is not merely postponing a bill:
+
+- The **organization route** (D41) costs the same whenever it is taken:
+  an ENK, a D-U-N-S wait, and the ongoing obligation of being a
+  registered business. Constant.
+- The **12 testers × 14 continuous days** route is brutal *cold* — twelve
+  people who install and stay opted in, where a drop below twelve
+  restarts the clock — and easy once the product has users, some of whom
+  carry Android phones and will ask to be let in. **Decaying.**
+
+So a launch that finds an audience may convert the expensive option into
+the cheap one and retire D41 unused. A launch that does not find one
+saves the cost entirely. Deferring is the dominant move in both branches,
+which is why this record exists rather than a date.
+
+**What this does to D41.** Not reversed — **made conditional**. If Play is
+opened *before* there is an installed base, organization is still the
+right account type and everything in that record stands. If it is opened
+*after*, the closed-testing gate may already be satisfiable by asking
+existing users, and the organization account becomes optional rather than
+the point. Re-read D41 at that moment; do not assume either half.
+
+**The arithmetic, verified 2026-08-04** (searched, not recalled — the
+sources are linked at the foot of LAUNCH-RUNBOOK.md):
+
+| Item | Cost | When required |
+| --- | --- | --- |
+| Enhetsregisteret (the organisasjonsnummer) | free, via Altinn | always, for an ENK |
+| Foretaksregisteret | 2,832 kr, or 3,883 kr filed with the above | only for resale of purchased goods, or 5+ employees |
+| D-U-N-S | free (5–30 business days; paid expedite ≈8) | for a Play organization account |
+| Play Console | $25 one-time | — |
+
+An app resells no purchased goods, so the cash cost of the whole deferred
+path is about **$25**, not thousands. That is worth writing down plainly
+because "moderately costly" was the reason for deferring, and the fees are
+not where the cost lives. **The cost is the ongoing one**: an ENK obliges
+an annual business filing whether or not it earns. VAT does not enter yet
+— the threshold is NOK 50,000 of turnover over a rolling 12 months, and
+docs/MONETIZATION.md records that launch has no consumer paid tier and
+"nothing in this document needs to earn before the product is proven."
+
+**One link in that chain is unverified, and it is the load-bearing one.**
+Whether Google's organization verification accepts an
+Enhetsregisteret-only ENK, or wants what Foretaksregisteret provides. If
+it wants the latter, the free path collapses into the fee-bearing one and
+the table above is wrong by ~3,000 kr. Check it in the Play Console
+account-type flow before spending anything. Nothing turns on it today,
+which is exactly why it is recorded rather than resolved.
+
+**What the deferral costs, stated so none of it arrives as a surprise:**
+
+- `npm run check:store-copy` keeps reporting the
+  `REPLACE_WITH_PLAY_SIGNING_SHA256` placeholder in
+  `web/.well-known/assetlinks.json`. That is now a **known permanent
+  non-blocker**, not an unfinished task — and the reason that check is
+  deliberately not in CI.
+- Android users tapping a `/join/CODE` link get the hosted fallback page.
+  Already the designed behaviour; with no Android app it is simply the
+  only behaviour.
+- The Android shell stays in CI (`android-build`, `native-sync-drift`) so
+  it cannot rot while parked. **Do not remove those jobs to tidy up** —
+  the whole value of parking rather than deleting is that the shell still
+  compiles on the day this is revisited.
+- `check:versions` keeps `versionCode` in lockstep with an app nobody is
+  shipping. Harmless, and cheaper than special-casing it.
+
+**What it does not cost.** Nothing on the iOS path. Apple has no testing
+gate; enrollment is ~1–2 days and review usually 24–48h. The iOS date was
+never a function of Play's.
+
+**Alternatives considered.** Registering the ENK now "to have the option"
+— rejected: it buys an option whose value falls the longer it is unused,
+at the price of a permanent filing obligation. A personal Play account
+now, converting later — rejected in D41 and still rejected: conversion
+support is disputed and the fallback is a second account plus an app
+transfer. Shipping both stores simultaneously — rejected as the thing
+this whole record is about: it puts a 3–4 week Android floor in front of
+an iOS build that is otherwise ~2 weeks out.
+
+---
+
+## D43 · The v17 sync: what the prototype won, and what this repo kept
+
+**Decided:** 2026-08-04 · **Status:** binding
+
+`design/InSight_standalone_17.html` supersedes v15. The sync was done as a
+**three-way merge**, not a re-port: v15 as the base, v17 as theirs, the
+tree as ours. That is the only method that can answer the question this
+repo actually has — *which* of two differences is the change, and which is
+a decision already made here. 59 of the 79 spec modules merged clean; the
+20 that conflicted are the ones below.
+
+### What v17 changes
+
+**Navigation.** The daily's three modes leave the header and become a
+ruler in flow — World · Circle · 1v1, the same graduated axis the Mirror
+wears. Scroll past it and it docks into the header, crossfading with the
+wordmark. `navMode` keeps the other two shapes the prototype ships for
+comparison (`pill`, the old header switcher; `bar`, a flat four-item bar
+with new group/1v1 glyphs). The axis runs past its far end into the
+Mirror, and the Mirror swipes back onto 1v1.
+
+**Colour.** Every accent drops `oklch(0.55 …)` → `0.52` (gold `0.53`),
+`--ink-3` `0.55` → `0.51`, and `--ochre-ink` / `--accent-ink` arrive for
+hues that carry text. World's topic hues now pass through a per-hue
+lightness/chroma ramp (`world-palette.js`) measured against the sRGB
+boundary.
+
+**Nine new modules**, six of them pure side effects that install one
+document listener each: haptics, swipe-back, sheet-escape, sheet-drag,
+scroll-memory, edge-fade — plus `world-palette.js`, `explain-sheet.jsx`
+(one ⓘ sheet for every instrument) and `read-run.jsx`.
+
+Plus: motion on one `--rv-step` constant, signature-derived type marks,
+tests that open their saved result, per-domain 1v1 records, duel tiles
+that take photography, and a circle map that collapses to drillable discs
+past ~72 people.
+
+### What this repo kept — the twenty conflicts, and the rule behind them
+
+The rule is: **v17 wins on design, this repo wins on enforcement, and
+neither wins by default.** Concretely —
+
+| Kept from this tree | Because |
+| --- | --- |
+| `renderDuel`'s `shares` gate (world-feed) | v17 rewrote the tile around `mine != null`; the fill height IS the share, so both it and the numeral stay gated on the k-anon floor (D1). The new band and riding numeral are v17's. |
+| Every live-mode branch in `mirror-tab` | v17 restructured the tab so ONE ruler spans every stop. The four live bodies (D1/D9/D3) were rewritten to pick a *body* instead of returning their own frame — same structure, same guarantees. |
+| `mirrorStops(live)` dropping the City stop | D9. v17 has no live mode to drop it for. |
+| The `blank` "no reading yet" state (lens-cards) | Live mode has no typical-person prior; drawing null as 0 is a false claim. v17's ⓘ row sits above it. |
+| `useDialog` / `Sheet` (D24) | `explain-sheet.jsx` is built on the primitive rather than the prototype's hand-rolled scrim, so the new sheet arrives with the focus trap and Escape the other seven have. |
+| `<button>` conversions (D26's a11y pass) | v17 re-divs three of them. Two stay buttons. The **third** — the test picker card — becomes v17's `role="button"` div on purpose: v17 nests the ⓘ inside it, and a button cannot nest in a button. `tabIndex` + `onKeyDown` keep it reachable, and check:a11y is unmoved at 11. |
+| `--surface-a` at 98%, blur `saturate(1.4)`, a 320px ground wash | This app's quieter ground. v17 touches none of them; style-diff's header now lists them so nobody chases them as misses. |
+| No `Bar` / `Pill` / `InterestRun` / `PoliticsCompass` / `Compass2D` | D26 deleted them as dead. v17 deletes the last two itself — convergent. v17's edit to `.bar > i` therefore has nothing here to apply to. |
+| `DUO_QS` from `content/duel-questions.json` | D32's single source. v17's new `d:` (domain) field was added to the JSON, where the live seed reads it too. |
+| The 15-question Social test tag | Repo content. Only v17's accent moved. |
+
+**One prototype bug was not copied.** v17 inserts the per-domain tally
+between `if (day.byRight) readBy.right++;` and its `else`, which orphans
+the `else` onto the new `if (dm)` — so `impressions()` would fill with
+every day whose question had no domain instead of every day they misread
+you. Fixed here with braces, and the reason is in the code.
+
+### The ratchet went down, not up
+
+D39's rule 4 only moves down, and a sync that adds nine modules is exactly
+where it would otherwise be argued with. Nine providers converted on touch
+instead: `tweaks-panel`, `archetype-data`, `reveal-clock`, `vote-cuts`,
+`relmap-core`, `type-marks`, `result-card`, `mirror-field`,
+`person-mindmap` (plus `DuoDomains` out of duo-daily). All nine new modules
+publish **named exports**, not globals.
+
+Two settings were inverted rather than converted: the prototype has
+`world-palette.js` and `type-marks.jsx` read `window.IS_WPAL` /
+`window.IS_MARK_STYLE`; here the shell **pushes** them in (`WPAL.setMode`,
+`setMarkStyle`). Same for `window.NAV_AT`, which became `markNav()` /
+`navCoasting()` in `swipe-back.js` — the module that owns the gesture owns
+its coast timer. A setting is not a module reference, and making it one is
+how a global bridge grows back.
+
+**657 → 620 across 52 files.**
+
+### What now proves it
+
+`smoke.test.jsx` gained three cases for the nav, because it is the only
+gate that executes a render and every other one is name-level: the ruler is
+a tab list under either nav, so `check:globals` and `tsc` cannot tell the
+shapes apart, and `data-view` is a string nothing type-checks. All three
+were mutation-checked — forcing `ruler={false}` fails the first two.
+
+Verified in a browser as well as in jsdom: the ruler docks on scroll,
+edge-fade sets `data-ef` on the profile subnav, the ⓘ sheet opens and
+Escape closes it, and the console is clean.
+
+**What this does not cover.** `scripts/style-diff.mjs` now points at v17
+but has not been run against it — it needs a browser and a dev server, and
+its output is a report to read rather than a gate to pass. The screenshots
+above are a smoke check, not that comparison. Running it is the next
+cheap thing anyone touching this layer can do.
+
+---
+
+## D44 · Political items never slice — the split publishes, the cross-tab does not
+
+**Date:** 2026-08-05 · **Status:** Adopted
+
+**Decision.** `onV2AnswerCreated` does not fold anchors for any question the
+shipped bank marks `test: "political"`. The plain option counts still
+publish under the same k-floor as every other question; what is withheld is
+the per-anchor breakdown. `POLITICAL_QIDS` in `functions/src/v2.ts` derives
+the set from `V2_QUESTIONS` at module load, `slicesDemographics()` is the
+predicate, and `functions/src/slicing.test.ts` asserts it against the bank
+in both directions.
+
+**What was actually happening.** The eighteen political items ship with
+`surface: "test"`. `deck.ts` routes `surface === "test"` into the live feed
+alongside `surface === "feed"`, so they are answered as ordinary cards. The
+trigger's vote path returns early only for `group`/`duo`, so a political
+answer reached `foldAnchors` like any other and folded across all six
+breakdown dimensions — ageBand, gender, city, country, education,
+relationship. Past the floor those cells publish to
+`v2_question_aggs/{qid}`, which `firestore.rules` opens to every signed-in
+user. "Markets, left to themselves, distribute fairly" was therefore
+published split by city and by education.
+
+**Why this is a contradiction and not merely a risk.** D8 treats political
+data as Art. 9 special-category throughout, and `docs/data-inventory.md` —
+the document the store privacy forms are answered from — says of it: "never
+sliced by, never published, and never leave the owner doc". That row is
+scoped to the computed *result vector*, which was and remains owner-only,
+so the sentence was not false. It was also not the whole picture: the item
+answers the vector is computed from were being sliced by five
+quasi-identifiers and published. A reader of that row could not have known,
+which is the property that makes it worth a record rather than a commit.
+
+**The arithmetic of what is given up.** Eighteen of 369 questions lose their
+breakdown. Nothing else moves: the split, the totals and the underdog line
+are the product's actual claim on the daily and feed surfaces and they all
+still publish. The other 48 `surface: "test"` items — big5, values,
+attachment — continue to slice, and the Mirror's cohort views are built on
+that. A guard keyed on the *surface* instead of the marker would have
+silently taken those 48 with it, which is why the predicate keys on
+`test === "political"` and why the test asserts the non-political items on
+that surface still slice.
+
+**Alternatives rejected.**
+
+- *Stop attaching anchors client-side.* The anchors snapshot on a political
+  answer is owner-only, so it leaks nothing where it sits, and rules can
+  enforce a length but not an absence-of-intent. Enforcement belongs where
+  the publish happens — the same reasoning as everywhere else in this file.
+- *Suppress at publish time only.* The private doc would still accumulate
+  the cross-tab. "Never sliced" should mean never computed, not computed
+  and withheld.
+- *Read the question doc per answer to check the marker.* The vote path's
+  design is that it never reads the question doc — the catalog path's single
+  read is the documented exception, and D7's write ceiling is why. Deriving
+  the set from the bank already imported for the seed costs one pass over
+  369 questions at cold start and no read on the hot path.
+
+**Self-healing, deliberately.** The guard reads `{}` rather than the stored
+map, and `privRef` is written with `merge: false`, so the next answer to a
+political question also *erases* any breakdown a pre-guard deploy folded.
+Nothing has shipped, so there is none — but the property costs one ternary
+and means this fix never needs a migration if that stops being true.
+
+**`docs/data-inventory.md` gains a row for the item answers** rather than
+having the results row reworded. They are different data with different
+handling, and collapsing them is how the gap hid in the first place.
+
+---
+
+## D45 · Erasure follows the reveal, not the membership — and leaving a group is not an erasure request
+
+**Date:** 2026-08-05 · **Status:** Adopted
+
+**Decision.** `deleteAccount` scrubs a uid out of reveals with a
+collection-group query on `reveals.members`, in its own phase (1c-bis),
+independent of group membership. `leaveGroupV2` continues to leave reveals
+alone.
+
+**The gap.** Phase 1c found groups with
+`where("memberUids", "array-contains", uid)` and scrubbed reveals by walking
+that group's subcollection. `leaveGroupV2` removes the uid from `memberUids`
+and `memberNames` and stops. So for any group the account had already left,
+phase 1c could not see the group at all, and the reveal kept
+`votes.{uid}`, `names.{uid}` and the uid inside `members` — the display name
+and the votes, permanently, still readable by whoever stayed, because the
+reveal read rule grants every uid listed in `members`. A right-to-erasure
+break reachable by two ordinary taps in the ordinary order.
+
+**Why leaving still does not scrub.** A reveal is several people's record of
+a day they all played. Leaving a group is not a request to be forgotten; it
+is a request to stop receiving it. Scrubbing on leave would rewrite the
+remaining members' history, on an action the UI does not present as
+destructive. The comment justifying removal of the uid from `members` during
+*deletion* — that it costs the deleted user read access to a reveal they can
+no longer authenticate for anyway — is true of a deleted account and false
+of a member who left. The two paths differ on purpose, and
+`e2e-delete-account.mjs` now asserts both halves: that leaving removes the
+membership, and that leaving leaves the reveal intact.
+
+**Why the collection-group query rather than making leave scrub.**
+Membership is the wrong thing to follow, and scrub-on-leave would still have
+followed it: it closes the path through `leaveGroupV2` and leaves open every
+other way a uid ends up in a reveal it is no longer a member of — including
+the reveals already orphaned by leaves that happened before the fix. Asking
+the reveals directly is membership-independent by construction. The cost is
+one field override (`reveals.members`, COLLECTION_GROUP / CONTAINS) in
+`firestore.indexes.json`, deployed by the existing `--only
+firestore:indexes`, and it is the same index dependency phases 3 and 4
+already carry.
+
+**Both phases stay, because they miss different things.** The first draft
+of this replaced 1c's per-group reveal loop with the sweep. That is a
+regression: a query on `members` cannot see a reveal that has no `members`
+field, and those exist as a category — D5's backfill amendment reasons the
+set to provably empty in production *today* and explicitly asks for it to be
+re-checked before seeding. Walking a group's subcollection sees them;
+querying by membership snapshot does not. The converse is the gap this
+record is about. So 1c keeps its loop for current groups and 1c-bis sweeps
+the rest, and they do not double-write: 1c removes the uid from `members`,
+so everything it reaches stops matching 1c-bis's filter before 1c-bis runs.
+
+**The loop has no cursor, and that is load-bearing.** The scrub removes the
+uid from `members`, the field the query filters on, so each pass returns
+only what the previous pass has not reached and the loop drains naturally.
+Verified against the Firestore emulator rather than reasoned about: three
+reveals across two parent groups, one of them a group the user had left,
+drained in a single pass, scrubbed the uid and nothing else, left the
+surviving member's vote, name and read access untouched, and a second sweep
+found nothing. That last one is the property that makes the phase idempotent
+— which matters, because the "Deletion incomplete, please retry" path
+invites exactly that retry.
+
+**`PASS_CAP = 500` is a runaway guard, not a bound on the work.** It fires
+when the query keeps returning documents the scrub claims to have fixed,
+i.e. when writes are not landing, and that has to be loud rather than an
+infinite loop against the function timeout. Legitimate work sits far below
+it: MEMBERSHIP_CAP is 20 groups at one reveal per day, so 500 passes of 400
+is about 27 years of daily duels in every group at once. Sizing it to
+"enough for a plausible account" would turn a long-lived account's erasure
+into a job that fails identically forever — the same failure the page size
+was chosen to avoid.
+
+**What is still not gated.** Nothing checks that a collection-group query
+has its index committed; the emulator creates whatever a query asks for, so
+the e2e is green either way (`v2social.ts` says as much about its own
+queries). The index is committed and on the deploy path, so this is a
+standing hazard rather than a live one — and it is the third
+collection-group query in `deleteAccount` to carry it.
+
+---
+
+## D46 · The release build's JavaScript half gets the proof its native half already had
+
+**Date:** 2026-08-05 · **Status:** Adopted
+
+**Decision.** `ios-release.yml` builds the web bundle with the production
+`VITE_*` environment and runs `npm run check:web-firebase` against `dist/`
+before `cap sync`. The Firebase web values are repository **Variables**, not
+Secrets.
+
+**What was shipping.** `grep -rn VITE_ .github/` returned nothing across all
+six workflows, and `.env` is gitignored, so the release job's `npm run
+build` ran with an empty config. `firebaseEnabled` in `src/lib/firebase.ts`
+requires four non-empty values; without them `initLive()` returns early and
+the app renders the demo deck. The archive that was signed and uploaded to
+App Store Connect was therefore the mock-mode demo app — it builds, signs,
+uploads, installs, and shows whoever installs it a set of questions nobody
+else can see.
+
+**The shape of the miss is the point.** The step immediately below writes
+`GoogleService-Info.plist` from a secret, `base64 --decode`s it, runs
+`plutil -lint` on the result and prints a key back out, with a comment
+saying its absence "is silent in the worst way: the app builds, signs,
+uploads, installs, and has no Firebase". That is a precise description of
+the failure — and the native plist was the half that was guarded twice while
+the JavaScript half, which is what actually talks to Firestore, had no check
+at all. The mental model was "Firebase config is a native concern".
+
+**Why the check reads `dist/` and not the environment.** Asserting the
+variables are set proves the shell has them, not that the build on disk was
+produced with them. Vite inlines `import.meta.env.VITE_X` at build time, so
+the honest test is that each required value appears verbatim in the emitted
+JavaScript — which a stale `dist/` from a reordered step fails even when the
+environment is perfect. Verified by running it against all four states: no
+env (fails), env set with a stale build (fails on not-inlined), correct
+native build (passes), and `VITE_USE_EMULATOR=true` (fails).
+
+**`CAPACITOR_BUILD=1` was already required and nobody was setting it
+either.** `vite.config.ts` refuses a production build that has Firebase
+configured but no reCAPTCHA site key, unless that flag marks it a native
+bundle — iOS attests through DeviceCheck / App Attest and never reads the
+key. The guard had never fired because no release build had ever had a
+Firebase config to trip it.
+
+**Variables rather than Secrets**, on the reasoning `APPLE_TEAM_ID` already
+carries in this workflow: the Firebase web keys identify a project rather
+than authorise anything, they ship inside every binary, and access control
+lives in `firestore.rules`. Storing a public value as a secret only makes it
+harder to read in a log when a build goes wrong.
+
+**Not wired into `ci.yml`.** PR builds have no production config and should
+not need one. This belongs on release paths, next to the plist check it
+mirrors — and `check:web-firebase` fails loudly when run without an
+environment, which is correct for a release gate and wrong for a PR.
+
+## D47 · Monitoring grows a decision console — and the refusals become part of it
+
+**Date:** 2026-08-04 · **Status:** Adopted (owner-requested: "increase the
+scope of the monitoring to include cost and profits and other stats, along
+with algorithm effect, question generation stats, user analysis, and have it
+presented in some sort of visual tool to help me make decisions")
+
+**Decision.** `npm run pulse` computes a four-panel decision console from
+committed artifacts and renders it as one self-contained HTML page.
+`monitoring/pulse.json` is committed (the data, so a change in the burn or
+the runway is a reviewable diff); `monitoring/pulse-trail.jsonl` appends one
+row per day; the HTML is gitignored and regenerated in under a second. The
+full argument is [`docs/MONITORING.md`](MONITORING.md).
+
+**The part that needed deciding.** Three of the four requests — cost,
+money, question-pipeline stats — are ordinary engineering. The fourth,
+"user analysis", is not available here, and the decision is that **the
+console displays the refusals rather than omitting them.**
+
+Five things a monitoring dashboard would normally show are structurally
+unavailable: per-user funnels and session analytics (no client event
+pipeline exists, by design), retention or engagement sliced by anchor
+(D8/D18's k-floor and complementary suppression), anything sliced by
+political result (D8, Art. 9), skip/pass rates (QUESTION-FARM's out-of-scope
+list), and per-user content selection (MONETIZATION's standing posture).
+A console that showed four empty charts where those belong would read as
+"the data is coming". Each is listed with the record it would reverse,
+because "we decided not to" is only useful with the decision attached.
+
+The second row is the one worth sitting with: **the same suppression that
+stops a paying city identifying a person stops the owner doing it.** That is
+the guarantee working. If the tooling ever grows a way around it, the
+guarantee was never enforced.
+
+**What is honestly available, and was built.** The k-floored public mirror
+gives floors on real activity — never measurements, since a question below
+`AGG_MIN_N` publishes nothing. Everything else in the console computes from
+committed files with no credentials: bank inventory, deck runway, promotion
+backlog, alert coverage, and the modelled bill.
+
+**What is available and was deliberately NOT built.** DAU and D1–D7
+retention need **no new collection**: `v2_agg_events` already holds
+`(qid, uid, at)` with a 90-day TTL, erased with the account. Counting
+distinct uids per day is a scheduled function over a collection that exists.
+But D28 justified that collection as fake-account attribution and trigger
+dedup — those two purposes. Counting users with it is a **new purpose for
+existing data**, which is a decision record, not a script. It is listed in
+the console's "unbuilt" column with that catch stated. Deferred here rather
+than taken, because the console's whole point is to make this class of thing
+visible rather than to quietly do it.
+
+**The one number whose neglect breaks the product.** Deck runway. D30's
+no-wrap invariant holds while the daily bank has at least as many questions
+as days elapsed since `DECK_EPOCH`; past zero the next reseed silently
+remaps every user's answered history once. `deck.test.ts` pins the property,
+but a unit test cannot know today's date relative to the shipped bank — that
+is a fact about the calendar and the content, and it changes at midnight
+without a commit. At adoption: 90 in the bank, 3 days elapsed, 87 days of
+runway, 0 unpromoted in the archive.
+
+**`--check` is a real gate, and it runs on a clock rather than on a diff.**
+It exits non-zero below 21 days of runway and on an expired scorecard.
+Putting it in a pull-request check would fail unrelated work on a Tuesday
+for a reason that pull request cannot fix — the same argument that keeps
+`check:figures` off the backend path, pointed the other way. A check whose
+subject changes on its own belongs on a schedule, which is the split
+`security-audit.yml` already makes for `npm audit`.
+
+`.github/workflows/pulse.yml` (added 2026-08-04, on the owner's answer to
+"does it update automatically?" — it did not) runs at 06:00 UTC daily,
+commits `pulse.json` and the trail only when they moved, writes the headline
+figures to the run summary, and runs `--check` **last** so a bad day still
+gets its trail row before the job goes red. It never runs `npm ci`: pulse is
+Node stdlib only, verified in a dependency-free clone, because a console
+whose job is to report that the ground moved must not be able to fail
+because a registry did. Scheduled workflows only run from the default
+branch, so it is inert until merged.
+
+**One structural change to existing code, and it was forced.** The cost
+arithmetic moved from `scripts/cost-model.mjs` into `scripts/cost-arith.mjs`
+so the console and the CLI share one model. The alternative was a second
+copy of the price sheet, which is the drift this repo gates against
+everywhere else. Same shape as `store-render.mjs`. `npm run costs` output is
+byte-identical in both price regions — diffed, not inspected.
+
+**A correction this record makes.** `docs/DEPLOYMENT.md` explains that alert
+policies are applied by hand because "the deploy service account has no
+monitoring role". Line 103 of the same document says that account holds
+`Editor` + `Firebase Admin`, and `Editor` includes
+`monitoring.alertPolicies.create`. The stated reason does not hold. The
+conclusion still does, for two better ones: a policy is useless without a
+notification channel id, which is not in the repo and should not be; and a
+pipeline that can silently rewrite an alert policy can silently delete one.
+The console therefore reports policies as *committed*, never as *deployed* —
+the repo cannot know which.
+
+**Recorded, not fixed.** 1 of 14 deployed functions has an alert policy, and
+three of COSTS.md's four walls have no instrument. Both are surfaced by the
+console rather than closed here: the uncovered functions are mostly
+callables, which fail loudly to a caller who can notice, and the walls with
+no instrument bind at sizes this product has not approached.
+`onV2AnswerCreated` is alerted precisely because it is the one that fails
+*silently* — `retry:true` means a crash accumulates for ~7 days while the
+app looks healthy.
+
+**A defect this work found in its own input.** The console's cost panel
+reads `scripts/cost-arith.mjs`, and building it surfaced that the model was
+still charging every returning user a full 369-document bank refetch per
+reseed — the **pre-D34** world. D34 shipped 2026-08-02: `runSeedV2` writes
+only changed documents and the client pages `updatedAt > cursor`. COSTS.md's
+prose said so; COSTS.md's *tables* did not, because `cost-model.mjs` had no
+input for "documents changed per reseed" — only whole-bank or nothing, and
+the shipped state is neither. Verified in both halves of the code before
+touching the model (the seed's skip count, and `insight.bankCache.v2`'s
+cursor query), then fixed with `B.changedPerReseed` (default 7 — D30's
+promotion cadence) and COSTS.md's tables regenerated. Worth ~145 reads per
+user per day at every size: **$18/mo → $5/mo at 5,000 DAU, $305 → $175 at
+50,000, $13,215 → $11,910 at 500,000.** The remaining `staticBank` toggle now
+means what it says — the *unbuilt* Hosting fix — rather than doubling as a
+stand-in for the one that shipped.
+
+That is the argument for the console in one paragraph: a number nobody looks
+at goes stale in the direction of whatever was true when it was written, and
+a prose correction the arithmetic beside it does not implement is the failure
+`check:figures` exists for, one layer down.
+
+**Amendment (2026-08-04, same day) — four follow-ups from a review of the
+above.** Recorded rather than folded in silently, because two of them are
+corrections to decisions this record made a few hours earlier.
+
+1. **Only the trail is committed now.** `monitoring/pulse.json` was
+   committed on the argument that a change in the burn should be a
+   reviewable diff. But `runwayDays` moves at midnight by construction, so
+   committing it meant one bot commit per day forever for a file derivable
+   from the tree plus the date — and the trail already carries burn, runway
+   and alert coverage, so the diff argument is served without the churn.
+   `pulse.json` and the rendered page are both gitignored.
+
+2. **The sparkline plots time, not array position.** The first version
+   spaced readings evenly by index, which draws a six-week gap exactly like
+   a one-day step. That is not cosmetic: GitHub disables a schedule after 60
+   days of repository quiet, so the trail WILL gap, and a chart that hides
+   when it stopped looking is worse than no chart. X is now the date, and a
+   run of missed days gets a hairline under the stretch it covers plus a
+   count in the caption.
+
+3. **Four cost constants read from source instead of being retyped.**
+   `DECK_DAYS`, `AGG_ID_CAP`, `PUBLISH_EVERY` and `HOT_TRIGGER`'s footprint
+   were hand-copied into the model with the real location in a trailing
+   comment — the same shape as the D34 defect this record already documents,
+   left in place while fixing it. They are now parsed from `deck.ts`,
+   `live.ts`, `v2.ts` and `ops.ts`, and throw loudly on a rename rather than
+   falling back to whatever was true in August. `TRIG.sec` is the exception
+   and cannot be read: 200 ms is an estimate of wall-clock per invocation,
+   and it sits beside three hard numbers, which is worth knowing before
+   tuning that object.
+
+4. **The console has tests, and `pulse.mjs` was split to allow them.**
+   Collection moved to `scripts/pulse-collect.mjs` (pure, no side effects on
+   import); `pulse.mjs` is the CLI, the trail's file I/O and `--check`.
+   `npm run test:scripts` covers the places where a wrong answer looks like
+   a right one: the archive prompt join (which already produced a convincing
+   false positive — six phantom orphans, all apostrophes), the trail's
+   same-day replacement, the runway arithmetic, that the constants above
+   still match their sources, that a gap draws as a gap, and the scorecard
+   block — which had **never executed**, since there is no scorecard yet and
+   its first run would otherwise have been launch day. On CI's lint job, not
+   backend-checks: it is tooling, and nothing it says bears on whether a
+   rules fix is safe to deploy.
+
+Three known limits were written into MONITORING.md rather than fixed, all
+pre-existing: `boot = 15` is a hand-counted inventory of `hydrate()`'s
+queries with no single declaration to read, and is now the likeliest number
+in the model to rot; the `+ 0.2` in the writes formula is unsourced; and the
+deletes line assumes a Firestore TTL policy that is a hand-run command in
+SHIP-CHECKLIST §5, not a deployed artifact — if it was never run, deletes
+are zero and storage grows without bound.
+
+**Second amendment (2026-08-04) — the console follows the product, not only
+the clock.** Asked whether it could update as the product changes, which the
+daily cron did not do: promote twelve questions at noon and the runway tile
+was a day behind until the next morning.
+
+`pulse.yml` now also runs on **every push to `main`**, so the two triggers
+cover the two ways these numbers move — the clock for the changes nobody
+made (the calendar eating runway, a scorecard ageing), the push for the ones
+somebody did. `--check` then runs against the change that caused it rather
+than against a tree that has since moved on.
+
+**No `paths:` filter, and that is the deliberate half.** A path list would be
+a hand-maintained copy of "every file pulse reads" — the content banks, the
+four source files it parses constants out of, the archive, the rate card,
+the alert policies, the cities header, its own scripts. This record already
+documents two costs of exactly that shape of duplicate, and the failure is
+the quiet one: pulse grows an input, the filter does not, and the console
+stops noticing the thing it exists to notice. The job installs nothing
+(Node stdlib only) and takes about twenty seconds, so running it always is
+cheaper than maintaining the list that would let it run less. It cannot
+loop — a push made with the default `GITHUB_TOKEN` does not trigger
+workflows.
+
+**The commit path was made race-safe, because two triggers can now overlap.**
+A rejected push is no longer rebased: rebasing two runs that both wrote the
+same day's row means conflicting on the same line of the same file, which is
+the one case rebase cannot resolve. Instead the tree resets to the branch
+head and the row is recomputed against it. The row is a pure function of the
+tree and the date, so this always converges, and the losing run finds the row
+already written and exits clean. Exercised with two clones racing a real
+bare remote — A pushed, B was rejected, reset, recomputed, found nothing to
+do; one row, one commit, no conflict.
+## D48 · Three limits accepted while closing the reveal-alert, bridge and boot-state gaps
+
+**Date:** 2026-08-06 · **Status:** Adopted
+
+**Decision.** Three things were deferred or traded rather than solved while
+landing the reveal-loop alert, the `test-definitions` / `passive-progress`
+conversion, and the web boot state. Each is recorded here with what it
+costs, because each is invisible in a green tree.
+
+**1. The reveal alert cannot see "it never worked".**
+`monitoring/scheduledDuelReveals-silent.json` is a metric-absence condition,
+and absence needs a time series that has existed at least once — against a
+metric with no points it does not fire. So the policy proves "the scheduled
+scan worked and then stopped", never "the scheduled scan has never run".
+The arithmetic on what it *does* cover: the schedule is every 120 minutes
+and the condition is 6h, so it fires on three consecutive missed runs, well
+inside the one-day window a reveal promises. The gap is the first run only,
+and it is closed by a human: `npm run monitoring:apply` prints the
+`gcloud logging read` that confirms a first heartbeat landed, and the
+runbook says to apply this policy after observing one. **Accepted rather
+than fixed** because the alternative — a synthetic canary that plays a duel
+end to end on a schedule — is a second scheduled function with its own
+failure modes, which is a larger thing than the gap it closes at zero users.
+
+**2. Nothing holds the boot state's ground colour equal to the app's.**
+`index.html` hard-codes `#15171c`, duplicating `html, body { background }`
+at `styles.css:2100`. It cannot read the token: `styles.css` is imported by
+`main.jsx`, so it arrives with the bundle whose load the boot state exists
+to cover. If that ground moves and `index.html` does not, a cold start
+flashes one colour into another — which is the exact defect this change
+removed, reintroduced from the other side. **No gate**, deliberately: the
+check would have to parse a CSS literal out of two files and compare them,
+and the failure it prevents is one frame of wrong colour on a web cold
+start. That is the cheapest honest statement of the trade — a gate here
+costs more than the flash. Both files carry a comment naming the other.
+
+**3. `test-definitions.js` and `passive-progress.js` stay in `spec/`.**
+They came off the shared-global bridge as ordinary ESM modules
+(657 → 540 references) but did **not** move to `data/` as typed, tested
+modules, which is what `src/v2/README.md` had proposed. The reason the move
+was proposed no longer holds: it was going to dissolve two import cycles,
+and neither cycle existed (see the README section — one was never there,
+the other was a multi-writer artifact of a defensive fallback in
+`daily-split.jsx`, deleted with the conversion). What is left is the
+ordinary benefit — types and tests. `passive-progress.js` is 77 lines of
+pure arithmetic over a store (`pct`, `done`, `passiveDone`, `prefill`) with
+no JSX and no test, so it is the better candidate of the two;
+`test-definitions.js` is 247 lines that are mostly question banks already
+pinned item-for-item against `content/tests.json` by
+`test/content-parity.test.jsx`. **Deferred** because the conversion was
+already an 18-file change and moving a module across the typed boundary in
+the same commit would have put a refactor and a re-typing in one diff.
+
+## D49 · The Skip control becomes a button, the alert chain gets a gate, and the feed's split stops at its arithmetic
+
+**Date:** 2026-08-06 · **Status:** Adopted
+
+**Decision.** Three fixes, and one of them is mostly a correction to what an
+earlier survey claimed was there.
+
+**1. The post-vote beat's Skip control is a real `<button>`.** It carried
+`role="button"` and `aria-label="Skip"` — everything `check:a11y` can read —
+with no `tabIndex` and no key handler. The beat is a 320px animation that
+covers the result for several seconds after a vote, and Skip is the only way
+past it, so the one control on screen was the one control a keyboard or
+switch user could not reach. Every static gate stayed green throughout.
+
+Landed behind an interaction test, which is D21's rule and
+`dialog.test.jsx`'s precedent: `test/consequence-beat.test.jsx` pins that the
+control takes focus and is a `<button>`, both mutation-checked by reverting
+the element. It asserts the ELEMENT rather than a keystroke on purpose —
+jsdom does not implement a button's default activation, so
+`fireEvent.keyDown(el, {key:'Enter'})` produces no click however correct the
+markup is. A first draft hid that behind `if (!called) click()` and passed
+against the unfixed div, which is the vacuous-test shape `src/v2/README.md`
+warns about. The `<button>` is what carries Enter and Space; that is what is
+pinned.
+
+The a11y baseline goes **11 → 9**. What is left is eight `no-autofocus`
+findings and one `no-static-element-interactions` in `tweaks-panel.jsx`, the
+host-era debug panel rather than a user surface.
+
+**And the count was wrong before this touched it.** `src/v2/README.md` said
+"six `no-autofocus` findings and three div-with-onClick sites". There were
+eight autofocus findings, and the three were not three sites — they were
+three RULES on one element. So work described as three deferred fixes was
+one, and it took an afternoon. `check:a11y` did not catch the drift because
+it holds the total and the per-file counts, not the breakdown by rule: a
+figure can be gate-enforced in one dimension and stale in another.
+
+**2. `check:monitoring` gates the alert chain, and only the half in the
+repo.** Alert policies are applied by hand (D47) and nothing here can reach
+Cloud Monitoring, so this does not try. It checks that every policy on disk
+is in `apply-monitoring`'s list, that every condition resolves to a metric
+that script creates, and that every metric's `jsonPayload.metric="X"`
+selector matches a `metric: "X"` a function actually emits.
+
+Every link fails the same silent way — the policy exists, the console is
+green, and it can never fire — which is `check:deploy-targets`' failure class
+with a different noun. Each of the four rules was verified by breaking that
+link and watching the gate fail. On `ci.yml` rather than `backend-checks.yml`
+on that workflow's own rule: nothing it says bears on whether a rules fix is
+safe to deploy, and an alerting mistake must not block an emergency one.
+
+**3. The World feed's split stops at its arithmetic, and the reason is a
+measurement.** An earlier survey called `world-feed.jsx` the highest-leverage
+file in the repo and said its "23 top-level definitions" meant the seams
+already existed. That counted definitions without sizing them. The file is
+one class component of ~2,350 lines plus about 30 helpers of 3–28 lines; the
+component holds 62 methods, the largest being `render` (160),
+`renderPick` (136), `renderCard` (121). There are no leaf components to lift
+out — there is one god-component and a band of small functions.
+
+Decomposing that component means threading state and callbacks through JSX
+ported verbatim from the prototype, whose only coverage is a smoke mount.
+That is the blind change D21's trade refuses, and it is not made safer by
+being large. **Deferred**, and deliberately not attempted in the same change
+as anything else.
+
+What was taken is the part that is safe and was worth having on its own:
+thirteen pure functions move to `world-feed-math.js` as real exports, with
+`test/world-feed-math.test.js` behind them. `wfPcts` is why — it is the split
+printed on every feed card, it adds the viewer's own vote (the other half of
+`data/live.ts`'s "counts exclude the viewer" contract), and it forces the
+rounded parts to sum to exactly 100 by pushing the residue onto the largest
+bucket. Neither behaviour had a test.
+
+**A note on how that suite was checked, because the first version passed a
+mutation it should have caught.** Redirecting the residue to the *smallest*
+bucket left all 17 tests green: the cases were `[1,1,1]` (symmetric, so both
+rules pick the same bucket) and `[10,3,3]` (residue too small to move the
+winner). The cases are now chosen to distinguish the two — `[1,1,4]` gives
+`[17,17,66]` under max and `[16,17,67]` under min — plus the general property
+those pin, that a maximal bucket stays maximal so rounding never hands the
+card's headline to a side that did not win. Five mutations, five failures.
+
+Thirteen names also leave the shared-global namespace, none of which had a
+consumer outside the file: the same ratio `result-rose.jsx` found, where the
+bridge published everything and a real module exports only what is wanted.
+The coupling count is unchanged at 540, correctly — these were file-local
+reads, not cross-module ones, and a meter that moved here would be lying.
+## D50 · A lens question in a live feed is a self-report item, not a poll
+
+**Date:** 2026-08-06 · **Status:** Adopted — the "acknowledge instead of
+aggregate" half reversed by D91
+
+> **Reversed in part by [D91](#d91--lens-questions-are-polls-the-items-are-seeded-and-their-counts-publish)
+> (2026-08-11).** Option (b) below — build a real crowd — shipped: the
+> lens items are seeded world questions now, and a live lens card against
+> a seeded bank is an ordinary live card. Exactly as this entry planned,
+> the `selfOnly` flag came off the cards whose questions gained a real
+> aggregate — and only those: against a bank with no lens rows the flag
+> and the acknowledgment remain, because the authored counts are still
+> authored. The two repairs recorded below (the per-liveness pool rebuild
+> and the purge listener) stand untouched.
+
+**Decision.** Lens cards woven into a live session's feed carry
+`selfOnly: true`, stamped by `LENS_FEED_QS`'s builder — which now rebuilds
+per liveness instead of snapshotting at module scope. `world-feed.jsx`
+keeps every crowd surface off a `selfOnly` card: no share fill, no
+percentage numeral, no votes count, no takes/who-voted row, no consequence
+beat, no with-the-majority bit into FEEDREAD, no Mirror ripple, no thin
+bar on the collapsed card. After answering, the card says where the answer
+actually went — "Saved to your ‹lens› lens — only you see it." — and the
+answer records to the on-device store exactly as before.
+
+**What was shipping.** `buildFeedGlobals()` (data/live.ts) replaces
+`WORLD_FEED_QS` and `TEST_FEED_QS` with live-shaped cards on boot but
+never touched `LENS_FEED_QS` — and every "no fake data" gate in
+world-feed keys on `q.live`, which lens cards do not carry. So a real
+user answering a lens card saw a split drawn over thousands of authored
+votes (`count: 180 + w × 1900` per option — roughly 3–6k "votes" per
+card), rendered identically to the real k-floored splits on neighbouring
+cards, plus a votes-count line under it. That is fabricated activity
+inside a live session — the thing D1 exists to forbid — and the asymmetry
+with `TEST_FEED_QS`, which did get the live treatment, marks it as an
+oversight rather than a choice.
+
+**Two adjacent repairs in the same seam, found by the same audit.**
+First: the module-scope snapshot meant live sessions always wove the DEMO
+pool, which excludes each lens's seeded prefix as "already answered" —
+but live mode starts every lens at zero, so ~20 of the 48 lens items were
+unreachable from a live feed (`moral` capped at 4 of 8 for a feed-only
+user, while the blank state promised the feed would fill it in). Second:
+`LENSES.reset()` — whose own comment claims the account-deletion/uid-change
+wipe contract — had no caller, so the uid-change path purged
+`insight.lenses.v1` from localStorage while the store's in-memory state
+survived to be written back under the new uid. The purge announces itself
+now (`insight:local-purge`) and the store listens.
+
+**Why acknowledge instead of aggregate.** The honest alternatives were
+(a) suppress the fake crowd, (b) build a real one. Lens answers are
+deliberately device-local (the persistence note in `lens-defs.js`): no
+write leaves the device, so there is nothing for a backend to aggregate
+without first reversing that decision — a new collection, its k-floor,
+rules and their tests, for numbers whose product value is unproven. (a)
+is the smallest change that makes the UI true, and it leaves (b) open: if
+lens aggregation ever ships, the flag comes off exactly the cards whose
+questions gain a real aggregate, and this entry gets its reversal note.
+
+**Enforcement.** `src/v2/test/lens-live.test.ts` re-derives both pool
+shapes from `IS_LENSES`' seed arithmetic and pins the `selfOnly` stamp
+and the purge listener; `src/v2/test/smoke-live.test.jsx` mounts a live
+feed with a lens card, answers it, and asserts the record landed locally
+(inverted), nothing reached `LIVE.vote`, and the card shows the
+acknowledgment with no split, no votes count and no engage row.
+
+## D51 · Deleting the keys is only half the wipe: every local store hears the purge
+
+**Date:** 2026-08-06 · **Status:** Adopted
+
+**Decision.** Every module-scope store that persists `insight.*` state
+drops its in-memory copy to the fresh-boot shape when
+`insight:local-purge` fires, notifying its subscribers and **without**
+calling its save — a save in the listener would re-create the key the
+purge just removed. The two long-mounted components that persist state by
+spreading it back (`world-feed.jsx`: votes, passed, takes, replies;
+`daily-split.jsx`: dreplies, cats, testProg, votes) carry the same
+listener at the component level. `scripts/check-purge-listeners.mjs`
+(CI's `check:purge`) holds the set closed: a file that writes an
+`insight.*` key must listen or be exempted with a reason, and a stale
+exemption fails too.
+
+**The audit that produced this.** D50 found the hole in one store
+(lens-defs' uncalled `reset()`); this is the sweep of the other 28 files
+that touch localStorage. Fourteen module stores had the same bug —
+`feed-read`, `follows`, `learn-progress`, `learn-feed`,
+`passive-progress`, `pick-data`, `place-stats`, `scenes`,
+`world-subtopics`, `suggestions`, `duels-data`, `world-feed-report`,
+`daily-questions`, `test-definitions` — each holding a module-scope map
+whose next mutation saved the whole thing back: daily answers, duel
+answers and group edits, test progress (inflating the new account's rings
+with answers it never gave), authored suggestions rendered as the new
+account's "You", follow lists, ratings, picks, reports, the read-room
+log. The always-mounted feed and daily components had the same shape in
+component state; the feed's votes already healed through its LIVE
+reconcile (absent from both store and mirror → dropped), which is the
+model the rest now follows.
+
+**Fresh-boot, not empty.** The drop target is what a cold load with no
+keys produces, which is not always `{}`: `follows` returns to its seed
+circle, `learn-progress` to its demo stagger (empty in live builds — the
+same `VITE_V2_LIVE` gate the load uses), `scenes`/`world-subtopics` to
+their day-one defaults by nulling the lazy cache so `ensure()` re-derives,
+and `IS_TEST_RESULTS` restores a pristine copy of the demo literal taken
+before the saved-result overlay. `duels-data` and `learn-progress` got
+their load normalisation extracted into one function used by both paths,
+so a field added later cannot leave the listener building a stale shape.
+
+**Exemptions, each with its reason in the script.** `live.ts` (the
+dispatcher; caches uid-scoped or public), `deviceBind`/`push` (memos
+carry the uid and are compared before use), `sentry` (flag read from
+storage per check), `test-overlay` (read-modify-write of only its own
+kind, fresh from storage), `logic-test` (whole fresh object per save),
+`profile-general` (persist effect runs on mount, so a post-purge mount
+writes defaults), and the two `ui/` panels (scalar written only on
+explicit save of the new value).
+
+**Two observations recorded, not fixed.** `insight.mapCatNames.v1` is
+read by `map-tab.jsx` and written by nothing — a dead key. And Sentry
+telemetry consent is read per event but an already-started SDK keeps
+running across a uid change until restart; the flag itself heals
+correctly, the running session is a consent nuance this entry flags for
+whoever next touches `lib/sentry.ts`.
+
+**Enforcement.** `check:purge` on the CI lint job (client-only, so
+deliberately not on `backend-checks.yml`);
+`src/v2/test/purge-wipe.test.ts` drives all fourteen module stores
+through seed → purge → remutate and asserts the resurrection never
+reaches disk; `smoke-live.test.jsx` proves the component half in a
+mounted tree; `vote.test.ts` pins that the announcement fires on the
+uid-change path.
+
+## D52 · The content review: what got fixed, what got flagged, and the two lines that held
+
+**Date:** 2026-08-06 · **Status:** Adopted
+
+**The review.** All seven question surfaces read end to end — 90 daily, 73
+feed, 44 duel, 96 learn cards, the four core tests, the nine lenses, and
+the cross-bank seams. Two invariants shaped every fix: shipped **option
+sets are never edited** (answers store `(qid, optionIdx)` forever — the
+D30 re-key class), and the **daily list is never shortened mid-epoch**
+(the deck maps day→question by position; a removal re-keys every later
+day). So fixes took four shapes only: prompt edits that preserve the
+question's meaning, metadata edits, `active: false` retirement for feed
+items, and appends.
+
+**Fixed.**
+- **Six feed duplicates retired** (`active: false`, honoured by deck.ts's
+  `active !== false` filter, now passed through the generator): f08, f20,
+  f21, f24, f40, f54 — each the same question as a live daily (one
+  cuisine, spoilers, lyrics/melody, music-while-working, death date,
+  money-buys-happiness), splitting the same crowd twice.
+- **D44 extends to opinion cards**: new optional `political: true` marker
+  on f45 (mandatory voting), f46 (four-day week), f47 (car-free centres)
+  and daily-014 (news trust) joins them to the no-slice set. A second
+  marker rather than `test: "political"` because PASSIVE.record and the
+  feed's test kicker key off `q.test` — reusing it would count feed cards
+  toward the political test's rings. `slicing.test.ts` pins both markers
+  and the generator pass-through, non-vacuously. Considered and left
+  sliceable: f27 (phones in schools), f32 (tipping), f50 (celebrities in
+  politics), daily-015 (AI) — opinions that correlate with politics less
+  than they express it; the line is "expresses a political position",
+  not "correlates with one".
+- **Currency leaves the prompts**: daily-006 "€500" → "a week's pay"
+  (scales with the reader, travels), duo-12 "€10k" → "a surprise
+  windfall", f39 "$1M" → "a million". The time lens's "€100 today beats
+  €160 in a year" became plain numbers — the 60% premium is the
+  instrument, the currency was noise.
+- **Duel voice unified**: seven 1v1 prompts rewritten you-voice/neutral
+  (3, 8, 9, 12, 15, 17, plus 16 gaining its missing direction — hear the
+  hard truth, not tell it). The duo overlay renders prompts verbatim in
+  both the answer-about-yourself and guess phases, so they-voice items
+  read wrong for half the flow.
+- **Instrument items replaced in both layers** (tests.json ≡
+  test-definitions.js, parity-gated): political-01's motherhood statement
+  ("a society is judged…" — near-universal agreement, no discrimination)
+  → public-ownership item; values-03's time/circle cross-load → pure
+  circle; attachment-11 (drifting groups measured breadth, not loyalty)
+  and attachment-14 (noticing withdrawal measured vigilance, not
+  un-easygoingness) → maintenance and score-keeping items.
+- **The lenses' acquiescence hole closed**: `moral` and `humor` gained
+  their first reverse-keyed items, appended (lens answers and feed ids
+  are index-keyed; only the tail is safe). A new structural gate
+  (`src/v2/test/lens-content.test.ts`) holds every lens to: questions key
+  to declared dims, every dim has a question, ids unique, viz known, and
+  ≥1 invert per lens — the per-LENS floor, since single-item dims cannot
+  carry the core tests' per-dimension rule.
+- **Learn**: sol6's stem sharpened to "Demoted from planet to dwarf
+  planet in 2006" (Ceres and Eris were also reclassified/designated in
+  2006 — the old stem had three defensible answers); cell5's trap
+  repointed to the lysis-wordplay distractor already in its options.
+
+**Flagged, not fixed — and why.**
+- Authored landslides that need retirement or a rewrite the invariants
+  forbid: daily-004 ("okay to do nothing" — double-hedged truism),
+  daily-013 ("can give meaning" — the modal concedes it), daily-061,
+  daily-081, f53, f15's "always" strawman, f23/f33's missing third camp.
+  Daily items wait for an epoch-safe retire lane; option edits wait for
+  the farm's replace flow. The scorecard will say which of these the
+  crowd actually kills.
+- Duel reveal-safety trio (gu3 "loudest wins", gu9 "what would break this
+  group", gu11 "new person wants in") — option-level content that can
+  land on real people once names attach; retire/replace candidates for
+  the duel lane, recorded here so D40's content lane inherits them.
+- Duel trait overweight: five of twenty 1v1 items probe
+  introvert/extrovert, four probe confront/avoid — variety debt for the
+  next duel batch, not an edit to shipped items.
+- Learn calibration gaps: `origins` and `capitals` ramp p=26–63 with no
+  easy rung — needs appended easy cards (the learn lane's job), not
+  edits. Weak traps whose options offer no better candidate (gene8,
+  body8, sol7, ear3, ear8) stay as recall cards.
+- daily-007's your-life/the-world ambiguity and daily-011's costless
+  "find a third way" dodge — meaning-changing fixes deferred to human
+  editorial; recorded so they are a decision, not a discovery.
+- The daily↔feed near-dup *class* (f36/daily-038 survives this pass):
+  worth a similarity warn-tier in check:content the day a third instance
+  appears.
+
+**Ops note.** These are bank edits; production picks them up on the next
+`seedContentV2` run with `bumpRev` per the deploy runbook — nothing here
+re-keys an existing answer, by construction of the four allowed shapes.
+
+## D53 · The logic test measured: zero ambiguity in 60,000 items, and the curve gets pinned
+
+**Date:** 2026-08-06 · **Status:** Adopted
+
+**The review's method.** A matrix test's cardinal risk is an ambiguous
+item — a distractor a careful solver could defend. That is measurable, so
+it was measured: a per-family completion predicate (the family's line
+rules plus the visible grid's uniformities and shape vocabulary), swept
+over every option of every item for 5,000 seeds. Three tuning iterations
+were needed, each round's false positives being a constraint humans
+obviously use that the model had missed — fillRamp's size uniformity,
+dist2's exact element identity, ringGrow's outline-only vocabulary.
+
+**What it found.** Zero ambiguous options in 60,000 items, with the
+constructed answer passing its predicate 60,000 of 60,000 times. Answer
+positions uniform (16.3–17.0% per slot). dist2's degenerate case
+(identical absence patterns) occurred 0 times in 2,466. No duplicate
+puzzles within a form, no distractor-pool exhaustion, ~0.25ms per form.
+Distractor composition matches the design's claim: 72.8% family-authored
+wrong-rule mutants, 14.1% neighbour-cell repeats, 13.1% generic
+perturbations. This CORRECTS the earlier framing that "distinct is not
+wrong" was a live hole — it is a theoretical one only, and the sweep now
+lives in logic-gen.test.ts permanently (answers must pass, no distractor
+may), so a future family that opens the hole fails CI instead of
+shipping. If a new family's ANSWERS fail the sweep, the predicate is
+missing that family's grammar: extend the model, never weaken the sweep.
+
+**The curve is a decision now, not an accident.** logicPctile moved to
+`data/logic-score.ts` (typed, with loadResult/saveResult/logicSecs) and
+its landmarks are pinned: chance (2/12 with six options) reads 4,
+6/12 → 30, the load-bearing midpoint 62% → 50, and a perfect 12/12 reads
+**94 — deliberately**. A perfect score is the test's ceiling, and a
+ceiling cannot distinguish "better than 94%" from "better than 99%"; the
+honest claim stops where the instrument does. The floor clamps at 1 for
+the symmetric reason.
+
+**The overlay left the bridge.** logic-test.jsx now imports the generator
+and the scoring directly; window.LOGIC_GEN is gone (it had exactly one
+consumer), loadOverlays() dropped its explicit import line (the ESM graph
+carries the generator into the same deferred chunk), and the coupling
+ratchet came down 620 → 619 across 51 files. The reveal-delay timeout is
+deliberately never cancelled on unmount: it is also the final item's
+save, and closing the overlay 200ms after the last pick must keep the
+score — a 240ms timer is the whole cost of that guarantee.
+
+**New coverage.** `logic-overlay.test.jsx` drives a full attempt through
+the real generator (the seed pinned by stubbing crypto, the overlay's own
+seed source), asserting the v2 payload to the millisecond — the 240ms
+reveal delay subtracted from every recorded time — plus a wrong-pick run,
+all five result lenses (four had never rendered in any test) each showing
+the modelled-yardstick disclosure, and an 8-mark result pinning the
+Answers lens against the old /11 regression. `logic-score.test.ts` pins
+the curve, the v1 back-fill, and the times-fallback.
+
+**Accepted limits, recorded.** Puzzle timing counts backgrounded-tab time
+(skews the Pace lens toward "deliberate" — it is a modelled yardstick and
+says so). Retake discards the previous attempt's result and seed — one
+result, not a history, matches the device-local minimalism of D31. The
+test is inherently visual; options are labelled by position for assistive
+tech, and a non-visual rendering of a matrix test is out of scope rather
+than pending.
+---
+
+## D28 amendment (2026-08-06) · Identity verification (passport / driver's licence class) recorded as a possible future requirement
+
+**Date:** 2026-08-06 · **Status:** Owner's forward note, recorded.
+Nothing changes today — D28's "no identity gate" clause still governs
+everything built and shipped.
+
+**The note.** The owner directs the record to carry this: if the shipped
+stack — App Check (D36), device-bound activation (D29/D37), the floors,
+the attribution ledger — proves insufficient against fake accounts in
+practice, the product will in the future require government identity
+verification (passport or driver's licence class) as a condition of
+counting. This widens the escalation path D3's 2026-08-03 amendment
+recorded: tightening device-bind stays first, and identity verification
+now stands recorded behind it, at the owner's option, on evidence.
+
+**What adoption would change, priced now so it is a decision rather than
+a surprise later.** D28's reasoning does not dissolve because the feature
+is wanted; it is the bill:
+
+- **It reverses the product's defining claim.** "No account required" is
+  in the store listing, and the privacy posture (D1/D8/D44) exists
+  because the app stores politics- and relationship-class answers. An ID
+  check binds a government identity to exactly that data (Art. 9), so
+  the data inventory, both stores' privacy labels, SECURITY.md and the
+  erasure story (D45/D51) must be rewritten and re-reviewed **before**
+  the gate ships, not after.
+- **It adds a processor.** Document capture, liveness and retention are
+  a vendor relationship — a new breach and subpoena surface, and a real
+  per-verification cost paid on every honest user.
+- **What it buys is bounded, and the bound is already recorded.**
+  Documents are buyable and paid real humans pass any ID check (D28's
+  Douceur argument is unchanged) — so the gate re-prices a fake account
+  in documents rather than in hardware, which for some attackers is
+  cheaper than D29's per-device bar. It trades friction on every honest
+  user for a bar that some attackers step over.
+
+**The trigger stays evidence, not mood.** "Insufficient in practice"
+means signals from the ledger — the velocity-analysis lever D29 names —
+or a discovered ring the correction runbook (DEPLOYMENT.md, "Correcting
+aggregates") could not adequately unwind. If adoption is proposed, it
+gets its own numbered decision carrying the mechanism, the vendor, the
+rollout, and the inventory rewrite sequenced first.
+
+---
+
+## D54 · The ledger gets eyes: a daily velocity scan, feeding manual review
+
+**Date:** 2026-08-06 · **Status:** Adopted
+
+**Decision.** `ledgerVelocityScan` (functions/src/velocity.ts) runs
+daily over the `v2_agg_events` entries since its last run and logs —
+only logs — four ring-shaped signals: impossible per-uid volume,
+scripted answer cadence, Auth creation-time clusters among the window's
+voters, and per-question bursts against each question's own trailing
+baseline. Flags are WARNING lines carrying uids; the operator reads
+them into the D28 correction runbook, whose "identification is
+investigative" gap this closes the first pass of. Nothing is denied,
+delayed or down-weighted — D29 recorded this lever's shape as "feeding
+manual review rather than automatic denial", and that clause is load-
+bearing here.
+
+**Why now.** D28's guarantee is correction *given a uid list*, and its
+residuals section says plainly that detection was out of scope — "the
+ledger's timestamps are the raw material velocity analysis would read,
+but no analysis ships today." That left the correction story
+conditioned on luck: a ring had to be noticed by someone with no
+instrument for noticing. The scan is that instrument, built from the
+signals DEPLOYMENT.md's runbook already named as the investigative
+step.
+
+**The purpose-limitation check, because D47 makes it a live question.**
+D47 deferred DAU counting over this same collection as "a new purpose
+for existing data, which is a decision record, not a script." This is
+not that: fake-account attribution is the purpose D28 collected the
+ledger for, and D29 names this exact analysis as a tightening lever.
+Same data, recorded purpose, so a script — this record exists to say
+that distinction out loud rather than let the two cases blur.
+
+**The signals, and the honest twin each must spare.** Every threshold
+is an exported constant, pinned at its boundary by velocity.test.ts,
+and an engineering default in D37's sense — movable, each in a known
+direction (raise for quieter logs and later notice, lower for the
+reverse):
+
+- **Volume** (> the aggregate-feeding bank size in one window): no
+  honest twin. Answers are create-only per question and the sweep-on-
+  erase keeps uids single-lived, so exceeding the bank is dedup failure
+  or forged writes — the nearest thing to a verdict in the set.
+- **Cadence** (15+ answers with gap CV < 0.25 or mean < 2s): the twin
+  is the backlog binge, spared by gap variance — humans read at
+  question-dependent speeds; scripts must jitter wider than ±40% of
+  their own mean to pass, which costs them throughput.
+- **Cluster** (5+ of the window's voters created within 10 minutes,
+  overlapping windows merged): the twin is a launch spike or press
+  mention — a *good* day. This signal is why the output is review, not
+  action.
+- **Burst** (4× a question's trailing mean, floor 10, needing 3+
+  recorded baseline days): the twin is the deck itself — the daily
+  question and promoted debuts are bursts by design, excluded by the
+  baseline requirement, so the signal sees only the attack shape: an
+  old, settled question suddenly stuffed. A ring riding the current
+  daily question hides in its crowd; that one belongs to cadence and
+  cluster.
+
+**Cost, at the system's own ceilings.** At D7's ~14k answers/day the
+scan reads ~14k ledger entries (paginated, projected), ~140 batched
+Auth lookups, and one state doc — pennies per month; at launch volumes,
+effectively nothing. The state doc (`v2_velocity/state`, cursor plus
+seven days of per-question counts) is denied to clients in rules and
+pinned so in rules.test.ts: readable it would be a side channel under
+`AGG_MIN_N`, writable it would let an attacker inflate their own
+baselines. One new deployed function; check:fn-runtime and
+check:deploy-targets both hold it, check:appcheck is untouched (no
+callable surface).
+
+**Deliberately NOT built, with the reasoning:**
+
+- **Automatic denial or down-weighting.** The false-positive twins
+  above are the product's best days; machinery that punishes them on
+  pattern-match is worse than an operator reading a log line. D28's
+  warm-up-gating rejection stands unchanged.
+- **An alert policy.** DEPLOYMENT.md's "applied by hand, once,
+  deliberately" reasoning governs: these are numbers read daily during
+  calm. The heartbeat and flag lines carry `metric` fields so a
+  log-based metric can be attached the day evidence warrants standing
+  eyes — plumbing shipped, policy deliberately not.
+- **The vote choice in the flags.** Same as D28's ledger reasoning:
+  correction reads choices from the ring's answer docs; a copy in the
+  log would be worse minimisation for zero forensic gain.
+
+**Limits, so the layer above stays honest.** The scan cannot see the
++1-per-device-per-month drip (designed to sit under the publish
+cadence's noise floor), paid humans at human cadence, or a ring patient
+enough to mimic organic arrival across days. Its job is narrower and
+real: it forces an effective attacker into exactly that slow,
+human-shaped posture, and the device-bind month rule then prices that
+posture per physical device. Detection latency is up to a day plus the
+72h catch-up cap after an outage; entries beyond the cap are never
+analysed (logged as a gap, not absorbed). And a scan that runs is not a
+scan that is read — the flags are only as good as the operator's habit
+of looking, which is the argument the metric-field plumbing exists to
+answer when it stops holding.
+
+## D55 · Three guarantees were enforced on a value and not on the way it moves
+
+**Status.** Adopted 2026-08-06. Found by a code review of the tree at
+c592042; each was reproduced before it was believed, and each carries a
+test that fails against the code as it stood.
+
+**Decision.** Three fixes, one shape between them.
+
+**1 · The publish cadence applies per BUCKET, not only per question.**
+`shouldPublishAgg` bounds how often `v2_question_aggs` is rewritten, and
+D7's amendment records why: a client holds an `onSnapshot` on that
+document, so a step attributable to one person discloses that person's
+answer past any floor. The unit it bounds is the QUESTION. `by` — the
+per-anchor breakdown added later — is counted per BUCKET, and nothing
+bounded that. `steppedBreakdown` (pure.ts) now re-emits a bucket's previous
+value until the bucket has gained `AGG_MIN_N`, and the trigger stores the
+last released map as `v2_aggs_private/{qid}.byPub` (and `.entByPub` for the
+catalog path).
+
+The arithmetic that makes this not theoretical: anchors are empty until the
+user fills the Basics card (D8), so a five-answer publish window routinely
+carries exactly one anchored answer. Replaying the real fold, two
+consecutive published states differed by
+
+```
+{"gender":{"f":{"0":5}}}  →  {"gender":{"f":{"0":5,"1":1}}}
+```
+
+— one vote, isolated, in a cohort that had cleared the floor. And because
+the six anchors travel on the same answer, all six dimensions step together,
+so the disclosure is a full {ageBand, gender, city, country, education,
+relationship} tuple joined to an option, not a single cell. That is
+re-identification, not the residual D18 records.
+
+Cost: a bucket now lags by at most `AGG_MIN_N - 1` answers, the same bound
+the cadence already gives `counts`; the private doc keeps exact totals, so
+nothing is lost. First publish after deploy sees no stored `byPub` and
+releases current state once — identical to the behaviour it replaces, not
+worse.
+
+**Corrected 2026-08-06, by CI.** The baseline stored was first written as
+`steppedBreakdown`'s own output rather than what `publishableBreakdown`
+went on to publish. Those differ whenever a bucket is suppressed — and a
+bucket under the floor is suppressed by definition — so a cohort that had
+not yet cleared the floor had nonetheless SPENT its step budget on a value
+no reader ever saw, and then needed twice the floor to appear. In the shape
+`e2e-v2-loop.mjs` drives (two cohorts at 3 and 2, both reaching exactly 5 on
+the publish at total 10) it never appeared at all.
+
+The bound belongs to what was OBSERVABLE: a bucket the reader never saw has
+no delta to hide, so its next release is a first appearance, disclosing a
+cohort of at least the floor arriving together — the floor's own guarantee.
+`publishBreakdown` now returns one value that is both what is published and
+what is stored, so the two cannot be wired apart again.
+
+Worth recording where it was caught. The unit tests passed throughout: they
+pinned the RULE, and the defect was in how the trigger wired it. The e2e —
+the leg this record already flagged as unrunnable in the authoring sandbox —
+is what found it, on the first CI run. That is the argument for the e2e
+staying on the deploy path, made by the e2e.
+
+**2 · An anchor value may not be a key on `Object.prototype`.**
+`breakdownBucket` shape-checks `city` and `country`; the other four
+dimensions have no closed vocabulary, and `firestore.rules` can only bound
+an anchor's LENGTH — the constraint the shape map's own comment already
+records. So `anchors: { gender: "__proto__" }` passed the rules (verified in
+the emulator, anonymous auth), and `byDim[bucket] || (byDim[bucket] = {})`
+then set the PROTOTYPE rather than a property. The counter beneath it landed
+on `Object.prototype`, so every breakdown cell created afterwards in that
+instance started at 1: five voters published as six, on unrelated questions,
+until the instance recycled. `constructor` and `toString` are the same shape
+one step weaker — they read back truthy, so they also walk past
+`BREAKDOWN_MAX_BUCKETS`.
+
+Rejected by membership in the prototype rather than by a blocklist: a list
+of names the language owns is a list this repo would have to maintain
+against it.
+
+**3 · A take id may not be tallied on an object literal.** `takeId` is the
+take's document id and the CLIENT chooses it — the ruleset constrains a
+take's fields, never its name (verified: `v2_takes/constructor` creates, and
+another member can flag it). `counts[takeId] = (counts[takeId] || 0) + 1`
+therefore read back through the prototype, and ten flags on a take called
+`constructor` became the string `"function Object() { [native code]
+}1111111111"`. Every comparison in `buildModQueueFrom` against it is
+NaN-false, so the take never entered the queue however often it was
+flagged — moderation immunity, chosen at post time, nothing logged.
+`tallyFlags` (pure.ts) uses a Map; `priorEscalations` likewise, where the
+miss path would otherwise have written the Object constructor into a queue
+entry's `escalations` field.
+
+**4 · `--force` no longer reaches a firestore target.** Not a fourth bug so
+much as the same class in the deploy path — see docs/DEPLOYMENT.md for the
+arithmetic. `check:deploy-targets` now fails if the steps are recombined.
+
+**Why these are one record.** Every one of them enforced a guarantee on a
+STATE and not on a TRANSITION: the floor is checked in each published
+snapshot but never between two of them (1); the anchor is validated for
+length and shape but not for what assigning it does (2, 3); the index file
+is compared to the project but nothing asks what the comparison is allowed
+to delete (4). The guard that would have caught all four is differential —
+replay a sequence and assert a property of every adjacent pair, rather than
+of any single frame. `steppedBreakdown`'s test is written that way
+deliberately: it measures the minimum step over every adjacent pair of
+published states across 80 answers, because a spot check survives a policy
+that steps by one past some size, which is the bug it closes.
+
+**Amendment (2026-08-06) — two more from the same review, same shape.**
+Both were listed below as deferred when this record was written; they are
+now closed, and they belong here rather than in a record of their own
+because each is again a guarantee enforced on a value and not on the way it
+moves.
+
+**5 · The profile's live-mode guard holds on every mount, not the first.**
+`GeneralPanel` seeds from `localStorage` and writes the whole blob back on
+mount with no edit made, so the first open persisted a record and every open
+after it took `loadGen`'s merge path — which spread the sample persona
+underneath. The live guard sat past that branch, reachable only when there
+was no saved blob, which after the first mount was never. A live user
+therefore got `age 34 · Editor · independent press · MA Literature` back as
+their own, and the anchors effect wrote it to `v2_users/{uid}`, from where
+`answerAnchors()` stamped it onto every later answer. Answers are
+create-only (D5): the ones already written have no correction path, and a
+fabricated `ageBand` folds into published breakdowns as a real cohort.
+
+So the guard is now the BASE of the merge rather than a branch beside it,
+and the storage key moved to `insight.profileGeneral.v2` with a migration
+that drops any vital equal to the seed's value for that field. The trade is
+explicit: a user who genuinely typed a value the sample persona also has
+retypes one field. The alternative was leaving a fabricated anchor to be
+stamped onto answers nobody can edit.
+
+The mount-time anchors write is deliberately NOT suppressed, though the
+review proposed it as a cost saving. It is the only thing that repairs a
+profile whose anchors were already written — opening the profile once
+replaces the map wholesale — so gating it behind a first-run flag would have
+left every corrupted profile corrupted.
+
+**6 · Erasure reaches the offline mirror.** `firebaseImpl.ts` enables
+`persistentLocalCache()` unconditionally and `hydrate()` reads the whole
+answers subcollection plus the profile, so a deleted account's votes and
+anchors sat in IndexedDB. Nothing evicted them: `hydrate` is a one-shot
+`getDocs` rather than a listener, so the server-side delete produces no
+remove event, and the cache outlived the account on a device the user may
+sell. `deleteAccount` now calls `terminate()` then
+`clearIndexedDbPersistence()` — in that order, because the second refuses a
+live instance — both best-effort, before the existing `insight.*` purge.
+
+This one was a documentation defect as much as a code defect.
+`web/privacy.html` states that deletion "clears the app's data on the device
+you ran it from" and `docs/data-inventory.md` says the same; that claim was
+true of `localStorage` and of nothing else, in the document both stores
+require. D6 already treats this cache as sensitive — it is why Android
+backup is off. Fixing the code rather than the copy, because the copy
+described the right behaviour.
+
+**Amendment (2026-08-06, second) — the bucket cap and `ownerUid`.**
+
+**7 · The anchor bucket cap is no longer allocated first-come-first-served.**
+A dimension holds `BREAKDOWN_MAX_BUCKETS` (24) buckets, nothing evicted one,
+and `by` is carried across every publish — so whoever filled the slots first
+decided what the dimension could ever show. 24 nonsense values blanked it
+permanently, and firestore.rules can only bound an anchor's length. Two
+defences, because the six dimensions are two different shapes:
+
+- **Four have a closed vocabulary SHORTER THAN THE CAP.** ageBand, gender,
+  education and relationship come from `<select>`s of 7, 4, 15 and 6 values.
+  Checking membership means those dimensions cannot be exhausted at all —
+  there are fewer legal buckets than slots. That is the complete fix, and it
+  is available only in the trigger: the rules layer cannot hold a
+  vocabulary, and a client choosing from a list says nothing about what a
+  script sends. `npm run check:anchors` holds `BREAKDOWN_DIM_VOCAB` equal to
+  the profile's lists, on both the PR and the deploy path.
+
+- **City and country cannot be closed that way** — 10,929 places and ~249
+  countries against 24 slots — so the cap itself changed. A bucket below the
+  k-floor is published to nobody, so it is now evictable: a new bucket
+  displaces the smallest sub-floor one, and a bucket at or above the floor is
+  never evicted. Among equals it is oldest-out, and that is required rather
+  than tolerated — the attack state IS 24 buckets of one answer each, so a
+  rule protecting incumbents there would protect exactly the junk. What it
+  costs is the long tail, which the cap was already documented to degrade;
+  what it buys is that recurrence wins.
+
+The eviction loss is real and bounded: an evicted bucket's partial count is
+discarded, so a value that returns restarts and undercounts by at most
+`AGG_MIN_N - 1`. It only ever applies to counts no reader has seen, and it
+replaces a dimension that showed nothing at all.
+
+**Found while writing the vocabulary: `Vocational / trade` never counted.**
+It shipped as an `<select>` option and `breakdownBucket` rejected it for its
+entire life, because a slash is in that function's rejected character class.
+The answer wrote; the aggregate silently never counted it. Renamed to
+`Vocational or trade` on both sides, and rule 3 of check:anchors is that bug
+turned into a check.
+
+**8 · `deleteAccount` removes `ownerUid`.** `createGroupV2` stamps it and
+NOTHING reads it — a repo-wide grep finds one write and no reader — which is
+exactly why three erasure phases walked past it while scrubbing the two
+load-bearing fields beside it. firestore.rules serves the whole group
+document to every current member, so it published a deleted account's raw
+uid to the circle, and to anyone they invited afterwards, indefinitely. That
+is the shape the reveal scrub one screen below already refuses.
+
+Deleted rather than reassigned to a surviving member: nothing reads it, so
+inventing a successor would be a fact this codebase has no use for.
+`leaveGroupV2` is deliberately NOT changed — D45 settles that leaving a
+group is not an erasure request.
+
+The erasure e2e could not see this: its shared-group fixture was owned by
+the SURVIVING member, so there was nothing of the deleted user's in it to
+miss. The fixture now names the doomed account, which is the ordinary case,
+and asserts the field is gone.
+
+**Amendment (2026-08-06, third) — the reveal's membership snapshot.**
+
+**9 · A day's reveal is scoped to the members who were there for that day.**
+The reveal doc carries its own `members` array and firestore.rules gates the
+read on it, which is what makes the guarantee retroactive in one direction —
+joining tomorrow does not hand you every past day, leaving does not retract
+the days you played. The array was membership AT REVEAL TIME, which is not
+the same thing as membership on the day revealed.
+
+Day D is revealed by the D+1 scan, and that scan runs `every 120 minutes`.
+So anyone joining between 00:00 UTC and it was a current member when the
+snapshot was taken, went into `members`, and read day D's votes and names
+for a day they were not in the group for. Up to two hours, every day.
+`revealGroupDay` claimed to have closed this by preferring the page snapshot
+to a fresher read — but both reads happen on D+1, so that only ever closed
+the seconds between them.
+
+Groups now carry `memberJoinedAt { uid: Timestamp }`, written by
+`createGroupV2` and `joinGroupV2` and removed by `leaveGroupV2` and
+`deleteAccount` — the same four paths as `memberNames`, because a uid left in
+either map is the erasure leak §8 records. `revealMembersFor` (pure.ts)
+filters the array to members who joined before the END of the day (someone
+who joined midway through it was there for it), plus anyone who actually
+played it.
+
+**Why the played-it clause.** Rules accept a duel answer up to four days
+late, so a member can legitimately land a vote for a day preceding their
+join: an offline client flushing a queue, or a fresh group playing a recent
+day. Without the clause the pipeline publishes a reveal containing someone's
+own vote that they alone cannot read — and "you see the days you played" is
+the invariant the e2e already asserted.
+
+**A member with no recorded join time is included, and that is the answer
+rather than a fallback.** The field is written from the day this shipped, so
+its absence means the member joined before that, which is before any day the
+function will be asked about. Reading absence as "exclude" would blank every
+reveal for every group alive on deploy day — which is also why there is no
+ordering hazard in the rollout: the read side degrades permissively, so the
+field can appear before anything depends on it. The residual is one day
+wide: members who joined before the deploy keep the old scope for days not
+yet revealed.
+
+**The e2e was asserting the leak.** Its latecomer leg read the reveal as the
+LATECOMER — an account that joined three days after the day in question and
+never played it — and failed if the read was denied. It now reads as the
+creator who played, and asserts the latecomer is denied, so the leg proves
+the fix instead of the bug.
+
+**Amendment (2026-08-06, fourth) — three ways a thing stopped happening.**
+
+**10 · The reveal scan asks about the whole pending window.** It asked about
+exactly one day, `utcDayKey(-1)`, and the schedule never passed one — so a
+group-day was revealable during the single UTC day after it and never again.
+That is not the window the rest of the system works in: rules accept a duel
+answer four days late, deliberately, and `onV2AnswerCreated` re-adds the day
+to `pendingDays` whenever one arrives. An answer syncing on D+2 therefore
+re-opened day D, correctly, into a scan that would never ask about day D
+again. Nothing errored: both members had answered, the day sat pending
+forever, and a duo's streak stayed at whatever the earlier empty settle left
+it. Only an operator calling `revealDuelsNowV2({day})` recovered it.
+
+`scanDays` now returns `PENDING_DAYS_KEEP` days, which is the same bound the
+pruning uses — a pending day older than that can never gain another answer,
+so the scan asks about exactly the days that can still change. Steady-state
+cost is five extra indexed queries per run returning nothing. An explicit
+`dayKey` still means that day alone, which is what the operator lever and
+every e2e leg pass.
+
+**The second cause, independent of the first.** `onV2AnswerCreated`
+downgraded any non-NOT_FOUND failure of the `pendingDays` mark to
+`logger.warn` and returned normally, which made the trigger's `retry: true`
+dead on that branch. The mark is the ONLY thing that puts a day in front of
+the scan, so losing it lost the reveal. D19's stated safety net — "the answer
+never folded into any aggregate, a louder problem, already logged" — is true
+of the vote path and false here: the duel branch returns before any aggregate
+work, and `monitoring/onV2AnswerCreated-errors.json` filters severity>=ERROR
+while this logged WARNING. It rethrows now; `arrayUnion` is idempotent, so
+redelivery is free.
+
+**11 · `runBuildModQueue` pages through `v2_flags`.** It called `.get()` on
+the whole collection, and the collection has no upper bound: `MOD_ADVISORY`
+makes the keep-verdict sweep the only path that deletes a flag and it is dead
+code while advisory is on, `deleteAccount` removes one uid's, nothing else
+does, and there is no TTL. On a 256 MiB instance — `LIGHT_UNBOUNDED`, whose
+own rationale describes a *streaming* `recursiveDelete` — that is an OOM well
+before the 480 s deadline the code reasons about. Silent in-band, too: the
+stale queue keeps serving, `queuedAt` never advances, `gen` freezes, and
+every re-judgement throws `already-exists`. `buildModQueueNow` shares the
+options, so the manual recovery lever died the same way.
+
+What it holds now is one counter per DISTINCT take rather than one object per
+flag. **That is not a hard bound and this record does not claim one** — it
+grows with the number of takes ever flagged. The real bound is retention, and
+choosing one (a flag TTL, or running the sweep in advisory mode) is a
+data-policy decision with its own arithmetic. Deliberately not taken here.
+
+**12 · `deleteAccount` unlatches `torndown` when the wipe is refused.** The
+latch is set as the callable's first statement, deliberately — work already
+in flight must not re-create an `insight.*` key mid-wipe — and nothing ever
+reset it. But a refused wipe is an expected outcome, not an exceptional one:
+`index.ts` refuses the auth delete whenever any phase failed, every network
+timeout lands there too, and `LivePrivacyPanel` keeps the user in the app
+afterwards. Left latched, that session was permanently deaf and nothing said
+so: `refreshLive()` and `wake()` no-op so it can never reconnect after going
+offline, `resubscribeForToday()` no-ops so the midnight rollover renders a
+new deck while the previous day's listeners stay attached and billed, and
+`subscribeToAuth`'s handler bails — disabling the uid-change guard whose own
+comment says it exists to stop one person's answers being shown to another.
+`vote()` is not gated, so writes kept flowing. Only a restart cleared it.
+
+**Amendment (2026-08-06, fifth) — the tail of the review.**
+
+**13 · The gates that could not see.** `check:appcheck` and
+`check:deploy-targets` read one directory level, so a callable in a
+subdirectory was invisible to both — and to their own vacuity counters,
+which only count what they read. `check:globals` rule 2 substring-matched
+`spec-index.js` without stripping comments, so commenting out a side-effect
+import passed; five v17 modules assign no global at all, making that line
+their whole wiring. `check:cities` restated `BREAKDOWN_MAX_LABEL` and the
+rejected character class instead of reading them. And `npm run lint` applied
+ZERO rules to `scripts/` and `firestore-tests/` — measured, against 106 for
+`src/lib/firebase.ts` — so `--max-warnings 0` said nothing about the code
+whose job is saying things about other code. All four fixed; the last found
+one dead import immediately, and then caught a genuine bug in this very
+change (an undefined `adb` in the moderation e2e) before it was committed.
+
+**14 · What the UI and the store forms claimed.** `LIVE.social.leaveGroup`
+had shipped with **zero call sites in any live surface** — the demo panel's
+Leave button is swapped out when live is on — while `STORE-FORMS.md` and
+`SHIP-CHECKLIST.md` answered Apple guideline 1.2 with
+"`removeGroupMember` / `leaveGroup`". No `removeGroupMember*` callable has
+ever existed. A **Leave circle** control is now wired into `LiveDuelPanel`,
+two-step because the last member out takes the group and its reveals, and
+both documents now describe what ships. **No owner-side remove callable was
+added**: ejecting someone is a moderation power in a mutual-consent circle
+and needs its own decision, so the forms say so rather than implying one.
+
+**15 · Three claims that were false in the code's own voice.**
+`slicing.test.ts` stated in the present indicative that an e2e leg proved
+D44; no such leg was ever written, and mutating `slices` to `true` left all
+four runners green while eighteen Art. 9 items published their cross-tab.
+The enforcement point is now `breakdownFor` in v2.ts with cases of its own.
+`feed-interleave.test.ts` declared its own copy of the loop and its own
+constants, so nine assertions exercised the test file — and the shipped loop
+had meanwhile grown a third stream the copy did not model; the loop now
+lives in `data/feed-interleave.ts` and both import it. `e2e-moderation`
+step 6 printed a pass for an assertion nobody wrote (`void judged;`), and
+the erasure e2e's only client-authored write was denied every run and
+swallowed, so it asserted the absence of a document that never existed.
+
+**16 · The rest.** The privacy panel's Sentry OFF is enforced at the two
+send sites rather than trusted to a teardown that cannot happen, and
+`setSentryUser` is gated too — `wake()` was re-attaching the uid after
+opt-out, turning an anonymous residual into an identified one. `linked` is
+derived from auth instead of local state seeded to false, which was telling
+Google-linked users they were anonymous. `resetForNewUid` publishes
+`window.IS_TEST_RESULTS` through a shared helper and clears the two
+one-shot flags, which are now per-uid. Retired daily questions stay in the
+bank as tombstones so the kill switch stops re-mapping the pager. The
+reveal's profile reads carry a `fieldMask` — measured at 50 KB to 42 bytes
+on a profile whose `testResults` the rules bound only by key count.
+twin/contrarian need a spread, not just a sample: a three-way tie was
+crowning one member and calling another "breaks ranks" beside a literal
+3/3. And `check:figures` is file-aware, which is how `SCHEMA-V2.md` came to
+say the seed writes 191 docs on one line and 369 on another.
+
+**Deliberately NOT done, with the reason.** Invite codes are still permanent
+bearer credentials — rotating one inside `leaveGroupV2` would break the
+code for every remaining member, and the growth loop is the reason the code
+is shared at all; that is a product trade, not a bug fix. `v2_flags` still
+has no retention bound (§11). No `content/options.lock.json` gate was added
+for question option arrays: it is the right shape, but it needs a decision
+about what a legitimate option edit looks like before a ratchet can refuse
+the illegitimate ones.
+
+**KNOWN RESIDUAL, stated because it is a real one.** The played-it clause is
+also an unlock: join a group, backfill an answer for a day inside the
+four-day window, and the reveal admits you. Strictly narrower than what it
+replaces — passive joining now reveals nothing, and the unlock costs a
+visible vote in the circle's own reveal — but not nothing. Closing it means
+bounding the WRITE rather than the read: firestore.rules would have to refuse
+a duel answer for a day preceding the member's join. That is a change to the
+densest rule in the file, whose failure mode the file itself describes as "a
+vote that vanishes", and it would refuse the legitimate fresh-group case
+above. It is a decision of its own and is deliberately not taken here.
+
+## D56 · The logic test stops telegraphing its rules: banded families, and every puzzle is on the clock
+
+**Date:** 2026-08-06 · **Status:** Adopted (owner: "the biggest impact"
+inside the D31 posture)
+
+**The problem.** D31 made every attempt's puzzles fresh, but deliberately
+fixed the family SEQUENCE — item 3 was always a shape cycle, items 9–11
+always Latin squares. That fixed order was the one piece of a fresh form a
+repeat taker still knew in advance: with thirteen families in a known
+order, the test was coachable per slot, which converts fluid reasoning
+into partly-practiced pattern matching. Separately, an attempt had no time
+bound at all — an item could be held open indefinitely, which is neither
+how matrix tests are administered nor neutral against mid-item consulting,
+and D53 had already recorded unbounded backgrounded time as an accepted
+timing skew.
+
+**What changed (generator v2).** The twelve slot WEIGHTS are untouched —
+`1,1,1.5,2,2,2,2.5,2.5,3,3,3,3.5` is the calibration D31 anchored
+`logicPctile` to, and it does not move. What varies is which family
+occupies a slot: each weight band draws from a pool, without replacement,
+on its own seeded stream. Five families joined so every band has a real
+pool: `sizeCycle` (w1.5), `dotSub` (w2), `innerGrow` (w2.5), `latinDots`
+(w3) and `overlayXor` (w3.5 — Carpenter's figure
+addition-and-subtraction, the classic APM tail motif). The arithmetic:
+band draws yield 2·2·24·6·24·3 = **41,472 family sequences** (ordered
+draws: 2! · C(2,1) · P(4,3) · P(3,2) · P(4,3) · C(3,1)), each then
+parameterised per item as before — the sequence is no longer knowledge.
+No family repeats within a form.
+
+**The clock.** Every puzzle now has a 90-second budget (>5× the modelled
+median of 17s — a careful solver is never rushed). An expired item
+settles as unanswered: marked wrong, timed at the full budget. The
+countdown renders only inside the final 20 seconds, absolutely
+positioned so its appearance never shifts the puzzle mid-solve. Expiry is
+deadline arithmetic, not tick counting, so a backgrounded tab cannot buy
+unbounded think time — this caps (not fixes) the D53 accepted limit on
+Pace timing. Recorded times are clamped to the budget.
+
+**What deliberately did NOT change.** The weight ramp, the percentile
+curve and its 94 ceiling (raising the honest ceiling needs harder items
+AND measured norms — a curve re-derivation without data would be
+model-on-model), the result schema (v2 payloads carry `gv`, which now
+reads 2), and the D31 device-local posture: this test still sends nothing
+anywhere, and the client-side honesty note in logic-gen.ts still holds —
+banding closes advance knowledge and coaching surface, not devtools.
+Verified server-scored attempts remain the recorded ticket price for any
+social or comparative surface (D31's deferral arithmetic stands).
+
+**Reconstruction survives the version bump.** D31 commits to {seed, gv}
+rebuilding a result's exact form forever, so v1 stayed generable:
+`generateForm(seed, 1)` dispatches to the frozen template (identical
+construction and option streams), and golden tests pin three v1 seeds —
+one per tail family, seed 7 down to every visible cell and the full
+option order — so drift in the frozen path fails CI rather than quietly
+reinterpreting history. An unknown gv throws. The overlay stamps
+`gv: form.version` as before; old saved results render unchanged.
+
+**Verification.** The D53 ambiguity sweep now covers the new families —
+each got a completion predicate (the family rule plus the grid's visible
+uniformities and exact element identities), and the sweep's contract is
+unchanged: every answer must satisfy its predicate, no distractor may,
+across every seed × item × option in the suite's 200-seed sweep.
+`overlayXor`'s construction guarantees a visible row whose operands
+overlap — on that row XOR visibly differs from union/intersection/copy,
+so the union corruption is a wrong answer, not an ambiguous one — and the
+family validator asserts that property from the cells. The banded
+template is pinned literally in the test (weights per slot, pool
+membership per slot, no-repeat), so moving a family between bands is a
+visible recalibration. The overlay suite drives a full expiry: countdown
+hidden at 69.5s, visible at 70s, item settled wrong at 90s + reveal
+delay, recorded at exactly 90000ms.
+
+**Accepted limits, recorded.** The w1 band holds only two families, so
+slots 1–2 vary in order but not membership — acceptable at the easy end,
+where coaching buys least. The 90s cap counts real-world interruptions
+(a phone call mid-item forfeits that item; Retake exists, and a bounded
+loss beats an unbounded hole). The countdown is visual plus a
+`role="timer"` label; the test's non-visual scope is unchanged from D53.
+Family draws are per-band independent, so cross-band composition (one
+item combining two bands' rules) is still future work — it is the honest
+route to raising the ceiling past 94, once there are measured norms to
+recalibrate against.
+
+## D57 · Verified logic attempts: D31's deferral reversed — the server holds the key
+
+**Date:** 2026-08-06 · **Status:** Adopted (owner: "lets do the backend
+verified attempts too, reverse d31") — this reverses the "Backend sync:
+deferred" clause of D31. Everything else in D31 (generation over a bank,
+the honesty posture, v1 reconstruction) stands.
+
+**The reversal, and what it cost.** D31 priced the sync bundle and
+deferred it: a fifth `testResults` key under the ≤8 rules cap, a
+data-inventory row, a store-form re-answer. That exact bundle now ships —
+plus one thing D31's costing could not have known, because it priced an
+UNVERIFIED sync: a verified score cannot ride the client-only
+`saveTestResult` path at all. A client-writable key is a forgeable one,
+so `testResults.logic` lands with a rules change after all — the
+fcmTokens presence-not-mutation pattern, case-for-case — and only the
+scoring callable writes it. The store-form re-answer came back clean:
+the score is User Content → "Answers and test results", already declared
+Yes/linked; the histogram carries no identifier. Practice attempts still
+send nothing anywhere, and the result-screen copy now says "practice"
+where it used to say "this test", in the same commit that made the
+distinction real.
+
+**The design.** Two callables (App Check-enforced, LIGHT_CALLABLE,
+us-central1), one attempt doc per account at `v2_logic_attempts/{uid}`,
+opaque even to its owner:
+
+- `logicStartV2` mints a crypto seed server-side, stores
+  `{seed, gv, status: "open", startedAtMs, deadlineMs, dayKey,
+  startsToday, normsCounted}`, and returns the twelve puzzles as
+  `{cells, opts, diff}` — the answer index, the family names and the
+  seed are withheld. Given cells and options, the only route to the
+  answers is solving. Guards: 3 starts per UTC day (an unfinished
+  restart is a preview channel, so it is bounded, not free), and a
+  30-day re-verify cooldown once scored. A crashed attempt can restart;
+  it just burns a start.
+- `logicSubmitV2` takes twelve raw pick indexes (-1 = expired),
+  regenerates the form from the stored `{seed, gv}`, scores inside the
+  deadline (12 × 90s + one item of slack — the D56 cap arithmetic,
+  server-enforced in aggregate), and in one transaction: marks the
+  attempt scored, writes the canonical result to `testResults.logic`,
+  and folds the account's FIRST scored attempt into the norms
+  histogram. The response returns marks, score, percentile — and only
+  now the seed, which post-scoring is no longer an answer key, so the
+  local copy stays reconstructable (the D31 property practice results
+  have always had).
+
+**Why the seed never travels, with the arithmetic.** The generator is
+public byte-for-byte on every client, so seed → full answer key in
+~0.25ms. Recovering the seed from the puzzles means sweeping the 2^32
+seed space against the served cells: ≈ 4.3e9 × 0.25ms ≈ 12 CPU-days,
+perhaps 10× less with a construction-only matcher — against a ~19.5
+minute submission window. Feasible for a cluster, and beside the point:
+cracking the seed yields exactly what photographing the puzzles and
+asking a strong solver yields, at far higher cost. Solve-by-proxy
+strictly dominates, no unproctored test prevents it, and the clock
+bounds it. "Verified" therefore claims precisely: scored server-side, on
+a form the client could not have seen in advance, within the standard
+administration window, one canonical score per account per cooldown.
+It does not claim proctored. (The 2^32 space is a generator-inherited
+bound; a future gv can widen it if verified scores ever gate something
+worth a cluster.)
+
+**Norms, and the flip that has NOT happened.** Exact counts in
+`v2_logic_norms_private/global` (13 score buckets + n, no uid, no
+anchors, no timing); public mirror at `v2_logic_norms/global`
+materialized only at or above AGG_MIN_N and rewritten every
+PUBLISH_EVERY-th count — the same floor and the same step-attribution
+argument as the question aggregates, imported from the same constants.
+Only first scored attempts count (D32's rule, D32's reason: retakes
+measure practice). The displayed percentile is STILL the modelled
+logistic — the result stores `source: "model"` — because a histogram of
+n < floor is not a norm study. Flipping verified percentiles to the
+measured distribution once n clears the floor is deliberate future work
+and will be its own recorded decision; nothing in the UI claims
+measurement today (LOGIC_VERIFIED_NOTE says so explicitly).
+
+**Erasure.** The attempt doc is uid-keyed OUTSIDE the v2_users subtree,
+so `deleteAccount` gained a dedicated phase, and the erasure e2e seeds
+and asserts the doc like every other per-uid path. The histogram
+survives deletion — it was never attributable to begin with, same as
+the k-floored question aggregates a deleted account's answers fed.
+Deleting your OWN verified score from your profile doc is allowed and
+pinned by a rules test (it is your doc; the cooldown and the norms count
+live server-side, so deletion resets nothing) — but the door does not
+swing back: reintroducing the key is forgery and is refused.
+
+**Enforcement inventory, because a claim needs a test.** Rules: clients
+cannot introduce, mutate, or reintroduce `testResults.logic`; the
+attempt doc and exact norms are denied to everyone; the mirror is
+read-only — all pinned in rules.test.ts, including the post-merge trap
+that keeps big5/politics syncs working while the logic key rides along.
+Functions: logic.test.ts pins the curve landmark-for-landmark against
+the client copy, scoring against the real generator, the cooldown/rate
+arithmetic, the wire shape (cells+opts+diff and NOTHING else), and the
+foldNorms algebra. The generator ships as two byte-identical copies
+(functions/tsconfig compiles only its own src/), held equal by
+`check:logic-sync` in ci.yml and on the deploy path via
+backend-checks.yml — a drifted server copy would score forms the client
+never rendered. check:appcheck counts both callables enforcing;
+check:fn-runtime and check:deploy-targets cover the new exports; the
+deploy workflow's --only list names them.
+
+**Accepted limits, recorded.**
+- The callables' end-to-end leg (emulated functions driving start →
+  submit → testResults + norms assertions) is deferred: the functions
+  emulator cannot start in this development sandbox (the CLAUDE.md
+  environmental note). Coverage today = pure unit + rules + overlay
+  tests over a mocked transport; the erasure e2e rows DID land and run
+  in CI. Writing an e2e leg that cannot be executed before commit would
+  trade a recorded gap for unverified green — the worse deal.
+- A failed submit keeps the picks in memory for Retry; killing the app
+  between finish and submit loses the attempt (it expires server-side,
+  having cost one of the day's three starts). Not persisted to storage
+  on purpose — a stored pick queue is a new erasure surface for one
+  narrow failure window.
+- Per-item timings stay device-local even on verified results; the Pace
+  lens reads the local values and the server stores only the duration it
+  observed. The verified record makes no claim about per-item speed.
+- The `db` device-bind claim (D29) is not demanded by the callables —
+  matching the answer rules' soft-enforce state. If D29 step 2 flips,
+  revisit here: the claim is the anti-account-cycling control, and the
+  3-start/30-day limits are per-ACCOUNT, not per-device, until then.
+- No social or comparative surface reads the verified score yet. This
+  decision builds the score that could survive one; the surface, its
+  k-anonymity story, and the measured-percentile flip are separate
+  decisions.
+
+## D58 · The seed refuses to edit a shipped option set
+
+**Date:** 2026-08-06 · **Status:** Adopted
+
+**What was enforced by nothing.** D52 records "shipped option sets are
+never edited" as an invariant, because answers store `(qid, optionIdx)`
+and nothing else. Swap two options on a live question and every historical
+vote silently changes meaning: no count moves, no aggregate recomputes,
+nothing anywhere reports it. It is the D30 re-key class applied
+retroactively to data already collected — and the enforcement was a human
+reading the diff. `runSeedV2` took an edited `options` array straight
+through `seedDocMatches` (which returns false on *any* changed field,
+including this one) and `batch.set(…, { merge: true })` it over the live
+doc.
+
+Every content review so far has got this right. That is a record, not a
+mechanism. D55's own review found sixteen things by reading; this is the
+class of defect that reading is worst at, because the diff looks like an
+ordinary content edit and the damage is invisible in every artifact
+afterwards.
+
+**The refusal.** `seedOptionConflict` compares the stored option array
+against the one about to be written; a conflict skips that document and
+the run throws `failed-precondition` naming every refusal, old set and
+new. Per-document rather than per-run: a batch of legitimate prompt fixes
+must not be held hostage by one bad edit, and the throw makes sure the
+skip cannot be mistaken for success either way. The legitimate writes are
+already committed when it throws — holding them back would punish the rest
+of the batch for one line.
+
+**Deliberately narrow.** `prompt` edits stay allowed, and that is not an
+oversight: D52's own fix list is mostly prompt rewrites preserving a
+question's meaning ("€500" → "a week's pay"), and a prompt carries no
+index any answer refers to. Only `options` re-keys stored data.
+
+**Appends count as edits.** Adding an option orphans no existing index,
+but it changes what the question asked the people who already answered it
+without that choice. D52's appends are to *banks* — new questions — never
+to a shipped question's option list.
+
+**Creates and pre-`options` docs pass.** A document that does not exist
+has no votes to re-key, and neither does one stored without an `options`
+array. Refusing either would wedge the seed permanently.
+
+**The operator's two legitimate paths are unchanged**: `active: false` to
+retire a question, or append a new qid to replace it. Neither goes through
+this code.
+
+**`runSeedV2` takes its `Firestore` as an argument now**, following
+`runAggTransaction`'s precedent, and the reason is the whole point of this
+record. The guarantee is about what the seed *refuses to write*, and a
+`getFirestore()` inside the body would have made that refusal untestable
+without an emulator — which is the same shape as the gap being closed
+here. `seed.test.ts` drives the real function against a stand-in db and
+asserts the refused document is never written, the allowed prompt fix in
+the same run still is, a create is never refused, and the run's own log
+does not count a refusal as "unchanged". Mutation-checked: deleting the
+four-line guard from `runSeedV2` fails four of the six, and the two that
+survive are the controls that should pass either way.
+
+Testing the predicate alone would not have been enough, and the
+distinction matters: `seedOptionConflict` answering perfectly while
+nothing called it looks identical in `pure.test.ts` and still loses every
+historical vote on the edited question.
+
+**Not done: the CI-side manifest.** A committed snapshot of every shipped
+option set, diffed by `check:content`, would catch the edit one step
+earlier — at review rather than at seed. It is redundant with this, needs
+a new artifact to maintain, and would go stale in the one direction that
+matters (a manifest nobody regenerates passes everything). The
+server-side refusal is authoritative because it reads the live documents;
+that is where the invariant is actually about to be broken.
+
+## D59 · The deferred chunks stop caching their own failure
+
+**Date:** 2026-08-06 · **Status:** Adopted
+
+**The bug.** `spec-index.js` memoised both deferred groups (D25, D48) into
+a plain module-level variable: `if (!p) p = (async () => …)()`. That is
+correct for what it was written for — `main.jsx` starts each load once,
+every opener awaits the same promise, the mount tests await them in
+`beforeAll` — but `if (!p)` cannot tell a resolved promise from a rejected
+one. One failed chunk fetch (a dropped connection, a stale asset after a
+deploy, a flaky native file read) was therefore **permanent for the
+session**: every later call replayed the same rejection. The World feed
+and all five cross-link overlays stayed gone until relaunch, and because
+app-shell's openers catch and return, the symptom was a tap that did
+nothing — no toast, no retry, no report.
+
+**The fix is one helper.** `data/lazy.ts`'s `retryable()` clears the
+cached promise on rejection and rethrows. No retry loop, no backoff — the
+caller decides whether to ask again. The overlays get recovery for free
+precisely because every one is reached through an opener that awaits this
+promise: the second tap re-attempts the import. Nothing else changed.
+
+**The success path is unchanged, which matters as much.** Concurrent
+callers still receive the same promise object, so this cannot turn one
+deferred group into two parallel downloads — pinned by a test asserting
+identity, not just equal values.
+
+**Cleared before the rethrow, not in a `finally`.** A caller that catches
+and retries synchronously — the exact shape app-shell's openers have —
+must find an empty slot rather than the promise it just saw reject.
+
+**Mutation-checked.** Reverting `lazy.ts` to `if (!inflight) inflight =
+load()` fails three of the five cases and passes the two success-path
+ones. A test suite that only covered the success path would have passed on
+the bug, which is how it shipped in the first place.
+
+**The feed still gets one shot.** `main.jsx` calls `loadWorldFeed()` once
+and reports a failure to Sentry; nothing re-attempts it, so a failed feed
+chunk still costs the feed for the session. Retry is now *possible* there
+rather than automatic — wiring a user-visible retry into the daily card is
+a UI decision, not a memoisation one, and is left for whoever designs that
+affordance.
+
+**One import that is not a spec module.** `spec-index.js` now imports
+`./data/lazy`, above the ordered list rather than inside it, because
+nothing in that list reads it and the list's order is a contract. The
+direction is the allowed one: `spec/` and `spec-index` may import `data/`
+(as `main.jsx` and `logic-test.jsx` already do); `data/` may not import
+them back.
+
+## D60 · The verified percentile becomes a measurement at one hundred players
+
+**Date:** 2026-08-06 · **Status:** Adopted (owner: "do the measured
+percentile flip when we have enough data") — the flip D57 recorded as
+future work, built now and gated on data, not on a later deploy.
+
+**What flips, exactly.** `logicSubmitV2` now reads the private norms
+histogram on every submit (pre-fold, before any write, as transactions
+require). Once it holds at least `LOGIC_NORMS_MIN_N` verified first
+attempts, the percentile stops being the logistic and becomes a count:
+the share of counted players this score STRICTLY beats — ties are not
+beaten, which keeps the claim wording ("share of players this score
+beats") identical to the curve it replaces. The result and the response
+carry `source: "measured"` and `n`, the population ranked against; the
+client says "Sharper than X% of N verified players" and swaps the note
+for one that names what is measured and what is not. Below the floor,
+nothing changes: same logistic, same `source: "model"`, pinned equal in
+both suites.
+
+**The floor, with the arithmetic.** `LOGIC_NORMS_MIN_N = 100`. At
+n = 100 the worst-case standard error of an empirical percentile is
+√(0.5·0.5/100) ≈ 5 points — comparable to the modelled curve's own
+honesty margin — and the k-anonymity floor (AGG_MIN_N = 5) is cleared
+twenty times over. Below that, an empirical rank whipsaws by tens of
+points per submission: noise wearing a number. One constant; lowering
+it is a recorded decision, not a tweak.
+
+**Pre-fold comparison, on purpose.** The population is the players
+counted BEFORE this submission, so a submitter is never a member of
+their own field, and a re-verifier (who never folds — D32's
+first-attempt rule) is ranked against the same kind of population as a
+first-timer. `n` is therefore exact in the claim: each counted player
+appears once, which is precisely what the first-attempt rule bought.
+
+**The ceiling argument retires — for measured results only.** D53
+capped the modelled curve at 94 because a curve cannot rank perfect
+scores. A count can: 12/12 among a field where 10% score perfect reads
+"sharper than 90%", and among 150 perfects of 200 it reads 25 — the
+data speaks, however deflating. The [1, 99] clamp stays at both ends
+for display sanity ("top 0%" and "sharper than 100%" are absurd at any
+n), and the modelled path keeps its 94 untouched.
+
+**What deliberately did NOT change.** Practice attempts still score
+against the modelled curve, on-device — ranking an unlimited-retake
+practice run against the verified-first-attempt population would
+compare unlike things and muddy both claims. The lens charts (solve
+bars, field Gaussian, pace cloud) remain modelled sketches even on a
+measured result — the measured note says so explicitly, so one real
+number never dresses up four drawn ones. Drawing the Field lens from
+the public mirror is the natural next step and is recorded here as NOT
+done. The mirror's publish cadence and floor are untouched.
+
+**Verification.** `measuredPctile` is pure and pinned: null below the
+floor (the model keeps the job), strictly-below share at it, tie
+handling, both clamps, the perfect-among-perfects case, and the
+995-of-1000 rounding edge. The overlay suite drives a measured response
+end-to-end: the claim names its population, the note declares the
+sketches, and the saved result carries `source`/`n`. The submit path's
+change is read-always + branch — the emulated e2e leg remains deferred
+with D57's environmental reason.
+
+## D61 · Twenty-five items, tail-heavy: the form grows before the norms freeze it
+
+**Date:** 2026-08-06 · **Status:** Adopted (owner: "do 25 items with the
+harder tail", against the assistant's 20-item recommendation — 25 sits
+inside the owner's original 20–30 range)
+
+**Why now, and why at all.** Twelve items give thirteen raw scores and
+squeeze all top-end discrimination into the last two or three; by
+Spearman–Brown, a 0.78-reliability 12-item form reaches ≈ 0.87 at 25
+items. And D60 froze the clock: the norms histogram buckets scores by
+form length, so every verified attempt accumulated under 12 items would
+be discarded by a later change. The histogram is empty today — this is
+the last cheap moment.
+
+**The v3 ramp.** 25 slots, non-decreasing:
+`1,1 · 1.5,1.5 · 2,2,2 · 2.5,2.5,2.5 · 3,3,3,3 · 3.5,3.5,3.5,3.5 ·
+4,4,4,4 · 4.5,4.5,4.5` — eleven of twenty-five at 3.5+, against one of
+twelve in v2. Ten new families joined so every band draws from a real
+pool: `ringLatin` (w3.5); the w4 two-rule compositions
+`latinShapeSizeFill`, `outerLatinInnerLatin`, `ringGrowFill`,
+`innerGrowCycle`, `fillRampShapeCycle`; and the w4.5 tail —
+`dist2Latin` and `xorLatin` (three simultaneous rules), `ringLatinShape`
+(double distribution over a low-salience attribute), and `dist2Xor`
+(two elements under two DIFFERENT laws) — Carpenter's hardest classes.
+28 families total; band draws now yield 2·2·24·6·24·24·120·24 ≈ 9.6e8
+family sequences. The sweep caught one real ambiguity during
+construction — a skipped-ring distractor satisfying a count-only
+reading of the new ring-Latin families — closed the D53 way: the
+predicates now demand the exact consecutive ring geometry every visible
+cell teaches, the same exact-vocabulary constraint dist2's elements got.
+(The legacy `ringGrow` never had the hole live: its column counts are
+always 1 or 3, so a two-ring answer cannot occur there.)
+
+**The 25-item curve, re-derived and pinned.** `logicPctileFor(frac,
+items)` carries one logistic per form length. The v3 parameters are
+midpoint 54 (a modelled median solver clears the low bands and roughly
+half the middle: ≈13.5/25) and slope 12; landmarks pinned in both
+suites: chance (1/6) → 4, half → 42, 20/25 → 90, perfect → **98** — the
+tail-heavy ramp earns the model more ceiling than D53's 94, still
+capped below 99 because a curve still cannot rank perfect scores. The
+12-item curve keeps its historic name, parameters and pins: v1 payload
+back-fills must not re-rank, and unknown legacy lengths fall back to
+it. All of this is bootstrap only — D60's measured flip supersedes the
+model at n = 100 regardless of parameters.
+
+**Era safety, both directions.** The norms histogram now stamps the
+form length it counts (`items`); a stored histogram from another era
+ranks nothing and folds nothing, so the first current-era submit starts
+the count fresh — 12-item scores can never mix with 25-item ones. An
+attempt OPENED under gv 2 and submitted after this deploys is validated
+and scored against its own 12-item form (`logicItemsFor(gv)`), scored
+by the 12-item curve, and kept out of the 25-item histogram — the
+deadline bounds that window to minutes, but a refusal there would
+swallow an honest finisher. Reconstruction holds for every era:
+generateForm(seed, 1|2) reproduce their frozen generators, pinned by
+goldens (v2's captured pre-change, seed 11 down to full option order),
+and an unknown gv still throws.
+
+**What it costs the sitting.** Typical runs move from ~3–5 to ~6–8
+minutes (modelled median 17s/item); the worst case, every 90s clock run
+out, is 37.5 minutes, and the verified deadline is 26 × 90s = 39
+minutes. The per-item cap stays flat at 90s across all bands — a
+per-band cap would be tighter administration but a second thing to
+explain; recorded as not done.
+
+**Accepted limits, recorded.** The w1, w1.5 and w2.5 bands have pool ==
+slots, so their family SETS are fixed and only order varies — the
+variety budget went to the tail, where coaching pays most. Reliability
+numbers quoted here are still Spearman–Brown projections, not
+measurements; the odd/even split-half submission idea (D57's reflection)
+remains future work. The Answers lens draws 25 rows on a phone screen —
+scrollable and legible, but dense; redesigning it is deferred until the
+measured Field lens work touches those lenses anyway.
+
+## D62 · The test starts learning its own difficulty: family and slot solve rates
+
+**Date:** 2026-08-06 · **Status:** Adopted (owner: "add some learning to
+it so we better learn how hard each question is")
+
+**What is learnable, and from where.** Questions are generated, so there
+is no bank to rate — the difficulty-bearing units are the 28 rule
+FAMILIES (the Carpenter-prior weights D56/D61 assigned them are exactly
+the numbers worth checking) and the 25 SLOTS (same family late in the
+sitting may solve less: fatigue and time pressure are real and worth
+separating from family hardness). The only place this is honestly
+observable is a verified attempt: the server regenerates the form, so it
+alone knows which family each item was and whether the pick was right.
+Practice attempts still send nothing.
+
+**The fold.** `foldDifficultyStats` counts, per family, appearances and
+solves, and per slot, solves (`n` is every slot's exposure). It runs in
+`logicSubmitV2`'s transaction under the SAME gate as the histogram —
+verified first attempts of the current era only (D32's rule: retakes
+measure practice; D61's era stamp: 12-item stats never mix with
+25-item ones) — into `v2_logic_norms_private/families`, mirrored to
+`v2_logic_norms/families` at the same floor and cadence as everything
+else. The two docs ride the existing collections, so ZERO rules changed;
+the rules test asserts the new paths anyway, so a future rename cannot
+silently split the coverage.
+
+**What is deliberately absent.** Timings: per-item solve times are the
+strongest difficulty signal and they stay on the device, because D57
+promised exactly that in the data inventory — difficulty is learned from
+solve rates alone, and that trade is recorded here rather than quietly
+made. Anchors and uids: never attached; the ledger is counts, same
+survivability-after-deletion argument as the histogram.
+
+**The loop this exists to close, later.** With measured per-family solve
+rates, three recorded futures become data-driven instead of
+prior-driven: recalibrating the band weights (a family measurably easier
+than its band mis-prices "k of 25"), auditing the ramp's monotonicity in
+reality (slot solve rates should broadly fall left to right — if slot 19
+outsolves slot 12, the ramp lies), and replacing the Answers lens's
+modelled solve-rate bars with real ones. Each is its own decision once
+n is meaningful; nothing reads the mirror yet, matching the D60
+histogram-mirror precedent.
+
+**Verification.** Pure fold pinned from nothing, over priors, and over a
+full real form (25 distinct families seen once each — the no-repeat rule
+observed from the data side). `scoreLogicPicks` now returns the families
+alongside the marks, asserted against the generator; the wire to the
+client is unchanged (families are derivable from the disclosed seed
+post-scoring, so nothing new leaks). Rules suite covers the new doc
+paths in both collections.
+## D63 · Near-duplicate questions get a measured gate
+
+**Date:** 2026-08-06 · **Status:** Adopted
+
+**The problem.** Every content lane's dedup rule is "check the whole
+corpus while writing" (QUESTION-FARM.md), and the only automation behind
+it is exact prompt-string equality within a surface (`check-content.mjs`).
+The corpus grows by up to 4 farm questions plus a catalog card per day
+(D33), written by scheduled runs whose recall of the archive is a re-read;
+one reworded word defeats the exact check, and the repo's own fixtures
+prove the class: "Money can buy happiness." (sg07) and "Money buys
+happiness." are the same question sharing not one exact string.
+
+**The gate.** `scripts/question-neighbors.mjs` (`npm run check:neighbors`,
+CI lint job) scores token-set Jaccard over prompt + option/item labels —
+lowercased, diacritics folded, stopwords dropped, plurals stemmed —
+within each surface's dedup domain: the spec daily archive (positional
+dq/dqx ids cross-read from `DQ_BASE`, so failures name real ids), the
+feed bank, both duel banks together (the D40 dedup rule), and `PICK_QS`.
+An in-domain pair ≥ 0.5 fails CI; a pair a human judges genuinely
+distinct is recorded in the script's `ALLOW` map with the reason — a
+recorded exception, not a convenience.
+
+**The threshold, measured not chosen.** At adoption the closest
+legitimate in-domain pairs score 0.286 (daily), 0.222 (feed), 0.300
+(duel), 0.333 (pick), while the deliberate suggestion-board twins score
+1.000 and 0.667 — the gate sits at 0.5, inside a gap that wide on both
+sides. `question-neighbors.test.mjs` (test:scripts, same CI job) pins
+the normalization, the id mapping `ALLOW` keys on, and every gated
+domain staying under the gate — so the gate holds even for a change that
+never ran the check script locally.
+
+**Deliberately outside it, so the next reader does not assume more than
+it checks:**
+
+- **Suggestions ↔ daily is report-only.** Two seeds twin dailies BY
+  DESIGN — the board depicts the picked → promoted story — so gating
+  them would red a green tree. The lookup mode
+  (`check:neighbors -- --candidate "…"`) still lists them, which is how
+  a farm run sees the collision the manual tells it to check.
+- **Learn cards (v1).** Two cards may legitimately share one fact's
+  vocabulary; their dupe bar is the fact, which only a human can check
+  (D32). Extending the metric there needs its own calibration first.
+- **Cross-surface pairs.** Daily and feed may deliberately run the same
+  tension at different depths; a cross-surface twin is an editorial
+  call, not a mechanical one.
+- **Synonym paraphrases.** A lexical metric scores a synonym rewrite at
+  0. This gate is the measurable floor under the writing rule, not its
+  replacement — the manual's re-read stands, now citing the measured
+  top score per question in PR bodies. **Narrowed by D123
+  (2026-08-13):** morphological rewrites and the synonym families a
+  reviewed lexicon pairs now score at or above the gate ("Money buys
+  happiness." against "Can wealth make you happy?" — 0.000 then, 0.500
+  now). The framing above is unchanged and only its arithmetic moved:
+  paraphrases outside the lexicon still score near zero, so the floor
+  got bigger and the re-read still stands.
+
+## D33 amendment (2026-08-06) · Ordinal splits are measured on their axis
+
+**What was wrong, with the arithmetic.** D33's evenness — `1 − (maxShare
+− 1/n) / (1 − 1/n)` — treats every question as categorical. For `binary`
+/ `choice` / `dilemma` (and the feed's `vote`/`duel`) that is the right
+bar. For the ordinal types it mismeasures both failure modes at once: a
+rating whose crowd all answers 5–8 (shares 0,0,0,0,.2,.3,.3,.2,0,0)
+spreads over enough slots to score **0.778** — graded a strong split
+while being a consensus just above the middle — and a scale at 65%
+agree / 15% disagree scores **0.75** while the UI's own headline for the
+same distribution says "65% agree". With 21 of the 90 live dailies
+ordinal (16 scale + 5 rating), the farm's first real signal would have
+learned "write agreeable scale statements" from a number claiming the
+opposite.
+
+**The fix** (`scripts/scorecard-metrics.mjs`, extracted so the
+arithmetic is testable; `question-scorecard.mjs` routes by type). Scale
+and rating score `sideBalance × spread`: sideBalance = 1 − |low − high|
+/ (low + high) across the midpoint (an exact-middle slot — scale's
+Neutral — sits on neither side; nobody-took-a-side scores 0), spread =
+mean distance from the midpoint over (n−1)/4, capped at 1 so
+uniform-or-wider counts as fully spread. All-Neutral scores 0 — a crowd
+that agrees to shrug is still a crowd that agrees — as does unanimity on
+either pole; the polarized 30/15/10/15/30 scale scores 1.0. Under the
+fixed metric the two examples above fall to 0.213 and 0.375.
+`scorecard-metrics.test.mjs` pins each case against the number the old
+formula produced, so re-routing ordinals through the categorical bar
+fails loudly.
+
+**What deliberately does not change.** The field stays `evenness` in the
+same [0, 1] with the same reading (1.0 = real split, 0.0 = landslide),
+so every consumer — grades and their thresholds, leaders/laggards,
+`retireProposals`, the topic/type rollups, the pulse console's evenness
+buckets — reads on unchanged. The committed scorecard is not
+regenerated: the pre-launch baseline has zero scored questions, so no
+committed number moves, and the next `--fetch` under the self-refresh
+contract picks the metric up. That timing is the point of amending now —
+the metric changes before the first measured value exists, instead of
+under it.
+
+## D40 adoption (2026-08-06) · All four parts shipped, with five deltas
+
+**What shipped.** Part 1 was already live. Part 2: the duel lane's
+contract is now a section of QUESTION-FARM.md (single gate, learn-style,
+≤4/run at most weekly, run-on-request — no Routine yet). Part 3:
+`foldDuelSignal` (functions/src/v2social.ts) folds each committed reveal
+into `v2_aggs_private/duel-<qid>` and mirrors
+`v2_question_aggs/duel-<qid>` at the same `AGG_MIN_N` floor as every
+published number; the scorecard grew a `duel` section (plays, split,
+guess-match rate, `deadDuels`/`noisyDuels` advisories) with no new read
+path. Part 4: the 20 romantic questions moved into
+`content/duel-questions.json` (ids `020`–`039` — one `duo-NNN` id
+namespace across both 1v1 pools), seed as duo docs with
+`mode: "romantic"`, and `duelQFor` serves them only to a pair whose duo
+doc says `duoMode: "romantic"`; the picker lives in LiveDuelPanel.
+
+**The deltas, each with its reason:**
+
+1. **Pick questions publish plays and total only — no per-option
+   counts.** The proposal said "per-option counts"; a pick's optionIdx
+   values index each group's OWN member list, so summed across groups
+   they are wrong-shaped data wearing numbers (the D12 class). The fold
+   bounds counts by the question's option count, which pick's empty
+   options make zero.
+2. **The fold costs two reads, not zero.** "Zero extra reads" held for
+   the delta (the reveal transaction already holds every answer) but not
+   for the running state or the option count: the fold is its own small
+   transaction reading the private doc and the question doc. It runs
+   OUTSIDE the reveal transaction deliberately — the aggregate doc is
+   contended across every group revealing the same question, and a
+   conflict there must retry a two-read fold, never the reveal. Accepted
+   residual, recorded: a crash between reveal commit and fold
+   undercounts an advisory floored aggregate by one reveal, permanently
+   (the reveal doc's existence settles the day); the fold logs at ERROR
+   so monitoring sees a systematic failure.
+3. **The publish cadence is crossing-based** (`shouldPublishDuelAgg`),
+   not the vote path's `total % PUBLISH_EVERY`: a reveal folds a whole
+   group-day at once, so a batch can jump over a multiple and the modulo
+   cadence would go silent until it happened to land exactly. Per-reveal
+   granularity was already covered by this record's
+   strictly-less-revealing argument; the cadence bounds doc rewrites.
+   Neither doc carries a timestamp — the vote mirror's attribution rule,
+   applied here to "which scan window did a group reveal in".
+4. **The romantic pool ships dark** (`active: false` at seed) **until
+   the mode-aware client is the fleet.** A pre-mode client's `duelQFor`
+   has no pool filter, so an active romantic doc would rotate into
+   FRIEND-pair duels. The picker refuses to render for a pool that
+   cannot serve (`romanticPoolReady`), so the flip is invisible until
+   activation. **The activation step, for the runbook:** flip the 20
+   `duo-020`–`duo-039` docs to `active: true` in the Firestore console,
+   then run the **Seed content** workflow with `bump_rev: true`
+   (`scripts/seed-content.mjs --bump-rev` — the post-D36-amendment
+   seeding path; the app itself has no console to type in) — console
+   flips touch no `updatedAt`, so without the rev bump returning
+   clients' cursors never see the pool.
+5. **`duoMode` is written by a rules carve-out, not a callable** — the
+   schema's first member-writable field on a group doc: member + duo doc
+   + that field alone (affectedKeys) + closed enum. No cap, budget or
+   invariant beyond that exists for the field, which is exactly what a
+   rule can express; rules tests prove every denial direction. Residual,
+   recorded: the picker locks after the local partner seals, but a flip
+   while the OTHER partner has already sealed hands the pair two
+   different questions for one day — the same class as bank drift, which
+   the reveal already survives (it stores the answered qid; the fold's
+   in-range bounds keep the mismatched votes out of counts and guess
+   scoring), and it self-heals the next day.
+
+One repair rode along: `runSeedV2` hardcoded `active: true` on first
+create, silently discarding the `active: false` that `flags()` has
+emitted since D52 retired six feed questions at source. Creates now
+honor the source flag; reseeds still never touch `active` in either
+direction.
+
+---
+
+## D64 · Five findings from a cost & performance audit, and the two gates that had stopped measuring
+
+**Date:** 2026-08-06 · **Status:** Adopted (owner: "yes do 2, 3, 4, 6 and 7").
+Five of a nineteen-finding audit; the rest are listed under **Not done** below
+so the unclaimed ones stay claimable rather than becoming folklore.
+
+**Why an audit at all.** `docs/COSTS.md` already models this app's bill and
+models it well. What it models is **client-issued document reads** — and
+nothing else. Security-rule `get()`s, reads issued by Cloud Functions, index
+*storage*, and network *egress* are all absent from `scripts/cost-arith.mjs`,
+which is why its `cost` object has seven terms and no bytes term. That does
+not change the launch answer (still $0 below ~2,000 DAU, still rounding error
+at 5,000), and the corrections belong in that document rather than this one.
+What follows is only the part that was code.
+
+### 1 · `answers` is indexed on fourteen fields nobody queries
+
+`v2_users/{uid}/answers/{aid}` is written with `qid`, `surface`, `optionIdx`,
+`guessIdx`, `gid`, `day`, `entity`, `answeredAt` and an `anchors` map whose
+keys `firestore.rules:71-74` closes to exactly seven. Firestore indexes every
+scalar leaf ASC and DESC by default, including each map subfield.
+
+Exactly one of them is ever queried: `answeredAt`, at
+`src/v2/data/live.ts:463-470`, both as a `where(">")` cursor and as an
+`orderBy` — collection-scope, and there is no `collectionGroup("answers")`
+anywhere in `src/` or `functions/`. Every other index on that document is
+built and stored for nothing.
+
+**The arithmetic.** A world answer whose author filled all seven anchors has
+eleven indexed leaves → 22 index entries written per answer, against 2 after
+the exemption; a duel answer has fourteen → 30 → 2. An answer with an empty
+anchors map is 8 → 2. So the write amplification falls by roughly an order of
+magnitude, and the index-storage line falls with it. The *money* is a
+derivation rather than a measurement, and it is a derivation the repo's own
+model cannot check, because `cost-arith.mjs:206-208` bills storage on document
+bytes and has no index term at all — which is the finding underneath the
+finding.
+
+**What this costs, stated plainly.** It is a one-way constraint on future
+queries: filtering answers by `surface`, `gid` or `day` will not be possible
+without re-enabling that field first (and backfilling its index). That is the
+right trade today — nothing queries them and the exemptions are reversible —
+but it is a trade, and a future feature that wants "my duel answers for group
+X" has to notice this file first.
+
+`firestore.indexes.json` cannot carry a comment, which is why the reasoning is
+here. The exemptions are additive; the deploy path still runs without
+`--force`, so the two hand-made indexes `check:deploy-targets` protects are
+untouched.
+
+### 2 · `ledgerVelocityScan` buffered the whole window into a 256 MiB instance
+
+`functions/src/velocity.ts` accumulated every ledger entry in the window into
+`rows: LedgerRow[]` before folding once. The window is bounded by
+`WINDOW_CAP_MS` (72 h), not by DAU, so a catch-up scan at 50 k DAU is ~450 k
+rows — and `LIGHT_UNBOUNDED` (`ops.ts:111`) gives it 256 MiB.
+
+The failure is worse than a lost run. `lastScanAt` is written at the *end* of
+the function, so an OOM leaves the cursor unmoved; the next run re-reads the
+same capped window and dies in the same place, forever, with D28's only
+detector silently dead and no alert (D54 ships none deliberately). The wall
+lands somewhere around 44 k DAU — **below** the 50 k row of COSTS.md's own
+table, and it is not in that document's list of walls.
+
+Now folded per page: `foldInto(acc, rows)` mutates an accumulator, `foldWindow`
+is a one-line wrapper over it so its existing test is unchanged, and peak live
+memory is one `PAGE` of rows plus the fold. A row is ~5 machine words; the
+fold keeps one packed double per entry and one Map slot per uid.
+
+`velocity.test.ts` gains the assertion that makes this safe rather than merely
+smaller: folding page-by-page at every split size produces the same
+`perUid`/`perDayQid`/`entries` as folding the window whole, including a uid and
+a midnight rollover straddling a page boundary. The old test could not have
+caught a paging bug because there was no paging.
+
+**Not fixed here:** the scan's Auth lookups are still serial
+(`velocity.ts:350-356`), and the burst baseline is still capped by
+`WINDOW_CAP_MS`. Both were in the audit; neither was claimed.
+
+### 3 · Both bundle ceilings had stopped measuring what they claimed
+
+`scripts/check-bundle.mjs` asserts a per-chunk and a total ceiling. Both had
+drifted, in opposite directions, and the failure modes are different enough to
+be worth separating.
+
+**The per-chunk ceiling had gone slack.** Its header carried a *measured*
+table whose baseline row read "nothing (today) 837 KB". The entry chunk is
+**723.4 KB** — D39 and D40 took ~116 KB out of it and neither lowered the
+ceiling with the win, which is the discipline the D25 and D38 entries in that
+same header both name. At 850 the entire D38 overlay group could return to
+eager and the script would print OK. Re-measured the way the original was, by
+moving one group at a time out of `loadOverlays()` and rebuilding:
+
+| eager again | entry | 735 |
+| --- | ---: | --- |
+| nothing (today) | 723.4 KB | ok |
+| city-overlay | 729.1 KB | ok |
+| logic-test | 752.9 KB | RED |
+| test-overlay | 782.1 KB | RED |
+| person + city + suggest | 821.1 KB | RED |
+| the whole group | 941.4 KB | RED |
+
+735 is verified to fire end-to-end, not merely to be arithmetically below
+752.9. The city-overlay caveat survives unchanged: 5.7 KB is under any headroom
+worth having, so this remains a ceiling on the group, not a per-module
+assertion.
+
+**The total ceiling had never once weighed a release build.** `ci.yml`'s
+`typecheck-build` job calls itself "the same gate a release goes through" and
+ran `npm run build` with no environment. `src/lib/sentry.ts:73` reads
+`import.meta.env.VITE_SENTRY_DSN`; Vite replaces that with a literal at build
+time, so unset, the whole `import("@sentry/capacitor")` branch is provably dead
+and rolldown drops it. Meanwhile `ios-release.yml:132` sets the real DSN and
+does not run `check:bundle`. Measured off one tree:
+
+```
+no DSN    1577.2 KB across 40 chunks   ← what CI weighed
+with DSN  2058.4 KB across 44 chunks   ← what ships (+481.2 KB)
+```
+
+The shipping bundle has been ~450 KB over a 1600 KB budget for as long as
+Sentry has been in it, and no gate could see it. CI now builds with a dummy
+DSN — any non-empty string restores the branch, no secret is needed, nothing
+in that job runs the app — and the ceiling moves to 2100 to sit just above what
+the shipping graph actually weighs. The number went up; the set of bytes it
+covers went up by more.
+
+Sentry does not touch first paint either way — it is dynamically imported and
+appears in no `modulepreload` link. The eager graph measured 1211.2 KB with the
+DSN and without.
+
+**Why no `check:figures` entry for the 723.4.** The ceiling is the ratchet: at
+11.6 KB of headroom, drift announces itself by failing, which is the property
+850 had lost at 128 KB. A figure gate here would need a build to exist, which
+`check:figures` currently does not require, and the fix for a stale ceiling is
+to re-measure it rather than to pin the prose beside it.
+
+### 4 · An uncapped 120 ms retry loop on the Mirror tab's default view
+
+`src/v2/spec/map-tab.jsx` rescheduled `tryFit` every 120 ms with no counter
+until the pane became measurable — ~30,000 wake-ups per hour of dwell, each
+calling `fitAllTarget`, which reads `clientWidth`/`clientHeight` and forces
+layout. `MapTab` is the Mirror tab's **default** `you` population, so this is
+the common path rather than a corner.
+
+The sibling copy of the same construct in `person-mindmap.jsx:246-251` was
+already capped at 60 tries, with a comment naming exactly this hazard. Now
+both are. (The audit's write-up also named `relmap.jsx` as a capped sibling; it
+has no such loop — checked before copying the claim.)
+
+### 5 · The agg cache was re-serialised on every fan-out delivery
+
+`saveAggCache` (`src/v2/data/live.ts`) ran `JSON.stringify` over the **whole**
+`state.aggs` map synchronously inside the agg snapshot handler. The daily
+question is globally shared, so every publish fans out to every listening
+client — COSTS.md finding 2's own numbers, 125 and 1,250 deliveries per user
+per day, are 0.7 and 6.9 full serialisations per second at 50 k and 500 k DAU,
+on the main thread. The map is never pruned, so the per-serialisation cost
+grows with the session too.
+
+Now coalesced at 1 s, leading-schedule/trailing-write rather than a restarting
+debounce: a steady stream of publishes must still reach disk about once a
+second, where a restarting timer would starve and write nothing until the burst
+ended. State is read at write time, so nothing in the window is lost.
+
+Two things the coalescing forced:
+
+- **The `visibilitychange` handler flushes on hide.** Its hidden branch was
+  empty. Hiding is the last callback a mobile WebView is guaranteed before the
+  OS may kill it, so without this a backgrounded app loses up to a second of
+  counts that were previously written synchronously. This one is load-bearing:
+  drop the flush and exactly one test fails.
+- **`purgeLocalTrace` cancels the pending write.** This is hygiene, and the
+  first draft of this record said it was more — that it prevented the D50/D51
+  resurrection. Mutation-testing the claim refuted it: with the cancel removed,
+  **nothing in the tree fails**, because `resetForNewUid` empties `state.aggs`
+  before it purges (so a surviving timer can only write `{}`) and `torndown`
+  covers the `deleteAccount` path. The key does come back either way — the new
+  session's own listener re-creates it empty within the window. The cancel is
+  kept because a queued write holding the old map is worth dropping and it
+  costs nothing; it is not a leak fix, and the comment on it now says so.
+
+Recorded at this length because the correction is the point: three of the
+audit's findings were refuted the same way, and a claim that survives only
+because nobody ran the mutation is the failure mode this repo keeps building
+gates against.
+
+**What now proves the coalescing.** Three cases in `vote.test.ts`, each pinned
+against the mutation it is supposed to catch: a five-snapshot burst produces
+zero synchronous writes and exactly one write carrying the *last* state; hiding
+flushes synchronously and exactly once; a uid change leaves no previous
+account's counts behind. Reverting `saveAggCache` to its synchronous form fails
+all three.
+
+### Not done, and still open
+
+Ordered as the audit ranked them, so the next person picks from the top rather
+than re-deriving the list.
+
+- **The database region is a one-way door with a deadline.** A Firestore
+  location is fixed at creation; `(default)` on `nam5` holds no seeded content
+  yet, so today it is a console action and after `LIVE.seedContent()` it is a
+  migration. `cost-model.mjs --regional` already prints both columns: $2.53 /
+  $86 / $5,931 per month against $5.17 / $175 / $11,910 at 5 k / 50 k / 500 k
+  DAU. `COSTS.md:278-281` files it under "what would change these numbers",
+  beside engagement rate, as though it can be revisited later. It cannot. This
+  was the audit's single highest-value item and it is a decision, not a patch.
+- **Nothing gates the eager graph.** 1211.2 KB across 17 files in
+  `dist/index.html` governs cold-start parse and eval, and no ceiling watches
+  it; D39 and D40 both moved bytes out of the entry chunk into eager siblings
+  with every existing gate staying green. D38 declined this gate on two
+  grounds that are now both false. ~12 lines.
+- **The Firestore SDK is eager** — 290.7 KB, more than everything D25 and D38
+  deferred combined — because `live.ts` statically imports `firebase/firestore`
+  and `main.jsx` renders downstream of `initLive()`. `src/lib/firebase.ts:1-5`
+  describes a lazy design that this defeats; `firebase/auth`, app-check and
+  Sentry *are* correctly lazy. Splitting it is a real project, not a patch.
+- **`v2_takes` soft-hide is not query-enforceable.** `firestore.rules:377-378`
+  hides a take with a per-document predicate; a `where("gid","==",…)` query
+  returns the hidden document, text and all, to a non-author member. The suite
+  is green because `rules.test.ts:852-863` only exercises `getDoc`. Nothing
+  ships on it yet — settle it before any takes UI does, with a boolean `hidden`
+  field, a `(gid, hidden, createdAt)` composite index, and a rules test that
+  asserts the *query* case.
+- **No listener is detached on background** (`live.ts`'s `visibilitychange`
+  hidden branch now flushes the cache but still tears down nothing, and there
+  is no `appStateChange` listener). The fan-out term in `cost-arith.mjs:116`
+  is `onlineMin: 3`, "minutes with the app actually open" — a behaviour guess
+  no code bounds. The crossover where fan-out overtakes every other read source
+  is `31,200 / X`, so at the model's own X it is 10,400 DAU, already below D7's
+  14,400 write wall rather than the 50,000 COSTS.md implies. Any teardown must
+  be gated on hidden-for-N-minutes: below ~10 k DAU a re-attach costs more than
+  it saves.
+- **Also unclaimed, smaller:** `activateDeviceV2` inherits `maxInstances: 10`
+  from `LIGHT_CALLABLE`; `revealGroupDay` reads every member's profile before
+  the gate that can discard it; `loadRevealHistory` re-reads 13 immutable
+  reveal docs per group per session; `cacheVote` never advances `maxTs`, so a
+  device re-reads its own immutable answers every boot; `state.aggs` is
+  unbounded and every `setItem` failure is a bare `catch {}`, which makes the
+  quota cliff silent and self-inflicting; WorldFeed rebuilds all ~109 cards on
+  every scroll-threshold crossing with no `React.memo` anywhere in `spec/`.
+
+---
+
+## D65 · A soft-hide that a query walked straight past: `hidden` becomes a required boolean
+
+**Date:** 2026-08-07 · **Status:** Adopted (owner: "fix the v2_takes query leak
+too"). Closes the one finding D64's "Not done" list called out as needing to be
+settled before any takes UI ships. Amends D22's moderation substrate; nothing
+else in D22 changes.
+
+**The bug, and why every existing test was green.** `v2_takes`' read gate was
+
+```
+&& (!("hidden" in resource.data) || resource.data.authorUid == request.auth.uid)
+```
+
+— a *presence* test against the moderator's annotation map. Every takes
+assertion in `firestore-tests/rules.test.ts` used `getDoc`, and `getDoc` was
+never the problem: a per-document rule is applied per document, so a member
+reading a hidden take by id was correctly denied and the suite said the
+soft-hide worked.
+
+A **list** is a different operation. Measured in the emulator against the
+shipped rules file:
+
+| operation | result |
+| --- | --- |
+| member `getDoc` on a hidden take | denied ✓ |
+| author `getDoc` on a hidden take | allowed ✓ |
+| stranger `where("gid","==",…)` | denied ✓ |
+| **member `where("gid","==",…)`** | **allowed — returned the hidden take, text and all** |
+
+The stranger row is the one that makes this a real finding rather than a
+guess about Firestore: rules *are* evaluated for queries, and the
+group-membership half of this very rule enforces correctly on the same query.
+It is specifically the presence test that Firestore cannot hold a list to,
+because a query carries no constraint it can compare `"hidden" in resource.data`
+against — and the engine's response is to allow, not to refuse.
+
+**Three shapes, all measured, because the obvious fix is also wrong.**
+
+```
+presence          !("hidden" in resource.data)        query LEAKS
+defaulted getter  data.get("hidden", false) == false  query LEAKS
+required boolean  data.hidden == false                query DENIED
+```
+
+The middle row is the trap and the reason this record exists. It reads as the
+safe, backward-compatible version — no migration, absent field treated as
+visible, the same idiom `isValidV2Anchors` and the `active` check already use
+elsewhere in this file — and it leaks exactly like the line it would replace.
+Nothing distinguishes the working shape from the broken one except running
+them.
+
+**What shipped.** `hidden` is a required boolean on every take, the annotation
+map moves to `hiddenMeta`, and the gate is a bare equality:
+
+- **Read:** `resource.data.hidden == false || resource.data.authorUid == uid`.
+- **Create:** `hidden` joins the `hasOnly` list *and* must equal `false`.
+  Required because the read gate is an equality — a take without the field
+  could never be read back — and required to be *false* because a client that
+  could post `hidden: true` would hide its own words from the circle while
+  leaving them in the moderation queue.
+- **Flags:** the same presence test in the `v2_flags` create rule became an
+  equality too. Not because it leaked — it is a `get()` on another document
+  inside a create, never a query predicate — but because once `hidden` is
+  always present, `!("hidden" in …)` is false for every take and **no flag
+  could ever be created again**. A field's shape is not a local change.
+- **`submitModVerdict`** writes `hidden: true` plus `hiddenMeta`. The
+  already-hidden skip in `buildModQueue` stays a truthiness test on purpose: a
+  take hidden before this change carries the old map, and a map is truthy where
+  `=== true` would silently re-queue every one of them.
+
+**The property this buys, which the old rule never had.** The gate now **fails
+closed**. A list without `where("hidden","==",false)` is refused outright, so a
+client that forgets the filter gets an error rather than other people's hidden
+words. That is the difference between the client's filter being a consequence
+of the rule and being a promise standing beside it — the distinction this
+repo's whole posture rests on. The author escape still serves the appeal path
+by id and does not widen a list: an author listing the circle passes the same
+filter and reaches their own hidden take only by `getDoc`.
+
+**Cost.** Two billed reads per take on the read path instead of one, since the
+gate reads the take and the rule's `get()` reads the group — unchanged from
+before, the equality is not what costs. The write path gains one indexed
+boolean per take.
+
+**What now proves it.** A list-shaped case in `rules.test.ts` asserting all
+three parts, each of which can rot independently: the unfiltered list is
+refused, the filtered list succeeds *without* the hidden take, and a stranger
+gets nothing either way. Reverting the gate to the presence test fails it.
+Two create cases pin the required-and-false shape. 47 → 49 rules tests.
+
+**The composite index, added on the owner's call.** This record's first draft
+deferred it, on the grounds that no client queries `v2_takes` yet so the sort
+order was a guess. Overruled, and the reasoning was thin anyway: the guess is
+not much of one — a circle's comment list is newest-first or it is nothing —
+and the deferral traded a known index write per take against a production
+query that fails on its first run.
+
+```
+v2_takes · COLLECTION · gid ASC, hidden ASC, createdAt DESC
+```
+
+`firestore.indexes.json` went from `"indexes": []` to holding this one, which
+is worth noting for a reason beyond takes: `check:deploy-targets` forbids
+`--force` on any firestore target precisely because that flag deletes every
+index the live project holds and this file does not name. That guard now
+protects a real entry rather than an empty list.
+
+**What is and is not verified.** The file is accepted by firebase-tools' own
+`validateSpec` (run against it directly, not eyeballed). The index's necessity
+and sufficiency are **not** emulator-testable: the Firestore emulator does not
+enforce composite indexes, which is also why the list case in `rules.test.ts`
+passes without one — two equality filters and no `orderBy` is served by
+single-field index merging in production too, so that test would not have
+needed this index regardless. The first query that adds `orderBy("createdAt")`
+is what needs it, and no such query exists yet to run. If the takes UI wants a
+different order, the production error names the index to add.
+
+**The general lesson, which is not about takes.** A per-document predicate and
+a per-query predicate are different guarantees, and reading this file cannot
+tell you which one a rule is enforcing. Any rule shaped "everyone in the set
+may read, EXCEPT documents where X" is a candidate list leak unless X is an
+equality on a concrete field the client query must also carry.
+
+**The rest of the ruleset was checked against that shape, not assumed safe.**
+The other four `in`-tests (`fcmTokens`, `testResults`, `logic`, `qid`) are all
+on `request.resource.data` inside write rules — no query, no exposure. The one
+genuine sibling is the reveal gate at `v2_groups/{gid}/reveals`
+(`uid in resource.data.get("members", [])`), which matters more than it looks
+because `firestore.indexes.json` ships a collection-group `CONTAINS` index on
+that exact field, so the listing path is not hypothetical. Probed in the
+emulator: an unfiltered collection-group query is **denied**, `array-contains`
+on another user's uid is **denied**, and a non-member `getDoc` is **denied** —
+it fails closed on every shape. No change needed there.
+
+That non-result is the actual finding. The same class of expression leaks in
+one rule and fails closed in another, and nothing about reading them predicts
+which. So the defence cannot be a style rule about how to write predicates; it
+is that a `getDoc` test proves nothing about a `getDocs` path. **Where a
+collection can be listed, test the list.**
+## D66 · The sample persona reached live mode twice more: the Map's anchor ring, and a hydration that wrote to nobody
+
+**Date:** 2026-08-07 · **Status:** Adopted
+
+D55 removed the sample persona from the profile's Basics card in live
+mode and recorded why it matters beyond cosmetics: the anchors effect
+writes whatever the profile holds to `v2_users/{uid}`, and
+`answerAnchors()` stamps it onto every answer — which are create-only
+(D5), so a fabricated cohort has no correction path. That fix was correct
+and incomplete. Two more surfaces carried the same persona, and both were
+reproduced before they were believed.
+
+**1 · The Map's anchor ring had no live path at all.**
+`spec/map-anchors.js` built its seven anchors from `IS_DATA.me` with the
+persona as the `||` fallback on every field, and nothing in the file
+consulted `LIVE`. Measured, not reasoned — the module run in node with a
+fresh live account and no tests taken returns:
+
+```
+age 34 · born 1991 | Editor · independent press | MA Literature · Univ. of Oslo
+Big Five · taken 10 days ago | Politics · taken 3 weeks ago | …
+```
+
+This is the worse of the two placements. `MirrorPreviewTag` returns
+`null` for the You stop — deliberately, because nothing there was
+supposed to be sample data — so unlike the Mirror's other populations,
+this wore no "Preview · sample people" badge.
+
+`list()` now branches on `LIVE.enabled`: live mode reads the viewer's own
+anchors (D8) and drops every row with nothing behind it, so a fresh
+account gets an empty ring rather than somebody else's. Both callers
+already handled a zero-length list — `MapTab` divides by
+`anchors.length || 1`, `MapThumbCard` returns null — which is why the
+gap survived review: the honest state was already renderable, just
+unreachable. Age is the BAND, the only thing the anchor holds; the exact
+birthday still never leaves the device.
+
+`relate()`, the other half of that module, is now marked demo-only. It
+has no caller, its keys are the prototype's `dq*` ids, and its fallback
+lines carry Mira's numbers in prose ("openness 78 sets the playlist") —
+so a live question would miss `REL` and land on a sentence about someone
+else. Kept for the mock path, fenced against a future wiring.
+
+**2 · `publishTestResults()` had stopped reaching anybody.** Its own
+comment states the intent — "Live mode shows only REAL results: purge the
+demo's baked test results and rebuild from server + this device's saves"
+— and it did that by assigning `window.IS_TEST_RESULTS`. But
+`test-definitions.js` left the global bridge (D39, #85) and now EXPORTS
+`IS_TEST_RESULTS`; all fifteen consumers import the binding. The global
+has had no readers since, so every effect of that function was silently
+undone: the demo persona's Big Five, politics, values and attachment
+survived into live mode until the user retook each test, and a result
+earned on another device never arrived at all.
+
+This is the D39 conversion hazard from the other side. The rule the
+README states — a conversion removes the load-order condition, never the
+data one — is about the *consumers* of a converted module. This was a
+*producer* left writing to the name the conversion retired, and no gate
+sees it: `tsc -b` type-checks a global write against nothing,
+`check:globals` rule 1 flags dangling reads and not orphaned writes, and
+rule 4 counts the write as coupling that is going the right way.
+
+The fix announces instead of assigning — `insight:test-results`, the
+same shape as D51's purge, which the same file already listens for. The
+module that owns the object mutates it in place, so the consumers holding
+a reference see it. The payload REPLACES rather than merges, and that is
+the half that removes the seed: a key absent from `{server, …device}`
+means the user has not taken that test, and the honest render of that is
+nothing.
+
+**What it cost, and what it bought.** `map-anchors.js` needed `LIVE`,
+which is a new shared-global reference — so the module was converted off
+the bridge on the way past (`window.MapAnchors` → named exports, both
+consumers importing), and `LIVE` comes in as an ESM import from
+`data/live`, which `main.jsx` already pulls into the entry chunk. Rule 4:
+534 across 45 files, down from 539.
+
+**The fixture was hiding it, and now cannot.** `test/live-fixture.ts`
+assigned a second object to `window.LIVE` and left `data/live`'s default
+export — the same object in production, since live.ts ends with
+`window.LIVE = LIVE` — untouched. Invisible while every consumer read the
+global; a converted module importing the binding would have seen
+`enabled: false` while the tab rendered beside it saw the fixture. The
+fixture now defines its members onto the imported singleton and restores
+the descriptors afterwards. Two objects that have to agree is the bug
+this whole record is about; the fixture no longer creates one.
+
+**Still sample data in live mode**, so the list stays a list rather than
+a discovery: the feed's takes, counters and friend dots (demo-only by
+design, D1 — not unbuilt); `scenes.js`'s follow list; the catalogue pick
+cards carrying `q.catalog`; and `daily-questions.js`'s non-world
+audiences, where only the World distribution is swapped for the real
+aggregate.
+
+
+---
+
+## D67 · The cost model was counting one kind of read, and calling it the bill
+
+**Date:** 2026-08-07 · **Status:** Adopted (owner: "now update COSTS.md with
+the corrected numbers"). Implements the corrections D64 listed and did not
+make; supersedes the read decomposition in `docs/COSTS.md` and the four-source
+claim in `scripts/cost-arith.mjs`.
+
+**The defect, in one sentence.** `costModel` counted reads the CLIENT issues —
+boot, agg top-up, reseed delta, listener fan-out — and every other read on the
+invoice was billed at zero, because there was no term for it.
+
+Zero is a number, and it was the wrong one. Three categories were missing:
+
+- **Security-rule reads.** Every `get()` and `exists()` inside a rule is a
+  billed read charged to the project, on top of the operation that triggered
+  it. The answer-create paths do four: one distinct document for a world
+  answer (`v2_questions/{aid}`, touched three times), three for a duel.
+- **Reads issued by Cloud Functions.** The aggregate transaction reads two
+  documents per world answer. The nightly velocity scan (D54) reads *every
+  ledger entry written that day* — one per world answer, a term the size of
+  the top-up and reseed combined, and entirely invisible. The reveal pipeline
+  reads `(4 + 3m)/m` per member per group-day.
+- **Bytes.** Index entries are billed as storage and the model charged a 1.0
+  multiplier; network egress is billed per GiB and the model charged nothing,
+  having counted document *count* and never document *size* — which is
+  precisely backwards for a fan-out whose every delivery ships the published
+  aggregate whole.
+
+Together: **+20 reads per user per day, flat in DAU**, and roughly **+50% on
+every billed row** ($5.17 → $7.26 at 5 k DAU, $175 → $247 at 50 k, $11,910 →
+$17,166 at 500 k).
+
+**Measured, not estimated, where it mattered.** The two read terms are counts
+of call sites in the shipped rules file and the shipped functions, not
+guesses. One of them turned on a fact worth writing down: **repeated `get()`
+of the same document inside one rule evaluation is free.** Firestore caps
+document accesses at 10 per single-document request; a probe rule doing
+fifteen `get()`s of one document passes, while eleven `get()`s of eleven
+documents is refused. The limit counts distinct documents, so the evaluator's
+cache is real and billing sees the same cache. Counted un-deduped the rule
+term would be 14 rather than 6 — a 2.3× error in the direction of alarm.
+
+**What D64 got wrong, corrected here.** D64 said the fan-out already overtakes
+every other read source at 10,400 DAU — *below* D7's 14,400-DAU write wall —
+and that COSTS.md's "wall 1 before wall 2 is the good ordering" claim was
+therefore broken. Implementing the very terms D64 said were missing moves the
+crossover the **other way**: the flat baseline the fan-out has to beat went
+from 26 reads/user/day to 46, so the crossover is at **18,220 DAU** and the
+ordering holds with a wider margin than before (3,800 DAU rather than 2,000).
+D64's arithmetic was right on its own inputs and wrong on the model's, which
+is the argument for implementing a correction rather than recording it.
+
+`cost-model.mjs` now solves for that crossover rather than quoting it. The
+50,000 in the old walls list came from nowhere in particular.
+
+**The three things that keep this from rotting.**
+
+1. **The decomposition printer derives its columns from the model's keys.**
+   The old one named four; the model grew to six and the totals moved while
+   the columns did not — the same defect D47 found, one layer up. A printer
+   that cannot go stale is worth six lines.
+2. **Tripwires on the hand counts** (`scripts/pulse.test.mjs`). RULE_READS and
+   TRIGGER_READS cannot be regex-derived — a regex that tried would be a
+   second, silently-wrong implementation of Firestore's evaluator — so they
+   are counted by hand and the test watches the *call-site totals* they were
+   counted over. Add a `get()` to a rule and the test fails naming the block
+   to recount. Verified by adding one.
+3. **`docs/COSTS.md` joins `check:figures`.** It was covered by nothing, which
+   is how it came to quote a 369-document bank two promotion cycles after the
+   bank reached 389. Only the two INPUTS are gated — the bank's document count
+   and its wire size — because a dollar figure is an *output* of
+   `cost-model.mjs`, and re-deriving it in the figure gate would be the second
+   copy of the model that `cost-arith.mjs` exists to prevent.
+
+**The soft numbers, grouped so that they are visible.** `BYTES` holds the
+published-aggregate size and the index multiplier, and it is the softest block
+in the file: document-size estimates times a price this project has never been
+invoiced for. The aggregate's size is not knowable before launch — it depends
+on how many users fill the optional Basics card, which is what puts a `by`
+breakdown in the document — so egress prints as a **band** (0.3 / 2.4 / 7 KB
+per aggregate → $7 / $51 / $147 per month at 50 k DAU) and the headline table
+charges the middle. A 20× band is still worth having when the alternative is
+billing it at zero.
+
+**What is still not modelled, listed rather than discovered later:** Cloud
+Logging volume, the catalog trigger's third read (deliberate — catalog is not
+live, D14), function retries under `retry: true`, the moderation jobs, and
+callable-response egress. None is believed material at any modelled size.
+That is exactly what was believed about rule and server reads before this
+record, so the list is in COSTS.md to be checked rather than trusted.
+
+**Not done.** The `answers` index exemptions (D64) cut the index multiplier
+from roughly 5 to 1.4, which is why the storage line is small enough to leave
+as a single estimated multiplier rather than a per-collection model. And the
+engagement sensitivity line in COSTS.md is now the interesting one: three of
+the six read sources are charged per *answer*, so doubling answers per user
+moves reads +42% / +80% / +97% at 5 k / 50 k / 500 k DAU, where the old model
+said "barely moves reads". That was true when the model only counted boots.
+
+---
+
+## D68 · The v18 sync: a revision arrives, and the ratchets price it honestly
+
+**Decided:** 2026-08-07 · **Status:** binding (same standing as D43, which it
+extends)
+
+`design/InSight_standalone_18.html` supersedes v17, by the same method D43
+made binding: a **three-way merge** — v17 as base, v18 as theirs, the tree as
+ours — never a re-port. Fourteen of the 93 modules changed plus the page
+styles, so this was a revision, not v17's restructuring; `design/README.md`
+carries the change list. What follows is only what required a decision.
+
+### What this repo kept, again
+
+The D43 rule — *the prototype wins on design, this repo wins on enforcement,
+and neither wins by default* — resolved every conflict this round too:
+
+| Kept from this tree | Because |
+| --- | --- |
+| The `noCrowd` width gate on vote fills (world-feed) | v18 re-styles the fill (`WPAL.wash`); the k-floor decides whether it has a width at all (D1). Both landed. |
+| Imports over `window.*` for every v18-new cross-module read | v18's Explore reads `IS_TEST_RESULTS`/`IS_DATA` off the bridge; here they are the named exports the D39 conversions already made. Coupling held at 539 — a sync that adds reads is exactly where the ratchet earns its keep. |
+| `WORLD_FEED_QS` stays a shared global in the new Explore | Four writers and a live/demo boundary (D39's `world-catalogs.js` note). Converting it is a design change, not a sync. |
+| The repo's duel-bank voice and ids (`content/duel-questions.json`, D32/D40) | v18's ten mirror questions and four rebuckets landed in the JSON at their ladder positions with fresh ids (`040`–`049`); the repo's second-person phrasings of existing questions stayed. Mirror prompts keep v18's "they" voice on purpose — in that domain you answer about your partner. |
+| Escape-stays-in-the-dialog on the relmap legend input | The add-circle input this tree had already guarded is gone; the guard moved onto v18's rename-in-place input. Escape closing the whole map mid-rename is the bug it existed for. |
+
+**Two prototype slips were not copied**, per the D43 braces precedent, each
+with the reasoning at the site: v18's `setScale` rebuilds the roster without
+re-applying the name-keyed relation overrides (a persisted drag visibly
+reverts on a scale switch), and its drop-ring block reads a variable the
+enclosing scope never declares — `no-undef`, ON for this layer since two
+`ReferenceError`s shipped, refused it here.
+
+### What the sync moved, mechanically
+
+The ten mirror questions grow the seeded bank 389 → 399. The seed keys docs
+by explicit id and only refuses option-set edits (D58), so this is ordinary
+content growth: new docs create active, `seq` renumbers behind them, and the
+duo rotation remaps under `% bank.length` — the accepted cost of any duel-bank
+growth, distinct from the romantic pool's `active: false` arrival, whose
+concern was wrong-pool rotation on pre-mode clients, not remapping.
+`check:figures` caught all five prose figures; COSTS.md's measured 84.9 KiB
+is annotated rather than re-guessed.
+
+### The ratchets moved the right way
+
+Coupling: **539, unchanged** — every v18-new cross-module reference entered as
+an import. Accessibility: **9 → 8**, because the deleted add-circle input took
+its `autoFocus` with it. Suppressions: 30 → 31 — one `exhaustive-deps` defer
+on Explore's cache-invalidation dep, recorded like the rest. Entry chunk 837
+KB, under the 850 ceiling.
+
+### What now proves it
+
+`check:globals`, lint (`no-undef` on), `tsc -b`, `check:a11y`,
+`check:content`, `check:neighbors`, `check:figures`, `check:bundle`, the 445
+client tests (444 + the Explore mount case this sync added) and 195
+functions tests — all green at this commit, re-run after merging main's
+D66/D67 (which is why this record is D68: both branches minted a D66, and
+the merge renumbered this one).
+`scripts/style-diff.mjs` now points at v18 and, as with D43, has not been run
+against it here (needs a browser and a dev server); it remains the next cheap
+thing anyone touching this layer can do.
+
+---
+
+## D69 · EU trader status: a home address on the listing, in exchange for 27 storefronts
+
+**Date:** 2026-08-07 · **Status:** Adopted
+
+**The requirement, and how it was found.** The Digital Services Act obliges
+Apple to publish trader details for apps distributed in the EU. App Store
+Connect states it plainly: *"your trader status must be provided or your apps
+will be removed from the App Store in the EU."* It is a hard gate on EU
+availability, not a warning.
+
+It appears nowhere in this repo, and no gate here could have caught it.
+`check:store-copy` and `check:store-listing` hold what the **repo** can see —
+placeholders in committed files, fields against character limits. A
+store-side legal requirement introduced after those scripts were written is
+invisible to both, and would have stayed invisible until a submission was
+rejected. It was found by reading a console banner on 2026-08-07 while
+creating the app record.
+
+**The trade.** Declaring **trader** publishes a name, address, phone number
+and email address on the public listing. Declaring **non-trader** keeps them
+private and forfeits the 27 EU storefronts.
+
+The address is the sharp end. D41 chose an *individual* Apple enrolment, and
+D42 parked the ENK registration when Play was deferred — so there is no
+company address to give. LAUNCH-RUNBOOK 0.3 records the operator as a sole
+trader in Norway, and a sole trader's business address is a home address.
+**Declaring trader publishes it.**
+
+**Norway is EEA, not EU.** The Norwegian storefront is unaffected either way,
+so this decision buys the EU 27 specifically. Launching Norway-only and
+returning to it later was available and was not taken.
+
+**Decision: declare trader.** The reasoning is that a market this app is
+built for should not be given up to avoid a disclosure the law deliberately
+requires, and that the alternative is not "launch without deciding" but
+"launch to a smaller market and decide anyway".
+
+**What this costs, stated rather than discovered later.** A home address on a
+public listing is not retractable — it is scraped, mirrored and archived
+within days of publication. The way out is not a form change but an address
+change: registering the ENK gives a business address that can replace it, and
+that is the one thing that would make this reversible. **D42 parked the ENK
+for Play's sake, and this is a second, independent reason to want it.**
+Re-read D41, D42 and this record together when either is revisited; none of
+the three is the whole picture on its own.
+
+**Not done, deliberately.** No attempt to automate the declaration.
+`scripts/asc-push.mjs` fills text and transcribes the privacy label from a
+reviewed file; trader status is an identity assertion to a regulator, and the
+argument in that script's header for transcribing an attestation does not
+extend to declaring one.
+## D70 · The two duel indexes were bounded twice and diverged, and a reveal folded votes into a question nobody answered
+
+**Decided:** 2026-08-07 · **Status:** binding
+
+Two defects on the duel path, found by a categorical review of the tree. They
+are recorded together because they share a cause: a number that was written
+out twice, and a question that was chosen by whichever read arrived first.
+
+### 1. `guessIdx < 20`, beside an `optionIdx` bound that had already been fixed
+
+`firestore.rules` bounded a duel answer's two indexes separately. `optionIdx`
+was widened — the per-question expression (`options.size()`, or the group's
+member count for `pick` questions, whose options ARE the group) with a `< 64`
+outer sanity bound — under a comment naming the exact bug: *"Must clear
+GROUP_CAP (32) or members past the 20th become unpickable on every pick day."*
+Its sibling three lines below still read `< 20`.
+
+The arithmetic: GROUP_CAP is 32, so a `pick` question in a group of more than
+20 has member indexes the `optionIdx` bound admits and the `guessIdx` bound
+refuses — members 21–32 could be voted for but not guessed.
+
+**Corrected on review:** that symptom is not reachable by the shipped client.
+`LiveDuelPanel` sends `guessIdx` only when `duo` is true, and a duo is capped
+at 2 members, so no live client has ever sent a guess index above 1. The bound
+was still wrong, and the live effect of fixing it is the other direction: a duo
+guess is now held to the question's own option count instead of a flat 20, so a
+fabricated index between the two no longer reaches `duelAggDelta` — whose range
+check was the only thing standing between it and a published aggregate. The
+group-day symptom is what the bound would have cost the first time guessing was
+extended past a duo, which the shared `duelIndexSpace()` now prevents by
+construction.
+
+`firestore-tests/rules.test.ts` had a case written for precisely this bug
+class ("…not just the first 20"). Its fixture never set `guessIdx`, so it
+passed throughout. Both bounds now call one `duelIndexSpace()` function, and
+the test sets the field. Verified by reverting the rule with the new tests in
+place: both fail, which is the only evidence that they test anything.
+
+Repeated `get()`s on one path are deduped within a rules evaluation, so
+calling the function twice costs no additional document access.
+
+### 2. The reveal published one member's question over everyone's votes
+
+Members compute the day's duel question independently — `duelQFor`
+(`src/v2/data/deck.ts`) is a pure function of (gid, utcDay, bank) and the
+**bank length is the modulus**. A promotion, or an `active:false` flip,
+remaps the rotation for whoever refreshes their cached bank first, so two
+members answering different questions on the same day needs no hacked client.
+Rules cannot catch it: they check the qid exists in the bank, and both do.
+
+`revealGroupDay` chose the reveal's question with `qid = qid || s.get("qid")`
+— first counted answer wins, i.e. **`memberUids` order decides**. That much
+was known and accepted for display (the old `deck.ts` comment said a drifted
+client "still reveals coherently, it has just answered a different question").
+
+What the comment predated is `foldDuelSignal` (D40 part 3). Those same votes
+were folded into the chosen question's **published, k-floored aggregate**.
+`duelAggDelta`'s range check cannot see this: a vote cast on question A with
+`optionIdx` 1 lands in bucket "1" of question B whenever 1 is a legal option
+of B. Not a dropped count — a wrong one, inside the one surface the whole
+disclosure apparatus exists to protect. For a split duo it was worse than a
+miscount: `votes.length === 2` let a guess be scored against an answer to a
+different question.
+
+Two changes, both in `pure.ts` so they are testable without an emulator:
+
+- `revealQid` picks by **plurality**, ties broken on lexical qid. The drifted
+  client is the minority by definition, so plurality names the question the
+  group actually played, and the result no longer depends on member order or
+  on which read returned first — a retried transaction cannot pick differently.
+- `votesMatchingQid` filters the fold to votes actually cast on that question.
+
+**The reveal doc still carries every vote.** Dropping one there is the
+"silently discarded" outcome the reveal transaction is built to avoid, and a
+member who played belongs in their group's reveal whatever their client's bank
+said. Only the cross-group aggregate is filtered, because it is a claim about
+one question.
+
+**The accepted cost, stated:** on a split, the minority's votes are folded
+into no aggregate at all rather than into their own. Folding them separately
+would mint a second `plays: 1` from a single group-day and count one reveal as
+two plays of two questions. The aggregate is advisory and floored; a
+group-day under-counted by the minority is survivable, a group-day counted
+against the wrong question is not.
+
+### What is still true after this
+
+The residual is display-only and unchanged: on a split, the minority sees the
+majority's prompt above their own answer in the reveal. Fixing that needs a
+per-vote qid on the reveal doc and a client that renders it — a schema change,
+not a correctness one, and not worth spending on a case that only occurs
+between a bank revision and a cache refresh.
+
+## D71 · A reveal now says which question each answer was to, and nothing compares across that line
+
+**Decided:** 2026-08-07 · **Status:** binding (completes D70)
+
+D70 stopped a vote cast on one question being folded into another question's
+published aggregate. It deliberately left the display half: the reveal doc
+carried a single `qid`, so a member whose client had drifted still saw their
+answer rendered under the group's prompt. That was recorded as a known limit —
+"display-only, not worth a schema change". Reviewing it again, that judgment
+was wrong about the *scope*, not the severity.
+
+The single `qid` was not only mislabelling one line on the reveal card. Every
+consumer downstream compares `optionIdx` values across members, and none of
+them could tell that two answers belonged to different questions:
+
+| Surface | What it claimed | Why it was wrong |
+| --- | --- | --- |
+| Reveal card (`LiveDuelPanel`) | "Ada · Tea" | Ada answered a different prompt; index 1 of hers is not "Tea" |
+| Reveal card, duo | "called it" | compared a guess about one question to an answer about another — true by coincidence |
+| `portraitRow` | a 3–0 consensus | one of the three answered something else |
+| `groupPortrait` people | "your twin" / "breaks ranks" | a day two people answered different questions counted as agreement or dissent |
+
+The last two are the ones that changed the decision. They are not a mislabel,
+they are **fabricated relationships between named people** — the exact class D1
+forbids, and the twin/contrarian labels put a real person's name to it.
+
+### The change
+
+`RevealVote` gains an optional `qid`, written **only** when that vote was not an
+answer to the question the day is published under (`revealVotes`, pure.ts).
+Absent means "the revealed question", so:
+
+- the common case writes byte-identical documents to what it wrote before, and
+- every reveal written before D71 reads correctly with no migration.
+
+Then everything that compares two indexes goes through one notion of which
+question a vote belongs to — `voteQid` in `groupPortrait.ts` on the client,
+the stamp itself on the server:
+
+- the reveal card renders each off-question answer under **its own prompt**,
+  with that question's option labels, under a "was asked a different question"
+  heading;
+- a duo guess is scored only when both partners answered the same question;
+- `portraitRow` counts only same-question answers and reports `offQuestion`
+  rather than hiding the difference — and when the off-question answer is the
+  viewer's own, the day stops counting toward their alignment, because they
+  have no option in that row's space;
+- pairwise agreement skips a day two members did not share a question.
+
+### What this costs
+
+A reveal doc grows by one short string per drifted vote, which is zero in the
+common case. Nothing else changes shape.
+
+### Two corrections this review also produced
+
+- **D70 overstated the `guessIdx` bug's field impact.** The shipped client only
+  ever sends `guessIdx` in a duo (2 members), so "members 21–32 unguessable"
+  was unreachable. D70 now says so. The bound was still wrong and the fix still
+  earns its place — see the correction in that record.
+- **`firestore.rules` claimed duel answers "never" feed aggregates**, in the
+  comment justifying their D29 device-binding exemption. False since D40 part
+  3: `foldDuelSignal` publishes `v2_question_aggs/duel-{qid}`. The exemption
+  stands on the invite-code argument, which does hold; the comment now says
+  what is actually true, because a comment that overstates a carve-out is how
+  the carve-out outlives its reason.
+
+## D72 · Two fabrications that outlived the badge: the Map's group stats and the results card's friends
+
+**Date:** 2026-08-07 · **Status:** Adopted
+
+**What was shipping.** Two surfaces drew prototype data in a live build, and
+neither wore the Preview tag that D1's honesty posture leans on.
+
+1. **`window.MapStats` — the Map's group statistics.** `map-group-stats.js`
+   hashes a question id into a distribution, and `map-bottom-card.jsx` drew it
+   with **no live gate at any of its five call sites**. Measured with the
+   live fixture before the fix, tapping one answer dot rendered:
+
+   > 48% · You're with the majority · of **people your age** chose the same ·
+   > you: **30–39** · Know 48% · Be known 32% · Both 20%
+
+   Every figure is `hash("daily-000|age|0")`. The answer beside them is real
+   and the age band is the viewer's own, which is what makes it worse than a
+   demo screen: the fabrication is the only part a user cannot tell apart.
+   The anchor card added a second claim on the same data — "62% of your
+   answers match people your age", with a "where you differ" list under it.
+
+   `MirrorPreviewTag` returns null for `popId === 'you'`, because that badge
+   is keyed to **population** and the Map is not one. So this was the one
+   Mirror stop where sample data carried no label at all — the same hole D66
+   closed for the anchor ring, one layer further in.
+
+2. **The results card's same-type friends.** `result-card.jsx` filtered
+   `IS_DATA.people` — the prototype's seven invented friends — through
+   `IS_FRIEND_TYPES` and handed up to four of them to `SigEmblem`, which drew
+   their avatars on the result. `data/live.ts` replaces `WORLD_FEED_QS`,
+   `TEST_FEED_QS` and `WORLD_FEED_COMMENTS`; it has never touched `IS_DATA`.
+   Measured: initials **HV** and **IV** — Henrik Vold and Ingrid Vold — on a
+   live account's Big Five card. D1's words are *"No seeded fake users,
+   ever"*, and this was the last surface still doing it.
+
+**Why it survived.** Both are invisible to every gate this repo has.
+`check:globals` is name-level, `no-undef` sees a defined name, `tsc -b` does
+not read `.jsx`, and the mount tests assert on the ErrorBoundary — a
+fabricated number renders perfectly. The Map case additionally needs a
+question answered and a dot tapped before it appears, so no mount walk
+reached it. Both were found by reading the live/demo seam file by file and
+then rendering the two components against the live fixture; neither would
+have been found by reasoning about the code, and the second is documented
+nowhere in `docs/` at all.
+
+The first was *known* — `docs/MIRROR.md` §5 has said "the Map's typicality
+stats are still synthetic" since the file was written — but it was recorded
+as prose rather than as a deferral with arithmetic, which is the difference
+this file exists to make. A known limit that no test pins is a limit that
+ships.
+
+**Decision.** `MapStats.dist`, `.mode` and `.dimVal` return **null** when
+`LIVE.enabled`. `sameType` is empty in live mode.
+
+Returning null rather than gating at the call sites is the load-bearing half:
+a consumer that forgets the check throws in `smoke-live.test.jsx` instead of
+quietly fabricating, which is the failure mode that produced this entry.
+`groupLabel` is exempt — it is a noun for the cohort, not a claim about it,
+and the honest empty states still want to name the group.
+
+**What live mode draws instead.** The tapped-answer card and the anchor card
+show one line — *"Your answer is on the map. How people your age answered
+isn't measured yet — it needs more people on this question first."* The
+anchor card keeps `MTAnchorStat`, because your own test scores are a real
+measurement; only the "them" marker and its legend key go. Dot placement
+needed no change: `map-tab.jsx` already read `MapStats` through a null guard,
+and its fallbacks (`typ = 0.5`, `maj = true`) are exactly the neutral
+result — every dot at one radius, none marked a rare take.
+
+**The arithmetic on what is deferred.** A real source exists for part of
+this and was not wired here, because that is a feature rather than a leak
+fix. `v2_question_aggs.by` carries k-floored per-anchor breakdowns on
+`BREAKDOWN_DIMS` — so the Map's **age** and **edu** anchors have a real
+counterpart today, and could render measured splits the way `LiveCohortBody`
+does. The other five cannot: `job` is profession, deliberately not a
+breakdown dim (D8 — free text mints a bucket key per spelling), and the four
+test anchors are not dims at all. So the honest state is the correct
+destination for five of seven regardless, and two are a follow-up with a
+known source. With production at zero answers today, all seven would render
+the empty state either way.
+
+**Not changed, deliberately.** Learn dots still place by `card.p`, the
+authored "% who get this right". That is content shipped with the card — a
+difficulty rating — not a statistic about a population that does not exist,
+and `LEARN_SPLIT` already labels measured vs estimate at the reveal
+(D32). Reconsider it if `p` ever starts being read as a measurement.
+
+**What now proves it.** Four cases in `smoke-live.test.jsx`, each with its
+demo-mode control, because "the card stopped rendering" passes every live
+assertion on its own. Verified by neutralising both gates and re-running:
+the live cases fail with `expected [ 48, 32, 20 ] to be null` and
+`expected [ 'HV', 'HV', 'IV', 'IV' ] to deeply equal []`, and the controls
+stay green. Coupling held flat at 534 — both gates read `LIVE` through the
+module import, not `window.LIVE`.
+
+**Numbered D72, on the third attempt, and the two failures are the point.**
+This was first written as D70. D69 landed on main mid-work, so the branch was
+rebased onto it and the number re-checked — still D70, now verified rather
+than assumed. Then, while CI was green and this was waiting to merge, main
+merged **its own D70 and D71** (the duel indexes), and the rebase turned out
+to have bought nothing: it proves the number was free when you looked, not
+that it stays free while you work. Renumbered to D72 at the merge.
+
+D68 said the same thing after two branches minted a D66, and the correct
+reading of it is stronger than "rebase first". **A decision number cannot be
+reserved, so it is not settled until the merge that lands it.** Anything that
+quotes one before then — a commit message, a code comment, a PR body — is a
+claim about another branch's future. The three renumbering passes here each
+had to sweep code comments, `CLAUDE.md`, `docs/MIRROR.md` and this file
+together, which is the real cost and the reason this paragraph exists.
+
+Nothing enforces it. `check:figures` holds documented figures against the
+tree, but a collision is two files agreeing with each other and disagreeing
+with a branch nobody has merged yet — invisible to any check that reads one
+checkout. Grep `^## D` on freshly-fetched `origin/main` immediately before
+merging; that is the whole procedure.
+
+## D73 · The privacy label has no endpoint, so the script prints the form instead
+
+**Decided:** 2026-08-07 · **Status:** binding
+
+`scripts/asc-push.mjs --privacy` no longer writes. It prints
+`design/store/app-privacy.json` as the App Privacy web form — row by row, in
+the order App Store Connect asks — and a human copies it across. The age
+rating next door still pushes; the only difference between the two is which
+one Apple exposes.
+
+**This is Apple's constraint, not a scope decision.** The App Store Connect
+API has no App Privacy resource of any kind. Verified three independent ways,
+because one error message is evidence about one URL and not about what an API
+contains:
+
+1. **The live API.** `GET /v1/apps/{id}/appDataUsages` → 404, *"The
+   relationship 'appDataUsages' does not exist"*.
+2. **Apple's own OpenAPI specification** (4.2, 925 paths). The string
+   `DataUsage` does not occur in it anywhere, and the `App` schema's
+   relationship list — 43 entries, down to `webhooks` and
+   `androidToIosAppMappingDetails` — has nothing privacy-shaped.
+3. **The documentation index.** App Store › App Metadata lists app infos,
+   localizations, versions, screenshots, previews, categories and age
+   ratings. There is no privacy section, and the release notes through 4.4
+   never mention one.
+
+**What it cost to learn, which is the part worth recording.** The
+reconciliation block shipped three times and failed in production three
+times: a 400 on an `?include=` Apple rejects, a 403 on a `GET` of a
+write-only resource, then that 404. Every one of them *looked* like a wrong
+path — Apple's errors are phrased in terms of paths — so each round produced
+a different path rather than the question **"does this resource exist at
+all?"**. Asking that question directly took ten minutes and ended it.
+
+The rule, stated so the next person does not pay for it again: **when an API
+answers three different 4xx to three different guesses, stop guessing paths
+and go read what resources it has.** Three wrong answers in the same place is
+not three bugs; it is one wrong model.
+
+**The stub is where this is now enforced.** `scripts/asc-push.test.mjs` used
+to answer 200 to `appDataUsages`, which is exactly why a client for a
+non-existent resource could ship green — the second time that stub's leniency
+hid a real 4xx, after the `include=` 400. It now returns Apple's own 404 for
+any path containing `appDataUsage` or `appPrivacy`, and a test asserts that
+`--privacy --apply` performs **zero** writes. A rebuilt write path fails on
+the bench instead of in production. A lenient stub does not test a client; it
+tests itself.
+
+**What did not change, and deliberately.** `app-privacy.json` stays, and so
+does `check:store-forms`. The argument for holding an attestation as
+reviewed data rather than ~40 remembered clicks never depended on there being
+an endpoint — it is about the answers agreeing with `data-inventory.md`, and
+that is the failure that put "collects no email or name via Google" in three
+documents at once. The printout keeps the transcription mechanical; the gate
+keeps it honest.
+
+**One guard was relaxed on purpose.** The block used to `exit 1` when
+`tracking.used` was not `false`, on the grounds that turning tracking on
+unattended is a decision with an ATT prompt behind it. That was right while
+it pushed. A *report* that refuses to print is just a report nobody can read,
+so it now prints the tracking answer first and warns that the form will ask a
+per-row tracking question this printout does not answer.
+
+**It also corrects D69.** That record's closing paragraph says asc-push
+"transcribes the privacy label from a reviewed file", which was true of the
+intent and never of the code. D69's actual subject — trader status, and the
+refusal to automate an identity assertion to a regulator — is untouched.
+
+## D74 · A tick is a claim, and this one was printed before the write
+
+**Decided:** 2026-08-07 · **Status:** binding
+
+Two defects in `scripts/asc-push.mjs`, found by the first real `--apply` run.
+The second is much the worse of them.
+
+**1. `whatsNew` cannot be set on a first release.** "What's New in This
+Version" has no meaning when there is no previous version, and Apple answers
+the PATCH with a 409 naming the attribute. It now travels in its own request,
+so the refusal cannot take anything else with it, and the refusal itself is
+reported as a skip rather than thrown.
+
+Split rather than state-modelled, deliberately. The alternative was deciding
+up front whether the app has ever had a released version — which means
+encoding Apple's version state machine from outside it and guessing whether
+`READY_FOR_SALE`, `PENDING_DEVELOPER_RELEASE` and `REPLACED_WITH_NEW_VERSION`
+each count. Apple answers that question exactly and for free. D73 is the
+whole argument for asking rather than guessing, and it was one day old.
+
+The skip is scoped to one attribute, one status and one message, and a test
+proves a 409 on any other field still exits non-zero. It is also conditional
+rather than permanent — a second test drives the allowed case, because
+"handled" must not come to mean "never sent again" and ship the first real
+update with last release's notes.
+
+**2. The report ticked eight fields and wrote three of them.** A PATCH is
+atomic. `whatsNew` rode in the same body as `description`, `keywords`,
+`promotionalText`, `supportUrl` and `marketingUrl`; Apple refused the one and
+dropped all six. The run printed:
+
+```
+  ✓ version.description: "" → "One question a day. You answer it blind…"
+  ✓ version.keywords:    "" → "poll,opinion,personality,quiz,friends…"
+  …
+Error: PATCH /v1/appStoreVersionLocalizations/… → 409
+```
+
+Every one of those ticks was false, because the loop printed the diff and
+*then* wrote it. `+` before a write is a statement of intent and is fine. `✓`
+is a statement of fact and has to be earned, so it now prints only after the
+call returns.
+
+**This is the third instance of one mistake, which is why it is a record and
+not a commit message.** The seed workflow reported Success over a 500 because
+`cmd | tee` returns tee's status. The metadata job summary printed "Dry run.
+Nothing was written" over a run that had died on a 400, because stderr was
+never captured. Now a script ticked fields it had not written. Different
+mechanisms, one failure: **a report describing an outcome the run did not
+have.** The general rule, stated once here rather than re-derived a fourth
+time — *emit the claim after the thing it claims, never before, and prefer a
+missing line to a false one.*
+
+**What now proves it.** Five cases in `scripts/asc-push.test.mjs`, and the
+stub is a first release by default because production is one. Verified by
+neutralising each fix and re-running rather than by reading the diff:
+restoring the pre-write tick fails one case (`expected … not to match /✓ app
+info\./`), and folding `whatsNew` back into the group body fails five.
+
+## D75 · Apple's eight new age-rating questions, and the half of the form nothing was checking
+
+**Decided:** 2026-08-07 · **Status:** binding
+
+`app-privacy.json` answered fourteen age-rating attributes. Apple requires
+twenty-two. The eight it had never heard of rejected the entire PATCH — one
+409 error per missing attribute, naming each — so the age rating could not be
+written at all, not merely written incompletely.
+
+The eight, with what each is answered from. Types are Apple's, read out of
+the App Store Connect OpenAPI spec rather than inferred from the names:
+seven booleans and one frequency enum, and guessing boolean for the enum
+would have been a 400 that reads like a wrong value.
+
+| Attribute | Answer | From |
+| --- | --- | --- |
+| `userGeneratedContent` | `true` | Display names in group and duel reveals. The one that actually drives the rating. |
+| `messagingAndChat` | `false` | Takes are circle-scoped (D1) and demo-only in a shipping build; Comments and Who-voted are `!S.live`-gated. |
+| `advertising` | `false` | No ad SDK. The Facebook SDK is transitive and stripped at postinstall (D16); `check:ios-facebook` asserts it. |
+| `lootBox` | `false` | No in-app purchases at all (`MONETIZATION.md`). |
+| `parentalControls` | `false` | The app provides none. The question asks what it offers, not what it needs. |
+| `ageAssurance` | `false` | No age verification or estimation; anonymous-first auth (D3) collects no birth date. |
+| `gunsOrOtherWeapons` | `"NONE"` | **Measured** — zero hits across all five committed banks for fifteen weapon terms. |
+| `healthOrWellnessTopics` | `false` | **Measured** — three hits, none of them health content. |
+
+The three health hits are recorded because "no hits" and "three hits I judged
+irrelevant" are different claims and only one of them is honest here:
+*Medicine* is one of four options on "Humanity's best invention?", and the
+other two are Map taxonomy — `CAT_META`'s `Body` category carries `seedId:
+'health'` for its palette hue, and one cuisine question files under
+`Body / Health`. A category label is not a health topic.
+
+**`messagingAndChat` has a known expiry.** It moves the day takes go live,
+together with `EMAILS_OR_TEXT_MESSAGES` in the not-collected list. Same
+trigger, and they must move together — which is also when Apple guideline 1.2
+stops being comfortable.
+
+**The prediction was right and still did not help.** `$socialMediaQuestions`
+was written the same day, from a banner in App Store Connect, and it called
+this exactly: Apple has added questions, `asc-push` PATCHes only the listed
+keys, so anything new is left unset. It got one thing wrong — it said an
+unset required field would "block submission". Apple is stricter: it rejects
+the write. Knowing the cause and mispredicting the symptom still cost a
+debugging round, because the note read as a thing to check later rather than
+a thing that would fail now.
+
+**So the real change is rule 5 of `check:store-forms`.** The privacy half of
+`app-privacy.json` had been gated against its prose since the day it was
+written. The age-rating half in the same file was gated by nothing, and that
+script's own header explained why: those answers "are prose sentences rather
+than table cells, and a checker that pretends to parse them would give false
+confidence".
+
+True of the prose as it stood, and the wrong conclusion. **The fix for a
+table nobody can parse is to write a table.** `STORE-FORMS.md` now carries
+every attribute keyed by its API name with the literal JSON value, and the
+gate compares key and value in both directions. Twenty-two answers, checked.
+
+What it still cannot do is notice when Apple ADDS a field — no gate reading
+this checkout can, and pretending otherwise would repeat the mistake in the
+other direction. What it guarantees is narrower and worth having: the answer
+a human reviewed and the answer that gets pushed are the same answer.
+
+**And D74 was fixed in one of three places.** That record was one commit old.
+The text block reported after its write; the age-rating block still ticked
+fourteen fields above a 409 that wrote none of them, and the screenshot block
+still ticked all six uploads before a byte moved. Both are now corrected, and
+the stub demands the eight attributes so a dropped answer fails on the bench.
+
+The rule that would have caught it, stated plainly: **when a record says a
+mistake has a shape, grep the shape.** `APPLY ? "✓" : "+"` was three lines in
+one file. Fixing the instance in front of you and writing the record about
+the general case is worse than either alone — it leaves the tree broken and
+the documentation claiming otherwise.
+
+## D76 · Crash reporting flips to opt-out, and the ErrorBoundary reports what it catches
+
+Decided 2026-08-08. Two changes with one motive: a crash on a phone in the
+field was invisible unless its user had first found a toggle and switched
+telemetry on, and the app's most user-visible failure never reached the
+dashboard even then.
+
+**The default.** `telemetryEnabled()` now reads `insight.telemetry.v1` as
+on-unless-`"false"` rather than off-unless-`"true"`. A recorded opt-out
+keeps holding — the send-site gates that make the panel's "Off — this app
+sends no reports" absolute (reportError and setSentryUser gate on the flag,
+not on the SDK being up) are untouched; they just read the new default.
+Unreadable storage still reads as OFF, deliberately: a store that cannot be
+read is also one that could not have recorded an opt-out, and silence is
+the only side that cannot betray a recorded choice. The DSN gate is
+untouched too — no `VITE_SENTRY_DSN`, no Sentry — so dev builds and the
+emulators stay silent, and the dead-branch build guarantee from the
+`check:bundle` entry still holds in DSN-less builds.
+
+**The boundary.** React swallows what an error boundary catches, so
+Sentry's global handlers never saw the crashes that end at "This view hit a
+snag" — the app-shell `ErrorBoundary` costs a card instead of the app (its
+point), and in exchange the failure reported to nobody but the local
+console. Its `componentDidCatch` now calls `reportError` with the component
+stack. The comment beside the overlay openers claimed the spec layer "has
+no import path to src/lib"; spec files have imported `../data/live` and
+siblings since the conversions began, and app-shell now imports lib/sentry
+the same way. The openers themselves keep their console.error — main.jsx
+already reports a loadOverlays failure once when the chunk dies, and one
+failure should not re-report on every tap.
+
+**Every prose claim moved in the same commit** — privacy.html (re-dated),
+data-inventory.md, STORE-FORMS.md ×3, SHIP-CHECKLIST.md, COSTS.md,
+app-privacy.json's `$why`, .env.example, the panel copy, and lib/sentry.ts's
+own header. The store ANSWERS do not move: Crash Data was declared
+collected even while default-off, because the form asks what the app *can*
+collect, and Play's "Optional" survives because the user can still switch
+collection off. What moves is only the prose explaining the default.
+
+**Known trade, recorded.** Default-on diagnostics tied to a uid is the kind
+of processing EU consent guidance reads narrowly. The mitigations are the
+ones already built: uid-only payloads, `sendDefaultPii: false`, no session
+replay, an opt-out honoured at every send site, and a privacy policy that
+says exactly what happens. The residual flagged in the purge review stands
+unchanged (an SDK already running keeps running until restart after an
+opt-out mid-session; the close() is best-effort, the gates are the
+guarantee). If this ever needs to flip back, it is one comparison in
+`telemetryEnabled()` plus this prose, reversed.
+
+## D77 · The app knew why it had failed and told a console nobody could reach
+
+**Decided:** 2026-08-08 · **Status:** binding
+
+The first device this app ever ran on booted into `demoInProd` — a live
+build whose boot never attached, showing the prototype's invented people to
+a real user behind a "Sample questions · reconnecting…" pill. The label was
+correct and D1 required it. It was also the entire diagnostic surface, and
+it says *that* something failed while withholding *what*.
+
+Everything else was reachable and none of it was enough. The App Check
+console proved nothing was enforced. `identitytoolkit accounts:signUp`
+against the production key returned a real token, so anonymous sign-in
+worked from outside the app. Firebase's user list showed no account created
+that day, which located the failure at the first step of boot and no
+further. The reason itself existed, once, in a `console.warn` on a phone —
+and an iPhone's console needs a Mac, **the single dependency
+`ios-release.yml` was written to remove.**
+
+**So the reason is now a value.** `LIVE.bootError` carries it, the pill is a
+button, and one tap shows it. Behind a tap rather than on the face of the
+card because both halves are deliberate: someone on a train should read
+"reconnecting…", and someone debugging should not need a laptop.
+
+D76 landed the same day and fixes the remote half — telemetry is opt-out
+now, so a boot failure reports itself. This is still worth having, because
+the two fail differently: Sentry needs a DSN, a network healthy enough to
+send on, and someone at a dashboard. **A boot failure whose cause is the
+network is exactly the case where the remote path is least likely to
+arrive.** The build on the phone also predated D76 — the gap was real for
+the one device that mattered.
+
+**A second silence, closed with it.** `anonSignIn` awaited
+`onAuthStateChanged` with no clock. That callback normally fires within a
+tick, with `null` on a first run, but it is the SDK's persistence layer that
+decides — and a WebView whose storage it cannot open owes nobody a
+callback. Unguarded, that hangs boot forever: no uid, no error, no Sentry
+event, no `bootError` either, and a pill that says "reconnecting…" truthfully
+and permanently. It now falls through to `signInAnonymously` after five
+seconds. Falling through rather than throwing: the wait exists to avoid
+REPLACING a returning session, and after five seconds of silence there is
+no session to replace, while refusing to sign in guarantees the demo deck.
+
+`nativeGoogleIdToken` in the same file already had this exact guard, with
+the reasoning written out — *"a misconfigured build never opens it at all
+and the promise then never settles… Fail loudly instead — a wrong config
+should look like a bug, not a hang."* The argument was correct and general
+and had been applied to one of the two call sites. **That is the same shape
+as D74's tick, three days apart: a rule written down next to one instance
+of the thing it describes.** When a comment explains why a hazard matters,
+grep for the hazard.
+
+**Not yet known: what the device actually hit.** This does not diagnose it;
+it makes the next run diagnose itself. Naming that plainly because a
+decision record that implies a fix it did not make is worse than none — the
+next build says the reason on screen, and that is the whole claim.
+
+**What proves it.** Two cases in `smoke-live.test.jsx`, the only guard that
+executes a render: the reason is absent until the pill is tapped and present
+after, and a healthy boot shows no pill at all. Verified by neutralising the
+reason and re-running rather than by reading the diff. `bootError` joins the
+pinned `window.LIVE` surface in `live-surface.ts`, which caught it being
+added — as designed — in both the real store and the fixture.
+
+Converting the banner to the imported `LIVE` took `daily-split.jsx` from 50
+cross-module globals to 48 and the tree from 534 to 532 (D39). The other ~48
+in that file stay: each `window.LIVE &&` guard has to be re-read rather than
+deleted wholesale, because an imported binding cannot be unset but the data
+it carries can still be missing.
+
+---
+
+## D78 · The takes surface goes live circle-first, and world takes get a costed proposal
+
+**Decided:** 2026-08-08 · **Status:** part 1 **binding**, part 2 **Proposed**
+
+Two things that had drifted into one question: whether takes exist *at all*
+on a live build, and whether they exist at **world scale**. The first was
+never a D1 question and had no live client. The second is the one D1
+actually decides, and it is proposed here rather than taken.
+
+### Part 1 (binding) — the client half of the moderation chain exists now
+
+The moderation substrate shipped 2026-07-31 (D22) and has been deployed in
+advisory mode since: `v2_takes`, `v2_flags`, the queue, the two MOD_UIDS
+callables, rules with negative tests, an e2e leg in CI. What it has never
+had is a client. `grep -rn v2_takes src/` returned **nothing** — no read, no
+write, no report control — so every one of those guarantees has been
+enforcing a collection that no device could reach. `docs/MODERATION.md`
+named the gap ("the client report control (needs a live takes surface)")
+and it stayed named for eight days.
+
+`SOCIAL` now carries six members — `loadTakes`, `takes`, `postTake`,
+`deleteTake`, `flagTake`, `flagged` — pinned in `test/live-surface.ts` and
+stubbed in the fixture like every other member of that surface. This is
+**circle-scoped**, so it needs nothing from D1 that D1 does not already
+grant, and no rules change: every gate resolves membership through
+`v2_groups/{gid}.memberUids`, exactly as written.
+
+**The list query is the part worth the test file.** The read rule is an
+equality on `hidden`, and Firestore holds a list only to a rule it can
+compare against the query's own constraints — so a client that drops
+`where("hidden", "==", false)` does not read more takes, it gets
+permission-denied on every circle on every device (D65). Nothing else in
+this tree catches that: `tsc -b` sees a well-typed query, eslint sees
+nothing, `check:globals` sees no name, and `firestore-tests` exercise the
+*rule* rather than the client that has to match it.
+
+Measured rather than reasoned about, which is the only reason this record
+claims it: deleting that one line from `loadTakes` leaves the tree green and
+fails exactly three cases in `data/takes.test.ts`.
+
+The same file pins the shapes the rules check literally and a caller cannot
+infer: the six keys `hasOnly` permits with `hidden` written **false** rather
+than omitted, the flag id `takeId + "_" + uid`, the 280-char cap, and the
+client-minted take id the moderation queue keys on. Plus the query's
+agreement with the one committed composite index (`gid`, `hidden`,
+`createdAt DESC`) — added on the owner's call in D65 for a client that did
+not exist yet, and now used by the one that does.
+
+**One bug found by adding the state, not by reasoning about it.**
+`resetForNewUid` clears every field derived from the old uid — its own
+comment says why: "one account's answers render as the other's." Three new
+fields were not on that list. Circle takes are member-gated, so a cached
+list belongs to a circle the *new* account may not be in; and a surviving
+`myFlags` marks takes "Reported" that this account never reported, against
+a collection that is `allow read: if false` by design and therefore cannot
+be re-read to correct the claim. Fixed with the rest of the purge, pinned
+by a uid-change case, and confirmed the same way as the query filter:
+removing the three lines fails it.
+
+**What part 1 does not do.** It adds no UI. The take list and the report
+control have a design question in front of them that this record cannot
+answer, and inventing a surface to fill the gap is the shape D1 forbids.
+The data layer is the half with the rules-shaped hazards in it; the half
+with the design decisions in it waits for the design.
+
+**Amendment (same day) — the UI was asked for and built.**
+`ui/LiveTakesPanel.tsx`: the circle's takes on one question, a composer,
+and the report control. The paragraph above is superseded on the facts and
+kept for the reasoning, which held — the design question was answered by
+the owner asking for it, not by this record guessing.
+
+Three things in that panel read as styling and are consequences of
+`firestore.rules`. Each is commented at its site and pinned in
+`LiveTakesPanel.test.tsx`, because each is exactly the kind of thing a
+later tidy-up removes:
+
+- **Reporting takes two taps.** `v2_flags` is `allow update, delete: if
+  false` — a cast flag cannot be withdrawn by the reporter, the author, or
+  a moderator. The demo's one-tap report (`WF_REPORT`) is local and
+  undoable; this one is neither. A single tap on an irreversible write
+  turns a misplaced thumb into a permanent record.
+- **There is no reason picker.** The demo offers four chips. The create
+  rule is `hasOnly(["takeId", "gid", "uid", "at"])`, so a reason has no
+  field to live in — and nothing would read it if it did: the run derives
+  its own policy line (H1–H5) from the take's text. A picker would be a
+  form whose answer is discarded on send.
+- **A reported take stays on screen.** The demo replaces it with a
+  tombstone. Flags are `allow read: if false`, so a local hide has nothing
+  to rehydrate from and would reappear on the next load — a worse lie than
+  never hiding it. Soft-hide is the moderator's verdict, not the
+  reporter's.
+
+And the copy does not promise removal, because `MOD_ADVISORY` is true and
+nothing is hidden today. "A moderator reviews flagged takes against the
+posted policy" is what is true; a test asserts the string does not drift
+into *will be removed*. Measured the same way as the rest: making the
+control one-tap fails five cases.
+
+**Mounted on the reveal, and deliberately nowhere else.** `LdReveal`
+renders it against yesterday's revealed question; today's card does not
+get one. Today's answer is sealed until tomorrow, and free text beside a
+sealed answer is the leak the seal exists to prevent — "obviously B"
+under a question nobody has answered yet *is* the vote, written out. The
+reveal is the first moment a circle has anything to discuss and the first
+moment discussing it costs nothing. Three cases pin it: composer present
+after a reveal, absent before one, absent when the reveal carries no qid.
+
+On a split day (D71) the thread hangs on the reveal's own `rowQid`, not
+on a member's individual qid — one comment thread belongs to one
+question, and the alternative is two people talking past each other under
+one heading.
+
+`LiveDuelPanel` reaches it by ordinary import rather than the globalThis
+bridge (both are typed TSX in `ui/`), so the D39 coupling count is
+**unchanged** — a new panel that added its reads through `window.*` would
+have raised it, and the ratchet only moves down. The live figure comes
+from `npm run check:globals`; this record does not quote one, because a
+hand-maintained number in prose is the documentation error D39 exists to
+stop re-committing. Its `spec-index.js` entry stays regardless — rule 2
+lists every module — but nothing waits on the side effect.
+
+**With that, the client half of docs/MODERATION.md is finished.** What is
+left needs no code: the low-privilege Routine (blocked on the platform
+gap), the `MOD_ADVISORY` flip (a maintainer judgement on the verdict
+log), and the three open questions at the end of that file.
+
+### Part 2 (Proposed) — anonymous world takes, gated on the advisory flip
+
+**Proposal.** Extend takes to world-scale questions, **without author
+names**, and only after `MOD_ADVISORY` flips to `false`. Named who-voted at
+world scale stays refused, permanently and for a different reason.
+
+**Why this is not the reversal it looks like.** D1's *Why* bundles two
+arguments that are not the same argument:
+
+1. World free text reintroduces a moderation surface and engagement-loop
+   dynamics. This is about comments as a feature.
+2. "Shipping synthetic people as real would contradict the product's
+   honesty posture. **No seeded fake users, ever.**" This is about the ~150
+   invented people in `world-feed-comments.js`.
+
+The second sentence is the forceful one and it argues against the *demo
+data*, not against real users writing real text. Real world takes violate
+nothing in it. Conflating the two let the strongest line in D1 do work on a
+question it was never about.
+
+**The precedent is already in the tree.** The who-voted half of D1 operates
+at world scale *today* — `renderEngage` shows the panel on live cards
+because "that panel stopped being a lie: the breakdown is real anchor
+counts, floored per cell… **and it carries no names at all**." It got there
+by stripping the identity and keeping the substance, without overturning
+anything. Part 2 is that same move applied to the other half.
+
+**What it costs, in the order the costs land:**
+
+| Cost | Detail |
+| --- | --- |
+| `MOD_ADVISORY = false` | Step 3 of the trust ladder. Today verdicts record and hide nothing, so circle scope is doing the work enforcement would. That substitution stops being available the moment the audience is everyone. **This is a maintainer judgement on the verdict log, not a code change, and it is a hard prerequisite rather than a step that can run late.** |
+| The Routine | Step 4, and blocked on a real platform gap: a Routine-fired session cannot today carry *only* the verdict credential (`MODERATION.md`). Running it in the dev session trades the whole confinement design for scheduling convenience — explicitly not an option. |
+| A rules change | Every `v2_takes` gate resolves through `memberUids`. A world take has no gid, so read, create and flag each need a second shape. This is privacy-surface work and gets the D12/D14 treatment: negatives first. |
+| Two store filings become false | `messagingAndChat: false` and Play's untick of *Emails or Text Messages* are both filed and both keyed to takes being circle-scoped. D75 already predicted this expiry and said the two must move together. Add Apple guideline 1.2's obligations for user-generated content, which is the part D75 called "stops being comfortable". |
+| An index | The committed one is `gid`-first. World takes key on something else. |
+
+**What part 2 explicitly does not propose: named who-voted.** Two
+independent reasons, either sufficient. InSight asks political questions,
+and `LAUNCH-RUNBOOK.md` already records the politics result as GDPR
+Article 9 special-category data — a percentage and "this named person voted
+this way" are different legal objects. And the moderation policy's own hard
+line **H4 · Doxxing** covers "names tied to accounts… regardless of
+intent"; publishing that as a feature would make the product do the thing
+it removes users for. Anonymity is not a softening of this proposal, it is
+the whole of it.
+
+**Adoption is an explicit act.** Part 2 binds nothing while its status reads
+Proposed. What would settle it is the advisory verdict log — the evidence
+the ladder was built to produce, and which no amount of reasoning here
+substitutes for.
+
+## D79 · `messagingAndChat` was false for one day, and circle scope does not make chat not-chat
+
+**Decided:** 2026-08-09 · **Status:** binding · **Owner-approved**
+
+`messagingAndChat` is **`true`**. It was filed `false` on 2026-08-08 and
+pushed to App Store Connect that day; D78 part 1 shipped the circle takes
+client on 2026-08-09, and `postTake` writes free text that other members of
+a group read. The filing outlived its premise by about eighteen hours.
+
+**The old reasoning had two clauses and only one survived.** It read "takes
+are circle-scoped (D1) **and demo-only in a shipping build**". The second
+clause is what D78 ended. The first is still true, and the question is
+whether it is enough on its own.
+
+**It is not.** Apple asks whether the app *has* messaging or chat. Scope
+limits the **audience**, not the feature — a private group where members
+write to each other is chat, and arguably more clearly chat than a public
+feed would be. Under-declaring is the direction that pulls an app, and the
+honest answer costs nothing here: `userGeneratedContent` already drives the
+rating to 12+, so this changes the filing without changing the outcome.
+
+**This overrides D78's own reading, which is why it is a record.** That
+decision's cost table files this flip under **part 2** — world takes, still
+*Proposed* — implying circle takes leave it alone. Two records now disagreed
+about when a live legal filing moves, with the app days from submission.
+Settled in the safer direction and written down, rather than left resting on
+whichever record a future reader opened first.
+
+**`EMAILS_OR_TEXT_MESSAGES` does NOT move with it, and D75 said it would.**
+That prediction bundled the two on one trigger. They come apart because the
+forms ask different questions: the age rating asks whether chat exists, the
+privacy label asks which category the text lands in. **A take is a post to a
+circle, not a message to a person** — Apple files that under *User Content →
+Other User Content*, which has been declared **Yes** since the file was
+written. The content is declared either way; only the shape differs. That
+row moves if a direct person-to-person surface ships.
+
+**Guideline 1.2 got easier on the same day, not harder.** D75 called this
+the moment 1.2 "stops being comfortable". The opposite happened: 1.2's
+report-mechanism row read "the control exists in the spec layer; the takes
+surface it attaches to is demo-only at launch" — a report control attached
+to nothing, for eight days — and D78 shipped `flagTake` writing to
+`v2_flags` from the panel. The obligations now apply for real *and* are met
+for real.
+
+**Five prose sites moved with the value**, because the premise was quoted in
+all of them: `app-privacy.json`'s `$messagingAndChat`, `$structural`,
+`$socialMediaQuestions`, `$guideline12` and the `EMAILS_OR_TEXT_MESSAGES`
+note; `STORE-FORMS.md`'s structural fact 3, its not-collected bullet, its
+answer table and its 1.2 table; and `LAUNCH-RUNBOOK.md`'s untick list.
+`check:store-forms` catches a value that disagrees across the two files
+(D75 rule 5) and caught nothing here, because the value was consistent and
+the *reason under it* was stale — which is the failure mode a
+key-and-value gate cannot see.
+
+**Runbook 4.5 is unticked again, and stays that way as a shape.** The age
+rating is *pushed state*: `check:store-forms` holds the two files to each
+other, and **nothing holds either of them to App Store Connect**. A feature
+that changes what the app *is* leaves the store holding an answer the repo
+no longer makes, and only a human dispatch closes that. This is the second
+time in two days that a shipped feature invalidated a filing; the first was
+D75's eight missing attributes, discovered by a 409.
+
+## D80 · Two ways to hang on the same line, and the device found both
+
+**Decided:** 2026-08-09 · **Status:** binding
+
+The first device this app ever ran on booted into demo mode and stayed
+there. D77 made the reason readable and D-79's predecessor made it name a
+stage; the phone then said **"still connecting — signing in"**, which is a
+statement that `signInAnonymously` neither resolved nor rejected. Two
+independent causes were in those three lines, and either alone produces
+exactly that.
+
+### 1. `getAuth()` on a native build
+
+`getAuth()` installs the browser `popupRedirectResolver`, which probes the
+environment against the `authDomain`. In a WKWebView served from
+`capacitor://localhost` that probe never completes — and because Auth gates
+**every** operation on its initialization promise, `signInAnonymously` waits
+on it forever. Not rejects. Waits.
+
+Native now uses `initializeAuth(app, { persistence: indexedDBLocalPersistence })`,
+which is what `@capacitor-firebase/authentication` documents for native
+(`packages/authentication/docs/firebase-js-sdk.md`) and what firebase-js-sdk
+**#5615** and **#6504** describe the absence of — *"the promise does not
+resolve, neither `.then` nor `.catch` runs"*. Web keeps `getAuth()`: the
+resolver it installs is the one `linkWithPopup` actually needs there.
+
+**How this was reached matters, because four earlier rounds guessed.** App
+Check was checked and enforced nothing. `accounts:signUp` with the
+production key answered **200 in milliseconds** from outside the app.
+Firebase's user list showed no account created. `check:web-firebase` proved
+the config was inlined verbatim in the shipping bundle. Each of those
+removed a hypothesis without producing one; the answer came from the *shape*
+of the failure — never settled, rather than failed — which is a property
+only D77's label could report, and which named the cause almost uniquely.
+
+### 2. `const unsub = onAuthStateChanged(a, () => unsub())`
+
+Fine while the callback is asynchronous. Fire it **synchronously** — which
+an Auth instance whose state has already resolved is entitled to do — and
+`unsub()` executes inside its own initialiser and throws
+`ReferenceError: Cannot access 'unsub' before initialization`. The throw
+lands inside Firebase's observer dispatch, `resolve` on the next line never
+runs, and the promise hangs with nothing logged.
+
+**Same symptom, different cause, three lines apart, and it predates every
+change in this investigation** — that shape has been in `anonSignIn` since
+the deploy-plane batch. `unsub` is now a `let` declared outside the
+executor, with a `settled` guard and a trailing idempotent call for the
+synchronous case.
+
+**It was found by a test, not by reading.** The mock fires
+`onAuthStateChanged` synchronously because that is the honest stand-in for
+an initialized instance, and the first run of the new file failed on it.
+The case is named in its own `describe` so nobody restores the coverage gap
+by making the mock "more realistic".
+
+### The rule these share
+
+Both are an `await` with no clock. D77 wrote that down for the restore wait
+and D77's own record said the argument was general; it then went one call
+deeper and stopped. `signInAnonymously` now has a 30-second deadline whose
+error names `init()`, so whatever the *next* cause turns out to be, the
+device says something instead of nothing.
+
+**30 seconds, not 5.** This is a real network call on a phone and a train
+tunnel is not a bug. The deadline exists to convert silence into a sentence,
+not to fail fast.
+
+**What is not claimed.** Cause 1 is documented upstream and matches the
+symptom exactly; cause 2 is proven to hang under a synchronous callback but
+whether the device's SDK fired synchronously is unknown and now unknowable,
+because both are fixed in the same build. Recorded as two fixes, not as one
+diagnosis with a spare.
+
+## D81 · The k-floor is paused at 1 until launch traction
+
+**Decided:** 2026-08-09 · **Status:** binding · **Owner's call**, from
+release testing: below five answers every breakdown reads as withheld, and
+"we can pause [the floor] as it's no secret what people vote" at the
+current userbase.
+
+**Decision.** `AGG_MIN_N` and `PUBLISH_EVERY` (functions/src/v2.ts) drop
+from 5 to **1**, together. Counts publish from the first answer, exactly,
+per answer. The floor is *paused*, not removed: every piece of the
+machinery still runs — `tooSmall`, `publishableBreakdown`, complementary
+suppression, the one-bucket rule — it just bites at a size that cannot
+occur. The pure suite keeps the whole floor-5 choreography tested as "the
+design pair", so the revert is a two-literal edit, not a re-derivation.
+
+**Why.** The floor defends a reader from recovering an individual's answer
+out of a small cohort. Pre-launch there is no reader to defend against and
+no cohort that will ever reach five: with a tester count in single digits,
+*every* figure in the app sat at "You're early — counts appear once 5
+people have answered", permanently, on every stop of the Mirror and every
+card of the feed. A floor that suppresses 100% of the product's output
+protects nobody from nothing while making the release look broken — the
+owner hit exactly this on the first TestFlight build
+(LAUNCH-RUNBOOK §3.2 predicted it as "expect the k-floor to look like a
+bug"; the accurate prediction was the argument for the pause).
+
+**The disclosure this accepts, stated rather than waved at.** While the
+pause holds:
+
+- a cohort of one *is* that person's answer, to anyone who can name the
+  cohort's membership — "the one person in Bergen who answered" is
+  identified by the cohort label itself;
+- with the cadence at 1, every observed change to a public aggregate is
+  one person's vote, and an observer holding a snapshot listener can
+  correlate a step with "my friend just answered" timing;
+- the client says so: the privacy panel's floor bullet now reads "while
+  the app is small, counts show from the first answer (so a count of 1 is
+  that one answer); the ≥5-person floor switches back on as cohorts grow"
+  — because a privacy panel still claiming ≥5 would be the UI-says-it,
+  server-doesn't failure this product defines itself against.
+
+**What does not pause.** The exact counts stay in `v2_aggs_private`, which
+no client may read. Answers stay owner-only and create-only (D5). Political
+items still never slice (D44). A one-bucket dimension is still withheld —
+it is a population statement, not a split, at any floor (the e2e asserts
+this survives the pause). Duel/sealed answers still reveal only to members,
+next day. The store privacy labels are unchanged: they never claimed the
+floor, and what they do claim (aggregated, no identities) stays true.
+
+**Client copy follows the constant, not the era.** `src/v2/data/floor.ts`
+is the client's pinned copy of the pair (`floor.test.ts` regex-reads the
+functions source and fails on drift, both directions, plus a paused-
+together-or-restored-together coupling test on each side). Every sentence
+that mentioned the floor now branches on it: the cohort panel's header
+drops the "never a group smaller than N" clause (N=5 would be false, N=1
+vacuous), its "withheld" accounting becomes "no answers yet" — at floor 1
+an absent cell IS zero, so the absent≠zero doctrine inverts — and the
+daily/feed "You're early" note becomes "You're first — the count lands in
+a moment", which is what `tooSmall` means when the only wait left is the
+trigger's own latency. The "5+" lower-bound suffix goes too: with the
+cadence at 1 the count is exact, and a "+" would claim a batching
+inaccuracy that is not there (`AGG_COUNT_IS_EXACT`).
+
+**Why literals and not a config knob.** The drift gates
+(LiveCohortBody.test, floor.test) regex-match the literals — an expression
+would make them vacuous, and they say so. And a remote knob that can flip
+a disclosure property without a reviewed commit is strictly worse than a
+two-line diff that every gate names. A deploy is the config path here.
+
+**Revert condition.** Restore both constants to 5 (functions/src/v2.ts)
+and both client copies to 5 (src/v2/data/floor.ts) in one commit — the
+tests enumerate every file that must follow, and the copy flips itself.
+When: at public launch, or as soon as cohorts routinely clear five,
+whichever the owner calls first. The e2e's floor-5 choreography (first
+answer publishes nothing; dims withheld while cells sit at 3/2) is
+preserved verbatim in this record's diff and in pure.test.ts, so restoring
+it is mechanical.
+
+## D82 · Near by radius (~500 m) — asked for, priced, and deferred
+
+**Status:** Proposed, deferred · **Requested:** 2026-08-09, owner:
+"Near should not need a city at all but only be distance based … people
+in a 500 m radius or something."
+
+**What is recorded here.** The ask, so it is not lost, and the price, so
+taking it later is a decision rather than a slide. Nothing is built.
+
+**Why not now — the arithmetic, updated from D2/D9:**
+
+- **A 500 m radius is finer than anything this product has ever held.**
+  D2's geohash Near was ~5 km cells and was rejected; 500 m is geohash6/7
+  territory. The product's strongest privacy line — *"the most precise
+  location this system can hold about a person is the name of a city, by
+  construction"* (D9, quoted in the privacy panel) — is spent the moment
+  any per-user cell is written, at any radius.
+- **Proximity needs presence, not a profile field.** "People actually
+  near you" means fresh location per session (foreground fixes, a
+  presence collection with a TTL), not D9's one-tap coarse fix that
+  discards the coordinate on-device. That reopens the class of collection
+  D4 deliberately closed (`insight_discoverable` — D2 records what it
+  leaked and why reviving it was refused), plus store label changes
+  (Coarse → Precise, "location" → collected continuously-ish), the
+  privacy panel's "no background or continuous location" line, and both
+  D75 filings.
+- **The floor makes it empty anyway.** The geo system's own floor was 20
+  per cell (D9 found it); even at the design floor of 5, a 500 m cell
+  needs five simultaneous users on the same block. At the current
+  userbase that is zero cells, everywhere, forever — the feature would
+  ship as a permanently empty screen that cost the privacy label to
+  build. (D81's pause does not help: a 500 m cell with ONE person in it
+  is a tracking dot, not a cohort.)
+
+**The shape it would have to take, if traction ever justifies it:** cells
+no finer than ~1 km, presence that expires in minutes, opt-in with its
+own prompt, floor ≥ 5 with no pause, and the store filings updated in the
+same release — D2's four-point cost list still stands, with its step 3
+(reopening a discoverable collection) still the expensive one. Its own
+project, after launch, never a bugfix-pass rider.
+
+**Until then Near stays D9's city** — which this release made reachable
+in place: the needs-a-city empty state now carries the profile's own
+picker ("use my location" one-tap suggest + manual search) instead of
+prose pointing at the profile.
+
+## D83 · World takes ship — D78 part 2 adopted, anonymous, behind enforcement
+
+**Decided:** 2026-08-10 · **Status:** binding · **Owner's call**:
+"Comments should be on world as well, that's where it is most useful —
+it has moderation so it's not an issue."
+
+**Decision.** Takes exist at world scale: the sentinel gid `"world"`
+carries per-question free text readable and flaggable by any signed-in
+user, with **no author names anywhere** and **one take per person per
+question**. `MOD_ADVISORY` flips to `false` in the same change — D78 made
+that the hard prerequisite, and it holds: at world scale, circle-scope
+trust cannot stand in for enforcement. Named who-voted at world scale
+stays refused, permanently, for D78's own two reasons (Art. 9, policy
+line H4) — anonymity is not a softening of this feature, it is the whole
+of it.
+
+**What was built, and where each guarantee lives:**
+
+- **Rules.** `firestore.rules` grew world arms on the takes read/create
+  and flag create gates. The sentinel cannot collide with a circle
+  (`v2_groups` creates are `if false`; ids are server-minted), reads stay
+  fail-closed on the `hidden == false` equality (D65's lesson, re-proved
+  for the world list in `rules.test.ts` — 51 → 56 cases), and the create
+  bound moves from membership to the DOCUMENT ID: `qid + "_" + uid`, so a
+  second take is an update and updates are denied. That id is also the
+  flood control — one account cannot stack a question under fresh ids.
+- **Index.** A second `v2_takes` composite (gid, qid, hidden, createdAt
+  DESC): the world list is per-question, because "every world take ever"
+  is unbounded and no surface reads it. The circle query and its index
+  are untouched.
+- **Client.** The same five `SOCIAL` members, scope as an argument —
+  `loadTakes("world", qid)` queries per question and caches under
+  `world:{qid}`; `postTake` mints the deterministic id; nothing else on
+  the pinned surface moved (takes.test.ts grew the world suite).
+  `LiveTakesPanel` gained a world mode: "Someone" instead of names, the
+  one-take composer fold, an anonymity kicker, and **Hide author** — the
+  per-author local mute (`data/mutes.ts`, purge-aware) that Apple
+  guideline 1.2's blocking row expects of a world-scale surface. Mounted
+  behind a post-vote "Takes" toggle on live feed cards and the live
+  daily: after your own blind vote, never before, because reading the
+  discourse before answering is the seal's leak at world scale. The
+  toggle is also the cost gate — one query per opened question.
+- **Enforcement.** `submitModVerdict`'s enforced branches were already
+  coded and dormant: remove now hides (with `hiddenMeta` for the
+  appeal) and settles the queue entry; keep clears the flags so a kept
+  take re-queues only on fresh ones; escalate alone keeps the entry.
+  `e2e-moderation.mjs` was rewritten from the advisory guarantees to the
+  enforced ones and grew a world leg — stranger reads, stranger flags,
+  queue, remove, hidden from everyone — every leg green in the emulator.
+
+**The deviation, recorded rather than papered over.** moderation.ts asked
+the advisory→enforced flip to "cite the advisory phase's track record in
+its PR". There is none: the advisory window closed with zero users and an
+empty verdict log, because the owner adopted world takes first. The
+compensating controls are real — the only verdict source until the
+Routine lands is a MOD_UIDS operator acting by hand, `MOD_RUN_CAP` bounds
+a bad run, a wrong remove is reversible in data (`hidden` is a field, and
+`hiddenMeta` says who and why) — and the blast radius at the current
+userbase is a rounding error. The Routine (MODERATION.md step 4) stays
+blocked on its platform gap; its absence means enforcement is manual, not
+that it is off.
+
+**The linkability trade, stated.** A world take's doc carries
+`authorUid` — an opaque anonymous id, now world-readable for the first
+time anywhere in the product. Takes by one account are therefore linkable
+to each other (and the mute control depends on exactly that), though to
+no name, no profile and no answer — every other uid-bearing surface stays
+owner- or member-scoped. The alternative (a server-mirrored public copy
+with the uid stripped) costs a function, doubles the writes and breaks
+author-delete; it is the recorded upgrade path if pseudonym linkage ever
+matters at scale. `docs/data-inventory.md` carries the row.
+
+**Filings.** No ticked value moves: `messagingAndChat` is already true
+(D79), takes remain posts (Emails/Text Messages stays No), and
+`userGeneratedContent` was Yes from the start. The PROSE under those
+answers leaned on "no global surface to be abused from", which D83 ends —
+app-privacy.json's `$structural`, `$socialMediaQuestions`, `$guideline12`
+and STORE-FORMS.md's 1.2 table now answer from what exists: enforced
+moderation, report at both scopes, leave-the-circle and hide-the-author
+as the two blocking shapes.
+
+**What this deliberately does not add:** author names or avatars at world
+scale (refused above), reply threads (a take is one person's take on the
+question, not a forum), edit (an edited take invalidates its flags —
+delete-and-repost is the rewrite), a reason picker on reports (no field,
+by design), or world takes visible before the viewer has answered (the
+client mounts the panel post-vote; a determined API reader can pay for
+spoiling their own blind vote, which harms nobody else and is recorded
+here rather than chased with a rules read-gate that would cost a get()
+per list row).
+
+### D82 amendment (2026-08-10) — "what if location only updated while the app is open?"
+
+Asked by the owner as a follow-up, and worth answering in the record
+because it is the RIGHT question — it just answers a different cost than
+the one that defers this.
+
+Foreground-only updates were already the assumed shape ("presence that
+expires in minutes", above): no background location, no history, a fix
+taken only while the app is open. What that removes is the worst store
+label and the battery objection. What it does not touch:
+
+- **The emptiness.** Near-by-radius shows people who are near you *now*
+  (or within the presence TTL). Foreground-only makes the presence set
+  STRICTLY SMALLER — it is the people who have the app open around you,
+  which at the current userbase is zero in every cell at every radius,
+  and stays near-zero until well after launch. The floor argument above
+  is unchanged; the sampling makes it stricter.
+- **The precision line.** A per-user cell write at ANY cadence spends
+  "the most precise location this system can hold about a person is the
+  name of a city, by construction" (D9). Foreground-only changes when a
+  coordinate exists, not that one does.
+- **The collection.** A presence doc keyed by user is still the class
+  D4 closed, with its rules, tests, TTL machinery and erasure surface.
+
+So: yes, it helps — it is how the feature would be built if it is ever
+built — and it does not move the two things the deferral rests on
+(nobody to show, and the privacy line it spends). The revisit trigger
+stays what D82 set: launch traction first, own project after, and the
+foreground-only design is the recorded starting point when that day
+comes.
+
+## D84 · Near by radius ships — presence cells, a count and nothing else
+
+**Decided:** 2026-08-10 · **Status:** binding · **Owner's call**, third
+ask and explicit about the trade: "I want the 500m added, it doesn't
+matter that it won't work most of the time." D82's deferral rested on two
+legs — nobody to show, and the precision line it spends — and the owner
+has now knowingly accepted the first and part of the second. This record
+is the shape that ships and the one precision decision that deliberately
+does NOT ride along.
+
+**Decision.** The Near stop gains a "Right now, around you" counter: how
+many opted-in phones are foreground within the viewer's ~1 km grid cell
+and its eight neighbors. No city involved — the card renders above the
+city ask, so Near is never a dead end again.
+
+**The shape, and where each guarantee lives:**
+
+- **A cell, never a coordinate.** `data/locate.ts` gains `locateCell()`
+  under the same containment contract as `locateCity()`: the fix is
+  folded to a 0.01° grid id ("5999_1074") inside the module and the
+  coordinate is discarded. A plain integer grid rather than geohash: the
+  neighbor math is two ±1s, and the precision cap is legible in the id
+  itself. The client and server halves of the grid contract are pinned to
+  the same vectors (geo.test.ts ↔ pure.test.ts, the floor.ts pattern).
+- **`v2_presence/{uid}`: one doc, overwritten, unreadable.** Foreground
+  beats every 4 minutes write `{cell, at}`; the rules regex is the
+  structural precision cap (raw coordinates cannot be written at all) and
+  `allow read: if false` for every client — a readable (uid → cell) pair
+  is D2's leak reborn, a script following any uid around town. Opting out
+  deletes the doc immediately; `deleteAccount` deletes it too (erasure
+  e2e asserts both the wipe and that it stops at this account's edge).
+- **The count is the entire read surface.** `nearbyCountV2` (App Check
+  enforced) takes the caller's cell, counts fresh presence (10-minute
+  window) in the 3×3 neighborhood, excludes the caller, and returns a
+  number. It floors on `AGG_MIN_N` like every published count — under
+  D81's pause any nonzero count shows, which is this feature's whole
+  point at today's scale; when the floor restores, 1–4 becomes `tooFew`
+  and the card says "a few people" without a number. Wired through the
+  same constant, so the revert carries presence with it.
+- **Opt-in is a per-account choice.** The flag lives in its own store
+  (`data/near.ts`) with its own purge listener, because an opt-in that
+  survived an account switch would turn presence on for whoever signs in
+  next. The enable tap carries the OS permission prompt (D9's rule);
+  boot resumes the loop only for an account that already chose it.
+- **The privacy panel discloses it in full** — what is shared, who can
+  read it (no user), when, and both ways out. The store label does NOT
+  move: the fix is the same coarse permission the city locate uses, no
+  background or continuous location, no history (one doc, overwritten).
+
+**The 500 m that deliberately did not ship.** The owner said 500 m; the
+card says "a couple of kilometres", and the gap is the sensor, not
+timidity: the app requests COARSE location only
+(`NSLocationDefaultAccuracyReduced`, Android COARSE) — a fix accurate to
+a kilometre or worse cannot honestly measure a 500 m radius, and D9's
+store-label argument ("Precise is NOT ticked, and the table is why")
+leans on exactly that ceiling. True 500 m is one decision away: request
+precise fixes, flip the App Store label to Precise Location, rewrite the
+coarse-only lines in D9's table and the privacy panel. That is a
+listing-level change with its own review consequences, and it is left as
+the owner's explicit next call rather than smuggled in under this one —
+the feature works identically at either precision, only the honest
+radius claim changes.
+
+**Costs, priced:** one presence write per opted-in foreground phone per
+4 minutes and one callable read of ≤9 cells' fresh docs — at any scale
+this product reaches before the floor restores, a rounding error against
+the answer pipeline. A new composite index (cell, at). One new callable
+in the deploy list (check:deploy-targets held the door until it was).
+---
+
+## D85 · The personality tests go to 5 items per dimension, and `cognitive` gets a question bank
+
+**Decided:** 2026-08-10 · **Status:** binding
+
+Two defects on the same surface, found by asking how many questions the
+tests actually carry.
+
+### 1. Three items per dimension was thinner than what is read off it
+
+Every dimension of all four tests carried exactly **3** items (W2 raised it
+from 2; `content-parity.test.jsx` pinned `K = 3` with the note "possibly 4
+later"). A dimension's score is the mean of its items on an 0..4 scale
+rescaled to 0..100, so **K items give 4K+1 reachable values** — at K=3,
+thirteen of them, with each single answer worth **8.3 points** of the
+score.
+
+That is the arithmetic that matters, not the 15/18 headline. The Mirror
+reads those scores as cut lines, the Map files answers against them, and
+`IS_archScores` matches an archetype on distances of a few points — all
+against a number one careless tap moves by eight. For reference in items
+per trait: TIPI 2, Mini-IPIP 4, BFI-44 ~9, BFI-2 12.
+
+**K = 5.** Big Five 15→25, Politics 18→30, Values 18→30, Social 15→25,
+plus the new test's 20 — **130 test items, 463 seeded questions**. Each
+dimension now has 21 reachable values at 4.8 points per answer, and each
+carries **2** reverse-keyed items rather than 1, so a straight-line
+"agree" response lands every dimension at 55 (a shrug) instead of 75 (a
+personality). That last figure is asserted in `smoke.test.jsx`, not
+reasoned about.
+
+K = 4 was the increment W2 anticipated and was rejected: it is 38 items of
+authoring for a score still coarser than Mini-IPIP. K = 6 puts Politics
+and Values at 36 items (~25 min sat down), which is a different product
+decision about test length, not a fix for this one.
+
+**Mechanics, per W2.** Appended at the END of each `questions` array in
+both `content/tests.json` and `IS_TESTS`, in one commit — appending keeps
+the positional `test-<key>-NN` ids stable and in-flight
+`insight.testProgress` answer arrays index-aligned. A user mid-test sees
+their progress percentage drop as the denominator grows; that is accurate,
+not a bug. Saved results are per-dimension 0..100 and item-count-free, so
+they survive untouched.
+
+### 2. `cognitive` was a test nobody could take
+
+`IS_TEST_RESULTS.cognitive` shipped with four dims, and
+`segment-explorer`, `compare-breakdown`, `group-mirror`, `person-overlay`
+and `compare-pop` all read it. `IS_TESTS` had no `cognitive` key, and
+`test-overlay.jsx` offers exactly what `IS_TESTS` holds. So the profile
+showed you a thinking style with **no way in the app to earn one** — in
+live mode, a surface that could only ever be empty.
+
+Nothing failed, and nothing could have: a test nobody can take is not a
+name error, so `check:globals`, `no-undef` and `tsc -b` were all blind to
+it, and `smoke.test.jsx` never opened a screen that needed it.
+
+It now has a 20-item bank (4 modes × 5, 2 reverse-keyed each) whose dim
+ids and meanings are the ones `explain-sheet.jsx` already published. Made
+first-class in the same pass: `IS_TEST_AVG` (absent — which is not
+neutral, it null'd the rarity readout and flattened archetype matching to
+a 50 baseline), `RP_TESTS`, `IS_ARCHETYPES` and the four archetype word
+maps, `PASSIVE.META`, the profile's sub-tab and arc ring, and a fifth Map
+anchor — `map-anchors.js`'s own header had said "the five test results"
+since the port while the list held four.
+
+**The trap the fix introduces, and the guard for it.**
+`ResultProfileCard` returns `null` on a missing `RP_TESTS` entry. Without
+one, finishing the new test lands on a header, a Done button and blank
+space between them — no throw, no boundary trip, every static gate green.
+That is `smoke.test.jsx`'s "the cognitive test is takeable end to end" —
+four cases: the picker offers it, the profile sub-tab draws it, a saved
+result draws it, and all 20 items answered through the real UI land on a
+result card.
+
+Mutation-checked rather than argued, and the measured numbers, because
+the point is which gate notices: renaming the key in `IS_TESTS` fails 3 of
+the 4, renaming it in `RP_TESTS` fails 2. **In both runs every
+"without tripping the boundary" case still passed** — which is the whole
+claim. The screen goes blank and nothing throws.
+
+### What is deliberately NOT done
+
+**`cognitive` is not a vote-cut line.** `VOTECUTS` reads
+`RMLenses.TESTS`, whose entries carry five colour bands per axis, named
+types with hues, and the Circle map's people-colouring. That is a design
+surface of its own, not a missing key, and inventing one to square the row
+is the fabrication D1 forbids (docs/MIRROR.md §3). `TEST_IDS` stays four;
+the Mirror's cut list says four tests and means it.
+
+**Existing `seq` values shift.** The test surface runs one counter across
+all tests (`gen-v2content.mjs`), so appending to big5 renumbers every
+later test's `seq`. Harmless and checked: no answer document references
+`seq`, ids are unchanged, and `seq` only sorts the bank client-side
+(`live.ts`). The next seed run rewrites those docs, which the D34 delta
+cursor picks up via `updatedAt`. **New questions do not bump
+`contentRev`** and these do not either.
+
+**Production is further behind than it was.** The last seed wrote 389; the
+bank is now 463. Same standing instruction as ever (LAUNCH-RUNBOOK 1.4) —
+reseed after merging.
+
+## D86 · Answers become editable — D5 amended, not repealed
+
+**Decided:** 2026-08-10 · **Status:** binding · **Owner's call**, from
+release testing: "a way to edit your answer to questions (that is not
+knowledge, obviously)".
+
+**Decision.** An answer on the world-scope opinion surfaces — `daily`,
+`feed`, `test` — may move its `optionIdx` after the fact. Everything else
+about D5 stands, and the amendment is exactly one write shape:
+`update` on the owner's own answer doc, changing **only**
+`optionIdx` (+ an `editedAt == request.time` audit stamp), bounded by the
+question's own option count, refused while the question is inactive,
+carrying the same D29 device binding as a create, and rate-limited to
+**one edit per answer per 60 s**. `delete` stays closed.
+
+**What stays frozen, and why each does:**
+
+- **Duel answers** (surface `group`/`duo`): the seal *is* the product —
+  an editable sealed answer lets a member re-decide after reading the
+  room. Excluded by the surface check.
+- **Learn answers**: first-attempt-only is D32's whole measurement — the
+  crowd stat is a people-rate, and "not knowledge, obviously" is the
+  owner drawing this exact line. Excluded by the surface check.
+- **Catalog answers**: they carry `entity`, not `optionIdx`, and the
+  canon fold has no delta path yet — the rules arm demands the OLD doc
+  hold an integer `optionIdx`, which a catalog answer never does.
+- **The anchors snapshot and `answeredAt`**: an edit moves which option
+  you hold, never which cohort you answered from (D8). This is what
+  makes the aggregate delta clean — the same cells that folded the
+  create fold the edit.
+
+**The honest-counts half of D5 moves into a trigger.** D5's immutability
+was doing two jobs: one-person-one-vote (still done, by the doc id) and
+"the aggregate is a plain increment with no reconciliation". The second
+job now belongs to `onV2AnswerUpdated`: the same ledger-deduped
+transaction as the create path, folding **-old/+new with the total
+unchanged** (`retargetCounts`/`retargetAnchors`, pure.ts). Two properties
+carry it:
+
+- **Ordering self-heals.** Eventarc orders nothing between a doc's
+  create and update deliveries. If the edit arrives first, the old
+  option holds no votes; the trigger throws and platform retry redelivers
+  it after the create folds. The move and the create commute in every
+  order that does not clamp at zero, and the clamp case is exactly the
+  one converted into a retry.
+- **Bucket totals never move.** The floor's quantity is invariant under
+  an edit, so nothing published can be un-earned. Where cap churn means
+  the old vote is no longer represented in a cell (evicted bucket,
+  create-time cap skip, re-minted bucket), the dimension is **skipped,
+  increment included** — a ±1-per-cell approximation the eviction cap's
+  documented degradation already covers, self-correcting on churn, and
+  strictly better than inflating a bucket with an answer that is not in
+  it.
+
+**When an edit may rewrite the public mirror.** An edit's published delta
+is always exactly one person — total unchanged means no cadence can
+batch it with anything. So `EDITS_REPUBLISH` (v2.ts) publishes edits
+directly **only while D81 holds both constants at 1**, i.e. only while
+every create already publishes its exact step; the stepped-breakdown
+gate is bypassed on that path because it keys on bucket-total growth,
+which an edit never produces, and would hold the edited cells stale
+forever. When D81 reverts, edits stop touching the public doc entirely
+and ride the next create-driven publish, where their -1 hides among
+≥ `PUBLISH_EVERY` other people's votes — the same k bound the floor
+itself carries. The revert stays a two-literal commit; the edit path
+re-disciplines itself.
+
+**The 60 s cooldown is priced, not decorative.** Edits are the one
+repeatable answer write, and each runs the aggregate transaction against
+two single docs keyed by qid (D7's ~1 write/sec/document). Unbounded,
+one hostile client holds a question's aggregate at its write ceiling
+indefinitely; at one per minute per answer it cannot. The client mirrors
+the cooldown (`LIVE.editVote` returns false without writing) so the UI
+says "One change a minute" instead of bouncing.
+
+**Client surface.** `LIVE.editVote(qid, optionId): boolean` — optimistic
+flip, rollback on refusal that *restores* the feed-votes mirror rather
+than scrubbing it (the doc still holds the previous option, unlike a
+refused create). The daily's hold-to-change gesture — which in live mode
+used to un-vote the display and silently write nothing — now routes
+re-picks through it, and the feed's answered cards grow a Change button
+beside Takes. Edits skip the first-vote celebrations (beat, ripple,
+reveal haptic): "your vote moved" is not "your vote landed".
+
+**Costs, priced:** one trigger invocation + one transaction per edit,
+cooldown-bounded; no new collections, no new indexes, one new function in
+the deploy list. The Map re-files the dot under the new option; learn,
+duels and the canon are untouched.
+---
+
+## D87 · Production writes require an approval; the `production` environment carries protection rules
+
+**Decided:** 2026-08-10 · **Status:** binding · **Applied:** not yet — see
+docs/DEPLOYMENT.md § Protection rules for the checkbox
+
+**The state being ended.** A push to `main` touching `functions/**`,
+`firestore.rules`, `storage.rules`, `firestore.indexes.json`, `web/**` or
+`firebase.json` deploys to production with no human in the loop, and
+`seedContentV2` writes `v2_questions` the same way. Both jobs draw
+`FIREBASE_SERVICE_ACCOUNT` from the `production` GitHub environment,
+which today has no protection rules — the environment exists only to
+scope the secret. `firebase-deploy.yml` has said since it was written
+that this is "a place to add required reviewers / wait timers later".
+Later is now.
+
+**The settings** (GitHub → Settings → Environments → `production`):
+required reviewers ON with the repo owner; **prevent self-review OFF**;
+wait timer 0; deployment branches restricted to `main`. The full table
+and the per-setting reasoning live in docs/DEPLOYMENT.md rather than
+here, because that is the document an operator has open.
+
+**Two of them are consequences, not preferences.**
+
+*Prevent self-review stays OFF* because `SEED_ADMIN_UIDS` and `MOD_UIDS`
+hold one uid and it is the repo owner's (DEPLOYMENT.md § Operator
+continuity). With it on, the only human able to approve is the one who
+triggered the run, so every deploy and every seed blocks permanently —
+including the emergency rules fix. It flips ON in the same change that
+adds a second operator uid, and both documents cross-link so that change
+cannot forget it.
+
+*`main`-only deployment branches* is the half that does not depend on
+anyone being careful. Required reviewers ask for judgement; the branch
+restriction is enforcement — GitHub refuses environment secrets to a run
+on a non-permitted ref, so no dispatch from an unreviewed branch can
+seed or deploy, whatever the caller's token holds. It costs nothing:
+`firebase-deploy` already triggers only on push to `main`, and a seed
+should only ever carry merged content.
+
+**The cost, stated rather than sold.** A backend merge stops deploying
+unattended and starts waiting for one tap. That is a real tax on the one
+path `firebase-deploy.yml` protects hardest — it deliberately keeps
+lint, the bundle budget, the Android build and the `npm audit` off the
+deploy path because each could block an emergency rules fix. An approval
+is much cheaper than any of those and cannot fail on its own, but it is
+not free, which is why the wait timer is 0 rather than a thinking pause.
+
+**Why now, and why not optional.** The trigger was asking whether an
+agent session could run the reseed itself. It cannot: dispatch needs
+`actions: write`, which the GitHub App does not carry. The available
+workaround — syncing a personal `gh` token — grants the `workflow` scope
+**per account, not per workflow**, so it would cover
+`firebase-deploy.yml` exactly as much as `seed-content.yml`. There is no
+way to hand out "may run the seed" alone. The approval is what keeps
+that grant from turning "can propose a content change" into "can deploy
+the backend", and it is worth having before the grant exists rather than
+after.
+
+**What this does NOT do, recorded so it is not discovered later.**
+Nothing in CI verifies the rules are still in place. They live in
+GitHub's UI, no file here describes them, and a rule deleted by hand
+leaves no trace in this repo — DEPLOYMENT.md would go on asserting a
+gate that had stopped existing. That is a weaker guarantee than this
+project holds anywhere else: rules claims are proven by
+`firestore-tests/`, and this claim is proven by nothing.
+
+Left open deliberately. A `check:env-protection` gate would need a token
+with `administration: read` on every run and would red the tree for any
+contributor without one — the failure shape check-labels.mjs's header
+warns about, where a gate that fires on a guess is one people learn to
+skip. A known limit is survivable; a surprise is not.
+
+And the gate stops *unattended* writes only. It does not stop a careless
+approval, and an approver who always clicks approve is worse than no
+reviewer, because the audit log then records a gate that was never
+closed.
+
+---
+
+## D88 · Seeding chains to the deploy, because the bank it writes is the deployed one
+
+**Decided:** 2026-08-10 · **Status:** binding
+
+**The chore.** Every content change needed a human to remember *Actions →
+Seed content → Run workflow* afterwards. Nothing enforced it and its
+omission is silent: the repo looks correct, production serves the old
+bank, and the only symptom is questions nobody sees. LAUNCH-RUNBOOK 0.1
+has been unticked for that reason since 2026-08-07, and D30's promotion
+cadence guarantees it recurs.
+
+**The obvious fix is wrong, and this is the part worth recording.** A
+`push` trigger on `functions/src/v2content.ts` looks right and races.
+`seedContentV2` does not upload a bank — `functions/src/v2.ts` imports
+`V2_QUESTIONS` from `./v2content`, so the questions it writes are the ones
+compiled into the **deployed** function. Both workflows would fire on the
+same commit, and whenever the seed won it would write the PREVIOUS bank
+and report success. That is the silent-wrong-success shape this
+workflow's `set -o pipefail` already exists to prevent (run 1 printed
+`seedContentV2 failed (500)` and reported green), reappearing one layer
+up.
+
+**What shipped.** `workflow_run` on **Deploy Firebase backend**,
+`types: [completed]`, gated on
+`github.event.workflow_run.conclusion == 'success'`. The deploy has
+finished before the seed starts, so the ordering is structural rather
+than timed — no sleep, no polling, nothing to tune. `workflow_dispatch`
+stays, and the `if` names it explicitly because a dispatch carries no
+`workflow_run` payload.
+
+**It fires after every backend deploy, not only content ones, and that is
+deliberate.** Seeding is idempotent and since D34 rewrites only changed
+documents and holds `contentRev`, so a no-op costs one callable and
+reports `written: 0`. Running it every time means the bank cannot drift
+from the deployed code at all — strictly better than firing only when
+somebody noticed content had changed, which is the failure being fixed.
+
+**Verified, not assumed.** The workflow name is matched as a string, and
+a typo there fails silently forever — `firebase-deploy.yml`'s `name:` and
+this trigger were compared programmatically, not by eye. The YAML parses.
+And the `ARGS` block was run under `bash -e` with empty inputs, because on
+a `workflow_run` firing there is no `inputs` context: both flags expand to
+`""`, both stay off, and `set -e` does not abort on the failed tests
+(they are non-final commands in an `&&` list). Empty is the correct
+default — `--bump-rev` on every deploy would cost every returning device a
+full bank refetch, the exact thing D34 stopped doing.
+
+**Interaction with D87.** Under the protection rules the chained seed
+queues at *Review pending* like any other production write, so the human
+confirmation survives while the remembering does not have to. It also
+retires the argument for granting an agent session workflow-dispatch
+rights: the recurring chore that motivated it is gone, so the broad
+per-account `workflow` scope buys nothing that is still wanted.
+
+**The limit.** `workflow_run` only fires for the workflow file on the
+default branch, so this cannot be exercised from a PR — its first real
+run is the first backend deploy after merge. And it inherits the deploy's
+path filter: a content change that somehow reaches `main` without
+touching `functions/**` triggers no deploy and therefore no seed. Today
+that cannot happen — `check:content` fails the build unless
+`v2content.ts` matches `/content`, and `v2content.ts` is under
+`functions/**` — but the two facts are separate and only the first is
+gated.
+
+## D89 · The feed's "knows this best" row is demo furniture — live mode refuses it
+
+**Decided:** 2026-08-11 · **Status:** binding
+
+**Found on a device, not in a review.** Screenshots from a phone running a
+live build showed learn reveals headlining "BEd knows this best · 83%" and
+"Service knows this best · 81%" — cut-group labels out of `vote-cuts.js`,
+ranked by `renderKnowInsight` (world-feed.jsx) on the hash noise that
+animates the demo cuts. Directly above each stood D32's line "Our estimate
+— becomes measured once enough people have answered", which labels the
+*split*. Nothing labelled the cohort headline, because there is nothing to
+label it with: no per-cohort learn aggregate exists in either mode.
+
+**Why refusal rather than an "our estimate" tag.** The split's estimate is
+an authored model of a question's difficulty — a real editorial claim,
+honestly labelled (D32). "BEd knows this best" estimates nothing: the
+group, the direction and the margin all come from a hash of the question
+id. A modesty tag would dress fabricated activity as an estimate; D1 calls
+it fabrication either way, and D72 already answered the same question for
+MapStats — return nothing, at the source, so a forgotten call site shows
+nothing instead of something invented.
+
+**What shipped.** `renderKnowInsight` opens with the live gate and returns
+null; demo builds keep the row exactly as designed, including its own
+honesty rules (rank on the noise only, headline only the upward side),
+which stay recorded in the comment above the ranking. The gate is pinned
+by `learn-split.test.ts` the same last-hop way LiveCohortBody pins its
+floor import — mounting the entire feed to reveal one learn card would
+test the fixture more than the one-line behaviour.
+
+**What brings it back.** A measured per-cohort learn split. The moment
+aggregates exist for learn answers by anchor, this gate is the seam where
+noise swaps for measurement — exactly the trade `LEARN_SPLIT` /
+`LEARN_SPLIT_SRC` already made for the split itself.
+
+## D90 · The picker's blank state starts at home — the clock's country ranks first
+
+**Decided:** 2026-08-11 · **Status:** binding
+
+**The itch.** With no query the city list is the catalogue in population
+order — deliberately the same for everyone, because it reads no personal
+signal. The cost shipped in the same screenshot batch as D89: a user in
+Norway opens the city ask and the first row under "Use my location" is
+Shanghai. Correct, global, and absurd.
+
+**What ships.** `zoneCountry()` (data/places.ts) reads the city out of an
+IANA zone id — last path segment, underscores to spaces, folded like the
+search so "America/Sao_Paulo" finds São Paulo — and returns that city's
+country. The match is exact-or-shortened: IANA writes "America/New_York"
+for New York City and "Asia/Kuwait" for Kuwait City, so a word-boundary
+prefix matches too (exact first, and the break is required — "london"
+does not reach Londonderry); within a rank the most populous namesake
+wins, which is how Europe/Dublin means Ireland's Dublin and not Ohio's.
+`regionHint()` applies it to the device clock, and `searchPlaces(…,
+hint)` ranks that country's cities first in the **blank state only**;
+typing anything abandons the hint, because a query is the user answering
+for themselves. A zone the catalogue cannot name at all ("Etc/UTC", the
+tiny county zones) returns "" and the blank state stays the world's. A
+hint may miss; it must not guess.
+
+**Why this is not the location D9 gates.** The zone id is a device
+setting every date render already reads — no permission prompt, no
+sensor, no network, no IP lookup. It produces a sort order and is
+dropped: never stored, never sent, and it cannot reach the profile — the
+anchor is still only ever the city the user taps. Granularity is one
+country, and wrongness is harmless: a traveller sees their home country
+first, and the fix is typing one letter. The NEAREST city — the sensor's
+answer — stays behind its tap exactly as D9 records, and the store
+privacy labels are untouched.
+
+**The seam is the argument.** The zone reaches `zoneCountry` as a
+parameter and the ordering tests pass it explicitly, because
+places.test.ts asserts blank-state order on a fixture that contains Oslo
+— an Intl read inside `searchPlaces` would make that assertion flip with
+the developer's wall clock. The single real Intl read lives in
+`regionHint`, spied in its own case, with the same try/catch the
+`countryName` Intl guard already carries.
+
+## D91 · Lens questions are polls: the items are seeded, and their counts publish
+
+**Date:** 2026-08-11 · **Status:** Adopted · reverses the
+"acknowledge instead of aggregate" half of D50
+
+**Decision.** The 50 minor-instrument items (`IS_LENSES`, lens-defs.js)
+are world questions: seeded into `v2_questions` from a new
+`content/lenses.json` source (surface `test`, ids `lq-<lens>-<qi>`), so a
+lens answer writes the same owner-only doc every card writes, folds
+through the same trigger, and publishes the same k-floored counts. A live
+lens card is an ordinary live card — measured split, the anonymous
+world-takes toggle (D83), the who-voted breakdown (D8), the D86 change
+affordance — and the answer still records to the on-device instrument;
+world-feed's `setVote` has always done both, the vote half just had
+nowhere to go. `selfOnly` (D50) survives as exactly one thing: the
+fallback when `LIVE.lensAgg` finds no lens row in the bank (an unseeded
+or pre-D91 backend), where rendering the authored counts would be the
+fabrication D1 forbids and rules would refuse the answer write anyway.
+
+**Why.** The owner's call (2026-08-11): there is no reason for lens
+questions to be quieter than any other question — they should carry the
+same breakdown and takes. D50 deferred (b) "build a real one" as "a new
+collection, its k-floor, rules and their tests, for numbers whose product
+value is unproven" — but that arithmetic priced the wrong shape. Seeded
+as ordinary bank rows, the items need **zero** new collections, rules or
+floors: `isWorldAnswer` already admits surface `test` against any seeded
+question doc, the trigger already folds any qid, and `splitBanks` already
+routes the rows to the feed bank. The increment was a content source, one
+narrow accessor (`LIVE.lensAgg`), and the flag coming off.
+
+**The order of the scale is load-bearing.** The seeded options are the
+client's agree-FIRST five (`LENS_SCALE`, gen-v2content.mjs), the reverse
+of every other scale item's LIKERT — because stored `optionIdx` indexes
+the options, and the client stores the instrument value as `4 - val`
+(world-feed setVote). check:content pins lens rows to LENS_SCALE and
+everything else to LIKERT, so neither can drift into the other.
+
+**Ids are the client's, verbatim.** `lq-<lens>-<qi>` with an unpadded
+index — minted by lens-defs.js before the items had a backend. Devices
+that answered lens cards in the selfOnly era hold feed votes and the
+instrument's seen-map under those ids, so re-keying would resurface every
+answered card. The cost of keeping them: `check-content`'s id shape for
+the test surface admits two families. (Those pre-D91 local answers never
+reach the server retroactively — the card reads as answered and nothing
+re-offers it — which loses a handful of counts and fabricates none.)
+
+**Two items never slice (D44/D52).** "For one group to gain, another has
+to lose" and "Trade between countries leaves both better off"
+(`lq-trust-2/3`) state economic-policy opinions — the same class as the
+political test's own items — so they carry `political: true` and join the
+no-slice set by existing: overall split published, never cross-tabbed by
+anchors. The other 48 are instrument items in the values/big5 class,
+which slice like the rest of the test surface. The moral-foundations and
+tightness-looseness items were considered and left slicing deliberately:
+they are standard psychometrics with political *correlates*, same as the
+values test D8 already slices; the flag marks items that *are* political
+opinions.
+
+**What does not change.** Instrument persistence stays device-local
+(lens-defs' persistence note and D50's second repair both stand — the
+answer doc is a poll vote, not a restorable instrument mirror). The
+Mirror ripple stays off lens cards — a lens answer lands on the profile's
+Lenses tab, not the Mirror, so the gate moved from `selfOnly` to `q.lens`
+rather than disappearing. And the demo pool is untouched.
+
+**Enforcement.** `lens-content.test.ts` binds `content/lenses.json` to
+`IS_LENSES` by index (id, text, dimension, invert — positional drift
+re-keys immutable answers) and pins the two political flags;
+`check:content` binds the JSON to the compiled bank, pins both scale
+orders and the two-family id shape; `lens-live.test.ts` pins both live
+pool shapes (seeded → live cards with measured counts, unseeded →
+selfOnly) and the per-call rebuild; `smoke-live.test.jsx` mounts both
+paths — the seeded card must reach `LIVE.vote`, render a split and carry
+the takes toggle, the unseeded card must reach neither crowd nor store;
+`slicing.test.ts` picks the two flagged items up by construction.
+
+## D92 · A standing location grant fills the city in — "suggested, never applied" narrows to the no-grant state
+
+**Date:** 2026-08-11 · **Status:** Adopted · narrows D9's amendment
+
+**Decision.** When the Right-now counter (D84) is ON and no city anchor is
+set, the Near/Country empty state resolves the city on the device
+(`locateCity`, D9's containment: the coordinate never leaves locate.ts)
+and **applies** it through `setCityAnchor` — no confirmation tap. The
+interim state says what is happening and repeats the guarantee at the
+moment it is checkable: only the city NAME is saved, never the
+coordinates. One attempt per on-transition; any failure falls back to the
+unchanged ask + picker, whose own "Use my location" remains
+suggest-then-confirm. With the counter OFF nothing touches the sensor,
+and the ask now names the hands-free path ("turning on the count above
+fills it in for you").
+
+**Why.** The owner's report (2026-08-11): "Near should not need a city."
+The screenshot behind it shows exactly the state this closes — the
+counter ON and counting, meaning the person has already granted location
+to this feature on this screen, while the panel underneath still demands
+they find Oslo in a list. D9's suggest-never-apply rule was written
+against a different situation: a profile field silently rewritten from a
+sensor the user never engaged, which "makes a location prompt feel like a
+trick". A standing, revocable, user-initiated grant is the opposite
+situation, and the derived datum — a catalogue key — is strictly LESS
+information than the ~1 km presence cell the counter is already sharing
+while on. Keeping the ask there was privacy theatre paid for in dead
+ends.
+
+**What it does not change.** The picker stays (manual pick and later
+change in the profile, exactly as before); the counter-off path is
+untouched, so no location is ever requested by this panel — the enable
+tap on the counter remains the only prompt carrier (D9/D84); and the
+saved shape is the same `vitals.city` + anchors write a manual pick
+lands, so the profile mirror keeps re-asserting it rather than blanking
+it.
+
+**Enforcement.** `LiveCohortBody.test.tsx` (D92 block): derives and
+applies with the counter on, saying so; never touches the resolver with
+the counter off or a city set; applies nothing on a failed fix and falls
+back to the ask; and the Country stop derives identically.
+
+## D93 · The persona's residue is scrubbed from live anchors at boot, by exact signature
+
+**Date:** 2026-08-11 · **Status:** Adopted
+
+**Decision.** `hydrate()` passes the profile doc's anchors through
+`scrubPersonaAnchors` (data/personaResidue.ts): `profession` equal to the
+sample persona's "Editor · independent press" is dropped, `education`
+equal to "MA Literature · Univ. of Oslo" is dropped, and `ageBand` goes
+only when BOTH matched — the whole triple was then the leak's one write.
+When anything was dropped, `saveAnchors` writes the cleaned map back, so
+the repair is durable and the next answer snapshots clean anchors (D8).
+City, gender and relationship are never touched: the seeded vitals never
+carried them.
+
+**Why now.** The owner's device showed "Editor · independent press ·
+FROM YOUR PROFILE" on the Map's Work anchor today (2026-08-11). The
+baseFor merge leak that wrote it is long fixed and migrateV1 filters the
+local v1 blob — but the DOC a pre-fix build polluted heals only via the
+profile panel's mount mirror, i.e. only when the profile overlay is next
+opened. A device that answers daily and never opens the profile keeps
+the fabricated cohort forever, stamped onto every immutable answer.
+Boot is the one place every device passes through.
+
+**Why exact-match deletion is safe here, and only here.** Neither string
+is enterable today: profession and education are closed `<select>`
+vocabularies (D8) that do not contain them, so an exact match IS the
+residue. `ageBand` fails that test — real people share the persona's
+band — hence the both-or-nothing rule for it. The trade is the same one
+migrateV1 already recorded: a hypothetical user who genuinely held both
+exact strings from the free-text era re-picks two fields, against
+fabricated anchors that otherwise cannot be corrected at all.
+
+**Enforcement.** `personaResidue.test.ts` binds the constants to
+`sample-data.js` verbatim (a drifted copy scrubs nothing), pins that
+`profile-general.jsx` contains neither string anywhere (a reintroduced
+default was the original leak), and covers full-triple, partial and
+clean-profile behavior.
+
+## D94 · The demo roster grows to 24 — the prototype's social surfaces get a population
+
+**Date:** 2026-08-11 · **Status:** Adopted
+
+**Decision.** `IS_DATA.people` goes 7 → 24 and `IS_DATA.nearby` 6 → 14.
+The tables keyed on those ids grow with them: `follows.js` SEED 5 → 12
+friends, duels' first-run 1v1 roster 5 → 8, its seeded groups 3 → 4
+(sizes 7 · 4 · 2 · 5), `PLAYED` / `READ_SKILL` / `BY_SKILL` /
+`PARTNER_TODAY` / `DOMAIN_BIAS` gain entries for the three new partners,
+and `IS_FRIEND_TYPES` covers all 24 in all five tests. Demo only: live
+mode has no person graph (D3) and never reads this list (D72), so the
+blast radius is the prototype.
+
+**Why.** Most of what the daily's social half does only behaves
+differently at a population, and at seven none of it was exercised. The
+1v1 rail ran five partners, of whom one had a record deep enough for the
+per-domain rows — so `domainRows`, `weakDomain` and `ReadRun`'s
+span-dependent encoding all had a single subject, and a bug that
+hardcoded that subject's shape would have looked correct.
+`duoAvailable()` could offer two people. `groupPortrait` averaged three
+groups, the largest five members. Seven also contradicted the fixture
+in the same file: `aggregates.circle.n` is 24 and its `mbtiDist` sums to
+24, so `sample-data.js` already described a circle three times the size
+of the one you could open.
+
+**The arithmetic that the new records had to satisfy.** `DOMAIN_MIN` is
+4 correct reads EACH way before a lens appears, and the pool assigns a
+domain per question, so plays spread across three lenses at roughly a
+third each: 16 plays (f12) yields day 5 · heat 6 · mirror 5, 11 plays
+(f17) yields two qualifying lenses, 6 plays (f14) yields none — the
+"absent rather than thin" state, kept on purpose. Measured, not
+predicted: the first `DOMAIN_BIAS` for f12 left `weakDomain` null
+because a 0.55 bias over 5 samples did not separate; 0.25 does, and the
+roster now carries two differently-shaped records (f1 reads weakest
+under pressure, f12 on the everyday) plus one with no clear weakest.
+
+**What this does NOT reach, recorded so it is not a surprise.**
+
+- An existing demo install keeps the old circle. `insight.friends.v1`
+  and `insight.duels.v1` are written on first run and read back forever;
+  the larger SEED lands on a cleared profile or after the D51 purge.
+- The Mirror's Circle stop is unaffected. It embeds the relationship map,
+  which draws `RMCore.defaultPeople()` (49) — `mfpConfig('circle')`'s
+  nodes are the fallback for when that component is absent.
+- `IS_COMPARE_POP.circle.n` is still 9. It is a separate tuning table,
+  no consumer renders it, and changing an unread number to chase this
+  one would be churn. The pair that CAN be held equal — the roster and
+  `aggregates.circle.n` — now is, by test.
+- `IS_DATA.connections`, `dailyReports` and per-person `faves` still
+  have no consumer. New records carry all three anyway: a fixture with
+  second-class rows is worse than one with unused fields.
+
+**Enforcement.** `src/v2/test/sample-people.test.js` (16 cases) holds
+what fails silently: ids resolve everywhere they are keyed (SEED, group
+members, duo partners, `IS_FRIEND_TYPES`), every type name exists in
+`IS_ARCHETYPES`, every `category` is an `MFP_SECTORS` key and every
+`dist` a real distance band, every relationship sector is occupied,
+`people.length === aggregates.circle.n`, and the size properties the
+growth was for — a group ≥ 5, friends still available to duel, two
+partners deep enough for domain rows, a non-empty impressions feed.
+Mutation-checked: a mistyped archetype name and an unknown SEED id each
+fail exactly their own case. `smoke-live.test.jsx`'s demo-initials
+guard now derives its alternation from the roster instead of listing
+seven pairs, so it keeps covering people added after it was written.
+
+## D95 · A re-served learn card arrives answerable — the feed's vote mirror no longer outlives the serve
+
+**Date:** 2026-08-11 · **Status:** Adopted
+
+**Found on a device (2026-08-11).** Screenshots from a phone running a
+live build showed a knowledge card mid-feed already answered: the correct
+option green with its ✓ and 61%, the missed pick ✕-marked at 11%, "Three
+in a row to earn it." under a reveal the user had not tapped that
+session. The card was a re-serve — Learn's scheduler had brought it
+back — but the feed had persisted the previous sitting's pick in
+`insight.feedVotes.v1` (`lrn-<card>` keys) and `knowOf()` rebuilt a
+disabled replay from it. Once answered anywhere, ever, a card could never
+be answered again in the feed: the three-in-a-row streak was unreachable,
+and the check-in — "miss the check-in and the fact leaves your map" —
+could not be answered at all. The spaced-repetition machinery was serving
+cards no tap could reach.
+
+**Decision.** A know vote lives exactly as long as its serve:
+
+- **WF_LS carries no `lrn-` entries.** The feed's load and save both pass
+  through one strip (`wfStripKnow`): load heals what older builds
+  persisted, save keeps the in-memory copy from writing them back — and
+  `setKnow` still saves, so the first learn answer scrubs the residue
+  durably rather than waiting on the next world vote. The cross-session
+  record of a learn answer is LEARN's own store (`insight.learn.v3`),
+  which already holds state, streak, position and time; the mirror held
+  the same fact with no expiry, and the copy with no expiry won.
+- **`knowOf()` rebuilds nothing.** The reveal is this sitting's verdict
+  (`knowRes`) or absent. The rebuild path existed for "a reload keeps
+  your pick"; after the answered-cards-leave release change, what it
+  actually did was render every re-serve frozen.
+- **The LIVE reconcile skips `lrn-` ids.** A learn answer is never in
+  `myVotes`, and the mirror now deliberately drops it, so "absent from
+  both store and mirror" — the reconcile's rollback test — would hold for
+  every know reveal on screen and wipe it at each snapshot notify.
+- **LEARN_FEED serves fresh or due, nothing else.** `plan()`'s slow/warm
+  fallbacks exist so the standalone `next()` never runs dry; in the feed
+  they were the supply of frozen replays. `cards()` now keeps a card only
+  if it has no state or `LEARN.due()` holds — the new public seam,
+  sharing `plan()`'s own predicates (repeat: learning ∧ k<STREAK ∧ pos
+  gap ≥ GAP; check-in: known ∧ older than CHECKIN_D ∧ pos gap ≥ 12) so
+  the two can never disagree. A thin pool now yields fewer knowledge
+  cards instead of unanswerable ones.
+
+**The arithmetic.** GAP=4, STREAK=3, CHECKIN_D=12 are unchanged. What
+changes is who enforces the spacing: `answer()` never checked it (it
+credits any right answer), the scheduler did — so a serve that could not
+be credited honestly must not reach the screen. One visible consequence,
+accepted: the demo seed's mid-streak card (sol2, k=1 at pos 7 of 9) now
+appears after two more learn answers rather than immediately — and it
+appears ANSWERABLE, which the frozen version never was.
+
+**What does not change.** D32's first-exposure rule holds untouched:
+`answer()` reports to `LIVE.learnAnswer` only when the card has no prior
+state, so re-serves stay device-local and the crowd stat still measures
+first attempts only. The Map's mastery record (`LEARN.mastered`) never
+read the feed's mirror. And within a sitting nothing moves: the serve
+list is planned once per mount (`knowQs`'s cache), and votes/knowRes are
+set together, so the reveal being watched survives every re-render.
+
+**Enforcement.** `learn-serve.test.js` pins `due()` at its three
+boundaries and `cards()`'s fresh-or-due filter; `learn-reserve.test.jsx`
+mounts the real feed against the real scheduler and walks the loop — a
+due card served enabled over seeded pre-D95 residue, the tap credits
+k=1, and WF_LS ends with no `lrn-` keys — plus the source pin on the
+reconcile skip, the one branch the demo harness cannot notify.
+
+## D96 · A live build advertises no demo communities or empty leaves — and every bank subject runs always-on
+
+**Date:** 2026-08-11 · **Status:** Adopted
+
+**Found on a device (2026-08-11).** The add-topic sheet on a live phone
+offered "Swimming · 3.2K people · fjord swims, no excuses", "Tennis ·
+9.4K people", "Letterpress · 340 people" — sample-data communities,
+member counts and vibes invented, each with a working Follow button —
+above a Topics section listing the demo leaves as "Tennis · Sport · 0
+questions". The feed showed the same fiction as a dashed card:
+"Swimming · suggested scene · 3.2K people". D66 removed follows the user
+never chose; these were worse — an invitation to choose one. Fabricated
+populations offered to a real user (D1), and rooms with nothing in them
+(the live boot replaces WORLD_FEED_QS with the bank, which tags nothing
+with `sub` or `scene`).
+
+**Decision, in three parts.**
+
+1. **Stores own the offer.** `SCENES.offers()` and `SUBTOPICS.offers()`
+   are what a surface may advertise; the add sheet, the feed's
+   suggested-scene card and search all read them now. `defs()`/`all()`
+   stay whole underneath — they are the dictionaries existing follows and
+   tagged cards resolve labels through, and a follow the user really made
+   keeps working.
+2. **Scenes refuse by session, leaves by stock.** Scene offers are `[]`
+   when `LIVE.enabled || LIVE.demoInProd` — a real user in the mock
+   fallback is still a real user — because the entity itself is the
+   fabrication; no amount of stock could make "3.2K people" honest. A
+   leaf is offered exactly when it has questions (`count > 0`), in
+   EITHER build: the taxonomy's own rule ("a thin subtopic would feel
+   like a broken room") enforced at the offer, so the day live questions
+   carry `sub` tags the leaves return with no code change.
+3. **A live build widens the always-on channels to every subject its
+   bank stocks.** The demo reaches sport, food, movies, music, tech and
+   culture through the communities that pull them; with no communities
+   to offer, those subjects — 51 of the 73 seeded questions
+   (13+9+6+5+6+12), against 22 on the format channels — were reachable
+   by nothing: no chip, no follow, no search result. WORLD_CHANNELS in a
+   live build is WORLD_TOPICS minus `places` and `fav`, the two formats
+   the bank mapper cannot emit (data/live.ts maps every bank doc to a
+   plain vote; rate and pick cards never come out of it) — which also
+   retires the two dead chips the live row already showed. Build flag
+   rather than runtime, for learn-progress.js's reason: the list is read
+   at module scope, before boot attaches — and the demoInProd fallback
+   needs the same widening, because a live build seeds zero follows and
+   its demo pool had the same dark subjects.
+
+**What it does not change.** The demo build is untouched: seeds (D66's
+fix), offers and channels all keep their demo shapes, and the smoke
+suite's control cases pin it. Existing scene follows on a live device
+keep filtering the feed — `mine()` reads the follow list, not
+`offers()` — so what disappears is only the invitation to acquire new
+fictional ones. The profile's live scenes surface stays LiveScenesCard.
+
+**What brings the offers back.** A scenes backend — real communities
+with real member counts — restores `SCENES.offers()` the same way a
+measured per-cohort aggregate restores D89's row; `sub`-tagged live
+questions restore the leaves by themselves.
+
+**Enforcement.** `follow-seeds.test.js` (D96 block) drives both stores'
+`offers()` through the live singleton, demoInProd included, and pins the
+dictionaries staying whole; `world-channels.test.js` pins both channel
+sets; `smoke-live.test.jsx` asserts the mounted surfaces refuse — no
+Communities section, no 0-question rooms, no suggested-scene card, with
+Learn and the suggest door intact; `smoke.test.jsx` holds the demo
+controls for the sheet and the suggestion card.
+
+## D97 · Question production upscales behind a regulator: computed budgets, a mechanical style gate, and measured vintages
+
+**Date:** 2026-08-11 · **Status:** Adopted (owner's direction: "upscale
+question production in a huge way but also a smart way, so the questions
+are high quality and improved constantly")
+
+**Decision.** Production scales by raising every lane's *ceiling* while
+pinning every lane's *actual* output to what the human gates measurably
+absorb — D33's "review capacity is the binding constraint" kept as the
+design's spine rather than repealed by enthusiasm. Four parts:
+
+1. **The daily lane's budget is computed, not flat.**
+   `scripts/farm-budget.mjs` replaces D33's hard cap of 4/run: up to
+   `RUN_CAP` (8) questions per run while the *pen* — unpromoted archive
+   entries plus questions sitting unreviewed on the lane's open PR — is
+   below `PEN_TARGET` (56, eight weeks of D30's ≥7/week promotion
+   floor), zero at the target, and zero whenever the open PR carries
+   `OPEN_MAX` (12) unreviewed questions regardless of the pen.
+   `farm-budget.test.mjs` pins the property the upscale rests on: at
+   steady state, generation equals measured promotion throughput — the
+   cap binds only during catch-up, which is what makes doubling it safe.
+   `check:figures` holds the constants QUESTION-FARM.md quotes equal to
+   the script (that manual is LIVE documentation — scheduled runs obey
+   it verbatim, so a drifted figure there is a mis-instructed run).
+
+2. **The style guide's checkable half becomes a gate.**
+   `scripts/question-quality.mjs` (`check:quality`, ci.yml lint job —
+   content quality, deliberately off the deploy path like
+   check:neighbors) holds bounds measured from the corpus on 2026-08-11
+   (prompts ≤120 chars against a measured max of 97; option labels ≤32
+   against 26; tags ≤4 words; the exact option shapes per type; axis
+   required on ordinals; cat/alts against CAT_META), the batch-mix
+   rules (tone spread, form variety), and a tripwire for hard rule 6's
+   obvious form — a watched place name and a civic cue in one question
+   (the conjunction, so "One cuisine, forever?" with Italian in the
+   options passes and "Should Oslo ban cars downtown?" fails; the
+   watchlist is deliberately small because the 10,929-place city
+   catalogue collides with English — "Nice", "Split" — and a gate that
+   cries wolf is retired, not obeyed). Candidate/batch modes emit the
+   review packet a lane run pastes into its PR body, which is the
+   actual attack on the bottleneck: reviewer attention moves from
+   re-counting option arrays to warmth, semantic dupes and
+   will-it-split — the judgments only a human can make.
+
+3. **Provenance becomes data, and the farm is measured by vintage.**
+   `content/provenance.json` records who wrote every daily and feed
+   question (editorial / farm / community) and in which batch —
+   backfilled from the archive's own dated block comments (53
+   prototype-era editorial, the farm's 12 of 2026-07-30 = PR #32, the
+   authoring session's 25 of 2026-08-01), maintained by
+   `promote-questions.mjs` (new required `--source`, optional
+   `--batch`) and the lane PRs, and held exactly in step with the banks
+   by `check:quality`, both directions. The scorecard grows a
+   `production` section (`rollupProduction`, scorecard-metrics.mjs —
+   tested arithmetic, the D33-amendment pattern) cutting the same
+   k-floored rows by source and vintage: no new read path, nothing
+   per-user, the D40 duel-section precedent. The farm reads its own
+   trend every run and cites it in the PR body — "improved constantly"
+   as arithmetic. The committed scorecard.json is deliberately NOT
+   regenerated here: the pre-launch artifact has zero scored rows, so
+   the section lands with the next real `--fetch` (the same call the
+   D33 amendment made when it changed the metric before any measured
+   value existed).
+
+4. **The feed gets a lane, and cadences are recorded.** The feed is the
+   one surface whose consumption scales with users rather than the
+   calendar, and it had no production lane; QUESTION-FARM.md gains one
+   (single gate, learn-style: ≤6 vote-questions/run, at most twice
+   weekly to start, taxonomy topics only, ship active, provenance rows
+   required, every farm hard rule inherited). Daily promotion's target
+   rises to ≥14/week while the pen has stock — a day of runway gained
+   per day. The daily-plus-feed generation ceiling lands at 68/week
+   (56 + 12) against the old daily-only 28 — about 2.4×, with learn,
+   duel and catalog cadences unchanged; the regulator, the roll-up rule
+   and the packet are what keep actual throughput honest against one
+   reviewer.
+
+**The arithmetic.** Daily: consumption 7/week, promotion floor 7/week
+(D30), target 14/week; pen target 56 = 8 weeks of floor-rate promotion
+cover; RUN_CAP 8×7 = 56/week refills a drained pen in a week, after
+which output = promotion rate by construction. Headroom, gated rather
+than remembered (`check:quality` tripwires): daily seed ids fail at 970
+of the 999 the `/^daily-\d{3}$/` shape allows (warn 900); the seeded
+bank fails at 1400 of the client's `limit(1500)` fetch ceiling (warn
+1200 — D30's rule at that call site is pagination, never another raise).
+The dqx archive series crossing dqx99 to three digits was checked, not
+assumed: all three id sites share one formula (`padStart(2)` passes
+longer suffixes through) and nothing sorts dqx ids lexicographically.
+
+**Not done, deliberately.** No epoch-safe retire lane for daily
+questions and no option-edit "replace flow" — D52's flagged items still
+wait; retirement stays feed-only `active:false`, and the scorecard keeps
+proposing rather than applying. No semantic dedup automation: the
+lexical gate (D63) plus the human re-read stands — the metric's 0.5
+calibration is measured and a metric change would silently invalidate
+it. No new Routine yet for the feed lane (maintainer-asked dev-session
+runs, the duel lane's path), and the question-farm Routine's prompt
+refresh rides the already-pending D33 re-pace owner step. Scorecard
+freshness stays hand-cranked (`--fetch` needs the key); the staleness
+rule degrading lanes 1–2 to coverage is the designed failure mode, and
+a run against a stale scorecard now says so via `farm:budget`'s output
+instead of silently thinning.
+
+**Enforcement.** `check:quality` in ci.yml's lint job (corpus form
+rules, provenance join, headroom tripwires — all green at adoption over
+247 questions); `check:figures` on the three quoted budget constants;
+`farm-budget.test.mjs`, `question-quality.test.mjs` and the
+`rollupProduction` pins in `scorecard-metrics.test.mjs` via
+`test:scripts`; `pulse-collect` now cross-reads `RUN_CAP` instead of
+hand-quoting D30's stale 12/week (the exact stale-copy class D39
+names). The farm manual's budget, writing, promotion and feed-lane
+sections plus the canonical Routine prompt were rewritten in the same
+commit, so contract and machinery cannot describe different worlds.
+
+## D98 · Answers are public — the privacy model is retired, not paused
+
+**Decided:** 2026-08-11 · **Status:** binding · **Owner's call**, stated
+directly: *"the answers are NOT private — that should be completely
+removed from every doc, every place, that's the whole point of the app"*,
+and on the k-floor specifically: *"I don't care if it's k-safe, that
+whole principle needs to die."*
+
+**Decision.** A signed-in user may read any other user's answers and
+profile. Population statistics are exact and publish from the first
+answer. There is no k-anonymity floor, no publish cadence, no
+complementary suppression, no `tooSmall`, and no special-category
+carve-out. Comments carry author names at every scope.
+
+### What this reverses
+
+| Decision | Was | Now |
+| --- | --- | --- |
+| **D1** | comments and who-voted are circle-scoped | both are world-scope and named |
+| **D5** (read arm) | answers owner-only, always | answers world-readable; the WRITE arm (owner-only, create-only) is untouched |
+| **D11** | the feed's argument surfaces are demo-only by structure | the structural gate stands only where the data is *invented*; nothing is hidden for being real |
+| **D18** | the floor bounds cohort size | there is no floor |
+| **D44** | political items never slice | every question slices |
+| **D50/D81** | lens self-reports; floor paused to 1 | moot — the floor is gone rather than paused |
+| **D72** | MapStats refuses in live mode | still refuses, for a different reason: it is *invented*, not private. Real typicality is now computable and unbuilt. |
+| **D78/D83** | named who-voted refused permanently | reversed; anonymity was the whole of D83's takes and is now none of it |
+
+D9, D8's snapshot mechanic, D86's edit shape, D57's server-scored logic,
+D28's correctable ledger and D65's fail-closed `hidden` equality are
+**not** touched — none of them was about who may read an answer.
+
+### The reasoning, in the owner's frame
+
+The product's claim was that its privacy guarantees are enforced rather
+than promised. That claim was kept, expensively and well — and it was
+enforcing the wrong thing. InSight exists to show how one person's
+answers link to everyone else's; a model in which no user may read
+another user's answer cannot draw that picture, and every surface that
+needed it was dark. The Mirror shipped a ruler with no lenses. Circle
+showed an empty state. Explore, Compare, People, Scores and the Map's
+typicality were all built and all unreachable. The floor made the rest
+render as "withheld" at every real cohort size, which is why D81 had
+already paused it to 1 — the pause was the first admission that the
+principle cost more than it bought.
+
+### What was NOT removed, and why each is a different question
+
+Three denies survive `firestore.rules`, each labelled at its own path:
+
+- **`v2_logic_attempts`** — holds the unscored answer key. Anti-cheat.
+- **`v2_flags`** — reporter identity. Anti-retaliation: a reporter
+  visible to the reported is a reporter who stops reporting.
+- **`v2_presence`** — uid → ~1 km cell. Physical safety. D98 publishes
+  what people *answered*; "lives in Oslo" is published, "is at this
+  corner of Oslo at 14:02" is not.
+
+Two more, on non-privacy grounds:
+
+- **Duel answers stay sealed until the reveal.** Implemented as a
+  `surface` test on the answer read rather than by owner-only-ness. This
+  is a game timing rule — a hand of cards is face-down — and publishing
+  it early links no data the reveal does not publish a day later.
+- **`v2_groups` stays member-gated**, because the document carries
+  `inviteCode`, which is a *capability*: world-readable codes let anyone
+  join any circle. Opening the roster wants the code split onto its own
+  server-only doc first. Follow-on, not a privacy claim.
+
+### The one thing this change had to ADD
+
+Opening `v2_users` published `fcmTokens` — push registration tokens, a
+credential — to every signed-in user, handing any script the fan-out list
+the reveal sender uses. Tokens moved to `v2_users/{uid}/push/tokens`,
+server-only both ways. Moved rather than re-guarded: a field guarded by a
+rule is one edit from being readable, a path with no read grant is not.
+`deleteAccount`'s recursive delete already covers it.
+
+### Two traps this change walked into, both caught before shipping
+
+1. **`isTooSmall` was fail-closed.** `(agg||{}).tooSmall !== false` hid
+   counts unless the server said otherwise. The server stopped writing
+   the flag in this same change, so a client still reading it would have
+   blanked every count in the app — daily, feed, lens, learn, Mirror.
+   Client and server had to move in one commit; the predicate is now
+   `hasPublishedCounts`, an existence test, and the field is renamed
+   `noCountsYet` so a surface reading the old name fails loudly instead
+   of going on saying "withheld".
+2. **The bucket eviction used the k-floor as its threshold.**
+   `evictForNewBucket(byDim, floor)` made a bucket evictable while it sat
+   under `AGG_MIN_N`. Threading 0 or dropping the parameter would have
+   made *nothing* evictable, silently restoring the cap-exhaustion attack
+   (24 junk `city` values permanently blanking that dimension for a
+   question) with every test still green. It now has its own name and its
+   own reason: `BUCKET_EVICT_BELOW = 5`, a document-growth bound with
+   nothing to do with who may see what.
+
+### Cost accepted
+
+The publish cadence was also relieving write contention: both documents
+in the trigger's transaction are keyed by qid, against Firestore's
+~1 write/sec/document (D7). Publishing per answer restores that pressure.
+Accepted knowingly at launch volume. The mitigation when it bites is
+sharding, or collapsing `v2_aggs_private` into `v2_question_aggs` — which
+is now trivial, because the private doc has no readers and no secrets. It
+is **not** to reintroduce a floor.
+
+### Timing
+
+`answersCounted` has been 0 every day through 2026-08-11 (monitoring/
+pulse-trail.jsonl) and the app has not launched, so no answer was ever
+collected under the owner-only promise. There is nothing to migrate and
+no retroactive disclosure. Had there been, the old rows would have needed
+gating rather than republishing.
+
+### What this change does NOT do
+
+D98 removes the model. It does not build the features the model was
+blocking — named who-voted, the Kindred people lens, person-to-person
+Compare, Explore, the Map's real typicality, the relationship map. Those
+need read paths no client module has yet: a collection-group query on
+`answers` (the rule and the composite index ship here; the query does
+not) and batched uid→name resolution. Sequenced as follow-on work.
+
+## D99 · The Mirror's lens row comes back, on data that was already there
+
+**Decided:** 2026-08-11 · **Status:** binding · Follow-on to D98.
+
+**Decision.** The live Mirror's geographic stops carry a lens row again —
+**People**, **Compare**, **Explore** — plus the Map's typicality reading
+becomes real for the two anchors that map onto a breakdown dim.
+
+### Why this is a small change and not a large one
+
+Almost nothing here is a new read. `v2_question_aggs.by` — dim → bucket →
+option → count — has been published, client-readable and folded from
+every answer's anchors snapshot (D8) since long before D98. What D98
+removed was the suppression that made it useless: cells below the floor
+were dropped, a lone hole took its neighbour with it, and a dimension
+with fewer than two surviving buckets vanished entirely. A lens built on
+that would have shown holes and called them cohorts.
+
+With the map published whole, three of the five prototype lenses are a
+pure fold away, and `src/v2/data/cohort.ts` is that fold: `mixFor`,
+`sliceSplit`, `divergence`, `typicality`, `agreement`. No Firebase, no
+window, unit-tested directly.
+
+### What each lens rests on
+
+| Lens | Source | New read? |
+| --- | --- | --- |
+| **People** — the mix | `mixFor` over the deck's aggregates | no |
+| **People** — Kindred | `agreement` over the cached voter lists (D98) | only for questions whose who-voted sheet was never opened |
+| **Compare** | `pctFor` on your own option, ranked least-typical first | no |
+| **Explore** | `divergence` across the six dims | no |
+
+Kindred is the only one that can cost anything, and it is bounded at
+`KINDRED_QUESTIONS = 12` of the viewer's own most recent answers. Twelve
+shared questions is already a legible likeness claim; unbounded, it would
+fan out over every question an account has ever answered, on a screen
+someone may open casually. The whole row is collapsed by default, so
+opening the Mirror pays for none of it.
+
+### The likeness metric, and why it is the boring one
+
+Agreement is `same / shared` over commonly answered questions. No
+weighting by how divisive a question was, no distance over scale options.
+Both would be better statistics and both are judgement calls about what
+likeness MEANS — a product decision. This one can be explained in one
+sentence to the person it is about, and it ships with that sentence
+rendered directly beneath it. A likeness number nobody can explain is a
+number nobody should trust, least of all on a screen that names people.
+
+### The Map: D72 partially reversed, and precisely which part
+
+`window.MapStats.dist`/`mode` now return real numbers for the `age` and
+`edu` anchors, computed by `typicality` from the published breakdown.
+
+Everything else still refuses, and the refusals are structural rather
+than pending:
+
+- **`job`** is `profession`, deliberately never a breakdown dim (D8) —
+  free text mints a bucket key per spelling, forever.
+- **`big5`, `political`, `values`, `attachment`, `cognitive`** are test
+  RESULTS. Nothing aggregates them per cohort, so "how did similar
+  personalities answer" has no source at all.
+- **`dimVal`** — a cohort's score on a test dimension — has no source for
+  the same reason, at every anchor.
+
+D72's mechanism is kept exactly: the refusal returns **null** rather than
+gating at the call sites, so a consumer that forgets the check fails a
+test instead of quietly fabricating. That mechanism is why this change
+was findable at all — the null is what made it obvious which readings
+were invented and which were merely unbuilt.
+
+`cohortN` is added alongside, so the Map can say "of 6" rather than
+present a 50% drawn from two people as though it were a finding.
+
+### What is still NOT built, and why not
+
+- **Scores.** The place scorecard is fed by `rate` questions and the bank
+  ships none, so the lens would be an empty frame. Content, not code.
+  Building the frame first and filling it later is how a surface ends up
+  permanently looking broken.
+- **The Answers lens's own depth.** `LiveCohortBody` is the Answers lens,
+  and it is thinner than the prototype's: no branch filter, no
+  sort-by-divisive, no expand-a-row-into-the-distribution. All three are
+  computable from what is already loaded. A gap in a lens that exists.
+- **Circle / relmap.** Still no person-to-person graph in v2 (D3). Kindred
+  is the nearest honest thing: likeness without a follow.
+
+### One number this row must never be read as
+
+The mix counts **answers, not people** — someone who answered ten
+questions appears ten times. It is summed across the deck because a
+single question's mix is a fact about that question's audience, and the
+copy says so on screen rather than leaving "40% are 25-34" to be read as
+a census.
+
+### What it cost, and the thing that finding turned up
+
+This row put the bundle over budget, and `check:bundle` moved 2120 → 2140
+to admit it. The arithmetic, measured with CI's own build command one
+commit apart rather than estimated:
+
+| tree | total JS |
+| --- | ---: |
+| main @ the D98 merge | 2119.6 KB |
+| + D99's lens row | 2131.0 KB |
+
+D99 is +11.4 KB, but it is not really what spent the budget. The 2120
+ceiling was set on 2026-08-10 to sit just above a 2102 KB tree, and D98's
+read path — the collection-group query, `data/voters.ts`,
+`LiveVotersPanel` — took 17.6 KB of that 18 KB before this row added a
+byte. Two features landed in the gap between a ceiling and the thing it
+measures; the second one merely tripped it.
+
+**The useful finding is that the standard remedy is now exhausted.** Every
+previous squeeze on that budget was answered by deferring a module group
+past first paint (D25, D38). Against the *total* that is worth nothing —
+it counts every chunk, so splitting relocates bytes and changes the
+number by zero. Verified rather than assumed: the lens row is ~9 KB of
+the entry chunk, and making it lazy leaves the total at 2131. Only
+deleting code moves this ceiling.
+
+So the headroom each raise has left is the number to watch — 41.6 KB
+(08-06), 18 KB (08-10), 9 KB now. A fourth raise should not happen; the
+untaken candidates D64 named are the Mirror tab's ~168 KB (harder than
+the overlays — it renders on the first frame for anyone who opens on that
+tab) and an audit of how much of Sentry's ~470 KB is reachable at all.
+
+One correction fell out of that audit and is recorded here because it was
+a *figure in a comment*, which is the documentation error this repo keeps
+re-committing (D39). `check-bundle.mjs` had claimed for five days that
+"156 KB of the Sentry group is @sentry/react's Spotlight dev
+integration". That was a chunk name read as chunk contents:
+`spotlight-*.js` is Sentry core — `captureException`, the client, the
+logger, v10.60.0 — which rolldown named after one of the smaller modules
+inside it, and all three esm entries import it. The Spotlight integration
+is 1.9 KB of unminified source. The sentence had been sitting there
+inviting someone to go chase a 156 KB win that does not exist, and it is
+withdrawn in place.
+
+Unmoved on purpose: `MAX_CHUNK_KB` stays 735 against a 732.0 KB entry
+chunk. Three kilobytes of headroom means the next eager addition fails
+there rather than on the total, and has to defer instead of argue.
+
+## D100 · Scores and the Answers lens, on the archive rather than the week
+
+**Decided:** 2026-08-12 · **Status:** binding · Follow-on to D99.
+
+**Decision.** The Mirror's lens row gains **Scores**, its Answers lens
+gains the branch filter, the sort and the expand-a-row it was missing,
+and both read every question this device holds an aggregate for instead
+of the seven-day deck.
+
+### The enabler is one accessor, and it is why the other two were stuck
+
+`LIVE.aggregated()` returns every active daily question with published
+counts — the deck plus everything the user has ever answered, which
+`hydrate` already fetches and caches (`AGG_ID_CAP`, 120). No new read:
+the same map, walked rather than indexed.
+
+Both features were blocked on the *size of the set*, not on data:
+
+- A branch filter over seven rows offers fourteen subjects holding one
+  row each. A sort over seven rows re-orders half a screen. Neither is
+  worth the strip it takes to draw.
+- Scores could not exist on the deck **at all**. The bank holds five
+  `rating` questions in ninety, so the rotation serves a given week none
+  about two weeks in three.
+
+### Scores was refused at D99 for a reason that was wrong
+
+D99's note said the place scorecard is fed by `rate` questions, the bank
+ships none, so the lens would be an empty frame. The first clause is
+true and the conclusion does not follow. `rate` is the *prototype's*
+place-scorecard type; the shipping bank carries **five 1-10 `rating`
+items and sixteen 5-point `scale` ones**, and an ordinal question is an
+ordinal question whether its subject is a city's nightlife or your own
+outlook. The lens filters on TYPE (`ORDINAL_TYPES`), so place-rating
+questions join it the day someone writes them, with no code change.
+
+What the lens must never do is average a *categorical* question, and
+nothing in `counts` could tell it apart from an ordinal one — "Messi"
+and "Ronaldo" are different, not ordered, and their mean would render
+exactly as confident as a real number. The type filter is the whole
+guard, and it has the test that names it.
+
+Two arithmetic choices, both with a case pinning them:
+
+- **Ranked by share of the scale**, not by raw mean. 4/5 must outrank
+  7/10; ranking on the mean sorts by which scale a question happened to
+  use.
+- **The denominator ships with every number.** One list mixes 5-point
+  and 10-point questions, and "6.2" means opposite things across them.
+
+### The branch was in `content/` all along, and the seed dropped it
+
+`daily-questions.json` carries `cat: ["Mind", "Outlook"]` — a
+[branch, sub-branch] path, the taxonomy the Map files answers under.
+`gen-v2content.mjs` emitted `topic: q.tone` and nothing else, so the
+seeded doc kept *tone* (light/deep/blend) and lost the subject entirely.
+Nothing noticed because the demo layer reads the path from its own copy
+of the bank; the first consumer that could only see Firestore was this
+filter, and it had three tone buckets to offer instead of fourteen
+subjects.
+
+`branch`/`sub` now ride the seed, emitted only when set (the `mode`
+rule) — 90 daily entries carry a path and the other 423 do not, so
+writing null would rewrite the whole bank to say nothing about four
+surfaces out of five. **Every question seeded before today still has no
+branch**, and will until the next seed run, so both readers treat it as
+undefined and the chip row simply does not render. That is a case, not
+an assumption.
+
+Cost: the bank's wire size goes 116.1 → 119.3 KiB, which is +3.2 KiB on
+every cold boot's 513 reads. `check:figures` caught the stale figure in
+`docs/COSTS.md` before this was committed, which is the third time that
+gate has paid for itself.
+
+### "Newest" is in the prototype's sort list and is deliberately absent
+
+The archive spans any day the rotation has reached, and nothing the
+client holds dates an answer: the aggregate carries no timestamp, and a
+question's bank position is where it entered the bank, not when it was
+asked. A "Newest" that silently meant "highest seq" would be a label
+that is wrong about six days in seven. Three honest orderings ship
+instead — most answers, most divisive, most agreed.
+
+`divisiveness` is normalised by option count, and that is the only
+interesting thing about it: a 30/25/25/20 four-way is a divided room and
+a 30/70 binary is not, but raw leading share scores them 0.30 and 0.70
+and ranks the binary as *more* divided. Scaling against each question's
+own even split puts a mixed deck on one axis.
+
+### A fixture that had been proving the wrong thing
+
+`live-fixture`'s aggregate carried `by: {}`. Giving it a real breakdown
+so the Mirror's geographic stops have rows turned two `smoke-live` cases
+red, and the reason is the finding: a live feed card with a cohort
+breakdown renders the **surprise line** and drops the bar-chart button
+with it (`world-feed.jsx` gates the button on `!ins` — the line is
+already a door to the same sheet). With an empty `by` that line could
+never render, so every case in that file had been silently testing the
+button-only branch: the one a real user with real data sees *least*
+often. The helper now accepts either door, so both are covered.
+
+## D101 · Circle, on a follow graph that needs no handshake
+
+**Decided:** 2026-08-12 · **Status:** binding · Follow-on to D98.
+
+**Decision.** The Mirror's Circle stop draws real people: a one-way
+**follow graph** at `v2_users/{uid}/following/{targetUid}`, the accounts
+you follow ranked by how alike your answers are, and a fold showing
+where your circle splits.
+
+### Why this got easy, and it was not new plumbing
+
+Circle has shown an empty state saying "one-to-one connections aren't
+built yet" for the whole life of live mode. D3 is why: v2 has no
+person-to-person graph, and groups joined by an invite code were the
+only real connection the app could make. The 49 named people in
+`relmap-core.js` are prototype data and live mode has never shown them.
+
+What changed is D98, not the plumbing. **A follow is a bookmark, not a
+permission grant.** Every answer and profile is already readable by any
+signed-in user, so following someone conveys no access they did not
+already have — which deletes the hard half of a social graph. There is
+no request, no acceptance, no notification, no pending state, and no
+state machine: a follow is one document that exists or does not.
+
+Mutual follows are a **reading, not a state**. If both directions exist
+the client says so; the server stores two independent rows and knows
+nothing about the pair. A friendship that must be agreed is a consent
+mechanism, and consent is only owed for access the follower would not
+otherwise have.
+
+### The one judgement call, and how to reverse it
+
+**The graph is world-readable.** This does not follow from D98, which
+published *answers*, not the social graph — so it is a call rather than
+a consequence, and it is flagged here the way D98's four were.
+
+Two reasons it goes this way: the app's thesis is that the links between
+people are the interesting part, and public → owner-only is a breaking
+change for anything built on it while the reverse is additive. **To
+reverse:** change one line in `firestore.rules` to
+`request.auth.uid == uid`. Circle itself reads only the viewer's own
+list and keeps working; what goes is the followers direction — the
+mutual flag, and any "who follows me" surface, neither of which exists
+elsewhere yet.
+
+### Three details that are load-bearing
+
+- **`to` duplicates the document id**, pinned equal to it by the rules.
+  A collection-group query cannot filter on a document id, so without a
+  field `deleteAccount` could not find the follows *other people* hold
+  of a deleted account. The rule pins the two together because an
+  unpinned copy is a second source of truth about who a row points at —
+  and the erasure sweep reads the field, so a mismatched row would
+  survive its own target's deletion. Phase 3b, with the `relations`
+  sweep as its precedent, plus a control in `e2e-delete-account` proving
+  the sweep matched on `to` rather than taking a whole following list.
+- **No update, ever.** Create and delete only. Rewriting `at` would
+  reorder someone's Circle, which is the one thing the stamp decides —
+  `fetchFollowing` sorts oldest-first so `FOLLOW_CAP` is stable across
+  sessions.
+- **`FOLLOW_CAP` is a bound on fan-out, not a product limit.** Circle is
+  the only surface that reads a named individual's whole answer set
+  rather than a question's voters, so opening it costs one query per
+  member. If it ever binds in the field the answer is to page the fetch,
+  not to raise the number quietly.
+
+### The fold excludes you; the Map's includes you
+
+`circleSplit` counts members only. `typicality` (D99) does the opposite
+and counts you in your own age band. The difference is the question each
+screen asks: "how typical was I" needs the cohort the aggregate folded,
+you included, or the Map disagrees with the who-voted sheet beside it.
+"What do the people I follow think" does not — and folding yourself in
+would let a circle of one reflect your own answer back as consensus.
+
+The ranking's real trap is the tiebreak. Agreement is a percentage, so
+one shared question that happened to match scores 100% and heads the
+list forever, above someone who matched on forty of fifty. It looks
+completely right until somebody answers a single question, so overlap
+breaks the tie and a case names it.
+
+### The bundle budget did what the last note said it would
+
+D100 and D101 together took the tree to 743 KB entry / 2147 KB total —
+over both ceilings. The D98/D99 note in `check-bundle.mjs` had left
+3 KB of headroom under `MAX_CHUNK_KB` specifically so the next eager
+addition would have to defer rather than argue, and predicted that the
+per-chunk gate would catch it first. It did.
+
+**Neither ceiling moved.** Three deferrals (Circle body and the lens row
+via `React.lazy`, `data/circle.ts` via a dynamic import inside
+`live.ts`) took the entry chunk to **727 KB** — smaller than the 732 it
+was before either feature. And the trim that note asked for by name
+turned out to be real: `src/lib/sentry.ts` imported `@sentry/react` and
+used exactly one symbol from it (`init`), while `@sentry/capacitor`
+depends on `@sentry/browser` directly and lists `@sentry/react` as one
+of three framework peers. Sentry's ErrorBoundary, Profiler and router
+instrumentation were never wired to anything. Swapping the import took
+the total **2147 → 2119**.
+
+One deferral bought nothing measurable — `data/circle.ts` out of
+`live.ts`'s static graph left the entry chunk at 738 — and it is kept
+anyway, because a dynamic import there is the right shape. Recorded so
+the next reader does not re-derive it as a win.
+
+## D102 · The D98 surfaces get their bounds, their index, and their bill
+
+**Decided:** 2026-08-12 · **Status:** binding · Follow-on to D98–D101 —
+the optimisation pass over what the reversal brought back.
+
+**Decision.** Four things, one theme: the read family D98 created is now
+bounded, indexed, modelled and cheap to render. `fetchVoters` is capped
+at `VOTER_FETCH_CAP = 200`, newest first, and the sheet says when the cap
+binds. `answers.surface` gets its single-field index back at COLLECTION
+scope, which is the index D101's Circle query has needed since the day it
+shipped. The cost model gains a `social` term for who-voted, Kindred and
+Circle, with all four bounds pinned to source. And the two Mirror bodies
+that sorted with `divisiveness` inside the comparator now compute it once
+per row.
+
+### The index bug, and why every suite was green
+
+`fetchAnswersOf` (data/circle.ts) filters one user's answers on
+`surface` — mandatory, because the rules grant the cross-user read as a
+value test on that field (D65). A collection-scope query with a
+single-field filter needs the automatic single-field index, and D64's
+exemptions had deleted exactly that one: `"indexes": []` on
+`answers.surface`. The composite D98 added cannot serve it (its leading
+field is `qid`, which this query does not constrain). In production every
+member fetch returns FAILED_PRECONDITION; `loadCircle` drops failed
+members by design, so a user with thirty follows sees "you follow
+nobody" — the failure renders as an empty state, not an error.
+
+Nothing caught it because nothing could: the emulator does not enforce
+index configuration, so rules tests and e2e run as if every index
+exists, and `circle.test.ts` is Firebase-free. D64 predicted this
+precisely — "filtering answers by `surface` … will not be possible
+without re-enabling that field first" — and D101 never mentioned indexes.
+
+**The fix** re-enables the one shape the query needs (COLLECTION scope,
+ascending; the collection-group and descending shapes stay exempt).
+Cost: one more index entry per answer write on the app's hottest write
+path, plus a backfill that is free today because the collection is empty
+— a launch-window luxury this fix spends deliberately. **The guard** is
+`src/v2/data/indexes.test.ts`: every filtered query shape in `data/` is
+pinned to its entry in `firestore.indexes.json`, so the next
+query-without-index (or re-exemption of a needed field) fails in
+`test:unit` instead of in production. It is a name-level guard in the
+smoke-test sense: it cannot prove a query runs, only that the two
+artifacts that meet in production agree on paper. A new filtered query in
+`data/` adds a case there.
+
+### The cap, and its arithmetic
+
+The daily question is globally shared, so its voter list is roughly
+"everyone active today". Uncapped, one who-voted open at 5,000 DAU is
+~5,000 answer reads plus up to 5,000 profile reads for names — ~10,000
+billed reads and a multi-second render of a list nobody scrolls, growing
+linearly with DAU forever, on a tap the UI invites. Kindred multiplied
+that by twelve. Every sibling fan-out already carried a bound
+(`CIRCLE_ANSWER_CAP`, `FOLLOW_CAP`, `KINDRED_QUESTIONS`, `AGG_ID_CAP`);
+this was the only unbounded read in the app.
+
+`VOTER_FETCH_CAP = 200` sits inside the query, after `orderBy answeredAt
+desc`, so a capped page means "the latest 200" — and the panel says so
+("1,234 have answered — these are the newest 200"), because a truncated
+list presented as the whole room is the withheld-cell lie pointed the
+other way. Below the cap the sheet is exhaustive and claims nothing.
+Kindred inherits the bound per list: recency-biased, which is the honest
+bias for a ranking recomputed from live lists. If page two is ever worth
+having, the ordering already provides the cursor — page, do not raise
+the number quietly (D101's rule, restated).
+
+### The model: one term added, one staleness found by adding it
+
+The `social` term charges (docs + names) per open across the three
+surfaces, caps read from source (`readNum`, D47's mechanism), open rates
+named as guesses in `B`. Re-running the model surfaced the second
+finding: **every table in COSTS.md was still the pre-D98 run.** D98 set
+the publish cadence to 1 and nobody reran the model, so the fan-out
+column sat at a fifth of its true slope — which had silently moved the
+read-crossover wall from ~18,200 DAU to ~3,700, *below* the D7 write
+wall, inverting the surprise-invoice-before-surprise-outage ordering
+COSTS.md exists to protect. The `social` term's flat 385 reads/user/day
+pushes the crossover back to ~30,800. Both moves are now in COSTS.md's
+walls section, and `pulse.test.mjs` pins the `readsPerUser` key set so
+the next added term forces the consumers (READ_SERIES, the COSTS.md
+table) to move with it.
+
+### Render cost: measured, one fix taken, one deferred
+
+Probe (node, bank = 513, every aggregate carrying a full 6-dim × 8-bucket
+breakdown — the worst case): one `LiveCohortBody` render-equivalent of
+the archive pipeline is **~1.9 ms**, of which the `divisiveness`-inside-
+comparator sort is ~360 µs and over half the total once per-render
+allocations are counted; precomputing it per row takes the pipeline to
+**~0.7 ms**. Taken, in `LiveCohortBody` and `LiveCircleBody` — two-line
+changes with a measured 2.7× on the pipeline.
+
+Deferred, recorded with its trigger: the pipeline itself
+(`LIVE.aggregated()` → rows → lensQs) is O(bank) per store notify with
+fresh allocations, ~0.7 ms today and linear in a bank that D97 grows by
+~1,300/year. Store-level memoisation (revision counters on aggs/votes)
+buys it back but adds an invalidation surface — the exact bug class
+(stale Mirror numbers) this repo hates most — so it is not worth its
+risk below a few thousand questions. Revisit when the bank passes ~2,000
+or a device profile shows the Mirror tab janking on notify, whichever is
+first.
+
+### Also deferred, recorded
+
+- **`setFollowing` reloads the whole circle** (members × answer queries)
+  to add one row. Correct, simple, and O(circle) reads per tap on the
+  sheet where follow-sprees happen. Fine at five follows; an incremental
+  insert (one `fetchAnswersOf` + one followers query) is the shape when
+  it binds. Not built: pre-launch circles are empty, and the refetch is
+  what keeps the no-optimism rule (a member never renders with a
+  fabricated 0% likeness) trivially true.
+- **Background listener teardown** stays unbuilt with Finding 2's
+  polling, same reasoning: D7's wall binds first, and `onlineMin` — the
+  input that decides — is measurable from a week of real usage.
+
+## D103 · Four device readings: a retired test, a rail, the topics D96 left dark, and one notch paid for twice
+
+**Decided:** 2026-08-12 · **Status:** binding · Owner's readings on a
+TestFlight build, taken in one sitting.
+
+**Decision.** Four fixes, three of them small and one of them a feature
+removal, kept in one record because three of the four are the same
+mistake in different clothes: a surface that stopped saying anything and
+was left standing anyway.
+
+1. **The passive-progress dot rows are a rail.** One dot per question,
+   banks 20–32 long, and the dots were flex children with `flex-shrink`
+   left at its default — which is the same as declaring no width at all.
+   Thirty-two of them in a ~350px sheet rendered as ~5px slivers, and
+   "the count IS the visual, no numbers" (passive-meter.jsx's own rule)
+   stopped being true at the width where it mattered. `flexShrink: 0`
+   plus `.h-scroll`, so the overflow becomes the rail grammar the rest of
+   the app uses and `edge-fade.js` marks the cut edge. The rail opens on
+   the FRONTIER, not on dot one: filled dots sort first, so a 20-of-32
+   row otherwise shows nothing but filled dots and reads as finished.
+
+2. **The Thinking test is retired, everywhere.** `cognitive` got a
+   question bank on 2026-08-10 (twelve days after its result surfaces
+   shipped) and is now gone from IS_TESTS / IS_TEST_RESULTS /
+   IS_TEST_AVG, `PASSIVE.META`, the profile's sub-tab, the Map's anchor
+   ring, compare's assessment list, the segment explorer's slice axes,
+   the archetype / rose / explain / population data, and
+   `content/tests.json` — so the bank regenerates at 493 questions
+   (was 513) and the profiles sheet titles itself "Your four profiles"
+   off `PASSIVE.KEYS.length`, as D85 built it to.
+
+   **The half a deletion cannot reach, and what was done about it.**
+   Retiring a *shipped* question is an operator `active: false` flip
+   (functions/src/v2.ts: "the seed must never flip a question ops
+   disabled back on, so it is only written on first create"). Deleting
+   the source stops the 20 `test-cognitive-*` docs being WRITTEN, not
+   served: they stay live, arrive in `TEST_FEED_QS`, and would weave in
+   as marked cards for a test with no bank, no result page and no
+   progress row. `world-feed.jsx` now filters that pool through
+   `PASSIVE.testFor()`, which returns null for any key `META` has
+   dropped — so the fence holds for the next retirement without naming
+   it, and LAUNCH-RUNBOOK carries the console step that finishes the job
+   at the source.
+
+3. **The topics D96 left dark.** D96 was right to stop advertising the
+   demo communities — "Writing · 2.1K people · Murakami, Solnit,
+   Knausgård" with a Follow button is a population invented about nobody
+   (D1), offered to a real user. What it did not do is notice that the
+   refusal emptied the room: the sheet the "+" opens held nothing but the
+   Learn dial, and the owner read that exactly as it looks — *"interests
+   seem to have been removed, only the sample data of fake amounts of
+   users."* Both halves of that sentence were true, and the second half
+   was the fix.
+
+   The replacement is what D96 part 3 had already made true and never
+   showed anyone: a live build runs **every subject its bank stocks**,
+   always on. `renderAdd` now opens with those channels — label, the hue
+   the chip row uses, how many questions the pool holds, how many you
+   have answered, and the mute the chip row has. Every number is counted
+   out of `WORLD_FEED_QS`; none is a claim about people. Channels only,
+   because scenes and leaves have a follow to remove and surfaces that
+   own it, while an always-on channel had no management surface anywhere
+   — it is exactly the set that looked deleted. Stockless channels stay
+   out, by the same rule `SUBTOPICS.offers()` applies to leaves.
+
+   The profile's empty scenes card stops sending people to a door with
+   nothing behind it ("follow one and its questions join your feed") and
+   names the topic sheet instead.
+
+4. **One notch, paid for twice.** `.native-shell .app-header` and
+   `.native-shell .overlay` each pad by `14px + env(safe-area-inset-top)`
+   — and eight overlays draw an `.app-header` INSIDE the padded
+   `.overlay`, so both rules fired on the same element tree: ≈146px of
+   blank surface above every overlay title on a Dynamic Island phone,
+   about a sixth of the screen spent twice on the same notch. The
+   overlay's own header goes back to `.app-header`'s base 8px. The
+   mockup frame was never affected — there the band is a fixed 62px that
+   `.overlay` reproduces and `.app-header` does not add to. The profile's
+   identity row was tightened with it (52→42px avatar, 16→10px lead),
+   since it was the other half of a screen that opened on "You".
+
+**Enforcement.** `smoke.test.jsx` replaces its end-to-end cognitive block
+with the inverse — a half-removal draws a header with nothing under it,
+which trips no boundary and no name gate — plus a fourth case pinning the
+surviving four, because every other assertion there also passes on an app
+with no tests at all. Two new cases pin the channel list and that its
+mute moves the chip row's own state. `smoke-live.test.jsx` widens D96's
+leak assertion from one sample string to `/\d+ people/`, so the section
+cannot reintroduce a population claim, and drops its anchor count 8 → 7.
+`world-channels.test.js` gains the invariant underneath the sheet: every
+topic the feed bank actually uses is one of the live channels — "every
+bank topic is reachable" and "every stocked channel has a row" are the
+same sentence from either end, and the mount suites cannot check it
+because the flag is read at module scope and both suites are demo builds.
+
+**What is NOT included.** The `thinking` LENS (lens-defs.js, "Thinking
+style") is a different instrument with its own questions and stays. Two
+names in the same app is worth a look; retiring a live lens is not a
+side effect of retiring a test.
+
+## D104 · Test users: a second real account, and what it is allowed to fake
+
+**Decided:** 2026-08-12 · **Status:** binding for the harness ·
+Tooling decision — it changes no product surface and no rule.
+
+**Decision.** `scripts/test-users.mjs` (`npm run testuser`) drives
+synthetic accounts through the duel loop so 1v1 and groups can be
+exercised from one browser. It writes **only through the client SDK**,
+under each account's own session. Four deliberate limits, recorded here
+because each one is a place where the harness stops resembling a real
+device, and a surprise in a test tool is how a real bug gets attributed
+to the tool.
+
+### Why a harness at all
+
+docs/LOCAL-TESTING.md answered "test a duo" with a second incognito
+window. That covers the join and nothing after it: `shouldReveal` is
+both-or-nothing for duos, `groupPortrait` is computed from reveal
+**history**, and `nextStreak` needs consecutive revealed days. The cost
+of one day of two-member history by hand is two windows, two votes and a
+wait for the 2-hourly scan; the cost of three days is that three times.
+Those are the surfaces least likely to have been looked at, which is the
+argument for the tool rather than for more discipline.
+
+### 1 · Identity is email/password, not anonymous (against D3)
+
+Real devices are anonymous-first. An anonymous session cannot be
+re-attached in a later process: re-signing in needs the refresh token,
+and the JS SDK exposes no API that takes one. The alternative was
+`firebase-admin` minting custom tokens, which adds a credential path to
+a client-only tool.
+
+The substitution is invisible to everything a test user touches, and that
+is checkable rather than hopeful: no rule reads
+`request.auth.token.firebase.sign_in_provider` (grep), no function
+branches on it, and the profile's `anon` field has no reader — v2social.ts
+names it only as an unbounded field. uid is what every gate keys on.
+
+The cost: the harness cannot exercise anything that *does* depend on
+anonymity, and if a future rule starts to, this is the first thing that
+would silently stop being representative.
+
+### 2 · Backfill reaches 3 days, not PENDING_DAYS_KEEP's 6
+
+`firestore.rules` admits a duel answer while `timestamp.date(day) >
+request.time - duration.value(4, 'd')`. The day key is midnight UTC, so
+at 15:00 UTC the -4 key is 2026-08-08T00:00Z against a bound of
+2026-08-08T15:00Z and is refused; -3 clears it at any hour. 3 is
+therefore the largest offset that does not make the tool's behaviour a
+function of when it was run. The reveal scan's window is 6, so a backfill
+cannot fill it — accepted, because 3 days is already enough history for
+the portrait and the streak to be non-trivial.
+
+### 3 · A duo backfill settles only days the human also played
+
+Both-or-nothing again, and the harness holds no session for the human, so
+it cannot supply the other half of a past day. It reports each day it
+could not settle and why, rather than writing one-sided history that
+would then read as a broken reveal pipeline.
+
+### 4 · `reset --purge` leaves the tallies it fed
+
+`deleteAccount` erases the uid attribution (the D28 ledger) and keeps the
+anonymous count, by design — phase 1b. So purged test users stay in every
+count they voted in, and the only clean slate is an emulator restart. Said
+in the command's own output, because a total that does not drop after a
+delete is otherwise indistinguishable from a broken erasure.
+
+### Emulator-only, and why that is structural rather than advisory
+
+The script refuses to run unless `.env` has `VITE_USE_EMULATOR=true`.
+Since D98 the public counts are **exact** and publish from the first
+answer: there is no floor for a fake account to hide under, so test users
+answering world questions on a real project would move numbers real people
+are shown. The ledger's uid attribution exists so a discovered ring can be
+subtracted after the fact (DEPLOYMENT.md, "Correcting aggregates") — a
+cleanup path, not a licence to create the mess. Production also enforces
+App Check on every member callable, which a Node process cannot attest to,
+so the guard costs nothing that worked anyway.
+
+### What is imported rather than restated, and the bug that argues for it
+
+The day's question comes from the real `duelQFor`; anchors come from the
+profile's closed vocabularies and cities from the shipped catalogue via
+`placeKey`. Both would otherwise drift into a *plausible* wrong screen: a
+drifted question selection seals answers to a prompt the app never asked,
+which `revealQid` then publishes as the D70/D71 disagreement on every run,
+and an out-of-vocabulary anchor writes fine and folds into no breakdown
+bucket, counting in every total while appearing in no cohort cut.
+
+The one thing the harness does compute itself — a per-person conformity
+bias, so the splits split — is where this bit. It was first written in
+`gHash`'s shape (`h * 31 + c`), whose last round adds the final character
+straight into the accumulator, so consecutive inputs give consecutive
+outputs. Question ids run `daily-007`, `daily-008`, `daily-009`: measured,
+four users' rolls over those three came out .24/.25/.26, .41/.42/.43,
+.03/.04/.05 and .46/.47/.48 — the population conforming or dissenting as
+one bloc, publishing a unanimous split for **every** question, with real
+per-cohort breakdown cells sitting underneath it looking correct. A
+SHA-256 digest replaced it: 27 unanimous in 200 where it had been 200 in
+200. gHash is fine at its own job (one gid, once); the lesson recorded is
+that a hash chosen for a different modulus and input shape is not
+transferable, and that the failure surfaced only from probing the output
+distribution — reading the code, it looks like a hash.
+
+## D105 · One text field owns the app's scale: every input defers to --field-size
+
+**Decided:** 2026-08-12 · **Status:** binding · Owner's reading on a
+device: "I get this error sometimes where it is too zoomed in, not sure
+what's triggering it."
+
+**Decision.** Every text-entry field in the app takes its size from a
+single token, `--field-size: 16px` in `styles.css`, and may not declare
+a font size of its own. `check:touch-zoom` fails the build if one does —
+including with a literal `16`, because the bug was fifteen scattered
+numbers, not any one of their values.
+
+**What was actually wrong.** WKWebView and Mobile Safari auto-zoom the
+page when a text field takes focus whose computed font-size is under
+16px, scaling by exactly 16/size so the text lands at the platform's
+floor. The app shell is `position: fixed; inset: 0` (spec/iOS.jsx), so
+there is nothing to scale it back — no page to scroll to origin, no
+browser chrome to reset. The zoom outlives the field, the overlay and
+the tab, and every screen after it is cropped on the right.
+
+**The arithmetic, measured rather than reasoned about.** Three device
+screenshots eighteen minutes apart — the Mirror's Near stop, the profile
+overlay and the World feed — all cropped, all at one scale. Three
+independent rulers in them agree: the header search button's left edge,
+the profile overlay's centred title, and the avatar box each give
+1.067. 16/15 = 1.0667. The 15px was this repo's own `.search-field
+input`, and the header search icon that opens it is on every screen in
+the app, which is why the trigger looked like nothing in particular.
+
+The layout was never implicated and was checked before anything was
+changed: a 393pt render measures `scrollWidth === innerWidth === 393`,
+with no element crossing the right edge outside a deliberate horizontal
+scroller. Cropping without overflow is a scale, and only a scale.
+
+Every field in the tree was under the floor — 12.5px (the feed's take
+and reply composers) to 15.5px — so the fix is all of them, not the one
+that fired. Six move by ≤1px, including the culprit; nine move by 2 to
+3.5px. 16px is also what iOS wants a form field at: the old sizes were
+below what the platform considers readable, which is the whole reason it
+zooms.
+
+**The alternative, and why not.** `maximum-scale=1` in index.html's
+viewport meta is one line and changes no pixel of the design. It also
+disables pinch-zoom in the Capacitor shell and on Android Chrome (iOS
+Safari overrides the flag, so only the web-on-iPhone path keeps it) —
+a WCAG 1.4.4 regression in a repo that runs an a11y ratchet precisely so
+that sort of thing has to be argued for. Rejected on that trade, with
+the owner's call on the record.
+
+**Enforcement.** `check:touch-zoom` (client-only, off
+`backend-checks.yml` — nothing it says bears on whether a rules fix is
+safe to deploy) scans for `<input>`/`<textarea>` tags and for stylesheet
+rules that target them, resolving style objects that get spread in. Its
+three detection paths were each verified by reintroducing the bug: an
+inline literal, a literal reached through a spread style object, and
+`.search-field input` restored to 15px — the original defect, which the
+gate names by file and line.
+
+A gate rather than a test, for two reasons the tree demonstrates. The
+mount suites run in jsdom with vitest's CSS handling off, so a
+stylesheet-driven size never resolves there — the 15px that caused this
+would have passed a runtime assertion. And the fields sit behind six
+overlays and a bottom sheet, so a walk would have to reach every one of
+them to say anything, while a source scan sees all of them at once.
+`tsc`, `eslint`, `check:globals` and the smoke tests are all blind here:
+a small font size is valid CSS.
+
+**What is NOT included.** Non-keyboard inputs — `type="range"`,
+checkbox, radio, colour — are exempt and listed in the script: iOS does
+not zoom for them, and the map's history scrubber is sized deliberately.
+`spec/tweaks-panel.jsx` is skipped: it is `if (!open) return null` with
+`open` reachable only from a listener behind `import.meta.env.DEV`, so
+it is not in a production bundle and cannot be focused on a device.
+
+Double-tap-to-zoom is also still live outside buttons — `touch-action:
+manipulation` is scoped to `button`/`[role=button]`/`[role=tab]`
+(styles.css § 2). It is a second way to scale the app that nothing
+scales back, but it is user-initiated and was not what these screenshots
+measured, so it stays as it is until something says otherwise.
+
+## D106 · The retired privacy model is swept out of the documentation, starting with the two pages users actually read
+
+**Decided:** 2026-08-12 · **Status:** binding · Follow-on to D98 —
+the documentation half of a change that was only ever made in the code.
+
+**Decision.** Every document that still described the pre-D98 model as
+current is rewritten to describe what the app does. Nothing about
+behaviour changes; what changes is that the tree stops making claims the
+rules do not enforce, in the direction that matters most — **claiming a
+protection the user does not have.**
+
+### The finding that made this urgent
+
+D98 rewrote the code, `firestore.rules`, `SCHEMA-V2.md`, `MIRROR.md`, the
+in-app privacy panel and the store filing. It did not reach the two
+documents with the widest audience, and they were the ones stating the
+old model most plainly:
+
+- **`web/privacy.html`** — the policy linked from the App Store listing,
+  served on the open web, and required by both stores — opened with
+  *"your answers are readable by you and nobody else, ever. Not by us,
+  not by your friends, not by other users."* Three further sections were
+  built entirely on the floor: a minimum below which counts were
+  withheld, an exact-counts-are-server-only paragraph, and a "who can see
+  what" list whose first row read **Your answers: you.**
+- **`web/home.html`**, the policy's landing page: *"Answers are yours
+  alone. Population counts are k-anonymous."*
+
+The asymmetry is the whole reason this is a decision and not a chore.
+An out-of-date internal doc costs a reader an hour. A privacy policy
+promising a protection that was deleted is the exact failure CLAUDE.md
+names in the other direction — *"a user learning that from a stranger
+quoting their vote would be the same failure as the reverse"* — except
+that here it is written down, published, and pointed at by a store
+listing. The in-app panel had said the true thing since D98; a user who
+read the policy instead got the opposite answer from the same product.
+
+### The timing fact that keeps this a correction rather than a breach
+
+`answersCounted` was 0 every day through 2026-08-11 (`monitoring/
+pulse-trail.jsonl`) and the app has not launched. No answer was ever
+collected under the published promise, so there is nothing to notify and
+nothing to un-publish. Had a single user answered under that policy, this
+record would be a disclosure plan instead of a rewrite — the old rows
+would have needed gating, not republishing, which is D98's own reasoning
+applied to the document rather than the data.
+
+### What was rewritten, and the one rule applied throughout
+
+Where a claim was **historically true**, it is kept and marked as
+history — the repo's standing habit, and the reason a reader can tell a
+reversal from a mistake. Where it was presented as **current**, it is
+replaced by what the code does. Nothing was deleted silently.
+
+| File | Was | Now |
+| --- | --- | --- |
+| `web/privacy.html` | answers readable by nobody else; counts withheld below a threshold; "Your answers: you" | answers are public and attributed, stated first and bluntly; counts exact from answer one; a five-row "who can see what" that matches the rules. Adds the four surfaces the page never mentioned — takes, follows, the presence square, and the D86 edit — and a paragraph recording that the page used to promise the opposite |
+| `web/terms.html` | *"A private journal app"* — the **v1** product, retired at D4, with journal entries, trait impressions and photo uploads | the daily/mirror app, with a plain "it is a public app" clause; acceptable-use rewritten around takes, bulk accounts and scraping |
+| `web/home.html` | "Answers are yours alone. Population counts are k-anonymous" | answers are public; counts exact |
+| `docs/data-inventory.md` | display name owner+members; push tokens on the profile doc; aggs floored "≥5, paused to ≥1"; private aggs "below the public floor"; politics result "never leaves the owner doc" | all four corrected against the rules as deployed; a **follows** row added (D101 shipped without one) |
+| `docs/MONETIZATION.md` | the floor "restores at launch traction"; "never sells a person"; "the sold split is the same honest, floored number" | no floor to restore; the buyer's bound is **scope** — no read path a signed-in user lacks — not arithmetic |
+| `docs/CATALOG-QUESTIONS.md` | complementary suppression on the entity fold; two tail scalars; a floor argument for deferring breakdowns | the disclosure rules are marked deleted (`canonTopN` records the same); the published shape is `{total, top, rest, by}`; top-N survives on **document size and legibility**, which were always the durable reasons |
+| `docs/MONITORING.md` | "the same suppression that stops a paying city identifying a person stops the owner doing it" | there is no suppression; refusing per-user analytics is now an analytics decision standing on its own |
+| `docs/QUESTION-FARM.md`, `docs/SCHEMA-V2.md`, `src/v2/README.md`, `README.md` | k-floored aggregates; "profiles are owner-only"; duel answers in an "owner-only subcollection"; a `LiveCohortBody` row describing the flag and the printed floor; Circle "has nothing real behind it" | the statistics argument replaces the floor one; the denormalization reason restated; the seal described as the `surface` exclusion it is; the test row matches the assertions; Circle is the D101 follow graph |
+| `src/v2/ui/LiveCohortBody.test.tsx` | a header comment and a case title describing the floor, contradicting the assertions directly beneath them | both rewritten; the cases are the floor's inverses and say so |
+| `src/v2/ui/LivePrivacyPanel.tsx` | "No comments from strangers" | false since **D83** — world takes are exactly that. Replaced with what they are and the two controls over them |
+
+### Two things deliberately not done
+
+- **No historical record was edited.** D1, D18, D44, D81 and the rest
+  keep their original text; D98's reversal table is the index. A decision
+  log that is rewritten to agree with the present cannot show anyone how
+  the present was arrived at.
+- **`web/terms.html`'s pricing section stays.** It is legal reserve
+  language, kept deliberately (MONETIZATION.md) to permit a future change
+  of mind without promising one. It is not a stale claim.
+
+### One divergence found and left, named so it is not re-derived
+
+`pick-data.js` `canon()` — the **demo** catalog store — still applies its
+own `AGG_MIN_N` and still computes `restEntities` / `restBelowFloor`, two
+fields the live document does not carry. No live surface reads it, so it
+is prototype furniture rather than a lie to a user, but a mock build
+hides tail entities the real one shows. Recorded in CATALOG-QUESTIONS.md
+at the point of divergence; converting it is a behaviour change to mock
+mode and belongs to whoever next touches that file.
+
+### What would have caught this, and why nothing did
+
+Every gate in this tree checks a *name*, a *number* or a *shape*:
+`check:globals` sees identifiers, `check:figures` sees quoted counts,
+`check:store-copy` sees unfilled placeholders, `check:store-forms` holds
+a table equal to a JSON file. None of them can see a true sentence that
+has become false, and `web/*.html` is served by hosting rather than
+compiled, so neither `tsc` nor a bundle gate ever opens it.
+
+A gate for this is not obviously buildable — "the prose agrees with the
+rules" is not a static property — and inventing one here would be a worse
+error than the one it chased. What is cheap and is adopted instead: **a
+decision that changes who may read something names the user-facing pages
+in its own checklist.** D98 listed the code paths it had to move in one
+commit and moved them; the same discipline pointed at `web/` would have
+caught both pages the day the model died.
+
+## D107 · A purpose string for the authorisation this app never asks for
+
+**Decided:** 2026-08-12 · **Status:** binding · Repairs ITMS-90683 on 2.0.0
+build 10. Narrows nothing in
+[D9](#d9--near-is-your-city--picked-from-a-list-or-located-on-the-device):
+what the app asks the user for is unchanged.
+
+**Decision.** `ios/App/App/Info.plist` carries
+`NSLocationAlwaysAndWhenInUseUsageDescription`, byte-identical to the
+when-in-use string that was already there. Nothing else about location
+moves — still when-in-use only, still reduced accuracy, still on an
+explicit tap, still a city name as the only thing that leaves the device.
+`npm run check:ios-location` holds that shape, including two invariants
+that had no guard at all before.
+
+### What Apple asked for, and why the tree looked compliant
+
+App Store Connect accepted build 10, then emailed: the bundle references
+one or more APIs that access sensitive user data and has no
+`NSLocationAlwaysAndWhenInUseUsageDescription`. Its wording is the part
+worth keeping — *"even though your app might not use these APIs, a purpose
+string is still required."* The analysis reads the linked binary, not the
+call sites, and every local gate reads the call sites.
+
+So the whole tree was consistent and wrong together: `locate.ts` requests
+coarse, one fix, foreground; the plugin requests when-in-use; the plist
+described exactly that. The symbol Apple objected to belongs to a package
+none of those files mention.
+
+### The chain, verified rather than inferred from the warning
+
+```
+@capacitor/geolocation 8.2.0        (package.json)
+  └─ ion-ios-geolocation ≥2.1.0     (its Package.swift — SwiftPM, fetched at build time)
+       └─ IONGLOCAuthorisationRequestType.always
+            └─ CLLocationManager.requestAlwaysAuthorization
+```
+
+Two facts, both read in source rather than reasoned about:
+
+- The upstream enum compiles both branches unconditionally —
+  `case .whenInUse: locationManager.requestWhenInUseAuthorization` and
+  `case .always: locationManager.requestAlwaysAuthorization`, one `switch`,
+  no `#if`. The Always symbol is in every archive we have ever shipped.
+- The plugin has exactly one call site,
+  `requestLocationAuthorisation(type: .whenInUse)`, and it is not
+  parameterised by anything the JS API can set. Nothing this app can do
+  reaches the `.always` branch.
+
+The plugin's own README documents the consequence and prescribes this fix:
+add the key, reuse the when-in-use text, "since this permission prompt
+won't appear to users".
+
+### Why the string is a copy, and why that is honest
+
+It is unreachable text. An Always prompt requires an Always request, so no
+user will ever read this string — which is precisely the argument for
+keeping it identical rather than writing something new for it. Text nobody
+can see is text nobody reviews, and this one sits one line from
+`web/privacy.html`'s "no location history, no background location". A
+second, drifting description of the same single foreground reading is a
+liability with no reader to serve.
+
+Two alternatives were weighed and dropped:
+
+- **Remove the symbol instead of describing it.** D16's Facebook stripper
+  is the precedent, and it does not transfer: that SDK is named in an SPM
+  manifest sitting in `node_modules`, a file we already rewrite on
+  `postinstall`. `ion-ios-geolocation` is fetched by SwiftPM from GitHub
+  during the build, so there is nothing in-tree to patch — the equivalent
+  move is a pinned fork of a third-party package, permanently, to delete a
+  branch that is already dead code.
+- **Write a string that says the app does not use background location.** A
+  purpose string is shown to a user being asked for something; a
+  disclaimer aimed at a reviewer is not one, and it would be the only
+  sentence in this bundle written for an audience that cannot see it.
+
+### What deliberately does not move
+
+- **The App Store privacy label.** Still Coarse Location — linked to user,
+  App Functionality, optional (`docs/data-inventory.md`). A purpose string
+  grants nothing and collects nothing; the label answers what the app
+  collects, which is a city name derived on-device from one coarse fix.
+  **Precise stays unticked** and `NSLocationDefaultAccuracyReduced` stays
+  true.
+- **`web/privacy.html` and the in-app privacy panel.** Every sentence they
+  make — never in the background, never continuously, only on a tap —
+  remains true of the built app, and the guard below is what keeps that
+  from being a claim about intent.
+- **Android.** ITMS-90683 is an Apple upload check; the manifest's
+  coarse/fine story (D9) is untouched.
+
+### The guard, and the two loose invariants it picked up
+
+`scripts/check-ios-location.mjs`, in ci.yml's lint job beside
+`check:ios-spm` and `check:ios-facebook` — client-only, off the deploy
+path. It asserts five things; only the first is what Apple asked for:
+
+1. Both purpose strings present and non-empty.
+2. The two strings identical, so the unreadable one cannot drift.
+3. `NSLocationDefaultAccuracyReduced` still true. **This had no guard.**
+   D9's precision cap — the load-bearing half of "never tick Precise" —
+   was held by a comment sitting next to it, and losing it would flip the
+   store label while every test stayed green.
+4. `UIBackgroundModes` does not contain `location`. This is the
+   behavioural half of the new key being harmless.
+5. The installed plugin still requests `.whenInUse`, and only that. A
+   plugin upgrade is the one realistic way an Always prompt could start
+   appearing, and on that day the string in the plist becomes a lie told
+   in a system dialog. Zero call sites fails too: "found nothing" must not
+   be how this passes.
+
+Each was verified by mutation — drift the string, delete the key, flip the
+accuracy flag, add the background mode, point the plugin at `.always`,
+rename its call — and each fails naming its own reason.
+
+### Known limits, recorded
+
+- **No local tool reports ITMS-\*.** This check asserts the shape Apple
+  asked for, not Apple's acceptance of it; the proof is the next upload's
+  mail, or its silence. The gap is structural — the analysis runs on
+  their side of the transfer.
+- **The guard reads installed plugin source**, so it needs `npm ci` (same
+  as `check:ios-facebook`, and the same reason: the version range in
+  `package.json` is not what Xcode compiles).
+- **Build 10 stands.** The mail is a warning on a successful delivery, not
+  a withdrawal; the TestFlight build is unaffected and the fix rides the
+  next one.
+## D108 · Two providers leave the bridge, and the mount suite stops being one file
+
+**Decided:** 2026-08-12 · **Status:** binding · Two independent findings
+from an audit of the tree, both of the same kind: a gate that had stopped
+measuring the thing its prose claimed.
+
+**Decision.** `duels-data.js` and `scenes.js` convert to named exports,
+taking D39's coupling ratchet **507 → 457**. `smoke.test.jsx` splits into
+five files over one harness (`test/mount-app.jsx`), removing a 90-second
+serial floor from `test:unit`. Nothing about either is new mechanism —
+both are procedures this repo has already run and written down.
+
+### CLAUDE.md said the cheap seam was exhausted; it was not
+
+"**Convert on touch.** The cheap seam is exhausted, so this is no longer
+a project." That sentence has been in CLAUDE.md since D39's follow-ups,
+and `src/v2/README.md` had already recorded it being wrong once —
+`test-definitions.js` and `passive-progress.js` were named as the two
+*not* to start with, on the grounds that they formed import cycles, and
+converting them produced the largest single drop the ratchet has seen
+(657 → 540) once someone checked the graph instead of re-reading the
+paragraph.
+
+It was wrong a second time, and the check that shows it is one the
+ratchet's own data already supports. Rule 4 reports per **consumer**,
+which is the right shape for a ratchet and the wrong shape for planning:
+it says `world-feed.jsx` holds 153 sites without saying whose. Rebuilt
+per **provider**, out of `spec-globals.mjs`'s `definedBy`/`referenced`
+maps:
+
+| provider | sites | consumers | outgoing coupling |
+| --- | ---: | ---: | ---: |
+| `data/live.ts` (`LIVE`) | 86 | 13 | — already ESM |
+| `spec/app-shell.jsx` (8 openers) | 49 | 15 | navigation bus |
+| `spec/duels-data.js` (`DUELS`) | 27 | 9 | **0** |
+| `spec/learn-progress.js` (`LEARN`) | 25 | 5 | 8 |
+| `spec/scenes.js` (`SCENES`) | 23 | 4 | **0** |
+
+The two zero-outgoing rows are single-writer, IIFE-wrapped pure
+providers that already import their own dependencies as ESM — the exact
+shape of `DAILYQ`, `FRIENDS` and `WF_CATALOGS`, down to the hoisted
+`export let` the wrapper forces. They are what "exhausted" was covering.
+Converted, they are worth 50 sites, which is 10% of the whole meter for
+two mechanical changes.
+
+**Add the provider view to the planning, not to the gate.** Rule 4 stays
+per-consumer; the finding is that anyone planning a conversion should
+transpose it first. `LEARN` is next by the same reading, and its 8
+outgoing references are not an obstacle: converting what a module
+*provides* is independent of what it *consumes* (the `DAILYQ` lesson).
+
+### The bridge was hiding React Compiler findings, and that is the real cost
+
+The conversion retired four `exhaustive-deps` suppressions for free — an
+imported binding is a stable dep where `window.DUELS` is an expression
+eslint cannot prove stable — and then surfaced **six `refs` findings that
+had never been reported at all**, in `DuoBody` and `GroupDailyBody`. The
+React Compiler cannot resolve a value arriving through global scope, so
+it had been bailing out of both components entirely.
+
+Verified rather than inferred, because the alternative reading is that
+this change introduced them: both files at the previous commit lint
+clean, and the only change to either is the import line. Probed by
+linting the pre-change copies.
+
+So the suppression count in `src/v2/README.md` goes **31 → 33**, and the
+increase is the honest direction. 31 was an understatement of the debt by
+however much the bridge was concealing, and **every remaining conversion
+should be expected to raise that number before it lowers it**. The six
+new ones carry targeted `eslint-disable-next-line react-hooks/refs` with
+the reasoning at the site, and the fix is named there: `const [order] =
+useState(() => …)` is the same once-only computation in the shape the
+Compiler accepts. Not taken here — a behaviour-adjacent edit to ported
+JSX does not belong inside a mechanical module conversion, and it wants
+a test that asserts the order really is frozen.
+
+### The guard shapes were a list again, exactly as recorded
+
+`follows.js`'s conversion left the rule "the guard shapes are a list, not
+a pattern: `(X || {})`, `X?.`, `X ? … : …`, `!X || …`, `X && …`, and
+`if (X) …`". Both conversions here hit five of the six, plus two the list
+does not name and should:
+
+- **A member-presence guard.** `SC.colorOf ? SC.colorOf(g.id) : null`
+  and `D.duoAvailable ? D.duoAvailable() : []` — six sites. These are not
+  guarding the module, they are guarding a member of an object literal
+  that always defines it, which is the same load-order fear one level
+  down.
+- **A fallback that duplicates the store's own default.**
+  `mirror-field-pops.jsx` seeded its scene set as
+  `window.SCENES ? SCENES.list() : D.groups.filter(g => g.joined)` — and
+  the else branch is precisely what `scenes.js` derives internally in a
+  demo build. In a LIVE build it was worse than dead: it would have
+  seeded the demo follows D96 exists to refuse, had the global ever been
+  unset when that component first rendered.
+
+### The mount suite was 98% of its own runner
+
+`test:unit` is 51 files. `smoke.test.jsx` was 32 cases in one of them,
+and vitest schedules a **file** to a worker — so it was a serial floor no
+amount of parallelism could lower: **90.2 s of a 92.2 s wall clock**, with
+the other fifty files finishing inside it. Split five ways along the
+`describe` seams it already had, with the setup moved to
+`test/mount-app.jsx` rather than copied.
+
+Two things the measurement did not buy, recorded because the obvious
+prediction was wrong in both places:
+
+- **Wall clock went 87 → 71 s, not to ~35 s.** With the single-file floor
+  gone it is the aggregate that binds on a 4-core runner (which is what
+  `ubuntu-latest` gives), not any one file. The floor itself is genuinely
+  gone — longest mount file 32.7 s, and the suite's longest file is now
+  `smoke-live.test.jsx` at 34.8 s, which was never the bottleneck.
+- **It does not unblock full-tree `test:coverage`.** Per-TEST durations
+  are unchanged (slowest 9.0 s before and after), and `vite.config.ts`
+  scopes coverage to `src/v2/data` because v8 instrumentation triples
+  mount cases against a 15 s per-test timeout. A file split cannot move a
+  per-test number. The claim that it would was made before it was
+  measured; this is the correction.
+
+**Cost accepted.** Five files each pay their own `spec-index` import
+(~14 s more total work than one file did), because vitest's module cache
+is per worker. Worth it to delete a 90 s serial floor; not worth it per
+case, which is why the harness header says to put a new case in the file
+that already loads its screen and add a file only when one crosses ~30 s.
+
+**What no gate covers.** Nothing stops the five files silently
+re-merging, or a sixth being added that duplicates a load for two cases.
+The number that would catch it — longest single test FILE — is not
+ratcheted, and is not worth a gate at this size; `check:figures` does not
+own these figures either. The README's table is the record.
+
+### Also found, not fixed
+
+The entry chunk came down 729 → 707 KB as a side effect: the removed
+global registrations and dead guards were shipping. Noted rather than
+credited to anything — `check:bundle`'s per-chunk headroom is 28 KB now
+where it was 6, which is slack that will get spent, and the ceiling is
+deliberately not being lowered to match inside a change that was not
+about the bundle.
+
+## D109 · LEARN leaves the bridge, and takes the load-order bug with it
+
+**Decided:** 2026-08-12 · **Status:** binding · Follow-on to D108, using
+the provider view that record added.
+
+**Decision.** `learn-progress.js` (`LEARN`) and `learn-data.js`
+(`LEARN_CARDS`, `LEARN_FIELDS`, `LEARN_SUBJECTS`, `LEARN_SPLIT`,
+`LEARN_SPLIT_SRC`) convert to named exports. Ratchet **457 → 426**, and
+the file count drops 44 → 43 — `learn-feed.js` is the fourth module in
+the layer with no cross-module global references at all.
+
+### The seam was two modules, not one, and only half of it was the ask
+
+`LEARN` alone was the item on D108's list: 25 sites, 5 consumers.
+Converting only that would have left the thing worth fixing in place.
+`learn-progress.js` opened with
+
+```js
+const CARDS = window.LEARN_CARDS || [];
+const FIELDS = window.LEARN_FIELDS || [];
+const SUBJECTS = window.LEARN_SUBJECTS || [];
+```
+
+at **module scope**. The entire Learn mode — the card bank, the map's
+knowledge branch, the feed's woven know cards — rested on
+`spec-index.js` listing `learn-data.js` (line 90) one line above
+`learn-progress.js` (line 91). Swap those two lines and `|| []` wins:
+zero cards, no error, no failing test, and a Learn tab that renders an
+empty room. Exactly the `map-branches.js` / `DAILYQ.EMERGENT_CATS`
+fragility D39's third conversion removed, and exactly what that record
+said to look for next.
+
+It is a module-graph guarantee now, and the guards went with it rather
+than being rewritten as `LEARN_CARDS || []`: an imported binding cannot
+be unset, and `learn-data.js` depends on nothing that could put it in
+TDZ.
+
+**The test harness is where the fix shows.** `learn-serve.test.js` had
+to import `learn-data.js` by name before `learn-progress.js`, because
+the ordering was the caller's problem. That line is deleted, and its
+absence is the win rather than a tidy-up — a step nobody can forget any
+more.
+
+### D108's prediction did not hold here, and that is worth recording
+
+D108 said "every remaining conversion should be expected to raise the
+suppression number before it lowers it", on the strength of the six
+`refs` findings the `DUELS` conversion surfaced once the React Compiler
+could resolve the store. This conversion surfaced **none**: the count
+sits at 33 across 14 files, unchanged, and no `exhaustive-deps`
+suppression was retired either. One `useEffect(() => { if (window.LEARN
+&& …) … }, [])` in `map-tab.jsx` became the clean shape and had carried
+no directive to begin with.
+
+So the D108 sentence is a thing to *check for*, not a rule. The
+Compiler's bail-out depends on what else the component does, not on the
+bridge alone.
+
+### Order of checks matters, and this run proves it
+
+Three separate gates each caught something the others could not, in this
+order:
+
+1. **`no-undef`** caught four files where the call sites were converted
+   and the `import` line was never added — `learn-feed.js`,
+   `learn-social.js`, `map-learn-card.jsx`, `map-tab.jsx`, sixteen
+   errors. This is the rule CLAUDE.md keeps ON for the spec layer
+   because two `ReferenceError`s shipped, and it is the first time it
+   has paid since.
+2. **`check:globals` rule 1** then caught a *dangling* `window.LEARN` at
+   `map-tab.jsx:34` — a site inside an effect that no call-site sweep
+   had touched, so `no-undef` saw a legitimate `window.` member access
+   and said nothing.
+3. **The mount suites** cover the rest: `map-tab.jsx` renders the Map on
+   the Mirror's default stop, so a broken import there is a boundary
+   trip in `smoke-nav.test.jsx`.
+
+Rule 1's find is the one to remember. A conversion sweep that renames
+`X.member` sites is blind to `window.X` sites that were never aliased,
+and the two shapes live in the same file.
+
+### The alias problem, and why `L` was not renamed everywhere
+
+D108 renamed `D` → `DUELS` at every site. That was safe because `D` was
+the DUELS alias in every file that used it. `L` is not: `world-feed.jsx`
+line 390 binds `const L = window.LIVE`, and `map-tab.jsx` line 797 has a
+bare `L` inside an SVG path template (`M x y L x y`). A blanket rename
+would have corrupted both.
+
+So the sites were partitioned by their owning declaration first — every
+`const L = …` in each file, tagged LEARN or LIVE, and only the LEARN
+regions rewritten. Worth doing again the same way: **check what else
+holds the alias before renaming it**, and prefer the partition to the
+regex.
+
+Two places keep a local alias rather than the full name:
+`learn-reserve.test.jsx` imports `{ LEARN as L }` because its two cases
+use `L` twenty times and the import line is the only thing that needed
+to change; and `map-tab.jsx` keeps a bare `{ … }` block where
+`if (window.LEARN)` used to be, with a comment saying so, because
+de-indenting 23 lines would bury the change in whitespace.
+
+### D108 amendment — the entry-chunk figure was not a win, and the gate says it was
+
+D108's closing paragraph read the entry chunk falling 729 → 707 KB as
+"the removed global registrations and dead guards were shipping". This
+conversion took it further, 707 → **685 KB**, and measuring the other
+number shows what actually happened:
+
+| tree | entry chunk | entry + every `modulepreload` | total JS |
+| --- | ---: | ---: | ---: |
+| before D108 | 728.5 KB | 1271.1 KB | 2118 KB |
+| after D109 | 685.2 KB | **1270.2 KB** | 2116 KB |
+
+The entry chunk is 43 KB lighter and **first paint is 0.9 KB lighter**.
+The bytes moved into sibling chunks that `index.html` preloads anyway —
+`duo-daily` 21.0 → 41.0 KB, `LiveTakesPanel` 11.4 → 33.7 KB — because a
+converted module gets its own chunk and the entry still statically
+imports it.
+
+Nothing is wrong with the conversions; the wrong thing is the reading.
+`check:bundle` holds a per-chunk ceiling and a total, and **neither is
+the eager graph**. A per-chunk ceiling is improved by relocating bytes
+into another preloaded chunk, and the total counts Sentry (435 KB), the
+world-feed group and the overlays, which first paint never fetches. So a
+change can bank a 43 KB "win" on the gated number while the number that
+decides cold-start parse cost does not move — which is exactly what just
+happened, twice, without either gate noticing.
+
+`src/v2/README.md` has recorded a special case of this since the
+`sample-data.js` conversion ("became its own chunk that first paint still
+preloads"), and the general form is now measured. The fix is one figure —
+sum the entry plus every `<link rel=modulepreload>` in `dist/index.html`,
+which the build already emits — and it is deliberately NOT taken inside
+this change: adding a third ceiling is a decision about what the app is
+allowed to weigh, not a side effect of moving two modules. Recorded with
+its arithmetic so the next bundle claim has to cite the right number.
+
+### What is left on the bridge here
+
+`learn-progress.js` keeps 4 outgoing references, all `window.LIVE`, and
+`learn-social.js` keeps 4 for the same reason. `LEARN_FEED`
+(`learn-feed.js`) and `LEARN_CARDS`' sibling display modules
+(`learn-bits.jsx`'s `LMStreak` / `LMFriends`, 10 sites) stay — neither
+is a load-order hazard and neither was the ask. `LIVE` remains the
+single largest provider on the meter at 86 sites across 13 files, and
+it is not mechanical: `smoke.test.jsx`'s successors express demo mode by
+deleting `window.LIVE`, which an imported binding cannot do. The
+replacement pattern is already in-tree (`vi.mock("../data/live")`, used
+by every `ui/*.test.tsx`), so that conversion is a test-architecture
+change with a known shape rather than an unknown one.
+
+## D110 · The bundle gets the number that decides first paint, and it immediately finds 327 KB
+
+**Decided:** 2026-08-12 · **Status:** binding · Follow-on to D109's
+amendment, which measured the hole this closes.
+
+**Decision.** `check:bundle` gains a third ceiling, `MAX_EAGER_KB` — the
+entry chunk plus every `<link rel=modulepreload>` in `dist/index.html`,
+which is exactly the set a cold start must fetch before it can paint. It
+found the Firestore SDK sitting in that set on every build, and
+`data/live.ts` and `data/voters.ts` now take the API through
+lib/firebase's existing lazy `impl()` promise instead of importing
+`firebase/*` statically. **Eager graph 1270.2 → 944.0 KB, −327 KB, −26%**,
+with the entry chunk unmoved and the total up 2 KB.
+
+### Why two ceilings were not enough, in one table
+
+Measured by making one group eager again and rebuilding, which is how the
+735 table was built:
+
+| eager again | entry | total | eager | 735 | 2140 | 955 |
+| --- | ---: | ---: | ---: | --- | --- | --- |
+| nothing (after this change) | 685.2 | 2118 | 944.0 | ok | ok | ok |
+| the world-feed group | 863.0 | 2117 | 1087.0 | RED | ok | RED |
+| Sentry | 685.2 | 2117 | 1394.0 | ok | ok | RED |
+| Firestore (the tree before this) | 685.2 | 2116 | 1270.2 | ok | ok | RED |
+
+The per-chunk ceiling is improved by relocating bytes into a chunk the
+entry still imports statically — preloaded, fetched, parsed, and worth
+zero. The total is the same error pointed the other way: it counts Sentry
+(~435 KB) and both deferred groups, which first paint never touches, so
+it cannot see the eager set move at all.
+
+**The feed row is in the table because it does NOT make the case**, and
+the first draft of that table claimed it did. Rolldown merges world-feed
+back into the entry, so 735 catches it first. Writing a predicted row
+down as a measurement is exactly the failure this repo keeps a probe-first
+rule for, and it happened here, in the comment block arguing for
+measurement.
+
+**The Firestore row is not hypothetical.** It is the tree as it stood for
+months, and both existing gates were green for all of it.
+
+### The 292 KB, and why `lib/firebase.ts`'s header was the actual defect
+
+That header ended "so signed-out/mock sessions never download it". It had
+stopped being true: `live.ts` imported `firebase/firestore` and
+`firebase/functions` statically, live.ts is eager, and the SDK was
+`modulepreload`ed even in a build with **no `VITE_FIREBASE_*` at all** —
+the exact case the sentence named. Verified by building with no Firebase
+env and grepping the preload list.
+
+The static imports were deliberate (D64-era): seven call sites had also
+`await import()`ed the same modules, which bought nothing, because a
+module statically imported anywhere in a file is already in that file's
+chunk. That reasoning was right; "so make them static everywhere" was the
+wrong end to fix it from, and nothing was measuring the consequence.
+
+### The 73 call sites did not change, and that is provable rather than lucky
+
+Every Firestore use in `live.ts` sits in a scope that holds a `db` —
+checked, all 73, including the eleven that take no `db` argument
+(`Timestamp.fromMillis`, `serverTimestamp`, `documentId`). A `db` can be
+obtained only from `getDb()`, which awaits lib/firebase's single memoised
+`impl()` promise, which IS the dynamic import of `firebaseImpl.ts`, which
+statically holds `firebase/firestore`. So binding the names off that same
+promise makes every site correct **by the provenance of the value it
+already uses**. There is no load order to audit and no site that could be
+missed — which is the only reason a 73-site change was worth attempting in
+this file.
+
+The mechanism is a local `getDb` in live.ts that shadows the import and
+assigns the bindings; the 25 `await getDb()` sites did not change either.
+`voters.ts` gets an explicit `await getFirestoreApi()` in each of its two
+async functions instead, because those take `db` as a PARAMETER — hanging
+it on "the caller already awaited" would be precisely the cross-module
+ordering assumption this change exists to delete.
+
+### `export * as fsApi` cost 50 KB, measured
+
+The first shape re-exported the namespaces: `export * as fsApi from
+"firebase/firestore"`. That is a use of every export, so rolldown could no
+longer shake the ~85% of the SDK this app never calls — total 2116 → 2166
+KB, over its ceiling, trading 50 KB of lazy weight for the 326 KB of eager
+weight the change was after. Explicit objects listing the 18 + 2 members
+keep both wins.
+
+**And they pin the surface**, which is a second guard for free: live.ts
+destructures the whole object in one statement, so a Firestore member
+added to the store without being added to `fsApi` fails at boot rather
+than at the call. Four test mocks had to grow to match — proof the pin
+binds, since a partial mock now throws at boot instead of at an unused
+call.
+
+### What this change does NOT buy, said plainly
+
+327 KB is bytes, not milliseconds, and the shipping target is a Capacitor
+shell serving local files — so there is no network fetch to save there,
+only parse and evaluate. In a live build `main.jsx` still awaits
+`initLive()`, which still needs Firestore, so the app does not reach
+content sooner; the parse moves off the critical entry graph and onto a
+promise the boot already awaits. **The unambiguous wins are the mock/dev
+and unconfigured-web builds, which now never load the SDK at all, and the
+ceiling itself** — 944 with 11 KB of headroom is a much harder thing to
+regress past than 1270 with nothing watching.
+
+### The ceiling comes down with the win
+
+955, not 1280. Same discipline as MAX_CHUNK_KB at 940 → 850: left at
+1280, the Firestore SDK could silently return to the eager graph and the
+script would print OK, which is how a ratchet becomes a decoration
+(check-bundle.mjs's own words, about itself).
+
+### Verified, and one release-path gate re-proved
+
+`check:web-firebase` greps the emitted JavaScript for the inlined config,
+and this change moved code between chunks — so it was re-run with a full
+fake production config rather than assumed: it concatenates every chunk in
+`dist/assets`, is layout-agnostic, and passes ("live config inlined into
+54 chunk(s)"). Worth checking rather than reasoning about, because its own
+header describes its failure mode as "silent in the worst way".
+
+### Deferred, recorded
+
+`data/circle.ts`, `logic-verify.ts`, `push.ts` and `deviceBind.ts` still
+import `firebase/*` statically. All four are already off the eager graph
+for other reasons — circle behind a dynamic import in live.ts and a
+`React.lazy` body, logic-verify inside `loadOverlays`'s chunk, the other
+two dynamically imported at their call sites — so converting them buys
+zero measured bytes today. The reason to do it anyway is that their
+laziness is incidental rather than stated, and `MAX_EAGER_KB` would catch
+it if that changed. Left as is: a conversion that moves no number is one
+whose only evidence would be the absence of a future regression.
+## D111 · Near and City are two stops again: presence is not a place
+
+**Decided:** 2026-08-12 · **Status:** binding · Owner's direction, verbatim
+in relevant part: "Near is not city that is people near, city is its own
+unique thing."
+
+**Decision.** The live Mirror ruler carries all seven stops. **Near** is
+the Right-now radius counter (D84) and nothing else — its body is
+`ui/NearLiveBody.tsx`, which owns the card that used to sit above the city
+rows. **City** returns as its own live stop: the viewer's city cohort
+(answers, lenses) plus the similarity constellation D112 adds. The three
+world zooms map one-to-one onto the cohort scopes; the `zoom === 'city' →
+country` resolution shim is gone with the gap it papered over.
+
+This partially reverses **D9**. What D9 got right survives untouched: the
+city is still the unit (picked from the catalogue or located on-device,
+coarse, name-only — the D9/D92 machinery moved to the City stop without a
+line of its logic changing), and the geohash Near stays dead. What D9 got
+wrong was the *fold*: "Near IS your city" put two different questions —
+"who is around me right now" (a phone's presence) and "how did my city
+answer" (a profile anchor) — behind one stop, which meant the scale lied
+about what it measured, and the prototype's most distinctive stop shipped
+dark in live mode. D9's own argument ("two stops onto one cohort is how a
+scale starts lying") now cuts the other way: they are two cohorts, so
+they get two stops.
+
+**What Near will never become.** A list. The presence cell is one of the
+three denies D98 kept — it records where a phone is standing, not what
+its owner answered — and the count is the only thing the server returns.
+D112's default-on posture is about answer- and score-derived surfaces;
+publishing presence would need its own explicitly recorded decision, and
+nothing in this one moves it.
+
+**Migration note.** A session that persisted `pop: 'near'` lands on the
+presence body with the city rows one stop to the right; a persisted
+`worldZoom: 'city'` is now simply valid. Neither state can render an
+unselected ruler, which is what the old shim existed to prevent.
+
+## D112 · The similarity surfaces: place score profiles, and kindred ranked by scores — live, exact, default-on
+
+**Decided:** 2026-08-12 · **Status:** binding · Owner's direction, verbatim
+in relevant parts: "the city country and persons in the city should be
+based on who is the closest to you primarily based on test scores … it
+should be like in the preview but with actual working data … the concept
+of kindred strangers should survive and everything that tries to limit or
+make it opt in is wrong … cities and countries needs profiles of what the
+averages scores are."
+
+**Decision.** The prototype's constellation fields ship live, computed
+instead of invented (`data/similarity.ts`, `ui/LiveSimilarityField.tsx`):
+
+- **City** — the people of your city arranged around you, ranked
+  **primarily by test scores**: everyone you share a completed instrument
+  with sorts first, by score match; answer agreement (D99's metric) is
+  the fallback basis, never a gate, and every row names which basis it
+  stands on. Frozen anchors decide city membership (D8 — the answer's
+  snapshot, never the live profile).
+- **Country** — your country's cities, each with a real score profile,
+  placed by its distance from yours. **World** — the same, per country.
+- **Place profiles** — a city's or country's average score per instrument
+  axis is a pure client fold over data that already publishes: the
+  bank's 110 core test items are ordinary `scale` questions whose
+  per-city/per-country option counts sit in `v2_question_aggs.by` (D98),
+  and the fold is the personal scorer's own arithmetic (mean of 0..4
+  agreement, inverts flipped, ×25) run over a cohort's counts. Nothing
+  new is written anywhere; a place has had a profile since its first
+  test answer, and this decision is the first reader.
+
+**The likeness metric, one sentence each — the same explainability bar
+`agreement` was chosen for (D99).** Person: one hundred minus the average
+gap between your axis scores and theirs, across every axis of the
+instruments you have both completed (a whole shared instrument minimum —
+five axes; one axis is a coin toss). Place: the same, across the axes the
+place has answers on, refused below **three** shared axes
+(`MIN_PLACE_AXES`) — a place with less is listed as thin, never
+positioned, because a position is a claim.
+
+**Default-on, and what that does and does not reopen.** The fields load
+with their stops — no opt-in, no tab to open first — because every datum
+they read is public under D98: answers, the anchors they carry, and
+`testResults`, which firestore.rules opened with the comment "the rest of
+testResults is now PUBLIC, which is the point: person-to-person Compare
+reads it." This decision is that sentence finally cashing: nothing read
+here was newly opened, and the demo field's "opt-in" caption dies with
+the demo field. The one deny in the neighbourhood — the presence cell —
+is out of scope (D111 records why).
+
+**The bill, measured the D102 way.**
+
+- *Place profiles:* ≤110 aggregate docs (`ceil(110/30)` = 4 batched `in`
+  queries), **once per session**, minus whatever the deck and archive
+  already cached. No per-render cost; the folds are client arithmetic.
+- *Kindred scores:* **zero additional reads.** The candidate pool is
+  D102's — voter lists for up to `KINDRED_QUESTIONS` (12) of your own
+  answers × `VOTER_FETCH_CAP` (200), recency-biased — and the web SDK
+  has no field mask, so every profile document `resolveNames` fetched
+  for a display name already carried `testResults` over the wire.
+  `resolveNames` now keeps what was paid for, into a sibling `scores`
+  cache with the same "" / null absence convention.
+- *Both loaders* are session-cached, in-flight-guarded, and reset on uid
+  change with everything else.
+
+**Bounds carried, not invented.** The pool is the D102 pool; widening it
+is paging from the cursor the ordering already provides (the D101 rule),
+not a quiet cap raise. `parseTestResults` reads the four core instruments
+only, defensively — the field is owner-written and shape-unvalidated, so
+values coerce, clamp to 0..100, and a hostile profile parses to null
+rather than to a position. Excluded with reasons: the **minor lenses**
+(device-local by D50/D91 posture — there is no stored result to compare;
+their per-place aggregates exist and can join a later decision), and
+**logic** (a verified score, D57 — a different claim than an axis
+profile, and its `testResults.logic` key stays server-owned).
+
+**Three honesty rules, inherited from D1 via D72's lesson.** No mist —
+the prototype's decorative background dots were unnamed fake people, so
+density here is real nodes or nothing. No invented headline — "12.6k in
+Oslo" has no honest single source, so counts stay attached to what they
+count. Thin is named — places and people below the axis minimums are
+listed with the reason, never silently dropped and never faked into
+position. The viewer with no scores still gets everything the data
+supports: profiles render (they are the product, likeness is the extra),
+people rank by agreement, and `myAxisScores` folds the viewer's own
+answers to test items so a finished instrument is not a paywall on
+having a position at all.
+
+**A third follow entry point.** The person card in the City field carries
+the same one-tap follow as the People lens, under D101's rule unchanged:
+a follow can start where a uid has become a person with a reading
+attached. That set is now three — the who-voted sheet, the Kindred rows,
+and the constellation's person card.
+
+**Known limits, recorded with their arithmetic.** (1) The kindred pool is
+recency-biased and bounded as above — at launch scale it is exhaustive;
+at 5,000 DAU it is "the latest 200 per question", and the panel copy says
+which. (2) A person's own *passive* feed answers still do not fold into
+their stored result (the pre-D112 gap in `passive-progress.js` — value
+recorded server-side, discarded client-side); the fields sidestep it by
+folding the viewer's answers directly, but the stored-result gap stands
+until someone closes it deliberately. (3) Place buckets inherit
+`BREAKDOWN_MAX_BUCKETS` (24) per question with eviction — the union
+across 110 items makes starvation unlikely, but a country's 25th city on
+every single item would not appear; if that is ever real, the fix is the
+fold's, not the trigger's.
+---
+
+## D113 · Two continuum forms in the feed, a lane that writes them, and the compare rose redrawn (a partial v20 sync)
+
+**Decided:** 2026-08-12 · **Status:** binding · (Authored as D105; renumbered
+in the merge — main had minted D105/D106 for the field-size and
+privacy-docs records. The D68 precedent.)
+
+`InSight_standalone_20.html` exists (maintainer-supplied; not committed —
+see "What v20 has that this tree still does not" for why). Against v18 it
+is a focused revision: four new modules, seven changed ones, everything
+else byte-identical. This record syncs **two** of its six changes, by the
+D43/D68 method (three-way: v18 as base, v20 as theirs, this tree as ours)
+scoped to the features taken. v18 remains the committed reference design —
+a partial sync must not move that pointer, or `scripts/style-diff.mjs` and
+the next full sync both aim at a file that only half-describes the tree.
+
+### 1 · The feed gains two continuum forms (`dial` / `field`)
+
+A `dial` answers with a value on a range (slider; reveal is the crowd as a
+smoothed 12-bucket curve, a dashed median, your dot on the curve). A
+`field` answers with a dot on a labelled 2-D plane (reveal is the crowd as
+a seeded cloud plus your ring). Both carry the full v20 grammar:
+breakdown sheets (per-group bars on the question's own range; group
+centres named on the plane), an insight line (the cut furthest from your
+answer, doubling as the door to the breakdown), thin-bar collapse states,
+"N answers" footers, and the hot sort pinning one continuum card near the
+top (held after answering so the card doesn't jump mid-read). Seven
+authored questions land in the demo pool (`dl1–dl4`, `fd1–fd3`).
+
+One deliberate divergence from v20's pixels: both new surfaces are
+pointer-only in the prototype, and this tree's a11y ratchet (which only
+moves down) refused them. The dial is now a real `role="slider"` — arrows
+nudge the pending value, Enter commits — and the field plane a keyboard
+target whose arrows walk a dashed pending ring, Enter dropping the dot
+where it stands. The D68 rule, applied again: the prototype wins on
+design, this repo wins on enforcement.
+
+**Demo-pool only, and that is a decision, not a gap.** The live loop
+stores an `optionIdx` against an options array and renders every live card
+through the options path (data/live.ts); a continuum entry in the live
+bank today would serve as a wrong-shaped vote card — D12's sin with a
+slider on it. So the forms live where `rate`, `pick` and `know` live: real
+in the demo feed, absent from the live pool, invisible in a live build
+(buildFeedGlobals replaces the demo pool wholesale). The live path is
+recorded, not vague: a dial's 12 buckets are sized to the fold's existing
+optionIdx ceiling (12 ≤ 20, functions/src/v2.ts drops idx > 19), so a
+future promotion buckets answers 1:1 under the EXISTING rules, trigger,
+ledger and by-cells — zero backend schema change — and needs (a) bank
+transport of `lo/hi/unit/ends` through gen-v2content → seed → deck, (b)
+`buildFeedGlobals` passing the type through instead of hardcoding "vote",
+(c) live adapters in the renderer (counts→dist, weighted median, bucket
+midpoint for a reloaded standing answer), and (d) a field grid of ≤ 20
+cells if fields promote too. That work reverses the "every live card
+renders through the options path" deferral and gets its own record when
+taken.
+
+### 2 · The bot's feed lane learns the forms
+
+"The bot" here is the D97 production machinery, and the changes follow its
+own shape rather than inventing a new one:
+
+- **The gate knew no feed types at all** — `OPTION_SHAPES` closed the
+  daily list while a novel feed type passed `check:quality` silently.
+  `FEED_TYPES` (vote·rank·duel·dial·field) closes the feed list, and
+  per-type validators hold the continuum shapes: `lo < hi`, `med` inside
+  the range, `dist` exactly `DIAL_BUCKETS` (12) non-negative buckets with
+  a live mode, a unit or end labels (something has to say what the scale
+  measures), axes as two option-bounded labels each, clouds as 1–4
+  `[x, y, count, spread]` clusters totalling 8–60 dots. The crowd texture
+  is authored, so the gate holds it to the same bar as the copy.
+- **The gate walks what the lane writes.** The demo pool's continuum
+  entries are lane-authored production copy, so `loadCorpus` extracts
+  them from `world-feed-data.js` exactly as it already extracts
+  `pick-data.js` — and only them: the rest of the demo pool is prototype
+  filler that production bounds were never written for.
+- **Pre-flight reaches the new fields**: `--type dial|field` with
+  `--lo/--hi/--unit/--med/--dist/--ends/--ax/--ay/--n` flags; a field's
+  cloud has no flag syntax worth inventing, so fields pre-flight via
+  `--batch` with the full objects (candidateOf passes the continuum
+  fields through verbatim).
+- **The manual moved with the gate** (QUESTION-FARM.md § The feed lane +
+  § Continuum questions): the vote-only rule became three-forms-two-
+  destinations, with the shape contract, the style bar (a dial wants a
+  range everyone holds a number on; a field wants two judgments
+  independent enough to disagree, with all four corners inhabitable),
+  the `dlN`/`fdN` id series, channel guidance (always-on `bigq`/`dilemma`
+  unless truly subject-bound), the no-provenance-until-promotion rule,
+  and scarcity guidance (inside the ≤6/run budget; the hot pin means a
+  glut buys nothing). The canonical Routine prompt is the daily lane's
+  and is untouched.
+
+### 3 · The compare rose is redrawn (v20, verbatim)
+
+The old language — petal solid as far as you both reach, pale for the
+distance — was symmetric on purpose, and that symmetry was the complaint:
+your own shape disappeared into the comparison, and sitting below the
+average rendered as a washed-out ghost. v20's answer, taken whole: your
+petal is always solid to YOUR score (the exact shape of your results
+rose), the other side is a washed dot pinned per slice (the pole rows' dot
+language lifted into the rose), and only where they reach past you does
+the span get the faintest wash. Dot on the rim = matched. New aria-label
+to match. One divergence class survives, deliberately: the D103 cognitive
+retirement (this tree's CB_EXTRA_CFG seam stays gone; the dot language
+lands on the four remaining assessments).
+
+### What v20 has that this tree still does not
+
+Recorded so the next sync starts from a list instead of a re-diff:
+**Predictions** (predict-data.js, predict-cards.jsx: CALL/READ cards on a
+ten-second clock, a new feed channel), **Foresight** (map-fore-card.jsx,
+`g-fore` map branch, PREDICT map wiring), **Born or built**
+(nature-data.js heritability table + result-card section — note its
+`cognitive` entry collides with D103 and must be dropped or re-recorded
+when taken), and the **shell groundwork** (generalized navKey/data-view,
+`.tabbar[data-n="5"]` CSS). The v18→v20 CSS delta is otherwise font-URL
+re-keying — noise, not style.
+
+### What proves it
+
+`check:quality` walks 256 questions (249 + 7 continuum) and holds; the
+new validators are pinned in question-quality.test.mjs (21 cases, 7 new),
+including the closed-list rule that would have let a novel feed type pass
+silently, and the tripwire sweep over axis end labels. The client gates —
+test:unit, lint (`no-undef` on for the spec layer), `tsc -b`,
+check:globals (coupling unchanged: every new cross-module read in the
+ported code resolves through names world-feed.jsx already read — WPAL,
+HAPTIC, wfSave, wfHash, VOTECUTS), check:figures — all green at this
+commit.
+
+---
+
+## D114 · The continuum forms go live: bucketed answers under the existing fold
+
+**Decided:** 2026-08-12 · **Status:** binding · Supersedes the demo-pool
+deferral in D113 §1 (everything else in D113 stands).
+
+D113 shipped `dial`/`field` demo-only because a live continuum entry
+would have served as a wrong-shaped vote card. This record reverses the
+relevant half of the standing "every live card renders through the
+options path" deferral (data/live.ts, D12's arithmetic) — for these two
+types only, and by making the options path carry them honestly rather
+than by building a second path.
+
+### The design: an answer is a position in a frozen grid
+
+A live continuum answer is an ordinary `optionIdx`. The bank doc's
+options are **synthesized** labels — 12 range buckets for a dial
+("60–64 yrs"), a 4×3 cell grid for a field ("lean tastes good ·
+middle") — generated at `build:content` from `lo/hi/unit` (or `ax/ay`),
+never authored (`scripts/gen-v2content.mjs`). The arithmetic that sizes
+them: the fold drops `optionIdx > 19` (functions/src/v2.ts), and the
+by-cell document budget was priced at "6 dims × 24 buckets × up to 20
+options" (functions/src/pure.ts) — 12 sits under both with room, and a
+4×3 plane is the coarsest grid whose centroids still read as positions.
+What this buys: the rules' create/edit arms, the trigger, the ledger,
+the by-cells, the D86 cooldown and the voters panel all carry continuum
+answers **unchanged** — zero rules edits, zero fold edits, and the
+voters panel prints a meaningful label ("picked 60–64 yrs") for free.
+
+Because the labels derive from the range, the D52 option freeze freezes
+the range with them: a changed `lo` regenerates different labels and the
+seed refuses it as an option edit (pinned in seed.test.ts). That is
+correct, not incidental — every stored answer is a position on the old
+range. `ends` (display-only) stays rewritable; `lo/hi/unit/ax/ay` are
+ship-once. SEEDED_FIELDS carries the new fields so absent-vs-set
+compares stay exact; emit-when-set keeps the other ~493 docs untouched.
+
+### The client: raw local, bucket public
+
+`buildFeedGlobals` passes the continuum type and range copy through
+(everything else still flattens to "vote" — that deferral stands for
+rank/scale). The card quantizes on answer (`dialBucket`/`fieldCell`,
+mirroring the gen constants), writes `LIVE.vote(qid, String(idx))`, and
+keeps the RAW value in WF_LS for display; a device with no raw value
+shows the server bucket's midpoint, because quantized is what the world
+stored. A repeat answer from such a device routes through the D86 edit
+with the same cooldown-refusal snap-back setVote uses. The reveal
+derives everything from the bucket counts: `dist` = per-option counts
+plus the viewer's own bucket back (wfPcts's convention), the "most say"
+line = the distribution's midpoint value — derived client-side like
+every other average in this app, because the agg stores a histogram and
+never a sum. The live cloud is the cell counts drawn as ≤60 jittered
+dots — a sketch of a crowd, deterministic per render.
+
+### Real cohorts replace the texture, live
+
+The breakdown sheets and the insight line read `agg.by` on live cards:
+a group's row is its actual average position (histogram at bucket
+midpoints), a field group's dot its actual centre of mass, both under
+the same "counts move in steps of five" note the vote breakdown
+carries. The insight line stays silent below three answers in a cohort
+or a gap under 5% of the range — a lean needs more than one person's
+dot. Demo cards keep their authored texture, and the two never mix:
+`check:quality` now runs texture rules on the demo pool's entries and
+REFUSES texture fields on content entries (an authored crowd in the
+live bank would be the demoInProd lie, committed), with the lane
+contract rewritten to author both halves in one PR
+(QUESTION-FARM.md § Continuum questions).
+
+### What moved, mechanically
+
+The seven D113 questions promoted into `content/feed-questions.json`
+with provenance rows (`editorial` / batch `v20`); the bank regenerates
+at 500 docs (was 493 — five prose figures updated where `check:figures`
+pointed). `check:content` verifies synthesized labels match their range
+exactly and bounds field axis ends at 14 chars (they compose into cell
+labels); `check:neighbors`' feed domain spans both destinations,
+deduped by id (same id = same question, not a dupe). deck.ts serves
+dial/field through the existing feed filter (12 options pass
+`playable`; the rank exclusion never applied). The bundle's total
+ceiling moved 2140 → 2170 for the feature's 24 KB — the fourth raise,
+measured against main at the D112 merge (2136, 4 KB under before this
+branch added a byte); all of it lazy weight in the deferred world-feed
+chunk, the eager graph unmoved. The arithmetic and the standing
+trim candidates are in scripts/check-bundle.mjs, where that history
+lives.
+
+### Not done, deliberately
+
+The scorecard's `splitQualityOf` still reads a dial as categorical
+evenness — wrong metric, harmless until continuum questions have enough
+live answers to score, and its ordinal treatment belongs with the
+scorecard work. The Mirror is untouched (feed answers were never in the
+daily record). No in-card re-answer affordance on continuum cards (the
+options-shaped Change button is excluded by name); the D86 edit path
+exists and is exercised only by the fresh-device repeat case.
+
+### What proves it
+
+197 functions tests (including the new range-freeze refusal), 766+
+client tests with the buildFeedGlobals passthrough pin (a dial keeps
+its type, lo/hi/unit and 12 options where every other card flattens to
+"vote"), 120 script tests across the texture split, the closed feed
+type list and both walks; check:globals coupling held at its baseline
+(the new live reads go through the imported LIVE binding — "new ones
+may not join them", and none did); check:a11y at baseline;
+check:content at 500; check:figures green after the five prose updates.
+## D115 · The learn lane can produce again, and the bank stops testing reading position
+
+**Decided:** 2026-08-12 · **Status:** binding · Amends D32 (the
+learn-card lane) and extends D63 / D97 (the dedup and quality gates) to
+the learn surface.
+
+**Decision.** Four changes to the learn surface, one of them a live
+defect fix: option order is permuted at render (`LEARN_ORDER`), the lane
+gets a computed budget (`scripts/learn-budget.mjs`, `npm run
+learn:budget`) replacing D32's flat "≤8 cards/run, thinnest fields
+first", `check:quality` gains a learn surface and `check:neighbors` a
+learn domain. The bank goes 96 → 106 cards under the new budget.
+
+### The defect: the answer was option 0 on all 96 cards
+
+Measured, not suspected: `c` is 0 on every card in the shipped bank and
+`t` is 1 on 79 of them, and nothing shuffled — `renderKnow` mapped
+`card.a` straight down the screen and `setKnow(q, i)` passed the render
+index to `LEARN.answer`. Tapping the first option scored 100%.
+
+The cost is not only that Learn was free. D32's promise is that the
+reveal's split IS the crowd's real first-attempt rate once the aggregate
+lands, and a crowd tapping a free win measures nothing — the scorecard's
+calibration section would have read every card as wildly
+under-estimated and aimed the lane at the wrong fix, which is the class
+of error that survives because the numbers look like data.
+
+**Fixed at render, not in the data, and that is the whole design.**
+Answers are stored as (qid, optionIdx) forever; re-authoring `c` across
+96 cards would re-key every answer already given and every aggregate
+cell built from them — the D30 re-key failure class, ninety-six times.
+`LEARN_ORDER(card)` returns a display permutation and `renderKnow` hands
+`setKnow` the AUTHORED index, so the stored key space is untouched.
+
+Deterministic from the card id (LEARN_SPLIT's own idiom, result-card's
+reasoning): a re-served card does not rearrange itself under a
+returning reader. The first draft stepped an LCG and drew `h % (i + 1)`,
+which put the correct answer in slot 0 **zero** times out of 96 — an
+LCG modulo 2^32 has period 2 in its lowest bit, so the last swap fired
+on every card. That is the same exploitable tell inverted, and it is
+recorded here because it was found by measuring the output rather than
+by reading the code. xorshift32 with a high-bit draw and an avalanched
+seed measures 25.0 / 25.2 / 24.9 / 24.8 over 20k ids.
+
+### The lane could not produce, and the rule is why
+
+D32 reads "≤8 cards/run, thinnest fields first (a field below 8 cards
+cannot sustain the scheduler's spacing)". Every one of the twelve fields
+holds exactly 8. No field is ever thin, so every run is a
+correctly-reasoned no-op — and no Routine fires the lane, so the rule
+was never tested against a firing. A selection rule that can only return
+the empty set is a stopped lane, not a cautious one.
+
+`learnBudget` regulates against what actually bounds this lane, which is
+not what bounds the daily one. There is no promotion pen here: the merge
+IS production. So the two bounds are field depth (a field's cards are
+consumed as `fresh` exactly once each, so depth is runway) and review
+capacity. `FIELD_TARGET` = 24 comes from arithmetic the script prints:
+at 8 cards a field, three followed fields give 24 fresh cards, which at
+learn-feed's default rate is **about eight days**, and under four at
+`lots`. At 24 a field that becomes about a month. `RUN_CAP` = 10 with
+`OPEN_MAX` = 10 — equal, unlike the daily lane's 8/12, because with a
+single gate the lane carries one unreviewed batch at a time and the
+open count is subtracted from the budget rather than only compared
+against a ceiling.
+
+Twelve fields at 24 is 288 learn cards and a seeded bank of ~685
+against check:quality's BANK_WARN of 1200 — checked before the target
+was set, so the lane's destination does not spend headroom another lane
+needs.
+
+### The gates the single-gate lane did not have
+
+Learn passed one structural gate (`check:content`: four options, c/t in
+range, c≠t, p in 1..99, k 2..6 words) and nothing else. The lane with
+the highest bar — no second gate behind the PR — had the least
+mechanical support, so every remaining rule was spent out of a
+reviewer's attention.
+
+`check:quality` gains the surface: duplicate and filler options, the
+length tell (the correct answer no wider than 3.0× its longest
+distractor; corpus max is 2.29×, which is "The Soviet Union" beside
+"The USA" and is why the gate is not tighter), `w` at most 24 words, `k`
+not a question and not a restatement of the prompt, and two rules that
+read the level engine rather than taste — `p` must fall inside
+learn-progress's own LMIN..LMAX clamp (cross-read, so the two cannot
+drift), and a field's `p` must span ≥ 20 points, because a field at one
+difficulty cannot answer "on your level" for anybody. Learn cards can
+also be pre-flighted in their native shape, so the JSON checked is the
+JSON shipped.
+
+**Hard rule 6 is scoped OUT of learn, which is a decision rather than a
+waiver.** The rule's own test is whether the answer split is mainly
+interesting to the place rather than the person, and a card with a
+correct answer has no such split to sell. Measured first: the tripwire
+fired on anc3 ("The first known written law code comes from…"), 14 of 96
+cards name a watched place, and history and geography are 4 of the 12
+fields — so the false positives grow with the bank, and a gate that
+cries wolf on real content is one whose waivers stop being read.
+
+`check:neighbors` gains learn as a gated domain, reversing that header's
+"learn cards are out (v1)". That reasoning was right about the
+measurement and wrong about the conclusion. Scored like every other
+domain the bank's closest pair is 0.444 — two genuinely different planet
+questions colliding on the distractors a field shares by construction —
+which leaves no honest room under GATE. But a duplicate learn card is
+two cards teaching the same FACT, and a fact is a prompt plus its
+answer: scored that way the closest pair is 0.333, the same wide gap the
+other four domains sit in.
+
+### Deferred, recorded
+
+**No Routine.** The lane still runs when the maintainer asks a dev
+session. Adding one is an owner step, and the budget now makes it a safe
+one — a firing against a full bank grants zero and logs why. Until then
+production is bounded by how often the lane is asked, which is the
+honest remaining limit on "more learn questions".
+
+**The scorecard's learn advisories stay advisory.** `miscalibrated` and
+`weakTraps` are computed and cited, never applied; editing a shipped
+card is still a human PR. Note that both were reading a bank where the
+answer was always option 0, so the first post-fix scorecard is the first
+one whose calibration numbers mean anything — treat everything before it
+as void rather than as a baseline.
+
+**The 96 pre-existing cards keep `c: 0`.** The permutation makes it
+harmless and re-authoring would re-key. The ten new cards vary `c`
+deliberately: if the permutation is ever removed, a bank with varied
+authored indices degrades instead of collapsing.
+
+## D116 · The store listing was still selling the retired privacy model, and the closed vocabulary becomes a gate
+
+**Decided:** 2026-08-12 · **Status:** binding · Completes D106, whose
+sweep did not reach the two surfaces below.
+
+**Decision.** `design/store/listing.json` and the in-app privacy panel
+are rewritten to state the post-D98 model, and the retired model's
+vocabulary becomes a check — `npm run check:public-copy`, on `ci.yml`
+and on the **iOS release** pre-flight.
+
+### What was found, preparing a release
+
+Both store descriptions — Apple's and Play's, the same paragraph twice —
+still read:
+
+> • Your answers are owner-only. The database rules enforce it — it isn't
+> a policy you have to take on faith.
+> • Crowd numbers are floored. A split stays hidden until enough people
+> have answered that no count can be traced back to one person.
+
+under a header saying **BUILT SO THE PRIVACY CLAIMS ARE TRUE**, plus
+"nothing is shown until enough people have answered for the number to
+mean something" in the daily section. Every one of those was made false
+by D98 on 2026-08-11.
+
+This copy is not a draft. It was **pushed to App Store Connect on
+2026-08-08** (LAUNCH-RUNBOOK 4.3) and is what the listing serves today,
+which makes it the widest-audience copy the project has and the only
+stale surface that a store reviewer reads *before* the app. It also
+contradicts the app's own privacy nutrition label, which correctly
+declares answers as published user content — a listing arguing against
+its own label is a worse problem than either half alone.
+
+Two smaller staleness bugs rode along in the same paragraphs: the Map
+section advertised **"Five profiles — personality, politics, values,
+social style, thinking"** after D103 retired the Thinking test (the app
+titles that sheet "Your four profiles" off `PASSIVE.KEYS.length`), and
+the privacy bullets never mentioned takes at all.
+
+### The one that is worse, because D106 wrote it
+
+`LivePrivacyPanel.tsx` — the panel whose entire job is making what the
+app SAYS match what `firestore.rules` DOES — came out of D106's own
+rewrite claiming:
+
+> Strangers' takes appear under world questions, **always without a
+> name**.
+
+`LiveTakesPanel` heads its world composer **"Takes · posted under your
+name"** and resolves every author through `LIVE.nameFor`, asserted by
+`LiveTakesPanel.test.tsx` ("world takes are named (D98)"). So the commit
+that existed to delete false privacy claims shipped a new one, and of the
+worse kind: the first version of that line understated the app (claiming
+a feature was absent), the replacement **overstated a protection**. A
+user reading it would post a take believing it anonymous.
+
+That is the asymmetry D106 itself named, landing inside D106.
+
+**And it was not one line, which is the part worth keeping.** The gate was
+written from the panel's wording, then run across the tree — and found the
+same claim twice more in `web/privacy.html`, the page D106 rewrote most
+carefully, phrased differently both times:
+
+> **Anything you write.** … posted to the world it is published to
+> everyone *with no name attached*, one per person per question.
+
+> **Your world takes:** everyone, with no name attached.
+
+Three copies of one false anonymity claim, in the two documents D106
+named as its widest-audience surfaces, surviving the sweep that existed
+to remove exactly this. None of the three would have been found by
+looking for the panel's phrasing, and the first draft of the takes
+pattern matched only that phrasing. The pattern now carries three
+spellings and a comment saying to grep the *claim* rather than the
+string — a vocabulary gate is only as wide as the phrasings someone
+thought of, which is its real limit and is recorded rather than papered
+over.
+
+### Why a gate now, when D106 declined to build one
+
+D106's refusal was right and is not reversed: *"the prose agrees with the
+rules" is not a static property, and inventing one here would be a worse
+error than the one it chased.* `check:public-copy` does not attempt it —
+it reads no rules and reasons about no behaviour.
+
+What it uses is the fact D106 did not exploit: the retired model has a
+**closed vocabulary**. Owner-only answers, k-anonymity, a floor, a
+withheld count, a nameless take — a fixed word list, false in every
+present-tense sentence, permanently. Checking a word list against an
+enumerated file list is a name-level check, the same class as
+`check:globals` and `check:store-copy`, and it is buildable exactly where
+the general form is not.
+
+D106's chosen remedy was a discipline instead — *"a decision that changes
+who may read something names the user-facing pages in its own
+checklist"* — and the discipline failed on its first outing in both
+available ways: it **forgot a surface** (`listing.json` was never
+enumerated) and it **mis-rewrote one it remembered** (the takes bullet).
+A discipline cannot catch the file it did not list. The file list is the
+remedy, which is why the enumeration at the top of the script is the
+part to edit when a user-facing page is added.
+
+### What it deliberately does not do
+
+- **Source comments are not scanned.** The tree still carries many stale
+  `k-floored` comments in `src/v2/spec/` and `src/v2/data/`. They are
+  debt, not a claim to anyone, and scanning them would bury the signal.
+  Sweeping them is a separate job and is **not** done here.
+- **Past-tense history stays legal**, and the patterns are written for
+  it: every one is anchored on *is/are* rather than on the nouns, so
+  `web/privacy.html`'s two deliberate paragraphs ("This page promised the
+  opposite until 2026-08-11", "There used to be a threshold here") pass
+  untouched. D106's rule that a reversal must be visible is load-bearing;
+  a gate that punished it would delete the record instead.
+
+### Measured, not assumed
+
+Run against the pre-fix tree it reports **eleven** findings — four in each
+store description, two in `web/privacy.html`, one in the panel — and
+against the fixed tree it is silent. That was checked by restoring the
+old files from git and running it, not by reading the regexes.
+
+`scripts/check-public-copy.test.mjs` keeps both halves true after today:
+seven verbatim regression cases taken from the copy that was actually
+live, the two past-tense history paragraphs asserted to **pass**, the two
+legitimate uses of "anonymous" in the panel asserted to pass, and the
+patterns pinned as case-insensitive and non-global (a `/g` regex on a
+shared object carries `lastIndex` between calls, so the same string would
+match, then not match). The panel's two claims are additionally pinned in
+`LivePrivacyPanel.test.tsx`, which fails on the old sentence.
+
+**A hosting redeploy is owed for the privacy-policy half**, on the same
+footing as the store re-push below: `web/` is served by Firebase Hosting,
+so the corrected page is not the one a user or a reviewer reads until the
+deploy runs. LAUNCH-RUNBOOK 0.2/0.3/2.7 already owed one; this is a
+fourth reason and the first that is a correction rather than a fill-in.
+
+### The owner step this creates
+
+The corrected description **is not live until it is pushed**: Actions →
+**App Store metadata**, *apply*. Nothing in the repo can see App Store
+Connect's copy (D74/D75 established the same for the age rating), so a
+green tree here does not mean a corrected listing. LAUNCH-RUNBOOK 4.3
+carries the step.
+
+## D117 · Two access controls are loosened to ship build 11, and the only thing holding their reversal is a checkbox
+
+**Decided:** 2026-08-12 · **Status:** binding · **Temporary by
+construction** — amends D87 (the `production` protection rules) for the
+duration of the build-11 release. Owner's call, taken twice in one
+session, each time to unblock a step that was actually blocked.
+
+**Decision.** Two controls are off:
+
+1. **`production` → Required reviewers**, removed so five stranded
+   deploys could land (see below).
+2. **The GitHub App's `Actions` permission**, raised from `Read` to
+   `Read and write`, so the release dispatches could be run by an agent
+   rather than by hand.
+
+Both are recorded here and as **LAUNCH-RUNBOOK 5.8**, because neither is
+visible to anything else in this tree.
+
+### What each one bought, and what it cost
+
+**The reviewer gate** was blocking more than it was protecting. Five
+deploys had queued behind a run that sat unapproved from 13:02Z: D103's
+bank, D106's privacy-policy rewrite, D113/D114's continuum server half,
+D115's learn lane and D116's copy fix. Because `firebase-deploy` sets
+`cancel-in-progress: false`, the waiting run held the concurrency group
+and GitHub cancelled the three behind it as newer ones queued. Production
+therefore sat at `3152908` for nine hours while `main` moved five commits
+past it, and the **live privacy policy was still the pre-D98 page** —
+promising owner-only answers to anyone who read it.
+
+Removing the rule resolved the stale run to `failure` rather than
+deploying it, which was the good outcome: the tip deployed instead of a
+four-commit-old commit. Run 66 then went green end to end, hosting
+included, and the chained seed wrote 67 / skipped 443 — production's bank
+at 510, matching the repo.
+
+**The `Actions: write` grant** removes four clicks per dispatch. What it
+also removes is the property that an agent cannot start **iOS release**
+with `upload` ticked — a run that spends a build number and reaches
+TestFlight irreversibly. That is a real widening and is why it is written
+down rather than left as a setting nobody remembers changing.
+
+### The asymmetry that makes this a decision and not a note
+
+D87's reasoning is unchanged and is not being reversed: the deploy and the
+seed both draw the service-account key from the `production` environment,
+so with the gate off, **any** merge touching `functions/**` or
+`firestore.rules` deploys unattended. That is exactly the state D87 was
+written to end.
+
+What today showed is that D87 was half-built. A gate nobody is notified
+about is not a gate, it is a queue — and the failure mode is not "a bad
+deploy is caught", it is "no deploy happens for nine hours and the thing
+it was protecting goes stale on the open web". The right end state is the
+gate back **on** plus something that says when it fires; the wrong lesson
+is that the gate was the problem.
+
+**No notification mechanism is built here**, deliberately — this session
+was a release, not an infrastructure change, and inventing one under time
+pressure is how the next surprise gets built. Recorded as the open half.
+
+### Why a checkbox is the whole mechanism, and that is not satisfying
+
+`check:appcheck` can read a callable. `check:deploy-targets` can read a
+workflow. **Neither GitHub App permissions nor environment protection
+rules are in this repository at all**, so no check, test or workflow can
+observe either setting. There is no gate to write. LAUNCH-RUNBOOK 5.8 and
+this record are the mechanism, which is the same shape as D87's own
+admission that nothing in CI checks those rules.
+
+That is worth stating plainly rather than dressing up: **two access
+controls are open, and the only thing that will close them is somebody
+reading a checkbox.**
+
+## D118 · Two gestures reported from a phone: a dial that stole the tab, and a Near that counted forever
+
+**Decided:** 2026-08-12 · **Status:** binding. Two defects, no shared
+code, one shared shape: both were states the tree could reach and had no
+words for, and both were invisible to every gate because every gate was
+name-level.
+
+### 1. The dial answered the page, not the question
+
+`world-feed.jsx`'s continuum control (`role="slider"`) carried
+`touchAction: 'none'` and pointer capture, which is the complete recipe
+for a drag surface **as far as the browser is concerned** — and none of
+it stops touch events from reaching `daily-split.jsx`'s mode-swipe
+listener on the scroller above. So dragging a dial slid the mode axis
+under it, and because `commit()` continues past 1v1 into the Mirror, a
+long drag left the tab.
+
+This is the same defect as the three 2026-08 iPhone bugs (`swipe-back.js`
+header) and the fix is the same one: `data-nopan`, which `OWNS_X` already
+matches. `touch-action` was never the mechanism — `OWNS_X` is.
+
+**Why it survived.** `swipe-back.test.js` proves the mechanism and
+`smoke-nav.test.jsx` proved the wiring for the ruler and the Map canvas,
+by name. A control that was never in either list is not covered by
+either. The new case is written over **every** `role="slider"` the mount
+finds rather than over the dial's id, so the next drag-to-answer control
+inherits the guard instead of needing to be remembered. Measured: it
+fails on the pre-fix tree naming the offending dial, and passes after.
+
+### 2. "Counting…" was the only word Near had for failure
+
+Reported as *Near seems to never connect*. `LIVE.near.lastError()` was
+set on every failed beat and read by **nothing in the tree** — its only
+consumer was the mock in `NearLiveBody.test.tsx`. So one failed beat
+(an indoor fix that timed out, a revoked permission, a callable that
+threw) left the card on "Counting…" for the rest of the session, with the
+next attempt four minutes away and no way to ask for one.
+
+Four changes, three of them about honesty and one about the cause:
+
+- **`enable()` takes one location fix, not two.** It resolved a cell to
+  decide whether the opt-in could succeed, dropped it, and let the first
+  beat ask the OS again a tick later. On a phone that second request is a
+  second chance to time out — and when it did, the switch was already ON
+  with no count behind it. That is the reported symptom, reachable with
+  nothing else broken. `presenceBeat(cell?)` now accepts the fix in hand.
+- **`enable()` waits for that beat.** The tap already spins through the
+  location fix; carrying it through the count is what makes the switch
+  and the number appear together. It still returns `{ok:true}` when the
+  beat fails — the opt-in succeeded and presence *is* being shared, so
+  reverting the switch would misdescribe what the phone is doing.
+- **`lastError` clears when a count arrives, not when the fix does.** It
+  was cleared immediately after `locateCell()` — before the write and the
+  callable, the two steps most likely to fail — so a beat that failed at
+  the network reported healthy on the way in and errored on the way out.
+- **The card reads it.** A failed beat now shows the reason and a
+  **Try again**; a count already on screen is kept and *dated*
+  ("Showing the count from 9 min ago") rather than blanked or passed off
+  as current. `refresh()` became awaitable, and a beat already in flight
+  is returned rather than an instantly-resolved promise, so the button
+  stops when there is an answer instead of one tick after the tap.
+
+**Why it survived.** `LIVE.near`'s members were pinned by name
+(`vote.test.ts`), the card was tested against hand-set states, and
+**nothing ever ran a beat**. `near-presence.test.ts` is the missing
+layer: it boots the store against narrow mocks and drives
+enable/refresh/disable. All seven cases fail on the pre-fix tree.
+
+### The thing both halves have in common
+
+Every guard that could have caught either one was name-level, and both
+defects are about a name that EXISTS being unused or a listener that
+exists being fed. That is the same lesson `check:globals` rule 3 and the
+mount suites were written for, one layer further in: a member with no
+consumer is not a stable API, it is a dead branch, and the way to find
+out which is to execute it.
+
+**Not done here, deliberately.** The presence loop's four-minute retry is
+unchanged — a failed beat still waits the full interval unless the user
+taps Try again. A backoff-and-retry ladder is the right eventual answer
+and is a behaviour change to a loop that writes to Firestore on every
+tick; it is not something to bolt on beside a display fix.
+
+## D119 · Answers becomes a tab: the live Mirror stop gets the prototype's nav v2
+
+**Decided:** 2026-08-12 · **Status:** binding. Reported from a phone
+alongside D118's two, with `InSight_standalone_21.html` attached as the
+spec: *world, city, near and the others should have the answers in an
+answers tab.*
+
+### What the live stop was, and why it read wrong
+
+The prototype's Mirror is two levels — **who** (the ruler) and **what**
+(a row of lenses under it) — and its nav v2 makes that row real tabs at
+the top of the screen, with the field as one of them. The repo has had
+that row since the port: `MirrorLensRow` in `spec/mirror-field.jsx`,
+`.mm-lensrow` / `.mm-lensbtn` / `.mm-lensthumb` in `styles.css` with all
+three `data-lens-style` variants. **Only the demo bodies ever used it.**
+
+Every stop with a live source replaces the whole body with a single
+panel, so `LiveCohortBody` grew its own arrangement instead: the
+constellation on top, the answer rows under it, and a collapsed
+four-button strip at the bottom. Answers was therefore the *page* and
+everything else a drawer under it — the opposite of the design, and
+visible in the report as a World stop whose whole first screen is a
+constellation saying nobody has answered the score questions yet.
+
+### The row, and one deliberate departure
+
+`Answers · Overview · People · Compare · Explore · Scores`, one open at a
+time, `ui/MirrorLensTabs.tsx`.
+
+**Ported, not imported.** `spec/mirror-field.jsx` carries the entire demo
+field — canvas, node layout, `mirror-field-pops`' invented people — so
+importing twenty lines of markup from it would drag all of that into the
+live chunk. The CSS is *not* duplicated: the row is the same three class
+names, so it inherits the demo row's look and every future change to it,
+once.
+
+**Answers leads, and the prototype puts Overview first.** That is the
+departure, and it is about the data rather than the design: the
+prototype's field IS its screen, drawn from constants, so it is never
+empty. Live, the constellation is a fold over completed test scores
+(D112) and stays empty until a population has taken them, while the
+answer rows publish from the first answer (D98). Opening a stop onto an
+empty canvas is exactly the complaint. Overview keeps the next seat.
+
+### The cost gate survives the move, and gets stricter
+
+`LiveMirrorLenses`'s row comment said collapsed-by-default *was* the cost
+gate — People pays for voter lists the user has not opened. Tabs keep it
+structurally rather than by default: a body exists only while its tab is
+open. `LiveMirrorLenses` is now controlled (a `lens` prop, no state, no
+row) and its suite selects by prop; the host's suite holds the gate, with
+both halves asserted — nothing fetched for a tab nobody opened, **and**
+Kindred fetched the moment People is. The second half is what stops the
+first from passing because a lazy chunk simply had not resolved.
+
+### The bundle gate caught two things, and the second one is a win
+
+First: `lensDefs.ts` was imported at runtime by the lazy lens chunk only.
+Reading a label map from it in the entry-side row made rolldown hoist it
+into a shared chunk the entry preloads — **+2 KB on the eager graph, one
+over `MAX_EAGER_KB`, for two dozen bytes of strings.** The labels moved to
+`ui/lensTabs.ts`, which only the row imports. Types may cross that seam
+(they are erased); values may not.
+
+Second, and the reason this section is not just an apology for 2 KB:
+`LiveCohortBody` was eager at all only because `spec-index.js` listed it
+for a `globalThis` bridge nobody uses any more — `mirror-tab.jsx` imports
+it directly. Putting it behind a `React.lazy`, exactly as Circle has been
+since D101 and for the identical reason (the Mirror opens on You; City is
+three stops along and needs a network round trip before it can render),
+took the eager graph from **954 KB to 946 KB** — 8 KB *below* where this
+session started.
+
+### One flake, found by running it and worth recording
+
+Four `smoke-live` cases walked to City and then asserted after a fixed
+`setTimeout(50)`. That was safe while the body was eager. Behind a lazy
+import it is a guess about how long a dynamic import takes, and under a
+loaded runner it lost — one case failed in a full `test:unit` and passed
+in isolation, which is the signature. They wait on `findByText` now. The
+general rule, since this tree has now hit it twice: **a fixed timeout
+next to a lazy boundary is a race, not a wait.**
+
+### Not done here
+
+Near, Circle and Groups keep their single-body layout. Near is presence
+and nothing else by construction (D111 — the cell is one of D98's three
+surviving denies), and Circle and Groups have no lens bodies to put in a
+row; giving either a tab bar with one tab in it would be furniture. The
+demo bodies are untouched: `mirrorLensTop` stays an off-by-default tweak
+over there, because the demo field's own arrangement is the prototype's
+and is not what was reported.
+
+## D120 · The live answer row becomes the prototype's answer row
+
+**Decided:** 2026-08-12 · **Status:** binding. The second half of the same
+report `InSight_standalone_21.html` came with. D119 moved Answers into a
+tab; this is what the tab draws.
+
+### The row the repo already had, and the one it shipped
+
+`spec/mirror-answers.jsx` is byte-identical to v21's — the port is in
+sync, and only the DEMO Mirror renders it. Live grew its own row: a
+full-width 30 px stacked bar with the percentages written inside it,
+expanding into a plain option / count / % list.
+
+The prototype's row is a different reading. Collapsed, it is three facts
+on one line — the **headline** ("58% Yes", or an average out of ten), the
+distribution as a **thin stack** with your own segment in accent, and
+**your answer** named beside it — so a list of them scans as *what did
+they say / where am I in it* rather than as a column of bar charts.
+Expanded, the options get labelled bars, a 1-10 `rating` gets a histogram
+instead, and a sentence says where you sit. The whole list sits in one
+card with a chip row, an inline sort, a "you" legend that names the accent
+mark **once** instead of on every row, and a Show-N-more at seven.
+
+All of it is ported. Three things are not:
+
+- **Newest, and the date furniture that carries it** — the same refusal
+  D100 made and for the same reason: nothing the client holds dates an
+  answer. The sticky month headers go with it. The row prints the answer
+  COUNT where the prototype prints a date, which is the thing live can say
+  truthfully and is also what decides how much the percentages are worth.
+- **`d[3] + d[4]` for a scale's agree share.** The prototype's Likerts are
+  always five long; the bank does not promise that, and a seven-point item
+  read at fixed indices would report its MIDDLE as agreement. It reads the
+  last two points off the end.
+- **Percentages as the source.** The prototype computes its average from
+  rounded percentages because that is all its `dist` holds. Live has the
+  raw counts.
+
+### The arithmetic went to data/, and pctFor was already there
+
+`headlineFor` and `standingIn` are pure folds in `data/cohort.ts` beside
+`divisiveness` and `meanScore`, returning **data** — `{kind:"average"|
+"agree"|"top"}` and `{kind:"below"|"above"|"with"}` — with the wording
+left to the row. That is what makes them testable without a DOM, and both
+return confident numbers where a wrong one looks exactly like a right one.
+
+A first draft of this had a local `pctOf` in the UI module. `pctFor` has
+been in `cohort.ts` the whole time, and its own comment says why that
+would have been a bug: *two surfaces rounding differently on the same
+numbers is how a 51/49 becomes a 51/48 one screen over.* The new
+headline's "62%, not 63%" test case exists to keep it going through
+`pctFor` rather than dividing locally.
+
+### Two bugs the tests found, both worth stating
+
+**The default-open row could not be closed.** The list opens its first row
+(the prototype's behaviour — a tab that opens onto a closed list reads as
+a table of contents), held as a sentinel in the open-row state rather than
+as an id. The toggle compared against the id, so the first tap on that row
+set the state it was already showing. The prototype computes `isOpen` once
+and uses it in both places; this did not. Found by rewriting smoke-live's
+expander case to **collapse before it expands** — the old version asserted
+only that a click sets `aria-expanded=true`, which passes against a row
+that was already open and whose toggle does nothing.
+
+**`getAllByRole("button", {expanded: false})`** silently dropped the top
+row once the first one opened by default, which would have started every
+ordering assertion at the second row. Both are the same shape: an
+assertion that keeps passing after the thing it describes changes.
+
+### Not done here
+
+The three geographic stops only. Groups' answer record
+(`GroupAnswersCard`) is demo data and Circle's split list is its own
+reading; neither is what was reported, and giving them this row would mean
+inventing the sources first.
+
+## D121 · The instruments become passive for real: no sit-down flow, a fold that scores, one hue, and a skip that comes back
+
+**Decided:** 2026-08-12 · **Status:** binding. Four asks from one report,
+with `InSight_standalone_21.html` and two screenshots attached: the test
+pages should look like the prototype's, tests should appear only passively
+in the feed with no active test-taking, score displays should use the same
+colour system, and a skipped test question should come back later rather
+than never or immediately.
+
+### 1 · The passive half was passive in the ring and nowhere else
+
+MIRROR.md §4 has said since D50 that the four core instruments have no
+test flow to sit down for — their items are ordinary feed cards and
+answering the feed fills them in. **That was true of the PROGRESS RING and
+of nothing else.** The only writer of a `testResults` entry was the
+sit-down flow, so a live account that had answered forty test cards opened
+its profile on an empty tab with a *Take this test →* button on it. That
+is the second screenshot, and it is the whole complaint.
+
+The fold that scores those answers has existed since D112, one directory
+over, used only to place a dot in the similarity field
+(`similarity.myAxisScores`). `data/passiveProfile.ts` is mostly a
+**threshold** around it, because the card it feeds draws an archetype, a
+rarity percentile and a "textbook fit" badge, and every one of those is a
+confident claim that two answers can produce.
+
+The threshold is **two answers on every axis** — every axis, not the
+average. One 5-point answer maps to one of {0, 25, 50, 75, 100} and lands
+an axis on an extreme more often than not; two is the smallest number that
+can disagree with itself. And a Big Five with thirty answers across four
+axes and none on the fifth is not 80% of a result, it is a result about a
+different instrument. Below the threshold the tab draws the instrument's
+own progress — per-axis coverage, and which axes are still too thin to
+read — which is the same page one step earlier rather than a nudge.
+
+### 2 · Removing the sit-down flow removed a second scorer
+
+`test-overlay.jsx` (439 lines), `window.openTest`, the `test` overlay
+route, and daily-split's one-question-a-tap fast path are gone. The
+LOGIC test stays: it is a sit-down instrument by construction —
+procedurally generated, server-scored, its result written by a callable
+the rules refuse to let a client mutate (D57).
+
+**daily-split's copy was already unreachable**, and finding that out is
+the reason to state it: `state.testOpen` initialised to `false` and the
+only other write in the file set it to `false` again, so no tap in the
+shipped app could open it. Deleting it changed no behaviour. What it
+changed is that the instruments now have exactly ONE scorer instead of
+two — the second one carried its own `scoreTestDaily`, its own progress
+storage and its own prefill-from-passive logic, all of which could drift
+from the fold that the Mirror was already using.
+
+The deletion also took the eager graph from 947 KB to **943 KB** and the
+spec layer's shared-global coupling from 426 to **417** (D39's ratchet,
+baseline lowered).
+
+### 3 · There were two colour systems, and they disagreed
+
+`RP_TESTS[k].banner` coloured the result card; `PASSIVE.META[k].accent`
+coloured the progress sheet's rings, pips and rows. On two of the four
+they were not close — the sheet drew Values in rose and Social in violet
+while the card drew Values violet and **Social green** — so an instrument
+changed colour between the screen that says how full it is and the screen
+that says what it found.
+
+`TEST_HUE` in test-definitions.js is the single source now, and it takes
+the SHEET's values rather than the card's: those are built from the app's
+own tokens (`--c-around` / `--c-world` / `--c-people`), the same four
+accents the daily's modes and the Mirror's stops run on, so an instrument
+reads as part of the app rather than as its own chart. Violet has no token
+because nothing else in the app is violet, which is why Social's is
+written out.
+
+### 4 · A skip that expires
+
+The feed's skip was deliberately withheld from test and lens cards, and
+world-feed.jsx said why: *those fill an instrument, so a silent skip would
+read as a gap in your own results rather than a question you passed on.*
+Right about the skip it had — a pass is permanent — and wrong about the
+question actually being asked, which is "not right now". With no skip at
+all, an item you do not want to answer sits in the same place every
+session until you do, and the instruments are exactly the cards people
+most want to pass on, because they are personal.
+
+So test and lens cards get **"later"** rather than "skip"
+(`data/deferQueue.ts`): the card leaves the feed and comes back after
+**20 hours**. Twenty rather than twenty-four so a user who opens the app
+at roughly the same time each day finds it waiting rather than four hours
+short of it — the same reason a streak is not enforced to the minute. A
+deferral measured in CARDS was the alternative and fails both ways: the
+feed is finite, so it would either expire inside the same sitting or
+outlast the pool and become a pass under another name.
+
+Nothing is recorded anywhere but the device (a deferral is not an answer,
+D5), the instrument's denominator does not move, and the profile still
+names the axis as thin — because it is.
+
+Two details that are decisions rather than implementation:
+
+- **Sampled once per feed build**, like `sunk` beside it. A card deferred
+  mid-scroll keeps its place until the next visit, so the tap that says
+  "later" does not vanish the row under the thumb.
+- **A malformed entry is NOT a deferral.** The map is device-local JSON
+  any past build may have written, and the fail-safe direction is
+  unambiguous: showing a question one more time costs a scroll, treating
+  garbage as a live deferral could hide an instrument's item forever.
+
+### What did not change
+
+The aggregate. Test items are ordinary questions whose option counts
+publish like any other's (D91), and none of this touches that — the fold
+reads the viewer's OWN votes, on the device, from data already loaded.
+
+### Not done here
+
+The passive result is computed on read and never written to
+`testResults`. That keeps one source of truth and costs a small recompute
+per render; it also means a passive result does not sync across devices
+the way a sit-down result did. Writing it would need a rule about which
+wins when two devices fold different answer sets, and that is a decision
+to take when a second device is a thing people actually have here.
+
+## D122 · Handles: the app gets an address, and a circle gains members by invitation
+
+**Decided:** 2026-08-13 · **Status:** binding. Owner's call, from
+"invite codes feel clunky — you should be able to add your friends and
+they accept". Both halves of that are decisions, and the second one is
+not the hard one.
+
+### The invite code was not clunky by accident
+
+It was the app's ONLY address. Before this:
+
+- `displayName` is free text, not unique, not indexed. Two Annas are
+  indistinguishable.
+- Live people search returns **nothing** — `samplePeople === false` makes
+  the section render empty, by design (D1: the demo cast must not reach a
+  live build).
+- The only humans who become reachable are the ones who surface in a
+  who-voted sheet or in Kindred: strangers ranked by likeness, not your
+  friends.
+
+So "add your friends" needed an addressing scheme before it could need an
+accept step, and removing the code without one would have removed the
+ability to reach a specific person at all.
+
+**The code is not deleted.** It is the only thing that reaches someone
+with no account yet, which for a young app is most of anyone's friends —
+so it survives inside the share link, where nobody reads it, and the
+first-run screen stops asking for it. What was clunky was being asked to
+*type* one; a link is a code you never see. The field is now behind
+"Have an invite code?", and opens itself when a tapped link prefills it.
+
+### Why an invitation needs consent when a follow does not
+
+D101 refused an accept step for follows and its reasoning holds: since
+D98 a follow grants no access the follower did not already have, so
+consent has nothing to protect.
+
+An invitation is different, and the line is clean: **joining a circle
+puts your name on a sealed daily answer that is then revealed to those
+people.** That IS access the other side does not otherwise have. Follows
+stay one-way and silent; invitations are offered and accepted.
+
+### Anyone may invite anyone
+
+Owner's call, and worth stating what it does and does not open. An
+invitation carries the inviter's handle and a circle name to someone who
+did not ask for either. It grants nothing until accepted, and reveals
+nothing about the invitee that D98 had not already published.
+`INVITES_PER_HOUR` is the whole defence against volume; declining is one
+tap and tells the inviter nothing, because a "declined" state would make
+refusing someone a message you have to send them — which is what makes
+people accept invitations they do not want.
+
+There is no server-side block to lean on: `data/mutes.ts` is local-only
+by design (D83). If invite spam becomes real, a block is the answer and
+it is not built here.
+
+### The registry, and the exposure it is
+
+`v2_handles/{handle}` — one document per taken handle, id = the canonical
+form, holding the uid. **Uniqueness is the DOCUMENT ID**, not a field, so
+it needs no index and no query, and a transaction that creates it simply
+fails when someone else got there first.
+
+Readable by any signed-in user, and **that is a real widening rather than
+a consequence of D98**. Public answers means "anyone holding your uid can
+read them". A readable registry means "anyone who knows your handle can
+find them". Those are different exposures, and this one is deliberate: a
+directory nobody may read cannot let a friend find you. What it is not is
+a listing — there is no query surface, only exact-id lookup, so the
+registry answers "is @olaf someone" and never "who is everyone".
+
+Writes are server-only on both surfaces, and for a reason rules cannot
+express: a claim is two writes that must not interleave (take the new
+key, release the old), and accepting an invitation appends to
+`memberUids` — the array `firestore.rules` reads to decide who may see a
+sealed duel answer. A client-writable membership array is a
+client-writable ACL.
+
+### Three things the gates caught
+
+**`handle` had to join the `v2_users` hasOnly allowlist.**
+`request.resource.data` is the RESULTING document, so once the callable
+has written a handle, a merge that only touches `displayName` still
+presents `handle` in its key set and `hasOnly` refuses it. Leave it off
+and claiming a handle silently freezes your display name forever — a
+failure that ships green. Mutation-checked: removing it fails exactly one
+rules case.
+
+**The Firestore SDK came back to first paint.** `data/handles.ts` and
+`data/invites.ts` statically imported `firebase/firestore`, and both are
+reached from `LiveDuelPanel` / `LivePrivacyPanel`, which are eager.
+check:bundle measured the eager graph at **1270 KB against a 955 KB
+ceiling** — precisely the tree as it stood before D110, which is the
+regression that gate was written to catch. Fixed by splitting on **what
+may be imported eagerly** rather than by subject: validation and wording
+stay with their features, the two reads moved to `data/socialFetch.ts`,
+which only live.ts reaches and only through a dynamic import inside an
+already-async method. Same shape `data/circle.ts` has. Back to 949 KB.
+
+**The live fixture and the pinned surface both refused to drift.**
+`vote.test.ts` pins `LIVE.social`'s members and `live-fixture.ts` has to
+match; adding eight members without listing them failed both, which is
+the pin working as documented.
+
+### The duplication that is deliberate
+
+`normalizeHandle` exists twice — `functions/src/pure.ts` and
+`data/handles.ts` — because `functions/` ships as its own package and
+there is no build graph joining them. The client copy exists so the field
+can answer while you type; the server copy exists because a client check
+is a courtesy and the callable is the gate. `handles.test.ts` reads the
+server file as TEXT and asserts the bounds, the charset and the reserved
+list match exactly, in both directions — the cheap version of one source.
+
+### A billed read, caught by a tripwire I did not know about
+
+The invite rule's first draft let MEMBERS read the invitation list too,
+so a circle could show who had been asked and had not answered. That arm
+needed `get(/v2_groups/$(gid))` to check membership — and every `get()`
+in a rule is a **billed read**. `scripts/pulse.test.mjs` counts them and
+failed CI on 15 → 16.
+
+The fix was to delete the arm, not to bump the counter. Nothing in the
+client reads an invitation as a member (`fetchInvites` queries
+`to == me`), and re-inviting is already idempotent server-side —
+`inviteToGroupV2` writes with merge — so the arm bought nothing and
+charged for it on every read of every invite document. A negative rules
+case pins its absence.
+
+Worth recording because the local gates did not catch it: `npm run lint`
+passes, and the tripwire lives in `npm run test:scripts`, which is a
+separate step of CI's lint job. Running `lint` locally and calling that
+"the lint job" is the mistake; the job is eight steps.
+
+### Erasure, and the checklist that caught it
+
+The PR template's access-surface section asks whether `deleteAccount`
+still erases what a change adds, *including data about a user stored
+under another user's documents*. It did not, in three places, and none of
+them is reachable by phase 1b's `recursiveDelete` of the profile:
+
+- **The handle registry row is keyed by the NAME**, so it lives outside
+  the profile subtree entirely. Leaving it is wrong twice: the document
+  holds the uid, and the name stays unclaimable forever for an account
+  that no longer exists.
+- **An invitation TO the account** sits under someone else's group — the
+  same shape as an inbound follow, which D101 already sweeps.
+- **An invitation FROM the account** sits in a stranger's inbox carrying
+  the erased user's display name, which is the half that outlives an
+  erasure most visibly.
+
+Plus `v2_ratelimits/invite_{uid}`, added beside the `join_` ledger the
+existing arm already deleted. All four are swept now, each with a control
+in the erasure e2e — another account's handle and an invitation between
+two other people must survive — because a sweep that takes the collection
+rather than the matching rows looks correct from the deleted side and is
+a catastrophe from everyone else's. The run reports
+`handle: 1, invitesTo: 1, invitesFrom: 1`.
+
+### Not done here
+
+- **No handle search-as-you-type.** Lookup is exact-id, which is what the
+  rules grant and all that "add @olaf" needs. A prefix search is a
+  listing and would need its own decision.
+- **No push on an invitation.** The only notification this product has
+  earned is "your reveal is out" (data/push.ts). An invitation waits
+  until you open the app.
+- **No handle on the who-voted sheet or Kindred rows.** Those name people
+  by `displayName` today; showing a handle there is how you would add
+  someone you met through their answers, and it is a follow-on.
+## D123 · The dedup gate learns morphology and synonyms, and pre-flights the batch against itself
+
+**Date:** 2026-08-13 · **Status:** Adopted
+
+**The problem, in two halves.** D63 gave every question lane a measured
+near-duplicate gate and named its own limit honestly: "a lexical metric
+scores a synonym rewrite at 0." Two years of lane upscaling later that
+limit binds harder than it did at adoption. The metric compared surface
+words — stopwords dropped, plural `-s` folded — so two whole classes of
+rewrite arrived at the human re-read with a reassuring number attached:
+
+- **Morphology.** "Master one thing, or dabble in many?" against
+  "Mastering one skill, or dabbling in many?" scored **0.143**. The same
+  question, in gerunds.
+- **Synonyms.** "Money buys happiness." against "Can wealth make you
+  happy?" scored **0.000** — not one shared token, and the archive
+  already carries the first as `dq06`.
+
+The second half is coverage rather than metric. Every lane's pre-flight
+is `check:neighbors -- --candidate` **per question**, which scores N
+candidates against the bank and never against each other. When D33 capped
+the daily lane at 4/run that was a small hole; D97 raised it to 8 and
+D115 gave learn 10/run with a floor of 4 cards into any field it touches
+— a lane now writes enough questions in one sitting to duplicate itself.
+CI's corpus scan does catch such a pair, but only after the branch is
+pushed and the PR exists, which is one human review too late for a gate
+whose whole design rests on not spending review capacity.
+
+**The fix, both halves in `scripts/question-neighbors.mjs`.**
+
+1. **Folding before the sets are built.** Suffix stripping to a
+   *fixpoint*, then a concept lexicon of ~30 synonym families. The
+   fixpoint is load-bearing, not tidiness: a single pass lands "master"
+   on "mast" (the `-er` rule cannot tell an agent noun from a word that
+   merely ends in those letters) but "mastering" on "master", leaving two
+   forms of one word further apart than they started. Iterating puts both
+   on "mast" — over-stripping is harmless when applied equally to every
+   form; a stem two forms *disagree about* is not.
+2. **`--batch <file.json>`**, taking the same candidates file
+   `check:quality --batch` already takes, so one file pre-flights both
+   gates. It scores every candidate against its domain **and against its
+   batch siblings**, prints the packet line the PR body wants, and exits
+   non-zero on any pair ≥ GATE.
+
+**The suffix table is measured, not copied from a stemmer.** Every rule
+merges at least one real pair in this corpus; the whole table merges 70
+groups of the 1130-token vocabulary, and each group was read. That is how
+the two collisions in `KEEP` were found rather than shipped: `-ing` puts
+"meaning" on "mean", and the corpus runs both senses ("Suffering can give
+life meaning." and "Are people getting kinder, or meaner?"); `-est` makes
+Everest "ever". The same reading is why the `e`-restore carries Porter's
+CVC condition ("moved" → "move" but "asked" stays "ask"), why the trailing
+`e` drops only above 4 characters (keeping "care" off "car"), and why the
+bare `-y` rule was dropped entirely — it alone produced car/carry,
+part/party, milk/milky and earl/early.
+
+**The price, measured and accepted.** Recall this size is not free. The
+closest legitimate pair across the five domains moved **0.333 → 0.400**
+(daily 0.286 → 0.333, feed 0.222 → 0.250, duel 0.300 → 0.400, pick and
+learn unchanged), so headroom under the 0.5 gate narrowed from 0.167 to
+0.100. That is the right trade rather than a regression, because the pair
+spending it is genuinely close: duel `gp2` "Who gives the best advice?"
+against `047` "Better at giving advice, or taking it?" — two questions
+about advice that the old metric scored 0.167 only because it could not
+see "gives" and "giving" as one word. **GATE stays 0.5**, and `ALLOW`
+stays the escape hatch D63 built: if a legitimate pair ever crosses, the
+answer is an entry with a reason, not a quieter metric.
+`question-neighbors.test.mjs` pins the margin *and names the pair that
+spends it*, so the next change to the metric has to look at what it costs
+instead of discovering it on a farm run.
+
+**Two alternatives measured and rejected**, recorded so nobody
+re-derives them. Character-trigram Dice and the overlap coefficient both
+fire hardest on shared **voice**, not shared question: "Music is mostly
+for…" against "This decade is mostly for…" trigrams at 0.605, and
+"Cinema or sofa?" against "Best way to watch a final?" overlaps at 0.500.
+Either as a gate would fail the product's own house style — reusing a
+prompt frame is how the archive sounds like one voice.
+
+**What this does NOT change, so the writing rule survives its own
+improvement.** The gate still cannot see a paraphrase carried by words
+the lexicon does not pair — "Are people getting kinder, or meaner?"
+against "Is kindness rising or falling?" scores 0.167, one shared concept
+and nothing else — nor two prompts asking one question through different
+imagery. D63's framing is unchanged and only its arithmetic moved: this
+is the measurable floor under the writing rule, not its replacement. The
+farm manual still says re-read every candidate against its nearest
+neighbour, and `check:neighbors` still reports rather than decides.
+Cross-surface corpus pairs also stay out of the gate (D63) — a daily and
+a feed may run one tension at different depths. Batch *siblings* are
+compared across domains regardless, because that is a different claim: an
+editorial call about two questions already shipped is not a licence to
+write the same question twice today.
+
+**Adding to the lexicon.** Two rules, both about holding the false-positive
+rate at the zero it measures today: a family's members must include at
+least one word in the live corpus vocabulary (this pairs words *this*
+product's writers reach for, not a thesaurus), and the corpus scan re-runs
+after adding — a family that moves a domain's closest legitimate pair is
+a family that will fail a real question. Three entries were removed under
+exactly that rule and are named in the script so they are not re-proposed:
+"chance" from luck (it also means opportunity), "rest" from sleep (it also
+means remainder), and "reading" from book (the act is not the object).
+
+## D124 · The bill gets its first ceilings: an idle detach, two unbounded reads closed, and the controls that live in a console
+
+**Decided:** 2026-08-13 · **Status:** binding · Extends D7's discipline and
+docs/COSTS.md's four corrections (D47, D67, D102 twice).
+
+**The question this answers** is not "what does it cost" — COSTS.md has
+answered that carefully five times — but "what stops it". Every number in
+that document predicts the bill from assumed behaviour. None of them caps
+it. That gap is the difference between expensive and out of control, and
+it is the whole subject here.
+
+### The finding that reorders the walls
+
+`B.onlineMin` is 3, and its comment read "minutes with the app actually
+open". The fan-out term is linear in it, and what Firestore bills is
+minutes with a **listener attached**. The only two teardown sites in
+`live.ts` were a uid change and account deletion, so a resident Capacitor
+WebView kept receiving — and paying for — every publish to today's
+aggregate for as long as the OS let it live. The gloss was the bug: 3 is a
+fair estimate of human attention and simply was not the quantity being
+charged.
+
+| listener-minutes/user/day | 5 k DAU | 50 k DAU | fan-out crossover |
+| ---: | ---: | ---: | ---: |
+| 3 (assumed) | $46 | $1,224 | ~30,800 DAU |
+| 15 | $78 | $4,479 | ~6,150 DAU |
+| 60 | $200 | $16,689 | ~1,540 DAU |
+| 240 | $689 | $65,526 | ~385 DAU |
+
+At 60 the crossover falls under D7's write-contention wall (14,400),
+inverting the ordering COSTS.md calls the property worth keeping — the app
+should break technically before a surprise invoice can arrive. That
+ordering has now been inverted three times (D98 did it, D102 restored it,
+this found it standing on nothing) and it is the third time by a different
+mechanism, which is the argument for it being *checked* rather than relied
+on.
+
+**`IDLE_DETACH_MS` = 60 s.** Armed on hide rather than run, because
+re-attaching costs a read per listener and `wake()` is written around the
+ten-second app swap; break-even is ~7 reads against ~21 reads/min of
+publishes at 5 k DAU. The detached set is exactly what
+`resubscribeForToday()` restores, so teardown and re-attach are one list
+read twice. `groupsUnsub` is excluded — nothing short of `refreshLive()`
+re-attaches it.
+
+### Two unbounded reads, both the shape D102 capped and did not go looking for
+
+- **`nearbyCountV2`** fetched every presence document in a 3×3
+  neighbourhood to return `snap.docs.length`. Now an aggregation `count()`,
+  billed at roughly one read per 1,000 index entries. The linearity was the
+  problem rather than the number: every client with Near on beats it every
+  4 minutes, so a dense cell charged (people nearby) × (beats). Self-
+  exclusion stays exact by reading the caller's own row rather than
+  subtracting a blind 1, which would under-count for a caller who is not
+  there.
+- **`loadTakes`** carried no `limit()` on either branch. World is the
+  dangerous half — the daily question is globally shared, so its takes are
+  ~DAU documents per open — and is capped at 100. The group branch takes
+  500 as a *ceiling* rather than a display cap, because `takes()` filters
+  that list by qid in memory and a tight limit would hide an older
+  question's takes behind newer chatter. Moving qid into the group query is
+  the better fix, the composite index is already committed, and it is a
+  change to a query shape D65 documents rather than a bound — recorded, not
+  taken here.
+
+### What is bounded that nobody had costed
+
+`maxInstances: 10` caps a runaway in any one function at **$649/month** —
+every functions failure mode at once: retry storm, poison-pill loop,
+accidental self-trigger, flood. Compute cannot run away. It is per function
+rather than per deploy, checked with a probe rather than assumed after the
+first draft of the note got it wrong. `check:fn-runtime` now asserts it
+alongside memory and timeout, because the prose made it load-bearing and
+nothing held it there.
+
+### The storage grant, split rather than denied
+
+`storage.rules` let any signed-in account — anonymous, therefore free (D3)
+— write 8 MB objects under an unbounded `{filename}`, on a path D4 retired
+and nothing imports. Unbounded objects, bytes and egress, against a COSTS
+line reading "$0 (bucket unused)".
+
+The obvious fix is a flat deny and it is wrong: the grant is deliberate,
+and the recorded reason is that `deleteAccount` does not touch Storage, so
+revoking access to objects that still exist opens an erasure gap. That
+argument is about read and delete. **Uploads are closed; read and delete
+stay.** The erasure property is untouched and the egress surface is gone.
+
+### The controls that are not in this repository
+
+Four things cap a bad month and **no check, test or workflow can observe
+any of them** — D117's checkbox problem pointed at money: a Cloud Billing
+budget (does not exist; the cheapest item on the page), App Check
+enforcement on the Firestore API, the auth billing mode, and a notification
+channel on the alert policies (`[]` in all five files).
+
+**App Check enforcement is the kill switch**, and the discovery worth
+recording is that it cannot be flipped during an incident unless it was set
+up before one: the register → soak → enforce sequence takes days, and
+skipping the soak turns a cost incident into an outage. So SHIP-CHECKLIST
+step 4 is not hardening, it is the incident-response plan. Nothing else can
+be pulled at 3am — a rules deploy still bills its own `get()`s (rule reads
+are charged on denied writes too, so denying is a way to keep paying),
+`APPCHECK_ENFORCE` governs only callables and only loosens, and detaching
+billing takes the app down.
+
+Two new policies watch the outcome rather than the forecast:
+`firestore-read-runaway.json` (500 reads/sec sustained 5 min) and
+`firestore-write-runaway.json` (150/sec). Neither is a spend cap — Firestore
+has none — but they convert "find out in up to thirty days" into "find out
+in five minutes", which at those thresholds is the difference between a
+$780 month and a five-figure one. Both thresholds are launch-sized and
+carry their retune arithmetic; the read one must be raised before ~13,100
+DAU.
+
+### Recorded, not built
+
+A graded breaker on `v2_meta/app` — a document `hydrate()` already reads, so
+the flag is free — gating the D98 social surfaces (339 of 447 reads/user/day
+at 5 k DAU) and then the deck listeners. Not built because every level of it
+changes what a user sees, and a Mirror stop silently rendering "could not
+ask" because an operator flipped a flag is the same class of failure as a
+privacy label with no rule behind it. It needs a decision about what a
+degraded app *says*, which is an owner's call and not a cost pass's.
+
+## D125 · The breakdown was pointed at the crowd, and Learn's measured split was unreachable by construction
+
+**Decided:** 2026-08-13 · **Status:** binding. Two reports from a phone,
+with screenshots: a learn reveal still showing "Our estimate" for what
+people answered, and a who-voted sheet listing every voter's age, gender,
+city and education instead of showing what the answer looks like for one
+cohort or another.
+
+### 1 · The sheet described the people and never redrew the answer
+
+The live who-voted sheet was three stacked panels. The breakdown drew one
+bar per cohort — six rows of a crowd chart. Under it the roster listed
+each voter with their anchors beside their name. Both halves read in the
+same direction: *here are the people, here is what each of them is.*
+
+Neither answered the question a breakdown is for. **The split was never
+redrawn for anybody** — it was only ever annotated with who was in it. A
+reader who wants to know what a question looks like from where someone
+else is standing could not find out, on a screen built for exactly that.
+
+So the axis flips. `ui/LiveBreakdownPanel.tsx` puts the cohort control on
+top — Everyone, then the dims the server actually published for this
+question, then that dim's buckets with their counts — and everything below
+it is that cohort's reading of this one question: the same options in the
+same order the card showed them, carrying that cohort's numbers, with your
+own pick marked and one line naming where they part company with everyone.
+
+**"Everyone" is a real cohort, not an off switch.** It is the plain
+published split, so the first frame is what the card already showed and
+every other frame is a comparison against it.
+
+The roster stays and is now the tail of an answer rather than the answer,
+**scoped to the cohort above it** — "41% here said Wellington" and the
+names under it are the same forty-one people. It filters on the answer's
+frozen anchors (D8), the same snapshot the aggregate folds, because
+filtering on live profiles would put a different set of names under a
+number that did not move. The chip for the scoping dim is dropped from
+each row: repeating "25-34" on every row of a list headed *in 25-34*
+spends the line on the one fact the rows have in common.
+
+The dial and the field keep their own bodies through a render prop — a
+continuum reads as a POSITION, so those draw the cohort's real average or
+centroid against everyone's, and own their comparison sentence. The
+generic "N points more likely to say X" is true about a histogram bucket
+and useless about a range, so it stands down when a custom body is given.
+
+**Cost: zero extra reads.** Every cohort comes out of the aggregate
+already fetched for the card, and the roster keeps its single bounded
+fetch-on-open. Switching cohorts is arithmetic on data in hand, and a test
+pins that.
+
+Two things fell out of the deletion. `WF_LIVE_DIMS` — a hand-kept copy of
+`BREAKDOWN_DIMS` in the spec layer — is gone; the panel reads `COHORT_DIMS`
+from `data/cohort.ts`, which the Mirror's lenses already share. And the
+old panel's footer still promised *"only groups with enough answers to stay
+anonymous are shown … these are floors, not live totals"*, which stopped
+being true at D98; it was dead copy behind a live gate, and it is gone with
+the code that drew it.
+
+### 2 · Bucket keys were reaching the screen as keys
+
+`bucketLabel` (`ui/cohortLabels.ts`) is one resolver now. Before this there
+were two conversions and one omission: world-feed's `wfBucketLabel` off
+`window.PLACES`, the new panel's, and the Mirror's People and Explore
+lenses, which printed the raw key — so a country row read **"NO"** and a
+sentence read *"NO are 14 points more likely…"*. The keys stay canonical
+where they are stored and indexed (D9); only the copy is resolved.
+
+### 3 · Learn's measured split had never once been drawn
+
+The seam D32 built is correct and is unit-tested: once a card's public
+aggregate exists, `LEARN_SPLIT` returns the real first-attempt rates and
+`LEARN_SPLIT_SRC` says "measured". **Nothing ever reached it.**
+
+`LIVE.learnAgg` is a read-through cache — it cannot await, because
+`LEARN_SPLIT` runs in a render path — so the first call for a card returns
+`null` and kicks one `getDoc`. Its only caller was `LEARN_SPLIT`, which
+runs inside `LEARN.answer()`, **at the instant of the tap**. So the first
+call for every card was the one deciding that card's reveal, it returned
+null every time, and every learn split the app has ever drawn was the
+authored estimate — at any crowd size, in every session, on every card.
+The estimate was not a cold-start state. It was the only state.
+
+`LIVE.loadLearnAggs(cardIds)` warms the cache when the feed PLANS its
+learn cards, which is the one moment guaranteed to precede every tap in
+the sitting. One `in` query per 30 cards against one `getDoc` per card,
+skipping anything already cached, so the per-session budget is unchanged —
+at most one read per distinct card, paid earlier and in bulk.
+
+**The prefetch takes `.learn`, not `.id`, and that is a decision because
+the wrong one is silent.** LEARN_FEED wraps each card as a feed question
+keyed `lrn-<card>` while the aggregate is `learn-<card>`. Passing the
+question id asks for `learn-lrn-cap6`, which nothing has ever written —
+and the failure renders as no document, a null cache entry, and the
+authored estimate forever, i.e. as the exact bug being fixed. It was
+written wrong the first time; `learn-reserve.test.jsx` now fails on it.
+
+### 4 · …and the label had already drifted from the numbers
+
+`renderKnow` drew `r.split`, frozen into the answer result at the tap,
+while the footer below re-evaluated `LEARN_SPLIT_SRC` on every render.
+Those diverge the moment an aggregate lands late: authored bars under the
+sentence *"Real answers from N+ players"*. That is an authored number
+labelled as a measurement, which is the one thing D32's seam exists to
+prevent. Both readings are now render-time locals computed side by side,
+so they cannot disagree, and a late aggregate upgrades the bars and the
+label together.
+
+`learnAnswer` also re-reads the aggregate once after its own write lands —
+REPLACING the cached value rather than invalidating it, because dropping
+the entry would make the next render fall back to the estimate while the
+re-read is in flight, i.e. change the reveal you are looking at to the
+worse source. It races the trigger and often loses; there is no retry,
+because the split is a claim about the crowd and one answer does not move
+it.
+
+### What did not change
+
+The arithmetic, on either half. `LEARN_SPLIT`'s fold and `data/cohort.ts`'s
+were already right and already tested; both bugs were plumbing and
+direction. No rule, no trigger, no aggregate shape moved, and the
+who-voted read is the same bounded query it has been since D102.
+
+### Not done here
+
+- **The roster still keeps a row for every option, including the empty
+  ones**, so a twelve-bucket dial still draws a column of *"Nobody yet."*
+  under the answer. The invariant has a reason — a missing column reads as
+  a missing option — and it is now below the real reading rather than
+  instead of it, which is the part that mattered. Collapsing empty columns
+  is a separate call about that invariant.
+- **A learn card answered before the warm-up lands still shows the
+  estimate for that reveal.** The plan's prefetch forces one re-render on
+  completion, which covers the window in practice; the guarantee would
+  need `LEARN_SPLIT` to be able to await, and it cannot.
+## D126 · Foresight — the read half, on a truth that now exists
+
+**Decided:** 2026-08-12 · **Status:** binding · Follow-on to D98/D99.
+
+**Decision.** The Mirror's lens row gains a fifth lens, **Foresight**: a
+ten-second game asking which option one demographic slice picked most,
+scored against the published cell. Verdicts persist at
+`v2_users/{uid}/foresight/{readId}`, create-only.
+
+This is the last of the nineteen items on the 2026-08-11 list, and the
+only one that came from v19 rather than v18.
+
+### READ was not buildable before, and the reason is exact
+
+v19 ships Foresight as two card types. **READ** asks which side a slice
+picked; **CALL** seals a real-world event now and scores it when it
+resolves.
+
+The prototype's READ derives its answer from `wfHash(qid + dim + bucket)`
+— an invented truth, chosen to be *stable* rather than *correct*, because
+under the old model most cohort cells were below the k-floor and were
+never published. The game could be played and could not be scored: there
+was nothing to be right about.
+
+D98 published every cell at every size and D99 put the fold in
+`data/cohort.ts`, so the answer is now a lookup — **the same lookup the
+Explore lens draws and the same numbers the who-voted sheet lists by
+name**. A read can therefore never disagree with the screen behind it,
+which is the property the hash was reaching for and could only
+approximate.
+
+### Two thresholds that are about fairness, not disclosure
+
+`READ_MIN_N` (8) and `READ_MIN_LEAD` (12 points) both look like the floor
+D98 deleted and neither is. Nothing is withheld: Explore draws these
+cells at any size. The question is whether a QUESTION IS FAIR.
+
+- A three-answer slice has a "most picked" that one more answer flips.
+- A 51/49 slice has a technically correct answer nobody could read.
+
+Scoring either teaches the player the game is arbitrary. Raising the
+numbers makes the deck harder to fill; lowering them makes it dishonest.
+Both have a case that names which failure it is preventing.
+
+A timeout scores as a **miss, not a skip** — a card you can let expire
+for free makes waiting the best play whenever you are unsure, and the
+clock becomes decoration.
+
+### `correct` is derived, never stored
+
+The verdict row carries `guess` and `answerIdx` — the slice's top option
+**at guess time** — and nothing else about the outcome. Correctness is
+computed by whoever reads the row.
+
+- A stored boolean would be an unfalsifiable claim about a computable
+  fact.
+- `answerIdx` is frozen rather than recomputed because **the cell moves**:
+  a slice that says Yes today may say No next month, and re-deriving
+  would silently flip old verdicts.
+
+Create-only is the integrity model, not tidiness: if a verdict could be
+rewritten, every wrong read would become a right one the moment the
+answer appeared. Delete is closed for the same reason — the doc id is the
+slice, so delete-and-replay would be a re-roll. Answers get one edit
+shape (D86) because moving your opinion is a real act; changing what you
+guessed after seeing the answer is not.
+
+**Honest limit, recorded rather than papered over:** `answerIdx` is
+client-written, so a determined client can write a verdict matching
+whatever it guessed. The basis is published beside the claim, which makes
+the lie visible rather than impossible. Real verification means scoring
+server-side against the aggregate — the shape D57 uses for the logic test
+— and is worth building the day this score buys anything. Today it buys a
+number on your own screen.
+
+### Placed on the Mirror, not in the feed
+
+The prototype puts these cards in the world feed. This ships them as a
+lens because the lens row is already where a population gets read, and
+because a read is scoped to a POPULATION: on Near you are reading slices
+of your city, on World slices of everyone, and the ruler above already
+says which. In the feed that scope would have to be restated on every
+card. The feed placement stays open as a follow-on and needs no engine
+change — `readsFrom` takes questions and returns reads.
+
+### What CALL needs, and why it is not built
+
+The machinery is small: a question with `resolvesAt` and an `outcomeIdx`
+written after the fact, an answer sealed until then (the duel seal
+already proves that shape), and the same verdict fold. What it needs and
+does not have is **an outcome nobody can fake**:
+
+1. **Events.** The bank ships none, and unlike D100's Scores there is no
+   equivalent hiding in it — a `rating` question is ordinal whatever its
+   subject, but no existing question is about a future fact.
+2. **A resolver.** Someone has to write `outcomeIdx` when the match ends.
+   That is an operator process with an SLA, not a function: an unresolved
+   call is worse than a missing feature, because it takes the player's
+   guess and never comes back.
+3. **D1.** Seeding events with invented outcomes to fill the frame is the
+   one thing the no-synthetic-data rule forbids outright — and is exactly
+   what the prototype does (four settled events, hardcoded).
+
+The variant needing neither an author nor a resolver is a call on the
+app's OWN future data — "will tomorrow's question split past 60/40?" —
+which the aggregate settles by itself. That is a different card from the
+prototype's and a product decision, so it is written down rather than
+built.
+
+### Also not built from v19's Foresight
+
+- **The Map's Foresight branch** (`map-fore-card.jsx`, `g-fore` as a 7th
+  over-category, the `map-tab` fold). The Map files *answers*; a read is
+  a guess about someone else, and v19 excludes fore leaves from the
+  answer count for exactly that reason ("aims, not answers"). Putting
+  them on the same canvas needs the seventh category and a rule for what
+  a fore leaf's distance-from-centre means, neither of which is obvious.
+- **Crowd-relative percentiles** ("you read better than 78% of people").
+  Every verdict is world-readable, so this is a collection-group query
+  away — but it is a query the app does not otherwise make, and the score
+  it would rank is client-written (above). Worth doing after
+  server-scoring, not before.
+
+## D127 · A machine may propose an outcome, never be the reason one is believed
+
+**Decided:** 2026-08-12 · **Status:** binding · **Applied:** not yet — no
+code exists. The design is [`docs/FORESIGHT-CALLS.md`](FORESIGHT-CALLS.md).
+
+**Decision.** Foresight's CALL half — an event sealed now and scored when
+it resolves (D125 shipped READ) — is designed but not built. When it is
+built, **only questions whose outcome a machine can execute are
+admitted**, and the inputs the grader used are stored and published
+beside the outcome.
+
+### The reason this needed a decision rather than a ticket
+
+Every number InSight displays today is arithmetic on its own data. A
+cohort split, a likeness percentage, a Scores mean, a READ verdict — all
+folds over documents the reader can open and recompute. When the app says
+"48% of people your age agreed", anyone can check it.
+
+A resolved CALL is not that. It is the app **asserting a fact about the
+world**, and reading its own documents cannot verify the claim. If it
+says Arsenal won and Arsenal did not, there is nothing to recompute —
+only a wrong answer marking real users wrong, with no arithmetic to
+appeal to. That is a category change, and it is the decision; the
+plumbing is small.
+
+### What was proposed, and what survived
+
+The proposal was to have Claude author the questions and grade the
+outcomes. The first half is already how this repo works and needs no new
+decision: `docs/QUESTION-FARM.md` runs a Routine that proposes questions
+and opens a PR, D97 gates them, and D1 permits machine-authored *content*
+— what it forbids is fabricated *activity*.
+
+The second half does not follow from the first, and the farm's rule 4
+("never generate answers, votes, takes, or people") does not literally
+cover it. Hence the rule this decision adds:
+
+> A machine may **propose** an outcome. It may never be the **reason** an
+> outcome is believed. The reason is the citation, and a human confirms
+> the citation supports the outcome before anyone is scored.
+
+**Amended the same day, on the owner's constraint: "these also have to be
+verifiable and gradable by you."** That is a stronger rule than the one
+above and it replaces the human-confirms-everything step, because it puts
+the requirement on the QUESTION rather than on the reviewer.
+
+A call is admitted only when its outcome can be **executed**, in one of
+two tiers: **A**, self-resolving on the app's own published aggregate
+("will tomorrow's question split past 60/40?"), graded by arithmetic with
+no network and no model in the loop; or **B**, a machine-readable source
+where the rubric names an endpoint, a path and a value→option map, graded
+by one fetch and a comparison. Prose sources and model recall are refused
+outright — they are where every failure mode lives.
+
+The rubric stops being a sentence and becomes **executable data**, which
+makes "gradable" testable rather than hoped for: `check:calls` dry-runs
+every rubric before its question ships, and a rubric that cannot already
+return a well-formed provisional answer is not admitted. A rubric that
+cannot run today will not run in May.
+
+The human moves from confirming every resolution to handling the
+**exceptions** — an endpoint that moved, a value outside the map, a void.
+That is only defensible because tiers C and D never entered the bank; if
+they had, every row would be an exception in disguise.
+
+**Tier A ships first and alone.** It is the only kind verifiable end to
+end, it needs no operator and no external dependency, and it keeps the
+property that makes every other number in this app defensible: the reader
+can recompute it.
+
+Rejected for the first version, and still rejected: auto-resolution of
+prose-sourced or recalled outcomes. It is the obvious efficiency and it
+inverts D87's posture for the one write in the app that cannot be
+recomputed.
+
+Rejected outright: resolution from model memory with no citation. That is
+the one shape where a confident hallucination silently marks real users
+wrong and leaves nothing to appeal to.
+
+### Three design points that are load-bearing
+
+- **The rubric is written at authoring time**, in the same PR as the
+  question — the exact fact that settles it, the named source, and when
+  it becomes knowable. It moves the hard judgement to a moment a human is
+  already reviewing, and it is the filter: **if a crisp rubric cannot be
+  written, the question is not a call.**
+- **VOID (`outcomeIdx: -1`) is a first-class outcome, not an error path.**
+  An unresolved call is worse than a missing feature: it takes the
+  player's guess and never comes back. Void has to be easy, or a reviewer
+  reaches for a plausible answer instead of admitting the question was
+  bad.
+- **Outcomes live in `v2_call_outcomes/{qid}`, not on the question doc.**
+  `runSeedV2` diffs each question against its stored payload and skips
+  unchanged docs, which is what keeps `updatedAt` meaningful as an
+  incremental cursor; operational state inside content the seed owns
+  would fight it on every reseed.
+
+Two things fall out rather than being engineered, and both are recorded
+so the next reader does not build them: **a call needs no verdict
+document** (the answer and the outcome are both readable, so the client
+joins them), and **it needs no new seal** (the daily's blind-then-reveal
+already stops you reading the room before you play).
+
+### The residual, stated
+
+This design reduces the chance of the app asserting a falsehood. It does
+not eliminate it, and no version of it can. Everything else the app says
+can be recomputed by the person reading it; this cannot. The mitigation
+that carries the most weight is the cheapest one — a rubric good enough
+that confirming a citation takes thirty seconds, because a confirmation
+step too expensive to do properly is a rubber stamp with extra latency.
+
+## D128 · You can say what you want more of; the app does not guess
+
+**Decided:** 2026-08-13 · **Status:** binding · Tier 1 of
+[`docs/ATTENTION.md`](ATTENTION.md).
+
+**Decision.** A three-state topic preference — Less · Normal · More —
+stated by tapping, stored on the device, applied to the **feed and
+nothing else**.
+
+### What it does not do, which is the reason it can exist
+
+`docs/MONITORING.md` § "Off the table" refuses per-user funnels,
+engagement scoring, skip/pass/hesitation rates and per-user content
+selection, and `data-inventory.md` — the audited list the store forms are
+answered from — says no product analytics of any kind ship. That refusal
+was re-affirmed *after* D98, as an analytics decision standing on its own
+rather than one the k-floor was carrying.
+
+**This crosses none of it, and the distinction is exact: a weight changes
+because someone tapped a control that said it would change it, and for no
+other reason.** Nothing observes a scroll, a dwell or a skip. A stated
+preference is the same kind of datum as the city in a profile — given
+deliberately, about oneself, collecting nothing about anybody. Inferring
+one from behaviour is tier 2 and is a different decision.
+
+It is also the better signal, which is why the plan starts here rather
+than settling here. One deliberate tap outweighs a hundred ambiguous
+scrolls: no dwell threshold, no seen-denominator, and no argument about
+whether scrolling past meant dislike or meant the bus arrived. **If
+people use this, most of tiers 2 and 3 is redundant, and finding that out
+is cheaper than building the model that guesses.**
+
+### The limit, and the test that holds it
+
+**The feed may adapt. The daily question and the Mirror may not.** One
+blind question a day, the same one for everyone, is what makes the
+populations comparable at all; a Mirror weighted toward the cohorts you
+engage with is a filter bubble wearing a Mirror's clothes, and the
+feature would quietly destroy the thing it decorates.
+
+That constraint **cannot fail loudly** — a narrowed Mirror still renders
+a perfectly convincing screen — so `interests.test.ts` asserts it by
+scanning the tree for importers of `data/interests` and comparing against
+an allowlist of two: `live.ts` (the feed pool) and the panel. A new
+reader has to be added there deliberately, and adding a Mirror module
+should feel wrong.
+
+### Three small shapes, each with a reason
+
+- **Three states, not a slider.** The states are what a person can mean
+  about a topic, and a number invites the app to start adjusting it —
+  which is tier 2 arriving by the back door.
+- **Neutral DELETES the key.** "I turned this back to normal" and "I
+  never said anything" are the same state, and storing them differently
+  would show a topic as touched after the user had undone it.
+- **A stored value that is not one of the three is dropped, not
+  clamped.** A 0.7 came from a version that meant something else, and
+  rounding it invents a preference nobody stated.
+
+An untagged card always survives the filter: an untagged card is not
+evidence of anything, and dropping it would let a content bug read as a
+user preference.
+
+### Costs
+
+Local only, like `data/mutes.ts` and for the same reason — so it does not
+follow you to a second device, which is the honest trade for collecting
+nothing. Bundle: ~2 KB, and `check:bundle`'s total goes 2170 → 2176. The
+panel is `React.lazy` from LivePrivacyPanel, which is right on the merits
+and moved the total by zero — the same "splitting relocates bytes"
+property the 2026-08-11 note recorded, holding again.
+## D129 · The fan-out is gone: the deck is polled, and the cost curve is flat
+
+**Decided:** 2026-08-13 · **Status:** binding · Closes docs/COSTS.md
+finding 2, which D34 and D124 had bounded but not removed. Owner-directed,
+against D7's "record it, do not build it yet" — the owner read the priced
+comparison and chose to build.
+
+**The question this answers** is the one D7 deferred: the listener fan-out
+was the only read source growing superlinearly in DAU, and every previous
+pass bounded its coefficient rather than removing its shape. This removes
+the shape.
+
+### What was wrong
+
+`subscribeAggs()` attached seven `onSnapshot` listeners, one per deck day.
+The daily question is globally SHARED (`computeDeckIds` takes no uid),
+which is what makes a cohort fill at ten users — and it also meant every
+answer anyone gave published a new aggregate that fanned out to every
+client then watching, each delivery a billed read. `DAU²/80` reads a day:
+94% of the bill at 500 k DAU.
+
+Two earlier passes narrowed it without changing it. D34 killed the reseed
+refetch; D124 added `IDLE_DETACH_MS` so a backgrounded WebView stopped
+paying. Both are still right and neither touched the exponent.
+
+### What was done
+
+`startAggPoll()` replaces the listeners. The whole deck is read once on
+boot and on each foreground; a `setInterval` then re-reads **today alone**
+every `AGG_POLL_MS` (60 s) while the app is visible. Polling stops
+immediately on hide, with no grace period — the grace in `IDLE_DETACH_MS`
+exists because re-attaching an `onSnapshot` re-delivers the document, and
+re-arming a timer reads nothing until it fires. The idle detach survives
+for the reveal listeners, which is now all it owns.
+
+Only today is polled because only today is hot. The six back days are
+answerable, so their aggregates do move — rarely, and nobody watches a
+four-day-old card for a live tick. Polling seven documents a minute would
+have traded a quadratic term for a flat one seven times larger than
+necessary.
+
+**What it costs the product, stated because it is a real trade:** other
+people's votes no longer land on the card while you are looking at it.
+Your own vote is unaffected, and that was verified rather than assumed —
+`scheduleAggRefresh` already re-read the aggregate 2.5 s after the write
+acked and cleared `unaggregated`, on both the vote and the D86 edit path.
+The snapshot's clear was a second, redundant route. The first draft of the
+lever analysis claimed polling cost the vote→counted transition; reading
+the consumers showed it never did.
+
+### The arithmetic
+
+| DAU | streamed (pre-D125) | polled | saving |
+| ---: | ---: | ---: | ---: |
+| 500 | $2.23 | $2.12 | −4.7% |
+| 5,000 | $59 | $41 | −31.4% |
+| 50,000 | $2,335 | $440 | −81.2% |
+| 500,000 | $194,332 | $4,448 | **−97.7%** |
+
+The totals matter less than the shape. Reads per user per day are now
+**flat at 416 across every size** — the decomposition has no DAU term left
+in it. Cost per user goes from rising 87× between 500 and 500 k DAU to
+rising 2.1×, and the whole of that residue is the free tier at the small
+end. Every scenario grades **B** against the same-stack benchmark, where
+the range used to run A+ through F.
+
+### Two corrections this pass forced, both in the model rather than the app
+
+**`pollAggs` charged zero.** The lever that priced this fix modelled it as
+free — `fanOut` and `reattach` both set to 0. That is D67's "not modelled
+reads as free" aimed at our own remedy, and it is worse than the usual
+case because the entire argument for the change rested on that term. A
+poll costs `(visible minutes / interval) × POLL_DOCS` reads a day plus one
+foreground refresh per cycle. Charged honestly the 500 k figure is $4,448
+rather than the $1,664 the free-poll model promised, and `AGG_POLL_MS` is
+now read from `live.ts` the way `IDLE_DETACH_MS` is, so the two cannot
+drift. `pulse.test.mjs` pins that it is non-zero and flat in DAU.
+
+**The model's default still streamed.** Once polling shipped, a default
+that streamed described an app that no longer exists — the D47 failure.
+The flag is inverted: polling is the baseline and `streamAggs` recovers the
+pre-D125 arithmetic, kept because that is what finding 2 documents.
+
+### The name cache, and a note that conflated two things
+
+`state.names`/`state.scores` are persisted to `insight.profileCache.v1`,
+uid-stamped, with a 7-day TTL. Its declaration used to say the cache
+"should not outlive the session that fetched it", which ran two properties
+together. Cross-account leakage is the real hazard and is unchanged: the
+payload refuses to load under another uid, `resetForNewUid` still empties
+the maps, `purgeLocalTrace` sweeps the key. Durability *within* one account
+was never a hazard, only an assumption — the names are public (D98) and the
+same regulars answer the same daily every morning.
+
+**Both maps are persisted, and that is load-bearing.** `fetchVoters` passes
+`scores` to `resolveNames`, whose `missing` filter requires a uid in BOTH.
+A names-only cache would have left every profile read where it was while
+appearing to work — it fails silently, which is why
+`src/v2/data/profile-cache.test.ts` exists and why that is its first case.
+
+**The trade:** a renamed account shows its old name to other people until
+the entry expires. Seven days is that window.
+
+### What was deliberately NOT done
+
+- **The static bank.** Worth $26/month at 500 k DAU and days of build and
+  Hosting work. Priced, skipped, still recorded in COSTS.md finding 1.
+- **The cap trims** (Kindred 12→4, voters 200→50, Circle 300→100). They are
+  the only levers that thin a Mirror surface and together they are worth
+  less than the region choice. Needing them would mean something else
+  regressed.
+- **Batching the mirror publish.** It was worth −78% before this pass and is
+  worth −0.0% after: it divided the fan-out, and there is no fan-out. Left
+  in the lever table at that value, because a lever that *became* worthless
+  is more informative than one that was quietly deleted.
+- **Refreshing only today on foreground.** `reattach` is now the
+  second-largest client term (bgCycles × DECK_DAYS). Worth ~5%; recorded,
+  not built, because a back day's count would then lag until a cold boot.
+- **The region.** Still worth 47–50% of every Firestore line, still a
+  console decision, still fixed at database creation. It is now the largest
+  single lever left and the only one with a deadline.
+
+### What this does to the walls
+
+COSTS.md's wall 2 — the read crossover at ~14,145 DAU — is gone; there is
+no term left for the fan-out to overtake anything with. D7's
+write-contention wall at ~14,400 DAU is untouched and is now the first
+wall by a wide margin, which restores the ordering COSTS.md calls the
+property worth keeping: the app breaks technically at a size where the bill
+is still three figures a month.
+
+## D130 · Build 12's pre-flight: the label was right, the reasoning under it was stale
+
+**Decided:** 2026-08-13 · **Status:** binding · Extends D116 one layer down.
+Found by running D116's standing store-side audit against everything merged
+between builds 11 and 12.
+
+### The comparison first, because it is the cheap half
+
+`appBuild` is **12**, build **11** is the highest on App Store Connect
+(run 17, `ac61c37`, upload step `success`), so runbook 2.4's test —
+*is `appBuild` greater than the highest build on ASC?* — passes and the
+next run goes as-is. That is a comparison against two run logs, not a
+habit, which is the distinction 2.4 exists to make and which has already
+cost one build number.
+
+Everything in 6.1 passes, as does the full suite: 944 client tests, 203
+function tests, 83 rules tests, lint, `tsc -b`, `check:globals` at its
+baseline of 417, and 19 further check gates. Two fail locally and neither
+is a defect — `check:web-firebase` reads `VITE_FIREBASE_*` from repository
+*variables* that exist only in CI, which is precisely why the workflow runs
+it after the build against `dist/`; and `check:fn-runtime` wants
+`functions/lib`, so it passes once `npm run build --prefix functions` has
+run. `test:rules` needs `HTTPS_PROXY` unset, per CLAUDE.md.
+
+### What the audit was looking for, and what it found
+
+D116's finding was that pushed store state goes stale and **nothing in this
+repository can read App Store Connect**, so the audit is manual by
+construction. Builds 11 → 12 carry D118–D129, and two of those ship
+surfaces that store new things about a person: D122's handles and circle
+invitations, and D126's foresight verdicts.
+
+**No declared answer was wrong.** Nothing needs re-typing into App Store
+Connect, and that is the finding rather than the absence of one:
+
+- A **handle** is `User ID`, which was already Yes. Apple's own definition
+  of the type names it — *"any screen name, handle, account ID …"*.
+- **Foresight verdicts** are `Other User Content`, already Yes.
+- An **invitation** does not move `Emails or Text Messages`, and this was
+  checked against the write rather than the feature name:
+  `inviteToGroupV2` sets `to`, `from`, `fromName`, `groupName`, `mode`,
+  `at` — every field app-generated, nowhere for a sender to type.
+- The **age rating** is untouched: `userGeneratedContent` and
+  `messagingAndChat` were both already true, and "anyone may invite
+  anyone" adds social reach, not a new answer.
+- The **listing copy** is accurate, including *"Four profiles"* — verified
+  against `test-definitions.js` (`big5`, `political`, `values`,
+  `attachment`), not assumed from D116 having last corrected it. Nothing
+  renders a handle beside an answer, so *"leave it blank to appear as
+  Someone"* still holds: `nameFor` returns the display name with no
+  handle fallback.
+
+### What was actually wrong
+
+The attestations' **stated reasons**, which is the D116 failure one layer
+in. D116 was a false claim a user could read; this is a true claim resting
+on a sentence that had quietly stopped being true — invisible to a user,
+and read by whoever next decides whether a row still holds.
+
+1. `USER_ID`'s `$why` said *"The Firebase uid."* — the whole of it, in a
+   build that also ships a unique world-readable handle.
+2. STORE-FORMS.md § 3 said **"Nothing in the app lets one user send
+   anything to another user"**, and named *"any addressed surface"* as the
+   trigger that moves `EMAILS_OR_TEXT_MESSAGES`. D122 falsified the
+   sentence and half-met the trigger.
+3. `docs/data-inventory.md` — the document `app-privacy.json`'s own header
+   names as the thing its answers must agree with — had **no row** for the
+   handle registry, invitations, or foresight verdicts.
+
+The trigger is re-derived rather than patched: it is now **addressed AND
+carrying text its sender wrote**, and both halves are load-bearing. An
+invitation is a capability offered to one person, not a message sent to
+them. It moves the day a DM ships — or, far more cheaply and far more
+likely, the day someone adds a note field to an invite.
+
+Two hand-maintained figures were stale in passing, both the D39 shape:
+STORE-FORMS.md said *"declare these five"* over a seven-row table, and
+runbook 5.6 said build 11 one day after 2.4 bumped it to 12 — inside the
+step whose whole job is noticing numbers disagree.
+
+### The gate, and why a discipline was not enough this time
+
+`check:data-inventory` — every `match /X/{…}` in `firestore.rules` is named
+in `data-inventory.md`, or exempted with a written reason. A **name** check,
+the same class as `check:globals`, and deliberately not more: it does not
+read the row, verify who it says may read the collection, or notice a row
+gone stale in place. A name is cheap to check; a claim is not.
+
+**Five findings against the pre-fix tree, silent after**, measured by
+restoring the file from git rather than argued: `foresight`, `invites`,
+`v2_handles`, `v2_ratelimits`, `insight_ratelimits`.
+
+The case for building it rather than resolving to be careful is D106 → D116
+→ this. D106's remedy was a discipline and it failed twice — a forgotten
+surface, then a mis-rewritten one. D116 replaced its half with a file list
+and that half has held. This is the same argument one layer down, and the
+reason it is worth a script is in *what* the audit found: three collections,
+none exotic, all shipped in the ordinary way, none of them changing an
+answer. **A miss that changes no answer produces no symptom**, so the only
+thing that finds it is something that runs whether or not anyone suspects.
+
+Four exemptions, each with its reason in the script: `databases` (the rules
+wrapper, not a collection), `v2_questions` (content the app ships, not data
+it collects), `v2_meta` (global config), `v2_velocity` (one global cursor
+doc, D54). The rate-limit collections were **not** exempted — they are
+keyed by uid and erased by `deleteAccount`, so they got rows. The script
+also fails on a stale exemption, because an allowlist outliving the thing
+it excused is how a gate becomes a rubber stamp.
+
+**On `ci.yml`, deliberately not `backend-checks.yml`.** It reads
+`firestore.rules`, so it looks like it belongs on the backend path. It says
+nothing about whether a rule is *correct*, and there it would block an
+emergency rules fix over a missing documentation row — the exact trade
+CLAUDE.md names, and the reason the placement is written into the workflow
+comment rather than left to be re-derived.
+
+### Not done
+
+**No check that a row's CONTENT is true**, which is the obvious next ask
+and is refused for D116's own reason: a checker that pretends to parse a
+prose claim gives false confidence. The rows say who may read a collection;
+`firestore.rules` and the rules tests are what make that true, and they
+already exist. This gate closes "a collection shipped and nothing wrote it
+down", which is the failure that happened, three times, in one release.
+
+**Nothing re-pushed to App Store Connect.** No answer changed, so there is
+nothing to push — the listing and age rating already match. That is a
+conclusion from the audit, not a step skipped.
+## D131 · The Firestore region is a decision with a deadline, and it is written down before it expires
+
+**Decided:** 2026-08-13 · **Status:** binding as a RECORD, not as a choice —
+the choice is deliberately left open. Follows D129, which removed the
+fan-out and left this as the largest remaining cost lever.
+
+**What this records** is not a change to the tree. It is the one cost
+decision in this repository that expires, written down with its arithmetic
+and its procedure while it is still cheap, because the failure mode is not
+choosing wrong — it is arriving at an answer by default and finding out
+afterwards that the door had closed.
+
+### Why it expires
+
+A Firestore database's location is fixed at creation. There is no console
+button and no `gcloud` command; Google's own documentation says so. So
+`nam5` is not the current setting, it is the current *fact*, and the only
+way to a single region is a second database.
+
+`prvfire33`'s `(default)` is already seeded and already serving a deployed
+backend, and build 1 is in TestFlight with internal testers. Today the data
+at risk in a migration is a handful of testers' answers. After a public
+launch it is everyone's, and the same operation stops being a Saturday and
+becomes an export/import with a downtime window.
+
+### The arithmetic
+
+Roughly half of every Firestore line, forever, with nothing a user can see:
+
+| DAU | `nam5` | single-region |
+| ---: | ---: | ---: |
+| 500 | $2.12 | $1.06 |
+| 5,000 | $41 | $21 |
+| 50,000 | $440 | $230 |
+| 500,000 | $4,448 | $2,342 |
+
+**The money is not the argument, and saying so is the point.** At the
+traction this app is planning for it is ~$20/month. The argument is the
+deadline. If the durability of a multi-region database is worth more than
+that — and for some apps it plainly is — then staying on `nam5` is the
+right answer; it simply has to be an answer.
+
+### What was found while writing the procedure, and is the real content
+
+Two ways the migration fails **silently**, both of which would deploy
+green, run green, and surface only when a human noticed something missing.
+
+**1 · The deploy sub-target stops deploying.** `firebase-deploy.yml` uses
+`--only "firestore:rules,firestore:indexes"`. That is correct with one
+default database. With the multi-database `firestore` array config it
+becomes the form that, per firebase-tools issue #10447, *"exit[s] with code
+0 and print[s] 'Deploy complete!' but deploy[s] nothing"*. The fix is
+`--only firestore`.
+
+The issue is closed (PR #9770) and this repo pins `^15.24.0`, newer than
+the affected 15.10.0 — so it may not bite. That is not a reason to relax:
+a caret range resolves to whatever the lockfile holds, the failure mode is
+silence, and the subject is the file deciding who may read whose answers.
+
+**This repository has already paid for this exact class of bug once.** The
+storage step carries the scar in its own comment — `--only storage:rules`
+errored under `continue-on-error` on every deploy and *"storage.rules had
+never actually shipped from here"* until a run log was audited. The
+firestore step is one config change away from the same shape, and nothing
+in the tree would notice.
+
+**2 · A Firestore trigger binds to the wrong database.**
+`onDocumentCreated`/`onDocumentUpdated` default to `(default)`. Omit
+`database:` and the deploy succeeds, the functions are healthy, every
+answer still writes, and **nothing aggregates**. There is no error because
+nothing failed, and `monitoring/onV2AnswerCreated-errors.json` watches for
+the trigger *erroring* — a trigger that is never invoked raises nothing.
+The Mirror just stops moving.
+
+Both are recorded in `docs/FIRESTORE-REGION.md` with the gate each one
+wants (`check:deploy-targets` extended to the deploy form,
+`check-fn-runtime`'s `__endpoint` scan extended to the trigger's database),
+to be built in the same commit as the code rather than after it.
+
+### What was deliberately NOT done
+
+**No code, and this is the load-bearing part of the deferral.** The client,
+trigger and `firebase.json` edits are specified in the document but not
+implemented, because merging them before the database exists points the
+running app at an empty one. A PR that must not be merged until an
+unrelated console action happens is a trap sitting in the queue — the
+opposite of what a green branch means here. The code belongs in its own PR,
+opened after step 1.
+
+**No choice.** A, B and C are all live, with a recommendation and reasons.
+This is the shape D7 asks for: write down what breaks at scale with its
+arithmetic, and do not build for it yet — extended to a decision that, for
+once, cannot be made later.
+
+### One thing corrected in passing
+
+COSTS.md's own region entry was three model runs stale: it quoted
+`$3.71 / $151 / $11,133` against `$7.26 / $247 / $17,166`, the pre-D124
+arithmetic, while the tables above it had moved twice. That figure sat
+inside the bullet warning that this decision has a deadline — this
+document's recurring defect (D39, `check:figures`) committed in the entry
+least able to afford it. Now current, and sized at the model's own scenario
+sizes so the next reader can regenerate it.
+
+## D132 · The profile said "0 of 30 answered" to someone who had answered thirty
+
+**Decided:** 2026-08-13 · **Status:** binding · A defect report from the
+build-12 device, fixed. Extends D121 (the passive fold) with the seam it
+was missing.
+
+### What shipped
+
+Every one of the four instruments read **zero answers, forever**. The
+profile's per-test tab drew "0 of N answered" with every axis listed as
+thin, no type could ever appear, and the Mirror's own-score fold behind it
+was empty. A device sat at *politics test · 6/30* on the feed's own ring
+and *0 of 30 answered* on the profile tab beside it, in the same session,
+two taps apart.
+
+### The bug is one type, crossed at one call
+
+`LIVE.myVotes()` is `{ [qid]: optionId }` and the option id is a **string**
+— `live.ts` writes `String(optionIdx)` on hydrate and stores the caller's
+string on vote. The scorers (`similarity.myAxisScores`,
+`passiveProfile.passiveTest`) declare `Record<string, number>` and gate on
+`Number.isInteger(v)`. `Number.isInteger("2")` is `false`, so every vote
+was discarded as malformed: no axis got an answer, `answered` counted
+nothing, and `ready` was never true.
+
+`result-card.jsx` passed the raw map. Nothing anywhere reported an error,
+because discarding a vote as out-of-shape is also the correct handling of
+a genuinely absent one — the bug's output is byte-identical to the honest
+empty state, which is why it survived a release and why the fix's test
+asserts **both** directions.
+
+### Why every guard and the whole suite were green
+
+Worth writing down, because each near-miss is a different lesson and only
+one of them is "add a test".
+
+- **`tsc -b` cannot see it.** `result-card.jsx` is `.jsx`. The parameter
+  type is declared, correct, and unchecked at exactly the call that broke.
+  This is the `vote.test.ts` lesson (a `window.LIVE` rename that passes
+  tsc because its consumers are `.jsx`) arriving through the other door:
+  not the member's NAME but its VALUE TYPE.
+- **The unit tests are green and right.** `passiveProfile.test.ts` and
+  `similarity.test.ts` pin the fold and the arithmetic thoroughly — with
+  numeric vote maps, because that is the declared type. A pure module
+  tested against its own signature cannot discover that its only real
+  caller does not honour it.
+- **The mount tests reach the screen and prove nothing about it.**
+  `live-fixture.ts` answers `testFeedItems: () => []`, and an empty bank
+  makes the fold return `null` before it can look at a vote. The fixture
+  says so in a comment — the place fields "have their own unit tests" —
+  which was true and, for this fold, exactly the gap.
+- **The correct conversion already existed**, four lines of it, inline in
+  `LiveSimilarityField.tsx`. One of the two callers converted and one did
+  not, in different files, so the diff that would have shown them
+  disagreeing was never written.
+
+### The fix, and where it is put
+
+`similarity.voteIndices(votes)` — the store's map, coerced to the option
+indices every fold here wants — used by both callers. Deliberately **not**
+a change to the scorers' guard: `Number.isInteger` refusing `"2"` is not
+the wrong rule, it is the right rule stated at the wrong distance from the
+store. A caller that forgets the conversion is now a caller that did not
+use the function, rather than one that wrote its own four lines correctly.
+
+It drops `""`, `"5"`, `"-1"` and `"1.5"` rather than coercing them. `""`
+is the one that matters: `Number("")` is `0`, which would score an
+unanswered question as a strong *disagree* — a wrong answer invented out
+of an absent one, which is worse than the bug being fixed.
+
+### The test is at the seam, because that is what was missing
+
+`test/passive-fold-live.test.jsx` drives `ownProgress`/`ownResult` through
+the real store surface with real bank items and **string** votes. Verified
+by reverting the fix: it fails `expected +0 to be 6` — the screenshot's
+number, reproduced.
+
+It also has to dispatch `insight:test-results` with `{}` first, and that is
+the second finding rather than test scaffolding. A live boot ends in
+`publishTestResults()`, which REPLACES `IS_TEST_RESULTS` and so clears the
+demo persona's baked scores. **The fixture never does this**, so a live
+mount test still carries the demo's Big Five, `ownResult` answers from the
+seed, and the passive path is unreachable. Left as a note here rather than
+fixed in the fixture: changing it moves every live mount test's starting
+state, which is a larger change than this defect earns.
+
+### Not done
+
+**The feed's ring and this fold still count differently.** The ring
+(`passive-progress.js`) tallies card ids in `localStorage` as they are
+answered; the fold counts votes joined to the instrument by prompt text.
+They agree on one device that answered everything in the feed, and they
+diverge for answers given on another device — the ring cannot see those,
+the fold can, because votes hydrate from the server and the tally does
+not. The fold is the truthful one. Unifying them means the ring reading
+`ownProgress`, which is a behaviour change to a surface nobody has
+reported a problem with, so it waits for one.
+
+---
+
+## D133 · One card said "our estimate" in the feed and stated a measurement two taps away
+
+**Decided:** 2026-08-13 · **Status:** binding · A defect report from the
+build-12 device — *"Learn seems to still use some sample data"*. Completes
+D32's label seam and D89's refusal, both of which stopped one surface short.
+
+### What a live device was being shown
+
+`card.p` is an authoring field. The bank's own header says what it is for:
+*"% of the crowd who get it right. Doubles as difficulty (low p = hard), so
+'on your level' runs on real crowd data"* — it is the scheduler's input,
+written by whoever wrote the card.
+
+D32 built the seam that keeps it honest: `LEARN_SPLIT` returns the
+published first-attempt distribution once one exists and the authored model
+until then, `LEARN_SPLIT_SRC` says which, and the reveal's footer hangs off
+that — *"Our estimate — becomes measured once enough people have
+answered."*
+
+**Three other surfaces never consulted it**, and each printed `card.p` as a
+finished fact about people:
+
+- the Mirror Map's knowledge node — a filled bar and *"84% of people get
+  this right"*;
+- the ⓘ sheet's row, labelled **Crowd**, which is a word about people;
+- the "who knows this" panel's headline, in inverse type.
+
+So the same card, in one session, hedged in the feed and asserted on the
+map. The hedged one was the honest reading of the same number.
+
+### The panel was worse than unlabelled
+
+D89 refused the *"BEd knows this best · 83%"* row on a live device because
+its ranking is `wfKnowRate` — a hash of (card, cohort) over the DEMO cut
+groups. It refused the headline and left the sheet the headline opened
+into, where the same fabrication is drawn as a full distribution: every
+row a hash, sorted, bars against a hairline baseline, with *your* band
+marked. A refusal that removes the summary and keeps the detail has moved
+the claim rather than withdrawn it.
+
+The sheet stays reachable — it is the ⓘ-adjacent "Who knows this" panel,
+not only D89's button — so the gate has to be in the panel.
+
+### The fix
+
+`LEARN_RATE(card)` → `{ pct, src }`, next to `LEARN_SPLIT` and reading the
+same `learnMeasured`: the share who got it right, and where the number came
+from. All three surfaces use it, and each says "our estimate" in live mode
+when that is what it is. `card.c` indexes a measured split safely because
+`LEARN_ORDER` permutes on the way to the SCREEN and the buttons map back to
+authored indices before anything is recorded — the property its own note
+already had to guarantee for the aggregate to be meaningful at all.
+
+The cuts go the way MapStats' five null anchors went (D72): `renderKnowStats`
+forces the friends dim and drops the chips in live mode, so no live path
+reaches `WF_GRP` at all, and the sheet says what it cannot show rather than
+opening on an empty frame. It returns when a per-cohort learn aggregate
+exists to rank — the same "when there is a truth to read" condition D89 set.
+
+**Demo builds keep all of it, unhedged.** A demo's whole population is
+authored, and hedging one figure inside it would imply the others were
+measured — the inverse of the same error.
+
+### Not done, and one thing that is not a defect
+
+**The Map's `typ: c.p / 100`** (`map-tab.jsx`) still reads the authored
+value. It positions a node; it is not a number shown to anyone, and a
+layout hint does not make a claim.
+
+**Learn's card bank is authored content, not sample data**, and that is the
+half of the report that is working as designed: `content/learn-questions.json`
+is the source for both the client and the seeded Firestore docs (D32), the
+way the daily bank is. What was wrong was never the questions — it was the
+percentages beside them.
+
+**The learn-progress demo seed is correctly gated and was verified, not
+assumed.** A live build starts at a real zero (`freshS()` behind
+`VITE_V2_LIVE`, which `ios-release.yml` sets); probed directly. An install
+that once ran a non-live build keeps whatever `insight.learn.v3` holds,
+because that key is also where genuine progress lives and there is no way
+to tell the two apart after the fact. If a device shows pre-known cards, it
+is that, and the cure is the account delete — worth knowing before reading
+it as a live-mode bug.
+
+---
+
+## D134 · The test track gets a wall; the public build does not
+
+**Decided:** 2026-08-13 · **Status:** binding · Amends D3 for one build.
+Owner decision, taken against the alternatives below rather than by
+default.
+
+**Decision.** With `VITE_REQUIRE_SIGNIN=true`, the app opens on a Google
+sign-in and nothing else works until it succeeds. `ios-release.yml` sets
+it; nothing else does. Every other build — the dev server, the demo
+bundle, the whole test suite — compiles the gate to a pass-through, so
+D3's "never a wall" remains what the public build ships.
+
+### Why a wall is worth it HERE and nowhere else
+
+D3's fear is losing a user's history to a login. On the test track the
+same fear points the other way. D6 turned Android system backup off (it
+would have copied the local cache to Google Drive) and iOS never had it,
+so an unlinked anonymous session lives on ONE phone and dies with it —
+the account panel says exactly this, and D122's handles and D126's
+foresight streaks made it more expensive to be true. A tester who answers
+for two weeks and then replaces a handset has produced nothing, and
+nobody finds out until the numbers do not add up.
+
+A public user who bounces off a login is a user lost. A tester was going
+to sign in anyway; the only question was whether they did it before or
+after the data mattered.
+
+### What makes it cheap: it links, it does not sign in
+
+`initLive()` has already signed the session in anonymously by the time the
+gate paints, so the button calls `linkGoogle()` — same uid, every answer
+already given kept. This matters for the release it ships in: a tester who
+has been answering under build 12 does not lose that history the first
+time the gate appears. A gate that called `googleSignIn()` would have
+stranded it silently, which is why the test that pins the difference
+asserts on WHICH call is made rather than on the screen going away.
+
+Two states the naive version gets wrong, both handled:
+
+- **The Google account is already an InSight account.** Firebase refuses
+  the link rather than merging (correct — two histories cannot become
+  one). The only way on abandons this session, so it is a second, named
+  button — *"Sign in and leave this phone's answers"* — with a way back
+  beside it. The first tap never does it.
+- **Boot did not attach.** The gate does NOT fall through to the demo app.
+  A build whose whole premise is "your answers are kept" must not hand
+  someone sample questions, because they would not be kept and nothing on
+  screen would say so. It shows `bootError` and a retry — the D77
+  argument, that a phone has no console to ask.
+
+### A store fix came out of it
+
+`state.linked` was set on every auth callback and **announced on none**.
+The anonymous → Google upgrade keeps the uid, so the callback fell past
+every branch without a `notify()`: the flag was correct and no subscriber
+was told. `LivePrivacyPanel` had papered over it with a local `linkedNow`
+set after its own await — which works exactly where the link was started,
+and would have left this gate up forever. It now notifies on a CHANGE
+only; this callback also fires for token refreshes, and a notify per
+refresh is a re-render per refresh.
+
+### Two files, because `check:bundle` said so
+
+The gate wraps `<App />` at the root, so whatever implements it is in the
+first-paint graph of every build including the ones that can never render
+it. Measured: the screen put **3 KB** into an eager graph that had no room
+for it, and the gate failed. So the decision (`signInRequired`, a build
+constant) stays eager and the SCREEN is a `React.lazy` chunk only a
+flagged build ever fetches — `check:bundle`'s own advice, followed rather
+than argued with. Eager graph is back within budget and the screen ships
+as its own chunk.
+
+The early return sits after the hooks, which is safe for a stated reason
+rather than by luck: Vite substitutes the flag at build time, so it is
+constant for the life of the process and the hook order cannot change
+between renders of one instance.
+
+The bundle ceiling moved with it: total **2175 → 2179 KB**, one new chunk,
+and `MAX_TOTAL_JS_KB` raised 2176 → 2180 with the note the script asks
+for. Deferring moved that number by ZERO — the total counts every chunk,
+so splitting relocates bytes and only deleting code moves it, which is the
+property D128's raise recorded and which held again. It is raised rather
+than trimmed because the bytes are a login screen.
+
+**And the gate caught it in CI after passing locally, which is worth more
+than the 4 KB.** `npm run build` without a `VITE_SENTRY_DSN` never emits
+the 435 KB `prod-*.js` chunk, so the local total read 1725 KB against a
+2176 ceiling — 451 KB of headroom that does not exist. Two different
+bundles, not a flaky gate. `docs/LOCAL-TESTING.md` now says how to build
+the one CI measures, and `check-bundle.mjs` says it at the constant.
+`MAX_EAGER_KB` is now at exactly its ceiling with no headroom left; the
+next addition to first paint has to be a dynamic import, not a raise.
+
+### What was NOT built, and why
+
+**Sign in with Apple.** SHIP-CHECKLIST §4.8 already records that Google
+being the only third-party sign-in makes Apple's equivalent mandatory *for
+the App Store review*, and its own advice is *"do not pre-build this — an
+unused sign-in path is its own review surface."* A wall changes when that
+bill comes due, not whether: **the public build must either drop the wall
+or add Apple sign-in before submission.** Written here because the flag
+makes it easy to forget which of those was chosen.
+
+**No prompt-instead-of-wall middle ground.** It was the alternative and it
+was declined by the owner. Recorded because it is the obvious thing to
+reach for if the wall proves too costly, and the flag makes that reversal
+a variable rather than a rewrite.
+## D135 · The field is what a stop opens on, and Near cannot be built as asked
+
+**Decided:** 2026-08-13 · **Status:** binding · Owner decision, taken
+against the prototype (`InSight_standalone_23.html`) as the reference.
+Reverses D119's tab order; amends LiveSimilarityField's honesty rule 2.
+
+### What the prototype does that live did not
+
+The Mirror's geographic stops are a FIELD in the prototype — *you at the
+centre, them arranged around you, distance = how unlike you* — with a
+figure hero above it and Overview first in the tab row. Live opened every
+stop on a list of answer rows under a place name, with the field one tap
+away. Three stops, one screen, a different heading each time.
+
+### The reversal, and what it costs
+
+**Overview leads and a stop opens on it.** D119's argument for
+Answers-first was sound and is unchanged: the constellation folds over
+completed test scores (D112) and stays empty until a population has taken
+them, while answer rows publish from the first answer (D98). What changed
+is the remedy. An empty field is now answered where it happens — every
+empty arm of the field offers *"See what they answered"*, which is the
+tab that is full today — rather than by putting a different tab in front
+of it. The field is the sentence the Mirror exists to say; burying it
+made every stop open on the same screen.
+
+**The cost is real and is now asserted rather than assumed.** Overview's
+fold runs on arrival at every cohort stop. It stays affordable because
+`loadSimilarity` early-returns on `similarityLoading` and its getDocs
+sweep is guarded by `state.testAggsLoaded`, so re-entry is free — the
+tab body re-mounts and calls again, and the second call does nothing.
+`LiveCohortBody.test.tsx` pins both halves, and the case's own note
+records that its first draft claimed "called once", which was a pin on
+mount behaviour wearing a cost guarantee's clothes and failed against a
+real re-mount.
+
+### The hero figure, which is not the prototype's
+
+The prototype's "12.6k in Oslo" is a RESIDENTS count. The app has never
+had one and cannot get one, which is exactly what honesty rule 2 refused.
+The rule is amended, not dropped: the refusal was of that CLAIM, never of
+a headline.
+
+What D98 makes available instead is better-founded than what was refused.
+Counts are exact from the first answer, and one person answers a question
+at most once — create-only (D5), and D86's edit MOVES a vote rather than
+adding one. So **the largest single-question count from a cohort is a
+number of distinct people**, and the hero shows that, with the unit
+saying *"people have answered in Asker"* rather than "live in". Summing
+across questions would not be a headcount — it would count one person
+once per question they answered — and `reach` is written out to say so,
+because it is the obvious "improvement" someone will make.
+
+It is a floor: a person who answered only a question this device holds no
+aggregate for is not in it. A floor is the right direction to be wrong in
+for a figure that size.
+
+### The tab row was sized for six and had seven
+
+`MirrorLensTabs` fell to 11.5px at `>= 6`, and Foresight (D126) arrived as
+a seventh without the ladder being re-measured — so seven tabs drew at the
+size six were measured at, in a row that never scrolls. That is the
+cramping the report was about, and the `>= 6` is why it never showed up as
+a change to anything. Now `>= 7 → 10.5`: at 320 CSS px each of seven tabs
+gets ~45px, "Foresight" needs ~52px at 11.5 and ~47px at 10.5, and the
+3px horizontal padding absorbs the rest.
+
+### Near: asked for, and refused by the data (NOT DONE)
+
+The owner asked for Near to work like the prototype's field — people
+around you, unnamed, showing only **gender and age**. It cannot be built
+from what exists, and the gap is not effort:
+
+- `v2_presence/{uid}` is **`allow read: if false`** — one of the three
+  denies CLAUDE.md keeps, and the only one whose reason is physical
+  safety.
+- The document holds `{cell, at}` and nothing else. There is no age and
+  no gender in it to show.
+- `LIVE.near` returns a COUNT. There is no API, client or server, that
+  answers "who is near me" in any form.
+
+So the honest options are a new capability, not a screen:
+
+1. **A callable that returns an anonymised neighbour list** — join
+   presence cells to the (world-readable, D98) profile anchors and return
+   age band + gender with no uid and no name. Buildable. It needs a
+   k-threshold, because "1 person · female · 25–34" in a sparse
+   kilometre is an identification, which is the whole reason presence is
+   denied in the first place.
+2. **Say no and leave Near as the counter** (D111's shape).
+
+Either way it changes a promise the app makes in its own words. The
+account panel says *"No other user can ever read your square; a count is
+all that comes back"*, and option 1 makes the second half false — so it
+is a rules/callable change, a privacy-copy change, a `check:public-copy`
+and `docs/data-inventory.md` change, and a store privacy-label review
+(D130), in one commit with tests. That is a decision about physical
+safety and it is the owner's to take with the cost stated, which is why
+this entry stops here rather than shipping a half of it.
+## D142 · Build 13's pre-flight: a build was spent while this file said it was not
+
+**Renumbered from D136 on 2026-08-14 (build 14's pre-flight).** This record
+and "The Mirror stop loses two tabs" were both numbered D136 — a genuine
+collision, not the `amendment`/`adoption` suffix pattern that makes D7, D28,
+D33 and D40 look doubled. It came out of the merge that renumbered a
+branch's D138–D141 behind main's; the two D136s were assigned on separate
+lines and neither moved. **The Mirror record keeps D136** because ~55
+citations across `lensTabs.ts`, `MIRROR.md`, `world-feed.jsx`,
+`paths-data.js`, `CLAUDE.md` and the smoke tests point at it, against two
+for this one (runbook 2.4 and SHIP-CHECKLIST 6.2), both updated with this
+change. Renumbering the cheaper side is the same trade the merge made.
+
+**Decided:** 2026-08-13 · **Status:** binding · Extends runbook 2.4's
+comparison rule. The first firing of the forgotten-bump trap, which is the
+expensive direction and the one that had never happened.
+
+### The comparison first, because it is the half that decides
+
+`appBuild` is now **13**; build **12** is the highest on App Store Connect
+(run 18, `d0cf435`, 2026-08-13, 5m 32s, upload step `success`). So runbook
+2.4's test — *is `appBuild` greater than the highest build on ASC?* —
+passes and the next run goes as-is.
+
+It did not pass an hour earlier. **`appBuild` was 12 with build 12 already
+delivered**, because the bump that this convention puts immediately after
+an upload did not happen after run 18. Every gate in the tree passes at a
+stale build number — nothing here can see App Store Connect — and the
+refusal arrives *after* the binary transfers, so the cost would have been
+a full macOS run at 10x for an integer.
+
+Both directions of the trap have now fired, and they are not symmetric:
+
+| | Cost |
+| --- | --- |
+| Bumped too eagerly (2026-08-08, 2 → 3) | one unused integer; Apple only wants monotonic |
+| Bump forgotten (2026-08-13, after run 18) | ~150 minutes of quota, spent before the error appears |
+
+### What made it findable, and what made it hideable
+
+**Findable:** the upload step's own conclusion. `success` spent a build,
+`skipped` did not, and runs 15 and 16 — same commit, eight minutes apart,
+one of each — are the worked example already in 2.4.
+
+**Hideable:** the runbook said otherwise. The paragraph read *"Build 12 is
+pre-flighted and unspent as of 2026-08-13 (D130)"*, and it was written in
+`d0cf435` — the exact commit run 18 then archived and uploaded. The
+sentence was true when committed and false a few hours later, and no check
+could have caught it, because the fact it asserts lives at Apple.
+
+That is D73's shape one layer out (*pushed state has no endpoint to read
+back*) and D39's shape sharpened: not a figure that drifted slowly, but one
+falsified by the very act it was describing. **So 2.4's prose is a record
+and the run list is the procedure**, and where they disagree the runs win.
+Written into 2.4 in those words rather than left as a fixed number.
+
+### The standing store-side audit: nothing to re-type
+
+D130 made D116's audit standing for every release. Run against D131–D135,
+it terminates early and for a structural reason rather than by inspection:
+**the diff `d0cf435..HEAD` touches no `firestore.rules`, no `functions/`
+and no `docs/data-inventory.md`.** No collection was added, no server write
+changed, so no data type entered the app. `check:data-inventory` passing is
+that claim held mechanically rather than asserted.
+
+D134's sign-in gate is the one change that looks like it should move a
+declaration and does not: it calls `linkGoogle()` on the session that is
+already signed in, so it collects the email and display name that Google's
+default scopes already put on the Firebase Auth record — declared since the
+first submission. A wall changes *when* that happens, not *what*.
+
+### What build 13 carries, and why two of them are the point
+
+D131's written-down region decision, D132 and D133, D134's test-track wall
+and D135's Overview-first stops.
+
+**D132 and D133 are defects in build 12 itself**, which is what makes this
+release a fix rather than a cadence. D132 is the one that would justify it
+alone: `LIVE.myVotes()` is string-valued and the passive fold gated on
+`Number.isInteger`, so every instrument read *"0 of N answered"* to someone
+who had answered all of them, with no axis ever filling and no type
+reachable. Build 12 shipped that to the test track.
+
+### The wall is a 6.2 blocker, and this is the build that makes it concrete
+
+`ios-release.yml` defaults `VITE_REQUIRE_SIGNIN` to `true`, so build 13
+ships walled — correct for the test track, which is D134's whole argument.
+D134 also recorded that the public build must drop the wall or add Sign in
+with Apple, and left the choice open.
+
+What was missing was that the runbook's **6.2 reply text contradicts it in
+advance**: the drafted 4.8 answer says *"no account is required, and Google
+is an optional upgrade rather than a login wall"*, which describes the
+build the flag turns off. Sending it with a walled binary argues against
+the app in the reviewer's hands. 6.2 now carries the fork, the exact
+variable that resolves it, and the note that a wall is a 5.1.1(v) question
+before it is a 4.8 one — the expensive half, because it argues about the
+product rather than about a provider.
+
+Recorded here because the flag defaults ON: forgetting it is silent, and
+its symptom is a rejection rather than a red build.
+
+### Pre-flight, measured
+
+Every 6.1 gate passes. The full suite: **969** client tests, **203**
+function tests, **83** rules tests, **168** script tests, lint clean,
+`tsc -b`, `check:globals` at its baseline of **417**, and **28 of 29**
+check gates.
+
+The one failure is environmental and is not a defect: `check:web-firebase`
+reads `VITE_FIREBASE_*` from repository *variables* that exist only in CI,
+which is exactly why the workflow runs it after the build against `dist/`.
+`check:fn-runtime` is off the list D130 kept — it passes once
+`npm run build --prefix functions` has run, and this pre-flight ran it.
+`test:rules` needs `HTTPS_PROXY` unset, per CLAUDE.md.
+
+**`check:bundle` passing locally is the weakest green here**, and D134 is
+why: without a `VITE_SENTRY_DSN` the local build omits the 435 KB
+`prod-*.js` chunk, so the local total is measured against a ceiling the
+release build does not face. CI measures the bundle that ships.
+
+`apple.whatsNew` stays *"First release."* — it is a **version** field, not
+a build field, and `MARKETING_VERSION` is still 2.0.0 with 6.2 unticked, so
+there has been no first release for it to be new against (D74).
+
+## D136 · The Mirror stop loses two tabs; Crossroads and a feed window arrive
+
+**Decided:** 2026-08-14 · **Status:** binding · Owner decisions, taken
+against the prototype (`InSight_standalone_23.html`). Reshapes D119's tab
+row and completes the move D135 started; withdraws D126's lens placement
+without touching its engine.
+
+Three changes asked for together, recorded together because two of them
+are the same change to the same row and the third is the reason the row
+had room.
+
+### 1 · Overview stops being a tab and becomes the head of the stop
+
+D119 made the constellation a tab and put Answers first. D135 reversed
+the order so a stop opened on the field. This takes the step both were
+feeling for: **the field is not a tab at all.** It draws above the row,
+always, and stays drawn while any tab is open.
+
+The argument is D135's own, followed through. The field is the stop's
+IDENTITY — *you at the centre, them arranged around you, distance = how
+unlike you* is the sentence the whole Mirror exists to say — and a tab is
+the wrong furniture for an identity, because a tab is a thing you can be
+looking away from. "Overview leads" was the closest the row could get to
+that while the row still owned the whole screen. This is also the
+prototype's own layout (`spec/mirror-field-pops.jsx` renders MFHeader →
+field → lens row), which both tabbed versions had diverged from in
+opposite directions.
+
+**The cost did not move, and one cost went away.** Overview's fold runs on
+arrival — the same call count as when it was the landing tab, because a
+stop always opened on it, and `loadSimilarity` still early-returns on
+`similarityLoading` behind a `state.testAggsLoaded` guard. What changed is
+*navigating* the row: the field used to unmount and re-mount when you left
+Overview and came back, firing the loader a second time (harmless, and
+asserted as such in D135's case). It now sits outside the tab conditional
+and never unmounts, so row navigation costs nothing at all. The test was
+tightened from "called twice" to "still called once".
+
+**The row opens on Answers, not on nothing**, though the prototype's row
+starts collapsed. The prototype can afford that because its field is drawn
+from invented people and is never empty; the live constellation folds over
+completed test scores (D112) and is empty until a population has taken
+them. Closed-by-default would render an empty field above a closed row — a
+blank stop, which is the failure D135 was fixing.
+
+### 2 · Foresight leaves the Mirror
+
+The lens row is where a population gets READ, and Foresight was the only
+entry in it that was a GAME. It is off the row.
+
+**The engine is untouched and that is deliberate.** `data/foresight.ts`,
+the verdict rules at `v2_users/{uid}/foresight/{readId}`,
+`LiveForesightLens.tsx` and both suites all stand. D126 already named the
+feed as the open follow-on for this game and recorded that it needs no
+engine change to move there (`readsFrom` takes questions and returns
+reads) — which is also where the prototype puts it. Removing the surface
+is not a judgement on the engine.
+
+**What this leaves dark, said plainly:** Foresight has no surface today.
+That is the cost of the change, and the reason the machinery is being kept
+rather than deleted is that the placement question is open, not closed.
+The mount test that walked to it (`smoke-live`, "reaches the Foresight game
+through two lazy boundaries") is DELETED rather than skipped — what it
+asserted was reachability through a tab, and there is no tab; a skipped
+case would read as a broken feature instead of a removed surface. The lens
+body's own suite renders it directly and still covers the clock and the
+scoring.
+
+**The row is five wide now** — Answers plus four lenses — so
+`MirrorLensTabs`' size ladder lands on its `=== 5 → 13` rung. The 6 and 7
+rungs stay: they cost two comparisons, and D135's finding was that a
+seventh tab arrived without anyone re-measuring the width it had to fit.
+
+### 3 · Crossroads, live
+
+Branching micro-stories in the feed: three forks deep, eight endings, no
+score. The reveal is the TREE — the crowd's flow through every branch as
+stroke width, your road inked, your ending named, and how rare the walk
+was. `spec/paths-data.js` + `spec/paths-card.jsx`, at the head of the feed.
+
+**A story is an ordinary bank question, and this is the whole design.** Its
+eight ENDINGS are its options, so a finished walk stores as an ordinary
+`optionIdx` 0..7 — under the fold's existing ceiling (idx > 19 is dropped,
+`functions/src/v2.ts`) and under the by-cell budget, exactly as D114 sized
+the dial's twelve buckets. Which means the rules' create/edit arms, the
+trigger, the ledger, the by-cells, the D86 cooldown and the voters panel
+all carry a walk **unchanged**: zero rules edits, zero fold edits, and the
+voters panel prints *"picked The Quiet Good"* for free, which is the most
+legible option label in the bank.
+
+A branch's share is then the summed counts of the endings beneath it over
+the total — arithmetic on marginals the aggregate already publishes. No new
+read, no new document, no new collection.
+
+**What it needed on top of that**, all of it client- or content-side: a
+`path` entry in `check:quality`'s `FEED_TYPES` with a validator for the tree
+(seven decision points, exactly the eight walks, two choices each, unique
+ending names); `pathOptions` in `gen-v2content.mjs` to synthesize the eight
+labels; the story fields carried through the emitter; and the two stories
+themselves in `content/feed-questions.json` with provenance rows.
+
+**The demo pool did not go away, and the card reads whichever it has.** In a
+build with no bank `LIVE.pathQs()` is empty and the card falls back to
+`paths-data.js`, whose branch shares are AUTHORED. The two render
+identically apart from the words, which is what makes the fallback worth a
+test on both sides rather than a comment: `smoke-daily` pins the demo story
+on a demo mount, `smoke-live` pins the bank's story on a live one and
+asserts the demo titles are absent. A card that quietly fell back on a live
+build would look perfectly correct and be showing invented crowd figures,
+which is D1's case exactly.
+
+**The empty arm is not a zeroed tree.** A live story nobody has finished has
+no crowd, and eight branches drawn at zero width would say *"nobody went
+anywhere"* rather than *"nobody has been here yet"*. So `flow` is null at a
+total of zero and the card says the sentence instead — the same
+honest-absence rule the Map's `MapStats` follows by returning null (D72).
+
+**Three deliberate differences from the prototype's files:**
+
+- **Named exports, not `window.PATHS` / `window.PathsCard`.** New
+  cross-module reads fail `check:globals` rule 4, whose count may only go
+  down. Coupling held at its baseline across this change.
+- **No `mapTree()`.** The prototype files finished walks onto the Map as a
+  `g-paths` over-category. That needs `map-tab.jsx` — which is eager — to
+  read the store, and `MAX_EAGER_KB` is at exactly its ceiling with no
+  headroom (D134). Reading it off the bridge instead would buy the bytes
+  and spend the ratchet. Both doors are shut until one of the two budgets
+  moves, so the function is omitted rather than shipped uncalled.
+- **The `.ar-*` CSS family was renamed to `.pp-*`.** The prototype styles
+  this card's head, title, rule, chips and footer with the class family of
+  an "Arena" card that exists in neither tree, and whose `--ar-c` /
+  `--ar-ink` this card never sets — it sets `--pp-*` and overrides the
+  colour inline at every site. Importing that namespace would have landed
+  six rules under a prefix with no owner, styled by variables nothing
+  defines.
+
+**Two transport gaps the gates found, both silent.** The seed's payload is
+a WHITELIST, not a spread — a field it does not name never reaches
+Firestore — so the story would have seeded as a question with no forks in
+it. And `SEEDED_FIELDS`, which decides whether a stored doc is already
+current, did not compare the story either: a fixed typo in a fork would
+have been a content change that could never reach production. Both are now
+carried, and the second needed a real change rather than a line: `nodes`
+and `endings` are the first OBJECTS in that list, and the comparator
+handled only arrays and scalars, so they compared by reference, never
+matched, and would have rewritten both live question docs on every seed run
+while reporting them as legitimate drift. `seedValueMatches` is the
+structural arm — recursive, key-order-independent (Firestore does not
+promise order on read, so `JSON.stringify` would have been the same bug in
+disguise), and still strict about null-vs-undefined at the leaves so a doc
+seeded before a field existed still upgrades.
+
+**A third gap, and the only one no local gate could have caught.** The
+opening fork wants to be keyed by the empty walk — a walk is a string of
+choices and the opening is the empty one, so `nodes[walk]` indexes it
+directly. **Firestore refuses an empty map key**, and refuses it at write
+time inside the seed callable: `check:quality`, `check:content`, `tsc`, 984
+unit tests and every mount test were green on a bank that could not be
+seeded at all. The e2e loop failed on the PR, which is the one thing that
+runs the real seed, and that is the whole argument for keeping it on the
+backend gate path. The opening now carries a `_` sentinel and both readers
+map `walk || "_"`.
+
+The story's own keys are pinned exactly by the path validator, so that
+cannot regress. The general form got a guard of its own in `seed.test.ts`:
+every value the seed writes is walked for an empty (or dotted) map key,
+because the next object-valued seeded field will not have a validator
+spelling its keys out.
+
+**Not dealt into the card stream.** Crossroads is pinned at the head of the
+feed rather than interleaved, because its reveal is a tree rather than a
+split: none of `renderCard`'s apparatus — option rows, who-voted, takes, the
+insight line — has anything to say about a walk. `buildFeedGlobals` holds
+`path` docs out of `WORLD_FEED_QS` for the same reason.
+
+### 4 · The feed mounts a window
+
+The feed runs hundreds of cards long and every one is a real component. It
+now mounts eight and grows by four as its tail comes within ~2200px of the
+scroller's bottom, and never shrinks — collapsing a card you have already
+answered would move the scroll position under your thumb.
+
+**Two things make it not a loading state.** The reach is roughly two screens,
+so the window grows well before you can see its edge; and a spacer holds
+room below the last mounted card, without which a feed whose mounted cards
+already fill the viewport can never fire the scroll that would grow it and
+the window stalls at page one — a feed that stops at eight cards looks
+exactly like a feed that ran out.
+
+**An unresolvable scroller keeps mounting.** `applySnap` finds the scroller
+by walking for an ancestor whose computed `overflow-y` scrolls, and it can
+come back empty: before layout settles, in a host that styles the shell
+differently, or under a test environment with no CSS. Treating that as "not
+near the end" would strand the feed at its first page with no event that
+could ever grow it, so an unknown distance grows instead. The worst case is
+the un-windowed behaviour this replaced — a cost, not a defect — and it is
+also why the mount suites can reach a card past page one at all
+(`growFeed`, test/mount-app.jsx).
+
+### What proves it
+
+`test:unit` (71 files, 984 cases), `functions` (203), `lint`, `tsc -b`,
+`check:globals` (coupling unchanged at its baseline), `check:quality` (372
+questions), `check:content`, `check:figures`, `check:a11y`, `check:labels`,
+`check:public-copy`, `check:data-inventory`, `check:catalogs` and
+`check:bundle` on the CI-equivalent build — all green.
+
+New cases: the card's walk and the ending it reveals, persistence across
+unmount, the store's refusal of a fourth choice, the authored flow
+arithmetic, and seven live ones — the bank's story rather than the demo
+pool, the walk written as an ordinary vote indexed by ending, the crowd read
+out of counts rather than an authored share, restoration from the server
+with no local trace, a second walk as a D86 edit, the snap-back when that
+edit is refused, and the nobody-has-finished-this-yet arm. Plus the feed
+window growing, and Crossroads present on a demo mount and absent from the
+demo pool on a live one.
+
+Changed cases: the tab row's shape and lead, the constellation's position
+relative to the row (asserted as document order, so "above" holds for a
+screen reader too), and the navigation-cost pin tightened from two calls to
+one — D136 made it stricter, since the field no longer unmounts.
+
+**The bundle gate earned its keep here.** The first draft of the live fold
+precomputed each story's counts in `buildFeedGlobals`, which put ~1 KB into
+the eager graph for a card that cannot render until the feed chunk lands.
+`MAX_EAGER_KB` refused it and is not raiseable — it is what keeps the
+Firestore SDK out of first paint — so the fold moved into `LIVE.pathQs()`
+and runs on call. Eager is unmoved at 955; only the total drift alarm rose,
+2182 → 2184, with the question the script asks recorded at the constant.
+
+---
+
+## D137 · The bridge kept the names nobody was crossing on
+
+**Decided:** 2026-08-14 · **Status:** binding · A cleanup pass, taken
+against the whole tree rather than a feature. Extends D39's ratchet with a
+fifth rule; removes nothing any user or any test could see.
+
+The ask was to remove what is old and unused. Most of what *looks* old here
+is not: `firestore.rules.v1-archive`, `scrub-v1-discoverable.mjs` and
+`design/InSight_standalone_18.html` are all load-bearing reference, each
+cited from somewhere that would be poorer without it, and every script in
+`scripts/` is wired to `package.json` or a workflow. What was actually dead
+was invisible instead, and it was invisible for a structural reason.
+
+### The class: a publication nobody reads
+
+D39 says "convert on touch", and the honest shape of a conversion is to
+export the name and leave `globalThis.X = X` beneath it for the consumers
+that have not moved — the two live side by side until the last consumer
+does. Nothing ever went back for the line. Seventeen of them had piled up:
+
+- **seven `ui/Live*` panels** — Breakdown, Circle, Cohort, GroupsMirror,
+  Interests, Takes, Voters. Every consumer imports the panel it renders;
+  one of the comments said so out loud ("world-feed.jsx imports it
+  directly; this is here for parity with its sibling panels"), which is a
+  publication kept for symmetry with publications that were also dead.
+- **`MirrorLensRow`**, under a comment promising "the sites that have not
+  moved" — group-mirror.jsx and mirror-field-pops.jsx had both moved.
+- **`ELEMENTS_CATALOG`**, whose sibling catalogues (places, pokedex) never
+  published at all, so the bridge here was a one-off, not a convention.
+- **six components published out of the only file that used them** —
+  `GDMark`, `LensCard`, `LensRow`, `MTAnchorChips`, `DuoDomains`,
+  `IS_typeColor`/`IS_typeSplit` (aliases of two names already exported).
+- **`DuoDots`**, which was not merely over-published: declared, published,
+  and rendered by nothing. That one was dead code, and it is deleted.
+
+None of these could break — a name nobody reads cannot render wrong — which
+is precisely why they survived. Rule 1 asks the opposite question (a
+reference with no assignment); **rule 4 counts READS, and there were none**,
+so the meter this repo built to find exactly this kind of residue was
+structurally blind to it. No gate was asking.
+
+They are not free. Each is a claim that the bridge is load-bearing for that
+name, so it reads as coupling to anyone planning a conversion — and it is
+indistinguishable by eye from the publication that *is* still carrying a
+consumer.
+
+**`check:globals` gains rule 5**: a name assigned to global scope that
+nothing in the scanned set reads. It has the `check-appcheck` escape hatch —
+`PUBLISHED_FOR_OUTSIDE`, name to reason, for a reader the scanner cannot see
+— and a stale entry fails too, in both directions: listing a name nothing
+assigns any more, and listing a name that *is* read in-tree. The list is
+empty, which is the preferred state; an entry is a name the rule stops
+checking. Verified by measurement rather than reading: re-adding one removed
+line reds the gate, and both stale branches were driven with a planted entry.
+
+### The blind spot underneath it
+
+Two names looked dead and were not. `relmap.jsx` read its panels with
+`const { RMPersonPanel, RMHubPanel } = window` — and the scanner records a
+destructured name as a **local**, so `<RMPersonPanel/>` resolved locally,
+the two window entries read as dead, and rule 4 never counted the edge.
+A rename in `relmap-panels.jsx` would have been caught by nothing: not rule
+1, not `no-undef`, not `tsc`.
+
+CLAUDE.md's instruction for this is to fix the scanner, not to except the
+name — but here the honest fix is cheaper than the scanner change, because
+teaching the scanner to see the read would have *raised* the ratchet, which
+only moves down. So `relmap-panels.jsx` converted instead (D39, on touch):
+two `export function`s, an import at the consumer, and its own
+`window.RMCore` read became the ESM import that `relmap.jsx` already used.
+The blind spot is gone because the construct is gone. **Coupling 417 → 416**
+across 42 files; `spec-index.js` drops the line, since `relmap.jsx` now
+imports the module and rule 2 asks whether a file loads.
+
+### Three smaller things, same character
+
+**Dead code, not just dead exports.** Only three symbols in `src/` and
+`functions/` are declared and referenced nowhere at all: `anonFirst`,
+`unmuteAuthor`, `subscribeNearOptIn`. All three are deleted. Everything else
+that a naive unused-export scan flags is used inside its own file, and
+dropping the keyword would be churn, so it stays. Removing
+`subscribeNearOptIn` exposed the rest of its machinery: with no subscriber,
+`near.ts`'s listener Set was permanently empty and both notify loops were
+no-ops, so they go with it — the purge listener stays, and `check:purge`
+still holds.
+
+**`unmuteAuthor` deserves naming, because deleting it removes the only code
+that could have closed a product gap:** there is no way to un-mute an author.
+There never was — no surface ever called it — so the only route back today
+is the account panel's local purge (D51). Deleted rather than kept as
+scaffolding: a half-built API reads as a shipped feature, and the gap is
+easier to see when the function is not there. A note sits at the deletion
+site. **This is a deferral, not a fix.**
+
+**Four raw NUL bytes, in four files.** `LiveAnswerRows.tsx` wrote a
+collision-proof sentinel as a literal `0x00` rather than an escape; so did
+`links.test.ts`, `check-content.mjs` and `check-anchors.mjs`. The runtime
+value is right and every node-based gate reads them fine — but `grep` calls
+such a file **binary and skips it silently**, which means two of the four
+were guard scripts that no shell-level search could see into. Rewritten as
+the six-character escape: identical strings, files back to text. Found by
+accident, while grepping for something else — which is the point.
+
+**Orphaned CSS.** 16 class selectors that no source file, and not the
+prototype either, ever names — a whole unshipped `.ed-*` reveal animation
+set, the `.mmt-spec*` duo spectrum, three `.mmt-gwho*`/`.mmt-gself` rules
+and `.tape` — plus the nine `@keyframes` left with no user once they went
+(40 → 31). **78 lines.** Sound only because the app builds no class names
+dynamically: there is not one interpolated `className` in the tree, checked
+before cutting. Six further selectors are named by the prototype but not the
+app and were **left alone** — that file is the reference design, and
+`style-diff.mjs` reads it. `toastFade` looks unused in the stylesheet and is
+not: three call sites apply it through an inline `animation:`, which is why
+the keyframe sweep was run against `src/` and not against the CSS alone.
+
+### And two files under `/content` that nothing read
+
+Found on a second pass, after the first was fairly asked whether that was
+really all. It was not, and the miss is instructive: the first sweep asked
+"is this code reachable", which is the wrong question for a **data** file.
+
+`content/archetypes.json` (12 KB) and `content/scenes.json` are read by no
+script and no source. The generator loads six banks; these are not among
+them, and nothing else opens them. Their only mention anywhere was a row in
+`content/README.md` — a document whose opening line calls `/content` "the
+source of truth".
+
+**`archetypes.json` had diverged from the thing it mirrors**, which makes it
+worse than dead weight. Its live counterpart is `src/v2/spec/archetype-data.js`
+("THIS file is the live source now, hand-edits and all"), and the two now
+disagree on nearly every name in the set — `The Explorer` / `The Architect` /
+`The Anchor` against the shipped `The Enthusiast` / `The Planner` /
+`The Dependable`. A person editing the JSON would have believed they had
+changed the app's archetypes. They would have changed nothing. That is the
+same call, on the same grounds, as `design/spec-modules/` (deleted
+2026-07-29 once the copies had diverged); both live in git history.
+`scenes.json` is the same shape against `src/v2/spec/scenes.js`, just smaller.
+
+**`check:content` gains the rule**, in the shape the other lists here use: a
+`.json` under `/content` is a generator input or it is named in `NOT_SEEDED`
+with its reason, and a stale entry fails both ways (listed but absent, listed
+but loaded). The generator's six filenames stopped being six inline literals
+and became `CONTENT_SOURCES`, so the gate and the loader cannot disagree.
+Verified by planting an unread file and a stale entry; both red.
+
+**The README was stale in every direction at once**, which is why nothing
+caught the orphans: it pointed at `InSight_standalone_14.html` (the tree has
+18), said the feed bank held 73 questions (82) and the 1v1 bank 20 (30), and
+omitted three files that *are* consumed — `lenses.json`, `learn-questions.json`
+and `scorecard.json`. `check:figures` does not read this file, so none of it
+was load-bearing anywhere. Corrected against `check:content`'s own output.
+
+Deleting both changed nothing that ships: `npm run build:content` regenerates
+`functions/src/v2content.ts` byte-identically, and `check:content` still
+reports 512 questions.
+
+### What proves it
+
+`lint`, `tsc -b` + `vite build` (CI-equivalent, with the DSN set),
+`test:unit` (71 files, **984 cases**), `functions` (**208**), `test:rules`
+(**83**), `test:scripts`, `check:globals` (275 defined, 275 referenced —
+**equal for the first time**), `check:bundle` (eager graph unmoved at 954
+KB), `check:figures`, `check:a11y`, `check:labels`, `check:purge`,
+`check:touch-zoom`, `check:public-copy`, `check:data-inventory`,
+`check:versions`, `check:store-forms`, `check:monitoring`, `check:quality`,
+`check:content`, `check:neighbors`, the six catalogue gates,
+`check:logic-sync`, `check:deploy-targets`, `check:appcheck`,
+`check:fn-runtime` and the three iOS gates — all green.
+
+No new test cases, and that is the correct outcome: this pass removed code
+that nothing executed. What guards it is rule 5, which is a gate rather than
+a case, and the 984 existing ones — the mount suites walk both tabs and every
+overlay, so a name removed from the bridge that something did read at render
+time would fail there rather than in review.
+
+`check:store-copy` and `check:web-firebase` fail here and failed identically
+on the unmodified tree: an unfilled Play signing fingerprint and unset
+release env vars. Both are release gates, on neither `ci.yml` nor
+`backend-checks.yml`, and untouched by this pass.
+## D138 · The suggestion board gets a server: a budgeted door, an author-only read, and the same human gate
+
+**Decided:** 2026-08-14 · **Status:** built on
+`claude/new-functionality-planning-82qywb` (owner's direction: "start
+building the suggestions backend"), ships when that branch's PR merges ·
+Design: [`docs/NEXT-FUNCTIONALITY.md`](NEXT-FUNCTIONALITY.md) §6.
+
+**Decision.** "Suggest a question" — in the spec layer since the port,
+faked onto localStorage — gets its v1 backend: `v2_suggestions`, written
+only by the `suggestQuestionV2` callable, read only by its author and by
+two operator instruments, feeding the promotion path that already
+existed. Four shapes carry the design, each borrowed from a surface that
+already proved it:
+
+- **The write path is a callable, not a rules grant**, because its three
+  checks cannot live in rules: App Check attestation (D36), a
+  3-per-rolling-day budget (the D122 invite ledger's sliding window, in
+  `v2_ratelimits/suggest_{uid}`), and the sold-inventory tripwire —
+  QUESTION-FARM hard rule 6's place+civic conjunction, declined at the
+  door with the reason (that subject is the paid research path,
+  MONETIZATION.md path 1) rather than reviewed and silently dropped. The
+  budget is priced on D33's spine: a human reads every row, so intake is
+  paced to what review can absorb. A declined ask spends no budget, and
+  the e2e orders its legs to prove that rather than assume it.
+- **The author reads their own rows and nobody else's** — the board can
+  say "in review / picked / declined" without a public pool. NOT a
+  privacy floor (D98 retired those): an unreviewed free-text queue is a
+  moderation surface, and a public voting board is a second UGC surface
+  that gets its own decision if it ever ships. List queries carry
+  `uid == request.auth.uid` or Firestore refuses them wholesale (the D65
+  value-test shape).
+- **Review is two operator callables** (`fetchSuggestionsV2`,
+  `reviewSuggestionV2` — assertOperator, App Check exempt with the
+  recorded reason: the caller is a dev session with no attested app).
+  One verdict per row, `picked` or `declined` with a ≤280-char note;
+  re-judging a settled row refuses, so a "picked" the author saw cannot
+  silently become a "declined" — the moderation log's generation lesson
+  in the one-shot form this queue needs. **`picked` marks, it does not
+  publish**: promotion into the banks stays the human PR path that
+  predates this record (`npm run promote -- --source community`, D97's
+  provenance rows — the vintage was first-class before any row existed
+  to carry it).
+- **No public byline.** `credit` records that the author wants one, for
+  the day a decision grants it; flag authorship is a standing deny for
+  retaliation reasons, and a byline on a live question is the same shape
+  of exposure pointed the other way.
+
+**Erasure and the inventories, in the same change rather than after an
+audit:** deleteAccount phase 4d sweeps the rows by uid and 4b takes the
+budget ledger; the erasure e2e asserts both AND that a stranger's row
+survives. `docs/data-inventory.md` gains the row and the ledger mention
+(check:data-inventory), the three functions join the deploy `--only`
+list (check:deploy-targets) and the App Check ledger (check:appcheck),
+and the review query's `(status, at)` composite index ships in
+`firestore.indexes.json`.
+
+**Costs, priced:** one transaction + one create per accepted submission,
+budget-bounded at 3/uid/day; the review fetch is one indexed query
+capped at 200 rows; no listeners, no new triggers, no per-user fan-out.
+The collection's growth ceiling is the budget times the user count, and
+the review instruments never read more than the cap per call.
+
+**Not built, deliberately:** the public voting board and its upvotes
+(a moderation surface — own decision); any write path into `content/`
+(the two-gate shape is the point). *(The client wiring was on this list
+for a few hours: the same day, the designer's standalone v24 delivered
+the §8 board design and the port landed it live — the store converted
+off the global bridge, submissions through the callable, real statuses
+under "Yours", the community lenses wearing the preview tag until a
+public pool is a decision. `design/standalone-v24/README.md` tracks the
+remaining ports.)*
+The tripwire's watchlist is a pinned copy of question-quality.mjs's —
+a Cloud Function cannot read a repo script at runtime — and the unit
+test carries the canonical cases so drift in either copy fails loudly.
+
+**Enforcement:** 3 rules tests (author-only read, mine-only list, no
+client writes); unit tests on the validator and tripwire; e2e loop leg
+11 drives the callable door, both refusal codes, the budget trip, the
+stranger denial and the operator loop against the real emulated
+functions; the erasure e2e covers phase 4d both directions.
+
+## D139 · The daily pulse: one question asked every day, folded per day by the trigger that did not change
+
+**Decided:** 2026-08-14 · **Status:** built on
+`claude/new-functionality-planning-82qywb` (owner's direction: "do the
+next step" against docs/NEXT-FUNCTIONALITY.md §2, with the v24 design in
+hand), ships when that branch's PR merges.
+
+**Decision.** The over-time question machinery ships, exactly the §2
+shape: a pulse question is ONE template doc in the bank (surface
+`pulse`, exactly five ordered steps — the chart's y-axis), and an answer
+is a day-keyed doc `{baseQid}_{day}` in the ordinary answers
+subcollection — the duel answers' id discipline and day window on a
+world-public surface. One answer per (person, day) is the doc id;
+create-only in v1, so "you said what you said today" holds structurally
+(the D86 arm's surface list keeps pulse out); the answers are public
+like every answer (both read fences carry `pulse`), and they carry the
+D29 binding because they feed a published aggregate.
+
+**The load-bearing property, proven rather than assumed:** the aggregate
+trigger needed NO changes. Its vote branch never reads the question doc
+— the rules did the validating — so a composite qid folds into a
+PER-DAY aggregate pair (`v2_aggs_private/{qid_day}`,
+`v2_question_aggs/{qid_day}`), anchors breakdown included, minted by the
+transaction's own `set`. Per-day docs are the right grain: a single
+growing series doc would fight the 1 MiB ceiling and the shipped-whole
+egress bill. The e2e leg drives it end to end. What DID change, each
+small: the velocity scan's impossible-volume ceiling grows by exactly
+`PULSE_BANK_SIZE × 90` (one entry per template per ledger-TTL day),
+`check:content`/`check:quality` learned the surface (five steps, id
+shape refusing the day-separator underscore), and the client bank is
+untouched — the card fetches its template directly.
+
+**The reading keeps the design's honesty rules as contract**
+(`design/standalone-v24/pulse-*` headers, ported typed into
+`ui/PulseCard.tsx` / `ui/PulseTrends.tsx` / `data/pulse.ts`): no
+smoothing, no interpolation — a missing day breaks the line; absent ≠
+zero, and the panel says which days had nobody; a day under `THIN` (20)
+answers is counted and listed, never positioned — a placement gate about
+statistical honesty, not a privacy floor (everything publishes, D98);
+every reading carries its n; streaks are client-derived, no server
+state. Costs: your own series is a fold over the hydrated vote mirror
+(zero reads); the crowd is one bounded 21-id `documentId()` in-query per
+UTC day per session (docs/COSTS.md row). The card is first-screen
+product beside the blind daily, so the eager-bundle ceiling moved
+955 → 966 with its note; the chart is lazy behind the card's own tap.
+
+**The first live pulse is deliberately neutral** — `pulse-pace`, "What
+pace was today?" — because the design's own demo question ("How is
+today going?") is wellbeing tracking, which moves the store forms
+(Health sits on the not-collected list) and waits on its own recorded
+decision. Swapping the content file is the whole change when that
+lands; the demo room keeps the design's question meanwhile.
+
+**Not built, deliberately:** a same-day edit window (create-only is the
+v1 posture; a rules arm with its own cooldown is the follow-up if
+mis-taps prove real); the Map's pulse branch (the design's `mapTree`
+stays unported — the seventh over-category is its own decision, the
+D126 boundary); more pulse questions (the roster is a constant until a
+second one earns its place); any scheduled minting (there is nothing to
+mint — the template is the only doc).
+
+**Enforcement:** three rules tests (the day window, the id discipline,
+the template's bound/kill-switch/surface answers); the e2e leg (per-day
+fold with breakdown, same-day duplicate refused); the velocity ceiling's
+constants beside their reasoning; `check:content` + `check:quality` on
+the surface; the LIVE member pins and the smoke fixture carrying
+`votePulse`/`pulseVotes`; 969 unit tests, 89 rules tests, the bundle
+and figure gates green at commit.
+
+## D140 · Height joins the anchors — a band select, never a centimetre field
+
+**Decided:** 2026-08-14 · **Status:** built on
+`claude/new-functionality-planning-82qywb` (docs/NEXT-FUNCTIONALITY.md §4
+adopted by the owner's "do the remaining ones"), ships with that
+branch's PR.
+
+**Decision.** `heightBand` becomes the seventh breakdown dimension and
+the eighth anchor key: a six-value closed vocabulary (`Under 160 cm` …
+`190 cm or taller`, plus `Prefer not to say` as a real option), a
+`<select>` on the Basics card beside gender — never a centimetre input,
+because the band IS what is collected. That is the profile's own
+coarse-by-construction posture (the birthday → age band fold, the
+coordinate → city fold) taken one step simpler: with no precise number
+on the device there is nothing to fold and nothing to leak.
+
+**The full new-dim checklist ran, and it is the §3-tier-2 rehearsal:**
+`BREAKDOWN_DIMS`/`BREAKDOWN_DIM_VOCAB` (+ the worst-case arithmetic,
+6 → 7 dims, ~3.4k integers, still tens of KB), `isValidV2Anchors`,
+`ANCHOR_FIELDS`, `COHORT_DIMS`/`DIM_LABEL` (Explore's chips and every
+breakdown sheet pick the dim up from there with no further wiring), the
+`anchors.heightBand` index exemption (the D64 storage-cost regression
+the checklist exists to not forget), `check:anchors` holding vocab and
+select equal (now 5 closed vocabularies), the privacy panel's bluntest
+sentence gaining "height band", and the data-inventory rows. Old
+answers carry no band and fold into no height cell — absent-is-skipped,
+the D99 `cohortN` honesty already covers thin new dims.
+
+**Not done, deliberately:** weight/BMI (the §4 trilemma stands — its
+least-bad shape re-imports the suppression floor); a Map anchor-ring
+row for height (the ring is its own surface; the dim already serves
+Explore and the breakdowns); backfill (there is nothing to backfill
+from — the band never existed before this).
+
+## D141 · Types leave the profile — tier 1, arithmetic on what is already public
+
+**Decided:** 2026-08-14 · **Status:** built on
+`claude/new-functionality-planning-82qywb` (docs/NEXT-FUNCTIONALITY.md §3
+tier 1, the v24 type-mix design), ships with that branch's PR.
+
+**Decision.** The People lens gains "Types here" — the v24 design's
+TypeChip + TypeMixCard ported typed (`data/typeMix.ts`,
+`ui/TypeMixCard.tsx`): who is in this population by Big Five archetype,
+over a STATED basis, with the people you can actually see under it and
+your own type first in the chip row — which IS the "same type as you"
+shortcut. Every count is out of the session's cached voter sample (the
+D102 bound, said on the card), a type under 8 is listed never ranked,
+under 40 typed people the card shows counts and says shares would lie,
+and a type nobody carries is named as missing. Big Five only,
+deliberately — the politics types stay on the profile.
+
+**Tier 1's whole claim: no new anything.** The fold is arithmetic over
+the voter cache Kindred already loads and the world-readable
+`testResults` the similarity field already parses — no new reads, no new
+collection, no new dim, and nothing cross-tabs ANSWERS by type (that is
+tier 2, the recorded D8 amendment this deliberately does not take). The
+coupling ratchet did not move: `archetype-data.js` gained ADDITIVE named
+exports (its globals stay for the spec consumers; an import is not a
+reference the scanner counts), and `type-marks.jsx` already exported
+`TypeMark` from an earlier partial conversion.
+
+**Not built, deliberately:** tier 2 (type as a breakdown dim — its own
+record, and D140's checklist is the rehearsal); type-vs-type answer
+splits (the same tier-2 boundary); the demo room's type-mix card (the
+design's demo rosters stay in `design/standalone-v24/`, the live card is
+live-only); types from the other three instruments.
+
+**Amended the same day (standalone v25 + the owner's direction):** the
+card is SHARES ONLY — "a reading, not a directory: no people, only
+proportions" — one neutral bar per type with your row in the accent,
+and it sits BELOW Kindred on the People lens. The per-person fold
+survives in `data/typeMix.ts` for whatever consumer earns it next; the
+people rows and the per-type roster left the card.
+
+## D143 · Build 14's pre-flight: the status line failed a third time, and the bundle gate was already red
+
+**Decided:** 2026-08-14 · **Status:** binding · Third firing of runbook
+2.4's trap (D130, D142), plus the first store-filing change since D116 and
+a raise of the total-JS ceiling.
+
+**`appBuild` 13 → 14**, propagated to `versionCode` and
+`CURRENT_PROJECT_VERSION`. Run 19 (`0e65741`, 2026-08-13 20:19Z, 6m 58s)
+uploaded build 13 — its `Upload to App Store Connect` step's conclusion is
+`success`, and the transfer took 1m 49s of the run. The post-upload bump
+did not happen, so `appBuild` sat at 13 with 13 already delivered: the same
+~150-minute refusal-after-transfer D142 caught one build earlier.
+
+**The status line failed the same way for the third consecutive release,
+and that is now a property of the format rather than an accident.** D130
+wrote *"Build 12 is pre-flighted and unspent"* in `d0cf435`, the commit run
+18 uploaded. D142 diagnosed exactly that and then wrote *"Build 13 is
+pre-flighted and unspent"* in `0e65741`, the commit run 19 uploaded. Both
+sentences were true when committed and false within hours, because the run
+is dispatched *from* the commit that makes the claim. **No wording fixes
+this** — a claim about App Store Connect cannot be stored in a tree that
+cannot read App Store Connect (D73's shape, one layer out). Runbook 2.4 now
+strikes its own status line rather than restating it, and the comparison
+against the run list is the only procedure. This record does not assert
+that build 14 is unspent; it asserts that run 19 spent 13, which is a fact
+about a run that has already finished.
+
+**`check:bundle` was red on `main` before this pre-flight started**, and
+finding it was the pre-flight's main yield. CI run 394 (`d77c28a`,
+`typecheck-build`) failed at `npm run check:bundle` with every other job —
+rules, e2e, lint, android — green.
+
+| budget | ceiling | measured | verdict |
+| --- | ---: | ---: | --- |
+| `MAX_CHUNK_KB` | 735 | 704 | ok |
+| `MAX_TOTAL_JS_KB` | 2184 | **2220** | **RED, +36 KB** |
+| `MAX_EAGER_KB` | 966 | 963 | ok, 3 KB spare |
+
+**Raised the total to 2230; refused to touch the eager constant.** The
++36 KB is D137–D141 — the suggestion board, the pulse card and its
+React.lazy trends chart, the type-mix card, the height band — and every
+byte of it lands in a chunk first paint does not fetch. The script's own
+note says the total is *"a drift alarm rather than the guarantee"* and set
+the test explicitly: *if a third raise lands this week, ask whether the
+band is too narrow rather than whether the app should be smaller.* This is
+the fourth, all four were features that were asked for, all four left first
+paint alone, and the alarm has still never been the thing that found a
+problem. So the raise takes ~10 KB of headroom instead of the +1 the last
+three took — an alarm re-armed one kilobyte from the wall fires on the next
+feature, which is the failure the note named.
+
+**Three measurement traps, all of which fired here, all recorded because
+each cost a rebuild:**
+
+1. **`npm run build` locally is not what CI builds** — the script already
+   says so. Without `VITE_SENTRY_DSN` there is no 435 KB `prod-*.js`, and
+   the local total came out 1779 against 2184: green, on a bundle CI never
+   weighs. The red only reproduces with a dummy DSN set.
+2. **`CAPACITOR_BUILD=1` is a third bundle, and it is the one that
+   ships.** The first measurement in this pre-flight used it and read
+   *eager* 971 against 966 — a plausible-looking failure of the wrong
+   gate, on the wrong bundle. CI's build measures 963.
+3. **The number to compare against is the previous build's, rebuilt** —
+   not the ceiling's history. Build 13 rebuilt at `0e65741` measures 954
+   eager / 1727 total on a plain build, which is what makes +36 KB a
+   statement about D137–D141 rather than about accumulated drift.
+
+**A gap this opened and did not close: nothing weighs the shipping
+bundle.** `ci.yml` runs `check:bundle` against the *web* build;
+`ios-release.yml` builds with `CAPACITOR_BUILD=1` and a real DSN and never
+runs it. Rebuilt at `0e65741` the native bundle's eager graph is **963
+against the 955 ceiling then in force** — already over, and over at every
+build since, with no gate positioned to say so. Build 14's is 971 against
+966. **Not fixed here, deliberately:** the ceilings were calibrated against
+the web build, so the native number needs its own baseline before it can
+mean anything, and inventing one during a release pre-flight is how a
+release acquires an unrelated regression. Recorded as the arithmetic that a
+future `check:bundle --native` starts from.
+
+**The store filing changed for the first time since D116, and only its
+reasoning changed.** Two things entered the app that the filing's prose did
+not describe, and neither moves an answer in App Store Connect:
+
+- **Question suggestions (D138)** are free text — a prompt, its options,
+  a credit opt-in — in `v2_suggestions`. *Other User Content* was already
+  Yes, but its stated basis was "answers and test results", which a
+  suggestion is not. The row is about what is **collected**, not what is
+  published, which is why an author-only read does not exempt it — the
+  same reasoning that keeps Email Address a Yes while no document of ours
+  holds one.
+- **The height band (D140)** rides the anchors snapshot, already inside
+  that row. What it changes is a different row: **Health**, which the
+  filing lists as not-collected, was written when the app held no body
+  measurement at all. It stays No — a six-value demographic band beside
+  gender and education, no HealthKit, no medical inference, and D140
+  declined the centimetre field precisely so there was nothing finer to
+  hold — but it is now a judgement rather than an obvious No, so
+  STORE-FORMS.md states it as one, with the trip-wire that flips it:
+  **weight, or anything that combines with height into a BMI.** D140
+  declined weight/BMI on unrelated grounds, so that answer is untested.
+
+**D140's new-dim checklist has no store-filing step, and that is the
+finding.** It ran end to end — vocab, validator, index exemption,
+`check:anchors`, the privacy panel's bluntest sentence, the data-inventory
+rows — and every item is about the app or the backend. The App Store
+filing is the one surface a new anchor can reach that the checklist cannot
+see, `check:store-forms` holds the two halves equal to *each other* rather
+than to the tree, and `check:data-inventory` stops at the collection list.
+So a new dim can land complete by every gate and leave a legal attestation
+describing an app that no longer exists. Add the filing to the checklist
+when the next dim is planned.
+
+**Also renumbered:** two records were both `## D136`, a real collision
+rather than the `amendment` suffix pattern. The Mirror record keeps the
+number (~55 citations in code and docs); build 13's pre-flight became D142
+(two citations, both updated).
+
+**Not done, deliberately:** the release itself. This is pre-flight — the
+dispatch is `upload = true` on *iOS release*, it is outward-facing, and it
+spends ~150 minutes of macOS quota at 10x. `whatsNew` stays *"First
+release."*: it is a version field, `MARKETING_VERSION` is still 2.0.0, and
+6.2 is unticked (D74).
+
+## D144 · The bundle gate weighs the bundle that ships, and refuses to weigh any other
+
+**Decided:** 2026-08-14 · **Status:** binding · Closes the gap D143 opened
+and deliberately left open. Changes what `check:bundle` measures, where it
+runs, and what it will refuse to do.
+
+**The defect.** `ios-release.yml` is the only workflow that sets
+`VITE_V2_LIVE=true`, and it never ran `check:bundle`. `ci.yml` ran
+`check:bundle` with the flag unset. So the gated bundle was one nobody
+installs and the installed one was ungated — through build 14, which is
+already on App Store Connect.
+
+Measured at `0826cd8`, same tree, one variable apart:
+
+| build | chunks | total | eager | preloads |
+| --- | ---: | ---: | ---: | ---: |
+| demo (what `ci.yml` gated) | 63 | 2220 KB | 963 KB | 22 |
+| shipping (`VITE_V2_LIVE=true`) | 67 | 2232 KB | **972 KB** | 23 |
+| shipping + real config (release) | 67 | 2233 KB | **973 KB** | 23 |
+
+Against the ceilings in force (2230 / 966) the shipping bundle was over
+**both**, and had been over the eager one since at least build 12. First
+paint — the number whose whole job is keeping a 293 KB Firestore SDK and a
+445 KB Sentry SDK out of a cold start — was 6 KB past its ceiling for four
+releases and nothing in the tree could say so.
+
+**`CAPACITOR_BUILD=1` is not the cause, and that matters because it is the
+variable that looks like it.** It only waives `vite.config.ts`'s
+reCAPTCHA-key guard — a native client attests through DeviceCheck and never
+reads the key — and defines nothing, so it cannot change a byte of output.
+Building with each flag in isolation, `VITE_V2_LIVE` alone reproduces the
+entire delta and `CAPACITOR_BUILD` reproduces none of it. D143 named the
+native build as the unweighed one, which was true by accident: the release
+sets both, and the other one was doing the work.
+
+**What was NOT done: a second set of "native" ceilings.** That was the
+obvious shape and it is what D143 sketched (`check:bundle --native`). It is
+wrong because it leaves two profiles both gated and both plausible, so
+every future reader still has to know which command produced which numbers
+— the same question that produced this defect. Ceilings that describe one
+artifact, and a gate that refuses the others, has no such question in it.
+
+**The three changes.**
+
+1. **`check:bundle` refuses to grade a non-shipping build.** It reads
+   `VITE_V2_LIVE` from its own environment and exits 1 unless it is
+   `"true"`, naming the command to run. `--demo` measures a demo build
+   deliberately, prints the numbers and applies no ceiling. The success
+   line now names the artifact — `bundle budget OK — SHIPPING bundle` —
+   because every failure this gate has had was about *which* bundle, and
+   an "OK" that does not say "of what" is what let four builds through.
+2. **`ci.yml` builds the shipping shape** (`VITE_V2_LIVE: "true"` beside
+   the dummy DSN) and passes the flag to the check step as well. Repeated
+   rather than hoisted to job level on purpose: passing it twice is the
+   assertion that the two steps agree about their subject.
+3. **`ios-release.yml` runs the gate on its own `dist/`** — the literal
+   JavaScript about to be signed, before `cap sync`, costing ~1s and no
+   extra build. This is the half that cannot rot: a gate running in the
+   job that builds and signs the artifact has no way to measure a
+   different one.
+
+**Ceilings re-pointed, not raised.** 2230 → 2245 and 966 → 978 describe the
+same tree measured on the right object. The ~12 KB and ~6 KB bands are
+sized for a specific hazard: `ci.yml` builds with a dummy DSN and no
+Firebase config while `ios-release.yml` builds with the real ones, worth
++1 KB of total and +1 KB of eager (2232/972 → 2233/973, both measured). Set
+the ceilings at CI's figures and the release fails a gate CI had just
+passed — on a macOS runner, after the archive, at the most expensive moment
+available.
+
+**A fourth number, because the guarantee was only ever arithmetic.**
+`MAX_EAGER_KB` protects first paint as a side effect of one total covering
+23 chunks, which holds exactly as long as nobody raises it — and it was
+raised four times in four days, twice while reporting that first paint was
+already over. `MAX_EAGER_CHUNK_KB = 200` states the rule directly: outside
+the entry chunk, no member of the eager set may be library-sized. Today's
+largest is 40 KB, so it catches either SDK by a factor of at least 1.4 with
+wide berth for a chunky component. It is the rule that would have caught
+the pre-D110 tree, where 292 KB of Firestore SDK was preloaded on every
+cold start for months while the per-chunk ceiling saw 292 < 735.
+
+**Verified rather than assumed, and one of these was the point of the
+exercise:** both SDKs are absent from the shipping build's modulepreload
+list — 23 modules, largest 40 KB, no 293 KB `index.esm-*` and no 445 KB
+`prod-*`. "The eager ceiling has been wrong for four builds" is exactly the
+report that ends with an SDK in first paint, so it was checked before the
+ceiling moved. The refusal path, the `--demo` path and the new per-chunk
+rule were each exercised — the last by temporarily lowering it to 30 KB and
+confirming it fires on the four 34–41 KB eager chunks and exits 1.
+
+**What this does not fix.** The gate still cannot see a bundle built with
+flags nobody wrote down; it can only refuse the one wrong shape it knows
+about. If a future build profile is added, it needs a line here and in both
+workflows, and nothing enforces that but review. Recorded rather than
+solved: the alternative is a build-profile manifest emitted into `dist/`,
+which is more machinery than one flag currently justifies.
+
+## D145 · Four question lanes, two of which had never run: the learn and feed Routines, a feed regulator, and a weekday for catalogues
+
+**Decided:** 2026-08-14 · **Status:** built on
+`claude/question-generation-rates-5kiz6c` (owner's direction: "wire up
+the learn and feed lane routines … new catalogues are not created they
+should be"), ships when that branch's PR merges.
+
+**What the audit found, before any of it was fixed.** Eight surfaces
+generate questions; two Routines existed. Counting the lanes rather than
+the contracts:
+
+| Lane | Contract | Routine | Output at audit |
+| --- | --- | --- | --- |
+| daily archive | D97 | daily 07:00 | **0 in 15 days** — every logged run a no-op |
+| catalog pick | this manual | daily 08:00 | ~1/day (pk11–pk14) |
+| catalog **domains** | § Creating new catalogues | (the same 08:00 slot) | 1 in 15 days |
+| learn cards | D32 → D115 | **none** | 0 |
+| feed questions | D97 | **none** | **0 ever** — all 82 provenance rows read `editorial` |
+| duel | D40 | none (deliberate) | 0 |
+| pulse | D139 | none (deliberate) | 0 |
+| community | D138 | n/a — human | 0 promoted |
+
+Two different failures wearing the same zero. Learn and feed had
+complete contracts and nothing calling them: D115 gave the learn lane a
+budget that could produce and left it uncalled, so the bank sat 182 cards
+short of its own target with a grantable budget of 10 and no run to
+spend it. The daily farm is the opposite — it fires every morning and
+places nothing, because `farm-budget` grants 8 while a pre-launch
+scorecard blinds lanes 1–2 and coverage's floor is met everywhere. **That
+one is not fixed here**, deliberately: its unblock is a scorecard refresh
+(`FIREBASE_API_KEY` in an operator shell or the remote environment), an
+operator step the run log has now named four times.
+
+**Decision, four parts.**
+
+1. **A Routine each for learn (`0 9 * * 1,4`) and feed (`30 9 * * 2,5`)**,
+   bound to the same dev session as the two working lanes, staggered off
+   07:00/08:00 and off each other because four lanes share one checkout.
+   Ids are in the manual's inventory; both were created with exactly the
+   configuration the two proven Routines carry — no stored MCP
+   connectors, same environment — because the GitHub tools a run needs to
+   log on issue #31 come from the bound session, and a tidier-looking
+   configuration would have been an untested one.
+2. **`scripts/feed-budget.mjs`, a regulator before a schedule.** The feed
+   lane's "≤6/run, at most twice weekly" was the flat shape D97 and D115
+   had to remove from the other two lanes, and handing a flat cap to a
+   scheduled job is how D33's binding constraint gets violated on a
+   timer. The arithmetic is learn's, against a different quantity: the
+   feed has no consumption clock, so the deficit is per-topic BREADTH
+   toward `TOPIC_TARGET` 12 — the depth `dilemma` already carries — and
+   only SERVABLE forms count, because `rank` (D12) and legacy `duel`
+   cards would let a topic read as covered on questions nobody can meet
+   (`sport` is 13 entries and 10 servable ones). `RUN_CAP` stays at
+   D97's 6 and is the one cap a regulator does not justify raising: this
+   lane is bounded by signal dilution, and no regulator makes a thin
+   crowd thicker. `feed-budget.test.mjs` pins the properties, including
+   the one D115 was written for — that the lane finds work in the bank as
+   it actually ships.
+3. **Sunday builds a catalogue.** "From time to time … when the
+   honest-question well runs thin" could not schedule anything: a
+   competent run asks it while holding a domain with one usable seat
+   left, and one seat is always enough for today's card. Measured — the
+   elements domain landed 08-11 and the four days after it produced four
+   more elements cards. A fixed weekday asks a question a run can
+   answer. Two standing blockers fall with it: a domain branch is cut
+   from `origin/main` (the 08-07→09 no-ops deferred three domain days
+   over review coupling, which comes from one branch CONTAINING another,
+   not from two being open), and the reachable source path is recorded
+   rather than re-discovered — `registry.npmjs.org` answers through the
+   session proxy, `query.wikidata.org` is refused at CONNECT, so
+   films/artists stay the D15 operator step.
+4. **Every question carries a category, and now the gates say so.**
+   `check:quality` required `cat` on daily and `f` on learn, validated
+   feed's `cat` only when present, and had no rule for pick at all —
+   despite the catalog contract's "Every card carries a `cat`, always".
+   All 372 questions in the tree carry one, so nothing was broken; what
+   was missing was the gate, and "true in the data" stops being the same
+   as "true" once a schedule rather than a human is writing. Pick files
+   against `WORLD_TOPICS`, not the feed taxonomy: `fav` — the id all
+   thirteen cards use — is a real topic the feed's chip row filters out.
+
+**A new category is still never created by a run** (§ When no category
+fits, new). A category here is a `CAT_META` hue, a Map anchor with
+relations, a chip, and for learn a group in the Map's layout — a job
+that could add one because a question did not fit is a job that redraws
+the Map to make its own writing easier. What changed is the disposal
+rule, which was soft enough to be unobservable: a question fitting no
+category is **dropped**, and the category proposed in the PR body AND
+the run's issue #31 comment. Both, because the run log is where three
+runs proposing the same missing top becomes an argument rather than an
+anecdote. The pulse is the one surface with no category at all, by
+D139's own decision — its Map branch is the unported seventh
+over-category, the D126 boundary.
+
+**Not done, deliberately:** the daily farm's scorecard unblock (an
+operator step, above); a duel Routine (a fifth scheduled lane is a
+decision for after these two have shown what they cost at the gate);
+raising the feed cap (the D97 amendment, waiting on a crowd); any
+change to the pulse roster (D139's "the roster is a constant until a
+second one earns its place" is exactly right — an over-time question
+consumes nothing, so its generation rate should be the lowest of any
+surface, and near-zero is the correct rate rather than a gap).
+
+**Enforcement:** `feed-budget.test.mjs` (15 cases: the ships-today
+property, the cap, the target, open-PR subtraction, thinnest-first
+water-filling, the no-MIN_CHUNK spread that distinguishes this lane from
+learn's, servable-only counting, convergence, and the signal line's
+three modes); three new `check:figures` pins holding the manual's feed
+numbers equal to the script — verified to bite by moving `TOPIC_TARGET`
+and watching it fail; the two new `check:quality` topic rules, verified
+to bite on a cat-less pick card and a cat-less feed question. Green at
+commit: 26 figures, 372 questions, 183 script tests, lint,
+`check:content`, `check:globals`, `check:labels`, `test:unit`, both
+builds.
+## D146 · The type cut — how each type answered, folded on the client, retroactive by construction
+
+**Decided:** 2026-08-14 · **Status:** binding. From an owner's question:
+*if I answer a question and get a test score later, does the score count
+on the questions I already answered?*
+
+The honest answer at the time was **no, and never** — and the interesting
+part is that the "never" was not a timing problem. Test results have never
+been in the anchors snapshot, so `spec/map-group-stats.js` refuses all four
+instruments and every "how did people like me answer" cut on the app is
+demographic. The one cut this product is actually about was the one it
+could not draw.
+
+### 1 · Why the recorded plan would have answered "no" permanently
+
+`NEXT-FUNCTIONALITY §3 tier 2` had already costed the fix as a **new
+breakdown dim**: match the archetype at vote time, stamp it into
+`anchorsFrom`, add it to `BREAKDOWN_DIMS`, accumulate cells from ship date.
+That plan states its own limit and accepts it — *"forward-only, and say so.
+Answers have never carried scores, so there is nothing to backfill."*
+
+Which is exactly the question, answered no. Worse than it sounds, because
+the four instruments are **passive** (D50/D121): a score is not an event,
+it is a running fold that moves every time another test card is answered.
+So a stamp is wrong twice — it freezes a value that is still converging,
+and it freezes it per answer, so a user's own history ends up smeared
+across whatever types they were passing through. The alternatives are both
+bad: rewrite past answers (D86 forbids it, and it is O(answers) aggregate
+writes against a document with D7's ~1 write/sec ceiling, re-run every
+time a band flips), or leave the cut blank for all existing answers
+forever.
+
+### 2 · The snapshot was never the only place the join could happen
+
+Since D98 answers are public and `testResults` is world-readable; since
+D112 `voters.resolveNames` parses scores out of **the same profile
+document it already reads for a name** — the web SDK has no field mask, so
+they were on the wire regardless. So for any question the session has
+opened, the client already holds: who answered, what they picked, and what
+their scores are. Grouping is arithmetic on data in hand.
+
+**No new read, no new field, no new cell, no stamp, nothing to backfill —
+and it reads everyone's CURRENT type against the answers they ALREADY
+gave.** Take your test items in month three and month one regroups itself.
+That is the property the dim could not have at any price, and it is the
+answer to the question that prompted this.
+
+`data/typeSplit.ts` (pure), `LIVE.voterScores` (a join, no arithmetic), and
+a `Type` chip on `LiveBreakdownPanel`.
+
+### 3 · What it costs, and where the cost is stated
+
+The published cells are a **census**; this is a **sample** — the latest
+`VOTER_FETCH_CAP` voters (D102), thinned to those carrying a readable Big
+Five. Two numbers, kept apart on purpose (`sampleN`, `typedN`), because the
+card has to say which denominator a share is out of. Under
+`TYPE_SPLIT_SMALL` (60) it draws **counts, not shares** — and the bar fill
+switches to a magnitude scale with them, because a fill drawn as a share of
+100 makes the claim visually even when the label says "3".
+
+One arithmetic trap, pinned in `typeSplit.test.ts`: divergence is computed
+against **the typed sample's own overall**, never against `agg.counts`.
+Comparing a sampled cohort to an exact census folds the sample's bias into
+a number presented as the type's; comparing within the sample cancels it.
+
+The `Type` chip sits last, after the published dims, and the basis line
+under the bars is the disclosure after the tap. `renderBody` is deliberately
+NOT offered the type cut — a dial's track reads as the population's
+position, and a bounded sample must not be drawn on it.
+
+### 4 · It narrows a standing claim, so the claim moved
+
+`docs/data-inventory.md` said a test result is *"never a breakdown dim, so
+nothing is ever cross-tabbed by it (D8)"*. The first half stands exactly —
+no dim, no stamp, no cell, and the SERVER still never slices an aggregate
+by a result. The second half is now false: the client performs and
+displays the cross-tab.
+
+Nothing new is exposed — the fold is over two things that already publish,
+and any reader could have computed it — but *"the app groups my answers by
+my personality type and shows that to strangers"* is not something a user
+should have to derive from two other bullets, and the retroactive half is
+the part they cannot guess. So the privacy panel says it, pinned in its
+test, and the inventory carries the narrower claim.
+
+**Big Five only, and enforced rather than intended.** `typeMix.TYPE_TEST`
+is the single constant the fold reads; politics, values and attachment
+never group answers. The politics result is the Art. 9 field, and D98
+reversed D44 on the *items'* counts, not on cross-tabbing by result.
+Pinned in two places on purpose: the constant is a thing a refactor could
+widen without touching any copy.
+
+### 5 · The bug this uncovered: D141's card was dead on arrival
+
+`typeOfPerson` read `results[TYPE_TEST].dims` off a `KindredPerson` —
+the RAW profile shape, on a value that has been through
+`parseTestResults` and is a FLAT axes map with no `dims` key. It returned
+**null for every person, always**: `typeMixFor` filtered its whole sample
+away, `typedN` was always 0, and the type-mix card drew its "nothing typed
+here" empty state on every population in live mode, from the day it
+shipped (2026-08-14, one day).
+
+Nothing caught it, and each reason is worth keeping. Both shapes are
+`Record`s, so the `as Dim[]` cast satisfied `tsc`. The module had **no
+test at all**. And the failure mode is a legitimate empty state the card
+was *designed* to draw — so it looked like a thin population rather than a
+broken join. `myType()` was fine throughout, because it reads the raw
+store value, which is what made the mismatch invisible on the one surface
+anyone would have checked.
+
+Measured with a probe before the fix, not reasoned about. The join now
+lives in one place (`typeOfParsed`), `typeOfPerson` delegates to it, and
+`typeMix.test.ts` exists — including a case pinning that the parsed shape
+has no `dims`, so a future change to `parseTestResults` cannot make the
+rest pass for the wrong reason.
+
+**Deferred, with the arithmetic.** Tier 2's exact dim is NOT adopted and
+NOT rejected: this cut is what tier 2's recommendation asked for before
+deciding — *"hold tier 2 until tier 1 shows people actually pivot on
+types"* — and it is now a concrete surface to argue from rather than a
+hypothetical. If it earns the dim, the dim buys exactness and a census,
+and pays for it in the one currency this fold does not spend: it can only
+ever describe answers given after it ships. The two are complements, not
+alternatives; a dim would leave this cut in place for the history it
+cannot see.
+
+## D147 · The functions tsconfig moves to `node16`, and the emit format is the part that mattered
+
+**Decided:** 2026-08-14 · **Status:** binding · Unblocks the TypeScript 7
+bump in `/functions` (Dependabot #16), which had been red since 3 August.
+
+**The defect.** TypeScript 7 removed the `node10` module-resolution
+algorithm, which `functions/tsconfig.json` selected under its old name
+(`"moduleResolution": "node"`), and stopped inferring `rootDir`. Two
+errors, both about configuration rather than code:
+
+```
+tsconfig.json(6,5):  error TS5011: 'rootDir' must be explicitly set
+tsconfig.json(10,25): error TS5108: Option 'moduleResolution=node10' has been removed
+```
+
+Nothing in `src/` was wrong. The build simply could not start.
+
+**The fix, and the trap inside it.** `module` and `moduleResolution` both
+move to `node16` — they are not independently selectable, so the pair
+moves together — and `rootDir` is named explicitly as `src`, which is the
+value the compiler was already inferring.
+
+The part worth recording is what `node16` does NOT do. It is not a switch
+to ESM. `node16` derives each file's emit format from the nearest
+`package.json`, and `functions/package.json` carries no `"type"` field, so
+every file still emits CommonJS. Verified rather than assumed, on both
+compilers, by counting the markers in `functions/lib/index.js`:
+
+| Compiler | `exports.` / `Object.defineProperty(exports` | bare `import`/`export` |
+| --- | --- | --- |
+| 5.9.3 (before, and after) | 28 | 0 |
+| 7.0.2 (after) | 28 | 0 |
+
+That column is the whole reason this has an entry. An ESM emit here would
+have compiled, passed `check:fn-runtime` (which asks whether
+`functions/lib/index.js` exists, not what module system it speaks),
+deployed green, and then failed at runtime on every function — the exact
+shape of failure this repo keeps writing gates against. The count is the
+gate a human can run.
+
+**Ordering.** The tsconfig lands BEFORE the compiler bump, not with it:
+`node16` is valid on 5.9.3, so the change is a no-op on the current
+toolchain and the tree stays green at every commit. `check:fn-runtime`,
+`check:appcheck`, `check:deploy-targets` and the 214 functions tests pass
+on both compilers.
+
+**Not decided here.** The root project stays on its own TypeScript. This
+entry is scoped to `/functions`, whose `tsconfig.json` is separate and
+whose output is the only one that gets deployed to Cloud Functions.
+
+
+## D148 · The Routine prompts catch up with their contracts, by the only mechanism that works
+
+**Decided:** 2026-08-14 · **Status:** taken — both Routines recreated
+and verified live; the manual half ships on
+`claude/question-generation-rates-5kiz6c`.
+
+**Decision.** All four lane Routines now fire under prompts that match
+their contracts. Two did not: the farm's predated D33 (it still
+summarised a weekly cadence and a 12/run cap) and the catalog's
+predated both the 2026-08-03 roll-up rule and D145's Sunday domain
+slot — so it told a run to open one branch per day and never mentioned
+the deliverable that D145 exists to schedule. Both were tolerable only
+because every prompt defers to this manual and re-reads it each firing;
+"the prompt is wrong but it tells you to read the right thing" is not a
+posture to keep, because the summary is what a run acts on when it is
+in a hurry.
+
+**Why the catalog prompt drifted twice and the farm's only once: it was
+never written down.** `QUESTION-FARM.md` pinned canonical text for the
+farm and, at D145, for learn and feed — but never for the catalog lane,
+whose prompt lived only inside the Routine. A contract change had
+nothing to update alongside it, and nothing to diff against afterwards.
+The catalog's canonical block now exists, which is the durable half of
+this record; the swap is the perishable half.
+
+**The mechanism, measured rather than assumed.** `update_trigger`
+refused a prompt edit for the third time (2026-08-01 org-wide,
+2026-08-03, and again today), verbatim: *editing the prompt of a
+routine whose fires deliver into a session that is not your own is not
+available via this tool*. `ListAgents` reports no reachable agents, so
+the bound session cannot be asked to run the edit on itself either.
+What works is that `create_trigger` accepts a `persistent_session_id`
+aimed at another session — the same mechanism D145's lanes were made
+with — so delete-and-recreate is a working swap. At the owner's
+explicit direction that is what was done: create the replacements
+first and verify them (a failed create must not leave a lane dark),
+then delete the originals, then update the ids in the manual's
+inventory. Both lanes were ~13 hours from their next fire throughout.
+
+**What it cost, stated rather than glossed:** the two Routines lost
+their creation dates, their fire history and their ids
+(`trig_01REC4Mf…` → `trig_01DZQC4E…`, `trig_01HDn61h…` →
+`trig_01RVeFZ4…`). Small here, because issue #31 is this project's real
+run log and the trigger telemetry was never the record — but it is
+spent, not recoverable, which is why the manual now says to prefer
+`update_trigger` from the bound session or the Routines UI and to fall
+back to this only with the owner's say-so.
+
+**The asymmetry worth remembering:** a prompt can be WRITTEN from a
+sibling session and cannot be READ from one. There is no way to diff a
+live Routine against its canonical block from here, and no CI gate can
+reach the account's Routines either. So the canonical blocks in
+`QUESTION-FARM.md` are not a copy of the truth, they ARE the record —
+which is the argument for the catalog block existing and for the rule
+that any prompt change updates both halves in one PR.
+
+**Also folded in:** the farm's canonical text gained D145's category
+disposal rule (a question fitting no `cat`/`alts` top is dropped and
+the category proposed in the PR body and the issue #31 comment), which
+it had not carried because D145 wrote the rule after the prompt block.
+
+**Not done, deliberately:** any gate over prompt drift (nothing in CI
+can read a Routine); firing either Routine to test the new prompt (an
+off-schedule fire does real work — opens PRs — and tomorrow's scheduled
+run is the honest test); the daily farm's scorecard unblock, which is
+still the operator step that keeps that lane at zero regardless of what
+its prompt says.
+
+**Enforcement:** the four ids and their crons are in the manual's
+inventory with the "all four match as of 2026-08-14" line; the four
+canonical blocks are the diffable record; `check:figures`,
+`check:quality`, `check:content`, `check:globals`, `check:labels`,
+`check:versions`, lint, 183 script tests and 984 unit tests green at
+commit.

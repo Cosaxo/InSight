@@ -4,6 +4,40 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import LIVE from '../data/live';
+import { ExplainBtn, ExplainSheet, EX_GLYPH } from './explain-sheet.jsx';
+import { RP_TESTS, RoseMini, TestRose } from './result-rose.jsx';
+import { IS_DATA } from './sample-data.js';
+import { Av } from './primitives.jsx';
+import { IS_TESTS, IS_TEST_AVG, IS_TEST_RESULTS } from './test-definitions.js';
+import { PASSIVE } from './passive-progress.js';
+// The passive fold (D121). Live mode has no sit-down flow, so a test with
+// no stored result is scored from the viewer's own feed answers — once
+// every axis has enough behind it to be worth a type.
+import { passiveResult, passiveTest } from '../data/passiveProfile.ts';
+// LIVE.myVotes() is string-valued ({ qid: "2" }) and the fold wants option
+// INDICES — see data/similarity.ts voteIndices for what passing the raw map
+// did (D132: every instrument stuck at "0 of N answered", forever).
+import { voteIndices } from '../data/similarity.ts';
+
+// This test's own reading of the viewer, or null. Stored results always
+// win: a sit-down result from before D121 is a finished instrument and the
+// fold is an estimate of the same thing from fewer answers.
+export function ownResult(testKey) {
+  const stored = IS_TEST_RESULTS[testKey];
+  if (stored) return stored;
+  if (!LIVE.enabled) return null;
+  const def = IS_TESTS[testKey];
+  return passiveResult(passiveTest(testKey, def, LIVE.testFeedItems(), IS_TESTS, voteIndices(LIVE.myVotes())), def ? def.title : testKey);
+}
+
+// …and how far off it is when it is null. Separate from ownResult because
+// a surface that has nothing to draw still has something true to SAY, and
+// the two callers want different halves.
+export function ownProgress(testKey) {
+  if (!LIVE.enabled) return null;
+  return passiveTest(testKey, IS_TESTS[testKey], LIVE.testFeedItems(), IS_TESTS, voteIndices(LIVE.myVotes()));
+}
 
 // result-card.jsx — test profile cards: each test keeps the shared banner
 // language but owns its NATIVE geometry:
@@ -30,13 +64,13 @@ const rpv2Order = (() => { const idx = Array.from({ length: 100 }, (_, i) => i);
 function RarityField({ pct, label, color, title }) {
   const lit = new Set(rpv2Order.slice(0, Math.max(1, Math.min(100, Math.round(pct)))));
   return (
-    <div className="rpv2-fade" style={{ display: 'flex', alignItems: 'center', gap: 9, flexShrink: 0, animationDelay: '200ms' }} title={title}>
+    <div className="rpv2-fade" style={{ display: 'flex', alignItems: 'center', gap: 9, flexShrink: 0, animationDelay: 'var(--rv-2)' }} title={title}>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(25, 3px)', gap: 2 }}>
         {Array.from({ length: 100 }, (_, i) => (
           <span key={i} style={{ width: 3, height: 3, borderRadius: '50%', background: lit.has(i) ? color : `color-mix(in oklch, ${color} 16%, var(--surface-3))` }}></span>
         ))}
       </div>
-      <span style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 700, color: color, whiteSpace: 'nowrap', opacity: 0.8 }}>{label}</span>
+      <span style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 700, color: color, whiteSpace: 'nowrap' }}>{label}</span>
     </div>
   );
 }
@@ -45,7 +79,7 @@ function RarityField({ pct, label, color, title }) {
 // test hue. Defining dims read darker; same-type friends orbit the rim.
 function SigEmblem({ testKey, sig, color, people, typeName }) {
   const mark = typeName && window.TypeMark ? window.TypeMark : null;
-  const cfg = (window.RP_TESTS || {})[testKey];
+  const cfg = RP_TESTS[testKey];
   const ids = cfg ? Object.keys(cfg.hues).filter(id => sig && sig[id] != null) : [];
   if (!cfg || !ids.length) return null;
   const size = 170, C = size / 2, R = C - 3, r0 = 6, n = ids.length, slice = 360 / n, gapD = n > 6 ? 10 : 14;
@@ -65,14 +99,17 @@ function SigEmblem({ testKey, sig, color, people, typeName }) {
           const r = r0 + (v / 100) * (R - 14 - r0);
           const [xa, ya] = pt(a0, r0), [xb, yb] = pt(a0, r), [xc, yc] = pt(a1, r), [xd, yd] = pt(a1, r0);
           const op = 0.15 + (Math.abs(raw - 50) / 50) * 0.22;
-          return <path key={id} className="rpv2-pop" style={{ transformOrigin: `${C}px ${C}px`, animationDelay: `${i * 60}ms` }} d={`M ${xa.toFixed(1)} ${ya.toFixed(1)} L ${xb.toFixed(1)} ${yb.toFixed(1)} A ${r.toFixed(1)} ${r.toFixed(1)} 0 0 1 ${xc.toFixed(1)} ${yc.toFixed(1)} L ${xd.toFixed(1)} ${yd.toFixed(1)} A ${r0} ${r0} 0 0 0 ${xa.toFixed(1)} ${ya.toFixed(1)} Z`} fill={color} opacity={op}></path>;
+          return <path key={id} className="rpv2-pop" style={{ transformOrigin: `${C}px ${C}px`, animationDelay: `calc(var(--rv-row) * ${i})` }} d={`M ${xa.toFixed(1)} ${ya.toFixed(1)} L ${xb.toFixed(1)} ${yb.toFixed(1)} A ${r.toFixed(1)} ${r.toFixed(1)} 0 0 1 ${xc.toFixed(1)} ${yc.toFixed(1)} L ${xd.toFixed(1)} ${yd.toFixed(1)} A ${r0} ${r0} 0 0 0 ${xa.toFixed(1)} ${ya.toFixed(1)} Z`} fill={color} opacity={op}></path>;
         })}
       </svg>
       {mark ? <span style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%,-50%)', display: 'inline-flex' }}><span className="rpv2-pop" style={{ display: 'inline-flex', animationDelay: '80ms' }}>{React.createElement(mark, { testKey, name: typeName, size: 82 })}</span></span> : null}
-      {window.Av ? ppl.map((p, i) => {
+      {/* The `window.Av &&` guard this used to carry is gone with D39: Av is
+          an import now, so it cannot be undefined at render. The guard was
+          never about `ppl` — an empty list maps to nothing on its own. */}
+      {ppl.map((p, i) => {
         const [x, y] = pt(132 + i * 33, R - 5);
-        return <span key={p.id} className="rpv2-pop" style={{ position: 'absolute', left: x - 10, top: y - 10, borderRadius: '50%', boxShadow: '0 0 0 2px var(--surface-2)', display: 'inline-flex', animationDelay: `${300 + i * 70}ms` }}><window.Av init={p.init} hue={p.hue} size={20} /></span>;
-      }) : null}
+        return <span key={p.id} className="rpv2-pop" style={{ position: 'absolute', left: x - 10, top: y - 10, borderRadius: '50%', boxShadow: '0 0 0 2px var(--surface-2)', display: 'inline-flex', animationDelay: `${300 + i * 70}ms` }}><Av init={p.init} hue={p.hue} size={20} /></span>;
+      })}
     </div>
   );
 }
@@ -92,12 +129,12 @@ function TensionSpine({ dims, poles, hues, avg, lead }) {
         const isLead = d.id === leadId;
         const lo = Math.min(50, youP), hi = Math.max(50, youP);
         const t = avg && avg[d.id] != null ? pos(avg[d.id]) : null;
-        const poleStyle = (isLean) => ({ fontFamily: 'var(--sans)', fontSize: isLead ? 12.5 : 11.5, whiteSpace: 'nowrap', fontWeight: isLean ? 700 : 500, color: isLean ? rpv2Deep(hue) : 'var(--ink-3)', opacity: isLean ? 1 : 0.65 });
+        const poleStyle = (isLean) => ({ fontFamily: 'var(--sans)', fontSize: isLead ? 12.5 : 11.5, whiteSpace: 'nowrap', fontWeight: isLean ? 700 : 500, color: isLean ? rpv2Deep(hue) : 'var(--ink-3)' });
         return (
           <div key={d.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <span style={{ ...poleStyle(!right), width: 68, flexShrink: 0, textAlign: 'right' }}>{pp[0]}</span>
             <div style={{ position: 'relative', flex: 1, height: 15 }}>
-              <span className="rpv2-bar" style={{ position: 'absolute', top: '50%', marginTop: isLead ? -2.5 : -1.5, height: isLead ? 5 : 3, borderRadius: 999, left: `${lo}%`, width: `${hi - lo}%`, transformOrigin: right ? 'left' : 'right', animationDelay: `${i * 60}ms`, background: `linear-gradient(${right ? '90deg' : '270deg'}, color-mix(in oklch, ${col}, transparent 80%), ${col})` }}></span>
+              <span className="rpv2-bar" style={{ position: 'absolute', top: '50%', marginTop: isLead ? -2.5 : -1.5, height: isLead ? 5 : 3, borderRadius: 999, left: `${lo}%`, width: `${hi - lo}%`, transformOrigin: right ? 'left' : 'right', animationDelay: `calc(var(--rv-row) * ${i})`, background: `linear-gradient(${right ? '90deg' : '270deg'}, color-mix(in oklch, ${col}, transparent 80%), ${col})` }}></span>
               {t != null && <span style={{ position: 'absolute', top: '50%', left: `${t}%`, transform: 'translate(-50%,-50%)', width: 8, height: 8, borderRadius: '50%', background: 'var(--surface-2)', border: '1.4px solid var(--ink-3)', opacity: 0.6 }}></span>}
               <span className="rpv2-pop" style={{ position: 'absolute', top: '50%', left: `${youP}%`, transform: 'translate(-50%,-50%)', width: isLead ? 15 : 12, height: isLead ? 15 : 12, borderRadius: '50%', background: col, border: '2px solid var(--surface-2)', boxShadow: '0 1px 4px -1px rgba(20,20,40,0.3)', animationDelay: `${i * 60 + 150}ms` }}></span>
             </div>
@@ -118,7 +155,7 @@ function rpv2Pctl(diff) {
   return `${diff > 0 ? 'higher' : 'lower'} than ${n} in 10 members`;
 }
 function DifferRows({ testKey, R, cfg }) {
-  const avg = (window.IS_TEST_AVG || {})[testKey];
+  const avg = IS_TEST_AVG[testKey];
   const ph = (window.IS_STANDOUT || {})[testKey] || {};
   if (!avg) return null;
   const rows = R.dims.map((d, i) => ({ d, i, diff: avg[d.id] != null ? d.value - avg[d.id] : 0 }))
@@ -137,7 +174,7 @@ function DifferRows({ testKey, R, cfg }) {
         const right = d.value >= 50;
         const f0 = cfg.bipolar ? pos(50) : pos(0);
         const fl = Math.min(f0, y), fw = Math.max(f0, y) - Math.min(f0, y);
-        const poleStyle = (isLean) => ({ fontFamily: 'var(--sans)', fontSize: 10.5, whiteSpace: 'nowrap', fontWeight: isLean ? 700 : 500, color: isLean ? deep : 'var(--ink-3)', opacity: isLean ? 1 : 0.6, width: 62, flexShrink: 0 });
+        const poleStyle = (isLean) => ({ fontFamily: 'var(--sans)', fontSize: 10.5, whiteSpace: 'nowrap', fontWeight: isLean ? 700 : 500, color: isLean ? deep : 'var(--ink-3)', width: 62, flexShrink: 0 });
         return (
           <div key={d.id}>
             <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10, marginBottom: 5 }}>
@@ -165,10 +202,13 @@ function DifferRows({ testKey, R, cfg }) {
 }
 
 // ── the v2 card: banner (identity + rarity + near-misses) → native chart → differ ──
-function ResultProfileCard({ testKey, archetype, tagline }) {
+// Exported by name (D39, "convert on touch"): the test overlay shows the
+// same card, and imports it rather than waiting on a global.
+export function ResultProfileCard({ testKey, archetype, tagline }) {
   const [typesOpen, setTypesOpen] = React.useState(false);
-  const R = (window.IS_TEST_RESULTS || {})[testKey];
-  const cfg = (window.RP_TESTS || {})[testKey];
+  const [explain, setExplain] = React.useState(false);
+  const R = ownResult(testKey);
+  const cfg = RP_TESTS[testKey];
   if (!R || !cfg || !R.dims || !R.dims.length) return null;
   const arch = window.IS_matchArchetype ? window.IS_matchArchetype(testKey, R.dims) : null;
   const you = arch ? arch.idx : -1;
@@ -180,20 +220,43 @@ function ResultProfileCard({ testKey, archetype, tagline }) {
   // fit strength, in dim points of separation from the runner-up
   const fit = arch ? (arch.gap < 5 ? 'close' : arch.gap >= 12 && arch.rms < 12 ? 'textbook' : 'clear') : 'clear';
   const streak = fit === 'close' ? near[0].a.name.replace(/^The /, '') : null;
-  // people of yours who landed on the same type
+  // People of yours who landed on the same type — EMPTY IN LIVE MODE (D72).
+  //
+  // `IS_DATA.people` is the prototype's invented circle and
+  // `IS_FRIEND_TYPES` assigns each of them a type per test; both are demo
+  // content, and data/live.ts replaces WORLD_FEED_QS, TEST_FEED_QS and
+  // WORLD_FEED_COMMENTS but has never touched IS_DATA. So a live account
+  // that finished a test — which the passive tests do from ordinary feed
+  // answers, with no sit-down flow — got up to four invented people drawn on
+  // its own result as though they were contacts. D1's words are "no seeded
+  // fake users, ever", and this was the one surface still doing it.
+  //
+  // Not a load-order guard: IS_DATA is an import and cannot be unset. The
+  // empty list needs no branch downstream — SigEmblem already maps over it,
+  // and an empty list maps to nothing.
   const sameType = (() => {
-    if (!arch) return [];
+    if (!arch || LIVE.enabled) return [];
     const map = (window.IS_FRIEND_TYPES || {})[testKey] || {};
-    const ppl = ((window.IS_DATA || {}).people) || [];
+    const ppl = IS_DATA.people || [];
     return ppl.filter(p => map[p.id] === arch.list[you].name);
   })();
   const typeLine = arch ? arch.list[you].line : null;
   const sigDims = (a) => R.dims.map(d => ({ id: d.id, label: d.id, value: a.sig[d.id] != null ? a.sig[d.id] : 50 }));
-  // passive coverage: how much of this test the feed has mapped so far
-  const pct = window.PASSIVE ? window.PASSIVE.pct(testKey) : 100;
-  const nLeft = window.PASSIVE ? Math.max(0, window.PASSIVE.needed(testKey) - window.PASSIVE.done(testKey)) : 0;
-  const avg = (window.IS_TEST_AVG || {})[testKey];
-  const hero = window.TestRose ? <window.TestRose testKey={testKey} dims={R.dims} animate={true} /> : null;
+  // Passive coverage: how much of this test the feed has mapped so far.
+  //
+  // In live mode the fold's own numbers, not PASSIVE's. PASSIVE counts a
+  // device-local `seen` map against the LOCAL instrument's length, so on a
+  // second device it reads zero for a profile that is complete, and it
+  // counts nothing the bank served that the definition no longer defines.
+  // R.answered / R.total come from the same join that produced the dims,
+  // so the bar and the chart above it are one reading. (PASSIVE stays the
+  // source in demo mode, where its seeded stagger IS the content.)
+  const pct = R.passive ? Math.round((R.answered / Math.max(1, R.total)) * 100) : PASSIVE.pct(testKey);
+  const nLeft = R.passive
+    ? Math.max(0, R.total - R.answered)
+    : Math.max(0, PASSIVE.needed(testKey) - PASSIVE.done(testKey));
+  const avg = IS_TEST_AVG[testKey];
+  const hero = TestRose ? <TestRose testKey={testKey} dims={R.dims} animate={true} /> : null;
   const otherAxes = null;
   return (
     <div className="card" style={{ padding: 0, overflow: 'hidden', marginBottom: 14 }}>
@@ -204,34 +267,46 @@ function ResultProfileCard({ testKey, archetype, tagline }) {
         <SigEmblem testKey={testKey} sig={arch ? arch.list[you].sig : R.dims.reduce((o, d) => (o[d.id] = d.value, o), {})} color={cfg.banner} people={sameType} typeName={arch ? arch.list[you].name : null} />
         <div style={{ position: 'relative', zIndex: 1, paddingRight: 96 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10 }}>
-            <span className="kicker" style={{ color: cfg.banner, marginBottom: 0 }}>{cfg.kicker}</span>
-            {pct >= 100 && fit === 'textbook' ? <span style={{ fontFamily: 'var(--sans)', fontSize: 10, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: cfg.banner, whiteSpace: 'nowrap' }}>textbook fit</span> : null}
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+              <span className="kicker" style={{ color: cfg.banner, marginBottom: 0 }}>{cfg.kicker}</span>
+              <ExplainBtn onClick={() => setExplain(true)} label="What this measures" />
+            </span>
+            {pct >= 100 && fit === 'textbook' ? <span style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: cfg.banner, whiteSpace: 'nowrap' }}>textbook fit</span> : null}
           </div>
-          <div style={{ fontFamily: 'var(--sans)', fontSize: 25, fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1.1, textTransform: 'capitalize', color: `color-mix(in oklch, ${cfg.banner} 78%, var(--ink))`, marginTop: 9 }}>{arch ? arch.list[you].name : archetype}</div>
-          {streak ? <div style={{ fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 600, color: `color-mix(in oklch, ${cfg.banner} 72%, var(--ink))`, marginTop: 4, lineHeight: 1.35 }}>with a {streak} streak</div> : null}
-          {(typeLine || tagline) ? <div style={{ fontFamily: 'var(--sans)', fontSize: 13, color: 'var(--ink-2)', marginTop: 6, lineHeight: 1.4, textWrap: 'pretty' }}>{typeLine || tagline}</div> : null}
           {ruleParts.length ? (
-            <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginTop: 11 }}>
-              {ruleParts.map(p => {
+            <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap', marginTop: 10 }}>
+              {ruleParts.map((p, i) => {
                 const h = cfg.hues[p.id] != null ? cfg.hues[p.id] : 40;
+                const w = p.band === 'strong' ? 9 : 7, hh = p.band === 'strong' ? 8 : 6;
                 return (
-                  <span key={p.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 10px 3px 8px', borderRadius: 999, background: `color-mix(in oklch, ${rpv2Dot(h)} 11%, var(--surface-2))`, border: `0.5px solid color-mix(in oklch, ${rpv2Dot(h)} 32%, var(--rule))`, fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 700, color: rpv2Deep(h) }}>
-                    <svg width="8" height="7" viewBox="0 0 8 7" style={{ flexShrink: 0, transform: p.high ? 'none' : 'rotate(180deg)' }} role="img" aria-label={p.high ? 'high' : 'low'}><path d="M4 0 L8 7 L0 7 Z" fill={rpv2Dot(h)}></path></svg>{p.text.replace(/^(high|low)\s+/, '')}
-                  </span>
+                  <React.Fragment key={p.id}>
+                    {i ? <span style={{ fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 500, color: 'var(--ink-3)' }}>+</span> : null}
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontFamily: 'var(--sans)', fontSize: 13.5, fontWeight: 700, letterSpacing: '-0.005em', color: rpv2Deep(h) }}>
+                      {p.band === 'even'
+                        ? <svg width="9" height="8" viewBox="0 0 9 8" style={{ flexShrink: 0 }} role="img" aria-label="average"><rect x="0" y="3" width="9" height="2" fill={rpv2Dot(h)}></rect></svg>
+                        : <svg width={w} height={hh} viewBox={`0 0 ${w} ${hh}`} style={{ flexShrink: 0, transform: p.high ? 'none' : 'rotate(180deg)' }} role="img" aria-label={p.high ? 'above average' : 'below average'}><path d={`M${w / 2} 0 L${w} ${hh} L0 ${hh} Z`} fill={rpv2Dot(h)}></path></svg>}
+                      {p.text}
+                    </span>
+                  </React.Fragment>
                 );
               })}
+              <span aria-hidden="true" style={{ fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 500, color: 'var(--ink-3)', opacity: 0.7 }}>{'→'}</span>
             </div>
           ) : null}
-          {rar ? <div style={{ marginTop: 14, opacity: pct < 100 ? 0.75 : 1 }}><RarityField pct={rar.pct} label={rar.label.toLowerCase()} color={cfg.banner} title={`${rar.label.toLowerCase()} sit as far from average as you — also this type: ${sameType.map(p => p.name.split(' ')[0]).join(', ') || 'none of yours'}`} /></div> : null}
+          <div style={{ fontFamily: 'var(--sans)', fontSize: 25, fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1.1, textTransform: 'capitalize', color: `color-mix(in oklch, ${cfg.banner} 78%, var(--ink))`, marginTop: ruleParts.length ? 3 : 9 }}>{arch ? arch.list[you].name : archetype}</div>
+          {streak ? <div style={{ fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 600, color: `color-mix(in oklch, ${cfg.banner} 72%, var(--ink))`, marginTop: 4, lineHeight: 1.35 }}>with a {streak} streak</div> : null}
+          {(typeLine || tagline) ? <div style={{ fontFamily: 'var(--sans)', fontSize: 13, color: 'var(--ink-2)', marginTop: 6, lineHeight: 1.4, textWrap: 'pretty' }}>{typeLine || tagline}</div> : null}
+          {rar ? <div style={{ marginTop: 14 }}><RarityField pct={rar.pct} label={rar.label.toLowerCase()} color={cfg.banner} title={`${rar.label.toLowerCase()} sit as far from average as you — also this type: ${sameType.map(p => p.name.split(' ')[0]).join(', ') || 'none of yours'}`} /></div> : null}
         </div>
       </div>
       <div style={{ padding: '10px 16px 16px' }}>
         {hero}
+        {hero ? <div style={{ textAlign: 'center', fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 600, color: 'var(--ink-3)' }}>{cfg.bipolar ? 'petal length = how far from the middle you sit' : 'petal length = how strongly the trait shows'}</div> : null}
         {arch ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 10, flexWrap: 'wrap' }}>
             {near.map(({ a, why, border }) => (
               <span key={a.name} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px 4px 5px', borderRadius: 999, background: border ? `color-mix(in oklch, ${cfg.banner} 8%, var(--surface))` : 'var(--surface)', border: `0.5px solid ${border ? `color-mix(in oklch, ${cfg.banner} 45%, var(--rule))` : 'var(--rule)'}`, fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 600, color: 'var(--ink-2)' }}>
-                {window.TypeMark ? <window.TypeMark testKey={testKey} name={a.name} size={20} /> : (window.RoseMini ? <window.RoseMini testKey={testKey} dims={sigDims(a)} size={18} /> : null)}{a.name}
+                {window.TypeMark ? <window.TypeMark testKey={testKey} name={a.name} size={20} /> : (RoseMini ? <RoseMini testKey={testKey} dims={sigDims(a)} size={18} /> : null)}{a.name}
                 {why ? <span style={{ fontWeight: 500, color: 'var(--ink-3)' }}>if {why}</span> : null}
               </span>
             ))}
@@ -259,6 +334,16 @@ function ResultProfileCard({ testKey, archetype, tagline }) {
           </div>
         ) : null}
       </div>
+      {explain ? (
+        <ExplainSheet title={R.title} kicker="test" dimKey={testKey}
+          dims={R.dims.map((d) => ({ ...d, poles: cfg.poles ? cfg.poles[d.id] : null }))}
+          keyRows={[
+            [EX_GLYPH.you(cfg.banner), 'The solid dot is you.'],
+            [EX_GLYPH.most(), 'The hollow ring is where most people sit.'],
+            [EX_GLYPH.petal(cfg.banner), cfg.bipolar ? 'Petal length is how far from the middle you sit — a long petal is a strong stance either way.' : 'Petal length is how strongly the trait shows.'],
+          ]}
+          onClose={() => setExplain(false)} />
+      ) : null}
     </div>
   );
 }

@@ -22,6 +22,21 @@ has carried it into the runtime — the deploy log's env step shows the
 value and no empty-warning. Only step 3 remains, and it must be run
 **signed in as that account** (the gate matches the exact signed-in uid).
 
+**So §2's provider switch comes first, and the dependency is easy to
+miss** — the two facts live in different sections of this file. `runSeedV2`
+throws `unauthenticated` without `request.auth` before it ever consults
+`SEED_ADMIN_UIDS` (`functions/src/ops.ts`), and the uid it wants is a
+**Google-account** uid. LAUNCH-RUNBOOK 0.1 carries the same warning,
+because it had this step filed under "no accounts needed".
+
+**Status 2026-08-04: the switch is thrown, so this is unblocked** —
+Anonymous is measured working (`accounts:signUp` returns an `idToken`,
+where the same probe returned `ADMIN_ONLY_OPERATION` a day earlier).
+Google is enabled but **unverified**: the project-config endpoint returns
+only `authorizedDomains` to an unauthenticated caller, never `idpConfig`,
+so there is no remote probe for it. Signing in and running the seed IS
+the verification — treat a successful seed as proof of both.
+
 1. ~~Copy your uid~~ — done; the maintainer's Google-account uid, the
    same one `MOD_UIDS` holds. (For a future extra operator: it's shown by
    `window.LIVE.uid` in the browser console, or in Firebase Console →
@@ -37,24 +52,55 @@ value and no empty-warning. Only step 3 remains, and it must be run
    > workflow variable is the only path. A deploy with the variable unset
    > still succeeds but logs a warning, and every operator callable stays
    > `permission-denied`.
-3. **The remaining step.** From the app's console:
-   `firebase.functions().httpsCallable("seedContentV2")()` — or simply
-   tap through any flow that calls it; 369 questions land in
-   `v2_questions`. Re-running is safe (idempotent, never resets the
-   `active` kill switch) and, since D34, genuinely cheap: it rewrites only
-   documents whose content changed and leaves `contentRev` alone, so a
-   reseed no longer costs every returning device a 369-read bank refetch.
-   The call returns `{written, skipped}` — a no-op reseed reports
-   `written: 0`.
+3. **The remaining step: Actions → *Seed content* → Run workflow.** No
+   sign-in, no dev machine, nothing to install.
 
-   **One operator case needs the extra argument.** If you flip a
-   question's `active` flag **by hand in the Firebase console**, the seed
-   cannot see it (it changed no document the seed writes), so cached
-   clients keep showing the question. Push it with
-   `httpsCallable("seedContentV2")({ bumpRev: true })`, which invalidates
-   every device's cached bank. Nothing is at risk while you wait:
-   `firestore.rules` re-checks `active` on every answer write, so a killed
-   question still on screen is refused server-side, not silently accepted.
+   513 questions land in `v2_questions`. Re-running is safe (idempotent,
+   never resets the `active` kill switch) and, since D34, genuinely cheap:
+   it rewrites only documents whose content changed and leaves `contentRev`
+   alone, so a reseed no longer costs every returning device a 513-read
+bank refetch. The job summary reports `{written, skipped}` — a no-op
+   reseed reports `written: 0`.
+
+   Tick **bump_rev** only after flipping a question's `active` flag **by
+   hand in the Firebase console**: that changes no document the seed
+   writes, so cached clients keep showing the question without it. Nothing
+   is at risk while you wait — `firestore.rules` re-checks `active` on
+   every answer write, so a killed question still on screen is refused
+   server-side rather than silently accepted.
+
+   In-app, `await window.LIVE.seedContent()` still does the same thing and
+   is what `live.ts` exposes. It is no longer the instruction here, because
+   there is nowhere to type it.
+
+   **This step has now been documented wrong twice, and both failures share
+   one cause.** It first read
+   `firebase.functions().httpsCallable("seedContentV2")()` — Firebase v8
+   namespaced syntax on a modular-SDK app (`firebase ^12`) that publishes no
+   global `firebase`, so it threw `ReferenceError: firebase is not defined`.
+   It then read "from the app's browser console", and **there is no browser
+   console**: `firebase.json` serves `web/` — home, join, privacy, terms —
+   and the app ships only as the native iOS shell, so `prvfire33.web.app` is
+   a landing page. Both survived review because running the instruction
+   needed something nobody had, so nobody ran it. `scripts/seed-content.mjs`
+   is covered by `scripts/seed-content.test.mjs`, which is the only form of
+   "verified" that stays true after the day it is written.
+
+   The helper that does it correctly was module-private in `live.ts` with no
+   way in, which is why `LIVE.seedContent` now exists. It adds no
+   privilege: `assertOperator` + `SEED_ADMIN_UIDS` was always the control,
+   and under D3 "signed in" is not one. `vote.test.ts` pins the callable
+   name, region and payload, because a typo here is an `internal` error
+   with nothing to read.
+
+   **One failure is not a bug and must not be retried away.** Since D58 the
+   seed **refuses** to edit the option set of a question that has already
+   shipped, and fails the whole run with `failed-precondition` naming each
+   one. Answers store `(qid, optionIdx)` and nothing else, so swapping two
+   options re-keys every vote already cast (D52). The legitimate writes in
+   that run are already durable; what you do next is fix the content, not
+   re-run. To retire a question set `active: false`; to replace one, append
+   a new qid.
 
 ## 2 · Native Firebase config files (account-gated)
 
@@ -63,6 +109,28 @@ Both apps must be registered under `com.cosaxo.insight`:
 - **Android** — Firebase Console → Project settings → Add app →
   Android → download `google-services.json` → drop into `android/app/`.
   This also activates FCM delivery for reveal pushes.
+
+  **Register the signing SHA-1 BEFORE downloading that file**, or Google
+  sign-in is dead on Android in exactly the way the iOS
+  `REVERSED_CLIENT_ID` below is dead — silently, at runtime, on a build
+  that compiled and shipped. `google-services.json` only contains an
+  Android `oauth_client` entry (client_type 1) if a SHA-1 is registered
+  for the package at the moment you download it; without one the file is
+  valid, FCM works, Firestore works, and `signInWithGoogle` fails with
+  `DEVELOPER_ERROR` (status 10). D3's only account-upgrade path, gone on
+  one platform.
+
+  Two fingerprints, from different places at different times:
+
+  | Which | Where | When |
+  | --- | --- | --- |
+  | Debug keystore SHA-1 | `keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android` | Now — it is what makes sign-in work on a dev install |
+  | Play App Signing SHA-1 | Play Console → Setup → App signing | Only after the first upload — same screen as §3b's SHA-256 |
+
+  Re-download `google-services.json` after adding the Play fingerprint;
+  the file is a snapshot, not a live lookup. Nothing in this repo can see
+  either omission: the file is gitignored and account-gated, so
+  `check:store-copy` and CI are both blind to it.
 - **iOS** — Add app → iOS → download `GoogleService-Info.plist` → add to
   `ios/App/App/` in Xcode (add to target), then copy that file's
   `REVERSED_CLIENT_ID` value over the `REPLACE_WITH_REVERSED_CLIENT_ID`
@@ -78,9 +146,13 @@ Both apps must be registered under `com.cosaxo.insight`:
 
   For push: Apple Developer → Keys → create an APNs key and upload it in
   Firebase Console → Cloud Messaging → Apple app configuration.
-- **Enable the provider** — Firebase Console → Authentication → Sign-in
-  method → enable **Google** (and keep **Anonymous** enabled; D3 depends
-  on it). The client side is wired: `capacitor.config.ts` declares
+- ~~**Enable the provider**~~ — **done 2026-08-04.** Firebase Console →
+  Authentication → Sign-in method: both **Google** and **Anonymous** are
+  on. D3 depends on Anonymous and it is measured, not assumed — the same
+  `accounts:signUp` probe that returned `ADMIN_ONLY_OPERATION` on
+  2026-08-03 now returns an `idToken`. Google is enabled but has no remote
+  probe (§1 explains why); the seed run verifies it. The client side is
+  wired: `capacitor.config.ts` declares
   `providers: ["google.com"]` and `android/variables.gradle` sets
   `rgcfaIncludeGoogle = true`. Both are required — without the Gradle
   flag the Google libraries are `compileOnly`, so an Android build
@@ -107,6 +179,19 @@ Both apps must be registered under `com.cosaxo.insight`:
     `design/store/listing.json`, held against both stores' character
     limits by `npm run check:store-listing`.
 
+    **Length is not the only thing that file gets wrong.** Both
+    descriptions were still selling the pre-D98 privacy model — *"Your
+    answers are owner-only"*, *"Crowd numbers are floored"*. That copy was
+    true when it was pushed on 2026-08-08; **D98 falsified it on 08-11**,
+    and D106's sweep on 08-12 corrected `web/` and the docs without ever
+    enumerating this file (D116). Pushed copy goes stale the same way the
+    age rating does, and for the same reason: nothing in the repo can read
+    what the store is serving. `npm run check:public-copy` now holds `listing.json`,
+    `web/*.html` and the in-app privacy panel against the retired model's
+    closed vocabulary; it runs in CI and on the iOS release pre-flight.
+    Character limits and truth are separate gates, and only one of them
+    was ever being checked.
+
     Both generators need Playwright, which is deliberately **not** a
     package.json dependency — `npm i -D playwright && npx playwright
     install chromium` when you need them. Adding it would make every
@@ -126,6 +211,30 @@ Both apps must be registered under `com.cosaxo.insight`:
   (LAUNCH-RUNBOOK 1.1 — enrolling as an organization first costs 1–2 weeks
   of D-U-N-S verification for nothing launch needs).
 
+  **That parenthesis is about Apple, and it was wrong to read it as
+  settling both stores (D41).** On Apple an organization enrollment buys
+  nothing launch needs, so individual is right. On Play the same 1–2 weeks
+  buy exemption from a 12-testers × 14-days closed-testing gate that is
+  otherwise a 3–4 week floor, so the trade inverts: **the Play Console
+  account opens as an organization**, backed by an ENK and a D-U-N-S.
+  Two stores, two answers.
+
+  **Superseded on timing by [D42](DECISIONS.md) (2026-08-04): Play is
+  deferred and InSight launches on iOS alone.** D41's answer is not
+  reversed, it is conditional — organization is still the right account
+  type *if Play is opened before there is an installed base*. After one,
+  the 12×14 gate may be satisfiable by asking existing users, because the
+  two routes' costs move in opposite directions: the ENK chain costs the
+  same whenever taken, while recruiting twelve installed testers is brutal
+  cold and easy with an audience. So deferring may retire D41 unused
+  rather than merely postponing it. Nothing below about Apple changes.
+
+  Registering the ENK does not change the values above — an ENK is not a
+  separate legal person, so the operator is still Olaf Taule. **If it is
+  registered under a business name, revisit this page**: the operator line
+  should name the entity a user is actually contracting with, and
+  `check:store-copy` cannot tell a correct name from a stale one.
+
   It closes three separate dependencies at once, which is why it was the
   schedule wildcard: `web/privacy.html` routes erasure requests to "the
   support address listed on the terms of service page", so a user
@@ -133,12 +242,22 @@ Both apps must be registered under `com.cosaxo.insight`:
   requires published contact info for a UGC app; and both store listings
   ask for a support contact.
 
-  **Norway is EEA, so GDPR applies in full.** One thing that follows and
-  is *not* done: EEA users have the right to lodge a complaint with a
-  supervisory authority (here, Datatilsynet), and `web/privacy.html` does
-  not mention it — the page has no jurisdiction-specific language at all.
-  Not a submission blocker for either store, and not a code problem;
-  flagged here so it is a decision rather than an oversight.
+  **Norway is EEA, so GDPR applies in full — and the follow-up this entry
+  used to hold open is done.** It read: *"EEA users have the right to
+  lodge a complaint with a supervisory authority (here, Datatilsynet), and
+  `web/privacy.html` does not mention it — the page has no
+  jurisdiction-specific language at all."* Measured 2026-08-04: the page
+  carries an **"If you are in the EEA"** section that says the GDPR applies
+  in full, names Datatilsynet, links datatilsynet.no, and states the right
+  can be exercised without raising it here first. That is GDPR Art. 13(2)(d)
+  satisfied.
+
+  The gap closed and this paragraph did not, which is the documentation
+  error this repo keeps re-committing (D39) wearing a different hat: not a
+  stale *number* this time but a stale *status*, on the one page a store
+  reviewer and a regulator both read. `check:figures` cannot see it — its
+  subject is README test counts — so the only guard is looking at the file,
+  which is what turned it up.
 
   `npm run check:store-copy` is the tripwire. **Run it before every store
   upload**; it exits non-zero while any placeholder remains. Three remain,
@@ -179,6 +298,32 @@ Both apps must be registered under `com.cosaxo.insight`:
   from `docs/data-inventory.md`, which is the audited list; the draft
   below is that list translated into their categories.
 
+  **"Audited" is a gate as of D130, and it was a hope before that.** On
+  build 12's pre-flight the inventory turned out to be missing three
+  collections shipped since build 11 — D122's handle registry and circle
+  invitations, D126's foresight verdicts — two of them world-readable.
+  No declared answer was wrong (all three fall under types already
+  declared Yes), which is exactly why it went unnoticed: **a miss that
+  changes no answer produces no symptom.** `npm run check:data-inventory`
+  now holds every collection the rules reach to a row in that file, so
+  the sentence above is true by construction rather than by intention.
+
+  > **[`STORE-FORMS.md`](STORE-FORMS.md) is the same answers as a
+  > field-by-field sheet to transcribe**, including the categories to
+  > leave *unticked* and why three of them look tickable but are not. Use
+  > it at submission time; the table below is the summary, and
+  > `data-inventory.md` stays the source both derive from. It also carries
+  > the age-rating answers and flags one inconsistency in this file's own
+  > guideline 4.8 talking point.
+  >
+  > **The two halves ship differently, and only one is automated.** The
+  > **age rating** is pushed by *Actions → App Store metadata* — done
+  > 2026-08-08, all 22 attributes including the eight Apple added (D75).
+  > The **privacy label cannot be pushed at all**: the App Store Connect
+  > API has no App Privacy resource (D73), so that workflow prints the
+  > form and it is typed in by hand. `check:store-forms` now holds both
+  > halves equal to `STORE-FORMS.md`, key and value.
+
   | Their category | InSight | Linked to user? | Used for |
   | --- | --- | --- | --- |
   | Identifiers → User ID | Firebase uid (anonymous by default) | Yes | App functionality |
@@ -187,7 +332,7 @@ Both apps must be registered under `com.cosaxo.insight`:
   | User content → Other | Answers, test results | Yes | App functionality |
   | **Sensitive info** | Politics test result; gender if entered | Yes | App functionality |
   | Location → Coarse | City name (see below) | Yes | App functionality |
-  | Diagnostics → Crash data | Sentry, **opt-in, default OFF**, uid only | Yes | App functionality |
+  | Diagnostics → Crash data | Sentry, **on by default, opt-out in the privacy panel** (D76), uid only | Yes | App functionality |
   | Purchases, Browsing, Search, Contacts, Ads | **None** | — | — |
 
   Three things to get right, because they are the ones that bite:
@@ -221,7 +366,7 @@ Both apps must be registered under `com.cosaxo.insight`:
     working, and the app never prompts unless the button is tapped.
   - **Sensitive info is a real Yes.** The politics test result is
     special-category data under GDPR Art. 9. It never leaves the owner
-    document and is never sliced by (D8), but the form asks what you
+    document and IS sliced and published since D98, and the form asks what you
     *collect*, not what you publish.
 
   **Facebook SDK — resolved, excluded (D16).** It *was* linked into every
@@ -288,10 +433,12 @@ Both apps must be registered under `com.cosaxo.insight`:
      forms, whatever the questions say.
   2. **Coarse location exists** (D9, optional). Both forms ask; answer
      consistently with the privacy table above.
-  3. **Free-text takes are circle-scoped (D1) and, in a live build,
-     currently demo-only** — MODERATION.md's "still ahead: the client
-     report control (needs a live takes surface)". So at launch the app
-     ships *without* a live free-text surface.
+  3. **Free-text takes are LIVE, at world scale, and NAMED** — D78 part 1
+     shipped the report control, D83 shipped world takes, and D98 put the
+     author's name on every one of them. So the app ships *with* a live,
+     public, attributed free-text surface. Answer both forms on that
+     basis; `userGeneratedContent` and `messagingAndChat` are already
+     true (D79) and stay true.
 
   Expect **12+ / Teen**, and answer it deliberately rather than accepting
   a default.
@@ -304,23 +451,37 @@ Both apps must be registered under `com.cosaxo.insight`:
 
   | 1.2 requires | Here |
   | --- | --- |
-  | Filter objectionable content | Moderation substrate deployed, `MOD_ADVISORY = true` (D22) |
-  | Report mechanism | Report control exists in the spec layer; the takes surface it attaches to is demo-only |
-  | Block abusive users | `removeGroupMember` / `leaveGroup` — removal from the circle **is** the block, because D1 means circle members are the only people whose content you can see |
+  | Filter objectionable content | Moderation substrate deployed and **enforcing** — `MOD_ADVISORY = false` since D83; a remove verdict really hides |
+  | Report mechanism | **Live** — `flagTake` writes to `v2_flags` from the takes panel (D78 part 1), and since D98 any signed-in user may flag any take at either scope |
+  | Block abusive users | **Hide author** — the per-author mute on every take, at every scope (`data/mutes.ts`): local, silent, immediate |
   | Published contact info | The support address owed in `web/terms.html` |
 
   Two things follow. First, **the support email is a 1.2 dependency**, not
-  only a GDPR one — a second reason it cannot stay a bracket. Second, if a
-  reviewer asks how users block one another, the answer is the circle
-  model, and it is a real answer rather than a dodge: there is no global
-  block because there is no global surface to be abused from. Say that
-  plainly; do not build a global block list to pre-empt a question that
-  may not be asked.
+  only a GDPR one — a second reason it cannot stay a bracket.
 
-  If the live takes surface ships later, 1.2 stops being comfortable and
-  the report control has to ship with it, not after it.
-- Apple Developer Program (~2 days to approve — start early) and a Mac
-  with Xcode for the iOS build; Play Console for Android.
+  Second, the block answer was re-derived at **D98** and it is worth
+  knowing what it replaced, because the old one would now be a rejection
+  risk. It used to be "leaving a circle IS the block, because circle
+  members are the only people whose content you can see" — true while
+  takes were circle-scoped and world takes were anonymous. D98 names
+  every take at world scale, so leaving a circle no longer bounds who you
+  see, and an answer resting on that would collapse under a reviewer's
+  first follow-up question. The real, universal control is **Hide
+  author**, and it applies everywhere. `leaveGroupV2` still exists and
+  still stops that circle's content, but it is a membership action now,
+  not the 1.2 answer. (Still no owner-side *remove* callable, D55 §14.)
+
+  The sentence that used to close this block — "1.2 stops being
+  comfortable if a live takes surface ships later" — has come due twice
+  over: the surface shipped at D83 with the report control alongside it,
+  and D98 attached names. Both obligations are met above; keep them met.
+- Apple Developer Program (~2 days to approve — start early, as an
+  **individual** enrollment). **A Mac is no longer required**: since
+  2026-08-05 `.github/workflows/ios-release.yml` archives, exports and
+  uploads on a macOS runner, measured working end to end. Play Console for
+  Android, as an **organization** account (D41 — it is the exemption from
+  the closed-testing gate, and it needs the ENK's D-U-N-S in hand first,
+  so start that chain on day one).
 - Build flow: `npm run build && npx cap sync`, then open the native
   projects (`npm run ios` / `npm run android`), set signing, archive.
 - TestFlight / internal testing track for the friends test. **Invite ten,
@@ -364,6 +525,45 @@ Until then links open the fallback page — degraded, not broken.
       gone (check Firestore console).
 
 ## 5 · Post-deploy ops toggles
+
+- **A Cloud Billing budget — five minutes, and the only thing on this page
+  that bounds a surprise rather than predicting one.** Nothing in this repo
+  can observe whether it exists, which is why it is a checklist line and not
+  a gate (D117's problem, pointed at money). Everything in docs/COSTS.md
+  forecasts the bill; a forecast is only as good as the behaviour it
+  assumed, and that document has been corrected four times for missing a
+  term rather than mis-estimating one. A budget fires on the outcome.
+
+  ```
+  gcloud billing budgets create \
+    --billing-account=<ACCOUNT_ID> \
+    --display-name="InSight" \
+    --budget-amount=50USD \
+    --filter-projects=projects/prvfire33 \
+    --threshold-rule=percent=0.5 \
+    --threshold-rule=percent=0.9 \
+    --threshold-rule=percent=1.0 \
+    --threshold-rule=percent=1.5
+  ```
+
+  $50 comes from the model, not from feel: launch sizes come out at $0–$2
+  a month and 5,000 DAU at $46, so $50 reads as "traction arrived, or
+  something is wrong", and the 150% rule still pages while the number is
+  two figures. Note what it does **not** do — a budget notifies, it does
+  not cap. Firestore has no spend limit; the only hard stop is a budget →
+  Pub/Sub → function that detaches the billing account, which takes the app
+  down with it, and for an app whose worst modelled launch month is $2 the
+  outage is the more expensive failure. Recorded as available, not built.
+
+- **Apply the alert policies with a channel** — `npm run monitoring:apply
+  --email you@example.com --apply`. `notificationChannels` is `[]` in all
+  four committed policies by design (the channel is per-operator, not
+  per-repo), and a policy with no channel evaluates correctly and pages
+  nobody. `monitoring/firestore-read-runaway.json` is the cost one: it
+  fires on billed reads above 500/sec sustained for five minutes, which is
+  ~37× the modelled peak at 500 DAU and about $780/month if it ran all
+  month. Raise it before ~13,100 DAU — the retune arithmetic is in the
+  policy's own runbook.
 
 - **TTL for the aggregate event ledger** (one-time, console or gcloud):
   `gcloud firestore fields ttls update expireAt --collection-group=v2_agg_events --enable-ttl --project=prvfire33`
@@ -482,16 +682,26 @@ Until then links open the fallback page — degraded, not broken.
   posts the **FCM** token to the Capacitor plugin, FirebaseCore +
   FirebaseMessaging are linked to the App target, and
   `App/App.entitlements` carries `aps-environment` (wired via
-  `CODE_SIGN_ENTITLEMENTS`). What still needs a Mac + console:
-  1. Drop `GoogleService-Info.plist` into `ios/App/App` and add it to
-     the App target (it is intentionally untracked; AppDelegate skips
-     `FirebaseApp.configure()` without it). Replace the
-     `REVERSED_CLIENT_ID` placeholder in Info.plist from the same file.
-  2. Xcode → Signing & Capabilities: confirm the Push Notifications
-     capability shows up from the entitlements file and the
-     provisioning profile regenerates with `aps-environment`.
-  3. Apple Developer → upload the APNs key to Firebase (step already
-     listed above), then verify the reveal flow end-to-end on device.
+  `CODE_SIGN_ENTITLEMENTS`). **Two of the three steps below no longer need
+  a Mac**, which is what changed on 2026-08-05:
+  1. ~~Drop `GoogleService-Info.plist` into `ios/App/App` and add it to the
+     App target~~ — **done, and automated.** The file lives in the
+     `GOOGLE_SERVICE_INFO_PLIST` repository secret;
+     `scripts/ios-link-firebase-plist.rb` adds it to the target at build
+     time, because "drag it onto the target in Xcode" is precisely the step
+     a runner cannot do. The `REVERSED_CLIENT_ID` placeholder in
+     `Info.plist` is filled. Both release gates assert the file is in the
+     bundle — AppDelegate skips `FirebaseApp.configure()` without it, and
+     the app then ships with no backend at all.
+  2. ~~Xcode → Signing & Capabilities: confirm the provisioning profile
+     regenerates with `aps-environment`~~ — **done, and automated.** The
+     workflow reads the entitlement out of the archive *and* the exported
+     `.ipa` and fails on anything but `production`. Run 6 reports
+     `production` at both ends.
+  3. **Still outstanding, and it is console work rather than Mac work:**
+     Apple Developer → upload the APNs key to Firebase (step already listed
+     above), then verify the reveal flow end-to-end on device. A device is
+     still a device — that half cannot be automated.
 - **Reveal membership snapshot — both deploys shipped.** Reveal reads used
   to be gated on a group's *current* `memberUids`, so joining a group
   exposed every past day's votes and display names. The fix was two
@@ -563,7 +773,44 @@ Until then links open the fallback page — degraded, not broken.
   pass without it, because the app's *primary* path is anonymous: no
   account is required, nothing is requested, and Google is an optional
   upgrade rather than a login wall. If a reviewer cites 4.8, reply with
-  that, and note the app collects no email or name via Google either.
+  that — and **stop there**.
+
+  **Every word of that reply is conditional on a build flag, and the flag
+  defaults the wrong way for it (D134, D142).** `ios-release.yml` sets
+  `VITE_REQUIRE_SIGNIN` from `vars.REQUIRE_SIGNIN` and **defaults it to
+  `true`**, so a release build opens on a mandatory Google sign-in and
+  nothing else works until it succeeds. Against such a binary *"no account
+  is required"* and *"an optional upgrade rather than a login wall"* are
+  both false, and sending them would argue against the app the reviewer is
+  holding — the same failure as the deleted email clause below, one level
+  up: not a sentence that went stale, but one a build setting can falsify
+  on any given run.
+
+  So this reply is usable **only** from a build with `REQUIRE_SIGNIN` set
+  to `false`. The wall is right for TestFlight and wrong for submission;
+  D134 states that fork and leaves the choice — drop the wall, or build
+  Sign in with Apple — deliberately open. **Check the flag before quoting
+  this bullet**, and note that a wall raises 5.1.1(v) (an app should be
+  usable without an account unless its core features need one) before it
+  raises 4.8: this app's loop ran anonymously for twelve builds, so that
+  argument is about the product and costs more than adding a provider.
+  Runbook 6.2 carries the operational half.
+
+  **This bullet used to add "and the app collects no email or name via
+  Google either". Delete that from any reply; it is false.**
+  `linkGoogle()` calls `new GoogleAuthProvider()` with no `addScope`
+  (`src/lib/firebaseImpl.ts:167`), and Firebase requests `email` and
+  `profile` by default — so the Firebase Auth user record holds an email
+  address and a display name for every linked account. No Firestore
+  document of ours stores them, which is probably how the sentence got
+  written, but Apple's question is what the app and its partners
+  *collect*, not what our own schema keeps.
+
+  The consequence is not the 4.8 reply, which stands without that clause.
+  It is the privacy questionnaire: **Contact Info → Email Address** and
+  **Contact Info → Name** are collected, linked to identity, and used for
+  App Functionality. `docs/STORE-FORMS.md` is the file to answer from, and
+  it has this right — this bullet was the copy that did not.
 
   Only if they insist: add the Apple provider. Enable the capability in
   the developer portal **before** committing the entitlement, and use

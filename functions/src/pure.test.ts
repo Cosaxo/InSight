@@ -4,33 +4,55 @@
 import { describe, it, expect } from "vitest";
 import {
   CODE_ALPHABET,
+  HANDLE_MAX,
+  HANDLE_MIN,
   inviteCodeFromBytes,
+  normalizeHandle,
+  RESERVED_HANDLES,
   utcDayKey,
   prevDayKey,
   shouldReveal,
   nextStreak,
   PENDING_DAYS_KEEP,
   prunePendingDays,
-  meetsKFloor,
+  scanDays,
+  revealMembersFor,
   breakdownBucket,
   foldAnchors,
-  publishableBreakdown,
   BREAKDOWN_MAX_BUCKETS,
-  shouldPublishAgg,
   catalogEntityKey,
-  publishableCanon,
   buildModQueueFrom,
+  tallyFlags,
+  tallyFlagsInto,
   carriedEscalations,
   modVerdictError,
   modVerdictId,
   seedDocMatches,
+  seedOptionConflict,
+  describeSeedOptionConflicts,
   SEEDED_FIELDS,
   foldCanonAnchors,
+  canonTopN,
   canonBreakdownFor,
   CANON_BY_MAX_ENTITIES,
   isPlausibleFcmToken,
   nextFcmTokens,
+  duelAggDelta,
+  foldDuelAgg,
+  publishableDuelAgg,
+  revealQid,
+  revealVotes,
+  votesMatchingQid,
+  presenceCellOk,
+  presenceNeighbors,
+  retargetCounts,
+  retargetAnchors,
 } from "./pure";
+
+// The bucket-churn threshold (pure.ts BUCKET_EVICT_BELOW). Not a
+// disclosure floor — D98 removed those; this is the document-growth
+// bound that keeps a junk-value burst from blanking a dimension.
+const FLOOR = 5;
 
 // ── invite codes ────────────────────────────────────────────────
 
@@ -176,6 +198,135 @@ describe("prunePendingDays", () => {
   });
 });
 
+// ── which days a reveal run asks about ──────────────────────────
+
+describe("scanDays", () => {
+  const T = Date.UTC(2026, 6, 27, 12, 0, 0); // 2026-07-27T12:00Z
+
+  it("covers the whole pending window, not just yesterday", () => {
+    // The bug: the scan asked about utcDayKey(-1) and the schedule never
+    // passed a day, so a group-day was revealable during the single UTC day
+    // after it and never again — while rules accept a duel answer four days
+    // late and onV2AnswerCreated re-adds the day to pendingDays whenever one
+    // arrives. An answer syncing on D+2 re-opened a day nothing would ask
+    // about again. Both members had answered; the day sat pending forever.
+    expect(scanDays(undefined, T)).toEqual([
+      "2026-07-26", "2026-07-25", "2026-07-24",
+      "2026-07-23", "2026-07-22", "2026-07-21",
+    ]);
+  });
+
+  it("matches the pruning window exactly", () => {
+    // prunePendingDays drops anything older than PENDING_DAYS_KEEP, so a day
+    // outside this window can never gain another answer. Asking about
+    // exactly the days that can still change is the definition pendingDays
+    // was given; the two drifting apart is how the gap reopens.
+    expect(scanDays(undefined, T)).toHaveLength(PENDING_DAYS_KEEP);
+    const oldest = scanDays(undefined, T)[PENDING_DAYS_KEEP - 1];
+    expect(prunePendingDays([oldest], "x", oldest)).toEqual([oldest]);
+    expect(prunePendingDays([prevDayKey(oldest)], "x", oldest)).toEqual([]);
+  });
+
+  it("an explicit day still means that day alone", () => {
+    // The operator lever and every e2e leg pass one, and narrowing is what
+    // an operator reaching for it during an incident usually wants.
+    expect(scanDays("2026-01-01", T)).toEqual(["2026-01-01"]);
+  });
+
+  it("crosses a month boundary", () => {
+    expect(scanDays(undefined, Date.UTC(2026, 7, 2, 3, 0, 0))).toEqual([
+      "2026-08-01", "2026-07-31", "2026-07-30",
+      "2026-07-29", "2026-07-28", "2026-07-27",
+    ]);
+  });
+});
+
+// ── who a day's reveal belongs to ───────────────────────────────
+
+describe("revealMembersFor", () => {
+  const DAY = "2026-07-27";
+  const at = (iso: string) => Date.parse(iso);
+
+  it("excludes someone who joined after the day ended", () => {
+    // The leak, exactly: day D is revealed by the D+1 scan, which runs every
+    // 120 minutes, so a 00:05 joiner was a current member when the snapshot
+    // was taken and read a day they were not in the group for.
+    const members = ["old", "latecomer"];
+    const joined = {
+      old: at("2026-07-20T09:00:00Z"),
+      latecomer: at("2026-07-28T00:05:00Z"),
+    };
+    expect(revealMembersFor(members, joined, DAY)).toEqual(["old"]);
+  });
+
+  it("includes someone who joined partway through the day", () => {
+    // The bound is the END of the day, not its start — they were there for
+    // it, and duel answers stay writable while the day is unrevealed, so
+    // they may well have played it.
+    const joined = { mid: at("2026-07-27T18:30:00Z") };
+    expect(revealMembersFor(["mid"], joined, DAY)).toEqual(["mid"]);
+  });
+
+  it("includes a member joining in the last second, and excludes the first second after", () => {
+    const joined = {
+      justIn: at("2026-07-27T23:59:59.999Z"),
+      justOut: at("2026-07-28T00:00:00.000Z"),
+    };
+    expect(revealMembersFor(["justIn", "justOut"], joined, DAY)).toEqual(["justIn"]);
+  });
+
+  it("includes members who predate the field", () => {
+    // Not a fallback — the correct answer. createGroupV2/joinGroupV2 write
+    // this from the day it shipped, so absence means the member joined
+    // before that, which is before any day this is ever asked about.
+    // Reading absence as "exclude" would blank every reveal for every group
+    // that existed on deploy day.
+    expect(revealMembersFor(["a", "b"], {}, DAY)).toEqual(["a", "b"]);
+    expect(revealMembersFor(["a", "b"], { a: at("2026-07-01T00:00:00Z") }, DAY))
+      .toEqual(["a", "b"]);
+  });
+
+  it("includes a member whose recorded time is unusable", () => {
+    // Same permissive direction, and for the same reason: a reveal its own
+    // members cannot read is a worse failure than one scoped too widely.
+    for (const bad of [null, undefined, "2026-07-01", NaN, {}, 0 / 0]) {
+      expect(revealMembersFor(["a"], { a: bad }, DAY)).toEqual(["a"]);
+    }
+  });
+
+  it("includes anyone who played the day, whatever their join time says", () => {
+    // Duel answers are accepted up to four days late, so a member can
+    // legitimately land a vote for a day preceding their join — an offline
+    // client flushing a queue, or a fresh group playing a recent day.
+    // Excluding them would publish a reveal holding their own vote that they
+    // alone could not read.
+    const joined = { player: at("2026-08-01T00:00:00Z"), lurker: at("2026-08-01T00:00:00Z") };
+    expect(revealMembersFor(["player", "lurker"], joined, DAY, ["player"]))
+      .toEqual(["player"]);
+  });
+
+  it("can return an empty array, and says so rather than falling back", () => {
+    // Everyone who played the day has left; everyone now in the group joined
+    // after it. Nobody was there, so nobody may read it — the reveal still
+    // writes, which settles the day for the scan.
+    const joined = { newA: at("2026-08-01T00:00:00Z"), newB: at("2026-08-02T00:00:00Z") };
+    expect(revealMembersFor(["newA", "newB"], joined, DAY)).toEqual([]);
+  });
+
+  it("does not read join times off the prototype", () => {
+    // The group document's maps are keyed by uid, and D47 is the record of
+    // what a prototype lookup does to a uid-keyed map read from Firestore.
+    expect(revealMembersFor(["constructor"], {}, DAY)).toEqual(["constructor"]);
+    expect(revealMembersFor(["toString"], {}, DAY)).toEqual(["toString"]);
+  });
+
+  it("degrades to the previous behaviour on a malformed day key", () => {
+    // Server-generated (utcDayKey), so unreachable in the pipeline.
+    const joined = { late: at("2030-01-01T00:00:00Z") };
+    expect(revealMembersFor(["late"], joined, "not-a-day")).toEqual(["late"]);
+  });
+});
+
 // ── streaks ─────────────────────────────────────────────────────
 
 describe("nextStreak", () => {
@@ -199,25 +350,14 @@ describe("nextStreak", () => {
 
 // ── k-floor ─────────────────────────────────────────────────────
 
-describe("meetsKFloor", () => {
-  it("is exclusive below and inclusive at the floor", () => {
-    expect(meetsKFloor(19, 20)).toBe(false);
-    expect(meetsKFloor(20, 20)).toBe(true);
-    expect(meetsKFloor(21, 20)).toBe(true);
-  });
-
-  it("handles the small city floor edges too", () => {
-    expect(meetsKFloor(0, 3)).toBe(false);
-    expect(meetsKFloor(2, 3)).toBe(false);
-    expect(meetsKFloor(3, 3)).toBe(true);
-  });
-});
-
 describe("per-anchor breakdowns", () => {
   // Since D9 the client sends the canonical catalogue key for `city` and
   // the ISO code (derived from it, never typed) for `country`.
+  // Real vocabulary values. This fixture said `gender: "Women"` before the
+  // vocabulary check existed — a string the profile's <select> has never
+  // offered, which is exactly the drift check:anchors now prevents.
   const anchors = (over: Record<string, unknown> = {}) => ({
-    ageBand: "25-34", gender: "Women", country: "NO", ...over,
+    ageBand: "25-34", gender: "Woman", country: "NO", ...over,
   });
 
   it("folds the closed-vocabulary anchors, and ignores junk buckets", () => {
@@ -258,161 +398,243 @@ describe("per-anchor breakdowns", () => {
 
     // A city name may itself contain a comma; the shape anchors on the tail.
     expect(breakdownBucket("Washington, D C, US", "city")).toBe("Washington, D C, US");
-    // The dim is optional, and without it the check does not apply — the
-    // other five dimensions still accept their own free-form labels.
+    // The dim is optional, and without it neither the shape nor the
+    // vocabulary applies — that overload is only reached by callers that do
+    // not know which dimension they hold.
     expect(breakdownBucket("oslo")).toBe("oslo");
+    // With the dim, the four closed dimensions accept their vocabulary and
+    // nothing else. "Women" is the near-miss that matters: it reads like a
+    // gender and the profile has never offered it.
     expect(breakdownBucket("Prefer not to say", "gender")).toBe("Prefer not to say");
+    expect(breakdownBucket("Women", "gender")).toBeNull();
+    expect(breakdownBucket("Doctorate", "education")).toBe("Doctorate");
+    expect(breakdownBucket("PhD", "education")).toBeNull();
   });
 
-  it("caps distinct buckets per dimension but keeps counting known ones", () => {
-    // `education` rather than `country`: the cap is what is under test, and
-    // country now carries an ISO-shape check that a synthetic "C37" fails
-    // for an unrelated reason.
-    const by: Record<string, Record<string, Record<string, number>>> = {};
-    for (let i = 0; i < BREAKDOWN_MAX_BUCKETS + 10; i++) {
-      foldAnchors(by, { education: "E" + i }, 0);
+  it("refuses bucket labels that are keys on Object.prototype", () => {
+    // Four of the six dimensions have no closed vocabulary, and
+    // firestore.rules can only bound an anchor's LENGTH — verified against
+    // the real ruleset in the emulator, where an anonymous account creates
+    // an answer carrying `anchors: { gender: "__proto__" }` and is allowed.
+    //
+    // `byDim[bucket] = {}` with that label sets the PROTOTYPE, so the
+    // per-option counter beneath it lands on Object.prototype and every
+    // object minted afterwards in the process inherits it.
+    for (const name of ["__proto__", "constructor", "toString", "valueOf", "hasOwnProperty"]) {
+      expect(breakdownBucket(name, "gender")).toBeNull();
+      expect(breakdownBucket(name)).toBeNull();
     }
-    expect(Object.keys(by.education)).toHaveLength(BREAKDOWN_MAX_BUCKETS);
-    // a bucket already known keeps incrementing even once the cap is hit
-    foldAnchors(by, { education: "E0" }, 0);
-    expect(by.education.E0["0"]).toBe(2);
-    // …and a new one past the cap is dropped rather than growing the doc
-    expect(by.education["E99"]).toBeUndefined();
+
+    const before = Object.prototype as unknown as Record<string, unknown>;
+    const by = {};
+    foldAnchors(by, { gender: "__proto__", ageBand: "constructor" }, 3);
+    expect(by).toEqual({});
+    expect(before["3"]).toBeUndefined();
+    // The consequence the guard exists for, stated as the assertion: an
+    // unrelated object must not have grown a vote count.
+    expect(({} as Record<string, unknown>)["3"]).toBeUndefined();
+
+    // …and the same for the catalog transpose, which folds the same anchors.
+    const entBy = {};
+    foldCanonAnchors(entBy, { gender: "__proto__" }, "25");
+    expect(entBy).toEqual({});
+    expect(({} as Record<string, unknown>)["25"]).toBeUndefined();
   });
 
-  it("caps the city dimension too, using real catalogue keys", () => {
-    // The cap matters most here: a global question can touch far more than
-    // 24 cities, so this is the dimension that actually degrades in
-    // production rather than in a test.
+  it("holds the bucket cap, on the dimension that can actually reach it", () => {
+    // `city` and not `education`: the four <select> dimensions now check
+    // membership, and their vocabularies are SHORTER than the cap, so they
+    // can no longer reach it at all — which is the point of closing them.
+    // 10,929 places against 24 slots is where the cap still bites.
     const by: Record<string, Record<string, Record<string, number>>> = {};
     for (let i = 0; i < BREAKDOWN_MAX_BUCKETS + 10; i++) {
       foldAnchors(by, { city: `City${i}, NO` }, 0);
     }
     expect(Object.keys(by.city)).toHaveLength(BREAKDOWN_MAX_BUCKETS);
-    foldAnchors(by, { city: "City0, NO" }, 0);
-    expect(by.city["City0, NO"]["0"]).toBe(2);
-    expect(by.city["City30, NO"]).toBeUndefined();
+    // A bucket still IN the map keeps incrementing — the cap gates entry,
+    // not counting. (City0 is gone by now: 34 arrivals into 24 slots, and
+    // among all-equal buckets eviction is oldest-first.)
+    const survivor = Object.keys(by.city)[0];
+    foldAnchors(by, { city: survivor }, 0);
+    expect(by.city[survivor]["0"]).toBe(2);
+    // …and the document cannot grow past the cap however many arrive. This
+    // is the D7 growth bound, and eviction must not have loosened it.
+    for (let i = 100; i < 140; i++) foldAnchors(by, { city: `City${i}, NO` }, 0);
+    expect(Object.keys(by.city).length).toBeLessThanOrEqual(BREAKDOWN_MAX_BUCKETS);
   });
 
-  it("suppresses buckets whose total is below the floor", () => {
-    const by = {
-      gender: {
-        Women: { "0": 6, "1": 4 },   // 10 — publishable
-        Men: { "0": 5, "1": 3 },     // 8  — publishable
-        Nonbinary: { "0": 1 },       // 1  — below floor
-        Other: { "0": 2 },           // 2  — below floor
-      },
-    };
-    const out = publishableBreakdown(by, 5);
-    expect(Object.keys(out.gender).sort()).toEqual(["Men", "Women"]);
-    expect(out.gender.Nonbinary).toBeUndefined();
+  it("a closed vocabulary cannot reach the cap at all", () => {
+    // The property that closes the slot-exhaustion hole for four of the six
+    // dimensions, asserted as the inequality it actually is: there are fewer
+    // legal buckets than slots, so no caller can crowd a real one out.
+    // check:anchors holds the same inequality against the client's lists.
+    const by: Record<string, Record<string, Record<string, number>>> = {};
+    for (const v of ["Woman", "Man", "Non-binary", "Prefer not to say"]) {
+      foldAnchors(by, { gender: v }, 0);
+    }
+    // …and 200 attempts at anything else buy nothing.
+    for (let i = 0; i < 200; i++) foldAnchors(by, { gender: `G${i}` }, 0);
+    expect(Object.keys(by.gender).sort())
+      .toEqual(["Man", "Non-binary", "Prefer not to say", "Woman"]);
+    expect(Object.keys(by.gender).length).toBeLessThan(BREAKDOWN_MAX_BUCKETS);
   });
 
-  // The property that makes the floor real rather than decorative.
-  it("never leaves exactly one suppressed bucket recoverable by subtraction", () => {
-    const by = {
-      ageBand: {
-        "18-24": { "0": 20 },  // published
-        "25-34": { "0": 12 },  // smallest survivor — must be taken too
-        "35-44": { "0": 3 },   // the only sub-floor bucket
-      },
-    };
-    const out = publishableBreakdown(by, 5);
-    // Without complementary suppression this would publish two buckets and a
-    // reader knowing the dimension total (35) recovers 35-20-12 = 3 exactly.
-    expect(out.ageBand).toBeUndefined();
+  it("evicts a sub-floor bucket to admit a new one, and never a published one", () => {
+    // The attack the cap used to enable: fill all 24 slots with values that
+    // are never published (one answer each), and every real city that
+    // arrives afterwards is refused — the dimension is blank for the life of
+    // the question, and no vocabulary can stop it because the catalogue is
+    // far larger than the cap.
+    const by: Record<string, Record<string, Record<string, number>>> = {};
+    for (let i = 0; i < BREAKDOWN_MAX_BUCKETS; i++) {
+      foldAnchors(by, { city: `Junk${i}, NO` }, 0);
+    }
+    expect(Object.keys(by.city)).toHaveLength(BREAKDOWN_MAX_BUCKETS);
 
-    // With enough survivors, the complement is applied and the rest stand
-    const wide = {
-      country: {
-        A: { "0": 30 }, B: { "0": 20 }, C: { "0": 14 }, D: { "0": 2 },
-      },
-    };
-    const w = publishableBreakdown(wide, 5);
-    expect(Object.keys(w.country).sort()).toEqual(["A", "B"]);  // C is the complement
-    expect(w.country.D).toBeUndefined();
+    // Real traffic now arrives. Two cities, so the churn has something to
+    // prefer over the junk.
+    for (let i = 0; i < FLOOR; i++) {
+      foldAnchors(by, { city: "Oslo, NO" }, 1);
+      foldAnchors(by, { city: "Bergen, NO" }, 0);
+    }
+    // Before the eviction rule existed both were refused outright and
+    // `city` stayed blank for the life of the question.
+    expect(by.city["Oslo, NO"]).toEqual({ "1": FLOOR });
+    expect(by.city["Bergen, NO"]).toEqual({ "0": FLOOR });
+
+    // …and once a bucket reaches BUCKET_EVICT_BELOW it is not evictable,
+    // however many new values arrive. A published count that could vanish
+    // is a worse failure than a dimension that degrades.
+    for (let i = 0; i < 200; i++) foldAnchors(by, { city: `More${i}, NO` }, 0);
+    expect(by.city["Oslo, NO"], "a published bucket was evicted").toEqual({ "1": FLOOR });
+    expect(by.city["Bergen, NO"], "a published bucket was evicted").toEqual({ "0": FLOOR });
+    expect(Object.keys(by.city).length).toBeLessThanOrEqual(BREAKDOWN_MAX_BUCKETS);
   });
 
-  it("omits a dimension that cannot show a comparison", () => {
-    // one surviving bucket is a population statement, not a split
-    expect(publishableBreakdown({ gender: { Women: { "0": 40 } } }, 5)).toEqual({});
-    // two clean buckets and nothing suppressed: published as-is
-    const clean = { gender: { Women: { "0": 9 }, Men: { "0": 7 } } };
-    expect(publishableBreakdown(clean, 5)).toEqual(clean);
+  it("refuses a new bucket outright once every slot is publishable", () => {
+    // The case the assertion above CANNOT reach, and the one that matters
+    // most: while any sub-floor bucket exists it is always the smaller
+    // victim, so a published bucket is never even a candidate. Only when
+    // every slot is at or above the floor does the floor guard itself decide
+    // — and dropping it there would delete counts a reader has already seen.
+    //
+    // Written after mutating `victimTotal` from `floor` to `Infinity` and
+    // watching the whole suite stay green.
+    const by: Record<string, Record<string, Record<string, number>>> = {};
+    for (let i = 0; i < BREAKDOWN_MAX_BUCKETS; i++) {
+      for (let n = 0; n < FLOOR; n++) foldAnchors(by, { city: `Full${i}, NO` }, 0);
+    }
+    const before = { ...by.city };
+    expect(Object.keys(before)).toHaveLength(BREAKDOWN_MAX_BUCKETS);
+
+    foldAnchors(by, { city: "Newcomer, NO" }, 0);
+
+    expect(by.city["Newcomer, NO"], "a publishable bucket was evicted for a newcomer")
+      .toBeUndefined();
+    expect(by.city).toEqual(before);
   });
 
-  // The floor's scope, pinned so it stays a decision rather than a
-  // discovery. It bounds COHORT SIZE — how many people are in a bucket —
-  // and says nothing about how lopsided that bucket's split may be. A
-  // bucket sitting exactly on the floor can therefore publish a count of 1
-  // for an option, which is one person's answer, disclosed to anyone who
-  // already knows the other four. That is the documented k-anonymity
-  // residual (D18), not a suppression bug — and the plain `counts` beside
-  // it carry the identical property at the identical floor.
-  //
-  // If this test ever fails, the floor's unit changed. That is a D18
-  // reversal and needs the record updated, not a green-again patch.
-  it("publishes a lopsided split inside a bucket at the floor", () => {
-    const by = {
-      city: {
-        "Oslo, NO": { "0": 4, "1": 1 },     // 5 — on the floor, 1 is a person
-        "Bergen, NO": { "0": 3, "1": 3 },   // 6 — publishable
-      },
-    };
-    const out = publishableBreakdown(by, 5);
-    expect(out.city["Oslo, NO"]).toEqual({ "0": 4, "1": 1 });
-    // …and the bucket total, not any single option, is what was tested
-    // against the floor: a bucket of 4+1 clears it, a bucket of 4 does not.
-    const below = { city: { "Oslo, NO": { "0": 4 }, "Bergen, NO": { "0": 9 } } };
-    expect(publishableBreakdown(below, 5).city).toBeUndefined();
-  });
-
-  it("does not alias the private counts into the published copy", () => {
-    const by = { gender: { Women: { "0": 9 }, Men: { "0": 7 } } };
-    const out = publishableBreakdown(by, 5);
-    out.gender.Women["0"] = 999;
-    expect(by.gender.Women["0"]).toBe(9);
-  });
+  // The five publishableBreakdown cases that stood here — sub-floor
+  // suppression, complementary suppression, the two-bucket minimum, the
+  // lopsided-split carve-out and the defensive copy — went with the
+  // function itself (D98). pure.ts keeps the record of what each one
+  // defended; there is no publishable view left to test.
 });
 
-describe("public-mirror publish cadence", () => {
-  // AGG_MIN_N / PUBLISH_EVERY as shipped
-  const pub = (total: number) => shouldPublishAgg(total, 5, 5);
-
-  it("publishes nothing below the floor", () => {
-    for (let t = 0; t < 5; t++) expect(pub(t)).toBe(false);
+// ── the edit delta (D86) ────────────────────────────────────────
+//
+// An edit is -old/+new with the total unchanged. These pin the two
+// properties the trigger leans on: counts refuse to clamp (absence means
+// "create not folded yet" and is the retry signal), and the breakdown
+// moves a vote only inside cells where the old vote is actually
+// represented — bucket totals, the floor's quantity, never move.
+describe("retargetCounts / retargetAnchors — the D86 edit delta", () => {
+  it("moves one vote between options and keeps the sum", () => {
+    const counts = { "0": 3, "1": 2 };
+    expect(retargetCounts(counts, 0, 1)).toBe(true);
+    expect(counts).toEqual({ "0": 2, "1": 3 });
   });
 
-  it("publishes on the floor crossing and then every 5th answer", () => {
-    expect(pub(5)).toBe(true);
-    expect(pub(10)).toBe(true);
-    expect(pub(15)).toBe(true);
-    expect(pub(100)).toBe(true);
+  it("deletes a zeroed row rather than storing a 0 — the create path's invariant", () => {
+    const counts = { "0": 1, "1": 4 };
+    expect(retargetCounts(counts, 0, 1)).toBe(true);
+    expect(counts).toEqual({ "1": 5 });
+    expect("0" in counts).toBe(false);
   });
 
-  // The property that closes the disclosure channel: between any two
-  // publishes at least `every` answers land, so no observed step is one
-  // person. Checked as a gap measurement rather than by spot values —
-  // a spot check would survive a policy that publishes per answer above
-  // some threshold, which is exactly the bug this replaced.
-  it("never lets two publishes be fewer than 5 answers apart, at any size", () => {
-    let last = -1;
-    let smallestGap = Infinity;
-    for (let t = 1; t <= 2000; t++) {
-      if (!pub(t)) continue;
-      if (last > 0) smallestGap = Math.min(smallestGap, t - last);
-      last = t;
-    }
-    expect(smallestGap).toBe(5);
+  it("returns false untouched when the old option holds nothing — the retry signal", () => {
+    // The update event beat the create event (Eventarc orders nothing).
+    // The map must be left alone: a blind -1/+1 would clamp at zero, and
+    // -old/+new only commutes with +old while nothing clamps.
+    const counts = { "1": 2 };
+    expect(retargetCounts(counts, 0, 1)).toBe(false);
+    expect(counts).toEqual({ "1": 2 });
   });
 
-  it("degrades safely if the floor is not a multiple of the cadence", () => {
-    // first publish simply waits for the next multiple — later, never leakier
-    expect(shouldPublishAgg(7, 7, 5)).toBe(false);
-    expect(shouldPublishAgg(10, 7, 5)).toBe(true);
-    // and a cadence of 1 is "publish every answer", the old behaviour,
-    // kept expressible so a future operator choosing it does so knowingly
-    expect(shouldPublishAgg(6, 5, 1)).toBe(true);
+  it("commutes with the create fold when the old option has other votes", () => {
+    // Someone else already holds option 0, so an early-delivered edit can
+    // proceed; the late create then adds the editor's original +0 and the
+    // final state equals the in-order result.
+    const early = { "0": 1 };            // another person's vote
+    retargetCounts(early, 0, 1);         // edit first
+    early["0"] = (early["0"] || 0) + 1;  // create folds afterwards
+    const inOrder = { "0": 1 };
+    inOrder["0"] = (inOrder["0"] || 0) + 1;  // create first
+    retargetCounts(inOrder, 0, 1);           // then edit
+    expect(early).toEqual(inOrder);
+    expect(early).toEqual({ "0": 1, "1": 1 });
+  });
+
+  it("moves the vote in every anchored dim and keeps bucket totals fixed", () => {
+    const by = {};
+    foldAnchors(by, { ageBand: "25-34", city: "Oslo, NO" }, 0);
+    foldAnchors(by, { ageBand: "25-34", city: "Oslo, NO" }, 0);
+    retargetAnchors(by, { ageBand: "25-34", city: "Oslo, NO" }, 0, 2);
+    expect(by).toEqual({
+      ageBand: { "25-34": { "0": 1, "2": 1 } },
+      city: { "Oslo, NO": { "0": 1, "2": 1 } },
+    });
+    // …and a fold followed by a retarget equals folding the new option
+    // outright: the roundtrip leaves no residue.
+    const edited = {};
+    foldAnchors(edited, { ageBand: "25-34" }, 0);
+    retargetAnchors(edited, { ageBand: "25-34" }, 0, 1);
+    const direct = {};
+    foldAnchors(direct, { ageBand: "25-34" }, 1);
+    expect(edited).toEqual(direct);
+  });
+
+  it("skips a dim whose bucket is gone — increment included", () => {
+    // The bucket the create folded into was evicted (or the create-time cap
+    // skipped it). Incrementing anyway would inflate the bucket total by an
+    // answer that is not in it — the one guarantee the fold keeps.
+    const by = { ageBand: { "25-34": { "0": 1 } } };
+    retargetAnchors(by, { ageBand: "35-44", city: "Oslo, NO" }, 0, 1);
+    expect(by).toEqual({ ageBand: { "25-34": { "0": 1 } } });
+  });
+
+  it("skips a dim whose cell lacks the old option — a re-minted bucket", () => {
+    // Bucket evicted after the create, then re-minted by other people's
+    // answers to OTHER options: the editor's old vote is not represented,
+    // so nothing moves and the bucket total stays honest.
+    const by = { city: { "Oslo, NO": { "1": 3 } } };
+    retargetAnchors(by, { city: "Oslo, NO" }, 0, 1);
+    expect(by).toEqual({ city: { "Oslo, NO": { "1": 3 } } });
+  });
+
+  it("is a no-op on junk anchors, like the fold it mirrors", () => {
+    const by = { ageBand: { "25-34": { "0": 1 } } };
+    retargetAnchors(by, null, 0, 1);
+    retargetAnchors(by, "not an object", 0, 1);
+    retargetAnchors(by, { ageBand: "  ", gender: "Women", city: "oslo" }, 0, 1);
+    expect(by).toEqual({ ageBand: { "25-34": { "0": 1 } } });
+  });
+
+  it("deletes a zeroed option key inside a cell", () => {
+    const by = { gender: { Woman: { "0": 1, "1": 1 } } };
+    retargetAnchors(by, { gender: "Woman" }, 0, 1);
+    expect(by.gender.Woman).toEqual({ "1": 2 });
+    expect("0" in by.gender.Woman).toBe(false);
   });
 });
 
@@ -451,68 +673,58 @@ describe("catalog answers (pick questions — docs/CATALOG-QUESTIONS.md)", () =>
     expect(catalogEntityKey(0, EMPTY)).toBe("0");
   });
 
-  // The property that makes the canon's floor real rather than decorative.
-  it("never leaves exactly one folded entity recoverable by subtraction", () => {
-    // Without complementary suppression this would publish {25:20, 6:12}
-    // and a reader knowing the total (35) recovers 35-20-12 = 3 — the
-    // exact count of the one entity the floor was hiding.
-    expect(publishableCanon({ "25": 20, "6": 12, "4": 3 }, 5, 10)).toEqual({
-      top: { "25": 20 },
-      rest: 15,
+  // D98: no floor, no complementary fold, no tie fold. `rest` is the tail
+  // outside the top N and nothing else. The three cases that used to live
+  // here — recoverable-hole folding, whole-tie-group folding, and the
+  // null board when suppression emptied it — went with publishableCanon.
+  it("publishes every answered entity, at any count", () => {
+    expect(canonTopN({ "25": 20, "6": 12, "4": 3 }, 10)).toEqual({
+      top: { "25": 20, "6": 12, "4": 3 },
+      rest: 0,
     });
-    // …and the smallest survivor folds as a whole tie GROUP, or the fold
-    // itself would rank equals arbitrarily: here the lone sub-floor entity
-    // takes both 6-count entities down with it.
-    expect(publishableCanon({ "25": 9, "6": 6, "7": 6, "4": 3 }, 5, 10)).toEqual({
-      top: { "25": 9 },
-      rest: 15,
+    // A one-vote entity is as publishable as a twenty-vote one.
+    expect(canonTopN({ "1": 2, "2": 2, "3": 1 }, 10)).toEqual({
+      top: { "1": 2, "2": 2, "3": 1 },
+      rest: 0,
     });
   });
 
-  it("publishes nothing finer than the total when the fold empties the board", () => {
-    // every entity below the floor
-    expect(publishableCanon({ "1": 2, "2": 2, "3": 1 }, 5, 10)).toBeNull();
-    // one entity above it, but publishing it names the one below by
-    // subtraction, and folding it leaves nothing
-    expect(publishableCanon({ "25": 20, "4": 3 }, 5, 10)).toBeNull();
-  });
-
-  it("caps at topN and folds boundary ties whole", () => {
+  it("caps at topN and puts the remainder in rest", () => {
     const ent: Record<string, number> = {};
     for (let i = 1; i <= 12; i++) ent[String(i)] = 30 - i; // 29..18, distinct
-    const out = publishableCanon(ent, 5, 10);
-    expect(out).not.toBeNull();
-    expect(Object.keys(out!.top)).toHaveLength(10);
-    expect(out!.rest).toBe(19 + 18); // the two beyond the cap
-    // Ties at the boundary: with topN 3 over [9,8,7,7], publishing one 7
-    // would rank equals arbitrarily — the whole tie group folds.
-    expect(publishableCanon({ "1": 9, "2": 8, "3": 7, "4": 7 }, 5, 3)).toEqual({
-      top: { "1": 9, "2": 8 },
-      rest: 14,
+    const out = canonTopN(ent, 10);
+    expect(Object.keys(out.top)).toHaveLength(10);
+    expect(out.rest).toBe(19 + 18); // the two beyond the cap
+    // A boundary tie is now cut by the cap like anything else — equals may
+    // land on opposite sides, which is a display-ordering wrinkle rather
+    // than the disclosure problem the whole-group fold existed for.
+    expect(canonTopN({ "1": 9, "2": 8, "3": 7, "4": 7 }, 3)).toEqual({
+      top: { "1": 9, "2": 8, "3": 7 },
+      rest: 7,
     });
   });
 
   it("counts 'Not listed' in the fold but never enumerates it", () => {
     // Key "0" dominates here and still must not lead the board; it lands in
     // rest, published as part of one bucket rather than as a standing.
-    expect(publishableCanon({ "0": 50, "25": 10, "6": 7 }, 5, 10)).toEqual({
+    expect(canonTopN({ "0": 50, "25": 10, "6": 7 }, 10)).toEqual({
       top: { "25": 10, "6": 7 },
       rest: 50,
     });
   });
 
   it("publishes a clean board with rest 0 when everything clears", () => {
-    expect(publishableCanon({ "25": 10, "6": 7 }, 5, 10)).toEqual({
+    expect(canonTopN({ "25": 10, "6": 7 }, 10)).toEqual({
       top: { "25": 10, "6": 7 },
       rest: 0,
     });
   });
 
-  // Swept rather than spot-checked, like the cadence gap: the suppression
-  // arithmetic has enough branches (floor cut, cap cut, tie fold,
-  // complementary fold) that a hand-picked case can pass while a
-  // neighbouring shape leaks. Every 4-entity board with counts 0..8 is
-  // ~6.5k inputs — cheap, and exhaustive over the branch interactions.
+  // Swept rather than spot-checked. Only one invariant survives D98 — the
+  // conservation one — but it is the one that matters: a board plus its
+  // rest must still account for every answer, or the leaderboard is
+  // inventing or losing votes. Every 4-entity board with counts 0..8 is
+  // ~6.5k inputs, cheap and exhaustive over the branches.
   it("holds the invariants across every small board", () => {
     for (let a = 0; a <= 8; a++)
       for (let b = 0; b <= 8; b++)
@@ -520,24 +732,24 @@ describe("catalog answers (pick questions — docs/CATALOG-QUESTIONS.md)", () =>
           for (let nl = 0; nl <= 8; nl++) {
             const ent = { "1": a, "2": b, "3": c, "0": nl };
             const total = a + b + c + nl;
-            const out = publishableCanon(ent, 5, 2);
-            if (!out) continue;
+            const out = canonTopN(ent, 2);
             const shown = Object.values(out.top).reduce((x, y) => x + y, 0);
             // nothing invented, nothing lost
             expect(shown + out.rest).toBe(total);
-            // every published entity clears the floor
-            for (const n of Object.values(out.top)) expect(n).toBeGreaterThanOrEqual(5);
-            // never exactly one recoverable hole among the answered,
-            // enumerable entities
-            const answered = [a, b, c].filter((n) => n > 0).length;
-            expect(answered - Object.keys(out.top).length).not.toBe(1);
+            // the cap is a cap
+            expect(Object.keys(out.top).length).toBeLessThanOrEqual(2);
+            // "Not listed" never takes a standing
+            expect("0" in out.top).toBe(false);
           }
   });
 });
 
 describe("catalog breakdowns — segment orderings of the canon (D17)", () => {
+  // Real vocabulary values. This fixture said `gender: "Women"` before the
+  // vocabulary check existed — a string the profile's <select> has never
+  // offered, which is exactly the drift check:anchors now prevents.
   const anchors = (over: Record<string, unknown> = {}) => ({
-    ageBand: "25-34", gender: "Women", country: "NO", ...over,
+    ageBand: "25-34", gender: "Woman", country: "NO", ...over,
   });
 
   it("folds anchors per entity, sharing the vote fold's bucket rules", () => {
@@ -547,7 +759,7 @@ describe("catalog breakdowns — segment orderings of the canon (D17)", () => {
     foldCanonAnchors(by, anchors({ ageBand: "18-24" }), "6");
     expect(by).toMatchObject({
       ageBand: { "25-34": { "25": 2 }, "18-24": { "6": 1 } },
-      gender: { Women: { "25": 2, "6": 1 } },
+      gender: { Woman: { "25": 2, "6": 1 } },
       city: { "Oslo, NO": { "25": 1 } },
     });
     // profession never mints a key — same closed list as foldAnchors
@@ -561,11 +773,11 @@ describe("catalog breakdowns — segment orderings of the canon (D17)", () => {
     // sides: a new entity is dropped, a known one still counts.
     const by: Record<string, Record<string, Record<string, number>>> = {};
     for (let e = 1; e <= CANON_BY_MAX_ENTITIES; e++) {
-      foldCanonAnchors(by, { gender: "Women" }, String(e));
+      foldCanonAnchors(by, { gender: "Woman" }, String(e));
     }
-    foldCanonAnchors(by, { gender: "Women" }, "999"); // over the cap: dropped
-    foldCanonAnchors(by, { gender: "Women" }, "1");   // known: keeps counting
-    const cell = by.gender.Women;
+    foldCanonAnchors(by, { gender: "Woman" }, "999"); // over the cap: dropped
+    foldCanonAnchors(by, { gender: "Woman" }, "1");   // known: keeps counting
+    const cell = by.gender.Woman;
     expect(Object.keys(cell)).toHaveLength(CANON_BY_MAX_ENTITIES);
     expect(cell["999"]).toBeUndefined();
     expect(cell["1"]).toBe(2);
@@ -582,9 +794,11 @@ describe("catalog breakdowns — segment orderings of the canon (D17)", () => {
       },
     };
     const top = { "25": 30, "6": 11 }; // the published canon
-    const out = publishableBreakdown(canonBreakdownFor(entBy, top), 5);
-    // Both surviving buckets publish per-entity counts — including a 1
-    // inside a ≥5 cohort, which is D8's k-argument, not a leak.
+    const out = canonBreakdownFor(entBy, top);
+    // Every surviving cell publishes whole (D98). The 35-44 bucket still
+    // vanishes, and for a reason that is not disclosure: none of its
+    // answers are for an entity on the board, so it has no ordering to
+    // show.
     expect(out).toEqual({
       ageBand: {
         "18-24": { "25": 4, "6": 1 },
@@ -593,17 +807,20 @@ describe("catalog breakdowns — segment orderings of the canon (D17)", () => {
     });
   });
 
-  it("suppresses on the SHOWN total — over-suppression is the safe direction", () => {
-    // The 18-24 cohort really has 12 answers, but only 3 are for on-board
-    // entities; the floor sees 3 and the bucket folds. With one bucket
-    // left the dimension cannot show a comparison and is omitted whole.
+  it("keeps a thin bucket rather than folding it", () => {
+    // The 18-24 cohort has 12 answers but only 3 for on-board entities.
+    // The floor used to see 3, fold the bucket, then omit the whole
+    // dimension for having one bucket left. Both rules are gone: a
+    // three-answer segment ordering is a real, if small, thing to show.
     const entBy = {
       ageBand: {
         "18-24": { "25": 3, "777": 9 },
         "25-34": { "25": 6 },
       },
     };
-    expect(publishableBreakdown(canonBreakdownFor(entBy, { "25": 30 }), 5)).toEqual({});
+    expect(canonBreakdownFor(entBy, { "25": 30 })).toEqual({
+      ageBand: { "18-24": { "25": 3 }, "25-34": { "25": 6 } },
+    });
   });
 });
 
@@ -657,6 +874,46 @@ describe("moderation — queue fold + verdict channel (docs/MODERATION.md)", () 
       { takeId: "d", flags: 3 },
     ]);
     expect(buildModQueueFrom(counts, 10, 25)).toEqual([]);
+  });
+
+  it("tallies a take whose id is a prototype key, and queues it", () => {
+    // takeId is the take's DOCUMENT ID, and firestore.rules lets any circle
+    // member choose it — the ruleset constrains a take's fields, never its
+    // name. Verified in the emulator: `v2_takes/constructor` creates, and a
+    // second member can flag it.
+    //
+    // Tallied on a plain object, `counts[id] || 0` reads back through the
+    // prototype and ten flags become the string
+    // "function Object() { [native code] }1111111111"; every comparison in
+    // buildModQueueFrom against it is NaN-false, so the take is never queued
+    // however many people flag it — moderation immunity chosen at post time.
+    for (const name of ["constructor", "toString", "valueOf", "hasOwnProperty"]) {
+      const counts = tallyFlags(Array(10).fill(name));
+      expect(counts[name]).toBe(10);
+      expect(buildModQueueFrom(counts, 3, 25)).toEqual([{ takeId: name, flags: 10 }]);
+    }
+    // Firestore's reserved-id rule (`__.*__`) keeps this one unreachable
+    // today; tallied correctly anyway rather than resting on it.
+    expect(tallyFlags(["__proto__", "__proto__"])["__proto__"]).toBe(2);
+  });
+
+  it("ignores flag docs with no usable takeId", () => {
+    expect(tallyFlags(["a", "", null, undefined, 7, {}, "a"])).toEqual({ a: 2 });
+  });
+
+  it("folds page by page to the same tally as one pass", () => {
+    // v2_flags has no upper bound — MOD_ADVISORY makes the keep-verdict
+    // sweep dead code, nothing else deletes a flag, and there is no TTL — so
+    // runBuildModQueue pages through it instead of materialising it on a 256
+    // MiB instance. The paged fold has to agree with the whole-collection
+    // one, including across a page boundary that splits a take's flags.
+    const all = ["t1", "t2", "t1", "t3", "t1", "t2", "constructor", "constructor"];
+    const paged = new Map<string, number>();
+    for (let i = 0; i < all.length; i += 3) {
+      tallyFlagsInto(paged, all.slice(i, i + 3));
+    }
+    expect(Object.fromEntries(paged)).toEqual(tallyFlags(all));
+    expect(Object.fromEntries(paged)).toEqual({ t1: 3, t2: 2, t3: 1, constructor: 2 });
   });
 
   it("accepts exactly the three verdict shapes and nothing else", () => {
@@ -776,6 +1033,57 @@ describe("seedDocMatches — the seed's write skip", () => {
     }
   });
 
+  // Crossroads (D136) put OBJECTS in SEEDED_FIELDS for the first time.
+  // Before the structural arm they compared by reference, so both path docs
+  // read as changed on every seed run — a rewrite of live question docs,
+  // reported as legitimate content drift, forever.
+  describe("the story fields (D136)", () => {
+    const story = {
+      nodes: { "": { q: "A fork", a: [{ t: "left" }, { t: "right" }] } },
+      endings: { AAA: { name: "An End", line: "It ends." } },
+    };
+    const withStory = { ...desired, ...story };
+
+    it("matches an identical tree without rewriting it", () => {
+      // Fresh object literals, not the same references — which is exactly
+      // what a Firestore read gives back.
+      expect(seedDocMatches({
+        ...withStory,
+        nodes: { "": { q: "A fork", a: [{ t: "left" }, { t: "right" }] } },
+        endings: { AAA: { name: "An End", line: "It ends." } },
+      }, withStory)).toBe(true);
+    });
+
+    it("ignores key order, because Firestore does not promise it", () => {
+      expect(seedDocMatches({
+        ...withStory,
+        endings: { AAA: { line: "It ends.", name: "An End" } },
+      }, withStory)).toBe(true);
+    });
+
+    it("catches an edit anywhere in the tree", () => {
+      const changed = (nodes) => seedDocMatches({ ...withStory, nodes }, withStory);
+      // a reworded fork…
+      expect(changed({ "": { q: "A DIFFERENT fork", a: [{ t: "left" }, { t: "right" }] } })).toBe(false);
+      // …a reworded choice…
+      expect(changed({ "": { q: "A fork", a: [{ t: "LEFT" }, { t: "right" }] } })).toBe(false);
+      // …a dropped choice…
+      expect(changed({ "": { q: "A fork", a: [{ t: "left" }] } })).toBe(false);
+      // …and a dropped node.
+      expect(seedDocMatches({ ...withStory, nodes: {} }, withStory)).toBe(false);
+      // An ending's line is prose too, and it is on the card.
+      expect(seedDocMatches({
+        ...withStory, endings: { AAA: { name: "An End", line: "It ends DIFFERENTLY." } },
+      }, withStory)).toBe(false);
+    });
+
+    it("refuses a tree that is not an object at all", () => {
+      expect(seedDocMatches({ ...withStory, nodes: "a fork" }, withStory)).toBe(false);
+      expect(seedDocMatches({ ...withStory, nodes: [] }, withStory)).toBe(false);
+      expect(seedDocMatches({ ...withStory, nodes: null }, withStory)).toBe(false);
+    });
+  });
+
   it("compares options element-wise, including order and length", () => {
     expect(seedDocMatches({ ...desired, options: ["Ronaldo", "Messi"] }, desired)).toBe(false);
     expect(seedDocMatches({ ...desired, options: ["Messi"] }, desired)).toBe(false);
@@ -792,5 +1100,407 @@ describe("seedDocMatches — the seed's write skip", () => {
     // …but a null domain and an absent one describe the same question, so
     // the common case does not churn every doc on every deploy.
     expect(seedDocMatches(old, desired)).toBe(true);
+  });
+});
+
+describe("which question a reveal is published under (revealQid)", () => {
+  it("returns the qid when every member answered the same one", () => {
+    expect(revealQid(["q-a", "q-a", "q-a"])).toBe("q-a");
+  });
+
+  it("returns the qid the MOST members answered, not the first", () => {
+    // The drifted client is first in memberUids order. Under the old
+    // `qid = qid || s.get("qid")` the whole group's reveal was published
+    // under q-drift, and every vote folded into q-drift's aggregate.
+    expect(revealQid(["q-drift", "q-real", "q-real", "q-real"])).toBe("q-real");
+  });
+
+  it("breaks ties on qid, so member order cannot change the answer", () => {
+    expect(revealQid(["q-b", "q-a"])).toBe("q-a");
+    expect(revealQid(["q-a", "q-b"])).toBe("q-a");
+    // The duo split — one each — is the tie that actually happens.
+    expect(revealQid(["q-z", "q-c"])).toBe("q-c");
+  });
+
+  it("ignores answers carrying no usable qid, and returns null if none do", () => {
+    expect(revealQid([undefined, null, "", 7, "q-a"])).toBe("q-a");
+    expect(revealQid([undefined, null, ""])).toBeNull();
+    expect(revealQid([])).toBeNull();
+  });
+});
+
+describe("which votes may be folded into that question (votesMatchingQid)", () => {
+  const e = (qid: unknown, optionIdx: number) => ({ qid, vote: { optionIdx } });
+
+  it("keeps only the votes cast on the aggregate's question", () => {
+    const entries = [e("q-a", 0), e("q-b", 1), e("q-a", 2)];
+    expect(votesMatchingQid(entries, "q-a")).toEqual([{ optionIdx: 0 }, { optionIdx: 2 }]);
+  });
+
+  it("preserves order, because duo guesses are scored positionally", () => {
+    const entries = [e("q-a", 5), e("q-a", 6)];
+    expect(votesMatchingQid(entries, "q-a")).toEqual([{ optionIdx: 5 }, { optionIdx: 6 }]);
+  });
+
+  it("folds nothing when there is no question to fold into", () => {
+    // Without the `if (!qid) return []` guard this still returned [] for the
+    // case above, because no entry's qid equals null. The guard earns its
+    // keep only against an entry that carries NO qid — `e.qid === null` would
+    // otherwise match and fold a vote into a question that does not exist.
+    expect(votesMatchingQid([{ qid: null, vote: { optionIdx: 0 } }], null)).toEqual([]);
+    expect(votesMatchingQid([{ qid: undefined, vote: { optionIdx: 0 } }], null)).toEqual([]);
+    expect(votesMatchingQid([e("q-a", 0)], null)).toEqual([]);
+  });
+
+  it("the split duo contributes one vote, so no guess is scored against a stranger", () => {
+    // Partners on different bank revisions. Before the filter this reached
+    // duelAggDelta as two votes, and `votes.length === 2` let it score a
+    // guess against an answer to a different question.
+    // q-z first, so first-wins and plurality-with-lexical-tie-break disagree:
+    // first-wins would keep optionIdx 0, this must keep optionIdx 1.
+    const entries = [e("q-z", 0), e("q-c", 1)];
+    const kept = votesMatchingQid(entries, revealQid(entries.map((x) => x.qid)));
+    expect(kept).toEqual([{ optionIdx: 1 }]);
+    const d = duelAggDelta(kept, "duo", 2);
+    expect(d).toEqual({
+      plays: 1, total: 1, counts: { "1": 1 }, guessTotal: 0, guessMatches: 0,
+    });
+  });
+
+  it("an in-range index from another question would otherwise land in a real bucket", () => {
+    // The exact contamination the filter exists for: duelAggDelta's range
+    // check cannot see it, because 1 is a legal option of q-a too.
+    const entries = [e("q-a", 0), e("q-a", 0), e("q-b", 1)];
+    expect(duelAggDelta(entries.map((x) => x.vote), "group", 4).counts)
+      .toEqual({ "0": 2, "1": 1 });
+    expect(duelAggDelta(votesMatchingQid(entries, "q-a"), "group", 4).counts)
+      .toEqual({ "0": 2 });
+  });
+});
+
+describe("the duel question-level signal (D40 part 3)", () => {
+  const v = (optionIdx: number, guessIdx?: number) =>
+    guessIdx === undefined ? { optionIdx } : { optionIdx, guessIdx };
+
+  it("folds a group reveal into plays, total and per-option counts", () => {
+    const d = duelAggDelta([v(0), v(2), v(0)], "group", 4);
+    expect(d).toEqual({
+      plays: 1, total: 3, counts: { "0": 2, "2": 1 }, guessTotal: 0, guessMatches: 0,
+    });
+  });
+
+  it("scores duo guesses against the partner's actual pick", () => {
+    // A picked 0 and guessed 1 — B did pick 1, so A called it. B picked 1
+    // and guessed 1 — A picked 0, so B missed. Two guesses, one match.
+    const d = duelAggDelta([v(0, 1), v(1, 1)], "duo", 2);
+    expect(d.guessTotal).toBe(2);
+    expect(d.guessMatches).toBe(1);
+  });
+
+  it("publishes a pick question as plays and total only — no cross-group counts", () => {
+    // optionIdx values index each group's OWN member list (D12: wrong-shaped
+    // data is worse than none), so optionCount is 0 and nothing folds.
+    const d = duelAggDelta([v(0), v(3), v(1)], "group", 0);
+    expect(d.counts).toEqual({});
+    expect(d.total).toBe(3);
+    expect(publishableDuelAgg(foldDuelAgg(undefined, d))).toEqual({
+      plays: 1, total: 3,
+    });
+  });
+
+  it("keeps an out-of-range answer in total but out of counts and guess scoring", () => {
+    // The pool-flip race: one partner answered a different question, so the
+    // pair did not coherently play this one — their guesses are noise.
+    const d = duelAggDelta([v(0, 1), v(7, 0)], "duo", 2);
+    expect(d.total).toBe(2);
+    expect(d.counts).toEqual({ "0": 1 });
+    expect(d.guessTotal).toBe(0);
+  });
+
+  it("skips a guess that names no real option, without losing the partner's", () => {
+    const d = duelAggDelta([v(0, 9), v(1, 0)], "duo", 2);
+    expect(d.guessTotal).toBe(1); // only the in-range guess counts…
+    expect(d.guessMatches).toBe(1); // …and it called partner A's 0
+  });
+
+  it("accumulates across reveals and tolerates a missing or malformed prior doc", () => {
+    const a = foldDuelAgg(undefined, duelAggDelta([v(0), v(1)], "group", 2));
+    const b = foldDuelAgg(a, duelAggDelta([v(1), v(1)], "group", 2));
+    expect(b).toEqual({
+      plays: 2, total: 4, counts: { "0": 1, "1": 3 }, guessTotal: 0, guessMatches: 0,
+    });
+    const healed = foldDuelAgg(
+      { plays: "x", total: null, counts: { "0": "bad", "1": 2 } },
+      duelAggDelta([v(0)], "group", 2),
+    );
+    expect(healed).toEqual({
+      plays: 1, total: 1, counts: { "0": 1, "1": 2 }, guessTotal: 0, guessMatches: 0,
+    });
+  });
+
+  // The crossing-based publish cadence (shouldPublishDuelAgg) was tested
+  // here. D98 removed it — every fold publishes — so there is no cadence
+  // left to have an off-by-one in.
+
+  it("publishes guess fields only when a guess exists, counts only when any landed", () => {
+    // A guessed B would pick 0 (B picked 1 — miss); B guessed A would pick
+    // 1 (A picked 0 — miss): two guesses, zero matches.
+    const duo = foldDuelAgg(undefined, duelAggDelta([v(0, 0), v(1, 1)], "duo", 2));
+    expect(publishableDuelAgg(duo)).toEqual({
+      plays: 1, total: 2,
+      counts: { "0": 1, "1": 1 }, guessTotal: 2, guessMatches: 0,
+    });
+    const group = foldDuelAgg(undefined, duelAggDelta([v(0)], "group", 2));
+    expect(publishableDuelAgg(group)).toEqual({
+      plays: 1, total: 1, counts: { "0": 1 },
+    });
+  });
+});
+
+// ── D52: shipped option sets are immutable ──────────────────────
+
+describe("seedOptionConflict — the edit the seed must refuse", () => {
+  const desired = {
+    surface: "daily", seq: 3, type: "binary", domain: null,
+    prompt: "Messi or Ronaldo?", options: ["Messi", "Ronaldo"],
+    topic: "light", axis: null, test: null,
+  };
+
+  it("passes a doc that does not exist yet — a create is never a re-key", () => {
+    expect(seedOptionConflict("daily-003", null, desired)).toBeNull();
+    expect(seedOptionConflict("daily-003", undefined, desired)).toBeNull();
+  });
+
+  it("passes an unchanged option set", () => {
+    expect(seedOptionConflict("daily-003", { ...desired }, desired)).toBeNull();
+  });
+
+  it("refuses a reorder — the case that changes meaning without changing counts", () => {
+    // Every stored answer keeps its optionIdx. Swapping the labels turns
+    // every "Messi" vote into a "Ronaldo" vote, and no count moves, so
+    // nothing downstream can notice.
+    const c = seedOptionConflict("daily-003", { ...desired, options: ["Ronaldo", "Messi"] }, desired);
+    expect(c).not.toBeNull();
+    expect(c?.qid).toBe("daily-003");
+    expect(c?.stored).toEqual(["Ronaldo", "Messi"]);
+    expect(c?.desired).toEqual(["Messi", "Ronaldo"]);
+  });
+
+  it("refuses a relabel, a removal and an append alike", () => {
+    const cases = [
+      ["Messi", "CR7"],                     // relabel
+      ["Messi"],                            // removal — later indices orphaned
+      ["Messi", "Ronaldo", "Maradona"],     // append — changes what the question asked
+    ];
+    for (const options of cases) {
+      expect(
+        seedOptionConflict("daily-003", { ...desired, options }, desired),
+        `${JSON.stringify(options)} should be refused`,
+      ).not.toBeNull();
+    }
+  });
+
+  it("allows a prompt edit on a live question — D52's own fix shape", () => {
+    // D52's fix list is mostly prompt rewrites that preserve meaning
+    // ("€500" → "a week's pay"). A prompt carries no index any answer
+    // refers to, so it is editable and must stay that way — a guard that
+    // blocked it would have blocked the content review it came from.
+    const stored = { ...desired, prompt: "Who is better, Messi or Ronaldo?" };
+    expect(seedOptionConflict("daily-003", stored, desired)).toBeNull();
+    // …and the seed still rewrites it, because this is a separate question
+    // from "should we write at all".
+    expect(seedDocMatches(stored, desired)).toBe(false);
+  });
+
+  it("has nothing to protect when the stored doc has no option array", () => {
+    // A question seeded before `options` existed has no vote keyed to an
+    // index it never had. Refusing here would wedge the seed permanently.
+    const noOptions = { ...desired } as Record<string, unknown>;
+    delete noOptions.options;
+    expect(seedOptionConflict("daily-003", noOptions, desired)).toBeNull();
+    expect(seedOptionConflict("daily-003", { ...desired, options: "Messi,Ronaldo" }, desired)).toBeNull();
+  });
+
+  it("describes conflicts in a form an operator can act on", () => {
+    const line = describeSeedOptionConflicts([
+      { qid: "daily-003", stored: ["Messi", "Ronaldo"], desired: ["Ronaldo", "Messi"] },
+      { qid: "f12", stored: ["Yes"], desired: ["Yes", "No"] },
+    ]);
+    expect(line).toContain("daily-003: [Messi | Ronaldo] -> [Ronaldo | Messi]");
+    expect(line).toContain("f12: [Yes] -> [Yes | No]");
+  });
+});
+
+describe("what the reveal doc records per vote (revealVotes)", () => {
+  const en = (uid: string, qid: unknown, optionIdx: number) => ({ uid, qid, vote: { optionIdx } });
+
+  it("writes the pre-D71 document unchanged when everyone answered the same question", () => {
+    // The common case by an enormous margin. No stamp anywhere — which is
+    // also what makes every reveal written before D71 read correctly.
+    expect(revealVotes([en("a", "q-a", 0), en("b", "q-a", 1)], "q-a")).toEqual({
+      a: { optionIdx: 0 },
+      b: { optionIdx: 1 },
+    });
+  });
+
+  it("stamps only the answers given to a different question", () => {
+    expect(revealVotes([en("a", "q-a", 0), en("b", "q-b", 1)], "q-a")).toEqual({
+      a: { optionIdx: 0 },
+      b: { optionIdx: 1, qid: "q-b" },
+    });
+  });
+
+  it("carries the guess through, stamped or not", () => {
+    const withGuess = [
+      { uid: "a", qid: "q-a", vote: { optionIdx: 0, guessIdx: 1 } },
+      { uid: "b", qid: "q-b", vote: { optionIdx: 1, guessIdx: 0 } },
+    ];
+    expect(revealVotes(withGuess, "q-a")).toEqual({
+      a: { optionIdx: 0, guessIdx: 1 },
+      b: { optionIdx: 1, guessIdx: 0, qid: "q-b" },
+    });
+  });
+
+  it("leaves a vote whose qid is missing or unusable unstamped", () => {
+    // Nothing to say about it, and a stamp of null/"" would make the card
+    // look up a question that cannot exist.
+    expect(revealVotes([en("a", null, 0), en("b", "", 1), en("c", 7, 2)], "q-a")).toEqual({
+      a: { optionIdx: 0 }, b: { optionIdx: 1 }, c: { optionIdx: 2 },
+    });
+  });
+
+  it("does not mutate the votes it is given", () => {
+    const v = { optionIdx: 0 };
+    const out = revealVotes([{ uid: "a", qid: "q-b", vote: v }], "q-a");
+    expect(v).toEqual({ optionIdx: 0 });
+    expect(out.a).not.toBe(v);
+  });
+
+  it("agrees with the fold about who answered what", () => {
+    // The two halves of D70/D71 read the same entries and must not disagree:
+    // exactly the votes that go unstamped are the votes that get folded.
+    const entries = [en("a", "q-a", 0), en("b", "q-b", 1), en("c", "q-a", 1)];
+    const qid = revealQid(entries.map((x) => x.qid));
+    const doc = revealVotes(entries, qid);
+    const folded = votesMatchingQid(entries, qid);
+    const unstamped = Object.keys(doc).filter((u) => !("qid" in doc[u]));
+    expect(unstamped).toEqual(["a", "c"]);
+    expect(folded).toHaveLength(unstamped.length);
+  });
+});
+
+// ── presence cells (D84) ─────────────────────────────────────────────
+//
+// The vectors here are duplicated verbatim in src/v2/data/geo.test.ts —
+// the two halves of the grid contract are pinned to the same answers, the
+// floor.ts drift pattern, because a disagreement fails soft (an empty
+// count that reads as "nobody nearby").
+
+describe("presence cells", () => {
+  it("accepts legal la_lo ids and refuses everything else", () => {
+    expect(presenceCellOk("5999_1074")).toBe(true);   // Oslo-ish
+    expect(presenceCellOk("-3373_15121")).toBe(true); // Sydney-ish
+    expect(presenceCellOk("0_0")).toBe(true);
+    expect(presenceCellOk("8999_-18000")).toBe(true); // last row, date line
+    // Beyond the poles / the meridian span.
+    expect(presenceCellOk("9000_0")).toBe(false);
+    expect(presenceCellOk("-9001_0")).toBe(false);
+    expect(presenceCellOk("0_18000")).toBe(false);
+    // Shapes that try to smuggle precision or nonsense.
+    expect(presenceCellOk("59.99_10.74")).toBe(false);
+    expect(presenceCellOk("5999_1074_77")).toBe(false);
+    expect(presenceCellOk("abc_def")).toBe(false);
+    expect(presenceCellOk("")).toBe(false);
+    expect(presenceCellOk(null)).toBe(false);
+    expect(presenceCellOk(5999)).toBe(false);
+  });
+
+  it("returns the 3×3 neighborhood in the interior", () => {
+    const n = presenceNeighbors("5999_1074");
+    expect(n).toHaveLength(9);
+    expect(n).toContain("5999_1074");
+    expect(n).toContain("5998_1073");
+    expect(n).toContain("6000_1075");
+  });
+
+  it("wraps longitude at the antimeridian instead of walking off it", () => {
+    const n = presenceNeighbors("0_-18000");
+    expect(n).toHaveLength(9);
+    // The western neighbor of the western edge is the eastern edge.
+    expect(n).toContain("0_17999");
+    expect(n).not.toContain("0_-18001");
+  });
+
+  it("drops rows beyond the poles rather than inventing them", () => {
+    const n = presenceNeighbors("8999_0");
+    expect(n).toHaveLength(6); // no row above the top
+    expect(n.every((c) => Number(c.split("_")[0]) <= 8999)).toBe(true);
+  });
+
+  it("returns nothing for an illegal cell — the callable's own guard", () => {
+    expect(presenceNeighbors("9000_0")).toEqual([]);
+    expect(presenceNeighbors("junk")).toEqual([]);
+  });
+});
+
+// ── handles (D122) ────────────────────────────────────────────────
+//
+// The uniqueness registry is keyed on whatever this function returns, so
+// every case below is really one claim: two people who think they typed
+// the same handle must land on the same key, and two people who think
+// they typed different ones must not.
+
+describe("normalizeHandle", () => {
+  it("folds the ways one handle gets typed onto one key", () => {
+    for (const raw of ["olaf", "Olaf", "OLAF", "@olaf", " @Olaf ", "@@olaf"]) {
+      expect(normalizeHandle(raw), `"${raw}"`).toBe("olaf");
+    }
+  });
+
+  it("accepts letters, digits and underscore, and nothing else", () => {
+    expect(normalizeHandle("olaf_2")).toBe("olaf_2");
+    expect(normalizeHandle("a1_b2")).toBe("a1_b2");
+    // The rejected set is the point: a dot is a Firestore path segment, a
+    // slash is a path separator, and everything non-ASCII is where the
+    // industrial-grade lookalikes live.
+    for (const bad of ["ol.af", "ol/af", "ol af", "ol-af", "olaf!", "ólaf", "оlaf", "olaf​"]) {
+      expect(normalizeHandle(bad), `"${bad}" was accepted`).toBeNull();
+    }
+  });
+
+  it("holds the length bounds at both ends", () => {
+    expect(normalizeHandle("a".repeat(HANDLE_MIN - 1))).toBeNull();
+    expect(normalizeHandle("a".repeat(HANDLE_MIN))).toBe("a".repeat(HANDLE_MIN));
+    expect(normalizeHandle("a".repeat(HANDLE_MAX))).toBe("a".repeat(HANDLE_MAX));
+    expect(normalizeHandle("a".repeat(HANDLE_MAX + 1))).toBeNull();
+    // …and measures the CANONICAL form, not the typed one: "@" and the
+    // spaces around it are not part of the handle, so a name at the limit
+    // must not be refused for the sigil someone typed in front of it.
+    expect(normalizeHandle(` @${"a".repeat(HANDLE_MAX)} `)).toBe("a".repeat(HANDLE_MAX));
+  });
+
+  it("refuses an all-digit handle — that reads as an id, not a name", () => {
+    expect(normalizeHandle("12345")).toBeNull();
+    // One letter is enough to make it a name again.
+    expect(normalizeHandle("12345a")).toBe("12345a");
+  });
+
+  it("refuses the reserved names, sigil and casing included", () => {
+    // An account called `insight` or `support` is a phishing kit, and one
+    // called `join` collides with the app's own URL segments.
+    for (const word of ["insight", "admin", "support", "join", "privacy", "me"]) {
+      expect(RESERVED_HANDLES.has(word), `${word} is not on the list`).toBe(true);
+      expect(normalizeHandle(word), `"${word}" was claimable`).toBeNull();
+      expect(normalizeHandle(`@${word.toUpperCase()}`), `"@${word.toUpperCase()}" got through`).toBeNull();
+    }
+  });
+
+  it("returns null for anything that is not a string", () => {
+    // The callable hands this `request.data?.handle` straight from the
+    // wire, so every shape a JSON body can carry has to land on null
+    // rather than on a throw or a coerced key.
+    for (const bad of [undefined, null, 42, {}, [], true, { toString: () => "olaf" }]) {
+      expect(normalizeHandle(bad as unknown), String(bad)).toBeNull();
+    }
   });
 });

@@ -47,6 +47,14 @@
 //           colours swapped in both directions — noise from the same cause,
 //           not a colour miss.
 //
+//   ground  three surface values this repo tuned and the prototype never
+//           took back: --surface-a mixes the accent at 98% (prototype 94%,
+//           and re-declared per tab), the header/tabbar blur saturates at
+//           1.4 (prototype 1.05), and .app-body::before is 320px at 6%
+//           (prototype 440px at 10%). Together they are the "quieter
+//           ground" this app ships; the v17 sync (D43) left them alone
+//           deliberately. Expect them in every colour report.
+//
 // Anything else it reports is probably a miss.
 
 import { fileURLToPath } from "node:url";
@@ -73,7 +81,7 @@ try {
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const PROTO = process.env.PROTO_URL
-  || "file://" + path.join(HERE, "..", "design", "InSight_standalone_15.html");
+  || "file://" + path.join(HERE, "..", "design", "InSight_standalone_18.html");
 const APP = process.env.APP_URL || "http://localhost:5173/";
 const EXE = process.env.PW_EXECUTABLE || undefined;
 

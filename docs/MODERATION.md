@@ -1,18 +1,25 @@
 # Moderation — flagged takes, a scheduled reviewer, and confinement
 
-**Status: substrate built (D22), advisory mode on.** Written 2026-07-31
-as a design sketch; the substrate shipped the same day — takes, flags,
-queue, the two MOD_UIDS-gated callables, rules with negative tests —
-with `MOD_ADVISORY = true`, so verdicts record and surface but hide
-nothing until the dry-run phase earns the flip. The transport layer is
-e2e-tested against the real functions emulator in CI
-(`test:e2e:moderation`): the loop as real clients, every confinement
-refusal demanded by exact error code, and the advisory guarantee
-asserted from a member's own view. `buildModQueueNow` exists as the
-scheduled build's moderator-gated on-demand twin — the e2e's handle and
-the maintainer's manual rebuild lever. The verdict log is keyed per
-(take, queue generation); keyed by take alone it doubled as a lock that
-never released, and the daily re-judgement the ladder is made of stopped
+**Status: substrate built (D22), ENFORCING since D83 (2026-08-10).**
+Written 2026-07-31 as a design sketch; the substrate shipped the same
+day — takes, flags, queue, the two MOD_UIDS-gated callables, rules with
+negative tests — with `MOD_ADVISORY = true`, so verdicts recorded and
+hid nothing while the dry-run phase was meant to earn the flip. D83
+flipped it with world takes: at world scale, circle-scope trust cannot
+stand in for enforcement, and the advisory window closed with zero users
+and an empty verdict log — the deviation from "cite the track record" is
+recorded in D83 rather than papered over. A remove verdict now really
+hides (with `hiddenMeta` for the appeal), a keep really clears the flags
+(fresh-flags requeue contract), and only an escalation keeps an entry
+alive. The transport layer is e2e-tested against the real functions
+emulator in CI (`test:e2e:moderation`): the loop as real clients, every
+confinement refusal demanded by exact error code, each enforced verdict
+asserted from a member's own view — plus a world leg where the flaggers
+are strangers. `buildModQueueNow` exists as the scheduled build's
+moderator-gated on-demand twin — the e2e's handle and the maintainer's
+manual rebuild lever. The verdict log is keyed per (take, queue
+generation); keyed by take alone it doubled as a lock that never
+released, and the daily re-judgement the ladder is made of stopped
 after the first verdict (see D22's amendments, which also cover the
 escalation the wholesale rebuild used to eat).
 
@@ -25,10 +32,46 @@ deploy once the e2e leg was green in CI. During the advisory phase the
 maintainer's own account holds the moderator credential; the dedicated
 low-privilege identity comes with the Routine (step 4 below).
 
-Still ahead: the client report control (needs a live takes surface),
-the low-privilege Routine, and the maintainer's answers to the open
-questions at the end. The policy and threat model below remain the
-contract.
+**The client half landed 2026-08-08 (D78 part 1 and its amendment).**
+`LIVE.social` carries the circle takes surface — `loadTakes`, `takes`,
+`postTake`, `deleteTake`, `flagTake`, `flagged` — and
+`ui/LiveTakesPanel.tsx` draws the take list, the composer and **the
+report control this document had been waiting on**. Until then every
+guarantee written here was enforcing a collection nothing on a phone
+could reach.
+
+The control is two-step because a flag cannot be undone, carries no
+reason picker because the flag document has no field for one and the run
+picks its own policy line, and leaves a reported take on screen because
+flags are unreadable and the soft-hide is the verdict's job. Its copy
+promises review, never removal — what happens next is the verdict's to
+say, under enforcement as it was under advisory.
+
+**Circle takes mount on the reveal, and only there.** `LdReveal` renders
+the panel against yesterday's revealed question; today's card never gets
+one. Today's answer is sealed until tomorrow, and free text beside a
+sealed answer is the leak the seal exists to prevent — "obviously B"
+under a question nobody has answered yet *is* the vote, in prose. Once
+names are on the answers there is nothing left to give away, which is
+also the first moment a circle has something to discuss. A split day
+(D71) hangs the thread on the reveal's own qid, because one comment
+thread has to belong to one question.
+
+**World takes (D83, adopting D78 part 2) mount behind a post-vote
+toggle** on live world cards and the live daily — after your own blind
+vote, never before, because reading the discourse before answering is
+the same leak at world scale. They are anonymous (no author names
+rendered; the sentinel gid "world", one take per person per question via
+the `qid_uid` doc id), flaggable by any signed-in user, and carry the
+local mute control (`data/mutes.ts`) guideline 1.2 expects of a
+world-scale UGC surface.
+
+**The client is done.** What remains is neither a screen nor a callable:
+the low-privilege Routine and the maintainer's answers to the open
+questions at the end. Until the Routine lands, the only verdict source
+is a MOD_UIDS operator acting by hand — with enforcement live, that hand
+now really hides, bounded per run by `MOD_RUN_CAP`. The policy and
+threat model below remain the contract.
 
 ## The job in one sentence
 
@@ -40,11 +83,21 @@ or data.
 
 ## What exists today (and deliberately doesn't)
 
-Takes are free-text comments on feed cards, **circle-scoped by D1** and
-demo-only in live builds. There is no report button, no flags
-collection, no queue. That is why this sketch comes first: moderation
-bolted onto an existing pipeline inherits that pipeline's shape, and
-this design needs the pipeline shaped around confinement.
+Takes are free-text comments, in a circle or at world scale, **named at both since D98**.
+
+*This section was written as a sketch, before any of it existed, and its
+original text — "There is no report button, no flags collection, no
+queue" — is kept here in quotation because the reasoning that follows it
+still holds: moderation bolted onto an existing pipeline inherits that
+pipeline's shape, and this design needed the pipeline shaped around
+confinement. That is why the sketch came first.*
+
+What is true now: the flags collection, the queue, the verdict log and
+both callables exist and are deployed (D22); the client can read, post,
+delete and flag circle takes, and `LiveTakesPanel` draws all of it
+including the report control, mounted on the reveal in `LdReveal`
+(D78 part 1 + amendment). The world-feed takes remain demo-only and
+`!S.live`-gated, which is D1 working rather than a gap.
 
 ## The policy — permissive by default, with named hard lines
 
@@ -127,10 +180,14 @@ verdict.
    The session judges what the queue hands it; verdicts referencing ids
    not in the queue are rejected by rules. "Also moderate comment X"
    fails structurally.
-4. **Soft removal only.** A removed take is hidden
-   (`hiddenBy: "mod", policyLine`), content retained — reversible by
-   the maintainer, auditable after the fact, and still erased by
-   `deleteAccount` like everything else its author owns.
+4. **Soft removal only.** A removed take is hidden (`hidden: true`, with
+   the annotation — `by`, `policyLine`, `runId`, `at` — alongside it in
+   `hiddenMeta`), content retained — reversible by the maintainer,
+   auditable after the fact, and still erased by `deleteAccount` like
+   everything else its author owns. The split is not cosmetic: the read
+   rule compares against the boolean and nothing else, because only a bare
+   equality holds a *list* to the gate, and the author-visible soft-hide
+   this line promises was a `getDoc`-only guarantee until it did (D65).
 5. **Bounded blast radius.** Hard cap of 50 verdicts per run. Every
    verdict carries its policy line, run id and queue generation — the
    log is append-only, one entry per (take, generation), so a take
@@ -150,7 +207,7 @@ verdict.
 
 ## Privacy posture
 
-Takes are circle-scoped (D1). The moderation run sees **flagged takes
+Takes are named and world-visible (D98). The moderation run sees **flagged takes
 only** — a flag from inside the circle is the circle surfacing its own
 content; nothing unflagged is ever read. Flags are anonymous to the
 circle and to the run (a count, not a list of who flagged). This is the

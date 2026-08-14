@@ -113,17 +113,34 @@ window.SUBTOPICS = (function () {
   const BY = {};
   ALL.forEach((s) => { BY[s.id] = s; });
   const listeners = new Set();
+  // Same gate as scenes.js, same reason: a live build starts with zero
+  // follows — "one leaf followed from day one" is demo furniture, and on a
+  // release device it was a subscription the user never chose.
+  const SUB_LIVE_BUILD = import.meta.env && import.meta.env.VITE_V2_LIVE === 'true';
   let set = null;
   function ensure() {
     if (set) return set;
     try { const v = JSON.parse(localStorage.getItem(LS) || 'null'); if (Array.isArray(v)) set = new Set(v.filter((id) => BY[id])); } catch (e) { /* localStorage can throw: private mode, quota, disabled storage. Best-effort — in-memory state stays correct. */ }
-    if (!set) set = new Set(['sub_tennis']);        // one leaf followed from day one
+    if (!set) set = SUB_LIVE_BUILD ? new Set() : new Set(['sub_tennis']);        // one leaf followed from day one (demo)
     return set;
   }
   const save = () => { try { localStorage.setItem(LS, JSON.stringify([...ensure()])); } catch (e) { /* localStorage can throw: private mode, quota, disabled storage. Best-effort — in-memory state stays correct. */ } listeners.forEach((f) => { try { f(); } catch (e) { /* localStorage can throw: private mode, quota, disabled storage. Best-effort — in-memory state stays correct. */ } }); };
+  // The purge (data/live.ts, D51): null the cache and ensure() re-derives
+  // from storage — now empty, so the day-one default — instead of the
+  // previous account's leaf follows surviving to be saved back.
+  window.addEventListener('insight:local-purge', () => { set = null; listeners.forEach((f) => { try { f(); } catch (e) { /* best-effort */ } }); });
   const count = (id) => (window.WORLD_FEED_QS || []).filter((q) => q.sub === id).length;
   return {
     all: () => ALL,
+    // Only the stocked leaves — the taxonomy rule at the top of this file,
+    // enforced where the offer is made: "a thin subtopic would feel like a
+    // broken room", and a ZERO-stock one is one. Live boot replaces the
+    // pool with the bank, which tags nothing with `sub` yet, so a live
+    // device offered "Tennis · Sport · 0 questions" (2026-08-11; D96).
+    // Recomputed per call because the pool changes under it at boot; leaves
+    // return by themselves the day live questions carry their tag. all()
+    // stays the dictionary for labels, parents and existing follows.
+    offers: () => ALL.filter((s) => count(s.id) > 0),
     get: (id) => BY[id] || null,
     parentOf: (id) => (BY[id] ? BY[id].parent : null),
     under: (topic) => ALL.filter((s) => s.parent === topic),

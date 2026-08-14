@@ -1,7 +1,7 @@
 {
   "big5": {
     "title": "Big Five",
-    "tag": "personality · 15 questions · 5 traits",
+    "tag": "personality · 25 questions · 5 traits",
     "accent": "var(--c-around)",
     "dims": [
       {
@@ -110,12 +110,67 @@
         "q": "It takes a lot to rattle me.",
         "d": "N",
         "invert": true
+      },
+      {
+        "id": "15",
+        "q": "I go looking for music, films or books I know nothing about.",
+        "d": "O"
+      },
+      {
+        "id": "16",
+        "q": "I have little patience for questions with no practical use.",
+        "d": "O",
+        "invert": true
+      },
+      {
+        "id": "17",
+        "q": "I keep my things in order without having to think about it.",
+        "d": "C"
+      },
+      {
+        "id": "18",
+        "q": "My plans tend to fall apart in the details.",
+        "d": "C",
+        "invert": true
+      },
+      {
+        "id": "19",
+        "q": "I start conversations with people I have just met.",
+        "d": "E"
+      },
+      {
+        "id": "20",
+        "q": "In a group I say less than most people there.",
+        "d": "E",
+        "invert": true
+      },
+      {
+        "id": "21",
+        "q": "I give people the benefit of the doubt when a story doesn't add up.",
+        "d": "A"
+      },
+      {
+        "id": "22",
+        "q": "I decide quickly whether someone is worth my time.",
+        "d": "A",
+        "invert": true
+      },
+      {
+        "id": "23",
+        "q": "I replay conversations afterwards, looking for what I got wrong.",
+        "d": "N"
+      },
+      {
+        "id": "24",
+        "q": "I sleep fine the night before something big.",
+        "d": "N",
+        "invert": true
       }
     ]
   },
   "political": {
     "title": "Politics",
-    "tag": "compass · 18 questions · 6 axes",
+    "tag": "compass · 30 questions · 6 axes",
     "accent": "var(--c-world)",
     "dims": [
       {
@@ -157,7 +212,7 @@
       },
       {
         "id": "01",
-        "q": "A society is judged by how it treats the weakest.",
+        "q": "Essential services belong in public hands, not markets.",
         "d": "econ",
         "invert": true
       },
@@ -245,12 +300,78 @@
         "q": "Experts and institutions usually get it right.",
         "d": "estab",
         "invert": true
+      },
+      {
+        "id": "18",
+        "q": "People mostly end up where their own effort puts them.",
+        "d": "econ"
+      },
+      {
+        "id": "19",
+        "q": "The gap between rich and poor is the biggest problem we have.",
+        "d": "econ",
+        "invert": true
+      },
+      {
+        "id": "20",
+        "q": "Order in the streets matters more than the right to protest.",
+        "d": "auth"
+      },
+      {
+        "id": "21",
+        "q": "Adults should be free to harm themselves if they choose.",
+        "d": "auth",
+        "invert": true
+      },
+      {
+        "id": "22",
+        "q": "Immigration has made my country better.",
+        "d": "foreign"
+      },
+      {
+        "id": "23",
+        "q": "We should fix problems at home before problems abroad.",
+        "d": "foreign",
+        "invert": true
+      },
+      {
+        "id": "24",
+        "q": "I would pay noticeably more for energy to cut emissions faster.",
+        "d": "env"
+      },
+      {
+        "id": "25",
+        "q": "Environmental rules are already strict enough.",
+        "d": "env",
+        "invert": true
+      },
+      {
+        "id": "26",
+        "q": "I would rather live with the risks of new technology than miss what it brings.",
+        "d": "tech"
+      },
+      {
+        "id": "27",
+        "q": "New tools should prove they are safe before anyone can use them.",
+        "d": "tech",
+        "invert": true
+      },
+      {
+        "id": "28",
+        "q": "Most politicians are in it for themselves.",
+        "d": "estab"
+      },
+      {
+        "id": "29",
+        "q": "The people running things mostly know what they are doing.",
+        "d": "estab",
+        "invert": true
       }
     ]
   },
   "values": {
     "title": "Values",
-    "tag": "18 questions · six tensions",
+    "tag": "30 questions · six tensions",
     "accent": "var(--c-people)",
     "dims": [
       {
@@ -303,7 +424,7 @@
       },
       {
         "id": "03",
-        "q": "I'd sacrifice comfort now for a stranger's future.",
+        "q": "I'd give up real comfort to help a stranger.",
         "d": "circle"
       },
       {
@@ -380,12 +501,78 @@
         "q": "Whether something works matters more than how it looks.",
         "d": "beauty",
         "invert": true
+      },
+      {
+        "id": "18",
+        "q": "I expect my own life ten years from now to be better than it is today.",
+        "d": "future"
+      },
+      {
+        "id": "19",
+        "q": "The problems ahead of us are bigger than anything we have solved.",
+        "d": "future",
+        "invert": true
+      },
+      {
+        "id": "20",
+        "q": "A life saved far away counts the same as one saved here.",
+        "d": "circle"
+      },
+      {
+        "id": "21",
+        "q": "Charity should start with the people around you.",
+        "d": "circle",
+        "invert": true
+      },
+      {
+        "id": "22",
+        "q": "I plan my week around things I will enjoy.",
+        "d": "hedonism"
+      },
+      {
+        "id": "23",
+        "q": "I feel uneasy resting while work is unfinished.",
+        "d": "hedonism",
+        "invert": true
+      },
+      {
+        "id": "24",
+        "q": "The best parts of my life came out of something difficult.",
+        "d": "meaning"
+      },
+      {
+        "id": "25",
+        "q": "I would trade a smaller life for a more peaceful one.",
+        "d": "meaning",
+        "invert": true
+      },
+      {
+        "id": "26",
+        "q": "Some acts would be wrong even if everyone approved of them.",
+        "d": "moral"
+      },
+      {
+        "id": "27",
+        "q": "Morality is something people invented, like money.",
+        "d": "moral",
+        "invert": true
+      },
+      {
+        "id": "28",
+        "q": "I will pay more for something well made when a plain one would do.",
+        "d": "beauty"
+      },
+      {
+        "id": "29",
+        "q": "Decoration is the first thing I would cut.",
+        "d": "beauty",
+        "invert": true
       }
     ]
   },
   "attachment": {
     "title": "Social",
-    "tag": "15 questions · what kind of friend you are",
+    "tag": "25 questions · what kind of friend you are",
     "accent": "oklch(0.58 0.12 320)",
     "dims": [
       {
@@ -473,7 +660,7 @@
       },
       {
         "id": "11",
-        "q": "I drift between friend groups rather than settling into one.",
+        "q": "My friendships tend to fade when life gets busy.",
         "d": "loyal",
         "invert": true
       },
@@ -491,7 +678,62 @@
       },
       {
         "id": "14",
-        "q": "I notice straight away when a friend pulls back.",
+        "q": "I keep track of who reached out last.",
+        "d": "easy",
+        "invert": true
+      },
+      {
+        "id": "15",
+        "q": "I tell my friends what they mean to me.",
+        "d": "warm"
+      },
+      {
+        "id": "16",
+        "q": "Compliments feel awkward coming out of my mouth.",
+        "d": "warm",
+        "invert": true
+      },
+      {
+        "id": "17",
+        "q": "I still keep up with people I met years ago.",
+        "d": "loyal"
+      },
+      {
+        "id": "18",
+        "q": "When someone moves away, we usually lose touch.",
+        "d": "loyal",
+        "invert": true
+      },
+      {
+        "id": "19",
+        "q": "I will admit it when I am struggling.",
+        "d": "open"
+      },
+      {
+        "id": "20",
+        "q": "There are things about me nobody in my life knows.",
+        "d": "open",
+        "invert": true
+      },
+      {
+        "id": "21",
+        "q": "I am the one who suggests something daft.",
+        "d": "play"
+      },
+      {
+        "id": "22",
+        "q": "I find it hard to switch off and mess about.",
+        "d": "play",
+        "invert": true
+      },
+      {
+        "id": "23",
+        "q": "A friend cancelling on me barely registers.",
+        "d": "easy"
+      },
+      {
+        "id": "24",
+        "q": "It bothers me when a friend doesn't reply for days.",
         "d": "easy",
         "invert": true
       }

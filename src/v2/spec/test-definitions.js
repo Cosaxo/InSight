@@ -1,14 +1,20 @@
 // Ported from design/spec-modules/test-definitions.js (the historical prototype — no sync
 // script survives; THIS file is the live source now, hand-edits and all).
-// Cross-module references resolve through the shared global scope and
-// spec-index.js load order is semantic — scripts/check-spec-globals.mjs
-// guards the wiring in CI.
-import React from 'react';
+//
+// CONVERTED off the shared-global bridge (D39): the four names below are
+// plain named exports and this file publishes nothing to globalThis.
+// `window.LIVE` stays a global read — that one is data/live.ts's published
+// surface, which is the convention working as intended, not legacy.
+//
+// It was listed in src/v2/README.md's "what NOT to start with" as half of a
+// `test-definitions.js ↔ daily-split.jsx` cycle. That cycle did not exist:
+// this module's only outgoing reference of any kind was to `window.LIVE`.
+// See the README's own section for what the meter was actually seeing.
 
 // InSight — test definitions & saved results: demo data, typical-person
 // baselines, the question banks, and result persistence. No JSX — plain script.
 // ─── Saved test results · pre-computed for the demo ───
-window.IS_TEST_RESULTS = {
+export const IS_TEST_RESULTS = {
   big5: {
     title: 'Big Five',
     taken: '10 days ago',
@@ -50,7 +56,7 @@ window.IS_TEST_RESULTS = {
   attachment: {
     title: 'Social style',
     taken: '2 weeks ago',
-    accent: 'oklch(0.58 0.12 320)',
+    accent: 'oklch(0.52 0.13 320)',
     dims: [
       { id: 'warm',  label: 'Warm',      value: 78, blurb: 'openly affectionate' },
       { id: 'loyal', label: 'Loyal',     value: 84, blurb: 'few and deep, kept for years' },
@@ -59,22 +65,34 @@ window.IS_TEST_RESULTS = {
       { id: 'easy',  label: 'Easygoing', value: 62, blurb: 'gives space' },
     ],
   },
-  cognitive: {
-    title: 'How you think',
-    taken: 'a month ago',
-    accent: 'oklch(0.50 0.12 220)',
-    dims: [
-      { id: 'analyst', label: 'Analyst', value: 62, blurb: '' },
-      { id: 'systems', label: 'Systems', value: 78, blurb: 'patterns first' },
-      { id: 'empath',  label: 'Empath',  value: 56, blurb: '' },
-      { id: 'maker',   label: 'Maker',   value: 64, blurb: '' },
-    ],
-  },
+};
+
+// ── one hue per instrument (D121) ──────────────────────────────────
+//
+// There were TWO of these, and they disagreed. `RP_TESTS[k].banner`
+// (result-rose.jsx) coloured the result card; `PASSIVE.META[k].accent`
+// (passive-progress.js) coloured the progress sheet's rings, pips and
+// rows. On values and attachment they were not even close — the sheet drew
+// Values in rose and Social in violet while the card drew Values violet
+// and Social green — so the same instrument changed colour between the
+// screen that says how full it is and the screen that says what it found.
+//
+// The sheet's palette wins because it is the one built from the app's own
+// tokens: --c-around / --c-world / --c-people are the same four accents
+// the daily's modes and the Mirror's stops already run on, so an
+// instrument reads as part of the app rather than as its own chart.
+// Violet has no token (nothing else in the app is violet), which is why
+// Social's is written out.
+export const TEST_HUE = {
+  big5:       'var(--c-around)',
+  political:  'var(--c-world)',
+  values:     'var(--c-people)',
+  attachment: 'oklch(0.52 0.13 320)',
 };
 
 // Typical-person baselines per dimension — used to show "you vs. most people".
 // Grounded, not precise: enough to give every score a reference point.
-window.IS_TEST_AVG = {
+export const IS_TEST_AVG = {
   big5:       { O: 60, C: 58, E: 52, A: 65, N: 48 },
   political:  { econ: 50, auth: 52, foreign: 48, env: 55, tech: 60, estab: 55 },
   values:     { future: 52, circle: 45, hedonism: 55, meaning: 58, moral: 55, beauty: 60 },
@@ -86,13 +104,50 @@ window.IS_TEST_AVG = {
 // merged duty+altruism into one moral-circle tension. Old v1 results would
 // carry retired dims, so they are simply not read.)
 const TEST_RESULTS_KEY = 'insight.testResults.v2';
+// A pristine copy of the demo results ABOVE, taken before the saved-result
+// overlay below lands — the purge listener restores it, because the
+// fresh-boot state of this object is the demo seed plus an empty overlay,
+// not an empty object. The module's own binding, not a window read: this
+// file left the global bridge (D39-style conversion, #85), so the export
+// is the only copy there is.
+const IS_TEST_RESULTS_DEMO = JSON.parse(JSON.stringify(IS_TEST_RESULTS));
 try {
   const saved = JSON.parse(localStorage.getItem(TEST_RESULTS_KEY) || '{}');
-  Object.keys(saved).forEach(k => { window.IS_TEST_RESULTS[k] = saved[k]; });
+  Object.keys(saved).forEach(k => { IS_TEST_RESULTS[k] = saved[k]; });
 } catch (e) { /* ignore corrupt storage */ }
+// The purge (data/live.ts, D51). Disk cannot resurrect here —
+// persistTestResult below reads storage fresh on every write — but this
+// mirror object is what the profile surfaces render, and without the drop
+// it keeps showing the previous account's results until an app restart.
+// In place, not reassigned: consumers hold references to this object.
+window.addEventListener('insight:local-purge', () => {
+  Object.keys(IS_TEST_RESULTS).forEach((k) => { delete IS_TEST_RESULTS[k]; });
+  Object.keys(IS_TEST_RESULTS_DEMO).forEach((k) => { IS_TEST_RESULTS[k] = JSON.parse(JSON.stringify(IS_TEST_RESULTS_DEMO[k])); });
+});
+// Live hydration (data/live.ts publishTestResults). Fires only in live
+// mode — hydrate() and resetForNewUid() are the sole callers and neither
+// runs without a session — so the demo seed above survives untouched in
+// mock mode, where the persona IS the content.
+//
+// REPLACE, not merge, and that is the point rather than an optimisation:
+// the seed at the top of this file is Mira Halvorsen's, and a live account
+// that has taken no test must render nothing rather than hers. The payload
+// is already {server, …device}, so a key missing from it means the user has
+// not taken that test on any device.
+//
+// In place, for the same reason the purge above is: the fifteen consumers
+// import this binding and hold the object.
+window.addEventListener('insight:test-results', (e) => {
+  const next = (e && e.detail) || {};
+  Object.keys(IS_TEST_RESULTS).forEach((k) => { delete IS_TEST_RESULTS[k]; });
+  Object.keys(next).forEach((k) => { IS_TEST_RESULTS[k] = next[k]; });
+});
 
-function persistTestResult(kind, result) {
-  window.IS_TEST_RESULTS[kind] = result;
+// Exported as `persistTestResult`; consumers used to reach it as
+// `window.IS_persistTestResult`, which is why the import in daily-split and
+// test-overlay does not match the old global's name.
+export function persistTestResult(kind, result) {
+  IS_TEST_RESULTS[kind] = result;
   if (window.LIVE && window.LIVE.enabled && window.LIVE.saveTestResult) window.LIVE.saveTestResult(kind, result);
   try {
     const saved = JSON.parse(localStorage.getItem(TEST_RESULTS_KEY) || '{}');
@@ -103,11 +158,10 @@ function persistTestResult(kind, result) {
 
 // Each question maps answer values (0..4) to dimension deltas via `dims`
 // Result is computed by summing values per dimension, normalised to 0..100
-// (module scope — the Daily tab's Test mode reads this via window.IS_TESTS)
-const IS_TESTS = {
+export const IS_TESTS = {
     big5: {
       title: 'Big Five',
-      tag: 'personality · 15 questions · 5 traits',
+      tag: 'personality · 25 questions · 5 traits',
       accent: 'var(--c-around)',
       dims: [
         { id: 'O', label: 'Openness',          blurb: 'curiosity & range' },
@@ -135,11 +189,26 @@ const IS_TESTS = {
         { q: "A full day alone recharges me more than a night out.",   d: 'E', invert: true },
         { q: "I'd rather win the argument than smooth things over.",   d: 'A', invert: true },
         { q: "It takes a lot to rattle me.",                           d: 'N', invert: true },
+        // Round 3 (K 3→5): two per trait, one of them reverse-keyed, so
+        // every trait ends at five items with two inverts. Three items per
+        // trait left each score with 13 reachable values — one careless tap
+        // moved a trait ~8 points, which is more resolution than the Mirror
+        // reads off it.
+        { q: "I go looking for music, films or books I know nothing about.", d: 'O' },
+        { q: "I have little patience for questions with no practical use.",  d: 'O', invert: true },
+        { q: "I keep my things in order without having to think about it.",  d: 'C' },
+        { q: "My plans tend to fall apart in the details.",                  d: 'C', invert: true },
+        { q: "I start conversations with people I have just met.",           d: 'E' },
+        { q: "In a group I say less than most people there.",                d: 'E', invert: true },
+        { q: "I give people the benefit of the doubt when a story doesn't add up.", d: 'A' },
+        { q: "I decide quickly whether someone is worth my time.",           d: 'A', invert: true },
+        { q: "I replay conversations afterwards, looking for what I got wrong.", d: 'N' },
+        { q: "I sleep fine the night before something big.",                 d: 'N', invert: true },
       ],
     },
     political: {
       title: 'Politics',
-      tag: 'compass · 18 questions · 6 axes',
+      tag: 'compass · 30 questions · 6 axes',
       accent: 'var(--c-world)',
       dims: [
         { id: 'econ',    label: 'Economic',   blurb: 'left ←→ right' },
@@ -151,7 +220,7 @@ const IS_TESTS = {
       ],
       questions: [
         { q: "Markets, left to themselves, distribute fairly.",        d: 'econ' },
-        { q: "A society is judged by how it treats the weakest.",      d: 'econ', invert: true },
+        { q: "Essential services belong in public hands, not markets.",      d: 'econ', invert: true },
         { q: "Some speech is harmful enough to restrict.",             d: 'auth' },
         { q: "The state should keep out of private life.",             d: 'auth', invert: true },
         { q: "My country should help others before its own poor.",     d: 'foreign' },
@@ -170,11 +239,27 @@ const IS_TESTS = {
         { q: "The dangers of climate change are exaggerated.",         d: 'env', invert: true },
         { q: "Progress means building first and fixing problems as they come.", d: 'tech' },
         { q: "Experts and institutions usually get it right.",         d: 'estab', invert: true },
+        // Round 3 (K 3→5): two per axis, one reverse-keyed. The compass is
+        // the test whose result the Mirror slices hardest (D44 treats these
+        // answers as Art. 9-adjacent), so it is the one that could least
+        // afford three items an axis.
+        { q: "People mostly end up where their own effort puts them.",  d: 'econ' },
+        { q: "The gap between rich and poor is the biggest problem we have.", d: 'econ', invert: true },
+        { q: "Order in the streets matters more than the right to protest.", d: 'auth' },
+        { q: "Adults should be free to harm themselves if they choose.", d: 'auth', invert: true },
+        { q: "Immigration has made my country better.",                 d: 'foreign' },
+        { q: "We should fix problems at home before problems abroad.",   d: 'foreign', invert: true },
+        { q: "I would pay noticeably more for energy to cut emissions faster.", d: 'env' },
+        { q: "Environmental rules are already strict enough.",           d: 'env', invert: true },
+        { q: "I would rather live with the risks of new technology than miss what it brings.", d: 'tech' },
+        { q: "New tools should prove they are safe before anyone can use them.", d: 'tech', invert: true },
+        { q: "Most politicians are in it for themselves.",               d: 'estab' },
+        { q: "The people running things mostly know what they are doing.", d: 'estab', invert: true },
       ],
     },
     values: {
       title: 'Values',
-      tag: '18 questions · six tensions',
+      tag: '30 questions · six tensions',
       accent: 'var(--c-people)',
       dims: [
         { id: 'future',   label: 'Future',   blurb: 'pessimist ←→ optimist' },
@@ -188,7 +273,7 @@ const IS_TESTS = {
         { q: "Future generations will live better than ours.",                  d: 'future' },
         { q: "Most of what's changing right now is change for the better.",     d: 'future' },
         { q: "What I owe my family weighs more than what I owe strangers.",     d: 'circle', invert: true },
-        { q: "I'd sacrifice comfort now for a stranger's future.",              d: 'circle' },
+        { q: "I'd give up real comfort to help a stranger.",              d: 'circle' },
         { q: "Pleasure needs no justification.",                                d: 'hedonism' },
         { q: "Obligations come before enjoyment.",                              d: 'hedonism', invert: true },
         { q: "Suffering can give life meaning, not just pain.",                 d: 'meaning' },
@@ -205,12 +290,25 @@ const IS_TESTS = {
         { q: "A calm, happy life beats a hard, important one.",                 d: 'meaning', invert: true },
         { q: "Right and wrong depend on the culture you're standing in.",       d: 'moral', invert: true },
         { q: "Whether something works matters more than how it looks.",         d: 'beauty', invert: true },
+        // Round 3 (K 3→5): two per tension, one reverse-keyed.
+        { q: "I expect my own life ten years from now to be better than it is today.", d: 'future' },
+        { q: "The problems ahead of us are bigger than anything we have solved.", d: 'future', invert: true },
+        { q: "A life saved far away counts the same as one saved here.",        d: 'circle' },
+        { q: "Charity should start with the people around you.",                d: 'circle', invert: true },
+        { q: "I plan my week around things I will enjoy.",                      d: 'hedonism' },
+        { q: "I feel uneasy resting while work is unfinished.",                 d: 'hedonism', invert: true },
+        { q: "The best parts of my life came out of something difficult.",      d: 'meaning' },
+        { q: "I would trade a smaller life for a more peaceful one.",           d: 'meaning', invert: true },
+        { q: "Some acts would be wrong even if everyone approved of them.",     d: 'moral' },
+        { q: "Morality is something people invented, like money.",              d: 'moral', invert: true },
+        { q: "I will pay more for something well made when a plain one would do.", d: 'beauty' },
+        { q: "Decoration is the first thing I would cut.",                      d: 'beauty', invert: true },
       ],
     },
     attachment: {
       title: 'Social',
-      tag: '15 questions · what kind of friend you are',
-      accent: 'oklch(0.58 0.12 320)',
+      tag: '25 questions · what kind of friend you are',
+      accent: 'oklch(0.52 0.13 320)',
       dims: [
         { id: 'warm',  label: 'Warm',      blurb: 'reserved ←→ warm' },
         { id: 'loyal', label: 'Loyal',     blurb: 'many & light ←→ few & deep' },
@@ -232,16 +330,21 @@ const IS_TESTS = {
         // Round 2 (one per dimension, all reverse-keyed — same
         // acquiescence fix as big5).
         { q: "Showing affection doesn't come naturally to me.",       d: 'warm', invert: true },
-        { q: "I drift between friend groups rather than settling into one.", d: 'loyal', invert: true },
+        { q: "My friendships tend to fade when life gets busy.", d: 'loyal', invert: true },
         { q: "I keep my problems to myself.",                         d: 'open', invert: true },
         { q: "I take most things seriously, even the small stuff.",   d: 'play', invert: true },
-        { q: "I notice straight away when a friend pulls back.",      d: 'easy', invert: true },
+        { q: "I keep track of who reached out last.",      d: 'easy', invert: true },
+        // Round 3 (K 3→5): two per dimension, one reverse-keyed.
+        { q: "I tell my friends what they mean to me.",               d: 'warm' },
+        { q: "Compliments feel awkward coming out of my mouth.",      d: 'warm', invert: true },
+        { q: "I still keep up with people I met years ago.",          d: 'loyal' },
+        { q: "When someone moves away, we usually lose touch.",       d: 'loyal', invert: true },
+        { q: "I will admit it when I am struggling.",                 d: 'open' },
+        { q: "There are things about me nobody in my life knows.",    d: 'open', invert: true },
+        { q: "I am the one who suggests something daft.",             d: 'play' },
+        { q: "I find it hard to switch off and mess about.",          d: 'play', invert: true },
+        { q: "A friend cancelling on me barely registers.",           d: 'easy' },
+        { q: "It bothers me when a friend doesn't reply for days.",   d: 'easy', invert: true },
       ],
     },
 };
-window.IS_TESTS = IS_TESTS;
-window.IS_persistTestResult = persistTestResult;
-
-;globalThis.persistTestResult = typeof persistTestResult === 'undefined' ? globalThis.persistTestResult : persistTestResult;
-;globalThis.TEST_RESULTS_KEY = typeof TEST_RESULTS_KEY === 'undefined' ? globalThis.TEST_RESULTS_KEY : TEST_RESULTS_KEY;
-;globalThis.IS_TESTS = typeof IS_TESTS === 'undefined' ? globalThis.IS_TESTS : IS_TESTS;

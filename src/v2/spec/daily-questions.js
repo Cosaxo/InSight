@@ -10,6 +10,15 @@ import React from 'react';
 // per-audience answer distribution so every tab (around / city / groups /
 // world / people) shows a DIFFERENT crowd. The user's own answers persist to
 // localStorage; "you vs them" is computed live from the current answer.
+//
+// The IIFE below is vestigial as of D39 — an ESM module already has its own
+// scope, and the wrapper is what this file needed when every module shared
+// one. It stays because unwrapping it re-indents 480 lines, which would bury
+// four real edits in a whitespace diff. The export is hoisted out instead:
+// ESM bindings are live and this module finishes evaluating before any
+// importer's body runs, so DAILYQ is the api object by the time it is read.
+export let DAILYQ;
+
 (function () {
   // ── seeded RNG (mulberry32) ───────────────────────────────────────────────
   function hashStr(s) { let h = 2166136261 >>> 0; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
@@ -82,7 +91,10 @@ import React from 'react';
       cat: ['Mind', 'Rest'], alts: [['Values', 'Rest'], ['Body', 'Recovery']] },
     { type: 'binary', prompt: 'Are people getting kinder, or meaner?', tag: 'People today', options: ['Kinder', 'Meaner'], tone: 'deep',
       cat: ['Morals', 'Direction'], alts: [['Mind', 'Outlook'], ['Values', 'Hope']] },
-    { type: 'dilemma', prompt: 'You find €500 in cash on an empty street. What do you do?', tag: 'Found €500', options: ['Keep it', 'Hand it in', 'Leave it'], tone: 'deep',
+    // Prompt synced with content/daily-questions.json 006 (D52: currency
+    // left the prompts) — liveSync and the pulse archive join key on
+    // prompt-string equality, so the twins must not drift.
+    { type: 'dilemma', prompt: "You find a week's pay in cash on an empty street. What do you do?", tag: 'Found cash', options: ['Keep it', 'Hand it in', 'Leave it'], tone: 'deep',
       cat: ['Morals', 'Honesty'], alts: [['Values', 'Honesty'], ['Mind', 'Conscience']] },
     { type: 'rating', prompt: 'How optimistic are you about the next ten years?', tag: 'Next 10 years', axis: 'optimistic', tone: 'deep',
       cat: ['Mind', 'Outlook'], alts: [['Values', 'Hope'], ['Story', 'The future']] },
@@ -92,7 +104,9 @@ import React from 'react';
       cat: ['Mind', 'Human limits'], alts: [['Body', 'Sleep'], ['Values', 'Being human']] },
     { type: 'choice', prompt: 'What should schools teach more of?', tag: 'Schools', options: ['Money', 'Emotions', 'Making things', 'History'], tone: 'deep',
       cat: ['Values', 'Education'], alts: [['Mind', 'Learning'], ['Goals', 'Next generation']] },
-    { type: 'dilemma', prompt: 'A job you would love means moving somewhere your partner would hate. Do you take it?', tag: 'Job or partner', options: ['Take it', 'Stay', 'Find a third way'], tone: 'deep',
+    // Synced with content 011 (D52: the partner assumption dropped) — same
+    // prompt-equality join as 006 above.
+    { type: 'dilemma', prompt: 'A job you would love means moving somewhere the person closest to you would hate. Do you take it?', tag: 'Job or move', options: ['Take it', 'Stay', 'Find a third way'], tone: 'deep',
       cat: ['Morals', 'Loyalty'], alts: [['Values', 'Loyalty'], ['Goals', 'Career']] },
     { type: 'binary', prompt: 'Would you rather watch sport, or play it?', tag: 'Watch or play', options: ['Watch', 'Play'], tone: 'light',
       cat: ['Sport', 'How you engage'], alts: [['Body', 'Activity'], ['Interests', 'Sport']] },
@@ -432,7 +446,7 @@ import React from 'react';
       return { pct: same, text: `${same}% of ${audLabel} are with you` };
     },
   };
-  window.DAILYQ = api;
+  DAILYQ = api;
 
   // ── live hydration (Phase 4b) ─────────────────────────────────────
   // The Map's constellation and the Mirror's daily record read this
@@ -465,7 +479,7 @@ import React from 'react';
       if (v != null && !(q.id in saved)) { saved[q.id] = Number(v); changed = true; }
       const agg = L.aggFor && L.aggFor(b.id);
       const size = (q.dist && q.dist.world && q.dist.world.length) || (q.options && q.options.length) || 0;
-      if (agg && agg.tooSmall === false && agg.counts && size) {
+      if (agg && agg.counts && size) {
         const counts = []; let total = 0;
         for (let i = 0; i < size; i++) { const n = agg.counts[String(i)] || 0; counts.push(n); total += n; }
         if (total > 0) {
@@ -483,6 +497,12 @@ import React from 'react';
   }
   if (typeof window !== 'undefined' && window.addEventListener) {
     window.addEventListener('insight-live-update', liveSync);
+    // The purge (data/live.ts, D51): both keys are already gone; drop the
+    // in-memory answer and branch-override maps too, or the next answer()'s
+    // save writes the previous account's daily answers back under the new
+    // uid. liveSync above then re-fills from the NEW uid's confirmed votes
+    // on the next live update — the same heal the feed's reconcile does.
+    window.addEventListener('insight:local-purge', () => { saved = {}; savedCat = {}; listeners.forEach((f) => f()); });
   }
   liveSync();
 })();

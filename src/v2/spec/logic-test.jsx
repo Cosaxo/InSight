@@ -4,24 +4,40 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import { useDialog } from './primitives.jsx';
+import { generateForm } from '../data/logic-gen';
+import { FIELD_MED, loadResult, logicPctileFor, logicSecs, saveResult } from '../data/logic-score';
+import { startVerified, submitVerified, verifyErrorMessage } from '../data/logic-verify';
 
 // ─────────────────────────────────────────────────────────────
 // Logic · Raven's-matrices-style test, run as a full overlay
-// (like the other tests). Twelve 3×3 matrices on a difficulty
-// ramp, GENERATED fresh per attempt by window.LOGIC_GEN
-// (src/v2/data/logic-gen.ts) from a random seed — the bank of
-// hardcoded puzzles (and its answer key in the bundle) is gone,
-// so no two attempts are the same and there is nothing to
-// memorize. No per-question feedback — score + percentile at
-// the end, persisted to localStorage. The General tab shows it
-// as a fifth ring in "Your tests".
+// (like the other tests). Twenty-five 3×3 matrices on a
+// tail-heavy difficulty ramp (D61), GENERATED fresh per attempt
+// by src/v2/data/logic-gen.ts
+// (a direct import since D53 — this file was the global's only
+// consumer) from a random seed — the bank of hardcoded puzzles
+// (and its answer key in the bundle) is gone, and since D56 the
+// family sequence is drawn per attempt too, so no two attempts
+// are the same and there is nothing to memorize, not even the
+// order of rules. Each puzzle is timed (D56): the cap
+// standardises the administration and bounds what a mid-item
+// consult can buy. No per-question feedback — score + percentile
+// at the end, persisted via data/logic-score.ts, where the curve
+// is typed and pinned. The General tab shows it as a fifth ring
+// in "Your tests".
 // ─────────────────────────────────────────────────────────────
 (function () {
   const { useState, useRef, useEffect } = React;
 
-  const LKEY = 'insight.logicTest.v1';
   // How long the picked-answer state shows before advancing.
   const PICK_DELAY = 240;
+  // Per-puzzle time budget (D56). Matrix tests are administered timed; a
+  // cap also bounds a stalled or wandering attempt. 90s is >5× the
+  // modelled median (FIELD_MED), so a careful solver is never rushed — an
+  // expired puzzle settles as unanswered. The countdown surfaces only in
+  // the final 20s: it should read as a bound, not a stopwatch.
+  const ITEM_CAP = 90000;
+  const COUNTDOWN_AT = 20000;
 
   // ── glyph model ──
   // A cell is an array of layers. Layer: {s: shape, z: size, f: 'n'|'s'}
@@ -62,10 +78,10 @@ import React from 'react';
   }
 
   // ── per-attempt form ──
-  // The twelve matrices come from the generator, seeded fresh at every
+  // The matrices come from the generator, seeded fresh at every
   // start. The seed is saved with the result so a future lens (or a bug
   // report) can reconstruct exactly the form a score was earned on —
-  // LOGIC_GEN.version travels with it so a generator change can never
+  // the generator version travels with it so a generator change can never
   // silently reinterpret an old seed.
   const newSeed = () => {
     const c = (typeof globalThis !== 'undefined' && globalThis.crypto) || null;
@@ -79,24 +95,7 @@ import React from 'react';
     // players who opened the overlay in the same millisecond.
     return Math.floor(Math.random() * 4294967296) >>> 0;
   };
-  const makeForm = () => window.LOGIC_GEN.generateForm(newSeed());
-
-  // ── persistence + scoring ──
-  // pctile = share of players this score beats (rough normal-ish curve)
-  const logicPctile = (frac) => Math.max(1, Math.min(99, Math.round(100 / (1 + Math.exp(-((frac * 100) - 62) / 14)))));
-  function loadResult() {
-    try {
-      const r = JSON.parse(localStorage.getItem(LKEY) || 'null');
-      if (r && Array.isArray(r.marks) && r.marks.length) {
-        if (r.pctile == null) r.pctile = logicPctile(r.marks.filter(Boolean).length / r.marks.length);
-        return r;
-      }
-    } catch (e) { /* ignore */ }
-    return null;
-  }
-  function saveResult(r) {
-    try { localStorage.setItem(LKEY, JSON.stringify(r)); } catch (e) { /* ignore */ }
-  }
+  const makeForm = () => generateForm(newSeed());
 
   // ── tiles ──
   const tileBase = {
@@ -104,14 +103,32 @@ import React from 'react';
     background: 'var(--surface)', border: '1px solid var(--rule)', padding: 6,
   };
 
+  // The puzzle reads as ONE object — a recessed board — while the answer
+  // tiles below stay raised, bordered cards. Before this, both were the
+  // same tile in same-width 3-column grids, and a device screenshot showed
+  // what that costs: fifteen identical cells with a hairline somewhere in
+  // the middle, "hard to see what is the puzzle and what is the answer
+  // options". The grouping is the fix; the section kickers underline it.
   function Matrix({ cells }) {
+    const boardCell = {
+      ...tileBase,
+      border: '1px solid color-mix(in oklch, var(--rule), transparent 45%)',
+    };
     return (
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 7, width: '100%', maxWidth: 258, margin: '0 auto' }}>
-        {cells.map((c, i) => <div key={i} style={tileBase}><Glyph cell={c} /></div>)}
+      <div style={{
+        display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 7,
+        width: '100%', maxWidth: 258, margin: '0 auto', boxSizing: 'border-box',
+        padding: 9, borderRadius: 14,
+        background: 'color-mix(in oklch, var(--surface-3) 45%, var(--surface))',
+      }}>
+        {cells.map((c, i) => <div key={i} style={boardCell}><Glyph cell={c} /></div>)}
+        {/* the goal cell wears the test's accent, so the eye lands on what
+            is being asked before it lands on the choices */}
         <div style={{
-          ...tileBase, background: 'transparent', border: '1.5px solid color-mix(in oklch, var(--rule), var(--ink) 14%)',
+          ...boardCell, background: 'transparent',
+          border: '1.5px dashed color-mix(in oklch, ' + LOGIC_COL + ' 55%, var(--rule))',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontFamily: 'var(--sans)', fontSize: 22, fontWeight: 600, color: 'var(--ink-3)',
+          fontFamily: 'var(--sans)', fontSize: 22, fontWeight: 700, color: LOGIC_COL,
         }}>?</div>
       </div>
     );
@@ -253,7 +270,6 @@ import React from 'react';
   //    you whether you got there quickly or by grinding, which is the one
   //    thing this adds. ──
   const seeded = (s) => { const x = Math.sin(s * 12.9898) * 43758.5453; return x - Math.floor(x); };
-  const FIELD_MED = 17; // modelled median seconds per puzzle
   function PacePlot({ pctile, secs }) {
     const W = 300, H = 172, PL = 16, PR = 14, PT = 14, PB = 26;
     const xp = (v) => PL + v * (W - PL - PR);
@@ -290,23 +306,27 @@ import React from 'react';
     );
   }
 
-  // EVERY "field" in this test is a MODEL, not a measurement: logicPctile is
-  // a logistic curve, solveRate and fieldRate are formulas, FieldCurve is a
-  // Gaussian, and PacePlot's scatter comes from a fixed seed. No other
-  // player's result is read, stored or aggregated anywhere — there is no
-  // backend for this test at all.
+  // EVERY "field" chart in this test is a MODEL, not a measurement:
+  // logicPctile is a logistic curve, solveRate and fieldRate are formulas,
+  // FieldCurve is a Gaussian, and PacePlot's scatter comes from a fixed
+  // seed. That is defensible for a self-test (the comparison is a
+  // yardstick, not a population statistic), and the result screen says so
+  // once rather than letting five charts imply five measurements.
   //
-  // That is defensible for a self-test (the comparison is a yardstick, not a
-  // population statistic) but it was previously unsaid, and this file now
-  // draws five of them. The result screen says so once, in LOGIC_FIELD_NOTE,
-  // rather than letting five charts imply five measurements.
-  function logicSecs(r) {
-    return r && Array.isArray(r.times) && r.times.length
-      ? r.times.reduce((a, b) => a + b, 0) / r.times.length / 1000
-      : FIELD_MED;
-  }
+  // Three truths, three notes. A practice attempt still sends nothing
+  // anywhere and scores against the modelled curve. A VERIFIED attempt is
+  // seeded and scored server-side (data/logic-verify.ts): the picks leave
+  // the device and the score joins an anonymous count once — its
+  // percentile is the same modelled yardstick until the histogram clears
+  // the D60 floor, after which it arrives MEASURED (source "measured",
+  // ranked against the n verified first attempts counted so far). Even
+  // then, the lens CHARTS stay modelled sketches — the measured note says
+  // exactly that, so one real number never dresses up four drawn ones.
 
-  const LOGIC_FIELD_NOTE = 'Comparisons here are a modelled yardstick, not other players’ results — this test sends nothing anywhere.';
+  const LOGIC_FIELD_NOTE = 'Comparisons here are a modelled yardstick, not other players’ results — practice attempts send nothing anywhere.';
+  const LOGIC_VERIFIED_NOTE = 'Verified: scored on the server, counted once toward an anonymous field count. Comparisons are still a modelled yardstick until enough verified scores exist.';
+  const LOGIC_MEASURED_NOTE = 'Verified and measured: the percentile is your score ranked against the verified players counted so far. The charts around it are still modelled sketches, not their data.';
+  const LOGIC_VERIFY_DISCLOSURE = 'Verified sends your picks to be scored on the server; your score joins an anonymous count. Nothing else leaves this device.';
 
   const LOGIC_LENSES = [
     { id: 'answers', label: 'Answers' },
@@ -320,47 +340,137 @@ import React from 'react';
     const [result, setResult] = useState(loadResult);
     // The attempt's generated form. Created on open when there is no saved
     // result (the overlay starts straight in the test), and on every
-    // Retake. A missing LOGIC_GEN throws here — loudly, into the
-    // ErrorBoundary — which is the correct failure for a broken
-    // spec-index order; the smoke test would catch it.
+    // Retake. The generator is a direct import (D53), so "module missing"
+    // is a build failure now, not a render-time one.
     const [form, setForm] = useState(() => (result ? null : makeForm()));
     const [qi, setQi] = useState(result ? -1 : 0); // -1 = result screen
     const [marks, setMarks] = useState([]);
     const [picked, setPicked] = useState(null);
     const [lens, setLens] = useState('answers');
     // How long each puzzle took, in ms. Local to the run and saved beside
-    // the marks; the Pace lens is the only reader. Nothing leaves the
-    // device — this test has no backend.
+    // the marks; the Pace lens is the only reader. Device-local in BOTH
+    // modes: a verified attempt sends picks, never per-item timings.
     const [times, setTimes] = useState([]);
+    // The raw pick per puzzle (-1 = expired). In practice mode this is
+    // redundant with marks; in verified mode it is the payload — the
+    // client cannot mark what it cannot know (D57 withholds the answers).
+    const [picks, setPicks] = useState([]);
+    // Verified-attempt lifecycle, one state: null, or
+    // {phase:'starting'} | {phase:'start-error', msg}
+    // | {phase:'sending'} | {phase:'send-error', msg, picks, times}.
+    const [verify, setVerify] = useState(null);
+    // Seconds left on the current puzzle, rendered only inside the final
+    // stretch (null = hidden). Driven by the interval below.
+    const [countdown, setCountdown] = useState(null);
     // Stamped in an effect rather than during render: Date.now() in a render
     // body is impure and eslint's react-hooks/purity rule rightly refuses it.
     // Keyed on qi, so it re-arms as each puzzle appears — including the first,
     // which start() never sees when the overlay opens straight into the test.
     const askedAt = useRef(0);
-    useEffect(() => { if (qi >= 0) askedAt.current = Date.now(); }, [qi]);
+    // The expiry path needs the CURRENT marks/times/qi, not the ones from
+    // the render that armed the interval — the latest-closure ref pattern.
+    const timeUpRef = useRef(() => {});
+    useEffect(() => {
+      timeUpRef.current = () => {
+        if (picked !== null || qi < 0) return;
+        setPicked(-1); // no option highlighted — the clock ran out
+        settle(-1);
+      };
+    });
+    useEffect(() => {
+      if (qi < 0) { setCountdown(null); return undefined; }
+      askedAt.current = Date.now();
+      setCountdown(null);
+      // Deadline arithmetic, not tick counting: a backgrounded tab throttles
+      // intervals, but the next tick after return still lands on the truth —
+      // which also stops backgrounding from buying unbounded think time
+      // (the D53 accepted limit on Pace-lens timing, now capped).
+      const id = setInterval(() => {
+        const left = askedAt.current + ITEM_CAP - Date.now();
+        if (left <= 0) timeUpRef.current();
+        else setCountdown(left <= COUNTDOWN_AT ? Math.ceil(left / 1000) : null);
+      }, 500);
+      return () => clearInterval(id);
+    }, [qi]);
 
-    const start = () => { setForm(makeForm()); setMarks([]); setTimes([]); setPicked(null); setQi(0); };
-    const pick = (i) => {
-      if (picked !== null) return;
-      setPicked(i);
-      const next = [...marks, i === form.items[qi].a];
+    const start = () => { setForm(makeForm()); setMarks([]); setTimes([]); setPicks([]); setPicked(null); setVerify(null); setQi(0); };
+
+    // ── verified attempt round trip (D57) ──
+    const beginVerified = () => {
+      setVerify({ phase: 'starting' });
+      startVerified().then(
+        (s) => {
+          setForm({ items: s.items, verified: true });
+          setMarks([]); setTimes([]); setPicks([]); setPicked(null);
+          setVerify(null); setQi(0);
+        },
+        (err) => setVerify({ phase: 'start-error', msg: verifyErrorMessage(err) }),
+      );
+    };
+    const sendVerified = (pk, nt) => {
+      setVerify({ phase: 'sending' });
+      submitVerified(pk).then(
+        (res) => {
+          // The server's marks and percentile are the result; the local
+          // per-item times ride along for the Pace lens only. seed+gv come
+          // back post-scoring so this result stays reconstructable, like
+          // every practice result before it. `source` and `n` are the
+          // server's word on what the percentile IS — a modelled curve, or
+          // a measured rank among n verified players (D60).
+          const r = {
+            v: 2, verified: true, seed: res.seed, gv: res.gv,
+            marks: res.marks, times: nt, diffs: form.items.map((it) => it.diff),
+            pctile: res.pctile, durationMs: res.durationMs,
+            source: res.source || 'model',
+            ...(res.n ? { n: res.n } : {}),
+            when: Date.now(),
+          };
+          saveResult(r); setResult(r); setVerify(null);
+        },
+        (err) => setVerify({ phase: 'send-error', msg: verifyErrorMessage(err), picks: pk, times: nt }),
+      );
+    };
+
+    // Shared by a pick and an expiry: records the pick (and, in practice
+    // mode, the mark), then advances / saves / submits after the reveal
+    // delay. pickIdx is -1 when the clock ran out.
+    const settle = (pickIdx) => {
+      const next = [...marks, !form.verified && pickIdx === form.items[qi].a];
+      const pk = [...picks, pickIdx];
+      // Deliberately never cancelled on unmount (D53): this timeout is also
+      // the final item's save, so closing the overlay 200ms after the last
+      // pick must still keep the score. Mid-test, the late callback's
+      // setState is a no-op on an unmounted component — a 240ms timer is
+      // the whole cost, and losing a finished attempt would be the bug.
+      // (A verified submit that outlives the overlay still lands: the
+      // server writes the canonical result regardless of what this
+      // component can no longer render.)
       setTimeout(() => {
-        // Read the clock here, not in pick's body — same purity rule. The
-        // reveal delay is subtracted because it is the animation's time, not
-        // the solver's; left in, every puzzle would read 0.24s slow.
-        const nt = [...times, askedAt.current ? Math.max(0, Date.now() - askedAt.current - PICK_DELAY) : FIELD_MED * 1000];
+        // Read the clock here, not in the caller's body — same purity rule.
+        // The reveal delay is subtracted because it is the animation's time,
+        // not the solver's; left in, every puzzle would read 0.24s slow. The
+        // cap bounds what an expired (or backgrounded) puzzle records.
+        const nt = [...times, askedAt.current ? Math.min(ITEM_CAP, Math.max(0, Date.now() - askedAt.current - PICK_DELAY)) : FIELD_MED * 1000];
         setPicked(null);
-        if (qi + 1 < form.items.length) { setMarks(next); setTimes(nt); setQi(qi + 1); }
-        else {
+        if (qi + 1 < form.items.length) { setMarks(next); setTimes(nt); setPicks(pk); setQi(qi + 1); }
+        else if (form.verified) {
+          setMarks([]); setTimes([]); setPicks([]); setQi(-1);
+          sendVerified(pk, nt);
+        } else {
           const k = next.filter(Boolean).length;
           const r = {
             v: 2, seed: form.seed, gv: form.version,
             marks: next, times: nt, diffs: form.items.map((it) => it.diff),
-            pctile: logicPctile(k / next.length), when: Date.now(),
+            pctile: logicPctileFor(k / next.length, next.length), when: Date.now(),
           };
-          saveResult(r); setResult(r); setMarks([]); setTimes([]); setQi(-1);
+          saveResult(r); setResult(r); setMarks([]); setTimes([]); setPicks([]); setQi(-1);
         }
       }, PICK_DELAY);
+    };
+    const pick = (i) => {
+      if (picked !== null) return;
+      setPicked(i);
+      settle(i);
     };
 
     const inTest = qi >= 0;
@@ -372,33 +482,61 @@ import React from 'react';
         <div className="app-header">
           <button className="avatar-btn" onClick={onClose}>✕</button>
           <div className="h-title">Logic</div>
-          <div style={{ width: 36 }}></div>
+          <div style={{ width: 32, flexShrink: 0 }}></div>
         </div>
         <div className="app-body">
           {inTest && (
             <div style={{ maxWidth: 258, margin: '10px auto 0' }}>
-              <div style={{ display: 'flex', gap: 4, marginBottom: 18 }}>
+              {/* the countdown sits in the bar's margin (absolute), so its
+                  late appearance never shifts the puzzle mid-solve */}
+              <div style={{ position: 'relative', display: 'flex', gap: 4, marginBottom: 18 }}>
                 {form.items.map((_, i) => (
                   <span key={i} style={{ flex: 1, height: 4, borderRadius: 2, background: i < qi ? 'var(--ink)' : i === qi ? LOGIC_COL : 'var(--rule)', transition: 'background 0.2s ease' }}></span>
                 ))}
+                {countdown != null && (
+                  <span role="timer" aria-label={countdown + ' seconds left on this puzzle'} style={{ position: 'absolute', right: 0, top: 7, fontFamily: 'var(--sans)', fontSize: 11, fontWeight: 700, color: countdown <= 5 ? LOGIC_COL : 'var(--ink-3)' }}>{countdown}s</span>
+                )}
               </div>
+              {/* Two labelled sections instead of fifteen equal tiles and a
+                  1px divider — the release screenshot's complaint. The board
+                  (Matrix) is recessed and reads as the exhibit; the answers
+                  are raised, shadowed buttons that read as the controls. */}
+              <div className="kicker" style={{ marginBottom: 7 }}>The pattern</div>
               <div role="img" aria-label="3 by 3 puzzle grid, bottom-right tile missing">
                 <Matrix cells={p.cells} />
               </div>
-              <div style={{ height: 1, background: 'var(--rule)', margin: '18px 0 16px' }}></div>
+              <div className="kicker" style={{ margin: '18px 0 8px' }}>Pick what fills the ?</div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
                 {p.opts.map((o, i) => (
                   <button key={i} onClick={() => pick(i)} aria-label={'Answer ' + (i + 1) + ' of ' + p.opts.length} style={{
                     ...tileBase, cursor: 'pointer', WebkitAppearance: 'none', appearance: 'none',
                     borderColor: picked === i ? LOGIC_COL : 'var(--rule)',
-                    boxShadow: picked === i ? `0 0 0 3px color-mix(in oklch, ${LOGIC_COL} 18%, transparent)` : 'none',
+                    boxShadow: picked === i ? `0 0 0 3px color-mix(in oklch, ${LOGIC_COL} 18%, transparent)` : 'var(--shadow-card)',
                     transition: 'border-color 0.14s ease, box-shadow 0.14s ease',
                   }}><Glyph cell={o} /></button>
                 ))}
               </div>
             </div>
           )}
-          {!inTest && result && (
+          {!inTest && verify && (verify.phase === 'sending' || verify.phase === 'send-error') && (
+            <div style={{ maxWidth: 300, margin: '0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, paddingTop: 60, textAlign: 'center' }}>
+              {verify.phase === 'sending' ? (
+                <div style={{ fontFamily: 'var(--sans)', fontSize: 13.5, fontWeight: 600, color: 'var(--ink-2)' }}>Scoring on the server…</div>
+              ) : (
+                <>
+                  <div style={{ fontFamily: 'var(--sans)', fontSize: 13.5, color: 'var(--ink-2)', lineHeight: 1.45 }}>{verify.msg}</div>
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    {/* the picks are held in this state, so a flaky network
+                        never costs a finished attempt — retry resubmits the
+                        same twelve */}
+                    <button onClick={() => sendVerified(verify.picks, verify.times)} style={pillBtn(true)}>Retry</button>
+                    <button onClick={() => setVerify(null)} style={pillBtn(false)}>Discard</button>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+          {!inTest && !(verify && (verify.phase === 'sending' || verify.phase === 'send-error')) && result && (
             <div style={{ maxWidth: 340, margin: '0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, paddingTop: 22, paddingBottom: 30 }}>
               {(() => { const R = 48, C = 2 * Math.PI * R; return (
                 <svg width="128" height="128" viewBox="0 0 128 128">
@@ -409,7 +547,10 @@ import React from 'react';
                 </svg>
               ); })()}
               <div style={{ fontFamily: 'var(--sans)', fontSize: 13.5, color: 'var(--ink-3)', textAlign: 'center', maxWidth: 240, lineHeight: 1.45 }}>
-                Sharper than {result.pctile}% of players.
+                Sharper than {result.pctile}% of {result.source === 'measured' && result.n ? result.n + ' verified players' : 'players'}.
+                {result.verified && (
+                  <span style={{ display: 'inline-block', marginLeft: 7, padding: '1.5px 8px', borderRadius: 999, fontSize: 10.5, fontWeight: 700, letterSpacing: '0.03em', color: 'var(--surface)', background: LOGIC_COL, verticalAlign: '1px' }}>verified</span>
+                )}
               </div>
               <div data-lens-style="underline" style={{ width: '100%', marginTop: 4 }}>
                 <div className="mm-lensrow" role="tablist" aria-label="Logic lenses" style={{ '--n': LOGIC_LENSES.length }}>
@@ -429,13 +570,22 @@ import React from 'react';
                   {lens === 'pace' && <PacePlot pctile={result.pctile} secs={logicSecs(result)} />}
                   {lens === 'field' && <FieldCurve pctile={result.pctile} />}
                   {lens === 'compare' && <CompareRows pctile={result.pctile} />}
-                  <div style={{ fontFamily: 'var(--sans)', fontSize: 11, color: 'var(--ink-3)', marginTop: 12, lineHeight: 1.45, borderTop: '0.5px solid var(--rule)', paddingTop: 10 }}>{LOGIC_FIELD_NOTE}</div>
+                  <div style={{ fontFamily: 'var(--sans)', fontSize: 11, color: 'var(--ink-3)', marginTop: 12, lineHeight: 1.45, borderTop: '0.5px solid var(--rule)', paddingTop: 10 }}>{result.verified ? (result.source === 'measured' ? LOGIC_MEASURED_NOTE : LOGIC_VERIFIED_NOTE) : LOGIC_FIELD_NOTE}</div>
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
                 <button onClick={start} style={pillBtn(false)}>Retake</button>
+                <button onClick={beginVerified} disabled={verify && verify.phase === 'starting'} style={{ ...pillBtn(false), opacity: verify && verify.phase === 'starting' ? 0.5 : 1 }}>
+                  {verify && verify.phase === 'starting' ? 'Preparing…' : 'Verified attempt'}
+                </button>
                 <button onClick={onClose} style={pillBtn(true)}>Done</button>
               </div>
+              {verify && verify.phase === 'start-error' && (
+                <div style={{ fontFamily: 'var(--sans)', fontSize: 11.5, color: 'var(--ink-2)', textAlign: 'center', lineHeight: 1.45 }}>{verify.msg}</div>
+              )}
+              {/* consent is a sentence, not a dialog: what Verified sends is
+                  stated where the button is, before it is ever pressed */}
+              <div style={{ fontFamily: 'var(--sans)', fontSize: 10.5, color: 'var(--ink-3)', textAlign: 'center', maxWidth: 260, lineHeight: 1.5 }}>{LOGIC_VERIFY_DISCLOSURE}</div>
             </div>
           )}
         </div>

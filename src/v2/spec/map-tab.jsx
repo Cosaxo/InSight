@@ -4,6 +4,10 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import { DAILYQ } from './daily-questions.js';
+import { DUELS } from './duels-data.js';
+import { LEARN } from './learn-progress.js';
+import { list as anchorList } from './map-anchors.js';
 
 // InSight — Map tab: a constellation of every Daily-Question answer around a
 // ring of profile anchors (age · work · study · the test results). Tap an
@@ -24,16 +28,32 @@ function MapTab({ rail = true, anchorsOn = true, recency = true, fields: fieldsO
   // ── nodes: every daily answer, filed by its question's branch path ────────
   const [dqv, setDqv] = useState(0);
   useEffect(() => {
-    if (window.DAILYQ && window.DAILYQ.subscribe) return window.DAILYQ.subscribe(() => setDqv((x) => x + 1));
+    if (DAILYQ.subscribe) return DAILYQ.subscribe(() => setDqv((x) => x + 1));
   }, []);
+  useEffect(() => LEARN.subscribe(() => setDqv((x) => x + 1)), []);
+  useEffect(() => DUELS.subscribe(() => setDqv((x) => x + 1)), []);
+  // ── anchors: the profile ring at the centre ───────────────────────────────
+  // State fed by the store's own event, not a mount-once memo. The mock list
+  // is a constant and `useMemo(…, [])` was fine for it; the live one is not
+  // — anchors and test results both arrive from data/live.ts's hydrate,
+  // which lands after first paint, so a mount-once read on a cold start
+  // pins the ring to an empty profile forever.
+  //
+  // DAILYQ.subscribe above does NOT cover this: its liveSync fires listeners
+  // only when a vote or an aggregate actually moved, and both of the things
+  // this ring is built from can land without either.
+  //
+  // State rather than a version counter because `anchors` is itself a memo
+  // dependency below — recomputing it every render would give the layout a
+  // new array identity each time and rebuild the force layout with it.
+  const [anchors, setAnchors] = useState(anchorList);
   useEffect(() => {
-    if (window.LEARN && window.LEARN.subscribe) return window.LEARN.subscribe(() => setDqv((x) => x + 1));
-  }, []);
-  useEffect(() => {
-    if (window.DUELS && window.DUELS.subscribe) return window.DUELS.subscribe(() => setDqv((x) => x + 1));
+    const on = () => setAnchors(anchorList());
+    window.addEventListener('insight-live-update', on);
+    return () => window.removeEventListener('insight-live-update', on);
   }, []);
   const built = useMemo(() => {
-    const D = window.DAILYQ;
+    const D = DAILYQ;
     const out = []; const subSeen = new Map(); const topSeen = new Map(); const counts = {};
     if (D) D.answered().forEach((q) => {
       const idx = D.myAnswer(q);
@@ -68,14 +88,17 @@ function MapTab({ rail = true, anchorsOn = true, recency = true, fields: fieldsO
     // the three-in-a-row queue stay off it — a map you cannot trust is furniture.
     // Subject is the branch, field the sub-branch, the fact the leaf; typicality
     // is the share of the crowd who get it right, so hard-won facts sit outward.
-    const L = window.LEARN;
-    if (L) {
-      const got = L.mastered();
+    // Braces without a condition: `if (window.LEARN)` was a load-order guard,
+    // and an imported binding cannot be unset — but the block scopes `got`/`n`,
+    // and de-indenting 23 lines to drop it would bury this change in a
+    // whitespace diff (D109). An empty `mastered()` was always a no-op here.
+    {
+      const got = LEARN.mastered();
       const n = got.length;
       got.forEach((m, i) => {
         const c = m.card;
-        const fd = L.field(c.f);
-        const sj = fd ? L.subject(fd.subject) : null;
+        const fd = LEARN.field(c.f);
+        const sj = fd ? LEARN.subject(fd.subject) : null;
         if (!fd || !sj) return;
         const catId = 'lrn-' + sj.id;
         if (!topSeen.has(catId)) topSeen.set(catId, { id: catId, label: sj.label, hue: sj.hue });
@@ -176,8 +199,6 @@ function MapTab({ rail = true, anchorsOn = true, recency = true, fields: fieldsO
     return m;
   }, [nodes, cats]);
 
-  // ── anchors: the profile ring at the centre ───────────────────────────────
-  const anchors = useMemo(() => (window.MapAnchors ? window.MapAnchors.list() : []), []);
   const AR = 170;
   const laid = useMemo(() => {
     const { pos: p, fields: f } = mtClusterLayout(nodes, cats);
@@ -236,6 +257,11 @@ function MapTab({ rail = true, anchorsOn = true, recency = true, fields: fieldsO
   const fitZRef = useRef(null);
   const lastTap = useRef(null);   // double-tap detection
   const tapTimer = useRef(null);  // delayed single-tap (waits out a double)
+  // the near-miss adopter (assigned per render, below the state it reads —
+  // the viewRef precedent). Ref rather than a direct call because
+  // onPointerUp is defined above `hidden`/`ringOpen` in this body and the
+  // finder needs both.
+  const nearestRef = useRef(null);
   useEffect(() => () => clearTimeout(tapTimer.current), []);
 
   const fitAllTarget = () => {
@@ -257,15 +283,20 @@ function MapTab({ rail = true, anchorsOn = true, recency = true, fields: fieldsO
     return { x: w / 2 - cx * z, y: h / 2 - cy * z, z };
   };
 
-  // first fit — retry until the pane is measurable
+  // first fit — retry until the pane is measurable (capped, so a pane that
+  // never lays out can't leave a timer bouncing for the life of the session).
+  // This one is the Mirror tab's default `you` population, so an uncapped
+  // loop here is ~30k wake-ups/hour of dwell, each forcing a layout read in
+  // fitAllTarget — same cap, same 60, same reason as the sibling copy of
+  // this construct in person-mindmap.jsx, which was capped and this was not.
   useEffect(() => {
     if (view) return;
-    let cancelled = false;
+    let cancelled = false, tries = 0;
     const tryFit = () => {
       if (cancelled) return;
       const t = fitAllTarget();
       if (t) setView(t);
-      else setTimeout(tryFit, 120);
+      else if (++tries < 60) setTimeout(tryFit, 120);
     };
     tryFit();
     return () => { cancelled = true; };
@@ -304,10 +335,27 @@ function MapTab({ rail = true, anchorsOn = true, recency = true, fields: fieldsO
     step();
   };
 
-  const fitTo = (ids, maxZ) => {
+  // the ring stage reserves its own strip: the branch rail is hidden above and
+  // the anchor card runs to its cap below, so the ring is fitted between the two
+  // rather than into a blind fraction of the canvas — no anchor under chrome.
+  // Tighter padding buys back the size the smaller strip costs.
+  //
+  // top 56, not 14: the Mirror's stop ruler sits immediately ABOVE this
+  // canvas, and with the old strip the top anchor's hit area ended a few
+  // px under it — a thumb aiming at Age landed on the ruler and switched
+  // stops ("navigating me somewhere else", the 2026-08-11 report). The
+  // clearance costs a slightly smaller ring; a mis-tap that changes tabs
+  // costs the whole screen.
+  const RING_FIT = { padX: 56, padY: 46, top: 56, bottomFrac: 0.635 };
+  const fitTo = (ids, maxZ, opts) => {
     const el = ref.current;
     if (!el) return;
-    const w = el.clientWidth, h = el.clientHeight * 0.55; // bottom card cover
+    const o = opts || {};
+    const padX = o.padX != null ? o.padX : 170, padY = o.padY != null ? o.padY : 150;
+    const top = o.top || 0;
+    const w = el.clientWidth;
+    // bottom card cover — either an explicit reserve or the legacy fraction
+    const h = (o.bottomFrac != null ? el.clientHeight * (1 - o.bottomFrac) : el.clientHeight * (o.viewFrac || 0.55)) - top;
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity, any = false;
     ids.forEach((id) => {
       const p = pos[id];
@@ -317,11 +365,12 @@ function MapTab({ rail = true, anchorsOn = true, recency = true, fields: fieldsO
       x1 = Math.max(x1, p.x); y1 = Math.max(y1, p.y);
     });
     if (!any) return;
-    x0 -= 170; x1 += 170; y0 -= 150; y1 += 150;
+    x0 -= padX; x1 += padX; y0 -= padY; y1 += padY;
     const z = Math.min(maxZ || 0.9, w / (x1 - x0), h / (y1 - y0));
     const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
-    tweenTo({ x: w / 2 - cx * z, y: h / 2 - cy * z, z });
+    tweenTo({ x: w / 2 - cx * z, y: top + h / 2 - cy * z, z });
   };
+  const fitRing = () => fitTo(['root', ...anchors.map((a) => 'ax-' + a.id)], 0.85, RING_FIT);
 
   // drilling in or out rebuilds the whole constellation — re-frame it
   const lvlRef = useRef(openGroup);
@@ -481,7 +530,15 @@ function MapTab({ rail = true, anchorsOn = true, recency = true, fields: fieldsO
     }
     lastTap.current = { t: now, x: pt.x, y: pt.y };
     clearTimeout(tapTimer.current);
-    tapTimer.current = setTimeout(stepBack, 300);
+    // A tap that MISSED every button (pointer-down on a .mmt-node never
+    // reaches here) but landed within a fingertip of one adopts it instead
+    // of stepping back. The dots are ~15px at fit zoom, so a miss by a few
+    // px used to fire stepBack — which re-zooms or leaves the group, and
+    // reads as "the map navigated somewhere else" (2026-08-11). Resolved
+    // NOW (positions at tap time) but fired on the same delay stepBack
+    // uses, so a double-tap still wins the race and zooms.
+    const near = nearestRef.current ? nearestRef.current(pt) : null;
+    tapTimer.current = setTimeout(near ? near.go : stepBack, 300);
   };
 
   // ---- time scrub — replay the map growing answer-by-answer ----
@@ -527,7 +584,7 @@ function MapTab({ rail = true, anchorsOn = true, recency = true, fields: fieldsO
     closeScrub();
     setSel('ax-' + aid);
     setHlCat(null);
-    fitTo(['root', ...anchors.map((a) => 'ax-' + a.id)], 0.85);
+    fitRing();
   };
 
   // semantic back — one level out per tap: answer → its branch → group → all groups
@@ -573,6 +630,51 @@ function MapTab({ rail = true, anchorsOn = true, recency = true, fields: fieldsO
   const thr = cut != null ? maxAge - cut : null;
   const hidden = thr == null || thr <= 0 ? null
     : new Set(nodes.filter((n) => (n.daily ? n.age : (n.age0 ?? 0)) < thr - 1e-6).map((n) => n.id));
+
+  // the near-miss adopter for onPointerUp (via nearestRef): the closest
+  // TAPPABLE thing within ~30px of a canvas tap, with the same action its
+  // own button would run. Candidates mirror the buttons' own gates — a
+  // folded ring, a dimmed hub, a scrubbed-out dot are not tappable and must
+  // not become tappable through the side door.
+  nearestRef.current = (pt) => {
+    const v = viewRef.current;
+    if (!v) return null;
+    const P = posRef.current;
+    const cands = [];
+    if (anchorsOn && !openGroup && ringOpen) {
+      anchors.forEach((a) => {
+        const p = P['ax-' + a.id];
+        if (!p) return;
+        cands.push({
+          x: p.x, y: p.y,
+          go: () => { if (selAnchor && selAnchor.id === a.id) clearSel(); else selectAnchor(a.id); },
+        });
+      });
+    }
+    cats.forEach((c) => {
+      if (hlSet && !hlSet.has(c.id)) return;
+      const p = P[c.id];
+      if (!p) return;
+      cands.push({ x: p.x, y: p.y, go: () => selectCat(c.id) });
+    });
+    nodes.forEach((n) => {
+      if (hlSet && !hlSet.has(n.id)) return;
+      if (hidden && hidden.has(n.id)) return;
+      const p = P[n.id];
+      if (!p) return;
+      cands.push({
+        x: p.x, y: p.y,
+        go: () => { if (n.quiet) { setSel(null); setHlCat(null); setOpenGroup(n.gid); } else selectItem(n.id); },
+      });
+    });
+    let best = null, bd = 30 * 30;
+    cands.forEach((c) => {
+      const dx = c.x * v.z + v.x - pt.x, dy = c.y * v.z + v.y - pt.y;
+      const d = dx * dx + dy * dy;
+      if (d < bd) { bd = d; best = c; }
+    });
+    return best;
+  };
 
   // label collision pass — greedy keep, in screen space. Hub labels are
   // seeded first so nothing ever buries a branch name; topic labels beat
@@ -701,9 +803,12 @@ function MapTab({ rail = true, anchorsOn = true, recency = true, fields: fieldsO
             })}
           </svg>
 
-          {/* centre — you, ringed by your profile anchors */}
+          {/* centre — you, ringed by your profile anchors. The ring line's
+              transform is STATIC (the fold group below owns the open/close
+              motion): a transform that changes per state on an element with
+              a transform transition is the wobble the anchors just lost. */}
           {anchorsOn && !openGroup ? (
-            <div className={'mmt-ringline' + (ringRecede ? ' is-recede' : '') + (ringOpen ? '' : ' is-closed')} style={{ width: AR * 2, height: AR * 2, transform: `translate(-50%, -50%) scale(${ringOpen ? 1 : 0.3})` }} aria-hidden="true"></div>
+            <div className={'mmt-ringline' + (ringRecede ? ' is-recede' : '') + (ringOpen ? '' : ' is-closed')} style={{ width: AR * 2, height: AR * 2, transform: 'translate(-50%, -50%)' }} aria-hidden="true"></div>
           ) : null}
           <button
             type="button"
@@ -714,7 +819,7 @@ function MapTab({ rail = true, anchorsOn = true, recency = true, fields: fieldsO
               e.stopPropagation();
               // inside a group the centre is the way back out
               if (openGroup) { setSel(null); setHlCat(null); setOpenGroup(null); return; }
-              setSel('root'); setHlCat(null); fitTo(['root', ...anchors.map((a) => 'ax-' + a.id)], 0.85);
+              setSel('root'); setHlCat(null); fitRing();
             }}
           >
             <div className="mmt-halo" aria-hidden="true"></div>
@@ -723,34 +828,43 @@ function MapTab({ rail = true, anchorsOn = true, recency = true, fields: fieldsO
             </div>
             {openGroupDef ? <span className="mmt-center-glabel" style={{ fontSize: centerFs }}>{openGroupDef.label}</span> : null}
           </button>
-          {anchorsOn && !openGroup ? anchors.map((a) => {
-            const p = pos['ax-' + a.id];
-            if (!p) return null;
-            const isSel = selAnchor && selAnchor.id === a.id;
-            const isFilter = effFilter === a.id;
-            const soft = (selAnchor && !isSel) || ringRecede;
-            const lab = showALab || isSel || sel === 'root' || !!selNode;
-            const rk = ringOpen ? 1 : 0.12; // closed ring folds into the You dot
-            return (
-              <button
-                type="button"
-                key={a.id}
-                className={'mmt-node mmt-anchor' + (isSel ? ' is-sel' : '') + (soft ? ' is-soft' : '') + (lab ? '' : ' is-nolab') + (isFilter ? ' is-pulse' : '') + (ringOpen ? '' : ' is-closed')}
-                data-screen-label={'anchor-' + a.id}
-                style={{ '--hue': a.hue, transform: `translate(${p.x * rk}px, ${p.y * rk}px) translate(-50%, -50%) scale(${aScale})` }}
-                aria-pressed={!!isSel}
-                aria-label={a.label}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (isSel) clearSel();
-                  else selectAnchor(a.id);
-                }}
-              >
-                <span className="mmt-anchor-dot"></span>
-                <span className="mmt-anchor-label" style={{ fontSize: aFs }}>{a.label}</span>
-              </button>
-            );
-          }) : null}
+          {/* the fold wrapper owns the closed-ring collapse (scale 0.12 ↔ 1),
+              so each anchor's own transform — which tracks the per-frame
+              zoom counter-scale (aScale) — carries NO transition. When the
+              transition sat on the buttons themselves, every frame of a fit
+              tween re-targeted it and the anchors wobbled visibly the whole
+              time the card was open ("the dots shake" — 2026-08-11). */}
+          {anchorsOn && !openGroup ? (
+            <div className={'mmt-ringfold' + (ringOpen ? '' : ' is-closed')}>
+              {anchors.map((a) => {
+                const p = pos['ax-' + a.id];
+                if (!p) return null;
+                const isSel = selAnchor && selAnchor.id === a.id;
+                const isFilter = effFilter === a.id;
+                const soft = (selAnchor && !isSel) || ringRecede;
+                const lab = showALab || isSel || sel === 'root' || !!selNode;
+                return (
+                  <button
+                    type="button"
+                    key={a.id}
+                    className={'mmt-node mmt-anchor' + (isSel ? ' is-sel' : '') + (soft ? ' is-soft' : '') + (lab ? '' : ' is-nolab') + (isFilter ? ' is-pulse' : '') + (ringOpen ? '' : ' is-closed')}
+                    data-screen-label={'anchor-' + a.id}
+                    style={{ '--hue': a.hue, transform: `translate(${p.x}px, ${p.y}px) translate(-50%, -50%) scale(${aScale})` }}
+                    aria-pressed={!!isSel}
+                    aria-label={a.label}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (isSel) clearSel();
+                      else selectAnchor(a.id);
+                    }}
+                  >
+                    <span className="mmt-anchor-dot"></span>
+                    <span className="mmt-anchor-label" style={{ fontSize: aFs }}>{a.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          ) : null}
 
           {/* branch hubs */}
           {cats.map((c) => {
@@ -882,7 +996,7 @@ function MapTab({ rail = true, anchorsOn = true, recency = true, fields: fieldsO
           {sel === 'root' ? (
             <MTRootCard count={allAnswers.length} anchorCount={anchors.length}></MTRootCard>
           ) : selAnchor ? (
-            <MTAnchorCard anchor={selAnchor} items={anchorRows} onPick={selectItem} key={selAnchor.id}></MTAnchorCard>
+            <MTAnchorCard anchor={selAnchor} items={anchorRows} onPick={selectItem} anchors={anchors} onAnchor={selectAnchor} key={selAnchor.id}></MTAnchorCard>
           ) : selCat ? (
             selCat.id === 'circle-read' && window.MTPeopleCard ? (
               <MTPeopleCard onPick={selectItem} key="people"></MTPeopleCard>

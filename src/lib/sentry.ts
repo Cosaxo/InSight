@@ -4,22 +4,39 @@
 //   - @sentry/capacitor wraps the native iOS / Android crash
 //     reporting (its underlying SDK is sentry-cocoa / sentry-android
 //     loaded by the Capacitor plugin) AND the JS-layer Sentry.
-//   - @sentry/react provides the JS error boundary, route
-//     instrumentation, and component-aware breadcrumbs.
+//   - @sentry/browser provides the JS-layer init the Capacitor SDK
+//     wraps. It used to be @sentry/react, and the swap (D101) was worth
+//     28 KB of the shipping bundle for nothing given up: the only thing
+//     this file ever used from it was `init`, and @sentry/capacitor
+//     depends on @sentry/browser DIRECTLY (@sentry/react is merely one
+//     of its three framework peers). The React package's actual
+//     additions — Sentry's own ErrorBoundary, the Profiler, React Router
+//     instrumentation — were never wired: the app boundary is
+//     app-shell's own, there is no router, and breadcrumbs need the
+//     Profiler nobody mounted. The old comment here listed all three as
+//     though they were in use, which is how 28 KB of unreferenced
+//     framework code rode along unnoticed.
 //
-// The SDKs are imported DYNAMICALLY: telemetry is opt-in and off by
-// default, so most sessions never pay the ~100 KB of Sentry JS in
-// the main bundle. This module stays tiny and synchronous; the heavy
-// modules load only after consent + DSN line up. Errors reported
-// while the SDK is still loading are queued (bounded) and flushed.
+//     @sentry/react stays in package.json on purpose: it satisfies
+//     @sentry/capacitor's framework peer alongside angular and vue, and
+//     dropping it trades 0 shipped bytes for an install warning. It is
+//     no longer imported, so rolldown leaves it out of the bundle —
+//     which is the whole win.
 //
-// Configuration is opt-in via env vars — set VITE_SENTRY_DSN to
-// enable. Dev builds without the env var skip Sentry entirely.
+// The SDKs are imported DYNAMICALLY: the ~100 KB of Sentry JS stays
+// out of the main bundle and off the first-paint path, loading async
+// after boot. This module stays tiny and synchronous; the heavy
+// modules load only when the DSN + the telemetry flag line up. Errors
+// reported while the SDK is still loading are queued (bounded) and
+// flushed.
 //
-// User consent: even when a DSN is configured, we honour the local
-// `insight.telemetry.v1` flag. The default is "off" — telemetry
-// only starts after the user explicitly opts in from the account
-// panel (LivePrivacyPanel).
+// Configuration is via env vars — set VITE_SENTRY_DSN to enable.
+// Dev builds without the env var skip Sentry entirely.
+//
+// User choice: reporting is ON by default (D76), and the local
+// `insight.telemetry.v1` flag records an opt-out. The switch lives in
+// the account panel (LivePrivacyPanel); an explicit "false" is
+// honoured at every send site, not just at init.
 
 type SentryCapacitor = typeof import("@sentry/capacitor");
 
@@ -32,8 +49,13 @@ const queued: Array<[unknown, Record<string, unknown> | undefined]> = [];
 const QUEUE_CAP = 20;
 
 export function telemetryEnabled(): boolean {
+  // On unless explicitly "false" (D76) — only a recorded opt-out turns
+  // reporting off. Unreadable storage also reads as off, deliberately: a
+  // store that cannot be read is one that could not have recorded an
+  // opt-out either, and silence is the only side that cannot betray a
+  // recorded choice.
   try {
-    return localStorage.getItem(TELEMETRY_KEY) === "true";
+    return localStorage.getItem(TELEMETRY_KEY) !== "false";
   } catch {
     return false;
   }
@@ -48,11 +70,20 @@ export function setTelemetryEnabled(on: boolean): void {
   if (on) {
     sentryInit();
   } else if (sdk) {
-    // Already-initialised Sentry can't be cleanly torn down at runtime;
-    // the closest we can do is null the user. The toggle takes full
-    // effect on the next launch (sentryInit early-returns).
+    // Already-initialised Sentry cannot be cleanly torn down at runtime, so
+    // OFF is enforced at the two send sites (reportError, setSentryUser)
+    // rather than trusted to teardown — they gate on consent, not on `sdk`
+    // being non-null. Nulling the user and closing the client is the
+    // best-effort half; the gates are the half that holds.
+    //
+    // The panel used to say "Off — nothing is reported" while this ran, and
+    // that was false for the rest of the session: ~30 reportError sites, all
+    // unhandled exceptions, and 5% of traces kept transmitting, and
+    // setSentryUser (reached from wake()) re-attached the uid afterwards, so
+    // the residual was uid-linked.
     try {
       sdk.setUser(null);
+      sdk.getClient?.()?.close?.();
     } catch {
       // ignore
     }
@@ -63,15 +94,15 @@ export function sentryInit(): void {
   if (sdk || loading) return;
   const dsn = import.meta.env.VITE_SENTRY_DSN;
   if (!dsn) return;
-  // Gate on user consent — the LivePrivacyPanel toggle calls
-  // sentryInit() again after flipping the flag on.
+  // Honour the recorded opt-out — the LivePrivacyPanel toggle calls
+  // sentryInit() again if the flag is flipped back on.
   if (!telemetryEnabled()) return;
   loading = true;
   void (async () => {
     try {
       const [cap, react] = await Promise.all([
         import("@sentry/capacitor"),
-        import("@sentry/react"),
+        import("@sentry/browser"),
       ]);
       cap.init(
         {
@@ -117,6 +148,16 @@ export function reportError(
   err: unknown,
   context?: Record<string, unknown>,
 ): void {
+  // The opt-out flag, not `sdk`. An SDK initialised before the user opted
+  // out is still up, and dispatching on its presence is what made the
+  // panel's absolute claim false. Console mirroring below is unaffected:
+  // it never leaves the device.
+  if (!telemetryEnabled()) {
+    if (import.meta.env.DEV || !import.meta.env.VITE_SENTRY_DSN) {
+      console.error("[reportError]", err, context);
+    }
+    return;
+  }
   if (sdk) {
     sdk.captureException(err, { extra: context });
     return;
@@ -138,6 +179,10 @@ export function reportError(
 // name — so PII stays out of the reporting pipeline. Safe to call
 // before init: the value applies when the SDK comes up.
 export function setSentryUser(uid: string | null): void {
+  // Same gate. wake() calls this on every foreground, so without it an
+  // opted-out session re-attached its uid to a live client — turning the
+  // residual from anonymous into identified.
+  if (uid && !telemetryEnabled()) return;
   pendingUid = uid;
   if (!sdk) return;
   if (uid) {

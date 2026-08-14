@@ -4,6 +4,10 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import { MirrorLensRow } from './mirror-field.jsx';
+import { IS_DATA, fmtPop } from './sample-data.js';
+import { SCENES } from './scenes.js';
+import { Av, TabSection, MatchRing, Lazy } from './primitives.jsx';
 
 // mirror-field-pops.jsx — the four Mirror populations, each built as a node
 // list for the shared field canvas (mirror-field.jsx). One grammar throughout:
@@ -90,7 +94,7 @@ function KindredLensCard({ people = MFP_KINDRED }) {
 
 // ─── per-population field config ───
 function mfpConfig(pop, zoom, mine) {
-  const D = window.IS_DATA;
+  const D = IS_DATA;
 
   if (pop === 'circle') {
     return {
@@ -116,7 +120,7 @@ function mfpConfig(pop, zoom, mine) {
     // member profile) — yours read inside the dotted threshold, suggested beyond it
     return {
       seed: -120, mist: 0,
-      header: { kicker: 'Your scenes', fig: String(yours.length), unit: `followed · ${window.fmtPop(totalMembers)} people` },
+      header: { kicker: 'Your scenes', fig: String(yours.length), unit: `followed · ${fmtPop(totalMembers)} people` },
       key: [{ label: 'closer = members more like you' }, { glyph: 'ring', label: 'suggested' }],
       nodes: [...yours, ...suggested].map((g) => {
         const isMine = mine.has(g.id);
@@ -192,17 +196,20 @@ function mfpConfig(pop, zoom, mine) {
 }
 
 // ─── the field body — canvas, detail, lenses ───
-function MirrorFieldBody({ pop, worldZoom, zoomCtl, onPerson, firstRun }) {
-  const D = window.IS_DATA;
+// No `levelTrait` / `levelMarker`, though v17's signature still names them:
+// they only ever fed GroupLevelBreakdown, and that branch went in 2026-07-31
+// (see the note below). The prototype kept both the dangling branch and the
+// props; taking its parameter list would have re-declared two arguments
+// nothing can read.
+function MirrorFieldBody({ pop, worldZoom, zoomCtl, onPerson, firstRun, topLenses }) {
+  const D = IS_DATA;
+  const [lensOpen, setLensOpen] = useStateMFP('__ov');
   const [selId, setSelId] = useStateMFP(null);
-  const [mine, setMine] = useStateMFP(() => new Set(window.SCENES ? window.SCENES.list() : D.groups.filter((g) => g.joined).map((g) => g.id)));
+  const [mine, setMine] = useStateMFP(() => new Set(SCENES.list()));
   const [gSelId, setGSelId] = useStateMFP(() => { const g = D.groups.find((x) => x.joined); return g ? g.id : null; });
 
   // scenes are the shared follow list — stay in step with the feed's chips
-  useEffectMFP(() => {
-    if (!window.SCENES) return;
-    return window.SCENES.subscribe(() => setMine(new Set(window.SCENES.list())));
-  }, []);
+  useEffectMFP(() => SCENES.subscribe(() => setMine(new Set(SCENES.list()))), []);
 
   useEffectMFP(() => { setSelId(null); setSelNode(null); }, [pop, worldZoom]);
 
@@ -217,11 +224,13 @@ function MirrorFieldBody({ pop, worldZoom, zoomCtl, onPerson, firstRun }) {
     if (n && n.kind === 'group' && mine.has(n.data.id)) setGSelId(n.data.id);
   };
   const onJoin = (id) => {
-    if (window.SCENES) window.SCENES.follow(id); else setMine((prev) => new Set(prev).add(id));
+    // No local-state fallback beside this any more: the store is imported,
+    // so it cannot be missing, and `mine` is driven by its subscription.
+    SCENES.follow(id);
     setGSelId(id);
   };
   const onLeave = (id) => {
-    if (window.SCENES) window.SCENES.unfollow(id); else setMine((prev) => { const nx = new Set(prev); nx.delete(id); return nx; });
+    SCENES.unfollow(id);
     setGSelId((prev) => {
       if (prev !== id) return prev;
       const rest = D.groups.find((g) => g.id !== id && mine.has(g.id));
@@ -278,6 +287,12 @@ function MirrorFieldBody({ pop, worldZoom, zoomCtl, onPerson, firstRun }) {
 
   // Circle: the full relationship map IS the picture — embedded, no field canvas.
   const noCanvas = !sparse && pop === 'circle' && typeof RelationshipMap === 'function';
+  // nav v2: lens row at the top, field as its first tab
+  const topL = !!topLenses && !sparse;
+  const lensList = topL ? [{ id: '__ov', label: 'Overview' }, ...lenses] : lenses;
+  const openId = topL ? (lensList.some((l) => l.id === lensOpen) ? lensOpen : '__ov') : null;
+  const showField = !topL || openId === '__ov';
+  const openLens = topL && openId !== '__ov' ? lenses.find((l) => l.id === openId) : null;
   const rm = window.RMCore;
   const rmHeader = noCanvas && rm ? { fig: String(rm.defaultPeople().length), unit: 'across ' + rm.DEFAULT_GROUPS.length + ' circles' } : null;
 
@@ -291,17 +306,23 @@ function MirrorFieldBody({ pop, worldZoom, zoomCtl, onPerson, firstRun }) {
       </>)}
       {!sparse && !noCanvas && <MFHeader kicker={cfg.header.kicker} fig={cfg.header.fig} unit={cfg.header.unit} right={pop === 'world' ? zoomCtl : null}></MFHeader>}
       {rmHeader && <MFHeader kicker="Your circle" fig={rmHeader.fig} unit={rmHeader.unit} right={null}></MFHeader>}
-      {!sparse && !noCanvas && (<>
-        <MFCanvas key={pop + ':' + (pop === 'world' ? worldZoom : '')} nodes={cfg.nodes} selId={selId} onSel={onSel} seedDeg={cfg.seed} mist={cfg.mist} mistSeed={cfg.mistSeed || 1} tall={pop === 'near' || pop === 'world'} stretch={pop === 'world' ? 1.15 : 1.08} maxLabels={pop === 'world' && worldZoom === 'world' ? 3 : undefined}></MFCanvas>
+      {topL && <MirrorLensRow lenses={lensList} open={openId} onOpen={setLensOpen}></MirrorLensRow>}
+      {!sparse && !noCanvas && showField && (<>
+        <MFCanvas key={pop + ':' + (pop === 'world' ? worldZoom : '')} nodes={cfg.nodes} selId={selId} onSel={onSel} seedDeg={cfg.seed} mist={cfg.mist} mistSeed={cfg.mistSeed || 1} tall={pop === 'near' || pop === 'world'} stretch={pop === 'world' ? 1.15 : 1.08} maxLabels={pop === 'world' ? (worldZoom === 'world' ? 3 : 4) : undefined}></MFCanvas>
         <MFKey items={cfg.key}></MFKey>
         <MFDetail node={sel} onPerson={onPerson} onJoin={onJoin} onLeave={onLeave} joined={sel && sel.kind === 'group' ? mine.has(sel.data.id) : false}></MFDetail>
       </>)}
-      {noCanvas && (
+      {noCanvas && showField && (
         <div className="rm-embed">
           <RelationshipMap embedded={true}></RelationshipMap>
         </div>
       )}
-      {!sparse && <MirrorLenses key={pop + ':' + (pop === 'world' ? worldZoom : '') + ':' + (gSel ? gSel.id : '')} lenses={lenses}></MirrorLenses>}
+      {openLens && (
+        <div key={openId} className="fade-in" style={{ paddingTop: 4 }}>
+          <Lazy minHeight={480}>{openLens.render()}</Lazy>
+        </div>
+      )}
+      {!topL && !sparse && <MirrorLenses key={pop + ':' + (pop === 'world' ? worldZoom : '') + ':' + (gSel ? gSel.id : '')} lenses={lenses}></MirrorLenses>}
     </div>
   );
 }

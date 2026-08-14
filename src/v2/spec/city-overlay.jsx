@@ -4,13 +4,15 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import { IS_DATA } from './sample-data.js';
+import { Kicker, useDialog } from './primitives.jsx';
 
 // CityOverlay — opens when you tap a city in the World tab atlas
 const { useState: useStateCO } = React;
 
 function CityOverlay({ city, onClose }) {
   const dlg = useDialog(onClose, city && city.name ? `${city.name} profile` : 'City profile');
-  const D = window.IS_DATA;
+  const D = IS_DATA;
   const cats = D.cityScoreCats;
   const scores = city.scores || {};
 
@@ -53,7 +55,7 @@ function CityOverlay({ city, onClose }) {
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <h2 style={{ fontFamily: 'var(--sans)', fontSize: 28, margin: '0 0 4px', letterSpacing: '-0.01em', lineHeight: 1.05 }}>{city.name}</h2>
-            <div style={{ fontFamily: 'var(--sans)', fontSize: 12, color: 'var(--ink-3)', letterSpacing: '0.06em' }}>
+            <div style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 700, color: 'var(--ink-3)', letterSpacing: '0.09em', textTransform: 'uppercase' }}>
               POP {city.pop}
             </div>
             {city.blurb && (
@@ -78,7 +80,7 @@ function CityOverlay({ city, onClose }) {
               size={280}
             />
           </div>
-          <div style={{ display: 'flex', gap: 14, fontFamily: 'var(--sans)', fontSize: 11, color: 'var(--ink-3)', letterSpacing: '0.08em', marginTop: 4 }}>
+          <div style={{ display: 'flex', gap: 14, fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 700, color: 'var(--ink-3)', letterSpacing: '0.09em', textTransform: 'uppercase', marginTop: 5 }}>
             <span><span style={{ display:'inline-block', width:10, height:2, background:`oklch(0.55 0.12 ${city.hue})`, verticalAlign:'middle', marginRight:5 }} />{city.name.toUpperCase()}</span>
             <span><span style={{ display:'inline-block', width:10, height:2, background:'var(--ink-3)', verticalAlign:'middle', marginRight:5 }} />OSLO (HOME)</span>
           </div>

@@ -1,9 +1,13 @@
 rules_version = '2';
 
-// Firebase Storage rules — owner-only access to a user's private
-// uploads. The only path currently used is users/{uid}/dailyPhotos/,
-// holding opt-in cloud backups of daily-report photos. We deny
-// everything else by default.
+// Firebase Storage rules — owner-only access to a user's uploads. The
+// only path named is users/{uid}/dailyPhotos/, a RETIRED v1 surface
+// (daily-report photo backup, removed in D4) kept until the bucket is
+// confirmed empty. We deny everything else by default.
+//
+// Deliberately untouched by D98, and recorded here so it does not read
+// as an oversight: D98 publishes ANSWERS. A photo is not an answer, the
+// path is dead, and nothing on the Mirror reads it.
 //
 // Deploy with: firebase deploy --only storage
 // (NOT `--only storage:rules` — the colon form names a multi-bucket
@@ -11,17 +15,41 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
     match /users/{uid}/dailyPhotos/{filename} {
-      // Owner-only read + write. App Check (when enabled at the
-      // bucket level via the Firebase console) further restricts
-      // requests to attested clients.
-      allow read, write: if request.auth != null
-        && request.auth.uid == uid
-        // Cap upload size at 8 MB — generous for a JPEG, prevents
-        // a runaway client from filling the bucket.
-        && (request.resource == null || request.resource.size < 8 * 1024 * 1024)
-        // Only image content types. The filename has a .jpg
-        // extension by convention; this is the actual gate.
-        && (request.resource == null || request.resource.contentType.matches('image/.*'));
+      // Owner-only READ and DELETE. Uploads are closed — see below.
+      //
+      // App Check (when enabled at the bucket level via the Firebase
+      // console) further restricts requests to attested clients.
+      allow read, delete: if request.auth != null
+        && request.auth.uid == uid;
+
+      // NO create/update, and the asymmetry is the point.
+      //
+      // The grant on this path is a legacy one: D4 removed the daily-report
+      // photo backup and nothing in the app has touched Storage since —
+      // `getStorage` and `firebase/storage` appear nowhere in src/ or
+      // functions/src, only a `storageBucket` config field. So every byte
+      // this path could accept is a byte no feature asked for.
+      //
+      // What it WAS accepting: any signed-in account, and the app is
+      // anonymous-first (D3), so that is any account at all — 8 MB per
+      // object with `{filename}` unbounded, meaning unbounded object count,
+      // unbounded stored bytes and unbounded egress reading them back.
+      // docs/COSTS.md bills Storage at "$0 (bucket unused)", which was true
+      // of the app's behaviour and not of the rule's.
+      //
+      // WHY NOT A FLAT DENY, which is the obvious version of this fix.
+      // Because the grant is deliberate and the reason is recorded in
+      // firestore-tests/storage.rules.test.ts: deleteAccount does not touch
+      // Storage, so revoking access to objects that still exist would open
+      // an erasure gap rather than close a hole. That argument is about
+      // READ and DELETE — a v1 user reaching their own leftover photo to
+      // remove it — and it says nothing about accepting new bytes. Splitting
+      // the verb keeps the erasure property exactly as it was and closes the
+      // only unbounded-egress surface in the project.
+      //
+      // The 8 MB and image/* checks are gone with the write grant they
+      // guarded. They were a bound on a runaway client, not a bound on the
+      // number of objects, which is the term that actually had no ceiling.
     }
 
     // Everything else: explicitly denied. Adds an extra line of

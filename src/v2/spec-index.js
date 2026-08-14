@@ -1,9 +1,21 @@
+// The one import in this file that is NOT a spec module and carries no load
+// order: a pure helper for the two deferred groups at the foot of the file.
+// It sits above the ordered list rather than inside it because nothing in
+// that list reads it, and the list's order is a contract (see below).
+import { retryable } from './data/lazy';
+
 // Load order mirrors the standalone's script tags — order is semantic, do not sort.
 import './spec/sample-data.js';
 import './spec/archetype-data.js';
 import './spec/compare-pop.js';
 import './spec/daily-questions.js';
-import './spec/suggestions.js';
+// suggestions.js moved to the loadOverlays group (still listed, still in
+// order — the D25 move): the board's store carries the v24 seed/decline
+// furniture, and check:bundle's eager budget is why a closed board must
+// not cost a byte at boot. Its purge listener attaches when the group
+// loads, which is safe: purgeLocalTrace removes the insight.* keys
+// itself, and a module that never loaded holds no in-memory state for
+// the listener to clear.
 import './spec/demographics.js';
 import './spec/follows.js';
 import './spec/scenes.js';
@@ -14,9 +26,30 @@ import './spec/map-anchors.js';
 import './spec/map-group-stats.js';
 import './spec/duels-data.js';
 import './spec/reveal-clock.js';
+// The app-feel layer (v17). Five of these are pure side effects — they install
+// one document-level listener each and no component knows they exist — so
+// their only wiring IS this list. haptics.js and swipe-back.js publish named
+// exports instead of globals; they are listed for check:globals rule 2, not
+// because anything waits on them.
+import './spec/haptics.js';
+import './spec/swipe-back.js';
+import './spec/sheet-escape.js';
+import './spec/sheet-drag.js';
+import './spec/scroll-memory.js';
+import './spec/edge-fade.js';
 import './spec/iOS.jsx';
 import './spec/tweaks-panel.jsx';
+// primitives.jsx no longer publishes globals (D39) — its consumers import
+// it by name, so this line loads nothing anybody is waiting for. It stays
+// because check:globals rule 2 requires every file in spec/ to appear here,
+// and that rule is what catches a module silently dropping out of the
+// bundle. When the next provider converts, it keeps its line for the same
+// reason; the list stops being a load-order contract one module at a time.
 import './spec/primitives.jsx';
+// explain-sheet.jsx sits here in the standalone's order, and it is a named-
+// export module too — but it builds on primitives' `Sheet`, so the line above
+// it is a real dependency rather than a load-order relic.
+import './spec/explain-sheet.jsx';
 import './spec/viz-primitives.jsx';
 import './spec/compare-breakdown.jsx';
 import './spec/relmap-core.js';
@@ -25,7 +58,8 @@ import './spec/relmap-lenses.jsx';
 // the standalone loads it: VOTECUTS reuses the lens band definitions, and the
 // who-voted breakdowns (daily-split, world-feed) read VOTECUTS at render time.
 import './spec/vote-cuts.js';
-import './spec/relmap-panels.jsx';
+// relmap-panels.jsx is not listed: relmap.jsx imports its two panels by name
+// (D137), so the ESM graph loads it and rule 2 is satisfied without a line.
 import './spec/relmap.jsx';
 import './spec/test-viz.jsx';
 import './spec/profile-test-viz.jsx';
@@ -33,12 +67,17 @@ import './spec/type-marks.jsx';
 import './spec/result-rose.jsx';
 import './spec/result-card.jsx';
 import './spec/group-daily.jsx';
+import './spec/read-run.jsx';
 import './spec/duo-daily.jsx';
 // place-stats.js and pick-data.js must precede world-feed-data.js: the feed
 // pool concatenates window.PLACE_RATE_QS and window.PICK_QS at module scope,
 // so both card sets must already exist.
 import './spec/place-stats.js';
 import './spec/pick-data.js';
+// world-palette.js — the hue gate every World surface runs its colours
+// through. A named-export module; its position here is the standalone's, and
+// it reads no other module at load time.
+import './spec/world-palette.js';
 // world-feed-data.js stays EAGER even though the feed itself does not:
 // daily-split.jsx reads window.WORLD_TOPICS at MODULE scope (line 19), and
 // deferring it would silently swap the real topic set for that line's
@@ -71,11 +110,15 @@ import './spec/search-overlay.jsx';
 import './spec/test-definitions.js';
 import './spec/passive-progress.js';
 import './spec/test-feed-data.js';
-// lens-defs builds LENS_FEED_QS at module scope off window.LENSES, so it has
-// to land after the core tests it deliberately trails in the feed.
+// lens-defs' feed pool (LENS_FEED_QS) is a lazy builder now — it differs
+// between demo and live, and liveness lands only after boot — so nothing
+// here waits on a module-scope snapshot anymore; the listing itself is
+// still load-bearing (rule 2).
 import './spec/lens-defs.js';
 import './spec/passive-meter.jsx';
-// test-overlay.jsx loads after first paint — see loadOverlays() below.
+// test-overlay.jsx stood here (deferred, see loadOverlays below) until D121
+// deleted it: the four core instruments fill from the feed and have no
+// sit-down flow, so there was nothing left for it to open.
 import './spec/lens-cards.jsx';
 import './spec/profile-overlay.jsx';
 // person-mindmap.jsx, person-overlay.jsx, city-overlay.jsx and
@@ -96,10 +139,9 @@ import './spec/map-layout.js';
 import './spec/map-groups.js';
 import './spec/map-chiprow.jsx';
 import './spec/map-tab.jsx';
-// data/logic-gen and logic-test.jsx load after first paint, still adjacent
-// and still in this order — the generator publishes window.LOGIC_GEN, which
-// the overlay reads at render time. (Order is semantic here, like
-// everything in this file.)
+// logic-test.jsx loads after first paint; it imports data/logic-gen
+// directly (D53), so the generator rides the same deferred chunk without
+// a listing of its own.
 import './spec/profile-general.jsx';
 // These were born in this repo (never in design/) and live as typed TSX
 // under ui/; they self-register on globalThis so the render-time lookups
@@ -108,8 +150,19 @@ import './ui/LiveDuelPanel';
 import './ui/LivePrivacyPanel';
 import './ui/CityPicker';
 import './ui/PickSearch';
-import './ui/LiveCohortBody';
-import './ui/LiveGroupsMirrorBody';
+// NB: no other ui/ panel is listed here, and the reason is now the same one
+// for all of them: nothing looks them up by name. Every remaining consumer
+// imports the panel it renders, so the ESM graph loads it (rule 2 asks
+// whether a file LOADS, not whether this file names it). ui/LiveVotersPanel,
+// ui/LiveCircleBody and ui/LiveCohortBody additionally must not be listed —
+// each is reached only past first paint (D25's deferred group; a React.lazy
+// for Circle and, since D119, for Cohort), so a line here would drag it into
+// the eager bundle, which is the whole thing the deferral bought.
+//
+// ui/LiveGroupsMirrorBody and ui/LiveTakesPanel were listed until D137 for a
+// side effect they no longer have. Both stay in the eager chunk anyway —
+// mirror-tab.jsx and ui/LiveDuelPanel import them, and both of those are
+// eager — so dropping the lines moved no bytes.
 import './spec/app-shell.jsx';
 
 // ── the world feed, after first paint ──────────────────────────────────
@@ -145,20 +198,28 @@ import './spec/app-shell.jsx';
 // below exactly as it was by the static imports (it substring-matches this
 // file). Rule 1 is name-level and cannot see load ORDER at all, so it would
 // not notice if this list were wrong — the mount tests are what covers
-// that, which is why smoke.test.jsx now asserts BOTH states: the app before
+// that, which is why smoke-daily.test.jsx asserts BOTH states: the app before
 // the chunk lands, and the feed present after.
-let worldFeedLoad = null;
-export function loadWorldFeed() {
-  if (!worldFeedLoad) {
-    worldFeedLoad = (async () => {
-      await import('./spec/world-feed-comments.js');
-      await import('./spec/world-feed-counters.js');
-      await import('./spec/consequence-beat.jsx');
-      await import('./spec/world-feed.jsx');
-    })();
-  }
-  return worldFeedLoad;
-}
+// retryable(), not `if (!p) p = …`: the hand-rolled memo cached a REJECTED
+// promise exactly as it cached a resolved one, so one failed chunk fetch
+// removed this group for the rest of the session. data/lazy.ts carries the
+// reasoning and the tests; the sharing every comment here relies on is
+// unchanged.
+export const loadWorldFeed = retryable(async () => {
+  await import('./spec/world-feed-comments.js');
+  await import('./spec/world-feed-counters.js');
+  await import('./spec/consequence-beat.jsx');
+  // world-feed-math.js is NOT awaited here and does not need to be —
+  // world-feed.jsx imports it directly, so the module graph orders it,
+  // and it stays out of the entry chunk with the rest of the feed.
+  //
+  // It used to be named in a COMMENT below this line, to satisfy
+  // check:globals rule 2 by substring match. That rule now strips
+  // comments (a commented-out side-effect import loads nothing, which is
+  // how five v17 modules could have been silently unwired) and instead
+  // accepts a file the ESM graph already reaches. Nothing to name here.
+  await import('./spec/world-feed.jsx');
+});
 
 // ── the no-button overlays, after first paint ──────────────────────────
 //
@@ -177,18 +238,19 @@ export function loadWorldFeed() {
 // await IS the synchronisation, so there is no window in which an overlay
 // is open and its module is missing.
 //
-// That also means the guards at the render sites (`window.TestOverlay &&`
+// That also means the guards at the render sites (`window.LogicOverlay &&`
 // …) are a second line rather than the mechanism. Without the awaits they
-// would be actively wrong: `setOv('test')` with the chunk still in flight
+// would be actively wrong: `setOv(k)` with the chunk still in flight
 // renders nothing, and nothing is scheduled to re-read the global, so the
 // overlay would stay blank until some unrelated state change. Guard alone
 // is not enough here — that is the difference between this group and the
 // feed, whose absence is a legitimate frame.
 //
 // SEQUENTIAL awaits and this exact order, which is spec-index's own order
-// with the eager modules removed: data/logic-gen publishes window.LOGIC_GEN
-// and logic-test.jsx is its only consumer, so the pair stays adjacent and
-// in that direction.
+// with the eager modules removed. (data/logic-gen used to be listed here
+// explicitly for its window.LOGIC_GEN side effect; logic-test.jsx imports
+// it directly now — D53 — so the ESM graph carries it into the same
+// chunk without a line of its own.)
 //
 // relmap.jsx is deliberately NOT here despite being the largest candidate
 // (~43 KB). It is the one overlay with a first-frame consumer:
@@ -202,21 +264,20 @@ export function loadWorldFeed() {
 // Memoised for the same reason as loadWorldFeed: main.jsx starts it once,
 // every opener awaits it, and the mount tests await it in beforeAll — all
 // of them get the same promise rather than racing separate loads.
-let overlaysLoad = null;
-export function loadOverlays() {
-  if (!overlaysLoad) {
-    overlaysLoad = (async () => {
-      await import('./spec/test-overlay.jsx');
-      await import('./spec/person-mindmap.jsx');
-      await import('./spec/person-overlay.jsx');
-      await import('./spec/city-overlay.jsx');
-      await import('./spec/suggestions.jsx');
-      await import('./data/logic-gen');
-      await import('./spec/logic-test.jsx');
-    })();
-  }
-  return overlaysLoad;
-}
+//
+// And retryable() for the same reason too — but the recovery lands harder
+// here than it does on the feed. Every overlay in this group is reached ONLY
+// through an opener that awaits this promise, so a cached rejection turned
+// each of them into a tap that does nothing, permanently. Now the second tap
+// re-attempts the import; nothing else had to change to get that.
+export const loadOverlays = retryable(async () => {
+  await import('./spec/person-mindmap.jsx');
+  await import('./spec/person-overlay.jsx');
+  await import('./spec/city-overlay.jsx');
+  await import('./spec/suggestions.js');
+  await import('./spec/suggestions.jsx');
+  await import('./spec/logic-test.jsx');
+});
 
 // …and published on globalThis, because app-shell's openers have to await
 // it and there is no other way for a spec module to reach it.

@@ -56,6 +56,12 @@ const OTHER = "other-user-1";
 const DAY = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
 const SOLO = "grp_solo";
 const SHARED = "grp_shared";
+// A group this account LEAVES before deleting. Phase 1c queries groups by
+// `memberUids array-contains uid`, so a left group is invisible to it — and
+// leaveGroupV2 does not rewrite reveals, by design. Everything the account
+// left behind in this group's reveals therefore survived erasure until the
+// collection-group sweep (phase 1c-bis) went looking for it directly.
+const LEFT = "grp_left";
 
 // ── seed every phase deleteAccount claims to wipe ──
 // Written with admin, because most of these paths are no longer
@@ -67,6 +73,10 @@ await adb.doc(`v2_users/${uid}/answers/daily-000`).set({ qid: "daily-000", optio
 // erasure must cover it identically, and this seed is what proves the
 // claim instead of assuming the recursiveDelete reaches it.
 await adb.doc(`v2_users/${uid}/answers/learn-cell1`).set({ qid: "learn-cell1", surface: "learn", optionIdx: 2 });
+// The verified-logic attempt doc (D57) sits in its own top-level
+// collection keyed by uid — outside the subtree recursiveDelete reaches —
+// so erasure needs (and has) a dedicated phase, proven here.
+await adb.doc(`v2_logic_attempts/${uid}`).set({ seed: 7, gv: 2, status: "scored", score: 9 });
 await adb.doc(`insight_users/${uid}`).set({ sharePrefs: {} });
 await adb.doc(`insight_users/${uid}/insight_daily/${DAY}`).set({ date: DAY, mood: 60 });
 await adb.doc(`insight_discoverable/${uid}`).set({ location: { geohash: "u4pru" } });
@@ -86,6 +96,52 @@ await adb.doc(`v2_agg_events/evt_theirs`).set({ qid: "daily-000", uid: OTHER });
 await adb.doc(`insight_users/${OTHER}/insight_inbound_impressions/i1`)
   .set({ senderUid: uid, traits: ["kind"], createdAt: 1 });
 await adb.doc(`insight_users/${OTHER}/relations/r1`).set({ linkedUid: uid });
+// The follow graph, both directions (D101). The account's OWN follow goes
+// with its v2 subtree in phase 1b; the inbound one lives under someone
+// else's uid and needs phase 3b's collection-group sweep to find it —
+// which is the whole reason the row carries `to` as a field, since a
+// collection-group query cannot filter on a document id.
+// Foresight verdicts (D126) live under the account's own subtree, so
+// phase 1b's recursive delete is what takes them — the same property the
+// push and following subcollections rely on. Seeded so "covered by the
+// subtree wipe" is a tested claim rather than an assumed one.
+await adb.doc(`v2_users/${uid}/foresight/daily-000__ageBand__25-34`).set({
+  qid: "daily-000", dim: "ageBand", bucket: "25-34", guess: 0, answerIdx: 0, n: 20, at: new Date(),
+});
+await adb.doc(`v2_users/${uid}/following/${OTHER}`).set({ to: OTHER, at: new Date() });
+await adb.doc(`v2_users/${OTHER}/following/${uid}`).set({ to: uid, at: new Date() });
+// The control: OTHER's follow of a third party must survive. A sweep that
+// took the whole subcollection instead of the matching rows would empty
+// every follower's Circle on any deletion, and would look identical to a
+// correct one from the deleted account's side.
+await adb.doc(`v2_users/${OTHER}/following/third_party`).set({ to: "third_party", at: new Date() });
+
+// Handles and invitations (D122). Three shapes, and only the first is
+// reachable by phase 1b's recursiveDelete of the profile:
+//
+//   · the handle registry row is keyed by the NAME, not the uid, so it
+//     lives outside the profile subtree entirely — and leaving it means
+//     the name stays unclaimable forever for an account that is gone;
+//   · an invitation TO this account sits under someone else's group;
+//   · an invitation FROM this account sits in a stranger's inbox with
+//     this account's display name on it, which is the half that outlives
+//     an erasure most visibly.
+await adb.doc("v2_handles/erasable").set({ uid, at: new Date() });
+await adb.doc(`v2_groups/${SHARED}/invites/${uid}`).set({
+  to: uid, from: OTHER, fromName: "Other", groupName: "Shared", mode: "group", at: new Date(),
+});
+await adb.doc(`v2_groups/${SHARED}/invites/third_party`).set({
+  to: "third_party", from: uid, fromName: "Mine", groupName: "Shared", mode: "group", at: new Date(),
+});
+// Two controls, same shape as the follow one above: another account's
+// handle, and an invitation between two other people in a circle this
+// account was in. A sweep that took the collection rather than the
+// matching rows would look correct from the deleted side and be a
+// catastrophe from everyone else's.
+await adb.doc("v2_handles/somebodyelse").set({ uid: OTHER, at: new Date() });
+await adb.doc(`v2_groups/${SHARED}/invites/fourth_party`).set({
+  to: "fourth_party", from: OTHER, fromName: "Other", groupName: "Shared", mode: "group", at: new Date(),
+});
 
 // a group only they belong to → should be removed outright
 await adb.doc(`v2_groups/${SOLO}`).set({
@@ -97,8 +153,14 @@ await adb.doc(`v2_groups/${SOLO}/reveals/${DAY}`).set({
 });
 
 // a group shared with someone else → must SURVIVE, scrubbed of them
+//
+// `ownerUid` is the DOOMED account deliberately. It used to be OTHER here,
+// which is the reason this suite could not see that erasure never removed
+// the field: the group the assertions run against was owned by the surviving
+// member, so there was nothing of the deleted user's left in it to miss. A
+// creator deleting their account is the ordinary case, not the exotic one.
 await adb.doc(`v2_groups/${SHARED}`).set({
-  name: "Shared", mode: "group", ownerUid: OTHER, memberUids: [uid, OTHER], streak: 3,
+  name: "Shared", mode: "group", ownerUid: uid, memberUids: [uid, OTHER], streak: 3,
 });
 await adb.doc(`v2_groups/${SHARED}/reveals/${DAY}`).set({
   day: DAY, qid: "group-gu0",
@@ -107,6 +169,19 @@ await adb.doc(`v2_groups/${SHARED}/reveals/${DAY}`).set({
   // The membership snapshot the reveal read rule gates on. Seeded here
   // because erasure has to reach it too — it is a uid, and it carries the
   // fact that this account played in this group on this day.
+  members: [uid, OTHER],
+});
+
+// a group they LEAVE before deleting — the group survives with the other
+// member, and the reveal keeps naming them until erasure reaches it
+await adb.doc(`v2_groups/${LEFT}`).set({
+  name: "Left", mode: "group", ownerUid: OTHER, memberUids: [uid, OTHER],
+  memberNames: { [uid]: "Doomed", [OTHER]: "Survivor" }, streak: 5,
+});
+await adb.doc(`v2_groups/${LEFT}/reveals/${DAY}`).set({
+  day: DAY, qid: "group-gu0",
+  votes: { [uid]: { optionIdx: 1 }, [OTHER]: { optionIdx: 0 } },
+  names: { [uid]: "Doomed", [OTHER]: "Survivor" },
   members: [uid, OTHER],
 });
 
@@ -122,6 +197,27 @@ await adb.doc(`v2_takes/${MY_TAKE}`).set({
   gid: SHARED, authorUid: uid, qid: "q1", text: "words that must not outlive the account",
 });
 await adb.doc(`v2_flags/${MY_TAKE}_${uid}`).set({ takeId: MY_TAKE, gid: SHARED, uid });
+
+// question suggestions (docs/NEXT-FUNCTIONALITY.md §6): free text keyed to
+// the account, plus the budget ledger the callable keeps. OTHER's row is
+// the control — the sweep queries on uid and must not take the queue with
+// it. Seeded with admin like the takes; the callable's own behaviour is
+// the loop e2e's job.
+await adb.doc(`v2_suggestions/${uid}_e2e`).set({
+  uid, prompt: "a suggestion that must not outlive the account",
+  type: "binary", options: ["a", "b"], topicHint: null, audienceHint: null,
+  cadenceHint: null, credit: false, status: "review", at: new Date(),
+});
+await adb.doc(`v2_suggestions/${OTHER}_e2e`).set({
+  uid: OTHER, prompt: "someone else's suggestion",
+  type: "binary", options: ["a", "b"], topicHint: null, audienceHint: null,
+  cadenceHint: null, credit: false, status: "review", at: new Date(),
+});
+await adb.doc(`v2_ratelimits/suggest_${uid}`).set({ events: [Date.now()] });
+// The presence doc (D84): the one location-shaped datum an account can
+// hold, and the wipe must take it — a cell that outlives its account is a
+// standing "someone was here" nobody can retract.
+await adb.doc(`v2_presence/${uid}`).set({ cell: "5999_1074", at: new Date() });
 await adb.doc(`v2_mod_queue/${MY_TAKE}`).set({
   takeId: MY_TAKE, gid: SHARED, text: "words that must not outlive the account",
   flags: 3, escalations: 0,
@@ -138,17 +234,29 @@ await adb.doc(`v2_mod_queue/${THEIR_TAKE}`).set({
   takeId: THEIR_TAKE, gid: SHARED, text: "someone else's words", flags: 3, escalations: 1,
 });
 
-// one client-authored write, so the test also covers the real path
+// One client-authored write, so the test also covers the real path.
+//
+// The question is SEEDED first and the write is no longer swallowed. Without
+// the seed, isWorldAnswer()'s get() on the missing question denied this every
+// run — the repo asserts that exact shape itself in rules.test.ts — and the
+// .catch() ate it, so the row below asserted the absence of a document that
+// had never existed. The file's own header says this leg covers the real
+// path; it did not.
+await adb.doc("v2_questions/client-written").set({
+  surface: "daily", seq: 9001, type: "vote", prompt: "client-written probe",
+  options: ["a", "b"], active: true,
+});
 await setDoc(doc(db, "v2_users", uid, "answers", "client-written"), {
   qid: "client-written", surface: "daily", optionIdx: 0,
   answeredAt: serverTimestamp(), anchors: {},
-}).catch(() => { /* rules may reject an unseeded qid — not what we're testing */ });
+});
 
 // prove the setup actually landed, or the wipe assertions are vacuous
 for (const [path, label] of [
   [`v2_users/${uid}`, "v2 profile"],
   [`v2_users/${uid}/answers/daily-000`, "v2 answer"],
   [`v2_users/${uid}/answers/learn-cell1`, "learn answer (D32)"],
+  [`v2_logic_attempts/${uid}`, "verified logic attempt (D57)"],
   [`insight_users/${uid}`, "v1 profile"],
   [`insight_discoverable/${uid}`, "discoverable doc"],
   [`insight_ratelimits/${uid}`, "v1 rate-limit ledger"],
@@ -157,13 +265,19 @@ for (const [path, label] of [
   [`insight_users/${OTHER}/relations/r1`, "relation naming them"],
   [`v2_groups/${SOLO}`, "solo group"],
   [`v2_groups/${SHARED}`, "shared group"],
+  [`v2_groups/${LEFT}`, "the group they will leave"],
+  [`v2_groups/${LEFT}/reveals/${DAY}`, "that group's reveal"],
   [`v2_takes/${MY_TAKE}`, "their take"],
   [`v2_flags/${MY_TAKE}_${uid}`, "their flag on their own take"],
+  [`v2_presence/${uid}`, "their presence cell"],
   [`v2_mod_queue/${MY_TAKE}`, "the queue's copy of their take"],
   [`v2_takes/${THEIR_TAKE}`, "someone else's take"],
   [`v2_mod_queue/${THEIR_TAKE}`, "the queue's copy of someone else's take"],
   [`v2_agg_events/evt_mine`, "their agg-ledger entry"],
   [`v2_agg_events/evt_theirs`, "someone else's agg-ledger entry"],
+  [`v2_suggestions/${uid}_e2e`, "their question suggestion"],
+  [`v2_suggestions/${OTHER}_e2e`, "someone else's question suggestion"],
+  [`v2_ratelimits/suggest_${uid}`, "their suggestion budget ledger"],
 ]) await mustExist(path, label);
 ok("seeded every wipe phase, and verified it landed");
 
@@ -187,6 +301,25 @@ if (!organic) fail("the answer trigger never wrote a uid-attributed ledger entry
 if (!organic.get("expireAt")) fail("organic ledger entry has no expireAt — the TTL policy would never collect it");
 ok("the real trigger attributed the answer: uid + qid + expireAt in the ledger");
 
+// ── leave a group first, through the real callable ──
+// This is the setup for the gap this leg exists for, and it is driven
+// rather than seeded on purpose: a hand-written "left" state would pass
+// against a leaveGroupV2 that scrubs reveals, and against one that removes
+// nothing at all. It is also the only coverage leaveGroupV2 has.
+await httpsCallable(fns, "leaveGroupV2")({ gid: LEFT });
+const leftGroup = await adb.doc(`v2_groups/${LEFT}`).get();
+if (!leftGroup.exists) fail("leaveGroupV2 deleted a group that still had another member");
+if ((leftGroup.get("memberUids") || []).includes(uid)) fail("leaveGroupV2 did not remove the membership");
+if ((leftGroup.get("memberNames") || {})[uid]) fail("leaveGroupV2 left the display name in memberNames");
+// The other half of the contract, asserted so a future change that starts
+// scrubbing reveals on leave has to come here and argue with it: leaving is
+// not an erasure request, and a reveal is several people's record of a day
+// they all played. Leaving must NOT rewrite it.
+const leftReveal = await adb.doc(`v2_groups/${LEFT}/reveals/${DAY}`).get();
+if (!(leftReveal.get("names") || {})[uid])
+  fail("leaveGroupV2 rewrote a past reveal — leaving is not erasure (see index.ts phase 1c-bis)");
+ok("left a group: membership gone, the shared reveal deliberately untouched");
+
 // ── the call under test ──
 const res = await httpsCallable(fns, "deleteAccount")({});
 if (!res.data?.ok) fail("deleteAccount did not report ok: " + JSON.stringify(res.data));
@@ -209,6 +342,7 @@ for (const [path, label] of [
   [`v2_users/${uid}/answers/daily-000`, "v2 answer (subcollection)"],
   [`v2_users/${uid}/answers/learn-cell1`, "learn answer (subcollection, D32)"],
   [`v2_users/${uid}/answers/client-written`, "client-written answer"],
+  [`v2_logic_attempts/${uid}`, "verified logic attempt (D57)"],
   [`insight_users/${uid}`, "v1 profile"],
   [`insight_users/${uid}/insight_daily/${DAY}`, "v1 daily report (subcollection)"],
   [`insight_discoverable/${uid}`, "discoverable doc"],
@@ -221,10 +355,19 @@ for (const [path, label] of [
   [`v2_takes/${MY_TAKE}`, "their take"],
   [`v2_flags/${MY_TAKE}_${uid}`, "their flag on their own take"],
   [`v2_flags/${THEIR_TAKE}_${uid}`, "their flag on someone else's take"],
+  [`v2_users/${uid}/following/${OTHER}`, "the account's own follow"],
+  [`v2_users/${uid}/foresight/daily-000__ageBand__25-34`, "a foresight verdict"],
+  [`v2_users/${OTHER}/following/${uid}`, "someone else's follow OF this account"],
+  [`v2_presence/${uid}`, "their presence cell"],
   // The gap this leg exists for: the take was erased, and its words went on
   // living in the moderation queue's copy of them.
   [`v2_mod_queue/${MY_TAKE}`, "the queue's copy of their take"],
+  [`v2_suggestions/${uid}_e2e`, "their question suggestion (phase 4d)"],
+  [`v2_ratelimits/suggest_${uid}`, "their suggestion budget ledger"],
   [`v2_agg_events/evt_mine`, "their agg-ledger entry"],
+  ["v2_handles/erasable", "their handle — the name goes back into circulation"],
+  [`v2_groups/${SHARED}/invites/${uid}`, "an invitation TO them, under someone else's circle"],
+  [`v2_groups/${SHARED}/invites/third_party`, "an invitation FROM them, carrying their name"],
 ]) await mustBeGone(path, label);
 
 // …including the organic entry, whose id nobody knows — so ask by query,
@@ -245,6 +388,9 @@ if (theirQueued.get("text") !== "someone else's words") fail("someone else's que
 if (theirQueued.get("escalations") !== 1) fail("someone else's escalation count was lost");
 if (!(await exists(`v2_takes/${THEIR_TAKE}`))) fail("someone else's take was deleted");
 ok("someone else's take, its queue entry and its escalation count survive untouched");
+if (!(await exists(`v2_suggestions/${OTHER}_e2e`)))
+  fail("someone else's suggestion was deleted — the sweep matched more than the uid");
+ok("someone else's question suggestion survives");
 
 // The ledger sweep is a uid query, and this is why it has to be: another
 // account's attribution record must outlive this deletion, or one erasure
@@ -256,12 +402,30 @@ if (!(await exists(`v2_agg_events/evt_theirs`))) fail("someone else's agg-ledger
 if (!(await exists(`v2_aggs_private/daily-000`))) fail("erasure destroyed the aggregate tally itself");
 ok("someone else's ledger entry and the anonymous tally both survive");
 
+// The follow sweep stopped at the rows that named this uid.
+if (!(await exists(`v2_users/${OTHER}/following/third_party`)))
+  fail("the follow sweep took someone else's whole following list, not just the rows pointing here");
+ok("someone else's other follows survive — the sweep matched on `to`, not on the collection");
+
+// The same control for D122's two sweeps.
+if (!(await exists("v2_handles/somebodyelse")))
+  fail("the handle sweep took another account's handle — it matched the collection, not the uid");
+if (!(await exists(`v2_groups/${SHARED}/invites/fourth_party`)))
+  fail("the invite sweep took an invitation between two other people");
+ok("another account's handle and other people's invitations survive");
+
 // ── the shared group survives, scrubbed ──
 const shared = await adb.doc(`v2_groups/${SHARED}`).get();
 if (!shared.exists) fail("the SHARED group was deleted — it still had another member");
 const members = shared.get("memberUids") || [];
 if (members.includes(uid)) fail("deleted uid still in the shared group's memberUids");
 if (!members.includes(OTHER)) fail("the surviving member was removed from the shared group");
+// The field nothing reads, which is why it outlived three erasure phases:
+// firestore.rules serves the whole group document to every current member,
+// so a leftover ownerUid publishes the deleted account's raw uid to the
+// circle forever.
+if (shared.get("ownerUid") === uid) fail("the deleted user's uid survives as the shared group's ownerUid");
+if (shared.get("name") !== "Shared") fail("erasure damaged the surviving group's own fields");
 
 const reveal = await adb.doc(`v2_groups/${SHARED}/reveals/${DAY}`).get();
 if (!reveal.exists) fail("the shared group's reveal was deleted wholesale");
@@ -277,6 +441,31 @@ if (revealMembers.includes(uid)) fail("the deleted uid survives in a reveal's me
 if (!revealMembers.includes(OTHER)) fail("the surviving member lost their reveal read access");
 if (!votes[OTHER]) fail("the surviving member's vote was scrubbed too");
 ok("shared group survives; the deleted user's vote, name and membership entry were scrubbed");
+
+// ── and the group they had already LEFT is scrubbed too ──
+// The regression this leg exists for. Phase 1c cannot see this group — the
+// account is not in its memberUids any more — so before the collection-group
+// sweep every assertion below failed: name, vote and the members entry all
+// survived the erasure, readable by whoever stayed in the group.
+const leftAfter = await adb.doc(`v2_groups/${LEFT}`).get();
+if (!leftAfter.exists) fail("the LEFT group was deleted — it still had another member");
+if (!(leftAfter.get("memberUids") || []).includes(OTHER))
+  fail("the surviving member was removed from the group the deleted user had left");
+
+const leftRevealAfter = await adb.doc(`v2_groups/${LEFT}/reveals/${DAY}`).get();
+if (!leftRevealAfter.exists) fail("the left group's reveal was deleted wholesale");
+const lVotes = leftRevealAfter.get("votes") || {};
+const lNames = leftRevealAfter.get("names") || {};
+const lMembers = leftRevealAfter.get("members") || [];
+if (lNames[uid]) fail("LEFTOVER: the deleted user's display name survives in a group they had left");
+if (lVotes[uid]) fail("LEFTOVER: the deleted user's vote survives in a group they had left");
+if (lMembers.includes(uid)) fail("LEFTOVER: the deleted uid survives in the members snapshot of a group they had left");
+// The same control as the shared group: a sweep that took the whole reveal,
+// or the whole members array, would pass every assertion above.
+if (!lVotes[OTHER]) fail("the surviving member's vote was scrubbed from the left group's reveal");
+if (!lNames[OTHER]) fail("the surviving member's name was scrubbed from the left group's reveal");
+if (!lMembers.includes(OTHER)) fail("the surviving member lost read access to the left group's reveal");
+ok("the group they had already left is scrubbed too — membership is not what erasure follows");
 
 console.log("\nALL ERASURE CHECKS PASSED");
 process.exit(0);

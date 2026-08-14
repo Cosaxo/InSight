@@ -13,30 +13,52 @@ import React from 'react';
 
 // ── topic palette ── id doubles as the question's cat. Hues share one chroma tier.
 window.WORLD_TOPICS = [
-  { id: 'sport',   label: 'Sport',          color: 'oklch(0.55 0.14 145)' },
-  { id: 'food',    label: 'Food',           color: 'oklch(0.55 0.14 40)'  },
-  { id: 'movies',  label: 'Movies & TV',    color: 'oklch(0.55 0.14 310)' },
-  { id: 'music',   label: 'Music',          color: 'oklch(0.55 0.14 355)' },
-  { id: 'tech',    label: 'Tech',           color: 'oklch(0.55 0.14 235)' },
-  { id: 'culture', label: 'Culture',        color: 'oklch(0.55 0.14 200)' },
-  { id: 'dilemma', label: 'Dilemmas',       color: 'oklch(0.55 0.14 25)'  },
-  { id: 'event',   label: 'World events',   color: 'oklch(0.55 0.14 260)' },
-  { id: 'people',  label: 'Famous people',  color: 'oklch(0.55 0.14 85)'  },
-  { id: 'bigq',    label: 'Big questions',  color: 'oklch(0.55 0.14 290)' },
-  { id: 'places',  label: 'Places',         color: 'oklch(0.55 0.14 60)'  },
+  { id: 'sport',   label: 'Sport',          color: 'oklch(0.52 0.14 145)' },
+  { id: 'food',    label: 'Food',           color: 'oklch(0.52 0.14 40)'  },
+  { id: 'movies',  label: 'Movies & TV',    color: 'oklch(0.52 0.14 310)' },
+  { id: 'music',   label: 'Music',          color: 'oklch(0.52 0.14 355)' },
+  { id: 'tech',    label: 'Tech',           color: 'oklch(0.52 0.14 235)' },
+  { id: 'culture', label: 'Culture',        color: 'oklch(0.52 0.14 200)' },
+  { id: 'dilemma', label: 'Dilemmas',       color: 'oklch(0.52 0.14 25)'  },
+  { id: 'event',   label: 'World events',   color: 'oklch(0.52 0.14 260)' },
+  { id: 'people',  label: 'Famous people',  color: 'oklch(0.52 0.14 85)'  },
+  { id: 'bigq',    label: 'Big questions',  color: 'oklch(0.52 0.14 290)' },
+  { id: 'places',  label: 'Places',         color: 'oklch(0.52 0.14 60)'  },
   // catalogue picks are a FORMAT, not a subject — so they live on a channel, the
   // same way dilemmas and rankings do. It also means they always have a home:
   // 'movies' has no scene pointing at it, so a film question filed under it can
   // never reach the feed.
-  { id: 'fav',     label: 'Favourites',     color: 'oklch(0.55 0.14 170)' },
+  { id: 'fav',     label: 'Favourites',     color: 'oklch(0.52 0.14 170)' },
 ];
 
 // ── channels ── always-on formats (not communities); they follow your scenes in the chip row
-window.WORLD_CHANNELS = ['dilemma', 'event', 'people', 'bigq', 'places', 'fav'];
+//
+// …in the DEMO, where the subject topics (sport, food, …) reach the feed
+// through the communities that pull them. A live build offers no communities
+// (D96) and its bank tags questions with exactly those subjects — so with the
+// demo list, most of the seeded bank sat behind a door that no longer exists:
+// no chip, no follow, no search result could surface it. Until scenes have a
+// real backend, a live build runs every SUBJECT always-on; the chips' mute is
+// unchanged, so the coarse control a follow used to give is still there. The
+// two formats with no live stock stay out of the live row — the bank mapper
+// (data/live.ts) emits plain votes only, so `places` (rate cards) and `fav`
+// (catalogue picks) would be dead chips filtering nothing. Build flag rather
+// than window.LIVE.enabled for learn-progress.js's reason: this runs at
+// module scope, before the live boot attaches — and the demoInProd fallback
+// needs the widening too, because a live build seeds zero follows and its
+// demo-pool fallback had the same dark subjects.
+const WFD_LIVE_BUILD = import.meta.env && import.meta.env.VITE_V2_LIVE === 'true';
+window.WORLD_CHANNELS = WFD_LIVE_BUILD
+  ? window.WORLD_TOPICS.filter((t) => t.id !== 'places' && t.id !== 'fav').map((t) => t.id)
+  : ['dilemma', 'event', 'people', 'bigq', 'places', 'fav'];
 
 // ── question pool ──
 // type: 'vote' (pick one, see the split) · 'rank' (order the items, compare
 // with the crowd) · 'duel' (two image tiles head-to-head).
+// duel options take an optional `img:` (any URL or local path) — the tile holds
+// its own aspect ratio and fades the photo up once decoded, so dropping real
+// imagery in never shifts layout. Without one, the generated tile art stands in.
+// One treatment is applied in CSS (.wf-tileimg), not per photo.
 // rank: items + crowd, where crowd[i] = the crowd's rank (1-based) of items[i].
 window.WORLD_FEED_QS = [
   // sport
@@ -114,6 +136,19 @@ window.WORLD_FEED_QS = [
   { id: 'f54', cat: 'bigq', type: 'vote', prompt: 'Money can buy happiness.', options: [ { label: 'It can', count: 5500 }, { label: 'It can\u2019t', count: 4300 } ] },
   { id: 'f55', cat: 'bigq', type: 'vote', prompt: 'Humanity\u2019s best days are ahead.', options: [ { label: 'Ahead', count: 6100 }, { label: 'Behind', count: 3600 } ] },
   { id: 'f56', cat: 'bigq', type: 'rank', prompt: 'What matters most \u2014 rank them', items: ['People', 'Meaning', 'Pleasure', 'Legacy'], crowd: [1, 2, 3, 4], votes: 3800 },
+
+  // \u2500\u2500 dials & fields \u2500\u2500 continuum answers.
+  // dial: a value on a range \u2014 dist: 12 crowd buckets lo\u2192hi, med: crowd median.
+  // (all filed under always-on channels \u2014 bigq/dilemma \u2014 so they reach every demo feed)
+  // field: a dot on a 2D plane \u2014 ax/ay: axis end labels, cloud: [x, y, count,
+  // spread] clusters in 0\u2013100 coords (y runs 0=top), n: answers.
+  { id: 'dl1', cat: 'bigq', type: 'dial', prompt: 'When does old age begin?', lo: 40, hi: 90, unit: 'yrs', med: 63, n: 5200, dist: [1, 3, 5, 9, 14, 18, 17, 13, 9, 6, 3, 2] },
+  { id: 'dl2', cat: 'dilemma', type: 'dial', prompt: 'The right tip', lo: 0, hi: 30, unit: '%', med: 10, n: 7400, dist: [6, 9, 14, 18, 16, 12, 9, 6, 4, 3, 2, 1] },
+  { id: 'dl3', cat: 'dilemma', type: 'dial', prompt: 'Daily screen time \u2014 where does \u201ctoo much\u201d start?', lo: 1, hi: 12, unit: 'h', med: 5, n: 6100, dist: [2, 6, 12, 17, 18, 14, 10, 4, 3, 2, 1, 1] },
+  { id: 'dl4', cat: 'bigq', type: 'dial', prompt: 'How much of your life is actually in your control?', lo: 0, hi: 100, unit: '%', med: 55, n: 4800, dist: [4, 6, 8, 9, 10, 12, 14, 13, 10, 7, 4, 3] },
+  { id: 'fd1', cat: 'dilemma', type: 'field', prompt: 'Pineapple on pizza \u2014 place it', ax: ['tastes bad', 'tastes good'], ay: ['a crime', 'high art'], n: 6800, cloud: [[22, 72, 10, 14], [76, 26, 12, 15], [54, 50, 4, 10]] },
+  { id: 'fd2', cat: 'bigq', type: 'field', prompt: 'Small talk \u2014 place it', ax: ['painful', 'pleasant'], ay: ['pointless', 'essential'], n: 4100, cloud: [[64, 32, 12, 16], [30, 60, 8, 14], [50, 48, 6, 12]] },
+  { id: 'fd3', cat: 'bigq', type: 'field', prompt: 'AI assistants, today \u2014 place them', ax: ['overhyped', 'underrated'], ay: ['scary', 'exciting'], n: 5600, cloud: [[42, 38, 10, 16], [68, 30, 8, 13], [30, 66, 7, 12]] },
 
   // ── scene questions ── asked inside one scene; counts are community-scale
   { id: 's01', scene: 'tennis', cat: 'sport', type: 'vote', prompt: 'Doubles or singles?', options: [ { label: 'Doubles', count: 1900 }, { label: 'Singles', count: 2600 } ] },

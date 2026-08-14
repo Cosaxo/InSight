@@ -14,7 +14,7 @@ import {
   splitBanks,
   duelQFor,
   gHash,
-  isTooSmall,
+  hasPublishedCounts,
   OPTION_COLORS,
   utcDayIndex,
 } from "./deck";
@@ -86,15 +86,18 @@ describe("countsFor (own-vote subtraction)", () => {
   });
 });
 
-describe("isTooSmall", () => {
-  it("defaults to true when the agg doc or flag is missing", () => {
-    expect(isTooSmall(undefined)).toBe(true);
-    expect(isTooSmall({})).toBe(true);
+describe("hasPublishedCounts", () => {
+  it("is false when the agg doc is missing or empty", () => {
+    expect(hasPublishedCounts(undefined)).toBe(false);
+    expect(hasPublishedCounts({})).toBe(false);
+    expect(hasPublishedCounts({ total: 0 })).toBe(false);
   });
 
-  it("is true only until the agg explicitly says tooSmall === false", () => {
-    expect(isTooSmall({ tooSmall: true })).toBe(true);
-    expect(isTooSmall({ tooSmall: false })).toBe(false);
+  it("is true once the aggregate carries a positive total", () => {
+    // The one answer that used to be withheld under the k-floor is now
+    // the one that switches the counts on (D98).
+    expect(hasPublishedCounts({ total: 1, counts: { "0": 1 } })).toBe(true);
+    expect(hasPublishedCounts({ total: 42 })).toBe(true);
   });
 });
 
@@ -102,7 +105,7 @@ describe("buildS", () => {
   it("shapes a question into the UI's S form", () => {
     const q = qd("q1", { topic: "culture", test: "big5" });
     const s = buildS(q, 0, {
-      agg: { counts: { "0": 4, "2": 1 }, tooSmall: false },
+      agg: { counts: { "0": 4, "2": 1 }, total: 5 },
       mine: "0",
       pending: false,
     }, WED);
@@ -119,9 +122,43 @@ describe("buildS", () => {
       comments: [],
       friends: [],
       live: true,
-      tooSmall: false,
+      noCountsYet: false,
       test: "big5",
+      // D100's bank fields, carried through so the Mirror can group by
+      // subject and tell an ordinal question from a categorical one.
+      // Undefined here because `qd` builds a pre-D100 doc — which is also
+      // the shape every question seeded before D100 still has in
+      // Firestore, so this is the real absent case rather than a gap in
+      // the fixture.
+      branch: undefined,
+      sub: undefined,
+      type: "vote",
     });
+  });
+
+  it("carries the bank's subject path and type when the doc has them", () => {
+    // The other half of the case above: a doc seeded since D100. Asserted
+    // separately because `toEqual` treats an absent key and an undefined
+    // one as equal, so the case above cannot tell "not carried" from
+    // "carried as undefined" — and this one would fail if buildS simply
+    // stopped copying the fields.
+    const s = buildS(
+      qd("q9", { topic: "deep", branch: "Mind", sub: "Outlook", type: "rating" }),
+      2,
+      { agg: undefined, mine: undefined, pending: false },
+      WED,
+    );
+    expect(s.branch).toBe("Mind");
+    expect(s.sub).toBe("Outlook");
+    expect(s.type).toBe("rating");
+  });
+
+  it("leaves the day label blank for a question off the pager", () => {
+    // The Mirror's archive (LIVE.aggregated) reaches any day, and nothing
+    // it holds dates an answer — so `back: null` means "no label" rather
+    // than defaulting to Today, which would be a claim.
+    const s = buildS(qd("q1", {}), null, { agg: undefined, mine: undefined, pending: false }, WED);
+    expect(s.dayLabel).toBe("");
   });
 
   it("keeps a pending optimistic vote in the counts", () => {
@@ -134,9 +171,9 @@ describe("buildS", () => {
     expect(s.options.map((o) => o.count)).toEqual([0, 7, 0]);
   });
 
-  it("marks tooSmall when the agg is absent", () => {
+  it("marks noCountsYet when the agg is absent", () => {
     const s = buildS(qd("q1"), 0, noVote, WED);
-    expect(s.tooSmall).toBe(true);
+    expect(s.noCountsYet).toBe(true);
   });
 
   it("cycles the option palette past its length", () => {
@@ -292,6 +329,39 @@ describe("duelQFor (duel question rotation)", () => {
     expect(duelQFor({ id: "x", mode: "duo" }, [qd("g0", { surface: "group" })], DAY)).toBeNull();
   });
 
+  describe("duoMode pool selection (D40 part 4)", () => {
+    const pooled = [
+      ...bank,
+      qd("r0", { surface: "duo", mode: "romantic" }),
+      qd("r1", { surface: "duo", mode: "romantic" }),
+      qd("r2", { surface: "duo", mode: "romantic" }),
+    ];
+    const duo = { id: "grp_abc", mode: "duo" };
+
+    it("keeps the shared pool romantic-free — and the rotation unmoved", () => {
+      for (let d = 0; d < 10; d++) {
+        expect(duelQFor(duo, pooled, DAY + d)!.id).toMatch(/^d/);
+        // adding the romantic docs must not remap any friend pair's day —
+        // the default branch's bank is unchanged (the D30 growth argument)
+        expect(duelQFor(duo, pooled, DAY + d)!.id).toBe(duelQFor(duo, bank, DAY + d)!.id);
+      }
+    });
+
+    it("serves a romantic duo the romantic pool exclusively", () => {
+      const rom = { ...duo, duoMode: "romantic" };
+      for (let d = 0; d < 10; d++) expect(duelQFor(rom, pooled, DAY + d)!.id).toMatch(/^r/);
+    });
+
+    it("ignores duoMode on groups, and unknown modes fall back to shared", () => {
+      expect(duelQFor({ ...group, duoMode: "romantic" }, pooled, DAY)!.id).toMatch(/^g/);
+      expect(duelQFor({ ...duo, duoMode: "sneaky" }, pooled, DAY)!.id).toMatch(/^d/);
+    });
+
+    it("returns null for a romantic duo when no romantic docs exist", () => {
+      expect(duelQFor({ ...duo, duoMode: "romantic" }, bank, DAY)).toBeNull();
+    });
+  });
+
   it("defaults kind to 'classic' when the question has no topic", () => {
     const only = [qd("g0", { surface: "group", topic: null })];
     expect(duelQFor(group, only, DAY)!.kind).toBe("classic");
@@ -345,5 +415,44 @@ describe("day indices and gHash", () => {
       expect(h).toBeGreaterThanOrEqual(0);
       expect(h).toBeLessThan(997);
     }
+  });
+});
+
+describe("retiring a served question must not re-map the pager", () => {
+  // computeDeckIds indexes positionally, so removing any element BELOW the
+  // current window shifts every visible day: six answered history cards
+  // render as unanswered and today's card silently swaps. The trigger is the
+  // intended ops workflow — QUESTION-FARM has the scorecard propose
+  // `active: false` for high-volume landslides, i.e. questions already
+  // served — so live.ts keeps retired dailies in the array as tombstones and
+  // filters them at display instead.
+  const bank = (n: number) => Array.from({ length: n }, (_, i) => `daily-${String(i).padStart(3, "0")}`);
+
+  it("keeps every visible day when a retired question is kept as a tombstone", () => {
+    const ids = bank(90);
+    const today = DECK_EPOCH + 30;
+    const before = computeDeckIds(ids, today);
+    // Retired in place: the array keeps its length, the element stays.
+    const after = computeDeckIds(ids, today);
+    expect(after).toEqual(before);
+  });
+
+  it("…and REMOVING it instead moves every one of them", () => {
+    // The behaviour this replaced, pinned so the reason the tombstone exists
+    // cannot be forgotten and the filter quietly moved back.
+    const ids = bank(90);
+    const today = DECK_EPOCH + 30;
+    const before = computeDeckIds(ids, today);
+    const pruned = ids.filter((id) => id !== "daily-012");
+    const after = computeDeckIds(pruned, today);
+    const moved = before.filter((id, i) => after[i] !== id).length;
+    expect(moved, "removing an element left the pager unchanged").toBe(before.length);
+  });
+
+  it("appending is still safe, which is why D30's invariant missed this", () => {
+    const ids = bank(90);
+    const today = DECK_EPOCH + 30;
+    const before = computeDeckIds(ids, today);
+    expect(computeDeckIds([...ids, "daily-090"], today)).toEqual(before);
   });
 });

@@ -5,7 +5,7 @@ import { initializeApp } from "firebase/app";
 import { getAuth, connectAuthEmulator, signInAnonymously } from "firebase/auth";
 import {
   getFirestore, connectFirestoreEmulator, collection, query, where, orderBy,
-  limit, getDocs, doc, getDoc, setDoc, serverTimestamp,
+  limit, getDocs, doc, getDoc, setDoc, updateDoc, serverTimestamp,
 } from "firebase/firestore";
 import { getFunctions, connectFunctionsEmulator, httpsCallable } from "firebase/functions";
 
@@ -120,8 +120,9 @@ await setDoc(doc(db, "v2_users", uid, "answers", q0.id), {
 });
 ok("answer written: " + uid.slice(0, 8) + "/answers/" + q0.id);
 
-// 5 · the trigger folds the answer into the k-floored public mirror.
-// Below AGG_MIN_N (5) the public doc must say tooSmall with NO counts.
+// 5 · the trigger folds the answer into the public mirror. Since D98 the
+// FIRST answer publishes, exactly, with the complete breakdown: no
+// tooSmall flag, no cadence, no suppressed cells.
 let pub = null;
 for (let i = 0; i < 30; i++) {
   const snap = await getDoc(doc(db, "v2_question_aggs", q0.id));
@@ -129,17 +130,30 @@ for (let i = 0; i < 30; i++) {
   await new Promise((r) => setTimeout(r, 500));
 }
 if (!pub) fail("public agg never appeared — trigger did not fire");
-if (pub.tooSmall !== true || pub.counts) fail("k-floor breach below MIN_N: " + JSON.stringify(pub));
-ok("below floor: public agg is tooSmall-only (no counts leaked)");
+if ("tooSmall" in pub)
+  fail("the trigger still writes a tooSmall flag: " + JSON.stringify(pub));
+if (pub.total !== 1 || !pub.counts || pub.counts["1"] !== 1)
+  fail("first answer did not publish exactly: " + JSON.stringify(pub));
+// The one-bucket rule went with the rest of the suppression (D98): a
+// dimension with a single bucket now publishes like any other. Everyone in
+// this loop shares country NO, so `by.country` is exactly that case — it
+// must now BE there, which is the inverse of what this line used to assert.
+if (!pub.by || !pub.by.country || !pub.by.country.NO)
+  fail("a one-bucket dimension was suppressed — D98 removed that rule: " + JSON.stringify(pub.by));
+ok("first answer published exactly (total 1), single-bucket country included");
 
-// 6 · duplicate answer is refused (immutability backs the plain increment)
+// 6 · duplicate answer is refused. Re-sending the whole doc rewrites
+// answeredAt and anchors, which stay frozen under D86's edit arm — the
+// only admitted movement is the optionIdx+editedAt diff exercised in 7e.
 await expectDenied("duplicate answer refused by rules", () =>
   setDoc(doc(db, "v2_users", uid, "answers", q0.id), {
     qid: q0.id, surface: "daily", optionIdx: 0,
     answeredAt: serverTimestamp(), anchors: {},
   }));
 
-// 7 · four more voters cross the floor — counts appear, exact and correct.
+// 7 · four more voters — the count stays exact through per-answer
+// publishes (cadence 1 under the pause), and the ledger keeps
+// at-least-once delivery from double-counting any of them.
 // Each voter gets an isolated app instance: reusing one auth while
 // signing in repeatedly races the token swap against the write stream.
 for (let n = 0; n < 4; n++) {
@@ -160,32 +174,33 @@ for (let n = 0; n < 4; n++) {
 let above = null;
 for (let i = 0; i < 40; i++) {
   const snap = await getDoc(doc(db, "v2_question_aggs", q0.id));
-  if (snap.exists() && snap.get("tooSmall") === false) { above = snap.data(); break; }
+  if (snap.exists() && snap.get("total") === 5) { above = snap.data(); break; }
   await new Promise((r) => setTimeout(r, 500));
 }
-if (!above) fail("public counts never appeared above the floor");
+if (!above) fail("public counts never reached total 5");
 // votes: opt1 (first user) + opt0,opt1,opt0,opt1 → {0:2, 1:3}, total 5
-if (above.total !== 5 || above.counts["0"] !== 2 || above.counts["1"] !== 3)
-  fail("counts wrong above floor: " + JSON.stringify(above));
-ok("above floor: exact public counts {0:2, 1:3}, total 5 — no double counting");
+if (above.counts["0"] !== 2 || above.counts["1"] !== 3)
+  fail("counts wrong at total 5: " + JSON.stringify(above));
+ok("five answers: exact public counts {0:2, 1:3} — no double counting");
 
-// 7b · the breakdown's own floor (D8). At total 5 the age bands hold 3 and 2
-// and the cities 3 and 2, so EVERY cell is under AGG_MIN_N and no dimension
-// may appear — the question being past the overall floor is not permission
-// to slice it. Country is a single bucket of 5: over the floor, but one
-// bucket is a population statement rather than a split, so it is withheld
-// by a different rule and must be absent too.
-//
-// Asserted across the whole map, not one named dimension: checking only
-// ageBand is how a newly added dimension leaks without failing anything.
-if (above.by && Object.keys(above.by).length)
-  fail("breakdown published while every cell is under the floor: " + JSON.stringify(above.by));
-ok("breakdown: no dimension published while every cell is under the floor");
+// 7b · the breakdown, whole (D98). At total 5 the age bands hold 3 and 2
+// and the cities 3 and 2, and every one of those cells publishes exactly.
+// Country is a single bucket of 5 — once withheld as "a population
+// statement rather than a split", now published like anything else.
+const cellSum = (dim, b) => Object.values(above.by[dim][b]).reduce((a, c) => a + c, 0);
+if (!above.by || !above.by.ageBand || !above.by.city)
+  fail("breakdown missing: " + JSON.stringify(above.by));
+if (cellSum("ageBand", "25-34") !== 3 || cellSum("ageBand", "35-44") !== 2)
+  fail("age cells wrong at 3/2: " + JSON.stringify(above.by.ageBand));
+if (cellSum("city", "Oslo, NO") !== 3 || cellSum("city", "Bergen, NO") !== 2)
+  fail("city cells wrong at 3/2: " + JSON.stringify(above.by.city));
+if (!above.by.country || cellSum("country", "NO") !== 5)
+  fail("single-bucket country missing or wrong: " + JSON.stringify(above.by.country));
+ok("breakdown: every cell publishes exactly, single-bucket country included");
 
-// 7c · five more voters push both bands over the floor. Two into 25-34 and
-// three into 35-44 lands both on exactly 5 at a total of 10 — a publishing
-// multiple under the current cadence (shouldPublishAgg). Country stays a
-// single bucket and must still be withheld.
+// 7c · five more voters. Two into 25-34 and three into 35-44 lands both
+// bands on exactly 5 at a total of 10. Country stays a single bucket and
+// must keep publishing.
 for (let m = 0; m < 5; m++) {
   const vApp = initializeApp({ projectId: "demo-insight", apiKey: "demo", appId: "demo" }, "band" + m);
   const vAuth = getAuth(vApp); connectAuthEmulator(vAuth, "http://127.0.0.1:9099", { disableWarnings: true });
@@ -215,8 +230,7 @@ if (bands.length !== 2 || bands[0] !== "25-34" || bands[1] !== "35-44")
 const bandTotal = (b) => Object.values(split.by.ageBand[b]).reduce((a, c) => a + c, 0);
 if (bandTotal("25-34") !== 5 || bandTotal("35-44") !== 5)
   fail("age bucket totals wrong: " + JSON.stringify(split.by.ageBand));
-if (split.by.country)
-  fail("a one-bucket dimension was published: " + JSON.stringify(split.by.country));
+if (!split.by.country) fail("single-bucket country missing: " + JSON.stringify(split.by));
 
 // The dimension D9 added, through the real trigger rather than a unit test:
 // the canonical "Name, CC" key survives being a Firestore map key, and lands
@@ -228,17 +242,12 @@ if (cities.length !== 2 || cities[0] !== "Bergen, NO" || cities[1] !== "Oslo, NO
 const cityTotal = (c) => Object.values(split.by.city[c]).reduce((a, x) => a + x, 0);
 if (cityTotal("Oslo, NO") !== 5 || cityTotal("Bergen, NO") !== 5)
   fail("city bucket totals wrong: " + JSON.stringify(split.by.city));
-ok("breakdown: ageBand and city both 5/5; single-bucket country withheld");
+ok("breakdown: ageBand and city both 5/5; single-bucket country published");
 
-// 7d · the publish cadence itself. One more answer takes the private total to
-// 11, which is not a publishing multiple — so the PUBLIC doc must stay at 10.
-// Rewriting per answer is what let an onSnapshot reader attribute each step
-// to one person; this is the integration-level guard on that.
-//
-// Bounded wait, and honest about what it proves: a regression to per-answer
-// publishing flips this to 11 within a second, so it catches that. It cannot
-// distinguish "held back" from "trigger has not run yet", which is why the
-// cadence itself is pinned by unit tests over 2000 totals.
+// 7d · per-answer publishing (D98). The 11th answer must move the public
+// mirror to an exact 11 promptly. The batched choreography this replaces
+// — an 11th answer must NOT move the mirror off the multiple of 5 — is
+// gone with the cadence it guarded.
 {
   const vApp = initializeApp({ projectId: "demo-insight", apiKey: "demo", appId: "demo" }, "cadence");
   const vAuth = getAuth(vApp); connectAuthEmulator(vAuth, "http://127.0.0.1:9099", { disableWarnings: true });
@@ -248,13 +257,80 @@ ok("breakdown: ageBand and city both 5/5; single-bucket country withheld");
     qid: q0.id, surface: "daily", optionIdx: 0,
     answeredAt: serverTimestamp(), anchors: { ageBand: "25-34", country: "Norway" },
   });
-  for (let i = 0; i < 8; i++) {
-    await new Promise((r) => setTimeout(r, 400));
+  let eleven = null;
+  for (let i = 0; i < 20; i++) {
     const snap = await getDoc(doc(db, "v2_question_aggs", q0.id));
-    const t = snap.exists() ? snap.get("total") : null;
-    if (t !== 10) fail("public mirror moved off a publishing multiple: total=" + t);
+    if (snap.exists() && snap.get("total") === 11) { eleven = snap.data(); break; }
+    await new Promise((r) => setTimeout(r, 400));
   }
-  ok("cadence: 11th answer did not move the public mirror off 10");
+  if (!eleven) fail("11th answer never published");
+  // 10 answers stood at {0:7, 1:3}; the 11th is another option 0.
+  if (eleven.counts["0"] !== 8 || eleven.counts["1"] !== 3)
+    fail("counts drifted through per-answer publishes: " + JSON.stringify(eleven.counts));
+  ok("per-answer publishing: 11th answer published exactly (total 11, counts 8/3)");
+}
+
+// 7e · D86: the owner moves their answer and onV2AnswerUpdated folds a
+// -old/+new delta with the TOTAL unchanged. The first user holds option 1
+// under a frozen {25-34, NO, Oslo} snapshot, so the move must land in
+// exactly those cells: the 25-34 band and the Oslo bucket keep their
+// TOTALS (6 and 5 — the floor's quantity never moves on an edit) while
+// their option splits shift by one. Under D81's pause the edit republishes
+// immediately; when the constants restore, edits ride the next create's
+// publish instead (EDITS_REPUBLISH, functions/src/v2.ts).
+{
+  // The rules surface first — every frozen field refused, in the same
+  // deny-code-checked way the create probes use.
+  await expectDenied("edit refusing an anchors change (the cohort is frozen, D8)", () =>
+    updateDoc(doc(db, "v2_users", uid, "answers", q0.id), {
+      optionIdx: 0, editedAt: serverTimestamp(), anchors: { ageBand: "35-44" },
+    }));
+  await expectDenied("edit refusing an answeredAt rewrite", () =>
+    updateDoc(doc(db, "v2_users", uid, "answers", q0.id), {
+      optionIdx: 0, editedAt: serverTimestamp(), answeredAt: serverTimestamp(),
+    }));
+  await expectDenied("edit refusing a missing audit stamp", () =>
+    updateDoc(doc(db, "v2_users", uid, "answers", q0.id), { optionIdx: 0 }));
+  await expectDenied("edit refusing an out-of-range option", () =>
+    updateDoc(doc(db, "v2_users", uid, "answers", q0.id), {
+      optionIdx: 99, editedAt: serverTimestamp(),
+    }));
+
+  await updateDoc(doc(db, "v2_users", uid, "answers", q0.id), {
+    optionIdx: 0, editedAt: serverTimestamp(),
+  });
+  let moved = null;
+  for (let i = 0; i < 20; i++) {
+    const snap = await getDoc(doc(db, "v2_question_aggs", q0.id));
+    if (snap.exists() && (snap.get("counts") || {})["0"] === 9) { moved = snap.data(); break; }
+    await new Promise((r) => setTimeout(r, 400));
+  }
+  if (!moved) fail("D86 edit never reached the public mirror");
+  if (moved.total !== 11 || moved.counts["0"] !== 9 || moved.counts["1"] !== 2)
+    fail("edit did not move -old/+new with total unchanged: " + JSON.stringify(moved));
+  // The 25-34 band held user1(1→0), n0, n2, m0, m1 and the cadence voter,
+  // all option 0 after the move — and the emptied "1" row must be GONE,
+  // not stored as a zero (the create path's invariant, kept by the delta).
+  if (JSON.stringify(moved.by.ageBand["25-34"]) !== JSON.stringify({ "0": 6 }))
+    fail("edit did not move inside the frozen age cell: " + JSON.stringify(moved.by.ageBand));
+  const b35 = Object.values(moved.by.ageBand["35-44"]).reduce((a, c) => a + c, 0);
+  if (b35 !== 5) fail("a cell the edit never touched moved: " + JSON.stringify(moved.by.ageBand));
+  if (JSON.stringify(moved.by.city["Oslo, NO"]) !== JSON.stringify({ "0": 4, "1": 1 }))
+    fail("edit did not move inside the frozen city cell: " + JSON.stringify(moved.by.city));
+  const bergen = Object.values(moved.by.city["Bergen, NO"]).reduce((a, c) => a + c, 0);
+  if (bergen !== 5) fail("Bergen moved on an Oslo edit: " + JSON.stringify(moved.by.city));
+  // The single-bucket country dimension publishes on the edit path too,
+  // and the edit must have moved WITHIN it: 8/2 after one voter's 1→0.
+  if (!moved.by.country || JSON.stringify(moved.by.country.NO) !== JSON.stringify({ "0": 8, "1": 2 }))
+    fail("edit did not move inside the country cell: " + JSON.stringify(moved.by.country));
+
+  // …and not again inside the minute: the cooldown is the write-amplification
+  // bound on the one repeatable answer write (D7's arithmetic).
+  await expectDenied("second edit inside the 60s cooldown", () =>
+    updateDoc(doc(db, "v2_users", uid, "answers", q0.id), {
+      optionIdx: 1, editedAt: serverTimestamp(),
+    }));
+  ok("D86 edit: -old/+new published, total 11 held, frozen cells moved cleanly, cooldown holds");
 }
 
 // 8 · the duel loop: create → join by code → sealed answers → reveal → streak
@@ -389,8 +465,27 @@ const groupAnswer = (idx) => ({
 await setDoc(doc(db, "v2_users", uid, "answers", lateAid), groupAnswer(1));
 const lateReveal = await httpsCallable(fns, "revealDuelsNowV2")({ day: OTHERDAY });
 if (lateReveal.data.revealed < 1) fail("group day did not reveal on one answer");
-if (!(await getDoc(doc(lateDb, "v2_groups", lateGid, "reveals", OTHERDAY))).exists())
+// Read as the CREATOR, who played this day. This used to read as the
+// latecomer, which asserted the leak D55 §9 closed as though it were the
+// contract: OTHERDAY is three days before either account joined the group,
+// and the latecomer never played it.
+if (!(await getDoc(doc(db, "v2_groups", lateGid, "reveals", OTHERDAY))).exists())
   fail("group reveal doc missing");
+// …and since D98 the latecomer reaches it too. The read used to be scoped
+// to the members the reveal itself recorded, so a joiner got nothing for a
+// day before they joined — a privacy guarantee about answers, and D98
+// retired it: the votes inside a reveal are ordinary answers, readable
+// directly, so withholding the materialized copy protected nothing.
+//
+// What the `members` array still does is bookkeeping — deleteAccount
+// scrubs a departing uid out of it, which e2e-delete-account asserts.
+{
+  const lateRead = await getDoc(doc(lateDb, "v2_groups", lateGid, "reveals", OTHERDAY));
+  if (!lateRead.exists()) fail("a joiner could not read a past reveal — D98 opened this");
+  if (!(lateRead.get("members") || []).includes(uid))
+    fail("the reveal lost its members snapshot: " + JSON.stringify(lateRead.data()));
+  ok("a joiner reads a reveal from before they joined, and it still records who was there");
+}
 await expectDenied("member cannot answer a day already revealed", () =>
   setDoc(doc(lateDb, "v2_users", latecomer.user.uid, "answers", lateAid), groupAnswer(0)));
 
@@ -399,11 +494,11 @@ const duelAgg = await getDoc(doc(db, "v2_question_aggs", "group-gu0"));
 if (duelAgg.exists()) fail("duel answers leaked into world aggregates");
 ok("duel answers stay out of world aggregates");
 
-// 9 · learn (D32): first attempts ride the same fold as votes — the floor
-// holds, the counts are a people-rate, and a retry has nothing it may
-// write. The trigger is deliberately untouched by D32, which is exactly
-// what this leg proves: a learn answer aggregates with zero server-side
-// learn code.
+// 9 · learn (D32): first attempts ride the same fold as votes — the same
+// paused floor (D81), the counts are a people-rate, and a retry has
+// nothing it may write. The trigger is deliberately untouched by D32,
+// which is exactly what this leg proves: a learn answer aggregates with
+// zero server-side learn code.
 const LQ = "learn-cell1";
 // the primary user's first attempt — wrong, picked the trap (option 2)
 await setDoc(doc(db, "v2_users", uid, "answers", LQ), {
@@ -418,15 +513,32 @@ await expectDenied("learn retry refused (people-rate, not attempt-rate)", () =>
     qid: LQ, surface: "learn", optionIdx: 0,
     answeredAt: serverTimestamp(), anchors: {},
   }));
+// …and D86's edit arm does not reach it either ("not knowledge,
+// obviously"): a correctly-stamped edit on a learn answer is refused by
+// the surface check, so the first-attempt measurement survives the one
+// write shape that IS repeatable elsewhere.
+await expectDenied("learn edit refused (D86 stops at opinion surfaces)", () =>
+  updateDoc(doc(db, "v2_users", uid, "answers", LQ), {
+    optionIdx: 0, editedAt: serverTimestamp(),
+  }));
 let lpub = null;
 for (let i = 0; i < 40; i++) {
   const snap = await getDoc(doc(db, "v2_question_aggs", LQ));
   if (snap.exists()) { lpub = snap.data(); break; }
   await new Promise((r) => setTimeout(r, 500));
 }
-if (!lpub || lpub.tooSmall !== true || lpub.counts) fail("learn k-floor breach below MIN_N: " + JSON.stringify(lpub));
-ok("learn below floor: public agg is tooSmall-only");
-// four more first attempts cross the floor: three right, one more wrong
+// Two failures, two messages — the same split the world-question check at
+// the top of this file already makes. Collapsed into one, a TIMEOUT here
+// reports itself as a counts mismatch on null, which reads as a privacy
+// regression and sends the next person hunting for one. It cost exactly
+// that detour on 2026-08-05.
+if (!lpub) fail(`learn public agg never appeared after ${40 * 500}ms — the trigger did not fire, or did not finish in time`);
+// Paused floor: the single first attempt publishes exactly (D81) — and the
+// retry the rules refused above must not have nudged it.
+if (lpub.total !== 1 || !lpub.counts || lpub.counts["2"] !== 1)
+  fail("learn first attempt did not publish exactly: " + JSON.stringify(lpub));
+ok("learn: one first attempt, published exactly, retry not counted");
+// four more first attempts: three right, one more wrong
 for (let n = 0; n < 4; n++) {
   const lApp = initializeApp({ projectId: "demo-insight", apiKey: "demo", appId: "demo" }, "learner" + n);
   const lAuth = getAuth(lApp); connectAuthEmulator(lAuth, "http://127.0.0.1:9099", { disableWarnings: true });
@@ -440,16 +552,155 @@ for (let n = 0; n < 4; n++) {
 let labove = null;
 for (let i = 0; i < 40; i++) {
   const snap = await getDoc(doc(db, "v2_question_aggs", LQ));
-  if (snap.exists() && snap.get("tooSmall") === false) { labove = snap.data(); break; }
+  if (snap.exists() && snap.get("total") === 5) { labove = snap.data(); break; }
   await new Promise((r) => setTimeout(r, 500));
 }
-if (!labove) fail("learn counts never appeared above the floor");
+if (!labove) fail("learn counts never reached total 5");
 // trap, then 0,0,0,1 → {0:3, 1:1, 2:1}, total 5. "% got it right" is
 // counts[correct]/total = 3/5, computed client-side — the server never
 // learned which option was correct.
-if (labove.total !== 5 || labove.counts["0"] !== 3 || labove.counts["1"] !== 1 || labove.counts["2"] !== 1)
-  fail("learn counts wrong above floor: " + JSON.stringify(labove));
-ok("learn crowd stat: 5 first attempts, floor held, 3/5 right");
+if (labove.counts["0"] !== 3 || labove.counts["1"] !== 1 || labove.counts["2"] !== 1)
+  fail("learn counts wrong at total 5: " + JSON.stringify(labove));
+ok("learn crowd stat: 5 first attempts, exact through per-answer publishes, 3/5 right");
+
+
+// 10 · Near presence (D84): the write path through the rules, the count
+// through the real callable, and the exclusion of self.
+{
+  const meCell = "5999_1074";
+  await setDoc(doc(db, "v2_presence", uid), { cell: meCell, at: serverTimestamp() });
+  ok("presence: own cell written through the rules");
+  // A neighbor one cell east; a third phone far away that must not count.
+  const nApp = initializeApp({ projectId: "demo-insight", apiKey: "demo", appId: "demo" }, "near1");
+  const nAuth = getAuth(nApp); connectAuthEmulator(nAuth, "http://127.0.0.1:9099", { disableWarnings: true });
+  const nDb = getFirestore(nApp); connectFirestoreEmulator(nDb, "127.0.0.1", 8080);
+  const nu = await signInAnonymously(nAuth);
+  await setDoc(doc(nDb, "v2_presence", nu.user.uid), { cell: "5999_1075", at: serverTimestamp() });
+  const fApp = initializeApp({ projectId: "demo-insight", apiKey: "demo", appId: "demo" }, "near2");
+  const fAuth = getAuth(fApp); connectAuthEmulator(fAuth, "http://127.0.0.1:9099", { disableWarnings: true });
+  const fDb = getFirestore(fApp); connectFirestoreEmulator(fDb, "127.0.0.1", 8080);
+  const fu = await signInAnonymously(fAuth);
+  await setDoc(doc(fDb, "v2_presence", fu.user.uid), { cell: "5980_1074", at: serverTimestamp() });
+  // Back to the primary user for the count. The callable excludes the
+  // caller's own doc, so the answer is the one neighbor — not 2, not 3.
+  const near = await httpsCallable(fns, "nearbyCountV2")({ cell: meCell });
+  if (near.data.n !== 1) fail("nearby count wrong: " + JSON.stringify(near.data));
+  ok("nearbyCountV2: one fresh neighbor counted, self excluded, far phone ignored");
+  await expectDenied("foreign presence write refused", () =>
+    setDoc(doc(db, "v2_presence", nu.user.uid), { cell: meCell, at: serverTimestamp() }));
+  await expectDenied("raw-coordinate cell refused by the grid regex", () =>
+    setDoc(doc(db, "v2_presence", uid), { cell: "59.913_10.752", at: serverTimestamp() }));
+}
+
+// 10b · The daily pulse (D139): a day-keyed answer through the rules, the
+// UNTOUCHED trigger folding it into a PER-DAY aggregate doc — the grain
+// the whole design rests on — and the one-per-day discipline holding.
+{
+  const day = new Date().toISOString().slice(0, 10);
+  const pid = `pulse-pace_${day}`;
+  await setDoc(doc(db, "v2_users", uid, "answers", pid), {
+    qid: pid, baseQid: "pulse-pace", day, surface: "pulse", optionIdx: 3,
+    answeredAt: serverTimestamp(),
+    anchors: { ageBand: "25-34", country: "NO", city: "Oslo, NO" },
+  });
+  ok("pulse answer written: " + pid);
+  let pagg = null;
+  for (let i = 0; i < 30; i++) {
+    const snap = await getDoc(doc(db, "v2_question_aggs", pid));
+    if (snap.exists()) { pagg = snap.data(); break; }
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  if (!pagg) fail("per-day pulse agg never appeared — the trigger refused the composite qid");
+  if (pagg.total !== 1 || pagg.counts["3"] !== 1) {
+    fail("pulse agg wrong: " + JSON.stringify(pagg));
+  }
+  if (!pagg.by || !pagg.by.city || pagg.by.city["Oslo, NO"]["3"] !== 1) {
+    fail("pulse agg carries no city cell: " + JSON.stringify(pagg.by));
+  }
+  ok("per-day pulse aggregate published, anchors breakdown included");
+  await expectDenied("a second pulse answer for the same day refused", () =>
+    setDoc(doc(db, "v2_users", uid, "answers", pid), {
+      qid: pid, baseQid: "pulse-pace", day, surface: "pulse", optionIdx: 1,
+      answeredAt: serverTimestamp(), anchors: {},
+    }));
+}
+
+// 11 · Suggest a question (docs/NEXT-FUNCTIONALITY.md §6): the callable
+// door, its refusals in their specific codes, and the operator loop. The
+// budget and the sold-inventory tripwire live only in the callable —
+// rules.test.ts proves clients cannot write around it.
+{
+  // The moderation e2e's discipline: demand the SPECIFIC refusal.
+  const expectCode = async (label, code, op) => {
+    try {
+      await op();
+    } catch (e) {
+      if (e?.code === code) return ok(label);
+      return fail(`${label} — expected ${code}, got ${e?.code || e}`);
+    }
+    fail(`${label} — the operation was ALLOWED`);
+  };
+
+  const sub = await httpsCallable(fns, "suggestQuestionV2")({
+    prompt: "Window seat or aisle seat?", type: "binary",
+    options: ["Window", "Aisle"], topic: "travel", cadenceHint: "once", credit: true,
+  });
+  if (!sub.data?.id) fail("suggestQuestionV2 returned " + JSON.stringify(sub.data));
+  const mine = await getDoc(doc(db, "v2_suggestions", sub.data.id));
+  if (!mine.exists() || mine.get("status") !== "review" || mine.get("uid") !== uid) {
+    fail("own suggestion unreadable or malformed: " + JSON.stringify(mine.data()));
+  }
+  ok("suggestion queued through the callable; the author reads it in review");
+
+  // The sold-inventory decline (QUESTION-FARM hard rule 6 at the door).
+  // Deliberately BEFORE the budget legs: a declined ask must not spend
+  // the day's budget, and running it first would mask that if it did.
+  await expectCode("place-scoped civic ask declined at the door",
+    "functions/failed-precondition",
+    () => httpsCallable(fns, "suggestQuestionV2")({
+      prompt: "Should Oslo ban cars downtown?", type: "binary", options: ["Yes", "No"],
+    }));
+  await expectCode("formless submission refused",
+    "functions/invalid-argument",
+    () => httpsCallable(fns, "suggestQuestionV2")({ prompt: "   " }));
+
+  // The daily budget: the decline above spent nothing, so two more pass
+  // and the fourth is the one that trips.
+  await httpsCallable(fns, "suggestQuestionV2")({ prompt: "Early bird or night owl?", type: "binary", options: ["Early bird", "Night owl"] });
+  await httpsCallable(fns, "suggestQuestionV2")({ prompt: "Cook, or be cooked for?", type: "binary", options: ["Cook", "Be cooked for"] });
+  await expectCode("fourth suggestion of the day refused (the review-pace budget)",
+    "functions/resource-exhausted",
+    () => httpsCallable(fns, "suggestQuestionV2")({ prompt: "Sweet or salty?", type: "binary", options: ["Sweet", "Salty"] }));
+
+  // A second account cannot read the row — mine-only, through the rules.
+  const sgApp = initializeApp({ projectId: "demo-insight", apiKey: "demo", appId: "demo" }, "sugg1");
+  const sgAuth = getAuth(sgApp); connectAuthEmulator(sgAuth, "http://127.0.0.1:9099", { disableWarnings: true });
+  const sgDb = getFirestore(sgApp); connectFirestoreEmulator(sgDb, "127.0.0.1", 8080);
+  await signInAnonymously(sgAuth);
+  await expectDenied("stranger reading a suggestion refused", () =>
+    getDoc(doc(sgDb, "v2_suggestions", sub.data.id)));
+
+  // The operator loop: fetch lists the pending rows, a verdict settles
+  // one, and a settled row cannot be re-judged (assertOperator admits any
+  // signed-in caller under the emulator, the moderation e2e's note).
+  const fetched = await httpsCallable(fns, "fetchSuggestionsV2")({});
+  const ids = (fetched.data?.items || []).map((i) => i.id);
+  if (!ids.includes(sub.data.id)) fail("operator fetch missing the queued row: " + JSON.stringify(ids));
+  ok("operator fetch lists the pending queue (" + ids.length + " rows)");
+  const rv = await httpsCallable(fns, "reviewSuggestionV2")({ id: sub.data.id, verdict: "picked", note: "clean split" });
+  if (!rv.data?.ok) fail("review refused: " + JSON.stringify(rv.data));
+  const picked = await getDoc(doc(db, "v2_suggestions", sub.data.id));
+  if (picked.get("status") !== "picked" || picked.get("note") !== "clean split") {
+    fail("verdict not applied: " + JSON.stringify(picked.data()));
+  }
+  ok("operator verdict applied; the author's board would read picked");
+  await expectCode("re-judging a settled row refused",
+    "functions/already-exists",
+    () => httpsCallable(fns, "reviewSuggestionV2")({ id: sub.data.id, verdict: "declined" }));
+  await expectCode("verdict on a row that does not exist refused",
+    "functions/failed-precondition",
+    () => httpsCallable(fns, "reviewSuggestionV2")({ id: "ghost", verdict: "picked" }));
+}
 
 console.log("\nALL E2E CHECKS PASSED");
 process.exit(0);

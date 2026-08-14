@@ -4,6 +4,16 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import { IS_DATA } from './sample-data.js';
+import { IS_TEST_RESULTS } from './test-definitions.js';
+import { PASSIVE } from './passive-progress.js';
+import { list as anchorList } from './map-anchors.js';
+import { PROFILE_GENERAL_LS } from '../data/cityAnchor';
+// An import, not the window.PLACES read this file used to carry — the
+// typed module is importable from spec (logic-test precedent), so the D39
+// coupling meter moves DOWN with this change.
+import PLACES from '../data/places';
+import { SCENES } from './scenes.js';
 
 // ─────────────────────────────────────────────────────────────
 // General tab · the parts of you that aren't a test.
@@ -22,11 +32,18 @@ import React from 'react';
 (function () {
   const { useState, useEffect, useRef, useId } = React;
 
-  const GKEY = 'insight.profileGeneral.v1';
+  // Imported rather than restated: data/cityAnchor.ts writes vitals.city
+  // into this same blob from the Mirror's needs-a-city empty state, and a
+  // key spelled in two files is a drift waiting to strand one of them.
+  const GKEY = PROFILE_GENERAL_LS;
+  // The key this replaced. A v1 blob may hold the sample persona as its own
+  // properties, because the build that wrote it could not tell the two apart
+  // — see loadGen and migrateV1 below.
+  const GKEY_V1 = 'insight.profileGeneral.v1';
 
   // ── seed from data.js, then overlay any saved edits ──
   function seedFromData() {
-    const me = (window.IS_DATA && window.IS_DATA.me) || {};
+    const me = IS_DATA.me || {};
     const s = me.stats || {};
     return {
       vitals: {
@@ -45,26 +62,77 @@ import React from 'react';
       heroes: (me.heroes || []).map(h => ({ ...h })),
     };
   }
-  function loadGen() {
-    const seed = seedFromData();
+  // What the panel starts from, BEFORE any saved edits are laid over it. In
+  // live mode that is nothing at all: the basics card fills only with what
+  // the user actually enters.
+  //
+  // This is a base for the merge rather than a branch beside it, and the
+  // difference is the whole bug. The live guard used to sit after the saved
+  // blob was read, reachable only when there was no blob — and the persist
+  // effect below writes one on mount, with no edit made. So the SECOND mount
+  // always found a blob, always took the merge path, and that path spread
+  // `seed.vitals` underneath it: a live user got the sample persona back
+  // ("age 35 · Editor · MA Literature") the moment they reopened the
+  // profile, whereupon the anchors effect wrote it to `v2_users/{uid}` and
+  // answerAnchors() stamped it onto every answer after that. Answers are
+  // create-only (D5), so the ones already written have no correction path —
+  // which is why the guard has to hold on every mount, not the first.
+  function baseFor(live) {
+    if (!live) return seedFromData();
+    return { vitals: {}, interests: [], likes: [], dislikes: [], heroes: [] };
+  }
+
+  // One-time carry-over from GKEY_V1, which on a device that ran the build
+  // above holds the sample persona as own properties — indistinguishable, by
+  // then, from typed input.
+  //
+  // In live mode a vital equal to the seed's value for that field is that
+  // residue and is dropped; anything the user actually changed differs from
+  // the seed and survives. The trade is explicit: someone who genuinely
+  // typed a value the sample persona also has retypes one field, and the
+  // alternative is leaving a fabricated anchor to be stamped onto answers
+  // that cannot be edited. Demo mode carries the blob over untouched — there
+  // the persona IS the content.
+  function migrateV1(live) {
+    let old = null;
     try {
-      const saved = JSON.parse(localStorage.getItem(GKEY) || 'null');
+      old = JSON.parse(localStorage.getItem(GKEY_V1) || 'null');
+    } catch (e) { return null; }
+    if (!old || typeof old !== 'object') return null;
+    let next = old;
+    if (live) {
+      const seed = seedFromData();
+      const vitals = {};
+      for (const k of Object.keys(old.vitals || {})) {
+        if (old.vitals[k] !== seed.vitals[k]) vitals[k] = old.vitals[k];
+      }
+      next = { ...old, vitals };
+    }
+    // Written before the old key is dropped, so a failure here loses the
+    // migration rather than the data.
+    try {
+      localStorage.setItem(GKEY, JSON.stringify(next));
+      localStorage.removeItem(GKEY_V1);
+    } catch (e) { /* best-effort — the panel still renders `next` */ }
+    return next;
+  }
+
+  function loadGen() {
+    const live = !!(window.LIVE && window.LIVE.enabled);
+    const base = baseFor(live);
+    try {
+      const saved = JSON.parse(localStorage.getItem(GKEY) || 'null') || migrateV1(live);
       if (saved && typeof saved === 'object') {
         return {
-          vitals: { ...seed.vitals, ...(saved.vitals || {}) },
-          interests: saved.interests || seed.interests,
-          likes: saved.likes || seed.likes,
-          dislikes: saved.dislikes || seed.dislikes,
-          heroes: saved.heroes || seed.heroes,
+          vitals: { ...base.vitals, ...(saved.vitals || {}) },
+          interests: saved.interests || base.interests,
+          likes: saved.likes || base.likes,
+          dislikes: saved.dislikes || base.dislikes,
+          heroes: saved.heroes || base.heroes,
         };
       }
-    } catch (e) { /* corrupt — fall through to seed */ }
-    // live mode: no demo prefill — the basics card starts empty and
-    // fills only with what the user actually enters
-    if (window.LIVE && window.LIVE.enabled) {
-      return { vitals: {}, interests: [], likes: [], dislikes: [], heroes: [] };
-    }
-    return seed;
+    } catch (e) { /* corrupt — fall through to the base */ }
+    return base;
   }
 
   // ── shared input styling ──
@@ -97,6 +165,10 @@ import React from 'react';
   // it is distinguishable from never having been asked.
   const GENDER_OPTS = ['Woman', 'Man', 'Non-binary', 'Prefer not to say'];
   const REL_OPTS = ['Single', 'Dating', 'Partnered', 'Married', 'It\u2019s complicated', 'Prefer not to say'];
+  // D140: a band select, never a centimetre field — the band is what is
+  // collected, the locate.ts posture (coarse by construction). Held equal
+  // to BREAKDOWN_DIM_VOCAB by check:anchors like every closed vocabulary.
+  const HEIGHT_OPTS = ['Under 160 cm', '160-169 cm', '170-179 cm', '180-189 cm', '190 cm or taller', 'Prefer not to say'];
   // ~5-year bands under 35, widening after — matches how the splits are
   // read ("25-34 went the other way"), and keeps cells populated.
   const AGE_BANDS = [
@@ -126,15 +198,24 @@ import React from 'react';
     return {
       ageBand: ageBandOf(calcAge(v.born, v.bornM, v.bornD) || v.age),
       gender: v.gender || '',
-      country: (window.PLACES && window.PLACES.countryOf(city)) || '',
+      // Imported binding — the (window.PLACES && …) load-order guard died
+      // with the conversion, as the README's conversion notes prescribe.
+      country: PLACES.countryOf(city) || '',
       city,
       education: v.education || '',
       profession: v.job || '',
       relationship: v.relationship || '',
+      heightBand: HEIGHT_OPTS.includes(v.heightBand) ? v.heightBand : '',
     };
   }
 
-  const EDU_OPTS = ['Primary school', 'Middle school', 'High school', 'Vocational / trade', 'Some college', 'Associate degree', "Bachelor's", 'Postgraduate diploma', "Master's", 'MBA', 'Doctorate', 'Postdoctoral', 'Professional certification', 'Self-taught', 'Other'];
+  // Held equal to BREAKDOWN_DIM_VOCAB in functions/src/pure.ts by
+  // `npm run check:anchors` — the aggregate trigger buckets on these exact
+  // strings, so a label edit here silently stops that level counting.
+  // 'Vocational or trade' is spelled without the slash for that reason: a
+  // slash is in breakdownBucket's rejected character class, and while this
+  // list said 'Vocational / trade' that option folded into no bucket at all.
+  const EDU_OPTS = ['Primary school', 'Middle school', 'High school', 'Vocational or trade', 'Some college', 'Associate degree', "Bachelor's", 'Postgraduate diploma', "Master's", 'MBA', 'Doctorate', 'Postdoctoral', 'Professional certification', 'Self-taught', 'Other'];
   // `id` is threaded down to the native <select> so the caller's <label> can
   // point at it with htmlFor. Nesting the control inside the label is valid
   // implicit association on its own, but only to something that can see
@@ -249,6 +330,7 @@ import React from 'react';
             <label style={fieldLabel} htmlFor={`${uid}-job`}>Job<Select id={`${uid}-job`} value={JOB_OPTS.includes(v.job) ? v.job : ''} onChange={e => upd('job', e.target.value)} options={JOB_OPTS} placeholder="Field…" /></label>
             <label style={fieldLabel} htmlFor={`${uid}-education`}>Education<Select id={`${uid}-education`} value={EDU_OPTS.includes(v.education) ? v.education : ''} onChange={e => upd('education', e.target.value)} options={EDU_OPTS} placeholder="Level…" /></label>
             <label style={fieldLabel} htmlFor={`${uid}-gender`}>Gender<Select id={`${uid}-gender`} value={GENDER_OPTS.includes(v.gender) ? v.gender : ''} onChange={e => upd('gender', e.target.value)} options={GENDER_OPTS} placeholder="—" /></label>
+            <label style={fieldLabel} htmlFor={`${uid}-heightBand`}>Height<Select id={`${uid}-heightBand`} value={HEIGHT_OPTS.includes(v.heightBand) ? v.heightBand : ''} onChange={e => upd('heightBand', e.target.value)} options={HEIGHT_OPTS} placeholder="—" /></label>
             <label style={fieldLabel} htmlFor={`${uid}-relationship`}>Relationship<Select id={`${uid}-relationship`} value={REL_OPTS.includes(v.relationship) ? v.relationship : ''} onChange={e => upd('relationship', e.target.value)} options={REL_OPTS} placeholder="—" /></label>
             {/* One picker, not two free-text boxes (D9). Country is derived
                 from the chosen city rather than typed: as free text it was
@@ -292,7 +374,11 @@ import React from 'react';
 
   // ── the visual profile: mind-map thumbnail → Mirror · You ──
   function MapThumbCard() {
-    const anchors = (window.MapAnchors && window.MapAnchors.list) ? window.MapAnchors.list() : [];
+    // The load-order guard is gone with the conversion (an imported binding
+    // cannot be unset); the length check is the DATA condition and stays —
+    // a live account with no Basics card and no test taken has no ring, and
+    // a thumbnail of an empty ring is worse than no card.
+    const anchors = anchorList();
     if (!anchors.length) return null;
     return (
       <button className="card press" onClick={() => window.goTab && window.goTab('you')} style={{
@@ -325,7 +411,7 @@ import React from 'react';
     );
   }
 
-  // ── four test arcs — each test as a filled ring, no numbers ──
+  // ── one arc per test — each test as a filled ring, no numbers ──
   const ARC_TESTS = [
     { k: 'big5', sub: 'big5', name: 'Big Five' },
     { k: 'political', sub: 'politics', name: 'Politics' },
@@ -360,22 +446,27 @@ import React from 'react';
   }
 
   function TestArcsCard({ onGo }) {
-    const R = window.IS_TEST_RESULTS || {};
+    const R = IS_TEST_RESULTS;
     const C = 2 * Math.PI * 23;
     return (
       <Card title="Your tests">
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 2 }}>
+        {/* Column count derives from the list — it was hardcoded to 4 and the
+            fifth test would have wrapped a lone ring onto its own row. The
+            rings scale with the column instead of sitting at a fixed 54px:
+            five columns on a 320px viewport leave ~50px each, which a fixed
+            54px ring overflows. */}
+        <div style={{ display: 'grid', gridTemplateColumns: `repeat(${ARC_TESTS.length}, 1fr)`, gap: 2 }}>
           {ARC_TESTS.map(({ k, sub, name }) => {
             const res = R[k];
             const top = res ? [...res.dims].sort((a, b) => b.value - a.value)[0] : null;
-            const pct = window.PASSIVE ? window.PASSIVE.pct(k) : (res ? 100 : 0);
+            const pct = PASSIVE.pct(k);
             return (
               <button key={k} className="press" onClick={() => onGo && onGo(sub)} style={{
                 cursor: 'pointer', WebkitAppearance: 'none', appearance: 'none', background: 'none', border: 'none',
                 padding: '2px 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 7,
                 fontFamily: 'var(--sans)', color: 'var(--ink)', minWidth: 0,
               }}>
-                <svg viewBox="0 0 56 56" width="54" height="54" aria-hidden="true">
+                <svg viewBox="0 0 56 56" width="54" height="54" style={{ width: '100%', maxWidth: 54, height: 'auto' }} aria-hidden="true">
                   <circle cx="28" cy="28" r="23" fill="none" stroke="var(--surface-3)" strokeWidth="6"></circle>
                   {pct > 0 && res && <circle cx="28" cy="28" r="23" fill="none" stroke={res.accent} strokeWidth="6" strokeLinecap="round"
                     strokeDasharray={`${(C * pct) / 100} ${C}`} transform="rotate(-90 28 28)"></circle>}
@@ -415,12 +506,56 @@ import React from 'react';
     );
   }
 
+  // The LIVE half of the scenes section: the user's real follow list and
+  // nothing else. The demo field this replaces drew an orbit of invented
+  // populations and likeness distances (D1 forbids those without a source);
+  // what a live build genuinely has is the follow store itself — scenes.js,
+  // written by the feed's topic row and search — so this renders exactly
+  // that: each followed scene, its hue, and the way out. Counts and
+  // likeness return when a real source feeds them, not before.
+  function LiveScenesCard() {
+    const [, bump] = useState(0);
+    useEffect(() => SCENES.subscribe(() => bump((b) => b + 1)), []);
+    const mine = SCENES.mine();
+    if (mine.length === 0) {
+      // The copy used to send you to "the daily's topic row and in search —
+      // follow one", which in a live build is a door onto an empty room:
+      // D96 stopped offering scenes there because every one of them was
+      // sample data, so the only honest instruction is the one that is
+      // actually true of this build — every subject runs, and the feed's
+      // topic sheet is where you tune them.
+      return (
+        <div className="card" style={{ padding: '14px 15px', fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 500, color: 'var(--ink-2)', lineHeight: 1.5 }}>
+          No scenes yet — every topic runs in your feed instead. Tap
+          &#43; on the feed&rsquo;s topic row to see them all, with what
+          each one holds, and mute the ones you would rather not get.
+        </div>
+      );
+    }
+    return (
+      <div className="card" style={{ padding: '14px 15px', display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+        {mine.map((g) => (
+          <span key={g.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, border: '0.5px solid var(--rule)', borderRadius: 999, padding: '5px 7px 5px 12px', background: 'var(--surface-2)' }}>
+            <span aria-hidden="true" style={{ width: 8, height: 8, borderRadius: '50%', background: SCENES.colorOf(g.id) }}></span>
+            <span style={{ fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 700, color: 'var(--ink)' }}>{g.name}</span>
+            <button className="press" aria-label={'Unfollow ' + g.name} onClick={() => SCENES.unfollow(g.id)}
+              style={{ border: 'none', background: 'var(--rule)', color: 'var(--ink-2)', width: 17, height: 17, borderRadius: 999, fontSize: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, WebkitAppearance: 'none' }}>✕</button>
+          </span>
+        ))}
+      </div>
+    );
+  }
+
   // ── the panel ──
   function GeneralPanel({ onGo }) {
     const [data, set] = useState(loadGen);
     useEffect(() => {
       try { localStorage.setItem(GKEY, JSON.stringify(data)); } catch (e) { /* ignore */ }
     }, [data]);
+    // One liveness read for the panel: the anchors mirror below and the
+    // demo-section gate at the foot both branch on it, and consolidating
+    // here keeps the file's shared-global reference count flat (D39 rule 4).
+    const LIVE_ON = !!(window.LIVE && window.LIVE.enabled);
     // Mirror the anchor subset onto the owner-only profile doc (D8), so
     // later answers can snapshot it. Only in live mode — in mock mode the
     // vitals are demo data and there is no server to write to.
@@ -428,9 +563,17 @@ import React from 'react';
     // Compared as JSON rather than by object identity: `data` gets a new
     // reference on every keystroke in an unrelated card (interests, heroes),
     // and each one would otherwise be a Firestore write.
-    const anchorsJson = window.LIVE && window.LIVE.enabled
+    const anchorsJson = LIVE_ON
       ? JSON.stringify(anchorsFrom(data.vitals || {}))
       : null;
+    // Deliberately fires on MOUNT as well as on edit, and deliberately not
+    // gated behind a first-run ref. A profile whose anchors were written by
+    // the build loadGen describes still holds them server-side, and this
+    // write is the only thing that corrects them: opening the profile once
+    // replaces the map wholesale (saveAnchors, live.ts), so a repaired
+    // device stops stamping the sample persona onto new answers. Suppressing
+    // the mount write to save a Firestore write would leave the fabricated
+    // anchors exactly where they are.
     useEffect(() => {
       if (anchorsJson == null) return;
       try { window.LIVE.saveAnchors(JSON.parse(anchorsJson)); } catch (e) { /* best-effort */ }
@@ -444,10 +587,24 @@ import React from 'react';
         <TestArcsCard onGo={onGo} />
         <LensesRowCard onGo={onGo} />
         <LogicCard />
-        {typeof window.MirrorFieldBody === 'function' && (
+        {/* DEMO ONLY. This field body is the scenes orbit plus its lenses,
+            and every number on it is invented: "5.6k people", the
+            closer-means-more-like-you distances, "Who's in your circles ·
+            138 members", "What they answered". A release device showed all
+            of it to a real user as if it were theirs — the D66 class at
+            section scale. Live mode drops the section whole; follows are
+            managed from the feed's chip row and search until a live scenes
+            surface exists with real numbers behind it (D1). */}
+        {!LIVE_ON && typeof window.MirrorFieldBody === 'function' && (
           <div>
             <Chapter>Scenes you follow</Chapter>
             <window.MirrorFieldBody pop="groups" worldZoom="world" />
+          </div>
+        )}
+        {LIVE_ON && (
+          <div>
+            <Chapter>Scenes you follow</Chapter>
+            <LiveScenesCard />
           </div>
         )}
       </div>

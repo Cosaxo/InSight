@@ -1,8 +1,23 @@
 # v2 schema — the daily/mirror core loop
 
-Phase-2 collections. Access model per decisions D1/D3/D5
-(`docs/DECISIONS.md`): answers are owner-only forever; every shared surface
-is server-written (aggregates now, reveals in Phase 3).
+> **D98 (2026-08-11): answers are public.** Every "owner only" below that
+> covers an answer, an anchors snapshot, a profile or a test result is now
+> **any signed-in user**; `v2_question_aggs` carries **exact** counts and a
+> complete breakdown with no `tooSmall`, no `AGG_MIN_N`, no
+> `PUBLISH_EVERY` and no complementary suppression; `publishableCanon` is
+> now `canonTopN`, a display cap. Duel answers remain sealed until their
+> reveal, enforced by a `surface` test on the read rule — game timing, not
+> privacy. Push tokens moved to `v2_users/{uid}/push/tokens`, server-only.
+> The per-collection blocks below have been rewritten to match.
+
+Phase-2 collections. Access model per decision D98 (`docs/DECISIONS.md`):
+answers are readable by any signed-in user and written only by their
+owner; every shared surface is server-written.
+
+This file is the write side. For the read side — which of these documents
+each Mirror stop opens, how the anchors snapshot on an answer becomes the
+cohort the Mirror slices by, and what is still prototype data — see
+[`docs/MIRROR.md`](./MIRROR.md).
 
 ## Collections
 
@@ -29,12 +44,24 @@ read: signed-in · write: nobody (admin SDK only)
 
 v2_users/{uid}
   displayName?, anon?, anchors { city country ageBand gender
-                                 profession education relationship }
-read/write: owner only (validated key set; Phase 3 adds display carve-outs)
+                                 profession education relationship },
+  testResults? { big5|political|values|attachment: { title, taken,
+                                                     dims [{id,label,value 0-100,blurb?}] },
+                 logic: server-written only (D57) }
+read: any signed-in user (D98 — displayName + anchors are what turn a uid
+on an answer into a person; testResults is what D112's kindred-by-scores
+reads across users, exactly the read the rules comment promised)
+write: owner only, validated key set (testResults: ≤8 keys, `logic`
+immutable to clients; the non-logic values are client-written and
+shape-unvalidated, so every cross-user reader parses them defensively —
+data/similarity.ts parseTestResults is the reference). `fcmTokens` is
+GONE from this doc — push tokens live at v2_users/{uid}/push/tokens,
+server-only both ways
 
 v2_users/{uid}/answers/{qid}
   qid (== doc id), surface, optionIdx, answeredAt (request.time),
-  anchors (snapshot at answer time — owner-only doc, so no leak).
+  anchors (snapshot at answer time — public since D98, and deliberately:
+    a cohort chip beside a name reads off this, never off the live profile).
     Populated from the profile's Basics card via LIVE.saveAnchors; the
     snapshot is taken at vote time so a later profile edit cannot move a
     past answer into a different cohort. Empty for users who skipped the
@@ -49,12 +76,23 @@ v2_users/{uid}/answers/{qid}
     pokemon, generated QID key sets for films/artists) and an unknown
     key never aggregates.
 create: owner, validated (question must exist; optionIdx < options.size())
-update/delete: nobody — immutability is what lets the aggregate be a
-plain increment with no reconciliation
-read: owner only
+update: owner, ONE shape (D86) — optionIdx moves (+ editedAt ==
+request.time), on surfaces daily|feed|test only, bounded by the
+question's options, once per 60 s per answer. Everything else is frozen:
+anchors and answeredAt (the cohort stamp, D8), learn (D32's
+first-attempt measurement), duels (the seal), catalog answers (no canon
+delta path). The aggregate stays a plain fold because onV2AnswerUpdated
+applies the matching -old/+new delta with the total unchanged — the
+reconciliation D5 avoided now exists, in one trigger, ledger-deduped
+delete: nobody
+read: any signed-in user, EXCEPT duel answers (surface group/duo), which
+stay sealed until their reveal — a `surface` value test on the read rule.
+Game timing, not privacy. Cross-user reads go through the collection-group
+grant `match /{path=**}/answers/{aid}` and must carry a matching
+`where("surface","in",[…])` or Firestore refuses the query wholesale (D65)
 
-v2_aggs_private/{qid}              exact counts — server-only (opaque)
-  counts, total                    exact, never floored
+v2_aggs_private/{qid}              the trigger's working state (no readers)
+  counts, total                    exact — same numbers as the public doc
   ent { entity: n }                catalog questions: per-entity counts
                                    in place of counts — bounded by the
                                    catalogue's ~1k keys, so D7's
@@ -78,68 +116,123 @@ v2_agg_events/{eventId}            trigger ledger (opaque), two jobs (D28)
                                    "Correcting aggregates"). TTL'd at 90
                                    days (LEDGER_RETENTION_DAYS); a uid's
                                    entries are erased with the account
-v2_question_aggs/{qid}             the PUBLIC mirror, k-floored
-  { tooSmall: true }               while total < AGG_MIN_N (5)
-  { counts, total, tooSmall:false } at/above the floor, and only on every
-                                   5th answer (shouldPublishAgg) — clients
-                                   hold an onSnapshot, so a per-answer
-                                   rewrite would stream one attributable
-                                   vote per step (D7 amendment). No fresh
-                                   timestamp either, for the same reason
-  by { dim: { bucket: {opt:n} } }  the breakdown's OWN floor, per cell,
-                                   plus complementary suppression so a
-                                   lone hidden cell can't be recovered by
-                                   subtraction. A dim with <2 publishable
-                                   buckets is omitted (D8)
-  { total, tooSmall:false,         catalog questions: the canon — top
-    top {entity:n}, rest,          entities above the floor, boundary
-    by { dim: { bucket:            ties and lone holes folded whole
-      { entity: n } } } }          (publishableCanon, D14); bare total
-                                   when nothing survives the fold. `by`
-                                   (D17) holds each segment's ordering
-                                   of the board's OWN entities — floored
-                                   on the shown cohort with the same
-                                   complementary suppression as vote
-                                   breakdowns, never a segment-local
-                                   long tail
+v2_question_aggs/{qid}             the PUBLIC mirror, EXACT (D98)
+  { counts, total }                rewritten on EVERY answer. No
+                                   `tooSmall`, no AGG_MIN_N, no
+                                   PUBLISH_EVERY — the floor, the cadence
+                                   and complementary suppression are all
+                                   gone, because the answers these are
+                                   folded from are themselves readable.
+                                   Still no fresh timestamp, and now for
+                                   a plain reason: it would wake every
+                                   client's onSnapshot for a field none
+                                   of them render
+  by { dim: { bucket: {opt:n} } }  the complete breakdown — every cell,
+                                   every bucket, every dim, at any size.
+                                   An absent cell is ZERO, not withheld.
+                                   Includes the political items, whose
+                                   D44 carve-out D98 reversed (D8)
+  { total,                         catalog questions: the canon — the top
+    top {entity:n}, rest,          CANON_TOP_N entities, everything else
+    by { dim: { bucket:            summed into `rest`. `canonTopN` is a
+      { entity: n } } } }          DISPLAY cap now, not a floor: no
+                                   below-floor drop, no boundary-tie
+                                   fold, no lone-hole fold. `by` (D17)
+                                   holds each segment's ordering of the
+                                   board's OWN entities — cut to the
+                                   board only to bound the document
+  duel-{qid} ids (D40 part 3):     the duel signal — written at reveal
+  { plays, total,                   time (foldDuelSignal), summed across
+    counts?, guessTotal?,           ALL groups. plays = group-days,
+    guessMatches? }                 total = persons (the floor's unit);
+                                   counts only for bank-option questions
+                                   (a pick's optionIdx indexes each
+                                   group's own members — never summed);
+                                   guess fields only when a duo guessed.
+                                   Same floor, crossing-based cadence
+                                   (a reveal folds a batch), no
+                                   timestamp. Never: gids, uids, names,
+                                   member sets, per-group anything
 read: signed-in · write: nobody
+
+v2_presence/{uid}                  Near-by-radius presence (D84)
+  cell: "la_lo"                    a ~1 km 0.01-degree grid id, computed
+                                   ON DEVICE from a coarse fix whose
+                                   coordinate is discarded (data/locate.ts)
+  at: request.time                 freshness; docs older than 10 min do
+                                   not count as "here"
+read: NOBODY (the only read path is nearbyCountV2, which returns a count
+of fresh presence in the 3x3 neighborhood, caller excluded) ·
+create/update/delete: owner only, shape-checked — the cell regex in the
+rules is the precision cap in structural form. Opting out deletes the
+doc; deleteAccount does too.
 
 v2_groups/{gid}                    groups AND duos (mode: group|duo)
   name, mode, ownerUid, memberUids[≤32; duo ≤2], memberNames{uid:name},
-  inviteCode, streak, lastRevealDay, pendingDays[≤6], createdAt
-  (memberNames rides on the group doc because profiles are owner-only;
+  memberJoinedAt{uid:ts},
+  inviteCode, streak, lastRevealDay, pendingDays[≤6], createdAt,
+  duoMode? (duo docs only: friends|romantic — which 1v1 pool duelQFor
+  serves the pair; absent = friends. D40 part 4)
+  (memberNames rides on the group doc as a denormalization: it used to be
+  because profiles were owner-only, and since D98 it is purely to save
+  one profile read per member on every group render;
   callables maintain it on create/join/leave)
+  (memberJoinedAt is read only by revealGroupDay, to scope a day's reveal to
+  the members who were in the group FOR that day. Maintained on the same
+  three paths as memberNames, plus deleteAccount — a uid left in either map
+  outlives the account. Absent for members who predate the field, which
+  revealMembersFor reads as "joined before any day it will be asked about")
   (pendingDays: day keys with an answer and no reveal yet. onV2AnswerCreated
   arrayUnions; the reveal scan removes a day once it settles it and prunes
   past PENDING_DAYS_KEEP. It is how scheduledDuelReveals finds its work with
   an indexed query instead of reading every group — D19)
 read: members · write: callables only (create/join/leave — codes, caps
-and pairing can't be forged client-side)
+and pairing can't be forged client-side), with ONE member-writable field:
+a duo member may update duoMode alone (closed enum, affectedKeys-pinned —
+the rule expresses the whole invariant, so no callable; D40 part 4)
 
 v2_groups/{gid}/reveals/{day}      materialized by the reveal pipeline
   day, qid, votes { uid: {optionIdx, guessIdx?} }, names, members[], revealedAt
-  (members is the membership snapshot AT REVEAL TIME, and it is load-bearing:
-  the read rule gates on THIS array, not the parent group's current roster,
-  which is what keeps the guarantee retroactive — D5's amendment)
+  (members is the membership snapshot the read rule gates on — not the
+  parent group's current roster, which is what keeps the guarantee
+  retroactive: D5's amendment. It is the members who were in the group ON
+  `day`, not at reveal time; the two differ by up to one scan interval, and
+  the difference was a joiner reading the previous day — D55 §9)
 read: the reveal's own members · write: nobody (D5)
 
-Sealed duel answers live in the owner-only answers subcollection under
-composite ids (g_{gid}_{day}) with extra fields gid/day/guessIdx; rules
-require membership and deny creates once the day's reveal exists. Duel
-surfaces are excluded from world aggregates.
+Sealed duel answers live in the same answers subcollection as everything
+else, under composite ids (g_{gid}_{day}) with extra fields
+gid/day/guessIdx — and they are the ONE surface the D98 public read
+excludes, as a `surface` value test rather than an owner-only path. That
+is the seal: the owner still reads their own, nobody else reads any, and
+the reveal doc publishes the whole table the next day. Rules require
+membership and deny creates once the day's reveal exists. Duel surfaces
+are excluded from world aggregates.
 
-v2_takes/{takeId}                  circle-scoped comments (D1; MODERATION.md)
+v2_takes/{takeId}                  comments on a question — circle or world,
+                                   NAMED at both scopes since D98
   gid, authorUid, qid?, text ≤280, createdAt (request.time)
-  hidden? { by, policyLine,        soft-hide (D22): the circle loses it,
-    runId, at }                    the author keeps reading it — appeal
-                                   stays possible against visible text
+  hidden  (bool, REQUIRED,         soft-hide (D22): the circle loses it,
+    false on create)               the author keeps reading it — appeal
+  hiddenMeta? { by, policyLine,    stays possible against visible text
+    runId, at }
 create: circle members, shape-validated · update: nobody (an edit
 invalidates the flags cast on what it used to say — delete and repost)
 delete: author · read: circle members, minus hidden-for-non-authors
+
+`hidden` is a required boolean rather than an optional annotation map, and
+a LIST of this collection must carry `where("hidden","==",false)` or it is
+refused. Both facts are one fact: the read gate is `hidden == false`, and
+only an equality on a present field is enforceable against a query — the
+presence test this replaced returned hidden takes to the whole circle on a
+`where("gid","==",…)` while denying the same document to `getDoc` (D65).
+An ordered list needs the `(gid ASC, hidden ASC, createdAt DESC)` composite
+in firestore.indexes.json — the only entry in that file's `indexes` array,
+declared ahead of the UI that will want it.
 (deleteAccount erases a user's takes and flags by uid query)
 
 v2_flags/{takeId}_{uid}            one flag per (take, user), write-only
-  takeId, gid, uid, at             anonymous to the circle AND the
+  takeId, gid, uid, at             anonymous to everyone AND the
                                    moderation run — only server-folded
                                    counts are ever read
 create: circle members, doc-id-pinned, never on a hidden take
@@ -156,12 +249,12 @@ MOD_UIDS-gated callables (the D22 confinement)
 ## Functions
 
 - `seedContentV2` (callable; emulator or SEED_ADMIN_UIDS allowlist) — mirrors `/content` question banks
-  into `v2_questions` (191 docs, stable ids `daily-000`, `feed-<id>`,
+  into `v2_questions` (513 docs, stable ids `daily-000`, `feed-<id>`,
   `group-<id>`, `duo-000`, `test-<key>-NN`; idempotent merge; `active` written only on first create, preserving the
   operational kill switch). Bank source:
   `functions/src/v2content.ts`, generated from `/content/*.json`.
 - `onV2AnswerCreated` (Firestore trigger, retry on) — transactionally
-  folds each answer into `v2_aggs_private` and mirrors the k-floored
+  folds each answer into `v2_aggs_private` and mirrors the exact
   public doc; idempotent via the `v2_agg_events` ledger (at-least-once
   delivery can't double-count), which also records uid attribution so a
   discovered fake-account ring can be subtracted after the fact (D28).
@@ -207,13 +300,15 @@ read: signed-in · write: nobody
 ## Read economics (client)
 
 A live boot costs ~20 reads, not ~380: one `v2_meta/app` read decides
-everything. The question bank (369 docs) caches in localStorage keyed by
+everything. The question bank (513 docs) caches in localStorage keyed by
 `contentRev`, and refreshes **incrementally** — one query for docs newer
 than the cache's `updatedAt` cursor, so a promotion cycle costs the
 handful of questions it added rather than the whole bank (D34;
 docs/COSTS.md has the arithmetic for why that mattered more than it
-looks). Answers are immutable, so that local cache likewise only pulls
-docs newer than its high-water mark; aggregates cache locally and fetch only
+looks). Answer creates never refetch, so that local cache pulls docs
+newer than its high-water mark — plus, since D86 made optionIdx mutable,
+a second cursor over `editedAt` so another device's edit is heard about
+without moving the frozen answeredAt watermark; aggregates cache locally and fetch only
 answered questions' missing docs (feed cards are blind pre-vote — there
 is nothing to show). The 7 deck aggregates keep live snapshots; voted
 aggregates refresh once, delayed. Push tokens write once per new token,
@@ -226,20 +321,25 @@ not per boot. `LIVE.stats` reports `bankSource` / `answersFetched` /
   deterministic daily rotation (`dayIndex % bankSize`, local midnight),
   aggregate snapshots per deck question, optimistic votes with rollback,
   mock fallback on timeout. The daily tab reads `LIVE.deck()` when live.
-  Live cards show no takes (D1: free text is circle-scoped) but DO show
-  who-voted — that panel is the real per-anchor breakdown, floored per
-  cell and carrying no names, which is "the split, the totals" D1 allows.
+  Live cards show takes — named inside a circle, anonymous at world
+  scale (D83) — and DO show who-voted, by name, from the collection-group
+  read D98 opened (`data/voters.ts`, `ui/LiveVotersPanel.tsx`, capped at
+  `VOTER_FETCH_CAP`). The per-anchor breakdown beside it is exact per
+  cell with no floor. This bullet used to end "carrying no names, which
+  is 'the split, the totals' D1 allows" — that was D1's read arm, which
+  D98 reversed; what survives of D1 is the ban on fabricating people, not
+  on naming real ones.
 - Auth: `anonSignIn()` / `linkGoogle()` in the firebase layer — Google is
   an account *upgrade* (linking keeps the uid and all answers).
 
 ## Verification
 
-- `npm run test:rules` — 32 rules tests (Firestore + Storage; the v2
+- `npm run test:rules` — 89 rules tests (Firestore + Storage; the v2
   surface, the anonymous-default lens, and the retired-v1 guard).
 - `firestore-tests/e2e-v2-loop.mjs` under
   `firebase emulators:exec --only auth,firestore,functions` — the full
-  SDK loop: anon auth → seed → fetch → vote → below-floor tooSmall →
-  dup refused → five voters cross the floor → exact public counts →
+  SDK loop: anon auth → seed → fetch → vote → exact first publish →
+  dup refused → five voters, exact public counts →
   per-anchor breakdown withheld while every cell is sub-floor, then
   published at 5/5 → an 11th answer does not move the mirror off 10 →
   duo create/join-by-code → sealed answers → reveal with votes+guesses →
@@ -249,13 +349,13 @@ not per boot. `LIVE.stats` reports `bankSource` / `answersFetched` /
   the admin SDK (rules bypassed, so "gone" means gone rather than
   "permission-denied").
 - `npm run test:unit` / `npm run test --prefix functions` — the deck
-  rotation and vote state machine; the k-anon floor, reveal and streak math.
+  rotation and vote state machine; the aggregate fold, reveal and streak math.
 
 **What is NOT covered: rendering.** There is no browser-level test, and no
 Playwright — this section previously claimed such a suite existed, which
 was the worst kind of documentation defect: a verification gate that
 provides no verification. The underlying properties it named are covered
-elsewhere — the vote → trigger → k-floor path by the emulator e2e above,
+elsewhere — the vote → trigger → exact publish path by the e2e above,
 and the S-form's empty comments array (D1) by `deck.test.ts` — so the real
 gap is narrower than that bullet implied, but it is a gap: nothing asserts
 that a component renders.

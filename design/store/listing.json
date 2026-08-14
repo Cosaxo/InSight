@@ -1,6 +1,17 @@
 {
   "_comment": [
     "Store listing copy, in the shape the two consoles ask for. Kept as data",
+    "The App Store NAME is not the on-device name. What shows under the icon",
+    "is CFBundleDisplayName (Info.plist) / appName (capacitor.config.ts) /",
+    "app_name (strings.xml), all of which stay \"InSight\". This field is the",
+    "listing title only. It reads \"InSight: Daily Perspective\" because plain",
+    "\"InSight\" was already taken on the App Store on 2026-08-05 — a first-come",
+    "reservation by another developer, not a trademark matter.",
+    "",
+    "play.title is kept identical so the two stores do not silently diverge,",
+    "but it is NOT bound by that collision: Play has its own namespace, so",
+    "revisit it if Play is ever un-parked (D42).",
+    "",
     "rather than prose so scripts/check-store-listing.mjs can hold every",
     "field against its store's character limit — both stores reject an",
     "over-length field at the end of a long manual form, and Apple's",
@@ -14,7 +25,6 @@
     "Placeholders in ALL_CAPS are owner-gated facts, same class as the",
     "web/terms.html values check:store-copy guards."
   ],
-
   "shared": {
     "supportUrl": "https://prvfire33.web.app/",
     "privacyPolicyUrl": "https://prvfire33.web.app/privacy.html",
@@ -22,33 +32,36 @@
     "supportEmail": "olaftaule01@gmail.com",
     "bundleId": "com.cosaxo.insight"
   },
-
   "apple": {
-    "name": "InSight: One Question a Day",
+    "name": "InSight: Daily Perspective",
     "subtitle": "Answer blind, then compare",
     "promotionalText": "One question a day. You answer before you can see anyone else's answer — then the split appears, and you find out whether you're with the crowd or the rare side.",
     "keywords": "poll,opinion,personality,quiz,friends,daily,vote,debate,big five,politics,values,survey",
     "primaryCategory": "Social Networking",
     "secondaryCategory": "Lifestyle",
-    "description": "One question a day. You answer it blind — no counts, no comments, nothing to anchor you — and only then does the split appear.\n\nSometimes you're with the crowd. Sometimes you're the rare side. Either way you found out honestly, because you committed first.\n\n— THE DAILY —\nA single question every day, plus a feed of extras when you want more. You never see how anyone voted until your own answer is locked in. The counts you then see are real: nothing is shown until enough people have answered for the number to mean something.\n\n— DUELS —\nGroups and one-on-ones with people you actually know. Everyone answers the same question, everyone's answer stays sealed until the next day, then it all opens at once with names attached. In a 1v1 you also guess what they'll pick — call it right and the streak grows.\n\n— THE MAP —\nEvery answer becomes a dot in your constellation. Four profiles — personality, politics, values, social style — fill themselves in from questions you already answered. No questionnaires, no homework. Watch yourself take shape.\n\n— BUILT SO THE PRIVACY CLAIMS ARE TRUE —\nThis is the part most apps put in a policy and hope you don't check. Here it's in the code:\n\n• Your answers are yours. Owner-only, permanently, enforced by the database rules and not by our good intentions.\n• Crowd numbers are floored. Nothing is published until at least five people have answered, so no count can be traced back to one person.\n• Sealed means sealed. Duel answers are unlocked by the server on reveal day — nobody can peek early and then play.\n• No fake anything. No invented users, no seeded comments, no fake starting progress. Your profiles start empty because they haven't been filled in yet.\n• No account needed. Open it and start — no email, no phone number, no sign-up wall. Linking a Google account later is optional and keeps everything you already have.\n• Delete means delete. One tap erases your profile, your answers and your memberships.\n\nNo ads. No tracking across other apps. Nothing sold.\n\nOne question. An honest answer. Then the truth about where you stand.",
+    "description": "One question a day. You answer it blind — no counts, no comments, nothing to anchor you — and only then does the split appear.\n\nSometimes you're with the crowd. Sometimes you're the rare side. Either way you found out honestly, because you committed first.\n\n— THE DAILY —\nA single question every day, plus a feed of extras when you want more. You never see how anyone voted until your own answer is locked in. The counts you then see are exact — the real split, from the very first answer.\n\n— DUELS —\nGroups and one-on-ones with people you actually know. Everyone answers the same question, everyone's answer stays sealed until the next day, then it all opens at once with names attached. In a 1v1 you also guess what they'll pick — call it right and the streak grows.\n\n— THE MAP —\nEvery answer becomes a dot in your constellation. Four profiles — personality, politics, values and social style — fill themselves in from questions you already answered. No questionnaires, no homework. Watch yourself take shape.\n\n— WHAT IS PUBLIC, SAID PLAINLY —\nMost apps bury this in a policy and hope you don't check. Here it is up front, because it is the whole point of the app:\n\n• Your answers are public. Anyone using InSight can see what you answered, under your display name, along with the age band, gender, city, country, education and relationship status you have filled in. That is what the app is for — it is how you see who answers like you — but it means nothing you answer here is private. Answer accordingly.\n• That includes the political, personal and sensitive questions. No category is held back, and no group is too small to show: counts are exact from the very first answer, so in a small cohort a count of 1 is visibly one person's answer.\n• Your display name is shown with your answers, and with any take you post. Leave it blank to appear as “Someone” — that hides the name, not the answers.\n• Sealed means sealed. Duel answers are unlocked by the server on reveal day, so nobody can peek early and then play.\n• Nothing here is fake. No invented users, no seeded comments, no head start on your profiles — they start empty because you haven't filled them in yet.\n• No sign-up wall. Open it and start: no email, no phone number. Linking a Google account later is optional and keeps everything you already have.\n• Deleting your account erases your profile, your answers and your memberships.\n\nOne question. An honest answer. Then the truth about where you stand.",
+    "$whatsNew": "Apple REFUSES this on a first release — there is no previous version for it to be new against, and the PATCH comes back 409 naming the attribute (D74). asc-push sends it in its own request for exactly that reason, reports the refusal as a skip, and applies it on the first UPDATE. Keep it accurate here regardless; the value below is what ships the moment there is a version to be new against.",
     "whatsNew": "First release."
   },
-
   "play": {
-    "title": "InSight: One Question a Day",
+    "title": "InSight: Daily Perspective",
     "shortDescription": "One blind question a day — then see exactly how everyone else answered.",
-    "fullDescription": "One question a day. You answer it blind — no counts, no comments, nothing to anchor you — and only then does the split appear.\n\nSometimes you're with the crowd. Sometimes you're the rare side. Either way you found out honestly, because you committed first.\n\n<b>The daily</b>\nA single question every day, plus a feed of extras when you want more. You never see how anyone voted until your own answer is locked in. The counts you then see are real: nothing is shown until enough people have answered for the number to mean something.\n\n<b>Duels</b>\nGroups and one-on-ones with people you actually know. Everyone answers the same question, everyone's answer stays sealed until the next day, then it all opens at once with names attached. In a 1v1 you also guess what they'll pick — call it right and the streak grows.\n\n<b>The map</b>\nEvery answer becomes a dot in your constellation. Four profiles — personality, politics, values, social style — fill themselves in from questions you already answered. No questionnaires, no homework. Watch yourself take shape.\n\n<b>Built so the privacy claims are true</b>\nThis is the part most apps put in a policy and hope you don't check. Here it's in the code:\n\n• Your answers are yours. Owner-only, permanently, enforced by the database rules and not by our good intentions.\n• Crowd numbers are floored. Nothing is published until at least five people have answered, so no count can be traced back to one person.\n• Sealed means sealed. Duel answers are unlocked by the server on reveal day — nobody can peek early and then play.\n• No fake anything. No invented users, no seeded comments, no fake starting progress. Your profiles start empty because they haven't been filled in yet.\n• No account needed. Open it and start — no email, no phone number, no sign-up wall. Linking a Google account later is optional and keeps everything you already have.\n• Delete means delete. One tap erases your profile, your answers and your memberships.\n\nNo ads. No tracking across other apps. Nothing sold.\n\nOne question. An honest answer. Then the truth about where you stand.",
+    "fullDescription": "One question a day. You answer it blind — no counts, no comments, nothing to anchor you — and only then does the split appear.\n\nSometimes you're with the crowd. Sometimes you're the rare side. Either way you found out honestly, because you committed first.\n\n<b>The daily</b>\nA single question every day, plus a feed of extras when you want more. You never see how anyone voted until your own answer is locked in. The counts you then see are exact — the real split, from the very first answer.\n\n<b>Duels</b>\nGroups and one-on-ones with people you actually know. Everyone answers the same question, everyone's answer stays sealed until the next day, then it all opens at once with names attached. In a 1v1 you also guess what they'll pick — call it right and the streak grows.\n\n<b>The map</b>\nEvery answer becomes a dot in your constellation. Four profiles — personality, politics, values and social style — fill themselves in from questions you already answered. No questionnaires, no homework. Watch yourself take shape.\n\n<b>What is public, said plainly</b>\nMost apps bury this in a policy and hope you don't check. Here it is up front, because it is the whole point of the app:\n\n• Your answers are public. Anyone using InSight can see what you answered, under your display name, along with the age band, gender, city, country, education and relationship status you have filled in. That is what the app is for — it is how you see who answers like you — but it means nothing you answer here is private. Answer accordingly.\n• That includes the political, personal and sensitive questions. No category is held back, and no group is too small to show: counts are exact from the very first answer, so in a small cohort a count of 1 is visibly one person's answer.\n• Your display name is shown with your answers, and with any take you post. Leave it blank to appear as “Someone” — that hides the name, not the answers.\n• Sealed means sealed. Duel answers are unlocked by the server on reveal day, so nobody can peek early and then play.\n• Nothing here is fake. No invented users, no seeded comments, no head start on your profiles — they start empty because you haven't filled them in yet.\n• No sign-up wall. Open it and start: no email, no phone number. Linking a Google account later is optional and keeps everything you already have.\n• Deleting your account erases your profile, your answers and your memberships.\n\nOne question. An honest answer. Then the truth about where you stand.",
     "category": "Social",
-    "tags": ["Social", "Polls", "Personality", "Quiz"]
+    "tags": [
+      "Social",
+      "Polls",
+      "Personality",
+      "Quiz"
+    ]
   },
-
   "screenshotCaptions": {
-    "_comment": "Optional overlay text if the marketing layout adds captions. Order matches design/store/screenshots/*/NN-*.png.",
+    "_comment": "THE single source for screenshot captions. scripts/gen-screenshots.mjs reads these and fails if one is missing; keys are the generated filenames (NN-sceneid) minus .png. They used to be duplicated in that script's SCENES and had already drifted in three of six.",
     "01-daily": "One blind question a day.",
-    "02-reveal": "Answer first — then see the split.",
+    "02-reveal": "Answer first — then see how the world split.",
     "03-mirror": "Every answer becomes a dot in your constellation.",
     "04-duel": "Sealed until tomorrow. Did you call it?",
-    "05-group": "Your people, one question, revealed at once.",
-    "06-profiles": "Four profiles that fill themselves in."
+    "05-group": "Your people, one question, everyone revealed at once.",
+    "06-profiles": "Five profiles that fill themselves in as you answer."
   }
 }

@@ -4,7 +4,16 @@
 // generates, on the deploy path, so a hand edit here (or a /content
 // change without a regen) fails the gate.
 // Canonical launch question bank for the v2 seed callable.
-export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; axis: string | null; test: string | null; }
+// `active`/`political` are optional and emitted only when set: absent means
+// active (deck.ts filters `active !== false`) and sliceable (v2.ts's D44
+// predicate checks `political === true` alongside `test === "political"`).
+// `branch`/`sub` are the daily bank's [branch, sub-branch] subject path
+// (D100) and are absent on every other surface, which carries no path.
+// `lo`/`hi`/`unit`/`ends` (dial) and `ax`/`ay` (field) are the continuum
+// forms' range/plane copy (D114), absent everywhere else; their options
+// are synthesized bucket/cell labels, so the D52 option freeze freezes
+// the range with them.
+export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; branch?: string; sub?: string; axis: string | null; test: string | null; mode?: string; active?: boolean; political?: boolean; until?: string; lo?: number; hi?: number; unit?: string; ends?: string[]; ax?: string[]; ay?: string[]; title?: string; intro?: string; hue?: number; nodes?: Record<string, { q: string; a: Array<{ t: string }> }>; endings?: Record<string, { name: string; line: string }>; }
 export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "daily-000",
@@ -18,6 +27,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Ronaldo"
   ],
   "topic": "light",
+  "branch": "Sport",
+  "sub": "Football",
   "axis": null,
   "test": null
  },
@@ -33,6 +44,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Wes Anderson"
   ],
   "topic": "light",
+  "branch": "Film",
+  "sub": "Directors",
   "axis": null,
   "test": null
  },
@@ -48,6 +61,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Never"
   ],
   "topic": "light",
+  "branch": "Food",
+  "sub": "Debates",
   "axis": null,
   "test": null
  },
@@ -65,6 +80,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Closeness"
   ],
   "topic": "deep",
+  "branch": "Values",
+  "sub": "Longing",
   "axis": null,
   "test": null
  },
@@ -83,6 +100,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Strongly agree"
   ],
   "topic": "light",
+  "branch": "Mind",
+  "sub": "Rest",
   "axis": "at ease",
   "test": null
  },
@@ -98,6 +117,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Meaner"
   ],
   "topic": "deep",
+  "branch": "Morals",
+  "sub": "Direction",
   "axis": null,
   "test": null
  },
@@ -107,13 +128,15 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "seq": 6,
   "type": "dilemma",
   "domain": null,
-  "prompt": "You find €500 in cash on an empty street. What do you do?",
+  "prompt": "You find a week's pay in cash on an empty street. What do you do?",
   "options": [
    "Keep it",
    "Hand it in",
    "Leave it"
   ],
   "topic": "deep",
+  "branch": "Morals",
+  "sub": "Honesty",
   "axis": null,
   "test": null
  },
@@ -137,6 +160,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "10"
   ],
   "topic": "deep",
+  "branch": "Mind",
+  "sub": "Outlook",
   "axis": "optimistic",
   "test": null
  },
@@ -155,6 +180,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Strongly agree"
   ],
   "topic": "deep",
+  "branch": "Values",
+  "sub": "Trust",
   "axis": "trusting",
   "test": null
  },
@@ -170,6 +197,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Never"
   ],
   "topic": "deep",
+  "branch": "Mind",
+  "sub": "Human limits",
   "axis": null,
   "test": null
  },
@@ -187,6 +216,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "History"
   ],
   "topic": "deep",
+  "branch": "Values",
+  "sub": "Education",
   "axis": null,
   "test": null
  },
@@ -196,13 +227,15 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "seq": 11,
   "type": "dilemma",
   "domain": null,
-  "prompt": "A job you would love means moving somewhere your partner would hate. Do you take it?",
+  "prompt": "A job you would love means moving somewhere the person closest to you would hate. Do you take it?",
   "options": [
    "Take it",
    "Stay",
    "Find a third way"
   ],
   "topic": "deep",
+  "branch": "Morals",
+  "sub": "Loyalty",
   "axis": null,
   "test": null
  },
@@ -218,6 +251,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Play"
   ],
   "topic": "light",
+  "branch": "Sport",
+  "sub": "How you engage",
   "axis": null,
   "test": null
  },
@@ -236,6 +271,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Strongly agree"
   ],
   "topic": "deep",
+  "branch": "Values",
+  "sub": "Meaning",
   "axis": "searching",
   "test": null
  },
@@ -259,8 +296,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "10"
   ],
   "topic": "deep",
+  "branch": "Mind",
+  "sub": "Media",
   "axis": "trusting",
-  "test": null
+  "test": null,
+  "political": true
  },
  {
   "id": "daily-015",
@@ -274,6 +314,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Worse"
   ],
   "topic": "deep",
+  "branch": "Mind",
+  "sub": "Technology",
   "axis": null,
   "test": null
  },
@@ -291,6 +333,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Music"
   ],
   "topic": "blend",
+  "branch": "Mind",
+  "sub": "Civilisation",
   "axis": null,
   "test": null
  },
@@ -309,6 +353,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Strongly agree"
   ],
   "topic": "deep",
+  "branch": "Mind",
+  "sub": "Technology",
   "axis": "wary",
   "test": null
  },
@@ -326,6 +372,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Peace"
   ],
   "topic": "deep",
+  "branch": "Values",
+  "sub": "What matters",
   "axis": null,
   "test": null
  },
@@ -341,6 +389,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Never know"
   ],
   "topic": "deep",
+  "branch": "Mind",
+  "sub": "Mortality",
   "axis": null,
   "test": null
  },
@@ -364,6 +414,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "10"
   ],
   "topic": "deep",
+  "branch": "Mind",
+  "sub": "Fate",
   "axis": "shaped by luck",
   "test": null
  },
@@ -382,6 +434,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Strongly agree"
   ],
   "topic": "blend",
+  "branch": "Values",
+  "sub": "Friendship",
   "axis": "inward",
   "test": null
  },
@@ -397,6 +451,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Truth anyway"
   ],
   "topic": "deep",
+  "branch": "Morals",
+  "sub": "Kindness",
   "axis": null,
   "test": null
  },
@@ -415,6 +471,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Strongly agree"
   ],
   "topic": "deep",
+  "branch": "Morals",
+  "sub": "Honesty",
   "axis": "frank",
   "test": null
  },
@@ -433,6 +491,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Strongly agree"
   ],
   "topic": "blend",
+  "branch": "Values",
+  "sub": "Money",
   "axis": "materialist",
   "test": null
  },
@@ -456,6 +516,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "10"
   ],
   "topic": "deep",
+  "branch": "Mind",
+  "sub": "Agency",
   "axis": "in control",
   "test": null
  },
@@ -473,6 +535,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "What I make"
   ],
   "topic": "deep",
+  "branch": "Values",
+  "sub": "Identity",
   "axis": null,
   "test": null
  },
@@ -488,6 +552,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "A new one"
   ],
   "topic": "blend",
+  "branch": "Mind",
+  "sub": "Time",
   "axis": null,
   "test": null
  },
@@ -505,6 +571,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Winter"
   ],
   "topic": "light",
+  "branch": "Travel",
+  "sub": "Seasons",
   "axis": null,
   "test": null
  },
@@ -523,6 +591,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Strongly agree"
   ],
   "topic": "deep",
+  "branch": "Morals",
+  "sub": "Faith in others",
   "axis": "hopeful",
   "test": null
  },
@@ -538,6 +608,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Solo"
   ],
   "topic": "light",
+  "branch": "Sport",
+  "sub": "How you play",
   "axis": null,
   "test": null
  },
@@ -554,6 +626,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Sofa"
   ],
   "topic": "light",
+  "branch": "Sport",
+  "sub": "Watching",
   "axis": null,
   "test": null
  },
@@ -569,6 +643,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Dubbing"
   ],
   "topic": "light",
+  "branch": "Film",
+  "sub": "How you watch",
   "axis": null,
   "test": null
  },
@@ -585,6 +661,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Entertained"
   ],
   "topic": "blend",
+  "branch": "Film",
+  "sub": "What it’s for",
   "axis": null,
   "test": null
  },
@@ -600,6 +678,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Sofa"
   ],
   "topic": "light",
+  "branch": "Film",
+  "sub": "Where you watch",
   "axis": null,
   "test": null
  },
@@ -615,6 +695,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Eat out"
   ],
   "topic": "light",
+  "branch": "Food",
+  "sub": "Habits",
   "axis": null,
   "test": null
  },
@@ -632,6 +714,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Indian"
   ],
   "topic": "light",
+  "branch": "Food",
+  "sub": "Taste",
   "axis": null,
   "test": null
  },
@@ -650,6 +734,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Strongly agree"
   ],
   "topic": "light",
+  "branch": "Food",
+  "sub": "Meals",
   "axis": "breakfast-loyal",
   "test": null
  },
@@ -665,6 +751,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Sea"
   ],
   "topic": "light",
+  "branch": "Travel",
+  "sub": "Landscapes",
   "axis": null,
   "test": null
  },
@@ -681,6 +769,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Coming home"
   ],
   "topic": "blend",
+  "branch": "Travel",
+  "sub": "The arc",
   "axis": null,
   "test": null
  },
@@ -696,6 +786,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "The future"
   ],
   "topic": "blend",
+  "branch": "Travel",
+  "sub": "Time travel",
   "axis": null,
   "test": null
  },
@@ -711,6 +803,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "The recording"
   ],
   "topic": "light",
+  "branch": "Music",
+  "sub": "How you listen",
   "axis": null,
   "test": null
  },
@@ -728,6 +822,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Memory"
   ],
   "topic": "blend",
+  "branch": "Music",
+  "sub": "What it does",
   "axis": null,
   "test": null
  },
@@ -743,6 +839,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Melody"
   ],
   "topic": "light",
+  "branch": "Music",
+  "sub": "What hooks you",
   "axis": null,
   "test": null
  },
@@ -758,6 +856,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Night owl"
   ],
   "topic": "light",
+  "branch": "Body",
+  "sub": "Clock",
   "axis": null,
   "test": null
  },
@@ -776,6 +876,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Strongly agree"
   ],
   "topic": "blend",
+  "branch": "Body",
+  "sub": "Movement",
   "axis": "movement-powered",
   "test": null
  },
@@ -793,6 +895,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "A stranger"
   ],
   "topic": "deep",
+  "branch": "Story",
+  "sub": "Then and now",
   "axis": null,
   "test": null
  },
@@ -808,6 +912,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Burn it"
   ],
   "topic": "blend",
+  "branch": "Story",
+  "sub": "The archive",
   "axis": null,
   "test": null
  },
@@ -825,6 +931,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Healing"
   ],
   "topic": "deep",
+  "branch": "Goals",
+  "sub": "The decade",
   "axis": null,
   "test": null
  },
@@ -843,6 +951,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Strongly agree"
   ],
   "topic": "deep",
+  "branch": "Goals",
+  "sub": "Clarity",
   "axis": "clear-eyed",
   "test": null
  },
@@ -860,6 +970,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "A stopover"
   ],
   "topic": "blend",
+  "branch": "Home",
+  "sub": "What it is",
   "axis": null,
   "test": null
  },
@@ -875,6 +987,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Dabble"
   ],
   "topic": "blend",
+  "branch": "Skills",
+  "sub": "Depth",
   "axis": null,
   "test": null
  },
@@ -890,6 +1004,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Join a club"
   ],
   "topic": "light",
+  "branch": "Interests",
+  "sub": "How you start",
   "axis": null,
   "test": null
  },
@@ -905,6 +1021,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Lived-in"
   ],
   "topic": "light",
+  "branch": "Home",
+  "sub": "How it looks",
   "axis": null,
   "test": null
  },
@@ -922,6 +1040,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Time"
   ],
   "topic": "deep",
+  "branch": "Home",
+  "sub": "What makes it",
   "axis": null,
   "test": null
  },
@@ -937,6 +1057,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Quiet"
   ],
   "topic": "blend",
+  "branch": "Home",
+  "sub": "Guests",
   "axis": null,
   "test": null
  },
@@ -954,6 +1076,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "The view"
   ],
   "topic": "blend",
+  "branch": "Home",
+  "sub": "Non-negotiables",
   "axis": null,
   "test": null
  },
@@ -969,6 +1093,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Wing it"
   ],
   "topic": "light",
+  "branch": "Skills",
+  "sub": "How you learn",
   "axis": null,
   "test": null
  },
@@ -986,6 +1112,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Carpentry"
   ],
   "topic": "blend",
+  "branch": "Skills",
+  "sub": "Wishlist",
   "axis": null,
   "test": null
  },
@@ -1003,6 +1131,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Letting go"
   ],
   "topic": "deep",
+  "branch": "Skills",
+  "sub": "The hard ones",
   "axis": null,
   "test": null
  },
@@ -1021,6 +1151,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Strongly agree"
   ],
   "topic": "blend",
+  "branch": "Skills",
+  "sub": "Beginnings",
   "axis": "beginner-hearted",
   "test": null
  },
@@ -1036,6 +1168,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Experiences"
   ],
   "topic": "blend",
+  "branch": "Interests",
+  "sub": "Collecting",
   "axis": null,
   "test": null
  },
@@ -1053,6 +1187,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "The sofa"
   ],
   "topic": "light",
+  "branch": "Interests",
+  "sub": "Free time",
   "axis": null,
   "test": null
  },
@@ -1071,6 +1207,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Strongly agree"
   ],
   "topic": "blend",
+  "branch": "Interests",
+  "sub": "Why we bother",
   "axis": "play-minded",
   "test": null
  },
@@ -1086,6 +1224,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Interested"
   ],
   "topic": "deep",
+  "branch": "Interests",
+  "sub": "The point",
   "axis": null,
   "test": null
  },
@@ -1103,6 +1243,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "A quiet chapter"
   ],
   "topic": "deep",
+  "branch": "Story",
+  "sub": "Chapters",
   "axis": null,
   "test": null
  },
@@ -1120,6 +1262,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "A person"
   ],
   "topic": "blend",
+  "branch": "Story",
+  "sub": "Retellings",
   "axis": null,
   "test": null
  },
@@ -1135,6 +1279,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Stories"
   ],
   "topic": "blend",
+  "branch": "Story",
+  "sub": "Memory",
   "axis": null,
   "test": null
  },
@@ -1152,6 +1298,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "A joke"
   ],
   "topic": "blend",
+  "branch": "Story",
+  "sub": "The book of you",
   "axis": null,
   "test": null
  },
@@ -1167,6 +1315,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Keep them quiet"
   ],
   "topic": "blend",
+  "branch": "Goals",
+  "sub": "Method",
   "axis": null,
   "test": null
  },
@@ -1185,6 +1335,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Strongly agree"
   ],
   "topic": "deep",
+  "branch": "Goals",
+  "sub": "Ambition",
   "axis": "high-aiming",
   "test": null
  },
@@ -1202,6 +1354,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Knowing what I want"
   ],
   "topic": "deep",
+  "branch": "Goals",
+  "sub": "The obstacle",
   "axis": null,
   "test": null
  },
@@ -1217,6 +1371,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Never fully"
   ],
   "topic": "blend",
+  "branch": "Goals",
+  "sub": "The long game",
   "axis": null,
   "test": null
  },
@@ -1234,6 +1390,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Quiet"
   ],
   "topic": "light",
+  "branch": "Body",
+  "sub": "Signals",
   "axis": null,
   "test": null
  },
@@ -1249,6 +1407,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Ice bath"
   ],
   "topic": "light",
+  "branch": "Body",
+  "sub": "Heat or cold",
   "axis": null,
   "test": null
  },
@@ -1267,6 +1427,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Strongly agree"
   ],
   "topic": "blend",
+  "branch": "Body",
+  "sub": "Sleep",
   "axis": "sleep-strict",
   "test": null
  },
@@ -1282,6 +1444,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Escalator"
   ],
   "topic": "light",
+  "branch": "Body",
+  "sub": "Everyday movement",
   "axis": null,
   "test": null
  },
@@ -1297,6 +1461,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Never"
   ],
   "topic": "light",
+  "branch": "Music",
+  "sub": "When you listen",
   "axis": null,
   "test": null
  },
@@ -1314,6 +1480,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Last year"
   ],
   "topic": "blend",
+  "branch": "Music",
+  "sub": "Formative years",
   "axis": null,
   "test": null
  },
@@ -1329,6 +1497,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Shuffle"
   ],
   "topic": "light",
+  "branch": "Music",
+  "sub": "How you listen",
   "axis": null,
   "test": null
  },
@@ -1344,6 +1514,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Somewhere new"
   ],
   "topic": "blend",
+  "branch": "Travel",
+  "sub": "Repeat or explore",
   "axis": null,
   "test": null
  },
@@ -1359,6 +1531,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Dynasties"
   ],
   "topic": "blend",
+  "branch": "Sport",
+  "sub": "Rooting",
   "axis": null,
   "test": null
  },
@@ -1374,6 +1548,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Salty"
   ],
   "topic": "light",
+  "branch": "Food",
+  "sub": "Cravings",
   "axis": null,
   "test": null
  },
@@ -1389,6 +1565,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Don't matter"
   ],
   "topic": "light",
+  "branch": "Film",
+  "sub": "Spoilers",
   "axis": null,
   "test": null
  },
@@ -1404,6 +1582,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Never ask"
   ],
   "topic": "deep",
+  "branch": "Values",
+  "sub": "Truth",
   "axis": null,
   "test": null
  },
@@ -1422,6 +1602,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Strongly agree"
   ],
   "topic": "deep",
+  "branch": "Values",
+  "sub": "Repair",
   "axis": "forgiving",
   "test": null
  },
@@ -1439,6 +1621,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Yourself"
   ],
   "topic": "deep",
+  "branch": "Morals",
+  "sub": "Debts",
   "axis": null,
   "test": null
  },
@@ -1454,6 +1638,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Can't anymore"
   ],
   "topic": "deep",
+  "branch": "Morals",
+  "sub": "Art and artist",
   "axis": null,
   "test": null
  },
@@ -1471,6 +1657,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "By the window"
   ],
   "topic": "light",
+  "branch": "Home",
+  "sub": "The good spot",
   "axis": null,
   "test": null
  },
@@ -1494,6 +1682,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "10"
   ],
   "topic": "blend",
+  "branch": "Interests",
+  "sub": "Curiosity",
   "axis": "curious",
   "test": null
  },
@@ -1618,7 +1808,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "food",
   "axis": null,
-  "test": null
+  "test": null,
+  "active": false
  },
  {
   "id": "feed-f09",
@@ -1803,7 +1994,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "movies",
   "axis": null,
-  "test": null
+  "test": null,
+  "active": false
  },
  {
   "id": "feed-f21",
@@ -1818,7 +2010,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "music",
   "axis": null,
-  "test": null
+  "test": null,
+  "active": false
  },
  {
   "id": "feed-f22",
@@ -1866,7 +2059,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "music",
   "axis": null,
-  "test": null
+  "test": null,
+  "active": false
  },
  {
   "id": "feed-f25",
@@ -2090,7 +2284,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "seq": 38,
   "type": "vote",
   "domain": null,
-  "prompt": "$1M now, but a stranger somewhere loses everything. Press the button?",
+  "prompt": "A million now, but a stranger somewhere loses everything. Press the button?",
   "options": [
    "Press",
    "Never"
@@ -2112,7 +2306,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "dilemma",
   "axis": null,
-  "test": null
+  "test": null,
+  "active": false
  },
  {
   "id": "feed-f41",
@@ -2187,7 +2382,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "event",
   "axis": null,
-  "test": null
+  "test": null,
+  "political": true
  },
  {
   "id": "feed-f46",
@@ -2202,7 +2398,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "event",
   "axis": null,
-  "test": null
+  "test": null,
+  "political": true
  },
  {
   "id": "feed-f47",
@@ -2217,7 +2414,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "event",
   "axis": null,
-  "test": null
+  "test": null,
+  "political": true
  },
  {
   "id": "feed-f48",
@@ -2323,7 +2521,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "bigq",
   "axis": null,
-  "test": null
+  "test": null,
+  "active": false
  },
  {
   "id": "feed-f55",
@@ -2551,7 +2750,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Blitz",
    "Classical"
   ],
-  "topic": "bigq",
+  "topic": "culture",
   "axis": null,
   "test": null
  },
@@ -2567,7 +2766,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "d4",
    "Something weird"
   ],
-  "topic": "bigq",
+  "topic": "culture",
   "axis": null,
   "test": null
  },
@@ -2582,7 +2781,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Take it",
    "Play on"
   ],
-  "topic": "bigq",
+  "topic": "culture",
   "axis": null,
   "test": null
  },
@@ -2615,6 +2814,491 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "food",
   "axis": null,
   "test": null
+ },
+ {
+  "id": "feed-dl1",
+  "surface": "feed",
+  "seq": 73,
+  "type": "dial",
+  "domain": null,
+  "prompt": "When does old age begin?",
+  "options": [
+   "40–44 yrs",
+   "44–48 yrs",
+   "48–53 yrs",
+   "53–57 yrs",
+   "57–61 yrs",
+   "61–65 yrs",
+   "65–69 yrs",
+   "69–73 yrs",
+   "73–78 yrs",
+   "78–82 yrs",
+   "82–86 yrs",
+   "86–90 yrs"
+  ],
+  "topic": "bigq",
+  "axis": null,
+  "test": null,
+  "lo": 40,
+  "hi": 90,
+  "unit": "yrs"
+ },
+ {
+  "id": "feed-dl2",
+  "surface": "feed",
+  "seq": 74,
+  "type": "dial",
+  "domain": null,
+  "prompt": "The right tip",
+  "options": [
+   "0–3%",
+   "3–5%",
+   "5–8%",
+   "8–10%",
+   "10–13%",
+   "13–15%",
+   "15–18%",
+   "18–20%",
+   "20–23%",
+   "23–25%",
+   "25–28%",
+   "28–30%"
+  ],
+  "topic": "dilemma",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 30,
+  "unit": "%"
+ },
+ {
+  "id": "feed-dl3",
+  "surface": "feed",
+  "seq": 75,
+  "type": "dial",
+  "domain": null,
+  "prompt": "Daily screen time — where does “too much” start?",
+  "options": [
+   "1–2 h",
+   "2–3 h",
+   "3–4 h",
+   "4–5 h",
+   "5–6 h",
+   "6–7 h",
+   "7–7 h",
+   "7–8 h",
+   "8–9 h",
+   "9–10 h",
+   "10–11 h",
+   "11–12 h"
+  ],
+  "topic": "dilemma",
+  "axis": null,
+  "test": null,
+  "lo": 1,
+  "hi": 12,
+  "unit": "h"
+ },
+ {
+  "id": "feed-dl4",
+  "surface": "feed",
+  "seq": 76,
+  "type": "dial",
+  "domain": null,
+  "prompt": "How much of your life is actually in your control?",
+  "options": [
+   "0–8%",
+   "8–17%",
+   "17–25%",
+   "25–33%",
+   "33–42%",
+   "42–50%",
+   "50–58%",
+   "58–67%",
+   "67–75%",
+   "75–83%",
+   "83–92%",
+   "92–100%"
+  ],
+  "topic": "bigq",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 100,
+  "unit": "%"
+ },
+ {
+  "id": "feed-fd1",
+  "surface": "feed",
+  "seq": 77,
+  "type": "field",
+  "domain": null,
+  "prompt": "Pineapple on pizza — place it",
+  "options": [
+   "tastes bad · high art",
+   "lean tastes bad · high art",
+   "lean tastes good · high art",
+   "tastes good · high art",
+   "tastes bad · middle",
+   "lean tastes bad · middle",
+   "lean tastes good · middle",
+   "tastes good · middle",
+   "tastes bad · a crime",
+   "lean tastes bad · a crime",
+   "lean tastes good · a crime",
+   "tastes good · a crime"
+  ],
+  "topic": "dilemma",
+  "axis": null,
+  "test": null,
+  "ax": [
+   "tastes bad",
+   "tastes good"
+  ],
+  "ay": [
+   "a crime",
+   "high art"
+  ]
+ },
+ {
+  "id": "feed-fd2",
+  "surface": "feed",
+  "seq": 78,
+  "type": "field",
+  "domain": null,
+  "prompt": "Small talk — place it",
+  "options": [
+   "painful · essential",
+   "lean painful · essential",
+   "lean pleasant · essential",
+   "pleasant · essential",
+   "painful · middle",
+   "lean painful · middle",
+   "lean pleasant · middle",
+   "pleasant · middle",
+   "painful · pointless",
+   "lean painful · pointless",
+   "lean pleasant · pointless",
+   "pleasant · pointless"
+  ],
+  "topic": "bigq",
+  "axis": null,
+  "test": null,
+  "ax": [
+   "painful",
+   "pleasant"
+  ],
+  "ay": [
+   "pointless",
+   "essential"
+  ]
+ },
+ {
+  "id": "feed-fd3",
+  "surface": "feed",
+  "seq": 79,
+  "type": "field",
+  "domain": null,
+  "prompt": "AI assistants, today — place them",
+  "options": [
+   "overhyped · exciting",
+   "lean overhyped · exciting",
+   "lean underrated · exciting",
+   "underrated · exciting",
+   "overhyped · middle",
+   "lean overhyped · middle",
+   "lean underrated · middle",
+   "underrated · middle",
+   "overhyped · scary",
+   "lean overhyped · scary",
+   "lean underrated · scary",
+   "underrated · scary"
+  ],
+  "topic": "bigq",
+  "axis": null,
+  "test": null,
+  "ax": [
+   "overhyped",
+   "underrated"
+  ],
+  "ay": [
+   "scary",
+   "exciting"
+  ]
+ },
+ {
+  "id": "feed-pt1",
+  "surface": "feed",
+  "seq": 80,
+  "type": "path",
+  "domain": null,
+  "prompt": "The Wallet — a wallet, a bus, and nobody watching",
+  "options": [
+   "The Quiet Good",
+   "The Honest Trade",
+   "The Long Way Round",
+   "Finders, Keepers",
+   "The Doorstep",
+   "By the Book",
+   "The Second Chance",
+   "Not My Story"
+  ],
+  "topic": "dilemma",
+  "axis": null,
+  "test": null,
+  "title": "The Wallet",
+  "intro": "The last bus home. On the seat beside you: a wallet, fat with cash. No cameras. No one else aboard.",
+  "hue": 20,
+  "nodes": {
+   "_": {
+    "q": "It sits there, heavier than it should be.",
+    "a": [
+     {
+      "t": "Open it"
+     },
+     {
+      "t": "Hand it to the driver, unopened"
+     }
+    ]
+   },
+   "A": {
+    "q": "A student ID. 4,000 in cash. A clinic appointment slip for Thursday.",
+    "a": [
+     {
+      "t": "Track them down yourself"
+     },
+     {
+      "t": "Keep the cash, mail the rest back"
+     }
+    ]
+   },
+   "B": {
+    "q": "The driver shrugs without looking. \"Lost box is broken. Your call, friend.\"",
+    "a": [
+     {
+      "t": "Take it back — handle it yourself"
+     },
+     {
+      "t": "Leave it on the seat"
+     }
+    ]
+   },
+   "AA": {
+    "q": "You find them in an hour online. They answer, voice shaking with relief — and offer a reward.",
+    "a": [
+     {
+      "t": "Refuse the reward"
+     },
+     {
+      "t": "Take it — fair is fair"
+     }
+    ]
+   },
+   "AB": {
+    "q": "A week passes. The clinic slip keeps surfacing in your mind like a splinter.",
+    "a": [
+     {
+      "t": "Mail the cash after all"
+     },
+     {
+      "t": "Spend it"
+     }
+    ]
+   },
+   "BA": {
+    "q": "The ID shows an address two streets from yours. Thursday is tomorrow.",
+    "a": [
+     {
+      "t": "The doorstep, in person"
+     },
+     {
+      "t": "The police station drop-box"
+     }
+    ]
+   },
+   "BB": {
+    "q": "The doors hiss shut. Through the window you watch the wallet ride away.",
+    "a": [
+     {
+      "t": "Chase the bus to the next stop"
+     },
+     {
+      "t": "Walk home"
+     }
+    ]
+   }
+  },
+  "endings": {
+   "AAA": {
+    "name": "The Quiet Good",
+    "line": "No reward, no witness. You did it for the version of you that was watching."
+   },
+   "AAB": {
+    "name": "The Honest Trade",
+    "line": "Everyone leaves whole. Virtue doesn’t have to be free."
+   },
+   "ABA": {
+    "name": "The Long Way Round",
+    "line": "The splinter won. Later than right, but right."
+   },
+   "ABB": {
+    "name": "Finders, Keepers",
+    "line": "The money spent easily. Thursday came and went somewhere else."
+   },
+   "BAA": {
+    "name": "The Doorstep",
+    "line": "A stranger’s face, changing as they understand. Worth the walk."
+   },
+   "BAB": {
+    "name": "By the Book",
+    "line": "Clean hands, proper channels. The story ends without your name in it."
+   },
+   "BBA": {
+    "name": "The Second Chance",
+    "line": "Lungs burning at the next stop. Some choices allow one revision."
+   },
+   "BBB": {
+    "name": "Not My Story",
+    "line": "You never found out. That was the choice, too."
+   }
+  }
+ },
+ {
+  "id": "feed-pt2",
+  "surface": "feed",
+  "seq": 81,
+  "type": "path",
+  "domain": null,
+  "prompt": "The Wrong Text — a message that was not meant for you",
+  "options": [
+   "The Renegotiator",
+   "The Clean Exit",
+   "The Whistle",
+   "The Quiet Departure",
+   "Cards on the Table",
+   "The Poker Face",
+   "The Better Door",
+   "The Long Game"
+  ],
+  "topic": "dilemma",
+  "axis": null,
+  "test": null,
+  "title": "The Wrong Text",
+  "intro": "Your boss texts you at 23:40: \"Offer the role to the other one. Don’t tell K yet.\" You are K.",
+  "hue": 255,
+  "nodes": {
+   "_": {
+    "q": "The message glows in the dark. Typing dots appear, then vanish.",
+    "a": [
+     {
+      "t": "\"I think this wasn’t meant for me.\""
+     },
+     {
+      "t": "Say nothing. Screenshot it."
+     }
+    ]
+   },
+   "A": {
+    "q": "Your phone rings ten seconds later. A flustered voice offers \"a proper chat tomorrow.\"",
+    "a": [
+     {
+      "t": "Take the chat, ask it straight"
+     },
+     {
+      "t": "Decline — start job-hunting tonight"
+     }
+    ]
+   },
+   "B": {
+    "q": "Next morning they greet you like nothing happened. The role posting closes Friday.",
+    "a": [
+     {
+      "t": "Confront them before Friday"
+     },
+     {
+      "t": "Quietly interview elsewhere"
+     }
+    ]
+   },
+   "AA": {
+    "q": "Across the desk they don’t deny it. \"The decision wasn’t final,\" they say. It sounds final.",
+    "a": [
+     {
+      "t": "Negotiate to stay — on new terms"
+     },
+     {
+      "t": "Resign in the meeting"
+     }
+    ]
+   },
+   "AB": {
+    "q": "Three interviews in a week. One offer arrives — smaller title, better people.",
+    "a": [
+     {
+      "t": "Tell your team why you’re going"
+     },
+     {
+      "t": "Ghost gracefully"
+     }
+    ]
+   },
+   "BA": {
+    "q": "Thursday, empty meeting room. You have the screenshot. They have a story ready.",
+    "a": [
+     {
+      "t": "Show the screenshot"
+     },
+     {
+      "t": "Bluff — \"I’ve heard rumours\""
+     }
+    ]
+   },
+   "BB": {
+    "q": "The rival offer lands Friday morning — same pay, a team that actually wanted you.",
+    "a": [
+     {
+      "t": "Accept it"
+     },
+     {
+      "t": "Stay anyway"
+     }
+    ]
+   }
+  },
+  "endings": {
+   "AAA": {
+    "name": "The Renegotiator",
+    "line": "You stayed — but the terms are yours now, and everyone knows it."
+   },
+   "AAB": {
+    "name": "The Clean Exit",
+    "line": "Shortest resignation letter in company history. No regrets by Tuesday."
+   },
+   "ABA": {
+    "name": "The Whistle",
+    "line": "The team heard the truth. Some doors close loudly and that’s fine."
+   },
+   "ABB": {
+    "name": "The Quiet Departure",
+    "line": "No scene, no speech. Your absence said it."
+   },
+   "BAA": {
+    "name": "Cards on the Table",
+    "line": "The screenshot did the talking. Their face did the confessing."
+   },
+   "BAB": {
+    "name": "The Poker Face",
+    "line": "You never showed your hand. They folded anyway."
+   },
+   "BBA": {
+    "name": "The Better Door",
+    "line": "Monday, new desk. The old boss still doesn’t know you knew."
+   },
+   "BBB": {
+    "name": "The Long Game",
+    "line": "You stayed with the receipts. Leverage keeps better than anger."
+   }
+  }
  },
  {
   "id": "group-gu0",
@@ -3030,12 +3714,29 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null
  },
  {
-  "id": "duo-003",
+  "id": "duo-040",
   "surface": "duo",
   "seq": 3,
   "type": "binary",
   "domain": null,
-  "prompt": "Running late. Their text says…",
+  "prompt": "The word that fits them best?",
+  "options": [
+   "Warm",
+   "Sharp",
+   "Steady",
+   "Restless"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "duo-003",
+  "surface": "duo",
+  "seq": 4,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Running late. The text says…",
   "options": [
    "\"5 min\" (it’s 20)",
    "The honest ETA",
@@ -3048,7 +3749,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-004",
   "surface": "duo",
-  "seq": 4,
+  "seq": 5,
   "type": "binary",
   "domain": null,
   "prompt": "The food arrives wrong. Say something?",
@@ -3061,9 +3762,26 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null
  },
  {
+  "id": "duo-041",
+  "surface": "duo",
+  "seq": 6,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Their best quality, in one word?",
+  "options": [
+   "Loyalty",
+   "Humour",
+   "Honesty",
+   "Nerve"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null
+ },
+ {
   "id": "duo-005",
   "surface": "duo",
-  "seq": 5,
+  "seq": 7,
   "type": "binary",
   "domain": null,
   "prompt": "Lost in a new city. They…",
@@ -3079,7 +3797,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-006",
   "surface": "duo",
-  "seq": 6,
+  "seq": 8,
   "type": "binary",
   "domain": null,
   "prompt": "A free Saturday, zero plans. Bliss or restless?",
@@ -3094,7 +3812,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-007",
   "surface": "duo",
-  "seq": 7,
+  "seq": 9,
   "type": "binary",
   "domain": null,
   "prompt": "Karaoke machine appears.",
@@ -3108,12 +3826,28 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null
  },
  {
-  "id": "duo-008",
+  "id": "duo-042",
   "surface": "duo",
-  "seq": 8,
+  "seq": 10,
   "type": "binary",
   "domain": null,
-  "prompt": "Someone takes their joke too far. Laugh it off, or say so?",
+  "prompt": "In a room of strangers, they are…",
+  "options": [
+   "Working the room",
+   "Talking to one person",
+   "Near the door"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "duo-008",
+  "surface": "duo",
+  "seq": 11,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Someone's joke goes too far. Laugh it off, or say so?",
   "options": [
    "Laugh it off",
    "Say so"
@@ -3125,10 +3859,10 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-009",
   "surface": "duo",
-  "seq": 9,
+  "seq": 12,
   "type": "binary",
   "domain": null,
-  "prompt": "Big decision to make. How do they call it?",
+  "prompt": "A big decision lands. How do you call it?",
   "options": [
    "Gut",
    "A list",
@@ -3142,7 +3876,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-010",
   "surface": "duo",
-  "seq": 10,
+  "seq": 13,
   "type": "binary",
   "domain": null,
   "prompt": "Cry in a film — freely, or fight it?",
@@ -3155,9 +3889,26 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null
  },
  {
+  "id": "duo-043",
+  "surface": "duo",
+  "seq": 14,
+  "type": "binary",
+  "domain": null,
+  "prompt": "You would call them first for…",
+  "options": [
+   "A crisis",
+   "A laugh",
+   "Advice",
+   "A favour"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null
+ },
+ {
   "id": "duo-011",
   "surface": "duo",
-  "seq": 11,
+  "seq": 15,
   "type": "binary",
   "domain": null,
   "prompt": "Ideal holiday day?",
@@ -3171,12 +3922,29 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null
  },
  {
-  "id": "duo-012",
+  "id": "duo-044",
   "surface": "duo",
-  "seq": 12,
+  "seq": 16,
   "type": "binary",
   "domain": null,
-  "prompt": "They win €10k. First move?",
+  "prompt": "What about them would surprise a stranger?",
+  "options": [
+   "How soft",
+   "How stubborn",
+   "How funny",
+   "How serious"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "duo-012",
+  "surface": "duo",
+  "seq": 17,
+  "type": "binary",
+  "domain": null,
+  "prompt": "A surprise windfall lands. First move?",
   "options": [
    "Save it",
    "Book a trip that night",
@@ -3190,7 +3958,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-013",
   "surface": "duo",
-  "seq": 13,
+  "seq": 18,
   "type": "binary",
   "domain": null,
   "prompt": "An old friend owes an apology. Bring it up, or let it go?",
@@ -3205,7 +3973,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-014",
   "surface": "duo",
-  "seq": 14,
+  "seq": 19,
   "type": "binary",
   "domain": null,
   "prompt": "Deep talk at 2am, or a proper night of sleep?",
@@ -3218,12 +3986,28 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null
  },
  {
-  "id": "duo-015",
+  "id": "duo-045",
   "surface": "duo",
-  "seq": 15,
+  "seq": 20,
   "type": "binary",
   "domain": null,
-  "prompt": "When hurt, they go…",
+  "prompt": "Are they easy to know?",
+  "options": [
+   "Yes",
+   "Takes a while",
+   "No"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "duo-015",
+  "surface": "duo",
+  "seq": 21,
+  "type": "binary",
+  "domain": null,
+  "prompt": "When hurt, you go…",
   "options": [
    "Quiet",
    "Loud",
@@ -3236,10 +4020,10 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-016",
   "surface": "duo",
-  "seq": 16,
+  "seq": 22,
   "type": "binary",
   "domain": null,
-  "prompt": "Hard truth or comfortable silence?",
+  "prompt": "Hear the hard truth, or keep the comfortable silence?",
   "options": [
    "Hard truth",
    "Silence"
@@ -3249,12 +4033,29 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null
  },
  {
-  "id": "duo-017",
+  "id": "duo-046",
   "surface": "duo",
-  "seq": 17,
+  "seq": 23,
   "type": "binary",
   "domain": null,
-  "prompt": "After a brutal week, what refills them?",
+  "prompt": "Their most underrated trait?",
+  "options": [
+   "Patience",
+   "Taste",
+   "Generosity",
+   "Judgement"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "duo-017",
+  "surface": "duo",
+  "seq": 24,
+  "type": "binary",
+  "domain": null,
+  "prompt": "After a brutal week, what refills you?",
   "options": [
    "People",
    "Solitude",
@@ -3266,9 +4067,24 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null
  },
  {
+  "id": "duo-047",
+  "surface": "duo",
+  "seq": 25,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Better at giving advice, or taking it?",
+  "options": [
+   "Giving",
+   "Taking"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null
+ },
+ {
   "id": "duo-018",
   "surface": "duo",
-  "seq": 18,
+  "seq": 26,
   "type": "binary",
   "domain": null,
   "prompt": "A week alone in a cabin. Gift or sentence?",
@@ -3281,9 +4097,26 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null
  },
  {
+  "id": "duo-048",
+  "surface": "duo",
+  "seq": 27,
+  "type": "binary",
+  "domain": null,
+  "prompt": "The role they play between you two?",
+  "options": [
+   "The steady one",
+   "The instigator",
+   "The listener",
+   "The truth-teller"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null
+ },
+ {
   "id": "duo-019",
   "surface": "duo",
-  "seq": 19,
+  "seq": 28,
   "type": "binary",
   "domain": null,
   "prompt": "Old age: surrounded, or independent?",
@@ -3294,6 +4127,384 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": null,
   "axis": null,
   "test": null
+ },
+ {
+  "id": "duo-049",
+  "surface": "duo",
+  "seq": 29,
+  "type": "binary",
+  "domain": null,
+  "prompt": "What would they want to be remembered for?",
+  "options": [
+   "Kindness",
+   "Their work",
+   "Being fun",
+   "Being right"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "duo-020",
+  "surface": "duo",
+  "seq": 30,
+  "type": "binary",
+  "domain": null,
+  "prompt": "A free evening, both home. Ideal version?",
+  "options": [
+   "Out somewhere",
+   "Sofa, one film",
+   "Cooking together"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null,
+  "mode": "romantic",
+  "active": false
+ },
+ {
+  "id": "duo-021",
+  "surface": "duo",
+  "seq": 31,
+  "type": "binary",
+  "domain": null,
+  "prompt": "How do they like being woken?",
+  "options": [
+   "Slowly, with coffee",
+   "Left alone",
+   "Talked at immediately"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null,
+  "mode": "romantic",
+  "active": false
+ },
+ {
+  "id": "duo-022",
+  "surface": "duo",
+  "seq": 32,
+  "type": "binary",
+  "domain": null,
+  "prompt": "A good apology from them looks like…",
+  "options": [
+   "Words",
+   "A gesture",
+   "Time, then normal"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null,
+  "mode": "romantic",
+  "active": false
+ },
+ {
+  "id": "duo-023",
+  "surface": "duo",
+  "seq": 33,
+  "type": "binary",
+  "domain": null,
+  "prompt": "You are 20 minutes late to dinner. Their read?",
+  "options": [
+   "Fine, orders a drink",
+   "Says nothing, remembers it"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null,
+  "mode": "romantic",
+  "active": false
+ },
+ {
+  "id": "duo-024",
+  "surface": "duo",
+  "seq": 34,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Love lands hardest as…",
+  "options": [
+   "Being told",
+   "Being helped",
+   "Being touched",
+   "Being chosen"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null,
+  "mode": "romantic",
+  "active": false
+ },
+ {
+  "id": "duo-025",
+  "surface": "duo",
+  "seq": 35,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Mid-argument, they want…",
+  "options": [
+   "To finish it now",
+   "A pause",
+   "Space, then dinner"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null,
+  "mode": "romantic",
+  "active": false
+ },
+ {
+  "id": "duo-026",
+  "surface": "duo",
+  "seq": 36,
+  "type": "binary",
+  "domain": null,
+  "prompt": "The better anniversary?",
+  "options": [
+   "A plan they made",
+   "A day with nothing in it"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null,
+  "mode": "romantic",
+  "active": false
+ },
+ {
+  "id": "duo-027",
+  "surface": "duo",
+  "seq": 37,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Money in this relationship should be…",
+  "options": [
+   "Fully shared",
+   "Mostly shared",
+   "Separate, split bills"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null,
+  "mode": "romantic",
+  "active": false
+ },
+ {
+  "id": "duo-028",
+  "surface": "duo",
+  "seq": 38,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Their idea of being taken care of?",
+  "options": [
+   "Food made",
+   "Admin handled",
+   "Left in peace",
+   "Asked about"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null,
+  "mode": "romantic",
+  "active": false
+ },
+ {
+  "id": "duo-029",
+  "surface": "duo",
+  "seq": 39,
+  "type": "binary",
+  "domain": null,
+  "prompt": "A whole weekend together, no phones. Bliss or too much?",
+  "options": [
+   "Bliss",
+   "Too much"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null,
+  "mode": "romantic",
+  "active": false
+ },
+ {
+  "id": "duo-030",
+  "surface": "duo",
+  "seq": 40,
+  "type": "binary",
+  "domain": null,
+  "prompt": "They had a hard day and did not say so. The tell?",
+  "options": [
+   "Goes quiet",
+   "Cleans something",
+   "Talks about nothing else"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null,
+  "mode": "romantic",
+  "active": false
+ },
+ {
+  "id": "duo-031",
+  "surface": "duo",
+  "seq": 41,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Five years out, they picture…",
+  "options": [
+   "Same city, more room",
+   "Somewhere new",
+   "Somewhere quiet"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null,
+  "mode": "romantic",
+  "active": false
+ },
+ {
+  "id": "duo-032",
+  "surface": "duo",
+  "seq": 42,
+  "type": "binary",
+  "domain": null,
+  "prompt": "A big decision that affects you both. They…",
+  "options": [
+   "Decide together, slowly",
+   "Want you to choose",
+   "Already decided"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null,
+  "mode": "romantic",
+  "active": false
+ },
+ {
+  "id": "duo-033",
+  "surface": "duo",
+  "seq": 43,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Would they tell you a truth that would hurt for a week?",
+  "options": [
+   "Yes",
+   "Only if asked",
+   "No"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null,
+  "mode": "romantic",
+  "active": false
+ },
+ {
+  "id": "duo-034",
+  "surface": "duo",
+  "seq": 44,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Jealousy shows up in them as…",
+  "options": [
+   "A question",
+   "A joke",
+   "Silence",
+   "It doesn't"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null,
+  "mode": "romantic",
+  "active": false
+ },
+ {
+  "id": "duo-035",
+  "surface": "duo",
+  "seq": 45,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Kids, someday?",
+  "options": [
+   "Yes",
+   "Open to it",
+   "No"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null,
+  "mode": "romantic",
+  "active": false
+ },
+ {
+  "id": "duo-036",
+  "surface": "duo",
+  "seq": 46,
+  "type": "binary",
+  "domain": null,
+  "prompt": "The thing they would never compromise on?",
+  "options": [
+   "Where they live",
+   "Their work",
+   "Their people",
+   "Their solitude"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null,
+  "mode": "romantic",
+  "active": false
+ },
+ {
+  "id": "duo-037",
+  "surface": "duo",
+  "seq": 47,
+  "type": "binary",
+  "domain": null,
+  "prompt": "If you needed a year somewhere else, they would…",
+  "options": [
+   "Come",
+   "Wait",
+   "Ask you not to go"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null,
+  "mode": "romantic",
+  "active": false
+ },
+ {
+  "id": "duo-038",
+  "surface": "duo",
+  "seq": 48,
+  "type": "binary",
+  "domain": null,
+  "prompt": "What would make them feel most loved this year?",
+  "options": [
+   "More time",
+   "More plans",
+   "More calm",
+   "More honesty"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null,
+  "mode": "romantic",
+  "active": false
+ },
+ {
+  "id": "duo-039",
+  "surface": "duo",
+  "seq": 49,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Old age, the two of you: side by side, or side by side and busy?",
+  "options": [
+   "Side by side",
+   "Busy, together"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null,
+  "mode": "romantic",
+  "active": false
  },
  {
   "id": "test-big5-00",
@@ -3566,9 +4777,189 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": "big5"
  },
  {
-  "id": "test-political-00",
+  "id": "test-big5-15",
   "surface": "test",
   "seq": 15,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I go looking for music, films or books I know nothing about.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "O",
+  "test": "big5"
+ },
+ {
+  "id": "test-big5-16",
+  "surface": "test",
+  "seq": 16,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I have little patience for questions with no practical use.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "O",
+  "test": "big5"
+ },
+ {
+  "id": "test-big5-17",
+  "surface": "test",
+  "seq": 17,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I keep my things in order without having to think about it.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "C",
+  "test": "big5"
+ },
+ {
+  "id": "test-big5-18",
+  "surface": "test",
+  "seq": 18,
+  "type": "scale",
+  "domain": null,
+  "prompt": "My plans tend to fall apart in the details.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "C",
+  "test": "big5"
+ },
+ {
+  "id": "test-big5-19",
+  "surface": "test",
+  "seq": 19,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I start conversations with people I have just met.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "E",
+  "test": "big5"
+ },
+ {
+  "id": "test-big5-20",
+  "surface": "test",
+  "seq": 20,
+  "type": "scale",
+  "domain": null,
+  "prompt": "In a group I say less than most people there.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "E",
+  "test": "big5"
+ },
+ {
+  "id": "test-big5-21",
+  "surface": "test",
+  "seq": 21,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I give people the benefit of the doubt when a story doesn't add up.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "A",
+  "test": "big5"
+ },
+ {
+  "id": "test-big5-22",
+  "surface": "test",
+  "seq": 22,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I decide quickly whether someone is worth my time.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "A",
+  "test": "big5"
+ },
+ {
+  "id": "test-big5-23",
+  "surface": "test",
+  "seq": 23,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I replay conversations afterwards, looking for what I got wrong.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "N",
+  "test": "big5"
+ },
+ {
+  "id": "test-big5-24",
+  "surface": "test",
+  "seq": 24,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I sleep fine the night before something big.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "N",
+  "test": "big5"
+ },
+ {
+  "id": "test-political-00",
+  "surface": "test",
+  "seq": 25,
   "type": "scale",
   "domain": null,
   "prompt": "Markets, left to themselves, distribute fairly.",
@@ -3586,10 +4977,10 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "test-political-01",
   "surface": "test",
-  "seq": 16,
+  "seq": 26,
   "type": "scale",
   "domain": null,
-  "prompt": "A society is judged by how it treats the weakest.",
+  "prompt": "Essential services belong in public hands, not markets.",
   "options": [
    "Strongly disagree",
    "Disagree",
@@ -3604,7 +4995,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "test-political-02",
   "surface": "test",
-  "seq": 17,
+  "seq": 27,
   "type": "scale",
   "domain": null,
   "prompt": "Some speech is harmful enough to restrict.",
@@ -3622,7 +5013,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "test-political-03",
   "surface": "test",
-  "seq": 18,
+  "seq": 28,
   "type": "scale",
   "domain": null,
   "prompt": "The state should keep out of private life.",
@@ -3640,7 +5031,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "test-political-04",
   "surface": "test",
-  "seq": 19,
+  "seq": 29,
   "type": "scale",
   "domain": null,
   "prompt": "My country should help others before its own poor.",
@@ -3658,7 +5049,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "test-political-05",
   "surface": "test",
-  "seq": 20,
+  "seq": 30,
   "type": "scale",
   "domain": null,
   "prompt": "Borders should be more open than they are now.",
@@ -3676,7 +5067,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "test-political-06",
   "surface": "test",
-  "seq": 21,
+  "seq": 31,
   "type": "scale",
   "domain": null,
   "prompt": "Climate action is worth real economic cost.",
@@ -3694,7 +5085,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "test-political-07",
   "surface": "test",
-  "seq": 22,
+  "seq": 32,
   "type": "scale",
   "domain": null,
   "prompt": "Green rules should hold even when jobs are on the line.",
@@ -3712,7 +5103,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "test-political-08",
   "surface": "test",
-  "seq": 23,
+  "seq": 33,
   "type": "scale",
   "domain": null,
   "prompt": "New technology, on balance, makes life better.",
@@ -3730,7 +5121,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "test-political-09",
   "surface": "test",
-  "seq": 24,
+  "seq": 34,
   "type": "scale",
   "domain": null,
   "prompt": "Some technologies should be slowed down on purpose.",
@@ -3748,7 +5139,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "test-political-10",
   "surface": "test",
-  "seq": 25,
+  "seq": 35,
   "type": "scale",
   "domain": null,
   "prompt": "Strong leaders matter more than strong institutions.",
@@ -3766,7 +5157,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "test-political-11",
   "surface": "test",
-  "seq": 26,
+  "seq": 36,
   "type": "scale",
   "domain": null,
   "prompt": "The system is rigged against ordinary people.",
@@ -3784,7 +5175,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "test-political-12",
   "surface": "test",
-  "seq": 27,
+  "seq": 37,
   "type": "scale",
   "domain": null,
   "prompt": "Lower taxes matter more than more public services.",
@@ -3802,7 +5193,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "test-political-13",
   "surface": "test",
-  "seq": 28,
+  "seq": 38,
   "type": "scale",
   "domain": null,
   "prompt": "More surveillance is a fair price for more safety.",
@@ -3820,7 +5211,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "test-political-14",
   "surface": "test",
-  "seq": 29,
+  "seq": 39,
   "type": "scale",
   "domain": null,
   "prompt": "My country should put its own people first.",
@@ -3838,7 +5229,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "test-political-15",
   "surface": "test",
-  "seq": 30,
+  "seq": 40,
   "type": "scale",
   "domain": null,
   "prompt": "The dangers of climate change are exaggerated.",
@@ -3856,7 +5247,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "test-political-16",
   "surface": "test",
-  "seq": 31,
+  "seq": 41,
   "type": "scale",
   "domain": null,
   "prompt": "Progress means building first and fixing problems as they come.",
@@ -3874,7 +5265,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "test-political-17",
   "surface": "test",
-  "seq": 32,
+  "seq": 42,
   "type": "scale",
   "domain": null,
   "prompt": "Experts and institutions usually get it right.",
@@ -3890,9 +5281,225 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": "political"
  },
  {
+  "id": "test-political-18",
+  "surface": "test",
+  "seq": 43,
+  "type": "scale",
+  "domain": null,
+  "prompt": "People mostly end up where their own effort puts them.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "econ",
+  "test": "political"
+ },
+ {
+  "id": "test-political-19",
+  "surface": "test",
+  "seq": 44,
+  "type": "scale",
+  "domain": null,
+  "prompt": "The gap between rich and poor is the biggest problem we have.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "econ",
+  "test": "political"
+ },
+ {
+  "id": "test-political-20",
+  "surface": "test",
+  "seq": 45,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Order in the streets matters more than the right to protest.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "auth",
+  "test": "political"
+ },
+ {
+  "id": "test-political-21",
+  "surface": "test",
+  "seq": 46,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Adults should be free to harm themselves if they choose.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "auth",
+  "test": "political"
+ },
+ {
+  "id": "test-political-22",
+  "surface": "test",
+  "seq": 47,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Immigration has made my country better.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "foreign",
+  "test": "political"
+ },
+ {
+  "id": "test-political-23",
+  "surface": "test",
+  "seq": 48,
+  "type": "scale",
+  "domain": null,
+  "prompt": "We should fix problems at home before problems abroad.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "foreign",
+  "test": "political"
+ },
+ {
+  "id": "test-political-24",
+  "surface": "test",
+  "seq": 49,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I would pay noticeably more for energy to cut emissions faster.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "env",
+  "test": "political"
+ },
+ {
+  "id": "test-political-25",
+  "surface": "test",
+  "seq": 50,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Environmental rules are already strict enough.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "env",
+  "test": "political"
+ },
+ {
+  "id": "test-political-26",
+  "surface": "test",
+  "seq": 51,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I would rather live with the risks of new technology than miss what it brings.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "tech",
+  "test": "political"
+ },
+ {
+  "id": "test-political-27",
+  "surface": "test",
+  "seq": 52,
+  "type": "scale",
+  "domain": null,
+  "prompt": "New tools should prove they are safe before anyone can use them.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "tech",
+  "test": "political"
+ },
+ {
+  "id": "test-political-28",
+  "surface": "test",
+  "seq": 53,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Most politicians are in it for themselves.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "estab",
+  "test": "political"
+ },
+ {
+  "id": "test-political-29",
+  "surface": "test",
+  "seq": 54,
+  "type": "scale",
+  "domain": null,
+  "prompt": "The people running things mostly know what they are doing.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "estab",
+  "test": "political"
+ },
+ {
   "id": "test-values-00",
   "surface": "test",
-  "seq": 33,
+  "seq": 55,
   "type": "scale",
   "domain": null,
   "prompt": "Future generations will live better than ours.",
@@ -3910,7 +5517,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "test-values-01",
   "surface": "test",
-  "seq": 34,
+  "seq": 56,
   "type": "scale",
   "domain": null,
   "prompt": "Most of what's changing right now is change for the better.",
@@ -3928,7 +5535,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "test-values-02",
   "surface": "test",
-  "seq": 35,
+  "seq": 57,
   "type": "scale",
   "domain": null,
   "prompt": "What I owe my family weighs more than what I owe strangers.",
@@ -3946,10 +5553,10 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "test-values-03",
   "surface": "test",
-  "seq": 36,
+  "seq": 58,
   "type": "scale",
   "domain": null,
-  "prompt": "I'd sacrifice comfort now for a stranger's future.",
+  "prompt": "I'd give up real comfort to help a stranger.",
   "options": [
    "Strongly disagree",
    "Disagree",
@@ -3964,7 +5571,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "test-values-04",
   "surface": "test",
-  "seq": 37,
+  "seq": 59,
   "type": "scale",
   "domain": null,
   "prompt": "Pleasure needs no justification.",
@@ -3982,7 +5589,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "test-values-05",
   "surface": "test",
-  "seq": 38,
+  "seq": 60,
   "type": "scale",
   "domain": null,
   "prompt": "Obligations come before enjoyment.",
@@ -4000,7 +5607,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "test-values-06",
   "surface": "test",
-  "seq": 39,
+  "seq": 61,
   "type": "scale",
   "domain": null,
   "prompt": "Suffering can give life meaning, not just pain.",
@@ -4018,7 +5625,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "test-values-07",
   "surface": "test",
-  "seq": 40,
+  "seq": 62,
   "type": "scale",
   "domain": null,
   "prompt": "A hard life spent on something big beats an easy one.",
@@ -4036,7 +5643,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "test-values-08",
   "surface": "test",
-  "seq": 41,
+  "seq": 63,
   "type": "scale",
   "domain": null,
   "prompt": "There are objective right answers in ethics.",
@@ -4054,7 +5661,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "test-values-09",
   "surface": "test",
-  "seq": 42,
+  "seq": 64,
   "type": "scale",
   "domain": null,
   "prompt": "Some things are wrong in every era and every culture.",
@@ -4072,7 +5679,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "test-values-10",
   "surface": "test",
-  "seq": 43,
+  "seq": 65,
   "type": "scale",
   "domain": null,
   "prompt": "Beauty matters as much as truth.",
@@ -4090,7 +5697,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "test-values-11",
   "surface": "test",
-  "seq": 44,
+  "seq": 66,
   "type": "scale",
   "domain": null,
   "prompt": "A beautiful thing needs no other use.",
@@ -4108,7 +5715,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "test-values-12",
   "surface": "test",
-  "seq": 45,
+  "seq": 67,
   "type": "scale",
   "domain": null,
   "prompt": "The world is mostly getting worse.",
@@ -4126,7 +5733,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "test-values-13",
   "surface": "test",
-  "seq": 46,
+  "seq": 68,
   "type": "scale",
   "domain": null,
   "prompt": "A stranger's suffering moves me as much as a neighbour's.",
@@ -4144,7 +5751,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "test-values-14",
   "surface": "test",
-  "seq": 47,
+  "seq": 69,
   "type": "scale",
   "domain": null,
   "prompt": "Enjoying myself is a good enough reason to do something.",
@@ -4162,7 +5769,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "test-values-15",
   "surface": "test",
-  "seq": 48,
+  "seq": 70,
   "type": "scale",
   "domain": null,
   "prompt": "A calm, happy life beats a hard, important one.",
@@ -4180,7 +5787,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "test-values-16",
   "surface": "test",
-  "seq": 49,
+  "seq": 71,
   "type": "scale",
   "domain": null,
   "prompt": "Right and wrong depend on the culture you're standing in.",
@@ -4198,7 +5805,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "test-values-17",
   "surface": "test",
-  "seq": 50,
+  "seq": 72,
   "type": "scale",
   "domain": null,
   "prompt": "Whether something works matters more than how it looks.",
@@ -4214,9 +5821,225 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": "values"
  },
  {
+  "id": "test-values-18",
+  "surface": "test",
+  "seq": 73,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I expect my own life ten years from now to be better than it is today.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "future",
+  "test": "values"
+ },
+ {
+  "id": "test-values-19",
+  "surface": "test",
+  "seq": 74,
+  "type": "scale",
+  "domain": null,
+  "prompt": "The problems ahead of us are bigger than anything we have solved.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "future",
+  "test": "values"
+ },
+ {
+  "id": "test-values-20",
+  "surface": "test",
+  "seq": 75,
+  "type": "scale",
+  "domain": null,
+  "prompt": "A life saved far away counts the same as one saved here.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "circle",
+  "test": "values"
+ },
+ {
+  "id": "test-values-21",
+  "surface": "test",
+  "seq": 76,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Charity should start with the people around you.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "circle",
+  "test": "values"
+ },
+ {
+  "id": "test-values-22",
+  "surface": "test",
+  "seq": 77,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I plan my week around things I will enjoy.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "hedonism",
+  "test": "values"
+ },
+ {
+  "id": "test-values-23",
+  "surface": "test",
+  "seq": 78,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I feel uneasy resting while work is unfinished.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "hedonism",
+  "test": "values"
+ },
+ {
+  "id": "test-values-24",
+  "surface": "test",
+  "seq": 79,
+  "type": "scale",
+  "domain": null,
+  "prompt": "The best parts of my life came out of something difficult.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "meaning",
+  "test": "values"
+ },
+ {
+  "id": "test-values-25",
+  "surface": "test",
+  "seq": 80,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I would trade a smaller life for a more peaceful one.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "meaning",
+  "test": "values"
+ },
+ {
+  "id": "test-values-26",
+  "surface": "test",
+  "seq": 81,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Some acts would be wrong even if everyone approved of them.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "moral",
+  "test": "values"
+ },
+ {
+  "id": "test-values-27",
+  "surface": "test",
+  "seq": 82,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Morality is something people invented, like money.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "moral",
+  "test": "values"
+ },
+ {
+  "id": "test-values-28",
+  "surface": "test",
+  "seq": 83,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I will pay more for something well made when a plain one would do.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "beauty",
+  "test": "values"
+ },
+ {
+  "id": "test-values-29",
+  "surface": "test",
+  "seq": 84,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Decoration is the first thing I would cut.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "beauty",
+  "test": "values"
+ },
+ {
   "id": "test-attachment-00",
   "surface": "test",
-  "seq": 51,
+  "seq": 85,
   "type": "scale",
   "domain": null,
   "prompt": "I show people I care without being asked.",
@@ -4234,7 +6057,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "test-attachment-01",
   "surface": "test",
-  "seq": 52,
+  "seq": 86,
   "type": "scale",
   "domain": null,
   "prompt": "I'm quick with a hug or a kind word.",
@@ -4252,7 +6075,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "test-attachment-02",
   "surface": "test",
-  "seq": 53,
+  "seq": 87,
   "type": "scale",
   "domain": null,
   "prompt": "Friends know I'll show up when it matters.",
@@ -4270,7 +6093,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "test-attachment-03",
   "surface": "test",
-  "seq": 54,
+  "seq": 88,
   "type": "scale",
   "domain": null,
   "prompt": "Once you're my friend, you're my friend for years.",
@@ -4288,7 +6111,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "test-attachment-04",
   "surface": "test",
-  "seq": 55,
+  "seq": 89,
   "type": "scale",
   "domain": null,
   "prompt": "I say what I'm feeling rather than keeping it in.",
@@ -4306,7 +6129,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "test-attachment-05",
   "surface": "test",
-  "seq": 56,
+  "seq": 90,
   "type": "scale",
   "domain": null,
   "prompt": "I let people see the messy parts of me.",
@@ -4324,7 +6147,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "test-attachment-06",
   "surface": "test",
-  "seq": 57,
+  "seq": 91,
   "type": "scale",
   "domain": null,
   "prompt": "I'm usually the one keeping things light and fun.",
@@ -4342,7 +6165,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "test-attachment-07",
   "surface": "test",
-  "seq": 58,
+  "seq": 92,
   "type": "scale",
   "domain": null,
   "prompt": "I'd rather joke around than be too serious.",
@@ -4360,7 +6183,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "test-attachment-08",
   "surface": "test",
-  "seq": 59,
+  "seq": 93,
   "type": "scale",
   "domain": null,
   "prompt": "Little gets under my skin in a friendship.",
@@ -4378,7 +6201,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "test-attachment-09",
   "surface": "test",
-  "seq": 60,
+  "seq": 94,
   "type": "scale",
   "domain": null,
   "prompt": "I give people room and don't keep score.",
@@ -4396,7 +6219,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "test-attachment-10",
   "surface": "test",
-  "seq": 61,
+  "seq": 95,
   "type": "scale",
   "domain": null,
   "prompt": "Showing affection doesn't come naturally to me.",
@@ -4414,10 +6237,10 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "test-attachment-11",
   "surface": "test",
-  "seq": 62,
+  "seq": 96,
   "type": "scale",
   "domain": null,
-  "prompt": "I drift between friend groups rather than settling into one.",
+  "prompt": "My friendships tend to fade when life gets busy.",
   "options": [
    "Strongly disagree",
    "Disagree",
@@ -4432,7 +6255,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "test-attachment-12",
   "surface": "test",
-  "seq": 63,
+  "seq": 97,
   "type": "scale",
   "domain": null,
   "prompt": "I keep my problems to myself.",
@@ -4450,7 +6273,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "test-attachment-13",
   "surface": "test",
-  "seq": 64,
+  "seq": 98,
   "type": "scale",
   "domain": null,
   "prompt": "I take most things seriously, even the small stuff.",
@@ -4468,10 +6291,10 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "test-attachment-14",
   "surface": "test",
-  "seq": 65,
+  "seq": 99,
   "type": "scale",
   "domain": null,
-  "prompt": "I notice straight away when a friend pulls back.",
+  "prompt": "I keep track of who reached out last.",
   "options": [
    "Strongly disagree",
    "Disagree",
@@ -4482,6 +6305,1088 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "test",
   "axis": "easy",
   "test": "attachment"
+ },
+ {
+  "id": "test-attachment-15",
+  "surface": "test",
+  "seq": 100,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I tell my friends what they mean to me.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "warm",
+  "test": "attachment"
+ },
+ {
+  "id": "test-attachment-16",
+  "surface": "test",
+  "seq": 101,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Compliments feel awkward coming out of my mouth.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "warm",
+  "test": "attachment"
+ },
+ {
+  "id": "test-attachment-17",
+  "surface": "test",
+  "seq": 102,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I still keep up with people I met years ago.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "loyal",
+  "test": "attachment"
+ },
+ {
+  "id": "test-attachment-18",
+  "surface": "test",
+  "seq": 103,
+  "type": "scale",
+  "domain": null,
+  "prompt": "When someone moves away, we usually lose touch.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "loyal",
+  "test": "attachment"
+ },
+ {
+  "id": "test-attachment-19",
+  "surface": "test",
+  "seq": 104,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I will admit it when I am struggling.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "open",
+  "test": "attachment"
+ },
+ {
+  "id": "test-attachment-20",
+  "surface": "test",
+  "seq": 105,
+  "type": "scale",
+  "domain": null,
+  "prompt": "There are things about me nobody in my life knows.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "open",
+  "test": "attachment"
+ },
+ {
+  "id": "test-attachment-21",
+  "surface": "test",
+  "seq": 106,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I am the one who suggests something daft.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "play",
+  "test": "attachment"
+ },
+ {
+  "id": "test-attachment-22",
+  "surface": "test",
+  "seq": 107,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I find it hard to switch off and mess about.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "play",
+  "test": "attachment"
+ },
+ {
+  "id": "test-attachment-23",
+  "surface": "test",
+  "seq": 108,
+  "type": "scale",
+  "domain": null,
+  "prompt": "A friend cancelling on me barely registers.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "easy",
+  "test": "attachment"
+ },
+ {
+  "id": "test-attachment-24",
+  "surface": "test",
+  "seq": 109,
+  "type": "scale",
+  "domain": null,
+  "prompt": "It bothers me when a friend doesn't reply for days.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "test",
+  "axis": "easy",
+  "test": "attachment"
+ },
+ {
+  "id": "lq-moral-0",
+  "surface": "test",
+  "seq": 110,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Someone suffering matters more than someone being wronged.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "care",
+  "test": null
+ },
+ {
+  "id": "lq-moral-1",
+  "surface": "test",
+  "seq": 111,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Cruelty is the worst thing a person can be.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "care",
+  "test": null
+ },
+ {
+  "id": "lq-moral-2",
+  "surface": "test",
+  "seq": 112,
+  "type": "scale",
+  "domain": null,
+  "prompt": "People should get out what they put in — no more, no less.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "fair",
+  "test": null
+ },
+ {
+  "id": "lq-moral-3",
+  "surface": "test",
+  "seq": 113,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Standing by your own people counts, even when they are wrong.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "loyal",
+  "test": null
+ },
+ {
+  "id": "lq-moral-4",
+  "surface": "test",
+  "seq": 114,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Respect for those in charge holds a society together.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "authority",
+  "test": null
+ },
+ {
+  "id": "lq-moral-5",
+  "surface": "test",
+  "seq": 115,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Some things are degrading even when nobody is harmed.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "sanctity",
+  "test": null
+ },
+ {
+  "id": "lq-moral-6",
+  "surface": "test",
+  "seq": 116,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Being told what to do is a harm in itself.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "liberty",
+  "test": null
+ },
+ {
+  "id": "lq-moral-7",
+  "surface": "test",
+  "seq": 117,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Rules I never agreed to have no hold on me.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "liberty",
+  "test": null
+ },
+ {
+  "id": "lq-moral-8",
+  "surface": "test",
+  "seq": 118,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Toughness does more good than tenderness.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "care",
+  "test": null
+ },
+ {
+  "id": "lq-risk-0",
+  "surface": "test",
+  "seq": 119,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I would put a month of savings into something volatile.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "financial",
+  "test": null
+ },
+ {
+  "id": "lq-risk-1",
+  "surface": "test",
+  "seq": 120,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I read the fine print before signing anything with money in it.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "financial",
+  "test": null
+ },
+ {
+  "id": "lq-risk-2",
+  "surface": "test",
+  "seq": 121,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I skip the check-up and assume it is nothing.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "health",
+  "test": null
+ },
+ {
+  "id": "lq-risk-3",
+  "surface": "test",
+  "seq": 122,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I will say the unpopular thing in a room that disagrees.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "social",
+  "test": null
+ },
+ {
+  "id": "lq-risk-4",
+  "surface": "test",
+  "seq": 123,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Steep, fast and slightly out of control is my idea of fun.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "recreational",
+  "test": null
+ },
+ {
+  "id": "lq-risk-5",
+  "surface": "test",
+  "seq": 124,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I would bend a rule if the outcome were clearly better.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "ethical",
+  "test": null
+ },
+ {
+  "id": "lq-trust-0",
+  "surface": "test",
+  "seq": 125,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Most people would give back a wallet they found.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "trust",
+  "test": null
+ },
+ {
+  "id": "lq-trust-1",
+  "surface": "test",
+  "seq": 126,
+  "type": "scale",
+  "domain": null,
+  "prompt": "You have to be careful — people take advantage.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "trust",
+  "test": null
+ },
+ {
+  "id": "lq-trust-2",
+  "surface": "test",
+  "seq": 127,
+  "type": "scale",
+  "domain": null,
+  "prompt": "For one group to gain, another has to lose.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "zerosum",
+  "test": null,
+  "political": true
+ },
+ {
+  "id": "lq-trust-3",
+  "surface": "test",
+  "seq": 128,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Trade between countries leaves both better off.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "zerosum",
+  "test": null,
+  "political": true
+ },
+ {
+  "id": "lq-trust-4",
+  "surface": "test",
+  "seq": 129,
+  "type": "scale",
+  "domain": null,
+  "prompt": "In the long run, people get roughly what they deserve.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "justworld",
+  "test": null
+ },
+ {
+  "id": "lq-trust-5",
+  "surface": "test",
+  "seq": 130,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Where you end up is mostly where you started.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "justworld",
+  "test": null
+ },
+ {
+  "id": "lq-time-0",
+  "surface": "test",
+  "seq": 131,
+  "type": "scale",
+  "domain": null,
+  "prompt": "€100 today beats €160 in a year.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "horizon",
+  "test": null
+ },
+ {
+  "id": "lq-time-1",
+  "surface": "test",
+  "seq": 132,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I plan further ahead than most people I know.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "horizon",
+  "test": null
+ },
+ {
+  "id": "lq-time-2",
+  "surface": "test",
+  "seq": 133,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I finish the boring part first and enjoy the rest after.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "patience",
+  "test": null
+ },
+ {
+  "id": "lq-time-3",
+  "surface": "test",
+  "seq": 134,
+  "type": "scale",
+  "domain": null,
+  "prompt": "If I want it, I buy it — I sort the rest out later.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "patience",
+  "test": null
+ },
+ {
+  "id": "lq-time-4",
+  "surface": "test",
+  "seq": 135,
+  "type": "scale",
+  "domain": null,
+  "prompt": "A decade from now feels real enough to save for.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "horizon",
+  "test": null
+ },
+ {
+  "id": "lq-time-5",
+  "surface": "test",
+  "seq": 136,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Waiting is easy when I know what is coming.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "patience",
+  "test": null
+ },
+ {
+  "id": "lq-taste-0",
+  "surface": "test",
+  "seq": 137,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I would rather try an unknown dish than order the one I love.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "novelty",
+  "test": null
+ },
+ {
+  "id": "lq-taste-1",
+  "surface": "test",
+  "seq": 138,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I rewatch and relisten to the same things for years.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "novelty",
+  "test": null
+ },
+ {
+  "id": "lq-taste-2",
+  "surface": "test",
+  "seq": 139,
+  "type": "scale",
+  "domain": null,
+  "prompt": "A film that needs a second viewing is a better film.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "complexity",
+  "test": null
+ },
+ {
+  "id": "lq-taste-3",
+  "surface": "test",
+  "seq": 140,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Earnest beats clever.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "sincerity",
+  "test": null
+ },
+ {
+  "id": "lq-taste-4",
+  "surface": "test",
+  "seq": 141,
+  "type": "scale",
+  "domain": null,
+  "prompt": "If everyone likes it, it has usually been sanded down.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "scene",
+  "test": null
+ },
+ {
+  "id": "lq-taste-5",
+  "surface": "test",
+  "seq": 142,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I keep up with what most people are watching.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "scene",
+  "test": null
+ },
+ {
+  "id": "lq-conflict-0",
+  "surface": "test",
+  "seq": 143,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I say it in the room rather than after.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "engage",
+  "test": null
+ },
+ {
+  "id": "lq-conflict-1",
+  "surface": "test",
+  "seq": 144,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I let small things go to keep the peace.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "assert",
+  "test": null
+ },
+ {
+  "id": "lq-conflict-2",
+  "surface": "test",
+  "seq": 145,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I would rather win the argument than end it.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "assert",
+  "test": null
+ },
+ {
+  "id": "lq-conflict-3",
+  "surface": "test",
+  "seq": 146,
+  "type": "scale",
+  "domain": null,
+  "prompt": "When it heats up I go quiet and leave.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "engage",
+  "test": null
+ },
+ {
+  "id": "lq-humor-0",
+  "surface": "test",
+  "seq": 147,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I joke to make a room easier to be in.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "affiliative",
+  "test": null
+ },
+ {
+  "id": "lq-humor-1",
+  "surface": "test",
+  "seq": 148,
+  "type": "scale",
+  "domain": null,
+  "prompt": "When things go badly I can usually find it funny.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "selfenh",
+  "test": null
+ },
+ {
+  "id": "lq-humor-2",
+  "surface": "test",
+  "seq": 149,
+  "type": "scale",
+  "domain": null,
+  "prompt": "A good joke is worth someone being stung by it.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "aggressive",
+  "test": null
+ },
+ {
+  "id": "lq-humor-3",
+  "surface": "test",
+  "seq": 150,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I get laughs by putting myself down.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "selfdef",
+  "test": null
+ },
+ {
+  "id": "lq-humor-4",
+  "surface": "test",
+  "seq": 151,
+  "type": "scale",
+  "domain": null,
+  "prompt": "A joke that needs a target isn’t worth telling.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "aggressive",
+  "test": null
+ },
+ {
+  "id": "lq-thinking-0",
+  "surface": "test",
+  "seq": 152,
+  "type": "scale",
+  "domain": null,
+  "prompt": "My first instinct is usually right.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "mode",
+  "test": null
+ },
+ {
+  "id": "lq-thinking-1",
+  "surface": "test",
+  "seq": 153,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I want the numbers before I decide.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "mode",
+  "test": null
+ },
+ {
+  "id": "lq-thinking-2",
+  "surface": "test",
+  "seq": 154,
+  "type": "scale",
+  "domain": null,
+  "prompt": "I change my mind when the evidence changes.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "update",
+  "test": null
+ },
+ {
+  "id": "lq-thinking-3",
+  "surface": "test",
+  "seq": 155,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Sitting with not knowing is uncomfortable.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "update",
+  "test": null
+ },
+ {
+  "id": "lq-culture-0",
+  "surface": "test",
+  "seq": 156,
+  "type": "scale",
+  "domain": null,
+  "prompt": "My choices are mine before they are my family’s.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "self",
+  "test": null
+ },
+ {
+  "id": "lq-culture-1",
+  "surface": "test",
+  "seq": 157,
+  "type": "scale",
+  "domain": null,
+  "prompt": "What my community expects shapes what I do.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "self",
+  "test": null
+ },
+ {
+  "id": "lq-culture-2",
+  "surface": "test",
+  "seq": 158,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Breaking a social rule should have consequences.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "norms",
+  "test": null
+ },
+ {
+  "id": "lq-culture-3",
+  "surface": "test",
+  "seq": 159,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Places work better when people are left to improvise.",
+  "options": [
+   "Strongly agree",
+   "Agree",
+   "Neutral",
+   "Disagree",
+   "Strongly disagree"
+  ],
+  "topic": "lens",
+  "axis": "norms",
+  "test": null
  },
  {
   "id": "learn-cell1",
@@ -5118,7 +8023,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "seq": 37,
   "type": "choice",
   "domain": null,
-  "prompt": "Reclassified as a dwarf planet in 2006:",
+  "prompt": "Demoted from planet to dwarf planet in 2006:",
   "options": [
    "Pluto",
    "Ceres",
@@ -6112,6 +9017,194 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "The editor implies"
   ],
   "topic": "confused",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-anc9",
+  "surface": "learn",
+  "seq": 96,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Most of the Great Wall standing today was built by the…",
+  "options": [
+   "Qin dynasty",
+   "Han dynasty",
+   "Ming dynasty",
+   "Tang dynasty"
+  ],
+  "topic": "ancient",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-anc10",
+  "surface": "learn",
+  "seq": 97,
+  "type": "choice",
+  "domain": null,
+  "prompt": "When Cleopatra was born, the Great Pyramid was already…",
+  "options": [
+   "About 500 years old",
+   "About 1,000 years old",
+   "Newly built",
+   "About 2,500 years old"
+  ],
+  "topic": "ancient",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-anc11",
+  "surface": "learn",
+  "seq": 98,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The Library of Alexandria was lost…",
+  "options": [
+   "In one great fire",
+   "Gradually, over centuries",
+   "In an earthquake",
+   "To a flood"
+  ],
+  "topic": "ancient",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-anc12",
+  "surface": "learn",
+  "seq": 99,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The ancient Olympic Games were held in honour of…",
+  "options": [
+   "Apollo",
+   "Athena",
+   "Zeus",
+   "Hercules"
+  ],
+  "topic": "ancient",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-anc13",
+  "surface": "learn",
+  "seq": 100,
+  "type": "choice",
+  "domain": null,
+  "prompt": "A Roman gladiator fight usually ended…",
+  "options": [
+   "With the loser killed",
+   "With both men alive",
+   "With the crowd deciding",
+   "In a formal draw"
+  ],
+  "topic": "ancient",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-body9",
+  "surface": "learn",
+  "seq": 101,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Roughly how much of an adult's body weight is water?",
+  "options": [
+   "About 90%",
+   "About 60%",
+   "About 30%",
+   "About 75%"
+  ],
+  "topic": "body",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-body10",
+  "surface": "learn",
+  "seq": 102,
+  "type": "choice",
+  "domain": null,
+  "prompt": "At rest, how much of the brain is active?",
+  "options": [
+   "About 10%",
+   "Effectively all of it",
+   "About 25%",
+   "About half"
+  ],
+  "topic": "body",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-body11",
+  "surface": "learn",
+  "seq": 103,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Which blood type can donate to anyone?",
+  "options": [
+   "AB positive",
+   "A positive",
+   "O positive",
+   "O negative"
+  ],
+  "topic": "body",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-body12",
+  "surface": "learn",
+  "seq": 104,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Which organ filters waste out of the blood?",
+  "options": [
+   "The liver",
+   "The spleen",
+   "The kidneys",
+   "The pancreas"
+  ],
+  "topic": "body",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-body13",
+  "surface": "learn",
+  "seq": 105,
+  "type": "choice",
+  "domain": null,
+  "prompt": "A red blood cell lives for about…",
+  "options": [
+   "A week",
+   "Four months",
+   "A year",
+   "A day"
+  ],
+  "topic": "body",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "pulse-pace",
+  "surface": "pulse",
+  "seq": 0,
+  "type": "pulse",
+  "domain": null,
+  "prompt": "What pace was today?",
+  "options": [
+   "Crawling",
+   "Dragging",
+   "Steady",
+   "Brisk",
+   "Flying"
+  ],
+  "topic": null,
   "axis": null,
   "test": null
  }

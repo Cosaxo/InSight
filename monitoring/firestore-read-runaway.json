@@ -1,0 +1,35 @@
+{
+  "displayName": "Firestore read rate is far above anything the cost model predicts",
+  "documentation": {
+    "content": "Billed Firestore document reads are running at a rate no modelled size explains.\n\nWHY THIS POLICY EXISTS, AND WHY IT IS DIFFERENT FROM THE OTHER THREE. The other policies here watch CORRECTNESS: a trigger erroring, a transaction contending, a cron gone quiet. Each one has a user-visible failure behind it. This one watches nothing breaking — it watches the app working, expensively. docs/COSTS.md establishes that reads are essentially the entire bill at every modelled size, and that the fan-out is the one source that grows superlinearly. What it could not establish is a way to FIND OUT: a read is billed silently, the app looks healthy, and the first notice is an invoice up to thirty days later. That gap is the whole reason for this file.\n\nWHAT FIRES IT. The built-in Firestore metric `firestore.googleapis.com/document/read_count`, summed across the database's series and aligned as a rate. Note this is a GCP metric rather than a log-based one: nothing in functions/ emits it, so unlike agg_contention and duel_reveal_run there is no emit-side link to break — the metric exists as soon as the database does. check-monitoring's rule 3 only resolves `logging.googleapis.com/user/*` types, which is why this policy needs no METRICS entry.\n\nTHE THRESHOLD IS A LAUNCH-SIZE THRESHOLD AND WILL NEED RETUNING. 500 reads/sec sustained for five minutes. The arithmetic, from `node scripts/cost-model.mjs`: the model concentrates a day's activity into D7's 4-hour window, so peak ≈ (reads/day) / 14,400 s. At 500 DAU that is ~11 reads/sec, at 5,000 DAU ~155, at 50,000 ~3,505 (the 500-DAU row read off the model's IMMATURE branch, which is how SCENARIOS classifies it — taking it off the mature branch overstates by a quarter). So 500 is roughly 46x the expected peak at friends-of-friends size, comfortably above a launch spike, and BELOW the honest peak of the Scale row — the modelled peak crosses this threshold at ~13,100 DAU, so the policy as written must be raised before the app gets there or it becomes a daily false page. Sustained 500 reads/sec is 43.2 M reads/day, about $26/day or $780/month on the nam5 sheet: high enough not to fire on a good day, low enough that it fires while the money is still small.\n\nRETUNE WITH THE MODEL, NOT BY FEEL: run `npm run costs`, take the reads/day for the size you are actually at, divide by 14,400 (D7's window in seconds), and set this to ~3x that. Worked examples from today's model: 500 DAU -> ~32/sec, 5,000 DAU -> ~466/sec, 50,000 DAU -> ~10,516/sec. Read the reads/day off the row `npm run costs` prints for that scenario rather than recomputing it, so the maturity branch comes along with the number. Record the change in docs/DECISIONS.md with the arithmetic, the same as any other number here.\n\nFIRST RESPONSE IS TO IDENTIFY THE SOURCE, NOT TO CHANGE ANYTHING. Three causes, in rough order of likelihood:\n\n1. A CLIENT LOOP. Something re-subscribing or re-fetching on every render. This is the most likely cause and the cheapest to confirm: the rate will be far above 500 and roughly flat rather than diurnal.\n2. THE LISTENER FAN-OUT (COSTS.md finding 2). Every publish to the shared daily aggregate is delivered to every attached client, so this term is quadratic in DAU. Expect it to track the morning window, not to sit flat. The recorded fix is to poll rather than stream, and the idle detach in src/v2/data/live.ts is the bound already in place.\n3. ABUSE. Answers are public since D98, and firestore.rules allows any signed-in account a collection-group read of daily/feed/test/learn answers. There is no rules-level rate limit and there cannot be one. If the traffic is not attributable to real usage, the lever is App Check enforcement on the Firestore API (SHIP-CHECKLIST, App Check step 4) — that is a console setting, not a deploy.\n\nWHAT THIS POLICY IS NOT. It is not a spend cap. Firestore has no such thing, and this fires after the reads have been billed, not before. It is a detection latency control: it converts 'find out in up to 30 days' into 'find out in 5 minutes'. The cap that actually bounds a bad month is a Cloud Billing budget, which cannot live in this repo at all — see docs/COSTS.md, 'The controls that are not in this repository'.",
+    "mimeType": "text/markdown"
+  },
+  "combiner": "OR",
+  "conditions": [
+    {
+      "displayName": "billed document reads above 500/sec for 5 minutes",
+      "conditionThreshold": {
+        "filter": "metric.type=\"firestore.googleapis.com/document/read_count\" AND resource.type=\"firestore_instance\"",
+        "comparison": "COMPARISON_GT",
+        "thresholdValue": 500,
+        "duration": "300s",
+        "aggregations": [
+          {
+            "alignmentPeriod": "60s",
+            "perSeriesAligner": "ALIGN_RATE",
+            "crossSeriesReducer": "REDUCE_SUM",
+            "groupByFields": ["resource.label.database_id"]
+          }
+        ]
+      }
+    }
+  ],
+  "alertStrategy": {
+    "notificationRateLimit": {
+      "period": "3600s"
+    },
+    "autoClose": "604800s"
+  },
+  "enabled": true,
+  "notificationChannels": []
+}

@@ -14,14 +14,17 @@
 // inverts, which let an agree-with-everything response style score as a
 // personality.
 import { describe, expect, it } from "vitest";
-import "../spec/test-definitions.js";
+import { IS_TESTS } from "../spec/test-definitions.js";
 import contentTests from "../../../content/tests.json";
 
-// Items per dimension. Raising it (W2 planned 3 now, possibly 4 later) is
-// a content change; this constant is the single place the gate learns it.
-const K = 3;
+// Items per dimension. Raising it is a content change; this constant is
+// the single place the gate learns it. W2 planned "3 now, possibly 4
+// later"; it went to 5 on 2026-08-10, because 3 items leaves a dimension
+// only 13 reachable scores — one careless tap moves a trait ~8 points,
+// which is coarser than anything the Mirror reads off it claims to be.
+const K = 5;
 
-const spec = window.IS_TESTS;
+const spec = IS_TESTS;
 
 describe("personality test banks (spec ≡ content)", () => {
   it("defines the same tests in the same order", () => {

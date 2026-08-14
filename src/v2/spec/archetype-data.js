@@ -4,6 +4,7 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import { IS_TEST_AVG } from './test-definitions.js';
 
 // archetype-data.js — named type systems per test. Each type has a signature
 // vector on the test's dims, a one-line definition (`line`), and a realistic
@@ -11,7 +12,10 @@ import React from 'react';
 // rare ones genuinely rare). Your result maps to the NEAREST type live.
 // Signatures are deliberately EXTREME on each type's 1–2 defining dims and
 // near-neutral elsewhere, so nearest-type matching stays stable.
-window.IS_ARCHETYPES = {
+// Converted off the shared-global bridge (D39, "convert on touch"):
+// type-marks.jsx imports this by name. The window mirror stays for the
+// consumers that have not moved.
+export const IS_ARCHETYPES = {
   big5: { list: [
     { name: 'The Enthusiast',      share: 6,  line: 'Says yes first, plans later.',                    sig: { O: 88, C: 40, E: 75, A: 55, N: 45 } },
     { name: 'The Planner',         share: 5,  line: 'Builds the system, then trusts it.',              sig: { O: 80, C: 90, E: 32, A: 42, N: 35 } },
@@ -68,11 +72,39 @@ window.IS_ARCHETYPES = {
 };
 
 // Which named type each of your people landed on, per test (by person id).
+//
+// Every id in IS_DATA.people belongs in all five maps: `sameType` on the
+// result card reads this by person, so a person missing here is simply
+// absent from the "landed on the same type as you" row — invisible, and
+// indistinguishable from a person who genuinely landed elsewhere. Every
+// value has to be a name from IS_ARCHETYPES above for the same reason: a
+// typo matches nobody and fails silently. src/v2/test/sample-people.test.js
+// holds both properties.
 window.IS_FRIEND_TYPES = {
-  big5:       { f1: 'The Quiet One', f2: 'The Live Wire', f3: 'The Planner', f4: 'The Diplomat', f5: 'The Quiet One', f6: 'The Reader', f7: 'The Sensitive' },
-  political:  { f1: 'Social Democrat', f2: 'Liberal Centrist', f3: 'Market Liberal', f4: 'Social Democrat', f5: 'Green Left', f6: 'Communitarian', f7: 'Solidarity Left' },
-  values:     { f1: 'The Tempered Optimist', f2: 'The Hedonist', f3: 'The Rationalist', f4: 'The Provider', f5: 'The Romantic', f6: 'The Traditionalist', f7: 'The Worried Idealist' },
-  attachment: { f1: 'The Slow Burn', f2: 'The Constant', f3: 'The Confidant', f4: 'The Cheerleader', f5: 'The Chill One', f6: 'The Constant', f7: 'The Confidant' },
+  big5: {
+    f1: 'The Quiet One', f2: 'The Live Wire', f3: 'The Planner', f4: 'The Diplomat', f5: 'The Quiet One', f6: 'The Reader', f7: 'The Sensitive',
+    f8: 'The Enthusiast', f9: 'The Dependable', f10: 'The Lookout', f11: 'The Live Wire', f12: 'The Diplomat', f13: 'The Quiet One',
+    f14: 'The Plain Speaker', f15: 'The Host', f16: 'The Drifter', f17: 'The Planner', f18: 'The Quiet One', f19: 'The Dependable',
+    f20: 'The Host', f21: 'The Plain Speaker', f22: 'The Reader', f23: 'The Drifter', f24: 'The Sensitive',
+  },
+  political: {
+    f1: 'Social Democrat', f2: 'Liberal Centrist', f3: 'Market Liberal', f4: 'Social Democrat', f5: 'Green Left', f6: 'Communitarian', f7: 'Solidarity Left',
+    f8: 'Liberal Centrist', f9: 'Traditional Conservative', f10: 'Social Democrat', f11: 'Social Democrat', f12: 'Green Left', f13: 'Liberal Centrist',
+    f14: 'Solidarity Left', f15: 'Market Liberal', f16: 'Libertarian', f17: 'Social Democrat', f18: 'Green Left', f19: 'Communitarian',
+    f20: 'Communitarian', f21: 'National Populist', f22: 'Liberal Centrist', f23: 'Techno-Optimist', f24: 'Green Left',
+  },
+  values: {
+    f1: 'The Tempered Optimist', f2: 'The Hedonist', f3: 'The Rationalist', f4: 'The Provider', f5: 'The Romantic', f6: 'The Traditionalist', f7: 'The Worried Idealist',
+    f8: 'The Hedonist', f9: 'The Traditionalist', f10: 'The Provider', f11: 'The Builder', f12: 'The Builder', f13: 'The Rationalist',
+    f14: 'The Romantic', f15: 'The Wanderer', f16: 'The Hedonist', f17: 'The Utilitarian', f18: 'The Romantic', f19: 'The Provider',
+    f20: 'The Utilitarian', f21: 'The Traditionalist', f22: 'The Tempered Optimist', f23: 'The Wanderer', f24: 'The Worried Idealist',
+  },
+  attachment: {
+    f1: 'The Slow Burn', f2: 'The Constant', f3: 'The Confidant', f4: 'The Cheerleader', f5: 'The Chill One', f6: 'The Constant', f7: 'The Confidant',
+    f8: 'The Comic Relief', f9: 'The Fixture', f10: 'The Fixture', f11: 'The Open Book', f12: 'The Constant', f13: 'The Small Circle',
+    f14: 'The Open Book', f15: 'The Chill One', f16: 'The Floater', f17: 'The Loyalist', f18: 'The Confidant', f19: 'The Fixture',
+    f20: 'The Cheerleader', f21: 'The Floater', f22: 'The Slow Burn', f23: 'The Chill One', f24: 'The Overinvested',
+  },
 };
 
 // Standout phrases per dim: [below-average phrase, above-average phrase]
@@ -153,9 +185,9 @@ const ARCH_W_FLOOR = 6;      // every dim counts a little
 const ARCH_SHARE_PULL = 210; // strength of the commonness prior
 
 window.IS_archScores = function (testKey, dims) {
-  const sys = window.IS_ARCHETYPES[testKey];
+  const sys = IS_ARCHETYPES[testKey];
   if (!sys || !dims || !dims.length) return null;
-  const avg = (window.IS_TEST_AVG || {})[testKey] || {};
+  const avg = IS_TEST_AVG[testKey] || {};
   const maxShare = Math.max.apply(null, sys.list.map(a => a.share || 1));
   return sys.list.map(a => {
     let s = 0, w = 0;
@@ -180,7 +212,7 @@ window.IS_archScores = function (testKey, dims) {
 // so z = rms/15 and the share of people at least this far out follows the
 // fitted survival curve exp(−0.916·z^2.33)  (z=1 → ~40%, 1.5 → ~9%, 2 → ~1%).
 window.IS_profileRarity = function (testKey, dims) {
-  const avg = (window.IS_TEST_AVG || {})[testKey];
+  const avg = IS_TEST_AVG[testKey];
   if (!avg || !dims || !dims.length) return null;
   let s = 0, n = 0;
   dims.forEach(d => { if (avg[d.id] != null) { const e = d.value - avg[d.id]; s += e * e; n++; } });
@@ -209,20 +241,60 @@ window.IS_RULE_WORD = {
   attachment: { warm: 'warmth', loyal: 'loyalty', open: 'openness', play: 'playfulness', easy: 'ease' },
 };
 
-// Same picks, but per-dimension so the card can colour-dot each trait.
+// Adjective per pole — the rule reads as a claim ("very curious + warm"), so it
+// needs adjectives, not the nouns the axis labels use. Written out rather than
+// derived from IS_DIM_WORD because those are comparatives ("warmer", "looser")
+// and don't survive a prefix.
+window.IS_RULE_ADJ = {
+  big5: { O: ['practical', 'curious'], C: ['loose', 'disciplined'], E: ['reserved', 'outgoing'], A: ['blunt', 'warm'], N: ['unshakeable', 'sensitive'] },
+  political: { econ: ['left on money', 'pro-market'], auth: ['liberty-first', 'order-first'], foreign: ['nation-first', 'globally-minded'], env: ['growth-first', 'climate-urgent'], tech: ['tech-wary', 'tech-hopeful'], estab: ['system-trusting', 'anti-system'] },
+  values: { future: ['dark on the future', 'hopeful'], circle: ['family-first', 'stranger-minded'], hedonism: ['duty-bound', 'pleasure-first'], meaning: ['happiness-first', 'meaning-seeking'], moral: ['relativist', 'morally certain'], beauty: ['truth-first', 'beauty-first'] },
+  attachment: { warm: ['reserved', 'warm'], loyal: ['light-touch', 'loyal'], open: ['guarded', 'open'], play: ['grounded', 'playful'], easy: ['invested', 'easygoing'] },
+};
+
+// ── the dims that EARN the name, as a claim you can agree or disagree with ──
+// Three corrections over reading |sig − 50|:
+//  1. DISTINCTIVENESS IS MEASURED AGAINST PEOPLE, NOT THE MIDPOINT. Dims have
+//     different baselines (people average A:65, N:48), so a signature at A:80 is
+//     only mildly warm for a person while A:50 is genuinely cold — the midpoint
+//     reading calls the first defining and the second an absence of opinion.
+//  2. ALWAYS AT LEAST TWO. A fixed magnitude cut starves exactly the types that
+//     need explaining most: the modal, moderate ones (Liberal Centrist, 18% of
+//     people) clear it on one dim, while extreme rare types clear it on three.
+//     Rank by deviation and take the top 2, with a 3rd when it's still real.
+//  3. MODERATION IS A POSITION. A type sitting at the population average on a
+//     dim gets said out loud ("even on money"), not dropped.
+const RULE_STRONG = 18;  // dim points from the population — a defining lean
+const RULE_REAL = 8;     // ...a lean worth naming at all
+
 window.IS_typeRuleParts = function (testKey, dims, a, max) {
   if (!a || !dims) return [];
-  const words = (window.IS_RULE_WORD || {})[testKey] || {};
-  return dims.filter(d => a.sig[d.id] != null)
-    .map(d => ({ d, m: a.sig[d.id] - 50 }))
-    .filter(x => Math.abs(x.m) >= 18)
-    .sort((x, y) => Math.abs(y.m) - Math.abs(x.m)).slice(0, max || 2)
-    .map(x => ({ id: x.d.id, high: x.m > 0, text: (x.m > 0 ? 'high ' : 'low ') + (words[x.d.id] || String(x.d.label || x.d.id).toLowerCase()) }));
+  const nouns = (window.IS_RULE_WORD || {})[testKey] || {};
+  const adjs = (window.IS_RULE_ADJ || {})[testKey] || {};
+  const avg = IS_TEST_AVG[testKey] || {};
+  const cap = max || 3;
+  const scored = dims.filter(d => a.sig[d.id] != null).map(d => {
+    const base = avg[d.id] != null ? avg[d.id] : 50;
+    return { d, dev: a.sig[d.id] - base };
+  }).sort((x, y) => Math.abs(y.dev) - Math.abs(x.dev));
+  // top 2 always; a 3rd only if it is still a real lean
+  const picked = scored.slice(0, Math.min(cap, Math.max(2, scored.filter(x => Math.abs(x.dev) >= RULE_REAL).length)));
+  return picked.map(x => {
+    const mag = Math.abs(x.dev);
+    const band = mag >= RULE_STRONG ? 'strong' : mag >= RULE_REAL ? 'lean' : 'even';
+    const pair = adjs[x.d.id];
+    const noun = nouns[x.d.id] || String(x.d.label || x.d.id).toLowerCase();
+    const adj = pair ? pair[x.dev > 0 ? 1 : 0] : (x.dev > 0 ? 'high ' : 'low ') + noun;
+    return {
+      id: x.d.id, high: x.dev > 0, band, dev: x.dev,
+      text: band === 'even' ? 'even on ' + noun : band === 'strong' ? 'very ' + adj : adj,
+    };
+  });
 };
 
 // Nearest type → { list, idx, dists (priored), fits (raw), rms, gap }
 window.IS_matchArchetype = function (testKey, dims) {
-  const sys = window.IS_ARCHETYPES[testKey];
+  const sys = IS_ARCHETYPES[testKey];
   const sc = window.IS_archScores(testKey, dims);
   if (!sc) return null;
   let best = 0;
@@ -239,3 +311,11 @@ window.IS_matchArchetype = function (testKey, dims) {
   };
 };
 
+window.IS_ARCHETYPES = IS_ARCHETYPES;
+
+// Named exports for typed consumers (data/typeMix.ts, D141) — ADDITIVE:
+// the globals above stay until this module's full conversion, existing
+// spec consumers keep reading them, and the coupling ratchet counts
+// references, which an import is not.
+export const ARCHETYPES = IS_ARCHETYPES;
+export const matchArchetype = window.IS_matchArchetype;

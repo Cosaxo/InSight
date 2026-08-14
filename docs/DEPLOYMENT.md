@@ -40,7 +40,8 @@ Firebase project `prvfire33`. Routine backend changes need no manual deploy.
     audit especially, since it is a live registry call whose result
     changes without the code changing.
   - `environment: production` — scopes the secret and variables, and is
-    where required reviewers or a wait timer would attach.
+    where required reviewers or a wait timer attach (**Protection rules**
+    below).
   - `concurrency: cancel-in-progress: false` — a queued push waits for the
     in-flight deploy instead of cancelling it mid-apply.
 - **Deployed resources:**
@@ -55,7 +56,7 @@ Firebase project `prvfire33`. Routine backend changes need no manual deploy.
     2026-07-31 (PR #51) — check the step's log, not its checkmark,
     before assuming the rules are live. First real release: run
     30644637683.
-  - v2 functions: `seedContentV2`, `onV2AnswerCreated` (k-floored
+  - v2 functions: `seedContentV2`, `onV2AnswerCreated` (exact
     aggregates), `createGroupV2` / `joinGroupV2` / `leaveGroupV2`,
     `registerPushToken`, `scheduledDuelReveals` / `revealDuelsNowV2`
     (reveals + push)
@@ -66,8 +67,23 @@ Firebase project `prvfire33`. Routine backend changes need no manual deploy.
     it still wipes the v1 collections (D13)
   - Hosting (`web/` — the legal pages), as the **last** step and
     `continue-on-error` for the same reason as storage
-  - The main apply runs with `--force` — `onV2AnswerCreated` has a retry
-    policy, which the CLI refuses non-interactively otherwise
+  - The apply is **two steps, and the split is load-bearing.** Rules and
+    indexes go first with no `--force`; functions follow with it.
+    `onV2AnswerCreated` has a retry policy, which the CLI refuses
+    non-interactively without the flag — but `--force` is deploy-wide, not
+    a functions option. `firebase-tools` reads it as
+    `shouldDeleteIndexes`/`shouldDeleteFields` (`lib/firestore/api.js`), so
+    while the two shared one command, every deploy deleted whatever indexes
+    and field overrides production held that `firestore.indexes.json` does
+    not name — and that file names exactly one index (the `v2_takes` list
+    composite, D65). The two the runbook tells an operator to create by
+    hand are exactly that shape: the
+    `v2_agg_events.expireAt` TTL (LAUNCH-RUNBOOK §5.1, the 90-day bound D28
+    rests on) and the composite index `v2social.ts` names if the duel scan
+    throws `FAILED_PRECONDITION`. Both were being reverted silently, green.
+    Without `--force`, a non-interactive deploy logs the would-be deletions
+    and continues. `npm run check:deploy-targets` fails the build if the
+    two are ever recombined.
 
 ### One-off cleanup still owed in production (D13)
 
@@ -103,6 +119,134 @@ Actions secret `FIREBASE_SERVICE_ACCOUNT`.
 - That service account currently holds the `Editor` + `Firebase Admin` IAM
   roles, which together cover deploying rules and (gen-2) functions. This can
   be narrowed to least-privilege later.
+
+## Protection rules on the `production` environment
+
+**Decided (D87) — this is the required configuration, not a proposal.**
+Unattended production writes are not an accepted state for this project.
+
+**Applied: ☐ not yet.** These are settings in GitHub's UI, not files in
+this repo, so nothing here takes effect until someone clicks them —
+which is exactly why the box is here and unticked. Tick it in the same
+commit as applying, and record the date.
+
+That checkbox is doing the same job as the seed step's in
+`SHIP-CHECKLIST §0.1`: a decision that lives only in a conversation gets
+made twice and done never, which is the failure
+`.github/workflows/seed-content.yml`'s header records happening to the
+seed instruction two separate times.
+
+**What the environment gates.** Two jobs, and only two — verified rather
+than assumed, by grepping `environment:` across every workflow:
+
+| Workflow | Job | What a gate would hold |
+| --- | --- | --- |
+| `firebase-deploy.yml` | `deploy` | rules, indexes, functions, hosted legal pages |
+| `seed-content.yml` | `seed` | `seedContentV2` writing `v2_questions` |
+
+`ios-release.yml` uses a different environment and is unaffected.
+
+### The settings
+
+GitHub → Settings → Environments → `production`.
+
+| Setting | Value | Why |
+| --- | --- | --- |
+| **Required reviewers** | ON — the repo owner | The gate. The job pauses *before* `FIREBASE_SERVICE_ACCOUNT` is exposed to the runner, so an unattended or unintended run never reaches production credentials. |
+| **Prevent self-review** | **OFF** | Load-bearing, not an oversight — see below. |
+| **Wait timer** | **0 minutes** | A timer delays without adding a decision. The approval *is* the gate, and the one path this repo protects hardest is the emergency rules fix. |
+| **Allow administrators to bypass configured protection rules** | **OFF** | GitHub ticks this by default. Left on, it cancels the gate for exactly the person the gate exists to slow down — see below. |
+| **Deployment branches and tags** | Selected → `main` only | The half that holds without a human. |
+
+### Three of those need their reasoning recorded
+
+**Admin bypass must be OFF, and this is the setting the whole thing turns
+on.** GitHub ticks it by default, and it was missed when this section was
+first written (2026-08-10) — caught while the settings were actually
+being applied, which is the only place it could have been caught, because
+nothing in this repo can see it.
+
+Read it against the threat D87 names. The reason for the gate is that
+granting an agent session workflow-dispatch rights means granting the
+`workflow` scope on **the owner's account**, and the owner is a repo
+admin. With bypass on, a run dispatched with that token skips the
+approval — the gate stands aside for precisely the caller it was built
+to stop, and the audit log records a protection rule that never fired.
+Required reviewers with admin bypass on is not a weaker gate; against
+this threat it is not a gate.
+
+It also costs nothing to turn off here. Bypass exists so an admin can
+push past a rule in an emergency, but the emergency path is already one
+tap: the owner IS the required reviewer, and **prevent self-review is
+OFF**, so they approve their own run. Bypass would only save the click,
+and the click is the entire feature.
+
+**Prevent self-review must stay OFF, and this is a consequence of
+"Operator continuity" below, not an independent choice.** `SEED_ADMIN_UIDS`
+and `MOD_UIDS` hold one uid, and it is the same person who owns the repo.
+With self-review prevented, the only human who can approve a production
+run is the one who triggered it — so **every deploy and every seed would
+block forever**, including the emergency rules fix. Turning it on is
+correct the day there is a second maintainer, and wrong until then. If
+that day comes, turn it on in the same change that adds the second uid.
+
+**The branch restriction is the part that does not depend on judgement.**
+Required reviewers ask a human to be careful; `main`-only is enforcement.
+A `workflow_dispatch` on any other ref cannot read the environment's
+secrets at all — GitHub refuses to grant them to a run on a
+non-permitted ref, so a compromised or over-broad token cannot seed or
+deploy from an unreviewed branch. It costs nothing here: `firebase-deploy`
+already triggers only on push to `main`, and a seed should only ever
+carry merged content.
+
+### What changes the day this is applied
+
+Today a backend merge deploys unattended. After, it queues and waits: the
+run sits in **Review pending**, GitHub notifies, and one approval
+releases it. The same for a seed.
+
+That is a real cost against the emergency rules fix — the path
+`firebase-deploy.yml` deliberately keeps lint, the bundle budget, the
+Android build and the `npm audit` off, because each could block it. An
+approval is a much smaller tax than any of those (no registry call, no
+build, no way to fail on its own) but it is not zero, and it is the
+reason the wait timer is 0 rather than "a few minutes to think".
+
+**The trade being made:** unattended production writes stop being
+possible, at the price of one tap per backend merge. Accepted (D87) — the
+tap is bounded and the exposure it removes is not.
+
+### How to apply it
+
+GitHub → Settings → Environments → `production`. Four fields, one save.
+Then tick the box at the top of this section with the date.
+
+Verify it took, rather than assuming — trigger anything on this path (a
+backend merge, or Actions → Seed content) and confirm the run sits at
+**Review pending** instead of proceeding. A protection rule that was
+saved into a different environment name looks identical in the settings
+list and gates nothing.
+
+### What this does not cover, recorded rather than left to be discovered
+
+**Nothing in CI verifies that these settings are still in place.** They
+live in GitHub's UI, no file in this repo describes them, and a rule
+removed by hand leaves no trace here — this document would keep asserting
+a gate that no longer exists. That is a weaker guarantee than the rest of
+this project: `firestore.rules` claims are proven by
+`firestore-tests/`, and this claim is proven by nothing.
+
+It is recorded as a limit rather than closed because the obvious closure
+is worse than the hole. A `check:env-protection` gate would need a token
+with `administration: read` on every run, and would red the tree for any
+contributor without it — the failure mode `scripts/check-labels.mjs`'s
+header warns about, where a gate that fires on a guess is one people
+learn to skip.
+
+**The honest scope of the gate:** it stops *unattended* production
+writes. It does not stop a careless approval, and an approver who always
+clicks approve is strictly worse than no reviewer, because the audit log
+then shows a gate that was never really closed.
 
 ## Runtime environment for the functions
 
@@ -156,6 +300,11 @@ Nothing *breaks* — the scheduled twins keep running and rules keep
 enforcing, because the allowlist gates the manual levers, not the app. The
 loss is the ability to intervene, discovered at the moment intervention is
 wanted.
+
+A second holder is also the precondition for **Prevent self-review** on
+the `production` environment (see Protection rules above) — that setting
+is off today precisely because one person cannot approve their own only
+run.
 
 **The fix is free and is config, not code.** Both variables are
 comma-separated and already parsed that way; adding a second uid is one
@@ -229,7 +378,7 @@ redelivered events are no-ops rather than double counts.
 ## Correcting aggregates after a fake-account ring (D28)
 
 Fake-account prevention is deliberately partial — App Check prices
-accounts, the k-floor and publish cadence hide small distortions, and D28
+accounts, and since D98 nothing hides a small distortion — D28
 records why no mechanism can make it complete. What the system guarantees
 instead is that the published numbers stay **correctable**: answers are
 immutable (D5), exact counts live server-side in `v2_aggs_private`, and
@@ -241,8 +390,12 @@ section didn't already say while the system was calm.
 **What this runbook does NOT do is find the ring.** Identification is
 investigative — Auth creation-time clusters, App Check token metadata in
 the function logs, answer velocity across `v2_agg_events` timestamps.
-What is guaranteed is mechanical once you HAVE a uid list: attribution,
-subtraction, republication, in that order.
+Since D54 the first pass of that investigation runs on a clock:
+`ledgerVelocityScan` reads the ledger daily and logs `velocity_flag`
+lines ("Reading the velocity scan" below). A flag is this runbook's
+INPUT, not a verdict — honest crowds trip the same signals on their best
+days. What is guaranteed is mechanical once you HAVE a uid list:
+attribution, subtraction, republication, in that order.
 
 1. **Correct before you delete.** The ring's answer docs
    (`v2_users/{uid}/answers/{qid}`) hold the option each fake picked and
@@ -262,8 +415,9 @@ subtraction, republication, in that order.
    subtraction exact rather than approximate.
 4. **Republish through the same floors.** Rewrite
    `v2_question_aggs/{qid}` from the corrected private doc exactly as the
-   trigger would: `tooSmall: true` below `AGG_MIN_N`, else counts +
-   `publishableBreakdown(by, AGG_MIN_N)`. A hand-written public doc that
+   trigger would: `{ counts, total, by }`, exact and whole — since D98
+   there is no floor, no `tooSmall` and no suppression to reproduce.
+   A hand-written public doc that
    skips the floors is a worse incident than the one being corrected.
 5. **Then delete the accounts** (admin SDK), which removes their answer
    docs and — via the uid sweep — their ledger entries.
@@ -277,7 +431,57 @@ in this repo: the first real incident should shape one against its actual
 form, not inherit an untested one; what must not be improvised is the
 order of operations above.
 
-## Alerting (one alert, deliberately)
+### Reading the velocity scan (D54)
+
+`ledgerVelocityScan` runs daily at 03:47 UTC over the ledger entries
+since its last run (72h catch-up cap) and emits two kinds of line —
+a heartbeat per run, and a warning per finding:
+
+```bash
+# The heartbeat — one per day; a silent week means the scan is not running:
+gcloud logging read 'resource.type="cloud_run_revision"
+  resource.labels.service_name="ledgervelocityscan"
+  jsonPayload.metric="velocity_scan"' \
+  --project prvfire33 --limit 7 --format="value(timestamp,jsonPayload.message)"
+
+# The flags, newest first — kind is volume | cadence | cluster | burst:
+gcloud logging read 'resource.type="cloud_run_revision"
+  jsonPayload.metric="velocity_flag"' \
+  --project prvfire33 --limit 50 \
+  --format="value(timestamp,jsonPayload.kind,jsonPayload.message)"
+```
+
+(The log-field shapes follow the existing policies' filters; as with the
+D37 queries, expect to adjust the resource labels on first real use —
+the outcome strings are read from source, the labels are not.)
+
+What each kind means, and the honest false positive it carries:
+
+- `volume` — a uid with more window entries than the aggregate-feeding
+  bank has questions. No honest client can do this (answers are
+  create-only per question); it is a dedup failure or forged writes
+  either way, so this one is the closest thing to a verdict.
+- `cadence` — inter-answer gaps too regular or too fast to be a person
+  reading questions. False positive: the closest honest shape is the
+  backlog binge, which passes on its gap variance; thresholds in
+  `functions/src/velocity.ts` (`CADENCE_*`).
+- `cluster` — 5+ of the window's voting accounts created within 10
+  minutes of each other. False positive: a launch spike, a press
+  mention, a classroom. This is why flags feed review, not denial.
+- `burst` — a question with an established quiet baseline suddenly
+  taking 4× its trailing mean. False positive: a question going
+  organically viral. Promoted questions' debut days deliberately cannot
+  flag (no baseline yet).
+
+A flag worth acting on becomes a uid list, and the uid list enters the
+correction procedure above — attribute, subtract, republish, then
+delete. Deliberately NO alert policy ships for these (this section's own
+"applied by hand, once, deliberately" reasoning): the flags are a daily
+read during calm, an hourly one during an incident. If evidence ever
+justifies standing eyes, the `metric: velocity_flag` field is what a
+log-based metric selects on — the plumbing is in the line already.
+
+## Alerting (three alerts, deliberately)
 
 Everything above assumes somebody already knows something is wrong. Until
 this was added, nothing told them: detection was a human choosing to run
@@ -286,11 +490,38 @@ exactly the one that looks like nothing from the outside — the app keeps
 serving, the Mirror just stops moving while Eventarc piles up redeliveries
 for ~7 days.
 
+> **One command applies all of this**, idempotently and dry-run by default:
+>
+> ```bash
+> npm run monitoring:apply -- --email you@example.com           # report
+> npm run monitoring:apply -- --email you@example.com --apply   # do it
+> ```
+>
+> It creates the channel, both log-based metrics and all three policies in
+> the order below, skipping whatever already exists. The manual steps stay
+> written out because the script is a convenience over them, not a
+> replacement for knowing what it did — and because the reason each object
+> exists is the useful part.
+
 `monitoring/onV2AnswerCreated-errors.json` is a Cloud Monitoring policy
 that fires on any `severity>=ERROR` from that trigger. It is **not applied
-by the pipeline** — the deploy service account has no monitoring role, and
-widening it for one policy is a worse trade than applying this by hand
-once. Apply it with:
+by the pipeline**, for two reasons — neither of them the one this paragraph
+used to give.
+
+> **Correction (2026-08-04, D47).** It said "the deploy service account has
+> no monitoring role". It has `Editor` + `Firebase Admin` (see the IAM note
+> above), and `Editor` includes `monitoring.alertPolicies.create`. The
+> permission was never the obstacle. The conclusion survives on better
+> ground, which is what is written below.
+
+A policy is useless without a notification channel id, and that id is not in
+this repo and should not be — it is an email address or a Slack hook, per
+operator, per project. And a pipeline that can rewrite an alert policy can
+delete one, silently, in a deploy that was about something else; the
+blast radius of getting that wrong is "you stop being told when the Mirror
+stops moving". Applied by hand, once, deliberately. `npm run pulse` reports
+policies as *committed*, never as *deployed*, because the repo cannot know
+which. Apply it with:
 
 ```bash
 # 1. Create a notification channel once (email; use --type=sms|slack etc. as preferred)
@@ -306,16 +537,100 @@ gcloud alpha monitoring policies create --project prvfire33 \
 
 Verify it: `gcloud alpha monitoring policies list --project prvfire33`.
 
-**Why only one alert.** An alert nobody acts on trains people to ignore
-the channel, and at zero users most signals are noise. This is the single
-condition where the gap between "broken" and "visibly broken" is measured
-in days rather than seconds. The scheduled aggregators
+### The second alert: aggregate contention
+
+`monitoring/onV2AnswerCreated-contention.json` watches D7's per-question
+write ceiling. It needs a log-based metric first, because what it counts
+is a log line rather than a built-in signal:
+
+```bash
+# 1. The metric: one data point per contended aggregate write
+gcloud logging metrics create agg_contention --project prvfire33 \
+  --description="onV2AnswerCreated transaction attempts >= 3 (D7 write ceiling)" \
+  --log-filter='severity>=WARNING AND jsonPayload.metric="agg_contention"'
+
+# 2. The policy, with the same channel as above
+gcloud alpha monitoring policies create --project prvfire33 \
+  --policy-from-file=monitoring/onV2AnswerCreated-contention.json \
+  --notification-channels=projects/prvfire33/notificationChannels/CHANNEL_ID
+```
+
+**This paragraph used to claim the error alert already carried this
+signal**, and it did not — which is worth recording, because the mistake
+is the kind that survives review. Contention is not an error: Firestore's
+SDK retries an ABORTED transaction inside `runTransaction`, the write
+commits, and nothing is ever logged above INFO. A policy filtering
+`severity>=ERROR` cannot match that condition however severe it gets. So
+D7's stated revisit trigger ("when `onV2AnswerCreated` starts logging
+transaction retries") named an instrument that did not exist, and the
+sentence here asserting the signal reached someone was describing a path
+with no source at either end.
+
+`runAggTransaction` (`functions/src/v2.ts`) now counts its own callback
+invocations and logs at three attempts, which is the source; the metric
+and policy above are the path.
+
+### The third alert: the reveal scan going quiet
+
+`monitoring/scheduledDuelReveals-silent.json` watches the duel reveal loop.
+It is the first policy here that alerts on **absence** rather than on a
+signal, and the difference is the point: the other two watch a trigger that
+runs when a user acts, so an outage produces log lines. This watches a
+cron, whose characteristic failure is not throwing but **not running** —
+Cloud Scheduler stops firing, the function falls out of a deploy's `--only`
+list, the revision fails to start. Nothing executes, so nothing logs, and a
+`severity>=ERROR` policy stays green for the entire outage.
+
+```bash
+# 1. The metric: one data point per completed SCHEDULED scan.
+#    The mode filter is load-bearing — see below.
+gcloud logging metrics create duel_reveal_run --project prvfire33 \
+  --description="scheduledDuelReveals completed a scheduled (indexed) scan" \
+  --log-filter='jsonPayload.metric="duel_reveal_run" AND jsonPayload.mode="indexed"'
+
+# 2. The policy, with the same channel as above
+gcloud alpha monitoring policies create --project prvfire33 \
+  --policy-from-file=monitoring/scheduledDuelReveals-silent.json \
+  --notification-channels=projects/prvfire33/notificationChannels/CHANNEL_ID
+```
+
+**Why the metric filters on `mode`.** `runDuelReveals` is shared by the
+schedule (`"indexed"`) and by `revealDuelsNowV2`'s manual lever, which
+defaults to `"full"`. Both emit the heartbeat. Without the filter, an
+operator running the lever during an incident — the first thing this
+policy's own runbook tells them to do — would reset the absence timer and
+silence the alert for the outage they are working on.
+
+**Why this one does not wait for "someone is actually reading the alerts",
+unlike the aggregators below.** A missed reveal does **not** self-heal.
+`runDuelReveals` computes `const yester = dayKey || utcDayKey(-1)`, and the
+schedule passes no `dayKey` — so every run handles *yesterday and only
+yesterday*. A three-day outage does not resolve into a catch-up run; it
+leaves two days permanently unrevealed, because no later scheduled run ever
+looks at them again. Recovering them needs a manual `revealDuelsNowV2` with
+an explicit `day`, which needs someone to know which days to name. The
+detection gap and the data loss are the same window.
+
+**Known limit, recorded rather than discovered later.** A metric-absence
+condition needs a time series that has existed at least once; against a
+metric with no points it does not fire. So this policy is blind to "the
+scheduled reveal never worked at all" and only ever proves "it worked and
+then stopped." Apply it, then confirm a first run actually landed —
+`npm run monitoring:apply` prints the `gcloud logging read` that checks —
+or it sits green meaning nothing.
+
+**Why only these three.** An alert nobody acts on trains people to ignore
+the channel, and at zero users most signals are noise. These are the
+conditions where the gap between "broken" and "visibly broken" is measured
+in days: a crashing trigger that accumulates redeliveries, a ceiling that
+arrives as latency rather than as an error, and a cron whose silence is
+indistinguishable from health. The scheduled aggregators
 (`scheduledWorldAggregates`, `scheduledCityAggregates`) are the obvious
-second and third — they are 24h jobs whose failure delays a surface by a
-day and self-heals on the next run, so they can wait until someone is
-actually reading the alerts. D7 records the retry-logging threshold that
-should trigger revisiting the sharding decision; this alert is how that
-signal reaches anyone.
+next — they are 24h jobs whose failure delays a surface by a day and
+self-heals on the next run, so they can wait until someone is actually
+reading the alerts. That "self-heals" is doing real work in this paragraph:
+it is exactly what is NOT true of the reveal scan, which is why that one
+did not wait.
 
 ## Running a deploy manually
 

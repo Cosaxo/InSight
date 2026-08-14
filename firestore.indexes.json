@@ -1,5 +1,120 @@
 {
-  "indexes": [],
+  "indexes": [
+    {
+      "collectionGroup": "v2_suggestions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "at",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "v2_takes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "gid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "hidden",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "v2_takes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "gid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "qid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "hidden",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "v2_presence",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "cell",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "at",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "answers",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        {
+          "fieldPath": "qid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "surface",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "answeredAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "invites",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        {
+          "fieldPath": "to",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "at",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "invites",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        {
+          "fieldPath": "from",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "at",
+          "order": "DESCENDING"
+        }
+      ]
+    }
+  ],
   "fieldOverrides": [
     {
       "collectionGroup": "insight_inbound_impressions",
@@ -20,6 +135,106 @@
           "order": "ASCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "following",
+      "fieldPath": "to",
+      "indexes": [
+        {
+          "queryScope": "COLLECTION_GROUP",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "reveals",
+      "fieldPath": "members",
+      "indexes": [
+        {
+          "queryScope": "COLLECTION_GROUP",
+          "arrayConfig": "CONTAINS"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "answers",
+      "fieldPath": "qid",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "answers",
+      "fieldPath": "surface",
+      "indexes": [
+        {
+          "queryScope": "COLLECTION",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "answers",
+      "fieldPath": "optionIdx",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "answers",
+      "fieldPath": "guessIdx",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "answers",
+      "fieldPath": "entity",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "answers",
+      "fieldPath": "gid",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "answers",
+      "fieldPath": "day",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "answers",
+      "fieldPath": "anchors.city",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "answers",
+      "fieldPath": "anchors.country",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "answers",
+      "fieldPath": "anchors.ageBand",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "answers",
+      "fieldPath": "anchors.gender",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "answers",
+      "fieldPath": "anchors.profession",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "answers",
+      "fieldPath": "anchors.education",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "answers",
+      "fieldPath": "anchors.relationship",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "answers",
+      "fieldPath": "anchors.heightBand",
+      "indexes": []
     }
   ]
 }

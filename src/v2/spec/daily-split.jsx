@@ -4,7 +4,28 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import { VOTECUTS } from './vote-cuts.js';
+import { navCoasting, OWNS_X } from './swipe-back.js';
+import { WPAL } from './world-palette.js';
+import { DAILYQ } from './daily-questions.js';
+import { DUELS } from './duels-data.js';
+import { Sheet } from './primitives.jsx';
+// The boot-failure label reads LIVE through the module, not through
+// window: D39's ratchet only moves down, so new coupling has to arrive as
+// an import. result-card.jsx, map-anchors.js and map-group-stats.js
+// already read it this way. The ~50 `window.LIVE` references elsewhere in
+// this file stay for now — converting them is a separate change, and each
+// one needs its `window.LIVE &&` guard re-read rather than deleted
+// wholesale, because an imported binding cannot be unset but the DATA it
+// carries can still be missing.
+import LIVE from '../data/live';
+// The live world-takes surface (D83) — ordinary ESM import of the typed
+// panel, so the D39 coupling meter stays flat.
+import LiveTakesPanel from '../ui/LiveTakesPanel.tsx';
+import PulseCard from '../ui/PulseCard.tsx';
 import ReactDOM from 'react-dom';
+import { IS_TESTS, IS_TEST_AVG, IS_TEST_RESULTS, persistTestResult } from './test-definitions.js';
+import { PASSIVE } from './passive-progress.js';
 
 // daily-split.jsx — SPLIT: the daily tab. Three modes — World (vote blind,
 // see how the crowd & every kind of person split), Group (one question a day
@@ -29,83 +50,42 @@ const WORLD_TOPICS_V2 = window.WORLD_TOPICS || [
 // dot when you vote; the rest name the branch the answer belongs to.
 const DAILYSPLIT_DQ_SYNC = { s1: { prompt: 'Pineapple on pizza?', map: { yes: 0, no: 1 } } };
 
+// ── the revealed split's stage height ──
+// Two- to four-option days keep the designed fixed 244px chart. Each tile
+// refuses to shrink under its 46px minHeight (label + the winner's numeral),
+// plus the column's 7px gaps, so from five options up the content minimum
+// (53n − 7) outgrows a fixed 244 and the tiles spilled straight over the
+// meta line, the feed and its chip bar — found on a device the first time a
+// ten-option daily shipped. The extra 130 is flex headroom so shares can
+// still read as heights instead of every tile pinning at its minimum.
+// Exported for the unit test that holds this arithmetic to the 46/7 the
+// tile styles actually use (test/split-stage.test.js).
+export function sdSplitStageH(n) { return n <= 4 ? 244 : n * 53 + 123; }
+
 class DailySplit extends React.Component {
   state = {
-    mode: 'world', feedOpen: false, condensed: false, earlierOpen: false, modeSlot: null, reportFor: null,
+    mode: this.props.mode || 'world', feedOpen: false, condensed: false, earlierOpen: false, modeSlot: null, reportFor: null,
     idx: 0, idxG: 0,
     votes: (window.LIVE && window.LIVE.enabled ? window.LIVE.myVotes() : {}), tab: null, filter: 'all', dim: 'friends', dimAxis: null, ups: {}, mine: {}, draft: '', dreplies: this.loadDailyReplies(), replyTo: null,
-    mapToast: null, pressing: false,
+    mapToast: null, pressing: false, editHold: null,
     group: {},
     cats: this.loadWorldCats(),
-    testProg: this.loadTestProg(), testJustDone: null, testOpen: false, testRetake: null,
+    // which daily's live world-takes panel is open (D83) — id, not boolean,
+    // so paging to another day closes it implicitly
+    liveTakes: null,
   };
 
-  // ── tests, fed into the daily as their own category ──
-  // Questions come from the same pool as the profile's tests (window.IS_TESTS)
-  // and progress/results share the same storage, so both stay in sync.
-  get testDefs() { return window.IS_TESTS || {}; }
-  loadTestProg() {
-    try { const v = JSON.parse(localStorage.getItem('insight.testProgress.v1') || '{}'); return v && typeof v === 'object' ? v : {}; }
-    catch (e) { return {}; }
-  }
-  saveTestProg(p) { try { localStorage.setItem('insight.testProgress.v1', JSON.stringify(p)); } catch { /* best-effort */ } if (window.PASSIVE) window.PASSIVE.poke(); }
-  testStats() {
-    const defs = this.testDefs, SAVED = window.IS_TEST_RESULTS || {}, prog = this.state.testProg, P = window.PASSIVE;
-    let total = 0, done = 0;
-    Object.entries(defs).forEach(([k, T]) => {
-      total += T.questions.length;
-      if (P) done += P.done(k); // passive feed coverage + explicit answers
-      else if (SAVED[k]) done += T.questions.length;
-      else if (prog[k] && Array.isArray(prog[k].answers)) done += Math.min(prog[k].answers.length, T.questions.length);
-    });
-    const pct = total ? Math.round(done / total * 100) : 0;
-    // active test: an explicit retake first, then anything in progress
-    // (even over a saved result — a retake survives leaving the tab), then first not taken
-    let active = this.state.testRetake && defs[this.state.testRetake] ? this.state.testRetake : null;
-    if (!active) active = Object.keys(defs).find(k => prog[k] && Array.isArray(prog[k].answers) && prog[k].answers.length);
-    if (!active) active = Object.keys(defs).find(k => (window.PASSIVE ? !window.PASSIVE.complete(k) : !SAVED[k]));
-    return { pct, total, done, active };
-  }
-  scoreTestDaily(kind, T, ans) {
-    const totals = {}, counts = {};
-    T.questions.forEach((q, i) => {
-      const v = ans[i] ?? 2;
-      const norm = q.invert ? 4 - v : v;
-      totals[q.d] = (totals[q.d] || 0) + norm;
-      counts[q.d] = (counts[q.d] || 0) + 1;
-    });
-    const pop = (window.IS_TEST_AVG || {})[kind] || {};
-    return T.dims.map(d => ({ ...d, value: Math.round(((counts[d.id] ? totals[d.id] / counts[d.id] : 2) / 4) * 100), avg: pop[d.id] ?? 50 }));
-  }
-  answerTest(kind, i) {
-    const T = this.testDefs[kind];
-    this.setState(s => {
-      const prog = { ...s.testProg };
-      let cur = prog[kind] && Array.isArray(prog[kind].answers)
-        ? { step: prog[kind].step || 0, answers: prog[kind].answers.slice() }
-        : null;
-      if (!cur) {
-        // fresh start: resume past what the feed already mapped (not on a retake)
-        const pre = (window.PASSIVE && s.testRetake !== kind && !window.PASSIVE.complete(kind)) ? window.PASSIVE.prefill(kind) : [];
-        cur = { step: pre.length, answers: pre.slice() };
-      }
-      cur.answers[cur.step] = i; cur.step += 1;
-      if (cur.step >= T.questions.length) {
-        const dims = this.scoreTestDaily(kind, T, cur.answers);
-        const result = { title: T.title, taken: 'just now', accent: T.accent, dims };
-        if (window.IS_persistTestResult) window.IS_persistTestResult(kind, result);
-        else { window.IS_TEST_RESULTS = window.IS_TEST_RESULTS || {}; window.IS_TEST_RESULTS[kind] = result; }
-        if (window.PASSIVE) window.PASSIVE.markComplete(kind);
-        delete prog[kind];
-        this.saveTestProg(prog);
-        return { testProg: prog, testJustDone: kind, testRetake: null };
-      }
-      prog[kind] = cur;
-      this.saveTestProg(prog);
-      return { testProg: prog, testJustDone: null };
-    });
-  }
-
+  // THE TEST FAST PATH LIVED HERE, and D121 removed it along with the
+  // sit-down overlay. `testDefs` / `testStats` / `scoreTestDaily` /
+  // `answerTest` / `loadTestProg` / `saveTestProg` drove a one-question-a-tap
+  // run of an instrument inside the daily tab, reached by `state.testOpen`.
+  //
+  // It was already unreachable: `testOpen` initialised to false and the only
+  // other write in the file set it to false again, so no tap in the shipped
+  // app could open it. Deleting it is therefore not a behaviour change — it
+  // is the removal of a second scorer for the instruments, which is the part
+  // that mattered. The instruments now have exactly one: the fold over your
+  // feed answers (data/passiveProfile.ts).
   // vote lands on the map — a brief confirmation that fades on its own
   showMapToast(id) {
     clearTimeout(this._toastT);
@@ -113,7 +93,14 @@ class DailySplit extends React.Component {
     this._toastT = setTimeout(() => { if (this.state.mapToast === id) this.setState({ mapToast: null }); }, 3000);
   }
   componentDidMount() {
-    if (window.DUELS) this._unsubDuels = window.DUELS.subscribe(() => this.forceUpdate());
+    this._unsubDuels = DUELS.subscribe(() => this.forceUpdate());
+    // The purge (data/live.ts, D51): this component persists dreplies,
+    // cats and testProg by spreading state back to the keys the purge just
+    // removed, and it stays mounted across a uid change — drop them, or
+    // one interaction writes the previous account's maps back. votes
+    // clears too; the live-update sync refills it for the new uid.
+    this._onPurge = () => this.setState({ dreplies: {}, cats: {}, votes: {} });
+    window.addEventListener('insight:local-purge', this._onPurge);
     // The mode switcher belongs in the app header, which is rendered by a
     // component above this one — so it is portaled into a slot app-shell
     // leaves for it. Resolved here rather than at render: the slot only
@@ -146,6 +133,7 @@ class DailySplit extends React.Component {
       this.consumePendingReveal();
     });
     this.syncAppAccent();
+    this.watchRuler();
   }
 
   // A tapped reveal notification (src/v2/data/push.ts) stores the gid;
@@ -159,7 +147,41 @@ class DailySplit extends React.Component {
     try { sessionStorage.removeItem('insight.pendingReveal'); } catch { /* best-effort */ }
     this.setState({ mode: g.mode === 'duo' ? 'duo' : 'group' });
   }
-  componentDidUpdate() {
+
+  // ── docking: once the in-flow ruler has scrolled away, the wordmark steps
+  // aside and a compact ruler takes the header. One snap at a threshold, with
+  // hysteresis, rather than a scroll-linked shrink — a scrubbed header jitters
+  // and fights the feed's own entrance animations.
+  // Dock when the ruler itself has left the scroller — not at a scrollTop
+  // number. Group and 1v1 hand scrolling to their own snap stacks, so a
+  // threshold on one container docked the header while the ruler was still
+  // on screen. Capture phase, because scroll doesn't bubble: whichever
+  // container actually moved, the check runs.
+  watchRuler() {
+    if (this._offScroll) { this._offScroll(); this._offScroll = null; }
+    if (!this.props.ruler || !this.props.dock) return;
+    const host = this.rootEl && this.rootEl.closest('.app');
+    if (!host) return;
+    const check = () => {
+      const el = this._rulerEl, sc = this.rootEl && this.rootEl.parentElement;
+      if (!el || !sc) return;
+      const r = el.getBoundingClientRect(), s = sc.getBoundingClientRect();
+      // hysteresis: gone past the top edge docks, 8px back into view releases
+      this.setDocked(this._docked ? r.bottom <= s.top + 8 : r.bottom <= s.top + 1);
+    };
+    this._check = check;
+    host.addEventListener('scroll', check, { passive: true, capture: true });
+    this._offScroll = () => host.removeEventListener('scroll', check, true);
+  }
+
+  setDocked(v) {
+    if (this._docked === v) return;
+    this._docked = v;
+    if (this.props.onDock) this.props.onDock(v);
+  }
+  componentDidUpdate(prevProps) {
+    // nav v2: the bottom bar owns the mode — follow it when it changes
+    if (prevProps && this.props.mode && this.props.mode !== prevProps.mode && this.props.mode !== this.state.mode && !this._switching) this.switchMode(this.props.mode);
     this.syncAppAccent();
     // enter half of the click-driven mode switch — runs synchronously after
     // the commit, so the body can never be left stuck in its exit state
@@ -174,15 +196,44 @@ class DailySplit extends React.Component {
       this._switching = false;
     }
   }
-  componentWillUnmount() { clearTimeout(this._toastT); clearTimeout(this._lpT); clearTimeout(this._sheetT); if (this._unsubDuels) this._unsubDuels(); if (this._unsubLive) this._unsubLive(); if (this._pendingHandler) window.removeEventListener('insight-live-update', this._pendingHandler); const app = document.querySelector('.app'); if (app) app.style.removeProperty('--accent'); }
+  componentWillUnmount() { clearTimeout(this._toastT); clearTimeout(this._lpT); clearTimeout(this._sheetT); clearTimeout(this._ehT); if (this._unsubDuels) this._unsubDuels(); if (this._offScroll) this._offScroll(); if (this._docked && this.props.onDock) this.props.onDock(false); if (this._unsubLive) this._unsubLive(); if (this._pendingHandler) window.removeEventListener('insight-live-update', this._pendingHandler); if (this._onPurge) window.removeEventListener('insight:local-purge', this._onPurge); const app = document.querySelector('.app'); if (app) app.style.removeProperty('--accent'); }
+
+  // one axis, three stops. Which axis depends on how the app is navigating:
+  // ruler/pill run the daily's own scale, the 4-tab bar borrows the bar's order.
+  get modeAxis() { return ['world', 'group', 'duo']; }
+
+  // ── the daily's scale: World · Circle · 1v1 — the same ruler the Mirror wears,
+  // because it is the same kind of choice: how far out this answer reaches.
+  dailyRuler(mode, accents, badges) {
+    const h = React.createElement;
+    const STOPS = [{ id: 'world', label: 'World' }, { id: 'group', label: 'Circle' }, { id: 'duo', label: '1v1' }];
+    const n = STOPS.length;
+    const idx = Math.max(0, STOPS.findIndex((s) => s.id === mode));
+    const acc = accents[mode];
+    // the ruler reads as a primary switch, not a caption: labels at real size,
+    // the graduation kept but scaled to match
+    return h('div', { ref: (n) => { this._rulerEl = n; }, style: { margin: '-6px 0 -4px' } },
+      h('div', { style: { position: 'relative', display: 'flex', height: 50 }, role: 'tablist', 'aria-label': 'How far this answer reaches' },
+        h('div', { style: { position: 'absolute', left: 6, right: 6, bottom: 21, height: 1, background: 'color-mix(in oklch, var(--rule), transparent 30%)' } }),
+        STOPS.map((s, i) => {
+          const on = i === idx;
+          // taller tick = wider scale, so the graduation narrows toward 1v1
+          const tick = 11 - (i / (n - 1)) * 5.5;
+          return h('button', { key: s.id, role: 'tab', 'aria-selected': on, 'aria-label': s.label, onClick: () => this.switchMode(s.id), style: { flex: 1, minWidth: 0, position: 'relative', height: 50, border: 'none', background: 'none', cursor: 'pointer', WebkitAppearance: 'none', padding: 0 } },
+            badges[s.id] && h('span', { 'aria-hidden': true, style: { position: 'absolute', left: '50%', bottom: 39, marginLeft: -2.5, width: 5, height: 5, borderRadius: '50%', background: 'var(--c-around)' } }),
+            h('span', { style: { position: 'absolute', left: '50%', bottom: 21, transform: 'translateX(-50%)', width: on ? 3 : 1.5, height: on ? 14 : tick, borderRadius: 99, background: on ? acc : 'color-mix(in oklch, var(--ink-3), transparent 45%)', transition: 'height .28s cubic-bezier(0.2,0.8,0.2,1), background .3s, width .2s' } }),
+            h('span', { style: { position: 'absolute', left: 0, right: 0, bottom: 0, textAlign: 'center', whiteSpace: 'nowrap', fontFamily: 'var(--sans)', fontSize: on ? 15 : 13.5, fontWeight: on ? 800 : 600, letterSpacing: '-0.02em', color: on ? 'var(--ink)' : 'var(--ink-3)', transition: 'color .2s, font-size .2s' } }, s.label));
+        })));
+  }
 
   // click-driven mode switch — same slide the swipe gesture makes, so the
   // switcher and the gesture feel like one mechanism
   switchMode(id) {
-    const MODES = ['world', 'group', 'duo'];
+    const MODES = this.modeAxis;
     const mi = MODES.indexOf(this.state.mode), ni = MODES.indexOf(id);
     if (ni === mi || ni < 0) return;
     const b = this.bodyEl, dir = ni > mi ? 1 : -1;
+    if (this.props.onMode) this.props.onMode(id);
     const reduce = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (!b || reduce || this._switching) { this.setState({ mode: id }); return; }
     this._switching = true;
@@ -192,13 +243,12 @@ class DailySplit extends React.Component {
       this._enterDir = dir; // componentDidUpdate finishes the move
       this.setState({ mode: id });
       const sc = this.rootEl && this.rootEl.parentElement; if (sc) sc.scrollTop = 0;
+      if (this._check) this._check();
     }, 160);
   }
 
   get modeAccent() {
-    return this.state.mode === 'world' && this.state.testOpen
-      ? 'var(--ochre)'
-      : ({ world: 'var(--c-around)', group: 'var(--c-likeness)', duo: 'var(--c-people)' })[this.state.mode];
+    return ({ world: 'var(--c-around)', group: 'var(--c-likeness)', duo: 'var(--c-people)' })[this.state.mode];
   }
   // lift the mode's accent onto the app root so the header wordmark and tab
   // bar glide with it — .app transitions --accent, so switches crossfade.
@@ -211,15 +261,22 @@ class DailySplit extends React.Component {
 
   syncToMap(S, optId) {
     const s = DAILYSPLIT_DQ_SYNC[S.id];
-    if (!s || !window.DAILYQ) return;
-    const q = window.DAILYQ.questions.find(x => x.prompt === s.prompt);
-    if (q && s.map[optId] != null) window.DAILYQ.answer(q.id, s.map[optId]);
+    if (!s) return;
+    const q = DAILYQ.questions.find(x => x.prompt === s.prompt);
+    if (q && s.map[optId] != null) DAILYQ.answer(q.id, s.map[optId]);
+  }
+  // A refused edit (D86's one-change-a-minute cooldown) says why on the
+  // meta line for a moment instead of silently snapping back.
+  holdNote(id) {
+    clearTimeout(this._ehT);
+    this.setState({ editHold: id });
+    this._ehT = setTimeout(() => this.setState({ editHold: null }), 2600);
   }
   mapBranch(S) {
     const s = DAILYSPLIT_DQ_SYNC[S.id];
-    if (s && window.DAILYQ) {
-      const q = window.DAILYQ.questions.find(x => x.prompt === s.prompt);
-      if (q) return window.DAILYQ.categoryPath(q)[0];
+    if (s) {
+      const q = DAILYQ.questions.find(x => x.prompt === s.prompt);
+      if (q) return DAILYQ.categoryPath(q)[0];
     }
     const byRegion = { Taste: 'Food', Work: 'Mind', Society: 'Values' };
     const byCat = { dilemma: 'Morals', event: 'Mind', people: 'Values', bigq: 'Values' };
@@ -264,17 +321,17 @@ class DailySplit extends React.Component {
     const next = { ...this.state.cats, [id]: !(this.state.cats[id] !== false) };
     if (!WORLD_TOPICS_V2.some(c => next[c.id] !== false)) return; // keep at least one topic on
     try { localStorage.setItem('insight.worldCats', JSON.stringify(next)); } catch { /* best-effort */ }
-    this.setState({ cats: next, idx: 0, earlierOpen: false, feedOpen: false, tab: null, condensed: false, filter: 'all', testOpen: false });
+    this.setState({ cats: next, idx: 0, earlierOpen: false, feedOpen: false, tab: null, condensed: false, filter: 'all' });
   }
   // sides get distinct hues rotated from the topic's — same oklch family
   // (one lightness+chroma tier), so the choice has real contrast but every
   // color still derives from the question's topic.
-  optColor(tc, i, n) { return i === 0 ? tc : 'oklch(from ' + tc + ' 0.55 0.14 calc(h + ' + Math.round(i * (n > 2 ? 120 : 150)) + '))'; }
+  optColor(tc, i, n) { return WPAL.opt(tc, i, n, true); }
   get worldDeck() {
     const all = this.data;
     const on = all.filter(q => this.state.cats[q.cat] !== false);
     return (on.length ? on : all).map(q => {
-      const tc = (WORLD_TOPICS_V2.find(c => c.id === q.cat) || {}).color || 'var(--c-around)';
+      const tc = WPAL.c((WORLD_TOPICS_V2.find(c => c.id === q.cat) || {}).color || 'var(--c-around)');
       return { ...q, topicColor: tc, options: q.options.map((o, i) => ({ ...o, color: this.optColor(tc, i, q.options.length), textColor: '#fff' })) };
     });
   }
@@ -298,19 +355,23 @@ class DailySplit extends React.Component {
     }, { passive: true });
     // only the question body slides — the mode switcher and page chrome hold still
     const T = () => this.bodyEl || el;
-    // horizontal swipe moves between the three modes — World ↔ Group ↔ 1v1;
-    // the page itself scrolls vertically (question, then the feed). Earlier
-    // days are reached by tapping the day dots, not by swiping.
-    const MODES = ['world', 'group', 'duo'];
+    // horizontal swipe moves along the axis; the page itself scrolls vertically
+    // (question, then the feed). Earlier days are reached by tapping the day dots.
     const commit = (dir) => {
+      // read the axis live — setupGestures runs once per mount, but the Nav tweak
+      // can flip the axis under it without remounting
+      const MODES = this.modeAxis;
       const mi = MODES.indexOf(this.state.mode), ni = mi + dir;
-      if (ni < 0 || ni >= MODES.length) { spring(); return; } // spring at the ends
+      // the axis continues past the far end into Mirror — act, then see
+      if (ni >= MODES.length) { if ((this.props.hideSwitcher || this.props.ruler) && window.goNav) { window.goNav('mirror'); return; } spring(); return; }
+      if (ni < 0) { spring(); return; } // spring at the near end
       try { localStorage.setItem('insight.swipeHinted', '1'); } catch { /* best-effort */ } // they've learned it — no more hinting
       const b = T();
       b.style.transition = 'transform 0.17s ease, opacity 0.17s ease';
       b.style.transform = 'translateX(' + (-dir * 64) + 'px)'; b.style.opacity = '0';
       setTimeout(() => {
-        this.setState({ mode: MODES[ni] }); scroller.scrollTop = 0;
+        this.setState({ mode: MODES[ni] }); scroller.scrollTop = 0; if (this._check) this._check();
+        if (this.props.onMode) this.props.onMode(MODES[ni]);
         requestAnimationFrame(() => {
           const b2 = T();
           b2.style.transition = 'none'; b2.style.transform = 'translateX(' + (dir * 64) + 'px)'; b2.style.opacity = '0';
@@ -320,17 +381,30 @@ class DailySplit extends React.Component {
     };
     const spring = () => { const b = T(); b.style.transition = 'transform 0.25s cubic-bezier(0.2,0.9,0.2,1), opacity 0.25s ease'; b.style.transform = 'translateX(0)'; b.style.opacity = '1'; };
     let sx = 0, sy = 0, dx = 0, horiz = null, dragging = false;
-    scroller.addEventListener('touchstart', (e) => { const t = e.touches[0]; sx = t.clientX; sy = t.clientY; dx = 0; horiz = null; dragging = true; const b = T(); b.style.animation = ''; b.style.transition = 'none'; }, { passive: true });
+    scroller.addEventListener('touchstart', (e) => {
+      // A gesture born inside a surface that owns horizontal motion (OWNS_X:
+      // the 1v1 rail, feed rows, inputs…) belongs to that surface. Without
+      // this, iOS fed the same touches to both — scrolling a rail slid the
+      // mode axis under it, and past 1v1 that slide leaves the tab entirely
+      // (commit() continues into the Mirror). svg is deliberately NOT skipped
+      // here, unlike swipe-back's list: the cards draw roses and day dots in
+      // svg, and the axis swipe must keep working across them.
+      if (e.target.closest && e.target.closest(OWNS_X)) { dragging = false; return; }
+      const t = e.touches[0]; sx = t.clientX; sy = t.clientY; dx = 0; horiz = null; dragging = true; const b = T(); b.style.animation = ''; b.style.transition = 'none';
+    }, { passive: true });
     scroller.addEventListener('touchmove', (e) => {
       if (!dragging) return; const t = e.touches[0]; const mx = t.clientX - sx, my = t.clientY - sy;
       if (horiz === null && (Math.abs(mx) > 8 || Math.abs(my) > 8)) horiz = Math.abs(mx) > Math.abs(my);
       if (horiz) { e.preventDefault(); dx = mx; const b = T(); b.style.transform = 'translateX(' + (mx * 0.7) + 'px)'; b.style.opacity = String(1 - Math.min(Math.abs(mx) / 520, 0.4)); }
     }, { passive: false });
-    const end = () => { if (!dragging) return; dragging = false; if (horiz && Math.abs(dx) > 66) commit(dx < 0 ? 1 : -1); else spring(); };
+    const end = () => { if (!dragging) return; dragging = false; if (horiz && Math.abs(dx) > 66 && !navCoasting()) commit(dx < 0 ? 1 : -1); else spring(); };
     scroller.addEventListener('touchend', end); scroller.addEventListener('touchcancel', end);
     let wheelLock = false;
     scroller.addEventListener('wheel', (e) => {
-      if (Math.abs(e.deltaX) > Math.abs(e.deltaY) + 4) { e.preventDefault(); if (wheelLock || Math.abs(e.deltaX) < 24) return; wheelLock = true; commit(e.deltaX > 0 ? 1 : -1); setTimeout(() => { wheelLock = false; }, 650); }
+      // same ownership rule as touch: a trackpad scroll inside a rail is the
+      // rail's scroll, not a mode change
+      if (e.target.closest && e.target.closest(OWNS_X)) return;
+      if (Math.abs(e.deltaX) > Math.abs(e.deltaY) + 4) { e.preventDefault(); if (wheelLock || Math.abs(e.deltaX) < 24) return; if (navCoasting()) return; wheelLock = true; commit(e.deltaX > 0 ? 1 : -1); setTimeout(() => { wheelLock = false; }, 650); }
     }, { passive: false });
     // first-run hint — a gentle sideways nudge teaches that modes swipe; retires after the first real swipe
     try {
@@ -430,8 +504,8 @@ class DailySplit extends React.Component {
   }
   // cuts + subvalues come from the shared list (vote-cuts.js) so the daily and
   // the feed break a vote down exactly the same way
-  get statDimDefs() { return window.VOTECUTS ? window.VOTECUTS.dims() : [{ id: 'friends', label: 'Friends' }]; }
-  get statSubs() { return window.VOTECUTS ? window.VOTECUTS.subs(this.state.dim) : null; }
+  get statDimDefs() { return VOTECUTS ? VOTECUTS.dims() : [{ id: 'friends', label: 'Friends' }]; }
+  get statSubs() { return VOTECUTS ? VOTECUTS.subs(this.state.dim) : null; }
   get overrides() { return { 's1:age': [[64, 36], [55, 45], [44, 56], [34, 66]], 's4:age': [[54, 31, 15], [51, 34, 15], [44, 35, 21], [31, 37, 32]] }; }
 
   renderVals() {
@@ -443,7 +517,6 @@ class DailySplit extends React.Component {
     const mode = st.mode;
     const accents = { world: 'var(--c-around)', group: 'var(--c-likeness)', duo: 'var(--c-people)' };
     const showChips = this.props.chips === true;
-    const TSTAT = this.testStats();
     const av = (bg, sz, fs) => ({ width: sz, height: sz, borderRadius: '50%', background: bg, color: '#fff', fontFamily: BRIC, fontWeight: 800, fontSize: fs, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 });
     // one card spec everywhere: .card's border, radius 18, --shadow-card (no colored offsets)
     // flat, recessed on the card — no float/gloss, so it sits with the flat feed cards below
@@ -470,19 +543,33 @@ class DailySplit extends React.Component {
     const maxP = Math.max(...rp), myIdx = S.options.findIndex(o => o.id === myVote);
     // Below the k-floor the aggregate publishes nothing — say so instead
     // of dressing a single vote up as a population.
-    // Above the floor the published count is a LOWER BOUND, not a running
-    // total: the public mirror is rewritten once per 5 answers so no single
-    // step is attributable to one person (D7's amendment). So a live count
-    // reads "5+", which is true and is the honest way to say "this moves in
-    // fives". Printing it as exact is the actual inaccuracy — and a small
-    // room watching the number sit on 5 for four more answers reads as
-    // broken rather than as batched.
+    // Under the DESIGN cadence (5) the published count is a LOWER BOUND,
+    // not a running total: the public mirror is rewritten once per 5
+    // answers so no single step is attributable to one person (D7's
+    // amendment), and a live count reads "5+" — the honest way to say
+    // "this moves in fives". Printing it as exact is the actual inaccuracy
+    // there — and a small room watching the number sit on 5 for four more
+    // answers reads as broken rather than as batched.
     // The tile heights + the 50% line say majority/underdog — the line
     // stays a count.
-    const liveTotal = S.live ? total.toLocaleString() + '+' : total.toLocaleString();
-    const resultNote = (S.live && S.tooSmall)
-      ? 'You\u2019re early \u2014 counts appear once 5 people have answered.'
-      : liveTotal + ' votes';
+    // No "+" lower bound: since D98 the published count is exact, so a
+    // "12+" over an exact 12 would claim an inaccuracy that is not there.
+    const liveTotal = total.toLocaleString();
+    // Hoisted for the two gates below (the D83 takes row and the demo
+    // sheets row): a live build showing the mock fallback to a real user.
+    // The window read rather than the imported LIVE binding, deliberately \u2014
+    // the smoke fixtures drive this branch through the window stand-in.
+    const demoProd = !!(window.LIVE && window.LIVE.demoInProd);
+    // noCountsYet means the aggregate has not landed yet — after your own
+    // blind vote that is "you're first, the trigger is on its way", never
+    // "wait for five people" (D98 removed the floor that made it a wait).
+    const resultNote = st.editHold === S.id
+      // the D86 cooldown, in words \u2014 a silent snap-back reads as a glitch
+      ? 'One change a minute \u2014 try again shortly.'
+      : (S.live && S.noCountsYet)
+      ? 'You\u2019re first \u2014 the count lands in a moment.'
+      // "1 vote", but "1+ votes" — the + is a lower bound, so its plural stands
+      : liveTotal + (liveTotal === '1' ? ' vote' : ' votes');
     const onReset = () => this.setState(s => { const v = { ...s.votes }; delete v[S.id]; return { votes: v, filter: 'all', tab: null, feedOpen: false }; });
     const post = () => { const t = st.draft.trim(); if (!t || !voted) return; const c = { key: 'u' + Date.now(), name: 'You', init: 'Y', opt: myVote, text: t, ups: 0, time: 'now' }; this.setState(s => ({ mine: { ...s.mine, [S.id]: [c, ...(s.mine[S.id] || [])] }, draft: '' })); };
     const mineList = st.mine[S.id] || [];
@@ -499,7 +586,7 @@ class DailySplit extends React.Component {
     // topic chips — off by default (Tweaks can bring them back); quiet, lowercase, no shouting
     const chipRow = showChips ? h('div', { className: 'h-scroll', style: { display: 'flex', gap: 6, flexWrap: 'nowrap', overflowX: 'auto' } },
       WORLD_TOPICS_V2.map(c => {
-          const on = !st.testOpen && st.cats[c.id] !== false;
+          const on = st.cats[c.id] !== false;
           return h('button', { key: c.id, onClick: () => this.toggleCat(c.id), 'aria-pressed': on, style: {
             border: '0.5px solid ' + (on ? 'color-mix(in oklch, var(--c-around) 45%, transparent)' : 'var(--rule)'),
             background: on ? 'color-mix(in oklch, var(--c-around) 8%, transparent)' : 'transparent',
@@ -553,7 +640,7 @@ class DailySplit extends React.Component {
             h('div', { style: { flex: 1, ...col(4), minWidth: 0 } },
               h('div', { style: { display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' } },
                 h('span', { style: { fontWeight: 800, fontSize: 13.5 } }, c.name),
-                revealed && h('span', { style: { background: c.optObj.color, color: c.optObj.textColor || '#fff', fontSize: 10, fontWeight: 800, padding: '2px 8px', borderRadius: 999 } }, c.optObj.label),
+                revealed && h('span', { style: { background: c.optObj.color, color: c.optObj.textColor || '#fff', fontSize: 10.5, fontWeight: 800, padding: '2px 8px', borderRadius: 999, whiteSpace: 'nowrap' } }, c.optObj.label),
                 h('span', { style: { fontSize: 11, fontWeight: 600, color: 'var(--ink-3)' } }, c.time)),
               h('div', { style: { fontSize: 13.5, lineHeight: 1.45, fontWeight: 500 } }, c.text),
               h('div', { style: { display: 'flex', alignItems: 'center', gap: 12 } },
@@ -566,25 +653,25 @@ class DailySplit extends React.Component {
           (reps.length > 0 || replying) && h('div', { style: { marginLeft: 46, ...col(6), borderLeft: '2px solid color-mix(in oklch, var(--rule), transparent 25%)', paddingLeft: 10 } },
             reps.map((r, ri) => h('div', { key: ri, style: col(2) },
               h('div', { style: { display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' } },
-                h('span', { style: { fontWeight: 800, fontSize: 12.5 } }, 'You'),
-                voted && h('span', { style: { background: S.options[myIdx].color, color: S.options[myIdx].textColor || '#fff', fontSize: 9.5, fontWeight: 800, padding: '2px 7px', borderRadius: 999, whiteSpace: 'nowrap' } }, S.options[myIdx].label),
-                h('span', { style: { fontSize: 10.5, fontWeight: 600, color: 'var(--ink-3)' } }, 'now')),
-              h('div', { style: { fontSize: 13, lineHeight: 1.45, fontWeight: 500 } }, r))),
+                h('span', { style: { fontWeight: 800, fontSize: 13.5 } }, 'You'),
+                voted && h('span', { style: { background: S.options[myIdx].color, color: S.options[myIdx].textColor || '#fff', fontSize: 10.5, fontWeight: 800, padding: '2px 8px', borderRadius: 999, whiteSpace: 'nowrap' } }, S.options[myIdx].label),
+                h('span', { style: { fontSize: 11, fontWeight: 600, color: 'var(--ink-3)' } }, 'now')),
+              h('div', { style: { fontSize: 13.5, lineHeight: 1.45, fontWeight: 500 } }, r))),
             replying && h('form', { onSubmit: (e) => { e.preventDefault(); const inp = e.target.elements.reply; const v = inp.value.trim(); if (v) this.addDailyReply(rKey, v); }, style: { display: 'flex', gap: 6 } },
-              h('input', { name: 'reply', autoFocus: true, placeholder: 'Your reply\u2026', style: { flex: 1, minWidth: 0, border: LINE, borderRadius: 999, padding: '8px 13px', fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 500, background: 'var(--surface)', color: INK, outline: 'none' } }),
+              h('input', { name: 'reply', autoFocus: true, autoComplete: 'off', autoCapitalize: 'sentences', enterKeyHint: 'send', placeholder: 'Your reply\u2026', style: { flex: 1, minWidth: 0, border: LINE, borderRadius: 999, padding: '8px 13px', fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 500, background: 'var(--surface)', color: INK, outline: 'none' } }),
               h('button', { type: 'submit', style: { border: 'none', borderRadius: 999, padding: '8px 14px', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12.5, cursor: 'pointer', background: INK, color: PAPER, WebkitAppearance: 'none' } }, 'Send'))));
       }));
     const statsBody = (() => {
         const legend = S.options;
         let friendRows = [], friendSummary = '', rows = [];
-        const youBand = (!isFriends && window.VOTECUTS) ? window.VOTECUTS.you(st.dim, st.dimAxis) : null;
+        const youBand = (!isFriends && VOTECUTS) ? VOTECUTS.you(st.dim, st.dimAxis) : null;
         if (isFriends) {
           friendRows = S.friends.map(f => { const o = S.options.find(x => x.id === f.opt); return { name: f.name, init: f.init, color: o.color, textColor: o.textColor, chipLabel: o.label, chipColor: o.color }; });
           const same = S.friends.filter(f => f.opt === myVote).length;
           friendSummary = voted ? same + ' of ' + S.friends.length + ' friends are on your side' : 'How your friends voted';
         } else {
           const cutKey = st.dimAxis ? st.dim + ':' + st.dimAxis : st.dim;
-          const gs = window.VOTECUTS ? window.VOTECUTS.groups(st.dim, st.dimAxis) : [];
+          const gs = VOTECUTS ? VOTECUTS.groups(st.dim, st.dimAxis) : [];
           const key = S.id + ':' + cutKey, ov = this.overrides[key];
           rows = gs.map((g, gi) => {
             let ps;
@@ -599,11 +686,11 @@ class DailySplit extends React.Component {
         const GRID = { display: 'grid', gridTemplateColumns: '96px 1fr', gap: 10, alignItems: 'center' };
         return h('div', { style: col(12) },
           h('div', { style: col(8) },
-            h('div', { className: 'h-scroll', ref: (el) => { const sg = 'd|' + st.dim; if (el && this._dSig1 !== sg) { this._dSig1 = sg; window.VOTECUTS && window.VOTECUTS.centerChip(el); } }, style: { display: 'flex', gap: 6, overflowX: 'auto' } },
+            h('div', { className: 'h-scroll', ref: (el) => { const sg = 'd|' + st.dim; if (el && this._dSig1 !== sg) { this._dSig1 = sg; VOTECUTS && VOTECUTS.centerChip(el); } }, style: { display: 'flex', gap: 6, overflowX: 'auto' } },
               this.statDimDefs.filter(dd => !dd.test).map(dd => h('button', { key: dd.id, 'data-on': st.dim === dd.id ? '1' : '0', onClick: () => this.setState({ dim: dd.id, dimAxis: null }), style: { flex: 'none', border: '1px solid ' + (st.dim === dd.id ? INK : 'var(--rule)'), borderRadius: 999, padding: '6px 13px', fontWeight: 700, fontSize: 12.5, cursor: 'pointer', whiteSpace: 'nowrap', background: st.dim === dd.id ? INK : 'var(--surface-2)', color: st.dim === dd.id ? PAPER : 'var(--ink-2)', WebkitAppearance: 'none' } }, dd.label))),
-            h('div', { className: 'h-scroll', ref: (el) => { const sg = 't|' + st.dim; if (el && this._dSig2 !== sg) { this._dSig2 = sg; window.VOTECUTS && window.VOTECUTS.centerChip(el); } }, style: { display: 'flex', gap: 6, overflowX: 'auto' } },
+            h('div', { className: 'h-scroll', ref: (el) => { const sg = 't|' + st.dim; if (el && this._dSig2 !== sg) { this._dSig2 = sg; VOTECUTS && VOTECUTS.centerChip(el); } }, style: { display: 'flex', gap: 6, overflowX: 'auto' } },
               this.statDimDefs.filter(dd => dd.test).map(dd => h('button', { key: dd.id, 'data-on': st.dim === dd.id ? '1' : '0', onClick: () => this.setState({ dim: dd.id, dimAxis: null }), style: { flex: 'none', border: '1px solid ' + (st.dim === dd.id ? INK : 'var(--rule)'), borderRadius: 999, padding: '6px 13px', fontWeight: 700, fontSize: 12.5, cursor: 'pointer', whiteSpace: 'nowrap', background: st.dim === dd.id ? INK : 'var(--surface-2)', color: st.dim === dd.id ? PAPER : 'var(--ink-2)', WebkitAppearance: 'none' } }, dd.label))),
-            this.statSubs && h('div', { className: 'h-scroll', ref: (row) => { const sig = st.dim + '|' + st.dimAxis; if (row && this._axSig !== sig) { this._axSig = sig; window.VOTECUTS && window.VOTECUTS.centerChip(row); } }, style: { display: 'flex', alignItems: 'center', gap: 4, overflowX: 'auto', paddingBottom: 2 } },
+            this.statSubs && h('div', { className: 'h-scroll', ref: (row) => { const sig = st.dim + '|' + st.dimAxis; if (row && this._axSig !== sig) { this._axSig = sig; VOTECUTS && VOTECUTS.centerChip(row); } }, style: { display: 'flex', alignItems: 'center', gap: 4, overflowX: 'auto', paddingBottom: 2 } },
               this.statSubs.map((sb, si) => { const on = (st.dimAxis || null) === sb.id; const rule = !!sb.tier && !(this.statSubs[si - 1] || {}).tier; return h(React.Fragment, { key: sb.id || 'type' },
                 rule ? h('span', { 'aria-hidden': 'true', style: { flex: 'none', alignSelf: 'stretch', width: 1, margin: '3px 5px', background: 'var(--rule)' } }) : null,
                 h('button', { 'data-on': on ? '1' : '0', onClick: () => this.setState({ dimAxis: sb.id }), style: { flex: 'none', border: 'none', borderRadius: 999, padding: '4px 11px', fontWeight: on ? 800 : 600, fontSize: 11.5, cursor: 'pointer', whiteSpace: 'nowrap', background: on ? 'var(--surface-3)' : 'transparent', color: on ? INK : 'var(--ink-3)', WebkitAppearance: 'none' } }, sb.label)); }))),
@@ -648,6 +735,9 @@ class DailySplit extends React.Component {
     // ── the daily, in its own container — one strong card, feed after ──
     // quiet per-topic tint — today's question carries its topic's hue, barely
     const topicCol = S.topicColor || 'var(--c-around)';
+    // feed hierarchy: today's question wins on type alone — 37px against the
+    // feed's 24.5px. A tinted band did the work of a border, not a zone.
+    const hier = !!this.props.feedHier;
     const dailyCard = h('div', { style: { ...col(14), position: 'relative', padding: '4px 1px 20px' } },
       h('div', { style: { display: 'flex', alignItems: 'center', gap: 12, minHeight: 18 } },
         h('div', { style: { display: 'flex', alignItems: 'center', gap: 7 } },
@@ -658,20 +748,36 @@ class DailySplit extends React.Component {
         h('button', { className: 'press', onClick: () => { clearTimeout(this._sheetT); this.setState({ tab: 'ctx', sheetClosing: false }); }, 'aria-label': 'About this question', style: { flexShrink: 0, width: 20, height: 20, borderRadius: '50%', border: '0.5px solid var(--rule)', background: 'transparent', color: 'var(--ink-3)', fontFamily: BRIC, fontSize: 11.5, fontWeight: 800, lineHeight: 1, cursor: 'pointer', WebkitAppearance: 'none', padding: 0 } }, 'i'),
         window.PassiveTag ? h(window.PassiveTag, { q: S, answered: voted }) : null),
       chipRow,
-      h('div', { style: { fontFamily: BRIC, fontWeight: 800, fontSize: 31, lineHeight: 1.08, letterSpacing: -0.8, textWrap: 'pretty' } }, S.text),
+      h('div', { style: { fontFamily: BRIC, fontWeight: 800, fontSize: hier ? 37 : 31, lineHeight: 1.06, letterSpacing: hier ? -1.1 : -0.8, textWrap: 'balance' } }, S.text),
       !voted
         // asking: options size to their content and centre the label — a fixed
         // 236px column left a 22px word floating in a 115px box, reading as a skeleton
         // asking: each side carries its own hue mark and sits left-aligned, so
         // the two rows read as choices rather than two empty boxes
         ? h('div', { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
-            S.options.map((o, i) => h('button', { key: o.id, className: 'press sd-opt', onClick: () => { if (S.live && window.LIVE) window.LIVE.vote(S.id, o.id); this.syncToMap(S, o.id); this.showMapToast(S.id); this.setState(s => ({ votes: { ...s.votes, [S.id]: o.id }, filter: 'all', beat: (this.props.beats !== false && window.ConsequenceBeat) ? S.id : null })); }, style: { '--opt': o.color, minHeight: 56, background: 'color-mix(in oklch, ' + o.color + ' 11%, var(--surface-2))', border: '1px solid color-mix(in oklch, ' + o.color + ' 32%, var(--rule))', borderRadius: 15, padding: '13px 18px', display: 'flex', alignItems: 'center', gap: 13, cursor: 'pointer', textAlign: 'left', WebkitAppearance: 'none', boxShadow: 'none', transition: 'background .16s ease, border-color .16s ease' } },
+            S.options.map((o, i) => h('button', { key: o.id, className: 'press sd-opt', onClick: () => {
+              // D86: after a hold-to-change the server still holds the old
+              // vote — LIVE.vote is create-only, so a re-pick routes through
+              // editVote. A false return (unacked write, or the 60s
+              // cooldown) keeps the standing pick and says why on the meta
+              // line. (One window read, hoisted — the vote call used two.)
+              let next = o.id, moved = true;
+              const L = S.live ? window.LIVE : null;
+              if (L) {
+                const prior = (L.myVotes && L.myVotes()[S.id]) || null;
+                if (prior == null) L.vote(S.id, next);
+                else if (prior === next) moved = false; // re-picked the standing vote: nothing to say
+                else if (!(L.editVote && L.editVote(S.id, next))) { next = prior; moved = false; this.holdNote(S.id); }
+              }
+              if (moved) { this.syncToMap(S, next); this.showMapToast(S.id); }
+              this.setState(s => ({ votes: { ...s.votes, [S.id]: next }, filter: 'all', beat: (moved && this.props.beats !== false && window.ConsequenceBeat) ? S.id : null }));
+            }, style: { '--opt': o.color, minHeight: 56, background: 'color-mix(in oklch, ' + o.color + ' 11%, var(--surface-2))', border: '1px solid color-mix(in oklch, ' + o.color + ' 32%, var(--rule))', borderRadius: 15, padding: '13px 18px', display: 'flex', alignItems: 'center', gap: 13, cursor: 'pointer', textAlign: 'left', WebkitAppearance: 'none', boxShadow: 'none', transition: 'background .16s ease, border-color .16s ease' } },
               h('span', { 'aria-hidden': true, style: { width: 9, height: 9, borderRadius: '50%', background: o.color, flexShrink: 0 } }),
               h('span', { style: { fontWeight: 800, fontSize: 21, color: 'var(--ink)', letterSpacing: '-0.025em', textWrap: 'pretty' } }, o.label))))
         : (st.beat === S.id && window.ConsequenceBeat)
         ? h(window.ConsequenceBeat, { key: 'beat-' + S.id, seed: S.id, options: S.options, pcts: rp, mineIdx: myIdx, height: 320, onDone: () => this.setState({ beat: null }) })
         : h('div', { style: { ...col(11), animation: 'popIn .35s cubic-bezier(0.2,0.8,0.2,1)' } },
-            h('div', { style: { display: 'flex', flexDirection: 'column', gap: 7, height: 244 } },
+            h('div', { style: { display: 'flex', flexDirection: 'column', gap: 7, height: sdSplitStageH(S.options.length) } },
             S.options.map((o, i) => {
               // change-vote lives behind a long-press on your own bar
               const mineRow = myVote === o.id;
@@ -690,7 +796,7 @@ class DailySplit extends React.Component {
                 // dots read as people on this side, not a floating glyph
                 h('div', { style: { display: 'flex', alignItems: 'center', gap: 9, minWidth: 0, flex: 1 } },
                   h('span', { style: { fontWeight: 800, fontSize: 19, letterSpacing: '-0.02em' } }, o.label),
-                  myVote === o.id && h('span', { style: { fontSize: 12, fontWeight: 700, color: 'var(--ink-2)', whiteSpace: 'nowrap', animation: 'chipPop .35s var(--ease-spring) .2s both' } }, '\u00b7 you'),
+                  myVote === o.id && h('span', { style: { fontSize: 12, fontWeight: 700, color: 'var(--ink-2)', whiteSpace: 'nowrap', animation: 'chipPop .35s var(--ease-spring) var(--rv-2) both' } }, '\u00b7 you'),
                   (S.friends && S.friends.some(f => f.opt === o.id)) && h('button', {
                     onClick: () => this.setState({ tab: 'stats', dim: 'friends', dimAxis: null }),
                     'aria-label': S.friends.filter(f => f.opt === o.id).map(f => f.name).join(', ') + ' picked ' + o.label,
@@ -705,12 +811,25 @@ class DailySplit extends React.Component {
               h('span', { style: { fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)' } }, resultNote),
               st.mapToast === S.id && h('button', { onClick: () => window.goTab && window.goTab('map'), style: { display: 'inline-flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 700, color: 'var(--accent, var(--ink-2))', whiteSpace: 'nowrap', animation: 'toastFade 3s ease forwards' } },
                 'added to ' + this.mapBranch(S), h('span', { 'aria-hidden': true }, '\u2192')))),
-      // D1: live questions are world-scope — no stranger comments, no
-      // who-voted identities. The sheets stay demo-only — and are also
-      // suppressed when a live build is showing the mock fallback to a
-      // real user (window.LIVE.demoInProd), where the seeded named
-      // people would read as real.
-      voted && st.beat !== S.id && !S.live && !(window.LIVE && window.LIVE.demoInProd) && h('div', { style: { display: 'flex', gap: 10, justifyContent: 'center', marginTop: 2, animation: 'popIn .35s cubic-bezier(0.2,0.8,0.2,1)' } },
+      // The live daily is a world-scope question, so it carries the D83
+      // world-takes surface: anonymous, one take per person, enforced
+      // moderation behind it. Suppressed in the demoInProd fallback — that
+      // is a REAL composer, and mounting it under mock results would post
+      // real words against a question whose numbers are furniture.
+      // Collapsed until asked for: the panel's mount is its one fetch, so
+      // the toggle is also the cost gate. (demoProd is hoisted from the
+      // demo row below — one read, two gates, ratchet flat.)
+      S.live && !demoProd && voted && st.beat !== S.id && h('div', { style: { display: 'flex', flexDirection: 'column', gap: 10, marginTop: 2 } },
+        h('button', { className: 'press', 'aria-expanded': st.liveTakes === S.id, onClick: () => this.setState(s => ({ liveTakes: s.liveTakes === S.id ? null : S.id })), style: { alignSelf: 'center', ...icoBtn(st.liveTakes === S.id) } },
+          svgI('<path d="M6.5 4.5h11a2 2 0 0 1 2 2V13a2 2 0 0 1-2 2H11l-4 3.8V15h-.5a2 2 0 0 1-2-2V6.5a2 2 0 0 1 2-2z"/>', 17),
+          'Takes'),
+        st.liveTakes === S.id && h(LiveTakesPanel, { gid: 'world', qid: S.id })),
+      // D1: NAMED comments and who-voted identities stay circle-scoped —
+      // these sheets are the demo's, with seeded named people, so they are
+      // demo-only and also suppressed when a live build is showing the mock
+      // fallback to a real user (demoProd), where the seeded named people
+      // would read as real.
+      voted && st.beat !== S.id && !S.live && !demoProd && h('div', { style: { display: 'flex', gap: 10, justifyContent: 'center', marginTop: 2, animation: 'popIn .35s cubic-bezier(0.2,0.8,0.2,1)' } },
         h('button', { onClick: () => this.setState({ tab: isComments ? null : 'comments' }), 'aria-label': 'Comments', style: icoBtn(isComments) },
           svgI('<path d="M6.5 4.5h11a2 2 0 0 1 2 2V13a2 2 0 0 1-2 2H11l-4 3.8V15h-.5a2 2 0 0 1-2-2V6.5a2 2 0 0 1 2-2z"/>', 17),
           'Comments'),
@@ -741,6 +860,11 @@ class DailySplit extends React.Component {
         h('span', { 'aria-hidden': true, style: { display: 'flex', gap: 1.5, width: 66, height: 9, borderRadius: 999, overflow: 'hidden', flexShrink: 0 } },
           S.options.map((o, i) => h('span', { key: o.id, title: o.label + ' \u00b7 ' + rp[i] + '%', style: { width: rp[i] + '%', background: myVote === o.id ? o.color : 'color-mix(in oklch, ' + o.color + ' 32%, var(--surface-3))' } })))),
       dailyCard,
+      // The daily pulse (D139): the second fixed instrument on the World
+      // day, compact, beside the blind daily — same contract (answer
+      // before you see anyone), one hue, and the trends reading opens
+      // from the card itself.
+      h(PulseCard, { key: 'pulse' }),
       sheetNode,
       feedNode);
 
@@ -751,67 +875,9 @@ class DailySplit extends React.Component {
     const groupBody = liveDuels ? h(window.LiveDuelPanel, { key: 'live-group', mode: 'group' }) : h(window.GroupDailyBody || 'div', { key: 'group-daily' });
     const duoBody = liveDuels ? h(window.LiveDuelPanel, { key: 'live-duo', mode: 'duo' }) : h(window.DuoBody || 'div', { key: 'duo-daily' });
 
-    // ===== TEST =====
-    const testBody = (() => {
-      const OCHRE = 'var(--ochre)';
-      const defs = this.testDefs;
-
-      // just finished a test — one clear payoff card
-      if (st.testJustDone && defs[st.testJustDone]) {
-        const k = st.testJustDone, T = defs[k];
-        const saved = (window.IS_TEST_RESULTS || {})[k];
-        const top = saved ? [...saved.dims].sort((a, b) => b.value - a.value)[0] : null;
-        return h('div', { style: col(13) },
-          h('div', { style: { ...col(12), border: LINE, borderRadius: 18, background: 'var(--surface-2)', boxShadow: 'var(--shadow-card)', padding: '20px 18px', textAlign: 'center', animation: 'popIn .35s cubic-bezier(0.2,0.8,0.2,1)' } },
-            h('div', { style: { display: 'flex', justifyContent: 'center' } },
-              h('span', { style: { background: OCHRE, color: '#fff', fontFamily: BRIC, fontWeight: 800, fontSize: 15, padding: '8px 18px', borderRadius: 999 } }, T.title + ' complete')),
-            top && h('div', null,
-              h('div', { style: { fontSize: 11, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--ink-3)' } }, 'Strongest'),
-              h('div', { style: { fontFamily: BRIC, fontWeight: 800, fontSize: 26, letterSpacing: -0.5, marginTop: 3 } }, top.label + ' \u00b7 ' + top.value)),
-            h('button', { onClick: () => this.setState({ testJustDone: null }), style: { alignSelf: 'center', border: 'none', borderRadius: 12, padding: '11px 20px', fontWeight: 800, fontSize: 14, cursor: 'pointer', background: INK, color: PAPER } }, TSTAT.active ? 'Next test \u203A' : 'Done')));
-      }
-
-      // everything answered — retake any test to see how you've shifted
-      if (!TSTAT.active) {
-        return h('div', { style: col(13) },
-          h('div', { style: { border: LINE, borderRadius: 16, background: 'var(--surface-2)', padding: '18px 16px', ...col(12) } },
-            h('div', { style: { textAlign: 'center', ...col(5) } },
-              h('span', { style: { fontFamily: BRIC, fontWeight: 800, fontSize: 22 } }, 'All tests done'),
-              h('span', { style: { fontSize: 13, fontWeight: 600, color: 'var(--ink-2)' } }, 'Retake one to see how you\u2019ve shifted.')),
-            h('div', { style: col(8) },
-              Object.entries(defs).map(([tk, TT]) => h('button', { key: tk, onClick: () => this.setState({ testRetake: tk, testJustDone: null }), style: { display: 'flex', alignItems: 'center', gap: 10, width: '100%', textAlign: 'left', border: LINE, borderRadius: 12, background: 'var(--surface)', padding: '10px 13px', cursor: 'pointer', WebkitAppearance: 'none' } },
-                h('span', { style: { width: 9, height: 9, borderRadius: '50%', background: TT.accent, flexShrink: 0 } }),
-                h('span', { style: { flex: 1, minWidth: 0, fontWeight: 800, fontSize: 14, color: INK } }, TT.title),
-                h('span', { style: { fontWeight: 800, fontSize: 10.5, letterSpacing: '0.07em', textTransform: 'uppercase', color: OCHRE, flexShrink: 0 } }, 'Retake \u203A'))))));
-      }
-
-      // one question a tap — same pool, same progress as the profile's tests
-      const k = TSTAT.active, T = defs[k];
-      const base = (window.PASSIVE && st.testRetake !== k && !window.PASSIVE.complete(k)) ? window.PASSIVE.passiveDone(k) : 0;
-      const cur = st.testProg[k] && Array.isArray(st.testProg[k].answers) ? st.testProg[k] : { step: base, answers: [] };
-      const qi = Math.min(cur.step || 0, T.questions.length - 1);
-      const LIKERT = ['Strongly disagree', 'Disagree', 'Neither', 'Agree', 'Strongly agree'];
-      return h('div', { style: col(13) },
-        h('div', { style: { display: 'flex', alignItems: 'center', gap: 10 } },
-          h('span', { style: { background: 'color-mix(in oklch, var(--ochre) 9%, transparent)', border: '1px solid color-mix(in oklch, var(--ochre) 42%, transparent)', color: OCHRE, fontWeight: 800, fontSize: 11.5, letterSpacing: '0.08em', textTransform: 'uppercase', padding: '5px 11px', borderRadius: 999 } }, T.title),
-          h('span', { style: { border: LINE, fontWeight: 700, fontSize: 12, padding: '4px 10px', borderRadius: 999 } }, (qi + 1) + ' of ' + T.questions.length)),
-        base > 0 && h('span', { style: { fontSize: 12, fontWeight: 600, color: 'var(--ink-3)', marginTop: -6 } }, 'first ' + base + ' mapped from your feed answers — picking up from there'),
-        h('div', { key: k + ':' + qi, style: { ...col(13), animation: 'popIn .3s cubic-bezier(0.2,0.8,0.2,1)' } },
-          h('div', { style: { fontFamily: BRIC, fontWeight: 800, fontSize: 27, lineHeight: 1.12, letterSpacing: -0.7, textWrap: 'pretty' } }, T.questions[qi].q),
-          h('div', { style: col(9) },
-            LIKERT.map((label, i) => {
-              const intensity = Math.abs(i - 2);
-              const dot = 10 + intensity * 5;
-              return h('button', { key: label, onClick: () => this.answerTest(k, i), style: { ...optBtn(OCHRE), padding: '12px 16px' } },
-                h('span', { style: { width: 22, height: 22, flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' } },
-                  h('span', { style: { width: dot, height: dot, borderRadius: '50%', boxSizing: 'border-box', border: '1.5px solid ' + (i === 2 ? 'var(--ink-3)' : OCHRE), background: i === 2 ? 'transparent' : 'color-mix(in oklch, ' + OCHRE + ' ' + (intensity === 2 ? 100 : 25) + '%, transparent)' } })),
-                h('span', { style: { fontWeight: 750, fontSize: 15.5, color: INK } }, label));
-            }))));
-    })();
-
     // ===== chrome =====
-    const pendG = window.DUELS && window.DUELS.groupsPending ? window.DUELS.groupsPending() : 0;
-    const pendD = window.DUELS ? window.DUELS.pendingDuos() : 0;
+    const pendG = DUELS.groupsPending();
+    const pendD = DUELS.pendingDuos();
     const badges = {
       group: mode !== 'group' && pendG ? String(pendG) : null,
       duo: mode !== 'duo' && pendD ? String(pendD) : null,
@@ -824,8 +890,7 @@ class DailySplit extends React.Component {
       MODE_TABS.map(m => h('button', { key: m.id, className: 'sd-switch-btn' + (mode === m.id ? ' is-on' : ''), onClick: () => this.switchMode(m.id), style: { '--sw-acc': accents[m.id] } }, m.label,
         badges[m.id] && h('span', { style: { marginLeft: 6, minWidth: 15, height: 15, padding: '0 4px', borderRadius: 999, background: 'var(--c-around)', color: '#fff', fontSize: 9.5, fontWeight: 800, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', boxSizing: 'border-box' } }, badges[m.id]))));
 
-    const body = mode === 'world'
-      ? (st.testOpen ? h('div', { style: col(13) }, chipRow, testBody) : worldBody)
+    const body = mode === 'world' ? worldBody
       : mode === 'group' ? groupBody : duoBody;
 
     return {
@@ -833,7 +898,7 @@ class DailySplit extends React.Component {
       // the switcher renders into the header slot when there is one, and
       // falls back to sitting inline — so a mount order that has not yet
       // produced the slot still shows the modes rather than dropping them
-      screen: h(F, null, (st.modeSlot && st.modeSlot.isConnected) ? ReactDOM.createPortal(switcher, st.modeSlot) : switcher,
+      screen: h(F, null, this.props.ruler ? this.dailyRuler(mode, accents, badges) : this.props.hideSwitcher ? null : (st.modeSlot && st.modeSlot.isConnected) ? ReactDOM.createPortal(switcher, st.modeSlot) : switcher,
         // the sliding surface — swipes translate this, not the whole page
         h('div', { ref: (n) => { this.bodyEl = n; }, style: { display: 'flex', flexDirection: 'column', gap: 13, flex: 1, willChange: 'transform' } }, body),
         // quiet footer — suggest a question for the daily (community board)
@@ -843,6 +908,7 @@ class DailySplit extends React.Component {
 
   render() {
     const h = React.createElement;
+    const st = this.state;
     const { rootRef, screen } = this.renderVals();
     return h('div', {
       ref: rootRef,
@@ -867,12 +933,26 @@ class DailySplit extends React.Component {
       // D1: a live build showing the demo deck (offline / boot failure)
       // must say so — these are sample questions, not the real daily,
       // and votes here don't sync. Clears itself when live attaches.
-      (window.LIVE && window.LIVE.demoInProd) && h('div', {
+      //
+      // TAP IT FOR THE REASON. The label alone says a real user is on demo
+      // content and not why, and on a phone there is no console to ask —
+      // the first device this ever ran on failed here and the reason was
+      // reachable only with a Mac. One tap is the whole remedy; it stays
+      // behind a tap because "reconnecting…" is the honest thing to show
+      // someone on a train, and `auth/network-request-failed` is not.
+      LIVE.demoInProd && h('div', {
         key: 'demo-banner',
-        style: { display: 'flex', justifyContent: 'center' },
-      }, h('span', {
-        style: { fontSize: 10.5, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--ink-3)', border: '1px solid var(--rule)', borderRadius: 999, padding: '3px 10px' },
-      }, 'Sample questions · reconnecting…')),
+        style: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 },
+      },
+        h('button', {
+          type: 'button',
+          onClick: () => this.setState(s => ({ showBootErr: !s.showBootErr })),
+          'aria-expanded': !!st.showBootErr,
+          style: { fontSize: 10.5, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--ink-3)', background: 'none', border: '1px solid var(--rule)', borderRadius: 999, padding: '3px 10px', cursor: 'pointer', WebkitAppearance: 'none' },
+        }, 'Sample questions · reconnecting…'),
+        st.showBootErr && h('div', {
+          style: { fontSize: 11, lineHeight: 1.5, color: 'var(--ink-3)', textAlign: 'center', maxWidth: 320, padding: '0 12px', wordBreak: 'break-word' },
+        }, LIVE.bootError || 'connecting…')),
       screen);
   }
 }

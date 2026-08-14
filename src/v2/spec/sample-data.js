@@ -6,7 +6,7 @@
 import React from 'react';
 
 // Sample data for InSight prototype — richer than repo defaults
-window.IS_DATA = {
+export const IS_DATA = {
   me: {
     name: "Mira Halvorsen",
     initials: "MH",
@@ -15,16 +15,7 @@ window.IS_DATA = {
     job: "Editor · independent press",
     education: "MA Literature · Univ. of Oslo",
     personality: { O: 78, C: 62, E: 41, A: 69, N: 28 }, // Big Five
-    political: { econ: -22, social: -18, foreign: -18, env: 46, tech: 12, auth: -32, estab: 12 }, // -100..100 each (social kept for the legacy 2D compass)
-    politicalSub: {
-      // 18 sub-positions, three per axis (-100..100)
-      econ:    { tax: -34, redistribution: -28, market: -8, label: 'mixed economy, tilt toward redistribution' },
-      estab:   { media: -6, experts: 30, system: -18, label: 'trusts experts, doubts the machine' },
-      foreign: { trade: -24, defence: 6, migration: -36, label: 'open borders, cooperative posture' },
-      env:     { climate: 64, biodiv: 52, urbanism: 22, label: 'climate-first, comfortable with cities' },
-      tech:    { ai: -8, biotech: 28, surveil: -54, label: 'precaution on AI, allergy to surveillance' },
-      auth:    { hierarchy: -38, tradition: -22, deference: -34, label: 'horizontal, sceptical of authority' },
-    },
+    political: { econ: -22, social: -18, foreign: -18, env: 46, tech: 12, auth: -32, estab: 12 }, // -100..100 each (social positions you against the ideology landmarks)
     politicalIdentity: { name: 'Green-Left Internationalist', tag: 'libertarian green, cooperative abroad' },
     values: { indiv: -14, change: 28 },
     morals: {
@@ -85,6 +76,18 @@ window.IS_DATA = {
     { id: "p4", name: "Tobias Krag", init: "TK", age: 31, dist: "in the neighbourhood", match: 64, hue: 12, role: "bookbinder", interests: [{t:"letterpress",c:"art"},{t:"Tove Jansson",c:"literary"},{t:"rye bread",c:"food"},{t:"go",c:"games"}], values: "tradition · collective", note: "Workshop above Cafilosofen." },
     { id: "p5", name: "Mai Solberg", init: "MS", age: 26, dist: "a short ride away", match: 59, hue: 280, role: "data journalist", interests: [{t:"data viz",c:"tech"},{t:"kayaking",c:"outdoor"},{t:"matcha",c:"food"},{t:"tennis",c:"sports"}], values: "change · individual", note: "Often at Tim Wendelboe." },
     { id: "p6", name: "Jonas Ek", init: "JE", age: 38, dist: "a short ride away", match: 52, hue: 60, role: "carpenter", interests: [{t:"woodworking",c:"art"},{t:"trail running",c:"fitness"},{t:"Cohen",c:"music"},{t:"football",c:"sports"}], values: "tradition · individual", note: "Built half the cabins on Nesodden." },
+    // The `near` field pop sizes each node by its distance band, so the band
+    // mix is the thing under test — six nodes could not crowd one band.
+    // `dist` must be one of the three band labels or the node falls back to
+    // the largest size and the privacy banding reads as noise.
+    { id: "p7", name: "Nina Fossum", init: "NF", age: 33, dist: "a few streets away", match: 83, hue: 165, role: "sound engineer", interests: [{t:"field recording",c:"music"},{t:"night walks",c:"outdoor"},{t:"Solnit",c:"literary"}], values: "change · collective", note: "Records the river at five in the morning." },
+    { id: "p8", name: "Dmitri Sarkis", init: "DS", age: 41, dist: "in the neighbourhood", match: 47, hue: 8, role: "baker", interests: [{t:"rye",c:"food"},{t:"early shifts",c:"fitness"},{t:"backgammon",c:"games"}], values: "tradition · collective", note: "Opens before the first tram." },
+    { id: "p9", name: "Hanne Lund", init: "HL", age: 24, dist: "a short ride away", match: 68, hue: 250, role: "medical student", interests: [{t:"climbing",c:"fitness"},{t:"anatomy sketches",c:"art"},{t:"techno",c:"music"}], values: "change · individual", note: "Studies on the tram, both directions." },
+    { id: "p10", name: "Ola Fjeld", init: "OF", age: 52, dist: "in the neighbourhood", match: 41, hue: 100, role: "tram driver", interests: [{t:"allotment",c:"food"},{t:"football",c:"sports"},{t:"local history",c:"thought"}], values: "tradition · collective", note: "Knows which stops the light hits." },
+    { id: "p11", name: "Sara Wold", init: "SW", age: 30, dist: "a few streets away", match: 74, hue: 320, role: "translator", interests: [{t:"Japanese",c:"literary"},{t:"tea",c:"food"},{t:"cycling",c:"fitness"}], values: "change · collective", note: "Working through Murakami's short ones." },
+    { id: "p12", name: "Idris Yusuf", init: "IY", age: 36, dist: "a short ride away", match: 56, hue: 190, role: "physiotherapist", interests: [{t:"basketball",c:"sports"},{t:"anatomy",c:"thought"},{t:"grilling",c:"food"}], values: "tradition · individual", note: "Coaches the Saturday junior team." },
+    { id: "p13", name: "Frida Nes", init: "FN", age: 28, dist: "in the neighbourhood", match: 79, hue: 55, role: "illustrator", interests: [{t:"riso print",c:"art"},{t:"Tove Jansson",c:"literary"},{t:"sauna",c:"outdoor"}], values: "change · collective", note: "Draws in the park until it's too dark." },
+    { id: "p14", name: "Petter Aas", init: "PA", age: 45, dist: "a few streets away", match: 62, hue: 275, role: "civil servant", interests: [{t:"chess",c:"games"},{t:"birding",c:"outdoor"},{t:"choir",c:"music"}], values: "tradition · collective", note: "Sings Thursdays, birds Saturdays." },
   ],
 
   city: {
@@ -247,27 +250,6 @@ window.IS_DATA = {
     { id: 'tech-prog',   name: 'Technoprogressive',       econ:  18, social: -22 },
   ],
 
-  // Named thinkers — small marks on the compass for orientation
-  ideologyMarks: [
-    { name: 'Mill',     econ:  20, social: -55 },
-    { name: 'Marx',     econ: -82, social:  -8 },
-    { name: 'Rand',     econ:  84, social: -76 },
-    { name: 'Hobbes',   econ:  10, social:  78 },
-    { name: 'Solnit',   econ: -56, social: -52 },
-    { name: 'Rawls',    econ: -28, social: -18 },
-  ],
-
-  // The 6 axes of the political compass — labels and the people-aggregate average
-  // for each axis (used to draw a translucent comparison ring on the radar).
-  politicalAxes: [
-    { id: 'econ',    label: 'economic',    poles: ['state','market'],            avgCircle: -8,  avgWorld: 22 },
-    { id: 'auth',    label: 'authority',   poles: ['liberty','authority'],       avgCircle: -12, avgWorld: 8  },
-    { id: 'foreign', label: 'foreign',     poles: ['cooperative','sovereign'],   avgCircle: -8,  avgWorld: 14 },
-    { id: 'env',     label: 'environment', poles: ['extractive','protective'],   avgCircle: 28,  avgWorld: 6  },
-    { id: 'tech',    label: 'technology',  poles: ['precaution','acceleration'], avgCircle: 6,   avgWorld: 18 },
-    { id: 'estab',   label: 'populism',    poles: ['establishment','outsider'],  avgCircle: 4,   avgWorld: 12 },
-  ],
-
   // Skill categories
   skillCats: [
     { id: "sport",    label: "Sport",     hue: 12,  glyph: "◉" },
@@ -407,7 +389,6 @@ window.IS_DATA = {
     world:   { sport: 60, outdoor: 30, craft: 22, mind: 25, language: 56, music: 44, kitchen: 56, tech: 38 },
   },
 
-
   groups: [
     // joined
     { id: "tennis", name: "Tennis", cat: "sports", members: 9400, match: 84, color: "sienna", vibe: "doubles · clay · post-match coffee", joined: true,
@@ -504,6 +485,22 @@ window.IS_DATA = {
       ] },
   ],
 
+  // The circle. Twenty-four records, which is not decoration: every surface
+  // that reads this list is a "does it hold at N" question, and at seven it
+  // answered none of them — the daily's 1v1 rail held five partners, the
+  // group duels three groups, `duoAvailable()` could offer two people, and
+  // the circle field pop (the fallback when the relationship map is absent)
+  // laid out seven nodes across five sectors with no crowding to resolve.
+  // Seven also contradicted the fixture below: `aggregates.circle.n` is 24
+  // and its `mbtiDist` sums to 24, so this file already described a circle
+  // three times the size of the one you could open.
+  //
+  // Half are friends on first run (follows.js SEED) and half are not, on
+  // purpose: the invite → accept path and `duoAvailable()` both need people
+  // who are reachable but not yet yours. `category` must be one of
+  // MFP_SECTORS' five keys or the node lands in sector 0; `interests` are
+  // `interestCats` ids (person-overlay maps them to labels), and `hue` is
+  // the avatar's — spread, so a crowded field stays readable.
   people: [
     { id: "f1", name: "Henrik Vold", init: "HV", rel: "oldest friend", category: "friends", since: "2009", match: 91, hue: 38, last: "yesterday", note: "Knows your weather before you do.", degrees: 1, favorite: true, interests: ["outdoor","literary","thought"],
       faves: { films: ["Paterson", "Stalker"], books: ["The Summer Book"], music: ["Nick Drake"] } },
@@ -519,6 +516,52 @@ window.IS_DATA = {
       faves: { films: ["The Worst Person in the World"], books: ["Sofies verden"], music: ["a-ha"] } },
     { id: "f7", name: "Jonas Borg", init: "JB", rel: "fellow writer", category: "acquaintances", since: "2024", match: 58, hue: 250, last: "Tue", note: "Reads Solnit, brings biscuits.", degrees: 2, favorite: false, interests: ["literary","thought","civic"],
       faves: { films: ["Stalker"], books: ["A Field Guide to Getting Lost"], music: ["Mount Eerie"] } },
+
+    // family — the Aasen side, so the family sector carries a spread of ages
+    // and closeness rather than a mother and a sister
+    { id: "f8", name: "Kristian Aasen", init: "KA", rel: "brother", category: "family", since: "birth", match: 74, hue: 200, last: "Thu", note: "Sends match reports nobody asked for.", degrees: 1, favorite: false, interests: ["sports","games","tech"],
+      faves: { films: ["Headhunters"], books: ["Naiv. Super."], music: ["Karpe"] } },
+    { id: "f9", name: "Solveig Halvorsen", init: "SH", rel: "grandmother", category: "family", since: "birth", match: 61, hue: 330, last: "Sat", note: "Writes letters. Actual letters.", degrees: 1, favorite: true, interests: ["food","literary","faith"],
+      faves: { films: ["The Summer Book"], books: ["Kristin Lavransdatter"], music: ["Edvard Grieg"] } },
+    { id: "f10", name: "Tor Aasen", init: "TA", rel: "father", category: "family", since: "birth", match: 66, hue: 25, last: "Fri", note: "Forwards articles without comment.", degrees: 1, favorite: false, interests: ["outdoor","music","civic"],
+      faves: { films: ["Force Majeure"], books: ["Min kamp"], music: ["a-ha"] } },
+    { id: "f11", name: "Bjørn Aasen", init: "BA", rel: "nephew · Liv's boy", category: "family", since: "2019", match: 52, hue: 90, last: "Sun", note: "Started school this week. Cried less than his mother.", degrees: 2, favorite: true, interests: ["games","sports","art"],
+      faves: { films: ["Spirited Away"], books: ["The Moomins and the Great Flood"], music: ["Aurora"] } },
+
+    // friends — the sector the daily's 1v1s and the Map's People branch draw
+    // from, so it needs more than two names to say anything
+    { id: "f12", name: "Nora Lind", init: "NL", rel: "swim group", category: "friends", since: "2019", match: 84, hue: 195, last: "Sun", note: "First in the water, every Sunday.", degrees: 1, favorite: true, interests: ["outdoor","fitness","thought"],
+      faves: { films: ["Drive My Car"], books: ["A Field Guide to Getting Lost"], music: ["Aurora"] } },
+    { id: "f13", name: "Aksel Nyhus", init: "AN", rel: "chess club", category: "friends", since: "2021", match: 70, hue: 210, last: "Mon", note: "Plays the Sicilian and nothing else.", degrees: 1, favorite: false, interests: ["games","thought","music"],
+      faves: { films: ["Stalker"], books: ["The Unbearable Lightness of Being"], music: ["Arvo Pärt"] } },
+    { id: "f14", name: "Yara Haddad", init: "YH", rel: "from the writing course", category: "friends", since: "2023", match: 81, hue: 300, last: "Wed", note: "Cuts your best sentence and is always right.", degrees: 1, favorite: true, interests: ["literary","art","food"],
+      faves: { films: ["In the Mood for Love"], books: ["Norwegian Wood"], music: ["Sufjan Stevens"] } },
+    { id: "f15", name: "Kaja Rud", init: "KR", rel: "trail runs", category: "friends", since: "2020", match: 63, hue: 130, last: "2 wk", note: "Decides the route at the trailhead.", degrees: 1, favorite: false, interests: ["fitness","outdoor","food"],
+      faves: { films: ["Force Majeure"], books: ["Sapiens"], music: ["Sigrid"] } },
+    { id: "f16", name: "Emil Strand", init: "ES", rel: "old flatmate", category: "friends", since: "2015", match: 57, hue: 45, last: "6 wk", note: "Still owes you a bookshelf.", degrees: 1, favorite: false, interests: ["music","games","tech"],
+      faves: { films: ["Paterson"], books: ["Naiv. Super."], music: ["Nick Drake"] } },
+
+    // colleagues — the press
+    { id: "f17", name: "Ravi Menon", init: "RM", rel: "editor-in-chief", category: "colleagues", since: "2020", match: 69, hue: 265, last: "yesterday", note: "Reads a manuscript the way you read weather.", degrees: 1, favorite: false, interests: ["literary","civic","thought"],
+      faves: { films: ["Drive My Car"], books: ["The Unbearable Lightness of Being"], music: ["Bon Iver"] } },
+    { id: "f18", name: "Hedda Nilsen", init: "HN", rel: "designer at the press", category: "colleagues", since: "2021", match: 76, hue: 340, last: "Tue", note: "Sets type like it's a moral position.", degrees: 1, favorite: true, interests: ["art","literary","tech"],
+      faves: { films: ["In the Mood for Love"], books: ["The Summer Book"], music: ["Mount Eerie"] } },
+    { id: "f19", name: "Tomas Berg", init: "TB", rel: "printer", category: "colleagues", since: "2019", match: 54, hue: 70, last: "3 wk", note: "Knows every press in the city by its noise.", degrees: 2, favorite: false, interests: ["art","food","sports"],
+      faves: { films: ["Headhunters"], books: ["Min kamp"], music: ["Karpe"] } },
+
+    // neighbors — the yard
+    { id: "f20", name: "Amina Osman", init: "AO", rel: "downstairs", category: "neighbors", since: "2022", match: 72, hue: 160, last: "Mon", note: "Runs the yard's compost and its politics.", degrees: 1, favorite: false, interests: ["food","civic","faith"],
+      faves: { films: ["The Worst Person in the World"], books: ["Sapiens"], music: ["Sigrid"] } },
+    { id: "f21", name: "Lars Fjell", init: "LF", rel: "across the yard", category: "neighbors", since: "2023", match: 46, hue: 15, last: "5 wk", note: "Waves. Has never once come in for coffee.", degrees: 2, favorite: false, interests: ["sports","tech","games"],
+      faves: { films: ["Inception"], books: ["Atomic Habits"], music: ["The Weeknd"] } },
+
+    // acquaintances — the loose edge, where most invites still are
+    { id: "f22", name: "Sofie Dahl", init: "SD", rel: "book club regular", category: "acquaintances", since: "2024", match: 65, hue: 285, last: "2 wk", note: "Has opinions about endings.", degrees: 2, favorite: false, interests: ["literary","thought","art"],
+      faves: { films: ["Paterson"], books: ["Sofies verden"], music: ["Aurora"] } },
+    { id: "f23", name: "Elias Vik", init: "EV", rel: "café regular", category: "acquaintances", since: "2025", match: 43, hue: 55, last: "4 wk", note: "Same corner table, same order, every morning.", degrees: 2, favorite: false, interests: ["food","music","fitness"],
+      faves: { films: ["The Worst Person in the World"], books: ["Naiv. Super."], music: ["Nick Drake"] } },
+    { id: "f24", name: "Miriam Torp", init: "MT", rel: "fermenting workshop", category: "acquaintances", since: "2025", match: 49, hue: 105, last: "7 wk", note: "Gave you the kombucha scoby that keeps living.", degrees: 2, favorite: false, interests: ["food","art","outdoor"],
+      faves: { films: ["Spirited Away"], books: ["The Summer Book"], music: ["Sufjan Stevens"] } },
   ],
 
   // Daily notes — only people who shared today's line.
@@ -528,13 +571,24 @@ window.IS_DATA = {
     { personId: "f4", date: "today",     weather: "sun · 14°",           one_line: "The plum tree has set fruit. Smaller than last year. Sweeter, I think.", shared: ["weather","one_line"] },
     { personId: "f6", date: "today",     one_line: "Found Dad's handwriting in an old cookbook. Made his stew.", shared: ["one_line"] },
     { personId: "f5", date: "yesterday", one_line: "Logged 32 specimens. The blue gentian is opening early this year.", shared: ["one_line"] },
+    { personId: "f12", date: "today",     weather: "cloud · 12°",       one_line: "Six minutes today. The fjord is warmer than the air, which feels like cheating.", shared: ["weather","one_line"] },
+    { personId: "f18", date: "today",     one_line: "Set the whole cover in Garamond, hated it, set it again.", shared: ["one_line"] },
+    { personId: "f20", date: "yesterday", weather: "rain · 10°",        one_line: "The compost committee has a chair now. It is me.", shared: ["weather","one_line"] },
+    { personId: "f9",  date: "yesterday", one_line: "Wrote to Mira. The pen skips on the new paper.", shared: ["one_line"] },
   ],
 
-  // Connections — pairs of person ids that know each other
+  // Connections — pairs of person ids that know each other. Both halves of
+  // the roster appear: the f-side is the circle, the p-side the strangers
+  // nearby, and an edge across the two is how someone becomes reachable.
   connections: [
-    ["f1","f2"], ["f1","f4"], ["f2","f3"], ["f3","f4"], ["f1","p1"], ["f4","p4"], ["p1","p3"], ["p2","p3"], ["p1","p2"], ["p5","p3"], ["p4","p6"], ["f3","p5"]
+    ["f1","f2"], ["f1","f4"], ["f2","f3"], ["f3","f4"], ["f1","p1"], ["f4","p4"], ["p1","p3"], ["p2","p3"], ["p1","p2"], ["p5","p3"], ["p4","p6"], ["f3","p5"],
+    ["f2","f8"], ["f2","f11"], ["f6","f8"], ["f6","f10"], ["f8","f10"], ["f9","f10"], ["f2","f10"], ["f8","f11"],
+    ["f1","f12"], ["f12","f15"], ["f1","f15"], ["f5","f12"], ["f13","f16"], ["f3","f13"], ["f7","f14"], ["f14","f22"],
+    ["f17","f18"], ["f17","f19"], ["f18","f19"], ["f3","f17"], ["f7","f17"], ["f14","f18"],
+    ["f4","f20"], ["f4","f21"], ["f20","f24"], ["f22","f23"],
+    ["f12","p3"], ["f14","p11"], ["f18","p13"], ["f20","p8"], ["f13","p14"], ["f15","p6"],
+    ["p7","p9"], ["p7","p13"], ["p8","p10"], ["p10","p14"], ["p11","p13"], ["p9","p12"], ["p12","p6"]
   ],
-
 
   // Aggregate profiles for comparison charts.
   // Each scope has: big5 averages, political (econ, social), n (sample size)
@@ -678,11 +732,6 @@ window.IS_DATA = {
     },
   },
 
-
-
-
-
-
   // Life used / remaining — born 1991-04-12, life expectancy 84
   life: {
     bornISO: "1991-04-12",
@@ -692,7 +741,6 @@ window.IS_DATA = {
     weeksLived: 1832,
     weeksLeft: 2536,
   },
-
 
   // On this day — lines resurfaced from old logs, same calendar date
   lookback: [
@@ -704,16 +752,12 @@ window.IS_DATA = {
       where: "Oslo" },
   ],
 
-
-
-
 };
 
 // compact population formatter — 340, 9.4k, 1.2M
-window.fmtPop = function (n) {
+export function fmtPop(n) {
   if (n == null) return '—';
   if (n >= 1e6) { const v = n / 1e6; return (v >= 10 ? Math.round(v) : Math.round(v * 10) / 10) + 'M'; }
   if (n >= 1000) { const v = n / 1000; return (v >= 10 ? Math.round(v) : Math.round(v * 10) / 10) + 'k'; }
   return String(n);
-};
-
+}

@@ -1,13 +1,26 @@
 rules_version = '2';
 
-// Access model for InSight v2 (docs/SCHEMA-V2.md, decision D5).
+// Access model for InSight v2 (docs/SCHEMA-V2.md, decision D98).
 //
-// Deny by default. Every grant below is written against a named path;
-// there is no catch-all match. The shape in one line: a user reads and
-// writes only their own documents, answers are create-only and never
-// readable by anyone else, population statistics are k-floored and
-// server-written, and group reveals become visible only when a Cloud
-// Function materializes them.
+// ANSWERS ARE PUBLIC. That is the product, not a concession to it: the
+// app exists to show how one person's answers link to everyone else's,
+// and a model that hid them from each other could not draw the picture
+// it was selling. A signed-in user may read any other user's answers and
+// profile, by name. Population statistics are EXACT and published from
+// the first answer — no k-floor, no publish cadence, no suppressed
+// cells, no special-category carve-out (D98 reverses D1, D5's read arm,
+// D11, D18, D44 and D78's naming refusal).
+//
+// Writes stay owner-bound. Reading is open; authoring is not. Every
+// grant below is still written against a named path and there is no
+// catch-all match, so a collection nobody named is still denied.
+//
+// THREE DENIES SURVIVE, and none of them is about answer privacy:
+//   · v2_logic_attempts — holds the unscored answer key (anti-cheat)
+//   · v2_flags          — reporter identity (anti-retaliation)
+//   · v2_presence       — uid → ~1 km cell (physical safety, not data)
+// Each says so at its own path. If one of those should go too, it is a
+// separate decision from D98 and wants its own record.
 //
 // Anything rules cannot verify — rate limits, invite-code minting,
 // membership caps, reveal timing — is denied to clients outright and
@@ -45,11 +58,17 @@ service cloud.firestore {
     // ═══════════════════════════════════════════════════════════════
     // v2 · the daily/mirror core loop (docs/SCHEMA-V2.md)
     //
-    // Access model (decision D5): answer documents are OWNER-ONLY,
-    // always — group/1v1 visibility ships later via server-materialized
-    // reveal docs, and population stats come from v2_question_aggs,
-    // written only by the onV2AnswerCreated trigger. Nothing here ever
-    // exposes one user's raw answers or anchor snapshot to another user.
+    // Access model (decision D98): answer documents are WORLD-READABLE
+    // to any signed-in user, together with the anchor snapshot that says
+    // which cohort the answer was given from. That pairing is the whole
+    // read path for named who-voted, person-to-person compare, the
+    // Kindred people lens and the Map's real typicality — every one of
+    // which was dark while this said OWNER-ONLY.
+    //
+    // v2_question_aggs stays, as a CACHE rather than a curtain: it is
+    // cheaper to read one folded document than to page a collection
+    // group on every render. It now carries exact counts, published on
+    // every answer.
     // ═══════════════════════════════════════════════════════════════
 
     // Canonical question bank — seeded by the seedContentV2 callable
@@ -59,8 +78,10 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    // Per-question aggregate counts — the only population surface.
-    // Written exclusively by the onV2AnswerCreated trigger.
+    // Per-question aggregate counts — EXACT, and a convenience rather
+    // than the only population surface: the same numbers are derivable
+    // by reading the answers themselves (which any signed-in user may
+    // now do). Written exclusively by the onV2AnswerCreated trigger.
     match /v2_question_aggs/{qid} {
       allow read: if request.auth != null;
       allow write: if false;
@@ -70,7 +91,7 @@ service cloud.firestore {
       return anchors is map
         && anchors.keys().hasOnly([
           "city", "country", "ageBand", "gender",
-          "profession", "education", "relationship",
+          "profession", "education", "relationship", "heightBand",
         ])
         && isOptionalShortString(anchors.get("city", null), 80)
         && isOptionalShortString(anchors.get("country", null), 80)
@@ -78,54 +99,227 @@ service cloud.firestore {
         && isOptionalShortString(anchors.get("gender", null), 40)
         && isOptionalShortString(anchors.get("profession", null), 80)
         && isOptionalShortString(anchors.get("education", null), 80)
-        && isOptionalShortString(anchors.get("relationship", null), 40);
+        && isOptionalShortString(anchors.get("relationship", null), 40)
+        && isOptionalShortString(anchors.get("heightBand", null), 20);
     }
 
-    // v2 profile — owner-only in Phase 2. Display-field carve-outs for
-    // circle/group surfaces arrive with the reveal system (Phase 3),
-    // deliberately not before.
+    // v2 profile — READABLE BY ANY SIGNED-IN USER (D98). The display
+    // name and the anchors are what turn a bare uid on an answer into a
+    // person on a screen: "Henrik, 25-34, Oslo, chose Beach". Without
+    // this read, every named surface in the app degrades back to counts.
+    //
+    // Writes stay owner-bound. `testResults.logic` stays server-owned —
+    // that is an integrity guard (a forgeable score, D57), not a privacy
+    // one, and D98 does not touch it. Note the rest of `testResults` is
+    // now PUBLIC, which is the point: person-to-person Compare reads it.
+    //
+    // What is NOT here any more: `fcmTokens`. Push tokens moved to the
+    // server-only subcollection below when this read opened — a token is
+    // a credential, and a readable profile carrying one hands any script
+    // the reveal sender's fan-out list. See v2social.ts pushDocPath.
     match /v2_users/{uid} {
-      allow read: if request.auth != null && request.auth.uid == uid;
-      // fcmTokens: clients may no longer INTRODUCE or CHANGE it — the array
-      // is where the reveal sender fans out to, and a client-writable list
-      // could carry a stolen token (reveal pushes routed to a device that
-      // never joined the group). Registration goes through the
-      // registerPushToken callable (functions/src/v2social.ts), behind App
-      // Check; the admin SDK bypasses rules, so the callable and the
-      // sender's dead-token cleanup keep working.
-      //
-      // The key stays in hasOnly ON PURPOSE: every client profile write is
-      // a merge, and rules evaluate request.resource.data as the POST-merge
-      // doc — so once the callable has written fcmTokens, dropping the key
-      // from hasOnly would brick saveDisplayName/saveAnchors for that user
-      // forever. Presence is allowed; mutation is not.
+      allow read: if request.auth != null;
       allow create, update: if request.auth != null && request.auth.uid == uid
         && request.resource.data.keys().hasOnly([
           "displayName", "anchors", "anon", "createdAt", "updatedAt",
-          "fcmTokens", "testResults",
+          "testResults", "handle",
         ])
-        && (!("fcmTokens" in request.resource.data)
+        // `handle` is on the ALLOWLIST but immutable to the client, the
+        // same shape testResults.logic has below and for a related
+        // reason: claimHandleV2 (admin SDK) owns it, because the claim is
+        // a two-document transaction against the v2_handles registry.
+        //
+        // It has to be listed at all because request.resource.data is the
+        // RESULTING document: once the callable has written a handle, a
+        // client merge that only touches displayName still presents
+        // `handle` in its key set, and hasOnly would refuse it. Leaving it
+        // off would mean claiming a handle silently froze your display
+        // name forever — the kind of failure that ships green.
+        && (!("handle" in request.resource.data)
           || (resource != null
-            && request.resource.data.fcmTokens == resource.data.get("fcmTokens", null)))
+            && request.resource.data.handle == resource.data.get("handle", null)))
+        // testResults.logic is the VERIFIED logic score, written only by
+        // logicSubmitV2 (admin SDK bypasses rules) after server-side
+        // scoring — a client-writable copy would be a forgeable one (D57).
+        // Presence allowed (every client profile write is a merge, so the
+        // key rides along once the callable has written it), mutation not.
         && (!("testResults" in request.resource.data)
           || (request.resource.data.testResults is map
-            && request.resource.data.testResults.keys().size() <= 8))
+            && request.resource.data.testResults.keys().size() <= 8
+            && (!("logic" in request.resource.data.testResults)
+              || (resource != null
+                && request.resource.data.testResults.logic
+                  == resource.data.get("testResults", {}).get("logic", null)))))
         && isOptionalShortString(request.resource.data.get("displayName", null), 60)
         && isValidV2Anchors(request.resource.data.get("anchors", {}));
       allow delete: if false; // deleteAccount (admin SDK) owns removal
+
+      // Push registration tokens (D98) — server-only, both ways.
+      //
+      // This is the one thing that moved OFF the profile when the profile
+      // became public, and it moved rather than being re-guarded on
+      // purpose: a field guarded by a rule is one rule edit away from
+      // being readable, while a path with no read grant cannot be opened
+      // by accident. A token is a credential — whoever holds it can send
+      // push to that device — so it is not the kind of thing D98 means
+      // by "answers are public".
+      //
+      // Written only by registerPushToken and pruned only by the reveal
+      // sender's dead-token sweep, both on the admin SDK. deleteAccount's
+      // recursive delete of v2_users/{uid} takes this subcollection with
+      // it, so erasure needs no new arm.
+      match /push/{docId} {
+        allow read, write: if false;
+      }
+
+      // The follow graph (D101) — the Mirror's Circle stop.
+      //
+      // A follow is a BOOKMARK, not a permission grant, and that is the
+      // whole design. Since D98 every answer and profile is already
+      // readable by any signed-in user, so following someone gives the
+      // follower no access they did not have — which is why there is no
+      // request, no acceptance, and no notification to the followed
+      // account. One-way, like a subscription. Mutual follows are a
+      // reading the client derives, not a state the server keeps.
+      //
+      // READABLE BY ANYONE, and this is a judgement call rather than a
+      // consequence of D98 (which published answers, not the social
+      // graph). Two reasons it goes this way: the app's whole thesis is
+      // that the links between people are the interesting part, and
+      // public → owner-only is a breaking change for anything built on
+      // it while the reverse is additive. To reverse: change this one
+      // line to `request.auth.uid == uid`. Circle itself needs only the
+      // viewer's own list and would keep working; what would go is the
+      // followers direction, which nothing reads yet.
+      //
+      // deleteAccount's recursive delete of v2_users/{uid} takes the
+      // whole subcollection with it, so erasure needs no new arm — the
+      // same property the push subcollection relies on. What it does NOT
+      // take is other people's follows OF the deleted account: those are
+      // documents under their uid, and they are cleaned in the same
+      // callable rather than left as pointers to nothing.
+      match /following/{targetUid} {
+        allow read: if request.auth != null;
+        // Create-or-delete only. An "edit" to a follow has no meaning,
+        // and leaving update open would let the timestamp be rewritten
+        // to reorder someone's Circle.
+        allow create: if request.auth != null
+          && request.auth.uid == uid
+          // Following yourself would put you in your own Circle and
+          // count you twice in every fold over it.
+          && targetUid != uid
+          // `to` duplicates the document id, and it is not redundant: a
+          // collection-group query cannot filter on a document id, so
+          // without a field deleteAccount could not find the follows
+          // OTHER people hold of a deleted account. Pinned equal to the
+          // id so the two can never disagree — an unpinned copy is a
+          // second source of truth about who this row points at.
+          && request.resource.data.keys().hasOnly(["at", "to"])
+          && request.resource.data.to == targetUid
+          && request.resource.data.at == request.time;
+        allow delete: if request.auth != null && request.auth.uid == uid;
+        allow update: if false;
+      }
+
+      // Foresight verdicts (D126) — one scored read of a population slice.
+      //
+      // CREATE-ONLY, and here that is the whole integrity model rather
+      // than a tidiness rule. A verdict is a claim about a guess you
+      // already made; if it could be rewritten, every wrong read would
+      // become a right one and the record would mean nothing. Answers
+      // get one edit shape (D86) because moving your opinion is a real
+      // act; changing what you guessed after seeing the answer is not.
+      //
+      // The doc id is `{qid}__{dim}__{bucket}`, so create-only also
+      // means one attempt per slice — a read cannot be re-rolled by
+      // deleting and replaying it, because delete is closed too.
+      //
+      // WHAT IS STORED, AND WHY `correct` IS NOT. The row carries the
+      // guess and `answerIdx`, the slice's top option AT GUESS TIME.
+      // Correctness is derived from those two by anyone reading, never
+      // stored — a stored boolean would be an unfalsifiable claim about
+      // a computable fact. `answerIdx` is frozen rather than recomputed
+      // because the cell moves: a slice that says Yes today may say No
+      // next month, and re-deriving would silently flip old verdicts.
+      //
+      // HONEST LIMIT, recorded rather than papered over: `answerIdx` is
+      // client-written, so a determined client can write a verdict that
+      // matches whatever it guessed. The basis is published beside the
+      // claim, which makes the lie visible rather than impossible. Real
+      // verification means scoring server-side against the aggregate —
+      // the shape D57 uses for the logic test — and that is worth
+      // building the day this score buys anything. Today it buys a
+      // number on your own screen.
+      match /foresight/{readId} {
+        allow read: if request.auth != null;
+        allow create: if request.auth != null
+          && request.auth.uid == uid
+          && request.resource.data.keys().hasOnly([
+            "qid", "dim", "bucket", "guess", "answerIdx", "n", "at",
+          ])
+          && request.resource.data.at == request.time
+          && request.resource.data.qid is string
+          && request.resource.data.dim is string
+          && request.resource.data.bucket is string
+          && request.resource.data.n is int
+          && request.resource.data.n >= 0
+          && request.resource.data.answerIdx is int
+          && request.resource.data.answerIdx >= 0
+          // -1 is a clock expiry, which scores as a miss. Anything below
+          // that is a client inventing a sentinel of its own.
+          && request.resource.data.guess is int
+          && request.resource.data.guess >= -1;
+        allow update, delete: if false;
+      }
 
       // One answer per question, forever: doc id == question id, create-only.
       // The immutability is what lets the aggregate trigger be a plain
       // increment with no reconciliation.
       match /answers/{aid} {
-        allow read: if request.auth != null && request.auth.uid == uid;
+        // D98: any signed-in user. Reading these — across users, via a
+        // collection-group query on `qid` — IS the app. Named who-voted,
+        // "people like you answered", person-to-person compare and the
+        // Map's typicality all read exactly here, and all of them were
+        // dark for as long as this line said `uid == uid`.
+        //
+        // The anchors snapshot rides along deliberately: an answer with
+        // no cohort stamp cannot be grouped, and grouping answers by
+        // cohort is the product's one trick.
+        //
+        // THE ONE EXCLUSION IS TIMING, NOT PRIVACY. A duel answer
+        // (surface group/duo) is sealed until the next-day reveal — that
+        // is the game, the same way a hand of cards is face-down. Public
+        // duel answers would not link any data the reveal does not
+        // publish a day later; they would just let a member read the
+        // room before playing. The owner still reads their own, and the
+        // reveal doc publishes the whole table on schedule.
+        //
+        // Written as a value test on `surface` so it is satisfiable by a
+        // LIST query: a collection-group read must carry a matching
+        // `where("surface","in",[…])` or be refused wholesale (the D65
+        // lesson — a rule a query cannot be compared against is a rule
+        // the query walks past).
+        allow read: if request.auth != null
+          && (request.auth.uid == uid
+            || resource.data.surface in ["daily", "feed", "test", "learn", "pulse"]);
 
         // D29 device binding: aggregate-feeding answers require the account
         // to have passed one silent per-device activation (activateDeviceV2
         // stamps the `db` custom claim; one counted account per physical
-        // device per calendar month). Duel answers are deliberately exempt —
-        // they feed member-only reveals, never aggregates, and joining a
-        // duel already required a human's invite code.
+        // device per calendar month). Duel answers are deliberately exempt,
+        // because joining a duel already required a human's invite code.
+        //
+        // That exemption was written when the sentence "duel answers feed
+        // member-only reveals, never aggregates" was true. It stopped being
+        // true at D40 part 3: foldDuelSignal publishes v2_question_aggs/
+        // duel-{qid} once a question clears AGG_MIN_N, so an unbound account's
+        // duel votes DO reach a published aggregate — a separate key space
+        // from the world questions', but a published one. The invite-code
+        // argument still holds (a sybil needs a real member to let it in, per
+        // group), which is why this stays as it is rather than being flipped
+        // here; but the premise is narrower than the old comment claimed, and
+        // a comment that overstates a carve-out is how the carve-out outlives
+        // its reason. Recorded in D71.
         //
         // Soft-enforce switch (D29 rollout step 2): while deviceBindEnforced
         // returns false the claim is stamped but not yet demanded, so
@@ -197,9 +391,12 @@ service cloud.firestore {
                  .data.get("surface", "daily") in ["daily", "feed", "test"];
         }
 
-        // Sealed duel answers: id g_{gid}_{day}, member-only, and only
-        // while the day is UNREVEALED — answering after the reveal would
-        // let you see everyone's cards before playing yours.
+        // Sealed duel answers: id g_{gid}_{day}. Only members may PLAY,
+        // and only while the day is UNREVEALED — answering after the
+        // reveal would let you see everyone's cards before playing yours.
+        // Both halves are game rules about who is at the table and when
+        // the hand ends; neither is an audience claim about the data,
+        // which is why D98 leaves this function alone.
         function isDuelAnswer() {
           return request.resource.data.keys().hasOnly([
               "qid", "surface", "optionIdx", "guessIdx",
@@ -236,14 +433,73 @@ service cloud.firestore {
             // fit its options ("pick" questions have empty bank options —
             // their options are the group's members)
             && exists(/databases/$(database)/documents/v2_questions/$(request.resource.data.qid))
-            && request.resource.data.optionIdx < (
-              get(/databases/$(database)/documents/v2_questions/$(request.resource.data.qid)).data.options.size() > 0
-                ? get(/databases/$(database)/documents/v2_questions/$(request.resource.data.qid)).data.options.size()
-                : get(/databases/$(database)/documents/v2_groups/$(request.resource.data.gid)).data.memberUids.size()
-            )
+            && request.resource.data.optionIdx < duelIndexSpace()
             && (request.resource.data.get("guessIdx", 0) is int)
             && request.resource.data.get("guessIdx", 0) >= 0
-            && request.resource.data.get("guessIdx", 0) < 20;
+            // SAME bound as optionIdx, via the same function — a guess names
+            // an option, so it lives in the same index space. This read
+            // `guessIdx < 20` while optionIdx had already been widened for
+            // exactly that reason: GROUP_CAP is 32, so on a "pick" day in a
+            // group of more than 20, a member could be voted for but not
+            // guessed. The bug the widening fixed survived in the field
+            // beside it because the two bounds were written out twice; one
+            // function means the next change to the index space cannot
+            // reach one and miss the other.
+            && request.resource.data.get("guessIdx", 0) < duelIndexSpace();
+        }
+
+        // The daily pulse (D139): the same question answered once per
+        // DAY, id {baseQid}_{day} — one answer per (person, day) is the
+        // doc id, the duel answers' move, and the day window below is
+        // theirs verbatim (back 4d for an offline queue, forward 2d
+        // because day keys are UTC and UTC+14 is already tomorrow).
+        // Create-only in v1, deliberately: the D86 edit arm's surface
+        // list keeps pulse out, so "you said what you said today" holds
+        // structurally, and delete is closed like every answer. The
+        // aggregate trigger folds the composite qid into a PER-DAY
+        // aggregate doc with no changes of its own — that grain is the
+        // whole design (docs/NEXT-FUNCTIONALITY.md §2).
+        function isPulseAnswer() {
+          return request.resource.data.keys().hasOnly([
+              "qid", "baseQid", "day", "surface", "optionIdx", "answeredAt", "anchors",
+            ])
+            && request.resource.data.surface == "pulse"
+            && request.resource.data.baseQid is string
+            && request.resource.data.day is string
+            && request.resource.data.day.matches('[0-9]{4}-[0-9]{2}-[0-9]{2}')
+            && timestamp.date(
+                 int(request.resource.data.day[0:4]),
+                 int(request.resource.data.day[5:7]),
+                 int(request.resource.data.day[8:10]))
+               > request.time - duration.value(4, 'd')
+            && timestamp.date(
+                 int(request.resource.data.day[0:4]),
+                 int(request.resource.data.day[5:7]),
+                 int(request.resource.data.day[8:10]))
+               < request.time + duration.value(2, 'd')
+            && aid == request.resource.data.baseQid + "_" + request.resource.data.day
+            && request.resource.data.qid == aid
+            // The TEMPLATE is what the bank holds — one doc per pulse
+            // question forever, never one per day — and it answers for
+            // the option bound, the kill switch, and the surface claim.
+            && get(/databases/$(database)/documents/v2_questions/$(request.resource.data.baseQid))
+                 .data.get("surface", "daily") == "pulse"
+            && get(/databases/$(database)/documents/v2_questions/$(request.resource.data.baseQid))
+                 .data.get("active", true) == true
+            && request.resource.data.optionIdx
+              < get(/databases/$(database)/documents/v2_questions/$(request.resource.data.baseQid))
+                  .data.options.size();
+        }
+
+        // The index space BOTH duel indexes live in: the question's own
+        // options, or — for "pick" questions, which carry none, because
+        // their options ARE the group — the member count. Repeated get()s
+        // on one path are deduped within a rules evaluation, so calling
+        // this twice costs no extra document access.
+        function duelIndexSpace() {
+          return get(/databases/$(database)/documents/v2_questions/$(request.resource.data.qid)).data.options.size() > 0
+            ? get(/databases/$(database)/documents/v2_questions/$(request.resource.data.qid)).data.options.size()
+            : get(/databases/$(database)/documents/v2_groups/$(request.resource.data.gid)).data.memberUids.size();
         }
 
         allow create: if request.auth != null && request.auth.uid == uid
@@ -258,17 +514,96 @@ service cloud.firestore {
               // functions/src/v2social.ts) or members past the 20th become
               // unpickable on every "pick" day.
               && request.resource.data.optionIdx < 64
-              && ((isWorldAnswer() && deviceBound()) || isDuelAnswer()))
+              && ((isWorldAnswer() && deviceBound())
+                || isDuelAnswer()
+                // Pulse answers feed a published aggregate, so they carry
+                // the same D29 binding the world surfaces do.
+                || (isPulseAnswer() && deviceBound())))
             // Catalog answers carry `entity` instead — the optionIdx block
             // must not apply, and each branch's hasOnly keeps the other
             // field out. They feed aggregates, so they carry the D29
             // binding the duel branch is exempt from.
             || (isCatalogAnswer() && deviceBound())
           );
-        allow update, delete: if false;
+        // D86 unlocks ONE edit shape on world-scope opinion answers:
+        // optionIdx moves, everything else is frozen. What stays immutable,
+        // and why each stays:
+        //   - duel answers (surface group/duo): the SEAL is the product —
+        //     an editable sealed answer lets a member re-decide after
+        //     reading the room, excluded by the surface check;
+        //   - learn answers: first-attempt-only is D32's whole measurement,
+        //     excluded by the surface check ("not knowledge, obviously" —
+        //     the owner's own words);
+        //   - catalog answers: they carry `entity`, not `optionIdx`, and
+        //     the `resource.data.optionIdx is int` guard (the OLD doc must
+        //     already have one) keeps them out until a delta path for the
+        //     canon exists;
+        //   - the anchors SNAPSHOT and answeredAt: frozen, so an edit moves
+        //     which option you hold, never which cohort you were in when
+        //     you first answered (D8) — and the aggregate delta stays a
+        //     clean -old/+new inside the same cells.
+        // The honest-counts half of D5 moves to onV2AnswerUpdated, which
+        // folds -old/+new through the same ledger-deduped transaction the
+        // create path uses. editedAt == request.time gives the edit its
+        // own audit stamp without opening answeredAt.
+        //
+        // The 60s cooldown is not UX: an edit is the one answer write that
+        // is repeatable, and each one runs the aggregate transaction
+        // against two single docs keyed by qid (D7's ~1 write/sec/doc
+        // arithmetic). Without a bound, one hostile client flipping
+        // optionIdx in a loop holds a question's aggregate at its write
+        // ceiling indefinitely. Creates never needed this — create-only
+        // made them once per (user, question) by construction.
+        allow update: if request.auth != null && request.auth.uid == uid
+          && resource.data.surface in ["daily", "feed", "test"]
+          && resource.data.optionIdx is int
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["optionIdx", "editedAt"])
+          && request.resource.data.optionIdx is int
+          && request.resource.data.optionIdx >= 0
+          && request.resource.data.optionIdx
+            < get(/databases/$(database)/documents/v2_questions/$(resource.data.qid)).data.options.size()
+          // Same kill switch as create: a question flipped inactive stops
+          // accepting answer movement of any kind, and edits feed the same
+          // aggregate, so they carry the same D29 device binding.
+          && get(/databases/$(database)/documents/v2_questions/$(resource.data.qid))
+               .data.get("active", true) == true
+          && deviceBound()
+          && request.resource.data.editedAt == request.time
+          && (!("editedAt" in resource.data)
+            || request.time > resource.data.editedAt + duration.value(60, 's'));
+        allow delete: if false;
       }
     }
 
+    // ─── the cross-user read (D98) ─────────────────────────────────
+    //
+    // The grant above authorizes reads under ONE named uid. A query that
+    // asks "everyone who answered q42" is a COLLECTION GROUP query, and
+    // collection-group reads are matched by a separate rule with a
+    // recursive wildcard — without this block the widened read above
+    // works for your own answers and refuses every cross-user surface,
+    // which would look exactly like the reversal not having happened.
+    //
+    // Read only. Writes stay on the uid-bound path above, where
+    // `request.auth.uid == uid` still fences who may author an answer;
+    // granting write here would let anyone write into anyone's
+    // subcollection, which is not what "answers are public" means.
+    //
+    // The `surface` test is the duel seal again (see the uid-bound rule
+    // for the argument) and it is a VALUE test so that a list query can
+    // be compared against it: a collection-group read must carry a
+    // matching `where("surface","in",[…])` or Firestore refuses the
+    // whole query rather than filtering it (D65's measured lesson).
+    //
+    // Scope check: no other collection in this database is named
+    // `answers` — the retired v1 subtrees are insight_users/*/relations,
+    // insight_daily and insight_inbound_impressions — so this wildcard
+    // reaches v2 answer documents and nothing else. Adding an `answers`
+    // collection anywhere else in future silently joins this grant.
+    match /{path=**}/answers/{aid} {
+      allow read: if request.auth != null
+        && resource.data.surface in ["daily", "feed", "test", "learn", "pulse"];
+    }
 
     // App/content metadata — contentRev (bank cache invalidation),
     // latestBuild/minBuild (update prompts). Operator/seed-written.
@@ -277,9 +612,10 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    // Server-side aggregate internals — exact counts below the public
-    // floor, and the trigger's idempotency ledger. Fully opaque to
-    // clients; only the public k-floored mirror above is readable.
+    // Server-side aggregate internals — the trigger's working state and
+    // its idempotency ledger. Closed to clients because nothing needs it,
+    // not because it hides anything: since D98 the public mirror above
+    // carries the same exact counts, so this collection is bookkeeping.
     match /v2_aggs_private/{qid} {
       allow read, write: if false;
     }
@@ -287,6 +623,33 @@ service cloud.firestore {
       allow read, write: if false;
     }
     match /v2_ratelimits/{docId} {
+      allow read, write: if false;
+    }
+    // Velocity-scan state (D54): the daily ledger scan's cursor and
+    // trailing per-question day counts. Server-only because it is
+    // operational telemetry with no surface, not because the counts are
+    // secret — since D98 there is no floor for them to sit below.
+    match /v2_velocity/{docId} {
+      allow read, write: if false;
+    }
+
+    // ─── verified logic attempts (D57) ─────────────────────────────
+    // The attempt doc holds the seed — the answer key, until scored. Not
+    // even the owner may read it: the whole design is that the client
+    // learns the answers by solving, and an owner-readable seed hands a
+    // devtools user the key mid-attempt. Written only by logicStartV2 /
+    // logicSubmitV2 (admin SDK); erased by deleteAccount.
+    match /v2_logic_attempts/{uid} {
+      allow read, write: if false;
+    }
+    // Score histogram: exact counts, published on every attempt — same
+    // discipline as v2_question_aggs, which since D98 means no floor and
+    // no cadence.
+    match /v2_logic_norms/{docId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+    match /v2_logic_norms_private/{docId} {
       allow read, write: if false;
     }
 
@@ -297,59 +660,207 @@ service cloud.firestore {
     // through the createGroupV2 / joinGroupV2 / leaveGroupV2 callables —
     // invite codes, caps and pairing can't be forged client-side.
     match /v2_groups/{gid} {
+      // Still member-gated, and NOT as a privacy guarantee — D98 makes
+      // the answers inside a group public, so its roster is not a
+      // secret. The blocker is that this document carries `inviteCode`,
+      // which is a CAPABILITY: world-readable codes mean anyone can join
+      // any circle, which is an integrity break, not a linkage feature.
+      // Opening the roster wants the code split onto its own
+      // server-only document first. Tracked as follow-on to D98.
       allow read: if request.auth != null
         && request.auth.uid in resource.data.memberUids;
-      allow write: if false;
+      // Group docs are server-authored (createGroupV2 / joinGroupV2 /
+      // leaveGroupV2 own membership, codes and streaks) — with ONE
+      // member-writable field: a duo's pool choice (D40 part 4). Either
+      // partner may flip duoMode and both see the same doc, so the pair
+      // flips together; affectedKeys pins the write to that field alone,
+      // the enum is closed, and group-mode docs stay fully server-only.
+      // Not a callable on purpose: no cap, budget or invariant beyond
+      // membership + enum exists for this field, which is exactly what a
+      // rule can express — and rules tests prove it.
+      allow update: if request.auth != null
+        && request.auth.uid in resource.data.memberUids
+        && resource.data.mode == "duo"
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["duoMode"])
+        && request.resource.data.duoMode in ["friends", "romantic"];
+      allow create, delete: if false;
 
-      // Materialized reveals (D5): written only by the reveal pipeline;
-      // readable by the members the reveal itself recorded.
+      // Materialized reveals: written only by the reveal pipeline, and
+      // since D98 readable by any signed-in user.
       //
-      // Gating on the reveal's OWN `members` array, not the parent group's
-      // current memberUids, is what makes the guarantee retroactive: joining
-      // a group tomorrow does not hand you every past day's votes and names,
-      // and leaving one does not retract the days you actually played. The
-      // snapshot is written by revealGroupDay (functions/src/v2social.ts) in
-      // the same create() as the votes, so it cannot drift from them.
+      // The old rule gated on the reveal's OWN `members` array so that
+      // joining a group tomorrow handed you no past day's votes. That
+      // was a privacy guarantee about answers, and D98 retires it: the
+      // votes inside a reveal are world answers' younger siblings, and
+      // withholding the materialized copy while publishing the source
+      // would be a lock on a door with no wall.
       //
-      // Legacy reveals written before that payload shipped carry no
-      // `members` and are denied to everyone by the [] default rather than
-      // erroring — see D5's backfill amendment for why that set is empty.
-      // Reading the field off the document also drops a get() on the group
-      // doc, so a reveal read is now one billed read instead of two.
+      // What the reveal still does is TIMING and convenience — it is
+      // written the day after play, which is what keeps the seal above
+      // meaningful, and it is one document instead of N answer reads.
       match /reveals/{day} {
-        allow read: if request.auth != null
-          && request.auth.uid in resource.data.get("members", []);
+        allow read: if request.auth != null;
+        allow write: if false;
+      }
+
+      // Invitations (D122) — the uid-addressed way into a circle, and
+      // the reason the invite CODE stops being something a person types.
+      //
+      // READ IS THE INVITEE, AND ONLY THE INVITEE. A first draft also let
+      // members read the list, so a circle could show who had been asked
+      // and had not answered — and that arm cost a
+      // `get(/v2_groups/$(gid))` to check membership. Every get() in a
+      // rule is a BILLED READ, which scripts/pulse.test.mjs counts and
+      // which caught it: the tripwire went 15 → 16 for a screen that does
+      // not exist. Nothing in the client reads an invitation as a member
+      // (fetchInvites queries `to == me`), and re-inviting is already
+      // idempotent server-side — inviteToGroupV2 writes with merge — so
+      // the arm bought nothing and charged for it. If a pending-invites
+      // list is ever built, it comes back with its cost accounted for.
+      //
+      // Not public either way: "who was asked and has not answered" is a
+      // fact about the INVITEE, and nobody published it.
+      //
+      // WRITE is server-only, all three verbs. inviteToGroupV2 checks
+      // membership, the cap and a rate budget; acceptGroupInviteV2 is
+      // the only thing that may append to memberUids — which is the
+      // array THIS FILE reads to decide who may see a sealed duel
+      // answer, so a client-writable invite would be a client-writable
+      // ACL one hop away. Decline goes through a callable too, for no
+      // reason grander than symmetry: a client delete would work, and
+      // one door is easier to keep correct than two.
+      match /invites/{invitedUid} {
+        allow read: if request.auth != null && request.auth.uid == invitedUid;
         allow write: if false;
       }
     }
 
+    // ─── handles: the account registry (D122) ──────────────────────
+    //
+    // One document per taken handle, id = the canonical (lowercased,
+    // sigil-stripped) form, holding the uid. Uniqueness is the DOCUMENT
+    // ID rather than a field, so it needs no index and no query — and a
+    // transaction that creates it simply fails when someone else got
+    // there first.
+    //
+    // READABLE BY ANY SIGNED-IN USER, and that is a real widening rather
+    // than a consequence of D98. D98 made answers public, which means
+    // "anyone holding your uid can read them"; a readable registry means
+    // "anyone who knows your handle can find them". Those are different
+    // exposures and this one is deliberate: a handle exists precisely so
+    // a friend can find you, and a directory nobody may read cannot do
+    // that. What it is NOT is a listing — there is no query surface here
+    // that enumerates handles, only an exact-id lookup, so the registry
+    // answers "is @olaf someone" and never "who is everyone".
+    //
+    // WRITE is server-only. A claim is two writes that must not
+    // interleave (take the new key, release the old), and rules cannot
+    // express atomicity across two documents: a create-if-absent rule
+    // gets uniqueness right and renames wrong.
+    match /v2_handles/{handle} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
     // ─── moderation substrate (docs/MODERATION.md, D22) ────────────
     //
-    // Takes are circle-scoped comments (D1). The moderation chain on top
-    // of them is deliberately server-heavy: flags are write-only counts,
-    // the queue and verdicts are reachable only through MOD_UIDS-gated
-    // callables, and clients can touch none of it.
+    // Takes are comments on a question — in a circle, or at world scale
+    // under the sentinel gid "world". Since D98 they are ATTRIBUTED at
+    // both scopes: `authorUid` was always on the document and always
+    // readable, and the anonymity was a client-side choice to render
+    // "Someone" instead of a name. That choice is reversed — an app
+    // whose point is linking people to what they said cannot render its
+    // speech unsigned.
+    //
+    // The sentinel cannot collide with a real circle: v2_groups creates
+    // are `if false` (ids are server-minted), so no client can ever be a
+    // "member of world" — the world arms below deliberately consult no
+    // group doc. The moderation chain on top stays server-heavy: the
+    // queue and verdicts are reachable only through MOD_UIDS-gated
+    // callables, and clients can touch none of it. World scope is
+    // enforcing rather than advisory (MOD_ADVISORY=false), and naming
+    // authors raises the stakes rather than lowering them, so that stays.
 
     match /v2_takes/{takeId} {
       // Circle members read the circle's takes — except a mod-hidden take,
       // which only its author still sees (the honest soft-hide: the author
       // can appeal what they can still read; the circle is protected).
+      //
+      // `hidden` is a REQUIRED BOOLEAN, and both of those words are load-
+      // bearing. This gate used to read `!("hidden" in resource.data)`,
+      // testing for the presence of the moderator's annotation map, and a
+      // presence test is not enforceable against a QUERY: measured in the
+      // emulator, `where("gid","==",…)` returned the hidden take with its
+      // full text to a non-author member while getDoc on the same id was
+      // correctly denied. Firestore can only hold a list operation to a
+      // rule it can compare against the query's own constraints, and an
+      // `in`-on-map test gives it nothing to compare — so it allowed the
+      // read rather than refusing it (D65).
+      //
+      // An equality on a concrete field does give it something. The three
+      // shapes, all measured rather than reasoned about:
+      //
+      //   presence           !("hidden" in resource.data)    query LEAKS
+      //   defaulted getter   data.get("hidden", false)==false query LEAKS
+      //   required boolean   data.hidden == false             query DENIED
+      //
+      // The defaulted getter is the trap: it reads as the safe, backward-
+      // compatible version of this line and leaks exactly like the one it
+      // replaces. Only the bare equality fails CLOSED — a list query is
+      // refused outright unless it carries a matching
+      // `where("hidden","==",false)`, which is what makes the client's
+      // filter a consequence of the rule rather than a promise beside it.
+      // A take that predates the field is unreadable by design; the create
+      // rule below is what guarantees none exists.
+      //
+      // The author escape still works for getDoc, which is the appeal path.
+      // It does NOT widen a list: an author listing the circle must also
+      // pass `hidden == false` and sees their own hidden take only by id.
+      //
+      // The world arm (gid == "world", D83): any signed-in user, same
+      // required-boolean equality — a world list must carry
+      // `where("gid","==","world")` and `where("hidden","==",false)` or it
+      // is refused wholesale, exactly like a circle list (D65). No group
+      // get(): there is no group, and consulting one would deny everything.
+      // D98 collapses the two arms into one. The circle arm used to
+      // require group membership before the hidden/author check; that
+      // was an audience gate on speech, and audience gates are what this
+      // reversal removes. What survives is the `hidden == false`
+      // REQUIRED-BOOLEAN equality, unchanged and deliberately so: that
+      // is moderation failing closed against a MEASURED query leak
+      // (D65), not privacy, and softening it to a defaulted getter would
+      // re-open the leak while reading like a safe refactor.
       allow read: if request.auth != null
-        && request.auth.uid in
-          get(/databases/$(database)/documents/v2_groups/$(resource.data.gid)).data.memberUids
-        && (!("hidden" in resource.data)
+        && (resource.data.hidden == false
           || resource.data.authorUid == request.auth.uid);
       allow create: if request.auth != null
-        && request.resource.data.keys().hasOnly(["gid", "authorUid", "qid", "text", "createdAt"])
+        && request.resource.data.keys().hasOnly(["gid", "authorUid", "qid", "text", "createdAt", "hidden"])
         && request.resource.data.authorUid == request.auth.uid
-        && request.resource.data.gid is string
-        && request.auth.uid in
-          get(/databases/$(database)/documents/v2_groups/$(request.resource.data.gid)).data.memberUids
+        // Required, and required to be false: the read gate above is an
+        // equality, so a take without the field can never be read back, and
+        // a client that could post `hidden: true` could hide its own words
+        // from the circle while leaving them in the moderation queue.
+        && request.resource.data.hidden == false
         && request.resource.data.text is string
         && request.resource.data.text.size() >= 1
         && request.resource.data.text.size() <= 280
-        && (!("qid" in request.resource.data) || request.resource.data.qid is string)
-        && request.resource.data.createdAt == request.time;
+        && request.resource.data.createdAt == request.time
+        && (request.resource.data.gid == "world"
+          // World takes (D83): membership is everyone, so the bound moves
+          // to the document id — `qid + "_" + uid` makes it ONE take per
+          // person per question, enforced the way flag ids are: a second
+          // post is an update, and updates are denied. qid is REQUIRED
+          // here (the thread hangs on a question; a world take with no
+          // question would be unreachable by any surface) and bounded so
+          // an id-length attack cannot mint unbounded doc ids.
+          ? (request.resource.data.qid is string
+            && request.resource.data.qid.size() >= 1
+            && request.resource.data.qid.size() <= 120
+            && takeId == request.resource.data.qid + "_" + request.auth.uid)
+          : (request.resource.data.gid is string
+            && request.auth.uid in
+              get(/databases/$(database)/documents/v2_groups/$(request.resource.data.gid)).data.memberUids
+            && (!("qid" in request.resource.data) || request.resource.data.qid is string)));
       // No edit path: an edited take invalidates the flags cast on what it
       // used to say. Delete-and-repost restarts the flag count honestly.
       allow update: if false;
@@ -361,9 +872,14 @@ service cloud.firestore {
     match /v2_flags/{flagId} {
       // Write-only, one per (take, user): the doc id pins uniqueness the
       // way answer ids do — a second flag from the same account is an
-      // update, and updates are denied. Nobody reads flags: they are
-      // anonymous to the circle AND to the moderation run, which sees
-      // only server-folded counts (docs/MODERATION.md, privacy posture).
+      // update, and updates are denied.
+      //
+      // Nobody reads flags, and this deny SURVIVES D98 because it is not
+      // about answer privacy: a reporter whose name is visible to the
+      // person they reported is a reporter who stops reporting. That is
+      // anti-retaliation, the same category as the logic seed's
+      // anti-cheat deny. Reversing it is a moderation decision, not a
+      // linkage one, and would want its own record.
       allow read: if false;
       allow create: if request.auth != null
         && request.resource.data.keys().hasOnly(["takeId", "gid", "uid", "at"])
@@ -372,10 +888,19 @@ service cloud.firestore {
         && request.resource.data.gid is string
         && get(/databases/$(database)/documents/v2_takes/$(request.resource.data.takeId)).data.gid
           == request.resource.data.gid
-        && request.auth.uid in
-          get(/databases/$(database)/documents/v2_groups/$(request.resource.data.gid)).data.memberUids
-        && !("hidden" in
-          get(/databases/$(database)/documents/v2_takes/$(request.resource.data.takeId)).data)
+        // Flaggable by any signed-in user, at every scope. The circle arm
+        // used to require membership on the reasoning that "a stranger
+        // cannot flag speech they cannot read" — since D98 a stranger can
+        // read every take, so the premise is gone and the gate with it.
+        // Reads the same boolean the take's own gate does. This was a
+        // presence test too, and it had to change with the field: once
+        // `hidden` is always present, `!("hidden" in …)` is false for every
+        // take and no flag could ever be created again. Safe as an equality
+        // here for the same reason it is necessary there — but note this
+        // one is a get() on ANOTHER document inside a create, not a query
+        // predicate, so it was never the leak (D65).
+        && get(/databases/$(database)/documents/v2_takes/$(request.resource.data.takeId))
+             .data.hidden == false
         && request.resource.data.at == request.time;
       allow update, delete: if false;
     }
@@ -390,6 +915,58 @@ service cloud.firestore {
     }
     match /v2_mod_verdicts/{takeId} {
       allow read, write: if false;
+    }
+
+    // ── "Suggest a question" (docs/NEXT-FUNCTIONALITY.md §6) ───────────
+    //
+    // Written only by suggestQuestionV2: the write path needs three
+    // checks rules cannot express — App Check attestation (D36), the
+    // per-uid daily budget, and the sold-inventory tripwire (QUESTION-
+    // FARM.md hard rule 6). The AUTHOR reads their own rows so the board
+    // can show "in review / picked / declined"; the pool is deliberately
+    // not world-readable in v1 — a public voting board is a second UGC
+    // surface with the takes' moderation load, and it gets its own
+    // decision if it ships. NOT a privacy floor (D98 retired those):
+    // an unreviewed free-text queue is a moderation surface, and the
+    // review instruments (fetchSuggestionsV2 / reviewSuggestionV2,
+    // operator-gated) are its only other door.
+    //
+    // A list query must filter uid == request.auth.uid or Firestore
+    // refuses it wholesale — the D65 value-test shape.
+    match /v2_suggestions/{sid} {
+      allow read: if request.auth != null
+        && resource.data.uid == request.auth.uid;
+      allow write: if false;
+    }
+
+    // ── Near-by-radius presence (D84) ──────────────────────────────
+    //
+    // One doc per opted-in user: a ~1 km grid cell and a freshness stamp,
+    // overwritten while the app is foreground. NO client read, ever.
+    //
+    // This deny SURVIVES D98, and the distinction matters: D98 publishes
+    // what people ANSWERED, not where their phone is standing right now.
+    // A readable (uid → cell) pair is a script following any account
+    // around town at cell resolution — a physical-safety problem, not a
+    // data-linkage feature, and nothing on the Mirror needs it. The only
+    // read path is nearbyCountV2, which returns a COUNT and nothing
+    // else. The cell regex is the precision cap in structural form: a
+    // "la_lo" integer grid id cannot carry anything finer than the 0.01°
+    // cell, however hard a client tries.
+    //
+    // Note the city ANCHOR on a profile is public now (D98) — "lives in
+    // Oslo" is published, "is at this corner of Oslo at 14:02" is not.
+    match /v2_presence/{uid} {
+      allow read: if false;
+      allow create, update: if request.auth != null
+        && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(["cell", "at"])
+        && request.resource.data.cell is string
+        && request.resource.data.cell.matches('^-?[0-9]{1,4}_-?[0-9]{1,5}$')
+        && request.resource.data.at == request.time;
+      // Opting out deletes the doc — "stop sharing" must not depend on a
+      // TTL sweep that runs later.
+      allow delete: if request.auth != null && request.auth.uid == uid;
     }
 
   }

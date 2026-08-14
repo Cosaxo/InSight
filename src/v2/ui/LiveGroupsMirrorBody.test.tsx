@@ -105,6 +105,23 @@ describe("LiveGroupsMirrorBody · states it refuses to fake", () => {
     expect(screen.getByRole("button", { name: /Start a group/i })).toBeTruthy();
   });
 
+  it("sends Start-a-group to the GROUP scope, not just the daily tab", () => {
+    // goTab("track") restores whatever daily scope was last open, so a user
+    // coming from the 1v1 tab landed back on 1v1 — a button that promises a
+    // group and delivers a duel. The pin is on the goNav key, because the
+    // difference is one argument and the wrong one still "navigates".
+    const goNav = vi.fn();
+    (window as unknown as { goNav?: (k: string) => void }).goNav = goNav;
+    try {
+      LIVE.social.groups = () => [];
+      render(<LiveGroupsMirrorBody />);
+      screen.getByRole("button", { name: /Start a group/i }).click();
+      expect(goNav).toHaveBeenCalledWith("track:group");
+    } finally {
+      delete (window as unknown as { goNav?: (k: string) => void }).goNav;
+    }
+  });
+
   it("renders nothing at all when LIVE is off", () => {
     // The spec layer picks the demo body in that case; drawing both, or
     // drawing this one against an empty store, is the failure.

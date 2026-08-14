@@ -21,8 +21,8 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "22"
           cache: npm
@@ -33,8 +33,25 @@ jobs:
       # --report-unused-disable-directives, so a disable comment that stops
       # being needed becomes an error rather than lingering.
       - run: npm run lint
-      # Static safety net for the spec layer's global-scope wiring.
+      # Static safety net for the spec layer's global-scope wiring — and,
+      # since rule 4, the ratchet on how much of that wiring is left. New
+      # cross-module coupling fails here; converting a module to real ESM
+      # lowers the number and fails here too, asking for the baseline to
+      # come down with it.
       - run: npm run check:globals
+      # The counts README.md quotes. Client/docs-only and deliberately NOT
+      # on backend-checks.yml: a stale figure in the README says nothing
+      # about whether a rules fix is safe to deploy, and this repo's rule is
+      # that nothing which cannot answer that question gets to block one.
+      - run: npm run check:figures
+      # The pulse console's collectors and renderer. Same placement rule and
+      # the same reason: this is tooling, not the product, and nothing it
+      # says bears on whether a rules fix is safe to deploy. Note this is the
+      # console's STRUCTURE — that its constants still match the source they
+      # claim to read, that a gap in the trail is drawn as a gap, that the
+      # scorecard path renders. The console's own operator gate (`pulse
+      # --check`) is a different thing and is on a schedule, not here (D47).
+      - run: npm run test:scripts
       # Accessibility, as a ratchet rather than a pass/fail sweep: the known
       # findings are recorded per file and this fails when a file gains one.
       # It is its own gate because `npm run lint` carries --max-warnings 0,
@@ -49,20 +66,104 @@ jobs:
       # and deliberately NOT on backend-checks.yml — nothing it says bears on
       # whether a rules fix is safe to deploy.
       - run: npm run check:labels
+      # A text field under 16px makes iOS zoom the whole app on focus, and
+      # the shell is position:fixed so nothing zooms it back — the app stays
+      # cropped across tabs and overlays until it is killed. `.search-field
+      # input` shipped at 15px and did exactly that (D105). Every gate above
+      # is blind to it: it is valid CSS, and the mount tests run in jsdom
+      # with vitest's CSS handling off, so the stylesheet size that caused it
+      # never resolves there at all. Client-only, off backend-checks.yml.
+      - run: npm run check:touch-zoom
+      # Every store that persists insight.* state must hear the purge
+      # (insight:local-purge, D51) — deleting the keys is only half the
+      # wipe when the in-memory copy writes itself back on the next
+      # mutation. lens-defs shipped exactly that hole (D50). Client-only,
+      # same argument as above for staying off backend-checks.yml.
+      - run: npm run check:purge
+      # The alert chain, from the log line a function emits to the policy
+      # that reads it. Every link fails the same silent way — the policy
+      # exists, the console is green, and it can never fire — which is the
+      # class check:deploy-targets and check:appcheck exist for.
+      #
+      # Here rather than on backend-checks.yml on that workflow's own rule:
+      # nothing this says bears on whether a rules fix is safe to deploy,
+      # and an alerting mistake must not be able to block an emergency one.
+      # It cannot reach Cloud Monitoring and does not pretend to — policies
+      # are applied by hand (D47), so this checks the half in the repo.
+      - run: npm run check:monitoring
+      # The privacy nutrition label exists twice on purpose: as JSON the
+      # metadata workflow prints as a form to copy across (Apple exposes no
+      # endpoint for it — D73), and as prose a human reads before approving
+      # it. Two copies of one attestation is the shape that produced the
+      # "collects no email or name via Google" error — the same false claim
+      # in three documents, because nothing compared them. Client/docs-only,
+      # same placement rule as check:figures above.
+      - run: npm run check:store-forms
+      # The retired privacy model, in copy a user reads. D106 swept the
+      # pre-D98 model out of the docs and declined to build a gate, on the
+      # correct ground that "the prose agrees with the rules" is not a
+      # static property. This is not that check: the retired model has a
+      # closed vocabulary (owner-only, k-anonymous, floored, a nameless
+      # take), and a fixed word list over an enumerated set of user-facing
+      # files is name-level, the same class as check:globals.
+      #
+      # It exists because D106's remedy was a discipline — name the
+      # user-facing pages in the decision — and the discipline missed the
+      # two surfaces it was not holding: design/store/listing.json, whose
+      # description had already been PUSHED to App Store Connect saying
+      # "Your answers are owner-only", and the privacy panel, which came
+      # out of D106's own rewrite calling world takes nameless. Same
+      # placement rule as check:store-forms above: client/docs-only, and
+      # deliberately off backend-checks.yml.
+      - run: npm run check:public-copy
+      # Every collection the rules grant access to is named in
+      # data-inventory.md — the document app-privacy.json derives the App
+      # Store privacy label from (D130). A name check, like check:globals.
+      #
+      # Same placement rule again, and here it is load-bearing rather than
+      # tidy: this reads firestore.rules, so it LOOKS like it belongs on
+      # backend-checks.yml. It must not go there. It says nothing about
+      # whether a rule is correct, and on that path a missing doc row would
+      # block an emergency rules fix — the exact trade CLAUDE.md names.
+      - run: npm run check:data-inventory
       # Five version numbers that must move together across three files.
       - run: npm run check:versions
+      # Near-duplicate questions across the banks (D63). Exact-dupe checks
+      # live in check:content on the deploy path; this is the similarity
+      # half, and it is content QUALITY, not backend correctness — so it
+      # belongs here and deliberately NOT on backend-checks.yml, where it
+      # could block an emergency rules fix over a reworded question.
+      - run: npm run check:neighbors
+      # The mechanical half of the question style guide (D97): measured
+      # form bounds, the place-scope tripwire (QUESTION-FARM hard rule 6),
+      # the provenance↔bank join the vintage rollup reads, and the id/bank
+      # headroom tripwires. Content QUALITY again — same placement rule as
+      # check:neighbors above, deliberately off the deploy path.
+      - run: npm run check:quality
       # The city catalogue is parsed at runtime and its names become
       # Firestore map keys. A malformed row or an over-long name would be
       # pickable in the profile and then absent from every breakdown.
       - run: npm run check:cities
+      # …and the four dimensions that DO have a closed vocabulary: the
+      # profile's <select>s and the trigger's BREAKDOWN_DIM_VOCAB must hold
+      # the same strings, or a level stops counting silently. Runs on the
+      # deploy path too (backend-checks.yml).
+      - run: npm run check:anchors
       # Same argument for the Pokédex catalogue: stored `pick` answers are
       # dex-number keys into this file, so a gap or reorder is an answer
       # resolving to the wrong species.
       - run: npm run check:pokedex
+      # …and for the elements catalogue, the other contiguous-key domain:
+      # stored answers are atomic numbers into public/elements.txt.
+      - run: npm run check:elements
       # …and for the QID-keyed catalogues (films/artists): the committed
       # files and the trigger's compiled-in key sets must agree exactly,
       # absence included — the gate runs before any catalogue exists (D15).
       - run: npm run check:catalogs
+      # The logic generator ships in two byte-identical copies (client +
+      # functions, D57) — drift means the server scores forms the client
+      # never rendered. backend-checks.yml runs it on the deploy path too.
+      - run: npm run check:logic-sync
       # The npm alias that keeps the iOS SwiftPM graph resolvable. Runs on
       # ubuntu with the rest of the cheap checks rather than waiting for the
       # macOS runner, where the same mistake costs four minutes and reports
@@ -76,27 +177,68 @@ jobs:
       # right side of that line: client-only, and it reds a PR rather than
       # a store submission.
       - run: npm run check:ios-facebook
+      # The iOS location declarations, against what the app actually does.
+      # ITMS-90683 (2.0.0 build 10) is the reason it exists: a missing
+      # purpose string for an API only a transitive SwiftPM dependency
+      # names, reported by email after the upload transferred and the build
+      # number was spent. Same side of the line as the two above.
+      - run: npm run check:ios-location
 
   typecheck-build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "22"
           cache: npm
       - run: npm ci
       # tsc -b (strict) + vite build — same gate a release goes through.
+      #
+      # The DSN is a dummy, and it is load-bearing. src/lib/sentry.ts reads
+      # import.meta.env.VITE_SENTRY_DSN; Vite replaces that with a literal at
+      # build time, so with the variable unset the whole
+      # import("@sentry/capacitor") branch is provably dead and rolldown drops
+      # it. This job claimed to be "the same gate a release goes through"
+      # while building 481 KB lighter than the release does — ios-release.yml
+      # sets the real DSN and never runs check:bundle, so nothing had ever
+      # weighed the shipping bundle. Any non-empty string restores the
+      # branch; no secret is needed, and nothing here runs the app.
+      # VITE_V2_LIVE is the second load-bearing variable here, added at D144
+      # for the same class of reason as the DSN and found the same way. It is
+      # what `ios-release.yml` builds with, and with it unset this job built
+      # 63 chunks where the shipping bundle has 67 — 12 KB less total and,
+      # the part that matters, **9 KB less in the eager graph**. So this job
+      # was gating a bundle nobody installs while the installed one sat over
+      # both ceilings, unmeasured, for every build through 14.
+      #
+      # CAPACITOR_BUILD is deliberately NOT set. It looks like the variable
+      # that makes a build "native", but it only waives vite.config.ts's
+      # reCAPTCHA-key guard and defines nothing — verified by building with
+      # each in isolation, where VITE_V2_LIVE alone reproduced the entire
+      # delta. Setting it here would waive a guard this job wants enforced.
       - run: npm run build
+        env:
+          VITE_SENTRY_DSN: https://ci@example.invalid/0
+          VITE_V2_LIVE: "true"
       # The bundle ships inside a native package, so the cost is parse and
       # eval rather than network — but nothing was watching it move.
+      #
+      # The variable is repeated rather than hoisted to job level on purpose:
+      # check:bundle now REFUSES to grade a build that was not made as the
+      # shipping one, and it reads the flag from its own environment. Passing
+      # it here is the assertion that these two steps agree about which
+      # bundle they are talking about — the exact thing that was untrue
+      # between this job and ios-release.yml.
       - run: npm run check:bundle
+        env:
+          VITE_V2_LIVE: "true"
 
   unit-tests:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "22"
           cache: npm
@@ -111,8 +253,8 @@ jobs:
     runs-on: ubuntu-latest
     continue-on-error: true
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "22"
           cache: npm
@@ -130,8 +272,8 @@ jobs:
   native-sync-drift:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "22"
           cache: npm
@@ -155,12 +297,12 @@ jobs:
   android-build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "22"
           cache: npm
-      - uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
         with:
           distribution: temurin
           java-version: "21"
@@ -168,7 +310,7 @@ jobs:
       # fewer third-party action to pin and audit, and the wrapper already
       # handles the Gradle distribution.
       - name: Cache Gradle
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             ~/.gradle/caches

@@ -6,13 +6,15 @@
 //   group  · next UTC day, if at least one member answered
 //   duo    · next UTC day, ONLY if both played (else no reveal, streak 0)
 //
-// Sealed answers live in each member's OWNER-ONLY answers subcollection
-// under composite ids (g_{gid}_{day}); nobody can read anyone else's
-// answer before the reveal doc exists, because nothing readable exists.
+// Sealed answers live under composite ids (g_{gid}_{day}). Since D98 a
+// user's world answers are readable by anyone, but DUEL answers are the
+// exception the rules still carve out — read is gated on `surface`, so
+// nobody sees a groupmate's pick before the reveal. That is a game
+// timing rule, not a privacy one; the reveal publishes the whole table.
 // Membership changes go through callables — client rules keep v2_groups
 // read-only — so invite codes, size caps and duo pairing can't be forged.
 
-import { getFirestore, FieldValue } from "firebase-admin/firestore";
+import { getFirestore, FieldValue, Timestamp } from "firebase-admin/firestore";
 import { getMessaging } from "firebase-admin/messaging";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { assertOperator, ENFORCE_APP_CHECK, LIGHT_CALLABLE, LIGHT_UNBOUNDED } from "./ops";
@@ -20,14 +22,27 @@ import { onSchedule } from "firebase-functions/v2/scheduler";
 import { logger } from "firebase-functions";
 import { randomBytes } from "node:crypto";
 import {
+  duelAggDelta,
+  foldDuelAgg,
   inviteCodeFromBytes,
+  normalizeHandle,
   isPlausibleFcmToken,
   nextFcmTokens,
   nextStreak,
   PENDING_DAYS_KEEP,
   prunePendingDays,
+  publishableDuelAgg,
+  revealQid,
+  revealVotes,
+  scanDays,
+  revealMembersFor,
   shouldReveal,
   utcDayKey,
+  votesMatchingQid,
+  presenceCellOk,
+  presenceNeighbors,
+  PRESENCE_TTL_MIN,
+  type DuelVoteLike,
 } from "./pure";
 
 const REGION = "us-central1";
@@ -55,6 +70,24 @@ async function assertMembershipCap(uid: string): Promise<void> {
   if (mine.size >= MEMBERSHIP_CAP) {
     throw new HttpsError("resource-exhausted", "too many groups on this account");
   }
+}
+
+// `memberJoinedAt` as plain millis, for revealMembersFor. Firestore hands
+// back Timestamps; pure.ts takes numbers so it stays firebase-free.
+//
+// A value that is not a Timestamp becomes `undefined`, which
+// revealMembersFor reads as "no recorded join time" and therefore includes —
+// the same answer it gives a member who predates the field. Both are the
+// permissive direction, and deliberately so: the alternative is a reveal its
+// own members cannot read.
+function joinedAtMs(raw: unknown): Record<string, number> {
+  const out: Record<string, number> = Object.create(null);
+  if (!raw || typeof raw !== "object") return out;
+  for (const [uid, v] of Object.entries(raw as Record<string, unknown>)) {
+    const ms = (v as { toMillis?: () => number })?.toMillis?.();
+    if (typeof ms === "number" && Number.isFinite(ms)) out[uid] = ms;
+  }
+  return out;
 }
 
 // Collision-checked (31^8 space, so retries are cosmically rare — but
@@ -120,6 +153,13 @@ export const createGroupV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforce
     ownerUid: uid,
     memberUids: [uid],
     memberNames: { [uid]: myName },
+    // When each member became one. Read only by revealGroupDay, to scope a
+    // day's reveal to the people who were in the group for that day — see
+    // revealMembersFor (pure.ts). Same map shape as memberNames, and it is
+    // removed on the same two paths (leaveGroupV2, deleteAccount phase 1c),
+    // because a uid left behind here is the shape D55 §8 records ownerUid
+    // having.
+    memberJoinedAt: { [uid]: FieldValue.serverTimestamp() },
     inviteCode: code,
     streak: 0,
     lastRevealDay: null,
@@ -152,6 +192,10 @@ export const joinGroupV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforceAp
     tx.update(ref, {
       memberUids: FieldValue.arrayUnion(uid),
       [`memberNames.${uid}`]: myName,
+      // Set on every join, including a rejoin after leaving: the days
+      // between are days this account was not in the group, and a stale
+      // earlier timestamp would hand them back.
+      [`memberJoinedAt.${uid}`]: FieldValue.serverTimestamp(),
     });
     return { gid: ref.id, name: snap.get("name") };
   });
@@ -186,6 +230,7 @@ export const leaveGroupV2 = onCall({ ...LIGHT_UNBOUNDED, region: REGION, enforce
     tx.update(ref, {
       memberUids: FieldValue.arrayRemove(uid),
       [`memberNames.${uid}`]: FieldValue.delete(),
+      [`memberJoinedAt.${uid}`]: FieldValue.delete(),
     });
     return "left" as const;
   });
@@ -199,13 +244,27 @@ export const leaveGroupV2 = onCall({ ...LIGHT_UNBOUNDED, region: REGION, enforce
 
 // ── push token registration ─────────────────────────────────────
 //
-// fcmTokens is where sendRevealPushes fans out to, and it used to be a
-// direct client merge onto the profile doc — so any signed-in script
-// could plant a token it did not own on its own account and route reveal
-// pushes to someone else's device (needs the victim's token, so the risk
-// was friend-scale; see SHIP-CHECKLIST "before-public hardening"). The
-// write now happens only here, and the ruleset refuses fcmTokens from
-// clients outright.
+// Push tokens live at v2_users/{uid}/push/tokens — a SERVER-ONLY
+// subdocument, not a field on the profile.
+//
+// They used to be a `fcmTokens` field on the profile itself, guarded by a
+// rules clause that refused client writes. That guard was sufficient
+// while the profile was owner-only. It stopped being sufficient at D98,
+// which opens the profile to every signed-in user so that a uid can be
+// resolved to a name: a readable profile with a token array on it hands
+// any script the exact fan-out list the reveal sender uses.
+//
+// A token is a CREDENTIAL, not an opinion, and D98 publishes opinions.
+// Moving it off the readable document is the structural version of that
+// distinction — it cannot be un-guarded by a future rule edit, because
+// there is no rule granting anyone read on this path at all.
+//
+// What binds token→uid is unchanged: App Check.
+//
+// One path, named once: the reveal sender and the dead-token pruner read
+// and write the same document, and a second spelling of it is how a
+// pruner ends up cleaning a list nobody sends to.
+export const pushDocPath = (uid: string): string => `v2_users/${uid}/push/tokens`;
 //
 // What binds token→uid: App Check. Behind enforcement the caller must be
 // the attested app, and inside the real app the only registration token
@@ -242,7 +301,7 @@ export const registerPushToken = onCall({ ...LIGHT_CALLABLE, region: REGION, enf
     logger.warn("registerPushToken: dry-run inconclusive, accepting", { code });
   }
   const db = getFirestore();
-  const ref = db.collection("v2_users").doc(uid);
+  const ref = db.doc(pushDocPath(uid));
   await db.runTransaction(async (tx) => {
     const snap = await tx.get(ref);
     const tokens = nextFcmTokens(snap.exists ? snap.get("fcmTokens") : [], token, prev, 10);
@@ -256,6 +315,18 @@ export const registerPushToken = onCall({ ...LIGHT_CALLABLE, region: REGION, enf
 interface RevealVote {
   optionIdx: number;
   guessIdx?: number;
+  /**
+   * The question THIS member answered — written only when it is not the one
+   * the day was published under (see revealQid). Absent is the overwhelming
+   * common case and means "the revealed question", which is also what every
+   * reveal written before D71 means, so old docs read correctly with no
+   * migration.
+   *
+   * Without it the reveal card had no way to know a member's answer belonged
+   * to a different prompt, and rendered it under the day's — an answer with
+   * someone's name on it, under a question they were never asked.
+   */
+  qid?: string;
 }
 
 async function revealGroupDay(
@@ -278,15 +349,37 @@ async function revealGroupDay(
   if ((await revealRef.get()).exists) return false;
 
   const answerId = `g_${gid}_${dayKey}`;
-  const snaps = await db.getAll(
+  // TWO reads, because only one of them wants whole documents.
+  //
+  // The profiles are read for exactly one field — displayName — but were
+  // fetched entire. (Push tokens used to be the second field and now live
+  // on their own server-only subdocument, fetched separately below.)
+  // A profile is client-writable and firestore.rules bounds only some of it:
+  // displayName and the anchors are capped, `testResults` only by KEY COUNT
+  // (8), and `anon`/`createdAt`/`updatedAt` not at all. So a member can
+  // legitimately hold a document approaching Firestore's 1 MiB, and
+  // LANES = 5 × GROUP_CAP = 32 puts up to 160 of them in flight on the
+  // 512 MiB instance. Worse, this runs BEFORE the shouldReveal gate below,
+  // and pendingDays is only pruned inside transactions that never run on an
+  // OOM — so the next scan hits the same page and dies the same way, wedging
+  // reveals for every group ordered after the fat ones by __name__.
+  //
+  // A fieldMask bounds the exposure regardless of what any rule permits,
+  // which is the reason to fix it here rather than by capping testResults:
+  // `anon` is equally unbounded and the next field added would be too.
+  const answerSnaps = await db.getAll(
     ...members.map((uid) => db.doc(`v2_users/${uid}/answers/${answerId}`)),
-    ...members.map((uid) => db.doc(`v2_users/${uid}`)),
   );
-  const answerSnaps = snaps.slice(0, members.length);
-  const profileSnaps = snaps.slice(members.length);
+  const profileSnaps = await db.getAll(
+    ...members.map((uid) => db.doc(`v2_users/${uid}`)),
+    { fieldMask: ["displayName"] },
+  );
+  // Push tokens, from the server-only subdocument (D98). Same member
+  // order as profileSnaps, so the fan-out below can pair them by index.
+  const pushSnaps = await db.getAll(...members.map((uid) => db.doc(pushDocPath(uid))));
 
   const votes: Record<string, RevealVote> = {};
-  let qid: string | null = null;
+  const qids: unknown[] = [];
   answerSnaps.forEach((s, i) => {
     if (!s.exists) return;
     const optionIdx = s.get("optionIdx");
@@ -295,8 +388,9 @@ async function revealGroupDay(
     const guessIdx = s.get("guessIdx");
     if (typeof guessIdx === "number") v.guessIdx = guessIdx;
     votes[members[i]] = v;
-    qid = qid || s.get("qid") || null;
+    qids.push(s.get("qid"));
   });
+  const qid = revealQid(qids);
   const played = Object.keys(votes).length;
 
   // The oldest day still worth carrying in pendingDays. Both settle paths
@@ -373,12 +467,18 @@ async function revealGroupDay(
   // the streak from a lastRevealDay that never advanced.
   let streak = 0;
   let didReveal = false;
+  // What the signal fold (below) needs from the committed reveal — captured
+  // here because the transaction's own locals die with it.
+  let aggQid: string | null = null;
+  let aggVotes: DuelVoteLike[] = [];
   await db.runTransaction(async (tx) => {
     // Reset per attempt: a transaction callback can run more than once,
     // and a retry that bails early must not inherit the previous try's
     // verdict.
     didReveal = false;
     streak = 0;
+    aggQid = null;
+    aggVotes = [];
     const [existing, gsnap, ...fresh] = await tx.getAll(
       revealRef,
       group.ref,
@@ -388,8 +488,11 @@ async function revealGroupDay(
     if (!gsnap.exists) return;        // last member left while we were reading
     if (gsnap.get("lastRevealDay") === dayKey) return;
 
-    const freshVotes: Record<string, RevealVote> = {};
-    let freshQid: string | null = null;
+    // qid alongside each vote, not just the winning one: the fold below has
+    // to know WHICH votes were cast on the question it is folding into, and
+    // the reveal doc has to tell the card which prompt to render each answer
+    // under.
+    const freshEntries: { uid: string; qid: unknown; vote: RevealVote }[] = [];
     fresh.forEach((s, i) => {
       if (!s.exists) return;
       const optionIdx = s.get("optionIdx");
@@ -397,14 +500,24 @@ async function revealGroupDay(
       const v: RevealVote = { optionIdx };
       const guessIdx = s.get("guessIdx");
       if (typeof guessIdx === "number") v.guessIdx = guessIdx;
-      freshVotes[members[i]] = v;
-      freshQid = freshQid || s.get("qid") || null;
+      freshEntries.push({ uid: members[i], qid: s.get("qid"), vote: v });
     });
+    const freshQid = revealQid(freshEntries.map((e) => e.qid));
+    // Stamped only on the odd ones out, so the common case — everyone on the
+    // same question — writes exactly the document it wrote before D71.
+    const freshVotes: Record<string, RevealVote> = revealVotes(freshEntries, freshQid);
     // An answer can only appear between the two reads, never vanish
     // (answers are create-only, D5) — so this can gain votes but not lose
     // them, and the reveal condition cannot flip back to false. Re-checked
     // anyway: the invariant is worth asserting rather than assuming.
     if (!shouldReveal(mode, Object.keys(freshVotes).length)) return;
+
+    aggQid = freshQid ?? qid;
+    // NOT Object.values(freshVotes) — only the votes cast on aggQid. When
+    // members' cached banks disagree (see revealQid), the others' votes are
+    // still published in the reveal below; they are simply not folded into a
+    // question they were not answers to.
+    aggVotes = votesMatchingQid(freshEntries, aggQid);
 
     tx.create(revealRef, {
       day: dayKey,
@@ -421,7 +534,22 @@ async function revealGroupDay(
       // It is the scan's membership, deliberately, not gsnap's fresher
       // one: these are the members whose answers were read, and a fresher
       // list could hand yesterday's reveal to someone who joined this
-      // morning — the exact leak D5's amendment closed.
+      // morning.
+      //
+      // That reasoning was right about the risk and wrong about the size of
+      // it. BOTH reads happen on D+1, so preferring one over the other only
+      // ever closed the seconds between them — while the scan runs `every
+      // 120 minutes`, so anyone joining between 00:00 UTC and it was a
+      // current member either way, and read a day they were not in the group
+      // for. What actually scopes this is WHEN each member joined, which is
+      // why the array below is filtered rather than taken (revealMembersFor,
+      // pure.ts; D55 §9).
+      //
+      // The filtered array can in principle come out empty — every member
+      // who played day D has left, and everyone now in the group joined
+      // after it. The reveal still writes, readable by nobody, which is the
+      // correct answer to "who was here for this day"; it also settles the
+      // day so the scan stops re-examining it.
       //
       // Never remove or rename this field without changing that rule in the
       // opposite order to the way the pair shipped: the field had to go live
@@ -430,7 +558,12 @@ async function revealGroupDay(
       // written in that window would carry no `members` and be permanently
       // unreadable by their own members). Dropping it means the rule stops
       // depending on it FIRST.
-      members,
+      members: revealMembersFor(
+        members,
+        joinedAtMs(gsnap.get("memberJoinedAt")),
+        dayKey,
+        Object.keys(freshVotes),
+      ),
       revealedAt: FieldValue.serverTimestamp(),
     });
     streak = nextStreak(
@@ -451,6 +584,23 @@ async function revealGroupDay(
   });
   if (!didReveal) return false;
 
+  // The duel question-level signal (D40 part 3): fold this reveal into the
+  // cross-group aggregate. OUTSIDE the reveal transaction on purpose — the
+  // aggregate doc is contended across every group revealing the same
+  // question, and a conflict there must retry this small fold, never the
+  // reveal, which is the product's one daily moment (and whose retry
+  // re-reads 2×members documents). The cost of the split, recorded: a
+  // crash between the reveal commit and this fold undercounts an advisory,
+  // floored aggregate by one reveal — the reveal doc's existence stops the
+  // scan from ever retrying the day, so the loss is permanent and
+  // accepted. ERROR-level so monitoring sees a systematic failure; one
+  // lost increment is survivable, a silent pattern is not.
+  try {
+    await foldDuelSignal(db, mode, aggQid, aggVotes);
+  } catch (err) {
+    logger.error(`[duel-signal] fold failed for ${gid}/${dayKey} (${aggQid}):`, err);
+  }
+
   // The one notification the product earns (Phase 5): the reveal is out.
   // Tokens are best-effort — failures never block the reveal itself.
   try {
@@ -458,8 +608,13 @@ async function revealGroupDay(
     // from the doc it lives on (otherwise fcmTokens grows one ghost per
     // reinstall/rotation forever and every reveal fans out to them).
     const tokenOwners = new Map<string, string[]>();
-    for (const s of profileSnaps) {
-      if (!s.exists || !Array.isArray(s.get("fcmTokens"))) continue;
+    // Paired BY INDEX against `members`, not by `s.id`. These snapshots
+    // are the push subdocuments (D98), so every one of their ids is the
+    // literal string "tokens" — the uid is only recoverable from the
+    // position, because getAll preserves the order it was handed.
+    pushSnaps.forEach((s, i) => {
+      const ownerUid = members[i];
+      if (!s.exists || !Array.isArray(s.get("fcmTokens"))) return;
       for (const t of s.get("fcmTokens") as string[]) {
         // Rules cap the array at 10 entries but never check what is IN
         // them, so a client can store ten ~1MB strings in its own
@@ -469,14 +624,14 @@ async function revealGroupDay(
         // everyone the day FCM changes its token shape.
         // NB: this bounds SEND cost, not what is stored.
         if (typeof t !== "string" || t.length < 20 || t.length > 4096) {
-          logger.warn(`[reveal] skipping malformed fcmToken on ${s.id}`);
+          logger.warn(`[reveal] skipping malformed fcmToken on ${ownerUid}`);
           continue;
         }
         const owners = tokenOwners.get(t) || [];
-        owners.push(s.id);
+        owners.push(ownerUid);
         tokenOwners.set(t, owners);
       }
-    }
+    });
     // CHUNKED, not truncated. This was `.slice(0, 64)`, which is below
     // what a full group can hold: GROUP_CAP (32) members x the 10 tokens
     // registerPushToken keeps each is 320. Past the 64th token — roughly
@@ -522,7 +677,7 @@ async function revealGroupDay(
         });
       }
       await Promise.all([...removals].map(([uid, dead]) =>
-        db.doc(`v2_users/${uid}`)
+        db.doc(pushDocPath(uid))
           .update({ fcmTokens: FieldValue.arrayRemove(...dead) })
           .catch(() => { /* best-effort cleanup */ }),
       ));
@@ -557,14 +712,102 @@ async function revealGroupDay(
 // Eventarc for the marker and would fail on timing rather than on
 // behaviour. The e2e exercises the indexed path in its own leg, with a
 // bounded wait, so both are covered for what each is actually for.
+// The duel signal's fold (D40 part 3). One small transaction per revealed
+// group-day: read the running private state and the question doc — two
+// reads; the option count bounds count folding, and a `pick` question
+// (options []) publishes plays/total only, because its optionIdx values
+// index each group's OWN member list and are meaningless summed across
+// groups. Fold, store the exact state privately, and rewrite the public
+// mirror on every fold (D98 — no floor, no cadence). Ids are
+// namespaced `duel-<qid>` in the same two collections the vote path uses:
+// v2_aggs_private stays client-opaque bookkeeping, v2_question_aggs is the
+// signed-in-readable exact mirror — which the scorecard's --fetch
+// already pages in full, so duels score with no new read path. Neither doc
+// carries a timestamp, matching the vote mirror's rule: a fresh timestamp
+// would date-stamp which scan window a group revealed in.
+async function foldDuelSignal(
+  db: FirebaseFirestore.Firestore,
+  mode: string,
+  qid: string | null,
+  votes: DuelVoteLike[],
+): Promise<void> {
+  if (!qid || !votes.length) return;
+  const privRef = db.collection("v2_aggs_private").doc(`duel-${qid}`);
+  const pubRef = db.collection("v2_question_aggs").doc(`duel-${qid}`);
+  const qRef = db.collection("v2_questions").doc(qid);
+  await db.runTransaction(async (tx) => {
+    const [privSnap, qSnap] = await tx.getAll(privRef, qRef);
+    // Rules admit a duel answer only against a bank qid, so a missing
+    // question doc means an operator deleted it since — skip rather than
+    // mint an aggregate keyed by a ghost.
+    if (!qSnap.exists) return;
+    const options = qSnap.get("options");
+    const delta = duelAggDelta(votes, mode, Array.isArray(options) ? options.length : 0);
+    const prev = privSnap.exists ? privSnap.data() : undefined;
+    const next = foldDuelAgg(prev, delta);
+    tx.set(privRef, next);
+    tx.set(pubRef, publishableDuelAgg(next));
+  });
+}
+
 type ScanMode = "indexed" | "full";
 
 async function runDuelReveals(
   dayKey?: string,
   mode: ScanMode = "indexed",
-): Promise<{ revealed: number; scanned: number; mode: ScanMode }> {
+): Promise<{ revealed: number; scanned: number; mode: ScanMode; days: string[] }> {
+  const days = scanDays(dayKey);
+  let revealedTotal = 0;
+  let scannedTotal = 0;
+  for (const day of days) {
+    const one = await runDuelRevealsForDay(day, mode, scannedTotal);
+    revealedTotal += one.revealed;
+    scannedTotal += one.scanned;
+    // The tripwire bounds the RUN, not a day — so a run that hits it stops
+    // asking about later days too, rather than paying the ceiling once per
+    // day in the window.
+    if (one.cappedOut) break;
+  }
+  // The heartbeat, and the only evidence the scheduled scan ran at all.
+  //
+  // Structured fields as well as the message, for the same reason the
+  // contention line in v2.ts carries them: the message is what a human
+  // greps, the fields are what a log-based metric selects on.
+  //
+  // `mode` is load-bearing here rather than decorative.
+  // monitoring/scheduledDuelReveals-silent.json alerts on the ABSENCE of
+  // this line, and runDuelReveals is shared by the schedule ("indexed") and
+  // revealDuelsNowV2's manual lever ("full"). Without a mode to filter on,
+  // an operator running the lever during an incident would emit the
+  // heartbeat and reset the absence timer — silencing the alert for the
+  // outage it was run to fix.
+  //
+  // ONCE PER RUN, not per day: a run now covers the whole pending window
+  // (scanDays), and one point per day would make the metric's rate a
+  // statement about the window size rather than about the scan running.
+  // `day` stays the day the schedule is primarily about — yesterday — so a
+  // filter on it means what it always did.
+  logger.info(
+    `[v2social] reveals for ${days.join(",")} (${mode}): ` +
+      `${revealedTotal} of ${scannedTotal} scanned`,
+    {
+      metric: "duel_reveal_run",
+      day: days[0],
+      days: days.length,
+      mode,
+      revealed: revealedTotal,
+      scanned: scannedTotal,
+    },
+  );
+  return { revealed: revealedTotal, scanned: scannedTotal, mode, days };
+}
+
+async function runDuelRevealsForDay(
+  yester: string,
+  mode: ScanMode,
+  scannedBefore: number,
+): Promise<{ revealed: number; scanned: number; cappedOut: boolean }> {
   const db = getFirestore();
-  const yester = dayKey || utcDayKey(-1);
   // PAGINATED either way. It used to fetch GROUP_SCAN_CAP docs and process
   // them one at a time; the 60s timeout bound at roughly 200-400 active
   // groups — an order of magnitude below the cap — so the function died
@@ -632,24 +875,28 @@ async function runDuelReveals(
     // the whole run, so "I have outgrown this" still gets said rather than
     // quietly becoming a multi-minute job.
     //
+    // Counted across the run's whole day window (`scannedBefore`), not per
+    // day: the ceiling is about how long one invocation may take, and a run
+    // now asks about PENDING_DAYS_KEEP days.
+    //
     // Note what the two modes mean here. In "full" it counts every group in
     // the collection, which is the number that used to grow with signups. In
     // "indexed" it counts groups that PLAYED that day, so hitting the ceiling
     // is a real statement about activity rather than about registration —
     // and the remedy named below is the one that is actually left.
-    if (scanned >= GROUP_SCAN_CAP) {
+    if (scannedBefore + scanned >= GROUP_SCAN_CAP) {
       logger.error(
-        `[v2social] scanned ${scanned} groups in one ${mode} run (ceiling ` +
-          `${GROUP_SCAN_CAP}). Groups beyond this are NOT checked this run; ` +
-          "their reveals land on a later run at best. Time to shard the scan " +
-          "by day-key suffix or move it to a queue.",
+        `[v2social] scanned ${scannedBefore + scanned} groups in one ${mode} run ` +
+          `(ceiling ${GROUP_SCAN_CAP}), stopping at ${yester}. Groups and days ` +
+          "beyond this are NOT checked this run; their reveals land on a later " +
+          "run at best. Time to shard the scan by day-key suffix or move it to " +
+          "a queue.",
       );
-      break;
+      return { revealed, scanned, cappedOut: true };
     }
   }
 
-  logger.info(`[v2social] reveals for ${yester} (${mode}): ${revealed} of ${scanned} scanned`);
-  return { revealed, scanned, mode };
+  return { revealed, scanned, cappedOut: false };
 }
 
 export const scheduledDuelReveals = onSchedule(
@@ -677,4 +924,244 @@ export const revealDuelsNowV2 = onCall({ region: REGION }, async (request) => {
   const dayKey = typeof request.data?.day === "string" ? request.data.day : undefined;
   const mode: ScanMode = request.data?.scan === "indexed" ? "indexed" : "full";
   return runDuelReveals(dayKey, mode);
+});
+
+// ── handles and invitations (D122) ──────────────────────────────────
+//
+// The four callables below replace the invite CODE as the way a circle
+// gains a member. The code stays — a share link is still the only way to
+// reach someone who has no account yet — but it stops being something a
+// person types, and joinGroupV2 stops being the only door.
+//
+// WHY THESE ARE CALLABLES AND NOT RULES. Both halves need a write that a
+// client cannot be trusted to make:
+//
+//   · A handle claim is TWO writes that must not interleave — take the
+//     new key, release the old one — and rules cannot express "atomic
+//     across two documents". A create-if-absent rule gets uniqueness
+//     right and renames wrong, which is worse than not having renames.
+//   · Accepting an invite appends to `memberUids`, and that array is what
+//     firestore.rules reads to decide who may see a group's sealed duel
+//     answers. A client-writable membership array is a client-writable
+//     ACL.
+
+/** How many invitations one account may send per hour. */
+const INVITES_PER_HOUR = 40;
+
+/**
+ * Claim (or change) this account's handle.
+ *
+ * `v2_handles/{handle}` is the registry: one document per taken handle,
+ * holding the uid. Uniqueness is the DOCUMENT ID, not a field — a
+ * transaction that creates it fails if someone else got there first, and
+ * no query or index is involved.
+ */
+export const claimHandleV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforceAppCheck: ENFORCE_APP_CHECK }, async (request) => {
+  if (!request.auth) throw new HttpsError("unauthenticated", "must be signed in");
+  const uid = request.auth.uid;
+  const handle = normalizeHandle(request.data?.handle);
+  if (!handle) throw new HttpsError("invalid-argument", "handle must be 3-20 chars: letters, digits, underscore");
+  const db = getFirestore();
+  const ref = db.collection("v2_handles").doc(handle);
+  const userRef = db.doc(`v2_users/${uid}`);
+  await db.runTransaction(async (tx) => {
+    const [snap, me] = await Promise.all([tx.get(ref), tx.get(userRef)]);
+    const prev = me.exists ? (me.get("handle") as string | undefined) : undefined;
+    if (snap.exists) {
+      // Re-claiming your own handle is a no-op rather than an error: the
+      // client retries on a dropped response, and a retry that reports
+      // "taken" about your own name is the worst possible message.
+      if (snap.get("uid") === uid) return;
+      throw new HttpsError("already-exists", "that handle is taken");
+    }
+    tx.set(ref, { uid, at: FieldValue.serverTimestamp() });
+    tx.set(userRef, { handle }, { merge: true });
+    // Release the old one LAST, inside the same transaction: if the take
+    // above fails the release must not have happened, or a failed rename
+    // costs the user the name they already had.
+    if (prev && prev !== handle) tx.delete(db.collection("v2_handles").doc(prev));
+  });
+  return { handle };
+});
+
+/**
+ * Invite an account to a circle, by uid.
+ *
+ * ANYONE MAY INVITE ANYONE (owner's call). That is a deliberate opening
+ * and it is worth stating what it does and does not expose: an invite
+ * carries the inviter's handle and the circle's name to someone who did
+ * not ask for either. It grants nothing — the invitee is not a member
+ * until they accept — and it reveals nothing about them to the inviter
+ * that D98 had not already published. The rate limit below is the whole
+ * defence against volume, and `hidden` on the invite is the recipient's.
+ */
+export const inviteToGroupV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforceAppCheck: ENFORCE_APP_CHECK }, async (request) => {
+  if (!request.auth) throw new HttpsError("unauthenticated", "must be signed in");
+  const uid = request.auth.uid;
+  const gid = String(request.data?.gid || "");
+  const to = String(request.data?.to || "");
+  if (!gid || !to) throw new HttpsError("invalid-argument", "gid and to required");
+  if (to === uid) throw new HttpsError("invalid-argument", "you are already here");
+  await assertInviteBudget(uid);
+  const db = getFirestore();
+  const gref = db.doc(`v2_groups/${gid}`);
+  const gsnap = await gref.get();
+  if (!gsnap.exists) throw new HttpsError("not-found", "no such circle");
+  const members: string[] = gsnap.get("memberUids") || [];
+  // Members only. An invite from a non-member would let anyone add anyone
+  // to any circle they can name the id of.
+  if (!members.includes(uid)) throw new HttpsError("permission-denied", "not a member");
+  if (members.includes(to)) throw new HttpsError("already-exists", "already a member");
+  const cap = gsnap.get("mode") === "duo" ? 2 : GROUP_CAP;
+  if (members.length >= cap) throw new HttpsError("resource-exhausted", "circle is full");
+  // The invitee must exist. Without this, a typo'd uid writes an invite
+  // nobody will ever see and the sender is told it worked.
+  const target = await db.doc(`v2_users/${to}`).get();
+  if (!target.exists) throw new HttpsError("not-found", "no such account");
+  await gref.collection("invites").doc(to).set({
+    // `to` is denormalised onto the doc because a collection-group query
+    // cannot filter on a document id — the same reason the follow graph
+    // carries it (data/circle.ts fetchFollowersOf).
+    to,
+    from: uid,
+    fromName: await callerName(uid, request.data?.displayName),
+    // The circle's NAME rides along so the invitee can read the invite
+    // without reading the group: v2_groups is member-gated because it
+    // carries inviteCode, and an invitee is by definition not a member yet.
+    groupName: gsnap.get("name") || "",
+    mode: gsnap.get("mode") || "group",
+    at: FieldValue.serverTimestamp(),
+  }, { merge: true });
+  return { ok: true };
+});
+
+async function assertInviteBudget(uid: string): Promise<void> {
+  const db = getFirestore();
+  const ref = db.collection("v2_ratelimits").doc(`invite_${uid}`);
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    const cutoff = Date.now() - 3600000;
+    const events: number[] = ((snap.exists && snap.get("events")) || [])
+      .filter((t: number) => t > cutoff);
+    if (events.length >= INVITES_PER_HOUR) {
+      throw new HttpsError("resource-exhausted", "too many invitations — try later");
+    }
+    events.push(Date.now());
+    tx.set(ref, { events, expireAt: new Date(Date.now() + 2 * 3600000) });
+  });
+}
+
+/**
+ * Accept an invitation — the only client-reachable path into memberUids
+ * besides the code.
+ */
+export const acceptGroupInviteV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforceAppCheck: ENFORCE_APP_CHECK }, async (request) => {
+  if (!request.auth) throw new HttpsError("unauthenticated", "must be signed in");
+  const uid = request.auth.uid;
+  const gid = String(request.data?.gid || "");
+  if (!gid) throw new HttpsError("invalid-argument", "gid required");
+  await assertMembershipCap(uid);
+  const db = getFirestore();
+  const gref = db.doc(`v2_groups/${gid}`);
+  const iref = gref.collection("invites").doc(uid);
+  const myName = await callerName(uid, request.data?.displayName);
+  const out = await db.runTransaction(async (tx) => {
+    const [gsnap, isnap] = await Promise.all([tx.get(gref), tx.get(iref)]);
+    // The invite is the authorisation. Without this check the callable is
+    // "join any circle by id" with extra steps.
+    if (!isnap.exists) throw new HttpsError("permission-denied", "no invitation");
+    if (!gsnap.exists) throw new HttpsError("not-found", "no such circle");
+    const members: string[] = gsnap.get("memberUids") || [];
+    if (members.includes(uid)) { tx.delete(iref); return { gid, name: gsnap.get("name") }; }
+    const cap = gsnap.get("mode") === "duo" ? 2 : GROUP_CAP;
+    // Checked INSIDE the transaction: two people accepting the last seat
+    // of a duo at once is the one race this callable can actually lose.
+    if (members.length >= cap) throw new HttpsError("resource-exhausted", "circle is full");
+    tx.update(gref, {
+      memberUids: FieldValue.arrayUnion(uid),
+      [`memberNames.${uid}`]: myName,
+      // Set on accept, not on invite: the days before you accepted are
+      // days you were not in the circle, and revealMembersFor scopes a
+      // reveal to the people who were in it that day.
+      [`memberJoinedAt.${uid}`]: FieldValue.serverTimestamp(),
+    });
+    tx.delete(iref);
+    return { gid, name: gsnap.get("name") };
+  });
+  return out;
+});
+
+/**
+ * Decline — and it is a plain delete, with nothing written back.
+ *
+ * The inviter is told nothing. A "declined" state would make refusing
+ * someone a message you have to send them, which is the thing that makes
+ * people accept invitations they do not want.
+ */
+export const declineGroupInviteV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforceAppCheck: ENFORCE_APP_CHECK }, async (request) => {
+  if (!request.auth) throw new HttpsError("unauthenticated", "must be signed in");
+  const gid = String(request.data?.gid || "");
+  if (!gid) throw new HttpsError("invalid-argument", "gid required");
+  const db = getFirestore();
+  await db.doc(`v2_groups/${gid}`).collection("invites").doc(request.auth.uid).delete();
+  return { ok: true };
+});
+
+// ── Near by radius: the presence count (D84) ────────────────────────
+//
+// The one read path for presence, and deliberately the only one: presence
+// docs are `allow read: if false` to every client, because a readable
+// (uid → cell) pair is the D2 leak again — a script could follow any uid
+// around town at cell resolution. What the world may know is a NUMBER:
+// how many opted-in phones, foreground within the last PRESENCE_TTL_MIN
+// minutes, sit in the caller's cell or one of its eight neighbors —
+// excluding the caller themself, so "just you here" reads as 0 rather
+// than a phantom 1.
+//
+// The count is exact (D98 — there is no floor left to apply). It used to
+// return `tooFew` under AGG_MIN_N; nothing does now, and the client's
+// "a few people" branch goes with it.
+export const nearbyCountV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforceAppCheck: ENFORCE_APP_CHECK }, async (request) => {
+  if (!request.auth) throw new HttpsError("unauthenticated", "must be signed in");
+  const cell = request.data?.cell;
+  if (!presenceCellOk(cell)) throw new HttpsError("invalid-argument", "cell must be a la_lo grid id");
+  const db = getFirestore();
+  const cells = presenceNeighbors(cell as string);
+  const freshAfter = Timestamp.fromMillis(Date.now() - PRESENCE_TTL_MIN * 60_000);
+  // COUNTED, NOT FETCHED. This used to `.get()` the neighborhood and take
+  // `snap.docs.length`, which materialises — and pays a billed read for —
+  // every presence document in 6-9 cells purely to arrive at an integer.
+  // Firestore bills an aggregation at roughly one read per 1,000 index
+  // entries scanned, so a crowded neighborhood costs ~1 read instead of
+  // one per person, and the cost stops being linear in local density.
+  //
+  // That linearity was the problem, not the absolute number: every client
+  // with Near on beats this callable every PRESENCE_BEAT_MS (4 minutes),
+  // so a dense cell charged (people nearby) x (beats) — the same quantity
+  // twice, which is quadratic in exactly the situation the feature is for.
+  // A festival is the worst case and the one it is built to serve.
+  //
+  // No limit() is needed now and one would be wrong: an aggregation's cost
+  // is already sub-linear, and capping it would silently under-report the
+  // crowd rather than bound anything worth bounding.
+  const agg = await db.collection("v2_presence")
+    .where("cell", "in", cells)
+    .where("at", ">", freshAfter)
+    .count()
+    .get();
+  const total = agg.data().count;
+  // Self-exclusion, still exact. The count above cannot filter, so the
+  // caller's own row is looked up directly: one read rather than the whole
+  // neighborhood. In the app's own flow this is always a hit — runBeat
+  // writes `v2_presence/{uid}` and awaits it before calling — but the
+  // callable is reachable with any cell, so "is my row actually in this
+  // neighborhood, and fresh?" is asked rather than assumed. Subtracting a
+  // blind 1 would under-count by one for any caller who is not there.
+  const own = await db.collection("v2_presence").doc(request.auth.uid).get();
+  const ownAt = own.get("at") as Timestamp | undefined;
+  const countsSelf = own.exists
+    && cells.includes(own.get("cell") as string)
+    && !!ownAt && ownAt.toMillis() > freshAfter.toMillis();
+  const n = Math.max(0, total - (countsSelf ? 1 : 0));
+  return { n };
 });

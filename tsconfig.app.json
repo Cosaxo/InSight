@@ -4,13 +4,24 @@
     "target": "es2023",
     "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "module": "esnext",
-    "types": ["vite/client"],
+    /* "node" is for the test files that read fixtures off disk (node:fs,
+       __dirname) — a dozen of them under src. It was here implicitly all
+       along: vitest 3's own typings leaked @types/node ambients into any
+       file importing vitest, and vitest 4 stopped, which is how the leak
+       became visible. Browser code abusing a node global still fails
+       where it always did — vite's build has no node builtins to give
+       it. */
+    "types": ["vite/client", "node"],
     "skipLibCheck": true,
     "strict": true,
 
     /* Bundler mode */
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
+    /* lens-content.test.ts imports content/lenses.json to bind the seeded
+       bank's source to IS_LENSES (D91) — Vite and vitest resolve JSON
+       natively, this line is what lets tsc -b agree. */
+    "resolveJsonModule": true,
     "verbatimModuleSyntax": true,
     "moduleDetection": "force",
     "noEmit": true,

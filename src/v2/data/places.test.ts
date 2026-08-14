@@ -1,7 +1,7 @@
 // Pins the catalogue contract. Two of these exist because the failure mode
 // is silent: a place that parses wrong, or a key that does not round-trip,
 // produces a profile that looks saved and a breakdown that never counts it.
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import {
@@ -10,7 +10,9 @@ import {
   parseCatalogue,
   parsePlaceKey,
   placeKey,
+  regionHint,
   searchPlaces,
+  zoneCountry,
   type Place,
 } from "./places";
 
@@ -121,6 +123,101 @@ describe("searchPlaces", () => {
   });
 });
 
+describe("zoneCountry / regionHint — the blank-state hint (D90)", () => {
+  const places = parseCatalogue(SAMPLE);
+
+  it("names the country whose principal city the clock zone carries", () => {
+    expect(zoneCountry(places, "Europe/Oslo")).toBe("NO");
+    expect(zoneCountry(places, "Europe/Stockholm")).toBe("SE");
+  });
+
+  it("reads underscores and nested zones the way IANA writes them", () => {
+    const p: Place[] = [
+      { name: "New York", country: "US", popK: 8500, lat: 40.71, lon: -74.01 },
+      { name: "Buenos Aires", country: "AR", popK: 15000, lat: -34.61, lon: -58.38 },
+    ];
+    expect(zoneCountry(p, "America/New_York")).toBe("US");
+    expect(zoneCountry(p, "America/Argentina/Buenos_Aires")).toBe("AR");
+  });
+
+  it("matches through diacritics, the way the search does", () => {
+    const p: Place[] = [{ name: "São Paulo", country: "BR", popK: 12325, lat: -23.55, lon: -46.63 }];
+    expect(zoneCountry(p, "America/Sao_Paulo")).toBe("BR");
+  });
+
+  it("matches the word-boundary prefix IANA shortens to", () => {
+    // "America/New_York" names New York City; "Asia/Kuwait" Kuwait City.
+    const p: Place[] = [
+      { name: "New York City", country: "US", popK: 8175, lat: 40.71, lon: -74.01 },
+      { name: "Kuwait City", country: "KW", popK: 60, lat: 29.37, lon: 47.98 },
+    ];
+    expect(zoneCountry(p, "America/New_York")).toBe("US");
+    expect(zoneCountry(p, "Asia/Kuwait")).toBe("KW");
+  });
+
+  it("requires the word break — London must not match Londonderry", () => {
+    const p: Place[] = [{ name: "Londonderry", country: "GB", popK: 85, lat: 55, lon: -7.31 }];
+    expect(zoneCountry(p, "Europe/London")).toBe("");
+  });
+
+  it("prefers the exact name over a prefixed one, whatever the populations", () => {
+    // The zone string here is synthetic — the SHAPE is what is under test:
+    // when a zone names a city the catalogue has verbatim, a larger city
+    // that merely starts the same must not steal the hint.
+    const p: Place[] = [
+      { name: "Victoria Falls", country: "ZW", popK: 900, lat: -17.93, lon: 25.83 },
+      { name: "Victoria", country: "SC", popK: 26, lat: -4.62, lon: 55.45 },
+    ];
+    expect(zoneCountry(p, "Indian/Victoria")).toBe("SC");
+  });
+
+  it("takes the most populous namesake — IANA names the principal city", () => {
+    const p: Place[] = [
+      { name: "Dublin", country: "US", popK: 50, lat: 40.1, lon: -83.11 },
+      { name: "Dublin", country: "IE", popK: 1256, lat: 53.35, lon: -6.26 },
+    ];
+    expect(zoneCountry(p, "Europe/Dublin")).toBe("IE");
+  });
+
+  it("returns '' rather than guessing when the zone names no catalogue city", () => {
+    for (const z of ["UTC", "Etc/UTC", "Asia/Kathmandu", ""]) {
+      expect(zoneCountry(places, z), z).toBe("");
+    }
+  });
+
+  it("ranks the hint country first in the blank state, world order after", () => {
+    expect(searchPlaces(places, "", 40, "NO").map((x) => x.name)).toEqual([
+      "Oslo", "Bergen", "Stockholm", "Malmö",
+    ]);
+  });
+
+  it("never lets the hint outrank a typed query", () => {
+    // Typing is the user answering for themselves: "malm" under a
+    // Norwegian clock still returns Malmö alone.
+    expect(searchPlaces(places, "malm", 40, "NO").map((x) => x.name)).toEqual(["Malmö"]);
+  });
+
+  it("regionHint reads the device clock, and only the device clock", () => {
+    const spy = vi.spyOn(Intl.DateTimeFormat.prototype, "resolvedOptions")
+      .mockReturnValue({ timeZone: "Europe/Oslo" } as Intl.ResolvedDateTimeFormatOptions);
+    try {
+      expect(regionHint(places)).toBe("NO");
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it("regionHint is '' where Intl cannot say — the countryName guard again", () => {
+    const spy = vi.spyOn(Intl.DateTimeFormat.prototype, "resolvedOptions")
+      .mockImplementation(() => { throw new Error("ancient WebView"); });
+    try {
+      expect(regionHint(places)).toBe("");
+    } finally {
+      spy.mockRestore();
+    }
+  });
+});
+
 describe("nearestPlace", () => {
   const places = parseCatalogue(SAMPLE);
 
@@ -212,6 +309,23 @@ describe("the shipped catalogue", () => {
   it("finds the cities a first-time user is most likely to type", () => {
     for (const q of ["oslo", "new york", "sao paulo", "zurich", "malmo"]) {
       expect(searchPlaces(places, q, 5).length, q).toBeGreaterThan(0);
+    }
+  });
+
+  it("turns the common clock zones into their countries (D90)", () => {
+    // Against the real vocabulary, because these strings come from devices,
+    // not fixtures: if an upstream rename ever drops one of these cities,
+    // the hint silently stops working for that country — and this says so.
+    for (const [zone, cc] of [
+      ["Europe/Oslo", "NO"],
+      ["Europe/Stockholm", "SE"],
+      ["America/New_York", "US"], // the catalogue says "New York City"
+      ["America/Sao_Paulo", "BR"],
+      ["Asia/Tokyo", "JP"],
+      ["Asia/Ho_Chi_Minh", "VN"], // "Ho Chi Minh City"
+      ["Europe/Dublin", "IE"], // two real Dublins; the namesake rule picks Ireland's
+    ] as const) {
+      expect(zoneCountry(places, zone), zone).toBe(cc);
     }
   });
 });

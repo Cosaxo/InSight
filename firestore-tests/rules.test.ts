@@ -2,17 +2,23 @@
 //   npm run test:rules
 // (which wraps `firebase emulators:exec --only firestore "vitest run …"`).
 //
-// These lock down the access decisions the product's privacy claims rest
-// on: what the default (anonymous) user can reach, owner-only create-only
-// answers, k-floored aggregates whose exact counts stay server-side,
-// member-only groups, duel answers sealed until a reveal doc exists, and
-// the retired v1 surface staying closed. They sit outside src/ so the app
-// build never compiles them.
+// These lock down the access model D98 left behind: reads are OPEN — any
+// signed-in user may read any answer, profile and exact aggregate — and
+// writes are not. So most of what follows pins the WRITE side
+// (create-only answers, the one legal edit shape, server-only
+// membership), plus the four things still closed for reasons that are not
+// about answer privacy (the logic answer key, flag authorship, the
+// presence cell, push tokens), plus duel answers staying sealed until a
+// reveal doc exists — game timing, not audience.
+//
+// Reading this file after D98: an `assertSucceeds` on someone else's
+// document is usually the POINT, not a hole. The holes are writes.
+// They sit outside src/ so the app build never compiles them.
 
 import { readFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { afterAll, beforeAll, beforeEach, describe, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
   assertFails,
   assertSucceeds,
@@ -25,9 +31,12 @@ import {
   doc,
   getDoc,
   getDocs,
+  query,
+  where,
   setDoc,
   updateDoc,
   deleteDoc,
+  deleteField,
   serverTimestamp,
   type Firestore,
 } from "firebase/firestore";
@@ -97,18 +106,31 @@ const dayOffset = (n: number): string =>
 // honest inventory of the app's outer trust boundary, and the place to look
 // when deciding whether a new `request.auth != null` grant is safe.
 describe("the default user (anonymous auth) — reachable surface", () => {
-  it("cannot read another user's v2 answers, profile, or private aggregates", async () => {
+  it("reads another user's answers and profile — and still not the server internals", async () => {
+    // The D98 inversion, in the one test that most directly measured the
+    // old model. An ANONYMOUS session reads a stranger's answer and
+    // profile: that is deliberate, and it is what every named surface in
+    // the app is built on. Anonymous rather than a named account on
+    // purpose — anonymous-first auth (D3) means "any signed-in user" and
+    // "anyone who opens the app" are the same set, and this is the file
+    // that should say so out loud.
     await seed(async (db) => {
       await setDoc(doc(db, "v2_users", OWNER), { displayName: "Owner" });
       await setDoc(doc(db, "v2_users", OWNER, "answers", "daily-000"), {
         qid: "daily-000", surface: "daily", optionIdx: 1,
       });
       await setDoc(doc(db, "v2_aggs_private", "daily-000"), { counts: { "0": 3 } });
+      await setDoc(doc(db, "v2_users", OWNER, "push", "tokens"), { fcmTokens: ["tok"] });
     });
     const db = asAnonAuth();
-    await assertFails(getDoc(doc(db, "v2_users", OWNER, "answers", "daily-000")));
-    await assertFails(getDoc(doc(db, "v2_users", OWNER)));
+    await assertSucceeds(getDoc(doc(db, "v2_users", OWNER, "answers", "daily-000")));
+    await assertSucceeds(getDoc(doc(db, "v2_users", OWNER)));
+    // …but the trigger's working state stays shut (no secrets in it since
+    // D98 — it is simply nobody's business and has no reader), and the
+    // push tokens moved off the now-public profile precisely so that
+    // opening that read did not publish a credential.
     await assertFails(getDoc(doc(db, "v2_aggs_private", "daily-000")));
+    await assertFails(getDoc(doc(db, "v2_users", OWNER, "push", "tokens")));
   });
 
   it("reads the public v2 surface it needs to run", async () => {
@@ -279,10 +301,26 @@ describe("v2 questions + aggregates", () => {
     await assertFails(getDoc(doc(asUser(OWNER), "v2_agg_events", "evt1")));
     await assertFails(setDoc(doc(asUser(OWNER), "v2_agg_events", "evt2"), { qid: "x" }));
   });
+
+  it("velocity-scan state (D54) is opaque to clients", async () => {
+    // The scan's state doc holds per-question daily counts below the
+    // published floor — readable, it would be a side channel around
+    // AGG_MIN_N; writable, an attacker could blind the scan to their
+    // own burst by inflating its baselines.
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_velocity", "state"), {
+        lastScanAt: 1,
+        days: { "2026-08-05": { "daily-000": 3 } },
+      });
+    });
+    await assertFails(getDoc(doc(asUser(OWNER), "v2_velocity", "state")));
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_velocity", "state"), { lastScanAt: 0 }));
+    await assertFails(deleteDoc(doc(asUser(OWNER), "v2_velocity", "state")));
+  });
 });
 
 describe("v2 profile", () => {
-  it("owner-only read/write with validated fields", async () => {
+  it("world-readable, owner-written, with validated fields", async () => {
     const mine = doc(asUser(OWNER), "v2_users", OWNER);
     await assertSucceeds(setDoc(mine, {
       displayName: "Mira",
@@ -290,7 +328,10 @@ describe("v2 profile", () => {
       anon: true,
     }));
     await assertSucceeds(getDoc(mine));
-    await assertFails(getDoc(doc(asUser(STRANGER), "v2_users", OWNER)));
+    // D98: a stranger READS the profile — that is how a uid on an answer
+    // becomes a name and a cohort on screen — and still cannot WRITE it.
+    // The asymmetry is the whole shape of the new model.
+    await assertSucceeds(getDoc(doc(asUser(STRANGER), "v2_users", OWNER)));
     await assertFails(setDoc(doc(asUser(STRANGER), "v2_users", OWNER), { displayName: "x" }));
     // unknown top-level field
     await assertFails(setDoc(mine, { displayName: "Mira", secretScore: 9 }));
@@ -303,38 +344,112 @@ describe("v2 profile", () => {
     await assertFails(setDoc(mine, { testResults: "hacked" }, { merge: true }));
   });
 
-  // fcmTokens is the reveal sender's fan-out list. A client-writable list
-  // could carry a STOLEN token — reveal pushes routed to a device that never
-  // joined — so registration lives behind the registerPushToken callable and
-  // the ruleset refuses client mutation. Every case here is one of the ways
-  // that guarantee could quietly break.
-  it("clients cannot introduce or change fcmTokens — only the callable can", async () => {
+  // Push tokens are the reveal sender's fan-out list, and a token is a
+  // CREDENTIAL — whoever holds it can push to that device. They used to be
+  // an `fcmTokens` field on this profile, guarded by a rules clause that
+  // refused client writes. That guard was sufficient only while the profile
+  // was owner-readable; D98 opened the read, so the field MOVED to
+  // v2_users/{uid}/push/tokens, which no rule grants anyone.
+  //
+  // Structural rather than guarded, on purpose: a field protected by a rule
+  // is one edit away from being readable, a path with no read grant is not.
+  // These cases pin both halves — the door is shut, and the profile did not
+  // keep a back way in.
+  it("push tokens are unreachable, and cannot be smuggled onto the profile", async () => {
     const mine = doc(asUser(OWNER), "v2_users", OWNER);
-    // introducing it on create…
+
+    // The subcollection: no read, no write, for anyone — including the owner.
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_users", OWNER, "push", "tokens"), { fcmTokens: ["tok-a"] });
+    });
+    await assertFails(getDoc(doc(asUser(OWNER), "v2_users", OWNER, "push", "tokens")));
+    await assertFails(getDoc(doc(asUser(STRANGER), "v2_users", OWNER, "push", "tokens")));
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_users", OWNER, "push", "tokens"),
+      { fcmTokens: ["tok-evil"] }));
+
+    // And the field cannot come BACK onto the profile, which is the
+    // regression that would silently undo the move: `fcmTokens` is no
+    // longer in the hasOnly list, so any write carrying it is refused
+    // whatever else it says.
     await assertFails(setDoc(mine, { displayName: "Mira", fcmTokens: ["tok-a"] }));
-    // …or via merge onto an existing doc without the field
     await assertSucceeds(setDoc(mine, { displayName: "Mira" }));
     await assertFails(setDoc(mine, { fcmTokens: ["tok-a"] }, { merge: true }));
+  });
 
-    // the callable writes with the admin SDK, which bypasses rules — seed()
-    // is the same privilege
+  // testResults.logic is the VERIFIED logic score (D57): written by
+  // logicSubmitV2 after server-side scoring. A client-writable copy would
+  // be a forgeable one — same threat shape as fcmTokens, so the rule and
+  // this test mirror that block case for case.
+  it("clients cannot introduce or change testResults.logic — only the callable can", async () => {
+    const mine = doc(asUser(OWNER), "v2_users", OWNER);
+    // introducing it on create…
+    await assertFails(setDoc(mine, {
+      displayName: "Mira",
+      testResults: { logic: { pctile: 94, verified: true } },
+    }));
+    // …or via merge onto an existing doc without the key
+    await assertSucceeds(setDoc(mine, { displayName: "Mira" }));
+    await assertFails(setDoc(mine, {
+      testResults: { logic: { pctile: 94 } },
+    }, { merge: true }));
+
+    // the callable's write (admin SDK, rules bypassed)
     await seed(async (db) => {
-      await setDoc(doc(db, "v2_users", OWNER), { fcmTokens: ["tok-a"] }, { merge: true });
+      await setDoc(doc(db, "v2_users", OWNER), {
+        testResults: { logic: { v: 2, verified: true, pctile: 62, marks: [true] } },
+      }, { merge: true });
     });
 
-    // THE TRAP this test exists for: rules see request.resource.data as the
-    // POST-merge doc, so after the callable has written fcmTokens, an
-    // ordinary profile merge carries the field along unchanged. If the rule
-    // banned presence instead of mutation, this write would fail and the
-    // profile would be bricked for every push-registered user.
-    await assertSucceeds(setDoc(mine, { displayName: "Mira O." }, { merge: true }));
+    // the POST-merge trap, same as fcmTokens: other test results must
+    // still be writable while the server-written logic key rides along
+    // unchanged — banning presence instead of mutation would brick every
+    // core-test sync for verified users.
+    await assertSucceeds(setDoc(mine, {
+      testResults: { big5: { dims: [], title: "Big Five" } },
+    }, { merge: true }));
 
-    // mutation is still refused: replacing, growing, or clearing the list
-    await assertFails(setDoc(mine, { fcmTokens: ["tok-evil"] }, { merge: true }));
-    await assertFails(setDoc(mine, { fcmTokens: ["tok-a", "tok-evil"] }, { merge: true }));
-    await assertFails(setDoc(mine, { fcmTokens: [] }, { merge: true }));
-    // and writing the SAME value back is allowed (a no-op, not a change)
-    await assertSucceeds(setDoc(mine, { fcmTokens: ["tok-a"] }, { merge: true }));
+    // mutation is still refused: replacing or clearing the verified score
+    await assertFails(setDoc(mine, {
+      testResults: { logic: { v: 2, verified: true, pctile: 99, marks: [true] } },
+    }, { merge: true }));
+    await assertFails(setDoc(mine, { testResults: { logic: null } }, { merge: true }));
+
+    // DELETING your own verified score is allowed on purpose (it is your
+    // doc; the cooldown and the norms count live in the server-only
+    // attempt doc, so deletion resets nothing) — but the door does not
+    // swing back: reintroducing the key after a delete is a create against
+    // a null prior, and that is forgery, refused.
+    await assertSucceeds(updateDoc(mine, { "testResults.logic": deleteField() }));
+    await assertFails(setDoc(mine, {
+      testResults: { logic: { v: 2, verified: true, pctile: 94, marks: [true] } },
+    }, { merge: true }));
+  });
+
+  // The D57 server-side surfaces around the verified score.
+  it("logic attempt docs are opaque even to their owner; norms mirror is read-only", async () => {
+    await seed(async (db) => {
+      // the attempt doc holds the SEED — the answer key, until scored
+      await setDoc(doc(db, "v2_logic_attempts", OWNER), { seed: 7, gv: 2, status: "open" });
+      await setDoc(doc(db, "v2_logic_norms_private", "global"), { n: 3, b12: 3 });
+      await setDoc(doc(db, "v2_logic_norms", "global"), { n: 25, b7: 6 });
+      // the D62 difficulty stats ride the same collections, so the same
+      // rules cover them — asserted so a future path rename cannot
+      // silently split the two
+      await setDoc(doc(db, "v2_logic_norms_private", "families"), { n: 3, f_dist2Xor_seen: 3 });
+      await setDoc(doc(db, "v2_logic_norms", "families"), { n: 25, f_dist2Xor_seen: 20 });
+    });
+    // not even the owner reads their attempt — an owner-readable seed is a
+    // devtools answer key mid-attempt
+    await assertFails(getDoc(doc(asUser(OWNER), "v2_logic_attempts", OWNER)));
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_logic_attempts", OWNER), { status: "scored" }));
+    // exact counts stay server-side; the public mirror reads, never writes
+    await assertFails(getDoc(doc(asUser(OWNER), "v2_logic_norms_private", "global")));
+    await assertSucceeds(getDoc(doc(asUser(OWNER), "v2_logic_norms", "global")));
+    await assertFails(getDoc(doc(asUser(OWNER), "v2_logic_norms_private", "families")));
+    await assertSucceeds(getDoc(doc(asUser(OWNER), "v2_logic_norms", "families")));
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_logic_norms", "families"), { n: 999 }));
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_logic_norms", "global"), { n: 999 }));
+    await assertFails(getDoc(doc(asSignedOut(), "v2_logic_norms", "global")));
   });
 
   // The client builds this exact payload (ANCHOR_FIELDS in live.ts, filled
@@ -359,7 +474,87 @@ describe("v2 profile", () => {
   });
 });
 
-describe("v2 answers (owner-only, create-only — D5)", () => {
+describe("the daily pulse (D139): one answer per day, day-keyed like a duel's", () => {
+  const BASE = "pulse-pace";
+  const seedPulse = () => seed(async (db) => {
+    await setDoc(doc(db, "v2_questions", BASE), {
+      surface: "pulse", seq: 0, type: "pulse", prompt: "What pace was today?",
+      options: ["Crawling", "Dragging", "Steady", "Brisk", "Flying"], active: true,
+    });
+    await setDoc(doc(db, "v2_questions", "daily-000"), {
+      surface: "daily", seq: 0, type: "binary",
+      prompt: "Pineapple?", options: ["Yes", "No"], active: true,
+    });
+  });
+  const pulseAnswer = (day: string, over: Record<string, unknown> = {}) => ({
+    qid: `${BASE}_${day}`, baseQid: BASE, day, surface: "pulse", optionIdx: 3,
+    answeredAt: serverTimestamp(), anchors: {}, ...over,
+  });
+
+  it("today lands; the second answer to the same day is an update and refused", async () => {
+    await seedPulse();
+    const day = dayOffset(0);
+    const ref = doc(asUser(OWNER), "v2_users", OWNER, "answers", `${BASE}_${day}`);
+    await assertSucceeds(setDoc(ref, pulseAnswer(day)));
+    // setDoc on the existing doc is an UPDATE, and the D86 arm's surface
+    // list keeps pulse out — "you said what you said today" (create-only
+    // v1, docs/NEXT-FUNCTIONALITY.md §2).
+    await assertFails(setDoc(ref, pulseAnswer(day, { optionIdx: 1 })));
+    await assertFails(updateDoc(ref, { optionIdx: 1, editedAt: serverTimestamp() }));
+    // …and it is public like every answer (D98), pulse included.
+    await assertSucceeds(getDoc(doc(asUser(STRANGER), "v2_users", OWNER, "answers", `${BASE}_${day}`)));
+  });
+
+  it("the day window and the id discipline hold — the duel answers' bounds verbatim", async () => {
+    await seedPulse();
+    const old = dayOffset(-6);
+    const future = dayOffset(3);
+    const day = dayOffset(0);
+    await assertFails(setDoc(
+      doc(asUser(OWNER), "v2_users", OWNER, "answers", `${BASE}_${old}`),
+      pulseAnswer(old),
+    ));
+    await assertFails(setDoc(
+      doc(asUser(OWNER), "v2_users", OWNER, "answers", `${BASE}_${future}`),
+      pulseAnswer(future),
+    ));
+    // doc id must be {baseQid}_{day}, and qid must equal it
+    await assertFails(setDoc(
+      doc(asUser(OWNER), "v2_users", OWNER, "answers", `${BASE}_wrong`),
+      pulseAnswer(day),
+    ));
+    await assertFails(setDoc(
+      doc(asUser(OWNER), "v2_users", OWNER, "answers", `${BASE}_${day}`),
+      pulseAnswer(day, { qid: BASE }),
+    ));
+  });
+
+  it("the template answers for the bound, the kill switch, and the surface claim", async () => {
+    await seedPulse();
+    const day = dayOffset(0);
+    // optionIdx beyond the five steps
+    await assertFails(setDoc(
+      doc(asUser(OWNER), "v2_users", OWNER, "answers", `${BASE}_${day}`),
+      pulseAnswer(day, { optionIdx: 5 }),
+    ));
+    // a daily template cannot be answered as a pulse — the surface claim
+    // reads off the TEMPLATE, so the composite id buys no second series
+    await assertFails(setDoc(
+      doc(asUser(OWNER), "v2_users", OWNER, "answers", `daily-000_${day}`),
+      pulseAnswer(day, { qid: `daily-000_${day}`, baseQid: "daily-000" }),
+    ));
+    // the kill switch stops the series
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_questions", BASE), { active: false }, { merge: true });
+    });
+    await assertFails(setDoc(
+      doc(asUser(OWNER), "v2_users", OWNER, "answers", `${BASE}_${day}`),
+      pulseAnswer(day),
+    ));
+  });
+});
+
+describe("v2 answers (world-readable since D98; option edits only — D86)", () => {
   const QID = "daily-000";
   const seedQuestion = () => seed(async (db) => {
     await setDoc(doc(db, "v2_questions", QID), {
@@ -372,14 +567,102 @@ describe("v2 answers (owner-only, create-only — D5)", () => {
     answeredAt: serverTimestamp(), anchors: {}, ...over,
   });
 
-  it("owner creates a valid answer once; it is then immutable", async () => {
+  it("D86: the owner may move optionIdx — one shape, stamped, cooled down", async () => {
     await seedQuestion();
     const ref = doc(asUser(OWNER), "v2_users", OWNER, "answers", QID);
     await assertSucceeds(setDoc(ref, answer()));
-    await assertFails(updateDoc(ref, { optionIdx: 0 }));
-    await assertFails(deleteDoc(ref));
-    // setDoc on an existing doc is an update → also denied
+    // Every refused shape FIRST: the success below starts the 60s
+    // cooldown, after which a refusal no longer isolates the clause it
+    // aims at.
+    await assertFails(updateDoc(ref, { optionIdx: 0 }));                               // no audit stamp
+    await assertFails(updateDoc(ref, { optionIdx: 0, editedAt: new Date() }));         // stamp != request.time
+    await assertFails(updateDoc(ref, { optionIdx: 2, editedAt: serverTimestamp() }));  // >= options.size()
+    await assertFails(updateDoc(ref, { optionIdx: -1, editedAt: serverTimestamp() })); // negative
+    // The anchors snapshot and answeredAt are FROZEN: an edit moves which
+    // option you hold, never which cohort you answered from (D8) — the
+    // trigger's -old/+new delta depends on the cells not moving.
+    await assertFails(updateDoc(ref, {
+      optionIdx: 0, editedAt: serverTimestamp(), anchors: { city: "Oslo, NO" },
+    }));
+    await assertFails(updateDoc(ref, {
+      optionIdx: 0, editedAt: serverTimestamp(), answeredAt: serverTimestamp(),
+    }));
+    await assertFails(updateDoc(ref, {
+      optionIdx: 0, editedAt: serverTimestamp(), qid: "other",
+    }));
+    // …and never someone else's answer
+    await assertFails(updateDoc(
+      doc(asUser(FRIEND), "v2_users", OWNER, "answers", QID),
+      { optionIdx: 0, editedAt: serverTimestamp() },
+    ));
+    // setDoc on an existing doc is an update rewriting answeredAt → denied
     await assertFails(setDoc(ref, answer({ optionIdx: 0 })));
+
+    // the one admitted shape
+    await assertSucceeds(updateDoc(ref, { optionIdx: 0, editedAt: serverTimestamp() }));
+    // …and not again inside 60s. Edits are the only REPEATABLE answer
+    // write, and each runs the aggregate transaction against two docs
+    // keyed by qid (D7's write ceiling) — the cooldown is the bound.
+    await assertFails(updateDoc(ref, { optionIdx: 1, editedAt: serverTimestamp() }));
+    // delete stays closed
+    await assertFails(deleteDoc(ref));
+  });
+
+  it("D86: the kill switch reaches edits, not just creates", async () => {
+    // Its own question and a FIRST edit, so the refusal can only be the
+    // active check — the cooldown test above cannot isolate it.
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_questions", "off-100"), {
+        surface: "daily", seq: 4, type: "binary",
+        prompt: "?", options: ["a", "b"], active: true,
+      });
+    });
+    const ref = doc(asUser(OWNER), "v2_users", OWNER, "answers", "off-100");
+    await assertSucceeds(setDoc(ref, answer({ qid: "off-100" })));
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_questions", "off-100"), {
+        surface: "daily", seq: 4, type: "binary",
+        prompt: "?", options: ["a", "b"], active: false,
+      });
+    });
+    await assertFails(updateDoc(ref, { optionIdx: 0, editedAt: serverTimestamp() }));
+  });
+
+  it("D86 reaches only opinion surfaces: learn and duel answers stay frozen", async () => {
+    // learn: first-attempt-only IS the measurement (D32) — "not knowledge,
+    // obviously", in the owner's own words.
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_questions", "learn-frozen"), {
+        surface: "learn", seq: 0, type: "choice",
+        prompt: "?", options: ["a", "b", "c"], active: true,
+      });
+    });
+    const lref = doc(asUser(OWNER), "v2_users", OWNER, "answers", "learn-frozen");
+    await assertSucceeds(setDoc(lref, {
+      qid: "learn-frozen", surface: "learn", optionIdx: 0,
+      answeredAt: serverTimestamp(), anchors: {},
+    }));
+    await assertFails(updateDoc(lref, { optionIdx: 1, editedAt: serverTimestamp() }));
+
+    // duel: the SEAL is the product — an editable sealed answer lets a
+    // member re-decide after reading the room.
+    const GID = "g_frozen";
+    const DAY = dayOffset(-1);
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_questions", "duo-frozen"), {
+        surface: "duo", seq: 0, type: "classic",
+        prompt: "?", options: ["a", "b"], active: true,
+      });
+      await setDoc(doc(db, "v2_groups", GID), {
+        name: "Pair", mode: "duo", memberUids: [OWNER, FRIEND],
+      });
+    });
+    const dref = doc(asUser(OWNER), "v2_users", OWNER, "answers", `g_${GID}_${DAY}`);
+    await assertSucceeds(setDoc(dref, {
+      qid: "duo-frozen", surface: "duo", optionIdx: 0, guessIdx: 1,
+      gid: GID, day: DAY, answeredAt: serverTimestamp(), anchors: {},
+    }));
+    await assertFails(updateDoc(dref, { optionIdx: 1, editedAt: serverTimestamp() }));
   });
 
   it("rejects out-of-range/mismatched/malformed answers", async () => {
@@ -436,8 +719,9 @@ describe("v2 answers (owner-only, create-only — D5)", () => {
       });
     });
     const aid = `g_${GID}_${DAY}`;
-    const duel = (idx: number) => ({
+    const duel = (idx: number, guess?: number) => ({
       qid: "group-pick0", surface: "group", optionIdx: idx,
+      ...(guess === undefined ? {} : { guessIdx: guess }),
       gid: GID, day: DAY, answeredAt: serverTimestamp(), anchors: {},
     });
     await assertSucceeds(setDoc(
@@ -445,6 +729,53 @@ describe("v2 answers (owner-only, create-only — D5)", () => {
     // still bounded by the member count
     await assertFails(setDoc(
       doc(asUser("m1"), "v2_users", "m1", "answers", aid), duel(32)));
+
+    // …and the SAME for guessIdx, which is the half this test did not
+    // cover when it was written: the fixture above never set the field, so
+    // `guessIdx < 20` survived beside the widened optionIdx bound and
+    // members 21-32 stayed unguessable on every pick day. A guess names an
+    // option, so it takes the option bound — no more, no less.
+    await assertSucceeds(setDoc(
+      doc(asUser("m2"), "v2_users", "m2", "answers", aid), duel(0, 31)));
+    await assertFails(setDoc(
+      doc(asUser("m3"), "v2_users", "m3", "answers", aid), duel(0, 32)));
+    // absent stays legal — the rule reads through .get("guessIdx", 0)
+    await assertSucceeds(setDoc(
+      doc(asUser("m4"), "v2_users", "m4", "answers", aid), duel(0)));
+  });
+
+  it("a duel guess is bounded by the question's options, not a flat 20", async () => {
+    // The non-pick half of the same bound. A bank question with 3 options
+    // has no 5th one to guess, but `guessIdx < 20` accepted it — and the
+    // number reached duelAggDelta, whose range check is the only other
+    // thing standing between a fabricated index and a published aggregate.
+    const GID = "g_small";
+    const DAY = dayOffset(-1);
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_questions", "duo-q0"), {
+        surface: "duo", seq: 0, type: "classic", prompt: "Which?",
+        options: ["a", "b", "c"],
+      });
+      // Deliberately MORE members than options: with the two equal, this
+      // fixture would clear either branch of duelIndexSpace() and could not
+      // tell which one ran. 3 options against 5 members means only the
+      // options branch admits 2 and refuses 3.
+      await setDoc(doc(db, "v2_groups", GID), {
+        name: "Pair", mode: "duo", memberUids: ["p0", "p1", "p2", "p3", "p4"],
+      });
+    });
+    const aid = `g_${GID}_${DAY}`;
+    const duel = (guess: number) => ({
+      qid: "duo-q0", surface: "duo", optionIdx: 0, guessIdx: guess,
+      gid: GID, day: DAY, answeredAt: serverTimestamp(), anchors: {},
+    });
+    await assertSucceeds(setDoc(
+      doc(asUser("p0"), "v2_users", "p0", "answers", aid), duel(2)));
+    await assertFails(setDoc(
+      doc(asUser("p1"), "v2_users", "p1", "answers", aid), duel(3)));
+    // the old bound's whole range, now correctly refused
+    await assertFails(setDoc(
+      doc(asUser("p2"), "v2_users", "p2", "answers", aid), duel(19)));
   });
 
   it("two different users can answer the same question", async () => {
@@ -514,12 +845,17 @@ describe("v2 answers (owner-only, create-only — D5)", () => {
       answeredAt: serverTimestamp(), anchors: {}, ...over,
     });
     await assertSucceeds(setDoc(ref(CQ), cat()));
-    // immutable like every other answer (D5)
+    // Frozen even under D86's edit arm: the arm demands the OLD doc carry
+    // an integer optionIdx, and a catalog answer never does — the canon
+    // fold has no delta path yet, so an edit here would desync the board.
     await assertFails(updateDoc(ref(CQ), { entity: 6 }));
+    await assertFails(updateDoc(ref(CQ), { entity: 6, editedAt: serverTimestamp() }));
+    await assertFails(updateDoc(ref(CQ), { optionIdx: 0, editedAt: serverTimestamp() }));
     await assertFails(deleteDoc(ref(CQ)));
     await assertFails(setDoc(ref(CQ), cat({ entity: 6 })));
-    // …and invisible to strangers
-    await assertFails(getDoc(doc(asUser(STRANGER), "v2_users", OWNER, "answers", CQ)));
+    // …readable by strangers like every other answer (D98), and writable
+    // by none of them
+    await assertSucceeds(getDoc(doc(asUser(STRANGER), "v2_users", OWNER, "answers", CQ)));
     await assertFails(setDoc(
       doc(asUser(STRANGER), "v2_users", OWNER, "answers", CQ), cat()));
   });
@@ -568,15 +904,201 @@ describe("v2 answers (owner-only, create-only — D5)", () => {
       answeredAt: serverTimestamp(), anchors: {} }));
   });
 
-  it("answers are invisible and unwritable to other users", async () => {
+  it("answers are readable by anyone and writable only by their owner", async () => {
     await seedQuestion();
     await assertSucceeds(setDoc(
       doc(asUser(OWNER), "v2_users", OWNER, "answers", QID), answer()));
-    await assertFails(getDoc(doc(asUser(STRANGER), "v2_users", OWNER, "answers", QID)));
-    await assertFails(getDocs(collection(asUser(STRANGER), "v2_users", OWNER, "answers")));
+    // D98: read is open — by id and by listing the subcollection.
+    await assertSucceeds(getDoc(doc(asUser(STRANGER), "v2_users", OWNER, "answers", QID)));
+    await assertSucceeds(getDocs(query(
+      collection(asUser(STRANGER), "v2_users", OWNER, "answers"),
+      where("surface", "in", ["daily", "feed", "test", "learn"]))));
+    // …and write is not. Authoring under someone else's uid is the thing
+    // this rule is actually for now.
     await assertFails(setDoc(
       doc(asUser(STRANGER), "v2_users", OWNER, "answers", "feed-x"),
       answer({ qid: "feed-x" })));
+  });
+
+  // THE query the whole reversal exists to make possible: "everyone who
+  // answered q42", across users. It is a COLLECTION GROUP read, which a
+  // uid-bound rule does not authorize at all — the grant is a separate
+  // `match /{path=**}/answers/{aid}` block, and without it D98 would look
+  // from the app exactly like it had not happened.
+  it("a collection-group query returns other people's answers to one question", async () => {
+    await seedQuestion();
+    await seed(async (db) => {
+      for (const uid of [OWNER, FRIEND, STRANGER]) {
+        await setDoc(doc(db, "v2_users", uid, "answers", QID), {
+          qid: QID, surface: "daily", optionIdx: 1, anchors: { ageBand: "25-34" },
+        });
+      }
+    });
+    const snap = await assertSucceeds(getDocs(query(
+      collectionGroup(asUser(STRANGER), "answers"),
+      where("qid", "==", QID),
+      where("surface", "in", ["daily", "feed", "test", "learn"]),
+    )));
+    // Three people's answers to one question, from one query, by a fourth
+    // party. The uid is recoverable from the document path, which is what
+    // turns this into named who-voted.
+    expect((snap as { size: number }).size).toBe(3);
+  });
+
+  // The rule's `surface` test is a VALUE test so a list query can be
+  // compared against it. That has a consequence worth pinning rather than
+  // rediscovering: a collection-group read that does NOT carry the
+  // matching filter is refused wholesale, not filtered down (the D65
+  // lesson, measured again here). A client that forgets the clause sees a
+  // permission error, never a partial result.
+  it("refuses a collection-group query that omits the surface filter", async () => {
+    await seedQuestion();
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_users", OWNER, "answers", QID), {
+        qid: QID, surface: "daily", optionIdx: 1,
+      });
+    });
+    await assertFails(getDocs(query(
+      collectionGroup(asUser(STRANGER), "answers"),
+      where("qid", "==", QID),
+    )));
+  });
+
+  // The duel seal, which is the ONE thing D98 kept out of the open read —
+  // and kept for a reason that is not privacy: a face-down hand is the
+  // game. Enforced on `surface`, so a sealed duel answer is unreadable to
+  // a groupmate however they ask for it, while the owner still sees theirs.
+  it("keeps duel answers sealed from other players, by surface", async () => {
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_users", OWNER, "answers", "g_g1_2026-08-10"), {
+        qid: "group-gu0", surface: "duo", optionIdx: 1, guessIdx: 0,
+        gid: "g1", day: "2026-08-10",
+      });
+    });
+    const sealed = ["v2_users", OWNER, "answers", "g_g1_2026-08-10"] as const;
+    await assertSucceeds(getDoc(doc(asUser(OWNER), ...sealed)));
+    await assertFails(getDoc(doc(asUser(FRIEND), ...sealed)));
+    // and it cannot be reached by widening the collection-group filter
+    await assertFails(getDocs(query(
+      collectionGroup(asUser(FRIEND), "answers"),
+      where("surface", "in", ["daily", "feed", "test", "learn", "duo"]),
+    )));
+  });
+});
+
+// The follow graph (D101). A follow is a BOOKMARK, not a permission
+// grant — since D98 every answer and profile is already readable, so
+// following someone conveys no access. What these cases pin is that the
+// row itself cannot be forged, back-dated, or written on someone else's
+// behalf, and that its `to` field can never disagree with its own id.
+describe("v2 follow graph (D101 — Circle)", () => {
+  const followRef = (as: string, owner: string, target: string) =>
+    doc(asUser(as), "v2_users", owner, "following", target);
+
+  it("owner follows and unfollows; a stranger cannot follow on their behalf", async () => {
+    await assertSucceeds(setDoc(followRef(OWNER, OWNER, STRANGER), {
+      at: serverTimestamp(), to: STRANGER,
+    }));
+    await assertSucceeds(deleteDoc(followRef(OWNER, OWNER, STRANGER)));
+    // Writing into someone else's following list would let anyone stuff a
+    // stranger's Circle — and, with the read open, publish a social graph
+    // that account never chose.
+    await assertFails(setDoc(followRef(STRANGER, OWNER, "third"), {
+      at: serverTimestamp(), to: "third",
+    }));
+    await assertFails(deleteDoc(followRef(STRANGER, OWNER, "third")));
+  });
+
+  it("is world-readable — the followers direction depends on it", async () => {
+    await assertSucceeds(setDoc(followRef(OWNER, OWNER, STRANGER), {
+      at: serverTimestamp(), to: STRANGER,
+    }));
+    // Deliberate and reversible in one line (see firestore.rules). The
+    // client's mutual flag is a collection-group query on `to`, which is
+    // only satisfiable because this read is open.
+    await assertSucceeds(getDoc(followRef(STRANGER, OWNER, STRANGER)));
+  });
+
+  it("refuses a `to` that disagrees with the document id", async () => {
+    // The field exists so deleteAccount can find inbound follows with a
+    // collection-group query (a query cannot filter on a document id). An
+    // unpinned copy would be a second source of truth about who the row
+    // points at — and the erasure sweep reads the field, not the id, so a
+    // mismatched row would survive its own target's deletion.
+    await assertFails(setDoc(followRef(OWNER, OWNER, STRANGER), {
+      at: serverTimestamp(), to: "someone-else",
+    }));
+    await assertFails(setDoc(followRef(OWNER, OWNER, STRANGER), { at: serverTimestamp() }));
+  });
+
+  it("refuses following yourself, a back-dated stamp, and extra fields", async () => {
+    // Self-follow would put you in your own Circle and count you twice in
+    // every fold over it.
+    await assertFails(setDoc(followRef(OWNER, OWNER, OWNER), {
+      at: serverTimestamp(), to: OWNER,
+    }));
+    // A client-chosen timestamp is a reorderable one.
+    await assertFails(setDoc(followRef(OWNER, OWNER, STRANGER), {
+      at: new Date("2020-01-01"), to: STRANGER,
+    }));
+    await assertFails(setDoc(followRef(OWNER, OWNER, STRANGER), {
+      at: serverTimestamp(), to: STRANGER, note: "x",
+    }));
+  });
+
+  it("cannot be updated in place — only created and deleted", async () => {
+    await assertSucceeds(setDoc(followRef(OWNER, OWNER, STRANGER), {
+      at: serverTimestamp(), to: STRANGER,
+    }));
+    // Rewriting `at` would reorder a Circle, which is the one thing the
+    // stamp decides (fetchFollowing sorts oldest-first so the cap is
+    // stable across sessions).
+    await assertFails(updateDoc(followRef(OWNER, OWNER, STRANGER), { at: serverTimestamp() }));
+  });
+});
+
+// Foresight verdicts (D126). One scored read of a population slice, and
+// the only thing that makes the record mean anything is that a verdict
+// cannot be rewritten after the answer is on screen.
+describe("v2 foresight verdicts (D126)", () => {
+  const fRef = (as: string, owner: string, id = "q1__ageBand__25-34") =>
+    doc(asUser(as), "v2_users", owner, "foresight", id);
+  const verdict = (over: Record<string, unknown> = {}) => ({
+    qid: "q1", dim: "ageBand", bucket: "25-34",
+    guess: 0, answerIdx: 0, n: 20, at: serverTimestamp(), ...over,
+  });
+
+  it("owner writes one verdict; a stranger cannot write it for them", async () => {
+    await assertSucceeds(setDoc(fRef(OWNER, OWNER), verdict()));
+    await assertFails(setDoc(fRef(STRANGER, OWNER, "q2__ageBand__25-34"), verdict({ qid: "q2" })));
+  });
+
+  it("cannot be rewritten or deleted — a wrong read stays wrong", async () => {
+    // The whole integrity model. Without this, every miss becomes a hit
+    // the moment the answer is revealed, and the record means nothing.
+    // Delete is closed for the same reason: the doc id is the slice, so
+    // delete-and-replay would be a re-roll.
+    await assertSucceeds(setDoc(fRef(OWNER, OWNER), verdict({ guess: 1 })));
+    await assertFails(updateDoc(fRef(OWNER, OWNER), { guess: 0 }));
+    await assertFails(setDoc(fRef(OWNER, OWNER), verdict({ guess: 0 })));
+    await assertFails(deleteDoc(fRef(OWNER, OWNER)));
+  });
+
+  it("is world-readable — the basis is published beside the claim", async () => {
+    await assertSucceeds(setDoc(fRef(OWNER, OWNER), verdict()));
+    await assertSucceeds(getDoc(fRef(STRANGER, OWNER)));
+  });
+
+  it("refuses a stored `correct`, a back-dated stamp, and a bad guess", async () => {
+    // `correct` is DERIVED from guess + answerIdx by whoever reads it.
+    // Storing it would be an unfalsifiable claim about a computable fact.
+    await assertFails(setDoc(fRef(OWNER, OWNER), verdict({ correct: true })));
+    await assertFails(setDoc(fRef(OWNER, OWNER), verdict({ at: new Date("2020-01-01") })));
+    // -1 is the clock expiry and scores as a miss; anything below it is
+    // a client inventing a sentinel of its own.
+    await assertFails(setDoc(fRef(OWNER, OWNER), verdict({ guess: -2 })));
+    await assertFails(setDoc(fRef(OWNER, OWNER), verdict({ answerIdx: -1 })));
+    await assertFails(setDoc(fRef(OWNER, OWNER), verdict({ n: "many" })));
   });
 });
 
@@ -609,6 +1131,28 @@ describe("v2 groups + sealed duels (Phase 3)", () => {
     await assertFails(updateDoc(doc(asUser(OWNER), "v2_groups", GID),
       { memberUids: [OWNER, FRIEND, STRANGER] }));
     await assertFails(deleteDoc(doc(asUser(OWNER), "v2_groups", GID)));
+  });
+
+  it("duoMode is the ONE member-writable field, on duo docs only (D40 part 4)", async () => {
+    await seedGroup();
+    // either partner flips the pair's pool, and back again
+    await assertSucceeds(updateDoc(doc(asUser(FRIEND), "v2_groups", GID), { duoMode: "romantic" }));
+    await assertSucceeds(updateDoc(doc(asUser(OWNER), "v2_groups", GID), { duoMode: "friends" }));
+    // outsiders can't touch it
+    await assertFails(updateDoc(doc(asUser(STRANGER), "v2_groups", GID), { duoMode: "romantic" }));
+    // the field is alone or the write dies — no riding another change in
+    await assertFails(updateDoc(doc(asUser(OWNER), "v2_groups", GID),
+      { duoMode: "romantic", streak: 99 }));
+    // closed enum — an unknown pool name is refused, not stored
+    await assertFails(updateDoc(doc(asUser(OWNER), "v2_groups", GID), { duoMode: "sneaky" }));
+    // and a GROUP doc has no member-writable surface at all
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_groups", "g_grp"), {
+        name: "Circle", mode: "group", ownerUid: OWNER,
+        memberUids: [OWNER, FRIEND], inviteCode: "EFGH6789", streak: 0,
+      });
+    });
+    await assertFails(updateDoc(doc(asUser(OWNER), "v2_groups", "g_grp"), { duoMode: "romantic" }));
   });
 
   it("members write sealed duel answers under the composite id; outsiders can't", async () => {
@@ -659,7 +1203,7 @@ describe("v2 groups + sealed duels (Phase 3)", () => {
       doc(asUser(FRIEND), "v2_users", FRIEND, "answers", aid), duelAnswer()));
   });
 
-  it("reveals are member-readable, never client-writable", async () => {
+  it("reveals are world-readable, never client-writable", async () => {
     await seedGroup();
     await seed(async (db) => {
       await setDoc(doc(db, "v2_groups", GID, "reveals", DAY), {
@@ -669,16 +1213,23 @@ describe("v2 groups + sealed duels (Phase 3)", () => {
       });
     });
     await assertSucceeds(getDoc(doc(asUser(FRIEND), "v2_groups", GID, "reveals", DAY)));
-    await assertFails(getDoc(doc(asUser(STRANGER), "v2_groups", GID, "reveals", DAY)));
+    // D98: a stranger reads it too. The votes inside a reveal are world
+    // answers' younger siblings — withholding the materialized copy while
+    // publishing the source would be a lock on a door with no wall.
+    await assertSucceeds(getDoc(doc(asUser(STRANGER), "v2_groups", GID, "reveals", DAY)));
+    // Writing stays server-only, which is what keeps the reveal a reveal.
     await assertFails(setDoc(doc(asUser(OWNER), "v2_groups", GID, "reveals", "2026-07-27"),
       { votes: {} }));
   });
 
-  // The reveal read gates on the reveal's own members snapshot, not the
-  // group's current roster. Both halves matter and they fail in opposite
-  // directions, so assert them against ONE reveal whose membership has
-  // since changed in both ways: STRANGER joined after the fact, FRIEND left.
-  it("a reveal is readable by who was there, not by who is there now", async () => {
+  // The `members` snapshot used to be an ACCESS gate: joining a group
+  // tomorrow handed you no past day's votes, and leaving did not retract
+  // the days you played. D98 retired the access half — that was a privacy
+  // guarantee about answers — but the field itself stays, because
+  // deleteAccount scrubs a departing uid out of it and the erasure e2e
+  // asserts exactly that. This pins the split: the array is still written
+  // and still meaningful, and it no longer decides who may read.
+  it("the members snapshot no longer gates the read, and is still recorded", async () => {
     await seedGroup([OWNER, STRANGER]); // FRIEND has left; STRANGER has joined
     await seed(async (db) => {
       await setDoc(doc(db, "v2_groups", GID, "reveals", DAY), {
@@ -687,25 +1238,31 @@ describe("v2 groups + sealed duels (Phase 3)", () => {
         names: {}, members: [OWNER, FRIEND],
       });
     });
-    // Joining a group must not hand over the days you were not part of —
-    // this is the read that the parent-group gate used to allow.
-    await assertFails(getDoc(doc(asUser(STRANGER), "v2_groups", GID, "reveals", DAY)));
-    // …and leaving must not retract a day you actually played.
+    // A late joiner reads a day they were not part of — previously the
+    // headline refusal of this block.
+    await assertSucceeds(getDoc(doc(asUser(STRANGER), "v2_groups", GID, "reveals", DAY)));
+    // Someone who left still reads the day they played.
     await assertSucceeds(getDoc(doc(asUser(FRIEND), "v2_groups", GID, "reveals", DAY)));
-    await assertSucceeds(getDoc(doc(asUser(OWNER), "v2_groups", GID, "reveals", DAY)));
+    const snap = await assertSucceeds(
+      getDoc(doc(asUser(OWNER), "v2_groups", GID, "reveals", DAY)));
+    expect((snap as { data: () => Record<string, unknown> }).data().members)
+      .toEqual([OWNER, FRIEND]);
   });
 
-  // Pins the get("members", []) default: a reveal written before the
-  // snapshot payload shipped denies everyone rather than erroring open.
-  it("a reveal with no members snapshot is readable by nobody", async () => {
+  // The old rule read `get("members", [])`, so a legacy reveal written
+  // before that payload shipped denied everyone. Nothing consults the
+  // field now, so such a reveal reads like any other — asserted rather
+  // than assumed, because "it errored open" and "the gate is gone" look
+  // identical from the outside and only one of them is intended.
+  it("a reveal with no members snapshot is readable like any other", async () => {
     await seedGroup();
     await seed(async (db) => {
       await setDoc(doc(db, "v2_groups", GID, "reveals", DAY), {
         day: DAY, qid: "group-gu0", votes: { [OWNER]: { optionIdx: 1 } }, names: {},
       });
     });
-    await assertFails(getDoc(doc(asUser(OWNER), "v2_groups", GID, "reveals", DAY)));
-    await assertFails(getDoc(doc(asUser(FRIEND), "v2_groups", GID, "reveals", DAY)));
+    await assertSucceeds(getDoc(doc(asUser(OWNER), "v2_groups", GID, "reveals", DAY)));
+    await assertSucceeds(getDoc(doc(asUser(STRANGER), "v2_groups", GID, "reveals", DAY)));
   });
 });
 
@@ -723,6 +1280,52 @@ describe("v2 meta + server-only collections", () => {
   });
 });
 
+describe("question suggestions (docs/NEXT-FUNCTIONALITY.md §6)", () => {
+  const SID = `${OWNER}_sg1`;
+  const seedSuggestion = () => seed(async (db) => {
+    await setDoc(doc(db, "v2_suggestions", SID), {
+      uid: OWNER, prompt: "Dogs or cats?", type: "binary",
+      options: ["Dogs", "Cats"], topicHint: null, audienceHint: null,
+      cadenceHint: null, credit: false, status: "review", at: serverTimestamp(),
+    });
+  });
+
+  it("the author reads their own row; a stranger and the signed-out do not", async () => {
+    await seedSuggestion();
+    await assertSucceeds(getDoc(doc(asUser(OWNER), "v2_suggestions", SID)));
+    await assertFails(getDoc(doc(asUser(STRANGER), "v2_suggestions", SID)));
+    await assertFails(getDoc(doc(asSignedOut(), "v2_suggestions", SID)));
+  });
+
+  it("the pool is not listable — only a mine-only query passes (the D65 shape)", async () => {
+    await seedSuggestion();
+    await assertSucceeds(getDocs(query(
+      collection(asUser(OWNER), "v2_suggestions"),
+      where("uid", "==", OWNER),
+    )));
+    // No filter, or a filter naming someone else: refused wholesale.
+    await assertFails(getDocs(collection(asUser(OWNER), "v2_suggestions")));
+    await assertFails(getDocs(query(
+      collection(asUser(STRANGER), "v2_suggestions"),
+      where("uid", "==", OWNER),
+    )));
+  });
+
+  it("no client writes: the callable is the only door, and the author cannot settle their own status", async () => {
+    await seedSuggestion();
+    // A direct create would skip the budget, the App Check attestation
+    // and the sold-inventory tripwire — the three checks that are the
+    // reason this is a callable at all.
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_suggestions", `${OWNER}_sg2`), {
+      uid: OWNER, prompt: "Should Oslo ban cars downtown?", type: "binary",
+      options: [], topicHint: null, audienceHint: null, cadenceHint: null,
+      credit: false, status: "review", at: serverTimestamp(),
+    }));
+    await assertFails(updateDoc(doc(asUser(OWNER), "v2_suggestions", SID), { status: "picked" }));
+    await assertFails(deleteDoc(doc(asUser(OWNER), "v2_suggestions", SID)));
+  });
+});
+
 describe("moderation substrate: takes + flags (docs/MODERATION.md, D22)", () => {
   const GID = "g_mod";
   const seedCircle = () => seed(async (db) => {
@@ -732,17 +1335,21 @@ describe("moderation substrate: takes + flags (docs/MODERATION.md, D22)", () => 
   });
   const take = (over: Record<string, unknown> = {}) => ({
     gid: GID, authorUid: OWNER, text: "hot take",
-    createdAt: serverTimestamp(), ...over,
+    createdAt: serverTimestamp(), hidden: false, ...over,
   });
   const flag = (takeId: string, uid: string, over: Record<string, unknown> = {}) => ({
     takeId, gid: GID, uid, at: serverTimestamp(), ...over,
   });
 
-  it("circle members write and read takes; strangers get neither", async () => {
+  it("anyone reads a take; only a circle member writes one into that circle", async () => {
     await seedCircle();
     await assertSucceeds(setDoc(doc(asUser(OWNER), "v2_takes", "t1"), take()));
     await assertSucceeds(getDoc(doc(asUser(FRIEND), "v2_takes", "t1")));
-    await assertFails(getDoc(doc(asUser(STRANGER), "v2_takes", "t1")));
+    // D98 dropped the membership gate on the READ. It was an audience gate
+    // on speech, and takes carry `authorUid`, so this is also what makes a
+    // named comment possible at all.
+    await assertSucceeds(getDoc(doc(asUser(STRANGER), "v2_takes", "t1")));
+    // Posting INTO a circle still needs membership — that is a write.
     await assertFails(setDoc(doc(asUser(STRANGER), "v2_takes", "t2"),
       take({ authorUid: STRANGER })));
   });
@@ -768,8 +1375,8 @@ describe("moderation substrate: takes + flags (docs/MODERATION.md, D22)", () => 
     await seed(async (db) => {
       await setDoc(doc(db, "v2_takes", "t_hidden"), {
         gid: GID, authorUid: OWNER, text: "over the line",
-        createdAt: new Date(),
-        hidden: { by: "mod", policyLine: "H1" },
+        createdAt: new Date(), hidden: true,
+        hiddenMeta: { by: "mod", policyLine: "H1" },
       });
     });
     await assertFails(getDoc(doc(asUser(FRIEND), "v2_takes", "t_hidden")));
@@ -777,15 +1384,82 @@ describe("moderation substrate: takes + flags (docs/MODERATION.md, D22)", () => 
     await assertSucceeds(getDoc(doc(asUser(OWNER), "v2_takes", "t_hidden")));
   });
 
-  it("flags: one per (take, user), members only, write-only, never on hidden takes", async () => {
+  // The case whose absence WAS the bug (D65). Every take assertion above
+  // this line uses getDoc, and getDoc was never the leak: a per-document
+  // rule is applied per document. A LIST is a different operation, and the
+  // old presence-test gate (`!("hidden" in resource.data)`) gave Firestore
+  // nothing it could check the query's constraints against — so it returned
+  // the hidden take, text and all, to a non-author member of the circle.
+  //
+  // Three assertions, because the fix has three parts and each can rot
+  // independently: the unfiltered list must be REFUSED (fail-closed, so a
+  // client that forgets the filter gets an error rather than other people's
+  // hidden words), the filtered list must succeed WITHOUT the hidden take,
+  // and a stranger must still get nothing either way.
+  it("listing a circle's takes cannot return a hidden one — and is refused without the filter", async () => {
+    await seedCircle();
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_takes", "t_visible"), {
+        gid: GID, authorUid: OWNER, text: "fine", createdAt: new Date(), hidden: false,
+      });
+      await setDoc(doc(db, "v2_takes", "t_hidden"), {
+        gid: GID, authorUid: OWNER, text: "over the line",
+        createdAt: new Date(), hidden: true,
+        hiddenMeta: { by: "mod", policyLine: "H1" },
+      });
+    });
+    const takesOf = (uid: string) => collection(asUser(uid), "v2_takes");
+
+    // Fail-closed: no `hidden` predicate, no list. This is the assertion
+    // that keeps the client's filter honest — drop the where() in app code
+    // and the query stops working rather than starting to leak.
+    await assertFails(getDocs(query(takesOf(FRIEND), where("gid", "==", GID))));
+
+    // …and with it, the circle sees the circle's takes minus the hidden one.
+    const visible = await assertSucceeds(
+      getDocs(query(takesOf(FRIEND), where("gid", "==", GID), where("hidden", "==", false))),
+    );
+    expect(visible.docs.map((d) => d.id)).toEqual(["t_visible"]);
+
+    // The author's list is not a way around it either: the appeal path is
+    // getDoc by id (asserted above), not a broader query.
+    await assertFails(getDocs(query(takesOf(OWNER), where("gid", "==", GID))));
+
+    // A stranger lists the circle's takes exactly like a member does
+    // (D98), and is held to the same fail-closed `hidden` predicate — the
+    // moderation guarantee is orthogonal to the audience one, which is
+    // the distinction this pair of assertions exists to keep visible.
+    await assertFails(getDocs(query(takesOf(STRANGER), where("gid", "==", GID))));
+    const strangerSees = await assertSucceeds(getDocs(
+      query(takesOf(STRANGER), where("gid", "==", GID), where("hidden", "==", false)),
+    ));
+    expect(strangerSees.docs.map((d) => d.id)).toEqual(["t_visible"]);
+  });
+
+  it("a client cannot post a take that is already hidden, or omit the flag", async () => {
+    await seedCircle();
+    // Omitted: the read gate is an equality, so a take without the field
+    // could never be read back — better refused at the door.
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_takes", "t_nofield"), {
+      gid: GID, authorUid: OWNER, text: "no flag", createdAt: serverTimestamp(),
+    }));
+    // Pre-hidden: would hide the author's own words from the circle while
+    // leaving them in the moderation queue.
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_takes", "t_prehidden"),
+      take({ hidden: true })));
+    await assertSucceeds(setDoc(doc(asUser(OWNER), "v2_takes", "t_ok"), take()));
+  });
+
+  it("flags: one per (take, user), any signed-in user, write-only, never on hidden takes", async () => {
     await seedCircle();
     await seed(async (db) => {
       await setDoc(doc(db, "v2_takes", "t2"), {
         gid: GID, authorUid: OWNER, text: "contested", createdAt: new Date(),
+        hidden: false,
       });
       await setDoc(doc(db, "v2_takes", "t_gone"), {
         gid: GID, authorUid: OWNER, text: "settled", createdAt: new Date(),
-        hidden: { by: "mod", policyLine: "H5" },
+        hidden: true, hiddenMeta: { by: "mod", policyLine: "H5" },
       });
     });
     await assertSucceeds(setDoc(
@@ -796,9 +1470,14 @@ describe("moderation substrate: takes + flags (docs/MODERATION.md, D22)", () => 
     // an id that doesn't match takeId_uid would let one account stuff counts
     await assertFails(setDoc(
       doc(asUser(FRIEND), "v2_flags", "t2_sock2"), flag("t2", FRIEND)));
-    await assertFails(setDoc(
+    // D98: a stranger may flag. The membership gate rested on "a stranger
+    // cannot flag speech they cannot read", and a stranger can now read
+    // every take — so the premise went and the gate with it.
+    await assertSucceeds(setDoc(
       doc(asUser(STRANGER), "v2_flags", "t2_" + STRANGER), flag("t2", STRANGER)));
-    // write-only even for the flagger: anonymity is to the circle AND the run
+    // Write-only, still, and this deny SURVIVES D98 on its own reasoning:
+    // a reporter visible to the person they reported is a reporter who
+    // stops reporting. Anti-retaliation, not answer privacy.
     await assertFails(getDoc(doc(asUser(FRIEND), "v2_flags", "t2_" + FRIEND)));
     // a hidden take is settled — no further flag-stacking
     await assertFails(setDoc(
@@ -812,6 +1491,126 @@ describe("moderation substrate: takes + flags (docs/MODERATION.md, D22)", () => 
     await assertFails(getDoc(doc(asUser(OWNER), "v2_mod_verdicts", "t1")));
     await assertFails(setDoc(doc(asUser(OWNER), "v2_mod_verdicts", "t1"),
       { takeId: "t1", verdict: "keep" }));
+  });
+});
+
+describe("world takes (D83 — anonymous, one per person per question)", () => {
+  // The sentinel gid "world" has no group behind it and needs none: reads
+  // are any-signed-in, and the create bound moves from membership to the
+  // DOCUMENT ID — `qid + "_" + uid` — so a second take is an update, and
+  // updates are denied. The sentinel cannot collide with a real circle
+  // because v2_groups creates are `if false` (ids are server-minted).
+  const QID = "daily-042";
+  const wtake = (uid: string, over: Record<string, unknown> = {}) => ({
+    gid: "world", authorUid: uid, qid: QID, text: "a world take",
+    createdAt: serverTimestamp(), hidden: false, ...over,
+  });
+  const wid = (uid: string, qid = QID) => `${qid}_${uid}`;
+
+  it("any signed-in user posts under qid_uid and any other reads it", async () => {
+    await assertSucceeds(setDoc(
+      doc(asUser(OWNER), "v2_takes", wid(OWNER)), wtake(OWNER)));
+    // A STRANGER — no shared circle anywhere — reads it. That is the
+    // feature: the audience is everyone.
+    await assertSucceeds(getDoc(doc(asUser(STRANGER), "v2_takes", wid(OWNER))));
+    // And posts their own beside it.
+    await assertSucceeds(setDoc(
+      doc(asUser(STRANGER), "v2_takes", wid(STRANGER)), wtake(STRANGER)));
+  });
+
+  it("the id is the one-take bound: wrong id refused, repost refused, delete-and-repost allowed", async () => {
+    const ref = doc(asUser(OWNER), "v2_takes", wid(OWNER));
+    await assertSucceeds(setDoc(ref, wtake(OWNER)));
+    // A second post lands on the same id — an update, denied like every
+    // take update (an edited take invalidates its flags).
+    await assertFails(setDoc(ref, wtake(OWNER, { text: "reworded" })));
+    // A minted or crafted id that is not qid_uid is refused outright, so
+    // one account cannot flood a question under fresh ids.
+    await assertFails(setDoc(
+      doc(asUser(OWNER), "v2_takes", `${QID}_sock`), wtake(OWNER)));
+    await assertFails(setDoc(
+      doc(asUser(OWNER), "v2_takes", wid(FRIEND)), wtake(OWNER)));
+    // The rewrite path the panel offers: withdraw, then say it better.
+    await assertSucceeds(deleteDoc(ref));
+    await assertSucceeds(setDoc(ref, wtake(OWNER, { text: "said better" })));
+  });
+
+  it("shape holds at world scale: qid required and bounded, author is the signer", async () => {
+    // No qid: a world take with no question would be unreachable by any
+    // surface — and unqueryable by the per-question index.
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_takes", `undefined_${OWNER}`), {
+      gid: "world", authorUid: OWNER, text: "floating",
+      createdAt: serverTimestamp(), hidden: false,
+    }));
+    // qid over the id-length bound.
+    const longQ = "q".repeat(121);
+    await assertFails(setDoc(
+      doc(asUser(OWNER), "v2_takes", wid(OWNER, longQ)), wtake(OWNER, { qid: longQ })));
+    // Authored as someone else.
+    await assertFails(setDoc(
+      doc(asUser(OWNER), "v2_takes", wid(FRIEND)), wtake(FRIEND)));
+    // Pre-hidden, same argument as circles: hides your words from everyone
+    // while leaving them in the moderation queue.
+    await assertFails(setDoc(
+      doc(asUser(OWNER), "v2_takes", wid(OWNER)), wtake(OWNER, { hidden: true })));
+  });
+
+  it("a world list is refused without both equalities, and never returns a hidden take", async () => {
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_takes", wid(OWNER)), {
+        gid: "world", authorUid: OWNER, qid: QID, text: "fine",
+        createdAt: new Date(), hidden: false,
+      });
+      await setDoc(doc(db, "v2_takes", wid(FRIEND)), {
+        gid: "world", authorUid: FRIEND, qid: QID, text: "over the line",
+        createdAt: new Date(), hidden: true,
+        hiddenMeta: { by: "mod", policyLine: "H1" },
+      });
+    });
+    const takes = collection(asUser(STRANGER), "v2_takes");
+    // Fail-closed: no hidden predicate, no list (D65's lesson, world arm).
+    await assertFails(getDocs(query(takes, where("gid", "==", "world"))));
+    // The shipped query shape returns the visible take alone.
+    const visible = await assertSucceeds(getDocs(query(
+      takes,
+      where("gid", "==", "world"), where("qid", "==", QID), where("hidden", "==", false),
+    )));
+    expect(visible.docs.map((d) => d.id)).toEqual([wid(OWNER)]);
+    // The hidden take stays readable to its author by id — the appeal path.
+    await assertFails(getDoc(doc(asUser(STRANGER), "v2_takes", wid(FRIEND))));
+    await assertSucceeds(getDoc(doc(asUser(FRIEND), "v2_takes", wid(FRIEND))));
+  });
+
+  it("any signed-in user flags a world take; the flag rules hold their shape", async () => {
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_takes", wid(OWNER)), {
+        gid: "world", authorUid: OWNER, qid: QID, text: "contested",
+        createdAt: new Date(), hidden: false,
+      });
+    });
+    const wflag = (uid: string) => ({
+      takeId: wid(OWNER), gid: "world", uid, at: serverTimestamp(),
+    });
+    // A stranger flags — the audience is the moderation constituency.
+    await assertSucceeds(setDoc(
+      doc(asUser(STRANGER), "v2_flags", `${wid(OWNER)}_${STRANGER}`), wflag(STRANGER)));
+    // One per account: same id again is an update, denied.
+    await assertFails(setDoc(
+      doc(asUser(STRANGER), "v2_flags", `${wid(OWNER)}_${STRANGER}`), wflag(STRANGER)));
+    // The gid on the flag must be the take's own — "world" cannot be
+    // borrowed to flag a circle take from outside it.
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_groups", "g_priv"), {
+        name: "Priv", mode: "group", memberUids: [OWNER, FRIEND],
+      });
+      await setDoc(doc(db, "v2_takes", "t_circle"), {
+        gid: "g_priv", authorUid: OWNER, text: "circle words",
+        createdAt: new Date(), hidden: false,
+      });
+    });
+    await assertFails(setDoc(
+      doc(asUser(STRANGER), "v2_flags", `t_circle_${STRANGER}`),
+      { takeId: "t_circle", gid: "world", uid: STRANGER, at: serverTimestamp() }));
   });
 });
 
@@ -917,5 +1716,169 @@ describe("D29 device binding: soft today, and the flip is pre-tested", () => {
     // string or boolean fails tests instead of silently widening the gate.
     const stringy = enfEnv.authenticatedContext(OWNER, { db: "1" }).firestore();
     await assertFails(setDoc(doc(stringy, "v2_users", OWNER, "answers", QID), worldAnswer()));
+  });
+});
+
+describe("presence (D84 — Near by radius)", () => {
+  // The privacy shape in three lines: your own cell-sized doc is yours to
+  // write and delete, NOBODY can read any of them (the only read path is
+  // the nearbyCountV2 callable, which returns a count), and the cell
+  // regex is the precision cap — nothing finer than the ~1 km grid id can
+  // be written at all, however a client is modified.
+  const cellDoc = (over: Record<string, unknown> = {}) => ({
+    cell: "5999_1074", at: serverTimestamp(), ...over,
+  });
+
+  it("a user writes, overwrites and deletes their own presence", async () => {
+    const ref = doc(asUser(OWNER), "v2_presence", OWNER);
+    await assertSucceeds(setDoc(ref, cellDoc()));
+    await assertSucceeds(setDoc(ref, cellDoc({ cell: "6000_1075" })));
+    await assertSucceeds(deleteDoc(ref));
+  });
+
+  it("nobody reads presence — not even their own doc", async () => {
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_presence", OWNER), { cell: "5999_1074", at: new Date() });
+    });
+    // Own doc: the client never needs to read it back, and a read grant is
+    // surface someone will eventually widen. The callable is the read path.
+    await assertFails(getDoc(doc(asUser(OWNER), "v2_presence", OWNER)));
+    await assertFails(getDoc(doc(asUser(STRANGER), "v2_presence", OWNER)));
+    await assertFails(getDocs(query(
+      collection(asUser(STRANGER), "v2_presence"), where("cell", "==", "5999_1074"),
+    )));
+  });
+
+  it("cannot write someone else's presence, or smuggle precision past the grid", async () => {
+    await assertFails(setDoc(doc(asUser(STRANGER), "v2_presence", OWNER), cellDoc()));
+    const ref = doc(asUser(OWNER), "v2_presence", OWNER);
+    await assertFails(setDoc(ref, cellDoc({ cell: "59.913_10.752" })));   // raw coords
+    await assertFails(setDoc(ref, cellDoc({ cell: "5999_1074_extra" }))); // sub-cell suffix
+    await assertFails(setDoc(ref, cellDoc({ lat: 59.91 })));              // extra field
+    await assertFails(setDoc(ref, cellDoc({ at: new Date() })));          // not request.time
+  });
+});
+
+// ── handles and invitations (D122) ─────────────────────────────────
+//
+// The two surfaces that replace the typed invite code. Both are
+// server-written, so most of what these cases prove is what a client
+// CANNOT do — which is the half that matters, because accepting an
+// invitation is one hop from `memberUids`, and `memberUids` is the array
+// this rules file reads to decide who may see a sealed duel answer.
+describe("handles: the account registry (D122)", () => {
+  const seedHandle = () => seed(async (db) => {
+    await setDoc(doc(db, "v2_handles", "olaf"), { uid: OWNER, at: new Date() });
+  });
+
+  it("anyone signed in can look a handle up — that is what it is for", async () => {
+    await seedHandle();
+    // A directory nobody may read cannot let a friend find you, which is
+    // the entire purpose. Deliberately wider than D98: that made answers
+    // readable to anyone holding your uid, this makes you findable by
+    // name. Recorded as its own decision rather than assumed.
+    await assertSucceeds(getDoc(doc(asUser(STRANGER), "v2_handles", "olaf")));
+  });
+
+  it("nobody claims, moves or frees a handle from a client", async () => {
+    await seedHandle();
+    // Uniqueness is the document id, and a client create would race the
+    // registry. Every verb is server-only.
+    await assertFails(setDoc(doc(asUser(STRANGER), "v2_handles", "newname"), { uid: STRANGER }));
+    // The impersonation case: taking a name someone already holds.
+    await assertFails(setDoc(doc(asUser(STRANGER), "v2_handles", "olaf"), { uid: STRANGER }));
+    // …and the denial-of-service one: freeing someone else's.
+    await assertFails(deleteDoc(doc(asUser(STRANGER), "v2_handles", "olaf")));
+    // Not even your own — claimHandleV2 owns the release half of a rename.
+    await assertFails(deleteDoc(doc(asUser(OWNER), "v2_handles", "olaf")));
+  });
+
+  it("a client cannot write or rewrite the handle on its own profile", async () => {
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_users", OWNER), {
+      displayName: "Olaf", handle: "olaf",
+    }));
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_users", OWNER), { displayName: "Olaf", handle: "olaf" });
+    });
+    await assertFails(updateDoc(doc(asUser(OWNER), "v2_users", OWNER), { handle: "someoneelse" }));
+  });
+
+  it("…but a profile that HAS a handle can still edit everything else", async () => {
+    // The failure this exists for ships green: request.resource.data is
+    // the RESULTING document, so once the callable has written a handle,
+    // a merge that only touches displayName still presents `handle` in
+    // its key set. Leave it off the hasOnly allowlist and claiming a
+    // handle silently freezes your display name forever.
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_users", OWNER), { displayName: "Olaf", handle: "olaf" });
+    });
+    await assertSucceeds(updateDoc(doc(asUser(OWNER), "v2_users", OWNER), { displayName: "Olaf H." }));
+  });
+});
+
+describe("circle invitations (D122)", () => {
+  const GID = "g_inv";
+  const seedInvite = () => seed(async (db) => {
+    await setDoc(doc(db, "v2_groups", GID), {
+      name: "The Crew", mode: "group", ownerUid: OWNER,
+      memberUids: [OWNER], inviteCode: "ABCD2345", streak: 0,
+    });
+    await setDoc(doc(db, "v2_groups", GID, "invites", FRIEND), {
+      to: FRIEND, from: OWNER, fromName: "Olaf", groupName: "The Crew", mode: "group",
+      at: new Date(),
+    });
+  });
+
+  it("the invitee reads their invitation", async () => {
+    await seedInvite();
+    // They have to: the group document itself is member-gated (it carries
+    // the invite code), and an invitee is by definition not a member yet —
+    // which is why the circle's name is denormalised onto this doc.
+    await assertSucceeds(getDoc(doc(asUser(FRIEND), "v2_groups", GID, "invites", FRIEND)));
+  });
+
+  it("even a member cannot read it — the read arm for that cost a billed get()", async () => {
+    // A first draft let members read the list so a circle could show who
+    // had been asked. That arm needed a membership get() on v2_groups,
+    // and scripts/pulse.test.mjs — which counts every get()/exists() in
+    // the rules because each is a BILLED READ — caught it going 15 → 16
+    // for a screen that does not exist. Nothing reads an invitation as a
+    // member, and re-inviting is idempotent server-side, so the arm
+    // bought nothing. This pins its absence.
+    await seedInvite();
+    await assertFails(getDoc(doc(asUser(OWNER), "v2_groups", GID, "invites", FRIEND)));
+  });
+
+  it("a stranger reads nothing — who was asked is a fact about the invitee", async () => {
+    await seedInvite();
+    await assertFails(getDoc(doc(asUser(STRANGER), "v2_groups", GID, "invites", FRIEND)));
+  });
+
+  it("nobody writes an invitation from a client, in any direction", async () => {
+    await seedInvite();
+    // Inviting yourself into someone's circle is the attack this refuses:
+    // without it, "write an invite, accept it" is join-any-circle-by-id.
+    await assertFails(setDoc(doc(asUser(STRANGER), "v2_groups", GID, "invites", STRANGER), {
+      to: STRANGER, from: OWNER, groupName: "The Crew", at: new Date(),
+    }));
+    // A member cannot hand-write one either — inviteToGroupV2 owns the
+    // cap and the rate budget, and a rule cannot express either.
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_groups", GID, "invites", STRANGER), {
+      to: STRANGER, from: OWNER, groupName: "The Crew", at: new Date(),
+    }));
+    // Not even declining: acceptGroupInviteV2 and declineGroupInviteV2
+    // are the two doors, and one door is easier to keep correct than two.
+    await assertFails(deleteDoc(doc(asUser(FRIEND), "v2_groups", GID, "invites", FRIEND)));
+  });
+
+  it("an invitation is not membership — the group stays shut until accept", async () => {
+    await seedInvite();
+    // The whole point of the accept step: being invited grants nothing.
+    // FRIEND can read the invite above and still not the circle.
+    await assertFails(getDoc(doc(asUser(FRIEND), "v2_groups", GID)));
+    // …and cannot let themselves in.
+    await assertFails(updateDoc(doc(asUser(FRIEND), "v2_groups", GID), {
+      memberUids: [OWNER, FRIEND],
+    }));
   });
 });

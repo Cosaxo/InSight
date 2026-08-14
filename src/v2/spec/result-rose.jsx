@@ -12,10 +12,15 @@ import React from 'react';
 //   3. pole rows — the same scores on their bipolar axes, vs most people
 // Colours link chart ↔ rows, so almost no labels are repeated.
 
+// The banners come from test-definitions' TEST_HUE (D121) — one hue per
+// instrument, shared with the progress sheet, so the card and the ring
+// that fills it are never two different colours for one test.
+import { TEST_HUE } from './test-definitions.js';
+
 // ── Per-test config: banner colour, hue per dimension, pole pairs ──
-const RP_TESTS = {
+export const RP_TESTS = {
   big5: {
-    banner: 'oklch(0.48 0.11 30)',
+    banner: TEST_HUE.big5,
     kicker: 'Personality · Big Five',
     hues: { O: 50, C: 75, E: 95, A: 25, N: 0 },
     poles: {
@@ -27,7 +32,7 @@ const RP_TESTS = {
     },
   },
   political: {
-    banner: 'oklch(0.46 0.095 240)',
+    banner: TEST_HUE.political,
     kicker: 'Politics · Six axes',
     bipolar: true,
     hues: { econ: 235, auth: 265, foreign: 195, env: 170, tech: 215, estab: 285 },
@@ -41,7 +46,7 @@ const RP_TESTS = {
     },
   },
   values: {
-    banner: 'oklch(0.45 0.10 320)',
+    banner: TEST_HUE.values,
     kicker: 'Values · Six tensions',
     bipolar: true,
     hues: { future: 322, circle: 344, hedonism: 6, meaning: 28, moral: 282, beauty: 312 },
@@ -55,7 +60,7 @@ const RP_TESTS = {
     },
   },
   attachment: {
-    banner: 'oklch(0.47 0.09 155)',
+    banner: TEST_HUE.attachment,
     kicker: 'Social · The friend you are',
     hues: { warm: 120, loyal: 150, open: 180, play: 95, easy: 205 },
     poles: {
@@ -71,7 +76,6 @@ const RP_TESTS = {
 // hue → petal fill / deep text / dot colours (same L+C family everywhere)
 const rpPetal = (h) => `oklch(0.64 0.115 ${h})`;
 const rpDeep  = (h) => `oklch(0.46 0.13 ${h})`;
-const rpDot   = (h) => `oklch(0.55 0.13 ${h})`;
 
 // ── Petal rose — petal length encodes the score, 0–100 ──
 function RosePetals({ dims, hueOf, subOf, animate }) {
@@ -106,7 +110,7 @@ function RosePetals({ dims, hueOf, subOf, animate }) {
         const ly = ly0 + (s < -0.4 ? -10 : s > 0.4 ? 10 : -3) + nudge + (sub ? 0 : 5);
         return (
           <g key={d.id}>
-            <path className={animate ? 'rp-petal' : undefined} style={animate ? { transformOrigin: `${cx}px ${cy}px`, animationDelay: `${i * 75}ms` } : undefined} d={`M ${x0i.toFixed(1)} ${y0i.toFixed(1)} L ${x0.toFixed(1)} ${y0.toFixed(1)} A ${r.toFixed(1)} ${r.toFixed(1)} 0 0 1 ${x1.toFixed(1)} ${y1.toFixed(1)} L ${x1i.toFixed(1)} ${y1i.toFixed(1)} A ${r0} ${r0} 0 0 0 ${x0i.toFixed(1)} ${y0i.toFixed(1)} Z`} fill={rpPetal(hue)}></path>
+            <path className={animate ? 'rp-petal' : undefined} style={animate ? { transformOrigin: `${cx}px ${cy}px`, animationDelay: `calc(var(--rv-row) * ${i})` } : undefined} d={`M ${x0i.toFixed(1)} ${y0i.toFixed(1)} L ${x0.toFixed(1)} ${y0.toFixed(1)} A ${r.toFixed(1)} ${r.toFixed(1)} 0 0 1 ${x1.toFixed(1)} ${y1.toFixed(1)} L ${x1i.toFixed(1)} ${y1i.toFixed(1)} A ${r0} ${r0} 0 0 0 ${x0i.toFixed(1)} ${y0i.toFixed(1)} Z`} fill={rpPetal(hue)}></path>
             <text x={lx2} y={ly} textAnchor={anchor} style={{ fontFamily: 'var(--sans)', fontSize: 11, fontWeight: 600, fill: 'var(--ink)' }}>{d.label}</text>
             {sub ? <text x={lx2} y={ly + 13} textAnchor={anchor} style={{ fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 800, fill: rpDeep(hue) }}>{sub}</text> : null}
           </g>
@@ -118,7 +122,7 @@ function RosePetals({ dims, hueOf, subOf, animate }) {
 }
 
 // ── RoseMini — tiny label-free rose for list cards (same encoding as TestRose) ──
-function RoseMini({ testKey, dims, size = 46 }) {
+export function RoseMini({ testKey, dims, size = 46 }) {
   const cfg = RP_TESTS[testKey];
   if (!cfg || !dims || !dims.length) return null;
   const hueOf = (id, i) => (cfg.hues[id] != null ? cfg.hues[id] : (30 + i * 47) % 360);
@@ -139,51 +143,11 @@ function RoseMini({ testKey, dims, size = 46 }) {
   );
 }
 
-// ── Pole rows — each score on its bipolar axis, hollow ring = most people ──
-function PoleRows({ dims, poles, hueOf, avg }) {
-  const pos = (v) => 5 + (Math.max(0, Math.min(100, v)) / 100) * 90;
-  return (
-    <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: 15 }}>
-      <div style={{ position: 'absolute', left: '50%', top: 3, bottom: 3, width: 1, background: 'var(--rule)', transform: 'translateX(-50%)' }}></div>
-      {dims.map((d, i) => {
-        const pp = poles[d.id] || ['low', 'high'];
-        const hue = hueOf(d.id, i);
-        const col = rpDot(hue);
-        const right = d.value >= 50;
-        const youP = pos(d.value);
-        const lo = Math.min(50, youP), hi = Math.max(50, youP);
-        const t = avg && avg[d.id] != null ? pos(avg[d.id]) : null;
-        const poleStyle = (isLean) => ({
-          fontFamily: 'var(--sans)', fontSize: 11.5, letterSpacing: '0.01em', whiteSpace: 'nowrap',
-          fontWeight: isLean ? 700 : 500, color: isLean ? rpDeep(hue) : 'var(--ink-3)', opacity: isLean ? 1 : 0.7,
-        });
-        return (
-          <div key={d.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ ...poleStyle(!right), width: 66, flexShrink: 0, textAlign: 'right' }}>{pp[0]}</span>
-            <div style={{ position: 'relative', flex: 1, height: 14 }}>
-              <span style={{
-                position: 'absolute', top: '50%', transform: 'translateY(-50%)', height: 3, borderRadius: 999,
-                left: `${lo}%`, width: `${hi - lo}%`,
-                background: `linear-gradient(${right ? '90deg' : '270deg'}, color-mix(in oklch, ${col}, transparent 80%), ${col})`,
-              }}></span>
-              {t != null && (
-                <span style={{ position: 'absolute', top: '50%', left: `${t}%`, transform: 'translate(-50%,-50%)', width: 8, height: 8, borderRadius: '50%', background: 'var(--surface-2)', border: '1.4px solid var(--ink-3)', opacity: 0.6 }}></span>
-              )}
-              <span style={{ position: 'absolute', top: '50%', left: `${youP}%`, transform: 'translate(-50%,-50%)', width: 12, height: 12, borderRadius: '50%', background: col, border: '2px solid var(--surface-2)', boxShadow: '0 1px 4px -1px rgba(20,20,40,0.3)' }}></span>
-            </div>
-            <span style={{ ...poleStyle(right), width: 66, flexShrink: 0, textAlign: 'left' }}>{pp[1]}</span>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
 // ── TestRose — the rose with per-test encoding. Bipolar tests (politics,
 // values) encode petal length as CONVICTION (distance from centre) and label
 // each petal with the pole it leans toward — a raw 13-of-100 is a strong
 // stance, not a short petal. Unipolar tests keep score = length. ──
-function TestRose({ testKey, dims, animate }) {
+export function TestRose({ testKey, dims, animate }) {
   const cfg = RP_TESTS[testKey];
   if (!cfg || !dims || !dims.length) return null;
   const hueOf = (id, i) => (cfg.hues[id] != null ? cfg.hues[id] : (30 + i * 47) % 360);
@@ -195,14 +159,3 @@ function TestRose({ testKey, dims, animate }) {
     : null;
   return <RosePetals dims={roseDims} hueOf={hueOf} subOf={subOf} animate={animate} />;
 }
-
-Object.assign(window, { RosePetals, PoleRows, TestRose, RoseMini, RP_TESTS });
-
-;globalThis.RosePetals = typeof RosePetals === 'undefined' ? globalThis.RosePetals : RosePetals;
-;globalThis.RoseMini = typeof RoseMini === 'undefined' ? globalThis.RoseMini : RoseMini;
-;globalThis.PoleRows = typeof PoleRows === 'undefined' ? globalThis.PoleRows : PoleRows;
-;globalThis.TestRose = typeof TestRose === 'undefined' ? globalThis.TestRose : TestRose;
-;globalThis.RP_TESTS = typeof RP_TESTS === 'undefined' ? globalThis.RP_TESTS : RP_TESTS;
-;globalThis.rpPetal = typeof rpPetal === 'undefined' ? globalThis.rpPetal : rpPetal;
-;globalThis.rpDeep = typeof rpDeep === 'undefined' ? globalThis.rpDeep : rpDeep;
-;globalThis.rpDot = typeof rpDot === 'undefined' ? globalThis.rpDot : rpDot;

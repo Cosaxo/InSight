@@ -11,7 +11,7 @@
 // resolution/rejection is driven by manually-settled promises.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { LIVE_MEMBERS, LIVE_SOCIAL_MEMBERS } from "../test/live-surface";
+import { LIVE_MEMBERS, LIVE_NEAR_MEMBERS, LIVE_SOCIAL_MEMBERS } from "../test/live-surface";
 
 interface FakeSnapshotDoc {
   id: string;
@@ -30,17 +30,50 @@ const h = vi.hoisted(() => ({
   setDocImpl: null as null | (() => Promise<void>),
   getDocsImpl: null as null | (() => Error),
   setDocCalls: [] as Array<{ path: string; data: Record<string, unknown> }>,
+  // the D86 edit path writes through updateDoc, never setDoc
+  updateDocImpl: null as null | (() => Promise<void>),
+  updateDocCalls: [] as Array<{ path: string; data: Record<string, unknown> }>,
   bankDocs: [] as FakeSnapshotDoc[],
+  // Documents `v2_question_aggs` queries resolve to, and the id lists they
+  // were asked for (D125). The learn prefetch's whole failure mode is
+  // asking for a document id nobody writes — getDocs returns nothing, the
+  // cache holds null, and every reveal shows the authored estimate. That
+  // is indistinguishable from "no data yet" unless the REQUEST is visible.
+  //
+  // The D129 deck poll reads through the same arm — it replaced a snapshot
+  // listener the tests used to push into, so its fixtures are a document set
+  // rather than a callback, and they land in this same map.
+  aggDocs: [] as FakeSnapshotDoc[],
+  aggIdQueries: [] as string[][],
   // live.ts observes auth for the whole session; capture the callback so a
   // test can drive a uid change or a revoked session.
   authCb: null as null | ((u: { uid: string } | null) => void),
   snapshots: [] as CapturedListener[],
+  // The offline-cache teardown deleteAccount owes the privacy policy. Named
+  // rather than counted so the ORDER is assertable: clearIndexedDbPersistence
+  // refuses to run against a live Firestore instance, so a terminate() that
+  // stops happening turns the clear into a silent no-op.
+  cacheTeardown: [] as string[],
+  clearCacheImpl: null as null | (() => Promise<void>),
+  // A boot that HANGS rather than throws. The field only ever produced
+  // this shape — "still connecting" with no error — and nothing exercised
+  // it, so the label that describes it was unpinned.
+  hangSignIn: false,
 }));
 
 vi.mock("../../lib/firebase", () => ({
   firebaseEnabled: true,
-  anonSignIn: () => Promise.resolve("uid_test"),
+  anonSignIn: () => (h.hangSignIn
+    ? new Promise<string>(() => { /* never settles, which is the case */ })
+    : Promise.resolve("uid_test")),
   getDb: () => Promise.resolve({ __db: true }),
+  // The API surfaces live.ts binds off the same promise as getDb (D110).
+  // `vi.mock("firebase/firestore")` in this file already replaced the real
+  // module (vi.mock hoists, so its position below is immaterial), so importing
+  // it here hands the store exactly the doubles this file asserts on — and
+  // every case in it now also exercises the bind step.
+  getFirestoreApi: () => import("firebase/firestore"),
+  getFunctionsApi: () => import("firebase/functions"),
   linkGoogle: () => Promise.resolve(),
   googleSignOut: () => Promise.resolve(),
   subscribeToAuth: (cb: (u: { uid: string } | null) => void) => {
@@ -76,8 +109,10 @@ vi.mock("firebase/firestore", () => {
   return {
     collection: (_db: unknown, ...path: string[]) => ref("collection", path),
     doc: (_db: unknown, ...path: string[]) => ref("doc", path),
-    query: (src: { path?: string }) => ({ __kind: "query", path: src?.path }),
-    where: () => ({ __kind: "where" }),
+    query: (src: { path?: string }, ...parts: unknown[]) => ({
+      __kind: "query", path: src?.path, parts,
+    }),
+    where: (_field: unknown, _op: unknown, value: unknown) => ({ __kind: "where", value }),
     orderBy: () => ({ __kind: "orderBy" }),
     limit: () => ({ __kind: "limit" }),
     documentId: () => ({ __kind: "documentId" }),
@@ -85,10 +120,24 @@ vi.mock("firebase/firestore", () => {
     Timestamp: { fromMillis: (ms: number) => ({ ms }) },
     getDoc: () =>
       Promise.resolve({ exists: () => false, get: () => undefined, data: () => ({}) }),
-    getDocs: (q: { path?: string }) => {
+    getDocs: (q: { path?: string; parts?: Array<{ __kind: string; value?: unknown }> }) => {
       // Lets a test simulate a network failure mid-hydrate.
       if (h.getDocsImpl) return Promise.reject(h.getDocsImpl());
-      return Promise.resolve(q?.path === "v2_questions" ? snapOf(h.bankDocs) : snapOf([]));
+      if (q?.path === "v2_questions") return Promise.resolve(snapOf(h.bankDocs));
+      // main's version, kept whole: it records the id list and returns only
+      // the matching documents, which the learn-split cases below assert on.
+      // The D129 poll reads through this same arm — `refreshAggs` queries
+      // `documentId() in deckIds` — so its fixtures are filtered by deck
+      // membership rather than returned wholesale. That is the more faithful
+      // mock of the two and the poll needs no special case.
+      if (q?.path === "v2_question_aggs") {
+        const ids = (q.parts || [])
+          .filter((p) => p && p.__kind === "where" && Array.isArray(p.value))
+          .flatMap((p) => p.value as string[]);
+        h.aggIdQueries.push(ids);
+        return Promise.resolve(snapOf(h.aggDocs.filter((d) => ids.includes(d.id))));
+      }
+      return Promise.resolve(snapOf([]));
     },
     onSnapshot: (
       target: { path?: string },
@@ -102,6 +151,24 @@ vi.mock("firebase/firestore", () => {
       h.setDocCalls.push({ path: target.path, data });
       return h.setDocImpl ? h.setDocImpl() : Promise.resolve();
     },
+    updateDoc: (target: { path: string }, data: Record<string, unknown>) => {
+      h.updateDocCalls.push({ path: target.path, data });
+      return h.updateDocImpl ? h.updateDocImpl() : Promise.resolve();
+    },
+    terminate: () => {
+      h.cacheTeardown.push("terminate");
+      return Promise.resolve();
+    },
+    clearIndexedDbPersistence: () => {
+      h.cacheTeardown.push("clearIndexedDbPersistence");
+      return h.clearCacheImpl ? h.clearCacheImpl() : Promise.resolve();
+    },
+    // Unused by any case here, and required anyway since D110: live.ts
+    // destructures its whole Firestore surface off one object, so a member it
+    // uses ANYWHERE has to exist on this mock or boot throws. That is the
+    // same kind of pin as the "window.LIVE public surface" case below —
+    // adding a Firestore call to the store now forces this list to move.
+    deleteDoc: () => Promise.resolve(),
   };
 });
 
@@ -165,6 +232,10 @@ const listeners: {
   document: Record<string, () => void>;
 } = { window: {}, document: {} };
 
+// Events live.ts dispatches on the stubbed window (insight:local-purge),
+// so a test can assert the purge announced itself.
+const dispatched: string[] = [];
+
 const ANS_LS = "insight.answersCache.v1";
 const WF_LS = "insight.feedVotes.v1";
 
@@ -173,9 +244,17 @@ beforeEach(() => {
   h.reportError.mockClear();
   h.setDocImpl = null;
   h.getDocsImpl = null;
+  h.aggDocs.length = 0;
   h.authCb = null;
   h.setDocCalls.length = 0;
+  h.updateDocImpl = null;
+  h.updateDocCalls.length = 0;
   h.snapshots.length = 0;
+  h.cacheTeardown.length = 0;
+  h.clearCacheImpl = null;
+  h.hangSignIn = false;
+  h.aggDocs.length = 0;
+  h.aggIdQueries.length = 0;
   h.bankDocs = [
     {
       id: "q_1",
@@ -199,8 +278,9 @@ beforeEach(() => {
   // registered handlers are captured so a test can fire a wake.
   listeners.window = {};
   listeners.document = {};
+  dispatched.length = 0;
   vi.stubGlobal("window", {
-    dispatchEvent: () => true,
+    dispatchEvent: (e: Event) => { dispatched.push(e?.type); return true; },
     addEventListener: (type: string, fn: () => void) => { listeners.window[type] = fn; },
     removeEventListener: (type: string) => { delete listeners.window[type]; },
   });
@@ -268,7 +348,7 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     expect(cached.votes).toMatchObject({ q_1: "0" });
   });
 
-  it("does NOT confirm an unacked vote when an agg snapshot lands mid-flight", async () => {
+  it("does NOT confirm an unacked vote when an agg poll lands mid-flight", async () => {
     const LIVE = await bootLive();
     const d = deferred();
     h.setDocImpl = () => d.promise;
@@ -277,13 +357,16 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     await flush(); // write in flight
 
     // A stranger's vote folds into the public aggregate while our
-    // setDoc is still pending — the regression this split fixes.
-    const aggListener = h.snapshots.find((s) => s.path === "v2_question_aggs/q_1");
-    expect(aggListener).toBeDefined();
-    aggListener!.next({
-      exists: () => true,
-      data: () => ({ counts: { "0": 3, "1": 1 }, total: 4, tooSmall: false }),
+    // setDoc is still pending — the regression this split fixes. The
+    // aggregate arrives on a poll rather than a snapshot since D129, and
+    // the contract is unchanged: a fresh aggregate must not confirm a
+    // write the server has not acknowledged.
+    h.aggDocs.push({
+      id: "q_1",
+      data: { counts: { "0": 3, "1": 1 }, total: 4, tooSmall: false },
     });
+    const mod = await import("./live");
+    await mod._aggPollForTest().tick();
 
     expect(LIVE.myVotes()).toMatchObject({ q_1: "1" });
     expect(LIVE.confirmedVotes()).not.toHaveProperty("q_1"); // still unacked
@@ -317,6 +400,84 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     expect(cached.votes || {}).not.toHaveProperty("q_1");
     expect(listener.mock.calls.length).toBeGreaterThan(notifiesBeforeReject);
     expect(h.reportError).toHaveBeenCalledWith(boom, { where: "vote", qid: "q_1" });
+  });
+
+  it("editVote (D86): refuses when there is nothing to move, and sends nothing", async () => {
+    const LIVE = await bootLive();
+    expect(LIVE.editVote("q_1", "1")).toBe(false); // never answered
+    LIVE.vote("q_1", "1");
+    await flush();
+    expect(LIVE.editVote("q_1", "1")).toBe(false); // same option
+    expect(h.updateDocCalls).toHaveLength(0);
+  });
+
+  it("editVote refuses while the create is still unacked, then moves once it lands", async () => {
+    const LIVE = await bootLive();
+    const d = deferred();
+    h.setDocImpl = () => d.promise;
+    LIVE.vote("q_1", "1");
+    await flush();
+    expect(LIVE.editVote("q_1", "0")).toBe(false); // create in flight
+    d.resolve();
+    await flush();
+    expect(LIVE.editVote("q_1", "0")).toBe(true);
+    await flush();
+    expect(h.updateDocCalls.map((c) => c.path)).toContain("v2_users/uid_test/answers/q_1");
+  });
+
+  it("editVote moves optimistically, writes ONLY optionIdx + editedAt, and confirms on ack", async () => {
+    const LIVE = await bootLive();
+    LIVE.vote("q_1", "1");
+    await flush();
+    const d = deferred();
+    h.updateDocImpl = () => d.promise;
+    expect(LIVE.editVote("q_1", "0")).toBe(true);
+    expect(LIVE.myVotes()).toMatchObject({ q_1: "0" });      // optimistic
+    expect(LIVE.confirmedVotes()).not.toHaveProperty("q_1"); // unacked again
+    await flush();
+    const call = h.updateDocCalls.find((c) => c.path === "v2_users/uid_test/answers/q_1");
+    expect(call).toBeDefined();
+    // The whole diff surface the rules arm admits — anything more here
+    // would be refused server-side (anchors and answeredAt are frozen).
+    expect(Object.keys(call!.data).sort()).toEqual(["editedAt", "optionIdx"]);
+    expect(call!.data.optionIdx).toBe(0);
+    d.resolve();
+    await flush();
+    expect(LIVE.confirmedVotes()).toMatchObject({ q_1: "0" });
+    const cached = JSON.parse(storage.getItem(ANS_LS) || "{}");
+    expect(cached.votes).toMatchObject({ q_1: "0" });
+  });
+
+  it("editVote holds the client-side 60s cooldown after an acked edit", async () => {
+    const LIVE = await bootLive();
+    LIVE.vote("q_1", "1");
+    await flush();
+    expect(LIVE.editVote("q_1", "0")).toBe(true);
+    await flush(); // acked — the cooldown stamp lands
+    expect(LIVE.editVote("q_1", "1")).toBe(false);
+    expect(h.updateDocCalls).toHaveLength(1); // the second edit sent nothing
+  });
+
+  it("editVote rolls back to the standing option when the server refuses", async () => {
+    const LIVE = await bootLive();
+    LIVE.vote("q_1", "1");
+    await flush();
+    // the feed-votes mirror the rollback must RESTORE (not scrub — the
+    // doc still holds the previous option, unlike a refused create)
+    storage.setItem(WF_LS, JSON.stringify({ q_1: 0 }));
+    const d = deferred();
+    h.updateDocImpl = () => d.promise;
+    expect(LIVE.editVote("q_1", "0")).toBe(true);
+    await flush();
+    const boom = new Error("PERMISSION_DENIED: one change a minute");
+    d.reject(boom);
+    await flush();
+    expect(LIVE.myVotes()).toMatchObject({ q_1: "1" });
+    expect(LIVE.confirmedVotes()).toMatchObject({ q_1: "1" });
+    expect(JSON.parse(storage.getItem(WF_LS) || "{}")).toMatchObject({ q_1: 1 });
+    const cached = JSON.parse(storage.getItem(ANS_LS) || "{}");
+    expect(cached.votes).toMatchObject({ q_1: "1" });
+    expect(h.reportError).toHaveBeenCalledWith(boom, { where: "editVote", qid: "q_1" });
   });
 
   it("registers wake handlers, and a wake on a dead session re-attaches", async () => {
@@ -397,6 +558,133 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     // key never comes back — so assert on the contents, which also keeps
     // this from racing the refresh.
     expect(JSON.parse(storage.getItem(WF_LS) || "{}")).not.toHaveProperty("q_1");
+    // …and the purge announces itself, because deleting the keys is only
+    // half the wipe: spec-layer stores (lens-defs) hold an in-memory copy,
+    // and with no reload on this path their next save() would write the
+    // previous account's data straight back. The listener side is pinned
+    // in test/lens-live.test.ts; this pins that the announcement fires.
+    expect(dispatched).toContain("insight:local-purge");
+  });
+
+  // ── the coalesced agg cache (D64) ───────────────────────────────────
+  //
+  // saveAggCache used to run JSON.stringify over the WHOLE aggs map
+  // synchronously inside the agg snapshot handler, and that handler fires
+  // once per publish on a globally-shared question — COSTS.md finding 2's
+  // own fan-out numbers make that ~0.7 full serialisations/sec at 50k DAU
+  // and ~6.9/sec at 500k, on the main thread. It is coalesced now, which
+  // buys the throughput and costs three new ways to be wrong: a write that
+  // never lands, a write that lands after the purge, and a write lost to a
+  // backgrounded WebView. One case each.
+  //
+  // Real timers rather than fake ones: boot itself schedules a write, and
+  // switching clocks underneath a pending real timer leaks it into whatever
+  // test runs next. Each case waits out the window instead.
+  const AGG_LS = "insight.aggsCache.v1";
+  const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+  // Stage the aggregate and run one poll tick — the same body the interval
+  // runs, so these cases still drive the real refresh path (D129). It is
+  // async now, where the snapshot callback was synchronous, which is why
+  // every caller below awaits it.
+  const emitAgg = async (total: number) => {
+    h.aggDocs.length = 0;
+    h.aggDocs.push({
+      id: "q_1",
+      data: { counts: { "0": total, "1": 0 }, total, tooSmall: false },
+    });
+    const mod = await import("./live");
+    await mod._aggPollForTest().tick();
+  };
+  const aggWrites = (spy: { mock: { calls: unknown[][] } }) =>
+    spy.mock.calls.filter((c) => c[0] === AGG_LS).length;
+
+  it("coalesces a burst of agg snapshots into one cache write, carrying the last state", async () => {
+    await bootLive();
+    await sleep(1200); // let boot's own write land, so the spy counts only ours
+    const spy = vi.spyOn(storage, "setItem");
+
+    for (let i = 1; i <= 5; i++) await emitAgg(i);
+    // Nothing synchronous — that is the whole point; the handler used to
+    // stringify the map five times right here.
+    expect(aggWrites(spy)).toBe(0);
+
+    await sleep(1200);
+    expect(aggWrites(spy)).toBe(1);
+    // Leading-schedule/trailing-write: the write happens a beat after the
+    // FIRST snapshot but serialises state at write time, so it carries the
+    // fifth one's total rather than the first's.
+    expect(JSON.parse(storage.getItem(AGG_LS) || "{}")).toMatchObject({
+      q_1: { total: 5 },
+    });
+    spy.mockRestore();
+  });
+
+  it("a uid change carries no previous account's aggregate past the purge", async () => {
+    // Same contract as the feed-vote mirror above — none of the previous
+    // account's data survives, NOT that the key never comes back — and the
+    // coalescing is what makes it worth re-pinning here: between the
+    // snapshot and the purge there is now a write in flight that there
+    // never used to be.
+    //
+    // Honest about what this does and does not prove. Removing the
+    // cancelAggCache() call from purgeLocalTrace fails NOTHING in this
+    // tree, this case included, and that is not a gap in the case: on this
+    // path resetForNewUid empties state.aggs before it purges, so a
+    // surviving timer can only write `{}`, and the new session re-creates
+    // the key empty within the window regardless. The cancel is hygiene.
+    // What is actually load-bearing here is the assertion below.
+    await bootLive();
+    await sleep(1200);
+    expect(storage.getItem(AGG_LS)).not.toBeNull(); // boot wrote one
+
+    await emitAgg(9); // schedules a write…
+    // Emptied BEFORE the uid change, not after. Since D129 the aggregate is
+    // FETCHED rather than pushed, so the new session polls during the drain
+    // below — and an aggregate is public data, so a new uid re-reading the
+    // same q_1 is correct behaviour rather than a leak. Leaving the fixture
+    // staged would let this case pass (or fail) on that honest re-read
+    // instead of on the thing it is about: the previous account's in-flight
+    // write not surviving the purge.
+    h.aggDocs.length = 0;
+    expect(h.authCb).toBeTypeOf("function");
+    h.authCb!({ uid: "someone_else" }); // …and the purge lands first
+    await flush();
+    expect(storage.getItem(AGG_LS)).toBeNull();
+
+    // Past the window the pending write would have fired in: the key may be
+    // back (the new uid's own poll writes it), but never carrying the counts
+    // the previous account's in-flight write was holding.
+    await sleep(1200);
+    expect(JSON.parse(storage.getItem(AGG_LS) || "{}")).not.toHaveProperty("q_1");
+  });
+
+  it("hiding the app flushes the pending agg write rather than losing it", async () => {
+    // Hiding is the last callback a mobile WebView is guaranteed before the
+    // OS may kill it. Before coalescing, the write was already on disk by
+    // then; now it can be up to a second in the future.
+    await bootLive();
+    await sleep(1200);
+    const spy = vi.spyOn(storage, "setItem");
+
+    await emitAgg(7);
+    expect(aggWrites(spy)).toBe(0); // still pending
+
+    expect(listeners.document.visibilitychange).toBeTypeOf("function");
+    (document as unknown as { hidden: boolean }).hidden = true;
+    listeners.document.visibilitychange();
+
+    // Synchronous — the flush is the point.
+    expect(aggWrites(spy)).toBe(1);
+    expect(JSON.parse(storage.getItem(AGG_LS) || "{}")).toMatchObject({
+      q_1: { total: 7 },
+    });
+
+    // …and exactly once: the flush cancels the timer, so the window
+    // expiring afterwards must not write the same map a second time.
+    await sleep(1200);
+    expect(aggWrites(spy)).toBe(1);
+    (document as unknown as { hidden: boolean }).hidden = false;
+    spy.mockRestore();
   });
 
   it("a revoked session keeps real data on screen rather than blanking to demo", async () => {
@@ -432,18 +720,59 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     expect(feed.map((q) => q.id)).not.toContain("q_feed_rank");
   });
 
-  it("reports and re-notifies when an agg listener errors", async () => {
+  it("a continuum question keeps its type and range copy in the live feed (D114)", async () => {
+    // Everything else is flattened to type "vote" on purpose — but a dial's
+    // options are synthesized bucket labels, and world-feed renders the
+    // card from lo/hi/unit + the per-bucket counts. Hardcoding "vote" here
+    // (as every card once was) would serve a 12-option split titled
+    // "When does old age begin?" — the D12 wrong-shaped card, live.
+    h.bankDocs.push({
+      id: "q_feed_dial",
+      data: {
+        surface: "feed", seq: 4, type: "dial", prompt: "When does old age begin?",
+        options: Array.from({ length: 12 }, (_, i) => `b${i}`),
+        topic: "bigq", test: null, active: true, lo: 40, hi: 90, unit: "yrs",
+      },
+    });
+    await bootLive();
+    const feed = (window as unknown as {
+      WORLD_FEED_QS?: Array<{ id: string; type: string; lo?: number; hi?: number; unit?: string; options: Array<{ label: string; count: number }> }>;
+    }).WORLD_FEED_QS || [];
+    const dial = feed.find((q) => q.id === "q_feed_dial");
+    expect(dial).toBeDefined();
+    expect(dial!.type).toBe("dial");
+    expect(dial!.lo).toBe(40);
+    expect(dial!.hi).toBe(90);
+    expect(dial!.unit).toBe("yrs");
+    expect(dial!.options).toHaveLength(12);
+  });
+
+  it("reports a failed agg poll and leaves the cached counts standing", async () => {
+    // Was "reports and re-notifies when an agg listener errors". The
+    // listener is gone (D129) and its error arm with it, but the contract
+    // it protected is not: a refresh that fails must be reported and must
+    // not blank the counts already on screen. Degrading to stale-but-
+    // present is the whole reason the poll is best-effort.
     const LIVE = await bootLive();
+    h.aggDocs.push({
+      id: "q_1",
+      data: { counts: { "0": 5, "1": 2 }, total: 7, tooSmall: false },
+    });
+    const mod = await import("./live");
+    await mod._aggPollForTest().tick();
+    const before = LIVE.deck()[0];
+
     const listener = vi.fn();
     LIVE.subscribe(listener);
+    const boom = new Error("offline");
+    h.getDocsImpl = () => boom;
+    await mod._aggPollForTest().tick();
+    h.getDocsImpl = null;
 
-    const aggListener = h.snapshots.find((s) => s.path === "v2_question_aggs/q_1");
-    expect(aggListener?.error).toBeDefined();
-    const boom = new Error("listener torn down");
-    aggListener!.error!(boom);
-
-    expect(h.reportError).toHaveBeenCalledWith(boom, { where: "aggListener", qid: "q_1" });
-    expect(listener).toHaveBeenCalled();
+    expect(h.reportError).toHaveBeenCalledWith(boom, { where: "refreshAggs" });
+    // The counts the failed poll could not refresh are still the ones the
+    // last good poll left.
+    expect(LIVE.deck()[0]).toMatchObject({ id: before.id });
   });
 });
 
@@ -466,6 +795,7 @@ describe("window.LIVE public surface", () => {
   // renamed member — that is the whole point.
   const EXPECTED = LIVE_MEMBERS;
   const EXPECTED_SOCIAL = LIVE_SOCIAL_MEMBERS;
+  const EXPECTED_NEAR = LIVE_NEAR_MEMBERS;
 
   it("exposes exactly the members the spec layer looks up by name", async () => {
     const LIVE = await bootLive();
@@ -476,9 +806,253 @@ describe("window.LIVE public surface", () => {
     expect(actual).toEqual(expected);
   });
 
+  // A boot that hangs is the shape the field actually produced, and the
+  // label that describes it was written twice — the first version froze
+  // the string at the render-race deadline, so a device stuck for two
+  // minutes still read "after 3s". That number was about when the app
+  // stopped waiting to RENDER, and every reader takes it for how long it
+  // has been stuck. Both properties are pinned: the stage is named, and no
+  // elapsed figure is claimed.
+  it("names the stage it is stuck on, and claims no elapsed time", async () => {
+    h.hangSignIn = true;
+    const mod = await import("./live");
+    const LIVE = mod.default;
+    await mod.initLive(1);
+    await vi.waitFor(() => {
+      expect(LIVE.bootError).not.toBe("");
+    });
+    expect(LIVE.enabled).toBe(false);
+    expect(LIVE.bootError).toBe("still connecting — signing in");
+    // The regression, stated as the assertion: a duration in this string
+    // is a claim the app cannot support.
+    expect(LIVE.bootError).not.toMatch(/\d+\s*s\b/);
+  });
+
   it("exposes exactly the social members", async () => {
     const LIVE = await bootLive();
     const social = (LIVE as unknown as { social: Record<string, unknown> }).social;
     expect(Object.keys(social).sort()).toEqual([...EXPECTED_SOCIAL].sort());
+  });
+
+  it("exposes exactly the near members (D84)", async () => {
+    const LIVE = await bootLive();
+    const near = (LIVE as unknown as { near: Record<string, unknown> }).near;
+    expect(Object.keys(near).sort()).toEqual([...EXPECTED_NEAR].sort());
+  });
+});
+
+// The learn crowd split, warmed before the tap (D125).
+//
+// learnAgg is a read-through cache that returns null on the first call for
+// a card and kicks a background getDoc. Its only caller ran inside
+// LEARN.answer() — at the instant of the tap — so the first call for every
+// card was the one deciding that card's reveal, it returned null every
+// time, and every learn split the app has ever drawn was the authored
+// estimate whatever the crowd had answered. The arithmetic was never
+// wrong; nothing ever reached it.
+describe("LIVE.loadLearnAggs — warming the split before the tap (D125)", () => {
+  // Boot itself now issues one `v2_question_aggs` query — the D129 deck
+  // refresh that replaced the snapshot listeners — so the cases below that
+  // assert on the FULL query list clear it first. They are about what
+  // loadLearnAggs asks for, which is what their names say; folding the deck
+  // read into the expectation would couple them to DECK_DAYS for no reason.
+  it("asks for learn-<card>, deduped, in one batched query", async () => {
+    const LIVE = await bootLive();
+    h.aggIdQueries.length = 0;
+    await LIVE.loadLearnAggs(["cap6", "cell1", "cap6"]);
+    expect(h.aggIdQueries).toEqual([["learn-cap6", "learn-cell1"]]);
+  });
+
+  it("makes the very next learnAgg read a hit rather than a null", async () => {
+    // The property the whole change rests on: after this, the tap's read
+    // — which cannot await — has the measurement in hand.
+    h.aggDocs = [{ id: "learn-cap6", data: { total: 40, counts: { "0": 30, "1": 10 } } }];
+    const LIVE = await bootLive();
+    await LIVE.loadLearnAggs(["cap6"]);
+    expect(LIVE.learnAgg("cap6")).toEqual({ total: 40, counts: { "0": 30, "1": 10 } });
+  });
+
+  it("is what the reveal was missing — an unwarmed read is null however much data exists", async () => {
+    // The same session, the same published aggregate, and no warm-up: the
+    // shipped behaviour up to D125, and the reason the authored estimate
+    // was not a cold-start state but a permanent one.
+    h.aggDocs = [{ id: "learn-cap6", data: { total: 40, counts: { "0": 30, "1": 10 } } }];
+    const LIVE = await bootLive();
+    expect(LIVE.learnAgg("cap6")).toBeNull();
+  });
+
+  it("warms only what it was asked for", async () => {
+    h.aggDocs = [{ id: "learn-cap6", data: { total: 40, counts: { "0": 30 } } }];
+    const LIVE = await bootLive();
+    await LIVE.loadLearnAggs(["cap7"]);
+    expect(LIVE.learnAgg("cap6")).toBeNull();
+  });
+
+  it("never re-requests a card the session already holds", async () => {
+    // One read per distinct card per session is the budget learnAgg
+    // always had; warming may move when it is paid, never how often.
+    const LIVE = await bootLive();
+    h.aggIdQueries.length = 0;
+    await LIVE.loadLearnAggs(["cap6"]);
+    await LIVE.loadLearnAggs(["cap6", "cap7"]);
+    expect(h.aggIdQueries).toEqual([["learn-cap6"], ["learn-cap7"]]);
+  });
+
+  it("leaves the estimate standing when the fetch fails", async () => {
+    // A failed warm-up must cost the measurement, never the reveal: the
+    // cache keeps its null, LEARN_SPLIT falls back to the authored model,
+    // and the footer says so. Silence here would be the honest outcome
+    // rendered as a crash.
+    const LIVE = await bootLive();
+    h.getDocsImpl = () => new Error("offline");
+    await expect(LIVE.loadLearnAggs(["cap6"])).resolves.toBeUndefined();
+    expect(LIVE.learnAgg("cap6")).toBeNull();
+    expect(h.reportError).toHaveBeenCalled();
+  });
+
+  it("does nothing at all in demo mode", async () => {
+    // No project, no aggregates, and a read would be a network call a demo
+    // build must never make.
+    const LIVE = await bootLive();
+    h.aggIdQueries.length = 0;
+    Object.defineProperty(LIVE, "enabled", { value: false, configurable: true });
+    await LIVE.loadLearnAggs(["cap6"]);
+    expect(h.aggIdQueries).toEqual([]);
+  });
+});
+
+// Erasure has to reach the offline mirror, not just localStorage.
+//
+// firebaseImpl.ts enables persistentLocalCache() unconditionally and
+// hydrate() reads the whole answers subcollection plus the profile, so a
+// deleted account's votes and anchors are on disk in IndexedDB. Nothing
+// evicted them — hydrate is a one-shot getDocs, not a listener, so the
+// server-side delete produces no remove event. web/privacy.html and
+// docs/data-inventory.md both promise this clearing, and D6 treats the same
+// cache as sensitive (it is why Android backup is off). This is the
+// assertion that keeps the promise true.
+describe("LIVE.deleteAccount — the on-device half of erasure", () => {
+  async function captureCallable() {
+    const fns = await import("firebase/functions");
+    const invoke = vi.fn(() => Promise.resolve({ data: {} }));
+    vi.mocked(fns.getFunctions).mockClear().mockReturnValue({ __fns: true } as never);
+    vi.mocked(fns.httpsCallable).mockClear().mockReturnValue(invoke as never);
+    return invoke;
+  }
+
+  it("terminates the client and clears the IndexedDB cache, in that order", async () => {
+    const LIVE = await bootLive();
+    await captureCallable();
+    localStorage.setItem(ANS_LS, JSON.stringify({ day: 1, votes: { q_1: "0" } }));
+
+    await LIVE.deleteAccount();
+
+    // Order, not just presence: clearIndexedDbPersistence refuses a live
+    // instance, so a dropped terminate() turns the clear into a no-op that
+    // still logs nothing and still leaves the disk mirror intact.
+    expect(h.cacheTeardown).toEqual(["terminate", "clearIndexedDbPersistence"]);
+    // …and the localStorage half it always did still happens after it.
+    expect(localStorage.getItem(ANS_LS)).toBeNull();
+  });
+
+  it("unlatches teardown when the wipe is refused, so the session survives", async () => {
+    // index.ts refuses the auth delete whenever ANY wipe phase failed, and
+    // every network timeout lands here too — while LivePrivacyPanel keeps
+    // the user in the app afterwards. `torndown` is set as the FIRST
+    // statement (deliberately: in-flight writers must not re-create an
+    // insight.* key mid-wipe), and nothing reset it, so a refused delete
+    // left the session permanently deaf: no reconnect, no midnight
+    // resubscribe, and the uid-change guard disabled.
+    //
+    // Asserted through wake(), which is `if (torndown) return` — a live
+    // session re-reads the bank on a wake, a torndown one does nothing.
+    const LIVE = await bootLive();
+    const fns = await import("firebase/functions");
+    vi.mocked(fns.getFunctions).mockClear().mockReturnValue({ __fns: true } as never);
+    vi.mocked(fns.httpsCallable).mockClear().mockReturnValue(
+      vi.fn(() => Promise.reject(new Error("internal"))) as never,
+    );
+
+    await expect(LIVE.deleteAccount()).rejects.toThrow("internal");
+
+    // Nothing was deleted, so nothing may have been torn down either.
+    expect(h.cacheTeardown).toEqual([]);
+
+    // The observable: cacheVote is `if (torndown) return`, so a latched
+    // store silently stops writing the answers cache while vote() keeps
+    // issuing the Firestore write — the split that made this invisible.
+    storage.removeItem(ANS_LS);
+    LIVE.vote("q_1", "1");
+    await flush();
+    const cached = JSON.parse(storage.getItem(ANS_LS) || "null");
+    expect(cached?.votes?.q_1, "the store stayed torn down after a refused delete")
+      .toBe("1");
+  });
+
+  it("still finishes the purge when the cache cannot be cleared", async () => {
+    // clearIndexedDbPersistence rejects while another tab holds the lease.
+    // A device that cannot clear its cache must still sign out and reload,
+    // or the failure mode is worse than the one being fixed.
+    const LIVE = await bootLive();
+    await captureCallable();
+    h.clearCacheImpl = () => Promise.reject(new Error("client is not terminated"));
+    localStorage.setItem(ANS_LS, JSON.stringify({ day: 1, votes: { q_1: "0" } }));
+
+    await expect(LIVE.deleteAccount()).resolves.toBeUndefined();
+
+    expect(localStorage.getItem(ANS_LS)).toBeNull();
+    expect(h.reportError).toHaveBeenCalledWith(
+      expect.any(Error),
+      expect.objectContaining({ where: "deleteAccount.clearCache" }),
+    );
+  });
+});
+
+// The operator seed hook.
+//
+// The surface pin above proves `seedContent` EXISTS. It cannot prove the
+// name it calls, and the name is the whole value here: SHIP-CHECKLIST §1's
+// remaining step is an operator typing this into a console against
+// production, where a typo'd callable name is an `internal` error with
+// nothing to read. The previous documented command
+// (`firebase.functions()...`, v8 syntax on a modular-SDK app) failed that
+// way for a different reason, so the region and payload are asserted too.
+describe("LIVE.seedContent — the operator instrument", () => {
+  // Call AFTER bootLive(): boot runs the device-bind activation, which is
+  // itself an httpsCallable, so an uncleared mock puts `activateDeviceV2`
+  // at calls[0] and the name assertion below reads the wrong call. (Found
+  // by writing the assertion first and watching it fail on that name.)
+  async function captureCallable() {
+    const fns = await import("firebase/functions");
+    const invoke = vi.fn(() => Promise.resolve({ data: { written: 369, skipped: 0 } }));
+    vi.mocked(fns.getFunctions).mockClear().mockReturnValue({ __fns: true } as never);
+    vi.mocked(fns.httpsCallable).mockClear().mockReturnValue(invoke as never);
+    return { fns, invoke };
+  }
+
+  it("calls seedContentV2 in us-central1 and returns its payload", async () => {
+    const LIVE = await bootLive();
+    const { fns, invoke } = await captureCallable();
+
+    const res = await LIVE.seedContent();
+
+    expect(vi.mocked(fns.getFunctions).mock.calls[0][1]).toBe("us-central1");
+    expect(vi.mocked(fns.httpsCallable).mock.calls[0][1]).toBe("seedContentV2");
+    // Default is the cheap reseed (D34): rewrite changed documents, leave
+    // contentRev alone so returning devices don't refetch the whole bank.
+    expect(invoke).toHaveBeenCalledWith({ bumpRev: false });
+    expect(res).toEqual({ written: 369, skipped: 0 });
+  });
+
+  it("passes bumpRev only when explicitly asked", async () => {
+    const LIVE = await bootLive();
+    const { invoke } = await captureCallable();
+
+    await LIVE.seedContent(true);
+
+    // The console argument is documented as `seedContent(true)`; anything
+    // truthy-but-not-true would silently invalidate every device's cached
+    // bank, so the wire value is normalised rather than forwarded.
+    expect(invoke).toHaveBeenCalledWith({ bumpRev: true });
   });
 });

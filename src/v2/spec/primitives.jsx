@@ -1,14 +1,25 @@
 // Ported from design/spec-modules/primitives.jsx (the historical prototype — no sync
 // script survives; THIS file is the live source now, hand-edits and all).
-// Cross-module references resolve through the shared global scope and
-// spec-index.js load order is semantic — scripts/check-spec-globals.mjs
-// guards the wiring in CI.
+//
+// FIRST MODULE OFF THE SHARED-GLOBAL BRIDGE (D39, 2026-08-03). This file
+// publishes nothing to globalThis any more: its eleven names are ordinary
+// named exports, and all 24 consumers import them. It was chosen to go
+// first for two measured reasons — it has the most consumers in the layer
+// (22 by the ratchet's count), and it depends on nothing itself, so
+// nothing about spec-index.js's semantic load order can be disturbed by
+// hoisting it. Module scope here declares functions and one const array
+// and reads no other module.
+//
+// The rest of the layer still resolves cross-module references through
+// global scope and spec-index.js order is still semantic —
+// scripts/check-spec-globals.mjs guards that wiring, and its rule 4
+// counts what is left.
 import React from 'react';
 
 // Shared primitives — small components used across tabs
 const { useState, useEffect, useMemo, useRef } = React;
 
-function Av({ init, hue = 38, size = 38 }) {
+export function Av({ init, hue = 38, size = 38 }) {
   const bg = `oklch(0.86 0.05 ${hue})`;
   const fg = `oklch(0.30 0.10 ${hue})`;
   return (
@@ -20,7 +31,7 @@ function Av({ init, hue = 38, size = 38 }) {
 
 // Anonymous avatar — for nearby strangers. No initials (those leak the name);
 // just a tinted disc with a centred dot, matching the Around-tab treatment.
-function AnonAv({ hue = 38, size = 38 }) {
+export function AnonAv({ hue = 38, size = 38 }) {
   return (
     <span className="av" style={{
       width: size, height: size, background: `oklch(0.86 0.05 ${hue})`,
@@ -37,7 +48,7 @@ function AnonAv({ hue = 38, size = 38 }) {
 
 // Display name for a person. Strangers (p.anon) are shown by gender + age,
 // e.g. "Woman, 29" — never by name. Named contacts return their name.
-function anonName(p) {
+export function anonName(p) {
   if (!p) return '';
   if (p.anon) {
     const g = (p.gender || p.role || 'person');
@@ -45,17 +56,10 @@ function anonName(p) {
   }
   return p.name || '';
 }
-// First-name variant for inline prose; strangers collapse to "they".
-function anonFirst(p) {
-  if (!p) return 'they';
-  if (p.anon) return 'they';
-  return (p.name || 'they').split(' ')[0];
-}
-
-function Kicker({ children }) { return <div className="kicker">{children}</div>; }
+export function Kicker({ children }) { return <div className="kicker">{children}</div>; }
 
 // Chapter divider — groups a tab's cards into a clear section: a quiet rule + bold title.
-function TabSection({ title, sub, art }) {
+export function TabSection({ title, sub, art }) {
   return (
     <div style={{ margin: '26px 0 12px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
@@ -73,14 +77,12 @@ function TabSection({ title, sub, art }) {
   );
 }
 
-Object.assign(window, { Av, AnonAv, anonName, anonFirst, Kicker, TabSection, Lazy });
-
 // Defer-mount a heavy section until it nears the viewport, so a tab's initial
 // paint stays light (and the DOM stays small enough to screenshot). Reserves
 // `minHeight` so the scrollbar doesn't lurch, and mounts ~700px early so the
 // user almost never sees the placeholder while scrolling. Uses a scroll-rect
 // check (IntersectionObserver with a custom root is unreliable in this host).
-function Lazy({ minHeight = 240, children }) {
+export function Lazy({ minHeight = 240, children }) {
   const ref = React.useRef(null);
   const [show, setShow] = React.useState(false);
   React.useEffect(() => {
@@ -116,7 +118,7 @@ function Lazy({ minHeight = 240, children }) {
 
 // ─── a ring that IS the match figure — arc sweep = how alike you are.
 //     Wraps an avatar (or stands alone as a small glyph). No numeral. ───
-function MatchRing({ pct, color = 'var(--accent)', size = 50, thick = 2.4, children, title }) {
+export function MatchRing({ pct, color = 'var(--accent)', size = 50, thick = 2.4, children, title }) {
   const r = (size - thick) / 2;
   const C = 2 * Math.PI * r;
   return (
@@ -131,15 +133,17 @@ function MatchRing({ pct, color = 'var(--accent)', size = 50, thick = 2.4, child
     </span>
   );
 }
-Object.assign(window, { MatchRing });
 
 // ── Modal dialogs ────────────────────────────────────────────────────
 // Until 2026-07-31 every overlay and bottom sheet here was a bare <div>:
 // no role, no aria-modal, no Escape, no focus trap, no focus restore.
 // Exactly one dialog existed in the whole spec layer — app-shell's update
 // gate. The two helpers below are the fix, and they live in primitives
-// because spec-index loads this module (18) before every consumer: the
-// earliest sheet is type-marks (28) and app-shell is last (88).
+// because every sheet and overlay in the layer needs them. That used to
+// come with a load-order caveat — spec-index loads this module at 18,
+// before the earliest sheet (type-marks, 28) and app-shell (88). Since
+// D39 that caveat is gone: consumers import these by name, so ordering is
+// the module graph's problem rather than a fact about a list.
 //
 // `useDialog` is for the eight full-screen overlays, which each own a
 // top-level `.overlay` div. `Sheet` is for the seven wf-scrim/wf-sheet
@@ -149,7 +153,7 @@ Object.assign(window, { MatchRing });
 // [tabindex="-1"]: the dialog container itself carries that so it can be
 // focused programmatically when it holds no controls, and it must never
 // become a Tab stop of its own.
-const DIALOG_FOCUSABLE = [
+export const DIALOG_FOCUSABLE = [
   'a[href]', 'button:not([disabled])', 'input:not([disabled])',
   'select:not([disabled])', 'textarea:not([disabled])',
   '[tabindex]:not([tabindex="-1"])',
@@ -159,7 +163,7 @@ const DIALOG_FOCUSABLE = [
 // that IS the dialog — one line per overlay:
 //     const dlg = useDialog(onClose, 'Profile');
 //     <div className="overlay" {...dlg}> …
-function useDialog(onClose, label) {
+export function useDialog(onClose, label) {
   const ref = useRef(null);
 
   useEffect(() => {
@@ -211,7 +215,7 @@ function useDialog(onClose, label) {
 
 // The bottom-sheet pattern: scrim + sheet + grab handle, with the dialog
 // semantics already attached. `children` land inside the sheet.
-function Sheet({ onClose, closing, label, children }) {
+export function Sheet({ onClose, closing, label, children }) {
   const dlg = useDialog(onClose, label);
   return (
     <div
@@ -234,13 +238,3 @@ function Sheet({ onClose, closing, label, children }) {
     </div>
   );
 }
-Object.assign(window, { useDialog, Sheet, DIALOG_FOCUSABLE });
-
-;globalThis.Av = typeof Av === 'undefined' ? globalThis.Av : Av;
-;globalThis.AnonAv = typeof AnonAv === 'undefined' ? globalThis.AnonAv : AnonAv;
-;globalThis.anonName = typeof anonName === 'undefined' ? globalThis.anonName : anonName;
-;globalThis.anonFirst = typeof anonFirst === 'undefined' ? globalThis.anonFirst : anonFirst;
-;globalThis.Kicker = typeof Kicker === 'undefined' ? globalThis.Kicker : Kicker;
-;globalThis.TabSection = typeof TabSection === 'undefined' ? globalThis.TabSection : TabSection;
-;globalThis.Lazy = typeof Lazy === 'undefined' ? globalThis.Lazy : Lazy;
-;globalThis.MatchRing = typeof MatchRing === 'undefined' ? globalThis.MatchRing : MatchRing;

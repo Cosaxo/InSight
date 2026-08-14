@@ -54,7 +54,7 @@ initializeApp();
 //   6. The auth user itself
 //
 // What we leave (intentional):
-//   - the v1 aggregates_* documents: k-floored anonymous averages
+//   - the v1 aggregates_* documents: anonymous averages (v1, retired)
 //     (floor 20) carrying no per-user provenance, so there is nothing
 //     in them to attribute back and nothing to unwind. They are now
 //     FROZEN residue rather than a live rollup — D13 deleted the
@@ -168,6 +168,23 @@ export const deleteAccount = onCall(
       discoverable: 0,
       othersRelations: 0,
       othersInbound: 0,
+      // Follows OTHER accounts hold of this one (D101, phase 3b). Counted
+      // separately from othersRelations because they are a different
+      // collection with a different index behind them, and a zero here on
+      // an account that had followers is the signal that the index is
+      // missing rather than that nobody followed them.
+      othersFollows: 0,
+      handle: 0,
+      invitesTo: 0,
+      invitesFrom: 0,
+      // Question suggestions swept by phase 4d (docs/NEXT-FUNCTIONALITY.md
+      // §6) — the author's queued free text, keyed by uid.
+      suggestions: 0,
+      // Reveal docs scrubbed of this uid (phase 1c-bis). Reported for the
+      // same reason as modQueueOrphans: it is the number that tells an
+      // operator whether the collection-group sweep actually reached
+      // anything, and a zero on an account that played duels is a signal.
+      reveals: 0,
       // Not per-user: the queue sweep is keyed on a take being gone, not on
       // whose it was, so this counts every orphan it found (see
       // deleteOrphanedModQueue). Reported because a nonzero number here on
@@ -190,7 +207,7 @@ export const deleteAccount = onCall(
     }
 
     // 1b. Wipe the v2 subtree (profile + answers). Aggregate counts the
-    // user contributed stay — k-floored, anonymous tallies. The one place
+    // user contributed stay — anonymous tallies. The one place
     // that CAN attribute a count to this uid is the agg-events ledger
     // (D28), and phase 4c deletes it, so the tallies are anonymous again
     // the moment this call returns.
@@ -199,6 +216,19 @@ export const deleteAccount = onCall(
     } catch (err) {
       logger.error("[deleteAccount] v2 subtree wipe failed:", err);
       failed.push("v2Subtree");
+    }
+
+    // 1b1. The verified-logic attempt doc (D57) — keyed by uid in its own
+    // collection, so the subtree wipe above never reaches it. It holds the
+    // account's seed, score and timing; the anonymous norms HISTOGRAM the
+    // first attempt fed stays, same as the question aggregates a
+    // deleted account's answers fed (and unlike those, it has no uid
+    // ledger to scrub — the count was never attributable to begin with).
+    try {
+      await db.collection("v2_logic_attempts").doc(uid).delete();
+    } catch (err) {
+      logger.error("[deleteAccount] logic attempt wipe failed:", err);
+      failed.push("logicAttempt");
     }
 
     // 1b2. Wipe the user's takes and flags (docs/MODERATION.md). Both
@@ -215,6 +245,9 @@ export const deleteAccount = onCall(
     try {
       await deleteQueryDocs(db.collection("v2_takes").where("authorUid", "==", uid));
       await deleteQueryDocs(db.collection("v2_flags").where("uid", "==", uid));
+      // The presence doc (D84) is keyed by uid — one delete, and the only
+      // location-shaped datum the account ever held server-side is gone.
+      await db.collection("v2_presence").doc(uid).delete();
       // …and the queue's copy of the text, which the take's deletion does
       // not take with it. Must run AFTER the takes are gone — it identifies
       // its targets by their take being absent. See deleteOrphanedModQueue.
@@ -240,6 +273,29 @@ export const deleteAccount = onCall(
           await g.ref.update({
             memberUids: FieldValue.arrayRemove(uid),
             [`memberNames.${uid}`]: FieldValue.delete(),
+            // The join-time map revealGroupDay scopes reveals by. A uid here
+            // is the same erasure leak as the two fields around it.
+            [`memberJoinedAt.${uid}`]: FieldValue.delete(),
+            // …and `ownerUid`, when it names the departing user. It is
+            // stamped by createGroupV2 and read by NOTHING — a repo-wide
+            // grep finds the one write and no reader — so dropping it is
+            // behaviour-neutral, which is exactly why it was missed: the
+            // two fields beside it are load-bearing and this one is inert.
+            //
+            // firestore.rules serves the whole group document to every
+            // current member, so leaving it behind publishes a deleted
+            // user's raw uid to everyone still in the circle and to anyone
+            // they invite afterwards, indefinitely. That is the shape the
+            // reveal scrub below already refuses ("a pseudonymous
+            // identifier surviving an erasure request"), and
+            // docs/data-inventory.md enumerates the survivors as a closed
+            // set of three that this was not in.
+            //
+            // Deleted rather than reassigned to a surviving member: nothing
+            // reads it, so inventing a new owner would be a fact this
+            // codebase does not have a use for. If ownership ever acquires
+            // one, that is the moment to choose a successor deliberately.
+            ...(g.get("ownerUid") === uid ? { ownerUid: FieldValue.delete() } : {}),
           });
         } catch (err) {
           // NOT_FOUND (5) means the group was deleted between the query
@@ -252,7 +308,20 @@ export const deleteAccount = onCall(
             && (err as { code?: string }).code !== "not-found") throw err;
           continue;
         }
-        // The user's vote and display name inside every published reveal.
+        // The user's vote and display name inside every published reveal of
+        // a group they are STILL in. Phase 1c-bis below sweeps reveals by
+        // collection-group query and would reach all of these too — this
+        // loop stays because it is the half that does not depend on the
+        // reveal carrying a `members` snapshot. Reveals written before that
+        // payload shipped have none (D5's backfill amendment: the set is
+        // provably empty today, and that record asks for it to be
+        // re-checked before seeding), and a query on `members` cannot see
+        // them. Walking the subcollection can.
+        //
+        // The two phases compose rather than duplicate: this one removes
+        // the uid from `members`, so anything it reaches no longer matches
+        // 1c-bis's filter and is not visited twice.
+        //
         // Was one sequential update per reveal doc with no bound: a
         // year-old account in 20 groups is ~7,300 round trips, which blew
         // the old 60s wall — and the design then correctly refuses the auth
@@ -302,6 +371,99 @@ export const deleteAccount = onCall(
       failed.push("v2Groups");
     }
 
+    // 1c-bis. The same three fields, in reveals phase 1c cannot reach.
+    //
+    // 1c walks the groups the account is a MEMBER of. leaveGroupV2 removes a
+    // uid from memberUids and memberNames and deliberately does not touch
+    // reveals — a reveal is a shared record of a day several people played,
+    // and leaving a group is not an erasure request, so rewriting the
+    // others' history is not leaving's job (D45). The consequence was that
+    // 1c's `array-contains uid` query could not see those groups at all, so
+    // anyone who left a group before deleting their account left their name
+    // and their votes in that group's reveals permanently — still readable
+    // by the remaining members, because firestore.rules grants each uid
+    // listed in `members`.
+    //
+    // So this phase asks the REVEALS instead, by collection-group query on
+    // their own members snapshot: membership-independent by construction, so
+    // it covers left groups and any future path that detaches a user from a
+    // group without going through a callable. Requires a collection-group
+    // index on reveals.members; see firestore.indexes.json, the same
+    // dependency phases 3 and 4 below already carry.
+    //
+    // It does NOT replace 1c's loop, because the two miss different things:
+    // a query on `members` cannot see a reveal that has no `members` (D5's
+    // legacy set), and walking a subcollection cannot see a group you are no
+    // longer in. Together they cover both, and they do not overlap — 1c
+    // removes the uid from `members`, so what it reached no longer matches
+    // the filter here.
+    //
+    // No cursor: the scrub REMOVES uid from `members`, which is the field
+    // the query filters on, so each pass returns only what the previous pass
+    // has not yet reached and the loop drains naturally.
+    //
+    // PASS_CAP is a runaway guard, NOT a bound on legitimate work, and the
+    // number is chosen so those two cannot be confused. Hitting it means
+    // writes are not landing — the query keeps returning docs the scrub
+    // claims to have fixed — which has to be loud rather than an infinite
+    // loop against the function timeout. Legitimate work is bounded well
+    // below it: MEMBERSHIP_CAP is 20 groups × one reveal per day, so 500
+    // passes is ~27 years of daily duels in every group at once. Sizing it
+    // to "enough for a plausible account" instead would turn a long-lived
+    // account's erasure into a job that fails identically forever, which is
+    // the exact failure this phase's page size was chosen to avoid.
+    //
+    // Rotating WriteBatch rather than BulkWriter: BulkWriter swallows
+    // per-write errors by default, which would trade a loud timeout for a
+    // silent INCOMPLETE erasure — the worst possible outcome here. (The v1
+    // aggregators this pattern was borrowed from are gone as of D13;
+    // runSeedV2 in v2.ts is the remaining example.)
+    try {
+      const PAGE = 400;
+      const PASS_CAP = 500;
+      let scrubbed = 0;
+      let pass = 0;
+      for (; pass < PASS_CAP; pass++) {
+        const page = await db.collectionGroup("reveals")
+          .where("members", "array-contains", uid).limit(PAGE).get();
+        if (page.empty) break;
+        let batch = db.batch();
+        let ops = 0;
+        for (const r of page.docs) {
+          batch.update(r.ref, {
+            [`votes.${uid}`]: FieldValue.delete(),
+            [`names.${uid}`]: FieldValue.delete(),
+            // The membership snapshot the reveal read rule gates on
+            // (firestore.rules, the /reveals/{day} match). Scrubbing the
+            // vote and the name but leaving the uid here left a
+            // pseudonymous identifier — and the group-day history it
+            // implies — surviving an erasure request. Removing it costs
+            // the deleted user read access to a reveal they can no longer
+            // authenticate for anyway, and costs no OTHER member
+            // anything: the rule tests `request.auth.uid in members`, so
+            // each entry only ever grants its own owner.
+            members: FieldValue.arrayRemove(uid),
+          });
+          if (++ops >= 450) {
+            await batch.commit();
+            batch = db.batch();
+            ops = 0;
+          }
+        }
+        if (ops) await batch.commit();
+        scrubbed += page.size;
+      }
+      if (pass >= PASS_CAP) {
+        throw new Error(
+          `reveal scrub did not drain in ${PASS_CAP} passes (${scrubbed} scrubbed) — writes are not landing`,
+        );
+      }
+      counts.reveals = scrubbed;
+    } catch (err) {
+      logger.error("[deleteAccount] v2 reveal scrub failed:", err);
+      failed.push("v2Reveals");
+    }
+
     // 2. Drop insight_discoverable/{uid} if present.
     try {
       const discRef = db.collection("insight_discoverable").doc(uid);
@@ -328,6 +490,75 @@ export const deleteAccount = onCall(
       failed.push("othersInbound");
     }
 
+    // 3b. Other users' FOLLOWS of this account (D101).
+    //
+    // The account's own follows go with its v2 subtree in 1b — these are
+    // the other direction, documents living under someone else's uid that
+    // name this one. Exactly the shape phase 4 handles for `relations`,
+    // and it needs the same thing: a collection-group query cannot filter
+    // on a document id, so the follow doc carries `to` as a field pinned
+    // by the rules to equal its own id.
+    //
+    // Leaving them would not expose anything — the profile they point at
+    // is gone — but it would leave every follower's Circle holding a
+    // uid that resolves to nothing, and "erased" has to mean the
+    // pointers too, not just the target.
+    try {
+      const followQuery = db
+        .collectionGroup("following")
+        .where("to", "==", uid);
+      counts.othersFollows = await deleteQueryDocs(followQuery);
+    } catch (err) {
+      logger.error("[deleteAccount] inbound follows wipe failed:", err);
+      failed.push("othersFollows");
+    }
+
+    // 3b. The handle registry (D122). `v2_handles/{handle}` is keyed by
+    //     the NAME, not the uid, so recursiveDelete of v2_users/{uid} in
+    //     phase 1b does not reach it — and leaving it behind is wrong
+    //     twice over: the document holds this uid, and the name stays
+    //     unclaimable by anyone, forever, for an account that no longer
+    //     exists.
+    //
+    //     Read from the profile before phase 1b deletes it? No — the
+    //     profile is already gone by here, so this queries the registry
+    //     by uid instead. One equality read on a collection nobody else
+    //     writes; a stale handle is worth more than the index saved.
+    try {
+      const handleQuery = db.collection("v2_handles").where("uid", "==", uid);
+      counts.handle = await deleteQueryDocs(handleQuery);
+    } catch (err) {
+      logger.error("[deleteAccount] handle release failed:", err);
+      failed.push("handle");
+    }
+
+    // 3c. Circle invitations, BOTH directions (D122) — the same shape as
+    //     the inbound follows above, and the same reason it is not
+    //     covered by phase 1b: these documents live under someone else's
+    //     group.
+    //
+    //     `to == uid` is this account's unanswered inbox, sitting in
+    //     other people's circles. `from == uid` is the harder half: an
+    //     invitation this account SENT carries its display name, so
+    //     leaving it means an erased user's name stays in a stranger's
+    //     inbox until they happen to decline it.
+    try {
+      counts.invitesTo = await deleteQueryDocs(
+        db.collectionGroup("invites").where("to", "==", uid),
+      );
+    } catch (err) {
+      logger.error("[deleteAccount] inbound invites wipe failed:", err);
+      failed.push("invitesTo");
+    }
+    try {
+      counts.invitesFrom = await deleteQueryDocs(
+        db.collectionGroup("invites").where("from", "==", uid),
+      );
+    } catch (err) {
+      logger.error("[deleteAccount] outbound invites wipe failed:", err);
+      failed.push("invitesFrom");
+    }
+
     // 4. Other users' relations pointing at this user via linkedUid.
     //    Requires a collection-group index on linkedUid.
     try {
@@ -346,6 +577,13 @@ export const deleteAccount = onCall(
     try {
       await db.collection("insight_ratelimits").doc(uid).delete();
       await db.collection("v2_ratelimits").doc(`join_${uid}`).delete();
+      // D122's invitation budget, keyed the same way. Added with the
+      // callable rather than after someone noticed the ledger surviving
+      // an erasure.
+      await db.collection("v2_ratelimits").doc(`invite_${uid}`).delete();
+      // The suggestion budget (suggestions.ts), same pattern and same
+      // reasoning: added with the callable, not after an audit.
+      await db.collection("v2_ratelimits").doc(`suggest_${uid}`).delete();
     } catch (err) {
       logger.error("[deleteAccount] rate-limit ledger wipe failed:", err);
       failed.push("ratelimits");
@@ -355,7 +593,7 @@ export const deleteAccount = onCall(
     //     reasoning as 4b — server-only, but each entry says this account
     //     answered this question at this time, which is exactly the
     //     attribution D28 added it for. Erasure takes the attribution
-    //     with the account; the k-floored tallies it fed stay (1b).
+    //     with the account; the tallies it fed stay (1b).
     //
     //     An answer still in flight through Eventarc when this runs can
     //     land its entry AFTER the sweep — bounded residue, gone at TTL,
@@ -365,6 +603,21 @@ export const deleteAccount = onCall(
     } catch (err) {
       logger.error("[deleteAccount] agg-event ledger wipe failed:", err);
       failed.push("aggEvents");
+    }
+
+    // 4d. This account's question suggestions (docs/NEXT-FUNCTIONALITY.md
+    //     §6). The author is the only client who can read them, but each
+    //     row carries the uid and free text — erasure covers them the way
+    //     it covers takes. A suggestion already promoted into a bank
+    //     survives as the QUESTION (content, carrying a provenance
+    //     vintage, never a name); the suggestion ROW still goes.
+    try {
+      counts.suggestions = await deleteQueryDocs(
+        db.collection("v2_suggestions").where("uid", "==", uid),
+      );
+    } catch (err) {
+      logger.error("[deleteAccount] suggestions wipe failed:", err);
+      failed.push("suggestions");
     }
 
     // 5. Any wipe failure above must abort BEFORE the auth delete:
@@ -400,11 +653,16 @@ export const deleteAccount = onCall(
 );
 
 // ── v2 (daily/mirror core loop) ─────────────────────────────────
-export { seedContentV2, onV2AnswerCreated } from "./v2";
+export { seedContentV2, onV2AnswerCreated, onV2AnswerUpdated } from "./v2";
 export {
+  acceptGroupInviteV2,
+  claimHandleV2,
   createGroupV2,
+  declineGroupInviteV2,
+  inviteToGroupV2,
   joinGroupV2,
   leaveGroupV2,
+  nearbyCountV2,
   registerPushToken,
   scheduledDuelReveals,
   revealDuelsNowV2,
@@ -412,3 +670,10 @@ export {
 export { buildModQueue, buildModQueueNow, fetchModQueue, submitModVerdict } from "./moderation";
 // D29: the silent per-device activation gate (docs/DEVICE-BIND.md).
 export { activateDeviceV2 } from "./deviceBind";
+// D54: the daily ledger velocity scan — detection for D28's correction
+// story. Logs flags for manual review; never denies a vote.
+export { ledgerVelocityScan } from "./velocity";
+export { logicStartV2, logicSubmitV2 } from "./logic";
+// "Suggest a question" — the community board's write path and the
+// operator review instruments (docs/NEXT-FUNCTIONALITY.md §6).
+export { suggestQuestionV2, fetchSuggestionsV2, reviewSuggestionV2 } from "./suggestions";

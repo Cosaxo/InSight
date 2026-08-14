@@ -1,0 +1,184 @@
+# Seed the production question bank. One click, no dev machine.
+#
+# WHY THIS EXISTS. SHIP-CHECKLIST §1 said to run
+# `await window.LIVE.seedContent()` from "the app's browser console". There
+# is no such console. `firebase.json` serves `web/` — home, join, privacy,
+# terms — and the app ships only as the native iOS shell, so
+# prvfire33.web.app is a landing page and nothing else. The one step
+# between a deployed backend and an app with questions in it could not be
+# performed as written.
+#
+# That is the SECOND time this step has been documented as something it is
+# not. The first: it named `firebase.functions().httpsCallable(...)`, v8
+# syntax on a modular-SDK app, which would have thrown ReferenceError. Both
+# failures share a cause — the instruction was never executed by anyone,
+# because executing it needed a thing nobody had. A workflow is executable
+# by construction.
+#
+# WHY IT RECURS, and why this is not a one-off script. Seeding is not a
+# launch step that gets ticked. Every content change lands the same way
+# (D30's promotion cadence, D33's farm), and each one needs this run again.
+# It is idempotent and, since D34, cheap: it rewrites only documents whose
+# content changed and leaves contentRev alone, so a reseed no longer costs
+# every returning device a 369-read bank refetch.
+#
+# WHAT IT GRANTS, which is nothing new. seedContentV2 is gated on
+# assertOperator — signed in, uid in SEED_ADMIN_UIDS — and is deliberately
+# App Check exempt (functions/src/v2.ts) because it was meant to be called
+# from a console. The service-account key here already deploys the rules
+# that protect v2_questions, so it could write that collection directly.
+# Going through the callable keeps ONE seeding code path, so what this runs
+# is what the documented console call ran.
+
+name: Seed content
+
+on:
+  # Chained to the deploy, NOT to a push. The ordering is the whole point
+  # and it is not a preference:
+  #
+  # `seedContentV2` reads `V2_QUESTIONS` from its own bundle — `v2.ts`
+  # imports `./v2content`, so the bank it writes is the one compiled into
+  # the DEPLOYED function, not one this workflow uploads. A push trigger on
+  # `functions/src/v2content.ts` would therefore race firebase-deploy on the
+  # very same commit and, when it won, seed the PREVIOUS bank and report
+  # success — the silent-wrong-success this file's `set -o pipefail` exists
+  # to prevent, wearing a different shape.
+  #
+  # `workflow_run` removes the race by construction: the deploy has already
+  # finished when this starts. It fires after EVERY backend deploy rather
+  # than only content ones, which is deliberate — seeding is idempotent and,
+  # since D34, rewrites only changed documents and holds `contentRev`, so a
+  # no-op costs one callable and reports `written: 0`. Running it every time
+  # means the bank cannot drift from the deployed code at all, instead of
+  # only when somebody noticed content had changed.
+  workflow_run:
+    workflows: ["Deploy Firebase backend"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      bump_rev:
+        description: "Invalidate every device's cached bank (only needed after flipping `active` by hand)"
+        type: boolean
+        default: false
+      dry_run:
+        description: "Resolve credentials and stop, without seeding"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: seed-content
+  cancel-in-progress: false
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # A failed deploy still emits `completed`, so without this the seed runs
+    # against whatever was live before it — the exact stale-bank write the
+    # trigger comment above is about. `workflow_dispatch` has no
+    # `workflow_run` payload, hence the first clause rather than a bare
+    # conclusion check.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+    # The same environment firebase-deploy.yml uses, because that is where
+    # SEED_ADMIN_UIDS lives and where FIREBASE_SERVICE_ACCOUNT is scoped.
+    environment: production
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 22
+
+      - name: Seed
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          SEED_ADMIN_UIDS: ${{ vars.SEED_ADMIN_UIDS }}
+          VITE_FIREBASE_API_KEY: ${{ vars.VITE_FIREBASE_API_KEY }}
+          FIREBASE_PROJECT_ID: prvfire33
+        run: |
+          # pipefail, and it is not a style preference. `cmd | tee` reports
+          # TEE's exit status, so without this a failing seed is a GREEN job.
+          # Run 1 did exactly that: the script printed "seedContentV2 failed
+          # (500)" and the run reported Success. A workflow whose whole
+          # purpose is to make a step verifiable must not be able to lie
+          # about whether the step happened.
+          set -o pipefail
+          # On a workflow_run firing there is no `inputs` context, so both
+          # expand to "" and both flags stay off. That is the correct
+          # default for an automatic seed and not an accident worth
+          # tightening: --bump-rev on every deploy would make each one cost
+          # every returning device a full bank refetch, which is precisely
+          # what D34 stopped doing.
+          ARGS=""
+          [ "${{ inputs.bump_rev }}" = "true" ] && ARGS="$ARGS --bump-rev"
+          [ "${{ inputs.dry_run }}" = "true" ] && ARGS="$ARGS --dry-run"
+          # 2>&1 for the same reason asc-metadata.yml has it: die() writes to
+          # stderr, so without this a failed seed shows an empty block in the
+          # job summary and the reader has to open the step log to learn
+          # anything at all.
+          node scripts/seed-content.mjs $ARGS 2>&1 | tee "$RUNNER_TEMP/seed.log"
+
+      # A callable that throws anything other than an HttpsError reaches the
+      # caller as a bare "INTERNAL", with the real error visible only in Cloud
+      # Logging. Fetching it here turns an unactionable status into the actual
+      # stack trace, at the one moment someone is looking.
+      #
+      # NOT `firebase functions:log`, which was tried first and returned only
+      # cloudaudit entries — deployment events, the newest of them fifteen
+      # minutes older than the failing call. That is worse than no output: it
+      # looks like the function logged nothing, which is a far stronger claim
+      # than "this read the wrong stream". scripts/fn-log.mjs asks Cloud
+      # Logging for the run.googleapis.com streams a Gen-2 function actually
+      # writes to, newest first.
+      - name: Why it failed — the function's own log
+        if: failure()
+        continue-on-error: true
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          FIREBASE_PROJECT_ID: prvfire33
+        run: |
+          {
+            node scripts/fn-log.mjs --fn seedContentV2 --minutes 90 --limit 40
+            echo ""
+            echo "--- and everything it logged, regardless of severity ---"
+            node scripts/fn-log.mjs --fn seedContentV2 --minutes 90 --limit 40 --all-severities
+            echo ""
+            echo "--- errors across EVERY function in the project, last 24h ---"
+            echo "Whether this failure is one function's or the project's is the"
+            echo "question a single-function view cannot answer, and the answer"
+            echo "changes what to fix. Wide window on purpose: the scheduled and"
+            echo "triggered functions run on their own cadence, so a quiet hour"
+            echo "proves nothing about them."
+            node scripts/fn-log.mjs --any-function --minutes 1440 --limit 40
+          } 2>&1 | tee "$RUNNER_TEMP/fnlog.txt"
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### Seed content"
+            echo ""
+            echo '```'
+            cat "$RUNNER_TEMP/seed.log" 2>/dev/null || echo "(failed before the seed ran — see the step log)"
+            echo '```'
+            if [ -s "$RUNNER_TEMP/fnlog.txt" ]; then
+              echo ""
+              echo "#### seedContentV2's own log"
+              echo ""
+              echo "The callable returned a bare \`INTERNAL\`, which means it threw"
+              echo "something that was not an \`HttpsError\`. The real error is here:"
+              echo ""
+              echo '```'
+              cat "$RUNNER_TEMP/fnlog.txt"
+              echo '```'
+            fi
+            echo ""
+            echo "Re-running is safe and, since D34, cheap: only changed documents are"
+            echo "rewritten and \`contentRev\` is held, so returning devices do not"
+            echo "re-read the whole bank. \`written: 0\` means it already matched."
+          } >> "$GITHUB_STEP_SUMMARY"
