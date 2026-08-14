@@ -170,11 +170,6 @@ function PeopleLens({ qs, scope }: { qs: LensQuestion[]; scope: "city" | "countr
         )}
       </div>
 
-      {/* Types here (D140 — types tier 1): the v24 type-mix card over the
-          same cached voter sample Kindred reads. Arithmetic on data the
-          session already holds — no new reads, no new dim. */}
-      <TypeMixCard scope={scope} />
-
       <div>
         <div style={{ fontFamily: "var(--sans)", fontSize: 10.5, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--ink-3)", marginBottom: 8 }}>
           Most like you
@@ -217,6 +212,12 @@ function PeopleLens({ qs, scope }: { qs: LensQuestion[]; scope: "city" | "countr
           </div>
         )}
       </div>
+
+      {/* Types here (D140, v25 shape — owner's direction): the share of
+          each type in this population, BELOW Kindred. A reading, not a
+          directory — no people, only proportions, over the same cached
+          voter sample Kindred reads. */}
+      <TypeMixCard scope={scope} />
     </div>
   );
 }

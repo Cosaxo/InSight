@@ -13682,3 +13682,10 @@ record, and D139's checklist is the rehearsal); type-vs-type answer
 splits (the same tier-2 boundary); the demo room's type-mix card (the
 design's demo rosters stay in `design/standalone-v24/`, the live card is
 live-only); types from the other three instruments.
+
+**Amended the same day (standalone v25 + the owner's direction):** the
+card is SHARES ONLY — "a reading, not a directory: no people, only
+proportions" — one neutral bar per type with your row in the accent,
+and it sits BELOW Kindred on the People lens. The per-person fold
+survives in `data/typeMix.ts` for whatever consumer earns it next; the
+people rows and the per-type roster left the card.
