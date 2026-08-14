@@ -540,11 +540,12 @@ export const BREAKDOWN_DIMS = [
   "country",
   "education",
   "relationship",
+  "heightBand",
 ] as const;
 export type BreakdownDim = (typeof BREAKDOWN_DIMS)[number];
 
-// Per-dimension distinct-value cap. 6 dims x 24 buckets x up to 20 options is
-// ~2.9k integers worst case — tens of KB against Firestore's 1 MiB limit,
+// Per-dimension distinct-value cap. 7 dims x 24 buckets x up to 20 options is
+// ~3.4k integers worst case — tens of KB against Firestore's 1 MiB limit,
 // with room for the plain counts alongside.
 export const BREAKDOWN_MAX_BUCKETS = 24;
 // Bucket labels are stored as map keys; anything longer is a free-text field
@@ -611,6 +612,12 @@ export const BREAKDOWN_DIM_VOCAB: Partial<Record<BreakdownDim, readonly string[]
   relationship: [
     "Single", "Dating", "Partnered", "Married", "It’s complicated",
     "Prefer not to say",
+  ],
+  // D139: banded like ageBand, coarse on purpose — the band IS what is
+  // collected (the profile offers no centimetre field to fold from).
+  heightBand: [
+    "Under 160 cm", "160-169 cm", "170-179 cm", "180-189 cm",
+    "190 cm or taller", "Prefer not to say",
   ],
 };
 

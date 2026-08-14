@@ -91,7 +91,7 @@ service cloud.firestore {
       return anchors is map
         && anchors.keys().hasOnly([
           "city", "country", "ageBand", "gender",
-          "profession", "education", "relationship",
+          "profession", "education", "relationship", "heightBand",
         ])
         && isOptionalShortString(anchors.get("city", null), 80)
         && isOptionalShortString(anchors.get("country", null), 80)
@@ -99,7 +99,8 @@ service cloud.firestore {
         && isOptionalShortString(anchors.get("gender", null), 40)
         && isOptionalShortString(anchors.get("profession", null), 80)
         && isOptionalShortString(anchors.get("education", null), 80)
-        && isOptionalShortString(anchors.get("relationship", null), 40);
+        && isOptionalShortString(anchors.get("relationship", null), 40)
+        && isOptionalShortString(anchors.get("heightBand", null), 20);
     }
 
     // v2 profile — READABLE BY ANY SIGNED-IN USER (D98). The display

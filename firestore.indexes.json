@@ -230,6 +230,11 @@
       "collectionGroup": "answers",
       "fieldPath": "anchors.relationship",
       "indexes": []
+    },
+    {
+      "collectionGroup": "answers",
+      "fieldPath": "anchors.heightBand",
+      "indexes": []
     }
   ]
 }

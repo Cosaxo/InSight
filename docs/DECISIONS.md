@@ -13615,3 +13615,37 @@ constants beside their reasoning; `check:content` + `check:quality` on
 the surface; the LIVE member pins and the smoke fixture carrying
 `votePulse`/`pulseVotes`; 969 unit tests, 89 rules tests, the bundle
 and figure gates green at commit.
+
+## D139 · Height joins the anchors — a band select, never a centimetre field
+
+**Decided:** 2026-08-14 · **Status:** built on
+`claude/new-functionality-planning-82qywb` (docs/NEXT-FUNCTIONALITY.md §4
+adopted by the owner's "do the remaining ones"), ships with that
+branch's PR.
+
+**Decision.** `heightBand` becomes the seventh breakdown dimension and
+the eighth anchor key: a six-value closed vocabulary (`Under 160 cm` …
+`190 cm or taller`, plus `Prefer not to say` as a real option), a
+`<select>` on the Basics card beside gender — never a centimetre input,
+because the band IS what is collected. That is the profile's own
+coarse-by-construction posture (the birthday → age band fold, the
+coordinate → city fold) taken one step simpler: with no precise number
+on the device there is nothing to fold and nothing to leak.
+
+**The full new-dim checklist ran, and it is the §3-tier-2 rehearsal:**
+`BREAKDOWN_DIMS`/`BREAKDOWN_DIM_VOCAB` (+ the worst-case arithmetic,
+6 → 7 dims, ~3.4k integers, still tens of KB), `isValidV2Anchors`,
+`ANCHOR_FIELDS`, `COHORT_DIMS`/`DIM_LABEL` (Explore's chips and every
+breakdown sheet pick the dim up from there with no further wiring), the
+`anchors.heightBand` index exemption (the D64 storage-cost regression
+the checklist exists to not forget), `check:anchors` holding vocab and
+select equal (now 5 closed vocabularies), the privacy panel's bluntest
+sentence gaining "height band", and the data-inventory rows. Old
+answers carry no band and fold into no height cell — absent-is-skipped,
+the D99 `cohortN` honesty already covers thin new dims.
+
+**Not done, deliberately:** weight/BMI (the §4 trilemma stands — its
+least-bad shape re-imports the suppression floor); a Map anchor-ring
+row for height (the ring is its own surface; the dim already serves
+Explore and the breakdowns); backfill (there is nothing to backfill
+from — the band never existed before this).
