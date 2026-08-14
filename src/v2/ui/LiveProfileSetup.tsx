@@ -94,11 +94,13 @@ function LiveProfileSetup({ onDone }: { onDone: () => void }) {
   // restating the mapping. Recomputed per render rather than tracked:
   // it is a pure fold over eight <select>s.
   const anchors: Record<string, string> = anchorsFrom(v);
-  // `country` is derived from the city rather than answered, so counting
-  // it would tell the reader they have filled in a field they were never
-  // shown. Eight anchor keys, seven questions — and the birthday is three
-  // controls feeding one of them, because the band is all that is written.
-  const asked = Object.entries(anchors).filter(([k]) => k !== "country");
+  // The DERIVED keys do not count. `country` comes from the city and
+  // `age`/`ageBand` both come from the birthday — counting them would tell
+  // the reader they have filled in fields they were never shown. Nine
+  // anchor keys, seven questions, and the birthday is three controls
+  // feeding two of them.
+  const DERIVED = ["country", "age"];
+  const asked = Object.entries(anchors).filter(([k]) => !DERIVED.includes(k));
   const filled = asked.filter(([, val]) => !!val).length;
 
   function finish(save: boolean) {
@@ -165,9 +167,15 @@ function LiveProfileSetup({ onDone }: { onDone: () => void }) {
             </PsField>
           </div>
           {/* Said out loud, because a birthday field on a first-run screen
-              is the one people are right to be suspicious of. */}
+              is the one people are right to be suspicious of.
+
+              D155 made this sentence narrower and it had to be rewritten
+              rather than left standing: the snapshot now carries the exact
+              age too, so "only the band is saved" became false the moment
+              anchorsFrom started returning one. The claim that survives is
+              the one that was always the point — the DATE stays here. */}
           <span style={{ fontFamily: "var(--sans)", fontSize: 11.5, fontWeight: 500, color: "var(--ink-3)", marginTop: -8, lineHeight: 1.5 }}>
-            Only the band ({AGE_BANDS.map((b: [number, number, string]) => b[2]).join(" · ")}) is
+            Your age and its band ({AGE_BANDS.map((b: [number, number, string]) => b[2]).join(" · ")}) are
             saved — the date itself stays on this phone.
           </span>
 

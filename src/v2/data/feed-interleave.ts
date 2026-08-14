@@ -99,3 +99,43 @@ export function interleaveFeed<T>(world: readonly T[], streams: InterleaveStream
   if (knowEvery && world.length < knowEvery) while (ki < know.length) out.push(know[ki++]);
   return out;
 }
+
+/**
+ * Round-robin a pool across the instrument each item belongs to (D155).
+ *
+ * WHY THIS EXISTS. The four core tests are filled passively, by marked
+ * cards woven into the feed — and the live pool arrived in BANK order.
+ * `content/tests.json` is keyed by instrument, so the generator emits all
+ * 25 Big Five items, then 30 Politics, then 30 Values, then 25 Social, and
+ * the feed serves them in that order. Twenty-five marked cards in, a real
+ * account had one instrument filling and three at absolute zero — which is
+ * exactly what a device reported, and what the profile sheet showed: one
+ * bar with progress and three empty.
+ *
+ * The demo pool never had the bug: spec/test-feed-data.js round-robins its
+ * four lists as it builds them. This is that loop, in one place both sides
+ * can share, applied to the pool the live store publishes.
+ *
+ * DETERMINISTIC and order-preserving WITHIN an instrument: the pool is
+ * rebuilt on every feed render, so a shuffle would move a card out from
+ * under a thumb. Items whose key is missing keep their relative order and
+ * ride in a group of their own rather than being dropped — the pool is
+ * content, and content nobody classified is still content.
+ */
+export function roundRobinBy<T>(items: readonly T[], keyOf: (item: T) => string): T[] {
+  const groups = new Map<string, T[]>();
+  for (const item of items) {
+    const k = keyOf(item);
+    const g = groups.get(k);
+    if (g) g.push(item);
+    else groups.set(k, [item]);
+  }
+  // Insertion order, which is bank order — so the FIRST card of a fresh
+  // account is still the bank's first, and only what follows it changes.
+  const lists = [...groups.values()];
+  const out: T[] = [];
+  for (let i = 0; lists.some((l) => i < l.length); i++) {
+    for (const l of lists) if (i < l.length) out.push(l[i]);
+  }
+  return out;
+}

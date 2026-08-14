@@ -15219,3 +15219,186 @@ suite.
 the same treatment. It is the small-map case at its worst — a stranger
 with three answers — and only the profile *portrait* (`is-still`) hides
 the line.
+
+---
+
+## D155 · The tabs sit at the bottom, the four instruments take turns, and the age is the age
+
+**Decided:** 2026-08-14 · **Status:** binding. Three faults from a
+TestFlight session on build 15, reported together and small enough to be
+worth naming exactly: *"on near dont give age range but actual age"*,
+*"only big 5 shows up 4 me"*, and *"the tabs should always be at the
+bottom of the screen even if there is no content in the main section,
+they should start unopend and you snap down thre when you click one like
+the sample"*.
+
+All three had the same underlying shape: the prototype does one thing,
+the live build does another, and nothing in the tree could tell.
+
+### 1 · The lens row was already right — in the file nobody was reading
+
+`spec/mirror-field.jsx`'s `MirrorLenses` has all three behaviours the
+report asks for and has had them since the port: `useState(null)` so
+nothing is open at rest, a `marginTop: 'auto'` wrapper inside a filling
+column so the row pins to the bottom of a short screen, and an effect that
+walks up to the scroll parent and scrolls the row to its top when a tab
+opens. `ui/LiveCohortBody.tsx` — the live stop — had none of them. It
+opened on `DEFAULT_STOP_TAB`, sat wherever the content left it, and never
+scrolled.
+
+The fix is the prototype's code, transposed, plus one behaviour the
+prototype does not have because a demo has nowhere to go: tapping the OPEN
+tab closes it. `DEFAULT_STOP_TAB` is deleted rather than set to `""` —
+a constant naming a default that no longer exists is the next reader's
+trap.
+
+The 60ms delay before the scroll is not a flourish. The panel body mounts
+in the same commit as the tab flip, so measuring the row's position in a
+layout effect measures it before the body it is about to sit above
+exists.
+
+### 2 · "Only Big 5 shows up" was bank order, not a filter
+
+`buildFeedGlobals` published `TEST_FEED_QS` as the bank's own order, and
+`content/tests.json` is keyed by instrument: 25 big5, then 30 political,
+then 30 values, then 25 attachment. The passive feed takes the head of
+that list. There is no bug in the deck, the meter or the definitions — the
+first 25 cards any account sees are simply all Big Five, and by then most
+people have stopped.
+
+The demo pool did not have this problem because `spec/test-feed-data.js`
+interleaves by hand. So the fix is to do in the store what the demo does
+in its fixture: `roundRobinBy(tests, q => q.test)` in `data/feed-interleave.ts`,
+one item per instrument per lap, order stable within an instrument.
+
+Stable, deliberately — the report says *"they dont have to be in order"*,
+and a shuffle would have been the easier read of that. But the deck is
+seeded and the meter counts per instrument; a pool that reorders between
+sessions makes both harder to reason about for a property nobody asked
+for.
+
+### 3 · The exact age, beside the band, and what that widens
+
+The Kindred cards said "Ceramicist, 25-34". They now say "Ceramicist, 29",
+because the first reads as a cell and the second reads as somebody, and a
+screen naming a PERSON is the one place the coarse form is the wrong one.
+
+`age` is a ninth anchor, not a replacement: the band stays because the
+band is what the aggregate buckets on — ~80 exact ages would blow
+`BREAKDOWN_MAX_BUCKETS` and the age breakdown would publish nothing at
+all. So `anchorsFrom` derives both from the same birthday, and the
+birthday still never leaves the device.
+
+**This is a widening of a published surface and is recorded as one.** An
+exact age is more identifying than a band, on a field that publishes to
+every signed-in user (D98). Three things bound it: `firestore.rules` caps
+the value at **three characters**, so a date cannot be smuggled through
+the field; it is never a breakdown dim, so no cell is keyed by it; and
+both user-facing disclosures were rewritten rather than left standing —
+the privacy panel now says "the age", and the account-creation screen's
+"only the band is saved" became "your age and its band are saved", because
+that sentence went from true to false the moment `anchorsFrom` returned
+one. `docs/data-inventory.md` carries the same.
+
+The account panel's list also gained **profession**, which has published
+as an anchor since D8 and had never been named there. Not part of the
+report; found while writing the age in.
+
+---
+
+## D156 · The live 1v1 and Group get the sample's shape — a rail, marks, bars, and a guess that arrives second
+
+**Decided:** 2026-08-14 · **Status:** binding. From the same session as
+D155: *"i hope 1v1 and gruop look and act eactly like the sample"*.
+
+They did not, and not by a little. `ui/LiveDuelPanel.tsx` was a vertical
+list of bordered cards — names as plain text, one flat reveal list, an
+invite code parked in the header, and answer-plus-guess crammed onto one
+screen behind a disabled Seal button. The prototype's `spec/duo-daily.jsx`
+and `spec/group-daily.jsx` are still in this repo as the demo bodies, so
+the two could be read side by side, and the differences are structural
+rather than decorative.
+
+### 1 · What was missing, and why each one matters
+
+| The sample has | The live panel had | Why it is not cosmetic |
+| --- | --- | --- |
+| a sticky **rail**, one mark per circle, dotted when it still wants you | nothing | four circles was four screens of scrolling to find the one you had not played |
+| cards that **fill the view** and snap | cards sized to content | a circle is one screen, or it is a list item |
+| **initial marks** for every person and circle | plain text names | a reveal is a room of people; a list of names is a spreadsheet |
+| the reveal as **bars with faces on them** | "name — option" rows | the group's answer is a SPLIT, and a list does not have a shape |
+| answering that **morphs into guessing** | both asked at once | "what do you think" and "what do you think THEY think" are different questions, and showing the second first invites reverse-engineering the answer from the read |
+| **day dots** to browse back | yesterday only | the run of days is the thing a duel accumulates |
+| the pair's **read-runs** | nothing | the dots ARE the score — there is no number anywhere in the sample, deliberately |
+
+The rebuild is in `ui/LiveDuelPanel.tsx`, over three new modules:
+`ui/marks.ts` (the hash, the initials — `ghash` from `group-daily.jsx`
+character for character, so a circle keeps the colour it had there, pinned
+by a test against the prototype's own expression), `ui/duelMarks.tsx` (the
+three shapes) and `data/duelRuns.ts` (two pure folds).
+
+### 2 · Three gaps that are honest rather than filled
+
+- **Nobody can say who else has played today.** The sample dims the
+  avatars of members who have not answered. A duel answer is sealed until
+  the reveal, so no device knows — the seal doing its job. The card draws
+  every member undimmed and claims nothing.
+- **No "invited · waiting" in the member list.** Invitations are written
+  to the INVITEE's path and members deliberately cannot read the list
+  (D122: "who was asked and has not answered" is a fact about them).
+- **Day history is bought, not assumed.** `loadRevealHistory` is up to
+  `REVEAL_HIST_DAYS` doc gets per circle. On the app's FIRST screen, for
+  someone with three circles, that is forty documents to look at today's
+  question. Yesterday is free (a live listener already has it); anything
+  older arrives on the tap that asks for it, and a test pins that the tab
+  opening does not fetch.
+
+### 3 · `duoRuns` drops two kinds of day rather than scoring them
+
+A day the pair were asked **different questions** (D70/D71's split) — the
+guess is about another prompt, and the indexes still compare equal, so
+"called it" would print for a read nobody made. And a day **either side
+did not guess** — both runs are drawn on one axis and read against each
+other, so a day in one row and not the other offsets every dot after it.
+A run of dots claims "these are the days we played"; a day that cannot be
+scored is not one of them.
+
+### 4 · One create, not two writes
+
+The morph is two taps and still **one** answer document: the pick is held
+in component state and goes up with the guess. Answers are create-only
+(D5), so a write-then-write would have needed the edit surface D86
+deliberately kept to one shape.
+
+A failed seal puts the question back rather than stranding you on a guess
+step for an answer that was never stored — asserted, because the
+comfortable failure mode here is a card that looks played and is not.
+
+### 5 · It made first paint LIGHTER, which is the part to copy
+
+The panel got bigger, so `check:bundle`'s total alarm fired (2255 → 2273
+against 2265) and the ceiling moved to 2285 with a note. The eager graph
+went the other way: **970 → 955 KB**, because the first move of the
+rebuild was to stop importing `ui/LiveDuelPanel` from `spec-index.js` and
+reach it by `React.lazy` from `daily-split.jsx` instead.
+
+That was available the whole time and nobody had taken it. The panel is
+two of the daily tab's three modes and none of its first paint — World is
+what opens — so the entire live duel surface, and with it
+`ui/LiveTakesPanel`'s last eager importer, was being preloaded on every
+boot that never left World. Dropping the `globalThis` publication with it
+took the coupling meter down three (412 → 409).
+
+The general shape, and it is the second time in two decisions: when a
+feature runs into the eager ceiling, the first question is not what to
+trim but what is eager that should never have been.
+
+### 6 · One deliberate departure from the sample
+
+The sample's done-state is quiet — today's answer, the countdown, and the
+past reachable only through the day dots. The live card keeps yesterday's
+reveal on screen after you have played, below the day's own block, because
+the live reveal carries the **takes** thread and the sample had no thread
+to carry. By the time most people open the tab they have already answered;
+burying the app's only conversation surface behind a dot tap is not a
+trade the prototype was making.

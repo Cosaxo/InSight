@@ -81,8 +81,19 @@ export function anchorsFrom(v) {
   // parse — those keep their city string (it is still their answer) and
   // simply contribute no country until they re-pick.
   const city = v.city || '';
+  // The exact age, beside the band (D155). BOTH, not one instead of the
+  // other: the band is what the aggregate buckets on — an exact age would
+  // mint ~80 buckets and blow BREAKDOWN_MAX_BUCKETS — while the age is what
+  // a screen naming a PERSON shows. "Ceramicist, 29" reads as somebody;
+  // "Ceramicist, 25-34" reads as a cell.
+  //
+  // Still derived, and the birthday still never leaves the device: this is
+  // the same number the Basics card already prints back to its owner, and
+  // one integer a year is strictly less than the date it came from.
+  const exact = calcAge(v.born, v.bornM, v.bornD) || v.age;
   return {
-    ageBand: ageBandOf(calcAge(v.born, v.bornM, v.bornD) || v.age),
+    ageBand: ageBandOf(exact),
+    age: exact ? String(exact).slice(0, 3) : '',
     gender: v.gender || '',
     // Imported binding — the (window.PLACES && …) load-order guard died
     // with the conversion, as the README's conversion notes prescribe.

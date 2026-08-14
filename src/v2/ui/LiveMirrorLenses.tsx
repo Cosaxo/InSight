@@ -330,7 +330,13 @@ function KindredCard({ p }: { p: TypedPerson & { anchors?: Record<string, string
   // and two people are told apart at a glance. Decorative and claims
   // nothing — the same device LiveSimilarityField's field uses.
   const hue = Math.round(angleHash(p.uid + "#hue") * 360);
-  const title = [a.profession, a.ageBand].filter(Boolean).join(" · ");
+  // The exact age where the profile has published one, the band where it
+  // has not (D155). The sample reads "Ceramicist, 29" and this read
+  // "Ceramicist · 25-34" — a cell rather than a person, which is the
+  // opposite of what a Kindred card is for. Answers written before the age
+  // anchor existed carry only the band, and they keep it rather than
+  // losing the line: a coarser true fact beats none.
+  const title = [a.profession, a.age || a.ageBand].filter(Boolean).join(" · ");
   // The chips are the anchors NOT already spent on the headline. City
   // included: at the World stop it is the most interesting thing about
   // someone, and at City it is what they have in common with you.

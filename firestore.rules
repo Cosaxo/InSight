@@ -90,12 +90,20 @@ service cloud.firestore {
     function isValidV2Anchors(anchors) {
       return anchors is map
         && anchors.keys().hasOnly([
-          "city", "country", "ageBand", "gender",
+          "city", "country", "ageBand", "age", "gender",
           "profession", "education", "relationship", "heightBand",
         ])
         && isOptionalShortString(anchors.get("city", null), 80)
         && isOptionalShortString(anchors.get("country", null), 80)
         && isOptionalShortString(anchors.get("ageBand", null), 20)
+        // The exact age, beside the band rather than instead of it (D155).
+        // NOT a breakdown dim and never will be: ~80 distinct values would
+        // blow BREAKDOWN_MAX_BUCKETS on its own, which is why the band
+        // exists and stays. This is for the screens that name a PERSON —
+        // "Ceramicist, 29" reads as somebody, "Ceramicist, 25-34" reads as
+        // a cell. 3 chars: a written-out age, never a birthday, and the
+        // date itself still never leaves the device.
+        && isOptionalShortString(anchors.get("age", null), 3)
         && isOptionalShortString(anchors.get("gender", null), 40)
         && isOptionalShortString(anchors.get("profession", null), 80)
         && isOptionalShortString(anchors.get("education", null), 80)
