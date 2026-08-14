@@ -69,6 +69,14 @@ function storedForm(q: typeof victim, overrides: Record<string, unknown> = {}) {
     ...(Array.isArray(q.ends) ? { ends: q.ends } : {}),
     ...(Array.isArray(q.ax) ? { ax: q.ax } : {}),
     ...(Array.isArray(q.ay) ? { ay: q.ay } : {}),
+    // Crossroads' story (D136) — same emit-when-set mirroring, and in
+    // SEEDED_FIELDS too, so without these the no-op case would report the
+    // two path entries as phantom writes.
+    ...(typeof q.title === "string" ? { title: q.title } : {}),
+    ...(typeof q.intro === "string" ? { intro: q.intro } : {}),
+    ...(typeof q.hue === "number" ? { hue: q.hue } : {}),
+    ...(q.nodes ? { nodes: q.nodes } : {}),
+    ...(q.endings ? { endings: q.endings } : {}),
     ...overrides,
   };
 }

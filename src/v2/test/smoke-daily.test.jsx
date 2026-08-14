@@ -9,7 +9,7 @@
 
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, screen } from "@testing-library/react";
-import { getApp, mountApp, registerSmokeHooks, SMOKE_TIMEOUT_MS } from "./mount-app.jsx";
+import { getApp, growFeed, mountApp, registerSmokeHooks, SMOKE_TIMEOUT_MS } from "./mount-app.jsx";
 
 vi.setConfig({ testTimeout: SMOKE_TIMEOUT_MS });
 registerSmokeHooks();
@@ -66,16 +66,38 @@ describe("the daily tab", () => {
     expectNoBoundary("demo suggestion card");
   });
 
-  // Crossroads (D136) sits at the head of the feed in a DEMO build. This is
-  // the positive half of its gate; smoke-live.test.jsx owns the negative
-  // half, and the two together are what make `!LIVE.enabled` in
-  // world-feed.jsx mean something. Asserted on the real mount rather than
-  // in the card's own suite because the card renders perfectly well in
-  // isolation whether or not anything ever puts it on screen — which is
-  // the failure this catches.
-  it("puts Crossroads at the head of the demo feed", () => {
+  // The mounted window (D136). Asserted as GROWTH rather than as a card
+  // count: the exact page size is a tuning constant, but "the feed mounts a
+  // slice and then extends it" is the behaviour, and a regression that
+  // mounted the whole list at once would leave the second measurement equal
+  // to the first.
+  //
+  // jsdom resolves no scroller (no CSS, so no ancestor reports an
+  // overflow-y), which is the case world-feed treats as "distance unknown,
+  // keep mounting" — so the window here grows on its own timer rather than
+  // on scroll, and growFeed is just waiting for it to settle.
+  it("mounts the feed as a window that grows", async () => {
+    const expectNoBoundary = mountApp();
+    const first = document.body.innerHTML.length;
+    await growFeed();
+    const settled = document.body.innerHTML.length;
+    expect(settled, "the feed did not grow — the window is not windowing").toBeGreaterThan(first);
+    expectNoBoundary("feed window");
+  });
+
+  // Crossroads (D136) at the head of the feed, reading its DEMO source —
+  // this build has no bank, so `LIVE.pathQs()` is empty and the card falls
+  // back to paths-data.js. smoke-live.test.jsx owns the other source, and
+  // the pair is what makes the fallback a decision rather than an accident:
+  // each would pass alone if the card only ever had one source.
+  //
+  // On the real mount rather than in the card's own suite, because the card
+  // renders perfectly well in isolation whether or not anything ever puts
+  // it on screen — which is the failure this catches.
+  it("puts Crossroads at the head of the demo feed, from the demo story", () => {
     const expectNoBoundary = mountApp();
     expect(screen.getByText("Crossroads"), "the Crossroads card is not in the demo feed").toBeTruthy();
+    expect(screen.getByText("The Wallet"), "the card is not showing the demo story").toBeTruthy();
     expectNoBoundary("crossroads card");
   });
 

@@ -13,7 +13,7 @@
 // forms' range/plane copy (D114), absent everywhere else; their options
 // are synthesized bucket/cell labels, so the D52 option freeze freezes
 // the range with them.
-export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; branch?: string; sub?: string; axis: string | null; test: string | null; mode?: string; active?: boolean; political?: boolean; lo?: number; hi?: number; unit?: string; ends?: string[]; ax?: string[]; ay?: string[]; }
+export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; branch?: string; sub?: string; axis: string | null; test: string | null; mode?: string; active?: boolean; political?: boolean; lo?: number; hi?: number; unit?: string; ends?: string[]; ax?: string[]; ay?: string[]; title?: string; intro?: string; hue?: number; nodes?: Record<string, { q: string; a: Array<{ t: string }> }>; endings?: Record<string, { name: string; line: string }>; }
 export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "daily-000",
@@ -3025,6 +3025,280 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "scary",
    "exciting"
   ]
+ },
+ {
+  "id": "feed-pt1",
+  "surface": "feed",
+  "seq": 80,
+  "type": "path",
+  "domain": null,
+  "prompt": "The Wallet — a wallet, a bus, and nobody watching",
+  "options": [
+   "The Quiet Good",
+   "The Honest Trade",
+   "The Long Way Round",
+   "Finders, Keepers",
+   "The Doorstep",
+   "By the Book",
+   "The Second Chance",
+   "Not My Story"
+  ],
+  "topic": "dilemma",
+  "axis": null,
+  "test": null,
+  "title": "The Wallet",
+  "intro": "The last bus home. On the seat beside you: a wallet, fat with cash. No cameras. No one else aboard.",
+  "hue": 20,
+  "nodes": {
+   "": {
+    "q": "It sits there, heavier than it should be.",
+    "a": [
+     {
+      "t": "Open it"
+     },
+     {
+      "t": "Hand it to the driver, unopened"
+     }
+    ]
+   },
+   "A": {
+    "q": "A student ID. 4,000 in cash. A clinic appointment slip for Thursday.",
+    "a": [
+     {
+      "t": "Track them down yourself"
+     },
+     {
+      "t": "Keep the cash, mail the rest back"
+     }
+    ]
+   },
+   "B": {
+    "q": "The driver shrugs without looking. \"Lost box is broken. Your call, friend.\"",
+    "a": [
+     {
+      "t": "Take it back — handle it yourself"
+     },
+     {
+      "t": "Leave it on the seat"
+     }
+    ]
+   },
+   "AA": {
+    "q": "You find them in an hour online. They answer, voice shaking with relief — and offer a reward.",
+    "a": [
+     {
+      "t": "Refuse the reward"
+     },
+     {
+      "t": "Take it — fair is fair"
+     }
+    ]
+   },
+   "AB": {
+    "q": "A week passes. The clinic slip keeps surfacing in your mind like a splinter.",
+    "a": [
+     {
+      "t": "Mail the cash after all"
+     },
+     {
+      "t": "Spend it"
+     }
+    ]
+   },
+   "BA": {
+    "q": "The ID shows an address two streets from yours. Thursday is tomorrow.",
+    "a": [
+     {
+      "t": "The doorstep, in person"
+     },
+     {
+      "t": "The police station drop-box"
+     }
+    ]
+   },
+   "BB": {
+    "q": "The doors hiss shut. Through the window you watch the wallet ride away.",
+    "a": [
+     {
+      "t": "Chase the bus to the next stop"
+     },
+     {
+      "t": "Walk home"
+     }
+    ]
+   }
+  },
+  "endings": {
+   "AAA": {
+    "name": "The Quiet Good",
+    "line": "No reward, no witness. You did it for the version of you that was watching."
+   },
+   "AAB": {
+    "name": "The Honest Trade",
+    "line": "Everyone leaves whole. Virtue doesn’t have to be free."
+   },
+   "ABA": {
+    "name": "The Long Way Round",
+    "line": "The splinter won. Later than right, but right."
+   },
+   "ABB": {
+    "name": "Finders, Keepers",
+    "line": "The money spent easily. Thursday came and went somewhere else."
+   },
+   "BAA": {
+    "name": "The Doorstep",
+    "line": "A stranger’s face, changing as they understand. Worth the walk."
+   },
+   "BAB": {
+    "name": "By the Book",
+    "line": "Clean hands, proper channels. The story ends without your name in it."
+   },
+   "BBA": {
+    "name": "The Second Chance",
+    "line": "Lungs burning at the next stop. Some choices allow one revision."
+   },
+   "BBB": {
+    "name": "Not My Story",
+    "line": "You never found out. That was the choice, too."
+   }
+  }
+ },
+ {
+  "id": "feed-pt2",
+  "surface": "feed",
+  "seq": 81,
+  "type": "path",
+  "domain": null,
+  "prompt": "The Wrong Text — a message that was not meant for you",
+  "options": [
+   "The Renegotiator",
+   "The Clean Exit",
+   "The Whistle",
+   "The Quiet Departure",
+   "Cards on the Table",
+   "The Poker Face",
+   "The Better Door",
+   "The Long Game"
+  ],
+  "topic": "dilemma",
+  "axis": null,
+  "test": null,
+  "title": "The Wrong Text",
+  "intro": "Your boss texts you at 23:40: \"Offer the role to the other one. Don’t tell K yet.\" You are K.",
+  "hue": 255,
+  "nodes": {
+   "": {
+    "q": "The message glows in the dark. Typing dots appear, then vanish.",
+    "a": [
+     {
+      "t": "\"I think this wasn’t meant for me.\""
+     },
+     {
+      "t": "Say nothing. Screenshot it."
+     }
+    ]
+   },
+   "A": {
+    "q": "Your phone rings ten seconds later. A flustered voice offers \"a proper chat tomorrow.\"",
+    "a": [
+     {
+      "t": "Take the chat, ask it straight"
+     },
+     {
+      "t": "Decline — start job-hunting tonight"
+     }
+    ]
+   },
+   "B": {
+    "q": "Next morning they greet you like nothing happened. The role posting closes Friday.",
+    "a": [
+     {
+      "t": "Confront them before Friday"
+     },
+     {
+      "t": "Quietly interview elsewhere"
+     }
+    ]
+   },
+   "AA": {
+    "q": "Across the desk they don’t deny it. \"The decision wasn’t final,\" they say. It sounds final.",
+    "a": [
+     {
+      "t": "Negotiate to stay — on new terms"
+     },
+     {
+      "t": "Resign in the meeting"
+     }
+    ]
+   },
+   "AB": {
+    "q": "Three interviews in a week. One offer arrives — smaller title, better people.",
+    "a": [
+     {
+      "t": "Tell your team why you’re going"
+     },
+     {
+      "t": "Ghost gracefully"
+     }
+    ]
+   },
+   "BA": {
+    "q": "Thursday, empty meeting room. You have the screenshot. They have a story ready.",
+    "a": [
+     {
+      "t": "Show the screenshot"
+     },
+     {
+      "t": "Bluff — \"I’ve heard rumours\""
+     }
+    ]
+   },
+   "BB": {
+    "q": "The rival offer lands Friday morning — same pay, a team that actually wanted you.",
+    "a": [
+     {
+      "t": "Accept it"
+     },
+     {
+      "t": "Stay anyway"
+     }
+    ]
+   }
+  },
+  "endings": {
+   "AAA": {
+    "name": "The Renegotiator",
+    "line": "You stayed — but the terms are yours now, and everyone knows it."
+   },
+   "AAB": {
+    "name": "The Clean Exit",
+    "line": "Shortest resignation letter in company history. No regrets by Tuesday."
+   },
+   "ABA": {
+    "name": "The Whistle",
+    "line": "The team heard the truth. Some doors close loudly and that’s fine."
+   },
+   "ABB": {
+    "name": "The Quiet Departure",
+    "line": "No scene, no speech. Your absence said it."
+   },
+   "BAA": {
+    "name": "Cards on the Table",
+    "line": "The screenshot did the talking. Their face did the confessing."
+   },
+   "BAB": {
+    "name": "The Poker Face",
+    "line": "You never showed your hand. They folded anyway."
+   },
+   "BBA": {
+    "name": "The Better Door",
+    "line": "Monday, new desk. The old boss still doesn’t know you knew."
+   },
+   "BBB": {
+    "name": "The Long Game",
+    "line": "You stayed with the receipts. Leverage keeps better than anger."
+   }
+  }
  },
  {
   "id": "group-gu0",

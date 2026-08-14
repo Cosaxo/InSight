@@ -151,6 +151,17 @@ import { nearOptedIn, setNearOptIn } from "./near";
 import { locateCell, locateSupported } from "./locate";
 import { scrubPersonaAnchors } from "./personaResidue";
 
+/**
+ * One Crossroads story, folded (D136).
+ *
+ * `counts` is per-ENDING, in PATH_ENDINGS order — the same order the bank's
+ * synthesized `options` are in, which is what makes a stored optionIdx mean
+ * an ending. A branch's share is the sum of the endings beneath it over
+ * `total`; with `total` at 0 there is no crowd yet and the card says so
+ * rather than dividing.
+ */
+export type LivePathQ = QuestionDoc & { id: string; counts: number[] };
+
 const state = {
   ready: false,
   // Why boot did not attach, in the user's own build. See LIVE.bootError.
@@ -1082,8 +1093,14 @@ function feedCounts(q: QuestionDoc & { id: string }): number[] {
 // (curve / cloud) instead of option rows.
 function buildFeedGlobals(): void {
   if (!state.feedBank.length) return;
+  // Crossroads (D136) is a feed question but NOT a feed card: its reveal is
+  // a tree rather than a split, so none of renderCard's apparatus — option
+  // rows, who-voted, takes, the insight line — applies to it, and the
+  // prototype pins it at the head of the list rather than dealing it into
+  // the stream. It rides its own accessor below; everything else about it
+  // is ordinary (real options, real counts, the same fold and ledger).
   const feed = state.feedBank
-    .filter((q) => q.surface === "feed" && (q.options || []).length >= 2)
+    .filter((q) => q.surface === "feed" && q.type !== "path" && (q.options || []).length >= 2)
     .map((q) => {
       // Hoisted: feedCounts walks the whole option list, so calling it
       // inside the per-option map made this O(n^2) per card — and it
@@ -2735,6 +2752,24 @@ const LIVE = {
   },
   myVotes(): Record<string, string> {
     return { ...state.votes };
+  },
+  /**
+   * Crossroads' stories with their folded ending counts (D136), or an empty
+   * list in a demo build — which is the signal spec/paths-card.jsx reads to
+   * fall back to its own authored pool.
+   *
+   * Folded ON CALL rather than precomputed into state by buildFeedGlobals,
+   * which is where it started. The precomputed version cost ~1 KB of the
+   * EAGER graph — this file is in the first-paint chunk — and check:bundle
+   * refused it, correctly: MAX_EAGER_KB has no headroom and is the constant
+   * keeping the Firestore SDK out of first paint, so it is not raiseable.
+   * There is one caller and it renders once per feed render, so the fold is
+   * cheaper here than the bytes were there.
+   */
+  pathQs(): LivePathQ[] {
+    return state.feedBank
+      .filter((q) => q.surface === "feed" && q.type === "path")
+      .map((q) => ({ ...q, counts: feedCounts(q) }));
   },
   // Votes the server has acknowledged (or that hydrate read back) —
   // excludes writes still in flight so permanent records (the Map)

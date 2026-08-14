@@ -1033,6 +1033,57 @@ describe("seedDocMatches — the seed's write skip", () => {
     }
   });
 
+  // Crossroads (D136) put OBJECTS in SEEDED_FIELDS for the first time.
+  // Before the structural arm they compared by reference, so both path docs
+  // read as changed on every seed run — a rewrite of live question docs,
+  // reported as legitimate content drift, forever.
+  describe("the story fields (D136)", () => {
+    const story = {
+      nodes: { "": { q: "A fork", a: [{ t: "left" }, { t: "right" }] } },
+      endings: { AAA: { name: "An End", line: "It ends." } },
+    };
+    const withStory = { ...desired, ...story };
+
+    it("matches an identical tree without rewriting it", () => {
+      // Fresh object literals, not the same references — which is exactly
+      // what a Firestore read gives back.
+      expect(seedDocMatches({
+        ...withStory,
+        nodes: { "": { q: "A fork", a: [{ t: "left" }, { t: "right" }] } },
+        endings: { AAA: { name: "An End", line: "It ends." } },
+      }, withStory)).toBe(true);
+    });
+
+    it("ignores key order, because Firestore does not promise it", () => {
+      expect(seedDocMatches({
+        ...withStory,
+        endings: { AAA: { line: "It ends.", name: "An End" } },
+      }, withStory)).toBe(true);
+    });
+
+    it("catches an edit anywhere in the tree", () => {
+      const changed = (nodes) => seedDocMatches({ ...withStory, nodes }, withStory);
+      // a reworded fork…
+      expect(changed({ "": { q: "A DIFFERENT fork", a: [{ t: "left" }, { t: "right" }] } })).toBe(false);
+      // …a reworded choice…
+      expect(changed({ "": { q: "A fork", a: [{ t: "LEFT" }, { t: "right" }] } })).toBe(false);
+      // …a dropped choice…
+      expect(changed({ "": { q: "A fork", a: [{ t: "left" }] } })).toBe(false);
+      // …and a dropped node.
+      expect(seedDocMatches({ ...withStory, nodes: {} }, withStory)).toBe(false);
+      // An ending's line is prose too, and it is on the card.
+      expect(seedDocMatches({
+        ...withStory, endings: { AAA: { name: "An End", line: "It ends DIFFERENTLY." } },
+      }, withStory)).toBe(false);
+    });
+
+    it("refuses a tree that is not an object at all", () => {
+      expect(seedDocMatches({ ...withStory, nodes: "a fork" }, withStory)).toBe(false);
+      expect(seedDocMatches({ ...withStory, nodes: [] }, withStory)).toBe(false);
+      expect(seedDocMatches({ ...withStory, nodes: null }, withStory)).toBe(false);
+    });
+  });
+
   it("compares options element-wise, including order and length", () => {
     expect(seedDocMatches({ ...desired, options: ["Ronaldo", "Messi"] }, desired)).toBe(false);
     expect(seedDocMatches({ ...desired, options: ["Messi"] }, desired)).toBe(false);

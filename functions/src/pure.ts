@@ -1296,7 +1296,50 @@ export const SEEDED_FIELDS = [
   // entries, and undefined-vs-missing compares equal below, so the other
   // ~493 docs stay untouched.
   "lo", "hi", "unit", "ends", "ax", "ay",
+  // Crossroads' story (D136). `nodes` and `endings` are OBJECTS, which is
+  // why the comparison below grew a structural arm — without one they
+  // compare by reference, never match, and the seed rewrites both path docs
+  // on every run while reporting them as changes.
+  //
+  // They belong here for the same reason `prompt` does: the tree is the
+  // question. A fixed typo in a fork, or a reworded ending line, is a
+  // content change that has to reach production, and a field the seed does
+  // not compare is a field an edit can never move. (The ending NAMES are
+  // the doc's `options`, already compared and already frozen by D52 — so
+  // renaming one is refused rather than written, which is correct: every
+  // stored walk is one of those names.)
+  "title", "intro", "hue", "nodes", "endings",
 ] as const;
+
+/**
+ * Structural equality for a seeded field.
+ *
+ * Deliberately NOT `JSON.stringify(a) === JSON.stringify(b)`: Firestore does
+ * not promise key order on read, and two objects that say the same thing in
+ * a different order would compare unequal — which is the phantom-rewrite
+ * failure this function exists to avoid, wearing a disguise.
+ *
+ * Strict about null vs undefined at the leaves for the reason
+ * `seedDocMatches` records: a doc seeded before a field existed reads it
+ * back as undefined, and treating that as equal to null would leave old
+ * docs permanently un-upgraded.
+ */
+function seedValueMatches(a: unknown, b: unknown): boolean {
+  if (Array.isArray(b)) {
+    if (!Array.isArray(a) || a.length !== b.length) return false;
+    return b.every((v, i) => seedValueMatches((a as unknown[])[i], v));
+  }
+  if (b && typeof b === "object") {
+    if (!a || typeof a !== "object" || Array.isArray(a)) return false;
+    const ao = a as Record<string, unknown>;
+    const bo = b as Record<string, unknown>;
+    const ak = Object.keys(ao);
+    const bk = Object.keys(bo);
+    if (ak.length !== bk.length) return false;
+    return bk.every((k) => k in ao && seedValueMatches(ao[k], bo[k]));
+  }
+  return (a ?? null) === (b ?? null);
+}
 
 /**
  * True when `existing` already carries every seeded field of `desired`.
@@ -1314,14 +1357,7 @@ export function seedDocMatches(
 ): boolean {
   if (!existing) return false;
   for (const f of SEEDED_FIELDS) {
-    const a = existing[f];
-    const b = desired[f];
-    if (Array.isArray(b)) {
-      if (!Array.isArray(a) || a.length !== b.length) return false;
-      for (let i = 0; i < b.length; i++) if (a[i] !== b[i]) return false;
-    } else if ((a ?? null) !== (b ?? null)) {
-      return false;
-    }
+    if (!seedValueMatches(existing[f], desired[f])) return false;
   }
   return true;
 }

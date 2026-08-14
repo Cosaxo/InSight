@@ -79,6 +79,8 @@ const OPTION_COLORS = ["var(--c-around)", "var(--c-today)", "var(--c-likeness)"]
 // to appear nowhere else in the spec layer's demo data.
 export const FEED_PROMPT = "Fixture feed card: does the gate hold?";
 export const FEED_OPTIONS = ["Gate holds", "Gate leaks"];
+/** The fixture Crossroads story's title — unique, so a query binds to the card. */
+export const PATH_TITLE = "Fixture Crossroads: the forked road";
 
 function liveQuestion(
   id: string,
@@ -333,6 +335,32 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
       : null),
     myVotes: () => ({ ...votes }),
     confirmedVotes: () => ({ ...votes }),
+    // One Crossroads story (D136), shaped exactly as buildFeedGlobals emits
+    // it: eight per-ending counts in PATH_ENDINGS order, and a total. The
+    // counts are lopsided on purpose — a flat eight would make every branch
+    // the same width, so a card that ignored `counts` entirely and drew a
+    // uniform tree would look correct.
+    //
+    // `tooSmall` empties them, which is this fixture's way of asking for the
+    // nobody-has-finished-this-yet arm: total 0, no tree, no share chips.
+    pathQs: () => [{
+      id: "feed-fixture-path",
+      title: PATH_TITLE,
+      intro: "A fixture story, three forks deep.",
+      hue: 20,
+      nodes: Object.fromEntries(
+        ["", "A", "B", "AA", "AB", "BA", "BB"].map((k) => [
+          k, { q: `Fork ${k || "opening"}`, a: [{ t: `${k || "start"} left` }, { t: `${k || "start"} right` }] },
+        ]),
+      ),
+      endings: Object.fromEntries(
+        ["A", "B"].flatMap((a) => ["A", "B"].flatMap((b) => ["A", "B"].map((c) => a + b + c)))
+          .map((k) => [k, { name: `Ending ${k}`, line: `The ${k} road ends here.` }]),
+      ),
+      counts: tooSmall ? [0, 0, 0, 0, 0, 0, 0, 0] : [40, 5, 10, 5, 20, 5, 10, 5],
+      total: tooSmall ? 0 : 100,
+      live: true as const,
+    }],
     // (qid, optionId) — both strings. The spec layer calls this as
     // `window.LIVE.vote(id, String(val))`, and the first draft of this
     // fixture took a question OBJECT: the surface pin cannot catch that,

@@ -35,7 +35,8 @@ import { act, cleanup, fireEvent, render, screen, within } from "@testing-librar
 // jsdom, and the v15 revision roughly doubled the spec layer's feed weight —
 // the slowest cases sat at ~4.8s before it and tip over under suite load.
 vi.setConfig({ testTimeout: 15000 });
-import { FEED_OPTIONS, fixtureSurfaceMismatch, installLive } from "./live-fixture";
+import { FEED_OPTIONS, PATH_TITLE, fixtureSurfaceMismatch, installLive } from "./live-fixture";
+import { growFeed } from "./mount-app";
 import { list as anchorList } from "../spec/map-anchors.js";
 import { IS_TEST_RESULTS } from "../spec/test-definitions.js";
 import { FRIENDS } from "../spec/follows.js";
@@ -328,23 +329,36 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     await act(async () => { await new Promise((r) => setTimeout(r, 1200)); });
   };
 
-  // Crossroads (D136), and the reason it has a case on the LIVE side at
-  // all. Every branch share the card draws is authored — the `p` values in
-  // paths-data.js, which no walk anyone takes will ever move — so on a live
-  // feed it would print "you and 12% ended here" next to real splits with
-  // nothing distinguishing the two. That is D1's case exactly, and the
-  // whole guard is one `!LIVE.enabled` in world-feed.jsx: drop the token in
-  // a merge and the card renders, the numbers look right, and they are
-  // invented. smoke-daily owns the positive half (it IS in the demo feed),
-  // so a gate that silently inverted would fail there rather than passing
-  // both.
-  it("keeps Crossroads out of a live feed — its crowd figures are authored", () => {
+  // Crossroads on a LIVE feed (D136): the story comes from the bank and
+  // every number on it is folded from real answers. What this case is
+  // really guarding is that the card reads the LIVE source rather than its
+  // demo pool — the two render identically apart from the words, so a card
+  // that quietly fell back to `paths-data.js` would look perfectly fine and
+  // be showing authored crowd figures to a live user, which is D1's case.
+  // Binding on the fixture's own story title is what tells them apart.
+  it("draws Crossroads from the bank on a live feed, never the demo pool", () => {
     const expectNoBoundary = mountLive();
     expect(
-      screen.queryByText("Crossroads"),
-      "the Crossroads card reached a live build — its branch shares are invented (D1)",
-    ).toBeNull();
-    expectNoBoundary("live feed, no crossroads");
+      screen.getByText(PATH_TITLE),
+      "the live Crossroads card is missing, or fell back to the demo story",
+    ).toBeTruthy();
+    // The demo pool's stories stay in the demo pool.
+    expect(screen.queryByText("The Wallet")).toBeNull();
+    expect(screen.queryByText("The Wrong Text")).toBeNull();
+    expectNoBoundary("live feed, crossroads from the bank");
+  });
+
+  // The empty arm, which is the one a real launch actually opens on: a
+  // story in the bank that nobody has finished. There is no crowd to draw,
+  // and drawing one anyway — eight branches at zero width — would say
+  // "nobody went anywhere" rather than "nobody has been here yet".
+  it("says so when a live story has no finished walks yet", () => {
+    const expectNoBoundary = mountLive({ tooSmall: true });
+    expect(screen.getByText(PATH_TITLE)).toBeTruthy();
+    // No share chips: with a total of zero there is no share to state.
+    expect(screen.queryByText(/ended here$/)).toBeNull();
+    expect(screen.queryByText(/walks your road$/)).toBeNull();
+    expectNoBoundary("live feed, crossroads with no walks");
   });
 
   it("gives a live card who-voted and the named takes toggle — never the demo sheet", async () => {
@@ -627,6 +641,8 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     // ninth. The live pool starts at qi 0 (lens-live.test.ts pins that), so
     // the first lens card on screen is the first lens's first question.
     const expectNoBoundary = mountLive({ feedCards: 9 });
+    // Past the feed's first mounted page (D136) — let the window finish.
+    await growFeed();
     const lens = window.IS_LENSES[0];
     const q0 = lens.questions[0].q;
     // The prompt div is a direct child of the card root, so its parent
@@ -674,8 +690,12 @@ describe("the live gates hold in the DOM, not just in the source", () => {
   // stays — no split, no engage row, the acknowledgment instead — and
   // nothing reaches LIVE.vote, whose write the rules would refuse anyway
   // (no question doc to validate against).
-  it("an unseeded live lens card records locally and shows no invented crowd", () => {
+  it("an unseeded live lens card records locally and shows no invented crowd", async () => {
     const expectNoBoundary = mountLive({ feedCards: 9, lensBank: false });
+    // The lens card is interleaved past the feed's first mounted page
+    // (D136), so let the window finish before reaching for it — the subject
+    // here is the card, not the window.
+    await growFeed();
     const lens = window.IS_LENSES[0];
     const card = screen.getByText(lens.questions[0].q).parentElement;
     try {

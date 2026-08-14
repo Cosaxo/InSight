@@ -13466,7 +13466,7 @@ release build does not face. CI measures the bundle that ships.
 a build field, and `MARKETING_VERSION` is still 2.0.0 with 6.2 unticked, so
 there has been no first release for it to be new against (D74).
 
-## D136 · The Mirror stop loses two tabs, and Crossroads arrives demo-only
+## D136 · The Mirror stop loses two tabs; Crossroads and a feed window arrive
 
 **Decided:** 2026-08-14 · **Status:** binding · Owner decisions, taken
 against the prototype (`InSight_standalone_23.html`). Reshapes D119's tab
@@ -13539,35 +13539,49 @@ scoring.
 rungs stay: they cost two comparisons, and D135's finding was that a
 seventh tab arrived without anyone re-measuring the width it had to fit.
 
-### 3 · Crossroads, and why it is demo-only
+### 3 · Crossroads, live
 
 Branching micro-stories in the feed: three forks deep, eight endings, no
 score. The reveal is the TREE — the crowd's flow through every branch as
 stroke width, your road inked, your ending named, and how rare the walk
 was. `spec/paths-data.js` + `spec/paths-card.jsx`, at the head of the feed.
 
-**Every crowd figure it draws is authored.** The `p` on each choice was
-written to make the tree read well, and no walk anyone takes moves it. On
-a live feed that card would print *"you and 12% ended here"* beside real
-splits with nothing on screen telling the two apart, which is D1's case
-exactly. So the card renders only when `!LIVE.enabled` — the same shape
-D113 §1 used for the continuum forms until D114 gave them a real fold.
-Both halves of that gate are pinned on real mounts (`smoke-daily`:
-it IS in the demo feed; `smoke-live`: it is NOT in a live one), because a
-gate asserted only in the direction it currently points passes just as
-happily inverted.
+**A story is an ordinary bank question, and this is the whole design.** Its
+eight ENDINGS are its options, so a finished walk stores as an ordinary
+`optionIdx` 0..7 — under the fold's existing ceiling (idx > 19 is dropped,
+`functions/src/v2.ts`) and under the by-cell budget, exactly as D114 sized
+the dial's twelve buckets. Which means the rules' create/edit arms, the
+trigger, the ledger, the by-cells, the D86 cooldown and the voters panel
+all carry a walk **unchanged**: zero rules edits, zero fold edits, and the
+voters panel prints *"picked The Quiet Good"* for free, which is the most
+legible option label in the bank.
 
-**The live path needs no backend change, and is written down here rather
-than built.** A finished walk is one of eight endings, so it stores as an
-ordinary `optionIdx` 0..7 — under the fold's existing ceiling (idx > 19 is
-dropped, `functions/src/v2.ts`) and under the by-cell budget, exactly as
-D114 sized the dial's twelve buckets. A branch's share is then the summed
-counts of the endings beneath it, which is arithmetic on marginals the
-aggregate already publishes. What it additionally needs: a `path` entry in
-`check:quality`'s `FEED_TYPES` closed list with a validator for the node
-tree, transport of the story through `gen-v2content` → seed → deck, and
-synthesized 8-option labels at build. None of that is a schema change, and
-none of it is done.
+A branch's share is then the summed counts of the endings beneath it over
+the total — arithmetic on marginals the aggregate already publishes. No new
+read, no new document, no new collection.
+
+**What it needed on top of that**, all of it client- or content-side: a
+`path` entry in `check:quality`'s `FEED_TYPES` with a validator for the tree
+(seven decision points, exactly the eight walks, two choices each, unique
+ending names); `pathOptions` in `gen-v2content.mjs` to synthesize the eight
+labels; the story fields carried through the emitter; and the two stories
+themselves in `content/feed-questions.json` with provenance rows.
+
+**The demo pool did not go away, and the card reads whichever it has.** In a
+build with no bank `LIVE.pathQs()` is empty and the card falls back to
+`paths-data.js`, whose branch shares are AUTHORED. The two render
+identically apart from the words, which is what makes the fallback worth a
+test on both sides rather than a comment: `smoke-daily` pins the demo story
+on a demo mount, `smoke-live` pins the bank's story on a live one and
+asserts the demo titles are absent. A card that quietly fell back on a live
+build would look perfectly correct and be showing invented crowd figures,
+which is D1's case exactly.
+
+**The empty arm is not a zeroed tree.** A live story nobody has finished has
+no crowd, and eight branches drawn at zero width would say *"nobody went
+anywhere"* rather than *"nobody has been here yet"*. So `flow` is null at a
+total of zero and the card says the sentence instead — the same
+honest-absence rule the Map's `MapStats` follows by returning null (D72).
 
 **Three deliberate differences from the prototype's files:**
 
@@ -13588,12 +13602,79 @@ none of it is done.
   six rules under a prefix with no owner, styled by variables nothing
   defines.
 
+**Two transport gaps the gates found, both silent.** The seed's payload is
+a WHITELIST, not a spread — a field it does not name never reaches
+Firestore — so the story would have seeded as a question with no forks in
+it. And `SEEDED_FIELDS`, which decides whether a stored doc is already
+current, did not compare the story either: a fixed typo in a fork would
+have been a content change that could never reach production. Both are now
+carried, and the second needed a real change rather than a line: `nodes`
+and `endings` are the first OBJECTS in that list, and the comparator
+handled only arrays and scalars, so they compared by reference, never
+matched, and would have rewritten both live question docs on every seed run
+while reporting them as legitimate drift. `seedValueMatches` is the
+structural arm — recursive, key-order-independent (Firestore does not
+promise order on read, so `JSON.stringify` would have been the same bug in
+disguise), and still strict about null-vs-undefined at the leaves so a doc
+seeded before a field existed still upgrades.
+
+**Not dealt into the card stream.** Crossroads is pinned at the head of the
+feed rather than interleaved, because its reveal is a tree rather than a
+split: none of `renderCard`'s apparatus — option rows, who-voted, takes, the
+insight line — has anything to say about a walk. `buildFeedGlobals` holds
+`path` docs out of `WORLD_FEED_QS` for the same reason.
+
+### 4 · The feed mounts a window
+
+The feed runs hundreds of cards long and every one is a real component. It
+now mounts eight and grows by four as its tail comes within ~2200px of the
+scroller's bottom, and never shrinks — collapsing a card you have already
+answered would move the scroll position under your thumb.
+
+**Two things make it not a loading state.** The reach is roughly two screens,
+so the window grows well before you can see its edge; and a spacer holds
+room below the last mounted card, without which a feed whose mounted cards
+already fill the viewport can never fire the scroll that would grow it and
+the window stalls at page one — a feed that stops at eight cards looks
+exactly like a feed that ran out.
+
+**An unresolvable scroller keeps mounting.** `applySnap` finds the scroller
+by walking for an ancestor whose computed `overflow-y` scrolls, and it can
+come back empty: before layout settles, in a host that styles the shell
+differently, or under a test environment with no CSS. Treating that as "not
+near the end" would strand the feed at its first page with no event that
+could ever grow it, so an unknown distance grows instead. The worst case is
+the un-windowed behaviour this replaced — a cost, not a defect — and it is
+also why the mount suites can reach a card past page one at all
+(`growFeed`, test/mount-app.jsx).
+
 ### What proves it
 
-`test:unit` (70 files), `lint`, `tsc -b`, `check:globals` (coupling
-unchanged at its baseline) all green. New cases: the card's walk, its
-persistence across unmount, the store's refusal of a fourth choice, the
-flow arithmetic, and both halves of the demo gate. Changed cases: the tab
-row's shape and lead, the constellation's position relative to the row
-(asserted as document order, so "above" holds for a screen reader too),
-and the navigation-cost pin tightened from two calls to one.
+`test:unit` (71 files, 984 cases), `functions` (203), `lint`, `tsc -b`,
+`check:globals` (coupling unchanged at its baseline), `check:quality` (372
+questions), `check:content`, `check:figures`, `check:a11y`, `check:labels`,
+`check:public-copy`, `check:data-inventory`, `check:catalogs` and
+`check:bundle` on the CI-equivalent build — all green.
+
+New cases: the card's walk and the ending it reveals, persistence across
+unmount, the store's refusal of a fourth choice, the authored flow
+arithmetic, and seven live ones — the bank's story rather than the demo
+pool, the walk written as an ordinary vote indexed by ending, the crowd read
+out of counts rather than an authored share, restoration from the server
+with no local trace, a second walk as a D86 edit, the snap-back when that
+edit is refused, and the nobody-has-finished-this-yet arm. Plus the feed
+window growing, and Crossroads present on a demo mount and absent from the
+demo pool on a live one.
+
+Changed cases: the tab row's shape and lead, the constellation's position
+relative to the row (asserted as document order, so "above" holds for a
+screen reader too), and the navigation-cost pin tightened from two calls to
+one — D136 made it stricter, since the field no longer unmounts.
+
+**The bundle gate earned its keep here.** The first draft of the live fold
+precomputed each story's counts in `buildFeedGlobals`, which put ~1 KB into
+the eager graph for a card that cannot render until the feed chunk lands.
+`MAX_EAGER_KB` refused it and is not raiseable — it is what keeps the
+Firestore SDK out of first paint — so the fold moved into `LIVE.pathQs()`
+and runs on call. Eager is unmoved at 955; only the total drift alarm rose,
+2182 → 2184, with the question the script asks recorded at the constant.

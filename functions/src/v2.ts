@@ -314,6 +314,22 @@ export async function runSeedV2(
       ...(Array.isArray(q.ends) ? { ends: q.ends } : {}),
       ...(Array.isArray(q.ax) ? { ax: q.ax } : {}),
       ...(Array.isArray(q.ay) ? { ay: q.ay } : {}),
+      // Crossroads' story (D136), on feed `path` entries only. Same
+      // emit-when-set rule and the same reason as the continuum copy above,
+      // one step further: the eight ENDING NAMES are this question's
+      // synthesized options, so a changed tree changes the labels and lands
+      // in the D52 refusal below. That is correct — every stored optionIdx
+      // is one of these endings, and renaming one would silently rewrite
+      // what every walk taken so far MEANS.
+      //
+      // Transported explicitly because this payload is a whitelist, not a
+      // spread: a field the seed does not name never reaches Firestore, and
+      // the card would render a story with no forks in it.
+      ...(typeof q.title === "string" ? { title: q.title } : {}),
+      ...(typeof q.intro === "string" ? { intro: q.intro } : {}),
+      ...(typeof q.hue === "number" ? { hue: q.hue } : {}),
+      ...(q.nodes ? { nodes: q.nodes } : {}),
+      ...(q.endings ? { endings: q.endings } : {}),
     };
     // Unchanged docs are not rewritten. Two things depend on this, and the
     // second is the expensive one: `updatedAt` only means something as an
