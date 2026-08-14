@@ -121,17 +121,25 @@ export function pathOptions(q) {
   return PATH_ENDINGS.map((k) => q.endings[k].name);
 }
 
+// The banks this generator reads, as data rather than six inline literals —
+// check-content.mjs holds /content to exactly this set, so an unread file
+// cannot sit there being described as content (D137). Keep it the single
+// place the filenames appear.
+export const CONTENT_SOURCES = {
+  daily: "daily-questions.json",
+  feed: "feed-questions.json",
+  duel: "duel-questions.json",
+  tests: "tests.json",
+  lenses: "lenses.json",
+  learn: "learn-questions.json",
+};
+
 export function loadContent() {
   const load = (name) =>
     JSON.parse(readFileSync(join(CONTENT, name), "utf8"));
-  return {
-    daily: load("daily-questions.json"),
-    feed: load("feed-questions.json"),
-    duel: load("duel-questions.json"),
-    tests: load("tests.json"),
-    lenses: load("lenses.json"),
-    learn: load("learn-questions.json"),
-  };
+  return Object.fromEntries(
+    Object.entries(CONTENT_SOURCES).map(([key, file]) => [key, load(file)]),
+  );
 }
 
 // Builds the entries in emission order: daily → feed → group → duo →

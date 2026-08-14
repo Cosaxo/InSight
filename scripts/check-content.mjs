@@ -17,10 +17,10 @@
 // own test doesn't declare.
 //
 // Regeneration stays a deliberate step: `npm run build:content`.
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { buildEntries, generate, loadContent, LENS_SCALE, LIKERT, dialOptions, fieldOptions, DIAL_BUCKETS } from "./gen-v2content.mjs";
+import { buildEntries, generate, loadContent, CONTENT_SOURCES, LENS_SCALE, LIKERT, dialOptions, fieldOptions, DIAL_BUCKETS } from "./gen-v2content.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const OUT = join(root, "functions", "src", "v2content.ts");
@@ -214,6 +214,48 @@ for (const [key, l] of Object.entries(content.lenses)) {
     // runs 2..6 — bound it there so the map labels stay label-sized.
     const kw = String(card.k ?? "").trim().split(/\s+/).filter(Boolean).length;
     if (kw < 2 || kw > 6) errors.push(`${at}: k is ${kw} words (want 2..6)`);
+  }
+}
+
+// ---- every file in /content is accounted for.
+//
+// The generator names the six banks it loads, so a file nobody loads is
+// invisible here — it just sits, and the README describes it as content.
+// `archetypes.json` did exactly that (D137): 12 KB read by no script and no
+// source, whose live counterpart is `src/v2/spec/archetype-data.js`, and the
+// two had diverged to different names in nearly every slot. That is worse
+// than dead weight — /content is documented as the source of truth, so
+// editing the stale copy looks like changing the app and changes nothing.
+//
+// The rule: a .json here is a generator input, or it is listed below WITH
+// its reason. A stale entry fails too (listed but absent, or listed and
+// loaded anyway), the check-purge-listeners shape, so the list cannot
+// outlive its subjects.
+const NOT_SEEDED = {
+  "provenance.json":
+    "measurement metadata, not content — who wrote each question and in "
+    + "which vintage (D97); read by check:quality and the scorecard rollup",
+  "scorecard.json":
+    "generated measurement output, read by the scorecard renderer; never "
+    + "an input to the bank",
+};
+
+const contentFiles = readdirSync(join(root, "content"))
+  .filter((f) => f.endsWith(".json"));
+const loaded = new Set(Object.values(CONTENT_SOURCES));
+for (const f of contentFiles) {
+  if (loaded.has(f) || NOT_SEEDED[f]) continue;
+  errors.push(
+    `content/${f} is read by nothing — not a generator input, not listed in `
+    + "NOT_SEEDED. Either wire it up, or delete it and its README row: an "
+    + "unread file under /content reads as content and is not.",
+  );
+}
+for (const [f, why] of Object.entries(NOT_SEEDED)) {
+  if (!contentFiles.includes(f)) {
+    errors.push(`NOT_SEEDED lists content/${f} ("${why}") but the file is gone — drop the entry`);
+  } else if (loaded.has(f)) {
+    errors.push(`NOT_SEEDED lists content/${f} as never seeded, but the generator loads it — drop the entry`);
   }
 }
 

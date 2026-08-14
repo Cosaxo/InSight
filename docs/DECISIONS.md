@@ -13813,6 +13813,47 @@ app and were **left alone** — that file is the reference design, and
 not: three call sites apply it through an inline `animation:`, which is why
 the keyframe sweep was run against `src/` and not against the CSS alone.
 
+### And two files under `/content` that nothing read
+
+Found on a second pass, after the first was fairly asked whether that was
+really all. It was not, and the miss is instructive: the first sweep asked
+"is this code reachable", which is the wrong question for a **data** file.
+
+`content/archetypes.json` (12 KB) and `content/scenes.json` are read by no
+script and no source. The generator loads six banks; these are not among
+them, and nothing else opens them. Their only mention anywhere was a row in
+`content/README.md` — a document whose opening line calls `/content` "the
+source of truth".
+
+**`archetypes.json` had diverged from the thing it mirrors**, which makes it
+worse than dead weight. Its live counterpart is `src/v2/spec/archetype-data.js`
+("THIS file is the live source now, hand-edits and all"), and the two now
+disagree on nearly every name in the set — `The Explorer` / `The Architect` /
+`The Anchor` against the shipped `The Enthusiast` / `The Planner` /
+`The Dependable`. A person editing the JSON would have believed they had
+changed the app's archetypes. They would have changed nothing. That is the
+same call, on the same grounds, as `design/spec-modules/` (deleted
+2026-07-29 once the copies had diverged); both live in git history.
+`scenes.json` is the same shape against `src/v2/spec/scenes.js`, just smaller.
+
+**`check:content` gains the rule**, in the shape the other lists here use: a
+`.json` under `/content` is a generator input or it is named in `NOT_SEEDED`
+with its reason, and a stale entry fails both ways (listed but absent, listed
+but loaded). The generator's six filenames stopped being six inline literals
+and became `CONTENT_SOURCES`, so the gate and the loader cannot disagree.
+Verified by planting an unread file and a stale entry; both red.
+
+**The README was stale in every direction at once**, which is why nothing
+caught the orphans: it pointed at `InSight_standalone_14.html` (the tree has
+18), said the feed bank held 73 questions (82) and the 1v1 bank 20 (30), and
+omitted three files that *are* consumed — `lenses.json`, `learn-questions.json`
+and `scorecard.json`. `check:figures` does not read this file, so none of it
+was load-bearing anywhere. Corrected against `check:content`'s own output.
+
+Deleting both changed nothing that ships: `npm run build:content` regenerates
+`functions/src/v2content.ts` byte-identically, and `check:content` still
+reports 512 questions.
+
 ### What proves it
 
 `lint`, `tsc -b` + `vite build` (CI-equivalent, with the DSN set),
