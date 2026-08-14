@@ -1,11 +1,11 @@
 {
-  "generatedAt": "2026-08-05T11:05:25.726Z",
-  "daysSinceEpoch": 4,
+  "generatedAt": "2026-08-14T17:16:43.284Z",
+  "daysSinceEpoch": 13,
   "coverage": {
-    "questions": 155,
-    "scored": 0,
-    "belowFloor": 0,
-    "unserved": 86
+    "questions": 164,
+    "scored": 6,
+    "belowFloor": 47,
+    "unserved": 77
   },
   "topics": {
     "Sport": {
@@ -42,11 +42,11 @@
     },
     "Mind": {
       "questions": 11,
-      "scored": 0,
-      "answers": 0,
+      "scored": 1,
+      "answers": 1,
       "strong": 0,
       "landslides": 0,
-      "avgEvenness": null
+      "avgEvenness": 0
     },
     "Morals": {
       "questions": 8,
@@ -161,7 +161,7 @@
       "avgEvenness": null
     },
     "culture": {
-      "questions": 8,
+      "questions": 11,
       "scored": 0,
       "answers": 0,
       "strong": 0,
@@ -169,12 +169,12 @@
       "avgEvenness": null
     },
     "dilemma": {
-      "questions": 7,
-      "scored": 0,
-      "answers": 0,
+      "questions": 12,
+      "scored": 2,
+      "answers": 2,
       "strong": 0,
       "landslides": 0,
-      "avgEvenness": null
+      "avgEvenness": 0
     },
     "event": {
       "questions": 4,
@@ -186,30 +186,30 @@
     },
     "people": {
       "questions": 3,
-      "scored": 0,
-      "answers": 0,
+      "scored": 1,
+      "answers": 1,
       "strong": 0,
       "landslides": 0,
-      "avgEvenness": null
+      "avgEvenness": 0
     },
     "bigq": {
-      "questions": 10,
-      "scored": 0,
-      "answers": 0,
+      "questions": 11,
+      "scored": 2,
+      "answers": 2,
       "strong": 0,
       "landslides": 0,
-      "avgEvenness": null
+      "avgEvenness": 0
     }
   },
   "types": {
     "daily": {
       "binary": {
         "questions": 36,
-        "scored": 0,
-        "answers": 0,
+        "scored": 1,
+        "answers": 1,
         "strong": 0,
         "landslides": 0,
-        "avgEvenness": null
+        "avgEvenness": 0
       },
       "choice": {
         "questions": 27,
@@ -255,6 +255,30 @@
       },
       "vote": {
         "questions": 59,
+        "scored": 5,
+        "answers": 5,
+        "strong": 0,
+        "landslides": 0,
+        "avgEvenness": 0
+      },
+      "dial": {
+        "questions": 4,
+        "scored": 0,
+        "answers": 0,
+        "strong": 0,
+        "landslides": 0,
+        "avgEvenness": null
+      },
+      "field": {
+        "questions": 3,
+        "scored": 0,
+        "answers": 0,
+        "strong": 0,
+        "landslides": 0,
+        "avgEvenness": null
+      },
+      "path": {
+        "questions": 2,
         "scored": 0,
         "answers": 0,
         "strong": 0,
@@ -264,17 +288,243 @@
     }
   },
   "optionSlots": {
-    "daily": {},
-    "feed": {}
+    "daily": {
+      "binary/2": {
+        "questions": 1,
+        "avgMinShare": 0,
+        "avgShares": [
+          1,
+          0
+        ]
+      }
+    },
+    "feed": {
+      "vote/2": {
+        "questions": 4,
+        "avgMinShare": 0,
+        "avgShares": [
+          0.75,
+          0.25
+        ]
+      },
+      "vote/3": {
+        "questions": 1,
+        "avgMinShare": 0,
+        "avgShares": [
+          0,
+          0,
+          1
+        ]
+      }
+    }
   },
-  "leaders": [],
-  "laggards": [],
+  "leaders": [
+    {
+      "qid": "daily-009",
+      "prompt": "A pill that ends your need for sleep. Take it?",
+      "total": 1,
+      "evenness": 0,
+      "optionShares": [
+        1,
+        0
+      ]
+    },
+    {
+      "qid": "feed-f43",
+      "prompt": "Perfect memory — but you can never forget anything. Take it?",
+      "total": 1,
+      "evenness": 0,
+      "optionShares": [
+        1,
+        0
+      ]
+    },
+    {
+      "qid": "feed-f44",
+      "prompt": "Your dog talks for one day, or understands you forever?",
+      "total": 1,
+      "evenness": 0,
+      "optionShares": [
+        1,
+        0
+      ]
+    },
+    {
+      "qid": "feed-f51",
+      "prompt": "Dinner with one",
+      "total": 1,
+      "evenness": 0,
+      "optionShares": [
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "qid": "feed-f55",
+      "prompt": "Humanity’s best days are ahead.",
+      "total": 1,
+      "evenness": 0,
+      "optionShares": [
+        1,
+        0
+      ]
+    },
+    {
+      "qid": "feed-s11",
+      "prompt": "Is morality discovered or invented?",
+      "total": 1,
+      "evenness": 0,
+      "optionShares": [
+        0,
+        1
+      ]
+    }
+  ],
+  "laggards": [
+    {
+      "qid": "feed-s11",
+      "prompt": "Is morality discovered or invented?",
+      "total": 1,
+      "evenness": 0,
+      "grade": "middling",
+      "optionShares": [
+        0,
+        1
+      ]
+    },
+    {
+      "qid": "feed-f55",
+      "prompt": "Humanity’s best days are ahead.",
+      "total": 1,
+      "evenness": 0,
+      "grade": "middling",
+      "optionShares": [
+        1,
+        0
+      ]
+    },
+    {
+      "qid": "feed-f51",
+      "prompt": "Dinner with one",
+      "total": 1,
+      "evenness": 0,
+      "grade": "middling",
+      "optionShares": [
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "qid": "feed-f44",
+      "prompt": "Your dog talks for one day, or understands you forever?",
+      "total": 1,
+      "evenness": 0,
+      "grade": "middling",
+      "optionShares": [
+        1,
+        0
+      ]
+    },
+    {
+      "qid": "feed-f43",
+      "prompt": "Perfect memory — but you can never forget anything. Take it?",
+      "total": 1,
+      "evenness": 0,
+      "grade": "middling",
+      "optionShares": [
+        1,
+        0
+      ]
+    },
+    {
+      "qid": "daily-009",
+      "prompt": "A pill that ends your need for sleep. Take it?",
+      "total": 1,
+      "evenness": 0,
+      "grade": "middling",
+      "optionShares": [
+        1,
+        0
+      ]
+    }
+  ],
+  "production": {
+    "bySource": {
+      "editorial": {
+        "questions": 152,
+        "served": 87,
+        "scored": 6,
+        "answers": 6,
+        "strong": 0,
+        "landslides": 0,
+        "avgEvenness": 0
+      },
+      "farm": {
+        "questions": 12,
+        "served": 0,
+        "scored": 0,
+        "answers": 0,
+        "strong": 0,
+        "landslides": 0,
+        "avgEvenness": null
+      }
+    },
+    "byVintage": {
+      "editorial:prototype": {
+        "questions": 118,
+        "served": 78,
+        "scored": 6,
+        "answers": 6,
+        "strong": 0,
+        "landslides": 0,
+        "avgEvenness": 0
+      },
+      "farm:2026-07-30": {
+        "questions": 12,
+        "served": 0,
+        "scored": 0,
+        "answers": 0,
+        "strong": 0,
+        "landslides": 0,
+        "avgEvenness": null
+      },
+      "editorial:2026-08-01": {
+        "questions": 25,
+        "served": 0,
+        "scored": 0,
+        "answers": 0,
+        "strong": 0,
+        "landslides": 0,
+        "avgEvenness": null
+      },
+      "editorial:v20": {
+        "questions": 7,
+        "served": 7,
+        "scored": 0,
+        "answers": 0,
+        "strong": 0,
+        "landslides": 0,
+        "avgEvenness": null
+      },
+      "editorial:v23": {
+        "questions": 2,
+        "served": 2,
+        "scored": 0,
+        "answers": 0,
+        "strong": 0,
+        "landslides": 0,
+        "avgEvenness": null
+      }
+    }
+  },
   "retireProposals": [],
   "learn": {
     "coverage": {
-      "cards": 96,
+      "cards": 106,
       "scored": 0,
-      "belowFloor": 0
+      "belowFloor": 20
     },
     "fields": {
       "cell": {
@@ -290,7 +540,7 @@
         "avgAbsGap": null
       },
       "body": {
-        "cards": 8,
+        "cards": 13,
         "scored": 0,
         "answers": 0,
         "avgAbsGap": null
@@ -314,7 +564,7 @@
         "avgAbsGap": null
       },
       "ancient": {
-        "cards": 8,
+        "cards": 13,
         "scored": 0,
         "answers": 0,
         "avgAbsGap": null
@@ -377,7 +627,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "no-answers"
+        "signal": "below-floor"
       },
       {
         "qid": "learn-cell3",
@@ -390,7 +640,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "no-answers"
+        "signal": "below-floor"
       },
       {
         "qid": "learn-cell4",
@@ -416,7 +666,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "no-answers"
+        "signal": "below-floor"
       },
       {
         "qid": "learn-cell6",
@@ -429,7 +679,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "no-answers"
+        "signal": "below-floor"
       },
       {
         "qid": "learn-cell7",
@@ -442,7 +692,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "no-answers"
+        "signal": "below-floor"
       },
       {
         "qid": "learn-cell8",
@@ -455,7 +705,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "no-answers"
+        "signal": "below-floor"
       },
       {
         "qid": "learn-gene1",
@@ -780,7 +1030,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "no-answers"
+        "signal": "below-floor"
       },
       {
         "qid": "learn-sol2",
@@ -793,7 +1043,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "no-answers"
+        "signal": "below-floor"
       },
       {
         "qid": "learn-sol3",
@@ -806,7 +1056,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "no-answers"
+        "signal": "below-floor"
       },
       {
         "qid": "learn-sol4",
@@ -832,20 +1082,20 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "no-answers"
+        "signal": "below-floor"
       },
       {
         "qid": "learn-sol6",
         "field": "solar",
         "n": 4,
-        "prompt": "Reclassified as a dwarf planet in 2006:",
+        "prompt": "Demoted from planet to dwarf planet in 2006:",
         "total": 0,
         "authoredP": 0.86,
         "measuredP": null,
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "no-answers"
+        "signal": "below-floor"
       },
       {
         "qid": "learn-sol7",
@@ -858,7 +1108,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "no-answers"
+        "signal": "below-floor"
       },
       {
         "qid": "learn-sol8",
@@ -1300,7 +1550,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "no-answers"
+        "signal": "below-floor"
       },
       {
         "qid": "learn-cap2",
@@ -1313,7 +1563,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "no-answers"
+        "signal": "below-floor"
       },
       {
         "qid": "learn-cap3",
@@ -1326,7 +1576,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "no-answers"
+        "signal": "below-floor"
       },
       {
         "qid": "learn-cap4",
@@ -1339,7 +1589,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "no-answers"
+        "signal": "below-floor"
       },
       {
         "qid": "learn-cap5",
@@ -1352,7 +1602,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "no-answers"
+        "signal": "below-floor"
       },
       {
         "qid": "learn-cap6",
@@ -1365,7 +1615,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "no-answers"
+        "signal": "below-floor"
       },
       {
         "qid": "learn-cap7",
@@ -1378,7 +1628,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "no-answers"
+        "signal": "below-floor"
       },
       {
         "qid": "learn-cap8",
@@ -1391,7 +1641,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "no-answers"
+        "signal": "below-floor"
       },
       {
         "qid": "learn-org1",
@@ -1600,6 +1850,1204 @@
         "trapShare": null,
         "wrongCount": 0,
         "signal": "no-answers"
+      },
+      {
+        "qid": "learn-anc9",
+        "field": "ancient",
+        "n": 4,
+        "prompt": "Most of the Great Wall standing today was built by the…",
+        "total": 0,
+        "authoredP": 0.34,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-anc10",
+        "field": "ancient",
+        "n": 4,
+        "prompt": "When Cleopatra was born, the Great Pyramid was already…",
+        "total": 0,
+        "authoredP": 0.31,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-anc11",
+        "field": "ancient",
+        "n": 4,
+        "prompt": "The Library of Alexandria was lost…",
+        "total": 0,
+        "authoredP": 0.38,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-anc12",
+        "field": "ancient",
+        "n": 4,
+        "prompt": "The ancient Olympic Games were held in honour of…",
+        "total": 0,
+        "authoredP": 0.61,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-anc13",
+        "field": "ancient",
+        "n": 4,
+        "prompt": "A Roman gladiator fight usually ended…",
+        "total": 0,
+        "authoredP": 0.36,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-body9",
+        "field": "body",
+        "n": 4,
+        "prompt": "Roughly how much of an adult's body weight is water?",
+        "total": 0,
+        "authoredP": 0.47,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-body10",
+        "field": "body",
+        "n": 4,
+        "prompt": "At rest, how much of the brain is active?",
+        "total": 0,
+        "authoredP": 0.52,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-body11",
+        "field": "body",
+        "n": 4,
+        "prompt": "Which blood type can donate to anyone?",
+        "total": 0,
+        "authoredP": 0.58,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-body12",
+        "field": "body",
+        "n": 4,
+        "prompt": "Which organ filters waste out of the blood?",
+        "total": 0,
+        "authoredP": 0.77,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-body13",
+        "field": "body",
+        "n": 4,
+        "prompt": "A red blood cell lives for about…",
+        "total": 0,
+        "authoredP": 0.33,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      }
+    ]
+  },
+  "duel": {
+    "coverage": {
+      "questions": 74,
+      "scored": 0,
+      "belowFloor": 0,
+      "unserved": 20
+    },
+    "modes": {
+      "group": {
+        "questions": 24,
+        "scored": 0,
+        "plays": 0,
+        "answers": 0
+      },
+      "duo": {
+        "questions": 30,
+        "scored": 0,
+        "plays": 0,
+        "answers": 0
+      },
+      "romantic": {
+        "questions": 20,
+        "scored": 0,
+        "plays": 0,
+        "answers": 0
+      }
+    },
+    "deadDuels": [],
+    "noisyDuels": [],
+    "perQuestion": [
+      {
+        "qid": "duel-group-gu0",
+        "mode": "group",
+        "kind": "us",
+        "prompt": "What actually holds this group together?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.25,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-group-gp0",
+        "mode": "group",
+        "kind": "pick",
+        "prompt": "Who'd survive longest in the wild?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": null,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-group-gu1",
+        "mode": "group",
+        "kind": "us",
+        "prompt": "This group's superpower?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.25,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-group-gd3",
+        "mode": "group",
+        "kind": "classic",
+        "prompt": "Best dinner together: cook, or book a table?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.5,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-group-gu3",
+        "mode": "group",
+        "kind": "us",
+        "prompt": "When we disagree, we…",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.25,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-group-gp1",
+        "mode": "group",
+        "kind": "pick",
+        "prompt": "Who replies to the group chat within a minute?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": null,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-group-gu4",
+        "mode": "group",
+        "kind": "us",
+        "prompt": "A stranger joins us for an evening. They leave thinking…",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.25,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-group-gd0",
+        "mode": "group",
+        "kind": "classic",
+        "prompt": "A winter cabin with no wifi. How long do you last?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.25,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-group-gu5",
+        "mode": "group",
+        "kind": "us",
+        "prompt": "What are we most likely to be late for?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.25,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-group-gp2",
+        "mode": "group",
+        "kind": "pick",
+        "prompt": "Who gives the best advice?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": null,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-group-gu2",
+        "mode": "group",
+        "kind": "us",
+        "prompt": "Our default plan on a free Friday?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.25,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-group-gd4",
+        "mode": "group",
+        "kind": "classic",
+        "prompt": "A surprise party for you — love it or dread it?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.5,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-group-gu6",
+        "mode": "group",
+        "kind": "us",
+        "prompt": "The thing we never say out loud?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.25,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-group-gp3",
+        "mode": "group",
+        "kind": "pick",
+        "prompt": "Who would you call from jail at 3am?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": null,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-group-gu7",
+        "mode": "group",
+        "kind": "us",
+        "prompt": "In ten years, this group is…",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.25,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-group-gd6",
+        "mode": "group",
+        "kind": "classic",
+        "prompt": "On the road trip, you are the…",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.25,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-group-gu8",
+        "mode": "group",
+        "kind": "us",
+        "prompt": "Our group chat is mostly…",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.25,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-group-gp4",
+        "mode": "group",
+        "kind": "pick",
+        "prompt": "Who changes the plan at the last minute?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": null,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-group-gu9",
+        "mode": "group",
+        "kind": "us",
+        "prompt": "What would break this group?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.25,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-group-gd7",
+        "mode": "group",
+        "kind": "classic",
+        "prompt": "Group holiday: one house together, or rooms apart?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.5,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-group-gp5",
+        "mode": "group",
+        "kind": "pick",
+        "prompt": "Who secretly runs this group?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": null,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-group-gu10",
+        "mode": "group",
+        "kind": "us",
+        "prompt": "Our best time together is usually…",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.25,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-group-gp6",
+        "mode": "group",
+        "kind": "pick",
+        "prompt": "Who would win a group argument on a technicality?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": null,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-group-gu11",
+        "mode": "group",
+        "kind": "us",
+        "prompt": "New person wants in. We are…",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.25,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-duo-000",
+        "mode": "duo",
+        "kind": null,
+        "prompt": "Plans get cancelled last minute. First feeling?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.5,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-duo-001",
+        "mode": "duo",
+        "kind": null,
+        "prompt": "Phone rings, unknown number.",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.333,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-duo-002",
+        "mode": "duo",
+        "kind": null,
+        "prompt": "A compliment in front of everyone — love it or squirm?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.5,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-duo-040",
+        "mode": "duo",
+        "kind": null,
+        "prompt": "The word that fits them best?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.25,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-duo-003",
+        "mode": "duo",
+        "kind": null,
+        "prompt": "Running late. The text says…",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.333,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-duo-004",
+        "mode": "duo",
+        "kind": null,
+        "prompt": "The food arrives wrong. Say something?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.5,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-duo-041",
+        "mode": "duo",
+        "kind": null,
+        "prompt": "Their best quality, in one word?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.25,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-duo-005",
+        "mode": "duo",
+        "kind": null,
+        "prompt": "Lost in a new city. They…",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.333,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-duo-006",
+        "mode": "duo",
+        "kind": null,
+        "prompt": "A free Saturday, zero plans. Bliss or restless?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.5,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-duo-007",
+        "mode": "duo",
+        "kind": null,
+        "prompt": "Karaoke machine appears.",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.333,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-duo-042",
+        "mode": "duo",
+        "kind": null,
+        "prompt": "In a room of strangers, they are…",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.333,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-duo-008",
+        "mode": "duo",
+        "kind": null,
+        "prompt": "Someone's joke goes too far. Laugh it off, or say so?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.5,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-duo-009",
+        "mode": "duo",
+        "kind": null,
+        "prompt": "A big decision lands. How do you call it?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.25,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-duo-010",
+        "mode": "duo",
+        "kind": null,
+        "prompt": "Cry in a film — freely, or fight it?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.5,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-duo-043",
+        "mode": "duo",
+        "kind": null,
+        "prompt": "You would call them first for…",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.25,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-duo-011",
+        "mode": "duo",
+        "kind": null,
+        "prompt": "Ideal holiday day?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.333,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-duo-044",
+        "mode": "duo",
+        "kind": null,
+        "prompt": "What about them would surprise a stranger?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.25,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-duo-012",
+        "mode": "duo",
+        "kind": null,
+        "prompt": "A surprise windfall lands. First move?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.25,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-duo-013",
+        "mode": "duo",
+        "kind": null,
+        "prompt": "An old friend owes an apology. Bring it up, or let it go?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.5,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-duo-014",
+        "mode": "duo",
+        "kind": null,
+        "prompt": "Deep talk at 2am, or a proper night of sleep?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.5,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-duo-045",
+        "mode": "duo",
+        "kind": null,
+        "prompt": "Are they easy to know?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.333,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-duo-015",
+        "mode": "duo",
+        "kind": null,
+        "prompt": "When hurt, you go…",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.333,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-duo-016",
+        "mode": "duo",
+        "kind": null,
+        "prompt": "Hear the hard truth, or keep the comfortable silence?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.5,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-duo-046",
+        "mode": "duo",
+        "kind": null,
+        "prompt": "Their most underrated trait?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.25,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-duo-017",
+        "mode": "duo",
+        "kind": null,
+        "prompt": "After a brutal week, what refills you?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.25,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-duo-047",
+        "mode": "duo",
+        "kind": null,
+        "prompt": "Better at giving advice, or taking it?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.5,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-duo-018",
+        "mode": "duo",
+        "kind": null,
+        "prompt": "A week alone in a cabin. Gift or sentence?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.5,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-duo-048",
+        "mode": "duo",
+        "kind": null,
+        "prompt": "The role they play between you two?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.25,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-duo-019",
+        "mode": "duo",
+        "kind": null,
+        "prompt": "Old age: surrounded, or independent?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.5,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-duo-049",
+        "mode": "duo",
+        "kind": null,
+        "prompt": "What would they want to be remembered for?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.25,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "duel-duo-020",
+        "mode": "romantic",
+        "kind": null,
+        "prompt": "A free evening, both home. Ideal version?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.333,
+        "signal": "unserved"
+      },
+      {
+        "qid": "duel-duo-021",
+        "mode": "romantic",
+        "kind": null,
+        "prompt": "How do they like being woken?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.333,
+        "signal": "unserved"
+      },
+      {
+        "qid": "duel-duo-022",
+        "mode": "romantic",
+        "kind": null,
+        "prompt": "A good apology from them looks like…",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.333,
+        "signal": "unserved"
+      },
+      {
+        "qid": "duel-duo-023",
+        "mode": "romantic",
+        "kind": null,
+        "prompt": "You are 20 minutes late to dinner. Their read?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.5,
+        "signal": "unserved"
+      },
+      {
+        "qid": "duel-duo-024",
+        "mode": "romantic",
+        "kind": null,
+        "prompt": "Love lands hardest as…",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.25,
+        "signal": "unserved"
+      },
+      {
+        "qid": "duel-duo-025",
+        "mode": "romantic",
+        "kind": null,
+        "prompt": "Mid-argument, they want…",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.333,
+        "signal": "unserved"
+      },
+      {
+        "qid": "duel-duo-026",
+        "mode": "romantic",
+        "kind": null,
+        "prompt": "The better anniversary?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.5,
+        "signal": "unserved"
+      },
+      {
+        "qid": "duel-duo-027",
+        "mode": "romantic",
+        "kind": null,
+        "prompt": "Money in this relationship should be…",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.333,
+        "signal": "unserved"
+      },
+      {
+        "qid": "duel-duo-028",
+        "mode": "romantic",
+        "kind": null,
+        "prompt": "Their idea of being taken care of?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.25,
+        "signal": "unserved"
+      },
+      {
+        "qid": "duel-duo-029",
+        "mode": "romantic",
+        "kind": null,
+        "prompt": "A whole weekend together, no phones. Bliss or too much?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.5,
+        "signal": "unserved"
+      },
+      {
+        "qid": "duel-duo-030",
+        "mode": "romantic",
+        "kind": null,
+        "prompt": "They had a hard day and did not say so. The tell?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.333,
+        "signal": "unserved"
+      },
+      {
+        "qid": "duel-duo-031",
+        "mode": "romantic",
+        "kind": null,
+        "prompt": "Five years out, they picture…",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.333,
+        "signal": "unserved"
+      },
+      {
+        "qid": "duel-duo-032",
+        "mode": "romantic",
+        "kind": null,
+        "prompt": "A big decision that affects you both. They…",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.333,
+        "signal": "unserved"
+      },
+      {
+        "qid": "duel-duo-033",
+        "mode": "romantic",
+        "kind": null,
+        "prompt": "Would they tell you a truth that would hurt for a week?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.333,
+        "signal": "unserved"
+      },
+      {
+        "qid": "duel-duo-034",
+        "mode": "romantic",
+        "kind": null,
+        "prompt": "Jealousy shows up in them as…",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.25,
+        "signal": "unserved"
+      },
+      {
+        "qid": "duel-duo-035",
+        "mode": "romantic",
+        "kind": null,
+        "prompt": "Kids, someday?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.333,
+        "signal": "unserved"
+      },
+      {
+        "qid": "duel-duo-036",
+        "mode": "romantic",
+        "kind": null,
+        "prompt": "The thing they would never compromise on?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.25,
+        "signal": "unserved"
+      },
+      {
+        "qid": "duel-duo-037",
+        "mode": "romantic",
+        "kind": null,
+        "prompt": "If you needed a year somewhere else, they would…",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.333,
+        "signal": "unserved"
+      },
+      {
+        "qid": "duel-duo-038",
+        "mode": "romantic",
+        "kind": null,
+        "prompt": "What would make them feel most loved this year?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.25,
+        "signal": "unserved"
+      },
+      {
+        "qid": "duel-duo-039",
+        "mode": "romantic",
+        "kind": null,
+        "prompt": "Old age, the two of you: side by side, or side by side and busy?",
+        "plays": 0,
+        "total": 0,
+        "evenness": null,
+        "guessTotal": 0,
+        "guessMatches": 0,
+        "guessMatchRate": null,
+        "chance": 0.5,
+        "signal": "unserved"
       }
     ]
   },
@@ -1638,7 +3086,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "no-answers"
+      "signal": "below-floor"
     },
     {
       "qid": "daily-003",
@@ -1650,7 +3098,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "no-answers"
+      "signal": "below-floor"
     },
     {
       "qid": "daily-004",
@@ -1658,11 +3106,11 @@
       "topic": "Mind",
       "type": "scale",
       "prompt": "It's okay to do nothing sometimes.",
-      "served": false,
+      "served": true,
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "unserved"
+      "signal": "below-floor"
     },
     {
       "qid": "daily-005",
@@ -1670,23 +3118,23 @@
       "topic": "Morals",
       "type": "binary",
       "prompt": "Are people getting kinder, or meaner?",
-      "served": false,
+      "served": true,
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "unserved"
+      "signal": "below-floor"
     },
     {
       "qid": "daily-006",
       "surface": "daily",
       "topic": "Morals",
       "type": "dilemma",
-      "prompt": "You find €500 in cash on an empty street. What do you do?",
-      "served": false,
+      "prompt": "You find a week's pay in cash on an empty street. What do you do?",
+      "served": true,
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "unserved"
+      "signal": "no-answers"
     },
     {
       "qid": "daily-007",
@@ -1694,11 +3142,11 @@
       "topic": "Mind",
       "type": "rating",
       "prompt": "How optimistic are you about the next ten years?",
-      "served": false,
+      "served": true,
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "unserved"
+      "signal": "below-floor"
     },
     {
       "qid": "daily-008",
@@ -1706,11 +3154,11 @@
       "topic": "Values",
       "type": "scale",
       "prompt": "People are basically trustworthy.",
-      "served": false,
+      "served": true,
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "unserved"
+      "signal": "below-floor"
     },
     {
       "qid": "daily-009",
@@ -1718,11 +3166,15 @@
       "topic": "Mind",
       "type": "binary",
       "prompt": "A pill that ends your need for sleep. Take it?",
-      "served": false,
-      "total": 0,
-      "evenness": null,
-      "optionShares": null,
-      "signal": "unserved"
+      "served": true,
+      "total": 1,
+      "evenness": 0,
+      "optionShares": [
+        1,
+        0
+      ],
+      "signal": "scored",
+      "grade": "middling"
     },
     {
       "qid": "daily-010",
@@ -1730,23 +3182,23 @@
       "topic": "Values",
       "type": "choice",
       "prompt": "What should schools teach more of?",
-      "served": false,
+      "served": true,
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "unserved"
+      "signal": "no-answers"
     },
     {
       "qid": "daily-011",
       "surface": "daily",
       "topic": "Morals",
       "type": "dilemma",
-      "prompt": "A job you would love means moving somewhere your partner would hate. Do you take it?",
-      "served": false,
+      "prompt": "A job you would love means moving somewhere the person closest to you would hate. Do you take it?",
+      "served": true,
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "unserved"
+      "signal": "below-floor"
     },
     {
       "qid": "daily-012",
@@ -1754,11 +3206,11 @@
       "topic": "Sport",
       "type": "binary",
       "prompt": "Would you rather watch sport, or play it?",
-      "served": false,
+      "served": true,
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "unserved"
+      "signal": "no-answers"
     },
     {
       "qid": "daily-013",
@@ -2694,7 +4146,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "no-answers"
+      "signal": "below-floor"
     },
     {
       "qid": "feed-f02",
@@ -2706,7 +4158,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "no-answers"
+      "signal": "below-floor"
     },
     {
       "qid": "feed-f04",
@@ -2718,7 +4170,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "no-answers"
+      "signal": "below-floor"
     },
     {
       "qid": "feed-f05",
@@ -2730,7 +4182,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "no-answers"
+      "signal": "below-floor"
     },
     {
       "qid": "feed-f06",
@@ -2742,7 +4194,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "no-answers"
+      "signal": "below-floor"
     },
     {
       "qid": "feed-f07",
@@ -2754,7 +4206,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "no-answers"
+      "signal": "below-floor"
     },
     {
       "qid": "feed-f08",
@@ -2778,7 +4230,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "no-answers"
+      "signal": "below-floor"
     },
     {
       "qid": "feed-f11",
@@ -2790,7 +4242,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "no-answers"
+      "signal": "below-floor"
     },
     {
       "qid": "feed-f12",
@@ -2802,7 +4254,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "no-answers"
+      "signal": "below-floor"
     },
     {
       "qid": "feed-f13",
@@ -2838,7 +4290,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "no-answers"
+      "signal": "below-floor"
     },
     {
       "qid": "feed-f17",
@@ -2862,7 +4314,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "no-answers"
+      "signal": "below-floor"
     },
     {
       "qid": "feed-f19",
@@ -2874,7 +4326,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "no-answers"
+      "signal": "below-floor"
     },
     {
       "qid": "feed-f20",
@@ -2910,7 +4362,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "no-answers"
+      "signal": "below-floor"
     },
     {
       "qid": "feed-f24",
@@ -2946,7 +4398,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "no-answers"
+      "signal": "below-floor"
     },
     {
       "qid": "feed-f27",
@@ -2958,7 +4410,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "no-answers"
+      "signal": "below-floor"
     },
     {
       "qid": "feed-f29",
@@ -2982,7 +4434,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "no-answers"
+      "signal": "below-floor"
     },
     {
       "qid": "feed-f31",
@@ -2994,7 +4446,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "no-answers"
+      "signal": "below-floor"
     },
     {
       "qid": "feed-f32",
@@ -3006,7 +4458,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "no-answers"
+      "signal": "below-floor"
     },
     {
       "qid": "feed-f33",
@@ -3018,7 +4470,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "no-answers"
+      "signal": "below-floor"
     },
     {
       "qid": "feed-f35",
@@ -3030,7 +4482,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "no-answers"
+      "signal": "below-floor"
     },
     {
       "qid": "feed-f36",
@@ -3042,7 +4494,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "no-answers"
+      "signal": "below-floor"
     },
     {
       "qid": "feed-f37",
@@ -3054,7 +4506,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "no-answers"
+      "signal": "below-floor"
     },
     {
       "qid": "feed-f38",
@@ -3066,19 +4518,19 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "no-answers"
+      "signal": "below-floor"
     },
     {
       "qid": "feed-f39",
       "surface": "feed",
       "topic": "dilemma",
       "type": "vote",
-      "prompt": "$1M now, but a stranger somewhere loses everything. Press the button?",
+      "prompt": "A million now, but a stranger somewhere loses everything. Press the button?",
       "served": true,
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "no-answers"
+      "signal": "below-floor"
     },
     {
       "qid": "feed-f40",
@@ -3102,7 +4554,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "no-answers"
+      "signal": "below-floor"
     },
     {
       "qid": "feed-f42",
@@ -3114,7 +4566,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "no-answers"
+      "signal": "below-floor"
     },
     {
       "qid": "feed-f43",
@@ -3123,10 +4575,14 @@
       "type": "vote",
       "prompt": "Perfect memory — but you can never forget anything. Take it?",
       "served": true,
-      "total": 0,
-      "evenness": null,
-      "optionShares": null,
-      "signal": "no-answers"
+      "total": 1,
+      "evenness": 0,
+      "optionShares": [
+        1,
+        0
+      ],
+      "signal": "scored",
+      "grade": "middling"
     },
     {
       "qid": "feed-f44",
@@ -3135,10 +4591,14 @@
       "type": "vote",
       "prompt": "Your dog talks for one day, or understands you forever?",
       "served": true,
-      "total": 0,
-      "evenness": null,
-      "optionShares": null,
-      "signal": "no-answers"
+      "total": 1,
+      "evenness": 0,
+      "optionShares": [
+        1,
+        0
+      ],
+      "signal": "scored",
+      "grade": "middling"
     },
     {
       "qid": "feed-f45",
@@ -3150,7 +4610,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "no-answers"
+      "signal": "below-floor"
     },
     {
       "qid": "feed-f46",
@@ -3162,7 +4622,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "no-answers"
+      "signal": "below-floor"
     },
     {
       "qid": "feed-f47",
@@ -3174,7 +4634,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "no-answers"
+      "signal": "below-floor"
     },
     {
       "qid": "feed-f48",
@@ -3186,7 +4646,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "no-answers"
+      "signal": "below-floor"
     },
     {
       "qid": "feed-f49",
@@ -3198,7 +4658,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "no-answers"
+      "signal": "below-floor"
     },
     {
       "qid": "feed-f50",
@@ -3210,7 +4670,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "no-answers"
+      "signal": "below-floor"
     },
     {
       "qid": "feed-f51",
@@ -3219,10 +4679,15 @@
       "type": "vote",
       "prompt": "Dinner with one",
       "served": true,
-      "total": 0,
-      "evenness": null,
-      "optionShares": null,
-      "signal": "no-answers"
+      "total": 1,
+      "evenness": 0,
+      "optionShares": [
+        0,
+        0,
+        1
+      ],
+      "signal": "scored",
+      "grade": "middling"
     },
     {
       "qid": "feed-f52",
@@ -3234,7 +4699,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "no-answers"
+      "signal": "below-floor"
     },
     {
       "qid": "feed-f53",
@@ -3246,7 +4711,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "no-answers"
+      "signal": "below-floor"
     },
     {
       "qid": "feed-f54",
@@ -3267,10 +4732,14 @@
       "type": "vote",
       "prompt": "Humanity’s best days are ahead.",
       "served": true,
-      "total": 0,
-      "evenness": null,
-      "optionShares": null,
-      "signal": "no-answers"
+      "total": 1,
+      "evenness": 0,
+      "optionShares": [
+        1,
+        0
+      ],
+      "signal": "scored",
+      "grade": "middling"
     },
     {
       "qid": "feed-s01",
@@ -3378,7 +4847,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "no-answers"
+      "signal": "below-floor"
     },
     {
       "qid": "feed-s11",
@@ -3387,10 +4856,14 @@
       "type": "vote",
       "prompt": "Is morality discovered or invented?",
       "served": true,
-      "total": 0,
-      "evenness": null,
-      "optionShares": null,
-      "signal": "no-answers"
+      "total": 1,
+      "evenness": 0,
+      "optionShares": [
+        0,
+        1
+      ],
+      "signal": "scored",
+      "grade": "middling"
     },
     {
       "qid": "feed-s12",
@@ -3402,12 +4875,12 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "no-answers"
+      "signal": "below-floor"
     },
     {
       "qid": "feed-s13",
       "surface": "feed",
-      "topic": "bigq",
+      "topic": "culture",
       "type": "vote",
       "prompt": "Blitz or classical?",
       "served": true,
@@ -3419,7 +4892,7 @@
     {
       "qid": "feed-s14",
       "surface": "feed",
-      "topic": "bigq",
+      "topic": "culture",
       "type": "vote",
       "prompt": "Best first move",
       "served": true,
@@ -3431,7 +4904,7 @@
     {
       "qid": "feed-s15",
       "surface": "feed",
-      "topic": "bigq",
+      "topic": "culture",
       "type": "vote",
       "prompt": "A draw offer from a stronger player — take it?",
       "served": true,
@@ -3458,6 +4931,114 @@
       "topic": "food",
       "type": "vote",
       "prompt": "Kombucha or kefir?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-dl1",
+      "surface": "feed",
+      "topic": "bigq",
+      "type": "dial",
+      "prompt": "When does old age begin?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "below-floor"
+    },
+    {
+      "qid": "feed-dl2",
+      "surface": "feed",
+      "topic": "dilemma",
+      "type": "dial",
+      "prompt": "The right tip",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "below-floor"
+    },
+    {
+      "qid": "feed-dl3",
+      "surface": "feed",
+      "topic": "dilemma",
+      "type": "dial",
+      "prompt": "Daily screen time — where does “too much” start?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "below-floor"
+    },
+    {
+      "qid": "feed-dl4",
+      "surface": "feed",
+      "topic": "bigq",
+      "type": "dial",
+      "prompt": "How much of your life is actually in your control?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "below-floor"
+    },
+    {
+      "qid": "feed-fd1",
+      "surface": "feed",
+      "topic": "dilemma",
+      "type": "field",
+      "prompt": "Pineapple on pizza — place it",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-fd2",
+      "surface": "feed",
+      "topic": "bigq",
+      "type": "field",
+      "prompt": "Small talk — place it",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-fd3",
+      "surface": "feed",
+      "topic": "bigq",
+      "type": "field",
+      "prompt": "AI assistants, today — place them",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-pt1",
+      "surface": "feed",
+      "topic": "dilemma",
+      "type": "path",
+      "prompt": "The Wallet — a wallet, a bus, and nobody watching",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-pt2",
+      "surface": "feed",
+      "topic": "dilemma",
+      "type": "path",
+      "prompt": "The Wrong Text — a message that was not meant for you",
       "served": true,
       "total": 0,
       "evenness": null,
