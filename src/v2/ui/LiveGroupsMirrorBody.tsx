@@ -284,6 +284,4 @@ function LiveGroupsMirrorBody() {
   );
 }
 
-Object.assign(globalThis, { LiveGroupsMirrorBody });
-
 export default LiveGroupsMirrorBody;

@@ -83,8 +83,11 @@ Four guards make the rest survivable, and all four exist because something
 real slipped through:
 
 - `npm run check:globals` — dangling `window.X` references, files
-  `spec-index.js` forgot, **and undefined JSX tags**. That last rule found
-  a live `ReferenceError` on the Mirror tab the day it was added.
+  `spec-index.js` forgot, **undefined JSX tags**, and **publications
+  nothing reads**. The tags rule found a live `ReferenceError` on the
+  Mirror tab the day it was added; the publications rule (rule 5) swept 17
+  dead `globalThis.X = X` lines the day it was added (D137) — the residue
+  of conversions that exported the name and never went back for the line.
 - `no-undef` is **ON** for the spec layer, seeded from that same scanner
   (`scripts/spec-globals.mjs`, shared by the checker and `eslint.config.js`).
   It was off for a long time, which is how two `ReferenceError`s shipped.

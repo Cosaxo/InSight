@@ -399,7 +399,4 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
   );
 }
 
-// Render-time lookup bridge for the spec layer (mirror-tab.jsx).
-Object.assign(globalThis, { LiveCohortBody });
-
 export default LiveCohortBody;

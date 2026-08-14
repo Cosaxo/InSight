@@ -44,11 +44,11 @@ export function muteAuthor(uid: string): void {
   save();
 }
 
-export function unmuteAuthor(uid: string): void {
-  if (!muted.delete(uid)) return;
-  save();
-}
-
+// NB: there is no unmuteAuthor. One existed, called by nothing, from the day
+// this store landed until D137 — no surface ever offered the undo, so the
+// only way back today is the account panel's local purge (D51). Deleted
+// rather than kept as scaffolding: a half-built API reads as a shipped
+// feature, and the gap is easier to see when the function is not there.
 export function subscribeMutes(f: () => void): () => void {
   listeners.add(f);
   return () => listeners.delete(f);

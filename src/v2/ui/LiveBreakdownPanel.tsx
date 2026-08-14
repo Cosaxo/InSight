@@ -284,8 +284,4 @@ function LiveBreakdownPanel({ qid, options, mine = -1, renderBody }: {
   );
 }
 
-// Render-time lookup bridge for the spec layer (world-feed.jsx imports it
-// directly; this is here for parity with its sibling panels).
-Object.assign(globalThis, { LiveBreakdownPanel });
-
 export default LiveBreakdownPanel;
