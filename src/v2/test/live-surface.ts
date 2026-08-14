@@ -36,6 +36,11 @@ export const LIVE_MEMBERS = [
   // or failed and an array (possibly empty) once known, because "could
   // not ask" and "nobody answered" must not render the same.
   "loadVoters", "voters", "votersByOption", "votersLoading",
+  // The same cached list joined to the parsed cross-user scores D112
+  // already fetched — the input to the who-voted sheet's type cut
+  // (data/typeSplit.ts). Listed here rather than reached for directly:
+  // the pin is what makes a new cross-user surface reviewed.
+  "voterScores",
   // The shared uid → name cache the same read fills. `nameFor` is a
   // synchronous best-effort read; `loadNames` is the batched fetch that
   // fills it for a surface that has uids but no names (world takes).

@@ -210,6 +210,23 @@ function LivePrivacyPanel() {
           one person&apos;s answer.</li>
           <li>Your display name is shown with your answers. Leave it blank to appear
           as &ldquo;Someone&rdquo; — that hides the name, not the answers.</li>
+          {/* The type cut's disclosure. Nothing NEW leaves the device for
+              it — answers were already public and testResults already
+              world-readable, and the cut is arithmetic anyone could have
+              run on both. But "the app groups my answers by my
+              personality type and shows that to strangers" is not
+              something a user should have to derive from two other
+              bullets, and the retroactive half is the part they cannot
+              guess: it applies to answers given long before the type
+              existed. `docs/data-inventory.md` carried a flat "nothing is
+              ever cross-tabbed by a test result" and pointed HERE as the
+              place it was stated in full; that claim is now narrower, so
+              this is where the narrower one goes. */}
+          <li>Your answers can be grouped by your Big Five type. That type is worked out
+          from the test cards you answer in the feed, so it can change as you answer more —
+          and because it is read fresh each time, it applies to <em>everything</em> you have
+          ever answered, including answers you gave before you had a type at all. Your
+          politics, values and social results are never used to group answers this way.</li>
           <li>Group &amp; 1v1 answers stay sealed until the next day&apos;s reveal — that is the
           game, not a privacy promise. Once revealed they read like every other answer.</li>
           {/* This line has been rewritten twice, and the second time the
