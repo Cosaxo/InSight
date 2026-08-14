@@ -67,7 +67,7 @@ companies' apps or sites.
 | Identifiers | **User ID** | Yes | App Functionality | The Firebase uid, anonymous by default (D3) — every install becomes one at first paint — **and the handle since D122**, which Apple's own definition of this type names ("any screen name, handle, account ID …"). See the note below the table |
 | Contact Info | **Email Address** | Yes | App Functionality | Only if the user links Google. See the warning below |
 | Contact Info | **Name** | Yes | App Functionality | Optional display name, shown in group and duel reveals |
-| User Content | **Other User Content** | Yes | App Functionality | Answers and test results |
+| User Content | **Other User Content** | Yes | App Functionality | Answers and test results, the anchors each answer was given under, and question suggestions (D138). See the note below the table |
 | Location | **Coarse Location** | Yes | App Functionality | City name only. **Never tick Precise** |
 | Sensitive Info | **Sensitive Info** | Yes | App Functionality | Politics test result (GDPR Art. 9); gender if entered |
 | Diagnostics | **Crash Data** | Yes | App Functionality | Sentry. **On by default** (D76), opt-out in the privacy panel, carries the uid only |
@@ -84,6 +84,21 @@ future reviewer checks the row against. That is the D116 failure one layer
 in — pushed state was right, the reasoning under it had gone stale — and it
 is the reason this note exists rather than a diff nobody would notice.
 
+**Question suggestions (D138) land in *Other User Content*, and the answer
+does not move either.** Same shape, recorded for the same reason: this
+row's stated basis was "answers and test results", and a suggestion is
+neither. It is free text a user writes — a prompt, its options, and a
+`credit` flag saying they would like to be named if it is ever used —
+stored in `v2_suggestions`, written only by `suggestQuestionV2`, and
+**read by its author and nobody else** (`firestore.rules`, and the D98
+"answers are public" model deliberately does not reach it). That last
+part is the one worth being careful about: it makes the row look
+arguable, and it is not. This form asks what the app **collects**, not
+what it publishes — the same reasoning that keeps Email Address a Yes
+while no Firestore document of ours holds one. Nothing to re-type in App
+Store Connect; the sentence a future reviewer checks the row against is
+what needed fixing.
+
 ### Not collected — leave every one of these unticked
 
 Phone Number · Physical Address · Other Contact Info · Health · Fitness ·
@@ -94,8 +109,29 @@ Gameplay Content · Customer Support · Browsing History · Search History ·
 **Advertising Data** · Other Usage Data · Performance Data · Other
 Diagnostic Data · Other Data Types
 
-Three of those are worth knowing *why*, because each looks tickable:
+Four of those are worth knowing *why*, because each looks tickable:
 
+- **Health — No, and this one changed shape at D140.** The profile now
+  collects a **height band** as the seventh breakdown dimension, which is
+  the first body measurement this app has ever held, so a row that used to
+  be obviously No is now a judgement. It stays No on two grounds and they
+  have to hold together. *What it is:* a six-value select (`Under 160 cm`
+  … `190 cm or taller`, plus a real `Prefer not to say`) sitting on the
+  Basics card beside gender and education — a demographic band collected
+  to slice cohorts, never a measurement, never a centimetre field, and
+  D140 declined the precise input precisely so there would be nothing
+  finer to hold. *What Apple means by this row:* health and medical data —
+  HealthKit, Clinical Health Records, health-related research, "or any
+  other user provided health or medical data". This app touches no
+  HealthKit API, infers nothing medical, and shows the band only as a
+  cohort label. A demographic band is not a health record.
+  **The trip-wire, and it is the reason this bullet exists rather than a
+  silent No:** the argument above is about height *alone*. Add weight, or
+  anything that combines with height into a BMI, and this row becomes Yes
+  — that is health data by any reading, including Apple's. D140 declined
+  weight/BMI on unrelated grounds (the §4 trilemma re-imports the
+  suppression floor), so the answer here has never been tested. Whoever
+  picks that decision back up owns this row.
 - **Device ID — No.** Device binding (D29) receives 2–3 bits from Apple
   DeviceCheck meaning "an account was activated from this device
   recently". The server stores **no device identifier**; the platforms

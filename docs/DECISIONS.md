@@ -13352,7 +13352,18 @@ and `docs/data-inventory.md` change, and a store privacy-label review
 (D130), in one commit with tests. That is a decision about physical
 safety and it is the owner's to take with the cost stated, which is why
 this entry stops here rather than shipping a half of it.
-## D136 · Build 13's pre-flight: a build was spent while this file said it was not
+## D142 · Build 13's pre-flight: a build was spent while this file said it was not
+
+**Renumbered from D136 on 2026-08-14 (build 14's pre-flight).** This record
+and "The Mirror stop loses two tabs" were both numbered D136 — a genuine
+collision, not the `amendment`/`adoption` suffix pattern that makes D7, D28,
+D33 and D40 look doubled. It came out of the merge that renumbered a
+branch's D138–D141 behind main's; the two D136s were assigned on separate
+lines and neither moved. **The Mirror record keeps D136** because ~55
+citations across `lensTabs.ts`, `MIRROR.md`, `world-feed.jsx`,
+`paths-data.js`, `CLAUDE.md` and the smoke tests point at it, against two
+for this one (runbook 2.4 and SHIP-CHECKLIST 6.2), both updated with this
+change. Renumbering the cheaper side is the same trade the merge made.
 
 **Decided:** 2026-08-13 · **Status:** binding · Extends runbook 2.4's
 comparison rule. The first firing of the forgotten-bump trap, which is the
@@ -14101,7 +14112,130 @@ and it sits BELOW Kindred on the People lens. The per-person fold
 survives in `data/typeMix.ts` for whatever consumer earns it next; the
 people rows and the per-type roster left the card.
 
-## D142 · Four question lanes, two of which had never run: the learn and feed Routines, a feed regulator, and a weekday for catalogues
+## D143 · Build 14's pre-flight: the status line failed a third time, and the bundle gate was already red
+
+**Decided:** 2026-08-14 · **Status:** binding · Third firing of runbook
+2.4's trap (D130, D142), plus the first store-filing change since D116 and
+a raise of the total-JS ceiling.
+
+**`appBuild` 13 → 14**, propagated to `versionCode` and
+`CURRENT_PROJECT_VERSION`. Run 19 (`0e65741`, 2026-08-13 20:19Z, 6m 58s)
+uploaded build 13 — its `Upload to App Store Connect` step's conclusion is
+`success`, and the transfer took 1m 49s of the run. The post-upload bump
+did not happen, so `appBuild` sat at 13 with 13 already delivered: the same
+~150-minute refusal-after-transfer D142 caught one build earlier.
+
+**The status line failed the same way for the third consecutive release,
+and that is now a property of the format rather than an accident.** D130
+wrote *"Build 12 is pre-flighted and unspent"* in `d0cf435`, the commit run
+18 uploaded. D142 diagnosed exactly that and then wrote *"Build 13 is
+pre-flighted and unspent"* in `0e65741`, the commit run 19 uploaded. Both
+sentences were true when committed and false within hours, because the run
+is dispatched *from* the commit that makes the claim. **No wording fixes
+this** — a claim about App Store Connect cannot be stored in a tree that
+cannot read App Store Connect (D73's shape, one layer out). Runbook 2.4 now
+strikes its own status line rather than restating it, and the comparison
+against the run list is the only procedure. This record does not assert
+that build 14 is unspent; it asserts that run 19 spent 13, which is a fact
+about a run that has already finished.
+
+**`check:bundle` was red on `main` before this pre-flight started**, and
+finding it was the pre-flight's main yield. CI run 394 (`d77c28a`,
+`typecheck-build`) failed at `npm run check:bundle` with every other job —
+rules, e2e, lint, android — green.
+
+| budget | ceiling | measured | verdict |
+| --- | ---: | ---: | --- |
+| `MAX_CHUNK_KB` | 735 | 704 | ok |
+| `MAX_TOTAL_JS_KB` | 2184 | **2220** | **RED, +36 KB** |
+| `MAX_EAGER_KB` | 966 | 963 | ok, 3 KB spare |
+
+**Raised the total to 2230; refused to touch the eager constant.** The
++36 KB is D137–D141 — the suggestion board, the pulse card and its
+React.lazy trends chart, the type-mix card, the height band — and every
+byte of it lands in a chunk first paint does not fetch. The script's own
+note says the total is *"a drift alarm rather than the guarantee"* and set
+the test explicitly: *if a third raise lands this week, ask whether the
+band is too narrow rather than whether the app should be smaller.* This is
+the fourth, all four were features that were asked for, all four left first
+paint alone, and the alarm has still never been the thing that found a
+problem. So the raise takes ~10 KB of headroom instead of the +1 the last
+three took — an alarm re-armed one kilobyte from the wall fires on the next
+feature, which is the failure the note named.
+
+**Three measurement traps, all of which fired here, all recorded because
+each cost a rebuild:**
+
+1. **`npm run build` locally is not what CI builds** — the script already
+   says so. Without `VITE_SENTRY_DSN` there is no 435 KB `prod-*.js`, and
+   the local total came out 1779 against 2184: green, on a bundle CI never
+   weighs. The red only reproduces with a dummy DSN set.
+2. **`CAPACITOR_BUILD=1` is a third bundle, and it is the one that
+   ships.** The first measurement in this pre-flight used it and read
+   *eager* 971 against 966 — a plausible-looking failure of the wrong
+   gate, on the wrong bundle. CI's build measures 963.
+3. **The number to compare against is the previous build's, rebuilt** —
+   not the ceiling's history. Build 13 rebuilt at `0e65741` measures 954
+   eager / 1727 total on a plain build, which is what makes +36 KB a
+   statement about D137–D141 rather than about accumulated drift.
+
+**A gap this opened and did not close: nothing weighs the shipping
+bundle.** `ci.yml` runs `check:bundle` against the *web* build;
+`ios-release.yml` builds with `CAPACITOR_BUILD=1` and a real DSN and never
+runs it. Rebuilt at `0e65741` the native bundle's eager graph is **963
+against the 955 ceiling then in force** — already over, and over at every
+build since, with no gate positioned to say so. Build 14's is 971 against
+966. **Not fixed here, deliberately:** the ceilings were calibrated against
+the web build, so the native number needs its own baseline before it can
+mean anything, and inventing one during a release pre-flight is how a
+release acquires an unrelated regression. Recorded as the arithmetic that a
+future `check:bundle --native` starts from.
+
+**The store filing changed for the first time since D116, and only its
+reasoning changed.** Two things entered the app that the filing's prose did
+not describe, and neither moves an answer in App Store Connect:
+
+- **Question suggestions (D138)** are free text — a prompt, its options,
+  a credit opt-in — in `v2_suggestions`. *Other User Content* was already
+  Yes, but its stated basis was "answers and test results", which a
+  suggestion is not. The row is about what is **collected**, not what is
+  published, which is why an author-only read does not exempt it — the
+  same reasoning that keeps Email Address a Yes while no document of ours
+  holds one.
+- **The height band (D140)** rides the anchors snapshot, already inside
+  that row. What it changes is a different row: **Health**, which the
+  filing lists as not-collected, was written when the app held no body
+  measurement at all. It stays No — a six-value demographic band beside
+  gender and education, no HealthKit, no medical inference, and D140
+  declined the centimetre field precisely so there was nothing finer to
+  hold — but it is now a judgement rather than an obvious No, so
+  STORE-FORMS.md states it as one, with the trip-wire that flips it:
+  **weight, or anything that combines with height into a BMI.** D140
+  declined weight/BMI on unrelated grounds, so that answer is untested.
+
+**D140's new-dim checklist has no store-filing step, and that is the
+finding.** It ran end to end — vocab, validator, index exemption,
+`check:anchors`, the privacy panel's bluntest sentence, the data-inventory
+rows — and every item is about the app or the backend. The App Store
+filing is the one surface a new anchor can reach that the checklist cannot
+see, `check:store-forms` holds the two halves equal to *each other* rather
+than to the tree, and `check:data-inventory` stops at the collection list.
+So a new dim can land complete by every gate and leave a legal attestation
+describing an app that no longer exists. Add the filing to the checklist
+when the next dim is planned.
+
+**Also renumbered:** two records were both `## D136`, a real collision
+rather than the `amendment` suffix pattern. The Mirror record keeps the
+number (~55 citations in code and docs); build 13's pre-flight became D142
+(two citations, both updated).
+
+**Not done, deliberately:** the release itself. This is pre-flight — the
+dispatch is `upload = true` on *iOS release*, it is outward-facing, and it
+spends ~150 minutes of macOS quota at 10x. `whatsNew` stays *"First
+release."*: it is a version field, `MARKETING_VERSION` is still 2.0.0, and
+6.2 is unticked (D74).
+
+## D144 · Four question lanes, two of which had never run: the learn and feed Routines, a feed regulator, and a weekday for catalogues
 
 **Decided:** 2026-08-14 · **Status:** built on
 `claude/question-generation-rates-5kiz6c` (owner's direction: "wire up

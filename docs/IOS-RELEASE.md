@@ -311,6 +311,23 @@ refusal would have come *after* the transfer — a full macOS run, at 10x,
 for a number. The over-eager bump costs an unused integer; the forgotten
 one costs ~150 minutes of quota.
 
+**The forgotten bump has now happened twice in a row** — run 19
+(`0e65741`, 2026-08-13, upload step `success`) delivered build 13 and the
+bump was skipped again, caught the next day by build 14's pre-flight
+(D143). Twice is the format failing rather than a person forgetting: the
+release commit lands, *then* the run is dispatched from it, so the tree is
+always one event behind the fact it is asserting. **The post-upload bump is
+still the right habit — it is just not a guarantee**, and the only thing
+that is, is reading the run list before dispatching.
+
+**Run 20 (`8cf48a1`, 2026-08-14, upload step `success`) delivered build 14,
+and `appBuild` went to 15 in the same session, off that step's
+conclusion.** That is the habit working for the first time in three
+releases, and it is worth naming what made the difference: the bump was
+done while the run's own step list was on screen, rather than deferred to
+whoever opened the repo next. The gap the last two fell into is the one
+between "the upload finished" and "someone came back to the tree".
+
 **So make the comparison against the runs, not against the docs.** The
 `Upload to App Store Connect` step's own conclusion is the record —
 `success` spent that build, `skipped` did not — and runs 15 and 16 (same
@@ -319,6 +336,12 @@ example. The runbook's prose said build 12 was "unspent" while it was
 being uploaded, because the sentence shipped in the very commit the run
 archived. A doc cannot see App Store Connect; the run list is the closest
 thing that can.
+
+**That sentence was then written again, about build 13, in the commit run
+19 uploaded** — by the same pre-flight that had just diagnosed it. Three
+releases, three identical false status lines, which is why the runbook now
+strikes its line rather than restating it: the claim is not fixable by
+wording, only by not storing it. Ask the run list.
 
 Each is one line in the workflow. What no line fixes is the archive's
 signing style, which is why the reasoning for it is written out above

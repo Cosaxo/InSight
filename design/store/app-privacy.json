@@ -54,7 +54,7 @@
       "type": "OTHER_USER_CONTENT",
       "linked": true,
       "purposes": ["APP_FUNCTIONALITY"],
-      "$why": "Answers and test results. Since D98 these are READABLE BY ANY SIGNED-IN USER, under the author's display name and with the age band, gender, city, country and education the answer was given under. That is the product, not a leak; the form asks what is collected, and this row was already Yes."
+      "$why": "Answers and test results. Since D98 these are READABLE BY ANY SIGNED-IN USER, under the author's display name and with the age band, gender, city, country, education and — since D140 — height band the answer was given under. That is the product, not a leak; the form asks what is collected, and this row was already Yes. ALSO QUESTION SUGGESTIONS since D138 (v2_suggestions): free text a user writes — a prompt, its options and a credit opt-in. Those are author-only reads, not public, but this row is about what is COLLECTED rather than who can see it, so the answer does not move and the basis does. Same shape as the handle note under the User ID row; see STORE-FORMS.md."
     },
     {
       "category": "LOCATION",
