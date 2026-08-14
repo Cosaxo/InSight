@@ -35,6 +35,34 @@ export const LENS_LABEL: Record<LensId, string> = {
 };
 
 /**
+ * Which lenses a cohort stop offers (D147).
+ *
+ * EXPLORE IS THE WORLD'S, and it always was — the prototype module is
+ * named for it (`spec/segment-explorer.jsx`: "the World's Explore lens").
+ * The live row offered it at every scope, which reads as a fifth reading
+ * of your city and is really the same reading three times: Explore's whole
+ * move is to cut a population by a trait and rank where that slice parts
+ * company with everyone. At City the population IS a slice — of one
+ * city — so the chips re-cut a cut, and the divergence it reports is
+ * against the city rather than against everyone, which is not the sentence
+ * the lens is written to say. At World the population is everyone, and
+ * "everyone" is the only baseline that makes the reading mean what it
+ * claims.
+ *
+ * The other three read the same at every radius: who is here, you against
+ * them, their scores. Those are properties of a population, not of its
+ * size.
+ *
+ * A list per scope rather than a filter at the call site, so the answer to
+ * "which lenses does this stop have" is in one place and the row and its
+ * body cannot disagree about it.
+ */
+export function lensesFor(scope: "city" | "country" | "world"): LensId[] {
+  const base: LensId[] = ["people", "compare", "scores"];
+  return scope === "world" ? [...base, "explore"] : base;
+}
+
+/**
  * A cohort stop's own sections, beside the four lenses.
  *
  * `overview` is still a section with a label — it is just no longer a TAB

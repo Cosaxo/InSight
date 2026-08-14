@@ -551,19 +551,39 @@ describe("LiveCohortBody · the lens row is the stop's tabs", () => {
   const tab = (name: string) =>
     [...tabs().querySelectorAll('[role="tab"]')].find((b) => b.textContent?.trim() === name) as HTMLElement;
 
-  it("offers five tabs, Answers first, and opens on it", () => {
+  it("offers Answers first, then the lenses this scope has", () => {
     render(<LiveCohortBody scope="city" />);
     // Order matters and is asserted as order, not as membership: which
     // section leads the row is a decision (D119, reshaped at D136), and a
     // set check would pass for a row that had quietly reordered itself.
     const names = [...tabs().querySelectorAll('[role="tab"]')].map((b) => b.textContent?.trim());
-    expect(names).toEqual(["Answers", "People", "Compare", "Explore", "Scores"]);
+    expect(names).toEqual(["Answers", "People", "Compare", "Scores"]);
     expect(tab("Answers").getAttribute("aria-selected")).toBe("true");
     // Overview is NOT among them (D136) and Foresight is gone from the
     // Mirror altogether — both asserted here rather than left to the
     // toEqual above, so a failure names the decision it broke.
     expect(tab("Overview")).toBeUndefined();
     expect(tab("Foresight")).toBeUndefined();
+  });
+
+  it("keeps Explore for the World and offers it nowhere else (D147)", () => {
+    // Explore is the WORLD's lens — the prototype module is named for it.
+    // Its reading is "how does this slice differ from everyone", so the
+    // baseline it needs is everyone; at City it silently compares a slice
+    // of a city against that city, which is not the sentence the lens is
+    // written to say. Not an empty-tab problem — a misplaced-reading one,
+    // which is why the tab goes rather than staying and saying "no data".
+    render(<LiveCohortBody scope="city" />);
+    expect(tab("Explore")).toBeUndefined();
+    cleanup();
+
+    render(<LiveCohortBody scope="country" />);
+    expect(tab("Explore")).toBeUndefined();
+    cleanup();
+
+    render(<LiveCohortBody scope="world" />);
+    const names = [...tabs().querySelectorAll('[role="tab"]')].map((b) => b.textContent?.trim());
+    expect(names).toEqual(["Answers", "People", "Compare", "Scores", "Explore"]);
   });
 
   it("draws the constellation above the row, whatever the row is showing", () => {

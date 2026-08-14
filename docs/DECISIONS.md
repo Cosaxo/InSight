@@ -14449,3 +14449,102 @@ Firestore read on every cold start to avoid it. And "needs asking" is *has
 no anchor at all*, not *has all of them* — an account that filled the
 Basics card in before this existed must not be asked again, and one that
 deliberately answered two of seven has already been asked.
+
+## D147 · Explore is the World's; the People lens gets its shape back; Circle and Groups get theirs
+
+**Decided:** 2026-08-14 · **Status:** binding · Owner decisions, taken
+against the prototype (`InSight_standalone_25.html`). Amends D99's lens
+row and the Circle/Groups bodies; changes no data source and no rule.
+
+Three reports, one root: **the live bodies had the right numbers and the
+wrong shape.** Each had been built as the honest minimum — a bar, a list,
+a percentage — and shipped without the grammar the Mirror is otherwise
+built on.
+
+### 1 · Explore leaves City and Country
+
+The prototype module is named for its home: `spec/segment-explorer.jsx`,
+"the World's Explore lens". The live row offered it at every scope.
+
+**Not an empty-tab problem — a misplaced-reading one**, which is why the
+tab goes rather than staying and saying "no data". Explore's whole move is
+to cut a population by a trait and rank where that slice parts company
+with **everyone**. At World the population IS everyone, so the baseline is
+the one the reading claims. At City the population is already a slice, so
+the chips re-cut a cut and the divergence reported is against the city —
+a different sentence, drawn in the same ink.
+
+That reverses the note the row's assembly used to carry ("a tab that opens
+onto nothing yet is a true reading of this population"). It is still true
+and it is about a different thing: data being thin is a reason to keep a
+tab, a reading not applying is a reason not to offer one. `lensesFor` in
+`ui/lensTabs.ts` owns the answer so the row and its body cannot disagree.
+
+### 2 · People stops being a table
+
+It shipped as a dim chip row over horizontal bars, then a flat list of
+names each with a percentage. Every number real, and the screen said
+almost nothing: a bar chart of age bands is a fact about a form people
+filled in, and a name beside "68%" is a score with no person attached.
+
+The prototype answers "who is here" in two registers, and so does this
+now:
+
+- **Who's here** — one card: the population's size, its age distribution
+  as a histogram with YOUR band filled rather than annotated, its gender
+  split as one bar. A shape you read at a glance instead of a table you
+  parse.
+- **Kindred** — the same ranked people as CARDS: a match ring whose
+  fullness is the likeness, who they are on the headline ("Ceramicist ·
+  25-34"), their type as a badge, their other anchors as chips.
+
+`kindredPeople()` now carries the whole frozen anchors snapshot, not just
+`city`. Zero new reads — the voter rows it folds were already fetched and
+cached for the ranking, and the snapshot was already on them. From the
+ANSWER, never the live profile, for D8's reason: describing someone by who
+they are today beside a likeness computed from who they were when they
+answered is two claims about one person.
+
+**Three things are deliberately absent**, and each is a refusal:
+
+- The prototype's "TIME ON INSIGHT · new / regulars / veterans". Nothing
+  publishes a join date, and an invented tenure split is the furniture D1
+  exists to keep off a live screen.
+- Its shared-interest chips ("pottery · fermentation · Murakami"). Stated
+  interests are LOCAL and the viewer's own (D128), and `interests.test.ts`
+  names the Mirror as a surface that may not read them — another person's
+  are not readable at all. The chips here are frozen answer anchors, which
+  are public (D98) and are the same source the card above them folds.
+- An exact median age. The anchor is a band, so the card reports the
+  median **band** rather than inventing the year inside it.
+
+### 3 · Circle and Groups get the constellation
+
+Both stops had it in the prototype and both shipped live as a list of
+names with a percentage each — the same data with the shape taken out, and
+on these two stops the shape IS the reading. Circle is the one population
+where "who is close to me" is the entire question.
+
+They do not route through `rankKindred`: their populations are not
+strangers to rank but sets already ranked by the module that owns them
+(`data/circle.ts`, `data/groupPortrait.ts`). So `PeopleField` takes nodes
+and draws them, and the caller owns what a node means.
+
+**Only members with a likeness are placed.** A node needs a radius and a
+radius is a claim; someone you have never answered a shared question with
+(Circle) or never played the same day as (Groups) has no honest one. They
+stay in the list below, which carries everyone.
+
+### The bundle, which paid for all of it
+
+The rebuild landed one fraction over `MAX_EAGER_KB` — the constant D146
+already recorded as the one not to raise. The fix was not to trim the
+feature but to find weight that should never have been eager:
+**`LiveTakesPanel` was in the first-paint graph**, statically imported by
+`daily-split.jsx` and by `LiveDuelPanel`, both of which are the daily tab.
+Forty kilobytes of takes thread, preloaded for a surface that renders
+behind a "Takes" tap or under a revealed duel. Both imports are
+`React.lazy` now.
+
+Eager graph **966 → 958 KB**, so this change ends with 8 KB more headroom
+than it started with, and the panel loads on the tap that asks for it.

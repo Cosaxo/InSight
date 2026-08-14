@@ -408,9 +408,15 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     // bank ships no `rate` questions", which was true of the prototype's
     // place scorecard and not of the lens: the bank's `rating` and
     // `scale` items are ordinal and average fine.
-    for (const name of ["Answers", "People", "Compare", "Scores", "Explore"]) {
+    for (const name of ["Answers", "People", "Compare", "Scores"]) {
       expect(screen.getByRole("tab", { name }), `the row is missing its ${name} tab`).toBeTruthy();
     }
+    // Explore is the WORLD's lens and this is the City stop (D147). Its
+    // reading needs "everyone" as its baseline; at City it would compare a
+    // slice of one city against that city. Asserted on the real mount for
+    // the same reason the removals below are — the row is assembled from
+    // two lists in two modules.
+    expect(screen.queryByRole("tab", { name: "Explore" })).toBeNull();
     expect(screen.getByRole("tab", { name: "Answers" }).getAttribute("aria-selected")).toBe("true");
     // Neither of D136's two removals may come back as a tab: Overview is
     // the region above the row now, and Foresight left the Mirror. Asserted
@@ -424,9 +430,12 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     // mount. People is the one that still carries it; the field's own fold
     // runs on arrival, which is D135's accepted price and D136 leaves
     // unchanged. Then the lens body arrives on the tap (findBy: its chunk).
-    expect(screen.queryByText(/most like you/i)).toBeNull();
+    // "Kindred" since D147 — the section was headed "Most like you" while
+    // it was a list of names; the prototype's name came back with the
+    // prototype's shape.
+    expect(screen.queryByText(/the fuller the ring/i)).toBeNull();
     fireEvent.click(screen.getByRole("tab", { name: "People" }));
-    expect(await screen.findByText(/most like you/i)).toBeTruthy();
+    expect(await screen.findByText(/the fuller the ring, the closer/i)).toBeTruthy();
   });
 
   // The Answers lens's own depth (D100), on the real mount. The panel
@@ -500,7 +509,10 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     // separated by a dynamic import whose duration is the machine's, not
     // the test's: a fixed 50 ms lost that race on CI while passing every
     // local run. findByText polls until the row exists or 3 s passes.
-    expect(await screen.findByText(/Ada/, {}, { timeout: 3000 })).toBeTruthy();
+    // getAllBy: since D147 the stop draws its constellation above the
+    // list, so a member with a likeness appears twice — once as a node,
+    // once as a row. Both are her, and that IS the fix.
+    expect((await screen.findAllByText(/Ada/, {}, { timeout: 3000 })).length).toBeGreaterThan(0);
     // The retired empty state, gone. AFTER the positive anchor on
     // purpose: against the null fallback this assertion is vacuously
     // true, so it only says something once the real body is in the DOM.

@@ -385,6 +385,57 @@ function CityField({ myParsed, onGoAnswers }: {
   );
 }
 
+// ── the field, for a population that arrives already ranked ─────────
+//
+// Circle and Groups (D147). Both stops HAD the grammar the whole Mirror
+// is built on — you at the centre, them around you, distance = unlikeness
+// — drawn for them in the prototype, and both shipped live as a flat list
+// of names with a percentage each. The list is not wrong; it is the same
+// data with the shape taken out, and the shape is the reading.
+//
+// They do not go through `rankKindred` because their populations are not
+// strangers to rank: a circle is the set you chose and a group is its
+// membership, each with a likeness already computed by the module that
+// owns it (data/circle.ts, data/groupPortrait.ts). So this takes nodes
+// and draws them, and the caller owns what a node means.
+export interface FieldPerson {
+  id: string;
+  /** Shown under the node — a first name, or "" for someone unnamed. */
+  label: string;
+  /** 0..100; sets the radius, closer = more like you. */
+  match: number;
+}
+
+export function PeopleField({ people, caption, onPick, picked }: {
+  people: readonly FieldPerson[];
+  caption: React.ReactNode;
+  onPick?: (id: string) => void;
+  picked?: string | null;
+}) {
+  if (!people.length) return null;
+  return (
+    <div style={{ padding: "2px 0 0" }}>
+      <SimilarityCanvas
+        kind="people"
+        picked={picked ?? null}
+        onPick={(id) => onPick?.(id)}
+        nodes={people.map((p) => ({
+          id: p.id,
+          label: (p.label || "").split(" ")[0] || "Someone",
+          initials: (p.label || "").split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toUpperCase() || "?",
+          match: p.match,
+          // Dashed means "ranked from answers, not scores" everywhere in
+          // the Mirror, and both of these populations ARE ranked from
+          // answers — so the ring is solid and the caption says the basis
+          // once, rather than every node wearing a caveat.
+          scored: true,
+        }))}
+      />
+      <SfCaption>{caption}</SfCaption>
+    </div>
+  );
+}
+
 // ── Near: the same field with the names taken off (D145) ────────────
 //
 // WHY NEAR HAD NO FIELD, AND WHY THAT WAS THE WRONG ANSWER.

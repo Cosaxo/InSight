@@ -16,11 +16,14 @@ import { consumeJoinCode, inviteLinkFor } from "../data/links";
 // yet; it is no longer something anyone types.
 import { atHandle, handleProblem, normalizeHandle } from "../data/handles";
 import { inviteLine, type Invite } from "../data/invites";
-// An ordinary import, not a globalThis lookup: both panels are typed TSX
-// in this directory, and D39's ratchet only moves down. The spec-index
-// entry for LiveTakesPanel stays — rule 2 requires every module listed —
-// but nothing here waits on its side effect.
-import LiveTakesPanel from "./LiveTakesPanel";
+// LAZY, and that is a measurement rather than a style (D147). Not a
+// globalThis lookup either way — both panels are typed TSX in this
+// directory and D39's ratchet only moves down — but this panel is reached
+// from the daily tab, which is eager and first-screen. A static import put
+// the whole takes panel into the first-paint graph for a thread that
+// renders under a revealed duel, and `npm run check:bundle` counts a
+// statically-imported chunk whether or not anything renders it.
+const LiveTakesPanel = React.lazy(() => import("./LiveTakesPanel"));
 
 const LD_LINE = "1px solid color-mix(in oklch, var(--rule), transparent 25%)";
 const LD_NAME_LS = "insight.displayName.v1";
@@ -327,7 +330,12 @@ function LdReveal({ g, reveal }: { g: LiveGroup; reveal: LiveReveal }) {
           reveal carries no qid. */}
       {rowQid && (
         <div style={{ borderTop: LD_LINE, paddingTop: 10 }}>
-          <LiveTakesPanel gid={g.id} qid={rowQid} />
+          {/* null fallback, not a spinner: the chunk is on the phone's own
+              disk by the time a reveal is open, and a spinner that shows
+              for one frame reads as a stutter. */}
+          <React.Suspense fallback={null}>
+            <LiveTakesPanel gid={g.id} qid={rowQid} />
+          </React.Suspense>
         </div>
       )}
     </div>

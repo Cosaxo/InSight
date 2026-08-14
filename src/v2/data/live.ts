@@ -2376,22 +2376,31 @@ const LIVE = {
       if (Number.isFinite(n)) mine[qid] = n;
     }
     const theirs: Record<string, Record<string, number>> = {};
-    const city: Record<string, string> = {};
+    const anchors: Record<string, Record<string, string>> = {};
     for (const [qid, rows] of Object.entries(state.voters)) {
       for (const r of rows) {
         if (r.uid === state.uid) continue;
         (theirs[r.uid] || (theirs[r.uid] = {}))[qid] = r.optionIdx;
-        // Lists are newest-first, so the first city seen is the freshest
-        // frozen anchor this session holds for them.
-        if (!(r.uid in city) && r.anchors.city) city[r.uid] = r.anchors.city;
+        // Lists are newest-first, so the first snapshot seen is the
+        // freshest this session holds for them. Kept WHOLE since D147 —
+        // the People lens says who someone is (profession, age band) and
+        // not only how alike they are, and every field it needs is already
+        // on the row that was fetched for the ranking. Merged rather than
+        // replaced, because a newer answer can carry fewer anchors than an
+        // older one (a user who cleared a field), and dropping a fact the
+        // session already holds would make the card flicker between
+        // renders for no reason a reader could see.
+        const a = anchors[r.uid] || (anchors[r.uid] = {});
+        for (const [k, v] of Object.entries(r.anchors || {})) if (v && !a[k]) a[k] = v;
       }
     }
     return Object.keys(theirs).map((uid) => ({
       uid,
       name: state.names[uid] || "",
-      city: city[uid] || "",
+      city: anchors[uid]?.city || "",
       like: agreement(mine, theirs[uid]),
       results: state.scores[uid] ?? null,
+      anchors: anchors[uid] || {},
     }));
   },
 

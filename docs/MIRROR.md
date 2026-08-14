@@ -185,8 +185,9 @@ average score per instrument axis, your own tick on every bar, and the
 answer count behind each number.
 
 **Since D119 the stop is a tab row, not a scroll** (§3): `Answers ·
-People · Compare · Explore · Scores`, one open at a time, the prototype's
-nav v2. It used to be the constellation on top, the answer rows under it,
+People · Compare · Scores`, plus **Explore at the World stop only**
+(D147 — see the lens list below for why it is the globe's), one open at a
+time, the prototype's nav v2. It used to be the constellation on top, the answer rows under it,
 and a collapsed lens strip at the bottom — so Answers was the page and
 everything else was a drawer.
 
@@ -243,9 +244,16 @@ these lenses its population can support:
   minus "newest" — the archive spans any day the rotation has reached and
   nothing the client holds dates an answer, so that one ordering is
   refused rather than faked.
-- **People** — who is in this population, arranged by likeness (Kindred
-  on the geographic stops, the demographic mix where there is one, the
-  read-run on Circle).
+- **People** — who is in this population, in two registers (D147 gave the
+  live lens the prototype's shape, which it had shipped without): a
+  **Who's here** card — size, the age distribution as a histogram with
+  your own band filled, the gender split — over **Kindred**, the ranked
+  strangers drawn as cards with a match ring, a "Ceramicist · 25-34"
+  headline off their frozen answer anchors, their type as a badge and the
+  remaining anchors as chips. Its two refusals are the interesting part:
+  no tenure split (nothing publishes a join date) and no shared-interest
+  chips (stated interests are local and the viewer's own — D128 names the
+  Mirror as a surface that may not read them).
 - **Compare** — you against them across every assessment, in the results
   profile's own visual language: the petal is solid as far as you *both*
   reach and pale for the distance between you, so agreement looks like a
@@ -259,7 +267,10 @@ these lenses its population can support:
 - **Explore** — pick trait chips (age, gender, place, and — since the v18
   sync — a pole of any test you have taken, with your own pole marked and
   a "like me" shortcut) and see what that slice believes, led by where it
-  *differs* from everyone. The globe only.
+  *differs* from everyone. **The globe only**, and the live row offered it
+  at every scope until D147. Not a data question: the reading needs
+  "everyone" as its baseline, and at City it silently compares a slice of
+  one city against that city.
 - **Foresight** — *off the row since D136.* v19's own addition and the
   row's only game: ten seconds to say which option a slice picked, scored
   against the published cell. Went live at D126 as the READ half only

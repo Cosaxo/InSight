@@ -24,6 +24,14 @@ import React from "react";
 import LIVE from "../data/live";
 import { groupPortrait, MIN_SHARED, type GroupPortrait, type PortraitReveal } from "../data/groupPortrait";
 
+// The stop's constellation (D147) — shared with Circle and the cohort
+// stops, so a group's cast is arranged by the same rule as every other
+// population in the Mirror. Lazy: it is an SVG canvas, and the portrait's
+// numbers must not wait on it.
+const LgField = React.lazy(() =>
+  import("./LiveSimilarityField").then((m) => ({ default: m.PeopleField })),
+);
+
 const LG_LINE = "0.5px solid var(--rule)";
 
 interface LiveGroup {
@@ -169,6 +177,19 @@ function LgPeopleCard({ g, P }: { g: LiveGroup; P: GroupPortrait }) {
         <LgKicker>Who runs closest to you</LgKicker>
         <span style={{ fontFamily: "var(--sans)", fontSize: 10.5, fontWeight: 600, color: "var(--ink-3)", letterSpacing: "0.06em", textTransform: "uppercase" }}>same pick, same day</span>
       </div>
+      {/* The cast, arranged (D147) — the Mirror's one grammar, which this
+          stop had in the prototype and shipped live as bars alone. Only
+          members with a shared day are placed: a radius for someone you
+          have never played the same day as would be a position invented
+          out of nothing, and the rows below carry them regardless. */}
+      <React.Suspense fallback={null}>
+        <LgField
+          people={P.people.filter((p) => p.shared > 0).map((p) => ({
+            id: p.uid, label: names[p.uid] || "", match: p.pct,
+          }))}
+          caption="closer to you = agreed more often"
+        />
+      </React.Suspense>
       <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 11 }}>
         {P.people.map((p) => {
           const name = names[p.uid] || "Member";
