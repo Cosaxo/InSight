@@ -1065,10 +1065,16 @@ re-paced, or retired.
 
 | Routine | Trigger id | Schedule (UTC) | Contract |
 | --- | --- | --- | --- |
-| InSight question farm (daily) | `trig_01REC4MfZ1D8qhYoZKxDPtdK` | daily 07:00 (D33 re-pace taken 2026-08-11) — **prompt still pre-D33, refresh pending: owner step** | this file, the sections above |
-| Daily catalog question | `trig_01HDn61hg8SYX6cMXV4XHZeu` | daily 08:00 — cards Mon–Sat, domain build Sunday (D145) — **prompt predates the Sunday slot, refresh pending: owner step** | § The daily catalog-question run |
+| InSight question farm (daily) | `trig_01DZQC4E2AA7oYmbvYpmxk2k` | `0 7 * * *` — daily 07:00 (D33 re-pace 2026-08-11; recreated D146) | this file, the sections above |
+| Daily catalog question | `trig_01RVeFZ454aY9shH58fH3rQH` | `0 8 * * *` — cards Mon–Sat, domain build Sunday (D145; recreated D146) | § The daily catalog-question run |
 | InSight learn lane | `trig_017bNWxHkLQYDo97YuajmBh4` | `0 9 * * 1,4` — Mon + Thu 09:00 (D145) | § The learn-card lane |
 | InSight feed lane | `trig_01Rf5CD8mpffKf9hYEr2ZKqj` | `30 9 * * 2,5` — Tue + Fri 09:30 (D145) | § The feed lane |
+
+**All four live prompts match their canonical blocks below as of
+2026-08-14 (D146)** — the first time that has been true of all of them
+at once. The farm's and the catalog's carry new ids because the swap
+was done by delete-and-recreate; see the paragraph below for why, and
+for what that cost.
 
 All four fire into the maintainer's dev session
 (`session_01AvNkZgRvvMCu8zqhZtuMH5`, `persist_session: true`) for the
@@ -1100,20 +1106,32 @@ direction — which re-measured the constraint and found it NARROWED:
 `update_trigger` now accepts cron+name from outside the bound session
 (both were refused 2026-08-01 org-wide and again 2026-08-03), but still
 refuses a prompt edit into a session that is not the caller's own, with
-an error saying exactly that. So the farm Routine now fires daily under
-its old pre-D33 prompt — tolerable only because that prompt already
-defers to this file ("read docs/QUESTION-FARM.md and follow it
-exactly"), and the D97 manual is what it will find; the stale summary
-(12/run, weekly language) is drift waiting to be obeyed, which is why
-the swap stays a real step, not a nice-to-have. Do it from the dev
-session itself — "update the question-farm Routine
-(trig_01REC4MfZ1D8qhYoZKxDPtdK): replace the prompt with the canonical
-text in docs/QUESTION-FARM.md" — or paste the canonical text in the
-claude.ai Routines UI. The same
-visit should refresh the daily-catalog Routine's prompt as well: its
-contract section carries the roll-up rule as of 2026-08-03, and while
-every prompt defers to this file ("re-read it every run"), a prompt
-that still says one-branch-per-day is drift waiting to be obeyed. The
+an error saying exactly that.
+
+**TAKEN 2026-08-14 (D146) — and the constraint is still there; it was
+gone around, not lifted.** Re-measured a third time first, still
+refused, verbatim: `update_trigger: editing the prompt of a routine
+whose fires deliver into a session that is not your own is not
+available via this tool.` `ListAgents` also reports no reachable
+agents, so the bound session cannot be asked to run the edit on itself
+from a sibling. What DOES work is that `create_trigger` accepts a
+`persistent_session_id` pointing at another session — the mechanism the
+D145 lanes were created with — so **delete-and-recreate is a working
+prompt swap**, at the cost of the Routine's id, creation date and fire
+history. At the owner's explicit direction both Routines were recreated
+that way: new ones created FIRST and verified (so a failure could not
+leave a lane dark), then the originals deleted, then the ids in the
+table above updated. The cost was small because issue #31 is this
+project's real run log, not the trigger's telemetry — but note the
+asymmetry it leaves: **a prompt can be replaced from here and a prompt
+cannot be read from here**, so the manual's canonical blocks are the
+only record of what a Routine says. Keep them exact.
+
+If a future edit needs the same swap: prefer `update_trigger` from the
+bound session itself ("replace this Routine's prompt with the canonical
+text in docs/QUESTION-FARM.md") or the claude.ai Routines UI, and fall
+back to delete-and-recreate only with the owner's say-so, because it
+spends history that cannot be restored. The
 canonical prompt (kept here so prompt and manual cannot drift; update
 BOTH in any future change; rewritten 2026-08-11 for D97 — the budget
 regulator, the quality pre-flight, and the vintage read):
@@ -1161,7 +1179,9 @@ src/v2/spec/daily-questions.js, append-only at the end of the Q array;
 never touch firestore.rules, functions/, or content/ — except
 content/scorecard.json via the scorecard script only, the rule-2
 carve-out (promotion into the live seed stays a human's job, D30);
-never create categories; never
+never create categories — a question that fits no existing cat/alts top
+is DROPPED, and the category proposed in the PR body AND the issue #31
+comment (§ When no category fits); never
 generate answers, votes, or activity; never write questions scoped to
 a specific city, country, or region's citizens (manual hard rule 6);
 never merge your own PR. Dedup against the WHOLE archive and
@@ -1183,6 +1203,74 @@ one exists, else a fresh claude/question-farm-<YYYY-MM-DD> from
 origin/main — and return to the session's previous branch afterwards;
 do not disturb uncommitted work — if the tree is dirty, stash or use a
 separate git worktree.
+```
+
+The daily-catalog Routine's canonical prompt. **It had none until D146**,
+which is the whole reason its prompt drifted twice without anyone
+noticing: the farm's prompt was pinned here and kept in step, and the
+catalog's lived only in the Routine, so the roll-up rule (2026-08-03)
+and the Sunday domain slot (D145) both landed in the manual with nothing
+to update alongside them. A lane whose prompt is not written down cannot
+be checked against its contract.
+
+```
+You are running InSight's DAILY CATALOG-QUESTION job. It fires into this
+ongoing session because fresh Routine-spawned sessions get read-only git
+access and no GitHub API tools (issue #31); this session has both. Read
+docs/QUESTION-FARM.md § The daily catalog-question run on origin/main
+and follow it exactly — it is the contract, it changes, and it outranks
+this prompt's summary; re-read it every run.
+
+The week has two parts (D145). Mon-Sat: write ONE new pick card,
+appended to window.PICK_QS in src/v2/spec/pick-data.js, id continuing
+the pkNN sequence. SUNDAY: build a NEW DOMAIN CATALOGUE instead of a
+card, per § Creating new catalogues — the portfolio is the job's larger
+point and the fixed weekday is what makes it happen, so do not spend
+Sunday on a card because the current domains still have a usable seat.
+
+Card rules: only domains whose catalogue file is committed under
+public/; every card carries a `cat` (an existing WORLD_TOPICS id —
+check:quality now refuses one without it); the prompt must be a
+genuinely different question from every existing card for that domain,
+not a rephrase (npm run check:neighbors -- --candidate "…" --domain pick
+puts a number on it, but the canons-would-differ judgement is yours);
+each card brings its own CROWD[qid] block with keys verified against the
+committed catalogue by executing the module, sub-floor entries, a '0'
+Not-listed bucket, and n equal to the crowd total. When no domain can
+carry an honest new question, the run is a NO-OP logged with the reason
+— a skipped day is fine, a filler question is not.
+
+Domain-day rules: a verifiable machine-readable source reachable from
+this session, NEVER entries from model memory (a wrong key silently
+resolves someone's stored favourite to the wrong thing forever).
+Measured 2026-08-14: registry.npmjs.org is reachable through the
+session proxy, query.wikidata.org is refused at CONNECT — so package
+registries are the path (periodic-table for elements is the precedent),
+and films/artists remain the D15 operator step, proposed in a PR body
+rather than built. Ship the full gate set in ONE PR: the committed
+asset under public/, a check-* drift script wired into ci.yml (and
+backend-checks.yml where the trigger's key space depends on it), the
+CATALOG_DOMAINS entry, the client store wiring, and a first card with
+its own crowd. State licensing and name/trademark posture in the PR
+body. Cut the domain branch from origin/main — claude/catalog-domain-
+<name> — and open it even if a card PR is open: coupling comes from one
+branch CONTAINING another, not from two being open.
+
+Gates before any PR: npm run lint, check:globals, check:quality,
+test:unit, build (plus the new drift gate on a domain day). Never merge
+your own PR. Never introduce a new topic id silently — a card that fits
+none is dropped and the topic proposed in the PR body and the issue #31
+comment (§ When no category fits). While a CARD PR is open, each day's
+card is one more commit on its branch — dedup against the cards already
+on it, retitle to cover the span, add a dated body section — never a
+new PR stacked on top; a fresh claude/catalog-question-<YYYY-MM-DD>
+branch only when no card PR is open or the open one conflicts with main.
+
+Mandatory reporting (hard rule 7): whatever the outcome — PR opened,
+no-op, or aborted — comment it on issue #31 in Cosaxo/InSight: PR link
+and what shipped, or the no-op reason, or the verbatim errors. Work on
+the lane's branch and return to the session's previous branch
+afterwards; if the tree is dirty, stash or use a separate git worktree.
 ```
 
 The learn lane's canonical prompt (D145 — same rule: update BOTH this
