@@ -39,8 +39,20 @@ import {
   COHORT_DIMS, DIM_LABEL, cellFor, divergence, mixFor, pctFor, byOf,
   type ByMap,
 } from "../data/cohort";
+import { typeDivergence, typeSplitFor, uidsOfType, type TypeSplitRow } from "../data/typeSplit";
+import { myType } from "../data/typeMix";
 
 const LB_LINE = "1px solid color-mix(in oklch, var(--rule), transparent 25%)";
+
+// The type cut's sentinel, kept out of COHORT_DIMS on purpose.
+//
+// Every other value `dim` can take names a published breakdown cell —
+// exact, folded server-side from the frozen anchors snapshot. This one
+// names a fold the CLIENT runs over the session's voter cache, and the
+// two are different kinds of number (a census against a bounded sample).
+// A key that could be mistaken for a dim is how they would end up sharing
+// a code path and then a caption.
+const TYPE_PICK = "__type";
 
 /** The cohort a body is being drawn for. `dim` empty means everyone. */
 export interface CohortPick {
@@ -85,11 +97,25 @@ function LbNote({ children }: { children: React.ReactNode }) {
 // behind it, share right, your pick marked. A sheet that redrew the result
 // in a second visual language would make the comparison a translation
 // exercise; this way switching cohorts reads as the card's own bars moving.
-function LbOptionRows({ options, counts, mine }: {
+function LbOptionRows({ options, counts, mine, mode = "pct" }: {
   options: string[]; counts: number[]; mine: number;
+  /**
+   * `count` draws the same rows with raw counts and a fill scaled to the
+   * biggest column rather than to 100.
+   *
+   * For the type cut under its floor (data/typeSplit.ts). A percentage
+   * off nine people is a number that moves eleven points when one person
+   * changes their mind, and a fill drawn as a share of 100 makes the same
+   * claim visually even if the label says "3" — so both move together or
+   * the row still lies. What is left is a magnitude comparison, which is
+   * what a small cohort can honestly support.
+   */
+  mode?: "pct" | "count";
 }) {
   const pct = pctFor(counts);
   const top = counts.reduce((t, v, i) => (v > counts[t] ? i : t), 0);
+  const peak = Math.max(1, ...counts);
+  const fill = (i: number) => (mode === "pct" ? pct[i] : Math.round((counts[i] / peak) * 100));
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
       {options.map((label, i) => (
@@ -99,7 +125,7 @@ function LbOptionRows({ options, counts, mine }: {
           background: "var(--surface)",
         }}>
           <span aria-hidden="true" style={{
-            position: "absolute", left: 0, top: 0, bottom: 0, width: `${pct[i]}%`,
+            position: "absolute", left: 0, top: 0, bottom: 0, width: `${fill(i)}%`,
             background: "color-mix(in oklch, var(--accent, var(--ink)) 16%, var(--surface))",
           }}></span>
           <div style={{ position: "relative", display: "flex", alignItems: "baseline", gap: 8, padding: "9px 12px" }}>
@@ -118,7 +144,7 @@ function LbOptionRows({ options, counts, mine }: {
             <span style={{
               fontFamily: "var(--sans)", fontWeight: i === top ? 800 : 650, fontSize: 12.5,
               color: i === top ? "var(--ink)" : "var(--ink-3)", fontVariantNumeric: "tabular-nums",
-            }}>{pct[i]}%</span>
+            }}>{mode === "pct" ? `${pct[i]}%` : counts[i]}</span>
           </div>
         </div>
       ))}
@@ -151,6 +177,15 @@ function LiveBreakdownPanel({ qid, options, mine = -1, renderBody }: {
   // would keep whatever split it was opened with.
   const [, bump] = React.useReducer((n: number) => n + 1, 0);
   React.useEffect(() => LIVE.subscribe(bump), []);
+  const typeOpen = dim === TYPE_PICK;
+  // The type cut folds the roster's cache — but both of its empty states
+  // render INSTEAD of the roster, so on a question whose voters have not
+  // been fetched the cut would wait forever on a component that is not
+  // mounted. Asked for here as well; the store de-dupes, so the common
+  // case (roster already mounted, fetch already in flight) costs nothing.
+  React.useEffect(() => {
+    if (typeOpen && qid) void LIVE.loadVoters(qid);
+  }, [typeOpen, qid]);
 
   if (!LIVE.enabled || !qid) return null;
 
@@ -164,7 +199,22 @@ function LiveBreakdownPanel({ qid, options, mine = -1, renderBody }: {
   // a dim with no cells would open onto an empty row and read as a bug
   // rather than as "nobody who answered filled that in".
   const dims = COHORT_DIMS.filter((d) => by?.[d] && Object.keys(by[d]).length);
-  const openDim = dims.includes(dim as (typeof COHORT_DIMS)[number]) ? dim : "";
+  const openDim = typeOpen ? "" : (dims.includes(dim as (typeof COHORT_DIMS)[number]) ? dim : "");
+
+  // The type cut, folded from the session's own voter cache rather than
+  // read from a published cell — so it is the one cut here that can be
+  // null while a fetch is in flight, and the one that reads everyone's
+  // CURRENT type against answers they gave at any time (data/typeSplit.ts).
+  // The roster below owns the fetch; this is arithmetic on its cache.
+  const scored = typeOpen ? LIVE.voterScores(qid) : null;
+  const split = scored ? typeSplitFor(scored, n, myType()) : null;
+  // Ranked first, then the thin ones — `typeSplitFor` has already refused
+  // to rank the latter, and concatenating keeps that order on the chips.
+  const typeRows: TypeSplitRow[] = split ? [...split.ranked, ...split.thin] : [];
+  const openType = typeRows.some((r) => r.type === bucket)
+    ? bucket
+    : (typeRows[0]?.type || "");
+  const typeRow = typeRows.find((r) => r.type === openType) || null;
 
   const buckets = openDim ? mixFor(by, openDim, n) : [];
   const openBucket = buckets.some((b) => b.bucket === bucket)
@@ -175,12 +225,14 @@ function LiveBreakdownPanel({ qid, options, mine = -1, renderBody }: {
     ? (cellFor(by, openDim, openBucket, n) || [])
     : overall;
   const cohortN = counts.reduce((a, b) => a + b, 0);
-  const pick: CohortPick = {
-    dim: openDim,
-    bucket: openDim ? openBucket : "",
-    label: openDim ? bucketLabel(openDim, openBucket) : "Everyone",
-    n: cohortN,
-  };
+  const pick: CohortPick = typeOpen
+    ? { dim: TYPE_PICK, bucket: openType, label: openType || "Types", n: typeRow?.n ?? 0 }
+    : {
+      dim: openDim,
+      bucket: openDim ? openBucket : "",
+      label: openDim ? bucketLabel(openDim, openBucket) : "Everyone",
+      n: cohortN,
+    };
 
   // Where this cohort parts company with everyone. Read from the same fold
   // the Mirror's Explore lens uses, so the two surfaces cannot disagree
@@ -211,13 +263,43 @@ function LiveBreakdownPanel({ qid, options, mine = -1, renderBody }: {
           The dim row picks an axis, the bucket row picks a place on it,
           and everything below is drawn for that place. */}
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-        <LbChip on={!openDim} onTap={() => { setDim(""); setBucket(""); }}>Everyone</LbChip>
+        <LbChip on={!openDim && !typeOpen} onTap={() => { setDim(""); setBucket(""); }}>Everyone</LbChip>
         {dims.map((d) => (
           <LbChip key={d} on={openDim === d} onTap={() => { setDim(d); setBucket(""); }}>
             {DIM_LABEL[d]}
           </LbChip>
         ))}
+        {/* Last, and after the published dims rather than sorted among
+            them: the chips to its left open exact cells, this one opens a
+            sample. The order is the only cue available before the tap;
+            the basis line under the bars is the one after it. */}
+        <LbChip on={typeOpen} onTap={() => { setDim(TYPE_PICK); setBucket(""); }}>Type</LbChip>
       </div>
+
+      {typeOpen && (
+        split === null
+          // The cohort cuts are arithmetic on a document the card already
+          // holds; this one waits on the roster's fetch. Distinguished
+          // from "nobody is typed" because they are different facts and
+          // the second one is permanent.
+          ? <LbNote>Reading who answered…</LbNote>
+          : !typeRows.length
+            ? (
+              <LbNote>
+                Nobody among the {split.sampleN.toLocaleString()} answers here has a readable Big Five yet.
+                Types are folded from test cards in the feed, so this fills in as people answer them.
+              </LbNote>
+            )
+            : (
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                {typeRows.map((r) => (
+                  <LbChip key={r.type} on={openType === r.type} onTap={() => setBucket(r.type)}>
+                    {r.type} · {r.n}{split.mine === r.type ? " · you" : ""}
+                  </LbChip>
+                ))}
+              </div>
+            )
+      )}
 
       {!!openDim && (
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
@@ -234,17 +316,38 @@ function LiveBreakdownPanel({ qid, options, mine = -1, renderBody }: {
 
       {/* Named above the body rather than left implicit. Every number
           under this line is one cohort's, and a reader who arrived by
-          tapping a chip two scrolls ago has to be able to see whose. */}
-      <div style={{ display: "flex", alignItems: "baseline", gap: 8, borderBottom: LB_LINE, paddingBottom: 6 }}>
-        <span style={{ flex: 1, fontFamily: "var(--sans)", fontWeight: 800, fontSize: 13.5, color: "var(--ink)" }}>
-          {pick.label}
-        </span>
-        <span style={{ fontFamily: "var(--sans)", fontWeight: 600, fontSize: 12, color: "var(--ink-3)", fontVariantNumeric: "tabular-nums" }}>
-          {pick.n.toLocaleString()} {pick.n === 1 ? "answer" : "answers"}
-        </span>
-      </div>
+          tapping a chip two scrolls ago has to be able to see whose.
+          Suppressed while the type cut has nothing to head — its two
+          empty states say more than "Types · 0 answers" would. */}
+      {(!typeOpen || !!typeRow) && (
+        <div style={{ display: "flex", alignItems: "baseline", gap: 8, borderBottom: LB_LINE, paddingBottom: 6 }}>
+          <span style={{ flex: 1, fontFamily: "var(--sans)", fontWeight: 800, fontSize: 13.5, color: "var(--ink)" }}>
+            {pick.label}
+          </span>
+          <span style={{ fontFamily: "var(--sans)", fontWeight: 600, fontSize: 12, color: "var(--ink-3)", fontVariantNumeric: "tabular-nums" }}>
+            {pick.n.toLocaleString()} {pick.n === 1 ? "answer" : "answers"}
+          </span>
+        </div>
+      )}
 
-      {!cohortN ? (
+      {typeOpen ? (
+        !typeRow ? null : !typeRow.n ? (
+          <LbNote>Nobody of this type has answered this yet.</LbNote>
+        ) : (
+          // Shares only once the typed sample can carry them; counts and a
+          // plain sentence below it otherwise. A custom renderBody is NOT
+          // offered the type cut: the dial and the field fold a continuum
+          // out of exact published cells, and handing them a bounded
+          // sample would put a sampled position on a track that reads as
+          // the population's.
+          <LbOptionRows
+            options={options}
+            counts={typeRow.counts}
+            mine={mine}
+            mode={split && split.enough ? "pct" : "count"}
+          />
+        )
+      ) : !cohortN ? (
         // Since D98 an absent cell means exactly zero, never withheld —
         // so this is a fact about the cohort and is worth saying plainly.
         <LbNote>Nobody in {pick.label} has answered this yet.</LbNote>
@@ -252,6 +355,36 @@ function LiveBreakdownPanel({ qid, options, mine = -1, renderBody }: {
         renderBody
           ? renderBody(counts, pick, overall)
           : <LbOptionRows options={options} counts={counts} mine={mine} />
+      )}
+
+      {/* THE BASIS, stated every time the type cut is open.
+          Every other cut on this sheet is a census — every answer, exact
+          — and this one is the latest voters the session happened to
+          fetch, thinned to those carrying a result. Saying so once under
+          the bars is what keeps a reader from carrying the exactness of
+          the chip to its left across to this one. */}
+      {typeOpen && !!split && !!typeRows.length && (
+        <div style={{ fontFamily: "var(--sans)", fontSize: 11.5, fontWeight: 600, color: "var(--ink-3)", lineHeight: 1.5, textWrap: "pretty" }}>
+          {(() => {
+            const d = typeRow && split.enough ? typeDivergence(typeRow, split.overall) : null;
+            return (
+              <>
+                {d && (
+                  <>
+                    {typeRow!.type} are <strong style={{ color: "var(--ink-2)" }}>{d.gap} points</strong>
+                    {" "}{d.higher ? "more" : "less"} likely to say {options[d.optionIdx]} than
+                    the typed people here.{" "}
+                  </>
+                )}
+                Of the {split.sampleN.toLocaleString()} answers this session has read,
+                {" "}{split.typedN.toLocaleString()} carry a Big Five.
+                {!split.enough && " Too few for shares, so these are counts."}
+                {" "}Types are folded from each person's own test answers as they stand today,
+                so this counts answers given before they were typed.
+              </>
+            );
+          })()}
+        </div>
       )}
 
       {/* One line, and only when there is something to say. "Same as
@@ -272,14 +405,28 @@ function LiveBreakdownPanel({ qid, options, mine = -1, renderBody }: {
       )}
 
       {/* The names, scoped to the cohort above them. This is still the
-          surface D98 exists for; it is no longer the whole sheet. */}
-      <LiveVotersPanel
-        qid={qid}
-        options={options}
-        dim={pick.dim}
-        bucket={pick.bucket}
-        cohortLabel={pick.label}
-      />
+          surface D98 exists for; it is no longer the whole sheet.
+          The type cut scopes by uid rather than by anchor cell, because a
+          type is matched from live profile scores and was never in the
+          frozen snapshot the other cuts filter on. */}
+      {typeOpen ? (
+        !!scored && !!typeRow && (
+          <LiveVotersPanel
+            qid={qid}
+            options={options}
+            uids={uidsOfType(scored, typeRow.type)}
+            cohortLabel={typeRow.type}
+          />
+        )
+      ) : (
+        <LiveVotersPanel
+          qid={qid}
+          options={options}
+          dim={pick.dim}
+          bucket={pick.bucket}
+          cohortLabel={pick.label}
+        />
+      )}
     </div>
   );
 }

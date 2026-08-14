@@ -91,7 +91,7 @@ function LvRow({ voter, skipChip = "" }: { voter: Voter; skipChip?: string }) {
   );
 }
 
-function LiveVotersPanel({ qid, options, dim = "", bucket = "", cohortLabel = "" }: {
+function LiveVotersPanel({ qid, options, dim = "", bucket = "", cohortLabel = "", uids }: {
   qid: string;
   options: string[];
   /**
@@ -108,6 +108,22 @@ function LiveVotersPanel({ qid, options, dim = "", bucket = "", cohortLabel = ""
   bucket?: string;
   /** The cohort's display name, for the copy. Keys are not sentences. */
   cohortLabel?: string;
+  /**
+   * Scope to an explicit set of uids instead of an anchor cell — the type
+   * cut's way in (data/typeSplit.ts).
+   *
+   * A type is NOT an anchor: it is matched from the voter's current,
+   * live profile scores rather than read off the answer's frozen
+   * snapshot, so `dim`/`bucket` cannot express it and the caller has to
+   * hand over the membership it computed. That difference is exactly why
+   * the cut is retroactive where an anchor cut is not, and it is the
+   * reason this prop exists rather than a `dim: "type"` pretending to be
+   * one more column of the same table.
+   *
+   * Takes precedence over dim/bucket when both are given; the caller
+   * sets one or the other, never both.
+   */
+  uids?: ReadonlySet<string>;
 }) {
   // One fetch per question per session. The store holds the list and
   // de-dupes concurrent calls, so a re-render mid-flight costs nothing.
@@ -122,11 +138,14 @@ function LiveVotersPanel({ qid, options, dim = "", bucket = "", cohortLabel = ""
   if (!LIVE.enabled || !qid) return null;
 
   const all = LIVE.votersByOption(qid, options.length);
-  const scoped = !!(dim && bucket);
+  const byUid = !!uids;
+  const scoped = byUid || !!(dim && bucket);
   const whom = cohortLabel || bucket;
-  const cols = all && scoped
-    ? all.map((col) => col.filter((v) => v.anchors?.[dim] === bucket))
-    : all;
+  const cols = all && byUid
+    ? all.map((col) => col.filter((v) => uids.has(v.uid)))
+    : all && dim && bucket
+      ? all.map((col) => col.filter((v) => v.anchors?.[dim] === bucket))
+      : all;
 
   // Three states, three sentences. `null` is "we could not ask" — the
   // store deliberately leaves the key absent on a failed fetch rather
