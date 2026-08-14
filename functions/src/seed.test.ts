@@ -81,6 +81,37 @@ function storedForm(q: typeof victim, overrides: Record<string, unknown> = {}) {
   };
 }
 
+// Firestore refuses a map key that is the empty string, and it refuses it at
+// WRITE time inside the seed callable — so a bank carrying one passes
+// check:quality, check:content, tsc, the unit suite and every mount test, and
+// fails only in the e2e loop, which is the one thing that runs the real seed.
+// That is exactly how it shipped once: D136's stories keyed the opening fork
+// by the empty walk, which is the natural key for it.
+//
+// The path validator now pins those keys exactly, so THAT story cannot
+// regress — this is the general form, walking every value the seed writes,
+// because the next object-valued seeded field will not have a validator
+// spelling out its keys.
+describe("the bank is writable at all", () => {
+  it("carries no empty map key anywhere — Firestore refuses them", () => {
+    const bad: string[] = [];
+    const walk = (v: unknown, path: string) => {
+      if (Array.isArray(v)) { v.forEach((x, i) => walk(x, `${path}[${i}]`)); return; }
+      if (!v || typeof v !== "object") return;
+      for (const [k, x] of Object.entries(v as Record<string, unknown>)) {
+        if (k === "") bad.push(path);
+        // A dot in a map key is the other one Firestore reads as a field
+        // path separator. Nothing in the bank has one; cheaper to check
+        // than to discover the same way.
+        else if (k.includes(".")) bad.push(`${path}.${k}`);
+        walk(x, `${path}.${k}`);
+      }
+    };
+    for (const q of V2_QUESTIONS) walk(q, q.id);
+    expect(bad, "these would fail the seed's WriteBatch.set, and only the e2e loop would say so").toEqual([]);
+  });
+});
+
 /** Every question already stored exactly as the bank has it — a no-op seed. */
 function allStored(overrides: Record<string, Record<string, unknown>> = {}) {
   const docs: Record<string, Record<string, unknown>> = {};

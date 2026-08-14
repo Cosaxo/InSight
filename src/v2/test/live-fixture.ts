@@ -349,8 +349,8 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
       intro: "A fixture story, three forks deep.",
       hue: 20,
       nodes: Object.fromEntries(
-        ["", "A", "B", "AA", "AB", "BA", "BB"].map((k) => [
-          k, { q: `Fork ${k || "opening"}`, a: [{ t: `${k || "start"} left` }, { t: `${k || "start"} right` }] },
+        ["_", "A", "B", "AA", "AB", "BA", "BB"].map((k) => [
+          k, { q: `Fork ${k === "_" ? "opening" : k}`, a: [{ t: `${k} left` }, { t: `${k} right` }] },
         ]),
       ),
       endings: Object.fromEntries(

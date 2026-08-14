@@ -38,6 +38,13 @@ import LIVE from '../data/live.ts';
 // expression cannot disagree while two transcriptions of a literal can.
 const PATH_ENDINGS = ['A', 'B'].flatMap((a) => ['A', 'B'].flatMap((b) => ['A', 'B'].map((c) => a + b + c)));
 
+// The opening fork's key. A walk is a string of choices and the opening is
+// the empty one, which is what `nodes` would like to be keyed by — but
+// Firestore refuses an empty map key, so the bank (and the demo store, to
+// match) carries a sentinel and every reader maps through here. See
+// PATH_ROOT in scripts/question-quality.mjs for the failure that found it.
+const nodeAt = (nodes, walk) => nodes[walk || '_'];
+
 const ppC = (h) => WPAL.c(`oklch(0.52 0.14 ${h})`);
 const ppInk = (h) => WPAL.ink(`oklch(0.52 0.14 ${h})`);
 
@@ -145,7 +152,7 @@ export function PathsCard() {
   const walk = rewalk ? localWalk : (answered || localWalk);
   const done = walk.length >= 3;
 
-  const node = done ? null : st.nodes[walk];
+  const node = done ? null : nodeAt(st.nodes, walk);
   const end = done ? st.endings[walk] : null;
   const flow = st.flow;
   const myShare = done && flow ? flow(walk) : 0;

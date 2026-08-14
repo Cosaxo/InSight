@@ -108,8 +108,25 @@ export const FEED_TYPES = new Set(["vote", "rank", "duel", "dial", "field", "pat
  * this expression cannot disagree; two transcriptions of a literal can.
  */
 export const PATH_ENDINGS = ["A", "B"].flatMap((a) => ["A", "B"].flatMap((b) => ["A", "B"].map((c) => a + b + c)));
-/** The seven decision points above those endings: "" (the opening), then A/B, then AA…BB. */
-export const PATH_NODES = ["", "A", "B", "AA", "AB", "BA", "BB"];
+/**
+ * The seven decision points above those endings: the opening, then A/B,
+ * then AA…BB.
+ *
+ * The opening is `"_"` and NOT `""`, which is what it wants to be — a walk
+ * is a string of choices and the opening is the empty one, so `nodes[walk]`
+ * would index it directly. **Firestore refuses an empty map key**
+ * ("Element at index 0 should not be an empty string"), and it refuses it
+ * at write time inside the seed callable, which means no client gate could
+ * have seen it: `check:quality`, `check:content`, `tsc`, the unit suite and
+ * the mount tests were all green on a bank that could not be seeded. The
+ * e2e loop caught it, which is the one thing that actually runs the seed.
+ *
+ * So the opening carries a sentinel and every reader maps `walk || "_"`.
+ * One character in the content, one helper at each of the two readers.
+ */
+export const PATH_NODES = ["_", "A", "B", "AA", "AB", "BA", "BB"];
+/** The opening fork's key — see PATH_NODES. `nodes[walk || PATH_ROOT]`. */
+export const PATH_ROOT = "_";
 /**
  * How long a fork's choice may run. Wider than OPTION_MAX because it is a
  * different kind of string: an option label is a noun the voters panel

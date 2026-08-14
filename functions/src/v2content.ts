@@ -3050,7 +3050,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "intro": "The last bus home. On the seat beside you: a wallet, fat with cash. No cameras. No one else aboard.",
   "hue": 20,
   "nodes": {
-   "": {
+   "_": {
     "q": "It sits there, heavier than it should be.",
     "a": [
      {
@@ -3187,7 +3187,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "intro": "Your boss texts you at 23:40: \"Offer the role to the other one. Don’t tell K yet.\" You are K.",
   "hue": 255,
   "nodes": {
-   "": {
+   "_": {
     "q": "The message glows in the dark. Typing dots appear, then vanish.",
     "a": [
      {

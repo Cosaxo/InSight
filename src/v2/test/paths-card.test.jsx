@@ -54,7 +54,7 @@ describe("Crossroads · the card", () => {
     // the only one carrying two lines of prose.
     expect(screen.getByText(st.intro)).toBeTruthy();
 
-    choose(st.nodes[""].a[0].t);
+    choose(st.nodes["_"].a[0].t);
     choose(st.nodes["A"].a[0].t);
     // Two forks in, still walking: no ending yet.
     expect(screen.queryByText(st.endings["AAA"].line)).toBeNull();
@@ -75,7 +75,7 @@ describe("Crossroads · the card", () => {
   it("keeps the walk when the card unmounts, and Walk again clears it", () => {
     const st = PATHS.stories()[0];
     const { unmount } = render(<PathsCard />);
-    choose(st.nodes[""].a[1].t);
+    choose(st.nodes["_"].a[1].t);
     expect(PATHS.walkOf(st.id)).toBe("B");
     unmount();
 
@@ -108,7 +108,7 @@ describe("Crossroads · the card", () => {
 describe("Crossroads · the crowd numbers are authored, and the card knows it", () => {
   it("derives a branch's share from the authored shares above it", () => {
     const st = PATHS.stories()[0];
-    const a = st.nodes[""].a[0].p / 100;
+    const a = st.nodes["_"].a[0].p / 100;
     const aa = st.nodes["A"].a[0].p / 100;
     expect(PATHS.flowOf(st.id, "A")).toBeCloseTo(a, 10);
     expect(PATHS.flowOf(st.id, "AA")).toBeCloseTo(a * aa, 10);
@@ -129,8 +129,8 @@ describe("Crossroads · the crowd numbers are authored, and the card knows it", 
 describe("Crossroads · live", () => {
   const ENDINGS = ["A", "B"].flatMap((a) => ["A", "B"].flatMap((b) => ["A", "B"].map((c) => a + b + c)));
   const NODES = Object.fromEntries(
-    ["", "A", "B", "AA", "AB", "BA", "BB"].map((k) => [
-      k, { q: `Fork ${k || "open"}`, a: [{ t: `${k || "s"} left` }, { t: `${k || "s"} right` }] },
+    ["_", "A", "B", "AA", "AB", "BA", "BB"].map((k) => [
+      k, { q: `Fork ${k}`, a: [{ t: `${k} left` }, { t: `${k} right` }] },
     ]),
   );
   const STORY = {
@@ -163,7 +163,7 @@ describe("Crossroads · live", () => {
   });
 
   const choose = (label) => fireEvent.click(screen.getByRole("button", { name: label }));
-  const walk3 = () => { choose("s left"); choose("A left"); choose("AA left"); };
+  const walk3 = () => { choose("_ left"); choose("A left"); choose("AA left"); };
 
   it("draws the bank's story, not the demo pool's", () => {
     render(<PathsCard />);

@@ -22,8 +22,10 @@
 //      rather than kept unused: an exported function with no caller is the
 //      thing rule 4 exists to stop accumulating.
 //
-//   3. The crowd shares are AUTHORED, and that is why the card this feeds
-//      is demo-only. See the note on `flowOf`.
+//   3. The crowd shares here are AUTHORED. This store is the card's DEMO
+//      source only — live, a story is a bank question whose eight endings
+//      are its options and whose branch shares fold from real answers
+//      (LIVE.pathQs, D136). See the note on `flowOf`.
 const LS = 'insight.paths.v1';
 
 // The stories. Editorial content in the same sense the question bank is —
@@ -34,7 +36,9 @@ const STORIES = [
     id: 'wallet', title: 'The Wallet', hue: 20,
     intro: 'The last bus home. On the seat beside you: a wallet, fat with cash. No cameras. No one else aboard.',
     nodes: {
-      '': { q: 'It sits there, heavier than it should be.', a: [{ t: 'Open it', p: 61 }, { t: 'Hand it to the driver, unopened', p: 39 }] },
+      // '_', not '' — Firestore refuses an empty map key, so the bank's
+      // stories carry a sentinel and this store matches their shape (D136).
+      '_': { q: 'It sits there, heavier than it should be.', a: [{ t: 'Open it', p: 61 }, { t: 'Hand it to the driver, unopened', p: 39 }] },
       'A': { q: 'A student ID. 4,000 in cash. A clinic appointment slip for Thursday.', a: [{ t: 'Track them down yourself', p: 57 }, { t: 'Keep the cash, mail the rest back', p: 43 }] },
       'B': { q: 'The driver shrugs without looking. "Lost box is broken. Your call, friend."', a: [{ t: 'Take it back — handle it yourself', p: 72 }, { t: 'Leave it on the seat', p: 28 }] },
       'AA': { q: 'You find them in an hour online. They answer, voice shaking with relief — and offer a reward.', a: [{ t: 'Refuse the reward', p: 64 }, { t: 'Take it — fair is fair', p: 36 }] },
@@ -57,7 +61,7 @@ const STORIES = [
     id: 'text', title: 'The Wrong Text', hue: 255,
     intro: 'Your boss texts you at 23:40: "Offer the role to the other one. Don’t tell K yet." You are K.',
     nodes: {
-      '': { q: 'The message glows in the dark. Typing dots appear, then vanish.', a: [{ t: '"I think this wasn’t meant for me."', p: 54 }, { t: 'Say nothing. Screenshot it.', p: 46 }] },
+      '_': { q: 'The message glows in the dark. Typing dots appear, then vanish.', a: [{ t: '"I think this wasn’t meant for me."', p: 54 }, { t: 'Say nothing. Screenshot it.', p: 46 }] },
       'A': { q: 'Your phone rings ten seconds later. A flustered voice offers "a proper chat tomorrow."', a: [{ t: 'Take the chat, ask it straight', p: 77 }, { t: 'Decline — start job-hunting tonight', p: 23 }] },
       'B': { q: 'Next morning they greet you like nothing happened. The role posting closes Friday.', a: [{ t: 'Confront them before Friday', p: 49 }, { t: 'Quietly interview elsewhere', p: 51 }] },
       'AA': { q: 'Across the desk they don’t deny it. "The decision wasn’t final," they say. It sounds final.', a: [{ t: 'Negotiate to stay — on new terms', p: 63 }, { t: 'Resign in the meeting', p: 37 }] },
@@ -94,13 +98,14 @@ export const PATHS = (function () {
    *
    * EVERY NUMBER THIS RETURNS IS AUTHORED, not measured: the `p` on each
    * choice was written to make the tree read well, and no walk anyone takes
-   * moves it. That is the whole reason `PathsCard` refuses to render in a
-   * live build (see the gate in world-feed.jsx) — D1 forbids showing
-   * invented figures as findings, and "you and 12% ended here" is a finding
-   * in the only sense that matters: the reader cannot tell it from one.
+   * moves it — which is why these numbers reach a screen ONLY in a demo
+   * build. Live, `PathsCard` reads `LIVE.pathQs()` and folds the shares from
+   * real answers instead; D1 forbids showing invented figures as findings,
+   * and "you and 12% ended here" is a finding in the only sense that
+   * matters: the reader cannot tell it from one.
    *
-   * The live version needs no backend work and is written down rather than
-   * built — see the D-record. In short: a finished walk is one of eight
+   * The live fold needs no backend work and is the shipped path now: a
+   * finished walk is one of eight
    * endings, so it stores as an ordinary `optionIdx` 0..7 (the fold drops
    * idx > 19), and a branch's share is then the summed counts of the
    * endings under it. Marginals the aggregate already publishes.
@@ -108,7 +113,7 @@ export const PATHS = (function () {
   function flowOf(sid, key) {
     const st = storyOf(sid); let f = 1;
     for (let d = 0; d < key.length; d++) {
-      const node = st.nodes[key.slice(0, d)];
+      const node = st.nodes[key.slice(0, d) || '_'];
       f *= node.a[key[d] === 'A' ? 0 : 1].p / 100;
     }
     return f;

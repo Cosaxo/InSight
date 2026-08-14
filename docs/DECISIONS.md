@@ -13618,6 +13618,23 @@ promise order on read, so `JSON.stringify` would have been the same bug in
 disguise), and still strict about null-vs-undefined at the leaves so a doc
 seeded before a field existed still upgrades.
 
+**A third gap, and the only one no local gate could have caught.** The
+opening fork wants to be keyed by the empty walk — a walk is a string of
+choices and the opening is the empty one, so `nodes[walk]` indexes it
+directly. **Firestore refuses an empty map key**, and refuses it at write
+time inside the seed callable: `check:quality`, `check:content`, `tsc`, 984
+unit tests and every mount test were green on a bank that could not be
+seeded at all. The e2e loop failed on the PR, which is the one thing that
+runs the real seed, and that is the whole argument for keeping it on the
+backend gate path. The opening now carries a `_` sentinel and both readers
+map `walk || "_"`.
+
+The story's own keys are pinned exactly by the path validator, so that
+cannot regress. The general form got a guard of its own in `seed.test.ts`:
+every value the seed writes is walked for an empty (or dotted) map key,
+because the next object-valued seeded field will not have a validator
+spelling its keys out.
+
 **Not dealt into the card stream.** Crossroads is pinned at the head of the
 feed rather than interleaved, because its reveal is a tree rather than a
 split: none of `renderCard`'s apparatus — option rows, who-voted, takes, the

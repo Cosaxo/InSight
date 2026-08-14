@@ -1395,7 +1395,7 @@
       "prompt": "The Wallet — a wallet, a bus, and nobody watching",
       "intro": "The last bus home. On the seat beside you: a wallet, fat with cash. No cameras. No one else aboard.",
       "nodes": {
-        "": {
+        "_": {
           "q": "It sits there, heavier than it should be.",
           "a": [
             {
@@ -1517,7 +1517,7 @@
       "prompt": "The Wrong Text — a message that was not meant for you",
       "intro": "Your boss texts you at 23:40: \"Offer the role to the other one. Don’t tell K yet.\" You are K.",
       "nodes": {
-        "": {
+        "_": {
           "q": "The message glows in the dark. Typing dots appear, then vanish.",
           "a": [
             {
