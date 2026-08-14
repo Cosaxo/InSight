@@ -14572,7 +14572,446 @@ ever describe answers given after it ships. The two are complements, not
 alternatives; a dim would leave this cut in place for the history it
 cannot see.
 
-## D147 · The Map's mainstream boundary is sized by the map, not by a constant
+## D147 · The functions tsconfig moves to `node16`, and the emit format is the part that mattered
+
+**Decided:** 2026-08-14 · **Status:** binding · Unblocks the TypeScript 7
+bump in `/functions` (Dependabot #16), which had been red since 3 August.
+
+**The defect.** TypeScript 7 removed the `node10` module-resolution
+algorithm, which `functions/tsconfig.json` selected under its old name
+(`"moduleResolution": "node"`), and stopped inferring `rootDir`. Two
+errors, both about configuration rather than code:
+
+```
+tsconfig.json(6,5):  error TS5011: 'rootDir' must be explicitly set
+tsconfig.json(10,25): error TS5108: Option 'moduleResolution=node10' has been removed
+```
+
+Nothing in `src/` was wrong. The build simply could not start.
+
+**The fix, and the trap inside it.** `module` and `moduleResolution` both
+move to `node16` — they are not independently selectable, so the pair
+moves together — and `rootDir` is named explicitly as `src`, which is the
+value the compiler was already inferring.
+
+The part worth recording is what `node16` does NOT do. It is not a switch
+to ESM. `node16` derives each file's emit format from the nearest
+`package.json`, and `functions/package.json` carries no `"type"` field, so
+every file still emits CommonJS. Verified rather than assumed, on both
+compilers, by counting the markers in `functions/lib/index.js`:
+
+| Compiler | `exports.` / `Object.defineProperty(exports` | bare `import`/`export` |
+| --- | --- | --- |
+| 5.9.3 (before, and after) | 28 | 0 |
+| 7.0.2 (after) | 28 | 0 |
+
+That column is the whole reason this has an entry. An ESM emit here would
+have compiled, passed `check:fn-runtime` (which asks whether
+`functions/lib/index.js` exists, not what module system it speaks),
+deployed green, and then failed at runtime on every function — the exact
+shape of failure this repo keeps writing gates against. The count is the
+gate a human can run.
+
+**Ordering.** The tsconfig lands BEFORE the compiler bump, not with it:
+`node16` is valid on 5.9.3, so the change is a no-op on the current
+toolchain and the tree stays green at every commit. `check:fn-runtime`,
+`check:appcheck`, `check:deploy-targets` and the 214 functions tests pass
+on both compilers.
+
+**Not decided here.** The root project stays on its own TypeScript. This
+entry is scoped to `/functions`, whose `tsconfig.json` is separate and
+whose output is the only one that gets deployed to Cloud Functions.
+
+
+## D148 · The Routine prompts catch up with their contracts, by the only mechanism that works
+
+**Decided:** 2026-08-14 · **Status:** taken — both Routines recreated
+and verified live; the manual half ships on
+`claude/question-generation-rates-5kiz6c`.
+
+**Decision.** All four lane Routines now fire under prompts that match
+their contracts. Two did not: the farm's predated D33 (it still
+summarised a weekly cadence and a 12/run cap) and the catalog's
+predated both the 2026-08-03 roll-up rule and D145's Sunday domain
+slot — so it told a run to open one branch per day and never mentioned
+the deliverable that D145 exists to schedule. Both were tolerable only
+because every prompt defers to this manual and re-reads it each firing;
+"the prompt is wrong but it tells you to read the right thing" is not a
+posture to keep, because the summary is what a run acts on when it is
+in a hurry.
+
+**Why the catalog prompt drifted twice and the farm's only once: it was
+never written down.** `QUESTION-FARM.md` pinned canonical text for the
+farm and, at D145, for learn and feed — but never for the catalog lane,
+whose prompt lived only inside the Routine. A contract change had
+nothing to update alongside it, and nothing to diff against afterwards.
+The catalog's canonical block now exists, which is the durable half of
+this record; the swap is the perishable half.
+
+**The mechanism, measured rather than assumed.** `update_trigger`
+refused a prompt edit for the third time (2026-08-01 org-wide,
+2026-08-03, and again today), verbatim: *editing the prompt of a
+routine whose fires deliver into a session that is not your own is not
+available via this tool*. `ListAgents` reports no reachable agents, so
+the bound session cannot be asked to run the edit on itself either.
+What works is that `create_trigger` accepts a `persistent_session_id`
+aimed at another session — the same mechanism D145's lanes were made
+with — so delete-and-recreate is a working swap. At the owner's
+explicit direction that is what was done: create the replacements
+first and verify them (a failed create must not leave a lane dark),
+then delete the originals, then update the ids in the manual's
+inventory. Both lanes were ~13 hours from their next fire throughout.
+
+**What it cost, stated rather than glossed:** the two Routines lost
+their creation dates, their fire history and their ids
+(`trig_01REC4Mf…` → `trig_01DZQC4E…`, `trig_01HDn61h…` →
+`trig_01RVeFZ4…`). Small here, because issue #31 is this project's real
+run log and the trigger telemetry was never the record — but it is
+spent, not recoverable, which is why the manual now says to prefer
+`update_trigger` from the bound session or the Routines UI and to fall
+back to this only with the owner's say-so.
+
+**The asymmetry worth remembering:** a prompt can be WRITTEN from a
+sibling session and cannot be READ from one. There is no way to diff a
+live Routine against its canonical block from here, and no CI gate can
+reach the account's Routines either. So the canonical blocks in
+`QUESTION-FARM.md` are not a copy of the truth, they ARE the record —
+which is the argument for the catalog block existing and for the rule
+that any prompt change updates both halves in one PR.
+
+**Also folded in:** the farm's canonical text gained D145's category
+disposal rule (a question fitting no `cat`/`alts` top is dropped and
+the category proposed in the PR body and the issue #31 comment), which
+it had not carried because D145 wrote the rule after the prompt block.
+
+**Not done, deliberately:** any gate over prompt drift (nothing in CI
+can read a Routine); firing either Routine to test the new prompt (an
+off-schedule fire does real work — opens PRs — and tomorrow's scheduled
+run is the honest test); the daily farm's scorecard unblock, which is
+still the operator step that keeps that lane at zero regardless of what
+its prompt says.
+
+**Enforcement:** the four ids and their crons are in the manual's
+inventory with the "all four match as of 2026-08-14" line; the four
+canonical blocks are the diffable record; `check:figures`,
+`check:quality`, `check:content`, `check:globals`, `check:labels`,
+`check:versions`, lint, 183 script tests and 984 unit tests green at
+commit.
+## D149 · Sides, friends and real counts: three surfaces stop guessing
+
+**Decided:** 2026-08-14 · **Status:** binding · Owner decisions, taken
+against the prototype (`InSight_standalone_25.html`). Amends D125's sheet
+and D32's learn seam; leaves D98's cross-user read intact and builds on
+it.
+
+Three faults reported against the release, and one posture behind all
+three: **a screen that could not get the true number drew a plausible one
+instead.** Where the true number existed, nothing had been pointed at it;
+where it did not, something authored stood in for it.
+
+### 1 · A take carries the side its author voted, and the list filters by it
+
+`LiveTakesPanel` drew every take as a name and a paragraph in one
+undifferentiated column — on a surface whose entire subject is that people
+disagree. "What does the other side say" is the second thing anyone wants
+from an argument, and scrolling for it is not an answer.
+
+**Where the side comes from is the decision.** Not from the take document
+— `v2_takes` accepts a fixed field list and carries no vote, and widening
+it would have meant a rules change plus a claim that could drift from the
+author's actual answer. It comes from the answer itself, through the
+collection-group read the who-voted sheet already makes (`data/voters.ts`).
+So the badge and the split above it cannot disagree, and on a question
+whose voters are already in the store it costs nothing at all.
+
+Gated on the caller passing `options`: a dial, a field, a catalogue pick
+and a sealed duel row all reach this panel, and only an options-shaped
+question has sides to badge. A duel passes nothing on purpose — its
+answers are sealed until the reveal, and a badge there is the leak the
+seal exists to prevent.
+
+### 2 · The who-voted sheet gains a Friends cut and loses its roster
+
+D125 flipped the sheet's axis so a cohort's numbers redraw the question.
+It kept the roster underneath: every voter's name with their age, gender,
+city and education beside it, under every cohort, "Everyone" included.
+
+Read from the top that is a **directory of strangers annotated with their
+demographics**, which is not what anyone opens a result to see — and on
+the Everyone cut it is a directory of everybody who has ever answered. So
+the names move to the one cut where "who" is the question being asked, and
+every other cut answers in percentages, which is what a cohort reading is.
+
+This does **not** retire D98. The Friends cut is built on the same
+cross-user read, and People, Compare and the City constellation still name
+people. What it retires is the roster as the answer to "how did everyone
+vote". `ui/LiveVotersPanel.tsx` is deleted — nothing imported it any more.
+
+**The cut is a membership test, not a fold.** `LIVE.loadFollows` is the
+follow SET in one query, intersected with the voter list already in hand.
+Calling `loadCircle` for it would be up to `FOLLOW_CAP` queries to answer
+a membership question. The two caches are kept in step deliberately —
+`loadCircle` fills this one, `setFollowing` clears both — because two
+caches that can disagree about who your friends are is the bug that note
+exists to prevent.
+
+Friends who have not answered are not listed, and the headline counts only
+those who did: "4 of 6" means four of the six who answered, which is the
+only version of that sentence this data supports.
+
+### 3 · Learn shows how many people actually picked each option
+
+D32 built a seam: the published aggregate when there was one, otherwise
+the authored `card.p` estimate with a footer saying which. Honest, and
+still the wrong thing on screen.
+
+`p` is a **content-authoring difficulty hint** — a number a writer typed
+while writing the card. Drawn as bars it looks like a reading of a crowd
+however the footer is worded, because a reader reads the bars. So in a
+live build the estimate is gone: `LEARN_SPLIT` and `LEARN_RATE` return
+nothing (`pct: null`, never `0` — the D72 shape, so a caller that forgets
+the check fails a test instead of claiming nobody gets the card right),
+and `LEARN_COUNTS` carries the raw per-option counts.
+
+The reveal leads with the count — "31 people · 62%" — because the count is
+the fact and the share is the reading. A card nobody else has answered
+says exactly that.
+
+Two smaller lies went with it. "Real answers from N+ players" had a
+`|| 5` floor under it, printing "5+ players" for a card two people had
+answered; it reports the real total now. And the ⓘ sheet's Crowd row is
+dropped entirely rather than shown empty.
+
+The **demo keeps the authored model**: there the fabricated crowd is the
+content, and there is no aggregate that could ever replace it.
+
+### What this cost, and what it did not
+
+`check:globals` rule 4: 414 → 412, baseline and the README figure lowered
+with it. `learn-data.js` gained a second reader of `window.LIVE` and keeps
+exactly one reference site (a `liveStore()` accessor both go through), so
+the meter stayed flat where it would otherwise have gone up.
+
+## D150 · Near is a field again, and nobody in it is named
+
+**Decided:** 2026-08-14 · **Status:** binding · Owner decision, taken
+against the prototype's Near stop. Amends D111's live body; leaves D98's
+presence deny exactly where it was.
+
+`NearLiveBody` drew a count and a sentence pointing at City, and its own
+header said that was permanent: the presence cell is one of D98's three
+surviving denies, so a count is all the server returns and "the only thing
+this stop will ever draw".
+
+**Every word of that is still true and it was still the wrong
+conclusion.** It answered a question about the presence cell with a
+decision about the whole screen. Near asks *who is around me*, and the app
+knows something true about that which it was already drawing one stop over
+— the people of your city, ranked by how close their scores sit to yours
+(D112). The refusal was of a claim nobody had to make.
+
+So the stop is the prototype's shape again: a figure at the top, a crowd
+around you, distance = unlikeness.
+
+**The one difference from every other field in the Mirror is the deny,
+drawn.** `kind: "anon"` renders a body-and-head glyph with no initials, no
+label, no role, no tab stop and no pick handler. A field you can tap a
+person out of is a directory, which is exactly what Near must not become —
+so the field shows the SHAPE of a crowd and offers no way into it.
+
+**Two numbers, each attached to what it counts** (D112's honesty rule 2,
+applied rather than cited): the figure is phones near you right now, the
+ring is people in your city, and each carries its own caption. One caption
+spanning both is how a screen starts claiming it knows who is standing
+next to you.
+
+Cost: the field rides `LIVE.loadSimilarity`, the same bounded
+session-cached loader the City stop's field uses — so arriving here after
+City pays nothing, and arriving before it warms what City is about to
+want. Lazy from `NearLiveBody`, which `mirror-tab` imports eagerly: a
+static import would have put the similarity fold and the instrument
+definitions in the entry chunk for a stop most sessions never open.
+
+## D151 · The general info is asked at the start, because an answer cannot be re-filed
+
+**Decided:** 2026-08-14 · **Status:** binding · Owner decision. Adds a
+screen; changes no rule and no vocabulary.
+
+Every anchor an answer snapshots (D8) — age band, gender, city, country,
+education, profession, relationship, height — was collected in exactly one
+place: the profile overlay's Basics card, four taps deep, behind a pencil
+icon. **Nothing ever asked for it.**
+
+So the common shape of a real account was: answer for a week, discover the
+card, and find the week's answers stamped with `{}`. That is not
+cosmetic. Answers are create-only (D5, amended by D86 to an
+`optionIdx`-only edit), so an anchor missing at vote time is missing from
+that answer **forever** — the trigger folded it into no breakdown cell and
+no later profile edit can move it. Every cohort screen in the Mirror reads
+those cells. A user who fills the card in during week two has a first week
+that contributes to nothing but the total.
+
+The questions are now asked once, at the top, where answering costs a
+minute and not answering costs nothing yet.
+
+**It is an ask, not a wall.** Every field is skippable and the whole
+screen dismissible — D3 is anonymous-first and the upgrade is "never a
+wall", and a required demographic form is how you teach people to lie to
+one. What skipping costs is stated plainly instead. The pitch is the
+mechanism rather than a benefit ("personalise your experience" would be a
+lie — none of this changes what you are shown), because the mechanism *is*
+the reason.
+
+**One vocabulary, in a file of its own.** `spec/profile-vitals.js` now
+holds the lists and `anchorsFrom`; the Basics card and this screen both
+import them. That matters more than tidiness: `check:anchors` holds four
+of those lists equal to `BREAKDOWN_DIM_VOCAB` in `functions/src/pure.ts`,
+so a label typed a second time in a second file would pass tsc, eslint and
+every gate and silently stop that level counting. The script was repointed
+at the new file in the same change.
+
+**Both halves of the write, for the reason `setCityAnchor` documents at
+length:** `GeneralPanel` mirrors `anchorsFrom(vitals)` into `saveAnchors`
+on every mount (deliberately — it is how a fabricated anchor gets
+repaired), so anchors written only server-side would survive exactly until
+the profile overlay next opened and then be replaced by the blob's empty
+vitals. `mergeProfileVitals` is that write, factored out.
+
+### The bundle gate decided the shape
+
+The obvious build is a gate component wrapping `<App />`, which `main.jsx`
+must then import statically. `check:bundle` measured the decision alone at
+**1 KB over `MAX_EAGER_KB`** — the constant that keeps the Firestore SDK
+out of first paint, which has had no headroom since D139 and whose own
+note says a raise there "would have been the thing to refuse".
+
+So the decision travels with the screen: `main.jsx` reaches it through a
+dynamic import beside `loadWorldFeed`/`loadOverlays`, and it mounts its
+**own root** rather than joining App's tree — the screen is
+`position: fixed` with its own ground and needs no part of it, and
+`main.jsx`'s own comment warns that changing the root element type
+remounts App and loses its state. First paint did not move: 966 KB before
+and after.
+
+Two intermediate shapes were measured and rejected on the way, both worth
+recording because both looked free:
+
+- A shared `profileSetupState.ts` imported by **both** an eager gate and
+  the lazy screen. Rollup groups a module shared that way with the eager
+  side and drags the lazy side's imports with it — the whole profile panel
+  landed in the eager graph.
+- Importing the vocabulary from `profile-general.jsx`, which `spec-index`
+  imports eagerly. Rollup extracted the panel into a shared chunk first
+  paint still preloads, +19 KB. Hence the separate vitals module.
+
+**The flag is local**, not on the profile document: it records that a
+SCREEN was shown, which is a fact about an install rather than an account.
+The cost of being wrong is one extra ask on a new device, against a
+Firestore read on every cold start to avoid it. And "needs asking" is *has
+no anchor at all*, not *has all of them* — an account that filled the
+Basics card in before this existed must not be asked again, and one that
+deliberately answered two of seven has already been asked.
+
+## D152 · Explore is the World's; the People lens gets its shape back; Circle and Groups get theirs
+
+**Decided:** 2026-08-14 · **Status:** binding · Owner decisions, taken
+against the prototype (`InSight_standalone_25.html`). Amends D99's lens
+row and the Circle/Groups bodies; changes no data source and no rule.
+
+Three reports, one root: **the live bodies had the right numbers and the
+wrong shape.** Each had been built as the honest minimum — a bar, a list,
+a percentage — and shipped without the grammar the Mirror is otherwise
+built on.
+
+### 1 · Explore leaves City and Country
+
+The prototype module is named for its home: `spec/segment-explorer.jsx`,
+"the World's Explore lens". The live row offered it at every scope.
+
+**Not an empty-tab problem — a misplaced-reading one**, which is why the
+tab goes rather than staying and saying "no data". Explore's whole move is
+to cut a population by a trait and rank where that slice parts company
+with **everyone**. At World the population IS everyone, so the baseline is
+the one the reading claims. At City the population is already a slice, so
+the chips re-cut a cut and the divergence reported is against the city —
+a different sentence, drawn in the same ink.
+
+That reverses the note the row's assembly used to carry ("a tab that opens
+onto nothing yet is a true reading of this population"). It is still true
+and it is about a different thing: data being thin is a reason to keep a
+tab, a reading not applying is a reason not to offer one. `lensesFor` in
+`ui/lensTabs.ts` owns the answer so the row and its body cannot disagree.
+
+### 2 · People stops being a table
+
+It shipped as a dim chip row over horizontal bars, then a flat list of
+names each with a percentage. Every number real, and the screen said
+almost nothing: a bar chart of age bands is a fact about a form people
+filled in, and a name beside "68%" is a score with no person attached.
+
+The prototype answers "who is here" in two registers, and so does this
+now:
+
+- **Who's here** — one card: the population's size, its age distribution
+  as a histogram with YOUR band filled rather than annotated, its gender
+  split as one bar. A shape you read at a glance instead of a table you
+  parse.
+- **Kindred** — the same ranked people as CARDS: a match ring whose
+  fullness is the likeness, who they are on the headline ("Ceramicist ·
+  25-34"), their type as a badge, their other anchors as chips.
+
+`kindredPeople()` now carries the whole frozen anchors snapshot, not just
+`city`. Zero new reads — the voter rows it folds were already fetched and
+cached for the ranking, and the snapshot was already on them. From the
+ANSWER, never the live profile, for D8's reason: describing someone by who
+they are today beside a likeness computed from who they were when they
+answered is two claims about one person.
+
+**Three things are deliberately absent**, and each is a refusal:
+
+- The prototype's "TIME ON INSIGHT · new / regulars / veterans". Nothing
+  publishes a join date, and an invented tenure split is the furniture D1
+  exists to keep off a live screen.
+- Its shared-interest chips ("pottery · fermentation · Murakami"). Stated
+  interests are LOCAL and the viewer's own (D128), and `interests.test.ts`
+  names the Mirror as a surface that may not read them — another person's
+  are not readable at all. The chips here are frozen answer anchors, which
+  are public (D98) and are the same source the card above them folds.
+- An exact median age. The anchor is a band, so the card reports the
+  median **band** rather than inventing the year inside it.
+
+### 3 · Circle and Groups get the constellation
+
+Both stops had it in the prototype and both shipped live as a list of
+names with a percentage each — the same data with the shape taken out, and
+on these two stops the shape IS the reading. Circle is the one population
+where "who is close to me" is the entire question.
+
+They do not route through `rankKindred`: their populations are not
+strangers to rank but sets already ranked by the module that owns them
+(`data/circle.ts`, `data/groupPortrait.ts`). So `PeopleField` takes nodes
+and draws them, and the caller owns what a node means.
+
+**Only members with a likeness are placed.** A node needs a radius and a
+radius is a claim; someone you have never answered a shared question with
+(Circle) or never played the same day as (Groups) has no honest one. They
+stay in the list below, which carries everyone.
+
+### The bundle, which paid for all of it
+
+The rebuild landed one fraction over `MAX_EAGER_KB` — the constant D151
+already recorded as the one not to raise. The fix was not to trim the
+feature but to find weight that should never have been eager:
+**`LiveTakesPanel` was in the first-paint graph**, statically imported by
+`daily-split.jsx` and by `LiveDuelPanel`, both of which are the daily tab.
+Forty kilobytes of takes thread, preloaded for a surface that renders
+behind a "Takes" tap or under a revealed duel. Both imports are
+`React.lazy` now.
+
+Eager graph **966 → 958 KB**, so this change ends with 8 KB more headroom
+than it started with, and the panel loads on the tap that asks for it.
+
+## D153 · The Map's mainstream boundary is sized by the map, not by a constant
 
 **Decided:** 2026-08-14 · **Status:** binding. From a screenshot with the
 report *"the sketched circle gets awkwardly large at small amounts of

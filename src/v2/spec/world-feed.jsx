@@ -18,7 +18,7 @@ import { WPAL } from './world-palette.js';
 import { HAPTIC } from './haptics.js';
 import { WF_CATALOGS } from './world-catalogs.js';
 import { LEARN } from './learn-progress.js';
-import { LEARN_ORDER, LEARN_RATE, LEARN_SPLIT, LEARN_SPLIT_SRC } from './learn-data.js';
+import { LEARN_COUNTS, LEARN_ORDER, LEARN_RATE, LEARN_SPLIT, LEARN_SPLIT_SRC } from './learn-data.js';
 import { SCENES } from './scenes.js';
 import { Sheet } from './primitives.jsx';
 // The feed's cadence arithmetic — extracted so the test exercises THIS loop
@@ -1208,6 +1208,12 @@ class WorldFeed extends React.Component {
     // numbers now come from the same evaluation as the label.
     const split = r ? LEARN_SPLIT(card) : null;
     const src = r ? LEARN_SPLIT_SRC(card) : null;
+    // The counts behind the split. D149: what a reveal shows is HOW MANY
+    // people picked each option, so the number is carried rather than
+    // recovered from a percentage — 62% of an unstated denominator is a
+    // share of nothing in particular, and it was the shape the authored
+    // estimate used to wear.
+    const tally = r ? LEARN_COUNTS(card) : null;
     const cs = LEARN.stateOf(q.learn);
     const streakNow = r ? r.streak : (cs && cs.s === 'learning' ? cs.k : 0);
     const pale = WPAL.wash(T.color, 18, 'var(--surface-2)');
@@ -1227,15 +1233,25 @@ class WorldFeed extends React.Component {
             const isC = !!r && ai === r.correct;
             const isMine = !!r && my === ai;
             const pct = split ? split[ai] : 0;
-            const showPct = !!r && (isC || (isMine && !r.ok));
+            // Only where there is a measurement. In a live build with
+            // nothing published yet `split` is null and no option carries
+            // a number at all — the line under the rows says why.
+            const showPct = !!split && (isC || (isMine && !r.ok));
+            const nPicked = tally ? tally.counts[ai] : null;
             return (
               <button key={ai} className="press" disabled={!!r} onClick={() => this.setKnow(q, ai)}
                 style={{ position: 'relative', overflow: 'hidden', display: 'flex', alignItems: 'center', gap: 10, width: '100%', textAlign: 'left', minHeight: big ? 56 : 50, padding: big ? '14px 16px' : '12px 14px', borderRadius: 14, cursor: r ? 'default' : 'pointer', WebkitAppearance: 'none', transition: 'background .3s ease, color .3s ease',
                   border: isMine && !isC ? '1.5px solid var(--ink)' : WF_LINE,
                   background: isC ? WPAL.ink(T.color) : 'var(--surface-2)', color: isC ? '#fff' : r && !isMine ? 'var(--ink-3)' : 'var(--ink)' }}>
-                {r && !isC ? <span aria-hidden="true" style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: pct + '%', background: pale, transformOrigin: 'left', animation: fresh ? `wfBarIn .55s cubic-bezier(.2,.8,.2,1) calc(var(--rv-row) * ${slot + 1.5}) both` : 'none' }}></span> : null}
+                {r && !isC && split ? <span aria-hidden="true" style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: pct + '%', background: pale, transformOrigin: 'left', animation: fresh ? `wfBarIn .55s cubic-bezier(.2,.8,.2,1) calc(var(--rv-row) * ${slot + 1.5}) both` : 'none' }}></span> : null}
                 <span style={{ position: 'relative', flex: 1, minWidth: 0, fontFamily: 'var(--sans)', fontWeight: isC ? 800 : 600, fontSize: big ? 16.5 : 15, lineHeight: 1.3, textWrap: 'pretty' }}>{label}</span>
-                {showPct ? <span style={{ position: 'relative', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12.5, fontVariantNumeric: 'tabular-nums' }}>{fresh ? <WfCount to={Math.round(pct)} animate={true}></WfCount> : Math.round(pct)}%</span> : null}
+                {/* How many people actually picked this one (D149). The
+                    count leads and the share follows it, because the
+                    count is the fact and the share is the reading. */}
+                {showPct ? <span style={{ position: 'relative', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12.5, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
+                  {nPicked != null ? nPicked.toLocaleString() + (nPicked === 1 ? ' person · ' : ' people · ') : ''}
+                  {fresh ? <WfCount to={Math.round(pct)} animate={true}></WfCount> : Math.round(pct)}%
+                </span> : null}
                 {isC ? <span style={{ position: 'relative', fontSize: 13, fontWeight: 800 }}>{'\u2713'}</span> : null}
                 {r && isMine && !isC ? <span style={{ position: 'relative', fontSize: 13, fontWeight: 800, color: 'var(--ink-2)' }}>{'\u2715'}</span> : null}
               </button>
@@ -1269,15 +1285,22 @@ class WorldFeed extends React.Component {
                 </>
               )}
             </div>
-            {/* D32/D1: in live mode the split above is either a real
-                measurement or the authored estimate — and the estimate is
-                never allowed to pass as measured, so the reveal says which
-                one it is. Demo builds carry their own honesty layers. */}
+            {/* D149: in a live build the numbers above are answers or they
+                are absent. The old third state — the authored estimate,
+                labelled — is gone, so this line names the crowd it counted
+                or says there is not one yet.
+
+                The count is the aggregate's own total, with no floor under
+                it. It used to read `total || 5`, which printed "5+ players"
+                for a card two people had answered. */}
             {window.LIVE && window.LIVE.enabled ? (
               <div style={{ fontFamily: 'var(--sans)', fontSize: 11, color: 'var(--ink-3)', lineHeight: 1.45 }}>
                 {src === 'measured'
-                  ? 'Real answers from ' + (((window.LIVE.learnAgg && window.LIVE.learnAgg(card.id)) || {}).total || 5) + '+ players.'
-                  : 'Our estimate — becomes measured once enough people have answered.'}
+                  ? (() => {
+                    const n = tally ? tally.total : 0;
+                    return 'From ' + n.toLocaleString() + (n === 1 ? ' answer' : ' answers') + ' — everyone’s first try at this card.';
+                  })()
+                  : 'Nobody else has answered this one yet — you’re the first.'}
               </div>
             ) : null}
             {card.w ? <p style={{ margin: 0, fontFamily: 'var(--sans)', fontSize: 13.5, fontWeight: 500, lineHeight: 1.5, color: 'var(--ink-2)', textWrap: 'pretty' }}>{card.w}</p> : null}
@@ -1911,7 +1934,14 @@ class WorldFeed extends React.Component {
               </button>
             )}
           </div>
-          {takesOpen && <LiveTakesPanel gid="world" qid={q.id} />}
+          {/* The option labels give every take its author's side and the
+              list its side filter (D149). Guarded on the shape rather
+              than passed blind: a dial, a field, a catalogue pick and a
+              rank card all reach this row, and only an options-shaped
+              question has sides to badge. */}
+          {takesOpen && <LiveTakesPanel gid="world" qid={q.id}
+            options={q.options && q.type !== 'dial' && q.type !== 'field'
+              ? q.options.map((o) => o.label) : undefined} />}
         </div>
       );
     }
@@ -2304,7 +2334,10 @@ class WorldFeed extends React.Component {
       // hands back the published first-attempt rate where there is one and
       // says so; where there is not, the row says whose number it is.
       const kr = LEARN_RATE(kn);
-      rows.push([kr.src === 'measured' ? 'Crowd' : 'Our estimate', kr.pct + '% get this right']);
+      // D149: no row at all when nothing has been measured. "Crowd — null%"
+      // and "Our estimate" are both worse than the sheet simply not
+      // carrying a line about a crowd that has not answered yet.
+      if (kr.pct != null) rows.push([kr.src === 'measured' ? 'Crowd' : 'Our estimate', kr.pct + '% get this right']);
       rows.push(['On your map', 'Knowledge']);
     } else {
       const scene = q.scene ? SCENES.defs().find((g) => g.id === q.scene) : null;
@@ -2714,7 +2747,11 @@ class WorldFeed extends React.Component {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 13 }}>
         {live ? null : this.renderCutChips(q, dim, WF_KNOW_CUTS)}
         <div style={{ background: 'var(--ink)', color: 'var(--surface)', borderRadius: 12, padding: '12px 14px', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 14, display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ flex: 1, minWidth: 0 }}>{live && rate.src === 'estimate' ? 'about ' + p + '% get this right \u2014 our estimate' : p + '% of people get this right'}</span>
+          {/* D149: the estimate is gone from live builds, so the three
+              cases here are a measurement, the demo's authored figure, and
+              a live card nobody else has answered \u2014 which says so rather
+              than printing a number nobody measured. */}
+          <span style={{ flex: 1, minWidth: 0 }}>{p == null ? 'Nobody else has answered this one yet' : live && rate.src === 'estimate' ? 'about ' + p + '% get this right \u2014 our estimate' : p + '% of people get this right'}</span>
           {r ? <span style={{ flexShrink: 0, fontSize: 12, fontWeight: 800, background: 'color-mix(in oklch, var(--surface) 22%, transparent)', borderRadius: 999, padding: '3px 10px' }}>{r.ok ? 'You did' : 'You didn\u2019t'}</span> : null}
         </div>
         {/* The cuts' honest absence, in the sheet that was built to hold

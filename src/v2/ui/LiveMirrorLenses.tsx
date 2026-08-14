@@ -48,6 +48,14 @@ import {
 // breakdown sheet, so the same cohort is named the same everywhere.
 import { bucketLabel } from "./cohortLabels";
 import TypeMixCard from "./TypeMixCard";
+// The People lens draws people rather than listing them (D152): the
+// prototype's match ring, a per-person hue, and the place name behind a
+// city key.
+import PLACES from "../data/places";
+import { angleHash } from "../data/similarity";
+import { typeOfPerson, type TypedPerson } from "../data/typeMix";
+// @ts-expect-error TS7016 — untyped spec module (the LiveSimilarityField pattern)
+import { MatchRing } from "../spec/primitives.jsx";
 // The row's own types and labels live next door: eslint's react-refresh
 // rule wants a component file to export only components, and it is right
 // that a constant shared with the host does not belong in one.
@@ -105,106 +113,338 @@ function LlEmpty({ children }: { children: React.ReactNode }) {
 
 // ── People ──────────────────────────────────────────────────────────
 //
-// Two halves that answer the same question at different resolutions: who
-// is in this population (the mix) and which of them are like you
-// (Kindred).
+// THE PROTOTYPE'S SHAPE, RESTORED (D152). This lens shipped as a chip row
+// over horizontal bars, then a flat list of names with a percentage each.
+// Every number on it was real and the screen said almost nothing: a bar
+// chart of age bands is a fact about a form people filled in, and a name
+// beside "68%" is a score without a person attached to it.
+//
+// The prototype answers "who is here" in two registers and this now does
+// the same:
+//
+//   1. WHO'S HERE — one card: the population's size, then its age
+//      distribution as a histogram with YOUR band marked, then its gender
+//      split as one bar. A shape you read in a glance rather than a table
+//      you parse.
+//   2. KINDRED — the strangers most aligned with you, as CARDS: a match
+//      ring whose fullness is the likeness, who they are on the headline
+//      ("Ceramicist · 25-34"), their type as a badge, and the rest of
+//      their anchors as chips.
+//
+// WHAT IS NOT HERE, and each absence is a refusal rather than a gap:
+//
+//   - The prototype's third band ("TIME ON INSIGHT · new / regulars /
+//     veterans"). Nothing publishes a join date, and a made-up tenure
+//     split is exactly the furniture D1 exists to keep off a live screen.
+//   - Its shared-interest chips ("pottery · fermentation · Murakami").
+//     Stated interests are LOCAL and the viewer's own (data/interests.ts,
+//     D128) — the Mirror is named in that module as a surface that may not
+//     read them, and another person's are not readable at all. The chips
+//     here are their frozen ANSWER anchors, which are public (D98) and are
+//     the same source the cohort above them is folded from.
+//   - An exact median age. The anchor is a BAND, so the median is a band,
+//     and the card says the band rather than inventing the year inside it.
 
-function PeopleLens({ qs, scope }: { qs: LensQuestion[]; scope: "city" | "country" | "world" }) {
-  const [dim, setDim] = React.useState<string>("ageBand");
-  React.useEffect(() => { void LIVE.loadKindred(); }, []);
-  const [, bump] = React.useReducer((n: number) => n + 1, 0);
-  React.useEffect(() => LIVE.subscribe(bump), []);
+/** Age bands in reading order, so the histogram is a scale and not a rank. */
+const AGE_ORDER = ["Under 18", "18-24", "25-34", "35-44", "45-54", "55-64", "65+"];
 
-  // The mix is summed across every question in view rather than read off
-  // one, because a single question's mix is a fact about that question's
-  // audience. Summing is still not a population census — someone who
-  // answered ten questions counts ten times — and the copy says so
-  // instead of implying a headcount.
-  const tally: Record<string, number> = {};
-  for (const q of qs) {
-    for (const b of mixFor(q.by, dim, q.options.length)) {
-      tally[b.bucket] = (tally[b.bucket] || 0) + b.n;
+function PlKicker({ children }: { children: React.ReactNode }) {
+  return (
+    <div style={{ fontFamily: "var(--sans)", fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--ink-3)" }}>
+      {children}
+    </div>
+  );
+}
+
+/**
+ * The population's own portrait — size, age shape, gender split.
+ *
+ * Every figure is a fold over `agg.by`, which is already in hand for the
+ * stop. Counted in ANSWERS, and the card says so once at the foot rather
+ * than qualifying every number: someone who answered ten questions is in
+ * these bars ten times, and calling that a headcount would be the small
+ * lie this app is built not to tell.
+ */
+function WhosHere({ qs, shortName }: { qs: LensQuestion[]; shortName: string }) {
+  const tallyOf = (dim: string): Record<string, number> => {
+    const t: Record<string, number> = {};
+    for (const q of qs) {
+      for (const b of mixFor(q.by, dim, q.options.length)) t[b.bucket] = (t[b.bucket] || 0) + b.n;
     }
-  }
-  const rows = Object.keys(tally).map((b) => ({ b, n: tally[b] })).sort((x, y) => y.n - x.n);
-  const total = rows.reduce((a, r) => a + r.n, 0);
+    return t;
+  };
+  const age = tallyOf("ageBand");
+  const gender = tallyOf("gender");
+  const mine = LIVE.anchors() || {};
 
-  const kin = LIVE.kindred();
-  const loading = LIVE.kindredLoading();
+  const ageRows = AGE_ORDER.filter((b) => age[b]).map((b) => ({ b, n: age[b] }));
+  // Any band the server published that this list does not name — a vocab
+  // that moved, or a band added server-side first. Appended rather than
+  // dropped: a bar missing from a histogram is a silent claim that nobody
+  // is there.
+  for (const b of Object.keys(age)) if (!AGE_ORDER.includes(b)) ageRows.push({ b, n: age[b] });
+  const ageTotal = ageRows.reduce((a, r) => a + r.n, 0);
+  const ageMax = ageRows.reduce((m, r) => Math.max(m, r.n), 0);
+  // The MEDIAN BAND — the band the middle answer falls in. Not an age:
+  // the anchor is a band, so this is as fine as the data honestly goes.
+  //
+  // A plain loop rather than a `find` over a mutated accumulator: the
+  // React Compiler refuses a closure that reassigns after render, and it
+  // is right to — the same expression run twice would give a different
+  // answer.
+  const median = (() => {
+    let seen = 0;
+    for (const r of ageRows) {
+      seen += r.n;
+      if (seen >= ageTotal / 2) return r.b;
+    }
+    return "";
+  })();
+
+  const genderRows = Object.keys(gender).map((b) => ({ b, n: gender[b] })).sort((x, y) => y.n - x.n);
+  const genderTotal = genderRows.reduce((a, r) => a + r.n, 0);
+
+  if (!ageTotal && !genderTotal) {
+    return <LlEmpty>Nobody here has filled in their age or gender yet.</LlEmpty>;
+  }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+    <div className="card" style={{ padding: "14px 15px", display: "flex", flexDirection: "column", gap: 16 }}>
       <div>
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
-          {COHORT_DIMS.map((d) => (
-            <button key={d} onClick={() => setDim(d)} style={{
-              border: LL_LINE, borderRadius: 999, padding: "5px 12px", cursor: "pointer",
-              fontFamily: "var(--sans)", fontWeight: 700, fontSize: 12,
-              background: dim === d ? "var(--ink)" : "var(--surface)",
-              color: dim === d ? "var(--surface)" : "var(--ink)", WebkitAppearance: "none",
-            }}>{DIM_LABEL[d]}</button>
-          ))}
+        <div style={{ fontFamily: "var(--sans)", fontSize: 15.5, fontWeight: 800, letterSpacing: "-0.015em", color: "var(--ink)" }}>
+          Who&rsquo;s here
         </div>
-        {!rows.length ? (
-          <LlEmpty>Nobody here has filled in their {DIM_LABEL[dim].toLowerCase()} yet.</LlEmpty>
-        ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
-            {rows.map((r) => (
-              <div key={r.b} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <span style={{ width: 110, flexShrink: 0, fontFamily: "var(--sans)", fontWeight: 700, fontSize: 12.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{bucketLabel(dim, r.b)}</span>
-                <span style={{ flex: 1, height: 8, borderRadius: 4, background: "var(--surface-2)", overflow: "hidden" }}>
-                  <span style={{ display: "block", height: "100%", width: `${Math.round((r.n / (total || 1)) * 100)}%`, background: "var(--accent)" }}></span>
-                </span>
-                <span style={{ width: 34, textAlign: "right", fontFamily: "var(--sans)", fontWeight: 800, fontSize: 12, color: "var(--ink-3)", fontVariantNumeric: "tabular-nums" }}>{r.n}</span>
-              </div>
-            ))}
-            {/* Said plainly rather than left to be misread: this counts
-                ANSWERS, so someone who answered ten questions is in it
-                ten times. Calling it a population would be the kind of
-                small lie this app is built not to tell. */}
-            <span style={{ fontFamily: "var(--sans)", fontSize: 11.5, fontWeight: 500, color: "var(--ink-3)", marginTop: 3 }}>
-              Answers, not people — each question someone answered counts once.
-            </span>
+        <div style={{ fontFamily: "var(--sans)", fontSize: 12, fontWeight: 500, color: "var(--ink-3)", marginTop: 2 }}>
+          the people answering in {shortName}
+        </div>
+      </div>
+
+      {/* Two figures side by side, the prototype's hero row. The second is
+          a band rather than a number, and reads as one. */}
+      <div style={{ display: "flex", gap: 18 }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontFamily: "var(--sans)", fontSize: 27, fontWeight: 800, letterSpacing: "-0.03em", color: "var(--accent)", fontVariantNumeric: "tabular-nums" }}>
+            {ageTotal.toLocaleString()}
+          </div>
+          <PlKicker>answers with an age</PlKicker>
+        </div>
+        {median && (
+          <div style={{ flex: 1 }}>
+            <div style={{ fontFamily: "var(--sans)", fontSize: 27, fontWeight: 800, letterSpacing: "-0.03em", color: "var(--ink)", fontVariantNumeric: "tabular-nums" }}>
+              {median}
+            </div>
+            <PlKicker>median band</PlKicker>
           </div>
         )}
       </div>
 
-      <div>
-        <div style={{ fontFamily: "var(--sans)", fontSize: 10.5, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--ink-3)", marginBottom: 8 }}>
-          Most like you
+      {!!ageTotal && (
+        <div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+            <PlKicker>Age</PlKicker>
+            <span style={{ flex: 1 }} />
+            {mine.ageBand && (
+              <span style={{ display: "flex", alignItems: "center", gap: 5, fontFamily: "var(--sans)", fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--ink-3)" }}>
+                <span aria-hidden="true" style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--accent)" }}></span>
+                you
+              </span>
+            )}
+          </div>
+          {/* A histogram, not a ranked bar list. The order is the scale's,
+              so the SHAPE of the crowd is the thing you see — and your own
+              band is filled rather than annotated, which is how you find
+              yourself in it without reading a single label. */}
+          <div style={{ display: "flex", alignItems: "flex-end", gap: 4, height: 74 }}>
+            {ageRows.map((r) => {
+              const isMine = mine.ageBand === r.b;
+              return (
+                <div key={r.b} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 5, minWidth: 0 }}>
+                  <span title={`${r.b} · ${r.n}`} style={{
+                    width: "100%", borderRadius: 5,
+                    height: Math.max(3, Math.round((r.n / (ageMax || 1)) * 56)),
+                    background: isMine ? "var(--accent)" : "color-mix(in oklch, var(--accent) 22%, var(--surface-2))",
+                  }}></span>
+                  <span style={{
+                    fontFamily: "var(--sans)", fontSize: 9.5, fontWeight: isMine ? 800 : 600,
+                    color: isMine ? "var(--ink)" : "var(--ink-3)", whiteSpace: "nowrap",
+                    overflow: "hidden", textOverflow: "ellipsis", maxWidth: "100%",
+                  }}>{r.b}</span>
+                </div>
+              );
+            })}
+          </div>
         </div>
-        {loading && !kin.length ? (
+      )}
+
+      {!!genderTotal && (
+        <div>
+          <PlKicker>Gender</PlKicker>
+          <div style={{ display: "flex", height: 26, borderRadius: 7, overflow: "hidden", marginTop: 8 }}>
+            {genderRows.map((r, i) => {
+              const pct = Math.round((r.n / genderTotal) * 100);
+              return (
+                <span key={r.b} title={`${r.b} · ${pct}%`} style={{
+                  width: `${pct}%`, display: "flex", alignItems: "center", justifyContent: "center",
+                  background: `color-mix(in oklch, var(--accent) ${64 - i * 20}%, var(--surface-2))`,
+                  fontFamily: "var(--sans)", fontWeight: 800, fontSize: 11,
+                  color: i === 0 ? "#fff" : "var(--ink-2)", overflow: "hidden", whiteSpace: "nowrap",
+                }}>{pct >= 12 ? `${pct}%` : ""}</span>
+              );
+            })}
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginTop: 7 }}>
+            {genderRows.map((r, i) => (
+              <span key={r.b} style={{ display: "flex", alignItems: "center", gap: 5, fontFamily: "var(--sans)", fontSize: 10.5, fontWeight: 700, color: "var(--ink-3)" }}>
+                <span aria-hidden="true" style={{
+                  width: 8, height: 8, borderRadius: "50%",
+                  background: `color-mix(in oklch, var(--accent) ${64 - i * 20}%, var(--surface-2))`,
+                }}></span>
+                {bucketLabel("gender", r.b).toLowerCase()}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Once, at the foot, rather than beside every figure. */}
+      <span style={{ fontFamily: "var(--sans)", fontSize: 11, fontWeight: 500, color: "var(--ink-3)", lineHeight: 1.5 }}>
+        Answers, not people — each question someone answered counts once.
+      </span>
+    </div>
+  );
+}
+
+/**
+ * One kindred stranger, as the prototype draws them.
+ *
+ * The headline is who they are rather than what they are called, because
+ * that is the interesting half: "Ceramicist · 25-34" tells you something
+ * a name does not. The name follows it when there is one — D98 makes it
+ * public, and hiding it here would be a privacy gesture with no privacy
+ * in it.
+ */
+function KindredCard({ p }: { p: TypedPerson & { anchors?: Record<string, string> } }) {
+  const a = p.anchors || {};
+  const pct = p.like.pct;
+  // A stable hue per person, so a card keeps its colour between renders
+  // and two people are told apart at a glance. Decorative and claims
+  // nothing — the same device LiveSimilarityField's field uses.
+  const hue = Math.round(angleHash(p.uid + "#hue") * 360);
+  const title = [a.profession, a.ageBand].filter(Boolean).join(" · ");
+  // The chips are the anchors NOT already spent on the headline. City
+  // included: at the World stop it is the most interesting thing about
+  // someone, and at City it is what they have in common with you.
+  const chips = [a.city && (PLACES.parse(a.city)?.name || a.city), a.education, a.relationship]
+    .filter(Boolean) as string[];
+
+  return (
+    <div style={{
+      display: "flex", alignItems: "center", gap: 12, padding: "11px 12px",
+      background: "var(--surface)", border: LL_LINE, borderRadius: 14,
+    }}>
+      <MatchRing pct={pct} color={`oklch(0.52 0.13 ${hue})`} size={50} title={`${pct}% alike`}>
+        <span aria-hidden="true" style={{
+          width: 36, height: 36, borderRadius: "50%", display: "flex", alignItems: "center",
+          justifyContent: "center", background: `oklch(0.93 0.04 ${hue})`,
+        }}>
+          <svg viewBox="0 0 24 24" width={19} height={19} fill={`oklch(0.45 0.12 ${hue})`} aria-hidden="true">
+            <circle cx="12" cy="8.2" r="3.6"></circle>
+            <path d="M4.6 20.2a7.4 7.4 0 0 1 14.8 0z"></path>
+          </svg>
+        </span>
+      </MatchRing>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
+          <span style={{ fontFamily: "var(--sans)", fontSize: 14.5, fontWeight: 700, letterSpacing: "-0.015em", color: "var(--ink)" }}>
+            {title || p.name || "Someone"}
+          </span>
+          {/* The type, as a badge with its own dot — the prototype's "The
+              Sensitive". Only where the person has finished the
+              instrument; typeOfPerson returns null otherwise and no badge
+              is drawn, rather than a guess. */}
+          {p.type && (
+            <span style={{
+              display: "inline-flex", alignItems: "center", gap: 5, flexShrink: 0,
+              border: LL_LINE, borderRadius: 999, padding: "2px 9px",
+              fontFamily: "var(--sans)", fontSize: 10.5, fontWeight: 700, color: "var(--ink-2)",
+              background: "var(--surface-2)", whiteSpace: "nowrap",
+            }}>
+              <span aria-hidden="true" style={{ width: 7, height: 7, borderRadius: "50%", background: `oklch(0.52 0.13 ${hue})` }}></span>
+              {p.type}
+            </span>
+          )}
+        </div>
+        {/* The name is the second line when the headline is who-they-are,
+            and the headline itself when they have set no profession. */}
+        {title && p.name && (
+          <div style={{ fontFamily: "var(--sans)", fontSize: 11.5, fontWeight: 600, color: "var(--ink-3)", marginTop: 1 }}>
+            {p.name}
+          </div>
+        )}
+        {!!chips.length && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 6 }}>
+            {chips.map((c) => (
+              <span key={c} style={{
+                fontFamily: "var(--sans)", fontSize: 11, fontWeight: 500,
+                color: `oklch(0.38 0.10 ${hue})`, padding: "2px 9px", borderRadius: 99,
+                background: `oklch(0.95 0.025 ${hue})`, border: `0.5px solid oklch(0.86 0.045 ${hue})`,
+              }}>{c}</span>
+            ))}
+          </div>
+        )}
+        <div style={{ fontFamily: "var(--sans)", fontSize: 11, fontWeight: 600, color: "var(--ink-3)", marginTop: 6 }}>
+          {p.like.same} of {p.like.shared} the same
+        </div>
+      </div>
+      <FollowButton uid={p.uid} />
+    </div>
+  );
+}
+
+function PeopleLens({ qs, scope, shortName }: {
+  qs: LensQuestion[]; scope: "city" | "country" | "world"; shortName: string;
+}) {
+  React.useEffect(() => { void LIVE.loadKindred(); }, []);
+  const [, bump] = React.useReducer((n: number) => n + 1, 0);
+  React.useEffect(() => LIVE.subscribe(bump), []);
+
+  // The ranked people, typed. `kindredPeople` carries the frozen anchors
+  // and the parsed scores from the SAME cached voter rows the ranking is
+  // computed over, so the card costs no read the list has not already
+  // paid for.
+  const people = LIVE.kindredPeople()
+    .filter((p) => p.like.shared >= 2)
+    .sort((a, b) => b.like.pct - a.like.pct
+      || b.like.shared - a.like.shared
+      || a.uid.localeCompare(b.uid))
+    .map((p) => ({ ...p, type: typeOfPerson(p) }));
+  const loading = LIVE.kindredLoading();
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
+      <WhosHere qs={qs} shortName={shortName} />
+
+      <div>
+        <div style={{ fontFamily: "var(--sans)", fontSize: 15.5, fontWeight: 800, letterSpacing: "-0.015em", color: "var(--ink)" }}>
+          Kindred
+        </div>
+        <div style={{ fontFamily: "var(--sans)", fontSize: 12, fontWeight: 500, color: "var(--ink-3)", marginTop: 2, marginBottom: 10, lineHeight: 1.5 }}>
+          strangers most aligned with you — the fuller the ring, the closer
+        </div>
+        {loading && !people.length ? (
           <LlEmpty>Working out who answers like you…</LlEmpty>
-        ) : !kin.length ? (
+        ) : !people.length ? (
           <LlEmpty>
             Nobody has answered enough of the same questions yet. This fills in
             as you answer more.
           </LlEmpty>
         ) : (
-          <div style={{ display: "flex", flexDirection: "column" }}>
-            {kin.slice(0, 12).map((p) => (
-              <div key={p.uid} style={{ display: "flex", alignItems: "baseline", gap: 10, padding: "7px 0", borderTop: LL_LINE }}>
-                <span style={{ flex: 1, fontFamily: "var(--sans)", fontWeight: 700, fontSize: 13.5, color: p.name ? "var(--ink)" : "var(--ink-3)" }}>
-                  {p.name || "Someone"}
-                </span>
-                <span style={{ fontFamily: "var(--sans)", fontSize: 11.5, fontWeight: 500, color: "var(--ink-3)" }}>
-                  {p.like.same}/{p.like.shared} the same
-                </span>
-                <span style={{ width: 42, textAlign: "right", fontFamily: "var(--sans)", fontWeight: 800, fontSize: 13.5, fontVariantNumeric: "tabular-nums" }}>
-                  {p.like.pct}%
-                </span>
-                {/* Kindred finds the strangers worth keeping; following
-                    is how you keep one (D101). The second of exactly two
-                    places a follow can start — the other is a question's
-                    who-voted sheet — and both are places where a uid has
-                    already become a person with a reading attached. */}
-                <FollowButton uid={p.uid} />
-              </div>
-            ))}
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {people.slice(0, 12).map((p) => <KindredCard key={p.uid} p={p} />)}
             {/* The metric, in one sentence, on the screen that uses it —
                 a likeness number nobody can explain is a number nobody
                 should trust. */}
-            <span style={{ fontFamily: "var(--sans)", fontSize: 11.5, fontWeight: 500, color: "var(--ink-3)", marginTop: 8 }}>
+            <span style={{ fontFamily: "var(--sans)", fontSize: 11.5, fontWeight: 500, color: "var(--ink-3)", marginTop: 2, lineHeight: 1.5 }}>
               Share of the questions you have both answered where you picked the
               same option, across your last {LIVE.kindredDepth()}.
             </span>
@@ -434,7 +674,7 @@ function LiveMirrorLenses({ lens, qs, shortName, scope = "city" }: {
   if (!LIVE.enabled) return null;
   return (
     <div style={{ paddingTop: 14 }}>
-      {lens === "people" && <PeopleLens qs={qs} scope={scope} />}
+      {lens === "people" && <PeopleLens qs={qs} scope={scope} shortName={shortName} />}
       {lens === "compare" && <CompareLens qs={qs} shortName={shortName} />}
       {lens === "scores" && <ScoresLens qs={qs} shortName={shortName} />}
       {lens === "explore" && <ExploreLens qs={qs} />}

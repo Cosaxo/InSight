@@ -358,7 +358,7 @@ describe("LiveDuelPanel · takes hang off the reveal, never the sealed question"
     LIVE.social.bankQ = (qid: string) => (qid === "duo-000" ? QA : null);
   });
 
-  it("shows the composer on the revealed question", () => {
+  it("shows the composer on the revealed question", async () => {
     LIVE.social.revealFor = () => ({
       day: "2026-07-29",
       qid: "duo-000",
@@ -367,7 +367,10 @@ describe("LiveDuelPanel · takes hang off the reveal, never the sealed question"
     });
     render(<LiveDuelPanel mode="duo" />);
 
-    expect(screen.getByLabelText("Add your take")).toBeTruthy();
+    // findBy, not getBy: the takes panel is a React.lazy chunk since D152
+    // (it was 40 KB of first-paint weight for a thread behind a reveal),
+    // so the composer arrives one dynamic import after the reveal does.
+    expect(await screen.findByLabelText("Add your take")).toBeTruthy();
   });
 
   it("shows no composer when there is no reveal yet", () => {

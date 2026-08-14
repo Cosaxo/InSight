@@ -19,10 +19,18 @@ import { Sheet } from './primitives.jsx';
 // wholesale, because an imported binding cannot be unset but the DATA it
 // carries can still be missing.
 import LIVE from '../data/live';
-// The live world-takes surface (D83) — ordinary ESM import of the typed
-// panel, so the D39 coupling meter stays flat.
-import LiveTakesPanel from '../ui/LiveTakesPanel.tsx';
+// The live world-takes surface (D83) — the typed panel, reached by ESM
+// rather than a global lookup, so the D39 coupling meter stays flat.
+//
+// LAZY, and that is a measurement rather than a style (D152). This file is
+// the daily tab: eager, first screen. A static import put the whole takes
+// panel into the first-paint graph for a surface that renders only behind
+// the "Takes" tap, and `npm run check:bundle` counts it — a chunk the
+// entry imports statically is preloaded whether or not anything renders
+// it. The one place it was spent is the one place it is never needed at
+// boot.
 import PulseCard from '../ui/PulseCard.tsx';
+const LiveTakesPanel = React.lazy(() => import('../ui/LiveTakesPanel.tsx'));
 import ReactDOM from 'react-dom';
 import { IS_TESTS, IS_TEST_AVG, IS_TEST_RESULTS, persistTestResult } from './test-definitions.js';
 import { PASSIVE } from './passive-progress.js';
@@ -823,7 +831,16 @@ class DailySplit extends React.Component {
         h('button', { className: 'press', 'aria-expanded': st.liveTakes === S.id, onClick: () => this.setState(s => ({ liveTakes: s.liveTakes === S.id ? null : S.id })), style: { alignSelf: 'center', ...icoBtn(st.liveTakes === S.id) } },
           svgI('<path d="M6.5 4.5h11a2 2 0 0 1 2 2V13a2 2 0 0 1-2 2H11l-4 3.8V15h-.5a2 2 0 0 1-2-2V6.5a2 2 0 0 1 2-2z"/>', 17),
           'Takes'),
-        st.liveTakes === S.id && h(LiveTakesPanel, { gid: 'world', qid: S.id })),
+        // The daily's options in the question's own order, so each take
+        // carries its author's side and the list can be filtered by side
+        // (D149). Same order the aggregate's cells are keyed in, which is
+        // what lets the badge and the split agree.
+        // null fallback, not a spinner: the chunk is on the phone's own
+        // disk by the time anyone taps Takes, and a spinner that shows for
+        // one frame reads as a stutter. Same posture as mirror-tab's
+        // Suspense boundaries.
+        st.liveTakes === S.id && h(React.Suspense, { fallback: null },
+          h(LiveTakesPanel, { gid: 'world', qid: S.id, options: S.options.map(o => o.label) }))),
       // D1: NAMED comments and who-voted identities stay circle-scoped —
       // these sheets are the demo's, with seeded named people, so they are
       // demo-only and also suppressed when a live build is showing the mock

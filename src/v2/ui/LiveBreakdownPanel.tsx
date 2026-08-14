@@ -29,20 +29,49 @@
 // WHAT IT DOES NOT DO. It reads only documents the app already has —
 // `v2_question_aggs/{qid}`, fetched for the card itself — so switching
 // cohorts is arithmetic on data in hand and costs no reads at all. The
-// roster underneath keeps its own single fetch-on-open (LiveVotersPanel),
-// unchanged and still bounded.
+// Friends cut underneath keeps its own single fetch-on-open, bounded.
+//
+// TWO CHANGES AT D149, AND THEY ARE ONE CHANGE.
+//
+// The sheet had a roster of NAMES under every cohort — "Everyone" and, at
+// D146, "Type" included — with each person's age, gender, city and
+// education printed beside them. Read from the top that is a directory of
+// strangers annotated with their demographics, which is not what anyone
+// opened a result to see, and on the Everyone cut it is a directory of
+// everybody who has ever answered. So the names move to where a name is
+// the point: your FRIENDS, the one cut where "who" is the question.
+// Everywhere else the sheet answers with percentages, which is what a
+// cohort reading is — and a type cut is a cohort reading like any other,
+// so it lost its roster with the rest rather than keeping one by being
+// newer.
+//
+// This does not retire D98's cross-user read — it is what the Friends cut
+// and D146's type fold are both built on, and the Mirror's People,
+// Compare and constellation surfaces still name people. It retires the
+// roster as the answer to "how did everyone vote".
 import React from "react";
 import LIVE from "../data/live";
-import LiveVotersPanel from "./LiveVotersPanel";
+import { VOTER_FETCH_CAP } from "../data/voters";
 import { bucketLabel } from "./cohortLabels";
 import {
   COHORT_DIMS, DIM_LABEL, cellFor, divergence, mixFor, pctFor, byOf,
   type ByMap,
 } from "../data/cohort";
-import { typeDivergence, typeSplitFor, uidsOfType, type TypeSplitRow } from "../data/typeSplit";
+import { typeDivergence, typeSplitFor, type TypeSplitRow } from "../data/typeSplit";
 import { myType } from "../data/typeMix";
+// The app's one option-colour function, so a friend's side chip wears the
+// same hue the takes list gives that side.
+// @ts-expect-error TS7016 — untyped spec module (the LiveSimilarityField pattern)
+import { WPAL } from "../spec/world-palette.js";
 
 const LB_LINE = "1px solid color-mix(in oklch, var(--rule), transparent 25%)";
+
+function sideFill(i: number, n: number): string {
+  return WPAL.opt("var(--accent)", i, n, true) as string;
+}
+
+/** The Friends cut's key — not a published dim, so it cannot collide. */
+const FRIENDS = "friends";
 
 // The type cut's sentinel, kept out of COHORT_DIMS on purpose.
 //
@@ -152,6 +181,119 @@ function LbOptionRows({ options, counts, mine, mode = "pct" }: {
   );
 }
 
+// ── the Friends cut ──────────────────────────────────────────────────
+//
+// The one cut that answers with people. Both halves are reads the app
+// already makes: the follow list is one query (LIVE.loadFollows — the SET,
+// not the Circle stop's per-member fold) and the sides come off the voter
+// list D146's type fold loads anyway. So a friend's answer costs nothing
+// beyond the membership test.
+//
+// Friends who have NOT answered are not listed. A row saying nothing is
+// not a reading, and the headline counts only the ones who did — "4 of 6"
+// means four of the six who answered, which is the only version of that
+// sentence this data can support.
+function LbFriends({ qid, options, mine }: {
+  qid: string; options: string[]; mine: number;
+}) {
+  React.useEffect(() => { void LIVE.loadFollows(); }, []);
+  React.useEffect(() => { void LIVE.loadVoters(qid); }, [qid]);
+
+  const follows = LIVE.follows();
+  const voters = LIVE.voters(qid);
+  const loading = LIVE.followsLoading() || LIVE.votersLoading(qid);
+
+  if (!follows || !voters) {
+    return (
+      <LbNote>
+        {loading
+          ? "Loading how your friends answered…"
+          : "Could not load how your friends answered."}
+      </LbNote>
+    );
+  }
+  if (!follows.length) {
+    return (
+      <LbNote>
+        You have not followed anyone yet. Follow someone from the Mirror&rsquo;s
+        People lens or its city constellation, and their answers show up here.
+      </LbNote>
+    );
+  }
+
+  const set = new Set(follows);
+  const rows = voters
+    .filter((v) => set.has(v.uid) && v.optionIdx >= 0 && v.optionIdx < options.length)
+    // Your side first, so "who agrees with me" is the top of the list
+    // rather than something to scan for; then by option, then by name so
+    // the order is stable between opens.
+    .sort((a, b) => {
+      if (mine >= 0) {
+        const am = a.optionIdx === mine ? 0 : 1;
+        const bm = b.optionIdx === mine ? 0 : 1;
+        if (am !== bm) return am - bm;
+      }
+      return a.optionIdx - b.optionIdx
+        || (a.name || "￿").localeCompare(b.name || "￿")
+        || a.uid.localeCompare(b.uid);
+    });
+
+  if (!rows.length) {
+    return <LbNote>None of the people you follow has answered this yet.</LbNote>;
+  }
+
+  const same = mine >= 0 ? rows.filter((v) => v.optionIdx === mine).length : 0;
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <div style={{
+        background: "var(--ink)", color: "var(--surface)", borderRadius: 14,
+        padding: "13px 15px", fontFamily: "var(--sans)", fontWeight: 800, fontSize: 15,
+      }}>
+        {mine >= 0
+          ? `${same} of ${rows.length} ${rows.length === 1 ? "friend is" : "friends are"} on your side`
+          : `How your ${rows.length === 1 ? "friend" : "friends"} answered`}
+      </div>
+      {rows.map((v) => {
+        const fill = sideFill(v.optionIdx, options.length);
+        return (
+          <div key={v.uid} style={{
+            background: "var(--surface-2)", border: LB_LINE, borderRadius: 14,
+            padding: "9px 11px", display: "flex", alignItems: "center", gap: 10,
+          }}>
+            <span aria-hidden="true" style={{
+              width: 32, height: 32, borderRadius: "50%", flexShrink: 0, background: fill,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontFamily: "var(--sans)", fontWeight: 800, fontSize: 12.5, color: "#fff",
+            }}>{(v.name || "?").trim().slice(0, 1).toUpperCase() || "?"}</span>
+            {/* "Someone" is the absence of a name, not a pseudonym (D1) —
+                the same word the rest of the app uses for an account that
+                has set none. */}
+            <span style={{
+              flex: 1, minWidth: 0, fontFamily: "var(--sans)", fontWeight: 800, fontSize: 14,
+              color: v.name ? "var(--ink)" : "var(--ink-3)",
+              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+            }}>{v.name || "Someone"}</span>
+            <span style={{
+              background: fill, color: "#fff", fontFamily: "var(--sans)", fontSize: 11,
+              fontWeight: 800, padding: "4px 10px", borderRadius: 999, flexShrink: 0,
+              maxWidth: 150, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+            }}>{options[v.optionIdx]}</span>
+          </div>
+        );
+      })}
+      {/* The bound is the voter fetch's, and it is worth saying once: a
+          friend who answered outside the newest page is missing from this
+          list, not from the question. */}
+      {voters.length >= VOTER_FETCH_CAP && (
+        <span style={{ fontFamily: "var(--sans)", fontSize: 11.5, fontWeight: 500, color: "var(--ink-3)" }}>
+          Read from the newest {VOTER_FETCH_CAP} answers — an older answer
+          from a friend may not be here yet.
+        </span>
+      )}
+    </div>
+  );
+}
+
 function LiveBreakdownPanel({ qid, options, mine = -1, renderBody }: {
   qid: string;
   options: string[];
@@ -178,6 +320,7 @@ function LiveBreakdownPanel({ qid, options, mine = -1, renderBody }: {
   const [, bump] = React.useReducer((n: number) => n + 1, 0);
   React.useEffect(() => LIVE.subscribe(bump), []);
   const typeOpen = dim === TYPE_PICK;
+  const friendsOpen = dim === FRIENDS;
   // The type cut folds the roster's cache — but both of its empty states
   // render INSTEAD of the roster, so on a question whose voters have not
   // been fetched the cut would wait forever on a component that is not
@@ -199,7 +342,9 @@ function LiveBreakdownPanel({ qid, options, mine = -1, renderBody }: {
   // a dim with no cells would open onto an empty row and read as a bug
   // rather than as "nobody who answered filled that in".
   const dims = COHORT_DIMS.filter((d) => by?.[d] && Object.keys(by[d]).length);
-  const openDim = typeOpen ? "" : (dims.includes(dim as (typeof COHORT_DIMS)[number]) ? dim : "");
+  const openDim = (typeOpen || friendsOpen)
+    ? ""
+    : (dims.includes(dim as (typeof COHORT_DIMS)[number]) ? dim : "");
 
   // The type cut, folded from the session's own voter cache rather than
   // read from a published cell — so it is the one cut here that can be
@@ -253,8 +398,22 @@ function LiveBreakdownPanel({ qid, options, mine = -1, renderBody }: {
   // that can tell the three empty states apart — nobody answered, the
   // fetch is in flight, the fetch failed — and a note here would either
   // repeat the first one or contradict the other two.
+  // Nothing to slice yet. The Friends cut still stands — a question you
+  // are first to answer can still have friends on it a moment later, and
+  // the chip row is how you find that out — but there is no split to draw,
+  // and a header claiming a count of zero is worse than saying so.
   if (!overallN) {
-    return <LiveVotersPanel qid={qid} options={options} />;
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 13 }}>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          <LbChip on={!friendsOpen} onTap={() => setDim("")}>Everyone</LbChip>
+          <LbChip on={friendsOpen} onTap={() => setDim(FRIENDS)}>Friends</LbChip>
+        </div>
+        {friendsOpen
+          ? <LbFriends qid={qid} options={options} mine={mine} />
+          : <LbNote>Nobody has answered this yet.</LbNote>}
+      </div>
+    );
   }
 
   return (
@@ -263,7 +422,12 @@ function LiveBreakdownPanel({ qid, options, mine = -1, renderBody }: {
           The dim row picks an axis, the bucket row picks a place on it,
           and everything below is drawn for that place. */}
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-        <LbChip on={!openDim && !typeOpen} onTap={() => { setDim(""); setBucket(""); }}>Everyone</LbChip>
+        {/* Friends leads (D149), where the prototype has always put it: of
+            every cut on this sheet it is the only one whose answer is
+            people rather than a percentage, and it is the one a reader
+            wants first. */}
+        <LbChip on={friendsOpen} onTap={() => { setDim(FRIENDS); setBucket(""); }}>Friends</LbChip>
+        <LbChip on={!openDim && !typeOpen && !friendsOpen} onTap={() => { setDim(""); setBucket(""); }}>Everyone</LbChip>
         {dims.map((d) => (
           <LbChip key={d} on={openDim === d} onTap={() => { setDim(d); setBucket(""); }}>
             {DIM_LABEL[d]}
@@ -275,6 +439,8 @@ function LiveBreakdownPanel({ qid, options, mine = -1, renderBody }: {
             the basis line under the bars is the one after it. */}
         <LbChip on={typeOpen} onTap={() => { setDim(TYPE_PICK); setBucket(""); }}>Type</LbChip>
       </div>
+
+      {friendsOpen && <LbFriends qid={qid} options={options} mine={mine} />}
 
       {typeOpen && (
         split === null
@@ -319,7 +485,7 @@ function LiveBreakdownPanel({ qid, options, mine = -1, renderBody }: {
           tapping a chip two scrolls ago has to be able to see whose.
           Suppressed while the type cut has nothing to head — its two
           empty states say more than "Types · 0 answers" would. */}
-      {(!typeOpen || !!typeRow) && (
+      {!friendsOpen && (!typeOpen || !!typeRow) && (
         <div style={{ display: "flex", alignItems: "baseline", gap: 8, borderBottom: LB_LINE, paddingBottom: 6 }}>
           <span style={{ flex: 1, fontFamily: "var(--sans)", fontWeight: 800, fontSize: 13.5, color: "var(--ink)" }}>
             {pick.label}
@@ -330,7 +496,7 @@ function LiveBreakdownPanel({ qid, options, mine = -1, renderBody }: {
         </div>
       )}
 
-      {typeOpen ? (
+      {friendsOpen ? null : typeOpen ? (
         !typeRow ? null : !typeRow.n ? (
           <LbNote>Nobody of this type has answered this yet.</LbNote>
         ) : (
@@ -363,7 +529,7 @@ function LiveBreakdownPanel({ qid, options, mine = -1, renderBody }: {
           fetch, thinned to those carrying a result. Saying so once under
           the bars is what keeps a reader from carrying the exactness of
           the chip to its left across to this one. */}
-      {typeOpen && !!split && !!typeRows.length && (
+      {!friendsOpen && typeOpen && !!split && !!typeRows.length && (
         <div style={{ fontFamily: "var(--sans)", fontSize: 11.5, fontWeight: 600, color: "var(--ink-3)", lineHeight: 1.5, textWrap: "pretty" }}>
           {(() => {
             const d = typeRow && split.enough ? typeDivergence(typeRow, split.overall) : null;
@@ -392,7 +558,7 @@ function LiveBreakdownPanel({ qid, options, mine = -1, renderBody }: {
           answer to the question the chips just asked — so it is stated
           rather than left as an absence the reader has to interpret.
           A custom body carries its own comparison; see renderBody. */}
-      {!renderBody && !!openDim && !!cohortN && (
+      {!friendsOpen && !renderBody && !!openDim && !!cohortN && (
         <div style={{ fontFamily: "var(--sans)", fontSize: 11.5, fontWeight: 600, color: "var(--ink-3)", lineHeight: 1.5, textWrap: "pretty" }}>
           {diff && diff.gap > 0
             ? <>
@@ -404,29 +570,10 @@ function LiveBreakdownPanel({ qid, options, mine = -1, renderBody }: {
         </div>
       )}
 
-      {/* The names, scoped to the cohort above them. This is still the
-          surface D98 exists for; it is no longer the whole sheet.
-          The type cut scopes by uid rather than by anchor cell, because a
-          type is matched from live profile scores and was never in the
-          frozen snapshot the other cuts filter on. */}
-      {typeOpen ? (
-        !!scored && !!typeRow && (
-          <LiveVotersPanel
-            qid={qid}
-            options={options}
-            uids={uidsOfType(scored, typeRow.type)}
-            cohortLabel={typeRow.type}
-          />
-        )
-      ) : (
-        <LiveVotersPanel
-          qid={qid}
-          options={options}
-          dim={pick.dim}
-          bucket={pick.bucket}
-          cohortLabel={pick.label}
-        />
-      )}
+      {/* No roster under a cohort (D149). "Everyone", every demographic
+          cut and D146's type cut all answer in percentages; the only cut
+          that names people is Friends, because there "who" IS the question
+          being asked. */}
     </div>
   );
 }

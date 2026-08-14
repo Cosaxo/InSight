@@ -408,9 +408,15 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     // bank ships no `rate` questions", which was true of the prototype's
     // place scorecard and not of the lens: the bank's `rating` and
     // `scale` items are ordinal and average fine.
-    for (const name of ["Answers", "People", "Compare", "Scores", "Explore"]) {
+    for (const name of ["Answers", "People", "Compare", "Scores"]) {
       expect(screen.getByRole("tab", { name }), `the row is missing its ${name} tab`).toBeTruthy();
     }
+    // Explore is the WORLD's lens and this is the City stop (D152). Its
+    // reading needs "everyone" as its baseline; at City it would compare a
+    // slice of one city against that city. Asserted on the real mount for
+    // the same reason the removals below are — the row is assembled from
+    // two lists in two modules.
+    expect(screen.queryByRole("tab", { name: "Explore" })).toBeNull();
     expect(screen.getByRole("tab", { name: "Answers" }).getAttribute("aria-selected")).toBe("true");
     // Neither of D136's two removals may come back as a tab: Overview is
     // the region above the row now, and Foresight left the Mirror. Asserted
@@ -424,9 +430,12 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     // mount. People is the one that still carries it; the field's own fold
     // runs on arrival, which is D135's accepted price and D136 leaves
     // unchanged. Then the lens body arrives on the tap (findBy: its chunk).
-    expect(screen.queryByText(/most like you/i)).toBeNull();
+    // "Kindred" since D152 — the section was headed "Most like you" while
+    // it was a list of names; the prototype's name came back with the
+    // prototype's shape.
+    expect(screen.queryByText(/the fuller the ring/i)).toBeNull();
     fireEvent.click(screen.getByRole("tab", { name: "People" }));
-    expect(await screen.findByText(/most like you/i)).toBeTruthy();
+    expect(await screen.findByText(/the fuller the ring, the closer/i)).toBeTruthy();
   });
 
   // The Answers lens's own depth (D100), on the real mount. The panel
@@ -500,7 +509,10 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     // separated by a dynamic import whose duration is the machine's, not
     // the test's: a fixed 50 ms lost that race on CI while passing every
     // local run. findByText polls until the row exists or 3 s passes.
-    expect(await screen.findByText(/Ada/, {}, { timeout: 3000 })).toBeTruthy();
+    // getAllBy: since D152 the stop draws its constellation above the
+    // list, so a member with a likeness appears twice — once as a node,
+    // once as a row. Both are her, and that IS the fix.
+    expect((await screen.findAllByText(/Ada/, {}, { timeout: 3000 })).length).toBeGreaterThan(0);
     // The retired empty state, gone. AFTER the positive anchor on
     // purpose: against the null fallback this assertion is vacuously
     // true, so it only says something once the real body is in the DOM.
@@ -518,9 +530,13 @@ describe("the live gates hold in the DOM, not just in the source", () => {
   // mounted from the who-voted sheet of a live card, on the real shell,
   // through the spec layer's own render path.
   //
-  // The previous version of this file could not have caught the panel
-  // being absent: nothing outside the sheet mentions it.
-  it("names the people who answered, in the who-voted sheet of a live card", async () => {
+  // D149 moved WHERE the names are. The sheet used to list every voter
+  // under every cohort, "Everyone" included, with their age and city
+  // printed beside them; it now answers cohorts in percentages and names
+  // people on one cut — Friends. So this walks to that cut, which is also
+  // the stricter path: it exercises the follow SET, the voter list and the
+  // intersection of the two.
+  it("names the friends who answered, in the who-voted sheet of a live card", async () => {
     // The feed persists its votes to localStorage, and installLive() does
     // not clear it — so the case above has already answered this card by
     // the time this one runs, and voteFeedCardAndSettle finds no option
@@ -534,14 +550,26 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     expect(whoVoted, "the live engage row did not render — this test is vacuous").not.toBeNull();
     fireEvent.click(whoVoted);
     await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
-    // The fixture serves one named voter and one unnamed, on opposite
-    // options — both label paths, in one assertion each.
-    expect(screen.getByText(/who answered/i)).toBeTruthy();
-    expect(screen.getByText("You")).toBeTruthy();
+
+    // The cohort the sheet opens on names nobody. This is the D149 line
+    // executed rather than asserted in source: the fixture's voters are
+    // right there in the store, and the Everyone body must still be a
+    // split rather than a directory of them.
+    expect(screen.queryByText("Someone")).toBeNull();
+    expect(document.body.textContent).not.toMatch(/25-34 · Oslo, NO/);
+
+    // One tap to the cut where "who" is the question. The fixture follows
+    // u_other, who answered — and does NOT follow the other voter, so the
+    // intersection is doing real work here.
+    const friends = screen.getByRole("button", { name: "Friends" });
+    fireEvent.click(friends);
+    await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
+    // u_other has no display name in the fixture: "Someone" is the absence
+    // of a name, not a pseudonym (D1), and it is the label that proves the
+    // row rendered from a real uid.
     expect(screen.getByText("Someone")).toBeTruthy();
-    // And the cohort chip comes off the answer's frozen snapshot (D8).
-    expect(screen.getByText(/25-34 · Oslo, NO/)).toBeTruthy();
-    expect(document.body.textContent).not.toMatch(/could not load who answered/i);
+    expect(document.body.textContent).toMatch(/friend/i);
+    expect(document.body.textContent).not.toMatch(/could not load how your friends answered/i);
   });
 
   // The control for the case above. Without it, that assertion passes for
