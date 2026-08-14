@@ -30,17 +30,18 @@ const LIVE = vi.hoisted(() => ({
   enabled: true,
   subscribe: () => () => {},
   loadKindred: vi.fn(async () => {}),
-  kindred: () => [] as Array<{ uid: string; name: string; like: { shared: number; same: number; pct: number } }>,
   kindredLoading: () => false as boolean,
   kindredDepth: () => 12,
   // The follow control (D101) rides on every named row. Stubbed
   // unfollowed — the button's own behaviour has its own cases.
   isFollowing: () => false,
   setFollowing: vi.fn(async () => {}),
-  // The types-here card (D141) reads the same voter sample Kindred does,
-  // plus your own result and anchors for the basis label. Stubbed empty:
-  // the card's empty state renders and the lens cases stay about lenses.
-  kindredPeople: () => [] as unknown[],
+  // Kindred itself (D152) and the types-here card (D141) read the SAME
+  // list: `kindredPeople` carries the ranking's people with their frozen
+  // anchors and parsed scores, so a card can say who someone is without a
+  // read the ranking has not already paid for. Stubbed empty by default —
+  // both empty states render and the lens cases stay about lenses.
+  kindredPeople: () => [] as Array<Record<string, unknown>>,
   myTestResults: () => ({}) as Record<string, unknown>,
   anchors: () => ({}) as Record<string, string>,
 }));
@@ -68,11 +69,20 @@ const mount = (lens: LensId, qs: LensQuestion[] = [Q], shortName = "Oslo") =>
   render(<LiveMirrorLenses lens={lens} qs={qs} shortName={shortName} />);
 const open = (name: RegExp) => fireEvent.click(screen.getByRole("button", { name }));
 
+// A ranked person as `kindredPeople` hands one back.
+const kin = (over: Record<string, unknown> = {}) => ({
+  uid: "u2", name: "Ada", city: "Oslo, NO", results: null,
+  like: { shared: 6, same: 5, pct: 83 },
+  anchors: { city: "Oslo, NO", ageBand: "25-34", profession: "Ceramicist" },
+  ...over,
+});
+
 beforeEach(() => {
   LIVE.enabled = true;
   LIVE.loadKindred = vi.fn(async () => {});
-  LIVE.kindred = () => [];
+  LIVE.kindredPeople = () => [];
   LIVE.kindredLoading = () => false;
+  LIVE.anchors = () => ({});
 });
 afterEach(cleanup);
 
@@ -98,29 +108,84 @@ describe("the lens bodies · cost", () => {
 });
 
 describe("People", () => {
-  it("shows the mix, and calls it answers rather than people", () => {
+  // D152 rebuilt this lens to the prototype's shape: a "Who's here" card —
+  // the population's size, its age SHAPE, its gender split — over Kindred
+  // drawn as cards rather than listed as names. The claims below are the
+  // ones that survived the redraw plus the ones it added.
+
+  it("shows the population's own shape, and calls it answers not people", () => {
     mount("people");
-    expect(screen.getByText("25-34")).toBeTruthy();
+    expect(screen.getByText(/who.s here/i)).toBeTruthy();
+    // The age histogram is in scale order, so it reads as a distribution
+    // rather than a ranking. getAllBy because the median band figure
+    // above it names a band too, which is the point of having one.
+    expect(screen.getAllByText("25-34").length).toBeGreaterThan(0);
     expect(screen.getByText("35-44")).toBeTruthy();
     expect(screen.getByText(/answers, not people/i)).toBeTruthy();
   });
 
-  it("names Kindred with the metric spelled out beside it", () => {
-    LIVE.kindred = () => [{ uid: "u2", name: "Ada", like: { shared: 6, same: 5, pct: 83 } }];
+  it("marks your own age band rather than annotating it", () => {
+    // How you find yourself in a histogram without reading a label.
+    LIVE.anchors = () => ({ ageBand: "35-44" });
     mount("people");
+    const you = screen.getAllByText(/^you$/i);
+    expect(you.length).toBeGreaterThan(0);
+  });
+
+  it("reports a median BAND, never an invented age", () => {
+    // The anchor is a band. "33" would be a number nobody measured — the
+    // prototype's figure, and the exact shape D1 refuses.
+    mount("people");
+    expect(screen.getByText(/median band/i)).toBeTruthy();
+    expect(screen.queryByText(/median age/i)).toBeNull();
+  });
+
+  it("says who a kindred stranger IS, not only how alike they are", () => {
+    // The headline is the interesting half: a profession and an age band
+    // tell you something a name does not.
+    LIVE.kindredPeople = () => [kin()];
+    mount("people");
+    expect(screen.getByText("Ceramicist · 25-34")).toBeTruthy();
     expect(screen.getByText("Ada")).toBeTruthy();
-    expect(screen.getByText("5/6 the same")).toBeTruthy();
-    expect(screen.getByText("83%")).toBeTruthy();
+    expect(screen.getByText("5 of 6 the same")).toBeTruthy();
     // A likeness number nobody can explain is a number nobody should
     // trust, so the definition ships next to it.
     expect(screen.getByText(/share of the questions you have both answered/i)).toBeTruthy();
+    expect(screen.getByText(/the fuller the ring, the closer/i)).toBeTruthy();
   });
 
-  it("renders an unnamed account as Someone", () => {
-    LIVE.kindred = () => [{ uid: "u9", name: "", like: { shared: 4, same: 4, pct: 100 } }];
+  it("falls back to the name when there is no profession to lead with", () => {
+    LIVE.kindredPeople = () => [kin({ anchors: { ageBand: "25-34" } })];
+    mount("people");
+    // The band becomes the headline; the name is not repeated under it.
+    expect(screen.getAllByText("25-34").length).toBeGreaterThan(1);
+    expect(screen.getByText("Ada")).toBeTruthy();
+  });
+
+  it("renders an account with neither name nor anchors as Someone", () => {
+    LIVE.kindredPeople = () => [kin({ uid: "u9", name: "", anchors: {} })];
     mount("people");
     expect(screen.getByText("Someone")).toBeTruthy();
     expect(screen.queryByText(/u9/)).toBeNull();
+  });
+
+  it("badges a type only where the person finished the instrument", () => {
+    // typeOfPerson returns null without a Big Five result, and no badge is
+    // drawn rather than a guess at one.
+    LIVE.kindredPeople = () => [kin()];
+    const { container } = mount("people");
+    expect(container.textContent).not.toMatch(/The /);
+  });
+
+  it("drops anyone below the shared-question floor", () => {
+    // One shared question is a coin flip, not an overlap — and a 100% over
+    // one would otherwise head the list.
+    LIVE.kindredPeople = () => [
+      kin({ uid: "thin", name: "Thin", like: { shared: 1, same: 1, pct: 100 } }),
+    ];
+    mount("people");
+    expect(screen.queryByText("Thin")).toBeNull();
+    expect(screen.getByText(/nobody has answered enough/i)).toBeTruthy();
   });
 
   it("distinguishes 'still working' from 'nobody overlaps'", () => {
@@ -135,10 +200,9 @@ describe("People", () => {
     expect(screen.getByText(/nobody has answered enough/i)).toBeTruthy();
   });
 
-  it("says which dimension is empty, not just 'no data'", () => {
-    mount("people");
-    open(/^Education$/);
-    expect(screen.getByText(/nobody here has filled in their education/i)).toBeTruthy();
+  it("says the card is empty rather than drawing an empty shape", () => {
+    mount("people", [{ ...Q, by: {} }]);
+    expect(screen.getByText(/nobody here has filled in their age or gender/i)).toBeTruthy();
   });
 });
 

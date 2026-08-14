@@ -1,19 +1,32 @@
 // @vitest-environment jsdom
 //
-// The LEARN_SPLIT source seam (D32). One function decides whether a learn
-// reveal shows measured crowd data or the authored estimate, and D1 rides
-// on it choosing correctly: an authored number rendered as a measurement
-// is fabricated activity. These cases pin the three states — demo,
-// live-but-cold (no published agg / below the floor), live-with-data —
-// and that the measured path normalises the k-floored counts to exactly
-// 100 the way every other split in the app does.
+// The LEARN_SPLIT source seam (D32), as D149 left it.
+//
+// The seam used to have three states — demo, live-but-cold, live-with-data
+// — and the middle one drew the AUTHORED estimate with a label under it
+// saying so. Honest, and still the wrong thing on screen: `card.p` is a
+// difficulty hint a writer typed while writing the card, and drawing it as
+// bars makes it look like a reading of a crowd however the footer is
+// worded. A reader reads the bars.
+//
+// So in a live build there are two states, and these cases pin them: a
+// measurement, or nothing. LEARN_SPLIT returns null and LEARN_RATE returns
+// a null `pct` rather than falling back — null rather than 0 for the D72
+// reason, so a caller that forgets the check draws something obviously
+// broken instead of quietly claiming nobody gets the card right. The demo
+// build keeps the authored model, because there the fabricated crowd IS
+// the content and there is no aggregate to replace it.
+//
+// LEARN_COUNTS is the other half: the reveal shows HOW MANY people picked
+// each option, so the raw counts are carried rather than recovered from a
+// percentage.
 import { afterEach, describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 // Named imports from an untyped .js spec module (D109) — the suppressions are
 // scoped to exactly that (TS7016), the purge-wipe precedent.
 // @ts-expect-error TS7016 — untyped spec module
-import { LEARN_CARDS, LEARN_ORDER as orderAny, LEARN_RATE as rateAny, LEARN_SPLIT as splitAny, LEARN_SPLIT_SRC } from "../spec/learn-data.js";
+import { LEARN_CARDS, LEARN_COUNTS as countsAny, LEARN_ORDER as orderAny, LEARN_RATE as rateAny, LEARN_SPLIT as splitAny, LEARN_SPLIT_SRC } from "../spec/learn-data.js";
 
 interface LearnCard {
   id: string;
@@ -30,19 +43,23 @@ const card = (LEARN_CARDS as LearnCard[])[0]; // cell1 — correct index 0, 4 op
 // The module is untyped, so its export arrives as `any` and every
 // `.reduce((a, b) => …)` below would infer implicit-any parameters. Named once
 // here rather than annotated at each call site.
-const LEARN_SPLIT: (c: LearnCard) => number[] = splitAny;
+const LEARN_SPLIT: (c: LearnCard) => number[] | null = splitAny;
 const LEARN_ORDER: (c: LearnCard) => number[] = orderAny;
-const LEARN_RATE: (c: LearnCard) => { pct: number; src: string } = rateAny;
+const LEARN_RATE: (c: LearnCard) => { pct: number | null; src: string } = rateAny;
+const LEARN_COUNTS: (c: LearnCard) => { counts: number[]; total: number } | null = countsAny;
 const ALL_CARDS = LEARN_CARDS as LearnCard[];
 
 afterEach(() => {
   delete W.LIVE;
 });
 
-describe("LEARN_SPLIT source seam (D32)", () => {
+describe("LEARN_SPLIT source seam (D32, as D149 left it)", () => {
   it("demo mode: the authored model, reported as an estimate", () => {
+    // Unchanged. The demo has no aggregate and its whole population is
+    // authored, so the model is the content rather than a stand-in for a
+    // measurement that could arrive.
     expect(LEARN_SPLIT_SRC(card)).toBe("estimate");
-    const split = LEARN_SPLIT(card);
+    const split = LEARN_SPLIT(card)!;
     expect(split[card.c]).toBe(card.p);
     expect(split.reduce((a, b) => a + b, 0)).toBe(100);
   });
@@ -53,23 +70,67 @@ describe("LEARN_SPLIT source seam (D32)", () => {
       learnAgg: () => ({ tooSmall: false, total: 9, counts: { "0": 6, "1": 3 } }),
     };
     expect(LEARN_SPLIT_SRC(card)).toBe("measured");
-    const split = LEARN_SPLIT(card);
+    const split = LEARN_SPLIT(card)!;
     expect(split.reduce((a, b) => a + b, 0)).toBe(100);
     // 6/9 and 3/9 → floors 66/33, remainder point to the first option
     expect(split).toEqual([67, 33, 0, 0]);
   });
 
-  it("live but below the floor, unfetched, or empty: back to the labeled estimate", () => {
-    W.LIVE = { enabled: true, learnAgg: () => ({ tooSmall: true }) };
-    expect(LEARN_SPLIT_SRC(card)).toBe("estimate");
-    expect(LEARN_SPLIT(card)[card.c]).toBe(card.p);
+  it("live and cold: nothing, never the authored estimate (D149)", () => {
+    // The three ways a live card can have no measurement. Each used to
+    // hand back `card.p` shaped like crowd data; each now hands back
+    // nothing, and the reveal says nobody has answered yet.
+    for (const learnAgg of [
+      () => ({ tooSmall: true }),
+      () => null,
+      // a published-shape doc with zeroed counts must not divide by zero
+      () => ({ tooSmall: false, counts: {} }),
+    ]) {
+      W.LIVE = { enabled: true, learnAgg };
+      expect(LEARN_SPLIT_SRC(card)).toBe("none");
+      expect(LEARN_SPLIT(card)).toBeNull();
+      expect(LEARN_RATE(card).pct).toBeNull();
+      expect(LEARN_COUNTS(card)).toBeNull();
+    }
+  });
 
+  it("never reports an estimate in a live build", () => {
+    // The label is not just unused there — it would describe something
+    // that is not on screen. Held across the whole bank so a card with an
+    // unusual shape cannot slip back to the old path.
     W.LIVE = { enabled: true, learnAgg: () => null };
-    expect(LEARN_SPLIT_SRC(card)).toBe("estimate");
+    for (const c of ALL_CARDS) {
+      expect(LEARN_SPLIT_SRC(c), `${c.id} still offers an estimate live`).toBe("none");
+    }
+  });
+});
 
-    // a published-shape doc with zeroed counts must not divide by zero
-    W.LIVE = { enabled: true, learnAgg: () => ({ tooSmall: false, counts: {} }) };
-    expect(LEARN_SPLIT_SRC(card)).toBe("estimate");
+describe("LEARN_COUNTS — how many actually picked each option (D149)", () => {
+  it("hands back the raw counts and their total, not shares", () => {
+    // The reveal leads with the count because the count is the fact: "31
+    // people picked this" survives being read alone, where "62%" of an
+    // unstated denominator is the shape the authored estimate wore.
+    W.LIVE = {
+      enabled: true,
+      learnAgg: () => ({ total: 9, counts: { "0": 6, "1": 3 } }),
+    };
+    expect(LEARN_COUNTS(card)).toEqual({ counts: [6, 3, 0, 0], total: 9 });
+  });
+
+  it("counts the options the card has, keyed the way answers are stored", () => {
+    // The aggregate's cells are keyed by AUTHORED index — LEARN_ORDER
+    // permutes on the way to the screen only — so a dense array of the
+    // card's own length is the right shape and an option nobody picked is
+    // a real zero rather than a gap.
+    W.LIVE = { enabled: true, learnAgg: () => ({ total: 2, counts: { "3": 2 } }) };
+    const m = LEARN_COUNTS(card)!;
+    expect(m.counts).toHaveLength(card.a.length);
+    expect(m.counts[3]).toBe(2);
+    expect(m.total).toBe(2);
+  });
+
+  it("is null in the demo, where there is nothing measured to count", () => {
+    expect(LEARN_COUNTS(card)).toBeNull();
   });
 });
 
@@ -167,25 +228,27 @@ describe("the measured split is reachable at all (D125)", () => {
   // every card was the one deciding that card's reveal, and every learn
   // split the app drew was the authored estimate whatever the crowd had
   // answered.
-  it("a cold cache reads as an estimate, and warms into a measurement", () => {
+  it("a cold cache draws nothing, and warms into a measurement", () => {
     // The real cache contract: learnAgg returns null — repeatedly, not
     // once — until its background fetch lands, then the data. So a cold
-    // read is the estimate no matter how big the crowd is, and the SAME
-    // card flips to measured once something has warmed it.
+    // read has no numbers at all no matter how big the crowd is, and the
+    // SAME card flips to measured once something has warmed it.
     //
     // This is also the exact instant the old renderer went wrong: it froze
     // the estimate into the answer result before the flip and re-read the
-    // label after it.
+    // label after it. Since D149 there is no estimate to freeze, which
+    // removes the failure rather than only guarding it.
     const agg = { tooSmall: false, total: 40, counts: { "0": 30, "1": 10 } };
     let landed = false;
     W.LIVE = { enabled: true, learnAgg: () => (landed ? agg : null) };
 
-    expect(LEARN_SPLIT_SRC(card)).toBe("estimate");
-    expect(LEARN_SPLIT(card)[card.c]).toBe(card.p);
+    expect(LEARN_SPLIT_SRC(card)).toBe("none");
+    expect(LEARN_SPLIT(card)).toBeNull();
 
     landed = true;
     expect(LEARN_SPLIT_SRC(card)).toBe("measured");
     expect(LEARN_SPLIT(card)).toEqual([75, 25, 0, 0]);
+    expect(LEARN_COUNTS(card)).toEqual({ counts: [30, 10, 0, 0], total: 40 });
   });
 
   it("both readings agree at every instant, so one render can trust them", () => {
@@ -201,7 +264,7 @@ describe("the measured split is reachable at all (D125)", () => {
       const measured = LEARN_SPLIT_SRC(card) === "measured";
       const split = LEARN_SPLIT(card);
       expect(measured).toBe(expected);
-      expect(split[card.c] === card.p).toBe(!expected);
+      expect(split === null).toBe(!expected);
     }
   });
 
@@ -279,18 +342,33 @@ describe("LEARN_RATE — one crowd rate, and where it came from (D133)", () => {
     expect(LEARN_RATE(card)).toEqual({ pct: 67, src: "measured" });
   });
 
-  it("live but cold: back to the authored rate, still labelled", () => {
+  it("live but cold: no rate at all, never the authored one (D149)", () => {
+    // `pct: null`, not `pct: 0`. The D72 shape: a caller that forgets to
+    // check draws something obviously broken and fails a test, rather than
+    // rendering a confident bar at zero — "nobody gets this right" is a
+    // much worse lie than the estimate this replaced.
     W.LIVE = { enabled: true, learnAgg: () => null };
-    expect(LEARN_RATE(card)).toEqual({ pct: card.p, src: "estimate" });
+    expect(LEARN_RATE(card)).toEqual({ pct: null, src: "none" });
   });
 
   it("agrees with LEARN_SPLIT on every card in the bank", () => {
     // The two must never disagree about the same card: the reveal draws the
     // distribution and these surfaces draw one bar of it, and a user who
-    // reads both in one session is comparing them.
+    // reads both in one session is comparing them. Including when both are
+    // absent — a rate without a split behind it is the disagreement this
+    // case exists to catch.
     for (const c of ALL_CARDS) {
-      expect(LEARN_RATE(c).pct, `${c.id}`).toBe(LEARN_SPLIT(c)[c.c]);
+      const split = LEARN_SPLIT(c);
+      expect(LEARN_RATE(c).pct, `${c.id}`).toBe(split ? split[c.c] : null);
       expect(LEARN_RATE(c).src, `${c.id}`).toBe(LEARN_SPLIT_SRC(c));
+    }
+  });
+
+  it("carries the same absence through a live build, card for card", () => {
+    W.LIVE = { enabled: true, learnAgg: () => null };
+    for (const c of ALL_CARDS) {
+      expect(LEARN_RATE(c).pct, `${c.id} still prints an authored rate`).toBeNull();
+      expect(LEARN_SPLIT(c), `${c.id} still draws an authored split`).toBeNull();
     }
   });
 });

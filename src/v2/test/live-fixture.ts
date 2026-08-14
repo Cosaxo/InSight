@@ -281,6 +281,12 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     circleLoading: () => false,
     isFollowing: (u: string) => u === "u_other",
     setFollowing: async () => {},
+    // The follow SET (D149) — the same graph the fold above describes, so
+    // it names the same account. A mount that disagreed with itself about
+    // who your friends are would make the Friends cut untestable here.
+    loadFollows: async () => {},
+    follows: () => ["u_other"],
+    followsLoading: () => false,
     loadVoters: async () => {},
     voters: () => [
       { uid: "u_fixture", optionIdx: 0, anchors: { ageBand: "25-34", city: "Oslo, NO" }, name: "Tester", isMe: true },

@@ -56,7 +56,7 @@ import MirrorLensTabs from "./MirrorLensTabs";
 // ordinary import, not lazy: this body IS the default tab, and it rides
 // this module's own lazy chunk (D119) either way.
 import LiveAnswerRows, { type AnswerRow } from "./LiveAnswerRows";
-import { DEFAULT_STOP_TAB, LENS_LABEL, STOP_TABS, TAB_LABEL, type LensTab } from "./lensTabs";
+import { DEFAULT_STOP_TAB, LENS_LABEL, STOP_TABS, TAB_LABEL, lensesFor, type LensTab } from "./lensTabs";
 import type { LensId, LensQuestion } from "./lensDefs";
 import { byOf } from "../data/cohort";
 // An ordinary import, not a globalThis lookup — same note as LiveDuelPanel's
@@ -294,15 +294,22 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
 
   // ── the stop's tabs (D119, reshaped at D136) ──
   //
-  // Answers, then the four lenses — five, since the constellation moved out
-  // of the row to sit above it and Foresight left the Mirror entirely. Every
-  // tab here can draw something for every cohort scope, so the row is fixed
-  // rather than assembled per scope: a tab that opens onto "nothing yet" is
-  // a true reading of this population, and disappearing tabs would make the
-  // row's shape a second, quieter claim about the data.
+  // Answers, then the lenses this scope has. The constellation moved out of
+  // the row at D136 to sit above it, and Foresight left the Mirror
+  // entirely.
+  //
+  // ASSEMBLED PER SCOPE SINCE D152, which reverses the note this comment
+  // used to carry. It said a fixed row was right because "a tab that opens
+  // onto nothing yet is a true reading of this population" — true, and
+  // about a different thing. Explore is not empty at City; it is
+  // MISPLACED there. Its reading is "how does this slice differ from
+  // everyone", and at City the baseline it compares against is the city,
+  // so the sentence it draws is not the one it is written to say
+  // (lensTabs.ts lensesFor). Data being thin is a reason to keep a tab;
+  // a reading not applying is a reason not to offer one.
   const tabs: LensTab[] = [
     ...STOP_TABS.map((id) => ({ id, label: TAB_LABEL[id] })),
-    ...(Object.keys(LENS_LABEL) as LensId[]).map((id) => ({ id, label: LENS_LABEL[id] })),
+    ...lensesFor(scope).map((id) => ({ id, label: LENS_LABEL[id] })),
   ];
   const openTab = tabs.some((t) => t.id === tab) ? tab : DEFAULT_STOP_TAB;
 

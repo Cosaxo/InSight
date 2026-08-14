@@ -454,8 +454,37 @@ if (!DEMO && process.env.VITE_V2_LIVE !== "true") {
 // RELEASE build fails a gate CI had just passed — on a macOS runner, after
 // the archive, at the most expensive moment available. The band covers the
 // config delta because it has to.
+//
+// 2245 → 2265 (2026-08-14): D149-D152 — the takes' side badges and side
+// filter, the who-voted sheet's Friends cut, Learn's real per-option
+// counts, Near's anonymous field, the account-creation questions and the
+// People lens rebuilt to the prototype's shape. Measured the way the
+// guard above now insists: `VITE_V2_LIVE=true` with a DSN, 2255 against
+// the 2245 ceiling.
+//
+// Fifth firing, same shape as the four before it: features that were
+// asked for, and the alarm has still never been the thing that found a
+// problem. The band is the 10 KB convention the 2230 entry set, taken
+// above the measured 2255.
+//
+// WHAT IS NOT BEING RAISED, again, is MAX_EAGER_KB — 969 against 978 on
+// this same build, with room left. Every one of those surfaces is behind
+// a tap or a stop: the profile-setup screen is a dynamic import from
+// main.jsx (D151 records why the obvious gate component would not fit),
+// the Near field and the Circle/Groups fields are React.lazy, and the
+// People lens rides the lens chunk that already existed.
+//
+// It went DOWN on the way, which is the part worth recording. The rebuild
+// landed a fraction over the eager ceiling, and the fix was not to trim
+// the feature but to find weight that should never have been eager:
+// LiveTakesPanel was statically imported by daily-split.jsx and
+// LiveDuelPanel — both the daily tab — so ~40 KB of takes thread was
+// preloaded for a surface that renders behind a "Takes" tap or under a
+// revealed duel. Both are React.lazy now. That is the trade this gate is
+// for: the total is a drift alarm, the eager graph is the guarantee, and
+// paying for a feature out of first paint is the wrong pocket.
 const MAX_CHUNK_KB = 735;
-const MAX_TOTAL_JS_KB = 2245;
+const MAX_TOTAL_JS_KB = 2265;
 // 955 → 966 (2026-08-14): D139's pulse card — the second fixed instrument
 // on the FIRST screen, so its card, its store's demo furniture and the
 // two LIVE members are legitimately eager (~10 KB min). What is not
