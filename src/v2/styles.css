@@ -1443,8 +1443,13 @@ button.card:active,
 .mmt-world.is-moving { will-change: transform; }
 /* the ground — denser toward the hub: centre = with the crowd, edge = a rarer take */
 .mmt-ground { position: absolute; left: -1300px; top: -1300px; width: 2600px; height: 2600px; border-radius: 50%; pointer-events: none; background: radial-gradient(closest-side, color-mix(in oklch, var(--ink) 12%, transparent), color-mix(in oklch, var(--ink) 5%, transparent) 50%, transparent 76%); }
-/* the mainstream boundary — inside this ring you're with the crowd, outside it the take is rarer; distance means something */
-.mmt-ground::after { content: ''; position: absolute; left: 50%; top: 50%; width: 640px; height: 640px; border-radius: 50%; transform: translate(-50%, -50%); border: 1.5px solid color-mix(in oklch, var(--ink) 26%, transparent); box-shadow: inset 0 0 0 14px color-mix(in oklch, var(--ink) 3%, transparent); }
+/* the mainstream boundary — meant to read as "inside, you're with the crowd; outside, the take is rarer". D154 measured
+   that claim and it does not hold yet: 0-4% of dots land inside it at every map size, because radial position is dominated
+   by which cloud a dot belongs to and typicality only moves it ±50 within that cloud. Today it is a horizon, and it is
+   sized like one — --ring is its RADIUS, measured per layout from the constellation's reach (map-layout.js step 5),
+   because a fixed circle on a canvas that fits itself to its contents draws hugely at a handful of answers. The 320px
+   fallback is the constant it replaced. Making the claim true is a layout change, not a ring one — see D154 §3. */
+.mmt-ground::after { content: ''; position: absolute; left: 50%; top: 50%; width: calc(var(--ring, 320px) * 2); height: calc(var(--ring, 320px) * 2); border-radius: 50%; transform: translate(-50%, -50%); border: 1.5px solid color-mix(in oklch, var(--ink) 26%, transparent); box-shadow: inset 0 0 0 14px color-mix(in oklch, var(--ink) 3%, transparent); }
 .app.dark .mmt-ground::after { border-color: color-mix(in oklch, var(--ink) 34%, transparent); }
 /* that boundary means “with the crowd vs a rarer take” — an opinion idea. Inside a
    group it is just a sketch line, so it goes. */
@@ -1476,6 +1481,11 @@ button.card:active,
 .mmt-root.is-ringstage .mmt-hub, .mmt-root.is-ringstage .mmt-dotnode { opacity: 0.14; }
 .mmt-root.is-ringstage .mmt-edges { opacity: 0.22; }
 .mmt-root.is-ringstage .mmt-field { opacity: 0.1; }
+/* …the boundary included. It was left out of this list while it was a fixed
+   320px away from the anchors at 170; now that it sizes itself to the map it
+   can land on 205, which is a second full-strength circle 35px outside the
+   ring that is meant to be holding the stage. */
+.mmt-root.is-ringstage .mmt-ground::after { opacity: 0.22; }
 
 .mmt-center { z-index: 3; transition: opacity 0.3s ease; }
 .mmt-center.is-recede { opacity: 0.25; pointer-events: none; }
