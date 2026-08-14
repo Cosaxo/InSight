@@ -448,13 +448,33 @@ arithmetic.
       procedure and this paragraph is only its record**: where the two
       disagree, the run list wins.
 
-      **`appBuild` is now 13**, bumped on 2026-08-13 as soon as run 18's
-      upload was confirmed. **Build 12 is the highest on App Store
-      Connect**, so the comparison passes for the next run as-is.
+      **BUILD 13 WAS UPLOADED BY RUN 19** (`0e65741`, 2026-08-13 20:19Z,
+      6m 58s, upload step `success`) — the run dispatched from the very
+      commit that wrote the paragraph below. **`appBuild` is now 14**,
+      bumped 2026-08-14 during build 14's pre-flight (D143), and **build
+      13 is the highest on App Store Connect**, so the comparison passes
+      for the next run as-is.
 
-      **Build 13 is pre-flighted and unspent as of 2026-08-13 (D136).**
-      13 > 12, verified against run 18 rather than assumed. Every gate in
-      6.1 passes, along with the full suite: 969 client tests, 203
+      **THE PARAGRAPH BELOW IS KEPT AS A RECORD OF THE TRAP FIRING A THIRD
+      TIME, AND IT IS WRONG.** It says build 13 is unspent; run 19 spent
+      it about two hours after the commit landed. This is now three for
+      three — D130 wrote "Build 12 is pre-flighted and unspent" in the
+      commit run 18 uploaded, D142 caught that and wrote the identical
+      sentence about build 13 in the commit run 19 uploaded. **A status
+      line in this file cannot survive the run it describes**, because the
+      run happens after the commit and nothing in the tree can see App
+      Store Connect (D73's shape, one layer out). Read the run list, never
+      this paragraph:
+
+      > **Is `appBuild` greater than the highest build in App Store
+      > Connect?** Read the `Upload to App Store Connect` step's own
+      > conclusion on the newest release run — `success` spent that
+      > build, `skipped` did not.
+
+      *Build 13's pre-flight, 2026-08-13 (D142), kept as its record —* it
+      read "pre-flighted and unspent", 13 > 12 verified against run 18
+      rather than assumed, and run 19 spent it hours later. Every gate in
+      6.1 passed, along with the full suite: 969 client tests, 203
       function tests, 83 rules tests, 168 script tests, lint, `tsc -b`,
       `check:globals` at its baseline, and 28 of the 29 check gates. The
       one that does not pass locally is environmental and is not a defect:
@@ -473,6 +493,37 @@ arithmetic.
       instrument read "0 of N answered" to someone who had answered them
       all, because `LIVE.myVotes()` is string-valued and the fold gated on
       `Number.isInteger`.
+
+      **Build 14 pre-flighted 2026-08-14 (D143).** `appBuild` 13 → 14,
+      propagated to `versionCode` and `CURRENT_PROJECT_VERSION`. Measured,
+      not asserted: 984 client, 214 function, 168 script tests, `lint`,
+      `tsc -b`, `check:globals` at its 414 baseline, and every check gate
+      except `check:web-firebase` — environmental, as below. `test:rules`
+      and the three e2e suites are green on CI run 394 at this tree.
+
+      **`check:bundle` was RED on main and this pre-flight is what found
+      it** (CI run 394, `typecheck-build`). The **total** was 36 KB over —
+      2220 against 2184 — from D137–D141's features, all of it in lazy
+      chunks. The **eager** graph, which is the half that guarantees
+      something, measured 963 against 966 and was never in danger. Ceiling
+      raised to 2230 with the arithmetic in `scripts/check-bundle.mjs`;
+      D143 has why a raise rather than a trim, and why the eager constant
+      was not touched.
+
+      What build 14 carries that 13 did not: D137's global-bridge sweep,
+      **D138's suggestion board and its server** — the first collection
+      users write free text into — D139's daily pulse, **D140's height
+      band**, the eighth anchor and seventh breakdown dim, and D141's
+      type-mix card on the People lens.
+
+      **The store filing moved for the first time since D116, and only its
+      reasoning.** Question suggestions and the height band both land in
+      rows that were already Yes, so nothing needs re-typing into App Store
+      Connect — but *Other User Content* said "answers and test results",
+      which a free-text suggestion is not, and the **Health** row went from
+      obviously-No to a judgement the moment a body measurement entered the
+      profile. Both are written out in docs/STORE-FORMS.md, the second with
+      the trip-wire that flips it (weight, or anything that makes a BMI).
 
       **`check:bundle` passing locally proves less than it looks.**
       Without a Sentry DSN the local build omits a 435 KB chunk (D134,

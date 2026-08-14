@@ -776,7 +776,7 @@ Until then links open the fallback page — degraded, not broken.
   that — and **stop there**.
 
   **Every word of that reply is conditional on a build flag, and the flag
-  defaults the wrong way for it (D134, D136).** `ios-release.yml` sets
+  defaults the wrong way for it (D134, D142).** `ios-release.yml` sets
   `VITE_REQUIRE_SIGNIN` from `vars.REQUIRE_SIGNIN` and **defaults it to
   `true`**, so a release build opens on a mandatory Google sign-in and
   nothing else works until it succeeds. Against such a binary *"no account
