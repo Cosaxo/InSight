@@ -598,7 +598,61 @@ posture; weight/BMI without its own record; current events on the daily
 surface (blocked on an epoch-safe retire design D97 already names);
 farm-authored current events.
 
-## 8 · Rules that apply to all of it
+## 8 · The design handoff — what needs a designed visual, what does not
+
+Split by whether the plan needs **new visual grammar** (design work
+first, then a port) or only **new plumbing under existing grammar**
+(build directly in the app's current language). Every designed surface
+inherits the honesty rules the live bodies already carry: no invented
+baselines or smoothing, absent = zero and the panel says so, every
+reading shows the n it rests on, thin data is listed with its reason
+rather than positioned, and demo texture never ships in a live body
+(D1). One hue per instrument (`TEST_HUE`), inputs on the `--field-size`
+token (D105).
+
+**Needs design (in leverage order):**
+
+1. **The pulse card and the Trends reading (§2)** — the only genuinely
+   new grammar in the plan. The card: a compact daily-repeat beside the
+   blind daily, blind-then-reveal like the daily, an answered-today
+   state, a streak treatment. The reading: your series against the
+   cohort's over the last few weeks — how a zero day draws vs a day you
+   skipped, per-day n, and the two empty states that cannot be faked
+   (day one: a dot is not a trend yet; a gap week). Where it opens is a
+   design proposal too (a tab on the stop row vs the You stop), under
+   the cost gate: a tab body exists only while open.
+2. **Type chips and the People type filter (§3 tier 1)** — mostly
+   arrangement, not invention: `TypeMark` (ring/slice/dots) already
+   renders a type. Needed: the chip at row size, the filter row with
+   per-type counts over the loaded people, the "same type as you"
+   shortcut, the basis label (the D102 bound, e.g. "of the latest 200
+   voters here"), and the empty-filter state.
+3. **The sponsored/featured chrome (§6 paid)** — the recorded
+   constraint is an *unmissable* disclosure mark; design the sponsored
+   card frame, the window label ("asked for Oslo · this week"), and how
+   provenance reads on the card. Worth designing early because every
+   paid deal inherits it.
+4. **Suggestion board live states (§6)** — the your-submissions view
+   (in review / picked / declined with a reason), the composer's hint
+   pickers (type · cadence · audience), the kind decline for
+   place-scoped asks, and the paid door beside the free gate.
+5. **Current-events chrome (§1)** — a "closes in N days" chip, the
+   `now` kicker, and the archived "asked 12–19 Aug" label on answer
+   rows. Small.
+6. **Optional — the tier A CALL card (§1)**: sealed → resolved → VOID
+   states, reusing the daily's blind-reveal grammar.
+
+**Does not need design** (built directly in the existing language):
+the height control on the Basics card (a number input + band preview in
+the card's own idiom), and everything server-side.
+
+Designs land in the claude.ai/design project and are ported here
+deliberately, the prototype-vintage pattern (D113's partial v20 sync is
+the precedent): live components are built typed under `src/v2/ui`
+against the design — never as new spec-layer globals (the `check:globals`
+ratchet).
+
+## 9 · Rules that apply to all of it
 
 - **New code is typed ESM** under `src/v2/data` / `src/v2/ui` — the
   shared-global ratchet (`check:globals` rule 4) only goes down, so no
