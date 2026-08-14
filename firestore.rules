@@ -300,7 +300,7 @@ service cloud.firestore {
         // the query walks past).
         allow read: if request.auth != null
           && (request.auth.uid == uid
-            || resource.data.surface in ["daily", "feed", "test", "learn"]);
+            || resource.data.surface in ["daily", "feed", "test", "learn", "pulse"]);
 
         // D29 device binding: aggregate-feeding answers require the account
         // to have passed one silent per-device activation (activateDeviceV2
@@ -447,6 +447,49 @@ service cloud.firestore {
             && request.resource.data.get("guessIdx", 0) < duelIndexSpace();
         }
 
+        // The daily pulse (D138): the same question answered once per
+        // DAY, id {baseQid}_{day} — one answer per (person, day) is the
+        // doc id, the duel answers' move, and the day window below is
+        // theirs verbatim (back 4d for an offline queue, forward 2d
+        // because day keys are UTC and UTC+14 is already tomorrow).
+        // Create-only in v1, deliberately: the D86 edit arm's surface
+        // list keeps pulse out, so "you said what you said today" holds
+        // structurally, and delete is closed like every answer. The
+        // aggregate trigger folds the composite qid into a PER-DAY
+        // aggregate doc with no changes of its own — that grain is the
+        // whole design (docs/NEXT-FUNCTIONALITY.md §2).
+        function isPulseAnswer() {
+          return request.resource.data.keys().hasOnly([
+              "qid", "baseQid", "day", "surface", "optionIdx", "answeredAt", "anchors",
+            ])
+            && request.resource.data.surface == "pulse"
+            && request.resource.data.baseQid is string
+            && request.resource.data.day is string
+            && request.resource.data.day.matches('[0-9]{4}-[0-9]{2}-[0-9]{2}')
+            && timestamp.date(
+                 int(request.resource.data.day[0:4]),
+                 int(request.resource.data.day[5:7]),
+                 int(request.resource.data.day[8:10]))
+               > request.time - duration.value(4, 'd')
+            && timestamp.date(
+                 int(request.resource.data.day[0:4]),
+                 int(request.resource.data.day[5:7]),
+                 int(request.resource.data.day[8:10]))
+               < request.time + duration.value(2, 'd')
+            && aid == request.resource.data.baseQid + "_" + request.resource.data.day
+            && request.resource.data.qid == aid
+            // The TEMPLATE is what the bank holds — one doc per pulse
+            // question forever, never one per day — and it answers for
+            // the option bound, the kill switch, and the surface claim.
+            && get(/databases/$(database)/documents/v2_questions/$(request.resource.data.baseQid))
+                 .data.get("surface", "daily") == "pulse"
+            && get(/databases/$(database)/documents/v2_questions/$(request.resource.data.baseQid))
+                 .data.get("active", true) == true
+            && request.resource.data.optionIdx
+              < get(/databases/$(database)/documents/v2_questions/$(request.resource.data.baseQid))
+                  .data.options.size();
+        }
+
         // The index space BOTH duel indexes live in: the question's own
         // options, or — for "pick" questions, which carry none, because
         // their options ARE the group — the member count. Repeated get()s
@@ -470,7 +513,11 @@ service cloud.firestore {
               // functions/src/v2social.ts) or members past the 20th become
               // unpickable on every "pick" day.
               && request.resource.data.optionIdx < 64
-              && ((isWorldAnswer() && deviceBound()) || isDuelAnswer()))
+              && ((isWorldAnswer() && deviceBound())
+                || isDuelAnswer()
+                // Pulse answers feed a published aggregate, so they carry
+                // the same D29 binding the world surfaces do.
+                || (isPulseAnswer() && deviceBound())))
             // Catalog answers carry `entity` instead — the optionIdx block
             // must not apply, and each branch's hasOnly keeps the other
             // field out. They feed aggregates, so they carry the D29
@@ -554,7 +601,7 @@ service cloud.firestore {
     // collection anywhere else in future silently joins this grant.
     match /{path=**}/answers/{aid} {
       allow read: if request.auth != null
-        && resource.data.surface in ["daily", "feed", "test", "learn"];
+        && resource.data.surface in ["daily", "feed", "test", "learn", "pulse"];
     }
 
     // App/content metadata — contentRev (bank cache invalidation),

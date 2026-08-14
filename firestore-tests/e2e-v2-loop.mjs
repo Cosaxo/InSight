@@ -592,6 +592,39 @@ ok("learn crowd stat: 5 first attempts, exact through per-answer publishes, 3/5 
     setDoc(doc(db, "v2_presence", uid), { cell: "59.913_10.752", at: serverTimestamp() }));
 }
 
+// 10b · The daily pulse (D138): a day-keyed answer through the rules, the
+// UNTOUCHED trigger folding it into a PER-DAY aggregate doc — the grain
+// the whole design rests on — and the one-per-day discipline holding.
+{
+  const day = new Date().toISOString().slice(0, 10);
+  const pid = `pulse-pace_${day}`;
+  await setDoc(doc(db, "v2_users", uid, "answers", pid), {
+    qid: pid, baseQid: "pulse-pace", day, surface: "pulse", optionIdx: 3,
+    answeredAt: serverTimestamp(),
+    anchors: { ageBand: "25-34", country: "NO", city: "Oslo, NO" },
+  });
+  ok("pulse answer written: " + pid);
+  let pagg = null;
+  for (let i = 0; i < 30; i++) {
+    const snap = await getDoc(doc(db, "v2_question_aggs", pid));
+    if (snap.exists()) { pagg = snap.data(); break; }
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  if (!pagg) fail("per-day pulse agg never appeared — the trigger refused the composite qid");
+  if (pagg.total !== 1 || pagg.counts["3"] !== 1) {
+    fail("pulse agg wrong: " + JSON.stringify(pagg));
+  }
+  if (!pagg.by || !pagg.by.city || pagg.by.city["Oslo, NO"]["3"] !== 1) {
+    fail("pulse agg carries no city cell: " + JSON.stringify(pagg.by));
+  }
+  ok("per-day pulse aggregate published, anchors breakdown included");
+  await expectDenied("a second pulse answer for the same day refused", () =>
+    setDoc(doc(db, "v2_users", uid, "answers", pid), {
+      qid: pid, baseQid: "pulse-pace", day, surface: "pulse", optionIdx: 1,
+      answeredAt: serverTimestamp(), anchors: {},
+    }));
+}
+
 // 11 · Suggest a question (docs/NEXT-FUNCTIONALITY.md §6): the callable
 // door, its refusals in their specific codes, and the operator loop. The
 // budget and the sold-inventory tripwire live only in the callable —

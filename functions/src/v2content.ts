@@ -8915,5 +8915,23 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "body",
   "axis": null,
   "test": null
+ },
+ {
+  "id": "pulse-pace",
+  "surface": "pulse",
+  "seq": 0,
+  "type": "pulse",
+  "domain": null,
+  "prompt": "What pace was today?",
+  "options": [
+   "Crawling",
+   "Dragging",
+   "Steady",
+   "Brisk",
+   "Flying"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null
  }
 ];

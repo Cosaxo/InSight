@@ -474,6 +474,86 @@ describe("v2 profile", () => {
   });
 });
 
+describe("the daily pulse (D138): one answer per day, day-keyed like a duel's", () => {
+  const BASE = "pulse-pace";
+  const seedPulse = () => seed(async (db) => {
+    await setDoc(doc(db, "v2_questions", BASE), {
+      surface: "pulse", seq: 0, type: "pulse", prompt: "What pace was today?",
+      options: ["Crawling", "Dragging", "Steady", "Brisk", "Flying"], active: true,
+    });
+    await setDoc(doc(db, "v2_questions", "daily-000"), {
+      surface: "daily", seq: 0, type: "binary",
+      prompt: "Pineapple?", options: ["Yes", "No"], active: true,
+    });
+  });
+  const pulseAnswer = (day: string, over: Record<string, unknown> = {}) => ({
+    qid: `${BASE}_${day}`, baseQid: BASE, day, surface: "pulse", optionIdx: 3,
+    answeredAt: serverTimestamp(), anchors: {}, ...over,
+  });
+
+  it("today lands; the second answer to the same day is an update and refused", async () => {
+    await seedPulse();
+    const day = dayOffset(0);
+    const ref = doc(asUser(OWNER), "v2_users", OWNER, "answers", `${BASE}_${day}`);
+    await assertSucceeds(setDoc(ref, pulseAnswer(day)));
+    // setDoc on the existing doc is an UPDATE, and the D86 arm's surface
+    // list keeps pulse out — "you said what you said today" (create-only
+    // v1, docs/NEXT-FUNCTIONALITY.md §2).
+    await assertFails(setDoc(ref, pulseAnswer(day, { optionIdx: 1 })));
+    await assertFails(updateDoc(ref, { optionIdx: 1, editedAt: serverTimestamp() }));
+    // …and it is public like every answer (D98), pulse included.
+    await assertSucceeds(getDoc(doc(asUser(STRANGER), "v2_users", OWNER, "answers", `${BASE}_${day}`)));
+  });
+
+  it("the day window and the id discipline hold — the duel answers' bounds verbatim", async () => {
+    await seedPulse();
+    const old = dayOffset(-6);
+    const future = dayOffset(3);
+    const day = dayOffset(0);
+    await assertFails(setDoc(
+      doc(asUser(OWNER), "v2_users", OWNER, "answers", `${BASE}_${old}`),
+      pulseAnswer(old),
+    ));
+    await assertFails(setDoc(
+      doc(asUser(OWNER), "v2_users", OWNER, "answers", `${BASE}_${future}`),
+      pulseAnswer(future),
+    ));
+    // doc id must be {baseQid}_{day}, and qid must equal it
+    await assertFails(setDoc(
+      doc(asUser(OWNER), "v2_users", OWNER, "answers", `${BASE}_wrong`),
+      pulseAnswer(day),
+    ));
+    await assertFails(setDoc(
+      doc(asUser(OWNER), "v2_users", OWNER, "answers", `${BASE}_${day}`),
+      pulseAnswer(day, { qid: BASE }),
+    ));
+  });
+
+  it("the template answers for the bound, the kill switch, and the surface claim", async () => {
+    await seedPulse();
+    const day = dayOffset(0);
+    // optionIdx beyond the five steps
+    await assertFails(setDoc(
+      doc(asUser(OWNER), "v2_users", OWNER, "answers", `${BASE}_${day}`),
+      pulseAnswer(day, { optionIdx: 5 }),
+    ));
+    // a daily template cannot be answered as a pulse — the surface claim
+    // reads off the TEMPLATE, so the composite id buys no second series
+    await assertFails(setDoc(
+      doc(asUser(OWNER), "v2_users", OWNER, "answers", `daily-000_${day}`),
+      pulseAnswer(day, { qid: `daily-000_${day}`, baseQid: "daily-000" }),
+    ));
+    // the kill switch stops the series
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_questions", BASE), { active: false }, { merge: true });
+    });
+    await assertFails(setDoc(
+      doc(asUser(OWNER), "v2_users", OWNER, "answers", `${BASE}_${day}`),
+      pulseAnswer(day),
+    ));
+  });
+});
+
 describe("v2 answers (world-readable since D98; option edits only — D86)", () => {
   const QID = "daily-000";
   const seedQuestion = () => seed(async (db) => {

@@ -112,11 +112,12 @@ export function loadContent() {
     tests: load("tests.json"),
     lenses: load("lenses.json"),
     learn: load("learn-questions.json"),
+    pulse: load("pulse-questions.json"),
   };
 }
 
 // Builds the entries in emission order: daily → feed → group → duo →
-// romantic → test → learn. `seq` is per-surface and contiguous (the
+// romantic → test → learn → pulse. `seq` is per-surface and contiguous (the
 // romantic pool continues the duo surface's counter); note the test surface
 // runs ONE counter across all four tests (test-political-00 has seq 10, not 0).
 // Property order in each entry is load-bearing — JSON.stringify preserves
@@ -134,7 +135,7 @@ function requireId(q, where) {
 }
 
 export function buildEntries(content = loadContent()) {
-  const { daily, feed, duel, tests, lenses, learn } = content;
+  const { daily, feed, duel, tests, lenses, learn, pulse } = content;
   const entries = [];
 
   // `active: false` retires an entry from serving without touching its id
@@ -356,6 +357,28 @@ export function buildEntries(content = loadContent()) {
       topic: q.f,
       axis: null,
       test: null,
+    });
+  });
+
+  // The daily pulse (D138): TEMPLATE docs, one per pulse question — the
+  // answers are day-keyed against the template's id ({baseQid}_{day},
+  // firestore.rules isPulseAnswer), so the bank holds one doc per pulse
+  // question forever, never one per day. Exactly five options each (the
+  // trends y-axis is the 1..5 step scale); appended last so every
+  // existing surface's seq and bytes stay put.
+  (pulse?.questions ?? []).forEach((q, i) => {
+    entries.push({
+      id: `pulse-${requireId(q, `pulse-questions.json[${i}]`)}`,
+      surface: "pulse",
+      seq: i,
+      type: "pulse",
+      domain: null,
+      prompt: q.prompt,
+      options: q.options,
+      topic: null,
+      axis: null,
+      test: null,
+      ...flags(q),
     });
   });
 

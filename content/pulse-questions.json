@@ -1,0 +1,11 @@
+{
+  "comment": "The daily pulse (D138): the same question, answered once per day, drawn as a line. Exactly five ordered options — the trends chart's y-axis is the 1..5 step scale, and the card renders five growing dots. The first live pulse is deliberately NEUTRAL (a day's pace, not a day's mood): 'How is today going?' — the design's demo question — is wellbeing tracking, which moves the store forms (Health sits on the not-collected list) and waits on its own decision per docs/NEXT-FUNCTIONALITY.md §2. Swapping the content here is the whole change when that decision lands. No provenance rows: the pulse bank is editorial-only and outside the farm's lanes.",
+  "questions": [
+    {
+      "id": "pace",
+      "type": "pulse",
+      "prompt": "What pace was today?",
+      "options": ["Crawling", "Dragging", "Steady", "Brisk", "Flying"]
+    }
+  ]
+}
