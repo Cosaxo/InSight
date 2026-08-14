@@ -203,6 +203,7 @@ export function collectPipeline() {
   const learn = readJson("content/learn-questions.json");
   const tests = readJson("content/tests.json");
   const lenses = readJson("content/lenses.json");
+  const pulse = readJson("content/pulse-questions.json");
 
   const banks = [
     { surface: "daily", count: daily.length, source: "content/daily-questions.json" },
@@ -214,6 +215,11 @@ export function collectPipeline() {
     // check in pulse.test.mjs is what caught this row missing.
     { surface: "duel · romantic", count: (duel.romantic ?? []).length, source: "content/duel-questions.json" },
     { surface: "learn", count: learn.cards.length, source: "content/learn-questions.json" },
+    // The daily pulse's TEMPLATE docs (D139) — answers key {baseQid}_{day}
+    // against these, so the bank holds one doc per pulse question however
+    // many days it runs. The two-path bank-size check in pulse.test.mjs is
+    // what caught THIS row missing, same as romantic's above.
+    { surface: "pulse", count: pulse.questions.length, source: "content/pulse-questions.json" },
     {
       surface: "test items",
       count: Object.values(tests).reduce(

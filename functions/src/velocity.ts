@@ -80,9 +80,18 @@ export function utcDayKey(ms: number): string {
 // the ceiling. Derived from the committed bank at cold start, the
 // POLITICAL_QIDS pattern: no Firestore read.
 export function isAggregateSurface(surface: string): boolean {
-  return surface === "daily" || surface === "feed" || surface === "test" || surface === "learn";
+  return surface === "daily" || surface === "feed" || surface === "test" || surface === "learn"
+    || surface === "pulse";
 }
 export const AGG_BANK_SIZE = V2_QUESTIONS.filter((q) => isAggregateSurface(q.surface)).length;
+
+// The pulse (D139) breaks "one entry per question, ever": a pulse answer
+// is one per question per DAY, so an honest uid can carry up to one
+// entry per pulse template per day the ledger's 90-day TTL retains.
+// The volume ceiling grows by exactly that allowance and no more.
+export const PULSE_BANK_SIZE = V2_QUESTIONS.filter((q) => q.surface === "pulse").length;
+const LEDGER_TTL_DAYS = 90; // v2_agg_events expireAt (functions/src/v2.ts, D28)
+export const VOLUME_CEILING = AGG_BANK_SIZE + PULSE_BANK_SIZE * LEDGER_TTL_DAYS;
 
 // Scripted cadence. A human answering the backlog reads each question,
 // and reading time varies question to question — the coefficient of
@@ -351,10 +360,10 @@ export const ledgerVelocityScan = onSchedule(
     let volumeFlags = 0;
     let cadenceFlags = 0;
     for (const [uid, times] of fold.perUid) {
-      if (times.length > AGG_BANK_SIZE) {
+      if (times.length > VOLUME_CEILING) {
         volumeFlags++;
         logger.warn(
-          `[velocity] impossible volume: uid=${uid} n=${times.length} exceeds the ${AGG_BANK_SIZE}-question bank — dedup failure or forged writes`,
+          `[velocity] impossible volume: uid=${uid} n=${times.length} exceeds the ceiling (${AGG_BANK_SIZE}-question bank + ${PULSE_BANK_SIZE} pulse × ${LEDGER_TTL_DAYS}d) — dedup failure or forged writes`,
           { metric: "velocity_flag", kind: "volume", uid, n: times.length },
         );
       }

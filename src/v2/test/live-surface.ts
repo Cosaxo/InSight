@@ -87,6 +87,16 @@ export const LIVE_MEMBERS = [
   // Near-by-radius presence (D84): opt-in, foreground beats, and a count
   // that is the only thing the server ever returns about anyone.
   "near",
+  // The daily pulse (D139): the day-keyed create and the derived
+  // day → optionIdx view over the hydrated vote mirror.
+  "pulseVotes",
+  // Crossroads' stories with their folded ending counts (D136). A story is
+  // an ordinary bank question — real options, real fold, the ordinary vote
+  // path — but NOT an ordinary feed card, because its reveal is a tree
+  // rather than a split; buildFeedGlobals holds it out of WORLD_FEED_QS and
+  // spec/paths-card.jsx reads it here instead. Empty in a demo build, which
+  // is the signal the card falls back to its authored pool on.
+  "pathQs",
   "ready", "saveAnchors",
   "saveDisplayName",
   // Operator-only, and the one member here no spec-layer JSX reads — it is
@@ -94,7 +104,7 @@ export const LIVE_MEMBERS = [
   // anyway because this file is what both guards check the real object
   // against, so an unlisted member fails the pin whatever its caller is.
   "saveTestResult", "seedContent", "social", "stats", "subscribe", "uid",
-  "updateAvailable", "updateRequired", "updateUrl", "vote",
+  "updateAvailable", "updateRequired", "updateUrl", "vote", "votePulse",
 ];
 
 export const LIVE_SOCIAL_MEMBERS = [

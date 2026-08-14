@@ -165,6 +165,10 @@ import { SCENES } from './scenes.js';
   // it is distinguishable from never having been asked.
   const GENDER_OPTS = ['Woman', 'Man', 'Non-binary', 'Prefer not to say'];
   const REL_OPTS = ['Single', 'Dating', 'Partnered', 'Married', 'It\u2019s complicated', 'Prefer not to say'];
+  // D140: a band select, never a centimetre field — the band is what is
+  // collected, the locate.ts posture (coarse by construction). Held equal
+  // to BREAKDOWN_DIM_VOCAB by check:anchors like every closed vocabulary.
+  const HEIGHT_OPTS = ['Under 160 cm', '160-169 cm', '170-179 cm', '180-189 cm', '190 cm or taller', 'Prefer not to say'];
   // ~5-year bands under 35, widening after — matches how the splits are
   // read ("25-34 went the other way"), and keeps cells populated.
   const AGE_BANDS = [
@@ -201,6 +205,7 @@ import { SCENES } from './scenes.js';
       education: v.education || '',
       profession: v.job || '',
       relationship: v.relationship || '',
+      heightBand: HEIGHT_OPTS.includes(v.heightBand) ? v.heightBand : '',
     };
   }
 
@@ -325,6 +330,7 @@ import { SCENES } from './scenes.js';
             <label style={fieldLabel} htmlFor={`${uid}-job`}>Job<Select id={`${uid}-job`} value={JOB_OPTS.includes(v.job) ? v.job : ''} onChange={e => upd('job', e.target.value)} options={JOB_OPTS} placeholder="Field…" /></label>
             <label style={fieldLabel} htmlFor={`${uid}-education`}>Education<Select id={`${uid}-education`} value={EDU_OPTS.includes(v.education) ? v.education : ''} onChange={e => upd('education', e.target.value)} options={EDU_OPTS} placeholder="Level…" /></label>
             <label style={fieldLabel} htmlFor={`${uid}-gender`}>Gender<Select id={`${uid}-gender`} value={GENDER_OPTS.includes(v.gender) ? v.gender : ''} onChange={e => upd('gender', e.target.value)} options={GENDER_OPTS} placeholder="—" /></label>
+            <label style={fieldLabel} htmlFor={`${uid}-heightBand`}>Height<Select id={`${uid}-heightBand`} value={HEIGHT_OPTS.includes(v.heightBand) ? v.heightBand : ''} onChange={e => upd('heightBand', e.target.value)} options={HEIGHT_OPTS} placeholder="—" /></label>
             <label style={fieldLabel} htmlFor={`${uid}-relationship`}>Relationship<Select id={`${uid}-relationship`} value={REL_OPTS.includes(v.relationship) ? v.relationship : ''} onChange={e => upd('relationship', e.target.value)} options={REL_OPTS} placeholder="—" /></label>
             {/* One picker, not two free-text boxes (D9). Country is derived
                 from the chosen city rather than typed: as free text it was

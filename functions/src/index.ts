@@ -177,6 +177,9 @@ export const deleteAccount = onCall(
       handle: 0,
       invitesTo: 0,
       invitesFrom: 0,
+      // Question suggestions swept by phase 4d (docs/NEXT-FUNCTIONALITY.md
+      // §6) — the author's queued free text, keyed by uid.
+      suggestions: 0,
       // Reveal docs scrubbed of this uid (phase 1c-bis). Reported for the
       // same reason as modQueueOrphans: it is the number that tells an
       // operator whether the collection-group sweep actually reached
@@ -578,6 +581,9 @@ export const deleteAccount = onCall(
       // callable rather than after someone noticed the ledger surviving
       // an erasure.
       await db.collection("v2_ratelimits").doc(`invite_${uid}`).delete();
+      // The suggestion budget (suggestions.ts), same pattern and same
+      // reasoning: added with the callable, not after an audit.
+      await db.collection("v2_ratelimits").doc(`suggest_${uid}`).delete();
     } catch (err) {
       logger.error("[deleteAccount] rate-limit ledger wipe failed:", err);
       failed.push("ratelimits");
@@ -597,6 +603,21 @@ export const deleteAccount = onCall(
     } catch (err) {
       logger.error("[deleteAccount] agg-event ledger wipe failed:", err);
       failed.push("aggEvents");
+    }
+
+    // 4d. This account's question suggestions (docs/NEXT-FUNCTIONALITY.md
+    //     §6). The author is the only client who can read them, but each
+    //     row carries the uid and free text — erasure covers them the way
+    //     it covers takes. A suggestion already promoted into a bank
+    //     survives as the QUESTION (content, carrying a provenance
+    //     vintage, never a name); the suggestion ROW still goes.
+    try {
+      counts.suggestions = await deleteQueryDocs(
+        db.collection("v2_suggestions").where("uid", "==", uid),
+      );
+    } catch (err) {
+      logger.error("[deleteAccount] suggestions wipe failed:", err);
+      failed.push("suggestions");
     }
 
     // 5. Any wipe failure above must abort BEFORE the auth delete:
@@ -653,3 +674,6 @@ export { activateDeviceV2 } from "./deviceBind";
 // story. Logs flags for manual review; never denies a vote.
 export { ledgerVelocityScan } from "./velocity";
 export { logicStartV2, logicSubmitV2 } from "./logic";
+// "Suggest a question" — the community board's write path and the
+// operator review instruments (docs/NEXT-FUNCTIONALITY.md §6).
+export { suggestQuestionV2, fetchSuggestionsV2, reviewSuggestionV2 } from "./suggestions";

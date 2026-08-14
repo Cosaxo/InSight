@@ -91,7 +91,51 @@ export const OPTION_SHAPES = {
 // had nothing) — exactly how a wrong-shaped card would reach review unread.
 // vote and the continuum forms (dial/field, live since D114) are lane
 // candidates; rank/duel are bank legacy (D12).
-export const FEED_TYPES = new Set(["vote", "rank", "duel", "dial", "field"]);
+export const FEED_TYPES = new Set(["vote", "rank", "duel", "dial", "field", "path"]);
+/**
+ * A Crossroads walk is three binary forks, so its answer space is exactly
+ * eight endings — and this is the order they are indexed in, everywhere.
+ * It is what the synthesized option labels are generated from
+ * (`pathOptions`, gen-v2content.mjs), so it is what a stored `optionIdx`
+ * MEANS. Eight sits far under the fold's ceiling (0..19, functions/src/v2.ts).
+ *
+ * DERIVED, NOT AUTHORED, and that is the point. This constant has to exist
+ * identically in two scripts that do not import each other (the same
+ * duplication DIAL_BUCKETS lives with), and a hand-written array is a list
+ * whose ORDER two copies can disagree about — at which cost: every walk
+ * anyone has taken silently becomes a different ending, the exact failure
+ * D52's option freeze exists to prevent. Two independent evaluations of
+ * this expression cannot disagree; two transcriptions of a literal can.
+ */
+export const PATH_ENDINGS = ["A", "B"].flatMap((a) => ["A", "B"].flatMap((b) => ["A", "B"].map((c) => a + b + c)));
+/**
+ * The seven decision points above those endings: the opening, then A/B,
+ * then AA…BB.
+ *
+ * The opening is `"_"` and NOT `""`, which is what it wants to be — a walk
+ * is a string of choices and the opening is the empty one, so `nodes[walk]`
+ * would index it directly. **Firestore refuses an empty map key**
+ * ("Element at index 0 should not be an empty string"), and it refuses it
+ * at write time inside the seed callable, which means no client gate could
+ * have seen it: `check:quality`, `check:content`, `tsc`, the unit suite and
+ * the mount tests were all green on a bank that could not be seeded. The
+ * e2e loop caught it, which is the one thing that actually runs the seed.
+ *
+ * So the opening carries a sentinel and every reader maps `walk || "_"`.
+ * One character in the content, one helper at each of the two readers.
+ */
+export const PATH_NODES = ["_", "A", "B", "AA", "AB", "BA", "BB"];
+/** The opening fork's key — see PATH_NODES. `nodes[walk || PATH_ROOT]`. */
+export const PATH_ROOT = "_";
+/**
+ * How long a fork's choice may run. Wider than OPTION_MAX because it is a
+ * different kind of string: an option label is a noun the voters panel
+ * prints after "picked", while a choice is a line of the story on a
+ * full-width button that may wrap once. 40 is the prototype's longest
+ * ("Decline — start job-hunting tonight", 35) with room, and still short
+ * enough that two of them read as a fork rather than as paragraphs.
+ */
+export const PATH_CHOICE_MAX = 40;
 // A dial's crowd texture is exactly 12 buckets lo→hi. Pinned rather than
 // free: world-feed.jsx's curve is drawn from it, 12 fits the live fold's
 // optionIdx ceiling (0..19, functions/src/v2.ts), and the live bank's
@@ -220,6 +264,7 @@ export function loadCorpus() {
   const feed = JSON.parse(readFileSync(join(root, "content", "feed-questions.json"), "utf8"));
   const duel = JSON.parse(readFileSync(join(root, "content", "duel-questions.json"), "utf8"));
   const seed = JSON.parse(readFileSync(join(root, "content", "daily-questions.json"), "utf8"));
+  const pulse = JSON.parse(readFileSync(join(root, "content", "pulse-questions.json"), "utf8")).questions;
   const pick = extractLiteral(
     readFileSync(join(root, "src", "v2", "spec", "pick-data.js"), "utf8"),
     "window.PICK_QS = [",
@@ -247,6 +292,7 @@ export function loadCorpus() {
     duel: [...duel.group, ...duel.oneVsOne, ...(duel.romantic ?? [])],
     pick,
     learn,
+    pulse,
     learnLevels: learnLevelBounds(),
     continuum: wfd.filter((q) => q.type === "dial" || q.type === "field"),
   };
@@ -358,7 +404,7 @@ export function checkQuestion(q, surface, ctx, mode = {}) {
 
   if (surface === "feed") {
     if (!FEED_TYPES.has(q.type)) {
-      err("type-shape", `unknown feed type ${JSON.stringify(q.type)} — vote|rank|duel|dial|field`);
+      err("type-shape", `unknown feed type ${JSON.stringify(q.type)} — vote|rank|duel|dial|field|path`);
     }
     if (q.type === "rank") warn.push("rank type — not live-servable (D12); fine in the bank, never a lane candidate");
     if (q.cat && !ctx.feedTopics.has(q.cat)) err("topic", `topic ${JSON.stringify(q.cat)} is not in the feed taxonomy`);
@@ -429,12 +475,91 @@ export function checkQuestion(q, surface, ctx, mode = {}) {
         if (!num(q.n) || q.n <= 0) err("n", `n ${JSON.stringify(q.n)} — the authored answer count the card's footer shows`);
       }
     }
+    // ── Crossroads (D136) ── a story, not a question: seven decision
+    // points, three forks deep, eight named endings. The gate holds the
+    // TREE's shape rather than its prose, because the shape is what the
+    // stored answer means — an eighth ending going missing would silently
+    // renumber the other seven (see PATH_ENDINGS).
+    if (q.type === "path") {
+      if (opts.length) err("type-shape", "a path carries no options — its endings are the answer space, and their labels are synthesized");
+      if (typeof q.title !== "string" || !q.title.trim()) err("title", "a path needs a title — it is what the card and the voters panel name");
+      if (typeof q.intro !== "string" || !q.intro.trim()) err("intro", "a path needs an intro — the scene before the first fork");
+      const nodes = q.nodes && typeof q.nodes === "object" ? q.nodes : null;
+      if (!nodes) {
+        err("nodes", `nodes must be an object keyed by "" | A | B | AA…BB (got ${JSON.stringify(q.nodes)})`);
+      } else {
+        const keys = Object.keys(nodes).sort();
+        if (keys.join(",") !== [...PATH_NODES].sort().join(",")) {
+          err("nodes", `nodes must be exactly ${PATH_NODES.map((k) => JSON.stringify(k)).join(", ")} (got ${JSON.stringify(keys)})`);
+        }
+        for (const k of PATH_NODES) {
+          const n = nodes[k];
+          if (!n || typeof n.q !== "string" || !n.q.trim()) { err("nodes", `node ${JSON.stringify(k)} needs a q`); continue; }
+          if (!Array.isArray(n.a) || n.a.length !== 2) { err("nodes", `node ${JSON.stringify(k)} needs exactly two choices`); continue; }
+          for (const c of n.a) {
+            if (!c || typeof c.t !== "string" || !c.t.trim()) err("nodes", `node ${JSON.stringify(k)} has a choice with no text`);
+            // NOT OPTION_MAX, deliberately. OPTION_MAX bounds a label that
+            // ends up in the voters panel ("picked …"); a fork's choice
+            // never does — the ENDING name is this question's option label,
+            // and that is held to OPTION_MAX below. What bounds a choice is
+            // the button it sits on, which is full-width and may wrap once.
+            else if (c.t.length > PATH_CHOICE_MAX) err("option-length", `choice ${JSON.stringify(c.t)} is ${c.t.length} chars (max ${PATH_CHOICE_MAX})`);
+            // `p` is the DEMO's authored branch share. It is legal only in
+            // the demo pool, for the same reason med/dist/cloud are: live,
+            // the crowd is the aggregate (D136).
+            if (c.p !== undefined && !texture) {
+              err("texture", "p on a content entry — an authored branch share belongs in the demo pool; the live crowd is the aggregate");
+            }
+            if (texture && (typeof c.p !== "number" || !(c.p > 0) || !(c.p < 100))) {
+              err("texture", `choice ${JSON.stringify(c.t)} needs an authored share p in 1..99 (got ${JSON.stringify(c.p)})`);
+            }
+          }
+          if (texture && n.a.every((c) => typeof c.p === "number") && n.a[0].p + n.a[1].p !== 100) {
+            err("texture", `node ${JSON.stringify(k)}'s two shares must total 100 (got ${n.a[0].p} + ${n.a[1].p})`);
+          }
+        }
+      }
+      const ends = q.endings && typeof q.endings === "object" ? q.endings : null;
+      if (!ends) {
+        err("endings", `endings must be an object keyed by the eight walks (got ${JSON.stringify(q.endings)})`);
+      } else {
+        const keys = Object.keys(ends).sort();
+        if (keys.join(",") !== [...PATH_ENDINGS].sort().join(",")) {
+          err("endings", `endings must be exactly the eight walks ${PATH_ENDINGS.join(", ")} (got ${JSON.stringify(keys)})`);
+        }
+        for (const k of PATH_ENDINGS) {
+          const e = ends[k];
+          if (!e || typeof e.name !== "string" || !e.name.trim()) { err("endings", `ending ${k} needs a name`); continue; }
+          // The name IS the synthesized option label, so it is bound by the
+          // same ceiling every other option label is — the voters panel
+          // prints it as "picked <name>".
+          if (e.name.length > OPTION_MAX) err("option-length", `ending name ${JSON.stringify(e.name)} is ${e.name.length} chars (max ${OPTION_MAX})`);
+          if (typeof e.line !== "string" || !e.line.trim()) err("endings", `ending ${k} needs a line — the sentence the walk earns`);
+        }
+        const names = PATH_ENDINGS.map((k) => ends[k] && ends[k].name).filter(Boolean);
+        if (new Set(names).size !== names.length) {
+          err("endings", "two endings share a name — the labels are the answer space and must be distinguishable");
+        }
+      }
+    }
   }
 
   // Learn's own rules. Everything check:content already validates (four
   // options, c/t in range, c≠t, p in 1..99, k 2..6 words) is deliberately
   // absent — two gates disagreeing about the same rule is how one of them
   // gets edited to match the other and both stop meaning anything.
+  if (surface === "feed" && q.until !== undefined && !/^\d{4}-\d{2}-\d{2}$/.test(String(q.until))) {
+    err("type-shape", "`until` (the current-events window) must be a YYYY-MM-DD UTC day key");
+  }
+
+  if (surface === "pulse") {
+    // The trends y-axis is the 1..5 step scale (D139): exactly five
+    // ordered steps, no more forms. The universal rules above already
+    // hold the prompt/option bounds and the place tripwire.
+    if (q.type !== "pulse") err("type-shape", `pulse questions carry type "pulse", not ${JSON.stringify(q.type)}`);
+    if ((q.options || []).length !== 5) err("type-shape", "a pulse question carries exactly five steps");
+  }
+
   if (surface === "learn") {
     const seen = new Map();
     for (const o of opts) {
@@ -779,6 +904,10 @@ if (invokedDirectly) {
   corpus.learn.cards.forEach((card) => {
     const { errs, warn } = checkQuestion(learnView(card), "learn", corpus);
     report("learn", card.id, errs, warn);
+  });
+  corpus.pulse.forEach((q) => {
+    const { errs, warn } = checkQuestion(q, "pulse", corpus);
+    report("pulse", q.id, errs, warn);
   });
   for (const e of checkLearnFields(corpus)) {
     failed = true;

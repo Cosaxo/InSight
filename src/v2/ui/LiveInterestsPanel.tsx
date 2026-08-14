@@ -98,7 +98,4 @@ function LiveInterestsPanel() {
   );
 }
 
-// Render-time lookup bridge for the spec layer's account panel.
-Object.assign(globalThis, { LiveInterestsPanel });
-
 export default LiveInterestsPanel;

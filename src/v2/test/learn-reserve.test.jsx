@@ -20,6 +20,7 @@ import React from "react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { LEARN as L } from "../spec/learn-progress.js";
 import LIVE from "../data/live";
+import { growFeed } from "./mount-app";
 
 vi.setConfig({ testTimeout: 15000 });
 
@@ -45,7 +46,7 @@ function mountFeed() {
 }
 
 describe("a due learn card is re-served answerable (D95)", () => {
-  it("serves it fresh over a stale persisted vote, credits the streak, persists nothing", () => {
+  it("serves it fresh over a stale persisted vote, credits the streak, persists nothing", async () => {
     // Miss a card, then answer four others so its gap passes — the
     // scheduler's own definition of a repeat that counts.
     const card = L.plan(1)[0];
@@ -59,6 +60,9 @@ describe("a due learn card is re-served answerable (D95)", () => {
     localStorage.setItem(WF_LS, JSON.stringify({ ["lrn-" + card.id]: wrong(card) }));
 
     mountFeed();
+    // The learn card is interleaved past the feed's first mounted page
+    // (D136); this case is about the card, not the window, so let it finish.
+    await growFeed();
     const option = screen.getByRole("button", { name: card.a[card.c] });
     expect(option.disabled, "the re-served card rendered frozen").toBe(false);
     // No replay chrome before the answer — the reveal waits for the tap.

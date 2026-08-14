@@ -151,6 +151,17 @@ import { nearOptedIn, setNearOptIn } from "./near";
 import { locateCell, locateSupported } from "./locate";
 import { scrubPersonaAnchors } from "./personaResidue";
 
+/**
+ * One Crossroads story, folded (D136).
+ *
+ * `counts` is per-ENDING, in PATH_ENDINGS order — the same order the bank's
+ * synthesized `options` are in, which is what makes a stored optionIdx mean
+ * an ending. A branch's share is the sum of the endings beneath it over
+ * `total`; with `total` at 0 there is no crowd yet and the card says so
+ * rather than dividing.
+ */
+export type LivePathQ = QuestionDoc & { id: string; counts: number[] };
+
 const state = {
   ready: false,
   // Why boot did not attach, in the user's own build. See LIVE.bootError.
@@ -328,7 +339,7 @@ export const TAKE_MAX_CHARS = 280;
 // ruleset can be diffed against each other by eye.
 const ANCHOR_FIELDS: Record<string, number> = {
   city: 80, country: 80, ageBand: 20, gender: 40,
-  profession: 80, education: 80, relationship: 40,
+  profession: 80, education: 80, relationship: 40, heightBand: 20,
 };
 
 // The snapshot written onto an answer. A copy, so a later profile edit
@@ -830,7 +841,13 @@ async function hydrate(): Promise<void> {
     /* cache is best-effort */
   }
   const sorted = all.slice().sort((a, b) => (a.seq || 0) - (b.seq || 0));
-  const active = sorted.filter((q) => q.active !== false);
+  // `until` is the current-events serving window (docs/NEXT-FUNCTIONALITY
+  // §1): a feed entry past its UTC day stops being OFFERED — the answers
+  // and the aggregate persist, the archive is the product. Feed-only by
+  // the gates (check:content), so the daily tombstone note below is
+  // untouched; `active: false` remains the hard, server-enforced kill.
+  const fresh = (q: { until?: string }) => !q.until || q.until >= utcDayKey(0);
+  const active = sorted.filter((q) => q.active !== false && fresh(q));
 
   // Allowlist split per surface — pure and unit-tested in deck.ts
   // (splitBanks carries the why-comments: playability, the D12 rank
@@ -1082,8 +1099,14 @@ function feedCounts(q: QuestionDoc & { id: string }): number[] {
 // (curve / cloud) instead of option rows.
 function buildFeedGlobals(): void {
   if (!state.feedBank.length) return;
+  // Crossroads (D136) is a feed question but NOT a feed card: its reveal is
+  // a tree rather than a split, so none of renderCard's apparatus — option
+  // rows, who-voted, takes, the insight line — applies to it, and the
+  // prototype pins it at the head of the list rather than dealing it into
+  // the stream. It rides its own accessor below; everything else about it
+  // is ordinary (real options, real counts, the same fold and ledger).
   const feed = state.feedBank
-    .filter((q) => q.surface === "feed" && (q.options || []).length >= 2)
+    .filter((q) => q.surface === "feed" && q.type !== "path" && (q.options || []).length >= 2)
     .map((q) => {
       // Hoisted: feedCounts walks the whole option list, so calling it
       // inside the per-option map made this O(n^2) per card — and it
@@ -2736,6 +2759,24 @@ const LIVE = {
   myVotes(): Record<string, string> {
     return { ...state.votes };
   },
+  /**
+   * Crossroads' stories with their folded ending counts (D136), or an empty
+   * list in a demo build — which is the signal spec/paths-card.jsx reads to
+   * fall back to its own authored pool.
+   *
+   * Folded ON CALL rather than precomputed into state by buildFeedGlobals,
+   * which is where it started. The precomputed version cost ~1 KB of the
+   * EAGER graph — this file is in the first-paint chunk — and check:bundle
+   * refused it, correctly: MAX_EAGER_KB has no headroom and is the constant
+   * keeping the Firestore SDK out of first paint, so it is not raiseable.
+   * There is one caller and it renders once per feed render, so the fold is
+   * cheaper here than the bytes were there.
+   */
+  pathQs(): LivePathQ[] {
+    return state.feedBank
+      .filter((q) => q.surface === "feed" && q.type === "path")
+      .map((q) => ({ ...q, counts: feedCounts(q) }));
+  },
   // Votes the server has acknowledged (or that hydrate read back) —
   // excludes writes still in flight so permanent records (the Map)
   // never keep a vote whose setDoc may yet be refused. Keyed off
@@ -2749,6 +2790,49 @@ const LIVE = {
     Object.keys(state.votes).forEach((k) => {
       if (!(k in state.inflight)) out[k] = state.votes[k];
     });
+    return out;
+  },
+  // ── the daily pulse (D139) ──────────────────────────────────────
+  // One answer per day, id {baseQid}_{day} — the duel answers' shape on
+  // a world-public surface. Create-only mirrors the rules: no re-pick
+  // today, and the doc id is the discipline.
+  votePulse(baseQid: string, optionIdx: number): Promise<void> {
+    const uid = state.uid;
+    if (!uid || !Number.isInteger(optionIdx) || optionIdx < 0) return Promise.resolve();
+    const day = utcDayKey(0);
+    const aid = `${baseQid}_${day}`;
+    if (state.votes[aid]) return Promise.resolve();
+    state.votes[aid] = String(optionIdx);
+    notify();
+    return (async () => {
+      try {
+        const db = await getDb();
+        await setDoc(doc(db, "v2_users", uid, "answers", aid), {
+          qid: aid,
+          baseQid,
+          day,
+          surface: "pulse",
+          optionIdx,
+          answeredAt: serverTimestamp(),
+          anchors: answerAnchors(),
+        });
+        cacheVote(aid, optionIdx);
+      } catch (err) {
+        delete state.votes[aid];
+        notify();
+        reportError(err, { where: "votePulse", qid: aid });
+      }
+    })();
+  },
+  /** Every pulse day this device knows it answered: day → optionIdx.
+   * Derived from the hydrated vote mirror, so a second device's answers
+   * arrive with ordinary hydration and no extra read. */
+  pulseVotes(baseQid: string): Record<string, number> {
+    const out: Record<string, number> = {};
+    const prefix = `${baseQid}_`;
+    for (const [aid, v] of Object.entries(state.votes)) {
+      if (aid.startsWith(prefix)) out[aid.slice(prefix.length)] = Number(v);
+    }
     return out;
   },
   vote(qid: string, optionId: string): void {

@@ -201,7 +201,7 @@ function LivePrivacyPanel() {
               worst possible way to find out. */}
           <li><strong>Your answers are public.</strong> Anyone using InSight can see what you
           answered, under your display name, along with the age band, gender, city, country,
-          education and relationship status you have filled in. That is what the app is for —
+          education, relationship status and height band you have filled in. That is what the app is for —
           it is how you see who answers like you — but it means nothing you answer here is
           private. Answer accordingly.</li>
           <li>That includes the political, personal and sensitive questions. There is no

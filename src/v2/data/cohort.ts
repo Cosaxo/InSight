@@ -36,6 +36,7 @@ export interface Bucket {
 /** The dims a cohort can be cut by — BREAKDOWN_DIMS, client-side copy. */
 export const COHORT_DIMS = [
   "ageBand", "gender", "city", "country", "education", "relationship",
+  "heightBand",
 ] as const;
 export type CohortDim = (typeof COHORT_DIMS)[number];
 
@@ -47,6 +48,7 @@ export const DIM_LABEL: Record<string, string> = {
   country: "Country",
   education: "Education",
   relationship: "Relationship",
+  heightBand: "Height",
 };
 
 // The Map's anchor ring speaks its own ids. Two of them are breakdown

@@ -134,3 +134,36 @@ export async function openVia(name, ...args) {
 export function expectOpened(re, where) {
   expect(document.body.textContent, `${where}: overlay never opened`).toMatch(re);
 }
+
+// ── the feed's mounted window ──────────────────────────────────────────
+//
+// The feed mounts a window that grows as its tail comes into range (D136),
+// so a card past the first page is simply not in the DOM yet. In a browser
+// the growth is driven by scroll; in jsdom there is no layout, so
+// `scrollHeight - scrollTop - clientHeight` is 0 and the componentDidUpdate
+// top-up fires on its own — after a 60ms debounce a synchronous test never
+// waits for.
+//
+// So: any case whose SUBJECT is a card rather than the window has to let the
+// window finish first. This awaits growth until the feed stops adding cards,
+// which is the honest thing to wait for — a fixed sleep would be a race, and
+// a fixed number of pages would need editing every time a fixture's card
+// count changed.
+//
+// Bounded, because a bug that made the window grow forever should fail a
+// test rather than hang a suite.
+export async function growFeed(max = 40) {
+  let last = -1;
+  for (let i = 0; i < max; i++) {
+    // The DOM's own size, not a card-class count: the feed's cards carry a
+    // dozen different classes by type (and a wrong selector here would make
+    // this return on its first pass and look like it had worked, which is
+    // exactly what the first draft did).
+    const n = document.body.innerHTML.length;
+    if (n === last) return;
+    last = n;
+    // Real timers: the debounce is a setTimeout and these suites do not
+    // install fake ones. 80 > the 60ms debounce, with room for the render.
+    await act(async () => { await new Promise((r) => setTimeout(r, 80)); });
+  }
+}

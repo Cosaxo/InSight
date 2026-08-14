@@ -188,8 +188,4 @@ function LiveCircleBody() {
   );
 }
 
-// Render-time lookup bridge for the spec layer (mirror-tab.jsx), the same
-// way LiveCohortBody and LiveGroupsMirrorBody are reached.
-Object.assign(globalThis, { LiveCircleBody });
-
 export default LiveCircleBody;

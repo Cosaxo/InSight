@@ -55,10 +55,10 @@ the verification — treat a successful seed as proof of both.
 3. **The remaining step: Actions → *Seed content* → Run workflow.** No
    sign-in, no dev machine, nothing to install.
 
-   510 questions land in `v2_questions`. Re-running is safe (idempotent,
+   513 questions land in `v2_questions`. Re-running is safe (idempotent,
    never resets the `active` kill switch) and, since D34, genuinely cheap:
    it rewrites only documents whose content changed and leaves `contentRev`
-   alone, so a reseed no longer costs every returning device a 510-read
+   alone, so a reseed no longer costs every returning device a 513-read
 bank refetch. The job summary reports `{written, skipped}` — a no-op
    reseed reports `written: 0`.
 
@@ -776,7 +776,7 @@ Until then links open the fallback page — degraded, not broken.
   that — and **stop there**.
 
   **Every word of that reply is conditional on a build flag, and the flag
-  defaults the wrong way for it (D134, D136).** `ios-release.yml` sets
+  defaults the wrong way for it (D134, D142).** `ios-release.yml` sets
   `VITE_REQUIRE_SIGNIN` from `vars.REQUIRE_SIGNIN` and **defaults it to
   `true`**, so a release build opens on a mandatory Google sign-in and
   nothing else works until it succeeds. Against such a binary *"no account

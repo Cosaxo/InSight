@@ -17,9 +17,13 @@
 //      invisible to both this script (which only matched window.X) and
 //      eslint (no-undef was off for these files). It found a live
 //      ReferenceError on the Mirror tab the day it was added.
+//   5. the mirror of rule 1: a publication nothing reads. That is what a
+//      half-finished conversion leaves behind, and 17 of them had piled
+//      up by D137 because no rule was asking and rule 4 counts reads.
 //
-// Rules 1-3 keep the convention SURVIVABLE. Rule 4 is the one that gets
-// the tree out of it — see "the migration ratchet" below.
+// Rules 1-3 keep the convention SURVIVABLE and rule 5 keeps it HONEST —
+// what is on the bridge is what is still crossing it. Rule 4 is the one
+// that gets the tree out of it — see "the migration ratchet" below.
 //
 // The scanning itself lives in ./spec-globals.mjs, shared with
 // eslint.config.js so no-undef can be ON for the spec layer.
@@ -78,6 +82,68 @@ for (const f of specFiles) {
   console.error(
     `✗ src/v2/spec/${f} is loaded by nothing — neither spec-index.js nor an`
     + " import from another spec file. Its globals never load.",
+  );
+}
+
+// ── 5. publications nothing reads ───────────────────────────────
+//
+// Rule 1 catches a reference whose assignment went away. This is the
+// mirror: an assignment whose references went away. It is the residue a
+// CONVERSION leaves — D39 says "convert on touch", and the honest shape of
+// that is to export the name and leave `globalThis.X = X` beneath for the
+// consumers that have not moved yet, so the two live side by side until the
+// last consumer does move. Nothing then went back for the line.
+//
+// D137 swept 17 of them: seven ui/Live* panels every consumer already
+// imported, MirrorLensRow under a comment promising sites that had all
+// already gone, ELEMENTS_CATALOG whose siblings never published at all, and
+// six components published out of the file that was their only user. None
+// could break — a name nobody reads cannot render wrong — which is exactly
+// why they sat: no gate here was asking, and rule 4 does not count them
+// (it counts READS, and there were none).
+//
+// They are not free. Each one is a claim that the global bridge is load-
+// bearing for that name, so it reads as coupling when someone plans a
+// conversion, it keeps the value alive for the bundler, and — the reason
+// this is a rule and not a cleanup — it is indistinguishable by eye from
+// the publication that IS still carrying a consumer.
+//
+// THE ESCAPE HATCH, in the check-purge-listeners shape: a name published
+// for a reader this scanner cannot see (the native shell, index.html, a
+// devtools handle) goes below WITH its reason. A stale entry fails too —
+// listing a name that is read in-tree, or one nothing defines any more —
+// so the list cannot outlive its subjects. It is empty today, and that is
+// the preferred state: an entry here is a name this rule stops checking.
+const PUBLISHED_FOR_OUTSIDE = {};
+
+for (const [name, why] of Object.entries(PUBLISHED_FOR_OUTSIDE)) {
+  if (!defined.has(name)) {
+    failed = true;
+    console.error(
+      `✗ PUBLISHED_FOR_OUTSIDE lists ${name} ("${why}") but nothing assigns it`
+      + " any more — drop the entry with the publication.",
+    );
+  } else if (referenced.has(name)) {
+    failed = true;
+    console.error(
+      `✗ PUBLISHED_FOR_OUTSIDE lists ${name} as read only from outside the`
+      + " scanned set, but it is read inside it — drop the entry, rule 5"
+      + " covers it.",
+    );
+  }
+}
+
+for (const name of [...defined].sort()) {
+  if (referenced.has(name) || PUBLISHED_FOR_OUTSIDE[name]) continue;
+  failed = true;
+  const where = [...(definedBy.get(name) || [])].join(", ");
+  console.error(
+    `✗ window.${name} is published but read by nothing (${where}).`
+    + "\n    If a consumer imports it, delete the assignment — the export is"
+    + "\n    the whole wiring. If it is used only inside its own file, delete"
+    + "\n    the assignment too; the declaration already resolves lexically."
+    + "\n    If it is dead, delete the code. If something outside this scanner"
+    + "\n    reads it, add it to PUBLISHED_FOR_OUTSIDE with the reason.",
   );
 }
 
@@ -151,12 +217,12 @@ const COUPLING_BASELINE = {
   "src/v2/spec/place-stats.jsx": 3,
   "src/v2/spec/profile-general.jsx": 17,
   "src/v2/spec/profile-overlay.jsx": 10,
-  "src/v2/spec/relmap-panels.jsx": 3,
+  "src/v2/spec/relmap-panels.jsx": 2,
   "src/v2/spec/relmap.jsx": 3,
   "src/v2/spec/result-card.jsx": 17,
   "src/v2/spec/search-overlay.jsx": 7,
   "src/v2/spec/segment-explorer.jsx": 1,
-  "src/v2/spec/suggestions.jsx": 3,
+  "src/v2/spec/suggestions.jsx": 1,
   "src/v2/spec/test-definitions.js": 4,
   "src/v2/spec/type-marks.jsx": 2,
   "src/v2/spec/vote-cuts.js": 1,

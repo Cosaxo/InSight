@@ -395,7 +395,7 @@ function MTSubCard({ node, cat, rows, anchors, activeA, onFilter }) {
   );
 }
 
-Object.assign(window, { MTRootCard, MTAnswerBody, MTAnswerCard, MTAnchorCard, MTAnchorChips, MTAnchorStat, MTBranchCard, MTSubCard, MTSwipeRow });
+Object.assign(window, { MTRootCard, MTAnswerBody, MTAnswerCard, MTAnchorCard, MTAnchorStat, MTBranchCard, MTSubCard, MTSwipeRow });
 
 ;globalThis.mtNOpts = typeof mtNOpts === 'undefined' ? globalThis.mtNOpts : mtNOpts;
 ;globalThis.mtOptLabel = typeof mtOptLabel === 'undefined' ? globalThis.mtOptLabel : mtOptLabel;

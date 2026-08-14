@@ -214,7 +214,11 @@ describe("cost-arith reads its constants from source, not from memory", () => {
       // membership-scoped. RULE_READS is deliberately unchanged — it
       // charges the answer-create paths, and neither of those two sites
       // was on one.
-    ).toEqual({ gets: 15, exists: 2 });
+      // 15 → 18 at D139: the pulse arm's template check — three get() sites
+      // (surface, active, options.size()) on ONE /v2_questions document, so
+      // a pulse create bills 1 read exactly like a world create. Charged
+      // through worldAnswers, which the pulse moved 3 → 4.
+    ).toEqual({ gets: 18, exists: 2 });
   });
 
   it("the answer trigger's transaction still issues the reads the model charges", () => {

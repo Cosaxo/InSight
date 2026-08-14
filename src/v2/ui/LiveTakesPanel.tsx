@@ -364,7 +364,4 @@ function LiveTakesPanel({ gid, qid }: { gid: string; qid: string }) {
   );
 }
 
-// Render-time lookup bridge for the spec layer.
-Object.assign(globalThis, { LiveTakesPanel });
-
 export default LiveTakesPanel;

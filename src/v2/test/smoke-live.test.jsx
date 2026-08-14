@@ -35,7 +35,8 @@ import { act, cleanup, fireEvent, render, screen, within } from "@testing-librar
 // jsdom, and the v15 revision roughly doubled the spec layer's feed weight —
 // the slowest cases sat at ~4.8s before it and tip over under suite load.
 vi.setConfig({ testTimeout: 15000 });
-import { FEED_OPTIONS, fixtureSurfaceMismatch, installLive } from "./live-fixture";
+import { FEED_OPTIONS, PATH_TITLE, fixtureSurfaceMismatch, installLive } from "./live-fixture";
+import { growFeed } from "./mount-app";
 import { list as anchorList } from "../spec/map-anchors.js";
 import { IS_TEST_RESULTS } from "../spec/test-definitions.js";
 import { FRIENDS } from "../spec/follows.js";
@@ -264,12 +265,11 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     fireEvent.click(screen.getByRole("button", { name: /^mirror$/i }));
     fireEvent.click(screen.getByRole("tab", { name: "City" }));
     await openCity();
-    // The constellation is the stop's Overview tab, and since D135 it is
-    // also the one a stop OPENS on — no walk needed. The click stays as a
-    // no-op rather than being deleted: it costs nothing, and it is what
-    // keeps this case measuring the field rather than the tab order,
-    // which has now moved twice.
-    fireEvent.click(screen.getByRole("tab", { name: "Overview" }));
+    // The constellation is no longer a tab at all (D136): it is the head of
+    // the stop and draws on arrival. The click this case used to make —
+    // first a real navigation, then a deliberate no-op through D135 — is
+    // gone with the tab, which is why the tab order has stopped being able
+    // to break this case at all. What is left measures the field itself.
     // The field is a lazy chunk — await its caption, then the node.
     expect(await screen.findByText(/kindred strangers in Oslo/i)).toBeTruthy();
     const node = screen.getByRole("button", { name: /Ada · \d+% like you/ });
@@ -329,6 +329,38 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     await act(async () => { await new Promise((r) => setTimeout(r, 1200)); });
   };
 
+  // Crossroads on a LIVE feed (D136): the story comes from the bank and
+  // every number on it is folded from real answers. What this case is
+  // really guarding is that the card reads the LIVE source rather than its
+  // demo pool — the two render identically apart from the words, so a card
+  // that quietly fell back to `paths-data.js` would look perfectly fine and
+  // be showing authored crowd figures to a live user, which is D1's case.
+  // Binding on the fixture's own story title is what tells them apart.
+  it("draws Crossroads from the bank on a live feed, never the demo pool", () => {
+    const expectNoBoundary = mountLive();
+    expect(
+      screen.getByText(PATH_TITLE),
+      "the live Crossroads card is missing, or fell back to the demo story",
+    ).toBeTruthy();
+    // The demo pool's stories stay in the demo pool.
+    expect(screen.queryByText("The Wallet")).toBeNull();
+    expect(screen.queryByText("The Wrong Text")).toBeNull();
+    expectNoBoundary("live feed, crossroads from the bank");
+  });
+
+  // The empty arm, which is the one a real launch actually opens on: a
+  // story in the bank that nobody has finished. There is no crowd to draw,
+  // and drawing one anyway — eight branches at zero width — would say
+  // "nobody went anywhere" rather than "nobody has been here yet".
+  it("says so when a live story has no finished walks yet", () => {
+    const expectNoBoundary = mountLive({ tooSmall: true });
+    expect(screen.getByText(PATH_TITLE)).toBeTruthy();
+    // No share chips: with a total of zero there is no share to state.
+    expect(screen.queryByText(/ended here$/)).toBeNull();
+    expect(screen.queryByText(/walks your road$/)).toBeNull();
+    expectNoBoundary("live feed, crossroads with no walks");
+  });
+
   it("gives a live card who-voted and the named takes toggle — never the demo sheet", async () => {
     mountLive();
     await voteFeedCardAndSettle();
@@ -353,12 +385,13 @@ describe("the live gates hold in the DOM, not just in the source", () => {
 
   // D99's lens row, mounted on the Mirror's geographic stops — and since
   // D119 the row IS the stop's navigation, with Answers a peer tab rather
-  // than the page the lenses hang under. D135 then moved the LANDING tab
-  // to Overview, so the field is what a stop opens on. The row and the
-  // lens bodies have their own suites; this is the wiring — that they
+  // than the page the lenses hang under. D135 moved the landing tab to
+  // Overview; D136 took the field out of the row entirely, so the row is
+  // Answers plus the four lenses and the field draws above it. The row and
+  // the lens bodies have their own suites; this is the wiring — that they
   // reach the real shell, through the spec layer's own render path, on
   // the live body that replaced the demo field.
-  it("gives a live Mirror stop its lens tabs, opening on Overview", async () => {
+  it("gives a live Mirror stop its lens tabs, opening on Answers", async () => {
     localStorage.clear();
     mountLive();
     fireEvent.click(screen.getByRole("button", { name: /^mirror$/i }));
@@ -367,7 +400,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     // (Near is presence-only since D111 and carries no lenses).
     fireEvent.click(screen.getByRole("tab", { name: "City" }));
     await openCity();
-    // Seven tabs. The row is static since D119 — the LENS BODIES are still
+    // Five tabs. The row is static since D119 — the LENS BODIES are still
     // the lazy chunk, so unlike the old collapsed strip the navigation
     // itself is on screen from the first frame and getBy is safe.
     //
@@ -375,16 +408,22 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     // bank ships no `rate` questions", which was true of the prototype's
     // place scorecard and not of the lens: the bank's `rating` and
     // `scale` items are ordinal and average fine.
-    // Foresight (D126) joined as the seventh: v19's own feature, and the
-    // only tab here that is a game rather than a reading.
-    for (const name of ["Answers", "Overview", "People", "Compare", "Scores", "Explore", "Foresight"]) {
+    for (const name of ["Answers", "People", "Compare", "Scores", "Explore"]) {
       expect(screen.getByRole("tab", { name }), `the row is missing its ${name} tab`).toBeTruthy();
     }
-    expect(screen.getByRole("tab", { name: "Overview" }).getAttribute("aria-selected")).toBe("true");
+    expect(screen.getByRole("tab", { name: "Answers" }).getAttribute("aria-selected")).toBe("true");
+    // Neither of D136's two removals may come back as a tab: Overview is
+    // the region above the row now, and Foresight left the Mirror. Asserted
+    // on the real mount because the row is assembled from two lists in two
+    // modules, and the unit suite only sees one of them at a time.
+    expect(screen.queryByRole("tab", { name: "Overview" })).toBeNull();
+    expect(screen.queryByRole("tab", { name: "Foresight" })).toBeNull();
+    // …and the field itself IS on screen, above the row, without a tap.
+    expect(screen.getByRole("region", { name: "Overview" })).toBeTruthy();
     // Nothing loaded for a tab nobody opened — the cost gate, on the real
-    // mount. People is the one that still carries it; Overview's own fold
-    // now runs on arrival, which is D135's accepted price. Then the lens
-    // body arrives on the tap (findBy: its chunk).
+    // mount. People is the one that still carries it; the field's own fold
+    // runs on arrival, which is D135's accepted price and D136 leaves
+    // unchanged. Then the lens body arrives on the tap (findBy: its chunk).
     expect(screen.queryByText(/most like you/i)).toBeNull();
     fireEvent.click(screen.getByRole("tab", { name: "People" }));
     expect(await screen.findByText(/most like you/i)).toBeTruthy();
@@ -429,34 +468,20 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     expect(screen.getByRole("button", { name: /Is a promise still binding/ })).toBeTruthy();
   });
 
-  // Foresight (D126), on the real mount. The lens suite covers the clock
-  // and the scoring; what this covers is that the game is REACHABLE —
-  // it hangs off a React.lazy chunk inside another React.lazy chunk
-  // (LiveMirrorLenses inside LiveCohortBody), which is exactly the kind
-  // of nesting that renders nothing and throws nowhere.
-  it("reaches the Foresight game through two lazy boundaries", async () => {
-    localStorage.clear();
-    mountLive();
-    fireEvent.click(screen.getByRole("button", { name: /^mirror$/i }));
-    // City, not Near: Near is presence-only since D111 and carries no
-    // lenses. The tab row itself is static (D119), so it is a getBy —
-    // only the lens BODY is behind a chunk.
-    fireEvent.click(screen.getByRole("tab", { name: "City" }));
-    await openCity();
-    fireEvent.click(screen.getByRole("tab", { name: "Foresight" }));
-    // The fixture's breakdown carries several readable slices, so the
-    // game deals a card rather than its not-enough-answers arm. Which
-    // slice comes first is the engine's ranking and belongs to its own
-    // suite — what matters here is that a real card is on screen.
-    expect(await screen.findByText(/Ten seconds a card/i)).toBeTruthy();
-    // The slice line: "<Dim> · <bucket> · N answers". getAllBy because
-    // the answer rows above the lens carry their own counts.
-    expect(screen.getAllByText(/·.+·.+answers$/).length).toBeGreaterThan(0);
-    expect(screen.queryByText(/fair read/i)).toBeNull();
-    // And answering it scores, through the real store.
-    fireEvent.click(screen.getAllByRole("button", { name: "Yes" })[0]);
-    expect(screen.getByText(/Read it\.|Missed\./)).toBeTruthy();
-  });
+  // Foresight's reachability case stood here from D126 until D136 took the
+  // lens off the Mirror. It is DELETED rather than skipped, because what it
+  // asserted was the one thing that is no longer true: that the game hangs
+  // off a React.lazy inside another React.lazy and can be reached by
+  // tapping a tab. There is no tab, so there is no path for a mount test to
+  // walk, and a skipped case would read as a temporarily-broken feature
+  // instead of a removed surface.
+  //
+  // What did NOT go with it: the engine (data/foresight.ts, its own suite),
+  // the lens body (LiveForesightLens.test.tsx, which renders it directly and
+  // still covers the clock and the scoring), and the verdict rules. The
+  // moment Foresight gets its next placement — the feed, which is where the
+  // prototype puts it and which D126 named as the open follow-on — this
+  // case comes back pointed at that surface.
 
   // The Circle stop (D101). This one is worth a mount test more than most
   // of the row: the stop rendered an "isn't built yet" note for the whole
@@ -616,6 +641,8 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     // ninth. The live pool starts at qi 0 (lens-live.test.ts pins that), so
     // the first lens card on screen is the first lens's first question.
     const expectNoBoundary = mountLive({ feedCards: 9 });
+    // Past the feed's first mounted page (D136) — let the window finish.
+    await growFeed();
     const lens = window.IS_LENSES[0];
     const q0 = lens.questions[0].q;
     // The prompt div is a direct child of the card root, so its parent
@@ -663,8 +690,12 @@ describe("the live gates hold in the DOM, not just in the source", () => {
   // stays — no split, no engage row, the acknowledgment instead — and
   // nothing reaches LIVE.vote, whose write the rules would refuse anyway
   // (no question doc to validate against).
-  it("an unseeded live lens card records locally and shows no invented crowd", () => {
+  it("an unseeded live lens card records locally and shows no invented crowd", async () => {
     const expectNoBoundary = mountLive({ feedCards: 9, lensBank: false });
+    // The lens card is interleaved past the feed's first mounted page
+    // (D136), so let the window finish before reaching for it — the subject
+    // here is the card, not the window.
+    await growFeed();
     const lens = window.IS_LENSES[0];
     const card = screen.getByText(lens.questions[0].q).parentElement;
     try {

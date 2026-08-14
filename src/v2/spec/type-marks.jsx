@@ -181,7 +181,7 @@ function TypeIndexSheet({ testKey, onClose }) {
         </div>
     </Sheet>, host);
 }
-Object.assign(window, { TypeMark, TypeIndexSheet, IS_typeColor: typeColor, IS_typeSplit: typeSplit });
+Object.assign(window, { TypeMark, TypeIndexSheet });
 
 ;globalThis.TypeMark = typeof TypeMark === 'undefined' ? globalThis.TypeMark : TypeMark;
 ;globalThis.TypeIndexSheet = typeof TypeIndexSheet === 'undefined' ? globalThis.TypeIndexSheet : TypeIndexSheet;

@@ -34,6 +34,11 @@ import LiveTakesPanel from '../ui/LiveTakesPanel.tsx';
 import LIVE from '../data/live.ts';
 import ReactDOM from 'react-dom';
 import { PASSIVE } from './passive-progress.js';
+// Crossroads (D136). Imported, not read off window — rule 4 refuses new
+// coupling. The ESM graph carries it and its store into THIS chunk, which
+// is the deferred feed group (spec-index.js), so neither reaches first
+// paint; check:bundle's eager ceiling has no headroom for either.
+import { PathsCard } from './paths-card.jsx';
 import {
   wfCatArt, wfFmt, wfHash, wfKnowBias, wfKnowRate, wfPcts, wfPickGroup,
   wfRateAvg, wfRateBg, wfRateInk, wfShadeText, wfTileArt, wfTint,
@@ -65,6 +70,24 @@ const WF_SUB = (id) => (id && window.SUBTOPICS ? window.SUBTOPICS.get(id) : null
 // background knowledge, only where a question can't be answered honestly without it
 const WF_BGTEXT = (q) => (q && (q.bg || (window.WORLD_BG || {})[q.id])) || null;
 const WF_LINE = '1px solid color-mix(in oklch, var(--rule), transparent 25%)';
+
+// ── the mounted window (D136) ──
+//
+// The feed runs hundreds of cards long and every one of them is a real
+// component — vote rows, SVG textures, a takes sheet, a beat. Mounting the
+// whole list costs on every scroll frame forever, for cards nobody has
+// scrolled to. So the list mounts a WINDOW that grows as its tail comes
+// into range, and never shrinks: collapsing a card you have already
+// answered would move the scroll position under your thumb.
+//
+// WF_REACH is deliberately generous. It is the distance from the bottom at
+// which the next page is added, and at 2200px it is roughly two screens of
+// headroom — the window grows well before you can see its edge, so there is
+// no spinner, no placeholder, and nothing to notice. A tight value here is
+// what makes windowing feel like loading.
+const WF_PAGE = 8;
+const WF_STEP = 4;
+const WF_REACH = 2200;
 
 // Know answers do NOT persist in WF_LS (D95). Their cross-session record is
 // LEARN's own store — state, streaks, positions — and LEARN_FEED re-serves a
@@ -202,7 +225,7 @@ function WFFlipList({ rows, order, gap }) {
 const WF_FRIENDS = [{ name: 'Alex', init: 'A' }, { name: 'Mia', init: 'M' }, { name: 'Jordi', init: 'J' }, { name: 'Sara', init: 'S' }, { name: 'Noah', init: 'N' }, { name: 'Elif', init: 'E' }];
 
 class WorldFeed extends React.Component {
-  state = { votes: wfLoad(), knowRes: {}, pickQ: {}, pending: {}, open: {}, panels: {}, dims: {}, cutAxis: {}, boosts: {}, vh: 0, beat: null, sheet: null, sideFilter: null, reportFor: null, replyTo: null, replies: wfLoadReplies(), myTakes: wfLoadTakes(), minds: {}, ctrIdx: {}, takeSort: 'mind', whyFor: null, headHide: false, sort: 'hot', passed: wfLoadMap(WF_PASS_LS), deferred: wfLoadMap(WF_DEFER_LS), ripple: null, liveTakesOpen: {}, editFor: {}, editHold: null, doneOpen: false };
+  state = { votes: wfLoad(), knowRes: {}, pickQ: {}, pending: {}, open: {}, panels: {}, dims: {}, cutAxis: {}, boosts: {}, vh: 0, beat: null, sheet: null, sideFilter: null, reportFor: null, replyTo: null, replies: wfLoadReplies(), myTakes: wfLoadTakes(), minds: {}, ctrIdx: {}, takeSort: 'mind', whyFor: null, headHide: false, sort: 'hot', passed: wfLoadMap(WF_PASS_LS), deferred: wfLoadMap(WF_DEFER_LS), ripple: null, liveTakesOpen: {}, editFor: {}, editHold: null, doneOpen: false, shown: WF_PAGE };
 
   // Feature flags, carried over from the prototype so each idea can be
   // switched off from the host without editing this file. Default ON; the
@@ -298,12 +321,36 @@ class WorldFeed extends React.Component {
       es.forEach((e) => { if (e.isIntersecting) { e.target.classList.add('wf-in'); this._io.unobserve(e.target); } });
     }, { rootMargin: '0px 0px -8% 0px' }) : null;
   }
-  componentDidUpdate() { this.applySnap(); }
+  componentDidUpdate() {
+    this.applySnap();
+    // Keep the tail stocked without polling. A scroll event is not enough on
+    // its own: answering a card COLLAPSES it (the Answered expander, D133),
+    // so the list can shrink out from under the viewport with no scroll to
+    // react to, and the window would then never grow again. Debounced,
+    // because this runs after every render the feed does.
+    //
+    // NO SCROLLER MEANS KEEP MOUNTING. `applySnap` resolves the scroller by
+    // walking for an ancestor whose computed overflow-y scrolls, and it can
+    // come back empty — before layout settles, in a host that styles the
+    // shell differently, or under a test environment with no CSS at all.
+    // Treating that as "not near the end" would strand the feed at its
+    // first page with no event that could ever grow it, and a feed that
+    // stops at eight cards looks exactly like a feed that ran out. So an
+    // unknown distance grows: the worst case is the un-windowed behaviour
+    // this replaced, which is a cost, not a defect.
+    const s = this._scroller;
+    const near = !s || s.scrollHeight - s.scrollTop - s.clientHeight < WF_REACH;
+    if (near && this.state.shown < (this._listLen || 0)) {
+      clearTimeout(this._growT);
+      this._growT = setTimeout(() => this.setState((st) => ({ shown: st.shown + WF_STEP })), 60);
+    }
+  }
   componentWillUnmount() {
     // The learn-agg prefetch (D125) resolves after an await, so it can land
     // on an unmounted feed — a tab switch mid-fetch is the ordinary case.
     this._mounted = false;
     clearTimeout(this._retry);
+    clearTimeout(this._growT);
     clearTimeout(this._sheetT);
     clearTimeout(this._rippleT);
     clearTimeout(this._ehT);
@@ -344,6 +391,10 @@ class WorldFeed extends React.Component {
           this._onScroll = () => {
             const s = this._scroller; if (!s) return;
             const y = s.scrollTop, dy = y - this._lastY;
+            // grow the mounted window as the tail comes into range
+            if (s.scrollHeight - y - s.clientHeight < WF_REACH && this.state.shown < (this._listLen || 0)) {
+              this.setState((st) => ({ shown: st.shown + WF_STEP }));
+            }
             if (Math.abs(dy) < 4) return;
             this._lastY = y;
             const hide = dy > 0 && y > 60;
@@ -3455,6 +3506,11 @@ class WorldFeed extends React.Component {
     // touches exactly the world's done half.
     const dropWorld = new Set(worldSplit.done.map((q) => q.id));
     const feedList = woven.filter((q) => !dropWorld.has(q.id));
+    // Read by the two growth checks above, which run outside render and so
+    // cannot see this local. Assigned rather than derived there because the
+    // list is the product of a dozen filters and re-deriving it on every
+    // scroll frame is exactly the cost the window exists to avoid.
+    this._listLen = feedList.length;
     // One card near the top wears the closing ring. Chosen by hash of the
     // question id so it is stable across renders rather than jumping as the
     // list re-sorts, and never the very first card — the ring is a grace
@@ -3488,7 +3544,7 @@ class WorldFeed extends React.Component {
           <div className="h-scroll" style={{ display: 'flex', gap: 8, flexWrap: 'nowrap', overflowX: 'auto', flex: 1, minWidth: 0, padding: '2px 0' }}>
             {/* one chip grammar in this rail: same shape, same size, same weight.
                 the sort control cycles hot → top → new instead of wearing a caret. */}
-            <button key="__sort" className="wf-chip" onClick={() => this.setState({ sort: sort === 'hot' ? 'top' : sort === 'top' ? 'new' : 'hot' })} aria-label={'Sort: ' + sort} style={{ display: 'inline-flex', alignItems: 'center', flexShrink: 0, border: '0.5px solid color-mix(in oklch, var(--ink) 22%, var(--rule))', background: 'var(--surface-2)', color: 'var(--ink)', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 12, padding: '5px 11px', borderRadius: 999, cursor: 'pointer', WebkitAppearance: 'none', whiteSpace: 'nowrap' }}>{sort === 'top' ? 'top' : sort === 'new' ? 'new' : 'hot'}</button>
+            <button key="__sort" className="wf-chip" onClick={() => this.setState({ sort: sort === 'hot' ? 'top' : sort === 'top' ? 'new' : 'hot', shown: WF_PAGE })} aria-label={'Sort: ' + sort} style={{ display: 'inline-flex', alignItems: 'center', flexShrink: 0, border: '0.5px solid color-mix(in oklch, var(--ink) 22%, var(--rule))', background: 'var(--surface-2)', color: 'var(--ink)', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 12, padding: '5px 11px', borderRadius: 999, cursor: 'pointer', WebkitAppearance: 'none', whiteSpace: 'nowrap' }}>{sort === 'top' ? 'top' : sort === 'new' ? 'new' : 'hot'}</button>
             {chips.map((t, ci) => {
               const on = cats[t.id] !== false;
               const col = t.color;
@@ -3509,12 +3565,32 @@ class WorldFeed extends React.Component {
           </button>
           </div>
         </div>
-        {feedList.map((q, i) => (
+        {feedList.slice(0, this.state.shown).map((q, i) => (
           <React.Fragment key={q.id}>
+            {/* Crossroads at the head of the feed (D136). Live it reads a
+                real bank question and folds its branch shares from real
+                answers; demo it reads the authored pool. The card picks its
+                own source (see srcOf), so there is no gate here — which is
+                the point: a surface that renders in one mode and not the
+                other is a surface only one of them is tested on.
+
+                Not dealt into the stream with the other cards because its
+                reveal is a TREE rather than a split: none of renderCard's
+                apparatus — option rows, who-voted, takes, the insight line
+                — has anything to say about a walk, and the prototype pins
+                it here for the same reason. */}
+            {i === 0 && <PathsCard />}
             {sugg && i === 2 && this.renderSuggestion(sugg, snap)}
             {this.renderCard(q, { closing: q.id === closingId })}
           </React.Fragment>
         ))}
+        {/* Room to scroll INTO while the window is still short of the list.
+            Without it a feed whose mounted cards already fit the viewport
+            can never fire the scroll that would grow it, and the window
+            stalls at its first page — the one failure mode of this shape
+            that looks like "the feed just ends". aria-hidden: it is
+            spacing, and a screen reader walks the cards, not the gap. */}
+        {this.state.shown < feedList.length && <div style={{ height: 260 }} aria-hidden="true"></div>}
         {sugg && feedList.length <= 2 && this.renderSuggestion(sugg, snap)}
         {/* two different empties: a feed with nothing FRESH is caught up
             (the record sits right below), a feed with nothing AT ALL is

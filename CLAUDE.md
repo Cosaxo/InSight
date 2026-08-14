@@ -67,15 +67,27 @@ started measuring it (D39; see **The convention is shrinking** below).
 Six modules are already off the bridge: `primitives.jsx`, `sample-data.js`,
 `daily-questions.js`, `world-catalogs.js`, `follows.js` and
 `result-rose.jsx` are ordinary ESM modules with named exports. They are
-still listed in `spec-index.js` — rule 2 requires it — but nothing waits on
-their side effects.
+still listed in `spec-index.js`, but nothing waits on their side effects —
+the line is inertia plus rule 2, not a dependency.
+
+**Rule 2 asks whether a file LOADS, not whether `spec-index.js` names it.**
+A spec module imported by another spec module satisfies it through the ESM
+graph (`world-feed.jsx` → `world-feed-math.js` is the long-standing case;
+`world-feed.jsx` → `paths-card.jsx` → `paths-data.js` is D136's). So a NEW
+ESM module does not need a line here at all, and adding one to the eager
+list would drag it into the entry chunk — which for anything reached past
+first paint is the opposite of what you want. Add the line only when the
+module is a side effect nothing imports.
 
 Four guards make the rest survivable, and all four exist because something
 real slipped through:
 
 - `npm run check:globals` — dangling `window.X` references, files
-  `spec-index.js` forgot, **and undefined JSX tags**. That last rule found
-  a live `ReferenceError` on the Mirror tab the day it was added.
+  `spec-index.js` forgot, **undefined JSX tags**, and **publications
+  nothing reads**. The tags rule found a live `ReferenceError` on the
+  Mirror tab the day it was added; the publications rule (rule 5) swept 17
+  dead `globalThis.X = X` lines the day it was added (D137) — the residue
+  of conversions that exported the name and never went back for the line.
 - `no-undef` is **ON** for the spec layer, seeded from that same scanner
   (`scripts/spec-globals.mjs`, shared by the checker and `eslint.config.js`).
   It was off for a long time, which is how two `ReferenceError`s shipped.
@@ -186,22 +198,27 @@ an emergency rules fix.
   old "no `rate` questions" refusal was about the prototype's *place*
   scorecard, which still waits on content). The similarity fields
   (`src/v2/data/similarity.ts`, `ui/LiveSimilarityField.tsx`) are the
-  Overview tab of the City/Country/World stops: your city's people ranked primarily by
+  permanent head of the City/Country/World stops: your city's people ranked primarily by
   test-score match, cities and countries placed by their real
   average-score profiles — all folded from data that already publishes,
   with zero extra reads for candidate scores (they ride the voter
   lists' name resolution). Near is presence-only since D111; the city
   cohort is the City stop's. Since D119 the row is the stop's TAB BAR
-  (Overview · Answers · People · Compare · Explore · Scores · Foresight)
-  rather than a strip under the answer rows, and since D135 **Overview
-  leads and is what a stop opens on** — the field is the sentence the
-  Mirror exists to say, and an empty one offers the Answers tab rather
-  than ceding the first screen. The cost gate the old collapsed-by-default
-  strip carried is still structural for the rest: a tab body exists only
-  while its tab is open, so Kindred runs on the tap that asks for it.
-  Overview's own fold is the exception and now runs on arrival — free on
-  re-entry (`state.testAggsLoaded`), and pinned as such. The fields load
-  behind one bounded, session-cached loader (docs/MIRROR.md §2–3).
+  rather than a strip under the answer rows, and **D136 reshaped it to
+  Answers · People · Compare · Explore · Scores**: the field left the row
+  to draw ABOVE it always (D119 made it a tab, D135 made it the landing
+  tab, D136 finished the move — the field is the sentence the Mirror
+  exists to say, and a tab is something you can be looking away from),
+  and Foresight left the Mirror altogether because a row of readings is
+  the wrong home for a game. Its engine and rules stand, unplaced. An
+  empty field offers the Answers tab rather than ceding the screen. The
+  cost gate the old collapsed-by-default strip carried is still
+  structural for the rest: a tab body exists only while its tab is open,
+  so Kindred runs on the tap that asks for it. The field's own fold is
+  the exception and runs on arrival — free on re-entry
+  (`state.testAggsLoaded`), and since it no longer unmounts, row
+  navigation costs nothing; both pinned. The fields load behind one
+  bounded, session-cached loader (docs/MIRROR.md §2–3).
 - **`window.MapStats` is real for two anchors and refuses for five, and
   the split is structural.** `age` and `edu` are breakdown dims, so since
   D99 `dist`/`mode` compute from the published cells. `job` is
