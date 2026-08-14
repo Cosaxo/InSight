@@ -345,7 +345,7 @@ export interface KindredPerson {
   like: Agreement;
   results: ParsedResults | null;
   /**
-   * The whole frozen anchors snapshot from that same answer (D147) —
+   * The whole frozen anchors snapshot from that same answer (D151) —
    * profession, age band, education, gender, the lot.
    *
    * `city` above is one of these and stays a named field because the

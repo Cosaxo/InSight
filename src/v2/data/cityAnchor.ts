@@ -34,7 +34,7 @@ export const PROFILE_GENERAL_LS = "insight.profileGeneral.v2";
  * One writer for the half of setCityAnchor that looks optional and is not
  * (see the header), now that two callers need it: this module's own city
  * write, and the account-creation screen, which fills every vital at once
- * (D146). Everything outside `vitals` — `interests`, `likes`, `heroes` —
+ * (D150). Everything outside `vitals` — `interests`, `likes`, `heroes` —
  * round-trips untouched, which is the same promise profile-general.jsx
  * makes about its own dead keys.
  */

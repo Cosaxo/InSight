@@ -112,7 +112,7 @@ export function LEARN_ORDER(card) {
 }
 
 // ── the crowd split ─────────────────────────────────────────────────────────
-// Two sources, one seam (D32) — and since D144 the LIVE build has only one
+// Two sources, one seam (D32) — and since D148 the LIVE build has only one
 // of them.
 //
 // The seam was: use the published aggregate when there is one, otherwise
@@ -133,7 +133,7 @@ export function LEARN_ORDER(card) {
 // The store, read at CALL time. ONE reference site on purpose: this is the
 // file's only shared-global coupling (see the header), so the two readers
 // below go through this rather than each reaching for the name — which is
-// what keeps check:globals rule 4 flat across D144, and leaves exactly one
+// what keeps check:globals rule 4 flat across D148, and leaves exactly one
 // line for the LIVE conversion to take.
 const liveStore = () => window.LIVE;
 function learnLive() {
@@ -204,7 +204,7 @@ export function LEARN_SPLIT_SRC(card) {
 export function LEARN_RATE(card) {
   const measured = learnMeasured(card);
   if (measured) return { pct: measured[card.c], src: 'measured' };
-  // D144: no authored fallback in a live build. Every caller already had
+  // D148: no authored fallback in a live build. Every caller already had
   // to branch on `src` to label the estimate; they now render absence
   // instead, which is one fewer number on screen and the only one that
   // was not a measurement. `pct` is null rather than 0 so a caller that

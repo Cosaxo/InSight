@@ -24,7 +24,7 @@ import React from "react";
 import LIVE from "../data/live";
 import { groupPortrait, MIN_SHARED, type GroupPortrait, type PortraitReveal } from "../data/groupPortrait";
 
-// The stop's constellation (D147) — shared with Circle and the cohort
+// The stop's constellation (D151) — shared with Circle and the cohort
 // stops, so a group's cast is arranged by the same rule as every other
 // population in the Mirror. Lazy: it is an SVG canvas, and the portrait's
 // numbers must not wait on it.
@@ -177,7 +177,7 @@ function LgPeopleCard({ g, P }: { g: LiveGroup; P: GroupPortrait }) {
         <LgKicker>Who runs closest to you</LgKicker>
         <span style={{ fontFamily: "var(--sans)", fontSize: 10.5, fontWeight: 600, color: "var(--ink-3)", letterSpacing: "0.06em", textTransform: "uppercase" }}>same pick, same day</span>
       </div>
-      {/* The cast, arranged (D147) — the Mirror's one grammar, which this
+      {/* The cast, arranged (D151) — the Mirror's one grammar, which this
           stop had in the prototype and shipped live as bars alone. Only
           members with a shared day are placed: a radius for someone you
           have never played the same day as would be a position invented

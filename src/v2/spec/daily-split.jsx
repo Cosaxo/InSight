@@ -22,7 +22,7 @@ import LIVE from '../data/live';
 // The live world-takes surface (D83) — the typed panel, reached by ESM
 // rather than a global lookup, so the D39 coupling meter stays flat.
 //
-// LAZY, and that is a measurement rather than a style (D147). This file is
+// LAZY, and that is a measurement rather than a style (D151). This file is
 // the daily tab: eager, first screen. A static import put the whole takes
 // panel into the first-paint graph for a surface that renders only behind
 // the "Takes" tap, and `npm run check:bundle` counts it — a chunk the
@@ -833,7 +833,7 @@ class DailySplit extends React.Component {
           'Takes'),
         // The daily's options in the question's own order, so each take
         // carries its author's side and the list can be filtered by side
-        // (D144). Same order the aggregate's cells are keyed in, which is
+        // (D148). Same order the aggregate's cells are keyed in, which is
         // what lets the badge and the split agree.
         // null fallback, not a spinner: the chunk is on the phone's own
         // disk by the time anyone taps Takes, and a spinner that shows for

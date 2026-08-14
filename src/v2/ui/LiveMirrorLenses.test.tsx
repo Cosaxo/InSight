@@ -36,7 +36,7 @@ const LIVE = vi.hoisted(() => ({
   // unfollowed — the button's own behaviour has its own cases.
   isFollowing: () => false,
   setFollowing: vi.fn(async () => {}),
-  // Kindred itself (D147) and the types-here card (D141) read the SAME
+  // Kindred itself (D151) and the types-here card (D141) read the SAME
   // list: `kindredPeople` carries the ranking's people with their frozen
   // anchors and parsed scores, so a card can say who someone is without a
   // read the ranking has not already paid for. Stubbed empty by default —
@@ -108,7 +108,7 @@ describe("the lens bodies · cost", () => {
 });
 
 describe("People", () => {
-  // D147 rebuilt this lens to the prototype's shape: a "Who's here" card —
+  // D151 rebuilt this lens to the prototype's shape: a "Who's here" card —
   // the population's size, its age SHAPE, its gender split — over Kindred
   // drawn as cards rather than listed as names. The claims below are the
   // ones that survived the redraw plus the ones it added.

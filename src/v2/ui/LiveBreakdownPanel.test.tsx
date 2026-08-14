@@ -16,7 +16,7 @@
 //   - an empty cohort must read as zero and say so — since D98 an absent
 //     cell IS zero, and the old "withheld" reading is gone with the floor.
 //
-// D144 moved the third original case. There used to be a ROSTER under
+// D148 moved the third original case. There used to be a ROSTER under
 // every cohort — each voter's name with their age, gender, city and
 // education printed beside it — and the case here held it to the same
 // population as the count above it. The roster is gone from cohorts
@@ -179,7 +179,7 @@ describe("LiveBreakdownPanel · what it will not claim", () => {
     // No split — not a row of 0% bars, which would read as a measured
     // unanimity — and no demographic chips, because there is nothing to
     // slice. Friends survives: a friend can answer a second after you do,
-    // and the chip is how you go and look (D144).
+    // and the chip is how you go and look (D148).
     expect(screen.queryByText("0%")).toBeNull();
     expect(screen.queryByRole("button", { name: "Age" })).toBeNull();
     expect(chip("Friends")).toBeTruthy();
@@ -196,7 +196,7 @@ describe("LiveBreakdownPanel · what it will not claim", () => {
   it("costs no reads to change cohort", () => {
     // Every cohort comes out of the aggregate already fetched for the
     // card, so switching cohorts must cost nothing. Nothing is fetched at
-    // all until the Friends cut is opened (D144) — the cohort reading is
+    // all until the Friends cut is opened (D148) — the cohort reading is
     // pure arithmetic on the aggregate.
     render(<LiveBreakdownPanel qid="q1" options={OPTS} />);
     expect(LIVE.loadVoters).toHaveBeenCalledTimes(0);
@@ -207,7 +207,7 @@ describe("LiveBreakdownPanel · what it will not claim", () => {
   });
 
   it("names nobody under a cohort — a cohort answers in percentages", () => {
-    // The D144 line, in the direction that matters. Everyone and every
+    // The D148 line, in the direction that matters. Everyone and every
     // demographic cut are readings of a crowd; a list of that crowd's
     // members, annotated with their age and city, is a different screen
     // and was never the one anyone opened a result to see.
@@ -236,7 +236,7 @@ describe("LiveBreakdownPanel · what it will not claim", () => {
   });
 });
 
-// ── the one cut that answers with people (D144) ──────────────────────
+// ── the one cut that answers with people (D148) ──────────────────────
 describe("LiveBreakdownPanel · the Friends cut", () => {
   const FRIENDS = ["f1", "f2", "f3"];
 

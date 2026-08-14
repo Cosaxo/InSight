@@ -297,7 +297,7 @@ const state = {
   // different things for those two.
   circle: null as CircleMember[] | null,
   circleLoading: false,
-  // The same graph, one query deep (D144). `circle` above is the FOLD —
+  // The same graph, one query deep (D148). `circle` above is the FOLD —
   // every followed account's answers, one query per member — and it is the
   // right cost for the Circle stop and much too much for a chip on a
   // who-voted sheet, which only needs to know which uids in a list it
@@ -2141,7 +2141,7 @@ const LIVE = {
     return state.circleLoading;
   },
   /**
-   * Just the uids you follow — one query, no fan-out (D144).
+   * Just the uids you follow — one query, no fan-out (D148).
    *
    * The who-voted sheet's Friends cut needs the SET, not the fold: it
    * intersects it with a voter list it already has in hand, so a friend's
@@ -2382,7 +2382,7 @@ const LIVE = {
         if (r.uid === state.uid) continue;
         (theirs[r.uid] || (theirs[r.uid] = {}))[qid] = r.optionIdx;
         // Lists are newest-first, so the first snapshot seen is the
-        // freshest this session holds for them. Kept WHOLE since D147 —
+        // freshest this session holds for them. Kept WHOLE since D151 —
         // the People lens says who someone is (profession, age band) and
         // not only how alike they are, and every field it needs is already
         // on the row that was fetched for the ranking. Merged rather than

@@ -58,7 +58,7 @@ function ltErr(e: unknown): string {
 
 // Same initial-disc vocabulary the Groups mirror uses, so a circle's people
 // look like themselves across the two surfaces — but wearing the author's
-// SIDE when their side is known (D144). An argument reads completely
+// SIDE when their side is known (D148). An argument reads completely
 // differently once you can see which way the person arguing it voted, and
 // the disc is the cheapest place to say it: it is already on every row, so
 // scanning for "who is on my side" costs no extra ink.
@@ -305,7 +305,7 @@ function LiveTakesPanel({ gid, qid, options }: {
   gid: string;
   qid: string;
   /**
-   * The question's option labels, in the question's own order (D144).
+   * The question's option labels, in the question's own order (D148).
    *
    * Given them, every take carries the side its author voted and the list
    * gains a side filter. Omitted, the panel is exactly what it was — the
@@ -324,7 +324,7 @@ function LiveTakesPanel({ gid, qid, options }: {
   // a surface most days nobody writes in. qid rides along for the world
   // scope, whose query and cache are per-question; a circle ignores it.
   React.useEffect(() => { void LIVE.social.loadTakes(gid, qid); }, [gid, qid]);
-  // WHERE A SIDE COMES FROM (D144). Not from the take document — `v2_takes`
+  // WHERE A SIDE COMES FROM (D148). Not from the take document — `v2_takes`
   // accepts a fixed field list and carries no vote — but from the answer
   // the author already wrote, through the same collection-group read the
   // who-voted sheet uses. So the badge is the author's real answer rather
@@ -415,7 +415,7 @@ function LiveTakesPanel({ gid, qid, options }: {
           Takes · posted under your name
         </span>
       )}
-      {/* Filter by side (D144). The prototype's Takes sheet has led with
+      {/* Filter by side (D148). The prototype's Takes sheet has led with
           this row since the first build and the live panel never had it:
           "what does the other side say" is the second thing anyone wants
           from an argument, and scrolling for it is not an answer. Pure

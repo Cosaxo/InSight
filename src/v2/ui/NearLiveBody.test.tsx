@@ -1,14 +1,14 @@
 // @vitest-environment jsdom
 //
 // NearLiveBody is the Mirror's Near stop since D111: the Right-now radius
-// counter (D84), and since D145 the constellation around it. The card's
+// counter (D84), and since D149 the constellation around it. The card's
 // cases moved here verbatim from LiveCohortBody.test.tsx when the stop
 // split — the claims are the card's, not the host's, and the host changed.
 //
 // The presence pitch's honesty cases stay word-for-word, because the cell
 // this card fronts is one of the three denies D98 kept.
 //
-// What D145 adds is the frame around them, and the line it draws. The stop
+// What D149 adds is the frame around them, and the line it draws. The stop
 // is a field again — the prototype's shape, a count above a crowd — but
 // nothing in that crowd is named and no node opens. The cases at the
 // bottom hold both halves: that the field is THERE (the old body's "a
@@ -198,7 +198,7 @@ describe("a beat that fails says so, and offers a way out", () => {
   });
 });
 
-// ── the stop is a field again (D145) ─────────────────────────────────
+// ── the stop is a field again (D149) ─────────────────────────────────
 describe("NearLiveBody · the constellation, with nobody named", () => {
   // The KindredPerson shape the similarity fold hands back. Named on
   // purpose: the point of these cases is that a name IS available here and

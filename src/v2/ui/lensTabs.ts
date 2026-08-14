@@ -35,7 +35,7 @@ export const LENS_LABEL: Record<LensId, string> = {
 };
 
 /**
- * Which lenses a cohort stop offers (D147).
+ * Which lenses a cohort stop offers (D151).
  *
  * EXPLORE IS THE WORLD'S, and it always was — the prototype module is
  * named for it (`spec/segment-explorer.jsx`: "the World's Explore lens").

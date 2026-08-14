@@ -298,7 +298,7 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
   // the row at D136 to sit above it, and Foresight left the Mirror
   // entirely.
   //
-  // ASSEMBLED PER SCOPE SINCE D147, which reverses the note this comment
+  // ASSEMBLED PER SCOPE SINCE D151, which reverses the note this comment
   // used to carry. It said a fixed row was right because "a tab that opens
   // onto nothing yet is a true reading of this population" — true, and
   // about a different thing. Explore is not empty at City; it is

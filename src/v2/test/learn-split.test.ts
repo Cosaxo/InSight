@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 //
-// The LEARN_SPLIT source seam (D32), as D144 left it.
+// The LEARN_SPLIT source seam (D32), as D148 left it.
 //
 // The seam used to have three states — demo, live-but-cold, live-with-data
 // — and the middle one drew the AUTHORED estimate with a label under it
@@ -53,7 +53,7 @@ afterEach(() => {
   delete W.LIVE;
 });
 
-describe("LEARN_SPLIT source seam (D32, as D144 left it)", () => {
+describe("LEARN_SPLIT source seam (D32, as D148 left it)", () => {
   it("demo mode: the authored model, reported as an estimate", () => {
     // Unchanged. The demo has no aggregate and its whole population is
     // authored, so the model is the content rather than a stand-in for a
@@ -76,7 +76,7 @@ describe("LEARN_SPLIT source seam (D32, as D144 left it)", () => {
     expect(split).toEqual([67, 33, 0, 0]);
   });
 
-  it("live and cold: nothing, never the authored estimate (D144)", () => {
+  it("live and cold: nothing, never the authored estimate (D148)", () => {
     // The three ways a live card can have no measurement. Each used to
     // hand back `card.p` shaped like crowd data; each now hands back
     // nothing, and the reveal says nobody has answered yet.
@@ -105,7 +105,7 @@ describe("LEARN_SPLIT source seam (D32, as D144 left it)", () => {
   });
 });
 
-describe("LEARN_COUNTS — how many actually picked each option (D144)", () => {
+describe("LEARN_COUNTS — how many actually picked each option (D148)", () => {
   it("hands back the raw counts and their total, not shares", () => {
     // The reveal leads with the count because the count is the fact: "31
     // people picked this" survives being read alone, where "62%" of an
@@ -236,7 +236,7 @@ describe("the measured split is reachable at all (D125)", () => {
     //
     // This is also the exact instant the old renderer went wrong: it froze
     // the estimate into the answer result before the flip and re-read the
-    // label after it. Since D144 there is no estimate to freeze, which
+    // label after it. Since D148 there is no estimate to freeze, which
     // removes the failure rather than only guarding it.
     const agg = { tooSmall: false, total: 40, counts: { "0": 30, "1": 10 } };
     let landed = false;
@@ -342,7 +342,7 @@ describe("LEARN_RATE — one crowd rate, and where it came from (D133)", () => {
     expect(LEARN_RATE(card)).toEqual({ pct: 67, src: "measured" });
   });
 
-  it("live but cold: no rate at all, never the authored one (D144)", () => {
+  it("live but cold: no rate at all, never the authored one (D148)", () => {
     // `pct: null`, not `pct: 0`. The D72 shape: a caller that forgets to
     // check draws something obviously broken and fails a test, rather than
     // rendering a confident bar at zero — "nobody gets this right" is a

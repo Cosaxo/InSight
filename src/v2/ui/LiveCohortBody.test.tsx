@@ -566,7 +566,7 @@ describe("LiveCohortBody · the lens row is the stop's tabs", () => {
     expect(tab("Foresight")).toBeUndefined();
   });
 
-  it("keeps Explore for the World and offers it nowhere else (D147)", () => {
+  it("keeps Explore for the World and offers it nowhere else (D151)", () => {
     // Explore is the WORLD's lens — the prototype module is named for it.
     // Its reading is "how does this slice differ from everyone", so the
     // baseline it needs is everyone; at City it silently compares a slice

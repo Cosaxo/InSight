@@ -175,7 +175,7 @@ export const LEARN = (function () {
     if (lost) S.order = S.order.filter((x) => x !== id);
     save();
     // `split` is null in a live build with nothing published for this card
-    // (D144) — the reveal re-reads LEARN_SPLIT at render anyway, and no
+    // (D148) — the reveal re-reads LEARN_SPLIT at render anyway, and no
     // caller reads this field. Kept for the demo, where it is the authored
     // model and the only source there is.
     return { ok, mastered, lost, wasKnown, streak: cur.k, correct: card.c, split: LEARN_SPLIT(card) };

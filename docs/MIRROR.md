@@ -111,7 +111,7 @@ single ruler you can drag along; the stop you pick recolors the whole tab.
 | **You** | the Map — you, alone, visualized | your own answers, hydrated from Firestore into `DAILYQ` | yes, except the typicality stats (§5), which are mock and refused |
 | **Circle** | your close ties | the follow graph (`v2_users/{uid}/following`) + those accounts' answers | yes since D101 — a one-way follow, ranked by likeness |
 | **Groups** | your named circles | real reveal history, `groupPortrait.ts` | yes |
-| **Near** | who is around you right now — the radius counter (D84), over an anonymous field (D145) | `nearbyCountV2` for the count; the field is the city fold, drawn unnamed. The presence cell stays one of D98's three denies | yes |
+| **Near** | who is around you right now — the radius counter (D84), over an anonymous field (D149) | `nearbyCountV2` for the count; the field is the city fold, drawn unnamed. The presence cell stays one of D98's three denies | yes |
 | **City** | your city: answers, lenses, and the kindred constellation | `v2_question_aggs.by.city[your city]`; kindred from voter lists + `testResults` (D112) | yes since D111/D112 — its own stop again |
 | **Country** | everyone in your country, plus its cities placed by score likeness | `v2_question_aggs.by.country[…]`; city profiles folded from `by.city` (D112) | yes |
 | **World** | everyone, plus countries placed by score likeness | `v2_question_aggs.counts`; country profiles from `by.country` (D112) | yes |
@@ -151,11 +151,11 @@ since D98: the members' answers and test results are all readable now.
 
 **Near.** The Right-now radius counter (D84) — how many opted-in phones
 are within a couple of kilometres, as a count the server computes from a
-cell no user can read — and, since D145, the field around it. It stopped
+cell no user can read — and, since D149, the field around it. It stopped
 being "your city" at D111: that fold (D9) put a presence question and a
 cohort question behind one stop.
 
-D111's body said the counter was all this stop would ever draw, and D145
+D111's body said the counter was all this stop would ever draw, and D149
 records why that was half right. The presence cell really is unreadable
 and always will be; what did not follow is that the SCREEN had nothing
 else true to show. The people of your city ranked by score likeness are
@@ -186,7 +186,7 @@ answer count behind each number.
 
 **Since D119 the stop is a tab row, not a scroll** (§3): `Answers ·
 People · Compare · Scores`, plus **Explore at the World stop only**
-(D147 — see the lens list below for why it is the globe's), one open at a
+(D151 — see the lens list below for why it is the globe's), one open at a
 time, the prototype's nav v2. It used to be the constellation on top, the answer rows under it,
 and a collapsed lens strip at the bottom — so Answers was the page and
 everything else was a drawer.
@@ -244,7 +244,7 @@ these lenses its population can support:
   minus "newest" — the archive spans any day the rotation has reached and
   nothing the client holds dates an answer, so that one ordering is
   refused rather than faked.
-- **People** — who is in this population, in two registers (D147 gave the
+- **People** — who is in this population, in two registers (D151 gave the
   live lens the prototype's shape, which it had shipped without): a
   **Who's here** card — size, the age distribution as a histogram with
   your own band filled, the gender split — over **Kindred**, the ranked
@@ -268,7 +268,7 @@ these lenses its population can support:
   sync — a pole of any test you have taken, with your own pole marked and
   a "like me" shortcut) and see what that slice believes, led by where it
   *differs* from everyone. **The globe only**, and the live row offered it
-  at every scope until D147. Not a data question: the reading needs
+  at every scope until D151. Not a data question: the reading needs
   "everyone" as its baseline, and at City it silently compares a slice of
   one city against that city.
 - **Foresight** — *off the row since D136.* v19's own addition and the
@@ -419,7 +419,7 @@ Two gaps are worth stating in prose because no badge covers them:
 | the daily record | `src/v2/spec/mirror-answers.jsx` |
 | the Map | `src/v2/spec/map-tab.jsx` (+ `map-*.js*`) |
 | City / Country / World, live | `src/v2/ui/LiveCohortBody.tsx` |
-| Near, live — the presence counter and its unnamed field (D111, D145) | `src/v2/ui/NearLiveBody.tsx` |
+| Near, live — the presence counter and its unnamed field (D111, D149) | `src/v2/ui/NearLiveBody.tsx` |
 | the constellations, live (D112) | `src/v2/ui/LiveSimilarityField.tsx` |
 | the similarity folds (profiles, matches, ranking) | `src/v2/data/similarity.ts` |
 | Groups, live | `src/v2/ui/LiveGroupsMirrorBody.tsx` + `data/groupPortrait.ts` |
@@ -429,7 +429,7 @@ Two gaps are worth stating in prose because no badge covers them:
 | the cut list every breakdown reads | `src/v2/spec/vote-cuts.js` |
 | the fold (no floor, no suppression — D98) | `functions/src/pure.ts`, `functions/src/v2.ts` |
 | who may read any of it | `firestore.rules` |
-| the cross-user read, and the cuts built on it (D144) | `src/v2/data/voters.ts`, `src/v2/ui/LiveBreakdownPanel.tsx` (Friends), `src/v2/ui/LiveTakesPanel.tsx` (sides) |
+| the cross-user read, and the cuts built on it (D148) | `src/v2/data/voters.ts`, `src/v2/ui/LiveBreakdownPanel.tsx` (Friends), `src/v2/ui/LiveTakesPanel.tsx` (sides) |
 | a live card's who-voted sheet, cohort-first (D125) | `src/v2/ui/LiveBreakdownPanel.tsx` |
 | bucket key → the name a reader sees (D125) | `src/v2/ui/cohortLabels.ts` |
 | the cohort folds (mix, slice, divergence, typicality, likeness) | `src/v2/data/cohort.ts` |

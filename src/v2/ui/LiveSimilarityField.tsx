@@ -112,7 +112,7 @@ function layout(nodes: readonly FieldNode[]): Array<FieldNode & { x: number; y: 
 /**
  * The anonymous person glyph — a body and a head, no initials.
  *
- * The Near stop's whole node vocabulary (D145). Everywhere else in the
+ * The Near stop's whole node vocabulary (D149). Everywhere else in the
  * Mirror a person node carries initials and a first name, because
  * everywhere else you can go and read what that person answered. Near
  * cannot name anyone: the presence cell is one of D98's three surviving
@@ -387,7 +387,7 @@ function CityField({ myParsed, onGoAnswers }: {
 
 // ── the field, for a population that arrives already ranked ─────────
 //
-// Circle and Groups (D147). Both stops HAD the grammar the whole Mirror
+// Circle and Groups (D151). Both stops HAD the grammar the whole Mirror
 // is built on — you at the centre, them around you, distance = unlikeness
 // — drawn for them in the prototype, and both shipped live as a flat list
 // of names with a percentage each. The list is not wrong; it is the same
@@ -436,7 +436,7 @@ export function PeopleField({ people, caption, onPick, picked }: {
   );
 }
 
-// ── Near: the same field with the names taken off (D145) ────────────
+// ── Near: the same field with the names taken off (D149) ────────────
 //
 // WHY NEAR HAD NO FIELD, AND WHY THAT WAS THE WRONG ANSWER.
 //

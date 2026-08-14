@@ -77,7 +77,7 @@ initLive().finally(() => {
   // the same main thread, and the feed is the one a user reaches first.
   loadOverlays().catch((err) => reportError(err, { where: 'loadOverlays' }));
 
-  // The account-creation questions (D146) — the anchors every answer
+  // The account-creation questions (D150) — the anchors every answer
   // snapshots (D8), asked once, at the top of a new account instead of
   // sitting four taps deep in the profile where nothing pointed at them.
   //

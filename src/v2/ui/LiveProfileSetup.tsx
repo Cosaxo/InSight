@@ -1,4 +1,4 @@
-// LiveProfileSetup — the general info, asked once, at the start (D146).
+// LiveProfileSetup — the general info, asked once, at the start (D150).
 //
 // WHAT WAS WRONG. Every anchor an answer snapshots (D8) — age band,
 // gender, city, country, education, profession, relationship, height —
@@ -42,7 +42,7 @@ import LIVE from "../data/live";
 import CityPicker from "./CityPicker";
 import { mergeProfileVitals } from "../data/cityAnchor";
 // The Basics card's own vocabulary and its anchor mapping. Its own module
-// since D146, NOT an export from profile-general.jsx: spec-index imports
+// since D150, NOT an export from profile-general.jsx: spec-index imports
 // that panel eagerly, so importing it from here made rollup extract the
 // whole thing into a chunk first paint still preloads (check:bundle, 1 KB
 // over). Untyped spec module, so the LiveSimilarityField suppression —

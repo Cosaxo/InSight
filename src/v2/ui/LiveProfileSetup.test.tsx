@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 //
-// The account-creation questions (D146), and the two claims that make them
+// The account-creation questions (D150), and the two claims that make them
 // worth a screen of their own rather than a note pointing at the profile.
 //
 //   1. THEY REACH THE ANCHOR MAP. Every answer snapshots the anchors at
@@ -205,7 +205,7 @@ describe("it holds no vocabulary of its own", () => {
   });
 });
 
-// ── the way in (D146) ────────────────────────────────────────────────
+// ── the way in (D150) ────────────────────────────────────────────────
 //
 // The screen mounts into a root of its own, from main.jsx's dynamic
 // import, rather than wrapping <App /> in a gate component. That is a

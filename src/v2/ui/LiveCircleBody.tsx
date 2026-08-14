@@ -24,7 +24,7 @@ import LIVE from "../data/live";
 import { circleSplit } from "../data/circle";
 import { divisiveness, pctFor } from "../data/cohort";
 
-// The stop's constellation (D147). This body shipped as a flat list of
+// The stop's constellation (D151). This body shipped as a flat list of
 // names and percentages — the same data with the shape taken out, and on
 // this tab the shape IS the reading: a circle is the one population where
 // "who is close to me" is the whole question. Lazy for the same reason the
