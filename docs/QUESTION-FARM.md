@@ -38,8 +38,9 @@ topic is thin.
    contract. That file is measurement, not content; everything else
    under `content/` stays untouchable.
 3. **No new categories.** Every question's `cat`/`alts` tops must be keys
-   that already exist in `CAT_META` in that same file. Proposing a new
-   category is out of scope for this run (see "Deliberately out of scope").
+   that already exist in `CAT_META` in that same file. Creating one is out
+   of scope for every run on every surface; a question that fits none is
+   dropped and its category proposed — § When no category fits.
 4. **Never generate answers, votes, takes, or people.** Questions are
    content; activity is fabrication (decision D1). There is no exception.
 5. **Append only, at the end of `Q`.** Ids are positional: entry `i` maps
@@ -371,13 +372,15 @@ abort the run with no push rather than force it green.
 ## The daily catalog-question run (a second, smaller job)
 
 A separate daily Routine (added 2026-07-30, alongside D14/D15) grows the
-catalog-question surface — by default **one** new catalog `pick` card per
-firing (a card in `window.PICK_QS`, `src/v2/spec/pick-data.js`, the
-"favourite X from a shipped catalogue" class), and from time to time a
-**new domain catalogue** instead (see "Creating new catalogues" below —
-growing the portfolio is the job's larger point, 2026-07-31 direction
-from the maintainer). Same governance as the farm: this section is the
-contract, the PR is the human gate, and every outcome logs to issue #31.
+catalog-question surface on a **two-part week** (D142): Monday through
+Saturday each firing writes **one** new catalog `pick` card (a card in
+`window.PICK_QS`, `src/v2/spec/pick-data.js`, the "favourite X from a
+shipped catalogue" class), and **Sunday's firing builds a new domain
+catalogue** instead (see "Creating new catalogues" below — growing the
+portfolio is the job's larger point, 2026-07-31 direction from the
+maintainer, and giving it a weekday is what finally made it happen).
+Same governance as the farm: this section is the contract, the PR is the
+human gate, and every outcome logs to issue #31.
 
 **Status: running.** Paused 2026-07-31 while Pokémon (three canons deep)
 was the only committed catalogue — the honest-question well was near its
@@ -387,8 +390,8 @@ await the D15 operator step.
 
 Rules, each load-bearing:
 
-1. **One card per day, appended to `PICK_QS`.** Ids continue the `pkNN`
-   sequence.
+1. **One card per card-day, appended to `PICK_QS`** (Mon–Sat; Sunday is
+   the domain slot). Ids continue the `pkNN` sequence.
 2. **Only domains whose catalogue file is committed** under `public/`
    (today `pokedex.txt`; `films.txt`/`artists.txt` after the D15 operator
    step). A card whose catalogue is absent opens straight into the
@@ -428,12 +431,49 @@ Rules, each load-bearing:
    merge it. Log the PR link (or the no-op reason, or the verbatim
    failure) as a comment on issue #31.
 
-### Creating new catalogues (from time to time)
+### Creating new catalogues (Sundays — a slot, not a mood)
 
-Questions are the default deliverable; the portfolio is the point. When
-the honest-question well for existing domains runs thin — and at most
-about once a week — a run may deliver a **new domain catalogue** instead
-of a card. Rules, each load-bearing:
+Questions are the default deliverable; the portfolio is the point.
+**Sunday's firing builds a domain instead of writing a card.** The other
+six days write cards as before.
+
+This used to read "from time to time … when the honest-question well for
+existing domains runs thin — and at most about once a week", and D142
+changed it because that sentence could not schedule anything. "Is the
+well thin?" is a judgment a competent run answers *no* to almost every
+day: it is asked while holding a domain that still has a usable seat, and
+one usable seat is always enough to write today's card. The measured
+consequence is in the run log — the elements domain landed 2026-08-11 and
+the four days after it produced four more elements cards (pk11–pk14),
+with the 08-14 run noting in its own words that the cheap canon seats
+were filling and one strong seat was left. A portfolio that grows only
+when a run declares its current domain exhausted grows one domain per
+exhaustion, which is the slowest rate the rule permits and was the rate
+observed. A fixed weekday asks a question a run *can* answer: is it
+Sunday.
+
+Two consequences worth stating, because they were the standing blockers:
+
+- **A domain branch is cut from `origin/main`, never from the card
+  lane's open branch**, and a domain PR opening while a card PR is open
+  is fine. The 2026-08-07→09 no-ops deferred three domain days on
+  "a domain PR while the question PR is open would couple two review
+  units" — but coupling comes from one branch CONTAINING another, which
+  cutting from `main` prevents outright. The one real overlap is the
+  first card both PRs append to `pick-data.js`; that is an ordinary
+  conflict for whichever merges second, and the roll-up rule's conflict
+  clause already covers it.
+- **A domain day with no buildable source is a logged no-op, and that is
+  still a good day.** Rule 1 below is not relaxed by the slot: never
+  entries from model memory. Measured from a remote session on
+  2026-08-14 and worth not re-discovering — `registry.npmjs.org` is
+  reachable through the session proxy (200), and `query.wikidata.org` is
+  refused at CONNECT (403). So the reachable path is a package registry,
+  as with `periodic-table` for elements; films/artists stay the D15
+  operator step until someone runs `build-catalog.mjs` on a networked
+  machine.
+
+Rules, each load-bearing:
 
 1. **A verifiable machine-readable source, reachable from the session.**
    Package registries are the proven path (the `pokemon` npm package is
@@ -520,7 +560,11 @@ import in `src/v2/spec/learn-data.js`) and the seeded live bank (via
 `gen-v2content.mjs`). Unlike dailies there is no spec-vs-live split to
 graduate across, so a merged learn card reaches production on the next
 reseed. **One gate instead of two means the PR review IS the production
-review.** Rules for a learn run:
+review.** **A Routine fires this lane** (D142; twice weekly — the
+inventory under Governance carries the schedule). D115 gave the lane a
+budget that could produce and left it with nothing calling it, which is
+why the bank sat 182 cards short of its own target for three days with a
+grantable budget of 10. Rules for a learn run:
 
 - **Start every run with `npm run learn:budget -- --open <cards on the
   open lane PR>`** (D115). The budget is computed, not flat: it grants up
@@ -650,38 +694,72 @@ at all**. It is also the surface where an upscale actually lands:
 the daily consumes exactly 7/week whatever the archive holds, but the
 feed serves continuously and its capacity scales with users, not the
 calendar. Like learn and duel there is no spec-vs-live split — a merged
-feed PR IS the production review: one gate, production-level bar. No
-Routine fires this lane yet; it runs when the maintainer asks a dev
-session (the duel lane's shape), and adding a Routine is an owner step
-recorded under Governance when taken. Rules, each load-bearing:
+feed PR IS the production review: one gate, production-level bar. **A
+Routine fires this lane** (D142; twice weekly — the inventory under
+Governance carries the schedule). Until D142 it ran only when the
+maintainer asked a dev session, and across that whole period it produced
+nothing: every provenance row in the bank still reads `editorial`.
+Rules, each load-bearing:
 
-- **Budget ≤6 questions/run, at most twice weekly to start.** The feed
-  has no consumption clock to pace against, so the bound is signal
-  dilution: a fixed crowd spread over more questions leaves each one with
-  too few answers for its evenness score to mean anything. (Pre-D98 this
-  read "clears the k-floor on fewer of them". There is no floor now — the
-  counts publish from answer one — but a split measured on three answers
-  is noise either way, so the bound stands on the statistics rather than
-  on the publishing rule.) While the scorecard shows most feed questions
-  unscored, the lane's job is breadth across the ten topics
-  (thinnest-first, the coverage rule); raising the cadence is a D97
-  amendment for when the scorecard shows the crowd keeping up.
-- **Three authorable forms.** A plain `vote` (2–4 options) or one of the
-  two **continuum forms** (`dial` / `field`, live since D114); `rank` is
-  not live-servable (D12) and `duel`-type feed cards are prototype
-  legacy. `check:quality` holds the measured bounds; `check:content`
-  holds the seed shapes. A continuum question is written TWICE — the
-  content entry and its demo-pool twin — see § Continuum questions.
+- **Start every run with `npm run feed:budget -- --open <questions on the
+  open lane PR>`** (D142). The budget is computed, not flat: it grants up
+  to **6 feed questions per run** while the bank is short of **12
+  servable questions per topic**, subtracts whatever already sits
+  unreviewed on the lane's open PR, and grants **zero** at the target or
+  at **6** unreviewed questions on that PR. It prints the ALLOCATION —
+  which topics to write into and how many each — so thinnest-first is
+  arithmetic rather than a judgment call, plus a `signal:` line naming
+  which mode the run is in: levelling blind, or reading a scorecard that
+  actually scores feed questions.
+
+  This replaced the flat "≤6 questions/run, at most twice weekly to
+  start" — never wrong, but never executed either, and a flat cap is the
+  exact shape D97 and D115 had to remove from the other two lanes,
+  because it generates into a full review queue and under-generates into
+  an empty one. The constants live in `scripts/feed-budget.mjs` with the
+  reasoning, `check:figures` holds the numbers quoted here equal to the
+  script, and `feed-budget.test.mjs` pins the properties — including that
+  the lane finds work in the bank as it actually ships, and that it
+  spreads across thin topics rather than chunking into one.
+
+  **The cap does not rise with the regulator, and that is the point.**
+  The daily and learn caps could go up BECAUSE a regulator throttles
+  them; this one is bounded by signal dilution — a fixed crowd spread
+  over more questions leaves each with too few answers for its evenness
+  score to mean anything — and no regulator makes a thin crowd thicker.
+  (Pre-D98 this read "clears the k-floor on fewer of them". There is no
+  floor now — the counts publish from answer one — but a split measured
+  on three answers is noise either way, so the bound stands on the
+  statistics rather than on the publishing rule.) Raising it stays the
+  D97 amendment for when the scorecard shows the crowd keeping up.
+- **Four authorable forms.** A plain `vote` (2–4 options), one of the two
+  **continuum forms** (`dial` / `field`, live since D114), or a **`path`**
+  — the Crossroads branching scenario D136 made live, carrying `title`,
+  `intro` and `nodes` whose endings are the answer space (it has no
+  `options`; those labels are synthesized). `rank` is not live-servable
+  (D12) and `duel`-type feed cards are prototype legacy: neither is
+  authorable, and neither counts toward a topic's depth in the budget,
+  because a topic must not read as covered on questions nobody can be
+  served. `check:quality` holds the measured bounds for all four;
+  `check:content` holds the seed shapes. A continuum question is written
+  TWICE — the content entry and its demo-pool twin — see § Continuum
+  questions; a path is written once, in the content bank.
 - **Append only, at the end of `questions`**, ids continuing the `fNN`
   series (continuum ids continue `dlN` / `fdN`; scene-attached `sNN`
   entries are out of the lane's scope — scenes are placeholder). Every
   content append also adds the question's provenance row
   (`content/provenance.json`, `source: "farm"`, the run's date as
   batch) — `check:quality` fails a feed question without one.
-- **Topics from the taxonomy only** (`topics` in the same file);
-  proposing a new topic is a PR-body note, never a silent addition. Mark
-  politically charged questions `political: true` (D52's rule: the
-  passive-collection marker and the feed kicker key off it).
+- **Every question carries a topic from the taxonomy** (`topics` in the
+  same file), and since D142 `check:quality` refuses one without a `cat`
+  rather than only validating the value when present — true in the data,
+  unenforced in the gate, which is a distinction that stops mattering
+  the moment a schedule rather than a human is writing. A card with no
+  topic has a broken kicker and cannot be reached by the topic filter.
+  Proposing a NEW topic is a PR-body note, never a silent addition —
+  see § When no category fits. Mark politically charged questions
+  `political: true` (D52's rule: the passive-collection marker and the
+  feed kicker key off it).
 - **Ship active.** The feed's retire path is real (`active: false`, the
   D52 shape) and stays the operator's; the lane never flips flags,
   and cites the scorecard's feed `retireProposals` in its PR body like
@@ -752,6 +830,53 @@ voters panel prints ("lean tastes good · middle").
   change of key, not a second genre (the hot sort pins one near the top;
   a glut buys nothing).
 
+## When no category fits (every question gets one; new ones are human)
+
+Two rules, and they pull in opposite directions on purpose.
+
+**Every question carries a category, and gates say so.** Per surface:
+`cat` is `[Top, Sub]` with `Top` in `CAT_META` for a daily question; a
+`topics` id for a feed question; a `WORLD_TOPICS` id for a pick card; `f`
+(the field) for a learn card. `check:quality` enforces all four — the
+feed and pick halves since D142, which found both unenforced. Every
+question in the tree already carried one, so nothing was broken; what was
+missing was the gate, and "true in the data" is a different thing from
+"true" once a schedule rather than a human is writing. The pulse is the
+one deliberate exception: it is a single standing card on the daily tab,
+not something filed into a topic list, and its Map branch is unported by
+D139's own decision (the seventh over-category, the D126 boundary).
+
+**A new category is never created by a run.** Not for daily (hard rule
+3), not for feed topics, not for pick `cat`s, not for learn fields or
+subjects. The reason is that a category is not a label here — it is a
+`CAT_META` hue, a Map anchor with relations, a chip in a filter row, and
+for learn a group in the Map's layout. Adding one is a structural change
+to the picture the Mirror draws, which is the product; a job that could
+add one on a Tuesday because a question did not fit is a job that
+redraws the Map to make its own writing easier.
+
+**So the fit rule is: place it, or drop it, and say so.** In order:
+
+1. Fit the question to an existing category, including via `alts` — the
+   daily surface's two alternative placements exist precisely because one
+   question legitimately reads under more than one top.
+2. If no existing category fits without distorting the question, **drop
+   the question** rather than filing it somewhere wrong. A question in
+   the wrong category answers correctly and lands on the wrong branch of
+   someone's Map forever, which is worse than not asking it.
+3. Then **propose the category**, in the PR body *and* in the run's
+   issue #31 comment: the proposed id and label, the questions that
+   wanted it, and which existing category they were closest to. Both
+   places, because the PR may be days from review and the run log is
+   where the pattern becomes visible across runs — three runs proposing
+   the same missing top is an argument; one is an anecdote. A human
+   decides, in a PR of their own.
+
+Rule 3 is the part that was missing rather than merely soft: the older
+wording ("the farm may *note* in a PR body that a category feels
+missing") named no artifact, so a run that placed everything and never
+noticed a gap was indistinguishable from one that noticed and forgot.
+
 ## Deliberately out of scope (recorded so it stays a decision, not drift)
 
 - **Paid geo-insight (city / country / world questions).** Cities and
@@ -773,8 +898,10 @@ voters panel prints ("lean tastes good · middle").
   a scheduled job with write access to the production bank is exactly
   what the two-gate shape exists to prevent.
 - **New categories** — structural change (CAT_META hue, map-anchor
-  relations, chips). The farm may *note* in a PR body that a category
-  feels missing; a human decides.
+  relations, chips, and for learn a group in the Map's layout). No lane
+  creates one; a run that cannot place a question drops it and proposes
+  the category in its PR body AND its issue #31 comment, and a human
+  decides. § When no category fits carries the procedure.
 - **Performance-based learning.** Reading the public aggregates
   to learn which question forms do better is designed
   (`CATALOG-QUESTIONS.md` reflections apply) but not wired: this sandbox's
@@ -936,10 +1063,36 @@ live on the maintainer's claude.ai account, not in this repo. This table
 is the repo-side record; update it whenever a Routine is added, rebound,
 re-paced, or retired.
 
-| Routine | Schedule (UTC) | Fires into | Contract |
+| Routine | Trigger id | Schedule (UTC) | Contract |
 | --- | --- | --- | --- |
-| InSight question farm (daily) | daily 07:00 (D33 re-pace taken 2026-08-11) — **prompt still pre-D33, refresh pending: owner step** | maintainer's dev session | this file, the sections above |
-| Daily catalog question | daily 08:00 | maintainer's dev session | § The daily catalog-question run |
+| InSight question farm (daily) | `trig_01REC4MfZ1D8qhYoZKxDPtdK` | daily 07:00 (D33 re-pace taken 2026-08-11) — **prompt still pre-D33, refresh pending: owner step** | this file, the sections above |
+| Daily catalog question | `trig_01HDn61hg8SYX6cMXV4XHZeu` | daily 08:00 — cards Mon–Sat, domain build Sunday (D142) — **prompt predates the Sunday slot, refresh pending: owner step** | § The daily catalog-question run |
+| InSight learn lane | `trig_017bNWxHkLQYDo97YuajmBh4` | `0 9 * * 1,4` — Mon + Thu 09:00 (D142) | § The learn-card lane |
+| InSight feed lane | `trig_01Rf5CD8mpffKf9hYEr2ZKqj` | `30 9 * * 2,5` — Tue + Fri 09:30 (D142) | § The feed lane |
+
+All four fire into the maintainer's dev session
+(`session_01AvNkZgRvvMCu8zqhZtuMH5`, `persist_session: true`) for the
+reason in the paragraph above, and all four carry no stored MCP
+connectors — the GitHub tools a run needs to log on issue #31 come from
+the bound session, which is why the two D142 lanes were created with
+exactly the configuration the two working ones already had rather than a
+tidier-looking one. The ids are recorded because `update_trigger` needs
+them and they otherwise live only in a tool response.
+
+The two D142 lanes are staggered off 07:00/08:00 and off each other so
+no two runs are writing to the same checkout at once — they share one
+bound session, and a lane that finds the tree dirty is supposed to stash
+or use a worktree, not race. Four lanes on one reviewer is the load this
+inventory now represents; each lane's regulator subtracts its own open PR
+(learn and feed stop entirely at their OPEN_MAX), so the arithmetic that
+keeps the queue reviewable is per-lane rather than global. If the queue
+still outruns review, the lever is the cadence in this table, not the
+caps in the scripts.
+
+**The duel lane still has no Routine** (§ The duel lane) — deliberately:
+it runs on the maintainer's ask, its pools rotate on a 24-day cycle, and
+adding a fifth scheduled lane is a decision for after the two new ones
+have shown what they cost at the gate.
 
 **The remaining owner step: the prompt swap.** The D33 re-pace itself
 was taken 2026-08-11, from a sibling remote session at the owner's
@@ -1029,6 +1182,111 @@ errors. Do the farm work on the lane's branch — the open farm PR's if
 one exists, else a fresh claude/question-farm-<YYYY-MM-DD> from
 origin/main — and return to the session's previous branch afterwards;
 do not disturb uncommitted work — if the tree is dirty, stash or use a
+separate git worktree.
+```
+
+The learn lane's canonical prompt (D142 — same rule: update BOTH this
+block and § The learn-card lane in any future change):
+
+```
+You are running InSight's LEARN-CARD lane — a scheduled job, twice
+weekly. It fires into this ongoing session because fresh Routine-spawned
+sessions get read-only git access and no GitHub API tools (issue #31);
+this session has both. Read docs/QUESTION-FARM.md § The learn-card lane
+on origin/main and follow it exactly — it is the contract, it changes,
+and it outranks this prompt's summary; re-read it every run.
+
+Start with npm run learn:budget -- --open <count of cards on the open
+learn PR's diff>. Zero means the run is a logged no-op and review is the
+work. Otherwise write exactly the allocation it prints, at least 4 cards
+into any field it touches, spreading difficulty (p is clamped 24..92,
+and check:quality fails a batch of 3+ spanning under 20 points). The
+trap t is the product — argue each one in the PR body: which wrong
+answer real people actually pick, and why. Vary the authored c index.
+Pre-flight the whole batch in its native shape from ONE file: npm run
+check:quality -- --batch cards.json and npm run check:neighbors --
+--batch cards.json (the batch form compares your own cards to each
+other, which per-candidate lookups never did); paste both packet lines
+per card into the PR body. Then npm run build:content, and the gates:
+check:content, check:quality, check:neighbors, check:globals, lint,
+test:unit, build.
+
+Hard limits: append only, at the end of `cards` in
+content/learn-questions.json, ids continuing each field's series; never
+renumber and never edit or reorder a shipped card's options (answers key
+on (qid, optionIdx) forever — the fix for a bad option set is a better
+successor card). This is a SINGLE-GATE lane: a merged card is a shipped
+card, so the PR review IS the production review — cite a source for any
+card that could be contested. Never create a field or subject; a card
+that fits none is dropped and the field proposed in the PR body and the
+issue #31 comment (§ When no category fits). Never touch
+firestore.rules, functions/, or any other content/ bank. Never merge
+your own PR. If a learn PR is already open, roll up onto its branch
+instead of stacking (dedup against it, append one commit, retitle to
+cover the span, dated body section); a fresh
+claude/learn-cards-<YYYY-MM-DD> branch from origin/main only when none
+is open or the open one no longer merges cleanly.
+
+Mandatory reporting (hard rule 7): whatever the outcome — PR opened,
+no-op, or aborted — comment it on issue #31 in Cosaxo/InSight: PR link
+and the budget line with the fields written, or the no-op reason, or the
+verbatim errors. Work on the lane's branch and return to the session's
+previous branch afterwards; if the tree is dirty, stash or use a
+separate git worktree.
+```
+
+The feed lane's canonical prompt (D142 — same rule, § The feed lane):
+
+```
+You are running InSight's FEED lane — a scheduled job, twice weekly. It
+fires into this ongoing session because fresh Routine-spawned sessions
+get read-only git access and no GitHub API tools (issue #31); this
+session has both. Read docs/QUESTION-FARM.md § The feed lane on
+origin/main and follow it exactly — it is the contract, it changes, and
+it outranks this prompt's summary; re-read it every run.
+
+Start with npm run feed:budget -- --open <count of questions on the open
+feed PR's diff>. Zero means the run is a logged no-op and review is the
+work. Otherwise write exactly the allocation it prints — thinnest topics
+first, breadth across the ten is this lane's job — in one of the four
+authorable forms: vote (2-4 options), dial, field, or path. Continuum
+cards (dial/field) are written TWICE, the content entry with NO crowd
+texture plus its demo-pool twin in src/v2/spec/world-feed-data.js with
+the authored texture; lean scarce on them, they are a change of key and
+not a second genre. Read the budget's signal: line — while it says
+coverage-blind, level the topics; once the scorecard scores feed
+questions, read evenness per topic first. Pre-flight the whole batch
+from ONE candidates file with "surface": "feed" on each entry: npm run
+check:quality -- --batch candidates.json and npm run check:neighbors --
+--batch candidates.json; paste both packet lines per question into the
+PR body, with one line each on why it should split rather than slide.
+Gates: check:content (run build:content after the append),
+check:quality, check:neighbors, check:globals, lint, test:unit, build.
+
+Hard limits: append only, at the end of `questions` in
+content/feed-questions.json, ids continuing the fNN series (dlN/fdN for
+continuum); every entry also gets its provenance row in
+content/provenance.json (source "farm", the run's date as batch) and a
+`cat` from the taxonomy — check:quality fails an entry missing either.
+Ship active; never flip an active flag (the retire path is the
+operator's) and never edit or reorder a shipped question's options or a
+continuum question's range (answers key on (qid, optionIdx) forever).
+Never propose a new topic silently: a question that fits none is dropped
+and the topic proposed in the PR body and the issue #31 comment
+(§ When no category fits). Never write a question scoped to a specific
+city, country, or region's citizens (hard rule 6 — that is the paid
+research path). This is a SINGLE-GATE lane: a merged question is a
+served question. Never touch firestore.rules, functions/, or another
+surface's bank. Never merge your own PR. Roll up onto the open feed PR
+if one exists (dedup against it, one commit, retitle, dated body
+section); a fresh claude/feed-questions-<YYYY-MM-DD> branch from
+origin/main only when none is open or the open one conflicts.
+
+Mandatory reporting (hard rule 7): whatever the outcome — PR opened,
+no-op, or aborted — comment it on issue #31 in Cosaxo/InSight: PR link
+and the budget line with the topics written, or the no-op reason, or the
+verbatim errors. Work on the lane's branch and return to the session's
+previous branch afterwards; if the tree is dirty, stash or use a
 separate git worktree.
 ```
 
