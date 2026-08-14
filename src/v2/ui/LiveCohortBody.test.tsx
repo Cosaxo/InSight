@@ -68,7 +68,7 @@ const LIVE = vi.hoisted(() => ({
   testFeedItems: () => [] as Array<Record<string, unknown>>,
   myTestResults: () => ({} as Record<string, unknown>),
   kindredPeople: () => [] as Array<Record<string, unknown>>,
-  // The types-here card (D140/v25) below Kindred reads the viewer's
+  // The types-here card (D141/v25) below Kindred reads the viewer's
   // anchors for its basis label. Stubbed empty — the card draws its
   // honest empty state and these cases scroll past it.
   anchors: () => ({} as Record<string, string>),
@@ -551,17 +551,34 @@ describe("LiveCohortBody · the lens row is the stop's tabs", () => {
   const tab = (name: string) =>
     [...tabs().querySelectorAll('[role="tab"]')].find((b) => b.textContent?.trim() === name) as HTMLElement;
 
-  it("offers seven tabs, Overview first, and opens on it", () => {
+  it("offers five tabs, Answers first, and opens on it", () => {
     render(<LiveCohortBody scope="city" />);
-    // Order matters and is asserted as order, not as membership: the
-    // decision D135 records is which tab leads, and a set check would
-    // pass for a row that had quietly gone back to Answers-first.
+    // Order matters and is asserted as order, not as membership: which
+    // section leads the row is a decision (D119, reshaped at D136), and a
+    // set check would pass for a row that had quietly reordered itself.
     const names = [...tabs().querySelectorAll('[role="tab"]')].map((b) => b.textContent?.trim());
-    expect(names).toEqual(["Overview", "Answers", "People", "Compare", "Explore", "Scores", "Foresight"]);
-    expect(tab("Overview").getAttribute("aria-selected")).toBe("true");
-    // …and the answer rows are NOT on screen, because Answers is a peer
-    // tab now rather than the page the row hangs under.
-    expect(screen.queryByText("Almost everyone agrees")).toBeNull();
+    expect(names).toEqual(["Answers", "People", "Compare", "Explore", "Scores"]);
+    expect(tab("Answers").getAttribute("aria-selected")).toBe("true");
+    // Overview is NOT among them (D136) and Foresight is gone from the
+    // Mirror altogether — both asserted here rather than left to the
+    // toEqual above, so a failure names the decision it broke.
+    expect(tab("Overview")).toBeUndefined();
+    expect(tab("Foresight")).toBeUndefined();
+  });
+
+  it("draws the constellation above the row, whatever the row is showing", () => {
+    render(<LiveCohortBody scope="city" />);
+    // The field is the head of the stop now, not a tab in it — so it is on
+    // screen at load, and STAYS on screen when another tab opens. That
+    // second half is the whole point of D136 and is why this asserts after
+    // a click rather than only at mount.
+    const region = () => screen.getByRole("region", { name: "Overview" });
+    expect(region()).toBeTruthy();
+    fireEvent.click(tab("Compare"));
+    expect(region()).toBeTruthy();
+    // …and it sits BEFORE the row in document order, which is what "above"
+    // means to a screen reader as well as to an eye.
+    expect(region().compareDocumentPosition(tabs()) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it("puts the answer rows one tap away", () => {
@@ -612,30 +629,31 @@ describe("LiveCohortBody · the lens row is the stop's tabs", () => {
     // have run, had one been mounted.
     await act(async () => { for (let i = 0; i < 20; i++) await Promise.resolve(); });
     expect(kindred, "Kindred was fetched for a People tab nobody opened").not.toHaveBeenCalled();
-    // The accepted cost of D135: Overview is the landing tab, so its fold
-    // has run — once.
-    expect(similarity, "Overview is the landing tab and its fold did not run").toHaveBeenCalledTimes(1);
+    // The accepted cost, unchanged from D135: the field's fold runs on
+    // arrival at a stop. Same call count as when it was the landing tab,
+    // because a stop always opened on it.
+    expect(similarity, "the constellation is the head of the stop and its fold did not run").toHaveBeenCalledTimes(1);
 
     fireEvent.click(tab("People"));
     await vi.waitFor(() => {
       expect(kindred, "opening People fetched nothing — the gate above guards nothing").toHaveBeenCalled();
     });
-    // Leaving Overview and coming back CALLS the loader again — the tab
-    // body unmounts, so its mount effect fires afresh — and that is not a
-    // second read. The bound is in the store, not here: loadSimilarity
-    // early-returns on `similarityLoading`, and the getDocs sweep behind
-    // it is guarded by `state.testAggsLoaded`, which is set even when
-    // some docs come back absent. So the call is idempotent and the
-    // per-navigation cost is zero.
+    // D136 made this STRICTER than it was. While Overview was a tab, moving
+    // away and back unmounted and re-mounted the field, so the loader fired
+    // again — harmless (loadSimilarity early-returns on `similarityLoading`
+    // and its getDocs sweep is guarded by `state.testAggsLoaded`) but real,
+    // and the previous version of this case asserted exactly that second
+    // call. Now the field sits outside the tab conditional and never
+    // unmounts, so navigating the row costs nothing at all.
     //
-    // Asserted as "called again" rather than "called once" because the
-    // first draft of this case claimed once, and that was a pin on the
-    // component's mount behaviour dressed up as a cost guarantee — it
-    // failed the moment it met a real re-mount. The cost claim belongs
-    // where the guard is; data/live's own suite owns it.
-    fireEvent.click(tab("Overview"));
+    // Worth keeping as its own assertion rather than folding into the
+    // count above: this is the property that would break if someone put
+    // the field back inside a conditional, and the count alone would still
+    // read 1 at the moment of mount.
+    fireEvent.click(tab("Compare"));
+    fireEvent.click(tab("Answers"));
     await act(async () => { for (let i = 0; i < 20; i++) await Promise.resolve(); });
     expect(similarity.mock.calls.length,
-      "re-opening Overview stopped calling the loader — check the mount effect").toBe(2);
+      "navigating the row re-ran the constellation's fold — the field is inside a conditional again").toBe(1);
   });
 });

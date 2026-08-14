@@ -325,5 +325,5 @@ import { ExplainBtn, ExplainSheet, EX_GLYPH } from './explain-sheet.jsx';
     );
   }
 
-  Object.assign(window, { LensesPanel, LensCard, LensRow });
+  Object.assign(window, { LensesPanel });
 })();

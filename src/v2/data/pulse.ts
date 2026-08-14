@@ -1,4 +1,4 @@
-// The daily pulse's store (D138) — the design's PULSE contract
+// The daily pulse's store (D139) — the design's PULSE contract
 // (design/standalone-v24/pulse-data.js), typed, in two honest modes:
 //
 //   · DEMO — the prototype room: seeded histories (one per honest case:

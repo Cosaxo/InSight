@@ -592,7 +592,7 @@ ok("learn crowd stat: 5 first attempts, exact through per-answer publishes, 3/5 
     setDoc(doc(db, "v2_presence", uid), { cell: "59.913_10.752", at: serverTimestamp() }));
 }
 
-// 10b · The daily pulse (D138): a day-keyed answer through the rules, the
+// 10b · The daily pulse (D139): a day-keyed answer through the rules, the
 // UNTOUCHED trigger folding it into a PER-DAY aggregate doc — the grain
 // the whole design rests on — and the one-per-day discipline holding.
 {

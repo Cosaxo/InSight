@@ -1,4 +1,4 @@
-// Types, out in the population (D140 — types tier 1, the v24 type-mix
+// Types, out in the population (D141 — types tier 1, the v24 type-mix
 // design's live fold). A type is already drawn as a mark on the profile;
 // here it becomes a property of a POPULATION: who is here, by type, and
 // which of them you can actually see.
@@ -20,7 +20,7 @@
 // decision this module deliberately does not take (D8's surviving half).
 import LIVE from "./live";
 import type { KindredPerson } from "./similarity";
-// @ts-expect-error TS7016 — untyped spec module (additive exports, D140)
+// @ts-expect-error TS7016 — untyped spec module (additive exports, D141)
 import { ARCHETYPES, matchArchetype } from "../spec/archetype-data.js";
 
 /** The one instrument types read from in tier 1. The Big Five archetypes

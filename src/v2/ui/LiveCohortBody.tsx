@@ -292,15 +292,14 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
     };
   }).filter((q) => q.options.length > 0);
 
-  // ── the stop's tabs (D119) ──
+  // ── the stop's tabs (D119, reshaped at D136) ──
   //
-  // Answers, then the constellation, then the four lenses — the prototype's
-  // nav v2 row (spec/mirror-field.jsx), with Answers leading for the reason
-  // recorded on TAB_LABEL. Every tab here can draw something for every
-  // cohort scope, so the row is fixed rather than assembled per scope: a
-  // tab that opens onto "nothing yet" is a true reading of this population
-  // and disappearing tabs would make the row's shape a second, quieter
-  // claim about the data.
+  // Answers, then the four lenses — five, since the constellation moved out
+  // of the row to sit above it and Foresight left the Mirror entirely. Every
+  // tab here can draw something for every cohort scope, so the row is fixed
+  // rather than assembled per scope: a tab that opens onto "nothing yet" is
+  // a true reading of this population, and disappearing tabs would make the
+  // row's shape a second, quieter claim about the data.
   const tabs: LensTab[] = [
     ...STOP_TABS.map((id) => ({ id, label: TAB_LABEL[id] })),
     ...(Object.keys(LENS_LABEL) as LensId[]).map((id) => ({ id, label: LENS_LABEL[id] })),
@@ -345,10 +344,23 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
         </div>
       </div>
 
-      {/* Above the bodies, under the heading: the row is this stop's
-          navigation, and the ruler above it is the app's. Two levels of
-          nav in that order is what the prototype's nav v2 is — WHO, then
-          WHAT. */}
+      {/* The constellation (D112), and the head of the stop rather than a
+          tab in it (D136): people of your city by score likeness,
+          cities/countries by their real average-score profiles. It draws
+          ABOVE the row and stays drawn whatever the row is showing —
+          "you at the centre, them arranged around you" is what the stop
+          IS, and the prototype puts it here too (MFHeader → field → row).
+          Its empty arms still route: SfGoAnswers opens the Answers tab,
+          and the host owns the tab state, so the field cannot do it. */}
+      <div role="region" aria-label={TAB_LABEL.overview}>
+        <React.Suspense fallback={null}>
+          <SimilaritySection scope={scope} onGoAnswers={() => setTab("answers")} />
+        </React.Suspense>
+      </div>
+
+      {/* Under the field: the row is this stop's navigation, and the ruler
+          above it is the app's. Two levels of nav in that order is what the
+          prototype's nav v2 is — WHO, then WHAT. */}
       <MirrorLensTabs tabs={tabs} open={openTab} onOpen={setTab} />
 
       {openTab === "answers" && (
@@ -376,22 +388,7 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
         </div>
       )}
 
-      {/* The constellation (D112): people of your city by score likeness,
-          cities/countries by their real average-score profiles. Its own
-          tab since D119 — it used to lead the stop, which is right when it
-          has something to draw and is the whole screen when it does not. */}
-      {openTab === "overview" && (
-        <div className="fade-in" role="tabpanel" aria-label={TAB_LABEL.overview}>
-          <React.Suspense fallback={null}>
-            {/* Overview is the landing tab (D135), so its empty arms get a
-                way out — see SfGoAnswers. The host owns the tab state, so
-                the field cannot switch tabs itself. */}
-            <SimilaritySection scope={scope} onGoAnswers={() => setTab("answers")} />
-          </React.Suspense>
-        </div>
-      )}
-
-      {openTab !== "answers" && openTab !== "overview" && (
+      {openTab !== "answers" && (
         <div className="fade-in" role="tabpanel" aria-label={LENS_LABEL[openTab as LensId]}>
           <React.Suspense fallback={null}>
             <LiveMirrorLenses lens={openTab as LensId} qs={lensQs} shortName={shortName} scope={scope} />
@@ -401,8 +398,5 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
     </div>
   );
 }
-
-// Render-time lookup bridge for the spec layer (mirror-tab.jsx).
-Object.assign(globalThis, { LiveCohortBody });
 
 export default LiveCohortBody;

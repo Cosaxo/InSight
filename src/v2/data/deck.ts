@@ -66,6 +66,17 @@ export interface QuestionDoc {
   ends?: string[];
   ax?: string[];
   ay?: string[];
+  // Crossroads' story (D136), on feed `path` docs only. Same design as the
+  // continuum copy above, one step further: the tree is what the client
+  // walks, and a finished walk's optionIdx is one of the eight endings —
+  // whose NAMES are this doc's synthesized `options`, in PATH_ENDINGS
+  // order. The authored branch shares the demo pool carries are not here:
+  // live, the crowd is the aggregate.
+  title?: string;
+  intro?: string;
+  hue?: number;
+  nodes?: Record<string, { q: string; a: Array<{ t: string }> }>;
+  endings?: Record<string, { name: string; line: string }>;
 }
 
 export interface AggDoc {

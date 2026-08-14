@@ -52,11 +52,10 @@ import TypeMixCard from "./TypeMixCard";
 // rule wants a component file to export only components, and it is right
 // that a constant shared with the host does not belong in one.
 import { ORDINAL_TYPES, type LensId, type LensQuestion } from "./lensDefs";
-// The fifth lens (D126). An ordinary import: this whole module is
-// already behind a React.lazy from LiveCohortBody, so Foresight rides
-// the same deferred chunk and needs no boundary of its own — and it must
-// NOT reach for ./lensTabs, which is entry-side (D119).
-import LiveForesightLens from "./LiveForesightLens";
+// D136 removed the Foresight lens from this row, so the import of
+// ./LiveForesightLens went with it. The component and data/foresight.ts
+// are deliberately still in the tree, still tested — see lensDefs' note on
+// the LensId union for why, and what re-adding costs.
 
 const LL_LINE = "1px solid color-mix(in oklch, var(--rule), transparent 25%)";
 
@@ -213,7 +212,7 @@ function PeopleLens({ qs, scope }: { qs: LensQuestion[]; scope: "city" | "countr
         )}
       </div>
 
-      {/* Types here (D140, v25 shape — owner's direction): the share of
+      {/* Types here (D141, v25 shape — owner's direction): the share of
           each type in this population, BELOW Kindred. A reading, not a
           directory — no people, only proportions, over the same cached
           voter sample Kindred reads. */}
@@ -439,9 +438,6 @@ function LiveMirrorLenses({ lens, qs, shortName, scope = "city" }: {
       {lens === "compare" && <CompareLens qs={qs} shortName={shortName} />}
       {lens === "scores" && <ScoresLens qs={qs} shortName={shortName} />}
       {lens === "explore" && <ExploreLens qs={qs} />}
-      {/* Foresight loads its own record on open, like People does for
-          Kindred — the collapsed row is the cost gate for both. */}
-      {lens === "foresight" && <LiveForesightLens qs={qs} />}
     </div>
   );
 }

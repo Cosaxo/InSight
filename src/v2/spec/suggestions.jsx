@@ -369,7 +369,7 @@ function SuggestOverlay({ onClose }) {
   const shown = sgSort(SG.all(), lens);
   const max = Math.max(1, ...SG.all().map((x) => x.liveVotes));
   // The community lenses draw the seeded demo board — there is no live pool
-  // yet (a public voting board is its own decision, D137's "not built"). In a
+  // yet (a public voting board is its own decision, D138's "not built"). In a
   // live build they wear the app's preview tag instead of pretending; "Yours"
   // is real data and wears nothing.
   const communityPreview = LIVE.enabled && lens !== 'mine';

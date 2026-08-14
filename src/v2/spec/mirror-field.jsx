@@ -412,7 +412,8 @@ function MFDetail({ node, onPerson, onJoin, onLeave, joined }) {
 // real tabs and "Overview" is the field itself, so all navigation sits above
 // the content instead of hiding at the bottom edge.
 // Exported by name (D39, "convert on touch"): the Mirror bodies import it.
-// It stays on the window bag below for the sites that have not moved.
+// It stayed on the window bag as well until D137, for sites that had all
+// already moved — group-mirror.jsx and mirror-field-pops.jsx import it.
 export function MirrorLensRow({ lenses, open, onOpen }) {
   const idx = lenses.findIndex((l) => l.id === open);
   // six stops have to fit a phone without clipping — the row never scrolls
@@ -466,7 +467,7 @@ function MirrorLenses({ lenses }) {
   );
 }
 
-Object.assign(window, { MFCanvas, MFDetail, MFHeader, MFKey, MFSparse, MirrorLenses, MirrorLensRow, mfRadius });
+Object.assign(window, { MFCanvas, MFDetail, MFHeader, MFKey, MFSparse, MirrorLenses, mfRadius });
 
 
 ;globalThis.mfRand = typeof mfRand === 'undefined' ? globalThis.mfRand : mfRand;

@@ -37,7 +37,7 @@ const LIVE = vi.hoisted(() => ({
   // unfollowed — the button's own behaviour has its own cases.
   isFollowing: () => false,
   setFollowing: vi.fn(async () => {}),
-  // The types-here card (D140) reads the same voter sample Kindred does,
+  // The types-here card (D141) reads the same voter sample Kindred does,
   // plus your own result and anchors for the basis label. Stubbed empty:
   // the card's empty state renders and the lens cases stay about lenses.
   kindredPeople: () => [] as unknown[],

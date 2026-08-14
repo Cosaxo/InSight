@@ -12,7 +12,7 @@
 // Two modes, honestly separated (D1):
 //   · DEMO — the prototype room: seeded community suggestions, baked statuses,
 //     your submissions in localStorage. Untouched from the design.
-//   · LIVE — your own submissions are REAL (data/suggestions.ts → the D137
+//   · LIVE — your own submissions are REAL (data/suggestions.ts → the D138
 //     backend: suggestQuestionV2, review verdicts, the reviewer's note). The
 //     community board has no live pool yet — a public voting board is its own
 //     decision — so the seeds render under a Preview tag instead of pretending.
@@ -175,7 +175,7 @@ export const SUGGESTIONS = {
   },
   /**
    * Submit. Returns a promise either way:
-   *   { ok: true, id }               — queued (live: really queued, D137)
+   *   { ok: true, id }               — queued (live: really queued, D138)
    *   { ok: false, code, message }   — the server's refusal, written to be
    *                                    shown (the budget, the paid-path
    *                                    decline, a form bound)

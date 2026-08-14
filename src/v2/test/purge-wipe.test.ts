@@ -57,7 +57,7 @@ import { SCENES } from "../spec/scenes.js";
 import { LEARN } from "../spec/learn-progress.js";
 // @ts-expect-error TS7016 — untyped spec module
 import { LEARN_CARDS } from "../spec/learn-data.js";
-// …and the suggestion store with the v24 board sync (D137's client half).
+// …and the suggestion store with the v24 board sync (D138's client half).
 // @ts-expect-error TS7016 — untyped spec module
 import { SUGGESTIONS } from "../spec/suggestions.js";
 

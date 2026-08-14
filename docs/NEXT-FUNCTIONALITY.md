@@ -131,7 +131,7 @@ having it. Ship it when the suggestion queue exists to feed it.
 **The wanted thing:** a question type where the point is the series —
 "mood today" — and, eventually, scores tracked the same way.
 
-**Verdict: build. This is the strongest idea on the list.** *Status 2026-08-14: BUILT on this branch — D138 is the record. The machinery, the per-day fold, the card and the Trends reading are live with the neutral first question; mood stays the owner's store-forms decision.* It creates a
+**Verdict: build. This is the strongest idea on the list.** *Status 2026-08-14: BUILT on this branch — D139 is the record. The machinery, the per-day fold, the card and the Trends reading are live with the neutral first question; mood stays the owner's store-forms decision.* It creates a
 daily habit the product currently only gets from the one blind question,
 and it produces a genuinely new Mirror reading — your line against your
 city's line — that no existing surface can fake. It is also the one idea
@@ -258,7 +258,7 @@ who-voted cut list) plus Explore's test-pole chips are the prototype's
 type/axis cuts, with `docs/MIRROR.md` recording the exact reason they
 are dark: *test results are not a dim.*
 
-**Tier 1 — build now, no decision needed.** *Status 2026-08-14: BUILT — D140; the type-mix card is live on the People lens.* Everything reads data that
+**Tier 1 — build now, no decision needed.** *Status 2026-08-14: BUILT — D141; the type-mix card is live on the People lens.* Everything reads data that
 is already public and mostly already fetched:
 
 - A **type chip** on people rows — Kindred, the similarity field's person
@@ -457,7 +457,7 @@ what type, one-off or repeating — and a path from there to the banks.
 
 **Verdict: build; it is the shortest distance to shipped value on this
 list, and it feeds §1.** *Status 2026-08-14: DONE end to end on this
-branch — the v1 backend (D137) and, same day, the v24 board design
+branch — the v1 backend (D138) and, same day, the v24 board design
 ported live: submissions ride the callable, "Yours" shows real
 review/picked/declined states with the reviewer's note, refusals render
 the server's own message, and the community lenses wear the preview tag

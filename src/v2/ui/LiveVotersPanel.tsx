@@ -203,7 +203,4 @@ function LiveVotersPanel({ qid, options, dim = "", bucket = "", cohortLabel = ""
   );
 }
 
-// Render-time lookup bridge for the spec layer (world-feed.jsx).
-Object.assign(globalThis, { LiveVotersPanel });
-
 export default LiveVotersPanel;

@@ -474,7 +474,7 @@ describe("v2 profile", () => {
   });
 });
 
-describe("the daily pulse (D138): one answer per day, day-keyed like a duel's", () => {
+describe("the daily pulse (D139): one answer per day, day-keyed like a duel's", () => {
   const BASE = "pulse-pace";
   const seedPulse = () => seed(async (db) => {
     await setDoc(doc(db, "v2_questions", BASE), {

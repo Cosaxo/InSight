@@ -85,7 +85,7 @@ export function isAggregateSurface(surface: string): boolean {
 }
 export const AGG_BANK_SIZE = V2_QUESTIONS.filter((q) => isAggregateSurface(q.surface)).length;
 
-// The pulse (D138) breaks "one entry per question, ever": a pulse answer
+// The pulse (D139) breaks "one entry per question, ever": a pulse answer
 // is one per question per DAY, so an honest uid can carry up to one
 // entry per pulse template per day the ledger's 90-day TTL retains.
 // The volume ceiling grows by exactly that allowance and no more.

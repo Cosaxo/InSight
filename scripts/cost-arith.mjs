@@ -266,7 +266,14 @@ export const revealReadsPerMember = (m) => (4 + 3 * m) / m;
 // about the code, which is why they are named and grouped rather than
 // scattered through the arithmetic.
 export const B = {
-  worldAnswers: 3,     // daily + feed + learn
+  // daily + feed + learn + pulse. The pulse (D139) is one create-only,
+  // day-keyed answer that is world-shaped in every charged pipeline: the
+  // rules bill 1 read (three template get() sites, ONE document — the same
+  // dedup as the world create's 3-sites-1-document), the trigger's
+  // transaction folds it for 2, and its ledger entry feeds the velocity
+  // scan like any other. Assuming the typical DAU answers it daily is the
+  // same assumption the "daily" term already makes.
+  worldAnswers: 4,
   duelAnswers: 1,
   boots: 1.4,          // app opens per active user per day
   // Minutes per user per day with a snapshot LISTENER ATTACHED — not, as

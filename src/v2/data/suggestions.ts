@@ -1,5 +1,5 @@
 // The client half of "Suggest a question" (docs/NEXT-FUNCTIONALITY.md §6,
-// D137). The spec-layer board renders; this module is its only wire to
+// D138). The spec-layer board renders; this module is its only wire to
 // the backend: submit through the callable, read back your own rows.
 //
 // The voters.ts posture, for the same reasons:

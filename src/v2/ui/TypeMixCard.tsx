@@ -1,5 +1,5 @@
 // Types, out in the population — the v25 type-mix design (owner's
-// direction + design/standalone-v25/type-mix.jsx, amending D140's v24
+// direction + design/standalone-v25/type-mix.jsx, amending D141's v24
 // port): the share of each type in a population, over a stated basis.
 // A READING, not a directory: no people, only proportions, sitting
 // BELOW Kindred on the People lens.
@@ -14,7 +14,7 @@
 import React from "react";
 import LIVE from "../data/live";
 import { myType, typeMixFor, TYPE_SMALL, TYPE_TEST, type TypeRow } from "../data/typeMix";
-// @ts-expect-error TS7016 — untyped spec module (additive export, D140)
+// @ts-expect-error TS7016 — untyped spec module (additive export, D141)
 import { TypeMark } from "../spec/type-marks.jsx";
 import { bucketLabel } from "./cohortLabels";
 

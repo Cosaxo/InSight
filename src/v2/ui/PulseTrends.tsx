@@ -1,4 +1,4 @@
-// THE READING (D138): your pulse line held against your city, country or
+// THE READING (D139): your pulse line held against your city, country or
 // the world, three weeks at a time — the v24 design ported typed
 // (design/standalone-v24/pulse-trends.jsx). House rules, visible in the
 // drawing itself:

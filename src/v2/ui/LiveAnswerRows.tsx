@@ -255,7 +255,10 @@ function LiveAnswerRows({ rows, whom, emptyNote }: {
   // the screen anyway. The sentinel opens the first row of whatever list is
   // showing, which is the prototype's behaviour — a tab that opens on a
   // closed list reads as a table of contents.
-  const FIRST = " first";
+  // "\u0000first", not a raw NUL: the sentinel must not collide with a real
+  // qid, and a literal NUL byte in the file made grep treat the whole module
+  // as binary and skip it (D137). The escape is the same string at runtime.
+  const FIRST = "\u0000first";
   const [open, setOpen] = React.useState<string>(FIRST);
   const [all, setAll] = React.useState(false);
 

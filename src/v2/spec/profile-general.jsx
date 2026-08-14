@@ -165,7 +165,7 @@ import { SCENES } from './scenes.js';
   // it is distinguishable from never having been asked.
   const GENDER_OPTS = ['Woman', 'Man', 'Non-binary', 'Prefer not to say'];
   const REL_OPTS = ['Single', 'Dating', 'Partnered', 'Married', 'It\u2019s complicated', 'Prefer not to say'];
-  // D139: a band select, never a centimetre field — the band is what is
+  // D140: a band select, never a centimetre field — the band is what is
   // collected, the locate.ts posture (coarse by construction). Held equal
   // to BREAKDOWN_DIM_VOCAB by check:anchors like every closed vocabulary.
   const HEIGHT_OPTS = ['Under 160 cm', '160-169 cm', '170-179 cm', '180-189 cm', '190 cm or taller', 'Prefer not to say'];

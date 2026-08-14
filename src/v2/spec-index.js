@@ -58,7 +58,8 @@ import './spec/relmap-lenses.jsx';
 // the standalone loads it: VOTECUTS reuses the lens band definitions, and the
 // who-voted breakdowns (daily-split, world-feed) read VOTECUTS at render time.
 import './spec/vote-cuts.js';
-import './spec/relmap-panels.jsx';
+// relmap-panels.jsx is not listed: relmap.jsx imports its two panels by name
+// (D137), so the ESM graph loads it and rule 2 is satisfied without a line.
 import './spec/relmap.jsx';
 import './spec/test-viz.jsx';
 import './spec/profile-test-viz.jsx';
@@ -149,15 +150,19 @@ import './ui/LiveDuelPanel';
 import './ui/LivePrivacyPanel';
 import './ui/CityPicker';
 import './ui/PickSearch';
-import './ui/LiveGroupsMirrorBody';
-import './ui/LiveTakesPanel';
-// NB: ui/LiveVotersPanel, ui/LiveCircleBody and ui/LiveCohortBody are
-// deliberately NOT listed here. Each has exactly one consumer that
-// imports it directly — world-feed.jsx and mirror-tab.jsx — and both of
-// those reach it past first paint (D25's deferred group; a React.lazy for
-// Circle and, since D119, for Cohort). Listing any of them would drag it
-// into the eager bundle to no purpose, which is the whole thing the
-// deferral bought.
+// NB: no other ui/ panel is listed here, and the reason is now the same one
+// for all of them: nothing looks them up by name. Every remaining consumer
+// imports the panel it renders, so the ESM graph loads it (rule 2 asks
+// whether a file LOADS, not whether this file names it). ui/LiveVotersPanel,
+// ui/LiveCircleBody and ui/LiveCohortBody additionally must not be listed —
+// each is reached only past first paint (D25's deferred group; a React.lazy
+// for Circle and, since D119, for Cohort), so a line here would drag it into
+// the eager bundle, which is the whole thing the deferral bought.
+//
+// ui/LiveGroupsMirrorBody and ui/LiveTakesPanel were listed until D137 for a
+// side effect they no longer have. Both stay in the eager chunk anyway —
+// mirror-tab.jsx and ui/LiveDuelPanel import them, and both of those are
+// eager — so dropping the lines moved no bytes.
 import './spec/app-shell.jsx';
 
 // ── the world feed, after first paint ──────────────────────────────────

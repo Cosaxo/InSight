@@ -540,7 +540,7 @@ function panelPipeline(p, trail) {
       D30's promotion step copies byte-for-byte to preserve, so a non-zero orphan count
       means the client is already warning.</p>
 
-    <h3>Bank inventory — ${int(totalQuestions)} questions across six surfaces</h3>
+    <h3>Bank inventory — ${int(totalQuestions)} questions across seven surfaces</h3>
     <div class="bars">${barRows}</div>
     <p class="note tight">Counted from <code>content/*.json</code>, the source of truth the
       seed generator flattens. Only the daily bank is consumed by the calendar; the

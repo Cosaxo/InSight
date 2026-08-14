@@ -41,7 +41,7 @@ Every constant below is sourced, not assumed:
 | One duel answer | 1 client write + 1 `pendingDays` arrayUnion | v2.ts group branch |
 | One trigger invocation | 512 MiB, 1 vCPU, concurrency 20, ~200 ms | `HOT_TRIGGER`, functions/src/ops.ts |
 | One warm boot | ~15 reads (meta, profile, answers query, 7 deck aggregates, groups, 2 group docs, 2 reveals) | `hydrate()`, src/v2/data/live.ts. The deck reads are one batched fetch since D129, not seven listener attachments |
-| One cold boot | **+511 reads** — the whole question bank | `V2_QUESTIONS`, 511 docs / 119.3 KiB of JSON |
+| One cold boot | **+513 reads** — the whole question bank | `V2_QUESTIONS`, 513 docs / 124.0 KiB of JSON |
 | Agg top-up | ≤120 reads, ≤1 per qid per 6 h | `AGG_ID_CAP`, `AGG_RECHECK_MS` |
 | One world answer, again | +1 **rule** read (the question doc) + 2 **server** reads (ledger event, private agg) | `isWorldAnswer` in firestore.rules; the `runAggTransaction` in v2.ts |
 | One duel answer, again | +3 rule reads (group, reveal, question); the trigger's duel branch reads nothing | `isDuelAnswer`; "one blind write, no read" |
@@ -49,7 +49,7 @@ Every constant below is sourced, not assumed:
 | One group-day reveal | `4 + 3m` reads for `m` members — 10 for a duo | `revealGroupDay`, functions/src/v2social.ts |
 | One who-voted sheet | ≤200 answer reads + ≤200 profile reads (names), once per question per session | `VOTER_FETCH_CAP`, src/v2/data/voters.ts (D102 — was unbounded, ~DAU reads per open). "Per session" became true on 2026-08-13: `loadVoters` guarded only on the fetch being IN FLIGHT, so the panel's `[qid]` effect re-ran the whole thing on every open, and this row described an intention rather than a behaviour |
 | One Kindred first view | ≤12 sheets' worth, shared with the sheet cache | `KINDRED_QUESTIONS`, src/v2/data/live.ts (D99) |
-| One pulse open | 1 template + one 21-id documentId() in-query over the per-day aggs, once per UTC day per session (a same-day answer forces one refresh so the reveal's bins include you) | `DAYS`, src/v2/data/pulse.ts (D138). Your own series costs zero — it is derived from the hydrated vote mirror |
+| One pulse open | 1 template + one 21-id documentId() in-query over the per-day aggs, once per UTC day per session (a same-day answer forces one refresh so the reveal's bins include you) | `DAYS`, src/v2/data/pulse.ts (D139). Your own series costs zero — it is derived from the hydrated vote mirror |
 | One Circle open | 1 + one query per member: ≤50 members × ≤300 answers, +1 followers query | `FOLLOW_CAP` / `CIRCLE_ANSWER_CAP`, src/v2/data/circle.ts (D101). Also once per session since 2026-08-13, with `setFollowing` the one caller that may force a refetch — it changes the membership the fold is over |
 | One takes panel | ≤100 world takes per question, ≤500 per group, once per scope per session | `TAKE_FETCH_CAP` / `TAKE_GROUP_FETCH_CAP`, src/v2/data/live.ts — both caps and the cache are new on 2026-08-13; the world query had no `limit()` and returned roughly everyone who spoke that day |
 
@@ -64,8 +64,9 @@ once a question matured, and that discount no longer exists.
 
 ## The bill, at five sizes
 
-Behaviour assumptions (the soft numbers — stated, not buried): 3 world
-answers + 1 duel answer per active user per day, 1.4 app opens, 3 minutes
+Behaviour assumptions (the soft numbers — stated, not buried): 4 world
+answers (daily + feed + learn + the D139 pulse, which is world-shaped in
+every charged pipeline) + 1 duel answer per active user per day, 1.4 app opens, 3 minutes
 of open app plus 4 background→foreground cycles (which since D129 sets the
 poll count and the foreground refreshes rather than listener-minutes),
 concentrated in
@@ -77,11 +78,11 @@ single-region database is roughly half.
 
 | Scenario | DAU | reads/day | writes/day | Firestore $/mo | Functions $/mo | **Total $/mo** |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| Launch / TestFlight | 50 | 9.1 K | 710 | 0.00 | 0.00 | **0.00** |
-| Friends-of-friends | 500 | 168 K | 7.1 K | 2.12 | 0.00 | **2.12** |
-| Real traction | 5,000 | 2.1 M | 71 K | 41 | 0.00 | **41** |
-| Scale | 50,000 | 20.8 M | 710 K | 438 | 1.60 | **440** |
-| Hit | 500,000 | 208 M | 7.1 M | 4,415 | 33 | **4,448** |
+| Launch / TestFlight | 50 | 9.6 K | 910 | 0.00 | 0.00 | **0.00** |
+| Friends-of-friends | 500 | 172 K | 9.1 K | 2.20 | 0.00 | **2.20** |
+| Real traction | 5,000 | 2.2 M | 91 K | 44 | 0.00 | **44** |
+| Scale | 50,000 | 21.7 M | 910 K | 470 | 2.20 | **472** |
+| Hit | 500,000 | 217 M | 9.1 M | 4,731 | 43 | **4,774** |
 
 > **D129 (2026-08-13) — the deck is polled, and this table changed shape
 > rather than size.** The seven `onSnapshot` listeners are gone; the client
@@ -91,6 +92,16 @@ single-region database is roughly half.
 > the decomposition has no DAU term left in it. What it costs: other
 > people's votes no longer land on the card while you watch. Your own still
 > confirms in ~2.5 s, which never depended on the listener.
+
+> **Corrected 2026-08-14 (D139).** The pulse joined the budget —
+> `B.worldAnswers` 3 → 4 — and every row above moved with it ($440 → $472
+> at 50 k). Not a re-estimate and not a price change: a fourth
+> world-shaped answer per user per day, charged through the same terms as
+> the other three (1 rule read, 2 trigger reads, 1 velocity read, the
+> answer + ledger + agg writes). The decomposition below moved the same
+> way — rules 6 → 7, server 14 → 17, the social column's answer-scaled
+> reads with them — and its flat total is now 435, which supersedes the
+> 416 the D129 note above records.
 
 The Firestore column includes network egress, which Google bills separately
 but Firestore is what serves. It is the softest line here — see the band
@@ -166,9 +177,9 @@ below.
 > comfortable ordering.
 
 Two things fall out immediately. **Compute is free and stays free** —
-the trigger is 4 invocations per user per day at 200 ms, and Cloud Run's
+the trigger is 5 invocations per user per day at 200 ms, and Cloud Run's
 free tier (180 k vCPU-s/month) covers ~900 k answers/month on its own;
-even at 500 k DAU the functions bill is $33. And **reads still dominate
+even at 500 k DAU the functions bill is $43. And **reads still dominate
 the bill at every size** — writes never exceed 3% of the total.
 
 So the entire cost story of this app is *reads*, and reads have **seven**
@@ -182,11 +193,11 @@ Per active user per day:
 
 | DAU | boot | agg top-up | reseed delta | poll | re-attach | rule reads | server reads | **D98 surfaces** | total/user |
 | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| 50 | 21 | 42 | 3 | 3 | 28 | 6 | 14 | 66 | 183 |
-| 500 | 21 | 42 | 3 | 3 | 28 | 6 | 14 | 219 | 336 |
-| 5,000 | 21 | 2 | 3 | 3 | 28 | 6 | 14 | **339** | 416 |
-| 50,000 | 21 | 2 | 3 | 3 | 28 | 6 | 14 | 339 | 416 |
-| 500,000 | 21 | 2 | 3 | 3 | 28 | 6 | 14 | 339 | 416 |
+| 50 | 21 | 42 | 3 | 3 | 28 | 7 | 17 | 71 | 192 |
+| 500 | 21 | 42 | 3 | 3 | 28 | 7 | 17 | 224 | 345 |
+| 5,000 | 21 | 2 | 3 | 3 | 28 | 7 | 17 | **354** | 435 |
+| 50,000 | 21 | 2 | 3 | 3 | 28 | 7 | 17 | 354 | 435 |
+| 500,000 | 21 | 2 | 3 | 3 | 28 | 7 | 17 | 354 | 435 |
 
 **Every column is now flat in DAU, and that is the headline.** The
 `fanOut` column above is the poll (D129) — three reads a day, because the
@@ -653,7 +664,7 @@ complement is a `mode` field on `v2_meta/app` — a document `hydrate()`
 already reads once per boot, so it costs nothing to add — with the client
 skipping the discretionary reads when it is set: the D98 social surfaces
 (who-voted, Kindred, Circle, takes, similarity) at one level, the deck's
-snapshot listeners at the next. That is 339 of 447 reads/user/day at 5,000
+snapshot listeners at the next. That is 354 of 435 reads/user/day at 5,000
 DAU for the first level and most of the rest for the second, and unlike
 App Check it degrades the app for *everyone* rather than only for
 unattested callers.
@@ -750,7 +761,7 @@ the day any of them is.
 | --- | --- |
 | Apple Developer Program | $99/yr |
 | Google Play registration | $25 once |
-| Cloud Functions compute | $0 → $33/mo at 500 k DAU |
+| Cloud Functions compute | $0 → $43/mo at 500 k DAU |
 | Cloud Scheduler | $0 (2 jobs; 3 free) |
 | FCM push | $0 |
 | App Check — reCAPTCHA v3 / DeviceCheck / Play Integrity | $0 |
@@ -815,7 +826,7 @@ Three caveats worth carrying:
 
 ## What would change these numbers
 
-- **Engagement per user.** The model assumes 4 answers/day. Doubling that
+- **Engagement per user.** The model assumes 5 answers/day (4 world + 1 duel). Doubling that
   roughly doubles writes and compute, and re-running with `B.worldAnswers`
   at 6 moves reads/user/day by +18% / +11% / **+20% / +65% / +97%** at
   50 / 500 / 5 k / 50 k / 500 k DAU — roughly doubling the bill at the two

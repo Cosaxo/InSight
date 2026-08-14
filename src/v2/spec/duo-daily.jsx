@@ -16,8 +16,8 @@ import ReactDOM from 'react-dom';
 // duel seals you just swipe down — the next person is waiting. The sticky rail
 // on top shows who's left (dot) and who's done (check); tap a face to jump.
 // `DuoDomains` is exported by name (D39, "convert on touch") — person-overlay
-// imports it. Everything else here still publishes through the window bag,
-// so the export is hoisted out of the IIFE rather than the IIFE unwound.
+// imports it. `DuoBody` still publishes through the window bag, so the export
+// is hoisted out of the IIFE rather than the IIFE unwound.
 let DuoDomainsImpl;
 (function () {
   const { useState, useEffect, useRef, useReducer } = React;
@@ -30,21 +30,6 @@ let DuoDomainsImpl;
   const col = (g) => ({ display: 'flex', flexDirection: 'column', gap: g });
   const first = (p) => p.name.split(' ')[0];
   const isPending = (p) => p.state === 'turn' || p.state === 'start';
-
-  // one dot per revealed day — filled = a right guess. The dots ARE the score.
-  function DuoDots({ days, color, size = 8 }) {
-    return (
-      <span style={{ display: 'flex', gap: size * 0.2, alignItems: 'center' }}>
-        {days.map((ok, i) => (
-          <span key={i} style={{
-            width: size, height: size, borderRadius: '50%', boxSizing: 'border-box',
-            background: ok ? (color || GOOD) : 'transparent',
-            border: ok ? 'none' : `1.5px solid color-mix(in oklch, ${color || GOOD} 55%, transparent)`,
-          }}></span>
-        ))}
-      </span>
-    );
-  }
 
   // Which PARTS of each other you read. One unit per domain carrying both
   // sides on a shared left edge — the interesting fact is the asymmetry, so
@@ -415,7 +400,7 @@ let DuoDomainsImpl;
     );
   }
 
-  Object.assign(window, { DuoBody, DuoDots, DuoDomains });
+  Object.assign(window, { DuoBody });
   DuoDomainsImpl = DuoDomains;
 })();
 

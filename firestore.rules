@@ -448,7 +448,7 @@ service cloud.firestore {
             && request.resource.data.get("guessIdx", 0) < duelIndexSpace();
         }
 
-        // The daily pulse (D138): the same question answered once per
+        // The daily pulse (D139): the same question answered once per
         // DAY, id {baseQid}_{day} — one answer per (person, day) is the
         // doc id, the duel answers' move, and the day window below is
         // theirs verbatim (back 4d for an offline queue, forward 2d

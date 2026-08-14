@@ -342,9 +342,30 @@ const INDEX_HTML = join(root, "dist", "index.html");
 // alarm that fires on every intentional change is one nobody reads, so if
 // a third raise lands this week the question to ask is whether the total
 // wants a wider band, not whether the app should be smaller.
+// 2182 → 2184 (2026-08-14): Crossroads (D136) — a branching-story card, its
+// store and two stories in the bank. All of it lands in the already-lazy
+// world-feed chunk, so the eager graph did not move (955, still exactly at
+// its ceiling).
+//
+// It tried to move it, which is the part worth recording. The first draft
+// folded each story's ending counts in `buildFeedGlobals` and parked them on
+// `state`, and data/live.ts is in the first-paint graph — ~1 KB of eager
+// weight for a card that cannot render until the feed chunk lands. This gate
+// caught it and the note above answered it: MAX_EAGER_KB is not raiseable,
+// because it is the constant keeping the Firestore SDK out of first paint.
+// The fold moved into `LIVE.pathQs()` and now runs on call, which is both
+// smaller and better placed — one caller, once per feed render.
+//
+// So this raise is the total only, and the total is the drift alarm rather
+// than the guarantee. Third raise in two days, which the note above says is
+// the point at which to ask whether the band is too narrow rather than
+// whether the app is too big. Recording the question rather than answering
+// it: all three were features asked for, all three left first paint alone,
+// and the alarm has now fired three times without once being the thing that
+// found a problem. The eager gate found this one.
 const MAX_CHUNK_KB = 735;
-const MAX_TOTAL_JS_KB = 2182;
-// 955 → 966 (2026-08-14): D138's pulse card — the second fixed instrument
+const MAX_TOTAL_JS_KB = 2184;
+// 955 → 966 (2026-08-14): D139's pulse card — the second fixed instrument
 // on the FIRST screen, so its card, its store's demo furniture and the
 // two LIVE members are legitimately eager (~10 KB min). What is not
 // first-screen stayed out: the trends chart is React.lazy behind the

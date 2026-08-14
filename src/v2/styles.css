@@ -816,7 +816,6 @@ button.card:active,
   border: 0.5px solid rgba(0,0,0,0.08);
 }
 
-@keyframes scrimFade { from { opacity: 0; } to { opacity: 1; } }
 .sheet {
   position: absolute;
   left: 0; right: 0; bottom: 0;
@@ -868,15 +867,6 @@ button.card:active,
   padding-left: 14px; padding-right: 14px;
 }
 
-/* Tape */
-.tape {
-  position: absolute;
-  width: 50px; height: 14px;
-  background: oklch(0.92 0.06 80 / 0.55);
-  border: 0.5px solid oklch(0.85 0.06 80 / 0.5);
-  top: -7px; left: 50%; transform: translateX(-50%) rotate(-3deg);
-  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-}
 
 /* Stat figure */
 .fig-num {
@@ -1164,7 +1154,6 @@ button.card:active,
 
 /* Staggered entrance for the home stack and the create sheet.
    Transform-only (content is never invisible if animations pause). */
-@keyframes riseIn { from { transform: translateY(12px); } to { transform: none; } }
 
 /* the Daily tab is one full-bleed widget — span edge to edge AND reach all
    the way down. The bottom nav is in normal flow, so no spacer is needed.
@@ -1223,36 +1212,6 @@ button.card:active,
 }
 @keyframes roseGrow { from { transform: scale(0.12); opacity: 0; } to { transform: none; opacity: 1; } }
 
-
-@keyframes daDone { from { opacity: 0; } to { opacity: 1; } }
-@keyframes daPop { from { transform: scale(0.4); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-
-/* ══ The edition · circle reveal + live city ═══════════════════════════════ */
-@media (prefers-reduced-motion: no-preference) {
-  .ed-reveal > * { animation: riseIn 0.45s var(--ease-out) both; }
-  .ed-reveal > *:nth-child(1) { animation-delay: 0.04s; }
-  .ed-reveal > *:nth-child(2) { animation-delay: 0.12s; }
-  .ed-reveal > *:nth-child(3) { animation-delay: 0.20s; }
-  .ed-reveal > *:nth-child(4) { animation-delay: 0.28s; }
-  .ed-fill { animation: edFill 0.7s var(--ease-out) both; animation-delay: 0.15s; transform-origin: left; }
-  .ed-live { animation: edPulse 1.8s ease-in-out infinite; }
-}
-@keyframes edFill { from { transform: scaleX(0); } }
-@keyframes edPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
-
-/* ══ The edition · the reveal moment ════════════════════════════════════════
-   The check draws itself, count-dots pop one by one, and the row percents
-   settle just after their bars finish. Finished state is the base style;
-   everything below only plays under no-preference. Nothing loops. */
-@media (prefers-reduced-motion: no-preference) {
-  .ed-check path { stroke-dasharray: 1; stroke-dashoffset: 1; animation: edDraw 0.5s var(--ease-out) 0.34s forwards; }
-  .ed-dot-in { animation: edDotIn 0.34s var(--ease-spring) both; }
-  .ed-reveal .ed-pct { animation: edNumIn 0.45s var(--ease-out) 0.62s both; }
-  .ed-seal-pop { animation: edDotIn 0.42s var(--ease-spring) 0.1s both; }
-}
-@keyframes edDraw { to { stroke-dashoffset: 0; } }
-@keyframes edDotIn { from { transform: scale(0); } to { transform: none; } }
-@keyframes edNumIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 
 /* first-run swipe hint — the daily page nudges sideways to teach day-paging */
 @keyframes sdNudge {
@@ -1387,7 +1346,7 @@ button.card:active,
    swipe nudge, and the rose petals growing. Their finished state is the base
    style, so switching them off simply shows the result. */
 @media (prefers-reduced-motion: reduce) {
-  [style*="wfFillUp"], [style*="wfPctRide"], [style*="sdNudge"], [style*="roseGrow"], [style*="wfSheetUp"], [style*="glyphPop"], [style*="qRise"], [style*="riseIn"] { animation: none !important; }
+  [style*="wfFillUp"], [style*="wfPctRide"], [style*="sdNudge"], [style*="roseGrow"], [style*="wfSheetUp"], [style*="glyphPop"], [style*="qRise"] { animation: none !important; }
   .app *, .overlay * { scroll-behavior: auto !important; }
 }
 
@@ -1856,31 +1815,6 @@ button.card:active,
 .mmt-prompt { font-size: 12.5px; line-height: 1.45; color: var(--ink-2); margin-top: 3px; text-wrap: pretty; }
 .mmt-dot { width: 7px; height: 7px; border-radius: 50%; background: oklch(0.605 0.118 var(--hue)); flex: none; }
 
-/* drawn answers — a dot on a spectrum */
-.mmt-spec { margin-top: 6px; padding-top: 26px; padding-bottom: 2px; position: relative; }
-.mmt-spec-ans {
-  position: absolute; top: 3px; transform: translateX(-50%);
-  font-size: 13px; font-weight: 700; white-space: nowrap;
-  color: oklch(0.42 0.09 var(--hue));
-}
-.app.dark .mmt-spec-ans { color: oklch(0.82 0.07 var(--hue)); }
-.mmt-spec-track {
-  position: relative; height: 5px; border-radius: 999px;
-  background: color-mix(in oklch, var(--rule) 60%, transparent);
-}
-.mmt-spec-knob {
-  position: absolute; top: 50%; width: 15px; height: 15px; border-radius: 50%;
-  transform: translate(-50%, -50%);
-  background: oklch(0.605 0.118 var(--hue));
-  box-shadow: 0 0 0 3px var(--surface-2), 0 0 0 4px oklch(0.605 0.118 var(--hue) / 0.4);
-}
-.app.dark .mmt-spec-knob { background: oklch(0.68 0.12 var(--hue)); }
-.mmt-spec-ends {
-  display: flex; justify-content: space-between; margin-top: 7px;
-  font-family: var(--sans); font-size: 9px; letter-spacing: 0.06em; text-transform: uppercase;
-  color: var(--ink-3);
-}
-
 /* filter chips — the 7 profile facts, one active; fades at the card edges */
 .mmt-fchips { display: flex; gap: 6px; overflow-x: auto; margin: 12px -16px 0; padding: 0 16px 2px; scrollbar-width: none; }
 .mmt-fchips::-webkit-scrollbar { display: none; }
@@ -1909,10 +1843,6 @@ button.card:active,
 
 /* who the group is — one small line above the bars */
 .mmt-gwho { margin-top: 14px; font-family: var(--sans); font-size: 12px; font-weight: 500; color: var(--ink-2); }
-/* your own value for the selected anchor — makes "people like you" concrete */
-.mmt-gself { display: inline-block; margin-top: 7px; font-family: var(--sans); font-size: 11.5px; font-weight: 700; padding: 2.5px 9px; border-radius: 999px; color: oklch(0.42 0.09 var(--hue)); background: oklch(0.95 0.03 var(--hue)); }
-.app.dark .mmt-gself { color: oklch(0.82 0.07 var(--hue)); background: oklch(0.295 0.045 var(--hue)); }
-
 /* group answer viz — daily-style stacked bar; your slice carries the hue */
 /* verdict — the hero: are you with the crowd or against it? */
 .mmt-verdict { display: flex; align-items: center; gap: 12px; margin-top: 15px; }
@@ -1927,10 +1857,6 @@ button.card:active,
 .mmt-dbar-mark.is-most { color: var(--ink-3); }
 .app.dark .mmt-dbar-mark.is-you { color: oklch(0.80 0.09 var(--hue)); }
 .mmt-dbar-wrap .mmt-dbar { margin-top: 0; }
-.mmt-gwho-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 14px; }
-.mmt-gwho-row .mmt-gwho, .mmt-gwho-row .mmt-gself { margin-top: 0; }
-.mmt-gwho-you { font-weight: 800; font-size: 12.5px; color: oklch(0.50 0.13 var(--hue)); white-space: nowrap; }
-.app.dark .mmt-gwho-you { color: oklch(0.80 0.09 var(--hue)); }
 .mmt-dbar { display: flex; gap: 3px; height: 18px; border-radius: 99px; overflow: hidden; margin-top: 11px; }
 .mmt-dbar-seg { display: block; position: relative; background: color-mix(in oklch, var(--ink) 9%, transparent); transition: flex-grow 0.5s var(--ease-out), background 0.2s ease; animation: mmtEven 0.55s var(--ease-out) both; }
 @keyframes mmtEven { from { flex-grow: 1; } }
@@ -1955,9 +1881,6 @@ button.card:active,
 .mmt-dbar-lab.is-most::before { background: color-mix(in oklch, var(--ink) 26%, transparent); }
 .mmt-dbar-lab.is-you::before { background: oklch(0.605 0.118 var(--hue)); }
 .app.dark .mmt-dbar-lab.is-you::before { background: oklch(0.68 0.12 var(--hue)); }
-
-/* duo spectrum — you vs them on a 1–10 scale */
-.mmt-spec-knob.is-them { background: transparent; border: 2.5px solid oklch(0.605 0.118 var(--hue)); box-shadow: none; opacity: 0.75; }
 
 /* rating distribution — the group's full 1–10 spread, your pick lit ─────── */
 .mmt-ridge { position: relative; margin-top: 26px; }
@@ -2239,4 +2162,59 @@ button.card:active,
 }
 .native-shell .wf-sheet {
   padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* ── Crossroads (spec/paths-card.jsx) ──────────────────────────────────
+   The branching-story card. One family, `.pp-*`, where the prototype used
+   two: its head/title/rule/chip/footer rules lived under `.ar-*`, the
+   namespace of an "Arena" card that exists in neither tree and whose
+   `--ar-c`/`--ar-ink` this card never sets. Renamed on the way in so the
+   stylesheet has no prefix without an owner — see the note in
+   paths-card.jsx. Colours come from `--pp-c` / `--pp-ink`, set per story on
+   the card root, so every rule below is theme- and hue-agnostic. */
+.pp-svg { display: block; width: 100%; }
+.pp-svg text { font-family: inherit; }
+.pp-head { display: flex; align-items: center; gap: 8px; }
+.pp-kick {
+  font-size: 10.5px; font-weight: 800; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--pp-ink);
+}
+.pp-name { font-size: 20px; font-weight: 800; color: var(--ink); margin: 9px 0 3px; line-height: 1.2; }
+.pp-rule { font-size: 13.5px; color: var(--ink-2); line-height: 1.45; text-wrap: pretty; }
+/* the fork counter — three pills, filled as you walk */
+.pp-steps { margin-left: auto; display: flex; gap: 5px; align-items: center; }
+.pp-steps i {
+  width: 16px; height: 5px; border-radius: 999px;
+  background: color-mix(in oklch, var(--rule), var(--surface) 25%);
+}
+.pp-steps i.on { background: var(--pp-ink); }
+.pp-q { font-size: 15px; font-weight: 650; color: var(--ink); line-height: 1.42; margin-top: 12px; text-wrap: pretty; }
+.pp-choices { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
+.pp-choice {
+  display: flex; align-items: center; gap: 8px;
+  border: 1.4px solid var(--rule); background: var(--surface);
+  border-radius: 13px; padding: 13px 14px;
+  font: inherit; font-size: 14px; font-weight: 650; color: var(--ink);
+  cursor: pointer; text-align: left;
+  transition: transform 0.18s var(--ease-spring), border-color 0.15s ease;
+}
+.pp-choice:hover { border-color: var(--pp-ink); transform: translateY(-1px); }
+.pp-choice::after { content: "→"; margin-left: auto; color: var(--pp-ink); font-weight: 800; }
+.pp-end { margin-top: 6px; }
+.pp-end b { font-size: 18px; font-weight: 800; color: var(--ink); }
+.pp-line { font-size: 13px; color: var(--ink-2); line-height: 1.45; margin-top: 3px; text-wrap: pretty; }
+.pp-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px; font-weight: 750; padding: 4px 11px; border-radius: 999px;
+  background: color-mix(in oklch, var(--pp-c), var(--surface) 82%);
+  color: var(--pp-ink);
+}
+.pp-again {
+  margin-top: 12px; width: 100%; padding: 10px; border-radius: 999px;
+  border: 1.4px solid var(--rule); background: none; color: var(--ink-3);
+  font: inherit; font-size: 13.5px; font-weight: 750; cursor: pointer;
+}
+@media (prefers-reduced-motion: reduce) {
+  .pp-choice { transition: border-color 0.15s ease; }
+  .pp-choice:hover { transform: none; }
 }
