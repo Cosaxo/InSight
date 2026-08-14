@@ -155,6 +155,20 @@ jobs:
           # from a reordered step answers that differently. Runs before
           # `cap sync` so a demo bundle is never copied into the shell.
           npm run check:web-firebase
+          # THE BUNDLE GATE BELONGS HERE, and until D144 it was only in
+          # ci.yml — which builds with VITE_V2_LIVE unset and therefore
+          # weighed a bundle nobody installs. This step's `dist/` is the
+          # literal JavaScript about to be copied into the shell, signed and
+          # uploaded, so it is the one place the measurement cannot be of the
+          # wrong artifact. It costs about a second and no extra build: the
+          # bundle is already here, and this env block already sets
+          # VITE_V2_LIVE, which the script now requires before it will grade
+          # anything.
+          #
+          # Before `cap sync` for the same reason check:web-firebase is —
+          # fail while the mistake is still in dist/, not after it is inside
+          # an .ipa.
+          npm run check:bundle
 
       - run: npx cap sync ios
 

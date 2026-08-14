@@ -372,7 +372,7 @@ abort the run with no push rather than force it green.
 ## The daily catalog-question run (a second, smaller job)
 
 A separate daily Routine (added 2026-07-30, alongside D14/D15) grows the
-catalog-question surface on a **two-part week** (D144): Monday through
+catalog-question surface on a **two-part week** (D145): Monday through
 Saturday each firing writes **one** new catalog `pick` card (a card in
 `window.PICK_QS`, `src/v2/spec/pick-data.js`, the "favourite X from a
 shipped catalogue" class), and **Sunday's firing builds a new domain
@@ -438,7 +438,7 @@ Questions are the default deliverable; the portfolio is the point.
 six days write cards as before.
 
 This used to read "from time to time … when the honest-question well for
-existing domains runs thin — and at most about once a week", and D144
+existing domains runs thin — and at most about once a week", and D145
 changed it because that sentence could not schedule anything. "Is the
 well thin?" is a judgment a competent run answers *no* to almost every
 day: it is asked while holding a domain that still has a usable seat, and
@@ -560,7 +560,7 @@ import in `src/v2/spec/learn-data.js`) and the seeded live bank (via
 `gen-v2content.mjs`). Unlike dailies there is no spec-vs-live split to
 graduate across, so a merged learn card reaches production on the next
 reseed. **One gate instead of two means the PR review IS the production
-review.** **A Routine fires this lane** (D144; twice weekly — the
+review.** **A Routine fires this lane** (D145; twice weekly — the
 inventory under Governance carries the schedule). D115 gave the lane a
 budget that could produce and left it with nothing calling it, which is
 why the bank sat 182 cards short of its own target for three days with a
@@ -695,14 +695,14 @@ the daily consumes exactly 7/week whatever the archive holds, but the
 feed serves continuously and its capacity scales with users, not the
 calendar. Like learn and duel there is no spec-vs-live split — a merged
 feed PR IS the production review: one gate, production-level bar. **A
-Routine fires this lane** (D144; twice weekly — the inventory under
-Governance carries the schedule). Until D144 it ran only when the
+Routine fires this lane** (D145; twice weekly — the inventory under
+Governance carries the schedule). Until D145 it ran only when the
 maintainer asked a dev session, and across that whole period it produced
 nothing: every provenance row in the bank still reads `editorial`.
 Rules, each load-bearing:
 
 - **Start every run with `npm run feed:budget -- --open <questions on the
-  open lane PR>`** (D144). The budget is computed, not flat: it grants up
+  open lane PR>`** (D145). The budget is computed, not flat: it grants up
   to **6 feed questions per run** while the bank is short of **12
   servable questions per topic**, subtracts whatever already sits
   unreviewed on the lane's open PR, and grants **zero** at the target or
@@ -751,7 +751,7 @@ Rules, each load-bearing:
   (`content/provenance.json`, `source: "farm"`, the run's date as
   batch) — `check:quality` fails a feed question without one.
 - **Every question carries a topic from the taxonomy** (`topics` in the
-  same file), and since D144 `check:quality` refuses one without a `cat`
+  same file), and since D145 `check:quality` refuses one without a `cat`
   rather than only validating the value when present — true in the data,
   unenforced in the gate, which is a distinction that stops mattering
   the moment a schedule rather than a human is writing. A card with no
@@ -838,7 +838,7 @@ Two rules, and they pull in opposite directions on purpose.
 `cat` is `[Top, Sub]` with `Top` in `CAT_META` for a daily question; a
 `topics` id for a feed question; a `WORLD_TOPICS` id for a pick card; `f`
 (the field) for a learn card. `check:quality` enforces all four — the
-feed and pick halves since D144, which found both unenforced. Every
+feed and pick halves since D145, which found both unenforced. Every
 question in the tree already carried one, so nothing was broken; what was
 missing was the gate, and "true in the data" is a different thing from
 "true" once a schedule rather than a human is writing. The pulse is the
@@ -1066,20 +1066,20 @@ re-paced, or retired.
 | Routine | Trigger id | Schedule (UTC) | Contract |
 | --- | --- | --- | --- |
 | InSight question farm (daily) | `trig_01REC4MfZ1D8qhYoZKxDPtdK` | daily 07:00 (D33 re-pace taken 2026-08-11) — **prompt still pre-D33, refresh pending: owner step** | this file, the sections above |
-| Daily catalog question | `trig_01HDn61hg8SYX6cMXV4XHZeu` | daily 08:00 — cards Mon–Sat, domain build Sunday (D144) — **prompt predates the Sunday slot, refresh pending: owner step** | § The daily catalog-question run |
-| InSight learn lane | `trig_017bNWxHkLQYDo97YuajmBh4` | `0 9 * * 1,4` — Mon + Thu 09:00 (D144) | § The learn-card lane |
-| InSight feed lane | `trig_01Rf5CD8mpffKf9hYEr2ZKqj` | `30 9 * * 2,5` — Tue + Fri 09:30 (D144) | § The feed lane |
+| Daily catalog question | `trig_01HDn61hg8SYX6cMXV4XHZeu` | daily 08:00 — cards Mon–Sat, domain build Sunday (D145) — **prompt predates the Sunday slot, refresh pending: owner step** | § The daily catalog-question run |
+| InSight learn lane | `trig_017bNWxHkLQYDo97YuajmBh4` | `0 9 * * 1,4` — Mon + Thu 09:00 (D145) | § The learn-card lane |
+| InSight feed lane | `trig_01Rf5CD8mpffKf9hYEr2ZKqj` | `30 9 * * 2,5` — Tue + Fri 09:30 (D145) | § The feed lane |
 
 All four fire into the maintainer's dev session
 (`session_01AvNkZgRvvMCu8zqhZtuMH5`, `persist_session: true`) for the
 reason in the paragraph above, and all four carry no stored MCP
 connectors — the GitHub tools a run needs to log on issue #31 come from
-the bound session, which is why the two D144 lanes were created with
+the bound session, which is why the two D145 lanes were created with
 exactly the configuration the two working ones already had rather than a
 tidier-looking one. The ids are recorded because `update_trigger` needs
 them and they otherwise live only in a tool response.
 
-The two D144 lanes are staggered off 07:00/08:00 and off each other so
+The two D145 lanes are staggered off 07:00/08:00 and off each other so
 no two runs are writing to the same checkout at once — they share one
 bound session, and a lane that finds the tree dirty is supposed to stash
 or use a worktree, not race. Four lanes on one reviewer is the load this
@@ -1185,7 +1185,7 @@ do not disturb uncommitted work — if the tree is dirty, stash or use a
 separate git worktree.
 ```
 
-The learn lane's canonical prompt (D144 — same rule: update BOTH this
+The learn lane's canonical prompt (D145 — same rule: update BOTH this
 block and § The learn-card lane in any future change):
 
 ```
@@ -1235,7 +1235,7 @@ previous branch afterwards; if the tree is dirty, stash or use a
 separate git worktree.
 ```
 
-The feed lane's canonical prompt (D144 — same rule, § The feed lane):
+The feed lane's canonical prompt (D145 — same rule, § The feed lane):
 
 ```
 You are running InSight's FEED lane — a scheduled job, twice weekly. It

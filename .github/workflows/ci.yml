@@ -204,12 +204,35 @@ jobs:
       # sets the real DSN and never runs check:bundle, so nothing had ever
       # weighed the shipping bundle. Any non-empty string restores the
       # branch; no secret is needed, and nothing here runs the app.
+      # VITE_V2_LIVE is the second load-bearing variable here, added at D144
+      # for the same class of reason as the DSN and found the same way. It is
+      # what `ios-release.yml` builds with, and with it unset this job built
+      # 63 chunks where the shipping bundle has 67 — 12 KB less total and,
+      # the part that matters, **9 KB less in the eager graph**. So this job
+      # was gating a bundle nobody installs while the installed one sat over
+      # both ceilings, unmeasured, for every build through 14.
+      #
+      # CAPACITOR_BUILD is deliberately NOT set. It looks like the variable
+      # that makes a build "native", but it only waives vite.config.ts's
+      # reCAPTCHA-key guard and defines nothing — verified by building with
+      # each in isolation, where VITE_V2_LIVE alone reproduced the entire
+      # delta. Setting it here would waive a guard this job wants enforced.
       - run: npm run build
         env:
           VITE_SENTRY_DSN: https://ci@example.invalid/0
+          VITE_V2_LIVE: "true"
       # The bundle ships inside a native package, so the cost is parse and
       # eval rather than network — but nothing was watching it move.
+      #
+      # The variable is repeated rather than hoisted to job level on purpose:
+      # check:bundle now REFUSES to grade a build that was not made as the
+      # shipping one, and it reads the flag from its own environment. Passing
+      # it here is the assertion that these two steps agree about which
+      # bundle they are talking about — the exact thing that was untrue
+      # between this job and ios-release.yml.
       - run: npm run check:bundle
+        env:
+          VITE_V2_LIVE: "true"
 
   unit-tests:
     runs-on: ubuntu-latest

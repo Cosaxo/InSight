@@ -14235,7 +14235,104 @@ spends ~150 minutes of macOS quota at 10x. `whatsNew` stays *"First
 release."*: it is a version field, `MARKETING_VERSION` is still 2.0.0, and
 6.2 is unticked (D74).
 
-## D144 · Four question lanes, two of which had never run: the learn and feed Routines, a feed regulator, and a weekday for catalogues
+## D144 · The bundle gate weighs the bundle that ships, and refuses to weigh any other
+
+**Decided:** 2026-08-14 · **Status:** binding · Closes the gap D143 opened
+and deliberately left open. Changes what `check:bundle` measures, where it
+runs, and what it will refuse to do.
+
+**The defect.** `ios-release.yml` is the only workflow that sets
+`VITE_V2_LIVE=true`, and it never ran `check:bundle`. `ci.yml` ran
+`check:bundle` with the flag unset. So the gated bundle was one nobody
+installs and the installed one was ungated — through build 14, which is
+already on App Store Connect.
+
+Measured at `0826cd8`, same tree, one variable apart:
+
+| build | chunks | total | eager | preloads |
+| --- | ---: | ---: | ---: | ---: |
+| demo (what `ci.yml` gated) | 63 | 2220 KB | 963 KB | 22 |
+| shipping (`VITE_V2_LIVE=true`) | 67 | 2232 KB | **972 KB** | 23 |
+| shipping + real config (release) | 67 | 2233 KB | **973 KB** | 23 |
+
+Against the ceilings in force (2230 / 966) the shipping bundle was over
+**both**, and had been over the eager one since at least build 12. First
+paint — the number whose whole job is keeping a 293 KB Firestore SDK and a
+445 KB Sentry SDK out of a cold start — was 6 KB past its ceiling for four
+releases and nothing in the tree could say so.
+
+**`CAPACITOR_BUILD=1` is not the cause, and that matters because it is the
+variable that looks like it.** It only waives `vite.config.ts`'s
+reCAPTCHA-key guard — a native client attests through DeviceCheck and never
+reads the key — and defines nothing, so it cannot change a byte of output.
+Building with each flag in isolation, `VITE_V2_LIVE` alone reproduces the
+entire delta and `CAPACITOR_BUILD` reproduces none of it. D143 named the
+native build as the unweighed one, which was true by accident: the release
+sets both, and the other one was doing the work.
+
+**What was NOT done: a second set of "native" ceilings.** That was the
+obvious shape and it is what D143 sketched (`check:bundle --native`). It is
+wrong because it leaves two profiles both gated and both plausible, so
+every future reader still has to know which command produced which numbers
+— the same question that produced this defect. Ceilings that describe one
+artifact, and a gate that refuses the others, has no such question in it.
+
+**The three changes.**
+
+1. **`check:bundle` refuses to grade a non-shipping build.** It reads
+   `VITE_V2_LIVE` from its own environment and exits 1 unless it is
+   `"true"`, naming the command to run. `--demo` measures a demo build
+   deliberately, prints the numbers and applies no ceiling. The success
+   line now names the artifact — `bundle budget OK — SHIPPING bundle` —
+   because every failure this gate has had was about *which* bundle, and
+   an "OK" that does not say "of what" is what let four builds through.
+2. **`ci.yml` builds the shipping shape** (`VITE_V2_LIVE: "true"` beside
+   the dummy DSN) and passes the flag to the check step as well. Repeated
+   rather than hoisted to job level on purpose: passing it twice is the
+   assertion that the two steps agree about their subject.
+3. **`ios-release.yml` runs the gate on its own `dist/`** — the literal
+   JavaScript about to be signed, before `cap sync`, costing ~1s and no
+   extra build. This is the half that cannot rot: a gate running in the
+   job that builds and signs the artifact has no way to measure a
+   different one.
+
+**Ceilings re-pointed, not raised.** 2230 → 2245 and 966 → 978 describe the
+same tree measured on the right object. The ~12 KB and ~6 KB bands are
+sized for a specific hazard: `ci.yml` builds with a dummy DSN and no
+Firebase config while `ios-release.yml` builds with the real ones, worth
++1 KB of total and +1 KB of eager (2232/972 → 2233/973, both measured). Set
+the ceilings at CI's figures and the release fails a gate CI had just
+passed — on a macOS runner, after the archive, at the most expensive moment
+available.
+
+**A fourth number, because the guarantee was only ever arithmetic.**
+`MAX_EAGER_KB` protects first paint as a side effect of one total covering
+23 chunks, which holds exactly as long as nobody raises it — and it was
+raised four times in four days, twice while reporting that first paint was
+already over. `MAX_EAGER_CHUNK_KB = 200` states the rule directly: outside
+the entry chunk, no member of the eager set may be library-sized. Today's
+largest is 40 KB, so it catches either SDK by a factor of at least 1.4 with
+wide berth for a chunky component. It is the rule that would have caught
+the pre-D110 tree, where 292 KB of Firestore SDK was preloaded on every
+cold start for months while the per-chunk ceiling saw 292 < 735.
+
+**Verified rather than assumed, and one of these was the point of the
+exercise:** both SDKs are absent from the shipping build's modulepreload
+list — 23 modules, largest 40 KB, no 293 KB `index.esm-*` and no 445 KB
+`prod-*`. "The eager ceiling has been wrong for four builds" is exactly the
+report that ends with an SDK in first paint, so it was checked before the
+ceiling moved. The refusal path, the `--demo` path and the new per-chunk
+rule were each exercised — the last by temporarily lowering it to 30 KB and
+confirming it fires on the four 34–41 KB eager chunks and exits 1.
+
+**What this does not fix.** The gate still cannot see a bundle built with
+flags nobody wrote down; it can only refuse the one wrong shape it knows
+about. If a future build profile is added, it needs a line here and in both
+workflows, and nothing enforces that but review. Recorded rather than
+solved: the alternative is a build-profile manifest emitted into `dist/`,
+which is more machinery than one flag currently justifies.
+
+## D145 · Four question lanes, two of which had never run: the learn and feed Routines, a feed regulator, and a weekday for catalogues
 
 **Decided:** 2026-08-14 · **Status:** built on
 `claude/question-generation-rates-5kiz6c` (owner's direction: "wire up
