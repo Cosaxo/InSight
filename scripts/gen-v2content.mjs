@@ -102,6 +102,25 @@ export function fieldOptions(q) {
   return out;
 }
 
+// ── Crossroads option synthesis (D136) ──
+// Same design as the continuum forms above, one step further: a walk is
+// three binary forks, so its answer space is eight endings and a finished
+// walk stores as an ordinary optionIdx 0..7. The labels are the ENDING
+// NAMES, in PATH_ENDINGS order — so the voters panel says "picked The
+// Quiet Good", which is the most legible option label in the bank.
+//
+// The order is the contract. It is DERIVED rather than authored — here,
+// in question-quality.mjs and in the client — precisely because it has to
+// be identical in three places that do not share a module: two evaluations
+// of this expression cannot disagree, two transcriptions of a literal can.
+// Reordering it would silently reassign every stored walk, which is what
+// the seed's D52 option freeze refuses.
+export const PATH_ENDINGS = ["A", "B"].flatMap((a) => ["A", "B"].flatMap((b) => ["A", "B"].map((c) => a + b + c)));
+
+export function pathOptions(q) {
+  return PATH_ENDINGS.map((k) => q.endings[k].name);
+}
+
 export function loadContent() {
   const load = (name) =>
     JSON.parse(readFileSync(join(CONTENT, name), "utf8"));
@@ -214,6 +233,7 @@ export function buildEntries(content = loadContent()) {
       options:
         q.type === "dial" ? dialOptions(q)
         : q.type === "field" ? fieldOptions(q)
+        : q.type === "path" ? pathOptions(q)
         : q.options ? q.options.map((o) => o.label) : q.items,
       topic: q.cat,
       axis: null,
@@ -226,6 +246,26 @@ export function buildEntries(content = loadContent()) {
       ...(Array.isArray(q.ends) ? { ends: q.ends } : {}),
       ...(Array.isArray(q.ax) ? { ax: q.ax } : {}),
       ...(Array.isArray(q.ay) ? { ay: q.ay } : {}),
+      // A path's story — the tree the card walks and the endings it names.
+      // Emit-when-set for the same reason as the continuum copy above: no
+      // other feed entry carries them, and writing them as null would
+      // mismatch every stored doc.
+      //
+      // The choice SHARES (`p`) are deliberately dropped on the way through.
+      // They are the demo pool's authored crowd, and live the crowd is the
+      // aggregate — the same rule that drops demo vote counts two comments
+      // up (D1). What survives is the prose and the shape.
+      ...(q.type === "path"
+        ? {
+            title: q.title,
+            intro: q.intro,
+            hue: q.hue,
+            nodes: Object.fromEntries(
+              Object.entries(q.nodes).map(([k, n]) => [k, { q: n.q, a: n.a.map((c) => ({ t: c.t })) }]),
+            ),
+            endings: q.endings,
+          }
+        : {}),
       ...flags(q),
     });
   });
@@ -380,7 +420,7 @@ const HEADER =
   "// forms' range/plane copy (D114), absent everywhere else; their options\n" +
   "// are synthesized bucket/cell labels, so the D52 option freeze freezes\n" +
   "// the range with them.\n" +
-  "export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; branch?: string; sub?: string; axis: string | null; test: string | null; mode?: string; active?: boolean; political?: boolean; lo?: number; hi?: number; unit?: string; ends?: string[]; ax?: string[]; ay?: string[]; }\n" +
+  "export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; branch?: string; sub?: string; axis: string | null; test: string | null; mode?: string; active?: boolean; political?: boolean; lo?: number; hi?: number; unit?: string; ends?: string[]; ax?: string[]; ay?: string[]; title?: string; intro?: string; hue?: number; nodes?: Record<string, { q: string; a: Array<{ t: string }> }>; endings?: Record<string, { name: string; line: string }>; }\n" +
   "export const V2_QUESTIONS: V2SeedQuestion[] = ";
 
 export function generate(content = loadContent()) {

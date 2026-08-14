@@ -37,7 +37,7 @@ Three facts that make this a migration rather than a toggle:
    is explicit: once a database is provisioned you cannot change where it
    lives. There is no console button and no `gcloud` command.
 2. **`prvfire33`'s `(default)` database is already `nam5`**, already
-   seeded (510 questions, LAUNCH-RUNBOOK § 0.1) and already serving a
+   seeded (512 questions, LAUNCH-RUNBOOK § 0.1) and already serving a
    deployed backend.
 3. **Build 1 is in TestFlight** with internal testers. So this is not a
    clean slate: whatever those testers have answered lives in the

@@ -38,15 +38,20 @@ function MirrorLensTabs({ tabs, open, onOpen }: {
   // The prototype's ladder stopped at six ("six stops have to fit a phone
   // without clipping") and this file inherited it as `>= 6`, which quietly
   // absorbed a SEVENTH when Foresight arrived (D126) — seven tabs drawn at
-  // the size six were measured at, on the same fixed width. That is the
-  // cramping the D135 report was about, and the `>= 6` is why it did not
-  // show up as a change to anything.
+  // the size six were measured at, on the same fixed width. That was the
+  // cramping the D135 report was about, and the `>= 6` is why it never
+  // showed up as a change to anything.
   //
-  // 10.5 at seven is measured, not guessed: "Foresight" is the longest
-  // label in the row and the narrowest supported viewport is 320 CSS px,
-  // giving each of seven tabs ~45px inside the row's padding. At 11.5px
-  // semibold the word needs ~52px and clips; at 10.5 it needs ~47px and
-  // the 3px horizontal padding below absorbs the rest.
+  // D136 took the row back to FIVE — Answers plus four lenses, the
+  // constellation having moved above the row and Foresight off the Mirror
+  // — so the rung that binds today is `=== 5 → 13`. The 6 and 7 rungs stay
+  // rather than being deleted with the tabs that needed them: they cost
+  // two comparisons, and the row's whole failure mode is a section being
+  // added without anyone re-measuring the width it has to fit in. 10.5 at
+  // seven remains measured, not guessed — at 320 CSS px each of seven tabs
+  // gets ~45px inside the row's padding, "Foresight" needs ~52px at 11.5
+  // semibold and clips, ~47px at 10.5, and the 3px padding below absorbs
+  // the rest.
   const fs = tabs.length >= 7 ? 10.5 : tabs.length === 6 ? 11.5 : tabs.length === 5 ? 13 : 14.5;
   return (
     <div className="mm-lensrow mm-lensrow-top" role="tablist" aria-label="Lenses"

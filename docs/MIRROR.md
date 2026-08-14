@@ -167,19 +167,33 @@ and the place's real averages. Tapping a place opens its profile — the
 average score per instrument axis, your own tick on every bar, and the
 answer count behind each number.
 
-**Since D119 the stop is a tab row, not a scroll** (§3): `Overview ·
-Answers · People · Compare · Explore · Scores · Foresight`, one open at a
-time, the prototype's nav v2. It used to be the constellation on top, the
-answer rows under it, and a collapsed lens strip at the bottom — so
-Answers was the page and everything else was a drawer.
+**Since D119 the stop is a tab row, not a scroll** (§3): `Answers ·
+People · Compare · Explore · Scores`, one open at a time, the prototype's
+nav v2. It used to be the constellation on top, the answer rows under it,
+and a collapsed lens strip at the bottom — so Answers was the page and
+everything else was a drawer.
 
-**D135 put Overview first and made it the landing tab**, reversing D119's
-order against the prototype. The reason D119 led with Answers still
-holds — the rows publish from the first answer (D98) while the
-constellation waits on completed test scores — so the empty field answers
-it in place: every empty arm offers *"See what they answered"* rather
-than ceding the first screen. The cost is that the similarity fold now
-runs on arrival at every cohort stop; it is free on re-entry
+**The field is not in that row.** D119 made it a tab, D135 made it the
+landing tab, and **D136 took it out of the row entirely** — it draws
+above the tabs and stays drawn whatever is open, which is the
+prototype's own layout (MFHeader → field → row). D135's reasoning is
+what carried it: the field is the stop's identity, and a tab is
+something you can be looking away from. The reason D119 led with Answers
+still holds and is why Answers now leads the row and is what a stop
+opens on — the rows publish from the first answer (D98) while the
+constellation waits on completed test scores, and a closed row above an
+empty field would be a blank stop. Every empty arm of the field still
+offers *"See what they answered"*.
+
+**D136 also removed Foresight from the row** — the lens row is where a
+population gets *read*, and Foresight was the only entry that was a
+game. Its engine, rules and lens body are all still in the tree; only
+the placement is withdrawn, and the feed (where the prototype puts it,
+and which D126 named as the open follow-on) is where it goes next.
+
+The similarity fold runs on arrival at every cohort stop — unchanged by
+D136, since a stop already opened on the field — and it is free on
+re-entry
 (`state.testAggsLoaded`), and `LiveCohortBody.test.tsx` pins that.
 
 The stop also leads with a **figure** now, the prototype's MFHeader shape:
@@ -229,11 +243,15 @@ these lenses its population can support:
   sync — a pole of any test you have taken, with your own pole marked and
   a "like me" shortcut) and see what that slice believes, led by where it
   *differs* from everyone. The globe only.
-- **Foresight** — v19's own addition and the row's only game: ten seconds
-  to say which option a slice picked, scored against the published cell.
-  **Live since D126**, as the READ half only; what CALL is waiting on is
-  in that decision. Placed here rather than in the feed because a read is
-  scoped to the population the ruler above already names.
+- **Foresight** — *off the row since D136.* v19's own addition and the
+  row's only game: ten seconds to say which option a slice picked, scored
+  against the published cell. Went live at D126 as the READ half only
+  (what CALL is waiting on is in that decision), placed here rather than
+  in the feed because a read is scoped to the population the ruler names.
+  D136 withdrew that placement — a row of readings is the wrong home for
+  a game — without touching the engine, the verdict rules or the lens
+  body, all of which are still in the tree and still tested. It has no
+  surface today; the feed is the next one.
 
 **Read that as the design, not as today's live build — and read the
 reason carefully, because it changed.** The lens row lives inside the demo
@@ -256,7 +274,7 @@ a lens row again:
 | **Compare** | **live** | `pctFor` on your own option, ranked least-typical first — no new read |
 | **Explore** | **live** | `divergence` across the six breakdown dims. The v18 test-pole axis is the one part with no source, since test results are not a dim. Its chips and its sentences printed the raw bucket KEY until D125 — a country row read "NO" — and now resolve through `ui/cohortLabels.ts`, the same one a feed card's breakdown sheet uses |
 | **Scores** | **live since D100** | `meanScore` over the bank's ordinal questions (`rating` + `scale`), your own score ticked onto each bar. The prototype's *place* scorecard joins the day `rate` questions are written — the lens filters on type |
-| **the field itself** | **live since D112**, the **Overview** tab since D119 | `LiveSimilarityField` — the constellation the demo bodies drew from constants, now computed: kindred by scores on City, place profiles on Country/World |
+| **the field itself** | **live since D112**; a tab from D119, the stop's permanent head since D136 | `LiveSimilarityField` — the constellation the demo bodies drew from constants, now computed: kindred by scores on City, place profiles on Country/World. Outside the tab conditional, so it never unmounts and row navigation costs nothing |
 
 The row is the stop's navigation (`ui/MirrorLensTabs`, the prototype's
 `MirrorLensRow` ported to TSX over the same CSS), and the cost gate the

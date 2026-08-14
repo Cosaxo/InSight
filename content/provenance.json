@@ -793,6 +793,14 @@
     "fd3": {
       "source": "editorial",
       "batch": "v20"
+    },
+    "pt1": {
+      "source": "editorial",
+      "batch": "v23"
+    },
+    "pt2": {
+      "source": "editorial",
+      "batch": "v23"
     }
   }
 }

@@ -13465,3 +13465,233 @@ release build does not face. CI measures the bundle that ships.
 `apple.whatsNew` stays *"First release."* — it is a **version** field, not
 a build field, and `MARKETING_VERSION` is still 2.0.0 with 6.2 unticked, so
 there has been no first release for it to be new against (D74).
+
+## D136 · The Mirror stop loses two tabs; Crossroads and a feed window arrive
+
+**Decided:** 2026-08-14 · **Status:** binding · Owner decisions, taken
+against the prototype (`InSight_standalone_23.html`). Reshapes D119's tab
+row and completes the move D135 started; withdraws D126's lens placement
+without touching its engine.
+
+Three changes asked for together, recorded together because two of them
+are the same change to the same row and the third is the reason the row
+had room.
+
+### 1 · Overview stops being a tab and becomes the head of the stop
+
+D119 made the constellation a tab and put Answers first. D135 reversed
+the order so a stop opened on the field. This takes the step both were
+feeling for: **the field is not a tab at all.** It draws above the row,
+always, and stays drawn while any tab is open.
+
+The argument is D135's own, followed through. The field is the stop's
+IDENTITY — *you at the centre, them arranged around you, distance = how
+unlike you* is the sentence the whole Mirror exists to say — and a tab is
+the wrong furniture for an identity, because a tab is a thing you can be
+looking away from. "Overview leads" was the closest the row could get to
+that while the row still owned the whole screen. This is also the
+prototype's own layout (`spec/mirror-field-pops.jsx` renders MFHeader →
+field → lens row), which both tabbed versions had diverged from in
+opposite directions.
+
+**The cost did not move, and one cost went away.** Overview's fold runs on
+arrival — the same call count as when it was the landing tab, because a
+stop always opened on it, and `loadSimilarity` still early-returns on
+`similarityLoading` behind a `state.testAggsLoaded` guard. What changed is
+*navigating* the row: the field used to unmount and re-mount when you left
+Overview and came back, firing the loader a second time (harmless, and
+asserted as such in D135's case). It now sits outside the tab conditional
+and never unmounts, so row navigation costs nothing at all. The test was
+tightened from "called twice" to "still called once".
+
+**The row opens on Answers, not on nothing**, though the prototype's row
+starts collapsed. The prototype can afford that because its field is drawn
+from invented people and is never empty; the live constellation folds over
+completed test scores (D112) and is empty until a population has taken
+them. Closed-by-default would render an empty field above a closed row — a
+blank stop, which is the failure D135 was fixing.
+
+### 2 · Foresight leaves the Mirror
+
+The lens row is where a population gets READ, and Foresight was the only
+entry in it that was a GAME. It is off the row.
+
+**The engine is untouched and that is deliberate.** `data/foresight.ts`,
+the verdict rules at `v2_users/{uid}/foresight/{readId}`,
+`LiveForesightLens.tsx` and both suites all stand. D126 already named the
+feed as the open follow-on for this game and recorded that it needs no
+engine change to move there (`readsFrom` takes questions and returns
+reads) — which is also where the prototype puts it. Removing the surface
+is not a judgement on the engine.
+
+**What this leaves dark, said plainly:** Foresight has no surface today.
+That is the cost of the change, and the reason the machinery is being kept
+rather than deleted is that the placement question is open, not closed.
+The mount test that walked to it (`smoke-live`, "reaches the Foresight game
+through two lazy boundaries") is DELETED rather than skipped — what it
+asserted was reachability through a tab, and there is no tab; a skipped
+case would read as a broken feature instead of a removed surface. The lens
+body's own suite renders it directly and still covers the clock and the
+scoring.
+
+**The row is five wide now** — Answers plus four lenses — so
+`MirrorLensTabs`' size ladder lands on its `=== 5 → 13` rung. The 6 and 7
+rungs stay: they cost two comparisons, and D135's finding was that a
+seventh tab arrived without anyone re-measuring the width it had to fit.
+
+### 3 · Crossroads, live
+
+Branching micro-stories in the feed: three forks deep, eight endings, no
+score. The reveal is the TREE — the crowd's flow through every branch as
+stroke width, your road inked, your ending named, and how rare the walk
+was. `spec/paths-data.js` + `spec/paths-card.jsx`, at the head of the feed.
+
+**A story is an ordinary bank question, and this is the whole design.** Its
+eight ENDINGS are its options, so a finished walk stores as an ordinary
+`optionIdx` 0..7 — under the fold's existing ceiling (idx > 19 is dropped,
+`functions/src/v2.ts`) and under the by-cell budget, exactly as D114 sized
+the dial's twelve buckets. Which means the rules' create/edit arms, the
+trigger, the ledger, the by-cells, the D86 cooldown and the voters panel
+all carry a walk **unchanged**: zero rules edits, zero fold edits, and the
+voters panel prints *"picked The Quiet Good"* for free, which is the most
+legible option label in the bank.
+
+A branch's share is then the summed counts of the endings beneath it over
+the total — arithmetic on marginals the aggregate already publishes. No new
+read, no new document, no new collection.
+
+**What it needed on top of that**, all of it client- or content-side: a
+`path` entry in `check:quality`'s `FEED_TYPES` with a validator for the tree
+(seven decision points, exactly the eight walks, two choices each, unique
+ending names); `pathOptions` in `gen-v2content.mjs` to synthesize the eight
+labels; the story fields carried through the emitter; and the two stories
+themselves in `content/feed-questions.json` with provenance rows.
+
+**The demo pool did not go away, and the card reads whichever it has.** In a
+build with no bank `LIVE.pathQs()` is empty and the card falls back to
+`paths-data.js`, whose branch shares are AUTHORED. The two render
+identically apart from the words, which is what makes the fallback worth a
+test on both sides rather than a comment: `smoke-daily` pins the demo story
+on a demo mount, `smoke-live` pins the bank's story on a live one and
+asserts the demo titles are absent. A card that quietly fell back on a live
+build would look perfectly correct and be showing invented crowd figures,
+which is D1's case exactly.
+
+**The empty arm is not a zeroed tree.** A live story nobody has finished has
+no crowd, and eight branches drawn at zero width would say *"nobody went
+anywhere"* rather than *"nobody has been here yet"*. So `flow` is null at a
+total of zero and the card says the sentence instead — the same
+honest-absence rule the Map's `MapStats` follows by returning null (D72).
+
+**Three deliberate differences from the prototype's files:**
+
+- **Named exports, not `window.PATHS` / `window.PathsCard`.** New
+  cross-module reads fail `check:globals` rule 4, whose count may only go
+  down. Coupling held at its baseline across this change.
+- **No `mapTree()`.** The prototype files finished walks onto the Map as a
+  `g-paths` over-category. That needs `map-tab.jsx` — which is eager — to
+  read the store, and `MAX_EAGER_KB` is at exactly its ceiling with no
+  headroom (D134). Reading it off the bridge instead would buy the bytes
+  and spend the ratchet. Both doors are shut until one of the two budgets
+  moves, so the function is omitted rather than shipped uncalled.
+- **The `.ar-*` CSS family was renamed to `.pp-*`.** The prototype styles
+  this card's head, title, rule, chips and footer with the class family of
+  an "Arena" card that exists in neither tree, and whose `--ar-c` /
+  `--ar-ink` this card never sets — it sets `--pp-*` and overrides the
+  colour inline at every site. Importing that namespace would have landed
+  six rules under a prefix with no owner, styled by variables nothing
+  defines.
+
+**Two transport gaps the gates found, both silent.** The seed's payload is
+a WHITELIST, not a spread — a field it does not name never reaches
+Firestore — so the story would have seeded as a question with no forks in
+it. And `SEEDED_FIELDS`, which decides whether a stored doc is already
+current, did not compare the story either: a fixed typo in a fork would
+have been a content change that could never reach production. Both are now
+carried, and the second needed a real change rather than a line: `nodes`
+and `endings` are the first OBJECTS in that list, and the comparator
+handled only arrays and scalars, so they compared by reference, never
+matched, and would have rewritten both live question docs on every seed run
+while reporting them as legitimate drift. `seedValueMatches` is the
+structural arm — recursive, key-order-independent (Firestore does not
+promise order on read, so `JSON.stringify` would have been the same bug in
+disguise), and still strict about null-vs-undefined at the leaves so a doc
+seeded before a field existed still upgrades.
+
+**A third gap, and the only one no local gate could have caught.** The
+opening fork wants to be keyed by the empty walk — a walk is a string of
+choices and the opening is the empty one, so `nodes[walk]` indexes it
+directly. **Firestore refuses an empty map key**, and refuses it at write
+time inside the seed callable: `check:quality`, `check:content`, `tsc`, 984
+unit tests and every mount test were green on a bank that could not be
+seeded at all. The e2e loop failed on the PR, which is the one thing that
+runs the real seed, and that is the whole argument for keeping it on the
+backend gate path. The opening now carries a `_` sentinel and both readers
+map `walk || "_"`.
+
+The story's own keys are pinned exactly by the path validator, so that
+cannot regress. The general form got a guard of its own in `seed.test.ts`:
+every value the seed writes is walked for an empty (or dotted) map key,
+because the next object-valued seeded field will not have a validator
+spelling its keys out.
+
+**Not dealt into the card stream.** Crossroads is pinned at the head of the
+feed rather than interleaved, because its reveal is a tree rather than a
+split: none of `renderCard`'s apparatus — option rows, who-voted, takes, the
+insight line — has anything to say about a walk. `buildFeedGlobals` holds
+`path` docs out of `WORLD_FEED_QS` for the same reason.
+
+### 4 · The feed mounts a window
+
+The feed runs hundreds of cards long and every one is a real component. It
+now mounts eight and grows by four as its tail comes within ~2200px of the
+scroller's bottom, and never shrinks — collapsing a card you have already
+answered would move the scroll position under your thumb.
+
+**Two things make it not a loading state.** The reach is roughly two screens,
+so the window grows well before you can see its edge; and a spacer holds
+room below the last mounted card, without which a feed whose mounted cards
+already fill the viewport can never fire the scroll that would grow it and
+the window stalls at page one — a feed that stops at eight cards looks
+exactly like a feed that ran out.
+
+**An unresolvable scroller keeps mounting.** `applySnap` finds the scroller
+by walking for an ancestor whose computed `overflow-y` scrolls, and it can
+come back empty: before layout settles, in a host that styles the shell
+differently, or under a test environment with no CSS. Treating that as "not
+near the end" would strand the feed at its first page with no event that
+could ever grow it, so an unknown distance grows instead. The worst case is
+the un-windowed behaviour this replaced — a cost, not a defect — and it is
+also why the mount suites can reach a card past page one at all
+(`growFeed`, test/mount-app.jsx).
+
+### What proves it
+
+`test:unit` (71 files, 984 cases), `functions` (203), `lint`, `tsc -b`,
+`check:globals` (coupling unchanged at its baseline), `check:quality` (372
+questions), `check:content`, `check:figures`, `check:a11y`, `check:labels`,
+`check:public-copy`, `check:data-inventory`, `check:catalogs` and
+`check:bundle` on the CI-equivalent build — all green.
+
+New cases: the card's walk and the ending it reveals, persistence across
+unmount, the store's refusal of a fourth choice, the authored flow
+arithmetic, and seven live ones — the bank's story rather than the demo
+pool, the walk written as an ordinary vote indexed by ending, the crowd read
+out of counts rather than an authored share, restoration from the server
+with no local trace, a second walk as a D86 edit, the snap-back when that
+edit is refused, and the nobody-has-finished-this-yet arm. Plus the feed
+window growing, and Crossroads present on a demo mount and absent from the
+demo pool on a live one.
+
+Changed cases: the tab row's shape and lead, the constellation's position
+relative to the row (asserted as document order, so "above" holds for a
+screen reader too), and the navigation-cost pin tightened from two calls to
+one — D136 made it stricter, since the field no longer unmounts.
+
+**The bundle gate earned its keep here.** The first draft of the live fold
+precomputed each story's counts in `buildFeedGlobals`, which put ~1 KB into
+the eager graph for a card that cannot render until the feed chunk lands.
+`MAX_EAGER_KB` refused it and is not raiseable — it is what keeps the
+Firestore SDK out of first paint — so the fold moved into `LIVE.pathQs()`
+and runs on call. Eager is unmoved at 955; only the total drift alarm rose,
+2182 → 2184, with the question the script asks recorded at the constant.
