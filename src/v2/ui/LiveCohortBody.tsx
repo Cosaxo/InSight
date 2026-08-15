@@ -56,7 +56,7 @@ import MirrorLensTabs from "./MirrorLensTabs";
 // ordinary import, not lazy: this body IS the default tab, and it rides
 // this module's own lazy chunk (D119) either way.
 import LiveAnswerRows, { type AnswerRow } from "./LiveAnswerRows";
-import { DEFAULT_STOP_TAB, LENS_LABEL, STOP_TABS, TAB_LABEL, lensesFor, type LensTab } from "./lensTabs";
+import { LENS_LABEL, STOP_TABS, TAB_LABEL, lensesFor, type LensTab } from "./lensTabs";
 import type { LensId, LensQuestion } from "./lensDefs";
 import { byOf } from "../data/cohort";
 // An ordinary import, not a globalThis lookup — same note as LiveDuelPanel's
@@ -107,7 +107,51 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
   // the three scopes mount as separate elements (mirror-tab keys the body
   // on the zoom), so each stop keeps its own place and switching scope
   // lands on Answers, which is the one tab every scope always has.
-  const [tab, setTab] = React.useState<string>(DEFAULT_STOP_TAB);
+  // CLOSED, not Answers (D155). D135 opened the stop on Answers because a
+  // closed row under an empty field read as a blank stop — true of the
+  // layout it was written for, and the prototype's own answer is different
+  // and better: the row is pinned to the BOTTOM of the screen, so a stop
+  // with nothing open is a header, a field and a tab bar sitting where a
+  // tab bar belongs. Nothing looks broken because nothing is missing.
+  const [tab, setTab] = React.useState<string>("");
+  // The row, so opening a tab brings it to the top of the scroller the way
+  // the prototype does (spec/mirror-field.jsx MirrorLenses).
+  const rowRef = React.useRef<HTMLDivElement | null>(null);
+  // D155 CLAIMED THIS SHIPPED AND IT DID NOT. The ref was declared, the ref
+  // was attached, and nothing ever read it — so the row pinned to the
+  // bottom correctly and then just sat there when you tapped it, leaving
+  // the panel you asked for below the fold. Nothing could catch that: a
+  // dangling ref is valid TypeScript, valid eslint and invisible to
+  // check:globals, and the tab-open tests assert the panel MOUNTS, which it
+  // did. Reported from a device, which is the only place it was visible.
+  //
+  // Keyed on `tab` rather than the derived `openTab` because this has to be
+  // a hook and `openTab` is computed past the `needsCity` early return.
+  // They agree in practice: setTab is only ever called with an id from
+  // `tabs`, and mirror-tab keys this body per scope, so a tab cannot
+  // survive into a scope that lacks it.
+  React.useEffect(() => {
+    if (!tab || !rowRef.current) return;
+    const row = rowRef.current;
+    // The scroller is the app's (.app-body), not ours — walk up to it, and
+    // take the first ancestor that both overflows and can actually scroll.
+    let sp: HTMLElement | null = row.parentElement;
+    while (sp && !(sp.scrollHeight > sp.clientHeight && /(auto|scroll)/.test(getComputedStyle(sp).overflowY))) {
+      sp = sp.parentElement;
+    }
+    if (!sp) return;
+    const scroller = sp;
+    // 60ms, the prototype's own number. The panel mounts in the same commit
+    // as the tab flip, so measuring now measures the row before the body it
+    // is about to sit above exists — and scrolls to a position that stops
+    // being right one frame later.
+    const t = setTimeout(() => {
+      const top = row.getBoundingClientRect().top
+        - scroller.getBoundingClientRect().top + scroller.scrollTop - 12;
+      scroller.scrollTo({ top, behavior: "smooth" });
+    }, 60);
+    return () => clearTimeout(t);
+  }, [tab]);
 
   const city = LIVE.myCity;
   const place = city ? PLACES.parse(city) : null;
@@ -206,10 +250,10 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
   // whose job is "how did this place answer": it made the Answers lens a
   // week's worth of rows, which is too few to be worth filtering and far
   // too few for Scores to find a rating question in.
-  // CORE ONLY (D153). This panel makes a claim about a PLACE — "this is
+  // CORE ONLY (D161). This panel makes a claim about a PLACE — "this is
   // how Oslo answered" — and that is only true of a question everyone in
   // Oslo could have been asked. A tail question is ordered by the interest
-  // model (D155), so its split describes the people it was shown to; the
+  // model (D163), so its split describes the people it was shown to; the
   // arithmetic would stay correct while the sentence stopped being.
   //
   // Through `isCore`, not `q.core`, because the flag is feed-only and
@@ -222,16 +266,16 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
   // excluded, rather than diluting these readings until someone notices.
   //
   // ⚠ DEPLOY ORDER. It is only a no-op against a bank that has been
-  // RESEEDED since D153. The production bank was seeded before `core`
+  // RESEEDED since D161. The production bank was seeded before `core`
   // existed, and those feed documents carry no flag — which `isCore` reads
   // as tail, correctly and unhelpfully, dropping all 82 of them out of this
   // panel. So this ships AFTER a reseed, never before. The failure is at
   // least loud (the place panels go visibly thin, rather than quietly
-  // wrong), which is the direction D153 chose the polarity for — but loud
+  // wrong), which is the direction D161 chose the polarity for — but loud
   // is not the same as harmless. Same class as D100's branch/sub fields,
   // whose note says readers must tolerate a stale bank; the difference is
   // that tolerating this one would mean defaulting absent to core, which
-  // is the silent failure D153 exists to prevent.
+  // is the silent failure D161 exists to prevent.
   const archive = LIVE.aggregated().filter((q) => q.coreCorpus);
   const myVotes = LIVE.myVotes();
 
@@ -337,10 +381,17 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
     ...STOP_TABS.map((id) => ({ id, label: TAB_LABEL[id] })),
     ...lensesFor(scope).map((id) => ({ id, label: LENS_LABEL[id] })),
   ];
-  const openTab = tabs.some((t) => t.id === tab) ? tab : DEFAULT_STOP_TAB;
+  const openTab = tabs.some((t) => t.id === tab) ? tab : "";
 
   return (
-    <div className="fade-in" style={{ padding: "4px 16px 26px", "--accent": accent } as React.CSSProperties}>
+    <div className="fade-in" style={{
+      padding: "4px 16px 26px", "--accent": accent,
+      // A filling column, so `marginTop: auto` on the row below has
+      // somewhere to push against. Without this the row sits under the
+      // last thing drawn and floats mid-screen on an empty stop, which is
+      // exactly what it looked like.
+      flex: "1 0 auto", display: "flex", flexDirection: "column",
+    } as React.CSSProperties}>
       <div style={{ padding: "10px 0 4px" }}>
         <div className="kicker">
           {scope === "city" ? "Your city" : scope === "country" ? "Your country" : "Everyone"}
@@ -393,8 +444,19 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
 
       {/* Under the field: the row is this stop's navigation, and the ruler
           above it is the app's. Two levels of nav in that order is what the
-          prototype's nav v2 is — WHO, then WHAT. */}
-      <MirrorLensTabs tabs={tabs} open={openTab} onOpen={setTab} />
+          prototype's nav v2 is — WHO, then WHAT.
+
+          `marginTop: auto` is the prototype's own line (MirrorLenses) and
+          it is what keeps the row at the BOTTOM of the screen when the
+          stop has little to show. A tab bar floating halfway up a mostly
+          empty screen is the thing it fixes.
+
+          Tapping the open tab closes it, so the row can return to the
+          state it starts in. */}
+      <div ref={rowRef} style={{ marginTop: "auto", paddingTop: 16 }}>
+        <MirrorLensTabs tabs={tabs} open={openTab}
+          onOpen={(id) => setTab(openTab === id ? "" : id)} />
+      </div>
 
       {openTab === "answers" && (
         <div className="fade-in" role="tabpanel" aria-label={TAB_LABEL.answers}>
@@ -421,7 +483,7 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
         </div>
       )}
 
-      {openTab !== "answers" && (
+      {!!openTab && openTab !== "answers" && (
         <div className="fade-in" role="tabpanel" aria-label={LENS_LABEL[openTab as LensId]}>
           <React.Suspense fallback={null}>
             <LiveMirrorLenses lens={openTab as LensId} qs={lensQs} shortName={shortName} scope={scope} />

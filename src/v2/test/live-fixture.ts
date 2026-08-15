@@ -103,7 +103,7 @@ function liveQuestion(
     text: prompt,
     dayLabel: "Today",
     // What buildS resolves for every real question that a cohort reading
-    // is allowed to fold (D153). A fixture without it is a TAIL question,
+    // is allowed to fold (D161). A fixture without it is a TAIL question,
     // and the Mirror's place panels would render their empty state — which
     // is the one shape a mount test must not silently accept.
     coreCorpus: true,
@@ -426,6 +426,9 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     // is exactly the honest cold-start state the live tests should see.
     learnAnswer: () => {},
     learnAgg: () => null,
+    // Nothing written this session, so nothing pending — the fixture's
+    // reveals read exactly what `learnAgg` gives them.
+    learnMine: () => null,
     // The D125 warm-up. A no-op here for the same reason learnAgg returns
     // null: the fixture has no aggregates, so the honest state it renders
     // is the labelled estimate.

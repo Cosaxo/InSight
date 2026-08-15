@@ -74,7 +74,7 @@ import { initAppCheck } from "./appcheck";
 // `window.LIVE`'s: live.ts destructures this whole object in one statement, so
 // a member added to the store without being added here fails at boot rather
 // than at the call.
-// The Firestore database this client talks to (D157). Kept as a named
+// The Firestore database this client talks to (D165). Kept as a named
 // constant rather than a literal at the call site so `check:fn-runtime` and
 // a human grep both find it, and so the emulator override is one place.
 export const FIRESTORE_DB_ID = import.meta.env.VITE_FIRESTORE_DB_ID || "insight";
@@ -143,7 +143,7 @@ export function init(config: FirebaseConfig): void {
   // question bank and answer history are sitting in cache. Disk cache
   // also queues votes written while offline so they sync on reconnect.
   //
-  // The third argument is the DATABASE ID (D157). The app moved off
+  // The third argument is the DATABASE ID (D165). The app moved off
   // `(default)` to a single EU region; omit this and the client talks to a
   // database the backend no longer writes to — which looks like an app with
   // no data rather than like an error. Emulator runs override it through

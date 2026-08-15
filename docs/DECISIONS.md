@@ -15011,9 +15011,910 @@ behind a "Takes" tap or under a revealed duel. Both imports are
 Eager graph **966 → 958 KB**, so this change ends with 8 KB more headroom
 than it started with, and the panel loads on the tap that asks for it.
 
+## D153 · Build 15's pre-flight: the first one where the number was already right
+
+**Decided:** 2026-08-14 · **Status:** binding · Fourth consecutive release
+pre-flight (D130, D142, D143) and the first whose build-number comparison
+answers *run as-is*. Changes no code. `appBuild` is **not** bumped here,
+and that is the finding rather than an omission.
+
+### The comparison, made against the runs
+
+Run 20 (`8cf48a1`, 2026-08-14 16:39Z, 7m 32s) has `Upload to App Store
+Connect` = **`success`**, and `appBuild` at that commit was **14**. So
+build 14 is spent. `appBuild` in the tree is **15**. Fifteen is greater
+than fourteen, so runbook 2.4's question — *is `appBuild` greater than the
+highest build in App Store Connect?* — answers yes, and the procedure says
+run as-is.
+
+**Three pre-flights in a row bumped; this one does not, and the difference
+is D143's habit finally holding.** D142 and D143 each opened on a spent
+build number sitting in the tree, because the post-upload bump had been
+skipped twice running. Run 20's bump landed in the same session that read
+the run's step list (`0826cd8`), which is the one thing D143 identified as
+making the difference — the gap it kept falling into was between "the
+upload finished" and "someone came back to the tree". So the expected
+yield of this pre-flight, a spent number, is absent because the previous
+one's fix worked.
+
+**What is NOT written here is the sentence that has been wrong three
+times.** D130, D142 and D143 each recorded a build as "pre-flighted and
+unspent" in the very commit the next run uploaded. The claim is not
+storable: the run is dispatched *from* the commit that makes it, and
+nothing in the tree can read App Store Connect (D73's shape, one layer
+out). This entry records what run 20 **did** and the comparison as of
+this commit. Whoever dispatches next re-makes it against the run list,
+because by then this paragraph is a historical statement and the run list
+is not.
+
+### The bundle gate, green on the artifact that ships
+
+`check:bundle` was the yield of the last two pre-flights — red both times,
+and at D143 red on a bundle nobody installs. D144 re-pointed it, so this
+is the first pre-flight where the gate was aimed at the shipping artifact
+from the start and its green therefore means what it says:
+
+| | measured | ceiling | headroom |
+| --- | --- | --- | --- |
+| total JS | 2255 KB | 2265 | 10 KB |
+| eager graph | 969 KB | 978 | 9 KB |
+
+72 chunks, built the way `ios-release.yml` builds — `VITE_V2_LIVE=true`,
+`CAPACITOR_BUILD=1`, and a non-empty `VITE_SENTRY_DSN`, without which the
+Sentry chunk is absent and the total comes out ~450 KB light on a bundle
+nobody ships. **That chunk is one file under two numbers**, which is worth
+settling here because both are already in the docs: `dist/assets/prod-*.js`
+is 445,598 bytes — `check:bundle` prints **435 KB** because it counts KiB,
+while D144's prose and runbook 2.4 say **445 KB**, the decimal reading. The
+table above is in the script's units throughout. **Both numbers are single-digit-KB from their
+ceilings**, which is not a defect and is worth naming: D152 bought 8 KB of
+eager headroom by making `LiveTakesPanel` lazy, and this measurement is
+what that headroom now looks like from the release path. The next feature
+of any size meets one of these two constants.
+
+### Measured, not asserted
+
+1064 client tests (73 files), 214 function, 183 script, 89 rules; `lint`,
+`tsc -b`, `check:globals` at its **412** baseline, unmoved. Every check
+gate passes. Two carry footnotes, neither a defect:
+
+- **`check:store-copy`** fails bare and passes with `--ios`, which is the
+  flag the release workflow uses. The one placeholder is D42's parked Play
+  signing fingerprint.
+- **`check:web-firebase`** reads `VITE_FIREBASE_*` from repository
+  *variables* that exist only in CI. It passes here against an injected
+  config, which proves the gate's mechanism and not the real values; the
+  run that matters is the workflow's, against its own `dist/`.
+
+`test:rules` and the three e2e suites are green locally and on CI run 436
+(`2423e4f`), whose nine jobs are all `success` at this tree — including
+`native-sync-drift`, which is the one that speaks to this release: build
+15 carries **`@capacitor/ios` 8.3.3 → 8.4.2**, `@capacitor/cli` → 8.5.0
+and `@capacitor/splash-screen` → 8.0.2, and `cap sync` produces no drift
+against the committed shell.
+
+**`test:rules` needs `HTTPS_PROXY` unset**, per CLAUDE.md. Verified again
+here rather than taken on trust: with it set the functions emulator dies
+naming neither the host nor the proxy; unset, all 89 pass.
+
+### One measurement that was not clean, and why it is not a blocker
+
+`src/v2/test/learn-reserve.test.jsx` failed once — the D95 re-serve case,
+one of 1064 — on a run where three other suites were executing
+concurrently. It then passed 3/3 standalone and 1064/1064 on two clean
+full runs, and CI is green at this commit.
+
+The arithmetic says contention rather than flake-for-unknown-reasons:
+**the file needs ~10.8 s of test time against the 15 s `testTimeout` it
+sets itself**, so roughly 4 s of margin, and it spends that budget on a
+full `growFeed()` render in jsdom. Three parallel suites is enough to eat
+4 s. Recorded rather than fixed because the fix is a judgement about the
+test's budget that a release pre-flight should not be making silently —
+**but the margin is thin enough that it will fire again on a loaded
+runner**, and the next person to see it red should read this paragraph
+before assuming a regression in D95.
+
+### What build 15 carries that 14 did not
+
+Twenty-one commits. D144's re-pointed bundle gate, D145's four question
+lanes and feed regulator, D146's type cut, D147's `node16` functions
+tsconfig, D148's Routine prompts, and the four that #179 landed together:
+**D149's sides, friends and real counts**, D150's Near-as-a-field with
+nobody named, D151's general info asked at the start, and D152's Explore /
+People / Circle / Groups reshaping. Plus the dependency bumps above and
+`firebase-admin` 14 / `firebase-functions` 7 on the backend.
+
+## D154 · The Map's mainstream boundary is sized by the map, not by a constant
+
+**Decided:** 2026-08-14 · **Status:** binding. From a screenshot with the
+report *"the sketched circle gets awkwardly large at small amounts of
+data"*: two branches, seven answers, and the boundary ring running to
+both edges of the canvas with nothing inside it.
+
+### 1 · The bug is the ratio, and it was measured
+
+`.mmt-ground::after` was a flat `640px` circle in world space. The Map's
+canvas fits itself to whatever is on it (`fitAllTarget`), so the fewer
+answers you have the harder it zooms in — and a fixed circle grows on
+screen exactly as the map shrinks. Probed against the real layout engine
+on a 390×700 canvas, as a share of canvas width:
+
+| branches × answers | reach | fit z | old 640px circle |
+| --- | --- | --- | --- |
+| 1 × 1 | 505 | 0.557 | **91%** |
+| 2 × 2 | 484 | 0.557 | **91%** |
+| 3 × 3 | 512 | 0.351 | 58% |
+| 5 × 5 (+subs) | 685 | 0.283 | 46% |
+| 7 × 6 (+subs) | 963 | 0.217 | 36% |
+| 9 × 8 (+subs) | 1227 | 0.168 | 28% |
+
+The circle was tuned at the bottom of that table and shipped at the top of
+it. The reported screenshot reproduces from these numbers: 640 × 0.557 on
+a 390-wide canvas is the balloon in the picture.
+
+### 2 · A share of the constellation's reach, floored at the anchors
+
+`mtClusterLayout` now returns `ring`, and the stylesheet reads it as
+`calc(var(--ring, 320px) * 2)`:
+
+```
+ring = max(205, 0.26 × reach)      reach = the outermost node the layout placed
+```
+
+**`reach`, because that is what the fit measures too** — sizing against the
+same quantity as the zoom is what makes the on-screen share hold steady
+(27–37% from three branches up, against 28–91% before). **0.26, because it
+leaves a filled-out map exactly where it is**: 0.26 × 1227 ≈ 319, and the
+constant it replaces was 320. Nobody with a full map sees this change.
+
+**205, because it is the layout's own floor** — step 4 refuses to place a
+dot inside 205, and the profile ring sits at 170 with its labels just
+outside. Below that the boundary stops being a horizon and becomes a
+second circle competing with the anchors for the same hole. The floor
+binds up to about five branches, which is most maps, so in practice the
+small-map answer is "205" rather than a formula.
+
+That floor has a consequence the fixed circle never had: at ring stage the
+boundary can now sit 35px outside the anchors at full strength. So it
+joins the list of outer-map furniture that steps back while You holds the
+stage — `.mmt-root.is-ringstage .mmt-ground::after`, at the same 0.22 as
+the limbs. It was only ever absent from that list because 320 was far
+enough away for nobody to notice.
+
+### 3 · What this does NOT fix, stated because the comment above it claims otherwise
+
+The line's own comment says *"inside this ring you're with the crowd,
+outside it the take is rarer; distance means something"*. The probe says
+that is aspirational at every data size: across all nine shapes measured,
+between **0 and 4%** of dots landed inside the old circle. Radial position
+is dominated by which cloud a dot belongs to (`R1 = 330`, `CLEAR = 150`),
+and typicality only moves it ±50 within that cloud — so a single circle
+cannot separate typical from rare while clouds are placed on a common
+orbit. Sizing the ring does not change that, and a quantile ring (the
+obvious "make the claim true" fix) is worse on the reported bug, not
+better: the 25th percentile of dot radii at two branches is 427, which
+draws a circle **122%** of the canvas width.
+
+Deferred deliberately. Making the claim true is a layout change — pulling
+common answers meaningfully inward across clouds — not a ring change, and
+it would move every dot on every map to fix a line nobody complained
+about. What ships here is the ring as a horizon that scales; the claim
+stays on the list.
+
+### 4 · Guarded by `test/map-ring.test.js`
+
+The arithmetic had no test and could not get one from the mount suites:
+jsdom reports `clientWidth` 0, so `MapTab` returns its empty shell and the
+ground never renders. The wiring is a CSS custom property, which `tsc`,
+eslint and `check:globals` are all blind to — drop it and the stylesheet
+falls back to the 640px circle *silently*, which is green tests and the
+old bug. So the file does both halves: real assertions on the numbers, and
+a source-text pin on the three files that have to agree about `--ring`.
+The pin proves the property is passed and read, not that it lands on
+screen; the honest way to close that last gap is a mount with stubbed
+element sizes, and the Mirror mount is already the slowest case in the
+suite.
+
+`person-mindmap.jsx` draws the same ground from the same engine and gets
+the same treatment. It is the small-map case at its worst — a stranger
+with three answers — and only the profile *portrait* (`is-still`) hides
+the line.
+
 ---
 
-## D153 · The feed goes unbounded, and the Mirror gets a corpus of its own
+## D155 · The tabs sit at the bottom, the four instruments take turns, and the age is the age
+
+**Decided:** 2026-08-14 · **Status:** binding. Three faults from a
+TestFlight session on build 15, reported together and small enough to be
+worth naming exactly: *"on near dont give age range but actual age"*,
+*"only big 5 shows up 4 me"*, and *"the tabs should always be at the
+bottom of the screen even if there is no content in the main section,
+they should start unopend and you snap down thre when you click one like
+the sample"*.
+
+All three had the same underlying shape: the prototype does one thing,
+the live build does another, and nothing in the tree could tell.
+
+### 1 · The lens row was already right — in the file nobody was reading
+
+`spec/mirror-field.jsx`'s `MirrorLenses` has all three behaviours the
+report asks for and has had them since the port: `useState(null)` so
+nothing is open at rest, a `marginTop: 'auto'` wrapper inside a filling
+column so the row pins to the bottom of a short screen, and an effect that
+walks up to the scroll parent and scrolls the row to its top when a tab
+opens. `ui/LiveCohortBody.tsx` — the live stop — had none of them. It
+opened on `DEFAULT_STOP_TAB`, sat wherever the content left it, and never
+scrolled.
+
+The fix is the prototype's code, transposed, plus one behaviour the
+prototype does not have because a demo has nowhere to go: tapping the OPEN
+tab closes it. `DEFAULT_STOP_TAB` is deleted rather than set to `""` —
+a constant naming a default that no longer exists is the next reader's
+trap.
+
+The 60ms delay before the scroll is not a flourish. The panel body mounts
+in the same commit as the tab flip, so measuring the row's position in a
+layout effect measures it before the body it is about to sit above
+exists.
+
+### 2 · "Only Big 5 shows up" was bank order, not a filter
+
+`buildFeedGlobals` published `TEST_FEED_QS` as the bank's own order, and
+`content/tests.json` is keyed by instrument: 25 big5, then 30 political,
+then 30 values, then 25 attachment. The passive feed takes the head of
+that list. There is no bug in the deck, the meter or the definitions — the
+first 25 cards any account sees are simply all Big Five, and by then most
+people have stopped.
+
+The demo pool did not have this problem because `spec/test-feed-data.js`
+interleaves by hand. So the fix is to do in the store what the demo does
+in its fixture: `roundRobinBy(tests, q => q.test)` in `data/feed-interleave.ts`,
+one item per instrument per lap, order stable within an instrument.
+
+Stable, deliberately — the report says *"they dont have to be in order"*,
+and a shuffle would have been the easier read of that. But the deck is
+seeded and the meter counts per instrument; a pool that reorders between
+sessions makes both harder to reason about for a property nobody asked
+for.
+
+### 3 · The exact age, beside the band, and what that widens
+
+The Kindred cards said "Ceramicist, 25-34". They now say "Ceramicist, 29",
+because the first reads as a cell and the second reads as somebody, and a
+screen naming a PERSON is the one place the coarse form is the wrong one.
+
+`age` is a ninth anchor, not a replacement: the band stays because the
+band is what the aggregate buckets on — ~80 exact ages would blow
+`BREAKDOWN_MAX_BUCKETS` and the age breakdown would publish nothing at
+all. So `anchorsFrom` derives both from the same birthday, and the
+birthday still never leaves the device.
+
+**This is a widening of a published surface and is recorded as one.** An
+exact age is more identifying than a band, on a field that publishes to
+every signed-in user (D98). Three things bound it: `firestore.rules` caps
+the value at **three characters**, so a date cannot be smuggled through
+the field; it is never a breakdown dim, so no cell is keyed by it; and
+both user-facing disclosures were rewritten rather than left standing —
+the privacy panel now says "the age", and the account-creation screen's
+"only the band is saved" became "your age and its band are saved", because
+that sentence went from true to false the moment `anchorsFrom` returned
+one. `docs/data-inventory.md` carries the same.
+
+The account panel's list also gained **profession**, which has published
+as an anchor since D8 and had never been named there. Not part of the
+report; found while writing the age in.
+
+---
+
+## D156 · The live 1v1 and Group get the sample's shape — a rail, marks, bars, and a guess that arrives second
+
+**Decided:** 2026-08-14 · **Status:** binding. From the same session as
+D155: *"i hope 1v1 and gruop look and act eactly like the sample"*.
+
+They did not, and not by a little. `ui/LiveDuelPanel.tsx` was a vertical
+list of bordered cards — names as plain text, one flat reveal list, an
+invite code parked in the header, and answer-plus-guess crammed onto one
+screen behind a disabled Seal button. The prototype's `spec/duo-daily.jsx`
+and `spec/group-daily.jsx` are still in this repo as the demo bodies, so
+the two could be read side by side, and the differences are structural
+rather than decorative.
+
+### 1 · What was missing, and why each one matters
+
+| The sample has | The live panel had | Why it is not cosmetic |
+| --- | --- | --- |
+| a sticky **rail**, one mark per circle, dotted when it still wants you | nothing | four circles was four screens of scrolling to find the one you had not played |
+| cards that **fill the view** and snap | cards sized to content | a circle is one screen, or it is a list item |
+| **initial marks** for every person and circle | plain text names | a reveal is a room of people; a list of names is a spreadsheet |
+| the reveal as **bars with faces on them** | "name — option" rows | the group's answer is a SPLIT, and a list does not have a shape |
+| answering that **morphs into guessing** | both asked at once | "what do you think" and "what do you think THEY think" are different questions, and showing the second first invites reverse-engineering the answer from the read |
+| **day dots** to browse back | yesterday only | the run of days is the thing a duel accumulates |
+| the pair's **read-runs** | nothing | the dots ARE the score — there is no number anywhere in the sample, deliberately |
+
+The rebuild is in `ui/LiveDuelPanel.tsx`, over three new modules:
+`ui/marks.ts` (the hash, the initials — `ghash` from `group-daily.jsx`
+character for character, so a circle keeps the colour it had there, pinned
+by a test against the prototype's own expression), `ui/duelMarks.tsx` (the
+three shapes) and `data/duelRuns.ts` (two pure folds).
+
+### 2 · Three gaps that are honest rather than filled
+
+- **Nobody can say who else has played today.** The sample dims the
+  avatars of members who have not answered. A duel answer is sealed until
+  the reveal, so no device knows — the seal doing its job. The card draws
+  every member undimmed and claims nothing.
+- **No "invited · waiting" in the member list.** Invitations are written
+  to the INVITEE's path and members deliberately cannot read the list
+  (D122: "who was asked and has not answered" is a fact about them).
+- **Day history is bought, not assumed.** `loadRevealHistory` is up to
+  `REVEAL_HIST_DAYS` doc gets per circle. On the app's FIRST screen, for
+  someone with three circles, that is forty documents to look at today's
+  question. Yesterday is free (a live listener already has it); anything
+  older arrives on the tap that asks for it, and a test pins that the tab
+  opening does not fetch.
+
+### 3 · `duoRuns` drops two kinds of day rather than scoring them
+
+A day the pair were asked **different questions** (D70/D71's split) — the
+guess is about another prompt, and the indexes still compare equal, so
+"called it" would print for a read nobody made. And a day **either side
+did not guess** — both runs are drawn on one axis and read against each
+other, so a day in one row and not the other offsets every dot after it.
+A run of dots claims "these are the days we played"; a day that cannot be
+scored is not one of them.
+
+### 4 · One create, not two writes
+
+The morph is two taps and still **one** answer document: the pick is held
+in component state and goes up with the guess. Answers are create-only
+(D5), so a write-then-write would have needed the edit surface D86
+deliberately kept to one shape.
+
+A failed seal puts the question back rather than stranding you on a guess
+step for an answer that was never stored — asserted, because the
+comfortable failure mode here is a card that looks played and is not.
+
+### 5 · It made first paint LIGHTER, which is the part to copy
+
+The panel got bigger, so `check:bundle`'s total alarm fired (2255 → 2273
+against 2265) and the ceiling moved to 2285 with a note. The eager graph
+went the other way: **970 → 955 KB**, because the first move of the
+rebuild was to stop importing `ui/LiveDuelPanel` from `spec-index.js` and
+reach it by `React.lazy` from `daily-split.jsx` instead.
+
+That was available the whole time and nobody had taken it. The panel is
+two of the daily tab's three modes and none of its first paint — World is
+what opens — so the entire live duel surface, and with it
+`ui/LiveTakesPanel`'s last eager importer, was being preloaded on every
+boot that never left World. Dropping the `globalThis` publication with it
+took the coupling meter down three (412 → 409).
+
+The general shape, and it is the second time in two decisions: when a
+feature runs into the eager ceiling, the first question is not what to
+trim but what is eager that should never have been.
+
+### 6 · One deliberate departure from the sample
+
+The sample's done-state is quiet — today's answer, the countdown, and the
+past reachable only through the day dots. The live card keeps yesterday's
+reveal on screen after you have played, below the day's own block, because
+the live reveal carries the **takes** thread and the sample had no thread
+to carry. By the time most people open the tab they have already answered;
+burying the app's only conversation surface behind a dot tap is not a
+trade the prototype was making.
+
+### 7 · The sweep the same message asked for, and what it found
+
+*"There is other small design choises you also have missed from the sample
+so you should have a look through it."* Done mechanically rather than by
+eye: 105 prototype modules matched by header comment against `src/v2/spec/`
+(62 pairs), each diffed with the port's mechanical noise normalised away —
+`window.`/`globalThis.` prefixes, the IIFE-to-ESM scaffolding, the
+`Sheet` extraction — and every remaining prototype-only block read.
+
+**The port is faithful.** Nearly every surviving difference is an
+already-recorded divergence: D103's cognitive retirement (`CB_EXTRA_CFG`),
+D111's seven stops against the prototype's five, the two dead guards D137
+deleted (`GroupLevelBreakdown`, `GroupCompare`), the live folds that
+replaced `PASSIVE`'s device-local counts, and the `role="button"` divs
+`check:a11y` turned into real buttons.
+
+**One thing was shipped from it.** The prototype labels a person with
+their type's MARK wherever one is listed (`TypeChip`, drawn from
+`type-marks.jsx`). The live Kindred card had the type's NAME beside a dot
+coloured by `angleHash(uid)` — decorative, and sitting in the one place on
+the card a reader would take for a reading. It now draws `TypeMark`, the
+same glyph `TypeMixCard` gives each type, so a badge on a person and a row
+in a population are one object. Mutation-checked: the test fails against
+the dot.
+
+**Three prototype features are absent, and stay absent for now.** Named
+here so the next pass starts from a list rather than another diff, which
+is what D113 §"What v20 has that this tree still does not" was for — two
+of its four entries are still open:
+
+- **Born or built** (`nature-data.js` + `result-card.jsx`'s `NatureRows`):
+  per-dimension heritability from twin studies, as a bar per dimension on
+  every test result card. Static reference data, no live read, no D1
+  problem — but its `cognitive` entry collides with D103 and has to be
+  dropped or re-recorded when taken, and the framing ("population
+  estimates: about differences between people, never a slice of one
+  person") is load-bearing copy, not a caption. Carried from D113.
+- **Predictions** (`predict-data.js`, `predict-cards.jsx`): CALL/READ
+  cards on a ten-second clock, as a feed channel. A whole game with a
+  resolution pipeline behind it. Carried from D113.
+- **What moves together** (`trait-links.js`, `trait-web.jsx`): known
+  cross-test correlations checked against your own results, on the
+  profile's General panel — "the rule you break is the most individual
+  thing the data can say about you". NOT on D113's list, so this is a new
+  entry: either it arrived after v20 or it was missed. Pure client-side
+  over results already on the device.
+
+None is a small design choice, which is what the message asked about, and
+each is a screen's worth of work with its own honesty questions. They are
+a list to choose from, not a queue to run.
+## D157 · The test surfaces stop describing a crowd they never counted
+
+**Decided:** 2026-08-15 · **Status:** binding. From three screenshots of
+the release with the report *"there seems to be a lot of sample data
+instead of real data on the test — like how common the different types
+are and what the averages are, and something weird on learn as an answer
+I gave can't be 0% answered"*.
+
+Same posture as D149, one tab over: **a screen that could not get the
+true number drew a plausible one instead.** Where the true number
+existed, nothing had been pointed at it.
+
+### 1 · What was authored, and where it was rendered as a measurement
+
+Three numbers, all content-authoring constants, all drawn as readings of
+this app's population:
+
+| On screen | Came from | What it claimed |
+| --- | --- | --- |
+| The hollow ring on every axis, legended **most people** | `IS_TEST_AVG[test][dim]` — five constants per instrument | the population's average |
+| **"higher than 9 in 10 members"** | a logistic on σ≈15 applied to your distance from that constant | a percentile of this app's members, by name |
+| The banner's lit dot field, **"1 in 10"** | `exp(−0.916·z^2.33)` over the same distance | how unusual you are |
+| **"bar = how common"**, 12% / 11% / 10% … | `IS_ARCHETYPES[test].list[].share` | how many people are each type |
+
+`IS_TEST_AVG`'s own comment reads *"Grounded, not precise: enough to give
+every score a reference point"*, and `IS_ARCHETYPES`' reads *"a realistic
+`share` … common types big, rare ones genuinely rare"*. Both are honest
+about themselves in a file nobody opens. On screen the ring sits in a
+plausible place beside a real score, which is precisely why this was
+invisible in a way D72's invented friends were not: a wrong average looks
+exactly like a right one.
+
+The percentile is the worst of the four. It says **members** — this app's
+population, named — from a constant and an assumed spread, on a card two
+taps from the account panel.
+
+### 2 · Every one of them was already measurable
+
+Nothing here needed a new read, a new field or a new cell. Both sources
+were already fetched and already public:
+
+- **the mean** — the bank's 110 core test items are ordinary `scale`
+  questions whose per-option counts publish like any other answer (D98).
+  `similarity.axisScores` already folds those cells into an axis score for
+  a cohort; that is how a city gets a score profile (D112). Run over the
+  WORLD's counts it is the population's own average.
+- **the rank and the rarity** — the cached voter sample carries real
+  people with real parsed results (`kindredPeople`, the D102 bound).
+  Counting how many sit below you, or as far from the mean as you, is a
+  percentile with a basis that can be named.
+- **the type frequency** — `typeMix` already types that sample for the
+  Mirror's People lens. One parameter, no new fold.
+
+`src/v2/data/testNorms.ts` is the seam, shaped like `LEARN_SPLIT`'s
+(D32/D149): **measured, or absent, and the demo build keeps the authored
+constants** because there the population is invented anyway and there is
+no aggregate to replace it.
+
+The floors are meaning floors, not disclosure floors — D98 removed those
+and this module publishes nothing:
+
+- `NORM_MIN_ANSWERS = 30` per axis, across `NORM_MIN_ITEMS = 2` items.
+  One item's mean is that item's mean; an axis is a claim about several
+  questions agreeing.
+- `NORM_MIN_PEOPLE = 12` before a percentile. A distribution of eleven
+  people cannot carry deciles, and `outOfTen` is clamped to 1..9 because
+  "higher than 10 in 10" is not a sentence a sample of forty supports.
+
+Below the floor the map is **empty**, never the constants — so the ring
+is not drawn, the percentile is not printed, the dot field does not
+render, and the card says *"no crowd average yet — it appears once enough
+people have answered these"*. That is the whole point of the seam and it
+is pinned in `testNorms.test.ts`: a fallback here would be invisible.
+
+### 3 · What deliberately KEEPS the authored constants
+
+`IS_TEST_AVG` still centres `IS_archScores` and `IS_typeRuleParts`, and
+`IS_ARCHETYPES[].share` still supplies the commonness prior that breaks
+near-ties (rule 3 of the matcher). Those are **model parameters, not
+claims on a screen** — exactly the split D149 drew when it took the
+authored `card.p` off the learn reveal and left it driving the difficulty
+scheduler.
+
+Centring the matcher on a live sample was tried on paper and rejected:
+the name on your card would change because strangers answered, with
+nothing on screen to explain it.
+
+### 4 · The type index is Big Five only, and three sheets lose their bars
+
+`typeSharesOn` refuses every instrument but `TYPE_TEST`. That is the Art.
+9 scope `docs/data-inventory.md` draws and `typeMix.TYPE_TEST` already
+enforced: no population reading is computed from the politics result. So
+the politics, values and social sheets show **no frequency at all** in a
+live build and gain nothing measured in exchange. Stated plainly because
+it is a loss: the alternative was keeping a fabricated number on three
+sheets to avoid noticing it was fabricated on the fourth.
+
+No new privacy disclosure. `ui/LivePrivacyPanel` discloses the type CUT —
+answers grouped by type — and this groups no answers; the count of people
+per type is the reading `TypeMixCard` has published on the Mirror since
+D141, from the same fold over the same already-public field.
+
+### 5 · Learn: two faults wearing one symptom
+
+Reported as *"an answer I gave can't be 0% answered"* — a green tick on
+"Breaks down waste" reading **0 people · 0%**, one line above *"From 1
+answer — everyone's first try at this card"*. Both halves are about
+**whose** answers the count holds.
+
+**The race, which D125 recorded as acceptable.** `learnAnswer` writes the
+answer and re-reads the aggregate in the same breath; a Firestore trigger
+cannot fold, transact and commit inside one client round-trip, so it
+loses. D125's note says *"one answer does not move the split"* — true of a
+crowd of two hundred and false of the crowd a launched app actually has.
+At n=1 the answer it drops is half the reading and it is always the
+reader's own. The race is now RECORDED rather than tolerated:
+`state.learnMine[qid] = {idx, folded}`, where `folded` compares the
+re-read's count on that option against the pre-write cached value, and
+`LEARN_COUNTS` adds the answer in when it is not there.
+
+Strictly-greater, deliberately: a stranger picking the same option
+mid-flight reads as folded, which undercounts by one against a document
+that is right. The other direction double-counts the reader, which is the
+fault being fixed.
+
+**The repeat, which was never explained.** The aggregate counts FIRST
+tries — that is what makes it a difficulty measurement, and the
+create-only rule enforces it server-side — so on a re-serve the answer
+just given is deliberately not in it and the correct option can honestly
+stand at zero. That is the screenshot: a card missed earlier, re-served,
+answered right. Nothing on the screen said so. `LEARN.answer` now returns
+`repeat`, and the line reads *"From 1 first try — only a first answer
+counts, so this one is not among them."* A crowd of one that is your own
+says so too.
+
+### 6 · Guarded where each fault could actually hide
+
+- `data/testNorms.test.ts` — the floors, and that a refusal never falls
+  back to the constants.
+- `data/typeMix.test.ts` — the shares fold, the Art. 9 scope, and that a
+  type nobody carries is a measured zero rather than a dropped row.
+- `data/vote.test.ts` — `learnMine` across all four outcomes of the race,
+  including a refused write recording nothing.
+- `test/learn-split.test.ts` — the counts fold with a pending answer, and
+  that it never adds twice.
+- `test/smoke-live.test.jsx` and `test/learn-reserve.test.jsx` — MOUNTED,
+  because the folds are only half of it. An empty `avg` map still had to
+  stop the card drawing `pos(undefined)`, which CSS swallows silently and
+  which would have parked every ring at the left edge under a legend
+  naming it. Both files keep the demo-mode control beside the live case,
+  for the reason D72's did: every live assertion here passes if the
+  section simply stops rendering.
+
+The learn mount cases assert on the COUNT, not the share: `WfCount`
+animates the percentage up from zero and jsdom runs no frames, so a share
+assertion would pin the animation instead of the arithmetic. Measured —
+the first draft asserted `1 person · 50%` and read `1 person · 0%`.
+
+### 7 · The cost, in eager kilobytes
+
+The eager graph goes **955 → 961 KB against a ceiling of 978**. Five of
+those six kilobytes are `data/similarity.ts` arithmetic reaching three
+eager profile surfaces; the sixth is `type-marks.jsx` importing
+`typeMix.ts`, measured by removing that one edge (960 KB). Total goes
+2273 → 2278 against 2285.
+
+Measured on the merged tree, and the first draft of this paragraph was
+measured on the pre-merge one — 969 → 975, i.e. three kilobytes of
+headroom rather than seventeen. D155 and D156 landed in between and took
+the eager graph down by fourteen; the number in a note like this one is
+only true of the tree it was taken on, which is the same trap
+`check:figures` exists for.
+
+`MAX_EAGER_KB` is not raiseable — the doctrine above it says so twice and
+this change does not raise it. The way out when it does bind is the one
+the ceiling has always implied: move a profile surface behind a dynamic
+import, starting with `TypeIndexSheet`, which is a tap-to-open overlay
+reached through a global and is eager only because `TypeMark` shares its
+file.
+
+## D158 · Build 16's pre-flight: the number was already right for the second time running
+
+**Decided:** 2026-08-15 · **Status:** binding · Fifth release pre-flight
+(D130, D142, D143, D153) and the second in a row whose build-number
+comparison answers *run as-is*. Changes no code. `appBuild` is **not**
+bumped here, and that is the finding rather than an omission.
+
+### The comparison, made against the runs
+
+`ios-release.yml` has **21 runs and no more**. Run 21 (`3c03752`,
+2026-08-14 20:58:38Z, job `archive` 7m 05s) has step 17, `Upload to App
+Store Connect`, at **`success`** — 21:04:13Z → 21:05:39Z, 1m 26s of
+transfer — and `appBuild` at that commit was **15**. So build 15 is spent
+and nothing has been dispatched since. `appBuild` in the tree is **16**.
+Sixteen is greater than fifteen, so runbook 2.4's question — *is
+`appBuild` greater than the highest build in App Store Connect?* —
+answers yes, and the procedure says run as-is.
+
+**This is the second consecutive pre-flight to find nothing to do, and
+the second consecutive release whose bump landed in the session that read
+the run's step list** (`47194f6`, off run 21's conclusion). D143 named
+that gap — between "the upload finished" and "someone came back to the
+tree" — as the only thing that has ever made the habit stick, and two
+releases now sit on the far side of it. D153 was one observation; this is
+the repeat that makes it a pattern rather than a good day.
+
+**What is NOT written here is the sentence that has been wrong three
+times.** D130, D142 and D143 each recorded a build as "pre-flighted and
+unspent" in the very commit the next run uploaded. The claim is not
+storable: the run is dispatched *from* the commit that makes it, and
+nothing in the tree can read App Store Connect (D73's shape, one layer
+out). This entry records what run 21 **did**. Whoever dispatches next
+re-makes the comparison against the run list.
+
+### The bundle, against a ceiling that moved under it
+
+`check:bundle` is green on the shipping artifact — built the way
+`ios-release.yml` builds, `VITE_V2_LIVE=true`, `CAPACITOR_BUILD=1` and a
+non-empty `VITE_SENTRY_DSN`:
+
+| | D153 (build 15) | here (build 16) | ceiling | headroom |
+| --- | --- | --- | --- | --- |
+| total JS | 2255 KB | **2278 KB** | 2285 | 7 KB |
+| eager graph | 969 KB | **961 KB** | 978 | 17 KB |
+| chunks | 72 | 75 | — | — |
+
+**Both numbers moved and only one of them moved the way the diff would
+suggest.** The total gained 23 KB while its ceiling gained 20 (D156 raised
+2265 → 2285 for the rebuilt 1v1 and Group panel), so the headroom D153
+measured at 10 KB is now **7** — the tightest this gate has ever read on a
+release path. The eager graph went the other way, 969 → 961, buying 8 KB
+against a constant that D144 and D152 both refused to raise: build 16's
+features landed lazy. **The next feature of any size still meets the
+total**, and the total is the one with a raise history; the eager ceiling
+is the one that does not move.
+
+### Measured, not asserted
+
+1152 client tests (77 files), 214 function (8), 183 script (10), 90 rules
+(2); all three e2e suites green — the loop, erasure (14 checks) and
+moderation (19 checks), each exiting 0. `lint`, `tsc -b`, and every
+`check:*` gate. `check:globals` reports **409** cross-module references
+across 42 files at its 409 baseline, down from D153's 412: `edf18d8`
+(#184) took three off, which is the ratchet doing what D39 built it for.
+
+**`learn-reserve.test.jsx` passed.** D153 recorded it failing once under
+parallel load, with the arithmetic — ~10.8 s of test time against the 15 s
+timeout it sets itself — and warned it would fire again on a loaded
+runner. It did not fire here: 1152/1152 in one clean run, 48.8 s wall.
+That neither refutes nor confirms D153's margin; it is one more sample,
+recorded so the next red there is read against two data points instead of
+one.
+
+**Three gates are environmental, not two.** D153 listed `check:store-copy`
+and `check:web-firebase`; `check:fn-runtime` belongs with them and was the
+single red in the first battery pass:
+
+- **`check:fn-runtime`** reads `functions/lib/index.js` and says so
+  plainly when it is absent. `npm run build --prefix functions` first, and
+  it passes — 26 functions, all with explicit memory, timeout and
+  `maxInstances`. CI never sees this because `functions-build` builds
+  immediately before; a local battery has to be told.
+- **`check:store-copy`** fails bare on one placeholder — D42's parked Play
+  signing fingerprint — and passes with `--ios`, which is the flag the
+  release workflow uses.
+- **`check:web-firebase`** reads `VITE_FIREBASE_*` and `VITE_V2_LIVE` from
+  repository *variables* that exist only in CI. Verified here against an
+  injected config rather than skipped: 75 chunks carrying a fake project
+  id. That proves the gate's mechanism, not the real values; the run that
+  matters is the workflow's, against its own `dist/`.
+
+CI run 449 (`f159af9`, 2026-08-15 08:42Z) is **green across all nine
+jobs**, `native-sync-drift` included.
+
+### What build 16 carries that 15 did not
+
+Five commits, and — unusually — **nothing shell-facing**. The only diff
+under `ios/`, `android/`, `capacitor.config.ts` or either `package.json`
+between run 21's commit and this tree is the build-number bump itself.
+Build 15 carried `@capacitor/ios` 8.3.3 → 8.4.2 and two more native bumps,
+which is why D153 leaned on `native-sync-drift`; build 16 is a pure
+JavaScript payload, so the archive step has strictly less new surface than
+the last one that succeeded.
+
+The payload: D154's Map boundary sized by the map rather than by a
+constant, D155's bottom-pinned lens tabs, four instruments taking turns
+and exact age, D156's live 1v1 and Group rebuilt to the sample — a rail,
+marks, bars and a guess that arrives second — and D157's test surfaces
+giving up the crowd they never counted. Plus one Routine-authored pulse
+trail row.
+
+The store filing does not move. Nothing here collects anything new, so
+`docs/STORE-FORMS.md` stands as D141 left it and `check:store-forms`
+passes unchanged.
+
+## D159 · Run 22 delivered build 16, and the comparison gains the commit it is made at
+
+**Decided:** 2026-08-15 · **Status:** binding · Records what run 22 did,
+bumps `appBuild` 16 → 17, and closes the one hole D158's comparison still
+had: *which commit* the question is asked about.
+
+### What run 22 did
+
+Run 22 (`67af354`, 2026-08-15 11:07:05Z, 5m 25s) has every step at
+`success`, including step 17, `Upload to App Store Connect` — 11:11:02Z →
+11:12:25Z, **1m 23s of transfer**. Both APNs gates passed at both ends,
+the archive and the exported `.ipa`, and the Firebase config was verified
+in each. So **build 16 is spent**, and `appBuild` is **17** here,
+propagated to `versionCode` and `CURRENT_PROJECT_VERSION` by
+`check:versions --fix`.
+
+The bump was made in the session that read the run's step list. That is
+the third consecutive release where it landed there rather than being
+reconstructed later, which is what D143 identified as the only thing that
+has ever made it stick.
+
+### The finding: a dispatch archives the branch, not your merge
+
+**The release prep merged as `6a98697`. Run 22 archived `67af354`.** In
+between, a Routine pushed a pulse trail row to `main`; two more commits
+landed while the run was executing. `appBuild` was 16 at both shas, so
+this cost nothing — but the comparison is only sound if it is made at the
+sha the run actually built, and nothing had ever said so.
+
+**This is new, and D145 is why.** Before the question lanes and the daily
+pulse got their Routines, `main` moved only when a human merged, so "the
+commit I merged" and "the commit the run archived" were the same thing
+often enough to never be distinguished. Now `main` has an automated writer
+on a schedule and the window between merging a release commit and
+dispatching from it is not quiet. Nothing in the tree can shrink that
+window — a dispatch takes the branch as it stands when GitHub accepts it.
+
+**The correction is one word in the procedure**: read `appBuild` at the
+run's own `head_sha`. Runbook 2.4 and `IOS-RELEASE.md` both name a run and
+a sha in every record, which invites reading the sha as the release
+commit; run 22's is a Routine's, and it is now the worked example on both
+pages.
+
+**It is D73's shape a third time, so it is worth naming as a family.** The
+tree cannot see App Store Connect (D130's trap), a doc cannot see the run
+list (D143's), and now the commit you merged cannot see what the branch
+became. Each is a claim made at one moment and read at another, and each
+was closed by pointing the question at the artifact that is current rather
+than at the record that was true.
+
+### The instrument, which was also broken
+
+The watch armed to follow run 22 step by step produced nothing, because
+**the GitHub API answers 403 to every request from the shell in an agent
+container** — `GH_TOKEN` and `GITHUB_TOKEN` are both set, which is what
+makes it look workable, and only the MCP tools actually reach the API.
+
+Recorded in `docs/LOCAL-TESTING.md` beside the `HTTPS_PROXY` note rather
+than here, because it is environmental rather than a decision — but it
+belongs in this entry too, because of *how* it fails. The loop swallowed
+the error as "no news" and emitted nothing, which is byte-for-byte what a
+still-running job looks like. A release procedure whose central
+instruction is *ask the run list* should not have a way of not-asking that
+reads like patience. Run 22 finished underneath it.
+
+**Neither of these changed the outcome**, which is the only reason both
+are written up calmly: build 16 shipped, and the numbers agreed at every
+sha involved. They are recorded because next time the two commits will not
+both say 16, and the quiet loop will be watching a run that failed.
+
+---
+
+## D160 · An empty field is still a field, the row actually snaps, and Near's switch goes in the corner
+
+**Decided:** 2026-08-15 · **Status:** binding. Three from a TestFlight
+screenshot of the City stop on a one-answer account: *"i want the map to be
+visebal even when empty and when you click on one of the buttom tabs tou
+snap down to them just like the sample. Near active or unacive shouls just
+be a toogle in the right corner."*
+
+### 1 · D155 claimed the snap shipped. It did not.
+
+This is the part worth recording properly, because the failure mode is one
+this repo is otherwise good at catching.
+
+`LiveCohortBody` got the ref (`rowRef`), got the ref attached to the tab
+row, and never got the effect that reads it. So the row pinned to the
+bottom correctly — the visible half of D155 — and then just sat there when
+you tapped it, leaving the panel you had just asked for below the fold.
+D155's record and its report both said the snap was in.
+
+**Nothing in the tree could see it.** A dangling ref is valid TypeScript,
+passes eslint, and is invisible to `check:globals` (it is not a global). The
+three tab tests assert that the panel MOUNTS, and it always did. `git log
+-S'behavior: "smooth"' -- src/v2/ui/LiveCohortBody.tsx` returns nothing for
+the whole history of the file, which is how the gap was confirmed rather
+than guessed.
+
+The effect is in now, ported from `spec/mirror-field.jsx`'s `MirrorLenses`
+including its 60 ms delay — the panel mounts in the same commit as the tab
+flip, so measuring immediately measures the row above a body that does not
+exist yet. It is keyed on `tab` rather than the derived `openTab` because it
+has to be a hook and `openTab` is computed past the `needsCity` early
+return; the two agree in practice, and the note at the site says why.
+
+`LiveCohortBody.test.tsx` now pins it, and the pin is the interesting part:
+jsdom reports every element 0×0, so the component's scroll-parent walk finds
+nothing to scroll and a naive test passes against a component that does
+nothing. The case renders into a host given the two properties the walk
+actually reads — an overflow and a real overflowing height — stubs
+`scrollTo`, and advances fake timers past the 60 ms. Mutation-checked: an
+early `return` inside the timeout fails it. A second case pins that CLOSING
+a tab does not scroll, because a scroll on close drags the screen for a tap
+whose whole meaning is "put that away".
+
+### 2 · Every empty field drew a paragraph instead of the field
+
+`CityField`, `NearField` (both arms), `PlacesField` and `PeopleField` each
+REPLACED the canvas with a sentence when they had nobody to place —
+`PeopleField` returned `null` outright, so the Circle and Groups stops
+simply had a hole in them. The result is that a new account met a paragraph
+where the constellation goes, on every stop, until strangers turned up: it
+reads as a screen that was never built rather than one that is empty, and it
+hides the grammar the whole tab is written in from exactly the reader who
+has not learned it.
+
+One `SfEmptyField` now draws first and always — the rings, and you at the
+centre — with the explanation underneath. **Nothing is fabricated:** "you,
+and nobody placed around you yet" is the true picture node for node, and the
+rings are the scale the radius will be read on when someone does arrive.
+This is not a softening of D1 or of this module's own no-mist rule; it is
+the same rule, which forbids inventing NODES and has never said anything
+about drawing the axes. The prototype settles it too — `MFSparse` sits
+*under* `MFCanvas`, never instead of it.
+
+`anon` for every empty arm regardless of what the filled one draws: an empty
+field has nothing to tap, and a `people` canvas with no people would hand
+out roles and tab stops to nothing.
+
+### 3 · Near's card dissolves into a switch
+
+The on/off was a "Turn on" BUTTON inside a bordered card that also carried
+the count, the disclosure, the stall note and the retry — five things in one
+box, of which exactly one was a control, and the box was the loudest object
+on a stop whose subject is the constellation under it.
+
+It is a `role="switch"` in the header's right corner now, and the card is
+gone: `NearHeader` and `NearNowCard` merged into `NearPresence`, which owns
+the enable/disable state the switch drives. The count was already the
+header's figure; the stall note and its retry became rows; the closing
+pointer to City is unchanged.
+
+**The privacy copy did not shrink with the control, and one line came
+back.** D9's rule is that the enable tap carries the OS prompt, so the
+sentence that tap is agreeing to has to be readable before it — the
+kilometre-sized-grid-square disclosure is word for word the card's, shown
+while OFF, which is the only moment it can inform a decision. Mid-change the
+off-state pitch lost *"a count, never who"*; the test that caught it
+(`pitches honestly while off`) is doing exactly the job it was written for,
+and the phrase is back in the off line rather than only in the on one.
+
+The Near tests query the control by **role**, not by label text — the whole
+point of the change is that the control no longer has words on it, so a text
+query would be asserting the thing that was removed.
+---
+
+## D161 · The feed goes unbounded, and the Mirror gets a corpus of its own
 
 **Decided:** 2026-08-15 · **Status:** binding · The classification half is
 BUILT; the enforcement half is deferred with a reason, below.
@@ -15025,7 +15926,7 @@ unbounded corpus cannot be the Mirror's corpus, the bank splits in two:
 
 - **Core** — served to everyone, unpersonalized. The Mirror's cohort
   readings fold over this and nothing else.
-- **Tail** — unbounded, personalized (D155), ordered by interest.
+- **Tail** — unbounded, personalized (D163), ordered by interest.
   Aggregates still publish for every tail question; the Mirror's stops
   simply do not draw from them.
 
@@ -15100,7 +16001,7 @@ empty. That is a decision rather than a coin toss per question, and it is
 the point of doing it now: **classification happens at creation from
 here on, so the retro-classification never accrues.** Sorting 513
 questions cost one mechanical edit; sorting 5,000 would have cost a
-judgement call per question — the same bottleneck D154 exists to remove,
+judgement call per question — the same bottleneck D162 exists to remove,
 arriving through the back door.
 
 **Amended 2026-08-15, same day: the first enforcement landed.** The
@@ -15145,7 +16046,7 @@ to fill their cohort cells — and it cannot be gated until there is a
 population to measure against. Recorded as the open item it is, because
 until it exists the Mirror can thin without anyone noticing.
 
-## D154 · Review at volume: the AI reads, and the human approves and audits
+## D162 · Review at volume: the AI reads, and the human approves and audits
 
 **Decided:** 2026-08-15 · **Status:** binding, not built · Reshapes D33's
 constraint rather than retiring it.
@@ -15198,14 +16099,14 @@ be validated.
 figure, not a measured one, and it should move with whatever the audit
 actually finds.
 
-## D155 · The app learns what you are into, and the model never leaves the phone
+## D163 · The app learns what you are into, and the model never leaves the phone
 
 **Decided:** 2026-08-15 · **Status:** binding, not built · Adopts
 `docs/ATTENTION.md` tier 2 and **narrows** `docs/MONITORING.md`'s
 off-the-table row. Named as a partial reversal, because it is one.
 
 **Decision.** The app builds a per-topic interest model from behaviour,
-uses it to order the **tail** (D153), and keeps it **on the device**. The
+uses it to order the **tail** (D161), and keeps it **on the device**. The
 model is shown to the user and editable, with a reset.
 
 **What this reverses, said plainly.** `MONITORING.md`'s refused row read
@@ -15245,7 +16146,7 @@ separate question and still carries its store-form cost.
 
 **Invariants.** The daily stays global — cohort comparison is meaningless
 if different people got different questions. The Mirror folds the core
-only (D153). The model never leaves the device.
+only (D161). The model never leaves the device.
 
 **Tier 1 is not an alternative to this, it is its editing surface.**
 `ATTENTION.md` recommended shipping tier 1 alone and measuring whether it
@@ -15254,7 +16155,7 @@ questions and does not resolve at an unbounded one. What survives from it
 is the requirement: the model is shown and editable. A Mirror that
 secretly models you is a contradiction in terms.
 
-## D156 · The revenue paths, re-derived against an unbounded feed
+## D164 · The revenue paths, re-derived against an unbounded feed
 
 **Decided:** 2026-08-15 · **Status:** binding as constraints; nothing is
 being built · Reshapes `docs/MONETIZATION.md` paths 2 and 3, which that
@@ -15284,7 +16185,7 @@ without needing a special rule for either. Buying attention therefore
 never creates a category of knowledge that did not already exist.
 
 **4 · Sponsored content lives in the tail, never the core.** New, and it
-falls out of D153: paid questions inside the Mirror's corpus would make
+falls out of D161: paid questions inside the Mirror's corpus would make
 the honest aggregate a paid-for sample. A sponsor still gets the exact
 public split of their own question — aggregates publish for every
 question, tail included — they simply do not get it woven into everyone's
@@ -15311,11 +16212,11 @@ and `SHIP-CHECKLIST.md` calls under-declaration the direction that gets
 an app pulled; and the app would be telling two stories at once. **The
 argument withdrawn is "an ads business needs an infinite feed and this
 one is structurally finite"** — that was a claim about the bank, and
-D153 retires it. It was never one of the load-bearing three.
+D161 retires it. It was never one of the load-bearing three.
 
 What remains available is the version already recorded: disclosed cards,
 selected on-device from local anchors, no SDK, no server-side profile.
-D155 makes it strictly better, because the device now holds an interest
+D163 makes it strictly better, because the device now holds an interest
 model no ad network could reconstruct.
 
 **Sequencing, and the reason none of this is being built.** The contract
@@ -15332,7 +16233,7 @@ CPM versus flat, and every commerce mechanic. This record fixes the
 constraints any of those must satisfy; picking one up is its own
 decision.
 
-## D157 · The database moves to one EU region, and the old answers are let go
+## D165 · The database moves to one EU region, and the old answers are let go
 
 **Decided:** 2026-08-15 · **Status:** binding · Decision taken; the
 migration is not executed. [`FIRESTORE-REGION.md`](FIRESTORE-REGION.md) is
@@ -15345,7 +16246,7 @@ The existing answers are **not migrated**.
 
 **Why now rather than later.** A database's location is fixed at creation,
 so this stops being a setting and becomes a migration the moment real
-answers accumulate. D153–D156 exist to produce more answers sooner, which
+answers accumulate. D161–D164 exist to produce more answers sooner, which
 means this plan is what turns the setting into the migration. It was the
 default rather than a decision, which `FIRESTORE-REGION.md` correctly
 names as the only thing wrong with `nam5`.

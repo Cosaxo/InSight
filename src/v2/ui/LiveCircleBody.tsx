@@ -126,6 +126,8 @@ function LiveCircleBody() {
             id: m.uid, label: m.name || "", match: m.like.pct,
           }))}
           caption="closer to you = more alike"
+          emptyLine={<>Nobody here shares an answered question with you yet —
+            they take their places as you both answer the same things.</>}
         />
       </React.Suspense>
 

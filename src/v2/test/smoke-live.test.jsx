@@ -38,7 +38,9 @@ vi.setConfig({ testTimeout: 15000 });
 import { FEED_OPTIONS, PATH_TITLE, fixtureSurfaceMismatch, installLive } from "./live-fixture";
 import { growFeed } from "./mount-app";
 import { list as anchorList } from "../spec/map-anchors.js";
-import { IS_TEST_RESULTS } from "../spec/test-definitions.js";
+import { IS_TESTS, IS_TEST_RESULTS } from "../spec/test-definitions.js";
+import { IS_ARCHETYPES } from "../spec/archetype-data.js";
+import { resetNormCache } from "../data/testNorms";
 import { FRIENDS } from "../spec/follows.js";
 import { IS_DATA } from "../spec/sample-data.js";
 
@@ -235,13 +237,13 @@ describe("the live gates hold in the DOM, not just in the source", () => {
 
     // Near: the counter, and NOT the city cohort — the un-fold's other half.
     fireEvent.click(screen.getByRole("tab", { name: "Near" }));
-    expect(screen.getByText(/Right now, around you/i)).toBeTruthy();
+    expect(screen.getByText(/Around you/i)).toBeTruthy();
     expect(screen.queryByText(/Everyone who picked this city/i)).toBeNull();
 
     // City: the cohort, and NOT the counter.
     fireEvent.click(screen.getByRole("tab", { name: "City" }));
     await openCity();
-    expect(screen.queryByText(/Right now, around you/i)).toBeNull();
+    expect(screen.queryByText(/Around you/i)).toBeNull();
 
     cleanup();
     live.restore();
@@ -391,7 +393,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
   // the lens bodies have their own suites; this is the wiring — that they
   // reach the real shell, through the spec layer's own render path, on
   // the live body that replaced the demo field.
-  it("gives a live Mirror stop its lens tabs, opening on Answers", async () => {
+  it("gives a live Mirror stop its lens tabs, closed until tapped", async () => {
     localStorage.clear();
     mountLive();
     fireEvent.click(screen.getByRole("button", { name: /^mirror$/i }));
@@ -417,7 +419,9 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     // the same reason the removals below are — the row is assembled from
     // two lists in two modules.
     expect(screen.queryByRole("tab", { name: "Explore" })).toBeNull();
-    expect(screen.getByRole("tab", { name: "Answers" }).getAttribute("aria-selected")).toBe("true");
+    // Nothing is open at rest since D155 — the row is pinned to the bottom
+    // and opens on a tap, which is the prototype's own behaviour.
+    expect(screen.getByRole("tab", { name: "Answers" }).getAttribute("aria-selected")).toBe("false");
     // Neither of D136's two removals may come back as a tab: Overview is
     // the region above the row now, and Foresight left the Mirror. Asserted
     // on the real mount because the row is assembled from two lists in two
@@ -1093,6 +1097,165 @@ describe("live mode never inherits the sample persona (D55)", () => {
     const { container } = render(<window.ResultProfileCard testKey="big5" />);
     expect(initialsIn(container).length, "the demo friends are gone too")
       .toBeGreaterThan(0);
+  });
+
+  // ── the crowd half of the same card (D157) ──
+  //
+  // `IS_TEST_AVG` is five constants per instrument, and until now they WERE
+  // the hollow "most people" ring on every axis and the line above it
+  // reading "higher than 9 in 10 members" — this app's population, named,
+  // from a number a writer typed. Same class as the sample people above,
+  // one section further down the same card, and invisible in a way they
+  // were not: a plausible ring in a plausible place looks exactly like a
+  // measurement.
+  //
+  // Mounted rather than asserted at the fold, because the fold returning an
+  // empty map is only half the fix — a card that then drew `pos(undefined)`
+  // would stack every ring at the left edge and still show a legend naming
+  // it. The `no crowd average yet` line is the assertion that the card
+  // noticed.
+  const BIG5_DIMS = IS_TESTS.big5.questions;
+  /** n straight (non-reversed) items of one axis, as the bank serves them. */
+  const testBank = (dim, n) => BIG5_DIMS
+    .filter((q) => q.d === dim && !q.invert)
+    .slice(0, n)
+    .map((q, i) => ({ id: `t-${dim}-${i}`, prompt: q.q, test: "big5", surface: "test", options: ["", "", "", "", ""] }));
+
+  /** Publish `answers` answers on option `opt` for each of those items. */
+  function publishTestAggs(items, opt, answers) {
+    const byQid = {};
+    items.forEach((q) => { byQid[q.id] = { counts: { [String(opt)]: answers }, total: answers }; });
+    Object.defineProperty(window.LIVE, "testFeedItems", { value: () => items, writable: true, configurable: true });
+    Object.defineProperty(window.LIVE, "aggFor", { value: (qid) => byQid[qid] || null, writable: true, configurable: true });
+    resetNormCache();
+  }
+
+  it("draws no crowd average on a live card with nothing measured", () => {
+    live = installLive();
+    resetNormCache();
+    hydrateTestResults(BIG5_RESULT);
+
+    const { container } = render(<window.ResultProfileCard testKey="big5" />);
+    expect(container.textContent, "the card did not render — test is vacuous")
+      .toMatch(/Openness/);
+    // The legend named a mark. With no baseline there is no mark, so
+    // naming it would be furniture describing nothing.
+    expect(container.textContent, "the authored ring is still legended")
+      .not.toMatch(/most people/);
+    expect(container.textContent, "the percentile survived without a crowd")
+      .not.toMatch(/in 10/);
+    expect(container.textContent).toMatch(/no crowd average yet/);
+    // The ring itself, not just its label: a fill can be a claim in a
+    // different alphabet (D11's own lesson).
+    expect(container.textContent, "a NaN position leaked into the markup")
+      .not.toMatch(/NaN/);
+  });
+
+  it("draws it again once the population has answered enough", () => {
+    live = installLive();
+    // Option 4 on straight items is full agreement, so Openness averages
+    // 100 — a number no constant in IS_TEST_AVG carries, which is what
+    // makes this case prove the ring is the MEASUREMENT and not the
+    // fallback quietly coming back.
+    publishTestAggs(testBank("O", 3), 4, 40);
+    hydrateTestResults(BIG5_RESULT);
+
+    const { container } = render(<window.ResultProfileCard testKey="big5" />);
+    expect(container.textContent).toMatch(/most people/);
+    expect(container.textContent).not.toMatch(/no crowd average yet/);
+  });
+
+  it("keeps the authored baseline in demo mode", () => {
+    // The control. Demo is a shipped surface — `npm run dev`, and the store
+    // screenshots are taken on it — and every assertion above would pass if
+    // the section had simply stopped rendering.
+    resetNormCache();
+    const { container } = render(<window.ResultProfileCard testKey="big5" />);
+    expect(container.textContent).toMatch(/most people/);
+    expect(container.textContent).not.toMatch(/no crowd average yet/);
+  });
+
+  // The same defect, on the sheet reached from this card's "All 13 types"
+  // button: `IS_ARCHETYPES[].share` drawn as a bar chart under the heading
+  // "bar = how common". The sheet portals into `.app`, so the host has to
+  // exist before it renders.
+  function renderTypeSheet(testKey = "big5") {
+    const host = document.createElement("div");
+    host.className = "app";
+    document.body.appendChild(host);
+    render(<window.TypeIndexSheet testKey={testKey} onClose={() => {}} />);
+    return host;
+  }
+  // The authored shares, read off the module rather than written out: they
+  // are content and they move.
+  const AUTHORED_SHARES = new RegExp(
+    "(" + IS_ARCHETYPES.big5.list.map((t) => t.share).join("|") + ")\\s*%",
+  );
+
+  it("prints no authored type frequency in the live type index", () => {
+    live = installLive();
+    // Nobody counted yet — the state the release was reported in, and the
+    // one where the authored bars were most obviously not a measurement.
+    Object.defineProperty(window.LIVE, "kindredPeople", { value: () => [], writable: true, configurable: true });
+    resetNormCache();
+    const host = renderTypeSheet();
+    try {
+      expect(host.textContent, "the sheet did not render — test is vacuous")
+        .toMatch(/The Quiet One/);
+      expect(host.textContent, "an authored share survived in live mode")
+        .not.toMatch(/\d+\s*%/);
+      expect(host.textContent).not.toMatch(/bar = how common/);
+      expect(host.textContent).toMatch(/needs people to count/);
+    } finally {
+      host.remove();
+    }
+  });
+
+  it("counts the sample it has, and says what it counted", () => {
+    // The fixture holds one scored person, so the sheet has a measurement
+    // — one that no authored share happens to equal.
+    live = installLive();
+    resetNormCache();
+    const host = renderTypeSheet();
+    try {
+      expect(host.textContent).toMatch(/of 1 person counted/);
+      expect(host.textContent).toMatch(/1 · 100%/);
+      // Every other type is a measured zero, drawn as an absence rather
+      // than as a share rounding to nothing.
+      expect(host.textContent).toMatch(/none/);
+      expect(host.textContent, "an authored share is still on screen")
+        .not.toMatch(AUTHORED_SHARES);
+    } finally {
+      host.remove();
+    }
+  });
+
+  it("says nothing at all about politics frequencies", () => {
+    // The Art. 9 scope docs/data-inventory.md draws: no population reading
+    // is computed from the politics result, so the sheet that renders for
+    // all four instruments loses its numbers on three of them rather than
+    // keeping fabricated ones.
+    live = installLive();
+    resetNormCache();
+    const host = renderTypeSheet("political");
+    try {
+      expect(host.textContent).toMatch(/Liberal Centrist/);
+      expect(host.textContent).not.toMatch(/\d+\s*%/);
+      expect(host.textContent).toMatch(/only counted for the Big Five/);
+    } finally {
+      host.remove();
+    }
+  });
+
+  it("keeps the authored type frequencies in demo mode", () => {
+    resetNormCache();
+    const host = renderTypeSheet();
+    try {
+      expect(host.textContent).toMatch(/bar = how common/);
+      expect(host.textContent).toMatch(AUTHORED_SHARES);
+    } finally {
+      host.remove();
+    }
   });
 
   it("replaces the demo test results on hydration rather than merging over them", () => {

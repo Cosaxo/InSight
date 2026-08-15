@@ -227,7 +227,7 @@ const ALLOW = new Map([]);
 // a silently truncated bank fetch) are invisible at the moment they land.
 export const DAILY_ID_WARN = 900; // of 999 — check-content pins /^daily-\d{3}$/
 export const DAILY_ID_FAIL = 970; // an id-scheme decision is due before 999
-// Bank headroom. These guarded live.ts's `limit(1500)` until D153 paged
+// Bank headroom. These guarded live.ts's `limit(1500)` until D161 paged
 // that fetch, at which point the ceiling they watched stopped existing —
 // so they were re-pointed rather than deleted, because the NEXT silent
 // ceiling wants the same alarm at a different number.
@@ -243,7 +243,7 @@ export const DAILY_ID_FAIL = 970; // an id-scheme decision is due before 999
 // bytes-per-document from the seed itself rather than assuming, and these
 // counts are that estimate rounded to something a human can hold:
 // 6,000 docs ≈ 1.5 MB, 10,000 ≈ 2.5 MB.
-// D154's sampled audit: one AI-reviewed question in this many gets read by
+// D162's sampled audit: one AI-reviewed question in this many gets read by
 // a person. A starting figure, not a measured one — move it with what the
 // audit actually finds.
 export const AUDIT_ONE_IN = 20;
@@ -777,9 +777,9 @@ export function checkProvenance(corpus) {
     }
   }
 
-  // ── review (D154) ──
+  // ── review (D162) ──
   //
-  // D154 replaced per-item human review with AI review plus a sampled
+  // D162 replaced per-item human review with AI review plus a sampled
   // human audit. The failure that invites is obvious and quiet: "the AI
   // reviewed it" is a claim nobody can check after the fact, and a lane
   // under time pressure can simply stop doing it with no artifact missing.
@@ -795,7 +795,7 @@ export function checkProvenance(corpus) {
       if (row.source !== "farm" && row.source !== "community") continue;
       const r = row.review;
       if (!r || typeof r !== "object") {
-        errs.push(`provenance: ${surface} ${id} is ${row.source} with no \`review\` — D154: nothing enters the bank unread`);
+        errs.push(`provenance: ${surface} ${id} is ${row.source} with no \`review\` — D162: nothing enters the bank unread`);
         continue;
       }
       if (r.by !== "ai" && r.by !== "human") {
@@ -812,7 +812,7 @@ export function checkProvenance(corpus) {
     }
   }
   // The audit RATE, across every AI-reviewed question rather than per
-  // batch: at D154's 1-in-20 a weekly batch of seven rounds to zero, so a
+  // batch: at D162's 1-in-20 a weekly batch of seven rounds to zero, so a
   // per-batch gate would pass while nothing was ever audited. Cumulative
   // is the only shape that binds at both sizes.
   if (aiReviewed.length) {
@@ -821,7 +821,7 @@ export function checkProvenance(corpus) {
     if (got < want) {
       errs.push(
         `provenance: ${got} of ${aiReviewed.length} ai-reviewed questions carry an audit, want ≥ ${want} `
-        + `(D154's 1-in-${AUDIT_ONE_IN}) — the sample is the only check on a reviewer that shares the generator's blind spots`,
+        + `(D162's 1-in-${AUDIT_ONE_IN}) — the sample is the only check on a reviewer that shares the generator's blind spots`,
       );
     }
   }

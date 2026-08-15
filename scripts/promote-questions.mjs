@@ -44,7 +44,7 @@ const flagOf = (name) => {
 };
 const source = flagOf("--source");
 const batch = flagOf("--batch") || new Date().toISOString().slice(0, 10);
-// D154's review verdict, written onto the provenance row so "reviewed" is a
+// D162's review verdict, written onto the provenance row so "reviewed" is a
 // fact rather than a claim. Required for farm/community; refused for
 // editorial, because editorial IS the human and a review row there would be
 // a person certifying their own writing.
@@ -59,7 +59,7 @@ const usage =
   "`npm run promote -- --source farm --review ai --audited dqx13 dqx13 dqx14`\n" +
   "  --source editorial|farm|community   who wrote the archive entry (D97 provenance)\n" +
   "  --batch YYYY-MM-DD                  vintage label, default today (UTC)\n" +
-  "  --review ai|human                   who read it before the bank (D154);" +
+  "  --review ai|human                   who read it before the bank (D162);" +
   " required for farm/community\n" +
   "  --audited id,id                     which of these ids a person read;" +
   " only with --review ai";
@@ -69,12 +69,12 @@ if (!ids.length || !source || !SOURCES.has(source)) {
 }
 if (source === "editorial") {
   if (reviewBy) {
-    console.error("promote: --review is for farm/community — editorial IS the human gate (D154)");
+    console.error("promote: --review is for farm/community — editorial IS the human gate (D162)");
     process.exit(1);
   }
 } else if (reviewBy !== "ai" && reviewBy !== "human") {
   console.error(
-    `promote: --source ${source} needs --review ai|human — D154, nothing enters the bank unread\n\n${usage}`,
+    `promote: --source ${source} needs --review ai|human — D162, nothing enters the bank unread\n\n${usage}`,
   );
   process.exit(1);
 }

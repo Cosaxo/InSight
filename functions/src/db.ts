@@ -1,7 +1,7 @@
-// The database this backend talks to (D157).
+// The database this backend talks to (D165).
 //
 // WHY THIS FILE EXISTS. Every function used to call bare `getFirestore()`,
-// which binds to `(default)` — 37 call sites across seven files. D157 moves
+// which binds to `(default)` — 37 call sites across seven files. D165 moves
 // the app to a named regional database, and `docs/FIRESTORE-REGION.md`'s
 // procedure listed three edits and missed all 37 of these.
 //
@@ -20,7 +20,7 @@
 // point at whatever database they serve by setting FIRESTORE_DB_ID; nothing
 // else should set it. A default of `(default)` would have been the safer
 // literal and the wrong choice — it would mean a deploy that forgets the
-// variable silently keeps writing to the database D157 is migrating off,
+// variable silently keeps writing to the database D165 is migrating off,
 // which is the failure this file exists to prevent.
 
 import { getFirestore } from "firebase-admin/firestore";

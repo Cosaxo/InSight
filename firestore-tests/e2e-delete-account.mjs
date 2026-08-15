@@ -24,7 +24,7 @@ import { initializeApp as adminInit } from "firebase-admin/app";
 import { getFirestore as adminFirestore } from "firebase-admin/firestore";
 import { getAuth as adminAuth } from "firebase-admin/auth";
 
-// The named database (D157). The backend writes to FIRESTORE_DB_ID, so a
+// The named database (D165). The backend writes to FIRESTORE_DB_ID, so a
 // harness on `(default)` reads an empty database and reports a phantom
 // failure — which is exactly what happened the first time this ran, and is
 // the same split brain the deploy has to avoid. One constant, same env var

@@ -32,7 +32,7 @@ export interface LiveQuestion {
   branch?: string;
   sub?: string;
   type?: string;
-  // Whether a COHORT reading may fold this question (D153) — resolved by
+  // Whether a COHORT reading may fold this question (D161) — resolved by
   // isCore() at build time rather than carried raw, because the raw flag
   // is feed-only and every other surface is core by construction. A view
   // model that carried `core?: boolean` would hand every consumer the same
@@ -60,7 +60,7 @@ export interface QuestionDoc {
   // Current-events serving window (D-plan §1): a feed entry past this
   // UTC day stops being OFFERED; answers and aggregate persist.
   until?: string;
-  // Core/tail (D153). Feed-only, and ABSENT MEANS TAIL — a question is in
+  // Core/tail (D161). Feed-only, and ABSENT MEANS TAIL — a question is in
   // the Mirror's corpus only if it says so. Every other surface is core by
   // construction and carries no key, which is why readers must go through
   // `isCore()` below rather than testing this field directly.
@@ -177,11 +177,11 @@ export function countsFor(options: string[], ctx: VoteContext): number[] {
 // same commit as the trigger: with the server no longer writing the flag,
 // a client still reading it would blank every count in the app.
 /**
- * May a cohort reading fold this question? (D153)
+ * May a cohort reading fold this question? (D161)
  *
  * The Mirror's population claims — "this is how Oslo answered" — are only
  * true if everyone in Oslo could have been ASKED. Once the tail is ordered
- * by an interest model (D155), a tail question's split describes the
+ * by an interest model (D163), a tail question's split describes the
  * people it was shown to, not the place. The arithmetic stays correct and
  * the sentence stops being.
  *

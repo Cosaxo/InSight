@@ -113,7 +113,7 @@ vi.mock("firebase/firestore", () => {
     where: (field: string, op: string, value: unknown): Constraint =>
       ({ kind: "where", field, op, value }),
     orderBy: (field: string, dir?: string): Constraint => ({ kind: "orderBy", field, dir }),
-    // D153: live.ts destructures the whole surface, so this must exist even
+    // D161: live.ts destructures the whole surface, so this must exist even
     // though the bank fetch is not what this file exercises.
     startAfter: (): Constraint => ({ kind: "startAfter" }),
     limit: (n: number): Constraint => ({ kind: "limit", n }),

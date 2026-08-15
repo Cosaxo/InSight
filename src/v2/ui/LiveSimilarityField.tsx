@@ -251,6 +251,42 @@ function SfEmpty({ children }: { children: React.ReactNode }) {
   );
 }
 
+/**
+ * An empty field is still a field (D160).
+ *
+ * Every arm below used to REPLACE the drawing with a paragraph when it had
+ * nobody to place, so a new account's Mirror was a sentence where the
+ * constellation goes, on every stop, until strangers turned up. That reads
+ * as a screen that has not been built rather than one that has nothing in
+ * it yet — and it hides the grammar the whole tab is written in, from
+ * exactly the reader who has not learned it.
+ *
+ * So the canvas draws first and always: the rings, and you at the centre.
+ * That is not decoration and it is not fabricated — "you, and nobody
+ * placed around you yet" is the true picture, node for node, and the rings
+ * are the scale the radius will be read on when someone does arrive. The
+ * prototype does the same thing (`MFSparse` sits UNDER `MFCanvas`, never
+ * instead of it).
+ *
+ * `anon` on purpose for every empty arm regardless of what the filled one
+ * draws: an empty field has nothing to tap, and a `people` canvas with no
+ * people would hand out roles and tab stops to nothing.
+ */
+function SfEmptyField({ caption, onGo, children }: {
+  caption?: React.ReactNode;
+  onGo?: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div style={{ padding: "6px 0 2px" }}>
+      <SimilarityCanvas kind="anon" nodes={[]} picked={null} onPick={() => {}} />
+      {caption ? <SfCaption>{caption}</SfCaption> : null}
+      <SfEmpty>{children}</SfEmpty>
+      <SfGoAnswers onGo={onGo} />
+    </div>
+  );
+}
+
 // One axis row: their value as a bar, yours as a tick on it — the same
 // visual sentence the Scores lens speaks, so a comparison reads the same
 // everywhere in the Mirror.
@@ -348,16 +384,13 @@ function CityField({ myParsed, onGoAnswers }: {
 
   if (!shown.length) {
     return (
-      <div style={{ padding: "6px 0 2px" }}>
-        <SfCaption>kindred strangers in {cityName}</SfCaption>
-        <SfEmpty>
-          {loading
-            ? <>Working out who in {cityName} is most like you…</>
-            : <>Nobody from {cityName} yet among the people on your questions —
-              this fills in as more of the city answers.</>}
-        </SfEmpty>
-        {!loading && <SfGoAnswers onGo={onGoAnswers} />}
-      </div>
+      <SfEmptyField caption={<>kindred strangers in {cityName}</>}
+        onGo={loading ? undefined : onGoAnswers}>
+        {loading
+          ? <>Working out who in {cityName} is most like you…</>
+          : <>Nobody from {cityName} yet among the people on your questions —
+            this fills in as more of the city answers.</>}
+      </SfEmptyField>
     );
   }
 
@@ -406,13 +439,20 @@ export interface FieldPerson {
   match: number;
 }
 
-export function PeopleField({ people, caption, onPick, picked }: {
+export function PeopleField({ people, caption, onPick, picked, emptyLine }: {
   people: readonly FieldPerson[];
   caption: React.ReactNode;
   onPick?: (id: string) => void;
   picked?: string | null;
+  /** What to say under an empty ring. The caller knows which population
+   *  this is and why it might be empty; the field only knows it is. */
+  emptyLine?: React.ReactNode;
 }) {
-  if (!people.length) return null;
+  // Was `return null` — the Circle and Groups stops drew NOTHING at all
+  // with an empty roster, which is the same fault as the paragraph arms
+  // above and quieter: the stop simply had a hole in it. The caller's own
+  // empty copy still follows underneath.
+  if (!people.length) return <SfEmptyField caption={caption}>{emptyLine}</SfEmptyField>;
   return (
     <div style={{ padding: "2px 0 0" }}>
       <SimilarityCanvas
@@ -484,20 +524,20 @@ export function NearField() {
   // the picker lives one stop over and the counter above still works.
   if (!city) {
     return (
-      <SfEmpty>
+      <SfEmptyField>
         Set your city — at the City stop, or by turning the count above on —
         and the people around you draw in here, closest first.
-      </SfEmpty>
+      </SfEmptyField>
     );
   }
   if (!shown.length) {
     return (
-      <SfEmpty>
+      <SfEmptyField>
         {loading
           ? <>Working out who around you is most like you…</>
           : <>Nobody from {cityName} yet among the people on your questions —
             this fills in as more of the city answers.</>}
-      </SfEmpty>
+      </SfEmptyField>
     );
   }
 
@@ -590,16 +630,14 @@ function PlacesField({ scope, myFlat, onGoAnswers }: {
 
   if (!profiles.length) {
     return (
-      <div style={{ padding: "6px 0 2px" }}>
-        <SfCaption>{scope === "country" ? "your country's cities" : "the world's countries"}, by likeness</SfCaption>
-        <SfEmpty>
-          {loading
-            ? <>Reading the score profiles…</>
-            : <>No {what} has answered the score questions yet — profiles start
-              with the first test answer.</>}
-        </SfEmpty>
-        {!loading && <SfGoAnswers onGo={onGoAnswers} />}
-      </div>
+      <SfEmptyField
+        caption={<>{scope === "country" ? "your country's cities" : "the world's countries"}, by likeness</>}
+        onGo={loading ? undefined : onGoAnswers}>
+        {loading
+          ? <>Reading the score profiles…</>
+          : <>No {what} has answered the score questions yet — profiles start
+            with the first test answer.</>}
+      </SfEmptyField>
     );
   }
 

@@ -93,7 +93,7 @@ const INPUT = inputIdx >= 0 ? args[inputIdx + 1] : null;
 
 // ── the question banks under evaluation ──
 const daily = JSON.parse(readFileSync(join(root, "content", "daily-questions.json"), "utf8"));
-// The database the public mirror lives in (D157). Hardcoded `(default)`
+// The database the public mirror lives in (D165). Hardcoded `(default)`
 // here until the migration; the scorecard reads production over REST, so a
 // stale id makes it report an EMPTY corpus rather than fail — every lane
 // would then see "no signal" and fall through to its coverage branch,

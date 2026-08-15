@@ -125,7 +125,7 @@ describe("buildS", () => {
       live: true,
       noCountsYet: false,
       test: "big5",
-      // Resolved by isCore at build time (D153): this fixture is not a
+      // Resolved by isCore at build time (D161): this fixture is not a
       // feed question, so it is core by construction.
       coreCorpus: true,
       // D100's bank fields, carried through so the Mirror can group by
@@ -461,7 +461,7 @@ describe("retiring a served question must not re-map the pager", () => {
   });
 });
 
-// ── isCore: which questions a cohort reading may fold (D153) ──
+// ── isCore: which questions a cohort reading may fold (D161) ──
 //
 // The asymmetry is the whole point and it is easy to get backwards: feed
 // questions opt IN, every other surface is core by construction. A reader

@@ -76,9 +76,11 @@ describe("what the answers reach", () => {
     expect(onDone).toHaveBeenCalled();
   });
 
-  it("writes the BAND, never the birthday", () => {
-    // The exact date never leaves the device — anchorsFrom derives the band
-    // and drops the rest, and this is the case that keeps it that way.
+  it("writes the age and its band, never the birthday", () => {
+    // The exact date never leaves the device — anchorsFrom derives an age
+    // and a band from it and drops the rest, and this is the case that
+    // keeps it that way. D155 added the age beside the band; the assertion
+    // that matters is unchanged and is the last line.
     render(<LiveProfileSetup onDone={onDone} />);
     pick("Year", "1990");
     pick("Month", "July");
@@ -87,6 +89,9 @@ describe("what the answers reach", () => {
 
     const saved = LIVE.saveAnchors.mock.calls[0][0];
     expect(saved.ageBand).toMatch(/^\d{2}-\d{2}$|^65\+$|^Under 18$/);
+    // A bare integer of at most three characters — the shape firestore.rules
+    // caps, checked here so the cap is not the only thing asserting it.
+    expect(saved.age).toMatch(/^\d{1,3}$/);
     expect(JSON.stringify(saved)).not.toMatch(/1990|July|"12"/);
   });
 

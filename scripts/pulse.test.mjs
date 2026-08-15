@@ -537,7 +537,13 @@ describe("the rendered page", () => {
       coverage: { ...real.coverage, scored: 3, unserved: 80, belowFloor: 2 },
       retireProposals: [{ qid: "daily-000" }, { qid: "daily-001" }],
       perQuestion: real.perQuestion.map((q, i) =>
-        i < 3 ? { ...q, served: true, total: 1400 + i, evenness: [0.12, 0.51, 0.93][i] } : q),
+        i < 3 ? { ...q, served: true, total: 1400 + i, evenness: [0.12, 0.51, 0.93][i] }
+          // Neutralize every row this test does NOT doctor. The committed
+          // artifact stopped being all-zeros on 2026-08-15 — the first
+          // post-launch refresh carries real answers — and any live total
+          // or evenness left in place moves the exact sums below on every
+          // scorecard refresh (this test's first red was +5 real answers).
+          : { ...q, served: true, total: 0, evenness: null, optionShares: null, signal: "no-answers" }),
     };
     const sc = { ...p.pipeline.scorecard };
     // Re-run the collector's own arithmetic over the doctored artifact.

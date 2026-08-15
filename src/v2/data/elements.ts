@@ -132,10 +132,13 @@ export function searchElements(elements: Element[], q: string, max = 40): Elemen
 
 // ── the picker's view of this catalogue ────────────────────────────────
 //
-// An ordinary default export: ui/PickSearch is the only consumer and it
-// imports this file. It published itself onto globalThis until D137, back
-// when the spec layer looked catalogues up by name — nothing did any more,
-// and its siblings (places, pokedex) never published at all.
+// An ordinary default export with two consumers, both ESM imports:
+// ui/PickSearch (the answer path) and spec/world-feed.jsx's pickStore
+// (the reveal path — added 2026-08-15, when the countries wiring exposed
+// that reveals had no elements arm and fell back to the Pokédex). It
+// published itself onto globalThis until D137, back when the spec layer
+// looked catalogues up by name — nothing did any more, and its siblings
+// (places, pokedex) never published at all.
 
 const ELEMENTS_CATALOG = {
   NOT_LISTED,

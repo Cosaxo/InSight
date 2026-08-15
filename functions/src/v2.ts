@@ -51,7 +51,7 @@ import {
   type CatalogSpec,
   type SeedOptionConflict,
 } from "./pure";
-import { FILM_KEYS, ARTIST_KEYS, EMOJI_KEYS } from "./catalogKeys";
+import { FILM_KEYS, ARTIST_KEYS, EMOJI_KEYS, COUNTRY_KEYS } from "./catalogKeys";
 
 const REGION = "us-central1";
 
@@ -242,6 +242,10 @@ const CATALOG_DOMAINS: Record<string, CatalogSpec> = {
   // Unicode codepoints — sparse like QIDs, stable by Unicode policy.
   emoji: { keys: EMOJI_KEYS },
   elements: { max: CATALOG_MAX_ELEMENT },
+  // ISO 3166-1 numeric codes — sparse, the standard's own stable
+  // identity — plus one recorded mint (Kosovo, 900); the generated set
+  // is the whole contract, same as the QID domains.
+  countries: { keys: COUNTRY_KEYS },
 };
 
 // ── content seed ────────────────────────────────────────────────

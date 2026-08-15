@@ -177,6 +177,21 @@ describe("People", () => {
     expect(container.textContent).not.toMatch(/The /);
   });
 
+  it("draws the type's own mark on the badge, not a decorative dot", () => {
+    // D156's sweep against the v25 sample. The badge wore a dot coloured by
+    // `angleHash(uid)` — decorative, and sitting in the one place on the
+    // card a reader would take for a reading. TypeMark is the glyph the
+    // TypeMix card draws each type with, so a badge on a person and a row
+    // in the population became the same object.
+    LIVE.kindredPeople = () => [kin({
+      results: { big5: { O: 88, C: 40, E: 75, A: 55, N: 45 } },
+    })];
+    const { container } = mount("people");
+    const badge = [...container.querySelectorAll("span")]
+      .find((el) => /^The /.test(el.textContent || "") && el.querySelector("svg"));
+    expect(badge, "the type badge drew no mark").toBeTruthy();
+  });
+
   it("drops anyone below the shared-question floor", () => {
     // One shared question is a coin flip, not an overlap — and a 100% over
     // one would otherwise head the list.

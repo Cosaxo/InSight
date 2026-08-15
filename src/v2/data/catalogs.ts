@@ -129,6 +129,10 @@ const ARTISTS = makeCatalog("artists.txt");
 // Codepoint-keyed (build-emoji.mjs); the display name embeds the character
 // ("😂 face with tears of joy"), so no renderer is needed here.
 const EMOJI = makeCatalog("emoji.txt");
+// ISO-3166-numeric-keyed (build-countries.mjs), alphabetical — there is
+// no popularity column in ISO, so the empty-query state reads A→Z rather
+// than pretending to a fame ranking the source does not carry.
+const COUNTRIES = makeCatalog("countries.txt");
 
 declare global {
   interface Window {
@@ -139,7 +143,10 @@ declare global {
 }
 
 // Render-time lookup bridge for the spec layer (world-feed.jsx), the
-// places.ts Object.assign form.
+// places.ts Object.assign form — the three LEGACY stores only.
+// COUNTRIES is deliberately absent: its consumers import it (world-feed's
+// pickStore, PickSearch), and a publication nothing reads by name is
+// exactly what check:globals rule 5 exists to delete.
 Object.assign(globalThis, { FILMS, ARTISTS, EMOJI });
 
-export { FILMS, ARTISTS, EMOJI };
+export { FILMS, ARTISTS, EMOJI, COUNTRIES };

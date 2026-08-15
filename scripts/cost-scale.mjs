@@ -105,7 +105,7 @@ console.log("  paging — these rows separate, and that is the regression to loo
 console.log("3 · WHAT TRIPS FIRST, and it is not the bill\n");
 console.log("  WAS the unpaginated bank fetch, which returned a short page and NO error");
 console.log("  once the bank passed its limit — a truncated corpus with nothing failing");
-console.log("  anywhere. D153 paged it; the loop ends on a short page and never on a count");
+console.log("  anywhere. D161 paged it; the loop ends on a short page and never on a count");
 console.log("  it believes in advance, and bank-cache.test.ts asserts completeness.");
 console.log();
 console.log("  NEXT is the localStorage bank cache, and it is silent in the same way: the");

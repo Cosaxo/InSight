@@ -310,7 +310,7 @@ describe("question-bank cache", () => {
     expect(readCache().questions).toHaveLength(2);
   });
 
-  // ── pagination (D153) ──
+  // ── pagination (D161) ──
   //
   // The bug these exist to prevent is the one the old `limit(1500)` had:
   // Firestore returns a short page and NO error when a query hits its

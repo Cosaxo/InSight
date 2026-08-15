@@ -55,7 +55,7 @@ for (const [name, fn] of Object.entries(mod)) {
       // set maxInstances: null to "scale freely", would leave that
       // paragraph asserting a ceiling that no longer exists.
       maxInst: ep.maxInstances,
-      // D157's third silent failure, read off the DEPLOYED options rather
+      // D165's third silent failure, read off the DEPLOYED options rather
       // than the source. A Firestore trigger binds to `(default)` unless
       // told otherwise, so a trigger that lost this option deploys green,
       // stays healthy, lets every answer write — and never fires, because
@@ -87,7 +87,7 @@ for (const r of rows) {
   );
 }
 
-// Every Firestore trigger fires on the database the deploy targets (D157).
+// Every Firestore trigger fires on the database the deploy targets (D165).
 //
 // MEASURED, not assumed, and the measurement changed this check. Omitting
 // the option does not leave `database` undefined — the SDK fills in the
@@ -114,7 +114,7 @@ if (expectedDb === null) {
 if (wrongDb.length) {
   console.error(
     `\n${wrongDb.length} Firestore trigger(s) not on ${JSON.stringify(expectedDb)}, which is what`
-    + " firebase.json deploys rules to (D157):",
+    + " firebase.json deploys rules to (D165):",
   );
   for (const r of wrongDb) console.error(`  - ${r.name} → ${JSON.stringify(r.db || "(default)")}`);
   console.error(

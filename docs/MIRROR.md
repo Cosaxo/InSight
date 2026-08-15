@@ -350,7 +350,12 @@ an empty tab with a "Take this test →" button. That flow is gone —
 instead, publishing a result once **every axis has at least two** behind
 it. Below that the tab draws its own progress and names the thin axes
 rather than a type, because the card draws an archetype and a rarity
-percentile and one answer per axis can produce both. Test and lens cards
+percentile and one answer per axis can produce both. (Since D157 the
+rarity percentile and the "most people" ring beside every axis are
+COUNTED — `data/testNorms.ts`, over the published test-item aggregates and
+the cached voter sample — or they are not drawn at all. They used to come
+from `IS_TEST_AVG`, five authored constants per instrument.) Test and lens
+cards
 also gained **"later"** (`data/deferQueue.ts`): a deferral, not a pass —
 the card leaves the feed and returns in 20 hours, and keeps returning
 until it is answered.

@@ -9,7 +9,7 @@ import {
 } from "firebase/firestore";
 import { getFunctions, connectFunctionsEmulator, httpsCallable } from "firebase/functions";
 
-// The named database (D157). The backend writes to FIRESTORE_DB_ID, so a
+// The named database (D165). The backend writes to FIRESTORE_DB_ID, so a
 // harness on `(default)` reads an empty database and reports a phantom
 // failure — which is exactly what happened the first time this ran, and is
 // the same split brain the deploy has to avoid. One constant, same env var

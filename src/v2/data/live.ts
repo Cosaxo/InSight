@@ -135,6 +135,9 @@ import type { Verdict as ForesightVerdict } from "./foresight";
 // is applied on every feed rebuild rather than on a lens nobody opened,
 // and the module is a few hundred bytes of localStorage plumbing.
 import { applyInterests } from "./interests";
+// The passive tests' round-robin (D155). Lives with the feed's other
+// interleave arithmetic so both are testable without Firebase.
+import { roundRobinBy } from "./feed-interleave";
 // Pure deck-shaping logic lives in ./deck (unit-testable, no firebase);
 // this module passes its store state in.
 import {
@@ -193,6 +196,14 @@ const state = {
   // First-attempt sends already fired this session (belt to the rules'
   // braces: the create-only rule is the real enforcement).
   learnSent: {} as Record<string, true>,
+  // The viewer's OWN first try, and whether the cached aggregate above
+  // has absorbed it yet (D157). `learnAnswer` writes the answer and then
+  // re-reads the aggregate, and it loses that race far more often than it
+  // wins — so the reveal drawn a beat later was the crowd WITHOUT you,
+  // one line under a tick saying you got it right. On a card two people
+  // have answered that is the difference between "0 people · 0%" and "1
+  // person · 50%" beside the option you just tapped.
+  learnMine: {} as Record<string, { idx: number; folded: boolean }>,
   deckDay: -1,
   deckIds: [] as string[],
   aggs: {} as Record<string, AggDoc>,
@@ -347,7 +358,7 @@ export const TAKE_MAX_CHARS = 280;
 // (isValidV2Anchors). Kept here rather than inline so the client and the
 // ruleset can be diffed against each other by eye.
 const ANCHOR_FIELDS: Record<string, number> = {
-  city: 80, country: 80, ageBand: 20, gender: 40,
+  city: 80, country: 80, ageBand: 20, age: 3, gender: 40,
   profession: 80, education: 80, relationship: 40, heightBand: 20,
 };
 
@@ -744,7 +755,7 @@ async function hydrate(): Promise<void> {
   interface BankEntry extends QuestionDoc {
     id: string;
   }
-  // PAGE SIZE, not a ceiling — D153, and the difference is the whole point.
+  // PAGE SIZE, not a ceiling — D161, and the difference is the whole point.
   //
   // This was `BANK_LIMIT = 1500`, a cap on one unpaginated fetch, with
   // D30's rule recorded beside it: approach it with pagination, never
@@ -847,7 +858,7 @@ async function hydrate(): Promise<void> {
     }
   }
   if (!all) {
-    // ── the full fetch, paged (D153) ──
+    // ── the full fetch, paged (D161) ──
     //
     // Ordered by document id because the cursor has to be on the ordering
     // key and `__name__` is the one field every document is guaranteed to
@@ -1215,7 +1226,13 @@ function buildFeedGlobals(): void {
   // this call. data/interests.test.ts asserts the reader list.
   (window as unknown as Record<string, unknown>).WORLD_FEED_QS =
     applyInterests(feed, (q) => q.cat);
-  (window as unknown as Record<string, unknown>).TEST_FEED_QS = tests;
+  // Round-robined across the four instruments (D155), not served in bank
+  // order. `content/tests.json` is keyed BY instrument, so bank order is
+  // 25 Big Five, then 30 Politics, then 30 Values, then 25 Social — and a
+  // real account filled one bar while three sat at zero. The demo pool
+  // never had this: spec/test-feed-data.js interleaves as it builds.
+  (window as unknown as Record<string, unknown>).TEST_FEED_QS =
+    roundRobinBy(tests, (q) => String(q.test || ""));
   (window as unknown as Record<string, unknown>).WORLD_FEED_COMMENTS = {};
   LIVE.feedReady = true;
 }
@@ -2701,6 +2718,11 @@ const LIVE = {
     if (!q) return;
     if (!Number.isInteger(optionIdx) || optionIdx < 0 || optionIdx >= q.options.length) return;
     state.learnSent[qid] = true;
+    // The count this option carried BEFORE the write, so the re-read
+    // below can tell "the trigger folded my answer" from "someone else
+    // answered while I was writing". Read here rather than inside the
+    // async block: the cached doc must be the pre-write one.
+    const wasAt = Number((state.learnAggs[qid]?.counts || {})[String(optionIdx)] || 0);
     void (async () => {
       try {
         const db = await getDb();
@@ -2716,22 +2738,38 @@ const LIVE = {
           // suppress and nothing to re-argue under D8's floors.
           anchors: {},
         });
+        // The answer is on the server now, so it is part of this card's
+        // crowd whether or not the aggregate says so yet.
+        state.learnMine[qid] = { idx: optionIdx, folded: false };
         // Your own answer joins the count you are about to be shown (D125)
         // — one re-read, once, after the write lands. REPLACE rather than
         // invalidate: dropping the entry would make the next render fall
-        // back to the authored estimate while the re-read is in flight,
-        // which is the reveal you are looking at changing to the WORSE
-        // source. The old value stands until a newer one exists.
+        // back to a thinner reading while the re-read is in flight, which
+        // is the reveal you are looking at changing to the WORSE source.
+        // The old value stands until a newer one exists.
         //
-        // It races the aggregate trigger and will often lose, which is
-        // fine and is why there is no retry: the split is a claim about
-        // the crowd, one answer does not move it, and the next sitting's
-        // prefetch reads it settled.
+        // It races the aggregate trigger and USUALLY LOSES — a Firestore
+        // trigger is not going to fire, transact and commit inside one
+        // client round-trip. D125 called that fine because "one answer
+        // does not move the split", which is true of a crowd of two
+        // hundred and false of a crowd of one: at launch scale the answer
+        // it drops is a large fraction of the reading, and it is always
+        // the reader's own. So the race is now RECORDED rather than
+        // tolerated — `folded` says whether the doc below already counts
+        // this answer, and LEARN_COUNTS adds it in when it does not.
         const fresh = await getDoc(doc(db, "v2_question_aggs", qid));
         if (fresh.exists()) {
-          state.learnAggs[qid] = fresh.data() as AggDoc;
-          notify();
+          const data = fresh.data() as AggDoc;
+          state.learnAggs[qid] = data;
+          // Strictly greater: a concurrent stranger picking the same
+          // option could raise this without our answer being in it, and
+          // erring toward "not folded" would then double-count us. Erring
+          // the other way undercounts by one against a settled aggregate,
+          // which is the direction the published document is right in.
+          const now = Number((data.counts || {})[String(optionIdx)] || 0);
+          state.learnMine[qid] = { idx: optionIdx, folded: now > wasAt };
         }
+        notify();
       } catch (err) {
         reportError(err, { where: "learnAnswer" });
       }
@@ -2769,6 +2807,19 @@ const LIVE = {
       }
     })();
     return null;
+  },
+  /**
+   * The viewer's own first try on this card, and whether the cached
+   * aggregate above already counts it — null when this session did not
+   * write one (a card answered on another day, or in another install, is
+   * the aggregate's business and not this cache's).
+   *
+   * Synchronous and cache-only on purpose: `LEARN_COUNTS` reads it inside
+   * a render path, right next to `learnAgg`, and the two have to answer
+   * from the same instant.
+   */
+  learnMine(cardId: string): { idx: number; folded: boolean } | null {
+    return state.learnMine["learn-" + cardId] || null;
   },
   // Warm the cache for a whole serve plan, batched (D125).
   //
@@ -3146,6 +3197,14 @@ function resetForNewUid(uid: string): void {
   // Scores ride the name cache (D112) and carry the same reasoning: other
   // people's data, held to save reads.
   state.scores = {};
+  // Both are about WHO ANSWERED, so both belong to the outgoing account:
+  // a surviving `learnSent` would suppress the new account's first-attempt
+  // sends for every card the old one answered, and a surviving `learnMine`
+  // would add the old account's pick to the new one's reveal. The
+  // aggregate cache beside them is public and stays — it is the same
+  // crowd whoever is signed in.
+  state.learnSent = {};
+  state.learnMine = {};
   // The disk copy is swept by purgeLocalTrace below (it removes every
   // `insight.*` key), but the age map is module state that no sweep
   // reaches — and a survivor would hand the NEXT account's entries the

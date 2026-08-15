@@ -25,7 +25,13 @@ import { ARCHETYPES, matchArchetype } from "../spec/archetype-data.js";
 
 /** The one instrument types read from in tier 1. The Big Five archetypes
  * are the app's least charged system; the politics types stay on the
- * profile only, deliberately. */
+ * profile only, deliberately.
+ *
+ * It is also the ENFORCEMENT of the scope docs/data-inventory.md promises
+ * and `ui/LivePrivacyPanel` prints: no population reading of any kind is
+ * computed from the politics, values or attachment result. D157 pointed a
+ * second surface at this fold (the profile's type index) and did not
+ * widen it — see `typeSharesOn`. */
 export const TYPE_TEST = "big5";
 /** Below this, a count is listed, not ranked. */
 export const TYPE_THIN = 8;
@@ -47,17 +53,18 @@ export interface TypeMix {
 }
 
 interface ArchetypeSystem { list: { name: string; line: string }[] }
-const system = (): ArchetypeSystem | null =>
-  ((ARCHETYPES as Record<string, ArchetypeSystem | undefined>)[TYPE_TEST]) ?? null;
+const systemOf = (kind: string): ArchetypeSystem | null =>
+  ((ARCHETYPES as Record<string, ArchetypeSystem | undefined>)[kind]) ?? null;
+const system = (): ArchetypeSystem | null => systemOf(TYPE_TEST);
 
 export const typeNames = (): string[] => (system()?.list ?? []).map((t) => t.name);
 export const typeLine = (name: string): string =>
   system()?.list.find((t) => t.name === name)?.line ?? "";
 
 type Dim = { id: string; value: number };
-const typeOfDims = (dims: Dim[] | undefined | null): string | null => {
+const typeOfDims = (dims: Dim[] | undefined | null, kind: string = TYPE_TEST): string | null => {
   if (!dims || !dims.length) return null;
-  const m = matchArchetype(TYPE_TEST, dims) as { list: { name: string }[]; idx: number } | null;
+  const m = matchArchetype(kind, dims) as { list: { name: string }[]; idx: number } | null;
   return m ? m.list[m.idx].name : null;
 };
 
@@ -83,10 +90,13 @@ const typeOfDims = (dims: Dim[] | undefined | null): string | null => {
  * *designed* to say that, so it looked like it was working.
  * Measured with a probe before this fix, not reasoned about.
  */
-export const typeOfParsed = (results: ParsedResults | null | undefined): string | null => {
-  const axes = results?.[TYPE_TEST];
+export const typeOfParsed = (
+  results: ParsedResults | null | undefined,
+  kind: string = TYPE_TEST,
+): string | null => {
+  const axes = results?.[kind];
   if (!axes) return null;
-  return typeOfDims(Object.entries(axes).map(([id, value]) => ({ id, value })));
+  return typeOfDims(Object.entries(axes).map(([id, value]) => ({ id, value })), kind);
 };
 
 export const typeOfPerson = (p: KindredPerson): string | null => typeOfParsed(p.results);
@@ -94,8 +104,13 @@ export const typeOfPerson = (p: KindredPerson): string | null => typeOfParsed(p.
 /** Your own type, from your Big Five result — null until the passive fold
  * has published one (the card then says so instead of inventing one). */
 export function myType(): string | null {
-  const r = (LIVE.myTestResults() as Record<string, { dims?: Dim[] } | undefined>)[TYPE_TEST];
-  return typeOfDims(r?.dims);
+  return myTypeOn(TYPE_TEST);
+}
+
+/** The same, on any instrument the archetype module defines. */
+export function myTypeOn(kind: string): string | null {
+  const r = (LIVE.myTestResults() as Record<string, { dims?: Dim[] } | undefined>)[kind];
+  return typeOfDims(r?.dims, kind);
 }
 
 const inScope = (p: KindredPerson, scope: string): boolean => {
@@ -127,5 +142,75 @@ export function typeMixFor(scope: "city" | "country" | "world"): TypeMix {
     sampleN: sample.length,
     typedN: people.length,
     people,
+  };
+}
+
+// ── how common a type actually is (D157) ─────────────────────────────
+//
+// The profile's type-index sheet ("The 13 types", headed `bar = how
+// common`) drew `IS_ARCHETYPES[test].list[].share` — hand-authored
+// percentages whose own comment calls them "realistic … common types big,
+// rare ones genuinely rare". A reader has no way to tell that from a
+// measurement, and the sheet is two taps from a result card that says
+// which one is theirs.
+//
+// So the sheet reads this instead: the same sample `typeMixFor` folds,
+// typed against whichever instrument is on screen. Rows come back for
+// EVERY type the system defines, zeroes included — a type nobody in the
+// sample carries is a measured zero, and dropping it would let a thin
+// sample look like a complete map of the population. Ranking by `n` is
+// the caller's, and so is drawing the zeroes; this returns the counts.
+//
+// The authored `share` stays where it is and keeps its OTHER job: the
+// commonness prior in `IS_archScores` (rule 3), which taxes rare types on
+// a near-tie. That is a model constant, not a claim on a screen, and
+// swapping it for a live sample would make which type you ARE drift with
+// whoever the app happened to fetch this session.
+//
+// THE SCOPE DOES NOT WIDEN. The sheet renders for all four instruments,
+// and it would have been one parameter to type the sample against each of
+// them — which is exactly the line docs/data-inventory.md draws and
+// `LivePrivacyPanel` prints: the politics result is Art. 9 data and no
+// population reading is computed from it, nor from the other two that
+// travel with it in that promise. So the other three instruments show no
+// frequency at all in a live build rather than a measured one. That is a
+// loss of a number, and the alternative was keeping a fabricated one to
+// avoid noticing.
+
+export interface TypeShare { name: string; n: number; pct: number }
+export interface TypeShares {
+  rows: TypeShare[];
+  /** People in the sample with a readable result on this instrument. */
+  typedN: number;
+  /** Everyone the sample holds, typed or not — the honest denominator gap. */
+  sampleN: number;
+}
+
+/**
+ * Measured type frequencies, or null — in a demo build (where the
+ * authored share IS the content, like the seeded circle), and on every
+ * instrument but TYPE_TEST (see above).
+ */
+export function typeSharesOn(kind: string): TypeShares | null {
+  if (!LIVE.enabled || kind !== TYPE_TEST) return null;
+  const names = (systemOf(kind)?.list ?? []).map((t) => t.name);
+  if (!names.length) return null;
+  const sample = LIVE.kindredPeople() as KindredPerson[];
+  const counts = new Map<string, number>();
+  let typedN = 0;
+  for (const p of sample) {
+    const name = typeOfParsed(p.results, kind);
+    if (!name) continue;
+    typedN++;
+    counts.set(name, (counts.get(name) ?? 0) + 1);
+  }
+  return {
+    rows: names.map((name) => ({
+      name,
+      n: counts.get(name) ?? 0,
+      pct: typedN ? Math.round(((counts.get(name) ?? 0) / typedN) * 100) : 0,
+    })),
+    typedN,
+    sampleN: sample.length,
   };
 }

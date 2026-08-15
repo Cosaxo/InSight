@@ -5,7 +5,11 @@
 // guards the wiring in CI.
 import React from 'react';
 import { Kicker } from './primitives.jsx';
-import { IS_TEST_AVG, IS_TEST_RESULTS } from './test-definitions.js';
+import { IS_TEST_RESULTS } from './test-definitions.js';
+// The measured "most people" baseline (D157). `VizRange` reads `d.avg` per
+// row and skips the typical-person mark where it is undefined, so an empty
+// map draws your own values alone rather than a fabricated comparison.
+import { testAvg } from '../data/testNorms.ts';
 
 // ─── Test result visualizations — one unified language for every test ───
 // "Radar": a polygon plotted across one axis per dimension; the filled shape
@@ -80,7 +84,7 @@ function TestVizCard({ testKey, accent }) {
   const R = IS_TEST_RESULTS[testKey];
   if (!R) return null;
   const a = accent || R.accent;
-  const avg = IS_TEST_AVG[testKey] || {};
+  const avg = testAvg(testKey);
   const Rx = { ...R, dims: R.dims.map(d => ({ ...d, avg: avg[d.id] })) };
   return (
     <div className="card" style={{ marginBottom: 14 }}>

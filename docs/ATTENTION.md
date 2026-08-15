@@ -122,7 +122,7 @@ It still needs a decision, because MONITORING.md's refused row is about
 the *behaviour* (per-user content selection) and not only about where the
 bytes live. Storing it locally narrows the reversal; it does not avoid it.
 
-**Taken as D155 (2026-08-15).** The reversal is recorded rather than
+**Taken as D163 (2026-08-15).** The reversal is recorded rather than
 elided, and the refused row is narrowed to *server-side* per-user
 selection — what survives is that the server never learns what anyone
 was shown. This paragraph is why that record names itself a partial

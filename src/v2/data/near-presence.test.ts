@@ -91,7 +91,7 @@ vi.mock("firebase/firestore", () => {
     query: (src: { path?: string }) => ({ __kind: "query", path: src?.path }),
     where: () => ({ __kind: "where" }),
     orderBy: () => ({ __kind: "orderBy" }),
-    // Required since D153 paged the bank fetch: live.ts destructures the
+    // Required since D161 paged the bank fetch: live.ts destructures the
     // whole Firestore surface, so a missing member throws at boot.
     startAfter: () => ({ __kind: "startAfter" }),
     limit: () => ({ __kind: "limit" }),

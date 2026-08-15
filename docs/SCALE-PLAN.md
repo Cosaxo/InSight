@@ -9,8 +9,8 @@
 
 **Status: plan, with §1's classification BUILT (2026-08-15).** Everything
 else on this page is still proposal — but the decisions behind it are
-recorded: **D153** (unbounded feed and the core/tail split), **D154**
-(review at volume), **D155** (the on-device interest model) and **D156**
+recorded: **D161** (unbounded feed and the core/tail split), **D162**
+(review at volume), **D163** (the on-device interest model) and **D164**
 (the revenue paths re-derived). Those records are binding; the build
 order in §6 is not. Requested 2026-08-15, out of a
 session that started on attention budgets and targeted ads and ended
@@ -247,7 +247,7 @@ constraint, and a queue of unreviewed AI PRs is inventory, not progress"
 of work changes from *read one question* to *approve a batch and audit a
 sample*. `scripts/farm-budget.mjs`'s regulator keeps its shape; the
 measured promotion throughput it throttles to is simply a much larger
-number. **Recorded as D154** (2026-08-15), which reshapes that constraint
+number. **Recorded as D162** (2026-08-15), which reshapes that constraint
 rather than applying it.
 
 **Sequencing caveat.** The measure-and-retire half needs traffic — the

@@ -43,7 +43,7 @@
 //                      and a seeded bank of ~685 against check:quality's
 //                      BANK_WARN, so the target is reachable without spending
 //                      the headroom another lane may need. (That constant was
-//                      1200, guarding an unpaginated fetch; D153 paged the
+//                      1200, guarding an unpaginated fetch; D161 paged the
 //                      fetch and re-pointed it at the localStorage cache
 //                      budget.)
 //   OPEN_MAX     = 10  unreviewed cards on the lane's open PR at which

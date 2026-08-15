@@ -31,8 +31,11 @@ import LIVE from '../data/live';
 // boot.
 import PulseCard from '../ui/PulseCard.tsx';
 const LiveTakesPanel = React.lazy(() => import('../ui/LiveTakesPanel.tsx'));
+// The live duel/group panel, on the same terms and for the same measured
+// reason (D156) — see the mode switch near the bottom of render().
+const LiveDuelPanel = React.lazy(() => import('../ui/LiveDuelPanel.tsx'));
 import ReactDOM from 'react-dom';
-import { IS_TESTS, IS_TEST_AVG, IS_TEST_RESULTS, persistTestResult } from './test-definitions.js';
+import { IS_TESTS, IS_TEST_RESULTS, persistTestResult } from './test-definitions.js';
 import { PASSIVE } from './passive-progress.js';
 
 // daily-split.jsx — SPLIT: the daily tab. Three modes — World (vote blind,
@@ -888,9 +891,19 @@ class DailySplit extends React.Component {
     // ===== GROUP & 1v1 — daily-cadence bodies live in their own files =====
     // Live mode swaps the demo duel bodies for the real panel (create /
     // join / sealed votes / reveals); the demo stays for offline dev.
-    const liveDuels = window.LIVE && window.LIVE.enabled && window.LiveDuelPanel;
-    const groupBody = liveDuels ? h(window.LiveDuelPanel, { key: 'live-group', mode: 'group' }) : h(window.GroupDailyBody || 'div', { key: 'group-daily' });
-    const duoBody = liveDuels ? h(window.LiveDuelPanel, { key: 'live-duo', mode: 'duo' }) : h(window.DuoBody || 'div', { key: 'duo-daily' });
+    //
+    // LAZY since D156, and an import rather than a window lookup. The panel
+    // is two of this tab's three modes and none of its first paint — World
+    // is what opens — so a static import spent the rail, the marks, the
+    // reveal bars and (through it) the whole takes panel on every boot that
+    // never left World. Suspense fallback is null for the same reason
+    // LdReveal's is: the chunk lands in the same frame as the mode switch on
+    // anything but a cold first tap, and a flashed spinner reads as a
+    // stutter.
+    const liveDuels = window.LIVE && window.LIVE.enabled;
+    const lazyDuel = (key, m) => h(React.Suspense, { key, fallback: null }, h(LiveDuelPanel, { mode: m }));
+    const groupBody = liveDuels ? lazyDuel('live-group', 'group') : h(window.GroupDailyBody || 'div', { key: 'group-daily' });
+    const duoBody = liveDuels ? lazyDuel('live-duo', 'duo') : h(window.DuoBody || 'div', { key: 'duo-daily' });
 
     // ===== chrome =====
     const pendG = DUELS.groupsPending();

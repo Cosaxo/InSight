@@ -20,7 +20,7 @@
     "indexes 0-52 editorial (prototype port + deeper archive), 53-64 farm",
     "2026-07-30 (PR #32), 65-89 editorial authoring session 2026-08-01",
     "(D30). All 73 feed questions are the prototype extraction (D52).",
-    "`review` (farm/community rows only): who read this question before it entered the bank. { by: 'ai'|'human', at: date, audited?: bool } \u2014 D154. `by: 'human'` is the pre-D154 process, where a person read every candidate, and stays valid for anything a person still reads. `by: 'ai'` requires an explicit `audited` boolean: whether this row was in the human sample. Editorial rows carry no review because editorial IS the human."
+    "`review` (farm/community rows only): who read this question before it entered the bank. { by: 'ai'|'human', at: date, audited?: bool } \u2014 D162. `by: 'human'` is the pre-D162 process, where a person read every candidate, and stays valid for anything a person still reads. `by: 'ai'` requires an explicit `audited` boolean: whether this row was in the human sample. Editorial rows carry no review because editorial IS the human."
   ],
   "daily": {
     "000": {

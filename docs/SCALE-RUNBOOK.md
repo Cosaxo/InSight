@@ -1,7 +1,7 @@
 # Scale runbook — the ordered build list
 
 > **Reasoning lives in [`SCALE-PLAN.md`](SCALE-PLAN.md)**, which is
-> canonical, and the decisions are D153–D156. This file is the same work
+> canonical, and the decisions are D161–D164. This file is the same work
 > as an ordered to-do list: open steps only, dependency order, what
 > "done" means, and which gate proves it. If the two disagree,
 > SCALE-PLAN is right and this is stale.
@@ -34,7 +34,7 @@ from anyone, including itself.
       legitimate answer; the point is that it be an answer rather than a
       default that expired.
 
-      **DECIDED 2026-08-15 (D157): option A, `europe-west1`.** The
+      **DECIDED 2026-08-15 (D165): option A, `europe-west1`.** The
       decision half of this step is done; the console half is not. What
       still gates the phases below is the *migration*, not the choice.
 
@@ -94,7 +94,7 @@ increase the current headroom is weeks.
       naming a number to stay under. Not scheduled — it is not due until
       roughly 6,000 questions.
 
-## Phase 2 — Finish D153 (the Mirror side)
+## Phase 2 — Finish D161 (the Mirror side)
 
 Sequenced with the first tail content, not before: while the tail is
 empty this changes nothing, and it touches the app's highest-risk read
@@ -126,12 +126,12 @@ path ([`MIRROR.md`](MIRROR.md)).
       the boolean means what it says everywhere.
 
       **⚠ DEPLOY ORDER — the one thing to get right.** This is a no-op
-      only against a bank reseeded since D153. Production was seeded
+      only against a bank reseeded since D161. Production was seeded
       *before* `core` existed, so those feed documents carry no flag,
       `isCore` reads them as tail, and all 82 drop out of this panel.
       **Ship after a reseed, never before.** The failure is loud (the
       place panels go visibly thin rather than quietly wrong) — which is
-      why D153 chose the polarity — but loud is not harmless.
+      why D161 chose the polarity — but loud is not harmless.
 
       **Still open:** `LiveCircleBody` also reads `aggregated()` and is
       deliberately NOT filtered. Circle folds the answers of people you
@@ -153,7 +153,7 @@ path ([`MIRROR.md`](MIRROR.md)).
       constraint is prose, which is what `ATTENTION.md`'s feed-only rule
       was, and it rotted.
 
-## Phase 3 — Review at volume (D154)
+## Phase 3 — Review at volume (D162)
 
 Unblocks phase 4. Buildable now; only its last step needs traffic.
 
@@ -174,7 +174,7 @@ Unblocks phase 4. Buildable now; only its last step needs traffic.
       Three gate arms, each checked by breaking it: a missing review, an
       `ai` verdict with no explicit `audited` boolean, and the audit
       rate. The twelve existing farm rows were backfilled `by: "human"`,
-      which is true — they went through the pre-D154 read.
+      which is true — they went through the pre-D162 read.
 
       **Not verified end to end:** every archive id is already promoted,
       so `promote`'s happy path could not be run without inventing
@@ -207,7 +207,7 @@ Unblocks phase 4. Buildable now; only its last step needs traffic.
       only** — daily questions cannot retire (positional deck; D97's gap
       is open). · **Size:** M.
 
-## Phase 4 — Turn up production (D153)
+## Phase 4 — Turn up production (D161)
 
 - [ ] **4.1 Raise the budget regulator** in `scripts/farm-budget.mjs`. Its
       pinned property is that sustained generation equals measured
@@ -225,7 +225,7 @@ Unblocks phase 4. Buildable now; only its last step needs traffic.
       cost prose has been wrong in the same direction four times. ·
       **Size:** S.
 
-## Phase 5 — The interest model (D155)
+## Phase 5 — The interest model (D163)
 
 Ordering the tail. Only meaningful once the tail has content, so it
 follows phase 4.
@@ -234,7 +234,7 @@ follows phase 4.
       (pass — holds forever), `insight.feedDefer.v1` (D121 — expires),
       `insight.readRoom.v1`, `insight.feedVotes.v1`. **No new collection**;
       this step is a reader. If it adds a signal that needs storing,
-      stop and re-read D155 — the whole shape depends on nothing new
+      stop and re-read D163 — the whole shape depends on nothing new
       leaving the device. · **Size:** S.
 
 - [ ] **5.2 Per-topic weights, on-device, feeding tail order only.** The
@@ -246,7 +246,7 @@ follows phase 4.
 
 - [ ] **5.3 Show it and let them edit it.** A profile panel listing the
       learned weights, each adjustable, with a reset. **Not optional
-      polish** — D155 turns on it, and `ATTENTION.md`'s line is the
+      polish** — D163 turns on it, and `ATTENTION.md`'s line is the
       reason: a Mirror that secretly models you is a contradiction in
       terms. · **Size:** M.
 
@@ -262,12 +262,12 @@ follows phase 4.
 None of these can be validated pre-launch. Listed so they are deferred
 rather than forgotten.
 
-- [ ] **6.1 The core-size ratio gate** — D153's named open item. Core
+- [ ] **6.1 The core-size ratio gate** — D161's named open item. Core
       questions may grow only as fast as the population that fills their
       cohort cells. Cannot be gated until there is a population to
       measure. Until it exists **the Mirror can thin without anyone
-      noticing**, which is the residual D153 accepts.
-- [ ] **6.2 Monetization** — D156 fixes the constraints; nothing is built.
+      noticing**, which is the residual D161 accepts.
+- [ ] **6.2 Monetization** — D164 fixes the constraints; nothing is built.
       The contract path needs no code. The trigger for a clearing engine
       is a buyer turned away because a window was full, and not before.
 
@@ -292,5 +292,5 @@ expensive every day it is not taken.
   the bar.
 - **Anyone proposes shipping phase 5 before phase 2.** That is an
   interest-selected feed feeding an unfiltered Mirror — the exact
-  sample-bias failure D153 exists to prevent, arriving in the gap
+  sample-bias failure D161 exists to prevent, arriving in the gap
   between two phases.

@@ -107,7 +107,7 @@ so the harness re-creates any account that has gone missing.
 ## Test suites
 
 ```bash
-npm run test:rules            # 89 security-rules tests (Firestore + Storage emulators)
+npm run test:rules            # 90 security-rules tests (Firestore + Storage emulators)
 npm run test:e2e              # full SDK loop (auth+firestore+functions)
 npm run test:e2e:erasure      # account deletion, end to end
 npm run test:e2e:moderation   # moderation transport
@@ -194,3 +194,32 @@ policy also works, and is the better fix where you control the policy —
 it removes the env-var dance instead of routing around it. Verified
 2026-08-07: with the variable unset, `test:e2e`, `:erasure` and
 `:moderation` all pass in a proxied container that denies that host.
+
+### The GitHub API is not reachable from the shell, and it fails silently
+
+Same section because it is the same shape: an environmental refusal that
+looks like the thing working. `GH_TOKEN` and `GITHUB_TOKEN` are both set
+in an agent container, so `curl`-ing the Actions API looks like it should
+work. It does not:
+
+```
+{"message":"GitHub access is not enabled for this session. An org admin
+must connect the Claude GitHub App for this organization."}
+```
+
+HTTP **403**, on every path, including read-only ones. Only the GitHub
+MCP tools reach the API from here.
+
+**Why it is worth a note rather than a shrug.** The release procedure's
+central instruction is *ask the run list, not the docs* — see
+[`IOS-RELEASE.md`](IOS-RELEASE.md) and runbook 2.4 — and a human asking it
+in a browser never meets this. Anything that automates the asking does.
+The failure mode is the bad one: a poll loop that treats a failed request
+as "no news" produces **no output at all**, which is indistinguishable
+from a run still in progress. Found 2026-08-15 by arming exactly that loop
+against run 22 (D159); it would have sat quiet until its timeout while the
+run finished underneath it.
+
+So a watch built out of shell `curl` is not a watch. Either call the MCP
+tools, or — if you must poll from a script — make a non-200 emit a line
+rather than `|| true` it away.

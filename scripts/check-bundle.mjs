@@ -483,8 +483,30 @@ if (!DEMO && process.env.VITE_V2_LIVE !== "true") {
 // revealed duel. Both are React.lazy now. That is the trade this gate is
 // for: the total is a drift alarm, the eager graph is the guarantee, and
 // paying for a feature out of first paint is the wrong pocket.
+//
+// 2265 → 2285 (2026-08-14): D156 — the live 1v1 and Group panel rebuilt to
+// the v25 prototype's shape (the sticky rail, the initial marks, the reveal
+// bars, the answer→guess morph, the day dots and the pair's read-runs),
+// plus ui/marks + ui/duelMarks + data/duelRuns. Measured the way the guard
+// insists: 2273 against the 2265 ceiling, so the band is the usual ~10 KB
+// taken above the measurement.
+//
+// Sixth firing, same shape as the five before it, and the same non-finding:
+// the alarm has still never caught a problem, only growth that was asked
+// for. It stays anyway — an alarm that only ever fires on real growth is
+// one you can still read.
+//
+// THE EAGER GRAPH WENT DOWN AGAIN, and by more than the total went up: 970
+// → 955, because the rebuild's first move was to stop importing
+// ui/LiveDuelPanel from spec-index.js and reach it by React.lazy from
+// daily-split.jsx instead. The panel is two of the daily tab's three modes
+// and none of its first paint — World is what opens — so the whole live
+// duel surface, and with it ui/LiveTakesPanel's last eager importer, left
+// the entry graph. The feature is bigger and the boot is 15 KB lighter,
+// which is the trade the previous entry describes, run deliberately this
+// time rather than under a failing gate.
 const MAX_CHUNK_KB = 735;
-const MAX_TOTAL_JS_KB = 2265;
+const MAX_TOTAL_JS_KB = 2285;
 // 955 → 966 (2026-08-14): D139's pulse card — the second fixed instrument
 // on the FIRST screen, so its card, its store's demo furniture and the
 // two LIVE members are legitimately eager (~10 KB min). What is not

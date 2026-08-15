@@ -28,6 +28,11 @@ import { deferUntil, isDeferred, pruneDeferred } from '../data/deferQueue.ts';
 // The live world-takes surface (D83) — an ordinary ESM import of the typed
 // panel, like the data imports above, so the D39 coupling meter stays flat.
 import LiveTakesPanel from '../ui/LiveTakesPanel.tsx';
+// Reveal-name stores for the two newest pick domains — ESM imports, same
+// coupling-meter reasoning. The three legacy stores stay window.* reads
+// below (in the D39 baseline); convert them on touch, never re-add one.
+import ELEMENTS_CATALOG from '../data/elements.ts';
+import { COUNTRIES } from '../data/catalogs.ts';
 // Imported for the D89 gate rather than read off window — same meter
 // reasoning as the imports above. The window.LIVE reads elsewhere in this
 // file predate the ratchet; new ones may not join them.
@@ -1292,13 +1297,23 @@ class WorldFeed extends React.Component {
 
                 The count is the aggregate's own total, with no floor under
                 it. It used to read `total || 5`, which printed "5+ players"
-                for a card two people had answered. */}
+                for a card two people had answered.
+
+                D157 gave it the two sentences it was missing, both about
+                WHOSE answers those are. "From 1 answer — everyone's first
+                try at this card" is a true sentence that reads as broken
+                data when the one answer is your own, and the
+                first-tries-only rule is invisible on a re-serve — which is
+                how a reader ends up looking at a tick beside "0 people ·
+                0%" on the option they just picked. */}
             {window.LIVE && window.LIVE.enabled ? (
               <div style={{ fontFamily: 'var(--sans)', fontSize: 11, color: 'var(--ink-3)', lineHeight: 1.45 }}>
                 {src === 'measured'
                   ? (() => {
                     const n = tally ? tally.total : 0;
-                    return 'From ' + n.toLocaleString() + (n === 1 ? ' answer' : ' answers') + ' — everyone’s first try at this card.';
+                    if (r.repeat) return 'From ' + n.toLocaleString() + ' first ' + (n === 1 ? 'try' : 'tries') + ' — only a first answer counts, so this one is not among them.';
+                    if (n === 1) return 'Yours is the only answer so far.';
+                    return 'From ' + n.toLocaleString() + ' answers — everyone’s first try at this card.';
                   })()
                   : 'Nobody else has answered this one yet — you’re the first.'}
               </div>
@@ -1325,8 +1340,20 @@ class WorldFeed extends React.Component {
 
   // Which catalogue a pick question resolves against (D15: pokemon is
   // dex-keyed, films/artists are QID-keyed; same load/peek/nameOf shape).
+  // EVERY domain must be named here explicitly: the pokedex fallback
+  // means a missing arm resolves that domain's keys against dex numbers
+  // — real names, wrong catalogue — which is exactly what shipped for
+  // elements (pk11–pk14, 2026-08-11→15): reveals rendered atomic number
+  // 42 as the 42nd Pokémon. Found by check:globals' dead-publication
+  // rule when the countries domain wired up; catalogs.test.ts now pins
+  // every PICK_QS domain to an arm of this resolver.
   pickStore(domain) {
-    return domain === 'films' ? window.FILMS : domain === 'artists' ? window.ARTISTS : domain === 'emoji' ? window.EMOJI : window.POKEDEX;
+    return domain === 'films' ? window.FILMS
+      : domain === 'artists' ? window.ARTISTS
+      : domain === 'emoji' ? window.EMOJI
+      : domain === 'elements' ? ELEMENTS_CATALOG
+      : domain === 'countries' ? COUNTRIES
+      : window.POKEDEX;
   }
 
   // key → display name, resolved at render time. The catalogue loads

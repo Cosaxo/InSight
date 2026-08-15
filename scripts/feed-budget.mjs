@@ -48,7 +48,7 @@
 //                      lands the seeded bank near 565 against check:quality's
 //                      BANK_WARN, leaving the headroom the learn lane needs
 //                      for its own 182. (That constant was 1200, guarding an
-//                      unpaginated fetch; D153 paged the fetch and re-pointed
+//                      unpaginated fetch; D161 paged the fetch and re-pointed
 //                      it at the localStorage cache budget, so the headroom
 //                      this paragraph reasons about got much larger.)
 //   OPEN_MAX     = 6   unreviewed questions on the lane's open roll-up PR at

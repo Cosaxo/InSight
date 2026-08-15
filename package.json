@@ -54,6 +54,7 @@
     "costs:scale": "node scripts/cost-scale.mjs",
     "pulse": "node scripts/pulse.mjs",
     "build:emoji": "node scripts/build-emoji.mjs",
+    "build:countries": "node scripts/build-countries.mjs",
     "check:ios-spm": "node scripts/check-ios-spm.mjs",
     "check:ios-facebook": "node scripts/check-ios-facebook.mjs",
     "check:ios-location": "node scripts/check-ios-location.mjs",
@@ -127,5 +128,5 @@
   "overrides": {
     "tar": "^7.5.22"
   },
-  "appBuild": 15
+  "appBuild": 17
 }

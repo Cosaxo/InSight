@@ -109,22 +109,22 @@ const { default: LiveCohortBody } = await import("./LiveCohortBody");
 const { default: PLACES } = await import("../data/places");
 // Two questions, so "one is shown and one is withheld" is expressible.
 const Q = (id: string, text: string, over: Record<string, unknown> = {}) => ({
-  // `coreCorpus: true` is what a real question carries post-D153 — buildS
+  // `coreCorpus: true` is what a real question carries post-D161 — buildS
   // resolves it from the bank's `core` flag. Without it every case here
   // would silently be testing the empty state, since this panel folds the
   // core corpus only.
   id, text, coreCorpus: true, options: [{ label: "Yes" }, { label: "No" }], ...over,
 });
 
-// ── the core corpus (D153) ──
+// ── the core corpus (D161) ──
 //
 // This panel says "here is how Oslo answered", and that is only true of a
 // question everyone in Oslo could have been asked. Once the tail is
-// ordered by the interest model (D155) a tail question's split describes
+// ordered by the interest model (D163) a tail question's split describes
 // the people it was shown to — arithmetic still right, sentence no longer
 // true. Without this test the constraint is prose, which is exactly what
 // ATTENTION.md's feed-only rule was, and it rotted.
-describe("LiveCohortBody · cohort readings fold the core corpus only (D153)", () => {
+describe("LiveCohortBody · cohort readings fold the core corpus only (D161)", () => {
   it("draws a core question and leaves a tail question out", async () => {
     LIVE.aggregated = () => [
       Q("q1", "Core question"),
@@ -137,7 +137,10 @@ describe("LiveCohortBody · cohort readings fold the core corpus only (D153)", (
       counts: { "0": 6, "1": 4 },
       by: { city: { "Oslo, NO": { "0": 6, "1": 4 } } },
     })) as never;
-    render(<LiveCohortBody scope="city" />);
+    // Through the shared helper: since the field became the landing tab,
+    // a bare render() shows no answer rows at all and this would assert on
+    // an empty panel — passing for the wrong reason.
+    mountAnswers("city");
     const body = document.body.textContent || "";
     expect(body).toMatch(/Core question/);
     expect(body).not.toMatch(/Tail question/);
@@ -590,12 +593,108 @@ describe("LiveCohortBody · the lens row is the stop's tabs", () => {
     // set check would pass for a row that had quietly reordered itself.
     const names = [...tabs().querySelectorAll('[role="tab"]')].map((b) => b.textContent?.trim());
     expect(names).toEqual(["Answers", "People", "Compare", "Scores"]);
-    expect(tab("Answers").getAttribute("aria-selected")).toBe("true");
     // Overview is NOT among them (D136) and Foresight is gone from the
     // Mirror altogether — both asserted here rather than left to the
     // toEqual above, so a failure names the decision it broke.
     expect(tab("Overview")).toBeUndefined();
     expect(tab("Foresight")).toBeUndefined();
+  });
+
+  it("starts with nothing open (D155)", () => {
+    // The prototype's row opens closed. D135 had made Answers the landing
+    // tab because a closed row under an empty field read as a blank stop —
+    // solved in the LAYOUT instead: the row is pinned to the bottom, so a
+    // stop with nothing open is a header, a field and a tab bar where a tab
+    // bar belongs.
+    render(<LiveCohortBody scope="city" />);
+    for (const t of [...tabs().querySelectorAll('[role="tab"]')]) {
+      expect(t.getAttribute("aria-selected"), `${t.textContent} is open at rest`).toBe("false");
+    }
+    expect(screen.queryByRole("tabpanel")).toBeNull();
+  });
+
+  it("pins the row to the bottom, so an empty stop still looks composed", () => {
+    // `marginTop: auto` is the prototype's own line, and it is the whole
+    // reason closed-by-default is safe. Asserted on the wrapper because
+    // that is where the layout decision lives — a row that lost it would
+    // float mid-screen on an empty stop, which is what was reported.
+    render(<LiveCohortBody scope="city" />);
+    const wrap = tabs().parentElement as HTMLElement;
+    expect(wrap.style.marginTop).toBe("auto");
+  });
+
+  it("snaps the row to the top of the scroller when a tab opens", async () => {
+    // D155 SAID THIS SHIPPED AND IT DID NOT. The ref was declared, the ref
+    // was attached to the row, and no effect ever read it — so the row
+    // pinned to the bottom correctly and then stayed there on tap, leaving
+    // the panel you just asked for below the fold. Nothing in the tree could
+    // see it: a dangling ref is valid TS, valid eslint, invisible to
+    // check:globals, and the tab tests above assert the panel MOUNTS, which
+    // it always did. It took a device to notice, which is what this case is
+    // here to stop happening twice.
+    //
+    // jsdom reports every element 0×0, so the component's scroll-parent walk
+    // would find nothing to scroll. The host is given the two properties the
+    // walk actually reads — an overflow and a real overflowing height — and
+    // that IS the contract: the row scrolls the nearest scrolling ancestor,
+    // whichever element the app makes that.
+    const host = document.createElement("div");
+    host.style.overflowY = "auto";
+    Object.defineProperty(host, "scrollHeight", { value: 4000, configurable: true });
+    Object.defineProperty(host, "clientHeight", { value: 700, configurable: true });
+    const calls: Array<{ top?: number; behavior?: string }> = [];
+    host.scrollTo = ((o: { top?: number; behavior?: string }) => { calls.push(o); }) as typeof host.scrollTo;
+    document.body.appendChild(host);
+    vi.useFakeTimers();
+    try {
+      render(<LiveCohortBody scope="city" />, { container: host });
+      fireEvent.click(tab("Answers"));
+      // Nothing yet: the panel mounts in the same commit as the flip, so
+      // measuring now measures the row above a body that does not exist.
+      expect(calls, "scrolled before the panel had mounted").toEqual([]);
+      act(() => { vi.advanceTimersByTime(80); });
+      expect(calls.length, "opening a tab did not scroll the row into view").toBe(1);
+      expect(calls[0].behavior).toBe("smooth");
+    } finally {
+      vi.useRealTimers();
+      host.remove();
+    }
+  });
+
+  it("does not scroll when the row is closed again", () => {
+    // Closing should leave you where you are. A scroll on close would drag
+    // the screen for a tap whose whole meaning is "put that away".
+    const host = document.createElement("div");
+    host.style.overflowY = "auto";
+    Object.defineProperty(host, "scrollHeight", { value: 4000, configurable: true });
+    Object.defineProperty(host, "clientHeight", { value: 700, configurable: true });
+    const calls: unknown[] = [];
+    host.scrollTo = (() => { calls.push(1); }) as typeof host.scrollTo;
+    document.body.appendChild(host);
+    vi.useFakeTimers();
+    try {
+      render(<LiveCohortBody scope="city" />, { container: host });
+      fireEvent.click(tab("Answers"));
+      act(() => { vi.advanceTimersByTime(80); });
+      const afterOpen = calls.length;
+      fireEvent.click(tab("Answers"));
+      act(() => { vi.advanceTimersByTime(80); });
+      expect(calls.length).toBe(afterOpen);
+    } finally {
+      vi.useRealTimers();
+      host.remove();
+    }
+  });
+
+  it("opens a tab on tap and closes it on a second tap", () => {
+    render(<LiveCohortBody scope="city" />);
+    fireEvent.click(tab("Answers"));
+    expect(tab("Answers").getAttribute("aria-selected")).toBe("true");
+    expect(screen.getByRole("tabpanel")).toBeTruthy();
+
+    fireEvent.click(tab("Answers"));
+    expect(tab("Answers").getAttribute("aria-selected")).toBe("false");
+    expect(screen.queryByRole("tabpanel")).toBeNull();
   });
 
   it("keeps Explore for the World and offers it nowhere else (D152)", () => {

@@ -109,7 +109,7 @@ to find a mistake.
 
 ### 4 · Merge the code change
 
-> **This list was wrong, and the correction is the useful part (D157,
+> **This list was wrong, and the correction is the useful part (D165,
 > 2026-08-15).** It named three edits and missed the largest: every Cloud
 > Function got its handle from bare `getFirestore()` — **37 call sites
 > across seven files** — which binds to `(default)` regardless of what the
@@ -223,7 +223,7 @@ right for a pre-launch app:
 1. **Let them go.** Internal testers, pre-launch, and the answers are a
    handful of taps against a bank that has been reseeded repeatedly
    anyway. Tell the testers, and treat it as the last free reset.
-   **CHOSEN 2026-08-15 (D157), and the reason is stronger than the
+   **CHOSEN 2026-08-15 (D165), and the reason is stronger than the
    general case: the owner is the only person who has answered anything.**
    There are no testers to tell.
 2. **Export and import.** Firestore's [managed

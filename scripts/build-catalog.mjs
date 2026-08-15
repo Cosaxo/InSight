@@ -198,16 +198,18 @@ const parseKeys = (file) => {
 const filmKeys = parseKeys(join(root, "public", "films.txt"));
 const artistKeys = parseKeys(join(root, "public", "artists.txt"));
 const emojiKeys = parseKeys(join(root, "public", "emoji.txt"));
+const countryKeys = parseKeys(join(root, "public", "countries.txt"));
 const setLiteral = (keys) =>
   keys.length ? `new Set<number>([\n  ${keys.join(", ")},\n])` : "new Set<number>()";
 writeFileSync(
   join(root, "functions", "src", "catalogKeys.ts"),
   [
     "// GENERATED from the committed catalogues in public/ by",
-    "// scripts/build-catalog.mjs and scripts/build-emoji.mjs (either",
-    "// regenerates all sets) — do not hand-edit. scripts/check-catalogs.mjs",
-    "// re-derives these from the committed files and fails CI on any",
-    "// disagreement, in ci.yml and backend-checks.yml both.",
+    "// scripts/build-catalog.mjs, scripts/build-emoji.mjs and",
+    "// scripts/build-countries.mjs (any regenerates all sets) — do not",
+    "// hand-edit. scripts/check-catalogs.mjs re-derives these from the",
+    "// committed files and fails CI on any disagreement, in ci.yml and",
+    "// backend-checks.yml both.",
     "//",
     "// The trigger validates catalog `entity` keys against these sets",
     "// (functions/src/v2.ts, CATALOG_DOMAINS): an empty set means the",
@@ -217,10 +219,11 @@ writeFileSync(
     `export const FILM_KEYS: ReadonlySet<number> = ${setLiteral(filmKeys)};`,
     `export const ARTIST_KEYS: ReadonlySet<number> = ${setLiteral(artistKeys)};`,
     `export const EMOJI_KEYS: ReadonlySet<number> = ${setLiteral(emojiKeys)};`,
+    `export const COUNTRY_KEYS: ReadonlySet<number> = ${setLiteral(countryKeys)};`,
     "",
   ].join("\n"),
 );
 console.log(
   `build-catalog: regenerated functions/src/catalogKeys.ts ` +
-    `(films ${filmKeys.length}, artists ${artistKeys.length}, emoji ${emojiKeys.length})`,
+    `(films ${filmKeys.length}, artists ${artistKeys.length}, emoji ${emojiKeys.length}, countries ${countryKeys.length})`,
 );
