@@ -154,10 +154,20 @@ export const FOREGROUND_AGG_DOCS = readNum(
 export const VOTER_FETCH_CAP = readNum(
   "src/v2/data/voters.ts", /export const VOTER_FETCH_CAP = (\d+)/, "VOTER_FETCH_CAP");
 
-// Voter lists Kindred walks — the viewer's own most recent answers, one
-// capped who-voted query each (live.ts loadKindred).
-export const KINDRED_QUESTIONS = readNum(
-  "src/v2/data/live.ts", /const KINDRED_QUESTIONS = (\d+)/, "KINDRED_QUESTIONS");
+// Profiles one Kindred view reads (voters.ts fetchKindredCandidates).
+//
+// WAS `KINDRED_QUESTIONS` — the viewer's own recent answers, one capped
+// who-voted query each, so the term was `views x questions x crowd x
+// names` and the single largest line in `social`. The pool is no longer
+// assembled from answers: the lens asks for people in your city and
+// ranks them on the profile scores that were always doing the ranking,
+// so the term is now `views x candidates`, flat and two orders of
+// magnitude smaller.
+//
+// Read from source like its predecessor. If the cap widens, this moves.
+export const KINDRED_CANDIDATE_CAP = readNum(
+  "src/v2/data/voters.ts", /export const KINDRED_CANDIDATE_CAP = (\d+)/,
+  "KINDRED_CANDIDATE_CAP");
 
 // Circle: accounts one user can follow, and answers read per member on a
 // stop open (data/circle.ts loadCircle — one query per member).
@@ -353,6 +363,13 @@ export const B = {
   sheetOpens: 0.15,   // who-voted sheets opened per user per day
   kindredViews: 0.03, // People-lens (Kindred) first views per user per day
   circleOpens: 0.1,   // Circle stop opens per user per day
+  // How often somebody taps "show where your circle splits". A FRACTION
+  // of circleOpens by construction — it is a button below the member
+  // list — and the softest number in this block, because the button did
+  // not exist until the answer fan-out moved behind it. A quarter of
+  // opens is a guess stated as one; the first week of real usage corrects
+  // it, and until then it is visible here rather than buried in a term.
+  circleSplitOpens: 0.025,
   circleFollows: 5,   // accounts a typical circle holds (the cap is 50)
 };
 
@@ -458,18 +475,39 @@ export const CONTENTION_DAU = B.peakWindowMin * 60;
  */
 export function socialTerms(dau, mature, o = {}) {
   const voterCap = o.voterCap ?? VOTER_FETCH_CAP;
-  const kindredQs = o.kindredQuestions ?? KINDRED_QUESTIONS;
+  const candidates = o.kindredCandidates ?? KINDRED_CANDIDATE_CAP;
   const circleCap = o.circleAnswerCap ?? CIRCLE_ANSWER_CAP;
   const names = o.nameFactor ?? 2;
+  // Follows whose answer to a question the Friends cut reads, one small
+  // query each. Bounded by the viewer's own follow list rather than by
+  // the population — the whole point of the change — so `circleFollows`
+  // (a typical circle) is the honest input rather than FOLLOW_CAP.
+  const friends = o.friendReads ?? B.circleFollows;
+  // Circle members whose ANSWERS are read. Zero on arrival since the
+  // splits section became a deferred load; `circleSplitOpens` is how
+  // often somebody taps for it.
+  const splitOpens = o.circleSplitOpens ?? B.circleSplitOpens;
   // The crowd a capped fetch returns is min(cap, ~DAU): the daily deck is
   // globally shared, so a question's crowd is roughly everyone active that
   // day until the cap binds.
   const crowd = Math.min(voterCap, dau);
   return {
+    // The who-voted SAMPLE, still `voterCap` answers plus name
+    // resolution. It is no longer what the Friends cut reads — that is
+    // `friends` below — but the type cut and the takes panel are honest
+    // consumers of a sample and still open it.
     whoVoted: B.sheetOpens * crowd * names,
-    kindred: B.kindredViews * kindredQs * crowd * names,
-    // A member's answer set grows with account AGE, not DAU.
-    circle: B.circleOpens * B.circleFollows
+    // The Friends cut: one small query per follow, exact, bounded by
+    // YOUR list rather than by the population.
+    friends: B.sheetOpens * friends,
+    // People, not answers. Flat in DAU and in the question count alike.
+    kindred: B.kindredViews * candidates,
+    // Circle's member list: one profile read each, which also carries
+    // the score the ranking runs on.
+    circle: B.circleOpens * B.circleFollows,
+    // Circle's splits section, on the tap that asks for it. A member's
+    // answer set grows with account AGE, not DAU.
+    circleSplits: splitOpens * B.circleFollows
       * Math.min(circleCap, B.worldAnswers * (mature ? 90 : 10)),
   };
 }

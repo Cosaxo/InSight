@@ -97,7 +97,7 @@ async function getDb(): Promise<import("firebase/firestore").Firestore> {
 import { reportError, setSentryUser } from "../../lib/sentry";
 // The cross-user read (D98). Pure helpers + the two queries live there so
 // the grouping/sorting can be unit-tested without Firebase.
-import { fetchFriendVoters, fetchVoters, groupByOption, resolveNames, sortVoters, type Voter } from "./voters";
+import { fetchFriendVoters, fetchKindredCandidates, fetchVoters, groupByOption, resolveNames, sortVoters, type Voter } from "./voters";
 // Handles and invitations (D122), TYPE-ONLY at module scope and imported
 // for real inside the methods that use them — the same shape data/circle
 // has below, and for the same measured reason.
@@ -307,6 +307,13 @@ const state = {
   // against its own inputs.
   kindredLoading: false,
   kindredAt: 0,
+  // uid → the candidate as the CITY QUERY found them (loadKindred). One
+  // profile read each, and the pool the People lens is actually about;
+  // `voters` remains a second, free source for anyone whose who-voted
+  // sheet this session already opened. kindredPeople() merges the two.
+  kindredCity: {} as Record<
+    string, { uid: string; name: string; city: string; anchors: Record<string, string> }
+  >,
   // Similarity (D112): the constellation fields' one-per-session agg
   // top-up (the bank's core test items) and its in-flight flag.
   similarityLoading: false,
@@ -344,10 +351,13 @@ const state = {
   invitesLoading: false,
 };
 
-// How many of the viewer's own answers the Kindred ranking reads across.
-// Twelve shared questions is a legible likeness claim and the cost is
-// linear in this number — see loadKindred for why it is bounded at all.
-const KINDRED_QUESTIONS = 12;
+// KINDRED_QUESTIONS lived here — how many of the viewer's own answers the
+// ranking walked to assemble its pool, at VOTER_FETCH_CAP voters each. It
+// is gone because the pool is no longer assembled from answers at all:
+// loadKindred asks for people directly and the bound moved with it, to
+// KINDRED_CANDIDATE_CAP in data/voters.ts. scripts/cost-arith.mjs reads
+// that constant now; this note is here because a reader looking for the
+// old one should find out where it went rather than that it vanished.
 
 // One take as the circle reads it. `hidden` is always false on anything a
 // non-author can list — the read rule is an equality on that boolean, not a
@@ -2112,32 +2122,45 @@ const LIVE = {
   // this needs OTHER PEOPLE'S ANSWERS, question by question, and then a
   // comparison against your own.
   //
-  // Built on the voter lists rather than beside them, which is the whole
-  // reason it is affordable: `loadVoters` already caches one
-  // collection-group query per question for the who-voted sheet, so a
-  // question whose sheet has been opened costs nothing here, and the
-  // names are resolved once into the shared cache for both surfaces.
+  // ONE QUERY FOR PEOPLE, where there used to be twelve for answers.
   //
-  // Bounded at KINDRED_QUESTIONS of the viewer's OWN most recent answers.
-  // Likeness over 12 shared questions is already a legible claim, and the
-  // cost is linear in that number — an unbounded version would fan out
-  // over every question the account has ever answered, on a screen the
-  // user may open casually.
+  // What this stopped doing: walking KINDRED_QUESTIONS of your own recent
+  // questions, pulling VOTER_FETCH_CAP voters from each — ~2,400 answer
+  // documents — and ranking the people who fell out by their TEST SCORES,
+  // which come from the profile document and not from any of those
+  // answers. The pool was also a recency window wearing a likeness
+  // heading: at scale "the newest 200 answers" per question is whoever
+  // was online in the last few minutes, so the People lens quietly ranked
+  // the recently active rather than the people most like you.
+  //
+  // Now it asks for the population the surface is about — your city — and
+  // ranks it on the scores that were always doing the ranking.
+  // KINDRED_CANDIDATE_CAP profiles, one read each, names and scores
+  // filled from the same documents.
+  //
+  // The voter-derived people are NOT dropped: kindredPeople() still folds
+  // whatever `state.voters` holds, so anyone whose who-voted sheet you
+  // opened stays in the pool for free, carrying the answer agreement that
+  // is the fallback basis for people who have sat no instrument. That
+  // matters most in a young community, where a city query returns people
+  // with no scores yet — without the merge they would rank on nothing.
   async loadKindred(): Promise<void> {
     if (state.kindredLoading) return;
     state.kindredLoading = true;
     try {
-      const qids = Object.keys(state.votes)
-        .filter((id) => !id.startsWith("g_"))
-        .slice(0, KINDRED_QUESTIONS);
-      // Sequential rather than parallel on purpose: each call is a
-      // collection-group query, most of them are cache hits after the
-      // first surface has run, and firing twelve at once at boot-adjacent
-      // moments is the shape that gets a client rate-limited.
-      for (const qid of qids) {
-        if (!state.voters[qid]) await this.loadVoters(qid);
+      const city = state.profile?.anchors?.city || "";
+      if (city) {
+        const db = await getDb();
+        const found = await fetchKindredCandidates(
+          db, city, state.uid, state.names, state.scores,
+        );
+        for (const p of found) state.kindredCity[p.uid] = p;
+        saveProfileCache();
       }
-      state.kindredAt = qids.length;
+      // Counts the pool the ranking runs over, which is what the lens
+      // prints. It used to count QUESTIONS walked — a number that meant
+      // something only while the pool was assembled from answers.
+      state.kindredAt = Object.keys(state.kindredCity).length;
     } catch (err) {
       reportError(err, { where: "loadKindred" });
     } finally {
@@ -2450,7 +2473,15 @@ const LIVE = {
       reportError(err, { where: "setFollowing" });
     }
   },
-  /** How many of the viewer's questions the ranking has been able to read. */
+  /**
+   * How many PEOPLE the ranking is drawn from.
+   *
+   * Was "how many of the viewer's own questions it read across", which
+   * described the answer-walk that used to assemble the pool. The pool is
+   * queried directly now, so the honest basis to print is its size —
+   * and the copy in LiveMirrorLenses moved with it, because a sentence
+   * naming a mechanism that no longer exists is worse than no sentence.
+   */
   kindredDepth(): number {
     return state.kindredAt;
   },
@@ -2551,14 +2582,36 @@ const LIVE = {
         for (const [k, v] of Object.entries(r.anchors || {})) if (v && !a[k]) a[k] = v;
       }
     }
-    return Object.keys(theirs).map((uid) => ({
-      uid,
-      name: state.names[uid] || "",
-      city: anchors[uid]?.city || "",
-      like: agreement(mine, theirs[uid]),
-      results: state.scores[uid] ?? null,
-      anchors: anchors[uid] || {},
-    }));
+    // TWO SOURCES, merged, and each covers the other's gap.
+    //
+    // `kindredCity` is the city query (loadKindred) — the pool the lens
+    // is actually about, one read per person, ranked on scores. Its gap
+    // is anyone who has taken no test: a profile with no results has no
+    // score, so nothing places them.
+    //
+    // `state.voters` is whatever who-voted sheets this session already
+    // opened. It costs NOTHING here — it is already in memory for another
+    // surface — and it carries answer agreement, which is exactly the
+    // fallback basis those unscored people need.
+    //
+    // The city rows win on the fields both hold, because their anchors
+    // and their scores come from the same profile document read in the
+    // same breath (see fetchKindredCandidates on why that is coherent
+    // here and D8 still holds everywhere else).
+    const uids = new Set([...Object.keys(theirs), ...Object.keys(state.kindredCity)]);
+    return [...uids].map((uid) => {
+      const fromCity = state.kindredCity[uid];
+      return {
+        uid,
+        name: state.names[uid] || "",
+        city: fromCity?.city || anchors[uid]?.city || "",
+        // Zero-shared when this person came only from the city query,
+        // which rankKindred already reads as "rank them on score alone".
+        like: agreement(mine, theirs[uid] || {}),
+        results: state.scores[uid] ?? null,
+        anchors: fromCity?.anchors || anchors[uid] || {},
+      };
+    });
   },
 
   // null while unfetched or failed; an array (possibly empty) once known.
@@ -3307,6 +3360,7 @@ function resetForNewUid(uid: string): void {
   }
   state.kindredLoading = false;
   state.kindredAt = 0;
+  state.kindredCity = {};
   state.similarityLoading = false;
   // state.aggs was dropped above, so the test-item top-up has to run
   // again for the new account.

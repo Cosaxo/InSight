@@ -243,6 +243,73 @@ export async function fetchFriendVoters(
   return rows;
 }
 
+/**
+ * Candidates for the People lens and the similarity field, found by
+ * asking for PEOPLE instead of reading answers until people fall out.
+ *
+ * WHAT THIS REPLACES. `loadKindred` used to take your twelve most recent
+ * questions and pull VOTER_FETCH_CAP voters from each — ~2,400 answer
+ * documents — to assemble a pool it then ranked by TEST SCORES, which
+ * come from the profile document and not from any of those answers. The
+ * answers were scaffolding: read, used to learn that a person exists,
+ * and discarded.
+ *
+ * And the pool was wrong as well as expensive, in the way this codebase
+ * keeps finding: "the newest 200 answers" is a recency window, so at
+ * scale the People lens ranked whoever happened to be online in the last
+ * few minutes rather than the people most like you. Nothing on screen
+ * said so, and the bigger the app got the less true the heading became.
+ *
+ * BY CITY, because that is the population the surface is about — the
+ * similarity field is the head of the City, Country and World stops, and
+ * a city is a cohort someone can see themselves in. `anchors.city` is on
+ * the profile, world-readable since D98, and `v2_users` carries no index
+ * exemptions, so this is a plain single-field equality query needing no
+ * index configuration.
+ *
+ * ANCHORS COME FROM THE LIVE PROFILE HERE, and that is a deliberate
+ * departure from D8's frozen-snapshot rule rather than an oversight.
+ * D8's argument is that describing someone by who they are TODAY beside
+ * a likeness computed from who they were WHEN THEY ANSWERED silently
+ * re-cohorts history. That mismatch is what it forbids — and it cannot
+ * arise here, because the likeness is now a score match read from the
+ * same profile document as the description. Both halves are today's.
+ * The frozen snapshot stays exactly where its argument applies: the
+ * who-voted sheet, the aggregates, and every cohort cell.
+ */
+export const KINDRED_CANDIDATE_CAP = 50;
+
+export async function fetchKindredCandidates(
+  db: Firestore,
+  city: string,
+  myUid: string | null,
+  names: Record<string, string>,
+  scores: Record<string, ParsedResults | null>,
+): Promise<Array<{ uid: string; name: string; city: string; anchors: Record<string, string> }>> {
+  if (!city) return [];
+  const {
+    collection: fsCollection, getDocs, limit: fsLimit, query, where,
+  } = await getFirestoreApi();
+  const snap = await getDocs(query(
+    fsCollection(db, "v2_users"),
+    where("anchors.city", "==", city),
+    fsLimit(KINDRED_CANDIDATE_CAP),
+  ));
+  const out: Array<{ uid: string; name: string; city: string; anchors: Record<string, string> }> = [];
+  for (const d of snap.docs) {
+    if (d.id === myUid) continue;
+    const anchors = (d.get("anchors") || {}) as Record<string, string>;
+    const n = d.get("displayName");
+    // The same document fills both caches, exactly as resolveNames does
+    // — so a candidate costs ONE read, not one for existence and another
+    // for their scores.
+    names[d.id] = typeof n === "string" ? n.trim().slice(0, 60) : "";
+    scores[d.id] = parseTestResults(d.get("testResults"), CORE_TEST_KINDS);
+    out.push({ uid: d.id, name: names[d.id], city, anchors });
+  }
+  return out;
+}
+
 export async function fetchVoters(
   db: Firestore,
   qid: string,
