@@ -1,0 +1,22 @@
+--- v18/world-feed-data.js
++++ v28/world-feed-data.js
+@@ -112,6 +112,19 @@
+   { id: 'f55', cat: 'bigq', type: 'vote', prompt: 'Humanity\u2019s best days are ahead.', options: [ { label: 'Ahead', count: 6100 }, { label: 'Behind', count: 3600 } ] },
+   { id: 'f56', cat: 'bigq', type: 'rank', prompt: 'What matters most \u2014 rank them', items: ['People', 'Meaning', 'Pleasure', 'Legacy'], crowd: [1, 2, 3, 4], votes: 3800 },
+ 
++  // ── dials & fields ── continuum answers.
++  // dial: a value on a range — dist: 12 crowd buckets lo→hi, med: crowd median.
++  // (all filed under always-on channels — bigq/dilemma — so they reach every demo feed)
++  // field: a dot on a 2D plane — ax/ay: axis end labels, cloud: [x, y, count,
++  // spread] clusters in 0–100 coords (y runs 0=top), n: answers.
++  { id: 'dl1', cat: 'bigq', type: 'dial', prompt: 'When does old age begin?', lo: 40, hi: 90, unit: 'yrs', med: 63, n: 5200, dist: [1, 3, 5, 9, 14, 18, 17, 13, 9, 6, 3, 2] },
++  { id: 'dl2', cat: 'dilemma', type: 'dial', prompt: 'The right tip', lo: 0, hi: 30, unit: '%', med: 10, n: 7400, dist: [6, 9, 14, 18, 16, 12, 9, 6, 4, 3, 2, 1] },
++  { id: 'dl3', cat: 'dilemma', type: 'dial', prompt: 'Daily screen time — where does “too much” start?', lo: 1, hi: 12, unit: 'h', med: 5, n: 6100, dist: [2, 6, 12, 17, 18, 14, 10, 4, 3, 2, 1, 1] },
++  { id: 'dl4', cat: 'bigq', type: 'dial', prompt: 'How much of your life is actually in your control?', lo: 0, hi: 100, unit: '%', med: 55, n: 4800, dist: [4, 6, 8, 9, 10, 12, 14, 13, 10, 7, 4, 3] },
++  { id: 'fd1', cat: 'dilemma', type: 'field', prompt: 'Pineapple on pizza — place it', ax: ['tastes bad', 'tastes good'], ay: ['a crime', 'high art'], n: 6800, cloud: [[22, 72, 10, 14], [76, 26, 12, 15], [54, 50, 4, 10]] },
++  { id: 'fd2', cat: 'bigq', type: 'field', prompt: 'Small talk — place it', ax: ['painful', 'pleasant'], ay: ['pointless', 'essential'], n: 4100, cloud: [[64, 32, 12, 16], [30, 60, 8, 14], [50, 48, 6, 12]] },
++  { id: 'fd3', cat: 'bigq', type: 'field', prompt: 'AI assistants, today — place them', ax: ['overhyped', 'underrated'], ay: ['scary', 'exciting'], n: 5600, cloud: [[42, 38, 10, 16], [68, 30, 8, 13], [30, 66, 7, 12]] },
++
+   // ── scene questions ── asked inside one scene; counts are community-scale
+   { id: 's01', scene: 'tennis', cat: 'sport', type: 'vote', prompt: 'Doubles or singles?', options: [ { label: 'Doubles', count: 1900 }, { label: 'Singles', count: 2600 } ] },
+   { id: 's02', scene: 'tennis', cat: 'sport', type: 'vote', prompt: 'Pick your surface', options: [ { label: 'Clay', count: 1400 }, { label: 'Grass', count: 1100 }, { label: 'Hard court', count: 2100 } ] },

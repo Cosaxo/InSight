@@ -1,0 +1,108 @@
+--- v18/mirror-field-pops.jsx
++++ v28/mirror-field-pops.jsx
+@@ -38,6 +38,19 @@
+   { init: 'CS', name: 'Clara S.', place: 'Valparaíso · CL', match: 91, hue: 145, shared: ['birding', 'Solnit', 'hills'] },
+ ];
+ 
++// ─── nearby kindred, anonymous ───
++// Near is the one population where a name would be a leak: these are people
++// standing a few streets away, not opt-in matches. Same rule as the field's
++// anon nodes — a silhouette, their trade and age, a coarse distance band.
++const mfpNearKindred = () => (window.IS_DATA.nearby || []).slice()
++  .sort((a, b) => b.match - a.match).slice(0, 3)
++  .map((p) => ({
++    anon: true, hue: p.hue, match: p.match,
++    name: (p.role || 'someone').replace(/^\w/, (c) => c.toUpperCase()) + (p.age ? ', ' + p.age : ''),
++    hood: p.dist || 'nearby',
++    shared: (p.interests || []).slice(0, 3).map((x) => x.t || x),
++  }));
++
+ // ─── the Kindred lens — the strangers most aligned with you, as a card ───
+ function KindredLensCard({ people = MFP_KINDRED }) {
+   return (
+@@ -52,12 +65,13 @@
+               border: '1px solid color-mix(in oklch, var(--rule), transparent 25%)', borderRadius: 14,
+             }}>
+               <MatchRing pct={p.match} color={`oklch(0.45 0.13 ${p.hue})`} size={50} title={`${p.match} kindred`}>
+-                <Av init={p.init} hue={p.hue} size={36}></Av>
++                {p.anon ? <window.AnonAv hue={p.hue} size={36}></window.AnonAv> : <Av init={p.init} hue={p.hue} size={36}></Av>}
+               </MatchRing>
+               <div style={{ flex: 1, minWidth: 0 }}>
+-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+-                  <span style={{ fontFamily: 'var(--sans)', fontSize: 15, fontWeight: 700, letterSpacing: '-0.015em' }}>{p.name}</span>
+-                  <span style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 600, color: 'var(--ink-3)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>{p.place || p.hood}</span>
++                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
++                  <span style={{ fontFamily: 'var(--sans)', fontSize: 15, fontWeight: 700, letterSpacing: '-0.015em', whiteSpace: 'nowrap', flexShrink: 0 }}>{p.name}</span>
++                  {!p.anon && <span style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 600, color: 'var(--ink-3)', letterSpacing: '0.04em', textTransform: 'uppercase', minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.place || p.hood}</span>}
++                  {window.TypeChip && window.TYPEMIX ? <span style={{ marginLeft: 'auto', flexShrink: 0 }}><window.TypeChip name={window.TYPEMIX.typeOf(p.name)} size={16} dense /></span> : null}
+                 </div>
+                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 6 }}>
+                   {p.shared.map(s => (
+@@ -188,6 +202,24 @@
+ function MirrorFieldBody({ pop, worldZoom, zoomCtl, onPerson, levelTrait, levelMarker, firstRun, topLenses }) {
+   const D = window.IS_DATA;
+   const [lensOpen, setLensOpen] = useStateMFP('__ov');
++  // ── Near: you can stand in the field or step out of it. Hidden is mutual —
++  // nobody nearby sees you, and the field comes back empty for you too.
++  const NEAR_LS = 'insight.near.discoverable';
++  const [seen, setSeen] = React.useState(() => { try { return localStorage.getItem(NEAR_LS) !== '0'; } catch (e) { return true; } });
++  const setSeenP = (v) => { setSeen(v); try { localStorage.setItem(NEAR_LS, v ? '1' : '0'); } catch (e) {} if (window.HAPTIC) window.HAPTIC.tick(); };
++  const hidden = pop === 'near' && !seen;
++  const seenChip = pop !== 'near' ? null : (
++    <button className="press" onClick={() => setSeenP(!seen)} aria-pressed={seen}
++      aria-label={seen ? 'You are discoverable nearby — tap to hide' : 'You are hidden nearby — tap to appear'}
++      style={{ display: 'inline-flex', alignItems: 'center', gap: 7, height: 28, padding: '0 12px 0 9px', borderRadius: 999, flex: 'none', cursor: 'pointer', WebkitAppearance: 'none',
++        border: '1px solid ' + (seen ? 'color-mix(in oklch, var(--accent) 45%, transparent)' : 'var(--rule)'),
++        background: seen ? 'color-mix(in oklch, var(--accent), var(--surface) 90%)' : 'var(--surface-2)',
++        fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 700, color: seen ? 'var(--accent-ink, var(--accent))' : 'var(--ink-3)' }}>
++      <span aria-hidden="true" style={{ width: 8, height: 8, borderRadius: '50%', flex: 'none', background: seen ? 'var(--accent)' : 'transparent', border: seen ? 'none' : '1.5px solid var(--ink-3)' }}></span>
++      {seen ? 'visible' : 'hidden'}
++    </button>
++  );
++
+   const [selId, setSelId] = useStateMFP(null);
+   const [mine, setMine] = useStateMFP(() => new Set(window.SCENES ? window.SCENES.list() : D.groups.filter((g) => g.joined).map((g) => g.id)));
+   const [gSelId, setGSelId] = useStateMFP(() => { const g = D.groups.find((x) => x.joined); return g ? g.id : null; });
+@@ -230,16 +262,19 @@
+   const lenses = [];
+   lenses.push({ id: 'answers', label: 'Answers', render: () => <MirrorAnswers audId={cfg.answersAud}></MirrorAnswers> });
+   // Kindred + Mix travel together — one "People" lens
+-  const hasKindred = pop === 'near' || pop === 'world';
++  const hasKindred = (pop === 'near' && !hidden) || pop === 'world';
+   const hasMix = !!(cfg.makeupAud && window.DemographicsCard);
+   const hasLadderBreakdown = pop === 'groups' && gSel && window.GroupLevelBreakdown;
+   const hasRead = pop === 'circle' && !!window.CircleReadCard;
+-  if (hasKindred || hasMix || hasLadderBreakdown || hasRead) {
++  // types, out in the population: who is here by type, over a stated basis
++  const hasTypes = !!(cfg.makeupAud && window.TypeMixCard);
++  if (hasKindred || hasMix || hasLadderBreakdown || hasRead || hasTypes) {
+     lenses.push({ id: 'people', label: 'People', render: () => (
+       <React.Fragment>
+         {hasRead && <CircleReadCard></CircleReadCard>}
+         {hasLadderBreakdown && <GroupLevelBreakdown g={gSel} defaultTrait={levelTrait} showMarker={levelMarker}></GroupLevelBreakdown>}
+-        {hasKindred && <KindredLensCard people={pop !== 'world' || worldZoom === 'city' ? MFP_KINDRED : worldZoom === 'country' ? MFP_KINDRED_COUNTRY : MFP_KINDRED_WORLD}></KindredLensCard>}
++        {hasKindred && <KindredLensCard people={pop === 'near' ? mfpNearKindred() : worldZoom === 'city' ? MFP_KINDRED : worldZoom === 'country' ? MFP_KINDRED_COUNTRY : MFP_KINDRED_WORLD}></KindredLensCard>}
++        {hasTypes && <window.TypeMixCard audId={cfg.makeupAud}></window.TypeMixCard>}
+         {hasMix && <DemographicsCard audId={cfg.makeupAud}></DemographicsCard>}
+       </React.Fragment>
+     ) });
+@@ -282,13 +317,15 @@
+           seedDeg={cfg.seed} mist={cfg.mist || 54} mistSeed={cfg.mistSeed || 1} tall={true} stretch={1.1}></MFCanvas>
+         <MFSparse done={Math.min(readN, 8)} need={8}></MFSparse>
+       </>)}
+-      {!sparse && !noCanvas && <MFHeader kicker={cfg.header.kicker} fig={cfg.header.fig} unit={cfg.header.unit} right={pop === 'world' ? zoomCtl : null}></MFHeader>}
++      {!sparse && !noCanvas && <MFHeader kicker={cfg.header.kicker} fig={hidden ? '' : cfg.header.fig} unit={hidden ? 'you are not on the map' : cfg.header.unit} right={pop === 'world' ? zoomCtl : seenChip}></MFHeader>}
+       {rmHeader && <MFHeader kicker="Your circle" fig={rmHeader.fig} unit={rmHeader.unit} right={null}></MFHeader>}
+       {topL && <MirrorLensRow lenses={lensList} open={openId} onOpen={setLensOpen}></MirrorLensRow>}
+       {!sparse && !noCanvas && showField && (<>
+-        <MFCanvas key={pop + ':' + (pop === 'world' ? worldZoom : '')} nodes={cfg.nodes} selId={selId} onSel={onSel} seedDeg={cfg.seed} mist={cfg.mist} mistSeed={cfg.mistSeed || 1} tall={pop === 'near' || pop === 'world'} stretch={pop === 'world' ? 1.15 : 1.08} maxLabels={pop === 'world' ? (worldZoom === 'world' ? 3 : 4) : undefined}></MFCanvas>
+-        <MFKey items={cfg.key}></MFKey>
+-        <MFDetail node={sel} onPerson={onPerson} onJoin={onJoin} onLeave={onLeave} joined={sel && sel.kind === 'group' ? mine.has(sel.data.id) : false}></MFDetail>
++        <MFCanvas key={pop + ':' + (pop === 'world' ? worldZoom : '') + (hidden ? ':hidden' : '')} nodes={hidden ? [] : cfg.nodes} selId={hidden ? null : selId} onSel={onSel} seedDeg={cfg.seed} mist={hidden ? 0 : cfg.mist} mistSeed={cfg.mistSeed || 1} tall={pop === 'near' || pop === 'world'} stretch={pop === 'world' ? 1.15 : 1.08} maxLabels={pop === 'world' ? (worldZoom === 'world' ? 3 : 4) : undefined}></MFCanvas>
++        {hidden
++          ? <MFKey items={[{ label: 'hidden — you see nobody, nobody sees you' }]}></MFKey>
++          : <MFKey items={cfg.key}></MFKey>}
++        {!hidden && <MFDetail node={sel} onPerson={onPerson} onJoin={onJoin} onLeave={onLeave} joined={sel && sel.kind === 'group' ? mine.has(sel.data.id) : false}></MFDetail>}
+       </>)}
+       {noCanvas && showField && (
+         <div className="rm-embed">

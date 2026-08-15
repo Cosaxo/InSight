@@ -1,0 +1,36 @@
+--- v18/duo-daily.jsx
++++ v28/duo-daily.jsx
+@@ -74,7 +74,7 @@
+             <button key={p.id} onClick={() => onPick(p.id)} aria-current={sel ? 'true' : undefined}
+               aria-label={first(p) + ' — ' + (invited ? 'invited, waiting' : pending ? 'still to play' : 'done for today')}
+               style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, border: 'none', background: 'none', cursor: 'pointer', padding: '4px 7px', WebkitAppearance: 'none', flexShrink: 0 }}>
+-              <span style={{ position: 'relative', display: 'inline-flex', borderRadius: '50%', padding: 2, boxShadow: sel ? `0 0 0 2px ${ACC}` : pending ? `0 0 0 1.5px color-mix(in oklch, ${ACC} 45%, transparent)` : '0 0 0 1px var(--rule)', opacity: invited ? 0.5 : pending || sel ? 1 : 0.55, transition: 'box-shadow .18s, opacity .18s' }}>
++              <span style={{ position: 'relative', display: 'inline-flex', borderRadius: '50%', padding: 2, boxShadow: sel ? `0 0 0 2px ${ACC}` : pending ? `0 0 0 1.5px color-mix(in oklch, ${ACC} 45%, transparent)` : '0 0 0 1px var(--rule)', transition: 'box-shadow .18s' }}>
+                 <GDAv p={p} size={38} plain></GDAv>
+                 {invited
+                   ? <span style={{ position: 'absolute', bottom: -3, right: -3, width: 15, height: 15, borderRadius: '50%', background: 'var(--surface-3)', color: 'var(--ink-2)', fontSize: 9, fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid var(--surface)' }}>{'\u2026'}</span>
+@@ -246,9 +246,11 @@
+               <span style={{ fontWeight: 700, fontSize: 13.5, color: 'var(--ink-2)' }}>{first(p)}{'\u2019'}s answer {'\u00b7'} <span style={{ color: 'var(--ink)', fontWeight: 800 }}>you called {today.q.options[m.g]}</span></span>
+               <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--ink-3)', textWrap: 'pretty' }}>{theyDone ? (newest && window.RevealClock ? <window.RevealClock prefix="reveals in"></window.RevealClock> : 'reveals tomorrow') : first(p) + ' is still answering\u2026'}</span>
+             </div>
+-            {/* a redaction block, not a blurred word — the blur read as a
+-                loading skeleton rather than something deliberately withheld */}
+-            <span aria-hidden="true" style={{ width: 58, height: 14, borderRadius: 4, background: 'color-mix(in oklch, var(--ink) 13%, transparent)', flexShrink: 0 }}></span>
++            {/* withheld, not loading — one solid bar reads as a skeleton, so the
++                block is broken into words the way a redacted line would be */}
++            <span aria-hidden="true" style={{ display: 'flex', gap: 3, alignItems: 'center', flexShrink: 0 }}>
++              {[22, 13, 18].map((w, i) => <span key={i} style={{ width: w, height: 11, borderRadius: 2, background: 'color-mix(in oklch, var(--ink) 17%, transparent)' }}></span>)}
++            </span>
+           </div>
+           {p.read.total > 0 && (() => {
+             // ReadRun picks its own resolution from the span: dots for a short
+@@ -351,8 +353,7 @@
+     return (
+       <div ref={rootRef} style={col(10)}>
+         <div style={{ display: 'flex', alignItems: 'baseline', padding: '0 2px', scrollSnapAlign: 'start' }}>
+-          <span className="kicker" style={{ marginBottom: 0 }}>One on one</span>
+-          {nLeft > 0 && <span style={{ marginLeft: 'auto', fontSize: 11, fontWeight: 700, color: 'var(--ink-3)' }}>{nLeft} to play</span>}
++          {nLeft > 0 && <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--ink-3)' }}>{nLeft} to play</span>}
+         </div>
+         <div ref={railRef} style={{ position: 'sticky', top: 0, zIndex: 6, margin: '-1px -16px 0', padding: '1px 10px 0', background: 'var(--surface-a, var(--surface))', borderBottom: '0.5px solid color-mix(in oklch, var(--rule), transparent 25%)' }}>
+           <DuoRail ps={ordered} cur={cur} onPick={jump} onAdd={() => setAddOpen(true)}></DuoRail>

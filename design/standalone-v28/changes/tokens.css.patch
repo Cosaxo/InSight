@@ -1,0 +1,40 @@
+--- v18/tokens.css
++++ v28/tokens.css
+@@ -39,6 +39,13 @@
+   --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+   --ease-spring: cubic-bezier(0.32, 1.32, 0.36, 1);
+   --sans: 'Hanken Grotesk', -apple-system, system-ui, sans-serif;
++  /* One instrument, one hue: everything the daily pulse draws — its inputs, its
++     line, its streak — is this and nothing else. Neutral greys carry the
++     population it is held against, so the two are never confused. */
++  --pulse: var(--c-today);
++  /* Every tappable input sits on this height: the daily's option tiles, the
++     pulse's five steps, anything answered with a thumb. */
++  --field-size: 56px;
+ }
+ 
+ /* ── Voice ── one roman sans throughout; em carries no italic. */
+@@ -285,18 +292,13 @@
+ 
+ /* nav v2 — one primary bar of four: glyph over label so it fits a phone and
+    keeps 44px targets, instead of a two-item pill plus a second row up top */
+-.tabbar[data-n="4"] .tab-group { gap: 2px; max-width: 100%; }
+-.tabbar[data-n="4"] .tab-btn { flex-direction: column; gap: 2px; padding: 5px 13px; min-height: 46px; font-size: 11px; font-weight: 650; letter-spacing: 0.02em; }
+-.tabbar[data-n="4"] .tab-btn.is-active { font-weight: 800; }
++.tabbar[data-n="4"] .tab-group, .tabbar[data-n="5"] .tab-group { gap: 2px; max-width: 100%; }
++.tabbar[data-n="4"] .tab-btn, .tabbar[data-n="5"] .tab-btn { flex-direction: column; gap: 2px; padding: 5px 13px; min-height: 46px; font-size: 11px; font-weight: 650; letter-spacing: 0.02em; }
++.tabbar[data-n="5"] .tab-btn { padding: 5px 9px; }
++.tabbar[data-n="4"] .tab-btn.is-active, .tabbar[data-n="5"] .tab-btn.is-active { font-weight: 800; }
+ 
+-/* Hand-drawn rule */
++/* Rule */
+ .rule { height: 0.5px; background: var(--rule); margin: 14px 0; border: none; }
+-.rule-dashed {
+-  height: 0.5px;
+-  background: var(--rule);
+-  border: none;
+-  margin: 14px 0;
+-}
+ 
+ /* Kicker — THE micro-label tier, app-wide. One spec (matches the edition's
+    edMicro): sans 700 · 10.5px · 0.09em · uppercase · ink-3. */

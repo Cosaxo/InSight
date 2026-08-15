@@ -1,0 +1,35 @@
+--- v18/daily-split.jsx
++++ v28/daily-split.jsx
+@@ -315,9 +315,10 @@
+       // can flip the axis under it without remounting
+       const MODES = this.modeAxis;
+       const mi = MODES.indexOf(this.state.mode), ni = mi + dir;
+-      // the axis continues past the far end into Mirror — act, then see
++      // the axis runs patterns ← world · group · 1v1 → mirror: past either end it
++      // leaves the daily rather than springing, so both directions go somewhere
+       if (ni >= MODES.length) { if ((this.props.hideSwitcher || this.props.ruler) && window.goNav) { window.goNav('mirror'); return; } spring(); return; }
+-      if (ni < 0) { spring(); return; } // spring at the near end
++      if (ni < 0) { if ((this.props.hideSwitcher || this.props.ruler) && window.goNav) { window.goNav('patterns'); return; } spring(); return; }
+       try { localStorage.setItem('insight.swipeHinted', '1'); } catch (e) {} // they've learned it — no more hinting
+       const b = T();
+       b.style.transition = 'transform 0.17s ease, opacity 0.17s ease';
+@@ -334,7 +335,10 @@
+     };
+     const spring = () => { const b = T(); b.style.transition = 'transform 0.25s cubic-bezier(0.2,0.9,0.2,1), opacity 0.25s ease'; b.style.transform = 'translateX(0)'; b.style.opacity = '1'; };
+     let sx = 0, sy = 0, dx = 0, horiz = null, dragging = false;
+-    scroller.addEventListener('touchstart', (e) => { const t = e.touches[0]; sx = t.clientX; sy = t.clientY; dx = 0; horiz = null; dragging = true; const b = T(); b.style.animation = ''; b.style.transition = 'none'; }, { passive: true });
++    // same guard as swipe-back.js: a drag that starts inside a scroller, a map or
++    // a field belongs to that element, never to the axis
++    const SKIP = 'svg, canvas, .h-scroll, .mmt-swipe, .cb-rail, [data-nopan], input, textarea';
++    scroller.addEventListener('touchstart', (e) => { const t = e.touches[0]; if (e.target.closest && e.target.closest(SKIP)) { dragging = false; return; } sx = t.clientX; sy = t.clientY; dx = 0; horiz = null; dragging = true; const b = T(); b.style.animation = ''; b.style.transition = 'none'; }, { passive: true });
+     scroller.addEventListener('touchmove', (e) => {
+       if (!dragging) return; const t = e.touches[0]; const mx = t.clientX - sx, my = t.clientY - sy;
+       if (horiz === null && (Math.abs(mx) > 8 || Math.abs(my) > 8)) horiz = Math.abs(mx) > Math.abs(my);
+@@ -344,6 +348,7 @@
+     scroller.addEventListener('touchend', end); scroller.addEventListener('touchcancel', end);
+     let wheelLock = false;
+     scroller.addEventListener('wheel', (e) => {
++      if (e.target.closest && e.target.closest(SKIP)) return;
+       if (Math.abs(e.deltaX) > Math.abs(e.deltaY) + 4) { e.preventDefault(); if (wheelLock || Math.abs(e.deltaX) < 24) return; if (Date.now() - (window.NAV_AT || 0) < 700) return; wheelLock = true; commit(e.deltaX > 0 ? 1 : -1); setTimeout(() => { wheelLock = false; }, 650); }
+     }, { passive: false });
+     // first-run hint — a gentle sideways nudge teaches that modes swipe; retires after the first real swipe

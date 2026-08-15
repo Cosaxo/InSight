@@ -1,0 +1,133 @@
+--- v18/map-tab.jsx
++++ v28/map-tab.jsx
+@@ -25,6 +25,15 @@
+   useEffect(() => {
+     if (window.DUELS && window.DUELS.subscribe) return window.DUELS.subscribe(() => setDqv((x) => x + 1));
+   }, []);
++  useEffect(() => {
++    if (window.PREDICT && window.PREDICT.subscribe) return window.PREDICT.subscribe(() => setDqv((x) => x + 1));
++  }, []);
++  useEffect(() => {
++    if (window.PATHS && window.PATHS.sub) return window.PATHS.sub(() => setDqv((x) => x + 1));
++  }, []);
++  useEffect(() => {
++    if (window.PULSE && window.PULSE.subscribe) return window.PULSE.subscribe(() => setDqv((x) => x + 1));
++  }, []);
+   const built = useMemo(() => {
+     const D = window.DAILYQ;
+     const out = []; const subSeen = new Map(); const topSeen = new Map(); const counts = {};
+@@ -86,6 +95,35 @@
+         });
+       });
+     }
++    // ── Foresight: what you call, and who you read (predict-data.js). Two
++    // clouds of aims rather than answers — a leaf's distance from You is its
++    // accuracy, so the map says where you see clearly without a single number.
++    const PR = window.PREDICT;
++    if (PR) {
++      const tree = PR.mapTree();
++      const use = {};
++      tree.nodes.forEach((n) => { out.push(n); use[n.parentId] = (use[n.parentId] || 0) + 1; });
++      tree.cats.forEach((c) => { if (use[c.id]) { topSeen.set(c.id, c); counts[c.id] = use[c.id]; } });
++    }
++    // ── Crossroads: the stories you walked to their end (paths-data.js). A leaf
++    // is a road taken, not an answer — rarity pushes it outward like everything
++    // else, so an uncommon ending sits at the map's edge without a number.
++    const PW = window.PATHS;
++    if (PW && PW.mapTree) {
++      const tree = PW.mapTree();
++      const use = {};
++      tree.nodes.forEach((n) => { out.push(n); use[n.parentId] = (use[n.parentId] || 0) + 1; });
++      tree.cats.forEach((c) => { if (use[c.id]) { topSeen.set(c.id, c); counts[c.id] = use[c.id]; } });
++    }
++    // ── the daily pulse: the one question that repeats, so its leaves are days
++    // rather than topics (pulse-data.js). The branch card carries the line.
++    const PU = window.PULSE;
++    if (PU && PU.mapTree) {
++      const tree = PU.mapTree();
++      const use = {};
++      tree.nodes.forEach((n) => { out.push(n); use[n.parentId] = (use[n.parentId] || 0) + 1; });
++      tree.cats.forEach((c) => { if (use[c.id]) { topSeen.set(c.id, c); counts[c.id] = use[c.id]; } });
++    }
+     // single-answer sub-topics collapse into the answer itself — the sub card
+     // and the answer card would be the same card, so keep only one step
+     const kidCt = {};
+@@ -101,7 +139,9 @@
+     return { nodes: kept, tops: Array.from(topSeen.values()), counts };
+   }, [dqv]);
+   const nodes0 = built.nodes;
+-  const allAnswers = useMemo(() => nodes0.filter((n) => n.daily), [nodes0]);
++  // Foresight leaves are aims, not answers — they sit on the map but never
++  // inflate the answer count or the time scrub
++  const allAnswers = useMemo(() => nodes0.filter((n) => n.daily && !n.fore && !n.walk && !n.pulse), [nodes0]);
+ 
+   // active branches: any that hold at least one answer — renames applied
+   const allCats = useMemo(() => {
+@@ -182,7 +222,12 @@
+   const pos = laid.pos;
+ 
+   // ── selection ──────────────────────────────────────────────────────────────
+-  const [sel, setSel] = useState(null);     // 'root' | catId | nodeId | 'ax-<anchor>'
++  const [sel, setSel] = useState(() => {
++    // a cross-link can hand the map what to open on (e.g. the pulse card's line)
++    const s = typeof window !== 'undefined' ? window.MAP_SELECT : null;
++    if (s) { try { delete window.MAP_SELECT; } catch (e) {} return s; }
++    return null;
++  });     // 'root' | catId | nodeId | 'ax-<anchor>'
+   const [cut, setCut] = useState(null);     // time-scrub position (null = off)
+   const scrubAnim = useRef(null);
+   const [hlCat, setHlCat] = useState(null); // spotlit branch id
+@@ -565,6 +610,9 @@
+   const ringRecede = !!hlCat && !selNode;
+   // the ring is a mode, not furniture — closed until You or an answer asks for it
+   const ringOpen = sel === 'root' || !!selAnchor || !!(selNode && selNode.daily && !selNode.learn);
++  // zoomed out, an open ring at full radius crowds the hub orbit — it steps down
++  // to about half size at overview zoom and is back to full by ring-stage zoom
++  const ringShrink = ringOpen ? 0.5 + 0.5 * Math.max(0, Math.min(1, (view.z - 0.22) / 0.3)) : 1;
+   // labels counter-scale so on-screen type never drops below reading size
+   const hubFs = Math.min(48, Math.max(13, 13 / (catScale * view.z)));
+   const centerFs = Math.min(48, Math.max(13.5, 13.5 / (centerScale * view.z)));
+@@ -705,7 +753,7 @@
+ 
+           {/* centre — you, ringed by your profile anchors */}
+           {anchorsOn && !openGroup ? (
+-            <div className={'mmt-ringline' + (ringRecede ? ' is-recede' : '') + (ringOpen ? '' : ' is-closed')} style={{ width: AR * 2, height: AR * 2, transform: `translate(-50%, -50%) scale(${ringOpen ? 1 : 0.3})` }} aria-hidden="true"></div>
++            <div className={'mmt-ringline' + (ringRecede ? ' is-recede' : '') + (ringOpen ? '' : ' is-closed')} style={{ width: AR * 2, height: AR * 2, transform: `translate(-50%, -50%) scale(${ringOpen ? ringShrink : 0.3})` }} aria-hidden="true"></div>
+           ) : null}
+           <div
+             className={'mmt-node mmt-center' + (openGroupDef ? ' is-group' : '') + (sel === 'root' ? ' is-sel' : '') + (selAnchor || ringRecede ? ' is-recede' : '') + (ringOpen ? '' : ' is-solo')}
+@@ -730,7 +778,7 @@
+             const isFilter = effFilter === a.id;
+             const soft = (selAnchor && !isSel) || ringRecede;
+             const lab = showALab || isSel || sel === 'root' || !!selNode;
+-            const rk = ringOpen ? 1 : 0.12; // closed ring folds into the You dot
++            const rk = ringOpen ? ringShrink : 0.12; // closed ring folds into the You dot; open ring steps down at overview zoom
+             return (
+               <div
+                 key={a.id}
+@@ -866,6 +914,10 @@
+           ) : selCat ? (
+             selCat.id === 'circle-read' && window.MTPeopleCard ? (
+               <MTPeopleCard onPick={selectItem} key="people"></MTPeopleCard>
++            ) : selCat.pulse && window.MTPulseCard ? (
++              <window.MTPulseCard cat={selCat} count={catCount(selCat.id)} key="pulse"></window.MTPulseCard>
++            ) : selCat.fore && window.MTForeBranchCard ? (
++              <MTForeBranchCard cat={selCat} onPick={selectItem} key={selCat.id}></MTForeBranchCard>
+             ) : (
+             <MTBranchCard
+               cat={selCat}
+@@ -892,7 +944,13 @@
+             ></MTSubCard>
+             )
+           ) : selNode ? (
+-            selNode.learn && window.MTLearnCard ? (
++            selNode.fore && window.MTForeCard ? (
++              <MTForeCard node={selNode} key={selNode.id}></MTForeCard>
++            ) : selNode.pulse && window.MTPulseCard ? (
++              <window.MTPulseCard node={selNode} key={selNode.id}></window.MTPulseCard>
++            ) : selNode.walk && window.MTPathsCard ? (
++              <window.MTPathsCard node={selNode} key={selNode.id}></window.MTPathsCard>
++            ) : selNode.learn && window.MTLearnCard ? (
+               <MTLearnCard node={selNode} key={selNode.id}></MTLearnCard>
+             ) : selNode.person && window.MTPersonCard ? (
+               <MTPersonCard node={selNode} key={selNode.id}></MTPersonCard>

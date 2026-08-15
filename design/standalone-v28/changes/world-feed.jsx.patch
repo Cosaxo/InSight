@@ -1,0 +1,628 @@
+--- v18/world-feed.jsx
++++ v28/world-feed.jsx
+@@ -8,8 +8,14 @@
+ const WF_REPLIES_LS = 'insight.feedReplies.v1';
+ const WF_TAKES_LS = 'insight.feedTakes.v1';
+ const WF_PASS_LS = 'insight.feedPass.v1';
++// how many feed cards mount at once, and how many more each time the tail nears.
++// the pool is hundreds deep; mounting it whole made every scroll frame pay for it.
++// small steps beat big ones — a growth render is the only jank left in the feed.
++const WF_PAGE = 8;
++const WF_STEP = 4;
++const WF_REACH = 2200;
+ // where a vote lands on your Mirror — the ripple line after answering
+-const WF_BRANCH = { food: 'Food', sport: 'Body', movies: 'Taste', music: 'Taste', tech: 'Mind', culture: 'Values', dilemma: 'Morals', event: 'Mind', people: 'Values', bigq: 'Values', fav: 'Taste' };
++const WF_BRANCH = { food: 'Food', sport: 'Body', movies: 'Taste', music: 'Taste', tech: 'Mind', culture: 'Values', dilemma: 'Morals', event: 'Mind', people: 'Values', bigq: 'Values', fav: 'Taste', predict: 'Foresight' };
+ const WF_TOPICS = window.WORLD_TOPICS || [];
+ const WF_TOPIC = Object.fromEntries(WF_TOPICS.map((t) => [t.id, t]));
+ const WF_CHANNELS = window.WORLD_CHANNELS || [];
+@@ -38,7 +44,7 @@
+   catch (e) { return {}; }
+ }
+ function wfFmt(n) { return n >= 1000 ? (n / 1000).toFixed(1).replace(/\.0$/, '') + 'K' : '' + n; }
+-function wfVotes(q) { return q.type === 'rank' ? (q.votes || 0) : q.type === 'rate' ? (q.n || 0) : q.type === 'pick' ? (((window.WF_CATALOGS || {})[q.catalog] || {}).picks || 0) : q.options ? q.options.reduce((a, o) => a + o.count, 0) : 0; }
++function wfVotes(q) { return q.type === 'rank' ? (q.votes || 0) : q.type === 'rate' || q.type === 'dial' || q.type === 'field' ? (q.n || 0) : q.type === 'pick' ? (((window.WF_CATALOGS || {})[q.catalog] || {}).picks || 0) : q.options ? q.options.reduce((a, o) => a + o.count, 0) : 0; }
+ function wfPcts(counts, mineIdx) {
+   const c = counts.map((n, i) => n + (mineIdx === i ? 1 : 0));
+   const total = c.reduce((a, b) => a + b, 0);
+@@ -174,7 +180,7 @@
+ const WF_FRIENDS = [{ name: 'Alex', init: 'A' }, { name: 'Mia', init: 'M' }, { name: 'Jordi', init: 'J' }, { name: 'Sara', init: 'S' }, { name: 'Noah', init: 'N' }, { name: 'Elif', init: 'E' }];
+ 
+ class WorldFeed extends React.Component {
+-  state = { votes: wfLoad(), knowRes: {}, pickQ: {}, pending: {}, open: {}, panels: {}, dims: {}, cutAxis: {}, boosts: {}, vh: 0, beat: null, sheet: null, sideFilter: null, reportFor: null, replyTo: null, replies: wfLoadReplies(), myTakes: wfLoadTakes(), minds: {}, ctrIdx: {}, takeSort: 'mind', whyFor: null, headHide: false, sort: 'hot', passed: wfLoadMap(WF_PASS_LS), ripple: null };
++  state = { votes: wfLoad(), knowRes: {}, pickQ: {}, pending: {}, open: {}, panels: {}, dims: {}, cutAxis: {}, boosts: {}, vh: 0, beat: null, sheet: null, sideFilter: null, reportFor: null, replyTo: null, replies: wfLoadReplies(), myTakes: wfLoadTakes(), minds: {}, ctrIdx: {}, takeSort: 'mind', whyFor: null, headHide: false, sort: 'hot', passed: wfLoadMap(WF_PASS_LS), ripple: null, shown: WF_PAGE };
+ 
+   // every new behaviour is a switch, so each one can be judged on its own
+   get opts() {
+@@ -216,9 +222,19 @@
+       es.forEach((e) => { if (e.isIntersecting) { e.target.classList.add('wf-in'); this._io.unobserve(e.target); } });
+     }, { rootMargin: '0px 0px -8% 0px' }) : null;
+   }
+-  componentDidUpdate() { this.applySnap(); }
++  componentDidUpdate() {
++    this.applySnap();
++    // keep the tail stocked without polling: answered cards collapse, so the
++    // list can fall short of the viewport between scroll events
++    const s = this._scroller;
++    if (s && this.state.shown < (this._listLen || 0) && s.scrollHeight - s.scrollTop - s.clientHeight < WF_REACH) {
++      clearTimeout(this._growT);
++      this._growT = setTimeout(() => this.setState((st) => ({ shown: st.shown + WF_STEP })), 60);
++    }
++  }
+   componentWillUnmount() {
+     clearTimeout(this._retry);
++    clearTimeout(this._growT);
+     clearTimeout(this._sheetT);
+     clearTimeout(this._rippleT);
+     if (this._unsubScenes) this._unsubScenes();
+@@ -256,6 +272,11 @@
+           this._onScroll = () => {
+             const s = this._scroller; if (!s) return;
+             const y = s.scrollTop, dy = y - this._lastY;
++            // grow the mounted window as the tail comes into range — the feed runs
++            // hundreds of cards long and mounting them all costs every scroll frame
++            if (s.scrollHeight - y - s.clientHeight < WF_REACH && this.state.shown < (this._listLen || 0)) {
++              this.setState((st) => ({ shown: st.shown + WF_STEP }));
++            }
+             if (Math.abs(dy) < 4) return;
+             this._lastY = y;
+             const hide = dy > 0 && y > 60;
+@@ -310,6 +331,25 @@
+     if (this.props.onVote) this.props.onVote(q, val);
+   }
+ 
++  // A prediction is not a vote: a read scores the moment you call it, a call on
++  // the world is sealed and waits. -1 is the clock running out — no score, closed.
++  setCall(q, val) {
++    const P = window.PREDICT;
++    if (window.HAPTIC) window.HAPTIC.tap();
++    if (val !== -1 && P) {
++      let ok = null;
++      if (q.type === 'read') { const ps = P.pcts(q); ok = val === ps.indexOf(Math.max(...ps)); }
++      P.record(q, val, ok);
++      if (window.HAPTIC) { clearTimeout(this._hapT); this._hapT = setTimeout(() => window.HAPTIC.reveal(), 240); }
++    }
++    this._fresh = q.id;
++    this.setState((s) => {
++      const votes = { ...s.votes, [q.id]: val };
++      try { localStorage.setItem(WF_LS, JSON.stringify(votes)); } catch (e) {}
++      return { votes };
++    });
++  }
++
+   // the consequence beat — replaces the result reveal for ~2s after a vote
+   renderBeat(q, T, big) {
+     const mine = this.state.votes[q.id];
+@@ -378,6 +418,134 @@
+     );
+   }
+ 
++  // ── dial: your answer is a point on a range; the reveal is the crowd's curve ──
++  setDial(q, val) {
++    if (window.HAPTIC) { window.HAPTIC.tap(); clearTimeout(this._hapT); this._hapT = setTimeout(() => window.HAPTIC.reveal(), 260); }
++    this._fresh = q.id;
++    this.setState((s) => {
++      const votes = { ...s.votes, [q.id]: val };
++      try { localStorage.setItem(WF_LS, JSON.stringify(votes)); } catch (e) {}
++      return { votes };
++    });
++  }
++
++  dialFmt(q, v) { return Math.round(v) + (q.unit === '%' ? '%' : q.unit ? ' ' + q.unit : ''); }
++
++  // smooth area through the 12 crowd buckets (midpoint quadratics)
++  dialPath(q, W, H) {
++    const d = q.dist, max = Math.max(...d);
++    const pts = d.map((w, i) => [(i / (d.length - 1)) * W, H - 4 - (w / max) * (H - 12)]);
++    let path = 'M ' + pts[0][0] + ',' + pts[0][1];
++    for (let i = 1; i < pts.length - 1; i++) path += ' Q ' + pts[i][0] + ',' + pts[i][1] + ' ' + (pts[i][0] + pts[i + 1][0]) / 2 + ',' + (pts[i][1] + pts[i + 1][1]) / 2;
++    path += ' L ' + pts[pts.length - 1][0] + ',' + pts[pts.length - 1][1];
++    return path;
++  }
++
++  dialY(q, frac, H) {
++    const d = q.dist, max = Math.max(...d);
++    const x = Math.max(0, Math.min(0.999, frac)) * (d.length - 1), i = Math.floor(x), t = x - i;
++    const w = d[i] * (1 - t) + d[Math.min(d.length - 1, i + 1)] * t;
++    return H - 4 - (w / max) * (H - 12);
++  }
++
++  renderDial(q, T, big) {
++    const v = this.state.votes[q.id];
++    const lo = q.lo, hi = q.hi;
++    const endTxt = q.ends || [this.dialFmt(q, lo), this.dialFmt(q, hi)];
++    const ends = { display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 600, color: 'var(--ink-3)' };
++    if (v == null) {
++      const pend = (this.state.dialPend || {})[q.id];
++      const frac = pend != null ? pend : 0.5;
++      const move = (e) => {
++        const r = e.currentTarget.getBoundingClientRect();
++        const f = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
++        this._dp = f;
++        this.setState((s) => ({ dialPend: { ...(s.dialPend || {}), [q.id]: f } }));
++      };
++      return (
++        <div style={{ display: 'flex', flexDirection: 'column', gap: big ? 12 : 9 }}>
++          <div style={{ alignSelf: 'center', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: big ? 40 : 32, letterSpacing: '-0.03em', color: pend != null ? window.WPAL.ink(T.color) : 'var(--ink-3)', fontVariantNumeric: 'tabular-nums', transition: 'color 0.15s' }}>{this.dialFmt(q, lo + frac * (hi - lo))}</div>
++          <div style={{ position: 'relative', height: 44, touchAction: 'none', cursor: 'pointer' }}
++            onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); move(e); }}
++            onPointerMove={(e) => { if (e.buttons) move(e); }}
++            onPointerUp={() => { if (this._dp != null) { this.setDial(q, Math.round(lo + this._dp * (hi - lo))); this._dp = null; } }}>
++            <span style={{ position: 'absolute', left: 0, right: 0, top: '50%', height: 6, marginTop: -3, borderRadius: 999, background: window.WPAL.wash(T.color, 12, 'var(--surface-3)') }}></span>
++            <span style={{ position: 'absolute', top: '50%', left: (frac * 100) + '%', transform: 'translate(-50%,-50%)', width: 28, height: 28, borderRadius: '50%', boxSizing: 'border-box', background: pend != null ? T.color : 'var(--surface)', border: pend != null ? '3px solid var(--surface)' : '2px solid ' + T.color, boxShadow: '0 1px 6px rgba(20,20,40,0.25)', transition: 'background 0.15s' }}></span>
++          </div>
++          <div style={ends}><span>{endTxt[0]}</span><span style={{ fontWeight: 500 }}>slide · let go to answer</span><span>{endTxt[1]}</span></div>
++        </div>
++      );
++    }
++    const W = 320, H = big ? 92 : 66;
++    const path = this.dialPath(q, W, H);
++    const frac = (v - lo) / (hi - lo);
++    const medFrac = (q.med - lo) / (hi - lo);
++    return (
++      <div style={{ display: 'flex', flexDirection: 'column', gap: big ? 12 : 9, animation: 'popIn .3s cubic-bezier(0.2,0.8,0.2,1)' }}>
++        <div style={{ display: 'flex', alignItems: 'baseline', gap: 7 }}>
++          <span style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: big ? 34 : 26, letterSpacing: '-0.03em', color: window.WPAL.ink(T.color), fontVariantNumeric: 'tabular-nums' }}>{this.dialFmt(q, v)}</span>
++          <span style={{ fontWeight: 600, fontSize: 13, color: 'var(--ink-3)' }}>you</span>
++          <span style={{ marginLeft: 'auto', fontWeight: 700, fontSize: 13.5, color: 'var(--ink-2)' }}>most say {this.dialFmt(q, q.med)}</span>
++        </div>
++        <svg viewBox={'0 0 ' + W + ' ' + H} style={{ width: '100%', height: 'auto', display: 'block' }} aria-label={'How everyone answered, ' + endTxt[0] + ' to ' + endTxt[1]}>
++          <path d={path + ' L ' + W + ',' + H + ' L 0,' + H + ' Z'} fill={window.WPAL.wash(T.color, 20)} stroke="none"></path>
++          <path d={path} fill="none" stroke={T.color} strokeWidth="2.2" strokeLinejoin="round" strokeLinecap="round"></path>
++          <line x1={medFrac * W} y1={8} x2={medFrac * W} y2={H} stroke="var(--ink-3)" strokeWidth="1.2" strokeDasharray="3 3" opacity="0.55"></line>
++          <circle cx={frac * W} cy={this.dialY(q, frac, H)} r="7" fill={T.color} stroke="var(--surface)" strokeWidth="2.5"></circle>
++        </svg>
++        <div style={ends}><span>{endTxt[0]}</span><span>{endTxt[1]}</span></div>
++      </div>
++    );
++  }
++
++  // ── field: drop a dot on a 2D plane; the reveal is the crowd as a cloud ──
++  setField(q, x, y) {
++    if (window.HAPTIC) { window.HAPTIC.tap(); clearTimeout(this._hapT); this._hapT = setTimeout(() => window.HAPTIC.reveal(), 260); }
++    this._fresh = q.id;
++    this.setState((s) => {
++      const votes = { ...s.votes, [q.id]: { x, y } };
++      try { localStorage.setItem(WF_LS, JSON.stringify(votes)); } catch (e) {}
++      return { votes };
++    });
++  }
++
++  // seeded dots from the cloud spec [[cx, cy, count, spread], …] — y runs 0=top
++  fieldCloud(q) {
++    const dots = [];
++    (q.cloud || []).forEach((c, ci) => {
++      for (let i = 0; i < c[2]; i++) {
++        const a = wfHash(q.id + ':a' + ci + ':' + i) * Math.PI * 2;
++        const r = Math.sqrt(wfHash(q.id + ':r' + ci + ':' + i)) * c[3];
++        dots.push([Math.max(4, Math.min(96, c[0] + Math.cos(a) * r)), Math.max(6, Math.min(94, c[1] + Math.sin(a) * r * 0.9))]);
++      }
++    });
++    return dots;
++  }
++
++  renderField(q, T, big) {
++    const v = this.state.votes[q.id];
++    const done = v != null;
++    const fresh = this._fresh === q.id;
++    const dots = done ? this.fieldCloud(q) : [];
++    const lab = (t, style) => <span style={{ position: 'absolute', fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 650, color: 'var(--ink-3)', letterSpacing: '0.02em', pointerEvents: 'none', ...style }}>{t}</span>;
++    return (
++      <div style={{ display: 'flex', flexDirection: 'column', gap: big ? 10 : 7 }}>
++        <div onClick={(e) => { if (done) return; const r = e.currentTarget.getBoundingClientRect(); this.setField(q, Math.round(((e.clientX - r.left) / r.width) * 100), Math.round(((e.clientY - r.top) / r.height) * 100)); }}
++          style={{ position: 'relative', aspectRatio: big ? '1 / 1' : '4 / 3', borderRadius: 16, border: '1px solid color-mix(in oklch, ' + T.color + ' 35%, var(--rule))', background: window.WPAL.wash(T.color, 5), cursor: done ? 'default' : 'crosshair', overflow: 'hidden' }}>
++          <span style={{ position: 'absolute', left: 0, right: 0, top: '50%', height: 1, background: 'var(--rule)', opacity: 0.8 }}></span>
++          <span style={{ position: 'absolute', top: 0, bottom: 0, left: '50%', width: 1, background: 'var(--rule)', opacity: 0.8 }}></span>
++          {lab(q.ax[0], { left: 9, top: '50%', transform: 'translateY(-140%)' })}
++          {lab(q.ax[1], { right: 9, top: '50%', transform: 'translateY(-140%)' })}
++          {lab(q.ay[1], { top: 7, left: '50%', transform: 'translateX(8px)' })}
++          {lab(q.ay[0], { bottom: 7, left: '50%', transform: 'translateX(8px)' })}
++          {done && dots.map(([x, y], i) => <span key={i} style={{ position: 'absolute', left: x + '%', top: y + '%', width: 7, height: 7, margin: '-3.5px 0 0 -3.5px', borderRadius: '50%', background: T.color, opacity: 0.38, animation: fresh ? 'popIn .4s ' + (i * 14) + 'ms cubic-bezier(0.2,0.8,0.2,1) backwards' : 'none' }}></span>)}
++          {done && <span style={{ position: 'absolute', left: v.x + '%', top: v.y + '%', width: 16, height: 16, margin: '-8px 0 0 -8px', borderRadius: '50%', boxSizing: 'border-box', background: 'var(--surface)', border: '3px solid ' + T.color, boxShadow: '0 1px 6px rgba(20,20,40,0.3)', animation: fresh ? 'popIn .3s cubic-bezier(0.2,0.8,0.2,1)' : 'none' }}></span>}
++        </div>
++        {!done && <span style={{ alignSelf: 'center', fontSize: 12.5, fontWeight: 500, color: 'var(--ink-3)' }}>tap where you land</span>}
++      </div>
++    );
++  }
++
+   // the woven knowledge cards, planned ONCE per sitting. LEARN.plan re-derives
+   // from your position in the deck, so calling it every render would reshuffle
+   // the feed under you — the list is cached and only rebuilt when what you follow
+@@ -757,10 +925,11 @@
+       const c = window.PLACESTATS ? window.PLACESTATS.cat(q.scope, q.catId) : null;
+       return <span style={quiet}>{wfFmt(c ? c.n : (q.n || 0))} ratings</span>;
+     }
++    if (q.type === 'dial' || q.type === 'field') return <span style={quiet}>{wfFmt(q.n || 0)} answers</span>;
+     if (!q.options) return <span style={quiet}></span>;
+     const mine = this.state.votes[q.id];
+     const { total } = wfPcts(q.options.map((o) => o.count), mine);
+-    return <span style={quiet}>{wfFmt(total)} votes</span>;
++    return <span style={quiet}>{wfFmt(total)} {q.type === 'predict' ? 'calls' : 'votes'}</span>;
+   }
+ 
+   // one quiet line: the scale of the vote, where you sit, and — briefly — where
+@@ -790,7 +959,7 @@
+       <div style={{ display: 'flex', flexDirection: 'column', gap: big ? 10 : 7, animation: fresh ? 'popIn .3s cubic-bezier(0.2,0.8,0.2,1)' : 'none' }}>
+         {q.options.map((o, i) => (
+           <div key={i} style={{ position: 'relative', border: mine === i ? '1px solid color-mix(in oklch, ' + T.color + ' 65%, var(--rule))' : WF_LINE, borderRadius: big ? 14 : 11, background: 'var(--surface)', overflow: 'hidden' }}>
+-            <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: p[i] + '%', background: window.WPAL.wash(T.color, mine === i ? 30 : 15), animation: fresh ? 'barIn .7s cubic-bezier(0.2,0.8,0.2,1) ' + (i * 0.07) + 's both' : 'none' }}></div>
++            <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: p[i] + '%', background: window.WPAL.wash(T.color, mine === i ? 44 : 22), animation: fresh ? 'barIn .7s cubic-bezier(0.2,0.8,0.2,1) ' + (i * 0.07) + 's both' : 'none' }}></div>
+             <div style={{ position: 'relative', display: 'flex', alignItems: 'baseline', gap: 8, padding: big ? '13px 14px' : '9px 12px' }}>
+               {mine === i && <span aria-label="Your pick" style={{ width: big ? 18 : 15, height: big ? 18 : 15, borderRadius: '50%', flexShrink: 0, alignSelf: 'center', background: window.WPAL.ink(T.color), display: 'flex', alignItems: 'center', justifyContent: 'center' }}><svg viewBox="0 0 24 24" width={big ? 10 : 8} height={big ? 10 : 8} fill="none" stroke="#fff" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round"><path d="M4.5 12.5 10 18 19.5 6.5"></path></svg></span>}
+               <span style={{ flex: 1, minWidth: 0, fontWeight: mine === i ? 800 : 700, fontSize: big ? 15 : 13.5 }}>{o.label}</span>
+@@ -838,7 +1007,7 @@
+                   onLoad={(e) => e.currentTarget.classList.add('is-in')} />}
+                 {/* the share IS the tile — the side fills to its own percentage */}
+                 {mine != null && (
+-                  <span aria-hidden="true" style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: p[i] + '%', background: 'color-mix(in oklch, ' + T.color + ' ' + (win ? 40 : 24) + '%, ' + (v2 ? 'var(--surface)' : 'transparent') + ')', borderTop: '1.5px solid ' + T.color, animation: fresh ? 'wfFillUp .85s cubic-bezier(0.2,0.8,0.2,1) var(--rv-1) both' : 'none', transition: 'height .7s cubic-bezier(0.2,0.8,0.2,1)' }}></span>
++                  <span aria-hidden="true" style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: p[i] + '%', background: o.img ? 'color-mix(in oklch, ' + T.color + ' ' + (win ? 42 : 27) + '%, transparent)' : window.WPAL.wash(T.color, win ? 56 : 36), borderTop: '1.5px solid ' + T.color, animation: fresh ? 'wfFillUp .85s cubic-bezier(0.2,0.8,0.2,1) var(--rv-1) both' : 'none', transition: 'height .7s cubic-bezier(0.2,0.8,0.2,1)' }}></span>
+                 )}
+                 {/* fixed band at the top, same height on both tiles — the label never
+                     rides the fill, and the rising level never has to dodge it */}
+@@ -915,6 +1084,7 @@
+ 
+   answered(q) {
+     const v = this.state.votes[q.id];
++    if (q.type === 'predict' && q.days < 0) return true;   // settled events arrive as history
+     return q.type === 'rank' ? !!(v && v.order) : v != null;
+   }
+ 
+@@ -1001,9 +1171,58 @@
+     );
+   }
+ 
++  // dial/field surprise: the cut that sits furthest from where you put yourself.
++  // Always renders once answered — it is the card's door to the breakdown.
++  renderDialInsight(q, T, big) {
++    const v = this.state.votes[q.id];
++    if (v == null) return null;
++    let best = null;
++    WF_CUTS().forEach((cut) => {
++      if (cut.id === 'friends') return;
++      WF_GRP(cut.id, null).forEach((g) => {
++        const a = this.dialGrpAvg(q, cut.id + ':' + g.label);
++        const d = Math.abs(a - v);
++        if (!best || d > best.d) best = { dim: cut.id, g: g.label, a, d };
++      });
++    });
++    if (!best) return null;
++    return this.insightLine(q, T, best.dim, best.g + ' · ' + this.dialFmt(q, Math.round(best.a)) + ' vs your ' + this.dialFmt(q, v));
++  }
++
++  renderFieldInsight(q, T, big) {
++    const v = this.state.votes[q.id];
++    if (v == null) return null;
++    let best = null;
++    WF_CUTS().forEach((cut) => {
++      if (cut.id === 'friends') return;
++      WF_GRP(cut.id, null).forEach((g) => {
++        const [x, y] = this.fieldGrpPos(q, WF_CUTKEY(cut.id, null) + ':' + g.label);
++        const d = Math.hypot(x - v.x, y - v.y);
++        if (!best || d > best.d) best = { dim: cut.id, g: g.label, x, d };
++      });
++    });
++    if (!best) return null;
++    const side = best.x > 50 === v.x > 50 ? 'far from you' : 'across the field from you';
++    return this.insightLine(q, T, best.dim, best.g + ' · ' + side);
++  }
++
++  insightLine(q, T, dim, text) {
++    return (
++      <button className="press" onClick={() => this.openSheet(q, T, 'stats', dim)} style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', boxSizing: 'border-box', border: WF_LINE, borderRadius: 14, background: 'var(--surface)', padding: '10px 14px', cursor: 'pointer', WebkitAppearance: 'none', textAlign: 'left' }}>
++        <span aria-hidden="true" style={{ width: 8, height: 8, borderRadius: '50%', background: T.color, flexShrink: 0 }}></span>
++        <span style={{ fontFamily: 'var(--sans)', fontWeight: 600, fontSize: 13.5, lineHeight: 1.3, color: 'var(--ink)', flex: 1, minWidth: 0, textWrap: 'pretty' }}>{text}</span>
++        <span aria-hidden="true" style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink-3)', flexShrink: 0 }}>→</span>
++      </button>
++    );
++  }
++
+   renderInsight(q, T, big) {
+     if (!this.opts.reveal) return null;
++    // a read card already ends on a demographic seam — a second one competes
++    if (q.type === 'read') return null;
+     if (q.type === 'rate') return this.renderRateInsight(q, T, big);
++    if (q.type === 'dial') return this.renderDialInsight(q, T, big);
++    if (q.type === 'field') return this.renderFieldInsight(q, T, big);
+     if (!window.feedInsight || !q.options) return null;
+     const mine = typeof this.state.votes[q.id] === 'number' ? this.state.votes[q.id] : null;
+     const counts = q.options.map((o) => o.count);
+@@ -1484,6 +1703,96 @@
+     );
+   }
+ 
++  // dial breakdown: every cut on the question's own range. Bar = that group's
++  // typical answer, hairline = yours — same grammar as the rate breakdown.
++  dialGrpAvg(q, key) { return Math.max(q.lo, Math.min(q.hi, q.med + (wfHash(q.id + ':' + key) - 0.5) * (q.hi - q.lo) * 0.34)); }
++
++  renderDialStats(q, T) {
++    const dim = this.state.dims[q.id] || 'friends';
++    const axis = this.state.cutAxis[q.id] || null, cutKey = WF_CUTKEY(dim, axis), youBand = WF_YOU(dim, axis);
++    const v = this.state.votes[q.id];
++    const span = q.hi - q.lo;
++    const track = (label, color, a) => (
++      <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
++        <span style={{ width: 94, flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 11.5, whiteSpace: 'nowrap', overflow: 'hidden' }}>
++          {color && <span aria-hidden="true" style={{ width: 7, height: 7, borderRadius: '50%', background: color, flexShrink: 0 }}></span>}
++          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</span>
++        </span>
++        <span style={{ position: 'relative', flex: 1, height: 10 }}>
++          <span style={{ position: 'absolute', inset: 0, borderRadius: 999, background: 'color-mix(in oklch, ' + T.color + ' 9%, var(--surface-3))' }}></span>
++          <span style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: ((a - q.lo) / span * 100) + '%', borderRadius: 999, background: 'linear-gradient(90deg, color-mix(in oklch, ' + T.color + ', transparent 55%), ' + T.color + ')' }}></span>
++          {v != null && <span aria-hidden="true" style={{ position: 'absolute', top: -3, bottom: -3, left: 'calc(' + ((v - q.lo) / span * 100) + '% - 1px)', width: 2, borderRadius: 1, background: 'var(--ink)' }}></span>}
++        </span>
++        <span style={{ width: 40, flexShrink: 0, textAlign: 'right', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12.5, color: 'var(--ink)', fontVariantNumeric: 'tabular-nums' }}>{this.dialFmt(q, a)}</span>
++      </div>
++    );
++    return (
++      <div style={{ display: 'flex', flexDirection: 'column', gap: 13 }}>
++        {this.renderCutChips(q, dim)}
++        {(v != null || youBand) && (
++          <div style={{ background: 'var(--ink)', color: 'var(--surface)', borderRadius: 12, padding: '12px 14px', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 14, display: 'flex', alignItems: 'center', gap: 10 }}>
++            <span style={{ flex: 1, minWidth: 0 }}>{v != null ? 'You said ' + this.dialFmt(q, v) + ' · most say ' + this.dialFmt(q, q.med) : 'What each group says'}</span>
++            {youBand && <span style={{ flexShrink: 0, fontSize: 12, fontWeight: 800, background: 'color-mix(in oklch, var(--surface) 22%, transparent)', borderRadius: 999, padding: '3px 10px' }}>You · {youBand}</span>}
++          </div>
++        )}
++        <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
++          {dim === 'friends'
++            ? WF_FRIENDS.map((f) => track(f.name, null, this.dialGrpAvg(q, 'f:' + f.name)))
++            : WF_GRP(dim, axis).map((g) => track(g.label, g.color, this.dialGrpAvg(q, cutKey + ':' + g.label)))}
++        </div>
++        <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--sans)', fontSize: 11, fontWeight: 600, color: 'var(--ink-3)', padding: '0 40px 0 104px' }}>
++          <span>{(q.ends || [this.dialFmt(q, q.lo), this.dialFmt(q, q.hi)])[0]}</span><span>{(q.ends || [this.dialFmt(q, q.lo), this.dialFmt(q, q.hi)])[1]}</span>
++        </div>
++      </div>
++    );
++  }
++
++  // field breakdown: every group's centre placed on the same plane, named at
++  // the dot; your ring stays for the distance read.
++  fieldGrpPos(q, key) {
++    const c = this.fieldCloud(q);
++    const cx = c.reduce((a, d) => a + d[0], 0) / c.length, cy = c.reduce((a, d) => a + d[1], 0) / c.length;
++    return [Math.max(10, Math.min(90, cx + (wfHash(q.id + ':x:' + key) - 0.5) * 46)), Math.max(12, Math.min(88, cy + (wfHash(q.id + ':y:' + key) - 0.5) * 46))];
++  }
++
++  renderFieldStats(q, T) {
++    const dim = this.state.dims[q.id] || 'friends';
++    const axis = this.state.cutAxis[q.id] || null, cutKey = WF_CUTKEY(dim, axis), youBand = WF_YOU(dim, axis);
++    const v = this.state.votes[q.id];
++    const grps = dim === 'friends' ? WF_FRIENDS.map((f) => ({ label: f.name, short: f.init, key: 'f:' + f.name })) : WF_GRP(dim, axis).map((g) => ({ label: g.label, short: g.label, color: g.color, key: cutKey + ':' + g.label }));
++    const lab = (t, style) => <span style={{ position: 'absolute', fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 650, color: 'var(--ink-3)', letterSpacing: '0.02em', pointerEvents: 'none', ...style }}>{t}</span>;
++    return (
++      <div style={{ display: 'flex', flexDirection: 'column', gap: 13 }}>
++        {this.renderCutChips(q, dim)}
++        {(v != null || youBand) && (
++          <div style={{ background: 'var(--ink)', color: 'var(--surface)', borderRadius: 12, padding: '12px 14px', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 14, display: 'flex', alignItems: 'center', gap: 10 }}>
++            <span style={{ flex: 1, minWidth: 0 }}>Where each group lands</span>
++            {youBand && <span style={{ flexShrink: 0, fontSize: 12, fontWeight: 800, background: 'color-mix(in oklch, var(--surface) 22%, transparent)', borderRadius: 999, padding: '3px 10px' }}>You · {youBand}</span>}
++          </div>
++        )}
++        <div style={{ position: 'relative', aspectRatio: '4 / 3', borderRadius: 16, border: '1px solid color-mix(in oklch, ' + T.color + ' 35%, var(--rule))', background: window.WPAL.wash(T.color, 5), overflow: 'hidden' }}>
++          <span style={{ position: 'absolute', left: 0, right: 0, top: '50%', height: 1, background: 'var(--rule)', opacity: 0.8 }}></span>
++          <span style={{ position: 'absolute', top: 0, bottom: 0, left: '50%', width: 1, background: 'var(--rule)', opacity: 0.8 }}></span>
++          {lab(q.ax[0], { left: 9, top: '50%', transform: 'translateY(-140%)' })}
++          {lab(q.ax[1], { right: 9, top: '50%', transform: 'translateY(-140%)' })}
++          {lab(q.ay[1], { top: 7, left: '50%', transform: 'translateX(8px)' })}
++          {lab(q.ay[0], { bottom: 7, left: '50%', transform: 'translateX(8px)' })}
++          {grps.map((g) => {
++            const [x, y] = this.fieldGrpPos(q, g.key);
++            return (
++              <span key={g.key} style={{ position: 'absolute', left: x + '%', top: y + '%', transform: 'translate(-50%,-50%)', display: 'flex', alignItems: 'center', gap: 4 }}>
++                <span style={{ width: 11, height: 11, borderRadius: '50%', flexShrink: 0, background: g.color || T.color, border: '2px solid var(--surface)', boxShadow: '0 1px 4px rgba(20,20,40,0.25)' }}></span>
++                <span style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 800, color: 'var(--ink-2)', whiteSpace: 'nowrap', textShadow: '0 0 4px var(--surface)' }}>{g.short}</span>
++              </span>
++            );
++          })}
++          {v != null && <span style={{ position: 'absolute', left: v.x + '%', top: v.y + '%', width: 16, height: 16, margin: '-8px 0 0 -8px', borderRadius: '50%', boxSizing: 'border-box', background: 'var(--surface)', border: '3px solid ' + T.color, boxShadow: '0 1px 6px rgba(20,20,40,0.3)' }}></span>}
++        </div>
++        {v != null && <span style={{ alignSelf: 'center', fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 650, color: 'var(--ink-3)' }}>the ring is you</span>}
++      </div>
++    );
++  }
++
+   // On an opinion question the cuts tell you who thinks what. On a knowledge
+   // question they answer a different question — who KNOWS this — and that read
+   // isn't available anywhere else: a fact can belong to the old, to one country,
+@@ -1584,6 +1893,8 @@
+   }
+ 
+   renderStats(q, T) {
++    if (q.type === 'dial') return this.renderDialStats(q, T);
++    if (q.type === 'field') return this.renderFieldStats(q, T);
+     if (q.type === 'pick') return this.renderPickStats(q, T);
+     if (q.type === 'know') return this.renderKnowStats(q, T);
+     if (q.type === 'rate') return this.renderRateStats(q, T);
+@@ -1717,6 +2028,21 @@
+ 
+   // compact density: answered vote/duel cards collapse to one thin split bar
+   renderThinBar(q, T) {
++    if (q.type === 'predict' || q.type === 'read') {
++      const v = this.state.votes[q.id];
++      const P = window.PREDICT;
++      const quiet = { fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 700, color: 'var(--ink-3)' };
++      if (v === -1) return <span style={quiet}>clock ran out</span>;
++      let ok = null, text = 'sealed';
++      if (q.type === 'read' && P) { const ps = P.pcts(q); ok = v === ps.indexOf(Math.max(...ps)); text = ok ? 'read ' + q.group + ' right' : 'misread ' + q.group; }
++      else if (q.days < 0) { const my = v != null ? v : q.you; ok = my === q.out; text = ok ? 'called it' : 'said ' + q.options[my].label; }
++      return (
++        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
++          {ok != null && <span style={{ width: 11, height: 11, borderRadius: '50%', flexShrink: 0, background: ok ? 'var(--c-likeness)' : 'transparent', border: ok ? 'none' : '1.5px solid var(--ochre)' }}></span>}
++          <span style={quiet}>{text}</span>
++        </div>
++      );
++    }
+     if (q.type === 'pick') {
+       const C = (window.WF_CATALOGS || {})[q.catalog];
+       const it = C && C.items.find((i) => i.id === this.state.votes[q.id]);
+@@ -1738,6 +2064,16 @@
+       const m = done.order.filter((it, pos) => q.crowd[it] === pos + 1).length;
+       return <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--ink-3)' }}>ranked{' · '}{m}/{q.items.length} with the crowd</span>;
+     }
++    if (q.type === 'dial') {
++      const v = this.state.votes[q.id];
++      return <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--ink-3)' }}>you {this.dialFmt(q, v)} · most say {this.dialFmt(q, q.med)}</span>;
++    }
++    if (q.type === 'field') {
++      const v = this.state.votes[q.id];
++      const c = this.fieldCloud(q);
++      const cx = c.reduce((a, d) => a + d[0], 0) / c.length, cy = c.reduce((a, d) => a + d[1], 0) / c.length;
++      return <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--ink-3)' }}>{Math.hypot(v.x - cx, v.y - cy) < 26 ? 'placed · with the cluster' : 'placed · out on your own'}</span>;
++    }
+     const mine = this.state.votes[q.id];
+     const { p } = wfPcts(q.options.map((o) => o.count), mine);
+     return (
+@@ -1766,6 +2102,44 @@
+     );
+   }
+ 
++  // ── the sponsored frame. Unmissable by construction: an ink band the buyer
++  // cannot restyle, the window the question was bought for, and the two facts
++  // that put it in front of you — one tap away, on the card, not in a policy.
++  renderPaidFrame(q, collapsed) {
++    const p = q.paid;
++    const open = !!(this.state.paidWhy || {})[q.id];
++    const answered = this.answered(q);
++    const total = (q.options || []).reduce((a, o) => a + (o.count || 0), 0);
++    const strip = { display: 'flex', alignItems: 'center', gap: 10, padding: '8px 15px', background: 'var(--surface-3)', borderBottom: WF_LINE };
++    return (
++      <div style={{ margin: (collapsed ? '-12px -14px' : '-16px -15px') + ' 0', display: 'flex', flexDirection: 'column' }}>
++        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 15px', background: 'var(--ink)', color: 'var(--surface)', borderRadius: '17px 17px 0 0' }}>
++          <span aria-hidden="true" style={{ width: 10, height: 10, borderRadius: 2, background: 'var(--surface)', flexShrink: 0 }}></span>
++          <span style={{ fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 800, letterSpacing: '0.16em', flexShrink: 0 }}>PAID</span>
++          <span aria-hidden="true" style={{ width: 1, height: 13, background: 'color-mix(in oklch, var(--surface) 42%, transparent)', flexShrink: 0 }}></span>
++          <span style={{ fontFamily: 'var(--sans)', fontSize: 13.5, fontWeight: 700, letterSpacing: '-0.01em', minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>asked by {p.buyer}</span>
++        </div>
++        <div style={strip}>
++          <span style={{ flex: 1, minWidth: 0, fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 700, color: 'var(--ink-2)' }}>
++            asked for {p.window}{answered ? ' · ' + wfFmt(total) + ' answers' : ''}
++          </span>
++          <button className="press" onClick={(e) => { e.stopPropagation(); this.setState((s) => ({ paidWhy: { ...(s.paidWhy || {}), [q.id]: !(s.paidWhy || {})[q.id] } })); }}
++            style={{ flexShrink: 0, border: 'none', background: 'none', padding: '2px 0', cursor: 'pointer', WebkitAppearance: 'none', fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 800, color: 'var(--ink)' }}>
++            {open ? 'close' : 'why me?'}
++          </button>
++        </div>
++        {open && (
++          <div style={{ ...strip, display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 5, padding: '2px 15px 11px' }}>
++            {(p.why || []).map((w) => (
++              <span key={w} style={{ fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)' }}>· {w}</span>
++            ))}
++            <span style={{ fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 600, color: 'var(--ink-3)', lineHeight: 1.45, textWrap: 'pretty', paddingTop: 2 }}>{p.buyer} gets {p.gets}.</span>
++          </div>
++        )}
++      </div>
++    );
++  }
++
+   renderCard(q, flags) {
+     const F = flags || {};
+     if (this.state.passed[q.id]) {
+@@ -1817,9 +2191,13 @@
+       </div>
+     );
+     const snap = !compact && !focus;
++    const paid = q.paid || null;
++    // a bought question always wears a frame — never the bare typographic ground,
++    // where a disclosure would have nothing to sit on
++    const kickerNode = paid ? this.renderPaidFrame(q, collapsed) : kicker;
+     // three densities give the scroll a pulse instead of one uniform stack:
+     // duels go full-bleed, text dilemmas sit typographic on the ground, rankings keep the card
+-    const skin = collapsed || focus ? 'card' : q.type === 'duel' ? 'bleed' : (this.opts.v2 || q.type === 'vote') ? 'bare' : 'card';
++    const skin = paid ? 'card' : collapsed || focus ? 'card' : q.type === 'duel' ? 'bleed' : (this.opts.v2 || q.type === 'vote') ? 'bare' : 'card';
+     const card = { background: 'var(--surface-2)', border: mk ? '1px solid color-mix(in oklch, ' + T.color + ' 32%, var(--rule))' : WF_LINE, borderRadius: 18, boxShadow: 'var(--shadow-card)', padding: collapsed ? '12px 14px' : '16px 15px', display: 'flex', flexDirection: 'column', gap: collapsed ? 8 : 12 };
+     // hero cards carry a whisper of their topic hue so the breathing room reads designed, not blank
+     if (!collapsed) { const cbase = skin === 'bleed' ? 'var(--surface-a)' : 'var(--surface-2)'; card.backgroundImage = 'radial-gradient(120% 80% at 50% -25%, ' + window.WPAL.wash(T.color, 11, cbase) + ', ' + cbase + ' 62%)'; }
+@@ -1832,6 +2210,8 @@
+     // where borders and shadows used to, and the topic hue stays in the kicker.
+     if (this.opts.v2 && skin === 'bare') { card.borderTop = WF_LINE; card.padding = '20px 1px 24px'; }
+     if (this.opts.v2 && skin === 'bleed') { card.borderBottom = 'none'; }
++    // paid: no topic wash, a neutral frame, and the band flush to the card's edge
++    if (paid) { card.backgroundImage = 'none'; card.border = '1px solid color-mix(in oklch, var(--ink) 24%, var(--rule))'; card.overflow = 'hidden'; }
+     if (snap) {
+       // content-height cards: an unanswered question gets a comfortable floor so
+       // it has air, an answered one shrinks to its result and lets the next
+@@ -1842,7 +2222,7 @@
+     if (collapsed) {
+       return (
+         <div key={q.id} className={this._io ? 'wf-card' : ''} ref={(el) => { if (el && this._io && !el._wfSeen) { el._wfSeen = 1; this._io.observe(el); } }} role="button" tabIndex={0} onClick={() => this.setState((s) => ({ open: { ...s.open, [q.id]: true } }))} onKeyDown={(e) => { if (e.key === 'Enter') this.setState((s) => ({ open: { ...s.open, [q.id]: true } })); }} style={{ ...card, cursor: 'pointer' }}>
+-          {kicker}
++          {kickerNode}
+           <div style={{ fontFamily: 'var(--sans)', fontWeight: 750, fontSize: 14.5, lineHeight: 1.3, letterSpacing: -0.2, textWrap: 'pretty' }}>{q.prompt}</div>
+           {answered && this.renderThinBar(q, T)}
+         </div>
+@@ -1850,15 +2230,19 @@
+     }
+     return (
+       <div key={q.id} className={this._io ? 'wf-card' : ''} ref={(el) => { if (el && this._io && !el._wfSeen) { el._wfSeen = 1; this._io.observe(el); } }} style={card}>
+-        {kicker}
++        {kickerNode}
+         {snap && !answered && <div aria-hidden="true" style={{ flex: '0.12 1 0' }}></div>}
+         <div style={{ fontFamily: 'var(--sans)', fontWeight: snap || focus ? 800 : 750, fontSize: snap ? (skin === 'bare' ? (this.opts.hier ? 24.5 : 30) : (this.opts.hier ? 22 : 26)) : focus ? 20 : 16.5, lineHeight: snap ? 1.14 : focus ? 1.2 : 1.25, letterSpacing: snap ? (skin === 'bare' ? -0.7 : -0.5) : focus ? -0.4 : -0.25, textWrap: snap || focus ? 'balance' : 'pretty' }}>{q.prompt}</div>
+         {q.type === 'vote' && this.renderVote(q, T, snap)}
+         {q.type === 'duel' && this.renderDuel(q, T, snap)}
+         {q.type === 'rank' && this.renderRank(q, T, snap)}
+         {q.type === 'rate' && this.renderRate(q, T, snap)}
++        {q.type === 'dial' && this.renderDial(q, T, snap)}
++        {q.type === 'field' && this.renderField(q, T, snap)}
+         {q.type === 'know' && this.renderKnow(q, T, snap)}
+         {q.type === 'pick' && this.renderPick(q, T, snap)}
++        {q.type === 'predict' && window.PredictBody && <window.PredictBody q={q} T={T} big={snap} mine={this.state.votes[q.id]} onCall={(v) => this.setCall(q, v)}></window.PredictBody>}
++        {q.type === 'read' && window.ReadBody && <window.ReadBody q={q} T={T} big={snap} mine={this.state.votes[q.id]} onCall={(v) => this.setCall(q, v)}></window.ReadBody>}
+         {!answered && this.opts.pass && (
+           <button className="press" onClick={() => this.setPass(q.id, true)} style={{ alignSelf: 'center', border: 'none', background: 'none', padding: '6px 16px', marginTop: 2, cursor: 'pointer', fontFamily: 'var(--sans)', fontWeight: 500, fontSize: 13, color: 'var(--ink-3)', WebkitAppearance: 'none' }}>skip</button>
+         )}
+@@ -1926,6 +2310,17 @@
+     // sort lenses: hot = the interleaved mix · top = most votes · new = latest first
+     const sort = this.state.sort;
+     const sorted = sort === 'top' ? [...qs].sort((a, b) => wfVotes(b) - wfVotes(a)) : sort === 'new' ? [...qs].reverse() : mixed;
++    // keep one continuum question (dial/field) pinned near the top of hot — the
++    // pin holds after answering, so the card doesn't jump away mid-read
++    if (sort === 'hot') {
++      if (!this._contPin || !sorted.some((q) => q.id === this._contPin)) {
++        const isCont = (q) => q.type === 'dial' || q.type === 'field';
++        const cq = sorted.find((q) => isCont(q) && this.state.votes[q.id] == null) || sorted.find(isCont);
++        this._contPin = cq && cq.id;
++      }
++      const ci = sorted.findIndex((q) => q.id === this._contPin);
++      if (ci > 1) { const [cq] = sorted.splice(ci, 1); sorted.splice(1, 0, cq); }
++    }
+     // weave in the tests' own questions — one marked card every few feed items
+     const tqs = window.TEST_FEED_QS || [];
+     // …and the minor lenses' questions, at a much lower rate than the core tests
+@@ -1951,6 +2346,10 @@
+       sugg = cand[0] || null;
+     }
+     const snap = this.props.density !== 'compact';
++    this._listLen = feedList.length;
++    // the pulses take their turn in the stream like any other question — one
++    // every fourth card, in cadence order, no block and no tray
++    const duePulses = (window.PULSE && window.PulseCard) ? window.PULSE.dueToday() : [];
+     // the clock lands on one question near the top, picked deterministically
+     const closingId = this.opts.clock ? ((feedList.slice(0, 8).find((q) => wfHash(q.id + ':close') < 0.3) || feedList[1] || {}).id) : null;
+     return (
+@@ -1962,7 +2361,7 @@
+           <div className="h-scroll" style={{ display: 'flex', gap: 8, flexWrap: 'nowrap', overflowX: 'auto', flex: 1, minWidth: 0, padding: '2px 0' }}>
+             {/* one chip grammar in this rail: same shape, same size, same weight.
+                 the sort control cycles hot → top → new instead of wearing a caret. */}
+-            <button key="__sort" className="wf-chip" onClick={() => this.setState({ sort: sort === 'hot' ? 'top' : sort === 'top' ? 'new' : 'hot' })} aria-label={'Sort: ' + sort} style={{ display: 'inline-flex', alignItems: 'center', flexShrink: 0, border: '0.5px solid color-mix(in oklch, var(--ink) 22%, var(--rule))', background: 'var(--surface-2)', color: 'var(--ink)', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 12, padding: '5px 11px', borderRadius: 999, cursor: 'pointer', WebkitAppearance: 'none', whiteSpace: 'nowrap' }}>{sort === 'top' ? 'top' : sort === 'new' ? 'new' : 'hot'}</button>
++            <button key="__sort" className="wf-chip" onClick={() => this.setState({ sort: sort === 'hot' ? 'top' : sort === 'top' ? 'new' : 'hot', shown: WF_PAGE })} aria-label={'Sort: ' + sort} style={{ display: 'inline-flex', alignItems: 'center', flexShrink: 0, border: '0.5px solid color-mix(in oklch, var(--ink) 22%, var(--rule))', background: 'var(--surface-2)', color: 'var(--ink)', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 12, padding: '5px 11px', borderRadius: 999, cursor: 'pointer', WebkitAppearance: 'none', whiteSpace: 'nowrap' }}>{sort === 'top' ? 'top' : sort === 'new' ? 'new' : 'hot'}</button>
+             {chips.map((t, ci) => {
+               const on = cats[t.id] !== false;
+               const col = t.color;
+@@ -1983,12 +2382,16 @@
+           </button>
+           </div>
+         </div>
+-        {feedList.map((q, i) => (
++        {feedList.slice(0, this.state.shown).map((q, i) => (
+           <React.Fragment key={q.id}>
++            {i === 0 && window.PathsCard && <window.PathsCard />}
+             {sugg && i === 2 && this.renderSuggestion(sugg, snap)}
++            {i === 1 && this.opts.paid !== false && window.WF_PAID && this.renderCard(window.WF_PAID.today(), {})}
++            {(i + 1) % 4 === 0 && duePulses[(i + 1) / 4 - 1] && <window.PulseCard pid={duePulses[(i + 1) / 4 - 1]} />}
+             {this.renderCard(q, { closing: q.id === closingId })}
+           </React.Fragment>
+         ))}
++        {this.state.shown < feedList.length && <div style={{ height: 260 }} aria-hidden="true" />}
+         {sugg && feedList.length <= 2 && this.renderSuggestion(sugg, snap)}
+         {feedList.length === 0 && <div style={{ fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 600, color: 'var(--ink-3)', textAlign: 'center', padding: '26px 0' }}>Everything is muted — tap a chip to bring it back.</div>}
+         {this.renderSheet()}

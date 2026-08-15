@@ -1,0 +1,10 @@
+--- v18/profile-general.jsx
++++ v28/profile-general.jsx
+@@ -389,6 +389,7 @@
+         <BasicsCard data={data} set={set} />
+         <MapThumbCard />
+         <TestArcsCard onGo={onGo} />
++        {window.TraitWebCard && <window.TraitWebCard />}
+         <LensesRowCard onGo={onGo} />
+         <LogicCard />
+         {typeof window.MirrorFieldBody === 'function' && (
