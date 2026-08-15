@@ -1,56 +1,47 @@
 # The v28 vision — what changed, and what it costs to build
 
-**Status: plan notes, not decisions — except for the three the owner has
-now answered.** Same convention as
-[`NEXT-FUNCTIONALITY.md`](NEXT-FUNCTIONALITY.md): when an item here is
-picked up it graduates to a real record in [`DECISIONS.md`](DECISIONS.md);
-until then these are starting constraints, not approval. Where a verdict
-says *build*, that is this document's recommendation and the owner's
-adoption is the gate.
-
-**[D161](DECISIONS.md#d161--the-third-tab-is-adopted-on-trial-the-arena-is-dropped-the-pulse-roster-is-approved)
-(2026-08-15) answered the three questions this document opened with**, and
-the sections below carry the answers inline:
-
-- **Three tabs — adopted ON TRIAL** (§1). Build it as though it ships,
-  keep the reversal cheap. The trial clause is in D161 §1, including what
-  would end it.
-- **The Arena — dropped for now** (§12). The file stays as the record; the
-  question is closed.
-- **The pulse roster — approved, all five** (§3). Sleep and energy ship.
-  One build step rides with it (the store-forms Health row).
-
-**[D163](DECISIONS.md#d163--born-or-built-is-refused-the-app-does-not-assert-facts-it-cannot-recompute)
-then refused Born-or-built** (§9) — population science, not this app's
-data. It was the last item waiting on an owner call, so **this plan now
-has no open owner decisions**: everything left is engineering.
-
-**[D162](DECISIONS.md#d162--every-v28-surface-ships-with-its-backend-or-it-does-not-ship)
-adds the rule the rest of this document is now written under:** *"things
-are built out in the back as well, no use of sample data"*. An item is not
-done when its UI renders — it is done when its UI renders **real data in a
-live build**. Nothing here ships demo-only behind a Preview tag.
-
-This is a smaller change to the plan than it sounds, because the tree
-already refuses to fabricate in live mode (~20 cases in
-`smoke-live.test.jsx` pin it). The failure mode D162 targets is the other
-one: a screen that draws an honest *"not measured yet"* forever. Each
-section below now names its **backend half**, and §13 is the summary.
-
-Everything else here is still a recommendation.
+**Status: plan notes for what to build; the owner's calls are recorded as
+decisions.** Same convention as
+[`NEXT-FUNCTIONALITY.md`](NEXT-FUNCTIONALITY.md): an item picked up
+graduates to a real record in [`DECISIONS.md`](DECISIONS.md), and until
+then a *build* verdict here is this document's recommendation, not
+approval. **Five items have now graduated** (D161–D163), so the remaining
+verdicts are the only ones still awaiting adoption.
 
 The source is the maintainer's `InSight_standalone_28.html`, extracted to
 [`design/standalone-v28/`](../design/standalone-v28/) — that directory's
-README is the inventory (every module, every patch, how the extraction
-was done). This file is the plan.
+README is the inventory (every module, every patch, how the extraction was
+done). This file is the plan.
+
+## What has been decided
+
+| Record | Item | Answer |
+| --- | --- | --- |
+| **[D161](DECISIONS.md#d161--the-third-tab-is-adopted-on-trial-the-arena-is-dropped-the-pulse-roster-is-approved) §1** | Three tabs (§1) | **Adopted ON TRIAL.** Build as though it ships, keep the reversal cheap. D161 records what would end the trial. |
+| **D161 §2** | The Arena (§12) | **Dropped for now.** The file stays as the record. |
+| **D161 §3** | The pulse roster (§3) | **Approved, all five** — sleep and energy included. One build step rides with it (the store-forms Health row). |
+| **[D162](DECISIONS.md#d162--every-v28-surface-ships-with-its-backend-or-it-does-not-ship)** | *every* item | **Ships with its backend or not at all.** Done means real data in a live build, never demo-only behind a Preview tag. |
+| **[D163](DECISIONS.md#d163--born-or-built-is-refused-the-app-does-not-assert-facts-it-cannot-recompute)** | Born or built (§9) | **Refused** — population science, not this app's data. |
+
+**No owner decisions are left open.** Everything remaining is engineering,
+sequenced in §11.
+
+D162 is the one that re-shaped the rest of this document, so each section
+now names its **backend half** and §13 is the summary. It is a smaller
+change than it sounds: the tree already refuses to fabricate in live mode
+(~20 cases in `smoke-live.test.jsx` pin it), so the failure mode D162
+targets is the other one — a screen that draws an honest *"not measured
+yet"* forever because nothing was ever built behind it.
+
+## What was measured
 
 **Everything below was checked against the tree, not assumed.** Roughly
 half of what reads as "new" in v28 is already shipped — the feed's
 windowing, the dial/field forms and their breakdowns, the redrawn compare
 rose, Near's anonymity and its switch, the deviation view in Explore, the
 suggestion board's decline states. Those are struck out in §0 and not
-planned again. What is left is smaller than the diff suggested and lands
-in three groups, which is the useful shape of this document.
+planned again, which is the single most useful thing this document does:
+what is actually left is much smaller than the diff suggested.
 
 ## 0 · The short version
 
