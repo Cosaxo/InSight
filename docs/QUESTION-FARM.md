@@ -248,6 +248,21 @@ style guide. What its voice looks like:
   good?" is dead on arrival. But do not optimize for outrage — divisive
   bait is the engagement loop this product deliberately refuses. When in
   doubt, warmer and stranger beats hotter.
+- **Named people are question material** (owner direction, 2026-08-15:
+  "the questions should not be afraid to use the names of famous or
+  historical persons"). The seed bank's own opener is the precedent —
+  "Messi or Ronaldo?" is `daily-000` — and a name is concrete in exactly
+  the way the first rule asks for; half of culture's best either/ors are
+  people. This applies to every writing lane: dailies, feed, learn
+  distractors, catalog card prompts. The lines that were already rules
+  still hold and do the guarding: the subject is the public figure in
+  their public work (the game, the music, the reign — never their body,
+  family, or private life), warmth outranks evenness (a dinner-with-
+  Napoleon question is warm; a sneer at a living person is bait, however
+  well it would split), and a person who IS a live political fault line
+  gets D52's `political: true` on the feed or a different question on
+  the daily. Being ABOUT a person is not a risk to write around; being
+  MEAN about one is.
 
 **Dedup is part of writing, not a later pass.** A new question must not
 restate an existing one in different clothes — check the whole `Q` array
