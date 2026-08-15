@@ -81,41 +81,67 @@ construction rather than by someone catching mistakes at the end.
 
 The filter is not "is this interesting" but **"can this be executed"**.
 
-### The tiers
+### The rule, as the owner set it (2026-08-13)
 
-| Tier | Truth comes from | Grading is | Admitted |
-| --- | --- | --- | --- |
-| **A · self-resolving** | the app's own published aggregate | arithmetic | **yes** |
-| **B · machine-readable source** | a named endpoint with a stable schema | fetch + compare | **yes** |
-| **C · prose source** | a page whose text must be interpreted | judgement | no |
-| **D · general knowledge** | the model's memory | nothing | never |
+> *"Take things that are very easy to verify — sport, TV show winners,
+> world events like elections. Then a routine goes through and verifies
+> them, and if it comes down to unverifiable, the question gets that
+> status."*
 
-C and D are where every failure mode in §9 lives. Excluding them at
-authoring is what makes the rest of this document short.
+Three parts, and the first does most of the work.
 
-### Tier A — the strongest, and the one to ship first
+**1 · Admit only unambiguous-outcome questions.** Not "interesting", not
+"topical" — **settled by a fact that everyone reporting it agrees on**.
+Who won. Who was elected. Which show took the award. These share a
+property that is worth naming because it is the property being selected
+for: the outcome is a matter of public record within hours, reported
+identically by every source, and nobody argues about what happened.
 
-A call on the app's **own future data**:
+That excludes, by construction, the whole class this design was worried
+about — "will the economy improve", "will AI change everything", anything
+needing a threshold nobody agreed in advance. **Question selection is the
+safety mechanism**, and it is far stronger than any amount of care at
+grading time.
 
-> *"Tomorrow's question: will more than 60% pick one option?"*
-> *"Will 25-34 and 55+ disagree on tomorrow's question?"*
+| Admitted | Refused |
+| --- | --- |
+| Who won the league / the election / the award | Whether it was deserved |
+| Which of these two took more box office | Whether the film was good |
+| Whether a named person held office on a date | Whether they did well |
+| The app's own aggregate crossing a stated threshold | Anything needing a judgement call |
 
-Unknown when you answer, settled by the aggregate a day later, graded by
-arithmetic over documents the player can open. **No external source, no
-network, no operator, no LLM anywhere in the grading path** — and it
-inherits the property that makes every other number in this app
-defensible: the reader can recompute it.
+**2 · A routine verifies, on a schedule.** Not a one-shot at
+`resolvesAt`: it wakes, works through the open calls, and resolves the
+ones it can. That matters because "the result is knowable" and "the
+result is published where the routine looks" are different days for a
+surprising number of events.
 
-It is a different card from the prototype's sport-and-tech calls, and it
-is the only kind that is verifiable end to end. Ship this first, alone,
-and the feature is real with nothing outstanding.
+**3 · UNVERIFIABLE is a status the question carries**, not a failure of
+the run. This is the owner's refinement of the void-only design below and
+it is better: a question that cannot be settled today is *marked*, stays
+marked, and is retried — rather than being destroyed on first difficulty
+or, worse, guessed at to avoid the awkward state.
 
-### Tier B — real events, still mechanical
+### The one place I would push back
 
-Admitted only when the rubric names a **machine-readable** source: an
-endpoint, a path into the response, and the mapping from value to option.
-Sports tables, election results, chart positions, box office. The model
-writes the rubric; it does not judge the outcome.
+"Easy for a human to verify" and "safe for a machine to auto-resolve" are
+not the same property, and the gap is not ambiguity — it is **confident
+error**. A model asked who won a 2027 election will produce a plausible
+name whether or not it knows, and the answer will not look uncertain.
+Selecting unambiguous questions removes the *ambiguity* risk entirely and
+does nothing about that one.
+
+So the category rule needs one mechanical companion, and only one:
+
+> **Two independent sources must agree, and both are stored with the
+> outcome.**
+
+Not a confidence score (a model's confidence in a fabrication is high),
+not a human reading every one (that was the first draft, and it does not
+scale past a handful). Agreement between sources fetched separately is
+the cheapest check that a *fabrication* cannot pass, because a made-up
+winner will not be corroborated. Disagreement is not a tie-break to
+resolve — it is exactly what `unverifiable` is for.
 
 ### The rubric is executable data, not prose
 
@@ -182,7 +208,10 @@ operational state inside content the seed believes it owns, and the two
 would fight on every reseed.
 
 ```
-outcomeIdx : number      the winning option, or -1 for VOID
+status     : "resolved" | "unverifiable" | "void"   §7
+outcomeIdx : number      the winning option; absent unless resolved
+sources    : array       the TWO agreeing sources, stored (§3)
+attempts   : number      verification passes so far, for RETRY_LIMIT
 resolvedAt : Timestamp
 resolvedBy : "auto" | <uid of the human who resolved an exception>
 inputs     : map         WHAT THE GRADER SAW — the aggregate snapshot
@@ -226,7 +255,7 @@ the rubric, not just the prose. Everything else — `check:quality`,
 provenance, the append-only discipline, the no-place-scoped-civic rule —
 applies unchanged.
 
-### Resolution — mechanical, with the human on the exceptions
+### Resolution — a routine, on a schedule
 
 Because §3 admits only executable rubrics, resolution is not a judgement
 call:
@@ -235,14 +264,16 @@ call:
 2. It **executes the rubric** — arithmetic for tier A, one fetch and a
    comparison for tier B. Never a recollection.
 3. Clean result → it writes the outcome with the inputs it used.
-4. Anything else — endpoint down, path missing, value not in `map`,
-   tier A aggregate still empty — is **not** guessed. It retries, and
-   after a bounded number of attempts raises the call for a human, who
-   resolves it by hand or voids it.
+4. Anything else — sources disagree, the result is not published where
+   it looks, the aggregate is still empty — is **not** guessed. The call
+   is marked `unverifiable` (§7), the card says so, and the next run
+   tries again. After `RETRY_LIMIT` passes it voids.
 
-The human is on the **exceptions**, not on every row. That is only
-defensible because C and D never entered the bank; if they had, every row
-would be an exception wearing a clean-result costume.
+No human is in the resolve path. That is only defensible because of the
+category rule in §3 — the questions admitted have outcomes nobody
+disputes — plus the two-source check that a fabrication cannot pass. A
+human is needed only to review the QUESTION at authoring, and to void a
+call that has sat unverifiable long enough to be hopeless.
 
 **What still gets published either way:** the inputs the grader used —
 the aggregate snapshot for tier A, the URL, the raw fetched value and the
@@ -270,23 +301,39 @@ the assertion, the same posture as D98's whole model and D126's frozen
 published aggregate, so a player can recompute the grade rather than
 merely inspect it.
 
-## 7 · VOID is a first-class outcome
+## 7 · The status lifecycle — unverifiable, then void
 
-`outcomeIdx: -1` means the call is void: nobody is scored, and the card
-says why.
+A call is in exactly one of four states, and the middle two are the
+owner's contribution to this design:
 
-This is not an error path, it is a requirement. **An unresolved call is
-worse than a missing feature** — it takes the player's guess and never
-comes back. Voiding must be available for:
+```
+open ──► resolved            outcome known, two sources agreed
+  │
+  └────► unverifiable ──┬──► resolved   a later run settled it
+                        └──► void       after RETRY_LIMIT, or on request
+```
 
-- the event was cancelled or postponed past any useful window;
-- the rubric turned out to be ambiguous once reality arrived;
-- the named source stopped publishing, or contradicts itself;
-- the question was badly written and nobody noticed until grading.
+**`unverifiable` is a status, not an error.** The routine sets it when it
+cannot settle a call — the event slipped, the sources disagree, the
+result is not published where it looks — and the card SAYS SO: *"we
+couldn't verify this one yet."* Nobody is scored while it holds.
 
-The last one matters most. A void is the honest outcome for *our* mistake,
-and making it easy is what stops a reviewer reaching for a plausible
-answer instead.
+Why this is better than the void-only design it replaces: a single
+verification run failing is not evidence that a question is bad, and a
+design whose only options are *resolve* and *destroy* pressures the run
+toward resolving — which is the exact failure mode §3's second paragraph
+is guarding against. Giving the awkward case a name it can rest in
+removes the pressure.
+
+**`void` remains, as the end of that road, not the first response.** It
+is correct for: the event was cancelled outright; the question turned out
+to be badly written; `RETRY_LIMIT` verification passes have all come back
+unverifiable. A void scores nobody and says why.
+
+The one rule that makes the whole lifecycle honest: **an unresolved call
+must never quietly disappear.** It takes the player's guess, so it owes
+them an answer or an explanation. A card stuck on `unverifiable` is
+showing an explanation; a card that vanished is not.
 
 ## 8 · No new seal
 

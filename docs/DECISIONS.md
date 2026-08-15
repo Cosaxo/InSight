@@ -3083,6 +3083,41 @@ leaked moderator credential cannot seed content or trigger reveals. Both
 went live in fail-safe order: the callables deployed first with the
 allowlist empty, denying everyone, and the uid was added by a second deploy.
 
+### Amended 2026-08-13 — the owner's category rule, and a status
+
+Two changes, both from the owner and both improvements on what this
+decision shipped with.
+
+**The admission rule is a CATEGORY rule, not a plumbing rule.** Admit
+only questions whose outcome nobody disputes — who won the league, who
+was elected, which show took the award — facts that are public record
+within hours and reported identically everywhere. That excludes the
+entire dangerous class ("will the economy improve") by construction, and
+it is a far stronger filter than care at grading time. **Question
+selection is the safety mechanism.**
+
+The one thing it does not cover, and the one mechanical companion kept:
+*easy for a human to verify* and *safe for a machine to auto-resolve* are
+different properties, and the gap is not ambiguity but **confident
+error** — a model asked who won a future election will produce a
+plausible name whether or not it knows. So: **two independent sources
+must agree, and both are stored with the outcome.** Not a confidence
+score, which a fabrication also scores highly on; agreement is the
+cheapest check a made-up winner cannot pass.
+
+**UNVERIFIABLE is a status the question carries**, replacing the
+void-only outcome this decision shipped with. A call that cannot be
+settled today is marked, says so on the card, scores nobody, and is
+retried; `void` becomes the end of that road rather than the first
+response. The reason it is better: a design whose only options are
+*resolve* and *destroy* pressures the run toward resolving, which is
+precisely the failure the rest of this decision guards against. Giving
+the awkward case a name it can rest in removes the pressure.
+
+The governing rule underneath both: **an unresolved call must never
+quietly disappear.** It has taken the player's guess, so it owes them an
+answer or an explanation.
+
 ### The residual, stated rather than papered over
 
 These five are protected by **possession of an allowlisted account** and
