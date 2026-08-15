@@ -45,6 +45,12 @@ export const LIVE_MEMBERS = [
   // Kept as separate members so neither can quietly start serving the
   // other's question again (fetchFriendVoters has the full argument).
   "loadFriendVoters", "friendVoters", "friendVotersLoading",
+  // Circle's answers, split off from the member list because they are a
+  // separate read with a separate cost: the list is one profile per
+  // member, these are up to CIRCLE_ANSWER_CAP each and only the "where
+  // your circle splits" section wants them. Deferred to the tap that
+  // asks, the way every Mirror tab body already is.
+  "loadCircleAnswers", "circleAnswers", "circleAnswersLoaded", "circleAnswersLoading",
   // The same cached list joined to the parsed cross-user scores D112
   // already fetched — the input to the who-voted sheet's type cut
   // (data/typeSplit.ts). Listed here rather than reached for directly:

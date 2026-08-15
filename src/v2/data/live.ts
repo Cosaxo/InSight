@@ -110,7 +110,7 @@ import { fetchFriendVoters, fetchVoters, groupByOption, resolveNames, sortVoters
 // catch. Every call site is already async and already awaits getDb(), so
 // the dynamic import costs no round trip that was not happening anyway.
 import type { Invite } from "./invites";
-import { type KindredPerson, type ParsedResults } from "./similarity";
+import { CORE_TEST_KINDS, parseTestResults, type KindredPerson, type ParsedResults } from "./similarity";
 // Pure folds over the published breakdown, and the likeness metric behind
 // Kindred. No Firebase in there — this module supplies the documents.
 import { agreement, type Agreement } from "./cohort";
@@ -316,6 +316,12 @@ const state = {
   // different things for those two.
   circle: null as CircleMember[] | null,
   circleLoading: false,
+  // The deferred half. Separate from `circle` because they are two reads
+  // with two costs: the member list is one profile each, the answers are
+  // up to CIRCLE_ANSWER_CAP each and only the splits section wants them.
+  circleAnswers: {} as Record<string, Record<string, number>>,
+  circleAnswersLoaded: false,
+  circleAnswersLoading: false,
   // The same graph, one query deep (D149). `circle` above is the FOLD —
   // every followed account's answers, one query per member — and it is the
   // right cost for the Circle stop and much too much for a chip on a
@@ -2200,22 +2206,22 @@ const LIVE = {
     notify();
     try {
       const [db, circleMod] = await Promise.all([getDb(), import("./circle")]);
-      const mine: Record<string, number> = {};
-      for (const [qid, opt] of Object.entries(state.votes)) {
-        if (qid.startsWith("g_")) continue;
-        const n = Number(opt);
-        if (Number.isFinite(n)) mine[qid] = n;
-      }
-      const members = await circleMod.loadCircle(db, me, mine, (u) => state.names[u] || "");
-      // Names for anyone the shared cache did not already hold. Batched,
-      // and after the fold rather than before it — the likeness is
-      // computed from answers and does not wait on a display name.
-      const missing = members.filter((m) => !m.name).map((m) => m.uid);
-      if (missing.length) {
-        await this.loadNames(missing);
-        for (const m of members) m.name = state.names[m.uid] || "";
-      }
+      // One profile read per member fills BOTH caches (D112), so the
+      // ranking rides the lookup the names needed anyway — there is no
+      // separate loadNames pass any more, because resolveNames inside
+      // loadCircle is that pass.
+      const members = await circleMod.loadCircle(
+        db, me,
+        parseTestResults(this.myTestResults(), CORE_TEST_KINDS),
+        state.names, state.scores,
+      );
+      saveProfileCache();
       state.circle = members;
+      // The answers are a separate load now (loadCircleAnswers): the
+      // splits section asks for them, nothing else needs them, and they
+      // were ~300 reads per member paid on arrival.
+      state.circleAnswers = {};
+      state.circleAnswersLoaded = false;
       // The fold already knows the membership, so the cheap view rides
       // along for free — a Friends chip opened after the Circle stop pays
       // no read at all.
@@ -2230,6 +2236,59 @@ const LIVE = {
       state.circleLoading = false;
       notify();
     }
+  },
+  /**
+   * The members' answers — the splits section's read, on the tap that
+   * asks for it.
+   *
+   * This is the read that used to make Circle the most expensive stop in
+   * the app: one query per member, up to CIRCLE_ANSWER_CAP answers each,
+   * paid on arrival. The ranking stopped needing it (score profiles ride
+   * the name lookup), so what is left is the one consumer that genuinely
+   * does — ranking questions by how much the circle disagrees means
+   * folding every member's answer to every candidate question, and no
+   * cheaper query answers that.
+   *
+   * Also fills `like`, which is why a member sharing no completed
+   * instrument with you has a likeness at all once this has run.
+   */
+  async loadCircleAnswers(): Promise<void> {
+    if (!this.enabled || state.circleAnswersLoading || state.circleAnswersLoaded) return;
+    const members = state.circle;
+    if (!members || !members.length) return;
+    state.circleAnswersLoading = true;
+    notify();
+    try {
+      const [db, circleMod] = await Promise.all([getDb(), import("./circle")]);
+      const mine: Record<string, number> = {};
+      for (const [qid, opt] of Object.entries(state.votes)) {
+        if (qid.startsWith("g_")) continue;
+        const n = Number(opt);
+        if (Number.isFinite(n)) mine[qid] = n;
+      }
+      const { answers, ranked } = await circleMod.loadCircleAnswers(db, members, mine);
+      state.circleAnswers = answers;
+      state.circle = ranked;
+      state.circleAnswersLoaded = true;
+    } catch (err) {
+      // Left UNLOADED so the section can offer the tap again. Unlike the
+      // member list there is no "could not ask" rendering to fall back
+      // on — the splits are an addition to a stop that already drew.
+      reportError(err, { where: "loadCircleAnswers" });
+    } finally {
+      state.circleAnswersLoading = false;
+      notify();
+    }
+  },
+  /** uid → (qid → optionIdx). Empty until loadCircleAnswers has run. */
+  circleAnswers(): Record<string, Record<string, number>> {
+    return state.circleAnswers;
+  },
+  circleAnswersLoaded(): boolean {
+    return state.circleAnswersLoaded;
+  },
+  circleAnswersLoading(): boolean {
+    return state.circleAnswersLoading;
   },
   /** The circle, or null while unfetched or failed. */
   circle(): CircleMember[] | null {
@@ -3254,6 +3313,9 @@ function resetForNewUid(uid: string): void {
   state.testAggsLoaded = false;
   state.circle = null;
   state.circleLoading = false;
+  state.circleAnswers = {};
+  state.circleAnswersLoaded = false;
+  state.circleAnswersLoading = false;
   // A verdict is about the PREVIOUS account's reads, and the log is
   // keyed by slice rather than by uid, so leaving it would credit the
   // new account with someone else's record.

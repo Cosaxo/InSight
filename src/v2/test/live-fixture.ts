@@ -275,10 +275,20 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
       {
         uid: "u_other", name: "Ada", mutual: true,
         like: { shared: 2, same: 1, pct: 50 },
-        answers: { "daily-000": 1, "daily-001": 0 },
+        // Scored, so the mount walks the PRIMARY basis rather than only
+        // the fallback — the member row prints "across 1 test · 78%" here
+        // and would print "1/2 the same · 50%" for a member with none.
+        score: { match: 78, axes: 5, tests: 1 },
       },
     ],
     circleLoading: () => false,
+    // Answers already loaded in the fixture, so the mount reaches the
+    // splits section rather than stopping at its cost gate. The gated
+    // state is the DEFAULT in the app and has its own case.
+    loadCircleAnswers: async () => {},
+    circleAnswers: () => ({ u_other: { "daily-000": 1, "daily-001": 0 } }),
+    circleAnswersLoaded: () => true,
+    circleAnswersLoading: () => false,
     isFollowing: (u: string) => u === "u_other",
     setFollowing: async () => {},
     // The follow SET (D149) — the same graph the fold above describes, so
