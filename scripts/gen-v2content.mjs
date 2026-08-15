@@ -261,6 +261,21 @@ export function buildEntries(content = loadContent()) {
       // remains the hard, server-enforced kill; answers and aggregates
       // persist either way (the archive is the product).
       ...(typeof q.until === "string" ? { until: q.until } : {}),
+      // Core/tail (docs/SCALE-PLAN.md §1). `core: true` means the question
+      // is served to EVERYONE, unpersonalized, and is therefore part of the
+      // corpus the Mirror's cohort readings may fold over. Emit-when-set
+      // like the flags above, and the polarity is deliberate: ABSENT MEANS
+      // TAIL, so a question that forgets the flag is under-included in a
+      // reading rather than silently enlarging the Mirror's corpus. Thin
+      // is survivable; a split quietly drawn from a self-selected audience
+      // is not, which is the whole argument of SCALE-PLAN §1.
+      //
+      // Feed-only on purpose. Every other surface is core BY CONSTRUCTION
+      // — the daily is one globally shared question, test items are what
+      // Scores and the similarity fields are computed from, duels are
+      // group-scoped and never world aggregates — so none of them carries
+      // the key and none of them should be read through it.
+      ...(q.core === true ? { core: true } : {}),
       // A path's story — the tree the card walks and the endings it names.
       // Emit-when-set for the same reason as the continuum copy above: no
       // other feed entry carries them, and writing them as null would
@@ -451,13 +466,16 @@ const HEADER =
   "// `active`/`political` are optional and emitted only when set: absent means\n" +
   "// active (deck.ts filters `active !== false`) and sliceable (v2.ts's D44\n" +
   "// predicate checks `political === true` alongside `test === \"political\"`).\n" +
+  "// `core` is feed-only (docs/SCALE-PLAN.md §1) and absent means TAIL — a\n" +
+  "// question is in the Mirror's corpus only if it says so. Other surfaces do\n" +
+  "// not carry the key because they are core by construction.\n" +
   "// `branch`/`sub` are the daily bank's [branch, sub-branch] subject path\n" +
   "// (D100) and are absent on every other surface, which carries no path.\n" +
   "// `lo`/`hi`/`unit`/`ends` (dial) and `ax`/`ay` (field) are the continuum\n" +
   "// forms' range/plane copy (D114), absent everywhere else; their options\n" +
   "// are synthesized bucket/cell labels, so the D52 option freeze freezes\n" +
   "// the range with them.\n" +
-  "export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; branch?: string; sub?: string; axis: string | null; test: string | null; mode?: string; active?: boolean; political?: boolean; until?: string; lo?: number; hi?: number; unit?: string; ends?: string[]; ax?: string[]; ay?: string[]; title?: string; intro?: string; hue?: number; nodes?: Record<string, { q: string; a: Array<{ t: string }> }>; endings?: Record<string, { name: string; line: string }>; }\n" +
+  "export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; branch?: string; sub?: string; axis: string | null; test: string | null; mode?: string; active?: boolean; political?: boolean; core?: boolean; until?: string; lo?: number; hi?: number; unit?: string; ends?: string[]; ax?: string[]; ay?: string[]; title?: string; intro?: string; hue?: number; nodes?: Record<string, { q: string; a: Array<{ t: string }> }>; endings?: Record<string, { name: string; line: string }>; }\n" +
   "export const V2_QUESTIONS: V2SeedQuestion[] = ";
 
 export function generate(content = loadContent()) {

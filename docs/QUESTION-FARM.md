@@ -98,6 +98,56 @@ throughput** — the cap only binds during catch-up. D33's constraint
 AI PRs is inventory, not progress") is unchanged; the regulator is that
 sentence as arithmetic, which is what makes the bigger cap safe.
 
+### The review contract (D162) — what a reviewing run must do
+
+**Built 2026-08-15: the verdict is now a required field, not a habit.**
+Every farm and community row in `content/provenance.json` carries
+`review: { by: "ai" | "human", at, audited? }`, `check:quality` refuses a
+bank entry without one, and `npm run promote` refuses to write one
+without `--review`. Editorial rows carry none — editorial IS the human.
+
+What a reviewing run judges is exactly the residue
+`question-quality.mjs` says it cannot measure, and nothing else:
+
+1. **Warmth vs outrage.** The product's voice, not engagement bait.
+2. **Semantic near-dupes.** `check:neighbors` owns the lexical half; this
+   is the half where two different sentences ask one question.
+3. **Hard rule 6 paraphrases.** The place-civic tripwire catches the
+   obvious form and says so; "the fjord city" is the reviewer's job.
+4. **Does it split, or does it slide?** A best guess only — the scorecard
+   *measures* this once the question is live, and the measurement wins.
+   Do not reject on a predicted landslide alone; flag it and let the
+   retirement lane settle it.
+
+**Two rules that are not about quality, and are the reason a human is
+still here at all:**
+
+- **You are reviewing your own species' output.** A reviewing run shares
+  the generator's tilt, so it is the least likely thing to notice a
+  systematic one. This is why `--audited` exists: a person reads
+  1-in-`AUDIT_ONE_IN` and the gate holds the cumulative rate. Name the
+  audited ids; never claim a count.
+- **Never merge.** Hard rule 1 is unchanged and this section does not
+  touch it. An AI review moves the human from *reading every candidate*
+  to *approving a batch*; it does not remove the human from the merge,
+  because the two-gate design exists so a scheduled job never holds write
+  access to production content.
+
+**Reshaped, not retired, 2026-08-15** ([`SCALE-PLAN.md`](SCALE-PLAN.md)
+§3). The owner has decided review is an AI job. The sentence survives
+intact — it is about capacity, not about who — and what changes is the
+human's unit of work: from *read every candidate* to *approve a batch and
+audit a sample*, with "does this split or slide" measured after the fact
+from published aggregates rather than predicted in review. Two things do
+not dissolve and are the reason a human stays in the loop at all:
+correlated blind spots (an AI reviewer shares the generator's tilt, so
+the audit sample is the check), and blast radius (the two-gate design
+exists so a scheduled job never holds write access to production content
+— hence the human on the merge, not on the reading). The regulator keeps
+its shape; the throughput it throttles to is simply a larger number.
+Building it graduates to a DECISIONS.md record — **taken as D162**
+(2026-08-15).
+
 Allocation of whatever the budget grants runs through three lanes in
 strict priority order (maintainer's direction, 2026-07-30, sharpened
 same day: once signals exist, the demand-driven lanes take the *whole*
@@ -926,7 +976,13 @@ noticed a gap was indistinguishable from one that noticed and forgot.
   model in "Picking topics" is its landing site.
 - **Skip/pass telemetry.** A pass is deliberately local-only on-device;
   collecting it server-side would be a real privacy decision, not a
-  tweak. The farm must never depend on it.
+  tweak. The farm must never depend on it. **Still true after
+  2026-08-15's interest-model decision, and worth being explicit because
+  it looks like a reversal and is not**
+  ([`SCALE-PLAN.md`](SCALE-PLAN.md) §4): the model READS
+  `insight.feedPass.v1` where it already sits and never sends it. Reading
+  local state on the device that wrote it is not collection; the farm's
+  view is still the public aggregates and nothing else.
 
 ## Future directions, recorded early (notes, not designs)
 
@@ -960,6 +1016,17 @@ InSight-native way to do that is the inverse of ad-tech targeting:
 - **The line not to cross:** server-side per-user content selection. The
   moment the server picks *your* feed from *your* answers, a behavioral
   profile exists and the privacy claim is dead regardless of intentions.
+
+*Picked up 2026-08-15 as the tail's selection mechanism
+([`SCALE-PLAN.md`](SCALE-PLAN.md) §1 and §4). The owner has decided the
+app should learn what a person is into, and this design is how: an
+on-device interest model, built from state the device already writes,
+ordering an unbounded tail. The line above is unchanged and is exactly
+what that model obeys — selection on the device, nothing uploaded, no
+server-side per-user pick. What SCALE-PLAN adds is the constraint this
+note could not see: interest-selected serving biases the sample the
+Mirror folds, so the Mirror reads a **core** corpus served to everyone
+and never the tail.*
 
 ### Sponsored questions (separated, with bounded priority)
 

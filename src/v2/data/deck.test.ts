@@ -15,6 +15,7 @@ import {
   duelQFor,
   gHash,
   hasPublishedCounts,
+  isCore,
   OPTION_COLORS,
   utcDayIndex,
 } from "./deck";
@@ -124,6 +125,9 @@ describe("buildS", () => {
       live: true,
       noCountsYet: false,
       test: "big5",
+      // Resolved by isCore at build time (D161): this fixture is not a
+      // feed question, so it is core by construction.
+      coreCorpus: true,
       // D100's bank fields, carried through so the Mirror can group by
       // subject and tell an ordinal question from a categorical one.
       // Undefined here because `qd` builds a pre-D100 doc — which is also
@@ -454,5 +458,34 @@ describe("retiring a served question must not re-map the pager", () => {
     const today = DECK_EPOCH + 30;
     const before = computeDeckIds(ids, today);
     expect(computeDeckIds([...ids, "daily-090"], today)).toEqual(before);
+  });
+});
+
+// ── isCore: which questions a cohort reading may fold (D161) ──
+//
+// The asymmetry is the whole point and it is easy to get backwards: feed
+// questions opt IN, every other surface is core by construction. A reader
+// that tested `q.core` directly would empty the Mirror instead of
+// filtering it, which is why the predicate exists at all.
+describe("isCore", () => {
+  it("takes a feed question only when it declares core", () => {
+    expect(isCore({ surface: "feed", core: true })).toBe(true);
+    expect(isCore({ surface: "feed", core: false })).toBe(false);
+    // Absent means TAIL — a question joins the corpus by saying so.
+    expect(isCore({ surface: "feed" })).toBe(false);
+  });
+
+  it("takes every other surface by construction, flag or no flag", () => {
+    for (const surface of ["daily", "test", "group", "duo", "learn", "pulse"]) {
+      expect(isCore({ surface })).toBe(true);
+    }
+  });
+
+  it("does not let a stray core:false demote a surface that has no tail", () => {
+    // Defensive rather than hypothetical: the seed emits `core` on feed
+    // entries only, so a false on any other surface is corrupt data, and
+    // dropping the daily out of every cohort reading would be a far worse
+    // failure than honouring a flag that should not be there.
+    expect(isCore({ surface: "daily", core: false })).toBe(true);
   });
 });

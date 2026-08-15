@@ -20,10 +20,11 @@
 // budget (a sliding window over prior writes), and the sold-inventory
 // tripwire below.
 
-import { getFirestore, FieldValue } from "firebase-admin/firestore";
+import { FieldValue } from "firebase-admin/firestore";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions";
 import { assertOperator, ENFORCE_APP_CHECK, LIGHT_CALLABLE } from "./ops";
+import { db as firestore } from "./db";
 
 const REGION = "us-central1";
 
@@ -149,7 +150,7 @@ export function validateSuggestion(data: unknown): { ok: SuggestionPayload } | {
 // check. expireAt is double the window so Firestore TTL can sweep idle
 // ledgers; deleteAccount removes it by exact id with the other ledgers.
 async function assertSuggestBudget(uid: string): Promise<void> {
-  const db = getFirestore();
+  const db = firestore();
   const ref = db.collection("v2_ratelimits").doc(`suggest_${uid}`);
   await db.runTransaction(async (tx) => {
     const snap = await tx.get(ref);
@@ -189,7 +190,7 @@ export const suggestQuestionV2 = onCall(
       );
     }
     await assertSuggestBudget(uid);
-    const db = getFirestore();
+    const db = firestore();
     // uid-prefixed id so an operator eyeballing the collection sees whose
     // rows are whose without opening them; create() (not set) so an id
     // collision fails loudly instead of overwriting a row.
@@ -217,7 +218,7 @@ export const fetchSuggestionsV2 = onCall(
   { ...LIGHT_CALLABLE, region: REGION },
   async (request) => {
     assertOperator(request);
-    const db = getFirestore();
+    const db = firestore();
     // Oldest first: review is a queue, not a feed, and the row that has
     // waited longest is owed the next read. Composite index
     // (status ASC, at ASC) in firestore.indexes.json.
@@ -257,7 +258,7 @@ export const reviewSuggestionV2 = onCall(
     if (verdict !== "picked" && verdict !== "declined") {
       throw new HttpsError("invalid-argument", "verdict must be picked or declined");
     }
-    const db = getFirestore();
+    const db = firestore();
     await db.runTransaction(async (tx) => {
       const ref = db.collection("v2_suggestions").doc(id);
       const snap = await tx.get(ref);

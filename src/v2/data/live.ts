@@ -62,6 +62,7 @@ let orderBy!: FsApi["orderBy"];
 let query!: FsApi["query"];
 let serverTimestamp!: FsApi["serverTimestamp"];
 let setDoc!: FsApi["setDoc"];
+let startAfter!: FsApi["startAfter"];
 let terminate!: FsApi["terminate"];
 let Timestamp!: FsApi["Timestamp"];
 let updateDoc!: FsApi["updateDoc"];
@@ -89,7 +90,7 @@ async function getDb(): Promise<import("firebase/firestore").Firestore> {
   ({
     clearIndexedDbPersistence, collection, deleteDoc, doc, documentId, getDoc,
     getDocs, limit, onSnapshot, orderBy, query, serverTimestamp, setDoc,
-    terminate, Timestamp, updateDoc, where,
+    startAfter, terminate, Timestamp, updateDoc, where,
   } = fs);
   ({ getFunctions, httpsCallable } = fns);
   return db;
@@ -808,15 +809,29 @@ async function hydrate(): Promise<void> {
   interface BankEntry extends QuestionDoc {
     id: string;
   }
-  // Ceiling, not a target: 213 seeded post-W2, ~344 with the learn
-  // surface, and D97's cadences (daily promotion targeting ≥14/week plus
-  // the feed lane) can add ~1,300/year at full tilt — call it a year of
-  // headroom from ~500, not the two years the old 12/week arithmetic
-  // promised here. The approach is gated, not remembered: check:quality
-  // trips at 1200 (warn) and 1400 (fail) against this constant. If the
-  // bank ever approaches it, paginate rather than raise again (a silent
-  // cap here serves users a truncated bank with no error anywhere).
-  const BANK_LIMIT = 1500;
+  // PAGE SIZE, not a ceiling — D161, and the difference is the whole point.
+  //
+  // This was `BANK_LIMIT = 1500`, a cap on one unpaginated fetch, with
+  // D30's rule recorded beside it: approach it with pagination, never
+  // another raise. The feed is going unbounded, so the approach happened
+  // and this is the pagination. The rule it existed to enforce is gone
+  // because the failure it guarded is gone: a query that hits its limit
+  // returns a short page and NO error, so a bank over the old cap served
+  // a truncated corpus with nothing failing anywhere.
+  //
+  // Round trips, not reads, are what the size trades. Firestore bills per
+  // document however they are paged, so a bigger page is fewer round trips
+  // at identical cost; 1000 is one round trip for any bank this app has,
+  // and a handful for one it might grow.
+  const BANK_PAGE = 1000;
+  // A loop bound, not a content limit. Nothing should ever reach it — but
+  // an unbounded `while` in the boot path is one cursor bug away from
+  // hanging the app before first paint, and the whole reason this code
+  // changed is that the previous failure mode was silent. If this trips,
+  // the bank is 100k documents (implausible) or the cursor stopped
+  // advancing (a bug), and BOTH are reported rather than truncated
+  // quietly.
+  const BANK_MAX_PAGES = 100;
   const BANK_SURFACES = ["daily", "feed", "test", "group", "duo", "learn"];
   let all: BankEntry[] | null = null;
   // v2: the entry gained an `updatedAt` cursor. A v1 payload simply misses
@@ -873,10 +888,10 @@ async function hydrate(): Promise<void> {
         query(
           collection(db, "v2_questions"),
           where("updatedAt", ">", Timestamp.fromMillis(cursor - 5000)),
-          limit(BANK_LIMIT),
+          limit(BANK_PAGE),
         ),
       );
-      if (dsnap.size >= BANK_LIMIT) {
+      if (dsnap.size >= BANK_PAGE) {
         // A delta that fills the page is not a delta. Fall through to the
         // full fetch rather than silently serving a truncated bank.
         all = null;
@@ -897,15 +912,53 @@ async function hydrate(): Promise<void> {
     }
   }
   if (!all) {
-    const qsnap = await getDocs(
-      query(
-        collection(db, "v2_questions"),
-        where("surface", "in", BANK_SURFACES),
-        limit(BANK_LIMIT),
-      ),
-    );
-    all = rowsOf(qsnap);
-    cursor = cursorOf(qsnap);
+    // ── the full fetch, paged (D161) ──
+    //
+    // Ordered by document id because the cursor has to be on the ordering
+    // key and `__name__` is the one field every document is guaranteed to
+    // have. `seq` would read more naturally and is not safe: it is
+    // per-surface and contiguous, so it repeats across surfaces, and a
+    // cursor on a non-unique key can skip or repeat rows at a page
+    // boundary. The bank is sorted by `seq` a few lines below anyway, so
+    // fetch order costs nothing.
+    //
+    // TERMINATION IS ON A SHORT PAGE, never on a document count this code
+    // believes in advance. That is the entire correctness argument: the
+    // bug being designed out is a full page read as a complete result, so
+    // "fewer rows came back than I asked for" is the only signal that
+    // means the end, and any count-based check would reintroduce it.
+    const rows: BankEntry[] = [];
+    // The page's last DocumentSnapshot, handed straight back to startAfter.
+    let after: unknown = null;
+    let pages = 0;
+    let maxCursor = 0;
+    for (;;) {
+      const page = await getDocs(
+        query(
+          collection(db, "v2_questions"),
+          where("surface", "in", BANK_SURFACES),
+          orderBy(documentId()),
+          ...(after ? [startAfter(after)] : []),
+          limit(BANK_PAGE),
+        ),
+      );
+      rows.push(...rowsOf(page));
+      maxCursor = Math.max(maxCursor, cursorOf(page));
+      pages += 1;
+      if (page.size < BANK_PAGE) break;
+      if (pages >= BANK_MAX_PAGES) {
+        // Loud, because this is the exact shape of the failure the paging
+        // replaced. Serving what we have is still better than serving
+        // nothing — but it must never be indistinguishable from success.
+        reportError(new Error(
+          `bank paging hit BANK_MAX_PAGES (${BANK_MAX_PAGES} x ${BANK_PAGE}) — truncated at ${rows.length} questions`,
+        ), { where: "hydrate.bankPaging" });
+        break;
+      }
+      after = page.docs[page.docs.length - 1];
+    }
+    all = rows;
+    cursor = maxCursor;
     state.stats.bankSource = "network";
   }
   try {
