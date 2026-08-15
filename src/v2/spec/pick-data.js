@@ -296,6 +296,50 @@
       41: 2,  // Niobium (Nb) — below the floor
       0: 8,   // Not listed
     },
+    // daily catalog-question run, 2026-08-14 — dread, the elements turn
+    // (pk02/pk10's canon reaching its third domain): danger, not
+    // affection. Chemistry's villains are a different cast from its
+    // mascots — favouritism's board (gold, carbon, neon) shares nothing
+    // with this one, and history supplies every vote.
+    pk14: {
+      94: 27, // Plutonium (Pu) — named for the underworld, used accordingly
+      80: 23, // Mercury (Hg) — beautiful, liquid, patient
+      33: 19, // Arsenic (As) — a whole genre of crime fiction runs on it
+      92: 16, // Uranium (U) — the famous one
+      84: 13, // Polonium (Po) — the cup of tea that made the news
+      9: 11,  // Fluorine (F) — the chemists' vote; reacts with nearly everything
+      17: 9,  // Chlorine (Cl) — the one that has been a weapon
+      82: 8,  // Lead (Pb) — slow, and everywhere
+      88: 7,  // Radium (Ra) — the watch-dial girls
+      55: 6,  // Cesium (Cs) — explodes on contact with water
+      81: 5,  // Thallium (Tl) — "the poisoner's poison"; clears the floor, folds
+      48: 5,  // Cadmium (Cd) — same
+      4: 3,   // Beryllium (Be) — the quiet one chemists respect; below the floor
+      87: 2,  // Francium (Fr) — too rare to ever hurt anyone; below the floor
+      0: 8,   // Not listed
+    },
+    // daily catalog-question run, 2026-08-15 — confusion, the fifth emoji
+    // canon: not what you send (pk04), resent (pk05), would ink (pk08)
+    // or fear (pk10), but what nobody can agree on the MEANING of.
+    // Unicode named half this board something no sender intends, and
+    // the folded hands have been starting arguments since 2010.
+    pk15: {
+      128591: 31, // 🙏 folded hands — a prayer, or a high five
+      128579: 24, // 🙃 upside-down face — fine, or not fine at all
+      128128: 20, // 💀 skull — dead, or dead laughing
+      128548: 16, // 😤 face with steam from nose — named triumph, read fury
+      129394: 13, // 🥲 smiling face with tear — happy-sad, grateful, coping
+      128554: 11, // 😪 sleepy face — the bubble is snot, not a tear
+      129305: 9,  // 🤙 call me hand — shaka, phone, or hang loose
+      128133: 8,  // 💅 nail polish — grooming, or devastating indifference
+      10024: 7,   // ✨ sparkles — emphasis, magic, or sarcasm
+      128557: 6,  // 😭 loudly crying face — despair or delight
+      128175: 5,  // 💯 hundred points — clears the floor but not the top 10; folds
+      127814: 5,  // 🍆 eggplant — misunderstood on purpose; same
+      129760: 3,  // 🫠 melting face — below the floor
+      128558: 2,  // 😮 face with open mouth — below the floor
+      0: 9,       // Not listed
+    },
   };
 
   // Baked demo segment slices, per question: how each cohort orders the
@@ -453,6 +497,31 @@
         Men: { 42: 10, 36: 7, 51: 6, 22: 5, 59: 5 },
       },
     },
+    pk14: {
+      ageBand: {
+        // the fissile votes are internet-native; the slow historical
+        // poisons — mercury, arsenic, lead — hold with age
+        '18-24': { 94: 9, 92: 7, 84: 6, 9: 5, 33: 4 },
+        '25-34': { 94: 8, 80: 7, 33: 6, 84: 5, 17: 4 },
+      },
+      gender: {
+        Women: { 33: 8, 80: 7, 84: 6, 94: 5, 88: 4 },
+        Men: { 94: 10, 92: 8, 9: 6, 80: 5, 17: 5 },
+      },
+    },
+    pk15: {
+      ageBand: {
+        // the ironic readings — skull, upside-down, nail polish — are
+        // youngest where they were coined; the folded-hands argument
+        // belongs to everyone who has ever received one from a parent
+        '18-24': { 128128: 9, 128579: 7, 129394: 6, 128133: 5, 128591: 4 },
+        '25-34': { 128591: 8, 128579: 7, 128548: 6, 128554: 5, 10024: 4 },
+      },
+      gender: {
+        Women: { 128579: 8, 128591: 7, 129394: 6, 10024: 5, 128133: 5 },
+        Men: { 128591: 9, 129305: 7, 128128: 6, 128548: 6, 128557: 5 },
+      },
+    },
   };
 
   const api = {
@@ -577,5 +646,13 @@
     // 2026-08-13 daily run: wordcraft — the name, not the atom; the
     // canon pk09 proved, crossing domains like identity did.
     { id: 'pk13', cat: 'fav', type: 'pick', domain: 'elements', prompt: 'The best-named element?', n: 166 },
+    // 2026-08-14 daily run: dread — the fear canon's third domain (pk02,
+    // pk10). Danger ranks the poisons and the fissile, a cast no
+    // affection or identity question ever surfaces.
+    { id: 'pk14', cat: 'fav', type: 'pick', domain: 'elements', prompt: 'The most dangerous element?', n: 162 },
+    // 2026-08-15 daily run: confusion — the fifth emoji canon. Meaning,
+    // not feeling: usage, annoyance, permanence and fear all assume the
+    // symbol is understood; this board exists because half of them aren't.
+    { id: 'pk15', cat: 'fav', type: 'pick', domain: 'emoji', prompt: 'The most misunderstood emoji?', n: 169 },
   ];
 })();
