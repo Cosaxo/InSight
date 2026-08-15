@@ -343,6 +343,22 @@ screen, which is the only thing that has ever made it stick. Run 21 also
 ran D144's `check:bundle` on the release path for the first time on a
 dispatch that shipped: 2255 KB total against 2265, 969 eager against 978.
 
+**Run 22 (`67af354`, 2026-08-15, upload step `success`, 1m 23s of
+transfer) delivered build 16, and `appBuild` went to 17 off that step's
+conclusion.** Third release running where the bump landed while the run's
+own step list was on screen.
+
+**Run 22 also found the one thing the comparison still had loose: which
+commit it is made at** (D159). A dispatch runs against the branch *as it
+is when the dispatch is accepted*, not against the commit you merged — and
+since D145 gave four question lanes and the daily pulse their own
+Routines, `main` gains commits on a schedule with no human in the loop.
+The release prep merged as `6a98697`; run 22 archived `67af354`, a pulse
+trail row pushed in between. `appBuild` was 16 at both, so this cost
+nothing, but the general case does not: **read `appBuild` at the run's own
+`head_sha`.** Every record below names a run and a sha, which invites
+reading that sha as the release commit; run 22's is a Routine's.
+
 **Build 16's pre-flight found nothing to do either, which is the first
 time that has happened twice running** (D158, 2026-08-15). Run 21 was
 still the highest run in the list, its upload step still `success`,

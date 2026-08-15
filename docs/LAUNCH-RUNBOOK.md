@@ -448,11 +448,23 @@ arithmetic.
       procedure and this paragraph is only its record**: where the two
       disagree, the run list wins.
 
-      **NOTHING HAS BEEN DISPATCHED SINCE RUN 21** — that was still the
-      highest run in the list when build 16 was pre-flighted on 2026-08-15
-      (D158), which is the whole of the comparison that day: 16 > 15, so
-      *run as-is*. Read the list yourself; by the time you are reading
-      this sentence it is a historical statement.
+      **READ `appBuild` AT THE RUN'S OWN `head_sha`, NOT AT THE COMMIT YOU
+      MERGED.** The two are routinely different now and run 22 is the
+      worked example: the release prep merged as `6a98697`, and by the time
+      the dispatch was accepted a Routine had pushed a pulse trail row, so
+      run 22 archived **`67af354`**. `appBuild` was 16 at both, so nothing
+      was harmed — but the comparison is only sound if it is made at the
+      sha the run actually built. D159 has why this is new: since D145 gave
+      the question lanes and the pulse their Routines, `main` has an
+      automated writer, and the window between merging a release commit and
+      dispatching from it is no longer quiet.
+
+      **BUILD 16 WAS UPLOADED BY RUN 22** (`67af354`, 2026-08-15 11:07Z,
+      5m 25s, upload step `success`, 1m 23s of it transfer). Both APNs
+      gates passed and the Firebase config was verified in the archive and
+      again in the exported `.ipa`. **`appBuild` is now 17**, bumped off
+      that step's conclusion in the same session — the third consecutive
+      release where the habit held.
 
       **BUILD 15 WAS UPLOADED BY RUN 21** (`3c03752`, 2026-08-14 20:58Z,
       7m 05s, upload step `success`, 1m 26s of it transfer). Both APNs

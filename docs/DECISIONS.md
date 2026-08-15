@@ -15747,3 +15747,73 @@ trail row.
 The store filing does not move. Nothing here collects anything new, so
 `docs/STORE-FORMS.md` stands as D141 left it and `check:store-forms`
 passes unchanged.
+
+## D159 · Run 22 delivered build 16, and the comparison gains the commit it is made at
+
+**Decided:** 2026-08-15 · **Status:** binding · Records what run 22 did,
+bumps `appBuild` 16 → 17, and closes the one hole D158's comparison still
+had: *which commit* the question is asked about.
+
+### What run 22 did
+
+Run 22 (`67af354`, 2026-08-15 11:07:05Z, 5m 25s) has every step at
+`success`, including step 17, `Upload to App Store Connect` — 11:11:02Z →
+11:12:25Z, **1m 23s of transfer**. Both APNs gates passed at both ends,
+the archive and the exported `.ipa`, and the Firebase config was verified
+in each. So **build 16 is spent**, and `appBuild` is **17** here,
+propagated to `versionCode` and `CURRENT_PROJECT_VERSION` by
+`check:versions --fix`.
+
+The bump was made in the session that read the run's step list. That is
+the third consecutive release where it landed there rather than being
+reconstructed later, which is what D143 identified as the only thing that
+has ever made it stick.
+
+### The finding: a dispatch archives the branch, not your merge
+
+**The release prep merged as `6a98697`. Run 22 archived `67af354`.** In
+between, a Routine pushed a pulse trail row to `main`; two more commits
+landed while the run was executing. `appBuild` was 16 at both shas, so
+this cost nothing — but the comparison is only sound if it is made at the
+sha the run actually built, and nothing had ever said so.
+
+**This is new, and D145 is why.** Before the question lanes and the daily
+pulse got their Routines, `main` moved only when a human merged, so "the
+commit I merged" and "the commit the run archived" were the same thing
+often enough to never be distinguished. Now `main` has an automated writer
+on a schedule and the window between merging a release commit and
+dispatching from it is not quiet. Nothing in the tree can shrink that
+window — a dispatch takes the branch as it stands when GitHub accepts it.
+
+**The correction is one word in the procedure**: read `appBuild` at the
+run's own `head_sha`. Runbook 2.4 and `IOS-RELEASE.md` both name a run and
+a sha in every record, which invites reading the sha as the release
+commit; run 22's is a Routine's, and it is now the worked example on both
+pages.
+
+**It is D73's shape a third time, so it is worth naming as a family.** The
+tree cannot see App Store Connect (D130's trap), a doc cannot see the run
+list (D143's), and now the commit you merged cannot see what the branch
+became. Each is a claim made at one moment and read at another, and each
+was closed by pointing the question at the artifact that is current rather
+than at the record that was true.
+
+### The instrument, which was also broken
+
+The watch armed to follow run 22 step by step produced nothing, because
+**the GitHub API answers 403 to every request from the shell in an agent
+container** — `GH_TOKEN` and `GITHUB_TOKEN` are both set, which is what
+makes it look workable, and only the MCP tools actually reach the API.
+
+Recorded in `docs/LOCAL-TESTING.md` beside the `HTTPS_PROXY` note rather
+than here, because it is environmental rather than a decision — but it
+belongs in this entry too, because of *how* it fails. The loop swallowed
+the error as "no news" and emitted nothing, which is byte-for-byte what a
+still-running job looks like. A release procedure whose central
+instruction is *ask the run list* should not have a way of not-asking that
+reads like patience. Run 22 finished underneath it.
+
+**Neither of these changed the outcome**, which is the only reason both
+are written up calmly: build 16 shipped, and the numbers agreed at every
+sha involved. They are recorded because next time the two commits will not
+both say 16, and the quiet loop will be watching a run that failed.
