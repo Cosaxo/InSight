@@ -100,8 +100,12 @@ describe("LiveGroupsMirrorBody · states it refuses to fake", () => {
 
   it("offers to start one when there are no groups, rather than rendering blank", () => {
     LIVE.social.groups = () => [];
-    render(<LiveGroupsMirrorBody />);
-    expect(screen.getByText(/No groups yet/i)).toBeTruthy();
+    const { container } = render(<LiveGroupsMirrorBody />);
+    // D171: the empty stop DRAWS — the rings and you — rather than
+    // answering with a card of prose. The caption names the field and the
+    // one action that cannot fill itself stays.
+    expect(container.querySelector("svg"), "the empty field lost its drawing").toBeTruthy();
+    expect(screen.getByText(/revealed with names the morning after/i)).toBeTruthy();
     expect(screen.getByRole("button", { name: /Start a group/i })).toBeTruthy();
   });
 

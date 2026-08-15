@@ -290,14 +290,15 @@ function NearLiveBody() {
       <React.Suspense fallback={null}>
         <NearField />
       </React.Suspense>
-      <div style={{ fontFamily: "var(--sans)", fontSize: 12, fontWeight: 500, color: "var(--ink-3)", lineHeight: 1.55, padding: "10px 2px 0" }}>
+      {/* The pointer to City, down from three lines to one (D171).
+          The long version explained what City is — which City's own header
+          does, one stop to the right, and the ruler above already shows it
+          is there. What this owes the reader is the one fact Near's field
+          does not carry on its face: nobody here is named. */}
+      <div style={{ fontFamily: "var(--sans)", fontSize: 12, fontWeight: 500, color: "var(--ink-3)", lineHeight: 1.55, padding: "10px 2px 0", textAlign: "center" }}>
         {supported
-          ? <>Want their names, their answers and the rest of the city?
-            That&rsquo;s the <strong style={{ color: "var(--ink-2)" }}>City</strong> stop,
-            one to the right — here nobody is named.</>
-          : <>This device can&rsquo;t share a location, so there is no count to
-            show here. Your city&rsquo;s answers and the people most like you
-            there live at the <strong style={{ color: "var(--ink-2)" }}>City</strong> stop.</>}
+          ? <>Nobody here is named — that&rsquo;s <strong style={{ color: "var(--ink-2)" }}>City</strong>, one to the right.</>
+          : <>No location on this device — your city is at <strong style={{ color: "var(--ink-2)" }}>City</strong>, one to the right.</>}
       </div>
     </div>
   );

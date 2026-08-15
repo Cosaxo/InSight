@@ -322,7 +322,10 @@ describe("LiveCohortBody · no city is a prompt, not an empty panel", () => {
     LIVE.myCity = "";
     LIVE.aggFor = () => ({ counts: { "0": 30, "1": 20 }, total: 50, tooSmall: false });
     mountAnswers("world");
-    expect(screen.getByText("The world")).toBeTruthy();
+    // The kicker, since D171 removed the 25px place name under it — the
+    // globe's own word for itself, and the thing that proves the body
+    // rendered rather than the city gate.
+    expect(screen.getByText("Everyone")).toBeTruthy();
     expect(screen.getByText("First question")).toBeTruthy();
   });
 });

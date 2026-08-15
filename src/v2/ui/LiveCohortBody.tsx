@@ -228,10 +228,6 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
     );
   }
 
-  const heading =
-    scope === "city" ? (place ? PLACES.label(place) : city)
-      : scope === "country" ? PLACES.countryName(country)
-        : "The world";
   const shortName =
     scope === "city" ? (place ? place.name : city)
       : scope === "country" ? PLACES.countryName(country)
@@ -437,16 +433,21 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
               : <>nobody has answered {scope === "world" ? "yet" : <>in {shortName} yet</>}</>}
           </span>
         </div>
-        <div style={{ fontFamily: "var(--serif)", fontSize: 25, letterSpacing: "-0.01em", color: "var(--ink)", marginTop: 6 }}>{heading}</div>
-        <div style={{ fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 500, color: "var(--ink-3)", marginTop: 4, lineHeight: 1.5 }}>
-          {/* Was "on today's questions" when this read the seven-day
-              pager. It reads the archive now (D100), so the old line
-              would have under-claimed by however long the user has
-              been answering. */}
-          {scope === "world"
-            ? "Everyone who has answered, on every question with answers."
-            : `Everyone who picked this ${scope}, on every question they have answered.`}
-        </div>
+        {/* THE PLACE NAME AND THE EXPLANATION ARE GONE (D171).
+            The prototype's header is three things — kicker, figure, unit
+            — and that is the whole of it (`MFHeader`: "Your city · 12.6k ·
+            in Oslo"). This stop had grown two more blocks under them: the
+            place name again in 25px serif, and a sentence explaining what
+            a city cohort is.
+
+            Both were repeats. The unit above already ends "in Oslo", so
+            the serif line said the same word twice the size; and "everyone
+            who picked this city, on every question they have answered" is
+            what the kicker plus that unit already say, in a sentence the
+            reader has to get through to reach the field the stop exists
+            for. The `heading` they shared went with them; `shortName` is
+            the one the readings still need, and it is the one the unit
+            already prints. */}
       </div>
 
       {/* The constellation (D112), and the head of the stop rather than a
@@ -459,7 +460,7 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
           and the host owns the tab state, so the field cannot do it. */}
       <div role="region" aria-label={TAB_LABEL.overview}>
         <React.Suspense fallback={null}>
-          <SimilaritySection scope={scope} onGoAnswers={() => setTab("answers")} />
+          <SimilaritySection scope={scope} />
         </React.Suspense>
       </div>
 

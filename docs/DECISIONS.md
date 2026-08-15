@@ -16795,3 +16795,100 @@ Not deleted. It is the offline dev surface and the demo room's, D1 governs
 it, and the hash is honest there — the room is seeded throughout. What
 changed is that live mode no longer answers "where is the breakdown" with
 silence.
+
+## D171 · The Mirror's stops stop explaining themselves
+
+**Decided:** 2026-08-15 · **Status:** binding, BUILT. From four screenshots
+of Near, City, Groups and Circle: *"they use too much text compared to the
+vision. 2 of the biggest offenders near and city. City also have extra
+'see who answered' that is not needed… I think group and circle should
+just show empty maps instead of the text."*
+
+### 1 · What the vision's header actually is
+
+Three things, and nothing else — `MFHeader` in the prototype's
+`mirror-field.jsx` takes a **kicker**, a **figure** and a **unit**:
+
+| Stop | kicker | fig | unit |
+| --- | --- | --- | --- |
+| Circle | Your people | 12 | close ties |
+| Groups | Your scenes | 4 | followed · 12.6k people |
+| Near | Around you | 2,847 | within 5 km · Grünerløkka |
+| City | Your city | 12.6k | in Oslo |
+| Country | Your country | 38k | across Norway |
+| World | Your world | 412k | worldwide |
+
+One line. No paragraph anywhere. The stop's identity is the FIELD under it,
+and the header exists to say how big the population is before you read
+their shape.
+
+### 2 · What the app had grown, and why each piece was a repeat
+
+**City / Country / World** carried the header, then a **25 px serif place
+name**, then a sentence explaining what a city cohort is. Both extras
+restated what was already on screen: the unit ends "in Oslo", so the serif
+line printed the same word twice the size, and *"everyone who picked this
+city, on every question they have answered"* is what "Your city · 1 person
+has answered in Oslo" already says — in prose the reader has to get past to
+reach the field.
+
+**Near** ended with three lines pointing at City and explaining what City
+is. City's own header does that, one stop to the right, and the ruler
+already shows it is there. What Near owes the reader is the single fact its
+field cannot show on its face — nobody here is named — so that is the line
+that stayed.
+
+**The "See what they answered" button** under every empty field is gone.
+D160 added it so an empty landing screen offered somewhere to go; D136 had
+already made Answers a tab in the row directly beneath it, so it was a
+second door to a door in view. Removing it also removes the `onGoAnswers`
+plumbing through three components.
+
+### 3 · Circle and Groups draw the field now
+
+They were the last two stops answering an empty account with a card of
+prose, while City, Country, World and Near all drew their rings (D160).
+They are also **the two stops a new account meets first**, so the app was
+at its wordiest exactly where it had least to say.
+
+`ui/EmptyField.tsx` draws the rings and you, with the sentence underneath
+instead of instead-of. Nothing in it is fabricated — "you, and nobody
+placed around you yet" is the true picture node for node, and the rings are
+the scale a radius will be read on once someone arrives. The captions were
+dropped after a first pass added them: the stop's kicker one line up
+already reads "Your circle", and a chip repeating it is the duplication
+this record is about.
+
+**Groups keeps its button.** A field cannot fill itself with groups the way
+City fills as strangers answer, so "Start a group" is the only route to
+that and removing it would trade wordiness for a dead end. The sentence
+around it is what shrank.
+
+**Why `EmptyField` is its own module** rather than an export from
+`LiveSimilarityField`, which draws exactly this: that file is the whole
+similarity engine and is LAZY for the reason. `LiveGroupsMirrorBody` is a
+STATIC import in `mirror-tab.jsx`, so importing the field from it would
+drag the engine into the first-paint graph. Forty lines duplicated beats a
+chunk moved. Measured: eager graph 964 → **965 KB** against a 978 ceiling.
+
+### 4 · What did NOT shrink, and must not
+
+**Near's off-state disclosure is untouched.** D9's rule is that the enable
+tap carries the OS prompt, so the sentence that tap agrees to has to be
+readable before it — the kilometre-sized-grid-square line and the phrase
+*"a count, never who"* both stay, word for word, and
+`NearLiveBody.test.tsx`'s `pitches honestly while off` still guards them.
+That case is why this pass trimmed the CLOSING pointer and left the pitch
+alone: the two look alike on screen and only one of them is decoration.
+
+### 5 · What pins it
+
+`ui/LiveCircleBody.test.tsx` is new and holds three states that look alike
+from outside and mean different things — empty draws the field, a FAILED
+read still says so and draws **no** field (a drawing there would tell
+someone with thirty follows they have none), and a first read in flight
+says neither. Mutation-checked: putting the paragraph back fails the first
+case by name.
+
+The rest ride existing suites, updated rather than deleted — `smoke-live`'s
+City helper polls the kicker now, and the Groups case asserts the drawing.

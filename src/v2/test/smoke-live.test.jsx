@@ -225,7 +225,10 @@ describe("the live gates hold in the DOM, not just in the source", () => {
   // passed on its own, which is the signature. findByText polls until the
   // body's own first line is there, so it waits exactly as long as it has
   // to and no case that follows it can race the import.
-  const openCity = () => screen.findByText(/Everyone who picked this city/i);
+  // The stop's kicker, since D171 removed the explanatory line this used
+  // to poll for. Still the City body's own first text, and still unique —
+  // Near's kicker is "Around you".
+  const openCity = () => screen.findByText(/^Your city$/i);
 
   it("keeps the City stop on the live ruler, and Near is presence-only (D111)", async () => {
     mountLive();
@@ -238,7 +241,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     // Near: the counter, and NOT the city cohort — the un-fold's other half.
     fireEvent.click(screen.getByRole("tab", { name: "Near" }));
     expect(screen.getByText(/Around you/i)).toBeTruthy();
-    expect(screen.queryByText(/Everyone who picked this city/i)).toBeNull();
+    expect(screen.queryByText(/^Your city$/i)).toBeNull();
 
     // City: the cohort, and NOT the counter.
     fireEvent.click(screen.getByRole("tab", { name: "City" }));
@@ -501,6 +504,26 @@ describe("the live gates hold in the DOM, not just in the source", () => {
   // life of live mode, so "Circle shows something" and "Circle shows the
   // OLD something" look identical to any test that only checks it did not
   // crash. Both halves are asserted — the people, and the fold over them.
+  it("draws the field, not a paragraph, on an empty Groups (D171)", async () => {
+    // Every other stop draws its rings when it has nobody to place (D160).
+    // Groups and Circle answered with a card of prose — and they are the
+    // two a new account meets first, so they were the wordiest screens in
+    // the app at exactly the moment it had least to say. Circle's own
+    // empty arm is pinned in ui/LiveCircleBody.test.tsx, where the member
+    // list can be emptied without fighting the app fixture (which ships a
+    // circle of one on purpose).
+    const expectNoBoundary = mountLive();
+    fireEvent.click(screen.getByRole("button", { name: /^mirror$/i }));
+    fireEvent.click(screen.getByRole("tab", { name: "Groups" }));
+    await act(async () => { for (let i = 0; i < 60; i++) await Promise.resolve(); });
+    expect(screen.getByText(/revealed with names the morning after/i)).toBeTruthy();
+    expect(screen.queryByText(/No groups yet/i),
+      "Groups still answers an empty stop with a headline").toBeNull();
+    // The one action a field cannot fill by itself survives the trim.
+    expect(screen.getByRole("button", { name: /Start a group/i })).toBeTruthy();
+    expectNoBoundary("empty Groups");
+  });
+
   it("draws the Circle stop from the follow graph, not the not-built note", async () => {
     localStorage.clear();
     mountLive();
