@@ -107,7 +107,7 @@ so the harness re-creates any account that has gone missing.
 ## Test suites
 
 ```bash
-npm run test:rules            # 89 security-rules tests (Firestore + Storage emulators)
+npm run test:rules            # 90 security-rules tests (Firestore + Storage emulators)
 npm run test:e2e              # full SDK loop (auth+firestore+functions)
 npm run test:e2e:erasure      # account deletion, end to end
 npm run test:e2e:moderation   # moderation transport
@@ -124,13 +124,27 @@ from the top of this file in place, 8 tests across `follow-seeds`,
 they assert the demo furniture that `VITE_V2_LIVE=true` is supposed to remove.
 Measured 2026-08-12: 767/767 without it, 759/767 with it.
 
-`npm run check:bundle` needs a **`VITE_SENTRY_DSN`** in the build it
-measures, or its *total* is meaningless locally:
+`npm run check:bundle` needs **two** variables in the build it measures,
+and since D144 it refuses to report anything without the second rather than
+quietly grading the wrong bundle:
 
 ```bash
-VITE_SENTRY_DSN="https://example@o0.ingest.sentry.io/0" npm run build
-VITE_SENTRY_DSN="https://example@o0.ingest.sentry.io/0" npm run check:bundle
+VITE_V2_LIVE=true VITE_SENTRY_DSN="https://example@o0.ingest.sentry.io/0" npm run build
+VITE_V2_LIVE=true npm run check:bundle
 ```
+
+**`VITE_V2_LIVE=true` is what makes it the bundle that ships**, and leaving
+it out was worth 12 KB of total and 9 KB of eager graph — enough that the
+installed app was over both ceilings while CI reported OK. The script now
+exits 1 if the flag is not in its own environment. To measure a demo build
+deliberately, pass `--demo`: it prints the numbers, applies no ceiling, and
+says so.
+
+Note this is the opposite of what `test:unit` wants two paragraphs up — the
+tests expect the demo defaults, the bundle gate expects the shipping ones.
+That is not a contradiction to resolve; they are asking about different
+artifacts. Do not put `VITE_V2_LIVE=true` in a `.env` and expect both to
+pass.
 
 Without one, `sentryInit()` no-ops and the 435 KB `prod-*.js` chunk is
 never emitted, so a local run reported 1725 KB against a 2176 KB ceiling —

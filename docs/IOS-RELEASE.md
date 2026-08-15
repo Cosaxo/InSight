@@ -328,6 +328,21 @@ done while the run's own step list was on screen, rather than deferred to
 whoever opened the repo next. The gap the last two fell into is the one
 between "the upload finished" and "someone came back to the tree".
 
+**And the pre-flight after it found nothing to do, which is what the habit
+working looks like downstream** (D153, 2026-08-14). The comparison was made
+against run 20's step list — `success`, `appBuild` 14 at `8cf48a1` — and
+the tree was already at 15, so the answer was *run as-is* and no number
+moved. Three pre-flights running had opened on a spent build; this is the
+first that did not, and the only thing that changed between them is where
+the bump happened.
+
+**Run 21 (`3c03752`, 2026-08-14, upload step `success`) delivered build
+15, and `appBuild` went to 16 off that step's conclusion.** Two releases
+running where the bump happened while the run's own step list was on
+screen, which is the only thing that has ever made it stick. Run 21 also
+ran D144's `check:bundle` on the release path for the first time on a
+dispatch that shipped: 2255 KB total against 2265, 969 eager against 978.
+
 **So make the comparison against the runs, not against the docs.** The
 `Upload to App Store Connect` step's own conclusion is the record —
 `success` spent that build, `skipped` did not — and runs 15 and 16 (same

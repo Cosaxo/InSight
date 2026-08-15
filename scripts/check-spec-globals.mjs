@@ -191,7 +191,7 @@ const COUPLING_BASELINE = {
   "src/v2/spec/city-overlay.jsx": 2,
   "src/v2/spec/compare-breakdown.jsx": 1,
   "src/v2/spec/daily-questions.js": 3,
-  "src/v2/spec/daily-split.jsx": 40,
+  "src/v2/spec/daily-split.jsx": 37,
   "src/v2/spec/demographics.jsx": 3,
   "src/v2/spec/duo-daily.jsx": 7,
   "src/v2/spec/feed-read.js": 2,
@@ -227,7 +227,7 @@ const COUPLING_BASELINE = {
   "src/v2/spec/type-marks.jsx": 2,
   "src/v2/spec/vote-cuts.js": 1,
   "src/v2/spec/world-feed-data.js": 4,
-  "src/v2/spec/world-feed.jsx": 122,
+  "src/v2/spec/world-feed.jsx": 120,
 };
 
 const coupling = {};

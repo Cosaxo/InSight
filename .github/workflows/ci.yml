@@ -21,8 +21,8 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "22"
           cache: npm
@@ -187,8 +187,8 @@ jobs:
   typecheck-build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "22"
           cache: npm
@@ -204,18 +204,41 @@ jobs:
       # sets the real DSN and never runs check:bundle, so nothing had ever
       # weighed the shipping bundle. Any non-empty string restores the
       # branch; no secret is needed, and nothing here runs the app.
+      # VITE_V2_LIVE is the second load-bearing variable here, added at D144
+      # for the same class of reason as the DSN and found the same way. It is
+      # what `ios-release.yml` builds with, and with it unset this job built
+      # 63 chunks where the shipping bundle has 67 — 12 KB less total and,
+      # the part that matters, **9 KB less in the eager graph**. So this job
+      # was gating a bundle nobody installs while the installed one sat over
+      # both ceilings, unmeasured, for every build through 14.
+      #
+      # CAPACITOR_BUILD is deliberately NOT set. It looks like the variable
+      # that makes a build "native", but it only waives vite.config.ts's
+      # reCAPTCHA-key guard and defines nothing — verified by building with
+      # each in isolation, where VITE_V2_LIVE alone reproduced the entire
+      # delta. Setting it here would waive a guard this job wants enforced.
       - run: npm run build
         env:
           VITE_SENTRY_DSN: https://ci@example.invalid/0
+          VITE_V2_LIVE: "true"
       # The bundle ships inside a native package, so the cost is parse and
       # eval rather than network — but nothing was watching it move.
+      #
+      # The variable is repeated rather than hoisted to job level on purpose:
+      # check:bundle now REFUSES to grade a build that was not made as the
+      # shipping one, and it reads the flag from its own environment. Passing
+      # it here is the assertion that these two steps agree about which
+      # bundle they are talking about — the exact thing that was untrue
+      # between this job and ios-release.yml.
       - run: npm run check:bundle
+        env:
+          VITE_V2_LIVE: "true"
 
   unit-tests:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "22"
           cache: npm
@@ -230,8 +253,8 @@ jobs:
     runs-on: ubuntu-latest
     continue-on-error: true
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "22"
           cache: npm
@@ -249,8 +272,8 @@ jobs:
   native-sync-drift:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "22"
           cache: npm
@@ -274,12 +297,12 @@ jobs:
   android-build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "22"
           cache: npm
-      - uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
         with:
           distribution: temurin
           java-version: "21"
@@ -287,7 +310,7 @@ jobs:
       # fewer third-party action to pin and audit, and the wrapper already
       # handles the Gradle distribution.
       - name: Cache Gradle
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             ~/.gradle/caches

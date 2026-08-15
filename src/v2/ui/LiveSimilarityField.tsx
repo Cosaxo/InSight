@@ -109,13 +109,38 @@ function layout(nodes: readonly FieldNode[]): Array<FieldNode & { x: number; y: 
   });
 }
 
+/**
+ * The anonymous person glyph — a body and a head, no initials.
+ *
+ * The Near stop's whole node vocabulary (D150). Everywhere else in the
+ * Mirror a person node carries initials and a first name, because
+ * everywhere else you can go and read what that person answered. Near
+ * cannot name anyone: the presence cell is one of D98's three surviving
+ * denies, and the constellation there is the shape of a crowd rather than
+ * a set of people you could pick one out of.
+ */
+function AnonGlyph({ r }: { r: number }) {
+  return (
+    <>
+      <circle r={r * 0.34} cy={-r * 0.3} fill="#fff" />
+      <path d={`M${-r * 0.52} ${r * 0.62} a ${r * 0.52} ${r * 0.5} 0 0 1 ${r * 1.04} 0 z`} fill="#fff" />
+    </>
+  );
+}
+
 function SimilarityCanvas({ nodes, picked, onPick, kind }: {
   nodes: readonly FieldNode[];
   picked: string | null;
   onPick: (id: string) => void;
-  kind: "people" | "places";
+  /**
+   * `anon` is people with the names taken off, and it is not interactive:
+   * no role, no tab stop, no pick. A field you can tap a person out of is
+   * a directory, which is the one thing Near must not become.
+   */
+  kind: "people" | "places" | "anon";
 }) {
   const pts = layout(nodes);
+  const anon = kind === "anon";
   return (
     <svg viewBox="-170 -170 340 340" role="group" aria-label="Similarity field — closer to the centre is more like you"
       style={{ width: "100%", maxHeight: 350, display: "block", touchAction: "pan-y" }}>
@@ -135,6 +160,15 @@ function SimilarityCanvas({ nodes, picked, onPick, kind }: {
         const fill = p.home
           ? "var(--accent)"
           : `oklch(0.56 0.09 ${hue})`;
+        if (anon) {
+          return (
+            <g key={p.id} transform={`translate(${p.x.toFixed(1)} ${p.y.toFixed(1)})`} aria-hidden="true">
+              <circle r={13} fill={fill} stroke="var(--surface)" strokeWidth={2}
+                strokeDasharray={p.scored ? undefined : "3 2.5"} />
+              <AnonGlyph r={13} />
+            </g>
+          );
+        }
         return (
           <g key={p.id} transform={`translate(${p.x.toFixed(1)} ${p.y.toFixed(1)})`}
             role="button" tabIndex={0} aria-pressed={on}
@@ -347,6 +381,146 @@ function CityField({ myParsed, onGoAnswers }: {
         </SfEmpty>
       )}
       {pickedP && <PersonCard p={pickedP} myParsed={myParsed} />}
+    </div>
+  );
+}
+
+// ── the field, for a population that arrives already ranked ─────────
+//
+// Circle and Groups (D152). Both stops HAD the grammar the whole Mirror
+// is built on — you at the centre, them around you, distance = unlikeness
+// — drawn for them in the prototype, and both shipped live as a flat list
+// of names with a percentage each. The list is not wrong; it is the same
+// data with the shape taken out, and the shape is the reading.
+//
+// They do not go through `rankKindred` because their populations are not
+// strangers to rank: a circle is the set you chose and a group is its
+// membership, each with a likeness already computed by the module that
+// owns it (data/circle.ts, data/groupPortrait.ts). So this takes nodes
+// and draws them, and the caller owns what a node means.
+export interface FieldPerson {
+  id: string;
+  /** Shown under the node — a first name, or "" for someone unnamed. */
+  label: string;
+  /** 0..100; sets the radius, closer = more like you. */
+  match: number;
+}
+
+export function PeopleField({ people, caption, onPick, picked }: {
+  people: readonly FieldPerson[];
+  caption: React.ReactNode;
+  onPick?: (id: string) => void;
+  picked?: string | null;
+}) {
+  if (!people.length) return null;
+  return (
+    <div style={{ padding: "2px 0 0" }}>
+      <SimilarityCanvas
+        kind="people"
+        picked={picked ?? null}
+        onPick={(id) => onPick?.(id)}
+        nodes={people.map((p) => ({
+          id: p.id,
+          label: (p.label || "").split(" ")[0] || "Someone",
+          initials: (p.label || "").split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toUpperCase() || "?",
+          match: p.match,
+          // Dashed means "ranked from answers, not scores" everywhere in
+          // the Mirror, and both of these populations ARE ranked from
+          // answers — so the ring is solid and the caption says the basis
+          // once, rather than every node wearing a caveat.
+          scored: true,
+        }))}
+      />
+      <SfCaption>{caption}</SfCaption>
+    </div>
+  );
+}
+
+// ── Near: the same field with the names taken off (D150) ────────────
+//
+// WHY NEAR HAD NO FIELD, AND WHY THAT WAS THE WRONG ANSWER.
+//
+// The prototype's Near stop is a constellation: a count at the top, a
+// crowd of anonymous figures around you, distance = unlikeness. Live mode
+// replaced the whole thing with the presence counter and a sentence
+// pointing at City, on the reasoning that presence is one of D98's three
+// denies — the server returns a count and nothing else, so there is
+// nothing to draw people from.
+//
+// That reasoning is right about the presence cell and wrong about the
+// screen. The stop is not only "which phones are within a kilometre"; it
+// is "who is around me", and the app knows something true about that
+// which it was already drawing one stop over: the people of your city,
+// ranked by how close their scores sit to yours. The refusal was of a
+// claim nobody had to make.
+//
+// So the field is real data, drawn under a caption that says what it is,
+// and NOTHING here is named. Two numbers, each attached to what it counts
+// (the D112 honesty rule): the figure at the top is phones near you right
+// now, the ring below it is people in your city. Neither claims to be the
+// other, and no node can be tapped open — Near draws the shape of a
+// crowd, never a directory of it.
+
+const NEAR_FIELD_CAP = 14;
+
+export function NearField() {
+  const [, bump] = React.useReducer((n: number) => n + 1, 0);
+  React.useEffect(() => LIVE.subscribe(bump), []);
+  // The same bounded, session-cached loader the City stop's field uses, so
+  // arriving here after City costs nothing and arriving before it warms
+  // the cache City is about to want.
+  React.useEffect(() => { void LIVE.loadSimilarity(); }, []);
+  if (!LIVE.enabled) return null;
+
+  const city = LIVE.myCity;
+  const place = city ? PLACES.parse(city) : null;
+  const cityName = place ? place.name : city;
+  const myParsed = parseTestResults(LIVE.myTestResults(), CORE_TEST_KINDS);
+  const people = rankKindred(LIVE.kindredPeople(), myParsed, { city, minShared: 2 });
+  const shown = people.slice(0, NEAR_FIELD_CAP);
+  const loading = LIVE.similarityLoading() || LIVE.kindredLoading();
+
+  // No city, no cohort to draw from. Said plainly rather than drawn empty:
+  // the picker lives one stop over and the counter above still works.
+  if (!city) {
+    return (
+      <SfEmpty>
+        Set your city — at the City stop, or by turning the count above on —
+        and the people around you draw in here, closest first.
+      </SfEmpty>
+    );
+  }
+  if (!shown.length) {
+    return (
+      <SfEmpty>
+        {loading
+          ? <>Working out who around you is most like you…</>
+          : <>Nobody from {cityName} yet among the people on your questions —
+            this fills in as more of the city answers.</>}
+      </SfEmpty>
+    );
+  }
+
+  const scoredN = shown.filter((p) => p.score).length;
+  return (
+    <div style={{ padding: "2px 0" }}>
+      <SimilarityCanvas kind="anon" picked={null} onPick={() => {}} nodes={shown.map((p) => ({
+        id: p.uid,
+        // Deliberately empty. `anon` draws neither, and an id that carried
+        // a name would be one refactor away from rendering it.
+        label: "",
+        match: p.score ? p.score.match : p.like.pct,
+        scored: !!p.score,
+      }))} />
+      <SfCaption>closer to you = more alike</SfCaption>
+      {/* What the ring is, in the one sentence that keeps it apart from
+          the count above it. */}
+      <SfEmpty>
+        {shown.length} {shown.length === 1 ? "person" : "people"} in {cityName},
+        placed by how close {shown.length === 1 ? "their answers sit" : "their answers sit"} to
+        yours{scoredN < shown.length ? " — dashed rings are ranked from answers, not scores" : ""}.
+        Nobody is named here.
+      </SfEmpty>
     </div>
   );
 }

@@ -17,7 +17,7 @@
 // So this pins the property rather than the constants: BOTH streams must
 // drain, and the lens cadence must not be a multiple of the test cadence.
 import { describe, expect, it } from "vitest";
-import { interleaveFeed, partitionAnswered, TEST_EVERY, LENS_EVERY } from "./feed-interleave";
+import { interleaveFeed, partitionAnswered, roundRobinBy, TEST_EVERY, LENS_EVERY } from "./feed-interleave";
 
 // THE SHIPPED FUNCTION, imported. This file used to redeclare the cadences
 // and the loop, so every assertion below exercised the test file itself —
@@ -172,5 +172,69 @@ describe("partitionAnswered — the finite bank stops serving your own past", ()
     expect(partitionAnswered(["a", "c"], isDone))
       .toEqual({ fresh: [], done: ["a", "c"] });
     expect(partitionAnswered([], isDone)).toEqual({ fresh: [], done: [] });
+  });
+});
+
+// ── the passive tests' round-robin (D155) ────────────────────────────
+//
+// The reported symptom was one filled bar and three empty ones on the
+// profile sheet, after answering steadily for days. Not a rendering bug:
+// `content/tests.json` is keyed BY instrument, so the generated bank runs
+// 25 Big Five, then 30 Politics, then 30 Values, then 25 Social — and the
+// live pool was served in exactly that order. Twenty-five marked cards in,
+// three of the four instruments had never been offered a single question.
+describe("roundRobinBy", () => {
+  const item = (test: string, n: number) => ({ id: `${test}-${n}`, test });
+  // The shape the generator actually emits: grouped, not interleaved.
+  const banked = [
+    ...Array.from({ length: 3 }, (_, i) => item("big5", i)),
+    ...Array.from({ length: 3 }, (_, i) => item("political", i)),
+    ...Array.from({ length: 2 }, (_, i) => item("values", i)),
+  ];
+
+  it("offers every instrument before offering any one of them twice", () => {
+    // The whole point. Before this, the first three cards were three Big
+    // Five questions and Politics was 25 cards away.
+    const out = roundRobinBy(banked, (q) => q.test);
+    expect(out.slice(0, 3).map((q) => q.test)).toEqual(["big5", "political", "values"]);
+    expect(out.map((q) => q.id)).toEqual([
+      "big5-0", "political-0", "values-0",
+      "big5-1", "political-1", "values-1",
+      "big5-2", "political-2",
+    ]);
+  });
+
+  it("keeps every item, and keeps each instrument's own order", () => {
+    // A round-robin that reordered within an instrument would shuffle the
+    // bank's own sequencing for no reason; one that dropped an item would
+    // silently shorten a test.
+    const out = roundRobinBy(banked, (q) => q.test);
+    expect(out).toHaveLength(banked.length);
+    for (const t of ["big5", "political", "values"]) {
+      expect(out.filter((q) => q.test === t).map((q) => q.id))
+        .toEqual(banked.filter((q) => q.test === t).map((q) => q.id));
+    }
+  });
+
+  it("drains the long lists after the short ones run out", () => {
+    // Uneven pools are the real case — 25/30/30/25 — and the tail must not
+    // stall when the shortest list is spent.
+    const out = roundRobinBy(
+      [...Array.from({ length: 4 }, (_, i) => item("a", i)), item("b", 0)],
+      (q) => q.test,
+    );
+    expect(out.map((q) => q.id)).toEqual(["a-0", "b-0", "a-1", "a-2", "a-3"]);
+  });
+
+  it("leads with the bank's own first card", () => {
+    // Insertion order, so a fresh account still opens on the question the
+    // bank puts first — only what follows it changes.
+    expect(roundRobinBy(banked, (q) => q.test)[0].id).toBe(banked[0].id);
+  });
+
+  it("carries unclassified items rather than dropping them", () => {
+    // The pool is content, and content nobody classified is still content.
+    const out = roundRobinBy([item("big5", 0), { id: "loose", test: "" }], (q) => q.test);
+    expect(out.map((q) => q.id).sort()).toEqual(["big5-0", "loose"]);
   });
 });

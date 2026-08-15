@@ -344,6 +344,24 @@ export interface KindredPerson {
   city: string;
   like: Agreement;
   results: ParsedResults | null;
+  /**
+   * The whole frozen anchors snapshot from that same answer (D152) —
+   * profession, age band, education, gender, the lot.
+   *
+   * `city` above is one of these and stays a named field because the
+   * ranking and the scope filters index it directly. The rest are here so
+   * the People lens can say who someone IS ("Ceramicist · 25-34") rather
+   * than only how alike you are, and they cost nothing: the voter rows
+   * carrying them were already fetched and cached for the ranking.
+   *
+   * From the ANSWER, never the live profile — same rule as `city` (D8).
+   * Reading the profile would describe someone by who they are today
+   * beside a likeness computed from who they were when they answered.
+   *
+   * Optional because a person assembled from answers with no anchors has
+   * none, which is a real state and not a missing field.
+   */
+  anchors?: Record<string, string>;
 }
 
 export interface RankedPerson extends KindredPerson {

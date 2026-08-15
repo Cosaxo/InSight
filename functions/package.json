@@ -19,24 +19,29 @@
     "test:coverage": "vitest run --coverage"
   },
   "//dependencies": [
-    "firebase-admin stays on 13 while the root tree's dev copy is on 14. That",
-    "skew is FORCED, not an oversight: firebase-functions 6.x peer-requires",
-    "firebase-admin ^11 || ^12 || ^13, so 14 is unavailable until this package",
-    "moves to firebase-functions 7.x.",
+    "firebase-admin and firebase-functions moved together, 2026-08-14, and had",
+    "to: firebase-functions 6.x peer-requires firebase-admin ^11 || ^12 || ^13,",
+    "so admin 14 was unavailable on its own and `npm ci` failed ERESOLVE on any",
+    "attempt to take it alone. 7.3.2 widens that peer range to include ^14.0.0.",
+    "The ordering is the whole story — functions first, then admin.",
     "",
-    "It is worth knowing about because test:e2e:erasure asserts 'gone means",
-    "gone' through the ROOT admin SDK (14, rules-bypassing) against deletions",
-    "performed by THIS one (13) — see firestore-tests/e2e-delete-account.mjs,",
-    "which already carries the note about 14's ESM-modular export shape."
+    "This CLOSED the version skew the note here used to describe: the root",
+    "tree's admin copy is ^14.2.0 and so is this one, where before they were 14",
+    "and 13. test:e2e:erasure asserts 'gone means gone' through the ROOT admin",
+    "SDK against deletions performed by THIS one, and that assertion now runs",
+    "same-version on both sides. firestore-tests/e2e-delete-account.mjs still",
+    "carries the note about 14's ESM-modular export shape (no namespace default",
+    "export, so `admin.firestore()` is not a function) — that is a property of",
+    "14 itself, not of the skew, and it stays true."
   ],
   "dependencies": {
-    "firebase-admin": "^13.10.0",
-    "firebase-functions": "^6.6.0",
+    "firebase-admin": "^14.2.0",
+    "firebase-functions": "^7.3.2",
     "google-auth-library": "^9.15.1"
   },
   "devDependencies": {
     "@vitest/coverage-v8": "^4.1.10",
-    "typescript": "^5.4.0",
+    "typescript": "^7.0.2",
     "vitest": "^4.1.10"
   },
   "//overrides": [
@@ -66,11 +71,25 @@
     "package that DECLARED a different range, so each one is a compatibility",
     "assertion nothing tests. Prefer upgrading the dependent.",
     "",
-    "Do NOT 'fix' advisories by bumping firebase-functions to 7.x and",
-    "firebase-admin to 14.x instead — measured, that makes it worse (9 moderate",
-    "becomes 13, 7 of them high), and firebase-functions 6.x peer-requires",
-    "firebase-admin ^11 || ^12 || ^13 anyway, so the major bump is not available",
-    "on its own. Revisit when this package moves to firebase-functions 7.x."
+    "This block used to end by refusing the firebase-functions 7 / admin 14",
+    "bump, on a measurement that 9 moderate advisories would become 13 with 7",
+    "high. That bump happened on 2026-08-14 (#18 then #20) and the refusal did",
+    "NOT hold up — re-measured on the day, immediately before and after, the",
+    "count was unchanged: one high either side, nanoid GHSA-2v37-7h3g-55p8,",
+    "reached only through vitest -> vite -> postcss and therefore dev-only.",
+    "",
+    "So the number that gates anything is the one CI actually runs, `npm audit",
+    "--prefix functions --omit=dev --audit-level=high`, and that reports 0 on",
+    "the runtime tree — the same 0 the top of this block claims, still true",
+    "after the bump. The stale prediction is recorded rather than deleted",
+    "because the lesson is the shape of the mistake: an advisory count measured",
+    "once and written into prose is a figure with no gate behind it, and the",
+    "ecosystem moves underneath it. Re-measure before believing this paragraph.",
+    "",
+    "Note also that ci.yml's audit job is `continue-on-error: true` on purpose",
+    "— advisory only, so an advisory published overnight cannot block an",
+    "emergency rules deploy. The weekly security-audit workflow is the one that",
+    "fails loudly. Neither of them was what refused this bump; a comment was."
   ],
   "overrides": {
     "uuid": "^11.1.0",

@@ -1,0 +1,135 @@
+// profileSetup.tsx — whether the account-creation questions still need
+// asking, and how they get onto the page (D151).
+//
+// A file of its own, beside LiveProfileSetup.tsx, for two reasons that
+// happen to agree:
+//
+//   1. react-refresh wants a component file to export a component and
+//      nothing else, and these are the "nothing else".
+//   2. The screen calls none of it. The flag is written by whoever closed
+//      the screen, not by the screen, so the two do not import each other
+//      in a circle.
+//
+// Reached ONLY through main.jsx's dynamic import, so every byte here is
+// deferred past first paint along with the screen — see mountProfileSetup
+// for why the decision travels with the screen rather than living in an
+// eager gate component.
+import { createRoot } from "react-dom/client";
+import LIVE from "../data/live";
+import LiveProfileSetup from "./LiveProfileSetup";
+
+/**
+ * Asked-or-dismissed, on this device.
+ *
+ * Local rather than on the profile document, and that is the honest place
+ * for it: this records that a SCREEN has been shown, which is a fact about
+ * an install, not about an account. The cost of getting it wrong is one
+ * extra ask on a new device, against a Firestore read on every cold start
+ * to avoid it.
+ */
+export const PROFILE_SETUP_LS = "insight.profileSetup.v1";
+
+export function profileSetupSeen(): boolean {
+  try { return !!localStorage.getItem(PROFILE_SETUP_LS); } catch { return false; }
+}
+
+export function markProfileSetupSeen(): void {
+  try { localStorage.setItem(PROFILE_SETUP_LS, String(Date.now())); } catch { /* private mode */ }
+}
+
+/**
+ * Whether this account still needs asking.
+ *
+ * "Has any anchor at all", not "has all of them", and the difference
+ * matters in both directions: a user who filled the Basics card in before
+ * this screen existed must not be asked to do it again, and someone who
+ * deliberately answered two of the seven and skipped the rest has already
+ * been asked. The screen is for the empty case — which is every account
+ * created before it ran.
+ */
+export function profileSetupNeeded(): boolean {
+  if (!LIVE.enabled || !LIVE.ready) return false;
+  if (profileSetupSeen()) return false;
+  return !Object.values(LIVE.anchors() || {}).some((v) => !!v);
+}
+
+/**
+ * Mount the questions, if this account still needs them.
+ *
+ * ITS OWN ROOT, NOT A WRAPPER AROUND <App />, and that is a bundle
+ * decision rather than a structural preference. `MAX_EAGER_KB` in
+ * scripts/check-bundle.mjs is the constant that keeps the Firestore SDK
+ * out of first paint, it has no headroom, and its own note says a raise
+ * there "would have been the thing to refuse". A gate component wrapping
+ * the app would have to be imported by main.jsx statically — the decision
+ * alone measured 1 KB over — so the whole thing, decision included, lives
+ * behind main.jsx's dynamic import instead. What that costs is the fetch,
+ * after first paint, on live builds only; what it buys is a first-paint
+ * graph that did not move at all.
+ *
+ * A second root rather than a portal for the same reason: the screen is
+ * `position: fixed` with its own ground, so it needs no part of App's
+ * tree — and main.jsx's own comment warns that changing the root element
+ * type remounts App and loses its state.
+ *
+ * Idempotent: called once from main.jsx today, and a second call while the
+ * screen is up is a no-op rather than a second copy of it.
+ */
+let mounted: { root: ReturnType<typeof createRoot>; host: HTMLElement } | null = null;
+
+/**
+ * Take the screen off the page without recording that anything was asked.
+ *
+ * Deferred by a tick, because unmounting a root from inside its own render
+ * pass is the one thing React asks callers not to do.
+ */
+function teardown(): void {
+  setTimeout(() => {
+    if (!mounted) return;
+    mounted.root.unmount();
+    mounted.host.remove();
+    mounted = null;
+  }, 0);
+}
+
+/**
+ * The purge, heard (D51's contract, `check:purge`).
+ *
+ * `profileSetupSeen()` keeps no in-memory copy — it reads localStorage on
+ * every call — so the FLAG cannot go stale the way the stores this gate
+ * was written for do. What can is the SCREEN: `purgeLocalTrace` fires on
+ * account deletion and on a uid change, and a setup screen already on the
+ * page belongs to the session that just ended. Left up, its next tap would
+ * call `markProfileSetupSeen()` and write the key the purge had just
+ * removed — under the NEW uid, so the new account would never be asked.
+ * A narrow window, and exactly the resurrection this gate exists to catch.
+ *
+ * So the screen goes, and the flag is not written on the way out. The next
+ * boot finds no key and an empty anchor map, and asks — which is the right
+ * thing to do with an account that has answered nothing.
+ *
+ * Registered at module scope, which is safe because this module is only
+ * reached through main.jsx's dynamic import: if the chunk never loaded
+ * there is no screen and no state to drop.
+ */
+if (typeof window !== "undefined") {
+  window.addEventListener("insight:local-purge", teardown);
+}
+
+export function mountProfileSetup(): void {
+  if (mounted || typeof document === "undefined") return;
+  if (!profileSetupNeeded()) return;
+  const host = document.createElement("div");
+  document.body.appendChild(host);
+  const root = createRoot(host);
+  mounted = { root, host };
+  const close = () => {
+    // Both ways out — saved and skipped — because what this records is
+    // that the question was asked, and it was. Before the unmount, so a
+    // crash on the way out cannot re-ask the same seven questions on the
+    // next boot.
+    markProfileSetupSeen();
+    teardown();
+  };
+  root.render(<LiveProfileSetup onDone={close} />);
+}

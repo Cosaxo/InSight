@@ -36,6 +36,11 @@ export const LIVE_MEMBERS = [
   // or failed and an array (possibly empty) once known, because "could
   // not ask" and "nobody answered" must not render the same.
   "loadVoters", "voters", "votersByOption", "votersLoading",
+  // The same cached list joined to the parsed cross-user scores D112
+  // already fetched — the input to the who-voted sheet's type cut
+  // (data/typeSplit.ts). Listed here rather than reached for directly:
+  // the pin is what makes a new cross-user surface reviewed.
+  "voterScores",
   // The shared uid → name cache the same read fills. `nameFor` is a
   // synchronous best-effort read; `loadNames` is the batched fetch that
   // fills it for a surface that has uids but no names (world takes).
@@ -55,6 +60,13 @@ export const LIVE_MEMBERS = [
   // `voters`, because "could not ask" and "you follow nobody" are
   // different sentences the stop renders differently.
   "loadCircle", "circle", "circleLoading", "isFollowing", "setFollowing",
+  // The same graph one query deep (D149): the follow SET, without the
+  // per-member answer fan-out `circle` pays for. The who-voted sheet's
+  // Friends cut intersects it with a voter list it already holds, so a
+  // friend's answer costs one read rather than up to FOLLOW_CAP of them.
+  // Same null/[] convention as `circle`, and kept in step with it — the
+  // fold fills this cache and setFollowing clears both.
+  "loadFollows", "follows", "followsLoading",
   // Foresight (D126). The store holds the LOG; the score, the streak and
   // the per-dimension accuracy are pure folds the lens runs on it, so no
   // derived number lives here to disagree with its own rows.

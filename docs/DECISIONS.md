@@ -14234,3 +14234,1222 @@ dispatch is `upload = true` on *iOS release*, it is outward-facing, and it
 spends ~150 minutes of macOS quota at 10x. `whatsNew` stays *"First
 release."*: it is a version field, `MARKETING_VERSION` is still 2.0.0, and
 6.2 is unticked (D74).
+
+## D144 · The bundle gate weighs the bundle that ships, and refuses to weigh any other
+
+**Decided:** 2026-08-14 · **Status:** binding · Closes the gap D143 opened
+and deliberately left open. Changes what `check:bundle` measures, where it
+runs, and what it will refuse to do.
+
+**The defect.** `ios-release.yml` is the only workflow that sets
+`VITE_V2_LIVE=true`, and it never ran `check:bundle`. `ci.yml` ran
+`check:bundle` with the flag unset. So the gated bundle was one nobody
+installs and the installed one was ungated — through build 14, which is
+already on App Store Connect.
+
+Measured at `0826cd8`, same tree, one variable apart:
+
+| build | chunks | total | eager | preloads |
+| --- | ---: | ---: | ---: | ---: |
+| demo (what `ci.yml` gated) | 63 | 2220 KB | 963 KB | 22 |
+| shipping (`VITE_V2_LIVE=true`) | 67 | 2232 KB | **972 KB** | 23 |
+| shipping + real config (release) | 67 | 2233 KB | **973 KB** | 23 |
+
+Against the ceilings in force (2230 / 966) the shipping bundle was over
+**both**, and had been over the eager one since at least build 12. First
+paint — the number whose whole job is keeping a 293 KB Firestore SDK and a
+445 KB Sentry SDK out of a cold start — was 6 KB past its ceiling for four
+releases and nothing in the tree could say so.
+
+**`CAPACITOR_BUILD=1` is not the cause, and that matters because it is the
+variable that looks like it.** It only waives `vite.config.ts`'s
+reCAPTCHA-key guard — a native client attests through DeviceCheck and never
+reads the key — and defines nothing, so it cannot change a byte of output.
+Building with each flag in isolation, `VITE_V2_LIVE` alone reproduces the
+entire delta and `CAPACITOR_BUILD` reproduces none of it. D143 named the
+native build as the unweighed one, which was true by accident: the release
+sets both, and the other one was doing the work.
+
+**What was NOT done: a second set of "native" ceilings.** That was the
+obvious shape and it is what D143 sketched (`check:bundle --native`). It is
+wrong because it leaves two profiles both gated and both plausible, so
+every future reader still has to know which command produced which numbers
+— the same question that produced this defect. Ceilings that describe one
+artifact, and a gate that refuses the others, has no such question in it.
+
+**The three changes.**
+
+1. **`check:bundle` refuses to grade a non-shipping build.** It reads
+   `VITE_V2_LIVE` from its own environment and exits 1 unless it is
+   `"true"`, naming the command to run. `--demo` measures a demo build
+   deliberately, prints the numbers and applies no ceiling. The success
+   line now names the artifact — `bundle budget OK — SHIPPING bundle` —
+   because every failure this gate has had was about *which* bundle, and
+   an "OK" that does not say "of what" is what let four builds through.
+2. **`ci.yml` builds the shipping shape** (`VITE_V2_LIVE: "true"` beside
+   the dummy DSN) and passes the flag to the check step as well. Repeated
+   rather than hoisted to job level on purpose: passing it twice is the
+   assertion that the two steps agree about their subject.
+3. **`ios-release.yml` runs the gate on its own `dist/`** — the literal
+   JavaScript about to be signed, before `cap sync`, costing ~1s and no
+   extra build. This is the half that cannot rot: a gate running in the
+   job that builds and signs the artifact has no way to measure a
+   different one.
+
+**Ceilings re-pointed, not raised.** 2230 → 2245 and 966 → 978 describe the
+same tree measured on the right object. The ~12 KB and ~6 KB bands are
+sized for a specific hazard: `ci.yml` builds with a dummy DSN and no
+Firebase config while `ios-release.yml` builds with the real ones, worth
++1 KB of total and +1 KB of eager (2232/972 → 2233/973, both measured). Set
+the ceilings at CI's figures and the release fails a gate CI had just
+passed — on a macOS runner, after the archive, at the most expensive moment
+available.
+
+**A fourth number, because the guarantee was only ever arithmetic.**
+`MAX_EAGER_KB` protects first paint as a side effect of one total covering
+23 chunks, which holds exactly as long as nobody raises it — and it was
+raised four times in four days, twice while reporting that first paint was
+already over. `MAX_EAGER_CHUNK_KB = 200` states the rule directly: outside
+the entry chunk, no member of the eager set may be library-sized. Today's
+largest is 40 KB, so it catches either SDK by a factor of at least 1.4 with
+wide berth for a chunky component. It is the rule that would have caught
+the pre-D110 tree, where 292 KB of Firestore SDK was preloaded on every
+cold start for months while the per-chunk ceiling saw 292 < 735.
+
+**Verified rather than assumed, and one of these was the point of the
+exercise:** both SDKs are absent from the shipping build's modulepreload
+list — 23 modules, largest 40 KB, no 293 KB `index.esm-*` and no 445 KB
+`prod-*`. "The eager ceiling has been wrong for four builds" is exactly the
+report that ends with an SDK in first paint, so it was checked before the
+ceiling moved. The refusal path, the `--demo` path and the new per-chunk
+rule were each exercised — the last by temporarily lowering it to 30 KB and
+confirming it fires on the four 34–41 KB eager chunks and exits 1.
+
+**What this does not fix.** The gate still cannot see a bundle built with
+flags nobody wrote down; it can only refuse the one wrong shape it knows
+about. If a future build profile is added, it needs a line here and in both
+workflows, and nothing enforces that but review. Recorded rather than
+solved: the alternative is a build-profile manifest emitted into `dist/`,
+which is more machinery than one flag currently justifies.
+
+## D145 · Four question lanes, two of which had never run: the learn and feed Routines, a feed regulator, and a weekday for catalogues
+
+**Decided:** 2026-08-14 · **Status:** built on
+`claude/question-generation-rates-5kiz6c` (owner's direction: "wire up
+the learn and feed lane routines … new catalogues are not created they
+should be"), ships when that branch's PR merges.
+
+**What the audit found, before any of it was fixed.** Eight surfaces
+generate questions; two Routines existed. Counting the lanes rather than
+the contracts:
+
+| Lane | Contract | Routine | Output at audit |
+| --- | --- | --- | --- |
+| daily archive | D97 | daily 07:00 | **0 in 15 days** — every logged run a no-op |
+| catalog pick | this manual | daily 08:00 | ~1/day (pk11–pk14) |
+| catalog **domains** | § Creating new catalogues | (the same 08:00 slot) | 1 in 15 days |
+| learn cards | D32 → D115 | **none** | 0 |
+| feed questions | D97 | **none** | **0 ever** — all 82 provenance rows read `editorial` |
+| duel | D40 | none (deliberate) | 0 |
+| pulse | D139 | none (deliberate) | 0 |
+| community | D138 | n/a — human | 0 promoted |
+
+Two different failures wearing the same zero. Learn and feed had
+complete contracts and nothing calling them: D115 gave the learn lane a
+budget that could produce and left it uncalled, so the bank sat 182 cards
+short of its own target with a grantable budget of 10 and no run to
+spend it. The daily farm is the opposite — it fires every morning and
+places nothing, because `farm-budget` grants 8 while a pre-launch
+scorecard blinds lanes 1–2 and coverage's floor is met everywhere. **That
+one is not fixed here**, deliberately: its unblock is a scorecard refresh
+(`FIREBASE_API_KEY` in an operator shell or the remote environment), an
+operator step the run log has now named four times.
+
+**Decision, four parts.**
+
+1. **A Routine each for learn (`0 9 * * 1,4`) and feed (`30 9 * * 2,5`)**,
+   bound to the same dev session as the two working lanes, staggered off
+   07:00/08:00 and off each other because four lanes share one checkout.
+   Ids are in the manual's inventory; both were created with exactly the
+   configuration the two proven Routines carry — no stored MCP
+   connectors, same environment — because the GitHub tools a run needs to
+   log on issue #31 come from the bound session, and a tidier-looking
+   configuration would have been an untested one.
+2. **`scripts/feed-budget.mjs`, a regulator before a schedule.** The feed
+   lane's "≤6/run, at most twice weekly" was the flat shape D97 and D115
+   had to remove from the other two lanes, and handing a flat cap to a
+   scheduled job is how D33's binding constraint gets violated on a
+   timer. The arithmetic is learn's, against a different quantity: the
+   feed has no consumption clock, so the deficit is per-topic BREADTH
+   toward `TOPIC_TARGET` 12 — the depth `dilemma` already carries — and
+   only SERVABLE forms count, because `rank` (D12) and legacy `duel`
+   cards would let a topic read as covered on questions nobody can meet
+   (`sport` is 13 entries and 10 servable ones). `RUN_CAP` stays at
+   D97's 6 and is the one cap a regulator does not justify raising: this
+   lane is bounded by signal dilution, and no regulator makes a thin
+   crowd thicker. `feed-budget.test.mjs` pins the properties, including
+   the one D115 was written for — that the lane finds work in the bank as
+   it actually ships.
+3. **Sunday builds a catalogue.** "From time to time … when the
+   honest-question well runs thin" could not schedule anything: a
+   competent run asks it while holding a domain with one usable seat
+   left, and one seat is always enough for today's card. Measured — the
+   elements domain landed 08-11 and the four days after it produced four
+   more elements cards. A fixed weekday asks a question a run can
+   answer. Two standing blockers fall with it: a domain branch is cut
+   from `origin/main` (the 08-07→09 no-ops deferred three domain days
+   over review coupling, which comes from one branch CONTAINING another,
+   not from two being open), and the reachable source path is recorded
+   rather than re-discovered — `registry.npmjs.org` answers through the
+   session proxy, `query.wikidata.org` is refused at CONNECT, so
+   films/artists stay the D15 operator step.
+4. **Every question carries a category, and now the gates say so.**
+   `check:quality` required `cat` on daily and `f` on learn, validated
+   feed's `cat` only when present, and had no rule for pick at all —
+   despite the catalog contract's "Every card carries a `cat`, always".
+   All 372 questions in the tree carry one, so nothing was broken; what
+   was missing was the gate, and "true in the data" stops being the same
+   as "true" once a schedule rather than a human is writing. Pick files
+   against `WORLD_TOPICS`, not the feed taxonomy: `fav` — the id all
+   thirteen cards use — is a real topic the feed's chip row filters out.
+
+**A new category is still never created by a run** (§ When no category
+fits, new). A category here is a `CAT_META` hue, a Map anchor with
+relations, a chip, and for learn a group in the Map's layout — a job
+that could add one because a question did not fit is a job that redraws
+the Map to make its own writing easier. What changed is the disposal
+rule, which was soft enough to be unobservable: a question fitting no
+category is **dropped**, and the category proposed in the PR body AND
+the run's issue #31 comment. Both, because the run log is where three
+runs proposing the same missing top becomes an argument rather than an
+anecdote. The pulse is the one surface with no category at all, by
+D139's own decision — its Map branch is the unported seventh
+over-category, the D126 boundary.
+
+**Not done, deliberately:** the daily farm's scorecard unblock (an
+operator step, above); a duel Routine (a fifth scheduled lane is a
+decision for after these two have shown what they cost at the gate);
+raising the feed cap (the D97 amendment, waiting on a crowd); any
+change to the pulse roster (D139's "the roster is a constant until a
+second one earns its place" is exactly right — an over-time question
+consumes nothing, so its generation rate should be the lowest of any
+surface, and near-zero is the correct rate rather than a gap).
+
+**Enforcement:** `feed-budget.test.mjs` (15 cases: the ships-today
+property, the cap, the target, open-PR subtraction, thinnest-first
+water-filling, the no-MIN_CHUNK spread that distinguishes this lane from
+learn's, servable-only counting, convergence, and the signal line's
+three modes); three new `check:figures` pins holding the manual's feed
+numbers equal to the script — verified to bite by moving `TOPIC_TARGET`
+and watching it fail; the two new `check:quality` topic rules, verified
+to bite on a cat-less pick card and a cat-less feed question. Green at
+commit: 26 figures, 372 questions, 183 script tests, lint,
+`check:content`, `check:globals`, `check:labels`, `test:unit`, both
+builds.
+## D146 · The type cut — how each type answered, folded on the client, retroactive by construction
+
+**Decided:** 2026-08-14 · **Status:** binding. From an owner's question:
+*if I answer a question and get a test score later, does the score count
+on the questions I already answered?*
+
+The honest answer at the time was **no, and never** — and the interesting
+part is that the "never" was not a timing problem. Test results have never
+been in the anchors snapshot, so `spec/map-group-stats.js` refuses all four
+instruments and every "how did people like me answer" cut on the app is
+demographic. The one cut this product is actually about was the one it
+could not draw.
+
+### 1 · Why the recorded plan would have answered "no" permanently
+
+`NEXT-FUNCTIONALITY §3 tier 2` had already costed the fix as a **new
+breakdown dim**: match the archetype at vote time, stamp it into
+`anchorsFrom`, add it to `BREAKDOWN_DIMS`, accumulate cells from ship date.
+That plan states its own limit and accepts it — *"forward-only, and say so.
+Answers have never carried scores, so there is nothing to backfill."*
+
+Which is exactly the question, answered no. Worse than it sounds, because
+the four instruments are **passive** (D50/D121): a score is not an event,
+it is a running fold that moves every time another test card is answered.
+So a stamp is wrong twice — it freezes a value that is still converging,
+and it freezes it per answer, so a user's own history ends up smeared
+across whatever types they were passing through. The alternatives are both
+bad: rewrite past answers (D86 forbids it, and it is O(answers) aggregate
+writes against a document with D7's ~1 write/sec ceiling, re-run every
+time a band flips), or leave the cut blank for all existing answers
+forever.
+
+### 2 · The snapshot was never the only place the join could happen
+
+Since D98 answers are public and `testResults` is world-readable; since
+D112 `voters.resolveNames` parses scores out of **the same profile
+document it already reads for a name** — the web SDK has no field mask, so
+they were on the wire regardless. So for any question the session has
+opened, the client already holds: who answered, what they picked, and what
+their scores are. Grouping is arithmetic on data in hand.
+
+**No new read, no new field, no new cell, no stamp, nothing to backfill —
+and it reads everyone's CURRENT type against the answers they ALREADY
+gave.** Take your test items in month three and month one regroups itself.
+That is the property the dim could not have at any price, and it is the
+answer to the question that prompted this.
+
+`data/typeSplit.ts` (pure), `LIVE.voterScores` (a join, no arithmetic), and
+a `Type` chip on `LiveBreakdownPanel`.
+
+### 3 · What it costs, and where the cost is stated
+
+The published cells are a **census**; this is a **sample** — the latest
+`VOTER_FETCH_CAP` voters (D102), thinned to those carrying a readable Big
+Five. Two numbers, kept apart on purpose (`sampleN`, `typedN`), because the
+card has to say which denominator a share is out of. Under
+`TYPE_SPLIT_SMALL` (60) it draws **counts, not shares** — and the bar fill
+switches to a magnitude scale with them, because a fill drawn as a share of
+100 makes the claim visually even when the label says "3".
+
+One arithmetic trap, pinned in `typeSplit.test.ts`: divergence is computed
+against **the typed sample's own overall**, never against `agg.counts`.
+Comparing a sampled cohort to an exact census folds the sample's bias into
+a number presented as the type's; comparing within the sample cancels it.
+
+The `Type` chip sits last, after the published dims, and the basis line
+under the bars is the disclosure after the tap. `renderBody` is deliberately
+NOT offered the type cut — a dial's track reads as the population's
+position, and a bounded sample must not be drawn on it.
+
+### 4 · It narrows a standing claim, so the claim moved
+
+`docs/data-inventory.md` said a test result is *"never a breakdown dim, so
+nothing is ever cross-tabbed by it (D8)"*. The first half stands exactly —
+no dim, no stamp, no cell, and the SERVER still never slices an aggregate
+by a result. The second half is now false: the client performs and
+displays the cross-tab.
+
+Nothing new is exposed — the fold is over two things that already publish,
+and any reader could have computed it — but *"the app groups my answers by
+my personality type and shows that to strangers"* is not something a user
+should have to derive from two other bullets, and the retroactive half is
+the part they cannot guess. So the privacy panel says it, pinned in its
+test, and the inventory carries the narrower claim.
+
+**Big Five only, and enforced rather than intended.** `typeMix.TYPE_TEST`
+is the single constant the fold reads; politics, values and attachment
+never group answers. The politics result is the Art. 9 field, and D98
+reversed D44 on the *items'* counts, not on cross-tabbing by result.
+Pinned in two places on purpose: the constant is a thing a refactor could
+widen without touching any copy.
+
+### 5 · The bug this uncovered: D141's card was dead on arrival
+
+`typeOfPerson` read `results[TYPE_TEST].dims` off a `KindredPerson` —
+the RAW profile shape, on a value that has been through
+`parseTestResults` and is a FLAT axes map with no `dims` key. It returned
+**null for every person, always**: `typeMixFor` filtered its whole sample
+away, `typedN` was always 0, and the type-mix card drew its "nothing typed
+here" empty state on every population in live mode, from the day it
+shipped (2026-08-14, one day).
+
+Nothing caught it, and each reason is worth keeping. Both shapes are
+`Record`s, so the `as Dim[]` cast satisfied `tsc`. The module had **no
+test at all**. And the failure mode is a legitimate empty state the card
+was *designed* to draw — so it looked like a thin population rather than a
+broken join. `myType()` was fine throughout, because it reads the raw
+store value, which is what made the mismatch invisible on the one surface
+anyone would have checked.
+
+Measured with a probe before the fix, not reasoned about. The join now
+lives in one place (`typeOfParsed`), `typeOfPerson` delegates to it, and
+`typeMix.test.ts` exists — including a case pinning that the parsed shape
+has no `dims`, so a future change to `parseTestResults` cannot make the
+rest pass for the wrong reason.
+
+**Deferred, with the arithmetic.** Tier 2's exact dim is NOT adopted and
+NOT rejected: this cut is what tier 2's recommendation asked for before
+deciding — *"hold tier 2 until tier 1 shows people actually pivot on
+types"* — and it is now a concrete surface to argue from rather than a
+hypothetical. If it earns the dim, the dim buys exactness and a census,
+and pays for it in the one currency this fold does not spend: it can only
+ever describe answers given after it ships. The two are complements, not
+alternatives; a dim would leave this cut in place for the history it
+cannot see.
+
+## D147 · The functions tsconfig moves to `node16`, and the emit format is the part that mattered
+
+**Decided:** 2026-08-14 · **Status:** binding · Unblocks the TypeScript 7
+bump in `/functions` (Dependabot #16), which had been red since 3 August.
+
+**The defect.** TypeScript 7 removed the `node10` module-resolution
+algorithm, which `functions/tsconfig.json` selected under its old name
+(`"moduleResolution": "node"`), and stopped inferring `rootDir`. Two
+errors, both about configuration rather than code:
+
+```
+tsconfig.json(6,5):  error TS5011: 'rootDir' must be explicitly set
+tsconfig.json(10,25): error TS5108: Option 'moduleResolution=node10' has been removed
+```
+
+Nothing in `src/` was wrong. The build simply could not start.
+
+**The fix, and the trap inside it.** `module` and `moduleResolution` both
+move to `node16` — they are not independently selectable, so the pair
+moves together — and `rootDir` is named explicitly as `src`, which is the
+value the compiler was already inferring.
+
+The part worth recording is what `node16` does NOT do. It is not a switch
+to ESM. `node16` derives each file's emit format from the nearest
+`package.json`, and `functions/package.json` carries no `"type"` field, so
+every file still emits CommonJS. Verified rather than assumed, on both
+compilers, by counting the markers in `functions/lib/index.js`:
+
+| Compiler | `exports.` / `Object.defineProperty(exports` | bare `import`/`export` |
+| --- | --- | --- |
+| 5.9.3 (before, and after) | 28 | 0 |
+| 7.0.2 (after) | 28 | 0 |
+
+That column is the whole reason this has an entry. An ESM emit here would
+have compiled, passed `check:fn-runtime` (which asks whether
+`functions/lib/index.js` exists, not what module system it speaks),
+deployed green, and then failed at runtime on every function — the exact
+shape of failure this repo keeps writing gates against. The count is the
+gate a human can run.
+
+**Ordering.** The tsconfig lands BEFORE the compiler bump, not with it:
+`node16` is valid on 5.9.3, so the change is a no-op on the current
+toolchain and the tree stays green at every commit. `check:fn-runtime`,
+`check:appcheck`, `check:deploy-targets` and the 214 functions tests pass
+on both compilers.
+
+**Not decided here.** The root project stays on its own TypeScript. This
+entry is scoped to `/functions`, whose `tsconfig.json` is separate and
+whose output is the only one that gets deployed to Cloud Functions.
+
+
+## D148 · The Routine prompts catch up with their contracts, by the only mechanism that works
+
+**Decided:** 2026-08-14 · **Status:** taken — both Routines recreated
+and verified live; the manual half ships on
+`claude/question-generation-rates-5kiz6c`.
+
+**Decision.** All four lane Routines now fire under prompts that match
+their contracts. Two did not: the farm's predated D33 (it still
+summarised a weekly cadence and a 12/run cap) and the catalog's
+predated both the 2026-08-03 roll-up rule and D145's Sunday domain
+slot — so it told a run to open one branch per day and never mentioned
+the deliverable that D145 exists to schedule. Both were tolerable only
+because every prompt defers to this manual and re-reads it each firing;
+"the prompt is wrong but it tells you to read the right thing" is not a
+posture to keep, because the summary is what a run acts on when it is
+in a hurry.
+
+**Why the catalog prompt drifted twice and the farm's only once: it was
+never written down.** `QUESTION-FARM.md` pinned canonical text for the
+farm and, at D145, for learn and feed — but never for the catalog lane,
+whose prompt lived only inside the Routine. A contract change had
+nothing to update alongside it, and nothing to diff against afterwards.
+The catalog's canonical block now exists, which is the durable half of
+this record; the swap is the perishable half.
+
+**The mechanism, measured rather than assumed.** `update_trigger`
+refused a prompt edit for the third time (2026-08-01 org-wide,
+2026-08-03, and again today), verbatim: *editing the prompt of a
+routine whose fires deliver into a session that is not your own is not
+available via this tool*. `ListAgents` reports no reachable agents, so
+the bound session cannot be asked to run the edit on itself either.
+What works is that `create_trigger` accepts a `persistent_session_id`
+aimed at another session — the same mechanism D145's lanes were made
+with — so delete-and-recreate is a working swap. At the owner's
+explicit direction that is what was done: create the replacements
+first and verify them (a failed create must not leave a lane dark),
+then delete the originals, then update the ids in the manual's
+inventory. Both lanes were ~13 hours from their next fire throughout.
+
+**What it cost, stated rather than glossed:** the two Routines lost
+their creation dates, their fire history and their ids
+(`trig_01REC4Mf…` → `trig_01DZQC4E…`, `trig_01HDn61h…` →
+`trig_01RVeFZ4…`). Small here, because issue #31 is this project's real
+run log and the trigger telemetry was never the record — but it is
+spent, not recoverable, which is why the manual now says to prefer
+`update_trigger` from the bound session or the Routines UI and to fall
+back to this only with the owner's say-so.
+
+**The asymmetry worth remembering:** a prompt can be WRITTEN from a
+sibling session and cannot be READ from one. There is no way to diff a
+live Routine against its canonical block from here, and no CI gate can
+reach the account's Routines either. So the canonical blocks in
+`QUESTION-FARM.md` are not a copy of the truth, they ARE the record —
+which is the argument for the catalog block existing and for the rule
+that any prompt change updates both halves in one PR.
+
+**Also folded in:** the farm's canonical text gained D145's category
+disposal rule (a question fitting no `cat`/`alts` top is dropped and
+the category proposed in the PR body and the issue #31 comment), which
+it had not carried because D145 wrote the rule after the prompt block.
+
+**Not done, deliberately:** any gate over prompt drift (nothing in CI
+can read a Routine); firing either Routine to test the new prompt (an
+off-schedule fire does real work — opens PRs — and tomorrow's scheduled
+run is the honest test); the daily farm's scorecard unblock, which is
+still the operator step that keeps that lane at zero regardless of what
+its prompt says.
+
+**Enforcement:** the four ids and their crons are in the manual's
+inventory with the "all four match as of 2026-08-14" line; the four
+canonical blocks are the diffable record; `check:figures`,
+`check:quality`, `check:content`, `check:globals`, `check:labels`,
+`check:versions`, lint, 183 script tests and 984 unit tests green at
+commit.
+## D149 · Sides, friends and real counts: three surfaces stop guessing
+
+**Decided:** 2026-08-14 · **Status:** binding · Owner decisions, taken
+against the prototype (`InSight_standalone_25.html`). Amends D125's sheet
+and D32's learn seam; leaves D98's cross-user read intact and builds on
+it.
+
+Three faults reported against the release, and one posture behind all
+three: **a screen that could not get the true number drew a plausible one
+instead.** Where the true number existed, nothing had been pointed at it;
+where it did not, something authored stood in for it.
+
+### 1 · A take carries the side its author voted, and the list filters by it
+
+`LiveTakesPanel` drew every take as a name and a paragraph in one
+undifferentiated column — on a surface whose entire subject is that people
+disagree. "What does the other side say" is the second thing anyone wants
+from an argument, and scrolling for it is not an answer.
+
+**Where the side comes from is the decision.** Not from the take document
+— `v2_takes` accepts a fixed field list and carries no vote, and widening
+it would have meant a rules change plus a claim that could drift from the
+author's actual answer. It comes from the answer itself, through the
+collection-group read the who-voted sheet already makes (`data/voters.ts`).
+So the badge and the split above it cannot disagree, and on a question
+whose voters are already in the store it costs nothing at all.
+
+Gated on the caller passing `options`: a dial, a field, a catalogue pick
+and a sealed duel row all reach this panel, and only an options-shaped
+question has sides to badge. A duel passes nothing on purpose — its
+answers are sealed until the reveal, and a badge there is the leak the
+seal exists to prevent.
+
+### 2 · The who-voted sheet gains a Friends cut and loses its roster
+
+D125 flipped the sheet's axis so a cohort's numbers redraw the question.
+It kept the roster underneath: every voter's name with their age, gender,
+city and education beside it, under every cohort, "Everyone" included.
+
+Read from the top that is a **directory of strangers annotated with their
+demographics**, which is not what anyone opens a result to see — and on
+the Everyone cut it is a directory of everybody who has ever answered. So
+the names move to the one cut where "who" is the question being asked, and
+every other cut answers in percentages, which is what a cohort reading is.
+
+This does **not** retire D98. The Friends cut is built on the same
+cross-user read, and People, Compare and the City constellation still name
+people. What it retires is the roster as the answer to "how did everyone
+vote". `ui/LiveVotersPanel.tsx` is deleted — nothing imported it any more.
+
+**The cut is a membership test, not a fold.** `LIVE.loadFollows` is the
+follow SET in one query, intersected with the voter list already in hand.
+Calling `loadCircle` for it would be up to `FOLLOW_CAP` queries to answer
+a membership question. The two caches are kept in step deliberately —
+`loadCircle` fills this one, `setFollowing` clears both — because two
+caches that can disagree about who your friends are is the bug that note
+exists to prevent.
+
+Friends who have not answered are not listed, and the headline counts only
+those who did: "4 of 6" means four of the six who answered, which is the
+only version of that sentence this data supports.
+
+### 3 · Learn shows how many people actually picked each option
+
+D32 built a seam: the published aggregate when there was one, otherwise
+the authored `card.p` estimate with a footer saying which. Honest, and
+still the wrong thing on screen.
+
+`p` is a **content-authoring difficulty hint** — a number a writer typed
+while writing the card. Drawn as bars it looks like a reading of a crowd
+however the footer is worded, because a reader reads the bars. So in a
+live build the estimate is gone: `LEARN_SPLIT` and `LEARN_RATE` return
+nothing (`pct: null`, never `0` — the D72 shape, so a caller that forgets
+the check fails a test instead of claiming nobody gets the card right),
+and `LEARN_COUNTS` carries the raw per-option counts.
+
+The reveal leads with the count — "31 people · 62%" — because the count is
+the fact and the share is the reading. A card nobody else has answered
+says exactly that.
+
+Two smaller lies went with it. "Real answers from N+ players" had a
+`|| 5` floor under it, printing "5+ players" for a card two people had
+answered; it reports the real total now. And the ⓘ sheet's Crowd row is
+dropped entirely rather than shown empty.
+
+The **demo keeps the authored model**: there the fabricated crowd is the
+content, and there is no aggregate that could ever replace it.
+
+### What this cost, and what it did not
+
+`check:globals` rule 4: 414 → 412, baseline and the README figure lowered
+with it. `learn-data.js` gained a second reader of `window.LIVE` and keeps
+exactly one reference site (a `liveStore()` accessor both go through), so
+the meter stayed flat where it would otherwise have gone up.
+
+## D150 · Near is a field again, and nobody in it is named
+
+**Decided:** 2026-08-14 · **Status:** binding · Owner decision, taken
+against the prototype's Near stop. Amends D111's live body; leaves D98's
+presence deny exactly where it was.
+
+`NearLiveBody` drew a count and a sentence pointing at City, and its own
+header said that was permanent: the presence cell is one of D98's three
+surviving denies, so a count is all the server returns and "the only thing
+this stop will ever draw".
+
+**Every word of that is still true and it was still the wrong
+conclusion.** It answered a question about the presence cell with a
+decision about the whole screen. Near asks *who is around me*, and the app
+knows something true about that which it was already drawing one stop over
+— the people of your city, ranked by how close their scores sit to yours
+(D112). The refusal was of a claim nobody had to make.
+
+So the stop is the prototype's shape again: a figure at the top, a crowd
+around you, distance = unlikeness.
+
+**The one difference from every other field in the Mirror is the deny,
+drawn.** `kind: "anon"` renders a body-and-head glyph with no initials, no
+label, no role, no tab stop and no pick handler. A field you can tap a
+person out of is a directory, which is exactly what Near must not become —
+so the field shows the SHAPE of a crowd and offers no way into it.
+
+**Two numbers, each attached to what it counts** (D112's honesty rule 2,
+applied rather than cited): the figure is phones near you right now, the
+ring is people in your city, and each carries its own caption. One caption
+spanning both is how a screen starts claiming it knows who is standing
+next to you.
+
+Cost: the field rides `LIVE.loadSimilarity`, the same bounded
+session-cached loader the City stop's field uses — so arriving here after
+City pays nothing, and arriving before it warms what City is about to
+want. Lazy from `NearLiveBody`, which `mirror-tab` imports eagerly: a
+static import would have put the similarity fold and the instrument
+definitions in the entry chunk for a stop most sessions never open.
+
+## D151 · The general info is asked at the start, because an answer cannot be re-filed
+
+**Decided:** 2026-08-14 · **Status:** binding · Owner decision. Adds a
+screen; changes no rule and no vocabulary.
+
+Every anchor an answer snapshots (D8) — age band, gender, city, country,
+education, profession, relationship, height — was collected in exactly one
+place: the profile overlay's Basics card, four taps deep, behind a pencil
+icon. **Nothing ever asked for it.**
+
+So the common shape of a real account was: answer for a week, discover the
+card, and find the week's answers stamped with `{}`. That is not
+cosmetic. Answers are create-only (D5, amended by D86 to an
+`optionIdx`-only edit), so an anchor missing at vote time is missing from
+that answer **forever** — the trigger folded it into no breakdown cell and
+no later profile edit can move it. Every cohort screen in the Mirror reads
+those cells. A user who fills the card in during week two has a first week
+that contributes to nothing but the total.
+
+The questions are now asked once, at the top, where answering costs a
+minute and not answering costs nothing yet.
+
+**It is an ask, not a wall.** Every field is skippable and the whole
+screen dismissible — D3 is anonymous-first and the upgrade is "never a
+wall", and a required demographic form is how you teach people to lie to
+one. What skipping costs is stated plainly instead. The pitch is the
+mechanism rather than a benefit ("personalise your experience" would be a
+lie — none of this changes what you are shown), because the mechanism *is*
+the reason.
+
+**One vocabulary, in a file of its own.** `spec/profile-vitals.js` now
+holds the lists and `anchorsFrom`; the Basics card and this screen both
+import them. That matters more than tidiness: `check:anchors` holds four
+of those lists equal to `BREAKDOWN_DIM_VOCAB` in `functions/src/pure.ts`,
+so a label typed a second time in a second file would pass tsc, eslint and
+every gate and silently stop that level counting. The script was repointed
+at the new file in the same change.
+
+**Both halves of the write, for the reason `setCityAnchor` documents at
+length:** `GeneralPanel` mirrors `anchorsFrom(vitals)` into `saveAnchors`
+on every mount (deliberately — it is how a fabricated anchor gets
+repaired), so anchors written only server-side would survive exactly until
+the profile overlay next opened and then be replaced by the blob's empty
+vitals. `mergeProfileVitals` is that write, factored out.
+
+### The bundle gate decided the shape
+
+The obvious build is a gate component wrapping `<App />`, which `main.jsx`
+must then import statically. `check:bundle` measured the decision alone at
+**1 KB over `MAX_EAGER_KB`** — the constant that keeps the Firestore SDK
+out of first paint, which has had no headroom since D139 and whose own
+note says a raise there "would have been the thing to refuse".
+
+So the decision travels with the screen: `main.jsx` reaches it through a
+dynamic import beside `loadWorldFeed`/`loadOverlays`, and it mounts its
+**own root** rather than joining App's tree — the screen is
+`position: fixed` with its own ground and needs no part of it, and
+`main.jsx`'s own comment warns that changing the root element type
+remounts App and loses its state. First paint did not move: 966 KB before
+and after.
+
+Two intermediate shapes were measured and rejected on the way, both worth
+recording because both looked free:
+
+- A shared `profileSetupState.ts` imported by **both** an eager gate and
+  the lazy screen. Rollup groups a module shared that way with the eager
+  side and drags the lazy side's imports with it — the whole profile panel
+  landed in the eager graph.
+- Importing the vocabulary from `profile-general.jsx`, which `spec-index`
+  imports eagerly. Rollup extracted the panel into a shared chunk first
+  paint still preloads, +19 KB. Hence the separate vitals module.
+
+**The flag is local**, not on the profile document: it records that a
+SCREEN was shown, which is a fact about an install rather than an account.
+The cost of being wrong is one extra ask on a new device, against a
+Firestore read on every cold start to avoid it. And "needs asking" is *has
+no anchor at all*, not *has all of them* — an account that filled the
+Basics card in before this existed must not be asked again, and one that
+deliberately answered two of seven has already been asked.
+
+## D152 · Explore is the World's; the People lens gets its shape back; Circle and Groups get theirs
+
+**Decided:** 2026-08-14 · **Status:** binding · Owner decisions, taken
+against the prototype (`InSight_standalone_25.html`). Amends D99's lens
+row and the Circle/Groups bodies; changes no data source and no rule.
+
+Three reports, one root: **the live bodies had the right numbers and the
+wrong shape.** Each had been built as the honest minimum — a bar, a list,
+a percentage — and shipped without the grammar the Mirror is otherwise
+built on.
+
+### 1 · Explore leaves City and Country
+
+The prototype module is named for its home: `spec/segment-explorer.jsx`,
+"the World's Explore lens". The live row offered it at every scope.
+
+**Not an empty-tab problem — a misplaced-reading one**, which is why the
+tab goes rather than staying and saying "no data". Explore's whole move is
+to cut a population by a trait and rank where that slice parts company
+with **everyone**. At World the population IS everyone, so the baseline is
+the one the reading claims. At City the population is already a slice, so
+the chips re-cut a cut and the divergence reported is against the city —
+a different sentence, drawn in the same ink.
+
+That reverses the note the row's assembly used to carry ("a tab that opens
+onto nothing yet is a true reading of this population"). It is still true
+and it is about a different thing: data being thin is a reason to keep a
+tab, a reading not applying is a reason not to offer one. `lensesFor` in
+`ui/lensTabs.ts` owns the answer so the row and its body cannot disagree.
+
+### 2 · People stops being a table
+
+It shipped as a dim chip row over horizontal bars, then a flat list of
+names each with a percentage. Every number real, and the screen said
+almost nothing: a bar chart of age bands is a fact about a form people
+filled in, and a name beside "68%" is a score with no person attached.
+
+The prototype answers "who is here" in two registers, and so does this
+now:
+
+- **Who's here** — one card: the population's size, its age distribution
+  as a histogram with YOUR band filled rather than annotated, its gender
+  split as one bar. A shape you read at a glance instead of a table you
+  parse.
+- **Kindred** — the same ranked people as CARDS: a match ring whose
+  fullness is the likeness, who they are on the headline ("Ceramicist ·
+  25-34"), their type as a badge, their other anchors as chips.
+
+`kindredPeople()` now carries the whole frozen anchors snapshot, not just
+`city`. Zero new reads — the voter rows it folds were already fetched and
+cached for the ranking, and the snapshot was already on them. From the
+ANSWER, never the live profile, for D8's reason: describing someone by who
+they are today beside a likeness computed from who they were when they
+answered is two claims about one person.
+
+**Three things are deliberately absent**, and each is a refusal:
+
+- The prototype's "TIME ON INSIGHT · new / regulars / veterans". Nothing
+  publishes a join date, and an invented tenure split is the furniture D1
+  exists to keep off a live screen.
+- Its shared-interest chips ("pottery · fermentation · Murakami"). Stated
+  interests are LOCAL and the viewer's own (D128), and `interests.test.ts`
+  names the Mirror as a surface that may not read them — another person's
+  are not readable at all. The chips here are frozen answer anchors, which
+  are public (D98) and are the same source the card above them folds.
+- An exact median age. The anchor is a band, so the card reports the
+  median **band** rather than inventing the year inside it.
+
+### 3 · Circle and Groups get the constellation
+
+Both stops had it in the prototype and both shipped live as a list of
+names with a percentage each — the same data with the shape taken out, and
+on these two stops the shape IS the reading. Circle is the one population
+where "who is close to me" is the entire question.
+
+They do not route through `rankKindred`: their populations are not
+strangers to rank but sets already ranked by the module that owns them
+(`data/circle.ts`, `data/groupPortrait.ts`). So `PeopleField` takes nodes
+and draws them, and the caller owns what a node means.
+
+**Only members with a likeness are placed.** A node needs a radius and a
+radius is a claim; someone you have never answered a shared question with
+(Circle) or never played the same day as (Groups) has no honest one. They
+stay in the list below, which carries everyone.
+
+### The bundle, which paid for all of it
+
+The rebuild landed one fraction over `MAX_EAGER_KB` — the constant D151
+already recorded as the one not to raise. The fix was not to trim the
+feature but to find weight that should never have been eager:
+**`LiveTakesPanel` was in the first-paint graph**, statically imported by
+`daily-split.jsx` and by `LiveDuelPanel`, both of which are the daily tab.
+Forty kilobytes of takes thread, preloaded for a surface that renders
+behind a "Takes" tap or under a revealed duel. Both imports are
+`React.lazy` now.
+
+Eager graph **966 → 958 KB**, so this change ends with 8 KB more headroom
+than it started with, and the panel loads on the tap that asks for it.
+
+## D153 · Build 15's pre-flight: the first one where the number was already right
+
+**Decided:** 2026-08-14 · **Status:** binding · Fourth consecutive release
+pre-flight (D130, D142, D143) and the first whose build-number comparison
+answers *run as-is*. Changes no code. `appBuild` is **not** bumped here,
+and that is the finding rather than an omission.
+
+### The comparison, made against the runs
+
+Run 20 (`8cf48a1`, 2026-08-14 16:39Z, 7m 32s) has `Upload to App Store
+Connect` = **`success`**, and `appBuild` at that commit was **14**. So
+build 14 is spent. `appBuild` in the tree is **15**. Fifteen is greater
+than fourteen, so runbook 2.4's question — *is `appBuild` greater than the
+highest build in App Store Connect?* — answers yes, and the procedure says
+run as-is.
+
+**Three pre-flights in a row bumped; this one does not, and the difference
+is D143's habit finally holding.** D142 and D143 each opened on a spent
+build number sitting in the tree, because the post-upload bump had been
+skipped twice running. Run 20's bump landed in the same session that read
+the run's step list (`0826cd8`), which is the one thing D143 identified as
+making the difference — the gap it kept falling into was between "the
+upload finished" and "someone came back to the tree". So the expected
+yield of this pre-flight, a spent number, is absent because the previous
+one's fix worked.
+
+**What is NOT written here is the sentence that has been wrong three
+times.** D130, D142 and D143 each recorded a build as "pre-flighted and
+unspent" in the very commit the next run uploaded. The claim is not
+storable: the run is dispatched *from* the commit that makes it, and
+nothing in the tree can read App Store Connect (D73's shape, one layer
+out). This entry records what run 20 **did** and the comparison as of
+this commit. Whoever dispatches next re-makes it against the run list,
+because by then this paragraph is a historical statement and the run list
+is not.
+
+### The bundle gate, green on the artifact that ships
+
+`check:bundle` was the yield of the last two pre-flights — red both times,
+and at D143 red on a bundle nobody installs. D144 re-pointed it, so this
+is the first pre-flight where the gate was aimed at the shipping artifact
+from the start and its green therefore means what it says:
+
+| | measured | ceiling | headroom |
+| --- | --- | --- | --- |
+| total JS | 2255 KB | 2265 | 10 KB |
+| eager graph | 969 KB | 978 | 9 KB |
+
+72 chunks, built the way `ios-release.yml` builds — `VITE_V2_LIVE=true`,
+`CAPACITOR_BUILD=1`, and a non-empty `VITE_SENTRY_DSN`, without which the
+Sentry chunk is absent and the total comes out ~450 KB light on a bundle
+nobody ships. **That chunk is one file under two numbers**, which is worth
+settling here because both are already in the docs: `dist/assets/prod-*.js`
+is 445,598 bytes — `check:bundle` prints **435 KB** because it counts KiB,
+while D144's prose and runbook 2.4 say **445 KB**, the decimal reading. The
+table above is in the script's units throughout. **Both numbers are single-digit-KB from their
+ceilings**, which is not a defect and is worth naming: D152 bought 8 KB of
+eager headroom by making `LiveTakesPanel` lazy, and this measurement is
+what that headroom now looks like from the release path. The next feature
+of any size meets one of these two constants.
+
+### Measured, not asserted
+
+1064 client tests (73 files), 214 function, 183 script, 89 rules; `lint`,
+`tsc -b`, `check:globals` at its **412** baseline, unmoved. Every check
+gate passes. Two carry footnotes, neither a defect:
+
+- **`check:store-copy`** fails bare and passes with `--ios`, which is the
+  flag the release workflow uses. The one placeholder is D42's parked Play
+  signing fingerprint.
+- **`check:web-firebase`** reads `VITE_FIREBASE_*` from repository
+  *variables* that exist only in CI. It passes here against an injected
+  config, which proves the gate's mechanism and not the real values; the
+  run that matters is the workflow's, against its own `dist/`.
+
+`test:rules` and the three e2e suites are green locally and on CI run 436
+(`2423e4f`), whose nine jobs are all `success` at this tree — including
+`native-sync-drift`, which is the one that speaks to this release: build
+15 carries **`@capacitor/ios` 8.3.3 → 8.4.2**, `@capacitor/cli` → 8.5.0
+and `@capacitor/splash-screen` → 8.0.2, and `cap sync` produces no drift
+against the committed shell.
+
+**`test:rules` needs `HTTPS_PROXY` unset**, per CLAUDE.md. Verified again
+here rather than taken on trust: with it set the functions emulator dies
+naming neither the host nor the proxy; unset, all 89 pass.
+
+### One measurement that was not clean, and why it is not a blocker
+
+`src/v2/test/learn-reserve.test.jsx` failed once — the D95 re-serve case,
+one of 1064 — on a run where three other suites were executing
+concurrently. It then passed 3/3 standalone and 1064/1064 on two clean
+full runs, and CI is green at this commit.
+
+The arithmetic says contention rather than flake-for-unknown-reasons:
+**the file needs ~10.8 s of test time against the 15 s `testTimeout` it
+sets itself**, so roughly 4 s of margin, and it spends that budget on a
+full `growFeed()` render in jsdom. Three parallel suites is enough to eat
+4 s. Recorded rather than fixed because the fix is a judgement about the
+test's budget that a release pre-flight should not be making silently —
+**but the margin is thin enough that it will fire again on a loaded
+runner**, and the next person to see it red should read this paragraph
+before assuming a regression in D95.
+
+### What build 15 carries that 14 did not
+
+Twenty-one commits. D144's re-pointed bundle gate, D145's four question
+lanes and feed regulator, D146's type cut, D147's `node16` functions
+tsconfig, D148's Routine prompts, and the four that #179 landed together:
+**D149's sides, friends and real counts**, D150's Near-as-a-field with
+nobody named, D151's general info asked at the start, and D152's Explore /
+People / Circle / Groups reshaping. Plus the dependency bumps above and
+`firebase-admin` 14 / `firebase-functions` 7 on the backend.
+
+## D154 · The Map's mainstream boundary is sized by the map, not by a constant
+
+**Decided:** 2026-08-14 · **Status:** binding. From a screenshot with the
+report *"the sketched circle gets awkwardly large at small amounts of
+data"*: two branches, seven answers, and the boundary ring running to
+both edges of the canvas with nothing inside it.
+
+### 1 · The bug is the ratio, and it was measured
+
+`.mmt-ground::after` was a flat `640px` circle in world space. The Map's
+canvas fits itself to whatever is on it (`fitAllTarget`), so the fewer
+answers you have the harder it zooms in — and a fixed circle grows on
+screen exactly as the map shrinks. Probed against the real layout engine
+on a 390×700 canvas, as a share of canvas width:
+
+| branches × answers | reach | fit z | old 640px circle |
+| --- | --- | --- | --- |
+| 1 × 1 | 505 | 0.557 | **91%** |
+| 2 × 2 | 484 | 0.557 | **91%** |
+| 3 × 3 | 512 | 0.351 | 58% |
+| 5 × 5 (+subs) | 685 | 0.283 | 46% |
+| 7 × 6 (+subs) | 963 | 0.217 | 36% |
+| 9 × 8 (+subs) | 1227 | 0.168 | 28% |
+
+The circle was tuned at the bottom of that table and shipped at the top of
+it. The reported screenshot reproduces from these numbers: 640 × 0.557 on
+a 390-wide canvas is the balloon in the picture.
+
+### 2 · A share of the constellation's reach, floored at the anchors
+
+`mtClusterLayout` now returns `ring`, and the stylesheet reads it as
+`calc(var(--ring, 320px) * 2)`:
+
+```
+ring = max(205, 0.26 × reach)      reach = the outermost node the layout placed
+```
+
+**`reach`, because that is what the fit measures too** — sizing against the
+same quantity as the zoom is what makes the on-screen share hold steady
+(27–37% from three branches up, against 28–91% before). **0.26, because it
+leaves a filled-out map exactly where it is**: 0.26 × 1227 ≈ 319, and the
+constant it replaces was 320. Nobody with a full map sees this change.
+
+**205, because it is the layout's own floor** — step 4 refuses to place a
+dot inside 205, and the profile ring sits at 170 with its labels just
+outside. Below that the boundary stops being a horizon and becomes a
+second circle competing with the anchors for the same hole. The floor
+binds up to about five branches, which is most maps, so in practice the
+small-map answer is "205" rather than a formula.
+
+That floor has a consequence the fixed circle never had: at ring stage the
+boundary can now sit 35px outside the anchors at full strength. So it
+joins the list of outer-map furniture that steps back while You holds the
+stage — `.mmt-root.is-ringstage .mmt-ground::after`, at the same 0.22 as
+the limbs. It was only ever absent from that list because 320 was far
+enough away for nobody to notice.
+
+### 3 · What this does NOT fix, stated because the comment above it claims otherwise
+
+The line's own comment says *"inside this ring you're with the crowd,
+outside it the take is rarer; distance means something"*. The probe says
+that is aspirational at every data size: across all nine shapes measured,
+between **0 and 4%** of dots landed inside the old circle. Radial position
+is dominated by which cloud a dot belongs to (`R1 = 330`, `CLEAR = 150`),
+and typicality only moves it ±50 within that cloud — so a single circle
+cannot separate typical from rare while clouds are placed on a common
+orbit. Sizing the ring does not change that, and a quantile ring (the
+obvious "make the claim true" fix) is worse on the reported bug, not
+better: the 25th percentile of dot radii at two branches is 427, which
+draws a circle **122%** of the canvas width.
+
+Deferred deliberately. Making the claim true is a layout change — pulling
+common answers meaningfully inward across clouds — not a ring change, and
+it would move every dot on every map to fix a line nobody complained
+about. What ships here is the ring as a horizon that scales; the claim
+stays on the list.
+
+### 4 · Guarded by `test/map-ring.test.js`
+
+The arithmetic had no test and could not get one from the mount suites:
+jsdom reports `clientWidth` 0, so `MapTab` returns its empty shell and the
+ground never renders. The wiring is a CSS custom property, which `tsc`,
+eslint and `check:globals` are all blind to — drop it and the stylesheet
+falls back to the 640px circle *silently*, which is green tests and the
+old bug. So the file does both halves: real assertions on the numbers, and
+a source-text pin on the three files that have to agree about `--ring`.
+The pin proves the property is passed and read, not that it lands on
+screen; the honest way to close that last gap is a mount with stubbed
+element sizes, and the Mirror mount is already the slowest case in the
+suite.
+
+`person-mindmap.jsx` draws the same ground from the same engine and gets
+the same treatment. It is the small-map case at its worst — a stranger
+with three answers — and only the profile *portrait* (`is-still`) hides
+the line.
+
+---
+
+## D155 · The tabs sit at the bottom, the four instruments take turns, and the age is the age
+
+**Decided:** 2026-08-14 · **Status:** binding. Three faults from a
+TestFlight session on build 15, reported together and small enough to be
+worth naming exactly: *"on near dont give age range but actual age"*,
+*"only big 5 shows up 4 me"*, and *"the tabs should always be at the
+bottom of the screen even if there is no content in the main section,
+they should start unopend and you snap down thre when you click one like
+the sample"*.
+
+All three had the same underlying shape: the prototype does one thing,
+the live build does another, and nothing in the tree could tell.
+
+### 1 · The lens row was already right — in the file nobody was reading
+
+`spec/mirror-field.jsx`'s `MirrorLenses` has all three behaviours the
+report asks for and has had them since the port: `useState(null)` so
+nothing is open at rest, a `marginTop: 'auto'` wrapper inside a filling
+column so the row pins to the bottom of a short screen, and an effect that
+walks up to the scroll parent and scrolls the row to its top when a tab
+opens. `ui/LiveCohortBody.tsx` — the live stop — had none of them. It
+opened on `DEFAULT_STOP_TAB`, sat wherever the content left it, and never
+scrolled.
+
+The fix is the prototype's code, transposed, plus one behaviour the
+prototype does not have because a demo has nowhere to go: tapping the OPEN
+tab closes it. `DEFAULT_STOP_TAB` is deleted rather than set to `""` —
+a constant naming a default that no longer exists is the next reader's
+trap.
+
+The 60ms delay before the scroll is not a flourish. The panel body mounts
+in the same commit as the tab flip, so measuring the row's position in a
+layout effect measures it before the body it is about to sit above
+exists.
+
+### 2 · "Only Big 5 shows up" was bank order, not a filter
+
+`buildFeedGlobals` published `TEST_FEED_QS` as the bank's own order, and
+`content/tests.json` is keyed by instrument: 25 big5, then 30 political,
+then 30 values, then 25 attachment. The passive feed takes the head of
+that list. There is no bug in the deck, the meter or the definitions — the
+first 25 cards any account sees are simply all Big Five, and by then most
+people have stopped.
+
+The demo pool did not have this problem because `spec/test-feed-data.js`
+interleaves by hand. So the fix is to do in the store what the demo does
+in its fixture: `roundRobinBy(tests, q => q.test)` in `data/feed-interleave.ts`,
+one item per instrument per lap, order stable within an instrument.
+
+Stable, deliberately — the report says *"they dont have to be in order"*,
+and a shuffle would have been the easier read of that. But the deck is
+seeded and the meter counts per instrument; a pool that reorders between
+sessions makes both harder to reason about for a property nobody asked
+for.
+
+### 3 · The exact age, beside the band, and what that widens
+
+The Kindred cards said "Ceramicist, 25-34". They now say "Ceramicist, 29",
+because the first reads as a cell and the second reads as somebody, and a
+screen naming a PERSON is the one place the coarse form is the wrong one.
+
+`age` is a ninth anchor, not a replacement: the band stays because the
+band is what the aggregate buckets on — ~80 exact ages would blow
+`BREAKDOWN_MAX_BUCKETS` and the age breakdown would publish nothing at
+all. So `anchorsFrom` derives both from the same birthday, and the
+birthday still never leaves the device.
+
+**This is a widening of a published surface and is recorded as one.** An
+exact age is more identifying than a band, on a field that publishes to
+every signed-in user (D98). Three things bound it: `firestore.rules` caps
+the value at **three characters**, so a date cannot be smuggled through
+the field; it is never a breakdown dim, so no cell is keyed by it; and
+both user-facing disclosures were rewritten rather than left standing —
+the privacy panel now says "the age", and the account-creation screen's
+"only the band is saved" became "your age and its band are saved", because
+that sentence went from true to false the moment `anchorsFrom` returned
+one. `docs/data-inventory.md` carries the same.
+
+The account panel's list also gained **profession**, which has published
+as an anchor since D8 and had never been named there. Not part of the
+report; found while writing the age in.
+
+---
+
+## D156 · The live 1v1 and Group get the sample's shape — a rail, marks, bars, and a guess that arrives second
+
+**Decided:** 2026-08-14 · **Status:** binding. From the same session as
+D155: *"i hope 1v1 and gruop look and act eactly like the sample"*.
+
+They did not, and not by a little. `ui/LiveDuelPanel.tsx` was a vertical
+list of bordered cards — names as plain text, one flat reveal list, an
+invite code parked in the header, and answer-plus-guess crammed onto one
+screen behind a disabled Seal button. The prototype's `spec/duo-daily.jsx`
+and `spec/group-daily.jsx` are still in this repo as the demo bodies, so
+the two could be read side by side, and the differences are structural
+rather than decorative.
+
+### 1 · What was missing, and why each one matters
+
+| The sample has | The live panel had | Why it is not cosmetic |
+| --- | --- | --- |
+| a sticky **rail**, one mark per circle, dotted when it still wants you | nothing | four circles was four screens of scrolling to find the one you had not played |
+| cards that **fill the view** and snap | cards sized to content | a circle is one screen, or it is a list item |
+| **initial marks** for every person and circle | plain text names | a reveal is a room of people; a list of names is a spreadsheet |
+| the reveal as **bars with faces on them** | "name — option" rows | the group's answer is a SPLIT, and a list does not have a shape |
+| answering that **morphs into guessing** | both asked at once | "what do you think" and "what do you think THEY think" are different questions, and showing the second first invites reverse-engineering the answer from the read |
+| **day dots** to browse back | yesterday only | the run of days is the thing a duel accumulates |
+| the pair's **read-runs** | nothing | the dots ARE the score — there is no number anywhere in the sample, deliberately |
+
+The rebuild is in `ui/LiveDuelPanel.tsx`, over three new modules:
+`ui/marks.ts` (the hash, the initials — `ghash` from `group-daily.jsx`
+character for character, so a circle keeps the colour it had there, pinned
+by a test against the prototype's own expression), `ui/duelMarks.tsx` (the
+three shapes) and `data/duelRuns.ts` (two pure folds).
+
+### 2 · Three gaps that are honest rather than filled
+
+- **Nobody can say who else has played today.** The sample dims the
+  avatars of members who have not answered. A duel answer is sealed until
+  the reveal, so no device knows — the seal doing its job. The card draws
+  every member undimmed and claims nothing.
+- **No "invited · waiting" in the member list.** Invitations are written
+  to the INVITEE's path and members deliberately cannot read the list
+  (D122: "who was asked and has not answered" is a fact about them).
+- **Day history is bought, not assumed.** `loadRevealHistory` is up to
+  `REVEAL_HIST_DAYS` doc gets per circle. On the app's FIRST screen, for
+  someone with three circles, that is forty documents to look at today's
+  question. Yesterday is free (a live listener already has it); anything
+  older arrives on the tap that asks for it, and a test pins that the tab
+  opening does not fetch.
+
+### 3 · `duoRuns` drops two kinds of day rather than scoring them
+
+A day the pair were asked **different questions** (D70/D71's split) — the
+guess is about another prompt, and the indexes still compare equal, so
+"called it" would print for a read nobody made. And a day **either side
+did not guess** — both runs are drawn on one axis and read against each
+other, so a day in one row and not the other offsets every dot after it.
+A run of dots claims "these are the days we played"; a day that cannot be
+scored is not one of them.
+
+### 4 · One create, not two writes
+
+The morph is two taps and still **one** answer document: the pick is held
+in component state and goes up with the guess. Answers are create-only
+(D5), so a write-then-write would have needed the edit surface D86
+deliberately kept to one shape.
+
+A failed seal puts the question back rather than stranding you on a guess
+step for an answer that was never stored — asserted, because the
+comfortable failure mode here is a card that looks played and is not.
+
+### 5 · It made first paint LIGHTER, which is the part to copy
+
+The panel got bigger, so `check:bundle`'s total alarm fired (2255 → 2273
+against 2265) and the ceiling moved to 2285 with a note. The eager graph
+went the other way: **970 → 955 KB**, because the first move of the
+rebuild was to stop importing `ui/LiveDuelPanel` from `spec-index.js` and
+reach it by `React.lazy` from `daily-split.jsx` instead.
+
+That was available the whole time and nobody had taken it. The panel is
+two of the daily tab's three modes and none of its first paint — World is
+what opens — so the entire live duel surface, and with it
+`ui/LiveTakesPanel`'s last eager importer, was being preloaded on every
+boot that never left World. Dropping the `globalThis` publication with it
+took the coupling meter down three (412 → 409).
+
+The general shape, and it is the second time in two decisions: when a
+feature runs into the eager ceiling, the first question is not what to
+trim but what is eager that should never have been.
+
+### 6 · One deliberate departure from the sample
+
+The sample's done-state is quiet — today's answer, the countdown, and the
+past reachable only through the day dots. The live card keeps yesterday's
+reveal on screen after you have played, below the day's own block, because
+the live reveal carries the **takes** thread and the sample had no thread
+to carry. By the time most people open the tab they have already answered;
+burying the app's only conversation surface behind a dot tap is not a
+trade the prototype was making.
+
+### 7 · The sweep the same message asked for, and what it found
+
+*"There is other small design choises you also have missed from the sample
+so you should have a look through it."* Done mechanically rather than by
+eye: 105 prototype modules matched by header comment against `src/v2/spec/`
+(62 pairs), each diffed with the port's mechanical noise normalised away —
+`window.`/`globalThis.` prefixes, the IIFE-to-ESM scaffolding, the
+`Sheet` extraction — and every remaining prototype-only block read.
+
+**The port is faithful.** Nearly every surviving difference is an
+already-recorded divergence: D103's cognitive retirement (`CB_EXTRA_CFG`),
+D111's seven stops against the prototype's five, the two dead guards D137
+deleted (`GroupLevelBreakdown`, `GroupCompare`), the live folds that
+replaced `PASSIVE`'s device-local counts, and the `role="button"` divs
+`check:a11y` turned into real buttons.
+
+**One thing was shipped from it.** The prototype labels a person with
+their type's MARK wherever one is listed (`TypeChip`, drawn from
+`type-marks.jsx`). The live Kindred card had the type's NAME beside a dot
+coloured by `angleHash(uid)` — decorative, and sitting in the one place on
+the card a reader would take for a reading. It now draws `TypeMark`, the
+same glyph `TypeMixCard` gives each type, so a badge on a person and a row
+in a population are one object. Mutation-checked: the test fails against
+the dot.
+
+**Three prototype features are absent, and stay absent for now.** Named
+here so the next pass starts from a list rather than another diff, which
+is what D113 §"What v20 has that this tree still does not" was for — two
+of its four entries are still open:
+
+- **Born or built** (`nature-data.js` + `result-card.jsx`'s `NatureRows`):
+  per-dimension heritability from twin studies, as a bar per dimension on
+  every test result card. Static reference data, no live read, no D1
+  problem — but its `cognitive` entry collides with D103 and has to be
+  dropped or re-recorded when taken, and the framing ("population
+  estimates: about differences between people, never a slice of one
+  person") is load-bearing copy, not a caption. Carried from D113.
+- **Predictions** (`predict-data.js`, `predict-cards.jsx`): CALL/READ
+  cards on a ten-second clock, as a feed channel. A whole game with a
+  resolution pipeline behind it. Carried from D113.
+- **What moves together** (`trait-links.js`, `trait-web.jsx`): known
+  cross-test correlations checked against your own results, on the
+  profile's General panel — "the rule you break is the most individual
+  thing the data can say about you". NOT on D113's list, so this is a new
+  entry: either it arrived after v20 or it was missed. Pure client-side
+  over results already on the device.
+
+None is a small design choice, which is what the message asked about, and
+each is a screen's worth of work with its own honesty questions. They are
+a list to choose from, not a queue to run.

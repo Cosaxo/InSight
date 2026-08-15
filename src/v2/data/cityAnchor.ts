@@ -27,11 +27,18 @@ import { countryOf } from "./places";
 // it rather than restating it.
 export const PROFILE_GENERAL_LS = "insight.profileGeneral.v2";
 
-export function setCityAnchor(cityKey: string): void {
-  // Demo mode's profile is the sample persona and there is no server to
-  // write to — the callers are live-only surfaces, and this guard keeps a
-  // test or a stray call from writing a "real" city into demo data.
-  if (!LIVE.enabled) return;
+/**
+ * Merge leaves into the profile blob's `vitals`, preserving everything
+ * else byte-for-byte.
+ *
+ * One writer for the half of setCityAnchor that looks optional and is not
+ * (see the header), now that two callers need it: this module's own city
+ * write, and the account-creation screen, which fills every vital at once
+ * (D151). Everything outside `vitals` — `interests`, `likes`, `heroes` —
+ * round-trips untouched, which is the same promise profile-general.jsx
+ * makes about its own dead keys.
+ */
+export function mergeProfileVitals(next: Record<string, string>): void {
   try {
     let blob: unknown = null;
     try { blob = JSON.parse(localStorage.getItem(PROFILE_GENERAL_LS) || "null"); } catch { blob = null; }
@@ -39,8 +46,16 @@ export function setCityAnchor(cityKey: string): void {
     const vitals = (base.vitals && typeof base.vitals === "object" ? base.vitals : {}) as Record<string, unknown>;
     localStorage.setItem(
       PROFILE_GENERAL_LS,
-      JSON.stringify({ ...base, vitals: { ...vitals, city: cityKey } }),
+      JSON.stringify({ ...base, vitals: { ...vitals, ...next } }),
     );
-  } catch { /* best-effort — the anchor write below still lands */ }
+  } catch { /* best-effort — the caller's anchor write still lands */ }
+}
+
+export function setCityAnchor(cityKey: string): void {
+  // Demo mode's profile is the sample persona and there is no server to
+  // write to — the callers are live-only surfaces, and this guard keeps a
+  // test or a stray call from writing a "real" city into demo data.
+  if (!LIVE.enabled) return;
+  mergeProfileVitals({ city: cityKey });
   LIVE.saveAnchors({ ...LIVE.anchors(), city: cityKey, country: countryOf(cityKey) });
 }

@@ -40,6 +40,11 @@ const LIVE = vi.hoisted(() => ({
   // reachable in the same fixture.
   nameFor: (uid: string) => (uid === "u_me" ? "Me" : uid === "u_named" ? "Ada" : ""),
   loadNames: vi.fn(async () => {}),
+  // The side join (D149): a take's author wears the option they answered
+  // with, read off the voter list rather than off the take document.
+  loadVoters: vi.fn(async () => {}),
+  voterList: null as Array<{ uid: string; optionIdx: number }> | null,
+  voters(qid: string) { void qid; return this.voterList; },
   social: {
     takeList: [] as TakeLite[],
     flags: {} as Record<string, boolean>,
@@ -70,6 +75,9 @@ beforeEach(() => {
   LIVE.enabled = true;
   LIVE.uid = "u_me";
   LIVE.social.takeList = [take("t1", "u_other", "Someone else's take")];
+  LIVE.voterList = null;
+  LIVE.loadVoters.mockClear();
+  LIVE.loadNames.mockClear();
   LIVE.social.flags = {};
   LIVE.social.loadTakes.mockClear();
   LIVE.social.postTake.mockClear();
@@ -344,5 +352,145 @@ describe("the world mute control (guideline 1.2's block)", () => {
     worldPanel();
     expect(screen.queryByText("Gratingly loud")).toBeNull();
     expect(screen.getByText("Perfectly fine")).toBeTruthy();
+  });
+});
+
+// ── which side is talking (D149) ─────────────────────────────────────
+//
+// A take is an argument, and an argument reads completely differently once
+// you know which way the person making it voted. The panel had no idea:
+// every row was a name and a paragraph, in one undifferentiated column, on
+// a screen whose entire subject is that people disagree.
+//
+// The side does NOT come from the take document — `v2_takes` accepts a
+// fixed field list and carries no vote — but from the author's own answer,
+// through the collection-group read the who-voted sheet already uses. So
+// the badge cannot disagree with the split above it, and it costs nothing
+// on a question whose voters are already in the store.
+describe("a take carries the side its author voted", () => {
+  const OPTS = ["Champions League final", "Super Bowl"];
+  const sidePanel = () => render(<LiveTakesPanel gid="world" qid="q1" options={OPTS} />);
+
+  it("badges each author with the option they picked", () => {
+    LIVE.social.takeList = [
+      wtake("w1", "u_named", "90 minutes of flow."),
+      wtake("w2", "u_me", "The halftime show alone."),
+    ];
+    LIVE.voterList = [
+      { uid: "u_named", optionIdx: 0 },
+      { uid: "u_me", optionIdx: 1 },
+    ];
+    sidePanel();
+    expect(screen.getAllByText("Champions League final").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Super Bowl").length).toBeGreaterThan(0);
+  });
+
+  it("badges nobody when the caller has no options to badge with", () => {
+    // A dial, a field, a catalogue pick and a sealed duel row all reach
+    // this panel. None of them has sides, and none of them should pay for
+    // a voter read to find that out.
+    LIVE.social.takeList = [wtake("w1", "u_named", "words")];
+    LIVE.voterList = [{ uid: "u_named", optionIdx: 0 }];
+    render(<LiveTakesPanel gid="world" qid="q1" />);
+    expect(LIVE.loadVoters).not.toHaveBeenCalled();
+    expect(screen.queryByRole("button", { name: /^All/ })).toBeNull();
+  });
+
+  it("leaves an author with no answer unbadged rather than guessing one", () => {
+    LIVE.social.takeList = [wtake("w1", "u_named", "words")];
+    LIVE.voterList = [];
+    sidePanel();
+    expect(screen.getByText("words")).toBeTruthy();
+    expect(screen.queryByText("Champions League final")).toBeNull();
+    expect(screen.queryByText("Super Bowl")).toBeNull();
+  });
+
+  it("does not re-resolve names the voter read already resolved", () => {
+    // loadVoters resolves a display name for everyone who answered. Asking
+    // loadNames for those same uids is a second profile read of the same
+    // documents on every first open.
+    LIVE.social.takeList = [wtake("w1", "u_named", "words")];
+    LIVE.voterList = [{ uid: "u_named", optionIdx: 0 }];
+    sidePanel();
+    expect(LIVE.loadNames).not.toHaveBeenCalled();
+  });
+});
+
+describe("the side filter", () => {
+  const OPTS = ["Champions League final", "Super Bowl"];
+  const sidePanel = () => render(<LiveTakesPanel gid="world" qid="q1" options={OPTS} />);
+
+  beforeEach(() => {
+    LIVE.social.takeList = [
+      wtake("w1", "u_named", "Ninety minutes of flow."),
+      wtake("w2", "u_other", "The halftime show alone."),
+    ];
+    LIVE.voterList = [
+      { uid: "u_named", optionIdx: 0 },
+      { uid: "u_other", optionIdx: 1 },
+    ];
+  });
+
+  it("shows every take until a side is picked, then only that side's", () => {
+    sidePanel();
+    expect(screen.getByText("Ninety minutes of flow.")).toBeTruthy();
+    expect(screen.getByText("The halftime show alone.")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: /^Super Bowl/ }));
+    expect(screen.queryByText("Ninety minutes of flow.")).toBeNull();
+    expect(screen.getByText("The halftime show alone.")).toBeTruthy();
+  });
+
+  it("carries each side's count, so an empty side is visible before the tap", () => {
+    sidePanel();
+    expect(screen.getByRole("button", { name: "All · 2" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Champions League final · 1" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Super Bowl · 1" })).toBeTruthy();
+  });
+
+  it("tapping the open side again returns to All", () => {
+    sidePanel();
+    const sb = () => screen.getByRole("button", { name: /^Super Bowl/ });
+    fireEvent.click(sb());
+    expect(screen.queryByText("Ninety minutes of flow.")).toBeNull();
+    fireEvent.click(sb());
+    expect(screen.getByText("Ninety minutes of flow.")).toBeTruthy();
+  });
+
+  it("names the side when its filter is empty, not the whole panel", () => {
+    // "No takes yet. Say the first thing." under a side filter is a lie
+    // about the question — there are takes, just not on this side.
+    LIVE.social.takeList = [wtake("w1", "u_named", "Ninety minutes of flow.")];
+    LIVE.voterList = [{ uid: "u_named", optionIdx: 0 }];
+    sidePanel();
+    fireEvent.click(screen.getByRole("button", { name: /^Super Bowl/ }));
+    expect(screen.getByText(/nobody who picked Super Bowl has written a take/i)).toBeTruthy();
+    expect(screen.queryByText(/say the first thing/i)).toBeNull();
+  });
+
+  it("hides the row until a side is actually known for somebody", () => {
+    // Before the voter read lands every chip would read 0 — a filter over
+    // a list the panel cannot yet sort.
+    LIVE.voterList = null;
+    sidePanel();
+    expect(screen.queryByRole("button", { name: /^All/ })).toBeNull();
+  });
+
+  it("keeps the one-take-per-question rule measured on the whole list", () => {
+    // Your own take hidden by a side filter must not re-offer a composer
+    // the rules will bounce.
+    LIVE.social.takeList = [
+      wtake("q1_u_me", "u_me", "Mine"),
+      wtake("w2", "u_other", "Theirs"),
+    ];
+    LIVE.voterList = [
+      { uid: "u_me", optionIdx: 0 },
+      { uid: "u_other", optionIdx: 1 },
+    ];
+    sidePanel();
+    fireEvent.click(screen.getByRole("button", { name: /^Super Bowl/ }));
+    expect(screen.queryByText("Mine")).toBeNull();
+    expect(screen.getByText(/one take per question/i)).toBeTruthy();
+    expect(screen.queryByPlaceholderText(/add your take/i)).toBeNull();
   });
 });

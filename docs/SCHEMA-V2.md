@@ -323,7 +323,8 @@ not per boot. `LIVE.stats` reports `bankSource` / `answersFetched` /
   mock fallback on timeout. The daily tab reads `LIVE.deck()` when live.
   Live cards show takes — named inside a circle, anonymous at world
   scale (D83) — and DO show who-voted, by name, from the collection-group
-  read D98 opened (`data/voters.ts`, `ui/LiveVotersPanel.tsx`, capped at
+  read D98 opened (`data/voters.ts`, `ui/LiveBreakdownPanel.tsx`'s
+  Friends cut and `ui/LiveTakesPanel.tsx`'s side badges, capped at
   `VOTER_FETCH_CAP`). The per-anchor breakdown beside it is exact per
   cell with no floor. This bullet used to end "carrying no names, which
   is 'the split, the totals' D1 allows" — that was D1's read arm, which
@@ -334,7 +335,7 @@ not per boot. `LIVE.stats` reports `bankSource` / `answersFetched` /
 
 ## Verification
 
-- `npm run test:rules` — 89 rules tests (Firestore + Storage; the v2
+- `npm run test:rules` — 90 rules tests (Firestore + Storage; the v2
   surface, the anonymous-default lens, and the retired-v1 guard).
 - `firestore-tests/e2e-v2-loop.mjs` under
   `firebase emulators:exec --only auth,firestore,functions` — the full
