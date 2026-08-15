@@ -477,7 +477,7 @@ function panelPipeline(p, trail) {
     ? scorecardBlock(scorecard)
     : `<div class="empty"><b>No scorecard yet.</b> ${esc(scorecard.note)}<br><br>
         Once it exists, this fills with the draw and evenness distribution across every
-        question that has cleared the k-floor — the farm's only view of what worked, and
+        question that has been answered — the farm's only view of what worked, and
         the only place in this console where real user behaviour appears at all.</div>`;
 
   return `<section class="panel">
@@ -595,17 +595,33 @@ function sparkline(trail, key, title) {
   // covers, so the gap is marked rather than merely implied by spacing —
   // the line still crosses it, and a straight segment across two weeks
   // would otherwise read as two weeks of steady change that nobody saw.
+  //
+  // ONE THRESHOLD, BOTH CONSUMERS. The hairline and the caption used to
+  // disagree: the rule drew at two missed days, the caption counted every
+  // one. So a single skip produced a warning-coloured "1 day with no
+  // reading" with nothing on the chart to point at — which is exactly what
+  // the first real trail did, because the console did not run on
+  // 2026-08-05. A single skip is noise (a job queued past midnight, an
+  // afternoon spent on a branch) and colouring noise is how a reader learns
+  // to ignore the colour. Two consecutive misses is the job having stopped.
+  const GAP_MIN_DAYS = 2;
+  const missedBetween = (i) => Math.max(0, dayOf(pts[i + 1]) - dayOf(pts[i]) - 1);
+
   const gaps = pts.slice(1).map((r, i) => {
-    const prev = pts[i];
-    const missed = dayOf(r) - dayOf(prev) - 1;
-    if (missed < 2) return "";
-    return `<line x1="${x(prev).toFixed(1)}" y1="${H - PAD.b + 6}"
+    const missed = missedBetween(i);
+    if (missed < GAP_MIN_DAYS) return "";
+    return `<line x1="${x(pts[i]).toFixed(1)}" y1="${H - PAD.b + 6}"
       x2="${x(r).toFixed(1)}" y2="${H - PAD.b + 6}"
       stroke="var(--serious)" stroke-width="2" stroke-linecap="round"
-      data-tip="No readings|${missed} days between ${esc(prev.on)} and ${esc(r.on)}"/>`;
+      data-tip="No readings|${missed} days between ${esc(pts[i].on)} and ${esc(r.on)}"/>`;
   }).join("");
-  const missedTotal = pts.slice(1).reduce(
-    (a, r, i) => a + Math.max(0, dayOf(r) - dayOf(pts[i]) - 1), 0);
+
+  // Counts only what the chart also draws, so the sentence and the picture
+  // can never disagree about whether there is a gap.
+  const missedTotal = pts.slice(1).reduce((a, _, i) => {
+    const missed = missedBetween(i);
+    return a + (missed >= GAP_MIN_DAYS ? missed : 0);
+  }, 0);
 
   // Markers at >=8px hit size, but drawn small: the line carries the shape,
   // the endpoints carry the numbers.
@@ -653,7 +669,7 @@ function scorecardBlock(sc) {
 
   return `${tiles([
     { k: "Questions scored", v: int(sc.scoredQuestions),
-      n: `of ${int(sc.questionsTracked)} tracked — cleared the k-floor of 5` },
+      n: `of ${int(sc.questionsTracked)} tracked — has at least one answer` },
     { k: "Answers counted", v: int(sc.totalAnswers), n: "a floor — under-floor questions publish nothing" },
     { k: "Never served", v: int(sc.unserved),
       n: "written, but the deck has not reached them yet" },
@@ -685,39 +701,40 @@ function panelPopulation(p) {
   const li = (items, render) => `<ul>${items.map(render).join("")}</ul>`;
 
   return `<section class="panel">
-    <h2>Population — and what this product refuses to know</h2>
+    <h2>Population — what is countable, and the little that is not</h2>
     <p class="decision"><b>The decision:</b> is anyone here, and can you say so honestly?
-      This panel mostly refuses. "User analysis" in the ordinary sense — funnels, cohort
-      retention, session analytics — does not exist here and cannot be added without
-      reversing a decision record. The three columns are the honest split: what is
-      derivable, what is merely unbuilt, and what is off the table.</p>
+      <b>This panel used to be mostly refusals, and D98 reversed that.</b> Answers are
+      public and attributed, counts are exact from the first answer, and every question
+      slices — political included. So the honest split has moved: most of what a
+      dashboard would want is now <i>derivable</i> or merely <i>unbuilt</i>, and the
+      closed list is a handful of specific things, only three of them about privacy.</p>
 
     <div class="banner">
       <div><strong>State: ${esc(pop.state)}.</strong> ${pop.state === "pre-launch"
-        ? "No answers have cleared the k-floor, so every live figure below is null. That is the correct reading of a product that has not launched — not a broken pipeline."
-        : "Live figures come from the k-floored public mirror only."}</div>
+        ? "No question has been answered yet, so every live figure below is null. That is the correct reading of a product that has not launched — not a broken pipeline."
+        : "Counts are exact from the first answer (D98). What limits them is coverage, not withholding."}</div>
     </div>
 
     <div class="split" style="margin-top:18px">
       <div class="col live">
         <h4>Derivable today</h4>
-        <p class="h">From the k-floored public mirror. No credentials beyond the web API key.</p>
+        <p class="h">Readable by any signed-in user. Exact from the first answer since D98.</p>
         ${li(pop.live, (x) => `<li>
           <b>${esc(x.metric)}${x.value == null ? "" : ` — ${int(x.value)}`}</b>
           <code>${esc(x.source)}</code>
           <em>${esc(x.caveat)}</em></li>`)}
       </div>
       <div class="col block">
-        <h4>Unbuilt, not forbidden</h4>
-        <p class="h">Each could be built without reversing anything. Each has a real cost.</p>
+        <h4>Unbuilt — and now the limit is cost</h4>
+        <p class="h">None of these needs a permission it does not have. What each needs is a job, and a bill.</p>
         ${li(pop.blocked, (x) => `<li>
           <b>${esc(x.metric)}</b>
           <em>Unblocked by: ${esc(x.unblockedBy)} — ${esc(x.cost)}.</em>
           <em style="color:var(--serious)">The catch: ${esc(x.catch)}</em></li>`)}
       </div>
       <div class="col refuse">
-        <h4>Off the table</h4>
-        <p class="h">Each names the record it would reverse. "We decided not to" is only useful with the decision attached.</p>
+        <h4>Still closed</h4>
+        <p class="h">Short and specific since D98, and only three of these are privacy denies. Each is labelled at its own path in <code>firestore.rules</code>.</p>
         ${li(pop.refused, (x) => `<li>
           <b>${esc(x.metric)}</b>
           <code>${esc(x.record)}</code>
@@ -725,13 +742,16 @@ function panelPopulation(p) {
       </div>
     </div>
 
-    <p class="note">The middle column is where the honest wins are. The largest —
-      real DAU and retention — needs <b>no new collection</b>: <code>v2_agg_events</code>
-      already holds (qid, uid, at) with a 90-day TTL, erased with the account. But it was
-      justified as fake-account attribution, and counting distinct users per day is a new
-      purpose for existing data. That is a decision record, not a script — which is
-      exactly the sort of thing this console exists to make visible rather than to
-      quietly do.</p>
+    <p class="note"><b>The constraint changed shape, and that is the finding.</b> Before
+      D98 the biggest missing number — real DAU and retention — was blocked on
+      <i>permission</i>: it would have meant a new purpose for <code>v2_agg_events</code>,
+      which is a decision record rather than a script. Now every answer is world-readable
+      and carries a server-stamped <code>answeredAt</code>, so the same number needs no
+      new collection, no new grant and no record. It is blocked on <b>cost</b> — a
+      collection-group scan billed per document read, growing with the corpus rather than
+      with DAU. Run it server-side on a schedule with a date bound; never as a client
+      query, which would put the whole scan on a device and on the bill every time a
+      panel opened.</p>
   </section>`;
 }
 

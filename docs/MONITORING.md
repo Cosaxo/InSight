@@ -4,11 +4,26 @@ Written 2026-08-04. The question that produced this document was "can the
 monitoring cover cost and profit and other stats, plus what the question
 algorithm is doing, plus user analysis — and can I see it all somewhere?"
 
-Three of those four are ordinary engineering. The fourth is the one worth
-writing down, because **the honest answer to "user analysis" here is mostly
-no**, and the reason is the product's own load-bearing claim rather than a
-gap in the tooling. A console that quietly omitted the refusals would read
-as "the data is coming"; one that lists them reads as what it is.
+Three of those four are ordinary engineering. The fourth was the one worth
+writing down, because the honest answer to "user analysis" was then **mostly
+no** — not from a gap in the tooling but from the product's own load-bearing
+claim. A console that quietly omitted the refusals would read as "the data is
+coming"; one that lists them reads as what it is.
+
+> **Rewritten 2026-08-15 for D98.** That claim was retired on 2026-08-11:
+> answers are public and attributed, counts are exact from the first answer,
+> there is no k-floor and no special-category carve-out. Most of what this
+> document called refused is now derivable, and the closed list is a handful
+> of specific things — only three of them about privacy at all.
+>
+> The panel spent four days citing removed mechanisms as live reasons. That
+> is worth recording rather than quietly fixing, because it is the same
+> failure the console exists to catch, in the console: every **constant** it
+> reads is held to source, and none of its **prose** was. `test:scripts` now
+> pins the part that can be pinned — no refusal may rest on a mechanism the
+> tree no longer has, and the three surviving denies must still appear in
+> `firestore.rules`. It cannot check that prose is *right*; it can check
+> that it does not name something gone.
 
 The tool is `npm run pulse`. The argument is below.
 
@@ -137,52 +152,71 @@ rather than by contract.
 
 ### 4 · Population — "is anyone here, and can I say so honestly?"
 
-This panel mostly refuses, and the refusals are the content. Three columns:
+**This panel used to be mostly refusals. D98 reversed that**, and the
+rewrite is the honest consequence rather than a tidy-up. Answers are public
+and attributed, counts are exact from the first answer, and every question
+slices — political included. So the three columns have shifted weight:
 
-**Derivable today** — from the exact public mirror, which the scorecard
-already reads. These are *floors* on real activity, never measurements: a
-question nobody has answered has no document, so unanswered items are absent.
+**Derivable today** — readable by any signed-in user. These are *counts*,
+not floors: the k-anonymity floor, the publish cadence, complementary
+suppression and `tooSmall` were all removed by D98. What understates them
+now is coverage — a question nobody answered has no aggregate document —
+not withholding. Per-cohort splits by every anchor, political included,
+are computable and are the product's own surface; the console does not
+chart them, because monitoring is not the Mirror.
 
-**Unbuilt, not forbidden** — each could be built without reversing
-anything, and each has a real cost. The largest is worth naming here
-because it is genuinely available and genuinely not free:
+**Unbuilt — and the constraint changed shape.** This is the most useful
+thing in the panel, and the change is easy to miss:
 
-> **DAU and retention need no new collection.** `v2_agg_events` already
-> holds `(qid, uid, at)` with a 90-day TTL, erased with the account.
-> Counting distinct uids per day is a scheduled function over a collection
-> that exists. **But** that collection was justified as fake-account
-> attribution and trigger dedup — those two purposes (D28). Counting users
-> with it is a *new purpose for existing data*, which is a decision record,
-> not a script. That is exactly the sort of thing this console exists to
-> make visible rather than to quietly do.
+> **DAU and retention were blocked on permission. They are now blocked on
+> cost.** Before D98 the argument was that `v2_agg_events` holds
+> `(qid, uid, at)` but was justified for fake-account attribution and
+> trigger dedup (D28), so counting users with it was a new purpose for
+> existing data — a decision record, not a script. That argument is now
+> moot: every answer is world-readable and carries a server-stamped
+> `answeredAt` (`firestore.rules`: `answeredAt == request.time`), so the
+> same number needs no new collection, no new grant and no record.
+>
+> What it needs is a bill. A collection-group scan over every answer is
+> charged per document read and grows with the corpus rather than with DAU.
+> Run it server-side on a schedule with a date bound — **never as a client
+> query**, which would put the whole scan on a device and on the invoice
+> every time a panel opened.
 
 The other two are dull and worth doing: a Cloud Billing export would turn
 the entire cost panel from prediction into measurement, and install →
 first-answer conversion is two numbers pasted monthly from the store
 consoles, which are not in this repo and never will be.
 
-**Off the table** — each entry names the record it would reverse, because
-"we decided not to" is only useful with the decision attached:
+**Still closed** — short and specific since D98, and **only three of these
+are privacy denies**. Each is labelled at its own path in
+`firestore.rules`:
 
-| Refused | Record |
+| Still closed | Why, and on what grounds |
 | --- | --- |
-| Per-user funnels, session analytics, engagement scoring | data-inventory.md — "No product analytics of any kind ship today" |
-| Retention or engagement sliced by anchor | D8 — the anchors exist; nothing suppresses them since D98 |
-| Anything sliced by political result | D8; GDPR Art. 9 |
-| Skip / pass / hesitation rates | QUESTION-FARM.md, "Deliberately out of scope" |
-| Per-user content selection, ad targeting profiles | MONETIZATION.md, "Ruled out by standing posture" |
+| `v2_logic_attempts` — the unscored answer key | anti-cheat. Publishing the key ends the test (D57 scores server-side for the same reason) |
+| `v2_flags` — reporter identity | anti-retaliation. A reporter visible to the reported is a reporter who stops reporting |
+| `v2_presence` — the ~1 km cell | physical safety. D98 publishes what people *answered*; "lives in Oslo" is published, "is at this corner at 14:02" is not |
+| Duel answers before their reveal | **not privacy** — a game timing rule. A hand of cards is face-down; publishing early links nothing the reveal does not publish a day later |
+| Per-user targeting, advertising/analytics identifiers | MONETIZATION.md's standing posture. Opening answers to *readers* is not the same as profiling the reader |
+| Any buyer read path a signed-in user lacks | MONETIZATION.md, post-D98. No private export, no API, no server-side demographic report for one customer |
+| Fabricated activity of any kind | D1 — the half D98 did **not** reverse, and now the only reason anything is ever hidden: absent means absent, never withheld |
 
-The second row used to read: "the same suppression that stops a paying city
-identifying a person stops the owner doing it." D98 deleted the suppression,
-so that sentence is now false in both halves, and the row survives for a
-different reason worth stating plainly. Nothing technical stops the owner
-slicing retention by anchor any more — the anchors are public and the fold
-is a query away. What stops it is that **this is an analytics decision, not
-a privacy one**: per-user funnels and engagement scoring are refused
-because they build the behavioural model MONETIZATION.md's standing posture
-rules out, and that refusal has to hold on its own now that no floor is
-carrying it. A guarantee that only survived because a side effect enforced
-it was never a decision; this row is the decision, taken deliberately.
+**The row that had to be re-argued.** "Retention or engagement sliced by
+anchor" used to be refused on the grounds that "the same suppression that
+stops a paying city identifying a person stops the owner doing it". D98
+deleted the suppression, so that sentence is false in both halves. Nothing
+technical stops the owner slicing retention by anchor now — the anchors are
+public and the fold is a query away. What survives is narrower and had to be
+taken deliberately rather than inherited: **per-user funnels and engagement
+scoring are an analytics decision, not a privacy one**, refused because they
+build the behavioural model MONETIZATION.md's posture rules out. A guarantee
+that only held because a side effect enforced it was never a decision.
+
+**Political slicing is no longer refused, and the row is gone.** D44's
+carve-out was reversed by D98 ("no special-category carve-out"), so a panel
+still claiming it would be asserting a guarantee the product deliberately
+withdrew — which is worse than claiming nothing.
 
 ## The fifth thing: instrumentation
 

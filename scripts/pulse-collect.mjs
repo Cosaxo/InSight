@@ -184,8 +184,10 @@ export function collectMoney(cost) {
     addressable: addressablePlaces(),
     breakEven,
     // Restated here rather than linked, because it is the constraint that
-    // makes this panel small: the sold thing is the same floored aggregate
-    // every user sees free, so there is no premium data tier to model.
+    // makes this panel small: a buyer gets no read path a signed-in user
+    // does not have, so there is no premium data tier to model. That line
+    // used to say "the same floored aggregate"; D98 removed the floor, and
+    // MONETIZATION.md narrowed the claim to the half rules can still hold.
     constraint: rates.constraint,
   };
 }
@@ -425,88 +427,113 @@ export function collectPopulation(pipeline) {
 
   return {
     state: launched ? "live" : "pre-launch",
-    // Derivable today, from the k-floored public mirror the scorecard
-    // already reads. These are FLOORS on real activity, not measurements —
-    // a question with no answers has no aggregate document and contributes
-    // nothing, so every number here understates.
+    // Derivable today, from data any signed-in user can read. Since D98
+    // these are EXACT counts from the first answer — no floor, no publish
+    // cadence, no suppressed cells. What understates them now is coverage
+    // (a question nobody answered has no aggregate), not withholding.
     live: [
       {
-        metric: "answers counted, all published questions",
+        metric: "answers counted, all answered questions",
         value: launched ? sc.totalAnswers : null,
-        source: "content/scorecard.json ← v2_question_aggs (k-floored)",
-        caveat: "unanswered questions have no aggregate document yet",
+        source: "content/scorecard.json ← v2_question_aggs (exact since D98)",
+        caveat: "a count, not a floor — the k-anonymity floor, the publish cadence "
+          + "and `tooSmall` were all removed by D98",
       },
       {
-        metric: "questions that have cleared the k-floor",
+        metric: "questions with at least one answer",
         value: launched ? sc.scoredQuestions : null,
         source: "content/scorecard.json",
-        caveat: "the honest proxy for 'is anyone here' before any analytics exist",
+        caveat: "the honest proxy for 'is anyone here' — no analytics ship, so this "
+          + "is still the only signal the repo can compute without a new job",
       },
       {
-        metric: "DAU floor from today's daily question",
+        metric: "per-cohort splits by every anchor, political included",
         value: null,
-        source: "v2_question_aggs/{today's qid}.total",
-        caveat: "one answer per user per day on the shared daily makes its total a DAU floor. "
-          + "Not yet extracted — the scorecard scores questions, it does not date them",
+        source: "v2_question_aggs.by ← the trigger's fold of each answer's anchor snapshot",
+        caveat: "age band, gender, country, city, education, relationship. D44's "
+          + "political carve-out is gone (D98) — every question slices. The console "
+          + "does not chart these: it is the product's own surface, not monitoring",
       },
     ],
-    // Unbuilt, not forbidden. The distinction matters: each of these could
-    // be built without reversing anything, and each has a real cost.
+    // Unbuilt, and the constraint has CHANGED SHAPE. It used to be
+    // permission; since D98 it is almost entirely cost.
     blocked: [
       {
         metric: "DAU / D1–D7 retention / answers-per-user",
-        unblockedBy: "a server-side counting job over v2_agg_events",
-        cost: "one scheduled function; the collection already exists (qid, uid, at, 90-day TTL) "
-          + "and is already erased with the account",
-        catch: "v2_agg_events was justified as fake-account attribution (D28). Counting distinct "
-          + "uids per day is a NEW PURPOSE for existing data, which needs a recorded decision "
-          + "before it is built — not new collection, but not free either",
+        unblockedBy: "a job that counts distinct uids per day over `answeredAt`",
+        cost: "every answer is world-readable and carries a server-stamped "
+          + "`answeredAt` (firestore.rules: `answeredAt == request.time`), so this "
+          + "needs no new collection, no new grant and no decision record",
+        catch: "it is now a COST question, not a permission one. A collection-group "
+          + "scan over every answer is billed per document read, and it grows with "
+          + "the corpus rather than with DAU. Do it server-side on a schedule with a "
+          + "date bound — never as a client query, which would put the whole scan on "
+          + "a device and on the bill each time a panel opened",
       },
       {
         metric: "real spend vs the modelled bill",
         unblockedBy: "a Cloud Billing BigQuery export, or a monthly figure pasted into rates.json",
         cost: "console setup; the export is free, the BigQuery storage is not quite",
-        catch: "everything in the cost panel is a PREDICTION until this exists. COSTS.md was "
-          + "written to be diffed against the first invoice — nothing has diffed it yet",
+        catch: "everything in the cost panel is a PREDICTION until this exists. COSTS.md "
+          + "was written to be diffed against the first invoice — nothing has diffed it",
       },
       {
         metric: "install → first answer conversion",
-        unblockedBy: "store console figures (installs) against the DAU floor above",
+        unblockedBy: "store console figures (installs) against the answer counts above",
         cost: "manual, monthly, two numbers",
         catch: "the store side is not in this repo and never will be; this stays a paste-in",
       },
     ],
-    // Off the table. Each names the record it would reverse, because
-    // "we decided not to" is only useful with the decision attached.
+    // Still closed — and the list is now SHORT and SPECIFIC. D98 retired the
+    // blanket privacy model, so what survives is a handful of named things
+    // with named reasons, only three of which are privacy denies at all.
+    // Each is labelled at its own path in firestore.rules.
     refused: [
       {
-        metric: "per-user funnels, session analytics, engagement scoring",
-        record: "docs/data-inventory.md — 'No product analytics of any kind ship today'",
-        why: "there is no client event pipeline to read, by design. Adding one is a privacy "
-          + "decision, not a monitoring tweak",
+        metric: "the unscored logic answer key (`v2_logic_attempts`)",
+        record: "D98 — survives as anti-cheat, not privacy",
+        why: "publishing the key ends the test. D57 keeps scoring server-side for "
+          + "the same reason",
       },
       {
-        metric: "retention or engagement sliced by anchor (age, gender, country, education…)",
-        record: "D8 / D18 — the k-floor and complementary suppression",
-        why: "the same suppression that stops a buyer identifying a person stops the owner "
-          + "doing it. That is the guarantee working, not a gap in the tooling",
+        metric: "who flagged a comment (`v2_flags`)",
+        record: "D98 — survives as anti-retaliation",
+        why: "a reporter visible to the reported is a reporter who stops reporting",
       },
       {
-        metric: "anything sliced by political result",
-        record: "D8; GDPR Art. 9",
-        why: "special-category data. Never sliced by, never published, never leaves the owner doc",
+        metric: "presence, the ~1 km cell (`v2_presence`)",
+        record: "D98 — survives on physical safety",
+        why: "D98 publishes what people ANSWERED. 'Lives in Oslo' is published; "
+          + "'is at this corner of Oslo at 14:02' is not",
       },
       {
-        metric: "skip / pass / hesitation rates on questions",
-        record: "docs/QUESTION-FARM.md, 'Deliberately out of scope'",
-        why: "server-side telemetry on what a user declined to answer is a behavioural profile "
-          + "with a friendlier name",
+        metric: "duel answers before their reveal",
+        record: "D98 — a game timing rule, explicitly not a privacy one",
+        why: "a hand of cards is face-down. Publishing early links nothing the reveal "
+          + "does not publish a day later; it just lets a member read the room "
+          + "before playing",
       },
       {
-        metric: "per-user content selection, ad targeting profiles",
+        metric: "per-user targeting, advertising or analytics identifiers",
         record: "docs/MONETIZATION.md — 'Ruled out by standing posture'",
-        why: "server-side per-user selection is the moment a behavioural profile exists, "
-          + "whatever the intent. The ad path that survives is contextual",
+        why: "server-side per-user content selection is the moment a behavioural "
+          + "profile exists, whatever the intent. Unchanged by D98: opening answers "
+          + "to READERS is not the same as profiling the reader",
+      },
+      {
+        metric: "any buyer read path a signed-in user does not have",
+        record: "docs/MONETIZATION.md, post-D98 rewrite",
+        why: "no private export, no API, no demographic report computed server-side "
+          + "for one customer. The old version of this line rested on the floor and "
+          + "on server-only counts — both gone — so it was narrowed to something "
+          + "firestore.rules can still hold",
+      },
+      {
+        metric: "fabricated activity of any kind",
+        record: "D1 — the half of it D98 did NOT reverse",
+        why: "D98 reversed D1's circle-scoping. No seeded comments, no synthetic "
+          + "users, no demo progress in live mode still binds — and it is now the "
+          + "only reason anything is ever hidden: absent means absent, never withheld",
       },
     ],
   };

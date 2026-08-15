@@ -517,6 +517,35 @@ describe("the rendered page", () => {
     expect(even).not.toContain("days with no reading");
   });
 
+  it("says nothing about a single skipped day, and draws nothing either", () => {
+    // The caption and the hairline used to use different thresholds: the
+    // rule drew at two missed days, the caption counted every one. So a
+    // single skip — a job queued past midnight — produced a warning-
+    // coloured "1 day with no reading" pointing at an unmarked chart.
+    const oneSkip = renderPulse(p, [
+      { on: "2026-08-04", runwayDays: 87 },
+      { on: "2026-08-06", runwayDays: 85 },   // 2026-08-05 missing
+    ]);
+    expect(oneSkip).not.toContain("with no reading");
+    // `stroke="var(--serious)"` is the hairline specifically — the bare
+    // token also appears in the population panel, so a substring match on
+    // it would pass for the wrong reason.
+    expect(oneSkip).not.toMatch(/stroke="var\(--serious\)"/);
+    // …but the spacing stays honest: two days apart, not two steps.
+    expect(oneSkip).toContain("2 readings over 2 days");
+  });
+
+  it("counts only the gaps it draws, so caption and chart cannot disagree", () => {
+    const mixed = renderPulse(p, [
+      { on: "2026-08-01", runwayDays: 90 },
+      { on: "2026-08-03", runwayDays: 88 },   // 1 skipped — below the bar
+      { on: "2026-08-20", runwayDays: 71 },   // 16 skipped — a real gap
+    ]);
+    // 16, not 17: the lone skip is deliberately not folded into the total.
+    expect(mixed).toContain("16 days with no reading");
+    expect((mixed.match(/stroke="var\(--serious\)"/g) || []).length).toBe(1);
+  });
+
   it("renders a populated scorecard, built from the REAL artifact's shape", () => {
     // This test used to fixture a shape I invented, because no scorecard
     // existed to look at — and the collector had invented the same shape, so
@@ -594,5 +623,61 @@ describe("the rendered page", () => {
     const html = renderPulse(nasty, []);
     expect(html).not.toContain("<img src=x>");
     expect(html).toContain("&lt;/script&gt;");
+  });
+});
+
+describe("the population panel does not outlive its own records", () => {
+  // WHY THIS EXISTS. Every CONSTANT the console reads is held to source.
+  // None of its PROSE was, and prose is what went stale: the panel spent
+  // four days citing "D8 / D18 — the k-floor and complementary
+  // suppression" as a refusal after D98 had removed the k-floor entirely,
+  // and asserting that political results never slice after D44's carve-out
+  // was reversed. Nothing caught it, because the refusals are string
+  // literals and no gate compared them to DECISIONS.md.
+  //
+  // This cannot check that the prose is RIGHT — that needs a reader. What
+  // it can check is that it does not name a mechanism the tree no longer
+  // has, which is the specific way it failed.
+  const p = collect();
+  const rules = read("firestore.rules");
+  const v2 = read("functions/src/v2.ts");
+
+  it("does not claim a k-floor the code no longer enforces", () => {
+    // D98 removed AGG_MIN_N, PUBLISH_EVERY, complementary suppression and
+    // tooSmall. If any come back, this test should fail and the prose
+    // should be revisited — in that order.
+    expect(/const AGG_MIN_N\s*=/.test(v2)).toBe(false);
+    // Scoped to the REFUSALS, which is where the stale claims actually
+    // lived. A caveat elsewhere may still say "the floor was removed by
+    // D98" — that is history, and history is the useful part. What must
+    // never happen again is a refusal RESTING on the floor: citing a
+    // mechanism the tree no longer has as the reason something is closed.
+    const reasons = p.population.refused
+      .map((r) => `${r.record} ${r.why}`).join(" ");
+    expect(reasons).not.toMatch(/k-floor|k-floored|tooSmall|complementary suppression/);
+  });
+
+  it("refuses only things firestore.rules actually still denies", () => {
+    // The three surviving privacy denies, by their collection names. Each
+    // must appear both in the panel and in the rules file — a refusal the
+    // rules no longer make is the exact defect this suite exists for.
+    for (const path of ["v2_logic_attempts", "v2_flags", "v2_presence"]) {
+      expect(rules).toContain(path);
+      expect(p.population.refused.some((r) => r.metric.includes(path))).toBe(true);
+    }
+  });
+
+  it("does not list political slicing as refused, because D98 reversed D44", () => {
+    const political = p.population.refused.find((r) => /political/i.test(r.metric));
+    expect(political).toBeUndefined();
+  });
+
+  it("cites a record for every refusal, and a catch for every unbuilt item", () => {
+    expect(p.population.refused.length).toBeGreaterThan(0);
+    for (const r of p.population.refused) {
+      expect(r.record).toBeTruthy();
+      expect(r.why).toBeTruthy();
+    }
+    for (const b of p.population.blocked) expect(b.catch).toBeTruthy();
   });
 });

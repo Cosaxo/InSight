@@ -67,5 +67,5 @@
     }
   ],
 
-  "constraint": "Users never pay, with money or with their identity, and the sold split is the same honest floored number every user sees for free. There is no premium data tier to model: a paying city's window is the public k-floored aggregate, enforced by firestore.rules rather than by contract (docs/MONETIZATION.md)."
+  "constraint": "Users never pay with money, and the sold split is the same honest, exact number every user sees for free — no private tier, no buyer-only cut. There is no premium data tier to model because a buyer gets no read path a signed-in user does not have: no private export, no API, no demographic report computed server-side for one customer. Rewritten for D98 (2026-08-11), which removed the k-floor this line used to rest on — and deleted the old clause 'nor with their identity', since a user's answers are now public and attributed by design (docs/MONETIZATION.md)."
 }
