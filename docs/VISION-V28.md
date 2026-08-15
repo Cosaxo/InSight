@@ -20,6 +20,11 @@ the sections below carry the answers inline:
 - **The pulse roster — approved, all five** (§3). Sleep and energy ship.
   One build step rides with it (the store-forms Health row).
 
+**[D163](DECISIONS.md#d163--born-or-built-is-refused-the-app-does-not-assert-facts-it-cannot-recompute)
+then refused Born-or-built** (§9) — population science, not this app's
+data. It was the last item waiting on an owner call, so **this plan now
+has no open owner decisions**: everything left is engineering.
+
 **[D162](DECISIONS.md#d162--every-v28-surface-ships-with-its-backend-or-it-does-not-ship)
 adds the rule the rest of this document is now written under:** *"things
 are built out in the back as well, no use of sample data"*. An item is not
@@ -58,7 +63,7 @@ in three groups, which is the useful shape of this document.
 | **Pulses take their turn in the feed** | **Build, with the above** | none — a client interleave rule | The interleave is a feed-lane change; `feed-interleave.ts` already owns exactly this kind of cadence rule. |
 | **Foresight CALL + its feed cards** | **Tier A only** | a resolver that grades a call on our own aggregates | D127 is unchanged by v28: the blocker is resolution integrity, not design. Tier A self-resolves on our own aggregates and is buildable now. |
 | **Foresight & Crossroads on the Map** | **Build when the eager budget moves** | none — blocked on bytes, not data | Both need `map-tab.jsx` — which is EAGER — to read a new store, and `MAX_EAGER_KB` has no headroom. D136 already parked `paths.mapTree()` for exactly this. |
-| **Born or built** (heritability rows on the result card) | **Build — but decide the framing first** | **none — already real** (population science, not user data) | The data is a 16-line constant. The risk is not engineering: a genetics figure on a personal result card is read as a claim about *you*. |
+| **Born or built** (heritability rows on the result card) | **REFUSED** (D163) | n/a — and that is the reason it is refused | Population science, not this app's data. Every other number here is recomputable from what people answered; a heritability figure is the app asserting a fact about the world, which D127 already gates. |
 | **What moves together** (cross-test threads on the profile) | **Build** | **none — already real** (folds your own results) | Pure fold over `IS_TEST_RESULTS`; no new reads, no new collection. The cheapest real feature in the file. |
 | **Type-mix system switch** (all four instruments) | **Build** | **none — already real** (test results publish, D98) | D141 shipped the card; this is one control and a persisted key. Does **not** touch D8 — it switches which *result* is charted, not which dim cohorts. |
 | **The sponsored frame** | **Unchanged: waiting on the paid path** | the paid path itself (§6 of NEXT-FUNCTIONALITY) | `paid-data.js` is byte-identical to v24. Nothing new to decide; the door is still §6 of NEXT-FUNCTIONALITY. |
@@ -337,37 +342,53 @@ charted for an already-chosen population. Worth saying in the record when
 it ships, because the two read similarly at a glance and the distinction
 is the whole of D8.
 
-## 9 · Born or built — decide the framing before the code
+## 9 · Born or built — REFUSED (D163)
 
 `nature-data.js` is sixteen lines: per-dimension heritability ballparks
-from twin studies, rendered as a section on the result card.
+from twin studies, rendered as a section on the result card. **It is not
+built.**
 
-The engineering is trivial and that is exactly the trap. The module's own
-header states the rule — *"POPULATION estimates — the share of
-person-to-person spread traced to genes — never a slice of one person;
-every surface showing them must keep that framing"* — and a bar sitting
-directly under **your** result on **your** card is the single hardest
-place to keep it. A reader sees "Openness 56%" beside their own openness
-score and concludes something about themselves that the number cannot
-support.
+This section previously recommended shipping it in the explain sheet
+first, treating the problem as one of framing — the right caption, the
+right placement, the population reading kept attached to the bars. The
+owner's objection is upstream of all of that and better:
+**it is population science, not this app's data.**
 
-Three things to settle first, none of them code:
+**Why that is the strong objection.** Every number this app draws is
+recomputable from what people answered — aggregates fold from answers,
+cohorts from `agg.by`, similarity from published results, and where the
+fold cannot be done the reading returns null rather than something
+plausible (D72). A heritability figure has no such path. It is the app
+asserting a fact about the world, sourced from literature it has not read,
+cannot check and cannot update. D127 named exactly this class when it
+refused Foresight CALL without an executable rubric — *"the one number in
+the app the reader cannot recompute"* — and admitted such numbers only
+behind a rubric that can be dry-run before shipping. There is no
+equivalent for h²: no rubric, no resolution, no way for the app to be
+shown wrong.
 
-- **Provenance.** These are ballparks with no citation in the file.
-  Shipping a genetics figure without a source is not something this repo
-  does with any other number — `check:quality` exists because question
-  provenance mattered.
-- **Wording.** The prototype's caption is good ("How much of the spread
-  between people on each trait twin studies trace to genes"). It has to
-  survive contact with `check:public-copy` and stay attached to the bars
-  in every layout, not just the wide one.
-- **Placement.** A separate sheet reached from the ⓘ (`explain-sheet.jsx`
-  is already the "what this instrument measures" door) would keep the
-  framing and lose almost nothing. Worth weighing against the card
-  section the design asks for.
+So the same standard that gates a prediction refuses this outright, **and
+it refuses it in the explain sheet too.** Placement was never the problem,
+which retires this section's old compromise rather than deferring it.
 
-This document's recommendation is **build it, in the explain sheet
-first**, and move it onto the card only if the framing holds there.
+The second objection stands on its own: a population figure under *your*
+result is read as a claim about you. `nature-data.js`'s own header says
+every surface showing it must keep the population framing — and the result
+card is the worst place in the app to try.
+
+**Clean removal, verified:** `window.NATURE` is consumed by
+`result-card.jsx` and nothing else, and all 37 added lines of the v28
+`result-card.jsx` patch are this section. No orphaned store, no
+half-applied patch. Both files stay in `design/standalone-v28/`, marked
+refused, so the idea is not re-proposed as new.
+
+**What this does not refuse:** the four instruments' own results (computed
+here from your answers), or authored content generally — question banks,
+archetypes, scenes and Learn cards are the app's *prompts*, not its
+*findings*. And a future sourced, linked, clearly-external reading is not
+foreclosed; it would need D127's equivalent — a citation the app holds, a
+way to be shown wrong, and a home that is not under the reader's own score
+— which is a new decision, not this one relaxed.
 
 ## 10 · The tweak teardown is a set of decisions
 
@@ -389,8 +410,8 @@ the diff is legible as "deletions only".
 
 ## 11 · Sequencing
 
-**D161 cleared two of the three owner decisions.** Only Born-or-built's
-framing (§9) is still waiting, and it is independent of everything else.
+**No owner decisions are left.** D161 cleared two of the three and D163
+refused the last one (§9), so everything below is engineering.
 
 1. **§7 the small pass** + **§8 type-mix**. No decisions, no new reads,
    immediate. The `daily-split` drag guard is a bug fix.
@@ -409,8 +430,9 @@ framing (§9) is still waiting, and it is independent of everything else.
 6. **§5 the Map's parked branches**, once (4) has made a lazy Map cheap.
 7. **§4 Foresight tier A**, which by then has both its feed card and its
    map branch waiting for it.
-8. **§9 Born or built**, whenever its framing is settled — the one item
-   still needing an owner call, and blocked by nothing above it.
+
+§9 Born-or-built used to sit at the end of this list. It is refused
+(D163), not deferred, so there is no eighth step waiting.
 
 ## 12 · The Arena — asked and answered: dropped
 
@@ -450,14 +472,16 @@ wrong plan.
 
 ### Nothing to build — real on arrival
 
-Four items need no backend at all, which is worth knowing because it makes
-them the cheapest real wins in the file:
+Three items need no backend at all, which is worth knowing because it
+makes them the cheapest real wins in the file. (A fourth, Born-or-built,
+was on this list until D163 — and the reason it needed no backend is the
+reason it is now refused: nothing in the app produces that number. See
+§9.)
 
 | Item | Why it is already real |
 | --- | --- |
 | **Trait web** (§7.9, `trait-links.js`) | Folds the viewer's OWN test results, which the device already holds. No read, no collection, no fold. |
 | **Type-mix system switch** (§8) | Test results publish under D98 and `data/similarity.ts` already reads them. This adds a control, not a source. |
-| **Born or built** (§9) | Heritability figures are population science — a constant, like the archetype definitions. Not user data, so there is nothing to aggregate. Its open question is framing, not plumbing. |
 | **The §7 visual pass and §10 teardown** | Pixels and deletions. |
 
 ### Backend exists, needs extending

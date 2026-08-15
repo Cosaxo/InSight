@@ -16110,3 +16110,90 @@ anchors refuse for a structural reason (D8: a test result is never a
 breakdown dim), so they are not a backlog item — they are a decision, and
 changing them means changing D8. The community board is a real backlog
 item and belongs to the suggestions work (D138), not to v28.
+
+## D163 · Born or built is refused: the app does not assert facts it cannot recompute
+
+**Decided:** 2026-08-15 · **Status:** binding. The owner, on VISION-V28's
+Born-or-built item and its D162 note *"population science, not user data"*:
+*"this should be removed as you say this population sience"*.
+
+### The decision
+
+v28's `nature-data.js` — per-dimension heritability (h²) ballparks from
+twin and family studies, rendered as a "Born or built" section under each
+test result — **is not built.** Not deferred pending a framing pass, which
+is what VISION-V28 §9 recommended; refused, on the reason the owner gives.
+
+The reason is better than the recommendation it replaces, and that is why
+this is a record rather than a one-line edit. §9 treated the problem as
+presentation — the right caption, the right placement, keep the population
+framing attached to the bars. That is real, and it is downstream of a
+larger objection the owner named in four words: **it is population science,
+not this app's data.**
+
+### Why that objection is the strong one
+
+**Every number this app draws is recomputable from what people answered.**
+That is not a slogan here, it is the mechanism: aggregates fold from
+answers, cohorts fold from `agg.by`, similarity folds from published test
+results, and where the fold cannot be done the reading returns null rather
+than something plausible (D72). A reader who doubts a figure can, in
+principle, get to it from the answers.
+
+A heritability figure is the first thing on that screen with no such path.
+It is the app **asserting a fact about the world** — sourced from
+literature the app has not read, cannot check, and cannot update when the
+literature moves. D127 named exactly this class when it refused Foresight
+CALL without a rubric:
+
+> *a resolved call is the one number in the app the reader cannot
+> recompute — the app asserting a fact about the world*
+
+D127 admitted such numbers only behind an executable rubric that can be
+dry-run before the question ships. There is no equivalent for h²: no
+rubric, no resolution, no way for the app to be shown wrong. So the same
+standard that gates a prediction refuses this outright, and it refuses it
+whether the bars sit on the card or in the explain sheet — which retires
+§9's "explain sheet first" compromise. The placement was never the
+problem.
+
+**The second objection stands on its own even if the first were answered.**
+A population figure sitting under *your* result is read as a claim about
+you; "56% of the spread in openness traces to genes" beside your own
+openness score invites exactly the inference the number cannot support.
+`nature-data.js`'s own header says every surface showing it must keep the
+population framing — the honest reading of that constraint is that the
+result card is the worst place in the app to try.
+
+### What it removes, verified rather than assumed
+
+`window.NATURE` is consumed by `result-card.jsx` and nothing else, and all
+37 added lines of the v28 `result-card.jsx` patch are the Born-or-built
+section. So the refusal is total and leaves no residue: no orphaned store,
+no half-applied patch, nothing to unwind. Both files stay in
+`design/standalone-v28/` and are relabelled **refused (this record)** —
+same treatment as the Arena (D161 §2), and for a stronger reason: a
+refusal with a stated principle is worth keeping so the idea is not
+re-proposed as new.
+
+### What this does NOT refuse
+
+- **The four instruments' own results.** They are computed from the
+  viewer's answers by a scorer in this repo; nothing about them is
+  borrowed.
+- **Authored content generally.** Question banks, archetype definitions,
+  scene lists and the Learn cards are all written rather than folded, and
+  they are fine — they are the app's *prompts*, not its *findings*. The
+  line D163 draws is between content the app presents for you to answer,
+  and a quantitative claim about the world it presents as measured.
+- **Ever citing outside science.** A future surface could carry a sourced,
+  linked, clearly-external reading — but it would need the equivalent of
+  D127's rubric (a citation the app holds, a way to be shown wrong, and
+  a home that is not under the reader's own score), and that is a new
+  decision, not this one relaxed.
+
+### Consequence for the plan
+
+VISION-V28 §9 is struck. It was the last item still waiting on an owner
+call, so **the v28 plan now has no open owner decisions** — everything
+remaining is engineering, sequenced in §11.
