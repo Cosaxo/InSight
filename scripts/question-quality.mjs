@@ -243,6 +243,10 @@ export const DAILY_ID_FAIL = 970; // an id-scheme decision is due before 999
 // bytes-per-document from the seed itself rather than assuming, and these
 // counts are that estimate rounded to something a human can hold:
 // 6,000 docs ≈ 1.5 MB, 10,000 ≈ 2.5 MB.
+// D154's sampled audit: one AI-reviewed question in this many gets read by
+// a person. A starting figure, not a measured one — move it with what the
+// audit actually finds.
+export const AUDIT_ONE_IN = 20;
 export const BANK_WARN = 6000;
 export const BANK_FAIL = 10000;
 
@@ -770,6 +774,55 @@ export function checkProvenance(corpus) {
   for (const [id, row] of Object.entries(dailyRows)) {
     if (row.archiveId && !/^dqx?\d+$/.test(row.archiveId)) {
       errs.push(`provenance: daily ${id} archiveId ${JSON.stringify(row.archiveId)} is not a dq/dqx id`);
+    }
+  }
+
+  // ── review (D154) ──
+  //
+  // D154 replaced per-item human review with AI review plus a sampled
+  // human audit. The failure that invites is obvious and quiet: "the AI
+  // reviewed it" is a claim nobody can check after the fact, and a lane
+  // under time pressure can simply stop doing it with no artifact missing.
+  // So the verdict rides the provenance row a question already needs to
+  // enter the bank, and this gate is what makes "reviewed" a FACT.
+  //
+  // Editorial rows are exempt because editorial IS the human — the
+  // two-gate design's whole point. Only content this repo did not
+  // hand-write has to prove it was read.
+  const aiReviewed = [];
+  for (const surface of ["daily", "feed"]) {
+    for (const [id, row] of Object.entries(prov[surface] || {})) {
+      if (row.source !== "farm" && row.source !== "community") continue;
+      const r = row.review;
+      if (!r || typeof r !== "object") {
+        errs.push(`provenance: ${surface} ${id} is ${row.source} with no \`review\` — D154: nothing enters the bank unread`);
+        continue;
+      }
+      if (r.by !== "ai" && r.by !== "human") {
+        errs.push(`provenance: ${surface} ${id} review.by ${JSON.stringify(r.by)} — ai|human`);
+      }
+      // An AI review must state the audit decision rather than omit it.
+      // Absent and false are the same bytes to a reader, and only one of
+      // them is a decision — the same argument the `core` flag makes.
+      if (r.by === "ai") {
+        if (typeof r.audited !== "boolean") {
+          errs.push(`provenance: ${surface} ${id} is ai-reviewed without an explicit \`audited\` boolean — say whether it was in the human sample`);
+        } else aiReviewed.push({ surface, id, audited: r.audited });
+      }
+    }
+  }
+  // The audit RATE, across every AI-reviewed question rather than per
+  // batch: at D154's 1-in-20 a weekly batch of seven rounds to zero, so a
+  // per-batch gate would pass while nothing was ever audited. Cumulative
+  // is the only shape that binds at both sizes.
+  if (aiReviewed.length) {
+    const want = Math.ceil(aiReviewed.length / AUDIT_ONE_IN);
+    const got = aiReviewed.filter((r) => r.audited).length;
+    if (got < want) {
+      errs.push(
+        `provenance: ${got} of ${aiReviewed.length} ai-reviewed questions carry an audit, want ≥ ${want} `
+        + `(D154's 1-in-${AUDIT_ONE_IN}) — the sample is the only check on a reviewer that shares the generator's blind spots`,
+      );
     }
   }
   return errs;

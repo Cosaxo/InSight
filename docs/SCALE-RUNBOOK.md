@@ -129,15 +129,30 @@ path ([`MIRROR.md`](MIRROR.md)).
 
 Unblocks phase 4. Buildable now; only its last step needs traffic.
 
-- [ ] **3.1 An AI review pass on lane candidates.** Judges what
-      `question-quality.mjs`'s header says it cannot: warmth vs outrage,
-      semantic near-dupes (the lexical half is `check:neighbors`), and
-      hard rule 6 paraphrases the regex tripwire admits it misses.
+- [x] **3.1 The verdict is a required field. DONE 2026-08-15.** The
+      shape this took is not the one this step imagined, and the reason
+      is worth keeping: **the farm is a Claude session following
+      `QUESTION-FARM.md`, not a script that could call an API.** So "AI
+      review" cannot be a program; what CAN be a program is the proof
+      that it happened.
 
-      **Done when:** a lane PR carries a per-question verdict with
-      reasons. · **Gate:** run it over the committed bank — it should
-      pass ~everything already promoted, and the ones it flags are the
-      interesting output either way. · **Size:** M.
+      `content/provenance.json` rows gain
+      `review: { by: "ai"|"human", at, audited? }` on farm and community
+      entries; `check:quality` refuses a bank entry without one, and
+      `promote` refuses to write one without `--review`. Editorial rows
+      carry none, because editorial IS the human. What the reviewer
+      judges is written down in QUESTION-FARM's review contract.
+
+      Three gate arms, each checked by breaking it: a missing review, an
+      `ai` verdict with no explicit `audited` boolean, and the audit
+      rate. The twelve existing farm rows were backfilled `by: "human"`,
+      which is true — they went through the pre-D154 read.
+
+      **Not verified end to end:** every archive id is already promoted,
+      so `promote`'s happy path could not be run without inventing
+      content. Both refusal paths were exercised and the emitted row
+      shape was checked against the gate; the write itself rides on
+      `check:quality` catching a malformed row in CI.
 
 - [ ] **3.2 Batch approval, human on the merge.** The human's unit of work
       becomes approving a batch, never reading one. **The two-gate
@@ -145,10 +160,17 @@ Unblocks phase 4. Buildable now; only its last step needs traffic.
       access to production content. If a change here would let the farm
       merge itself, it is the wrong change. · **Size:** S.
 
-- [ ] **3.3 Sampled audit — one in twenty.** A run picks the sample and
-      names it in the PR, so "audited" is a fact rather than an
-      intention. The rate is a starting figure (D154 says so); move it
-      with what the audit finds. · **Size:** S.
+- [x] **3.3 Sampled audit — one in twenty. DONE 2026-08-15**, landed with
+      3.1 because the audit is the only real check on a reviewer that
+      shares the generator's blind spots, and shipping the review without
+      it would have been the weaker half alone.
+
+      `promote --audited id,id` names the sampled ids rather than
+      counting them — a count cannot be checked afterwards, which defeats
+      the point. The gate holds the **cumulative** rate against
+      `AUDIT_ONE_IN`, not a per-batch one: at 1-in-20 a weekly batch of
+      seven rounds to zero, so a per-batch gate would pass while nothing
+      was ever audited.
 
 - [ ] **3.4 Measure-and-retire. BLOCKED ON TRAFFIC.** The scorecard
       already computes evenness and already emits retirement proposals;

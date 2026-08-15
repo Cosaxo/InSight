@@ -1,25 +1,26 @@
 {
   "_README": [
-    "Question provenance — who wrote each live question, and in which batch.",
+    "Question provenance \u2014 who wrote each live question, and in which batch.",
     "The join the scorecard's `production` section (D97) reads to measure",
     "farm vintages against editorial questions from the same k-floored",
     "aggregates it already fetches. Keys are bank ids per surface; rows are",
-    "{ archiveId (daily only — the dq/dqx id the entry was promoted from),",
-    "source: editorial|farm|community, batch: a vintage label — a date for",
+    "{ archiveId (daily only \u2014 the dq/dqx id the entry was promoted from),",
+    "source: editorial|farm|community, batch: a vintage label \u2014 a date for",
     "generated batches, 'prototype' for the v9 port }.",
     "",
     "Maintained by machines where possible: promote-questions.mjs writes the",
     "daily rows (--source is required since D97; --batch labels the vintage,",
     "defaulting to the promotion date); feed rows ride the feed lane's PRs.",
     "check:quality holds this file exactly in",
-    "step with the banks, both directions — a missing row is a CI failure,",
+    "step with the banks, both directions \u2014 a missing row is a CI failure,",
     "not a silent drop from the vintage rollup.",
     "",
     "Backfill provenance (2026-08-11): block boundaries read from the",
-    "archive's own dated comments in src/v2/spec/daily-questions.js —",
+    "archive's own dated comments in src/v2/spec/daily-questions.js \u2014",
     "indexes 0-52 editorial (prototype port + deeper archive), 53-64 farm",
     "2026-07-30 (PR #32), 65-89 editorial authoring session 2026-08-01",
-    "(D30). All 73 feed questions are the prototype extraction (D52)."
+    "(D30). All 73 feed questions are the prototype extraction (D52).",
+    "`review` (farm/community rows only): who read this question before it entered the bank. { by: 'ai'|'human', at: date, audited?: bool } \u2014 D154. `by: 'human'` is the pre-D154 process, where a person read every candidate, and stays valid for anything a person still reads. `by: 'ai'` requires an explicit `audited` boolean: whether this row was in the human sample. Editorial rows carry no review because editorial IS the human."
   ],
   "daily": {
     "000": {
@@ -290,62 +291,110 @@
     "053": {
       "archiveId": "dqx24",
       "source": "farm",
-      "batch": "2026-07-30"
+      "batch": "2026-07-30",
+      "review": {
+        "by": "human",
+        "at": "2026-07-30"
+      }
     },
     "054": {
       "archiveId": "dqx25",
       "source": "farm",
-      "batch": "2026-07-30"
+      "batch": "2026-07-30",
+      "review": {
+        "by": "human",
+        "at": "2026-07-30"
+      }
     },
     "055": {
       "archiveId": "dqx26",
       "source": "farm",
-      "batch": "2026-07-30"
+      "batch": "2026-07-30",
+      "review": {
+        "by": "human",
+        "at": "2026-07-30"
+      }
     },
     "056": {
       "archiveId": "dqx27",
       "source": "farm",
-      "batch": "2026-07-30"
+      "batch": "2026-07-30",
+      "review": {
+        "by": "human",
+        "at": "2026-07-30"
+      }
     },
     "057": {
       "archiveId": "dqx28",
       "source": "farm",
-      "batch": "2026-07-30"
+      "batch": "2026-07-30",
+      "review": {
+        "by": "human",
+        "at": "2026-07-30"
+      }
     },
     "058": {
       "archiveId": "dqx29",
       "source": "farm",
-      "batch": "2026-07-30"
+      "batch": "2026-07-30",
+      "review": {
+        "by": "human",
+        "at": "2026-07-30"
+      }
     },
     "059": {
       "archiveId": "dqx30",
       "source": "farm",
-      "batch": "2026-07-30"
+      "batch": "2026-07-30",
+      "review": {
+        "by": "human",
+        "at": "2026-07-30"
+      }
     },
     "060": {
       "archiveId": "dqx31",
       "source": "farm",
-      "batch": "2026-07-30"
+      "batch": "2026-07-30",
+      "review": {
+        "by": "human",
+        "at": "2026-07-30"
+      }
     },
     "061": {
       "archiveId": "dqx32",
       "source": "farm",
-      "batch": "2026-07-30"
+      "batch": "2026-07-30",
+      "review": {
+        "by": "human",
+        "at": "2026-07-30"
+      }
     },
     "062": {
       "archiveId": "dqx33",
       "source": "farm",
-      "batch": "2026-07-30"
+      "batch": "2026-07-30",
+      "review": {
+        "by": "human",
+        "at": "2026-07-30"
+      }
     },
     "063": {
       "archiveId": "dqx34",
       "source": "farm",
-      "batch": "2026-07-30"
+      "batch": "2026-07-30",
+      "review": {
+        "by": "human",
+        "at": "2026-07-30"
+      }
     },
     "064": {
       "archiveId": "dqx35",
       "source": "farm",
-      "batch": "2026-07-30"
+      "batch": "2026-07-30",
+      "review": {
+        "by": "human",
+        "at": "2026-07-30"
+      }
     },
     "065": {
       "archiveId": "dqx36",
