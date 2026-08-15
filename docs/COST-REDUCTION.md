@@ -38,14 +38,21 @@
 >
 > **The two-regime framing below is also pre-D129, and that matters more
 > than the stale dollars.** With the fan-out gone there is one regime at
-> every size: `social` is now ~81% of the read bill from 50 to 500,000
-> DAU. This page's only answer to it is the cap trims it correctly tells
-> you not to take — because it assumes the CAP is what costs money, when
-> what costs money is documents read per open.
-> [`docs/COST-PLAN.md`](COST-PLAN.md) is the other answer: serve the same
-> capped lists from precomputed documents, which is −70% at every size
-> with no cap moved and no surface thinned, and it carries the losses
-> that come with it.
+> every size: `social` is ~81% of the read bill from 50 to 500,000 DAU.
+> This page's only answer to it is the cap trims it correctly tells you
+> not to take — because it assumes the CAP is what costs money.
+>
+> It is not. [`docs/COST-PLAN.md`](COST-PLAN.md) is the other answer, and
+> it is not a cheaper version of the same reads: all three cross-user
+> surfaces ASK THEIR QUESTION BACKWARDS. The friends cut samples 200
+> recent answers hoping your follows are among them; Kindred reads 2,400
+> answers to build a candidate pool it then ranks on profile scores.
+> Query the people you mean and the reads fall by an order of magnitude
+> while the surfaces get MORE correct — the friends cut stops missing
+> friends, Kindred stops silently ranking the recently active. No cap
+> moves. That page also records why this one's own framing hid it: a cost
+> model tells you which term is large and nothing about whether the term
+> should exist.
 
 [`docs/COSTS.md`](COSTS.md) says what this costs.
 [`docs/COST-COMPARISON.md`](COST-COMPARISON.md) says whether that is a lot
