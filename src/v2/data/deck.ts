@@ -32,6 +32,14 @@ export interface LiveQuestion {
   branch?: string;
   sub?: string;
   type?: string;
+  // Whether a COHORT reading may fold this question (D153) — resolved by
+  // isCore() at build time rather than carried raw, because the raw flag
+  // is feed-only and every other surface is core by construction. A view
+  // model that carried `core?: boolean` would hand every consumer the same
+  // trap: `q.core` reads false for the daily, which empties a panel
+  // instead of filtering it. Resolved, it is a plain boolean that means
+  // what it says everywhere.
+  coreCorpus: boolean;
 }
 
 export interface QuestionDoc {
@@ -52,6 +60,11 @@ export interface QuestionDoc {
   // Current-events serving window (D-plan §1): a feed entry past this
   // UTC day stops being OFFERED; answers and aggregate persist.
   until?: string;
+  // Core/tail (D153). Feed-only, and ABSENT MEANS TAIL — a question is in
+  // the Mirror's corpus only if it says so. Every other surface is core by
+  // construction and carries no key, which is why readers must go through
+  // `isCore()` below rather than testing this field directly.
+  core?: boolean;
   // Pool scope for duel questions (D40 part 4): absent = the shared pool;
   // "romantic" = served only to duos whose doc says duoMode: "romantic".
   // Absent everywhere else — the seed emits it only when set.
@@ -163,6 +176,33 @@ export function countsFor(options: string[], ctx: VoteContext): number[] {
 // fail-closed, and it is exactly why this function had to change in the
 // same commit as the trigger: with the server no longer writing the flag,
 // a client still reading it would blank every count in the app.
+/**
+ * May a cohort reading fold this question? (D153)
+ *
+ * The Mirror's population claims — "this is how Oslo answered" — are only
+ * true if everyone in Oslo could have been ASKED. Once the tail is ordered
+ * by an interest model (D155), a tail question's split describes the
+ * people it was shown to, not the place. The arithmetic stays correct and
+ * the sentence stops being.
+ *
+ * So: feed questions are core only when they say so, and **every other
+ * surface is core by construction** — the daily is one globally shared
+ * question, test items are what Scores and the similarity fields are
+ * computed from, duels never become world aggregates, learn cards are
+ * knowledge rather than opinion. That asymmetry is why this is a function
+ * and not a field test at each call site: `q.core` alone reads as false
+ * for the daily, which would empty the Mirror rather than filter it.
+ *
+ * NOT a serving filter. A tail question is offered, answered, and
+ * publishes its own aggregate like any other; its card shows its own
+ * split. This governs one thing — whether a COHORT fold may include it.
+ * Nor does it apply to a person's own answer list, which must always show
+ * everything they answered.
+ */
+export function isCore(q: { surface: string; core?: boolean }): boolean {
+  return q.surface === "feed" ? q.core === true : true;
+}
+
 export function hasPublishedCounts(agg: AggDoc | undefined): boolean {
   return !!agg && typeof agg.total === "number" && agg.total > 0;
 }
@@ -197,6 +237,7 @@ export function buildS(
     live: true,
     noCountsYet: !hasPublishedCounts(ctx.agg),
     test: q.test,
+    coreCorpus: isCore(q),
   };
 }
 

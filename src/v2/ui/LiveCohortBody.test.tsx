@@ -108,8 +108,40 @@ vi.mock("../data/locate", () => ({ locateCity, locateSupported: () => true }));
 const { default: LiveCohortBody } = await import("./LiveCohortBody");
 const { default: PLACES } = await import("../data/places");
 // Two questions, so "one is shown and one is withheld" is expressible.
-const Q = (id: string, text: string) => ({
-  id, text, options: [{ label: "Yes" }, { label: "No" }],
+const Q = (id: string, text: string, over: Record<string, unknown> = {}) => ({
+  // `coreCorpus: true` is what a real question carries post-D153 — buildS
+  // resolves it from the bank's `core` flag. Without it every case here
+  // would silently be testing the empty state, since this panel folds the
+  // core corpus only.
+  id, text, coreCorpus: true, options: [{ label: "Yes" }, { label: "No" }], ...over,
+});
+
+// ── the core corpus (D153) ──
+//
+// This panel says "here is how Oslo answered", and that is only true of a
+// question everyone in Oslo could have been asked. Once the tail is
+// ordered by the interest model (D155) a tail question's split describes
+// the people it was shown to — arithmetic still right, sentence no longer
+// true. Without this test the constraint is prose, which is exactly what
+// ATTENTION.md's feed-only rule was, and it rotted.
+describe("LiveCohortBody · cohort readings fold the core corpus only (D153)", () => {
+  it("draws a core question and leaves a tail question out", async () => {
+    LIVE.aggregated = () => [
+      Q("q1", "Core question"),
+      Q("q2", "Tail question", { coreCorpus: false }),
+    ];
+    // Both questions have a full Oslo cell, so nothing but the core filter
+    // can be what keeps one of them off the screen.
+    LIVE.aggFor = (() => ({
+      total: 10,
+      counts: { "0": 6, "1": 4 },
+      by: { city: { "Oslo, NO": { "0": 6, "1": 4 } } },
+    })) as never;
+    render(<LiveCohortBody scope="city" />);
+    const body = document.body.textContent || "";
+    expect(body).toMatch(/Core question/);
+    expect(body).not.toMatch(/Tail question/);
+  });
 });
 
 beforeEach(() => {
@@ -430,9 +462,9 @@ describe("LiveCohortBody · the Answers lens can be narrowed and re-ordered", ()
   // splits: q1 is near-unanimous, q2 is a dead heat, q3 is in between and
   // is the only one with a large room.
   const ARCHIVE = [
-    { id: "q1", text: "Almost everyone agrees", branch: "Mind", type: "binary", options: [{ label: "Yes" }, { label: "No" }] },
-    { id: "q2", text: "Dead heat", branch: "Morals", type: "binary", options: [{ label: "Yes" }, { label: "No" }] },
-    { id: "q3", text: "Somewhere between", branch: "Mind", type: "binary", options: [{ label: "Yes" }, { label: "No" }] },
+    { id: "q1", text: "Almost everyone agrees", branch: "Mind", type: "binary", coreCorpus: true, options: [{ label: "Yes" }, { label: "No" }] },
+    { id: "q2", text: "Dead heat", branch: "Morals", type: "binary", coreCorpus: true, options: [{ label: "Yes" }, { label: "No" }] },
+    { id: "q3", text: "Somewhere between", branch: "Mind", type: "binary", coreCorpus: true, options: [{ label: "Yes" }, { label: "No" }] },
   ];
   const CELLS: Record<string, Record<string, number>> = {
     q1: { "0": 19, "1": 1 },   // 95/5  → barely divisive, n=20
@@ -532,7 +564,7 @@ describe("LiveCohortBody · the Answers lens can be narrowed and re-ordered", ()
 // collapsed strip was carrying survives that reversal.
 describe("LiveCohortBody · the lens row is the stop's tabs", () => {
   const ARCHIVE = [
-    { id: "q1", text: "Almost everyone agrees", branch: "Mind", type: "binary", options: [{ label: "Yes" }, { label: "No" }] },
+    { id: "q1", text: "Almost everyone agrees", branch: "Mind", type: "binary", coreCorpus: true, options: [{ label: "Yes" }, { label: "No" }] },
   ];
 
   // The cost case swaps two loaders on the shared mock; put them back so

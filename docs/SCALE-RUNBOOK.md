@@ -111,19 +111,43 @@ path ([`MIRROR.md`](MIRROR.md)).
       **Done when:** the split is written down per call site. · **Gate:**
       review — this step is a decision, not code. · **Size:** S.
 
-- [ ] **2.2 Apply the filter at those call sites.** **Done when:** a tail
-      question's aggregate reaches no cohort reading. · **Gate:** 2.3. ·
-      **Size:** M.
+- [x] **2.2 Applied at the City/Country/World stop. DONE 2026-08-15.**
+      `LiveCohortBody` folds `LIVE.aggregated().filter((q) => q.coreCorpus)`.
 
-- [ ] **2.3 The test that makes it real.** A non-core question's aggregate
-      never reaches a Mirror stop, and a core one still does. Without
-      this the constraint is prose and will rot — the same argument
-      `ATTENTION.md` makes about its own feed-only rule, which is the
-      rule that rotted.
+      `LiveQuestion` had no `surface`, so the predicate could not run at
+      the call site — `coreCorpus` is now **resolved by `buildS`** and
+      carried on the view model. That is better than carrying the raw flag:
+      `q.core` reads false for the daily (feed-only field), so every
+      consumer would have had the same trap, and resolving it once means
+      the boolean means what it says everywhere.
 
-      Assert on rendered output via the smoke harness, not on the fold in
-      isolation: `app-shell` wraps every tab in an `ErrorBoundary`, so a
-      crashed stop still returns cleanly from `render()`. · **Size:** S.
+      **⚠ DEPLOY ORDER — the one thing to get right.** This is a no-op
+      only against a bank reseeded since D153. Production was seeded
+      *before* `core` existed, so those feed documents carry no flag,
+      `isCore` reads them as tail, and all 82 drop out of this panel.
+      **Ship after a reseed, never before.** The failure is loud (the
+      place panels go visibly thin rather than quietly wrong) — which is
+      why D153 chose the polarity — but loud is not harmless.
+
+      **Still open:** `LiveCircleBody` also reads `aggregated()` and is
+      deliberately NOT filtered. Circle folds the answers of people you
+      chose to follow, which is a fact about them rather than a claim
+      about a population, so interest-selected serving does not make it
+      false. Recorded so the asymmetry is a decision, not an oversight.
+
+- [x] **2.3 The test that makes it real. DONE 2026-08-15.** Two core
+      questions with identical full Oslo cells, one flagged tail: the core
+      one renders, the tail one does not, so nothing but the filter can
+      explain the difference. **Verified by mutation** — removing the
+      filter fails it. Plus four unit tests on `isCore` itself, including
+      that a stray `core: false` cannot demote a surface which has no tail.
+
+      Asserted on rendered output rather than on the fold in isolation,
+      because `app-shell` wraps every tab in an `ErrorBoundary` and a
+      crashed stop returns cleanly from `render()` — so a test on the fold
+      alone would pass while the screen was broken. Without this test the
+      constraint is prose, which is what `ATTENTION.md`'s feed-only rule
+      was, and it rotted.
 
 ## Phase 3 — Review at volume (D154)
 

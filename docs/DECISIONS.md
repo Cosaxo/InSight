@@ -15103,8 +15103,27 @@ questions cost one mechanical edit; sorting 5,000 would have cost a
 judgement call per question — the same bottleneck D154 exists to remove,
 arriving through the back door.
 
-**The enforcement is deferred deliberately.** The Mirror's fold does not
-read the flag yet. The tail is empty, so filtering today would either be
+**Amended 2026-08-15, same day: the first enforcement landed.** The
+City/Country/World stop (`LiveCohortBody`) now folds core only, with the
+predicate resolved by `buildS` onto the view model as `coreCorpus` —
+`LiveQuestion` carries no `surface`, and the raw flag is feed-only, so a
+consumer testing `q.core` would have emptied the panel rather than
+filtered it. `LiveCircleBody` is deliberately NOT filtered: Circle folds
+people you chose to follow, which is a fact about them rather than a
+claim about a population.
+
+**And the hazard that came with it, which is the part worth carrying:
+this ships only after a reseed.** Production was seeded before `core`
+existed, so its feed documents carry no flag, `isCore` reads them as
+tail, and all 82 would drop out of the place panels. The failure is loud
+rather than silent — which is exactly why the polarity was chosen this
+way — but the deploy order is a real constraint, not a nicety. Same class
+as D100's branch/sub, except that D100's remedy (tolerate the stale bank)
+is unavailable here: tolerating absent-means-core is the silent failure
+this record exists to prevent.
+
+**The rest of the enforcement is still deferred.** The other cohort
+surfaces do not read the flag yet. The tail is empty, so filtering today would either be
 a no-op or would drop questions from live readings for no benefit — a
 behaviour change to the app's highest-risk read path
 ([`docs/MIRROR.md`](MIRROR.md)) bought with nothing. Unlike the
