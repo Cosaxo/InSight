@@ -14,6 +14,8 @@ import { PROFILE_GENERAL_LS } from '../data/cityAnchor';
 // coupling meter moves DOWN with this change.
 import PLACES from '../data/places';
 import { SCENES } from './scenes.js';
+// The rings-and-you drawing every empty surface shows now (D171).
+import EmptyField from '../ui/EmptyField.tsx';
 // The vitals vocabulary and the anchor mapping, in their own module since
 // D151 — the Basics card below and ui/LiveProfileSetup.tsx (the
 // account-creation questions) must ask with the same words, and
@@ -461,12 +463,16 @@ import {
       // sample data, so the only honest instruction is the one that is
       // actually true of this build — every subject runs, and the feed's
       // topic sheet is where you tune them.
+      // The FIELD and a door, not a paragraph of instructions (D171).
+      // The old copy explained where the topic row is and what tapping +
+      // does — three lines teaching a control that is one tap away and
+      // labelled. Same shape the empty Circle and Groups stops take now:
+      // draw the thing, say one line, offer the one action that cannot
+      // happen by itself.
       return (
-        <div className="card" style={{ padding: '14px 15px', fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 500, color: 'var(--ink-2)', lineHeight: 1.5 }}>
-          No scenes yet — every topic runs in your feed instead. Tap
-          &#43; on the feed&rsquo;s topic row to see them all, with what
-          each one holds, and mute the ones you would rather not get.
-        </div>
+        <EmptyField action={{ label: 'Pick topics \u2192', nav: 'track:world' }}>
+          Every topic runs in your feed until you narrow it.
+        </EmptyField>
       );
     }
     return (

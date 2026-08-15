@@ -199,3 +199,38 @@ describe("LivePrivacyPanel · the type cut's disclosure", () => {
     expect(typeBullet()).toMatch(/politics, values and social results are never used/i);
   });
 });
+
+
+describe("LivePrivacyPanel · the list collapsed, the promises did not (D171)", () => {
+  it("keeps the public-answers sentence open and everything else one tap away", () => {
+    render(<LivePrivacyPanel />);
+    // Open on arrival, because a user learning this from a stranger
+    // quoting their vote is what the panel exists to prevent (CLAUDE.md).
+    // getAllBy: the open sentence and the first bullet inside the details
+    // both say it, which is deliberate — the summary line is the one that
+    // must not need a tap, and the bullet is the full version.
+    expect(screen.getAllByText(/Your answers are public/i).length).toBeGreaterThan(0);
+    const openLine = [...document.querySelectorAll("div")].find(
+      (el) => /Your answers are public/i.test(el.textContent || "") && !el.closest("details"),
+    );
+    expect(openLine, "the public-answers line moved inside the disclosure").toBeTruthy();
+
+    // The rest is behind a real disclosure widget, and `details` renders
+    // its children into the DOM whether open or shut — so this asserts
+    // REACHABILITY, which is what the stores and D9/D84/D98/D146 need,
+    // not visibility.
+    const d = document.querySelector("details");
+    if (!d) throw new Error("the disclosure widget is gone");
+    expect(d.querySelectorAll("li").length,
+      "bullets were deleted rather than collapsed").toBe(10);
+
+    // The four that exist because a specific decision made them true. If
+    // one of these ever disappears it should be because its decision was
+    // reversed, not because a layout pass thinned the list.
+    const text = d.textContent || "";
+    expect(text, "D9's location promise").toMatch(/never your coordinates/i);
+    expect(text, "D84's presence promise").toMatch(/kilometre-sized grid square/i);
+    expect(text, "D146's type cut").toMatch(/grouped by your Big Five type/i);
+    expect(text, "the exact-counts promise").toMatch(/counts\s+are exact/i);
+  });
+});

@@ -192,9 +192,40 @@ function LivePrivacyPanel() {
         {btn(telemetry ? "On ✓" : "Off", toggleTelemetry)}
       </LpRow>
 
+      {/* TEN BULLETS BEHIND A SUMMARY (D171), and the split is the whole
+          point rather than a compromise.
+
+          The owner's note was "you can remove almost the entire list — it
+          is not needed", and the vision's principle behind it is right:
+          this app removes text wherever text is standing in for a design.
+          But this list is not decoration. Every bullet is a promise the
+          rules or a function enforce, several exist because a specific
+          decision made them true (D9's location, D84's presence, D98's
+          public answers, D146's type cut), and both app stores require the
+          disclosure to be reachable. Deleting them would not simplify the
+          screen; it would make the screen stop being true.
+
+          So the SCREEN loses the wall and the DISCLOSURE loses nothing.
+          One sentence stays open — the bluntest one, the one CLAUDE.md
+          insists on, because a user learning that their answers are public
+          from a stranger quoting a vote back at them is the failure this
+          panel exists to prevent. The rest is one tap away, in a `details`
+          so the tap costs no JavaScript and screen readers get a real
+          disclosure widget rather than a div pretending.
+
+          If a future bullet is genuinely obsolete, delete THAT bullet with
+          the decision that retires it. This is a layout change and must
+          not be read as permission to thin the promises. */}
       <div style={{ padding: "11px 0", borderBottom: LP_LINE }}>
-        <div style={{ fontWeight: 800, fontSize: 14.5, marginBottom: 6 }}>What leaves your device</div>
-        <ul style={{ margin: 0, paddingLeft: 17, fontSize: 12.5, fontWeight: 500, color: "var(--ink-2)", lineHeight: 1.65 }}>
+        <div style={{ fontSize: 12.5, fontWeight: 500, color: "var(--ink-2)", lineHeight: 1.6 }}>
+          <strong style={{ fontWeight: 800 }}>Your answers are public</strong>, under your display
+          name, with the profile facts you have filled in. Nothing you answer here is private.
+        </div>
+        <details style={{ marginTop: 8 }}>
+          <summary style={{ cursor: "pointer", fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 800, color: "var(--ink-2)", WebkitAppearance: "none" }}>
+            What leaves your device
+          </summary>
+        <ul style={{ margin: "8px 0 0", paddingLeft: 17, fontSize: 12.5, fontWeight: 500, color: "var(--ink-2)", lineHeight: 1.65 }}>
           {/* The first bullet, and deliberately the bluntest sentence in
               the app. D98 made answers public; a user learning that from
               a stranger quoting their vote back at them would be the
@@ -274,6 +305,7 @@ function LivePrivacyPanel() {
           <li>Takes are posted under your name — on world questions as well as inside a circle, the same name your answers carry. One take per person per question. Report a take, or hide that author on this device, from the take itself.</li>
           <li>No contacts. No ads, no tracking, no third-party analytics.</li>
         </ul>
+        </details>
         {/* Until now these pages shipped inside the bundle and were linked
             from nowhere — reachable only by knowing the filename. Both
             stores also require the policy to be reachable on the open web,

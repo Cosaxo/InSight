@@ -259,20 +259,13 @@ function LiveGroupsMirrorBody() {
       // fill by itself the way City fills as strangers answer, so this is
       // the only route to it and removing it would trade wordiness for a
       // dead end. The sentence around it is what shrank.
-      <div>
-        <EmptyField>
-          One question a day, revealed with names the morning after.
-        </EmptyField>
-        {/* goNav, not goTab: goTab("track") restores whatever daily scope was
-            last open — a user coming from the 1v1 tab landed back on 1v1, not
-            on the group create flow this button promises. goNav pins the mode. */}
-        <div style={{ textAlign: "center", paddingBottom: 10 }}>
-          <button className="press" onClick={() => { const w = window as unknown as { goNav?: (k: string) => void; goTab?: (t: string) => void }; if (w.goNav) w.goNav("track:group"); else if (w.goTab) w.goTab("track"); }}
-            style={{ border: "none", borderRadius: 999, padding: "10px 18px", cursor: "pointer", fontFamily: "var(--sans)", fontWeight: 800, fontSize: 13, background: "var(--accent, var(--ink))", color: "var(--surface)", WebkitAppearance: "none" }}>
-            Start a group →
-          </button>
-        </div>
-      </div>
+      // goNav, not goTab, and EmptyField owns that choice now: goTab("track")
+      // restores whatever daily scope was last open, so a user arriving from
+      // the 1v1 tab landed back on 1v1 — a button that promises a group and
+      // delivers a duel. The nav key pins the mode.
+      <EmptyField action={{ label: "Start a group →", nav: "track:group" }}>
+        One question a day, revealed with names the morning after.
+      </EmptyField>
     );
   }
 

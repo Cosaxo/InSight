@@ -36,12 +36,28 @@ import React from "react";
  * is nothing to tap and nothing to read out here, so a screen reader
  * should get the words, not a group role wrapping an empty field.
  */
-export default function EmptyField({ caption, children }: {
+export default function EmptyField({ caption, children, action }: {
   /** Short label directly under the rings — the field's own name. */
   caption?: React.ReactNode;
   /** The sentence saying what will fill it. */
   children?: React.ReactNode;
+  /**
+   * The one door a field cannot open for itself — starting a group,
+   * picking topics. Optional, and only where the stop genuinely cannot
+   * fill by waiting: City fills as strangers answer and needs no button.
+   *
+   * The nav lookup lives HERE rather than at the call site because two of
+   * the call sites are spec-layer `.jsx`, where `window.goNav` counts as
+   * new shared-global coupling and `check:globals` rule 4 only moves down.
+   * One typed reader for all of them keeps the meter flat.
+   */
+  action?: { label: string; nav: string };
 }) {
+  const go = () => {
+    const w = window as unknown as { goNav?: (k: string) => void; goTab?: (t: string) => void };
+    if (w.goNav) w.goNav(action!.nav);
+    else if (w.goTab) w.goTab(action!.nav.split(":")[0]);
+  };
   return (
     <div style={{ padding: "6px 0 2px" }}>
       <svg viewBox="-170 -170 340 340" aria-hidden="true"
@@ -66,6 +82,14 @@ export default function EmptyField({ caption, children }: {
       {children ? (
         <div style={{ fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 600, color: "var(--ink-3)", lineHeight: 1.55, padding: "8px 2px 12px", textAlign: "center", maxWidth: 340, margin: "0 auto" }}>
           {children}
+        </div>
+      ) : null}
+      {action ? (
+        <div style={{ textAlign: "center", paddingBottom: 10 }}>
+          <button className="press" onClick={go}
+            style={{ border: "none", borderRadius: 999, padding: "10px 18px", cursor: "pointer", fontFamily: "var(--sans)", fontWeight: 800, fontSize: 13, background: "var(--accent, var(--ink))", color: "var(--surface)", WebkitAppearance: "none" }}>
+            {action.label}
+          </button>
         </div>
       ) : null}
     </div>

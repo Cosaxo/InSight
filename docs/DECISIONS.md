@@ -16892,3 +16892,43 @@ case by name.
 
 The rest ride existing suites, updated rather than deleted — `smoke-live`'s
 City helper polls the kicker now, and the Groups case asserts the drawing.
+
+### D171 addendum · the same pass on the profile and the scenes list
+
+Same report, two screens further in: *"lets go to war against the text
+other places as well — on your profile for example you can remove almost
+the entire list as its not needed… same with scenes, better with an empty
+map with a way to add. That is one of the principles that make the vision
+so much better: it removes as much text as possible."*
+
+**Scenes** now draws the field with a **Pick topics →** door, the same
+shape Circle and Groups took above. The old copy was three lines teaching
+where the topic row is and what tapping `+` does — instructions for a
+control one tap away that is already labelled.
+
+**The privacy list is COLLAPSED, not cut**, and the distinction is the
+whole of this note. The principle behind the report is right and this repo
+should keep applying it: text standing in for a design is a bug. But those
+ten bullets are not decoration — each is a promise `firestore.rules` or a
+function enforces, four exist because a specific decision made them true
+(D9 location, D84 presence, D98 public answers, D146 the type cut), and
+both stores require the disclosure to be reachable. Deleting them would
+not simplify the screen; it would make the screen stop being true.
+
+So the SCREEN loses the wall and the DISCLOSURE loses nothing: one
+sentence stays open — *"Your answers are public, under your display name…"*,
+the blunt one CLAUDE.md insists on — and the rest sits in a `<details>`,
+which costs no JavaScript and gives a screen reader a real widget.
+
+`LivePrivacyPanel.test.tsx` pins that the collapse was a collapse: ten
+`<li>` still in the DOM, and the four decision-backed promises matched by
+their own words. Mutation-checked — deleting one bullet fails it by name.
+**This was a layout change and must not be read as permission to thin the
+promises.** A bullet leaves when the decision behind it is reversed, in
+that commit.
+
+`ui/EmptyField` grew an optional `action` because three empty surfaces now
+want one door. The nav lookup lives in the typed component rather than at
+the call sites: two of them are spec-layer `.jsx`, where `window.goNav` is
+new shared-global coupling and `check:globals` rule 4 only moves down — the
+first attempt raised the count from 17 to 21 in one file and CI refused it.
