@@ -145,24 +145,30 @@ import './spec/map-tab.jsx';
 import './spec/profile-general.jsx';
 // These were born in this repo (never in design/) and live as typed TSX
 // under ui/; they self-register on globalThis so the render-time lookups
-// in daily-split / profile-overlay / profile-general still work.
-import './ui/LiveDuelPanel';
+// in profile-overlay / profile-general still work.
 import './ui/LivePrivacyPanel';
 import './ui/CityPicker';
 import './ui/PickSearch';
 // NB: no other ui/ panel is listed here, and the reason is now the same one
 // for all of them: nothing looks them up by name. Every remaining consumer
 // imports the panel it renders, so the ESM graph loads it (rule 2 asks
-// whether a file LOADS, not whether this file names it). ui/LiveVotersPanel,
-// ui/LiveCircleBody and ui/LiveCohortBody additionally must not be listed —
+// whether a file LOADS, not whether this file names it). ui/LiveCircleBody,
+// ui/LiveCohortBody and ui/profileSetup additionally must not be listed —
 // each is reached only past first paint (D25's deferred group; a React.lazy
-// for Circle and, since D119, for Cohort), so a line here would drag it into
+// for Circle and, since D119, for Cohort; main.jsx's own dynamic import for
+// the account-creation questions, D151), so a line here would drag it into
 // the eager bundle, which is the whole thing the deferral bought.
 //
-// ui/LiveGroupsMirrorBody and ui/LiveTakesPanel were listed until D137 for a
-// side effect they no longer have. Both stay in the eager chunk anyway —
-// mirror-tab.jsx and ui/LiveDuelPanel import them, and both of those are
-// eager — so dropping the lines moved no bytes.
+// ui/LiveDuelPanel left this list at D156 and joined that second group: it
+// is now a React.lazy in daily-split.jsx rather than a globalThis lookup,
+// which took the whole live duel surface — and, with it, ui/LiveTakesPanel's
+// last eager importer — out of first paint. The rebuild that gave the panel
+// the prototype's rail, marks and reveal bars is what made the weight worth
+// moving; the lazy split is what paid for it.
+//
+// ui/LiveGroupsMirrorBody was listed until D137 for a side effect it no
+// longer has. It stays in the eager chunk anyway — mirror-tab.jsx imports
+// it, and that is eager — so dropping the line moved no bytes.
 import './spec/app-shell.jsx';
 
 // ── the world feed, after first paint ──────────────────────────────────

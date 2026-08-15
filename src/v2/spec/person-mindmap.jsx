@@ -181,7 +181,9 @@ function PersonMindMap({ p, following, centerName, still }) {
   // same cluster engine as the You map (sub-topic spirals, typicality drift)
   const laid = useMemo(() => {
     if (window.MapTabLayout) return window.MapTabLayout.mtClusterLayout(nodes, CATS);
-    return { pos: { root: { x: 0, y: 0 } }, fields: [] };
+    // ring 320 = the stylesheet's own fallback, so the load-order miss draws
+    // the old fixed circle rather than collapsing it to a dot
+    return { pos: { root: { x: 0, y: 0 } }, fields: [], ring: 320 };
   }, [CATS, nodes]);
   const pos = laid.pos;
   const topOf = (n) => { let c = n; while (c && c.parentId && CATS.every((x) => x.id !== c.parentId)) c = byId[c.parentId]; return c ? c.parentId : n.parentId; };
@@ -595,7 +597,10 @@ function PersonMindMap({ p, following, centerName, still }) {
         onPointerCancel={still ? undefined : onPointerUp}
       >
         <div className="mmt-world" style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.z})` }}>
-          <div className="mmt-ground" aria-hidden="true"></div>
+          {/* the boundary's radius — see map-tab.jsx. A stranger with three
+              answers is the small-map case at its worst, and this map opens on
+              exactly that; `is-still` only hides the line in the portrait. */}
+          <div className="mmt-ground" style={{ '--ring': laid.ring + 'px' }} aria-hidden="true"></div>
           {laid.fields.map((f) => {
             const cat = CATS.find((c) => c.id === f.id);
             if (!cat) return null;

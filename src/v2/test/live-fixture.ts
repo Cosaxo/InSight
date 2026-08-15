@@ -281,6 +281,12 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     circleLoading: () => false,
     isFollowing: (u: string) => u === "u_other",
     setFollowing: async () => {},
+    // The follow SET (D149) — the same graph the fold above describes, so
+    // it names the same account. A mount that disagreed with itself about
+    // who your friends are would make the Friends cut untestable here.
+    loadFollows: async () => {},
+    follows: () => ["u_other"],
+    followsLoading: () => false,
     loadVoters: async () => {},
     voters: () => [
       { uid: "u_fixture", optionIdx: 0, anchors: { ageBand: "25-34", city: "Oslo, NO" }, name: "Tester", isMe: true },
@@ -291,6 +297,14 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
       [{ uid: "u_other", optionIdx: 1, anchors: {}, name: "", isMe: false }],
     ],
     votersLoading: () => false,
+    // The who-voted sheet's type cut (data/typeSplit.ts). Both branches
+    // reachable from one list: `u_fixture` carries a readable Big Five and
+    // types, `u_other` has none and lands in the gap between `sampleN` and
+    // `typedN` that the card's basis line exists to state.
+    voterScores: () => [
+      { uid: "u_fixture", optionIdx: 0, results: { big5: { O: 72, C: 55, E: 15, A: 58, N: 50 } } },
+      { uid: "u_other", optionIdx: 1, results: null },
+    ],
     // The world-takes author name path (D98). One known author so a live
     // mount renders a real name, and anything else falls back to
     // "Someone" — both branches reachable from the fixture.

@@ -134,6 +134,9 @@ import type { Verdict as ForesightVerdict } from "./foresight";
 // is applied on every feed rebuild rather than on a lens nobody opened,
 // and the module is a few hundred bytes of localStorage plumbing.
 import { applyInterests } from "./interests";
+// The passive tests' round-robin (D155). Lives with the feed's other
+// interleave arithmetic so both are testable without Firebase.
+import { roundRobinBy } from "./feed-interleave";
 // Pure deck-shaping logic lives in ./deck (unit-testable, no firebase);
 // this module passes its store state in.
 import {
@@ -297,6 +300,14 @@ const state = {
   // different things for those two.
   circle: null as CircleMember[] | null,
   circleLoading: false,
+  // The same graph, one query deep (D149). `circle` above is the FOLD —
+  // every followed account's answers, one query per member — and it is the
+  // right cost for the Circle stop and much too much for a chip on a
+  // who-voted sheet, which only needs to know which uids in a list it
+  // already holds are friends. Same null/[] convention as `circle`: null is
+  // "not asked or failed", [] is "you follow nobody".
+  follows: null as string[] | null,
+  followsLoading: false,
   // Foresight verdicts, keyed by read id (D126). Loaded once per
   // session on first open of the lens; a verdict is create-only server
   // side, so the local copy can never be stale in a way that matters.
@@ -338,7 +349,7 @@ export const TAKE_MAX_CHARS = 280;
 // (isValidV2Anchors). Kept here rather than inline so the client and the
 // ruleset can be diffed against each other by eye.
 const ANCHOR_FIELDS: Record<string, number> = {
-  city: 80, country: 80, ageBand: 20, gender: 40,
+  city: 80, country: 80, ageBand: 20, age: 3, gender: 40,
   profession: 80, education: 80, relationship: 40, heightBand: 20,
 };
 
@@ -1154,7 +1165,13 @@ function buildFeedGlobals(): void {
   // this call. data/interests.test.ts asserts the reader list.
   (window as unknown as Record<string, unknown>).WORLD_FEED_QS =
     applyInterests(feed, (q) => q.cat);
-  (window as unknown as Record<string, unknown>).TEST_FEED_QS = tests;
+  // Round-robined across the four instruments (D155), not served in bank
+  // order. `content/tests.json` is keyed BY instrument, so bank order is
+  // 25 Big Five, then 30 Politics, then 30 Values, then 25 Social — and a
+  // real account filled one bar while three sat at zero. The demo pool
+  // never had this: spec/test-feed-data.js interleaves as it builds.
+  (window as unknown as Record<string, unknown>).TEST_FEED_QS =
+    roundRobinBy(tests, (q) => String(q.test || ""));
   (window as unknown as Record<string, unknown>).WORLD_FEED_COMMENTS = {};
   LIVE.feedReady = true;
 }
@@ -2110,6 +2127,10 @@ const LIVE = {
         for (const m of members) m.name = state.names[m.uid] || "";
       }
       state.circle = members;
+      // The fold already knows the membership, so the cheap view rides
+      // along for free — a Friends chip opened after the Circle stop pays
+      // no read at all.
+      state.follows = members.map((m) => m.uid);
     } catch (err) {
       reportError(err, { where: "loadCircle" });
       // null, not [] — "could not ask" and "you follow nobody" are
@@ -2127,6 +2148,43 @@ const LIVE = {
   },
   circleLoading(): boolean {
     return state.circleLoading;
+  },
+  /**
+   * Just the uids you follow — one query, no fan-out (D149).
+   *
+   * The who-voted sheet's Friends cut needs the SET, not the fold: it
+   * intersects it with a voter list it already has in hand, so a friend's
+   * side costs nothing beyond this one read. Calling loadCircle for that
+   * would be up to FOLLOW_CAP queries to answer a membership test.
+   *
+   * Kept in step with loadCircle rather than beside it: both are views of
+   * one graph, so the fold fills this cache too and setFollowing clears
+   * both. Two caches that can disagree about who your friends are is the
+   * bug this note exists to prevent.
+   */
+  async loadFollows(): Promise<void> {
+    const me = state.uid;
+    if (!this.enabled || !me || state.followsLoading) return;
+    if (state.follows) return;
+    state.followsLoading = true;
+    try {
+      const [db, circleMod] = await Promise.all([getDb(), import("./circle")]);
+      state.follows = circleMod.capFollows(await circleMod.fetchFollowing(db, me));
+    } catch (err) {
+      // Left null, like circle's catch: "could not ask" must not render as
+      // "you follow nobody".
+      reportError(err, { where: "loadFollows" });
+    } finally {
+      state.followsLoading = false;
+      notify();
+    }
+  },
+  /** The uids you follow, or null while unfetched or failed. */
+  follows(): string[] | null {
+    return state.follows;
+  },
+  followsLoading(): boolean {
+    return state.followsLoading;
   },
   // ── Foresight (D126) ──
   //
@@ -2234,6 +2292,11 @@ const LIVE = {
       } else {
         await circleMod.unfollow(db, me, uid);
       }
+      // Dropped before the refetch, not after: loadCircle rewrites it from
+      // the fold it is about to run, and leaving the old list standing in
+      // between is how a just-followed friend fails to appear on a Friends
+      // cut that re-rendered mid-flight.
+      state.follows = null;
       await this.loadCircle(true);
     } catch (err) {
       reportError(err, { where: "setFollowing" });
@@ -2322,22 +2385,31 @@ const LIVE = {
       if (Number.isFinite(n)) mine[qid] = n;
     }
     const theirs: Record<string, Record<string, number>> = {};
-    const city: Record<string, string> = {};
+    const anchors: Record<string, Record<string, string>> = {};
     for (const [qid, rows] of Object.entries(state.voters)) {
       for (const r of rows) {
         if (r.uid === state.uid) continue;
         (theirs[r.uid] || (theirs[r.uid] = {}))[qid] = r.optionIdx;
-        // Lists are newest-first, so the first city seen is the freshest
-        // frozen anchor this session holds for them.
-        if (!(r.uid in city) && r.anchors.city) city[r.uid] = r.anchors.city;
+        // Lists are newest-first, so the first snapshot seen is the
+        // freshest this session holds for them. Kept WHOLE since D152 —
+        // the People lens says who someone is (profession, age band) and
+        // not only how alike they are, and every field it needs is already
+        // on the row that was fetched for the ranking. Merged rather than
+        // replaced, because a newer answer can carry fewer anchors than an
+        // older one (a user who cleared a field), and dropping a fact the
+        // session already holds would make the card flicker between
+        // renders for no reason a reader could see.
+        const a = anchors[r.uid] || (anchors[r.uid] = {});
+        for (const [k, v] of Object.entries(r.anchors || {})) if (v && !a[k]) a[k] = v;
       }
     }
     return Object.keys(theirs).map((uid) => ({
       uid,
       name: state.names[uid] || "",
-      city: city[uid] || "",
+      city: anchors[uid]?.city || "",
       like: agreement(mine, theirs[uid]),
       results: state.scores[uid] ?? null,
+      anchors: anchors[uid] || {},
     }));
   },
 
@@ -2355,6 +2427,25 @@ const LIVE = {
   },
   votersLoading(qid: string): boolean {
     return !!state.votersLoading[qid];
+  },
+  // The same list joined to the scores the SAME profile read already
+  // parsed (D112) — what data/typeSplit.ts folds into a per-type reading
+  // of the question. A join and nothing else: the arithmetic is pure and
+  // lives one module over, so the store never becomes a second place
+  // where a type is decided.
+  //
+  // The uid rides along because the roster under the split has to be
+  // filterable to exactly the people the bars counted; a type is not an
+  // anchor, so the dim/bucket scoping every other cut uses cannot reach
+  // it (LiveVotersPanel's `uids`).
+  voterScores(qid: string): { uid: string; optionIdx: number; results: ParsedResults | null }[] | null {
+    const rows = state.voters[qid];
+    if (!rows) return null;
+    return rows.map((r) => ({
+      uid: r.uid,
+      optionIdx: r.optionIdx,
+      results: state.scores[r.uid] ?? null,
+    }));
   },
 
   lensAgg(qid: string): { counts: number[]; noCountsYet: boolean } | null {

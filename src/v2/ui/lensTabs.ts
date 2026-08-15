@@ -35,6 +35,34 @@ export const LENS_LABEL: Record<LensId, string> = {
 };
 
 /**
+ * Which lenses a cohort stop offers (D152).
+ *
+ * EXPLORE IS THE WORLD'S, and it always was — the prototype module is
+ * named for it (`spec/segment-explorer.jsx`: "the World's Explore lens").
+ * The live row offered it at every scope, which reads as a fifth reading
+ * of your city and is really the same reading three times: Explore's whole
+ * move is to cut a population by a trait and rank where that slice parts
+ * company with everyone. At City the population IS a slice — of one
+ * city — so the chips re-cut a cut, and the divergence it reports is
+ * against the city rather than against everyone, which is not the sentence
+ * the lens is written to say. At World the population is everyone, and
+ * "everyone" is the only baseline that makes the reading mean what it
+ * claims.
+ *
+ * The other three read the same at every radius: who is here, you against
+ * them, their scores. Those are properties of a population, not of its
+ * size.
+ *
+ * A list per scope rather than a filter at the call site, so the answer to
+ * "which lenses does this stop have" is in one place and the row and its
+ * body cannot disagree about it.
+ */
+export function lensesFor(scope: "city" | "country" | "world"): LensId[] {
+  const base: LensId[] = ["people", "compare", "scores"];
+  return scope === "world" ? [...base, "explore"] : base;
+}
+
+/**
  * A cohort stop's own sections, beside the four lenses.
  *
  * `overview` is still a section with a label — it is just no longer a TAB
@@ -88,14 +116,20 @@ export const TAB_LABEL: Record<StopTabId, string> = {
 export const STOP_TABS: StopTabId[] = ["answers"];
 
 /**
- * What a cohort stop opens on.
+ * What a cohort stop opens on: NOTHING (D155).
  *
- * Answers, and deliberately NOT "nothing open" even though the prototype's
- * row starts collapsed. The prototype can afford a closed row because its
- * field is drawn from invented people and is therefore never empty; the
- * live constellation folds over completed test scores (D112) and is empty
- * until a population has taken them. Closed-by-default would render an
- * empty field above a closed row — a blank stop — which is the failure
- * D135 was fixing. One line to flip if the fold ever fills first.
+ * `DEFAULT_STOP_TAB` used to live here, set to "answers", with a note
+ * explaining that closed-by-default would render an empty field above a
+ * closed row — "a blank stop", the failure D135 was fixing.
+ *
+ * The premise was right and the conclusion was not, because the prototype
+ * solves it in the layout instead: its row is pinned to the BOTTOM of the
+ * screen (`marginTop: auto` in MirrorLenses), so a stop with nothing open
+ * is a header, a field, and a tab bar sitting where a tab bar belongs.
+ * Nothing reads as missing, because nothing is. Opening a tab then walks
+ * the row up to the top of the scroller and the body follows it in.
+ *
+ * The constant is gone rather than set to "": there is no default to name
+ * any more, and a `DEFAULT_STOP_TAB = ""` would be a piece of vocabulary
+ * that has to be read twice to mean nothing.
  */
-export const DEFAULT_STOP_TAB: StopTabId = "answers";

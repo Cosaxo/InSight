@@ -24,6 +24,16 @@ import LIVE from "../data/live";
 import { circleSplit } from "../data/circle";
 import { divisiveness, pctFor } from "../data/cohort";
 
+// The stop's constellation (D152). This body shipped as a flat list of
+// names and percentages — the same data with the shape taken out, and on
+// this tab the shape IS the reading: a circle is the one population where
+// "who is close to me" is the whole question. Lazy for the same reason the
+// cohort stops load their field lazily: it is an SVG canvas, and the list
+// underneath must not wait on it.
+const PeopleField = React.lazy(() =>
+  import("./LiveSimilarityField").then((m) => ({ default: m.PeopleField })),
+);
+
 const CL_LINE = "1px solid var(--rule)";
 
 function ClNote({ title, children }: { title: string; children: React.ReactNode }) {
@@ -103,6 +113,21 @@ function LiveCircleBody() {
             : <>Ranked by how alike your answers are. Following is one-way — nobody is told.</>}
         </div>
       </div>
+
+      {/* You at the centre, the people you kept around you, distance =
+          unlikeness — the grammar every other stop in the Mirror speaks,
+          finally spoken here. Only where a likeness exists to place them
+          by: a member you share no answered question with has no honest
+          radius, so the field draws the ones it can place and the list
+          below it carries everyone. */}
+      <React.Suspense fallback={null}>
+        <PeopleField
+          people={members.filter((m) => m.like.shared > 0).map((m) => ({
+            id: m.uid, label: m.name || "", match: m.like.pct,
+          }))}
+          caption="closer to you = more alike"
+        />
+      </React.Suspense>
 
       <div style={{ display: "flex", flexDirection: "column", paddingTop: 6 }}>
         {members.map((m) => (

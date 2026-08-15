@@ -198,10 +198,18 @@ function LivePrivacyPanel() {
           {/* The first bullet, and deliberately the bluntest sentence in
               the app. D98 made answers public; a user learning that from
               a stranger quoting their vote back at them would be the
-              worst possible way to find out. */}
+              worst possible way to find out.
+
+              It says "age" and not "age band" since D155: the snapshot
+              now carries BOTH, and the exact one is what a card naming a
+              person prints. Naming the coarser of the two would be the
+              same failure as the paragraph above describes, one field
+              down. "profession" was missing outright — an anchor that has
+              published since D8 and was never listed here. */}
           <li><strong>Your answers are public.</strong> Anyone using InSight can see what you
-          answered, under your display name, along with the age band, gender, city, country,
-          education, relationship status and height band you have filled in. That is what the app is for —
+          answered, under your display name, along with the age, gender, city, country,
+          education, profession, relationship status and height band you have filled in.
+          That is what the app is for —
           it is how you see who answers like you — but it means nothing you answer here is
           private. Answer accordingly.</li>
           <li>That includes the political, personal and sensitive questions. There is no
@@ -210,6 +218,23 @@ function LivePrivacyPanel() {
           one person&apos;s answer.</li>
           <li>Your display name is shown with your answers. Leave it blank to appear
           as &ldquo;Someone&rdquo; — that hides the name, not the answers.</li>
+          {/* The type cut's disclosure. Nothing NEW leaves the device for
+              it — answers were already public and testResults already
+              world-readable, and the cut is arithmetic anyone could have
+              run on both. But "the app groups my answers by my
+              personality type and shows that to strangers" is not
+              something a user should have to derive from two other
+              bullets, and the retroactive half is the part they cannot
+              guess: it applies to answers given long before the type
+              existed. `docs/data-inventory.md` carried a flat "nothing is
+              ever cross-tabbed by a test result" and pointed HERE as the
+              place it was stated in full; that claim is now narrower, so
+              this is where the narrower one goes. */}
+          <li>Your answers can be grouped by your Big Five type. That type is worked out
+          from the test cards you answer in the feed, so it can change as you answer more —
+          and because it is read fresh each time, it applies to <em>everything</em> you have
+          ever answered, including answers you gave before you had a type at all. Your
+          politics, values and social results are never used to group answers this way.</li>
           <li>Group &amp; 1v1 answers stay sealed until the next day&apos;s reveal — that is the
           game, not a privacy promise. Once revealed they read like every other answer.</li>
           {/* This line has been rewritten twice, and the second time the

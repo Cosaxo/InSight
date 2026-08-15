@@ -277,11 +277,14 @@ export function loadCorpus() {
   // exactly what the lane writes (the pick-data.js pattern), and only
   // that: dragging the rest of the demo pool through production bounds
   // would fail scene fillers that are not production copy.
-  const wfd = extractLiteral(
-    readFileSync(join(root, "src", "v2", "spec", "world-feed-data.js"), "utf8"),
-    "window.WORLD_FEED_QS = [",
-    "world-feed-data.js",
-  );
+  const wfdSrc = readFileSync(join(root, "src", "v2", "spec", "world-feed-data.js"), "utf8");
+  const wfd = extractLiteral(wfdSrc, "window.WORLD_FEED_QS = [", "world-feed-data.js");
+  // Pick cards file themselves against WORLD_TOPICS, which is a SUPERSET of
+  // the feed's own taxonomy: `fav` and `places` are real topic ids that
+  // world-feed filters out of the feed's chip row. So a pick card's `cat` is
+  // checked against this set and a feed question's against feed.topics —
+  // one vocabulary would reject every card that ships today.
+  const worldTopics = extractLiteral(wfdSrc, "window.WORLD_TOPICS = [", "world-feed-data.js");
   return {
     specQ,
     dailyIdOf,
@@ -289,6 +292,7 @@ export function loadCorpus() {
     seed,
     feed,
     feedTopics: new Set(feed.topics.map((t) => t.id)),
+    worldTopics: new Set(worldTopics.map((t) => t.id)),
     duel: [...duel.group, ...duel.oneVsOne, ...(duel.romantic ?? [])],
     pick,
     learn,
@@ -328,8 +332,8 @@ export function placeCivicHit(q) {
 }
 
 // Findings for one question. `surface` decides which rules apply: daily
-// carries the full card shape (tone/tag/cat/alts/axis); feed carries topic;
-// duel/pick get only the universal rules (prompt bounds, option bounds, the
+// carries the full card shape (tone/tag/cat/alts/axis); feed and pick carry a
+// topic; duel gets only the universal rules (prompt bounds, option bounds, the
 // place tripwire) — their lane-specific shapes are check:content's job.
 // Every error carries a stable `rule` slug: it is the ALLOW key's second
 // half, so a waiver names exactly one finding, never the whole question.
@@ -407,7 +411,14 @@ export function checkQuestion(q, surface, ctx, mode = {}) {
       err("type-shape", `unknown feed type ${JSON.stringify(q.type)} — vote|rank|duel|dial|field|path`);
     }
     if (q.type === "rank") warn.push("rank type — not live-servable (D12); fine in the bank, never a lane candidate");
-    if (q.cat && !ctx.feedTopics.has(q.cat)) err("topic", `topic ${JSON.stringify(q.cat)} is not in the feed taxonomy`);
+    // `cat` is REQUIRED, not merely validated-if-present. Every feed question
+    // in the bank carries one, so this held by luck for as long as only humans
+    // wrote them; a topic-less card has a broken kicker and never appears in
+    // the topic filter, which is a question nobody can find rather than a
+    // question that reads oddly. The feed lane runs on a schedule now, so the
+    // rule that was true in the data becomes a rule in the gate.
+    if (!q.cat) err("topic", "a feed question needs a topic — without one its kicker is broken and the topic filter cannot reach it");
+    else if (!ctx.feedTopics.has(q.cat)) err("topic", `topic ${JSON.stringify(q.cat)} is not in the feed taxonomy`);
 
     // ── continuum shapes ── the whole entry is authored, crowd texture
     // included (the demo pool has no backend), so the gate holds the
@@ -550,6 +561,18 @@ export function checkQuestion(q, surface, ctx, mode = {}) {
   // gets edited to match the other and both stop meaning anything.
   if (surface === "feed" && q.until !== undefined && !/^\d{4}-\d{2}-\d{2}$/.test(String(q.until))) {
     err("type-shape", "`until` (the current-events window) must be a YYYY-MM-DD UTC day key");
+  }
+
+  if (surface === "pick") {
+    // The catalog contract's rule 3 — "Every card carries a `cat`, always" —
+    // had no gate behind it: pick got the universal rules only, and all
+    // thirteen shipped cards happen to carry `cat: 'fav'`. A card without one
+    // has a broken kicker and no place in the topic filter, which is the
+    // catalog lane's own wording for why the rule exists. The vocabulary is
+    // WORLD_TOPICS rather than the feed's taxonomy: `fav` is a real topic id
+    // the feed's chip row filters out, and it is the one every card uses.
+    if (!q.cat) err("topic", "a pick card needs a cat (catalog contract rule 3) — without one its kicker is broken and the topic filter cannot reach it");
+    else if (!ctx.worldTopics.has(q.cat)) err("topic", `cat ${JSON.stringify(q.cat)} is not a WORLD_TOPICS id`);
   }
 
   if (surface === "pulse") {

@@ -28,24 +28,32 @@ function MTLearnCard({ node }) {
   // reveal already labels it.
   const rate = LEARN_RATE(card);
   const est = rate.src === 'estimate';
+  // D149: a live build has no estimate to hedge. `pct` is null until the
+  // card has been answered by somebody, and this card draws no bar and
+  // makes no claim until then — the fact is on your map either way, which
+  // is what this card is actually for.
+  const none = rate.pct == null;
   return (
     <div style={{ '--hue': s ? s.hue : 250 }}>
       <div className="mmt-kicker"><span className="mmt-dot"></span>{(s ? s.label + ' \u00b7 ' : '') + (f ? f.label : '')}</div>
       <div className="mmt-title" style={{ marginTop: 4 }}>{card.k}</div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 7, marginTop: 12 }}>
-        <div style={{ position: 'relative', height: 8, borderRadius: 99, background: 'color-mix(in oklch, var(--surface-3), transparent 25%)', overflow: 'hidden' }}>
-          <i style={{ position: 'absolute', inset: '0 auto 0 0', width: rate.pct + '%', borderRadius: 99, background: 'oklch(0.52 0.14 var(--hue))', opacity: est ? 0.55 : 1 }}></i>
-        </div>
+        {!none ? (
+          <div style={{ position: 'relative', height: 8, borderRadius: 99, background: 'color-mix(in oklch, var(--surface-3), transparent 25%)', overflow: 'hidden' }}>
+            <i style={{ position: 'absolute', inset: '0 auto 0 0', width: rate.pct + '%', borderRadius: 99, background: 'oklch(0.52 0.14 var(--hue))', opacity: est ? 0.55 : 1 }}></i>
+          </div>
+        ) : null}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           {/* "about" carries the hedge in the sentence itself, so the number
               is never alone on the screen making a claim it cannot support.
-              Only in live mode: a demo build's whole population is authored,
-              and hedging one figure inside it would imply the rest are
-              measured. */}
+              Only in the DEMO now: a live build has no estimate to hedge
+              (D149), and says plainly that nobody else has answered yet. */}
           <span style={{ flex: 1, fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)' }}>
-            {est && LIVE.enabled
-              ? 'about ' + rate.pct + '% get this right \u2014 our estimate'
-              : rate.pct + '% of people get this right'}
+            {none
+              ? 'Nobody else has answered this one yet.'
+              : est && LIVE.enabled
+                ? 'about ' + rate.pct + '% get this right \u2014 our estimate'
+                : rate.pct + '% of people get this right'}
           </span>
           {earned && window.LMStreak ? <window.LMStreak k={3} of={3} col={'oklch(0.52 0.14 ' + (s ? s.hue : 250) + ')'}></window.LMStreak> : null}
         </div>

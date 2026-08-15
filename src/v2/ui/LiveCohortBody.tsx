@@ -56,7 +56,7 @@ import MirrorLensTabs from "./MirrorLensTabs";
 // ordinary import, not lazy: this body IS the default tab, and it rides
 // this module's own lazy chunk (D119) either way.
 import LiveAnswerRows, { type AnswerRow } from "./LiveAnswerRows";
-import { DEFAULT_STOP_TAB, LENS_LABEL, STOP_TABS, TAB_LABEL, type LensTab } from "./lensTabs";
+import { LENS_LABEL, STOP_TABS, TAB_LABEL, lensesFor, type LensTab } from "./lensTabs";
 import type { LensId, LensQuestion } from "./lensDefs";
 import { byOf } from "../data/cohort";
 // An ordinary import, not a globalThis lookup — same note as LiveDuelPanel's
@@ -107,7 +107,16 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
   // the three scopes mount as separate elements (mirror-tab keys the body
   // on the zoom), so each stop keeps its own place and switching scope
   // lands on Answers, which is the one tab every scope always has.
-  const [tab, setTab] = React.useState<string>(DEFAULT_STOP_TAB);
+  // CLOSED, not Answers (D155). D135 opened the stop on Answers because a
+  // closed row under an empty field read as a blank stop — true of the
+  // layout it was written for, and the prototype's own answer is different
+  // and better: the row is pinned to the BOTTOM of the screen, so a stop
+  // with nothing open is a header, a field and a tab bar sitting where a
+  // tab bar belongs. Nothing looks broken because nothing is missing.
+  const [tab, setTab] = React.useState<string>("");
+  // The row, so opening a tab can bring it to the top of the scroller the
+  // way the prototype does (spec/mirror-field.jsx MirrorLenses).
+  const rowRef = React.useRef<HTMLDivElement | null>(null);
 
   const city = LIVE.myCity;
   const place = city ? PLACES.parse(city) : null;
@@ -294,20 +303,34 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
 
   // ── the stop's tabs (D119, reshaped at D136) ──
   //
-  // Answers, then the four lenses — five, since the constellation moved out
-  // of the row to sit above it and Foresight left the Mirror entirely. Every
-  // tab here can draw something for every cohort scope, so the row is fixed
-  // rather than assembled per scope: a tab that opens onto "nothing yet" is
-  // a true reading of this population, and disappearing tabs would make the
-  // row's shape a second, quieter claim about the data.
+  // Answers, then the lenses this scope has. The constellation moved out of
+  // the row at D136 to sit above it, and Foresight left the Mirror
+  // entirely.
+  //
+  // ASSEMBLED PER SCOPE SINCE D152, which reverses the note this comment
+  // used to carry. It said a fixed row was right because "a tab that opens
+  // onto nothing yet is a true reading of this population" — true, and
+  // about a different thing. Explore is not empty at City; it is
+  // MISPLACED there. Its reading is "how does this slice differ from
+  // everyone", and at City the baseline it compares against is the city,
+  // so the sentence it draws is not the one it is written to say
+  // (lensTabs.ts lensesFor). Data being thin is a reason to keep a tab;
+  // a reading not applying is a reason not to offer one.
   const tabs: LensTab[] = [
     ...STOP_TABS.map((id) => ({ id, label: TAB_LABEL[id] })),
-    ...(Object.keys(LENS_LABEL) as LensId[]).map((id) => ({ id, label: LENS_LABEL[id] })),
+    ...lensesFor(scope).map((id) => ({ id, label: LENS_LABEL[id] })),
   ];
-  const openTab = tabs.some((t) => t.id === tab) ? tab : DEFAULT_STOP_TAB;
+  const openTab = tabs.some((t) => t.id === tab) ? tab : "";
 
   return (
-    <div className="fade-in" style={{ padding: "4px 16px 26px", "--accent": accent } as React.CSSProperties}>
+    <div className="fade-in" style={{
+      padding: "4px 16px 26px", "--accent": accent,
+      // A filling column, so `marginTop: auto` on the row below has
+      // somewhere to push against. Without this the row sits under the
+      // last thing drawn and floats mid-screen on an empty stop, which is
+      // exactly what it looked like.
+      flex: "1 0 auto", display: "flex", flexDirection: "column",
+    } as React.CSSProperties}>
       <div style={{ padding: "10px 0 4px" }}>
         <div className="kicker">
           {scope === "city" ? "Your city" : scope === "country" ? "Your country" : "Everyone"}
@@ -360,8 +383,19 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
 
       {/* Under the field: the row is this stop's navigation, and the ruler
           above it is the app's. Two levels of nav in that order is what the
-          prototype's nav v2 is — WHO, then WHAT. */}
-      <MirrorLensTabs tabs={tabs} open={openTab} onOpen={setTab} />
+          prototype's nav v2 is — WHO, then WHAT.
+
+          `marginTop: auto` is the prototype's own line (MirrorLenses) and
+          it is what keeps the row at the BOTTOM of the screen when the
+          stop has little to show. A tab bar floating halfway up a mostly
+          empty screen is the thing it fixes.
+
+          Tapping the open tab closes it, so the row can return to the
+          state it starts in. */}
+      <div ref={rowRef} style={{ marginTop: "auto", paddingTop: 16 }}>
+        <MirrorLensTabs tabs={tabs} open={openTab}
+          onOpen={(id) => setTab(openTab === id ? "" : id)} />
+      </div>
 
       {openTab === "answers" && (
         <div className="fade-in" role="tabpanel" aria-label={TAB_LABEL.answers}>
@@ -388,7 +422,7 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
         </div>
       )}
 
-      {openTab !== "answers" && (
+      {!!openTab && openTab !== "answers" && (
         <div className="fade-in" role="tabpanel" aria-label={LENS_LABEL[openTab as LensId]}>
           <React.Suspense fallback={null}>
             <LiveMirrorLenses lens={openTab as LensId} qs={lensQs} shortName={shortName} scope={scope} />

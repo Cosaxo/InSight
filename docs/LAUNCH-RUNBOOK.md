@@ -448,12 +448,26 @@ arithmetic.
       procedure and this paragraph is only its record**: where the two
       disagree, the run list wins.
 
+      **BUILD 15 WAS UPLOADED BY RUN 21** (`3c03752`, 2026-08-14 20:58Z,
+      7m 05s, upload step `success`, 1m 26s of it transfer). Both APNs
+      gates passed and the Firebase config was verified in the archive and
+      again in the exported `.ipa`. **`appBuild` is now 16**, bumped off
+      that step's conclusion in the same session — the second consecutive
+      release where the habit held rather than being reconstructed later.
+
+      **BUILD 14 WAS UPLOADED BY RUN 20** (`8cf48a1`, 2026-08-14 16:39Z,
+      7m 32s, upload step `success`, 1m 42s of it transfer). Both APNs
+      gates passed and the Firebase config was verified in the archive and
+      again in the exported `.ipa`. **`appBuild` is now 15**, bumped
+      immediately after that conclusion was read — the convention D142 and
+      D143 exist because it was skipped twice running.
+
       **BUILD 13 WAS UPLOADED BY RUN 19** (`0e65741`, 2026-08-13 20:19Z,
       6m 58s, upload step `success`) — the run dispatched from the very
-      commit that wrote the paragraph below. **`appBuild` is now 14**,
-      bumped 2026-08-14 during build 14's pre-flight (D143), and **build
-      13 is the highest on App Store Connect**, so the comparison passes
-      for the next run as-is.
+      commit that wrote the paragraph below.
+
+      *This file states what finished runs did. It does not state what is
+      unspent, and the section below is why.*
 
       **THE PARAGRAPH BELOW IS KEPT AS A RECORD OF THE TRAP FIRING A THIRD
       TIME, AND IT IS WRONG.** It says build 13 is unspent; run 19 spent
@@ -525,10 +539,47 @@ arithmetic.
       profile. Both are written out in docs/STORE-FORMS.md, the second with
       the trip-wire that flips it (weight, or anything that makes a BMI).
 
-      **`check:bundle` passing locally proves less than it looks.**
-      Without a Sentry DSN the local build omits a 435 KB chunk (D134,
-      docs/LOCAL-TESTING.md), so the release build is the larger one and
-      CI is where that ceiling is actually tested.
+      **`check:bundle` used to pass locally on a bundle nobody ships, and
+      since D144 it refuses to.** Two variables decide which artifact you
+      are weighing: without `VITE_SENTRY_DSN` the build omits a 445 KB
+      chunk, and without `VITE_V2_LIVE=true` it is the demo bundle — 12 KB
+      lighter in total and 9 KB lighter in the eager graph than the one
+      that installs. The script now exits 1 unless the second is set, so
+      the answer is the command in docs/LOCAL-TESTING.md rather than a
+      caveat to remember. The release workflow runs the same gate on its
+      own `dist/`, which is the copy that gets signed.
+
+      **Build 15 pre-flighted 2026-08-14 (D153) — and nothing was
+      bumped, which is the finding.** Run 20's `Upload to App Store
+      Connect` step reads `success` and `appBuild` at `8cf48a1` was 14, so
+      build 14 is spent and the tree's 15 is already ahead. The question
+      above answers *run as-is*. **Three pre-flights in a row opened on a
+      spent number and this one does not**, because run 20's post-upload
+      bump landed in the session that read its step list — the one thing
+      D143 named as making the difference.
+
+      Measured, not asserted: 1064 client, 214 function, 183 script and 89
+      rules tests, `lint`, `tsc -b`, `check:globals` at its 412 baseline,
+      and every check gate. `check:store-copy` passes with `--ios` (D42's
+      parked Play fingerprint is the one placeholder) and
+      `check:web-firebase` is environmental, as below. CI run 436
+      (`2423e4f`) is green across all nine jobs, `native-sync-drift`
+      included — which is the one that speaks to this release, since build
+      15 carries `@capacitor/ios` 8.3.3 → 8.4.2 and two more shell-facing
+      bumps.
+
+      **`check:bundle` is green on the shipping bundle for the first time
+      at a pre-flight**: 2255 KB total against 2265, 969 KB eager against
+      978. It was the yield of both previous pre-flights and, at D143, red
+      on a bundle nobody installs; D144 re-pointed it. Both numbers now sit
+      single-digit KB under their ceilings, so the next feature of any size
+      meets one of them.
+
+      *One test failed once under parallel load and passed 3/3 alone and
+      1064/1064 on two clean runs —* `learn-reserve.test.jsx` spends ~10.8 s
+      of the 15 s timeout it sets itself, so a loaded runner can exhaust it.
+      D153 has the arithmetic; read it before calling a red there a D95
+      regression.
 
       **`npm run check:versions -- --fix` does NOT increment.** It
       propagates package.json's value into the two native projects and
