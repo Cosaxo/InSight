@@ -318,6 +318,28 @@
       87: 2,  // Francium (Fr) — too rare to ever hurt anyone; below the floor
       0: 8,   // Not listed
     },
+    // daily catalog-question run, 2026-08-15 — confusion, the fifth emoji
+    // canon: not what you send (pk04), resent (pk05), would ink (pk08)
+    // or fear (pk10), but what nobody can agree on the MEANING of.
+    // Unicode named half this board something no sender intends, and
+    // the folded hands have been starting arguments since 2010.
+    pk15: {
+      128591: 31, // 🙏 folded hands — a prayer, or a high five
+      128579: 24, // 🙃 upside-down face — fine, or not fine at all
+      128128: 20, // 💀 skull — dead, or dead laughing
+      128548: 16, // 😤 face with steam from nose — named triumph, read fury
+      129394: 13, // 🥲 smiling face with tear — happy-sad, grateful, coping
+      128554: 11, // 😪 sleepy face — the bubble is snot, not a tear
+      129305: 9,  // 🤙 call me hand — shaka, phone, or hang loose
+      128133: 8,  // 💅 nail polish — grooming, or devastating indifference
+      10024: 7,   // ✨ sparkles — emphasis, magic, or sarcasm
+      128557: 6,  // 😭 loudly crying face — despair or delight
+      128175: 5,  // 💯 hundred points — clears the floor but not the top 10; folds
+      127814: 5,  // 🍆 eggplant — misunderstood on purpose; same
+      129760: 3,  // 🫠 melting face — below the floor
+      128558: 2,  // 😮 face with open mouth — below the floor
+      0: 9,       // Not listed
+    },
   };
 
   // Baked demo segment slices, per question: how each cohort orders the
@@ -487,6 +509,19 @@
         Men: { 94: 10, 92: 8, 9: 6, 80: 5, 17: 5 },
       },
     },
+    pk15: {
+      ageBand: {
+        // the ironic readings — skull, upside-down, nail polish — are
+        // youngest where they were coined; the folded-hands argument
+        // belongs to everyone who has ever received one from a parent
+        '18-24': { 128128: 9, 128579: 7, 129394: 6, 128133: 5, 128591: 4 },
+        '25-34': { 128591: 8, 128579: 7, 128548: 6, 128554: 5, 10024: 4 },
+      },
+      gender: {
+        Women: { 128579: 8, 128591: 7, 129394: 6, 10024: 5, 128133: 5 },
+        Men: { 128591: 9, 129305: 7, 128128: 6, 128548: 6, 128557: 5 },
+      },
+    },
   };
 
   const api = {
@@ -615,5 +650,9 @@
     // pk10). Danger ranks the poisons and the fissile, a cast no
     // affection or identity question ever surfaces.
     { id: 'pk14', cat: 'fav', type: 'pick', domain: 'elements', prompt: 'The most dangerous element?', n: 162 },
+    // 2026-08-15 daily run: confusion — the fifth emoji canon. Meaning,
+    // not feeling: usage, annoyance, permanence and fear all assume the
+    // symbol is understood; this board exists because half of them aren't.
+    { id: 'pk15', cat: 'fav', type: 'pick', domain: 'emoji', prompt: 'The most misunderstood emoji?', n: 169 },
   ];
 })();
