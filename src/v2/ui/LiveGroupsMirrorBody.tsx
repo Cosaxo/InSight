@@ -188,6 +188,9 @@ function LgPeopleCard({ g, P }: { g: LiveGroup; P: GroupPortrait }) {
             id: p.uid, label: names[p.uid] || "", match: p.pct,
           }))}
           caption="closer to you = agreed more often"
+          emptyLine={<>No day yet where you and someone here answered the
+            same question — the circle takes its places from the first
+            shared reveal.</>}
         />
       </React.Suspense>
       <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 11 }}>

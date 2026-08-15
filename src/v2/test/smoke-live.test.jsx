@@ -237,13 +237,13 @@ describe("the live gates hold in the DOM, not just in the source", () => {
 
     // Near: the counter, and NOT the city cohort — the un-fold's other half.
     fireEvent.click(screen.getByRole("tab", { name: "Near" }));
-    expect(screen.getByText(/Right now, around you/i)).toBeTruthy();
+    expect(screen.getByText(/Around you/i)).toBeTruthy();
     expect(screen.queryByText(/Everyone who picked this city/i)).toBeNull();
 
     // City: the cohort, and NOT the counter.
     fireEvent.click(screen.getByRole("tab", { name: "City" }));
     await openCity();
-    expect(screen.queryByText(/Right now, around you/i)).toBeNull();
+    expect(screen.queryByText(/Around you/i)).toBeNull();
 
     cleanup();
     live.restore();

@@ -15817,3 +15817,99 @@ reads like patience. Run 22 finished underneath it.
 are written up calmly: build 16 shipped, and the numbers agreed at every
 sha involved. They are recorded because next time the two commits will not
 both say 16, and the quiet loop will be watching a run that failed.
+
+---
+
+## D160 · An empty field is still a field, the row actually snaps, and Near's switch goes in the corner
+
+**Decided:** 2026-08-15 · **Status:** binding. Three from a TestFlight
+screenshot of the City stop on a one-answer account: *"i want the map to be
+visebal even when empty and when you click on one of the buttom tabs tou
+snap down to them just like the sample. Near active or unacive shouls just
+be a toogle in the right corner."*
+
+### 1 · D155 claimed the snap shipped. It did not.
+
+This is the part worth recording properly, because the failure mode is one
+this repo is otherwise good at catching.
+
+`LiveCohortBody` got the ref (`rowRef`), got the ref attached to the tab
+row, and never got the effect that reads it. So the row pinned to the
+bottom correctly — the visible half of D155 — and then just sat there when
+you tapped it, leaving the panel you had just asked for below the fold.
+D155's record and its report both said the snap was in.
+
+**Nothing in the tree could see it.** A dangling ref is valid TypeScript,
+passes eslint, and is invisible to `check:globals` (it is not a global). The
+three tab tests assert that the panel MOUNTS, and it always did. `git log
+-S'behavior: "smooth"' -- src/v2/ui/LiveCohortBody.tsx` returns nothing for
+the whole history of the file, which is how the gap was confirmed rather
+than guessed.
+
+The effect is in now, ported from `spec/mirror-field.jsx`'s `MirrorLenses`
+including its 60 ms delay — the panel mounts in the same commit as the tab
+flip, so measuring immediately measures the row above a body that does not
+exist yet. It is keyed on `tab` rather than the derived `openTab` because it
+has to be a hook and `openTab` is computed past the `needsCity` early
+return; the two agree in practice, and the note at the site says why.
+
+`LiveCohortBody.test.tsx` now pins it, and the pin is the interesting part:
+jsdom reports every element 0×0, so the component's scroll-parent walk finds
+nothing to scroll and a naive test passes against a component that does
+nothing. The case renders into a host given the two properties the walk
+actually reads — an overflow and a real overflowing height — stubs
+`scrollTo`, and advances fake timers past the 60 ms. Mutation-checked: an
+early `return` inside the timeout fails it. A second case pins that CLOSING
+a tab does not scroll, because a scroll on close drags the screen for a tap
+whose whole meaning is "put that away".
+
+### 2 · Every empty field drew a paragraph instead of the field
+
+`CityField`, `NearField` (both arms), `PlacesField` and `PeopleField` each
+REPLACED the canvas with a sentence when they had nobody to place —
+`PeopleField` returned `null` outright, so the Circle and Groups stops
+simply had a hole in them. The result is that a new account met a paragraph
+where the constellation goes, on every stop, until strangers turned up: it
+reads as a screen that was never built rather than one that is empty, and it
+hides the grammar the whole tab is written in from exactly the reader who
+has not learned it.
+
+One `SfEmptyField` now draws first and always — the rings, and you at the
+centre — with the explanation underneath. **Nothing is fabricated:** "you,
+and nobody placed around you yet" is the true picture node for node, and the
+rings are the scale the radius will be read on when someone does arrive.
+This is not a softening of D1 or of this module's own no-mist rule; it is
+the same rule, which forbids inventing NODES and has never said anything
+about drawing the axes. The prototype settles it too — `MFSparse` sits
+*under* `MFCanvas`, never instead of it.
+
+`anon` for every empty arm regardless of what the filled one draws: an empty
+field has nothing to tap, and a `people` canvas with no people would hand
+out roles and tab stops to nothing.
+
+### 3 · Near's card dissolves into a switch
+
+The on/off was a "Turn on" BUTTON inside a bordered card that also carried
+the count, the disclosure, the stall note and the retry — five things in one
+box, of which exactly one was a control, and the box was the loudest object
+on a stop whose subject is the constellation under it.
+
+It is a `role="switch"` in the header's right corner now, and the card is
+gone: `NearHeader` and `NearNowCard` merged into `NearPresence`, which owns
+the enable/disable state the switch drives. The count was already the
+header's figure; the stall note and its retry became rows; the closing
+pointer to City is unchanged.
+
+**The privacy copy did not shrink with the control, and one line came
+back.** D9's rule is that the enable tap carries the OS prompt, so the
+sentence that tap is agreeing to has to be readable before it — the
+kilometre-sized-grid-square disclosure is word for word the card's, shown
+while OFF, which is the only moment it can inform a decision. Mid-change the
+off-state pitch lost *"a count, never who"*; the test that caught it
+(`pitches honestly while off`) is doing exactly the job it was written for,
+and the phrase is back in the off line rather than only in the on one.
+
+The Near tests query the control by **role**, not by label text — the whole
+point of the change is that the control no longer has words on it, so a text
+query would be asserting the thing that was removed.
+

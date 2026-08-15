@@ -66,11 +66,18 @@ beforeEach(() => {
 // one that pays for the import.
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
+// The control is a switch in the corner since D160, not a Turn on / Turn
+// off button in a card. Queried by ROLE rather than by its label text: the
+// whole point of the change is that the control has no words on it, so a
+// text query would be asserting the thing that was removed.
+const nearSwitch = () => screen.getByRole("switch") as HTMLButtonElement;
+
 describe("NearLiveBody · the stop is presence, not place (D111)", () => {
   it("renders the counter with no city anywhere in sight", () => {
     render(<NearLiveBody />);
-    expect(screen.getByText(/Right now, around you/i)).toBeTruthy();
-    expect(screen.getByRole("button", { name: /Turn on/i })).toBeTruthy();
+    expect(screen.getByText(/Around you/i)).toBeTruthy();
+    expect(nearSwitch()).toBeTruthy();
+    expect(nearSwitch().getAttribute("aria-checked")).toBe("false");
     // No city ask, no city name — the stop that needs one is City.
     expect(screen.queryByText(/needs your city/i)).toBeNull();
     expect(screen.queryByText(/Choose your city/i)).toBeNull();
@@ -89,8 +96,12 @@ describe("NearLiveBody · the stop is presence, not place (D111)", () => {
     // the pointer is then the whole body — it must not vanish with it.
     LIVE.near.supported = () => false;
     render(<NearLiveBody />);
-    expect(screen.queryByText(/Right now, around you/i)).toBeNull();
-    expect(screen.getByText(/can.t share a location/i)).toBeTruthy();
+    // No switch to offer — but the stop keeps its name and its pointer.
+    // Said twice now: once where the figure would be, once in the closing
+    // line, and getAllBy is the honest query for that rather than a
+    // narrowing that would pass if either disappeared.
+    expect(screen.queryByRole("switch")).toBeNull();
+    expect(screen.getAllByText(/can.t share a location/i).length).toBeGreaterThan(0);
     expect(screen.getByText("City", { selector: "strong" })).toBeTruthy();
   });
 });
@@ -115,7 +126,12 @@ describe("the Right now card (D84 — moved with the stop)", () => {
 
     LIVE.near.count = () => 3;
     render(<NearLiveBody />);
-    expect(screen.getByText(/3 people with InSight within a couple of kilometres/i)).toBeTruthy();
+    // Since D160 the count is the header's FIGURE with its unit beside it,
+    // not one sentence — so this asserts the two halves rather than a
+    // string that no longer exists in one element.
+    expect(screen.getByText("3")).toBeTruthy();
+    expect(screen.getByText(/within a couple of kilometres/i)).toBeTruthy();
+    expect(screen.getByText(/a count, never who/i)).toBeTruthy();
     cleanup();
 
     // The restored-floor era (D81 revert): the server answers tooFew for
@@ -129,7 +145,7 @@ describe("the Right now card (D84 — moved with the stop)", () => {
   it("turn-on runs enable and a refusal lands as a sentence, not a dead card", async () => {
     LIVE.near.enable = vi.fn(async () => ({ ok: false, reason: "denied" }));
     render(<NearLiveBody />);
-    fireEvent.click(screen.getByRole("button", { name: /Turn on/i }));
+    fireEvent.click(nearSwitch());
     expect(LIVE.near.enable).toHaveBeenCalled();
     expect(await screen.findByText(/Near stays off until you allow location/i)).toBeTruthy();
   });
@@ -139,7 +155,8 @@ describe("the Right now card (D84 — moved with the stop)", () => {
     LIVE.near.count = () => 2;
     LIVE.near.disable = vi.fn(async () => {});
     render(<NearLiveBody />);
-    fireEvent.click(screen.getByRole("button", { name: /Turn off/i }));
+    expect(nearSwitch().getAttribute("aria-checked")).toBe("true");
+    fireEvent.click(nearSwitch());
     expect(LIVE.near.disable).toHaveBeenCalled();
   });
 });
@@ -173,7 +190,10 @@ describe("a beat that fails says so, and offers a way out", () => {
     LIVE.near.updatedAt = () => Date.now() - 9 * 60_000;
     LIVE.near.lastError = () => "timeout";
     render(<NearLiveBody />);
-    expect(screen.getByText(/4 people with InSight/i)).toBeTruthy();
+    // The figure survives the failed beat (D160 moved it into the header,
+    // where it was already going to be) — what changes is that it is now
+    // dated underneath rather than presented as current.
+    expect(screen.getByText("4")).toBeTruthy();
     expect(screen.getByText(/9 min ago/i)).toBeTruthy();
   });
 
@@ -235,6 +255,37 @@ describe("NearLiveBody · the constellation, with nobody named", () => {
     // Every node in the field is inert.
     expect(container.querySelectorAll("svg [role='button']")).toHaveLength(0);
     expect(container.querySelectorAll("svg text")).toHaveLength(1); // "you"
+  });
+
+  it("draws the ring even with nobody in it (D160)", async () => {
+    // Reported from a device: the constellation is the Mirror's whole
+    // grammar, and every field REPLACED itself with a paragraph the moment
+    // it had nobody to place — so a new account met a sentence where the
+    // drawing goes, on every stop, until strangers turned up. It reads as a
+    // screen that was never built rather than one that is empty, and it
+    // hides the grammar from exactly the reader who has not learned it.
+    //
+    // "You, and nobody placed around you yet" is a TRUE picture, node for
+    // node, so nothing here is fabricated — the rings are the scale, and
+    // the empty ring is the honest state of the data.
+    LIVE.myCity = "Oslo, NO";
+    LIVE.kindredPeople = () => [];
+    const { container } = render(<NearLiveBody />);
+    expect(await screen.findByRole("group", { name: /closer to the centre is more like you/i })).toBeTruthy();
+    // You at the centre, and nobody else — one text node in the whole svg.
+    expect(container.querySelectorAll("svg text")).toHaveLength(1);
+    // …and the explanation still follows it rather than replacing it.
+    expect(screen.getByText(/Nobody from Oslo yet/i)).toBeTruthy();
+  });
+
+  it("draws the ring before a city is set, too", async () => {
+    // The other empty arm, and the one a brand-new account hits first.
+    LIVE.myCity = "";
+    LIVE.kindredPeople = () => [];
+    const { container } = render(<NearLiveBody />);
+    expect(await screen.findByRole("group", { name: /closer to the centre is more like you/i })).toBeTruthy();
+    expect(container.querySelectorAll("svg text")).toHaveLength(1);
+    expect(screen.getByText(/Set your city/i)).toBeTruthy();
   });
 
   it("keeps the two numbers attached to what each counts", async () => {

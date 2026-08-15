@@ -588,6 +588,69 @@ describe("LiveCohortBody · the lens row is the stop's tabs", () => {
     expect(wrap.style.marginTop).toBe("auto");
   });
 
+  it("snaps the row to the top of the scroller when a tab opens", async () => {
+    // D155 SAID THIS SHIPPED AND IT DID NOT. The ref was declared, the ref
+    // was attached to the row, and no effect ever read it — so the row
+    // pinned to the bottom correctly and then stayed there on tap, leaving
+    // the panel you just asked for below the fold. Nothing in the tree could
+    // see it: a dangling ref is valid TS, valid eslint, invisible to
+    // check:globals, and the tab tests above assert the panel MOUNTS, which
+    // it always did. It took a device to notice, which is what this case is
+    // here to stop happening twice.
+    //
+    // jsdom reports every element 0×0, so the component's scroll-parent walk
+    // would find nothing to scroll. The host is given the two properties the
+    // walk actually reads — an overflow and a real overflowing height — and
+    // that IS the contract: the row scrolls the nearest scrolling ancestor,
+    // whichever element the app makes that.
+    const host = document.createElement("div");
+    host.style.overflowY = "auto";
+    Object.defineProperty(host, "scrollHeight", { value: 4000, configurable: true });
+    Object.defineProperty(host, "clientHeight", { value: 700, configurable: true });
+    const calls: Array<{ top?: number; behavior?: string }> = [];
+    host.scrollTo = ((o: { top?: number; behavior?: string }) => { calls.push(o); }) as typeof host.scrollTo;
+    document.body.appendChild(host);
+    vi.useFakeTimers();
+    try {
+      render(<LiveCohortBody scope="city" />, { container: host });
+      fireEvent.click(tab("Answers"));
+      // Nothing yet: the panel mounts in the same commit as the flip, so
+      // measuring now measures the row above a body that does not exist.
+      expect(calls, "scrolled before the panel had mounted").toEqual([]);
+      act(() => { vi.advanceTimersByTime(80); });
+      expect(calls.length, "opening a tab did not scroll the row into view").toBe(1);
+      expect(calls[0].behavior).toBe("smooth");
+    } finally {
+      vi.useRealTimers();
+      host.remove();
+    }
+  });
+
+  it("does not scroll when the row is closed again", () => {
+    // Closing should leave you where you are. A scroll on close would drag
+    // the screen for a tap whose whole meaning is "put that away".
+    const host = document.createElement("div");
+    host.style.overflowY = "auto";
+    Object.defineProperty(host, "scrollHeight", { value: 4000, configurable: true });
+    Object.defineProperty(host, "clientHeight", { value: 700, configurable: true });
+    const calls: unknown[] = [];
+    host.scrollTo = (() => { calls.push(1); }) as typeof host.scrollTo;
+    document.body.appendChild(host);
+    vi.useFakeTimers();
+    try {
+      render(<LiveCohortBody scope="city" />, { container: host });
+      fireEvent.click(tab("Answers"));
+      act(() => { vi.advanceTimersByTime(80); });
+      const afterOpen = calls.length;
+      fireEvent.click(tab("Answers"));
+      act(() => { vi.advanceTimersByTime(80); });
+      expect(calls.length).toBe(afterOpen);
+    } finally {
+      vi.useRealTimers();
+      host.remove();
+    }
+  });
+
   it("opens a tab on tap and closes it on a second tap", () => {
     render(<LiveCohortBody scope="city" />);
     fireEvent.click(tab("Answers"));
