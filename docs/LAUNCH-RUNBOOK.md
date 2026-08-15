@@ -137,6 +137,11 @@ arithmetic.
       anything; staying on `nam5` is a legitimate answer and the point of
       the page is that it be an answer rather than a default.
 
+      **DONE 2026-08-15 (D165): `insight` / `europe-west1` is live** —
+      created, rules + functions deployed, bank seeded and verified. Only
+      the `(default)` deletion remains, and it waits a week on purpose.
+      Original decision note below.
+
       **DECIDED 2026-08-15 (D165): option A — a new regional database in
       the same project, recommended region `europe-west1`.** The existing
       answers are NOT migrated: the owner is the only person who has

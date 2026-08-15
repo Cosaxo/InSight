@@ -148,6 +148,13 @@ Three edits, none of them large, all of them load-bearing:
 
 Deploy, then answer one question on a real device and watch the count move.
 
+> **Steps 1–4 executed 2026-08-15 (D165).** `insight` /
+> `europe-west1`; the deploy and the seed both ran themselves off the
+> merge (firebase-deploy on push to main, seed-content on that workflow
+> completing), and the bank was verified in the console. **Step 5 is the
+> only one left, and it is not urgent** — a week of `(default)` costs
+> nothing and is the only way back.
+
 ### 5 · Delete `(default)` when you are satisfied
 
 Not before. It costs nothing to keep for a week and it is the only way

@@ -16004,6 +16004,12 @@ questions cost one mechanical edit; sorting 5,000 would have cost a
 judgement call per question — the same bottleneck D162 exists to remove,
 arriving through the back door.
 
+**Deploy-order hazard discharged 2026-08-15.** The reseed ran with the
+D165 migration, so every feed document in the live bank carries `core`
+and the filter below is the no-op it was designed to be. The warning is
+kept because it applies to any future database, and because it is the
+argument for the polarity.
+
 **Amended 2026-08-15, same day: the first enforcement landed.** The
 City/Country/World stop (`LiveCohortBody`) now folds core only, with the
 predicate resolved by `buildS` onto the view model as `coreCorpus` —
@@ -16235,8 +16241,10 @@ decision.
 
 ## D165 · The database moves to one EU region, and the old answers are let go
 
-**Decided:** 2026-08-15 · **Status:** binding · Decision taken; the
-migration is not executed. [`FIRESTORE-REGION.md`](FIRESTORE-REGION.md) is
+**Decided:** 2026-08-15 · **Status:** binding · **EXECUTED 2026-08-15.**
+The database is `insight` in `europe-west1`; rules, functions and the
+seeded bank are live on it and the app talks to it. Only step 5 —
+deleting `(default)` — remains, deliberately. [`FIRESTORE-REGION.md`](FIRESTORE-REGION.md) is
 the procedure, `LAUNCH-RUNBOOK.md` 0.0 the operator step.
 
 **Decision.** Option A of that document: a **second Firestore database in
@@ -16298,7 +16306,22 @@ both deploy green and stay invisible:
   the Mirror has stopped moving. The code commit pins the deployed option
   with a test, in the same commit, or it is not done.
 
-**Not decided here.** The final region. `europe-west1` is the
+**Executed, in this order, 2026-08-15.** Database `insight` created in
+`europe-west1`; PR #191 merged (`9a5f803`), which auto-triggered the
+backend deploy; the deploy's completion auto-triggered the seed, which
+wrote all 513 documents; the bank was verified in the console. The client,
+both triggers and all 37 function call sites are on `insight`.
+
+**One trap worth carrying, because it read as a disaster for ten
+minutes.** `seed-content.yml` fires on `workflow_run` after a successful
+deploy — so by the time a human runs *Seed content* by hand, the automatic
+run has already done it, and the manual one correctly reports
+`written 0, skipped 513`. On a database that was empty minutes earlier
+that number looks exactly like "the seed went to the wrong database",
+which is the failure this migration is most afraid of. It is not. The
+console is what settles it, and the count alone cannot.
+
+**Not decided here.** The final region was. `europe-west1` is the
 recommendation and the reasoning above is what it rests on; the value that
 binds is whatever the operator picks in the console, and this record is
 amended with the real database id when it exists. Also not decided: when
