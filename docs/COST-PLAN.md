@@ -80,54 +80,98 @@ minutes*, so Kindred quietly stops being "people most like you" and becomes
 
 Ask for what you actually want.
 
-| | today | after |
+| | before | after |
 | --- | ---: | ---: |
 | Friends: your follows' answers to this question | ~400 reads/open | ≤50, typically **5** |
 | Circle: each member's score profile | up to 300/member | **1**/member |
-| Kindred: query people by score, don't discover them through answers | 2,400/view | **~50** |
+| Circle's splits section | on arrival | on the tap that asks |
+| Kindred: people queried directly, not discovered through answers | 2,400/view | **50** |
 
-| DAU | reads/user/day | bill | after | + single region |
-| ---: | ---: | ---: | ---: | ---: |
-| 5,000 | 411 → **59** | $42 | **$9.99** | $5.42 |
-| 50,000 | 411 → **59** | $450 | **$133** | $78 |
-| 500,000 | 411 → **59** | $4,548 | **$1,386** | $818 |
+**All four have shipped.** Measured with `npm run costs`:
 
-Below 5,000 DAU the bill is inside the free tier either way.
+| DAU | bill before | after | + single region |
+| ---: | ---: | ---: | ---: |
+| 500 | $2.20 | **$0.58** | $0.29 |
+| 5,000 | $44 | **$18** | $9.18 |
+| 50,000 | $472 | **$211** | $111 |
+| 500,000 | $4,774 | **$2,158** | $1,151 |
+
+435 → **157** reads/user/day, and every scenario grades B or better where
+the range used to run C at the top end.
+
+**What is left in `social`, and it is worth naming**: 60 of the remaining
+100 reads/user/day are still the who-voted SAMPLE — `VOTER_FETCH_CAP`
+answers plus name resolution — because the Type cut (D146) and the takes
+panel are honest consumers of a sample and still open it. That is now the
+largest single social line, and unlike the three fixed above it is not a
+backwards read: a statistic over a bounded sample is what a sample is
+for. Trimming it is the one remaining product-degrading lever, and it is
+still not recommended.
 
 **Every one of these makes the app more correct, not less.** The friends
 cut stops missing friends. Kindred stops silently ranking the recently
 active. That is the opposite trade from COST-REDUCTION.md's path A/B,
 which buys a smaller saving by thinning three Mirror surfaces.
 
-> Figures from `scripts/cost-arith.mjs` via a scratch model run, with the
-> candidate pool at 50 and the per-open reads set to what each fixed query
-> would actually cost. **They have no gate under them yet** — see Phase 0,
-> which exists for exactly the reason D39 and `check:figures` exist.
+> Figures are `npm run costs` and `npm run costs:levers` against the tree,
+> not a scratch model — see Phase 0.
 
 ## Phases
 
-### 0 · Make the plan measurable
+### 0 · Make the plan measurable — **SHIPPED**
 
-Half a day, ships nothing, goes first. `socialTerms` currently exposes the
-three CAPS as its overrides, which is the right shape for the levers it was
-built for and the wrong shape for this plan — none of these changes moves a
-cap. Give it overrides in the units that actually move: documents read per
-sheet open, per circle member, per Kindred view. Then add the paths to
-`cost-levers.mjs` so `npm run costs:levers` prints this page instead of
-this page quoting it. `pulse.test.mjs` pins the `readsPerUser` key set;
-check it still passes.
+The first draft of this page quoted a scratch model that abused `voterCap`
+and `circleAnswerCap` as proxies for "documents read per open", which is
+the hand-maintained-figure error D39 and `check:figures` exist to stop.
+That is closed: `socialTerms` now decomposes into five terms in the units
+that actually move — `whoVoted`, `friends`, `kindred`, `circle`,
+`circleSplits` — each with its own override, and `KINDRED_CANDIDATE_CAP`
+is read from source the way `VOTER_FETCH_CAP` always was. `pulse.test.mjs`
+holds the constants equal to the tree.
 
-### 1 · The two console items
+So the tables above are `npm run costs` output rather than prose, and the
+levers file prints today's plan rather than a remembered one.
 
-Larger than everything else here, neither is code, both already on
-SHIP-CHECKLIST.
+### 1 · The two console items — **THE BIGGEST NUMBERS HERE, AND STILL OPEN**
 
-- **Auth billing mode.** If the project is on Identity Platform, auth alone
-  is $505/mo at 50 k DAU against a $450 Firestore bill, and $6,015 at
-  500 k. Plain Firebase Auth is free at any size. Five minutes to check;
-  COSTS.md finding 3 has had it open since it was written.
-- **App Check enforcement on the Firestore API.** Not a lever, a hole. It
-  cannot be armed during an incident — the soak takes days.
+Now that phases 2–4 have landed, **the auth line is larger than the entire
+rest of the bill** at every size where it bills at all:
+
+| DAU | MAU | Identity Platform, IF active | everything else, after this branch |
+| ---: | ---: | ---: | ---: |
+| 50,000 | 150,000 | **$505/mo** | $211/mo |
+| 500,000 | 1,500,000 | **$6,015/mo** | $2,158/mo |
+
+Neither is code, so neither can be done from a pull request. Both have
+full procedures already — this section deliberately does not restate them,
+because a second copy of a runbook is the thing that goes stale:
+
+- **Auth billing mode** — `docs/SHIP-CHECKLIST.md` § "the largest unknown
+  on the bill". Firebase Console → Authentication (an un-upgraded project
+  shows an *Upgrade to Identity Platform* call to action); the unambiguous
+  version is Cloud Console → Billing → Reports grouped by service.
+- **App Check enforcement on the Firestore API** —
+  `docs/SHIP-CHECKLIST.md` § "App Check enforcement". Separate from the
+  callables, which `check:appcheck` already guards, and separate from
+  setting the site key in the build.
+
+**What is actually missing is not the procedure, it is the ANSWER.** Both
+have been "somebody should check this" since COSTS.md was written, and
+nothing in the tree can tell whether anyone has. So record it here, in the
+tree, where the next reader finds it beside the arithmetic that depends
+on it:
+
+| Question | Answer | Recorded |
+| --- | --- | --- |
+| Is `prvfire33` on Identity Platform billing? | **unrecorded** | — |
+| Is App Check enforced on the Firestore API? | **unrecorded** | — |
+
+Two minutes each, and the first one is worth more than every code change
+on this branch put together at 50 k DAU. If the answer to the first is
+"yes", the follow-up is in SHIP-CHECKLIST too: the app uses no Identity
+Platform feature at all — `signInAnonymously` and `GoogleAuthProvider` are
+the entire surface — so an upgraded project here is paying for nothing it
+uses.
 
 ### 2 · The friends cut — **SHIPPED**
 
@@ -154,7 +198,7 @@ A LIST scoped to one user's subcollection has neither problem — a query
 matches only documents that exist — and it is the shape `circle.ts`
 already ships, so Phase 3 inherits it.
 
-### 3 · Circle on score profiles
+### 3 · Circle on score profiles — **SHIPPED**
 
 `scoreMatch` (`data/similarity.ts`) already exists, and D112 already made
 it the **primary** ranking for the People lens and the similarity field —
@@ -171,7 +215,7 @@ needs real answers, but only for the questions on screen. That is the
 Phase 2 query with a different set of uids, so both halves of Circle end
 up on one mechanism.
 
-### 4 · Kindred: query people, not answers
+### 4 · Kindred: query people, not answers — **SHIPPED**
 
 Ranking is already right — `rankKindred` flattens every axis of all four
 persisted instruments (Big Five, Politics, Values, Attachment: 22 axes).
