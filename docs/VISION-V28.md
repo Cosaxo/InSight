@@ -20,6 +20,18 @@ the sections below carry the answers inline:
 - **The pulse roster — approved, all five** (§3). Sleep and energy ship.
   One build step rides with it (the store-forms Health row).
 
+**[D162](DECISIONS.md#d162--every-v28-surface-ships-with-its-backend-or-it-does-not-ship)
+adds the rule the rest of this document is now written under:** *"things
+are built out in the back as well, no use of sample data"*. An item is not
+done when its UI renders — it is done when its UI renders **real data in a
+live build**. Nothing here ships demo-only behind a Preview tag.
+
+This is a smaller change to the plan than it sounds, because the tree
+already refuses to fabricate in live mode (~20 cases in
+`smoke-live.test.jsx` pin it). The failure mode D162 targets is the other
+one: a screen that draws an honest *"not measured yet"* forever. Each
+section below now names its **backend half**, and §13 is the summary.
+
 Everything else here is still a recommendation.
 
 The source is the maintainer's `InSight_standalone_28.html`, extracted to
@@ -37,22 +49,22 @@ in three groups, which is the useful shape of this document.
 
 ## 0 · The short version
 
-| Item | Verdict | Size | The constraint that shapes it |
+| Item | Verdict | Backend half (D162) | The constraint that shapes it |
 | --- | --- | --- | --- |
-| **Three tabs** (`patterns · daily · mirror`) | **Adopted ON TRIAL** (D161 §1) | S (shell) | The tab count is the app's thesis sentence — `CLAUDE.md` opens with "a two-tab app". Cheap to build, expensive to be wrong about, so it ships behind the lazy loader with the reversal kept to one import site. |
-| **Patterns · Map** (questions placed by mutual prediction) | **Build — but the engine is a backend item** | L | The prototype invents 560 people. A real map needs cross-question co-occurrence, which no aggregate publishes today. |
-| **Patterns · Oracle** (guess your next answer) | **Build, second** | M | Rides the *same* publication as the Map. Two readers, one server fold — that is the whole reason to sequence them together. |
-| **Pulse: one → five, with cadence** | **Approved — all five** (D161 §3) | M | D139's store is single-pulse by deliberate choice ("a roster becomes a parameter the day a second pulse ships"). This is that day. |
-| **Pulses take their turn in the feed** | **Build, with the above** | S | The interleave is a feed-lane change; `feed-interleave.ts` already owns exactly this kind of cadence rule. |
-| **Foresight CALL + its feed cards** | **Tier A only** | M | D127 is unchanged by v28: the blocker is resolution integrity, not design. Tier A self-resolves on our own aggregates and is buildable now. |
-| **Foresight & Crossroads on the Map** | **Build when the eager budget moves** | S each | Both need `map-tab.jsx` — which is EAGER — to read a new store, and `MAX_EAGER_KB` has no headroom. D136 already parked `paths.mapTree()` for exactly this. |
-| **Born or built** (heritability rows on the result card) | **Build — but decide the framing first** | S | The data is a 16-line constant. The risk is not engineering: a genetics figure on a personal result card is read as a claim about *you*. |
-| **What moves together** (cross-test threads on the profile) | **Build** | S | Pure fold over `IS_TEST_RESULTS`; no new reads, no new collection. The cheapest real feature in the file. |
-| **Type-mix system switch** (all four instruments) | **Build** | S | D141 shipped the card; this is one control and a persisted key. Does **not** touch D8 — it switches which *result* is charted, not which dim cohorts. |
-| **The sponsored frame** | **Unchanged: waiting on the paid path** | S | `paid-data.js` is byte-identical to v24. Nothing new to decide; the door is still §6 of NEXT-FUNCTIONALITY. |
-| **The visual corrections** (nine small ones) | **Build as one pass** | S | No decisions in any of them. Best done in a single commit against the patches. |
-| **The tweak teardown** (19 flags settled) | **Adopt as the record** | S | The prototype deleting a flag *is* the decision. The app's cost is dead-branch removal, which is what rule 4 and the compiler want anyway. |
-| **The Arena** | **Dropped for now** (D161 §2) | — | 103 lines of CSS for a card that is not in the bundle. Verified orphaned; the owner confirms it was dropped, not lost. The file stays as the record. |
+| **Three tabs** (`patterns · daily · mirror`) | **Adopted ON TRIAL** (D161 §1) | none of its own — it is a shell | The tab count is the app's thesis sentence — `CLAUDE.md` opens with "a two-tab app". Cheap to build, expensive to be wrong about, so it ships behind the lazy loader with the reversal kept to one import site. |
+| **Patterns · Map** (questions placed by mutual prediction) | **Build — but the engine is a backend item** | **the item IS the backend**: a fold publishing per-question loading vectors | The prototype invents 560 people. A real map needs cross-question co-occurrence, which no aggregate publishes today. |
+| **Patterns · Oracle** (guess your next answer) | **Build, second** | rides Map's publication — no second fold | Rides the *same* publication as the Map. Two readers, one server fold — that is the whole reason to sequence them together. |
+| **Pulse: one → five, with cadence** | **Approved — all five** (D161 §3) | extend D139: per-day docs × 5 pulses, + cadence | D139's store is single-pulse by deliberate choice ("a roster becomes a parameter the day a second pulse ships"). This is that day. |
+| **Pulses take their turn in the feed** | **Build, with the above** | none — a client interleave rule | The interleave is a feed-lane change; `feed-interleave.ts` already owns exactly this kind of cadence rule. |
+| **Foresight CALL + its feed cards** | **Tier A only** | a resolver that grades a call on our own aggregates | D127 is unchanged by v28: the blocker is resolution integrity, not design. Tier A self-resolves on our own aggregates and is buildable now. |
+| **Foresight & Crossroads on the Map** | **Build when the eager budget moves** | none — blocked on bytes, not data | Both need `map-tab.jsx` — which is EAGER — to read a new store, and `MAX_EAGER_KB` has no headroom. D136 already parked `paths.mapTree()` for exactly this. |
+| **Born or built** (heritability rows on the result card) | **Build — but decide the framing first** | **none — already real** (population science, not user data) | The data is a 16-line constant. The risk is not engineering: a genetics figure on a personal result card is read as a claim about *you*. |
+| **What moves together** (cross-test threads on the profile) | **Build** | **none — already real** (folds your own results) | Pure fold over `IS_TEST_RESULTS`; no new reads, no new collection. The cheapest real feature in the file. |
+| **Type-mix system switch** (all four instruments) | **Build** | **none — already real** (test results publish, D98) | D141 shipped the card; this is one control and a persisted key. Does **not** touch D8 — it switches which *result* is charted, not which dim cohorts. |
+| **The sponsored frame** | **Unchanged: waiting on the paid path** | the paid path itself (§6 of NEXT-FUNCTIONALITY) | `paid-data.js` is byte-identical to v24. Nothing new to decide; the door is still §6 of NEXT-FUNCTIONALITY. |
+| **The visual corrections** (nine small ones) | **Build as one pass** | **none — pure visuals** | No decisions in any of them. Best done in a single commit against the patches. |
+| **The tweak teardown** (19 flags settled) | **Adopt as the record** | **none — deletions** | The prototype deleting a flag *is* the decision. The app's cost is dead-branch removal, which is what rule 4 and the compiler want anyway. |
+| **The Arena** | **Dropped for now** (D161 §2) | n/a | 103 lines of CSS for a card that is not in the bundle. Verified orphaned; the owner confirms it was dropped, not lost. The file stays as the record. |
 | ~~Feed windowing, dial/field + breakdowns, compare rose, Near anonymity + switch, Explore deviation, suggestion declines~~ | ~~build~~ **already shipped** | — | Checked file by file; see §6. |
 
 ## 1 · The structural change: two tabs become three
@@ -115,6 +127,13 @@ marginals match the feed's real splits. In the prototype that is honest
 furniture. Here it would be fabrication of exactly the kind this tree
 refuses — and the module's own header already points at the real shape:
 *"in production a streaming/incremental fit over the vote log"*.
+
+**Under D162 this is a gate, not a preference: Patterns does not ship —
+in trial or otherwise — until the fold exists.** The 560 people are not a
+placeholder inside the feature, they *are* the feature; remove them and
+there is no map and no oracle left to trial. If the fold proves too
+expensive to justify up front, narrow the trial (one lens, fewer
+questions, a coarser K), never ship the invented population. See §13.
 
 What the app can and cannot do today, verified against the read model:
 
@@ -379,10 +398,12 @@ framing (§9) is still waiting, and it is independent of everything else.
 3. **§3 pulse roster** — unblocked. Ships with its store-forms re-answer
    in the same commit (D161 §3), which is calendar time, not engineering
    time, so start it early and let it run alongside the next item.
-4. **§2 Patterns**, as three pieces in order: the server fold (measure it
-   in `docs/COSTS.md` first), the lazy-tab loader, then the two lenses.
-   The loader is the piece that pays for itself twice, and under the trial
-   clause it is also what keeps the reversal cheap.
+4. **§2 Patterns**, as three pieces in **this order and no other**: the
+   server fold (measure it into `docs/COSTS.md` first), the lazy-tab
+   loader, then the two lenses. The fold comes first because D162 makes it
+   a gate — there is no interim build that ships the lenses on invented
+   people. The loader is the piece that pays for itself twice, and under
+   the trial clause it is also what keeps the reversal cheap.
 5. **`CLAUDE.md`'s opening sentence**, in the same commit the tab first
    appears — three tabs, on trial, pointing at D161. Not a follow-up.
 6. **§5 the Map's parked branches**, once (4) has made a lazy Map cheap.
@@ -410,3 +431,93 @@ upload, so that file is the only surviving description of the idea, and
 "dropped for now" is not "refused". Reviving it needs a design pass that
 says what the game is; a stylesheet cannot, which is why it was never
 portable from what is here.
+
+## 13 · The backend half, item by item (D162)
+
+[D162](DECISIONS.md#d162--every-v28-surface-ships-with-its-backend-or-it-does-not-ship):
+*an item is done when its UI renders real data in a live build, not when
+its UI renders.* Nothing here ships demo-only behind a Preview tag.
+
+**Read the rule against what the tree already does, or it sounds like a
+correction it is not.** Live mode does not fabricate today and has not for
+some time — `smoke-live.test.jsx` holds ~20 cases whose whole job is that
+the demo cast never reaches a live build, D72 made `MapStats` return null
+rather than a plausible mock, and every one of the Mirror's six non-`you`
+stops has a live body. The failure mode D162 targets is the *other* one:
+a screen that draws an honest "not measured yet" forever because the
+backend behind it was never built. Refusal is the right fallback and the
+wrong plan.
+
+### Nothing to build — real on arrival
+
+Four items need no backend at all, which is worth knowing because it makes
+them the cheapest real wins in the file:
+
+| Item | Why it is already real |
+| --- | --- |
+| **Trait web** (§7.9, `trait-links.js`) | Folds the viewer's OWN test results, which the device already holds. No read, no collection, no fold. |
+| **Type-mix system switch** (§8) | Test results publish under D98 and `data/similarity.ts` already reads them. This adds a control, not a source. |
+| **Born or built** (§9) | Heritability figures are population science — a constant, like the archetype definitions. Not user data, so there is nothing to aggregate. Its open question is framing, not plumbing. |
+| **The §7 visual pass and §10 teardown** | Pixels and deletions. |
+
+### Backend exists, needs extending
+
+- **Pulse roster (§3).** D139 built the live path: per-day aggregate docs
+  from the untouched trigger, one bounded session-cached query per open.
+  The roster makes `PULSE_QID` a parameter and multiplies that by five,
+  plus a cadence store (which days a pulse is due) and the "not scheduled"
+  absence case. **The cost line moves and belongs in `docs/COSTS.md`
+  before the roster ships** — five pulses is five times the per-day docs,
+  and the existing note was written for one.
+- **Foresight tier A (§4).** The READ half is live (D126). CALL needs a
+  resolver that grades a sealed call against our own published aggregates
+  — no operator, no external source, which is exactly the tier D127
+  admits. The scheduled-function pattern exists three times already
+  (`moderation.ts`, `v2social.ts`, `velocity.ts`).
+
+### The backend IS the item
+
+**Patterns (§2) is not a UI port with a data dependency — the fold is the
+feature.** The prototype's 560 invented people are the entire engine; take
+them away and there is no map and no oracle. So:
+
+> **Patterns does not ship, in trial or otherwise, until the fold exists.**
+
+D161 §1 already refused a trial of a fabricated screen; D162 makes it
+general. If the fold proves too expensive to justify for a trial, the move
+is to **narrow the trial** — one lens, fewer questions, a coarser K —
+never to ship the invented population "just to see". A trial of a
+fabricated screen answers no question worth asking, and it would be the
+first time this app shipped one.
+
+The fold's shape is in §2 and unchanged: per-question loading vectors
+published by the same trigger that already folds every answer, cosine on
+the device, exact 2×2 tables fetched only for the pair on screen. Measure
+it into `docs/COSTS.md` first — that trigger is the app's hottest write
+path.
+
+### Blocked on bytes, not on data
+
+The Map's Foresight and Crossroads branches (§5) have real stores waiting
+for them; what they lack is room in the eager graph. D162 does not touch
+them — they are not sample-data items.
+
+### Every item gets a `smoke-live` case
+
+In the shape the existing twenty use: mount live, assert the real thing
+renders and the demo cast does not. This is the part that makes D162 more
+than a promise — D155 is the standing reminder that a rule nothing
+executes is a rule that quietly does not hold. The existing cases are the
+template, down to asserting on the `ErrorBoundary` rather than on a thrown
+error.
+
+### Two pre-existing refusals this does NOT cover
+
+Named so the rule is not read as sweeping them in:
+
+- **`MapStats`' five null anchors.** `job` is profession and the four test
+  anchors are results — never breakdown dims (D8). That is a decision, not
+  a backlog item; changing it means changing D8.
+- **The suggestion board's community half**, still *"Preview · sample
+  suggestions"*. A real backlog item, but it belongs to the suggestions
+  work (D138), not to v28.

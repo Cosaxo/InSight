@@ -16023,3 +16023,90 @@ gains the four new templates (`check:content`/`check:quality` see them), and
 `docs/data-inventory.md` names whatever collection the per-day series lands
 in, because `check:data-inventory` fails on a collection the rules reach and
 the inventory does not name (D130).
+
+## D162 · Every v28 surface ships with its backend, or it does not ship
+
+**Decided:** 2026-08-15 · **Status:** binding. The owner, on the v28 build
+plan: *"and things are built out in the back as well no use of sample
+data"*.
+
+### What this repo already does, so the rule is stated against the truth
+
+This is not a correction — the tree is good at this, and the rule is
+sharper for saying exactly where the existing discipline stops.
+
+**Live mode already refuses to fabricate, and it is pinned.**
+`src/v2/test/smoke-live.test.jsx` holds roughly twenty cases whose whole
+job is that the demo cast does not reach a live build — no sample people in
+search, on a result card, in the City constellation, in the who-voted
+sheet, no seeded takes, no invented crowd on an unseeded lens card, no
+group split on a Map answer, no demo vitals, no suggested-scene card. D72
+made `MapStats` return **null** rather than a plausible mock; D112 moved
+the constellations onto `data/similarity.ts`; D99 recovered the two anchors
+that had real cells. In a live build the Mirror wears no Preview tag at all
+— every one of its six non-`you` stops has a live body.
+
+**So the failure mode this rule targets is not fabrication. It is
+absence.** Where the backend does not exist, the app draws an honest
+refusal — *"How people your age answered isn't measured yet"* — and that
+refusal is correct as a fallback and wrong as a plan. Five of `MapStats`'
+seven anchors still return null. The community half of the suggestion board
+still says *"Preview · sample suggestions"*. Those are not lies; they are
+screens that never became what they were drawn as.
+
+### The rule
+
+**A v28 item is not done when its UI renders. It is done when its UI
+renders REAL data in a live build.** Concretely, for everything in
+`docs/VISION-V28.md`:
+
+1. **No item ships demo-only.** A surface that works in the prototype room
+   and refuses in a live build has not been built; it has been ported. If
+   the backend half is too expensive right now, the item waits — it does
+   not ship behind a Preview tag and a promise.
+2. **The refusal stays as the fallback**, and D72's mechanism with it:
+   null at the source, never a gate at each call site, so a consumer that
+   forgets the check fails a test instead of quietly inventing. Absent
+   data must still draw honestly on day one and for the account with two
+   answers. What changes is that "absent" stops being the expected state.
+3. **The demo room is not deleted.** It is the fallback a live build lands
+   in when Firebase is unreachable (`demoInProd`, D80), it is what the
+   smoke tests mount, and D1 already governs it — sample people, clearly
+   tagged, never passing as real. "No sample data" means no sample data
+   **standing in for a feature**, not the removal of the room that exists
+   to prove the difference.
+4. **Every new item gets its `smoke-live` case**, in the shape the existing
+   twenty use: mount live, assert the real thing renders and the demo cast
+   does not. A rule about live data that no test executes is the same
+   promise D155 made about the tab-row snap and did not keep.
+
+### What it costs, per item
+
+The plan carries the detail; the shape is that **three of the ten items
+have no backend half at all, and three are most of the work**:
+
+- **Already real, nothing to build** — Born-or-built (population science,
+  not user data), the trait web (a fold over the viewer's own results),
+  the type-mix system switch (reads test results that publish under D98),
+  and the §7 visual pass.
+- **The backend IS the item** — Patterns. The prototype invents 560
+  people; the real version is a Cloud Function fold publishing per-question
+  loading vectors, and until that exists there is no Patterns tab to trial.
+  This is now a hard gate rather than a recommendation: D161 §1 already
+  refused a trial of a fabricated screen, and this record generalises it.
+- **Backend exists, needs extending** — the pulse roster (per-day
+  aggregate docs for five pulses plus cadence, on D139's shape) and
+  Foresight tier A (a resolver that grades a call against our own published
+  aggregates — the one tier D127 admits without an operator).
+- **Blocked on a budget, not on data** — the Map's Foresight and
+  Crossroads branches, which need a lazy `map-tab.jsx` (VISION-V28 §5).
+
+### The two standing refusals this does not silently absorb
+
+`MapStats`' five null anchors and the suggestion board's community preview
+are pre-existing and out of v28's scope. **They are named here so the rule
+does not read as covering them by implication.** `job` and the four test
+anchors refuse for a structural reason (D8: a test result is never a
+breakdown dim), so they are not a backlog item — they are a decision, and
+changing them means changing D8. The community board is a real backlog
+item and belongs to the suggestions work (D138), not to v28.
