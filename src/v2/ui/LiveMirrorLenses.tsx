@@ -53,9 +53,13 @@ import TypeMixCard from "./TypeMixCard";
 // city key.
 import PLACES from "../data/places";
 import { angleHash } from "../data/similarity";
-import { typeOfPerson, type TypedPerson } from "../data/typeMix";
+import { TYPE_TEST, typeOfPerson, type TypedPerson } from "../data/typeMix";
 // @ts-expect-error TS7016 — untyped spec module (the LiveSimilarityField pattern)
 import { MatchRing } from "../spec/primitives.jsx";
+// The type's own glyph, the same one TypeMixCard draws its rows with — so a
+// badge on a person and a row in the population are one object (D156).
+// @ts-expect-error TS7016 — untyped spec module
+import { TypeMark } from "../spec/type-marks.jsx";
 // The row's own types and labels live next door: eslint's react-refresh
 // rule wants a component file to export only components, and it is right
 // that a constant shared with the host does not belong in one.
@@ -330,7 +334,13 @@ function KindredCard({ p }: { p: TypedPerson & { anchors?: Record<string, string
   // and two people are told apart at a glance. Decorative and claims
   // nothing — the same device LiveSimilarityField's field uses.
   const hue = Math.round(angleHash(p.uid + "#hue") * 360);
-  const title = [a.profession, a.ageBand].filter(Boolean).join(" · ");
+  // The exact age where the profile has published one, the band where it
+  // has not (D155). The sample reads "Ceramicist, 29" and this read
+  // "Ceramicist · 25-34" — a cell rather than a person, which is the
+  // opposite of what a Kindred card is for. Answers written before the age
+  // anchor existed carry only the band, and they keep it rather than
+  // losing the line: a coarser true fact beats none.
+  const title = [a.profession, a.age || a.ageBand].filter(Boolean).join(" · ");
   // The chips are the anchors NOT already spent on the headline. City
   // included: at the World stop it is the most interesting thing about
   // someone, and at City it is what they have in common with you.
@@ -358,18 +368,26 @@ function KindredCard({ p }: { p: TypedPerson & { anchors?: Record<string, string
           <span style={{ fontFamily: "var(--sans)", fontSize: 14.5, fontWeight: 700, letterSpacing: "-0.015em", color: "var(--ink)" }}>
             {title || p.name || "Someone"}
           </span>
-          {/* The type, as a badge with its own dot — the prototype's "The
-              Sensitive". Only where the person has finished the
-              instrument; typeOfPerson returns null otherwise and no badge
-              is drawn, rather than a guess. */}
+          {/* The type, as a badge carrying the type's own MARK — the
+              prototype's TypeChip, which is what a person is labelled with
+              wherever one is listed. It wore a hue dot until D156's sweep:
+              that dot came from `angleHash(uid)`, so it was decorative,
+              and it sat in the one place on the card where a reader would
+              take it for a reading. The mark is the reading — the same
+              glyph the TypeMix card draws each type with, so the badge on
+              a person and the row in the population are the same object.
+
+              Only where the person has finished the instrument;
+              typeOfPerson returns null otherwise and no badge is drawn,
+              rather than a guess. */}
           {p.type && (
             <span style={{
               display: "inline-flex", alignItems: "center", gap: 5, flexShrink: 0,
-              border: LL_LINE, borderRadius: 999, padding: "2px 9px",
+              border: LL_LINE, borderRadius: 999, padding: "2px 9px 2px 4px",
               fontFamily: "var(--sans)", fontSize: 10.5, fontWeight: 700, color: "var(--ink-2)",
               background: "var(--surface-2)", whiteSpace: "nowrap",
             }}>
-              <span aria-hidden="true" style={{ width: 7, height: 7, borderRadius: "50%", background: `oklch(0.52 0.13 ${hue})` }}></span>
+              <TypeMark testKey={TYPE_TEST} name={p.type} size={16} />
               {p.type}
             </span>
           )}

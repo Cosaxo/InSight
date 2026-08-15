@@ -393,7 +393,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
   // the lens bodies have their own suites; this is the wiring — that they
   // reach the real shell, through the spec layer's own render path, on
   // the live body that replaced the demo field.
-  it("gives a live Mirror stop its lens tabs, opening on Answers", async () => {
+  it("gives a live Mirror stop its lens tabs, closed until tapped", async () => {
     localStorage.clear();
     mountLive();
     fireEvent.click(screen.getByRole("button", { name: /^mirror$/i }));
@@ -419,7 +419,9 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     // the same reason the removals below are — the row is assembled from
     // two lists in two modules.
     expect(screen.queryByRole("tab", { name: "Explore" })).toBeNull();
-    expect(screen.getByRole("tab", { name: "Answers" }).getAttribute("aria-selected")).toBe("true");
+    // Nothing is open at rest since D155 — the row is pinned to the bottom
+    // and opens on a tap, which is the prototype's own behaviour.
+    expect(screen.getByRole("tab", { name: "Answers" }).getAttribute("aria-selected")).toBe("false");
     // Neither of D136's two removals may come back as a tab: Overview is
     // the region above the row now, and Foresight left the Mirror. Asserted
     // on the real mount because the row is assembled from two lists in two
@@ -1097,7 +1099,7 @@ describe("live mode never inherits the sample persona (D55)", () => {
       .toBeGreaterThan(0);
   });
 
-  // ── the crowd half of the same card (D155) ──
+  // ── the crowd half of the same card (D157) ──
   //
   // `IS_TEST_AVG` is five constants per instrument, and until now they WERE
   // the hollow "most people" ring on every axis and the line above it

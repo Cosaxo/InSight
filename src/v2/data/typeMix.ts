@@ -29,7 +29,7 @@ import { ARCHETYPES, matchArchetype } from "../spec/archetype-data.js";
  *
  * It is also the ENFORCEMENT of the scope docs/data-inventory.md promises
  * and `ui/LivePrivacyPanel` prints: no population reading of any kind is
- * computed from the politics, values or attachment result. D155 pointed a
+ * computed from the politics, values or attachment result. D157 pointed a
  * second surface at this fold (the profile's type index) and did not
  * widen it — see `typeSharesOn`. */
 export const TYPE_TEST = "big5";
@@ -145,7 +145,7 @@ export function typeMixFor(scope: "city" | "country" | "world"): TypeMix {
   };
 }
 
-// ── how common a type actually is (D155) ─────────────────────────────
+// ── how common a type actually is (D157) ─────────────────────────────
 //
 // The profile's type-index sheet ("The 13 types", headed `bar = how
 // common`) drew `IS_ARCHETYPES[test].list[].share` — hand-authored

@@ -134,6 +134,9 @@ import type { Verdict as ForesightVerdict } from "./foresight";
 // is applied on every feed rebuild rather than on a lens nobody opened,
 // and the module is a few hundred bytes of localStorage plumbing.
 import { applyInterests } from "./interests";
+// The passive tests' round-robin (D155). Lives with the feed's other
+// interleave arithmetic so both are testable without Firebase.
+import { roundRobinBy } from "./feed-interleave";
 // Pure deck-shaping logic lives in ./deck (unit-testable, no firebase);
 // this module passes its store state in.
 import {
@@ -193,7 +196,7 @@ const state = {
   // braces: the create-only rule is the real enforcement).
   learnSent: {} as Record<string, true>,
   // The viewer's OWN first try, and whether the cached aggregate above
-  // has absorbed it yet (D155). `learnAnswer` writes the answer and then
+  // has absorbed it yet (D157). `learnAnswer` writes the answer and then
   // re-reads the aggregate, and it loses that race far more often than it
   // wins — so the reveal drawn a beat later was the crowd WITHOUT you,
   // one line under a tick saying you got it right. On a card two people
@@ -354,7 +357,7 @@ export const TAKE_MAX_CHARS = 280;
 // (isValidV2Anchors). Kept here rather than inline so the client and the
 // ruleset can be diffed against each other by eye.
 const ANCHOR_FIELDS: Record<string, number> = {
-  city: 80, country: 80, ageBand: 20, gender: 40,
+  city: 80, country: 80, ageBand: 20, age: 3, gender: 40,
   profession: 80, education: 80, relationship: 40, heightBand: 20,
 };
 
@@ -1170,7 +1173,13 @@ function buildFeedGlobals(): void {
   // this call. data/interests.test.ts asserts the reader list.
   (window as unknown as Record<string, unknown>).WORLD_FEED_QS =
     applyInterests(feed, (q) => q.cat);
-  (window as unknown as Record<string, unknown>).TEST_FEED_QS = tests;
+  // Round-robined across the four instruments (D155), not served in bank
+  // order. `content/tests.json` is keyed BY instrument, so bank order is
+  // 25 Big Five, then 30 Politics, then 30 Values, then 25 Social — and a
+  // real account filled one bar while three sat at zero. The demo pool
+  // never had this: spec/test-feed-data.js interleaves as it builds.
+  (window as unknown as Record<string, unknown>).TEST_FEED_QS =
+    roundRobinBy(tests, (q) => String(q.test || ""));
   (window as unknown as Record<string, unknown>).WORLD_FEED_COMMENTS = {};
   LIVE.feedReady = true;
 }

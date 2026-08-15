@@ -6,7 +6,7 @@
 import React from 'react';
 import { Kicker } from './primitives.jsx';
 import { IS_TEST_RESULTS } from './test-definitions.js';
-// The measured "most people" baseline (D155). `VizRange` reads `d.avg` per
+// The measured "most people" baseline (D157). `VizRange` reads `d.avg` per
 // row and skips the typical-person mark where it is undefined, so an empty
 // map draws your own values alone rather than a fabricated comparison.
 import { testAvg } from '../data/testNorms.ts';

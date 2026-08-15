@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 //
-// The norms seam (D155): what a result card is allowed to say about other
+// The norms seam (D157): what a result card is allowed to say about other
 // people, and what it has to refuse.
 //
 // Two properties matter more than the arithmetic, and both are about the

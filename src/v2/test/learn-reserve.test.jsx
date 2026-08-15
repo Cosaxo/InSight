@@ -130,7 +130,7 @@ describe("the crowd-split prefetch asks for the cards it is serving (D125)", () 
   });
 });
 
-// ── the reveal, against the answer you just gave (D155) ─────────────
+// ── the reveal, against the answer you just gave (D157) ─────────────
 //
 // Reported against the release: a green tick on "Breaks down waste" with
 // "0 people · 0%" beside it, one line above "From 1 answer — everyone's
@@ -141,7 +141,7 @@ describe("the crowd-split prefetch asks for the cards it is serving (D125)", () 
 // arithmetic is only half of it: the counts fold is pinned in
 // learn-split.test.ts, and what it could not catch is the sentence
 // underneath, which is what a reader actually uses to interpret a zero.
-describe("the learn reveal counts the reader in (D155)", () => {
+describe("the learn reveal counts the reader in (D157)", () => {
   let live;
 
   afterEach(() => {

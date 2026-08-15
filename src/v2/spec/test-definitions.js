@@ -93,7 +93,7 @@ export const TEST_HUE = {
 // Typical-person baselines per dimension. Grounded, not precise: enough to
 // give every score a reference point.
 //
-// NO LONGER DRAWN AS A MEASUREMENT (D155). These five constants per
+// NO LONGER DRAWN AS A MEASUREMENT (D157). These five constants per
 // instrument used to BE the hollow "most people" ring on every axis of
 // every result card, and the percentile line above it read "higher than 9
 // in 10 members" — this app's population, named, from a number typed here.

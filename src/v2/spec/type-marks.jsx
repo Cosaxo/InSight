@@ -10,7 +10,7 @@ import { Sheet } from './primitives.jsx';
 import { IS_ARCHETYPES } from './archetype-data.js';
 import { IS_TEST_RESULTS } from './test-definitions.js';
 import LIVE from '../data/live';
-// How common a type actually is, counted (D155) — see TypeIndexSheet.
+// How common a type actually is, counted (D157) — see TypeIndexSheet.
 import { myTypeOn, typeSharesOn } from '../data/typeMix.ts';
 
 // type-marks.jsx — data-true type marks. A type's mark IS its signature.
@@ -142,7 +142,7 @@ export function typeSplit(testKey, name, values) {
 
 // ── the type index: every type in a test — mark, one-liner, how common ──
 //
-// "How common" was `IS_ARCHETYPES[].share` until D155: hand-authored
+// "How common" was `IS_ARCHETYPES[].share` until D157: hand-authored
 // percentages, drawn as a bar chart under the heading `bar = how common`,
 // on the sheet you open from a card that has just named your own type.
 // The same defect D149 took off the learn reveal, and the same fix —

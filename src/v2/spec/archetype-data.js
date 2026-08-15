@@ -177,7 +177,7 @@ window.IS_nearWhy = function (testKey, dims, a) {
 //  2. SCORES ARE READ AGAINST THE POPULATION, NOT THE MIDPOINT. Dims have very
 //     different baselines (people average A:65 but N:48), so both you and the
 //     signature are centred on IS_TEST_AVG before comparing.
-//     DELIBERATELY THE AUTHORED BASELINE, not the measured one D155 built.
+//     DELIBERATELY THE AUTHORED BASELINE, not the measured one D157 built.
 //     A matcher centred on a live sample would move which type you ARE as
 //     the sample grew — the name on your card changing because strangers
 //     answered, with nothing on screen to explain it. The constant is a

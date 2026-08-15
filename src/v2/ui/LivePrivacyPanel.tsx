@@ -198,10 +198,18 @@ function LivePrivacyPanel() {
           {/* The first bullet, and deliberately the bluntest sentence in
               the app. D98 made answers public; a user learning that from
               a stranger quoting their vote back at them would be the
-              worst possible way to find out. */}
+              worst possible way to find out.
+
+              It says "age" and not "age band" since D155: the snapshot
+              now carries BOTH, and the exact one is what a card naming a
+              person prints. Naming the coarser of the two would be the
+              same failure as the paragraph above describes, one field
+              down. "profession" was missing outright — an anchor that has
+              published since D8 and was never listed here. */}
           <li><strong>Your answers are public.</strong> Anyone using InSight can see what you
-          answered, under your display name, along with the age band, gender, city, country,
-          education, relationship status and height band you have filled in. That is what the app is for —
+          answered, under your display name, along with the age, gender, city, country,
+          education, profession, relationship status and height band you have filled in.
+          That is what the app is for —
           it is how you see who answers like you — but it means nothing you answer here is
           private. Answer accordingly.</li>
           <li>That includes the political, personal and sensitive questions. There is no

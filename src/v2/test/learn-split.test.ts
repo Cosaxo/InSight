@@ -134,7 +134,7 @@ describe("LEARN_COUNTS — how many actually picked each option (D149)", () => {
   });
 });
 
-// ── your own answer is in the number you are shown (D155) ───────────
+// ── your own answer is in the number you are shown (D157) ───────────
 //
 // `learnAnswer` writes the answer and re-reads the aggregate in the same
 // breath; a Firestore trigger cannot fold, transact and commit inside one

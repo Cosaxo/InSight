@@ -6,7 +6,7 @@
 import React from 'react';
 import { Kicker } from './primitives.jsx';
 import { IS_TEST_RESULTS } from './test-definitions.js';
-// The measured "most people" baseline (D155) — empty rather than authored
+// The measured "most people" baseline (D157) — empty rather than authored
 // when the live population is too thin to average, which both cards below
 // already handle: each of them draws its reference mark only where the
 // map has a value for that dim.

@@ -118,7 +118,7 @@ describe("the type system itself", () => {
   });
 });
 
-// ── how common a type is, measured (D155) ───────────────────────────
+// ── how common a type is, measured (D157) ───────────────────────────
 //
 // The profile's type-index sheet drew `IS_ARCHETYPES[].share` under the
 // heading "bar = how common": authored percentages, on the sheet you open

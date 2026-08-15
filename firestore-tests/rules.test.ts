@@ -460,9 +460,9 @@ describe("v2 profile", () => {
     const mine = doc(asUser(OWNER), "v2_users", OWNER);
     await assertSucceeds(setDoc(mine, {
       anchors: {
-        city: "Oslo", country: "Norway", ageBand: "25-34", gender: "Woman",
-        profession: "Software & IT", education: "Bachelor's",
-        relationship: "Partnered",
+        city: "Oslo", country: "Norway", ageBand: "25-34", age: "29",
+        gender: "Woman", profession: "Software & IT", education: "Bachelor's",
+        relationship: "Partnered", heightBand: "170-179 cm",
       },
     }));
     // per-field length caps (isValidV2Anchors): ageBand 20, gender 40, city 80
@@ -471,6 +471,21 @@ describe("v2 profile", () => {
     await assertFails(setDoc(mine, { anchors: { city: "x".repeat(81) } }));
     // and a non-string value is not a short string
     await assertFails(setDoc(mine, { anchors: { ageBand: 25 } }));
+  });
+
+  // D155 added `age` beside `ageBand` — the exact number, for the screens
+  // that name a PERSON ("Ceramicist, 29" reads as somebody; "Ceramicist,
+  // 25-34" reads as a cell). Three characters, and the negative is the
+  // half that matters: a 3-char cap is what keeps this field an AGE and
+  // stops it becoming somewhere to smuggle a birthday.
+  it("takes an exact age of at most three characters, and nothing longer", async () => {
+    const mine = doc(asUser(OWNER), "v2_users", OWNER);
+    await assertSucceeds(setDoc(mine, { anchors: { age: "29" } }));
+    await assertSucceeds(setDoc(mine, { anchors: { age: "104" } }));
+    // A birthday does not fit, which is the point of the cap.
+    await assertFails(setDoc(mine, { anchors: { age: "1990-07-12" } }));
+    await assertFails(setDoc(mine, { anchors: { age: "x".repeat(4) } }));
+    await assertFails(setDoc(mine, { anchors: { age: 29 } }));
   });
 });
 

@@ -30,7 +30,7 @@ const h = vi.hoisted(() => ({
   setDocImpl: null as null | (() => Promise<void>),
   getDocsImpl: null as null | (() => Error),
   // Single-document reads, by path. Only `learnAnswer`'s re-read uses one
-  // (D125/D155) and it is the whole race: the answer is written, this doc
+  // (D125/D157) and it is the whole race: the answer is written, this doc
   // is fetched, and whether it already counts the answer decides whether
   // the reveal has to add it back in. Default null keeps every other case
   // on the "document does not exist" answer they were written against.
@@ -932,7 +932,7 @@ describe("LIVE.loadLearnAggs — warming the split before the tap (D125)", () =>
   });
 });
 
-// The other half of the same timing problem (D155).
+// The other half of the same timing problem (D157).
 //
 // D125 warmed the cache BEFORE the tap, which is what made the reveal read
 // a measurement at all. What it could not fix is the instant AFTER: the

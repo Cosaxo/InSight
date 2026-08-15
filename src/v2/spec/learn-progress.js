@@ -180,7 +180,7 @@ export const LEARN = (function () {
     // model and the only source there is.
     //
     // `repeat` is the same fact `was` gates the send on, handed to the
-    // reveal (D155). The crowd split counts FIRST tries — that is what
+    // reveal (D157). The crowd split counts FIRST tries — that is what
     // makes it a difficulty measurement — so on a re-serve the answer you
     // have just given is deliberately not in it, and the reveal has to
     // say so. Without it the reader sees a tick beside "0 people · 0%"

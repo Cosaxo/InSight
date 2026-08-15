@@ -148,7 +148,7 @@ function learnLive() {
  * indices before anything is recorded (see its note above).
  *
  * YOUR OWN ANSWER IS IN HERE EVEN WHEN THE AGGREGATE HAS NOT CAUGHT UP
- * (D155). `learnAnswer` writes the answer and re-reads the aggregate in
+ * (D157). `learnAnswer` writes the answer and re-reads the aggregate in
  * the same breath, and it loses that race to the Firestore trigger far
  * more often than it wins — so the reveal you are looking at, a beat
  * after tapping, drew the crowd MINUS you. On a young card that is not a

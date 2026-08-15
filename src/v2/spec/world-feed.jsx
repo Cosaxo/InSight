@@ -1294,7 +1294,7 @@ class WorldFeed extends React.Component {
                 it. It used to read `total || 5`, which printed "5+ players"
                 for a card two people had answered.
 
-                D155 gave it the two sentences it was missing, both about
+                D157 gave it the two sentences it was missing, both about
                 WHOSE answers those are. "From 1 answer — everyone's first
                 try at this card" is a true sentence that reads as broken
                 data when the one answer is your own, and the

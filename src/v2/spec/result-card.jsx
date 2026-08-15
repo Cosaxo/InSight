@@ -11,7 +11,7 @@ import { IS_DATA } from './sample-data.js';
 import { Av } from './primitives.jsx';
 import { IS_TESTS, IS_TEST_RESULTS } from './test-definitions.js';
 import { PASSIVE } from './passive-progress.js';
-// What the POPULATION looks like, measured (D155). This card used to read
+// What the POPULATION looks like, measured (D157). This card used to read
 // IS_TEST_AVG directly — five authored constants per instrument, drawn as
 // the "most people" ring on every axis and stated as a percentile of
 // "members". The seam returns the measured fold in a live build, the
@@ -158,7 +158,7 @@ function TensionSpine({ dims, poles, hues, avg, lead }) {
 // average person and you drawn as a length. Biggest differences sort to the top.
 //
 // The percentile under the top row has two sources and they are not
-// interchangeable (D155). LIVE: `axisRank` COUNTS the sampled people below
+// interchangeable (D157). LIVE: `axisRank` COUNTS the sampled people below
 // you and the line names how many it counted. DEMO: the logistic below,
 // which assumes σ≈15 dim points across people and applies it to your
 // distance from an authored constant. That was the only source, on both
@@ -257,7 +257,7 @@ export function ResultProfileCard({ testKey, archetype, tagline }) {
   const arch = window.IS_matchArchetype ? window.IS_matchArchetype(testKey, R.dims) : null;
   const you = arch ? arch.idx : -1;
   const fits = arch ? arch.fits : null;
-  // The dot field's number, measured where it can be (D155).
+  // The dot field's number, measured where it can be (D157).
   //
   // `IS_profileRarity` is exp(−0.916·z^2.33) over your RMS distance from
   // the AUTHORED baseline, divided by an assumed 15-point scatter — a
@@ -417,7 +417,7 @@ export function ResultProfileCard({ testKey, archetype, tagline }) {
           dims={R.dims.map((d) => ({ ...d, poles: cfg.poles ? cfg.poles[d.id] : null }))}
           keyRows={[
             [EX_GLYPH.you(cfg.banner), 'The solid dot is you.'],
-            // Only while the ring exists (D155). A key that explains a mark
+            // Only while the ring exists (D157). A key that explains a mark
             // the card is not drawing is the same fault as the mark itself,
             // one sheet deeper: it tells the reader a comparison is on
             // screen when none is.
