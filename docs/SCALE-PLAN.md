@@ -1,6 +1,7 @@
 # Scale — an infinite feed, and the four things it forces
 
-**Status: plan only. No code exists.** Requested 2026-08-15, out of a
+**Status: plan, with §1's classification BUILT (2026-08-15).** Everything
+else on this page is still proposal. Requested 2026-08-15, out of a
 session that started on attention budgets and targeted ads and ended
 somewhere else. Read it as a proposal, in `docs/ATTENTION.md`'s shape:
 what it supersedes named at the top, the failure modes named at the
@@ -84,15 +85,56 @@ and nothing has to choose. With an unbounded one, something must pick
 to happen — which means the core keeps working no matter how the
 selection logic evolves or how wrong it gets about someone.
 
-### What makes it enforceable rather than aspirational
+### Built 2026-08-15 — the classification, not yet the enforcement
 
-A `core: true` flag on the question document, and the Mirror's fold
-(`src/v2/data/cohort.ts`) reading only flagged questions. That is a
-schema addition and takes the usual arrivals: a `docs/data-inventory.md`
-row (D130, `check:data-inventory`), rules coverage, and a test that
-asserts a non-core question's aggregate never reaches a Mirror stop.
-Without that last test the constraint is prose and will rot — the same
-argument `ATTENTION.md` already makes about its own feed-only rule.
+The half that gets dearer with time is now done, and the half that does
+not is deliberately not:
+
+- **`core` is a declared field on feed questions.** All 82 in
+  `content/feed-questions.json` carry `core: true`; the generator emits it
+  onto feed entries only (`scripts/gen-v2content.mjs`, emit-when-set beside
+  `active`/`until`), and `check:quality` **refuses a feed question that
+  does not declare it** — verified by deleting a flag and watching the gate
+  fail, not by reading the code.
+- **Absent means TAIL, and the polarity is the point.** A question joins
+  the Mirror's corpus only by saying so. A forgotten flag thins a reading;
+  the opposite default would quietly enlarge the corpus, which is the
+  failure §1 exists to prevent.
+- **Every other surface is core by construction** and carries no key —
+  the daily is one globally shared question, test items are what Scores
+  and the similarity fields are computed from, duels never become world
+  aggregates. Feed is the only surface where the distinction is real,
+  which is also where scaled production is pointed (§2).
+
+**The classification itself was the cheap-now half.** Today's answer is
+that *everything which already exists is core* — at this bank size the
+Mirror needs the whole corpus, and the tail starts empty and is what new
+production fills. That is a real decision rather than a coin toss per
+question, and it means the retro-classification this section warned about
+never accrues: from here, classification happens at creation, one
+question at a time, enforced by the gate.
+
+**Enforcement in the Mirror is deliberately deferred, and the reason is
+not laziness.** The tail is empty, so filtering the Mirror's fold today
+would either be a no-op or would remove questions from live readings for
+no benefit — a behaviour change to the app's highest-risk read path
+(`docs/MIRROR.md`) bought with nothing. It costs the same to wire
+whenever it lands, unlike the classification. It lands with the first
+tail content, and not before.
+
+One cost, measured because the gate caught it: 82 extra keys grew the
+bank's wire size by ~1 KiB (`check:figures` failed on `COSTS.md`'s figure
+and was corrected). That is a one-time install cost, which is exactly the
+category §2 says bank growth falls into.
+
+### What makes the rest enforceable rather than aspirational
+
+What remains is the Mirror's fold reading only flagged questions, plus a
+test that asserts a non-core question's aggregate never reaches a Mirror
+stop. Without that last test the constraint is prose and will rot — the
+same argument `ATTENTION.md` already makes about its own feed-only rule.
+Note that `core` is content metadata rather than user data, so it needs
+no `docs/data-inventory.md` row; `check:data-inventory` confirms it.
 
 **Core size is a function of DAU, not of ambition.** The ratio worth
 writing into `check:quality` eventually: core questions may grow only as
@@ -314,9 +356,10 @@ clearing engine — not before.
 
 1. **Bank pagination.** Blocks everything else and the headroom is weeks
    at the new rate. Half-built already.
-2. **The core/tail split** — the `core` flag, the Mirror's fold reading
-   it, and the test that pins it. Cheap now, expensive after the bank has
-   grown and every question needs classifying retroactively.
+2. **The core/tail split.** *Flag, classification and gate DONE
+   2026-08-15* — the half that got dearer with time. What remains is the
+   Mirror's fold reading it and the test that pins it, which costs the
+   same whenever it lands and is sequenced with the first tail content.
 3. **Review reshape** — AI review, batch approval, sampled audit. Needs a
    DECISIONS.md record (§3).
 4. **Production scale-up**, once 1–3 hold. Onto the feed surface, which
@@ -343,11 +386,13 @@ clearing engine — not before.
 
 ## 8 · What I would do
 
-Pagination, then the core flag, then scale. The first is a bounded piece
-of work that is already half-done. The second is cheap this week and
-dear in six months, because retro-classifying a 5,000-question bank into
-core and tail is a judgement call per question — which is the same
-bottleneck §3 exists to remove, arriving through the back door.
+Pagination, then scale. **The core flag is done** (2026-08-15) — it was
+the item that got dearer with time, because retro-classifying a
+5,000-question bank is a judgement call per question, which is the same
+bottleneck §3 exists to remove arriving through the back door. Doing it
+at 513 cost one mechanical edit and a gate. Pagination is what remains in
+front of any production increase, and it is a bounded piece of work that
+is already half-done.
 
 Everything else on this page can wait for users, and most of it should:
 the review reshape cannot be validated without traffic, the interest

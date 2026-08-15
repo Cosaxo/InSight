@@ -35,6 +35,25 @@ public aggregate, which is a convenience over data the buyer could read
 themselves. Any pitch that offers more than that is a new decision, not
 an application of this one.
 
+**Re-derived 2026-08-15 against an infinite feed** — the owner's decision
+to scale question production changes what is on sale, and
+[`SCALE-PLAN.md`](SCALE-PLAN.md) §5 is the working. Three results belong
+here because they bind this page: sell **scheduled slots** rather than
+observed impressions (the feed's deterministic order makes inventory
+computable with no telemetry, which `ATTENTION.md`'s cost rule otherwise
+forbids); **bill on answers**, which already publish, so buyer and seller
+and voter read one number and no party can audit the others' figure;
+and **buyable cohorts are exactly the published breakdown dims**, which
+excludes profession (D8) and the politics result (Art. 9) without a
+special rule for either.
+
+And one new constraint this page could not have stated before the core/tail
+split existed: **sponsored content lives in the tail, never the core.**
+Paid questions inside the Mirror's corpus would make the honest aggregate
+a paid-for sample. A sponsor still gets the exact public split of their
+own question — aggregates publish for every question, tail included —
+they simply do not get it woven into everyone's Mirror.
+
 The other side of the ledger is [`COSTS.md`](COSTS.md): what serving that
 asset costs at five sizes, and which three lines the bill actually
 consists of. The short version is that infrastructure is not the

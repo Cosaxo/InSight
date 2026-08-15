@@ -60,6 +60,7 @@
   "questions": [
     {
       "id": "f01",
+      "core": true,
       "cat": "sport",
       "type": "duel",
       "prompt": "The better night in front of the TV?",
@@ -76,6 +77,7 @@
     },
     {
       "id": "f02",
+      "core": true,
       "cat": "sport",
       "type": "vote",
       "prompt": "Would you rather win…",
@@ -92,6 +94,7 @@
     },
     {
       "id": "f03",
+      "core": true,
       "cat": "sport",
       "type": "rank",
       "prompt": "Pure athleticism — rank them",
@@ -111,6 +114,7 @@
     },
     {
       "id": "f04",
+      "core": true,
       "cat": "sport",
       "type": "vote",
       "prompt": "VAR made football better.",
@@ -127,6 +131,7 @@
     },
     {
       "id": "f05",
+      "core": true,
       "cat": "sport",
       "type": "vote",
       "prompt": "Best sport to watch live in a stadium",
@@ -147,6 +152,7 @@
     },
     {
       "id": "f06",
+      "core": true,
       "cat": "sport",
       "type": "vote",
       "prompt": "E-sports are real sports.",
@@ -163,6 +169,7 @@
     },
     {
       "id": "f07",
+      "core": true,
       "cat": "sport",
       "type": "vote",
       "prompt": "Your team wins it all — but you can never watch them again. Deal?",
@@ -179,6 +186,7 @@
     },
     {
       "id": "f08",
+      "core": true,
       "cat": "food",
       "type": "duel",
       "prompt": "One cuisine forever",
@@ -196,6 +204,7 @@
     },
     {
       "id": "f09",
+      "core": true,
       "cat": "food",
       "type": "vote",
       "prompt": "Milk before cereal is a crime.",
@@ -212,6 +221,7 @@
     },
     {
       "id": "f10",
+      "core": true,
       "cat": "food",
       "type": "rank",
       "prompt": "Rank the potato formats",
@@ -231,6 +241,7 @@
     },
     {
       "id": "f11",
+      "core": true,
       "cat": "food",
       "type": "vote",
       "prompt": "Would you eat lab-grown meat?",
@@ -247,6 +258,7 @@
     },
     {
       "id": "f12",
+      "core": true,
       "cat": "food",
       "type": "vote",
       "prompt": "A free pill replaces all meals. Food becomes hobby-only. Take it?",
@@ -263,6 +275,7 @@
     },
     {
       "id": "f13",
+      "core": true,
       "cat": "food",
       "type": "duel",
       "prompt": "Final dessert on earth",
@@ -279,6 +292,7 @@
     },
     {
       "id": "f14",
+      "core": true,
       "cat": "food",
       "type": "vote",
       "prompt": "Spicy food: worth the pain?",
@@ -295,6 +309,7 @@
     },
     {
       "id": "f15",
+      "core": true,
       "cat": "movies",
       "type": "vote",
       "prompt": "The book is always better.",
@@ -311,6 +326,7 @@
     },
     {
       "id": "f16",
+      "core": true,
       "cat": "movies",
       "type": "rank",
       "prompt": "Rank by rewatchability",
@@ -330,6 +346,7 @@
     },
     {
       "id": "f17",
+      "core": true,
       "cat": "movies",
       "type": "duel",
       "prompt": "One world to live in",
@@ -346,6 +363,7 @@
     },
     {
       "id": "f18",
+      "core": true,
       "cat": "movies",
       "type": "vote",
       "prompt": "Watching at 1.5× speed is disrespectful.",
@@ -362,6 +380,7 @@
     },
     {
       "id": "f19",
+      "core": true,
       "cat": "movies",
       "type": "vote",
       "prompt": "The ideal movie length",
@@ -382,6 +401,7 @@
     },
     {
       "id": "f20",
+      "core": true,
       "cat": "movies",
       "type": "vote",
       "prompt": "Spoilers ruin nothing for a good story.",
@@ -399,6 +419,7 @@
     },
     {
       "id": "f21",
+      "core": true,
       "cat": "music",
       "type": "vote",
       "prompt": "Great lyrics or great melody?",
@@ -416,6 +437,7 @@
     },
     {
       "id": "f22",
+      "core": true,
       "cat": "music",
       "type": "rank",
       "prompt": "Rank the live music",
@@ -435,6 +457,7 @@
     },
     {
       "id": "f23",
+      "core": true,
       "cat": "music",
       "type": "vote",
       "prompt": "Vinyl actually sounds better.",
@@ -451,6 +474,7 @@
     },
     {
       "id": "f24",
+      "core": true,
       "cat": "music",
       "type": "vote",
       "prompt": "Music while working?",
@@ -472,6 +496,7 @@
     },
     {
       "id": "f25",
+      "core": true,
       "cat": "music",
       "type": "duel",
       "prompt": "One decade of music forever",
@@ -488,6 +513,7 @@
     },
     {
       "id": "f26",
+      "core": true,
       "cat": "tech",
       "type": "vote",
       "prompt": "Brain-computer interface, once it’s proven safe?",
@@ -504,6 +530,7 @@
     },
     {
       "id": "f27",
+      "core": true,
       "cat": "tech",
       "type": "vote",
       "prompt": "Phones should be banned in schools.",
@@ -520,6 +547,7 @@
     },
     {
       "id": "f28",
+      "core": true,
       "cat": "tech",
       "type": "rank",
       "prompt": "Which would you give up last?",
@@ -539,6 +567,7 @@
     },
     {
       "id": "f29",
+      "core": true,
       "cat": "tech",
       "type": "vote",
       "prompt": "Delete all your data and start clean, or keep everything forever?",
@@ -555,6 +584,7 @@
     },
     {
       "id": "f30",
+      "core": true,
       "cat": "tech",
       "type": "vote",
       "prompt": "A robot does your chores but records everything. Deal?",
@@ -571,6 +601,7 @@
     },
     {
       "id": "f31",
+      "core": true,
       "cat": "tech",
       "type": "vote",
       "prompt": "Would you ride a driverless taxi tonight?",
@@ -587,6 +618,7 @@
     },
     {
       "id": "f32",
+      "core": true,
       "cat": "culture",
       "type": "vote",
       "prompt": "Tipping should be abolished.",
@@ -603,6 +635,7 @@
     },
     {
       "id": "f33",
+      "core": true,
       "cat": "culture",
       "type": "vote",
       "prompt": "Ten minutes early or exactly on time?",
@@ -619,6 +652,7 @@
     },
     {
       "id": "f34",
+      "core": true,
       "cat": "culture",
       "type": "rank",
       "prompt": "Rank the perfect weekend",
@@ -638,6 +672,7 @@
     },
     {
       "id": "f35",
+      "core": true,
       "cat": "culture",
       "type": "vote",
       "prompt": "The best age to be",
@@ -662,6 +697,7 @@
     },
     {
       "id": "f36",
+      "core": true,
       "cat": "culture",
       "type": "duel",
       "prompt": "The view from your window, forever",
@@ -678,6 +714,7 @@
     },
     {
       "id": "f37",
+      "core": true,
       "cat": "culture",
       "type": "vote",
       "prompt": "Small talk is a skill, not a chore.",
@@ -694,6 +731,7 @@
     },
     {
       "id": "f38",
+      "core": true,
       "cat": "dilemma",
       "type": "vote",
       "prompt": "Read minds — but everyone knows you can. Take it?",
@@ -710,6 +748,7 @@
     },
     {
       "id": "f39",
+      "core": true,
       "cat": "dilemma",
       "type": "vote",
       "prompt": "A million now, but a stranger somewhere loses everything. Press the button?",
@@ -726,6 +765,7 @@
     },
     {
       "id": "f40",
+      "core": true,
       "cat": "dilemma",
       "type": "vote",
       "prompt": "Would you want to know the date of your death?",
@@ -743,6 +783,7 @@
     },
     {
       "id": "f41",
+      "core": true,
       "cat": "dilemma",
       "type": "vote",
       "prompt": "Five years in a job you hate, then never work again?",
@@ -759,6 +800,7 @@
     },
     {
       "id": "f42",
+      "core": true,
       "cat": "dilemma",
       "type": "vote",
       "prompt": "Restart life at 10, everything you know intact?",
@@ -775,6 +817,7 @@
     },
     {
       "id": "f43",
+      "core": true,
       "cat": "dilemma",
       "type": "vote",
       "prompt": "Perfect memory — but you can never forget anything. Take it?",
@@ -791,6 +834,7 @@
     },
     {
       "id": "f44",
+      "core": true,
       "cat": "dilemma",
       "type": "vote",
       "prompt": "Your dog talks for one day, or understands you forever?",
@@ -807,6 +851,7 @@
     },
     {
       "id": "f45",
+      "core": true,
       "cat": "event",
       "type": "vote",
       "prompt": "Should voting be mandatory?",
@@ -824,6 +869,7 @@
     },
     {
       "id": "f46",
+      "core": true,
       "cat": "event",
       "type": "vote",
       "prompt": "Four-day work week: inevitable or fantasy?",
@@ -841,6 +887,7 @@
     },
     {
       "id": "f47",
+      "core": true,
       "cat": "event",
       "type": "vote",
       "prompt": "City centers should be car-free.",
@@ -858,6 +905,7 @@
     },
     {
       "id": "f48",
+      "core": true,
       "cat": "event",
       "type": "vote",
       "prompt": "Would you move to another country for good?",
@@ -874,6 +922,7 @@
     },
     {
       "id": "f49",
+      "core": true,
       "cat": "people",
       "type": "vote",
       "prompt": "Judge the art apart from the artist?",
@@ -890,6 +939,7 @@
     },
     {
       "id": "f50",
+      "core": true,
       "cat": "people",
       "type": "vote",
       "prompt": "Celebrities should stay out of politics.",
@@ -906,6 +956,7 @@
     },
     {
       "id": "f51",
+      "core": true,
       "cat": "people",
       "type": "vote",
       "prompt": "Dinner with one",
@@ -926,6 +977,7 @@
     },
     {
       "id": "f52",
+      "core": true,
       "cat": "bigq",
       "type": "vote",
       "prompt": "Free will is an illusion.",
@@ -942,6 +994,7 @@
     },
     {
       "id": "f53",
+      "core": true,
       "cat": "bigq",
       "type": "vote",
       "prompt": "We’re not alone in the universe.",
@@ -958,6 +1011,7 @@
     },
     {
       "id": "f54",
+      "core": true,
       "cat": "bigq",
       "type": "vote",
       "prompt": "Money can buy happiness.",
@@ -975,6 +1029,7 @@
     },
     {
       "id": "f55",
+      "core": true,
       "cat": "bigq",
       "type": "vote",
       "prompt": "Humanity’s best days are ahead.",
@@ -991,6 +1046,7 @@
     },
     {
       "id": "f56",
+      "core": true,
       "cat": "bigq",
       "type": "rank",
       "prompt": "What matters most — rank them",
@@ -1010,6 +1066,7 @@
     },
     {
       "id": "s01",
+      "core": true,
       "scene": "tennis",
       "cat": "sport",
       "type": "vote",
@@ -1027,6 +1084,7 @@
     },
     {
       "id": "s02",
+      "core": true,
       "scene": "tennis",
       "cat": "sport",
       "type": "vote",
@@ -1048,6 +1106,7 @@
     },
     {
       "id": "s03",
+      "core": true,
       "scene": "tennis",
       "cat": "sport",
       "type": "vote",
@@ -1065,6 +1124,7 @@
     },
     {
       "id": "s04",
+      "core": true,
       "scene": "swim",
       "cat": "sport",
       "type": "vote",
@@ -1082,6 +1142,7 @@
     },
     {
       "id": "s05",
+      "core": true,
       "scene": "swim",
       "cat": "sport",
       "type": "rank",
@@ -1102,6 +1163,7 @@
     },
     {
       "id": "s06",
+      "core": true,
       "scene": "swim",
       "cat": "sport",
       "type": "vote",
@@ -1119,6 +1181,7 @@
     },
     {
       "id": "s07",
+      "core": true,
       "scene": "writers",
       "cat": "culture",
       "type": "vote",
@@ -1136,6 +1199,7 @@
     },
     {
       "id": "s08",
+      "core": true,
       "scene": "writers",
       "cat": "culture",
       "type": "vote",
@@ -1153,6 +1217,7 @@
     },
     {
       "id": "s09",
+      "core": true,
       "scene": "writers",
       "cat": "culture",
       "type": "vote",
@@ -1170,6 +1235,7 @@
     },
     {
       "id": "s10",
+      "core": true,
       "scene": "philos",
       "cat": "bigq",
       "type": "vote",
@@ -1187,6 +1253,7 @@
     },
     {
       "id": "s11",
+      "core": true,
       "scene": "philos",
       "cat": "bigq",
       "type": "vote",
@@ -1204,6 +1271,7 @@
     },
     {
       "id": "s12",
+      "core": true,
       "scene": "philos",
       "cat": "bigq",
       "type": "vote",
@@ -1221,6 +1289,7 @@
     },
     {
       "id": "s13",
+      "core": true,
       "scene": "chess",
       "cat": "culture",
       "type": "vote",
@@ -1238,6 +1307,7 @@
     },
     {
       "id": "s14",
+      "core": true,
       "scene": "chess",
       "cat": "culture",
       "type": "vote",
@@ -1259,6 +1329,7 @@
     },
     {
       "id": "s15",
+      "core": true,
       "scene": "chess",
       "cat": "culture",
       "type": "vote",
@@ -1276,6 +1347,7 @@
     },
     {
       "id": "s16",
+      "core": true,
       "scene": "ferment",
       "cat": "food",
       "type": "vote",
@@ -1293,6 +1365,7 @@
     },
     {
       "id": "s17",
+      "core": true,
       "scene": "ferment",
       "cat": "food",
       "type": "vote",
@@ -1310,6 +1383,7 @@
     },
     {
       "id": "dl1",
+      "core": true,
       "cat": "bigq",
       "type": "dial",
       "prompt": "When does old age begin?",
@@ -1319,6 +1393,7 @@
     },
     {
       "id": "dl2",
+      "core": true,
       "cat": "dilemma",
       "type": "dial",
       "prompt": "The right tip",
@@ -1328,6 +1403,7 @@
     },
     {
       "id": "dl3",
+      "core": true,
       "cat": "dilemma",
       "type": "dial",
       "prompt": "Daily screen time — where does “too much” start?",
@@ -1337,6 +1413,7 @@
     },
     {
       "id": "dl4",
+      "core": true,
       "cat": "bigq",
       "type": "dial",
       "prompt": "How much of your life is actually in your control?",
@@ -1346,6 +1423,7 @@
     },
     {
       "id": "fd1",
+      "core": true,
       "cat": "dilemma",
       "type": "field",
       "prompt": "Pineapple on pizza — place it",
@@ -1360,6 +1438,7 @@
     },
     {
       "id": "fd2",
+      "core": true,
       "cat": "bigq",
       "type": "field",
       "prompt": "Small talk — place it",
@@ -1374,6 +1453,7 @@
     },
     {
       "id": "fd3",
+      "core": true,
       "cat": "bigq",
       "type": "field",
       "prompt": "AI assistants, today — place them",
@@ -1388,6 +1468,7 @@
     },
     {
       "id": "pt1",
+      "core": true,
       "cat": "dilemma",
       "type": "path",
       "hue": 20,
@@ -1510,6 +1591,7 @@
     },
     {
       "id": "pt2",
+      "core": true,
       "cat": "dilemma",
       "type": "path",
       "hue": 255,

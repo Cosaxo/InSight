@@ -420,6 +420,29 @@ export function checkQuestion(q, surface, ctx, mode = {}) {
     if (!q.cat) err("topic", "a feed question needs a topic — without one its kicker is broken and the topic filter cannot reach it");
     else if (!ctx.feedTopics.has(q.cat)) err("topic", `topic ${JSON.stringify(q.cat)} is not in the feed taxonomy`);
 
+    // Core/tail must be DECLARED, not defaulted (docs/SCALE-PLAN.md §1).
+    //
+    // The generated bank treats an absent `core` as tail, which is the safe
+    // reading direction — but "safe default" and "nobody decided" are the
+    // same bytes, and only one of them is a classification. So the source
+    // has to say which, in so many words, and the whole point of the gate
+    // is WHEN it says it: at creation, one question at a time, while the
+    // author still has the question in their head. Retro-classifying a bank
+    // is a per-question judgement call, and the cost of deferring it is
+    // paid in one lump at whatever size the bank has reached by then.
+    //
+    // Feed-only, because feed is the only surface where the distinction is
+    // real: the daily is one globally shared question, test items feed
+    // Scores, duels never become world aggregates.
+    //
+    // Live content only. `mode.texture` marks the spec layer's demo pool,
+    // which is prototype filler that never reaches the seeded bank and so
+    // has nothing to classify — the same carve-out the texture rules make
+    // in the other direction just below.
+    if (!mode.texture && typeof q.core !== "boolean") {
+      err("core", "a feed question must declare `core` (true = served to everyone and foldable into the Mirror's readings, false = personalized tail) — see docs/SCALE-PLAN.md §1");
+    }
+
     // ── continuum shapes ── the whole entry is authored, crowd texture
     // included (the demo pool has no backend), so the gate holds the
     // texture to the same bar as the copy: a dial whose dist doesn't fit
