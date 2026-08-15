@@ -17,7 +17,7 @@
 //
 // Reads the compiled output, so run after `npm run build --prefix functions`.
 
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { pathToFileURL } from "node:url";
@@ -55,6 +55,16 @@ for (const [name, fn] of Object.entries(mod)) {
       // set maxInstances: null to "scale freely", would leave that
       // paragraph asserting a ceiling that no longer exists.
       maxInst: ep.maxInstances,
+      // D165's third silent failure, read off the DEPLOYED options rather
+      // than the source. A Firestore trigger binds to `(default)` unless
+      // told otherwise, so a trigger that lost this option deploys green,
+      // stays healthy, lets every answer write — and never fires, because
+      // it is watching a database nothing writes to. Nothing errors, so
+      // the alert policy (which watches for the trigger ERRORING) says
+      // nothing either; the first signal is a human noticing the Mirror
+      // has stopped moving.
+      db: ep.eventTrigger?.eventFilters?.database,
+      isTrigger: !!ep.eventTrigger,
     });
   }
 }
@@ -77,6 +87,45 @@ for (const r of rows) {
   );
 }
 
+// Every Firestore trigger fires on the database the deploy targets (D165).
+//
+// MEASURED, not assumed, and the measurement changed this check. Omitting
+// the option does not leave `database` undefined — the SDK fills in the
+// literal `"(default)"`. So an "is it set?" test is dead code, and a
+// "do they agree?" test passes happily when BOTH triggers have lost it,
+// which is exactly the case worth catching.
+//
+// The expected value is cross-read from firebase.json's deploy target
+// rather than from the functions' own constant. Two independent files have
+// to say the same thing, so the rules can never be deployed to one
+// database while the triggers watch another.
+const expectedDb = (() => {
+  const cfg = JSON.parse(readFileSync(resolve(root, "firebase.json"), "utf8")).firestore;
+  const entries = Array.isArray(cfg) ? cfg : [cfg];
+  const ids = [...new Set(entries.map((e) => e.database || "(default)"))];
+  return ids.length === 1 ? ids[0] : null;
+})();
+const triggers = rows.filter((r) => r.isTrigger);
+const wrongDb = expectedDb ? triggers.filter((r) => (r.db || "(default)") !== expectedDb) : [];
+if (expectedDb === null) {
+  console.error("\nfirebase.json targets more than one Firestore database — this check cannot pick one.");
+  process.exit(1);
+}
+if (wrongDb.length) {
+  console.error(
+    `\n${wrongDb.length} Firestore trigger(s) not on ${JSON.stringify(expectedDb)}, which is what`
+    + " firebase.json deploys rules to (D165):",
+  );
+  for (const r of wrongDb) console.error(`  - ${r.name} → ${JSON.stringify(r.db || "(default)")}`);
+  console.error(
+    "\nAdd `database: FIRESTORE_DB_ID` to the trigger options. A trigger on the\n"
+    + "wrong database deploys green, stays healthy, and never fires — nothing\n"
+    + "errors, so nothing alerts, and the first signal is a human noticing the\n"
+    + "Mirror has stopped moving.",
+  );
+  process.exit(1);
+}
+
 if (bare.length) {
   console.error(
     `\n${bare.length} function(s) missing an explicit memory, timeout or maxInstances:`,
@@ -91,5 +140,6 @@ if (bare.length) {
 
 console.log(
   `\nfn-runtime OK — ${rows.length} functions, all with explicit memory, `
-  + "timeout and maxInstances (the compute ceiling)",
+  + "timeout and maxInstances (the compute ceiling); "
+  + `${triggers.length} Firestore trigger(s) on database ${JSON.stringify(expectedDb)}, matching firebase.json`,
 );

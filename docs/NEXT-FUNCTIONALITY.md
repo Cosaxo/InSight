@@ -519,6 +519,18 @@ was designed and never fed.
 as the revenue engine — pay to get a question featured, to a given
 cohort for a given window, and read the data it produces; auction-like.
 
+*Re-derived 2026-08-15 in [`SCALE-PLAN.md`](SCALE-PLAN.md) §5, against an
+infinite feed and a per-cohort "attention budget" framing. Three things
+came out of it that are not below: sell scheduled slots rather than
+observed impressions (the feed's deterministic order makes inventory
+computable without any telemetry, which `ATTENTION.md`'s cost rule
+otherwise forbids); bill on **answers**, which already publish, so buyer
+and seller and voter read one number; and buyable cohorts are exactly the
+published breakdown dims, which excludes profession (D8) and the politics
+result (Art. 9) with no special rule for either. It also adds a constraint
+this section cannot state on its own — sponsored questions belong in the
+tail, never the Mirror's core corpus.*
+
 **Verdict: yes to the business — it is already the plan's primary
 recorded intent — and most of the machinery is the sections above.**
 `docs/MONETIZATION.md` names paid geo-insight as path 1 ("cities and

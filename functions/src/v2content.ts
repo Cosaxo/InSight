@@ -7,13 +7,16 @@
 // `active`/`political` are optional and emitted only when set: absent means
 // active (deck.ts filters `active !== false`) and sliceable (v2.ts's D44
 // predicate checks `political === true` alongside `test === "political"`).
+// `core` is feed-only (docs/SCALE-PLAN.md §1) and absent means TAIL — a
+// question is in the Mirror's corpus only if it says so. Other surfaces do
+// not carry the key because they are core by construction.
 // `branch`/`sub` are the daily bank's [branch, sub-branch] subject path
 // (D100) and are absent on every other surface, which carries no path.
 // `lo`/`hi`/`unit`/`ends` (dial) and `ax`/`ay` (field) are the continuum
 // forms' range/plane copy (D114), absent everywhere else; their options
 // are synthesized bucket/cell labels, so the D52 option freeze freezes
 // the range with them.
-export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; branch?: string; sub?: string; axis: string | null; test: string | null; mode?: string; active?: boolean; political?: boolean; until?: string; lo?: number; hi?: number; unit?: string; ends?: string[]; ax?: string[]; ay?: string[]; title?: string; intro?: string; hue?: number; nodes?: Record<string, { q: string; a: Array<{ t: string }> }>; endings?: Record<string, { name: string; line: string }>; }
+export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; branch?: string; sub?: string; axis: string | null; test: string | null; mode?: string; active?: boolean; political?: boolean; core?: boolean; until?: string; lo?: number; hi?: number; unit?: string; ends?: string[]; ax?: string[]; ay?: string[]; title?: string; intro?: string; hue?: number; nodes?: Record<string, { q: string; a: Array<{ t: string }> }>; endings?: Record<string, { name: string; line: string }>; }
 export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "daily-000",
@@ -1700,7 +1703,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "sport",
   "axis": null,
-  "test": null
+  "test": null,
+  "core": true
  },
  {
   "id": "feed-f02",
@@ -1715,7 +1719,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "sport",
   "axis": null,
-  "test": null
+  "test": null,
+  "core": true
  },
  {
   "id": "feed-f03",
@@ -1732,7 +1737,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "sport",
   "axis": null,
-  "test": null
+  "test": null,
+  "core": true
  },
  {
   "id": "feed-f04",
@@ -1747,7 +1753,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "sport",
   "axis": null,
-  "test": null
+  "test": null,
+  "core": true
  },
  {
   "id": "feed-f05",
@@ -1763,7 +1770,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "sport",
   "axis": null,
-  "test": null
+  "test": null,
+  "core": true
  },
  {
   "id": "feed-f06",
@@ -1778,7 +1786,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "sport",
   "axis": null,
-  "test": null
+  "test": null,
+  "core": true
  },
  {
   "id": "feed-f07",
@@ -1793,7 +1802,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "sport",
   "axis": null,
-  "test": null
+  "test": null,
+  "core": true
  },
  {
   "id": "feed-f08",
@@ -1809,6 +1819,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "food",
   "axis": null,
   "test": null,
+  "core": true,
   "active": false
  },
  {
@@ -1824,7 +1835,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "food",
   "axis": null,
-  "test": null
+  "test": null,
+  "core": true
  },
  {
   "id": "feed-f10",
@@ -1841,7 +1853,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "food",
   "axis": null,
-  "test": null
+  "test": null,
+  "core": true
  },
  {
   "id": "feed-f11",
@@ -1856,7 +1869,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "food",
   "axis": null,
-  "test": null
+  "test": null,
+  "core": true
  },
  {
   "id": "feed-f12",
@@ -1871,7 +1885,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "food",
   "axis": null,
-  "test": null
+  "test": null,
+  "core": true
  },
  {
   "id": "feed-f13",
@@ -1886,7 +1901,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "food",
   "axis": null,
-  "test": null
+  "test": null,
+  "core": true
  },
  {
   "id": "feed-f14",
@@ -1901,7 +1917,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "food",
   "axis": null,
-  "test": null
+  "test": null,
+  "core": true
  },
  {
   "id": "feed-f15",
@@ -1916,7 +1933,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "movies",
   "axis": null,
-  "test": null
+  "test": null,
+  "core": true
  },
  {
   "id": "feed-f16",
@@ -1933,7 +1951,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "movies",
   "axis": null,
-  "test": null
+  "test": null,
+  "core": true
  },
  {
   "id": "feed-f17",
@@ -1948,7 +1967,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "movies",
   "axis": null,
-  "test": null
+  "test": null,
+  "core": true
  },
  {
   "id": "feed-f18",
@@ -1963,7 +1983,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "movies",
   "axis": null,
-  "test": null
+  "test": null,
+  "core": true
  },
  {
   "id": "feed-f19",
@@ -1979,7 +2000,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "movies",
   "axis": null,
-  "test": null
+  "test": null,
+  "core": true
  },
  {
   "id": "feed-f20",
@@ -1995,6 +2017,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "movies",
   "axis": null,
   "test": null,
+  "core": true,
   "active": false
  },
  {
@@ -2011,6 +2034,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "music",
   "axis": null,
   "test": null,
+  "core": true,
   "active": false
  },
  {
@@ -2028,7 +2052,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "music",
   "axis": null,
-  "test": null
+  "test": null,
+  "core": true
  },
  {
   "id": "feed-f23",
@@ -2043,7 +2068,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "music",
   "axis": null,
-  "test": null
+  "test": null,
+  "core": true
  },
  {
   "id": "feed-f24",
@@ -2060,6 +2086,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "music",
   "axis": null,
   "test": null,
+  "core": true,
   "active": false
  },
  {
@@ -2075,7 +2102,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "music",
   "axis": null,
-  "test": null
+  "test": null,
+  "core": true
  },
  {
   "id": "feed-f26",
@@ -2090,7 +2118,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "tech",
   "axis": null,
-  "test": null
+  "test": null,
+  "core": true
  },
  {
   "id": "feed-f27",
@@ -2105,7 +2134,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "tech",
   "axis": null,
-  "test": null
+  "test": null,
+  "core": true
  },
  {
   "id": "feed-f28",
@@ -2122,7 +2152,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "tech",
   "axis": null,
-  "test": null
+  "test": null,
+  "core": true
  },
  {
   "id": "feed-f29",
@@ -2137,7 +2168,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "tech",
   "axis": null,
-  "test": null
+  "test": null,
+  "core": true
  },
  {
   "id": "feed-f30",
@@ -2152,7 +2184,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "tech",
   "axis": null,
-  "test": null
+  "test": null,
+  "core": true
  },
  {
   "id": "feed-f31",
@@ -2167,7 +2200,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "tech",
   "axis": null,
-  "test": null
+  "test": null,
+  "core": true
  },
  {
   "id": "feed-f32",
@@ -2182,7 +2216,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "culture",
   "axis": null,
-  "test": null
+  "test": null,
+  "core": true
  },
  {
   "id": "feed-f33",
@@ -2197,7 +2232,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "culture",
   "axis": null,
-  "test": null
+  "test": null,
+  "core": true
  },
  {
   "id": "feed-f34",
@@ -2214,7 +2250,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "culture",
   "axis": null,
-  "test": null
+  "test": null,
+  "core": true
  },
  {
   "id": "feed-f35",
@@ -2231,7 +2268,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "culture",
   "axis": null,
-  "test": null
+  "test": null,
+  "core": true
  },
  {
   "id": "feed-f36",
@@ -2246,7 +2284,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "culture",
   "axis": null,
-  "test": null
+  "test": null,
+  "core": true
  },
  {
   "id": "feed-f37",
@@ -2261,7 +2300,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "culture",
   "axis": null,
-  "test": null
+  "test": null,
+  "core": true
  },
  {
   "id": "feed-f38",
@@ -2276,7 +2316,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "dilemma",
   "axis": null,
-  "test": null
+  "test": null,
+  "core": true
  },
  {
   "id": "feed-f39",
@@ -2291,7 +2332,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "dilemma",
   "axis": null,
-  "test": null
+  "test": null,
+  "core": true
  },
  {
   "id": "feed-f40",
@@ -2307,6 +2349,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "dilemma",
   "axis": null,
   "test": null,
+  "core": true,
   "active": false
  },
  {
@@ -2322,7 +2365,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "dilemma",
   "axis": null,
-  "test": null
+  "test": null,
+  "core": true
  },
  {
   "id": "feed-f42",
@@ -2337,7 +2381,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "dilemma",
   "axis": null,
-  "test": null
+  "test": null,
+  "core": true
  },
  {
   "id": "feed-f43",
@@ -2352,7 +2397,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "dilemma",
   "axis": null,
-  "test": null
+  "test": null,
+  "core": true
  },
  {
   "id": "feed-f44",
@@ -2367,7 +2413,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "dilemma",
   "axis": null,
-  "test": null
+  "test": null,
+  "core": true
  },
  {
   "id": "feed-f45",
@@ -2383,6 +2430,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "event",
   "axis": null,
   "test": null,
+  "core": true,
   "political": true
  },
  {
@@ -2399,6 +2447,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "event",
   "axis": null,
   "test": null,
+  "core": true,
   "political": true
  },
  {
@@ -2415,6 +2464,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "event",
   "axis": null,
   "test": null,
+  "core": true,
   "political": true
  },
  {
@@ -2430,7 +2480,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "event",
   "axis": null,
-  "test": null
+  "test": null,
+  "core": true
  },
  {
   "id": "feed-f49",
@@ -2445,7 +2496,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "people",
   "axis": null,
-  "test": null
+  "test": null,
+  "core": true
  },
  {
   "id": "feed-f50",
@@ -2460,7 +2512,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "people",
   "axis": null,
-  "test": null
+  "test": null,
+  "core": true
  },
  {
   "id": "feed-f51",
@@ -2476,7 +2529,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "people",
   "axis": null,
-  "test": null
+  "test": null,
+  "core": true
  },
  {
   "id": "feed-f52",
@@ -2491,7 +2545,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "bigq",
   "axis": null,
-  "test": null
+  "test": null,
+  "core": true
  },
  {
   "id": "feed-f53",
@@ -2506,7 +2561,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "bigq",
   "axis": null,
-  "test": null
+  "test": null,
+  "core": true
  },
  {
   "id": "feed-f54",
@@ -2522,6 +2578,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "bigq",
   "axis": null,
   "test": null,
+  "core": true,
   "active": false
  },
  {
@@ -2537,7 +2594,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "bigq",
   "axis": null,
-  "test": null
+  "test": null,
+  "core": true
  },
  {
   "id": "feed-f56",
@@ -2554,7 +2612,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "bigq",
   "axis": null,
-  "test": null
+  "test": null,
+  "core": true
  },
  {
   "id": "feed-s01",
@@ -2569,7 +2628,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "sport",
   "axis": null,
-  "test": null
+  "test": null,
+  "core": true
  },
  {
   "id": "feed-s02",
@@ -2585,7 +2645,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "sport",
   "axis": null,
-  "test": null
+  "test": null,
+  "core": true
  },
  {
   "id": "feed-s03",
@@ -2600,7 +2661,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "sport",
   "axis": null,
-  "test": null
+  "test": null,
+  "core": true
  },
  {
   "id": "feed-s04",
@@ -2615,7 +2677,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "sport",
   "axis": null,
-  "test": null
+  "test": null,
+  "core": true
  },
  {
   "id": "feed-s05",
@@ -2632,7 +2695,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "sport",
   "axis": null,
-  "test": null
+  "test": null,
+  "core": true
  },
  {
   "id": "feed-s06",
@@ -2647,7 +2711,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "sport",
   "axis": null,
-  "test": null
+  "test": null,
+  "core": true
  },
  {
   "id": "feed-s07",
@@ -2662,7 +2727,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "culture",
   "axis": null,
-  "test": null
+  "test": null,
+  "core": true
  },
  {
   "id": "feed-s08",
@@ -2677,7 +2743,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "culture",
   "axis": null,
-  "test": null
+  "test": null,
+  "core": true
  },
  {
   "id": "feed-s09",
@@ -2692,7 +2759,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "culture",
   "axis": null,
-  "test": null
+  "test": null,
+  "core": true
  },
  {
   "id": "feed-s10",
@@ -2707,7 +2775,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "bigq",
   "axis": null,
-  "test": null
+  "test": null,
+  "core": true
  },
  {
   "id": "feed-s11",
@@ -2722,7 +2791,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "bigq",
   "axis": null,
-  "test": null
+  "test": null,
+  "core": true
  },
  {
   "id": "feed-s12",
@@ -2737,7 +2807,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "bigq",
   "axis": null,
-  "test": null
+  "test": null,
+  "core": true
  },
  {
   "id": "feed-s13",
@@ -2752,7 +2823,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "culture",
   "axis": null,
-  "test": null
+  "test": null,
+  "core": true
  },
  {
   "id": "feed-s14",
@@ -2768,7 +2840,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "culture",
   "axis": null,
-  "test": null
+  "test": null,
+  "core": true
  },
  {
   "id": "feed-s15",
@@ -2783,7 +2856,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "culture",
   "axis": null,
-  "test": null
+  "test": null,
+  "core": true
  },
  {
   "id": "feed-s16",
@@ -2798,7 +2872,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "food",
   "axis": null,
-  "test": null
+  "test": null,
+  "core": true
  },
  {
   "id": "feed-s17",
@@ -2813,7 +2888,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "food",
   "axis": null,
-  "test": null
+  "test": null,
+  "core": true
  },
  {
   "id": "feed-dl1",
@@ -2841,7 +2917,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null,
   "lo": 40,
   "hi": 90,
-  "unit": "yrs"
+  "unit": "yrs",
+  "core": true
  },
  {
   "id": "feed-dl2",
@@ -2869,7 +2946,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null,
   "lo": 0,
   "hi": 30,
-  "unit": "%"
+  "unit": "%",
+  "core": true
  },
  {
   "id": "feed-dl3",
@@ -2897,7 +2975,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null,
   "lo": 1,
   "hi": 12,
-  "unit": "h"
+  "unit": "h",
+  "core": true
  },
  {
   "id": "feed-dl4",
@@ -2925,7 +3004,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null,
   "lo": 0,
   "hi": 100,
-  "unit": "%"
+  "unit": "%",
+  "core": true
  },
  {
   "id": "feed-fd1",
@@ -2958,7 +3038,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "ay": [
    "a crime",
    "high art"
-  ]
+  ],
+  "core": true
  },
  {
   "id": "feed-fd2",
@@ -2991,7 +3072,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "ay": [
    "pointless",
    "essential"
-  ]
+  ],
+  "core": true
  },
  {
   "id": "feed-fd3",
@@ -3024,7 +3106,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "ay": [
    "scary",
    "exciting"
-  ]
+  ],
+  "core": true
  },
  {
   "id": "feed-pt1",
@@ -3046,6 +3129,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "dilemma",
   "axis": null,
   "test": null,
+  "core": true,
   "title": "The Wallet",
   "intro": "The last bus home. On the seat beside you: a wallet, fat with cash. No cameras. No one else aboard.",
   "hue": 20,
@@ -3183,6 +3267,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "dilemma",
   "axis": null,
   "test": null,
+  "core": true,
   "title": "The Wrong Text",
   "intro": "Your boss texts you at 23:40: \"Offer the role to the other one. Don’t tell K yet.\" You are K.",
   "hue": 255,

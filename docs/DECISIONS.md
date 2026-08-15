@@ -15912,4 +15912,396 @@ and the phrase is back in the off line rather than only in the on one.
 The Near tests query the control by **role**, not by label text — the whole
 point of the change is that the control no longer has words on it, so a text
 query would be asserting the thing that was removed.
+---
 
+## D161 · The feed goes unbounded, and the Mirror gets a corpus of its own
+
+**Decided:** 2026-08-15 · **Status:** binding · The classification half is
+BUILT; the enforcement half is deferred with a reason, below.
+[`docs/SCALE-PLAN.md`](SCALE-PLAN.md) is the working.
+
+**Decision.** The feed is no longer to be treated as finite. Question
+production scales up by an order of magnitude or more, and because an
+unbounded corpus cannot be the Mirror's corpus, the bank splits in two:
+
+- **Core** — served to everyone, unpersonalized. The Mirror's cohort
+  readings fold over this and nothing else.
+- **Tail** — unbounded, personalized (D163), ordered by interest.
+  Aggregates still publish for every tail question; the Mirror's stops
+  simply do not draw from them.
+
+**Why a split is forced rather than merely tidy.** Three problems were
+reached independently and all three land here.
+
+*Density.* Total answers per day is `DAU × answers-per-user-per-day`, and
+that is **conserved regardless of bank size**. Growing the bank divides a
+fixed budget across more questions; it never creates more answers. So the
+bank may be infinite while the dense subset stays bounded by population.
+The headline split of a question reaches a readable count quickly even at
+high production — cohort cells do not, a city × age band being a low
+single-digit percentage of the population.
+
+*Sample bias, which is the one nothing had written down.*
+`docs/ATTENTION.md` §3 said the interest model "may shape the FEED… it
+must not shape the Mirror" and treated the two as separable. They are
+not: **the feed is what produces the data the Mirror reads.** If
+interests select the feed, who answers a question is interest-selected,
+and a question about hiking answered mostly by outdoorsy people does not
+report what the population thinks. The fold would be arithmetically
+correct and the claim it supports wrong — `MONETIZATION.md`'s named asset
+degrading silently, which is the failure this repo minds most.
+
+*Reachability.* With a small bank everyone sees everything and nothing
+has to choose. With an unbounded one something must pick ~50 questions
+per person, and the tail is where that is allowed to happen.
+
+**Cost is not the constraint, and this was measured rather than argued.**
+`npm run costs:scale` (`scripts/cost-scale.mjs`, committed precisely so
+this figure cannot go stale — D39) overrides `B.changedPerReseed` and
+prices the pipeline change: **roughly 100× the promotion rate costs about
+$26/month at 5,000 DAU**, and **bank SIZE bills nothing at all** across
+513 → 100,000 documents. The second is D34 working — `runSeedV2` writes
+only changed documents and clients page `updatedAt > cursor` — so a
+larger bank is a one-time install cost the offline cache absorbs, never a
+steady-state line.
+
+**What trips first is pagination.** `live.ts` fetches the bank in one
+unpaginated query bounded by `BANK_LIMIT`, and `question-quality.mjs`
+fails ahead of it (`BANK_WARN` warns). The ceiling is not arbitrary and
+the reason is worth restating: a query that hits its limit returns a
+short page and **no error**, so an over-sized bank would serve a
+truncated corpus with nothing failing anywhere. D30's rule at that call
+site stands — pagination, never another raise — and pagination lands
+before any production increase.
+
+**What was built today, and why this half and not the other.**
+
+`core` is a declared field on feed questions. All 82 in
+`content/feed-questions.json` carry `core: true`; `gen-v2content.mjs`
+emits it onto feed entries only, emit-when-set beside `active`/`until`;
+and `check:quality` **refuses a feed question that does not declare
+one** — verified by deleting a flag and watching the gate fail, not by
+reading the code.
+
+*Absent means TAIL.* A question joins the Mirror's corpus only by saying
+so. A forgotten flag thins a reading; the opposite default would quietly
+enlarge the corpus, which is the failure the split exists to prevent.
+
+*Feed-only.* Every other surface is core **by construction** and carries
+no key — the daily is one globally shared question, test items are what
+Scores and the similarity fields are computed from, duels never become
+world aggregates. Feed is also where scaled production is pointed,
+because feed questions can retire (`active: false`, D52's shape) and
+daily questions cannot (the positional deck; D97 records that gap as
+open).
+
+*Today's classification is that everything which already exists is core.*
+At this bank size the Mirror needs the whole corpus, and the tail starts
+empty. That is a decision rather than a coin toss per question, and it is
+the point of doing it now: **classification happens at creation from
+here on, so the retro-classification never accrues.** Sorting 513
+questions cost one mechanical edit; sorting 5,000 would have cost a
+judgement call per question — the same bottleneck D162 exists to remove,
+arriving through the back door.
+
+**Amended 2026-08-15, same day: the first enforcement landed.** The
+City/Country/World stop (`LiveCohortBody`) now folds core only, with the
+predicate resolved by `buildS` onto the view model as `coreCorpus` —
+`LiveQuestion` carries no `surface`, and the raw flag is feed-only, so a
+consumer testing `q.core` would have emptied the panel rather than
+filtered it. `LiveCircleBody` is deliberately NOT filtered: Circle folds
+people you chose to follow, which is a fact about them rather than a
+claim about a population.
+
+**And the hazard that came with it, which is the part worth carrying:
+this ships only after a reseed.** Production was seeded before `core`
+existed, so its feed documents carry no flag, `isCore` reads them as
+tail, and all 82 would drop out of the place panels. The failure is loud
+rather than silent — which is exactly why the polarity was chosen this
+way — but the deploy order is a real constraint, not a nicety. Same class
+as D100's branch/sub, except that D100's remedy (tolerate the stale bank)
+is unavailable here: tolerating absent-means-core is the silent failure
+this record exists to prevent.
+
+**The rest of the enforcement is still deferred.** The other cohort
+surfaces do not read the flag yet. The tail is empty, so filtering today would either be
+a no-op or would drop questions from live readings for no benefit — a
+behaviour change to the app's highest-risk read path
+([`docs/MIRROR.md`](MIRROR.md)) bought with nothing. Unlike the
+classification, that work costs the same whenever it lands. It lands with
+the first tail content, with a test asserting a non-core question's
+aggregate never reaches a Mirror stop; without that test the constraint
+is prose and will rot.
+
+**One measured cost, surfaced by a gate rather than noticed.** 82 extra
+keys grew the bank's wire size by ~1 KiB and `check:figures` failed on
+`COSTS.md`'s figure. Corrected. Its suggested fix could not have matched
+its own regex when the rounded size lands on a whole number, so that was
+fixed too — a gate whose advice fails the gate is worse than one that
+merely says no.
+
+**Not decided here.** How large the core may grow. The honest bound is a
+ratio — core questions may grow only as fast as the population that has
+to fill their cohort cells — and it cannot be gated until there is a
+population to measure against. Recorded as the open item it is, because
+until it exists the Mirror can thin without anyone noticing.
+
+## D162 · Review at volume: the AI reads, and the human approves and audits
+
+**Decided:** 2026-08-15 · **Status:** binding, not built · Reshapes D33's
+constraint rather than retiring it.
+
+**Decision.** Per-item human review of farm candidates is replaced by: AI
+review of every candidate, a human **approving batches** rather than
+reading them, a **sampled human audit** of roughly one in twenty, and
+split-or-slide measured after the fact from published aggregates instead
+of predicted in review.
+
+**Why the sentence survives.** D33 says "review capacity is the binding
+constraint, and a queue of unreviewed AI PRs is inventory, not progress."
+That is about capacity, not about who supplies it. What changes is the
+human's unit of work; `scripts/farm-budget.mjs`'s regulator keeps its
+shape and the measured promotion throughput it throttles to simply
+becomes a larger number.
+
+**The residue dissolves, mostly, and `question-quality.mjs` had already
+done the argument.** Its header says it gates the mechanical half "so the
+human review spends itself on the judgments only a human can make
+(warmth, semantic dupes, 'does this split or slide')." Taken one at a
+time: warmth vs outrage is a task an LLM does well; `check:neighbors`
+owns the lexical half of dupes and the semantic half is squarely an LLM
+task; hard rule 6 paraphrases ("the fjord city") beat the current regex
+tripwire, which admits it catches only the obvious form. And the last
+one **does not need predicting at all** — the scorecard already measures
+evenness from published aggregates and already emits retirement
+proposals, which converts the least automatable judgement into an
+empirical question answered after the fact.
+
+**Two things do not dissolve, and neither is "humans read better".**
+
+*Correlated blind spots.* The generator is AI. A reviewer on the same
+model shares its failure modes, so a systematic tilt in tone or topic is
+the thing an AI reviewer is least likely to catch. The sampled audit is
+the check, and it is cheap: at 100 questions/week it is five to read.
+
+*Blast radius, not quality.* The two-gate design exists so a **scheduled
+job never holds write access to production content**. Keeping the human
+on the merge preserves that property at a fraction of the cost;
+approving a batch is one action, reading the batch is the bottleneck.
+
+**Sequencing, stated because it is awkward.** The measure-and-retire half
+needs traffic — the scorecard reads published aggregates and pre-launch
+there are none. So before there are users, review is all there is, and
+the volume that makes this worth building is the volume that cannot yet
+be validated.
+
+**Not decided here.** The audit rate. One in twenty is the starting
+figure, not a measured one, and it should move with whatever the audit
+actually finds.
+
+## D163 · The app learns what you are into, and the model never leaves the phone
+
+**Decided:** 2026-08-15 · **Status:** binding, not built · Adopts
+`docs/ATTENTION.md` tier 2 and **narrows** `docs/MONITORING.md`'s
+off-the-table row. Named as a partial reversal, because it is one.
+
+**Decision.** The app builds a per-topic interest model from behaviour,
+uses it to order the **tail** (D161), and keeps it **on the device**. The
+model is shown to the user and editable, with a reset.
+
+**What this reverses, said plainly.** `MONITORING.md`'s refused row read
+"per-user content selection, ad targeting profiles", and `ATTENTION.md`
+was explicit that the refusal "is about the *behaviour*… and not only
+about where the bytes live. Storing it locally narrows the reversal; it
+does not avoid it." So this is a considered position being crossed, not
+an oversight — the same shape D98 had, and D98 was right. The row is
+narrowed to **server-side** per-user content selection, which stays
+refused outright along with ad targeting profiles.
+
+**What survives, and it is the property the row was protecting:** the
+server never learns what any person was shown or what they are into.
+There is no behavioural profile for anyone to query, sell or subpoena.
+
+**Most of the signal already exists and was being discarded.** The device
+writes `insight.feedPass.v1` (a pass — "not this one", holds forever),
+`insight.feedDefer.v1` (D121 — "not now", expires), `insight.readRoom.v1`
+and `insight.feedVotes.v1`. So tier 2 needs **no new collection**; it
+needs to read what is already there. That also lets it skip the weakest
+signal in `ATTENTION.md`'s table entirely — there is no need to infer
+dislike from a scroll-past when the user tapped pass.
+
+**Reading local state is not collecting it**, and QUESTION-FARM's
+skip/pass rule is therefore unreversed: a pass stays local-only, the
+server never receives it, and the farm's view is still the public
+aggregates and nothing else. Worth stating because it looks like a
+reversal and is not.
+
+**No store form moves.** Nothing is uploaded, so
+`docs/data-inventory.md`'s "not collected" stays literally true: no
+advertising or analytics identifier, no consent flow, no tracking prompt.
+On-device is not the compromise version — it is the version with the
+better inputs, because the phone holds the person's answers across the
+whole bank and no third party could have that. `ATTENTION.md` tier 3 is a
+separate question and still carries its store-form cost.
+
+**Invariants.** The daily stays global — cohort comparison is meaningless
+if different people got different questions. The Mirror folds the core
+only (D161). The model never leaves the device.
+
+**Tier 1 is not an alternative to this, it is its editing surface.**
+`ATTENTION.md` recommended shipping tier 1 alone and measuring whether it
+sufficed; that advice was written against a bank of a few hundred
+questions and does not resolve at an unbounded one. What survives from it
+is the requirement: the model is shown and editable. A Mirror that
+secretly models you is a contradiction in terms.
+
+## D164 · The revenue paths, re-derived against an unbounded feed
+
+**Decided:** 2026-08-15 · **Status:** binding as constraints; nothing is
+being built · Reshapes `docs/MONETIZATION.md` paths 2 and 3, which that
+document says graduates to a record here.
+
+**Decision.** Four constraints, arrived at from an owner proposal for
+per-cohort "attention budgets" — priced shares of a cohort's attention,
+floating with demand.
+
+**1 · Sell scheduled slots, not observed impressions.** `ATTENTION.md`'s
+cost rule forbids writing an event per impression outright (it would
+multiply write volume by two orders of magnitude). The feed is served in
+a deterministic order, so **inventory is computable without any
+telemetry** — a slot's existence is a property of the content schedule,
+not of observed behaviour. That is the only reason a market is buildable
+here at all.
+
+**2 · Bill on answers.** Answers are what the server already counts and
+already publishes. The result is a market with no measurement asymmetry:
+buyer, seller and the people answering read the same public number, and
+no party audits another's figure. Nothing in adtech can offer that.
+
+**3 · Buyable cohorts are exactly the published breakdown dims** — the
+cohorts a user can already see themselves counted in. Self-limiting, and
+it excludes profession (never a dim, D8) and the politics result (Art. 9)
+without needing a special rule for either. Buying attention therefore
+never creates a category of knowledge that did not already exist.
+
+**4 · Sponsored content lives in the tail, never the core.** New, and it
+falls out of D161: paid questions inside the Mirror's corpus would make
+the honest aggregate a paid-for sample. A sponsor still gets the exact
+public split of their own question — aggregates publish for every
+question, tail included — they simply do not get it woven into everyone's
+Mirror.
+
+**The auction line, read precisely.** "Priority is a bounded cadence,
+never an auction" refuses **auction-driven delivery** — bidding deciding
+what people see. It does not refuse **auction-priced slots**: a fixed,
+capped, disclosed inventory whose price is set by sealed bids, with
+delivery identical however much anyone paid. The attention-budget idea
+lands on the priced side, and its best property is structural — naming a
+cohort's attention as finite makes the cap the *unit of sale*, so
+inventory cannot be quietly inflated without visibly devaluing what was
+already sold. That is the `check:globals` rule-4 ratchet shape, pointed
+at revenue.
+
+**Targeted ads stay refused, and one supporting argument is withdrawn.**
+The tracking-apparatus version stays out on three grounds independent of
+feed size: the politics result is special-category data (GDPR Art. 9) and
+DSA Art. 26(3) bans profiling-based ads on special categories outright,
+with EU trader status declared at D69; the store declarations move
+immediately (`advertising: false`, D16's SDK strip, `check:ios-facebook`)
+and `SHIP-CHECKLIST.md` calls under-declaration the direction that gets
+an app pulled; and the app would be telling two stories at once. **The
+argument withdrawn is "an ads business needs an infinite feed and this
+one is structurally finite"** — that was a claim about the bank, and
+D161 retires it. It was never one of the load-bearing three.
+
+What remains available is the version already recorded: disclosed cards,
+selected on-device from local anchors, no SDK, no server-side profile.
+D163 makes it strictly better, because the device now holds an interest
+model no ad network could reconstruct.
+
+**Sequencing, and the reason none of this is being built.** The contract
+path needs no code — a place-scoped question is an ordinary question and
+invoicing lives outside this repo. Sell by hand, at a price set by hand,
+and let the hand-negotiated prices be the price discovery. **The day a
+buyer is turned away because a window was full, there is demand
+evidence, and that is the trigger to build a clearing engine.** An
+auction over single-digit slots with no bidders is a negotiation with
+extra software.
+
+**Not decided here.** Whether to run an auction at all, the cadence cap,
+CPM versus flat, and every commerce mechanic. This record fixes the
+constraints any of those must satisfy; picking one up is its own
+decision.
+
+## D165 · The database moves to one EU region, and the old answers are let go
+
+**Decided:** 2026-08-15 · **Status:** binding · Decision taken; the
+migration is not executed. [`FIRESTORE-REGION.md`](FIRESTORE-REGION.md) is
+the procedure, `LAUNCH-RUNBOOK.md` 0.0 the operator step.
+
+**Decision.** Option A of that document: a **second Firestore database in
+the same project, regional, recommended `europe-west1`**, with the app and
+both triggers repointed at it and `(default)` deleted once it is proven.
+The existing answers are **not migrated**.
+
+**Why now rather than later.** A database's location is fixed at creation,
+so this stops being a setting and becomes a migration the moment real
+answers accumulate. D161–D164 exist to produce more answers sooner, which
+means this plan is what turns the setting into the migration. It was the
+default rather than a decision, which `FIRESTORE-REGION.md` correctly
+names as the only thing wrong with `nam5`.
+
+**What it is worth.** Roughly **half of every Firestore line, forever** —
+`npm run costs:levers`, row R, which prices it as the one remaining
+zero-product-change lever. No user-visible difference.
+
+**The residency half, which was not the original argument and is the
+better one.** `nam5` is the **US** multi-region. `europe-west1` is
+Belgium. The operator is a Norwegian sole trader, EU trader status is
+declared across 27 storefronts (D69), and the users this app is for are
+mostly European — so the move takes the data from the US to the EU and
+makes the GDPR story simpler rather than harder. Checked rather than
+assumed: **no user-facing copy names a location.** `web/privacy.html` says
+data is "stored on Google Cloud infrastructure" and nothing else, so the
+privacy policy and both store filings are unaffected in either direction.
+
+**The answers are let go, and the reason is stronger than the doc's
+general case.** `FIRESTORE-REGION.md` offers export/import as the honest
+path once real usage has accrued. None has: **the owner is the only person
+who has answered anything.** So there are not even testers to notify, and
+this is the last free reset. The question bank is regenerable from
+`functions/src/v2content.ts` in one seed run, so nothing else is at stake.
+
+**Ordering, which is the part that can go wrong.** The console work
+(create, deploy rules, seed, verify) comes first and is reversible and
+invisible. The three code edits — `firebaseImpl.ts`'s database id,
+`database:` on **both** v2 triggers, and `firebase.json`'s `firestore`
+array — land in a separate commit **after** the database exists.
+`FIRESTORE-REGION.md` ends by refusing to pre-write them, and that refusal
+is adopted here rather than overridden: a PR that must not be merged until
+an unrelated console action happens is a trap sitting in the repo.
+
+**Two silent failures are the reason this has a record at all**, since
+both deploy green and stay invisible:
+
+- **The deploy sub-target.** With a multi-database `firestore` array,
+  `--only firestore:rules` exits 0, prints "Deploy complete!" and deploys
+  nothing. Use `--only firestore`. This has already happened here once, to
+  a different rules file.
+- **The triggers' database option.** `onDocumentCreated` /
+  `onDocumentUpdated` bind to `(default)` unless told otherwise. Miss it
+  and the deploy succeeds, the functions are healthy, every answer still
+  writes, and **nothing aggregates** — no ledger event, no private
+  aggregate, no published mirror. No error, because nothing failed; the
+  alert policy watches for the trigger *erroring*, and a trigger that is
+  never invoked raises nothing. The first signal would be a human noticing
+  the Mirror has stopped moving. The code commit pins the deployed option
+  with a test, in the same commit, or it is not done.
+
+**Not decided here.** The final region. `europe-west1` is the
+recommendation and the reasoning above is what it rests on; the value that
+binds is whatever the operator picks in the console, and this record is
+amended with the real database id when it exists. Also not decided: when
+`(default)` is deleted — a step, deliberately, not an afterthought, since
+`deleteAccount` and the erasure suite address one database and an erasure
+run against the new one does not reach data left in the old.

@@ -15,11 +15,12 @@
 // deliberate one-line change that should cite the advisory phase's
 // track record in its PR.
 
-import { getFirestore, FieldValue } from "firebase-admin/firestore";
+import { FieldValue } from "firebase-admin/firestore";
 import { onCall, HttpsError, type CallableRequest } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { logger } from "firebase-functions";
 import { LIGHT_CALLABLE, LIGHT_UNBOUNDED } from "./ops";
+import { db as firestore } from "./db";
 import {
   buildModQueueFrom,
   carriedEscalations,
@@ -76,7 +77,7 @@ function assertModerator(request: CallableRequest): void {
 // long deadline. What it HOLDS is bounded by the number of distinct takes,
 // which is what made paging worth doing rather than raising the memory.
 async function runBuildModQueue(): Promise<void> {
-    const db = getFirestore();
+    const db = firestore();
     // PAGED, not `.get()` on the collection.
     //
     // v2_flags has no upper bound. MOD_ADVISORY makes the keep-verdict sweep
@@ -214,7 +215,7 @@ export const buildModQueueNow = onCall({ ...LIGHT_UNBOUNDED, region: REGION }, a
 
 export const fetchModQueue = onCall({ ...LIGHT_CALLABLE, region: REGION }, async (request) => {
   assertModerator(request);
-  const db = getFirestore();
+  const db = firestore();
   const queue = await db.collection("v2_mod_queue").orderBy("flags", "desc").get();
   return {
     advisory: MOD_ADVISORY,
@@ -246,7 +247,7 @@ export const submitModVerdict = onCall({ ...LIGHT_CALLABLE, region: REGION }, as
     policyLine?: string;
   };
 
-  const db = getFirestore();
+  const db = firestore();
   // The per-run cap bounds a broken or hijacked run's blast radius. A
   // count query outside the transaction is fine: the cap is a circuit
   // breaker, not an invariant, and being off by one under a race changes

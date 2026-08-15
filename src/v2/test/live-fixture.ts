@@ -102,6 +102,11 @@ function liveQuestion(
     type,
     text: prompt,
     dayLabel: "Today",
+    // What buildS resolves for every real question that a cohort reading
+    // is allowed to fold (D161). A fixture without it is a TAIL question,
+    // and the Mirror's place panels would render their empty state — which
+    // is the one shape a mount test must not silently accept.
+    coreCorpus: true,
     options: ["Yes", "No", "Both"].map((label, i) => ({
       id: String(i),
       label,

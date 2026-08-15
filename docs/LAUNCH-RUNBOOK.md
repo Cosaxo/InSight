@@ -137,6 +137,16 @@ arithmetic.
       anything; staying on `nam5` is a legitimate answer and the point of
       the page is that it be an answer rather than a default.
 
+      **DECIDED 2026-08-15 (D165): option A — a new regional database in
+      the same project, recommended region `europe-west1`.** The existing
+      answers are NOT migrated: the owner is the only person who has
+      answered anything so far, so there is nothing to preserve and this
+      is the last free reset. FIRESTORE-REGION.md's procedure is the
+      steps; D165 is the reasoning. The console half (create, deploy
+      rules, seed, verify) is the operator's; the three code edits are a
+      separate commit that lands **after** the database exists, because a
+      PR that cannot be merged until a console action happens is a trap.
+
 - [ ] **0.1 Seed the production question bank — run 2026-08-07 and already
       stale.** Actions → **Seed content** → Run workflow.
       513 questions land in `v2_questions` — idempotent and, since D34,

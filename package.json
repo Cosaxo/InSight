@@ -51,6 +51,7 @@
     "costs": "node scripts/cost-model.mjs",
     "costs:compare": "node scripts/cost-compare.mjs",
     "costs:levers": "node scripts/cost-levers.mjs",
+    "costs:scale": "node scripts/cost-scale.mjs",
     "pulse": "node scripts/pulse.mjs",
     "build:emoji": "node scripts/build-emoji.mjs",
     "build:countries": "node scripts/build-countries.mjs",

@@ -268,7 +268,12 @@ const FIGURES = [
     what: "the question bank's wire size",
     re: /(\d+\.\d) KiB of JSON/,
     actual: bankKiB,
-    fix: (n) => `"${n} KiB of JSON"`,
+    // toFixed(1), not the bare number: the pattern above REQUIRES a decimal
+    // place, so when the rounded size lands on a whole number (125.0 prints
+    // as "125") the advice would otherwise name a sentence this script then
+    // cannot find. A gate whose suggested fix fails the gate is worse than
+    // a gate that just says no.
+    fix: (n) => `"${n.toFixed(1)} KiB of JSON"`,
   },
   // The four below were quoting 399 while the bank ran 463, and every one
   // of them sat NEXT TO a figure this script already held — the cold-boot
