@@ -21,6 +21,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { LEARN as L } from "../spec/learn-progress.js";
 import LIVE from "../data/live";
 import { growFeed } from "./mount-app";
+import { installLive } from "./live-fixture";
 
 vi.setConfig({ testTimeout: 15000 });
 
@@ -126,5 +127,112 @@ describe("the crowd-split prefetch asks for the cards it is serving (D125)", () 
       expect(id, "a question id reached the aggregate prefetch").not.toMatch(/^lrn-/);
       expect(L.card(id), `${id} is not a learn card id`).toBeTruthy();
     }
+  });
+});
+
+// ── the reveal, against the answer you just gave (D155) ─────────────
+//
+// Reported against the release: a green tick on "Breaks down waste" with
+// "0 people · 0%" beside it, one line above "From 1 answer — everyone's
+// first try at this card". Two separate faults wearing the same symptom,
+// and both are about WHOSE answers the count holds.
+//
+// These mount the real feed in live mode and walk the tap, because the
+// arithmetic is only half of it: the counts fold is pinned in
+// learn-split.test.ts, and what it could not catch is the sentence
+// underneath, which is what a reader actually uses to interpret a zero.
+describe("the learn reveal counts the reader in (D155)", () => {
+  let live;
+
+  afterEach(() => {
+    live?.restore();
+    live = undefined;
+  });
+
+  /** Point LIVE's two learn reads at one card, leaving the rest null. */
+  function stubCrowd(cardId, agg, mine) {
+    for (const [name, fn] of [["learnAgg", (id) => (id === cardId ? agg : null)],
+      ["learnMine", (id) => (id === cardId ? mine : null)]]) {
+      Object.defineProperty(window.LIVE, name, { value: fn, writable: true, configurable: true });
+    }
+  }
+
+  // The scheduler is module state and the cases above have walked it, so
+  // each case here starts it over: `plan(1)[0]` is then both the card the
+  // feed serves first and one nothing has answered, which is what makes
+  // "this is your first try" true rather than hopeful.
+  const firstCard = () => { L.reset(); return L.plan(1)[0]; };
+  // Held across the tap rather than re-queried after it: answering folds
+  // the count and the tick into the button's own text, so its accessible
+  // name stops being the option label. React reuses the node, so this
+  // reference is the revealed row.
+  const rowFor = (card) => screen.getByRole("button", { name: card.a[card.c] });
+
+  it("adds your own first try when the trigger has not folded it yet", async () => {
+    live = installLive();
+    const card = firstCard();
+    // One stranger, on the wrong option, and the aggregate has not seen
+    // ours: the state `learnAnswer`'s re-read leaves behind almost every
+    // time. Before the fix the correct answer read "0 people · 0%".
+    stubCrowd(card.id, { total: 1, counts: { [String(wrong(card))]: 1 } }, { idx: card.c, folded: false });
+
+    mountFeed();
+    await growFeed();
+    const row = rowFor(card);
+    fireEvent.click(row);
+
+    // The count, not the share: the share animates up from zero and jsdom
+    // never runs the frames, so asserting on it would pin the animation.
+    expect(row.textContent, "the reader's own answer is still missing")
+      .not.toMatch(/0 people/);
+    expect(row.textContent).toMatch(/1 person/);
+    expect(screen.getByText(/From 2 answers/)).toBeTruthy();
+  });
+
+  it("says why a repeat is not in the count it shows", async () => {
+    live = installLive();
+    // Miss a card, let its gap pass, and answer it right on the re-serve —
+    // the exact sitting the screenshot came from. Only FIRST tries fold,
+    // so the correct option genuinely stands at zero here, and the line
+    // under it is the only thing that can explain that.
+    const card = firstCard();
+    L.answer(card.id, wrong(card));
+    for (let i = 0; i < 4; i++) {
+      const next = L.plan(1, null, [card.id])[0];
+      L.answer(next.id, next.c);
+    }
+    expect(L.due(card.id), "the setup did not make the card due").toBe(true);
+    // Their own earlier miss, folded — and no pending answer, because a
+    // repeat never reaches learnAnswer.
+    stubCrowd(card.id, { total: 1, counts: { [String(wrong(card))]: 1 } }, null);
+
+    mountFeed();
+    await growFeed();
+    const row = rowFor(card);
+    fireEvent.click(row);
+
+    // The zero is honest here — nobody, the reader's earlier self
+    // included, has ever picked this option on a first try — so the fix
+    // is the sentence that explains it, not the number.
+    expect(row.textContent).toMatch(/0 people/);
+    expect(screen.getByText(/only a first answer counts/)).toBeTruthy();
+    expect(screen.queryByText(/everyone’s first try at this card/), "the misleading line survived")
+      .toBeNull();
+  });
+
+  it("names a crowd of one as your own", async () => {
+    live = installLive();
+    const card = firstCard();
+    // Nobody else, and your own answer pending: "From 1 answer —
+    // everyone's first try at this card" is true and reads as broken data.
+    stubCrowd(card.id, { total: 1, counts: { [String(wrong(card))]: 0 } }, { idx: card.c, folded: false });
+
+    mountFeed();
+    await growFeed();
+    const row = rowFor(card);
+    fireEvent.click(row);
+
+    expect(screen.getByText(/Yours is the only answer so far/)).toBeTruthy();
+    expect(row.textContent).toMatch(/1 person/);
   });
 });

@@ -32,7 +32,7 @@ import LIVE from '../data/live';
 import PulseCard from '../ui/PulseCard.tsx';
 const LiveTakesPanel = React.lazy(() => import('../ui/LiveTakesPanel.tsx'));
 import ReactDOM from 'react-dom';
-import { IS_TESTS, IS_TEST_AVG, IS_TEST_RESULTS, persistTestResult } from './test-definitions.js';
+import { IS_TESTS, IS_TEST_RESULTS, persistTestResult } from './test-definitions.js';
 import { PASSIVE } from './passive-progress.js';
 
 // daily-split.jsx — SPLIT: the daily tab. Three modes — World (vote blind,

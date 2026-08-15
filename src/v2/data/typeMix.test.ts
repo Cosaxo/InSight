@@ -14,9 +14,10 @@
 // was designed to draw.
 //
 // jsdom because archetype-data.js publishes its matcher onto `window`.
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
+import LIVE from "./live";
 import { CORE_TEST_KINDS, parseTestResults, type KindredPerson } from "./similarity";
-import { TYPE_TEST, typeLine, typeNames, typeOfParsed, typeOfPerson } from "./typeMix";
+import { TYPE_TEST, typeLine, typeNames, typeOfParsed, typeOfPerson, typeSharesOn } from "./typeMix";
 
 /** A profile's `testResults` as the owner's client writes it. */
 const rawBig5 = (dims: Record<string, number>) => ({
@@ -114,5 +115,77 @@ describe("the type system itself", () => {
     // surface (docs/data-inventory.md). A change here is a decision, not a
     // refactor.
     expect(TYPE_TEST).toBe("big5");
+  });
+});
+
+// ── how common a type is, measured (D155) ───────────────────────────
+//
+// The profile's type-index sheet drew `IS_ARCHETYPES[].share` under the
+// heading "bar = how common": authored percentages, on the sheet you open
+// from a card that has just told you which one is yours. These cases pin
+// the replacement's two halves — it measures, and it refuses.
+describe("typeSharesOn", () => {
+  const store = LIVE as typeof LIVE & { enabled: boolean; kindredPeople: () => unknown[] };
+  const real = { enabled: store.enabled, kindredPeople: store.kindredPeople };
+  afterEach(() => { Object.assign(store, real); });
+
+  const crowd = (dims: Record<string, number>, n: number, tag: string) =>
+    Array.from({ length: n }, (_, i) => ({ ...person(dims), uid: `${tag}${i}` }));
+
+  it("is null in a demo build — the authored share is the content there", () => {
+    store.enabled = false;
+    store.kindredPeople = () => crowd({ O: 72, C: 55, E: 15, A: 58, N: 50 }, 20, "q");
+    expect(typeSharesOn(TYPE_TEST)).toBeNull();
+  });
+
+  it("refuses every instrument but the Big Five", () => {
+    // The Art. 9 scope, enforced rather than promised. A politics type
+    // frequency is a population reading of special-category data, and the
+    // sheet renders for all four instruments.
+    store.enabled = true;
+    store.kindredPeople = () => [];
+    expect(typeSharesOn("political")).toBeNull();
+    expect(typeSharesOn("values")).toBeNull();
+    expect(typeSharesOn("attachment")).toBeNull();
+    expect(typeSharesOn(TYPE_TEST)).not.toBeNull();
+  });
+
+  it("counts the sample and divides by the people it could type", () => {
+    const quiet = { O: 72, C: 55, E: 15, A: 58, N: 50 };
+    const loud = { O: 60, C: 32, E: 90, A: 58, N: 45 };
+    store.enabled = true;
+    store.kindredPeople = () => [
+      ...crowd(quiet, 6, "q"),
+      ...crowd(loud, 2, "l"),
+      // Two people in the sample with no result at all: they count toward
+      // the sample, never toward the shares.
+      { ...person(quiet), uid: "n1", results: null },
+      { ...person(quiet), uid: "n2", results: null },
+    ];
+    const shares = typeSharesOn(TYPE_TEST)!;
+    expect(shares.sampleN).toBe(10);
+    expect(shares.typedN).toBe(8);
+    const quietType = typeOfParsed(parsed(quiet)) as string;
+    const row = shares.rows.find((r) => r.name === quietType)!;
+    expect(row.n).toBe(6);
+    expect(row.pct).toBe(75);
+  });
+
+  it("names every type, zeroes included", () => {
+    // A type nobody carries is a measured zero. Dropping the empty rows
+    // would let a sample of eight look like a map of the population.
+    store.enabled = true;
+    store.kindredPeople = () => crowd({ O: 72, C: 55, E: 15, A: 58, N: 50 }, 3, "q");
+    const shares = typeSharesOn(TYPE_TEST)!;
+    expect(shares.rows.map((r) => r.name).sort()).toEqual(typeNames().sort());
+    expect(shares.rows.filter((r) => r.n === 0).length).toBeGreaterThan(0);
+  });
+
+  it("reports an empty sample as zero rather than as an average", () => {
+    store.enabled = true;
+    store.kindredPeople = () => [];
+    const shares = typeSharesOn(TYPE_TEST)!;
+    expect(shares.typedN).toBe(0);
+    expect(shares.rows.every((r) => r.n === 0 && r.pct === 0)).toBe(true);
   });
 });

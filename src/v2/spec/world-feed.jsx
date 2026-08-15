@@ -1292,13 +1292,23 @@ class WorldFeed extends React.Component {
 
                 The count is the aggregate's own total, with no floor under
                 it. It used to read `total || 5`, which printed "5+ players"
-                for a card two people had answered. */}
+                for a card two people had answered.
+
+                D155 gave it the two sentences it was missing, both about
+                WHOSE answers those are. "From 1 answer — everyone's first
+                try at this card" is a true sentence that reads as broken
+                data when the one answer is your own, and the
+                first-tries-only rule is invisible on a re-serve — which is
+                how a reader ends up looking at a tick beside "0 people ·
+                0%" on the option they just picked. */}
             {window.LIVE && window.LIVE.enabled ? (
               <div style={{ fontFamily: 'var(--sans)', fontSize: 11, color: 'var(--ink-3)', lineHeight: 1.45 }}>
                 {src === 'measured'
                   ? (() => {
                     const n = tally ? tally.total : 0;
-                    return 'From ' + n.toLocaleString() + (n === 1 ? ' answer' : ' answers') + ' — everyone’s first try at this card.';
+                    if (r.repeat) return 'From ' + n.toLocaleString() + ' first ' + (n === 1 ? 'try' : 'tries') + ' — only a first answer counts, so this one is not among them.';
+                    if (n === 1) return 'Yours is the only answer so far.';
+                    return 'From ' + n.toLocaleString() + ' answers — everyone’s first try at this card.';
                   })()
                   : 'Nobody else has answered this one yet — you’re the first.'}
               </div>

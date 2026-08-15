@@ -9,8 +9,16 @@ import { ExplainBtn, ExplainSheet, EX_GLYPH } from './explain-sheet.jsx';
 import { RP_TESTS, RoseMini, TestRose } from './result-rose.jsx';
 import { IS_DATA } from './sample-data.js';
 import { Av } from './primitives.jsx';
-import { IS_TESTS, IS_TEST_AVG, IS_TEST_RESULTS } from './test-definitions.js';
+import { IS_TESTS, IS_TEST_RESULTS } from './test-definitions.js';
 import { PASSIVE } from './passive-progress.js';
+// What the POPULATION looks like, measured (D155). This card used to read
+// IS_TEST_AVG directly — five authored constants per instrument, drawn as
+// the "most people" ring on every axis and stated as a percentile of
+// "members". The seam returns the measured fold in a live build, the
+// authored baseline in the demo, and an EMPTY map rather than a fallback
+// when the live population is still too thin to average. Every consumer
+// below therefore has to survive an absent baseline, which is the point.
+import { axisRank, rarityAmong, testNorm } from '../data/testNorms.ts';
 // The passive fold (D121). Live mode has no sit-down flow, so a test with
 // no stored result is scored from the viewer's own feed answers — once
 // every axis has enough behind it to be worth a type.
@@ -148,16 +156,48 @@ function TensionSpine({ dims, poles, hues, avg, lead }) {
 
 // ── where you stand — every dim with your score, and the stretch between the
 // average person and you drawn as a length. Biggest differences sort to the top.
-// σ≈15 dim points across people, so the top row can be read as a percentile.
+//
+// The percentile under the top row has two sources and they are not
+// interchangeable (D155). LIVE: `axisRank` COUNTS the sampled people below
+// you and the line names how many it counted. DEMO: the logistic below,
+// which assumes σ≈15 dim points across people and applies it to your
+// distance from an authored constant. That was the only source, on both
+// builds, and it printed "members" — a claim about this app's population
+// from two stacked assumptions. It stays for the demo build alone, where
+// the population it describes is itself invented.
 function rpv2Pctl(diff) {
   const p = 1 / (1 + Math.exp(-1.702 * (diff / 15)));
   const n = Math.max(1, Math.min(9, Math.round((diff > 0 ? p : 1 - p) * 10)));
-  return `${diff > 0 ? 'higher' : 'lower'} than ${n} in 10 members`;
+  return `${diff > 0 ? 'higher' : 'lower'} than ${n} in 10`;
 }
+// The one line under the top row. Measured where it can be, absent where
+// it cannot, and it never says "members" any more: a percentile counted
+// over a bounded sample has to name the sample, or it is claiming the
+// whole population from forty people.
+function PctlLine({ testKey, d, diff, src }) {
+  const line = { fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 600, color: 'var(--ink-3)', marginTop: -3, marginBottom: 7 };
+  if (src === 'authored') {
+    return Math.abs(diff) >= 6
+      ? <div style={line}>{rpv2Pctl(diff)} members</div>
+      : null;
+  }
+  const rank = axisRank(testKey, d.id, d.value);
+  if (!rank) return null;
+  return (
+    <div style={line} title={`counted over the ${rank.people} people this session has scores for`}>
+      {rank.above ? 'higher' : 'lower'} than {rank.outOfTen} in 10 of the {rank.people} people counted here
+    </div>
+  );
+}
+
 function DifferRows({ testKey, R, cfg }) {
-  const avg = IS_TEST_AVG[testKey];
+  const norm = testNorm(testKey);
+  const avg = norm.avg;
   const ph = (window.IS_STANDOUT || {})[testKey] || {};
-  if (!avg) return null;
+  // No early return on a missing baseline any more: your own scores are
+  // yours and render whatever the crowd looks like. What an absent
+  // baseline removes is the COMPARISON — the hollow ring, the stretch bar
+  // and the percentile — and the card says so once, below.
   const rows = R.dims.map((d, i) => ({ d, i, diff: avg[d.id] != null ? d.value - avg[d.id] : 0 }))
     .sort((m, n) => Math.abs(n.diff) - Math.abs(m.diff));
   const pos = (v) => 4 + (Math.max(0, Math.min(100, v)) / 100) * 92;
@@ -166,8 +206,12 @@ function DifferRows({ testKey, R, cfg }) {
       {rows.map(({ d, i, diff }, k) => {
         const hue = cfg.hues[d.id] != null ? cfg.hues[d.id] : (30 + i * 47) % 360;
         const col = rpv2Dot(hue), deep = rpv2Deep(hue);
-        const a = pos(avg[d.id]), y = pos(d.value);
-        const lo = Math.min(a, y), hi = Math.max(a, y);
+        // null, not a number, when this axis has no measured baseline —
+        // `pos(undefined)` is NaN, which CSS drops silently and would have
+        // left the ring stacked at the left edge of every row.
+        const a = avg[d.id] != null ? pos(avg[d.id]) : null;
+        const y = pos(d.value);
+        const lo = a == null ? 0 : Math.min(a, y), hi = a == null ? 0 : Math.max(a, y);
         const stand = Math.abs(diff) >= 6 && ph[d.id];
         const title = stand ? ph[d.id][diff > 0 ? 1 : 0] : d.label;
         const pp = cfg.poles && cfg.poles[d.id];
@@ -179,17 +223,17 @@ function DifferRows({ testKey, R, cfg }) {
           <div key={d.id}>
             <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10, marginBottom: 5 }}>
               <span style={{ fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 600, color: 'var(--ink)', lineHeight: 1.3 }}>{title.charAt(0).toUpperCase() + title.slice(1)}</span>
-              <span style={{ fontFamily: 'var(--sans)', fontSize: 15, fontWeight: 800, color: deep, fontVariantNumeric: 'tabular-nums', flexShrink: 0 }} title={diff === 0 ? 'right at the average' : `${Math.abs(Math.round(diff))} points ${diff > 0 ? 'above' : 'below'} most people`}>{Math.round(d.value)}</span>
+              <span style={{ fontFamily: 'var(--sans)', fontSize: 15, fontWeight: 800, color: deep, fontVariantNumeric: 'tabular-nums', flexShrink: 0 }} title={a == null ? 'no crowd average for this axis yet' : diff === 0 ? 'right at the average' : `${Math.abs(Math.round(diff))} points ${diff > 0 ? 'above' : 'below'} most people`}>{Math.round(d.value)}</span>
             </div>
-            {k === 0 && Math.abs(diff) >= 6 ? <div style={{ fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 600, color: 'var(--ink-3)', marginTop: -3, marginBottom: 7 }}>{rpv2Pctl(diff)}</div> : null}
+            {k === 0 ? <PctlLine testKey={testKey} d={d} diff={diff} src={norm.src} /> : null}
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               {pp ? <span style={{ ...poleStyle(!right), textAlign: 'right' }}>{pp[0]}</span> : null}
               <div style={{ position: 'relative', flex: 1, height: 18 }}>
                 <span style={{ position: 'absolute', top: 5, bottom: 5, left: 0, right: 0, borderRadius: 999, background: `color-mix(in oklch, ${col} 10%, var(--surface-3))` }}></span>
                 <span style={{ position: 'absolute', top: 5, bottom: 5, borderRadius: 999, left: `${fl}%`, width: `${fw}%`, background: `color-mix(in oklch, ${col}, transparent 42%)` }}></span>
-                {hi - lo > 1.5 ? <span style={{ position: 'absolute', top: 7, bottom: 7, borderRadius: 999, left: `${lo}%`, width: `${hi - lo}%`, background: deep }}></span> : null}
+                {a != null && hi - lo > 1.5 ? <span style={{ position: 'absolute', top: 7, bottom: 7, borderRadius: 999, left: `${lo}%`, width: `${hi - lo}%`, background: deep }}></span> : null}
                 {cfg.bipolar ? <span style={{ position: 'absolute', top: 3, bottom: 3, left: '50%', width: 1.5, marginLeft: -0.75, borderRadius: 1, background: 'var(--surface)', boxShadow: '0 0 0 0.5px var(--rule)' }}></span> : null}
-                <span style={{ position: 'absolute', top: '50%', left: `${a}%`, transform: 'translate(-50%,-50%)', width: 9, height: 9, borderRadius: '50%', background: 'var(--surface)', border: '1.5px solid var(--ink-3)', boxShadow: '0 0 0 1.5px var(--surface)' }}></span>
+                {a != null ? <span style={{ position: 'absolute', top: '50%', left: `${a}%`, transform: 'translate(-50%,-50%)', width: 9, height: 9, borderRadius: '50%', background: 'var(--surface)', border: '1.5px solid var(--ink-3)', boxShadow: '0 0 0 1.5px var(--surface)' }}></span> : null}
                 <span style={{ position: 'absolute', top: '50%', left: `${y}%`, transform: 'translate(-50%,-50%)', width: 15, height: 15, borderRadius: '50%', background: col, border: '2.5px solid var(--surface)', boxShadow: `0 1px 5px -1px color-mix(in oklch, ${col}, transparent 40%)` }}></span>
               </div>
               {pp ? <span style={{ ...poleStyle(right), textAlign: 'left' }}>{pp[1]}</span> : null}
@@ -213,7 +257,29 @@ export function ResultProfileCard({ testKey, archetype, tagline }) {
   const arch = window.IS_matchArchetype ? window.IS_matchArchetype(testKey, R.dims) : null;
   const you = arch ? arch.idx : -1;
   const fits = arch ? arch.fits : null;
-  const rar = window.IS_profileRarity ? window.IS_profileRarity(testKey, R.dims) : null;
+  // The dot field's number, measured where it can be (D155).
+  //
+  // `IS_profileRarity` is exp(−0.916·z^2.33) over your RMS distance from
+  // the AUTHORED baseline, divided by an assumed 15-point scatter — a
+  // curve its own comment calls "fitted", to nothing this app measured.
+  // `rarityAmong` counts how many of the sampled people sit at least as
+  // far out as you, and returns null rather than a number when there are
+  // too few of them to count over: the field then does not draw, which is
+  // the whole difference between this and what shipped.
+  const rar = (() => {
+    const measured = rarityAmong(testKey, R.dims);
+    if (measured) {
+      const common = measured.pct >= 20;
+      return {
+        pct: measured.pct,
+        label: common ? measured.pct + ' IN 100' : '1 IN ' + Math.round(100 / measured.pct),
+        note: `${measured.pct} in 100 of the ${measured.people} people this session has scores for sit as far from average as you`,
+      };
+    }
+    if (LIVE.enabled) return null;
+    const guess = window.IS_profileRarity ? window.IS_profileRarity(testKey, R.dims) : null;
+    return guess ? { ...guess, note: `${guess.label.toLowerCase()} sit as far from average as you` } : null;
+  })();
   const ruleParts = arch && window.IS_typeRuleParts ? window.IS_typeRuleParts(testKey, R.dims, arch.list[you]) : [];
   const near = arch ? arch.list.map((a, i) => ({ a, i, d: fits[i], rms: arch.rmsOf[i] })).filter(x => x.i !== you).sort((m, n) => m.d - n.d).slice(0, 2)
     .map((x, k) => ({ ...x, why: window.IS_nearWhy ? window.IS_nearWhy(testKey, R.dims, x.a) : null, border: k === 0 && (x.rms - arch.rms) < 5 })) : [];
@@ -255,7 +321,11 @@ export function ResultProfileCard({ testKey, archetype, tagline }) {
   const nLeft = R.passive
     ? Math.max(0, R.total - R.answered)
     : Math.max(0, PASSIVE.needed(testKey) - PASSIVE.done(testKey));
-  const avg = IS_TEST_AVG[testKey];
+  // Whether the crowd half of this card has anything behind it. Not a
+  // gate on the SECTION any more (your own scores are yours) — a gate on
+  // the legend and the comparison marks inside it.
+  const norm = testNorm(testKey);
+  const hasAvg = Object.keys(norm.avg).length > 0;
   const hero = TestRose ? <TestRose testKey={testKey} dims={R.dims} animate={true} /> : null;
   const otherAxes = null;
   return (
@@ -296,7 +366,7 @@ export function ResultProfileCard({ testKey, archetype, tagline }) {
           <div style={{ fontFamily: 'var(--sans)', fontSize: 25, fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1.1, textTransform: 'capitalize', color: `color-mix(in oklch, ${cfg.banner} 78%, var(--ink))`, marginTop: ruleParts.length ? 3 : 9 }}>{arch ? arch.list[you].name : archetype}</div>
           {streak ? <div style={{ fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 600, color: `color-mix(in oklch, ${cfg.banner} 72%, var(--ink))`, marginTop: 4, lineHeight: 1.35 }}>with a {streak} streak</div> : null}
           {(typeLine || tagline) ? <div style={{ fontFamily: 'var(--sans)', fontSize: 13, color: 'var(--ink-2)', marginTop: 6, lineHeight: 1.4, textWrap: 'pretty' }}>{typeLine || tagline}</div> : null}
-          {rar ? <div style={{ marginTop: 14 }}><RarityField pct={rar.pct} label={rar.label.toLowerCase()} color={cfg.banner} title={`${rar.label.toLowerCase()} sit as far from average as you — also this type: ${sameType.map(p => p.name.split(' ')[0]).join(', ') || 'none of yours'}`} /></div> : null}
+          {rar ? <div style={{ marginTop: 14 }}><RarityField pct={rar.pct} label={rar.label.toLowerCase()} color={cfg.banner} title={rar.note + (sameType.length ? ` — also this type: ${sameType.map(p => p.name.split(' ')[0]).join(', ')}` : '')} /></div> : null}
         </div>
       </div>
       <div style={{ padding: '10px 16px 16px' }}>
@@ -316,30 +386,42 @@ export function ResultProfileCard({ testKey, archetype, tagline }) {
         {typesOpen && window.TypeIndexSheet ? <window.TypeIndexSheet testKey={testKey} onClose={() => setTypesOpen(false)} /> : null}
         {otherAxes ? (
           <div style={{ marginTop: 6, paddingTop: 14, borderTop: '0.5px solid var(--rule)' }}>
-            <TensionSpine dims={otherAxes} poles={cfg.poles} hues={cfg.hues} avg={avg} />
+            <TensionSpine dims={otherAxes} poles={cfg.poles} hues={cfg.hues} avg={norm.avg} />
           </div>
         ) : null}
-        {avg ? (
-          <div style={{ marginTop: testKey === 'values' ? 6 : 4, paddingTop: 14, borderTop: '0.5px solid var(--rule)' }}>
-            <div className="kicker" style={{ marginBottom: 12 }}>Where you stand</div>
-            <DifferRows testKey={testKey} R={R} cfg={cfg} />
-            <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 15, paddingTop: 12, borderTop: '0.5px solid var(--rule)' }}>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 600, color: 'var(--ink-3)' }}>
-                <span style={{ width: 11, height: 11, borderRadius: '50%', background: cfg.banner, border: '2px solid var(--surface-2)', boxShadow: '0 0 0 0.5px var(--rule)' }}></span>you
-              </span>
+        <div style={{ marginTop: testKey === 'values' ? 6 : 4, paddingTop: 14, borderTop: '0.5px solid var(--rule)' }}>
+          <div className="kicker" style={{ marginBottom: 12 }}>Where you stand</div>
+          <DifferRows testKey={testKey} R={R} cfg={cfg} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 15, paddingTop: 12, borderTop: '0.5px solid var(--rule)' }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 600, color: 'var(--ink-3)' }}>
+              <span style={{ width: 11, height: 11, borderRadius: '50%', background: cfg.banner, border: '2px solid var(--surface-2)', boxShadow: '0 0 0 0.5px var(--rule)' }}></span>you
+            </span>
+            {/* The legend names a mark. With no measured baseline there is
+                no mark on any row, so naming it would be furniture
+                describing something that is not drawn — the line says what
+                is missing instead. */}
+            {hasAvg ? (
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 600, color: 'var(--ink-3)' }}>
                 <span style={{ width: 9, height: 9, borderRadius: '50%', background: 'var(--surface-2)', border: '1.4px solid var(--ink-3)' }}></span>most people
               </span>
-            </div>
+            ) : (
+              <span style={{ fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 600, color: 'var(--ink-3)', textWrap: 'pretty' }}>
+                no crowd average yet — it appears once enough people have answered these
+              </span>
+            )}
           </div>
-        ) : null}
+        </div>
       </div>
       {explain ? (
         <ExplainSheet title={R.title} kicker="test" dimKey={testKey}
           dims={R.dims.map((d) => ({ ...d, poles: cfg.poles ? cfg.poles[d.id] : null }))}
           keyRows={[
             [EX_GLYPH.you(cfg.banner), 'The solid dot is you.'],
-            [EX_GLYPH.most(), 'The hollow ring is where most people sit.'],
+            // Only while the ring exists (D155). A key that explains a mark
+            // the card is not drawing is the same fault as the mark itself,
+            // one sheet deeper: it tells the reader a comparison is on
+            // screen when none is.
+            ...(hasAvg ? [[EX_GLYPH.most(), 'The hollow ring is where most people sit.']] : []),
             [EX_GLYPH.petal(cfg.banner), cfg.bipolar ? 'Petal length is how far from the middle you sit — a long petal is a strong stance either way.' : 'Petal length is how strongly the trait shows.'],
           ]}
           onClose={() => setExplain(false)} />

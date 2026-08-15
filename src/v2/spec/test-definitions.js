@@ -90,8 +90,27 @@ export const TEST_HUE = {
   attachment: 'oklch(0.52 0.13 320)',
 };
 
-// Typical-person baselines per dimension — used to show "you vs. most people".
-// Grounded, not precise: enough to give every score a reference point.
+// Typical-person baselines per dimension. Grounded, not precise: enough to
+// give every score a reference point.
+//
+// NO LONGER DRAWN AS A MEASUREMENT (D155). These five constants per
+// instrument used to BE the hollow "most people" ring on every axis of
+// every result card, and the percentile line above it read "higher than 9
+// in 10 members" — this app's population, named, from a number typed here.
+// `data/testNorms.ts` is the seam now: it folds the published counts of
+// the bank's own test items into the population's real average, and hands
+// these back only in the DEMO build, where the population is invented in
+// the first place. A live build with too thin a crowd gets an EMPTY map
+// and the card draws no ring.
+//
+// Two live readers remain and both are MODELS rather than claims on a
+// screen — the same split D149 drew when it took the authored `card.p` off
+// the learn reveal and left it driving the difficulty scheduler:
+//   · archetype-data.js centres you and each signature on these before
+//     comparing, so which type you match cannot drift with whoever the
+//     app happened to fetch this session
+//   · IS_typeRuleParts reads the same centring to name a type's defining
+//     dims ("very reserved + curious")
 export const IS_TEST_AVG = {
   big5:       { O: 60, C: 58, E: 52, A: 65, N: 48 },
   political:  { econ: 50, auth: 52, foreign: 48, env: 55, tech: 60, estab: 55 },

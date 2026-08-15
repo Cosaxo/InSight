@@ -134,6 +134,58 @@ describe("LEARN_COUNTS — how many actually picked each option (D149)", () => {
   });
 });
 
+// ── your own answer is in the number you are shown (D155) ───────────
+//
+// `learnAnswer` writes the answer and re-reads the aggregate in the same
+// breath; a Firestore trigger cannot fold, transact and commit inside one
+// client round-trip, so it loses. That was called acceptable when the
+// crowd was assumed to be large — "one answer does not move the split" —
+// and it is exactly wrong at the size a launched app actually starts at.
+// The reported symptom: a tick on the option the reader chose, with
+// "0 people · 0%" beside it.
+describe("LEARN_COUNTS folds in the answer the trigger has not caught yet", () => {
+  const withMine = (agg: unknown, mine: unknown) =>
+    ({ enabled: true, learnAgg: () => agg, learnMine: () => mine });
+
+  it("adds your pick when the published doc does not have it yet", () => {
+    // One stranger, on the wrong option. Before this, the correct answer
+    // read "0 people · 0%" one line under "One more and it's yours".
+    W.LIVE = withMine({ total: 1, counts: { "1": 1 } }, { idx: 0, folded: false });
+    expect(LEARN_COUNTS(card)).toEqual({ counts: [1, 1, 0, 0], total: 2 });
+  });
+
+  it("does not add it twice once the trigger has folded it", () => {
+    W.LIVE = withMine({ total: 2, counts: { "0": 1, "1": 1 } }, { idx: 0, folded: true });
+    expect(LEARN_COUNTS(card)).toEqual({ counts: [1, 1, 0, 0], total: 2 });
+  });
+
+  it("leaves a card this session did not answer alone", () => {
+    W.LIVE = withMine({ total: 4, counts: { "0": 3, "2": 1 } }, null);
+    expect(LEARN_COUNTS(card)).toEqual({ counts: [3, 0, 1, 0], total: 4 });
+  });
+
+  it("still refuses a card with no published aggregate at all", () => {
+    // "You're the first" is the true and better sentence there, and a
+    // one-answer split of your own answer would be a bar chart of you.
+    W.LIVE = withMine(null, { idx: 0, folded: false });
+    expect(LEARN_COUNTS(card)).toBeNull();
+    expect(LEARN_SPLIT_SRC(card)).toBe("none");
+  });
+
+  it("survives a store with no learnMine at all", () => {
+    // The member is read defensively because the spec layer looks LIVE up
+    // by name at render time, and an older shell is a real deployment.
+    W.LIVE = { enabled: true, learnAgg: () => ({ total: 1, counts: { "1": 1 } }) };
+    expect(LEARN_COUNTS(card)).toEqual({ counts: [0, 1, 0, 0], total: 1 });
+  });
+
+  it("moves the split with the count, so bars and numbers agree", () => {
+    W.LIVE = withMine({ total: 1, counts: { "1": 1 } }, { idx: 0, folded: false });
+    expect(LEARN_SPLIT(card)).toEqual([50, 50, 0, 0]);
+    expect(LEARN_RATE(card)).toEqual({ pct: 50, src: "measured" });
+  });
+});
+
 describe("LEARN_ORDER breaks the positional tell", () => {
   const cards = LEARN_CARDS as LearnCard[];
 

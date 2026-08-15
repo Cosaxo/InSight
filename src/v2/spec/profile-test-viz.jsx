@@ -5,7 +5,12 @@
 // guards the wiring in CI.
 import React from 'react';
 import { Kicker } from './primitives.jsx';
-import { IS_TEST_AVG, IS_TEST_RESULTS } from './test-definitions.js';
+import { IS_TEST_RESULTS } from './test-definitions.js';
+// The measured "most people" baseline (D155) — empty rather than authored
+// when the live population is too thin to average, which both cards below
+// already handle: each of them draws its reference mark only where the
+// map has a value for that dim.
+import { testAvg } from '../data/testNorms.ts';
 
 // profile-test-viz.jsx — distinctive visuals for the per-test profile tabs.
 // Each test gets a recognizable hero chart rather than the generic dot-line:
@@ -71,7 +76,7 @@ function AttachmentCard({ accent }) {
       <TestHeroRow R={R} accent={a} />
       <div style={{ marginTop: 16, paddingTop: 16, borderTop: '0.5px solid var(--rule)', display: 'flex', flexDirection: 'column', gap: 13 }}>
         {[...R.dims].sort((m, n) => n.value - m.value).map(d => {
-          const t = (IS_TEST_AVG.attachment || {})[d.id];
+          const t = testAvg('attachment')[d.id];
           return (
             <div key={d.id} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <span style={{ width: 74, flexShrink: 0, fontFamily: 'var(--sans)', fontSize: 13.5, fontWeight: 600, color: 'var(--ink)' }}>{d.label}</span>
@@ -126,8 +131,10 @@ const VALUE_LEAD = {
 function ValuesTiltCard({ me, accent }) {
   const a = accent || 'var(--c-people)';
   const morals = me.morals || {};
-  // "most people" baseline, from the saved-test averages (0..100 → −100..100)
-  const avg = IS_TEST_AVG.values || {};
+  // "most people" baseline (0..100 → −100..100). Possibly empty in a live
+  // build — `typ` then returns null for every row and the hollow rings do
+  // not draw, which the row already branches on.
+  const avg = testAvg('values');
   const typ = (id) => (avg[id] != null ? avg[id] * 2 - 100 : null);
 
   const clamp = (n) => Math.max(0, Math.min(100, n));

@@ -146,17 +146,34 @@ function learnLive() {
  * `card.c` and the aggregate's cells are keyed the same way: LEARN_ORDER
  * permutes on the way to the SCREEN and the buttons map back to authored
  * indices before anything is recorded (see its note above).
+ *
+ * YOUR OWN ANSWER IS IN HERE EVEN WHEN THE AGGREGATE HAS NOT CAUGHT UP
+ * (D155). `learnAnswer` writes the answer and re-reads the aggregate in
+ * the same breath, and it loses that race to the Firestore trigger far
+ * more often than it wins — so the reveal you are looking at, a beat
+ * after tapping, drew the crowd MINUS you. On a young card that is not a
+ * rounding error: it is what put "0 people · 0%" next to a tick on the
+ * option the reader had just chosen. `learnMine` says whether the doc
+ * counts you; where it does not, the one answer the client knows for
+ * certain exists is added here.
+ *
+ * Only ever +1, and only ever on a card this session wrote: a repeat
+ * cannot reach `learnAnswer` (the scheduler's retries stay device-local
+ * and the create-only rule refuses them anyway), so there is no path
+ * where this adds a second copy of the same person.
  */
 export function LEARN_COUNTS(card) {
   const L = liveStore();
   if (!(L && L.enabled && L.learnAgg)) return null;
   const agg = L.learnAgg(card.id);
   if (!agg || !agg.counts) return null;
+  const mine = L.learnMine ? L.learnMine(card.id) : null;
+  const pending = mine && !mine.folded ? mine.idx : -1;
   const n = card.a.length;
   const counts = [];
   let total = 0;
   for (let i = 0; i < n; i++) {
-    const c = Number(agg.counts[String(i)] || 0);
+    const c = Number(agg.counts[String(i)] || 0) + (i === pending ? 1 : 0);
     counts.push(c);
     total += c;
   }
