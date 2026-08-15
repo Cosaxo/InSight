@@ -251,13 +251,25 @@ resolve), so people can be found directly. Three shapes, cheapest first:
 Start with 1. Either way the query can be scoped by city in the same
 breath, which is what the similarity field wants anyway.
 
-### 5 · Region
+### 5 · Region — **DECIDED (D165), NOT EXECUTED**
 
-Half of every Firestore line forever, nothing a user sees — but no longer
-a setting. `(default)` is `nam5`, seeded, with TestFlight testers on it,
-so it is the second-database migration in
-[`FIRESTORE-REGION.md`](FIRESTORE-REGION.md). Last because it is the only
-irreversible item, and doing it after the schema stops moving is cheaper.
+Overtaken by `main` while this branch was being written, and in the right
+direction: **D165 takes option A** of
+[`FIRESTORE-REGION.md`](FIRESTORE-REGION.md) — a second regional database
+in the same project, `europe-west1` recommended, both triggers repointed,
+existing answers not migrated. The app already names the `insight`
+database in all its call sites.
+
+What is left is the operator step: creating the database and deleting
+`(default)` once it is proven (`LAUNCH-RUNBOOK.md` 0.0). **Until that
+runs, the model is right to keep quoting `nam5` prices** — `costModel`
+defaults to `regional: false`, and every figure on this page is the
+multi-region one. When the migration executes, that default flips and
+roughly half of every Firestore line goes with it.
+
+D165 also found the better argument, which was not the cost one: `nam5`
+is the **US** multi-region and the operator is a Norwegian sole trader.
+Data residency, not $20/month.
 
 ## Already shipped
 
