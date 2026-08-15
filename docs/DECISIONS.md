@@ -16724,3 +16724,74 @@ says so underneath in words. Left alone: it is honest, and the alternative
 is a chart that hides how little is in it. **If the owner wants a different
 day-one shape for it, that is a design change and belongs in
 `docs/VISION-V28.md` §3, not a fix here.**
+
+## D170 · The daily had no breakdown at all, and its own sheet was a hash
+
+**Decided:** 2026-08-15 · **Status:** binding, BUILT. From the report
+*"daily looks wrong on the breakdown"*, following D169.
+
+### 1 · What was actually there, which was nothing
+
+In live mode the daily question — one a day, the app's front door — had
+**no breakdown**, while every feed card beneath it has had D125's since
+August. Tapping the result opened nothing; the only thing under it was the
+consequence beat and, since D83, Takes.
+
+The reason is in `spec/daily-split.jsx`: the whole engage row (Comments +
+Who voted) is gated on `!S.live`, because those sheets are the prototype's
+— seeded named commenters, and a who-voted sheet whose every group row is
+built from `this.hash(question + group + option)` over cut chips (Job,
+Education, Where, four test cuts) that no published aggregate carries.
+`VOTECUTS` has no live gate of its own.
+
+**Suppressing it was right and stopping there was the mistake.** D125 built
+the real sheet for the feed and never came back for the daily, so the gate
+went from "hide the fake one until the real one exists" to "the daily has
+no breakdown", silently, for as long as the real one has existed.
+
+### 2 · The fix is the component the feed already uses
+
+`ui/LiveBreakdownPanel` now mounts on the live daily, from a "Who voted"
+button beside Takes — the same pair the demo card has always offered. Same
+component, same aggregate the card already fetched, so **no new read**.
+Cohort-first (D125), percentages not rosters (D149), names only under
+Friends — which is also why D1's "named who-voted is circle-scoped" is
+satisfied rather than bent: the panel names nobody outside that cut.
+
+The two panels are mutually exclusive. Both are full-width under one card,
+and opening both pushes the question itself off the top of the screen.
+
+**Lazy, and measured rather than assumed.** `daily-split.jsx` is eager —
+first screen — and `MAX_EAGER_KB` has almost no headroom. Built both ways:
+eager graph **963 KB → 964 KB** (+1), total 2283 → 2284, chunks 75 → 76.
+The panel lands in its own chunk; the kilobyte is the lazy-import glue.
+Ceiling is 978, so this is affordable and the arithmetic is here so the
+next person spending that headroom knows what is left.
+
+### 3 · What is pinned, and the two ways the tests were wrong first
+
+Two cases in `test/smoke-live.test.jsx`, and the second one only became
+real after two failures worth recording, because both are the same trap:
+
+- The first version **returned early** when it could not find the sheet
+  button, asserting nothing at all.
+- The second **asserted too soon**: the engage row renders only once the
+  consequence beat finishes (`st.beat !== S.id`), so it was reading a
+  screen that was still animating. Mutation-checked: removing the `!S.live`
+  gate did NOT fail it until the beat was dismissed inside the case.
+
+What they hold now: the demo row stays unreachable live (its markers are
+seeded Comments and the hash-built cut chips), and the live daily opens the
+real panel with the viewer's own pick marked **on the right option**. That
+last one is the end-to-end check on `mine`: the daily passes an index into
+its own options while the feed passes the store's numeric vote, and the two
+agree only because a live question's option ids are `String(i)`
+(`data/deck.ts` `buildSPure`). Flipping `mine` fails the case by name; no
+type could have caught it.
+
+### 4 · The demo sheet stays
+
+Not deleted. It is the offline dev surface and the demo room's, D1 governs
+it, and the hash is honest there — the room is seeded throughout. What
+changed is that live mode no longer answers "where is the breakdown" with
+silence.

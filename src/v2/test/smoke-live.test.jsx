@@ -610,11 +610,61 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     const beat = [...document.querySelectorAll("button")].find((b) => /chose /.test(b.textContent || ""));
     if (beat) fireEvent.click(beat);
     await act(async () => { for (let i = 0; i < 40; i++) await Promise.resolve(); });
-    expect(screen.queryByRole("button", { name: "Who voted what" }),
-      "the daily's demo cut sheet is reachable in live mode").toBeNull();
+    // The DEMO row is what must stay gated. Its two markers: seeded
+    // Comments, and the hash-built sheet's cut chips. "Who voted what" is
+    // no longer one of them — since D170 that button exists live and opens
+    // the real panel, which the case above pins.
     expect(screen.queryByRole("button", { name: "Comments" }),
       "the daily's seeded comments are reachable in live mode").toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Who voted what" }));
+    await act(async () => { for (let i = 0; i < 60; i++) await Promise.resolve(); });
+    expect(screen.queryByRole("button", { name: /^Where$/ }),
+      "a hash-built cut chip is reachable in live mode").toBeNull();
+    expect(screen.queryByRole("button", { name: /^Education$/ }),
+      "a hash-built cut chip is reachable in live mode").toBeNull();
     expectNoBoundary("live daily engage row");
+  });
+
+  it("gives the live daily the real breakdown, cohort-first", async () => {
+    // D170. The daily had no breakdown at all in live mode while every
+    // feed card under it had D125's — because its own sheet is the
+    // prototype's hash-built mock and was suppressed rather than
+    // replaced. It now opens ui/LiveBreakdownPanel, the same component
+    // the feed uses, over the same aggregate the card already fetched.
+    const expectNoBoundary = mountLive();
+    const opts = await screen.findAllByRole("button", { name: /^(Yes|No|Both)$/ });
+    const myLabel = opts[0].textContent.trim();
+    fireEvent.click(opts[0]);
+    await act(async () => { for (let i = 0; i < 30; i++) await Promise.resolve(); });
+    const beat = [...document.querySelectorAll("button")].find((b) => /chose /.test(b.textContent || ""));
+    if (beat) fireEvent.click(beat);
+    await act(async () => { for (let i = 0; i < 40; i++) await Promise.resolve(); });
+
+    const who = screen.getByRole("button", { name: "Who voted what" });
+    fireEvent.click(who);
+    await act(async () => { for (let i = 0; i < 60; i++) await Promise.resolve(); });
+
+    // "Everyone" is the live panel's default cohort and its own word — the
+    // demo sheet has no such chip, so this distinguishes the two rather
+    // than merely proving something opened.
+    expect(await screen.findByRole("button", { name: /Everyone/i })).toBeTruthy();
+    // Your own pick is marked, and on the RIGHT side. This is the
+    // end-to-end check on the `mine` prop: the daily passes an index into
+    // its own options while the feed passes the store's numeric vote, and
+    // the two agree only because a live question's option ids are
+    // String(i) (data/deck.ts buildSPure). An off-by-one would mark the
+    // other side and no type could catch it — so the row carrying "· you"
+    // has to be the row for the option actually clicked.
+    const marked = [...document.querySelectorAll("div")].filter(
+      (d) => /· you/.test(d.textContent || "") && d.children.length <= 4,
+    ).pop();
+    expect(marked, "no option row carries the your-pick marker").toBeTruthy();
+    expect(marked.textContent, "the your-pick marker sits on the wrong option")
+      .toContain(myLabel);
+    // And none of the demo cut chips, which name no published dim.
+    expect(screen.queryByRole("button", { name: /^Where$/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Job$/ })).toBeNull();
+    expectNoBoundary("live daily breakdown");
   });
 
   it("still renders the takes button on a demo card", async () => {

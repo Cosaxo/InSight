@@ -31,6 +31,12 @@ import LIVE from '../data/live';
 // boot.
 import PulseCard from '../ui/PulseCard.tsx';
 const LiveTakesPanel = React.lazy(() => import('../ui/LiveTakesPanel.tsx'));
+// The live who-voted sheet (D125), on exactly the same terms — lazy, for
+// the same measured reason, and reached by ESM so the coupling meter stays
+// flat. D170: the daily had no breakdown at all in live mode while every
+// feed card under it had this one, because the daily's own sheet is the
+// prototype's hash-built mock and was suppressed rather than replaced.
+const LiveBreakdownPanel = React.lazy(() => import('../ui/LiveBreakdownPanel.tsx'));
 // The live duel/group panel, on the same terms and for the same measured
 // reason (D156) — see the mode switch near the bottom of render().
 const LiveDuelPanel = React.lazy(() => import('../ui/LiveDuelPanel.tsx'));
@@ -84,6 +90,11 @@ class DailySplit extends React.Component {
     // which daily's live world-takes panel is open (D83) — id, not boolean,
     // so paging to another day closes it implicitly
     liveTakes: null,
+    // and which daily's live who-voted sheet is open (D170), on the same
+    // terms and for the same reason. The two are mutually exclusive: they
+    // are both full-width panels under one card, and having both open at
+    // once pushes the question itself off the top of the screen.
+    liveStats: null,
   };
 
   // THE TEST FAST PATH LIVED HERE, and D121 removed it along with the
@@ -831,9 +842,19 @@ class DailySplit extends React.Component {
       // the toggle is also the cost gate. (demoProd is hoisted from the
       // demo row below — one read, two gates, ratchet flat.)
       S.live && !demoProd && voted && st.beat !== S.id && h('div', { style: { display: 'flex', flexDirection: 'column', gap: 10, marginTop: 2 } },
-        h('button', { className: 'press', 'aria-expanded': st.liveTakes === S.id, onClick: () => this.setState(s => ({ liveTakes: s.liveTakes === S.id ? null : S.id })), style: { alignSelf: 'center', ...icoBtn(st.liveTakes === S.id) } },
-          svgI('<path d="M6.5 4.5h11a2 2 0 0 1 2 2V13a2 2 0 0 1-2 2H11l-4 3.8V15h-.5a2 2 0 0 1-2-2V6.5a2 2 0 0 1 2-2z"/>', 17),
-          'Takes'),
+        // Two doors, side by side, the same pair the demo card has offered
+        // all along (D170). "Who voted" opens the LIVE panel — real cohort
+        // cells, percentages, and names only under Friends — never the
+        // hash-built sheet below, which stays demo-only.
+        h('div', { style: { display: 'flex', gap: 10, justifyContent: 'center' } },
+          h('button', { className: 'press', 'aria-expanded': st.liveTakes === S.id, onClick: () => this.setState(s => ({ liveTakes: s.liveTakes === S.id ? null : S.id, liveStats: null })), style: icoBtn(st.liveTakes === S.id) },
+            svgI('<path d="M6.5 4.5h11a2 2 0 0 1 2 2V13a2 2 0 0 1-2 2H11l-4 3.8V15h-.5a2 2 0 0 1-2-2V6.5a2 2 0 0 1 2-2z"/>', 17),
+            'Takes'),
+          h('button', { className: 'press', 'aria-expanded': st.liveStats === S.id, 'aria-label': 'Who voted what', onClick: () => this.setState(s => ({ liveStats: s.liveStats === S.id ? null : S.id, liveTakes: null })), style: icoBtn(st.liveStats === S.id) },
+            svgI('<path d="M5 19.5V13M12 19.5V5.5M19 19.5V10"/>', 17),
+            'Who voted')),
+        st.liveStats === S.id && h(React.Suspense, { fallback: null },
+          h(LiveBreakdownPanel, { qid: S.id, options: S.options.map(o => o.label), mine: myIdx })),
         // The daily's options in the question's own order, so each take
         // carries its author's side and the list can be filtered by side
         // (D149). Same order the aggregate's cells are keyed in, which is
