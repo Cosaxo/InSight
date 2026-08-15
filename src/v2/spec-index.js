@@ -145,8 +145,7 @@ import './spec/map-tab.jsx';
 import './spec/profile-general.jsx';
 // These were born in this repo (never in design/) and live as typed TSX
 // under ui/; they self-register on globalThis so the render-time lookups
-// in daily-split / profile-overlay / profile-general still work.
-import './ui/LiveDuelPanel';
+// in profile-overlay / profile-general still work.
 import './ui/LivePrivacyPanel';
 import './ui/CityPicker';
 import './ui/PickSearch';
@@ -160,10 +159,16 @@ import './ui/PickSearch';
 // the account-creation questions, D151), so a line here would drag it into
 // the eager bundle, which is the whole thing the deferral bought.
 //
-// ui/LiveGroupsMirrorBody and ui/LiveTakesPanel were listed until D137 for a
-// side effect they no longer have. Both stay in the eager chunk anyway —
-// mirror-tab.jsx and ui/LiveDuelPanel import them, and both of those are
-// eager — so dropping the lines moved no bytes.
+// ui/LiveDuelPanel left this list at D156 and joined that second group: it
+// is now a React.lazy in daily-split.jsx rather than a globalThis lookup,
+// which took the whole live duel surface — and, with it, ui/LiveTakesPanel's
+// last eager importer — out of first paint. The rebuild that gave the panel
+// the prototype's rail, marks and reveal bars is what made the weight worth
+// moving; the lazy split is what paid for it.
+//
+// ui/LiveGroupsMirrorBody was listed until D137 for a side effect it no
+// longer has. It stays in the eager chunk anyway — mirror-tab.jsx imports
+// it, and that is eager — so dropping the line moved no bytes.
 import './spec/app-shell.jsx';
 
 // ── the world feed, after first paint ──────────────────────────────────
