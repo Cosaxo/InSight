@@ -114,9 +114,44 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
   // with nothing open is a header, a field and a tab bar sitting where a
   // tab bar belongs. Nothing looks broken because nothing is missing.
   const [tab, setTab] = React.useState<string>("");
-  // The row, so opening a tab can bring it to the top of the scroller the
-  // way the prototype does (spec/mirror-field.jsx MirrorLenses).
+  // The row, so opening a tab brings it to the top of the scroller the way
+  // the prototype does (spec/mirror-field.jsx MirrorLenses).
   const rowRef = React.useRef<HTMLDivElement | null>(null);
+  // D155 CLAIMED THIS SHIPPED AND IT DID NOT. The ref was declared, the ref
+  // was attached, and nothing ever read it — so the row pinned to the
+  // bottom correctly and then just sat there when you tapped it, leaving
+  // the panel you asked for below the fold. Nothing could catch that: a
+  // dangling ref is valid TypeScript, valid eslint and invisible to
+  // check:globals, and the tab-open tests assert the panel MOUNTS, which it
+  // did. Reported from a device, which is the only place it was visible.
+  //
+  // Keyed on `tab` rather than the derived `openTab` because this has to be
+  // a hook and `openTab` is computed past the `needsCity` early return.
+  // They agree in practice: setTab is only ever called with an id from
+  // `tabs`, and mirror-tab keys this body per scope, so a tab cannot
+  // survive into a scope that lacks it.
+  React.useEffect(() => {
+    if (!tab || !rowRef.current) return;
+    const row = rowRef.current;
+    // The scroller is the app's (.app-body), not ours — walk up to it, and
+    // take the first ancestor that both overflows and can actually scroll.
+    let sp: HTMLElement | null = row.parentElement;
+    while (sp && !(sp.scrollHeight > sp.clientHeight && /(auto|scroll)/.test(getComputedStyle(sp).overflowY))) {
+      sp = sp.parentElement;
+    }
+    if (!sp) return;
+    const scroller = sp;
+    // 60ms, the prototype's own number. The panel mounts in the same commit
+    // as the tab flip, so measuring now measures the row before the body it
+    // is about to sit above exists — and scrolls to a position that stops
+    // being right one frame later.
+    const t = setTimeout(() => {
+      const top = row.getBoundingClientRect().top
+        - scroller.getBoundingClientRect().top + scroller.scrollTop - 12;
+      scroller.scrollTo({ top, behavior: "smooth" });
+    }, 60);
+    return () => clearTimeout(t);
+  }, [tab]);
 
   const city = LIVE.myCity;
   const place = city ? PLACES.parse(city) : null;
