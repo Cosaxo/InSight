@@ -88,10 +88,16 @@ describe("checkQuestion (feed continuum shapes)", () => {
     expect(checkQuestion(field(), "feed", corpus, TEX).errs).toEqual([]);
     // content form: the same copy, texture stripped — the live crowd is
     // the aggregate
+    // …and `core`, which a CONTENT entry must declare and a demo-pool one
+    // must not (D161): the demo pool never reaches the seeded bank, so it
+    // has nothing to classify. That asymmetry is the reason the two forms
+    // are asserted separately here at all.
     const dialContent = dial();
     delete dialContent.med; delete dialContent.dist; delete dialContent.n;
+    dialContent.core = true;
     const fieldContent = field();
     delete fieldContent.cloud; delete fieldContent.n;
+    fieldContent.core = true;
     expect(checkQuestion(dialContent, "feed", corpus).errs).toEqual([]);
     expect(checkQuestion(fieldContent, "feed", corpus).errs).toEqual([]);
   });
