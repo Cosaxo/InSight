@@ -1,8 +1,14 @@
 # Working in this repo
 
 InSight is a two-tab app (daily · mirror). The **daily** tab is where you
-answer: one blind question a day, a finite feed under it, and sealed
-group/1v1 duels revealed the next day. The **mirror** tab is what those
+answer: one blind question a day, a feed under it, and sealed
+group/1v1 duels revealed the next day. The feed is finite *today* and the
+owner has decided it should not stay that way —
+[`docs/SCALE-PLAN.md`](docs/SCALE-PLAN.md) is what an unbounded feed
+costs, what trips first, and the core/tail split it forces. Read it
+before adding anything that assumes the bank is small: feed questions now
+declare `core`, and a question is part of the Mirror's corpus only if it
+says so. The **mirror** tab is what those
 answers become — seven stops from *you* to *the world*, each reading the
 same exact aggregates through a different cut of the anchors an
 answer carried when it was written, plus the Map that files every answer
@@ -14,7 +20,7 @@ before changing anything on that tab. React 19 + TypeScript + Vite,
 Capacitor shells for iOS/Android, Firebase (anonymous-first auth,
 Firestore, Cloud Functions).
 
-**A third tab is adopted on trial and not built yet (D161 §1).** The v28
+**A third tab is adopted on trial and not built yet (D166 §1).** The v28
 design makes the app `patterns · daily · mirror`; the sentence above stays
 true until that tab ships, and this note exists so nobody plans against
 "two" as though it were settled. It arrives lazily, nothing outside it may

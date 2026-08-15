@@ -227,8 +227,28 @@ const ALLOW = new Map([]);
 // a silently truncated bank fetch) are invisible at the moment they land.
 export const DAILY_ID_WARN = 900; // of 999 — check-content pins /^daily-\d{3}$/
 export const DAILY_ID_FAIL = 970; // an id-scheme decision is due before 999
-export const BANK_WARN = 1200; // of live.ts limit(1500) — D30: pagination, never another raise
-export const BANK_FAIL = 1400;
+// Bank headroom. These guarded live.ts's `limit(1500)` until D161 paged
+// that fetch, at which point the ceiling they watched stopped existing —
+// so they were re-pointed rather than deleted, because the NEXT silent
+// ceiling wants the same alarm at a different number.
+//
+// The next one is the localStorage bank cache. live.ts writes the whole
+// bank to `insight.bankCache.v2` inside a try/catch that ignores failure,
+// so crossing the browser quota does not break the app: it silently stops
+// caching, and every boot then pays a full bank fetch forever. A cost
+// cliff with no symptom is exactly this gate's subject.
+//
+// Arithmetic: the quota is ~5 MB per origin, the bank is one of ~29
+// `insight.*` keys, so budget it roughly half. checkHeadroom() derives
+// bytes-per-document from the seed itself rather than assuming, and these
+// counts are that estimate rounded to something a human can hold:
+// 6,000 docs ≈ 1.5 MB, 10,000 ≈ 2.5 MB.
+// D162's sampled audit: one AI-reviewed question in this many gets read by
+// a person. A starting figure, not a measured one — move it with what the
+// audit actually finds.
+export const AUDIT_ONE_IN = 20;
+export const BANK_WARN = 6000;
+export const BANK_FAIL = 10000;
 
 // ── corpus loading (the cross-read pattern promote/neighbors/scorecard use) ──
 function extractLiteral(src, marker, at, openChar = "[", closeChar = "]") {
@@ -419,6 +439,29 @@ export function checkQuestion(q, surface, ctx, mode = {}) {
     // rule that was true in the data becomes a rule in the gate.
     if (!q.cat) err("topic", "a feed question needs a topic — without one its kicker is broken and the topic filter cannot reach it");
     else if (!ctx.feedTopics.has(q.cat)) err("topic", `topic ${JSON.stringify(q.cat)} is not in the feed taxonomy`);
+
+    // Core/tail must be DECLARED, not defaulted (docs/SCALE-PLAN.md §1).
+    //
+    // The generated bank treats an absent `core` as tail, which is the safe
+    // reading direction — but "safe default" and "nobody decided" are the
+    // same bytes, and only one of them is a classification. So the source
+    // has to say which, in so many words, and the whole point of the gate
+    // is WHEN it says it: at creation, one question at a time, while the
+    // author still has the question in their head. Retro-classifying a bank
+    // is a per-question judgement call, and the cost of deferring it is
+    // paid in one lump at whatever size the bank has reached by then.
+    //
+    // Feed-only, because feed is the only surface where the distinction is
+    // real: the daily is one globally shared question, test items feed
+    // Scores, duels never become world aggregates.
+    //
+    // Live content only. `mode.texture` marks the spec layer's demo pool,
+    // which is prototype filler that never reaches the seeded bank and so
+    // has nothing to classify — the same carve-out the texture rules make
+    // in the other direction just below.
+    if (!mode.texture && typeof q.core !== "boolean") {
+      err("core", "a feed question must declare `core` (true = served to everyone and foldable into the Mirror's readings, false = personalized tail) — see docs/SCALE-PLAN.md §1");
+    }
 
     // ── continuum shapes ── the whole entry is authored, crowd texture
     // included (the demo pool has no backend), so the gate holds the
@@ -733,6 +776,55 @@ export function checkProvenance(corpus) {
       errs.push(`provenance: daily ${id} archiveId ${JSON.stringify(row.archiveId)} is not a dq/dqx id`);
     }
   }
+
+  // ── review (D162) ──
+  //
+  // D162 replaced per-item human review with AI review plus a sampled
+  // human audit. The failure that invites is obvious and quiet: "the AI
+  // reviewed it" is a claim nobody can check after the fact, and a lane
+  // under time pressure can simply stop doing it with no artifact missing.
+  // So the verdict rides the provenance row a question already needs to
+  // enter the bank, and this gate is what makes "reviewed" a FACT.
+  //
+  // Editorial rows are exempt because editorial IS the human — the
+  // two-gate design's whole point. Only content this repo did not
+  // hand-write has to prove it was read.
+  const aiReviewed = [];
+  for (const surface of ["daily", "feed"]) {
+    for (const [id, row] of Object.entries(prov[surface] || {})) {
+      if (row.source !== "farm" && row.source !== "community") continue;
+      const r = row.review;
+      if (!r || typeof r !== "object") {
+        errs.push(`provenance: ${surface} ${id} is ${row.source} with no \`review\` — D162: nothing enters the bank unread`);
+        continue;
+      }
+      if (r.by !== "ai" && r.by !== "human") {
+        errs.push(`provenance: ${surface} ${id} review.by ${JSON.stringify(r.by)} — ai|human`);
+      }
+      // An AI review must state the audit decision rather than omit it.
+      // Absent and false are the same bytes to a reader, and only one of
+      // them is a decision — the same argument the `core` flag makes.
+      if (r.by === "ai") {
+        if (typeof r.audited !== "boolean") {
+          errs.push(`provenance: ${surface} ${id} is ai-reviewed without an explicit \`audited\` boolean — say whether it was in the human sample`);
+        } else aiReviewed.push({ surface, id, audited: r.audited });
+      }
+    }
+  }
+  // The audit RATE, across every AI-reviewed question rather than per
+  // batch: at D162's 1-in-20 a weekly batch of seven rounds to zero, so a
+  // per-batch gate would pass while nothing was ever audited. Cumulative
+  // is the only shape that binds at both sizes.
+  if (aiReviewed.length) {
+    const want = Math.ceil(aiReviewed.length / AUDIT_ONE_IN);
+    const got = aiReviewed.filter((r) => r.audited).length;
+    if (got < want) {
+      errs.push(
+        `provenance: ${got} of ${aiReviewed.length} ai-reviewed questions carry an audit, want ≥ ${want} `
+        + `(D162's 1-in-${AUDIT_ONE_IN}) — the sample is the only check on a reviewer that shares the generator's blind spots`,
+      );
+    }
+  }
   return errs;
 }
 
@@ -751,12 +843,31 @@ export function checkHeadroom(corpus) {
 
   const v2content = readFileSync(join(root, "functions", "src", "v2content.ts"), "utf8");
   const bankSize = (v2content.match(/"id":\s*"[^"]+"/g) || []).length;
+  // Measured, not assumed: the same wire-size scan check-figures runs, so
+  // the estimate moves when the documents do (adding `core` to 82 entries
+  // moved it by ~1 KiB and check:figures caught that on COSTS.md).
+  const bankBytes = (() => {
+    const head = "V2_QUESTIONS: V2SeedQuestion[] = ";
+    const body = v2content.slice(v2content.indexOf(head) + head.length);
+    try {
+      return JSON.stringify(JSON.parse(body.slice(0, body.lastIndexOf("];") + 1))).length;
+    } catch {
+      return bankSize * 250; // the scan's shape changed; fall back rather than crash the gate
+    }
+  })();
+  const cacheMB = (n) => ((bankBytes / Math.max(bankSize, 1)) * n / 1024 / 1024).toFixed(1);
   if (bankSize >= BANK_FAIL) {
     errs.push(
-      `seeded bank holds ${bankSize} docs against live.ts limit(1500) — build bank pagination (D30: never another raise) before promoting more`,
+      `seeded bank holds ${bankSize} docs ≈ ${cacheMB(bankSize)} MB of localStorage cache — over budget. `
+      + "live.ts caches the whole bank in `insight.bankCache.v2` and SWALLOWS a quota failure, so crossing this "
+      + "does not break anything: it silently stops caching and every boot pays a full bank fetch forever. "
+      + "Move the cache off localStorage (IndexedDB) before promoting more.",
     );
   } else if (bankSize >= BANK_WARN) {
-    warn.push(`seeded bank at ${bankSize} of the 1500 fetch ceiling — pagination (D30) is approaching`);
+    warn.push(
+      `seeded bank at ${bankSize} docs ≈ ${cacheMB(bankSize)} MB of localStorage cache — the quota is the next `
+      + "silent ceiling (a failed write is caught and ignored), so plan the move to IndexedDB",
+    );
   }
   return { errs, warn };
 }

@@ -44,15 +44,49 @@ const flagOf = (name) => {
 };
 const source = flagOf("--source");
 const batch = flagOf("--batch") || new Date().toISOString().slice(0, 10);
+// D162's review verdict, written onto the provenance row so "reviewed" is a
+// fact rather than a claim. Required for farm/community; refused for
+// editorial, because editorial IS the human and a review row there would be
+// a person certifying their own writing.
+const reviewBy = flagOf("--review");
+// Which promoted ids were in the human audit sample. Named rather than
+// counted: "3 of these were audited" cannot be checked later, and the whole
+// point of the sample is that it is verifiable after the fact.
+const auditedIds = new Set((flagOf("--audited") || "").split(",").map((x) => x.trim()).filter(Boolean));
 const ids = argv;
+const usage =
+  "promote: name a source and at least one archive id, e.g. " +
+  "`npm run promote -- --source farm --review ai --audited dqx13 dqx13 dqx14`\n" +
+  "  --source editorial|farm|community   who wrote the archive entry (D97 provenance)\n" +
+  "  --batch YYYY-MM-DD                  vintage label, default today (UTC)\n" +
+  "  --review ai|human                   who read it before the bank (D162);" +
+  " required for farm/community\n" +
+  "  --audited id,id                     which of these ids a person read;" +
+  " only with --review ai";
 if (!ids.length || !source || !SOURCES.has(source)) {
+  console.error(usage);
+  process.exit(1);
+}
+if (source === "editorial") {
+  if (reviewBy) {
+    console.error("promote: --review is for farm/community — editorial IS the human gate (D162)");
+    process.exit(1);
+  }
+} else if (reviewBy !== "ai" && reviewBy !== "human") {
   console.error(
-    "promote: name a source and at least one archive id, e.g. " +
-      "`npm run promote -- --source farm dqx13 dqx14`\n" +
-      "  --source editorial|farm|community   who wrote the archive entry (D97 provenance)\n" +
-      "  --batch YYYY-MM-DD                  vintage label, default today (UTC)",
+    `promote: --source ${source} needs --review ai|human — D162, nothing enters the bank unread\n\n${usage}`,
   );
   process.exit(1);
+}
+if (auditedIds.size && reviewBy !== "ai") {
+  console.error("promote: --audited describes the sample taken from an AI review, so it needs --review ai");
+  process.exit(1);
+}
+for (const a of auditedIds) {
+  if (!ids.includes(a)) {
+    console.error(`promote: --audited names ${a}, which is not among the ids being promoted`);
+    process.exit(1);
+  }
 }
 if (!/^\d{4}-\d{2}-\d{2}$/.test(batch)) {
   console.error(`promote: --batch ${JSON.stringify(batch)} is not a YYYY-MM-DD date`);
@@ -120,7 +154,18 @@ writeFileSync(SEED, JSON.stringify(seed, null, 2) + "\n");
 // The provenance row rides the same commit as the seed entry, so the two
 // can never land separately — check:quality holds them equal on CI.
 const prov = JSON.parse(readFileSync(PROV, "utf8"));
-for (const a of added) prov.daily[a.seedId] = { archiveId: a.archiveId, source, batch };
+for (const a of added) {
+  prov.daily[a.seedId] = {
+    archiveId: a.archiveId,
+    source,
+    batch,
+    // Emit-when-relevant, matching the flags elsewhere: an editorial row
+    // carries no review key at all rather than a null one.
+    ...(reviewBy
+      ? { review: { by: reviewBy, at: batch, ...(reviewBy === "ai" ? { audited: auditedIds.has(a.archiveId) } : {}) } }
+      : {}),
+  };
+}
 writeFileSync(PROV, JSON.stringify(prov, null, 2) + "\n");
 execFileSync("node", [join(root, "scripts", "gen-v2content.mjs"), "--write"], { stdio: "inherit" });
 console.log(`promote: appended ${added.length} question(s) to content/daily-questions.json (provenance: ${source}, batch ${batch})`);

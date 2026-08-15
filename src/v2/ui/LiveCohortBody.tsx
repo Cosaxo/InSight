@@ -250,7 +250,33 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
   // whose job is "how did this place answer": it made the Answers lens a
   // week's worth of rows, which is too few to be worth filtering and far
   // too few for Scores to find a rating question in.
-  const archive = LIVE.aggregated();
+  // CORE ONLY (D161). This panel makes a claim about a PLACE — "this is
+  // how Oslo answered" — and that is only true of a question everyone in
+  // Oslo could have been asked. A tail question is ordered by the interest
+  // model (D163), so its split describes the people it was shown to; the
+  // arithmetic would stay correct while the sentence stopped being.
+  //
+  // Through `isCore`, not `q.core`, because the flag is feed-only and
+  // every other surface is core by construction — testing the field here
+  // would empty the panel instead of filtering it.
+  //
+  // A no-op today against a CURRENT bank: the tail is empty and every feed
+  // question in `content/` declares `core: true`, so this removes nothing.
+  // It is here so that the day tail content first appears it is already
+  // excluded, rather than diluting these readings until someone notices.
+  //
+  // ⚠ DEPLOY ORDER. It is only a no-op against a bank that has been
+  // RESEEDED since D161. The production bank was seeded before `core`
+  // existed, and those feed documents carry no flag — which `isCore` reads
+  // as tail, correctly and unhelpfully, dropping all 82 of them out of this
+  // panel. So this ships AFTER a reseed, never before. The failure is at
+  // least loud (the place panels go visibly thin, rather than quietly
+  // wrong), which is the direction D161 chose the polarity for — but loud
+  // is not the same as harmless. Same class as D100's branch/sub fields,
+  // whose note says readers must tolerate a stale bank; the difference is
+  // that tolerating this one would mean defaulting absent to core, which
+  // is the silent failure D161 exists to prevent.
+  const archive = LIVE.aggregated().filter((q) => q.coreCorpus);
   const myVotes = LIVE.myVotes();
 
   const rows: AnswerRow[] = [];

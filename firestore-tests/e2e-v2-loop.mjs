@@ -9,9 +9,16 @@ import {
 } from "firebase/firestore";
 import { getFunctions, connectFunctionsEmulator, httpsCallable } from "firebase/functions";
 
+// The named database (D165). The backend writes to FIRESTORE_DB_ID, so a
+// harness on `(default)` reads an empty database and reports a phantom
+// failure — which is exactly what happened the first time this ran, and is
+// the same split brain the deploy has to avoid. One constant, same env var
+// as functions/src/db.ts.
+const E2E_DB_ID = process.env.FIRESTORE_DB_ID || "insight";
+
 const app = initializeApp({ projectId: "demo-insight", apiKey: "demo", appId: "demo" });
 const auth = getAuth(app); connectAuthEmulator(auth, "http://127.0.0.1:9099", { disableWarnings: true });
-const db = getFirestore(app); connectFirestoreEmulator(db, "127.0.0.1", 8080);
+const db = getFirestore(app, E2E_DB_ID); connectFirestoreEmulator(db, "127.0.0.1", 8080);
 const fns = getFunctions(app, "us-central1"); connectFunctionsEmulator(fns, "127.0.0.1", 5001);
 
 const fail = (msg) => { console.error("✗ " + msg); process.exit(1); };
@@ -159,7 +166,7 @@ await expectDenied("duplicate answer refused by rules", () =>
 for (let n = 0; n < 4; n++) {
   const vApp = initializeApp({ projectId: "demo-insight", apiKey: "demo", appId: "demo" }, "voter" + n);
   const vAuth = getAuth(vApp); connectAuthEmulator(vAuth, "http://127.0.0.1:9099", { disableWarnings: true });
-  const vDb = getFirestore(vApp); connectFirestoreEmulator(vDb, "127.0.0.1", 8080);
+  const vDb = getFirestore(vApp, E2E_DB_ID); connectFirestoreEmulator(vDb, "127.0.0.1", 8080);
   const u = await signInAnonymously(vAuth);
   await setDoc(doc(vDb, "v2_users", u.user.uid, "answers", q0.id), {
     qid: q0.id, surface: "daily", optionIdx: n % 2,
@@ -204,7 +211,7 @@ ok("breakdown: every cell publishes exactly, single-bucket country included");
 for (let m = 0; m < 5; m++) {
   const vApp = initializeApp({ projectId: "demo-insight", apiKey: "demo", appId: "demo" }, "band" + m);
   const vAuth = getAuth(vApp); connectAuthEmulator(vAuth, "http://127.0.0.1:9099", { disableWarnings: true });
-  const vDb = getFirestore(vApp); connectFirestoreEmulator(vDb, "127.0.0.1", 8080);
+  const vDb = getFirestore(vApp, E2E_DB_ID); connectFirestoreEmulator(vDb, "127.0.0.1", 8080);
   const u = await signInAnonymously(vAuth);
   await setDoc(doc(vDb, "v2_users", u.user.uid, "answers", q0.id), {
     qid: q0.id, surface: "daily", optionIdx: 0,
@@ -251,7 +258,7 @@ ok("breakdown: ageBand and city both 5/5; single-bucket country published");
 {
   const vApp = initializeApp({ projectId: "demo-insight", apiKey: "demo", appId: "demo" }, "cadence");
   const vAuth = getAuth(vApp); connectAuthEmulator(vAuth, "http://127.0.0.1:9099", { disableWarnings: true });
-  const vDb = getFirestore(vApp); connectFirestoreEmulator(vDb, "127.0.0.1", 8080);
+  const vDb = getFirestore(vApp, E2E_DB_ID); connectFirestoreEmulator(vDb, "127.0.0.1", 8080);
   const u = await signInAnonymously(vAuth);
   await setDoc(doc(vDb, "v2_users", u.user.uid, "answers", q0.id), {
     qid: q0.id, surface: "daily", optionIdx: 0,
@@ -343,7 +350,7 @@ ok("duo created: " + gid + " code " + inviteCode);
 // partner on an isolated app (avoids the shared-auth race)
 const pApp = initializeApp({ projectId: "demo-insight", apiKey: "demo", appId: "demo" }, "partner");
 const pAuth = getAuth(pApp); connectAuthEmulator(pAuth, "http://127.0.0.1:9099", { disableWarnings: true });
-const pDb = getFirestore(pApp); connectFirestoreEmulator(pDb, "127.0.0.1", 8080);
+const pDb = getFirestore(pApp, E2E_DB_ID); connectFirestoreEmulator(pDb, "127.0.0.1", 8080);
 const pFns = getFunctions(pApp, "us-central1"); connectFunctionsEmulator(pFns, "127.0.0.1", 5001);
 const partner = await signInAnonymously(pAuth);
 const joined = await httpsCallable(pFns, "joinGroupV2")({ code: inviteCode });
@@ -435,7 +442,7 @@ ok("duo streak = 1");
 const OTHERDAY = new Date(Date.now() - 3 * 86400000).toISOString().slice(0, 10);
 const outApp = initializeApp({ projectId: "demo-insight", apiKey: "demo", appId: "demo" }, "outsider");
 const outAuth = getAuth(outApp); connectAuthEmulator(outAuth, "http://127.0.0.1:9099", { disableWarnings: true });
-const outDb = getFirestore(outApp); connectFirestoreEmulator(outDb, "127.0.0.1", 8080);
+const outDb = getFirestore(outApp, E2E_DB_ID); connectFirestoreEmulator(outDb, "127.0.0.1", 8080);
 const outsider = await signInAnonymously(outAuth);
 await expectDenied("non-member cannot answer an open duel day", () =>
   setDoc(doc(outDb, "v2_users", outsider.user.uid, "answers", `g_${gid}_${OTHERDAY}`), {
@@ -451,7 +458,7 @@ const gCreated = await httpsCallable(fns, "createGroupV2")({ name: "Late Crew", 
 const lateGid = gCreated.data.gid;
 const lateApp = initializeApp({ projectId: "demo-insight", apiKey: "demo", appId: "demo" }, "latecomer");
 const lateAuth = getAuth(lateApp); connectAuthEmulator(lateAuth, "http://127.0.0.1:9099", { disableWarnings: true });
-const lateDb = getFirestore(lateApp); connectFirestoreEmulator(lateDb, "127.0.0.1", 8080);
+const lateDb = getFirestore(lateApp, E2E_DB_ID); connectFirestoreEmulator(lateDb, "127.0.0.1", 8080);
 const lateFns = getFunctions(lateApp, "us-central1"); connectFunctionsEmulator(lateFns, "127.0.0.1", 5001);
 const latecomer = await signInAnonymously(lateAuth);
 await httpsCallable(lateFns, "joinGroupV2")({ code: gCreated.data.inviteCode });
@@ -542,7 +549,7 @@ ok("learn: one first attempt, published exactly, retry not counted");
 for (let n = 0; n < 4; n++) {
   const lApp = initializeApp({ projectId: "demo-insight", apiKey: "demo", appId: "demo" }, "learner" + n);
   const lAuth = getAuth(lApp); connectAuthEmulator(lAuth, "http://127.0.0.1:9099", { disableWarnings: true });
-  const lDb = getFirestore(lApp); connectFirestoreEmulator(lDb, "127.0.0.1", 8080);
+  const lDb = getFirestore(lApp, E2E_DB_ID); connectFirestoreEmulator(lDb, "127.0.0.1", 8080);
   const u = await signInAnonymously(lAuth);
   await setDoc(doc(lDb, "v2_users", u.user.uid, "answers", LQ), {
     qid: LQ, surface: "learn", optionIdx: n < 3 ? 0 : 1,
@@ -573,12 +580,12 @@ ok("learn crowd stat: 5 first attempts, exact through per-answer publishes, 3/5 
   // A neighbor one cell east; a third phone far away that must not count.
   const nApp = initializeApp({ projectId: "demo-insight", apiKey: "demo", appId: "demo" }, "near1");
   const nAuth = getAuth(nApp); connectAuthEmulator(nAuth, "http://127.0.0.1:9099", { disableWarnings: true });
-  const nDb = getFirestore(nApp); connectFirestoreEmulator(nDb, "127.0.0.1", 8080);
+  const nDb = getFirestore(nApp, E2E_DB_ID); connectFirestoreEmulator(nDb, "127.0.0.1", 8080);
   const nu = await signInAnonymously(nAuth);
   await setDoc(doc(nDb, "v2_presence", nu.user.uid), { cell: "5999_1075", at: serverTimestamp() });
   const fApp = initializeApp({ projectId: "demo-insight", apiKey: "demo", appId: "demo" }, "near2");
   const fAuth = getAuth(fApp); connectAuthEmulator(fAuth, "http://127.0.0.1:9099", { disableWarnings: true });
-  const fDb = getFirestore(fApp); connectFirestoreEmulator(fDb, "127.0.0.1", 8080);
+  const fDb = getFirestore(fApp, E2E_DB_ID); connectFirestoreEmulator(fDb, "127.0.0.1", 8080);
   const fu = await signInAnonymously(fAuth);
   await setDoc(doc(fDb, "v2_presence", fu.user.uid), { cell: "5980_1074", at: serverTimestamp() });
   // Back to the primary user for the count. The callable excludes the
@@ -675,7 +682,7 @@ ok("learn crowd stat: 5 first attempts, exact through per-answer publishes, 3/5 
   // A second account cannot read the row — mine-only, through the rules.
   const sgApp = initializeApp({ projectId: "demo-insight", apiKey: "demo", appId: "demo" }, "sugg1");
   const sgAuth = getAuth(sgApp); connectAuthEmulator(sgAuth, "http://127.0.0.1:9099", { disableWarnings: true });
-  const sgDb = getFirestore(sgApp); connectFirestoreEmulator(sgDb, "127.0.0.1", 8080);
+  const sgDb = getFirestore(sgApp, E2E_DB_ID); connectFirestoreEmulator(sgDb, "127.0.0.1", 8080);
   await signInAnonymously(sgAuth);
   await expectDenied("stranger reading a suggestion refused", () =>
     getDoc(doc(sgDb, "v2_suggestions", sub.data.id)));

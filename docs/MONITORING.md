@@ -170,7 +170,7 @@ consoles, which are not in this repo and never will be.
 | Retention or engagement sliced by anchor | D8 — the anchors exist; nothing suppresses them since D98 |
 | Anything sliced by political result | D8; GDPR Art. 9 |
 | Skip / pass / hesitation rates | QUESTION-FARM.md, "Deliberately out of scope" |
-| Per-user content selection, ad targeting profiles | MONETIZATION.md, "Ruled out by standing posture" |
+| **Server-side** per-user content selection, ad targeting profiles | MONETIZATION.md, "Ruled out by standing posture"; narrowed by D163 — see below |
 
 The second row used to read: "the same suppression that stops a paying city
 identifying a person stops the owner doing it." D98 deleted the suppression,
@@ -183,6 +183,29 @@ because they build the behavioural model MONETIZATION.md's standing posture
 rules out, and that refusal has to hold on its own now that no floor is
 carrying it. A guarantee that only survived because a side effect enforced
 it was never a decision; this row is the decision, taken deliberately.
+
+**The last row was narrowed on 2026-08-15 (D163), and the word doing the
+work is "server-side".** The owner has decided the app should learn what a person
+is interested in and order the feed by it
+([`SCALE-PLAN.md`](SCALE-PLAN.md) §4, `ATTENTION.md` tier 2). That is
+per-user content selection, and pretending otherwise would make this
+table decorative — `ATTENTION.md` says so itself: the refusal "is about
+the *behaviour*… and not only about where the bytes live."
+
+What survives, and is the whole of what this row now refuses: **the
+server never learns what any person was shown or what they are into.**
+The model is built and kept on the device out of state it already writes
+(`insight.feedPass.v1` and friends), nothing is uploaded, and
+`data-inventory.md`'s "not collected" stays literally true. So there is
+still no behavioural profile for anyone to query, sell or subpoena —
+which is the property the row was protecting. An ad targeting profile,
+and any server-side selection, stay refused outright.
+
+Two things follow that belong here rather than in the plan. This console
+still cannot show what people are into, because nothing reaches the
+server to show. And the interest model must not shape the Mirror: a
+feed selected by interest produces an interest-selected sample, which is
+why the core/tail split ([`SCALE-PLAN.md`](SCALE-PLAN.md) §1) exists.
 
 ## The fifth thing: instrumentation
 

@@ -56,7 +56,7 @@ at extraction time, not assumed.
 | `question-map.jsx` (129) | The Map lens — every question as a place; distance IS mutual prediction. Position/colour/size/fill/line each carry one fact, no legend. | **absent** |
 | `trait-links.js` (57) | Known cross-trait correlations (openness↔authority…) checked against your results. The rule you *break* is the headline. | **absent** |
 | `trait-web.jsx` (56) | "What moves together" — `trait-links` drawn on shared rails, on the profile's General panel. | **absent** |
-| `nature-data.js` (16) | Born-or-built: per-dimension heritability (h²) ballparks from twin studies. Header states the framing rule: population spread, never a slice of one person. | **REFUSED (D163)** — see below |
+| `nature-data.js` (16) | Born-or-built: per-dimension heritability (h²) ballparks from twin studies. Header states the framing rule: population spread, never a slice of one person. | **REFUSED (D168)** — see below |
 | `predict-data.js` (209) | Foresight's two calls against a ten-second clock — CALL (sealed, resolves later) and READ (a slice's pick on a settled question, scored instantly off the who-voted sheet's own hash). | READ live (D126); CALL blocked on D127 |
 | `predict-cards.jsx` (198) | The two feed bodies. The clock is a CSS transition, not a frame loop, and starts on visibility, not mount. | **absent** |
 | `map-fore-card.jsx` (61) | The Map's Foresight leaf card — a run of hit/miss dots plus where that run sits. | **absent** |
@@ -64,7 +64,7 @@ at extraction time, not assumed.
 | `type-mix.js` / `type-mix.jsx` | Type chips and the shares card. Drifted past v25: the card now switches **system** (all four instruments) and persists the choice. | ported (D141) + drift |
 | `pulse-data.js` / `pulse-card.jsx` | Drifted hard past v24: **five pulses, not one** (mood · energy · sleep · focus · social), each with its own **cadence** — daily · often (Mon·Wed·Fri) · weekly · off — set on the card. Pulses take their turn in the feed; no block, no tray. | ported single-pulse (D139) |
 | `patterns.css` (110) | The Patterns tab's styles. | **absent** |
-| `arena.css` (103) | **Orphaned — dropped by the owner (D161 §2), see below.** | n/a |
+| `arena.css` (103) | **Orphaned — dropped by the owner (D166 §2), see below.** | n/a |
 
 ### Changed modules (patches in `changes/`)
 
@@ -78,7 +78,7 @@ at extraction time, not assumed.
 | `mirror-field-pops.jsx` (+48/−11) | Near's kindred go **anonymous** (silhouette, trade, age, coarse distance) and gain a mutual hide switch; type chips on field rows. |
 | `mirror-field.jsx` (+3/−1) | A field portrait travels `anon: true`, so the overlay reads a real name as "Ceramicist, 29". |
 | `compare-breakdown.jsx` (+23/−18) | The compare rose is redrawn again: your petal always solid to your own score, them as a washed dot per slice. Replaces v18's symmetric-gap rose. |
-| `result-card.jsx` (+37) | The "Born or built" section (`nature-data.js`). **Do not apply — refused at D163**; all 37 lines are that section, so the whole patch is dropped. |
+| `result-card.jsx` (+37) | The "Born or built" section (`nature-data.js`). **Do not apply — refused at D168**; all 37 lines are that section, so the whole patch is dropped. |
 | `group-daily.jsx` (+17/−11) | No half-washed avatars — a `sealed` state is a hue halo, so the cue is shape, not saturation. |
 | `duo-daily.jsx` (+7/−6) | The redaction block becomes three word-shaped bars; sealed opacity dropped. |
 | `person-mindmap.jsx` (+11/−15) | Chip rows become the swipe row (`MTSwipeRow`); serif title retired. |
@@ -108,7 +108,7 @@ ladder with pegs (`.a2-ladder`), a pot (`.a2-pot`), a rival with a quote
 in the bundle. Only the `.pp-*` crossroads rules sharing that block are
 live (`paths-card.jsx` uses them).
 
-**The owner has answered: dropped for now** (D161 §2 in
+**The owner has answered: dropped for now** (D166 §2 in
 [`docs/DECISIONS.md`](../../docs/DECISIONS.md)). The card was dropped, not
 lost in the export. Nothing to build, nothing to unwind — no app code ever
 referenced it.
@@ -121,7 +121,7 @@ cannot, which is the same reason it was never portable from what is here.
 
 ## `nature-data.js` + the `result-card.jsx` patch — refused
 
-**Born or built is not built** ([D163](../../docs/DECISIONS.md)). The
+**Born or built is not built** ([D168](../../docs/DECISIONS.md)). The
 owner's objection, on the plan's own note that this was "population
 science, not user data": *that is the reason to remove it*.
 
@@ -141,7 +141,7 @@ why it is the one patch in `changes/` that should never be applied.
 
 **Both files stay**, like `arena.css`, and for a stronger reason: a
 refusal with a stated principle is worth keeping so the idea is not
-re-proposed as new. What D163 does *not* refuse is also recorded there —
+re-proposed as new. What D168 does *not* refuse is also recorded there —
 authored content (question banks, archetypes, scenes) is the app's
 prompts rather than its findings, and a future sourced, external,
 clearly-labelled reading would need its own decision, not this one
