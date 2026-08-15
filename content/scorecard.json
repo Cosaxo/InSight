@@ -1,11 +1,11 @@
 {
-  "generatedAt": "2026-08-14T17:16:43.284Z",
-  "daysSinceEpoch": 13,
+  "generatedAt": "2026-08-15T07:17:19.278Z",
+  "daysSinceEpoch": 14,
   "coverage": {
     "questions": 164,
-    "scored": 6,
-    "belowFloor": 47,
-    "unserved": 77
+    "scored": 5,
+    "belowFloor": 53,
+    "unserved": 76
   },
   "topics": {
     "Sport": {
@@ -194,8 +194,8 @@
     },
     "bigq": {
       "questions": 11,
-      "scored": 2,
-      "answers": 2,
+      "scored": 1,
+      "answers": 1,
       "strong": 0,
       "landslides": 0,
       "avgEvenness": 0
@@ -255,8 +255,8 @@
       },
       "vote": {
         "questions": 59,
-        "scored": 5,
-        "answers": 5,
+        "scored": 4,
+        "answers": 4,
         "strong": 0,
         "landslides": 0,
         "avgEvenness": 0
@@ -300,11 +300,11 @@
     },
     "feed": {
       "vote/2": {
-        "questions": 4,
+        "questions": 3,
         "avgMinShare": 0,
         "avgShares": [
-          0.75,
-          0.25
+          0.667,
+          0.333
         ]
       },
       "vote/3": {
@@ -361,16 +361,6 @@
       ]
     },
     {
-      "qid": "feed-f55",
-      "prompt": "Humanity’s best days are ahead.",
-      "total": 1,
-      "evenness": 0,
-      "optionShares": [
-        1,
-        0
-      ]
-    },
-    {
       "qid": "feed-s11",
       "prompt": "Is morality discovered or invented?",
       "total": 1,
@@ -391,17 +381,6 @@
       "optionShares": [
         0,
         1
-      ]
-    },
-    {
-      "qid": "feed-f55",
-      "prompt": "Humanity’s best days are ahead.",
-      "total": 1,
-      "evenness": 0,
-      "grade": "middling",
-      "optionShares": [
-        1,
-        0
       ]
     },
     {
@@ -454,9 +433,9 @@
     "bySource": {
       "editorial": {
         "questions": 152,
-        "served": 87,
-        "scored": 6,
-        "answers": 6,
+        "served": 88,
+        "scored": 5,
+        "answers": 5,
         "strong": 0,
         "landslides": 0,
         "avgEvenness": 0
@@ -474,9 +453,9 @@
     "byVintage": {
       "editorial:prototype": {
         "questions": 118,
-        "served": 78,
-        "scored": 6,
-        "answers": 6,
+        "served": 79,
+        "scored": 5,
+        "answers": 5,
         "strong": 0,
         "landslides": 0,
         "avgEvenness": 0
@@ -524,7 +503,7 @@
     "coverage": {
       "cards": 106,
       "scored": 0,
-      "belowFloor": 20
+      "belowFloor": 28
     },
     "fields": {
       "cell": {
@@ -731,7 +710,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "no-answers"
+        "signal": "below-floor"
       },
       {
         "qid": "learn-gene3",
@@ -783,7 +762,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "no-answers"
+        "signal": "below-floor"
       },
       {
         "qid": "learn-gene7",
@@ -848,7 +827,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "no-answers"
+        "signal": "below-floor"
       },
       {
         "qid": "learn-body4",
@@ -1121,7 +1100,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "no-answers"
+        "signal": "below-floor"
       },
       {
         "qid": "learn-str1",
@@ -1264,7 +1243,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "no-answers"
+        "signal": "below-floor"
       },
       {
         "qid": "learn-anc4",
@@ -1277,7 +1256,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "no-answers"
+        "signal": "below-floor"
       },
       {
         "qid": "learn-anc5",
@@ -1303,7 +1282,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "no-answers"
+        "signal": "below-floor"
       },
       {
         "qid": "learn-anc7",
@@ -1901,7 +1880,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "no-answers"
+        "signal": "below-floor"
       },
       {
         "qid": "learn-anc13",
@@ -3210,7 +3189,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "no-answers"
+      "signal": "below-floor"
     },
     {
       "qid": "daily-013",
@@ -3218,11 +3197,11 @@
       "topic": "Values",
       "type": "scale",
       "prompt": "Suffering can give life meaning.",
-      "served": false,
+      "served": true,
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "unserved"
+      "signal": "below-floor"
     },
     {
       "qid": "daily-014",
@@ -4732,14 +4711,10 @@
       "type": "vote",
       "prompt": "Humanity’s best days are ahead.",
       "served": true,
-      "total": 1,
-      "evenness": 0,
-      "optionShares": [
-        1,
-        0
-      ],
-      "signal": "scored",
-      "grade": "middling"
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "below-floor"
     },
     {
       "qid": "feed-s01",
@@ -4995,7 +4970,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "no-answers"
+      "signal": "below-floor"
     },
     {
       "qid": "feed-fd2",
@@ -5007,7 +4982,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "no-answers"
+      "signal": "below-floor"
     },
     {
       "qid": "feed-fd3",
@@ -5019,7 +4994,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "no-answers"
+      "signal": "below-floor"
     },
     {
       "qid": "feed-pt1",
