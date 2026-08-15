@@ -1,0 +1,252 @@
+--- v18/app-shell.jsx
++++ v28/app-shell.jsx
+@@ -1,33 +1,19 @@
+ 
+ const { useState, useEffect } = React;
+ 
++// Settled experiments have been folded into the design; what stays here is
++// live state (which tab, which population) plus the two demo controls.
+ const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+   "density": "compact",
+   "tab": "track",
+   "mirrorPop": "you",
+-  "lensStyle": "underline",
+-  "accents": "now",
+   "worldZoom": "world",
+-  "wfReveal": true,
+-  "wfRipple": true,
+-  "wfPass": true,
+-  "wfClock": true,
+-  "wfV2": true,
+-  "wfSignals": true,
+-  "wfCrossfire": true,
+-  "wfCounter": true,
+-  "wfWhy": true,
+-  "wpal": "full",
+-  "mirrorFirstRun": false,
+-  "lensBoxed": false,
+-  "quietGround": true,
+-  "navMode": "ruler",
+-  "dockRuler": true,
+-  "mirrorLensTop": false,
+-  "feedHier": true,
+-  "markStyle": "slice"
++  "pulseHistory": "typical"
+ }/*EDITMODE-END*/;
+ 
++// the world feed's card set, all shipped
++const FEED_OPTS = { reveal: true, ripple: true, pass: true, clock: true, v2: true, signals: true, crossfire: true, counter: true, why: true, hier: true, paid: true };
++
+ // Hand-drawn-feel SVG glyphs — each one a small ink illustration
+ function NavGlyph({ id, active }) {
+   const stroke = active ? 'var(--ink)' : 'var(--ink-3)';
+@@ -53,47 +39,42 @@
+       </svg>
+     );
+   }
+-  if (id === 'groups') {
+-    // three ties, one circle — a named group
+-    return (
+-      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke={stroke} strokeWidth={sw} strokeLinecap="round">
+-        <path d="M12 6.6 L6.6 15.6 M12 6.6 L17.4 15.6 M6.6 15.6 L17.4 15.6" opacity="0.42"></path>
+-        <circle cx="12" cy="6.6" r="2.5" fill={active ? 'var(--ink)' : 'transparent'} fillOpacity="0.14"></circle>
+-        <circle cx="6.6" cy="15.6" r="2.5" fill={active ? 'var(--ink)' : 'transparent'} fillOpacity="0.14"></circle>
+-        <circle cx="17.4" cy="15.6" r="2.5" fill={active ? 'var(--ink)' : 'transparent'} fillOpacity="0.14"></circle>
+-      </svg>
+-    );
+-  }
+-  if (id === 'duo') {
+-    // two, joined — one on one
++  if (id === 'patterns') {
++    // a constellation — points of data, joined into a figure
+     return (
+-      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke={stroke} strokeWidth={sw} strokeLinecap="round">
+-        <path d="M8.6 12 H15.4" opacity="0.42"></path>
+-        <circle cx="6" cy="12" r="3.1" fill={active ? 'var(--ink)' : 'transparent'} fillOpacity="0.14"></circle>
+-        <circle cx="18" cy="12" r="3.1" fill={active ? 'var(--ink)' : 'transparent'} fillOpacity="0.14"></circle>
++      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke={stroke} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round">
++        <path d="M5 17.5 L11.5 13.5 L18.5 15.5 M11.5 13.5 L10 6.5 M11.5 13.5 L19 5.5" opacity="0.42"></path>
++        <circle cx="5" cy="17.5" r="1.4" fill={stroke} stroke="none"></circle>
++        <circle cx="10" cy="6.5" r="1.4" fill={stroke} stroke="none"></circle>
++        <circle cx="18.5" cy="15.5" r="1.4" fill={stroke} stroke="none"></circle>
++        <circle cx="11.5" cy="13.5" r="1.4" fill={stroke} stroke="none"></circle>
++        <circle cx="19" cy="5.5" r="2.4" fill={active ? 'var(--ink)' : 'transparent'} fillOpacity="0.14"></circle>
+       </svg>
+     );
+   }
+   return null;
+ }
+ 
+-// Two tabs: daily · mirror — act, then see.
++// patterns · daily · mirror — the daily sits in the middle, so a swipe either way
++// lands somewhere: left into what your answers add up to, right into who else.
+ // (Internal ids keep their historical names; only labels are user-facing.)
+ const TABS = [
+-  { id: 'track',  label: 'daily'  },
+-  { id: 'mirror', label: 'mirror' },
++  { id: 'patterns', label: 'patterns' },
++  { id: 'track',    label: 'daily'    },
++  { id: 'mirror',   label: 'mirror'   },
+ ];
+ 
+ const MIRROR_POP_IDS = ['you', 'circle', 'groups', 'near', 'world'];
+ const WORLD_ZOOM_IDS = ['city', 'country', 'world'];
+ 
+-// nav v2 — ONE primary nav. The three daily modes and the mirror are the same
+-// kind of choice, so they live on the same bar instead of at two altitudes.
++// one axis for every jump between daily modes and tabs — swipe gestures and
++// cross-links both go through window.goNav with these keys
+ const NAV_ONE = [
+-  { key: 'track:world', tab: 'track',  mode: 'world', label: 'daily',  glyph: 'track' },
+-  { key: 'track:group', tab: 'track',  mode: 'group', label: 'groups', glyph: 'groups' },
+-  { key: 'track:duo',   tab: 'track',  mode: 'duo',   label: '1v1',    glyph: 'duo' },
+-  { key: 'mirror',      tab: 'mirror',                label: 'mirror', glyph: 'mirror' },
++  { key: 'patterns',    tab: 'patterns'               },
++  { key: 'track:world', tab: 'track',  mode: 'world'  },
++  { key: 'track:group', tab: 'track',  mode: 'group'  },
++  { key: 'track:duo',   tab: 'track',  mode: 'duo'    },
++  { key: 'mirror',      tab: 'mirror'                 },
+ ];
+ 
+ // Overlays that ship.
+@@ -157,7 +138,9 @@
+   useEffect(() => {
+     window.openSuggestions = () => { setOv('suggest'); };
+     window.openLogicTest = () => { closeAll(); setOv('logic'); };
+-    return () => { delete window.openSuggestions; delete window.openLogicTest; };
++    // the pulse card's own reading — the Pulse branch of your Map, one leaf a day
++    window.goTrends = () => { closeAll(); window.MAP_OPEN_GROUP = 'g-self'; window.MAP_SELECT = 'pulse'; setTweak('mirrorPop', 'you'); setTab('mirror'); };
++    return () => { delete window.openSuggestions; delete window.openLogicTest; delete window.goTrends; };
+   }, []);
+ 
+   useEffect(() => {
+@@ -181,7 +164,7 @@
+       // arriving after the switch and stepped the daily one stop further
+       window.NAV_AT = Date.now();
+       closeAll();
+-      if (it.tab === 'mirror') { setTweak('mirrorPop', 'you'); setTab('mirror'); return; }
++      if (it.tab !== 'track') { if (it.tab === 'mirror') setTweak('mirrorPop', 'you'); setTab(it.tab); return; }
+       setDailyMode(it.mode); setTab('track');
+     };
+     // open the test flow — straight into a specific test, or the picker
+@@ -212,31 +195,26 @@
+   useEffect(() => { const v = validTab(t.tab); if (v !== tab) setTab(v); }, [t.tab]);
+   useEffect(() => { if (t.tab !== tab) setTweak('tab', tab); }, [tab]);
+ 
+-  const appClasses = `app surface-tint acc-${t.accents || 'now'} ${t.density || 'regular'} ${t.quietGround !== false ? 'quiet-ground' : ''}`;
+-  // three ways to navigate, so they can be judged against each other:
+-  //   ruler — two tabs; the daily's three stops are a scale (One · Circle · World)
+-  //   pill  — two tabs; the original segmented switcher in the header
+-  //   bar   — one flat bar of four: daily · groups · 1v1 · mirror
+-  const navMode = ['ruler', 'pill', 'bar'].includes(t.navMode) ? t.navMode : 'ruler';
+-  const navBar = navMode === 'bar';
+-  const navKey = tab === 'mirror' ? 'mirror' : 'track:' + dailyMode;
++  const appClasses = `app surface-tint acc-now ${t.density || 'regular'} quiet-ground`;
+   // how archetype marks draw — read by TypeMark during the render below
+-  window.IS_MARK_STYLE = ['ring', 'slice', 'dots'].includes(t.markStyle) ? t.markStyle : 'slice';
+-  // how far World's many topic hues are pulled toward the tab accent — see world-palette.js
+-  window.IS_WPAL = ['full', 'family', 'one'].includes(t.wpal) ? t.wpal : 'full';
++  window.IS_MARK_STYLE = 'slice';
++  // World's many topic hues, at full spread — see world-palette.js
++  window.IS_WPAL = 'full';
++  // which seeded pulse history the demo runs on — see pulse-data.js
++  window.IS_PULSE_HISTORY = ['typical', 'gap', 'day1', 'perfect'].includes(t.pulseHistory) ? t.pulseHistory : 'typical';
+ 
+   return (
+     <IOSDevice width={402} height={874}>
+-      <div className={appClasses} data-tab={tab} data-view={tab === 'track' ? 'track:' + dailyMode : 'mirror:' + mirrorPop} data-lens-style={t.lensStyle || 'underline'} data-docked={tab === 'track' && docked ? '' : undefined} data-mpop={tab === 'mirror' ? mirrorPop : undefined} style={tab === 'mirror' ? { '--accent': mirrorPop === 'you' ? 'var(--c-today)' : mirrorPop === 'circle' ? 'var(--c-people)' : mirrorPop === 'groups' ? 'var(--c-groups)' : mirrorPop === 'world' ? 'var(--c-world)' : 'var(--c-city)' } : undefined}>
++      <div className={appClasses} data-tab={tab} data-view={tab === 'track' ? 'track:' + dailyMode : tab === 'mirror' ? 'mirror:' + mirrorPop : tab} data-lens-style="underline" data-docked={tab === 'track' && docked ? '' : undefined} data-mpop={tab === 'mirror' ? mirrorPop : undefined} style={tab === 'mirror' ? { '--accent': mirrorPop === 'you' ? 'var(--c-today)' : mirrorPop === 'circle' ? 'var(--c-people)' : mirrorPop === 'groups' ? 'var(--c-groups)' : mirrorPop === 'world' ? 'var(--c-world)' : 'var(--c-city)' } : undefined}>
+ 
+         <header className="app-header">
+           <button className={"avatar-btn" + (ov === 'profile' ? ' is-on' : '')} onClick={() => { if (ov === 'profile') { setOv(null); } else { closeAll(); setOv('profile'); } }}>
+             {ov === 'profile' ? '✕' : me.initials}
+           </button>
+-          {tab === 'track' && navMode === 'pill' ? <div className="h-modeslot" id="daily-mode-slot"></div> : (
++          {(
+             <div className="h-center">
+               <div className="h-title">in<em>Sight</em></div>
+-              {tab === 'track' && navMode === 'ruler' && t.dockRuler !== false && (
++              {tab === 'track' && (
+                 <div className="h-dockslot">
+                   <div className="h-dockruler" role="tablist" aria-label="How far this answer reaches">
+                     {DOCK_STOPS.map((s) => (
+@@ -261,28 +239,17 @@
+         <div className="app-body">
+           <ErrorBoundary key={'tab-' + tab} onReset={() => { setTab('track'); setTweak('tab', 'track'); }}>
+             <div className="tab-swap" key={tab}>
+-              {tab === 'track' && <DailySplit key={dailyKey + ':' + navMode + ':' + (t.dockRuler !== false)} mode={dailyMode} onMode={setDailyMode} onDock={setDocked} hideSwitcher={navBar} ruler={navMode === 'ruler'} dock={t.dockRuler !== false} feedHier={!!t.feedHier} feedOpts={{ reveal: t.wfReveal, ripple: t.wfRipple, pass: t.wfPass, clock: t.wfClock, v2: t.wfV2, signals: t.wfSignals, crossfire: t.wfCrossfire, counter: t.wfCounter, why: t.wfWhy, hier: !!t.feedHier }} />}
+-              {tab === 'mirror' && <MirrorTab onPerson={setPerson} pop={mirrorPop} onPop={(v) => setTweak('mirrorPop', v)} worldZoom={worldZoom} onZoom={(v) => setTweak('worldZoom', v)} firstRun={!!t.mirrorFirstRun} topNav={!!t.mirrorLensTop} backKey={'track:duo'} />}
++              {tab === 'track' && <DailySplit key={dailyKey + ':' + t.pulseHistory} mode={dailyMode} onMode={setDailyMode} onDock={setDocked} hideSwitcher={false} ruler dock feedHier pulse feedOpts={FEED_OPTS} />}
++              {tab === 'patterns' && <window.PatternsTab />}
++              {tab === 'mirror' && <MirrorTab key={'mirror-' + t.pulseHistory} onPerson={setPerson} pop={mirrorPop} onPop={(v) => setTweak('mirrorPop', v)} worldZoom={worldZoom} onZoom={(v) => setTweak('worldZoom', v)} firstRun={false} topNav={false} backKey={'track:duo'} />}
+             </div>
+           </ErrorBoundary>
+         </div>
+ 
+         {/* Tabbar */}
+-        <nav className="tabbar" data-n={navBar ? 4 : 2}>
++        <nav className="tabbar" data-n={3}>
+           <div className="tab-group">
+-            {navBar ? NAV_ONE.map((it) => (
+-              <button key={it.key} className={"tab-btn" + (navKey === it.key ? ' is-active' : '')}
+-                onClick={() => {
+-                  if (window.HAPTIC && navKey !== it.key) window.HAPTIC.tick();
+-                  window.NAV_AT = Date.now();
+-                  closeAll();
+-                  if (it.tab === 'mirror') { setTab('mirror'); setTweak('mirrorPop', 'you'); return; }
+-                  setDailyMode(it.mode); setTab('track');
+-                }}>
+-                <span className="glyph"><NavGlyph id={it.glyph} active={navKey === it.key} /></span>
+-                <span>{it.label}</span>
+-              </button>
+-            )) : TABS.map(({ id, label }) => (
++            {TABS.map(({ id, label }) => (
+               <button key={id} className={"tab-btn" + (tab === id ? ' is-active' : '')}
+                 onClick={() => {
+                   if (window.HAPTIC && tab !== id) window.HAPTIC.tick();
+@@ -304,7 +271,7 @@
+         <ErrorBoundary key={'ov-' + (ov || 'none') + (person ? '-p' : '') + (city ? '-c' : '')} onReset={closeAll}>
+           {person && <PersonOverlay p={person} me={me} onClose={() => setPerson(null)} />}
+           {city && <CityOverlay city={city} onClose={() => setCity(null)} />}
+-          {ov === 'profile' && <ProfileOverlay onClose={() => setOv(null)} me={me} lensBoxed={!!t.lensBoxed} />}
++          {ov === 'profile' && <ProfileOverlay onClose={() => setOv(null)} me={me} lensBoxed={false} />}
+           {ov === 'suggest' && <SuggestOverlay onClose={() => setOv(null)} />}
+           {ov === 'search' && <SearchOverlay onClose={() => setOv(null)} onPerson={(p) => { setOv(null); setPerson(p); }} onCity={(c) => { setOv(null); setCity(c); }} />}
+           {ov === 'test' && <TestOverlay kind={testKind} onClose={() => { setTestKind(null); backOv(); }} onComplete={() => { setTestKind(null); backOv(); }} />}
+@@ -314,32 +281,12 @@
+       </div>
+ 
+       <TweaksPanel>
+-        <TweakSection label="Navigation" />
+-        <TweakRadio label="Nav" value={navMode} options={['ruler', 'pill', 'bar']} onChange={(v) => setTweak('navMode', v)} />
+-        <TweakToggle label="Ruler docks on scroll" value={t.dockRuler !== false} onChange={(v) => setTweak('dockRuler', v)} />
+-        <TweakToggle label="Mirror: lenses on top" value={!!t.mirrorLensTop} onChange={(v) => setTweak('mirrorLensTop', v)} />
+-        <TweakToggle label="Feed hierarchy" value={!!t.feedHier} onChange={(v) => setTweak('feedHier', v)} />
+-        <TweakSection label="Aesthetic" />
+-        <TweakRadio label="Accents" value={t.accents || 'now'} options={['now', 'daily', 'family']} onChange={(v) => setTweak('accents', v)} />
+-        <TweakToggle label="Quiet ground" value={t.quietGround !== false} onChange={(v) => setTweak('quietGround', v)} />
++        <TweakSection label="Display" />
+         <TweakRadio label="Density" value={t.density} options={['compact', 'regular']} onChange={(v) => setTweak('density', v)} />
+-        <TweakRadio label="Lens tabs" value={t.lensStyle || 'segmented'} options={['segmented', 'underline', 'chips']} onChange={(v) => setTweak('lensStyle', v)} />
+-        <TweakRadio label="Type marks" value={t.markStyle || 'slice'} options={['slice', 'ring', 'dots']} onChange={(v) => setTweak('markStyle', v)} />
+-        <TweakToggle label="Mirror: first run" value={!!t.mirrorFirstRun} onChange={(v) => setTweak('mirrorFirstRun', v)} />
+-        <TweakToggle label="Lenses: boxed cards" value={!!t.lensBoxed} onChange={(v) => setTweak('lensBoxed', v)} />
+-        <TweakSection label="Daily" />
++        <TweakSection label="Demo state" />
++        <TweakSelect label="Pulse history" value={t.pulseHistory || 'typical'} options={['typical', 'gap', 'day1', 'perfect']} onChange={(v) => setTweak('pulseHistory', v)} />
+         <TweakButton label="Reset today's answers" secondary onClick={() => { if (window.DUELS) window.DUELS.resetToday(); setDailyKey((k) => k + 1); }} />
+-        <TweakSection label="World feed" />
+-        <TweakRadio label="Palette" value={t.wpal || 'full'} options={['full', 'family', 'one']} onChange={(v) => setTweak('wpal', v)} />
+-        <TweakToggle label="Quieter cards (v2)" value={t.wfV2} onChange={(v) => setTweak('wfV2', v)} />
+-        <TweakToggle label="Tile reveal + surprise line" value={t.wfReveal} onChange={(v) => setTweak('wfReveal', v)} />
+-        <TweakToggle label="Consequence ripple" value={t.wfRipple} onChange={(v) => setTweak('wfRipple', v)} />
+-        <TweakToggle label="Skip" value={t.wfPass} onChange={(v) => setTweak('wfPass', v)} />
+-        <TweakToggle label="Closing clock" value={t.wfClock} onChange={(v) => setTweak('wfClock', v)} />
+-        <TweakToggle label="Minds-moved signal + sort" value={t.wfSignals} onChange={(v) => setTweak('wfSignals', v)} />
+-        <TweakToggle label="Crossfire pair on top" value={t.wfCrossfire} onChange={(v) => setTweak('wfCrossfire', v)} />
+-        <TweakToggle label="Counter-arguments" value={t.wfCounter} onChange={(v) => setTweak('wfCounter', v)} />
+-        <TweakToggle label="Ask why after voting" value={t.wfWhy} onChange={(v) => setTweak('wfWhy', v)} />
++        <TweakButton label="Clear today's pulse" secondary onClick={() => { if (window.PULSE) window.PULSE.clearToday(); }} />
+         <TweakButton label="Clear feed memory" secondary onClick={() => { if (window.FEEDREAD) window.FEEDREAD.reset(); setDailyKey((k) => k + 1); }} />
+       </TweaksPanel>
+     </IOSDevice>

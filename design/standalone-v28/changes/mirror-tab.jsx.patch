@@ -1,0 +1,32 @@
+--- v18/mirror-tab.jsx
++++ v28/mirror-tab.jsx
+@@ -43,8 +43,9 @@
+ // mirror follows your finger stop by stop, with a tick as each one passes. The
+ // axis is a slider, so it should feel like one; vertical pans still scroll.
+ function MirrorPopPicker({ stopId, onPick, big }) {
+-  const n = MIRROR_STOPS.length;
+-  const idx = Math.max(0, MIRROR_STOPS.findIndex(p => p.id === stopId));
++  const STOPS = MIRROR_STOPS;
++  const n = STOPS.length;
++  const idx = Math.max(0, STOPS.findIndex(p => p.id === stopId));
+   const accent = stopAccent(stopId);
+   // 38px of visual ruler, 44px of tap target — the extra 6px reaches UP into the
+   // empty gap under the header, so it never steals a tap from the content below
+@@ -64,7 +65,7 @@
+     if (j === drag.current.last) return;
+     drag.current.last = j;
+     if (window.HAPTIC) window.HAPTIC.tick();
+-    onPick(MIRROR_STOPS[j]);
++    onPick(STOPS[j]);
+   };
+   const scrub = (clientX) => { const i = stopAt(clientX); if (i != null) goTo(i); };
+   // Window-level listeners rather than pointer capture: capture on a container
+@@ -122,7 +123,7 @@
+       <div ref={railRef} style={{ position: 'relative', display: 'flex', height: H, touchAction: 'pan-y', userSelect: 'none', WebkitUserSelect: 'none', cursor: scrubbing ? 'grabbing' : 'default' }} role="tablist" aria-label="How far the mirror reaches"
+         onPointerDown={onDown}>
+         <div style={{ position: 'absolute', left: 6, right: 6, bottom: big ? 20 : 15, height: 1, background: 'color-mix(in oklch, var(--rule), transparent 30%)' }}></div>
+-        {MIRROR_STOPS.map((p, i) => {
++        {STOPS.map((p, i) => {
+           const on = i === idx;
+           const tick = (big ? 5.5 : 4.5) + (i / (n - 1)) * (big ? 8 : 5);
+           return (

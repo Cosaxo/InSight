@@ -20,6 +20,14 @@ before changing anything on that tab. React 19 + TypeScript + Vite,
 Capacitor shells for iOS/Android, Firebase (anonymous-first auth,
 Firestore, Cloud Functions).
 
+**A third tab is adopted on trial and not built yet (D166 §1).** The v28
+design makes the app `patterns · daily · mirror`; the sentence above stays
+true until that tab ships, and this note exists so nobody plans against
+"two" as though it were settled. It arrives lazily, nothing outside it may
+depend on there being three, and the opening sentence changes in the same
+commit the tab first appears. The plan is
+[`docs/VISION-V28.md`](docs/VISION-V28.md).
+
 **Answers are public (D98).** Any signed-in user may read any other
 user's answers and profile; population counts are exact and publish from
 the first answer. There is no k-anonymity floor, no publish cadence, no

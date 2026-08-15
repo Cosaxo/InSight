@@ -1,0 +1,53 @@
+--- v18/result-card.jsx
++++ v28/result-card.jsx
+@@ -157,6 +157,31 @@
+   );
+ }
+ 
++// ── born or built — the share of each dimension's person-to-person spread that
++// twin studies trace to genes (nature-data.js). Population estimates: about
++// differences between people, never a slice of one person.
++function NatureRows({ R, cfg, H }) {
++  const rows = R.dims.filter((d) => H[d.id] != null)
++    .map((d, i) => ({ d, h: H[d.id], hue: cfg.hues[d.id] != null ? cfg.hues[d.id] : (30 + i * 47) % 360 }))
++    .sort((a, b) => b.h - a.h);
++  return (
++    <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
++      {rows.map(({ d, h, hue }, k) => {
++        const col = rpv2Dot(hue);
++        return (
++          <div key={d.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }} title={`${d.label} — about ${h}% of the spread traces to genes`}>
++            <span style={{ width: 104, flexShrink: 0, fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.label}</span>
++            <div style={{ position: 'relative', flex: 1, height: 10, borderRadius: 999, background: `color-mix(in oklch, ${col} 11%, var(--surface-3))` }}>
++              <span className="rpv2-bar" style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: `${h}%`, borderRadius: 999, transformOrigin: 'left', animationDelay: `calc(var(--rv-row) * ${k})`, background: `linear-gradient(90deg, color-mix(in oklch, ${col}, transparent 45%), ${col})` }}></span>
++              <span style={{ position: 'absolute', top: -2, bottom: -2, left: '50%', width: 1.5, marginLeft: -0.75, borderRadius: 1, background: 'var(--surface)', boxShadow: '0 0 0 0.5px var(--rule)' }}></span>
++            </div>
++          </div>
++        );
++      })}
++    </div>
++  );
++}
++
+ // ── the v2 card: banner (identity + rarity + near-misses) → native chart → differ ──
+ function ResultProfileCard({ testKey, archetype, tagline }) {
+   const [typesOpen, setTypesOpen] = React.useState(false);
+@@ -264,6 +289,18 @@
+             </div>
+           </div>
+         ) : null}
++        {window.NATURE && window.NATURE.h2[testKey] ? (
++          <div style={{ marginTop: 4, paddingTop: 14, borderTop: '0.5px solid var(--rule)' }}>
++            <div className="kicker" style={{ marginBottom: 4 }}>Born or built</div>
++            <div style={{ fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 500, color: 'var(--ink-3)', lineHeight: 1.45, marginBottom: 12, textWrap: 'pretty' }}>How much of the spread between people on each trait twin studies trace to genes.</div>
++            <NatureRows R={R} cfg={cfg} H={window.NATURE.h2[testKey]} />
++            <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 13, paddingTop: 11, borderTop: '0.5px solid var(--rule)' }}>
++              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 600, color: 'var(--ink-3)' }}><span style={{ width: 16, height: 7, borderRadius: 999, background: cfg.banner }}></span>genes</span>
++              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 600, color: 'var(--ink-3)' }}><span style={{ width: 16, height: 7, borderRadius: 999, background: `color-mix(in oklch, ${cfg.banner} 12%, var(--surface-3))` }}></span>life</span>
++              <span style={{ flex: 1, textAlign: 'right', fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 500, color: 'var(--ink-3)' }}>averages across people — not slices of you</span>
++            </div>
++          </div>
++        ) : null}
+       </div>
+       {explain && window.ExplainSheet ? (
+         <window.ExplainSheet title={R.title} kicker="test" dimKey={testKey}

@@ -12,6 +12,18 @@ committed reference until a full sync moves it — a partial sync must not
 re-point this file, or style-diff and the next sync both aim at a target
 that half-describes the tree.
 
+**v24, v25 and v28 followed, each extracted rather than committed whole**
+(`standalone-v24/`, `standalone-v25/`, `standalone-v28/`) — the uploads are
+ephemeral, those directories are the durable record. **v28 is the current
+vision** and the largest of the three: two tabs become three
+(`patterns · daily · mirror`), the prototype's tweak laboratory is
+dismantled into shipped defaults, and eighteen modules arrive that v18 has
+no counterpart for. Its inventory is `standalone-v28/README.md`; the plan
+built on it — sequencing, cost, and the three owner decisions it needs —
+is [`docs/VISION-V28.md`](../docs/VISION-V28.md). Same rule as above
+applies to all three: **none of them re-points this file**, and v18 stays
+what `style-diff.mjs` aims at until a full sync lands.
+
 The earlier v9 prototype and the extracted `spec-modules/`
 directory were deleted on 2026-07-29, v14 on 2026-07-30, v15 on
 2026-08-04 when v17 superseded it, and v17 on 2026-08-07 when v18 did:

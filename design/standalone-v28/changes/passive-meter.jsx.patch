@@ -1,0 +1,10 @@
+--- v18/passive-meter.jsx
++++ v28/passive-meter.jsx
+@@ -51,7 +51,6 @@
+         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+           {P.KEYS.map((k) => <PassiveRing key={k} k={k} size={13} thick={3.2}></PassiveRing>)}
+         </span>
+-        <span style={{ fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 10.5, letterSpacing: '0.04em', color: 'var(--ink-3)' }}>profile</span>
+       </button>
+       {open && host && ReactDOM.createPortal(
+         <div className={'wf-scrim' + (closing ? ' is-closing' : '')} onClick={close}>

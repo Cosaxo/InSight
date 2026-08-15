@@ -1,0 +1,11 @@
+--- v18/page.css
++++ v28/page.css
+@@ -6,6 +6,8 @@
+   .app[data-tab="track"] { --accent: var(--c-around); }
+   /* mirror tab — defaults to the area green; the tab swaps it per population */
+   .app[data-tab="mirror"] { --accent: var(--c-city); }
++  /* patterns tab — dusk indigo, the oracle's hour */
++  .app[data-tab="patterns"] { --accent: var(--c-today); }
+   /* daily tab is the Split app — it paints its own surface full-bleed */
+   /* direct child only — overlays (profile etc.) keep their normal padding */
+   .app[data-tab="track"] > .app-body { padding: 0; }

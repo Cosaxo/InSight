@@ -1,0 +1,59 @@
+--- v18/person-overlay.jsx
++++ v28/person-overlay.jsx
+@@ -141,7 +141,7 @@
+   const p = { ...rawP, interests: normInterests };
+   const prof = derivePerson(p, me);
+   const parts = affinityBreakdown(me, prof, p);
+-  const themColor = `oklch(0.55 0.13 ${p.hue})`;
++  const themColor = window.WPAL.ink(`oklch(0.55 0.13 ${p.hue})`);
+ 
+   const overall = Math.round(p.match);
+   const firstName = p.anon ? 'Them' : (p.name ? p.name.split(' ')[0] : p.init);
+@@ -163,7 +163,6 @@
+       <div className="app-header">
+         <button className="avatar-btn" onClick={onClose}>←</button>
+         <div className="h-title" style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textTransform: p.anon ? 'capitalize' : 'none' }}>{anonName(p)}</div>
+-        <div className="h-meta" style={{ flexShrink: 0 }}>{p.dist || (p.anon ? 'nearby' : 'in your orbit')}</div>
+       </div>
+       <div className="app-body">
+ 
+@@ -191,7 +190,7 @@
+           <div style={{ fontFamily: 'var(--sans)', fontSize: 28, fontWeight: 800, marginTop: 18, letterSpacing: '-0.03em', lineHeight: 1.1, textTransform: p.anon ? 'capitalize' : 'none' }}>{anonName(p)}</div>
+           <div style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 700, color: 'var(--ink-3)', letterSpacing: '0.09em', marginTop: 7, textTransform: 'uppercase' }}>
+             {p.anon
+-              ? `${p.role || 'nearby'} · ${p.dist || 'nearby'}`
++              ? (p.dist || 'nearby')
+               : <>{p.role || p.rel} · {p.age ? `aged ${p.age} · ` : ''}{p.dist || 'in your orbit'}</>}
+           </div>
+ 
+@@ -213,11 +212,11 @@
+                 transition: 'background 0.15s, color 0.15s, box-shadow 0.15s',
+               }}>{isFriend ? 'Friends ✓' : fStatus === 'invited' ? 'Invited · waiting' : 'Add friend'}</button>
+             ))}
+-            {fStatus === 'invited' && !confirmRemove && <span style={{ fontFamily: 'var(--sans)', fontSize: 11, fontWeight: 600, color: 'var(--ink-3)' }}>they{'\u2019'}ll see it soon · tap to cancel</span>}
++            {!p.anon && fStatus === 'invited' && !confirmRemove && <span style={{ fontFamily: 'var(--sans)', fontSize: 11, fontWeight: 600, color: 'var(--ink-3)' }}>they{'\u2019'}ll see it soon · tap to cancel</span>}
+           </div>
+         </div>
+ 
+-        <hr className="rule-dashed" />
++        <hr className="rule" />
+ 
+         {/* ─── Affinity composer — one compare card per category, swipeable ─── */}
+         {(() => {
+@@ -346,13 +345,15 @@
+           return (
+             <div style={{ marginBottom: 26 }}>
+               <div style={{ marginBottom: 11 }}><Kicker>How well you read each other</Kicker></div>
++              <div className="card">
+               {rows.length >= 2 && window.DuoDomains
+                 ? <window.DuoDomains rows={rows} themColor={themColor} themName={firstName}></window.DuoDomains>
+                 : <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                     {row('you', duo.read.total, 'readRight')}
+                     {row(firstName, duo.readBy.total, 'byRight', themColor)}
+                   </div>}
+-              {weak ? <div style={{ marginTop: 13, fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 600, color: 'var(--ink-2)', lineHeight: 1.45, textWrap: 'pretty' }}>Your {weak.noun || weak.label} is where you{'\u2019'}re least legible to {firstName}.</div> : null}
++              {weak ? <div style={{ marginTop: 13, paddingTop: 12, borderTop: '0.5px solid var(--rule)', fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 600, color: 'var(--ink-2)', lineHeight: 1.45, textWrap: 'pretty' }}>Your {weak.noun || weak.label} is where you{'\u2019'}re least legible to {firstName}.</div> : null}
++              </div>
+             </div>
+           );
+         })()}

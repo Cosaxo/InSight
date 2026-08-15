@@ -16305,3 +16305,287 @@ amended with the real database id when it exists. Also not decided: when
 `(default)` is deleted — a step, deliberately, not an afterthought, since
 `deleteAccount` and the erasure suite address one database and an erasure
 run against the new one does not reach data left in the old.
+
+## D166 · The third tab is adopted ON TRIAL, the Arena is dropped, the pulse roster is approved
+
+**Decided:** 2026-08-15 · **Status:** binding, with §1 carrying an explicit
+trial clause. The owner's three answers to the open questions in
+[`docs/VISION-V28.md`](VISION-V28.md), given on the plan for the v28
+standalone (`design/standalone-v28/`): *"1. yeah i think so but leve notes
+that it curently in a trial period to see it it is something that we would
+like for this project 2 the arena is droped for now 3 sleep and enrgy is
+fine as far as i see it"*
+
+### 1 · `patterns · daily · mirror` — adopted, and the trial clause is the record
+
+v28 makes the app three tabs, the daily in the middle so a swipe either way
+lands somewhere. **Adopted — build it.** But it is adopted *on trial*, and
+this section exists so the trial is a recorded state rather than an
+unwritten reservation somebody has to remember.
+
+**What "on trial" means here, concretely.** Not "Proposed" — that status
+binds nothing and blocks the work, and the owner has said to proceed. Not
+plain binding either, because a plain binding record is the thing this repo
+treats as settled until an explicit reversal, and this one is expected to
+be re-examined. So: **build it as though it ships, keep the reversal
+cheap.** Three consequences follow, and they are the whole cost of the
+clause:
+
+- **The tab loads behind the lazy loader**, not the eager graph. That is
+  already forced by `MAX_EAGER_KB` having no headroom (VISION-V28 §2), so
+  the trial adds no constraint — it just means the constraint is now
+  load-bearing twice. A lazily-loaded tab is one import site and one `TABS`
+  entry away from not existing.
+- **Nothing outside the tab may come to depend on there being three.**
+  Cross-links into Patterns go through `window.goNav` like every other jump
+  (v28 already routes them that way); no Mirror stop, no daily surface and
+  no record may be written in terms of "the third tab". The daily ruler's
+  near-end exit is the one exception and it is deliberately trivial to
+  revert — one branch in `daily-split.jsx`.
+- **`CLAUDE.md`'s opening sentence changes when the tab ships, and says
+  the trial out loud.** "A two-tab app (daily · mirror)" becoming a
+  three-tab claim is the single most-read sentence in the repo; leaving it
+  stale would be the documentation failure this tree keeps re-committing.
+  It should read as three tabs *on trial*, with the pointer here.
+
+**What would end the trial**, so the question is answerable rather than
+perpetual: whether Patterns earns its own tab, or turns out to be a thing
+people open once. That is a usage question, and the honest version of it
+needs the tab built and in TestFlight — which is exactly why it is adopted
+rather than deferred. Reversal, if it comes, is a decision recorded here,
+not a silent removal.
+
+**The one thing the trial does NOT license: fabricated data.** VISION-V28
+§2's finding stands unchanged — the prototype's Patterns engine invents 560
+people, and a trial is not a reason to ship invented ones "just to see". If
+the server fold that makes the map real is too expensive to justify for a
+trial, the correct move is to narrow the trial (one lens, fewer questions),
+never to loosen the honesty rule. A trial of a fabricated screen answers no
+question worth asking.
+
+### 2 · The Arena is dropped
+
+`design/standalone-v28/arena.css` — 103 lines styling a game-theory feed
+card (payoff matrix, Nash line, sealed-answer ladder, pot, rival, streaks,
+manner readout) whose JSX is not in the standalone — is **dropped for now**.
+It was recorded as an open question because the CSS was verifiably orphaned
+(no module in v28 emits an `ar-`/`a2-` class; `--ar-ink` and `--ar-c` are
+defined nowhere in the export), and the answer is that the card was dropped,
+not lost.
+
+**The file stays** at `design/standalone-v28/arena.css`, relabelled from
+"open question" to "dropped". Deleting it would be the cheaper-looking move
+and the wrong one: the standalone it came from is an ephemeral upload, so
+the file is the only surviving description of the idea, and "dropped for
+now" is not "refused". Reviving it means a new design pass that says what
+the game is — a stylesheet cannot, which is the same reason it was never
+portable from what is here.
+
+**No app code ever referenced it**, so there is nothing to remove and no
+port to unwind. This section is the record that the question was asked and
+answered, so the next reader of that CSS does not re-open it.
+
+### 3 · The pulse roster ships with sleep and energy
+
+v28's `pulse-data.js` carries five pulses — mood · energy · sleep · focus ·
+social — each with its own cadence (daily · often · weekly · off). D139
+shipped the store single-pulse and said in as many words that *"a roster
+becomes a parameter the day a second pulse ships"*. **Approved: this is that
+day, and the roster is the full five.**
+
+VISION-V28 §3 flagged that sleep and energy sit further into wellbeing
+territory than mood does, and that under D98 a pulse series is public like
+every other answer. The owner has weighed that and said ship it. **That
+settles the product question**, and this record is not re-opening it.
+
+**What it does not settle, because it is a fact rather than a preference:**
+`docs/STORE-FORMS.md`'s Health row currently answers **No**, and the bullet
+that holds it has an explicit trip-wire ("*Whoever picks that decision back
+up owns this row*") written for the height band at D140. A daily
+self-reported *"How did you sleep?"* series is closer to Apple's "any other
+user provided health or medical data" than a demographic band is, so
+**whoever ships the roster owns that row** and re-answers it in the same
+pass. That is a build step in the roster's own commit, not a gate on the
+decision above — the same shape D140 used, and the reason its trip-wire was
+written down instead of remembered.
+
+Two mechanical follow-throughs ride with it, both already required by
+existing gates rather than invented here: `content/pulse-questions.json`
+gains the four new templates (`check:content`/`check:quality` see them), and
+`docs/data-inventory.md` names whatever collection the per-day series lands
+in, because `check:data-inventory` fails on a collection the rules reach and
+the inventory does not name (D130).
+
+## D167 · Every v28 surface ships with its backend, or it does not ship
+
+**Decided:** 2026-08-15 · **Status:** binding. The owner, on the v28 build
+plan: *"and things are built out in the back as well no use of sample
+data"*.
+
+### What this repo already does, so the rule is stated against the truth
+
+This is not a correction — the tree is good at this, and the rule is
+sharper for saying exactly where the existing discipline stops.
+
+**Live mode already refuses to fabricate, and it is pinned.**
+`src/v2/test/smoke-live.test.jsx` holds roughly twenty cases whose whole
+job is that the demo cast does not reach a live build — no sample people in
+search, on a result card, in the City constellation, in the who-voted
+sheet, no seeded takes, no invented crowd on an unseeded lens card, no
+group split on a Map answer, no demo vitals, no suggested-scene card. D72
+made `MapStats` return **null** rather than a plausible mock; D112 moved
+the constellations onto `data/similarity.ts`; D99 recovered the two anchors
+that had real cells. In a live build the Mirror wears no Preview tag at all
+— every one of its six non-`you` stops has a live body.
+
+**So the failure mode this rule targets is not fabrication. It is
+absence.** Where the backend does not exist, the app draws an honest
+refusal — *"How people your age answered isn't measured yet"* — and that
+refusal is correct as a fallback and wrong as a plan. Five of `MapStats`'
+seven anchors still return null. The community half of the suggestion board
+still says *"Preview · sample suggestions"*. Those are not lies; they are
+screens that never became what they were drawn as.
+
+### The rule
+
+**A v28 item is not done when its UI renders. It is done when its UI
+renders REAL data in a live build.** Concretely, for everything in
+`docs/VISION-V28.md`:
+
+1. **No item ships demo-only.** A surface that works in the prototype room
+   and refuses in a live build has not been built; it has been ported. If
+   the backend half is too expensive right now, the item waits — it does
+   not ship behind a Preview tag and a promise.
+2. **The refusal stays as the fallback**, and D72's mechanism with it:
+   null at the source, never a gate at each call site, so a consumer that
+   forgets the check fails a test instead of quietly inventing. Absent
+   data must still draw honestly on day one and for the account with two
+   answers. What changes is that "absent" stops being the expected state.
+3. **The demo room is not deleted.** It is the fallback a live build lands
+   in when Firebase is unreachable (`demoInProd`, D80), it is what the
+   smoke tests mount, and D1 already governs it — sample people, clearly
+   tagged, never passing as real. "No sample data" means no sample data
+   **standing in for a feature**, not the removal of the room that exists
+   to prove the difference.
+4. **Every new item gets its `smoke-live` case**, in the shape the existing
+   twenty use: mount live, assert the real thing renders and the demo cast
+   does not. A rule about live data that no test executes is the same
+   promise D155 made about the tab-row snap and did not keep.
+
+### What it costs, per item
+
+The plan carries the detail; the shape is that **three of the ten items
+have no backend half at all, and three are most of the work**:
+
+- **Already real, nothing to build** — Born-or-built (population science,
+  not user data), the trait web (a fold over the viewer's own results),
+  the type-mix system switch (reads test results that publish under D98),
+  and the §7 visual pass.
+- **The backend IS the item** — Patterns. The prototype invents 560
+  people; the real version is a Cloud Function fold publishing per-question
+  loading vectors, and until that exists there is no Patterns tab to trial.
+  This is now a hard gate rather than a recommendation: D166 §1 already
+  refused a trial of a fabricated screen, and this record generalises it.
+- **Backend exists, needs extending** — the pulse roster (per-day
+  aggregate docs for five pulses plus cadence, on D139's shape) and
+  Foresight tier A (a resolver that grades a call against our own published
+  aggregates — the one tier D127 admits without an operator).
+- **Blocked on a budget, not on data** — the Map's Foresight and
+  Crossroads branches, which need a lazy `map-tab.jsx` (VISION-V28 §5).
+
+### The two standing refusals this does not silently absorb
+
+`MapStats`' five null anchors and the suggestion board's community preview
+are pre-existing and out of v28's scope. **They are named here so the rule
+does not read as covering them by implication.** `job` and the four test
+anchors refuse for a structural reason (D8: a test result is never a
+breakdown dim), so they are not a backlog item — they are a decision, and
+changing them means changing D8. The community board is a real backlog
+item and belongs to the suggestions work (D138), not to v28.
+
+## D168 · Born or built is refused: the app does not assert facts it cannot recompute
+
+**Decided:** 2026-08-15 · **Status:** binding. The owner, on VISION-V28's
+Born-or-built item and its D167 note *"population science, not user data"*:
+*"this should be removed as you say this population sience"*.
+
+### The decision
+
+v28's `nature-data.js` — per-dimension heritability (h²) ballparks from
+twin and family studies, rendered as a "Born or built" section under each
+test result — **is not built.** Not deferred pending a framing pass, which
+is what VISION-V28 §9 recommended; refused, on the reason the owner gives.
+
+The reason is better than the recommendation it replaces, and that is why
+this is a record rather than a one-line edit. §9 treated the problem as
+presentation — the right caption, the right placement, keep the population
+framing attached to the bars. That is real, and it is downstream of a
+larger objection the owner named in four words: **it is population science,
+not this app's data.**
+
+### Why that objection is the strong one
+
+**Every number this app draws is recomputable from what people answered.**
+That is not a slogan here, it is the mechanism: aggregates fold from
+answers, cohorts fold from `agg.by`, similarity folds from published test
+results, and where the fold cannot be done the reading returns null rather
+than something plausible (D72). A reader who doubts a figure can, in
+principle, get to it from the answers.
+
+A heritability figure is the first thing on that screen with no such path.
+It is the app **asserting a fact about the world** — sourced from
+literature the app has not read, cannot check, and cannot update when the
+literature moves. D127 named exactly this class when it refused Foresight
+CALL without a rubric:
+
+> *a resolved call is the one number in the app the reader cannot
+> recompute — the app asserting a fact about the world*
+
+D127 admitted such numbers only behind an executable rubric that can be
+dry-run before the question ships. There is no equivalent for h²: no
+rubric, no resolution, no way for the app to be shown wrong. So the same
+standard that gates a prediction refuses this outright, and it refuses it
+whether the bars sit on the card or in the explain sheet — which retires
+§9's "explain sheet first" compromise. The placement was never the
+problem.
+
+**The second objection stands on its own even if the first were answered.**
+A population figure sitting under *your* result is read as a claim about
+you; "56% of the spread in openness traces to genes" beside your own
+openness score invites exactly the inference the number cannot support.
+`nature-data.js`'s own header says every surface showing it must keep the
+population framing — the honest reading of that constraint is that the
+result card is the worst place in the app to try.
+
+### What it removes, verified rather than assumed
+
+`window.NATURE` is consumed by `result-card.jsx` and nothing else, and all
+37 added lines of the v28 `result-card.jsx` patch are the Born-or-built
+section. So the refusal is total and leaves no residue: no orphaned store,
+no half-applied patch, nothing to unwind. Both files stay in
+`design/standalone-v28/` and are relabelled **refused (this record)** —
+same treatment as the Arena (D166 §2), and for a stronger reason: a
+refusal with a stated principle is worth keeping so the idea is not
+re-proposed as new.
+
+### What this does NOT refuse
+
+- **The four instruments' own results.** They are computed from the
+  viewer's answers by a scorer in this repo; nothing about them is
+  borrowed.
+- **Authored content generally.** Question banks, archetype definitions,
+  scene lists and the Learn cards are all written rather than folded, and
+  they are fine — they are the app's *prompts*, not its *findings*. The
+  line D168 draws is between content the app presents for you to answer,
+  and a quantitative claim about the world it presents as measured.
+- **Ever citing outside science.** A future surface could carry a sourced,
+  linked, clearly-external reading — but it would need the equivalent of
+  D127's rubric (a citation the app holds, a way to be shown wrong, and
+  a home that is not under the reader's own score), and that is a new
+  decision, not this one relaxed.
+
+### Consequence for the plan
+
+VISION-V28 §9 is struck. It was the last item still waiting on an owner
+call, so **the v28 plan now has no open owner decisions** — everything
+remaining is engineering, sequenced in §11.

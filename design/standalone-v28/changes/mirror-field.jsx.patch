@@ -1,0 +1,13 @@
+--- v18/mirror-field.jsx
++++ v28/mirror-field.jsx
+@@ -338,7 +338,9 @@
+     title = `${(d.role || '').replace(/^\w/, (c) => c.toUpperCase())}, ${d.age}`;
+     sub = d.dist && d.dist.includes('km') ? 'nearby' : (d.dist || 'nearby');
+     chips = (d.interests || []).slice(0, 3).map((x) => x.t);
+-    if (d.id && onPerson) action = btn('Portrait →', () => onPerson(d));
++    // the portrait stays anonymous too — the record carries a real name, so it
++    // travels flagged and the overlay reads them as "Ceramicist, 29"
++    if (d.id && onPerson) action = btn('Portrait →', () => onPerson({ ...d, anon: true }));
+   } else if (node.kind === 'group') {
+     const gcol = mfGroupFill(node.hue);
+     av = (

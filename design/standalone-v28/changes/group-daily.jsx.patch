@@ -1,0 +1,85 @@
+--- v18/group-daily.jsx
++++ v28/group-daily.jsx
+@@ -14,23 +14,24 @@
+   // avatars at rail size read as mush and never tell two groups apart.
+   const ghue = (g) => Math.round(ghash(g.id) * 360);
+   const ginit = (name) => { const w = name.replace(/^The\s+/i, '').split(/\s+/).filter(Boolean); return (w.length > 1 ? w.slice(0, 2).map((x) => x[0]).join('') : (w[0] || '?').slice(0, 2)).toUpperCase(); };
+-  function GDMark({ g, size = 34, faded }) {
++  function GDMark({ g, size = 34 }) {
+     return (
+       <span aria-hidden="true" style={{
+         width: size, height: size, borderRadius: 11, flexShrink: 0,
+         display: 'flex', alignItems: 'center', justifyContent: 'center',
+         fontFamily: 'var(--sans)', fontWeight: 800, fontSize: Math.round(size * 0.38), letterSpacing: '-0.02em',
+-        color: '#fff', background: `oklch(0.52 0.12 ${ghue(g)})`, opacity: faded ? 0.4 : 1,
+-        transition: 'opacity .18s',
++        color: '#fff', background: window.WPAL.ink(`oklch(0.52 0.12 ${ghue(g)})`),
+       }}>{ginit(g.name)}</span>
+     );
+   }
+ 
+   // The avatar IS the link to a person — one rule across the daily, the duo and
+   // the group bodies, so an initial circle always means "open them".
+-  function GDAv({ p, size = 22, dim, plain }) {
++  function GDAv({ p, size = 22, sealed, plain }) {
+     const open = (e) => { if (!p || p.me) return; e.stopPropagation(); if (window.openPerson) window.openPerson(p); };
+     const linked = !!(p && !p.me && !plain && window.openPerson);
++    // contrast-safe twin, since the fill carries the initials
++    const fill = window.WPAL.ink(`oklch(0.52 0.13 ${p.hue})`);
+     return (
+       <span title={p.name + (p.pending ? ' · invited' : '')}
+         role={linked ? 'button' : undefined} tabIndex={linked ? 0 : undefined}
+@@ -41,8 +42,14 @@
+         width: size, height: size, borderRadius: '50%', flexShrink: 0,
+         display: 'flex', alignItems: 'center', justifyContent: 'center',
+         fontFamily: 'var(--sans)', fontWeight: 800, fontSize: Math.round(size * 0.4),
+-        color: '#fff', background: `oklch(0.52 0.13 ${p.hue})`,
+-        opacity: dim ? 0.28 : 1, boxShadow: '0 0 0 1.5px var(--surface-2)',
++        // every disc is full strength — a row of half-washed circles read as
++        // broken. Where a rail needs to show who is already in, that ONE site
++        // passes `sealed` and gets a hue halo: same colour, one extra ring, so
++        // the cue is shape and not saturation. Everywhere else: plain ring.
++        color: '#fff', background: fill,
++        boxShadow: sealed
++          ? `0 0 0 1.5px var(--surface-2), 0 0 0 3.5px ${window.WPAL.wash(fill, 42, 'var(--surface-2)')}`
++          : '0 0 0 1.5px var(--surface-2)',
+         cursor: linked ? 'pointer' : 'default',
+       }}>{p.init}</span>
+     );
+@@ -108,7 +115,7 @@
+               aria-label={g.name + ' — ' + (pending ? 'still to play' : 'done for today')}
+               style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, border: 'none', background: 'none', cursor: 'pointer', padding: '4px 6px', WebkitAppearance: 'none', flexShrink: 0, width: 62 }}>
+               <span style={{ position: 'relative', display: 'inline-flex', borderRadius: 14, padding: 2, boxShadow: sel ? `0 0 0 2px ${ACC}` : 'none', transition: 'box-shadow .18s' }}>
+-                <GDMark g={g} size={38} faded={!pending && !sel}></GDMark>
++                <GDMark g={g} size={38}></GDMark>
+                 {/* only the waiting state wears a mark — a check on every group
+                     carried no information and made the rail read as noise */}
+                 {pending && <span style={{ position: 'absolute', top: -1, right: -1, width: 11, height: 11, borderRadius: '50%', background: ACC, border: '2px solid var(--surface)' }}></span>}
+@@ -164,7 +171,7 @@
+           <div className="wf-sheet-body" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+             {g.members.map((m) => (
+               <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 11, border: LINE, borderRadius: 14, background: 'var(--surface-2)', padding: '9px 13px' }}>
+-                <GDAv p={m} size={30} dim={m.pending}></GDAv>
++                <GDAv p={m} size={30}></GDAv>
+                 <span style={{ display: 'flex', flexDirection: 'column', gap: 1, flex: 1, minWidth: 0 }}>
+                   <span style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 13.5 }}>{m.name}</span>
+                   <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--ink-3)' }}>{m.pending ? 'invited · waiting' : m.rel}</span>
+@@ -232,7 +239,7 @@
+           </div>
+           <div style={{ ...col(12), borderTop: '0.5px solid color-mix(in oklch, var(--rule), transparent 20%)', padding: '16px 0 2px' }}>
+             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+-              {g.members.map((p) => <GDAv key={p.id} p={p} size={34} dim={!inT.done.includes(p.id)}></GDAv>)}
++              {g.members.map((p) => <GDAv key={p.id} p={p} size={34} sealed={inT.done.includes(p.id)}></GDAv>)}
+               <YouChip size={34}></YouChip>
+             </div>
+             <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--ink-2)' }}>
+@@ -369,8 +376,7 @@
+     return (
+       <div ref={rootRef} style={col(10)}>
+         <div style={{ display: 'flex', alignItems: 'baseline', padding: '0 2px', scrollSnapAlign: 'start' }}>
+-          <span className="kicker" style={{ marginBottom: 0 }}>Your groups</span>
+-          {nLeft > 0 && <span style={{ marginLeft: 'auto', fontSize: 11, fontWeight: 700, color: 'var(--ink-3)' }}>{nLeft} to play</span>}
++          {nLeft > 0 && <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--ink-3)' }}>{nLeft} to play</span>}
+         </div>
+         <div ref={railRef} style={{ position: 'sticky', top: 0, zIndex: 6, margin: '-1px -16px 0', padding: '1px 10px 0', background: 'var(--surface-a, var(--surface))', borderBottom: '0.5px solid color-mix(in oklch, var(--rule), transparent 25%)' }}>
+           <GroupRail gs={ordered} cur={cur} onPick={jump} onAdd={() => setAddOpen(true)}></GroupRail>
