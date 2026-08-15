@@ -134,7 +134,6 @@ import type { Verdict as ForesightVerdict } from "./foresight";
 // Stated topic preferences (D128). A static import, unlike circle's: this
 // is applied on every feed rebuild rather than on a lens nobody opened,
 // and the module is a few hundred bytes of localStorage plumbing.
-import { applyInterests } from "./interests";
 // The passive tests' round-robin (D155). Lives with the feed's other
 // interleave arithmetic so both are testable without Firebase.
 import { roundRobinBy } from "./feed-interleave";
@@ -1217,15 +1216,13 @@ function buildFeedGlobals(): void {
         live: true,
       };
     });
-  // Stated topic preferences, applied to the FEED and nowhere else
-  // (D128). Muted topics drop out of the pool; "more" topics move
-  // forward as a stable partition. Applied here rather than at render
-  // because the pool is what a preference is about — and applied to this
-  // global only, which is what keeps the constraint checkable: the daily
-  // deck and every Mirror surface read their own sources and never see
-  // this call. data/interests.test.ts asserts the reader list.
-  (window as unknown as Record<string, unknown>).WORLD_FEED_QS =
-    applyInterests(feed, (q) => q.cat);
+  // The feed pool, in bank order (D172 retired D128's stated weights).
+  // The ORDERING that replaces them is D163's on-device interest model —
+  // owner's direction: how much of a subject you see is the algorithm's
+  // job, not a lever's. Until that ships the pool is unweighted, which is
+  // what it effectively was at this bank size anyway. Muting a topic
+  // outright is untouched and lives in the feed's own topic sheet.
+  (window as unknown as Record<string, unknown>).WORLD_FEED_QS = feed;
   // Round-robined across the four instruments (D155), not served in bank
   // order. `content/tests.json` is keyed BY instrument, so bank order is
   // 25 Big Five, then 30 Politics, then 30 Values, then 25 Social — and a

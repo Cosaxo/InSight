@@ -16932,3 +16932,60 @@ want one door. The nav lookup lives in the typed component rather than at
 the call sites: two of them are spec-layer `.jsx`, where `window.goNav` is
 new shared-global coupling and `check:globals` rule 4 only moves down — the
 first attempt raised the count from 17 to 21 in one file and CI refused it.
+
+## D172 · The interest levers go; the algorithm owns "how much"
+
+**Decided:** 2026-08-15 · **Status:** binding, BUILT. **Reverses
+[D128](#d128--you-can-say-what-you-want-more-of-the-app-does-not-guess).**
+The owner, on the text pass: *"how much you see of different interests,
+algorithms should decide, not your levers"*.
+
+### What went
+
+`data/interests.ts`, `ui/LiveInterestsPanel.tsx` and their test — the
+three-state per-topic control (Muted · Normal · More) that sat at the
+bottom of the profile's privacy panel, plus the `applyInterests` call that
+weighted the feed pool in `data/live.ts`. Deleted rather than hidden: a
+store nothing reads is what `check:globals` rule 5 exists to sweep, and a
+lever behind a flag is still a lever.
+
+### Why this is a clean reversal rather than a loss
+
+D128's own header made the argument that retires it: *"If people use this,
+most of tiers 2 and 3 is redundant — and finding that out is cheaper than
+building the model that guesses."* That was the right experiment and the
+owner has called it. The replacement is already recorded:
+[D163](#d163--the-app-learns-what-you-are-into-and-the-model-never-leaves-the-phone)
+builds a per-topic interest model from behaviour the device already
+writes, and keeps it on the phone. "How much" becomes the model's job.
+
+**The gap between now and then is real and small.** D163 is binding and
+not built, so until it ships the feed pool is unweighted. That is what it
+effectively was anyway at this bank size — everyone sees everything — and
+it stops being acceptable at
+[D161](#d161--the-feed-goes-unbounded-and-the-mirror-gets-a-corpus-of-its-own)'s
+unbounded bank, where something must choose ~50 questions per person. So
+D163 is now load-bearing rather than merely adopted: **the tail cannot
+ship without it.** Recorded here so the sequence is not discovered later.
+
+### What did NOT go, and this is the part worth checking before reading the
+### diff as a loss of control
+
+**Muting a topic outright survives**, untouched, in the feed's own topic
+sheet (`spec/world-feed.jsx`'s add panel — its own `cats` on/off, a
+different mechanism from the deleted store). So a user who wants a subject
+gone can still switch the lane off; what they can no longer do is ask for
+*more* or *less* of one. That split is the owner's direction read
+literally — the levers were about AMOUNT, and mute is exclusion.
+
+It also means `NEXT-FUNCTIONALITY.md` §1's answer to "what about a user
+who hates news" still holds, and that file now says so through the mute
+rather than through the levers.
+
+### Two documentation consequences, both cheap
+
+`docs/MIRROR.md` recorded a REFUSAL that has now outlived the thing it
+refused — the People lens draws no shared-interest chips because D128
+named the Mirror as a surface that may not read stated interests. There is
+nothing to read now, so the refusal is noted as retired rather than
+deleted: the reasoning is still why the lens has no such chips.

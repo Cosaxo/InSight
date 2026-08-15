@@ -267,8 +267,10 @@ these lenses its population can support:
   headline off their frozen answer anchors, their type as a badge and the
   remaining anchors as chips. Its two refusals are the interesting part:
   no tenure split (nothing publishes a join date) and no shared-interest
-  chips (stated interests are local and the viewer's own — D128 names the
-  Mirror as a surface that may not read them).
+  chips — stated interests were local and the viewer's own, and D128 named
+  the Mirror as a surface that may not read them. **D172 removed the
+  levers entirely**, so there is now nothing to read: the refusal outlived
+  the thing it refused, which is the cheapest way for one to end.
 - **Compare** — you against them across every assessment, in the results
   profile's own visual language: the petal is solid as far as you *both*
   reach and pale for the distance between you, so agreement looks like a

@@ -57,7 +57,10 @@ and why D97 records "no epoch-safe retire lane for daily questions" as
 deliberately not done. The feed has none of that: it already carries
 `active:false` retirement (D52's shape), a topic taxonomy, and — since
 D128 — per-topic Less/Normal/More preferences, so a user who hates news
-can already turn the tap down themselves.
+could turn the tap down themselves. **D172 retired those levers** (the
+algorithm decides how much, not a lever), so this argument now rests on
+the feed's per-topic MUTE, which is untouched and still lets that user
+switch the lane off entirely.
 
 **The shape:**
 
