@@ -34,6 +34,11 @@ from anyone, including itself.
       legitimate answer; the point is that it be an answer rather than a
       default that expired.
 
+      **DONE 2026-08-15 (D165).** `insight` in `europe-west1` is live:
+      created, rules deployed via the array form, functions deployed,
+      bank seeded (513), verified in the console. `(default)` is kept a
+      week as the rollback. Original note below.
+
       **DECIDED 2026-08-15 (D165): option A, `europe-west1`.** The
       decision half of this step is done; the console half is not. What
       still gates the phases below is the *migration*, not the choice.
@@ -125,7 +130,13 @@ path ([`MIRROR.md`](MIRROR.md)).
       consumer would have had the same trap, and resolving it once means
       the boolean means what it says everywhere.
 
-      **⚠ DEPLOY ORDER — the one thing to get right.** This is a no-op
+      **⚠ DEPLOY ORDER — DISCHARGED 2026-08-15.** The reseed happened
+      (D165), so every feed document in `insight` carries `core` and this
+      filter is the no-op it was designed to be. The warning stays below
+      because it applies again to any future database, and because it is
+      the reasoning for the polarity.
+
+      **The original hazard:** This is a no-op
       only against a bank reseeded since D161. Production was seeded
       *before* `core` existed, so those feed documents carry no flag,
       `isCore` reads them as tail, and all 82 drop out of this panel.
