@@ -30,7 +30,7 @@
 // Those three fields are stated per lever so they can be argued with; only
 // the dollars are computed.
 
-import { costModel, totalCost, SCENARIOS } from "./cost-arith.mjs";
+import { costModel, totalCost, SCENARIOS, DECK_DAYS } from "./cost-arith.mjs";
 import { rate, money, unit, int } from "./cost-peers.mjs";
 
 // Both price sheets built once: costModel() re-reads and re-parses the seed
@@ -82,16 +82,26 @@ const LEVERS = [
   },
   {
     band: "client",
-    name: "Refresh only today on foreground",
+    name: "[SHIPPED] Refresh only today on foreground",
     change: "reattach reads DECK_DAYS -> 1 (the back days keep their boot values)",
-    opts: { deckListeners: 1 },
-    effort: "hours",
-    risk: "low",
-    // Now the SECOND-largest client term, because polling removed the one
+    // Inverted, the same way the polling row below is: FOREGROUND_AGG_DOCS
+    // is now cost-arith's default, so this prices what REVERTING to a
+    // whole-deck foreground would cost rather than what the change is
+    // worth. Kept in the list rather than deleted for the same reason that
+    // row gives.
+    opts: { deckListeners: DECK_DAYS },
+    // The flag section 1 reads to flip the comparison. Without it the row
+    // prints what REVERTING would add wearing the sign of a saving, which
+    // is a straightforward lie about which way the app has moved — and the
+    // first draft of this entry got it exactly that way round.
+    shipped: true,
+    effort: "shipped",
+    risk: "shipped",
+    // Was the SECOND-largest client term, because polling removed the one
     // that used to dwarf it: `reattach` is bgCycles x DECK_DAYS reads a day
-    // against the poll's own handful. The app refreshes the whole deck on
-    // every foreground, which is the conservative choice; this lever is the
-    // less conservative one.
+    // against the poll's own handful. A rollover still takes the whole deck
+    // — on a rollover the seven ids have all changed, so those are seven
+    // different documents rather than the same six again.
     notices: "a back day's count can lag until the next cold boot",
   },
   {

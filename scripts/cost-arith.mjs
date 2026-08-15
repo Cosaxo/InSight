@@ -128,6 +128,19 @@ export const AGG_POLL_MS = readNum(
 // src/v2/data/idle-detach.test.ts is what fails first.
 export const POLL_DOCS = 1;
 
+// Documents a plain foreground re-read costs. Was DECK_DAYS until the
+// foreground scope split landed — every background→foreground cycle
+// re-read the whole seven-day deck to ask whether six cold back days had
+// moved. It is the `reattach` coefficient, which D129 left as the
+// second-largest client term precisely because the largest one went away.
+//
+// Read from source rather than assumed for the D47 reason: this is the one
+// number in `reattach` that a UI change could move, and a model that kept
+// quoting DECK_DAYS would overstate the bill by 24 reads per user per day
+// while looking correct.
+export const FOREGROUND_AGG_DOCS = readNum(
+  "src/v2/data/live.ts", /const FOREGROUND_AGG_DOCS = (\d+)/, "FOREGROUND_AGG_DOCS");
+
 // ── the D98 read surfaces (D102) ────────────────────────────────
 // Named who-voted, Kindred and Circle all read OTHER USERS' answers on
 // demand — the reversal's whole point, and a read family this model did
@@ -482,7 +495,7 @@ export function costModel({ regional = false, bank = bankDocs() } = {}) {
   // pulse.test.mjs pins.
   function readsPerUser(dau, {
     mature, staticBank = false, streamAggs = false,
-    publishEvery = PUBLISH_EVERY, deckListeners = DECK_DAYS, social: socialOpts = {},
+    publishEvery = PUBLISH_EVERY, deckListeners = FOREGROUND_AGG_DOCS, social: socialOpts = {},
   }) {
     const boot = (1 + 1 + 1 + DECK_DAYS + 1 + 2 + 2) * B.boots;
     // A question under the floor is re-read at most once per 6 h, so roughly

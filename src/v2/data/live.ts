@@ -636,11 +636,33 @@ function buildS(
 // WHY ONLY TODAY IS POLLED. `computeDeckIds` returns today plus six back
 // days and all seven are answerable, so the older aggregates do move — just
 // rarely, and nobody is watching a four-day-old card for a live tick. The
-// full deck is refreshed on boot and on every foreground; the repeating
+// full deck is refreshed on boot and on a day rollover; the repeating
 // timer asks about today alone. That is 1 document per poll rather than 7,
 // which is what keeps the replacement genuinely cheap rather than merely
 // cheaper.
 const AGG_POLL_MS = 60_000;
+
+// Documents a plain FOREGROUND re-read costs — as opposed to a boot or a
+// day rollover, which both still take the whole deck.
+//
+// This used to be the whole deck on every foreground too, and that made
+// `reattach` (B.bgCycles × DECK_DAYS) the second-largest client read term
+// in the model once D129 removed the fan-out it used to hide behind: 28
+// reads per user per day to re-answer a question — "have the six back
+// days moved?" — whose answer is almost always no. A back day is
+// answerable but cold; what changes while you are away is today.
+//
+// What a user loses is bounded and small: a back day's count is now as
+// fresh as your last boot or rollover rather than as your last app swap.
+// The two cases where a stale back-day count would be visibly WRONG are
+// both already covered — your own vote is re-read by scheduleAggRefresh
+// 2.5 s after the write acks (vote and D86 edit paths alike), and a
+// rollover takes the full deck below.
+//
+// Read from source by scripts/cost-arith.mjs, which is what stops the
+// model from going on quoting DECK_DAYS here. Widen it and `npm run costs`
+// moves; data/idle-detach.test.ts is what fails first.
+const FOREGROUND_AGG_DOCS = 1;
 let aggPollTimer: ReturnType<typeof setInterval> | null = null;
 
 /**
@@ -686,7 +708,13 @@ function stopAggPoll(): void {
 }
 
 /**
- * Refresh the whole deck now, then keep today's aggregate fresh on a timer.
+ * Refresh now, then keep today's aggregate fresh on a timer.
+ *
+ * `scope` is what the immediate re-read covers: "deck" for the whole seven
+ * days, "today" for `FOREGROUND_AGG_DOCS`. Boot and the day rollover pass
+ * "deck" because both genuinely change every id in it; a plain foreground
+ * passes "today", which is the constant's own argument. The TIMER is
+ * unaffected either way — it has always ticked on today alone.
  *
  * Idempotent, because every caller of the old `subscribeAggs` was: boot,
  * the midnight rollover, and every foreground. The interval is cleared and
@@ -699,7 +727,7 @@ function stopAggPoll(): void {
  * re-delivers the document; re-arming a `setInterval` reads nothing until
  * it next fires.
  */
-async function startAggPoll(): Promise<void> {
+async function startAggPoll(scope: "deck" | "today" = "deck"): Promise<void> {
   // `torndown` only. NOT `state.ready` — this runs from inside hydrate(),
   // and `ready` does not flip until hydrate AND hydrateSocial have both
   // returned, so guarding on it makes the boot call a silent no-op and the
@@ -708,7 +736,9 @@ async function startAggPoll(): Promise<void> {
   // `resubscribeForToday` keeps one because it is a re-entry point.
   if (torndown) return;
   stopAggPoll();
-  await refreshAggs(state.deckIds);
+  await refreshAggs(
+    scope === "today" ? state.deckIds.slice(0, FOREGROUND_AGG_DOCS) : state.deckIds,
+  );
   if (torndown) return;
   aggPollTimer = setInterval(() => {
     // Today only — deckIds[0] is back=0 by computeDeckIds' construction.
@@ -3296,11 +3326,16 @@ function purgeLocalTrace(): void {
 async function resubscribeForToday(): Promise<void> {
   if (torndown || !state.ready) return;
   try {
-    if (state.questions.length && state.deckDay !== dayIndex()) {
+    const rolled = !!state.questions.length && state.deckDay !== dayIndex();
+    if (rolled) {
       computeDeck();
       notify();
     }
-    await startAggPoll();
+    // A ROLLOVER re-reads the whole deck, an ordinary foreground re-reads
+    // today alone (FOREGROUND_AGG_DOCS). The distinction is the point: on a
+    // rollover every id in `deckIds` has just changed, so the seven reads
+    // are seven different documents rather than the same six again.
+    await startAggPoll(rolled ? "deck" : "today");
     const db = await getDb();
     subscribeReveals(db);
   } catch (err) {
