@@ -42,6 +42,7 @@ import {
   query,
   serverTimestamp,
   setDoc,
+  startAfter,
   terminate,
   Timestamp,
   updateDoc,
@@ -76,7 +77,7 @@ import { initAppCheck } from "./appcheck";
 export const fsApi = {
   clearIndexedDbPersistence, collection, collectionGroup, deleteDoc, doc,
   documentId, getDoc, getDocs, limit, onSnapshot, orderBy, query,
-  serverTimestamp, setDoc, terminate, Timestamp, updateDoc, where,
+  serverTimestamp, setDoc, startAfter, terminate, Timestamp, updateDoc, where,
 };
 export const fnsApi = { getFunctions, httpsCallable };
 

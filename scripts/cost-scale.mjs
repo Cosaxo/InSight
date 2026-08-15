@@ -103,9 +103,13 @@ console.log("  makes bank size bill — a per-boot refetch, a lost cache, a quer
 console.log("  paging — these rows separate, and that is the regression to look for.\n");
 
 console.log("3 · WHAT TRIPS FIRST, and it is not the bill\n");
-console.log("  The unpaginated bank fetch. live.ts bounds it with BANK_LIMIT and");
-console.log("  question-quality.mjs fails ahead of it (BANK_WARN warns), because a query");
-console.log("  that hits its limit returns a short page and NO error — an over-sized bank");
-console.log("  serves a truncated corpus with nothing failing anywhere. D30's rule at that");
-console.log("  call site is pagination, never another raise.\n");
+console.log("  WAS the unpaginated bank fetch, which returned a short page and NO error");
+console.log("  once the bank passed its limit — a truncated corpus with nothing failing");
+console.log("  anywhere. D153 paged it; the loop ends on a short page and never on a count");
+console.log("  it believes in advance, and bank-cache.test.ts asserts completeness.");
+console.log();
+console.log("  NEXT is the localStorage bank cache, and it is silent in the same way: the");
+console.log("  quota failure is caught and ignored, so crossing it stops the caching and");
+console.log("  makes every boot pay a full fetch, forever, with no symptom. check:quality's");
+console.log("  BANK_WARN/BANK_FAIL now watch that budget and say so in MB.\n");
 console.log("  docs/SCALE-PLAN.md is the plan these numbers were computed for.\n");

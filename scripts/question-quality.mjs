@@ -227,8 +227,24 @@ const ALLOW = new Map([]);
 // a silently truncated bank fetch) are invisible at the moment they land.
 export const DAILY_ID_WARN = 900; // of 999 — check-content pins /^daily-\d{3}$/
 export const DAILY_ID_FAIL = 970; // an id-scheme decision is due before 999
-export const BANK_WARN = 1200; // of live.ts limit(1500) — D30: pagination, never another raise
-export const BANK_FAIL = 1400;
+// Bank headroom. These guarded live.ts's `limit(1500)` until D153 paged
+// that fetch, at which point the ceiling they watched stopped existing —
+// so they were re-pointed rather than deleted, because the NEXT silent
+// ceiling wants the same alarm at a different number.
+//
+// The next one is the localStorage bank cache. live.ts writes the whole
+// bank to `insight.bankCache.v2` inside a try/catch that ignores failure,
+// so crossing the browser quota does not break the app: it silently stops
+// caching, and every boot then pays a full bank fetch forever. A cost
+// cliff with no symptom is exactly this gate's subject.
+//
+// Arithmetic: the quota is ~5 MB per origin, the bank is one of ~29
+// `insight.*` keys, so budget it roughly half. checkHeadroom() derives
+// bytes-per-document from the seed itself rather than assuming, and these
+// counts are that estimate rounded to something a human can hold:
+// 6,000 docs ≈ 1.5 MB, 10,000 ≈ 2.5 MB.
+export const BANK_WARN = 6000;
+export const BANK_FAIL = 10000;
 
 // ── corpus loading (the cross-read pattern promote/neighbors/scorecard use) ──
 function extractLiteral(src, marker, at, openChar = "[", closeChar = "]") {
@@ -774,12 +790,31 @@ export function checkHeadroom(corpus) {
 
   const v2content = readFileSync(join(root, "functions", "src", "v2content.ts"), "utf8");
   const bankSize = (v2content.match(/"id":\s*"[^"]+"/g) || []).length;
+  // Measured, not assumed: the same wire-size scan check-figures runs, so
+  // the estimate moves when the documents do (adding `core` to 82 entries
+  // moved it by ~1 KiB and check:figures caught that on COSTS.md).
+  const bankBytes = (() => {
+    const head = "V2_QUESTIONS: V2SeedQuestion[] = ";
+    const body = v2content.slice(v2content.indexOf(head) + head.length);
+    try {
+      return JSON.stringify(JSON.parse(body.slice(0, body.lastIndexOf("];") + 1))).length;
+    } catch {
+      return bankSize * 250; // the scan's shape changed; fall back rather than crash the gate
+    }
+  })();
+  const cacheMB = (n) => ((bankBytes / Math.max(bankSize, 1)) * n / 1024 / 1024).toFixed(1);
   if (bankSize >= BANK_FAIL) {
     errs.push(
-      `seeded bank holds ${bankSize} docs against live.ts limit(1500) — build bank pagination (D30: never another raise) before promoting more`,
+      `seeded bank holds ${bankSize} docs ≈ ${cacheMB(bankSize)} MB of localStorage cache — over budget. `
+      + "live.ts caches the whole bank in `insight.bankCache.v2` and SWALLOWS a quota failure, so crossing this "
+      + "does not break anything: it silently stops caching and every boot pays a full bank fetch forever. "
+      + "Move the cache off localStorage (IndexedDB) before promoting more.",
     );
   } else if (bankSize >= BANK_WARN) {
-    warn.push(`seeded bank at ${bankSize} of the 1500 fetch ceiling — pagination (D30) is approaching`);
+    warn.push(
+      `seeded bank at ${bankSize} docs ≈ ${cacheMB(bankSize)} MB of localStorage cache — the quota is the next `
+      + "silent ceiling (a failed write is caught and ignored), so plan the move to IndexedDB",
+    );
   }
   return { errs, warn };
 }

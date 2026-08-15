@@ -42,32 +42,53 @@ from anyone, including itself.
 Nothing else in this file may ship before this. At an order-of-magnitude
 increase the current headroom is weeks.
 
-- [ ] **1.1 Page the cold-start bank fetch.** `src/v2/data/live.ts` fetches
-      the bank in one unpaginated `getDocs(query(..., limit(BANK_LIMIT)))`.
-      The **delta** path beside it already pages against an `updatedAt`
-      cursor and already refuses a truncated result ("a delta that fills
-      the page is not a delta"), so this is extending a pattern that is
-      already in the file, not inventing one.
+- [x] **1.1 Page the cold-start bank fetch. DONE 2026-08-15.** The loop
+      lives in `live.ts`'s bank section, ordered by `documentId()` because
+      the cursor must sit on the ordering key and `__name__` is the only
+      field every document has (`seq` repeats across surfaces, and a
+      cursor on a non-unique key skips rows at a page boundary).
+      `BANK_LIMIT = 1500` became `BANK_PAGE = 1000` — a page size, not a
+      ceiling — and `BANK_MAX_PAGES` bounds the loop so a cursor bug
+      cannot hang the boot path; tripping it **reports** rather than
+      truncating quietly.
 
-      The failure being designed against is specific: a query that hits
-      its limit returns a short page and **no error**. So the loop must
-      terminate on "page smaller than the limit", never on a doc count it
-      believes in advance.
+      `startAfter` had to be added to `lib/firebaseImpl.ts`'s explicit
+      `fsApi` object (D110 — the surface is named member by member so
+      rolldown can shake the rest).
 
-      **Done when:** a bank larger than `BANK_LIMIT` loads whole. ·
-      **Gate:** a unit test that seeds > `BANK_LIMIT` docs and asserts
-      every one arrives — the assertion has to be *completeness*, since
-      the bug this prevents is silent partial success. · **Size:** M.
+      Three tests in `bank-cache.test.ts`, and the mock was taught to page
+      first — order by id, honour `startAfter`, honour `limit` — because
+      against the old mock the test would have passed without the fix.
+      **Verified by mutation:** reverting to a single fetch fails all
+      three, and so does the `<` → `<=` off-by-one; the eight pre-existing
+      tests pass in both directions, which is what says small banks still
+      behave.
 
-- [ ] **1.2 Keep D30's rule true after 1.1.** `question-quality.mjs` warns
-      at `BANK_WARN` and fails below the client ceiling. Once the fetch
-      pages, that ceiling stops meaning what it meant — rewrite the
-      constants and the message rather than deleting the gate, because
-      the *next* silent ceiling (query cost, memory, first-paint budget)
-      wants the same alarm at a different number.
+      **Termination is on a short page, never on a count this code
+      believes in advance** — that is the whole correctness argument, and
+      the reason both mutations above are caught. The delta path beside it
+      already worked this way ("a delta that fills the page is not a
+      delta"), so this extended a pattern the file already had.
 
-      **Done when:** the gate names a real limit again. · **Gate:**
-      `check:quality`. · **Size:** S.
+- [x] **1.2 Keep the alarm true after 1.1. DONE 2026-08-15, and the next
+      ceiling turned out to be a real one.** `BANK_WARN`/`BANK_FAIL` were
+      re-pointed rather than deleted, at **the localStorage bank cache**.
+
+      `live.ts` writes the whole bank to `insight.bankCache.v2` inside a
+      `try/catch` that ignores failure — so crossing the browser quota
+      breaks nothing and costs everything: caching silently stops and
+      every boot pays a full bank fetch, forever, with no symptom. Same
+      shape as the ceiling that was just removed, which is why the gate
+      moved instead of retiring.
+
+      Thresholds are doc counts (6,000 / 10,000) because the budget lanes
+      reason in documents, but the *message* derives MB from the seed's
+      own wire size, so it moves when the documents do. Checked by forcing
+      the warn: "513 docs ≈ 0.1 MB".
+
+      **The real fix is IndexedDB**, and the gate now says so rather than
+      naming a number to stay under. Not scheduled — it is not due until
+      roughly 6,000 questions.
 
 ## Phase 2 — Finish D153 (the Mirror side)
 

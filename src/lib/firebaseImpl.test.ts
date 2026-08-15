@@ -83,7 +83,7 @@ vi.mock("firebase/firestore", () => ({
   clearIndexedDbPersistence: () => {}, collection: () => {},
   collectionGroup: () => {}, deleteDoc: () => {}, doc: () => {},
   documentId: () => {}, getDoc: () => {}, getDocs: () => {}, limit: () => {},
-  onSnapshot: () => {}, orderBy: () => {}, query: () => {},
+  onSnapshot: () => {}, orderBy: () => {}, query: () => {}, startAfter: () => {},
   serverTimestamp: () => {}, setDoc: () => {}, terminate: () => {},
   Timestamp: {}, updateDoc: () => {}, where: () => {},
 }));

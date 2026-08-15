@@ -98,6 +98,9 @@ vi.mock("firebase/firestore", () => {
     }),
     where: (_f: unknown, _op: unknown, ids: unknown) => ({ __kind: "where", ids }),
     orderBy: () => ({ __kind: "orderBy" }),
+    // Required since D153 paged the bank fetch: live.ts destructures the
+    // whole Firestore surface, so a missing member throws at boot.
+    startAfter: () => ({ __kind: "startAfter" }),
     limit: () => ({ __kind: "limit" }),
     documentId: () => ({ __kind: "documentId" }),
     serverTimestamp: () => ({ __kind: "serverTimestamp" }),
