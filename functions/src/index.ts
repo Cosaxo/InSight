@@ -19,7 +19,7 @@
 // The rules layer is for client traffic; functions can do anything.
 
 import { initializeApp } from "firebase-admin/app";
-import { getFirestore, FieldValue } from "firebase-admin/firestore";
+import { FieldValue } from "firebase-admin/firestore";
 import { getAuth } from "firebase-admin/auth";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions";
@@ -29,6 +29,7 @@ import { logger } from "firebase-functions";
 // ENFORCE_APP_CHECK; if that ever changes, keep the bare side-effect
 // import rather than dropping the line.
 import { ENFORCE_APP_CHECK } from "./ops";
+import { db as firestore } from "./db";
 
 initializeApp();
 
@@ -75,7 +76,7 @@ initializeApp();
 async function deleteQueryDocs(
   query: FirebaseFirestore.Query,
 ): Promise<number> {
-  const db = getFirestore();
+  const db = firestore();
   let total = 0;
   for (;;) {
     const snap = await query.limit(400).get();
@@ -109,7 +110,7 @@ async function deleteQueryDocs(
 // this is one query, at most that many existence checks, and a single batch
 // far below the 500-write cap.
 async function deleteOrphanedModQueue(): Promise<number> {
-  const db = getFirestore();
+  const db = firestore();
   const queue = await db.collection("v2_mod_queue").get();
   const orphans: FirebaseFirestore.DocumentReference[] = [];
   for (const q of queue.docs) {
@@ -136,7 +137,7 @@ async function deleteOrphanedModQueue(): Promise<number> {
 // list all subcollections, delete their docs, then delete the
 // parent doc.
 async function deleteUserSubtree(uid: string): Promise<number> {
-  const db = getFirestore();
+  const db = firestore();
   const userRef = db.collection("insight_users").doc(uid);
   let total = 0;
   // Drop subcollections — listCollections is admin-only.
@@ -160,7 +161,7 @@ export const deleteAccount = onCall(
       throw new HttpsError("unauthenticated", "must be signed in");
     }
     const uid = request.auth.uid;
-    const db = getFirestore();
+    const db = firestore();
     logger.info(`[deleteAccount] starting for uid=${uid}`);
 
     const counts = {

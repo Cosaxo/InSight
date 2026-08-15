@@ -109,6 +109,32 @@ to find a mistake.
 
 ### 4 · Merge the code change
 
+> **This list was wrong, and the correction is the useful part (D157,
+> 2026-08-15).** It named three edits and missed the largest: every Cloud
+> Function got its handle from bare `getFirestore()` — **37 call sites
+> across seven files** — which binds to `(default)` regardless of what the
+> triggers watch. With only the three edits below, a trigger fires on the
+> new database and writes its aggregate to the old one. Deploy green,
+> functions healthy, every answer written, nothing aggregated.
+>
+> Two more the list missed: `scripts/question-scorecard.mjs` hardcoded
+> `/databases/(default)/` in its REST URL (a stale id makes it report an
+> EMPTY corpus rather than fail, so every farm lane would quietly see "no
+> signal" forever), and all three e2e harnesses build their own clients.
+>
+> What shipped instead: one `functions/src/db.ts` accessor behind
+> `FIRESTORE_DB_ID`, so there is a single place this can be wrong, and
+> `check:fn-runtime` cross-reads the expected id from **firebase.json**
+> and asserts every trigger matches it. Cross-reading matters: omitting
+> the trigger option does not leave `database` undefined, it fills in the
+> literal `"(default)"` — measured — so "is it set?" is dead code and "do
+> they agree?" passes when *both* triggers have lost it.
+>
+> The e2e suites caught two of these, not review: the loop failed on a
+> phantom `contentRev`, and the erasure suite on a null-value rules error
+> four layers from the actual mistake (a bare `adminFirestore()` writing
+> the question to one database while the client answered in another).
+
 Three edits, none of them large, all of them load-bearing:
 
 - **`src/lib/firebaseImpl.ts`** — `initializeFirestore(app, { localCache:

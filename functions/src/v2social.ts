@@ -14,13 +14,14 @@
 // Membership changes go through callables — client rules keep v2_groups
 // read-only — so invite codes, size caps and duo pairing can't be forged.
 
-import { getFirestore, FieldValue, Timestamp } from "firebase-admin/firestore";
+import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { getMessaging } from "firebase-admin/messaging";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { assertOperator, ENFORCE_APP_CHECK, LIGHT_CALLABLE, LIGHT_UNBOUNDED } from "./ops";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { logger } from "firebase-functions";
 import { randomBytes } from "node:crypto";
+import { db as firestore } from "./db";
 import {
   duelAggDelta,
   foldDuelAgg,
@@ -64,7 +65,7 @@ function inviteCode(): string {
 // ── membership callables ────────────────────────────────────────
 
 async function assertMembershipCap(uid: string): Promise<void> {
-  const db = getFirestore();
+  const db = firestore();
   const mine = await db.collection("v2_groups")
     .where("memberUids", "array-contains", uid).limit(MEMBERSHIP_CAP).get();
   if (mine.size >= MEMBERSHIP_CAP) {
@@ -93,7 +94,7 @@ function joinedAtMs(raw: unknown): Record<string, number> {
 // Collision-checked (31^8 space, so retries are cosmically rare — but
 // joinGroupV2's limit(1) would land someone in the wrong group).
 async function uniqueInviteCode(): Promise<string> {
-  const db = getFirestore();
+  const db = firestore();
   for (let i = 0; i < 4; i++) {
     const code = inviteCode();
     const clash = await db.collection("v2_groups")
@@ -106,7 +107,7 @@ async function uniqueInviteCode(): Promise<string> {
 // Sliding-hour throttle on join attempts (the only invite-probe path —
 // clients can't query v2_groups without membership).
 async function assertJoinBudget(uid: string): Promise<void> {
-  const db = getFirestore();
+  const db = firestore();
   const ref = db.collection("v2_ratelimits").doc(`join_${uid}`);
   await db.runTransaction(async (tx) => {
     const snap = await tx.get(ref);
@@ -125,7 +126,7 @@ async function assertJoinBudget(uid: string): Promise<void> {
 // must ride on the group doc for members to render each other).
 async function callerName(uid: string, given: unknown): Promise<string> {
   const name = typeof given === "string" ? given.trim().slice(0, 60) : "";
-  const db = getFirestore();
+  const db = firestore();
   if (name) {
     await db.doc(`v2_users/${uid}`).set({ displayName: name }, { merge: true });
     return name;
@@ -142,7 +143,7 @@ export const createGroupV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforce
   if (!name || name.length > 60) {
     throw new HttpsError("invalid-argument", "name required (≤60 chars)");
   }
-  const db = getFirestore();
+  const db = firestore();
   await assertMembershipCap(uid);
   const myName = await callerName(uid, request.data?.displayName);
   const code = await uniqueInviteCode();
@@ -175,7 +176,7 @@ export const joinGroupV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforceAp
   if (!code) throw new HttpsError("invalid-argument", "code required");
   await assertJoinBudget(uid);
   await assertMembershipCap(uid);
-  const db = getFirestore();
+  const db = firestore();
   const q = await db.collection("v2_groups")
     .where("inviteCode", "==", code).limit(1).get();
   if (q.empty) throw new HttpsError("not-found", "no group with that code");
@@ -206,7 +207,7 @@ export const leaveGroupV2 = onCall({ ...LIGHT_UNBOUNDED, region: REGION, enforce
   if (!request.auth) throw new HttpsError("unauthenticated", "must be signed in");
   const uid = request.auth.uid;
   const gid = String(request.data?.gid || "");
-  const db = getFirestore();
+  const db = firestore();
   const ref = db.collection("v2_groups").doc(gid);
 
   // Read-then-write in a transaction. Unguarded, two members of a duo
@@ -300,7 +301,7 @@ export const registerPushToken = onCall({ ...LIGHT_CALLABLE, region: REGION, enf
     }
     logger.warn("registerPushToken: dry-run inconclusive, accepting", { code });
   }
-  const db = getFirestore();
+  const db = firestore();
   const ref = db.doc(pushDocPath(uid));
   await db.runTransaction(async (tx) => {
     const snap = await tx.get(ref);
@@ -333,7 +334,7 @@ async function revealGroupDay(
   group: FirebaseFirestore.QueryDocumentSnapshot,
   dayKey: string,
 ): Promise<boolean> {
-  const db = getFirestore();
+  const db = firestore();
   const gid = group.id;
   const mode: string = group.get("mode") || "group";
   const members: string[] = group.get("memberUids") || [];
@@ -807,7 +808,7 @@ async function runDuelRevealsForDay(
   mode: ScanMode,
   scannedBefore: number,
 ): Promise<{ revealed: number; scanned: number; cappedOut: boolean }> {
-  const db = getFirestore();
+  const db = firestore();
   // PAGINATED either way. It used to fetch GROUP_SCAN_CAP docs and process
   // them one at a time; the 60s timeout bound at roughly 200-400 active
   // groups — an order of magnitude below the cap — so the function died
@@ -961,7 +962,7 @@ export const claimHandleV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforce
   const uid = request.auth.uid;
   const handle = normalizeHandle(request.data?.handle);
   if (!handle) throw new HttpsError("invalid-argument", "handle must be 3-20 chars: letters, digits, underscore");
-  const db = getFirestore();
+  const db = firestore();
   const ref = db.collection("v2_handles").doc(handle);
   const userRef = db.doc(`v2_users/${uid}`);
   await db.runTransaction(async (tx) => {
@@ -1003,7 +1004,7 @@ export const inviteToGroupV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enfor
   if (!gid || !to) throw new HttpsError("invalid-argument", "gid and to required");
   if (to === uid) throw new HttpsError("invalid-argument", "you are already here");
   await assertInviteBudget(uid);
-  const db = getFirestore();
+  const db = firestore();
   const gref = db.doc(`v2_groups/${gid}`);
   const gsnap = await gref.get();
   if (!gsnap.exists) throw new HttpsError("not-found", "no such circle");
@@ -1036,7 +1037,7 @@ export const inviteToGroupV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enfor
 });
 
 async function assertInviteBudget(uid: string): Promise<void> {
-  const db = getFirestore();
+  const db = firestore();
   const ref = db.collection("v2_ratelimits").doc(`invite_${uid}`);
   await db.runTransaction(async (tx) => {
     const snap = await tx.get(ref);
@@ -1061,7 +1062,7 @@ export const acceptGroupInviteV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, e
   const gid = String(request.data?.gid || "");
   if (!gid) throw new HttpsError("invalid-argument", "gid required");
   await assertMembershipCap(uid);
-  const db = getFirestore();
+  const db = firestore();
   const gref = db.doc(`v2_groups/${gid}`);
   const iref = gref.collection("invites").doc(uid);
   const myName = await callerName(uid, request.data?.displayName);
@@ -1102,7 +1103,7 @@ export const declineGroupInviteV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, 
   if (!request.auth) throw new HttpsError("unauthenticated", "must be signed in");
   const gid = String(request.data?.gid || "");
   if (!gid) throw new HttpsError("invalid-argument", "gid required");
-  const db = getFirestore();
+  const db = firestore();
   await db.doc(`v2_groups/${gid}`).collection("invites").doc(request.auth.uid).delete();
   return { ok: true };
 });
@@ -1125,7 +1126,7 @@ export const nearbyCountV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforce
   if (!request.auth) throw new HttpsError("unauthenticated", "must be signed in");
   const cell = request.data?.cell;
   if (!presenceCellOk(cell)) throw new HttpsError("invalid-argument", "cell must be a la_lo grid id");
-  const db = getFirestore();
+  const db = firestore();
   const cells = presenceNeighbors(cell as string);
   const freshAfter = Timestamp.fromMillis(Date.now() - PRESENCE_TTL_MIN * 60_000);
   // COUNTED, NOT FETCHED. This used to `.get()` the neighborhood and take

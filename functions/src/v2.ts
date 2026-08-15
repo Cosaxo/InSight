@@ -28,7 +28,8 @@
 //
 // Schema and access decisions: docs/SCHEMA-V2.md, docs/DECISIONS.md (D98).
 
-import { getFirestore, FieldValue, type Firestore, type Transaction } from "firebase-admin/firestore";
+import { FieldValue, type Firestore, type Transaction } from "firebase-admin/firestore";
+import { db as firestore, FIRESTORE_DB_ID } from "./db";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { assertOperator, HOT_TRIGGER } from "./ops";
 import { onDocumentCreated, onDocumentUpdated } from "firebase-functions/v2/firestore";
@@ -248,7 +249,7 @@ const CATALOG_DOMAINS: Record<string, CatalogSpec> = {
 /**
  * Exported and db-injected for the same reason runAggTransaction is: the
  * refusal below (D58) is a guarantee about what this function REFUSES to
- * write, and a guarantee nothing executes is a comment. `getFirestore()`
+ * write, and a guarantee nothing executes is a comment. `firestore()`
  * inside the body would have made the enforcement untestable without an
  * emulator — which is exactly the gap that let the invariant go unenforced
  * for as long as it did. seed.test.ts drives it with a stand-in.
@@ -441,13 +442,13 @@ export const seedContentV2 = onCall({ region: REGION }, async (request) => {
   // bumpRev forces the full cache invalidation the seed no longer spends
   // by default — see runSeedV2. Use it after flipping `active` by hand in
   // the console; ordinary content growth does not need it.
-  return runSeedV2(getFirestore(), request.data?.bumpRev === true);
+  return runSeedV2(firestore(), request.data?.bumpRev === true);
 });
 
 // ── answer → aggregate ──────────────────────────────────────────
 
 export const onV2AnswerCreated = onDocumentCreated(
-  { ...HOT_TRIGGER, region: REGION, document: "v2_users/{uid}/answers/{qid}", retry: true },
+  { ...HOT_TRIGGER, region: REGION, database: FIRESTORE_DB_ID, document: "v2_users/{uid}/answers/{qid}", retry: true },
   async (event) => {
     const snap = event.data;
     if (!snap) return;
@@ -472,7 +473,7 @@ export const onV2AnswerCreated = onDocumentCreated(
       const day = snap.get("day");
       if (typeof gid === "string" && typeof day === "string") {
         try {
-          const gref = getFirestore().collection("v2_groups").doc(gid);
+          const gref = firestore().collection("v2_groups").doc(gid);
           // update(), not set(merge): a group deleted between the answer and
           // this trigger must stay deleted, and set() would resurrect it as a
           // doc holding nothing but pendingDays. NOT_FOUND is the expected
@@ -513,7 +514,7 @@ export const onV2AnswerCreated = onDocumentCreated(
     // said was the viable one; a full 1,000-entity split per segment
     // leaves nearly every cell under the floor).
     if (snap.get("entity") !== undefined) {
-      const db = getFirestore();
+      const db = firestore();
       const eventRef = db.collection("v2_agg_events").doc(event.id);
       const privRef = db.collection("v2_aggs_private").doc(qid);
       const pubRef = db.collection("v2_question_aggs").doc(qid);
@@ -586,7 +587,7 @@ export const onV2AnswerCreated = onDocumentCreated(
       logger.warn(`[v2] answer ${event.params.uid}/${qid} has no usable index`);
       return; // malformed can't pass rules; don't retry-loop on it
     }
-    const db = getFirestore();
+    const db = firestore();
     const eventRef = db.collection("v2_agg_events").doc(event.id);
     const privRef = db.collection("v2_aggs_private").doc(qid);
     const pubRef = db.collection("v2_question_aggs").doc(qid);
@@ -652,7 +653,7 @@ export const onV2AnswerCreated = onDocumentCreated(
 // hold a different option. Same ledger, same transaction discipline as the
 // create path; a redelivered edit is a no-op, not a double move.
 export const onV2AnswerUpdated = onDocumentUpdated(
-  { ...HOT_TRIGGER, region: REGION, document: "v2_users/{uid}/answers/{qid}", retry: true },
+  { ...HOT_TRIGGER, region: REGION, database: FIRESTORE_DB_ID, document: "v2_users/{uid}/answers/{qid}", retry: true },
   async (event) => {
     const before = event.data?.before;
     const after = event.data?.after;
@@ -670,7 +671,7 @@ export const onV2AnswerUpdated = onDocumentUpdated(
     if (fromIdx < 0 || fromIdx > 19 || toIdx < 0 || toIdx > 19) return;
     if (fromIdx === toIdx) return; // editedAt-only rewrite: nothing moved
     const qid = event.params.qid;
-    const db = getFirestore();
+    const db = firestore();
     const eventRef = db.collection("v2_agg_events").doc(event.id);
     const privRef = db.collection("v2_aggs_private").doc(qid);
     const pubRef = db.collection("v2_question_aggs").doc(qid);

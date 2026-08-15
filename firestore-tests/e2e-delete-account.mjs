@@ -24,6 +24,13 @@ import { initializeApp as adminInit } from "firebase-admin/app";
 import { getFirestore as adminFirestore } from "firebase-admin/firestore";
 import { getAuth as adminAuth } from "firebase-admin/auth";
 
+// The named database (D157). The backend writes to FIRESTORE_DB_ID, so a
+// harness on `(default)` reads an empty database and reports a phantom
+// failure — which is exactly what happened the first time this ran, and is
+// the same split brain the deploy has to avoid. One constant, same env var
+// as functions/src/db.ts.
+const E2E_DB_ID = process.env.FIRESTORE_DB_ID || "insight";
+
 const PROJECT = "demo-insight";
 
 const fail = (msg) => { console.error("✗ " + msg); process.exit(1); };
@@ -31,7 +38,13 @@ const ok = (msg) => console.log("✓ " + msg);
 
 // ── admin (rules bypassed) — the only trustworthy observer here ──
 adminInit({ projectId: PROJECT });
-const adb = adminFirestore();
+// The ADMIN handle needs the database too, and this is the one that got
+// missed first time round: it takes no argument, so it reads as fine and
+// silently targets `(default)`. It then wrote the question doc to one
+// database while the client wrote the answer to another, and the rules'
+// get() on the missing question denied the write — a null-value error
+// four layers from the actual mistake.
+const adb = adminFirestore(E2E_DB_ID);
 const aauth = adminAuth();
 
 const exists = async (path) => (await adb.doc(path).get()).exists;
@@ -45,7 +58,7 @@ const mustBeGone = async (path, label) => {
 // ── client (the real path a user takes) ──
 const app = initializeApp({ projectId: PROJECT, apiKey: "demo", appId: "demo" });
 const auth = getAuth(app); connectAuthEmulator(auth, "http://127.0.0.1:9099", { disableWarnings: true });
-const db = getFirestore(app); connectFirestoreEmulator(db, "127.0.0.1", 8080);
+const db = getFirestore(app, E2E_DB_ID); connectFirestoreEmulator(db, "127.0.0.1", 8080);
 const fns = getFunctions(app, "us-central1"); connectFunctionsEmulator(fns, "127.0.0.1", 5001);
 
 const cred = await signInAnonymously(auth);

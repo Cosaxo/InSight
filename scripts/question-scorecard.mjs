@@ -93,6 +93,12 @@ const INPUT = inputIdx >= 0 ? args[inputIdx + 1] : null;
 
 // ── the question banks under evaluation ──
 const daily = JSON.parse(readFileSync(join(root, "content", "daily-questions.json"), "utf8"));
+// The database the public mirror lives in (D157). Hardcoded `(default)`
+// here until the migration; the scorecard reads production over REST, so a
+// stale id makes it report an EMPTY corpus rather than fail — every lane
+// would then see "no signal" and fall through to its coverage branch,
+// quietly, forever. Overridable for the same reason the backend's is.
+const DB_ID = process.env.FIRESTORE_DB_ID || "insight";
 const feed = JSON.parse(readFileSync(join(root, "content", "feed-questions.json"), "utf8"));
 const learn = JSON.parse(readFileSync(join(root, "content", "learn-questions.json"), "utf8"));
 const duel = JSON.parse(readFileSync(join(root, "content", "duel-questions.json"), "utf8"));
@@ -150,7 +156,7 @@ async function fetchAggs() {
   let pageToken = "";
   do {
     const url =
-      `https://firestore.googleapis.com/v1/projects/${project}/databases/(default)/documents/v2_question_aggs` +
+      `https://firestore.googleapis.com/v1/projects/${project}/databases/${DB_ID}/documents/v2_question_aggs` +
       `?pageSize=300${pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : ""}`;
     const res = await fetch(url, { headers: { authorization: `Bearer ${idToken}` } });
     if (!res.ok) {

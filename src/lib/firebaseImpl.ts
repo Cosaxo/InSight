@@ -74,6 +74,11 @@ import { initAppCheck } from "./appcheck";
 // `window.LIVE`'s: live.ts destructures this whole object in one statement, so
 // a member added to the store without being added here fails at boot rather
 // than at the call.
+// The Firestore database this client talks to (D157). Kept as a named
+// constant rather than a literal at the call site so `check:fn-runtime` and
+// a human grep both find it, and so the emulator override is one place.
+export const FIRESTORE_DB_ID = import.meta.env.VITE_FIRESTORE_DB_ID || "insight";
+
 export const fsApi = {
   clearIndexedDbPersistence, collection, collectionGroup, deleteDoc, doc,
   documentId, getDoc, getDocs, limit, onSnapshot, orderBy, query,
@@ -137,9 +142,15 @@ export function init(config: FirebaseConfig): void {
   // back to the demo deck — stranding a returning user whose entire
   // question bank and answer history are sitting in cache. Disk cache
   // also queues votes written while offline so they sync on reconnect.
+  //
+  // The third argument is the DATABASE ID (D157). The app moved off
+  // `(default)` to a single EU region; omit this and the client talks to a
+  // database the backend no longer writes to — which looks like an app with
+  // no data rather than like an error. Emulator runs override it through
+  // the same env var the functions read, so both halves cannot disagree.
   dbInstance = initializeFirestore(app, {
     localCache: persistentLocalCache(),
-  });
+  }, FIRESTORE_DB_ID);
   if (useEmulator) {
     connectAuthEmulator(authInstance, `http://${EMULATOR_HOST}:9099`, {
       disableWarnings: true,

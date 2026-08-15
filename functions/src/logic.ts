@@ -32,12 +32,13 @@
 // The generator import is the byte-identical synced copy of
 // src/v2/data/logic-gen.ts — see its header and scripts/check-logic-sync.mjs.
 
-import { getFirestore, type Transaction } from "firebase-admin/firestore";
+import { type Transaction } from "firebase-admin/firestore";
 import { randomBytes } from "node:crypto";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions";
 import { ENFORCE_APP_CHECK, LIGHT_CALLABLE } from "./ops";
 import { generateForm, version as GEN_VERSION, type Cell } from "./logic-gen";
+import { db as firestore } from "./db";
 
 const REGION = "us-central1";
 
@@ -248,7 +249,7 @@ export function measuredPctile(
 
 // ── the callables ──
 
-const attemptRef = (uid: string) => getFirestore().collection("v2_logic_attempts").doc(uid);
+const attemptRef = (uid: string) => firestore().collection("v2_logic_attempts").doc(uid);
 
 export const logicStartV2 = onCall(
   { ...LIGHT_CALLABLE, region: REGION, enforceAppCheck: ENFORCE_APP_CHECK },
@@ -258,7 +259,7 @@ export const logicStartV2 = onCall(
     const now = Date.now();
     const seed = randomBytes(4).readUInt32BE(0);
 
-    await getFirestore().runTransaction(async (tx: Transaction) => {
+    await firestore().runTransaction(async (tx: Transaction) => {
       const ref = attemptRef(uid);
       const snap = await tx.get(ref);
       const prev = snap.exists ? (snap.data() as LogicAttempt) : null;
@@ -293,7 +294,7 @@ export const logicSubmitV2 = onCall(
     const uid = request.auth.uid;
     const picks = (request.data as { picks?: unknown } | null)?.picks;
     const now = Date.now();
-    const db = getFirestore();
+    const db = firestore();
 
     const out = await db.runTransaction(async (tx: Transaction) => {
       const ref = attemptRef(uid);

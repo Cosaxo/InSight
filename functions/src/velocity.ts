@@ -33,7 +33,7 @@
 // force attackers into exactly that slow, human-shaped posture — which
 // the device-bind month rule then prices per device.
 
-import { getFirestore, Timestamp } from "firebase-admin/firestore";
+import { Timestamp } from "firebase-admin/firestore";
 import { getAuth } from "firebase-admin/auth";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { logger } from "firebase-functions";
@@ -43,6 +43,7 @@ import { logger } from "firebase-functions";
 // outcome).
 import { LIGHT_UNBOUNDED } from "./ops";
 import { V2_QUESTIONS } from "./v2content";
+import { db as firestore } from "./db";
 
 const REGION = "us-central1";
 
@@ -304,7 +305,7 @@ export const ledgerVelocityScan = onSchedule(
   // ~140 batched Auth lookups — pennies; at launch volumes, nothing.
   { schedule: "47 3 * * *", region: REGION, ...LIGHT_UNBOUNDED },
   async () => {
-    const db = getFirestore();
+    const db = firestore();
     const stateRef = db.doc(STATE_PATH);
     const stateSnap = await stateRef.get();
     const lastScanAt = (stateSnap.exists && (stateSnap.get("lastScanAt") as number)) || 0;

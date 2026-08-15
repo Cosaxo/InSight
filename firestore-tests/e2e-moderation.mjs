@@ -24,16 +24,29 @@ import { getFunctions, connectFunctionsEmulator, httpsCallable } from "firebase/
 import { initializeApp as adminInit } from "firebase-admin/app";
 import { getFirestore as adminFirestore } from "firebase-admin/firestore";
 
+// The named database (D157). The backend writes to FIRESTORE_DB_ID, so a
+// harness on `(default)` reads an empty database and reports a phantom
+// failure — which is exactly what happened the first time this ran, and is
+// the same split brain the deploy has to avoid. One constant, same env var
+// as functions/src/db.ts.
+const E2E_DB_ID = process.env.FIRESTORE_DB_ID || "insight";
+
 const app = initializeApp({ projectId: "demo-insight", apiKey: "demo", appId: "demo" });
 const auth = getAuth(app); connectAuthEmulator(auth, "http://127.0.0.1:9099", { disableWarnings: true });
-const db = getFirestore(app); connectFirestoreEmulator(db, "127.0.0.1", 8080);
+const db = getFirestore(app, E2E_DB_ID); connectFirestoreEmulator(db, "127.0.0.1", 8080);
 
 // Admin, rules bypassed — the only way to observe v2_mod_queue, which is
 // `allow read, write: if false` to every client by design (the queue is a
 // server-only surface of the confinement model). Same pattern as
 // e2e-delete-account.mjs.
 adminInit({ projectId: "demo-insight" });
-const adb = adminFirestore();
+// The ADMIN handle needs the database too, and this is the one that got
+// missed first time round: it takes no argument, so it reads as fine and
+// silently targets `(default)`. It then wrote the question doc to one
+// database while the client wrote the answer to another, and the rules'
+// get() on the missing question denied the write — a null-value error
+// four layers from the actual mistake.
+const adb = adminFirestore(E2E_DB_ID);
 const fns = getFunctions(app, "us-central1"); connectFunctionsEmulator(fns, "127.0.0.1", 5001);
 
 const fail = (msg) => { console.error("✗ " + msg); process.exit(1); };
