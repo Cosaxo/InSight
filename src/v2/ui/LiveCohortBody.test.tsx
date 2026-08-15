@@ -808,3 +808,133 @@ describe("LiveCohortBody · the lens row is the stop's tabs", () => {
       "navigating the row re-ran the constellation's fold — the field is inside a conditional again").toBe(1);
   });
 });
+
+// ── the lenses read the stop they are standing on ────────────────────
+//
+// D169. Three tabs named a population and read a different one. `rows`
+// (Answers) always took the cohort CELL — `agg.by[scope][bucket]` — while
+// `lensQs` was assembled from `agg.counts`, which is the GLOBE. So on the
+// City stop, "against Oslo" and "How Oslo rated it" were the world's
+// numbers with a city's name on them.
+//
+// It is D157's failure one tab over: not a fabricated number, a real one
+// describing a crowd it never counted. And it was visible from the app —
+// Answers said "1 more question has no answers from Oslo yet" while
+// Compare showed that same question at 50/50, two tabs apart on one screen.
+//
+// The fixture is built so a scope bug cannot pass: every global count is
+// far from its Oslo cell, and one question has a globe and NO Oslo cell
+// at all — the case that used to draw a confident split out of a cohort
+// with nothing in it.
+describe("LiveCohortBody · a lens reads its own stop, never the globe", () => {
+  const ARCHIVE = [
+    { id: "q1", text: "Split question", branch: "Mind", type: "binary", coreCorpus: true, options: [{ label: "Yes" }, { label: "No" }] },
+    { id: "q2", text: "Absent in Oslo", branch: "Mind", type: "binary", coreCorpus: true, options: [{ label: "Yes" }, { label: "No" }] },
+    { id: "q3", text: "Rated question", branch: "Mind", type: "scale", coreCorpus: true, options: [{ label: "1" }, { label: "2" }, { label: "3" }, { label: "4" }, { label: "5" }] },
+  ];
+
+  beforeEach(() => {
+    LIVE.aggregated = () => ARCHIVE;
+    LIVE.myVotes = () => ({ q1: "1", q2: "0", q3: "3" });
+    LIVE.aggFor = (qid: string) => {
+      if (qid === "q1") {
+        // globe 90/10 · Oslo 1/3 — your "No" is a 10% opinion worldwide
+        // and a 75% one here. One number is right and they are not close.
+        return { counts: { "0": 90, "1": 10 }, total: 100, by: { city: { "Oslo, NO": { "0": 1, "1": 3 } } } };
+      }
+      if (qid === "q2") {
+        // answered elsewhere, never in Oslo
+        return { counts: { "0": 40, "1": 60 }, total: 100, by: { city: { "Bergen, NO": { "0": 40, "1": 60 } } } };
+      }
+      // globe sits at 5/5, Oslo at 2/5
+      return {
+        counts: { "0": 0, "1": 0, "2": 0, "3": 0, "4": 20 }, total: 20,
+        by: { city: { "Oslo, NO": { "0": 0, "1": 4, "2": 0, "3": 0, "4": 0 } } },
+      };
+    };
+  });
+
+  // The lens bodies are a lazy chunk, so the panel is empty for a tick
+  // after the tab flips. `findBy*` polls; a microtask flush does not
+  // settle a real dynamic import and leaves every assertion looking at an
+  // empty tabpanel.
+  const openLens = (name: string) => {
+    render(<LiveCohortBody scope="city" />);
+    fireEvent.click(screen.getByRole("tab", { name }));
+  };
+
+  it("Compare scores you against this city, not against the world", async () => {
+    openLens("Compare");
+    // Oslo: 3 of 4 said "No", and "No" is your pick.
+    expect(await screen.findByText(/75% here agreed/)).toBeTruthy();
+    // The globe's number for the same pick. Its presence would mean the
+    // lens is reading agg.counts.
+    expect(screen.queryByText(/10% here agreed/)).toBeNull();
+  });
+
+  it("Compare drops a question this city has not answered", async () => {
+    openLens("Compare");
+    expect(await screen.findByText("Split question")).toBeTruthy();
+    // Answers already reports this one as absent; a lens that shows it
+    // anyway makes two tabs of one screen disagree about the same cohort.
+    expect(screen.queryByText("Absent in Oslo")).toBeNull();
+  });
+
+  it("Scores averages this city's ratings, not the world's", async () => {
+    openLens("Scores");
+    // Oslo gave it 2 (four answers at index 1). The globe gave it 5.
+    expect(await screen.findByText("2")).toBeTruthy();
+    expect(screen.queryByText("5")).toBeNull();
+  });
+});
+
+// ── a reading drawn from one answer is not a percentage ──────────────
+//
+// D169's second half, and the one the screenshots led with: a city whose
+// only answer is yours told you "100% of Oslo are with you" and, under
+// "How Oslo rated it", "you gave it 4 — exactly the average · 1 answer".
+// Both are you, compared with yourself.
+//
+// The rule here is arithmetic rather than a thin-data threshold nobody
+// voted on: at n=1 the only values the fold can produce are 0% and 100%,
+// so a percentage carries no information the count does not. n=2 is thin
+// too and still says something, so it is left alone.
+describe("LiveCohortBody · one answer is a count, not a share", () => {
+  const ARCHIVE = [
+    { id: "q1", text: "Lonely question", branch: "Mind", type: "binary", coreCorpus: true, options: [{ label: "Yes" }, { label: "No" }] },
+    { id: "q2", text: "Lonely rating", branch: "Mind", type: "scale", coreCorpus: true, options: [{ label: "1" }, { label: "2" }, { label: "3" }, { label: "4" }, { label: "5" }] },
+  ];
+
+  beforeEach(() => {
+    LIVE.aggregated = () => ARCHIVE;
+    LIVE.myVotes = () => ({ q1: "1", q2: "3" });
+    LIVE.aggFor = (qid: string) => qid === "q1"
+      ? { counts: { "1": 1 }, total: 1, by: { city: { "Oslo, NO": { "1": 1 } } } }
+      : { counts: { "3": 1 }, total: 1, by: { city: { "Oslo, NO": { "3": 1 } } } };
+  });
+
+  it("says how many answers there are instead of what share agreed", () => {
+    render(<LiveCohortBody scope="city" />);
+    fireEvent.click(screen.getByRole("tab", { name: "Answers" }));
+    // The first row is open on arrival (D120) — clicking it would close it.
+    expect(screen.getByText(/One answer from Oslo so far/i)).toBeTruthy();
+    expect(screen.queryByText(/100% of Oslo are with you/i)).toBeNull();
+  });
+
+  it("Scores does not call your own answer the average", async () => {
+    render(<LiveCohortBody scope="city" />);
+    fireEvent.click(screen.getByRole("tab", { name: "Scores" }));
+    expect(await screen.findByText(/the only answer here so far/i)).toBeTruthy();
+    expect(screen.queryByText(/exactly the average/i)).toBeNull();
+  });
+
+  it("Compare stops calling a tie the majority", async () => {
+    // Two answers, one each way: nobody is in the majority, and the
+    // release counted this row as one.
+    LIVE.aggFor = () => ({ counts: { "0": 1, "1": 1 }, total: 2, by: { city: { "Oslo, NO": { "0": 1, "1": 1 } } } });
+    render(<LiveCohortBody scope="city" />);
+    fireEvent.click(screen.getByRole("tab", { name: "Compare" }));
+    expect(await screen.findByText(/went with the majority/i)).toBeTruthy();
+    expect(screen.getByText(/majority in/i).textContent).toMatch(/majority in\s*0\s*of/);
+  });
+});

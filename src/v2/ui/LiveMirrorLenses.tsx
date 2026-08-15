@@ -491,22 +491,36 @@ function CompareLens({ qs, shortName }: { qs: LensQuestion[]; shortName: string 
   // where everyone agrees with you.
   const rows = answered.map((q) => {
     const pct = pctFor(q.counts);
-    return { q, pct, mineShare: pct[q.mine] || 0 };
+    const n = q.counts.reduce((a, b) => a + b, 0);
+    // "With the majority" means your pick is what this cohort picked MOST
+    // — not that it cleared 50% (D169). The old rule was `mineShare >= 50`
+    // and it was wrong in both directions: on a three-way question the
+    // leading answer can win on 40%, and on a two-way tie at 50/50 nobody
+    // is in the majority, which is exactly what the release showed —
+    // "the majority in 3 of 3" over a row split 50/50.
+    const top = q.counts.reduce((t, v, i) => (v > q.counts[t] ? i : t), 0);
+    const tied = q.counts.filter((v) => v === q.counts[top]).length > 1;
+    return { q, pct, n, mineShare: pct[q.mine] || 0, withMost: !tied && q.mine === top };
   }).sort((a, b) => a.mineShare - b.mineShare);
 
-  const withMost = rows.filter((r) => r.mineShare >= 50).length;
+  const withMost = rows.filter((r) => r.withMost).length;
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       <div style={{ fontFamily: "var(--sans)", fontSize: 13, fontWeight: 600, color: "var(--ink-2)", lineHeight: 1.5 }}>
         You went with the majority in <strong>{withMost}</strong> of {rows.length},
         against {shortName}. Least typical first.
       </div>
-      {rows.map(({ q, pct, mineShare }) => (
+      {rows.map(({ q, pct, n, mineShare }) => (
         <div key={q.id} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           <span style={{ fontFamily: "var(--serif)", fontSize: 14.5, color: "var(--ink)", lineHeight: 1.35 }}>{q.text}</span>
           <LlBar pct={pct} labels={q.options} mark={q.mine} />
           <span style={{ fontFamily: "var(--sans)", fontSize: 11.5, fontWeight: 600, color: "var(--ink-3)" }}>
-            You said <strong style={{ color: "var(--ink-2)" }}>{q.options[q.mine]}</strong> · {mineShare}% here agreed
+            You said <strong style={{ color: "var(--ink-2)" }}>{q.options[q.mine]}</strong>
+            {/* A share of ONE answer is not a share: with n=1 the only
+                values the arithmetic can produce are 0% and 100%, so
+                "100% here agreed" reports the sample size and nothing
+                else. Arithmetic, not a threshold someone chose. */}
+            {n === 1 ? <> · one answer here so far</> : <> · {mineShare}% here agreed</>}
           </span>
         </div>
       ))}
@@ -536,9 +550,13 @@ function ExploreLens({ qs }: { qs: LensQuestion[] }) {
     ? qs.map((q) => {
       const split = sliceSplit(q.by, dim, picked, q.options.length);
       if (!split) return null;
-      const d = divergence(q.by, dim, q.counts, q.options.length)
+      // `all`, not `counts` (D169): Explore's slices are cuts of everyone
+      // and its sentence ends "same as everyone", so the globe is the
+      // right baseline on every stop. Compare and Scores read `counts`,
+      // which is the stop's own cohort.
+      const d = divergence(q.by, dim, q.all, q.options.length)
         .find((x) => x.bucket === picked);
-      return { q, split, overall: pctFor(q.counts), gap: d ? d.gap : 0, on: d ? d.optionIdx : 0 };
+      return { q, split, overall: pctFor(q.all), gap: d ? d.gap : 0, on: d ? d.optionIdx : 0 };
     }).filter(Boolean).sort((a, b) => b!.gap - a!.gap)
     : [];
 
@@ -657,10 +675,19 @@ function ScoresLens({ qs, shortName }: { qs: LensQuestion[]; shortName: string }
             <span style={{ fontFamily: "var(--sans)", fontSize: 11.5, fontWeight: 600, color: "var(--ink-3)" }}>
               {mine == null
                 ? <>{score.n.toLocaleString()} {score.n === 1 ? "answer" : "answers"} · you have not rated this</>
-                : <>You gave it <strong style={{ color: "var(--ink-2)" }}>{mine}</strong>
-                  {mine === score.mean ? <> — exactly the average</>
-                    : <> · {Math.abs(Math.round((mine - score.mean) * 10) / 10)} {mine > score.mean ? "above" : "below"} them</>}
-                  {" "}· {score.n.toLocaleString()} {score.n === 1 ? "answer" : "answers"}</>}
+                /* One answer is not an average, and when you are the one
+                   who gave it "exactly the average" is you compared with
+                   yourself — which is what the release printed, under the
+                   heading "How Oslo rated it" (D169). Said as a count
+                   instead: true whoever the answer belongs to, which
+                   matters because a vote carries the city it was cast
+                   from (D8) and this stop shows the city you are in now. */
+                : score.n === 1
+                  ? <>You gave it <strong style={{ color: "var(--ink-2)" }}>{mine}</strong> · the only answer here so far</>
+                  : <>You gave it <strong style={{ color: "var(--ink-2)" }}>{mine}</strong>
+                    {mine === score.mean ? <> — exactly the average</>
+                      : <> · {Math.abs(Math.round((mine - score.mean) * 10) / 10)} {mine > score.mean ? "above" : "below"} them</>}
+                    {" "}· {score.n.toLocaleString()} answers</>}
             </span>
           </div>
         );

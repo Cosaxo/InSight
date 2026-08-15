@@ -33,7 +33,7 @@ import { locateCity } from "../data/locate";
 // "Does this question have any answers yet?" — an existence test, and
 // since D98 the only test there is (data/floor.ts and its constants are
 // gone with the floor they mirrored).
-import { hasPublishedCounts } from "../data/deck";
+import { hasPublishedCounts, type AggDoc } from "../data/deck";
 // The four lens BODIES (D99), loaded when a lens tab is first opened
 // (D101, D119).
 //
@@ -279,6 +279,23 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
   const archive = LIVE.aggregated().filter((q) => q.coreCorpus);
   const myVotes = LIVE.myVotes();
 
+  /**
+   * The counts for THIS STOP, from one aggregate — the globe on World,
+   * the city/country cell everywhere else.
+   *
+   * Shared by both walks below on purpose (D169). The rows resolved the
+   * cohort cell and the lens questions took `agg.counts`, so Answers
+   * described Oslo while Compare and Scores described the world under
+   * Oslo's name. Two walks over the same archive is two chances to
+   * disagree about which crowd the stop is; this is the one answer both
+   * of them read.
+   */
+  const cellFor = (agg: AggDoc | null | undefined): Record<string, number> | undefined => {
+    if (!agg) return undefined;
+    if (scope === "world") return hasPublishedCounts(agg) ? agg.counts : undefined;
+    return agg.by?.[scope]?.[scope === "city" ? city : country];
+  };
+
   const rows: AnswerRow[] = [];
   // Questions with no answers from this cohort yet. Since D98 nothing is
   // withheld, so an absent cell means exactly zero — the counter survives
@@ -287,16 +304,14 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
   for (const q of archive) {
     const agg = LIVE.aggFor(q.id);
     if (!agg) continue;
-    let cell: Record<string, number> | undefined;
+    const cell = cellFor(agg);
     let n = 0;
     if (scope === "world") {
       // The globe is the aggregate itself.
-      if (!hasPublishedCounts(agg)) { empty++; continue; }
-      cell = agg.counts;
+      if (!cell) { empty++; continue; }
       n = agg.total || 0;
     } else {
       const dim = agg.by?.[scope];
-      cell = dim?.[scope === "city" ? city : country];
       if (dim && !cell) empty++;
       if (cell) n = Object.values(cell).reduce((a, b) => a + b, 0);
     }
@@ -348,13 +363,19 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
   // without a second source that could disagree with the card you voted on.
   const lensQs: LensQuestion[] = archive.map((q) => {
     const agg = LIVE.aggFor(q.id);
-    const counts = (q.options || []).map((_, i) => ((agg?.counts || {})[String(i)] as number) || 0);
+    const opts = q.options || [];
+    // `counts` is THIS STOP (D169) — the same cell the rows above take, so
+    // a lens can no longer name a population and read another. `all` is
+    // the globe, which only Explore wants: its buckets are cuts of
+    // everyone and its sentence ends "same as everyone".
+    const cell = cellFor(agg);
     const mine = myVotes[q.id];
     return {
       id: q.id,
       text: q.text,
-      options: (q.options || []).map((o) => o.label),
-      counts,
+      options: opts.map((o) => o.label),
+      counts: opts.map((_, i) => (cell || {})[String(i)] || 0),
+      all: opts.map((_, i) => ((agg?.counts || {})[String(i)] as number) || 0),
       by: byOf(agg),
       mine: mine == null ? -1 : Number(mine),
       type: q.type,

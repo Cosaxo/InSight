@@ -16612,3 +16612,115 @@ re-proposed as new.
 VISION-V28 §9 is struck. It was the last item still waiting on an owner
 call, so **the v28 plan now has no open owner decisions** — everything
 remaining is engineering, sequenced in §11.
+
+## D169 · Three Mirror tabs named a population and read a different one
+
+**Decided:** 2026-08-15 · **Status:** binding, BUILT. From four screenshots
+of the release with the report *"the tabs on mirror does in many instances
+look wrong and some places like score have wrong functionality"*.
+
+Same class as [D157](#d157--the-test-surfaces-stop-describing-a-crowd-they-never-counted),
+one tab over, and worth recording separately because the mechanism is
+different. D157 was an authored constant drawn as a measurement. This is a
+**real** number, correctly computed, describing a crowd it never counted.
+
+### 1 · The bug, and how the screenshots gave it away
+
+`LiveCohortBody` walks the archive **twice**. The answer rows resolved the
+cohort CELL — `agg.by[scope][bucket]`, i.e. Oslo — and `lensQs`, the shape
+the four lens bodies read, was assembled from `agg.counts`, which is the
+**globe**. So on the City stop:
+
+- **Compare** said *"You went with the majority in 3 of 3, against Oslo"*
+  over the world's splits.
+- **Scores** said *"How Oslo rated it"* over the world's mean.
+- **Answers** was right all along, which is what made it visible.
+
+The two tabs contradicted each other **on one screen**: Answers reported
+*"1 more question has no answers from Oslo yet"* while Compare drew that
+same question at 50/50. A question with an empty cohort cell cannot have a
+split, and there it was with one — the globe's.
+
+**Nothing in the tree could see it.** Both fields are `number[]`, both are
+populated, both render. `tsc`, eslint and `check:globals` are all name-level
+and every name was correct. The lens suite passes fixtures in directly, so
+it never exercised the host's wiring — the bug lived exactly in the seam
+between two files that each tested fine.
+
+### 2 · The fix: one resolver, and a second field for the one lens that wants the globe
+
+`cellFor(agg)` now answers "what are this stop's counts" once, and **both**
+walks read it. Two walks over one archive was two chances to disagree about
+which crowd the stop is, and they took it.
+
+`LensQuestion` grew `all` beside `counts`, because **Explore genuinely
+wants the globe** and that is not a special case to be tolerated — it is
+the lens's meaning. Its buckets are `by[dim]` cuts across everyone (there
+is no city × age cell to read) and its sentence ends *"Same as everyone."*
+Explore reads `all`; Compare and Scores read `counts`; People reads `by`.
+Each lens now names the population it is actually holding.
+
+The World stop is unaffected in behaviour and not by accident: there
+`cellFor` returns `agg.counts`, so `counts` and `all` are the same array
+and always were. The bug was invisible on the stop most people look at
+first, which is part of why it survived.
+
+### 3 · A share of ONE answer is not a share
+
+The second half of the report, and the one the screenshots led with. On a
+city whose only answer was the viewer's own:
+
+- Answers: **"100% of Oslo are with you."**
+- Scores: **"You gave it 4 — exactly the average · 1 answer"**
+
+Both are the viewer compared with themself, printed as a finding about a
+city. The fold is not wrong — D98 counts are exact and
+`typicality`'s note is deliberate that *"your own answer is included in the
+denominator"*, which is right and stays. What was wrong is phrasing a
+degenerate result as a proportion.
+
+**This is arithmetic, not a thin-data threshold anybody chose.** At n=1 the
+only values the fold can produce are 0% and 100%, so the percentage carries
+nothing the count does not. n=2 is thin too and still says something, so it
+is left alone — deliberately, because inventing a floor here would
+re-import the k-anonymity habit D98 removed.
+
+Both surfaces now say the count: *"One answer from Oslo so far."* and
+*"the only answer here so far"*. Neither claims the answer is YOURS, and
+that restraint is load-bearing: a vote carries the anchors it was cast with
+(D8), so someone who has moved cities has answers in their old city's cell
+while this stop shows the new one. "One answer" is true whoever it belongs
+to; "that's you" would not always be.
+
+### 4 · A tie is not a majority
+
+Compare counted `mineShare >= 50` as going with the majority. Wrong in both
+directions: on a three-way question the leading answer can win on 40%, and
+at 50/50 nobody is in the majority — which is what the release printed,
+counting a dead-heat row toward *"the majority in 3 of 3"*. It now tests
+whether your pick is the cohort's **most common** answer, ties excluded,
+which is what the sentence has always claimed.
+
+### 5 · What pins it
+
+Six cases in `ui/LiveCohortBody.test.tsx` — the host, not the lens suite,
+because the host is where the wiring is. The fixture is built so a scope
+bug cannot pass: every global count sits far from its Oslo cell, and one
+question has a globe and **no Oslo cell at all**, which is the case that
+used to draw a confident split out of a cohort with nothing in it.
+
+All three fixes were **mutation-checked**: reverting each one fails its own
+case and only its own. The scope cases were written first and watched to
+fail against the shipped code, which is how the diagnosis was confirmed
+rather than argued.
+
+### 6 · What was reported and is NOT a bug
+
+The pulse chart's large grey block (*"26 JUL – 13 AUG"*) is the void a run
+of three or more unanswered days draws, working as designed and matching
+the prototype — `pulse-trends.jsx` is byte-identical from v24 through v28.
+It dominates because the account has answered 2 days of 21, and the panel
+says so underneath in words. Left alone: it is honest, and the alternative
+is a chart that hides how little is in it. **If the owner wants a different
+day-one shape for it, that is a design change and belongs in
+`docs/VISION-V28.md` §3, not a fix here.**
