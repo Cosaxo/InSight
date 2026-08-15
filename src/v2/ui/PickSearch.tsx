@@ -19,7 +19,7 @@
 import React from "react";
 import POKEDEX, { type Species } from "../data/pokedex";
 import ELEMENTS_CATALOG, { type Element } from "../data/elements";
-import { FILMS, ARTISTS, EMOJI, type CatalogEntry } from "../data/catalogs";
+import { FILMS, ARTISTS, EMOJI, COUNTRIES, type CatalogEntry } from "../data/catalogs";
 
 const PS_LINE = "1px solid var(--rule)";
 
@@ -111,6 +111,16 @@ const DOMAINS: Record<string, DomainSpec> = {
       "No match — every base emoji is in here, so try the word for it " +
       "(“fire”, “skull”). Tones and combos count as their base; if yours " +
       "truly isn't here, “Not listed” below is the honest answer.",
+  },
+  countries: {
+    ...catalogSpec(COUNTRIES, "Search countries…", "one pick from 250 — the crowd's canon reveals after"),
+    // A closed set: the full ISO 3166-1 list, territories included, so
+    // the honest miss is a spelling rather than an absence. English
+    // names ("Germany", not "Deutschland"); accents fold in search.
+    noMatch:
+      "No match — every ISO country and territory is in here under its " +
+      "English name, so check the spelling. “Not listed” below is for " +
+      "the places the standard itself doesn't name.",
   },
 };
 
