@@ -6,7 +6,7 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { EMOJI, FILMS, parseCatalog } from "./catalogs";
+import { COUNTRIES, EMOJI, FILMS, parseCatalog } from "./catalogs";
 
 // Popularity order, sparse QID keys — the generator's output shape,
 // including a remake disambiguated by year and an accented name.
@@ -93,5 +93,55 @@ describe("the shipped emoji catalogue", () => {
     const fire = EMOJI.search(real, "fire").map((e) => e.key);
     expect(fire).toContain(128293);
     expect(EMOJI.search(real, "sparkles")[0].key).toBe(10024);
+  });
+});
+
+describe("the shipped countries catalogue", () => {
+  // Same real-file leg for the countries domain: ISO 3166-1 numeric keys
+  // plus the one recorded mint (Kosovo, 900 — build-countries.mjs).
+  const real = parseCatalog(
+    readFileSync(resolve(__dirname, "../../../public/countries.txt"), "utf8"),
+  );
+
+  it("parses completely with unique keys, mint included", () => {
+    expect(real.length).toBe(250);
+    expect(new Set(real.map((e) => e.key)).size).toBe(real.length);
+    expect(COUNTRIES.nameOf(real, 900)).toBe("Kosovo");
+  });
+
+  it("resolves an ISO numeric code to its country", () => {
+    expect(COUNTRIES.nameOf(real, 578)).toBe("Norway");
+    expect(COUNTRIES.nameOf(real, 392)).toBe("Japan");
+  });
+
+  it("finds a country without its accents", () => {
+    // Accent folding is the search's contract; "sao tome" must reach
+    // São Tomé and Príncipe, and a prefix must rank before a substring.
+    expect(COUNTRIES.search(real, "sao tome")[0].name).toBe("São Tomé and Príncipe");
+    expect(COUNTRIES.search(real, "norw")[0].key).toBe(578);
+  });
+});
+
+describe("the reveal resolver covers every pick domain", () => {
+  // Source-level pin for world-feed.jsx's pickStore(): its final arm
+  // falls back to the Pokédex, so a domain missing from the chain does
+  // not error — it resolves that domain's keys against dex numbers.
+  // Real names, wrong catalogue: exactly what shipped for elements
+  // (pk11–pk14) while every name-level gate stayed green. This walks
+  // the shipped PICK_QS and demands an explicit arm per domain.
+  it("names every PICK_QS domain in pickStore's chain", () => {
+    const src = readFileSync(
+      resolve(__dirname, "../spec/pick-data.js"), "utf8");
+    const domains = new Set(
+      [...src.matchAll(/domain: '([a-z]+)'/g)].map((m) => m[1]));
+    expect(domains.size).toBeGreaterThanOrEqual(4);
+    const feed = readFileSync(
+      resolve(__dirname, "../spec/world-feed.jsx"), "utf8");
+    const chain = feed.match(/pickStore\(domain\) \{[\s\S]*?return[\s\S]*?;/)?.[0] ?? "";
+    expect(chain).not.toBe("");
+    for (const d of domains) {
+      if (d === "pokemon") continue; // the chain's explicit final arm
+      expect(chain, `pickStore has no arm for domain '${d}'`).toContain(`'${d}'`);
+    }
   });
 });

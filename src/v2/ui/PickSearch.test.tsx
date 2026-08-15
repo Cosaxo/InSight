@@ -38,6 +38,10 @@ const stores = vi.hoisted(() => ({
   emoji: [
     { key: 128293, name: "🔥 fire" },
   ],
+  countries: [
+    { key: 578, name: "Norway" },
+    { key: 900, name: "Kosovo" },
+  ],
 }));
 
 const catalogStore = (rows: () => Array<{ key: number; name: string }>) => ({
@@ -59,6 +63,7 @@ vi.mock("../data/catalogs", () => ({
   FILMS: catalogStore(() => stores.films),
   ARTISTS: catalogStore(() => stores.artists),
   EMOJI: catalogStore(() => stores.emoji),
+  COUNTRIES: catalogStore(() => stores.countries),
 }));
 
 const { default: PickSearch } = await import("./PickSearch");

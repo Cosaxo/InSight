@@ -340,6 +340,29 @@
       128558: 2,  // 😮 face with open mouth — below the floor
       0: 9,       // Not listed
     },
+    // first card of the countries domain, 2026-08-15 (keys are ISO 3166-1
+    // numeric codes — data/catalogs.ts, build-countries.mjs). "Move to"
+    // beats "favourite" as the opener for the pk04 reason: it is the
+    // country question people actually argue about, and it forces one
+    // answer out of a daydream. Hard rule 6 check: the person is the
+    // subject here — where would YOU go — not any place's citizens.
+    pk16: {
+      392: 29, // Japan — the daydream with trains
+      554: 24, // New Zealand — the quiet-life vote
+      756: 21, // Switzerland — the salary-and-scenery vote
+      620: 17, // Portugal — the remote-work coast
+      124: 15, // Canada — the soft-landing vote
+      578: 12, // Norway — fjords, and the state has your back
+      724: 10, // Spain — the live-where-you-holiday vote
+      352: 8,  // Iceland — for people who mean it about weather
+      528: 7,  // Netherlands — bikes as infrastructure, not hobby
+      36: 6,   // Australia — far away, on purpose
+      380: 5,  // Italy — clears the floor but not the top 10; folds
+      410: 5,  // South Korea — same
+      188: 3,  // Costa Rica — below the floor
+      372: 2,  // Ireland — below the floor
+      0: 10,   // Not listed
+    },
   };
 
   // Baked demo segment slices, per question: how each cohort orders the
@@ -522,6 +545,18 @@
         Men: { 128591: 9, 129305: 7, 128128: 6, 128548: 6, 128557: 5 },
       },
     },
+    pk16: {
+      ageBand: {
+        // Japan and the Nordics are internet-native daydreams; the
+        // settle-down votes — Canada, Spain, Portugal — grow with age
+        '18-24': { 392: 9, 554: 6, 620: 5, 578: 5, 36: 4 },
+        '25-34': { 756: 8, 554: 7, 124: 6, 620: 5, 528: 4 },
+      },
+      gender: {
+        Women: { 554: 8, 620: 7, 392: 6, 124: 5, 352: 4 },
+        Men: { 392: 10, 756: 7, 578: 6, 124: 5, 36: 5 },
+      },
+    },
   };
 
   const api = {
@@ -654,5 +689,10 @@
     // not feeling: usage, annoyance, permanence and fear all assume the
     // symbol is understood; this board exists because half of them aren't.
     { id: 'pk15', cat: 'fav', type: 'pick', domain: 'emoji', prompt: 'The most misunderstood emoji?', n: 169 },
+    // 2026-08-15, first card of the countries domain — "move to", not
+    // "favourite": the question people actually argue about (the pk04
+    // precedent), and personal by construction — hard rule 6 polls the
+    // person about their daydream, never a place about its citizens.
+    { id: 'pk16', cat: 'fav', type: 'pick', domain: 'countries', prompt: 'The country you’d move to?', n: 174 },
   ];
 })();

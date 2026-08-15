@@ -71,6 +71,23 @@ function parseCatalogue(file, label) {
 const films = parseCatalogue(join(root, "public", "films.txt"), "films.txt");
 const artists = parseCatalogue(join(root, "public", "artists.txt"), "artists.txt");
 const emoji = parseCatalogue(join(root, "public", "emoji.txt"), "emoji.txt");
+const countries = parseCatalogue(join(root, "public", "countries.txt"), "countries.txt");
+
+// Countries-only invariants: the catalogue's one minted key is Kosovo's
+// 900 (build-countries.mjs header) — every other key must be a 3-digit
+// ISO code, and the mint must stay present: losing it on a regeneration
+// would orphan every stored Kosovo answer, which is the exact failure
+// the never-from-memory rule exists to prevent.
+if (countries.present) {
+  if (!countries.keys.includes(900)) {
+    errors.push("countries.txt: minted key 900 (Kosovo) is missing — regeneration dropped a recorded mint");
+  }
+  for (const k of countries.keys) {
+    if (k !== 900 && (k < 1 || k > 899)) {
+      errors.push(`countries.txt: key ${k} outside the ISO numeric range and not the recorded mint`);
+    }
+  }
+}
 
 // Agreement with the trigger's compiled-in sets: re-derive and compare.
 const KEYS_FILE = join(root, "functions", "src", "catalogKeys.ts");
@@ -95,6 +112,7 @@ if (src !== null) {
     ["FILM_KEYS", films, "films.txt"],
     ["ARTIST_KEYS", artists, "artists.txt"],
     ["EMOJI_KEYS", emoji, "emoji.txt"],
+    ["COUNTRY_KEYS", countries, "countries.txt"],
   ]) {
     const declared = declaredKeys(src, name);
     if (declared === null) {
@@ -120,5 +138,6 @@ if (errors.length) {
 console.log(
   `check:catalogs OK — films ${films.present ? films.keys.length : "absent"}, ` +
     `artists ${artists.present ? artists.keys.length : "absent"}, ` +
-    `emoji ${emoji.present ? emoji.keys.length : "absent"}, key sets agree`,
+    `emoji ${emoji.present ? emoji.keys.length : "absent"}, ` +
+    `countries ${countries.present ? countries.keys.length : "absent"}, key sets agree`,
 );

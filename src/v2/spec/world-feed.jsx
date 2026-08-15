@@ -28,6 +28,11 @@ import { deferUntil, isDeferred, pruneDeferred } from '../data/deferQueue.ts';
 // The live world-takes surface (D83) — an ordinary ESM import of the typed
 // panel, like the data imports above, so the D39 coupling meter stays flat.
 import LiveTakesPanel from '../ui/LiveTakesPanel.tsx';
+// Reveal-name stores for the two newest pick domains — ESM imports, same
+// coupling-meter reasoning. The three legacy stores stay window.* reads
+// below (in the D39 baseline); convert them on touch, never re-add one.
+import ELEMENTS_CATALOG from '../data/elements.ts';
+import { COUNTRIES } from '../data/catalogs.ts';
 // Imported for the D89 gate rather than read off window — same meter
 // reasoning as the imports above. The window.LIVE reads elsewhere in this
 // file predate the ratchet; new ones may not join them.
@@ -1335,8 +1340,20 @@ class WorldFeed extends React.Component {
 
   // Which catalogue a pick question resolves against (D15: pokemon is
   // dex-keyed, films/artists are QID-keyed; same load/peek/nameOf shape).
+  // EVERY domain must be named here explicitly: the pokedex fallback
+  // means a missing arm resolves that domain's keys against dex numbers
+  // — real names, wrong catalogue — which is exactly what shipped for
+  // elements (pk11–pk14, 2026-08-11→15): reveals rendered atomic number
+  // 42 as the 42nd Pokémon. Found by check:globals' dead-publication
+  // rule when the countries domain wired up; catalogs.test.ts now pins
+  // every PICK_QS domain to an arm of this resolver.
   pickStore(domain) {
-    return domain === 'films' ? window.FILMS : domain === 'artists' ? window.ARTISTS : domain === 'emoji' ? window.EMOJI : window.POKEDEX;
+    return domain === 'films' ? window.FILMS
+      : domain === 'artists' ? window.ARTISTS
+      : domain === 'emoji' ? window.EMOJI
+      : domain === 'elements' ? ELEMENTS_CATALOG
+      : domain === 'countries' ? COUNTRIES
+      : window.POKEDEX;
   }
 
   // key → display name, resolved at render time. The catalogue loads
