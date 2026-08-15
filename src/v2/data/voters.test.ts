@@ -129,6 +129,49 @@ describe("the fetch cap (D102)", () => {
   });
 });
 
+describe("the Friends cut asks your follows, not the window", () => {
+  // Source-scanned for the same reason the cap case above is: the query
+  // needs an emulator to run, and what is worth pinning is its SHAPE.
+  const src = readFileSync(resolve(__dirname, "./voters.ts"), "utf8");
+  const fn = src.slice(
+    src.indexOf("export async function fetchFriendVoters"),
+    src.indexOf("export async function fetchVoters"),
+  );
+
+  it("scopes each query to one follow's own subcollection", () => {
+    // The whole change, in one assertion. A collectionGroup here would
+    // mean it was back to reading the population and filtering — which is
+    // the bug: at scale the newest VOTER_FETCH_CAP answers are whoever
+    // was online, so a friend who answered this morning drops out and the
+    // panel reports that nobody you follow answered.
+    expect(fn).toMatch(/fsCollection\(db, "v2_users", uid, "answers"\)/);
+    expect(fn).not.toMatch(/collectionGroup/);
+    // No cap and no ordering, deliberately: the result is bounded by YOUR
+    // follow list (FOLLOW_CAP) rather than by the population, so there is
+    // nothing left to truncate. A limit here would reintroduce exactly
+    // the silent-omission bug in a smaller window.
+    expect(fn).not.toMatch(/fsLimit|limit\(/);
+  });
+
+  it("carries the surface value test the list rule needs (D65)", () => {
+    // A collection-group read is refused wholesale without a matching
+    // `where`, and so is this one — the grant is a value test on
+    // `surface` either way. It is also the duel seal: a sealed g_/duo
+    // answer must not reach the Friends cut before its reveal.
+    expect(fn).toMatch(/where\("surface", "in", \[\.\.\.WORLD_ANSWER_SURFACES\]\)/);
+    expect(fn).toMatch(/where\("qid", "==", qid\)/);
+    expect(WORLD_ANSWER_SURFACES).not.toContain("group");
+    expect(WORLD_ANSWER_SURFACES).not.toContain("duo");
+  });
+
+  it("reads no answers at all when you follow nobody", () => {
+    // The empty-follows guard lives in the fetch rather than in the
+    // panel, so a second caller inherits it. Cheap to pin and easy to
+    // lose to a refactor that "simplifies" the early return away.
+    expect(fn).toMatch(/if \(!qid \|\| !followUids\.length\) return \[\];/);
+  });
+});
+
 describe("the surface filter", () => {
   it("lists exactly the world surfaces, and never a duel one", () => {
     expect([...WORLD_ANSWER_SURFACES]).toEqual(["daily", "feed", "test", "learn", "pulse"]);

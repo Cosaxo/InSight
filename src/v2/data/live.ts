@@ -97,7 +97,7 @@ async function getDb(): Promise<import("firebase/firestore").Firestore> {
 import { reportError, setSentryUser } from "../../lib/sentry";
 // The cross-user read (D98). Pure helpers + the two queries live there so
 // the grouping/sorting can be unit-tested without Firebase.
-import { fetchVoters, groupByOption, resolveNames, sortVoters, type Voter } from "./voters";
+import { fetchFriendVoters, fetchVoters, groupByOption, resolveNames, sortVoters, type Voter } from "./voters";
 // Handles and invitations (D122), TYPE-ONLY at module scope and imported
 // for real inside the methods that use them — the same shape data/circle
 // has below, and for the same measured reason.
@@ -277,6 +277,14 @@ const state = {
   // and a card scrolled past must pay for neither.
   voters: {} as Record<string, Voter[]>,
   votersLoading: {} as Record<string, boolean>,
+  // qid → how the people you FOLLOW answered it, asked of them directly
+  // rather than filtered out of the newest-200 window above. Separate
+  // cache from `voters` because it is a different question with a
+  // different cost and a different correctness property: this one is
+  // exact at every size, and the window above is a sample by design.
+  // See fetchFriendVoters for why the sample could not serve it.
+  friendVoters: {} as Record<string, Voter[]>,
+  friendVotersLoading: {} as Record<string, boolean>,
   // uid → display name ("" for an account that has set none). Shared by
   // every question's voter list, because crowds overlap: without this,
   // opening five questions re-reads the same regulars five times.
@@ -2023,6 +2031,49 @@ const LIVE = {
       notify();
     }
   },
+  /**
+   * How your follows answered `qid`. Needs `loadFollows` to have run.
+   *
+   * Same cache/in-flight/absent-vs-empty discipline as loadVoters above,
+   * and the same reason for it: absent is "we could not ask", empty is
+   * "none of them answered", and the panel renders those differently.
+   *
+   * A viewer who follows nobody is cached as an empty list WITHOUT a
+   * read. The panel shows its own "you have not followed anyone" state
+   * before this matters, but relying on that would put the guard in the
+   * UI, where the next caller does not inherit it.
+   */
+  async loadFriendVoters(qid: string): Promise<void> {
+    if (!qid || state.friendVotersLoading[qid] || state.friendVoters[qid]) return;
+    const follows = state.follows;
+    if (!follows) return; // follow list not loaded yet — the caller retries
+    if (!follows.length) {
+      state.friendVoters[qid] = [];
+      notify();
+      return;
+    }
+    state.friendVotersLoading[qid] = true;
+    try {
+      const db = await getDb();
+      state.friendVoters[qid] = await fetchFriendVoters(
+        db, qid, follows, state.uid, state.names, state.scores,
+      );
+      saveProfileCache();
+    } catch (err) {
+      reportError(err, { where: "loadFriendVoters", qid });
+    } finally {
+      state.friendVotersLoading[qid] = false;
+      notify();
+    }
+  },
+  // null while unfetched or failed; an array (possibly empty) once known.
+  friendVoters(qid: string): Voter[] | null {
+    const rows = state.friendVoters[qid];
+    return rows ? sortVoters(rows) : null;
+  },
+  friendVotersLoading(qid: string): boolean {
+    return !!state.friendVotersLoading[qid];
+  },
   // uid → display name, from the shared session cache. Synchronous and
   // best-effort: "" means either "no name set" or "not fetched yet", and
   // the caller renders the same fallback for both because from the screen
@@ -3170,6 +3221,8 @@ function resetForNewUid(uid: string): void {
   // session that fetched it.
   state.voters = {};
   state.votersLoading = {};
+  state.friendVoters = {};
+  state.friendVotersLoading = {};
   state.names = {};
   // Scores ride the name cache (D112) and carry the same reasoning: other
   // people's data, held to save reads.

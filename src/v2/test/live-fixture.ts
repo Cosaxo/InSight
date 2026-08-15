@@ -297,6 +297,17 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
       [{ uid: "u_other", optionIdx: 1, anchors: {}, name: "", isMe: false }],
     ],
     votersLoading: () => false,
+    // The Friends cut's own read. Returns only `u_other` — the account
+    // `follows` above names — because that is what the real loader does:
+    // it asks your follows directly rather than filtering the sample in
+    // `voters`, so the viewer's own row is not in it to be filtered out.
+    // A fixture that returned the `voters` list here would let the panel
+    // go back to filtering and still pass.
+    loadFriendVoters: async () => {},
+    friendVoters: () => [
+      { uid: "u_other", optionIdx: 1, anchors: {}, name: "", isMe: false },
+    ],
+    friendVotersLoading: () => false,
     // The who-voted sheet's type cut (data/typeSplit.ts). Both branches
     // reachable from one list: `u_fixture` carries a readable Big Five and
     // types, `u_other` has none and lands in the gap between `sampleN` and

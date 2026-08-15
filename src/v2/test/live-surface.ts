@@ -36,6 +36,15 @@ export const LIVE_MEMBERS = [
   // or failed and an array (possibly empty) once known, because "could
   // not ask" and "nobody answered" must not render the same.
   "loadVoters", "voters", "votersByOption", "votersLoading",
+  // The Friends cut's own read, and a DIFFERENT question from the three
+  // above rather than a filtered view of them. `voters` is the newest
+  // VOTER_FETCH_CAP answers from anyone — a sample, by design, and what
+  // the type cut folds. This asks your follows directly, so it is exact
+  // at every size: the Friends cut used to filter the sample and lost
+  // friends who had scrolled out of the window as the population grew.
+  // Kept as separate members so neither can quietly start serving the
+  // other's question again (fetchFriendVoters has the full argument).
+  "loadFriendVoters", "friendVoters", "friendVotersLoading",
   // The same cached list joined to the parsed cross-user scores D112
   // already fetched — the input to the who-voted sheet's type cut
   // (data/typeSplit.ts). Listed here rather than reached for directly:

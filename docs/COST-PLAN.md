@@ -129,21 +129,30 @@ SHIP-CHECKLIST.
 - **App Check enforcement on the Firestore API.** Not a lever, a hole. It
   cannot be armed during an incident — the soak takes days.
 
-### 2 · The friends cut
+### 2 · The friends cut — **SHIPPED**
 
-The smallest of the three and the one that fixes a real bug, so it goes
-first among the code changes. Read your follows' answers to this question
-directly instead of filtering a recency window. `LbFriends` already loads
-the follow list; the answer docs are at a known path per follow, so this is
-a bounded `getAll` rather than a query.
+`fetchFriendVoters` asks each follow directly. `LIVE.loadVoters` is
+untouched: the takes panel and the Type cut are legitimate users of the
+sample (both are statistics *over* a sample, which is what one is for).
+What changed is that opening a breakdown no longer forces the 200-fetch,
+and the Friends cut is exact at every size — the small-print disclaimer
+came out with the flaw that needed it.
 
-Do it **without** touching `LIVE.loadVoters` — the takes panel and the
-Type cut still want the voter sample, and they are legitimate users of it
-(both are statistics over a sample, which is what a sample is for). What
-changes is that opening a breakdown no longer *forces* the 200-fetch.
+**The read shape was forced, not chosen, and both cheaper forms are
+refused by `firestore.rules`.** Measured against the emulator rather than
+reasoned about, and now pinned as rules cases:
 
-Gates: `test:unit`, and the small-print disclaimer comes out of
-`LiveBreakdownPanel` with the case that made it necessary.
+- a **direct `getDoc` per follow** is `permission-denied` when that follow
+  has *not* answered — the grant tests `resource.data.surface`, and
+  `resource` is null for a document that does not exist. The most ordinary
+  input to this feature is an error.
+- **one collection-group query with `documentId() in [paths]`** fails the
+  same way ("Null value error") as soon as any path in the batch is
+  missing, which is not knowable in advance.
+
+A LIST scoped to one user's subcollection has neither problem — a query
+matches only documents that exist — and it is the shape `circle.ts`
+already ships, so Phase 3 inherits it.
 
 ### 3 · Circle on score profiles
 
