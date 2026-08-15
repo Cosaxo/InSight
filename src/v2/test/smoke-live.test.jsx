@@ -586,6 +586,37 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     await act(async () => { await new Promise((r) => setTimeout(r, 1200)); });
   };
 
+  it("offers no fabricated cut sheet on the live daily", async () => {
+    // The daily's who-voted sheet builds every group row from
+    // `this.hash(question + group + option)` (spec/daily-split.jsx) — the
+    // prototype's deterministic mock, plausible and stable and entirely
+    // invented — over cut chips (Job, Education, Where, four test cuts)
+    // that no published aggregate carries.
+    //
+    // It is unreachable live, and this pins the reason rather than the
+    // symptom: the whole engage row is gated on `!S.live`, so ungating it
+    // to "give the daily a breakdown" without swapping in the LIVE panel
+    // would ship fiction on the app's front door. The demo control below
+    // is what stops this passing because the row stopped rendering.
+    const expectNoBoundary = mountLive();
+    const opts = await screen.findAllByRole("button", { name: /^(Yes|No|Both)$/ });
+    fireEvent.click(opts[0]);
+    await act(async () => { for (let i = 0; i < 30; i++) await Promise.resolve(); });
+    // Skip the consequence beat — the engage row renders only once it is
+    // done (`st.beat !== S.id`), so asserting before this passes against a
+    // screen that is still animating and proves nothing. Found by
+    // mutation: ungating `!S.live` did NOT fail this case until the beat
+    // was dismissed here.
+    const beat = [...document.querySelectorAll("button")].find((b) => /chose /.test(b.textContent || ""));
+    if (beat) fireEvent.click(beat);
+    await act(async () => { for (let i = 0; i < 40; i++) await Promise.resolve(); });
+    expect(screen.queryByRole("button", { name: "Who voted what" }),
+      "the daily's demo cut sheet is reachable in live mode").toBeNull();
+    expect(screen.queryByRole("button", { name: "Comments" }),
+      "the daily's seeded comments are reachable in live mode").toBeNull();
+    expectNoBoundary("live daily engage row");
+  });
+
   it("still renders the takes button on a demo card", async () => {
     render(<App />);
     await voteFirstDemoCard();
