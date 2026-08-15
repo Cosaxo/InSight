@@ -35,6 +35,17 @@
 > not recommended. Batching the mirror publish has gone from −78% to −0.0%,
 > because it divided a fan-out that no longer exists. Numbers below the
 > fold are pre-D129; `npm run costs:levers` prints today's.
+>
+> **The two-regime framing below is also pre-D129, and that matters more
+> than the stale dollars.** With the fan-out gone there is one regime at
+> every size: `social` is now ~81% of the read bill from 50 to 500,000
+> DAU. This page's only answer to it is the cap trims it correctly tells
+> you not to take — because it assumes the CAP is what costs money, when
+> what costs money is documents read per open.
+> [`docs/COST-PLAN.md`](COST-PLAN.md) is the other answer: serve the same
+> capped lists from precomputed documents, which is −70% at every size
+> with no cap moved and no surface thinned, and it carries the losses
+> that come with it.
 
 [`docs/COSTS.md`](COSTS.md) says what this costs.
 [`docs/COST-COMPARISON.md`](COST-COMPARISON.md) says whether that is a lot
