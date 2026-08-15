@@ -170,7 +170,7 @@ consoles, which are not in this repo and never will be.
 | Retention or engagement sliced by anchor | D8 — the anchors exist; nothing suppresses them since D98 |
 | Anything sliced by political result | D8; GDPR Art. 9 |
 | Skip / pass / hesitation rates | QUESTION-FARM.md, "Deliberately out of scope" |
-| **Server-side** per-user content selection, ad targeting profiles | MONETIZATION.md, "Ruled out by standing posture" — narrowed 2026-08-15, see below |
+| **Server-side** per-user content selection, ad targeting profiles | MONETIZATION.md, "Ruled out by standing posture"; narrowed by D155 — see below |
 
 The second row used to read: "the same suppression that stops a paying city
 identifying a person stops the owner doing it." D98 deleted the suppression,
@@ -184,8 +184,8 @@ rules out, and that refusal has to hold on its own now that no floor is
 carrying it. A guarantee that only survived because a side effect enforced
 it was never a decision; this row is the decision, taken deliberately.
 
-**The last row was narrowed on 2026-08-15, and the word doing the work is
-"server-side".** The owner has decided the app should learn what a person
+**The last row was narrowed on 2026-08-15 (D155), and the word doing the
+work is "server-side".** The owner has decided the app should learn what a person
 is interested in and order the feed by it
 ([`SCALE-PLAN.md`](SCALE-PLAN.md) §4, `ATTENTION.md` tier 2). That is
 per-user content selection, and pretending otherwise would make this

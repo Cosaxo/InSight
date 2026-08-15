@@ -110,7 +110,8 @@ the audit sample is the check), and blast radius (the two-gate design
 exists so a scheduled job never holds write access to production content
 — hence the human on the merge, not on the reading). The regulator keeps
 its shape; the throughput it throttles to is simply a larger number.
-Building it graduates to a DECISIONS.md record.
+Building it graduates to a DECISIONS.md record — **taken as D154**
+(2026-08-15).
 
 Allocation of whatever the budget grants runs through three lanes in
 strict priority order (maintainer's direction, 2026-07-30, sharpened

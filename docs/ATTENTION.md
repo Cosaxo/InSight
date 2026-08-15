@@ -122,6 +122,12 @@ It still needs a decision, because MONITORING.md's refused row is about
 the *behaviour* (per-user content selection) and not only about where the
 bytes live. Storing it locally narrows the reversal; it does not avoid it.
 
+**Taken as D155 (2026-08-15).** The reversal is recorded rather than
+elided, and the refused row is narrowed to *server-side* per-user
+selection — what survives is that the server never learns what anyone
+was shown. This paragraph is why that record names itself a partial
+reversal instead of claiming the on-device version avoids one.
+
 ### The constraint that keeps this from eating the app
 
 **The interest model may shape the FEED. It must not shape the daily

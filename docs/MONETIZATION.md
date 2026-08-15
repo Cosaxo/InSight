@@ -35,8 +35,8 @@ public aggregate, which is a convenience over data the buyer could read
 themselves. Any pitch that offers more than that is a new decision, not
 an application of this one.
 
-**Re-derived 2026-08-15 against an infinite feed** — the owner's decision
-to scale question production changes what is on sale, and
+**Re-derived 2026-08-15 against an infinite feed (D156)** — the owner's
+decision to scale question production changes what is on sale, and
 [`SCALE-PLAN.md`](SCALE-PLAN.md) §5 is the working. Three results belong
 here because they bind this page: sell **scheduled slots** rather than
 observed impressions (the feed's deterministic order makes inventory
