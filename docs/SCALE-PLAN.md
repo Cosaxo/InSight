@@ -1,5 +1,12 @@
 # Scale — an infinite feed, and the four things it forces
 
+> **Building rather than deciding?**
+> [`SCALE-RUNBOOK.md`](SCALE-RUNBOOK.md) is the same work as an ordered
+> to-do list: open steps only, dependency order, what "done" means and
+> which gate proves it. It holds order and status; this file holds the
+> reasoning and stays canonical. If they disagree, this file is right and
+> the runbook is stale.
+
 **Status: plan, with §1's classification BUILT (2026-08-15).** Everything
 else on this page is still proposal — but the decisions behind it are
 recorded: **D153** (unbounded feed and the core/tail split), **D154**
