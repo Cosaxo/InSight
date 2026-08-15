@@ -64,7 +64,7 @@ at extraction time, not assumed.
 | `type-mix.js` / `type-mix.jsx` | Type chips and the shares card. Drifted past v25: the card now switches **system** (all four instruments) and persists the choice. | ported (D141) + drift |
 | `pulse-data.js` / `pulse-card.jsx` | Drifted hard past v24: **five pulses, not one** (mood · energy · sleep · focus · social), each with its own **cadence** — daily · often (Mon·Wed·Fri) · weekly · off — set on the card. Pulses take their turn in the feed; no block, no tray. | ported single-pulse (D139) |
 | `patterns.css` (110) | The Patterns tab's styles. | **absent** |
-| `arena.css` (103) | **Orphaned — see below.** | n/a |
+| `arena.css` (103) | **Orphaned — dropped by the owner (D161 §2), see below.** | n/a |
 
 ### Changed modules (patches in `changes/`)
 
@@ -96,9 +96,9 @@ byte-identical to `design/standalone-v25/`. They are not re-copied here.
 `segment-explorer`'s v18→v28 delta (+90) is the deviation view that v25
 already delivered and D-record ported.
 
-## The one thing to ask the designer about
+## `arena.css` — dropped, and kept anyway
 
-**`arena.css` is 103 lines of styles for a card that is not in the bundle.**
+**103 lines of styles for a card that is not in the bundle.**
 It describes a game-theory feed card in detail — a payoff matrix
 (`.ar-mx`, `.ar-cell.hit`), a Nash line (`.ar-nash`), a sealed-answer
 ladder with pegs (`.a2-ladder`), a pot (`.a2-pot`), a rival with a quote
@@ -108,7 +108,13 @@ ladder with pegs (`.a2-ladder`), a pot (`.a2-pot`), a rival with a quote
 in the bundle. Only the `.pp-*` crossroads rules sharing that block are
 live (`paths-card.jsx` uses them).
 
-So the Arena is either a card that got left out of the export, or dead
-styling from an iteration that was dropped. **Do not port it from the CSS
-— a stylesheet cannot say what the game is.** The file is kept here so the
-question survives the upload.
+**The owner has answered: dropped for now** (D161 §2 in
+[`docs/DECISIONS.md`](../../docs/DECISIONS.md)). The card was dropped, not
+lost in the export. Nothing to build, nothing to unwind — no app code ever
+referenced it.
+
+**The file stays** rather than being deleted along with the question. The
+standalone it came from is an ephemeral upload, so this is the only
+surviving description of the idea, and "dropped for now" is not "refused".
+Reviving it needs a design pass that says what the *game* is — a stylesheet
+cannot, which is the same reason it was never portable from what is here.

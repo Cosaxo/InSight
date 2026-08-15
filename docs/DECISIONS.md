@@ -15913,3 +15913,113 @@ The Near tests query the control by **role**, not by label text — the whole
 point of the change is that the control no longer has words on it, so a text
 query would be asserting the thing that was removed.
 
+
+## D161 · The third tab is adopted ON TRIAL, the Arena is dropped, the pulse roster is approved
+
+**Decided:** 2026-08-15 · **Status:** binding, with §1 carrying an explicit
+trial clause. The owner's three answers to the open questions in
+[`docs/VISION-V28.md`](VISION-V28.md), given on the plan for the v28
+standalone (`design/standalone-v28/`): *"1. yeah i think so but leve notes
+that it curently in a trial period to see it it is something that we would
+like for this project 2 the arena is droped for now 3 sleep and enrgy is
+fine as far as i see it"*
+
+### 1 · `patterns · daily · mirror` — adopted, and the trial clause is the record
+
+v28 makes the app three tabs, the daily in the middle so a swipe either way
+lands somewhere. **Adopted — build it.** But it is adopted *on trial*, and
+this section exists so the trial is a recorded state rather than an
+unwritten reservation somebody has to remember.
+
+**What "on trial" means here, concretely.** Not "Proposed" — that status
+binds nothing and blocks the work, and the owner has said to proceed. Not
+plain binding either, because a plain binding record is the thing this repo
+treats as settled until an explicit reversal, and this one is expected to
+be re-examined. So: **build it as though it ships, keep the reversal
+cheap.** Three consequences follow, and they are the whole cost of the
+clause:
+
+- **The tab loads behind the lazy loader**, not the eager graph. That is
+  already forced by `MAX_EAGER_KB` having no headroom (VISION-V28 §2), so
+  the trial adds no constraint — it just means the constraint is now
+  load-bearing twice. A lazily-loaded tab is one import site and one `TABS`
+  entry away from not existing.
+- **Nothing outside the tab may come to depend on there being three.**
+  Cross-links into Patterns go through `window.goNav` like every other jump
+  (v28 already routes them that way); no Mirror stop, no daily surface and
+  no record may be written in terms of "the third tab". The daily ruler's
+  near-end exit is the one exception and it is deliberately trivial to
+  revert — one branch in `daily-split.jsx`.
+- **`CLAUDE.md`'s opening sentence changes when the tab ships, and says
+  the trial out loud.** "A two-tab app (daily · mirror)" becoming a
+  three-tab claim is the single most-read sentence in the repo; leaving it
+  stale would be the documentation failure this tree keeps re-committing.
+  It should read as three tabs *on trial*, with the pointer here.
+
+**What would end the trial**, so the question is answerable rather than
+perpetual: whether Patterns earns its own tab, or turns out to be a thing
+people open once. That is a usage question, and the honest version of it
+needs the tab built and in TestFlight — which is exactly why it is adopted
+rather than deferred. Reversal, if it comes, is a decision recorded here,
+not a silent removal.
+
+**The one thing the trial does NOT license: fabricated data.** VISION-V28
+§2's finding stands unchanged — the prototype's Patterns engine invents 560
+people, and a trial is not a reason to ship invented ones "just to see". If
+the server fold that makes the map real is too expensive to justify for a
+trial, the correct move is to narrow the trial (one lens, fewer questions),
+never to loosen the honesty rule. A trial of a fabricated screen answers no
+question worth asking.
+
+### 2 · The Arena is dropped
+
+`design/standalone-v28/arena.css` — 103 lines styling a game-theory feed
+card (payoff matrix, Nash line, sealed-answer ladder, pot, rival, streaks,
+manner readout) whose JSX is not in the standalone — is **dropped for now**.
+It was recorded as an open question because the CSS was verifiably orphaned
+(no module in v28 emits an `ar-`/`a2-` class; `--ar-ink` and `--ar-c` are
+defined nowhere in the export), and the answer is that the card was dropped,
+not lost.
+
+**The file stays** at `design/standalone-v28/arena.css`, relabelled from
+"open question" to "dropped". Deleting it would be the cheaper-looking move
+and the wrong one: the standalone it came from is an ephemeral upload, so
+the file is the only surviving description of the idea, and "dropped for
+now" is not "refused". Reviving it means a new design pass that says what
+the game is — a stylesheet cannot, which is the same reason it was never
+portable from what is here.
+
+**No app code ever referenced it**, so there is nothing to remove and no
+port to unwind. This section is the record that the question was asked and
+answered, so the next reader of that CSS does not re-open it.
+
+### 3 · The pulse roster ships with sleep and energy
+
+v28's `pulse-data.js` carries five pulses — mood · energy · sleep · focus ·
+social — each with its own cadence (daily · often · weekly · off). D139
+shipped the store single-pulse and said in as many words that *"a roster
+becomes a parameter the day a second pulse ships"*. **Approved: this is that
+day, and the roster is the full five.**
+
+VISION-V28 §3 flagged that sleep and energy sit further into wellbeing
+territory than mood does, and that under D98 a pulse series is public like
+every other answer. The owner has weighed that and said ship it. **That
+settles the product question**, and this record is not re-opening it.
+
+**What it does not settle, because it is a fact rather than a preference:**
+`docs/STORE-FORMS.md`'s Health row currently answers **No**, and the bullet
+that holds it has an explicit trip-wire ("*Whoever picks that decision back
+up owns this row*") written for the height band at D140. A daily
+self-reported *"How did you sleep?"* series is closer to Apple's "any other
+user provided health or medical data" than a demographic band is, so
+**whoever ships the roster owns that row** and re-answers it in the same
+pass. That is a build step in the roster's own commit, not a gate on the
+decision above — the same shape D140 used, and the reason its trip-wire was
+written down instead of remembered.
+
+Two mechanical follow-throughs ride with it, both already required by
+existing gates rather than invented here: `content/pulse-questions.json`
+gains the four new templates (`check:content`/`check:quality` see them), and
+`docs/data-inventory.md` names whatever collection the per-day series lands
+in, because `check:data-inventory` fails on a collection the rules reach and
+the inventory does not name (D130).

@@ -1,11 +1,26 @@
 # The v28 vision — what changed, and what it costs to build
 
-**Status: plan notes, not decisions.** Same convention as
+**Status: plan notes, not decisions — except for the three the owner has
+now answered.** Same convention as
 [`NEXT-FUNCTIONALITY.md`](NEXT-FUNCTIONALITY.md): when an item here is
 picked up it graduates to a real record in [`DECISIONS.md`](DECISIONS.md);
 until then these are starting constraints, not approval. Where a verdict
 says *build*, that is this document's recommendation and the owner's
 adoption is the gate.
+
+**[D161](DECISIONS.md#d161--the-third-tab-is-adopted-on-trial-the-arena-is-dropped-the-pulse-roster-is-approved)
+(2026-08-15) answered the three questions this document opened with**, and
+the sections below carry the answers inline:
+
+- **Three tabs — adopted ON TRIAL** (§1). Build it as though it ships,
+  keep the reversal cheap. The trial clause is in D161 §1, including what
+  would end it.
+- **The Arena — dropped for now** (§12). The file stays as the record; the
+  question is closed.
+- **The pulse roster — approved, all five** (§3). Sleep and energy ship.
+  One build step rides with it (the store-forms Health row).
+
+Everything else here is still a recommendation.
 
 The source is the maintainer's `InSight_standalone_28.html`, extracted to
 [`design/standalone-v28/`](../design/standalone-v28/) — that directory's
@@ -24,10 +39,10 @@ in three groups, which is the useful shape of this document.
 
 | Item | Verdict | Size | The constraint that shapes it |
 | --- | --- | --- | --- |
-| **Three tabs** (`patterns · daily · mirror`) | **Owner decision first** | S (shell) | The tab count is the app's thesis sentence — `CLAUDE.md` opens with "a two-tab app". Cheap to build, expensive to be wrong about. |
+| **Three tabs** (`patterns · daily · mirror`) | **Adopted ON TRIAL** (D161 §1) | S (shell) | The tab count is the app's thesis sentence — `CLAUDE.md` opens with "a two-tab app". Cheap to build, expensive to be wrong about, so it ships behind the lazy loader with the reversal kept to one import site. |
 | **Patterns · Map** (questions placed by mutual prediction) | **Build — but the engine is a backend item** | L | The prototype invents 560 people. A real map needs cross-question co-occurrence, which no aggregate publishes today. |
 | **Patterns · Oracle** (guess your next answer) | **Build, second** | M | Rides the *same* publication as the Map. Two readers, one server fold — that is the whole reason to sequence them together. |
-| **Pulse: one → five, with cadence** | **Build** | M | D139's store is single-pulse by deliberate choice ("a roster becomes a parameter the day a second pulse ships"). This is that day. |
+| **Pulse: one → five, with cadence** | **Approved — all five** (D161 §3) | M | D139's store is single-pulse by deliberate choice ("a roster becomes a parameter the day a second pulse ships"). This is that day. |
 | **Pulses take their turn in the feed** | **Build, with the above** | S | The interleave is a feed-lane change; `feed-interleave.ts` already owns exactly this kind of cadence rule. |
 | **Foresight CALL + its feed cards** | **Tier A only** | M | D127 is unchanged by v28: the blocker is resolution integrity, not design. Tier A self-resolves on our own aggregates and is buildable now. |
 | **Foresight & Crossroads on the Map** | **Build when the eager budget moves** | S each | Both need `map-tab.jsx` — which is EAGER — to read a new store, and `MAX_EAGER_KB` has no headroom. D136 already parked `paths.mapTree()` for exactly this. |
@@ -37,7 +52,7 @@ in three groups, which is the useful shape of this document.
 | **The sponsored frame** | **Unchanged: waiting on the paid path** | S | `paid-data.js` is byte-identical to v24. Nothing new to decide; the door is still §6 of NEXT-FUNCTIONALITY. |
 | **The visual corrections** (nine small ones) | **Build as one pass** | S | No decisions in any of them. Best done in a single commit against the patches. |
 | **The tweak teardown** (19 flags settled) | **Adopt as the record** | S | The prototype deleting a flag *is* the decision. The app's cost is dead-branch removal, which is what rule 4 and the compiler want anyway. |
-| **The Arena** | **Ask the designer** | — | 103 lines of CSS for a card that is not in the bundle. Verified orphaned. A stylesheet cannot say what the game is. |
+| **The Arena** | **Dropped for now** (D161 §2) | — | 103 lines of CSS for a card that is not in the bundle. Verified orphaned; the owner confirms it was dropped, not lost. The file stays as the record. |
 | ~~Feed windowing, dial/field + breakdowns, compare rose, Near anonymity + switch, Explore deviation, suggestion declines~~ | ~~build~~ **already shipped** | — | Checked file by file; see §6. |
 
 ## 1 · The structural change: two tabs become three
@@ -48,7 +63,7 @@ Mirror (D-era `goNav`); v28 runs it off the near end into Patterns, and
 `daily-split.jsx` gains a `SKIP` selector so the axis stops stealing drags
 from maps, fields and scrollers.
 
-**This is the one item that is not an engineering call.** The two-tab
+**This was the one item that is not an engineering call.** The two-tab
 shape is the first sentence of `CLAUDE.md` and the frame every Mirror
 decision has been written inside — "answering is the smaller half" reads
 differently when there are two halves and a third thing. The build is
@@ -56,11 +71,29 @@ small (a `TABS` entry, a glyph, an accent, a lazy chunk). Adopting it
 means rewriting that opening paragraph and re-reading D99/D100/D112/D136
 for anything that leaned on "two".
 
-**Recommendation:** decide this *before* Patterns is built, not after. A
-Patterns tab with nowhere to live becomes a Mirror stop by default, and
-the Mirror's stops are a graduated axis from *you* to *the world* —
-Patterns is not a point on that axis, which is precisely why the
-prototype gave it its own tab.
+**ADOPTED ON TRIAL (D161 §1).** Build it as though it ships; keep the
+reversal cheap. Three things follow, and they are the whole cost of the
+trial clause:
+
+1. **The tab loads lazily**, which `MAX_EAGER_KB` already forces (§2) —
+   so a reversal is one import site and one `TABS` entry.
+2. **Nothing outside the tab depends on there being three.** Cross-links
+   go through `window.goNav`; no Mirror stop, daily surface or decision
+   record gets written in terms of "the third tab". The daily ruler's
+   near-end exit is the one exception and is one branch in
+   `daily-split.jsx`.
+3. **`CLAUDE.md`'s opening sentence changes when the tab ships**, and says
+   the trial out loud rather than claiming three tabs flatly.
+
+D161 also records what would *end* the trial (whether Patterns earns a tab
+or is opened once), and the one thing the trial does not license: shipping
+the prototype's invented population "just to see". If the real engine is
+too expensive for a trial, narrow the trial — one lens, fewer questions —
+never the honesty rule.
+
+The reason it gets its own tab rather than a Mirror stop is unchanged: the
+Mirror's stops are a graduated axis from *you* to *the world*, and
+Patterns is not a point on that axis.
 
 ## 2 · Patterns — the real work
 
@@ -152,14 +185,22 @@ bridged; a thin day keeps its count and is listed, not positioned; a day
 the pulse was not scheduled is absent too; no smoothing anywhere. v28 adds
 the fourth clause; the other three are already pinned in `data/pulse.ts`.
 
-**One thing to decide, and it is the store-forms decision again, wider.**
-`NEXT-FUNCTIONALITY.md` §"Mood as the first pulse question" flagged that
-mood tracking moves the store's Health disclosure and makes a public
-per-person series. Sleep and energy are further into that territory than
-mood is. Under D98 a pulse series is public like every other answer — so
-this needs the owner, `docs/STORE-FORMS.md` and
-`docs/data-inventory.md` in the same pass, before the roster ships and not
-after.
+**APPROVED — all five, sleep and energy included (D161 §3).** The question
+raised here was that `NEXT-FUNCTIONALITY.md` §"Mood as the first pulse
+question" flagged mood tracking as moving the store's Health disclosure,
+and sleep and energy sit further into that territory than mood does. The
+owner has weighed it and said ship. That settles it.
+
+**One build step rides with the roster, and it is a fact rather than a
+preference:** `docs/STORE-FORMS.md`'s Health row answers **No** today, on a
+bullet that carries an explicit trip-wire written for D140's height band —
+*"Whoever picks that decision back up owns this row"*. A daily
+self-reported *"How did you sleep?"* series is closer to Apple's "any other
+user provided health or medical data" than a demographic band is, so the
+roster's own commit re-answers that row. Two more follow-throughs come
+free from existing gates: `content/pulse-questions.json` gains four
+templates (`check:content`/`check:quality`), and `docs/data-inventory.md`
+names the per-day collection (`check:data-inventory`, D130).
 
 ## 4 · Foresight — the map branch, and tier A
 
@@ -329,26 +370,28 @@ the diff is legible as "deletions only".
 
 ## 11 · Sequencing
 
-Nothing here blocks on anything outside the tree except three owner
-decisions (three tabs, the pulse roster's store forms, Born-or-built's
-framing).
+**D161 cleared two of the three owner decisions.** Only Born-or-built's
+framing (§9) is still waiting, and it is independent of everything else.
 
 1. **§7 the small pass** + **§8 type-mix**. No decisions, no new reads,
    immediate. The `daily-split` drag guard is a bug fix.
 2. **§10 the teardown.** Deletions only; lowers the ratchet.
-3. **Owner decision: three tabs.** Everything in §2 and §5 aims at it.
-4. **§3 pulse roster** — in parallel with (3); it needs the store-forms
-   pass, which is calendar time, not engineering time.
-5. **§2 Patterns**, as three pieces in order: the server fold (measure it
+3. **§3 pulse roster** — unblocked. Ships with its store-forms re-answer
+   in the same commit (D161 §3), which is calendar time, not engineering
+   time, so start it early and let it run alongside the next item.
+4. **§2 Patterns**, as three pieces in order: the server fold (measure it
    in `docs/COSTS.md` first), the lazy-tab loader, then the two lenses.
-   The loader is the piece that pays for itself twice.
-6. **§5 the Map's parked branches**, once (5) has made a lazy Map cheap.
+   The loader is the piece that pays for itself twice, and under the trial
+   clause it is also what keeps the reversal cheap.
+5. **`CLAUDE.md`'s opening sentence**, in the same commit the tab first
+   appears — three tabs, on trial, pointing at D161. Not a follow-up.
+6. **§5 the Map's parked branches**, once (4) has made a lazy Map cheap.
 7. **§4 Foresight tier A**, which by then has both its feed card and its
    map branch waiting for it.
-8. **§9 Born or built**, whenever its framing is settled — it is
-   independent of all of the above.
+8. **§9 Born or built**, whenever its framing is settled — the one item
+   still needing an owner call, and blocked by nothing above it.
 
-## 12 · The open question
+## 12 · The Arena — asked and answered: dropped
 
 **`arena.css` describes a card that is not in the bundle.** A payoff
 matrix, a Nash line, a sealed-answer ladder with pegs, a pot, a rival
@@ -357,6 +400,13 @@ game-theory feed card whose JSX is absent. Verified rather than inferred:
 no v28 module emits an `ar-`/`a2-` class, and `--ar-ink`/`--ar-c` are
 defined nowhere in the export.
 
-Either it was left out of the export or it was dropped and its styles
-outlived it. **Ask before building.** The file is kept at
-`design/standalone-v28/arena.css` so the question survives the upload.
+**Dropped for now (D161 §2)** — the card was dropped, not lost in the
+export. Nothing to build, nothing to unwind: no app code ever referenced
+it.
+
+The file stays at `design/standalone-v28/arena.css`. Deleting it is the
+cheaper-looking move and the wrong one — the standalone is an ephemeral
+upload, so that file is the only surviving description of the idea, and
+"dropped for now" is not "refused". Reviving it needs a design pass that
+says what the game is; a stylesheet cannot, which is why it was never
+portable from what is here.
