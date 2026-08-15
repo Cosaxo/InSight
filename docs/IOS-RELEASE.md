@@ -343,6 +343,14 @@ screen, which is the only thing that has ever made it stick. Run 21 also
 ran D144's `check:bundle` on the release path for the first time on a
 dispatch that shipped: 2255 KB total against 2265, 969 eager against 978.
 
+**Build 16's pre-flight found nothing to do either, which is the first
+time that has happened twice running** (D158, 2026-08-15). Run 21 was
+still the highest run in the list, its upload step still `success`,
+`appBuild` at `3c03752` still 15, and the tree at 16 — so *run as-is*, and
+no number moved. Two pre-flights and two releases where the bump landed
+while the run's step list was on screen: the habit has now held long
+enough to be a pattern rather than a good day.
+
 **So make the comparison against the runs, not against the docs.** The
 `Upload to App Store Connect` step's own conclusion is the record —
 `success` spent that build, `skipped` did not — and runs 15 and 16 (same

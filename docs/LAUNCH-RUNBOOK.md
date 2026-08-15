@@ -448,6 +448,12 @@ arithmetic.
       procedure and this paragraph is only its record**: where the two
       disagree, the run list wins.
 
+      **NOTHING HAS BEEN DISPATCHED SINCE RUN 21** — that was still the
+      highest run in the list when build 16 was pre-flighted on 2026-08-15
+      (D158), which is the whole of the comparison that day: 16 > 15, so
+      *run as-is*. Read the list yourself; by the time you are reading
+      this sentence it is a historical statement.
+
       **BUILD 15 WAS UPLOADED BY RUN 21** (`3c03752`, 2026-08-14 20:58Z,
       7m 05s, upload step `success`, 1m 26s of it transfer). Both APNs
       gates passed and the Firebase config was verified in the archive and
@@ -580,6 +586,45 @@ arithmetic.
       of the 15 s timeout it sets itself, so a loaded runner can exhaust it.
       D153 has the arithmetic; read it before calling a red there a D95
       regression.
+
+      **Build 16 pre-flighted 2026-08-15 (D158) — and again nothing was
+      bumped.** Run 21's `Upload to App Store Connect` step reads
+      `success`, `appBuild` at `3c03752` was 15, and no run 22 exists, so
+      build 15 is spent and the tree's 16 is already ahead. **Second
+      pre-flight running to answer *run as-is*, and second release running
+      whose bump landed in the session that read the run's step list** —
+      D143's gap, closed twice now rather than once.
+
+      Measured, not asserted: 1152 client, 214 function, 183 script and 90
+      rules tests, all three e2e suites, `lint`, `tsc -b`,
+      `check:globals` at **409** (down from 412 — `edf18d8` took three off
+      the ratchet), and every check gate. CI run 449 (`f159af9`) is green
+      across all nine jobs. `learn-reserve.test.jsx` passed this time,
+      1152/1152 in one clean run; D153's thin-margin note stands as one
+      sample against this one.
+
+      **Three gates are environmental, not the two D153 listed.**
+      `check:fn-runtime` joins them: it reads `functions/lib/index.js`, so
+      run `npm run build --prefix functions` before a local battery or it
+      is the one red you get. `check:store-copy` still needs `--ios` (D42's
+      parked Play fingerprint) and `check:web-firebase` still needs CI's
+      variables — verified here against an injected config, which proves
+      the mechanism and not the values.
+
+      **`check:bundle` is green, and the total's headroom is the tightest
+      it has been on a release path**: 2278 KB against 2285, so 7 KB, where
+      build 15 had 10. The eager graph went the other way — 961 against
+      978, 17 KB of room, up from 9 — because build 16's features landed
+      lazy. The total is the ceiling with a raise history; the eager one is
+      not, and D144 and D152 both declined to move it.
+
+      **Build 16 changes nothing under `ios/`, `android/` or either
+      `package.json` except the build number.** Build 15 carried
+      `@capacitor/ios` 8.3.3 → 8.4.2 and two more native bumps; this one is
+      a pure JavaScript payload — D154's Map boundary, D155's bottom-pinned
+      tabs and exact age, D156's rebuilt 1v1 and Group, D157's test
+      surfaces — so the archive has less new surface than the last run that
+      succeeded, and the store filing does not move.
 
       **`npm run check:versions -- --fix` does NOT increment.** It
       propagates package.json's value into the two native projects and

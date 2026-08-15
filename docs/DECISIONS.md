@@ -15632,3 +15632,118 @@ the ceiling has always implied: move a profile surface behind a dynamic
 import, starting with `TypeIndexSheet`, which is a tap-to-open overlay
 reached through a global and is eager only because `TypeMark` shares its
 file.
+
+## D158 · Build 16's pre-flight: the number was already right for the second time running
+
+**Decided:** 2026-08-15 · **Status:** binding · Fifth release pre-flight
+(D130, D142, D143, D153) and the second in a row whose build-number
+comparison answers *run as-is*. Changes no code. `appBuild` is **not**
+bumped here, and that is the finding rather than an omission.
+
+### The comparison, made against the runs
+
+`ios-release.yml` has **21 runs and no more**. Run 21 (`3c03752`,
+2026-08-14 20:58:38Z, job `archive` 7m 05s) has step 17, `Upload to App
+Store Connect`, at **`success`** — 21:04:13Z → 21:05:39Z, 1m 26s of
+transfer — and `appBuild` at that commit was **15**. So build 15 is spent
+and nothing has been dispatched since. `appBuild` in the tree is **16**.
+Sixteen is greater than fifteen, so runbook 2.4's question — *is
+`appBuild` greater than the highest build in App Store Connect?* —
+answers yes, and the procedure says run as-is.
+
+**This is the second consecutive pre-flight to find nothing to do, and
+the second consecutive release whose bump landed in the session that read
+the run's step list** (`47194f6`, off run 21's conclusion). D143 named
+that gap — between "the upload finished" and "someone came back to the
+tree" — as the only thing that has ever made the habit stick, and two
+releases now sit on the far side of it. D153 was one observation; this is
+the repeat that makes it a pattern rather than a good day.
+
+**What is NOT written here is the sentence that has been wrong three
+times.** D130, D142 and D143 each recorded a build as "pre-flighted and
+unspent" in the very commit the next run uploaded. The claim is not
+storable: the run is dispatched *from* the commit that makes it, and
+nothing in the tree can read App Store Connect (D73's shape, one layer
+out). This entry records what run 21 **did**. Whoever dispatches next
+re-makes the comparison against the run list.
+
+### The bundle, against a ceiling that moved under it
+
+`check:bundle` is green on the shipping artifact — built the way
+`ios-release.yml` builds, `VITE_V2_LIVE=true`, `CAPACITOR_BUILD=1` and a
+non-empty `VITE_SENTRY_DSN`:
+
+| | D153 (build 15) | here (build 16) | ceiling | headroom |
+| --- | --- | --- | --- | --- |
+| total JS | 2255 KB | **2278 KB** | 2285 | 7 KB |
+| eager graph | 969 KB | **961 KB** | 978 | 17 KB |
+| chunks | 72 | 75 | — | — |
+
+**Both numbers moved and only one of them moved the way the diff would
+suggest.** The total gained 23 KB while its ceiling gained 20 (D156 raised
+2265 → 2285 for the rebuilt 1v1 and Group panel), so the headroom D153
+measured at 10 KB is now **7** — the tightest this gate has ever read on a
+release path. The eager graph went the other way, 969 → 961, buying 8 KB
+against a constant that D144 and D152 both refused to raise: build 16's
+features landed lazy. **The next feature of any size still meets the
+total**, and the total is the one with a raise history; the eager ceiling
+is the one that does not move.
+
+### Measured, not asserted
+
+1152 client tests (77 files), 214 function (8), 183 script (10), 90 rules
+(2); all three e2e suites green — the loop, erasure (14 checks) and
+moderation (19 checks), each exiting 0. `lint`, `tsc -b`, and every
+`check:*` gate. `check:globals` reports **409** cross-module references
+across 42 files at its 409 baseline, down from D153's 412: `edf18d8`
+(#184) took three off, which is the ratchet doing what D39 built it for.
+
+**`learn-reserve.test.jsx` passed.** D153 recorded it failing once under
+parallel load, with the arithmetic — ~10.8 s of test time against the 15 s
+timeout it sets itself — and warned it would fire again on a loaded
+runner. It did not fire here: 1152/1152 in one clean run, 48.8 s wall.
+That neither refutes nor confirms D153's margin; it is one more sample,
+recorded so the next red there is read against two data points instead of
+one.
+
+**Three gates are environmental, not two.** D153 listed `check:store-copy`
+and `check:web-firebase`; `check:fn-runtime` belongs with them and was the
+single red in the first battery pass:
+
+- **`check:fn-runtime`** reads `functions/lib/index.js` and says so
+  plainly when it is absent. `npm run build --prefix functions` first, and
+  it passes — 26 functions, all with explicit memory, timeout and
+  `maxInstances`. CI never sees this because `functions-build` builds
+  immediately before; a local battery has to be told.
+- **`check:store-copy`** fails bare on one placeholder — D42's parked Play
+  signing fingerprint — and passes with `--ios`, which is the flag the
+  release workflow uses.
+- **`check:web-firebase`** reads `VITE_FIREBASE_*` and `VITE_V2_LIVE` from
+  repository *variables* that exist only in CI. Verified here against an
+  injected config rather than skipped: 75 chunks carrying a fake project
+  id. That proves the gate's mechanism, not the real values; the run that
+  matters is the workflow's, against its own `dist/`.
+
+CI run 449 (`f159af9`, 2026-08-15 08:42Z) is **green across all nine
+jobs**, `native-sync-drift` included.
+
+### What build 16 carries that 15 did not
+
+Five commits, and — unusually — **nothing shell-facing**. The only diff
+under `ios/`, `android/`, `capacitor.config.ts` or either `package.json`
+between run 21's commit and this tree is the build-number bump itself.
+Build 15 carried `@capacitor/ios` 8.3.3 → 8.4.2 and two more native bumps,
+which is why D153 leaned on `native-sync-drift`; build 16 is a pure
+JavaScript payload, so the archive step has strictly less new surface than
+the last one that succeeded.
+
+The payload: D154's Map boundary sized by the map rather than by a
+constant, D155's bottom-pinned lens tabs, four instruments taking turns
+and exact age, D156's live 1v1 and Group rebuilt to the sample — a rail,
+marks, bars and a guess that arrives second — and D157's test surfaces
+giving up the crowd they never counted. Plus one Routine-authored pulse
+trail row.
+
+The store filing does not move. Nothing here collects anything new, so
+`docs/STORE-FORMS.md` stands as D141 left it and `check:store-forms`
+passes unchanged.
