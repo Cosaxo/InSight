@@ -87,8 +87,9 @@ function LiveCircleBody() {
   // of a group this size — "what do we agree about" is mostly a list of
   // things everyone answers the same way everywhere.
   const qs = LIVE.aggregated();
+  const answers = LIVE.circleAnswers();
   const rows = qs
-    .map((q) => ({ q, split: circleSplit(members, q.id, q.options.length) }))
+    .map((q) => ({ q, split: circleSplit(members, answers, q.id, q.options.length) }))
     .filter((r) => r.split.n >= 2)
     // divisiveness computed once per surviving row rather than inside the
     // comparator, where it would re-run O(n log n) times per render —
@@ -122,9 +123,15 @@ function LiveCircleBody() {
           below it carries everyone. */}
       <React.Suspense fallback={null}>
         <PeopleField
-          people={members.filter((m) => m.like.shared > 0).map((m) => ({
-            id: m.uid, label: m.name || "", match: m.like.pct,
-          }))}
+          people={members
+            .filter((m) => m.score || m.like.shared > 0)
+            .map((m) => ({
+              id: m.uid, label: m.name || "",
+              // Score first, agreement second — the same order rankMembers
+              // sorts by, so a person's radius and their position in the
+              // list below cannot disagree about which basis they stand on.
+              match: m.score ? m.score.match : m.like.pct,
+            }))}
           caption="closer to you = more alike"
           emptyLine={<>Nobody here shares an answered question with you yet —
             they take their places as you both answer the same things.</>}
@@ -142,14 +149,22 @@ function LiveCircleBody() {
                 </span>
               )}
             </span>
+            {/* The basis is NAMED, not just the number. A score match and
+                an answer agreement are different claims — "across 4 tests"
+                is a whole-profile distance, "12/20 the same" is a count of
+                shared picks — and a bare percentage that silently switched
+                between them would be the kind of number nobody can
+                explain. Score wins when both exist, matching rankMembers. */}
             <span style={{ fontFamily: "var(--sans)", fontSize: 11.5, fontWeight: 500, color: "var(--ink-3)" }}>
-              {m.like.shared
-                ? `${m.like.same}/${m.like.shared} the same`
-                : "nothing in common yet"}
+              {m.score
+                ? `across ${m.score.tests} ${m.score.tests === 1 ? "test" : "tests"}`
+                : m.like.shared
+                  ? `${m.like.same}/${m.like.shared} the same`
+                  : "nothing in common yet"}
             </span>
-            {!!m.like.shared && (
+            {(m.score || !!m.like.shared) && (
               <span style={{ width: 42, textAlign: "right", fontFamily: "var(--sans)", fontWeight: 800, fontSize: 13.5, fontVariantNumeric: "tabular-nums" }}>
-                {m.like.pct}%
+                {m.score ? m.score.match : m.like.pct}%
               </span>
             )}
             <button onClick={() => void LIVE.setFollowing(m.uid, false)} style={{
@@ -162,9 +177,12 @@ function LiveCircleBody() {
         <span style={{ fontFamily: "var(--sans)", fontSize: 11.5, fontWeight: 500, color: "var(--ink-3)", marginTop: 9 }}>
           {/* Same sentence the People lens carries, for the same reason: a
               likeness number nobody can explain is one nobody should
-              trust. */}
-          Share of the questions you have both answered where you picked the
-          same option.
+              trust. Both bases are stated because both are on screen —
+              which one a row used is printed beside its number. */}
+          One hundred minus the average gap between your test scores and
+          theirs. For anyone you share no completed test with, the share of
+          the questions you have both answered where you picked the same
+          option.
         </span>
       </div>
 
@@ -172,7 +190,28 @@ function LiveCircleBody() {
         <div style={{ fontFamily: "var(--sans)", fontSize: 10.5, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--ink-3)", marginBottom: 9 }}>
           Where your circle splits
         </div>
-        {!rows.length ? (
+        {!LIVE.circleAnswersLoaded() ? (
+          /* THE COST GATE, and the only part of this stop that costs more
+             than a handful of reads. Ranking the circle needs one profile
+             per member; ranking QUESTIONS by how much the circle disagrees
+             needs every member's answer to every candidate question — up
+             to CIRCLE_ANSWER_CAP each, which is ~1,500 reads for a
+             five-person circle and used to be paid on arrival whether or
+             not anyone scrolled this far.
+             Same shape the Mirror's tab bodies already use: the read runs
+             on the tap that asks for it. */
+          <button
+            onClick={() => void LIVE.loadCircleAnswers()}
+            disabled={LIVE.circleAnswersLoading()}
+            style={{
+              border: CL_LINE, borderRadius: 999, padding: "7px 14px", cursor: "pointer",
+              fontFamily: "var(--sans)", fontWeight: 700, fontSize: 12.5,
+              background: "transparent", color: "var(--ink-2)", WebkitAppearance: "none",
+            }}
+          >
+            {LIVE.circleAnswersLoading() ? "Reading their answers…" : "Show where your circle splits"}
+          </button>
+        ) : !rows.length ? (
           <div style={{ fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 600, color: "var(--ink-3)", lineHeight: 1.55 }}>
             {/* Two answers is the floor for a "split" to mean anything, and
                 saying which floor it is beats a bare "no data". */}

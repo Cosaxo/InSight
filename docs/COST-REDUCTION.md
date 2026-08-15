@@ -35,6 +35,24 @@
 > not recommended. Batching the mirror publish has gone from −78% to −0.0%,
 > because it divided a fan-out that no longer exists. Numbers below the
 > fold are pre-D129; `npm run costs:levers` prints today's.
+>
+> **The two-regime framing below is also pre-D129, and that matters more
+> than the stale dollars.** With the fan-out gone there is one regime at
+> every size: `social` is ~81% of the read bill from 50 to 500,000 DAU.
+> This page's only answer to it is the cap trims it correctly tells you
+> not to take — because it assumes the CAP is what costs money.
+>
+> It is not. [`docs/COST-PLAN.md`](COST-PLAN.md) is the other answer, and
+> it is not a cheaper version of the same reads: all three cross-user
+> surfaces ASK THEIR QUESTION BACKWARDS. The friends cut samples 200
+> recent answers hoping your follows are among them; Kindred reads 2,400
+> answers to build a candidate pool it then ranks on profile scores.
+> Query the people you mean and the reads fall by an order of magnitude
+> while the surfaces get MORE correct — the friends cut stops missing
+> friends, Kindred stops silently ranking the recently active. No cap
+> moves. That page also records why this one's own framing hid it: a cost
+> model tells you which term is large and nothing about whether the term
+> should exist.
 
 [`docs/COSTS.md`](COSTS.md) says what this costs.
 [`docs/COST-COMPARISON.md`](COST-COMPARISON.md) says whether that is a lot

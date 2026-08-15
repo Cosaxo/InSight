@@ -98,7 +98,7 @@ async function getDb(): Promise<import("firebase/firestore").Firestore> {
 import { reportError, setSentryUser } from "../../lib/sentry";
 // The cross-user read (D98). Pure helpers + the two queries live there so
 // the grouping/sorting can be unit-tested without Firebase.
-import { fetchVoters, groupByOption, resolveNames, sortVoters, type Voter } from "./voters";
+import { fetchFriendVoters, fetchKindredCandidates, fetchVoters, groupByOption, resolveNames, sortVoters, type Voter } from "./voters";
 // Handles and invitations (D122), TYPE-ONLY at module scope and imported
 // for real inside the methods that use them — the same shape data/circle
 // has below, and for the same measured reason.
@@ -111,7 +111,7 @@ import { fetchVoters, groupByOption, resolveNames, sortVoters, type Voter } from
 // catch. Every call site is already async and already awaits getDb(), so
 // the dynamic import costs no round trip that was not happening anyway.
 import type { Invite } from "./invites";
-import { type KindredPerson, type ParsedResults } from "./similarity";
+import { CORE_TEST_KINDS, parseTestResults, type KindredPerson, type ParsedResults } from "./similarity";
 // Pure folds over the published breakdown, and the likeness metric behind
 // Kindred. No Firebase in there — this module supplies the documents.
 import { agreement, type Agreement } from "./cohort";
@@ -278,6 +278,14 @@ const state = {
   // and a card scrolled past must pay for neither.
   voters: {} as Record<string, Voter[]>,
   votersLoading: {} as Record<string, boolean>,
+  // qid → how the people you FOLLOW answered it, asked of them directly
+  // rather than filtered out of the newest-200 window above. Separate
+  // cache from `voters` because it is a different question with a
+  // different cost and a different correctness property: this one is
+  // exact at every size, and the window above is a sample by design.
+  // See fetchFriendVoters for why the sample could not serve it.
+  friendVoters: {} as Record<string, Voter[]>,
+  friendVotersLoading: {} as Record<string, boolean>,
   // uid → display name ("" for an account that has set none). Shared by
   // every question's voter list, because crowds overlap: without this,
   // opening five questions re-reads the same regulars five times.
@@ -300,6 +308,13 @@ const state = {
   // against its own inputs.
   kindredLoading: false,
   kindredAt: 0,
+  // uid → the candidate as the CITY QUERY found them (loadKindred). One
+  // profile read each, and the pool the People lens is actually about;
+  // `voters` remains a second, free source for anyone whose who-voted
+  // sheet this session already opened. kindredPeople() merges the two.
+  kindredCity: {} as Record<
+    string, { uid: string; name: string; city: string; anchors: Record<string, string> }
+  >,
   // Similarity (D112): the constellation fields' one-per-session agg
   // top-up (the bank's core test items) and its in-flight flag.
   similarityLoading: false,
@@ -309,6 +324,12 @@ const state = {
   // different things for those two.
   circle: null as CircleMember[] | null,
   circleLoading: false,
+  // The deferred half. Separate from `circle` because they are two reads
+  // with two costs: the member list is one profile each, the answers are
+  // up to CIRCLE_ANSWER_CAP each and only the splits section wants them.
+  circleAnswers: {} as Record<string, Record<string, number>>,
+  circleAnswersLoaded: false,
+  circleAnswersLoading: false,
   // The same graph, one query deep (D149). `circle` above is the FOLD —
   // every followed account's answers, one query per member — and it is the
   // right cost for the Circle stop and much too much for a chip on a
@@ -331,10 +352,13 @@ const state = {
   invitesLoading: false,
 };
 
-// How many of the viewer's own answers the Kindred ranking reads across.
-// Twelve shared questions is a legible likeness claim and the cost is
-// linear in this number — see loadKindred for why it is bounded at all.
-const KINDRED_QUESTIONS = 12;
+// KINDRED_QUESTIONS lived here — how many of the viewer's own answers the
+// ranking walked to assemble its pool, at VOTER_FETCH_CAP voters each. It
+// is gone because the pool is no longer assembled from answers at all:
+// loadKindred asks for people directly and the bound moved with it, to
+// KINDRED_CANDIDATE_CAP in data/voters.ts. scripts/cost-arith.mjs reads
+// that constant now; this note is here because a reader looking for the
+// old one should find out where it went rather than that it vanished.
 
 // One take as the circle reads it. `hidden` is always false on anything a
 // non-author can list — the read rule is an equality on that boolean, not a
@@ -637,11 +661,33 @@ function buildS(
 // WHY ONLY TODAY IS POLLED. `computeDeckIds` returns today plus six back
 // days and all seven are answerable, so the older aggregates do move — just
 // rarely, and nobody is watching a four-day-old card for a live tick. The
-// full deck is refreshed on boot and on every foreground; the repeating
+// full deck is refreshed on boot and on a day rollover; the repeating
 // timer asks about today alone. That is 1 document per poll rather than 7,
 // which is what keeps the replacement genuinely cheap rather than merely
 // cheaper.
 const AGG_POLL_MS = 60_000;
+
+// Documents a plain FOREGROUND re-read costs — as opposed to a boot or a
+// day rollover, which both still take the whole deck.
+//
+// This used to be the whole deck on every foreground too, and that made
+// `reattach` (B.bgCycles × DECK_DAYS) the second-largest client read term
+// in the model once D129 removed the fan-out it used to hide behind: 28
+// reads per user per day to re-answer a question — "have the six back
+// days moved?" — whose answer is almost always no. A back day is
+// answerable but cold; what changes while you are away is today.
+//
+// What a user loses is bounded and small: a back day's count is now as
+// fresh as your last boot or rollover rather than as your last app swap.
+// The two cases where a stale back-day count would be visibly WRONG are
+// both already covered — your own vote is re-read by scheduleAggRefresh
+// 2.5 s after the write acks (vote and D86 edit paths alike), and a
+// rollover takes the full deck below.
+//
+// Read from source by scripts/cost-arith.mjs, which is what stops the
+// model from going on quoting DECK_DAYS here. Widen it and `npm run costs`
+// moves; data/idle-detach.test.ts is what fails first.
+const FOREGROUND_AGG_DOCS = 1;
 let aggPollTimer: ReturnType<typeof setInterval> | null = null;
 
 /**
@@ -687,7 +733,13 @@ function stopAggPoll(): void {
 }
 
 /**
- * Refresh the whole deck now, then keep today's aggregate fresh on a timer.
+ * Refresh now, then keep today's aggregate fresh on a timer.
+ *
+ * `scope` is what the immediate re-read covers: "deck" for the whole seven
+ * days, "today" for `FOREGROUND_AGG_DOCS`. Boot and the day rollover pass
+ * "deck" because both genuinely change every id in it; a plain foreground
+ * passes "today", which is the constant's own argument. The TIMER is
+ * unaffected either way — it has always ticked on today alone.
  *
  * Idempotent, because every caller of the old `subscribeAggs` was: boot,
  * the midnight rollover, and every foreground. The interval is cleared and
@@ -700,7 +752,7 @@ function stopAggPoll(): void {
  * re-delivers the document; re-arming a `setInterval` reads nothing until
  * it next fires.
  */
-async function startAggPoll(): Promise<void> {
+async function startAggPoll(scope: "deck" | "today" = "deck"): Promise<void> {
   // `torndown` only. NOT `state.ready` — this runs from inside hydrate(),
   // and `ready` does not flip until hydrate AND hydrateSocial have both
   // returned, so guarding on it makes the boot call a silent no-op and the
@@ -709,7 +761,9 @@ async function startAggPoll(): Promise<void> {
   // `resubscribeForToday` keeps one because it is a re-entry point.
   if (torndown) return;
   stopAggPoll();
-  await refreshAggs(state.deckIds);
+  await refreshAggs(
+    scope === "today" ? state.deckIds.slice(0, FOREGROUND_AGG_DOCS) : state.deckIds,
+  );
   if (torndown) return;
   aggPollTimer = setInterval(() => {
     // Today only — deckIds[0] is back=0 by computeDeckIds' construction.
@@ -2046,6 +2100,49 @@ const LIVE = {
       notify();
     }
   },
+  /**
+   * How your follows answered `qid`. Needs `loadFollows` to have run.
+   *
+   * Same cache/in-flight/absent-vs-empty discipline as loadVoters above,
+   * and the same reason for it: absent is "we could not ask", empty is
+   * "none of them answered", and the panel renders those differently.
+   *
+   * A viewer who follows nobody is cached as an empty list WITHOUT a
+   * read. The panel shows its own "you have not followed anyone" state
+   * before this matters, but relying on that would put the guard in the
+   * UI, where the next caller does not inherit it.
+   */
+  async loadFriendVoters(qid: string): Promise<void> {
+    if (!qid || state.friendVotersLoading[qid] || state.friendVoters[qid]) return;
+    const follows = state.follows;
+    if (!follows) return; // follow list not loaded yet — the caller retries
+    if (!follows.length) {
+      state.friendVoters[qid] = [];
+      notify();
+      return;
+    }
+    state.friendVotersLoading[qid] = true;
+    try {
+      const db = await getDb();
+      state.friendVoters[qid] = await fetchFriendVoters(
+        db, qid, follows, state.uid, state.names, state.scores,
+      );
+      saveProfileCache();
+    } catch (err) {
+      reportError(err, { where: "loadFriendVoters", qid });
+    } finally {
+      state.friendVotersLoading[qid] = false;
+      notify();
+    }
+  },
+  // null while unfetched or failed; an array (possibly empty) once known.
+  friendVoters(qid: string): Voter[] | null {
+    const rows = state.friendVoters[qid];
+    return rows ? sortVoters(rows) : null;
+  },
+  friendVotersLoading(qid: string): boolean {
+    return !!state.friendVotersLoading[qid];
+  },
   // uid → display name, from the shared session cache. Synchronous and
   // best-effort: "" means either "no name set" or "not fetched yet", and
   // the caller renders the same fallback for both because from the screen
@@ -2078,32 +2175,45 @@ const LIVE = {
   // this needs OTHER PEOPLE'S ANSWERS, question by question, and then a
   // comparison against your own.
   //
-  // Built on the voter lists rather than beside them, which is the whole
-  // reason it is affordable: `loadVoters` already caches one
-  // collection-group query per question for the who-voted sheet, so a
-  // question whose sheet has been opened costs nothing here, and the
-  // names are resolved once into the shared cache for both surfaces.
+  // ONE QUERY FOR PEOPLE, where there used to be twelve for answers.
   //
-  // Bounded at KINDRED_QUESTIONS of the viewer's OWN most recent answers.
-  // Likeness over 12 shared questions is already a legible claim, and the
-  // cost is linear in that number — an unbounded version would fan out
-  // over every question the account has ever answered, on a screen the
-  // user may open casually.
+  // What this stopped doing: walking KINDRED_QUESTIONS of your own recent
+  // questions, pulling VOTER_FETCH_CAP voters from each — ~2,400 answer
+  // documents — and ranking the people who fell out by their TEST SCORES,
+  // which come from the profile document and not from any of those
+  // answers. The pool was also a recency window wearing a likeness
+  // heading: at scale "the newest 200 answers" per question is whoever
+  // was online in the last few minutes, so the People lens quietly ranked
+  // the recently active rather than the people most like you.
+  //
+  // Now it asks for the population the surface is about — your city — and
+  // ranks it on the scores that were always doing the ranking.
+  // KINDRED_CANDIDATE_CAP profiles, one read each, names and scores
+  // filled from the same documents.
+  //
+  // The voter-derived people are NOT dropped: kindredPeople() still folds
+  // whatever `state.voters` holds, so anyone whose who-voted sheet you
+  // opened stays in the pool for free, carrying the answer agreement that
+  // is the fallback basis for people who have sat no instrument. That
+  // matters most in a young community, where a city query returns people
+  // with no scores yet — without the merge they would rank on nothing.
   async loadKindred(): Promise<void> {
     if (state.kindredLoading) return;
     state.kindredLoading = true;
     try {
-      const qids = Object.keys(state.votes)
-        .filter((id) => !id.startsWith("g_"))
-        .slice(0, KINDRED_QUESTIONS);
-      // Sequential rather than parallel on purpose: each call is a
-      // collection-group query, most of them are cache hits after the
-      // first surface has run, and firing twelve at once at boot-adjacent
-      // moments is the shape that gets a client rate-limited.
-      for (const qid of qids) {
-        if (!state.voters[qid]) await this.loadVoters(qid);
+      const city = state.profile?.anchors?.city || "";
+      if (city) {
+        const db = await getDb();
+        const found = await fetchKindredCandidates(
+          db, city, state.uid, state.names, state.scores,
+        );
+        for (const p of found) state.kindredCity[p.uid] = p;
+        saveProfileCache();
       }
-      state.kindredAt = qids.length;
+      // Counts the pool the ranking runs over, which is what the lens
+      // prints. It used to count QUESTIONS walked — a number that meant
+      // something only while the pool was assembled from answers.
+      state.kindredAt = Object.keys(state.kindredCity).length;
     } catch (err) {
       reportError(err, { where: "loadKindred" });
     } finally {
@@ -2172,22 +2282,22 @@ const LIVE = {
     notify();
     try {
       const [db, circleMod] = await Promise.all([getDb(), import("./circle")]);
-      const mine: Record<string, number> = {};
-      for (const [qid, opt] of Object.entries(state.votes)) {
-        if (qid.startsWith("g_")) continue;
-        const n = Number(opt);
-        if (Number.isFinite(n)) mine[qid] = n;
-      }
-      const members = await circleMod.loadCircle(db, me, mine, (u) => state.names[u] || "");
-      // Names for anyone the shared cache did not already hold. Batched,
-      // and after the fold rather than before it — the likeness is
-      // computed from answers and does not wait on a display name.
-      const missing = members.filter((m) => !m.name).map((m) => m.uid);
-      if (missing.length) {
-        await this.loadNames(missing);
-        for (const m of members) m.name = state.names[m.uid] || "";
-      }
+      // One profile read per member fills BOTH caches (D112), so the
+      // ranking rides the lookup the names needed anyway — there is no
+      // separate loadNames pass any more, because resolveNames inside
+      // loadCircle is that pass.
+      const members = await circleMod.loadCircle(
+        db, me,
+        parseTestResults(this.myTestResults(), CORE_TEST_KINDS),
+        state.names, state.scores,
+      );
+      saveProfileCache();
       state.circle = members;
+      // The answers are a separate load now (loadCircleAnswers): the
+      // splits section asks for them, nothing else needs them, and they
+      // were ~300 reads per member paid on arrival.
+      state.circleAnswers = {};
+      state.circleAnswersLoaded = false;
       // The fold already knows the membership, so the cheap view rides
       // along for free — a Friends chip opened after the Circle stop pays
       // no read at all.
@@ -2202,6 +2312,59 @@ const LIVE = {
       state.circleLoading = false;
       notify();
     }
+  },
+  /**
+   * The members' answers — the splits section's read, on the tap that
+   * asks for it.
+   *
+   * This is the read that used to make Circle the most expensive stop in
+   * the app: one query per member, up to CIRCLE_ANSWER_CAP answers each,
+   * paid on arrival. The ranking stopped needing it (score profiles ride
+   * the name lookup), so what is left is the one consumer that genuinely
+   * does — ranking questions by how much the circle disagrees means
+   * folding every member's answer to every candidate question, and no
+   * cheaper query answers that.
+   *
+   * Also fills `like`, which is why a member sharing no completed
+   * instrument with you has a likeness at all once this has run.
+   */
+  async loadCircleAnswers(): Promise<void> {
+    if (!this.enabled || state.circleAnswersLoading || state.circleAnswersLoaded) return;
+    const members = state.circle;
+    if (!members || !members.length) return;
+    state.circleAnswersLoading = true;
+    notify();
+    try {
+      const [db, circleMod] = await Promise.all([getDb(), import("./circle")]);
+      const mine: Record<string, number> = {};
+      for (const [qid, opt] of Object.entries(state.votes)) {
+        if (qid.startsWith("g_")) continue;
+        const n = Number(opt);
+        if (Number.isFinite(n)) mine[qid] = n;
+      }
+      const { answers, ranked } = await circleMod.loadCircleAnswers(db, members, mine);
+      state.circleAnswers = answers;
+      state.circle = ranked;
+      state.circleAnswersLoaded = true;
+    } catch (err) {
+      // Left UNLOADED so the section can offer the tap again. Unlike the
+      // member list there is no "could not ask" rendering to fall back
+      // on — the splits are an addition to a stop that already drew.
+      reportError(err, { where: "loadCircleAnswers" });
+    } finally {
+      state.circleAnswersLoading = false;
+      notify();
+    }
+  },
+  /** uid → (qid → optionIdx). Empty until loadCircleAnswers has run. */
+  circleAnswers(): Record<string, Record<string, number>> {
+    return state.circleAnswers;
+  },
+  circleAnswersLoaded(): boolean {
+    return state.circleAnswersLoaded;
+  },
+  circleAnswersLoading(): boolean {
+    return state.circleAnswersLoading;
   },
   /** The circle, or null while unfetched or failed. */
   circle(): CircleMember[] | null {
@@ -2363,7 +2526,15 @@ const LIVE = {
       reportError(err, { where: "setFollowing" });
     }
   },
-  /** How many of the viewer's questions the ranking has been able to read. */
+  /**
+   * How many PEOPLE the ranking is drawn from.
+   *
+   * Was "how many of the viewer's own questions it read across", which
+   * described the answer-walk that used to assemble the pool. The pool is
+   * queried directly now, so the honest basis to print is its size —
+   * and the copy in LiveMirrorLenses moved with it, because a sentence
+   * naming a mechanism that no longer exists is worse than no sentence.
+   */
   kindredDepth(): number {
     return state.kindredAt;
   },
@@ -2464,14 +2635,36 @@ const LIVE = {
         for (const [k, v] of Object.entries(r.anchors || {})) if (v && !a[k]) a[k] = v;
       }
     }
-    return Object.keys(theirs).map((uid) => ({
-      uid,
-      name: state.names[uid] || "",
-      city: anchors[uid]?.city || "",
-      like: agreement(mine, theirs[uid]),
-      results: state.scores[uid] ?? null,
-      anchors: anchors[uid] || {},
-    }));
+    // TWO SOURCES, merged, and each covers the other's gap.
+    //
+    // `kindredCity` is the city query (loadKindred) — the pool the lens
+    // is actually about, one read per person, ranked on scores. Its gap
+    // is anyone who has taken no test: a profile with no results has no
+    // score, so nothing places them.
+    //
+    // `state.voters` is whatever who-voted sheets this session already
+    // opened. It costs NOTHING here — it is already in memory for another
+    // surface — and it carries answer agreement, which is exactly the
+    // fallback basis those unscored people need.
+    //
+    // The city rows win on the fields both hold, because their anchors
+    // and their scores come from the same profile document read in the
+    // same breath (see fetchKindredCandidates on why that is coherent
+    // here and D8 still holds everywhere else).
+    const uids = new Set([...Object.keys(theirs), ...Object.keys(state.kindredCity)]);
+    return [...uids].map((uid) => {
+      const fromCity = state.kindredCity[uid];
+      return {
+        uid,
+        name: state.names[uid] || "",
+        city: fromCity?.city || anchors[uid]?.city || "",
+        // Zero-shared when this person came only from the city query,
+        // which rankKindred already reads as "rank them on score alone".
+        like: agreement(mine, theirs[uid] || {}),
+        results: state.scores[uid] ?? null,
+        anchors: fromCity?.anchors || anchors[uid] || {},
+      };
+    });
   },
 
   // null while unfetched or failed; an array (possibly empty) once known.
@@ -3193,6 +3386,8 @@ function resetForNewUid(uid: string): void {
   // session that fetched it.
   state.voters = {};
   state.votersLoading = {};
+  state.friendVoters = {};
+  state.friendVotersLoading = {};
   state.names = {};
   // Scores ride the name cache (D112) and carry the same reasoning: other
   // people's data, held to save reads.
@@ -3218,12 +3413,16 @@ function resetForNewUid(uid: string): void {
   }
   state.kindredLoading = false;
   state.kindredAt = 0;
+  state.kindredCity = {};
   state.similarityLoading = false;
   // state.aggs was dropped above, so the test-item top-up has to run
   // again for the new account.
   state.testAggsLoaded = false;
   state.circle = null;
   state.circleLoading = false;
+  state.circleAnswers = {};
+  state.circleAnswersLoaded = false;
+  state.circleAnswersLoading = false;
   // A verdict is about the PREVIOUS account's reads, and the log is
   // keyed by slice rather than by uid, so leaving it would credit the
   // new account with someone else's record.
@@ -3349,11 +3548,16 @@ function purgeLocalTrace(): void {
 async function resubscribeForToday(): Promise<void> {
   if (torndown || !state.ready) return;
   try {
-    if (state.questions.length && state.deckDay !== dayIndex()) {
+    const rolled = !!state.questions.length && state.deckDay !== dayIndex();
+    if (rolled) {
       computeDeck();
       notify();
     }
-    await startAggPoll();
+    // A ROLLOVER re-reads the whole deck, an ordinary foreground re-reads
+    // today alone (FOREGROUND_AGG_DOCS). The distinction is the point: on a
+    // rollover every id in `deckIds` has just changed, so the seven reads
+    // are seven different documents rather than the same six again.
+    await startAggPoll(rolled ? "deck" : "today");
     const db = await getDb();
     subscribeReveals(db);
   } catch (err) {

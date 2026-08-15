@@ -960,6 +960,74 @@ describe("v2 answers (world-readable since D98; option edits only — D86)", () 
     expect((snap as { size: number }).size).toBe(3);
   });
 
+  // The Friends cut's read (Phase 2 of docs/COST-PLAN.md): "how did the
+  // people I follow answer q42", asked of each of them directly instead
+  // of filtered out of the newest-200 window the query above returns.
+  //
+  // A LIST scoped to ONE user's answers subcollection, and the shape is
+  // forced rather than chosen. Both cheaper forms are refused by this
+  // ruleset, measured here so the next person does not re-derive it:
+  // a `get` on a follow who has NOT answered is permission-denied (the
+  // grant reads `resource.data.surface`, and `resource` is null for a
+  // document that does not exist), and one collection-group query with
+  // `documentId() in [paths]` fails the same way as soon as any path in
+  // the batch is missing — which is the common case and not knowable in
+  // advance. A query matches only documents that exist, so it has
+  // neither problem.
+  it("lists one other user's answer to a question, and returns empty for a non-answerer", async () => {
+    await seedQuestion();
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_users", FRIEND, "answers", QID), {
+        qid: QID, surface: "daily", optionIdx: 1, anchors: { ageBand: "25-34" },
+      });
+      // STRANGER deliberately has no answer to QID.
+    });
+    const hit = await assertSucceeds(getDocs(query(
+      collection(asUser(OWNER), "v2_users", FRIEND, "answers"),
+      where("surface", "in", ["daily", "feed", "test", "learn", "pulse"]),
+      where("qid", "==", QID),
+    )));
+    expect((hit as { size: number }).size).toBe(1);
+
+    // The case that decides the shape: a follow who has not answered is
+    // an EMPTY RESULT, not an error. The direct-get form denies here, and
+    // a Friends cut built on it would throw on its most ordinary input.
+    const miss = await assertSucceeds(getDocs(query(
+      collection(asUser(OWNER), "v2_users", STRANGER, "answers"),
+      where("surface", "in", ["daily", "feed", "test", "learn", "pulse"]),
+      where("qid", "==", QID),
+    )));
+    expect((miss as { size: number }).size).toBe(0);
+  });
+
+  it("refuses a direct get of another user's answer that does not exist", async () => {
+    // The measurement behind the comment above, kept as a test because it
+    // is the reason fetchFriendVoters issues a query per follow rather
+    // than the obvious getDoc per follow. If a future rules edit makes
+    // this succeed, that simpler form becomes available — and this case
+    // failing is how anyone would find out.
+    await seedQuestion();
+    await assertFails(getDoc(
+      doc(asUser(OWNER), "v2_users", STRANGER, "answers", QID)));
+  });
+
+  it("keeps a sealed duel answer out of the per-user list", async () => {
+    // The Friends cut carries the same surface filter as the
+    // collection-group read, so the seal holds on this path too. Without
+    // the value test a groupmate could read a face-down hand by asking
+    // for one person's answers instead of for everyone's.
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_users", FRIEND, "answers", `g_gid1_${dayOffset(0)}`), {
+        qid: QID, surface: "duo", optionIdx: 1, gid: "gid1", day: dayOffset(0),
+      });
+    });
+    const snap = await assertSucceeds(getDocs(query(
+      collection(asUser(OWNER), "v2_users", FRIEND, "answers"),
+      where("surface", "in", ["daily", "feed", "test", "learn", "pulse"]),
+    )));
+    expect((snap as { size: number }).size).toBe(0);
+  });
+
   // The rule's `surface` test is a VALUE test so a list query can be
   // compared against it. That has a consequence worth pinning rather than
   // rediscovering: a collection-group read that does NOT carry the

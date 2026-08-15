@@ -50,7 +50,10 @@ import {
   type Firestore,
 } from "firebase/firestore";
 import { agreement, type Agreement } from "./cohort";
-import { WORLD_ANSWER_SURFACES } from "./voters";
+import { WORLD_ANSWER_SURFACES, resolveNames } from "./voters";
+import {
+  flattenAxes, scoreMatch, type ParsedResults, type ScoreMatch,
+} from "./similarity";
 
 /**
  * How many accounts one Circle may hold.
@@ -72,11 +75,55 @@ export interface Member {
   name: string;
   /** True when they follow you back — derived, never stored. */
   mutual: boolean;
-  /** How alike your answers are, over what you have both answered. */
+  /**
+   * How alike your answers are, over what you have both answered.
+   *
+   * ZERO-SHARED until the answer pass runs (loadCircleAnswers). Circle
+   * opens on profiles alone now, so this is the second reading rather
+   * than the first — see `score`.
+   */
   like: Agreement;
-  /** qid → optionIdx, as read. */
-  answers: Record<string, number>;
+  /**
+   * Score likeness — 100 minus the mean gap across every axis you both
+   * have, over all four persisted instruments.
+   *
+   * THE PRIMARY RANKING, and the reason is not only cost. `agreement`
+   * depends on WHICH questions the two of you happen to have both
+   * answered, so it is unstable in a way that shows: rankMembers carries
+   * an overlap tiebreak specifically because one shared question that
+   * matched scores 100% and would otherwise head the list forever. A
+   * score profile is the same basis for everyone and does not move with
+   * question luck.
+   *
+   * This is not a new metric here — D112 already made scoreMatch the
+   * primary ranking for the People lens and the similarity field, with
+   * agreement as the fallback for people you share no completed
+   * instrument with. Circle is the surface that never got moved over.
+   *
+   * null when either of you has completed no instrument, which is what
+   * keeps `agreement` load-bearing rather than decorative.
+   */
+  score: ScoreMatch | null;
 }
+
+/**
+ * A member's answers, kept OUT of `Member` deliberately.
+ *
+ * Circle used to read up to CIRCLE_ANSWER_CAP answers per member on
+ * open — the app's single largest read, ~1,500 for a five-person circle
+ * — and every one of them served two things: the likeness number and the
+ * "where your circle splits" section. The first no longer needs them at
+ * all (see `score`); the second genuinely does, because ranking questions
+ * by divisiveness means folding every member's answer to every candidate
+ * question, and no cheaper query answers that.
+ *
+ * So the answers became a separate, deferred load rather than a smaller
+ * one. That is the cost gate the Mirror already uses everywhere else — a
+ * tab body exists only while its tab is open, so Kindred runs on the tap
+ * that asks for it — applied to the one surface that was still paying its
+ * biggest read on arrival.
+ */
+export type MemberAnswers = Record<string, Record<string, number>>;
 
 // ── pure helpers ────────────────────────────────────────────────────
 
@@ -91,11 +138,23 @@ export interface Member {
  * because it looks completely right until someone answers one question.
  */
 export function rankMembers(members: readonly Member[]): Member[] {
-  return members.slice().sort((a, b) =>
-    b.like.pct - a.like.pct
-    || b.like.shared - a.like.shared
-    || (a.name || "￿").localeCompare(b.name || "￿")
-    || a.uid.localeCompare(b.uid));
+  return members.slice().sort((a, b) => {
+    // Score first, exactly as rankKindred orders the People lens (D112):
+    // everyone you share a completed instrument with sorts above everyone
+    // you do not, and a missing score is a fallback rather than a zero.
+    // Sorting the two bases together would rank an 80% score match below
+    // a 100% agreement drawn from one shared question, which is the
+    // comparison the tiebreak below exists because of.
+    if (!!a.score !== !!b.score) return a.score ? -1 : 1;
+    if (a.score && b.score) {
+      const d = b.score.match - a.score.match || b.score.axes - a.score.axes;
+      if (d) return d;
+    }
+    return b.like.pct - a.like.pct
+      || b.like.shared - a.like.shared
+      || (a.name || "￿").localeCompare(b.name || "￿")
+      || a.uid.localeCompare(b.uid);
+  });
 }
 
 export interface CircleSplit {
@@ -118,13 +177,18 @@ export interface CircleSplit {
  */
 export function circleSplit(
   members: readonly Member[],
+  answers: MemberAnswers,
   qid: string,
   optionCount: number,
 ): CircleSplit {
   const counts = new Array(Math.max(0, optionCount)).fill(0) as number[];
   let n = 0;
   for (const m of members) {
-    const idx = m.answers[qid];
+    // The answers arrive as their own map rather than on the member,
+    // because they are now a SEPARATE and deferred read — a member the
+    // answer pass has not covered (or whose read failed) is absent here,
+    // and absent is exactly "did not answer this" for a split's purposes.
+    const idx = answers[m.uid]?.[qid];
     if (idx == null || idx < 0 || idx >= counts.length) continue;
     counts[idx]++;
     n++;
@@ -235,26 +299,65 @@ export async function unfollow(db: Firestore, me: string, target: string): Promi
 export async function loadCircle(
   db: Firestore,
   me: string,
-  myAnswers: Readonly<Record<string, number>>,
-  names: (uid: string) => string,
+  mine: ParsedResults | null,
+  names: Record<string, string>,
+  scores: Record<string, ParsedResults | null>,
 ): Promise<Member[]> {
   const uids = capFollows(await fetchFollowing(db, me));
   if (!uids.length) return [];
-  const [answerSets, followers] = await Promise.all([
-    Promise.all(uids.map((u) => fetchAnswersOf(db, u).catch(() => null))),
+  // ONE read per member, and it is the read that was already happening for
+  // names — `resolveNames` fills the score cache from the same profile
+  // document (D112), so the ranking below is free on top of a lookup the
+  // stop needed anyway. That is the whole shape of this change: the
+  // likeness stopped needing a fan-out because the data it wants was
+  // already on the wire for a different reason.
+  const [, followers] = await Promise.all([
+    resolveNames(db, uids, names, scores),
     fetchFollowersOf(db, me, uids).catch(() => new Set<string>()),
   ]);
-  const out: Member[] = [];
-  uids.forEach((uid, i) => {
-    const answers = answerSets[i];
-    if (!answers) return;
-    out.push({
-      uid,
-      name: names(uid),
-      mutual: followers.has(uid),
-      like: agreement(myAnswers, answers),
-      answers,
-    });
-  });
+  const mineFlat = mine ? flattenAxes(mine) : null;
+  const out: Member[] = uids.map((uid) => ({
+    uid,
+    name: names[uid] || "",
+    mutual: followers.has(uid),
+    // Empty until loadCircleAnswers runs. `agreement` over nothing is
+    // {shared:0, same:0, pct:0}, which every consumer already renders as
+    // "nothing in common yet" rather than as 0% — the state existed
+    // before this change, for a member who genuinely shared no question.
+    like: agreement({}, {}),
+    // A person-to-person match needs a whole shared instrument (5-6 axes
+    // arriving together), the same MIN rankKindred uses. Below that the
+    // gap is measured over too little to mean anything.
+    score: mineFlat && scores[uid] ? scoreMatch(mineFlat, flattenAxes(scores[uid]!), 5) : null,
+  }));
   return rankMembers(out);
+}
+
+/**
+ * The deferred half: every member's answers, for the splits section.
+ *
+ * Still one query per member and still capped — this is the read the
+ * open-time load used to pay, moved to the moment something actually
+ * needs it. It also fills `like`, which is why a member with no shared
+ * instrument gets a likeness at all.
+ *
+ * A member whose read fails is dropped from the map rather than failing
+ * the stop; one unreadable account must not blank a circle of thirty.
+ */
+export async function loadCircleAnswers(
+  db: Firestore,
+  members: readonly Member[],
+  myAnswers: Readonly<Record<string, number>>,
+): Promise<{ answers: MemberAnswers; ranked: Member[] }> {
+  const sets = await Promise.all(
+    members.map((m) => fetchAnswersOf(db, m.uid).catch(() => null)),
+  );
+  const answers: MemberAnswers = {};
+  const ranked = members.map((m, i) => {
+    const set = sets[i];
+    if (!set) return m;
+    answers[m.uid] = set;
+    return { ...m, like: agreement(myAnswers, set) };
+  });
+  return { answers, ranked: rankMembers(ranked) };
 }

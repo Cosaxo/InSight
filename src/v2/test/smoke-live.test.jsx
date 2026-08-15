@@ -523,7 +523,14 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     expect(screen.queryByText(/aren.t built yet/i)).toBeNull();
     // The row's own mark, not the header's "1 of them follows you back".
     expect(screen.getByText(/^· follows you$/)).toBeTruthy();
-    expect(screen.getByText("50%")).toBeTruthy();
+    // 78, the fixture member's SCORE match — not the 50 her `like` still
+    // carries. Circle ranks and prints score first now, with answer
+    // agreement as the fallback for anyone you share no completed test
+    // with (D112's order, finally applied to this stop). Asserting on the
+    // score is what makes the two bases distinguishable here: the old
+    // assertion would still pass if the row silently reverted.
+    expect(screen.getByText("78%")).toBeTruthy();
+    expect(screen.getByText(/across 1 test/)).toBeTruthy();
     // And the fold: where the circle splits, counted over answerers.
     expect(screen.getByText(/Where your circle splits/i)).toBeTruthy();
   });

@@ -148,6 +148,168 @@ export function uidFromAnswerPath(path: string): string | null {
  * `names` is an inout session cache owned by the caller (live.ts), so two
  * questions answered by overlapping crowds pay for each profile once.
  */
+/**
+ * How the people you FOLLOW answered `qid` — asked of them directly.
+ *
+ * WHY THIS EXISTS AND `fetchVoters` DOES NOT SERVE IT. The Friends cut
+ * used to be a filter over `fetchVoters`: pull the newest
+ * VOTER_FETCH_CAP answers from ANYONE, then keep the handful whose uid is
+ * in your follow list. That is a sampling window standing in for a lookup,
+ * and it fails in the direction that looks like an answer — at 500 users
+ * the newest 200 answers contain most of the room, so your friends are in
+ * there; at 50,000 they are whoever answered in the last few minutes, so a
+ * friend who answered this morning has fallen out and the panel says
+ * "None of the people you follow has answered this yet" about someone who
+ * did. Wrong, silently, and more wrong the better the app does. Raising
+ * the cap delays it; it cannot fix it, because the window is a proxy for
+ * the wrong question.
+ *
+ * So this asks the right one. You follow at most FOLLOW_CAP accounts and
+ * their answer documents live at a known path, so the cost is one small
+ * query per follow — bounded by YOUR follow list rather than by the
+ * population, exact at every size, and typically five reads against the
+ * old ~400 (up to 200 answers plus up to 200 profiles).
+ *
+ * ONE QUERY PER FOLLOW, and the shape is not a free choice — both cheaper
+ * shapes are refused by `firestore.rules`, measured against the emulator
+ * rather than reasoned about:
+ *
+ *   - a direct `getDoc` per follow is PERMISSION_DENIED when that follow
+ *     has NOT answered. The read rule tests `resource.data.surface`, and
+ *     `resource` is null for a document that does not exist, so the
+ *     common case — a friend who has not answered yet — is an error
+ *     rather than an empty result.
+ *   - one collection-group query with `documentId() in [paths]` fails the
+ *     same way ("Null value error") the moment any path in the batch is
+ *     missing, which is not knowable in advance.
+ *
+ * A LIST scoped to one user's subcollection has neither problem: a query
+ * matches only documents that exist, so a non-answerer returns zero rows
+ * and costs one read. It is also the shape `circle.ts` already ships, so
+ * this is the established pattern here rather than a new one.
+ *
+ * `anchors` is deliberately not read into the result — the Friends rows
+ * render a name and a chosen option, not cohort chips. The field stays on
+ * the Voter shape so the two lists remain the same type.
+ */
+export async function fetchFriendVoters(
+  db: Firestore,
+  qid: string,
+  followUids: readonly string[],
+  myUid: string | null,
+  names: Record<string, string>,
+  scores?: Record<string, ParsedResults | null>,
+): Promise<Voter[]> {
+  if (!qid || !followUids.length) return [];
+  const { collection: fsCollection, getDocs, query, where } = await getFirestoreApi();
+  // Bounded by FOLLOW_CAP, which is what makes firing them together safe:
+  // loadKindred runs its twelve sequentially because most are cache hits
+  // after the first, and there is no such overlap here — every query is a
+  // different account, so there is nothing for a second pass to reuse.
+  const snaps = await Promise.all(followUids.map((uid) => getDocs(query(
+    fsCollection(db, "v2_users", uid, "answers"),
+    // The surface filter is the duel seal and is NOT optional: the rule
+    // grants this list as a VALUE test on `surface`, so a query without a
+    // matching `where` is refused wholesale rather than filtered down
+    // (D65). Same array, same reason, as fetchVoters below.
+    where("surface", "in", [...WORLD_ANSWER_SURFACES]),
+    where("qid", "==", qid),
+  ))));
+
+  const rows: Voter[] = [];
+  followUids.forEach((uid, i) => {
+    // At most one: an answer doc is keyed by qid within a user, so this
+    // query returns zero rows or one. Written as a loop rather than
+    // `docs[0]` so a duplicate — which would mean the id convention had
+    // changed — shows up as two rows instead of being silently dropped.
+    for (const d of snaps[i].docs) {
+      const optionIdx = d.get("optionIdx");
+      // Catalog answers carry `entity`, not `optionIdx`, and have no
+      // option column to sit in — skipped for the same reason
+      // fetchVoters skips them.
+      if (typeof optionIdx !== "number") continue;
+      rows.push({
+        uid,
+        optionIdx,
+        anchors: {},
+        name: "",
+        isMe: uid === myUid,
+      });
+    }
+  });
+
+  await resolveNames(db, rows.map((r) => r.uid), names, scores);
+  for (const r of rows) r.name = names[r.uid] || "";
+  return rows;
+}
+
+/**
+ * Candidates for the People lens and the similarity field, found by
+ * asking for PEOPLE instead of reading answers until people fall out.
+ *
+ * WHAT THIS REPLACES. `loadKindred` used to take your twelve most recent
+ * questions and pull VOTER_FETCH_CAP voters from each — ~2,400 answer
+ * documents — to assemble a pool it then ranked by TEST SCORES, which
+ * come from the profile document and not from any of those answers. The
+ * answers were scaffolding: read, used to learn that a person exists,
+ * and discarded.
+ *
+ * And the pool was wrong as well as expensive, in the way this codebase
+ * keeps finding: "the newest 200 answers" is a recency window, so at
+ * scale the People lens ranked whoever happened to be online in the last
+ * few minutes rather than the people most like you. Nothing on screen
+ * said so, and the bigger the app got the less true the heading became.
+ *
+ * BY CITY, because that is the population the surface is about — the
+ * similarity field is the head of the City, Country and World stops, and
+ * a city is a cohort someone can see themselves in. `anchors.city` is on
+ * the profile, world-readable since D98, and `v2_users` carries no index
+ * exemptions, so this is a plain single-field equality query needing no
+ * index configuration.
+ *
+ * ANCHORS COME FROM THE LIVE PROFILE HERE, and that is a deliberate
+ * departure from D8's frozen-snapshot rule rather than an oversight.
+ * D8's argument is that describing someone by who they are TODAY beside
+ * a likeness computed from who they were WHEN THEY ANSWERED silently
+ * re-cohorts history. That mismatch is what it forbids — and it cannot
+ * arise here, because the likeness is now a score match read from the
+ * same profile document as the description. Both halves are today's.
+ * The frozen snapshot stays exactly where its argument applies: the
+ * who-voted sheet, the aggregates, and every cohort cell.
+ */
+export const KINDRED_CANDIDATE_CAP = 50;
+
+export async function fetchKindredCandidates(
+  db: Firestore,
+  city: string,
+  myUid: string | null,
+  names: Record<string, string>,
+  scores: Record<string, ParsedResults | null>,
+): Promise<Array<{ uid: string; name: string; city: string; anchors: Record<string, string> }>> {
+  if (!city) return [];
+  const {
+    collection: fsCollection, getDocs, limit: fsLimit, query, where,
+  } = await getFirestoreApi();
+  const snap = await getDocs(query(
+    fsCollection(db, "v2_users"),
+    where("anchors.city", "==", city),
+    fsLimit(KINDRED_CANDIDATE_CAP),
+  ));
+  const out: Array<{ uid: string; name: string; city: string; anchors: Record<string, string> }> = [];
+  for (const d of snap.docs) {
+    if (d.id === myUid) continue;
+    const anchors = (d.get("anchors") || {}) as Record<string, string>;
+    const n = d.get("displayName");
+    // The same document fills both caches, exactly as resolveNames does
+    // — so a candidate costs ONE read, not one for existence and another
+    // for their scores.
+    names[d.id] = typeof n === "string" ? n.trim().slice(0, 60) : "";
+    scores[d.id] = parseTestResults(d.get("testResults"), CORE_TEST_KINDS);
+    out.push({ uid: d.id, name: names[d.id], city, anchors });
+  }
+  return out;
+}
+
 export async function fetchVoters(
   db: Firestore,
   qid: string,

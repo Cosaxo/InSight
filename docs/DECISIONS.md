@@ -16305,3 +16305,109 @@ amended with the real database id when it exists. Also not decided: when
 `(default)` is deleted — a step, deliberately, not an afterthought, since
 `deleteAccount` and the erasure suite address one database and an erasure
 run against the new one does not reach data left in the old.
+
+## D166 · The cross-user surfaces asked their question backwards
+
+**Decided:** 2026-08-15 · **Status:** binding · Built, not deferred.
+[`COST-PLAN.md`](COST-PLAN.md) is the plan and the arithmetic;
+`npm run costs` prints today's figures.
+
+**What was wrong.** All three surfaces that read other people's data went
+through *answers* to reach *people*:
+
+- the **Friends cut** fetched the newest `VOTER_FETCH_CAP` answers from
+  anyone and kept the rows whose uid was in your follow list;
+- **Circle** read up to `CIRCLE_ANSWER_CAP` answers per member to count
+  matching options;
+- **Kindred** walked twelve of your own questions at 200 voters each —
+  ~2,400 documents — to assemble a pool it then ranked on **test scores
+  read from the profile document**, which none of those answers carried.
+
+**The cost was the smaller half.** Two of the three were also WRONG, and
+wrong in the direction that looks like an answer. A recency window is not
+a lookup: at 500 users the newest 200 answers are most of the room, so
+your friends are in them; at 50,000 they are whoever answered in the last
+few minutes, so the Friends cut reports "None of the people you follow has
+answered this yet" about people who did, and Kindred ranks the recently
+active under a heading that says *most like you*. Both get less true the
+better the app does, and neither says so on screen. Raising a cap delays
+that; it cannot fix it, because the window is a proxy for the wrong
+question.
+
+**What was built.** Ask for what you actually want: your follows'
+answers to one question, asked of each of them (`fetchFriendVoters`);
+each member's score profile, which `resolveNames` was already fetching for
+the NAME (`loadCircle`); and the People lens's pool queried from
+`v2_users` by city (`fetchKindredCandidates`). 435 → 157 reads/user/day;
+$4,774 → $2,158 at 500 k DAU. Every one of the three is more correct
+after than before, which is the opposite trade from
+[`COST-REDUCTION.md`](COST-REDUCTION.md)'s path A/B — those buy a smaller
+saving by thinning three Mirror surfaces. **No cap moved.**
+
+### The trades, which are the reason this is a decision and not a commit
+
+**1 · Circle's splits section is a deferred load.** Ranking questions by
+how much the circle disagrees needs every member's answer to every
+candidate question, and no cheaper query answers that. So the fan-out did
+not shrink, it moved behind the tap that asks for it — the cost gate every
+Mirror tab body already uses. Circle now opens on one profile per member;
+the splits cost what they always did, when someone wants them.
+`circleSplitOpens` is the softest number in `cost-arith.mjs`'s behaviour
+block because the button did not exist until this change.
+
+**2 · Kindred's candidate anchors come from the LIVE profile**, not the
+frozen snapshot, and this is a considered departure from D8 rather than an
+oversight. D8 forbids describing someone as they are *today* beside a
+likeness computed from who they were *when they answered* — that mismatch
+silently re-cohorts history. It cannot arise here: the likeness is a score
+match read from the same profile document as the description, so both
+halves are today's. The frozen snapshot is untouched everywhere its
+argument applies — the who-voted sheet, the aggregates, every cohort cell.
+
+**3 · Circle's likeness changed meaning**, from answer agreement to score
+match, with agreement as the fallback for anyone sharing no completed
+instrument. Each row names its own basis ("across 4 tests" against "12/20
+the same") because a percentage that silently switches between two claims
+is the kind of number nobody can explain. This is not a new metric: D112
+already made `scoreMatch` primary for the People lens and the similarity
+field, and Circle was the surface that never got moved over. It also ranks
+better — `rankMembers` already carried an overlap tiebreak precisely
+because agreement swings on question luck.
+
+**4 · The one read that is NOT backwards stays.** The who-voted sample —
+`VOTER_FETCH_CAP` answers plus name resolution — is still 60 of the
+remaining 100 `social` reads/user/day, because the Type cut (D146) and the
+takes panel are honest consumers of a *sample*, which is what a sample is
+for. `VOTER_FETCH_CAP` is now the only lever left that thins a surface,
+and it is still not recommended.
+
+### Two things measured rather than argued
+
+**The read shape was forced by `firestore.rules`, not chosen.** Both
+cheaper forms are refused, and the emulator said so rather than reasoning
+doing it: a direct `getDoc` per follow is `permission-denied` when that
+follow has NOT answered — the grant tests `resource.data.surface` and
+`resource` is null for a document that does not exist, so the feature's
+most ordinary input is an error — and one collection-group query with
+`documentId() in [paths]` fails the same way ("Null value error") as soon
+as any path in the batch is missing, which is not knowable in advance.
+Both are now rules cases, so if a future rules edit makes the simpler form
+available, that is how anyone finds out.
+
+**`idle-detach.test.ts` cannot detect deck scope, and that is measured.**
+The foreground re-read change (28 → 4 reads/user/day) shipped WITHOUT a
+test, deliberately. The obvious one passes with the change reverted,
+because the fixture bank holds a single daily question so `computeDeckIds`
+returns one id and "today only" and "the whole deck" are the same list.
+Seeding seven does not fix it either. The neighbouring case — "a poll tick
+asks about today only" — has the same blind spot: widening the poll itself
+to `refreshAggs(state.deckIds)` leaves the whole file green. **A test that
+cannot fail is worse than no test**, so what is committed is the constant,
+`cost-arith.mjs` reading it, and this note. Anyone working on deck scope
+should fix the harness first.
+
+**Not decided here.** Whether to trim `VOTER_FETCH_CAP`, which is the last
+product-degrading lever and is not recommended. And the two console
+answers — the auth billing mode (attested, not read) and App Check on the
+Firestore API (unrecorded) — which are larger than everything above and
+are not code.

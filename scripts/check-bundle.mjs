@@ -505,8 +505,34 @@ if (!DEMO && process.env.VITE_V2_LIVE !== "true") {
 // the entry graph. The feature is bigger and the boot is 15 KB lighter,
 // which is the trade the previous entry describes, run deliberately this
 // time rather than under a failing gate.
+//
+// 2285 → 2295 (2026-08-15): docs/COST-PLAN.md phases 2–4 — the three
+// cross-user surfaces stop reading answers to answer questions about
+// people. voters.ts gains fetchFriendVoters (your follows' answer to one
+// question, asked of each of them) and fetchKindredCandidates (the People
+// lens's pool, queried from v2_users by city); circle.ts splits its member
+// list from its answer fan-out.
+//
+// SEVENTH FIRING, AND THE FIRST ONE THAT IS NOT GROWTH. The six entries
+// above are all features that were asked for. This is three kilobytes
+// bought to remove 64% of the read bill — 435 → 157 reads/user/day, and
+// $4,774 → $2,158 at 500 k DAU. Measured the way the guard insists: 2286
+// against the 2285 ceiling, on a build whose baseline (origin/main, same
+// command) measures 2283, so the three kilobytes are this branch's and not
+// inherited. The band is the usual ~10 KB above the measurement, for the
+// reason the 2245 entry gives — an alarm re-armed one kilobyte from the
+// wall fires on the next feature.
+//
+// THE EAGER GRAPH WENT UP, 963 → 966, and that is worth naming rather than
+// passing over because it is green. voters.ts is imported eagerly by
+// live.ts, so both new fetches land in the entry graph; circle.ts is behind
+// a dynamic import and its half does not. Three kilobytes against 12 KB of
+// remaining headroom (966 of 978), so MAX_EAGER_KB is NOT raised and the
+// Firestore-SDK guarantee it exists for is intact. If a later change needs
+// that headroom, the honest fix is to move the two fetches behind the
+// dynamic import their callers already sit behind, not to raise this.
 const MAX_CHUNK_KB = 735;
-const MAX_TOTAL_JS_KB = 2285;
+const MAX_TOTAL_JS_KB = 2295;
 // 955 → 966 (2026-08-14): D139's pulse card — the second fixed instrument
 // on the FIRST screen, so its card, its store's demo furniture and the
 // two LIVE members are legitimately eager (~10 KB min). What is not

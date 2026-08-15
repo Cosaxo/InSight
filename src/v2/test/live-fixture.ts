@@ -280,10 +280,20 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
       {
         uid: "u_other", name: "Ada", mutual: true,
         like: { shared: 2, same: 1, pct: 50 },
-        answers: { "daily-000": 1, "daily-001": 0 },
+        // Scored, so the mount walks the PRIMARY basis rather than only
+        // the fallback — the member row prints "across 1 test · 78%" here
+        // and would print "1/2 the same · 50%" for a member with none.
+        score: { match: 78, axes: 5, tests: 1 },
       },
     ],
     circleLoading: () => false,
+    // Answers already loaded in the fixture, so the mount reaches the
+    // splits section rather than stopping at its cost gate. The gated
+    // state is the DEFAULT in the app and has its own case.
+    loadCircleAnswers: async () => {},
+    circleAnswers: () => ({ u_other: { "daily-000": 1, "daily-001": 0 } }),
+    circleAnswersLoaded: () => true,
+    circleAnswersLoading: () => false,
     isFollowing: (u: string) => u === "u_other",
     setFollowing: async () => {},
     // The follow SET (D149) — the same graph the fold above describes, so
@@ -302,6 +312,17 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
       [{ uid: "u_other", optionIdx: 1, anchors: {}, name: "", isMe: false }],
     ],
     votersLoading: () => false,
+    // The Friends cut's own read. Returns only `u_other` — the account
+    // `follows` above names — because that is what the real loader does:
+    // it asks your follows directly rather than filtering the sample in
+    // `voters`, so the viewer's own row is not in it to be filtered out.
+    // A fixture that returned the `voters` list here would let the panel
+    // go back to filtering and still pass.
+    loadFriendVoters: async () => {},
+    friendVoters: () => [
+      { uid: "u_other", optionIdx: 1, anchors: {}, name: "", isMe: false },
+    ],
+    friendVotersLoading: () => false,
     // The who-voted sheet's type cut (data/typeSplit.ts). Both branches
     // reachable from one list: `u_fixture` carries a readable Big Five and
     // types, `u_other` has none and lands in the gap between `sampleN` and

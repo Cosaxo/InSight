@@ -45,6 +45,9 @@ const LIVE = vi.hoisted(() => ({
   loadVoters: vi.fn(async (qid: string) => { void qid; }),
   voters: (qid: string) => { void qid; return null as Voter[] | null; },
   votersLoading: (qid: string) => { void qid; return false as boolean; },
+  loadFriendVoters: vi.fn(async (qid: string) => { void qid; }),
+  friendVoters: (qid: string) => { void qid; return null as Voter[] | null; },
+  friendVotersLoading: (qid: string) => { void qid; return false as boolean; },
   loadFollows: vi.fn(async () => {}),
   follows: () => null as string[] | null,
   followsLoading: () => false as boolean,
@@ -90,6 +93,9 @@ beforeEach(() => {
   LIVE.voters = () => [];
   LIVE.votersLoading = () => false;
   LIVE.loadVoters = vi.fn(async () => {});
+  LIVE.friendVoters = () => [];
+  LIVE.friendVotersLoading = () => false;
+  LIVE.loadFriendVoters = vi.fn(async () => {});
   LIVE.follows = () => [];
   LIVE.followsLoading = () => false;
   LIVE.loadFollows = vi.fn(async () => {});
@@ -261,18 +267,26 @@ describe("LiveBreakdownPanel · the Friends cut", () => {
   });
 
   it("names the friends who answered, with the side each picked", () => {
+    // Reads `friendVoters`, NOT `voters`. The two are different questions
+    // (see live-surface.ts): `voters` is the newest VOTER_FETCH_CAP
+    // answers from anyone, and this cut is your follows, asked directly.
+    // The panel no longer filters by uid, so a stranger cannot appear
+    // here — the query never asked for one.
     LIVE.follows = () => FRIENDS;
-    LIVE.voters = () => [
+    LIVE.friendVoters = () => [
       v({ uid: "f1", name: "Ada", optionIdx: 0 }),
       v({ uid: "f2", name: "Bo", optionIdx: 1 }),
+    ];
+    // Populated and deliberately contradictory: if the panel ever goes
+    // back to filtering the sample, "Stranger" appears and this fails.
+    LIVE.voters = () => [
+      v({ uid: "f1", name: "Ada", optionIdx: 0 }),
       v({ uid: "zz", name: "Stranger", optionIdx: 0 }),
     ];
     render(<LiveBreakdownPanel qid="q1" options={OPTS} mine={0} />);
     fireEvent.click(chip("Friends"));
     expect(screen.getByText("Ada")).toBeTruthy();
     expect(screen.getByText("Bo")).toBeTruthy();
-    // Only people you follow. A stranger on the same question belongs to
-    // the percentages, not to this list.
     expect(screen.queryByText("Stranger")).toBeNull();
     // Ada picked what you picked; Bo did not.
     expect(screen.getByText(/1 of 2 friends are on your side/)).toBeTruthy();
@@ -283,16 +297,34 @@ describe("LiveBreakdownPanel · the Friends cut", () => {
     // friends into the denominator would report a majority against you
     // that nobody voted for.
     LIVE.follows = () => FRIENDS;
-    LIVE.voters = () => [v({ uid: "f1", name: "Ada", optionIdx: 0 })];
+    LIVE.friendVoters = () => [v({ uid: "f1", name: "Ada", optionIdx: 0 })];
     render(<LiveBreakdownPanel qid="q1" options={OPTS} mine={0} />);
     fireEvent.click(chip("Friends"));
     expect(screen.getByText(/1 of 1 friend is on your side/)).toBeTruthy();
     expect(screen.queryByText(/of 3/)).toBeNull();
   });
 
+  it("no longer caps the list at the who-voted window", () => {
+    // The change this cut exists to record. It used to filter the newest
+    // VOTER_FETCH_CAP answers from anyone, so a friend who answered
+    // before that window silently vanished — wrong in the direction that
+    // looks like an answer, and worse the bigger the app got. An empty
+    // `voters` sample with a populated `friendVoters` is exactly that
+    // case: the friend is outside the window and must still be named.
+    LIVE.follows = () => FRIENDS;
+    LIVE.voters = () => [];
+    LIVE.friendVoters = () => [v({ uid: "f1", name: "Ada", optionIdx: 0 })];
+    render(<LiveBreakdownPanel qid="q1" options={OPTS} mine={0} />);
+    fireEvent.click(chip("Friends"));
+    expect(screen.getByText("Ada")).toBeTruthy();
+    // …and the disclaimer that stood in for the fix is gone with it.
+    expect(screen.queryByText(/newest 200 answers/i)).toBeNull();
+    expect(screen.queryByText(/may not be here yet/i)).toBeNull();
+  });
+
   it("does not claim a side before you have one", () => {
     LIVE.follows = () => FRIENDS;
-    LIVE.voters = () => [v({ uid: "f1", name: "Ada", optionIdx: 0 })];
+    LIVE.friendVoters = () => [v({ uid: "f1", name: "Ada", optionIdx: 0 })];
     render(<LiveBreakdownPanel qid="q1" options={OPTS} />);
     fireEvent.click(chip("Friends"));
     expect(screen.getByText(/how your friend answered/i)).toBeTruthy();
@@ -307,7 +339,10 @@ describe("LiveBreakdownPanel · the Friends cut", () => {
 
     cleanup();
     LIVE.follows = () => FRIENDS;
-    LIVE.voters = () => [v({ uid: "zz", name: "Stranger", optionIdx: 0 })];
+    // Empty rather than "a stranger the panel filters out": the loader
+    // asks only your follows, so "none of them answered" arrives as an
+    // empty list rather than as a list with nothing of yours in it.
+    LIVE.friendVoters = () => [];
     render(<LiveBreakdownPanel qid="q1" options={OPTS} />);
     fireEvent.click(chip("Friends"));
     expect(screen.getByText(/none of the people you follow has answered/i)).toBeTruthy();
@@ -319,6 +354,7 @@ describe("LiveBreakdownPanel · the Friends cut", () => {
     // freezing a failure into "you follow nobody" is the same class of lie
     // the old floor's silent gaps were.
     LIVE.follows = () => null;
+    LIVE.friendVoters = () => null;
     LIVE.followsLoading = () => true;
     render(<LiveBreakdownPanel qid="q1" options={OPTS} />);
     fireEvent.click(chip("Friends"));
@@ -337,10 +373,15 @@ describe("LiveBreakdownPanel · the Friends cut", () => {
     LIVE.follows = () => FRIENDS;
     render(<LiveBreakdownPanel qid="q1" options={OPTS} />);
     expect(LIVE.loadFollows).toHaveBeenCalledTimes(0);
-    expect(LIVE.loadVoters).toHaveBeenCalledTimes(0);
+    expect(LIVE.loadFriendVoters).toHaveBeenCalledTimes(0);
     fireEvent.click(chip("Friends"));
     expect(LIVE.loadFollows).toHaveBeenCalledTimes(1);
-    expect(LIVE.loadVoters).toHaveBeenCalledTimes(1);
+    expect(LIVE.loadFriendVoters).toHaveBeenCalledTimes(1);
+    // And it does NOT drag the 200-answer sample in behind it. That fetch
+    // still exists for the type cut, which is a statistic over a sample
+    // and wants one; opening Friends used to force it, which is the read
+    // this change removes.
+    expect(LIVE.loadVoters).toHaveBeenCalledTimes(0);
   });
 });
 

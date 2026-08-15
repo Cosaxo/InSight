@@ -29,7 +29,7 @@ import {
 import { renderPulse } from "./pulse-render.mjs";
 import {
   costModel, DECK_DAYS, AGG_CAP, PUBLISH_EVERY, TRIG, B, writesPerSec, CONTENTION_DAU,
-  VOTER_FETCH_CAP, KINDRED_QUESTIONS, FOLLOW_CAP, CIRCLE_ANSWER_CAP, IDLE_DETACH_MS,
+  VOTER_FETCH_CAP, KINDRED_CANDIDATE_CAP, FOLLOW_CAP, CIRCLE_ANSWER_CAP, IDLE_DETACH_MS,
   AGG_POLL_MS, POLL_DOCS,
 } from "./cost-arith.mjs";
 
@@ -109,8 +109,11 @@ describe("cost-arith reads its constants from source, not from memory", () => {
     // re-derives the model on the next run instead of drifting from it.
     expect(VOTER_FETCH_CAP).toBe(
       Number(read("src/v2/data/voters.ts").match(/VOTER_FETCH_CAP = (\d+)/)[1]));
-    expect(KINDRED_QUESTIONS).toBe(
-      Number(read("src/v2/data/live.ts").match(/KINDRED_QUESTIONS = (\d+)/)[1]));
+    // Was KINDRED_QUESTIONS in live.ts — the answers the People lens
+    // walked to assemble a pool. The pool is queried directly now, so the
+    // bound moved to the candidate cap and the model moved with it.
+    expect(KINDRED_CANDIDATE_CAP).toBe(
+      Number(read("src/v2/data/voters.ts").match(/KINDRED_CANDIDATE_CAP = (\d+)/)[1]));
     expect(FOLLOW_CAP).toBe(
       Number(read("src/v2/data/circle.ts").match(/FOLLOW_CAP = (\d+)/)[1]));
     expect(CIRCLE_ANSWER_CAP).toBe(

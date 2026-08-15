@@ -1,14 +1,41 @@
 # Is that a lot? InSight's bill against other apps'
 
-> **Superseded in its conclusion by D129 (2026-08-13), and kept for its
-> method.** This page's finding was that the app was cheap in absolute terms
-> and badly shaped — cost per user rising 87× between 500 and 500,000 DAU,
-> and passing Snapchat's per-user infrastructure cost at ~361 k DAU. That
-> analysis is what prompted the fix. The deck is polled now, the fan-out is
-> gone, and the same script prints a **flat 2.1× rise and a B at every
-> size**. The peer table, the denominators and the skews below are unchanged
-> and still the way to re-run this; the grades and multiples in the prose
-> are the pre-D129 ones. `npm run costs:compare` prints today's.
+> **Superseded in its conclusion twice over, and kept for its method.**
+> This page's finding was that the app was cheap in absolute terms and
+> badly shaped — cost per user rising 87× between 500 and 500,000 DAU, and
+> passing Snapchat's per-user infrastructure cost at ~361 k DAU. That
+> analysis is what prompted the fix, and the fix came in two stages:
+>
+> - **D129** replaced the streamed deck with a poll, which removed the
+>   quadratic fan-out.
+> - **`docs/COST-PLAN.md`** then found that the three cross-user surfaces
+>   were reading *answers* to answer questions about *people* — the
+>   Friends cut sampling 200 recent answers hoping your follows were among
+>   them, Kindred reading ~2,400 to build a pool it ranked on profile
+>   scores. Asking directly took the bill from $4,774 to **$2,158** at
+>   500 k DAU and made all three surfaces more correct.
+>
+> Today the script prints **a B at every size from 3 k up, an A at 500,
+> and reads/user/day that are IDENTICAL at 5 k, 50 k and 500 k** — flat,
+> where this page's whole argument was about a slope. Snap and Signal are
+> never overtaken at any size.
+>
+> One number below still reads alarmingly and should not: the unit-cost
+> rise is now 3.7×, *worse* than the 2.1× D129 left, because the fixes
+> divided the small end by more than the big end while every absolute
+> figure fell. Measured above the free tier — 5 k to 500 k — it is 1.19×.
+> That is the trap `COST-REDUCTION.md` names as path A, seen from the
+> other side: a ratio between two shrinking numbers is not a shape.
+>
+> The peer table, the denominators and the skews below are unchanged and
+> still the way to re-run this; the grades and multiples in the prose are
+> the pre-D129 ones. `npm run costs:compare` prints today's.
+>
+> **The largest unpriced item is no longer on this page at all.** If the
+> project is on Identity Platform billing, auth alone exceeds the entire
+> infrastructure bill from 50 k DAU up (COSTS.md finding 3) — a console
+> setting, still unrecorded, and worth more than everything this page
+> measures.
 
 [`docs/COSTS.md`](COSTS.md) answers *what will this cost*. This answers *is
 that a lot*, which is a different question and needs something the model

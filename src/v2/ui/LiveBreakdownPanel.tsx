@@ -51,7 +51,6 @@
 // roster as the answer to "how did everyone vote".
 import React from "react";
 import LIVE from "../data/live";
-import { VOTER_FETCH_CAP } from "../data/voters";
 import { bucketLabel } from "./cohortLabels";
 import {
   COHORT_DIMS, DIM_LABEL, cellFor, divergence, mixFor, pctFor, byOf,
@@ -197,11 +196,15 @@ function LbFriends({ qid, options, mine }: {
   qid: string; options: string[]; mine: number;
 }) {
   React.useEffect(() => { void LIVE.loadFollows(); }, []);
-  React.useEffect(() => { void LIVE.loadVoters(qid); }, [qid]);
-
+  // Depends on the follow list, so it re-runs when that lands — the loader
+  // returns early while `follows` is still null, and this is what asks it
+  // again afterwards. Ordering the two effects would not do it: the first
+  // is async and the second would still see null on the mount pass.
   const follows = LIVE.follows();
-  const voters = LIVE.voters(qid);
-  const loading = LIVE.followsLoading() || LIVE.votersLoading(qid);
+  React.useEffect(() => { void LIVE.loadFriendVoters(qid); }, [qid, follows]);
+
+  const voters = LIVE.friendVoters(qid);
+  const loading = LIVE.followsLoading() || LIVE.friendVotersLoading(qid);
 
   if (!follows || !voters) {
     return (
@@ -221,9 +224,12 @@ function LbFriends({ qid, options, mine }: {
     );
   }
 
-  const set = new Set(follows);
+  // No uid filter any more — `friendVoters` asked your follows directly,
+  // so every row is already one of them. What survives is the option
+  // bounds check, which guards against a question whose option list has
+  // been edited under answers that referenced the old one.
   const rows = voters
-    .filter((v) => set.has(v.uid) && v.optionIdx >= 0 && v.optionIdx < options.length)
+    .filter((v) => v.optionIdx >= 0 && v.optionIdx < options.length)
     // Your side first, so "who agrees with me" is the top of the list
     // rather than something to scan for; then by option, then by name so
     // the order is stable between opens.
@@ -281,15 +287,13 @@ function LbFriends({ qid, options, mine }: {
           </div>
         );
       })}
-      {/* The bound is the voter fetch's, and it is worth saying once: a
-          friend who answered outside the newest page is missing from this
-          list, not from the question. */}
-      {voters.length >= VOTER_FETCH_CAP && (
-        <span style={{ fontFamily: "var(--sans)", fontSize: 11.5, fontWeight: 500, color: "var(--ink-3)" }}>
-          Read from the newest {VOTER_FETCH_CAP} answers — an older answer
-          from a friend may not be here yet.
-        </span>
-      )}
+      {/* No bound note any more, and its removal is the point of the
+          change rather than a tidy-up. This used to read "Read from the
+          newest 200 answers — an older answer from a friend may not be
+          here yet", because the list was a filter over a recency window
+          and a friend outside it silently vanished. The list is now asked
+          of your follows directly, so it is exact: everyone you follow
+          who answered is here, however long ago they did. */}
     </div>
   );
 }

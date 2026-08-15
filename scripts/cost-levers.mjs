@@ -30,7 +30,7 @@
 // Those three fields are stated per lever so they can be argued with; only
 // the dollars are computed.
 
-import { costModel, totalCost, SCENARIOS } from "./cost-arith.mjs";
+import { costModel, totalCost, SCENARIOS, DECK_DAYS } from "./cost-arith.mjs";
 import { rate, money, unit, int } from "./cost-peers.mjs";
 
 // Both price sheets built once: costModel() re-reads and re-parses the seed
@@ -82,26 +82,46 @@ const LEVERS = [
   },
   {
     band: "client",
-    name: "Refresh only today on foreground",
+    name: "[SHIPPED] Refresh only today on foreground",
     change: "reattach reads DECK_DAYS -> 1 (the back days keep their boot values)",
-    opts: { deckListeners: 1 },
-    effort: "hours",
-    risk: "low",
-    // Now the SECOND-largest client term, because polling removed the one
+    // Inverted, the same way the polling row below is: FOREGROUND_AGG_DOCS
+    // is now cost-arith's default, so this prices what REVERTING to a
+    // whole-deck foreground would cost rather than what the change is
+    // worth. Kept in the list rather than deleted for the same reason that
+    // row gives.
+    opts: { deckListeners: DECK_DAYS },
+    // The flag section 1 reads to flip the comparison. Without it the row
+    // prints what REVERTING would add wearing the sign of a saving, which
+    // is a straightforward lie about which way the app has moved — and the
+    // first draft of this entry got it exactly that way round.
+    shipped: true,
+    effort: "shipped",
+    risk: "shipped",
+    // Was the SECOND-largest client term, because polling removed the one
     // that used to dwarf it: `reattach` is bgCycles x DECK_DAYS reads a day
-    // against the poll's own handful. The app refreshes the whole deck on
-    // every foreground, which is the conservative choice; this lever is the
-    // less conservative one.
+    // against the poll's own handful. A rollover still takes the whole deck
+    // — on a rollover the seven ids have all changed, so those are seven
+    // different documents rather than the same six again.
     notices: "a back day's count can lag until the next cold boot",
   },
   {
     band: "product",
-    name: "Kindred walks 4 lists, not 12",
-    change: "KINDRED_QUESTIONS 12 -> 4",
-    opts: { social: { kindredQuestions: 4 } },
-    effort: "one constant",
-    risk: "low",
-    notices: "a thinner People lens — ranked from 4 of your answers, not 12",
+    name: "[SHIPPED] Kindred queries people, not answers",
+    change: "12 voter lists (~2,400 answers) -> KINDRED_CANDIDATE_CAP profiles",
+    // Inverted like the other shipped rows: prices what REVERTING to the
+    // answer-walk would cost. `kindredCandidates` is the model's input,
+    // so the old world is the candidate count the walk really produced —
+    // 12 questions x VOTER_FETCH_CAP voters, each charged twice for name
+    // resolution.
+    opts: { social: { kindredCandidates: 12 * 200 * 2 } },
+    shipped: true,
+    effort: "shipped",
+    risk: "shipped",
+    // The old lever here was "walk 4 lists instead of 12", which bought a
+    // third of a term by making the People lens a third as good. It is
+    // gone because the term it trimmed is gone: the pool is no longer
+    // assembled from answers, so there are no lists to walk.
+    notices: "nothing thinner — the pool is your city rather than whoever answered recently",
   },
   {
     band: "product",
@@ -114,12 +134,15 @@ const LEVERS = [
   },
   {
     band: "product",
-    name: "Circle reads 100 answers/member",
-    change: "CIRCLE_ANSWER_CAP 300 -> 100",
-    opts: { social: { circleAnswerCap: 100 } },
-    effort: "one constant",
-    risk: "low",
-    notices: "Circle compares over ~5 weeks of a member's answers, not ~13",
+    name: "[SHIPPED] Circle's answer fan-out waits to be asked",
+    change: "answers on open -> one profile each; answers on the splits tap",
+    // Reverting means the splits read runs on every open again, so the
+    // old world is circleSplitOpens == circleOpens.
+    opts: { social: { circleSplitOpens: 0.1 } },
+    shipped: true,
+    effort: "shipped",
+    risk: "shipped",
+    notices: "the splits section costs a tap; the ranking got clearer and stabler",
   },
   {
     band: "architecture",
@@ -238,30 +261,27 @@ const PATHS = [
     note: "the one remaining zero-product-change lever, and it has a deadline",
   },
   {
-    name: "R + the remaining client trim",
-    opts: merge(pick("Refresh only today on foreground", "Serve the bank off Hosting"),
-      { regional: true, streamAggs: false }),
-    note: "nothing a user can see, beyond a back day's count lagging a boot",
+    name: "R + the bank off Hosting",
+    opts: merge(pick("Serve the bank off Hosting"), { regional: true }),
+    note: "nothing a user can see; cold boot gets faster",
   },
   {
-    name: "A · Keep it live",
-    opts: pick("Kindred walks 4 lists, not 12", "Who-voted pages at 50",
-      "Circle reads 100 answers/member", "Batch the mirror publish (x5)",
-      "Serve the bank off Hosting"),
-    note: "the cap trims on top of what shipped — the product-degrading path",
+    name: "T · The last cap trim",
+    opts: pick("Who-voted pages at 50", "Serve the bank off Hosting"),
+    // Paths A/B/C used to stack three cap trims — Kindred's list count,
+    // Circle's answer cap and this one. Two of those three are gone, and
+    // not because the caps moved: the surfaces stopped reading answers to
+    // do a job profiles do better, so there is nothing left to trim on
+    // either. `VOTER_FETCH_CAP` is the only product-degrading lever this
+    // file still has, which is why the three-path ladder collapsed to one
+    // row. It remains NOT recommended.
+    note: "the only lever left that thins a surface — the who-voted sample",
   },
   {
-    name: "B · Go polled",
-    opts: pick("Kindred walks 4 lists, not 12", "Who-voted pages at 50",
-      "Circle reads 100 answers/member", "Serve the bank off Hosting"),
-    note: "same as A without the publish batching",
-  },
-  {
-    name: "C · B + single region",
-    opts: merge(pick("Kindred walks 4 lists, not 12", "Who-voted pages at 50",
-      "Circle reads 100 answers/member", "Serve the bank off Hosting"),
-    { regional: true }),
-    note: "the same, on a single-region database — decide before the seed",
+    name: "T + single region",
+    opts: merge(pick("Who-voted pages at 50", "Serve the bank off Hosting"),
+      { regional: true }),
+    note: "everything available at once, product cost included",
   },
 ];
 

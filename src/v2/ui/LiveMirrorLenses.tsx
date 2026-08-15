@@ -462,9 +462,21 @@ function PeopleLens({ qs, scope, shortName }: {
             {/* The metric, in one sentence, on the screen that uses it —
                 a likeness number nobody can explain is a number nobody
                 should trust. */}
+            {/* The basis, restated when the pool stopped being assembled
+                from answers. It used to say "across your last 12" — the
+                questions the ranking walked to find these people — which
+                described a mechanism rather than a claim, and stopped
+                being true the moment the pool came from a query. What it
+                says now is where the people came from and what places
+                them, which is what a reader would ask. */}
             <span style={{ fontFamily: "var(--sans)", fontSize: 11.5, fontWeight: 500, color: "var(--ink-3)", marginTop: 2, lineHeight: 1.5 }}>
-              Share of the questions you have both answered where you picked the
-              same option, across your last {LIVE.kindredDepth()}.
+              {LIVE.kindredDepth()
+                ? <>One hundred minus the average gap between your test scores and
+                  theirs, across {LIVE.kindredDepth()} people near you. Where you
+                  share no completed test, the share of the questions you have both
+                  answered where you picked the same option.</>
+                : <>Share of the questions you have both answered where you picked
+                  the same option.</>}
             </span>
           </div>
         )}

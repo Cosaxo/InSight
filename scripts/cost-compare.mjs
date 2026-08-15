@@ -198,10 +198,17 @@ try {
     x(ratio(500_000, true, 3, 12)) + " at 500 k   (sub-linear to linear)");
   console.log("  10x the users            ->  " +
     x(pop(5_000, 50_000)) + " the bill from 5 k, " +
-    x(pop(50_000, 500_000)) + " from 50 k          (super-linear)");
-  console.log("\n  That gap is the whole story. Engagement is a cost this app can afford to");
-  console.log("  encourage; population is one it currently cannot, because the dominant");
-  console.log("  term is a listener fan-out that scales with the SQUARE of the population.");
+    x(pop(50_000, 500_000)) + " from 50 k          (linear)");
+  console.log("\n  Both exponents are now ordinary, and the second one is the news. This note");
+  console.log("  used to end 'population is a cost this app cannot afford, because the");
+  console.log("  dominant term is a listener fan-out that scales with the SQUARE of the");
+  console.log("  population' — true when it was written, and false in two stages since:");
+  console.log("  D129 replaced the fan-out with a poll, and the three cross-user surfaces");
+  console.log("  then stopped reading answers to answer questions about people. What is");
+  console.log("  left is FLAT per user — identical reads/user/day at 5 k, 50 k and 500 k —");
+  console.log("  so ten times the users costs about ten times the money. The residual above");
+  console.log("  10x is the free tier being a larger share of the smaller bill, not a");
+  console.log("  superlinear term.");
 }
 
 // ── 6. the rating ───────────────────────────────────────────────
@@ -236,8 +243,12 @@ console.log("\n  Grade thresholds are relative to the same-stack benchmark (" + 
 // This is not a recommendation to build them now. It is the price tag on
 // the deferral, which is the thing D7's discipline asks for and the thing a
 // grade on its own does not give you.
-console.log("\n\n7 · The same rating, if the two fixes COSTS.md already records were built");
-console.log("     DAU     as built    with fixes    saved   grade: now -> fixed");
+// The heading said "the two fixes COSTS.md already records" while the table
+// below applied ONE — `staticBank`. The other was polling, which shipped at
+// D129, so it had been counted as pending and modelled as absent for as long
+// as it had been the default. One fix, named.
+console.log("\n\n7 · The same rating, with the ONE remaining read fix: the bank off Hosting");
+console.log("     DAU     as built     with fix    saved   grade: now -> fixed");
 console.log("-".repeat(102));
 for (const s of SIZES) {
   const now = totalCost(model(s.dau, s.mature).cost);
@@ -248,6 +259,12 @@ for (const s of SIZES) {
     rate(now / s.dau)[0] + " -> " + rate(fixed / s.dau)[0],
   );
 }
-console.log("\n  The fan-out is the whole gap: polling instead of streaming removes the only");
-console.log("  term that grows with the square of the population, which is what turns the");
-console.log("  bottom row from an F into a grade an ordinary app would recognise.\n");
+console.log("\n  A rounding error now, and that is the point rather than a disappointment.");
+console.log("  This note used to read 'the fan-out is the whole gap: polling instead of");
+console.log("  streaming turns the bottom row from an F into a grade an ordinary app would");
+console.log("  recognise' — which was true, and is now history: polling shipped, and the");
+console.log("  bottom row grades B before this column is applied. Serving the bank off");
+console.log("  Hosting is worth about 1% and should be built for the cold-boot time.");
+console.log("\n  The largest unpriced item is no longer in this file at all. If the project");
+console.log("  is on Identity Platform billing, auth alone exceeds every column above at");
+console.log("  50 k DAU and up (docs/COSTS.md finding 3) — a console setting, not code.\n");
