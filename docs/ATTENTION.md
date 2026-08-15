@@ -4,6 +4,14 @@
 proposal, with what it reverses named at the top and the failure modes
 named at the bottom.
 
+> **Superseded in two places by [`SCALE-PLAN.md`](SCALE-PLAN.md)
+> (2026-08-15).** That document takes an infinite feed as a given, which
+> this one does not: §5's "ship tier 1 and stop" no longer resolves at an
+> unbounded bank, and §3's feed/Mirror separability has a gap it names.
+> Both are flagged inline below. Everything else here stands — the cost
+> rule, the signal table, and the shown-and-editable requirement are the
+> parts SCALE-PLAN builds on.
+
 Two asks, and they look like one feature but are not:
 
 - **A · Does anyone like Foresight?** Do people play it or scroll past?
@@ -126,6 +134,16 @@ filter bubble wearing a Mirror's clothes — the feature would quietly
 destroy the thing it is decorating. One blind question a day, the same
 one for everyone, is load-bearing.
 
+**The gap in that sentence, found 2026-08-15.** It treats "shapes the
+feed" and "shapes the Mirror" as separable, and they are not quite: **the
+feed is what produces the data the Mirror reads.** If interests select
+the feed, then who answers a question is interest-selected, and the fold
+over those answers is arithmetically correct while the claim it supports
+is wrong. Leaving the Mirror's read path untouched is therefore not
+sufficient. [`SCALE-PLAN.md`](SCALE-PLAN.md) §1 carries the fix — a core
+corpus served to everyone, which is the only part of the bank the
+Mirror folds over.
+
 ## 4 · Tier 3 — anonymous aggregate, for "does anyone like Foresight"
 
 The only tier that sends anything, and the only one that touches the
@@ -200,3 +218,13 @@ Tier 1, now. It is small, it reverses nothing, it answers the interest
 half of the question honestly, and it is the only version where the user
 is told what the app thinks of them. Then look at whether anyone taps it
 before building a model to infer what they would have tapped.
+
+**Overtaken 2026-08-15, and worth reading as a dated recommendation
+rather than a wrong one.** This advice is correct for a bank of a few
+hundred questions, where a hand-edited topic list can plausibly order the
+feed and tier 2 might genuinely prove redundant. The owner has since
+decided the feed should be unbounded, and at that size a stated-preference
+list cannot order anything — so tier 1 stops being an alternative to tier
+2 and becomes its editing surface. That is the better shape anyway: it is
+what makes the model shown and editable, which §3 already argues is the
+only version of this that fits the product.
