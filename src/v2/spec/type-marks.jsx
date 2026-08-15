@@ -9,6 +9,9 @@ import { RP_TESTS } from './result-rose.jsx';
 import { Sheet } from './primitives.jsx';
 import { IS_ARCHETYPES } from './archetype-data.js';
 import { IS_TEST_RESULTS } from './test-definitions.js';
+import LIVE from '../data/live';
+// How common a type actually is, counted (D157) — see TypeIndexSheet.
+import { myTypeOn, typeSharesOn } from '../data/typeMix.ts';
 
 // type-marks.jsx — data-true type marks. A type's mark IS its signature.
 // Archetype signatures are built EXTREME on 1–2 defining axes and near-neutral
@@ -138,6 +141,28 @@ export function typeSplit(testKey, name, values) {
 }
 
 // ── the type index: every type in a test — mark, one-liner, how common ──
+//
+// "How common" was `IS_ARCHETYPES[].share` until D157: hand-authored
+// percentages, drawn as a bar chart under the heading `bar = how common`,
+// on the sheet you open from a card that has just named your own type.
+// The same defect D149 took off the learn reveal, and the same fix —
+// `typeSharesOn` counts the session's cached sample and the sheet says
+// what it counted, or the column is not there at all.
+//
+// Three states, and the middle one is the release this was reported
+// against:
+//   demo          the authored share, because the whole population there
+//                 is authored and there is nothing to measure
+//   live, thin    no share column, one line saying why. Not a bar at 0%:
+//                 that reads as "nobody is this type", which is a much
+//                 stronger claim than "we have not counted anyone yet"
+//   live, counted the measured count and share over the stated basis
+//
+// The measured fold is Big Five only, which is the Art. 9 scope
+// docs/data-inventory.md draws and `typeMix.TYPE_TEST` enforces. So the
+// politics, values and social sheets lose their shares in a live build
+// and gain nothing — the alternative was keeping a fabricated number on
+// three sheets to avoid noticing it was fabricated on the fourth.
 function TypeIndexSheet({ testKey, onClose }) {
   const [closing, setClosing] = React.useState(false);
   const close = () => { if (closing) return; setClosing(true); setTimeout(onClose, 230); };
@@ -147,20 +172,47 @@ function TypeIndexSheet({ testKey, onClose }) {
   if (!sys || !host) return null;
   const R = IS_TEST_RESULTS[testKey];
   const arch = R && R.dims && window.IS_matchArchetype ? window.IS_matchArchetype(testKey, R.dims) : null;
-  const yours = arch ? arch.list[arch.idx].name : null;
-  const list = sys.list.slice().sort((a, b) => (b.share || 0) - (a.share || 0));
-  const maxShare = list[0].share || 1;
+  const yours = arch ? arch.list[arch.idx].name : (LIVE.enabled ? myTypeOn(testKey) : null);
+  // Measured counts, keyed by name, or null when there is no measurement
+  // to be had. `typedN` 0 is a real answer and not the same as null: it
+  // means the sample was read and nobody in it carries a result.
+  const shares = typeSharesOn(testKey);
+  const counted = !!shares && shares.typedN > 0;
+  const byName = counted ? Object.fromEntries(shares.rows.map((r) => [r.name, r])) : null;
+  const list = sys.list.slice().sort(counted
+    ? (a, b) => (byName[b.name].n - byName[a.name].n) || a.name.localeCompare(b.name)
+    // Live-but-thin keeps the authored ORDER rather than the authored
+    // number: an order is not a percentage and nothing on screen reads it
+    // as one, while alphabetising thirteen types would be a worse sheet
+    // for no honesty gained.
+    : (a, b) => (b.share || 0) - (a.share || 0));
+  const top = counted ? Math.max(1, ...shares.rows.map((r) => r.n)) : (list[0].share || 1);
   const banner = cfg ? cfg.banner : 'var(--accent)';
+  // What the right-hand column is measured over — said once in the
+  // header, so no row has to carry a denominator.
+  const caption = counted
+    ? `of ${shares.typedN} ${shares.typedN === 1 ? 'person' : 'people'} counted`
+    : LIVE.enabled ? null : 'bar = how common';
   return ReactDOM.createPortal(
     <Sheet onClose={close} closing={closing} label={`The ${list.length} types`}>
         <div style={{ padding: '10px 18px 4px', display: 'flex', alignItems: 'baseline', gap: 10 }}>
           <span style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 15, flex: 1 }}>The {list.length} types</span>
-          <span style={{ fontFamily: 'var(--sans)', fontSize: 11, fontWeight: 600, color: 'var(--ink-3)' }}>bar = how common</span>
+          {caption ? <span style={{ fontFamily: 'var(--sans)', fontSize: 11, fontWeight: 600, color: 'var(--ink-3)' }}>{caption}</span> : null}
           <button onClick={close} aria-label="Close" style={{ border: 'none', background: 'var(--surface-2)', width: 26, height: 26, borderRadius: '50%', cursor: 'pointer', fontSize: 13, fontWeight: 800, color: 'var(--ink-2)', flexShrink: 0, alignSelf: 'center', WebkitAppearance: 'none' }}>{'\u2715'}</button>
         </div>
         <div className="wf-sheet-body" style={{ display: 'flex', flexDirection: 'column' }}>
+          {LIVE.enabled && !counted ? (
+            <div style={{ padding: '4px 2px 12px', fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)', lineHeight: 1.45, textWrap: 'pretty' }}>
+              {!shares
+                ? 'How common each type is is only counted for the Big Five.'
+                : shares.sampleN === 0
+                  ? 'How common each type is needs people to count — open a question’s who-voted sheet and this fills in.'
+                  : `${shares.sampleN} ${shares.sampleN === 1 ? 'person' : 'people'} counted so far, ${shares.sampleN === 1 ? 'without' : 'none of them with'} a result to read yet.`}
+            </div>
+          ) : null}
           {list.map((a, i) => {
             const you = a.name === yours;
+            const row = byName ? byName[a.name] : null;
             return (
               <div key={a.name} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 2px', borderTop: i === 0 ? 'none' : '0.5px solid color-mix(in oklch, var(--rule), transparent 25%)', background: you ? `linear-gradient(90deg, color-mix(in oklch, ${banner} 9%, transparent), transparent 70%)` : 'none', borderRadius: you ? 10 : 0 }}>
                 <TypeMark testKey={testKey} name={a.name} size={38}></TypeMark>
@@ -171,10 +223,23 @@ function TypeIndexSheet({ testKey, onClose }) {
                   </div>
                   <div style={{ fontFamily: 'var(--sans)', fontSize: 12, color: 'var(--ink-2)', lineHeight: 1.35, marginTop: 2, textWrap: 'pretty' }}>{a.line}</div>
                 </div>
-                <div style={{ flexShrink: 0, width: 58, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }} title={a.share + '% of people land here'}>
-                  <span style={{ fontFamily: 'var(--sans)', fontSize: 11, fontWeight: 700, color: 'var(--ink-3)', fontVariantNumeric: 'tabular-nums' }}>{a.share}%</span>
-                  <span style={{ width: '100%', height: 4, borderRadius: 999, background: 'color-mix(in oklch, var(--ink-3) 16%, transparent)' }}><span style={{ display: 'block', width: Math.max(6, (a.share / maxShare) * 100) + '%', height: '100%', borderRadius: 999, background: you ? banner : `color-mix(in oklch, ${banner} 55%, var(--ink-3))` }}></span></span>
-                </div>
+                {/* The count leads and the share follows it, the same way
+                    the learn reveal carries both (D149): "3 people" is a
+                    fact, "23%" of an unstated denominator is not. A type
+                    nobody carries reads "none" rather than "0%" — the bar
+                    is then genuinely empty, not a sliver rounding to
+                    nothing. */}
+                {row ? (
+                  <div style={{ flexShrink: 0, width: 66, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }} title={`${row.n} of the ${shares.typedN} ${shares.typedN === 1 ? 'person' : 'people'} counted here`}>
+                    <span style={{ fontFamily: 'var(--sans)', fontSize: 11, fontWeight: 700, color: 'var(--ink-3)', fontVariantNumeric: 'tabular-nums' }}>{row.n === 0 ? 'none' : row.n + ' · ' + row.pct + '%'}</span>
+                    <span style={{ width: '100%', height: 4, borderRadius: 999, background: 'color-mix(in oklch, var(--ink-3) 16%, transparent)' }}><span style={{ display: 'block', width: (row.n / top) * 100 + '%', height: '100%', borderRadius: 999, background: you ? banner : `color-mix(in oklch, ${banner} 55%, var(--ink-3))` }}></span></span>
+                  </div>
+                ) : LIVE.enabled ? null : (
+                  <div style={{ flexShrink: 0, width: 58, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }} title={a.share + '% of people land here'}>
+                    <span style={{ fontFamily: 'var(--sans)', fontSize: 11, fontWeight: 700, color: 'var(--ink-3)', fontVariantNumeric: 'tabular-nums' }}>{a.share}%</span>
+                    <span style={{ width: '100%', height: 4, borderRadius: 999, background: 'color-mix(in oklch, var(--ink-3) 16%, transparent)' }}><span style={{ display: 'block', width: Math.max(6, (a.share / top) * 100) + '%', height: '100%', borderRadius: 999, background: you ? banner : `color-mix(in oklch, ${banner} 55%, var(--ink-3))` }}></span></span>
+                  </div>
+                )}
               </div>
             );
           })}

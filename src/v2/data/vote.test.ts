@@ -29,6 +29,12 @@ const h = vi.hoisted(() => ({
   // per-test knobs (reset in beforeEach)
   setDocImpl: null as null | (() => Promise<void>),
   getDocsImpl: null as null | (() => Error),
+  // Single-document reads, by path. Only `learnAnswer`'s re-read uses one
+  // (D125/D157) and it is the whole race: the answer is written, this doc
+  // is fetched, and whether it already counts the answer decides whether
+  // the reveal has to add it back in. Default null keeps every other case
+  // on the "document does not exist" answer they were written against.
+  getDocImpl: null as null | ((path: string) => Record<string, unknown> | null),
   setDocCalls: [] as Array<{ path: string; data: Record<string, unknown> }>,
   // the D86 edit path writes through updateDoc, never setDoc
   updateDocImpl: null as null | (() => Promise<void>),
@@ -118,8 +124,12 @@ vi.mock("firebase/firestore", () => {
     documentId: () => ({ __kind: "documentId" }),
     serverTimestamp: () => ({ __kind: "serverTimestamp" }),
     Timestamp: { fromMillis: (ms: number) => ({ ms }) },
-    getDoc: () =>
-      Promise.resolve({ exists: () => false, get: () => undefined, data: () => ({}) }),
+    getDoc: (target: { path: string }) => {
+      const data = h.getDocImpl ? h.getDocImpl(target?.path) : null;
+      return Promise.resolve(data
+        ? { exists: () => true, get: (k: string) => data[k], data: () => data }
+        : { exists: () => false, get: () => undefined, data: () => ({}) });
+    },
     getDocs: (q: { path?: string; parts?: Array<{ __kind: string; value?: unknown }> }) => {
       // Lets a test simulate a network failure mid-hydrate.
       if (h.getDocsImpl) return Promise.reject(h.getDocsImpl());
@@ -244,6 +254,7 @@ beforeEach(() => {
   h.reportError.mockClear();
   h.setDocImpl = null;
   h.getDocsImpl = null;
+  h.getDocImpl = null;
   h.aggDocs.length = 0;
   h.authCb = null;
   h.setDocCalls.length = 0;
@@ -918,6 +929,87 @@ describe("LIVE.loadLearnAggs — warming the split before the tap (D125)", () =>
     Object.defineProperty(LIVE, "enabled", { value: false, configurable: true });
     await LIVE.loadLearnAggs(["cap6"]);
     expect(h.aggIdQueries).toEqual([]);
+  });
+});
+
+// The other half of the same timing problem (D157).
+//
+// D125 warmed the cache BEFORE the tap, which is what made the reveal read
+// a measurement at all. What it could not fix is the instant AFTER: the
+// answer is written, the aggregate trigger has not folded it, and the
+// re-read that follows the write returns a document counting everyone but
+// the reader. D125 accepted that ("one answer does not move the split"),
+// which is true of a crowd of two hundred and false of the crowd a
+// launched app actually has — the reported symptom was a tick beside "0
+// people · 0%" on the option just chosen.
+describe("LIVE.learnMine — the answer the trigger has not folded yet", () => {
+  const CARD = {
+    id: "learn-cell1",
+    data: {
+      surface: "learn", seq: 1, type: "choice", prompt: "Learn cell1",
+      options: ["A", "B", "C", "D"], topic: null, test: null, active: true,
+    },
+  };
+  const aggPath = "v2_question_aggs/learn-cell1";
+
+  it("marks the answer pending when the re-read does not contain it", async () => {
+    h.bankDocs.push(CARD);
+    // One stranger's answer on option 1, and the trigger has not run for
+    // ours. This is the overwhelmingly common case: a Firestore trigger
+    // cannot fold and commit inside one client round-trip.
+    h.getDocImpl = (path) => (path === aggPath ? { total: 1, counts: { "1": 1 } } : null);
+    const LIVE = await bootLive();
+    LIVE.learnAnswer("cell1", 0);
+    await vi.waitFor(() => {
+      expect(LIVE.learnMine("cell1")).toEqual({ idx: 0, folded: false });
+    });
+  });
+
+  it("marks it folded when the trigger won the race", async () => {
+    h.bankDocs.push(CARD);
+    // The count on OUR option went up between the cached copy and the
+    // re-read, so the published document already has us.
+    h.getDocImpl = (path) => (path === aggPath ? { total: 2, counts: { "0": 1, "1": 1 } } : null);
+    const LIVE = await bootLive();
+    await LIVE.loadLearnAggs(["cell1"]);
+    LIVE.learnAnswer("cell1", 0);
+    await vi.waitFor(() => {
+      expect(LIVE.learnMine("cell1")).toEqual({ idx: 0, folded: true });
+    });
+  });
+
+  it("does not call a stranger's answer ours", async () => {
+    // Someone else picked our option while the write was in flight, so
+    // the count moved without us in it. Erring toward "folded" undercounts
+    // by one against a document that is right; erring the other way
+    // double-counts the reader, which is what the fix exists to prevent.
+    h.bankDocs.push(CARD);
+    h.aggDocs = [{ id: "learn-cell1", data: { total: 1, counts: { "0": 1 } } }];
+    h.getDocImpl = (path) => (path === aggPath ? { total: 2, counts: { "0": 2 } } : null);
+    const LIVE = await bootLive();
+    await LIVE.loadLearnAggs(["cell1"]);
+    LIVE.learnAnswer("cell1", 0);
+    await vi.waitFor(() => {
+      expect(LIVE.learnMine("cell1")).toEqual({ idx: 0, folded: true });
+    });
+  });
+
+  it("records nothing for a card this session never answered", async () => {
+    const LIVE = await bootLive();
+    expect(LIVE.learnMine("cell1")).toBeNull();
+  });
+
+  it("records nothing when the write itself failed", async () => {
+    // A refused write leaves no answer on the server, so adding one to the
+    // reveal would be inventing a person.
+    h.bankDocs.push(CARD);
+    h.setDocImpl = () => Promise.reject(new Error("permission-denied"));
+    const LIVE = await bootLive();
+    LIVE.learnAnswer("cell1", 0);
+    await vi.waitFor(() => {
+      expect(h.reportError).toHaveBeenCalled();
+    });
+    expect(LIVE.learnMine("cell1")).toBeNull();
   });
 });
 

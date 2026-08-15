@@ -35,7 +35,7 @@ const LiveTakesPanel = React.lazy(() => import('../ui/LiveTakesPanel.tsx'));
 // reason (D156) — see the mode switch near the bottom of render().
 const LiveDuelPanel = React.lazy(() => import('../ui/LiveDuelPanel.tsx'));
 import ReactDOM from 'react-dom';
-import { IS_TESTS, IS_TEST_AVG, IS_TEST_RESULTS, persistTestResult } from './test-definitions.js';
+import { IS_TESTS, IS_TEST_RESULTS, persistTestResult } from './test-definitions.js';
 import { PASSIVE } from './passive-progress.js';
 
 // daily-split.jsx — SPLIT: the daily tab. Three modes — World (vote blind,

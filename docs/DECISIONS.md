@@ -15453,3 +15453,182 @@ of its four entries are still open:
 None is a small design choice, which is what the message asked about, and
 each is a screen's worth of work with its own honesty questions. They are
 a list to choose from, not a queue to run.
+## D157 · The test surfaces stop describing a crowd they never counted
+
+**Decided:** 2026-08-15 · **Status:** binding. From three screenshots of
+the release with the report *"there seems to be a lot of sample data
+instead of real data on the test — like how common the different types
+are and what the averages are, and something weird on learn as an answer
+I gave can't be 0% answered"*.
+
+Same posture as D149, one tab over: **a screen that could not get the
+true number drew a plausible one instead.** Where the true number
+existed, nothing had been pointed at it.
+
+### 1 · What was authored, and where it was rendered as a measurement
+
+Three numbers, all content-authoring constants, all drawn as readings of
+this app's population:
+
+| On screen | Came from | What it claimed |
+| --- | --- | --- |
+| The hollow ring on every axis, legended **most people** | `IS_TEST_AVG[test][dim]` — five constants per instrument | the population's average |
+| **"higher than 9 in 10 members"** | a logistic on σ≈15 applied to your distance from that constant | a percentile of this app's members, by name |
+| The banner's lit dot field, **"1 in 10"** | `exp(−0.916·z^2.33)` over the same distance | how unusual you are |
+| **"bar = how common"**, 12% / 11% / 10% … | `IS_ARCHETYPES[test].list[].share` | how many people are each type |
+
+`IS_TEST_AVG`'s own comment reads *"Grounded, not precise: enough to give
+every score a reference point"*, and `IS_ARCHETYPES`' reads *"a realistic
+`share` … common types big, rare ones genuinely rare"*. Both are honest
+about themselves in a file nobody opens. On screen the ring sits in a
+plausible place beside a real score, which is precisely why this was
+invisible in a way D72's invented friends were not: a wrong average looks
+exactly like a right one.
+
+The percentile is the worst of the four. It says **members** — this app's
+population, named — from a constant and an assumed spread, on a card two
+taps from the account panel.
+
+### 2 · Every one of them was already measurable
+
+Nothing here needed a new read, a new field or a new cell. Both sources
+were already fetched and already public:
+
+- **the mean** — the bank's 110 core test items are ordinary `scale`
+  questions whose per-option counts publish like any other answer (D98).
+  `similarity.axisScores` already folds those cells into an axis score for
+  a cohort; that is how a city gets a score profile (D112). Run over the
+  WORLD's counts it is the population's own average.
+- **the rank and the rarity** — the cached voter sample carries real
+  people with real parsed results (`kindredPeople`, the D102 bound).
+  Counting how many sit below you, or as far from the mean as you, is a
+  percentile with a basis that can be named.
+- **the type frequency** — `typeMix` already types that sample for the
+  Mirror's People lens. One parameter, no new fold.
+
+`src/v2/data/testNorms.ts` is the seam, shaped like `LEARN_SPLIT`'s
+(D32/D149): **measured, or absent, and the demo build keeps the authored
+constants** because there the population is invented anyway and there is
+no aggregate to replace it.
+
+The floors are meaning floors, not disclosure floors — D98 removed those
+and this module publishes nothing:
+
+- `NORM_MIN_ANSWERS = 30` per axis, across `NORM_MIN_ITEMS = 2` items.
+  One item's mean is that item's mean; an axis is a claim about several
+  questions agreeing.
+- `NORM_MIN_PEOPLE = 12` before a percentile. A distribution of eleven
+  people cannot carry deciles, and `outOfTen` is clamped to 1..9 because
+  "higher than 10 in 10" is not a sentence a sample of forty supports.
+
+Below the floor the map is **empty**, never the constants — so the ring
+is not drawn, the percentile is not printed, the dot field does not
+render, and the card says *"no crowd average yet — it appears once enough
+people have answered these"*. That is the whole point of the seam and it
+is pinned in `testNorms.test.ts`: a fallback here would be invisible.
+
+### 3 · What deliberately KEEPS the authored constants
+
+`IS_TEST_AVG` still centres `IS_archScores` and `IS_typeRuleParts`, and
+`IS_ARCHETYPES[].share` still supplies the commonness prior that breaks
+near-ties (rule 3 of the matcher). Those are **model parameters, not
+claims on a screen** — exactly the split D149 drew when it took the
+authored `card.p` off the learn reveal and left it driving the difficulty
+scheduler.
+
+Centring the matcher on a live sample was tried on paper and rejected:
+the name on your card would change because strangers answered, with
+nothing on screen to explain it.
+
+### 4 · The type index is Big Five only, and three sheets lose their bars
+
+`typeSharesOn` refuses every instrument but `TYPE_TEST`. That is the Art.
+9 scope `docs/data-inventory.md` draws and `typeMix.TYPE_TEST` already
+enforced: no population reading is computed from the politics result. So
+the politics, values and social sheets show **no frequency at all** in a
+live build and gain nothing measured in exchange. Stated plainly because
+it is a loss: the alternative was keeping a fabricated number on three
+sheets to avoid noticing it was fabricated on the fourth.
+
+No new privacy disclosure. `ui/LivePrivacyPanel` discloses the type CUT —
+answers grouped by type — and this groups no answers; the count of people
+per type is the reading `TypeMixCard` has published on the Mirror since
+D141, from the same fold over the same already-public field.
+
+### 5 · Learn: two faults wearing one symptom
+
+Reported as *"an answer I gave can't be 0% answered"* — a green tick on
+"Breaks down waste" reading **0 people · 0%**, one line above *"From 1
+answer — everyone's first try at this card"*. Both halves are about
+**whose** answers the count holds.
+
+**The race, which D125 recorded as acceptable.** `learnAnswer` writes the
+answer and re-reads the aggregate in the same breath; a Firestore trigger
+cannot fold, transact and commit inside one client round-trip, so it
+loses. D125's note says *"one answer does not move the split"* — true of a
+crowd of two hundred and false of the crowd a launched app actually has.
+At n=1 the answer it drops is half the reading and it is always the
+reader's own. The race is now RECORDED rather than tolerated:
+`state.learnMine[qid] = {idx, folded}`, where `folded` compares the
+re-read's count on that option against the pre-write cached value, and
+`LEARN_COUNTS` adds the answer in when it is not there.
+
+Strictly-greater, deliberately: a stranger picking the same option
+mid-flight reads as folded, which undercounts by one against a document
+that is right. The other direction double-counts the reader, which is the
+fault being fixed.
+
+**The repeat, which was never explained.** The aggregate counts FIRST
+tries — that is what makes it a difficulty measurement, and the
+create-only rule enforces it server-side — so on a re-serve the answer
+just given is deliberately not in it and the correct option can honestly
+stand at zero. That is the screenshot: a card missed earlier, re-served,
+answered right. Nothing on the screen said so. `LEARN.answer` now returns
+`repeat`, and the line reads *"From 1 first try — only a first answer
+counts, so this one is not among them."* A crowd of one that is your own
+says so too.
+
+### 6 · Guarded where each fault could actually hide
+
+- `data/testNorms.test.ts` — the floors, and that a refusal never falls
+  back to the constants.
+- `data/typeMix.test.ts` — the shares fold, the Art. 9 scope, and that a
+  type nobody carries is a measured zero rather than a dropped row.
+- `data/vote.test.ts` — `learnMine` across all four outcomes of the race,
+  including a refused write recording nothing.
+- `test/learn-split.test.ts` — the counts fold with a pending answer, and
+  that it never adds twice.
+- `test/smoke-live.test.jsx` and `test/learn-reserve.test.jsx` — MOUNTED,
+  because the folds are only half of it. An empty `avg` map still had to
+  stop the card drawing `pos(undefined)`, which CSS swallows silently and
+  which would have parked every ring at the left edge under a legend
+  naming it. Both files keep the demo-mode control beside the live case,
+  for the reason D72's did: every live assertion here passes if the
+  section simply stops rendering.
+
+The learn mount cases assert on the COUNT, not the share: `WfCount`
+animates the percentage up from zero and jsdom runs no frames, so a share
+assertion would pin the animation instead of the arithmetic. Measured —
+the first draft asserted `1 person · 50%` and read `1 person · 0%`.
+
+### 7 · The cost, in eager kilobytes
+
+The eager graph goes **955 → 961 KB against a ceiling of 978**. Five of
+those six kilobytes are `data/similarity.ts` arithmetic reaching three
+eager profile surfaces; the sixth is `type-marks.jsx` importing
+`typeMix.ts`, measured by removing that one edge (960 KB). Total goes
+2273 → 2278 against 2285.
+
+Measured on the merged tree, and the first draft of this paragraph was
+measured on the pre-merge one — 969 → 975, i.e. three kilobytes of
+headroom rather than seventeen. D155 and D156 landed in between and took
+the eager graph down by fourteen; the number in a note like this one is
+only true of the tree it was taken on, which is the same trap
+`check:figures` exists for.
+
+`MAX_EAGER_KB` is not raiseable — the doctrine above it says so twice and
+this change does not raise it. The way out when it does bind is the one
+the ceiling has always implied: move a profile surface behind a dynamic
+import, starting with `TypeIndexSheet`, which is a tap-to-open overlay
+reached through a global and is eager only because `TypeMark` shares its
+file.

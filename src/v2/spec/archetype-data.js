@@ -177,6 +177,13 @@ window.IS_nearWhy = function (testKey, dims, a) {
 //  2. SCORES ARE READ AGAINST THE POPULATION, NOT THE MIDPOINT. Dims have very
 //     different baselines (people average A:65 but N:48), so both you and the
 //     signature are centred on IS_TEST_AVG before comparing.
+//     DELIBERATELY THE AUTHORED BASELINE, not the measured one D157 built.
+//     A matcher centred on a live sample would move which type you ARE as
+//     the sample grew — the name on your card changing because strangers
+//     answered, with nothing on screen to explain it. The constant is a
+//     model parameter here; where the same numbers were a CLAIM about
+//     other people (the "most people" ring, the percentile, the rarity
+//     field) they are now measured or absent.
 //  3. COMMON TYPES ARE COMMON. Raw nearest-neighbour lets a 3%-share type win
 //     by a rounding error. A share prior (log-odds against the modal type)
 //     taxes rare types by a fixed, small penalty — enough to break near-ties

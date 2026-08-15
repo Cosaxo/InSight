@@ -421,6 +421,9 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     // is exactly the honest cold-start state the live tests should see.
     learnAnswer: () => {},
     learnAgg: () => null,
+    // Nothing written this session, so nothing pending — the fixture's
+    // reveals read exactly what `learnAgg` gives them.
+    learnMine: () => null,
     // The D125 warm-up. A no-op here for the same reason learnAgg returns
     // null: the fixture has no aggregates, so the honest state it renders
     // is the labelled estimate.

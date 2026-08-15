@@ -89,8 +89,10 @@ export const LIVE_MEMBERS = [
   // until D125 every learn reveal drew the authored estimate whatever the
   // crowd had answered. `loadLearnAggs` is the warm-up the feed runs when
   // it PLANS the sitting's learn cards, which is the one moment guaranteed
-  // to precede every tap in it.
-  "latestBuild", "learnAgg", "learnAnswer", "loadLearnAggs",
+  // to precede every tap in it. `learnMine` is the other half of the same
+  // timing problem (D157): the write lands, the trigger has not folded it
+  // yet, and without this the reveal counts the crowd minus the reader.
+  "latestBuild", "learnAgg", "learnAnswer", "learnMine", "loadLearnAggs",
   // D91: the live half of a lens card — counts for a seeded lens question,
   // null when the bank carries none (the selfOnly fallback's cue).
   "lensAgg",

@@ -178,7 +178,15 @@ export const LEARN = (function () {
     // (D149) — the reveal re-reads LEARN_SPLIT at render anyway, and no
     // caller reads this field. Kept for the demo, where it is the authored
     // model and the only source there is.
-    return { ok, mastered, lost, wasKnown, streak: cur.k, correct: card.c, split: LEARN_SPLIT(card) };
+    //
+    // `repeat` is the same fact `was` gates the send on, handed to the
+    // reveal (D157). The crowd split counts FIRST tries — that is what
+    // makes it a difficulty measurement — so on a re-serve the answer you
+    // have just given is deliberately not in it, and the reveal has to
+    // say so. Without it the reader sees a tick beside "0 people · 0%"
+    // and no explanation anywhere on the screen, which is the fault this
+    // was reported as.
+    return { ok, mastered, lost, wasKnown, repeat: !!was, streak: cur.k, correct: card.c, split: LEARN_SPLIT(card) };
   }
 
   return {
