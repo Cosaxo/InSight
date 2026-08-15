@@ -34,8 +34,12 @@ from anyone, including itself.
       legitimate answer; the point is that it be an answer rather than a
       default that expired.
 
-      **Done when:** the decision is recorded, either way. · **Size:** S
-      (a console, or a migration if left too long).
+      **DECIDED 2026-08-15 (D157): option A, `europe-west1`.** The
+      decision half of this step is done; the console half is not. What
+      still gates the phases below is the *migration*, not the choice.
+
+      **Done when:** the new database serves the bank and the app talks to
+      it. · **Size:** S to decide (done), ~2 hours to execute.
 
 ## Phase 1 — Pagination, which blocks the whole idea
 

@@ -197,6 +197,9 @@ right for a pre-launch app:
 1. **Let them go.** Internal testers, pre-launch, and the answers are a
    handful of taps against a bank that has been reseeded repeatedly
    anyway. Tell the testers, and treat it as the last free reset.
+   **CHOSEN 2026-08-15 (D157), and the reason is stronger than the
+   general case: the owner is the only person who has answered anything.**
+   There are no testers to tell.
 2. **Export and import.** Firestore's [managed
    export/import](https://firebase.google.com/docs/firestore/manage-data/export-import)
    moves collections between databases. It is the honest path if any real

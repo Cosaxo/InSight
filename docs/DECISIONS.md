@@ -15331,3 +15331,76 @@ extra software.
 CPM versus flat, and every commerce mechanic. This record fixes the
 constraints any of those must satisfy; picking one up is its own
 decision.
+
+## D157 · The database moves to one EU region, and the old answers are let go
+
+**Decided:** 2026-08-15 · **Status:** binding · Decision taken; the
+migration is not executed. [`FIRESTORE-REGION.md`](FIRESTORE-REGION.md) is
+the procedure, `LAUNCH-RUNBOOK.md` 0.0 the operator step.
+
+**Decision.** Option A of that document: a **second Firestore database in
+the same project, regional, recommended `europe-west1`**, with the app and
+both triggers repointed at it and `(default)` deleted once it is proven.
+The existing answers are **not migrated**.
+
+**Why now rather than later.** A database's location is fixed at creation,
+so this stops being a setting and becomes a migration the moment real
+answers accumulate. D153–D156 exist to produce more answers sooner, which
+means this plan is what turns the setting into the migration. It was the
+default rather than a decision, which `FIRESTORE-REGION.md` correctly
+names as the only thing wrong with `nam5`.
+
+**What it is worth.** Roughly **half of every Firestore line, forever** —
+`npm run costs:levers`, row R, which prices it as the one remaining
+zero-product-change lever. No user-visible difference.
+
+**The residency half, which was not the original argument and is the
+better one.** `nam5` is the **US** multi-region. `europe-west1` is
+Belgium. The operator is a Norwegian sole trader, EU trader status is
+declared across 27 storefronts (D69), and the users this app is for are
+mostly European — so the move takes the data from the US to the EU and
+makes the GDPR story simpler rather than harder. Checked rather than
+assumed: **no user-facing copy names a location.** `web/privacy.html` says
+data is "stored on Google Cloud infrastructure" and nothing else, so the
+privacy policy and both store filings are unaffected in either direction.
+
+**The answers are let go, and the reason is stronger than the doc's
+general case.** `FIRESTORE-REGION.md` offers export/import as the honest
+path once real usage has accrued. None has: **the owner is the only person
+who has answered anything.** So there are not even testers to notify, and
+this is the last free reset. The question bank is regenerable from
+`functions/src/v2content.ts` in one seed run, so nothing else is at stake.
+
+**Ordering, which is the part that can go wrong.** The console work
+(create, deploy rules, seed, verify) comes first and is reversible and
+invisible. The three code edits — `firebaseImpl.ts`'s database id,
+`database:` on **both** v2 triggers, and `firebase.json`'s `firestore`
+array — land in a separate commit **after** the database exists.
+`FIRESTORE-REGION.md` ends by refusing to pre-write them, and that refusal
+is adopted here rather than overridden: a PR that must not be merged until
+an unrelated console action happens is a trap sitting in the repo.
+
+**Two silent failures are the reason this has a record at all**, since
+both deploy green and stay invisible:
+
+- **The deploy sub-target.** With a multi-database `firestore` array,
+  `--only firestore:rules` exits 0, prints "Deploy complete!" and deploys
+  nothing. Use `--only firestore`. This has already happened here once, to
+  a different rules file.
+- **The triggers' database option.** `onDocumentCreated` /
+  `onDocumentUpdated` bind to `(default)` unless told otherwise. Miss it
+  and the deploy succeeds, the functions are healthy, every answer still
+  writes, and **nothing aggregates** — no ledger event, no private
+  aggregate, no published mirror. No error, because nothing failed; the
+  alert policy watches for the trigger *erroring*, and a trigger that is
+  never invoked raises nothing. The first signal would be a human noticing
+  the Mirror has stopped moving. The code commit pins the deployed option
+  with a test, in the same commit, or it is not done.
+
+**Not decided here.** The final region. `europe-west1` is the
+recommendation and the reasoning above is what it rests on; the value that
+binds is whatever the operator picks in the console, and this record is
+amended with the real database id when it exists. Also not decided: when
+`(default)` is deleted — a step, deliberately, not an afterthought, since
+`deleteAccount` and the erasure suite address one database and an erasure
+run against the new one does not reach data left in the old.
