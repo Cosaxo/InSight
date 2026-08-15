@@ -163,8 +163,23 @@ on it:
 
 | Question | Answer | Recorded |
 | --- | --- | --- |
-| Is `prvfire33` on Identity Platform billing? | **unrecorded** | — |
+| Is `prvfire33` on Identity Platform billing? | **No** — owner attests never having enabled it | 2026-08-15 |
 | Is App Check enforced on the Firestore API? | **unrecorded** | — |
+
+The auth answer is an **attestation, not a console reading**, and the
+distinction is worth keeping rather than rounding off. What supports it:
+upgrading is an explicit action behind a billing consent screen, nothing
+in this repository's history has ever touched auth configuration, and the
+Authentication page shows no upgrade prompt. What would settle it in
+thirty seconds, and is still worth doing before launch: Cloud Console →
+Identity Platform. An ENABLE button means not provisioned; a
+Providers/Settings/Users console means it is.
+
+Either way it is **$0 today** — Identity Platform's free tier is 50,000
+MAU and this project has a handful of accounts. The reason to close it
+properly is that D3 makes the app anonymous-first, so MAU tracks
+INSTALLS rather than engaged users: it is the one line a viral week moves
+hardest, and the one nobody would think to look at.
 
 Two minutes each, and the first one is worth more than every code change
 on this branch put together at 50 k DAU. If the answer to the first is
