@@ -1073,9 +1073,31 @@ service cloud.firestore {
         && request.resource.data.cell is string
         && request.resource.data.cell.matches('^-?[0-9]{1,5}_-?[0-9]{1,5}$')
         && request.resource.data.at == request.time
-        && request.resource.data.until is timestamp
-        && request.resource.data.until > request.time
-        && request.resource.data.until <= request.time + duration.value(180, 'm')
+        // OPTIONAL FOR ONE RELEASE (D179), and this is a deploy-order
+        // compatibility window rather than a change of mind.
+        //
+        // Rules deploy the instant this branch reaches main; the app
+        // reaches phones through a store review. Between those two moments
+        // the shipped build is the one that predates D174 and writes
+        // `{cell, at}` with no `until` at all — so a hard `until is
+        // timestamp` would have denied every presence write from every
+        // existing install, and Near would have failed with a retry button
+        // that could never succeed until the user updated.
+        //
+        // Absent is therefore allowed; PRESENT is capped exactly as before,
+        // so a modified client gains nothing by supplying one. The server
+        // treats a missing `until` as `at` + the linger and BACKFILLS it on
+        // the next beat (nearbyCountV2), so a legacy document repairs
+        // itself the first time its owner is counted.
+        //
+        // REMOVE THIS ARM when the D174+ build is the oldest one in the
+        // wild — the condition is the store rollout, not a date, and until
+        // then a doc with no `until` is one nobody has opened the new app
+        // with yet.
+        && (!("until" in request.resource.data)
+            || (request.resource.data.until is timestamp
+                && request.resource.data.until > request.time
+                && request.resource.data.until <= request.time + duration.value(180, 'm')))
         // `type` is the writer's OWN Big Five archetype name (D176), the
         // one thing the room's mix is folded from. Optional — most people
         // have not taken the test — and bounded, because this doc is

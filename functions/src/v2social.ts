@@ -1129,6 +1129,27 @@ export const declineGroupInviteV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, 
 // The count is exact (D98 — there is no floor left to apply). It used to
 // return `tooFew` under AGG_MIN_N; nothing does now, and the client's
 // "a few people" branch goes with it.
+/**
+ * When a presence document stops counting (D179's compatibility arm).
+ *
+ * `until` has been required since D174, but rules deploy on merge while the
+ * app reaches phones through a store review — so for one release the wild
+ * still contains a build that writes `{cell, at}` and nothing else. A
+ * document without `until` is read as `at` + the linger, which is exactly
+ * what the pre-D174 freshness window meant, so a legacy phone counts and is
+ * counted rather than silently vanishing.
+ *
+ * Returns 0 for a document that is missing, malformed or genuinely expired
+ * — one number for "not here", so no caller has to know which.
+ */
+function presenceExpiry(doc: FirebaseFirestore.DocumentSnapshot): number {
+  if (!doc.exists) return 0;
+  const until = doc.get("until") as Timestamp | undefined;
+  if (until?.toMillis) return until.toMillis();
+  const at = doc.get("at") as Timestamp | undefined;
+  return at?.toMillis ? at.toMillis() + PRESENCE_LINGER_MIN * 60_000 : 0;
+}
+
 export const nearbyCountV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforceAppCheck: ENFORCE_APP_CHECK }, async (request) => {
   if (!request.auth) throw new HttpsError("unauthenticated", "must be signed in");
   const cell = request.data?.cell;
@@ -1177,10 +1198,10 @@ export const nearbyCountV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforce
   // neighborhood, and fresh?" is asked rather than assumed. Subtracting a
   // blind 1 would under-count by one for any caller who is not there.
   const own = await db.collection("v2_presence").doc(request.auth.uid).get();
-  const ownUntil = own.get("until") as Timestamp | undefined;
+  const ownExpiry = presenceExpiry(own);
   const countsSelf = own.exists
     && cells.includes(own.get("cell") as string)
-    && !!ownUntil && ownUntil.toMillis() > now.toMillis();
+    && ownExpiry > now.toMillis();
   // YOU MAY ONLY ASK ABOUT A ROOM YOU ARE STANDING IN (D177).
   //
   // `cell` arrives from the client, and until now nothing checked that the
@@ -1203,6 +1224,18 @@ export const nearbyCountV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforce
   // stop you being counted, it stops you counting.
   if (!countsSelf) {
     throw new HttpsError("failed-precondition", "no live presence in that neighborhood");
+  }
+  // BACKFILL, so the compatibility window closes itself (D179). The count
+  // above filters `until > now`, and a legacy document has no `until` at
+  // all — Firestore range filters skip a document missing the field, so a
+  // phone on the old build would be admitted here and then be invisible to
+  // everyone else's count. Writing the field it should have had repairs it
+  // on the owner's first beat, which is the same moment they are admitted.
+  //
+  // Admin SDK, so the rules cap does not apply — and the value written is
+  // the one the rules would have allowed anyway.
+  if (!own.get("until")) {
+    await own.ref.set({ until: Timestamp.fromMillis(ownExpiry) }, { merge: true });
   }
   const n = Math.max(0, total - 1);
   return { n, mix: await roomMixFor(cells, cell as string) };
@@ -1335,10 +1368,9 @@ export const nearbyRoomV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforceA
   // a thing a future callable can forget to call. Both doors carry the
   // lock in full view.
   const own = await db.collection("v2_presence").doc(uid).get();
-  const ownUntil = own.get("until") as Timestamp | undefined;
   if (!own.exists
     || !cells.includes(own.get("cell") as string)
-    || !ownUntil || ownUntil.toMillis() <= now.toMillis()) {
+    || presenceExpiry(own) <= now.toMillis()) {
     throw new HttpsError("failed-precondition", "no live presence in that neighborhood");
   }
 

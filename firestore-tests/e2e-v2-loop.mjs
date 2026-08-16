@@ -8,6 +8,14 @@ import {
   limit, getDocs, doc, getDoc, setDoc, updateDoc, serverTimestamp,
 } from "firebase/firestore";
 import { getFunctions, connectFunctionsEmulator, httpsCallable } from "firebase/functions";
+// The ADMIN handle, and the only thing it is used for: reading back a
+// v2_presence document (D179's backfill assertion). That collection is
+// `allow read: if false` to every client — deliberately, it is one of the
+// three surviving denies — so a client handle cannot check whether the
+// server repaired a legacy row, and asserting through the deny would mean
+// weakening it for a test.
+import { initializeApp as adminInit } from "firebase-admin/app";
+import { getFirestore as adminFirestore } from "firebase-admin/firestore";
 
 // The named database (D165). The backend writes to FIRESTORE_DB_ID, so a
 // harness on `(default)` reads an empty database and reports a phantom
@@ -20,6 +28,8 @@ const app = initializeApp({ projectId: "demo-insight", apiKey: "demo", appId: "d
 const auth = getAuth(app); connectAuthEmulator(auth, "http://127.0.0.1:9099", { disableWarnings: true });
 const db = getFirestore(app, E2E_DB_ID); connectFirestoreEmulator(db, "127.0.0.1", 8080);
 const fns = getFunctions(app, "us-central1"); connectFunctionsEmulator(fns, "127.0.0.1", 5001);
+adminInit({ projectId: "demo-insight" });
+const adminDb = adminFirestore(E2E_DB_ID);
 
 const fail = (msg) => { console.error("✗ " + msg); process.exit(1); };
 const ok = (msg) => console.log("✓ " + msg);
@@ -659,6 +669,40 @@ ok("learn crowd stat: 5 first attempts, exact through per-answer publishes, 3/5 
   await signInAnonymously(gAuth);
   await expectRefused("a phone with no presence at all is in no room", gApp,
     "nearbyRoomV2", { cell: meCell, qids: [] });
+
+  // THE DEPLOY-ORDER WINDOW, END TO END (D179). This is the leg that says
+  // an install predating D174 still works across the merge: rules deploy on
+  // push to main, the app ships through a store review, and in between the
+  // newest build in the wild writes `{cell, at}` and nothing else.
+  //
+  // Driven through a FOURTH account so the primary user's own compliant
+  // document is not disturbed, and asserted three ways: the legacy write is
+  // accepted, the caller is still admitted by the gate, and the server has
+  // BACKFILLED the field so the window closes itself rather than leaving
+  // that phone uncounted by everyone else.
+  {
+    const lApp = initializeApp({ projectId: "demo-insight", apiKey: "demo", appId: "demo" }, "near4");
+    const lAuth = getAuth(lApp); connectAuthEmulator(lAuth, "http://127.0.0.1:9099", { disableWarnings: true });
+    const lDb = getFirestore(lApp, E2E_DB_ID); connectFirestoreEmulator(lDb, "127.0.0.1", 8080);
+    const lu = await signInAnonymously(lAuth);
+    await setDoc(doc(lDb, "v2_presence", lu.user.uid), {
+      cell: meCell, at: serverTimestamp(),
+    });
+    ok("legacy presence write (no `until`) still accepted by the rules");
+    const lFns = getFunctions(lApp, "us-central1");
+    connectFunctionsEmulator(lFns, "127.0.0.1", 5001);
+    const legacy = await httpsCallable(lFns, "nearbyCountV2")({ cell: meCell });
+    if (typeof legacy.data.n !== "number") {
+      fail("a legacy phone was refused its own count: " + JSON.stringify(legacy.data));
+    }
+    ok("nearbyCountV2 admits a phone whose position predates the `until` field");
+    // The self-repair. Without it the count filters `until > now`, which
+    // skips a document missing the field entirely — so the phone would be
+    // admitted and then be invisible to everybody else.
+    const back = await adminDb.doc(`v2_presence/${lu.user.uid}`).get();
+    if (!back.get("until")) fail("the legacy presence doc was not backfilled with an `until`");
+    ok("…and backfills its `until`, so the compatibility window closes itself");
+  }
 
   await expectDenied("foreign presence write refused", () =>
     setDoc(doc(db, "v2_presence", nu.user.uid), {

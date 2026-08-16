@@ -17745,3 +17745,91 @@ like a URL still lands in the query string of ours), and
 `LiveRoomTabs.test.tsx` pins that a face draws where there is one, initials
 where there is not, that the report takes two taps, and that a hidden face
 is indistinguishable from no face.
+
+## D179 · The rules deploy on merge and the app does not, so `until` is optional for one release
+
+**2026-08-16.** Found by asking whether D170–D178 were safe to merge rather
+than whether they were finished, which turned out to be a different
+question.
+
+**THE HAZARD.** `firebase-deploy.yml` fires on any push to `main` touching
+`functions/**`, `firestore.rules` or `storage.rules` — so merging *is*
+deploying. The app does not travel that way: it reaches phones through a
+store review, days later. Between those two moments the newest build in the
+wild is the one that predates D175, and it writes a presence document of
+`{cell, at}` with no `until` at all.
+
+D175 made `until` required. So on merge, every presence write from every
+existing install would have been denied, `runBeat` would have caught it,
+and Near would have shown *"Couldn't reach the count just now"* with a
+**Try again** button that could not succeed until the user updated the app.
+Nothing would have looked broken in CI, because CI runs the new client
+against the new rules — the only two things that are never paired in
+production.
+
+This is the D162 deploy-order shape one layer down: that note is about a
+bank that must be reseeded before a flag ships, and this is about a client
+that must ship before a rule tightens. Both fail in the gap between two
+deploys that nothing schedules together.
+
+### What was done
+
+**`until` is optional for one release, and capped exactly as before when
+present.** A compatibility arm rather than a retreat: a modified client
+gains nothing by omitting it, because the server treats a missing `until`
+as `at` + the linger — which is precisely what the pre-D175 freshness
+window meant.
+
+**The server BACKFILLS it**, and that is the part that makes this
+self-closing rather than merely survivable. The count filters `until > now`,
+and a Firestore range filter skips a document missing the field entirely —
+so a legacy phone would have been admitted to its own count and then been
+invisible to everybody else's. `nearbyCountV2` writes the field a legacy
+document should have had, on its owner's first beat, which is the same
+moment they are admitted. One extra write per legacy account, once.
+
+Undercounting rather than erroring would have been the worse failure and it
+is worth saying why: an error is visible and a wrong number is not. A room
+quietly reading 0 while six people stand in it is the fabrication this app
+refuses everywhere else, arriving through a compatibility gap instead of
+through arithmetic.
+
+**REMOVAL CONDITION, so this does not become permanent by inattention:**
+delete the arm when the D175+ build is the oldest one in the wild. That is
+a store-rollout condition, not a date. Until then, a presence document with
+no `until` is one nobody has opened the new app with yet — and after the
+backfill has run once for each of them, there should be none left.
+
+### Guards
+
+A rules case for the legacy write shape, beside the existing one for the
+cap — the cap case now owns only the ceiling, because the "it is required"
+half moved here and asserting both would have meant one of them lying. An
+e2e leg drives a FOURTH account through the whole thing as a real client:
+the legacy write is accepted, the gate admits it, and the document comes
+back carrying an `until` it never sent. Mutation-checked by removing the
+backfill, which fails exactly the third assertion.
+
+### Found on the way
+
+**`npm run test:scripts` is in CI's lint job and I had never run it.** It
+caught two things this branch broke, both of the same species as the two
+stale gates D178 records:
+
+- `scripts/pulse.test.mjs` counts `get(/databases/` sites in
+  `firestore.rules` as a billed-read tripwire; D178's avatar flag arm added
+  one (18 → 19). `RULE_READS` is deliberately unchanged — it charges the
+  answer-create paths, and reporting a photo is not one.
+- `scripts/asc-push.test.mjs` asserted the printed privacy form **never**
+  contains Precise Location — an invariant D175 reversed. It had become
+  self-contradicting: the loop above it demands every declared row be
+  printed, while that line forbade one of them, so the only way past it was
+  to delete half the test. It is now the set's own complement — nothing may
+  be printed that the file does not declare — and the comment says what
+  that does and does not catch, because the first draft of it overstated
+  the case and a mutation showed as much.
+
+Three commands run the gates this repo actually has: `npm run lint` is
+eslint alone, and the CI job of that name also runs `check:globals`,
+`check:figures`, `test:scripts` and `check:a11y`. Running the first and
+calling it "lint passes" is how all four of these got through.

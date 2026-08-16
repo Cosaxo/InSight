@@ -180,13 +180,18 @@ v2_presence/{uid}                  Near-by-radius presence (D84)
                                    ON DEVICE from a precise fix whose
                                    coordinate is discarded (data/locate.ts)
   at: request.time                 last write; the beat refreshes it
-  until: timestamp                 when this position STOPS counting
+  until?: timestamp                when this position STOPS counting
                                    (D174) — the linger for the standing
                                    option, the session deadline for the
                                    timed one, whichever is sooner. The
                                    count filters on it, and the rules cap
                                    it at PRESENCE_LINGER_MIN so no client
-                                   grants itself a longer stay
+                                   grants itself a longer stay. OPTIONAL
+                                   for one release (D179): the build that
+                                   predates D175 writes no `until`, rules
+                                   deploy on merge and apps do not, and
+                                   the server reads a missing one as `at`
+                                   + the linger and backfills it
   type?: "Host"                    optional: the writer's OWN Big Five
                                    archetype NAME (D176), ≤40 chars. The
                                    phone writes it because the archetype
@@ -401,7 +406,7 @@ not per boot. `LIVE.stats` reports `bankSource` / `answersFetched` /
 
 ## Verification
 
-- `npm run test:rules` — 105 rules tests (Firestore + Storage; the v2
+- `npm run test:rules` — 106 rules tests (Firestore + Storage; the v2
   surface, the anonymous-default lens, and the retired-v1 guard).
 - `firestore-tests/e2e-v2-loop.mjs` under
   `firebase emulators:exec --only auth,firestore,functions` — the full

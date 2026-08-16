@@ -1896,10 +1896,29 @@ describe("presence (D84 — Near by radius)", () => {
     await assertFails(setDoc(ref, cellDoc({ until: soon(60 * 24 * 365) })));
     // A position that has already expired is not a position.
     await assertFails(setDoc(ref, cellDoc({ until: soon(-1) })));
-    // And it is required — without it the count has nothing to filter on,
-    // so an omitted `until` would be a doc that never expires.
-    await assertFails(setDoc(ref, { cell: "29999_5374", at: serverTimestamp() }));
+    // It is no longer REQUIRED — see the compatibility case below, which
+    // owns that half now (D179). What this case owns is the ceiling, which
+    // is the half that stops a modified client standing in the room for a
+    // year.
     await assertFails(setDoc(ref, cellDoc({ until: "soon" })));
+  });
+
+  // THE DEPLOY-ORDER WINDOW (D179), and it is the case that keeps an
+  // existing install working across the merge.
+  //
+  // Rules deploy the moment this reaches main; the app reaches phones
+  // through a store review. In between, the newest build in the wild is the
+  // one that predates D174 and writes `{cell, at}` — so a hard `until`
+  // requirement denies every presence write from every existing install,
+  // and Near fails with a retry button that cannot succeed.
+  it("still takes a pre-D174 write with no `until` at all, for one release", async () => {
+    const ref = doc(asUser(OWNER), "v2_presence", OWNER);
+    await assertSucceeds(setDoc(ref, { cell: "29999_5374", at: serverTimestamp() }));
+    // And the cap still binds when one IS supplied, so nothing is gained by
+    // omitting it — this is a compatibility arm, not a hole.
+    await assertFails(setDoc(ref, cellDoc({ until: soon(181) })));
+    await assertFails(setDoc(ref, cellDoc({ until: "soon" })));
+    await assertFails(setDoc(ref, cellDoc({ until: soon(-1) })));
   });
 
   // THE ONE FIELD A CLIENT CHOOSES THE CONTENTS OF (D176).
