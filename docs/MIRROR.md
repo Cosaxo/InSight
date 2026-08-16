@@ -199,7 +199,7 @@ off by default, and it expires on its own (D174). §10's own test for it is
 is what keeps it the first.
 
 Near's row is three tabs, not five. Explore needs `by` breakdowns the room
-has none of, and Scores wants the archive's ordinal questions where the
+has none of, and Scores wants the archive's place questions where the
 room is folded over today's deck — each would be a permanently empty tab,
 which is worse than an absent one.
 
@@ -279,8 +279,9 @@ Since D100 they draw the **archive** rather than the week:
 `LIVE.aggregated()` is every question this device holds an aggregate for,
 which is the deck plus everything the user has answered. That is what
 makes the Answers lens's filter and sort worth having, and it is the only
-reason Scores can find a rating question at all — the bank holds five in
-ninety, so a given week's deck usually serves none.
+reason Scores can find a question that rates a place at all — the bank
+holds twenty-four in a hundred and fourteen, spread over three radii, so
+a given week's deck serves at most one.
 
 ## 3 · The lens row — the designed shape, and what live mode ships
 
@@ -312,12 +313,19 @@ these lenses its population can support:
   profile's own visual language: the petal is solid as far as you *both*
   reach and pale for the distance between you, so agreement looks like a
   whole shape.
-- **Scores** — the place-rating scorecard, fed by rate questions in the
-  feed. World stop only, at each of its three zooms. **Live since D100**,
-  as a scorecard over the bank's *ordinal* questions (five 1-10 `rating`
-  items, sixteen 5-point `scale` ones) rather than over place ratings the
-  bank does not carry — it filters on question type, so place ratings
-  join it the day they are written.
+- **Scores** — the place-rating scorecard: what this population gives the
+  place it is standing in, facet by facet, best first, your own score
+  ticked onto each bar. World stop only, at each of its three zooms.
+  **Live since D100 and about the place since D184.** D100 shipped it
+  over every *ordinal* question in the archive, on the reading that an
+  ordinal question is an ordinal question whatever its subject — which
+  gave the City stop a scorecard led by "Breakfast is the best meal of
+  the day · 3.4 / 5" under the heading "How Oslo rated them". A question
+  now declares what it rates (`rates: city | country | world`) and the
+  lens draws only what names its stop; the bank carries twenty-four of
+  them, eight per radius, written self-referentially ("your city") so one
+  question serves every city on earth and the cohort cell does the
+  scoping.
 - **Explore** — pick trait chips (age, gender, place, and — since the v18
   sync — a pole of any test you have taken, with your own pole marked and
   a "like me" shortcut) and see what that slice believes, led by where it
@@ -355,7 +363,7 @@ a lens row again:
 | **People** | **live** | the mix is `mixFor` over the deck's aggregates; Kindred is `agreement` over the cached voter lists, bounded at 12 of your own answers × the latest 200 voters each (D102) |
 | **Compare** | **live** | `pctFor` on your own option **within this stop's own cohort** (D170 — it read the globe under the stop's name until then), ranked least-typical first, no new read. "With the majority" means your pick is what this cohort picked MOST, not that it cleared 50%: a three-way leader can win on 40%, and a 50/50 tie is nobody's majority |
 | **Explore** | **live** | `divergence` across the six breakdown dims, against the GLOBE on every stop — its buckets are cuts of everyone and its sentence ends "same as everyone", so it reads `LensQuestion.all` rather than the stop's cohort (D170). The v18 test-pole axis is the one part with no source *here*, since test results are not a dim — but the reading itself is no longer dark: D146 draws it on the who-voted sheet as the **Type** cut, folded on the client from the cached voter lists plus public `testResults` rather than from a published cell (a bounded sample, stated as one, Big Five only). If Explore ever takes the axis it should read `data/typeSplit.ts` rather than grow a second way to type people. Its chips and its sentences printed the raw bucket KEY until D125 — a country row read "NO" — and now resolve through `ui/cohortLabels.ts`, the same one a feed card's breakdown sheet uses |
-| **Scores** | **live since D100** | `meanScore` over the bank's ordinal questions (`rating` + `scale`) **as this stop answered them** (D170), your own score ticked onto each bar. The prototype's *place* scorecard joins the day `rate` questions are written — the lens filters on type |
+| **Scores** | **live since D100**, about the place since D184 | `meanScore` over the questions that RATE this stop (`LensQuestion.rates === scope`, D184) **as this stop answered them** (D170), labelled with the bank's `tag` rather than the prompt, your own score ticked onto each bar. The type filter (`rating` + `scale`) stays under the subject filter: `rates` says what a question is about, `ORDINAL_TYPES` says whether averaging it means anything |
 | **the field itself** | **live since D112**; a tab from D119, the stop's permanent head since D136 | `LiveSimilarityField` — the constellation the demo bodies drew from constants, now computed: kindred by scores on City, place profiles on Country/World. Outside the tab conditional, so it never unmounts and row navigation costs nothing |
 
 The row is the stop's navigation (`ui/MirrorLensTabs`, the prototype's

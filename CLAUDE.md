@@ -213,9 +213,14 @@ an emergency rules fix.
 - **A live Mirror stop carries all five lenses (D99/D100) and, since
   D112, its constellation.** Answers · People · Compare · Explore are
   pure folds over `agg.by` (`src/v2/data/cohort.ts`) plus the D98 voter
-  lists; Scores joined at D100 over the bank's ordinal questions (the
-  old "no `rate` questions" refusal was about the prototype's *place*
-  scorecard, which still waits on content). The similarity fields
+  lists; Scores joined at D100 over the bank's ordinal questions and
+  became the *place* scorecard it is named for at D184 — a question now
+  declares what it rates (`rates: city | country | world`) and the lens
+  draws only what names its stop. The old "no `rate` questions" refusal
+  was right about the content and D100 read it as being about the lens:
+  averaging by TYPE gave the City stop a card led by "Breakfast is the
+  best meal of the day", which is a correct average of Oslo and not a
+  fact about Oslo. Every gate was green while it shipped. The similarity fields
   (`src/v2/data/similarity.ts`, `ui/LiveSimilarityField.tsx`) are the
   permanent head of the City/Country/World stops: your city's people ranked primarily by
   test-score match, cities and countries placed by their real

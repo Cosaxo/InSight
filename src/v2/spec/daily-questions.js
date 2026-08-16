@@ -274,6 +274,71 @@ export let DAILYQ;
       cat: ['Home', 'The good spot'], alts: [['Body', 'Comfort'], ['Interests', 'Small pleasures']] },
     { type: 'rating', prompt: 'How alive is your curiosity these days?', tag: 'Curiosity', axis: 'curious', tone: 'blend',
       cat: ['Interests', 'Curiosity'], alts: [['Mind', 'Energy'], ['Goals', 'Growth']] },
+    // ── the place scorecard, 2026-08-16 (D184) ────────────────────────────
+    // The Mirror's Scores lens is the prototype's place scorecard, and the
+    // live bank held nothing that rates a place — so it drew the ordinal
+    // questions it could find ("Breakfast is the best meal of the day")
+    // under the heading "How Oslo rated them". These are the eight facets
+    // per radius that scorecard was designed around (spec/place-stats.js),
+    // written SELF-REFERENTIALLY — "your city", never "Oslo" — so one
+    // question serves every city on earth and the cohort cell does the
+    // scoping. That is also what keeps them clear of hard rule 6
+    // (QUESTION-FARM.md): a question scoped to one place's citizens is
+    // sold inventory, and none of these is scoped to a place at all.
+    //
+    // `rates` names which Mirror stop may fold a question into its
+    // scorecard — the City stop reads its city cell, Country its country
+    // cell, World the globe. All `rating`, on purpose: the card is sorted
+    // best → worst on ONE shared 0-10 baseline, so eight rows read as a
+    // single shape rather than eight lookups.
+    { type: 'rating', prompt: 'How easy is it to get into nature from where you live?', tag: 'Nature access', axis: 'nature-close', tone: 'blend', rates: 'city',
+      cat: ['Home', 'Nature nearby'], alts: [['Travel', 'Outdoors'], ['Body', 'Being outside']] },
+    { type: 'rating', prompt: 'How well does your city move you around?', tag: 'Getting around', axis: 'well-connected', tone: 'blend', rates: 'city',
+      cat: ['Home', 'Getting around'], alts: [['Travel', 'Transit'], ['Skills', 'Daily life']] },
+    { type: 'rating', prompt: 'How safe do you feel walking home at night?', tag: 'Safety', axis: 'safe', tone: 'deep', rates: 'city',
+      cat: ['Home', 'Safety'], alts: [['Values', 'Safety'], ['Mind', 'Ease']] },
+    { type: 'rating', prompt: 'Rate the food where you live.', tag: 'Food scene', axis: 'well-fed', tone: 'light', rates: 'city',
+      cat: ['Food', 'Where you live'], alts: [['Home', 'Eating out'], ['Interests', 'Food scene']] },
+    { type: 'rating', prompt: 'Your city after dark — rate the nightlife.', tag: 'Nightlife', axis: 'night-loving', tone: 'light', rates: 'city',
+      cat: ['Home', 'After dark'], alts: [['Interests', 'Nightlife'], ['Music', 'Going out']] },
+    { type: 'rating', prompt: 'How easy is it to talk to a stranger here?', tag: 'Friendliness', axis: 'warm', tone: 'blend', rates: 'city',
+      cat: ['Home', 'Neighbours'], alts: [['Values', 'Warmth'], ['Morals', 'Kindness']] },
+    { type: 'rating', prompt: 'How is dating where you live?', tag: 'Dating', axis: 'lucky in love', tone: 'blend', rates: 'city',
+      cat: ['Home', 'Dating'], alts: [['Story', 'Love'], ['Values', 'Romance']] },
+    { type: 'rating', prompt: 'How affordable is your city on a normal wage?', tag: 'Affordability', axis: 'comfortable', tone: 'deep', rates: 'city',
+      cat: ['Home', 'Cost of living'], alts: [['Goals', 'Money'], ['Values', 'Money']] },
+    { type: 'rating', prompt: "Your country's landscapes — how good are they?", tag: 'Nature', axis: 'landscape-blessed', tone: 'light', rates: 'country',
+      cat: ['Travel', 'Landscapes'], alts: [['Home', 'Your country'], ['Interests', 'Outdoors']] },
+    { type: 'rating', prompt: 'How safe a country is yours to live in?', tag: 'Safety', axis: 'unworried', tone: 'deep', rates: 'country',
+      cat: ['Home', 'Your country'], alts: [['Values', 'Safety'], ['Mind', 'Ease']] },
+    { type: 'rating', prompt: 'Work and rest in your country — how well do they balance?', tag: 'Work–life balance', axis: 'balanced', tone: 'deep', rates: 'country',
+      cat: ['Goals', 'Work and life'], alts: [['Values', 'Balance'], ['Home', 'Your country']] },
+    { type: 'rating', prompt: 'If you got sick tomorrow, how good would the care be?', tag: 'Healthcare', axis: 'well cared for', tone: 'deep', rates: 'country',
+      cat: ['Body', 'Care'], alts: [['Home', 'Your country'], ['Values', 'Care']] },
+    { type: 'rating', prompt: 'Do everyday services work where you are?', tag: 'Public services', axis: 'well-run', tone: 'blend', rates: 'country',
+      cat: ['Home', 'Your country'], alts: [['Skills', 'Daily life'], ['Values', 'Fairness']] },
+    { type: 'rating', prompt: 'How welcoming is your country to people who move there?', tag: 'Openness', axis: 'welcoming', tone: 'deep', rates: 'country', political: true,
+      cat: ['Values', 'Openness'], alts: [['Morals', 'Welcome'], ['Home', 'Your country']] },
+    { type: 'rating', prompt: 'The weather you live with. Be honest.', tag: 'Weather', axis: 'weather-blessed', tone: 'light', rates: 'country',
+      cat: ['Home', 'Weather'], alts: [['Travel', 'Climate'], ['Body', 'Seasons']] },
+    { type: 'rating', prompt: 'Can an ordinary wage carry an ordinary life here?', tag: 'Affordability', axis: 'well-off', tone: 'deep', rates: 'country',
+      cat: ['Goals', 'Money'], alts: [['Home', 'Cost of living'], ['Values', 'Money']] },
+    { type: 'rating', prompt: 'How good is what the world eats these days?', tag: 'What we eat', axis: 'food-glad', tone: 'light', rates: 'world',
+      cat: ['Food', 'The world'], alts: [['Interests', 'Food'], ['Values', 'How we live']] },
+    { type: 'rating', prompt: 'Music right now, worldwide — rate it.', tag: 'Music right now', axis: 'music-glad', tone: 'light', rates: 'world',
+      cat: ['Music', 'Right now'], alts: [['Interests', 'Music'], ['Story', 'This era']] },
+    { type: 'rating', prompt: 'How kind are strangers these days?', tag: 'Kindness of strangers', axis: 'faith in strangers', tone: 'deep', rates: 'world',
+      cat: ['Morals', 'Kindness'], alts: [['Values', 'Trust'], ['Mind', 'Outlook']] },
+    { type: 'rating', prompt: 'Where the world is heading — rate it.', tag: 'Where it’s heading', axis: 'world-hopeful', tone: 'deep', rates: 'world',
+      cat: ['Story', 'The future'], alts: [['Mind', 'Outlook'], ['Values', 'Hope']] },
+    { type: 'rating', prompt: 'The state of nature worldwide — rate it.', tag: 'State of nature', axis: 'unalarmed', tone: 'deep', rates: 'world',
+      cat: ['Travel', 'The planet'], alts: [['Values', 'Nature'], ['Morals', 'Stewardship']] },
+    { type: 'rating', prompt: 'How honest is public life these days?', tag: 'Public honesty', axis: 'unjaded', tone: 'deep', rates: 'world', political: true,
+      cat: ['Morals', 'Honesty'], alts: [['Values', 'Trust'], ['Mind', 'Outlook']] },
+    { type: 'rating', prompt: 'How fair is the world right now?', tag: 'Fairness', axis: 'fair-minded', tone: 'deep', rates: 'world',
+      cat: ['Morals', 'Fairness'], alts: [['Values', 'Fairness'], ['Mind', 'Outlook']] },
+    { type: 'rating', prompt: 'How well is the world being led?', tag: 'Leadership', axis: 'leader-trusting', tone: 'deep', rates: 'world', political: true,
+      cat: ['Values', 'Leadership'], alts: [['Morals', 'Power'], ['Story', 'This era']] },
   ];
 
   const UNANSWERED_RECENT = 3; // today + 2 missed days carry no baked answer

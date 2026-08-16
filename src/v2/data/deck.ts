@@ -32,6 +32,13 @@ export interface LiveQuestion {
   branch?: string;
   sub?: string;
   type?: string;
+  // The bank's short label, and which place a question RATES (D184).
+  // `rates` is what makes the Scores card a scorecard of its stop rather
+  // than of every ordinal question in the archive; `tag` is the noun that
+  // card draws instead of the prompt. Both undefined for every question
+  // that rates no place, and for any doc seeded before D184.
+  tag?: string;
+  rates?: string;
   // Whether a COHORT reading may fold this question (D161) — resolved by
   // isCore() at build time rather than carried raw, because the raw flag
   // is feed-only and every other surface is core by construction. A view
@@ -55,6 +62,13 @@ export interface QuestionDoc {
   // to tolerate undefined rather than assume the bank is current.
   branch?: string;
   sub?: string;
+  // The daily bank's short label ("Nature access") and, on the questions
+  // that rate a place, which Mirror stop may fold them — "city" |
+  // "country" | "world" (D184). Daily-only, and absent from any doc
+  // seeded before D184; a bank that predates it simply has no place
+  // scorecard, which is what every bank had until it.
+  tag?: string;
+  rates?: string;
   test: string | null;
   active: boolean;
   // Current-events serving window (D-plan §1): a feed entry past this
@@ -226,6 +240,8 @@ export function buildS(
     branch: q.branch,
     sub: q.sub,
     type: q.type,
+    tag: q.tag,
+    rates: q.rates,
     options: q.options.map((label, i) => ({
       id: String(i),
       label,

@@ -378,6 +378,12 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
       mine: mine == null ? -1 : Number(mine),
       type: q.type,
       branch: q.branch,
+      // The scorecard's two fields (D184): which place the question rates,
+      // and the noun it is drawn under. Passed through rather than
+      // resolved here — Scores is the only lens that reads either, and the
+      // scope it compares `rates` against is its own prop.
+      tag: q.tag,
+      rates: q.rates,
     };
   }).filter((q) => q.options.length > 0);
 

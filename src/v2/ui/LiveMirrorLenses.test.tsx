@@ -79,8 +79,15 @@ const Q: LensQuestion = {
 // The row moved to the host at D119 (it is LiveCohortBody's tab bar now),
 // so a lens is chosen by prop rather than by tapping. `open` still drives
 // the controls INSIDE a lens — the dimension chips.
-const mount = (lens: LensId, qs: LensQuestion[] = [Q], shortName = "Oslo") =>
-  render(<LiveMirrorLenses lens={lens} qs={qs} shortName={shortName} />);
+// `scope` is Scores' own filter since D184 — it draws the questions that
+// rate THIS stop — so the mount has to be able to stand somewhere other
+// than the city. Defaulted, because every other lens ignores it.
+const mount = (
+  lens: LensId,
+  qs: LensQuestion[] = [Q],
+  shortName = "Oslo",
+  scope: "city" | "country" | "world" = "city",
+) => render(<LiveMirrorLenses lens={lens} qs={qs} shortName={shortName} scope={scope} />);
 const open = (name: RegExp) => fireEvent.click(screen.getByRole("button", { name }));
 
 // A ranked person as `kindredPeople` hands one back.
@@ -250,10 +257,11 @@ describe("Compare", () => {
 });
 
 describe("Scores", () => {
-  // A 1-10 rating: two 3s and two 9s, so the mean is 6 exactly.
+  // A 1-10 rating of the city this stop is standing in: two 3s and two
+  // 9s, so the mean is 6 exactly.
   const RATED: LensQuestion = {
-    id: "r1", type: "rating",
-    text: "How optimistic are you about the next ten years?",
+    id: "r1", type: "rating", rates: "city", tag: "Safety",
+    text: "How safe do you feel walking home at night?",
     options: ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"],
     counts: [0, 0, 2, 0, 0, 0, 0, 0, 2, 0],
     all: [0, 0, 2, 0, 0, 0, 0, 0, 2, 0],
@@ -279,34 +287,73 @@ describe("Scores", () => {
     expect(screen.getByText(/you have not rated it/i)).toBeTruthy();
   });
 
-  it("REFUSES to average a categorical question", () => {
-    // The property this lens most needs. Q is a binary — "Yes" and "No"
-    // are different, not ordered — and a mean of it would render as a
-    // confident number about nothing. The filter is on the bank's type,
-    // because nothing in `counts` could tell the two apart.
-    mount("scores");
-    expect(screen.getByText(/nothing rated yet/i)).toBeTruthy();
-    expect(screen.queryByText("/ 2")).toBeNull();
+  // ── D184: the card is about the PLACE ──
+  //
+  // The three cases below are the ones that were green while the release
+  // drew a city scorecard led by "Breakfast is the best meal of the day".
+  // Nothing in the counts, the type or the branch could have caught it —
+  // the average was correct, of the wrong question.
+
+  it("REFUSES a question that rates no place, however ordinal it is", () => {
+    const outlook: LensQuestion = {
+      ...RATED, id: "o1", tag: "Doing nothing", text: "It's okay to do nothing sometimes.",
+      rates: undefined,
+    };
+    mount("scores", [outlook]);
+    expect(screen.queryByText("Doing nothing")).toBeNull();
+    expect(screen.getByText(/questions that rate Oslo land here/i)).toBeTruthy();
   });
 
-  it("distinguishes 'no rated questions' from 'nobody answered them'", () => {
+  it("draws the stop it is standing on, not another stop's questions", () => {
+    const country: LensQuestion = { ...RATED, id: "c1", rates: "country", tag: "Healthcare" };
+    mount("scores", [RATED, country]);
+    expect(screen.getByText("Safety")).toBeTruthy();
+    expect(screen.queryByText("Healthcare")).toBeNull();
+    // …and the same pair one stop out reverses, so this is a filter
+    // rather than an ordering that happens to put the city first.
+    cleanup();
+    mount("scores", [RATED, country], "Norway", "country");
+    expect(screen.getByText("Healthcare")).toBeTruthy();
+    expect(screen.queryByText("Safety")).toBeNull();
+  });
+
+  it("REFUSES to average a categorical question", () => {
+    // The type filter still does its own work under the subject filter. A
+    // place question written as a `choice` — "Yes" and "No" are different,
+    // not ordered — would otherwise render a confident number about
+    // nothing, and nothing in `counts` could tell the two apart.
+    mount("scores", [{ ...RATED, type: "choice", options: ["Yes", "No"], counts: [12, 8] }]);
+    expect(screen.queryByText("/ 2")).toBeNull();
+    expect(screen.getByText(/nobody here has scored Oslo yet/i)).toBeTruthy();
+  });
+
+  it("labels a row with the bank's noun rather than its prompt", () => {
+    // A scorecard is a column of nouns beside one baseline; a column of
+    // questions is a list you read one at a time, and the best-first sort
+    // that makes the shape readable is wasted on it (docs/COPY.md).
+    mount("scores", [RATED]);
+    expect(screen.getByText("Safety")).toBeTruthy();
+    expect(screen.queryByText(/walking home at night/)).toBeNull();
+  });
+
+  it("distinguishes 'no scored questions' from 'nobody answered them'", () => {
     // Two different emptinesses. Collapsing them into one "no data" is
     // the habit the withheld-cell era left behind (D98).
     mount("scores", [{ ...RATED, counts: [0,0,0,0,0,0,0,0,0,0] }]);
-    expect(screen.getByText(/nobody here has rated one yet/i)).toBeTruthy();
+    expect(screen.getByText(/nobody here has scored Oslo yet/i)).toBeTruthy();
   });
 
   it("ranks by share of the scale, so a 5-point and a 10-point compare fairly", () => {
     // 4/5 (0.8) must outrank 7/10 (0.7). Ranking on the raw mean would
     // put the 7 first and quietly sort by which scale a question used.
     const likert: LensQuestion = {
-      id: "s1", type: "scale", text: "Rest is fine.",
+      id: "s1", type: "scale", rates: "city", tag: "Rest", text: "Rest is fine.",
       options: ["1", "2", "3", "4", "5"], counts: [0, 0, 0, 3, 0], all: [0, 0, 0, 3, 0], by: {}, mine: -1,
     };
-    const rating: LensQuestion = { ...RATED, id: "r2", text: "Curiosity?", counts: [0,0,0,0,0,0,3,0,0,0], all: [0,0,0,0,0,0,3,0,0,0], mine: -1 };
+    const rating: LensQuestion = { ...RATED, id: "r2", tag: "Curiosity", counts: [0,0,0,0,0,0,3,0,0,0], all: [0,0,0,0,0,0,3,0,0,0], mine: -1 };
     mount("scores", [rating, likert]);
-    const texts = screen.getAllByText(/Rest is fine\.|Curiosity\?/).map((n) => n.textContent);
-    expect(texts).toEqual(["Rest is fine.", "Curiosity?"]);
+    const texts = screen.getAllByText(/Rest|Curiosity/).map((n) => n.textContent);
+    expect(texts).toEqual(["Rest", "Curiosity"]);
   });
 });
 
