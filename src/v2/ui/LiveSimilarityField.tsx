@@ -39,6 +39,8 @@ import PLACES from "../data/places";
 import {
   angleHash,
   CORE_TEST_KINDS,
+  flattenAxes,
+  scoreMatch,
   MIN_PLACE_AXES,
   parseTestResults,
   placeProfiles,
@@ -509,60 +511,103 @@ const NEAR_FIELD_CAP = 14;
 export function NearField() {
   const [, bump] = React.useReducer((n: number) => n + 1, 0);
   React.useEffect(() => LIVE.subscribe(bump), []);
-  // The same bounded, session-cached loader the City stop's field uses, so
-  // arriving here after City costs nothing and arriving before it warms
-  // the cache City is about to want.
+  // THE ROOM, NOT THE CITY (D180). This field drew the people of your CITY
+  // from D150 until now, ranked by likeness and drawn anonymously — a
+  // deliberate choice made when Near had a count and nothing else true to
+  // show, and the right one at the time.
+  //
+  // D177 removed the premise. Near has its own population now: the people
+  // actually standing here, which the People tab lists two inches below
+  // this. Drawing the city's crowd above that list made one stop describe
+  // two different sets of people and name the wrong one — "Nobody from Oslo
+  // yet" on a stop called Near — which is D170's finding exactly, one stop
+  // over.
+  //
+  // The roster is asked for with NO qids, which is the cheap half of the
+  // room call: the server returns the sampled people and folds no answers,
+  // so arriving at Near costs a presence sample rather than a document per
+  // person per question. The tabs ask again with the deck when one is
+  // opened, and the per-cell cache means the roster is already there.
+  React.useEffect(() => { void LIVE.near.loadRoom([]); }, []);
   React.useEffect(() => { void LIVE.loadSimilarity(); }, []);
+
+  const on = LIVE.near.on();
+  const room = LIVE.near.room();
+  const roster = React.useMemo(() => (room ? room.people : []), [room]);
+  // Keyed on the uid LIST rather than the array, which `near.room()` hands
+  // back fresh on every notify — an effect keyed on the array itself would
+  // re-fire on every beat and re-ask for names it already holds.
+  const rosterKey = roster.map((p) => p.uid).join(",");
+  React.useEffect(() => {
+    void LIVE.loadNames(rosterKey ? rosterKey.split(",") : []);
+  }, [rosterKey]);
+  // AFTER the hooks, never before: an early return above them changes the
+  // hook order between renders (react-hooks/rules-of-hooks), and this
+  // component has four.
   if (!LIVE.enabled) return null;
 
-  const city = LIVE.myCity;
-  const place = city ? PLACES.parse(city) : null;
-  const cityName = place ? place.name : city;
-  const myParsed = parseTestResults(LIVE.myTestResults(), CORE_TEST_KINDS);
-  const people = rankKindred(LIVE.kindredPeople(), myParsed, { city, minShared: 2 });
-  const shown = people.slice(0, NEAR_FIELD_CAP);
-  const loading = LIVE.similarityLoading() || LIVE.kindredLoading();
+  const myFlat = flattenAxes(parseTestResults(LIVE.myTestResults(), CORE_TEST_KINDS) || {});
+  // Placed by test-score likeness, the same metric the City and World
+  // fields use — and the one the owner asked for in as many words: the map
+  // is not about position, it is about how alike people are.
+  //
+  // Somebody who has not taken the test cannot be placed by it, so they are
+  // NOT drawn rather than parked at a default radius: a node at an invented
+  // distance is a claim about a person, and the caption below says how many
+  // are missing instead.
+  const placed = Object.keys(myFlat).length
+    ? roster
+      .map((p) => {
+        const theirs = LIVE.scoresFor(p.uid);
+        return { uid: p.uid, m: theirs ? scoreMatch(myFlat, flattenAxes(theirs), 3) : null };
+      })
+      .filter((p): p is { uid: string; m: NonNullable<ReturnType<typeof scoreMatch>> } => !!p.m)
+      .sort((a, b) => b.m.match - a.m.match)
+      .slice(0, NEAR_FIELD_CAP)
+    : [];
 
-  // No city, no cohort to draw from. Said plainly rather than drawn empty:
-  // the picker lives one stop over and the counter above still works.
-  if (!city) {
+  if (!on) {
     return (
       <SfEmptyField>
-        Set your city — at the City stop, or by turning the count above on —
-        and the people around you draw in here, closest first.
+        Turn the switch on and the people around you draw in here, placed by
+        how alike you are — never by where they are standing.
       </SfEmptyField>
     );
   }
-  if (!shown.length) {
+  if (!placed.length) {
     return (
       <SfEmptyField>
-        {loading
+        {LIVE.near.roomLoading()
           ? <>Working out who around you is most like you…</>
-          : <>Nobody from {cityName} yet among the people on your questions —
-            this fills in as more of the city answers.</>}
+          : roster.length
+            ? <>Nobody here has taken the test yet, so there is no likeness to
+              place them by. {roster.length} {roster.length === 1 ? "person is" : "people are"} in
+              the room — <strong>People</strong> lists them.</>
+            : <>Nobody else has Near on here right now. This fills as people
+              arrive with it turned on.</>}
       </SfEmptyField>
     );
   }
 
-  const scoredN = shown.filter((p) => p.score).length;
   return (
     <div style={{ padding: "2px 0" }}>
-      <SimilarityCanvas kind="anon" picked={null} onPick={() => {}} nodes={shown.map((p) => ({
+      <SimilarityCanvas kind="anon" picked={null} onPick={() => {}} nodes={placed.map((p) => ({
         id: p.uid,
         // Deliberately empty. `anon` draws neither, and an id that carried
         // a name would be one refactor away from rendering it.
         label: "",
-        match: p.score ? p.score.match : p.like.pct,
-        scored: !!p.score,
+        match: p.m.match,
+        scored: true,
       }))} />
       <SfCaption>closer to you = more alike</SfCaption>
-      {/* What the ring is, in the one sentence that keeps it apart from
-          the count above it. */}
+      {/* What the ring is, in the one sentence that keeps it apart from the
+          count above it — and the basis, because the field draws only the
+          people it can measure. */}
       <SfEmpty>
-        {shown.length} {shown.length === 1 ? "person" : "people"} in {cityName},
-        placed by how close {shown.length === 1 ? "their answers sit" : "their answers sit"} to
-        yours{scoredN < shown.length ? " — dashed rings are ranked from answers, not scores" : ""}.
-        Nobody is named here.
+        {placed.length} of the {roster.length} {roster.length === 1 ? "person" : "people"} here,
+        placed by how close their test scores sit to yours
+        {placed.length < roster.length ? " — the rest have not taken it" : ""}.
+        Nobody is named here; <strong>People</strong> names who is in the room.
       </SfEmpty>
     </div>
   );

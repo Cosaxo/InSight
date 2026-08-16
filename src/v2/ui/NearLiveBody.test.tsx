@@ -32,6 +32,11 @@ const LIVE = vi.hoisted(() => ({
   kindredLoading: () => false as boolean,
   kindredPeople: () => [] as unknown[],
   myTestResults: () => ({}) as Record<string, unknown>,
+  // D180: the field draws the ROOM now, so it reaches for the roster and
+  // the cross-user scores that place it — the same batched fetch the
+  // People tab uses.
+  loadNames: async () => {},
+  scoresFor: (uid: string) => (uid ? null : null) as Record<string, Record<string, number>> | null,
   near: {
     supported: () => true as boolean,
     on: () => false as boolean,
@@ -51,8 +56,9 @@ const LIVE = vi.hoisted(() => ({
     refresh: () => {},
     // D177's room. The tab BODIES are lazy and have their own file; what
     // this fixture has to carry is enough for the row to mount.
-    room: () => null,
-    roomLoading: () => false,
+    room: () => null as { people: Array<{ uid: string; type?: string }>;
+      qs: Record<string, Record<string, number>> } | null,
+    roomLoading: () => false as boolean,
     loadRoom: async () => {},
   },
 }));
@@ -72,6 +78,10 @@ beforeEach(() => {
   LIVE.kindredPeople = () => [];
   LIVE.similarityLoading = () => false;
   LIVE.kindredLoading = () => false;
+  LIVE.near.room = () => null;
+  LIVE.near.roomLoading = () => false;
+  LIVE.myTestResults = () => ({});
+  LIVE.scoresFor = () => null;
 });
 
 // The field is lazily imported (it rides the similarity chunk), so every
@@ -261,30 +271,44 @@ describe("NearLiveBody · the constellation, with nobody named", () => {
   // The KindredPerson shape the similarity fold hands back. Named on
   // purpose: the point of these cases is that a name IS available here and
   // the field still does not draw one.
-  const person = (uid: string, match: number) => ({
-    uid, name: `Name ${uid}`, city: "Oslo, NO", results: null,
-    like: { shared: 4, same: 3, pct: match },
-  });
+  // A room of two, both scored, so the field has somebody to place. Since
+  // D180 the field draws the ROOM rather than the city, so what makes a
+  // node is a presence roster entry plus a cross-user test score — not a
+  // kindred row.
+  const roomOfTwo = () => {
+    LIVE.near.on = () => true;
+    LIVE.near.room = () => ({ people: [{ uid: "a" }, { uid: "b" }], qs: {} });
+    // Three axes on BOTH sides: scoreMatch refuses under three shared, so
+    // a one-dim fixture would silently render the "nobody has taken it"
+    // arm and the case would pass for the wrong reason.
+    LIVE.myTestResults = () => ({
+      big5: { dims: [{ id: "o", value: 60 }, { id: "c", value: 55 }, { id: "e", value: 45 }] },
+    });
+    LIVE.scoresFor = (uid: string) => ({
+      a: { big5: { o: 62, c: 50, e: 40 } },
+      b: { big5: { o: 20, c: 80, e: 70 } },
+    }[uid] || null);
+  };
 
   it("draws the field, not only a counter", async () => {
     // The claim the old body made — "a count is the only thing this stop
     // will ever draw" — was a decision about the whole screen taken from a
-    // fact about the presence cell. The people of your city are real, the
-    // app already ranks them one stop over, and drawing them anonymously
-    // claims nothing about who is standing near you.
-    LIVE.myCity = "Oslo, NO";
-    LIVE.kindredPeople = () => [person("a", 80), person("b", 60)];
+    // fact about the presence cell. The people around you are real, the
+    // app can rank them by likeness, and drawing them anonymously claims
+    // nothing about WHERE any of them is standing.
+    roomOfTwo();
     render(<NearLiveBody />);
     expect(await screen.findByText(/closer to you = more alike/i)).toBeTruthy();
     expect(screen.getByRole("group", { name: /closer to the centre is more like you/i })).toBeTruthy();
   });
 
   it("names nobody, and offers nothing to open", async () => {
-    // The deny, drawn. Near cannot tell you who is around you, so its
-    // field is the SHAPE of a crowd — no names, no initials, and no node
-    // you could tap a person out of. A field you can open is a directory.
-    LIVE.myCity = "Oslo, NO";
-    LIVE.kindredPeople = () => [person("a", 80), person("b", 60)];
+    // The deny, drawn. The FIELD cannot tell you who is around you — its
+    // nodes are the shape of a crowd, with no names, no initials and no
+    // node you could tap a person out of. Since D177 the People tab does
+    // name them, which is a different surface with a different control;
+    // what this pins is that the two never merge.
+    roomOfTwo();
     const { container } = render(<NearLiveBody />);
     expect(await screen.findByText(/nobody is named here/i)).toBeTruthy();
     expect(screen.queryByText(/Name a/)).toBeNull();
@@ -306,57 +330,88 @@ describe("NearLiveBody · the constellation, with nobody named", () => {
     // "You, and nobody placed around you yet" is a TRUE picture, node for
     // node, so nothing here is fabricated — the rings are the scale, and
     // the empty ring is the honest state of the data.
-    LIVE.myCity = "Oslo, NO";
-    LIVE.kindredPeople = () => [];
+    LIVE.near.on = () => true;
+    LIVE.near.room = () => ({ people: [], qs: {} });
     const { container } = render(<NearLiveBody />);
     expect(await screen.findByRole("group", { name: /closer to the centre is more like you/i })).toBeTruthy();
     // You at the centre, and nobody else — one text node in the whole svg.
     expect(container.querySelectorAll("svg text")).toHaveLength(1);
     // …and the explanation still follows it rather than replacing it.
-    expect(screen.getByText(/Nobody from Oslo yet/i)).toBeTruthy();
+    expect(screen.getByText(/Nobody else has Near on here/i)).toBeTruthy();
   });
 
-  it("draws the ring before a city is set, too", async () => {
-    // The other empty arm, and the one a brand-new account hits first.
-    LIVE.myCity = "";
-    LIVE.kindredPeople = () => [];
-    const { container } = render(<NearLiveBody />);
-    expect(await screen.findByRole("group", { name: /closer to the centre is more like you/i })).toBeTruthy();
-    expect(container.querySelectorAll("svg text")).toHaveLength(1);
-    expect(screen.getByText(/Set your city/i)).toBeTruthy();
+  // THE SEAM THIS FIELD USED TO HAVE, and the case that keeps it shut
+  // (D180). From D150 until D177 the field drew the people of your CITY —
+  // right at the time, because Near had a count and nothing else true to
+  // show. D177 gave the stop its own population, and the city fold stayed:
+  // so a stop called Near said "Nobody from Oslo yet" above a People tab
+  // listing somebody else entirely. Reported from a device, and it is
+  // D170's finding one stop over — a stop naming one population and
+  // drawing another.
+  it("never names a city, at any of its states", async () => {
+    for (const setup of [
+      () => { LIVE.near.on = () => false; },
+      () => { LIVE.near.on = () => true; LIVE.near.room = () => ({ people: [], qs: {} }); },
+      () => {
+        LIVE.near.on = () => true;
+        LIVE.near.room = () => ({ people: [{ uid: "a" }], qs: {} });
+      },
+    ]) {
+      cleanup();
+      LIVE.near.room = () => null;
+      setup();
+      render(<NearLiveBody />);
+      await screen.findByRole("group", { name: /closer to the centre is more like you/i });
+      // Oslo is the fixture's city everywhere else in this file, so it is
+      // the string that would appear if the city fold came back.
+      expect(document.body.textContent || "", "Near's field named a city again")
+        .not.toMatch(/Oslo|from your city|the city answers/i);
+    }
+  });
+
+  it("says turn it on before it says nobody is here", async () => {
+    // Two different empty states, and conflating them would tell somebody
+    // with the switch off that the room is empty — a claim about other
+    // people made from a fact about their own settings.
+    LIVE.near.on = () => false;
+    render(<NearLiveBody />);
+    expect(await screen.findByText(/Turn the switch on/i)).toBeTruthy();
+    expect(screen.queryByText(/Nobody else has Near on/i)).toBeNull();
   });
 
   it("keeps the two numbers attached to what each counts", async () => {
-    // The D112 honesty rule, and the whole reason this stop can carry a
-    // field at all: the figure counts phones near you right now, the ring
-    // counts people in your city. One caption spanning both is how a
-    // screen starts claiming it knows who is standing next to you.
+    // The D112 honesty rule. The figure counts phones near you right now;
+    // the ring counts the ones this device can PLACE, which since D180 is
+    // a subset of the same room rather than a different crowd. One caption
+    // spanning both is how a screen starts claiming more than it measured.
     LIVE.myCity = "Oslo, NO";
     LIVE.near.on = () => true;
     LIVE.near.count = () => 2847;
-    LIVE.kindredPeople = () => [person("a", 80)];
+    LIVE.near.room = () => ({ people: [{ uid: "a" }, { uid: "b" }], qs: {} });
+    LIVE.myTestResults = () => ({
+      big5: { dims: [{ id: "o", value: 60 }, { id: "c", value: 55 }, { id: "e", value: 45 }] },
+    });
+    LIVE.scoresFor = (uid: string) => (uid === "a" ? { big5: { o: 62, c: 50, e: 40 } } : null);
     render(<NearLiveBody />);
-    expect(await screen.findByText(/1 person in Oslo/)).toBeTruthy();
+    // One of the two placed, and the caption says so rather than implying
+    // the field drew the room.
+    expect(await screen.findByText(/1 of the 2 people here/)).toBeTruthy();
+    expect(screen.getByText(/the rest have not taken it/)).toBeTruthy();
     expect(screen.getByText("2,847")).toBeTruthy();
     expect(screen.getByText(/within a few hundred metres · Oslo/)).toBeTruthy();
   });
 
-  it("asks for a city rather than drawing an empty ring", async () => {
-    LIVE.kindredPeople = () => [person("a", 80)];
-    render(<NearLiveBody />);
-    expect(await screen.findByText(/Set your city/i)).toBeTruthy();
-  });
-
   it("separates 'still working it out' from 'nobody yet'", async () => {
-    LIVE.myCity = "Oslo, NO";
-    LIVE.similarityLoading = () => true;
+    LIVE.near.on = () => true;
+    LIVE.near.roomLoading = () => true;
     render(<NearLiveBody />);
     expect(await screen.findByText(/working out who around you/i)).toBeTruthy();
 
     cleanup();
-    LIVE.similarityLoading = () => false;
+    LIVE.near.roomLoading = () => false;
+    LIVE.near.room = () => ({ people: [], qs: {} });
     render(<NearLiveBody />);
-    expect(await screen.findByText(/Nobody from Oslo yet/i)).toBeTruthy();
+    expect(await screen.findByText(/Nobody else has Near on here/i)).toBeTruthy();
   });
 });
 
@@ -395,7 +450,14 @@ describe("NearField · a node is a radius, never a place and never a join key", 
   });
 
   it("places nodes by likeness and never by a coordinate", () => {
-    const f = nearField();
+    // COMMENTS STRIPPED FIRST (D180). The risk this guards is a coordinate
+    // reaching the canvas, which is a property of the CODE — and the
+    // unstripped scan fired on the word "cell" inside a comment explaining
+    // the per-cell room cache. A source guard that trips on prose is one
+    // people learn to reword around, which is how it stops being read.
+    const f = nearField()
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/^\s*\/\/.*$/gm, "");
     // `match` is the radius. A coordinate reaching this canvas would turn
     // an anonymous field into a map of where strangers are standing, which
     // is what v2_presence's `allow read: if false` exists to prevent.

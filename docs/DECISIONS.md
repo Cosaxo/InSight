@@ -17833,3 +17833,90 @@ Three commands run the gates this repo actually has: `npm run lint` is
 eslint alone, and the CI job of that name also runs `check:globals`,
 `check:figures`, `test:scripts` and `check:a11y`. Running the first and
 calling it "lint passes" is how all four of these got through.
+
+## D180 · Near's field drew the city it is not about
+
+**2026-08-16.** Reported from a device, an hour after D170–D179 deployed:
+the Near stop, switch on, saying **"Nobody from Oslo yet among the people
+on your questions — this fills in as more of the city answers"** — directly
+above a tab row whose People tab lists the people actually in the room.
+
+**This is D170's finding, one stop over, and I shipped it.** D170 was three
+Mirror lenses naming a population and reading a different one; this is a
+stop drawing one crowd and captioning it as another. The difference is that
+D170 was inherited and this one I made, by adding a population to Near
+(D177) and never moving the field onto it.
+
+**WHY THE CITY WAS THERE, because it was not a mistake at the time.** D150
+gave Near a field when the stop had a count and nothing else true to show:
+the people of your city, ranked by likeness, drawn anonymously. Its own
+record argues the point well — *"the refusal was of a claim nobody had to
+make"* — and the honesty rule it shipped with kept the two numbers apart,
+the figure counting phones near you and the ring counting people in your
+city. That was a stand-in for data that did not exist.
+
+D177 made it exist. Once the stop has a roster of the people actually
+present, drawing the city's crowd above it is not a stand-in any more; it
+is a second population on a screen that already has one, and the caption
+has to name a place the stop is not about to explain itself.
+
+### What the field draws now
+
+The room, placed by test-score likeness — the same metric City and World
+use, and the one the owner named in as many words: *the map is not about
+position but how similar they are to you*. Nothing about position is drawn
+or could be; the roster carries a uid and a type and no geometry at all.
+
+**Only the people it can measure.** Somebody who has not taken the test
+cannot be placed by likeness, so they are omitted rather than parked at a
+default radius — a node at an invented distance is a claim about a person.
+The caption states the basis: *"3 of the 7 people here, placed by how close
+their test scores sit to yours — the rest have not taken it."*
+
+**The roster is asked for with NO qids**, which is the cheap half of the
+room call: the server returns the sampled people and folds no answers, so
+arriving at Near costs a presence sample rather than a document per person
+per question. The tabs ask again with the deck when one is opened, and the
+per-cell cache means the roster is already there (COSTS Finding 6).
+
+**Still anonymous.** `kind="anon"`, empty labels, no node you can open —
+the deny drawn, unchanged. The stop's own line says which half is which:
+the field names nobody, People names who is here.
+
+### Guards
+
+The city seam gets a case of its own that walks all three states — switch
+off, room empty, room populated — and fails if the word "Oslo" or either of
+the old city phrasings appears anywhere in the rendered stop.
+Mutation-checked by putting the old sentence back, which fails it and two
+neighbours.
+
+Every D150-era field case was **re-pointed rather than deleted**: they
+encoded the city design, and a test that survives a design change by being
+removed is a claim nobody replaced. What they assert now is the same
+property against the new source — the ring draws when empty, the two
+numbers stay attached to what each counts, loading is distinct from empty,
+and nothing is named.
+
+**And one guard was fixed rather than satisfied.** The source scan that
+refuses a coordinate in `NearField` fired on the word "cell" inside a
+comment explaining the per-cell room cache. It strips comments before
+matching now: the risk is a coordinate reaching the canvas, which is a
+property of the code, and a source guard that trips on prose is one people
+learn to reword around.
+
+### The thing this does not fix
+
+The screenshot also showed **"Couldn't reach the count just now"** with the
+switch on — a failed beat, which is a different problem and not diagnosable
+from an image. What would settle it is the actual error: `runBeat` collapses
+a denied presence write and a refused callable into the same `unavailable`,
+which is the shape that made this hard to read. Worth splitting those two
+if it recurs.
+
+One latent bug was found looking: in the **always** mode `until` is set to
+exactly `now + PRESENCE_LINGER_MIN`, and the rules cap is
+`request.time + 180m` — so any client clock ahead of the server denies the
+write. The timed mode is unaffected (its deadline is two hours, well under
+the cap). Not the reported failure, which was in timed mode, but it is a
+real one and it is recorded here rather than fixed blind.

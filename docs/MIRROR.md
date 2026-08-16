@@ -126,7 +126,7 @@ single ruler you can drag along; the stop you pick recolors the whole tab.
 | **You** | the Map — you, alone, visualized | your own answers, hydrated from Firestore into `DAILYQ` | yes, except the typicality stats (§5), which are mock and refused |
 | **Circle** | your close ties | the follow graph (`v2_users/{uid}/following`) + those accounts' answers | yes since D101 — a one-way follow, ranked by likeness |
 | **Groups** | your named circles | real reveal history, `groupPortrait.ts` | yes |
-| **Near** | who is around you right now — the radius counter (D84), an anonymous field (D150), and since D177 the room itself: Answers · People · Compare | `nearbyCountV2` for the count and the mix (D176); `nearbyRoomV2` for the roster and the room's answers, both gated on the caller having a live position of their own. The field is the city fold, drawn unnamed. The presence CELL stays one of D98's three denies — what D177 discloses is membership, not place | yes |
+| **Near** | who is around you right now — the radius counter (D84), an anonymous field (D150), and since D177 the room itself: Answers · People · Compare | `nearbyCountV2` for the count and the mix (D176); `nearbyRoomV2` for the roster and the room's answers, both gated on the caller having a live position of their own. The field draws the ROOM since D180 — the same people, placed by test-score likeness and still unnamed — where it drew the city's crowd from D150. The presence CELL stays one of D98's three denies; what D177 discloses is membership, not place | yes |
 | **City** | your city: answers, lenses, and the kindred constellation | `v2_question_aggs.by.city[your city]`; kindred from voter lists + `testResults` (D112) | yes since D111/D112 — its own stop again |
 | **Country** | everyone in your country, plus its cities placed by score likeness | `v2_question_aggs.by.country[…]`; city profiles folded from `by.city` (D112) | yes |
 | **World** | everyone, plus countries placed by score likeness | `v2_question_aggs.counts`; country profiles from `by.country` (D112) | yes |
@@ -204,7 +204,21 @@ room is folded over today's deck — each would be a permanently empty tab,
 which is worse than an absent one.
 
 Two numbers, each captioned by what it counts (honesty rule 2 below): the
-figure is phones near you *right now*, the ring is people in your *city*.
+figure is phones near you *right now*, and the ring is **the ones this
+device can place** — a subset of that same room, not a different crowd.
+
+**That was not true until D180**, and the way it failed is worth keeping.
+The field drew the people of your CITY from D150, which was right when
+Near had a count and nothing else true to show. D177 gave the stop its own
+population and the city fold stayed — so a stop called Near captioned
+itself *"Nobody from Oslo yet"* directly above a People tab listing
+somebody else entirely. One stop, two populations, and the wrong one named:
+D170's finding exactly, one stop over, reported from a device.
+
+The field now places the room's people by score likeness, and draws only
+the ones it can measure — somebody who has not taken the test is left out
+rather than parked at an invented radius, and the caption says how many.
+The city fold lives at City, which is what that stop is.
 One caption spanning both is how a screen starts claiming it knows who is
 standing next to you.
 
