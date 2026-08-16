@@ -18815,9 +18815,10 @@ first, so this record moved behind it.
 The number moved in every file that cites it — the record, `MIRROR.md`,
 `CLAUDE.md`, `QUESTION-FARM.md`, the seed generator, the quality gate
 and six modules under `src/v2/` — so `D184` and `D186` in this tree mean
-build 19 and nothing else. **The commit messages on `02511a3` and
-`b34a7ce` still say D184 and D186**; they are the artifacts that cannot
-be corrected in place, and this paragraph is where that is recorded.
+build 19 and nothing else. **The branch's own commit messages still say
+D184 and D186** and are the one artifact that cannot be corrected in
+place; they survive on PR #206 rather than in this history, which
+squashes. This paragraph is the record of it.
 
 Worth naming rather than just fixing: a decision number is claimed by
 whoever merges, not by whoever writes, and a long-running branch against
