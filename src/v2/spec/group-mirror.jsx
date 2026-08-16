@@ -7,7 +7,7 @@ import React from 'react';
 import { MirrorLensRow } from './mirror-field.jsx';
 import { DUELS } from './duels-data.js';
 import { Kicker, Lazy } from './primitives.jsx';
-// The palette gate (D185) — see gmAccent below for why this stop in
+// The palette gate (D189) — see gmAccent below for why this stop in
 // particular could not do without it.
 import { WPAL } from './world-palette.js';
 
@@ -26,7 +26,7 @@ import { WPAL } from './world-palette.js';
     g.members.forEach((p) => { sx += Math.cos(p.hue * Math.PI / 180); sy += Math.sin(p.hue * Math.PI / 180); });
     return Math.round(((Math.atan2(sy, sx) * 180 / Math.PI) + 360) % 360);
   }
-  // Through the gate (D185), and this is the site where skipping it cost the
+  // Through the gate (D189), and this is the site where skipping it cost the
   // most: `gmAccent` is not one mark, it is the stop's `--accent` — set on
   // the stage and on every group card — so an un-gated hue reached the ring,
   // the chips, the lens row's underline and every accent-driven mark under

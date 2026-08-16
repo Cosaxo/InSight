@@ -18408,7 +18408,562 @@ functions 228, every non-Java gate, bundle 2,320 KB / 969 KB eager against
 authoring environment did not have — unrun here, and neither touches
 client copy.
 
-## D184 · The Mirror's tab row sits where a tab bar sits, and stops arguing with the stop about colour
+## D184 · Build 19's pre-flight: this time neither edit happened
+
+**Decided:** 2026-08-16 · **Status:** binding · Seventh release pre-flight
+(D130, D142, D143, D153, D158, D180). Bumps `appBuild` 18 → 19. **The bump
+is the finding again**, and the reason it is the finding has moved.
+
+### The comparison, made against the runs
+
+`ios-release.yml` has **26 runs**, not the 24 D180 recorded. Two landed on
+2026-08-16 after that entry was written:
+
+| Run | Id | Sha | Dispatched | Step 17 `Upload to App Store Connect` |
+| --- | --- | --- | --- | --- |
+| 25 | `31954391079` | `810b3af` | 15:01:04Z | **`skipped`** — the dry run |
+| 26 | `31954752095` | `810b3af` | 15:08:19Z | **`success`** — 15:13:07Z → 15:14:46Z, 1m 39s of transfer |
+
+Same commit, seven minutes apart: the third pair of this shape after runs
+15/16 and 23/24, and again both runs are `success` at the **job** level
+while only one of them spent a number. `appBuild` at `810b3af` — read at
+the run's own `head_sha`, per D159 — was **18**. So build 18 is spent.
+
+`appBuild` in the tree was **18**. Eighteen is not greater than eighteen,
+so runbook 2.4's question answers **bump, then run**. Done by hand, 18 →
+19, then `check:versions --fix` carried it to `versionCode` 19 and both
+`CURRENT_PROJECT_VERSION` entries. (`--fix` propagates; it does not
+increment. D158's note, load-bearing for the third time.)
+
+### The fourth skip, and it is not D180's shape either
+
+The post-upload bump has now been skipped after runs 18, 19, 24 and 26 —
+four against three that held (20, 21, 22). But this one is not the failure
+D180 diagnosed, and the difference is the whole entry.
+
+D180 found that **the record and the number are two different edits**, and
+that a session can discharge the first while leaving the second: commit
+`5798623` returned to the tree *specifically to record* run 24 and left
+`appBuild` at 17. The proposed remedy followed from that shape — *if
+LAUNCH-RUNBOOK claims build N was uploaded, then `appBuild` must be
+greater than N* — recorded there as the yield, unbuilt, for whoever took
+it next.
+
+**Here neither edit happened.** `grep` across `docs/` finds no mention of
+run 25, run 26, either run id, or build 18 having been uploaded. No record
+was written at all. The tree was returned to twice after the upload
+finished at 15:14:46Z — #201 merged 15:51Z and #202 merged 16:48Z, 37
+minutes and 93 minutes later — and neither had any reason to think about a
+build number, because neither was about the release.
+
+**So D180's gate would not have fired.** It keys on a claim in the runbook,
+and the claim is exactly what is missing; an invariant conditioned on the
+record is silent in the case where the record is the thing that was
+skipped. That is not an argument for a different gate so much as a
+correction to the one that was left half-designed — the sound version keys
+on the **run list**, which no gate in this tree can read (D73's shape, one
+layer out). Still not built here, and now for a second reason: it is a
+release pre-flight, the wrong moment to add a gate that can go red on
+wording, *and* the cheap local form of it has now been shown not to cover
+the observed failure.
+
+**What the four skips have in common is not inattention.** Runs 18, 19 and
+24 were followed by sessions doing release paperwork; run 26 by sessions
+doing feature work. The constant is that the bump depends on someone
+holding a fact that lives in App Store Connect, and nothing in the tree
+carries it between sessions. The only thing that has ever worked is
+reading the run list before dispatching — which is a procedure, and is why
+this file keeps recording the procedure rather than a fix.
+
+### What build 19 carries that 18 did not
+
+**A pure JavaScript payload**, the first since build 16. Against run 26's
+commit, `git diff --stat 810b3af..HEAD` touches nothing under `ios/` or
+`android/`, neither lockfile, neither rules file, and neither store-filing
+file (`content/app-privacy.json`, `docs/STORE-FORMS.md`) — 57 files, +1367
+/ −609, all of it `src/`, `docs/` and `web/privacy.html`.
+
+The payload is **D181** — Near's similarity field drew the city it is not
+about, reported from a device an hour after D170–D179 deployed — and
+**D182/D183**, the copy pass: `visual > word > sentence > sentences`, with
+the long privacy disclosures moved out of the app into `web/privacy.html`
+behind the new `check:policy-claims` gate.
+
+**So the store filing does not move**, and runbook 4.4 stands at the nine
+rows D180 corrected it to. The window D180 named is still open and is
+unchanged by this build: the live App Store label still describes build
+17's data collection, TestFlight has no review gate so build 19 can go up
+against it, and App Store review cannot.
+
+**`VITE_REQUIRE_SIGNIN` is untouched and still defaults to `true`**, so
+build 19 is another TestFlight-shaped binary with the sign-in wall up.
+D134's fork — drop the wall or build Sign in with Apple — is not this
+pre-flight's to close, but SHIP-CHECKLIST's 4.8 reply remains unusable
+against this build, and that is worth knowing *before* a submission rather
+than during one.
+
+### The bundle, and the tight half moved the right way
+
+| | D158 (build 16) | D180 (build 18) | here (build 19) | ceiling |
+| --- | --- | --- | --- | --- |
+| total JS | 2278 KB | 2329 KB | **2321 KB** | 2334 |
+| eager graph | 961 KB | 975 KB | **970 KB** | 978 |
+| chunks | 75 | 78 | 78 | — |
+
+Measured on the shipping artifact — `CAPACITOR_BUILD=1`,
+`VITE_V2_LIVE=true`, `VITE_REQUIRE_SIGNIN=true`, non-empty
+`VITE_SENTRY_DSN`, `VITE_RELEASE_TAG` set — the way `ios-release.yml`
+builds it.
+
+**D180 ended on the eager graph at 975 against 978 — 3 KB — and named the
+answer as "trim, not raise", because that ceiling has a refusal history
+(D144, D152) where the total has a raise history.** The next change to land
+trimmed it. The copy pass took the eager graph to 970 and the total to
+2321 without anything being asked of it: 8 KB back on the half that could
+not have been widened. Recorded because the prediction and the outcome are
+one release apart, and because it is the first time the eager number has
+gone down on a release path.
+
+### Measured, not asserted
+
+**1216 client tests (80 files), 202 script (11), 228 function (8), 106
+rules (2)**; all three e2e suites green — the loop, erasure and moderation,
+each with `npm` exiting 0 and its own `Script exited successfully`. `lint`
+clean, `tsc -b` clean, and the `check:*` gates. `check:globals` reports
+**409** cross-module references across 42 files over 183 files scanned — at
+its baseline and unmoved, so the payload added no coupling.
+
+**D183 shipped with `test:rules` and the three e2e suites unrun**, because
+the authoring environment had no Java 21; its own closing paragraph says
+so. This environment has Java 21, so they were run here, and that gap is
+closed rather than inherited: **106 rules tests and three green e2e suites
+against the merged tree**, which is the first execution of either since
+#201 and #202 landed.
+
+The three environmental gates behave as D158 and D180 enumerated, and the
+third one bit again in the predicted way: **`check:web-firebase` reads
+`VITE_FIREBASE_*` and `VITE_V2_LIVE` from the *environment* as well as
+from `dist/`**, so invoking it in a shell that did not carry the build's
+env block fails it on a `dist/` that is correct. Re-run inside the env
+block: OK, live config inlined into **78** chunks. That is the gate's
+mechanism confirmed for the third entry running, and the third time
+someone has had to learn it from the failure text rather than the name.
+
+### What is NOT written here
+
+That build 19 is "pre-flighted and unspent". That sentence has been wrong
+three times (D130, D142, D143) and it is not storable — the run is
+dispatched *from* the commit that makes the claim. This entry records what
+run 26 **did**. Whoever dispatches next re-makes the comparison against
+the run list, reads `appBuild` at the run's own `head_sha` (D159), and
+reads the conclusion of **step 17** rather than of the run (runs 25/26 are
+the third worked example).
+
+## D185 · Crossroads gets a brief, and the gates learn what a story is
+
+**Decided:** 2026-08-16 · **Status:** binding · Owner direction:
+*"Crossroads right now feels a bit boring in the type of questions"*, then
+*"suggest improvements to the crossroad generator"*. Amends D136's form
+with authoring rules and the gates to hold them; changes no client code
+and no seeded document.
+
+The complaint was about content and the cause was not. Two stories exist
+(D136), both `cat: dilemma`, in a bank spanning ten topics — and the
+pipeline that produced them had, between the manual and five gates,
+nothing that could notice.
+
+### 1 · What was actually missing, measured
+
+- **The lane had no brief.** A path is 38 authored strings under
+  exactly-spelled keys — the largest thing the feed lane writes by a wide
+  margin — and `QUESTION-FARM.md` gave it ONE bullet, entirely field
+  names. `dial`/`field` have a section; `vote` inherits the style guide; a
+  story inherited neither. So the lane wrote the same story twice and
+  every gate was green, which is the correct outcome for gates that were
+  only ever asked about shape.
+- **Dedup was reading 3% of the question.** `textOf` folds
+  prompt + options|items + ax/ay/ends. A path carries **none** of those —
+  the quality gate explicitly refuses `options`, because its answer space
+  is the eight endings and their labels are synthesized. Measured with the
+  script's own `tokensOf`: **4 tokens against 134 and 145.** The intro,
+  seven scene lines, fourteen choices and sixteen ending strings were
+  uncompared. Two stories differing only in their prompt line would have
+  scored 0.000.
+- **`checkBatch` had no feed arm.** Rules for `daily` (tone, form) and
+  `learn` (difficulty), nothing for the lane that writes the LARGEST
+  batch of the three. Eight votes on one topic printed eight ✓ and no
+  batch line.
+
+### 2 · The rule the form lives on: three forks, three axes
+
+Every node declares what its fork TRADES, from a closed vocabulary
+(`PATH_AXES`: risk · time · company · disclosure · ownership · certainty ·
+effort · loyalty), and no walk may turn one axis twice.
+
+A tree whose forks all turn one axis does not have eight endings; it has
+one gradient sampled at eight points, and the reveal — *"1 in 12 walks
+your road"* — then RANKS the reader along it instead of placing them. That
+is the wrong sentence for this product to say, and doubly so under D98:
+answers are public, so a fork with a visible virtuous road collects
+performance rather than disclosure.
+
+**Checked per WALK, not per tree**, because a tree is not one sequence of
+forks but eight, and a story can be varied down one branch and flat down
+another — pt1 is exactly that (`_`→B→BA turns three axes; `_`→A→AA turns
+one). A walk is what a reader experiences, so a walk is the unit.
+
+**The vocabulary is closed**, for the reason `cat` is: an open one is a
+free text field, and "money" / "cash" / "greed" would read as a spread
+while being one axis three times. Widening it is a PR-body note naming the
+story that needed it — § When no category fits' contract.
+
+**The annotation costs nothing on the wire, and this was verified rather
+than reasoned.** `gen-v2content.mjs` REBUILDS each node
+(`{ q, a: [{ t }] }`) rather than spreading it — the same whitelist that
+already drops the demo pool's authored `p` shares — so `axis` stops at the
+content bank. `check:content` regenerates `v2content.ts` and it came back
+**byte-identical**: no seeded field, no `SEEDED_FIELDS` comparison, no
+reseed of the two live docs, no bytes shipped to a device.
+
+### 3 · Both live stories fail the rule, and the exemption is permanent
+
+Annotated honestly and then counted: **pt1 is flat on 6 of its 8 walks**
+(certainty → ownership → ownership four ways, plus certainty → effort →
+effort twice) and **pt2 on 8 of 8** (disclosure and loyalty in every
+arrangement of three). pt2 has no varied walk at all — a reader who walks
+it twice down different roads answers the same question twice.
+
+**They cannot be fixed, and the reason is D52.** A path's OPTIONS are its
+eight ending names (`pathOptions`), so renaming one is an option edit: the
+seed refuses it, because the stored `optionIdx` would silently come to
+mean a different ending. And both trees encode their single axis IN those
+names — pt1's A-branch lands on "The Honest Trade" / "Finders, Keepers" /
+"The Long Way Round", which only parse if forks 2 and 3 both turn
+`ownership`. Re-axing the forks would leave walks arriving at names that
+no longer fit them. Fork prose is editable (D136 put `nodes` in
+`SEEDED_FIELDS` for exactly that); ending names are not. So the honest
+options were to exempt the two or to retire them (`active: false`,
+the operator's call), and this exempts them.
+
+`PATH_AXIS_LEGACY` carries both ids with the arithmetic above. Three
+properties make it a record rather than a loophole:
+
+- **It waives `axis-spread` alone, never `axis`.** Both stories still
+  declare all fourteen fork axes, so the defect is visible IN THE DATA
+  rather than implied by a missing field — the `core` argument (absent and
+  false are the same bytes; only one is a decision).
+- **They still count as predecessors** for the genre ratchet, which is
+  what forces the third story off `dilemma`.
+- **A test pins the arithmetic to the content** (6 and 8), so a waiver
+  whose recorded reasoning drifted from the tree fails — the stale-figure
+  failure class (D39) wearing a JSON hat.
+
+### 4 · The genre ratchet
+
+A path's `cat` must differ from the `cat` of each of the
+`PATH_GENRE_LOOKBACK` (2) paths before it. A corpus rule rather than a
+batch one, which is the opposite of every other mix rule and deliberate:
+the lane writes eight questions a run and at most one is a story, so a
+batch rule can never see two paths at once. What a reader meets is the
+SEQUENCE — Crossroads holds one pinned slot at the head of the feed
+(D136), so consecutive stories are consecutive on screen in a way
+consecutive votes are not.
+
+Two is the smallest window that forces a third topic rather than an
+A-B-A-B alternation, and it only ever rules out two of ten topics. The
+first two stories are unchecked by construction — no predecessors — so
+D136's pair needs no waiver here.
+
+### 5 · What the probe found, which reading had not
+
+Pre-flighting a synthetic story failed with **fourteen demands for an
+authored branch share `p`** — texture the live form must not carry.
+`printPacket` ran every candidate as the demo-pool form, which is right
+for a continuum question (written twice) and wrong for a story (written
+once, in the content bank; its demo twin is client code the lane does not
+touch). The pre-flight was instructing a run to write the one thing the
+content gate would then reject it for. Fixed with the texture flag keyed
+off the type, and `core` now rides through `candidateOf` — the SCALE-PLAN
+rule is scoped to content-form entries, so it had been firing on every
+story for a field the candidate did declare and the function dropped.
+
+### 6 · What is NOT closed, said plainly
+
+- **Dedup still cannot see genre.** pt1 and pt2 score **0.107 compared
+  whole** — far under the 0.5 gate — because they are the same KIND of
+  story in different vocabulary. Token overlap cannot catch that; §2 and
+  §4 are the instruments that can. The `textOf` fix is the narrower thing
+  it looks like: a gate reading 3% of its input now reads all of it.
+- **No new stories were written.** This is the pipeline, not the content.
+  The corpus is still two `dilemma` stories, and the next one now has
+  rules to be written against.
+- **The card still shows `pathQs()[0]`** — the head of the list, in both
+  the live and demo arms (`paths-card.jsx`). So "The Wrong Text" has never
+  been on a screen: the bank holds two stories and the app has always
+  shown one. That is a client change and not a generator one, which is why
+  it is recorded here and not fixed here.
+
+### What proves it
+
+`test:unit` (80 files, 1,216), `test:scripts` (11 files, 215 — up 13),
+`lint`, `check:globals` (coupling unchanged at 409), `check:quality` (376
+questions), `check:content` (v2content.ts byte-identical), `check:figures`
+(28 figures, up 2), `check:neighbors` (feed's closest pair unmoved at
+0.250 with the stories now read whole), `check:labels`,
+`check:public-copy`, `check:data-inventory`, `build`, and `check:bundle`
+on the shipping build — 2,320 KB / 969 KB eager against 2,334 / 978,
+unmoved, as it must be for a change that touches no client file.
+
+`test:rules` and the e2e suites want Java 21, which this environment does
+not have — unrun. Neither reads content: the seed path is exercised by
+`check:content` and `seed.test.ts`, and no seeded document changed.
+
+New cases: a story turning three axes on every walk; a missing axis and an
+invented one; the per-walk firing (one node moved → 2 of 8 walks flat, six
+clean); the legacy waiver covering `axis-spread` and not `axis`; the live
+pair's annotations and their 6-and-8 arithmetic; the ratchet's lookback,
+its silence on the first two and its live pass; the feed batch arm's form
+and topic spread, its 0.75 ceiling at 6-vs-7 of eight, and its silence
+under three; and a Crossroads story read whole by dedup, asserted on
+tokens that exist only in a node and an ending.
+
+The two figures quoted in the new manual section (`OPTION_MAX`,
+`PATH_CHOICE_MAX`) are registered with `check:figures`. They are not
+budget constants like the eleven already there, and the failure is a
+different one: a manual quoting a longer ceiling than the gate enforces
+sends 38 hand-authored strings into a gate that refuses them, which is the
+most expensive thing in this lane to redo.
+## D186 · Build 19 is delivered, and the bump was made from the step list
+
+**Decided:** 2026-08-16 · **Status:** binding · The upload D184 prepared,
+and the post-upload bump 19 → 20 that four of the last seven releases
+skipped.
+
+**Numbered D185 when it was written, and renumbered here.** #204 landed
+its own D185 while this was in flight — the same collision D180 records
+against #199, at the same distance of about two hours. The commit message
+on `e0fa7eb` still says D185 and is the one artefact that cannot be
+corrected in place. Nothing else moved: #204 touches the question farm and
+its gates, this touches a build number, and the merged tree passes both
+sets of checks (`check:figures` now 28 figures across 12 files, script
+tests 215). **Twice in seven entries is the shape, not the accident** — a
+release entry is written against a tree that other lanes are still
+appending to, so the number it claims is provisional until it merges.
+
+### What ran
+
+| Run | Id | Sha | Dispatched | Step 17 |
+| --- | --- | --- | --- | --- |
+| 27 | `31963630320` | `e76731d` | 18:07:00Z | **`skipped`** — the dry run |
+| 28 | `31963956792` | `e76731d` | 18:13:34Z | **`success`** — 18:17:39Z → 18:18:55Z, 1m 16s of transfer |
+
+Both archived `e76731d`, the merge commit of #203, where `appBuild` is
+19 — so the comparison D184 made against runs 25/26 held at the sha each
+run actually built (D159). Job times 5m 44s and 5m 23s. **Build 19 is
+spent**, and `appBuild` is now **20**, propagated by `check:versions
+--fix` to `versionCode` and both `CURRENT_PROJECT_VERSION` entries.
+
+The dry run was not ceremony. It is what `ios-release.yml`'s header asks
+for, and it is the run that would have caught a signing or entitlement
+regression before anything reached TestFlight. Both silent-failure gates
+passed at both ends — step 13 (the archive carries `GoogleService-Info.plist`
+and `aps-environment`) and step 15 (the exported `.ipa` is
+production-signed, read out of the `.ipa` rather than the archive, which
+is the distinction that whole section of IOS-RELEASE.md exists to make).
+
+### The bump held, and the reason is the ordering
+
+Four bumps have now held (runs 20, 21, 22, 28) against four skipped (18,
+19, 24, 26). D153 and D158 credited the holding ones to the bump landing
+while the run's own step list was on screen; D180 refined that after run
+24 broke it, and **D184 broke the refinement** — run 26's skip happened
+with nobody looking at a step list at all, because no record was written
+either.
+
+**This release is the first where the dry run, the upload, the bump and
+the record were one session.** That is worth naming precisely, because
+the useful part is not diligence: the bump was computed **from step 17's
+conclusion**, read seconds after it turned `success`, rather than from
+anyone's memory of whether a build had been spent. Every skip in the list
+happened in the gap between those two things. The habit that works is not
+*remember to bump* — it is *never let the number be derived from memory*.
+
+**It still is not a guarantee, and nothing in this tree can make it one.**
+D184 established why: the fact lives in App Store Connect, the sound
+invariant keys on the run list, and no gate here can read either (D73's
+shape, one layer out). Four-for-eight is a procedure holding, not a
+mechanism working. The next dispatcher re-makes the comparison.
+
+### What is NOT written here
+
+That build 20 is "pre-flighted and unspent" — the sentence D130, D142 and
+D143 each got wrong, and which D184 declined to store. This entry records
+what run 28 **did**: it delivered build 19 at 18:18:55Z. Whoever
+dispatches next reads the run list, takes `appBuild` at the run's own
+`head_sha`, and reads the conclusion of **step 17** rather than of the
+run — runs 27/28 are now the fourth worked example of a pair that is
+`success` at the job level with only one of them having spent a number.
+## D187 · The place scorecard rates the place
+
+**Written as D184, renumbered to D186, and renumbered again to D187** —
+the D138–D141 precedent, twice in one afternoon. This branch took the
+next free number the same day build 19 shipped, and build 19 is three
+decisions all by itself: D184 its pre-flight, D186 its delivery, with
+D185 (Crossroads' brief) landing between them. Each time main merged
+first, so this record moved behind it.
+
+The number moved in every file that cites it — the record, `MIRROR.md`,
+`CLAUDE.md`, `QUESTION-FARM.md`, the seed generator, the quality gate
+and six modules under `src/v2/` — so `D184` and `D186` in this tree mean
+build 19 and nothing else. **The branch's own commit messages still say
+D184 and D186** and are the one artifact that cannot be corrected in
+place; they survive on PR #206 rather than in this history, which
+squashes. This paragraph is the record of it.
+
+Worth naming rather than just fixing: a decision number is claimed by
+whoever merges, not by whoever writes, and a long-running branch against
+a repo that records release bookkeeping as decisions will lose the race
+every time. Cheap to fix while the number lives in prose and comments;
+it would not be if anything keyed on it.
+
+**2026-08-16.** Reported from a device, with a screenshot of the
+prototype's scorecard beside it: *"scores are currently weird as they
+should be something related to the city or world or country — right now
+they seem to be something else."*
+
+They were. On the City stop, the Scores tab drew this:
+
+| row | number |
+| --- | --- |
+| It's okay to do nothing sometimes. | 3.8 / 5 |
+| How optimistic are you about the next ten years? | 6.2 / 10 |
+| Breakfast is the best meal of the day. | 3.4 / 5 |
+
+…under the heading **"How Oslo rated them · best first"**. Every number
+is correct. Every number is Oslo's. Not one of them is *about* Oslo.
+
+### How a lens ends up averaging the wrong questions
+
+D100 shipped Scores over `ORDINAL_TYPES` — the bank's five 1-10 `rating`
+items and sixteen 5-point `scale` ones — and the note it shipped with is
+the whole story:
+
+> the bank ships five 1-10 `rating` items and sixteen 5-point `scale`
+> ones, and an ordinal question is an ordinal question whether its
+> subject is a city or your own outlook.
+
+That sentence is true and it answers a different question. The refusal it
+overturned (D99: "the bank ships no `rate` questions, so the lens would
+be an empty frame") was right, and right about the thing that matters —
+what a place scorecard needs is not *a number*, it is a number **about
+the place**. Type is a property of the answer space. Subject is a
+property of the question, and nothing in `counts`, `type` or `branch`
+carries it: "How safe do you feel walking home at night?" and "It's okay
+to do nothing sometimes" are both ordinal, both answered by the same
+people, and only one of them is about a city.
+
+**No gate could have caught it, and that is the point worth keeping.**
+`tsc -b`, eslint, check:globals, the smoke tests and 1,219 unit tests
+were green the whole time — including six cases in
+`LiveMirrorLenses.test.tsx` that assert the arithmetic, the ranking and
+both empty states of a card whose rows were the wrong rows. This is
+D157's failure class and D170's exactly: not a fabricated number, a real
+one describing something it does not name. Visible only from the app.
+
+### The fix, in two halves that do not work apart
+
+**A question declares what it rates.** `rates: "city" | "country" |
+"world"` on the daily source, carried through `gen-v2content.mjs` →
+`QuestionDoc` → `LiveQuestion` → `LensQuestion`, and Scores draws only
+what names the stop it is standing on. City reads its city cell, Country
+its country cell, World the globe — the same cell the rows take (D170),
+so the two tabs cannot disagree about which crowd this is. Absent means
+"rates no place", which is 90 of the 114 dailies, and they keep their
+average on the Answers tab, which has led every ordinal row with the
+same number since D120.
+
+**The bank gets the questions the refusal was waiting for.** Twenty-four
+dailies, eight per radius, ported from the eight facets the prototype's
+own scorecard was designed around (`spec/place-stats.js` — Nature
+access, Getting around, Safety, Food scene, Nightlife, Friendliness,
+Dating, Affordability, and the country/world sets beside them). All
+`rating`, on purpose: the card sorts best → worst on ONE shared 0-10
+baseline, which is what lets eight rows read as a single shape rather
+than eight lookups.
+
+**They are written self-referentially — "your city", never "Oslo".** One
+question serves every city on earth and the cohort cell does the
+scoping. That is not a style choice; it is what keeps them clear of the
+farm manual's **hard rule 6** (questions scoped to one place's citizens
+are commercial inventory, and an unsupervised job must never generate
+them). None of these is scoped to a place at all, and none is a civic or
+policy question — they rate a condition, they do not take a side. Three
+carry `political: true` on the D52 marker's own calibration, which
+already marks "How much do you trust the news you read?".
+
+**The tension worth naming rather than burying:** a universal "How
+affordable is your city on a normal wage?" does yield, free, a per-city
+affordability score for every city — which is adjacent to what
+`QUESTION-FARM.md` reserves as sold inventory. The scorecard is the
+product's own design and the owner asked for it, so this is recorded,
+not deferred. If it ever needs unwinding, `rates` is the field to filter
+on and the questions are a contiguous block (`daily-090`…`daily-113`).
+
+**`check:quality` gates the new field, because both ways of getting it
+wrong are silent** — the same class of failure this decision exists to
+close, one layer down. A typo'd scope (`rates: "citty"`) names no stop, a
+`rates` question written as a `choice` is dropped by the lens's own type
+filter, and in both cases the row is simply not there, which looks
+exactly like a question nobody has written yet. Verified by probe rather
+than by reasoning: both shapes fail the gate, the 400-question corpus
+passes it.
+
+**The row is labelled with the bank's `tag`, not the prompt.** "Safety",
+"Getting around", "Affordability" — the seed dropped that field on the
+floor until now. A column of nouns beside one baseline is a shape; a
+column of questions is a list you read one at a time, and the best-first
+sort that makes the shape legible is wasted on it
+([`COPY.md`](COPY.md): visual > word > sentence).
+
+### Arithmetic, and two limits recorded rather than discovered
+
+**Deploy order, same class as D161's.** The seeded bank carries no
+`rates` until an operator reseeds, so between merge and reseed Scores
+draws *nothing* rather than the wrong thing. That is the direction to be
+wrong in, and it is the empty state the card already prints ("Nothing
+scored yet — questions that rate Oslo land here").
+
+**Fill rate.** One daily a day over a 114-question bank means a given
+place question comes round about every 114 days, and a stop's card wants
+eight of them. The card fills slowly and from the archive, not the week
+— which is exactly why D100 pointed these lenses at `LIVE.aggregated()`
+in the first place. A faster fill needs a surface that serves more than
+one question a day; the feed is the obvious one and `aggregated()` is
+daily-only, so that is a real change, not a tweak.
+
+**Bundle.** The 24 archive entries cost **+5 KB of the eager graph**:
+969 → 974 KB against `MAX_EAGER_KB` 978. Green, and **4 KB is the whole
+remaining headroom** on the ceiling `check-bundle.mjs` says twice is not
+raiseable on request. The farm writes 12–14 dailies a week into the same
+eager module, so that headroom is ~2 weeks wide with or without this
+change — the structural answer is that `spec/daily-questions.js` is DEMO
+data and does not belong in the entry chunk at all (the D25
+`loadWorldFeed` pattern). Not attempted here; named so the next person
+adding archive questions meets a decision instead of a red gate.
+
+Post-change figures, **re-measured after merging main** (D185 landed 250
+lines of new question-quality rules and a changed neighbours scorer, so
+the pre-merge numbers were not the ones that matter): bank 537 seeded /
+114 daily (from 513 / 90), wire size 134.0 KiB (from 125.0), unit 1,219,
+scripts 215, functions 228, rules 106, all three e2e suites green (Java
+21 was available here, unlike D183's run), `check:quality` 400 questions
+against D185's widened rule set, `check:neighbors` unmoved at 0.333
+daily on its new scorer, bundle 2,325 KB / 974 KB eager. Every non-Java
+gate passes except the two that were already failing for environmental
+reasons and remain untouched by this change: `check:store-copy` (an
+unfilled Play signing SHA, account-gated) and `check:web-firebase`
+(wants the release build's secrets).
+## D188 · The Mirror's tab row sits where a tab bar sits, and stops arguing with the stop about colour
 
 **2026-08-16.** Reported against the live build with `InSight_standalone_30.html`
 held beside it — the owner's current visual vision, and the rule attached
@@ -18531,9 +19086,9 @@ World). Unit 1,216, ui 318, scripts 202, `tsc -b`, `lint`, and
 e2e suites want a running emulator per suite; the emulator was up for the
 visual capture and neither suite touches this layout.
 
-## D185 · The design gate was never looking, and two group hues never met the palette
+## D189 · The design gate was never looking, and two group hues never met the palette
 
-**2026-08-16.** Asked, after D184, whether anything else diverges from
+**2026-08-16.** Asked, after D188, whether anything else diverges from
 `InSight_standalone_30.html` — colour, type, placement, function. Answering
 it meant running `scripts/style-diff.mjs`, which is the tool
 [`design/README.md`](../design/README.md) tells you to use *instead of*
@@ -18646,7 +19201,7 @@ that found it:
 - **One element renders in Arial.** `daily-circle`'s "You" at 16px Arial
   against the prototype's 13.5px Hanken Grotesk — a node inheriting no font
   at all. One element, not yet located to a line.
-- **The live Mirror bodies are inset 16px more than the prototype** (D184's
+- **The live Mirror bodies are inset 16px more than the prototype** (D188's
   note, unchanged).
 
 ### What is missing rather than wrong
@@ -18672,7 +19227,7 @@ scale, and the kicker/micro-label tiers are identical.
 **Same day.** Asked to fix the third item in the list above, and there was
 nothing to fix: `group-role-map.jsx` and `group-mirror.jsx` are the
 prototype's files line for line apart from the ESM conversion, the
-`div`→`button` a11y pass, one dropped test in a list of five and D185's own
+`div`→`button` a11y pass, one dropped test in a list of five and D189's own
 gate wrap. Both builds draw the constellation node the same way, from the
 same line:
 

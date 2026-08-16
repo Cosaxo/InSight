@@ -47,7 +47,7 @@
 //           colours swapped in both directions — noise from the same cause,
 //           not a colour miss.
 //
-//           READ THAT AS A DEFECT, NOT AS AN EXCEPTION (D185). It was
+//           READ THAT AS A DEFECT, NOT AS AN EXCEPTION (D189). It was
 //           filed here, under "deliberate", as though it were a fact about
 //           c03. It is a fact about the JOIN: any count that differs
 //           between the builds shifts every later occurrence of a repeated
@@ -101,7 +101,7 @@ const EXE = process.env.PW_EXECUTABLE || undefined;
 // That gives one row per rendered string, which is a stable join key across
 // two builds whose DOM shapes differ.
 //
-// THE TAG IS PART OF THE KEY, AND IT HAS TO BE (D185). The key was text
+// THE TAG IS PART OF THE KEY, AND IT HAS TO BE (D189). The key was text
 // plus its nth occurrence, so the nth "LA" in one build paired with the nth
 // "LA" in the other — fine until the two builds render a different NUMBER
 // of them, at which point every occurrence after the first extra one pairs
@@ -164,7 +164,7 @@ const COLLECT = `(() => {
 // One entry per screen worth comparing. Each `go` runs in the page and
 // leaves it on that screen; both builds get the same sequence.
 //
-// SCOPED TO A RULER BY ITS OWN NAME, and that is load-bearing (D185). Both
+// SCOPED TO A RULER BY ITS OWN NAME, and that is load-bearing (D189). Both
 // rulers publish `[role=tab]`, and three of the labels collide — the
 // daily's axis runs World · Circle · 1v1 and the Mirror's runs You · Circle
 // · Groups · Near · City · Country · World. An unscoped `aria-label ===
@@ -226,13 +226,13 @@ async function capture(browser, url) {
   const shots = {};
   const where = {};
   for (const [name, go] of SCREENS) {
-    // WRAPPED IN AN IIFE, AND THAT IS NOT A STYLE CHOICE (D185).
+    // WRAPPED IN AN IIFE, AND THAT IS NOT A STYLE CHOICE (D189).
     //
     // `page.evaluate(str)` evaluates a STRING as an expression. Handed the
     // source of an arrow function it therefore builds a function and
     // throws it away — `evaluate('() => 1 + 1')` returns undefined, and
     // `evaluate('(() => 1 + 1)()')` returns 2. Every `go` below is an
-    // arrow-function source, so from this tool's first commit until D185
+    // arrow-function source, so from this tool's first commit until D189
     // not one of them ran: the loop captured whatever screen the app boots
     // on, once per entry, and diffed it against itself.
     //
@@ -258,7 +258,7 @@ try {
   await browser.close();
 }
 
-// DID THE WALK ACTUALLY WALK? (D185)
+// DID THE WALK ACTUALLY WALK? (D189)
 //
 // The bug above was invisible because a tool that looks at one screen
 // seven times reports the same shape as a tool that looks at seven. So

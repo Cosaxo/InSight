@@ -168,6 +168,11 @@ const learnConst = constFrom("scripts/learn-budget.mjs");
 // not less: a manual quoting a bigger number than the script computes is the
 // one way a run could be told to spread the crowd thinner than the design says.
 const feedConst = constFrom("scripts/feed-budget.mjs");
+// The style gate's own bounds. These are not a regulator's budget — they are
+// what check:quality REFUSES — so a drifted figure here is not a
+// mis-instructed run but a run instructed to write something the gate will
+// reject after the writing is done.
+const qualityConst = constFrom("scripts/question-quality.mjs");
 
 const FIGURES = [
   {
@@ -396,6 +401,25 @@ const FIGURES = [
     re: /\*\*(\d+)\*\* unreviewed questions on\s*\n?\s*that PR/,
     actual: feedConst("OPEN_MAX"),
     fix: (n) => `"**${n}** unreviewed questions on that PR"`,
+  },
+  // The two Crossroads ceilings, quoted in § Crossroads stories. Not budget
+  // figures like the eleven above but the same failure: the section is what
+  // a run writing a story obeys, and a manual quoting a longer ceiling than
+  // the gate enforces sends 38 hand-authored strings into a gate that
+  // refuses them — the most expensive thing in the lane to redo.
+  {
+    file: "docs/QUESTION-FARM.md",
+    what: "the ending-name ceiling a story is written to (OPTION_MAX)",
+    re: /`OPTION_MAX`\s*\n?\s*\((\d+) chars\)/,
+    actual: qualityConst("OPTION_MAX"),
+    fix: (n) => `"\`OPTION_MAX\` (${n} chars)"`,
+  },
+  {
+    file: "docs/QUESTION-FARM.md",
+    what: "the fork-choice ceiling a story is written to (PATH_CHOICE_MAX)",
+    re: /`PATH_CHOICE_MAX`\s*\n?\s*\((\d+) chars\)/,
+    actual: qualityConst("PATH_CHOICE_MAX"),
+    fix: (n) => `"\`PATH_CHOICE_MAX\` (${n} chars)"`,
   },
 ];
 

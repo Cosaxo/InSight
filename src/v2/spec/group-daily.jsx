@@ -7,7 +7,7 @@ import React from 'react';
 import { RevealClock } from './reveal-clock.js';
 import { DUELS } from './duels-data.js';
 import { Sheet } from './primitives.jsx';
-// The palette gate (D185). Both marks below are a full-strength fill
+// The palette gate (D189). Both marks below are a full-strength fill
 // carrying #fff, which is the case world-palette.js's header names for
 // ink() in as many words — and this module was the one place a group hue
 // reached the screen without passing through it.
@@ -29,7 +29,7 @@ import ReactDOM from 'react-dom';
   // one mark per group: a single colour + its initials. Three overlapping
   // avatars at rail size read as mush and never tell two groups apart.
   //
-  // THE HUE IS ARBITRARY, WHICH IS EXACTLY WHY IT NEEDS THE GATE (D185).
+  // THE HUE IS ARBITRARY, WHICH IS EXACTLY WHY IT NEEDS THE GATE (D189).
   // `ghue` hashes a group id to any of 360 hues, and a flat chroma is wrong
   // at most of them in both directions: sRGB cannot hold 0.12/0.13 around
   // teal and cyan, so the browser clips — which dulls the colour AND drags
@@ -66,7 +66,7 @@ import ReactDOM from 'react-dom';
         width: size, height: size, borderRadius: '50%', flexShrink: 0,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         fontFamily: 'var(--sans)', fontWeight: 800, fontSize: Math.round(size * 0.4),
-        // contrast-safe twin, since the fill carries the initials (D185)
+        // contrast-safe twin, since the fill carries the initials (D189)
         color: '#fff', background: WPAL.ink(`oklch(0.52 0.13 ${p.hue})`),
         opacity: dim ? 0.28 : 1, boxShadow: '0 0 0 1.5px var(--surface-2)',
         cursor: linked ? 'pointer' : 'default',

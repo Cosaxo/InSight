@@ -598,9 +598,9 @@ export function NearField() {
       {/* What the ring counts, so it is not read as the presence figure
           above it (the D112 honesty rule), and the basis it is placed on.
 
-          THE NAMELESSNESS IS BACK HERE (D184), where it was until D183 and
+          THE NAMELESSNESS IS BACK HERE (D188), where it was until D183 and
           where a legend belongs. D183 dropped it because the stop's closing
-          line said the same thing plus where the names are; D184 deleted
+          line said the same thing plus where the names are; D188 deleted
           that line, because it sat under the tab row and the prototype has
           nothing there. Deleting a limit is not one of the moves available
           (docs/COPY.md §3) — so it comes back to the visual it qualifies,

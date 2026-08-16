@@ -101,7 +101,7 @@ const nearSwitch = () => screen.getByRole("switch") as HTMLButtonElement;
 // is a presence roster entry plus a cross-user test score — not a kindred
 // row.
 //
-// AT FILE SCOPE since D184, because two describes need it: the field's own
+// AT FILE SCOPE since D188, because two describes need it: the field's own
 // block, and the constellation block it was declared in. The copy this
 // fixture makes visible (namelessness, the basis) moved back onto the
 // field, and a claim asserted from two angles should not be asserted
@@ -133,7 +133,7 @@ describe("NearLiveBody · the stop is presence, not place (D111)", () => {
   });
 
   it("puts nothing at all under the tab row", () => {
-    // WHAT THIS REPLACES (D184): two tests that pinned "your whole city is
+    // WHAT THIS REPLACES (D188): two tests that pinned "your whole city is
     // one stop right" — the stop's closing line, which lived UNDER the tab
     // row. It was there because D111 shed the city cohort and D172 cut the
     // explanation down to a pointer; what finally removed it is that the
@@ -305,7 +305,7 @@ describe("NearLiveBody · the constellation, with nobody named", () => {
   // The KindredPerson shape the similarity fold hands back. Named on
   // purpose: the point of these cases is that a name IS available here and
   // the field still does not draw one. The fixture itself (`roomOfTwo`) is
-  // at file scope — the field's own describe needs it too since D184.
+  // at file scope — the field's own describe needs it too since D188.
 
   it("draws the field, not only a counter", async () => {
     // The claim the old body made — "a count is the only thing this stop
@@ -329,7 +329,7 @@ describe("NearLiveBody · the constellation, with nobody named", () => {
     const { container } = render(<NearLiveBody />);
     // The CLAIM, not the sentence (docs/COPY.md §4.1): it has now been
     // worded three ways and moved twice — field caption, stop closing
-    // line, field caption again (D183, D184) — and every rewording said
+    // line, field caption again (D183, D188) — and every rewording said
     // the same thing about the same nodes.
     expect(await screen.findByText(/nobody is named here/i)).toBeTruthy();
     expect(screen.queryByText(/Name a/)).toBeNull();
@@ -491,7 +491,7 @@ describe("NearField · a node is a radius, never a place and never a join key", 
     // Read off the render rather than out of NearField's source (D183) —
     // a source slice passes on a string the component never reaches.
     //
-    // WITH A ROOM DRAWN (D184). The promise sat in the stop's closing line
+    // WITH A ROOM DRAWN (D188). The promise sat in the stop's closing line
     // from D183 until that line was deleted for sitting under the tab row;
     // it is back on the field, so this renders the state the field draws
     // nodes in. The empty arms make no claim about namelessness because

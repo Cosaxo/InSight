@@ -13,7 +13,7 @@
 // tweak on `.app`), so the live row inherits the demo row's look and every
 // future change to it, exactly once.
 //
-// AND IT IS THE BOTTOM VARIANT, `.mm-lensrow` (D184). This file shipped
+// AND IT IS THE BOTTOM VARIANT, `.mm-lensrow` (D188). This file shipped
 // with `.mm-lensrow-top` from D119, which is the class the prototype uses
 // for the row it promotes to the TOP of a stop — so its hairline draws
 // UNDER the labels and its buttons stand 46px rather than 44. Both live

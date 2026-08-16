@@ -168,7 +168,7 @@ node scripts/style-diff.mjs
 The script's header lists the divergences that are deliberate. Everything
 else it reports is a miss.
 
-**Read the "did not move" banner before anything under it (D185).** The
+**Read the "did not move" banner before anything under it (D189).** The
 sweep drives each screen with a click, and a selector that stops matching
 leaves the run comparing the previous screen twice — silently, and looking
 exactly like a clean pass. It now says so:
@@ -183,7 +183,7 @@ evidence of anything. That check exists because the tool spent its whole
 life comparing the daily tab with itself — every step was passed to
 `page.evaluate` as an arrow-function *string*, which evaluates the source
 as an expression and never calls it — and three of the selectors had rotted
-meanwhile, unnoticed, because nothing ever ran them. D185 has the arithmetic.
+meanwhile, unnoticed, because nothing ever ran them. D189 has the arithmetic.
 
 To aim it at a newer prototype than the committed one, pass its path:
 

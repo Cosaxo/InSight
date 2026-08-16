@@ -494,7 +494,7 @@ function NearLiveBody() {
   }, [tab]);
   return (
     <div className="fade-in" style={{
-      // Same frame as the cohort stops since D184, and for the same reason:
+      // Same frame as the cohort stops since D188, and for the same reason:
       // a filling column with no bottom padding, so `marginTop: auto` on
       // the row can put it at the bottom of the screen and `.app-body`'s
       // own padding is the only gap between it and the app's tab bar. Near
@@ -539,7 +539,7 @@ function NearLiveBody() {
         </>
       )}
 
-      {/* THE CLOSING LINE IS GONE, AND ONE HALF OF IT MOVED (D184).
+      {/* THE CLOSING LINE IS GONE, AND ONE HALF OF IT MOVED (D188).
           It read "The field names nobody — People does. Your whole city is
           one stop right." and it sat UNDER the tab row, which is the one
           place on this stop where nothing may sit: a row of tabs is the

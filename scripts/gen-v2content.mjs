@@ -218,6 +218,18 @@ export function buildEntries(content = loadContent()) {
       // would mismatch every stored doc and spend a full-bank rewrite on
       // a field they never use.
       ...branchOf(q),
+      // The short label the source has always carried and the seed always
+      // dropped — "Nature access", "Getting around" (D187). The Mirror's
+      // Scores card is the prototype's scorecard: a column of nouns beside
+      // one shared 0-10 baseline, which is what lets eight rows read as a
+      // single shape. Drawing the prompts there instead makes it a list of
+      // sentences to read one at a time, which is the same reading in a
+      // form nobody scans (docs/COPY.md — visual > word > sentence).
+      ...(q.tag ? { tag: String(q.tag) } : {}),
+      // Which Mirror stop may fold this question into its scorecard (D187).
+      // Daily-only and emitted only when set: a question that rates no
+      // place carries no key, and Scores draws only what names its stop.
+      ...(q.rates ? { rates: String(q.rates) } : {}),
       axis: q.axis ?? null,
       test: null,
       ...flags(q),
@@ -471,11 +483,16 @@ const HEADER =
   "// not carry the key because they are core by construction.\n" +
   "// `branch`/`sub` are the daily bank's [branch, sub-branch] subject path\n" +
   "// (D100) and are absent on every other surface, which carries no path.\n" +
+  "// `tag` is the daily bank's short label for a question — the Mirror's\n" +
+  "// Scores card is a column of nouns, not of sentences (D187).\n" +
+  "// `rates` is daily-only and names the Mirror stop whose scorecard may fold\n" +
+  "// a question (D187): city|country|world. Absent means the question rates\n" +
+  "// no place, which is every other question in the bank.\n" +
   "// `lo`/`hi`/`unit`/`ends` (dial) and `ax`/`ay` (field) are the continuum\n" +
   "// forms' range/plane copy (D114), absent everywhere else; their options\n" +
   "// are synthesized bucket/cell labels, so the D52 option freeze freezes\n" +
   "// the range with them.\n" +
-  "export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; branch?: string; sub?: string; axis: string | null; test: string | null; mode?: string; active?: boolean; political?: boolean; core?: boolean; until?: string; lo?: number; hi?: number; unit?: string; ends?: string[]; ax?: string[]; ay?: string[]; title?: string; intro?: string; hue?: number; nodes?: Record<string, { q: string; a: Array<{ t: string }> }>; endings?: Record<string, { name: string; line: string }>; }\n" +
+  "export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; branch?: string; sub?: string; tag?: string; rates?: string; axis: string | null; test: string | null; mode?: string; active?: boolean; political?: boolean; core?: boolean; until?: string; lo?: number; hi?: number; unit?: string; ends?: string[]; ax?: string[]; ay?: string[]; title?: string; intro?: string; hue?: number; nodes?: Record<string, { q: string; a: Array<{ t: string }> }>; endings?: Record<string, { name: string; line: string }>; }\n" +
   "export const V2_QUESTIONS: V2SeedQuestion[] = ";
 
 export function generate(content = loadContent()) {

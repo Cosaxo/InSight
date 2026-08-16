@@ -235,7 +235,7 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
       : scope === "country" ? PLACES.countryName(country)
         : "the world";
   // THE STOP'S COLOUR IS THE STOP'S, AND THIS FILE NO LONGER PICKS ONE
-  // (D184).
+  // (D188).
   //
   // It used to re-declare `--accent` per zoom — city sienna, country sage,
   // world indigo — reasoning that all three zooms share one pop, so without
@@ -389,6 +389,12 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
       mine: mine == null ? -1 : Number(mine),
       type: q.type,
       branch: q.branch,
+      // The scorecard's two fields (D187): which place the question rates,
+      // and the noun it is drawn under. Passed through rather than
+      // resolved here — Scores is the only lens that reads either, and the
+      // scope it compares `rates` against is its own prop.
+      tag: q.tag,
+      rates: q.rates,
     };
   }).filter((q) => q.options.length > 0);
 
@@ -416,7 +422,7 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
   return (
     <div className="fade-in" style={{
       // NO BOTTOM PADDING, and that is the whole of what pins the row
-      // (D184). `marginTop: auto` below put the row at the bottom of THIS
+      // (D188). `marginTop: auto` below put the row at the bottom of THIS
       // box; 26px of padding under it then held it 26px off the bottom of
       // the screen, on top of the 24px `.app-body` already reserves — so
       // the tab bar floated 50px clear of the app's own, which is the

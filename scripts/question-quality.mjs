@@ -86,6 +86,15 @@ export const OPTION_SHAPES = {
   scale: [0, 0],
   rating: [0, 0],
 };
+// The Mirror stops whose scorecard a daily question may declare itself
+// part of (D187's `rates`), and the types that scorecard can average. Both
+// halves are gated because both failures are SILENT: a typo'd scope puts a
+// question on no stop's card, and a `rates` question written as a `choice`
+// is dropped by the lens's own type filter. Either way the row simply is
+// not there, which looks exactly like a question nobody has written yet —
+// the class of failure D187 exists to close, reappearing one layer down.
+export const RATES_SCOPES = new Set(["city", "country", "world"]);
+const RATES_TYPES = new Set(["rating", "scale"]);
 // The feed's closed type list. Until this set existed a novel feed type
 // passed the gate silently (the daily surface had OPTION_SHAPES; the feed
 // had nothing) — exactly how a wrong-shaped card would reach review unread.
@@ -136,6 +145,87 @@ export const PATH_ROOT = "_";
  * enough that two of them read as a fork rather than as paragraphs.
  */
 export const PATH_CHOICE_MAX = 40;
+/**
+ * What a fork TURNS — the thing the two choices trade against each other.
+ * Every node declares one, and no walk may turn the same axis twice.
+ *
+ * WHY A GATE AND NOT A SENTENCE IN THE MANUAL. A tree whose three forks all
+ * turn one axis does not have eight endings; it has one gradient sampled at
+ * eight points, and the reveal — "1 in 12 walks your road" — then ranks the
+ * reader along that gradient instead of placing them. Both stories D136
+ * shipped do exactly this (see PATH_AXIS_LEGACY), which is the measurement
+ * that produced this rule: the manual said nothing about axes, so the lane
+ * wrote the same story twice and every gate was green.
+ *
+ * The vocabulary is CLOSED, for the reason `cat` is: an open one is a free
+ * text field, and three free text fields can be three spellings of one axis
+ * ("money", "cash", "greed") that this rule would then read as a spread.
+ * Widen it in a PR that says which story needed the new axis and why an
+ * existing one could not carry it — the same contract § When no category
+ * fits puts on a new topic.
+ *
+ * AUTHORING-TIME ONLY. `axis` never reaches a device: gen-v2content.mjs
+ * REBUILDS each node (`{ q, a: [{ t }] }`) rather than spreading it, which
+ * is the same whitelist that already drops the demo pool's authored `p`
+ * shares. So this annotation costs no wire bytes, no seeded field, no
+ * `SEEDED_FIELDS` comparison and no reseed of the two live docs — verified
+ * by check:content, which regenerates v2content.ts and diffs it.
+ */
+export const PATH_AXES = new Set([
+  "risk",       // safety / exposure
+  "time",       // now / later
+  "company",    // alone / with someone
+  "disclosure", // say it / keep it
+  "ownership",  // keep it / give it up
+  "certainty",  // find out / stay not-knowing
+  "effort",     // push / coast
+  "loyalty",    // to a person / to a principle
+]);
+/**
+ * The two stories that cannot obey the axis rule, and why it is a permanent
+ * exemption rather than a to-do.
+ *
+ * A path's OPTIONS are its eight ending names (pathOptions, gen-v2content),
+ * so renaming one is an option edit — frozen by D52 and refused by the seed,
+ * because the stored optionIdx would silently mean a different ending. And
+ * both trees encode their single axis IN those names: pt1's A-branch endings
+ * are "The Honest Trade" / "Finders, Keepers" / "The Long Way Round", which
+ * only make sense if forks 2 and 3 both turn `ownership`. Re-axing the forks
+ * without renaming the endings would leave a walk whose choices no longer
+ * lead to the name it lands on. So the fork prose cannot be fixed and the
+ * names cannot be changed: the honest options are to exempt them or to
+ * retire them (`active: false`, the operator's call, D52).
+ *
+ * They still count as PREDECESSORS for the genre ratchet — which is what
+ * makes the next path have to leave `dilemma` — and they still carry their
+ * axis annotations, so the defect is visible in the data rather than
+ * implied by its absence. The waiver is on the SPREAD rule alone
+ * (`axis-spread`), never on `axis`: a scoped exemption, the ALLOW
+ * discipline, so this cannot quietly become permission to skip the field.
+ */
+export const PATH_AXIS_LEGACY = new Map([
+  // Measured after annotating both trees, not estimated: pt1 is flat on 6
+  // of its 8 walks (certainty → ownership → ownership, four ways, plus
+  // certainty → effort → effort twice) and pt2 on 8 of 8 (disclosure and
+  // loyalty in every arrangement of three). pt2 has no varied walk at all,
+  // which is the sharpest version of the finding: a reader who walks it
+  // twice down different roads is answering the same question twice.
+  ["pt1", "D136's first story — 6 of 8 walks flat, and its ending names are frozen by D52"],
+  ["pt2", "D136's second story — 8 of 8 walks flat, same freeze"],
+]);
+/**
+ * How far back the genre ratchet looks. A new path's topic must differ from
+ * the `cat` of each of the PATH_GENRE_LOOKBACK paths before it — two, which
+ * is the smallest window that forces a third topic rather than an A-B-A-B
+ * alternation, and small enough to stay satisfiable: the taxonomy carries
+ * ten topics and this rule only ever rules out two of them.
+ *
+ * The corpus it is measured against is Crossroads' own sequence, not the
+ * feed's — one path every few weeks is a different cadence from eight votes
+ * a run, and a topic that repeats across two ADJACENT stories is the one a
+ * reader actually experiences as "this is the dilemma card again".
+ */
+export const PATH_GENRE_LOOKBACK = 2;
 // A dial's crowd texture is exactly 12 buckets lo→hi. Pinned rather than
 // free: world-feed.jsx's curve is drawn from it, 12 fits the live fold's
 // optionIdx ceiling (0..19, functions/src/v2.ts), and the live bank's
@@ -410,6 +500,14 @@ export function checkQuestion(q, surface, ctx, mode = {}) {
     if ((q.type === "scale" || q.type === "rating") && !q.axis) {
       err("axis", `${q.type} without an axis — the ordinal split metric and the percentile copy both key on it`);
     }
+    if (q.rates !== undefined) {
+      if (!RATES_SCOPES.has(q.rates)) {
+        err("rates", `rates ${JSON.stringify(q.rates)} — city|country|world (D187); anything else names no stop, so the question lands on no scorecard`);
+      }
+      if (!RATES_TYPES.has(q.type)) {
+        err("rates", `a \`rates\` question is ${q.type} — the scorecard AVERAGES it (D187), and only rating|scale carry a magnitude to average`);
+      }
+    }
     if (!TONES.has(q.tone)) err("tone", `tone ${JSON.stringify(q.tone)} is not light/blend/deep`);
     const tagWords = q.tag ? String(q.tag).trim().split(/\s+/).length : 0;
     if (!tagWords || tagWords > TAG_WORDS_MAX) {
@@ -550,6 +648,14 @@ export function checkQuestion(q, surface, ctx, mode = {}) {
           const n = nodes[k];
           if (!n || typeof n.q !== "string" || !n.q.trim()) { err("nodes", `node ${JSON.stringify(k)} needs a q`); continue; }
           if (!Array.isArray(n.a) || n.a.length !== 2) { err("nodes", `node ${JSON.stringify(k)} needs exactly two choices`); continue; }
+          // What this fork TURNS. Required on every node including the two
+          // legacy stories — their waiver is on the spread rule below, so
+          // the single-axis tree stays legible in the data rather than
+          // being described by a missing field (the `core` argument: absent
+          // and false are the same bytes, and only one is a decision).
+          if (typeof n.axis !== "string" || !PATH_AXES.has(n.axis)) {
+            err("axis", `node ${JSON.stringify(k)} needs an axis from ${[...PATH_AXES].join("|")} (got ${JSON.stringify(n.axis)})`);
+          }
           for (const c of n.a) {
             if (!c || typeof c.t !== "string" || !c.t.trim()) err("nodes", `node ${JSON.stringify(k)} has a choice with no text`);
             // NOT OPTION_MAX, deliberately. OPTION_MAX bounds a label that
@@ -570,6 +676,31 @@ export function checkQuestion(q, surface, ctx, mode = {}) {
           }
           if (texture && n.a.every((c) => typeof c.p === "number") && n.a[0].p + n.a[1].p !== 100) {
             err("texture", `node ${JSON.stringify(k)}'s two shares must total 100 (got ${n.a[0].p} + ${n.a[1].p})`);
+          }
+        }
+        // Three forks, three axes — checked per WALK rather than per tree,
+        // because the tree is not one sequence of forks but eight, and a
+        // story can be honestly varied down one branch and flat down
+        // another (pt1 is: `_`→B→BA turns three, `_`→A→AA turns one).
+        // A walk is what a reader actually experiences, so it is the unit.
+        if (!PATH_AXIS_LEGACY.has(q.id)) {
+          const flat = [];
+          for (const e of PATH_ENDINGS) {
+            const axes = [0, 1, 2].map((d) => (nodes[e.slice(0, d) || PATH_ROOT] || {}).axis);
+            // Only judge walks whose three nodes all declared one — an
+            // undeclared axis is already an error above, and reporting it
+            // twice would make the annotation rule look like two bugs.
+            if (axes.every((a) => PATH_AXES.has(a)) && new Set(axes).size < 3) {
+              flat.push(`${e} (${axes.join(" → ")})`);
+            }
+          }
+          if (flat.length) {
+            err(
+              "axis-spread",
+              `${flat.length} of ${PATH_ENDINGS.length} walks turn one axis twice: ${flat.slice(0, 3).join(", ")}` +
+                `${flat.length > 3 ? ", …" : ""} — three forks, three axes, or the eight endings are one gradient ` +
+                "sampled eight times and the reveal ranks the reader instead of placing them",
+            );
           }
         }
       }
@@ -722,6 +853,37 @@ export function checkBatch(batch) {
     }
   }
 
+  // The feed's batch rules, which did not exist until the Crossroads review
+  // went looking for them. checkBatch had a daily arm and a learn arm and
+  // nothing else, so the feed lane — which writes the LARGEST batch of the
+  // three (§ The feed lane) — could legally land eight votes on one topic
+  // and the pre-flight would print eight ✓ and no batch line.
+  //
+  // Two rules, both the daily arm's shape rather than new inventions: the
+  // form rule is why `dial`, `field` and `path` are authorable at all, and
+  // the topic rule is the budget's own instruction ("spreads across thin
+  // topics rather than chunking into one", feed-budget.mjs) said at the one
+  // moment a run can still obey it. The 0.75 ceiling is shared with daily
+  // deliberately — a batch of eight may be six votes, which is honest,
+  // and may not be seven.
+  const feed = batch.filter((q) => q.surface === "feed");
+  if (feed.length >= 3) {
+    const dominant = (key, label, extra) => {
+      const seen = {};
+      for (const q of feed) if (q[key]) seen[q[key]] = (seen[q[key]] || 0) + 1;
+      const top = Object.entries(seen).sort((a, b) => b[1] - a[1])[0];
+      if (!top) {
+        errs.push(`a batch of ${feed.length} feed questions declares no ${label} — the gate cannot judge the spread`);
+        return;
+      }
+      if (top[1] > Math.ceil(feed.length * 0.75)) {
+        errs.push(`${top[1]} of ${feed.length} feed questions are ${label} ${top[0]} — ${extra}`);
+      }
+    };
+    dominant("type", "form", "vary the forms; dial, field and path exist because a feed of votes reads as one question asked repeatedly");
+    dominant("cat", "topic", "spread across topics — the regulator picks thin ones for a reason (feed-budget.mjs)");
+  }
+
   // Learn's batch rule is difficulty, for the same reason the field rule is:
   // a run that writes eight cards at p≈60 has widened a field's card count
   // without widening what it can serve. The batch is the unit a run controls,
@@ -738,6 +900,42 @@ export function checkBatch(batch) {
       );
     }
   }
+  return errs;
+}
+
+// ── the Crossroads genre ratchet ──
+//
+// A path's topic must differ from the topic of each of the
+// PATH_GENRE_LOOKBACK paths before it in the bank.
+//
+// This is a CORPUS rule and not a batch one, unlike everything in
+// checkBatch: the feed lane writes eight questions a run and at most one of
+// them is a story, so "vary the forms within the batch" can never see two
+// paths at once. What a reader experiences is the SEQUENCE — Crossroads
+// holds one pinned slot at the head of the feed (D136), so consecutive
+// stories are consecutive on screen in a way consecutive votes are not.
+//
+// Measured, which is why it exists: both live stories are `dilemma`, in a
+// bank spanning ten topics. Nothing was wrong with either question; what
+// was missing was any rule that noticed the corner they share.
+//
+// The first PATH_GENRE_LOOKBACK stories are unchecked by construction —
+// they have no predecessors — so the two D136 shipped need no waiver here,
+// and they still count as predecessors for the third, which is exactly the
+// pressure this rule is for.
+export function checkPathGenre(corpus) {
+  const errs = [];
+  const paths = corpus.feed.questions.filter((q) => q.type === "path");
+  paths.forEach((q, i) => {
+    if (i < PATH_GENRE_LOOKBACK) return;
+    const clash = paths.slice(i - PATH_GENRE_LOOKBACK, i).filter((p) => p.cat === q.cat);
+    if (!clash.length) return;
+    errs.push(
+      `feed ${q.id}: a Crossroads story on ${JSON.stringify(q.cat)} within ${PATH_GENRE_LOOKBACK} of ` +
+        `${clash.map((p) => p.id).join(", ")} — the pinned slot shows one story at a time, so two in a row on ` +
+        "one topic IS the reader's whole experience of Crossroads; pick a topic the last two did not use",
+    );
+  });
   return errs;
 }
 
@@ -884,6 +1082,38 @@ if (invokedDirectly) {
   };
   const corpus = loadCorpus();
 
+  // `--new-path` — the skeleton, not a template with words in it.
+  //
+  // A path is 38 authored strings under exactly-spelled keys, which is the
+  // most hand-assembly this repo asks of a writing lane by a wide margin,
+  // and the two failures D136 records are both assembly failures rather
+  // than craft ones: the seed's whitelist dropped a field nobody noticed
+  // was missing, and the opening fork was keyed `""` — which no local gate
+  // could catch, because Firestore refuses an empty map key at WRITE time,
+  // inside the seed callable, five gates and 984 unit tests later.
+  //
+  // So the scaffold's job is the keys: the `_` sentinel already in place,
+  // all seven nodes, all eight endings, and an empty `axis` on each fork so
+  // the rule is visible while the story is being written rather than at the
+  // gate. It emits no prose on purpose — a template with example sentences
+  // in it is a thing that gets half-edited and shipped.
+  if (args.includes("--new-path")) {
+    const blank = { axis: "", q: "", a: [{ t: "" }, { t: "" }] };
+    console.log(JSON.stringify({
+      id: "ptN", core: true, cat: "", type: "path", hue: 0,
+      title: "", prompt: "", intro: "",
+      nodes: Object.fromEntries(PATH_NODES.map((k) => [k, { ...blank, a: blank.a.map((c) => ({ ...c })) }])),
+      endings: Object.fromEntries(PATH_ENDINGS.map((k) => [k, { name: "", line: "" }])),
+    }, null, 2));
+    console.error(
+      `\n  axis: one of ${[...PATH_AXES].join(" | ")}\n` +
+      `  no walk may turn one axis twice — see QUESTION-FARM.md § Crossroads stories\n` +
+      `  cat: not one the last ${PATH_GENRE_LOOKBACK} stories used\n` +
+      "  pre-flight with --batch (a tree has no flag syntax worth inventing)\n",
+    );
+    process.exit(0);
+  }
+
   const candidateOf = (raw) => {
     // A learn card arrives in its native shape (q/a/c/t/p/k/w/f) so a run can
     // pre-flight the exact JSON it is about to append. `f` is the tell: no
@@ -906,6 +1136,18 @@ if (invokedDirectly) {
       // object the lane will land, crowd texture included
       lo: raw.lo, hi: raw.hi, unit: raw.unit, med: raw.med, dist: raw.dist,
       ends: raw.ends, ax: raw.ax, ay: raw.ay, cloud: raw.cloud, n: raw.n,
+      // A path's story, verbatim and for the same reason — and `id`, which
+      // no other candidate needs: PATH_AXIS_LEGACY is keyed by it, so a
+      // pre-flight that dropped it would judge a legacy story by the rule
+      // the corpus gate waives and report a failure CI does not have.
+      id: raw.id,
+      title: raw.title, intro: raw.intro, nodes: raw.nodes, endings: raw.endings,
+      // …and `core`, which only a path candidate needs today: the SCALE-PLAN
+      // rule is scoped to content-form entries (`!mode.texture`), so it stays
+      // silent on the dial/field candidates that pre-flight as demo-pool
+      // copy and would otherwise have fired on every story for a field the
+      // candidate did in fact declare and this function dropped.
+      core: raw.core,
     };
   };
 
@@ -913,7 +1155,16 @@ if (invokedDirectly) {
     // Candidates pre-flight as the demo-pool form — texture included —
     // because that is the half the lane authors first; the content entry
     // is the same copy with the texture stripped.
-    const { errs, warn } = checkQuestion(q, q.surface, corpus, { texture: true });
+    //
+    // EXCEPT a path, which has no demo half to author: a continuum question
+    // is written twice and a story is "written once, in the content bank"
+    // (§ The feed lane). Its demo twin lives in spec/paths-data.js, which is
+    // client code the lane does not touch. Found by probing rather than by
+    // reading: a pre-flighted story failed with fourteen demands for an
+    // authored branch share `p` — texture the live form must NOT carry, so
+    // the packet was telling a run to write the one thing the content gate
+    // would then reject it for.
+    const { errs, warn } = checkQuestion(q, q.surface, corpus, { texture: q.type !== "path" });
     const head = `${i != null ? `[${i}] ` : ""}${JSON.stringify(q.prompt ?? "")} (${q.surface}/${q.type})`;
     if (!errs.length && !warn.length) console.log(`  ✓ ${head}`);
     else {
@@ -994,6 +1245,16 @@ if (invokedDirectly) {
       failed++;
       console.log(`  ✗ batch: ${e}`);
     }
+    // The genre ratchet, run against the bank WITH this batch appended —
+    // the corpus gate says the same thing a few minutes later in CI, and
+    // this is the moment a run can still pick a different topic. Appending
+    // is what makes it answer for the candidate: checkPathGenre reads a
+    // path's predecessors, and a candidate that is not in the list has none.
+    const withBatch = { feed: { questions: [...corpus.feed.questions, ...batch.filter((q) => q.type === "path")] } };
+    for (const e of checkPathGenre(withBatch)) {
+      failed++;
+      console.log(`  ✗ ${e}`);
+    }
     process.exit(failed ? 1 : 0);
   }
 
@@ -1044,6 +1305,10 @@ if (invokedDirectly) {
     report("pulse", q.id, errs, warn);
   });
   for (const e of checkLearnFields(corpus)) {
+    failed = true;
+    console.error(`  ✗ ${e}`);
+  }
+  for (const e of checkPathGenre(corpus)) {
     failed = true;
     console.error(`  ✗ ${e}`);
   }

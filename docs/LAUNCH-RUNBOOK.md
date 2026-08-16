@@ -21,8 +21,8 @@ permanent non-blocker under D42, excused by `--ios`. **For an iOS launch
 the count is zero**, which is a change from 2026-08-04: the Team ID and the
 `REVERSED_CLIENT_ID` were the other two and both are filled.
 
-`check:store-listing` and `check:versions` pass; the daily bank is at 90
-questions of 513 seeded; the production backend is deployed. **Measured
+`check:store-listing` and `check:versions` pass; the daily bank is at 114
+questions of 537 seeded; the production backend is deployed. **Measured
 2026-08-04:** anonymous sign-in works (`accounts:signUp` returns an
 `idToken`, where it returned `ADMIN_ONLY_OPERATION` on 2026-08-03), the
 InSight web app is registered, and the default hosting site `prvfire33`
@@ -154,7 +154,7 @@ arithmetic.
 
 - [ ] **0.1 Seed the production question bank — run 2026-08-07 and already
       stale.** Actions → **Seed content** → Run workflow.
-      513 questions land in `v2_questions` — idempotent and, since D34,
+      537 questions land in `v2_questions` — idempotent and, since D34,
       cheap to repeat.
 
       **This step is now automatic for everything that follows it (D88):**
@@ -165,7 +165,7 @@ arithmetic.
       either way — `written: 0` means nothing landed.
 
       **It is unticked on purpose, and still is.** That run wrote **389**,
-      and the bank is **513** after the K=5 test expansion, D103's
+      and the bank is **537** after the K=5 test expansion, D103's
       retirement of the Thinking test and D114's continuum questions — so
       the difference is in the repo and not in production. Note that the gap now runs BOTH ways: 20
       `test-cognitive-*` questions are live in `v2_questions` and no longer
@@ -474,6 +474,43 @@ arithmetic.
       automated writer, and the window between merging a release commit and
       dispatching from it is no longer quiet.
 
+      **BUILD 19 WAS UPLOADED BY RUN 28** (`e76731d`, 2026-08-16 18:13Z,
+      5m 23s, upload step `success`, 1m 16s of it transfer). Run 27 is the
+      **same commit six minutes earlier** with its upload step `skipped` —
+      the dry run — making it the fourth pair of this shape. Both
+      silent-failure gates passed at both ends: the archive carried the
+      Firebase config and the APNs entitlement, and the exported `.ipa`
+      was production-signed.
+
+      **`appBuild` is now 20, bumped off step 17's own conclusion in the
+      same session that dispatched the run.** Four bumps have now held
+      (runs 20, 21, 22, 28) against four skipped (18, 19, 24, 26). What is
+      new here is that the dry run, the upload, the bump and the record
+      were one session rather than four — the bump was made *from* the
+      step list, not from a memory of it, which is the only arrangement
+      that has ever worked. D186.
+
+      **BUILD 18 WAS UPLOADED BY RUN 26** (`810b3af`, 2026-08-16 15:08Z,
+      6m 32s, upload step `success`, 1m 39s of it transfer). Run 25 is the
+      **same commit seven minutes earlier** with its upload step `skipped`
+      — the dry run — making it the third runs-15/16-shaped pair after runs
+      23/24.
+
+      **The bump after run 26 did not happen either, and neither did the
+      record.** That is four skips (runs 18, 19, 24, 26) against three that
+      held (20, 21, 22), and it is a different failure from D180's. There,
+      somebody came back *specifically to record* the upload and left the
+      integer; the proposed remedy followed that shape — a gate asserting
+      `appBuild` exceeds whatever build this file claims was uploaded.
+      **Here nothing was written down at all**: no mention of run 25, run
+      26, either run id, or build 18 being delivered existed anywhere in
+      `docs/`, so that gate would have been silent. The tree was returned
+      to twice after the upload — #201 at 15:51Z and #202 at 16:48Z — by
+      sessions doing feature work, which had no reason to touch a build
+      number. **The invariant that would actually hold keys on the run
+      list, and nothing here can read it** (D73's shape again). Caught
+      2026-08-16 by build 19's pre-flight. D184.
+
       **BUILD 17 WAS UPLOADED BY RUN 24** (`9a5f803`, 2026-08-15 18:31Z,
       8m 42s, upload step `success`, 1m 55s of it transfer). Run 23 is the
       **same commit eight minutes earlier** with its upload step `skipped`
@@ -673,6 +710,39 @@ arithmetic.
       surfaces — so the archive has less new surface than the last run that
       succeeded, and the store filing does not move.
 
+      **Build 19 pre-flighted 2026-08-16 (D184) — and this one bumped
+      too.** Run 26's upload step reads `success` and `appBuild` at
+      `810b3af` was 18, so build 18 is spent and the tree's 18 was NOT
+      ahead. `appBuild` 18 → 19 by hand, propagated by `--fix` to
+      `versionCode` and both `CURRENT_PROJECT_VERSION` entries. Two
+      pre-flights running have now had to bump.
+
+      **Build 19 is a pure JavaScript payload**, the first since build 16.
+      Against run 26's commit it touches nothing under `ios/` or
+      `android/`, neither lockfile, neither rules file, and neither
+      store-filing file — 57 files, +1367/−609, all `src/`, `docs/` and
+      `web/privacy.html`. It carries **D181** (Near's field drew the city
+      it is not about, reported from a device) and **D182/D183** (the copy
+      pass, and the long disclosures moving out of the app into
+      `web/privacy.html` behind `check:policy-claims`). **So 4.4's store
+      filing does not move** and stands at the nine rows D180 corrected it
+      to — the window that opened there is unchanged, not closed: the live
+      label still describes build 17.
+
+      **The bundle's tight half moved the right way.** D180 left the eager
+      graph at 975 against 978 and named the answer "trim, not raise". The
+      copy pass trimmed it: **2321 KB total / 970 KB eager** against
+      2334 / 978, measured in the workflow's own build shape. First time
+      the eager number has gone *down* on a release path.
+
+      Measured, not asserted: **1216 client, 202 script, 228 function and
+      106 rules tests**, all three e2e suites green (each `npm` exit 0 with
+      its own `Script exited successfully`), `lint`, `tsc -b`,
+      `check:globals` at **409** across 183 files — its baseline, unmoved.
+      **D183 shipped with `test:rules` and the e2e suites unrun** for want
+      of Java 21 in its authoring environment; they were run here, so that
+      gap is closed rather than inherited.
+
       **Build 18 pre-flighted 2026-08-16 (D180) — and this one bumped.**
       Run 24's upload step reads `success` and `appBuild` at `9a5f803` was
       17, so build 17 is spent and the tree's 17 was NOT ahead. `appBuild`
@@ -839,7 +909,7 @@ start.
       your own name.** There is no k-floor since D98: the first answer
       publishes exactly, so a count of 1 on your own device is that one
       answer and the who-voted sheet will name you. That is the product
-      working, not a leak — the 513 seeded questions are live regardless.
+      working, not a leak — the 537 seeded questions are live regardless.
       What used to sit here was the opposite warning (*"You're early"*
       under `AGG_MIN_N`, paused by D81 and removed entirely by D98).
 - [ ] **3.3 Walk the on-device verification list** — six checks, first

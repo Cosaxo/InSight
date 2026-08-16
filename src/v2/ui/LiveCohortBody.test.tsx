@@ -593,7 +593,7 @@ describe("LiveCohortBody · the lens row is the stop's tabs", () => {
     render(<LiveCohortBody scope="city" />);
     // Order matters and is asserted as order, not as membership: which
     // section leads the row is a decision (D119, reshaped at D136, and
-    // moved to the prototype's own order at D184 — the three readings of
+    // moved to the prototype's own order at D188 — the three readings of
     // the population first, then Compare, which is the only one that puts
     // you against them), and a set check would pass for a row that had
     // quietly reordered itself.
@@ -720,7 +720,7 @@ describe("LiveCohortBody · the lens row is the stop's tabs", () => {
 
     render(<LiveCohortBody scope="world" />);
     const names = [...tabs().querySelectorAll('[role="tab"]')].map((b) => b.textContent?.trim());
-    // Explore lands BEFORE Compare, not after it (D184): it is a fourth
+    // Explore lands BEFORE Compare, not after it (D188): it is a fourth
     // reading of the population, and Compare closes the row everywhere.
     expect(names).toEqual(["Answers", "People", "Scores", "Explore", "Compare"]);
   });
@@ -838,7 +838,10 @@ describe("LiveCohortBody · a lens reads its own stop, never the globe", () => {
   const ARCHIVE = [
     { id: "q1", text: "Split question", branch: "Mind", type: "binary", coreCorpus: true, options: [{ label: "Yes" }, { label: "No" }] },
     { id: "q2", text: "Absent in Oslo", branch: "Mind", type: "binary", coreCorpus: true, options: [{ label: "Yes" }, { label: "No" }] },
-    { id: "q3", text: "Rated question", branch: "Mind", type: "scale", coreCorpus: true, options: [{ label: "1" }, { label: "2" }, { label: "3" }, { label: "4" }, { label: "5" }] },
+    // `rates` since D187 — Scores draws the questions that rate the stop
+    // it is standing on, so a fixture without it puts an empty card in
+    // front of a case about which CELL the card reads.
+    { id: "q3", text: "Rated question", branch: "Mind", type: "scale", rates: "city", coreCorpus: true, options: [{ label: "1" }, { label: "2" }, { label: "3" }, { label: "4" }, { label: "5" }] },
   ];
 
   beforeEach(() => {
@@ -910,7 +913,9 @@ describe("LiveCohortBody · a lens reads its own stop, never the globe", () => {
 describe("LiveCohortBody · one answer is a count, not a share", () => {
   const ARCHIVE = [
     { id: "q1", text: "Lonely question", branch: "Mind", type: "binary", coreCorpus: true, options: [{ label: "Yes" }, { label: "No" }] },
-    { id: "q2", text: "Lonely rating", branch: "Mind", type: "scale", coreCorpus: true, options: [{ label: "1" }, { label: "2" }, { label: "3" }, { label: "4" }, { label: "5" }] },
+    // `rates` for the same reason as the fixture above (D187): this case
+    // is about what Scores SAYS at n=1, which needs a card to say it on.
+    { id: "q2", text: "Lonely rating", branch: "Mind", type: "scale", rates: "city", coreCorpus: true, options: [{ label: "1" }, { label: "2" }, { label: "3" }, { label: "4" }, { label: "5" }] },
   ];
 
   beforeEach(() => {
