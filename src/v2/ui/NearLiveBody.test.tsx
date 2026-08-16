@@ -17,6 +17,8 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 
 const LIVE = vi.hoisted(() => ({
   enabled: true,
@@ -319,5 +321,54 @@ describe("NearLiveBody · the constellation, with nobody named", () => {
     LIVE.similarityLoading = () => false;
     render(<NearLiveBody />);
     expect(await screen.findByText(/Nobody from Oslo yet/i)).toBeTruthy();
+  });
+});
+
+
+// ── the rule the whole Near stop rests on ────────────────────────────
+//
+// A source guard rather than a render assertion, on purpose: what has to
+// hold is a property of how the field is CONSTRUCTED, and the two ways to
+// break it both still render something plausible. The precedent is
+// LiveCohortBody.test.tsx's floor-literal check — same shape, same reason.
+//
+// If the room reading (NEXT-FUNCTIONALITY §10) is ever built, this is the
+// case it has to keep passing.
+describe("NearField · a node is a radius, never a place and never a join key", () => {
+  const src = () => readFileSync(
+    resolve(__dirname, "../../..", "src/v2/ui/LiveSimilarityField.tsx"), "utf8",
+  );
+  const nearField = () => {
+    const s = src();
+    const i = s.indexOf("function NearField");
+    expect(i, "NearField was renamed — this guard is now watching nothing").toBeGreaterThan(-1);
+    // To the next top-level function: the guard must not read its neighbours.
+    const j = s.indexOf("\nfunction ", i + 1);
+    return s.slice(i, j > -1 ? j : undefined);
+  };
+
+  it("draws Near anonymously and gives its nodes no label", () => {
+    const f = nearField();
+    expect(f, "Near stopped drawing anonymous nodes").toMatch(/kind="anon"/);
+    // The empty label is the join-key defence: everything a node could
+    // carry (type, age band, trade, answers) is world-readable under D98
+    // and none of it is sensitive alone — but together they identify a
+    // named public account, and then the node has said where that person
+    // is standing. A radius alone gives nothing to join on.
+    expect(f, "a Near node grew a label — that is a join key").toMatch(/label:\s*""/);
+  });
+
+  it("places nodes by likeness and never by a coordinate", () => {
+    const f = nearField();
+    // `match` is the radius. A coordinate reaching this canvas would turn
+    // an anonymous field into a map of where strangers are standing, which
+    // is what v2_presence's `allow read: if false` exists to prevent.
+    expect(f, "Near stopped placing nodes by match").toMatch(/match:/);
+    expect(f, "a coordinate reached the Near field")
+      .not.toMatch(/\b(lat|lon|lng|latitude|longitude|coord|cell)\b/i);
+  });
+
+  it("says nobody is named, in the copy a reader actually sees", () => {
+    expect(nearField()).toMatch(/Nobody is named here/i);
   });
 });

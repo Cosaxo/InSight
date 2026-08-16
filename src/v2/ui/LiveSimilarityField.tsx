@@ -65,6 +65,27 @@ const SF_LINE = "1px solid color-mix(in oklch, var(--rule), transparent 25%)";
 
 // ── shared field canvas ──────────────────────────────────────────────
 
+/**
+ * A node in the constellation.
+ *
+ * THE GEOMETRY IS SIMILARITY, NEVER POSITION — the one rule this whole
+ * canvas rests on, and the reason it can draw strangers at all.
+ *
+ * `match` sets the radius: closer to the centre is more like you. There is
+ * no coordinate here and there must never be one. It matters most at the
+ * Near stop, where the temptation is exactly backwards: the app knows a
+ * ~1 km presence cell, so placing nodes where people actually ARE would
+ * look like an improvement and would turn an anonymous field into a map of
+ * where named-able strangers are standing — the thing `v2_presence`'s
+ * `allow read: if false` exists to prevent (D84/D98).
+ *
+ * The same reasoning bans per-node ATTRIBUTES on an anonymous field. A
+ * trade and an age are not sensitive on their own — everything here
+ * publishes under D98 — but they are a JOIN KEY: enough to find a named
+ * public account, after which the node has told you where that person is.
+ * A node that carries only a radius gives an attacker nothing to join on.
+ * That is why Near passes `label: ""` and `kind="anon"`.
+ */
 interface FieldNode {
   id: string;
   /** Short label under the node — a first name or a place name. */

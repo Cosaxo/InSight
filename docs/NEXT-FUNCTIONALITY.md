@@ -724,13 +724,44 @@ same source the Mirror's People lens folds (`data/typeMix.ts`). The client
 draws it as the room's composition — *"mostly Hosts and Explorers"* — and
 never as a list.
 
-### Two problems, and neither is fatal
+### The geometry is similarity, never position — and that is the rule
 
-**1 · The differencing attack, which a floor alone does not fix.** A
-histogram that updates as people arrive and leave tells you an
-individual's type: watch the mix, watch one person walk in, subtract. At
-party sizes that is not theoretical — at n=8 one arrival moves a share by
-12 points. Mitigations, and they have to be taken together:
+The owner's clarification, and it is the load-bearing sentence of this
+whole section: *"the map is not about position but how similar they are to
+you — same as on city or world or country."*
+
+**That is already how Near draws.** `NearField` builds `kind="anon"` nodes
+with `label: ""` (the code comment says why: an id that carried a name
+would be one refactor from rendering it), places them by match, and
+captions itself *"closer to you = more alike · Nobody is named here."*
+Radius is unlikeness. Nothing in the field is geographic, and the
+temptation to "improve" it by placing nodes where people actually are is
+the one change that would turn this feature into the leak the presence
+deny exists to prevent. **Write that down rather than trusting it:** the
+canvas takes a match, never a coordinate.
+
+**The owner is also right about the payload, and this narrows the problem
+below considerably.** What a node would carry — a test result, an age
+band, answers — is *already world-readable* under D98. None of it is
+sensitive on its own and none of it is new. The only genuinely new fact
+this feature creates is **set membership**: that some person is in this
+neighbourhood right now.
+
+Which is exactly why the node stays attribute-free. Attributes are not the
+risk; attributes are the JOIN KEY. "Analyst, 29, ceramicist" plus a public
+answer history is enough to find a named account, and then you have
+learned where a named person is standing. A node carrying only a radius
+gives an attacker nothing to join on, so the membership fact stays
+membership and never becomes a location.
+
+### One problem left, and it is not fatal
+
+**The differencing attack on the room's MIX.** The field is safe by the
+rule above; the aggregate is where care is still owed. A composition that
+updates as people arrive and leave can tell you an individual's type —
+watch the mix, watch one person walk in, subtract. At party sizes that is
+not theoretical: at n=8 one arrival moves a share by 12 points.
+Mitigations, and they have to be taken together:
 
 - a **floor** on the mix (not on the count, which stays exact — D98 left
   no floor on answers and this is not answers, it is presence, the one
@@ -745,8 +776,10 @@ learn the rough composition of a room you are standing in", which is
 something you can also do by looking around. That is the bar it has to
 clear, and it is the bar the mitigations above are chosen against.
 
-**2 · The cost re-imports exactly what the current function was rewritten
-to remove.** `nearbyCountV2`'s own comment is explicit: it used to `.get()`
+### The cost, which re-imports exactly what was rewritten out
+
+**`nearbyCountV2` was changed FROM a document read TO a count for this
+reason.** `nearbyCountV2`'s own comment is explicit: it used to `.get()`
 the neighbourhood and was changed to a `count()` aggregation because a
 dense cell charged (people nearby) × (beats), *"quadratic in exactly the
 situation the feature is for. A festival is the worst case and the one it
@@ -769,9 +802,13 @@ both.
 
 ### What it is not
 
-- **Not a directory.** No names, no avatars, no per-person rows, no taps.
-  If the reading ever becomes something you can open, it has stopped being
-  this feature.
+- **Not a directory.** No names, no avatars, no per-person rows, no taps,
+  and no per-node attributes — see the geometry rule above: a node is a
+  radius. If the reading ever becomes something you can open, or a node
+  ever carries a trade and an age, it has stopped being this feature and
+  has become a join key.
+- **Not a map of where anyone is.** Distance is unlikeness, at every stop
+  including this one.
 - **Not a Mirror stop's cohort.** D169's rule holds: a lens names the
   population it reads. This is its own reading with its own population
   (phones in this neighbourhood right now), and it must not be labelled or
