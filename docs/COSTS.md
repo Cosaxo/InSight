@@ -633,6 +633,52 @@ sprawling over fifty cells costs five times the ten-cell row above. Still
 under a dime an hour, and the fix if it ever mattered is a coarser cache
 key, which trades the reading's precision for cells it does not need.
 
+### Finding 7 — the bucket stops being free · **BOUNDED BEFORE IT SHIPPED (D177)**
+
+> This document has billed Storage at **$0 (bucket unused)** since it was
+> written, and that line was true of the app's behaviour rather than of the
+> rules — the note in `storage.rules` records the 2026-08-13 fix that
+> closed an unbounded write grant nothing was using. D177 is the first
+> feature that actually puts bytes in the bucket.
+
+A profile photo is **the app's only egress path**. Everything else it
+serves is Firestore documents; this is the one thing measured in
+kilobytes, and Storage bills egress at ~$0.12/GB against Firestore's
+~$0.06 per 100k reads — different units, and the reason it gets its own
+finding rather than a line in the table.
+
+Three bounds, all structural rather than advisory:
+
+| | bound | where |
+| --- | --- | --- |
+| objects | **one per account**, fixed id | `avatars/{uid}` — a second upload overwrites |
+| bytes each | **256 KB** hard, ~20 KB real | `storage.rules`; the uploader shrinks to a 256px JPEG first |
+| reads | one per face drawn | `<img>`, browser-cached |
+
+So stored bytes are `DAU × 20 KB` at full adoption — **1 GB at 50,000
+accounts with a photo, ~$0.03/month**. Egress is the term that moves:
+Near's People tab draws up to `ROOM_PEOPLE_CAP` (24) faces, so an opened
+room is ~480 KB cold and ~0 warm. At 5,000 daily room-opens that is 2.4
+GB/day ≈ **$0.29/day, ~$9/month** — the largest single non-Firestore line
+in this document, and still an order of magnitude under the Firestore bill
+at the same size.
+
+**What is NOT bounded, named rather than fixed.** Nothing caps how often
+one account replaces its photo, so a client in a loop could overwrite
+`avatars/{uid}` continuously — bounded in STORED bytes (it is one object)
+but not in write operations. It is a rate limit's job and there is no rate
+limit; the ledgers in `v2_ratelimits` exist for exactly this shape and
+adding one is a small change if it is ever needed. Recorded rather than
+built, on D7's discipline: no user exists yet who would notice, and the
+worst case is a bill line, not a leak.
+
+**The CDN question, deliberately unanswered.** Firebase Storage serves
+these directly, with no CDN in front. That is the right default at this
+size — a CDN is a fixed cost and a cache-invalidation story, and a removed
+face still cached at an edge is exactly the failure the moderation freeze
+exists to prevent. It becomes worth revisiting when the egress line above
+passes the Firestore one, which the arithmetic here says is a long way off.
+
 ## The controls that are not in this repository
 
 Everything above this line predicts the bill. None of it **caps** the bill,
@@ -870,7 +916,7 @@ the day any of them is.
 | FCM push | $0 |
 | App Check — reCAPTCHA v3 / DeviceCheck / Play Integrity | $0 |
 | Firebase Hosting (`web/`, static pages) | $0 |
-| Cloud Storage | $0 — and since 2026-08-13 that is true of the *rules* and not only of the app. `storage.rules` granted any signed-in account write on `users/{uid}/dailyPhotos/{filename}`: 8 MB an object, `{filename}` unbounded, so unbounded objects, unbounded stored bytes and unbounded egress reading them back — by a free anonymous account (D3), against a feature D4 removed and which no file in `src/` or `functions/src/` imports. Uploads are now closed; read and delete stay open because the erasure argument for keeping them (deleteAccount does not touch Storage) is about reaching a leftover object, not about accepting new ones |
+| Cloud Storage | **~$9/mo at 5 k daily room-opens, and $0 before D177** — the profile photo is the first thing this app has ever stored, and the only egress path it has. Bounded three ways by construction: one object per account at a fixed id, 256 KB a piece (~20 KB real), one read per face drawn. Finding 7 has the arithmetic and the two things it does not bound. The 2026-08-13 note this row used to carry still applies to the RETIRED path beside it: `storage.rules` had granted any signed-in account write on `users/{uid}/dailyPhotos/{filename}` — 8 MB an object, `{filename}` unbounded, so unbounded objects and unbounded egress, by a free anonymous account (D3), against a feature D4 removed. Uploads there are closed; read and delete stay open for erasure. **`deleteAccount` reaches Storage since D177**, which that note said it did not |
 | Cloud Logging | $0 until ~500 k DAU, then ~$17/mo |
 | Firestore storage | 5.6 GiB after a year at 5 k DAU → $0.83/mo (4.0 GiB of documents, ×1.4 for index entries — a multiplier that was 1.0 in the model until D67, and would be ~5 without D64's `answers` exemptions; the indexed set has since grown by D86's `editedAt`, D98's who-voted composite and D102's `surface` re-enable, and 1.4 stays as the blended estimate) |
 | Network egress | in the Firestore column above, not free: $0–0.5/mo at 5 k DAU, **$7–147 at 50 k**, $647–14,686 at 500 k — see the band below |

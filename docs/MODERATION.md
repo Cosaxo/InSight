@@ -268,10 +268,50 @@ from.
    Routine into the dev session as a workaround; that trades the entire
    confinement design for scheduling convenience.
 
+## Faces (D177)
+
+**A profile photo is moderated by this same pipeline**, and reusing it
+rather than growing a parallel one is the whole design: a face inherits
+one-flag-per-person, the reporter-anonymity deny, the queue threshold, the
+verdict log and the appeal annotation without a second copy of any of them.
+
+- **Target ids are namespaced** `av_{uid}`, so they cannot collide with a
+  take id. The queue's field is still called `takeId` — takes were the only
+  moderatable thing when it was written, and renaming it would move rules,
+  the verdict log, the e2e and a live client for no behaviour. Read it as
+  the moderation TARGET id.
+- **The queue entry carries an image, not a text.** `kind: "avatar"`, the
+  Storage download token and the bucket, so the session can build the same
+  URL the app does and actually look at what was reported. No display name
+  and no uid beyond the target: a face is judged against the policy, not
+  against who is wearing it — the same minimum-necessary read the take
+  entries make by copying text and never the circle around it.
+- **A remove verdict writes to `v2_avatars`, never to `v2_users`.** That is
+  why the photo has its own document: the moderator's credential must not
+  reach the profile carrying display names, anchors and test results.
+- **Once removed, frozen.** `firestore.rules` refuses a client update AND a
+  client delete on a hidden avatar, because both are the way back —
+  overwrite, or delete and re-create, and a removed face is live again from
+  an account that costs nothing to make. The appeal is a human, which is
+  what `hiddenMeta` is for.
+- **Live from the moment it is set**, with the report control on it. That
+  was the owner's call at D177 over reviewing a photo before it shows: the
+  same posture takes have had since D83, and the alternative would have
+  meant contradicting the out-of-scope line below.
+
+**The policy lines apply unchanged.** H1–H5 are about content, and a
+picture is content; nothing in the policy section reads text-only. The
+run's prompt hygiene applies to the IMAGE too — an image containing
+instructions aimed at moderators is the same signal a take containing them
+is, and the same automatic escalate.
+
 ## Deliberately out of scope
 
 - **Pre-moderation** of unflagged content — reading everything is the
-  surveillance shape this design exists to avoid.
+  surveillance shape this design exists to avoid. **This survived D177**,
+  which is worth saying because a photo was the strongest case for
+  reversing it: the owner was asked directly, chose the flag loop, and the
+  line stands rather than being quietly narrowed to "except faces".
 - **Account-level punishment** (bans, mutes). Verdicts act on takes,
   one at a time; patterns across takes are a human decision surfaced by
   the digest, never automated here.

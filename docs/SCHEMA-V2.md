@@ -155,6 +155,25 @@ v2_question_aggs/{qid}             the PUBLIC mirror, EXACT (D98)
                                    member sets, per-group anything
 read: signed-in · write: nobody
 
+v2_avatars/{uid}                   the profile photo's document (D177)
+  token: "…"                       the Storage download token for
+                                   avatars/{uid}. NOT a URL: the client
+                                   builds the URL around it, so this field
+                                   can never name a host we do not control
+                                   (rules pin the charset — no dot, colon
+                                   or slash)
+  at: request.time                 when it was set
+  hidden: false                    the server's word, never a client's.
+                                   True after a remove verdict, and then
+                                   the doc takes no client update AND no
+                                   client delete — both are the way back
+  hiddenMeta?: {by, policyLine,    the appeal's annotation, exactly a
+    runId, at}                     take's shape (D22/D65)
+read: any signed-in user · create/update/delete: owner only, and refused
+outright once hidden. The BYTES live in Storage at avatars/{uid}, one
+object per account at a fixed id so the count is bounded by accounts
+rather than by uploads. deleteAccount removes both halves.
+
 v2_presence/{uid}                  Near-by-radius presence (D84)
   cell: "la_lo"                    a ~200 m 0.002-degree grid id (D174;
                                    0.01° ≈ 1.1 km before it), computed
@@ -382,7 +401,7 @@ not per boot. `LIVE.stats` reports `bankSource` / `answersFetched` /
 
 ## Verification
 
-- `npm run test:rules` — 94 rules tests (Firestore + Storage; the v2
+- `npm run test:rules` — 105 rules tests (Firestore + Storage; the v2
   surface, the anonymous-default lens, and the retired-v1 guard).
 - `firestore-tests/e2e-v2-loop.mjs` under
   `firebase emulators:exec --only auth,firestore,functions` — the full

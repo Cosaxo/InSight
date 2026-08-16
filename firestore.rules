@@ -877,6 +877,57 @@ service cloud.firestore {
         && resource.data.authorUid == request.auth.uid;
     }
 
+    // ── The profile photo's document (D177) ────────────────────────
+    //
+    // The bytes live in Storage; this is the part moderation acts on. Its
+    // OWN collection rather than a field on `v2_users`, for two reasons
+    // that both matter:
+    //
+    //   1. The moderator's blast radius. A remove verdict has to write
+    //      somewhere; a field on the profile would mean `submitModVerdict`
+    //      holds a write on `v2_users`, which is the document carrying
+    //      display names, anchors and test results. Here it holds a write
+    //      on faces and nothing else.
+    //   2. It is a take, structurally. `hidden` + `hiddenMeta` is exactly
+    //      the shape D22/D65 built the queue, the verdict log and the
+    //      appeal path around, so the substrate is reused rather than
+    //      re-derived for a second content type.
+    //
+    // `token` is the Storage download token, NOT a URL, and the difference
+    // is the whole safety of the field. A client-written URL could point
+    // at a host we do not control — which leaks every viewer's IP to it
+    // and, worse, lets the image change after it was reported. A token is
+    // a bare id that names an object at `avatars/{uid}` in our own bucket;
+    // the client builds the URL around it from its own config. The charset
+    // below is what enforces that: no dot, colon or slash, so it cannot
+    // be a host or a path however it is written.
+    //
+    // ONCE HIDDEN, FROZEN. A hidden avatar takes no client update and no
+    // client delete, because either one would be the way back: delete and
+    // re-create, or overwrite the token, and a removed face is live again
+    // from a free anonymous account. The appeal path is a human, which is
+    // what `hiddenMeta` is for.
+    match /v2_avatars/{uid} {
+      allow read: if request.auth != null;
+      allow create, update: if request.auth != null
+        && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(["token", "at", "hidden"])
+        && request.resource.data.token is string
+        && request.resource.data.token.size() >= 8
+        && request.resource.data.token.size() <= 64
+        && request.resource.data.token.matches('^[A-Za-z0-9_-]+$')
+        && request.resource.data.at == request.time
+        // The client may only ever write `false` here; `true` is the
+        // server's word. Present rather than optional so the flag rule
+        // below and the queue build can both read a bare boolean — the
+        // D65 lesson, that only an equality holds a LIST to the gate.
+        && request.resource.data.hidden == false
+        && (resource == null || resource.data.hidden == false);
+      allow delete: if request.auth != null
+        && request.auth.uid == uid
+        && resource.data.hidden == false;
+    }
+
     match /v2_flags/{flagId} {
       // Write-only, one per (take, user): the doc id pins uniqueness the
       // way answer ids do — a second flag from the same account is an
@@ -889,10 +940,45 @@ service cloud.firestore {
       // anti-cheat deny. Reversing it is a moderation decision, not a
       // linkage one, and would want its own record.
       allow read: if false;
+      // AVATARS ARE FLAGGABLE TOO SINCE D177, through this same door.
+      //
+      // The owner's call was to ship a photo LIVE with the report loop
+      // behind it rather than to review it first — the model takes already
+      // use — so a face needs the same control a take has, and reusing
+      // this collection means it inherits one-per-person, the anonymity
+      // deny above, the queue and the verdict log rather than growing a
+      // parallel set of all four.
+      //
+      // The target id is `av_{uid}`, namespaced so it cannot collide with
+      // a take id, and `target` carries the uid separately so this rule can
+      // reach the avatar document without doing string surgery on an id.
+      // `gid` is the sentinel "avatar", the same trick D83's world takes
+      // play with the gid "world": the field is required by the shape, and
+      // a face belongs to no circle.
       allow create: if request.auth != null
-        && request.resource.data.keys().hasOnly(["takeId", "gid", "uid", "at"])
         && request.resource.data.uid == request.auth.uid
         && flagId == request.resource.data.takeId + "_" + request.auth.uid
+        && request.resource.data.at == request.time
+        && (
+          (request.resource.data.keys().hasOnly(["takeId", "gid", "uid", "at", "target"])
+            && request.resource.data.gid == "avatar"
+            && request.resource.data.target is string
+            && request.resource.data.takeId == "av_" + request.resource.data.target
+            // You cannot report your own face — the only thing that would
+            // achieve is queueing a moderator to look at it.
+            && request.resource.data.target != request.auth.uid
+            // Same equality, same reason as the take arm: it reads the
+            // boolean the avatar's own gate compares against, so a face
+            // already removed cannot be re-reported into the queue.
+            && get(/databases/$(database)/documents/v2_avatars/$(request.resource.data.target))
+                 .data.hidden == false)
+          || isTakeFlag()
+        );
+      allow update, delete: if false;
+    }
+
+    function isTakeFlag() {
+      return request.resource.data.keys().hasOnly(["takeId", "gid", "uid", "at"])
         && request.resource.data.gid is string
         && get(/databases/$(database)/documents/v2_takes/$(request.resource.data.takeId)).data.gid
           == request.resource.data.gid
@@ -908,9 +994,7 @@ service cloud.firestore {
         // one is a get() on ANOTHER document inside a create, not a query
         // predicate, so it was never the leak (D65).
         && get(/databases/$(database)/documents/v2_takes/$(request.resource.data.takeId))
-             .data.hidden == false
-        && request.resource.data.at == request.time;
-      allow update, delete: if false;
+             .data.hidden == false;
     }
 
     // Queue and verdict log: server-only surfaces of the confinement

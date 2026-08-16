@@ -45,6 +45,13 @@ export const LIVE_MEMBERS = [
   // synchronous best-effort read; `loadNames` is the batched fetch that
   // fills it for a surface that has uids but no names (world takes).
   "nameFor", "loadNames", "scoresFor",
+  // The profile photo (D177) — the read half of the same cache, and the
+  // one place a hidden face is filtered out for every surface at once.
+  "faceFor", "setAvatar", "removeAvatar", "myFace",
+  // The report control on a face, through the SAME flag collection takes
+  // use — which is what gives it the anonymity deny, the threshold and
+  // the verdict log rather than a second set of all three.
+  "flagAvatar", "flaggedAvatar",
   // Kindred (D99) — the People lens's ranking, derived on read from the
   // cached voter lists plus the viewer's own votes.
   "loadKindred", "kindred", "kindredLoading", "kindredDepth",

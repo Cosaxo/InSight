@@ -61,7 +61,21 @@
       "type": "COARSE_LOCATION",
       "linked": true,
       "purposes": ["APP_FUNCTIONALITY"],
-      "$why": "City name only. The fix is resolved to a city on the device (src/v2/data/locate.ts) and discarded, so no coordinate is ever transmitted — but a city name is still coarse location data, and under-declaring is the direction that gets an app pulled. NEVER add PRECISE_LOCATION: iOS sets NSLocationDefaultAccuracyReduced and never calls requestTemporaryFullAccuracy, so it is unobtainable by construction rather than by policy."
+      "$why": "City name only. The fix is resolved to a city on the device (src/v2/data/locate.ts) and discarded, so no coordinate is ever transmitted — but a city name is still coarse location data, and under-declaring is the direction that gets an app pulled. This row used to end 'NEVER add PRECISE_LOCATION: iOS sets NSLocationDefaultAccuracyReduced', and D174 reversed exactly that — see the PRECISE_LOCATION row below."
+    },
+    {
+      "category": "LOCATION",
+      "type": "PRECISE_LOCATION",
+      "linked": true,
+      "purposes": ["APP_FUNCTIONALITY"],
+      "$why": "D174. The app REQUESTS a precise fix for Near — iOS NSLocationDefaultAccuracyReduced is false, Android ACCESS_FINE_LOCATION is uncapped, enableHighAccuracy is true — so this is ticked even though nothing precise is retained: the fix is folded to a ~200 m grid cell on the device and the coordinate is discarded there (src/v2/data/geo.ts, data/locate.ts). The form asks what the app COLLECTS, and an app that asks the OS for precise location collects it, whatever it does next. Declared late: D174 updated STORE-FORMS.md and not this file, and check:store-forms caught the gap at D177."
+    },
+    {
+      "category": "USER_CONTENT",
+      "type": "PHOTOS_OR_VIDEOS",
+      "linked": true,
+      "purposes": ["APP_FUNCTIONALITY"],
+      "$why": "D177. An OPTIONAL profile photo, off by default, shown anywhere the app already shows the user's name — including, since D176, to people standing within a few hundred metres. Shrunk to a 256px square and re-encoded on the device before upload, which also drops the original's EXIF (a camera photo carries GPS, and this app is careful about exactly that datum). One object per account at avatars/{uid}; deleteAccount removes the bytes and the document. Reportable like a comment, and a remove verdict hides it everywhere at once. THIS ROW WAS A DELIBERATE NO until D177 and STORE-FORMS.md called it load-bearing — see the reasoning there, which is why the reversal is recorded rather than absorbed."
     },
     {
       "category": "SENSITIVE_INFO",
@@ -87,7 +101,7 @@
     "others": [
       "PHONE_NUMBER", "PHYSICAL_ADDRESS", "OTHER_CONTACT_INFO", "HEALTH",
       "FITNESS", "PAYMENT_INFO", "CREDIT_INFO", "OTHER_FINANCIAL_INFO",
-      "PRECISE_LOCATION", "CONTACTS", "PHOTOS_OR_VIDEOS", "AUDIO_DATA",
+      "CONTACTS", "AUDIO_DATA",
       "GAMEPLAY_CONTENT", "CUSTOMER_SUPPORT", "BROWSING_HISTORY",
       "SEARCH_HISTORY", "PURCHASE_HISTORY", "ADVERTISING_DATA",
       "OTHER_USAGE_DATA", "PERFORMANCE_DATA", "OTHER_DIAGNOSTIC_DATA",

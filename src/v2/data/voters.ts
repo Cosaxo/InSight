@@ -201,27 +201,57 @@ export async function resolveNames(
   uids: readonly string[],
   names: Record<string, string>,
   scores?: Record<string, ParsedResults | null>,
+  faces?: Record<string, string>,
 ): Promise<void> {
-  const missing = uids.filter((u) => !(u in names) || (scores ? !(u in scores) : false));
+  const missing = uids.filter((u) => !(u in names)
+    || (scores ? !(u in scores) : false)
+    || (faces ? !(u in faces) : false));
   if (!missing.length) return;
   const {
     collection: fsCollection, documentId, getDocs, query, where,
   } = await getFirestoreApi();
   for (const batch of chunkUids(missing)) {
-    const snap = await getDocs(query(
-      fsCollection(db, "v2_users"),
-      where(documentId(), "in", batch),
-    ));
+    // TWO QUERIES PER CHUNK SINCE D177, not one, and the second is the
+    // price of the photo living in its own collection.
+    //
+    // It lives there because a remove verdict has to write somewhere, and
+    // a field on `v2_users` would mean the moderator callable holds a
+    // write on the document carrying display names, anchors and test
+    // results. One extra batched query per THIRTY people is the smaller
+    // cost — and it is batched by the same chunking, so it never becomes
+    // a read per face.
+    //
+    // Parallel rather than sequential: they are independent, and a room
+    // of two dozen is one round trip either way only if they overlap.
+    const [snap, avSnap] = await Promise.all([
+      getDocs(query(fsCollection(db, "v2_users"), where(documentId(), "in", batch))),
+      faces
+        ? getDocs(query(fsCollection(db, "v2_avatars"), where(documentId(), "in", batch)))
+        : Promise.resolve(null),
+    ]);
     for (const d of snap.docs) {
       const n = d.get("displayName");
       names[d.id] = typeof n === "string" ? n.trim().slice(0, 60) : "";
       if (scores) scores[d.id] = parseTestResults(d.get("testResults"), CORE_TEST_KINDS);
+    }
+    if (faces && avSnap) {
+      for (const d of avSnap.docs) {
+        const token = d.get("token");
+        // A HIDDEN FACE RESOLVES TO NOTHING, and this is where that is
+        // enforced for every surface at once. The document stays readable
+        // — the appeal path needs it, and rules cannot filter a field —
+        // so the one place that turns a document into a picture is the
+        // one place that has to check. Initials, exactly as if no photo
+        // had ever been set.
+        faces[d.id] = d.get("hidden") === true || typeof token !== "string" ? "" : token;
+      }
     }
     // Anything the query did not return does not exist — cache the
     // absence so the next open does not re-ask for it.
     for (const u of batch) {
       if (!(u in names)) names[u] = "";
       if (scores && !(u in scores)) scores[u] = null;
+      if (faces && !(u in faces)) faces[u] = "";
     }
   }
 }

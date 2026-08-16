@@ -21,6 +21,7 @@
 import { initializeApp } from "firebase-admin/app";
 import { FieldValue } from "firebase-admin/firestore";
 import { getAuth } from "firebase-admin/auth";
+import { getStorage } from "firebase-admin/storage";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions";
 // ./ops also sets the global runtime options — and must be imported
@@ -246,6 +247,19 @@ export const deleteAccount = onCall(
     try {
       await deleteQueryDocs(db.collection("v2_takes").where("authorUid", "==", uid));
       await deleteQueryDocs(db.collection("v2_flags").where("uid", "==", uid));
+      // The face, both halves (D177). The document is one delete; the
+      // BYTES are the first thing this function has ever had to remove
+      // from Storage, and the reason storage.rules could keep its retired
+      // read grant was precisely that deleteAccount did not touch Storage
+      // — "revoking access to objects that still exist would create an
+      // erasure gap rather than close a hole". Adding a photo without
+      // adding this would have made that sentence describe the live path
+      // too.
+      //
+      // Ignored-not-found rather than checked-then-deleted: an account
+      // with no photo is the common case, and a missing object is the
+      // outcome either way.
+      await db.collection("v2_avatars").doc(uid).delete();
       // The presence doc (D84) is keyed by uid — one delete, and the only
       // location-shaped datum the account ever held server-side is gone.
       //
@@ -276,6 +290,26 @@ export const deleteAccount = onCall(
     } catch (err) {
       logger.error("[deleteAccount] takes/flags wipe failed:", err);
       failed.push("takesFlags");
+    }
+
+    // The photo's BYTES (D177) — the first thing this function has ever
+    // had to remove from Storage, and its own phase so a bucket problem
+    // reports as one instead of as a takes failure.
+    //
+    // It ABORTS like every other phase rather than being best-effort, and
+    // that is deliberate: an orphaned photo of somebody who asked to be
+    // deleted is exactly the leftover the abort exists to prevent. The
+    // user stays signed in and retries; a stray image outliving its
+    // account is not a thing to log and move past.
+    //
+    // `ignoreNotFound` because the common case by far is an account with
+    // no photo, and a missing object is the outcome either way.
+    try {
+      await getStorage().bucket().file(`avatars/${uid}`)
+        .delete({ ignoreNotFound: true });
+    } catch (err) {
+      logger.error("[deleteAccount] avatar object delete failed:", err);
+      failed.push("avatarObject");
     }
 
     // 1c. Leave every v2 group: membership, name, and reveal entries all

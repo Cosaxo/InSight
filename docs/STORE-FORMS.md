@@ -68,6 +68,7 @@ companies' apps or sites.
 | Contact Info | **Email Address** | Yes | App Functionality | Only if the user links Google. See the warning below |
 | Contact Info | **Name** | Yes | App Functionality | Optional display name, shown in group and duel reveals |
 | User Content | **Other User Content** | Yes | App Functionality | Answers and test results, the anchors each answer was given under, and question suggestions (D138). See the note below the table |
+| User Content | **Photos or Videos** | Yes | App Functionality | **Optional profile photo, off by default (D177)** — shown anywhere the app shows the user's name, including to people nearby since D176. Shrunk and re-encoded on the device, which drops the original's EXIF. See the note below the table |
 | Location | **Coarse Location** | Yes | App Functionality | City name; 0.002° presence cell |
 | Location | **Precise Location** | Yes | App Functionality | Requested since D174; nothing precise is retained — see §"The three that bite" |
 | Sensitive Info | **Sensitive Info** | Yes | App Functionality | Politics test result (GDPR Art. 9); gender if entered |
@@ -104,7 +105,7 @@ what needed fixing.
 
 Phone Number · Physical Address · Other Contact Info · Health · Fitness ·
 Payment Info · Credit Info · Other Financial Info ·
-Contacts · Emails or Text Messages · Photos or Videos · Audio Data ·
+Contacts · Emails or Text Messages · Audio Data ·
 Gameplay Content · Customer Support · Browsing History · Search History ·
 **Device ID** · Purchase History · **Product Interaction** ·
 **Advertising Data** · Other Usage Data · Performance Data · Other
@@ -114,6 +115,21 @@ Diagnostic Data · Other Data Types
 table above — the app requests a precise fix for Near even though nothing
 precise is retained. It is called out here because this is the line a
 future reviewer will check the change against.
+
+**Photos or Videos left this list at D177**, and it is the one that had
+been called load-bearing in this very document: §"Facial symmetry" refuses
+a feature partly *because* this row was a No. That refusal stands
+unchanged and the distinction is worth stating, because the two look
+alike and are not. The symmetry idea wanted to MEASURE a face — camera
+capture and face geometry, biometric data in GDPR and BIPA terms, feeding
+a pseudo-measurement into a personality reading. D177 stores a picture
+somebody chose to publish, and nothing reads it but a human eye. The app
+does no face processing of any kind, and this row moving does not open the
+door the other section closed.
+
+What moving it costs, stated plainly: an optional photo, off by default,
+one 256px object per account, deleted with the account (bytes included —
+`deleteAccount` reaches Storage since D177, which it never did before).
 
 Four of those are worth knowing *why*, because each looks tickable:
 

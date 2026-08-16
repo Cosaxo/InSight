@@ -524,7 +524,32 @@ const MAX_CHUNK_KB = 735;
 // anything (9 KB left after this one, and it did not have to move). If a
 // sixth lands soon the question is whether the total wants a wider band
 // rather than whether the app should be smaller.
-const MAX_TOTAL_JS_KB = 2292;
+// 2292 → 2334 (2026-08-16): D177's profile photo. Measured with a DSN:
+// total 2289 → 2328 (+39), eager 969 → 974 (+5), 78 chunks up from 77.
+//
+// THE 39 KB IS ALMOST ALL `firebase/storage`, and that is the reason this
+// raise is a different animal from the five before it — those were product
+// code and this is a vendor SDK. It sits behind a dynamic import reached
+// only by the upload path (`data/live.ts` setAvatar/removeAvatar), which
+// is why the EAGER graph moved 5 KB rather than 38: drawing a face needs
+// no SDK at all, only an `<img>` and a URL, so an account that never sets
+// a photo never loads a byte of it. The +5 is the Avatar component, the
+// profile control and `data/avatar.ts`.
+//
+// The entry above asked whether a sixth raise means the total wants a
+// wider band rather than a higher ceiling. Answering it here rather than
+// deferring again: the total is a DRIFT ALARM, and this is exactly the
+// drift it should fire on — a whole SDK arriving is worth a human look,
+// which is what it got. What it should NOT do is fire on the lazy-loading
+// that made the eager cost 5 KB instead of 38, and it does not, because it
+// counts every chunk by design. So the band stays as it is and the ceiling
+// moves; the constant below is the one doing real work.
+//
+// MAX_EAGER_KB now has 4 KB of headroom (974 against 978). That is the
+// number to watch — it is the one defending first paint, and the next
+// thing added to the entry graph will very likely need a dynamic import
+// rather than a raise.
+const MAX_TOTAL_JS_KB = 2334;
 // 955 → 966 (2026-08-14): D139's pulse card — the second fixed instrument
 // on the FIRST screen, so its card, its store's demo furniture and the
 // two LIVE members are legitimately eager (~10 KB min). What is not

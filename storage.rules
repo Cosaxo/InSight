@@ -1,19 +1,63 @@
 rules_version = '2';
 
-// Firebase Storage rules — owner-only access to a user's uploads. The
-// only path named is users/{uid}/dailyPhotos/, a RETIRED v1 surface
-// (daily-report photo backup, removed in D4) kept until the bucket is
-// confirmed empty. We deny everything else by default.
+// Firebase Storage rules — owner-only writes, and since D177 one path a
+// signed-in user may READ: avatars/{uid}, the profile photo.
 //
-// Deliberately untouched by D98, and recorded here so it does not read
-// as an oversight: D98 publishes ANSWERS. A photo is not an answer, the
-// path is dead, and nothing on the Mirror reads it.
+// Two paths are named. `avatars/{uid}` is live (D177). The other,
+// users/{uid}/dailyPhotos/, is a RETIRED v1 surface (daily-report photo
+// backup, removed in D4) kept read/delete-only until the bucket is
+// confirmed empty. Everything else is denied by default.
+//
+// D98's note on this file used to say "a photo is not an answer, the path
+// is dead, and nothing on the Mirror reads it." Two thirds of that stopped
+// being true at D177 and the sentence is kept here as the record: a photo
+// is still not an answer, and the reason avatars are world-readable is not
+// D98 but the same argument D176 made for the room — the surfaces that
+// show a face already show the name beside it.
 //
 // Deploy with: firebase deploy --only storage
 // (NOT `--only storage:rules` — the colon form names a multi-bucket
 // deploy target, which this project doesn't configure, and it errors.)
 service firebase.storage {
   match /b/{bucket}/o {
+    // ── The profile photo (D177) ───────────────────────────────────
+    //
+    // ONE OBJECT PER ACCOUNT, AT A FIXED ID, and that is the whole reason
+    // this path has no {filename}. The retired path below records what a
+    // free filename cost: unbounded object count, unbounded stored bytes
+    // and unbounded egress, from an anonymous-first app where an account
+    // is free. A fixed id makes a second upload an OVERWRITE, so the
+    // object count is bounded by the account count by construction rather
+    // than by a rule someone has to remember to write.
+    //
+    // Readable by any signed-in user, which is the grant that did not
+    // exist here before. It is not D98's doing — D98 published answers —
+    // it is D176's argument: every surface that will draw this face
+    // already draws the name beside it, so the photo adds a likeness to a
+    // person who was already identified, on screens whose whole subject
+    // is who people are.
+    //
+    // 256 KB is roughly ten times what the uploader produces: it
+    // downscales to AVATAR_PX and re-encodes before it ever reaches here
+    // (src/v2/data/avatar.ts), so this cap is the backstop for a modified
+    // client rather than the thing a real upload has to fit. Keeping it
+    // small matters more than it looks — this is the app's only egress
+    // path, and a room of two dozen faces reads two dozen objects.
+    match /avatars/{uid} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+        && request.auth.uid == uid
+        && (
+          // A delete presents no resource; only an upload has bytes to
+          // check. Written as one rule because Storage's `write` covers
+          // both and splitting it would leave `delete` needing its own
+          // copy of the ownership test.
+          request.resource == null
+          || (request.resource.size < 256 * 1024
+              && request.resource.contentType.matches('image/(jpeg|png|webp)'))
+        );
+    }
+
     match /users/{uid}/dailyPhotos/{filename} {
       // Owner-only READ and DELETE. Uploads are closed — see below.
       //

@@ -16,6 +16,7 @@
 // track record in its PR.
 
 import { FieldValue } from "firebase-admin/firestore";
+import { getStorage } from "firebase-admin/storage";
 import { onCall, HttpsError, type CallableRequest } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { logger } from "firebase-functions";
@@ -76,6 +77,32 @@ function assertModerator(request: CallableRequest): void {
 // is unbounded (see below), so the work is unbounded too and it keeps the
 // long deadline. What it HOLDS is bounded by the number of distinct takes,
 // which is what made paging worth doing rather than raising the memory.
+/**
+ * The uid behind an `av_`-namespaced moderation target, or null (D177).
+ *
+ * One reader for the prefix so the queue build, the verdict and any future
+ * consumer cannot disagree about what an avatar target looks like. Returns
+ * null for a take id, which is every id that existed before D177.
+ */
+function avatarTarget(targetId: string): string | null {
+  return typeof targetId === "string" && targetId.startsWith("av_")
+    ? targetId.slice(3) || null : null;
+}
+
+/** The Storage bucket avatars live in, for the queue's viewing URL. */
+function avatarBucket(): string {
+  try {
+    return getStorage().bucket().name;
+  } catch {
+    // The emulator can be run without a bucket configured, and a queue
+    // that refused to build for want of a display URL would take TAKE
+    // moderation down with it. An avatar entry without a bucket is one a
+    // moderator must escalate rather than judge, which is the safe way for
+    // this to fail.
+    return "";
+  }
+}
+
 async function runBuildModQueue(): Promise<void> {
     const db = firestore();
     // PAGED, not `.get()` on the collection.
@@ -153,7 +180,47 @@ async function runBuildModQueue(): Promise<void> {
     for (const doc of existing.docs) batch.delete(doc.ref);
     let queued = 0;
     let carried = 0;
+    // The bucket, resolved once rather than per item: an avatar entry
+    // carries it beside the token so the moderation session can build the
+    // same URL the app does and actually LOOK at what was reported. There
+    // is no signed-URL call here on purpose — that needs signBlob on the
+    // runtime service account, which is infrastructure this repo cannot
+    // assert, and a moderator holding the app's own read grant is the
+    // smaller claim.
+    const bucket = avatarBucket();
     for (const item of queue) {
+      // AVATARS ARE MODERATED THROUGH THIS SAME QUEUE (D177), namespaced
+      // by an `av_` target id so they cannot collide with a take id.
+      //
+      // The queue's field is still called `takeId` because takes were the
+      // only moderatable thing when it was written and renaming it would
+      // move rules, the verdict log, the e2e and a live client for no
+      // behaviour. Read it as the moderation TARGET id.
+      const target = avatarTarget(item.takeId);
+      if (target) {
+        const av = await db.collection("v2_avatars").doc(target).get();
+        // Same two exits as a take: vanished, or already settled.
+        if (!av.exists || av.get("hidden")) continue;
+        const escalations = priorEscalations.get(item.takeId) || 0;
+        if (escalations > 0) carried += 1;
+        batch.set(db.collection("v2_mod_queue").doc(item.takeId), {
+          takeId: item.takeId,
+          kind: "avatar",
+          gid: null,
+          // No text to copy — the content IS the image, so what the
+          // session gets is what it needs to fetch it and nothing about
+          // the person behind it. Not even a display name: a face is
+          // judged against the policy, not against who is wearing it.
+          text: "",
+          token: av.get("token") || "",
+          bucket,
+          flags: item.flags,
+          escalations,
+          queuedAt: FieldValue.serverTimestamp(),
+        });
+        queued += 1;
+        continue;
+      }
       const take = await db.collection("v2_takes").doc(item.takeId).get();
       // A vanished take has nothing to moderate; an already-hidden one is
       // settled. Both fall out of the queue silently.
@@ -167,6 +234,7 @@ async function runBuildModQueue(): Promise<void> {
       if (escalations > 0) carried += 1;
       batch.set(db.collection("v2_mod_queue").doc(item.takeId), {
         takeId: item.takeId,
+        kind: "take",
         gid: take.get("gid") || null,
         // The text is COPIED here so the moderation session reads only
         // this collection — the minimum-necessary read the design
@@ -222,6 +290,13 @@ export const fetchModQueue = onCall({ ...LIGHT_CALLABLE, region: REGION }, async
     runCap: MOD_RUN_CAP,
     items: queue.docs.map((d) => ({
       takeId: d.get("takeId"),
+      // D177. `kind` tells the session what it is looking at; for an
+      // avatar the content is an image, so it gets what it needs to fetch
+      // one and nothing else. Absent on entries queued before D177, which
+      // read as takes — the same default the collection had.
+      kind: d.get("kind") || "take",
+      token: d.get("token") || null,
+      bucket: d.get("bucket") || null,
       text: d.get("text"),
       flags: d.get("flags"),
       // Escalated in THIS generation (so the run does not re-judge what it
@@ -309,10 +384,20 @@ export const submitModVerdict = onCall({ ...LIGHT_CALLABLE, region: REGION }, as
       // and the long comment on that rule). `hiddenMeta` is the annotation
       // this used to write into `hidden` itself: nobody's access decision
       // turns on it, it exists so an appeal can be answered.
-      tx.update(db.collection("v2_takes").doc(takeId), {
-        hidden: true,
-        hiddenMeta: { by: "mod", policyLine, runId, at: FieldValue.serverTimestamp() },
-      });
+      // Same two fields on either kind, which is the reason an avatar got
+      // its own DOCUMENT rather than a field on the profile (D177): the
+      // remove path is one write of a shape the appeal path, the read
+      // rules and this transaction all already understand.
+      const target = avatarTarget(takeId);
+      tx.update(
+        target
+          ? db.collection("v2_avatars").doc(target)
+          : db.collection("v2_takes").doc(takeId),
+        {
+          hidden: true,
+          hiddenMeta: { by: "mod", policyLine, runId, at: FieldValue.serverTimestamp() },
+        },
+      );
       tx.delete(queueRef);
     } else if (verdict === "keep") {
       tx.delete(queueRef);

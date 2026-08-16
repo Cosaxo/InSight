@@ -28,6 +28,9 @@ import LIVE from "../data/live";
 // the room cannot drift from them: D169's "counts are this stop's cohort"
 // repair and its n=1 sentence live in one place.
 import LiveAnswerRows from "./LiveAnswerRows";
+// The face, since D177 — the same component every other named surface
+// draws, with initials as its permanent fallback.
+import Avatar from "./Avatar";
 // Compare, likewise. It takes `LensQuestion[]` and a noun, and asks
 // nothing about scope — so the room passes its own counts and the word
 // "this room", and inherits D169's majority test for free.
@@ -57,28 +60,28 @@ function RtNote({ children }: { children: React.ReactNode }) {
 }
 
 /**
- * The two initials, from a display name.
+ * The two-step report on a face.
  *
- * The PERMANENT fallback, not a placeholder for step 5's images: a name
- * with no photo behind it still has to draw as somebody, and an account
- * that never uploads one is not a broken row.
+ * Confirm-then-send, because a flag is permanent and a mis-tap in a list
+ * of faces is easy. The reported face STAYS on screen afterwards — the
+ * takes control makes the same choice: hiding it would tell the reporter
+ * their report was upheld before anyone had looked at it.
  */
-function initialsOf(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (!parts.length) return "?";
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-}
-
-function RoomFace({ name }: { name: string }) {
+function ReportFace({ uid }: { uid: string }) {
+  const [armed, setArmed] = React.useState(false);
+  const done = LIVE.flaggedAvatar(uid);
+  const label = done ? "Reported" : armed ? "Confirm" : "Report";
   return (
-    <span aria-hidden="true" style={{
-      width: 38, height: 38, flexShrink: 0, borderRadius: "50%",
-      background: "color-mix(in oklch, var(--accent) 15%, var(--surface-2))",
-      display: "flex", alignItems: "center", justifyContent: "center",
-      fontFamily: "var(--sans)", fontWeight: 800, fontSize: 13,
-      color: "var(--ink-2)", letterSpacing: "-0.02em",
-    }}>{initialsOf(name)}</span>
+    <button type="button" className="press" disabled={done}
+      aria-label={done ? "Photo reported" : `Report this photo${armed ? " — confirm" : ""}`}
+      onClick={() => { if (armed) void LIVE.flagAvatar(uid); else setArmed(true); }}
+      style={{
+        border: RT_LINE, borderRadius: 999, padding: "4px 9px", flexShrink: 0,
+        background: "transparent", cursor: done ? "default" : "pointer",
+        fontFamily: "var(--sans)", fontWeight: 700, fontSize: 11,
+        color: armed && !done ? "var(--ink)" : "var(--ink-3)",
+        WebkitAppearance: "none", opacity: done ? 0.6 : 1,
+      }}>{label}</button>
   );
 }
 
@@ -125,7 +128,7 @@ function RoomPeople({ people }: { people: Array<{ uid: string; type?: string }> 
             display: "flex", alignItems: "center", gap: 11,
             padding: "10px 2px", borderBottom: RT_LINE,
           }}>
-            <RoomFace name={name} />
+            <Avatar uid={p.uid} name={name} />
             <span style={{ flex: 1, minWidth: 0 }}>
               <span style={{
                 display: "block", fontFamily: "var(--sans)", fontSize: 13.5,
@@ -152,6 +155,17 @@ function RoomPeople({ people }: { people: Array<{ uid: string; type?: string }> 
                 color: "var(--ink-2)", fontVariantNumeric: "tabular-nums",
               }}>{m.match}%</span>
             ) : null}
+            {/* THE REPORT CONTROL, and it only exists where a face does
+                (D177). The owner's call was a photo live from the moment
+                it is set with the report loop behind it — which is only a
+                loop if the people who can see the face can use it, and
+                this tab is where a stranger sees one.
+
+                Two-step like the takes control and for the same reason: a
+                flag cannot be undone. No reason picker, because the flag
+                document has no field for one and the run picks its own
+                policy line. */}
+            {LIVE.faceFor(p.uid) ? <ReportFace uid={p.uid} /> : null}
           </div>
         );
       })}

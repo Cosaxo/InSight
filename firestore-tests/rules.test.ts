@@ -1499,6 +1499,110 @@ describe("moderation substrate: takes + flags (docs/MODERATION.md, D22)", () => 
       doc(asUser(FRIEND), "v2_flags", "t_gone_" + FRIEND), flag("t_gone", FRIEND)));
   });
 
+  // ── the profile photo (D177) ───────────────────────────────────
+  //
+  // The bytes are Storage's (storage.rules.test.ts); this document is what
+  // moderation acts on, and its rules carry three claims the feature rests
+  // on: a face is world-readable, only its owner writes it, and a REMOVED
+  // face is frozen — because otherwise the way back is one delete and one
+  // re-upload from an account that costs nothing to make.
+  describe("the profile photo's document (D177)", () => {
+    const av = (over: Record<string, unknown> = {}) => ({
+      token: "abc123DEF456-_xyz", at: serverTimestamp(), hidden: false, ...over,
+    });
+
+    it("the owner sets their own face and everyone signed in can read it", async () => {
+      await assertSucceeds(setDoc(doc(asUser(OWNER), "v2_avatars", OWNER), av()));
+      await assertSucceeds(getDoc(doc(asUser(STRANGER), "v2_avatars", OWNER)));
+      // Replacing it is an ordinary update; removing it is the way out.
+      await assertSucceeds(setDoc(doc(asUser(OWNER), "v2_avatars", OWNER), av({ token: "second00token" })));
+      await assertSucceeds(deleteDoc(doc(asUser(OWNER), "v2_avatars", OWNER)));
+    });
+
+    it("nobody writes somebody else's face", async () => {
+      await assertFails(setDoc(doc(asUser(STRANGER), "v2_avatars", OWNER), av()));
+      await seed(async (db) => {
+        await setDoc(doc(db, "v2_avatars", OWNER), { token: "t0000000", at: new Date(), hidden: false });
+      });
+      await assertFails(deleteDoc(doc(asUser(STRANGER), "v2_avatars", OWNER)));
+    });
+
+    // THE FIELD IS A TOKEN, NOT A URL, and this is the case that keeps it
+    // one. A client-written URL could name a host we do not control: every
+    // viewer's IP goes to it, and the picture can change after somebody
+    // reported it. The charset admits no dot, colon or slash, so the field
+    // cannot be a host or a path however it is written.
+    it("refuses anything that could be a URL rather than a token", async () => {
+      for (const token of [
+        "https://evil.example/x.png",
+        "../../../etc/passwd",
+        "abc.def",
+        "a b",
+        "short",
+        "x".repeat(65),
+        123,
+      ]) {
+        await assertFails(setDoc(doc(asUser(OWNER), "v2_avatars", OWNER), av({ token })));
+      }
+    });
+
+    it("lets no client claim `hidden`, in either direction", async () => {
+      // `true` is the server's word: a client that could write it could
+      // hide its own face to dodge a report mid-queue…
+      await assertFails(setDoc(doc(asUser(OWNER), "v2_avatars", OWNER), av({ hidden: true })));
+      // …and the field is required rather than optional, so the flag rule
+      // and the queue build can both read a bare boolean (D65).
+      await assertFails(setDoc(doc(asUser(OWNER), "v2_avatars", OWNER),
+        { token: "abc123DEF456", at: serverTimestamp() }));
+      await assertFails(setDoc(doc(asUser(OWNER), "v2_avatars", OWNER), av({ extra: 1 })));
+    });
+
+    // THE ONE THAT MATTERS MOST. A removed face has to stay removed, and
+    // the two ways back are an overwrite and a delete-then-recreate. Both
+    // are refused while `hidden` is true; the appeal is a human, which is
+    // what `hiddenMeta` exists for.
+    it("freezes a removed face against both ways back", async () => {
+      await seed(async (db) => {
+        await setDoc(doc(db, "v2_avatars", OWNER), {
+          token: "removed0token", at: new Date(), hidden: true,
+          hiddenMeta: { by: "mod", policyLine: "H2" },
+        });
+      });
+      await assertFails(setDoc(doc(asUser(OWNER), "v2_avatars", OWNER), av()));
+      await assertFails(deleteDoc(doc(asUser(OWNER), "v2_avatars", OWNER)));
+    });
+
+    it("is reportable by a stranger, once, and never by its owner", async () => {
+      await seed(async (db) => {
+        await setDoc(doc(db, "v2_avatars", OWNER), { token: "live0token00", at: new Date(), hidden: false });
+        await setDoc(doc(db, "v2_avatars", FRIEND), {
+          token: "gone0token00", at: new Date(), hidden: true,
+          hiddenMeta: { by: "mod", policyLine: "H2" },
+        });
+      });
+      const avFlag = (target: string, by: string) => ({
+        takeId: "av_" + target, gid: "avatar", uid: by, target, at: serverTimestamp(),
+      });
+      await assertSucceeds(setDoc(
+        doc(asUser(STRANGER), "v2_flags", `av_${OWNER}_${STRANGER}`), avFlag(OWNER, STRANGER)));
+      // One per person, the same pin takes have — the id IS the uniqueness.
+      await assertFails(setDoc(
+        doc(asUser(STRANGER), "v2_flags", `av_${OWNER}_${STRANGER}`), avFlag(OWNER, STRANGER)));
+      // Reporting your own face would only queue a moderator to look at it.
+      await assertFails(setDoc(
+        doc(asUser(OWNER), "v2_flags", `av_${OWNER}_${OWNER}`), avFlag(OWNER, OWNER)));
+      // A face already removed is settled; no further flag-stacking.
+      await assertFails(setDoc(
+        doc(asUser(STRANGER), "v2_flags", `av_${FRIEND}_${STRANGER}`), avFlag(FRIEND, STRANGER)));
+      // And the id still has to name its target: `target` is what the rule
+      // reaches the avatar document with, so a mismatch is a flag pointed
+      // at one face and counted against another.
+      await assertFails(setDoc(
+        doc(asUser(STRANGER), "v2_flags", `av_${OWNER}_${STRANGER}`),
+        { ...avFlag(OWNER, STRANGER), target: FRIEND }));
+    });
+  });
+
   it("the queue and verdict log are dark to every client", async () => {
     await seedCircle();
     await assertFails(getDoc(doc(asUser(OWNER), "v2_mod_queue", "t1")));

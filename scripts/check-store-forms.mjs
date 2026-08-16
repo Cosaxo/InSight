@@ -15,10 +15,12 @@
 //      dangerous direction — it is invisible in review.
 //   2. Every type the prose lists as collected is in the JSON. The other
 //      direction is under-declaring, which is what gets an app pulled.
-//   3. PRECISE_LOCATION is never collected. Called out separately because
-//      it is one word away from COARSE_LOCATION, it is unobtainable by
-//      construction (NSLocationDefaultAccuracyReduced), and a diff that
-//      flipped it would read as a typo rather than a policy change.
+//   3. PRECISE_LOCATION agrees with the iOS plist. Called out separately
+//      because it is one word away from COARSE_LOCATION and a diff that
+//      flipped it would read as a typo rather than a policy change. Until
+//      D177 this rule said "never collected"; D174 made that false, and a
+//      prohibition reality has moved past is worse than no check — it
+//      fires on every correct state until someone deletes it.
 //   4. tracking.used is false. Tracking gates the entire form and carries
 //      an ATT prompt; it should never change as a side effect.
 //   5. Every age-rating answer agrees with the prose, KEY AND VALUE.
@@ -97,13 +99,47 @@ for (const t of proseTypes) {
   }
 }
 
-if (jsonTypes.has("PRECISE_LOCATION")) {
+// RULE 3, TURNED AROUND AT D177 — and the reversal is the interesting part.
+//
+// It used to assert PRECISE_LOCATION is NEVER collected, on the grounds
+// that it was unobtainable by construction: iOS shipped
+// NSLocationDefaultAccuracyReduced and never asked for full accuracy. Its
+// own message said "if that genuinely changed, this check is the last
+// thing to update, not the first" — and D174 changed it, deliberately and
+// on the owner's explicit go, to give Near a venue-scale radius.
+//
+// A hard-coded prohibition that reality has moved past is worse than no
+// check: it fires on every correct state, so the fix is to silence it, and
+// silencing a store-forms gate is how an under-declaration ships. What
+// replaces it is a CROSS-CHECK against the thing that actually decides the
+// answer — the iOS plist. If the app asks for a precise fix, the label
+// must say so; if it stops asking, the label must stop saying so. Neither
+// direction can drift now, and this file no longer has an opinion about
+// which one is right.
+const plist = readFileSync(join(root, "ios/App/App/Info.plist"), "utf8");
+// `<key>X</key>` followed by `<true/>` or `<false/>`, whitespace and
+// comments between them. Reduced accuracy TRUE means the app deliberately
+// asks for a coarse fix.
+const reduced = /<key>NSLocationDefaultAccuracyReduced<\/key>\s*(?:<!--[\s\S]*?-->\s*)*<(true|false)\/>/
+  .exec(plist)?.[1];
+if (reduced === undefined) {
   errors.push(
-    "app-privacy.json declares PRECISE_LOCATION collected.\n"
-    + "    It is unobtainable by construction, not by policy: iOS sets\n"
-    + "    NSLocationDefaultAccuracyReduced and never calls\n"
-    + "    requestTemporaryFullAccuracy. If that genuinely changed, this check is\n"
-    + "    the last thing to update, not the first.",
+    "ios/App/App/Info.plist: could not read NSLocationDefaultAccuracyReduced.\n"
+    + "    That key is what decides the Precise Location answer, so this check\n"
+    + "    cannot be silently skipped — fix the pattern, do not delete the rule.",
+  );
+} else if (reduced === "false" && !jsonTypes.has("PRECISE_LOCATION")) {
+  errors.push(
+    "iOS asks for a PRECISE fix (NSLocationDefaultAccuracyReduced is false)\n"
+    + "    but app-privacy.json does not declare PRECISE_LOCATION. That is the\n"
+    + "    under-declaring direction — the one that gets an app pulled.",
+  );
+} else if (reduced === "true" && jsonTypes.has("PRECISE_LOCATION")) {
+  errors.push(
+    "app-privacy.json declares PRECISE_LOCATION, but iOS asks for a REDUCED\n"
+    + "    fix (NSLocationDefaultAccuracyReduced is true). Over-declaring is the\n"
+    + "    safer direction, but it is still two files disagreeing about one\n"
+    + "    attestation — decide which is right and move the other.",
   );
 }
 
@@ -186,5 +222,5 @@ if (errors.length) {
 console.log(
   `check-store-forms OK — ${jsonTypes.size} collected type(s) and ${ageTable.size} `
   + "age-rating answer(s) agree across app-privacy.json and STORE-FORMS.md; "
-  + "tracking off; Precise Location absent.",
+  + `tracking off; Precise Location ${jsonTypes.has("PRECISE_LOCATION") ? "declared" : "absent"}, matching the plist.`,
 );

@@ -112,6 +112,9 @@ import { fetchVoters, groupByOption, resolveNames, sortVoters, type Voter } from
 // the dynamic import costs no round trip that was not happening anyway.
 import type { Invite } from "./invites";
 import { type KindredPerson, type ParsedResults } from "./similarity";
+import {
+  AVATAR_MAX_BYTES, avatarPath, shrinkToSquare, tokenFromUrl,
+} from "./avatar";
 // Pure folds over the published breakdown, and the likeness metric behind
 // Kindred. No Firebase in there — this module supplies the documents.
 import { agreement, type Agreement } from "./cohort";
@@ -296,6 +299,11 @@ const state = {
   // the whole document was on the wire whenever a name resolved — this
   // keeps what was already paid for). null = fetched, nothing usable.
   scores: {} as Record<string, ParsedResults | null>,
+  // uid → Storage download token for their photo, "" for none and for a
+  // HIDDEN one (D177). Beside names and scores because it is filled by
+  // the same batched read and has exactly their lifetime — a session
+  // cache, cleared with the account.
+  faces: {} as Record<string, string>,
   // Kindred (D99): no cached ranking, only the flags. The ranking itself
   // is derived on read from `voters` + `votes`, so it cannot go stale
   // against its own inputs.
@@ -463,6 +471,12 @@ function loadProfileCache(): void {
       // fetched (so resolveNames must ask), null = fetched and this account
       // has no usable results. Only the second is cacheable.
       if (v.s !== undefined) state.scores[uid] = v.s;
+      // THE FACE IS DELIBERATELY NOT CACHED ACROSS SESSIONS (D177). A
+      // token held past a remove verdict would go on drawing a face
+      // moderation took down, for as long as the TTL — which is the one
+      // thing the whole report loop exists to prevent. Faces are refetched
+      // per session by the same batched read; the extra query is the price
+      // of a removal being immediate everywhere.
       profileSeen.set(uid, v.t);
     }
   } catch {
@@ -2255,17 +2269,140 @@ const LIVE = {
   scoresFor(uid: string): ParsedResults | null {
     return state.scores[uid] ?? null;
   },
+  /**
+   * A uid's Storage download token for their photo, or "" (D177).
+   *
+   * "" covers three different situations on purpose, because all three
+   * draw the same thing — initials: not fetched yet, no photo set, and a
+   * photo a moderator REMOVED. The third is why the filter lives in
+   * `resolveNames` rather than at each call site: one place turns a
+   * document into a picture, so one place has to check `hidden`.
+   */
+  faceFor(uid: string): string {
+    return state.faces[uid] || "";
+  },
+  /** Your own token, so the profile can show what everyone else sees. */
+  myFace(): string {
+    return state.uid ? (state.faces[state.uid] || "") : "";
+  },
+  /**
+   * Set your photo (D177): shrink on the device, upload, record the token.
+   *
+   * THE ORDER IS THE CORRECTNESS. The object goes up first and the
+   * document second, so the only way to fail halfway is an object with no
+   * document pointing at it — invisible, overwritten by the next attempt,
+   * and swept by `deleteAccount` like any other. The reverse order would
+   * leave a token naming bytes that were never stored, which every surface
+   * would draw as a broken face.
+   *
+   * `firebase/storage` is imported HERE and nowhere else: drawing a face
+   * needs an `<img>` and a URL, so an account that never sets one never
+   * pays for the SDK.
+   */
+  async setAvatar(file: Blob): Promise<{ ok: boolean; reason?: string }> {
+    const uid = state.uid;
+    if (!uid) return { ok: false, reason: "unavailable" };
+    try {
+      const small = await shrinkToSquare(file);
+      // Checked here as well as in the rules so an oversized result fails
+      // with a sentence rather than a permission error. It should be
+      // unreachable — the shrink produces ~20 KB — which is exactly why
+      // reaching it is worth reporting rather than swallowing.
+      if (small.size > AVATAR_MAX_BYTES) return { ok: false, reason: "too-big" };
+      const [{ getStorage, ref, uploadBytes, getDownloadURL }, db] = await Promise.all([
+        import("firebase/storage"),
+        getDb(),
+      ]);
+      const objectRef = ref(getStorage(), avatarPath(uid));
+      await uploadBytes(objectRef, small, { contentType: "image/jpeg" });
+      const token = tokenFromUrl(await getDownloadURL(objectRef));
+      if (!token) return { ok: false, reason: "unavailable" };
+      await setDoc(doc(db, "v2_avatars", uid), {
+        token, at: serverTimestamp(), hidden: false,
+      });
+      state.faces[uid] = token;
+      notify();
+      return { ok: true };
+    } catch (err) {
+      reportError(err, { where: "setAvatar" });
+      // A rules refusal on the document is the one failure with a specific
+      // cause worth naming: it means this face was REMOVED by moderation,
+      // and the document is frozen against exactly this write. Saying
+      // "try again" to that would be a loop with no exit.
+      const code = (err as { code?: string } | null)?.code || "";
+      return { ok: false, reason: code.includes("permission") ? "removed" : "unavailable" };
+    }
+  },
+  /**
+   * Report somebody's photo (D177).
+   *
+   * The same collection, the same one-per-person pin and the same queue a
+   * take's report uses — reusing it is what gives a face the anonymity
+   * deny, the flag threshold and the verdict log without a second set of
+   * all four. `av_{uid}` namespaces the target so it cannot collide with a
+   * take id; `target` carries the uid so the rule can reach the avatar
+   * document without doing string surgery on an id.
+   *
+   * Optimistic like `flagTake`, and rolled back the same way: a report
+   * that failed must not leave the control saying it went through.
+   */
+  async flagAvatar(target: string): Promise<void> {
+    const uid = state.uid;
+    const takeId = `av_${target}`;
+    if (!uid || !target || target === uid || state.myFlags[takeId]) return;
+    const db = await getDb();
+    state.myFlags[takeId] = true;
+    notify();
+    try {
+      await setDoc(doc(db, "v2_flags", `${takeId}_${uid}`), {
+        takeId, gid: "avatar", uid, target, at: serverTimestamp(),
+      });
+    } catch (err) {
+      delete state.myFlags[takeId];
+      notify();
+      reportError(err, { where: "flagAvatar" });
+      throw err;
+    }
+  },
+  /** Whether you have already reported this face. */
+  flaggedAvatar(target: string): boolean {
+    return !!state.myFlags[`av_${target}`];
+  },
+  /** Take your photo down. Deletes the document and the bytes. */
+  async removeAvatar(): Promise<void> {
+    const uid = state.uid;
+    if (!uid) return;
+    try {
+      const [{ getStorage, ref, deleteObject }, db] = await Promise.all([
+        import("firebase/storage"),
+        getDb(),
+      ]);
+      await deleteDoc(doc(db, "v2_avatars", uid));
+      // Best-effort, and AFTER the document: with the document gone
+      // nothing draws the face, so a failed object delete is a stray
+      // object rather than a picture still on screen. `deleteAccount`
+      // sweeps it either way.
+      try {
+        await deleteObject(ref(getStorage(), avatarPath(uid)));
+      } catch { /* already gone, or unreachable */ }
+      state.faces[uid] = "";
+      notify();
+    } catch (err) {
+      reportError(err, { where: "removeAvatar" });
+    }
+  },
   // Batched uid → name fetch into the shared cache. Used by any surface
   // that has uids but no names — world takes carry `authorUid` and no
   // author name, so this is what turns them from "Someone" into people.
   // A no-op once every uid is cached, which is the common case after the
   // first surface on a question has resolved them.
   async loadNames(uids: readonly string[]): Promise<void> {
-    const want = uids.filter((u) => u && (!(u in state.names) || !(u in state.scores)));
+    const want = uids.filter((u) => u
+      && (!(u in state.names) || !(u in state.scores) || !(u in state.faces)));
     if (!want.length) return;
     try {
       const db = await getDb();
-      await resolveNames(db, want, state.names, state.scores);
+      await resolveNames(db, want, state.names, state.scores, state.faces);
       saveProfileCache();
     } catch (err) {
       reportError(err, { where: "loadNames" });
@@ -3398,6 +3535,7 @@ function resetForNewUid(uid: string): void {
   // Scores ride the name cache (D112) and carry the same reasoning: other
   // people's data, held to save reads.
   state.scores = {};
+  state.faces = {};
   // Both are about WHO ANSWERED, so both belong to the outgoing account:
   // a surviving `learnSent` would suppress the new account's first-attempt
   // sends for every card the old one answered, and a surviving `learnMine`

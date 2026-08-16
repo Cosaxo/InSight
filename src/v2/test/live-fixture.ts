@@ -329,6 +329,15 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     // D176's read half of the same profile cache — the room roster has
     // uids and nothing else, so it is the first consumer to need it.
     scoresFor: () => null,
+    // The profile photo (D177). No face in the fixture: initials are the
+    // permanent fallback, so this is the shape every mount test should see
+    // unless it is specifically about a photo.
+    faceFor: () => "",
+    myFace: () => "",
+    setAvatar: async () => ({ ok: true }),
+    removeAvatar: async () => {},
+    flagAvatar: async () => {},
+    flaggedAvatar: () => false,
     loadNames: async () => {},
     // Kindred (D99): one overlapping person, so a live mount renders a
     // ranked row rather than only the empty state.

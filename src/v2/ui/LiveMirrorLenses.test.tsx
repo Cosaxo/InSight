@@ -27,6 +27,15 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { LensId, LensQuestion } from "./lensDefs";
 
 const LIVE = vi.hoisted(() => ({
+  // D177: every named surface draws a face now, so a LIVE stand-in
+  // that lacks this crashes the row rather than falling back to
+  // initials. "" is the no-photo shape, which is most accounts.
+  faceFor: () => "",
+  myFace: () => "",
+  setAvatar: async () => ({ ok: true }),
+  removeAvatar: async () => {},
+  flagAvatar: async () => {},
+  flaggedAvatar: () => false,
   enabled: true,
   subscribe: () => () => {},
   loadKindred: vi.fn(async () => {}),

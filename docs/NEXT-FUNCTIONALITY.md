@@ -890,8 +890,17 @@ of strangers.
    absent on purpose: neither has data at this stop. Three on-screen
    promises that the People tab made false were rewritten in the same
    commit.
-5. **Images** last — the field works with initials from day one.
-   `initialsOf` in `ui/LiveRoomTabs.tsx` is the permanent fallback rather
-   than a placeholder, so this step adds a photo where a circle already
-   is — Storage rules, an upload path and image moderation, none of which
-   exists yet.
+5. ~~**Images** last — the field works with initials from day one.~~
+   **DONE ([D177](DECISIONS.md#d177--the-app-gets-a-face-and-it-is-reported-like-anything-else-somebody-says)).**
+   One object per account at `avatars/{uid}`, shrunk and re-encoded on the
+   device (which drops EXIF), a token rather than a URL in Firestore so the
+   field can never name a host we do not control, and the SAME report loop
+   takes use — the owner's call over reviewing a photo first. Shows
+   anywhere a name shows, not only in the room. `deleteAccount` reaches
+   Storage for the first time; "Photos or Videos" leaves the not-collected
+   list.
+
+**§10 is complete.** What it does not cover, recorded so it is a decision
+rather than a gap: nothing rate-limits how often one account replaces its
+photo (COSTS Finding 7), and there is no automated image classification —
+a reported face waits for the same human/AI run a reported take does.

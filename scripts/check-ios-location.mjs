@@ -33,11 +33,13 @@
 //      background use that web/privacy.html's "no location history, no
 //      background location" denies. Sameness is cheap; divergence would be
 //      undetectable by any other means.
-//   3. NSLocationDefaultAccuracyReduced is still true — D9's precision cap.
-//      It had no guard at all, and losing it silently promotes the app to
-//      precise location: an App Store label change, plus the coarse-only
-//      sentences in D9's table, D92 and the privacy panel all going false
-//      at once.
+//   3. NSLocationDefaultAccuracyReduced is declared, and the ANDROID
+//      manifest agrees with it. Until D177 this demanded `<true/>` (D9's
+//      precision cap); D174 reversed that decision and left this rule
+//      failing on every correct tree, which is the worst state a gate can
+//      be in — the only way past it is to stop looking. It is a
+//      consistency check between the platforms now, with the store-label
+//      half in check-store-forms.mjs.
 //   4. UIBackgroundModes does not contain `location`. This is the
 //      behavioural half of the Always key being harmless: a purpose string
 //      grants nothing, an Always *request* would, and a background mode is
@@ -138,17 +140,56 @@ if (
   );
 }
 
-// 3 · D9's precision cap.
+// 3 · The precision declaration, and the label that has to agree with it.
+//
+// THIS RULE WAS REVERSED AT D177, AFTER BEING WRONG SINCE D174. It used to
+// demand `<true/>` — D9's precision cap — and its message said losing that
+// "flips the App Store label to Precise Location". D174 flipped both, on
+// the owner's explicit go, to give Near a venue-scale radius: the plist
+// went to `<false/>`, Android's FINE permission was uncapped, and
+// STORE-FORMS.md ticked Precise Location. This gate was not updated, so it
+// failed on every correct tree for three commits.
+//
+// A gate that fires on the right state is worse than no gate, because the
+// only way past it is to stop looking. So the rule is no longer an opinion
+// about which value is correct — it is a CONSISTENCY check between the two
+// files that have to agree, whichever way the decision goes. The label's
+// own half of the same cross-check lives in check-store-forms.mjs; this
+// half is the platform pair.
 const reduced = plistValue(plist, "NSLocationDefaultAccuracyReduced");
-if (!reduced || reduced.type !== "bool" || reduced.value !== true) {
+if (!reduced || reduced.type !== "bool") {
   problems.push(
-    `${PLIST}: NSLocationDefaultAccuracyReduced must be <true/> (D9).\n` +
-      `    Without it iOS hands back precise fixes, which flips the App Store\n` +
-      `    label to Precise Location and makes the coarse-only sentences in\n` +
-      `    D9's precision table, D92 and web/privacy.html false. The city\n` +
-      `    catalogue's own coordinates are 2dp (~1.1 km), so precision could\n` +
-      `    not change which city wins anyway.`,
+    `${PLIST}: NSLocationDefaultAccuracyReduced is missing or is not a boolean.\n` +
+      `    It decides whether iOS hands back a precise fix, and therefore what\n` +
+      `    the App Store privacy label has to say. Absent, the platform default\n` +
+      `    applies and nothing here or in the store forms records which.`,
   );
+} else {
+  // Android's half. D174 uncapped ACCESS_FINE_LOCATION at the same time;
+  // if one platform asks for precision and the other does not, the app
+  // measures a different radius per device and every distance sentence in
+  // the UI is true on one of them.
+  const manifest = readFileSync(
+    join(root, "android/app/src/main/AndroidManifest.xml"), "utf8",
+  );
+  const fineCapped = /ACCESS_FINE_LOCATION[\s\S]{0,200}?android:maxSdkVersion/.test(manifest);
+  const fineDeclared = /ACCESS_FINE_LOCATION/.test(manifest);
+  const iosPrecise = reduced.value === false;
+  if (iosPrecise && (!fineDeclared || fineCapped)) {
+    problems.push(
+      `iOS asks for a PRECISE fix but Android does not.\n` +
+        `    NSLocationDefaultAccuracyReduced is <false/> while\n` +
+        `    ACCESS_FINE_LOCATION is ${fineDeclared ? "capped by maxSdkVersion" : "not declared"}.\n` +
+        `    Near's grid cell would then be a different size per platform, and\n` +
+        `    every distance the UI states would be true on one of them (D174).`,
+    );
+  }
+  if (!iosPrecise && fineDeclared && !fineCapped) {
+    problems.push(
+      `Android asks for a PRECISE fix but iOS does not.\n` +
+        `    The same mismatch as above, pointed the other way.`,
+    );
+  }
 }
 
 // 4 · No background-location capability behind the Always key.
@@ -216,6 +257,7 @@ if (problems.length) {
 
 console.log(
   `check:ios-location: both purpose strings present and identical, ` +
-    `reduced accuracy on, no background location mode, plugin requests ` +
+    `${reduced?.value === false ? "precise fix requested on both platforms" : "reduced accuracy on"}, ` +
+    `no background location mode, plugin requests ` +
     `when-in-use only (${requested.length} call site${requested.length === 1 ? "" : "s"}).`,
 );

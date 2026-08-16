@@ -15,6 +15,7 @@
 // keeps the spec layer's render-time lookup working unchanged.
 import React from "react";
 import LIVE from "../data/live";
+import Avatar from "./Avatar";
 // The handle is claimed here because this is where identity already
 // lives — the display name is next door, and the two are different
 // things: a name is what a reveal calls you, a handle is how someone
@@ -68,8 +69,22 @@ function LivePrivacyPanel() {
   const linked = LIVE.linked || linkedNow;
   const [telemetry, setTelemetry] = React.useState(telemetryEnabled);
   const [err, setErr] = React.useState<string | null>(null);
+  const [photoMsg, setPhotoMsg] = React.useState<string | null>(null);
   if (!LIVE.enabled) return null;
 
+  // The three outcomes worth a sentence, and "removed" is the one that
+  // matters: a face a moderator took down is FROZEN against re-upload
+  // (firestore.rules), so "try again" would be a loop with no exit.
+  const PHOTO_FAIL: Record<string, string> = {
+    "too-big": "That picture is too large even after shrinking — try another.",
+    removed: "This photo was removed by moderation, so it can’t be replaced here.",
+    unavailable: "Couldn’t save that picture just now.",
+  };
+  const pickPhoto = async (file: File) => {
+    setPhotoMsg("Saving…");
+    const r = await LIVE.setAvatar(file);
+    setPhotoMsg(r.ok ? null : (PHOTO_FAIL[r.reason || ""] || PHOTO_FAIL.unavailable));
+  };
   const saveName = async () => {
     const n = name.trim().slice(0, 60);
     if (!n) return;
@@ -129,6 +144,42 @@ function LivePrivacyPanel() {
   return (
     <div className="card" style={{ marginBottom: 14, padding: "14px 16px" }}>
       <div className="kicker" style={{ marginBottom: 4 }}>Account &amp; privacy</div>
+
+      {/* THE FACE, ABOVE THE NAME (D177). Both answer "who are you to
+          other people", and the photo is the louder half — so it goes
+          first, and its sub-line is the disclosure rather than an
+          instruction. A photo shows to anyone who can already see your
+          name, which since D176 includes people standing near you.
+
+          Reported like a take, not reviewed before it shows (the owner's
+          call): the same loop takes have had since D83, so a face carries
+          the report control every named surface draws and a remove verdict
+          hides it everywhere at once. */}
+      <LpRow title="Your photo"
+        sub="Shows anywhere your name shows, including people near you. Reportable like a comment; taking it down is instant.">
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <Avatar uid={LIVE.uid || ""} name={name} size={38} />
+          <label className="press" style={{
+            border: LP_LINE, borderRadius: 999, padding: "7px 13px", cursor: "pointer",
+            fontFamily: "var(--sans)", fontWeight: 700, fontSize: 12.5, color: "var(--ink-2)",
+          }}>
+            {LIVE.myFace() ? "Replace" : "Add photo"}
+            {/* A plain file input rather than a camera plugin: it opens the
+                photo library on iOS and Android inside the WebView, needs
+                no new native permission, and adds nothing to the store
+                forms beyond the photo itself. */}
+            <input type="file" accept="image/jpeg,image/png,image/webp"
+              style={{ display: "none" }}
+              onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void pickPhoto(f); }} />
+          </label>
+          {LIVE.myFace() ? btn("Remove", () => LIVE.removeAvatar()) : null}
+        </div>
+      </LpRow>
+      {photoMsg && (
+        <div role="status" style={{ fontFamily: "var(--sans)", fontSize: 12, fontWeight: 600, color: "var(--ink-2)", margin: "-4px 0 10px" }}>
+          {photoMsg}
+        </div>
+      )}
 
       <LpRow title="Your name" sub="What group and 1v1 partners see in reveals.">
         <div style={{ display: "flex", gap: 6, alignItems: "center" }}>

@@ -11,8 +11,8 @@
 //
 // So: the three states of a read that can fail, and the two rules People
 // is built to keep.
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 
 const LIVE = vi.hoisted(() => {
   const deck = [{
@@ -33,6 +33,11 @@ const LIVE = vi.hoisted(() => {
     loadNames: vi.fn(async () => {}),
     nameFor: (uid: string) => ({ u1: "Ada Lovelace", u2: "" }[uid] ?? ""),
     scoresFor: () => null as Record<string, Record<string, number>> | null,
+    // D177. No face by default: initials are the permanent fallback, so
+    // that is the shape most rows have.
+    faceFor: ((uid: string) => (uid ? "" : "")) as (uid: string) => string,
+    flagAvatar: vi.fn(async () => {}),
+    flaggedAvatar: () => false as boolean,
     near: {
       room: () => null as { people: Array<{ uid: string; type?: string }>;
         qs: Record<string, Record<string, number>> } | null,
@@ -45,10 +50,17 @@ vi.mock("../data/live", () => ({ default: LIVE }));
 
 const { default: LiveRoomTabs } = await import("./LiveRoomTabs");
 
+// The photo URL is built from build config, so a test run has none — and
+// without it every face falls back to initials, which would make the D177
+// cases below pass for the wrong reason.
+beforeAll(() => { vi.stubEnv("VITE_FIREBASE_STORAGE_BUCKET", "b.appspot.com"); });
+afterAll(() => { vi.unstubAllEnvs(); });
+
 beforeEach(() => {
   LIVE.near.room = () => null;
   LIVE.near.roomLoading = () => false;
   LIVE.scoresFor = () => null;
+  LIVE.faceFor = () => "";
 });
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
@@ -158,5 +170,51 @@ describe("LiveRoomTabs · Answers and Compare read the room", () => {
   it("asks the store for exactly the deck it is about to draw", () => {
     render(<LiveRoomTabs tab="answers" />);
     expect(LIVE.near.loadRoom).toHaveBeenCalledWith(["a"]);
+  });
+});
+
+
+// ── the face, and the loop behind it (D177) ──────────────────────────
+describe("LiveRoomTabs · People draws faces and can report one", () => {
+  beforeEach(() => {
+    LIVE.near.room = () => ({
+      people: [{ uid: "u1", type: "Host" }, { uid: "u2" }],
+      qs: {},
+    });
+    LIVE.faceFor = (uid: string) => (uid === "u1" ? "tok-123" : "");
+  });
+
+  it("draws a photo where there is one and initials where there is not", () => {
+    render(<LiveRoomTabs tab="people" />);
+    const img = screen.getByRole("img", { name: /Ada Lovelace/i }) as HTMLImageElement;
+    expect(img.src).toContain("avatars%2Fu1");
+    // The permanent fallback, not a placeholder — most accounts will never
+    // set a picture, and that has to look deliberate.
+    expect(screen.getByText("Someone")).toBeTruthy();
+    expect(screen.queryAllByRole("img")).toHaveLength(1);
+  });
+
+  it("offers a report only on a face, and takes two taps to send it", () => {
+    // A flag cannot be undone, and a mis-tap in a list of faces is easy —
+    // the takes control makes the same choice for the same reason.
+    render(<LiveRoomTabs tab="people" />);
+    const buttons = screen.getAllByRole("button", { name: /Report this photo/i });
+    // Only the row that HAS a photo: there is nothing to report about
+    // initials.
+    expect(buttons).toHaveLength(1);
+    fireEvent.click(buttons[0]);
+    expect(LIVE.flagAvatar).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: /confirm/i }));
+    expect(LIVE.flagAvatar).toHaveBeenCalledWith("u1");
+  });
+
+  it("a hidden face reads exactly like no face at all", () => {
+    // `resolveNames` resolves a removed photo to "", so every surface
+    // falls back at once and none of them needs to know about moderation.
+    // This is that contract from the consumer's side.
+    LIVE.faceFor = () => "";
+    render(<LiveRoomTabs tab="people" />);
+    expect(screen.queryAllByRole("img")).toHaveLength(0);
+    expect(screen.queryByRole("button", { name: /Report this photo/i })).toBeNull();
   });
 });

@@ -63,6 +63,7 @@ import { TypeMark } from "../spec/type-marks.jsx";
 // The row's own types and labels live next door: eslint's react-refresh
 // rule wants a component file to export only components, and it is right
 // that a constant shared with the host does not belong in one.
+import Avatar from "./Avatar";
 import { ORDINAL_TYPES, type LensId, type LensQuestion } from "./lensDefs";
 // D136 removed the Foresight lens from this row, so the import of
 // ./LiveForesightLens went with it. The component and data/foresight.ts
@@ -353,15 +354,13 @@ function KindredCard({ p }: { p: TypedPerson & { anchors?: Record<string, string
       background: "var(--surface)", border: LL_LINE, borderRadius: 14,
     }}>
       <MatchRing pct={pct} color={`oklch(0.52 0.13 ${hue})`} size={50} title={`${pct}% alike`}>
-        <span aria-hidden="true" style={{
-          width: 36, height: 36, borderRadius: "50%", display: "flex", alignItems: "center",
-          justifyContent: "center", background: `oklch(0.93 0.04 ${hue})`,
-        }}>
-          <svg viewBox="0 0 24 24" width={19} height={19} fill={`oklch(0.45 0.12 ${hue})`} aria-hidden="true">
-            <circle cx="12" cy="8.2" r="3.6"></circle>
-            <path d="M4.6 20.2a7.4 7.4 0 0 1 14.8 0z"></path>
-          </svg>
-        </span>
+        {/* THE FACE, WHERE THE GENERIC BODY GLYPH WAS (D177). A photo is a
+            profile field, so it draws anywhere a person is already named,
+            and this card names one. Avatar falls back to initials and,
+            failing those, to the same anonymous shape this used to be —
+            most accounts will never set a picture, and that has to look
+            deliberate rather than empty. */}
+        <Avatar uid={p.uid} name={p.name} size={36} />
       </MatchRing>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>

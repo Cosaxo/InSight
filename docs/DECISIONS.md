@@ -17456,3 +17456,136 @@ states of a read that can fail, plus People's two rules: an unnamed account
 is "Someone", and **the room is not ranked** — the field above places people
 by likeness because that is a reading, while a list of people you can see
 sorted best-match-first is a leaderboard of strangers in a bar.
+
+## D177 · The app gets a face, and it is reported like anything else somebody says
+
+**2026-08-16.** Step 5 of NEXT-FUNCTIONALITY §10, the last one, and the
+only one that adds a subsystem rather than a surface. The app held no image
+of anybody until this.
+
+**Two owner calls decided the shape**, both asked before anything was
+built, because both had legal weight and neither had an obvious default:
+
+1. **Live from the moment it is set, with the report loop behind it** —
+   over reviewing a photo before it shows. The model takes have had since
+   D83.
+2. **Everywhere a name appears** — Near's People tab, the Kindred cards,
+   the profile — over Near only. A photo is a profile field.
+
+The first is the consequential one and it is worth stating what it costs:
+the loop is REACTIVE. Somebody sees an abusive picture before anybody
+reports it, in an app where an account is free (D3). The alternative was
+pre-review, which would have contradicted the "pre-moderation is out of
+scope" line in `docs/MODERATION.md` and put a human between a user and
+their own profile picture. The owner was asked directly and chose the
+reactive loop; that line in MODERATION.md therefore survives D177 rather
+than being quietly narrowed to "except faces".
+
+### What was built
+
+**One object per account, at a fixed id.** `avatars/{uid}`, no filename.
+The retired v1 path in `storage.rules` records exactly what a free filename
+costs — unbounded objects, unbounded stored bytes, unbounded egress, from
+an app where an account is free — so a second upload is an OVERWRITE and
+the object count is bounded by the account count by construction rather
+than by a rule someone has to remember.
+
+**The device does the shrinking**, and that is a privacy property rather
+than a bandwidth one. A camera photo carries EXIF, EXIF carries GPS, and
+this app spent D9, D84 and D174 being careful about precisely that datum. A
+canvas round-trip to a 256px JPEG drops all of it — there is no EXIF on a
+`toBlob` result — and the ~20 KB output sits ten times under the rules cap,
+which is what makes the cap a backstop rather than something real uploads
+have to fit.
+
+**A TOKEN IS STORED, NOT A URL**, and this is the field that would have
+been the quiet mistake. `v2_avatars` holds the Storage download token; the
+client builds the URL around it from its own config. A client-written URL
+could name a host we do not control — every viewer's IP goes to it, and the
+picture can be swapped after somebody reported it, which defeats the whole
+loop. The rules pin a charset with no dot, colon or slash, so the field
+cannot be a host or a path however it is written.
+
+**Its own collection, not a profile field**, for two reasons that both
+bind. A remove verdict has to write somewhere, and a field on `v2_users`
+would mean the moderator's credential holds a write on the document
+carrying display names, anchors and test results. And `hidden` +
+`hiddenMeta` is a take's exact shape, so the queue, the verdict log and the
+appeal path are reused rather than re-derived — `av_{uid}` namespaces the
+target id, `target` carries the uid so the flag rule can reach the document
+without doing string surgery, and `gid: "avatar"` is the sentinel D83's
+world takes already established.
+
+**Once removed, frozen.** A hidden avatar takes no client update and no
+client delete, because both are the way back: overwrite the token, or
+delete and re-create, and a removed face is live again from an account that
+costs nothing to make. The appeal is a human, which is what `hiddenMeta` is
+for. This is the single most important rule in the change and it has its own
+case.
+
+**A hidden face resolves to `""` in `resolveNames`**, so every surface
+falls back to initials at once and none of them needs to know moderation
+exists. One place turns a document into a picture, so one place checks.
+Faces are also the one thing the profile cache does NOT persist across
+sessions: a token held past a remove verdict would keep drawing a face that
+was taken down.
+
+### Erasure grew a new limb
+
+`deleteAccount` had never touched Storage — and `storage.rules` leaned on
+that: its retired read grant survives *because* "revoking access to objects
+that still exist would create an erasure gap rather than close a hole". A
+photo without a Storage delete would have made that sentence describe the
+live path too.
+
+It deletes both halves now, in its own phase, and it ABORTS on failure like
+every other phase rather than logging and moving on: an orphaned photo of
+somebody who asked to be deleted is exactly the leftover the abort exists
+to prevent. The erasure e2e proves it — with the seed itself asserted,
+because an object that never landed makes "it is gone afterwards" pass for
+the wrong reason.
+
+### Found under this stone: D174 broke three gates and I had found only one
+
+D176 recorded that the e2e had been red since D174. Running the FULL gate
+list — all thirty, rather than the dozen I had been running from memory —
+found two more, both from the same commit:
+
+- **`check:store-forms`** was red. D174 ticked Precise Location in
+  `docs/STORE-FORMS.md` and never touched `design/store/app-privacy.json`,
+  **which is the file that gets pushed to Apple**. The gate exists
+  precisely to catch the two copies disagreeing, and it had been saying so
+  for three commits.
+- **`check:ios-location`** was red, enforcing D9's `NSLocationDefaultAccuracyReduced
+  must be true` — the rule D174 deliberately reversed. Its own message said
+  "if that genuinely changed, this check is the last thing to update, not
+  the first," and it had not been updated.
+
+Both are now **consistency checks rather than opinions**: store-forms reads
+the plist and demands the label agree with it; ios-location demands the
+iOS plist and the Android manifest agree with each other. Neither has a
+view on which way the decision goes, so neither can go stale the same way.
+A gate that fires on every correct tree is worse than no gate, because the
+only way past it is to stop looking — and this repo's whole moderation and
+privacy posture rests on gates nobody has learned to ignore.
+
+Both scripts' SUCCESS lines were stale too ("Precise Location absent",
+"reduced accuracy on") and now report what they actually found. A gate that
+passes while printing a false summary is the same failure in a quieter key.
+
+### Guards
+
+Storage rules: five cases — the world-readable grant, the signed-out deny,
+the somebody-else's-face deny, overwrite-and-remove, and the byte and type
+caps (SVG refused explicitly; it can carry script). Firestore rules: six
+more, including the token charset against a URL, `hidden` unclaimable in
+either direction, the freeze against both ways back, and the flag arm —
+one report per person, never your own face, and none at all on a face
+already removed. The two new platform cross-checks were mutation-checked by
+flipping the plist and watching both fire.
+
+Client: `avatar.test.ts` pins that the URL is BUILT (a token that looks
+like a URL still lands in the query string of ours), and
+`LiveRoomTabs.test.tsx` pins that a face draws where there is one, initials
+where there is not, that the report takes two taps, and that a hidden face
+is indistinguishable from no face.
