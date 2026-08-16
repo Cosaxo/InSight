@@ -446,27 +446,35 @@ function NearLiveBody() {
   // Closed by default (D155). Toggling the open tab shut is the same
   // gesture the cohort stops give their row.
   const [tab, setTab] = React.useState("");
-  const rowRef = React.useRef<HTMLDivElement | null>(null);
-  // Opening a tab brings its row to the top of the scroller, the way the
-  // prototype does and the cohort stops already do. 60ms is their number
-  // too: the body mounts in the same commit as the flip, so measuring now
-  // measures the row before the panel it is about to sit above exists.
+  const panelRef = React.useRef<HTMLDivElement | null>(null);
+  // Opening a tab brings the PANEL to the top of the scroller, the way the
+  // cohort stops do (D182 moved both off the row, which is docked now and
+  // already on screen). 60ms is their number too: the body mounts in the
+  // same commit as the flip, so measuring earlier measures it before its
+  // own content has laid out.
   React.useEffect(() => {
-    const row = rowRef.current;
-    if (!tab || !row) return;
-    let sp: HTMLElement | null = row.parentElement;
+    const panel = panelRef.current;
+    if (!tab || !panel) return;
+    let sp: HTMLElement | null = panel.parentElement;
     while (sp && sp.scrollHeight <= sp.clientHeight) sp = sp.parentElement;
     if (!sp) return;
     const scroller = sp;
     const t = setTimeout(() => {
-      const top = row.getBoundingClientRect().top
+      const top = panel.getBoundingClientRect().top
         - scroller.getBoundingClientRect().top + scroller.scrollTop - 12;
       scroller.scrollTo({ top, behavior: "smooth" });
     }, 60);
     return () => clearTimeout(t);
   }, [tab]);
   return (
-    <div className="fade-in" style={{ padding: "4px 16px 26px" }}>
+    // A filling column with no bottom padding, so the docked row below has
+    // free space to push against and nothing sits under it — Near's row is
+    // the same bar as the cohort stops' and has to land at the same y
+    // (D182). It used to hang wherever the content above it ended, which
+    // on this stop is one line shorter than City's.
+    <div className="fade-in" style={{
+      padding: "4px 16px 0", flex: "1 0 auto", display: "flex", flexDirection: "column",
+    }}>
       {/* One block, not a header and a card (D160): the stop's name, its
           switch in the corner, its figure, and whatever the beat has to say
           — then the field, which is what Near is FOR. */}
@@ -485,14 +493,19 @@ function NearLiveBody() {
           empty tabs reads as a broken stop rather than an unused one. */}
       {on && (
         <>
-          <div ref={rowRef} style={{ marginTop: 14 }}>
+          <div className="mm-lensdock">
             <MirrorLensTabs tabs={ROOM_TABS} open={tab}
               onOpen={(id) => setTab(id === tab ? "" : id)} />
           </div>
+          {/* The ref is OUTSIDE the Suspense boundary on purpose: suspended
+              children are not committed, so a ref inside it is still null
+              60ms after the tap on the first open of a session — exactly
+              the run where the panel is furthest below the fold. The
+              wrapper commits with the flip; the body arrives into it. */}
           {tab && (
-            <React.Suspense fallback={null}>
-              <div style={{ paddingTop: 14 }}><LiveRoomTabs tab={tab} /></div>
-            </React.Suspense>
+            <div ref={panelRef} style={{ paddingTop: 14 }}>
+              <React.Suspense fallback={null}><LiveRoomTabs tab={tab} /></React.Suspense>
+            </div>
           )}
         </>
       )}

@@ -616,17 +616,31 @@ describe("LiveCohortBody · the lens row is the stop's tabs", () => {
     expect(screen.queryByRole("tabpanel")).toBeNull();
   });
 
-  it("pins the row to the bottom, so an empty stop still looks composed", () => {
-    // `marginTop: auto` is the prototype's own line, and it is the whole
-    // reason closed-by-default is safe. Asserted on the wrapper because
-    // that is where the layout decision lives — a row that lost it would
-    // float mid-screen on an empty stop, which is what was reported.
+  it("docks the row to the bottom, so an empty stop still looks composed", () => {
+    // `.mm-lensdock` is the whole reason closed-by-default is safe, and it
+    // replaced an inline `marginTop: auto` (D182) — which reached the bottom
+    // of the VIEW only while nothing was open, and left the bar riding up
+    // the screen the moment it was used. Asserted on the wrapper because
+    // that is where the layout decision lives; the class owns the rest
+    // (styles.css) and jsdom computes none of it.
     render(<LiveCohortBody scope="city" />);
     const wrap = tabs().parentElement as HTMLElement;
-    expect(wrap.style.marginTop).toBe("auto");
+    expect(wrap.className).toContain("mm-lensdock");
   });
 
-  it("snaps the row to the top of the scroller when a tab opens", async () => {
+  it("keeps the column's bottom padding off the docked row", () => {
+    // The dock's resting position is the bottom of this column and its
+    // pinned position is the bottom of the scrollport; padding below it in
+    // here is exactly the difference between the two, and a row at two
+    // heights is the bug D182 fixed. The air under the bar is `.app-body`'s
+    // padding, which is outside the column and applies to both.
+    const { container } = render(<LiveCohortBody scope="city" />);
+    const col = container.firstElementChild as HTMLElement;
+    expect(col.contains(tabs()), "the row is not in this column").toBe(true);
+    expect(col.style.paddingBottom).toBe("0px");
+  });
+
+  it("snaps the PANEL to the top of the scroller when a tab opens", async () => {
     // D155 SAID THIS SHIPPED AND IT DID NOT. The ref was declared, the ref
     // was attached to the row, and no effect ever read it — so the row
     // pinned to the bottom correctly and then stayed there on tap, leaving
@@ -635,6 +649,12 @@ describe("LiveCohortBody · the lens row is the stop's tabs", () => {
     // check:globals, and the tab tests above assert the panel MOUNTS, which
     // it always did. It took a device to notice, which is what this case is
     // here to stop happening twice.
+    //
+    // The target is the PANEL since D182 docked the row: the bar is on
+    // screen at every scroll offset now, so scrolling IT anywhere is either
+    // a no-op or a fight with its own sticky. The case below measures which
+    // element the scroll was computed from, because "it scrolled once" was
+    // true of the wrong element too.
     //
     // jsdom reports every element 0×0, so the component's scroll-parent walk
     // would find nothing to scroll. The host is given the two properties the
@@ -653,11 +673,23 @@ describe("LiveCohortBody · the lens row is the stop's tabs", () => {
       render(<LiveCohortBody scope="city" />, { container: host });
       fireEvent.click(tab("Answers"));
       // Nothing yet: the panel mounts in the same commit as the flip, so
-      // measuring now measures the row above a body that does not exist.
+      // measuring now measures it before its own body has laid out.
       expect(calls, "scrolled before the panel had mounted").toEqual([]);
+      // Two elements the effect could plausibly have measured, given tops
+      // that cannot be confused. jsdom reports 0×0 for everything, so
+      // without this the row and the panel produce the same number and the
+      // case passes on either.
+      const rect = (top: number) => (() => ({ top, bottom: top, left: 0, right: 0, width: 0, height: 0, x: 0, y: top, toJSON() {} }) as DOMRect);
+      const panel = screen.getByRole("tabpanel") as HTMLElement;
+      panel.getBoundingClientRect = rect(900);
+      (tabs().parentElement as HTMLElement).getBoundingClientRect = rect(300);
+      host.getBoundingClientRect = rect(0);
       act(() => { vi.advanceTimersByTime(80); });
-      expect(calls.length, "opening a tab did not scroll the row into view").toBe(1);
+      expect(calls.length, "opening a tab did not scroll the panel into view").toBe(1);
       expect(calls[0].behavior).toBe("smooth");
+      // 900 (the panel) − 0 (the scroller) + 0 (scrollTop) − 12 of air.
+      // 288 would be the docked row, which is the thing this stopped being.
+      expect(calls[0].top, "scrolled to the row, not the panel").toBe(888);
     } finally {
       vi.useRealTimers();
       host.remove();

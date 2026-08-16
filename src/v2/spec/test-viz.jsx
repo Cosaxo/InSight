@@ -5,7 +5,7 @@
 // guards the wiring in CI.
 import React from 'react';
 import { Kicker } from './primitives.jsx';
-import { IS_TEST_RESULTS } from './test-definitions.js';
+import { IS_TEST_RESULTS, TEST_HUE } from './test-definitions.js';
 // The measured "most people" baseline (D157). `VizRange` reads `d.avg` per
 // row and skips the typical-person mark where it is undefined, so an empty
 // map draws your own values alone rather than a fabricated comparison.
@@ -83,7 +83,10 @@ function VizRange({ R, accent, compact }) {
 function TestVizCard({ testKey, accent }) {
   const R = IS_TEST_RESULTS[testKey];
   if (!R) return null;
-  const a = accent || R.accent;
+  // TEST_HUE rather than the result's own `accent` (D182) — a live or
+  // passively-folded result has no such field, and the fallback was the
+  // demo seed's alone.
+  const a = accent || TEST_HUE[testKey];
   const avg = testAvg(testKey);
   const Rx = { ...R, dims: R.dims.map(d => ({ ...d, avg: avg[d.id] })) };
   return (

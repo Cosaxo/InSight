@@ -14,11 +14,16 @@
 // InSight — test definitions & saved results: demo data, typical-person
 // baselines, the question banks, and result persistence. No JSX — plain script.
 // ─── Saved test results · pre-computed for the demo ───
+// A result is `{title, taken, dims}` and carries no colour of its own
+// (D182). It used to carry `accent`, which made the demo seed the only
+// result in the app that knew what colour it was — a live or passively
+// folded one (data/passiveProfile.ts) never has the field, so every
+// reader of it drew nothing on a real account. TEST_HUE below is the
+// palette; the shape here is the shape the live path writes.
 export const IS_TEST_RESULTS = {
   big5: {
     title: 'Big Five',
     taken: '10 days ago',
-    accent: 'var(--c-around)',
     dims: [
       { id: 'O', label: 'Openness',          value: 78, blurb: 'curious, wide-ranging' },
       { id: 'C', label: 'Conscientiousness', value: 62, blurb: 'mostly orderly, sometimes loose' },
@@ -30,7 +35,6 @@ export const IS_TEST_RESULTS = {
   political: {
     title: 'Politics',
     taken: '3 weeks ago',
-    accent: 'var(--c-world)',
     dims: [
       { id: 'econ',    label: 'Economic',    value: 38, blurb: 'centre-left' },
       { id: 'auth',    label: 'Authority',   value: 24, blurb: 'liberty-minded, flat' },
@@ -43,7 +47,6 @@ export const IS_TEST_RESULTS = {
   values: {
     title: 'Values',
     taken: 'last month',
-    accent: 'var(--c-people)',
     dims: [
       { id: 'future',   label: 'Future',   value: 58, blurb: 'cautiously hopeful' },
       { id: 'circle',   label: 'Circle',   value: 46, blurb: 'leans close — family first' },
@@ -56,7 +59,6 @@ export const IS_TEST_RESULTS = {
   attachment: {
     title: 'Social style',
     taken: '2 weeks ago',
-    accent: 'oklch(0.52 0.13 320)',
     dims: [
       { id: 'warm',  label: 'Warm',      value: 78, blurb: 'openly affectionate' },
       { id: 'loyal', label: 'Loyal',     value: 84, blurb: 'few and deep, kept for years' },
@@ -67,7 +69,7 @@ export const IS_TEST_RESULTS = {
   },
 };
 
-// ── one hue per instrument (D121) ──────────────────────────────────
+// ── one hue per instrument (D121, corrected D182) ──────────────────
 //
 // There were TWO of these, and they disagreed. `RP_TESTS[k].banner`
 // (result-rose.jsx) coloured the result card; `PASSIVE.META[k].accent`
@@ -77,17 +79,37 @@ export const IS_TEST_RESULTS = {
 // and Social green — so the same instrument changed colour between the
 // screen that says how full it is and the screen that says what it found.
 //
-// The sheet's palette wins because it is the one built from the app's own
-// tokens: --c-around / --c-world / --c-people are the same four accents
-// the daily's modes and the Mirror's stops already run on, so an
-// instrument reads as part of the app rather than as its own chart.
-// Violet has no token (nothing else in the app is violet), which is why
-// Social's is written out.
+// D121 took the sheet's palette because it is built from the app's own
+// tokens, the same accents the daily's modes and the Mirror's stops run
+// on, so an instrument reads as part of the app rather than as its own
+// chart. That rule stands. What it MISSED is that there was a third
+// palette and it was never in the comparison: `RP_TESTS[k].hues` — one
+// hue per AXIS — is what the same card's rose petals are drawn from, and
+// what `typeColor`/`typeSplit` (type-marks.jsx) build every type mark
+// from. Two of the four then sat outside their own chart: Values wore
+// rose over petals that run 282–344, Social wore violet over petals that
+// run 95–205. So the banner and the rose under it disagreed on the ONE
+// card that draws both, and the sheet's row disagreed with the mark
+// beside it.
+//
+// The tokens still win; the token now has to belong to the instrument's
+// own axis family:
+//
+//   big5        0–95    → --c-around, sienna 40   (unchanged)
+//   political   170–285 → --c-world, indigo 235   (unchanged)
+//   values      282–344 → violet 320
+//   attachment  95–205  → --c-city, sage 150
+//
+// Violet has no token — nothing else in the app is violet — which is why
+// Values' is written out; it is the one family the palette does not
+// already name. Sage is a token, so Social gets one it did not have.
+// `test-hue.test.ts` holds each of these inside its own family, reading
+// the token's angle out of styles.css so neither file can drift alone.
 export const TEST_HUE = {
   big5:       'var(--c-around)',
   political:  'var(--c-world)',
-  values:     'var(--c-people)',
-  attachment: 'oklch(0.52 0.13 320)',
+  values:     'oklch(0.52 0.13 320)',
+  attachment: 'var(--c-city)',
 };
 
 // Typical-person baselines per dimension. Grounded, not precise: enough to
@@ -181,7 +203,6 @@ export const IS_TESTS = {
     big5: {
       title: 'Big Five',
       tag: 'personality · 25 questions · 5 traits',
-      accent: 'var(--c-around)',
       dims: [
         { id: 'O', label: 'Openness',          blurb: 'curiosity & range' },
         { id: 'C', label: 'Conscientiousness', blurb: 'order & follow-through' },
@@ -228,7 +249,6 @@ export const IS_TESTS = {
     political: {
       title: 'Politics',
       tag: 'compass · 30 questions · 6 axes',
-      accent: 'var(--c-world)',
       dims: [
         { id: 'econ',    label: 'Economic',   blurb: 'left ←→ right' },
         { id: 'auth',    label: 'Authority',  blurb: 'liberty ←→ order' },
@@ -279,7 +299,6 @@ export const IS_TESTS = {
     values: {
       title: 'Values',
       tag: '30 questions · six tensions',
-      accent: 'var(--c-people)',
       dims: [
         { id: 'future',   label: 'Future',   blurb: 'pessimist ←→ optimist' },
         { id: 'circle',   label: 'Circle',   blurb: 'close ←→ wide' },
@@ -327,7 +346,6 @@ export const IS_TESTS = {
     attachment: {
       title: 'Social',
       tag: '25 questions · what kind of friend you are',
-      accent: 'oklch(0.52 0.13 320)',
       dims: [
         { id: 'warm',  label: 'Warm',      blurb: 'reserved ←→ warm' },
         { id: 'loyal', label: 'Loyal',     blurb: 'many & light ←→ few & deep' },

@@ -16,7 +16,7 @@
 // screen taken from a fact about one cell), and that it names nobody.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
@@ -564,6 +564,62 @@ describe("NearPresence · the row only exists when there is a room", () => {
     const row = await screen.findByRole("tablist");
     expect([...row.querySelectorAll("[role=tab]")].map((t) => t.textContent))
       .toEqual(["Answers", "People", "Compare"]);
+  });
+
+  it("docks the row where every other stop's row sits (D182)", async () => {
+    // Near's row used to hang under whatever the content above it ended
+    // at — `marginTop: 14` and no filling column — so the same bar landed
+    // at one height here and at the bottom of the screen one stop to the
+    // right. It is the same class as the cohort stops' now, in a column
+    // that can push it down.
+    LIVE.near.on = () => true;
+    LIVE.near.count = () => 12;
+    const { container } = render(<NearLiveBody />);
+    const row = await screen.findByRole("tablist");
+    expect((row.parentElement as HTMLElement).className).toContain("mm-lensdock");
+    const col = container.firstElementChild as HTMLElement;
+    expect(col.style.flex).toBe("1 0 auto");
+    expect(col.style.paddingBottom).toBe("0px");
+  });
+
+  it("scrolls the panel into view when a tab opens, not the docked row", async () => {
+    // The panel is what is below the fold — the row is pinned to the bottom
+    // of the view and scrolling IT is a fight with its own sticky (D182).
+    //
+    // The case also pins where the ref hangs: the wrapper is OUTSIDE the
+    // Suspense boundary, because a suspended child is not committed and a
+    // ref inside it reads null exactly on the first open of a session,
+    // which is the run that needs the scroll most.
+    LIVE.near.on = () => true;
+    LIVE.near.count = () => 12;
+    const host = document.createElement("div");
+    host.style.overflowY = "auto";
+    Object.defineProperty(host, "scrollHeight", { value: 4000, configurable: true });
+    Object.defineProperty(host, "clientHeight", { value: 700, configurable: true });
+    const calls: Array<{ top?: number; behavior?: string }> = [];
+    host.scrollTo = ((o: { top?: number; behavior?: string }) => { calls.push(o); }) as typeof host.scrollTo;
+    document.body.appendChild(host);
+    render(<NearLiveBody />, { container: host });
+    const row = await screen.findByRole("tablist");
+    vi.useFakeTimers();
+    try {
+      fireEvent.click(row.querySelectorAll("[role=tab]")[1]);
+      // jsdom lays nothing out, so the two candidates are given tops that
+      // cannot be confused — without this both measure 0 and the case
+      // passes whichever element the effect reads.
+      const rect = (top: number) => (() => ({ top, bottom: top, left: 0, right: 0, width: 0, height: 0, x: 0, y: top, toJSON() {} }) as DOMRect);
+      const panel = (row.parentElement as HTMLElement).nextElementSibling as HTMLElement;
+      panel.getBoundingClientRect = rect(900);
+      (row.parentElement as HTMLElement).getBoundingClientRect = rect(300);
+      host.getBoundingClientRect = rect(0);
+      act(() => { vi.advanceTimersByTime(80); });
+      expect(calls.length, "opening a tab did not scroll").toBe(1);
+      // 900 (the panel) − 0 (the scroller) + 0 (scrollTop) − 12 of air.
+      expect(calls[0].top, "scrolled to the row, not the panel").toBe(888);
+    } finally {
+      vi.useRealTimers();
+      host.remove();
+    }
   });
 
   it("offers no tabs at all with the counter off", () => {

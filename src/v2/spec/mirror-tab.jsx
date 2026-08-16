@@ -298,12 +298,24 @@ function MirrorTab({ onPerson, pop, onPop, worldZoom, onZoom, firstRun, topNav, 
   } else if (isGeoLive) {
     // Near draws presence; the three world zooms map one-to-one onto the
     // cohort scopes (D111).
+    // NO `overflowY: 'auto'` on these wrappers, and that is a fix rather
+    // than a tidy-up (D182). `.mf-flex` is `flex: 1 0 auto` — it cannot
+    // shrink below its content, so it never had anything to scroll and the
+    // property never did anything visible. What it DID do is become the
+    // sticky scrollport for everything inside it, which pins the docked tab
+    // row (`.mm-lensdock`) to the bottom of the CONTENT instead of the
+    // bottom of the view. Measured in Chromium on a standalone copy of this
+    // ancestor chain rather than on these stops — they need a live session,
+    // and the demo bodies one branch down never carried the property — at
+    // 439px below the fold with a tab open, against 24px above the bottom
+    // without it. The scroller is `.app-body`, one level up, and the dock
+    // has to reach it.
     body = p.id === 'near' ? (
-      <div key="near-live" className="tab-swap mf-flex" style={{ overflowY: 'auto' }}>
+      <div key="near-live" className="tab-swap mf-flex">
         <NearLiveBody />
       </div>
     ) : (
-      <div key={'geo-live:' + zoom} className="tab-swap mf-flex" style={{ overflowY: 'auto' }}>
+      <div key={'geo-live:' + zoom} className="tab-swap mf-flex">
         {/* null fallback, not a spinner — same reasoning as Circle's: the
             body's own first frame is its heading and tab row, and a
             spinner in front of that is one loading state too many. */}
@@ -314,7 +326,7 @@ function MirrorTab({ onPerson, pop, onPop, worldZoom, onZoom, firstRun, topNav, 
     );
   } else if (isCircleLive) {
     body = (
-      <div key="circle-live" className="tab-swap mf-flex" style={{ overflowY: 'auto' }}>
+      <div key="circle-live" className="tab-swap mf-flex">
         {/* null fallback, not a spinner: LiveCircleBody's own first frame
             is "Loading your circle…" while it reads the graph, and two
             loading states in sequence read as a stutter. */}
@@ -325,7 +337,7 @@ function MirrorTab({ onPerson, pop, onPop, worldZoom, onZoom, firstRun, topNav, 
     );
   } else if (isGroupsLive) {
     body = (
-      <div key="groups-live" className="tab-swap mf-flex" style={{ overflowY: 'auto' }}>
+      <div key="groups-live" className="tab-swap mf-flex">
         <LiveGroupsMirrorBody />
       </div>
     );

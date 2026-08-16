@@ -966,6 +966,67 @@ button.card:active,
 [data-lens-style="underline"] .mm-lensrow-top { border-top: none; border-bottom: 0.5px solid color-mix(in oklch, var(--rule), transparent 20%); }
 [data-lens-style="underline"] .mm-lensrow-top .mm-lensbtn { min-height: 46px; font-size: 14.5px; }
 
+/* ── the stop's tab row, DOCKED (D182) ────────────────────────────────
+   `margin-top: auto` in a filling column — the line the prototype uses and
+   every Mirror stop inherited — reaches the bottom of the view only while
+   the column is SHORTER than it. Open a tab and the panel pushes the column
+   past the fold, the auto margin collapses to nothing, and the row snaps up
+   under the field; a stop whose field alone overflows never got there at
+   all. So the row's y was a function of what was open and how tall the
+   population's field happened to be, which is the opposite of what the rule
+   above this one promises ("it lands at the same y on every population").
+
+   Sticky is the other half. Measured on the built app in Chromium at
+   402x874, across twelve states — Near / City / Country / World, each
+   closed, with a tab open, and scrolled to the end of it — the row's bottom
+   edge sits 24px above the scrollport in every one of them. The same three
+   before the dock: 749, 65, and −62, the last of which is off the top of
+   the screen.
+
+   Three things it needs, and each is load-bearing:
+     · `order` lays it out LAST, so the slot it reserves is at the END of the
+       column: no hole between the field and the panel, and nothing hidden
+       under it at the bottom of the scroll. DOM order is untouched, so the
+       tablist still comes before its tabpanel for anything reading the tree.
+     · the column must not carry padding BELOW the row, or the resting y and
+       the pinned y differ by exactly that padding.
+     · no `overflow: auto` ancestor between here and `.app-body`. One that
+       never scrolls still becomes the sticky scrollport, which pins the row
+       to the bottom of the CONTENT — off-screen (spec/mirror-tab.jsx).
+
+   The fade is the treatment the daily's tab bar already carries
+   (.tabbar::before): content dissolves under the bar rather than being cut
+   by it. The hairline goes back on top, where the row's own rule is when it
+   is not pretending to be a header. */
+.mm-lensdock {
+  order: 9;
+  margin-top: auto;
+  position: sticky;
+  bottom: 0;
+  /* above the panel scrolling under it; below the header and tab bar (5) */
+  z-index: 4;
+  padding-top: 18px;
+  background: linear-gradient(to top, var(--surface-a) 0%, var(--surface-a) 62%, color-mix(in oklch, var(--surface-a) 55%, transparent) 82%, transparent 100%);
+}
+/* The air under the bar is `.app-body`'s own padding, which sticky counts as
+   part of the scrollport and therefore leaves BELOW the dock — a 24px slot of
+   live content sliding between the tab row and the tab bar, which is what it
+   looked like on the first build of this. The strip fills it with the same
+   ground.
+   Sized off the padding itself rather than guessed high: an absolutely
+   positioned box still contributes SCROLLABLE overflow, so a strip that
+   over-reaches gives an otherwise-fitting stop 28px of scroll and takes the
+   row off its mark at the end of it (measured, before this was a variable). */
+.mm-lensdock::after {
+  content: '';
+  position: absolute;
+  left: 0; right: 0; top: 100%;
+  height: var(--mm-dock-air, 24px);
+  background: var(--surface-a);
+  pointer-events: none;
+}
+[data-lens-style="underline"] .mm-lensdock .mm-lensrow-top { border-bottom: none; border-top: 0.5px solid color-mix(in oklch, var(--rule), transparent 20%); }
+
 /* Universal tactile press feedback */
 .press { transition: transform 0.22s var(--ease-spring); }
 .press:active { transform: scale(0.95); }
@@ -1061,9 +1122,18 @@ button.card:active,
    (Answers / People / Compare) pins to the view bottom, so it lands at the
    same y on every population. flex 1 0 auto: grow to fill, never squash —
    taller content (open lens) simply scrolls. */
-.app[data-tab="mirror"] > .app-body { display: flex; flex-direction: column; padding-bottom: 24px; }
+/* The air under a docked tab row is this padding, and `.mm-lensdock::after`
+   has to fill exactly it — a strip shorter leaves live content sliding
+   between the row and the tab bar, one taller adds scrollable overflow the
+   stop does not have. One value, read by both. */
+.app[data-tab="mirror"] > .app-body { --mm-dock-air: 24px; display: flex; flex-direction: column; padding-bottom: var(--mm-dock-air); }
 .app[data-tab="mirror"] > .app-body > .tab-swap { flex: 1 0 auto; display: flex; flex-direction: column; }
-.app.compact[data-tab="mirror"] > .app-body { padding-bottom: 20px; }
+/* Re-declares the padding, not only the variable: `.app.compact .app-body`'s
+   `padding: 10px 14px 148px` shorthand sits LATER in this file at the same
+   specificity as the rule above, so dropping the longhand here hands a
+   compact mirror the daily's 148px reserve — measured as the row sitting
+   128px off its mark on every stop. */
+.app.compact[data-tab="mirror"] > .app-body { --mm-dock-air: 20px; padding-bottom: var(--mm-dock-air); }
 .mf-flex { flex: 1 0 auto; display: flex; flex-direction: column; }
 .mf-stage { flex: 1 0 auto; display: flex; flex-direction: column; }
 /* the field takes the leftover column height — no void between it and the lens row */

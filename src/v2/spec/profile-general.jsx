@@ -5,7 +5,7 @@
 // guards the wiring in CI.
 import React from 'react';
 import { IS_DATA } from './sample-data.js';
-import { IS_TEST_RESULTS } from './test-definitions.js';
+import { IS_TEST_RESULTS, TEST_HUE } from './test-definitions.js';
 import { PASSIVE } from './passive-progress.js';
 import { list as anchorList } from './map-anchors.js';
 import { PROFILE_GENERAL_LS } from '../data/cityAnchor';
@@ -407,7 +407,16 @@ import {
               }}>
                 <svg viewBox="0 0 56 56" width="54" height="54" style={{ width: '100%', maxWidth: 54, height: 'auto' }} aria-hidden="true">
                   <circle cx="28" cy="28" r="23" fill="none" stroke="var(--surface-3)" strokeWidth="6"></circle>
-                  {pct > 0 && res && <circle cx="28" cy="28" r="23" fill="none" stroke={res.accent} strokeWidth="6" strokeLinecap="round"
+                  {/* TEST_HUE, not `res.accent` (D182). The result object
+                      carried its own colour, and only the DEMO seed ever
+                      did: a live or passively-folded result is
+                      `{title, taken, dims}` (data/passiveProfile.ts), so
+                      `stroke={undefined}` drew the arc with SVG's default
+                      — which is `none`. Every ring on a live account read
+                      as 0% however full it was, and nothing failed:
+                      undefined is a legal prop, and the demo the tests
+                      mount has the field. */}
+                  {pct > 0 && res && <circle cx="28" cy="28" r="23" fill="none" stroke={TEST_HUE[k]} strokeWidth="6" strokeLinecap="round"
                     strokeDasharray={`${(C * pct) / 100} ${C}`} transform="rotate(-90 28 28)"></circle>}
                 </svg>
                 <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: '-0.01em', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{top ? top.label : name}</span>

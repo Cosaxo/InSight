@@ -431,39 +431,56 @@ export function MirrorLensRow({ lenses, open, onOpen }) {
 }
 
 // ─── lens chips — the old sections, now opt-in layers under the field ───
+//
+// DOCKED (D182). The row and the open lens used to share one
+// `marginTop: 'auto'` wrapper, which put the row at the bottom of the view
+// only while nothing was open — opening a lens grew the wrapper past the
+// fold and the row rode up with it, and the effect below then scrolled it
+// to the TOP of the scroller. Two positions for one bar, plus a slide
+// between them.
+//
+// They are two elements now: the row in `.mm-lensdock`, which is pinned to
+// the bottom of the view in both states, and the lens as its own sibling
+// above it. Same split, and the same class, as the live stops
+// (ui/LiveCohortBody). The parent is `.mf-stage`, already the filling flex
+// column the dock needs.
 function MirrorLenses({ lenses }) {
   const [open, setOpen] = React.useState(null);
   const cur = lenses.find((l) => l.id === open);
   const idx = lenses.findIndex((l) => l.id === open);
-  const rowRef = React.useRef(null);
+  // The open lens, not the row: the row is on screen already, and the lens
+  // opens below the field where nobody can see it.
+  const lensRef = React.useRef(null);
   React.useEffect(() => {
-    if (!open || !rowRef.current) return;
-    const row = rowRef.current;
-    let sp = row.parentElement;
+    if (!open || !lensRef.current) return;
+    const lens = lensRef.current;
+    let sp = lens.parentElement;
     while (sp && !(sp.scrollHeight > sp.clientHeight && /(auto|scroll)/.test(getComputedStyle(sp).overflowY))) sp = sp.parentElement;
     if (!sp) return;
     const t = setTimeout(() => {
-      const top = row.getBoundingClientRect().top - sp.getBoundingClientRect().top + sp.scrollTop - 12;
+      const top = lens.getBoundingClientRect().top - sp.getBoundingClientRect().top + sp.scrollTop - 12;
       sp.scrollTo({ top, behavior: 'smooth' });
     }, 60);
     return () => clearTimeout(t);
   }, [open]);
   return (
-    <div style={{ marginTop: 'auto', paddingTop: 16 }}>
-      <div ref={rowRef} className="mm-lensrow" role="tablist" aria-label="Lenses" style={{ '--n': lenses.length }}>
-        <span className={'mm-lensthumb' + (idx < 0 ? ' is-off' : '')} style={{ transform: `translateX(${Math.max(0, idx) * 100}%)` }} aria-hidden="true"></span>
-        {lenses.map((l) => (
-          <button key={l.id} data-lens={l.id} role="tab" aria-selected={open === l.id}
-            className={'mm-lensbtn' + (open === l.id ? ' is-on' : '')}
-            onClick={() => setOpen(open === l.id ? null : l.id)}>{l.label}</button>
-        ))}
+    <React.Fragment>
+      <div className="mm-lensdock">
+        <div className="mm-lensrow mm-lensrow-top" role="tablist" aria-label="Lenses" style={{ '--n': lenses.length }}>
+          <span className={'mm-lensthumb' + (idx < 0 ? ' is-off' : '')} style={{ transform: `translateX(${Math.max(0, idx) * 100}%)` }} aria-hidden="true"></span>
+          {lenses.map((l) => (
+            <button key={l.id} data-lens={l.id} role="tab" aria-selected={open === l.id}
+              className={'mm-lensbtn' + (open === l.id ? ' is-on' : '')}
+              onClick={() => setOpen(open === l.id ? null : l.id)}>{l.label}</button>
+          ))}
+        </div>
       </div>
       {cur && (
-        <div key={cur.id} className="fade-in">
+        <div ref={lensRef} key={cur.id} className="fade-in">
           <Lazy minHeight={480}>{cur.render()}</Lazy>
         </div>
       )}
-    </div>
+    </React.Fragment>
   );
 }
 

@@ -255,6 +255,15 @@ constellation waits on completed test scores, and a closed row above an
 empty field would be a blank stop. Every empty arm of the field still
 offers *"See what they answered"*.
 
+**The row is DOCKED (D182).** It sits at the bottom of the view — the
+same y on every stop, open or closed, at any scroll offset — through
+`.mm-lensdock`, which the live stops and the demo field share. It used
+to reach that position through `margin-top: auto` alone, which only
+holds while the stop fits the view: opening a tab pushed the column past
+the fold and the bar rode up the screen with it. The class comment in
+styles.css has the three conditions the dock needs, each of which was
+found by measuring a build that had broken one.
+
 **D136 also removed Foresight from the row** — the lens row is where a
 population gets *read*, and Foresight was the only entry that was a
 game. Its engine, rules and lens body are all still in the tree; only
@@ -498,7 +507,7 @@ Two gaps are worth stating in prose because no badge covers them:
 | the live answer rows (D120) | `src/v2/ui/LiveAnswerRows.tsx` (ported from `spec/mirror-answers.jsx`) |
 | the passive fold + its threshold (D121) | `src/v2/data/passiveProfile.ts` |
 | "later" on a test card (D121) | `src/v2/data/deferQueue.ts` |
-| one hue per instrument (D121) | `TEST_HUE` in `src/v2/spec/test-definitions.js` |
+| one hue per instrument (D121, inside its own axis family since D182) | `TEST_HUE` in `src/v2/spec/test-definitions.js` |
 
 ## 7 · The decisions this file leans on
 

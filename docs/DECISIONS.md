@@ -18150,3 +18150,128 @@ exactly `now + PRESENCE_LINGER_MIN`, and the rules cap is
 write. The timed mode is unaffected (its deadline is two hours, well under
 the cap). Not the reported failure, which was in timed mode, but it is a
 real one and it is recorded here rather than fixed blind.
+
+---
+
+## D182 · The stop's tab row lands in one place, and an instrument's colour belongs to its own chart
+
+**2026-08-16.** Two polish notes from a device, with the v30 standalone
+and three screenshots attached: *"the bottom tab should be consistently
+in the bottom — the answer people compare etc, right now they might
+sometimes be higher or lower, a smooth solution to this is needed"*, and
+*"the score test results does not use the correct colours"*.
+
+Both are cases of a rule that was already written down being true in one
+state and false in the others.
+
+### 1 · The row was pinned to the bottom of the CONTENT, not of the view
+
+styles.css has said since the port that the Mirror's lens row *"pins to
+the view bottom, so it lands at the same y on every population"*. The
+mechanism was `margin-top: auto` in a filling column — the prototype's own
+line, transposed at D155 — and it does that only while the column is
+SHORTER than the view. Open a tab and the panel pushes the column past the
+fold, the auto margin collapses to nothing, and the bar rides up with the
+content; D155's scroll-into-view then pulled it to the TOP of the scroller,
+which is the "sometimes higher" in the report, and the slide between the
+two is the "smooth" it asks for.
+
+Measured on the built app in Chromium at 402×874, Country stop, the row's
+top edge:
+
+| state | before | after |
+| --- | --- | --- |
+| nothing open | 749 | 743 |
+| a tab open | 65 | 743 |
+| that tab, scrolled to the end | −62 (off screen) | 743 |
+
+Twelve states — four stops × closed, open, scrolled to the end — all 24px
+above the scrollport bottom now, which is the padding that was always
+meant to be under it.
+
+`.mm-lensdock` is the fix, and it is one class shared by the live stops
+(`ui/LiveCohortBody`, `ui/NearLiveBody`) and the demo field
+(`spec/mirror-field.jsx` `MirrorLenses`), because "the same bar in the same
+place" is the whole ask and three implementations is how it stopped being
+true the first time. It keeps `margin-top: auto` for the short stop and
+adds `position: sticky; bottom: 0` for the tall one. Three details are
+load-bearing and each was found by measuring:
+
+- **`order: 9`** lays the dock out last while leaving the DOM alone, so the
+  slot it reserves is at the END of the column — no hole between the field
+  and the panel, nothing hidden under it at the bottom of the scroll — and
+  the tablist still precedes its tabpanel for anything reading the tree.
+- **No `overflow-y: auto` between the dock and `.app-body`.** The four live
+  wrappers in `spec/mirror-tab.jsx` carried one. `.mf-flex` is
+  `flex: 1 0 auto`, so it never had anything to scroll and the property
+  never did anything visible — but it still becomes the sticky scrollport,
+  which pinned the row to the bottom of the content: measured 439px below
+  the fold with a tab open. Inert CSS that silently disables a fix.
+- **No padding below the dock, and the strip under it filled.** The column's
+  own bottom padding would put the resting y and the pinned y apart by
+  exactly that padding. `.app-body`'s padding is outside the column and
+  applies to both — but sticky counts it as scrollport, so live content
+  slid through the 24px between the bar and the tab bar until
+  `.mm-lensdock::after` covered it. That strip is sized off the padding
+  through `--mm-dock-air` rather than guessed high: an absolutely
+  positioned box still contributes scrollable overflow, and a 48px strip
+  gave an otherwise-fitting stop 28px of scroll and took the row off its
+  mark at the end of it.
+
+The scroll-into-view moves with it, from the row to the PANEL. The bar is
+on screen at every offset now, so scrolling it anywhere is either a no-op
+or a fight with its own sticky; what is below the fold is the thing you
+just asked for.
+
+**One cascade trap, recorded because it cost a build.** Moving the mirror
+`padding-bottom` onto a custom property left the compact rule setting only
+the variable — and `.app.compact .app-body`'s `padding: 10px 14px 148px`
+shorthand sits later in the file at equal specificity, so a compact mirror
+inherited the daily's 148px reserve and the row sat 128px off its mark on
+every stop. The longhand is re-declared beside the variable.
+
+### 2 · There were THREE palettes for four instruments, and D121 unified two
+
+D121 found `RP_TESTS[k].banner` and `PASSIVE.META[k].accent` disagreeing
+and made `TEST_HUE` the single source, taking the app-token palette. What
+it never looked at is that the same result card draws a THIRD one:
+`RP_TESTS[k].hues`, a hue per axis, which is what every rose petal is drawn
+from and what `typeColor`/`typeSplit` build every type mark and progress
+dot from. Two of the four instruments then sat outside their own chart:
+
+| instrument | its axes | D121's hue | now |
+| --- | --- | --- | --- |
+| big5 | 0–95 | `--c-around` 40 | unchanged |
+| political | 170–285 | `--c-world` 235 | unchanged |
+| values | 282–344 | `--c-people` 8 | violet 320 |
+| attachment | 95–205 | violet 320 | `--c-city` 150 |
+
+So the Social card wore a violet banner, kicker, type name and rarity field
+over a green rose and a green type mark, and Values wore rose over purple.
+D121's rule stands — tokens, so an instrument reads as part of the app —
+with the constraint that was missing: the token has to belong to the
+instrument's own axis family. Violet is still written out because nothing
+else in the app is violet; it just belongs to Values, and Social gets a
+token it did not have.
+
+`test-hue.test.ts` holds each hue within 20° of the CENTRE of its own axis
+family, reading the token angles out of styles.css so neither file can
+drift alone. Not "inside the family's arc" — the old Values rose passed
+that, sitting on top of `hedonism` at 6°, which is how a colour that
+belonged to one axis passed for one that belonged to the instrument. The
+tolerance is looser than three of the four need (sienna is 7.5° off, indigo
+7.5°, sage exactly on) and fails both replaced values at 33° and 170°.
+
+### 3 · …and a result carried its own colour, which only the demo had
+
+`IS_TEST_RESULTS[k].accent` was a fourth copy. The demo seed had it; a live
+or passively folded result is `{title, taken, dims}` and never did
+(`data/passiveProfile.ts`). The profile's "Your tests" card strokes its
+progress arcs with it — so on a real account every arc got
+`stroke={undefined}`, which SVG renders as no stroke at all: four rings
+reading 0% however full they were. Nothing failed, because undefined is a
+legal prop and the tests mount the demo, which has the field.
+
+The field is deleted rather than backfilled, the three readers take
+`TEST_HUE`, and the test above asserts no result carries one — the seed's
+shape is the shape the live path writes, and that is the point of it.

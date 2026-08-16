@@ -114,14 +114,20 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
   // with nothing open is a header, a field and a tab bar sitting where a
   // tab bar belongs. Nothing looks broken because nothing is missing.
   const [tab, setTab] = React.useState<string>("");
-  // The row, so opening a tab brings it to the top of the scroller the way
-  // the prototype does (spec/mirror-field.jsx MirrorLenses).
-  const rowRef = React.useRef<HTMLDivElement | null>(null);
-  // D155 CLAIMED THIS SHIPPED AND IT DID NOT. The ref was declared, the ref
-  // was attached, and nothing ever read it — so the row pinned to the
-  // bottom correctly and then just sat there when you tapped it, leaving
-  // the panel you asked for below the fold. Nothing could catch that: a
-  // dangling ref is valid TypeScript, valid eslint and invisible to
+  // The PANEL, so opening a tab scrolls the thing you asked for into view.
+  //
+  // It was the row until D182, which is the same intent one element out of
+  // date: the row is docked now (`.mm-lensdock`), so it is already on
+  // screen when you tap it and scrolling it "to the top of the scroller"
+  // would drag the bar away from the bottom edge it is pinned to. The
+  // panel opens under the field, below the fold — that is what has to come
+  // up.
+  //
+  // D155 CLAIMED THE ROW VERSION SHIPPED AND IT DID NOT. The ref was
+  // declared, the ref was attached, and nothing ever read it — so the row
+  // pinned to the bottom correctly and then just sat there when you tapped
+  // it, leaving the panel you asked for below the fold. Nothing could catch
+  // that: a dangling ref is valid TypeScript, valid eslint and invisible to
   // check:globals, and the tab-open tests assert the panel MOUNTS, which it
   // did. Reported from a device, which is the only place it was visible.
   //
@@ -130,23 +136,24 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
   // They agree in practice: setTab is only ever called with an id from
   // `tabs`, and mirror-tab keys this body per scope, so a tab cannot
   // survive into a scope that lacks it.
+  const panelRef = React.useRef<HTMLDivElement | null>(null);
   React.useEffect(() => {
-    if (!tab || !rowRef.current) return;
-    const row = rowRef.current;
+    if (!tab || !panelRef.current) return;
+    const panel = panelRef.current;
     // The scroller is the app's (.app-body), not ours — walk up to it, and
     // take the first ancestor that both overflows and can actually scroll.
-    let sp: HTMLElement | null = row.parentElement;
+    let sp: HTMLElement | null = panel.parentElement;
     while (sp && !(sp.scrollHeight > sp.clientHeight && /(auto|scroll)/.test(getComputedStyle(sp).overflowY))) {
       sp = sp.parentElement;
     }
     if (!sp) return;
     const scroller = sp;
     // 60ms, the prototype's own number. The panel mounts in the same commit
-    // as the tab flip, so measuring now measures the row before the body it
-    // is about to sit above exists — and scrolls to a position that stops
-    // being right one frame later.
+    // as the tab flip, so measuring now measures it before its own body has
+    // laid out — and scrolls to a position that stops being right one frame
+    // later.
     const t = setTimeout(() => {
-      const top = row.getBoundingClientRect().top
+      const top = panel.getBoundingClientRect().top
         - scroller.getBoundingClientRect().top + scroller.scrollTop - 12;
       scroller.scrollTo({ top, behavior: "smooth" });
     }, 60);
@@ -402,11 +409,16 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
 
   return (
     <div className="fade-in" style={{
-      padding: "4px 16px 26px", "--accent": accent,
-      // A filling column, so `marginTop: auto` on the row below has
-      // somewhere to push against. Without this the row sits under the
-      // last thing drawn and floats mid-screen on an empty stop, which is
-      // exactly what it looked like.
+      // NO bottom padding (D182): the docked row's resting position is the
+      // bottom of this column and its pinned position is the bottom of the
+      // scrollport, and anything below it here is the difference between
+      // the two. The 24px of air under the row is `.app-body`'s own
+      // padding, which is outside the column and applies to both.
+      padding: "4px 16px 0", "--accent": accent,
+      // A filling column, so `margin-top: auto` on the dock has somewhere
+      // to push against. Without this the row sits under the last thing
+      // drawn and floats mid-screen on an empty stop, which is exactly
+      // what it looked like.
       flex: "1 0 auto", display: "flex", flexDirection: "column",
     } as React.CSSProperties}>
       <div style={{ padding: "10px 0 4px" }}>
@@ -468,20 +480,22 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
           above it is the app's. Two levels of nav in that order is what the
           prototype's nav v2 is — WHO, then WHAT.
 
-          `marginTop: auto` is the prototype's own line (MirrorLenses) and
-          it is what keeps the row at the BOTTOM of the screen when the
-          stop has little to show. A tab bar floating halfway up a mostly
-          empty screen is the thing it fixes.
+          `.mm-lensdock` keeps it at the bottom of the VIEW rather than of
+          the content (D182) — `margin-top: auto` for the stop that fits,
+          sticky for the one that does not, and laid out last so the panel
+          below in the DOM draws above it. A tab bar that moves when you
+          use it is the thing it fixes; the class comment has the twelve
+          measured states.
 
           Tapping the open tab closes it, so the row can return to the
           state it starts in. */}
-      <div ref={rowRef} style={{ marginTop: "auto", paddingTop: 16 }}>
+      <div className="mm-lensdock">
         <MirrorLensTabs tabs={tabs} open={openTab}
           onOpen={(id) => setTab(openTab === id ? "" : id)} />
       </div>
 
       {openTab === "answers" && (
-        <div className="fade-in" role="tabpanel" aria-label={TAB_LABEL.answers}>
+        <div ref={panelRef} className="fade-in" role="tabpanel" aria-label={TAB_LABEL.answers}>
           <LiveAnswerRows
             rows={rows}
             whom={shortName}
@@ -506,7 +520,7 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
       )}
 
       {!!openTab && openTab !== "answers" && (
-        <div className="fade-in" role="tabpanel" aria-label={LENS_LABEL[openTab as LensId]}>
+        <div ref={panelRef} className="fade-in" role="tabpanel" aria-label={LENS_LABEL[openTab as LensId]}>
           <React.Suspense fallback={null}>
             <LiveMirrorLenses lens={openTab as LensId} qs={lensQs} shortName={shortName} scope={scope} />
           </React.Suspense>

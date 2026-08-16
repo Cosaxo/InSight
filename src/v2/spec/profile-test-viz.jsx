@@ -5,7 +5,7 @@
 // guards the wiring in CI.
 import React from 'react';
 import { Kicker } from './primitives.jsx';
-import { IS_TEST_RESULTS } from './test-definitions.js';
+import { IS_TEST_RESULTS, TEST_HUE } from './test-definitions.js';
 // The measured "most people" baseline (D157) — empty rather than authored
 // when the live population is too thin to average, which both cards below
 // already handle: each of them draws its reference mark only where the
@@ -66,7 +66,8 @@ const SOCIAL_NOTE = {
 function AttachmentCard({ accent }) {
   const R = ptvResult('attachment');
   if (!R) return null;
-  const a = accent || R.accent;
+  // TEST_HUE rather than the result's own `accent` (D182) — see test-viz.jsx.
+  const a = accent || TEST_HUE.attachment;
   const top = [...R.dims].sort((m, n) => n.value - m.value)[0];
   return (
     <div className="card" style={{ marginBottom: 14 }}>
