@@ -852,7 +852,7 @@ import { useDialog } from './primitives.jsx';
                 comparison. Renaming is free. Anything genuinely custom is a GROUP
                 (The Crew, Book Club), which lives in duels-data.js, not here. */}
             {v.editable && st.editing && (
-              <span style={{ fontFamily: SANS, fontSize: 11.5, lineHeight: 1.45, color: P.faint, marginTop: 4, maxWidth: 210 }}>Rename to suit you. Drag anyone on the map into another circle to change how you know them.</span>
+              <span style={{ fontFamily: SANS, fontSize: 11.5, lineHeight: 1.45, color: P.faint, marginTop: 4, maxWidth: 210 }}>Rename to suit you. Drag anyone into another circle.</span>
             )}
           </div>
           )}

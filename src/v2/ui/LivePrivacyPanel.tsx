@@ -156,7 +156,7 @@ function LivePrivacyPanel() {
           the report control every named surface draws and a remove verdict
           hides it everywhere at once. */}
       <LpRow title="Your photo"
-        sub="Shows anywhere your name shows, including people near you. Reportable like a comment; taking it down is instant.">
+        sub="Shows anywhere your name shows. Reportable like a comment — taking it down is instant.">
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <Avatar uid={LIVE.uid || ""} name={name} size={38} />
           <label className="press" style={{
@@ -231,14 +231,14 @@ function LivePrivacyPanel() {
           // the local cache to Google Drive), linking is now the ONLY way an
           // anonymous session survives a phone swap. Say so plainly rather
           // than letting someone find out by losing everything.
-          : "You're on an anonymous session — it lives only on this phone. Link Google so your history survives a lost or replaced device; same account, nothing moves."}>
+          : "Anonymous session — it lives only on this phone. Link Google and your history survives a lost device."}>
         {btn(linked ? "Linked ✓" : "Link Google", link)}
       </LpRow>
 
       <LpRow title="Crash reports"
         sub={telemetry
-          ? "On (default) — anonymous crash and error reports (uid only, never your answers) help fix bugs. Turn off any time."
-          : "Off — this app sends no reports. Turn on to send anonymous crash reports (uid only, never your answers)."}>
+          ? "On — anonymous crash reports (uid only, never your answers)."
+          : "Off — no reports are sent."}>
         {btn(telemetry ? "On ✓" : "Off", toggleTelemetry)}
       </LpRow>
 

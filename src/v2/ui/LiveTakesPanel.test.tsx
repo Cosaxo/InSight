@@ -96,7 +96,7 @@ describe("the report control is two-step, because the flag cannot be undone", ()
     // The confirm appeared, and nothing was sent yet. `allow update,
     // delete: if false` — there is no taking this back.
     expect(LIVE.social.flagTake).not.toHaveBeenCalled();
-    expect(screen.getByText(/cannot undo a report/i)).toBeTruthy();
+    expect(screen.getByText(/No undo/i)).toBeTruthy();
   });
 
   it("sends only after the confirm, and marks the take reported", async () => {
@@ -141,7 +141,7 @@ describe("what the control deliberately does not have", () => {
     panel();
     fireEvent.click(screen.getByText("Report"));
 
-    const copy = screen.getByText(/moderator reviews flagged takes/i).textContent || "";
+    const copy = screen.getByText(/A moderator reviews it/i).textContent || "";
     expect(copy).not.toMatch(/will be removed|we'll remove|taken down/i);
   });
 
@@ -304,7 +304,7 @@ describe("world takes are named (D98)", () => {
 
     expect(screen.getByText("You")).toBeTruthy();
     expect(screen.queryByLabelText(/Add your take/i)).toBeNull();
-    expect(screen.getByText(/One take per question/i)).toBeTruthy();
+    expect(screen.getByText(/One take each/i)).toBeTruthy();
     // Delete stays: withdraw-and-rewrite is the only edit path.
     expect(screen.getByText("Delete")).toBeTruthy();
   });
@@ -490,7 +490,7 @@ describe("the side filter", () => {
     sidePanel();
     fireEvent.click(screen.getByRole("button", { name: /^Super Bowl/ }));
     expect(screen.queryByText("Mine")).toBeNull();
-    expect(screen.getByText(/one take per question/i)).toBeTruthy();
+    expect(screen.getByText(/one take each/i)).toBeTruthy();
     expect(screen.queryByPlaceholderText(/add your take/i)).toBeNull();
   });
 });

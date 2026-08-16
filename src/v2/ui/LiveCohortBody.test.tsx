@@ -342,7 +342,7 @@ describe("LiveCohortBody · with the counter on, the city derives itself (D92)",
     LIVE.near.on = () => true;
     mountAnswers("city");
     expect(screen.getByText(/Finding your city/i)).toBeTruthy();
-    expect(screen.getByText(/only its name will be saved, never your\s+coordinates/i)).toBeTruthy();
+    expect(screen.getByText(/only its name is saved, never your\s+coordinates/i)).toBeTruthy();
     await vi.waitFor(() => expect(setCityAnchor).toHaveBeenCalledWith("Oslo, NO"));
     expect(locateCity).toHaveBeenCalledTimes(1);
   });
@@ -356,7 +356,7 @@ describe("LiveCohortBody · with the counter on, the city derives itself (D92)",
     mountAnswers("city");
     expect(locateCity).not.toHaveBeenCalled();
     expect(screen.getByText(/City needs your city/i)).toBeTruthy();
-    expect(screen.getByText(/Turning on the count at the Near stop fills it in/i)).toBeTruthy();
+    expect(screen.getByText(/The Near count fills it in/i)).toBeTruthy();
   });
 
   it("never locates when a city is already set", () => {
@@ -937,7 +937,9 @@ describe("LiveCohortBody · one answer is a count, not a share", () => {
     LIVE.aggFor = () => ({ counts: { "0": 1, "1": 1 }, total: 2, by: { city: { "Oslo, NO": { "0": 1, "1": 1 } } } });
     render(<LiveCohortBody scope="city" />);
     fireEvent.click(screen.getByRole("tab", { name: "Compare" }));
-    expect(await screen.findByText(/went with the majority/i)).toBeTruthy();
-    expect(screen.getByText(/majority in/i).textContent).toMatch(/majority in\s*0\s*of/);
+    // The line is a fraction now, not a sentence, so the tie has to show
+    // up as the numerator rather than as a word.
+    const head = await screen.findByText(/least typical first/i);
+    expect(head.textContent).toMatch(/^\s*0\//);
   });
 });

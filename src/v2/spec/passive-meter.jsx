@@ -125,7 +125,7 @@ function PassiveMeter() {
                   the sitting stopped existing. The feed is the only way in
                   now, and the sheet says so rather than offering a door
                   that was removed. */}
-              <div style={{ fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 500, color: 'var(--ink-2)', lineHeight: 1.45, padding: '0 2px 10px' }}>Marked cards in the feed fill these in — answer them as they come.</div>
+              <div style={{ fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 500, color: 'var(--ink-2)', lineHeight: 1.45, padding: '0 2px 10px' }}>Marked cards in the feed fill these in.</div>
               {P.KEYS.map((k) => {
                 const m = P.META[k], full = P.complete(k), n = P.needed(k), done = P.done(k);
                 // the row takes the colour of the type you currently ARE, so the mark,

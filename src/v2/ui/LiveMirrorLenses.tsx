@@ -210,7 +210,7 @@ function WhosHere({ qs, shortName }: { qs: LensQuestion[]; shortName: string }) 
   const genderTotal = genderRows.reduce((a, r) => a + r.n, 0);
 
   if (!ageTotal && !genderTotal) {
-    return <LlEmpty>Nobody here has filled in their age or gender yet.</LlEmpty>;
+    return <LlEmpty>No ages or genders here yet.</LlEmpty>;
   }
 
   return (
@@ -220,7 +220,7 @@ function WhosHere({ qs, shortName }: { qs: LensQuestion[]; shortName: string }) 
           Who&rsquo;s here
         </div>
         <div style={{ fontFamily: "var(--sans)", fontSize: 12, fontWeight: 500, color: "var(--ink-3)", marginTop: 2 }}>
-          the people answering in {shortName}
+          in {shortName}
         </div>
       </div>
 
@@ -311,9 +311,12 @@ function WhosHere({ qs, shortName }: { qs: LensQuestion[]; shortName: string }) 
         </div>
       )}
 
-      {/* Once, at the foot, rather than beside every figure. */}
+      {/* Once, at the foot, rather than beside every figure. The clause that
+          used to follow ("each question someone answered counts once") said
+          the same thing twice: the three words carry the whole claim, and a
+          caption nobody finishes is a caption that informs nobody. */}
       <span style={{ fontFamily: "var(--sans)", fontSize: 11, fontWeight: 500, color: "var(--ink-3)", lineHeight: 1.5 }}>
-        Answers, not people — each question someone answered counts once.
+        Answers, not people.
       </span>
     </div>
   );
@@ -409,8 +412,11 @@ function KindredCard({ p }: { p: TypedPerson & { anchors?: Record<string, string
             ))}
           </div>
         )}
-        <div style={{ fontFamily: "var(--sans)", fontSize: 11, fontWeight: 600, color: "var(--ink-3)", marginTop: 6 }}>
-          {p.like.same} of {p.like.shared} the same
+        {/* A ratio, read as one. "5 of 6 the same" is a sentence fragment
+            the eye has to assemble; "5/6 alike" is the same fact as a
+            glyph, next to a ring that already draws it. */}
+        <div style={{ fontFamily: "var(--sans)", fontSize: 11, fontWeight: 600, color: "var(--ink-3)", marginTop: 6, fontVariantNumeric: "tabular-nums" }}>
+          {p.like.same}/{p.like.shared} alike
         </div>
       </div>
       <FollowButton uid={p.uid} />
@@ -445,16 +451,16 @@ function PeopleLens({ qs, scope, shortName }: {
         <div style={{ fontFamily: "var(--sans)", fontSize: 15.5, fontWeight: 800, letterSpacing: "-0.015em", color: "var(--ink)" }}>
           Kindred
         </div>
+        {/* The second clause said what the ring already shows. A legend for
+            a shape the reader is looking at is words spent on the visual's
+            job. */}
         <div style={{ fontFamily: "var(--sans)", fontSize: 12, fontWeight: 500, color: "var(--ink-3)", marginTop: 2, marginBottom: 10, lineHeight: 1.5 }}>
-          strangers most aligned with you — the fuller the ring, the closer
+          who answers most like you
         </div>
         {loading && !people.length ? (
-          <LlEmpty>Working out who answers like you…</LlEmpty>
+          <LlEmpty>Matching…</LlEmpty>
         ) : !people.length ? (
-          <LlEmpty>
-            Nobody has answered enough of the same questions yet. This fills in
-            as you answer more.
-          </LlEmpty>
+          <LlEmpty>Fills in as you answer more.</LlEmpty>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {people.slice(0, 12).map((p) => <KindredCard key={p.uid} p={p} />)}
@@ -462,8 +468,7 @@ function PeopleLens({ qs, scope, shortName }: {
                 a likeness number nobody can explain is a number nobody
                 should trust. */}
             <span style={{ fontFamily: "var(--sans)", fontSize: 11.5, fontWeight: 500, color: "var(--ink-3)", marginTop: 2, lineHeight: 1.5 }}>
-              Share of the questions you have both answered where you picked the
-              same option, across your last {LIVE.kindredDepth()}.
+              Same picks, out of the questions you both answered — last {LIVE.kindredDepth()}.
             </span>
           </div>
         )}
@@ -493,7 +498,7 @@ function PeopleLens({ qs, scope, shortName }: {
 export function CompareLens({ qs, shortName }: { qs: LensQuestion[]; shortName: string }) {
   const answered = qs.filter((q) => q.mine >= 0 && q.counts.some((c) => c > 0));
   if (!answered.length) {
-    return <LlEmpty>Answer a few of today&apos;s questions and this fills in.</LlEmpty>;
+    return <LlEmpty>Fills in as you answer.</LlEmpty>;
   }
   // Ranked by how far you sit from the crowd on your own pick — the
   // interesting rows are the ones where you are unusual, not the ones
@@ -515,9 +520,13 @@ export function CompareLens({ qs, shortName }: { qs: LensQuestion[]; shortName: 
   const withMost = rows.filter((r) => r.withMost).length;
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      {/* A fraction and a sort order, which is all this line ever carried.
+          The noun stays — CompareLens is the Near stop's room as well as a
+          cohort stop (D177), and there "the people here" is the reading —
+          but the rest was scaffolding around two facts. */}
       <div style={{ fontFamily: "var(--sans)", fontSize: 13, fontWeight: 600, color: "var(--ink-2)", lineHeight: 1.5 }}>
-        You went with the majority in <strong>{withMost}</strong> of {rows.length},
-        against {shortName}. Least typical first.
+        <strong style={{ fontVariantNumeric: "tabular-nums" }}>{withMost}/{rows.length}</strong>
+        {" "}with {shortName} · least typical first
       </div>
       {rows.map(({ q, pct, n, mineShare }) => (
         <div key={q.id} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -596,14 +605,17 @@ function ExploreLens({ qs }: { qs: LensQuestion[] }) {
             ))}
           </div>
           {!rows.length ? (
-            <LlEmpty>Nobody in {pickedName} has answered these yet.</LlEmpty>
+            <LlEmpty>Nothing from {pickedName} yet.</LlEmpty>
           ) : rows.map((r) => (
             <div key={r!.q.id} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               <span style={{ fontFamily: "var(--serif)", fontSize: 14.5, color: "var(--ink)", lineHeight: 1.35 }}>{r!.q.text}</span>
               <LlBar pct={r!.split} labels={r!.q.options} mark={r!.q.mine >= 0 ? r!.q.mine : undefined} />
               <span style={{ fontFamily: "var(--sans)", fontSize: 11.5, fontWeight: 600, color: "var(--ink-3)" }}>
+                {/* The subject is the chip the reader just tapped, lit in
+                    the accent directly above — repeating it on every row
+                    spends a noun per row to say what the selection says. */}
                 {r!.gap > 0
-                  ? <>{pickedName} are <strong style={{ color: "var(--ink-2)" }}>{r!.gap} points</strong> {r!.split[r!.on] > r!.overall[r!.on] ? "more" : "less"} likely to say {r!.q.options[r!.on]}</>
+                  ? <><strong style={{ color: "var(--ink-2)" }}>{r!.gap} pts</strong> {r!.split[r!.on] > r!.overall[r!.on] ? "more" : "less"} likely to say {r!.q.options[r!.on]}</>
                   : <>Same as everyone.</>}
               </span>
             </div>
@@ -642,9 +654,8 @@ function ScoresLens({ qs, shortName }: { qs: LensQuestion[]; shortName: string }
     return (
       <LlEmpty>
         {anyOrdinal
-          ? <>Nobody here has answered a rated question yet.</>
-          : <>Nothing rated yet. Scores fills in from the questions that ask
-            for a number rather than a side — answer one and it appears here.</>}
+          ? <>Nobody here has rated one yet.</>
+          : <>Nothing rated yet — questions that ask for a number land here.</>}
       </LlEmpty>
     );
   }
@@ -652,7 +663,7 @@ function ScoresLens({ qs, shortName }: { qs: LensQuestion[]; shortName: string }
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
       <div style={{ fontFamily: "var(--sans)", fontSize: 13, fontWeight: 600, color: "var(--ink-2)", lineHeight: 1.5 }}>
-        How {shortName} rated {scored.length === 1 ? "it" : "them"}, best first.
+        How {shortName} rated {scored.length === 1 ? "it" : "them"} · best first
       </div>
       {scored.map(({ q, score, mine }) => {
         const frac = score.mean / score.max;
@@ -683,7 +694,7 @@ function ScoresLens({ qs, shortName }: { qs: LensQuestion[]; shortName: string }
             </span>
             <span style={{ fontFamily: "var(--sans)", fontSize: 11.5, fontWeight: 600, color: "var(--ink-3)" }}>
               {mine == null
-                ? <>{score.n.toLocaleString()} {score.n === 1 ? "answer" : "answers"} · you have not rated this</>
+                ? <>{score.n.toLocaleString()} {score.n === 1 ? "answer" : "answers"} · you have not rated it</>
                 /* One answer is not an average, and when you are the one
                    who gave it "exactly the average" is you compared with
                    yourself — which is what the release printed, under the

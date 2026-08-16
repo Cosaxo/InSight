@@ -235,7 +235,7 @@ import { Kicker, Lazy } from './primitives.jsx';
             {crowns.some((r) => r.contested) && <div style={{ marginTop: 9, display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 700, color: 'var(--ink-3)', letterSpacing: '0.09em', textTransform: 'uppercase' }}><span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--surface)', border: '1.6px solid var(--ink-3)' }}></span>hollow = contested</div>}
             </>
           ) : (
-            <div style={{ marginTop: 10, fontFamily: 'var(--sans)', fontSize: 13, color: 'var(--ink-3)' }}>No crowns yet — the next scenario vote could change that.</div>
+            <div style={{ marginTop: 10, fontFamily: 'var(--sans)', fontSize: 13, color: 'var(--ink-3)' }}>No crowns yet.</div>
           )}
           <div style={{ marginTop: 15, paddingTop: 13, borderTop: LINE }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 5 }}>

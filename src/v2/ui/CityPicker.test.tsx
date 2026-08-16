@@ -118,11 +118,11 @@ describe("CityPicker · every location failure lands somewhere usable (D9)", () 
   // CP_FAIL is that the sentences are NOT interchangeable. A single
   // "location failed" case would pass with all five collapsed into one.
   const CASES: Array<[string, RegExp]> = [
-    ["denied", /No problem — search for your city instead/i],
-    ["unavailable", /Couldn't get a location fix/i],
+    ["denied", /No problem — search instead/i],
+    ["unavailable", /No location fix/i],
     ["timeout", /took too long/i],
     ["unsupported", /can't share a location/i],
-    ["no-match", /Couldn't match that to a city/i],
+    ["no-match", /No city matched/i],
   ];
 
   for (const [reason, copy] of CASES) {

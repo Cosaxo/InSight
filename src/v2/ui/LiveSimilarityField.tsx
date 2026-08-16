@@ -388,11 +388,10 @@ function CityField({ myParsed }: {
 
   if (!shown.length) {
     return (
-      <SfEmptyField caption={<>kindred strangers in {cityName}</>}>
+      <SfEmptyField caption={<>{cityName}</>}>
         {loading
-          ? <>Working out who in {cityName} is most like you…</>
-          : <>Nobody from {cityName} yet among the people on your questions —
-            this fills in as more of the city answers.</>}
+          ? <>Matching…</>
+          : <>Nobody from {cityName} yet — fills in as the city answers.</>}
       </SfEmptyField>
     );
   }
@@ -406,15 +405,15 @@ function CityField({ myParsed }: {
         match: p.score ? p.score.match : p.like.pct,
         scored: !!p.score,
       }))} onPick={(id) => setPicked(picked === id ? null : id)} />
+      {/* A caption is a legend, not a description: the place, the radius's
+          meaning, and what a dashed ring encodes. "kindred strangers" was
+          the section's own heading said twice. */}
       <SfCaption>
-        kindred strangers in {cityName} · closer = more like you
-        {scoredN < shown.length ? " · dashed = from answers, not scores" : ""}
+        {cityName} · closer = more like you
+        {scoredN < shown.length ? " · dashed = answers only" : ""}
       </SfCaption>
       {!myParsed && (
-        <SfEmpty>
-          Ranked by matching answers for now — finish a test and this ranks
-          by scores.
-        </SfEmpty>
+        <SfEmpty>Finish a test to rank by scores.</SfEmpty>
       )}
       {pickedP && <PersonCard p={pickedP} myParsed={myParsed} />}
     </div>
@@ -528,8 +527,7 @@ export function NearField() {
   if (!city) {
     return (
       <SfEmptyField>
-        Set your city — at the City stop, or by turning the count above on —
-        and the people around you draw in here, closest first.
+        Set your city at the City stop and people draw in here.
       </SfEmptyField>
     );
   }
@@ -537,9 +535,8 @@ export function NearField() {
     return (
       <SfEmptyField>
         {loading
-          ? <>Working out who around you is most like you…</>
-          : <>Nobody from {cityName} yet among the people on your questions —
-            this fills in as more of the city answers.</>}
+          ? <>Matching…</>
+          : <>Nobody from {cityName} yet — fills in as the city answers.</>}
       </SfEmptyField>
     );
   }
@@ -555,15 +552,15 @@ export function NearField() {
         match: p.score ? p.score.match : p.like.pct,
         scored: !!p.score,
       }))} />
-      <SfCaption>closer to you = more alike</SfCaption>
-      {/* What the ring is, in the one sentence that keeps it apart from
-          the count above it. */}
-      <SfEmpty>
-        {shown.length} {shown.length === 1 ? "person" : "people"} in {cityName},
-        placed by how close {shown.length === 1 ? "their answers sit" : "their answers sit"} to
-        yours{scoredN < shown.length ? " — dashed rings are ranked from answers, not scores" : ""}.
-        Nobody is named here.
-      </SfEmpty>
+      {/* Everything this pair has to say fits in the caption: what the ring
+          counts (so it is not mistaken for the presence figure above it —
+          the D112 honesty rule), where they are, and what the radius means.
+          The line under it keeps the one claim a legend cannot carry. */}
+      <SfCaption>
+        {shown.length} in {cityName} · closer = more alike
+        {scoredN < shown.length ? " · dashed = answers only" : ""}
+      </SfCaption>
+      <SfEmpty>Nobody is named here.</SfEmpty>
     </div>
   );
 }
@@ -585,16 +582,14 @@ function PlaceCard({ p, label, myFlat }: {
       </div>
       <div style={{ fontFamily: "var(--sans)", fontSize: 12, fontWeight: 600, color: "var(--ink-2)", lineHeight: 1.5 }}>
         {p.score
-          ? <>Average scores sit <strong>{p.score.match}%</strong> aligned with yours,
-            across {p.score.axes} shared axes.</>
-          : <>The average scores here — not enough overlap with your own axes
-            for a likeness yet (needs {MIN_PLACE_AXES}).</>}
+          ? <><strong>{p.score.match}%</strong> aligned with your scores, across {p.score.axes} axes.</>
+          : <>Too few shared axes for a likeness yet (needs {MIN_PLACE_AXES}).</>}
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {CORE_TEST_KINDS.filter((k) => p.byTest[k]?.length).map((kind) => (
           <div key={kind} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             <span style={{ fontFamily: "var(--sans)", fontSize: 10.5, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--ink-3)" }}>
-              {DEFS[kind]?.title || kind} — their average, with your tick
+              {DEFS[kind]?.title || kind} · their average
             </span>
             {p.byTest[kind].map((a) => (
               <SfAxisRow key={a.dim} label={a.label} value={a.value}
@@ -635,9 +630,8 @@ function PlacesField({ scope, myFlat }: {
       <SfEmptyField
         caption={<>{scope === "country" ? "your country's cities" : "the world's countries"}, by likeness</>}>
         {loading
-          ? <>Reading the score profiles…</>
-          : <>No {what} has answered the score questions yet — profiles start
-            with the first test answer.</>}
+          ? <>Reading profiles…</>
+          : <>No {what} has answered a score question yet.</>}
       </SfEmptyField>
     );
   }
@@ -653,7 +647,7 @@ function PlacesField({ scope, myFlat }: {
             home: homeOf(p.key),
             scored: true,
           }))} onPick={(id) => setPicked(picked === id ? null : id)} />
-          <SfCaption>closer = a {what} more like you · from average test scores</SfCaption>
+          <SfCaption>closer = more like you · from average test scores</SfCaption>
         </>
       ) : (
         <>
@@ -663,11 +657,8 @@ function PlacesField({ scope, myFlat }: {
               would be an invented likeness. */}
           <SfEmpty>
             {myFlat
-              ? <>Score profiles exist here, but none shares enough axes with
-                yours yet.</>
-              : <>Answer a few score questions — or finish a test — and these
-                {" "}{what === "city" ? "cities" : "countries"} take their
-                places around you.</>}
+              ? <>None of these shares enough axes with yours yet.</>
+              : <>Finish a test and these take their places around you.</>}
           </SfEmpty>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6, justifyContent: "center", padding: "2px 0 6px" }}>
             {profiles.slice(0, PLACE_FIELD_CAP).map((p) => (
@@ -685,8 +676,8 @@ function PlacesField({ scope, myFlat }: {
       )}
       {thin > 0 && positioned.length > 0 && (
         <SfEmpty>
-          {thin} more {thin === 1 ? `${what} has` : `${what === "city" ? "cities" : "countries"} have`} answers
-          but not enough shared axes for a place here yet.
+          {thin} more {thin === 1 ? what : what === "city" ? "cities" : "countries"} answered,
+          too few shared axes to place.
         </SfEmpty>
       )}
       {pickedP && <PlaceCard p={pickedP} label={labelOf(pickedP.key)} myFlat={myFlat} />}

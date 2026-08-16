@@ -169,7 +169,7 @@ describe("a verified attempt (D57)", () => {
     render(<LogicOverlay onClose={() => {}} />);
 
     // the consent sentence sits with the button, before any press
-    screen.getByText(/sends your picks to be scored on the server/i);
+    screen.getByText(/scored on the server and join an anonymous count/i);
     fireEvent.click(screen.getByText("Verified attempt"));
     await act(async () => {}); // resolve startVerified
     for (let i = 0; i < expected.items.length; i++) {
@@ -181,7 +181,7 @@ describe("a verified attempt (D57)", () => {
     // the payload is the raw picks, exactly as clicked
     expect(vi.mocked(submitVerified)).toHaveBeenCalledWith(expected.items.map((it) => it.a));
     screen.getByText("verified"); // the badge
-    screen.getByText(/counted once toward an anonymous field count/i);
+    screen.getByText(/scored on the server, counted once/i);
     const saved = JSON.parse(localStorage.getItem(LKEY));
     expect(saved).toMatchObject({ verified: true, seed: SEED, gv: genVersion, pctile: logicPctileFor(1, 25), source: "model" });
     expect(saved.marks.every(Boolean)).toBe(true);
@@ -211,7 +211,7 @@ describe("a verified attempt (D57)", () => {
     // the claim names its population, and the note says what is (and is
     // not) measured — the charts stay declared sketches
     screen.getByText(/Sharper than 91% of 250 verified players/);
-    screen.getByText(/still modelled sketches, not their data/i);
+    screen.getByText(/still modelled sketches/i);
     const saved = JSON.parse(localStorage.getItem(LKEY));
     expect(saved).toMatchObject({ verified: true, source: "measured", n: 250, pctile: 91 });
   });
@@ -275,8 +275,8 @@ describe("the result screen's five lenses", () => {
       ["Answers", /solved by: lower/i],
       ["Ceiling", /expected difficulty curve/i],
       ["Pace", /Deliberate|Quick/],
-      ["Field", /no one else is ever singled out/i],
-      ["Compare", /no circle, no named compares/i],
+      ["Field", /everyone who played, as one field/i],
+      ["Compare", /large populations only/i],
     ];
     for (const [label, probe] of lenses) {
       fireEvent.click(screen.getByRole("tab", { name: label }));

@@ -30,11 +30,11 @@ const CP_LINE = "1px solid var(--rule)";
 // after a hard refusal sends them in a loop. The manual picker is right
 // there in every case, so none of these is a dead end.
 const CP_FAIL: Record<LocateFail, string> = {
-  denied: "No problem — search for your city instead.",
-  unavailable: "Couldn't get a location fix. Search instead.",
-  timeout: "That took too long — indoors it often does. Search instead.",
-  unsupported: "This device can't share a location. Search instead.",
-  "no-match": "Couldn't match that to a city. Search instead.",
+  denied: "No problem — search instead.",
+  unavailable: "No location fix — search instead.",
+  timeout: "Took too long — search instead.",
+  unsupported: "This device can't share a location — search instead.",
+  "no-match": "No city matched — search instead.",
 };
 
 export type CityPickerProps = {
@@ -226,7 +226,7 @@ function CityPicker({ value, onChange, inputStyle }: CityPickerProps) {
                   fontFamily: "var(--sans)", fontSize: 14, fontWeight: 700, color: "var(--accent)" }}>
                 {locating ? "Finding your nearest city…" : "Use my location"}
                 <span style={{ display: "block", fontSize: 11.5, fontWeight: 500, color: "var(--ink-3)", marginTop: 2 }}>
-                  {locErr || "Matched to a city on this phone. Your coordinates are never sent or saved."}
+                  {locErr || "Matched on this phone — coordinates are never sent."}
                 </span>
               </button>
             )}
@@ -234,7 +234,7 @@ function CityPicker({ value, onChange, inputStyle }: CityPickerProps) {
         )}
         {err && (
           <div role="status" style={{ padding: "12px 13px", fontSize: 13, fontWeight: 600, color: "oklch(0.5 0.19 25)" }}>
-            Couldn&apos;t load the city list. Close and try again.
+            Couldn&apos;t load the city list.
           </div>
         )}
         {!err && !places && (
@@ -242,8 +242,8 @@ function CityPicker({ value, onChange, inputStyle }: CityPickerProps) {
         )}
         {!err && places && !results.length && (
           <div role="status" style={{ padding: "12px 13px", fontSize: 13, fontWeight: 500, color: "var(--ink-3)", lineHeight: 1.5 }}>
-            No match. The list holds cities above ~50,000 people plus every
-            capital — pick the nearest one.
+            No match. The list holds cities above ~50,000 plus every capital —
+            pick the nearest.
           </div>
         )}
         {!err && results.map((p, i) => (

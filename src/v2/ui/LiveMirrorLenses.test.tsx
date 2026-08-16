@@ -161,11 +161,11 @@ describe("People", () => {
     mount("people");
     expect(screen.getByText("Ceramicist · 25-34")).toBeTruthy();
     expect(screen.getByText("Ada")).toBeTruthy();
-    expect(screen.getByText("5 of 6 the same")).toBeTruthy();
+    expect(screen.getByText("5/6 alike")).toBeTruthy();
     // A likeness number nobody can explain is a number nobody should
     // trust, so the definition ships next to it.
-    expect(screen.getByText(/share of the questions you have both answered/i)).toBeTruthy();
-    expect(screen.getByText(/the fuller the ring, the closer/i)).toBeTruthy();
+    expect(screen.getByText(/same picks, out of the questions you both answered/i)).toBeTruthy();
+    expect(screen.getByText(/who answers most like you/i)).toBeTruthy();
   });
 
   it("falls back to the name when there is no profession to lead with", () => {
@@ -214,24 +214,24 @@ describe("People", () => {
     ];
     mount("people");
     expect(screen.queryByText("Thin")).toBeNull();
-    expect(screen.getByText(/nobody has answered enough/i)).toBeTruthy();
+    expect(screen.getByText(/fills in as you answer more/i)).toBeTruthy();
   });
 
   it("distinguishes 'still working' from 'nobody overlaps'", () => {
     LIVE.kindredLoading = () => true;
     mount("people");
-    expect(screen.getByText(/working out who answers like you/i)).toBeTruthy();
-    expect(screen.queryByText(/nobody has answered enough/i)).toBeNull();
+    expect(screen.getByText(/^Matching…$/)).toBeTruthy();
+    expect(screen.queryByText(/fills in as you answer more/i)).toBeNull();
 
     cleanup();
     LIVE.kindredLoading = () => false;
     mount("people");
-    expect(screen.getByText(/nobody has answered enough/i)).toBeTruthy();
+    expect(screen.getByText(/fills in as you answer more/i)).toBeTruthy();
   });
 
   it("says the card is empty rather than drawing an empty shape", () => {
     mount("people", [{ ...Q, by: {} }]);
-    expect(screen.getByText(/nobody here has filled in their age or gender/i)).toBeTruthy();
+    expect(screen.getByText(/no ages or genders here yet/i)).toBeTruthy();
   });
 });
 
@@ -239,13 +239,13 @@ describe("Compare", () => {
   it("counts how often you went with the majority, against this population", () => {
     mount("compare");
     // Own pick is option 1 ("No") at 40% — the minority — so 0 of 1.
-    expect(screen.getByText(/against Oslo/i)).toBeTruthy();
+    expect(screen.getByText(/with Oslo/i)).toBeTruthy();
     expect(screen.getByText(/40% here agreed/i)).toBeTruthy();
   });
 
   it("asks you to answer something rather than showing an empty frame", () => {
     mount("compare", [{ ...Q, mine: -1 }]);
-    expect(screen.getByText(/answer a few of today's questions/i)).toBeTruthy();
+    expect(screen.getByText(/fills in as you answer/i)).toBeTruthy();
   });
 });
 
@@ -276,7 +276,7 @@ describe("Scores", () => {
 
   it("says so when you have not rated one, rather than implying a zero", () => {
     mount("scores", [{ ...RATED, mine: -1 }]);
-    expect(screen.getByText(/you have not rated this/i)).toBeTruthy();
+    expect(screen.getByText(/you have not rated it/i)).toBeTruthy();
   });
 
   it("REFUSES to average a categorical question", () => {
@@ -293,7 +293,7 @@ describe("Scores", () => {
     // Two different emptinesses. Collapsing them into one "no data" is
     // the habit the withheld-cell era left behind (D98).
     mount("scores", [{ ...RATED, counts: [0,0,0,0,0,0,0,0,0,0] }]);
-    expect(screen.getByText(/nobody here has answered a rated question/i)).toBeTruthy();
+    expect(screen.getByText(/nobody here has rated one yet/i)).toBeTruthy();
   });
 
   it("ranks by share of the scale, so a 5-point and a 10-point compare fairly", () => {
@@ -315,7 +315,7 @@ describe("Explore", () => {
     mount("explore");
     // The biggest age bucket leads; 25-34 is 90/10 against an overall
     // 60/40, so it is 30 points MORE likely to say Yes.
-    expect(screen.getByText(/30 points/)).toBeTruthy();
+    expect(screen.getByText(/30 pts/)).toBeTruthy();
     expect(screen.getByText(/more/)).toBeTruthy();
   });
 

@@ -207,7 +207,7 @@ import { startVerified, submitVerified, verifyErrorMessage } from '../data/logic
           <circle cx={px} cy={py - 4} r="4.5" fill={LOGIC_COL}></circle>
           <text x={Math.min(px, W - 22)} y={py - 14} textAnchor="middle" fontFamily="var(--sans)" fontSize="11" fontWeight="700" fill="var(--ink)">you</text>
         </svg>
-        <div style={{ fontFamily: 'var(--sans)', fontSize: 11.5, color: 'var(--ink-3)', marginTop: 10, lineHeight: 1.45 }}>Everyone who played, as one field — no one else is ever singled out.</div>
+        <div style={{ fontFamily: 'var(--sans)', fontSize: 11.5, color: 'var(--ink-3)', marginTop: 10, lineHeight: 1.45 }}>Everyone who played, as one field.</div>
       </div>
     );
   }
@@ -231,7 +231,7 @@ import { startVerified, submitVerified, verifyErrorMessage } from '../data/logic
             </span>
           </div>
         ))}
-        <div style={{ fontFamily: 'var(--sans)', fontSize: 11.5, color: 'var(--ink-3)', lineHeight: 1.45 }}>Large populations only — no circle, no named compares.</div>
+        <div style={{ fontFamily: 'var(--sans)', fontSize: 11.5, color: 'var(--ink-3)', lineHeight: 1.45 }}>Large populations only.</div>
       </div>
     );
   }
@@ -323,10 +323,10 @@ import { startVerified, submitVerified, verifyErrorMessage } from '../data/logic
   // then, the lens CHARTS stay modelled sketches — the measured note says
   // exactly that, so one real number never dresses up four drawn ones.
 
-  const LOGIC_FIELD_NOTE = 'Comparisons here are a modelled yardstick, not other players’ results — practice attempts send nothing anywhere.';
-  const LOGIC_VERIFIED_NOTE = 'Verified: scored on the server, counted once toward an anonymous field count. Comparisons are still a modelled yardstick until enough verified scores exist.';
-  const LOGIC_MEASURED_NOTE = 'Verified and measured: the percentile is your score ranked against the verified players counted so far. The charts around it are still modelled sketches, not their data.';
-  const LOGIC_VERIFY_DISCLOSURE = 'Verified sends your picks to be scored on the server; your score joins an anonymous count. Nothing else leaves this device.';
+  const LOGIC_FIELD_NOTE = 'Comparisons are a modelled yardstick — practice sends nothing anywhere.';
+  const LOGIC_VERIFIED_NOTE = 'Verified: scored on the server, counted once. Comparisons stay a modelled yardstick until enough verified scores exist.';
+  const LOGIC_MEASURED_NOTE = 'Measured: your percentile is ranked against verified players so far. The charts around it are still modelled sketches.';
+  const LOGIC_VERIFY_DISCLOSURE = 'Your picks are scored on the server and join an anonymous count. Nothing else leaves this device.';
 
   const LOGIC_LENSES = [
     { id: 'answers', label: 'Answers' },

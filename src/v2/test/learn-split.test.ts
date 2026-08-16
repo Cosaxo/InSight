@@ -451,6 +451,6 @@ describe("the who-knows-this cuts are demo furniture too (D133)", () => {
   });
 
   it("says what it cannot show instead of leaving an empty sheet", () => {
-    expect(block).toMatch(/do not publish that/);
+    expect(block).toMatch(/don&apos;t publish per-group cuts yet/);
   });
 });

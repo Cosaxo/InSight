@@ -295,8 +295,7 @@ import {
                 right question to ask and it deserves an answer in place. */}
             <div style={{ fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 500, color: 'var(--ink-3)', lineHeight: 1.5, textWrap: 'pretty' }}>
               All optional. These are what let the daily show how each kind of
-              person split — never your exact birthday, and never a group small
-              enough to point at one person.
+              person split — never your exact birthday.
             </div>
             {/* the zodiac Sign row left with the v15 revision: signOf and
                 zodiacSign are gone from the prototype, so the row is too */}

@@ -276,7 +276,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     // gone with the tab, which is why the tab order has stopped being able
     // to break this case at all. What is left measures the field itself.
     // The field is a lazy chunk — await its caption, then the node.
-    expect(await screen.findByText(/kindred strangers in Oslo/i)).toBeTruthy();
+    expect(await screen.findByText(/Oslo · closer = more like you/i)).toBeTruthy();
     const node = screen.getByRole("button", { name: /Ada · \d+% like you/ });
     expect(node).toBeTruthy();
     // Tapping the node opens the score comparison, basis named.
@@ -440,9 +440,9 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     // "Kindred" since D152 — the section was headed "Most like you" while
     // it was a list of names; the prototype's name came back with the
     // prototype's shape.
-    expect(screen.queryByText(/the fuller the ring/i)).toBeNull();
+    expect(screen.queryByText(/who answers most like you/i)).toBeNull();
     fireEvent.click(screen.getByRole("tab", { name: "People" }));
-    expect(await screen.findByText(/the fuller the ring, the closer/i)).toBeTruthy();
+    expect(await screen.findByText(/who answers most like you/i)).toBeTruthy();
   });
 
   // The Answers lens's own depth (D100), on the real mount. The panel
@@ -1309,7 +1309,7 @@ describe("live mode never inherits the sample persona (D55)", () => {
       expect(host.textContent, "an authored share survived in live mode")
         .not.toMatch(/\d+\s*%/);
       expect(host.textContent).not.toMatch(/bar = how common/);
-      expect(host.textContent).toMatch(/needs people to count/);
+      expect(host.textContent).toMatch(/who-voted sheet and this fills in/);
     } finally {
       host.remove();
     }

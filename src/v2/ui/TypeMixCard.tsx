@@ -26,10 +26,10 @@ export default function TypeMixCard({ scope }: { scope: "city" | "country" | "wo
     : scope === "country" ? (a.country ? bucketLabel("country", a.country) : "your country")
       : "the world";
 
-  const header = (sub: string) => (
+  const header = (sub: string, title?: string) => (
     <div style={{ display: "flex", flexDirection: "column", gap: 2, marginBottom: 8 }}>
       <span style={{ fontFamily: "var(--sans)", fontSize: 10.5, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--ink-3)" }}>Types here</span>
-      <span style={{ fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 600, color: "var(--ink-3)" }}>{sub}</span>
+      <span title={title} style={{ fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 600, color: "var(--ink-3)" }}>{sub}</span>
     </div>
   );
 
@@ -41,8 +41,8 @@ export default function TypeMixCard({ scope }: { scope: "city" | "country" | "wo
         {header(`in ${place}`)}
         <span style={{ fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 600, color: "var(--ink-2)", lineHeight: 1.45, textWrap: "pretty" }}>
           {mix.sampleN === 0
-            ? "No sampled voters here yet — open a question's who-voted sheet and this fills in."
-            : mix.sampleN + " sampled voters here, none with a Big Five result to read yet."}
+            ? "Open a question's who-voted sheet and this fills in."
+            : mix.sampleN + " sampled here, none typed yet."}
         </span>
       </div>
     );
@@ -53,11 +53,16 @@ export default function TypeMixCard({ scope }: { scope: "city" | "country" | "wo
     ? mix.ranked.concat(mix.thin).sort((a2, b) => b.n - a2.n)
     : mix.ranked;
   const top = Math.max(1, ...rows.map((r) => r.n));
-  const basisLabel = `of the ${mix.typedN} sampled voters in ${place} with a Big Five result`;
+  // The basis, as a count and a place rather than a clause. It still says
+  // the two things that keep the card honest — how many were measured, and
+  // where — and the "sampled voters with a Big Five result" qualifier moves
+  // to a title, where a reader who wants the definition can find it and the
+  // other twelve rows are not paying for it.
+  const basisLabel = `${mix.typedN} typed in ${place}`;
 
   return (
     <div>
-      {header(basisLabel)}
+      {header(basisLabel, `of ${mix.sampleN} sampled voters in ${place}, ${mix.typedN} have a Big Five result`)}
       <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
         {rows.map((r) => {
           const you = r.name === mine;
@@ -77,7 +82,7 @@ export default function TypeMixCard({ scope }: { scope: "city" | "country" | "wo
         <div style={{ display: "flex", flexDirection: "column", gap: 5, borderTop: "1px solid color-mix(in oklch, var(--rule), transparent 25%)", paddingTop: 10 }}>
           {small && (
             <span style={{ fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 600, color: "var(--ink-2)", lineHeight: 1.45 }}>
-              {mix.typedN} people is too few for a share — these are counts.
+              Too few for shares — these are counts.
             </span>
           )}
           {!small && mix.thin.length > 0 && (
@@ -87,14 +92,14 @@ export default function TypeMixCard({ scope }: { scope: "city" | "country" | "wo
           )}
           {mix.absent.length > 0 && (
             <span style={{ fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 600, color: "var(--ink-3)", lineHeight: 1.45 }}>
-              nobody in this sample: {mix.absent.map((r) => r.name).join(", ")}
+              none here: {mix.absent.map((r) => r.name).join(", ")}
             </span>
           )}
-          {mine && (
-            <span style={{ fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 600, color: "var(--ink-3)" }}>
-              your own type is marked in the accent
-            </span>
-          )}
+          {/* "your own type is marked in the accent" stood here and was a
+              legend for a colour the reader is looking at — the one row in
+              the accent, bold, with the accent figure beside it. The most
+              literal case of a sentence doing a visual's job, so it goes;
+              `mine` still drives the mark itself. */}
         </div>
       </div>
     </div>

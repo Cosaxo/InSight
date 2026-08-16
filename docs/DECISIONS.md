@@ -18064,3 +18064,101 @@ three times (D130, D142, D143) and it is not storable: the run is
 dispatched *from* the commit that makes the claim. This entry records what
 run 24 **did**. Whoever dispatches next re-makes the comparison against
 the run list, and reads `appBuild` at the run's own `head_sha` (D159).
+
+## D181 · The copy pass: a visual beats a word, a word beats a sentence
+
+**2026-08-16.** Owner report, with two screenshots — the Mirror's People
+tab and the Near stop — and one rule to work by: **visual > word >
+sentence > sentences**, applied to the whole app rather than the two
+screens that prompted it.
+
+The screenshots are the argument. Under a histogram whose own bars say
+"25-34" sat *"Answers, not people — each question someone answered counts
+once."* Under a match ring whose fullness IS the likeness sat *"the fuller
+the ring, the closer"*. Under a bar list with exactly one row in the
+accent sat *"your own type is marked in the accent"*. Three legends for
+three things the reader was already looking at.
+
+### The rule that fell out of doing it
+
+Almost every cut belonged to one of four shapes, and they are worth naming
+because the next screen will grow them again:
+
+1. **A legend for a visual the reader is looking at.** The ring, the
+   accent row, the tick on a bar. Deleted outright — this is the purest
+   case of the rule, and the three above are all of it.
+2. **A noun the screen already carries.** Compare said *"against Oslo"*
+   under a ruler, a tab bar and a header that all say Oslo. Explore
+   repeated the selected chip's own name on every row beneath it.
+3. **A clause that restates its own first clause.** *"Nobody has answered
+   enough of the same questions yet. This fills in as you answer more."*
+   The second sentence is the whole message; the first is its setup.
+4. **An instruction for a control sitting directly underneath.** The city
+   ask explained "use your location or search the list" above a picker
+   that offers exactly those two things.
+
+Sentence fragments the eye has to assemble became glyphs where a glyph was
+honest: `5 of 6 the same` → `5/6 alike`, `You went with the majority in 3
+of 8, against Oslo. Least typical first.` → `3/8 with Oslo · least typical
+first`.
+
+### What did NOT get cut, and why the exceptions are the interesting part
+
+**A claim is not a word count.** Three kinds of copy were left at full
+strength, and one was made *longer* to read:
+
+- **`LivePrivacyPanel`'s disclosure bullets.** D172 already put them
+  behind a `details` and left a comment saying a layout change "must not
+  be read as permission to thin the promises". It was not. The
+  always-open sentence and the ten bullets keep every claim; only the
+  four never-collapsed `LpRow` sub-lines were tightened.
+- **Near's opt-in disclosure.** D9 records that the enable tap carries the
+  OS prompt and this is the sentence that tap agrees to. Every fact
+  survives — the square and its size, who can read it, what the people in
+  it see, the three-hour linger, what off does — but it is **four `li`s
+  instead of a 54-word paragraph**. That is more markup for the same
+  content, and it is the right trade: a consent notice nobody finishes
+  informs nobody. `NearLiveBody.test.tsx` still pins `200-metre grid
+  square` and `three hours`.
+- **Honesty qualifiers that name a limit.** "Answers, not people",
+  "dashed = answers only", "Too few for shares — these are counts",
+  "Nobody is named here". Shortened, never dropped. `TypeMixCard`'s basis
+  went from a clause to `12 typed in the world` with the full definition
+  moved to a `title` — findable, not free.
+
+### Two render bugs, found by the diff rather than by a test
+
+`\uXXXX` in JSX **text** is not an escape — it renders as the six literal
+characters. Two sites had it and both were live:
+
+- `world-feed.jsx` knowledge-cuts note — `yet — the rate above`.
+- `world-feed.jsx` pick summary — `you {name} · crowd {lead}`, where
+  the *quoted* `'…'` beside it on the same line is a real JS escape
+  and was always fine. That is why this survived: the line looks correct.
+
+Neither is reachable by grepping for `—` alone (most hits are inside
+string literals or comments, where the escape is genuine). The check that
+finds them strips quoted strings first, then looks for what survives.
+**Not gated** — two sites is not a class yet, and a gate that fires on the
+legitimate spelling would train people to ignore it. Recorded here so the
+next reader knows the shape.
+
+### The arithmetic
+
+Scanned user-facing prose across `src/v2/{spec,ui,data}`: **30,958 →
+30,053 words**, 3,639 → 3,586 strings. That figure counts question banks
+and sample comment content, which are the product and were not touched, so
+it badly understates the chrome cut — the two screens in the report lost
+roughly half their words each. It is quoted here and deliberately **not**
+in `CLAUDE.md` or `README.md`: a hand-maintained figure in prose is the
+one documentation error this repo keeps re-committing (D39), and this one
+has no gate behind it.
+
+**46 tests changed, none deleted.** Every one of them pins a *claim*, and
+the claim survived the rewording in all 46 — which is the evidence that
+this was a copy pass and not a behaviour change. Where a test asserted the
+sentence rather than the claim, it now asserts the claim: `Compare stops
+calling a tie the majority` matched `/majority in\s*0\s*of/` and now reads
+the fraction at the head of the line, so the next rewording does not break
+it. Full suite green: 1,218 unit, 228 functions, every non-Java gate,
+bundle 2,324 KB (ceiling 2,334).

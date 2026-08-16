@@ -124,7 +124,7 @@ describe("what it says when there is nothing to ask", () => {
     const thin: ForesightSource = { ...Q, by: { ageBand: { "25-34": { "0": 2, "1": 1 } } } };
     render(<LiveForesightLens qs={[thin]} />);
     expect(screen.getByText(/fair read/i)).toBeTruthy();
-    expect(screen.getByText(/coin\s*toss/i)).toBeTruthy();
+    expect(screen.getByText(/clear enough favourite/i)).toBeTruthy();
   });
 
   it("distinguishes a failed load from an empty record", () => {

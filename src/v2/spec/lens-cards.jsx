@@ -286,14 +286,14 @@ import { ExplainBtn, ExplainSheet, EX_GLYPH } from './explain-sheet.jsx';
         keyRows={[
           [EX_GLYPH.bar(col(explain.hue)), 'The filled bar — or the dot on the line — is you.'],
           [EX_GLYPH.tick(), 'The tick marks where most people sit.'],
-          [EX_GLYPH.pale(col(explain.hue)), 'Pale means the reading is still an estimate. Answer more of its questions to firm it up.'],
+          [EX_GLYPH.pale(col(explain.hue)), 'Pale means the reading is still an estimate.'],
         ]}
         onClose={() => setExplain(null)} />
     ) : null;
     if (boxed) return (
       <div style={{ paddingBottom: 8 }}>
         <div style={{ ...tiny, fontSize: 13.5, lineHeight: 1.5, margin: '14px 2px 16px', fontWeight: 500, textWrap: 'pretty' }}>
-          Smaller readings than the four tests. They fill in slowly from the feed.
+          Smaller readings than the four tests, filling in from the feed.
         </div>
         {L.all.map(l => <LensCard key={l.id} lens={l} onTick={bump} />)}
       </div>

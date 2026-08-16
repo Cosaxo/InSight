@@ -139,15 +139,12 @@ function LiveProfileSetup({ onDone }: { onDone: () => void }) {
             can be counted in, which is the entire Mirror. */}
         <p style={{ fontFamily: "var(--sans)", fontSize: 14, fontWeight: 500, lineHeight: 1.55,
           color: "var(--ink-2)", margin: "9px 0 4px", textWrap: "pretty" }}>
-          Every answer you give carries a copy of these, so the app can show
-          you how your city answered, or your age, or people who studied what
-          you studied. Answers can&rsquo;t be re-filed later — so it is worth a
-          minute now.
+          Every answer carries a copy of these, so it can be counted with your
+          city, your age, your field. Answers can&rsquo;t be re-filed later.
         </p>
         <p style={{ fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 500, lineHeight: 1.5,
           color: "var(--ink-3)", margin: "0 0 20px", textWrap: "pretty" }}>
-          Skip anything you&rsquo;d rather not say — every one of these is
-          optional, and you can change them any time in your profile.
+          All optional, and editable later in your profile.
         </p>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
@@ -175,8 +172,8 @@ function LiveProfileSetup({ onDone }: { onDone: () => void }) {
               anchorsFrom started returning one. The claim that survives is
               the one that was always the point — the DATE stays here. */}
           <span style={{ fontFamily: "var(--sans)", fontSize: 11.5, fontWeight: 500, color: "var(--ink-3)", marginTop: -8, lineHeight: 1.5 }}>
-            Your age and its band ({AGE_BANDS.map((b: [number, number, string]) => b[2]).join(" · ")}) are
-            saved — the date itself stays on this phone.
+            Your age and its band are saved ({AGE_BANDS.map((b: [number, number, string]) => b[2]).join(" · ")}).
+            The date stays on this phone.
           </span>
 
           <PsField id="ps-gender" title="Gender">

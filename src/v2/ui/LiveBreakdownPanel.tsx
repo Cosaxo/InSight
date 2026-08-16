@@ -215,8 +215,7 @@ function LbFriends({ qid, options, mine }: {
   if (!follows.length) {
     return (
       <LbNote>
-        You have not followed anyone yet. Follow someone from the Mirror&rsquo;s
-        People lens or its city constellation, and their answers show up here.
+        Follow someone from the Mirror and their answers show up here.
       </LbNote>
     );
   }
@@ -452,8 +451,8 @@ function LiveBreakdownPanel({ qid, options, mine = -1, renderBody }: {
           : !typeRows.length
             ? (
               <LbNote>
-                Nobody among the {split.sampleN.toLocaleString()} answers here has a readable Big Five yet.
-                Types are folded from test cards in the feed, so this fills in as people answer them.
+                None of the {split.sampleN.toLocaleString()} answers here carries a Big Five yet —
+                it fills in as people answer test cards.
               </LbNote>
             )
             : (
@@ -545,8 +544,8 @@ function LiveBreakdownPanel({ qid, options, mine = -1, renderBody }: {
                 Of the {split.sampleN.toLocaleString()} answers this session has read,
                 {" "}{split.typedN.toLocaleString()} carry a Big Five.
                 {!split.enough && " Too few for shares, so these are counts."}
-                {" "}Types are folded from each person's own test answers as they stand today,
-                so this counts answers given before they were typed.
+                {" "}Types are read as they stand today, so this counts answers given
+                before they were typed.
               </>
             );
           })()}

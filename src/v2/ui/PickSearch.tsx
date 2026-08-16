@@ -59,8 +59,7 @@ function catalogSpec(
     hint,
     // Curated top, not a census — the honest miss is "not listed".
     noMatch:
-      "No match — this is a curated top list, not everything ever made. " +
-      "“Not listed” below is a real answer.",
+      "No match — this is a curated top list. “Not listed” is a real answer.",
   };
 }
 
@@ -78,8 +77,7 @@ const DOMAINS: Record<string, DomainSpec> = {
     placeholder: "Search the Pokédex…",
     hint: "one pick from 1,025 — the crowd's canon reveals after",
     noMatch:
-      "No match in the Pokédex — every species is in here, so check the " +
-      "spelling, or answer “not listed” below.",
+      "No match — every species is in here, so check the spelling.",
   },
   films: catalogSpec(FILMS, "Search films…", "one favourite — the crowd's canon reveals after"),
   artists: catalogSpec(ARTISTS, "Search artists…", "one favourite — the crowd's canon reveals after"),
@@ -98,9 +96,7 @@ const DOMAINS: Record<string, DomainSpec> = {
     // A closed set, and a small one: name or symbol both search
     // ("gold" and "au" find the same row).
     noMatch:
-      "No match — all 118 elements are in here, by name or symbol " +
-      "(“gold”, “Au”). If chemistry truly failed you, “Not listed” " +
-      "below is the honest answer.",
+      "No match — all 118 are in here, by name or symbol (“gold”, “Au”).",
   },
   emoji: {
     ...catalogSpec(EMOJI, "Search emoji…", "one pick from 1,391 — the crowd's canon reveals after"),
@@ -108,9 +104,7 @@ const DOMAINS: Record<string, DomainSpec> = {
     // Sequences are not — tones and combos count as their base, and a
     // ZWJ-combo devotee's honest answer is Not listed.
     noMatch:
-      "No match — every base emoji is in here, so try the word for it " +
-      "(“fire”, “skull”). Tones and combos count as their base; if yours " +
-      "truly isn't here, “Not listed” below is the honest answer.",
+      "No match — try the word for it (“fire”, “skull”). Tones and combos count as their base.",
   },
   dogs: {
     ...catalogSpec(DOGS, "Search dog breeds…", "one pick from 554 — the crowd's canon reveals after"),
@@ -118,9 +112,7 @@ const DOMAINS: Record<string, DomainSpec> = {
     // breeds are here, so a miss is usually spelling — but crosses and
     // mutts are real dogs with no row, and theirs is the honest miss.
     noMatch:
-      "No match — try another spelling or the breed's common name. " +
-      "Crosses and mixed breeds count as “Not listed” below, and so does " +
-      "the best dog you know if the list fails it.",
+      "No match — try the common name. Crosses and mixes count as “Not listed”.",
   },
   countries: {
     ...catalogSpec(COUNTRIES, "Search countries…", "one pick from 250 — the crowd's canon reveals after"),
@@ -128,9 +120,7 @@ const DOMAINS: Record<string, DomainSpec> = {
     // the honest miss is a spelling rather than an absence. English
     // names ("Germany", not "Deutschland"); accents fold in search.
     noMatch:
-      "No match — every ISO country and territory is in here under its " +
-      "English name, so check the spelling. “Not listed” below is for " +
-      "the places the standard itself doesn't name.",
+      "No match — every ISO country and territory is here, under its English name.",
   },
 };
 
