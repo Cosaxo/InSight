@@ -32,7 +32,7 @@ const LIVE = vi.hoisted(() => ({
   kindredLoading: () => false as boolean,
   kindredPeople: () => [] as unknown[],
   myTestResults: () => ({}) as Record<string, unknown>,
-  // D180: the field draws the ROOM now, so it reaches for the roster and
+  // D181: the field draws the ROOM now, so it reaches for the roster and
   // the cross-user scores that place it — the same batched fetch the
   // People tab uses.
   loadNames: async () => {},
@@ -272,7 +272,7 @@ describe("NearLiveBody · the constellation, with nobody named", () => {
   // purpose: the point of these cases is that a name IS available here and
   // the field still does not draw one.
   // A room of two, both scored, so the field has somebody to place. Since
-  // D180 the field draws the ROOM rather than the city, so what makes a
+  // D181 the field draws the ROOM rather than the city, so what makes a
   // node is a presence roster entry plus a cross-user test score — not a
   // kindred row.
   const roomOfTwo = () => {
@@ -341,7 +341,7 @@ describe("NearLiveBody · the constellation, with nobody named", () => {
   });
 
   // THE SEAM THIS FIELD USED TO HAVE, and the case that keeps it shut
-  // (D180). From D150 until D177 the field drew the people of your CITY —
+  // (D181). From D150 until D177 the field drew the people of your CITY —
   // right at the time, because Near had a count and nothing else true to
   // show. D177 gave the stop its own population, and the city fold stayed:
   // so a stop called Near said "Nobody from Oslo yet" above a People tab
@@ -381,7 +381,7 @@ describe("NearLiveBody · the constellation, with nobody named", () => {
 
   it("keeps the two numbers attached to what each counts", async () => {
     // The D112 honesty rule. The figure counts phones near you right now;
-    // the ring counts the ones this device can PLACE, which since D180 is
+    // the ring counts the ones this device can PLACE, which since D181 is
     // a subset of the same room rather than a different crowd. One caption
     // spanning both is how a screen starts claiming more than it measured.
     LIVE.myCity = "Oslo, NO";
@@ -450,7 +450,7 @@ describe("NearField · a node is a radius, never a place and never a join key", 
   });
 
   it("places nodes by likeness and never by a coordinate", () => {
-    // COMMENTS STRIPPED FIRST (D180). The risk this guards is a coordinate
+    // COMMENTS STRIPPED FIRST (D181). The risk this guards is a coordinate
     // reaching the canvas, which is a property of the CODE — and the
     // unstripped scan fired on the word "cell" inside a comment explaining
     // the per-cell room cache. A source guard that trips on prose is one

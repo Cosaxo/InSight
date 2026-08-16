@@ -511,7 +511,7 @@ const NEAR_FIELD_CAP = 14;
 export function NearField() {
   const [, bump] = React.useReducer((n: number) => n + 1, 0);
   React.useEffect(() => LIVE.subscribe(bump), []);
-  // THE ROOM, NOT THE CITY (D180). This field drew the people of your CITY
+  // THE ROOM, NOT THE CITY (D181). This field drew the people of your CITY
   // from D150 until now, ranked by likeness and drawn anonymously — a
   // deliberate choice made when Near had a count and nothing else true to
   // show, and the right one at the time.
