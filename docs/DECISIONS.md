@@ -18733,3 +18733,39 @@ budget constants like the eleven already there, and the failure is a
 different one: a manual quoting a longer ceiling than the gate enforces
 sends 38 hand-authored strings into a gate that refuses them, which is the
 most expensive thing in this lane to redo.
+
+### Addendum, same day · the lane's prompt, and a fourth reading
+
+The rules above are what a run must obey; the FEED lane's Routine prompt
+is what a run is *told* before it starts. That prompt gave `path` five
+words ("vote (2-4 options), dial, field, or path") and no craft at all, so
+it now carries the summary: written once, scaffolded with `--new-path`, an
+`axis` on every fork with no walk turning one twice, no fork with a right
+answer, ending names read back as *"picked <name>"* before keeping them, a
+`cat` neither of the last two used — plus two rules the canonical block
+gained in the same edit (`ptN` ids, and that a shipped story's ENDINGS are
+frozen exactly as a shipped question's options are, because they are).
+
+**The live prompt could not be updated, and the constraint is unchanged.**
+`update_trigger` refused, verbatim and identically to the three readings
+D148 records: *editing the prompt of a routine whose fires deliver into a
+session that is not your own is not available via this tool.* Four
+readings across sixteen days, not a character moved. It narrowed once
+(cron and name became callable from outside, 2026-08-11); the prompt arm
+never has. Recorded so the next run does not spend a turn re-measuring it.
+
+**What the drift costs, sized rather than asserted.** The prompt's first
+paragraph orders every run to read § The feed lane on `origin/main` and
+says the manual outranks the prompt's summary — so a run obeying its own
+first instruction reaches the new section, and `check:quality` refuses a
+story that ignores it regardless. The loss is ergonomic: a run is not
+warned before it writes, so it can spend a story's worth of work and meet
+the rules at the gate. The gate holds; the ergonomics do not. Two working
+paths close it in one step — `update_trigger` from the bound session, or
+the claude.ai Routines UI — and delete-and-recreate stays owner-only,
+because it spends a history nothing can restore.
+
+§ Scheduled runs now says three of four prompts match, names the feed lane
+as the exception, and says what closes it. That table was the D148 note's
+own instruction: it is the repo-side record of state that lives on an
+account, and the one thing worse than drift is drift nobody wrote down.

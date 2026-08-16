@@ -1239,11 +1239,29 @@ re-paced, or retired.
 | InSight learn lane | `trig_017bNWxHkLQYDo97YuajmBh4` | `0 9 * * 1,4` — Mon + Thu 09:00 (D145) | § The learn-card lane |
 | InSight feed lane | `trig_01Rf5CD8mpffKf9hYEr2ZKqj` | `30 9 * * 2,5` — Tue + Fri 09:30 (D145) | § The feed lane |
 
-**All four live prompts match their canonical blocks below as of
-2026-08-14 (D148)** — the first time that has been true of all of them
-at once. The farm's and the catalog's carry new ids because the swap
-was done by delete-and-recreate; see the paragraph below for why, and
-for what that cost.
+**Three of four live prompts match their canonical blocks. The FEED
+lane's does not, as of 2026-08-16 (D185).** Its canonical block below
+gained the Crossroads rules — the axis vocabulary, the no-walk-twice
+rule, the ending-name test, the genre pick and the `--new-path`
+scaffold — and the live prompt could not be updated to match: the
+constraint below was re-measured a **fourth** time and refused
+verbatim, unchanged since 2026-08-01.
+
+**This is survivable rather than urgent, and the arithmetic is why.**
+The prompt's first paragraph tells every run to read § The feed lane on
+`origin/main` and says the manual **outranks the prompt's summary** — so
+a run that obeys its own first instruction reaches the new section, and
+`check:quality` refuses a story that ignores it either way. What the
+stale prompt costs is the *summary*: a run is not told to expect the
+rules before it starts writing, so it can spend a story's worth of work
+before the gate says no. The gate holds; the ergonomics do not. Fixing
+it is one `update_trigger` call from the bound session — see below.
+
+Prior state, kept because it is what the next swap is measured against:
+all four matched as of 2026-08-14 (D148), the first time that had been
+true of all of them at once. The farm's and the catalog's carry new ids
+because that swap was done by delete-and-recreate; see the paragraph
+below for why, and for what that cost.
 
 All four fire into the maintainer's dev session
 (`session_01AvNkZgRvvMCu8zqhZtuMH5`, `persist_session: true`) for the
@@ -1296,11 +1314,23 @@ asymmetry it leaves: **a prompt can be replaced from here and a prompt
 cannot be read from here**, so the manual's canonical blocks are the
 only record of what a Routine says. Keep them exact.
 
+**Re-measured a fourth time 2026-08-16 (D185), refused, and the error
+string has not moved a character** in four readings across sixteen days:
+`update_trigger: editing the prompt of a routine whose fires deliver
+into a session that is not your own is not available via this tool.`
+Stop treating this as a thing that might have lifted quietly — it has
+narrowed once (cron and name became callable from outside, 2026-08-11)
+and the prompt arm has never budged. A fifth speculative retry is not a
+measurement; the two working paths below are.
+
 If a future edit needs the same swap: prefer `update_trigger` from the
 bound session itself ("replace this Routine's prompt with the canonical
 text in docs/QUESTION-FARM.md") or the claude.ai Routines UI, and fall
 back to delete-and-recreate only with the owner's say-so, because it
-spends history that cannot be restored. The
+spends history that cannot be restored. **The feed lane is waiting on
+exactly that call as of D185** — its canonical block below is current,
+its live prompt is one revision behind, and either working path closes
+it in one step. The
 canonical prompt (kept here so prompt and manual cannot drift; update
 BOTH in any future change; rewritten 2026-08-11 for D97 — the budget
 regulator, the quality pre-flight, and the vintage read):
@@ -1510,7 +1540,20 @@ authorable forms: vote (2-4 options), dial, field, or path. Continuum
 cards (dial/field) are written TWICE, the content entry with NO crowd
 texture plus its demo-pool twin in src/v2/spec/world-feed-data.js with
 the authored texture; lean scarce on them, they are a change of key and
-not a second genre. Read the budget's signal: line — while it says
+not a second genre. A path (a Crossroads story) is written ONCE, in the
+content bank, and carries craft rules the shape gates cannot express —
+read § Crossroads stories before starting one, and rarer than continuum:
+one pinned slot, so a story landed before the last one's tree has a crowd
+is a reveal nobody got to see. Scaffold it with npm run check:quality --
+--new-path, never from an existing story. Every fork declares an `axis`
+from the closed vocabulary and NO WALK MAY TURN ONE AXIS TWICE — all
+eight are checked; a single-axis tree is one gradient sampled eight times
+and its reveal ranks the reader instead of placing them. No fork may have
+an answer a reader would call the right one: answers are public (D98), so
+a virtuous road collects performance and not disclosure. Ending names are
+nouns for kinds of people, never verdicts — the name IS the option label,
+so read it as "picked <name>" before keeping it. Pick a `cat` neither of
+the last two stories used. Read the budget's signal: line — while it says
 coverage-blind, level the topics; once the scorecard scores feed
 questions, read evenness per topic first. Pre-flight the whole batch
 from ONE candidates file with "surface": "feed" on each entry: npm run
@@ -1522,12 +1565,14 @@ check:quality, check:neighbors, check:globals, lint, test:unit, build.
 
 Hard limits: append only, at the end of `questions` in
 content/feed-questions.json, ids continuing the fNN series (dlN/fdN for
-continuum); every entry also gets its provenance row in
+continuum, ptN for a path); every entry also gets its provenance row in
 content/provenance.json (source "farm", the run's date as batch) and a
 `cat` from the taxonomy — check:quality fails an entry missing either.
 Ship active; never flip an active flag (the retire path is the
 operator's) and never edit or reorder a shipped question's options or a
-continuum question's range (answers key on (qid, optionIdx) forever).
+continuum question's range (answers key on (qid, optionIdx) forever) —
+for a path the OPTIONS are its eight ending names, so a shipped story's
+endings are frozen the same way and only its fork prose can be fixed.
 Never propose a new topic silently: a question that fits none is dropped
 and the topic proposed in the PR body and the issue #31 comment
 (§ When no category fits). Never write a question scoped to a specific
