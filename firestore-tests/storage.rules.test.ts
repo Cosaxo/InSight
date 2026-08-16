@@ -10,9 +10,14 @@
 // Note on scope: the only path it grants, users/{uid}/dailyPhotos/, backed
 // the v1 daily-report photo backup, a surface removed in D4. The grant is
 // kept rather than reduced to a catch-all deny until the bucket is
-// confirmed empty — deleteAccount does not touch Storage, so revoking
-// access to objects that still exist would create an erasure gap rather
-// than close a hole. See docs/SHIP-CHECKLIST.md.
+// confirmed empty — revoking access to objects that still exist would
+// create an erasure gap rather than close a hole. See docs/SHIP-CHECKLIST.md.
+//
+// That sentence used to end "deleteAccount does not touch Storage", and it
+// stopped being true at D178: the profile photo made erasure reach the
+// bucket for the first time. It reaches `avatars/{uid}` and nothing else,
+// so the argument for keeping THIS path's read and delete grant is
+// unchanged — a v1 leftover here is still a leftover no sweep collects.
 //
 // UPLOADS ARE NOW CLOSED (2026-08-13), and the split is why this file
 // changed shape. The erasure argument above is about READ and DELETE — a
@@ -85,6 +90,69 @@ const asAnonAuth = (uid = "anon1"): FirebaseStorage =>
 
 const photo = (storage: FirebaseStorage, uid: string, name = "a.jpg") =>
   ref(storage, `users/${uid}/dailyPhotos/${name}`);
+
+const avatar = (storage: FirebaseStorage, uid: string) =>
+  ref(storage, `avatars/${uid}`);
+const bytes = (n: number) => new Uint8Array(n);
+
+// ── the profile photo (D178) ─────────────────────────────────────────
+//
+// The first path in this bucket a stranger may read, and the first the app
+// actually writes to since D4 closed the v1 one. Three properties carry
+// it, and each is a case below: the object id is FIXED (so the count is
+// bounded by accounts, not by uploads — the failure the retired path
+// records), only the owner writes it, and the bytes are capped and typed.
+describe("storage: the profile photo (D178)", () => {
+  it("the owner uploads their own, and anyone signed in may see it", async () => {
+    await assertSucceeds(uploadBytes(avatar(asUser(OWNER), OWNER), small(), JPEG));
+    // The grant that is new here. A face is readable by strangers because
+    // every surface that draws it already names the person beside it.
+    await assertSucceeds(getBytes(avatar(asUser(STRANGER), OWNER)));
+    await assertSucceeds(getBytes(avatar(asAnonAuth(), OWNER)));
+  });
+
+  it("but not by the signed-out world", async () => {
+    // The bucket is not a public CDN. Signed-in is the floor everywhere
+    // else in this app and it is the floor here.
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await uploadBytes(avatar(ctx.storage(), OWNER), small(), JPEG);
+    });
+    await assertFails(getBytes(avatar(asSignedOut(), OWNER)));
+  });
+
+  it("nobody can write or delete somebody else's face", async () => {
+    // The obvious attack on a photo shown to strangers in a room: replace
+    // theirs with something that gets THEM reported.
+    await assertFails(uploadBytes(avatar(asUser(STRANGER), OWNER), small(), JPEG));
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await uploadBytes(avatar(ctx.storage(), OWNER), small(), JPEG);
+    });
+    await assertFails(deleteObject(avatar(asUser(STRANGER), OWNER)));
+    await assertFails(uploadBytes(avatar(asUser(STRANGER), OWNER), small(), JPEG));
+  });
+
+  it("the owner replaces and removes their own", async () => {
+    // Overwrite is the ONLY way to change a photo, and that is the point:
+    // a fixed object id means a second upload replaces the first rather
+    // than adding to a pile nobody counts.
+    await assertSucceeds(uploadBytes(avatar(asUser(OWNER), OWNER), small(), JPEG));
+    await assertSucceeds(uploadBytes(avatar(asUser(OWNER), OWNER), bytes(64), JPEG));
+    await assertSucceeds(deleteObject(avatar(asUser(OWNER), OWNER)));
+  });
+
+  it("caps the bytes and the type, because this is the app's only egress", async () => {
+    // The uploader downscales and re-encodes long before this, so the cap
+    // is the backstop for a modified client. It is small on purpose: a
+    // room of two dozen faces reads two dozen objects, and this is the
+    // only path in the project that serves bytes at all.
+    await assertFails(uploadBytes(avatar(asUser(OWNER), OWNER), bytes(300 * 1024), JPEG));
+    await assertSucceeds(uploadBytes(avatar(asUser(OWNER), OWNER), bytes(200 * 1024), JPEG));
+    await assertFails(uploadBytes(avatar(asUser(OWNER), OWNER), small(),
+      { contentType: "application/pdf" }));
+    await assertFails(uploadBytes(avatar(asUser(OWNER), OWNER), small(),
+      { contentType: "image/svg+xml" }));
+  });
+});
 
 describe("storage: owner-only daily photos", () => {
   it("the owner reads their own leftover photo", async () => {

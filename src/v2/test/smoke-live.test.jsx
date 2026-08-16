@@ -225,7 +225,10 @@ describe("the live gates hold in the DOM, not just in the source", () => {
   // passed on its own, which is the signature. findByText polls until the
   // body's own first line is there, so it waits exactly as long as it has
   // to and no case that follows it can race the import.
-  const openCity = () => screen.findByText(/Everyone who picked this city/i);
+  // The stop's kicker, since D172 removed the explanatory line this used
+  // to poll for. Still the City body's own first text, and still unique —
+  // Near's kicker is "Around you".
+  const openCity = () => screen.findByText(/^Your city$/i);
 
   it("keeps the City stop on the live ruler, and Near is presence-only (D111)", async () => {
     mountLive();
@@ -238,7 +241,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     // Near: the counter, and NOT the city cohort — the un-fold's other half.
     fireEvent.click(screen.getByRole("tab", { name: "Near" }));
     expect(screen.getByText(/Around you/i)).toBeTruthy();
-    expect(screen.queryByText(/Everyone who picked this city/i)).toBeNull();
+    expect(screen.queryByText(/^Your city$/i)).toBeNull();
 
     // City: the cohort, and NOT the counter.
     fireEvent.click(screen.getByRole("tab", { name: "City" }));
@@ -501,6 +504,26 @@ describe("the live gates hold in the DOM, not just in the source", () => {
   // life of live mode, so "Circle shows something" and "Circle shows the
   // OLD something" look identical to any test that only checks it did not
   // crash. Both halves are asserted — the people, and the fold over them.
+  it("draws the field, not a paragraph, on an empty Groups (D172)", async () => {
+    // Every other stop draws its rings when it has nobody to place (D160).
+    // Groups and Circle answered with a card of prose — and they are the
+    // two a new account meets first, so they were the wordiest screens in
+    // the app at exactly the moment it had least to say. Circle's own
+    // empty arm is pinned in ui/LiveCircleBody.test.tsx, where the member
+    // list can be emptied without fighting the app fixture (which ships a
+    // circle of one on purpose).
+    const expectNoBoundary = mountLive();
+    fireEvent.click(screen.getByRole("button", { name: /^mirror$/i }));
+    fireEvent.click(screen.getByRole("tab", { name: "Groups" }));
+    await act(async () => { for (let i = 0; i < 60; i++) await Promise.resolve(); });
+    expect(screen.getByText(/revealed with names the morning after/i)).toBeTruthy();
+    expect(screen.queryByText(/No groups yet/i),
+      "Groups still answers an empty stop with a headline").toBeNull();
+    // The one action a field cannot fill by itself survives the trim.
+    expect(screen.getByRole("button", { name: /Start a group/i })).toBeTruthy();
+    expectNoBoundary("empty Groups");
+  });
+
   it("draws the Circle stop from the follow graph, not the not-built note", async () => {
     localStorage.clear();
     mountLive();
@@ -585,6 +608,87 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     fireEvent.click(opt);
     await act(async () => { await new Promise((r) => setTimeout(r, 1200)); });
   };
+
+  it("offers no fabricated cut sheet on the live daily", async () => {
+    // The daily's who-voted sheet builds every group row from
+    // `this.hash(question + group + option)` (spec/daily-split.jsx) — the
+    // prototype's deterministic mock, plausible and stable and entirely
+    // invented — over cut chips (Job, Education, Where, four test cuts)
+    // that no published aggregate carries.
+    //
+    // It is unreachable live, and this pins the reason rather than the
+    // symptom: the whole engage row is gated on `!S.live`, so ungating it
+    // to "give the daily a breakdown" without swapping in the LIVE panel
+    // would ship fiction on the app's front door. The demo control below
+    // is what stops this passing because the row stopped rendering.
+    const expectNoBoundary = mountLive();
+    const opts = await screen.findAllByRole("button", { name: /^(Yes|No|Both)$/ });
+    fireEvent.click(opts[0]);
+    await act(async () => { for (let i = 0; i < 30; i++) await Promise.resolve(); });
+    // Skip the consequence beat — the engage row renders only once it is
+    // done (`st.beat !== S.id`), so asserting before this passes against a
+    // screen that is still animating and proves nothing. Found by
+    // mutation: ungating `!S.live` did NOT fail this case until the beat
+    // was dismissed here.
+    const beat = [...document.querySelectorAll("button")].find((b) => /chose /.test(b.textContent || ""));
+    if (beat) fireEvent.click(beat);
+    await act(async () => { for (let i = 0; i < 40; i++) await Promise.resolve(); });
+    // The DEMO row is what must stay gated. Its two markers: seeded
+    // Comments, and the hash-built sheet's cut chips. "Who voted what" is
+    // no longer one of them — since D171 that button exists live and opens
+    // the real panel, which the case above pins.
+    expect(screen.queryByRole("button", { name: "Comments" }),
+      "the daily's seeded comments are reachable in live mode").toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Who voted what" }));
+    await act(async () => { for (let i = 0; i < 60; i++) await Promise.resolve(); });
+    expect(screen.queryByRole("button", { name: /^Where$/ }),
+      "a hash-built cut chip is reachable in live mode").toBeNull();
+    expect(screen.queryByRole("button", { name: /^Education$/ }),
+      "a hash-built cut chip is reachable in live mode").toBeNull();
+    expectNoBoundary("live daily engage row");
+  });
+
+  it("gives the live daily the real breakdown, cohort-first", async () => {
+    // D171. The daily had no breakdown at all in live mode while every
+    // feed card under it had D125's — because its own sheet is the
+    // prototype's hash-built mock and was suppressed rather than
+    // replaced. It now opens ui/LiveBreakdownPanel, the same component
+    // the feed uses, over the same aggregate the card already fetched.
+    const expectNoBoundary = mountLive();
+    const opts = await screen.findAllByRole("button", { name: /^(Yes|No|Both)$/ });
+    const myLabel = opts[0].textContent.trim();
+    fireEvent.click(opts[0]);
+    await act(async () => { for (let i = 0; i < 30; i++) await Promise.resolve(); });
+    const beat = [...document.querySelectorAll("button")].find((b) => /chose /.test(b.textContent || ""));
+    if (beat) fireEvent.click(beat);
+    await act(async () => { for (let i = 0; i < 40; i++) await Promise.resolve(); });
+
+    const who = screen.getByRole("button", { name: "Who voted what" });
+    fireEvent.click(who);
+    await act(async () => { for (let i = 0; i < 60; i++) await Promise.resolve(); });
+
+    // "Everyone" is the live panel's default cohort and its own word — the
+    // demo sheet has no such chip, so this distinguishes the two rather
+    // than merely proving something opened.
+    expect(await screen.findByRole("button", { name: /Everyone/i })).toBeTruthy();
+    // Your own pick is marked, and on the RIGHT side. This is the
+    // end-to-end check on the `mine` prop: the daily passes an index into
+    // its own options while the feed passes the store's numeric vote, and
+    // the two agree only because a live question's option ids are
+    // String(i) (data/deck.ts buildSPure). An off-by-one would mark the
+    // other side and no type could catch it — so the row carrying "· you"
+    // has to be the row for the option actually clicked.
+    const marked = [...document.querySelectorAll("div")].filter(
+      (d) => /· you/.test(d.textContent || "") && d.children.length <= 4,
+    ).pop();
+    expect(marked, "no option row carries the your-pick marker").toBeTruthy();
+    expect(marked.textContent, "the your-pick marker sits on the wrong option")
+      .toContain(myLabel);
+    // And none of the demo cut chips, which name no published dim.
+    expect(screen.queryByRole("button", { name: /^Where$/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Job$/ })).toBeNull();
+    expectNoBoundary("live daily breakdown");
+  });
 
   it("still renders the takes button on a demo card", async () => {
     render(<App />);

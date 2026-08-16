@@ -22,6 +22,10 @@
 // layer's render-time lookup working unchanged.
 import React from "react";
 import LIVE from "../data/live";
+// The rings-and-you drawing every other stop shows when it is empty (D172).
+// A tiny standalone module, NOT LiveSimilarityField: this file is a static
+// import in mirror-tab, and that one is the whole similarity engine.
+import EmptyField from "./EmptyField";
 import { groupPortrait, MIN_SHARED, type GroupPortrait, type PortraitReveal } from "../data/groupPortrait";
 
 // The stop's constellation (D152) — shared with Circle and the cohort
@@ -246,19 +250,22 @@ function LiveGroupsMirrorBody() {
 
   if (!g) {
     return (
-      <div className="card" style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 10, padding: "18px 16px" }}>
-        <div style={{ fontFamily: "var(--sans)", fontWeight: 800, fontSize: 17, letterSpacing: "-0.01em" }}>No groups yet</div>
-        <div style={{ fontFamily: "var(--sans)", fontSize: 13.5, fontWeight: 500, color: "var(--ink-2)", lineHeight: 1.45 }}>
-          This mirror reflects your named circles — one question a day, revealed with names the morning after. Start one and the portrait builds itself.
-        </div>
-        {/* goNav, not goTab: goTab("track") restores whatever daily scope was
-            last open — a user coming from the 1v1 tab landed back on 1v1, not
-            on the group create flow this button promises. goNav pins the mode. */}
-        <button className="press" onClick={() => { const w = window as unknown as { goNav?: (k: string) => void; goTab?: (t: string) => void }; if (w.goNav) w.goNav("track:group"); else if (w.goTab) w.goTab("track"); }}
-          style={{ alignSelf: "flex-start", border: "none", borderRadius: 999, padding: "10px 18px", cursor: "pointer", fontFamily: "var(--sans)", fontWeight: 800, fontSize: 13, background: "var(--accent, var(--ink))", color: "var(--surface)", WebkitAppearance: "none" }}>
-          Start a group →
-        </button>
-      </div>
+      // The FIELD, not a card of prose (D172). This and Circle were the
+      // last two stops answering an empty account with a paragraph while
+      // every other one drew its rings — and they are the two a new
+      // account meets first.
+      //
+      // The BUTTON stays. Creating a group is not something the stop can
+      // fill by itself the way City fills as strangers answer, so this is
+      // the only route to it and removing it would trade wordiness for a
+      // dead end. The sentence around it is what shrank.
+      // goNav, not goTab, and EmptyField owns that choice now: goTab("track")
+      // restores whatever daily scope was last open, so a user arriving from
+      // the 1v1 tab landed back on 1v1 — a button that promises a group and
+      // delivers a duel. The nav key pins the mode.
+      <EmptyField action={{ label: "Start a group →", nav: "track:group" }}>
+        One question a day, revealed with names the morning after.
+      </EmptyField>
     );
   }
 

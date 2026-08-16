@@ -63,6 +63,7 @@ import { TypeMark } from "../spec/type-marks.jsx";
 // The row's own types and labels live next door: eslint's react-refresh
 // rule wants a component file to export only components, and it is right
 // that a constant shared with the host does not belong in one.
+import Avatar from "./Avatar";
 import { ORDINAL_TYPES, type LensId, type LensQuestion } from "./lensDefs";
 // D136 removed the Foresight lens from this row, so the import of
 // ./LiveForesightLens went with it. The component and data/foresight.ts
@@ -353,15 +354,13 @@ function KindredCard({ p }: { p: TypedPerson & { anchors?: Record<string, string
       background: "var(--surface)", border: LL_LINE, borderRadius: 14,
     }}>
       <MatchRing pct={pct} color={`oklch(0.52 0.13 ${hue})`} size={50} title={`${pct}% alike`}>
-        <span aria-hidden="true" style={{
-          width: 36, height: 36, borderRadius: "50%", display: "flex", alignItems: "center",
-          justifyContent: "center", background: `oklch(0.93 0.04 ${hue})`,
-        }}>
-          <svg viewBox="0 0 24 24" width={19} height={19} fill={`oklch(0.45 0.12 ${hue})`} aria-hidden="true">
-            <circle cx="12" cy="8.2" r="3.6"></circle>
-            <path d="M4.6 20.2a7.4 7.4 0 0 1 14.8 0z"></path>
-          </svg>
-        </span>
+        {/* THE FACE, WHERE THE GENERIC BODY GLYPH WAS (D178). A photo is a
+            profile field, so it draws anywhere a person is already named,
+            and this card names one. Avatar falls back to initials and,
+            failing those, to the same anonymous shape this used to be —
+            most accounts will never set a picture, and that has to look
+            deliberate rather than empty. */}
+        <Avatar uid={p.uid} name={p.name} size={36} />
       </MatchRing>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
@@ -481,7 +480,17 @@ function PeopleLens({ qs, scope, shortName }: {
 
 // ── Compare ─────────────────────────────────────────────────────────
 
-function CompareLens({ qs, shortName }: { qs: LensQuestion[]; shortName: string }) {
+/**
+ * Compare — you against a cohort, least typical first.
+ *
+ * EXPORTED since D177, and it is the only lens body that is: the Near
+ * stop's room reads exactly this way (you against the people here), and a
+ * second implementation would be a second place for D170's majority test
+ * to be got wrong. It asks nothing about scope — a `LensQuestion[]` and a
+ * noun — so a cohort the server folded reads the same as one the device
+ * did.
+ */
+export function CompareLens({ qs, shortName }: { qs: LensQuestion[]; shortName: string }) {
   const answered = qs.filter((q) => q.mine >= 0 && q.counts.some((c) => c > 0));
   if (!answered.length) {
     return <LlEmpty>Answer a few of today&apos;s questions and this fills in.</LlEmpty>;
@@ -491,22 +500,36 @@ function CompareLens({ qs, shortName }: { qs: LensQuestion[]; shortName: string 
   // where everyone agrees with you.
   const rows = answered.map((q) => {
     const pct = pctFor(q.counts);
-    return { q, pct, mineShare: pct[q.mine] || 0 };
+    const n = q.counts.reduce((a, b) => a + b, 0);
+    // "With the majority" means your pick is what this cohort picked MOST
+    // — not that it cleared 50% (D170). The old rule was `mineShare >= 50`
+    // and it was wrong in both directions: on a three-way question the
+    // leading answer can win on 40%, and on a two-way tie at 50/50 nobody
+    // is in the majority, which is exactly what the release showed —
+    // "the majority in 3 of 3" over a row split 50/50.
+    const top = q.counts.reduce((t, v, i) => (v > q.counts[t] ? i : t), 0);
+    const tied = q.counts.filter((v) => v === q.counts[top]).length > 1;
+    return { q, pct, n, mineShare: pct[q.mine] || 0, withMost: !tied && q.mine === top };
   }).sort((a, b) => a.mineShare - b.mineShare);
 
-  const withMost = rows.filter((r) => r.mineShare >= 50).length;
+  const withMost = rows.filter((r) => r.withMost).length;
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       <div style={{ fontFamily: "var(--sans)", fontSize: 13, fontWeight: 600, color: "var(--ink-2)", lineHeight: 1.5 }}>
         You went with the majority in <strong>{withMost}</strong> of {rows.length},
         against {shortName}. Least typical first.
       </div>
-      {rows.map(({ q, pct, mineShare }) => (
+      {rows.map(({ q, pct, n, mineShare }) => (
         <div key={q.id} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           <span style={{ fontFamily: "var(--serif)", fontSize: 14.5, color: "var(--ink)", lineHeight: 1.35 }}>{q.text}</span>
           <LlBar pct={pct} labels={q.options} mark={q.mine} />
           <span style={{ fontFamily: "var(--sans)", fontSize: 11.5, fontWeight: 600, color: "var(--ink-3)" }}>
-            You said <strong style={{ color: "var(--ink-2)" }}>{q.options[q.mine]}</strong> · {mineShare}% here agreed
+            You said <strong style={{ color: "var(--ink-2)" }}>{q.options[q.mine]}</strong>
+            {/* A share of ONE answer is not a share: with n=1 the only
+                values the arithmetic can produce are 0% and 100%, so
+                "100% here agreed" reports the sample size and nothing
+                else. Arithmetic, not a threshold someone chose. */}
+            {n === 1 ? <> · one answer here so far</> : <> · {mineShare}% here agreed</>}
           </span>
         </div>
       ))}
@@ -536,9 +559,13 @@ function ExploreLens({ qs }: { qs: LensQuestion[] }) {
     ? qs.map((q) => {
       const split = sliceSplit(q.by, dim, picked, q.options.length);
       if (!split) return null;
-      const d = divergence(q.by, dim, q.counts, q.options.length)
+      // `all`, not `counts` (D170): Explore's slices are cuts of everyone
+      // and its sentence ends "same as everyone", so the globe is the
+      // right baseline on every stop. Compare and Scores read `counts`,
+      // which is the stop's own cohort.
+      const d = divergence(q.by, dim, q.all, q.options.length)
         .find((x) => x.bucket === picked);
-      return { q, split, overall: pctFor(q.counts), gap: d ? d.gap : 0, on: d ? d.optionIdx : 0 };
+      return { q, split, overall: pctFor(q.all), gap: d ? d.gap : 0, on: d ? d.optionIdx : 0 };
     }).filter(Boolean).sort((a, b) => b!.gap - a!.gap)
     : [];
 
@@ -657,10 +684,19 @@ function ScoresLens({ qs, shortName }: { qs: LensQuestion[]; shortName: string }
             <span style={{ fontFamily: "var(--sans)", fontSize: 11.5, fontWeight: 600, color: "var(--ink-3)" }}>
               {mine == null
                 ? <>{score.n.toLocaleString()} {score.n === 1 ? "answer" : "answers"} · you have not rated this</>
-                : <>You gave it <strong style={{ color: "var(--ink-2)" }}>{mine}</strong>
-                  {mine === score.mean ? <> — exactly the average</>
-                    : <> · {Math.abs(Math.round((mine - score.mean) * 10) / 10)} {mine > score.mean ? "above" : "below"} them</>}
-                  {" "}· {score.n.toLocaleString()} {score.n === 1 ? "answer" : "answers"}</>}
+                /* One answer is not an average, and when you are the one
+                   who gave it "exactly the average" is you compared with
+                   yourself — which is what the release printed, under the
+                   heading "How Oslo rated it" (D170). Said as a count
+                   instead: true whoever the answer belongs to, which
+                   matters because a vote carries the city it was cast
+                   from (D8) and this stop shows the city you are in now. */
+                : score.n === 1
+                  ? <>You gave it <strong style={{ color: "var(--ink-2)" }}>{mine}</strong> · the only answer here so far</>
+                  : <>You gave it <strong style={{ color: "var(--ink-2)" }}>{mine}</strong>
+                    {mine === score.mean ? <> — exactly the average</>
+                      : <> · {Math.abs(Math.round((mine - score.mean) * 10) / 10)} {mine > score.mean ? "above" : "below"} them</>}
+                    {" "}· {score.n.toLocaleString()} answers</>}
             </span>
           </div>
         );

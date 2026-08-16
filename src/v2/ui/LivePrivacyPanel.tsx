@@ -15,6 +15,7 @@
 // keeps the spec layer's render-time lookup working unchanged.
 import React from "react";
 import LIVE from "../data/live";
+import Avatar from "./Avatar";
 // The handle is claimed here because this is where identity already
 // lives — the display name is next door, and the two are different
 // things: a name is what a reveal calls you, a handle is how someone
@@ -29,7 +30,6 @@ import { setTelemetryEnabled, telemetryEnabled } from "../../lib/sentry";
 // interests panel plus its store put the total 2 KB over. It is also the
 // right thing to defer on the merits — it renders inside the account
 // screen, which nothing on the first frame opens.
-const LiveInterestsPanel = React.lazy(() => import("./LiveInterestsPanel"));
 
 const LP_LINE = "1px solid color-mix(in oklch, var(--rule), transparent 25%)";
 
@@ -69,8 +69,22 @@ function LivePrivacyPanel() {
   const linked = LIVE.linked || linkedNow;
   const [telemetry, setTelemetry] = React.useState(telemetryEnabled);
   const [err, setErr] = React.useState<string | null>(null);
+  const [photoMsg, setPhotoMsg] = React.useState<string | null>(null);
   if (!LIVE.enabled) return null;
 
+  // The three outcomes worth a sentence, and "removed" is the one that
+  // matters: a face a moderator took down is FROZEN against re-upload
+  // (firestore.rules), so "try again" would be a loop with no exit.
+  const PHOTO_FAIL: Record<string, string> = {
+    "too-big": "That picture is too large even after shrinking — try another.",
+    removed: "This photo was removed by moderation, so it can’t be replaced here.",
+    unavailable: "Couldn’t save that picture just now.",
+  };
+  const pickPhoto = async (file: File) => {
+    setPhotoMsg("Saving…");
+    const r = await LIVE.setAvatar(file);
+    setPhotoMsg(r.ok ? null : (PHOTO_FAIL[r.reason || ""] || PHOTO_FAIL.unavailable));
+  };
   const saveName = async () => {
     const n = name.trim().slice(0, 60);
     if (!n) return;
@@ -130,6 +144,42 @@ function LivePrivacyPanel() {
   return (
     <div className="card" style={{ marginBottom: 14, padding: "14px 16px" }}>
       <div className="kicker" style={{ marginBottom: 4 }}>Account &amp; privacy</div>
+
+      {/* THE FACE, ABOVE THE NAME (D178). Both answer "who are you to
+          other people", and the photo is the louder half — so it goes
+          first, and its sub-line is the disclosure rather than an
+          instruction. A photo shows to anyone who can already see your
+          name, which since D177 includes people standing near you.
+
+          Reported like a take, not reviewed before it shows (the owner's
+          call): the same loop takes have had since D83, so a face carries
+          the report control every named surface draws and a remove verdict
+          hides it everywhere at once. */}
+      <LpRow title="Your photo"
+        sub="Shows anywhere your name shows, including people near you. Reportable like a comment; taking it down is instant.">
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <Avatar uid={LIVE.uid || ""} name={name} size={38} />
+          <label className="press" style={{
+            border: LP_LINE, borderRadius: 999, padding: "7px 13px", cursor: "pointer",
+            fontFamily: "var(--sans)", fontWeight: 700, fontSize: 12.5, color: "var(--ink-2)",
+          }}>
+            {LIVE.myFace() ? "Replace" : "Add photo"}
+            {/* A plain file input rather than a camera plugin: it opens the
+                photo library on iOS and Android inside the WebView, needs
+                no new native permission, and adds nothing to the store
+                forms beyond the photo itself. */}
+            <input type="file" accept="image/jpeg,image/png,image/webp"
+              style={{ display: "none" }}
+              onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void pickPhoto(f); }} />
+          </label>
+          {LIVE.myFace() ? btn("Remove", () => LIVE.removeAvatar()) : null}
+        </div>
+      </LpRow>
+      {photoMsg && (
+        <div role="status" style={{ fontFamily: "var(--sans)", fontSize: 12, fontWeight: 600, color: "var(--ink-2)", margin: "-4px 0 10px" }}>
+          {photoMsg}
+        </div>
+      )}
 
       <LpRow title="Your name" sub="What group and 1v1 partners see in reveals.">
         <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
@@ -192,9 +242,40 @@ function LivePrivacyPanel() {
         {btn(telemetry ? "On ✓" : "Off", toggleTelemetry)}
       </LpRow>
 
+      {/* TEN BULLETS BEHIND A SUMMARY (D172), and the split is the whole
+          point rather than a compromise.
+
+          The owner's note was "you can remove almost the entire list — it
+          is not needed", and the vision's principle behind it is right:
+          this app removes text wherever text is standing in for a design.
+          But this list is not decoration. Every bullet is a promise the
+          rules or a function enforce, several exist because a specific
+          decision made them true (D9's location, D84's presence, D98's
+          public answers, D146's type cut), and both app stores require the
+          disclosure to be reachable. Deleting them would not simplify the
+          screen; it would make the screen stop being true.
+
+          So the SCREEN loses the wall and the DISCLOSURE loses nothing.
+          One sentence stays open — the bluntest one, the one CLAUDE.md
+          insists on, because a user learning that their answers are public
+          from a stranger quoting a vote back at them is the failure this
+          panel exists to prevent. The rest is one tap away, in a `details`
+          so the tap costs no JavaScript and screen readers get a real
+          disclosure widget rather than a div pretending.
+
+          If a future bullet is genuinely obsolete, delete THAT bullet with
+          the decision that retires it. This is a layout change and must
+          not be read as permission to thin the promises. */}
       <div style={{ padding: "11px 0", borderBottom: LP_LINE }}>
-        <div style={{ fontWeight: 800, fontSize: 14.5, marginBottom: 6 }}>What leaves your device</div>
-        <ul style={{ margin: 0, paddingLeft: 17, fontSize: 12.5, fontWeight: 500, color: "var(--ink-2)", lineHeight: 1.65 }}>
+        <div style={{ fontSize: 12.5, fontWeight: 500, color: "var(--ink-2)", lineHeight: 1.6 }}>
+          <strong style={{ fontWeight: 800 }}>Your answers are public</strong>, under your display
+          name, with the profile facts you have filled in. Nothing you answer here is private.
+        </div>
+        <details style={{ marginTop: 8 }}>
+          <summary style={{ cursor: "pointer", fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 800, color: "var(--ink-2)", WebkitAppearance: "none" }}>
+            What leaves your device
+          </summary>
+        <ul style={{ margin: "8px 0 0", paddingLeft: 17, fontSize: 12.5, fontWeight: 500, color: "var(--ink-2)", lineHeight: 1.65 }}>
           {/* The first bullet, and deliberately the bluntest sentence in
               the app. D98 made answers public; a user learning that from
               a stranger quoting their vote back at them would be the
@@ -249,12 +330,23 @@ function LivePrivacyPanel() {
           <li>Location is optional and off until you ask for it. If you tap &ldquo;use my location&rdquo;, your phone works out the nearest city <em>on the device</em> and sends only that name — never your coordinates, which are never stored or transmitted. You can skip it and pick your city from a list instead, and your country follows from the city either way.</li>
           {/* D84. The presence cell is the second location-shaped thing the
               app can hold, and this bullet is its disclosure: what is shared
-              (a ~1 km grid square, computed on the device, the coordinate
-              discarded), who can read it (no user — the server answers only
-              with a count), when (foreground, opted in), and the way out
-              (off deletes the doc; deleting the account does too). If the
-              mechanics change, this sentence changes in the same commit. */}
-          <li>&ldquo;Right now, around you&rdquo; (the Near counter) is optional and off by default. While it&rsquo;s on and the app is open, your phone shares a kilometre-sized grid square — worked out on the device, your coordinates discarded — so the server can answer <em>how many</em> people are around you. No other user can ever read your square; a count is all that comes back. It goes stale within minutes when you close the app, and turning it off (or deleting your account) deletes it immediately.</li>
+              (a ~200 m grid square, computed on the device, the coordinate
+              discarded), who can read it, when (foreground, opted in), and
+              the way out (off deletes the doc; deleting the account does
+              too). If the mechanics change, this sentence changes in the
+              same commit.
+
+              AND THEY CHANGED AT D177, which is the half of that promise
+              worth stating loudly. "A count is all that comes back" was
+              true for as long as Near WAS a count; the People tab names
+              the people in your square. So this bullet now separates the
+              two claims that used to travel as one: nobody can read your
+              SQUARE (still enforced, still `allow read: if false`), and
+              the people in it can see you — which is a different fact and
+              had to stop hiding behind the first. Mutuality and the way
+              out are what make it a fair trade, so both are named here
+              rather than left to the stop's own copy. */}
+          <li>&ldquo;Right now, around you&rdquo; (the Near stop) is optional and off by default. While it&rsquo;s on and the app is open, your phone shares a ~200-metre grid square — worked out on the device from a precise fix, the coordinates discarded there. No other user can ever read your square, and no user is ever told where you are. What people who are <em>in</em> that square and also have Near on can see is that you are there: your name, your type and the answers that were already public. It is exactly mutual — you appear to them only while they appear to you — and you can set it to end after two hours or turn it off, which deletes your square immediately (as does deleting your account). Your square keeps counting for up to three hours after you close the app, which is what lets a room stay populated while phones are in pockets.</li>
           <li>No IP-based location lookup, no background or continuous location, no location history.</li>
           {/* This line has now been wrong twice, in opposite directions,
               and the second time is the one worth remembering. "No
@@ -274,6 +366,7 @@ function LivePrivacyPanel() {
           <li>Takes are posted under your name — on world questions as well as inside a circle, the same name your answers carry. One take per person per question. Report a take, or hide that author on this device, from the take itself.</li>
           <li>No contacts. No ads, no tracking, no third-party analytics.</li>
         </ul>
+        </details>
         {/* Until now these pages shipped inside the bundle and were linked
             from nowhere — reachable only by knowing the filename. Both
             stores also require the policy to be reachable on the open web,
@@ -301,20 +394,10 @@ function LivePrivacyPanel() {
 
       {err && <div style={{ fontSize: 12, fontWeight: 600, color: "oklch(0.5 0.19 25)", marginTop: 8 }}>{err.replace(/^.*?: */, "")}</div>}
 
-      {/* Topic preferences (D128). Mounted INSIDE this panel rather than
-          beside it in profile-overlay.jsx: a second `window.X &&` lookup
-          there would raise the shared-global count, and D39's ratchet only
-          moves down. It also belongs here — this is the screen that says
-          what the app does with what it knows about you, and "you can tell
-          it what you want more of" is the same conversation. */}
-      <div style={{ marginTop: 26 }}>
-        {/* null fallback: the row above it is the panel's own last row,
-            so an empty gap for one frame reads as the screen still
-            drawing rather than as something missing. */}
-        <React.Suspense fallback={null}>
-          <LiveInterestsPanel />
-        </React.Suspense>
-      </div>
+      {/* The topic-preference panel stood here (D128) and is gone (D173):
+          how much of a subject you see is the algorithm's job, not a
+          lever's. Muting a topic outright survives, in the feed's own
+          topic sheet, which is where it was always reachable. */}
     </div>
   );
 }

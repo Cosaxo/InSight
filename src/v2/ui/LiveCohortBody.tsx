@@ -33,7 +33,7 @@ import { locateCity } from "../data/locate";
 // "Does this question have any answers yet?" — an existence test, and
 // since D98 the only test there is (data/floor.ts and its constants are
 // gone with the floor they mirrored).
-import { hasPublishedCounts } from "../data/deck";
+import { hasPublishedCounts, type AggDoc } from "../data/deck";
 // The four lens BODIES (D99), loaded when a lens tab is first opened
 // (D101, D119).
 //
@@ -163,7 +163,7 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
   // revocable location grant standing for a live feature — so Near stops
   // asking and derives the city from the same grant. The datum applied is
   // still only the catalogue key (locateCity's containment), which is
-  // strictly LESS information than the ~1 km presence cell the counter
+  // strictly LESS information than the ~200 m presence cell the counter
   // already shares. D9's suggest-never-apply rule stays for every other
   // path: with the counter off, the picker below is unchanged and its
   // located city remains a suggestion.
@@ -228,10 +228,6 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
     );
   }
 
-  const heading =
-    scope === "city" ? (place ? PLACES.label(place) : city)
-      : scope === "country" ? PLACES.countryName(country)
-        : "The world";
   const shortName =
     scope === "city" ? (place ? place.name : city)
       : scope === "country" ? PLACES.countryName(country)
@@ -279,6 +275,23 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
   const archive = LIVE.aggregated().filter((q) => q.coreCorpus);
   const myVotes = LIVE.myVotes();
 
+  /**
+   * The counts for THIS STOP, from one aggregate — the globe on World,
+   * the city/country cell everywhere else.
+   *
+   * Shared by both walks below on purpose (D170). The rows resolved the
+   * cohort cell and the lens questions took `agg.counts`, so Answers
+   * described Oslo while Compare and Scores described the world under
+   * Oslo's name. Two walks over the same archive is two chances to
+   * disagree about which crowd the stop is; this is the one answer both
+   * of them read.
+   */
+  const cellFor = (agg: AggDoc | null | undefined): Record<string, number> | undefined => {
+    if (!agg) return undefined;
+    if (scope === "world") return hasPublishedCounts(agg) ? agg.counts : undefined;
+    return agg.by?.[scope]?.[scope === "city" ? city : country];
+  };
+
   const rows: AnswerRow[] = [];
   // Questions with no answers from this cohort yet. Since D98 nothing is
   // withheld, so an absent cell means exactly zero — the counter survives
@@ -287,16 +300,14 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
   for (const q of archive) {
     const agg = LIVE.aggFor(q.id);
     if (!agg) continue;
-    let cell: Record<string, number> | undefined;
+    const cell = cellFor(agg);
     let n = 0;
     if (scope === "world") {
       // The globe is the aggregate itself.
-      if (!hasPublishedCounts(agg)) { empty++; continue; }
-      cell = agg.counts;
+      if (!cell) { empty++; continue; }
       n = agg.total || 0;
     } else {
       const dim = agg.by?.[scope];
-      cell = dim?.[scope === "city" ? city : country];
       if (dim && !cell) empty++;
       if (cell) n = Object.values(cell).reduce((a, b) => a + b, 0);
     }
@@ -348,13 +359,19 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
   // without a second source that could disagree with the card you voted on.
   const lensQs: LensQuestion[] = archive.map((q) => {
     const agg = LIVE.aggFor(q.id);
-    const counts = (q.options || []).map((_, i) => ((agg?.counts || {})[String(i)] as number) || 0);
+    const opts = q.options || [];
+    // `counts` is THIS STOP (D170) — the same cell the rows above take, so
+    // a lens can no longer name a population and read another. `all` is
+    // the globe, which only Explore wants: its buckets are cuts of
+    // everyone and its sentence ends "same as everyone".
+    const cell = cellFor(agg);
     const mine = myVotes[q.id];
     return {
       id: q.id,
       text: q.text,
-      options: (q.options || []).map((o) => o.label),
-      counts,
+      options: opts.map((o) => o.label),
+      counts: opts.map((_, i) => (cell || {})[String(i)] || 0),
+      all: opts.map((_, i) => ((agg?.counts || {})[String(i)] as number) || 0),
       by: byOf(agg),
       mine: mine == null ? -1 : Number(mine),
       type: q.type,
@@ -416,16 +433,21 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
               : <>nobody has answered {scope === "world" ? "yet" : <>in {shortName} yet</>}</>}
           </span>
         </div>
-        <div style={{ fontFamily: "var(--serif)", fontSize: 25, letterSpacing: "-0.01em", color: "var(--ink)", marginTop: 6 }}>{heading}</div>
-        <div style={{ fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 500, color: "var(--ink-3)", marginTop: 4, lineHeight: 1.5 }}>
-          {/* Was "on today's questions" when this read the seven-day
-              pager. It reads the archive now (D100), so the old line
-              would have under-claimed by however long the user has
-              been answering. */}
-          {scope === "world"
-            ? "Everyone who has answered, on every question with answers."
-            : `Everyone who picked this ${scope}, on every question they have answered.`}
-        </div>
+        {/* THE PLACE NAME AND THE EXPLANATION ARE GONE (D172).
+            The prototype's header is three things — kicker, figure, unit
+            — and that is the whole of it (`MFHeader`: "Your city · 12.6k ·
+            in Oslo"). This stop had grown two more blocks under them: the
+            place name again in 25px serif, and a sentence explaining what
+            a city cohort is.
+
+            Both were repeats. The unit above already ends "in Oslo", so
+            the serif line said the same word twice the size; and "everyone
+            who picked this city, on every question they have answered" is
+            what the kicker plus that unit already say, in a sentence the
+            reader has to get through to reach the field the stop exists
+            for. The `heading` they shared went with them; `shortName` is
+            the one the readings still need, and it is the one the unit
+            already prints. */}
       </div>
 
       {/* The constellation (D112), and the head of the stop rather than a
@@ -438,7 +460,7 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
           and the host owns the tab state, so the field cannot do it. */}
       <div role="region" aria-label={TAB_LABEL.overview}>
         <React.Suspense fallback={null}>
-          <SimilaritySection scope={scope} onGoAnswers={() => setTab("answers")} />
+          <SimilaritySection scope={scope} />
         </React.Suspense>
       </div>
 

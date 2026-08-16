@@ -194,10 +194,22 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
   const near: Dict = {
     supported: () => true,
     on: () => false,
+    // D174's three states. `session` is what enable() lands on, so a
+    // fixture that flips `on` gets the shape a real opt-in produces.
+    mode: () => "session",
+    until: () => Date.now() + 90 * 60_000,
     count: () => null,
+    // D176's room mix — null by default, which is the quiet-street case.
+    mix: () => null as { top: string[]; n: number; capped?: boolean } | null,
     tooFew: () => false,
     updatedAt: () => 0,
     lastError: () => null,
+    // D177's room. Null rather than an empty roster, which is the
+    // never-asked state — the tabs load it on a tap, so a smoke test that
+    // never opens one should see exactly this.
+    room: () => null as { people: Array<{ uid: string; type?: string }>; qs: Dict } | null,
+    roomLoading: () => false,
+    loadRoom: async () => {},
     enable: async () => ({ ok: true }),
     disable: async () => {},
     refresh: () => {},
@@ -314,6 +326,18 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     // mount renders a real name, and anything else falls back to
     // "Someone" — both branches reachable from the fixture.
     nameFor: (uid: string) => (uid === "u_fixture" ? "Tester" : ""),
+    // D177's read half of the same profile cache — the room roster has
+    // uids and nothing else, so it is the first consumer to need it.
+    scoresFor: () => null,
+    // The profile photo (D178). No face in the fixture: initials are the
+    // permanent fallback, so this is the shape every mount test should see
+    // unless it is specifically about a photo.
+    faceFor: () => "",
+    myFace: () => "",
+    setAvatar: async () => ({ ok: true }),
+    removeAvatar: async () => {},
+    flagAvatar: async () => {},
+    flaggedAvatar: () => false,
     loadNames: async () => {},
     // Kindred (D99): one overlapping person, so a live mount renders a
     // ranked row rather than only the empty state.

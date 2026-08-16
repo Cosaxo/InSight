@@ -1433,22 +1433,26 @@ export function describeSeedOptionConflicts(
 
 // ── presence cells (D84 — Near by radius) ───────────────────────────
 //
-// The server half of the ~1 km presence grid. The CLIENT computes a cell
+// The server half of the ~200 m presence grid. The CLIENT computes a cell
 // from a fix and discards the coordinate (src/v2/data/geo.ts); what
 // arrives here is only the cell id, and these two functions are the whole
 // vocabulary the server has for it: is it a legal cell, and which nine
-// cells make up "around you". The grid contract (0.01°, "la_lo" ids) is
+// cells make up "around you". The grid contract (0.002° since D175, "la_lo"
+// ids) is
 // pinned to the same vectors on both sides by the two test suites — the
 // floor.ts drift pattern, because a client and server disagreeing about
 // cell shape fails soft (empty counts) and would read as "nobody nearby".
 
-const PRESENCE_LAT_MIN = Math.floor(-90 / 0.01);   // -9000
-const PRESENCE_LAT_MAX = Math.ceil(90 / 0.01) - 1; //  8999
-const PRESENCE_LON_MIN = Math.floor(-180 / 0.01);  // -18000
-const PRESENCE_LON_SPAN = 36000;
+// 0.002° since D175 — see src/v2/data/geo.ts for why the grid could not
+// move before the location permission did.
+const PRESENCE_CELL_DEG = 0.002;
+const PRESENCE_LAT_MIN = Math.floor(-90 / PRESENCE_CELL_DEG);   // -45000
+const PRESENCE_LAT_MAX = Math.ceil(90 / PRESENCE_CELL_DEG) - 1; //  44999
+const PRESENCE_LON_MIN = Math.floor(-180 / PRESENCE_CELL_DEG);  // -90000
+const PRESENCE_LON_SPAN = 180000;
 
 export function presenceCellOk(cell: unknown): boolean {
-  if (typeof cell !== "string" || !/^-?\d{1,4}_-?\d{1,5}$/.test(cell)) return false;
+  if (typeof cell !== "string" || !/^-?\d{1,5}_-?\d{1,5}$/.test(cell)) return false;
   const [la, lo] = cell.split("_").map(Number);
   return la >= PRESENCE_LAT_MIN && la <= PRESENCE_LAT_MAX
     && lo >= PRESENCE_LON_MIN && lo < PRESENCE_LON_MIN + PRESENCE_LON_SPAN;
@@ -1478,5 +1482,226 @@ export function presenceNeighbors(cell: string): string[] {
   return out;
 }
 
-/** Presence docs older than this many minutes do not count as "here". */
-export const PRESENCE_TTL_MIN = 10;
+/**
+ * How long a position outlives the beat that wrote it — the LINGER.
+ *
+ * It is not a freshness tolerance, it is the feature. Everyone's phone is
+ * in their pocket, so presence that existed only while the app was open
+ * would show an empty room at a full party: you would open Near, and
+ * everyone else's app would be shut. Find My and Snap Map keep a
+ * last-known position for the same reason.
+ *
+ * Three hours is long enough that a venue stays populated between
+ * pocket-checks and short enough that closing the app in bed does not
+ * leave you at home all night. It is one number and is meant to be
+ * re-tuned from real use rather than defended.
+ *
+ * THE STALENESS IS SHOWN, NOT HIDDEN, and that is a safety property
+ * rather than an apology: a blurred WHEN protects as well as a blurred
+ * WHERE. The smear that keeps a party populated is the same smear that
+ * makes a trail unreadable.
+ *
+ * This is the CEILING the rules enforce on a client's `until`. What each
+ * doc actually claims is its own `until` field, which is what the count
+ * filters on — see nearbyCountV2.
+ */
+export const PRESENCE_LINGER_MIN = 180;
+
+/**
+ * The "visible for a while" option's length (D174's middle state).
+ *
+ * Shorter than the linger on purpose: the session is a promise about
+ * WHEN YOU STOP BEING VISIBLE, and `until` is what makes it exact. A
+ * client in session mode clamps every `until` it writes to the session's
+ * deadline, so closing the app ten minutes before the deadline cannot
+ * leave the position standing for a further linger.
+ */
+export const PRESENCE_SESSION_MIN = 120;
+
+/**
+ * Typed phones a neighbourhood needs before the room's mix is drawn at all
+ * (D176). Below it the callable returns `null` and the client says nothing.
+ *
+ * The FLOOR IS NOT THE WHOLE DEFENCE and would be weak alone. A composition
+ * that moves as people arrive tells you an individual's type by
+ * subtraction, and no floor this side of a stadium stops that on its own.
+ * Three things do it together:
+ *
+ *   1. this floor, so a room of three has no reading;
+ *   2. RANKED WORDS, not shares — `roomMix` returns names in order and no
+ *      percentages, so learning one person's type needs a rank to FLIP,
+ *      which one arrival rarely does;
+ *   3. no on-demand refresh — the reading rides the four-minute beat, so
+ *      an observer's sampling rate is the app's, not theirs.
+ *
+ * Matched to `data/typeMix.ts`'s TYPE_THIN, which is the same judgement
+ * about the same instrument one layer up: below eight, a type count is
+ * listed rather than ranked. Eight is a judgement, not arithmetic — it is
+ * a real gathering and one person is an eighth of it.
+ */
+export const ROOM_MIN_TYPED = 8;
+
+/**
+ * How many presence docs one fold may read, across the whole 3x3.
+ *
+ * A ranking of three names does not get more true past sixty samples, and
+ * roomMixFor's note records the probe showing the sixty are drawn evenly
+ * across the neighbourhood rather than out of one corner of it.
+ *
+ * What the cap DOES cost is the basis: past sixty, `n` is a floor on the
+ * typed crowd rather than its size, which is why `capped` exists below.
+ */
+export const ROOM_SAMPLE_CAP = 60;
+
+export interface RoomMix {
+  /** Type names, most common first, at most three. No shares, ever. */
+  top: string[];
+  /** Typed phones behind it — the mix's OWN basis, not the headline count. */
+  n: number;
+  /**
+   * The sample hit ROOM_SAMPLE_CAP, so `n` is a FLOOR on the typed crowd
+   * rather than its size — read it as "60+", and say so on screen.
+   *
+   * The same rule D102 applied to the who-voted sheet, which says "the
+   * latest 200 of N" when its cap binds: a truncation presented as the
+   * room is the honesty failure, not the truncation. Absent below the cap,
+   * where `n` is exact.
+   */
+  capped?: true;
+}
+
+/**
+ * The room's composition, from the types the phones nearby wrote for
+ * themselves.
+ *
+ * Ranked NAMES and a basis, and deliberately nothing else. A share would
+ * be the whole differencing attack handed over — "62% Hosts" moves
+ * visibly when one person walks in, where "mostly Hosts and Explorers"
+ * does not until a rank changes.
+ *
+ * `n` is the count of phones that CARRIED a type, which is not the
+ * headline count of phones nearby: plenty of people have not taken the
+ * test. Returning the smaller number beside the reading is what stops the
+ * mix borrowing authority from a population it did not measure.
+ */
+export function roomMix(
+  types: readonly (string | undefined | null)[],
+  floor: number = ROOM_MIN_TYPED,
+  cap: number = ROOM_SAMPLE_CAP,
+): RoomMix | null {
+  const tally = new Map<string, number>();
+  for (const t of types) {
+    if (typeof t !== "string") continue;
+    const name = t.trim();
+    if (!name) continue;
+    tally.set(name, (tally.get(name) || 0) + 1);
+  }
+  let n = 0;
+  for (const c of tally.values()) n += c;
+  if (n < floor) return null;
+  const top = [...tally.entries()]
+    // Count first, then name — a stable order matters more than it looks:
+    // two types tied at the same count must not swap between beats, or the
+    // reading flickers and every flicker is a signal an observer can read.
+    .sort((a, b) => (b[1] - a[1]) || a[0].localeCompare(b[0]))
+    .slice(0, 3)
+    .map(([name]) => name);
+  // Counted on the SAMPLE, not on `n`: the cap bounds how many documents
+  // were read, and untyped ones are read too. Sixty presence docs of which
+  // nine carried a type is a capped sample with n=9 — the ranking is drawn
+  // from a slice either way, so it is the slice that has to be declared.
+  return types.length >= cap ? { top, n, capped: true } : { top, n };
+}
+
+// ── the room, read (D177) ───────────────────────────────────────────
+//
+// D176 gave Near a composition; this gives it a POPULATION you can read
+// the way every other Mirror stop is read — who is here, how they
+// answered, where you part company with them. The difference from City or
+// World is that the cohort is not a published aggregate: it is a set of
+// phones, and `v2_presence` is unreadable, so the fold can only happen
+// server-side and every number below crosses a wire the client cannot
+// recompute.
+
+/**
+ * How many present people one room reading is drawn from.
+ *
+ * ONE sample serves both the roster and the answer fold, deliberately.
+ * Two caps would mean People showed a set of people and Compare described
+ * a different one, and "you against this room" is only true if the two
+ * words mean the same crowd.
+ *
+ * Smaller than ROOM_SAMPLE_CAP because the reads are not comparable: the
+ * mix reads one presence doc per person (a ranking wants samples and they
+ * are cheap), while this reads every sampled person's ANSWER to every
+ * question in view. 24 is a room you could look around, and it bounds the
+ * fold at 24 x ROOM_QUESTION_CAP documents.
+ */
+export const ROOM_PEOPLE_CAP = 24;
+
+/**
+ * How many questions one call may ask the room about.
+ *
+ * The client sends the day's deck, which is the same list for everybody
+ * (computeDeckIds is a pure function of the day), so the per-cell cache
+ * is shared rather than per-viewer. The cap is what stops a modified
+ * client asking for five hundred.
+ */
+export const ROOM_QUESTION_CAP = 8;
+
+/** A qid → {optionIdx → count} map, the shape v2_question_aggs uses. */
+export type RoomCounts = Record<string, Record<string, number>>;
+
+/**
+ * Tally one question's picks into the aggregate shape.
+ *
+ * The same `{ "0": 3, "2": 1 }` map the published aggregates carry, and
+ * that is not a coincidence — the client already turns exactly this into
+ * an option array (`opts.map((_, i) => cell[String(i)] || 0)`), so the
+ * room's counts arrive in a shape four surfaces already read. Returning
+ * an ARRAY would have meant agreeing with the client about how many
+ * options a question has, over a wire, with a length nobody validates.
+ *
+ * NO FLOOR HERE, and that is a decision rather than an omission — see the
+ * decision record. A floor on an answer split protects the answer, and
+ * answers have been public since D98: the room's roster is disclosed by
+ * the People tab anyway, so hiding a 2-person split would conceal nothing
+ * that a reader could not get by tapping a name. What a small split needs
+ * is its `n` shown beside it, which is the post-D98 rule everywhere else.
+ */
+export function tallyPicks(picks: readonly (number | null | undefined)[]): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const p of picks) {
+    // Integers only, and non-negative: an optionIdx is an index. A float
+    // or a -1 (the client's "unanswered") would key a bucket the option
+    // list has no slot for, and the client's `cell[String(i)]` walk would
+    // simply never look at it — a count that exists, is wrong, and is
+    // invisible.
+    if (typeof p !== "number" || !Number.isInteger(p) || p < 0 || p > 99) continue;
+    const k = String(p);
+    out[k] = (out[k] || 0) + 1;
+  }
+  return out;
+}
+
+/**
+ * The qids a room call may fold, cleaned of everything it must not.
+ *
+ * Client-supplied, so this is the door: shape-checked, de-duplicated (a
+ * repeated qid would fold twice and pay twice for one answer) and capped.
+ * Firestore document ids may not contain "/" and may not be "." or "..";
+ * a bad one here would be a path injection into a getAll, so it is
+ * refused rather than escaped.
+ */
+export function roomQids(raw: unknown, cap: number = ROOM_QUESTION_CAP): string[] {
+  if (!Array.isArray(raw)) return [];
+  const seen = new Set<string>();
+  for (const q of raw) {
+    if (typeof q !== "string") continue;
+    const id = q.trim();
+    if (!id || id.length > 120 || id.includes("/") || id === "." || id === "..") continue;
+    seen.add(id);
+    if (seen.size >= cap) break;
+  }
+  return [...seen];
+}

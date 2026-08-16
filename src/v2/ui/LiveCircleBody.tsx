@@ -21,6 +21,8 @@
 // would let a circle of one reflect your own answer back as consensus.
 import React from "react";
 import LIVE from "../data/live";
+// The rings-and-you drawing every other stop shows when it is empty (D172).
+import EmptyField from "./EmptyField";
 import { circleSplit } from "../data/circle";
 import { divisiveness, pctFor } from "../data/cohort";
 
@@ -72,12 +74,20 @@ function LiveCircleBody() {
     );
   }
   if (!members.length) {
+    // The FIELD, not a paragraph (D172). Every other stop draws its rings
+    // when it has nobody to place; Circle answered with a card of prose,
+    // and it is one of the two stops a new account meets first. The
+    // sentence still says how the field fills — it just no longer stands
+    // where the drawing goes.
+    //
+    // No caption: the stop's own kicker one line up already reads "Your
+    // circle", and a chip repeating it is the duplication this pass is
+    // removing everywhere else.
     return (
-      <ClNote title="You follow nobody yet">
+      <EmptyField>
         Follow someone from a question&rsquo;s who-voted sheet, or from the
-        People lens on Near or World, and their answers show up here
-        alongside yours.
-      </ClNote>
+        People lens on Near or World, and they appear here.
+      </EmptyField>
     );
   }
 

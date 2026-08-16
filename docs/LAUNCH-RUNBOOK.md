@@ -492,7 +492,7 @@ arithmetic.
       "someone came back") is not the mechanism: **the record and the
       number are two separate edits, and only one of them has a habit.** A
       session can discharge the whole felt obligation and still leave the
-      number that costs ~150 minutes of macOS quota. D170.
+      number that costs ~150 minutes of macOS quota. D180.
 
       **BUILD 16 WAS UPLOADED BY RUN 22** (`67af354`, 2026-08-15 11:07Z,
       5m 25s, upload step `success`, 1m 23s of it transfer). Both APNs
@@ -673,7 +673,7 @@ arithmetic.
       surfaces — so the archive has less new surface than the last run that
       succeeded, and the store filing does not move.
 
-      **Build 18 pre-flighted 2026-08-16 (D170) — and this one bumped.**
+      **Build 18 pre-flighted 2026-08-16 (D180) — and this one bumped.**
       Run 24's upload step reads `success` and `appBuild` at `9a5f803` was
       17, so build 17 is spent and the tree's 17 was NOT ahead. `appBuild`
       17 → 18 by hand, propagated by `--fix` to `versionCode` and both
@@ -681,17 +681,26 @@ arithmetic.
       answered *run as-is*; this one does not, and the paragraph above
       about run 24 has why.
 
-      Measured, not asserted: 1175 client, 214 function, 183 script and 90
-      rules tests, all three e2e suites, `lint`, `tsc -b`,
-      `check:globals` at **409** (its baseline, unmoved — build 18 added no
-      coupling), and 26 check gates. The same three are environmental as at
-      D158, and `check:web-firebase` has a wrinkle worth knowing: it reads
-      `VITE_FIREBASE_*` from the **environment** as well as from `dist/`,
-      so it must run inside the same env block as the build — which is how
-      the workflow invokes it, and is not obvious from the name. Verified
-      against an injected config: 72 chunks carrying a fake project id.
+      **It was pre-flighted twice, because #199 landed underneath it** —
+      D170–D179, which also took this entry's original number. Every figure
+      here is the re-measurement against the merged tree. That is worth
+      naming as a shape rather than an accident: a pre-flight measures a
+      tree, `main` has automated and human writers, and the answer is
+      re-measurement rather than a faster hand. D159 made the same point
+      about the *commit* a dispatch archives.
 
-      **6.1's own `cap sync` found a drift that has been in the tree since
+      Measured, not asserted: **1218 client, 228 function, 183 script and
+      106 rules tests**, all three e2e suites, `lint`, `tsc -b`,
+      `check:globals` at **409** (its baseline, unmoved — the payload added
+      no coupling), and 28 check gates. The same three are environmental as
+      at D158, and `check:web-firebase` has a wrinkle worth knowing: it
+      reads `VITE_FIREBASE_*` from the **environment** as well as from
+      `dist/`, so it must run inside the same env block as the build —
+      which is how the workflow invokes it, and is not obvious from the
+      name. Verified against an injected config: 72 chunks carrying a fake
+      project id.
+
+      **6.1's own `cap sync` found a drift that had been in the tree since
       build 15.** `ios/App/CapApp-SPM/Package.swift` pinned
       `capacitor-swift-pm` at `8.3.3` while `@capacitor/ios` has been 8.4.2
       since dependabot's `831f808`; the file had never been committed at
@@ -701,22 +710,30 @@ arithmetic.
       opening Xcode without syncing resolved a different Capacitor than the
       release did. `native-sync-drift` had been reporting it all along as a
       `::warning::` whose step exits 0, so that job being green has never
-      meant *in sync*. The synced file is committed here.
+      meant *in sync*. #199's own sync committed the identical line hours
+      later, so the fix landed twice and the merge is a no-op on that file.
 
-      **`check:bundle` is green with 1 KB left.** 2284 KB against 2285,
-      where build 16 had 7 KB and build 15 had 10 — the total's headroom
-      across three release pre-flights is 10 → 7 → 1. The eager graph is
-      fine at 964 against 978. **The next change of any size trips the
-      total**, on the release path, and raise-or-trim belongs to whoever
-      makes that change rather than to a pre-flight that changed no code.
+      **`check:bundle` is green, and the tight half is now the one that
+      cannot be raised.** 2329 KB total against a ceiling #199 moved to
+      2334, so 5 KB — but the **eager graph reads 975 against 978, 3 KB**,
+      where build 16 had 17. That constant is the one D144 and D152 each
+      refused to raise and whose own header says it cannot be. The total
+      has a raise history; the eager one has a refusal history, so the next
+      change landing in the entry graph meets a "trim, not raise" answer.
 
-      **Build 18 changes nothing under `ios/`, `android/`,
-      `capacitor.config.ts` or either `package.json` except the build
-      number and one `build:dogs` script line**, and `package-lock.json` is
-      untouched — no dependency moved. A pure JavaScript payload like build
-      16: the dogs domain's 554 breeds and first card, D166's third tab on
-      trial, D167, D168 and D169's fold-once Mirror. The store filing does
-      not move — a dog-breed answer is an answer, already declared.
+      **Build 18 is NOT the pure JavaScript payload build 16 was**, and
+      this line said it was until #199 merged. It now carries
+      `ios/App/App/Info.plist`, `android/…/AndroidManifest.xml`,
+      `storage.rules` (+58), `firestore.rules` (+196) and ~740 lines across
+      `functions/src`. `package-lock.json` is still untouched, so no
+      dependency moved — but the archive has real new native surface, and
+      the plist change alters what the OS prompts for.
+
+      **The store filing moves, for the first time since D141**, and 4.4
+      below has the detail: **PRECISE_LOCATION** (D175 — the app now
+      requests a precise fix) and **PHOTOS_OR_VIDEOS** (D178 — an optional
+      profile photo). Nine rows, not seven. **The upload does not need the
+      label updated first; the submission does.**
 
       **`npm run check:versions -- --fix` does NOT increment.** It
       propagates package.json's value into the two native projects and
@@ -968,14 +985,31 @@ That is a tester-count problem, not a workflow problem.
 - [ ] **4.4 The privacy nutrition label — the last form, and it is manual.**
       Mandatory; Apple accepts no submission without it.
 
+      **NINE ROWS SINCE D175 AND D178, AND THIS STEP SAID SEVEN UNTIL
+      BUILD 18's PRE-FLIGHT.** Precise Location and Photos or Videos are
+      now declared, and the paragraph below used to end *"Coarse Location,
+      never Precise"* — the exact claim D175 reversed. #199 changed
+      `app-privacy.json`, `STORE-FORMS.md` and the gate, and did not come
+      back for this step, so the instruction for typing the form was
+      telling you to under-declare two rows. That is the direction
+      `app-privacy.json` itself calls "the direction that gets an app
+      pulled", in the one step whose output is a legal statement. D180.
+
       **Apple's API cannot write it.** Not through another path — there is
       no App Privacy resource in the App Store Connect API at all, verified
       three ways (D73). So **Actions → App Store metadata** with *privacy*
       selected prints the form, row by row, in the order App Store Connect
-      asks, and you copy it across: 7 data types, each **App Functionality
-      / linked Yes / tracking No**, tracking overall **No**. Coarse
-      Location, never Precise. ~15 minutes, and nothing recalled from
-      memory.
+      asks, and you copy it across: **9 data types**, each **App
+      Functionality / linked Yes / tracking No**, tracking overall **No**.
+      ~15 minutes, and nothing recalled from memory — least of all from
+      this paragraph, which is why the printout is the artefact and the
+      prose is not.
+
+      **The two new rows ship in build 18, so the label and the binary move
+      together or the label is wrong.** Uploading does not need it —
+      TestFlight internal testing has no review gate — but **submission
+      (6.2) does**, and the gap between them is the window where the live
+      label describes a build that no longer exists.
 
       **Read `STORE-FORMS.md` before typing.** What you are entering is a
       legal statement about what the app collects. The printout transcribes
@@ -987,9 +1021,15 @@ That is a tester-count problem, not a workflow problem.
       The three that bite, and why each is worth knowing before you
       approve: **Tracking = No** (no IDFA, no ATT prompt, no ad SDK — the
       Facebook SDK is stripped at postinstall and asserted by
-      `check:ios-facebook`); **Coarse location = Yes, optional, never
-      Precise** (precise is unobtainable by construction, and `check:store-forms`
-      fails if it ever appears); **Sensitive info = Yes** (the politics
+      `check:ios-facebook`); **Location = Yes on BOTH rows since D175**
+      (the app asks the OS for a precise fix, so the label says Precise
+      whatever the app does with it next — the coordinate is still folded
+      to a ~220 m cell on the device and discarded; `check:store-forms`
+      now holds the row and `NSLocationDefaultAccuracyReduced` to each
+      other **in both directions**, so it fails if either moves alone
+      rather than failing whenever Precise appears); **Photos or Videos =
+      Yes since D178** (an optional profile photo, off by default, EXIF
+      dropped on the device); **Sensitive info = Yes** (the politics
       result is GDPR Art. 9 data — the form asks what you *collect*, not
       what you publish).
 

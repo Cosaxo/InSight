@@ -506,7 +506,50 @@ if (!DEMO && process.env.VITE_V2_LIVE !== "true") {
 // which is the trade the previous entry describes, run deliberately this
 // time rather than under a failing gate.
 const MAX_CHUNK_KB = 735;
-const MAX_TOTAL_JS_KB = 2285;
+// 2285 → 2292 (2026-08-16): D177's room tabs — Near's Answers · People ·
+// Compare, its shape functions and the store's room loader. Measured with
+// a DSN, so these are the numbers CI reads: total 2283 → 2289, eager
+// 966 → 969.
+//
+// The deferral was tried FIRST and it worked, which is why only the total
+// moved: the three bodies are React.lazy behind their own chunk (77 chunks,
+// up from 74), so the entry paid 3 KB for the tab row alone and the fold
+// arrives on the tap that asks for it. That is the split doing exactly what
+// the 2026-08-13 entries record it cannot do for the TOTAL — every chunk is
+// counted, so splitting relocates bytes and only deleting code moves this
+// number. The 6 KB is real product.
+//
+// The pattern the entry above says to watch is worth re-reading here: this
+// is the fifth raise, and MAX_EAGER_KB is still the ceiling that defends
+// anything (9 KB left after this one, and it did not have to move). If a
+// sixth lands soon the question is whether the total wants a wider band
+// rather than whether the app should be smaller.
+// 2292 → 2334 (2026-08-16): D178's profile photo. Measured with a DSN:
+// total 2289 → 2328 (+39), eager 969 → 974 (+5), 78 chunks up from 77.
+//
+// THE 39 KB IS ALMOST ALL `firebase/storage`, and that is the reason this
+// raise is a different animal from the five before it — those were product
+// code and this is a vendor SDK. It sits behind a dynamic import reached
+// only by the upload path (`data/live.ts` setAvatar/removeAvatar), which
+// is why the EAGER graph moved 5 KB rather than 38: drawing a face needs
+// no SDK at all, only an `<img>` and a URL, so an account that never sets
+// a photo never loads a byte of it. The +5 is the Avatar component, the
+// profile control and `data/avatar.ts`.
+//
+// The entry above asked whether a sixth raise means the total wants a
+// wider band rather than a higher ceiling. Answering it here rather than
+// deferring again: the total is a DRIFT ALARM, and this is exactly the
+// drift it should fire on — a whole SDK arriving is worth a human look,
+// which is what it got. What it should NOT do is fire on the lazy-loading
+// that made the eager cost 5 KB instead of 38, and it does not, because it
+// counts every chunk by design. So the band stays as it is and the ceiling
+// moves; the constant below is the one doing real work.
+//
+// MAX_EAGER_KB now has 4 KB of headroom (974 against 978). That is the
+// number to watch — it is the one defending first paint, and the next
+// thing added to the entry graph will very likely need a dynamic import
+// rather than a raise.
+const MAX_TOTAL_JS_KB = 2334;
 // 955 → 966 (2026-08-14): D139's pulse card — the second fixed instrument
 // on the FIRST screen, so its card, its store's demo furniture and the
 // two LIVE members are legitimately eager (~10 KB min). What is not

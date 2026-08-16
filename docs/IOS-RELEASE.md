@@ -360,7 +360,7 @@ nothing, but the general case does not: **read `appBuild` at the run's own
 reading that sha as the release commit; run 22's is a Routine's.
 
 **Runs 23 and 24 delivered build 17 as a dry run and an upload, and the
-bump after them was skipped** (D170, caught 2026-08-16). Both archived
+bump after them was skipped** (D180, caught 2026-08-16). Both archived
 `9a5f803` eight minutes apart — run 23's upload step `skipped`, run 24's
 `success` (18:37:44Z → 18:39:39Z, 1m 55s of transfer). That is the second
 pair shaped like runs 15 and 16, and the reason this file says to read the

@@ -8,6 +8,14 @@ import {
   limit, getDocs, doc, getDoc, setDoc, updateDoc, serverTimestamp,
 } from "firebase/firestore";
 import { getFunctions, connectFunctionsEmulator, httpsCallable } from "firebase/functions";
+// The ADMIN handle, and the only thing it is used for: reading back a
+// v2_presence document (D179's backfill assertion). That collection is
+// `allow read: if false` to every client — deliberately, it is one of the
+// three surviving denies — so a client handle cannot check whether the
+// server repaired a legacy row, and asserting through the deny would mean
+// weakening it for a test.
+import { initializeApp as adminInit } from "firebase-admin/app";
+import { getFirestore as adminFirestore } from "firebase-admin/firestore";
 
 // The named database (D165). The backend writes to FIRESTORE_DB_ID, so a
 // harness on `(default)` reads an empty database and reports a phantom
@@ -20,6 +28,8 @@ const app = initializeApp({ projectId: "demo-insight", apiKey: "demo", appId: "d
 const auth = getAuth(app); connectAuthEmulator(auth, "http://127.0.0.1:9099", { disableWarnings: true });
 const db = getFirestore(app, E2E_DB_ID); connectFirestoreEmulator(db, "127.0.0.1", 8080);
 const fns = getFunctions(app, "us-central1"); connectFunctionsEmulator(fns, "127.0.0.1", 5001);
+adminInit({ projectId: "demo-insight" });
+const adminDb = adminFirestore(E2E_DB_ID);
 
 const fail = (msg) => { console.error("✗ " + msg); process.exit(1); };
 const ok = (msg) => console.log("✓ " + msg);
@@ -571,32 +581,145 @@ if (labove.counts["0"] !== 3 || labove.counts["1"] !== 1 || labove.counts["2"] !
 ok("learn crowd stat: 5 first attempts, exact through per-answer publishes, 3/5 right");
 
 
-// 10 · Near presence (D84): the write path through the rules, the count
-// through the real callable, and the exclusion of self.
+// 10 · Near presence (D84 / D174 / D176 / D177): the write path through
+// the rules, the count and the ROOM through the real callables, and the
+// gate that says you may only ask about a room you are standing in.
+//
+// `until` IS REQUIRED SINCE D174 and this block did not carry it, which
+// is how the e2e went red without anyone seeing: the unit, rules and
+// functions suites all pass without a functions emulator, and this is the
+// only suite that exercises a client write against the deployed rules AND
+// a callable behind them. Found by running it, two commits late.
 {
   const meCell = "5999_1074";
-  await setDoc(doc(db, "v2_presence", uid), { cell: meCell, at: serverTimestamp() });
-  ok("presence: own cell written through the rules");
+  const soon = () => new Date(Date.now() + 60 * 60_000);
+  // `until` is when the position stops counting (D174) and the rules cap
+  // it at PRESENCE_LINGER_MIN; `type` is the archetype the phone writes
+  // for itself (D176), which is the only thing the room's mix folds from.
+  await setDoc(doc(db, "v2_presence", uid), {
+    cell: meCell, at: serverTimestamp(), until: soon(), type: "Host",
+  });
+  ok("presence: own cell written through the rules, with an until and a type");
   // A neighbor one cell east; a third phone far away that must not count.
   const nApp = initializeApp({ projectId: "demo-insight", apiKey: "demo", appId: "demo" }, "near1");
   const nAuth = getAuth(nApp); connectAuthEmulator(nAuth, "http://127.0.0.1:9099", { disableWarnings: true });
   const nDb = getFirestore(nApp, E2E_DB_ID); connectFirestoreEmulator(nDb, "127.0.0.1", 8080);
   const nu = await signInAnonymously(nAuth);
-  await setDoc(doc(nDb, "v2_presence", nu.user.uid), { cell: "5999_1075", at: serverTimestamp() });
+  await setDoc(doc(nDb, "v2_presence", nu.user.uid), {
+    cell: "5999_1075", at: serverTimestamp(), until: soon(), type: "Explorer",
+  });
   const fApp = initializeApp({ projectId: "demo-insight", apiKey: "demo", appId: "demo" }, "near2");
   const fAuth = getAuth(fApp); connectAuthEmulator(fAuth, "http://127.0.0.1:9099", { disableWarnings: true });
   const fDb = getFirestore(fApp, E2E_DB_ID); connectFirestoreEmulator(fDb, "127.0.0.1", 8080);
   const fu = await signInAnonymously(fAuth);
-  await setDoc(doc(fDb, "v2_presence", fu.user.uid), { cell: "5980_1074", at: serverTimestamp() });
+  await setDoc(doc(fDb, "v2_presence", fu.user.uid), {
+    cell: "5980_1074", at: serverTimestamp(), until: soon(),
+  });
   // Back to the primary user for the count. The callable excludes the
   // caller's own doc, so the answer is the one neighbor — not 2, not 3.
   const near = await httpsCallable(fns, "nearbyCountV2")({ cell: meCell });
   if (near.data.n !== 1) fail("nearby count wrong: " + JSON.stringify(near.data));
   ok("nearbyCountV2: one fresh neighbor counted, self excluded, far phone ignored");
+  // The mix refuses under ROOM_MIN_TYPED (8) rather than drawing a room of
+  // two — a composition that moves as one person arrives tells you an
+  // individual's type by subtraction.
+  if (near.data.mix != null) fail("room mix drawn under the floor: " + JSON.stringify(near.data.mix));
+  ok("nearbyCountV2: the mix stays silent below ROOM_MIN_TYPED");
+
+  // THE ROOM (D177). The roster is the largest thing presence has ever
+  // been asked to give up, so what this proves is the pair: the neighbor
+  // is disclosed, and the caller is not in their own room.
+  const room = await httpsCallable(fns, "nearbyRoomV2")({ cell: meCell, qids: [q0.id] });
+  const uids = (room.data.people || []).map((p) => p.uid);
+  if (uids.length !== 1 || uids[0] !== nu.user.uid) {
+    fail("room roster wrong: " + JSON.stringify(room.data.people));
+  }
+  if (uids.includes(uid)) fail("the caller is in their own room");
+  ok("nearbyRoomV2: the neighbor is in the room, the caller is not");
+  if (!room.data.qs || typeof room.data.qs !== "object" || !(q0.id in room.data.qs)) {
+    fail("room answers missing the question asked for: " + JSON.stringify(room.data.qs));
+  }
+  ok("nearbyRoomV2: the question asked about came back folded");
+
+  // THE GATE, which is what makes the roster defensible at all (D177). A
+  // caller may only ask about a neighbourhood their OWN live position is
+  // in — otherwise a modified client walks the grid and the room becomes
+  // a people-finder, which is precisely what v2_presence's read deny
+  // exists to prevent, arriving through a callable instead of a query.
+  const expectRefused = async (label, app, name, data) => {
+    const f = getFunctions(app, "us-central1");
+    connectFunctionsEmulator(f, "127.0.0.1", 5001);
+    try {
+      await httpsCallable(f, name)(data);
+    } catch (e) {
+      if (e?.code === "functions/failed-precondition") return ok(label);
+      return fail(`${label} — expected failed-precondition, got ${e?.code || e}`);
+    }
+    fail(`${label} — the call was ALLOWED`);
+  };
+  await expectRefused("the far phone cannot read a room it is not in (count)", fApp,
+    "nearbyCountV2", { cell: meCell });
+  await expectRefused("the far phone cannot read a room it is not in (roster)", fApp,
+    "nearbyRoomV2", { cell: meCell, qids: [] });
+  // And a phone with no position at all is not in any room. Deliberately
+  // a THIRD account rather than a deleted doc: "never opted in" is the
+  // default state, and it is the one an attacker would be in.
+  const gApp = initializeApp({ projectId: "demo-insight", apiKey: "demo", appId: "demo" }, "near3");
+  const gAuth = getAuth(gApp); connectAuthEmulator(gAuth, "http://127.0.0.1:9099", { disableWarnings: true });
+  await signInAnonymously(gAuth);
+  await expectRefused("a phone with no presence at all is in no room", gApp,
+    "nearbyRoomV2", { cell: meCell, qids: [] });
+
+  // THE DEPLOY-ORDER WINDOW, END TO END (D179). This is the leg that says
+  // an install predating D174 still works across the merge: rules deploy on
+  // push to main, the app ships through a store review, and in between the
+  // newest build in the wild writes `{cell, at}` and nothing else.
+  //
+  // Driven through a FOURTH account so the primary user's own compliant
+  // document is not disturbed, and asserted three ways: the legacy write is
+  // accepted, the caller is still admitted by the gate, and the server has
+  // BACKFILLED the field so the window closes itself rather than leaving
+  // that phone uncounted by everyone else.
+  {
+    const lApp = initializeApp({ projectId: "demo-insight", apiKey: "demo", appId: "demo" }, "near4");
+    const lAuth = getAuth(lApp); connectAuthEmulator(lAuth, "http://127.0.0.1:9099", { disableWarnings: true });
+    const lDb = getFirestore(lApp, E2E_DB_ID); connectFirestoreEmulator(lDb, "127.0.0.1", 8080);
+    const lu = await signInAnonymously(lAuth);
+    await setDoc(doc(lDb, "v2_presence", lu.user.uid), {
+      cell: meCell, at: serverTimestamp(),
+    });
+    ok("legacy presence write (no `until`) still accepted by the rules");
+    const lFns = getFunctions(lApp, "us-central1");
+    connectFunctionsEmulator(lFns, "127.0.0.1", 5001);
+    const legacy = await httpsCallable(lFns, "nearbyCountV2")({ cell: meCell });
+    if (typeof legacy.data.n !== "number") {
+      fail("a legacy phone was refused its own count: " + JSON.stringify(legacy.data));
+    }
+    ok("nearbyCountV2 admits a phone whose position predates the `until` field");
+    // The self-repair. Without it the count filters `until > now`, which
+    // skips a document missing the field entirely — so the phone would be
+    // admitted and then be invisible to everybody else.
+    const back = await adminDb.doc(`v2_presence/${lu.user.uid}`).get();
+    if (!back.get("until")) fail("the legacy presence doc was not backfilled with an `until`");
+    ok("…and backfills its `until`, so the compatibility window closes itself");
+  }
+
   await expectDenied("foreign presence write refused", () =>
-    setDoc(doc(db, "v2_presence", nu.user.uid), { cell: meCell, at: serverTimestamp() }));
+    setDoc(doc(db, "v2_presence", nu.user.uid), {
+      cell: meCell, at: serverTimestamp(), until: soon(),
+    }));
   await expectDenied("raw-coordinate cell refused by the grid regex", () =>
-    setDoc(doc(db, "v2_presence", uid), { cell: "59.913_10.752", at: serverTimestamp() }));
+    setDoc(doc(db, "v2_presence", uid), {
+      cell: "59.913_10.752", at: serverTimestamp(), until: soon(),
+    }));
+  // The `until` cap (D174): a client cannot grant itself a longer stay
+  // than PRESENCE_LINGER_MIN, which is the write-side half of the read
+  // deny — an uncapped position stands in the room forever.
+  await expectDenied("an until past the linger refused", () =>
+    setDoc(doc(db, "v2_presence", uid), {
+      cell: meCell, at: serverTimestamp(),
+      until: new Date(Date.now() + 4 * 60 * 60_000),
+    }));
 }
 
 // 10b · The daily pulse (D139): a day-keyed answer through the rules, the

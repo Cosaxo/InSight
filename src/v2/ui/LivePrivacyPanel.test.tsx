@@ -23,6 +23,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 
 const LIVE = vi.hoisted(() => ({
+  // D178: every named surface draws a face now, so a LIVE stand-in
+  // that lacks this crashes the row rather than falling back to
+  // initials. "" is the no-photo shape, which is most accounts.
+  faceFor: () => "",
+  myFace: () => "",
+  setAvatar: async () => ({ ok: true }),
+  removeAvatar: async () => {},
+  flagAvatar: async () => {},
+  flaggedAvatar: () => false,
   enabled: true,
   uid: "u_me",
   displayName: "Tester",
@@ -197,5 +206,45 @@ describe("LivePrivacyPanel · the type cut's disclosure", () => {
     // They are pinned in two places on purpose — the code one is a
     // constant a refactor could widen without touching any copy.
     expect(typeBullet()).toMatch(/politics, values and social results are never used/i);
+  });
+});
+
+
+describe("LivePrivacyPanel · the list collapsed, the promises did not (D172)", () => {
+  it("keeps the public-answers sentence open and everything else one tap away", () => {
+    render(<LivePrivacyPanel />);
+    // Open on arrival, because a user learning this from a stranger
+    // quoting their vote is what the panel exists to prevent (CLAUDE.md).
+    // getAllBy: the open sentence and the first bullet inside the details
+    // both say it, which is deliberate — the summary line is the one that
+    // must not need a tap, and the bullet is the full version.
+    expect(screen.getAllByText(/Your answers are public/i).length).toBeGreaterThan(0);
+    const openLine = [...document.querySelectorAll("div")].find(
+      (el) => /Your answers are public/i.test(el.textContent || "") && !el.closest("details"),
+    );
+    expect(openLine, "the public-answers line moved inside the disclosure").toBeTruthy();
+
+    // The rest is behind a real disclosure widget, and `details` renders
+    // its children into the DOM whether open or shut — so this asserts
+    // REACHABILITY, which is what the stores and D9/D84/D98/D146 need,
+    // not visibility.
+    const d = document.querySelector("details");
+    if (!d) throw new Error("the disclosure widget is gone");
+    expect(d.querySelectorAll("li").length,
+      "bullets were deleted rather than collapsed").toBe(10);
+
+    // The four that exist because a specific decision made them true. If
+    // one of these ever disappears it should be because its decision was
+    // reversed, not because a layout pass thinned the list.
+    const text = d.textContent || "";
+    expect(text, "D9's location promise").toMatch(/never your coordinates/i);
+    // Tracks the grid: "kilometre-sized" until D175 moved it to 0.002°
+    // (~200 m) in the same commit that made the fix precise. This guard
+    // is the reason the copy could not quietly fall behind the constant.
+    expect(text, "D84's presence promise").toMatch(/200-metre grid square/i);
+    expect(text, "D174's linger, which the copy missed for one commit")
+      .toMatch(/three hours after you close the app/i);
+    expect(text, "D146's type cut").toMatch(/grouped by your Big Five type/i);
+    expect(text, "the exact-counts promise").toMatch(/counts\s+are exact/i);
   });
 });
