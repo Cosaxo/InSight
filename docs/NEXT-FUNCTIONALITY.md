@@ -698,130 +698,169 @@ ratchet).
   re-committing (D39), and none of the numbers above should be trusted
   over the source named beside it.
 
-## 10 · The room — "what kind of people are around me right now"
+## 10 · Near becomes the room — the settled design
 
-**Requested 2026-08-15**, as the answer to why Near should be more than a
-counter: *"when you are at a party or some sort of social event you can
-see what type of persons are around you."*
+**Status: design settled with the owner 2026-08-15, NOT built.** It began
+as *"when you are at a party or some sort of social event you can see what
+type of persons are around you"* and was worked out over a long exchange;
+what follows is where it landed, including the two places the owner
+corrected me. It graduates to a `DECISIONS.md` record when the first slice
+ships.
 
-**Verdict: build — and it needs no change to the presence deny.** That is
-the finding that reframes the whole thing. The earlier version of this
-request read as "who is near me", which `v2_presence`'s `allow read: if
-false` refuses for physical safety (D84/D98). **"What KIND of people" is
-an aggregate**, and an aggregate is what the presence path already returns
-— `nearbyCountV2` gives back a number today, and a number is a
-one-dimensional distribution. This asks for a slightly richer one.
+### What it is
 
-Nothing about (uid → cell) becomes readable. The server keeps doing the
-join; the client keeps receiving only a summary.
+At a venue you open Near and see the people around you — placed by how
+like you they are — with the ones you match drawn closest. Tap one and the
+card says who they are: face, age, gender, their type, their answers.
+Underneath, the same three readings every other stop carries: **Answers ·
+People · Compare**, over the room.
 
-### The shape
+### The rule everything else hangs off
 
-`nearbyCountV2` also returns a coarse **type mix** for the caller's
-neighbourhood: the presence uids the server already resolves, joined to
-`v2_users/{uid}.testResults`, which is world-readable since D98 and is the
-same source the Mirror's People lens folds (`data/typeMix.ts`). The client
-draws it as the room's composition — *"mostly Hosts and Explorers"* — and
-never as a list.
+**Distance from the centre is UNLIKENESS, never position.** Same grammar as
+City, Country and World. A dot near the middle means *this person answers
+like you*, never *this person is standing near you*.
 
-### The geometry is similarity, never position — and that is the rule
+This already holds and is now enforced: `NearField` builds `kind="anon"`
+nodes placed by `match`, and three cases in `ui/NearLiveBody.test.tsx`
+fail if a label, a coordinate or a non-anon kind ever reaches it. The
+tempting "improvement" here is exactly backwards — the app knows a grid
+cell, so drawing people where they actually are would look like a feature
+and would be the leak.
 
-The owner's clarification, and it is the load-bearing sentence of this
-whole section: *"the map is not about position but how similar they are to
-you — same as on city or world or country."*
+### What the card may carry — the owner was right and I was wrong
 
-**That is already how Near draws.** `NearField` builds `kind="anon"` nodes
-with `label: ""` (the code comment says why: an id that carried a name
-would be one refactor from rendering it), places them by match, and
-captions itself *"closer to you = more alike · Nobody is named here."*
-Radius is unlikeness. Nothing in the field is geographic, and the
-temptation to "improve" it by placing nodes where people actually are is
-the one change that would turn this feature into the leak the presence
-deny exists to prevent. **Write that down rather than trusting it:** the
-canvas takes a match, never a coordinate.
+Face, age, gender, the four test results, answers. **None of it is
+sensitive and none of it is new**: all of it publishes under D98 already,
+and a face is the least secret thing about someone standing in a room.
 
-**The owner is also right about the payload, and this narrows the problem
-below considerably.** What a node would carry — a test result, an age
-band, answers — is *already world-readable* under D98. None of it is
-sensitive on its own and none of it is new. The only genuinely new fact
-this feature creates is **set membership**: that some person is in this
-neighbourhood right now.
+My earlier objection — that attributes are a join key that turns a node
+into "where this named person is" — **does not survive the rest of this
+design.** It assumed a 3 km radius and one-way visibility. With a venue
+radius and mutual visibility, the people who can see you are people you
+can see, in a place you both chose to be. That is a room, not
+surveillance.
 
-Which is exactly why the node stays attribute-free. Attributes are not the
-risk; attributes are the JOIN KEY. "Analyst, 29, ceramicist" plus a public
-answer history is enough to find a named account, and then you have
-learned where a named person is standing. A node carrying only a radius
-gives an attacker nothing to join on, so the membership fact stays
-membership and never becomes a location.
+**Images are a real subsystem, not a field.** The app holds no photos at
+all today (avatars are initials and a hue), so this needs Storage rules,
+an upload path, and image moderation — which carries legal obligations and
+is the reason it is LAST in the build order. Initials stay the fallback
+for anyone without a picture, permanently.
 
-### One problem left, and it is not fatal
+### Distance and recency are BANDS, not numbers
 
-**The differencing attack on the room's MIX.** The field is safe by the
-rule above; the aggregate is where care is still owed. A composition that
-updates as people arrive and leave can tell you an individual's type —
-watch the mix, watch one person walk in, subtract. At party sizes that is
-not theoretical: at n=8 one arrival moves a share by 12 points.
-Mitigations, and they have to be taken together:
+The owner floated a 20 m–1000 m slider. The prototype already answers this
+and the prototype is right: v28 uses verbal bands — *"a few streets away"*,
+*"in the neighbourhood"*. Two reasons to keep it that way:
 
-- a **floor** on the mix (not on the count, which stays exact — D98 left
-  no floor on answers and this is not answers, it is presence, the one
-  place the app has always treated differently);
-- **coarse output**: the top two or three types as words, never a full
-  per-type histogram and never exact shares;
-- **no on-demand refresh** — it rides the existing 4-minute beat, so the
-  attacker's sampling rate is the app's, not theirs.
+1. **A metre figure is a promise the sensor cannot keep.** Phone GPS is
+   ±10–50 m outdoors and much worse indoors, and at a party you are
+   indoors. A slider reading "20 m" would be inventing precision, which
+   is the one thing this app does not do.
+2. A radius control is a **filter**, not a privacy setting — the server
+   holds your cell whatever the slider says. Putting it next to privacy
+   copy would imply otherwise.
 
-The honest framing for the record: this reduces the attack to "you can
-learn the rough composition of a room you are standing in", which is
-something you can also do by looking around. That is the bar it has to
-clear, and it is the bar the mitigations above are chosen against.
+Bands to draw, tightest first: **same room · same block · a few streets
+away.** Recency gets bands too — **"here now" · "here in the last hour"** —
+and that second one is doing real work, see the linger below.
 
-### The cost, which re-imports exactly what was rewritten out
+### Visibility: off · 2 hours · always
 
-**`nearbyCountV2` was changed FROM a document read TO a count for this
-reason.** `nearbyCountV2`'s own comment is explicit: it used to `.get()`
-the neighbourhood and was changed to a `count()` aggregation because a
-dense cell charged (people nearby) × (beats), *"quadratic in exactly the
-situation the feature is for. A festival is the worst case and the one it
-is built to serve."* A type mix needs the documents, not a count, so the
-naive version puts that back — and puts it back at the party this feature
-exists for.
+The owner's three-state control, and the shape that makes the always
+option safe enough to offer honestly rather than grudgingly:
 
-**The fix is a per-cell cache, and it makes the cost better than linear.**
-Everyone in one cell wants the same answer, so compute it once per cell
-per beat window and store it in a `v2_presence_mix/{cell}` doc
-(server-written, `allow read: if false` like presence itself — the
-callable serves it). The first caller in a cell pays the fold; every other
-caller in that window pays one read. At a festival that is the difference
-between (people)² and (people).
+| State | What it means |
+| --- | --- |
+| **Off** (default) | No presence doc. Turning off **deletes it immediately** — that promise may never be on a timer. |
+| **On, 2 hours** | Default when first enabled. The beat stops at the deadline. |
+| **On, always** | No deadline on the SETTING. Not "my position never expires" — see the linger. |
 
-Costs to measure into `docs/COSTS.md` before it ships, not after:
-the fold's read count at a capped sample size, the cache doc's write rate
-(one per cell per window), and what a 500-person venue actually does to
-both.
+Two properties hold in every state:
 
-### What it is not
+- **Mutual.** You are in other people's field only while they are in
+  yours. The prototype already says it: *"nobody nearby sees you, and the
+  field comes back empty for you too."*
+- **Foreground only.** Presence is written while the app is open. Today
+  this is true by accident — the interval has no `document.hidden` guard
+  and the platform's background throttling is what saves it. **Make it
+  explicit**, because it is what lets "always" mean "whenever the app is
+  open", which is a small enough claim to stand behind.
 
-- **Not a directory.** No names, no avatars, no per-person rows, no taps,
-  and no per-node attributes — see the geometry rule above: a node is a
-  radius. If the reading ever becomes something you can open, or a node
-  ever carries a trade and an age, it has stopped being this feature and
-  has become a join key.
-- **Not a map of where anyone is.** Distance is unlikeness, at every stop
-  including this one.
-- **Not a Mirror stop's cohort.** D169's rule holds: a lens names the
-  population it reads. This is its own reading with its own population
-  (phones in this neighbourhood right now), and it must not be labelled or
-  folded as though it were the city's.
-- **Not on by default.** It rides the Near toggle, which is off until
-  asked, and the disclosure gains a line: the app can tell you the room's
-  rough make-up, which means your own type is part of someone else's
-  reading while you are there.
+### The linger, which is what makes it work at all
 
-### Answers/People/Compare on Near
+**Your position must outlive the app being open.** Everyone's phone is in
+their pocket; if presence existed only while the app was foreground, you
+would open Near at a party and see an empty room, because everyone else's
+app is shut. The feature would be dead on arrival. Find My and Snap Map
+keep a last-known position for exactly this reason.
 
-The tabs the owner asked for follow from this and change meaning with it.
-**Answers and Compare should read the ROOM** — how this neighbourhood
-answered, against you — which is the same callable extended the same way,
-and the same floor. **People should stay refused**: a people lens is a
-directory, which is the one thing this must not become.
+The machinery exists: `PRESENCE_TTL_MIN` (10 today) is the server's
+freshness window, so the linger is **one constant**.
+
+**Set it to about 3 hours**, per the owner's "slightly longer" — long
+enough that a venue stays populated between pocket-checks, short enough
+that closing the app in bed does not leave you at home all night. It is
+one number and should be re-tuned from real use rather than defended.
+
+**"Always" does not lift the cap.** It removes the deadline on the
+setting, not the expiry on the position. Unbounded lingering is the one
+version that is genuinely bad, and nobody asked for it.
+
+**Staleness is shown, not hidden — and it is a safety property, not an
+apology.** The app knows where you *were*, so it says so. A blurred WHEN
+protects as well as a blurred WHERE: the smear that keeps a party
+populated is the same smear that makes a trail unreadable. Product need
+and safety point the same way here, which is rare enough to build
+deliberately.
+
+### The radius, and the one cost it carries
+
+Today's grid is 0.01° ≈ **1.1 km per cell**, and `presenceNeighbors`
+returns 3×3 — so "around you" is currently ~3.3 × 1.8 km. That is a
+district, and the owner is right that it is not "near". A venue radius
+needs a finer grid.
+
+**The consequence to state plainly:** a finer grid means the server holds
+a more precise location. That is acceptable — `v2_presence` is
+`allow read: if false`, no client ever reads a cell, and the only path out
+is a count or an aggregate — but it raises the stakes on that deny, and it
+changes `docs/STORE-FORMS.md`'s location answer to a precise one. Both
+belong in the shipping commit.
+
+### The room reading, and its two engineering problems
+
+The composition — *"mostly Hosts and Explorers"* — is an aggregate the
+server folds from presence uids joined to world-readable `testResults`. It
+returns a summary; no identities leave.
+
+1. **A floor on the MIX, not on the count.** A composition that moves as
+   people arrive tells you an individual's type by subtraction. At n=8 one
+   arrival shifts a share 12 points. So: a minimum before the mix draws at
+   all, coarse words rather than exact shares, and no on-demand refresh —
+   it rides the beat, so an attacker's sampling rate is the app's.
+2. **The cost re-imports what was deliberately removed.** `nearbyCountV2`
+   was changed FROM a document read TO a `count()` because a dense cell
+   charged (people) × (beats) — *"quadratic in exactly the situation the
+   feature is for. A festival is the worst case and the one it is built to
+   serve."* A mix needs documents. Fix: a per-cell cached result
+   (`v2_presence_mix/{cell}`, server-written, unreadable like presence),
+   so the first caller in a window pays the fold and everyone else pays
+   one read. Measure into `docs/COSTS.md` before shipping.
+
+### The tabs
+
+**Answers and Compare read the room** — how this crowd answered, against
+you — through the same callable and the same floor. **People is fine here
+now**, which reverses what I argued earlier: at venue scale with mutual
+visibility, a people lens is a room you are standing in, not a directory
+of strangers.
+
+### Build order
+
+1. **The three-state control, the foreground guard, the ~3 h linger.**
+   Small, self-contained, and improvements to what already ships.
+2. **The finer grid** + the `STORE-FORMS.md` re-answer.
+3. **The room aggregate** (floor first, then the cache, then the reading).
+4. **The tabs.**
+5. **Images** last — the field works with initials from day one.
