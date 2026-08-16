@@ -697,3 +697,94 @@ ratchet).
   them; hand-copied figures are the documentation error this repo keeps
   re-committing (D39), and none of the numbers above should be trusted
   over the source named beside it.
+
+## 10 · The room — "what kind of people are around me right now"
+
+**Requested 2026-08-15**, as the answer to why Near should be more than a
+counter: *"when you are at a party or some sort of social event you can
+see what type of persons are around you."*
+
+**Verdict: build — and it needs no change to the presence deny.** That is
+the finding that reframes the whole thing. The earlier version of this
+request read as "who is near me", which `v2_presence`'s `allow read: if
+false` refuses for physical safety (D84/D98). **"What KIND of people" is
+an aggregate**, and an aggregate is what the presence path already returns
+— `nearbyCountV2` gives back a number today, and a number is a
+one-dimensional distribution. This asks for a slightly richer one.
+
+Nothing about (uid → cell) becomes readable. The server keeps doing the
+join; the client keeps receiving only a summary.
+
+### The shape
+
+`nearbyCountV2` also returns a coarse **type mix** for the caller's
+neighbourhood: the presence uids the server already resolves, joined to
+`v2_users/{uid}.testResults`, which is world-readable since D98 and is the
+same source the Mirror's People lens folds (`data/typeMix.ts`). The client
+draws it as the room's composition — *"mostly Hosts and Explorers"* — and
+never as a list.
+
+### Two problems, and neither is fatal
+
+**1 · The differencing attack, which a floor alone does not fix.** A
+histogram that updates as people arrive and leave tells you an
+individual's type: watch the mix, watch one person walk in, subtract. At
+party sizes that is not theoretical — at n=8 one arrival moves a share by
+12 points. Mitigations, and they have to be taken together:
+
+- a **floor** on the mix (not on the count, which stays exact — D98 left
+  no floor on answers and this is not answers, it is presence, the one
+  place the app has always treated differently);
+- **coarse output**: the top two or three types as words, never a full
+  per-type histogram and never exact shares;
+- **no on-demand refresh** — it rides the existing 4-minute beat, so the
+  attacker's sampling rate is the app's, not theirs.
+
+The honest framing for the record: this reduces the attack to "you can
+learn the rough composition of a room you are standing in", which is
+something you can also do by looking around. That is the bar it has to
+clear, and it is the bar the mitigations above are chosen against.
+
+**2 · The cost re-imports exactly what the current function was rewritten
+to remove.** `nearbyCountV2`'s own comment is explicit: it used to `.get()`
+the neighbourhood and was changed to a `count()` aggregation because a
+dense cell charged (people nearby) × (beats), *"quadratic in exactly the
+situation the feature is for. A festival is the worst case and the one it
+is built to serve."* A type mix needs the documents, not a count, so the
+naive version puts that back — and puts it back at the party this feature
+exists for.
+
+**The fix is a per-cell cache, and it makes the cost better than linear.**
+Everyone in one cell wants the same answer, so compute it once per cell
+per beat window and store it in a `v2_presence_mix/{cell}` doc
+(server-written, `allow read: if false` like presence itself — the
+callable serves it). The first caller in a cell pays the fold; every other
+caller in that window pays one read. At a festival that is the difference
+between (people)² and (people).
+
+Costs to measure into `docs/COSTS.md` before it ships, not after:
+the fold's read count at a capped sample size, the cache doc's write rate
+(one per cell per window), and what a 500-person venue actually does to
+both.
+
+### What it is not
+
+- **Not a directory.** No names, no avatars, no per-person rows, no taps.
+  If the reading ever becomes something you can open, it has stopped being
+  this feature.
+- **Not a Mirror stop's cohort.** D169's rule holds: a lens names the
+  population it reads. This is its own reading with its own population
+  (phones in this neighbourhood right now), and it must not be labelled or
+  folded as though it were the city's.
+- **Not on by default.** It rides the Near toggle, which is off until
+  asked, and the disclosure gains a line: the app can tell you the room's
+  rough make-up, which means your own type is part of someone else's
+  reading while you are there.
+
+### Answers/People/Compare on Near
+
+The tabs the owner asked for follow from this and change meaning with it.
+**Answers and Compare should read the ROOM** — how this neighbourhood
+answered, against you — which is the same callable extended the same way,
+and the same floor. **People should stay refused**: a people lens is a
+directory, which is the one thing this must not become.
