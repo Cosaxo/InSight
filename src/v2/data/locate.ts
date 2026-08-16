@@ -160,7 +160,7 @@ export type LocateCellResult =
  * Resolve the presence-grid cell (D84), or a reason why not.
  *
  * Same containment rule as locateCity, one notch coarser: the fix is
- * folded to a ~1 km grid id inside this function and the coordinate never
+ * folded to a ~200 m grid id inside this function and the coordinate never
  * escapes. This module remains the only code that ever holds one, and no
  * caller can obtain a position — or anything finer than the cell — through
  * it. Same coarse permission, same wall-clock deadline, same failure

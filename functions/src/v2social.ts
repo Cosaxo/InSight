@@ -43,6 +43,9 @@ import {
   presenceCellOk,
   presenceNeighbors,
   PRESENCE_LINGER_MIN,
+  ROOM_SAMPLE_CAP,
+  roomMix,
+  type RoomMix,
   type DuelVoteLike,
 } from "./pure";
 
@@ -1175,5 +1178,86 @@ export const nearbyCountV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforce
     && cells.includes(own.get("cell") as string)
     && !!ownUntil && ownUntil.toMillis() > now.toMillis();
   const n = Math.max(0, total - (countsSelf ? 1 : 0));
-  return { n };
+  return { n, mix: await roomMixFor(cells, cell as string) };
 });
+
+/**
+ * The room's composition, cached per cell (D175).
+ *
+ * THE CACHE IS THE FEATURE, not an optimisation bolted on. The count above
+ * is an aggregation and costs ~1 read however crowded the cell is; a mix
+ * needs the documents themselves, which puts back exactly the linearity
+ * the count was rewritten to remove — (people nearby) × (beats), quadratic
+ * at the festival this whole feature exists to serve.
+ *
+ * Everyone standing in one cell wants the same answer, so it is computed
+ * once per cell per beat window and read by everyone else in it. The fold
+ * is capped besides, because a stadium should cost a bounded amount and a
+ * ranking does not get more true past sixty samples.
+ *
+ * The cache doc is unreadable to clients (firestore.rules) for the same
+ * reason presence is: it is derived from where phones are standing, and a
+ * readable one could be swept cell by cell.
+ */
+async function roomMixFor(cells: string[], own: string): Promise<RoomMix | null> {
+  const db = firestore();
+  const ref = db.collection("v2_presence_mix").doc(own);
+  // One beat window. The client re-asks every four minutes, so a cache
+  // that lived longer would serve a room the previous crowd left, and one
+  // that lived shorter would fold on every call and buy nothing.
+  const fresh = Date.now() - 4 * 60_000;
+  try {
+    const hit = await ref.get();
+    const at = hit.get("at") as Timestamp | undefined;
+    if (hit.exists && at && at.toMillis() > fresh) {
+      const top = hit.get("top") as string[] | undefined;
+      const n = hit.get("n") as number | undefined;
+      // A cached REFUSAL is a cached answer too: a thin room must not
+      // re-fold on every beat just because it has nothing to say. It is
+      // stored as an empty `top` and decoded back to null HERE, so the two
+      // paths agree — a fold below the floor and a cache hit on that fold
+      // must return the same thing, or the reading depends on which of the
+      // two a caller happened to land on. (`{top: [], n: 0}` is truthy, and
+      // truthy is what the card renders on.)
+      if (!Array.isArray(top) || !top.length || typeof n !== "number") return null;
+      return hit.get("capped") === true ? { top, n, capped: true } : { top, n };
+    }
+    // WHICH sixty, when the cap binds, is the question worth having
+    // checked — and it was checked rather than reasoned about.
+    //
+    // A capped `in` runs as nine disjuncts merged, and if that merge were
+    // cell-major the sample above the cap would come out of whichever
+    // corner the planner reached first: a reading drawn from one end of
+    // the field and presented as the room. At a festival — the case this
+    // feature exists for — the cap is exactly what binds, so the bias
+    // would appear precisely where it matters and nowhere in testing.
+    //
+    // Probed against the emulator (360 docs seeded evenly over the nine):
+    // the sixty returned spanned all nine cells, 3-12 apiece. Firestore
+    // orders a query with no explicit `orderBy` by document id, and these
+    // ids are uids — random, and uncorrelated with both cell and type. So
+    // the sample is unbiased, and the property it rests on is THE DOC ID
+    // BEING RANDOM, not anything about the merge. Key presence by
+    // something ordered (a cell prefix, a timestamp) and this stops being
+    // true silently.
+    const snap = await db.collection("v2_presence")
+      .where("cell", "in", cells)
+      .where("until", ">", Timestamp.fromMillis(Date.now()))
+      .limit(ROOM_SAMPLE_CAP)
+      .get();
+    const mix = roomMix(snap.docs.map((d) => d.get("type") as string | undefined));
+    await ref.set({
+      top: mix ? mix.top : [],
+      n: mix ? mix.n : 0,
+      capped: !!mix?.capped,
+      at: FieldValue.serverTimestamp(),
+    });
+    return mix;
+  } catch (err) {
+    // The mix is an extra on top of the count, so its failure must not
+    // take the count with it — the card falls back to the number, which
+    // is what it showed before this existed.
+    logger.warn("roomMixFor failed", err);
+    return null;
+  }
+}

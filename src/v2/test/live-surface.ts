@@ -139,6 +139,6 @@ export const LIVE_SOCIAL_MEMBERS = [
 
 // LIVE.near's own members (D84), pinned like social's for the same reason.
 export const LIVE_NEAR_MEMBERS = [
-  "count", "disable", "enable", "lastError", "mode", "on", "refresh",
+  "count", "disable", "enable", "lastError", "mix", "mode", "on", "refresh",
   "supported", "tooFew", "until", "updatedAt",
 ];

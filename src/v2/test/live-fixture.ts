@@ -199,6 +199,8 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     mode: () => "session",
     until: () => Date.now() + 90 * 60_000,
     count: () => null,
+    // D175's room mix — null by default, which is the quiet-street case.
+    mix: () => null as { top: string[]; n: number; capped?: boolean } | null,
     tooFew: () => false,
     updatedAt: () => 0,
     lastError: () => null,

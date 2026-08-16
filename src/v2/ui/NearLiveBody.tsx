@@ -137,14 +137,24 @@ function nbLeft(ms: number): string {
   return m >= 60 ? `${Math.round(m / 60)}h` : `${Math.max(5, Math.round(m / 5) * 5)}m`;
 }
 
-function NearModeChip({ mode, until, onPick }: {
-  mode: "session" | "always"; until: number; onPick: (m: "session" | "always") => void;
+function NearModeChip({ mode, left, onPick }: {
+  mode: "session" | "always";
+  /**
+   * Milliseconds until the session ends, or null before the parent has
+   * sampled a clock. Passed in rather than derived from a deadline here:
+   * calling Date.now() during render is impure, and the parent already
+   * re-renders on every beat, which is the rate this label needs.
+   */
+  left: number | null;
+  onPick: (m: "session" | "always") => void;
 }) {
   const timed = mode === "session";
   return (
     <button type="button" className="press"
       aria-label={timed
-        ? `Visible for ${nbLeft(until - Date.now())} more — tap to stay visible with no deadline`
+        ? (left == null
+          ? "Visible for a limited time — tap to stay visible with no deadline"
+          : `Visible for ${nbLeft(left)} more — tap to stay visible with no deadline`)
         : "Visible with no deadline — tap to set a two-hour limit"}
       onClick={() => onPick(timed ? "always" : "session")}
       style={{
@@ -152,7 +162,7 @@ function NearModeChip({ mode, until, onPick }: {
         background: "var(--surface-2)", color: "var(--ink-2)", cursor: "pointer",
         fontFamily: "var(--sans)", fontWeight: 700, fontSize: 11.5, WebkitAppearance: "none",
       }}>
-      {timed ? nbLeft(until - Date.now()) : "always"}
+      {timed ? (left == null ? "timed" : nbLeft(left)) : "always"}
     </button>
   );
 }
@@ -160,12 +170,20 @@ function NearModeChip({ mode, until, onPick }: {
 // ── the Right now card (D84) ─────────────────────────────────────────
 //
 // Moved verbatim from LiveCohortBody when D111 split the stops — Near owns
-// it now. How many opted-in phones are foreground within your ~1 km cell
-// and its eight neighbors, right now. Off by default; the enable tap is
-// what carries the OS permission prompt (D9's rule). The count is the only
-// thing the server returns — presence docs are unreadable — and the copy
-// claims kilometres, not the 500 m the coarse permission cannot measure
-// (D84 records the Precise flip as its own decision).
+// it now. How many opted-in phones have an unexpired position within your
+// ~200 m cell and its eight neighbors. Off by default; the enable tap is
+// what carries the OS permission prompt (D9's rule). Presence docs are
+// unreadable, so what the server returns is a count and (D175) a coarse
+// mix of archetype names — never a row per person.
+//
+// The copy said "a couple of kilometres" from D84 until D174, and that was
+// honest for as long as it was true: the app requested COARSE location, a
+// kilometre-wide fix cannot measure a 500 m radius, and D84 refused to
+// print a number the sensor could not support. D174 asked the owner for
+// the Precise permission instead of quietly narrowing the wording, so the
+// grid went 0.01° → 0.002° and the unit followed it down to "a few hundred
+// metres". Both halves had to move together; a finer grid under the old
+// copy would have been the same lie pointed the other way.
 //
 // D160 dissolved the card. What survives is this component's STATE — the
 // enable/disable call, its failure vocabulary, the stall detection and the
@@ -173,9 +191,32 @@ function NearModeChip({ mode, until, onPick }: {
 // the switch itself hoisted into the header. The privacy copy is unchanged
 // and unconditional: it is what you are agreeing to, and a control small
 // enough to flick past is a reason to keep the sentence, not to drop it.
+/** "Hosts and Explorers", "Hosts, Explorers and Planners" — never a list
+ * with a share beside each name. */
+function listNames(names: readonly string[]): string {
+  if (names.length <= 1) return names[0] || "";
+  return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+}
+
 function NearPresence() {
   const [, tick] = React.useState(0);
-  React.useEffect(() => LIVE.subscribe(() => tick((t) => t + 1)), []);
+  // `now` IS STATE, and it has to be: the session chip counts down from a
+  // deadline, and reading the clock during render is impure — the React
+  // Compiler bails out of any component that does it (react-hooks/purity),
+  // which silently costs the memoisation on the whole card. Sampled here
+  // instead, on the same notify that already re-renders this component, so
+  // there is no second timer: the beat is four minutes and the label is
+  // coarse to five, which is why one sample per beat is the right rate
+  // rather than a compromise.
+  //
+  // 0 until the first effect runs, and the chip prints its MODE rather
+  // than arithmetic on an unsampled clock — a frame of "timed" beats a
+  // frame of "479000h".
+  const [now, setNow] = React.useState(0);
+  React.useEffect(() => {
+    setNow(Date.now());
+    return LIVE.subscribe(() => { tick((t) => t + 1); setNow(Date.now()); });
+  }, []);
   const [busy, setBusy] = React.useState(false);
   const [retrying, setRetrying] = React.useState(false);
   const [err, setErr] = React.useState<string | null>(null);
@@ -209,6 +250,7 @@ function NearPresence() {
   // Only read while on: stopPresence() clears both, so off means these would
   // be last session's.
   const stall = on ? near.lastError() : null;
+  const mix = on ? near.mix() : null;
   const at = on ? near.updatedAt() : 0;
   const city = LIVE.myCity;
   // The city NAME, never the "Oslo, NO" key — this is a sentence, not a
@@ -242,7 +284,8 @@ function NearPresence() {
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         <div className="kicker" style={{ marginBottom: 0, flex: 1 }}>Around you</div>
         {supported && on && near.mode() !== "off" && (
-          <NearModeChip mode={near.mode() as "session" | "always"} until={near.until()}
+          <NearModeChip mode={near.mode() as "session" | "always"}
+            left={now ? Math.max(0, near.until() - now) : null}
             onPick={(m) => { void near.enable(m); }} />
         )}
         {supported && (
@@ -254,10 +297,17 @@ function NearPresence() {
       {/* The figure, when there is one. The prototype's shape: kicker, one
           big number, one line of unit under it — and the unit says WHAT the
           number counts in the same breath as the place, because "within a
-          couple of kilometres · Grünerløkka" is two facts about one number
+          few hundred metres · Grünerløkka" is two facts about one number
           rather than a caption spanning the count and the field below it.
           With the counter off there is no figure to print, so the stop
-          keeps its name and invites rather than pretending to a zero. */}
+          keeps its name and invites rather than pretending to a zero.
+
+          THE UNIT IS THE 3x3, NOT THE CELL, and it moved at D174: the grid
+          went 0.01° to 0.002°, so the nine cells span ~600 m rather than
+          ~3.3 km and "a couple of kilometres" became an overstatement the
+          same commit that made the fix precise. A count whose stated reach
+          is five times its real one is the same failure as a fabricated
+          number, arriving as a unit instead of a value. */}
       {on && n != null && !near.tooFew() ? (
         <>
           <div style={{ display: "flex", alignItems: "baseline", gap: 9, marginTop: 1 }}>
@@ -265,7 +315,7 @@ function NearPresence() {
               {n.toLocaleString()}
             </span>
             <span style={{ fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 600, color: "var(--ink-3)", lineHeight: 1.4 }}>
-              within a couple of kilometres{where ? ` · ${where}` : ""}
+              within a few hundred metres{where ? ` · ${where}` : ""}
             </span>
           </div>
           <div style={{ fontFamily: "var(--sans)", fontSize: 12, fontWeight: 500, color: "var(--ink-3)", marginTop: 3, lineHeight: 1.5 }}>
@@ -273,6 +323,25 @@ function NearPresence() {
               ? "Just you right now — the count updates every few minutes."
               : "People with InSight open near you right now — a count, never who."}
           </div>
+          {/* THE ROOM (D175) — the one sentence this stop was rebuilt for.
+              Names in order and a basis; no shares, because a percentage
+              moves visibly when one person walks in and that is the whole
+              differencing attack. `mix.n` rather than the count above it:
+              plenty of people nearby have never taken the test, and a
+              reading must not borrow a population it did not measure.
+
+              And "60+" when the server's sample hit its cap, because past
+              it `n` is a floor on the typed crowd rather than its size.
+              D102 made the same repair to the who-voted sheet ("the latest
+              200 of N"): a truncation is fine, a truncation printed as the
+              whole room is not. */}
+          {mix && (
+            <div style={{ fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 600, color: "var(--ink-2)", marginTop: 7, lineHeight: 1.5 }}>
+              Mostly <strong style={{ color: "var(--ink)" }}>{listNames(mix.top)}</strong>
+              {" "}· {mix.n}{mix.capped ? "+" : ""}{" "}
+              {mix.n === 1 && !mix.capped ? "person" : "people"} here have taken the test
+            </div>
+          )}
         </>
       ) : (
         <>

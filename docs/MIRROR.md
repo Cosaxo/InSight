@@ -165,7 +165,8 @@ populations, "how they see you" crowns — is unbuilt rather than refused
 since D98: the members' answers and test results are all readable now.
 
 **Near.** The Right-now radius counter (D84) — how many opted-in phones
-are within a couple of kilometres, as a count the server computes from a
+are within a few hundred metres (the 3x3 of 0.002° cells, ~600 m across
+since D174), as a count the server computes from a
 cell no user can read — and, since D150, the field around it. It stopped
 being "your city" at D111: that fold (D9) put a presence question and a
 cohort question behind one stop.

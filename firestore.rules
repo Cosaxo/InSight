@@ -18,7 +18,7 @@ rules_version = '2';
 // THREE DENIES SURVIVE, and none of them is about answer privacy:
 //   · v2_logic_attempts — holds the unscored answer key (anti-cheat)
 //   · v2_flags          — reporter identity (anti-retaliation)
-//   · v2_presence       — uid → ~1 km cell (physical safety, not data)
+//   · v2_presence       — uid → ~200 m cell (physical safety, not data)
 // Each says so at its own path. If one of those should go too, it is a
 // separate decision from D98 and wants its own record.
 //
@@ -949,7 +949,7 @@ service cloud.firestore {
 
     // ── Near-by-radius presence (D84) ──────────────────────────────
     //
-    // One doc per opted-in user: a ~1 km grid cell and a freshness stamp,
+    // One doc per opted-in user: a ~200 m grid cell and a freshness stamp,
     // overwritten while the app is foreground. NO client read, ever.
     //
     // This deny SURVIVES D98, and the distinction matters: D98 publishes
@@ -957,10 +957,14 @@ service cloud.firestore {
     // A readable (uid → cell) pair is a script following any account
     // around town at cell resolution — a physical-safety problem, not a
     // data-linkage feature, and nothing on the Mirror needs it. The only
-    // read path is nearbyCountV2, which returns a COUNT and nothing
-    // else. The cell regex is the precision cap in structural form: a
-    // "la_lo" integer grid id cannot carry anything finer than the 0.01°
-    // cell, however hard a client tries.
+    // read path is nearbyCountV2, which returns a COUNT and a coarse mix
+    // of archetype NAMES, never a row per person. The cell regex is the
+    // precision cap in structural form: a "la_lo" integer grid id cannot
+    // carry anything finer than the 0.002° cell, however hard a client
+    // tries. (0.01° until D174, which bought the finer grid with a
+    // precise-location permission — the deny is what makes that trade
+    // survivable, so it gets stricter as the cell gets smaller, never
+    // looser.)
     //
     // Note the city ANCHOR on a profile is public now (D98) — "lives in
     // Oslo" is published, "is at this corner of Oslo at 14:02" is not.
@@ -981,16 +985,44 @@ service cloud.firestore {
       // this literal moves in the same commit.
       allow create, update: if request.auth != null
         && request.auth.uid == uid
-        && request.resource.data.keys().hasOnly(["cell", "at", "until"])
+        && request.resource.data.keys().hasOnly(["cell", "at", "until", "type"])
         && request.resource.data.cell is string
         && request.resource.data.cell.matches('^-?[0-9]{1,5}_-?[0-9]{1,5}$')
         && request.resource.data.at == request.time
         && request.resource.data.until is timestamp
         && request.resource.data.until > request.time
-        && request.resource.data.until <= request.time + duration.value(180, 'm');
+        && request.resource.data.until <= request.time + duration.value(180, 'm')
+        // `type` is the writer's OWN Big Five archetype name (D175), the
+        // one thing the room's mix is folded from. Optional — most people
+        // have not taken the test — and bounded, because this doc is
+        // written by a client and a free-text field on a doc nobody can
+        // read is still a place to park bytes. It is a NAME, not a score:
+        // the archetype table lives on the device, so the server never
+        // needs it and never joins a profile to compute the mix.
+        && (!("type" in request.resource.data)
+            || (request.resource.data.type is string
+                && request.resource.data.type.size() > 0
+                && request.resource.data.type.size() <= 40));
       // Opting out deletes the doc — "stop sharing" must not depend on a
       // TTL sweep that runs later.
       allow delete: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // ── The room's mix cache (D175) ────────────────────────────────
+    //
+    // One doc per cell holding the coarse reading nearbyCountV2 serves, so
+    // a busy venue folds once per beat window instead of once per phone in
+    // it. Written by the callable on the admin SDK, readable by NOBODY.
+    //
+    // The deny is not inherited politeness — it is the same argument as
+    // presence one level up. A client that could read this path directly
+    // could sweep cells it is nowhere near, which turns a reading about
+    // the room you are standing in into a map of who is in every other
+    // room. The callable only ever answers for the caller's own cell and
+    // its eight neighbours, and that restriction is the feature; it only
+    // holds while this is the sole door.
+    match /v2_presence_mix/{cell} {
+      allow read, write: if false;
     }
 
   }

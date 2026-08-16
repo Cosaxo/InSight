@@ -43,6 +43,9 @@ import {
   revealQid,
   revealVotes,
   votesMatchingQid,
+  ROOM_MIN_TYPED,
+  ROOM_SAMPLE_CAP,
+  roomMix,
   presenceCellOk,
   presenceNeighbors,
   retargetCounts,
@@ -1502,5 +1505,85 @@ describe("normalizeHandle", () => {
     for (const bad of [undefined, null, 42, {}, [], true, { toString: () => "olaf" }]) {
       expect(normalizeHandle(bad as unknown), String(bad)).toBeNull();
     }
+  });
+});
+
+// ── the room's mix (D175) ────────────────────────────────────────────
+//
+// The fold behind "mostly Hosts and Explorers". What it must NOT do is
+// most of the value: no shares, a floor, and an order that does not
+// flicker — each of those is a differencing defence, not a style choice.
+describe("roomMix", () => {
+  const many = (name: string, k: number) => Array.from({ length: k }, () => name);
+
+  it("ranks the types present, most common first", () => {
+    const m = roomMix([...many("Host", 5), ...many("Explorer", 3), ...many("Planner", 1)]);
+    expect(m?.top).toEqual(["Host", "Explorer", "Planner"]);
+    expect(m?.n).toBe(9);
+  });
+
+  it("returns names only — a share is the differencing attack handed over", () => {
+    const m = roomMix(many("Host", 12));
+    // Whatever else the shape gains, it must never gain a percentage: at
+    // room sizes a share moves visibly when one person walks in.
+    expect(JSON.stringify(m)).not.toMatch(/\d+(\.\d+)?%|share|pct/i);
+  });
+
+  it("refuses below the floor rather than drawing a thin room", () => {
+    expect(roomMix(many("Host", ROOM_MIN_TYPED - 1))).toBeNull();
+    expect(roomMix(many("Host", ROOM_MIN_TYPED))).not.toBeNull();
+  });
+
+  it("counts only phones that carried a type, and says so in n", () => {
+    // The headline count of phones nearby is bigger than this; the mix
+    // must not borrow it. Untyped entries vanish from both the tally and
+    // the basis rather than being counted as an unknown type.
+    const m = roomMix([...many("Host", 8), undefined, null, "", "   "]);
+    expect(m?.n).toBe(8);
+    expect(m?.top).toEqual(["Host"]);
+  });
+
+  it("keeps a stable order when two types tie", () => {
+    // A tie that resolves differently between beats makes the reading
+    // flicker, and a flicker is a signal an observer can read.
+    const a = roomMix([...many("Host", 4), ...many("Explorer", 4)]);
+    const b = roomMix([...many("Explorer", 4), ...many("Host", 4)]);
+    expect(a?.top).toEqual(b?.top);
+  });
+
+  it("keeps at most three names, however many types are in the room", () => {
+    const m = roomMix([
+      ...many("Host", 5), ...many("Explorer", 4), ...many("Planner", 3),
+      ...many("Diplomat", 2), ...many("Live Wire", 1),
+    ]);
+    expect(m?.top).toHaveLength(3);
+  });
+
+  // THE TRUNCATION HAS TO DECLARE ITSELF (D175, D102's rule).
+  //
+  // The fold reads at most ROOM_SAMPLE_CAP presence docs, so in a stadium
+  // `n` is a floor on the typed crowd rather than its size. Printing it
+  // bare would say "60 people here have taken the test" of a field with
+  // three thousand — not a fabricated number, but a slice presented as the
+  // room, which is the failure D102 repaired on the who-voted sheet.
+  it("declares a capped sample, because past the cap n is a floor not a size", () => {
+    const m = roomMix(many("Host", ROOM_SAMPLE_CAP), ROOM_MIN_TYPED, ROOM_SAMPLE_CAP);
+    expect(m?.capped).toBe(true);
+    expect(m?.n).toBe(ROOM_SAMPLE_CAP);
+    // Under the cap it is exact, and the flag is ABSENT rather than false —
+    // the card renders "60+" on truthiness.
+    expect(roomMix(many("Host", ROOM_SAMPLE_CAP - 1))?.capped).toBeUndefined();
+  });
+
+  it("counts the cap against the SAMPLE, not against the typed tally", () => {
+    // Sixty docs read, nine of them typed: the ranking still came out of a
+    // slice, so it is the slice that has to be declared. Testing this the
+    // other way round (capping on `n`) would let a crowded, mostly-untyped
+    // room print an exact-looking basis drawn from a truncated read.
+    const sample = [...many("Host", 9), ...Array.from({ length: 51 }, () => undefined)];
+    expect(sample).toHaveLength(ROOM_SAMPLE_CAP);
+    const m = roomMix(sample, ROOM_MIN_TYPED, ROOM_SAMPLE_CAP);
+    expect(m?.n).toBe(9);
+    expect(m?.capped).toBe(true);
   });
 });

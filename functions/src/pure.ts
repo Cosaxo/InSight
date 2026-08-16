@@ -1433,7 +1433,7 @@ export function describeSeedOptionConflicts(
 
 // ── presence cells (D84 — Near by radius) ───────────────────────────
 //
-// The server half of the ~1 km presence grid. The CLIENT computes a cell
+// The server half of the ~200 m presence grid. The CLIENT computes a cell
 // from a fix and discards the coordinate (src/v2/data/geo.ts); what
 // arrives here is only the cell id, and these two functions are the whole
 // vocabulary the server has for it: is it a legal cell, and which nine
@@ -1517,3 +1517,98 @@ export const PRESENCE_LINGER_MIN = 180;
  * leave the position standing for a further linger.
  */
 export const PRESENCE_SESSION_MIN = 120;
+
+/**
+ * Typed phones a neighbourhood needs before the room's mix is drawn at all
+ * (D175). Below it the callable returns `null` and the client says nothing.
+ *
+ * The FLOOR IS NOT THE WHOLE DEFENCE and would be weak alone. A composition
+ * that moves as people arrive tells you an individual's type by
+ * subtraction, and no floor this side of a stadium stops that on its own.
+ * Three things do it together:
+ *
+ *   1. this floor, so a room of three has no reading;
+ *   2. RANKED WORDS, not shares — `roomMix` returns names in order and no
+ *      percentages, so learning one person's type needs a rank to FLIP,
+ *      which one arrival rarely does;
+ *   3. no on-demand refresh — the reading rides the four-minute beat, so
+ *      an observer's sampling rate is the app's, not theirs.
+ *
+ * Matched to `data/typeMix.ts`'s TYPE_THIN, which is the same judgement
+ * about the same instrument one layer up: below eight, a type count is
+ * listed rather than ranked. Eight is a judgement, not arithmetic — it is
+ * a real gathering and one person is an eighth of it.
+ */
+export const ROOM_MIN_TYPED = 8;
+
+/**
+ * How many presence docs one fold may read, across the whole 3x3.
+ *
+ * A ranking of three names does not get more true past sixty samples, and
+ * roomMixFor's note records the probe showing the sixty are drawn evenly
+ * across the neighbourhood rather than out of one corner of it.
+ *
+ * What the cap DOES cost is the basis: past sixty, `n` is a floor on the
+ * typed crowd rather than its size, which is why `capped` exists below.
+ */
+export const ROOM_SAMPLE_CAP = 60;
+
+export interface RoomMix {
+  /** Type names, most common first, at most three. No shares, ever. */
+  top: string[];
+  /** Typed phones behind it — the mix's OWN basis, not the headline count. */
+  n: number;
+  /**
+   * The sample hit ROOM_SAMPLE_CAP, so `n` is a FLOOR on the typed crowd
+   * rather than its size — read it as "60+", and say so on screen.
+   *
+   * The same rule D102 applied to the who-voted sheet, which says "the
+   * latest 200 of N" when its cap binds: a truncation presented as the
+   * room is the honesty failure, not the truncation. Absent below the cap,
+   * where `n` is exact.
+   */
+  capped?: true;
+}
+
+/**
+ * The room's composition, from the types the phones nearby wrote for
+ * themselves.
+ *
+ * Ranked NAMES and a basis, and deliberately nothing else. A share would
+ * be the whole differencing attack handed over — "62% Hosts" moves
+ * visibly when one person walks in, where "mostly Hosts and Explorers"
+ * does not until a rank changes.
+ *
+ * `n` is the count of phones that CARRIED a type, which is not the
+ * headline count of phones nearby: plenty of people have not taken the
+ * test. Returning the smaller number beside the reading is what stops the
+ * mix borrowing authority from a population it did not measure.
+ */
+export function roomMix(
+  types: readonly (string | undefined | null)[],
+  floor: number = ROOM_MIN_TYPED,
+  cap: number = ROOM_SAMPLE_CAP,
+): RoomMix | null {
+  const tally = new Map<string, number>();
+  for (const t of types) {
+    if (typeof t !== "string") continue;
+    const name = t.trim();
+    if (!name) continue;
+    tally.set(name, (tally.get(name) || 0) + 1);
+  }
+  let n = 0;
+  for (const c of tally.values()) n += c;
+  if (n < floor) return null;
+  const top = [...tally.entries()]
+    // Count first, then name — a stable order matters more than it looks:
+    // two types tied at the same count must not swap between beats, or the
+    // reading flickers and every flicker is a signal an observer can read.
+    .sort((a, b) => (b[1] - a[1]) || a[0].localeCompare(b[0]))
+    .slice(0, 3)
+    .map(([name]) => name);
+  // Counted on the SAMPLE, not on `n`: the cap bounds how many documents
+  // were read, and untyped ones are read too. Sixty presence docs of which
+  // nine carried a type is a capped sample with n=9 — the ranking is drawn
+  // from a slice either way, so it is the slice that has to be declared.
+  return types.length >= cap ? { top, n, capped: true } : { top, n };
+}

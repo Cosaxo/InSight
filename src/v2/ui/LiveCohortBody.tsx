@@ -163,7 +163,7 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
   // revocable location grant standing for a live feature — so Near stops
   // asking and derives the city from the same grant. The datum applied is
   // still only the catalogue key (locateCity's containment), which is
-  // strictly LESS information than the ~1 km presence cell the counter
+  // strictly LESS information than the ~200 m presence cell the counter
   // already shares. D9's suggest-never-apply rule stays for every other
   // path: with the counter off, the picker below is unchanged and its
   // located city remains a suggestion.

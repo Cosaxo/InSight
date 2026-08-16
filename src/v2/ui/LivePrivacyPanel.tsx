@@ -279,7 +279,7 @@ function LivePrivacyPanel() {
           <li>Location is optional and off until you ask for it. If you tap &ldquo;use my location&rdquo;, your phone works out the nearest city <em>on the device</em> and sends only that name — never your coordinates, which are never stored or transmitted. You can skip it and pick your city from a list instead, and your country follows from the city either way.</li>
           {/* D84. The presence cell is the second location-shaped thing the
               app can hold, and this bullet is its disclosure: what is shared
-              (a ~1 km grid square, computed on the device, the coordinate
+              (a ~200 m grid square, computed on the device, the coordinate
               discarded), who can read it (no user — the server answers only
               with a count), when (foreground, opted in), and the way out
               (off deletes the doc; deleting the account does too). If the

@@ -151,6 +151,8 @@ import {
 } from "./deck";
 import type { AggDoc, LiveQuestion, QuestionDoc, VoteContext } from "./deck";
 import { nearMode, nearOptedIn, nearUntil, setNearMode, type NearMode } from "./near";
+// The device computes its own archetype name for the presence doc (D175).
+import { myType } from "./typeMix";
 import { locateCell, locateSupported } from "./locate";
 import { scrubPersonaAnchors } from "./personaResidue";
 
@@ -1745,7 +1747,7 @@ function takeScopeKey(gid: string, qid?: string): string | null {
 // ── Near by radius: the presence loop (D84) ─────────────────────────
 //
 // While the viewer has opted in AND the app is foreground, this writes
-// their ~1 km grid cell to v2_presence/{uid} every PRESENCE_BEAT_MS and
+// their ~200 m grid cell to v2_presence/{uid} every PRESENCE_BEAT_MS and
 // asks nearbyCountV2 how many other fresh phones share the 3×3
 // neighborhood. The cell comes from locateCell() — the coordinate is
 // folded and discarded inside data/locate.ts, so nothing here ever holds
@@ -1773,6 +1775,7 @@ const nearState = {
   updatedAt: 0,
   lastError: null as string | null,
   timer: null as ReturnType<typeof setInterval> | null,
+  mix: null as { top: string[]; n: number; capped?: boolean } | null,
   inFlight: null as Promise<void> | null,
 };
 
@@ -1807,14 +1810,40 @@ async function runBeat(cell?: string): Promise<void> {
     // the client being ours.
     const deadline = nearUntil();
     const lingerTo = Date.now() + PRESENCE_LINGER_MS;
+    // `type` is the viewer's OWN Big Five archetype name (D175), and the
+    // device is what computes it — the archetype table lives here, so
+    // writing the NAME means the server never joins a profile and never
+    // carries a copy of the table. Omitted entirely when there is no
+    // result: an untyped phone is counted in the room and absent from its
+    // mix, which is the honest shape.
+    const myArchetype = myType();
     await setDoc(doc(db, "v2_presence", uid), {
       cell: fix.cell,
       at: serverTimestamp(),
       until: new Date(deadline ? Math.min(lingerTo, deadline) : lingerTo),
+      ...(myArchetype ? { type: myArchetype } : {}),
     });
-    const res = await callable<{ n?: number; tooFew?: boolean }>("nearbyCountV2", { cell: fix.cell });
+    const res = await callable<{
+      n?: number; tooFew?: boolean;
+      mix?: { top?: string[]; n?: number; capped?: boolean } | null;
+    }>("nearbyCountV2", { cell: fix.cell });
     nearState.tooFew = res.tooFew === true;
     nearState.count = typeof res.n === "number" ? res.n : nearState.tooFew ? null : 0;
+    // The room's composition, or null when the neighbourhood is under the
+    // floor. Defensive about the shape for the same reason similarity.ts
+    // is about profiles: this crosses a wire, and a malformed payload must
+    // read as "no mix" rather than as an empty room.
+    const mix = res.mix;
+    nearState.mix = mix && Array.isArray(mix.top) && typeof mix.n === "number" && mix.top.length
+      ? {
+        top: mix.top.filter((t): t is string => typeof t === "string").slice(0, 3),
+        n: mix.n,
+        // `n` is a floor rather than a size when the server's sample hit
+        // its cap — the card renders "60+", because a truncation shown as
+        // the room is the failure D102 fixed on the who-voted sheet.
+        capped: mix.capped === true,
+      }
+      : null;
     nearState.updatedAt = Date.now();
     // Cleared only once a count is actually in hand: clearing it beside the
     // fix (where it used to sit) marked the round healthy before the two
@@ -1872,6 +1901,7 @@ function stopPresence(): void {
     document.removeEventListener("visibilitychange", presenceOnVisible);
   }
   nearState.count = null;
+  nearState.mix = null;
   nearState.tooFew = false;
   nearState.updatedAt = 0;
   nearState.lastError = null;
@@ -1901,6 +1931,17 @@ const NEAR = {
   },
   tooFew(): boolean {
     return nearState.tooFew;
+  },
+  /**
+   * The room's composition (D175) — type names in order, and the count of
+   * phones that carried a type. Null below the floor, and null is the
+   * common case in a quiet street.
+   *
+   * `capped` says the server's sample hit ROOM_SAMPLE_CAP, so `n` is a
+   * floor rather than a size and the card must print it as "60+".
+   */
+  mix(): { top: string[]; n: number; capped?: boolean } | null {
+    return nearState.mix;
   },
   updatedAt(): number {
     return nearState.updatedAt;

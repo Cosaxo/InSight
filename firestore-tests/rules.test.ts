@@ -1738,7 +1738,7 @@ describe("presence (D84 — Near by radius)", () => {
   // The privacy shape in three lines: your own cell-sized doc is yours to
   // write and delete, NOBODY can read any of them (the only read path is
   // the nearbyCountV2 callable, which returns a count), and the cell
-  // regex is the precision cap — nothing finer than the ~1 km grid id can
+  // regex is the precision cap — nothing finer than the ~200 m grid id can
   // be written at all, however a client is modified.
   // `until` is when the position stops counting (D173) — the count filters
   // on it, so it is the field that makes "visible for two hours" a promise
@@ -1796,6 +1796,49 @@ describe("presence (D84 — Near by radius)", () => {
     // so an omitted `until` would be a doc that never expires.
     await assertFails(setDoc(ref, { cell: "29999_5374", at: serverTimestamp() }));
     await assertFails(setDoc(ref, cellDoc({ until: "soon" })));
+  });
+
+  // THE ONE FIELD A CLIENT CHOOSES THE CONTENTS OF (D175).
+  //
+  // `type` is the writer's own Big Five archetype name, and it is here
+  // because the archetype table lives on the DEVICE — the server folding
+  // the room's mix never joins a profile, never scores anybody, and never
+  // needs the table. The phone says what it is; the callable counts names.
+  //
+  // Which means this is a client-authored free-text field on a doc no
+  // client can read, i.e. exactly the shape that becomes storage for
+  // something else if it is not bounded. The size cap is the whole guard,
+  // so it is the one worth a case.
+  it("takes an optional archetype name, and refuses an unbounded one", async () => {
+    const ref = doc(asUser(OWNER), "v2_presence", OWNER);
+    // Optional: most people have not taken the test, and a room that only
+    // counted typed phones would be wrong about how full it is.
+    await assertSucceeds(setDoc(ref, cellDoc()));
+    await assertSucceeds(setDoc(ref, cellDoc({ type: "Host" })));
+    await assertSucceeds(setDoc(ref, cellDoc({ type: "x".repeat(40) })));
+    await assertFails(setDoc(ref, cellDoc({ type: "x".repeat(41) })));
+    await assertFails(setDoc(ref, cellDoc({ type: "" })));
+    await assertFails(setDoc(ref, cellDoc({ type: 3 })));
+    // And it does not open the doc to anything else riding alongside it —
+    // hasOnly still names four keys.
+    await assertFails(setDoc(ref, cellDoc({ type: "Host", score: 0.8 })));
+  });
+
+  // The mix cache is presence one level up, and the deny is the same
+  // argument: a client that could read a cell it is not standing in has a
+  // map of every room, not a reading about its own. The callable answers
+  // only for the caller's cell and its neighbours, and that restriction
+  // holds only while this is the sole door.
+  it("nobody touches the room's mix cache — read or write (D175)", async () => {
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_presence_mix", "29999_5374"),
+        { top: ["Host"], n: 9, at: new Date() });
+    });
+    await assertFails(getDoc(doc(asUser(OWNER), "v2_presence_mix", "29999_5374")));
+    await assertFails(getDocs(collection(asUser(STRANGER), "v2_presence_mix")));
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_presence_mix", "29999_5374"),
+      { top: ["Host"], n: 900, at: serverTimestamp() }));
+    await assertFails(deleteDoc(doc(asUser(OWNER), "v2_presence_mix", "29999_5374")));
   });
 });
 

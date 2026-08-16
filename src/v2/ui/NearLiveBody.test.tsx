@@ -41,6 +41,8 @@ const LIVE = vi.hoisted(() => ({
     mode: () => "session" as "off" | "session" | "always",
     until: () => Date.now() + 90 * 60_000,
     count: () => null as number | null,
+    // D175's room mix — null by default, which is the quiet-street case.
+    mix: () => null as { top: string[]; n: number; capped?: boolean } | null,
     tooFew: () => false as boolean,
     updatedAt: () => 0 as number,
     lastError: () => null as string | null,
@@ -145,7 +147,12 @@ describe("the Right now card (D84 — moved with the stop)", () => {
     // not one sentence — so this asserts the two halves rather than a
     // string that no longer exists in one element.
     expect(screen.getByText("3")).toBeTruthy();
-    expect(screen.getByText(/within a couple of kilometres/i)).toBeTruthy();
+    // The unit moved at D174 with the grid (0.01° → 0.002°): nine cells
+    // span ~600 m, not ~3.3 km, so "a couple of kilometres" was an
+    // overstatement of the count's reach by five times. Asserted as the
+    // FIGURE it names rather than as prose, so the next grid change fails
+    // here instead of shipping a unit that flatters the number.
+    expect(screen.getByText(/within a few hundred metres/i)).toBeTruthy();
     expect(screen.getByText(/a count, never who/i)).toBeTruthy();
     cleanup();
 
@@ -315,7 +322,7 @@ describe("NearLiveBody · the constellation, with nobody named", () => {
     render(<NearLiveBody />);
     expect(await screen.findByText(/1 person in Oslo/)).toBeTruthy();
     expect(screen.getByText("2,847")).toBeTruthy();
-    expect(screen.getByText(/within a couple of kilometres · Oslo/)).toBeTruthy();
+    expect(screen.getByText(/within a few hundred metres · Oslo/)).toBeTruthy();
   });
 
   it("asks for a city rather than drawing an empty ring", async () => {
@@ -383,5 +390,88 @@ describe("NearField · a node is a radius, never a place and never a join key", 
 
   it("says nobody is named, in the copy a reader actually sees", () => {
     expect(nearField()).toMatch(/Nobody is named here/i);
+  });
+});
+
+
+// ── the room's reading (D175) ────────────────────────────────────────
+describe("NearPresence · the room", () => {
+  beforeEach(() => {
+    LIVE.near.on = () => true;
+    LIVE.near.count = () => 24;
+  });
+
+  it("names the types in order and says what the reading rests on", () => {
+    LIVE.near.mix = () => ({ top: ["Host", "Explorer"], n: 11 });
+    render(<NearLiveBody />);
+    const text = document.body.textContent || "";
+    expect(text).toMatch(/Mostly\s*Host and Explorer/);
+    // The basis is the TYPED count (11), not the headline count (24):
+    // plenty of people nearby have never taken the test, and a reading
+    // must not borrow a population it did not measure.
+    expect(text).toMatch(/11 people here have taken the test/);
+    expect(text).not.toMatch(/24 people here have taken/);
+  });
+
+  it("prints no share, ever", () => {
+    LIVE.near.mix = () => ({ top: ["Host", "Explorer", "Planner"], n: 30 });
+    render(<NearLiveBody />);
+    // A percentage moves visibly when one person walks in — that is the
+    // differencing attack, and the ranked words exist to avoid it. If a
+    // share ever appears beside these names, this case is the alarm.
+    const room = [...document.querySelectorAll("div")]
+      .map((d) => d.textContent || "").filter((t) => /^Mostly/.test(t)).pop() || "";
+    expect(room).toBeTruthy();
+    expect(room).not.toMatch(/\d+\s?%/);
+  });
+
+  it("says nothing at all below the floor", () => {
+    // The callable returns null under ROOM_MIN_TYPED, and the card's job
+    // is to stay quiet rather than to explain the floor — an empty street
+    // owes the reader no arithmetic.
+    LIVE.near.mix = () => null;
+    render(<NearLiveBody />);
+    expect(document.body.textContent || "").not.toMatch(/Mostly/);
+  });
+
+  // The countdown reads a CLOCK, and the clock is the reason this needs a
+  // case at all. `Date.now()` during render is impure — the React Compiler
+  // bails out of any component that does it, which costs the memoisation on
+  // the whole card and reports as one eslint line rather than as anything
+  // visible. It shipped that way at D173 and was caught by `npm run lint`,
+  // not by a test. So the deadline now arrives as a prop sampled on the
+  // beat, and this pins the two ends of that: a real remaining time is
+  // rendered, and a not-yet-sampled clock renders the MODE instead of
+  // arithmetic on epoch zero.
+  it("shows the session's remaining time without reading the clock in render", async () => {
+    LIVE.near.mode = () => "session";
+    LIVE.near.until = () => Date.now() + 90 * 60_000;
+    render(<NearLiveBody />);
+    // Coarse by design (the beat is four minutes), so 90 minutes reads as
+    // "2h" — what matters is that it is a duration and not an epoch.
+    const chip = await screen.findByRole("button", { name: /Visible for .* more/i });
+    expect(chip.textContent).toMatch(/^\d+[hm]$/);
+    // The unsampled-clock frame would print this, six digits of hours from
+    // subtracting nothing from an epoch. If it ever appears, the prop is
+    // being fed a raw deadline again.
+    expect(chip.textContent).not.toMatch(/\d{5}/);
+  });
+
+  it("marks a capped basis, because past the cap n is a floor not a size", () => {
+    // The server samples at most ROOM_SAMPLE_CAP presence docs, so at a
+    // festival `n` is "at least this many", and printing it bare would
+    // report sixty of three thousand as the room. Same repair D102 made to
+    // the who-voted sheet, which says "the latest 200 of N" when it binds.
+    LIVE.near.mix = () => ({ top: ["Host"], n: 60, capped: true });
+    render(<NearLiveBody />);
+    expect(document.body.textContent || "").toMatch(/60\+\s*people here have taken the test/);
+  });
+
+  it("does not mark an exact basis", () => {
+    LIVE.near.mix = () => ({ top: ["Host"], n: 11, capped: false });
+    render(<NearLiveBody />);
+    const text = document.body.textContent || "";
+    expect(text).toMatch(/11 people here have taken the test/);
+    expect(text).not.toMatch(/11\+/);
   });
 });

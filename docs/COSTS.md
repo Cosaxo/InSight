@@ -539,6 +539,57 @@ worth an incremental insert if circles grow; and a capped voters page has
 a natural cursor (`answeredAt`) if anyone ever needs page two. Neither is
 worth building before a user exists who would notice (D7's discipline).
 
+### Finding 5 — the room's mix would have been quadratic in density · **CACHED AT BIRTH (D175)**
+
+> Priced before it shipped rather than after, which is the whole point of
+> this document existing. The number below is small; the shape it would
+> have had is not.
+
+D175 gives Near a reading — "mostly Hosts and Explorers" — folded from the
+archetype names phones write into their own presence docs. A **count** is
+an aggregation and costs ~1 read however crowded the cell is (Finding 2's
+lesson, applied at D129). A **mix** needs the documents themselves, which
+puts back exactly the linearity the count was rewritten to remove.
+
+Every phone with Near on beats every 4 minutes, so an uncached fold would
+charge `(phones nearby) × (beats)` — **quadratic in local density**, at a
+festival, which is the one situation the feature exists for. At 1,000
+opted-in phones open for an hour that is 15,000 beats × 60 sampled docs =
+**900,000 reads, ~$0.54 for the hour**, and it grows as the square.
+
+**What was done, in the same commit as the feature.** `v2_presence_mix/{cell}`
+holds the folded reading for one beat window (4 minutes, matched to the
+beat). Everyone standing in a cell wants the same answer, so it is computed
+once per cell per window and read by everyone else in it. `ROOM_SAMPLE_CAP`
+(60) bounds one fold besides. The same festival hour:
+
+| | reads | writes | cost |
+| --- | ---: | ---: | ---: |
+| uncached fold | 900,000 | 15,000 | ~$0.54 |
+| cached (shipped) | ~24,000 | ~15,150 | ~$0.04 |
+
+The ratio is not the interesting part — **the exponent is**. Cached, the
+fold term is `(cells) × (windows) × 60`: bounded by geography and clock,
+flat in how many people are standing there. A stadium costs what a quiet
+street costs, per cell.
+
+**Two things named rather than fixed.** (1) A lone phone in its own cell
+misses the cache on every beat, because the window and the beat are the
+same four minutes — so it pays a cache write to store a refusal nobody
+reads. At `onlineMin` = 3 that is well under one beat per user per day;
+5,000 opted-in users would add ~5,000 writes/day, about **$0.01**. A
+size threshold would fix it and would be an optimisation for a cost
+nothing could notice (D7's discipline). (2) `n` saturates at the cap, so
+past 60 it is a floor on the typed crowd rather than its size — the card
+prints "60+" rather than presenting the slice as the room, which is
+D102's repair to the who-voted sheet applied here in advance.
+
+**Not in `scripts/cost-arith.mjs`, deliberately.** Near is off by default
+and per-person opt-in, so there is no honest DAU multiplier to put in the
+model — a guess at the opt-in rate would be the model's least-supported
+input and its most leveraged. The bound above is the whole answer: this
+term cannot grow faster than cells × time, whatever fraction opts in.
+
 ## The controls that are not in this repository
 
 Everything above this line predicts the bill. None of it **caps** the bill,

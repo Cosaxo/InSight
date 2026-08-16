@@ -74,7 +74,7 @@ const SF_LINE = "1px solid color-mix(in oklch, var(--rule), transparent 25%)";
  * `match` sets the radius: closer to the centre is more like you. There is
  * no coordinate here and there must never be one. It matters most at the
  * Near stop, where the temptation is exactly backwards: the app knows a
- * ~1 km presence cell, so placing nodes where people actually ARE would
+ * ~200 m presence cell, so placing nodes where people actually ARE would
  * look like an improvement and would turn an anonymous field into a map of
  * where named-able strangers are standing — the thing `v2_presence`'s
  * `allow read: if false` exists to prevent (D84/D98).

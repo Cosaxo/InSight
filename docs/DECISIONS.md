@@ -17178,3 +17178,133 @@ and `pure.test.ts`, the floor.ts drift pattern, because a client and
 server disagreeing about cell shape fails soft (empty counts reading as
 "nobody nearby"). The rules suite carries the widened regex and the
 `until` cap together.
+
+## D175 · Near becomes a room, and the phone says what it is
+
+**2026-08-16.** Step 3 of NEXT-FUNCTIONALITY §10. The owner's sentence for
+this feature was *"at a party or some sort of social event you can see what
+type of persons are around you"*, and until now Near answered a strictly
+smaller question: **how many**. A count is a fact about a crowd that says
+nothing about the crowd.
+
+**WHAT SHIPPED.** `nearbyCountV2` returns `{ n, mix }`, where `mix` is
+`{ top: string[], n: number, capped?: true }` — up to three Big Five
+archetype names in rank order, and the number of phones the ranking was
+folded from. On screen: *"Mostly Host and Explorer · 11 people here have
+taken the test."*
+
+**THE DESIGN DECISION IS WHERE THE TYPE IS COMPUTED,** and everything else
+follows from it. `matchArchetype` lives client-side in
+`spec/archetype-data.js`; the table is content, not logic. The two obvious
+server-side routes were to port the table into `functions/` (two copies of
+a content table, drifting) or to join every nearby uid's profile at fold
+time (reads linear in the crowd, and a server holding "who is standing here
+AND what they scored" — the precise pairing `v2_presence`'s read deny
+exists to prevent). Instead **the phone writes its own archetype name into
+its own presence doc**, as an optional `type` field. The server counts
+names it does not understand. It never holds the table, never scores
+anybody, and never joins a profile to a position.
+
+**Why names and not shares, permanently.** `roomMix` returns a ranking and
+refuses a percentage, and the test asserts on the absence of `%`. At room
+sizes a share is a headcount wearing a disguise: "62% Hosts" moves visibly
+when one person walks in, and watching it move is a differencing attack
+anyone can run by standing at a door. A rank order does not move until a
+rank changes, which takes several people.
+
+**The floor is 8 typed phones** (`ROOM_MIN_TYPED`), matched to
+`data/typeMix.ts`'s `TYPE_THIN` — the same judgement about the same
+instrument one layer up. Below it there is no reading at all; the card says
+nothing rather than explaining the floor, because an empty street owes the
+reader no arithmetic.
+
+**`n` is the TYPED count, not the headline count.** Plenty of people nearby
+have never taken the test, and the two numbers sit on the same card. A
+reading that quoted the bigger one would be borrowing a population it did
+not measure — the D157 failure class, arriving as a basis instead of as a
+cell.
+
+### The cache is the feature, not an optimisation
+
+A count is an aggregation and costs ~1 read however crowded the cell is
+(D129). A mix needs the documents, which puts back exactly the linearity
+the count was rewritten to remove: every phone beats every 4 minutes, so an
+uncached fold charges (phones nearby) × (beats) — **quadratic in local
+density, at a festival, which is the one situation the feature is for.**
+
+`v2_presence_mix/{cell}` holds one cell's folded reading for one beat
+window. Everyone standing in a cell wants the same answer, so it is
+computed once and read by everyone else in it: ~900,000 reads become
+~24,000 for a 1,000-phone hour, and more to the point the fold term stops
+depending on crowd size at all (COSTS Finding 5 has the table). A cached
+REFUSAL is cached too — a crowded room where few have taken the test must
+not re-fold on every beat.
+
+The cache doc is `allow read, write: if false`, and the reason is
+presence's reason one level up: a client that could read a cell it is not
+standing in would have a map of every room rather than a reading about its
+own. The callable only ever answers for the caller's cell and its eight
+neighbours, and that restriction is the feature — it holds only while this
+is the sole door.
+
+### Two things checked rather than reasoned about
+
+**Which sixty, when the cap binds.** The fold reads at most
+`ROOM_SAMPLE_CAP` (60) docs via `where("cell", "in", cells).limit(60)`. If
+that merge were cell-major, a crowd above the cap would be sampled entirely
+from whichever corner the planner reached first — a reading drawn from one
+end of the field and printed as the room, appearing exactly at festival
+scale and nowhere in testing. **Probed against the emulator** (360 docs
+seeded evenly over the nine cells): the sixty returned spanned all nine,
+3–12 apiece. Firestore orders a query with no explicit `orderBy` by
+document id, and these ids are uids — random, uncorrelated with both cell
+and type. The property the design rests on is **the doc id being random**,
+not anything about the merge, and the comment says so: key presence by
+something ordered and this stops being true silently.
+
+An earlier pass "fixed" this by stratifying — nine queries with a per-cell
+cap. It was written and thrown away: `ceil(60/9)` = 7 puts the floor of 8
+out of reach in a single-cell venue, which is the *common* case. A fix for
+an unmeasured problem that breaks the ordinary path.
+
+**The cap makes `n` a floor, so it declares itself.** Past 60 sampled docs
+`n` is "at least this many", and printing it bare would report sixty of
+three thousand as the room. `capped` rides along and the card prints
+"60+" — D102's repair to the who-voted sheet ("the latest 200 of N"),
+applied here before the surface existed rather than after. Counted on the
+SAMPLE rather than on `n`, because a crowded mostly-untyped room is a
+truncated read either way.
+
+### Found under this stone
+
+- **A cached refusal decoded as an empty room.** The hit path returned
+  `{top: [], n: 0}` where the fold path returned `null`, and `{...}` is
+  truthy — the client's own `top.length` guard was the only thing between
+  that and *"Mostly  · 0 people here have taken the test."* The two paths
+  now agree at the source; a guard at one end of a wire is not a contract.
+- **D174 left its old radius in fifteen places,** including one the reader
+  sees: the count's unit still said *"within a couple of kilometres"* after
+  the grid went 0.01° → 0.002°, overstating the reach by five times. A unit
+  that flatters its number is the same failure as a fabricated number, and
+  `check:figures` does not cover prose that names a distance. Swept, and
+  the test now asserts the figure rather than the topic.
+- **D173 shipped a lint failure.** `NearModeChip` called `Date.now()`
+  during render, which `react-hooks/purity` refuses — so the React Compiler
+  had been bailing out of the card since that commit. The clock is sampled
+  in state on the same notify that already re-renders the component (the
+  beat is 4 minutes; the label is coarse to 5, so one sample per beat is
+  the right rate rather than a compromise), and a case pins it.
+
+### Guards
+
+Rules: `type` optional, non-empty, ≤40 chars, and `hasOnly` still names
+four keys — it is client-authored free text on a doc nobody can read, which
+is the shape that becomes storage for something else if it is not bounded.
+`v2_presence_mix` denied in both directions. Both mutation-checked: dropping
+the size cap and opening the cache each fail exactly their own case and
+nothing else. Rules suite 91 → 93.
+
+`roomMix` is pure and carries six cases plus the two capped ones — ranking,
+no-share, floor, typed-only basis, stable ties, three-name limit. The card
+carries the reading's own four: names in order, basis is the typed count
+and not the headline, no share ever, silent below the floor.

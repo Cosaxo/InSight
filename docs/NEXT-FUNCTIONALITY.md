@@ -874,6 +874,12 @@ of strangers.
    did. Precise on both platforms, 0.002° (~220 m) cells, Precise Location
    ticked — and the grid picked to sit one step ABOVE Apple's own precise
    threshold, so nothing precise is retained.
-3. **The room aggregate** (floor first, then the cache, then the reading).
+3. ~~**The room aggregate** (floor first, then the cache, then the reading).~~
+   **DONE ([D175](DECISIONS.md#d175--near-becomes-a-room-and-the-phone-says-what-it-is)).**
+   The phone writes its own archetype NAME into its presence doc, so the
+   server folds a mix without ever holding the archetype table or joining a
+   profile. Ranked names and a basis, never a share; `ROOM_MIN_TYPED` = 8;
+   cached per cell per beat window, which is what keeps the fold from being
+   quadratic in crowd density (COSTS Finding 5).
 4. **The tabs.**
 5. **Images** last — the field works with initials from day one.

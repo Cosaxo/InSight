@@ -156,16 +156,45 @@ v2_question_aggs/{qid}             the PUBLIC mirror, EXACT (D98)
 read: signed-in · write: nobody
 
 v2_presence/{uid}                  Near-by-radius presence (D84)
-  cell: "la_lo"                    a ~1 km 0.01-degree grid id, computed
-                                   ON DEVICE from a coarse fix whose
+  cell: "la_lo"                    a ~200 m 0.002-degree grid id (D174;
+                                   0.01° ≈ 1.1 km before it), computed
+                                   ON DEVICE from a precise fix whose
                                    coordinate is discarded (data/locate.ts)
-  at: request.time                 freshness; docs older than 10 min do
-                                   not count as "here"
+  at: request.time                 last write; the beat refreshes it
+  until: timestamp                 when this position STOPS counting
+                                   (D173) — the linger for the standing
+                                   option, the session deadline for the
+                                   timed one, whichever is sooner. The
+                                   count filters on it, and the rules cap
+                                   it at PRESENCE_LINGER_MIN so no client
+                                   grants itself a longer stay
+  type?: "Host"                    optional: the writer's OWN Big Five
+                                   archetype NAME (D175), ≤40 chars. The
+                                   phone writes it because the archetype
+                                   table lives on the device — this is
+                                   the only thing the room's mix folds
+                                   from, so the server never joins a
+                                   profile and never scores anybody
 read: NOBODY (the only read path is nearbyCountV2, which returns a count
-of fresh presence in the 3x3 neighborhood, caller excluded) ·
+over the 3x3 neighborhood, caller excluded, plus a coarse mix of names) ·
 create/update/delete: owner only, shape-checked — the cell regex in the
 rules is the precision cap in structural form. Opting out deletes the
 doc; deleteAccount does too.
+
+v2_presence_mix/{cell}             the room's folded reading (D175)
+  top: ["Host", "Explorer"]        archetype names in rank order. NEVER a
+                                   share beside a name — a percentage of
+                                   a dozen people is a headcount wearing
+                                   a disguise
+  n: 11                            how many TYPED phones it was folded
+                                   from; below ROOM_MIN_TYPED there is no
+                                   reading and the refusal itself is
+                                   cached, so a quiet room folds once
+  at: timestamp                    written at; re-folded past the beat
+                                   window, served from here inside it
+read/write: NOBODY. Written by nearbyCountV2 on the admin SDK. Derived
+from presence, so it carries presence's deny: a client reading a cell it
+is not standing in has a map of every room, not a reading about its own.
 
 v2_groups/{gid}                    groups AND duos (mode: group|duo)
   name, mode, ownerUid, memberUids[≤32; duo ≤2], memberNames{uid:name},
@@ -335,7 +364,7 @@ not per boot. `LIVE.stats` reports `bankSource` / `answersFetched` /
 
 ## Verification
 
-- `npm run test:rules` — 91 rules tests (Firestore + Storage; the v2
+- `npm run test:rules` — 93 rules tests (Firestore + Storage; the v2
   surface, the anonymous-default lens, and the retired-v1 guard).
 - `firestore-tests/e2e-v2-loop.mjs` under
   `firebase emulators:exec --only auth,firestore,functions` — the full

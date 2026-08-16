@@ -36,7 +36,10 @@ In scope, and most interesting:
   reason that survived D98:
   - `v2_logic_attempts` — the unscored answer key (anti-cheat).
   - `v2_flags` — who reported a comment (anti-retaliation).
-  - `v2_presence` — the uid → ~1 km cell pair. The only read path is
+  - `v2_presence` — the uid → ~200 m cell pair (0.01° ≈ 1.1 km until
+    D174 bought the finer grid with a precise-location permission; the
+    deny is what makes that trade survivable, so it tightens as the cell
+    shrinks, never loosens). The only read path is
     `nearbyCountV2`, which returns a count. Anything that recovers a
     uid's cell is in scope and serious: the app publishes what people
     answered, not where they are standing.
