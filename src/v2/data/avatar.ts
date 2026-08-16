@@ -1,9 +1,9 @@
-// The profile photo (D177) — the upload half, and the URL every surface
+// The profile photo (D178) — the upload half, and the URL every surface
 // draws from.
 //
 // The app held no image of anyone until this. `docs/STORE-FORMS.md` said
 // "Photos or Videos: not collected" and that was load-bearing, so this
-// module arriving flips a store answer the same way D174's precise fix
+// module arriving flips a store answer the same way D175's precise fix
 // did — deliberately, on the owner's call, recorded rather than absorbed.
 //
 // THREE PROPERTIES, and they are all here rather than spread across the
@@ -16,7 +16,7 @@
 //      overwrite, so the object count is bounded by construction.
 //   2. THE DEVICE DOES THE SHRINKING. What leaves the phone is a small
 //      square, re-encoded, with the original's metadata gone — EXIF on a
-//      camera photo carries GPS, and this app spent D9, D84 and D174
+//      camera photo carries GPS, and this app spent D9, D84 and D175
 //      being careful about exactly that datum. A canvas round-trip drops
 //      it; there is no EXIF on a `toBlob` result.
 //   3. A TOKEN IS STORED, NOT A URL. `v2_avatars` holds the Storage

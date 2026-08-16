@@ -279,7 +279,7 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
    * The counts for THIS STOP, from one aggregate — the globe on World,
    * the city/country cell everywhere else.
    *
-   * Shared by both walks below on purpose (D169). The rows resolved the
+   * Shared by both walks below on purpose (D170). The rows resolved the
    * cohort cell and the lens questions took `agg.counts`, so Answers
    * described Oslo while Compare and Scores described the world under
    * Oslo's name. Two walks over the same archive is two chances to
@@ -360,7 +360,7 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
   const lensQs: LensQuestion[] = archive.map((q) => {
     const agg = LIVE.aggFor(q.id);
     const opts = q.options || [];
-    // `counts` is THIS STOP (D169) — the same cell the rows above take, so
+    // `counts` is THIS STOP (D170) — the same cell the rows above take, so
     // a lens can no longer name a population and read another. `all` is
     // the globe, which only Explore wants: its buckets are cuts of
     // everyone and its sentence ends "same as everyone".
@@ -433,7 +433,7 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
               : <>nobody has answered {scope === "world" ? "yet" : <>in {shortName} yet</>}</>}
           </span>
         </div>
-        {/* THE PLACE NAME AND THE EXPLANATION ARE GONE (D171).
+        {/* THE PLACE NAME AND THE EXPLANATION ARE GONE (D172).
             The prototype's header is three things — kicker, figure, unit
             — and that is the whole of it (`MFHeader`: "Your city · 12.6k ·
             in Oslo"). This stop had grown two more blocks under them: the

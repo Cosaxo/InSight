@@ -52,7 +52,7 @@ export interface LensQuestion {
    * The counts of the STOP THIS LENS IS STANDING ON — the City stop's
    * city cell, the Country stop's country cell, the World stop's globe.
    *
-   * It was the globe on every stop until D169, while Compare and Scores
+   * It was the globe on every stop until D170, while Compare and Scores
    * printed the stop's name over it ("against Oslo", "How Oslo rated
    * it"). Not a fabricated number — a real one describing a crowd it
    * never counted, which is D157's failure one tab over. It was visible

@@ -1,4 +1,4 @@
-// The Near stop's three tab bodies (D176): Answers · People · Compare.
+// The Near stop's three tab bodies (D177): Answers · People · Compare.
 //
 // Every other Mirror stop folds its tabs on the device, out of the
 // published aggregates every client already holds. This one cannot. Near's
@@ -25,15 +25,15 @@ import React from "react";
 import LIVE from "../data/live";
 // The Answers list, in the prototype's row design — the same component the
 // City, Country and World stops use. Reused rather than re-implemented so
-// the room cannot drift from them: D169's "counts are this stop's cohort"
+// the room cannot drift from them: D170's "counts are this stop's cohort"
 // repair and its n=1 sentence live in one place.
 import LiveAnswerRows from "./LiveAnswerRows";
-// The face, since D177 — the same component every other named surface
+// The face, since D178 — the same component every other named surface
 // draws, with initials as its permanent fallback.
 import Avatar from "./Avatar";
 // Compare, likewise. It takes `LensQuestion[]` and a noun, and asks
 // nothing about scope — so the room passes its own counts and the word
-// "this room", and inherits D169's majority test for free.
+// "this room", and inherits D170's majority test for free.
 import { CompareLens } from "./LiveMirrorLenses";
 import { ROOM_WHOM, roomQuestions, roomRows } from "./roomShape";
 import {
@@ -156,7 +156,7 @@ function RoomPeople({ people }: { people: Array<{ uid: string; type?: string }> 
               }}>{m.match}%</span>
             ) : null}
             {/* THE REPORT CONTROL, and it only exists where a face does
-                (D177). The owner's call was a photo live from the moment
+                (D178). The owner's call was a photo live from the moment
                 it is set with the report loop behind it — which is only a
                 loop if the people who can see the face can use it, and
                 this tab is where a stranger sees one.

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 //
-// LiveCircleBody's empty and failed arms (D171).
+// LiveCircleBody's empty and failed arms (D172).
 //
 // The stop has three states that look alike from the outside and mean
 // different things, and the file's own comment says why conflating two of
@@ -9,7 +9,7 @@
 // "you follow nobody" to someone with thirty follows is a lie about their
 // own account.
 //
-// D171 changed what EMPTY looks like — the field, not a paragraph — which
+// D172 changed what EMPTY looks like — the field, not a paragraph — which
 // makes it worth pinning that the change did not leak into the other two.
 // A drawing where the failure notice goes would be the same class of
 // mistake pointed the other way.
@@ -44,7 +44,7 @@ afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 describe("LiveCircleBody · an empty circle is a field, not a paragraph", () => {
   it("draws the rings and you when you follow nobody", () => {
     const { container } = render(<LiveCircleBody />);
-    // The drawing is the claim. Before D171 this arm replaced it with a
+    // The drawing is the claim. Before D172 this arm replaced it with a
     // headline, which reads as a stop that was never built rather than one
     // that is empty — and it hides the grammar the whole tab speaks from
     // the reader who has not learned it yet.
@@ -62,7 +62,7 @@ describe("LiveCircleBody · an empty circle is a field, not a paragraph", () => 
   it("still says a FAILED read is a failure, and draws no field for it", () => {
     // The distinction this file exists for: null after a settled load
     // means the read broke. Drawing an empty constellation for it would
-    // tell someone with thirty follows that they have none — the D171
+    // tell someone with thirty follows that they have none — the D172
     // change pointed the wrong way.
     LIVE.circle = () => null;
     const { container } = render(<LiveCircleBody />);

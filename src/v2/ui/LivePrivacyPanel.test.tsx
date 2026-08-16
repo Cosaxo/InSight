@@ -23,7 +23,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 
 const LIVE = vi.hoisted(() => ({
-  // D177: every named surface draws a face now, so a LIVE stand-in
+  // D178: every named surface draws a face now, so a LIVE stand-in
   // that lacks this crashes the row rather than falling back to
   // initials. "" is the no-photo shape, which is most accounts.
   faceFor: () => "",
@@ -210,7 +210,7 @@ describe("LivePrivacyPanel · the type cut's disclosure", () => {
 });
 
 
-describe("LivePrivacyPanel · the list collapsed, the promises did not (D171)", () => {
+describe("LivePrivacyPanel · the list collapsed, the promises did not (D172)", () => {
   it("keeps the public-answers sentence open and everything else one tap away", () => {
     render(<LivePrivacyPanel />);
     // Open on arrival, because a user learning this from a stranger
@@ -238,11 +238,11 @@ describe("LivePrivacyPanel · the list collapsed, the promises did not (D171)", 
     // reversed, not because a layout pass thinned the list.
     const text = d.textContent || "";
     expect(text, "D9's location promise").toMatch(/never your coordinates/i);
-    // Tracks the grid: "kilometre-sized" until D174 moved it to 0.002°
+    // Tracks the grid: "kilometre-sized" until D175 moved it to 0.002°
     // (~200 m) in the same commit that made the fix precise. This guard
     // is the reason the copy could not quietly fall behind the constant.
     expect(text, "D84's presence promise").toMatch(/200-metre grid square/i);
-    expect(text, "D173's linger, which the copy missed for one commit")
+    expect(text, "D174's linger, which the copy missed for one commit")
       .toMatch(/three hours after you close the app/i);
     expect(text, "D146's type cut").toMatch(/grouped by your Big Five type/i);
     expect(text, "the exact-counts promise").toMatch(/counts\s+are exact/i);

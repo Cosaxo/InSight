@@ -211,7 +211,7 @@ export async function resolveNames(
     collection: fsCollection, documentId, getDocs, query, where,
   } = await getFirestoreApi();
   for (const batch of chunkUids(missing)) {
-    // TWO QUERIES PER CHUNK SINCE D177, not one, and the second is the
+    // TWO QUERIES PER CHUNK SINCE D178, not one, and the second is the
     // price of the photo living in its own collection.
     //
     // It lives there because a remove verdict has to write somewhere, and

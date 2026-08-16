@@ -247,7 +247,7 @@ export const deleteAccount = onCall(
     try {
       await deleteQueryDocs(db.collection("v2_takes").where("authorUid", "==", uid));
       await deleteQueryDocs(db.collection("v2_flags").where("uid", "==", uid));
-      // The face, both halves (D177). The document is one delete; the
+      // The face, both halves (D178). The document is one delete; the
       // BYTES are the first thing this function has ever had to remove
       // from Storage, and the reason storage.rules could keep its retired
       // read grant was precisely that deleteAccount did not touch Storage
@@ -263,7 +263,7 @@ export const deleteAccount = onCall(
       // The presence doc (D84) is keyed by uid — one delete, and the only
       // location-shaped datum the account ever held server-side is gone.
       //
-      // AND ITS CELL'S ROOM CACHE WITH IT (D176). That cache holds a
+      // AND ITS CELL'S ROOM CACHE WITH IT (D177). That cache holds a
       // ROSTER — a list of uids standing in a named cell — so deleting
       // the presence doc alone would leave this account listed in a room
       // for up to one beat window after it asked to be erased. Read the
@@ -292,7 +292,7 @@ export const deleteAccount = onCall(
       failed.push("takesFlags");
     }
 
-    // The photo's BYTES (D177) — the first thing this function has ever
+    // The photo's BYTES (D178) — the first thing this function has ever
     // had to remove from Storage, and its own phase so a bucket problem
     // reports as one instead of as a takes failure.
     //

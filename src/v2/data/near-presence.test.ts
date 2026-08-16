@@ -269,7 +269,7 @@ describe("disable() — stop sharing means stop, now", () => {
   });
 });
 
-// ── the three states, and the promise each one makes (D173) ──────────
+// ── the three states, and the promise each one makes (D174) ──────────
 //
 // The interesting one is `session`. "Visible for two hours" is a promise
 // about when you STOP being visible, and the thing that keeps it is not

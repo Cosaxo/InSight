@@ -268,7 +268,7 @@ from.
    Routine into the dev session as a workaround; that trades the entire
    confinement design for scheduling convenience.
 
-## Faces (D177)
+## Faces (D178)
 
 **A profile photo is moderated by this same pipeline**, and reusing it
 rather than growing a parallel one is the whole design: a face inherits
@@ -295,7 +295,7 @@ verdict log and the appeal annotation without a second copy of any of them.
   an account that costs nothing to make. The appeal is a human, which is
   what `hiddenMeta` is for.
 - **Live from the moment it is set**, with the report control on it. That
-  was the owner's call at D177 over reviewing a photo before it shows: the
+  was the owner's call at D178 over reviewing a photo before it shows: the
   same posture takes have had since D83, and the alternative would have
   meant contradicting the out-of-scope line below.
 
@@ -308,7 +308,7 @@ is, and the same automatic escalate.
 ## Deliberately out of scope
 
 - **Pre-moderation** of unflagged content — reading everything is the
-  surveillance shape this design exists to avoid. **This survived D177**,
+  surveillance shape this design exists to avoid. **This survived D178**,
   which is worth saying because a photo was the strongest case for
   reversing it: the owner was asked directly, chose the flag loop, and the
   line stands rather than being quietly narrowed to "except faces".

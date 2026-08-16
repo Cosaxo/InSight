@@ -122,7 +122,7 @@
          choice in the OS prompt regardless of what is requested.
 
          Delete this the day minSdkVersion reaches 31. -->
-    <!-- UNCAPPED SINCE D174. The maxSdkVersion="30" above used to make
+    <!-- UNCAPPED SINCE D175. The maxSdkVersion="30" above used to make
          precise location unobtainable by construction on API 31+; the
          venue-scale Near the owner asked for cannot be measured by a
          coarse fix, and a finer grid over a coarse measurement would be

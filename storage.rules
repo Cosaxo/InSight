@@ -1,18 +1,18 @@
 rules_version = '2';
 
-// Firebase Storage rules — owner-only writes, and since D177 one path a
+// Firebase Storage rules — owner-only writes, and since D178 one path a
 // signed-in user may READ: avatars/{uid}, the profile photo.
 //
-// Two paths are named. `avatars/{uid}` is live (D177). The other,
+// Two paths are named. `avatars/{uid}` is live (D178). The other,
 // users/{uid}/dailyPhotos/, is a RETIRED v1 surface (daily-report photo
 // backup, removed in D4) kept read/delete-only until the bucket is
 // confirmed empty. Everything else is denied by default.
 //
 // D98's note on this file used to say "a photo is not an answer, the path
 // is dead, and nothing on the Mirror reads it." Two thirds of that stopped
-// being true at D177 and the sentence is kept here as the record: a photo
+// being true at D178 and the sentence is kept here as the record: a photo
 // is still not an answer, and the reason avatars are world-readable is not
-// D98 but the same argument D176 made for the room — the surfaces that
+// D98 but the same argument D177 made for the room — the surfaces that
 // show a face already show the name beside it.
 //
 // Deploy with: firebase deploy --only storage
@@ -20,7 +20,7 @@ rules_version = '2';
 // deploy target, which this project doesn't configure, and it errors.)
 service firebase.storage {
   match /b/{bucket}/o {
-    // ── The profile photo (D177) ───────────────────────────────────
+    // ── The profile photo (D178) ───────────────────────────────────
     //
     // ONE OBJECT PER ACCOUNT, AT A FIXED ID, and that is the whole reason
     // this path has no {filename}. The retired path below records what a
@@ -32,7 +32,7 @@ service firebase.storage {
     //
     // Readable by any signed-in user, which is the grant that did not
     // exist here before. It is not D98's doing — D98 published answers —
-    // it is D176's argument: every surface that will draw this face
+    // it is D177's argument: every surface that will draw this face
     // already draws the name beside it, so the photo adds a likeness to a
     // person who was already identified, on screens whose whole subject
     // is who people are.

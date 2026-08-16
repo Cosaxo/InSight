@@ -18,7 +18,7 @@
 //   3. PRECISE_LOCATION agrees with the iOS plist. Called out separately
 //      because it is one word away from COARSE_LOCATION and a diff that
 //      flipped it would read as a typo rather than a policy change. Until
-//      D177 this rule said "never collected"; D174 made that false, and a
+//      D178 this rule said "never collected"; D175 made that false, and a
 //      prohibition reality has moved past is worse than no check — it
 //      fires on every correct state until someone deletes it.
 //   4. tracking.used is false. Tracking gates the entire form and carries
@@ -99,13 +99,13 @@ for (const t of proseTypes) {
   }
 }
 
-// RULE 3, TURNED AROUND AT D177 — and the reversal is the interesting part.
+// RULE 3, TURNED AROUND AT D178 — and the reversal is the interesting part.
 //
 // It used to assert PRECISE_LOCATION is NEVER collected, on the grounds
 // that it was unobtainable by construction: iOS shipped
 // NSLocationDefaultAccuracyReduced and never asked for full accuracy. Its
 // own message said "if that genuinely changed, this check is the last
-// thing to update, not the first" — and D174 changed it, deliberately and
+// thing to update, not the first" — and D175 changed it, deliberately and
 // on the owner's explicit go, to give Near a venue-scale radius.
 //
 // A hard-coded prohibition that reality has moved past is worse than no

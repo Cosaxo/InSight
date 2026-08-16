@@ -1,4 +1,4 @@
-// The profile photo's pure half (D177).
+// The profile photo's pure half (D178).
 //
 // The upload itself needs a browser and a bucket; what is testable without
 // either is the part that carries the safety argument — the URL is BUILT

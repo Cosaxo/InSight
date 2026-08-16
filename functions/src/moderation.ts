@@ -78,11 +78,11 @@ function assertModerator(request: CallableRequest): void {
 // long deadline. What it HOLDS is bounded by the number of distinct takes,
 // which is what made paging worth doing rather than raising the memory.
 /**
- * The uid behind an `av_`-namespaced moderation target, or null (D177).
+ * The uid behind an `av_`-namespaced moderation target, or null (D178).
  *
  * One reader for the prefix so the queue build, the verdict and any future
  * consumer cannot disagree about what an avatar target looks like. Returns
- * null for a take id, which is every id that existed before D177.
+ * null for a take id, which is every id that existed before D178.
  */
 function avatarTarget(targetId: string): string | null {
   return typeof targetId === "string" && targetId.startsWith("av_")
@@ -189,7 +189,7 @@ async function runBuildModQueue(): Promise<void> {
     // smaller claim.
     const bucket = avatarBucket();
     for (const item of queue) {
-      // AVATARS ARE MODERATED THROUGH THIS SAME QUEUE (D177), namespaced
+      // AVATARS ARE MODERATED THROUGH THIS SAME QUEUE (D178), namespaced
       // by an `av_` target id so they cannot collide with a take id.
       //
       // The queue's field is still called `takeId` because takes were the
@@ -290,9 +290,9 @@ export const fetchModQueue = onCall({ ...LIGHT_CALLABLE, region: REGION }, async
     runCap: MOD_RUN_CAP,
     items: queue.docs.map((d) => ({
       takeId: d.get("takeId"),
-      // D177. `kind` tells the session what it is looking at; for an
+      // D178. `kind` tells the session what it is looking at; for an
       // avatar the content is an image, so it gets what it needs to fetch
-      // one and nothing else. Absent on entries queued before D177, which
+      // one and nothing else. Absent on entries queued before D178, which
       // read as takes — the same default the collection had.
       kind: d.get("kind") || "take",
       token: d.get("token") || null,
@@ -385,7 +385,7 @@ export const submitModVerdict = onCall({ ...LIGHT_CALLABLE, region: REGION }, as
       // this used to write into `hidden` itself: nobody's access decision
       // turns on it, it exists so an appeal can be answered.
       // Same two fields on either kind, which is the reason an avatar got
-      // its own DOCUMENT rather than a field on the profile (D177): the
+      // its own DOCUMENT rather than a field on the profile (D178): the
       // remove path is one write of a shape the appeal path, the read
       // rules and this transaction all already understand.
       const target = avatarTarget(takeId);

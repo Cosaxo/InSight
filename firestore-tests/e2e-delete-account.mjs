@@ -38,7 +38,7 @@ const fail = (msg) => { console.error("✗ " + msg); process.exit(1); };
 const ok = (msg) => console.log("✓ " + msg);
 
 // ── admin (rules bypassed) — the only trustworthy observer here ──
-// The bucket has to be NAMED (D177). A demo project has no default one
+// The bucket has to be NAMED (D178). A demo project has no default one
 // to infer, and `bucket()` throws `storage/invalid-argument` rather than
 // guessing — which is the right behaviour and an easy half-hour if you
 // read it as "the emulator is broken".
@@ -235,7 +235,7 @@ await adb.doc(`v2_ratelimits/suggest_${uid}`).set({ events: [Date.now()] });
 // The presence doc (D84): the one location-shaped datum an account can
 // hold, and the wipe must take it — a cell that outlives its account is a
 // standing "someone was here" nobody can retract.
-// The profile photo (D177), both halves. The document is ordinary; the
+// The profile photo (D178), both halves. The document is ordinary; the
 // OBJECT is the first thing deleteAccount has ever had to remove from
 // Storage, and the reason storage.rules could keep its retired read grant
 // was precisely that erasure did not reach the bucket.
@@ -253,7 +253,7 @@ if (!(await adminStorage().bucket().file(`avatars/${uid}`).exists())[0]) {
 await adb.doc(`v2_presence/${uid}`).set({
   cell: "5999_1074", at: new Date(), until: new Date(Date.now() + 60 * 60_000),
 });
-// …and the ROOM CACHE for that cell (D176), which is the one derived
+// …and the ROOM CACHE for that cell (D177), which is the one derived
 // document that holds a uid. A roster naming this account survives the
 // presence delete on its own — it is keyed by cell, not by uid — so the
 // wipe reads the cell and drops the fold with it. Seeded with a stranger
@@ -426,7 +426,7 @@ if ((await myLedgerEntries()).length !== 0)
   fail("agg-ledger entries for the deleted uid survive the sweep");
 ok("every owned document, subcollection and cross-user reference is gone");
 
-// THE BYTES, not only the document (D177). The photo is the app's first
+// THE BYTES, not only the document (D178). The photo is the app's first
 // object in Storage and the first thing erasure has ever had to reach
 // outside Firestore — a face outliving the account it belonged to is the
 // leftover this whole suite is written against, and it is the one no

@@ -35,13 +35,13 @@ const LIVE = vi.hoisted(() => ({
   near: {
     supported: () => true as boolean,
     on: () => false as boolean,
-    // D173's three states. The mock defaults to the timed one because
+    // D174's three states. The mock defaults to the timed one because
     // that is what enable() lands on, so a case that only flips `on`
     // gets the shape a real opt-in produces.
     mode: () => "session" as "off" | "session" | "always",
     until: () => Date.now() + 90 * 60_000,
     count: () => null as number | null,
-    // D175's room mix — null by default, which is the quiet-street case.
+    // D176's room mix — null by default, which is the quiet-street case.
     mix: () => null as { top: string[]; n: number; capped?: boolean } | null,
     tooFew: () => false as boolean,
     updatedAt: () => 0 as number,
@@ -49,7 +49,7 @@ const LIVE = vi.hoisted(() => ({
     enable: vi.fn(async () => ({ ok: true } as { ok: boolean; reason?: string })),
     disable: vi.fn(async () => {}),
     refresh: () => {},
-    // D176's room. The tab BODIES are lazy and have their own file; what
+    // D177's room. The tab BODIES are lazy and have their own file; what
     // this fixture has to carry is enough for the row to mount.
     room: () => null,
     roomLoading: () => false,
@@ -124,7 +124,7 @@ describe("the Right now card (D84 — moved with the stop)", () => {
   it("pitches honestly while off: who is here, the square, mutuality, the linger", () => {
     render(<NearLiveBody />);
     const text = document.body.textContent || "";
-    // "A COUNT, NEVER WHO" WAS ASSERTED HERE UNTIL D176, and the case is
+    // "A COUNT, NEVER WHO" WAS ASSERTED HERE UNTIL D177, and the case is
     // more interesting for having had to change: that promise was the
     // stop's whole pitch, and the People tab made it false. A test that
     // pinned the old words would have been the thing arguing to keep a
@@ -133,13 +133,13 @@ describe("the Right now card (D84 — moved with the stop)", () => {
     expect(text).not.toMatch(/a count, never\s+who/i);
     expect(text).toMatch(/you appear to them exactly while they appear to you/i);
     // The SIZE of the square, and it has to track the grid. It said
-    // "kilometre-sized" until D174 moved the grid to 0.002° (~200 m) —
+    // "kilometre-sized" until D175 moved the grid to 0.002° (~200 m) —
     // which was only allowed to happen because the fix became precise in
     // the same commit. A copy line naming a radius the sensor cannot hold
     // is the failure this case exists to catch, in either direction.
     expect(text).toMatch(/200-metre grid square/i);
     expect(text).not.toMatch(/kilometre-sized/i);
-    // The LINGER, which is a disclosure and not a detail: D173 made a
+    // The LINGER, which is a disclosure and not a detail: D174 made a
     // position outlive the app by up to three hours, and this sentence
     // said "goes stale within minutes" for one commit before anyone
     // noticed. What a user is agreeing to includes how long it lasts.
@@ -159,14 +159,14 @@ describe("the Right now card (D84 — moved with the stop)", () => {
     // not one sentence — so this asserts the two halves rather than a
     // string that no longer exists in one element.
     expect(screen.getByText("3")).toBeTruthy();
-    // The unit moved at D174 with the grid (0.01° → 0.002°): nine cells
+    // The unit moved at D175 with the grid (0.01° → 0.002°): nine cells
     // span ~600 m, not ~3.3 km, so "a couple of kilometres" was an
     // overstatement of the count's reach by five times. Asserted as the
     // FIGURE it names rather than as prose, so the next grid change fails
     // here instead of shipping a unit that flatters the number.
     expect(screen.getByText(/within a few hundred metres/i)).toBeTruthy();
     // The line under the figure, which said "a count, never who" until the
-    // People tab made that untrue (D176). Mutuality is what it says
+    // People tab made that untrue (D177). Mutuality is what it says
     // instead, and it is the claim the server actually enforces — the
     // callable refuses anyone without a live position of their own.
     expect(screen.getByText(/They can see you here too/i)).toBeTruthy();
@@ -410,7 +410,7 @@ describe("NearField · a node is a radius, never a place and never a join key", 
 });
 
 
-// ── the room's reading (D175) ────────────────────────────────────────
+// ── the room's reading (D176) ────────────────────────────────────────
 describe("NearPresence · the room", () => {
   beforeEach(() => {
     LIVE.near.on = () => true;
@@ -454,7 +454,7 @@ describe("NearPresence · the room", () => {
   // case at all. `Date.now()` during render is impure — the React Compiler
   // bails out of any component that does it, which costs the memoisation on
   // the whole card and reports as one eslint line rather than as anything
-  // visible. It shipped that way at D173 and was caught by `npm run lint`,
+  // visible. It shipped that way at D174 and was caught by `npm run lint`,
   // not by a test. So the deadline now arrives as a prop sampled on the
   // beat, and this pins the two ends of that: a real remaining time is
   // rendered, and a not-yet-sampled clock renders the MODE instead of
@@ -493,7 +493,7 @@ describe("NearPresence · the room", () => {
 });
 
 
-// ── the room's tab row (D176) ────────────────────────────────────────
+// ── the room's tab row (D177) ────────────────────────────────────────
 describe("NearPresence · the row only exists when there is a room", () => {
   it("offers Answers, People and Compare once the counter is on", async () => {
     LIVE.near.on = () => true;

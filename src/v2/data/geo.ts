@@ -5,13 +5,13 @@
 // integer ±1s instead of a base-32 table, the precision cap is legible in
 // the id itself, and firestore.rules can hold the shape with one regex.
 //
-// 0.002° SINCE D174, DOWN FROM 0.01°, and the reason the constant could
+// 0.002° SINCE D175, DOWN FROM 0.01°, and the reason the constant could
 // not simply be edited is worth keeping here. At 0.01° a cell was ~1.11 km
 // tall — which was not a design choice but the honest ceiling of the
 // COARSE fix the app used to request. A finer grid over a coarse fix would
 // have produced precise-LOOKING ids computed from a kilometre-wide
 // measurement, which is the invented precision this app refuses
-// everywhere else. So the grid moved only once the fix did: D174 requests
+// everywhere else. So the grid moved only once the fix did: D175 requests
 // precise location on both platforms and pays for it at the store label.
 //
 // At 0.002° a cell is ~222 m tall everywhere and ~222·cos(lat) m wide

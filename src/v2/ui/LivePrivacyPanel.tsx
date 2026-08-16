@@ -145,11 +145,11 @@ function LivePrivacyPanel() {
     <div className="card" style={{ marginBottom: 14, padding: "14px 16px" }}>
       <div className="kicker" style={{ marginBottom: 4 }}>Account &amp; privacy</div>
 
-      {/* THE FACE, ABOVE THE NAME (D177). Both answer "who are you to
+      {/* THE FACE, ABOVE THE NAME (D178). Both answer "who are you to
           other people", and the photo is the louder half — so it goes
           first, and its sub-line is the disclosure rather than an
           instruction. A photo shows to anyone who can already see your
-          name, which since D176 includes people standing near you.
+          name, which since D177 includes people standing near you.
 
           Reported like a take, not reviewed before it shows (the owner's
           call): the same loop takes have had since D83, so a face carries
@@ -242,7 +242,7 @@ function LivePrivacyPanel() {
         {btn(telemetry ? "On ✓" : "Off", toggleTelemetry)}
       </LpRow>
 
-      {/* TEN BULLETS BEHIND A SUMMARY (D171), and the split is the whole
+      {/* TEN BULLETS BEHIND A SUMMARY (D172), and the split is the whole
           point rather than a compromise.
 
           The owner's note was "you can remove almost the entire list — it
@@ -336,7 +336,7 @@ function LivePrivacyPanel() {
               too). If the mechanics change, this sentence changes in the
               same commit.
 
-              AND THEY CHANGED AT D176, which is the half of that promise
+              AND THEY CHANGED AT D177, which is the half of that promise
               worth stating loudly. "A count is all that comes back" was
               true for as long as Near WAS a count; the People tab names
               the people in your square. So this bullet now separates the
@@ -394,7 +394,7 @@ function LivePrivacyPanel() {
 
       {err && <div style={{ fontSize: 12, fontWeight: 600, color: "oklch(0.5 0.19 25)", marginTop: 8 }}>{err.replace(/^.*?: */, "")}</div>}
 
-      {/* The topic-preference panel stood here (D128) and is gone (D172):
+      {/* The topic-preference panel stood here (D128) and is gone (D173):
           how much of a subject you see is the algorithm's job, not a
           lever's. Muting a topic outright survives, in the feed's own
           topic sheet, which is where it was always reachable. */}

@@ -877,7 +877,7 @@ service cloud.firestore {
         && resource.data.authorUid == request.auth.uid;
     }
 
-    // ── The profile photo's document (D177) ────────────────────────
+    // ── The profile photo's document (D178) ────────────────────────
     //
     // The bytes live in Storage; this is the part moderation acts on. Its
     // OWN collection rather than a field on `v2_users`, for two reasons
@@ -940,7 +940,7 @@ service cloud.firestore {
       // anti-cheat deny. Reversing it is a moderation decision, not a
       // linkage one, and would want its own record.
       allow read: if false;
-      // AVATARS ARE FLAGGABLE TOO SINCE D177, through this same door.
+      // AVATARS ARE FLAGGABLE TOO SINCE D178, through this same door.
       //
       // The owner's call was to ship a photo LIVE with the report loop
       // behind it rather than to review it first — the model takes already
@@ -1045,7 +1045,7 @@ service cloud.firestore {
     // of archetype NAMES, never a row per person. The cell regex is the
     // precision cap in structural form: a "la_lo" integer grid id cannot
     // carry anything finer than the 0.002° cell, however hard a client
-    // tries. (0.01° until D174, which bought the finer grid with a
+    // tries. (0.01° until D175, which bought the finer grid with a
     // precise-location permission — the deny is what makes that trade
     // survivable, so it gets stricter as the cell gets smaller, never
     // looser.)
@@ -1056,7 +1056,7 @@ service cloud.firestore {
       allow read: if false;
       // `until` is when this position stops counting, and the CAP is the
       // point of having it in the rules rather than only in the client
-      // (D173). The timed "visible for a while" option is a promise about
+      // (D174). The timed "visible for a while" option is a promise about
       // when you stop being visible; a client sets `until` to its session
       // deadline so closing the app just before it cannot leave the
       // position standing for a further linger. Without the ceiling here,
@@ -1076,7 +1076,7 @@ service cloud.firestore {
         && request.resource.data.until is timestamp
         && request.resource.data.until > request.time
         && request.resource.data.until <= request.time + duration.value(180, 'm')
-        // `type` is the writer's OWN Big Five archetype name (D175), the
+        // `type` is the writer's OWN Big Five archetype name (D176), the
         // one thing the room's mix is folded from. Optional — most people
         // have not taken the test — and bounded, because this doc is
         // written by a client and a free-text field on a doc nobody can
@@ -1092,7 +1092,7 @@ service cloud.firestore {
       allow delete: if request.auth != null && request.auth.uid == uid;
     }
 
-    // ── The room's mix cache (D175) ────────────────────────────────
+    // ── The room's mix cache (D176) ────────────────────────────────
     //
     // One doc per cell holding the coarse reading nearbyCountV2 serves, so
     // a busy venue folds once per beat window instead of once per phone in
@@ -1109,7 +1109,7 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // ── The room's roster and answers cache (D176) ─────────────────
+    // ── The room's roster and answers cache (D177) ─────────────────
     //
     // The Near stop's Answers/People/Compare fold, cached per cell on the
     // same argument as the mix beside it — and denied harder in effect,

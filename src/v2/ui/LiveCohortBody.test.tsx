@@ -322,7 +322,7 @@ describe("LiveCohortBody · no city is a prompt, not an empty panel", () => {
     LIVE.myCity = "";
     LIVE.aggFor = () => ({ counts: { "0": 30, "1": 20 }, total: 50, tooSmall: false });
     mountAnswers("world");
-    // The kicker, since D171 removed the 25px place name under it — the
+    // The kicker, since D172 removed the 25px place name under it — the
     // globe's own word for itself, and the thing that proves the body
     // rendered rather than the city gate.
     expect(screen.getByText("Everyone")).toBeTruthy();
@@ -814,7 +814,7 @@ describe("LiveCohortBody · the lens row is the stop's tabs", () => {
 
 // ── the lenses read the stop they are standing on ────────────────────
 //
-// D169. Three tabs named a population and read a different one. `rows`
+// D170. Three tabs named a population and read a different one. `rows`
 // (Answers) always took the cohort CELL — `agg.by[scope][bucket]` — while
 // `lensQs` was assembled from `agg.counts`, which is the GLOBE. So on the
 // City stop, "against Oslo" and "How Oslo rated it" were the world's
@@ -893,7 +893,7 @@ describe("LiveCohortBody · a lens reads its own stop, never the globe", () => {
 
 // ── a reading drawn from one answer is not a percentage ──────────────
 //
-// D169's second half, and the one the screenshots led with: a city whose
+// D170's second half, and the one the screenshots led with: a city whose
 // only answer is yours told you "100% of Oslo are with you" and, under
 // "How Oslo rated it", "you gave it 4 — exactly the average · 1 answer".
 // Both are you, compared with yourself.

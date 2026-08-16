@@ -22,7 +22,7 @@
 // layer's render-time lookup working unchanged.
 import React from "react";
 import LIVE from "../data/live";
-// The rings-and-you drawing every other stop shows when it is empty (D171).
+// The rings-and-you drawing every other stop shows when it is empty (D172).
 // A tiny standalone module, NOT LiveSimilarityField: this file is a static
 // import in mirror-tab, and that one is the whole similarity engine.
 import EmptyField from "./EmptyField";
@@ -250,7 +250,7 @@ function LiveGroupsMirrorBody() {
 
   if (!g) {
     return (
-      // The FIELD, not a card of prose (D171). This and Circle were the
+      // The FIELD, not a card of prose (D172). This and Circle were the
       // last two stops answering an empty account with a paragraph while
       // every other one drew its rings — and they are the two a new
       // account meets first.

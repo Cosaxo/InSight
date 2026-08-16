@@ -1,4 +1,4 @@
-// The empty constellation — the rings, and you at the centre (D171).
+// The empty constellation — the rings, and you at the centre (D172).
 //
 // D160 established that an empty field is still a field: every arm of
 // LiveSimilarityField used to REPLACE the drawing with a paragraph when it
@@ -6,7 +6,7 @@
 // than one that is empty, and hides the grammar the whole tab is written
 // in from exactly the reader who has not learned it.
 //
-// D171 finishes that thought at the two stops D160 could not reach. Circle
+// D172 finishes that thought at the two stops D160 could not reach. Circle
 // and Groups answered an empty account with a card of prose — "You follow
 // nobody yet", "No groups yet" — while City, Country, World and Near all
 // drew the field. Same stop row, two different ideas of what empty looks

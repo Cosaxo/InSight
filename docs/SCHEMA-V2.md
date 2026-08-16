@@ -155,7 +155,7 @@ v2_question_aggs/{qid}             the PUBLIC mirror, EXACT (D98)
                                    member sets, per-group anything
 read: signed-in · write: nobody
 
-v2_avatars/{uid}                   the profile photo's document (D177)
+v2_avatars/{uid}                   the profile photo's document (D178)
   token: "…"                       the Storage download token for
                                    avatars/{uid}. NOT a URL: the client
                                    builds the URL around it, so this field
@@ -175,20 +175,20 @@ object per account at a fixed id so the count is bounded by accounts
 rather than by uploads. deleteAccount removes both halves.
 
 v2_presence/{uid}                  Near-by-radius presence (D84)
-  cell: "la_lo"                    a ~200 m 0.002-degree grid id (D174;
+  cell: "la_lo"                    a ~200 m 0.002-degree grid id (D175;
                                    0.01° ≈ 1.1 km before it), computed
                                    ON DEVICE from a precise fix whose
                                    coordinate is discarded (data/locate.ts)
   at: request.time                 last write; the beat refreshes it
   until: timestamp                 when this position STOPS counting
-                                   (D173) — the linger for the standing
+                                   (D174) — the linger for the standing
                                    option, the session deadline for the
                                    timed one, whichever is sooner. The
                                    count filters on it, and the rules cap
                                    it at PRESENCE_LINGER_MIN so no client
                                    grants itself a longer stay
   type?: "Host"                    optional: the writer's OWN Big Five
-                                   archetype NAME (D175), ≤40 chars. The
+                                   archetype NAME (D176), ≤40 chars. The
                                    phone writes it because the archetype
                                    table lives on the device — this is
                                    the only thing the room's mix folds
@@ -200,7 +200,7 @@ create/update/delete: owner only, shape-checked — the cell regex in the
 rules is the precision cap in structural form. Opting out deletes the
 doc; deleteAccount does too.
 
-v2_presence_mix/{cell}             the room's folded reading (D175)
+v2_presence_mix/{cell}             the room's folded reading (D176)
   top: ["Host", "Explorer"]        archetype names in rank order. NEVER a
                                    share beside a name — a percentage of
                                    a dozen people is a headcount wearing
@@ -215,7 +215,7 @@ read/write: NOBODY. Written by nearbyCountV2 on the admin SDK. Derived
 from presence, so it carries presence's deny: a client reading a cell it
 is not standing in has a map of every room, not a reading about its own.
 
-v2_presence_room/{cell}            the room, folded (D176)
+v2_presence_room/{cell}            the room, folded (D177)
   people: [{uid, type?}]           the sampled roster, <= ROOM_PEOPLE_CAP.
                                    `type` is the archetype the phone wrote
                                    for itself; absent for an untyped phone

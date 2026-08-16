@@ -29,7 +29,7 @@ export type LocateResult =
   | { ok: true; key: string; km: number }
   | { ok: false; reason: LocateFail };
 
-// PRECISE SINCE D174, and the flag does two jobs. It is the accuracy of
+// PRECISE SINCE D175, and the flag does two jobs. It is the accuracy of
 // the fix, and on Android 12+ it is also what @capacitor/geolocation asks
 // the OS for: `false` requested COARSE alone, `true` requests the
 // [COARSE, FINE] alias (GeolocationPlugin.kt, getAlias). Both halves of

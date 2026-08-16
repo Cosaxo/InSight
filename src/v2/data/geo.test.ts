@@ -8,7 +8,7 @@ import { presenceCell, PRESENCE_CELL_RE } from "./geo";
 
 describe("presenceCell", () => {
   it("maps known places onto the shared vectors", () => {
-    // 0.002° since D174 — five-digit indices, and a cell that is ~222 m
+    // 0.002° since D175 — five-digit indices, and a cell that is ~222 m
     // tall rather than ~1.1 km.
     expect(presenceCell(59.9139, 10.7522)).toBe("29956_5376");   // Oslo centre
     expect(presenceCell(59.999, 10.749)).toBe("29999_5374");     // the pure-test cell

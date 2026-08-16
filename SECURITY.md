@@ -37,7 +37,7 @@ In scope, and most interesting:
   - `v2_logic_attempts` — the unscored answer key (anti-cheat).
   - `v2_flags` — who reported a comment (anti-retaliation).
   - `v2_presence` — the uid → ~200 m cell pair (0.01° ≈ 1.1 km until
-    D174 bought the finer grid with a precise-location permission; the
+    D175 bought the finer grid with a precise-location permission; the
     deny is what makes that trade survivable, so it tightens as the cell
     shrinks, never loosens). The only read path is
     `nearbyCountV2`, which returns a count. Anything that recovers a

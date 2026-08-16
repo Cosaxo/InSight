@@ -354,7 +354,7 @@ function KindredCard({ p }: { p: TypedPerson & { anchors?: Record<string, string
       background: "var(--surface)", border: LL_LINE, borderRadius: 14,
     }}>
       <MatchRing pct={pct} color={`oklch(0.52 0.13 ${hue})`} size={50} title={`${pct}% alike`}>
-        {/* THE FACE, WHERE THE GENERIC BODY GLYPH WAS (D177). A photo is a
+        {/* THE FACE, WHERE THE GENERIC BODY GLYPH WAS (D178). A photo is a
             profile field, so it draws anywhere a person is already named,
             and this card names one. Avatar falls back to initials and,
             failing those, to the same anonymous shape this used to be —
@@ -483,9 +483,9 @@ function PeopleLens({ qs, scope, shortName }: {
 /**
  * Compare — you against a cohort, least typical first.
  *
- * EXPORTED since D176, and it is the only lens body that is: the Near
+ * EXPORTED since D177, and it is the only lens body that is: the Near
  * stop's room reads exactly this way (you against the people here), and a
- * second implementation would be a second place for D169's majority test
+ * second implementation would be a second place for D170's majority test
  * to be got wrong. It asks nothing about scope — a `LensQuestion[]` and a
  * noun — so a cohort the server folded reads the same as one the device
  * did.
@@ -502,7 +502,7 @@ export function CompareLens({ qs, shortName }: { qs: LensQuestion[]; shortName: 
     const pct = pctFor(q.counts);
     const n = q.counts.reduce((a, b) => a + b, 0);
     // "With the majority" means your pick is what this cohort picked MOST
-    // — not that it cleared 50% (D169). The old rule was `mineShare >= 50`
+    // — not that it cleared 50% (D170). The old rule was `mineShare >= 50`
     // and it was wrong in both directions: on a three-way question the
     // leading answer can win on 40%, and on a two-way tie at 50/50 nobody
     // is in the majority, which is exactly what the release showed —
@@ -559,7 +559,7 @@ function ExploreLens({ qs }: { qs: LensQuestion[] }) {
     ? qs.map((q) => {
       const split = sliceSplit(q.by, dim, picked, q.options.length);
       if (!split) return null;
-      // `all`, not `counts` (D169): Explore's slices are cuts of everyone
+      // `all`, not `counts` (D170): Explore's slices are cuts of everyone
       // and its sentence ends "same as everyone", so the globe is the
       // right baseline on every stop. Compare and Scores read `counts`,
       // which is the stop's own cohort.
@@ -687,7 +687,7 @@ function ScoresLens({ qs, shortName }: { qs: LensQuestion[]; shortName: string }
                 /* One answer is not an average, and when you are the one
                    who gave it "exactly the average" is you compared with
                    yourself — which is what the release printed, under the
-                   heading "How Oslo rated it" (D169). Said as a count
+                   heading "How Oslo rated it" (D170). Said as a count
                    instead: true whoever the answer belongs to, which
                    matters because a vote carries the city it was cast
                    from (D8) and this stop shows the city you are in now. */

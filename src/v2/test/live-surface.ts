@@ -45,7 +45,7 @@ export const LIVE_MEMBERS = [
   // synchronous best-effort read; `loadNames` is the batched fetch that
   // fills it for a surface that has uids but no names (world takes).
   "nameFor", "loadNames", "scoresFor",
-  // The profile photo (D177) — the read half of the same cache, and the
+  // The profile photo (D178) — the read half of the same cache, and the
   // one place a hidden face is filtered out for every surface at once.
   "faceFor", "setAvatar", "removeAvatar", "myFace",
   // The report control on a face, through the SAME flag collection takes

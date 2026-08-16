@@ -1511,7 +1511,7 @@ describe("normalizeHandle", () => {
   });
 });
 
-// ── the room's mix (D175) ────────────────────────────────────────────
+// ── the room's mix (D176) ────────────────────────────────────────────
 //
 // The fold behind "mostly Hosts and Explorers". What it must NOT do is
 // most of the value: no shares, a floor, and an order that does not
@@ -1562,7 +1562,7 @@ describe("roomMix", () => {
     expect(m?.top).toHaveLength(3);
   });
 
-  // THE TRUNCATION HAS TO DECLARE ITSELF (D175, D102's rule).
+  // THE TRUNCATION HAS TO DECLARE ITSELF (D176, D102's rule).
   //
   // The fold reads at most ROOM_SAMPLE_CAP presence docs, so in a stadium
   // `n` is a floor on the typed crowd rather than its size. Printing it
@@ -1591,7 +1591,7 @@ describe("roomMix", () => {
   });
 });
 
-// ── the room, read (D176) ───────────────────────────────────────────
+// ── the room, read (D177) ───────────────────────────────────────────
 describe("tallyPicks", () => {
   it("counts picks into the aggregate's own shape", () => {
     // Deliberately the `{ "0": n }` map v2_question_aggs uses: the client

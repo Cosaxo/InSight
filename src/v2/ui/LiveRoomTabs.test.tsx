@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 //
-// The Near stop's three tab bodies (D176).
+// The Near stop's three tab bodies (D177).
 //
 // The claims worth a case here are the ones that are new to this stop
 // rather than inherited: Answers and Compare are the SAME components the
@@ -33,7 +33,7 @@ const LIVE = vi.hoisted(() => {
     loadNames: vi.fn(async () => {}),
     nameFor: (uid: string) => ({ u1: "Ada Lovelace", u2: "" }[uid] ?? ""),
     scoresFor: () => null as Record<string, Record<string, number>> | null,
-    // D177. No face by default: initials are the permanent fallback, so
+    // D178. No face by default: initials are the permanent fallback, so
     // that is the shape most rows have.
     faceFor: ((uid: string) => (uid ? "" : "")) as (uid: string) => string,
     flagAvatar: vi.fn(async () => {}),
@@ -51,7 +51,7 @@ vi.mock("../data/live", () => ({ default: LIVE }));
 const { default: LiveRoomTabs } = await import("./LiveRoomTabs");
 
 // The photo URL is built from build config, so a test run has none — and
-// without it every face falls back to initials, which would make the D177
+// without it every face falls back to initials, which would make the D178
 // cases below pass for the wrong reason.
 beforeAll(() => { vi.stubEnv("VITE_FIREBASE_STORAGE_BUCKET", "b.appspot.com"); });
 afterAll(() => { vi.unstubAllEnvs(); });
@@ -107,7 +107,7 @@ describe("LiveRoomTabs · People, the one tab that discloses something new", () 
     // An account that never set a display name is still a person in the
     // room; an empty row would read as a rendering fault.
     expect(screen.getByText("Someone")).toBeTruthy();
-    // The archetype rides the presence doc (D175's `type`), so a phone
+    // The archetype rides the presence doc (D176's `type`), so a phone
     // that never took the test simply has no badge — not a blank one.
     expect(screen.getByText("Host")).toBeTruthy();
   });
@@ -152,7 +152,7 @@ describe("LiveRoomTabs · Answers and Compare read the room", () => {
 
   it("puts the room's own counts under the room's own noun", () => {
     render(<LiveRoomTabs tab="answers" />);
-    // The cohort noun matters as much as the number: D169's whole finding
+    // The cohort noun matters as much as the number: D170's whole finding
     // was three lenses naming one population and reading another.
     expect(document.body.textContent || "").toMatch(/this room/i);
   });
@@ -174,7 +174,7 @@ describe("LiveRoomTabs · Answers and Compare read the room", () => {
 });
 
 
-// ── the face, and the loop behind it (D177) ──────────────────────────
+// ── the face, and the loop behind it (D178) ──────────────────────────
 describe("LiveRoomTabs · People draws faces and can report one", () => {
   beforeEach(() => {
     LIVE.near.room = () => ({

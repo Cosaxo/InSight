@@ -539,13 +539,13 @@ worth an incremental insert if circles grow; and a capped voters page has
 a natural cursor (`answeredAt`) if anyone ever needs page two. Neither is
 worth building before a user exists who would notice (D7's discipline).
 
-### Finding 5 — the room's mix would have been quadratic in density · **CACHED AT BIRTH (D175)**
+### Finding 5 — the room's mix would have been quadratic in density · **CACHED AT BIRTH (D176)**
 
 > Priced before it shipped rather than after, which is the whole point of
 > this document existing. The number below is small; the shape it would
 > have had is not.
 
-D175 gives Near a reading — "mostly Hosts and Explorers" — folded from the
+D176 gives Near a reading — "mostly Hosts and Explorers" — folded from the
 archetype names phones write into their own presence docs. A **count** is
 an aggregation and costs ~1 read however crowded the cell is (Finding 2's
 lesson, applied at D129). A **mix** needs the documents themselves, which
@@ -590,13 +590,13 @@ model — a guess at the opt-in rate would be the model's least-supported
 input and its most leveraged. The bound above is the whole answer: this
 term cannot grow faster than cells × time, whatever fraction opts in.
 
-### Finding 6 — the room's tabs read a document per person per question · **CAPPED AND CACHED AT BIRTH (D176)**
+### Finding 6 — the room's tabs read a document per person per question · **CAPPED AND CACHED AT BIRTH (D177)**
 
 > The same shape as Finding 5 one notch worse, priced the same way and for
 > the same reason: the fold is new, so this is the cheapest moment to bound
 > it.
 
-D176 gives Near the tabs every other Mirror stop has — Answers, People,
+D177 gives Near the tabs every other Mirror stop has — Answers, People,
 Compare — over the people actually present. City and World fold those on
 the device out of published aggregates; Near cannot, because its cohort is
 a set of phones and `v2_presence` is unreadable. So `nearbyRoomV2` folds
@@ -633,12 +633,12 @@ sprawling over fifty cells costs five times the ten-cell row above. Still
 under a dime an hour, and the fix if it ever mattered is a coarser cache
 key, which trades the reading's precision for cells it does not need.
 
-### Finding 7 — the bucket stops being free · **BOUNDED BEFORE IT SHIPPED (D177)**
+### Finding 7 — the bucket stops being free · **BOUNDED BEFORE IT SHIPPED (D178)**
 
 > This document has billed Storage at **$0 (bucket unused)** since it was
 > written, and that line was true of the app's behaviour rather than of the
 > rules — the note in `storage.rules` records the 2026-08-13 fix that
-> closed an unbounded write grant nothing was using. D177 is the first
+> closed an unbounded write grant nothing was using. D178 is the first
 > feature that actually puts bytes in the bucket.
 
 A profile photo is **the app's only egress path**. Everything else it
@@ -916,7 +916,7 @@ the day any of them is.
 | FCM push | $0 |
 | App Check — reCAPTCHA v3 / DeviceCheck / Play Integrity | $0 |
 | Firebase Hosting (`web/`, static pages) | $0 |
-| Cloud Storage | **~$9/mo at 5 k daily room-opens, and $0 before D177** — the profile photo is the first thing this app has ever stored, and the only egress path it has. Bounded three ways by construction: one object per account at a fixed id, 256 KB a piece (~20 KB real), one read per face drawn. Finding 7 has the arithmetic and the two things it does not bound. The 2026-08-13 note this row used to carry still applies to the RETIRED path beside it: `storage.rules` had granted any signed-in account write on `users/{uid}/dailyPhotos/{filename}` — 8 MB an object, `{filename}` unbounded, so unbounded objects and unbounded egress, by a free anonymous account (D3), against a feature D4 removed. Uploads there are closed; read and delete stay open for erasure. **`deleteAccount` reaches Storage since D177**, which that note said it did not |
+| Cloud Storage | **~$9/mo at 5 k daily room-opens, and $0 before D178** — the profile photo is the first thing this app has ever stored, and the only egress path it has. Bounded three ways by construction: one object per account at a fixed id, 256 KB a piece (~20 KB real), one read per face drawn. Finding 7 has the arithmetic and the two things it does not bound. The 2026-08-13 note this row used to carry still applies to the RETIRED path beside it: `storage.rules` had granted any signed-in account write on `users/{uid}/dailyPhotos/{filename}` — 8 MB an object, `{filename}` unbounded, so unbounded objects and unbounded egress, by a free anonymous account (D3), against a feature D4 removed. Uploads there are closed; read and delete stay open for erasure. **`deleteAccount` reaches Storage since D178**, which that note said it did not |
 | Cloud Logging | $0 until ~500 k DAU, then ~$17/mo |
 | Firestore storage | 5.6 GiB after a year at 5 k DAU → $0.83/mo (4.0 GiB of documents, ×1.4 for index entries — a multiplier that was 1.0 in the model until D67, and would be ~5 without D64's `answers` exemptions; the indexed set has since grown by D86's `editedAt`, D98's who-voted composite and D102's `surface` re-enable, and 1.4 stays as the blended estimate) |
 | Network egress | in the Firestore column above, not free: $0–0.5/mo at 5 k DAU, **$7–147 at 50 k**, $647–14,686 at 500 k — see the band below |

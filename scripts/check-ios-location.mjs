@@ -34,8 +34,8 @@
 //      background location" denies. Sameness is cheap; divergence would be
 //      undetectable by any other means.
 //   3. NSLocationDefaultAccuracyReduced is declared, and the ANDROID
-//      manifest agrees with it. Until D177 this demanded `<true/>` (D9's
-//      precision cap); D174 reversed that decision and left this rule
+//      manifest agrees with it. Until D178 this demanded `<true/>` (D9's
+//      precision cap); D175 reversed that decision and left this rule
 //      failing on every correct tree, which is the worst state a gate can
 //      be in — the only way past it is to stop looking. It is a
 //      consistency check between the platforms now, with the store-label
@@ -142,9 +142,9 @@ if (
 
 // 3 · The precision declaration, and the label that has to agree with it.
 //
-// THIS RULE WAS REVERSED AT D177, AFTER BEING WRONG SINCE D174. It used to
+// THIS RULE WAS REVERSED AT D178, AFTER BEING WRONG SINCE D175. It used to
 // demand `<true/>` — D9's precision cap — and its message said losing that
-// "flips the App Store label to Precise Location". D174 flipped both, on
+// "flips the App Store label to Precise Location". D175 flipped both, on
 // the owner's explicit go, to give Near a venue-scale radius: the plist
 // went to `<false/>`, Android's FINE permission was uncapped, and
 // STORE-FORMS.md ticked Precise Location. This gate was not updated, so it
@@ -165,7 +165,7 @@ if (!reduced || reduced.type !== "bool") {
       `    applies and nothing here or in the store forms records which.`,
   );
 } else {
-  // Android's half. D174 uncapped ACCESS_FINE_LOCATION at the same time;
+  // Android's half. D175 uncapped ACCESS_FINE_LOCATION at the same time;
   // if one platform asks for precision and the other does not, the app
   // measures a different radius per device and every distance sentence in
   // the UI is true on one of them.
@@ -181,7 +181,7 @@ if (!reduced || reduced.type !== "bool") {
         `    NSLocationDefaultAccuracyReduced is <false/> while\n` +
         `    ACCESS_FINE_LOCATION is ${fineDeclared ? "capped by maxSdkVersion" : "not declared"}.\n` +
         `    Near's grid cell would then be a different size per platform, and\n` +
-        `    every distance the UI states would be true on one of them (D174).`,
+        `    every distance the UI states would be true on one of them (D175).`,
     );
   }
   if (!iosPrecise && fineDeclared && !fineCapped) {

@@ -1135,7 +1135,7 @@ export const nearbyCountV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforce
   if (!presenceCellOk(cell)) throw new HttpsError("invalid-argument", "cell must be a la_lo grid id");
   const db = firestore();
   const cells = presenceNeighbors(cell as string);
-  // COUNTED BY `until`, NOT BY AGE (D173). Each doc carries the moment its
+  // COUNTED BY `until`, NOT BY AGE (D174). Each doc carries the moment its
   // position stops counting, and the client is what sets it: the linger
   // for "always", the session deadline for the timed option. Filtering on
   // age instead would make the timed option approximate — a phone that
@@ -1181,7 +1181,7 @@ export const nearbyCountV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforce
   const countsSelf = own.exists
     && cells.includes(own.get("cell") as string)
     && !!ownUntil && ownUntil.toMillis() > now.toMillis();
-  // YOU MAY ONLY ASK ABOUT A ROOM YOU ARE STANDING IN (D176).
+  // YOU MAY ONLY ASK ABOUT A ROOM YOU ARE STANDING IN (D177).
   //
   // `cell` arrives from the client, and until now nothing checked that the
   // caller was anywhere near it: a modified client could walk the grid and
@@ -1209,7 +1209,7 @@ export const nearbyCountV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforce
 });
 
 /**
- * The room's composition, cached per cell (D175).
+ * The room's composition, cached per cell (D176).
  *
  * THE CACHE IS THE FEATURE, not an optimisation bolted on. The count above
  * is an aggregation and costs ~1 read however crowded the cell is; a mix
@@ -1289,7 +1289,7 @@ async function roomMixFor(cells: string[], own: string): Promise<RoomMix | null>
   }
 }
 
-// ── Near by radius: the room, read (D176) ───────────────────────────
+// ── Near by radius: the room, read (D177) ───────────────────────────
 //
 // The Near stop's Answers, People and Compare tabs. Every other Mirror
 // stop folds these from published aggregates on the device; this one
@@ -1312,7 +1312,7 @@ async function roomMixFor(cells: string[], own: string): Promise<RoomMix | null>
 //      and turning Near off stops you reading as well as being read.
 //   2. YOUR OWN ROOM ONLY. Same gate: the neighbourhood you ask about has
 //      to be the one you are standing in, so the grid cannot be walked.
-//   3. OPT-IN ON BOTH SIDES, off by default, expiring on its own (D173).
+//   3. OPT-IN ON BOTH SIDES, off by default, expiring on its own (D174).
 //   4. NOTHING NEW ABOUT ANYBODY. A uid resolves to a profile and its
 //      answers — which any signed-in user could already read by name
 //      since D98. What is new is the pairing with "here", and that is the
@@ -1358,7 +1358,7 @@ interface RoomDoc {
 }
 
 /**
- * The room's roster and its answers, cached per cell (D176).
+ * The room's roster and its answers, cached per cell (D177).
  *
  * Same argument as roomMixFor's cache one function up, with more at stake:
  * this fold reads a DOCUMENT PER PERSON PER QUESTION, so uncached it would

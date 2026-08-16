@@ -14,7 +14,7 @@
 // create an erasure gap rather than close a hole. See docs/SHIP-CHECKLIST.md.
 //
 // That sentence used to end "deleteAccount does not touch Storage", and it
-// stopped being true at D177: the profile photo made erasure reach the
+// stopped being true at D178: the profile photo made erasure reach the
 // bucket for the first time. It reaches `avatars/{uid}` and nothing else,
 // so the argument for keeping THIS path's read and delete grant is
 // unchanged — a v1 leftover here is still a leftover no sweep collects.
@@ -95,14 +95,14 @@ const avatar = (storage: FirebaseStorage, uid: string) =>
   ref(storage, `avatars/${uid}`);
 const bytes = (n: number) => new Uint8Array(n);
 
-// ── the profile photo (D177) ─────────────────────────────────────────
+// ── the profile photo (D178) ─────────────────────────────────────────
 //
 // The first path in this bucket a stranger may read, and the first the app
 // actually writes to since D4 closed the v1 one. Three properties carry
 // it, and each is a case below: the object id is FIXED (so the count is
 // bounded by accounts, not by uploads — the failure the retired path
 // records), only the owner writes it, and the bytes are capped and typed.
-describe("storage: the profile photo (D177)", () => {
+describe("storage: the profile photo (D178)", () => {
   it("the owner uploads their own, and anyone signed in may see it", async () => {
     await assertSucceeds(uploadBytes(avatar(asUser(OWNER), OWNER), small(), JPEG));
     // The grant that is new here. A face is readable by strangers because

@@ -5,7 +5,7 @@
 // per-person choice; it dies with the account that made it (purge listener
 // below) and starts OFF for every new one.
 //
-// THREE STATES SINCE D173, not a boolean:
+// THREE STATES SINCE D174, not a boolean:
 //
 //   off      no presence doc at all. The default, and the only state a
 //            fresh account or a purged one lands in.

@@ -225,7 +225,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
   // passed on its own, which is the signature. findByText polls until the
   // body's own first line is there, so it waits exactly as long as it has
   // to and no case that follows it can race the import.
-  // The stop's kicker, since D171 removed the explanatory line this used
+  // The stop's kicker, since D172 removed the explanatory line this used
   // to poll for. Still the City body's own first text, and still unique —
   // Near's kicker is "Around you".
   const openCity = () => screen.findByText(/^Your city$/i);
@@ -504,7 +504,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
   // life of live mode, so "Circle shows something" and "Circle shows the
   // OLD something" look identical to any test that only checks it did not
   // crash. Both halves are asserted — the people, and the fold over them.
-  it("draws the field, not a paragraph, on an empty Groups (D171)", async () => {
+  it("draws the field, not a paragraph, on an empty Groups (D172)", async () => {
     // Every other stop draws its rings when it has nobody to place (D160).
     // Groups and Circle answered with a card of prose — and they are the
     // two a new account meets first, so they were the wordiest screens in
@@ -635,7 +635,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     await act(async () => { for (let i = 0; i < 40; i++) await Promise.resolve(); });
     // The DEMO row is what must stay gated. Its two markers: seeded
     // Comments, and the hash-built sheet's cut chips. "Who voted what" is
-    // no longer one of them — since D170 that button exists live and opens
+    // no longer one of them — since D171 that button exists live and opens
     // the real panel, which the case above pins.
     expect(screen.queryByRole("button", { name: "Comments" }),
       "the daily's seeded comments are reachable in live mode").toBeNull();
@@ -649,7 +649,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
   });
 
   it("gives the live daily the real breakdown, cohort-first", async () => {
-    // D170. The daily had no breakdown at all in live mode while every
+    // D171. The daily had no breakdown at all in live mode while every
     // feed card under it had D125's — because its own sheet is the
     // prototype's hash-built mock and was suppressed rather than
     // replaced. It now opens ui/LiveBreakdownPanel, the same component

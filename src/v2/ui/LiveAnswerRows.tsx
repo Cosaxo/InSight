@@ -83,7 +83,7 @@ function standText(row: AnswerRow, whom: string): string {
   // made an unanswered row look like an answered one whose sentence failed
   // to render.
   if (!st) return "You have not answered this one.";
-  // A share of ONE answer is not a share (D169): with n=1 the arithmetic
+  // A share of ONE answer is not a share (D170): with n=1 the arithmetic
   // can only ever say 0% or 100%, so "100% of Oslo are with you" reports
   // the sample size wearing a percentage. The release showed exactly that
   // on a city with a single answer. This is arithmetic rather than a

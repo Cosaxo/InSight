@@ -571,11 +571,11 @@ if (labove.counts["0"] !== 3 || labove.counts["1"] !== 1 || labove.counts["2"] !
 ok("learn crowd stat: 5 first attempts, exact through per-answer publishes, 3/5 right");
 
 
-// 10 · Near presence (D84 / D173 / D175 / D176): the write path through
+// 10 · Near presence (D84 / D174 / D176 / D177): the write path through
 // the rules, the count and the ROOM through the real callables, and the
 // gate that says you may only ask about a room you are standing in.
 //
-// `until` IS REQUIRED SINCE D173 and this block did not carry it, which
+// `until` IS REQUIRED SINCE D174 and this block did not carry it, which
 // is how the e2e went red without anyone seeing: the unit, rules and
 // functions suites all pass without a functions emulator, and this is the
 // only suite that exercises a client write against the deployed rules AND
@@ -583,9 +583,9 @@ ok("learn crowd stat: 5 first attempts, exact through per-answer publishes, 3/5 
 {
   const meCell = "5999_1074";
   const soon = () => new Date(Date.now() + 60 * 60_000);
-  // `until` is when the position stops counting (D173) and the rules cap
+  // `until` is when the position stops counting (D174) and the rules cap
   // it at PRESENCE_LINGER_MIN; `type` is the archetype the phone writes
-  // for itself (D175), which is the only thing the room's mix folds from.
+  // for itself (D176), which is the only thing the room's mix folds from.
   await setDoc(doc(db, "v2_presence", uid), {
     cell: meCell, at: serverTimestamp(), until: soon(), type: "Host",
   });
@@ -616,7 +616,7 @@ ok("learn crowd stat: 5 first attempts, exact through per-answer publishes, 3/5 
   if (near.data.mix != null) fail("room mix drawn under the floor: " + JSON.stringify(near.data.mix));
   ok("nearbyCountV2: the mix stays silent below ROOM_MIN_TYPED");
 
-  // THE ROOM (D176). The roster is the largest thing presence has ever
+  // THE ROOM (D177). The roster is the largest thing presence has ever
   // been asked to give up, so what this proves is the pair: the neighbor
   // is disclosed, and the caller is not in their own room.
   const room = await httpsCallable(fns, "nearbyRoomV2")({ cell: meCell, qids: [q0.id] });
@@ -631,7 +631,7 @@ ok("learn crowd stat: 5 first attempts, exact through per-answer publishes, 3/5 
   }
   ok("nearbyRoomV2: the question asked about came back folded");
 
-  // THE GATE, which is what makes the roster defensible at all (D176). A
+  // THE GATE, which is what makes the roster defensible at all (D177). A
   // caller may only ask about a neighbourhood their OWN live position is
   // in — otherwise a modified client walks the grid and the room becomes
   // a people-finder, which is precisely what v2_presence's read deny
@@ -668,7 +668,7 @@ ok("learn crowd stat: 5 first attempts, exact through per-answer publishes, 3/5 
     setDoc(doc(db, "v2_presence", uid), {
       cell: "59.913_10.752", at: serverTimestamp(), until: soon(),
     }));
-  // The `until` cap (D173): a client cannot grant itself a longer stay
+  // The `until` cap (D174): a client cannot grant itself a longer stay
   // than PRESENCE_LINGER_MIN, which is the write-side half of the read
   // deny — an uncapped position stands in the room forever.
   await expectDenied("an until past the linger refused", () =>

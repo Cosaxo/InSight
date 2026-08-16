@@ -1,4 +1,4 @@
-// One face, drawn one way, everywhere a person is named (D177).
+// One face, drawn one way, everywhere a person is named (D178).
 //
 // The owner's call was that a photo is a PROFILE field rather than a Near
 // feature: it shows on Near's People tab, on the Kindred cards, and
@@ -9,7 +9,7 @@
 //
 // INITIALS ARE THE PERMANENT FALLBACK, not a placeholder waiting for the
 // photo feature. Most accounts will never set one; an account without a
-// picture is not a broken row, and it was drawing exactly this before D177
+// picture is not a broken row, and it was drawing exactly this before D178
 // existed. That is also why the fallback is what renders on a FAILED image
 // load: a token that no longer resolves — the object replaced, the bucket
 // unreachable — has to look like no photo rather than like a hole.

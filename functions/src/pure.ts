@@ -1437,13 +1437,13 @@ export function describeSeedOptionConflicts(
 // from a fix and discards the coordinate (src/v2/data/geo.ts); what
 // arrives here is only the cell id, and these two functions are the whole
 // vocabulary the server has for it: is it a legal cell, and which nine
-// cells make up "around you". The grid contract (0.002° since D174, "la_lo"
+// cells make up "around you". The grid contract (0.002° since D175, "la_lo"
 // ids) is
 // pinned to the same vectors on both sides by the two test suites — the
 // floor.ts drift pattern, because a client and server disagreeing about
 // cell shape fails soft (empty counts) and would read as "nobody nearby".
 
-// 0.002° since D174 — see src/v2/data/geo.ts for why the grid could not
+// 0.002° since D175 — see src/v2/data/geo.ts for why the grid could not
 // move before the location permission did.
 const PRESENCE_CELL_DEG = 0.002;
 const PRESENCE_LAT_MIN = Math.floor(-90 / PRESENCE_CELL_DEG);   // -45000
@@ -1508,7 +1508,7 @@ export function presenceNeighbors(cell: string): string[] {
 export const PRESENCE_LINGER_MIN = 180;
 
 /**
- * The "visible for a while" option's length (D173's middle state).
+ * The "visible for a while" option's length (D174's middle state).
  *
  * Shorter than the linger on purpose: the session is a promise about
  * WHEN YOU STOP BEING VISIBLE, and `until` is what makes it exact. A
@@ -1520,7 +1520,7 @@ export const PRESENCE_SESSION_MIN = 120;
 
 /**
  * Typed phones a neighbourhood needs before the room's mix is drawn at all
- * (D175). Below it the callable returns `null` and the client says nothing.
+ * (D176). Below it the callable returns `null` and the client says nothing.
  *
  * The FLOOR IS NOT THE WHOLE DEFENCE and would be weak alone. A composition
  * that moves as people arrive tells you an individual's type by
@@ -1613,9 +1613,9 @@ export function roomMix(
   return types.length >= cap ? { top, n, capped: true } : { top, n };
 }
 
-// ── the room, read (D176) ───────────────────────────────────────────
+// ── the room, read (D177) ───────────────────────────────────────────
 //
-// D175 gave Near a composition; this gives it a POPULATION you can read
+// D176 gave Near a composition; this gives it a POPULATION you can read
 // the way every other Mirror stop is read — who is here, how they
 // answered, where you part company with them. The difference from City or
 // World is that the cohort is not a published aggregate: it is a set of

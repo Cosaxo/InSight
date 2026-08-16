@@ -101,7 +101,7 @@
 	     only. The same check holds that pair too. -->
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>Used once, on this device, to work out which city you are nearest so the daily can show how your city answered. Your coordinates are never sent anywhere and never stored — only the city name. You can skip this and pick your city from a list instead.</string>
-	<!-- PRECISE SINCE D174, and this key flipping is the whole of that
+	<!-- PRECISE SINCE D175, and this key flipping is the whole of that
 	     decision on iOS. It used to be <true/>, which asked for a
 	     neighbourhood-level fix and showed "Precise: Off" in the permission
 	     sheet, with the comment here promising that reduced was "not a

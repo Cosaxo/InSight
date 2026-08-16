@@ -154,7 +154,7 @@ import {
 } from "./deck";
 import type { AggDoc, LiveQuestion, QuestionDoc, VoteContext } from "./deck";
 import { nearMode, nearOptedIn, nearUntil, setNearMode, type NearMode } from "./near";
-// The device computes its own archetype name for the presence doc (D175).
+// The device computes its own archetype name for the presence doc (D176).
 import { myType } from "./typeMix";
 import { locateCell, locateSupported } from "./locate";
 import { scrubPersonaAnchors } from "./personaResidue";
@@ -300,7 +300,7 @@ const state = {
   // keeps what was already paid for). null = fetched, nothing usable.
   scores: {} as Record<string, ParsedResults | null>,
   // uid → Storage download token for their photo, "" for none and for a
-  // HIDDEN one (D177). Beside names and scores because it is filled by
+  // HIDDEN one (D178). Beside names and scores because it is filled by
   // the same batched read and has exactly their lifetime — a session
   // cache, cleared with the account.
   faces: {} as Record<string, string>,
@@ -345,7 +345,7 @@ const state = {
 // linear in this number — see loadKindred for why it is bounded at all.
 const KINDRED_QUESTIONS = 12;
 
-// How many questions one room fold may ask about (D176). Mirrors
+// How many questions one room fold may ask about (D177). Mirrors
 // ROOM_QUESTION_CAP in functions/src/pure.ts, which is what actually
 // enforces it — this one only keeps the client from sending a list the
 // server will silently truncate, so the tab does not draw a question the
@@ -471,7 +471,7 @@ function loadProfileCache(): void {
       // fetched (so resolveNames must ask), null = fetched and this account
       // has no usable results. Only the second is cacheable.
       if (v.s !== undefined) state.scores[uid] = v.s;
-      // THE FACE IS DELIBERATELY NOT CACHED ACROSS SESSIONS (D177). A
+      // THE FACE IS DELIBERATELY NOT CACHED ACROSS SESSIONS (D178). A
       // token held past a remove verdict would go on drawing a face
       // moderation took down, for as long as the TTL — which is the one
       // thing the whole report loop exists to prevent. Faces are refetched
@@ -603,7 +603,52 @@ function cancelAggCache(): void {
 }
 
 const listeners = new Set<() => void>();
+// ── derived-on-read, folded once per change (D169) ───────────────────
+//
+// Several getters below are whole-store folds, and every one of them
+// carries the same note: derived on read rather than cached, so a
+// ranking cannot go stale against its own inputs. That reasoning is
+// right and it was being paid for on every render rather than on every
+// change. `kindredPeople()` walks every cached voter list and has six
+// call sites (LiveSimilarityField ×2, LiveMirrorLenses, typeMix ×2,
+// testNorms); each of those is inside a component that re-renders on
+// every notify(), and none of them memoises. So one Mirror stop folded
+// the same voter cache four to six times per render — 14 ms a fold in
+// node at 120 cached questions × 200 voters, which is not 14 ms on a
+// phone.
+//
+// `rev` closes that without weakening the staleness argument, because
+// notify() is the ONLY way a store change reaches a renderer. A value
+// computed at rev N is correct for every read until the next notify(),
+// by construction rather than by hoping. A component re-rendering on its
+// own useState — a tab, a picked node, a text field — does not bump it
+// and gets the fold it already paid for.
+//
+// THE CONDITION, stated because it is the one that could break silently:
+// a memoised getter hands every caller the SAME array, where it used to
+// hand each one a fresh one. That is safe only while no consumer mutates
+// what it gets back, so only folds whose consumers were checked go
+// through here — and `myVotes()`/`confirmedVotes()` deliberately do NOT,
+// because their defensive copy is the point of them. `.filter()`/`.map()`
+// before a `.sort()` copies, which is what every current consumer does;
+// a future one that sorts the returned array in place would reorder
+// everybody else's, so sort a copy.
+let rev = 0;
+
+function perRev<T>(compute: () => T): () => T {
+  let at = -1;
+  let val: T;
+  return () => {
+    if (at !== rev) {
+      val = compute();
+      at = rev;
+    }
+    return val;
+  };
+}
+
 const notify = () => {
+  rev++;
   listeners.forEach((fn) => {
     try {
       fn();
@@ -1240,7 +1285,7 @@ function buildFeedGlobals(): void {
         live: true,
       };
     });
-  // The feed pool, in bank order (D172 retired D128's stated weights).
+  // The feed pool, in bank order (D173 retired D128's stated weights).
   // The ORDERING that replaces them is D163's on-device interest model —
   // owner's direction: how much of a subject you see is the algorithm's
   // job, not a lever's. Until that ships the pool is unweighted, which is
@@ -1780,7 +1825,7 @@ function takeScopeKey(gid: string, qid?: string): string | null {
 // opt-in must not survive onto the next account); the loop stops on uid
 // change via stopPresence() in resetForNewUid.
 const PRESENCE_BEAT_MS = 4 * 60_000; // far inside the linger, so a foreground app never lapses
-// How long a position outlives the beat that wrote it (D173). Mirrors
+// How long a position outlives the beat that wrote it (D174). Mirrors
 // PRESENCE_LINGER_MIN in functions/src/pure.ts, and firestore.rules caps
 // any `until` at the same 180 minutes — three copies of one number,
 // because rules cannot import and the server must not trust the client.
@@ -1799,7 +1844,7 @@ const nearState = {
   timer: null as ReturnType<typeof setInterval> | null,
   mix: null as { top: string[]; n: number; capped?: boolean } | null,
   inFlight: null as Promise<void> | null,
-  // The cell the last successful beat counted (D176). Held so the room
+  // The cell the last successful beat counted (D177). Held so the room
   // fold asks about the SAME neighbourhood the number on screen describes,
   // rather than resolving a second fix that could land a cell away and
   // quietly describe a different room.
@@ -1813,10 +1858,10 @@ const nearState = {
 };
 
 /**
- * What the Near stop's tabs read (D176).
+ * What the Near stop's tabs read (D177).
  *
  * `people` is the roster with the archetype each phone wrote for itself
- * (D175's `type`), the caller already removed. `qs` is per-question option
+ * (D176's `type`), the caller already removed. `qs` is per-question option
  * counts in the aggregate's own `{ "0": 3 }` shape, folded over exactly
  * those people — one sample, two readings, so People and Compare cannot
  * describe different crowds.
@@ -1848,7 +1893,7 @@ async function runBeat(cell?: string): Promise<void> {
     // error and then stalling with nothing to explain it.
     if (!uid) { nearState.lastError = "unavailable"; return; }
     const db = await getDb();
-    // `until` is when this position stops counting (D173). The linger is
+    // `until` is when this position stops counting (D174). The linger is
     // what makes the feature work at all — a phone in a pocket has to keep
     // standing in the room — and the session's deadline is what keeps the
     // timed option honest: clamped here, so closing the app just before it
@@ -1857,7 +1902,7 @@ async function runBeat(cell?: string): Promise<void> {
     // the client being ours.
     const deadline = nearUntil();
     const lingerTo = Date.now() + PRESENCE_LINGER_MS;
-    // `type` is the viewer's OWN Big Five archetype name (D175), and the
+    // `type` is the viewer's OWN Big Five archetype name (D176), and the
     // device is what computes it — the archetype table lives here, so
     // writing the NAME means the server never joins a profile and never
     // carries a copy of the table. Omitted entirely when there is no
@@ -1892,7 +1937,7 @@ async function runBeat(cell?: string): Promise<void> {
       }
       : null;
     nearState.updatedAt = Date.now();
-    // The room the number is about (D176). Set only on a settled beat, so
+    // The room the number is about (D177). Set only on a settled beat, so
     // a failed round leaves the previous cell standing rather than
     // blanking the tabs' idea of where they are.
     nearState.cell = fix.cell;
@@ -1956,7 +2001,7 @@ function stopPresence(): void {
   nearState.tooFew = false;
   nearState.updatedAt = 0;
   nearState.lastError = null;
-  // The room goes with the opt-in (D176). Leaving a roster in memory after
+  // The room goes with the opt-in (D177). Leaving a roster in memory after
   // "stop sharing" would keep a list of who was around you on a screen you
   // just told the app to stop populating — and it is the one piece of
   // Near's state that is about OTHER people.
@@ -1972,7 +2017,7 @@ const NEAR = {
   on(): boolean {
     return nearOptedIn();
   },
-  /** Which of the three states is set (D173) — `off` once a session ends. */
+  /** Which of the three states is set (D174) — `off` once a session ends. */
   mode(): NearMode {
     return nearMode();
   },
@@ -1991,7 +2036,7 @@ const NEAR = {
     return nearState.tooFew;
   },
   /**
-   * The room's composition (D175) — type names in order, and the count of
+   * The room's composition (D176) — type names in order, and the count of
    * phones that carried a type. Null below the floor, and null is the
    * common case in a quiet street.
    *
@@ -2002,7 +2047,7 @@ const NEAR = {
     return nearState.mix;
   },
   /**
-   * The room's roster and answers (D176) — null until a tab asks for it.
+   * The room's roster and answers (D177) — null until a tab asks for it.
    *
    * Null is not "empty room": `roomLoading` and this being null together
    * mean a fold is in flight, and null after one has settled means the
@@ -2261,7 +2306,7 @@ const LIVE = {
    *
    * The read half of `loadNames`, which has always fetched scores beside
    * names into the same cache — every consumer so far reached them
-   * through a list (`kindredPeople`, `voters`), and D176's room roster is
+   * through a list (`kindredPeople`, `voters`), and D177's room roster is
    * the first that has uids and nothing else. Null means "not cached or
    * has none", which the caller must render as no match rather than as a
    * bad one.
@@ -2270,7 +2315,7 @@ const LIVE = {
     return state.scores[uid] ?? null;
   },
   /**
-   * A uid's Storage download token for their photo, or "" (D177).
+   * A uid's Storage download token for their photo, or "" (D178).
    *
    * "" covers three different situations on purpose, because all three
    * draw the same thing — initials: not fetched yet, no photo set, and a
@@ -2286,7 +2331,7 @@ const LIVE = {
     return state.uid ? (state.faces[state.uid] || "") : "";
   },
   /**
-   * Set your photo (D177): shrink on the device, upload, record the token.
+   * Set your photo (D178): shrink on the device, upload, record the token.
    *
    * THE ORDER IS THE CORRECTNESS. The object goes up first and the
    * document second, so the only way to fail halfway is an object with no
@@ -2334,7 +2379,7 @@ const LIVE = {
     }
   },
   /**
-   * Report somebody's photo (D177).
+   * Report somebody's photo (D178).
    *
    * The same collection, the same one-per-person pin and the same queue a
    * take's report uses — reusing it is what gives a face the anonymity
@@ -2728,16 +2773,39 @@ const LIVE = {
         const missing = state.feedBank
           .filter((q) => q.surface === "test" && q.test && !state.aggs[q.id])
           .map((q) => q.id);
-        for (let i = 0; i < missing.length; i += 30) {
-          const chunk = missing.slice(i, i + 30);
-          const snap = await getDocs(query(
-            collection(db, "v2_question_aggs"),
-            where(documentId(), "in", chunk),
-          ));
-          snap.forEach((d) => {
-            state.aggs[d.id] = d.data() as AggDoc;
-          });
-        }
+        // Chunks IN PARALLEL, the shape hydrate.aggs and loadLearnAggs
+        // already use (D169). This awaited each `in` query in turn, and
+        // the four are independent: same documents, same billed reads,
+        // but four serial round trips instead of one. 110 core test items
+        // over the 30-id `in` limit is always ~4 chunks, so on a mobile
+        // RTT that was most of a second of "Reading the score profiles…"
+        // bought by nothing — the fields land on the FIRST open of City,
+        // Country and World, which is the moment it was spent.
+        const chunks: string[][] = [];
+        for (let i = 0; i < missing.length; i += 30) chunks.push(missing.slice(i, i + 30));
+        // Each chunk folds ITSELF, inside its own `.then`, rather than the
+        // barrier folding an array of snapshots afterwards. That is not a
+        // style preference: the serial loop this replaced kept the chunks
+        // it had already read when a later one threw, and folding after
+        // `Promise.all` would have quietly dropped them — a partial
+        // failure would go from "three quarters of the place profiles" to
+        // "none". Folding per chunk keeps the old partial-progress
+        // behaviour AND the parallelism; the rejection still reaches the
+        // catch below, and the sibling call sites' `Promise.all` shape is
+        // unchanged.
+        await Promise.all(chunks.map((chunk) =>
+          getDocs(query(collection(db, "v2_question_aggs"), where(documentId(), "in", chunk)))
+            .then((snap) => {
+              snap.docs.forEach((d) => {
+                state.aggs[d.id] = d.data() as AggDoc;
+              });
+              // Counted, which it was not before — the other three agg
+              // reads all increment this and these are the largest batch
+              // of the four. An uncounted read in the one file
+              // docs/COSTS.md is derived against is a diagnostic that
+              // under-reports exactly where it matters most.
+              state.stats.aggsFetched += snap.size;
+            })));
         // Set even when some docs came back absent: absent means no
         // answers yet (D98), which re-asking this session cannot change.
         state.testAggsLoaded = true;
@@ -2756,9 +2824,15 @@ const LIVE = {
   // The bank's core test items — the same filter that publishes
   // TEST_FEED_QS for the feed, exposed so the typed layer can join them
   // to IS_TESTS for scoring metadata without a bridge read.
-  testFeedItems(): Array<QuestionDoc & { id: string }> {
-    return state.feedBank.filter((q) => q.surface === "test" && !!q.test);
-  },
+  //
+  // perRev because the bank only changes at hydrate and this has five
+  // render-path callers (SimilaritySection, PlacesField, testNorms,
+  // result-card ×2), each feeding it straight into testItemMeta — and
+  // because docs/SCALE-PLAN.md makes `feedBank` the collection that grows
+  // without bound, so a per-call filter over it is the wrong shape to
+  // leave lying around.
+  testFeedItems: perRev((): Array<QuestionDoc & { id: string }> =>
+    state.feedBank.filter((q) => q.surface === "test" && !!q.test)),
   // The viewer's own completed instruments — the same server+device merge
   // publishTestResults dispatches, computed on read so a result saved a
   // moment ago is already in it.
@@ -2776,7 +2850,12 @@ const LIVE = {
   // staleness reason. The city is the anchor snapshot from their most
   // recent cached answer, never their live profile (D8: reading the
   // profile would re-cohort history and disagree with the aggregate).
-  kindredPeople(): KindredPerson[] {
+  //
+  // perRev (D169): this is the app's heaviest fold and its six callers
+  // all sit in components that re-render on every notify(). See the perRev
+  // block above — the cached array is shared, so a consumer must copy
+  // before sorting (they all do).
+  kindredPeople: perRev((): KindredPerson[] => {
     const mine: Record<string, number> = {};
     for (const [qid, opt] of Object.entries(state.votes)) {
       if (qid.startsWith("g_")) continue;
@@ -2810,7 +2889,7 @@ const LIVE = {
       results: state.scores[uid] ?? null,
       anchors: anchors[uid] || {},
     }));
-  },
+  }),
 
   // null while unfetched or failed; an array (possibly empty) once known.
   voters(qid: string): Voter[] | null {

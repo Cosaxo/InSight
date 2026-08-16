@@ -506,7 +506,7 @@ if (!DEMO && process.env.VITE_V2_LIVE !== "true") {
 // which is the trade the previous entry describes, run deliberately this
 // time rather than under a failing gate.
 const MAX_CHUNK_KB = 735;
-// 2285 → 2292 (2026-08-16): D176's room tabs — Near's Answers · People ·
+// 2285 → 2292 (2026-08-16): D177's room tabs — Near's Answers · People ·
 // Compare, its shape functions and the store's room loader. Measured with
 // a DSN, so these are the numbers CI reads: total 2283 → 2289, eager
 // 966 → 969.
@@ -524,7 +524,7 @@ const MAX_CHUNK_KB = 735;
 // anything (9 KB left after this one, and it did not have to move). If a
 // sixth lands soon the question is whether the total wants a wider band
 // rather than whether the app should be smaller.
-// 2292 → 2334 (2026-08-16): D177's profile photo. Measured with a DSN:
+// 2292 → 2334 (2026-08-16): D178's profile photo. Measured with a DSN:
 // total 2289 → 2328 (+39), eager 969 → 974 (+5), 78 chunks up from 77.
 //
 // THE 39 KB IS ALMOST ALL `firebase/storage`, and that is the reason this

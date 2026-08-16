@@ -27,7 +27,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { LensId, LensQuestion } from "./lensDefs";
 
 const LIVE = vi.hoisted(() => ({
-  // D177: every named surface draws a face now, so a LIVE stand-in
+  // D178: every named surface draws a face now, so a LIVE stand-in
   // that lacks this crashes the row rather than falling back to
   // initials. "" is the no-photo shape, which is most accounts.
   faceFor: () => "",
@@ -64,7 +64,7 @@ const Q: LensQuestion = {
   text: "Pineapple on pizza?",
   options: ["Yes", "No"],
   counts: [12, 8],
-  // Explore's baseline (D169). Equal to `counts` in this fixture on
+  // Explore's baseline (D170). Equal to `counts` in this fixture on
   // purpose: these cases are about what a lens SAYS, and the case that
   // holds the two APART lives in LiveCohortBody.test.tsx, where the
   // wiring that fills them is.

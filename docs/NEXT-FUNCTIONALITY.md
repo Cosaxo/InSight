@@ -57,7 +57,7 @@ and why D97 records "no epoch-safe retire lane for daily questions" as
 deliberately not done. The feed has none of that: it already carries
 `active:false` retirement (D52's shape), a topic taxonomy, and — since
 D128 — per-topic Less/Normal/More preferences, so a user who hates news
-could turn the tap down themselves. **D172 retired those levers** (the
+could turn the tap down themselves. **D173 retired those levers** (the
 algorithm decides how much, not a lever), so this argument now rests on
 the feed's per-topic MUTE, which is untouched and still lets that user
 switch the lane off entirely.
@@ -701,7 +701,7 @@ ratchet).
 ## 10 · Near becomes the room — the settled design
 
 **Status: design settled with the owner 2026-08-15. Step 1 of the build
-order below is SHIPPED — see [D173](DECISIONS.md#d173--nears-visibility-gets-three-states-and-a-position-that-expires-on-its-own)
+order below is SHIPPED — see [D174](DECISIONS.md#d174--nears-visibility-gets-three-states-and-a-position-that-expires-on-its-own)
 for the three-state control, the three-hour linger and the `until` cap.
 Everything else here is still design.** It began
 as *"when you are at a party or some sort of social event you can see what
@@ -819,7 +819,7 @@ deliberately.
 
 ### The radius, and the one cost it carries
 
-**Done at D174.** The grid was 0.01° ≈ 1.1 km per cell, so "around you"
+**Done at D175.** The grid was 0.01° ≈ 1.1 km per cell, so "around you"
 was ~3.3 × 1.8 km — a district, and the owner was right that it is not
 "near". It is 0.002° now (~222 m), and the 3×3 neighbourhood is ~670 × 330
 m in Oslo. The paragraph below is why it could not be done sooner and is
@@ -863,26 +863,26 @@ of strangers.
 ### Build order
 
 1. ~~**The three-state control, the foreground guard, the ~3 h linger.**~~
-   **DONE (D173).** The foreground guard turned out to exist already —
+   **DONE (D174).** The foreground guard turned out to exist already —
    `presenceBeat` returns early on `document.hidden`. What shipped beside
    the control and the linger is `until` on the presence doc, so the timed
    option is exact rather than approximate, capped in `firestore.rules`.
 2. ~~**The finer grid** + the `STORE-FORMS.md` re-answer.~~ **DONE
-   ([D174](DECISIONS.md#d174--near-asks-for-a-precise-fix-so-its-radius-can-be-honest)).**
+   ([D175](DECISIONS.md#d175--near-asks-for-a-precise-fix-so-its-radius-can-be-honest)).**
    It was not a constant: the old ~1 km cell was the ceiling of the COARSE
    fix the app requested, so the grid could only move once the permission
    did. Precise on both platforms, 0.002° (~220 m) cells, Precise Location
    ticked — and the grid picked to sit one step ABOVE Apple's own precise
    threshold, so nothing precise is retained.
 3. ~~**The room aggregate** (floor first, then the cache, then the reading).~~
-   **DONE ([D175](DECISIONS.md#d175--near-becomes-a-room-and-the-phone-says-what-it-is)).**
+   **DONE ([D176](DECISIONS.md#d176--near-becomes-a-room-and-the-phone-says-what-it-is)).**
    The phone writes its own archetype NAME into its presence doc, so the
    server folds a mix without ever holding the archetype table or joining a
    profile. Ranked names and a basis, never a share; `ROOM_MIN_TYPED` = 8;
    cached per cell per beat window, which is what keeps the fold from being
    quadratic in crowd density (COSTS Finding 5).
 4. ~~**The tabs.**~~ **DONE
-   ([D176](DECISIONS.md#d176--near-becomes-a-room-you-can-read-and-asking-requires-standing-in-it)).**
+   ([D177](DECISIONS.md#d177--near-becomes-a-room-you-can-read-and-asking-requires-standing-in-it)).**
    Answers · People · Compare over `nearbyRoomV2`, which refuses any caller
    without a live position of their own in that neighbourhood — the gate
    went on the count as well, and it is what makes a roster defensible
@@ -891,7 +891,7 @@ of strangers.
    promises that the People tab made false were rewritten in the same
    commit.
 5. ~~**Images** last — the field works with initials from day one.~~
-   **DONE ([D177](DECISIONS.md#d177--the-app-gets-a-face-and-it-is-reported-like-anything-else-somebody-says)).**
+   **DONE ([D178](DECISIONS.md#d178--the-app-gets-a-face-and-it-is-reported-like-anything-else-somebody-says)).**
    One object per account at `avatars/{uid}`, shrunk and re-encoded on the
    device (which drops EXIF), a token rather than a URL in Firestore so the
    field can never name a host we do not control, and the SAME report loop

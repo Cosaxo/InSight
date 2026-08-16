@@ -40,7 +40,7 @@ import PLACES from "../data/places";
 const NearField = React.lazy(() =>
   import("./LiveSimilarityField").then((m) => ({ default: m.NearField })),
 );
-// The room's three tab bodies (D176), lazy for the same reason and one
+// The room's three tab bodies (D177), lazy for the same reason and one
 // more: this module is a STATIC import in mirror-tab, so anything it pulls
 // eagerly lands in the entry chunk, where check:bundle leaves about a
 // dozen kilobytes. The row itself is static and instant; the fold arrives
@@ -144,7 +144,7 @@ function NearSwitch({ on, busy, onToggle }: {
 
 /**
  * The third state, as a chip rather than a third position on the switch
- * (D173).
+ * (D174).
  *
  * The control has three meanings — off, visible for a while, visible with
  * no deadline — and a three-position slider in a header corner is a lot of
@@ -202,13 +202,13 @@ function NearModeChip({ mode, left, onPick }: {
 // it now. How many opted-in phones have an unexpired position within your
 // ~200 m cell and its eight neighbors. Off by default; the enable tap is
 // what carries the OS permission prompt (D9's rule). Presence docs are
-// unreadable, so what the server returns is a count and (D175) a coarse
+// unreadable, so what the server returns is a count and (D176) a coarse
 // mix of archetype names — never a row per person.
 //
-// The copy said "a couple of kilometres" from D84 until D174, and that was
+// The copy said "a couple of kilometres" from D84 until D175, and that was
 // honest for as long as it was true: the app requested COARSE location, a
 // kilometre-wide fix cannot measure a 500 m radius, and D84 refused to
-// print a number the sensor could not support. D174 asked the owner for
+// print a number the sensor could not support. D175 asked the owner for
 // the Precise permission instead of quietly narrowing the wording, so the
 // grid went 0.01° → 0.002° and the unit followed it down to "a few hundred
 // metres". Both halves had to move together; a finer grid under the old
@@ -331,7 +331,7 @@ function NearPresence() {
           With the counter off there is no figure to print, so the stop
           keeps its name and invites rather than pretending to a zero.
 
-          THE UNIT IS THE 3x3, NOT THE CELL, and it moved at D174: the grid
+          THE UNIT IS THE 3x3, NOT THE CELL, and it moved at D175: the grid
           went 0.01° to 0.002°, so the nine cells span ~600 m rather than
           ~3.3 km and "a couple of kilometres" became an overstatement the
           same commit that made the fix precise. A count whose stated reach
@@ -347,7 +347,7 @@ function NearPresence() {
               within a few hundred metres{where ? ` · ${where}` : ""}
             </span>
           </div>
-          {/* "A COUNT, NEVER WHO" STOOD HERE FROM D84 UNTIL D176, and it
+          {/* "A COUNT, NEVER WHO" STOOD HERE FROM D84 UNTIL D177, and it
               had to go in the commit that made it false. The People tab
               below names the people in this square — which is the whole
               point of the tab and is exactly the kind of claim this repo
@@ -359,7 +359,7 @@ function NearPresence() {
               ? "Just you right now — the count updates every few minutes."
               : "People with InSight open near you right now. They can see you here too, for as long as you can see them."}
           </div>
-          {/* THE ROOM (D175) — the one sentence this stop was rebuilt for.
+          {/* THE ROOM (D176) — the one sentence this stop was rebuilt for.
               Names in order and a basis; no shares, because a percentage
               moves visibly when one person walks in and that is the whole
               differencing attack. `mix.n` rather than the count above it:
@@ -474,7 +474,7 @@ function NearLiveBody() {
       <React.Suspense fallback={null}>
         <NearField />
       </React.Suspense>
-      {/* THE ROOM, READ (D176). Answers · People · Compare over the people
+      {/* THE ROOM, READ (D177). Answers · People · Compare over the people
           actually here, folded by the server because presence is
           unreadable and no device can compute this for itself.
 
@@ -497,13 +497,13 @@ function NearLiveBody() {
         </>
       )}
 
-      {/* The pointer to City, down from three lines to one (D171).
+      {/* The pointer to City, down from three lines to one (D172).
           The long version explained what City is — which City's own header
           does, one stop to the right, and the ruler above already shows it
           is there.
 
           IT USED TO SAY "nobody here is named", which was Near's whole
-          promise until D176 gave it a People tab. The FIELD still names
+          promise until D177 gave it a People tab. The FIELD still names
           nobody — an anonymous node cannot be opened, and that is the
           presence deny drawn — so the sentence now says which half is
           which, rather than dropping a true fact because a neighbouring

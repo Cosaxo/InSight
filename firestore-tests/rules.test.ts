@@ -1499,14 +1499,14 @@ describe("moderation substrate: takes + flags (docs/MODERATION.md, D22)", () => 
       doc(asUser(FRIEND), "v2_flags", "t_gone_" + FRIEND), flag("t_gone", FRIEND)));
   });
 
-  // ── the profile photo (D177) ───────────────────────────────────
+  // ── the profile photo (D178) ───────────────────────────────────
   //
   // The bytes are Storage's (storage.rules.test.ts); this document is what
   // moderation acts on, and its rules carry three claims the feature rests
   // on: a face is world-readable, only its owner writes it, and a REMOVED
   // face is frozen — because otherwise the way back is one delete and one
   // re-upload from an account that costs nothing to make.
-  describe("the profile photo's document (D177)", () => {
+  describe("the profile photo's document (D178)", () => {
     const av = (over: Record<string, unknown> = {}) => ({
       token: "abc123DEF456-_xyz", at: serverTimestamp(), hidden: false, ...over,
     });
@@ -1844,7 +1844,7 @@ describe("presence (D84 — Near by radius)", () => {
   // the nearbyCountV2 callable, which returns a count), and the cell
   // regex is the precision cap — nothing finer than the ~200 m grid id can
   // be written at all, however a client is modified.
-  // `until` is when the position stops counting (D173) — the count filters
+  // `until` is when the position stops counting (D174) — the count filters
   // on it, so it is the field that makes "visible for two hours" a promise
   // rather than an intention. The rules cap how far out it may be pushed.
   const soon = (min: number) => new Date(Date.now() + min * 60_000);
@@ -1881,7 +1881,7 @@ describe("presence (D84 — Near by radius)", () => {
     await assertFails(setDoc(ref, cellDoc({ at: new Date() })));          // not request.time
   });
 
-  // THE WRITE-SIDE VERSION OF THE READ DENY (D173).
+  // THE WRITE-SIDE VERSION OF THE READ DENY (D174).
   //
   // Presence is unreadable so nobody can follow an account around town.
   // An uncapped `until` would reach the same place through the other door:
@@ -1902,7 +1902,7 @@ describe("presence (D84 — Near by radius)", () => {
     await assertFails(setDoc(ref, cellDoc({ until: "soon" })));
   });
 
-  // THE ONE FIELD A CLIENT CHOOSES THE CONTENTS OF (D175).
+  // THE ONE FIELD A CLIENT CHOOSES THE CONTENTS OF (D176).
   //
   // `type` is the writer's own Big Five archetype name, and it is here
   // because the archetype table lives on the DEVICE — the server folding
@@ -1933,7 +1933,7 @@ describe("presence (D84 — Near by radius)", () => {
   // map of every room, not a reading about its own. The callable answers
   // only for the caller's cell and its neighbours, and that restriction
   // holds only while this is the sole door.
-  it("nobody touches the room's mix cache — read or write (D175)", async () => {
+  it("nobody touches the room's mix cache — read or write (D176)", async () => {
     await seed(async (db) => {
       await setDoc(doc(db, "v2_presence_mix", "29999_5374"),
         { top: ["Host"], n: 9, at: new Date() });
@@ -1945,7 +1945,7 @@ describe("presence (D84 — Near by radius)", () => {
     await assertFails(deleteDoc(doc(asUser(OWNER), "v2_presence_mix", "29999_5374")));
   });
 
-  // THE SHARPEST DENY IN THIS FILE (D176), because of what the document
+  // THE SHARPEST DENY IN THIS FILE (D177), because of what the document
   // holds: a LIST OF UIDS standing in a named cell. Everything else about
   // the room — the names, the answers, the test scores — has been public
   // since D98; the pairing with "here" is the new thing, and it is the
@@ -1956,7 +1956,7 @@ describe("presence (D84 — Near by radius)", () => {
   // would route around that gate entirely: read the cells one by one and
   // the result is a map of who is in every room, which is precisely the
   // people-finder the whole design is arranged around not being.
-  it("nobody touches the room's roster cache — it is uids paired with a place (D176)", async () => {
+  it("nobody touches the room's roster cache — it is uids paired with a place (D177)", async () => {
     await seed(async (db) => {
       await setDoc(doc(db, "v2_presence_room", "29999_5374"), {
         people: [{ uid: OWNER, type: "Host" }], qs: { q1: { "0": 3 } }, at: new Date(),
