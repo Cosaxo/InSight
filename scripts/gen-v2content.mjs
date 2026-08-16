@@ -219,14 +219,14 @@ export function buildEntries(content = loadContent()) {
       // a field they never use.
       ...branchOf(q),
       // The short label the source has always carried and the seed always
-      // dropped — "Nature access", "Getting around" (D184). The Mirror's
+      // dropped — "Nature access", "Getting around" (D186). The Mirror's
       // Scores card is the prototype's scorecard: a column of nouns beside
       // one shared 0-10 baseline, which is what lets eight rows read as a
       // single shape. Drawing the prompts there instead makes it a list of
       // sentences to read one at a time, which is the same reading in a
       // form nobody scans (docs/COPY.md — visual > word > sentence).
       ...(q.tag ? { tag: String(q.tag) } : {}),
-      // Which Mirror stop may fold this question into its scorecard (D184).
+      // Which Mirror stop may fold this question into its scorecard (D186).
       // Daily-only and emitted only when set: a question that rates no
       // place carries no key, and Scores draws only what names its stop.
       ...(q.rates ? { rates: String(q.rates) } : {}),
@@ -484,9 +484,9 @@ const HEADER =
   "// `branch`/`sub` are the daily bank's [branch, sub-branch] subject path\n" +
   "// (D100) and are absent on every other surface, which carries no path.\n" +
   "// `tag` is the daily bank's short label for a question — the Mirror's\n" +
-  "// Scores card is a column of nouns, not of sentences (D184).\n" +
+  "// Scores card is a column of nouns, not of sentences (D186).\n" +
   "// `rates` is daily-only and names the Mirror stop whose scorecard may fold\n" +
-  "// a question (D184): city|country|world. Absent means the question rates\n" +
+  "// a question (D186): city|country|world. Absent means the question rates\n" +
   "// no place, which is every other question in the bank.\n" +
   "// `lo`/`hi`/`unit`/`ends` (dial) and `ax`/`ay` (field) are the continuum\n" +
   "// forms' range/plane copy (D114), absent everywhere else; their options\n" +

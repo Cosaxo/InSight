@@ -79,7 +79,7 @@ const Q: LensQuestion = {
 // The row moved to the host at D119 (it is LiveCohortBody's tab bar now),
 // so a lens is chosen by prop rather than by tapping. `open` still drives
 // the controls INSIDE a lens — the dimension chips.
-// `scope` is Scores' own filter since D184 — it draws the questions that
+// `scope` is Scores' own filter since D186 — it draws the questions that
 // rate THIS stop — so the mount has to be able to stand somewhere other
 // than the city. Defaulted, because every other lens ignores it.
 const mount = (
@@ -287,7 +287,7 @@ describe("Scores", () => {
     expect(screen.getByText(/you have not rated it/i)).toBeTruthy();
   });
 
-  // ── D184: the card is about the PLACE ──
+  // ── D186: the card is about the PLACE ──
   //
   // The three cases below are the ones that were green while the release
   // drew a city scorecard led by "Breakfast is the best meal of the day".

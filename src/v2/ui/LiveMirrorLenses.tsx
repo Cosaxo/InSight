@@ -15,7 +15,7 @@
 //            questions you diverge on most surfaced first.
 //   Scores   the place scorecard: what this population gives the place it
 //            is standing in, facet by facet, with your own score ticked
-//            onto their bar (D100, corrected at D184).
+//            onto their bar (D100, corrected at D186).
 //   Explore  pick a trait slice and see what it believes, led by where it
 //            differs from everyone — `divergence`.
 //
@@ -27,7 +27,7 @@
 // items. The refusal was right and the answer was not: what a scorecard
 // of a place needs is not a number, it is a number ABOUT THE PLACE, and
 // filtering on type gave the City stop a card led by "Breakfast is the
-// best meal of the day". D184 wrote the questions the refusal was
+// best meal of the day". D186 wrote the questions the refusal was
 // waiting for and gave them a subject the lens can read (`rates`); the
 // section comment on ScoresLens has the full account.
 //
@@ -635,7 +635,7 @@ function ExploreLens({ qs }: { qs: LensQuestion[] }) {
 // standing in, facet by facet, best first, with your own score beside
 // theirs.
 //
-// IT DREW THE WRONG QUESTIONS UNTIL D184, and the failure is worth
+// IT DREW THE WRONG QUESTIONS UNTIL D186, and the failure is worth
 // keeping because every gate in the tree was green while it shipped.
 // D100 read the prototype's Scores as "average the ordinal questions"
 // and built exactly that — which is a true average of a real crowd, and
@@ -675,7 +675,7 @@ function ScoresLens({ qs, shortName, scope }: {
     // Two different emptinesses, and collapsing them would hide which one
     // this is. Neither is "withheld" — that category is gone (D98).
     //
-    // The first is now also the shape a pre-D184 bank takes: the questions
+    // The first is now also the shape a pre-D186 bank takes: the questions
     // exist in `content/` and the seeded docs carry no `rates` until an
     // operator reseeds, so the card is empty rather than wrong. That is
     // the direction to be wrong in — the whole point of the change.
@@ -703,7 +703,7 @@ function ScoresLens({ qs, shortName, scope }: {
           <div key={q.id} style={{ display: "flex", flexDirection: "column", gap: 5 }}>
             <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
               {/* The bank's own short label, the prompt only when a doc
-                  carries none (D184). Eight nouns down a shared baseline
+                  carries none (D186). Eight nouns down a shared baseline
                   is a shape; eight questions is a list you read one at a
                   time, and the sort that makes the shape readable is
                   wasted on it. */}

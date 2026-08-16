@@ -13,9 +13,9 @@
 // `branch`/`sub` are the daily bank's [branch, sub-branch] subject path
 // (D100) and are absent on every other surface, which carries no path.
 // `tag` is the daily bank's short label for a question — the Mirror's
-// Scores card is a column of nouns, not of sentences (D184).
+// Scores card is a column of nouns, not of sentences (D186).
 // `rates` is daily-only and names the Mirror stop whose scorecard may fold
-// a question (D184): city|country|world. Absent means the question rates
+// a question (D186): city|country|world. Absent means the question rates
 // no place, which is every other question in the bank.
 // `lo`/`hi`/`unit`/`ends` (dial) and `ax`/`ay` (field) are the continuum
 // forms' range/plane copy (D114), absent everywhere else; their options

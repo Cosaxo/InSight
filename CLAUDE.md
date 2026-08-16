@@ -214,7 +214,7 @@ an emergency rules fix.
   D112, its constellation.** Answers · People · Compare · Explore are
   pure folds over `agg.by` (`src/v2/data/cohort.ts`) plus the D98 voter
   lists; Scores joined at D100 over the bank's ordinal questions and
-  became the *place* scorecard it is named for at D184 — a question now
+  became the *place* scorecard it is named for at D186 — a question now
   declares what it rates (`rates: city | country | world`) and the lens
   draws only what names its stop. The old "no `rate` questions" refusal
   was right about the content and D100 read it as being about the lens:

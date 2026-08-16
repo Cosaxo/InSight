@@ -32,11 +32,11 @@ export interface LiveQuestion {
   branch?: string;
   sub?: string;
   type?: string;
-  // The bank's short label, and which place a question RATES (D184).
+  // The bank's short label, and which place a question RATES (D186).
   // `rates` is what makes the Scores card a scorecard of its stop rather
   // than of every ordinal question in the archive; `tag` is the noun that
   // card draws instead of the prompt. Both undefined for every question
-  // that rates no place, and for any doc seeded before D184.
+  // that rates no place, and for any doc seeded before D186.
   tag?: string;
   rates?: string;
   // Whether a COHORT reading may fold this question (D161) — resolved by
@@ -64,8 +64,8 @@ export interface QuestionDoc {
   sub?: string;
   // The daily bank's short label ("Nature access") and, on the questions
   // that rate a place, which Mirror stop may fold them — "city" |
-  // "country" | "world" (D184). Daily-only, and absent from any doc
-  // seeded before D184; a bank that predates it simply has no place
+  // "country" | "world" (D186). Daily-only, and absent from any doc
+  // seeded before D186; a bank that predates it simply has no place
   // scorecard, which is what every bank had until it.
   tag?: string;
   rates?: string;

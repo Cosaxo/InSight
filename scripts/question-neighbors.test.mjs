@@ -149,6 +149,24 @@ describe("the live corpus", () => {
     expect(domains.daily[0].id).toBe("dq30");
   });
 
+  it("reads a Crossroads story whole, not just its one-line prompt", () => {
+    // The regression this pins is silent by construction: a path carries no
+    // `options` (its answer space is the eight endings, whose labels are
+    // synthesized), so textOf's option clause finds nothing and the entry
+    // used to be the PROMPT ALONE — 4 tokens against the 134 the story
+    // actually holds, i.e. the gate comparing 3% of the question and
+    // scoring two stories that differ only in their prompt line at 0.000.
+    //
+    // Asserted on tokens only in a node and an ending — "clinic" is in the
+    // A fork's scene, "virtue" in an ending's line — because a size
+    // assertion alone would pass on a textOf that folded in some other
+    // field by accident.
+    const pt1 = domains.feed.find((e) => e.id === "pt1");
+    expect(pt1.tokens.size).toBeGreaterThan(100);
+    expect(pt1.tokens.has("clinic")).toBe(true);
+    expect(pt1.tokens.has("virtu")).toBe(true); // "virtue", folded
+  });
+
   it("holds every gated domain under GATE", () => {
     for (const name of ["daily", "feed", "duel", "pick"]) {
       const { hits } = scanDomain(domains[name]);
