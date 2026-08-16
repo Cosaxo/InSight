@@ -474,6 +474,26 @@ arithmetic.
       automated writer, and the window between merging a release commit and
       dispatching from it is no longer quiet.
 
+      **BUILD 17 WAS UPLOADED BY RUN 24** (`9a5f803`, 2026-08-15 18:31Z,
+      8m 42s, upload step `success`, 1m 55s of it transfer). Run 23 is the
+      **same commit eight minutes earlier** with its upload step `skipped`
+      — the dry run — which makes it the second runs-15/16-shaped pair and
+      the reason the conclusion is read per STEP: both runs are `success`
+      at the job level and only one of them spent a number.
+
+      **The bump after run 24 did not happen**, and it is the third time
+      (runs 18, 19, 24) against three that held (runs 20, 21, 22).
+      `appBuild` sat at 17 with 17 already delivered, caught 2026-08-16 by
+      build 18's pre-flight. **What is new is that somebody did come back
+      to the tree.** Commit `5798623` — "Build 17 is in TestFlight" —
+      returned the next day *specifically to record this upload*, cited the
+      run id, noted the dry run, wrote sixteen lines into 3.2 below, and
+      left the integer at 17. So D143's gap ("the upload finished" vs
+      "someone came back") is not the mechanism: **the record and the
+      number are two separate edits, and only one of them has a habit.** A
+      session can discharge the whole felt obligation and still leave the
+      number that costs ~150 minutes of macOS quota. D170.
+
       **BUILD 16 WAS UPLOADED BY RUN 22** (`67af354`, 2026-08-15 11:07Z,
       5m 25s, upload step `success`, 1m 23s of it transfer). Both APNs
       gates passed and the Firebase config was verified in the archive and
@@ -652,6 +672,51 @@ arithmetic.
       tabs and exact age, D156's rebuilt 1v1 and Group, D157's test
       surfaces — so the archive has less new surface than the last run that
       succeeded, and the store filing does not move.
+
+      **Build 18 pre-flighted 2026-08-16 (D170) — and this one bumped.**
+      Run 24's upload step reads `success` and `appBuild` at `9a5f803` was
+      17, so build 17 is spent and the tree's 17 was NOT ahead. `appBuild`
+      17 → 18 by hand, propagated by `--fix` to `versionCode` and both
+      `CURRENT_PROJECT_VERSION` entries. Three pre-flights running had
+      answered *run as-is*; this one does not, and the paragraph above
+      about run 24 has why.
+
+      Measured, not asserted: 1175 client, 214 function, 183 script and 90
+      rules tests, all three e2e suites, `lint`, `tsc -b`,
+      `check:globals` at **409** (its baseline, unmoved — build 18 added no
+      coupling), and 26 check gates. The same three are environmental as at
+      D158, and `check:web-firebase` has a wrinkle worth knowing: it reads
+      `VITE_FIREBASE_*` from the **environment** as well as from `dist/`,
+      so it must run inside the same env block as the build — which is how
+      the workflow invokes it, and is not obvious from the name. Verified
+      against an injected config: 72 chunks carrying a fake project id.
+
+      **6.1's own `cap sync` found a drift that has been in the tree since
+      build 15.** `ios/App/CapApp-SPM/Package.swift` pinned
+      `capacitor-swift-pm` at `8.3.3` while `@capacitor/ios` has been 8.4.2
+      since dependabot's `831f808`; the file had never been committed at
+      8.4.2. **Nothing shipped wrong** — both `ios-build.yml` and
+      `ios-release.yml` run `cap sync` before building, so every archive
+      since build 15 used 8.4.2 from a regenerated file — but a human
+      opening Xcode without syncing resolved a different Capacitor than the
+      release did. `native-sync-drift` had been reporting it all along as a
+      `::warning::` whose step exits 0, so that job being green has never
+      meant *in sync*. The synced file is committed here.
+
+      **`check:bundle` is green with 1 KB left.** 2284 KB against 2285,
+      where build 16 had 7 KB and build 15 had 10 — the total's headroom
+      across three release pre-flights is 10 → 7 → 1. The eager graph is
+      fine at 964 against 978. **The next change of any size trips the
+      total**, on the release path, and raise-or-trim belongs to whoever
+      makes that change rather than to a pre-flight that changed no code.
+
+      **Build 18 changes nothing under `ios/`, `android/`,
+      `capacitor.config.ts` or either `package.json` except the build
+      number and one `build:dogs` script line**, and `package-lock.json` is
+      untouched — no dependency moved. A pure JavaScript payload like build
+      16: the dogs domain's 554 breeds and first card, D166's third tab on
+      trial, D167, D168 and D169's fold-once Mirror. The store filing does
+      not move — a dog-breed answer is an answer, already declared.
 
       **`npm run check:versions -- --fix` does NOT increment.** It
       propagates package.json's value into the two native projects and

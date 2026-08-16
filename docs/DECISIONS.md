@@ -16769,3 +16769,182 @@ directly, and the answer is only worth the checks behind it:
   get a fresh one. Every consumer was read: all of them `.filter()` or
   `.map()` before any `.sort()`, which copies. `myVotes()` and
   `confirmedVotes()` were left un-memoised for this reason.
+
+## D170 · Build 18's pre-flight: the record was written and the number was not
+
+**Decided:** 2026-08-16 · **Status:** binding · Sixth release pre-flight
+(D130, D142, D143, D153, D158). Bumps `appBuild` 17 → 18, and commits a
+`Package.swift` that has been out of sync with the tree's own dependency
+since dependabot. **The bump is the finding here** — three pre-flights
+running had found nothing to do, and this one does.
+
+### The comparison, made against the runs
+
+`ios-release.yml` has **24 runs and no more**. Run 24 (`31901336491`,
+`9a5f803`, 2026-08-15 18:31:02Z, job `archive` 8m 42s) has step 17,
+`Upload to App Store Connect`, at **`success`** — 18:37:44Z → 18:39:39Z,
+1m 55s of transfer — and `appBuild` at that sha was **17**. So build 17 is
+spent.
+
+Run 23 (`31900970820`) is the **same commit eight minutes earlier** with
+step 17 at `skipped`: the dry run that `ios-release.yml`'s header asks
+for. That is the second pair of its kind after runs 15 and 16, at the same
+eight-minute spacing, and it is why the conclusion is read per step rather
+than per run — both runs are `success` at the job level and only one of
+them spent a number.
+
+`appBuild` in the tree was **17**. Seventeen is not greater than
+seventeen, so runbook 2.4's question — *is `appBuild` greater than the
+highest build in App Store Connect?* — answers **bump, then run**. Done by
+hand, 17 → 18, then `check:versions --fix` carried it to `versionCode` 18
+and both `CURRENT_PROJECT_VERSION` entries. (`--fix` does not increment;
+it propagates. D158's note, load-bearing again.)
+
+### The third skip, and it is not the gap D143 named
+
+The post-upload bump has now been skipped after runs 18, 19 and 24. Runs
+20, 21 and 22 held, which D153 and D158 recorded as the habit sticking —
+**and the thing they credited was the bump landing in the session that
+read the run's own step list**, as against being deferred to whoever
+opened the repo next. D143 called that the gap: between *the upload
+finished* and *someone came back to the tree*.
+
+**Somebody came back.** Commit `5798623` — "Build 17 is in TestFlight, and
+it is the one that proves the migration", merged 2026-08-16, the day after
+run 24 — is a person returning to the tree **specifically to record this
+upload**. It cites the run id, notes the dry run went green first, and
+writes sixteen lines into LAUNCH-RUNBOOK 3.2 about what to watch on first
+launch. Its own body says *documentation only; deploys nothing*, and its
+diffstat is one file. `appBuild` stayed 17.
+
+So the diagnosis moves. The failure is not inattention and not the
+interval — it is that **the record and the number are two different
+edits**, and only one of them has a habit attached to it. A session can
+discharge the whole felt obligation ("run 24 is written down") while the
+integer that actually costs ~150 minutes of macOS quota sits untouched.
+Three releases where the bump landed with the step list on screen were not
+enough to make it survive a session that opened on the *record* instead.
+
+**No gate in this tree can catch it** — nothing here can see App Store
+Connect (D73's shape, one layer out), which is why the comparison is a
+procedure and not a check. But the *record* is in the tree, and that is a
+different thing to gate: if LAUNCH-RUNBOOK claims build N was uploaded,
+then `appBuild` must be greater than N. That invariant is local, cheap and
+exactly the shape `check:figures` already enforces for counts. **Not built
+here** — it is a gate with a real false-positive surface (the claim is
+prose, and the phrasing is not fixed), and a release pre-flight is the
+wrong moment to add a gate that can go red on wording. Recorded as the
+yield of this pre-flight, for whoever takes it.
+
+### The one thing 6.1's own command found
+
+Step 6.1 ends `npm run build && npx cap sync`. Running it rewrote
+`ios/App/CapApp-SPM/Package.swift`:
+
+```
+-.package(url: ".../capacitor-swift-pm.git", exact: "8.3.3"),
++.package(url: ".../capacitor-swift-pm.git", exact: "8.4.2"),
+```
+
+The pin has been wrong since `831f808` took `@capacitor/ios` 8.3.3 → 8.4.2
+— the dependabot bump D153 recorded as build 15's native surface. **The
+file has never been committed at 8.4.2**: `git log -S` finds no such
+commit. Reproduced with `native-sync-drift`'s own command, `npx cap sync
+--deployment`, not just the bare one.
+
+**Nothing shipped wrong, and the reason is worth stating rather than
+assuming.** Both `ios-build.yml` and `ios-release.yml` run `npx cap sync
+ios` before they build, so every archive since build 15 resolved 8.4.2
+from a file regenerated on the runner. The tree was the only copy that
+said 8.3.3. What it bit is narrow and real: a human opening Xcode without
+syncing first resolves a different Capacitor than CI and the release do.
+
+**Why nine-jobs-green never said otherwise.** `native-sync-drift` reports
+drift as `::warning::` and its step exits 0 regardless — the job is green
+with or without drift. D153 and D158 both cited that job as green, and
+both were right; green there has never meant *in sync*. Committed here so
+that for once it does. The gate is left as a warning: making it fail is a
+policy change that could block an emergency fix, and it is not this
+pre-flight's call.
+
+### The bundle, with a kilobyte left
+
+| | D153 (build 15) | D158 (build 16) | here (build 18) | ceiling |
+| --- | --- | --- | --- | --- |
+| total JS | 2255 KB | 2278 KB | **2284 KB** | 2285 |
+| eager graph | 969 KB | 961 KB | **964 KB** | 978 |
+| chunks | 72 | 75 | 75 | — |
+
+Green, measured on the shipping artifact — `VITE_V2_LIVE=true`,
+`CAPACITOR_BUILD=1`, non-empty `VITE_SENTRY_DSN`, the way
+`ios-release.yml` builds it.
+
+**The total's headroom has gone 10 → 7 → 1 KB across three release
+pre-flights.** D158 wrote that the next feature of any size would meet the
+total; it did, twice, and what is left is not a margin — 1 KB is inside
+the rounding of a single lazy chunk. The next commit that adds anything at
+all trips this gate, and it will trip on the release path, where D144 put
+it deliberately. That is a raise-or-trim decision with a history (2265 →
+2285 at D156) and it belongs to whoever makes the next change, not to a
+pre-flight that changed no code. The eager graph is the half that is not
+in trouble: 964 against a constant D144 and D152 both declined to move,
+14 KB of room.
+
+### Measured, not asserted
+
+1175 client tests (77 files), 214 function (8), 183 script (10), 90 rules
+(2); all three e2e suites green — the loop, erasure and moderation, each
+exiting 0. `lint`, `tsc -b`, and 26 `check:*` gates. `check:globals`
+reports **409** cross-module references across 42 files, at its baseline
+and unmoved: build 18's payload added no coupling.
+
+**Three gates are environmental, the same three D158 enumerated**, and
+each was run rather than skipped:
+
+- **`check:store-copy`** exits 1 bare on one placeholder — D42's parked
+  Play signing fingerprint — and passes with `--ios`, the flag the release
+  workflow hard-gates on.
+- **`check:fn-runtime`** reads `functions/lib/index.js`; `npm run build
+  --prefix functions` first, then it passes.
+- **`check:web-firebase`** reads `VITE_FIREBASE_*` and `VITE_V2_LIVE` from
+  the *environment* as well as from `dist/`, so it has to run inside the
+  same env block as the build — which is how `ios-release.yml` invokes it
+  and is not obvious from the script's name. Verified against an injected
+  fake config: OK, live config inlined into **72** chunks for project
+  `preflight-fake`. Seventy-two rather than the shipping 75 because that
+  build set no `VITE_SENTRY_DSN`. That proves the gate's mechanism, not
+  the real values; the run that matters is the workflow's, against its own
+  `dist/`.
+
+`learn-reserve.test.jsx` passed — 1175/1175 in one clean run. Third sample
+against D153's thin-margin note, and the second consecutive pass.
+
+### What build 18 carries that 17 did not
+
+Eleven commits, and **nothing shell-facing**. Between run 24's commit and
+this tree the only diff under `ios/`, `android/`, `capacitor.config.ts` or
+either `package.json` is the build number and one `build:dogs` script
+line; `package-lock.json` is untouched, so no dependency moved. A pure
+JavaScript payload, the same shape as build 16 — the archive step has no
+new native surface.
+
+The payload: the **dogs domain** (554 breeds on minted append-only keys,
+its first card and the shared key-set writer), **D166**'s third tab
+adopted on trial, **D167**'s every-surface-ships-with-its-backend rule,
+**D168**'s refusal to assert born-or-built, and **D169**'s Mirror folding
+once per change rather than once per render. Forty-one of the 69 changed
+files are `design/standalone-v28`, a prototype extraction that ships
+nothing.
+
+**The store filing does not move.** Nothing here collects anything new — a
+dog-breed answer is an answer, already declared as Other User Content — so
+`docs/STORE-FORMS.md` stands as D141 left it and `check:store-forms`
+passes unchanged.
+
+### What is NOT written here
+
+That build 18 is "pre-flighted and unspent". That sentence has been wrong
+three times (D130, D142, D143) and it is not storable: the run is
+dispatched *from* the commit that makes the claim. This entry records what
+run 24 **did**. Whoever dispatches next re-makes the comparison against
+the run list, and reads `appBuild` at the run's own `head_sha` (D159).
