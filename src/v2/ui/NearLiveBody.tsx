@@ -401,7 +401,7 @@ function NearPresence() {
           and this is what that tap agrees to). Shown while OFF — before the
           decision, which is the only moment it can inform one.
 
-          TWO WORDS, WITH THE DISCLOSURE UNDER THEM (D182). It was a
+          TWO WORDS, WITH THE DISCLOSURE UNDER THEM (D183). It was a
           54-word paragraph, then four lines, and the owner's call is that
           the stop should show neither — a screen whose subject is the
           constellation should not open on a consent notice.

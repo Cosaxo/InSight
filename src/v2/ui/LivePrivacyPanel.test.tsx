@@ -21,7 +21,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-// The claim list the CI gate reads, shared rather than re-typed (D182):
+// The claim list the CI gate reads, shared rather than re-typed (D183):
 // a second copy of these patterns is a second thing to forget to update.
 // @ts-expect-error TS7016 — plain .mjs gate script, no types
 import { missingClaims, readPage } from "../../../scripts/check-policy-claims.mjs";
@@ -129,7 +129,7 @@ describe("LivePrivacyPanel · a refused deletion is shown, not swallowed", () =>
 
 // A DESCRIBE STOOD HERE — "the disclosure does not promise anonymity the
 // app never gives" — and its two cases are gone with the bullets they read
-// (D182). What they guarded is not:
+// (D183). What they guarded is not:
 //
 // The takes bullet claimed world takes appear "always without a name" from
 // the D106 sweep until that test existed, while LiveTakesPanel rendered
@@ -155,13 +155,13 @@ describe("LivePrivacyPanel · off in demo mode", () => {
   });
 });
 
-describe("LivePrivacyPanel · the disclosure moved to the policy page (D182)", () => {
+describe("LivePrivacyPanel · the disclosure moved to the policy page (D183)", () => {
   // WHERE THESE ASSERTIONS USED TO POINT, and why they still exist.
   //
   // Three describes stood here — the takes bullet, the type cut, and
   // D172's "the list collapsed, the promises did not" — and every one of
   // them read a `<li>` out of the panel. The owner asked for the list to
-  // leave the app and be disclosed elsewhere (D182), so the subject of all
+  // leave the app and be disclosed elsewhere (D183), so the subject of all
   // three is gone from this component.
   //
   // They are NOT deleted with it. A promise nothing asserts is a promise

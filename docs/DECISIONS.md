@@ -18064,8 +18064,94 @@ three times (D130, D142, D143) and it is not storable: the run is
 dispatched *from* the commit that makes the claim. This entry records what
 run 24 **did**. Whoever dispatches next re-makes the comparison against
 the run list, and reads `appBuild` at the run's own `head_sha` (D159).
+## D181 · Near's field drew the city it is not about
 
-## D181 · The copy pass: a visual beats a word, a word beats a sentence
+**2026-08-16.** Reported from a device, an hour after D170–D179 deployed:
+the Near stop, switch on, saying **"Nobody from Oslo yet among the people
+on your questions — this fills in as more of the city answers"** — directly
+above a tab row whose People tab lists the people actually in the room.
+
+**This is D170's finding, one stop over, and I shipped it.** D170 was three
+Mirror lenses naming a population and reading a different one; this is a
+stop drawing one crowd and captioning it as another. The difference is that
+D170 was inherited and this one I made, by adding a population to Near
+(D177) and never moving the field onto it.
+
+**WHY THE CITY WAS THERE, because it was not a mistake at the time.** D150
+gave Near a field when the stop had a count and nothing else true to show:
+the people of your city, ranked by likeness, drawn anonymously. Its own
+record argues the point well — *"the refusal was of a claim nobody had to
+make"* — and the honesty rule it shipped with kept the two numbers apart,
+the figure counting phones near you and the ring counting people in your
+city. That was a stand-in for data that did not exist.
+
+D177 made it exist. Once the stop has a roster of the people actually
+present, drawing the city's crowd above it is not a stand-in any more; it
+is a second population on a screen that already has one, and the caption
+has to name a place the stop is not about to explain itself.
+
+### What the field draws now
+
+The room, placed by test-score likeness — the same metric City and World
+use, and the one the owner named in as many words: *the map is not about
+position but how similar they are to you*. Nothing about position is drawn
+or could be; the roster carries a uid and a type and no geometry at all.
+
+**Only the people it can measure.** Somebody who has not taken the test
+cannot be placed by likeness, so they are omitted rather than parked at a
+default radius — a node at an invented distance is a claim about a person.
+The caption states the basis: *"3 of the 7 people here, placed by how close
+their test scores sit to yours — the rest have not taken it."*
+
+**The roster is asked for with NO qids**, which is the cheap half of the
+room call: the server returns the sampled people and folds no answers, so
+arriving at Near costs a presence sample rather than a document per person
+per question. The tabs ask again with the deck when one is opened, and the
+per-cell cache means the roster is already there (COSTS Finding 6).
+
+**Still anonymous.** `kind="anon"`, empty labels, no node you can open —
+the deny drawn, unchanged. The stop's own line says which half is which:
+the field names nobody, People names who is here.
+
+### Guards
+
+The city seam gets a case of its own that walks all three states — switch
+off, room empty, room populated — and fails if the word "Oslo" or either of
+the old city phrasings appears anywhere in the rendered stop.
+Mutation-checked by putting the old sentence back, which fails it and two
+neighbours.
+
+Every D150-era field case was **re-pointed rather than deleted**: they
+encoded the city design, and a test that survives a design change by being
+removed is a claim nobody replaced. What they assert now is the same
+property against the new source — the ring draws when empty, the two
+numbers stay attached to what each counts, loading is distinct from empty,
+and nothing is named.
+
+**And one guard was fixed rather than satisfied.** The source scan that
+refuses a coordinate in `NearField` fired on the word "cell" inside a
+comment explaining the per-cell room cache. It strips comments before
+matching now: the risk is a coordinate reaching the canvas, which is a
+property of the code, and a source guard that trips on prose is one people
+learn to reword around.
+
+### The thing this does not fix
+
+The screenshot also showed **"Couldn't reach the count just now"** with the
+switch on — a failed beat, which is a different problem and not diagnosable
+from an image. What would settle it is the actual error: `runBeat` collapses
+a denied presence write and a refused callable into the same `unavailable`,
+which is the shape that made this hard to read. Worth splitting those two
+if it recurs.
+
+One latent bug was found looking: in the **always** mode `until` is set to
+exactly `now + PRESENCE_LINGER_MIN`, and the rules cap is
+`request.time + 180m` — so any client clock ahead of the server denies the
+write. The timed mode is unaffected (its deadline is two hours, well under
+the cap). Not the reported failure, which was in timed mode, but it is a
+real one and it is recorded here rather than fixed blind.
+
+## D182 · The copy pass: a visual beats a word, a word beats a sentence
 
 **2026-08-16.** Owner report, with two screenshots — the Mirror's People
 tab and the Near stop — and one rule to work by: **visual > word >
@@ -18163,9 +18249,9 @@ the fraction at the head of the line, so the next rewording does not break
 it. Full suite green: 1,218 unit, 228 functions, every non-Java gate,
 bundle 2,324 KB (ceiling 2,334).
 
-## D182 · The disclosures leave the app, and get a gate on the way out
+## D183 · The disclosures leave the app, and get a gate on the way out
 
-**2026-08-16.** The copy pass's second round (D181 is the first). Three
+**2026-08-16.** The copy pass's second round (D182 is the first). Three
 owner instructions, and the third is the one with teeth:
 
 1. **Near's opt-in disclosure** — "cut down and maybe just indicated with
@@ -18263,7 +18349,7 @@ clause from it are different edits, and only the first was asked for.
 
 Unit 1,216 (two cases deleted with their subject, four added), scripts
 202, functions 228. Bundle 2,320 KB / 969 KB eager, against 2,334 / 978 —
-4 KB lighter than D181. `check:policy-claims` is wired into `ci.yml` beside
+4 KB lighter than D182. `check:policy-claims` is wired into `ci.yml` beside
 `check:public-copy`, client-side only and deliberately off
 `backend-checks.yml`, same placement rule as the checks around it.
 
@@ -18277,7 +18363,7 @@ pattern that guards nothing. Split into two rows; sixteen, not fifteen.
 
 ### The rule is a document now, not a commit message
 
-D181 named four recurring shapes and D182 named the three things the rule
+D182 named four recurring shapes and D183 named the three things the rule
 does not license, and both of those were buried in a decision entry —
 which is the wrong place for something the next person needs *before*
 touching a screen. [`docs/COPY.md`](COPY.md) is that content as a working
@@ -18286,6 +18372,38 @@ table, and §3 on consent notices, honesty qualifiers and the blunt
 public-answers sentence, which are claims rather than word counts.
 `CLAUDE.md`'s House style points at it, and the repo map lists it.
 
-Deliberately no figures in it (D39): the word counts belong to D181, where
+Deliberately no figures in it (D39): the word counts belong to D182, where
 they are a record of one pass rather than a number someone has to keep
 true.
+
+### Renumbered on the way in, and one section rewritten
+
+These two entries were written as D181/D182 and landed as D182/D183: #201
+took D181 for *Near's field drew the city it is not about* while this
+branch was open. The numbers moved; nothing else in either entry did.
+
+That collision was not only clerical. #201 rewrote `NearField` to draw the
+**room** rather than the city — the exact component this pass had just cut
+copy on — so the merge kept #201's body wholesale and re-applied the rule
+to its new copy instead of resurrecting the old:
+
+| #201 shipped | merged as |
+| --- | --- |
+| "Turn the switch on and the people around you draw in here, placed by how alike you are — never by where they are standing." | "Turn it on and people draw in here — by likeness, never by position." |
+| "Working out who around you is most like you…" | "Matching…" |
+| "Nobody here has taken the test yet, so there is no likeness to place them by. 3 people are in the room — People lists them." | "Nobody here has taken the test — 3 in the room, People lists them." |
+| "Nobody else has Near on here right now. This fills as people arrive with it turned on." | "Nobody else has Near on right now." |
+| caption "closer to you = more alike" + a sentence carrying the count and basis | caption "1 of 2 here · closer = more alike" + "Placed by test scores — the rest have not taken it." |
+
+**Both of #201's claims survive at full strength**: *never by where they
+are standing* (the rule the whole canvas rests on) and *the rest have not
+taken it* (the basis, which is why the ring is smaller than the room).
+What went is "Nobody is named here", for the reason §3 of
+[`docs/COPY.md`](COPY.md) gives — the stop's closing line already says it,
+with the half a caption cannot carry.
+
+Post-merge, and these are the figures that count: unit 1,216, scripts 202,
+functions 228, every non-Java gate, bundle 2,320 KB / 969 KB eager against
+2,334 / 978. `test:rules` and the e2e suites want Java 21, which the
+authoring environment did not have — unrun here, and neither touches
+client copy.

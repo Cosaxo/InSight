@@ -242,7 +242,7 @@ function LivePrivacyPanel() {
         {btn(telemetry ? "On ✓" : "Off", toggleTelemetry)}
       </LpRow>
 
-      {/* ONE SENTENCE AND A LINK (D182), where ten bullets behind a
+      {/* ONE SENTENCE AND A LINK (D183), where ten bullets behind a
           summary stood (D172).
 
           D172's comment said a layout change "must not be read as

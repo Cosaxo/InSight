@@ -7,7 +7,7 @@
 //
 // D172 put the account panel's ten disclosure bullets behind a `details`
 // and left a comment in the source saying a layout change "must not be
-// read as permission to thin the promises". D182 removed them from the app
+// read as permission to thin the promises". D183 removed them from the app
 // outright, on the owner's call — the panel keeps one sentence and a link,
 // and `web/privacy.html` becomes the single place the long version lives.
 //
@@ -31,7 +31,7 @@
 // true. `check:public-copy` catches the retired vocabulary; this catches
 // the silent deletion. Neither catches a claim that is simply wrong, and
 // the three this file most cares about — the square's size, the linger,
-// who reads the room — were ALL wrong on that page when D182 opened it,
+// who reads the room — were ALL wrong on that page when D183 opened it,
 // because D174, D175 and D177 each updated the app and not the policy.
 // That is the failure mode: not a promise thinned on purpose, a promise
 // left behind by a change three commits away. A phrase list cannot see it.
@@ -123,7 +123,7 @@ if (missing.length) {
   console.error(`\ncheck-policy-claims: ${PAGE} is missing ${missing.length} disclosure(s)\n`);
   for (const label of missing) console.error(`  ✗ ${label}`);
   console.error(
-    `\nThe app used to state these itself. D182 removed them from the account\n` +
+    `\nThe app used to state these itself. D183 removed them from the account\n` +
     `panel and made ${PAGE} the single place they live, so a claim that\n` +
     `disappears from this page disappears from the product.\n\n` +
     `If the wording moved, update the pattern in scripts/check-policy-claims.mjs.\n` +

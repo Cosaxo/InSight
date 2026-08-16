@@ -116,7 +116,7 @@ jobs:
       # placement rule as check:store-forms above: client/docs-only, and
       # deliberately off backend-checks.yml.
       - run: npm run check:public-copy
-      # The other half of the same discipline, and the newer half (D182).
+      # The other half of the same discipline, and the newer half (D183).
       # check:public-copy catches a retired promise that REAPPEARS; this
       # catches a live promise that VANISHES. It was needed the moment the
       # account panel stopped stating its own disclosures and started

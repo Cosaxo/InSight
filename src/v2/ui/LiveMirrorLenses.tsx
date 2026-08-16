@@ -311,7 +311,7 @@ function WhosHere({ qs, shortName }: { qs: LensQuestion[]; shortName: string }) 
         </div>
       )}
 
-      {/* "Answers, not people" stood here and is gone (D182). It is not a
+      {/* "Answers, not people" stood here and is gone (D183). It is not a
           claim the card stopped making — it is one the KICKER makes, on
           the figure itself: "answers with an age" is the unit printed on
           the number it qualifies, which is the only place a unit belongs.

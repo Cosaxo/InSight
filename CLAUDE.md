@@ -41,11 +41,11 @@ way: if the UI says something about who can see what, `firestore.rules`
 or a Cloud Function has to make it true, and a test has to prove it. The
 account panel still says plainly that answers are public, because a user
 learning that from a stranger quoting their vote would be the same
-failure as the reverse — but since D182 that sentence is *all* it says.
+failure as the reverse — but since D183 that sentence is *all* it says.
 The long disclosure lives once, in `web/privacy.html`, and
 `check:policy-claims` is what a promise is now proved by. Read that
 script before editing the page: three of its claims were already stale
-when D182 opened it, because D174, D175 and D177 each updated the app and
+when D183 opened it, because D174, D175 and D177 each updated the app and
 not the policy.
 
 Three denies remain, none about answers, each labelled at its own path in
@@ -275,7 +275,7 @@ an emergency rules fix.
 - When you defer something, record it in `docs/DECISIONS.md` with the
   arithmetic. A known limit is survivable; a surprise is not.
 - **Copy follows `visual > word > sentence > sentences`** (the owner's
-  rule, D181). A caption explaining a shape the reader is looking at, a
+  rule, D182). A caption explaining a shape the reader is looking at, a
   noun the ruler and the tab bar already say, a clause restating its own
   first clause, an instruction for the control directly underneath — all
   four are deletions, and all four grow back.

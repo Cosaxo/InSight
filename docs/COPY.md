@@ -8,13 +8,13 @@ shorter thing that would have done.
 
 This file exists because the app grew the same four faults on four
 different screens, and naming them is cheaper than finding them again.
-D181 is the pass that produced it; D182 is the one that moved the
+D182 is the pass that produced it; D183 is the one that moved the
 disclosures out. Neither is a style opinion — both came from a screenshot
 of a real screen with more words than readings on it.
 
 ## 1 · The four shapes
 
-Almost every cut in D181 was one of these. When copy grows back, it grows
+Almost every cut in D182 was one of these. When copy grows back, it grows
 back as one of these.
 
 ### A legend for a visual the reader is looking at
@@ -81,7 +81,7 @@ strength, and one got *longer* to read:
 
 - **Consent and disclosure.** Near's opt-in notice keeps every fact — the
   square and its size, that nobody reads it, what the people in it see,
-  the three-hour linger, what off does. D182 put it behind a two-word
+  the three-hour linger, what off does. D183 put it behind a two-word
   `details`; it did not drop a clause. **Moving a disclosure one tap away
   and deleting a clause from it are different edits.** Do one without
   meaning the other.
@@ -95,7 +95,7 @@ strength, and one got *longer* to read:
   exists to prevent.
 
 **A qualifier is redundant only when something else on screen says it.**
-Two of D182's cuts qualify and it is worth being precise about why:
+Two of D183's cuts qualify and it is worth being precise about why:
 
 - "Answers, not people" went because the KICKER says *answers with an
   age* — the unit is printed on the number it qualifies, which is the
@@ -111,7 +111,7 @@ printed every author's name (D106).
 
 ## 4 · Before you delete a sentence
 
-1. **Grep for it in tests.** 46 assertions moved in D181 and none was
+1. **Grep for it in tests.** 46 assertions moved in D182 and none was
    deleted. Every one pinned a *claim*, and the claim survived every
    rewording. If a test asserted the sentence rather than the claim, fix
    the test to assert the claim — `Compare stops calling a tie the

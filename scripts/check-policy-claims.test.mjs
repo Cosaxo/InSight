@@ -2,7 +2,7 @@
 //
 // This is the same case scripts/check-public-copy.test.mjs makes for its
 // own checker, and it matters more here: check-policy-claims is the ONLY
-// thing standing behind the disclosures D182 took out of the account
+// thing standing behind the disclosures D183 took out of the account
 // panel. A checker that silently matches nothing would leave the tree
 // looking guarded while the promises quietly went.
 //
