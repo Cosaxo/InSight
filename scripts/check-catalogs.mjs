@@ -72,6 +72,7 @@ const films = parseCatalogue(join(root, "public", "films.txt"), "films.txt");
 const artists = parseCatalogue(join(root, "public", "artists.txt"), "artists.txt");
 const emoji = parseCatalogue(join(root, "public", "emoji.txt"), "emoji.txt");
 const countries = parseCatalogue(join(root, "public", "countries.txt"), "countries.txt");
+const dogs = parseCatalogue(join(root, "public", "dogs.txt"), "dogs.txt");
 
 // Countries-only invariants: the catalogue's one minted key is Kosovo's
 // 900 (build-countries.mjs header) — every other key must be a 3-digit
@@ -85,6 +86,21 @@ if (countries.present) {
   for (const k of countries.keys) {
     if (k !== 900 && (k < 1 || k > 899)) {
       errors.push(`countries.txt: key ${k} outside the ISO numeric range and not the recorded mint`);
+    }
+  }
+}
+
+// Dogs-only invariant: keys are catalogue-minted (build-dogs.mjs) under
+// the append-only discipline — the initial mint was 1..N and entries
+// never renumber or leave, so the keys stay exactly 1..N contiguous. A
+// hole or an out-of-range key means a hand-edit or a broken mint, both
+// of which orphan stored answers.
+if (dogs.present) {
+  const sorted = [...dogs.keys].sort((a, b) => a - b);
+  for (let i = 0; i < sorted.length; i++) {
+    if (sorted[i] !== i + 1) {
+      errors.push(`dogs.txt: minted keys must be contiguous from 1 — expected ${i + 1}, found ${sorted[i]}`);
+      break;
     }
   }
 }
@@ -113,6 +129,7 @@ if (src !== null) {
     ["ARTIST_KEYS", artists, "artists.txt"],
     ["EMOJI_KEYS", emoji, "emoji.txt"],
     ["COUNTRY_KEYS", countries, "countries.txt"],
+    ["DOG_KEYS", dogs, "dogs.txt"],
   ]) {
     const declared = declaredKeys(src, name);
     if (declared === null) {
@@ -139,5 +156,6 @@ console.log(
   `check:catalogs OK — films ${films.present ? films.keys.length : "absent"}, ` +
     `artists ${artists.present ? artists.keys.length : "absent"}, ` +
     `emoji ${emoji.present ? emoji.keys.length : "absent"}, ` +
-    `countries ${countries.present ? countries.keys.length : "absent"}, key sets agree`,
+    `countries ${countries.present ? countries.keys.length : "absent"}, ` +
+    `dogs ${dogs.present ? dogs.keys.length : "absent"}, key sets agree`,
 );

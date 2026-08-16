@@ -6,7 +6,7 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { COUNTRIES, EMOJI, FILMS, parseCatalog } from "./catalogs";
+import { COUNTRIES, DOGS, EMOJI, FILMS, parseCatalog } from "./catalogs";
 
 // Popularity order, sparse QID keys — the generator's output shape,
 // including a remake disambiguated by year and an accented name.
@@ -119,6 +119,31 @@ describe("the shipped countries catalogue", () => {
     // São Tomé and Príncipe, and a prefix must rank before a substring.
     expect(COUNTRIES.search(real, "sao tome")[0].name).toBe("São Tomé and Príncipe");
     expect(COUNTRIES.search(real, "norw")[0].key).toBe(578);
+  });
+});
+
+describe("the shipped dogs catalogue", () => {
+  // Real-file leg for the first minted-key domain: the committed file is
+  // the registry of record (build-dogs.mjs preserves it verbatim on
+  // regeneration), so parse, contiguity and spot names all pin here.
+  const real = parseCatalog(
+    readFileSync(resolve(__dirname, "../../../public/dogs.txt"), "utf8"),
+  );
+
+  it("parses completely with contiguous minted keys", () => {
+    expect(real.length).toBe(554);
+    expect(new Set(real.map((e) => e.key)).size).toBe(real.length);
+    expect(Math.max(...real.map((e) => e.key))).toBe(real.length);
+  });
+
+  it("resolves a minted key to its breed", () => {
+    expect(DOGS.nameOf(real, 1)).toBe("Affenpinscher");
+    expect(DOGS.nameOf(real, 223)).toBe("Golden Retriever");
+  });
+
+  it("finds a breed by any of its words", () => {
+    expect(DOGS.search(real, "retriever").map((e) => e.name)).toContain("Golden Retriever");
+    expect(DOGS.search(real, "shiba")[0].key).toBe(463);
   });
 });
 

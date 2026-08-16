@@ -363,6 +363,28 @@
       372: 2,  // Ireland — below the floor
       0: 10,   // Not listed
     },
+    // first card of the dogs domain, 2026-08-16 — the first Sunday domain
+    // slot (D145). "Get", not "favourite", for the pk04/pk16 reason: the
+    // question people actually argue about is the dog they would bring
+    // home, and it forces one answer out of a lifetime of maybes. Keys
+    // are catalogue-minted (build-dogs.mjs, append-only).
+    pk17: {
+      223: 27, // Golden Retriever — the family default, honestly earned
+      307: 22, // Labrador Retriever
+      84: 18,  // Border Collie — for people who think they hike enough
+      463: 16, // Shiba Inu — the internet's dog
+      377: 14, // Pembroke Welsh Corgi
+      164: 12, // Dachshund — a long commitment
+      467: 10, // Siberian Husky — the beautiful bad idea
+      216: 9,  // German Shepherd
+      440: 8,  // Samoyed — the cloud that sheds
+      237: 7,  // Greyhound — the adopted racer, 45 mph couch potato
+      206: 5,  // French Bulldog — clears the floor but not the top 10; folds
+      59: 5,   // Beagle — same
+      543: 3,  // Whippet — below the floor
+      268: 2,  // Jack Russell Terrier — below the floor
+      0: 10,   // Not listed — the mutts, and rightly so
+    },
   };
 
   // Baked demo segment slices, per question: how each cohort orders the
@@ -557,6 +579,18 @@
         Men: { 392: 10, 756: 7, 578: 6, 124: 5, 36: 5 },
       },
     },
+    pk17: {
+      ageBand: {
+        // the internet's dogs — Shiba, Corgi, Samoyed — skew young; the
+        // family defaults and the walking companions hold with age
+        '18-24': { 463: 9, 377: 6, 440: 5, 467: 5, 84: 4 },
+        '25-34': { 223: 8, 84: 7, 307: 6, 164: 5, 237: 4 },
+      },
+      gender: {
+        Women: { 223: 8, 164: 7, 377: 6, 440: 5, 463: 5 },
+        Men: { 216: 9, 84: 7, 307: 6, 467: 5, 237: 5 },
+      },
+    },
   };
 
   const api = {
@@ -694,5 +728,9 @@
     // precedent), and personal by construction — hard rule 6 polls the
     // person about their daydream, never a place about its citizens.
     { id: 'pk16', cat: 'fav', type: 'pick', domain: 'countries', prompt: 'The country you’d move to?', n: 174 },
+    // 2026-08-16, first card of the dogs domain (the first D145 Sunday
+    // domain slot) — commitment, not affection: the dog you'd GET is an
+    // argument people have actually had, and mutts get the honest bucket.
+    { id: 'pk17', cat: 'fav', type: 'pick', domain: 'dogs', prompt: 'The dog you’d get?', n: 168 },
   ];
 })();

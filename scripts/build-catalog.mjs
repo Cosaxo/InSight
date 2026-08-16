@@ -26,10 +26,11 @@
 // the article) is the least gameable popularity proxy Wikidata itself
 // stores — no third-party ratings feed, no API key, and it favours
 // era-spanning fame over this week's chart.
-import { writeFileSync, readFileSync, existsSync } from "node:fs";
+import { writeFileSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { gzipSync } from "node:zlib";
+import { regenerateCatalogKeys } from "./catalog-keys-lib.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const ENDPOINT = "https://query.wikidata.org/sparql";
@@ -182,48 +183,5 @@ console.log(
 );
 
 // ── regenerate the trigger's key sets from ALL committed catalogues ─────
-// catalogKeys.ts is derived data: whatever domain files exist, exactly
-// their keys, empty sets for the rest. check-catalogs.mjs re-derives and
-// fails on any disagreement, so hand-editing it cannot survive CI.
-const parseKeys = (file) => {
-  if (!existsSync(file)) return [];
-  const keys = [];
-  for (const line of readFileSync(file, "utf8").split("\n")) {
-    if (!line || line.startsWith("#")) continue;
-    const tab = line.indexOf("\t");
-    if (tab > 0) keys.push(Number(line.slice(0, tab)));
-  }
-  return keys;
-};
-const filmKeys = parseKeys(join(root, "public", "films.txt"));
-const artistKeys = parseKeys(join(root, "public", "artists.txt"));
-const emojiKeys = parseKeys(join(root, "public", "emoji.txt"));
-const countryKeys = parseKeys(join(root, "public", "countries.txt"));
-const setLiteral = (keys) =>
-  keys.length ? `new Set<number>([\n  ${keys.join(", ")},\n])` : "new Set<number>()";
-writeFileSync(
-  join(root, "functions", "src", "catalogKeys.ts"),
-  [
-    "// GENERATED from the committed catalogues in public/ by",
-    "// scripts/build-catalog.mjs, scripts/build-emoji.mjs and",
-    "// scripts/build-countries.mjs (any regenerates all sets) — do not",
-    "// hand-edit. scripts/check-catalogs.mjs re-derives these from the",
-    "// committed files and fails CI on any disagreement, in ci.yml and",
-    "// backend-checks.yml both.",
-    "//",
-    "// The trigger validates catalog `entity` keys against these sets",
-    "// (functions/src/v2.ts, CATALOG_DOMAINS): an empty set means the",
-    "// domain's catalogue has not been generated yet, so nothing",
-    "// aggregates for it — fail-safe until an operator runs the builder",
-    "// (D15 records why films/artists generation is an operator step).",
-    `export const FILM_KEYS: ReadonlySet<number> = ${setLiteral(filmKeys)};`,
-    `export const ARTIST_KEYS: ReadonlySet<number> = ${setLiteral(artistKeys)};`,
-    `export const EMOJI_KEYS: ReadonlySet<number> = ${setLiteral(emojiKeys)};`,
-    `export const COUNTRY_KEYS: ReadonlySet<number> = ${setLiteral(countryKeys)};`,
-    "",
-  ].join("\n"),
-);
-console.log(
-  `build-catalog: regenerated functions/src/catalogKeys.ts ` +
-    `(films ${filmKeys.length}, artists ${artistKeys.length}, emoji ${emojiKeys.length}, countries ${countryKeys.length})`,
-);
+// One derivation for every builder: scripts/catalog-keys-lib.mjs.
+regenerateCatalogKeys(root, "build-catalog");
