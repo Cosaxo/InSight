@@ -1,28 +1,98 @@
 {
   "_README": [
-    "Question provenance \u2014 who wrote each live question, and in which batch.",
+    "Question provenance — who wrote each live question, and in which batch.",
     "The join the scorecard's `production` section (D97) reads to measure",
     "farm vintages against editorial questions from the same k-floored",
     "aggregates it already fetches. Keys are bank ids per surface; rows are",
-    "{ archiveId (daily only \u2014 the dq/dqx id the entry was promoted from),",
-    "source: editorial|farm|community, batch: a vintage label \u2014 a date for",
+    "{ archiveId (daily only — the dq/dqx id the entry was promoted from),",
+    "source: editorial|farm|community, batch: a vintage label — a date for",
     "generated batches, 'prototype' for the v9 port }.",
     "",
     "Maintained by machines where possible: promote-questions.mjs writes the",
     "daily rows (--source is required since D97; --batch labels the vintage,",
     "defaulting to the promotion date); feed rows ride the feed lane's PRs.",
     "check:quality holds this file exactly in",
-    "step with the banks, both directions \u2014 a missing row is a CI failure,",
+    "step with the banks, both directions — a missing row is a CI failure,",
     "not a silent drop from the vintage rollup.",
     "",
     "Backfill provenance (2026-08-11): block boundaries read from the",
-    "archive's own dated comments in src/v2/spec/daily-questions.js \u2014",
+    "archive's own dated comments in src/v2/spec/daily-questions.js —",
     "indexes 0-52 editorial (prototype port + deeper archive), 53-64 farm",
     "2026-07-30 (PR #32), 65-89 editorial authoring session 2026-08-01",
     "(D30). All 73 feed questions are the prototype extraction (D52).",
-    "`review` (farm/community rows only): who read this question before it entered the bank. { by: 'ai'|'human', at: date, audited?: bool } \u2014 D162. `by: 'human'` is the pre-D162 process, where a person read every candidate, and stays valid for anything a person still reads. `by: 'ai'` requires an explicit `audited` boolean: whether this row was in the human sample. Editorial rows carry no review because editorial IS the human."
+    "`review` (farm/community rows only): who read this question before it entered the bank. { by: 'ai'|'human', at: date, audited?: bool } — D162. `by: 'human'` is the pre-D162 process, where a person read every candidate, and stays valid for anything a person still reads. `by: 'ai'` requires an explicit `audited` boolean: whether this row was in the human sample. Editorial rows carry no review because editorial IS the human."
   ],
   "daily": {
+    "100": {
+      "archiveId": "dqx71",
+      "source": "editorial",
+      "batch": "2026-08-16"
+    },
+    "101": {
+      "archiveId": "dqx72",
+      "source": "editorial",
+      "batch": "2026-08-16"
+    },
+    "102": {
+      "archiveId": "dqx73",
+      "source": "editorial",
+      "batch": "2026-08-16"
+    },
+    "103": {
+      "archiveId": "dqx74",
+      "source": "editorial",
+      "batch": "2026-08-16"
+    },
+    "104": {
+      "archiveId": "dqx75",
+      "source": "editorial",
+      "batch": "2026-08-16"
+    },
+    "105": {
+      "archiveId": "dqx76",
+      "source": "editorial",
+      "batch": "2026-08-16"
+    },
+    "106": {
+      "archiveId": "dqx77",
+      "source": "editorial",
+      "batch": "2026-08-16"
+    },
+    "107": {
+      "archiveId": "dqx78",
+      "source": "editorial",
+      "batch": "2026-08-16"
+    },
+    "108": {
+      "archiveId": "dqx79",
+      "source": "editorial",
+      "batch": "2026-08-16"
+    },
+    "109": {
+      "archiveId": "dqx80",
+      "source": "editorial",
+      "batch": "2026-08-16"
+    },
+    "110": {
+      "archiveId": "dqx81",
+      "source": "editorial",
+      "batch": "2026-08-16"
+    },
+    "111": {
+      "archiveId": "dqx82",
+      "source": "editorial",
+      "batch": "2026-08-16"
+    },
+    "112": {
+      "archiveId": "dqx83",
+      "source": "editorial",
+      "batch": "2026-08-16"
+    },
+    "113": {
+      "archiveId": "dqx84",
+      "source": "editorial",
+      "batch": "2026-08-16"
+    },
     "000": {
       "archiveId": "dq30",
       "source": "editorial",
@@ -520,6 +590,56 @@
       "archiveId": "dqx60",
       "source": "editorial",
       "batch": "2026-08-01"
+    },
+    "090": {
+      "archiveId": "dqx61",
+      "source": "editorial",
+      "batch": "2026-08-16"
+    },
+    "091": {
+      "archiveId": "dqx62",
+      "source": "editorial",
+      "batch": "2026-08-16"
+    },
+    "092": {
+      "archiveId": "dqx63",
+      "source": "editorial",
+      "batch": "2026-08-16"
+    },
+    "093": {
+      "archiveId": "dqx64",
+      "source": "editorial",
+      "batch": "2026-08-16"
+    },
+    "094": {
+      "archiveId": "dqx65",
+      "source": "editorial",
+      "batch": "2026-08-16"
+    },
+    "095": {
+      "archiveId": "dqx66",
+      "source": "editorial",
+      "batch": "2026-08-16"
+    },
+    "096": {
+      "archiveId": "dqx67",
+      "source": "editorial",
+      "batch": "2026-08-16"
+    },
+    "097": {
+      "archiveId": "dqx68",
+      "source": "editorial",
+      "batch": "2026-08-16"
+    },
+    "098": {
+      "archiveId": "dqx69",
+      "source": "editorial",
+      "batch": "2026-08-16"
+    },
+    "099": {
+      "archiveId": "dqx70",
+      "source": "editorial",
+      "batch": "2026-08-16"
     }
   },
   "feed": {

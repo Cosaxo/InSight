@@ -1042,6 +1042,22 @@ noticed a gap was indistinguishable from one that noticed and forgot.
   for free would undercut the business, and a government-flavored
   question written by an unsupervised job is exactly the kind of content
   that must have a human's name on it.
+
+  **D187's twenty-four place-rating dailies are not a hole in this, and
+  the distinction is the whole of why.** They are written
+  *self-referentially* — "How safe do you feel walking home at night?",
+  never "How safe is Oslo?" — so one question is asked of everyone and
+  the Mirror's cohort cell does the scoping. Nothing about them is
+  scoped to a place's citizens, which is what rule 6 names, and none is
+  a civic or policy question: they rate a condition, they do not take a
+  side. They also arrived the way this section requires — editorial, by
+  hand, in a reviewed PR, with a human's instruction behind them. **The
+  rule is unchanged for the farm: still never write a question scoped to
+  a specific city, country or region's citizens, and do not read D187 as
+  licence to invent more `rates` questions** — that field is editorial
+  content, and the tension it does carry (a universal affordability
+  question yields a per-city score for free) is recorded in D187 rather
+  than settled.
 - **Writing the live seed catalog directly** (`content/`,
   `functions/src/v2content.ts`). This job deepens the spec-layer archive
   only — that half of the rule stands. What changed (D30, 2026-08-01):

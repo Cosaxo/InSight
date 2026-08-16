@@ -13,19 +13,23 @@
 //            (data/cohort.ts `agreement`, over the cached voter lists).
 //   Compare  you against this population, question by question, with the
 //            questions you diverge on most surfaced first.
-//   Scores   the mean of every ordinal question this population answered,
-//            with your own score ticked onto their bar (D100).
+//   Scores   the place scorecard: what this population gives the place it
+//            is standing in, facet by facet, with your own score ticked
+//            onto their bar (D100, corrected at D187).
 //   Explore  pick a trait slice and see what it believes, led by where it
 //            differs from everyone — `divergence`.
 //
 // SCORES WAS REFUSED HERE UNTIL D100, and the note said the bank shipped
-// no `rate` questions so the lens would be an empty frame. That was true
-// about the PROTOTYPE'S Scores — a place scorecard, "rate Oslo's
-// nightlife" — and it read as true about the lens, which was wrong: the
-// bank ships five 1-10 `rating` items and sixteen 5-point `scale` ones,
-// and an ordinal question is an ordinal question whether its subject is a
-// city or your own outlook. The lens filters on TYPE, so place-rating
-// questions join it the day someone writes them, with no code change.
+// no `rate` questions so the lens would be an empty frame. D100 answered
+// that the lens could filter on question TYPE instead — an ordinal
+// question is an ordinal question whether its subject is a city or your
+// own outlook — and shipped it over the bank's `rating` and `scale`
+// items. The refusal was right and the answer was not: what a scorecard
+// of a place needs is not a number, it is a number ABOUT THE PLACE, and
+// filtering on type gave the City stop a card led by "Breakfast is the
+// best meal of the day". D187 wrote the questions the refusal was
+// waiting for and gave them a subject the lens can read (`rates`); the
+// section comment on ScoresLens has the full account.
 //
 //   Answers  is NOT in this file, and since D119 that is a division of
 //            labour rather than an absence: it is the host's own body
@@ -627,20 +631,41 @@ function ExploreLens({ qs }: { qs: LensQuestion[] }) {
 
 // ── Scores ──────────────────────────────────────────────────────────
 //
-// The scorecard: every ordinal question this population has answered,
-// ranked by what they gave it, with your own score beside theirs.
+// The place scorecard: what this population gives the place it is
+// standing in, facet by facet, best first, with your own score beside
+// theirs.
 //
-// The prototype's Scores is a place scorecard — rate Oslo's nightlife,
-// its transit, its cost — fed by `rate` questions that the live bank does
-// not carry. This is the same lens over the questions the bank DOES
-// carry: the five 1-10 `rating` items and the sixteen 5-point `scale`
-// ones. It is a narrower claim than "how good is this city" and a true
-// one, and when place-rating questions are written they will appear here
-// with no code change, because the lens filters on the type rather than
-// on a hardcoded list of categories.
+// IT DREW THE WRONG QUESTIONS UNTIL D187, and the failure is worth
+// keeping because every gate in the tree was green while it shipped.
+// D100 read the prototype's Scores as "average the ordinal questions"
+// and built exactly that — which is a true average of a real crowd, and
+// says nothing whatever about the place the card is named after. On a
+// device the City stop's scorecard led with "Breakfast is the best meal
+// of the day · 3.4 / 5", under the heading "How Oslo rated them".
+//
+// The subject of a question is not derivable from its counts, its type
+// or its branch: "How safe do you feel walking home at night?" and
+// "It's okay to do nothing sometimes" are both ordinal, both answered by
+// the same people, and only one of them is about Oslo. So the question
+// declares it — `rates: "city" | "country" | "world"` — and this lens
+// draws only what names the stop it is standing on. City reads its city
+// cell, Country its country cell, World the globe (the cell is the
+// host's, D170), and a question that rates no place is not on this card
+// at all. Its average is not lost: the Answers tab leads every ordinal
+// row with the same number (`headlineFor`, D120).
+//
+// The type filter stays under the subject filter rather than being
+// replaced by it. `rates` says what a question is about; ORDINAL_TYPES
+// says whether averaging it means anything, and a place question written
+// as a `choice` would otherwise render a confident mean of nothing.
 
-function ScoresLens({ qs, shortName }: { qs: LensQuestion[]; shortName: string }) {
-  const scored = qs
+function ScoresLens({ qs, shortName, scope }: {
+  qs: LensQuestion[];
+  shortName: string;
+  scope: "city" | "country" | "world";
+}) {
+  const rates = qs.filter((q) => q.rates === scope);
+  const scored = rates
     .filter((q) => ORDINAL_TYPES.has(q.type || ""))
     .map((q) => ({ q, score: meanScore(q.counts), mine: q.mine >= 0 ? q.mine + 1 : null }))
     .filter((r): r is { q: LensQuestion; score: Score; mine: number | null } => !!r.score)
@@ -649,12 +674,16 @@ function ScoresLens({ qs, shortName }: { qs: LensQuestion[]; shortName: string }
   if (!scored.length) {
     // Two different emptinesses, and collapsing them would hide which one
     // this is. Neither is "withheld" — that category is gone (D98).
-    const anyOrdinal = qs.some((q) => ORDINAL_TYPES.has(q.type || ""));
+    //
+    // The first is now also the shape a pre-D187 bank takes: the questions
+    // exist in `content/` and the seeded docs carry no `rates` until an
+    // operator reseeds, so the card is empty rather than wrong. That is
+    // the direction to be wrong in — the whole point of the change.
     return (
       <LlEmpty>
-        {anyOrdinal
-          ? <>Nobody here has rated one yet.</>
-          : <>Nothing rated yet — questions that ask for a number land here.</>}
+        {rates.length
+          ? <>Nobody here has scored {shortName} yet.</>
+          : <>Nothing scored yet — questions that rate {shortName} land here.</>}
       </LlEmpty>
     );
   }
@@ -662,14 +691,23 @@ function ScoresLens({ qs, shortName }: { qs: LensQuestion[]; shortName: string }
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
       <div style={{ fontFamily: "var(--sans)", fontSize: 13, fontWeight: 600, color: "var(--ink-2)", lineHeight: 1.5 }}>
-        How {shortName} rated {scored.length === 1 ? "it" : "them"} · best first
+        {/* The one thing the ruler, the tab and the rows do not already
+            say: the crowd and the subject are the same people. Everything
+            else on this line would be a caption for a shape the reader is
+            looking at (docs/COPY.md). */}
+        How {shortName} rates itself · best first
       </div>
       {scored.map(({ q, score, mine }) => {
         const frac = score.mean / score.max;
         return (
           <div key={q.id} style={{ display: "flex", flexDirection: "column", gap: 5 }}>
             <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-              <span style={{ flex: 1, fontFamily: "var(--serif)", fontSize: 14.5, color: "var(--ink)", lineHeight: 1.35 }}>{q.text}</span>
+              {/* The bank's own short label, the prompt only when a doc
+                  carries none (D187). Eight nouns down a shared baseline
+                  is a shape; eight questions is a list you read one at a
+                  time, and the sort that makes the shape readable is
+                  wasted on it. */}
+              <span style={{ flex: 1, fontFamily: "var(--serif)", fontSize: 14.5, color: "var(--ink)", lineHeight: 1.35 }}>{q.tag || q.text}</span>
               {/* The scale's top ships with the number, always. "6.2"
                   means opposite things out of 10 and out of 5, and this
                   list mixes both. */}
@@ -697,7 +735,7 @@ function ScoresLens({ qs, shortName }: { qs: LensQuestion[]; shortName: string }
                 /* One answer is not an average, and when you are the one
                    who gave it "exactly the average" is you compared with
                    yourself — which is what the release printed, under the
-                   heading "How Oslo rated it" (D170). Said as a count
+                   then-heading "How Oslo rated it" (D170). Said as a count
                    instead: true whoever the answer belongs to, which
                    matters because a vote carries the city it was cast
                    from (D8) and this stop shows the city you are in now. */
@@ -740,7 +778,7 @@ function LiveMirrorLenses({ lens, qs, shortName, scope = "city" }: {
     <div style={{ paddingTop: 14 }}>
       {lens === "people" && <PeopleLens qs={qs} scope={scope} shortName={shortName} />}
       {lens === "compare" && <CompareLens qs={qs} shortName={shortName} />}
-      {lens === "scores" && <ScoresLens qs={qs} shortName={shortName} />}
+      {lens === "scores" && <ScoresLens qs={qs} shortName={shortName} scope={scope} />}
       {lens === "explore" && <ExploreLens qs={qs} />}
     </div>
   );

@@ -86,6 +86,15 @@ export const OPTION_SHAPES = {
   scale: [0, 0],
   rating: [0, 0],
 };
+// The Mirror stops whose scorecard a daily question may declare itself
+// part of (D187's `rates`), and the types that scorecard can average. Both
+// halves are gated because both failures are SILENT: a typo'd scope puts a
+// question on no stop's card, and a `rates` question written as a `choice`
+// is dropped by the lens's own type filter. Either way the row simply is
+// not there, which looks exactly like a question nobody has written yet —
+// the class of failure D187 exists to close, reappearing one layer down.
+export const RATES_SCOPES = new Set(["city", "country", "world"]);
+const RATES_TYPES = new Set(["rating", "scale"]);
 // The feed's closed type list. Until this set existed a novel feed type
 // passed the gate silently (the daily surface had OPTION_SHAPES; the feed
 // had nothing) — exactly how a wrong-shaped card would reach review unread.
@@ -490,6 +499,14 @@ export function checkQuestion(q, surface, ctx, mode = {}) {
     }
     if ((q.type === "scale" || q.type === "rating") && !q.axis) {
       err("axis", `${q.type} without an axis — the ordinal split metric and the percentile copy both key on it`);
+    }
+    if (q.rates !== undefined) {
+      if (!RATES_SCOPES.has(q.rates)) {
+        err("rates", `rates ${JSON.stringify(q.rates)} — city|country|world (D187); anything else names no stop, so the question lands on no scorecard`);
+      }
+      if (!RATES_TYPES.has(q.type)) {
+        err("rates", `a \`rates\` question is ${q.type} — the scorecard AVERAGES it (D187), and only rating|scale carry a magnitude to average`);
+      }
     }
     if (!TONES.has(q.tone)) err("tone", `tone ${JSON.stringify(q.tone)} is not light/blend/deep`);
     const tagWords = q.tag ? String(q.tag).trim().split(/\s+/).length : 0;

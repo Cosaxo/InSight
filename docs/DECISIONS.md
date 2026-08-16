@@ -18803,3 +18803,163 @@ dispatches next reads the run list, takes `appBuild` at the run's own
 `head_sha`, and reads the conclusion of **step 17** rather than of the
 run — runs 27/28 are now the fourth worked example of a pair that is
 `success` at the job level with only one of them having spent a number.
+## D187 · The place scorecard rates the place
+
+**Written as D184, renumbered to D186, and renumbered again to D187** —
+the D138–D141 precedent, twice in one afternoon. This branch took the
+next free number the same day build 19 shipped, and build 19 is three
+decisions all by itself: D184 its pre-flight, D186 its delivery, with
+D185 (Crossroads' brief) landing between them. Each time main merged
+first, so this record moved behind it.
+
+The number moved in every file that cites it — the record, `MIRROR.md`,
+`CLAUDE.md`, `QUESTION-FARM.md`, the seed generator, the quality gate
+and six modules under `src/v2/` — so `D184` and `D186` in this tree mean
+build 19 and nothing else. **The branch's own commit messages still say
+D184 and D186** and are the one artifact that cannot be corrected in
+place; they survive on PR #206 rather than in this history, which
+squashes. This paragraph is the record of it.
+
+Worth naming rather than just fixing: a decision number is claimed by
+whoever merges, not by whoever writes, and a long-running branch against
+a repo that records release bookkeeping as decisions will lose the race
+every time. Cheap to fix while the number lives in prose and comments;
+it would not be if anything keyed on it.
+
+**2026-08-16.** Reported from a device, with a screenshot of the
+prototype's scorecard beside it: *"scores are currently weird as they
+should be something related to the city or world or country — right now
+they seem to be something else."*
+
+They were. On the City stop, the Scores tab drew this:
+
+| row | number |
+| --- | --- |
+| It's okay to do nothing sometimes. | 3.8 / 5 |
+| How optimistic are you about the next ten years? | 6.2 / 10 |
+| Breakfast is the best meal of the day. | 3.4 / 5 |
+
+…under the heading **"How Oslo rated them · best first"**. Every number
+is correct. Every number is Oslo's. Not one of them is *about* Oslo.
+
+### How a lens ends up averaging the wrong questions
+
+D100 shipped Scores over `ORDINAL_TYPES` — the bank's five 1-10 `rating`
+items and sixteen 5-point `scale` ones — and the note it shipped with is
+the whole story:
+
+> the bank ships five 1-10 `rating` items and sixteen 5-point `scale`
+> ones, and an ordinal question is an ordinal question whether its
+> subject is a city or your own outlook.
+
+That sentence is true and it answers a different question. The refusal it
+overturned (D99: "the bank ships no `rate` questions, so the lens would
+be an empty frame") was right, and right about the thing that matters —
+what a place scorecard needs is not *a number*, it is a number **about
+the place**. Type is a property of the answer space. Subject is a
+property of the question, and nothing in `counts`, `type` or `branch`
+carries it: "How safe do you feel walking home at night?" and "It's okay
+to do nothing sometimes" are both ordinal, both answered by the same
+people, and only one of them is about a city.
+
+**No gate could have caught it, and that is the point worth keeping.**
+`tsc -b`, eslint, check:globals, the smoke tests and 1,219 unit tests
+were green the whole time — including six cases in
+`LiveMirrorLenses.test.tsx` that assert the arithmetic, the ranking and
+both empty states of a card whose rows were the wrong rows. This is
+D157's failure class and D170's exactly: not a fabricated number, a real
+one describing something it does not name. Visible only from the app.
+
+### The fix, in two halves that do not work apart
+
+**A question declares what it rates.** `rates: "city" | "country" |
+"world"` on the daily source, carried through `gen-v2content.mjs` →
+`QuestionDoc` → `LiveQuestion` → `LensQuestion`, and Scores draws only
+what names the stop it is standing on. City reads its city cell, Country
+its country cell, World the globe — the same cell the rows take (D170),
+so the two tabs cannot disagree about which crowd this is. Absent means
+"rates no place", which is 90 of the 114 dailies, and they keep their
+average on the Answers tab, which has led every ordinal row with the
+same number since D120.
+
+**The bank gets the questions the refusal was waiting for.** Twenty-four
+dailies, eight per radius, ported from the eight facets the prototype's
+own scorecard was designed around (`spec/place-stats.js` — Nature
+access, Getting around, Safety, Food scene, Nightlife, Friendliness,
+Dating, Affordability, and the country/world sets beside them). All
+`rating`, on purpose: the card sorts best → worst on ONE shared 0-10
+baseline, which is what lets eight rows read as a single shape rather
+than eight lookups.
+
+**They are written self-referentially — "your city", never "Oslo".** One
+question serves every city on earth and the cohort cell does the
+scoping. That is not a style choice; it is what keeps them clear of the
+farm manual's **hard rule 6** (questions scoped to one place's citizens
+are commercial inventory, and an unsupervised job must never generate
+them). None of these is scoped to a place at all, and none is a civic or
+policy question — they rate a condition, they do not take a side. Three
+carry `political: true` on the D52 marker's own calibration, which
+already marks "How much do you trust the news you read?".
+
+**The tension worth naming rather than burying:** a universal "How
+affordable is your city on a normal wage?" does yield, free, a per-city
+affordability score for every city — which is adjacent to what
+`QUESTION-FARM.md` reserves as sold inventory. The scorecard is the
+product's own design and the owner asked for it, so this is recorded,
+not deferred. If it ever needs unwinding, `rates` is the field to filter
+on and the questions are a contiguous block (`daily-090`…`daily-113`).
+
+**`check:quality` gates the new field, because both ways of getting it
+wrong are silent** — the same class of failure this decision exists to
+close, one layer down. A typo'd scope (`rates: "citty"`) names no stop, a
+`rates` question written as a `choice` is dropped by the lens's own type
+filter, and in both cases the row is simply not there, which looks
+exactly like a question nobody has written yet. Verified by probe rather
+than by reasoning: both shapes fail the gate, the 400-question corpus
+passes it.
+
+**The row is labelled with the bank's `tag`, not the prompt.** "Safety",
+"Getting around", "Affordability" — the seed dropped that field on the
+floor until now. A column of nouns beside one baseline is a shape; a
+column of questions is a list you read one at a time, and the best-first
+sort that makes the shape legible is wasted on it
+([`COPY.md`](COPY.md): visual > word > sentence).
+
+### Arithmetic, and two limits recorded rather than discovered
+
+**Deploy order, same class as D161's.** The seeded bank carries no
+`rates` until an operator reseeds, so between merge and reseed Scores
+draws *nothing* rather than the wrong thing. That is the direction to be
+wrong in, and it is the empty state the card already prints ("Nothing
+scored yet — questions that rate Oslo land here").
+
+**Fill rate.** One daily a day over a 114-question bank means a given
+place question comes round about every 114 days, and a stop's card wants
+eight of them. The card fills slowly and from the archive, not the week
+— which is exactly why D100 pointed these lenses at `LIVE.aggregated()`
+in the first place. A faster fill needs a surface that serves more than
+one question a day; the feed is the obvious one and `aggregated()` is
+daily-only, so that is a real change, not a tweak.
+
+**Bundle.** The 24 archive entries cost **+5 KB of the eager graph**:
+969 → 974 KB against `MAX_EAGER_KB` 978. Green, and **4 KB is the whole
+remaining headroom** on the ceiling `check-bundle.mjs` says twice is not
+raiseable on request. The farm writes 12–14 dailies a week into the same
+eager module, so that headroom is ~2 weeks wide with or without this
+change — the structural answer is that `spec/daily-questions.js` is DEMO
+data and does not belong in the entry chunk at all (the D25
+`loadWorldFeed` pattern). Not attempted here; named so the next person
+adding archive questions meets a decision instead of a red gate.
+
+Post-change figures, **re-measured after merging main** (D185 landed 250
+lines of new question-quality rules and a changed neighbours scorer, so
+the pre-merge numbers were not the ones that matter): bank 537 seeded /
+114 daily (from 513 / 90), wire size 134.0 KiB (from 125.0), unit 1,219,
+scripts 215, functions 228, rules 106, all three e2e suites green (Java
+21 was available here, unlike D183's run), `check:quality` 400 questions
+against D185's widened rule set, `check:neighbors` unmoved at 0.333
+daily on its new scorer, bundle 2,325 KB / 974 KB eager. Every non-Java
+gate passes except the two that were already failing for environmental
+reasons and remain untouched by this change: `check:store-copy` (an
+unfilled Play signing SHA, account-gated) and `check:web-firebase`
+(wants the release build's secrets).

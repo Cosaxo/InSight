@@ -12,11 +12,16 @@
 // not carry the key because they are core by construction.
 // `branch`/`sub` are the daily bank's [branch, sub-branch] subject path
 // (D100) and are absent on every other surface, which carries no path.
+// `tag` is the daily bank's short label for a question — the Mirror's
+// Scores card is a column of nouns, not of sentences (D187).
+// `rates` is daily-only and names the Mirror stop whose scorecard may fold
+// a question (D187): city|country|world. Absent means the question rates
+// no place, which is every other question in the bank.
 // `lo`/`hi`/`unit`/`ends` (dial) and `ax`/`ay` (field) are the continuum
 // forms' range/plane copy (D114), absent everywhere else; their options
 // are synthesized bucket/cell labels, so the D52 option freeze freezes
 // the range with them.
-export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; branch?: string; sub?: string; axis: string | null; test: string | null; mode?: string; active?: boolean; political?: boolean; core?: boolean; until?: string; lo?: number; hi?: number; unit?: string; ends?: string[]; ax?: string[]; ay?: string[]; title?: string; intro?: string; hue?: number; nodes?: Record<string, { q: string; a: Array<{ t: string }> }>; endings?: Record<string, { name: string; line: string }>; }
+export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; branch?: string; sub?: string; tag?: string; rates?: string; axis: string | null; test: string | null; mode?: string; active?: boolean; political?: boolean; core?: boolean; until?: string; lo?: number; hi?: number; unit?: string; ends?: string[]; ax?: string[]; ay?: string[]; title?: string; intro?: string; hue?: number; nodes?: Record<string, { q: string; a: Array<{ t: string }> }>; endings?: Record<string, { name: string; line: string }>; }
 export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "daily-000",
@@ -32,6 +37,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "light",
   "branch": "Sport",
   "sub": "Football",
+  "tag": "The GOAT",
   "axis": null,
   "test": null
  },
@@ -49,6 +55,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "light",
   "branch": "Film",
   "sub": "Directors",
+  "tag": "Director duel",
   "axis": null,
   "test": null
  },
@@ -66,6 +73,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "light",
   "branch": "Food",
   "sub": "Debates",
+  "tag": "Pineapple",
   "axis": null,
   "test": null
  },
@@ -85,6 +93,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "deep",
   "branch": "Values",
   "sub": "Longing",
+  "tag": "Want more",
   "axis": null,
   "test": null
  },
@@ -105,6 +114,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "light",
   "branch": "Mind",
   "sub": "Rest",
+  "tag": "Doing nothing",
   "axis": "at ease",
   "test": null
  },
@@ -122,6 +132,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "deep",
   "branch": "Morals",
   "sub": "Direction",
+  "tag": "People today",
   "axis": null,
   "test": null
  },
@@ -140,6 +151,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "deep",
   "branch": "Morals",
   "sub": "Honesty",
+  "tag": "Found €500",
   "axis": null,
   "test": null
  },
@@ -165,6 +177,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "deep",
   "branch": "Mind",
   "sub": "Outlook",
+  "tag": "Next 10 years",
   "axis": "optimistic",
   "test": null
  },
@@ -185,6 +198,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "deep",
   "branch": "Values",
   "sub": "Trust",
+  "tag": "Trust in people",
   "axis": "trusting",
   "test": null
  },
@@ -202,6 +216,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "deep",
   "branch": "Mind",
   "sub": "Human limits",
+  "tag": "Sleep pill",
   "axis": null,
   "test": null
  },
@@ -221,6 +236,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "deep",
   "branch": "Values",
   "sub": "Education",
+  "tag": "Schools",
   "axis": null,
   "test": null
  },
@@ -239,6 +255,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "deep",
   "branch": "Morals",
   "sub": "Loyalty",
+  "tag": "Job or partner",
   "axis": null,
   "test": null
  },
@@ -256,6 +273,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "light",
   "branch": "Sport",
   "sub": "How you engage",
+  "tag": "Watch or play",
   "axis": null,
   "test": null
  },
@@ -276,6 +294,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "deep",
   "branch": "Values",
   "sub": "Meaning",
+  "tag": "Suffering",
   "axis": "searching",
   "test": null
  },
@@ -301,6 +320,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "deep",
   "branch": "Mind",
   "sub": "Media",
+  "tag": "The news",
   "axis": "trusting",
   "test": null,
   "political": true
@@ -319,6 +339,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "deep",
   "branch": "Mind",
   "sub": "Technology",
+  "tag": "AI",
   "axis": null,
   "test": null
  },
@@ -338,6 +359,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "blend",
   "branch": "Mind",
   "sub": "Civilisation",
+  "tag": "Best invention",
   "axis": null,
   "test": null
  },
@@ -358,6 +380,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "deep",
   "branch": "Mind",
   "sub": "Technology",
+  "tag": "Loneliness",
   "axis": "wary",
   "test": null
  },
@@ -377,6 +400,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "deep",
   "branch": "Values",
   "sub": "What matters",
+  "tag": "A good life",
   "axis": null,
   "test": null
  },
@@ -394,6 +418,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "deep",
   "branch": "Mind",
   "sub": "Mortality",
+  "tag": "Date of death",
   "axis": null,
   "test": null
  },
@@ -419,6 +444,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "deep",
   "branch": "Mind",
   "sub": "Fate",
+  "tag": "Luck",
   "axis": "shaped by luck",
   "test": null
  },
@@ -439,6 +465,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "blend",
   "branch": "Values",
   "sub": "Friendship",
+  "tag": "Deep or many",
   "axis": "inward",
   "test": null
  },
@@ -456,6 +483,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "deep",
   "branch": "Morals",
   "sub": "Kindness",
+  "tag": "The kind lie",
   "axis": null,
   "test": null
  },
@@ -476,6 +504,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "deep",
   "branch": "Morals",
   "sub": "Honesty",
+  "tag": "Honest or kind",
   "axis": "frank",
   "test": null
  },
@@ -496,6 +525,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "blend",
   "branch": "Values",
   "sub": "Money",
+  "tag": "Money",
   "axis": "materialist",
   "test": null
  },
@@ -521,6 +551,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "deep",
   "branch": "Mind",
   "sub": "Agency",
+  "tag": "Control",
   "axis": "in control",
   "test": null
  },
@@ -540,6 +571,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "deep",
   "branch": "Values",
   "sub": "Identity",
+  "tag": "Sense of self",
   "axis": null,
   "test": null
  },
@@ -557,6 +589,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "blend",
   "branch": "Mind",
   "sub": "Time",
+  "tag": "Best day",
   "axis": null,
   "test": null
  },
@@ -576,6 +609,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "light",
   "branch": "Travel",
   "sub": "Seasons",
+  "tag": "Season",
   "axis": null,
   "test": null
  },
@@ -596,6 +630,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "deep",
   "branch": "Morals",
   "sub": "Faith in others",
+  "tag": "Helping hands",
   "axis": "hopeful",
   "test": null
  },
@@ -613,6 +648,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "light",
   "branch": "Sport",
   "sub": "How you play",
+  "tag": "Team or solo",
   "axis": null,
   "test": null
  },
@@ -631,6 +667,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "light",
   "branch": "Sport",
   "sub": "Watching",
+  "tag": "The final",
   "axis": null,
   "test": null
  },
@@ -648,6 +685,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "light",
   "branch": "Film",
   "sub": "How you watch",
+  "tag": "Subtitles",
   "axis": null,
   "test": null
  },
@@ -666,6 +704,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "blend",
   "branch": "Film",
   "sub": "What it’s for",
+  "tag": "What film is for",
   "axis": null,
   "test": null
  },
@@ -683,6 +722,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "light",
   "branch": "Film",
   "sub": "Where you watch",
+  "tag": "Cinema night",
   "axis": null,
   "test": null
  },
@@ -700,6 +740,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "light",
   "branch": "Food",
   "sub": "Habits",
+  "tag": "Kitchen or table",
   "axis": null,
   "test": null
  },
@@ -719,6 +760,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "light",
   "branch": "Food",
   "sub": "Taste",
+  "tag": "One cuisine",
   "axis": null,
   "test": null
  },
@@ -739,6 +781,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "light",
   "branch": "Food",
   "sub": "Meals",
+  "tag": "Breakfast",
   "axis": "breakfast-loyal",
   "test": null
  },
@@ -756,6 +799,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "light",
   "branch": "Travel",
   "sub": "Landscapes",
+  "tag": "Mountains or sea",
   "axis": null,
   "test": null
  },
@@ -774,6 +818,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "blend",
   "branch": "Travel",
   "sub": "The arc",
+  "tag": "The trip",
   "axis": null,
   "test": null
  },
@@ -791,6 +836,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "blend",
   "branch": "Travel",
   "sub": "Time travel",
+  "tag": "Time machine",
   "axis": null,
   "test": null
  },
@@ -808,6 +854,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "light",
   "branch": "Music",
   "sub": "How you listen",
+  "tag": "Live or studio",
   "axis": null,
   "test": null
  },
@@ -827,6 +874,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "blend",
   "branch": "Music",
   "sub": "What it does",
+  "tag": "What music does",
   "axis": null,
   "test": null
  },
@@ -844,6 +892,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "light",
   "branch": "Music",
   "sub": "What hooks you",
+  "tag": "Lyrics or melody",
   "axis": null,
   "test": null
  },
@@ -861,6 +910,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "light",
   "branch": "Body",
   "sub": "Clock",
+  "tag": "Your clock",
   "axis": null,
   "test": null
  },
@@ -881,6 +931,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "blend",
   "branch": "Body",
   "sub": "Movement",
+  "tag": "Moving helps",
   "axis": "movement-powered",
   "test": null
  },
@@ -900,6 +951,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "deep",
   "branch": "Story",
   "sub": "Then and now",
+  "tag": "Then and now",
   "axis": null,
   "test": null
  },
@@ -917,6 +969,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "blend",
   "branch": "Story",
   "sub": "The archive",
+  "tag": "The diary",
   "axis": null,
   "test": null
  },
@@ -936,6 +989,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "deep",
   "branch": "Goals",
   "sub": "The decade",
+  "tag": "The decade",
   "axis": null,
   "test": null
  },
@@ -956,6 +1010,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "deep",
   "branch": "Goals",
   "sub": "Clarity",
+  "tag": "Five years",
   "axis": "clear-eyed",
   "test": null
  },
@@ -975,6 +1030,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "blend",
   "branch": "Home",
   "sub": "What it is",
+  "tag": "What home is",
   "axis": null,
   "test": null
  },
@@ -992,6 +1048,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "blend",
   "branch": "Skills",
   "sub": "Depth",
+  "tag": "Depth or range",
   "axis": null,
   "test": null
  },
@@ -1009,6 +1066,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "light",
   "branch": "Interests",
   "sub": "How you start",
+  "tag": "How you start",
   "axis": null,
   "test": null
  },
@@ -1026,6 +1084,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "light",
   "branch": "Home",
   "sub": "How it looks",
+  "tag": "Tidy or lived-in",
   "axis": null,
   "test": null
  },
@@ -1045,6 +1104,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "deep",
   "branch": "Home",
   "sub": "What makes it",
+  "tag": "What makes it home",
   "axis": null,
   "test": null
  },
@@ -1062,6 +1122,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "blend",
   "branch": "Home",
   "sub": "Guests",
+  "tag": "Full or quiet",
   "axis": null,
   "test": null
  },
@@ -1081,6 +1142,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "blend",
   "branch": "Home",
   "sub": "Non-negotiables",
+  "tag": "Non-negotiable",
   "axis": null,
   "test": null
  },
@@ -1098,6 +1160,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "light",
   "branch": "Skills",
   "sub": "How you learn",
+  "tag": "Manual or wing it",
   "axis": null,
   "test": null
  },
@@ -1117,6 +1180,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "blend",
   "branch": "Skills",
   "sub": "Wishlist",
+  "tag": "Overnight mastery",
   "axis": null,
   "test": null
  },
@@ -1136,6 +1200,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "deep",
   "branch": "Skills",
   "sub": "The hard ones",
+  "tag": "Hardest to learn",
   "axis": null,
   "test": null
  },
@@ -1156,6 +1221,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "blend",
   "branch": "Skills",
   "sub": "Beginnings",
+  "tag": "Half the fun",
   "axis": "beginner-hearted",
   "test": null
  },
@@ -1173,6 +1239,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "blend",
   "branch": "Interests",
   "sub": "Collecting",
+  "tag": "What you collect",
   "axis": null,
   "test": null
  },
@@ -1192,6 +1259,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "light",
   "branch": "Interests",
   "sub": "Free time",
+  "tag": "Free Saturday",
   "axis": null,
   "test": null
  },
@@ -1212,6 +1280,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "blend",
   "branch": "Interests",
   "sub": "Why we bother",
+  "tag": "Useless hobbies",
   "axis": "play-minded",
   "test": null
  },
@@ -1229,6 +1298,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "deep",
   "branch": "Interests",
   "sub": "The point",
+  "tag": "Interesting or interested",
   "axis": null,
   "test": null
  },
@@ -1248,6 +1318,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "deep",
   "branch": "Story",
   "sub": "Chapters",
+  "tag": "The chapter",
   "axis": null,
   "test": null
  },
@@ -1267,6 +1338,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "blend",
   "branch": "Story",
   "sub": "Retellings",
+  "tag": "Retellings",
   "axis": null,
   "test": null
  },
@@ -1284,6 +1356,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "blend",
   "branch": "Story",
   "sub": "Memory",
+  "tag": "How you remember",
   "axis": null,
   "test": null
  },
@@ -1303,6 +1376,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "blend",
   "branch": "Story",
   "sub": "The book of you",
+  "tag": "The biography",
   "axis": null,
   "test": null
  },
@@ -1320,6 +1394,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "blend",
   "branch": "Goals",
   "sub": "Method",
+  "tag": "Goal keeping",
   "axis": null,
   "test": null
  },
@@ -1340,6 +1415,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "deep",
   "branch": "Goals",
   "sub": "Ambition",
+  "tag": "Aim high",
   "axis": "high-aiming",
   "test": null
  },
@@ -1359,6 +1435,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "deep",
   "branch": "Goals",
   "sub": "The obstacle",
+  "tag": "The obstacle",
   "axis": null,
   "test": null
  },
@@ -1376,6 +1453,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "blend",
   "branch": "Goals",
   "sub": "The long game",
+  "tag": "The long game",
   "axis": null,
   "test": null
  },
@@ -1395,6 +1473,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "light",
   "branch": "Body",
   "sub": "Signals",
+  "tag": "Body signals",
   "axis": null,
   "test": null
  },
@@ -1412,6 +1491,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "light",
   "branch": "Body",
   "sub": "Heat or cold",
+  "tag": "Heat or cold",
   "axis": null,
   "test": null
  },
@@ -1432,6 +1512,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "blend",
   "branch": "Body",
   "sub": "Sleep",
+  "tag": "Sleep rules",
   "axis": "sleep-strict",
   "test": null
  },
@@ -1449,6 +1530,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "light",
   "branch": "Body",
   "sub": "Everyday movement",
+  "tag": "Small choices",
   "axis": null,
   "test": null
  },
@@ -1466,6 +1548,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "light",
   "branch": "Music",
   "sub": "When you listen",
+  "tag": "Work soundtrack",
   "axis": null,
   "test": null
  },
@@ -1485,6 +1568,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "blend",
   "branch": "Music",
   "sub": "Formative years",
+  "tag": "Formative years",
   "axis": null,
   "test": null
  },
@@ -1502,6 +1586,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "light",
   "branch": "Music",
   "sub": "How you listen",
+  "tag": "One album",
   "axis": null,
   "test": null
  },
@@ -1519,6 +1604,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "blend",
   "branch": "Travel",
   "sub": "Repeat or explore",
+  "tag": "Repeat or explore",
   "axis": null,
   "test": null
  },
@@ -1536,6 +1622,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "blend",
   "branch": "Sport",
   "sub": "Rooting",
+  "tag": "Who you root for",
   "axis": null,
   "test": null
  },
@@ -1553,6 +1640,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "light",
   "branch": "Food",
   "sub": "Cravings",
+  "tag": "Cravings",
   "axis": null,
   "test": null
  },
@@ -1570,6 +1658,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "light",
   "branch": "Film",
   "sub": "Spoilers",
+  "tag": "Spoilers",
   "axis": null,
   "test": null
  },
@@ -1587,6 +1676,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "deep",
   "branch": "Values",
   "sub": "Truth",
+  "tag": "The one truth",
   "axis": null,
   "test": null
  },
@@ -1607,6 +1697,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "deep",
   "branch": "Values",
   "sub": "Repair",
+  "tag": "Repair",
   "axis": "forgiving",
   "test": null
  },
@@ -1626,6 +1717,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "deep",
   "branch": "Morals",
   "sub": "Debts",
+  "tag": "Debts",
   "axis": null,
   "test": null
  },
@@ -1643,6 +1735,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "deep",
   "branch": "Morals",
   "sub": "Art and artist",
+  "tag": "Art and artist",
   "axis": null,
   "test": null
  },
@@ -1662,6 +1755,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "light",
   "branch": "Home",
   "sub": "The good spot",
+  "tag": "The good spot",
   "axis": null,
   "test": null
  },
@@ -1687,8 +1781,660 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "blend",
   "branch": "Interests",
   "sub": "Curiosity",
+  "tag": "Curiosity",
   "axis": "curious",
   "test": null
+ },
+ {
+  "id": "daily-090",
+  "surface": "daily",
+  "seq": 90,
+  "type": "rating",
+  "domain": null,
+  "prompt": "How easy is it to get into nature from where you live?",
+  "options": [
+   "1",
+   "2",
+   "3",
+   "4",
+   "5",
+   "6",
+   "7",
+   "8",
+   "9",
+   "10"
+  ],
+  "topic": "blend",
+  "branch": "Home",
+  "sub": "Nature nearby",
+  "tag": "Nature access",
+  "rates": "city",
+  "axis": "nature-close",
+  "test": null
+ },
+ {
+  "id": "daily-091",
+  "surface": "daily",
+  "seq": 91,
+  "type": "rating",
+  "domain": null,
+  "prompt": "How well does your city move you around?",
+  "options": [
+   "1",
+   "2",
+   "3",
+   "4",
+   "5",
+   "6",
+   "7",
+   "8",
+   "9",
+   "10"
+  ],
+  "topic": "blend",
+  "branch": "Home",
+  "sub": "Getting around",
+  "tag": "Getting around",
+  "rates": "city",
+  "axis": "well-connected",
+  "test": null
+ },
+ {
+  "id": "daily-092",
+  "surface": "daily",
+  "seq": 92,
+  "type": "rating",
+  "domain": null,
+  "prompt": "How safe do you feel walking home at night?",
+  "options": [
+   "1",
+   "2",
+   "3",
+   "4",
+   "5",
+   "6",
+   "7",
+   "8",
+   "9",
+   "10"
+  ],
+  "topic": "deep",
+  "branch": "Home",
+  "sub": "Safety",
+  "tag": "Safety",
+  "rates": "city",
+  "axis": "safe",
+  "test": null
+ },
+ {
+  "id": "daily-093",
+  "surface": "daily",
+  "seq": 93,
+  "type": "rating",
+  "domain": null,
+  "prompt": "Rate the food where you live.",
+  "options": [
+   "1",
+   "2",
+   "3",
+   "4",
+   "5",
+   "6",
+   "7",
+   "8",
+   "9",
+   "10"
+  ],
+  "topic": "light",
+  "branch": "Food",
+  "sub": "Where you live",
+  "tag": "Food scene",
+  "rates": "city",
+  "axis": "well-fed",
+  "test": null
+ },
+ {
+  "id": "daily-094",
+  "surface": "daily",
+  "seq": 94,
+  "type": "rating",
+  "domain": null,
+  "prompt": "Your city after dark — rate the nightlife.",
+  "options": [
+   "1",
+   "2",
+   "3",
+   "4",
+   "5",
+   "6",
+   "7",
+   "8",
+   "9",
+   "10"
+  ],
+  "topic": "light",
+  "branch": "Home",
+  "sub": "After dark",
+  "tag": "Nightlife",
+  "rates": "city",
+  "axis": "night-loving",
+  "test": null
+ },
+ {
+  "id": "daily-095",
+  "surface": "daily",
+  "seq": 95,
+  "type": "rating",
+  "domain": null,
+  "prompt": "How easy is it to talk to a stranger here?",
+  "options": [
+   "1",
+   "2",
+   "3",
+   "4",
+   "5",
+   "6",
+   "7",
+   "8",
+   "9",
+   "10"
+  ],
+  "topic": "blend",
+  "branch": "Home",
+  "sub": "Neighbours",
+  "tag": "Friendliness",
+  "rates": "city",
+  "axis": "warm",
+  "test": null
+ },
+ {
+  "id": "daily-096",
+  "surface": "daily",
+  "seq": 96,
+  "type": "rating",
+  "domain": null,
+  "prompt": "How is dating where you live?",
+  "options": [
+   "1",
+   "2",
+   "3",
+   "4",
+   "5",
+   "6",
+   "7",
+   "8",
+   "9",
+   "10"
+  ],
+  "topic": "blend",
+  "branch": "Home",
+  "sub": "Dating",
+  "tag": "Dating",
+  "rates": "city",
+  "axis": "lucky in love",
+  "test": null
+ },
+ {
+  "id": "daily-097",
+  "surface": "daily",
+  "seq": 97,
+  "type": "rating",
+  "domain": null,
+  "prompt": "How affordable is your city on a normal wage?",
+  "options": [
+   "1",
+   "2",
+   "3",
+   "4",
+   "5",
+   "6",
+   "7",
+   "8",
+   "9",
+   "10"
+  ],
+  "topic": "deep",
+  "branch": "Home",
+  "sub": "Cost of living",
+  "tag": "Affordability",
+  "rates": "city",
+  "axis": "comfortable",
+  "test": null
+ },
+ {
+  "id": "daily-098",
+  "surface": "daily",
+  "seq": 98,
+  "type": "rating",
+  "domain": null,
+  "prompt": "Your country's landscapes — how good are they?",
+  "options": [
+   "1",
+   "2",
+   "3",
+   "4",
+   "5",
+   "6",
+   "7",
+   "8",
+   "9",
+   "10"
+  ],
+  "topic": "light",
+  "branch": "Travel",
+  "sub": "Landscapes",
+  "tag": "Nature",
+  "rates": "country",
+  "axis": "landscape-blessed",
+  "test": null
+ },
+ {
+  "id": "daily-099",
+  "surface": "daily",
+  "seq": 99,
+  "type": "rating",
+  "domain": null,
+  "prompt": "How safe a country is yours to live in?",
+  "options": [
+   "1",
+   "2",
+   "3",
+   "4",
+   "5",
+   "6",
+   "7",
+   "8",
+   "9",
+   "10"
+  ],
+  "topic": "deep",
+  "branch": "Home",
+  "sub": "Your country",
+  "tag": "Safety",
+  "rates": "country",
+  "axis": "unworried",
+  "test": null
+ },
+ {
+  "id": "daily-100",
+  "surface": "daily",
+  "seq": 100,
+  "type": "rating",
+  "domain": null,
+  "prompt": "Work and rest in your country — how well do they balance?",
+  "options": [
+   "1",
+   "2",
+   "3",
+   "4",
+   "5",
+   "6",
+   "7",
+   "8",
+   "9",
+   "10"
+  ],
+  "topic": "deep",
+  "branch": "Goals",
+  "sub": "Work and life",
+  "tag": "Work–life balance",
+  "rates": "country",
+  "axis": "balanced",
+  "test": null
+ },
+ {
+  "id": "daily-101",
+  "surface": "daily",
+  "seq": 101,
+  "type": "rating",
+  "domain": null,
+  "prompt": "If you got sick tomorrow, how good would the care be?",
+  "options": [
+   "1",
+   "2",
+   "3",
+   "4",
+   "5",
+   "6",
+   "7",
+   "8",
+   "9",
+   "10"
+  ],
+  "topic": "deep",
+  "branch": "Body",
+  "sub": "Care",
+  "tag": "Healthcare",
+  "rates": "country",
+  "axis": "well cared for",
+  "test": null
+ },
+ {
+  "id": "daily-102",
+  "surface": "daily",
+  "seq": 102,
+  "type": "rating",
+  "domain": null,
+  "prompt": "Do everyday services work where you are?",
+  "options": [
+   "1",
+   "2",
+   "3",
+   "4",
+   "5",
+   "6",
+   "7",
+   "8",
+   "9",
+   "10"
+  ],
+  "topic": "blend",
+  "branch": "Home",
+  "sub": "Your country",
+  "tag": "Public services",
+  "rates": "country",
+  "axis": "well-run",
+  "test": null
+ },
+ {
+  "id": "daily-103",
+  "surface": "daily",
+  "seq": 103,
+  "type": "rating",
+  "domain": null,
+  "prompt": "How welcoming is your country to people who move there?",
+  "options": [
+   "1",
+   "2",
+   "3",
+   "4",
+   "5",
+   "6",
+   "7",
+   "8",
+   "9",
+   "10"
+  ],
+  "topic": "deep",
+  "branch": "Values",
+  "sub": "Openness",
+  "tag": "Openness",
+  "rates": "country",
+  "axis": "welcoming",
+  "test": null,
+  "political": true
+ },
+ {
+  "id": "daily-104",
+  "surface": "daily",
+  "seq": 104,
+  "type": "rating",
+  "domain": null,
+  "prompt": "The weather you live with. Be honest.",
+  "options": [
+   "1",
+   "2",
+   "3",
+   "4",
+   "5",
+   "6",
+   "7",
+   "8",
+   "9",
+   "10"
+  ],
+  "topic": "light",
+  "branch": "Home",
+  "sub": "Weather",
+  "tag": "Weather",
+  "rates": "country",
+  "axis": "weather-blessed",
+  "test": null
+ },
+ {
+  "id": "daily-105",
+  "surface": "daily",
+  "seq": 105,
+  "type": "rating",
+  "domain": null,
+  "prompt": "Can an ordinary wage carry an ordinary life here?",
+  "options": [
+   "1",
+   "2",
+   "3",
+   "4",
+   "5",
+   "6",
+   "7",
+   "8",
+   "9",
+   "10"
+  ],
+  "topic": "deep",
+  "branch": "Goals",
+  "sub": "Money",
+  "tag": "Affordability",
+  "rates": "country",
+  "axis": "well-off",
+  "test": null
+ },
+ {
+  "id": "daily-106",
+  "surface": "daily",
+  "seq": 106,
+  "type": "rating",
+  "domain": null,
+  "prompt": "How good is what the world eats these days?",
+  "options": [
+   "1",
+   "2",
+   "3",
+   "4",
+   "5",
+   "6",
+   "7",
+   "8",
+   "9",
+   "10"
+  ],
+  "topic": "light",
+  "branch": "Food",
+  "sub": "The world",
+  "tag": "What we eat",
+  "rates": "world",
+  "axis": "food-glad",
+  "test": null
+ },
+ {
+  "id": "daily-107",
+  "surface": "daily",
+  "seq": 107,
+  "type": "rating",
+  "domain": null,
+  "prompt": "Music right now, worldwide — rate it.",
+  "options": [
+   "1",
+   "2",
+   "3",
+   "4",
+   "5",
+   "6",
+   "7",
+   "8",
+   "9",
+   "10"
+  ],
+  "topic": "light",
+  "branch": "Music",
+  "sub": "Right now",
+  "tag": "Music right now",
+  "rates": "world",
+  "axis": "music-glad",
+  "test": null
+ },
+ {
+  "id": "daily-108",
+  "surface": "daily",
+  "seq": 108,
+  "type": "rating",
+  "domain": null,
+  "prompt": "How kind are strangers these days?",
+  "options": [
+   "1",
+   "2",
+   "3",
+   "4",
+   "5",
+   "6",
+   "7",
+   "8",
+   "9",
+   "10"
+  ],
+  "topic": "deep",
+  "branch": "Morals",
+  "sub": "Kindness",
+  "tag": "Kindness of strangers",
+  "rates": "world",
+  "axis": "faith in strangers",
+  "test": null
+ },
+ {
+  "id": "daily-109",
+  "surface": "daily",
+  "seq": 109,
+  "type": "rating",
+  "domain": null,
+  "prompt": "Where the world is heading — rate it.",
+  "options": [
+   "1",
+   "2",
+   "3",
+   "4",
+   "5",
+   "6",
+   "7",
+   "8",
+   "9",
+   "10"
+  ],
+  "topic": "deep",
+  "branch": "Story",
+  "sub": "The future",
+  "tag": "Where it’s heading",
+  "rates": "world",
+  "axis": "world-hopeful",
+  "test": null
+ },
+ {
+  "id": "daily-110",
+  "surface": "daily",
+  "seq": 110,
+  "type": "rating",
+  "domain": null,
+  "prompt": "The state of nature worldwide — rate it.",
+  "options": [
+   "1",
+   "2",
+   "3",
+   "4",
+   "5",
+   "6",
+   "7",
+   "8",
+   "9",
+   "10"
+  ],
+  "topic": "deep",
+  "branch": "Travel",
+  "sub": "The planet",
+  "tag": "State of nature",
+  "rates": "world",
+  "axis": "unalarmed",
+  "test": null
+ },
+ {
+  "id": "daily-111",
+  "surface": "daily",
+  "seq": 111,
+  "type": "rating",
+  "domain": null,
+  "prompt": "How honest is public life these days?",
+  "options": [
+   "1",
+   "2",
+   "3",
+   "4",
+   "5",
+   "6",
+   "7",
+   "8",
+   "9",
+   "10"
+  ],
+  "topic": "deep",
+  "branch": "Morals",
+  "sub": "Honesty",
+  "tag": "Public honesty",
+  "rates": "world",
+  "axis": "unjaded",
+  "test": null,
+  "political": true
+ },
+ {
+  "id": "daily-112",
+  "surface": "daily",
+  "seq": 112,
+  "type": "rating",
+  "domain": null,
+  "prompt": "How fair is the world right now?",
+  "options": [
+   "1",
+   "2",
+   "3",
+   "4",
+   "5",
+   "6",
+   "7",
+   "8",
+   "9",
+   "10"
+  ],
+  "topic": "deep",
+  "branch": "Morals",
+  "sub": "Fairness",
+  "tag": "Fairness",
+  "rates": "world",
+  "axis": "fair-minded",
+  "test": null
+ },
+ {
+  "id": "daily-113",
+  "surface": "daily",
+  "seq": 113,
+  "type": "rating",
+  "domain": null,
+  "prompt": "How well is the world being led?",
+  "options": [
+   "1",
+   "2",
+   "3",
+   "4",
+   "5",
+   "6",
+   "7",
+   "8",
+   "9",
+   "10"
+  ],
+  "topic": "deep",
+  "branch": "Values",
+  "sub": "Leadership",
+  "tag": "Leadership",
+  "rates": "world",
+  "axis": "leader-trusting",
+  "test": null,
+  "political": true
  },
  {
   "id": "feed-f01",
