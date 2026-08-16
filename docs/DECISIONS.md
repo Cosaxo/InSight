@@ -18064,3 +18064,62 @@ three times (D130, D142, D143) and it is not storable: the run is
 dispatched *from* the commit that makes the claim. This entry records what
 run 24 **did**. Whoever dispatches next re-makes the comparison against
 the run list, and reads `appBuild` at the run's own `head_sha` (D159).
+
+## D181 · Runs 25 and 26 delivered build 18, and the bump landed in the same session
+
+**Decided:** 2026-08-16 · **Status:** binding · Records what the release
+runs did and bumps `appBuild` 18 → 19. The companion to D180, which is the
+pre-flight; this is the delivery.
+
+### What the runs did
+
+Run 26 (`31954752095`, `810b3af`, 2026-08-16 15:08:20Z, job `archive`
+6m 30s) has every step at `success`, including step 17, `Upload to App
+Store Connect` — 15:13:07Z → 15:14:46Z, **1m 39s of transfer**. Run 25
+(`31954391079`) is the same commit seven minutes earlier, 4m 11s, with
+step 17 at `skipped`: the dry run.
+
+Both APNs gates passed at both ends, and `GoogleService-Info.plist` was
+verified in the archived bundle and again in the exported `.ipa` after
+re-signing.
+
+**`appBuild` went to 19 off that step's conclusion, in the session that
+read it.** D180 exists because that did not happen after run 24, and its
+finding was that the record and the number are two different edits. Here
+they were made together, and the number went first.
+
+### The dry run stopped being ceremonial
+
+Runs 15/16, 23/24 and now 25/26 are all the same shape — same commit, dry
+run, then upload — and until this one the pair was a precaution against a
+failure that had not been live since run 6. **Build 18 changed that**: it
+is the first archive since build 15 to carry new native surface, and not
+incidentally. D175 flipped `NSLocationDefaultAccuracyReduced` to `false`
+in `Info.plist`, `AndroidManifest.xml` moved with it, and the archive step
+is precisely where a malformed plist stops being a diff and starts being a
+signing failure.
+
+It archived clean. The point is that "it will be fine" was an assumption
+before run 25 and a measurement after it, for ~50 minutes of macOS quota
+that would otherwise have been spent discovering the same thing *after*
+the transfer — where the cost is the build number as well as the run.
+
+**So the order in `ios-release.yml`'s header is now the practice, not the
+first-run advice it was written as.** Three pairs running, and the one
+where it mattered is the one nobody could have identified in advance.
+
+### What is NOT written here
+
+Whether build 19 is unspent. That claim has been wrong three times (D130,
+D142, D143) and is not storable — the next run is dispatched *from* the
+commit that would make it. This entry records what runs 25 and 26 **did**.
+The next dispatch re-makes the comparison against the run list, at the
+run's own `head_sha` (D159).
+
+**And one thing that is still open, because it belongs to the submission
+rather than to this release:** the App Store privacy label now has nine
+rows (D175's Precise Location, D178's Photos or Videos) and Apple's API
+cannot write it (D73). Uploading did not need it — TestFlight internal
+testing has no review gate — but **6.2 does**, and runbook 4.4 is the
+manual form to type first. D180 fixed that step's instructions; nothing
+has yet typed them into App Store Connect.

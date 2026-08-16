@@ -359,6 +359,19 @@ nothing, but the general case does not: **read `appBuild` at the run's own
 `head_sha`.** Every record below names a run and a sha, which invites
 reading that sha as the release commit; run 22's is a Routine's.
 
+**Runs 25 and 26 delivered build 18, and the bump landed off run 26's own
+step list.** Same commit `810b3af`, seven minutes apart, `skipped` then
+`success` (15:13:07Z → 15:14:46Z, 1m 39s of transfer) — the third pair of
+this shape after runs 15/16 and 23/24, and by now the way this workflow is
+run rather than a precaution. `appBuild` went to 19 in the same session.
+
+**The dry run earned its cost here for the first time.** Build 18 is the
+first archive since build 15 with new native surface — D175 flipped
+`NSLocationDefaultAccuracyReduced` to `false` in `Info.plist`, and
+`AndroidManifest.xml` moved with it — so "the archive will be fine" was an
+assumption rather than an observation. It was fine, and run 25 is the
+reason that sentence is a measurement.
+
 **Runs 23 and 24 delivered build 17 as a dry run and an upload, and the
 bump after them was skipped** (D180, caught 2026-08-16). Both archived
 `9a5f803` eight minutes apart — run 23's upload step `skipped`, run 24's

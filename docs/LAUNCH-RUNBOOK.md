@@ -474,6 +474,21 @@ arithmetic.
       automated writer, and the window between merging a release commit and
       dispatching from it is no longer quiet.
 
+      **BUILD 18 WAS UPLOADED BY RUN 26** (`810b3af`, 2026-08-16 15:08Z,
+      6m 30s, upload step `success`, 1m 39s of it transfer). Run 25 is the
+      **same commit seven minutes earlier** with its upload step `skipped`
+      — the dry run — so this is the third dry-then-upload pair after runs
+      15/16 and 23/24. Both APNs gates passed and the Firebase config was
+      verified in the archive and again in the exported `.ipa`.
+      **`appBuild` is now 19**, bumped off that step's conclusion in the
+      same session.
+
+      **This is the first release where the dry run was not optional in
+      practice.** Build 18 carries the first new native surface since build
+      15 — `Info.plist`'s precise-location flip and `AndroidManifest.xml` —
+      so an archive failure was a live possibility rather than a formality,
+      and run 25 is what kept it off the build number.
+
       **BUILD 17 WAS UPLOADED BY RUN 24** (`9a5f803`, 2026-08-15 18:31Z,
       8m 42s, upload step `success`, 1m 55s of it transfer). Run 23 is the
       **same commit eight minutes earlier** with its upload step `skipped`
