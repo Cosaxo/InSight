@@ -1477,6 +1477,7 @@
       "intro": "The last bus home. On the seat beside you: a wallet, fat with cash. No cameras. No one else aboard.",
       "nodes": {
         "_": {
+          "axis": "certainty",
           "q": "It sits there, heavier than it should be.",
           "a": [
             {
@@ -1488,6 +1489,7 @@
           ]
         },
         "A": {
+          "axis": "ownership",
           "q": "A student ID. 4,000 in cash. A clinic appointment slip for Thursday.",
           "a": [
             {
@@ -1499,6 +1501,7 @@
           ]
         },
         "B": {
+          "axis": "effort",
           "q": "The driver shrugs without looking. \"Lost box is broken. Your call, friend.\"",
           "a": [
             {
@@ -1510,6 +1513,7 @@
           ]
         },
         "AA": {
+          "axis": "ownership",
           "q": "You find them in an hour online. They answer, voice shaking with relief — and offer a reward.",
           "a": [
             {
@@ -1521,6 +1525,7 @@
           ]
         },
         "AB": {
+          "axis": "ownership",
           "q": "A week passes. The clinic slip keeps surfacing in your mind like a splinter.",
           "a": [
             {
@@ -1532,6 +1537,7 @@
           ]
         },
         "BA": {
+          "axis": "company",
           "q": "The ID shows an address two streets from yours. Thursday is tomorrow.",
           "a": [
             {
@@ -1543,6 +1549,7 @@
           ]
         },
         "BB": {
+          "axis": "effort",
           "q": "The doors hiss shut. Through the window you watch the wallet ride away.",
           "a": [
             {
@@ -1600,6 +1607,7 @@
       "intro": "Your boss texts you at 23:40: \"Offer the role to the other one. Don’t tell K yet.\" You are K.",
       "nodes": {
         "_": {
+          "axis": "disclosure",
           "q": "The message glows in the dark. Typing dots appear, then vanish.",
           "a": [
             {
@@ -1611,6 +1619,7 @@
           ]
         },
         "A": {
+          "axis": "loyalty",
           "q": "Your phone rings ten seconds later. A flustered voice offers \"a proper chat tomorrow.\"",
           "a": [
             {
@@ -1622,6 +1631,7 @@
           ]
         },
         "B": {
+          "axis": "disclosure",
           "q": "Next morning they greet you like nothing happened. The role posting closes Friday.",
           "a": [
             {
@@ -1633,6 +1643,7 @@
           ]
         },
         "AA": {
+          "axis": "loyalty",
           "q": "Across the desk they don’t deny it. \"The decision wasn’t final,\" they say. It sounds final.",
           "a": [
             {
@@ -1644,6 +1655,7 @@
           ]
         },
         "AB": {
+          "axis": "disclosure",
           "q": "Three interviews in a week. One offer arrives — smaller title, better people.",
           "a": [
             {
@@ -1655,6 +1667,7 @@
           ]
         },
         "BA": {
+          "axis": "disclosure",
           "q": "Thursday, empty meeting room. You have the screenshot. They have a story ready.",
           "a": [
             {
@@ -1666,6 +1679,7 @@
           ]
         },
         "BB": {
+          "axis": "loyalty",
           "q": "The rival offer lands Friday morning — same pay, a team that actually wanted you.",
           "a": [
             {
