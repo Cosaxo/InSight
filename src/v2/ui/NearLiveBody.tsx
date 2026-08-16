@@ -85,9 +85,9 @@ const NB_LINE = "1px solid var(--rule)";
 // Same vocabulary as locate.ts's LocateFail, plus "unavailable" for a beat
 // that got its fix and then failed at the write or the callable.
 const STALL: Record<string, string> = {
-  denied: "Location is switched off for InSight now, so the count has stopped.",
-  unavailable: "Couldn’t reach the count just now.",
-  timeout: "That location fix took too long — indoors it often does.",
+  denied: "Location is off for InSight, so the count stopped.",
+  unavailable: "Couldn’t reach the count.",
+  timeout: "The fix took too long — indoors it often does.",
   unsupported: "This device can’t share a location.",
 };
 
@@ -253,9 +253,9 @@ function NearPresence() {
   const supported = near.supported();
 
   const FAIL: Record<string, string> = {
-    denied: "No problem — Near stays off until you allow location.",
-    unavailable: "Couldn't get a location fix. Try again outside.",
-    timeout: "That took too long — indoors it often does. Try again.",
+    denied: "Near stays off until you allow location.",
+    unavailable: "No location fix — try again outside.",
+    timeout: "Took too long — indoors it often does.",
     unsupported: "This device can't share a location.",
   };
 
@@ -355,9 +355,12 @@ function NearPresence() {
               part that is still true and is now the one that matters:
               nobody reads your SQUARE, and the seeing is mutual. */}
           <div style={{ fontFamily: "var(--sans)", fontSize: 12, fontWeight: 500, color: "var(--ink-3)", marginTop: 3, lineHeight: 1.5 }}>
+            {/* The unit line above already says what the number counts and
+                where, so this line carries only what it cannot: that the
+                seeing goes both ways. */}
             {n === 0
-              ? "Just you right now — the count updates every few minutes."
-              : "People with InSight open near you right now. They can see you here too, for as long as you can see them."}
+              ? "Just you right now."
+              : "They see you too, for as long as you see them."}
           </div>
           {/* THE ROOM (D176) — the one sentence this stop was rebuilt for.
               Names in order and a basis; no shares, because a percentage
@@ -374,8 +377,7 @@ function NearPresence() {
           {mix && (
             <div style={{ fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 600, color: "var(--ink-2)", marginTop: 7, lineHeight: 1.5 }}>
               Mostly <strong style={{ color: "var(--ink)" }}>{listNames(mix.top)}</strong>
-              {" "}· {mix.n}{mix.capped ? "+" : ""}{" "}
-              {mix.n === 1 && !mix.capped ? "person" : "people"} here have taken the test
+              {" "}· {mix.n}{mix.capped ? "+" : ""} typed
             </div>
           )}
         </>
@@ -389,24 +391,50 @@ function NearPresence() {
                 deliberate: it is the PROMISE, and the off state is the only
                 moment it can be read before the decision it describes. */}
             {line || (supported
-              ? "Who has InSight open near you at this moment — the people, how they answered, and where you differ. Never a place, and never one-way: you appear to them exactly while they appear to you."
-              : "This device can’t share a location, so there is no count to show here.")}
+              ? "Who’s near you right now, and how they answered — mutual, never a place."
+              : "This device can’t share a location.")}
           </div>
         </>
       )}
 
-      {/* THE DISCLOSURE, and it is not shortened because the control got
-          smaller (D9: the enable tap is what carries the OS prompt, and
-          this is the sentence that tap is agreeing to). Shown while OFF —
-          before the decision, which is the only moment it can inform one. */}
+      {/* THE DISCLOSURE (D9: the enable tap is what carries the OS prompt,
+          and this is what that tap agrees to). Shown while OFF — before the
+          decision, which is the only moment it can inform one.
+
+          TWO WORDS, WITH THE DISCLOSURE UNDER THEM (D183). It was a
+          54-word paragraph, then four lines, and the owner's call is that
+          the stop should show neither — a screen whose subject is the
+          constellation should not open on a consent notice.
+
+          What is NOT done here: shortening the notice itself. Every fact
+          survives at full strength — the square and its size, that nobody
+          reads it, what the people in it see, the three-hour linger, what
+          off does — because a `details` moves a disclosure one tap away
+          and dropping a clause removes it. Those are different edits and
+          only the first one was asked for.
+
+          `details`, not state: the tap costs no JavaScript, it survives a
+          re-render, and a screen reader gets a real disclosure widget
+          rather than a div pretending to be one. Closed by default, which
+          is what makes it a word — and it is the LAST thing before the
+          switch's own row, so a reader who wants it has not scrolled past
+          it to get to the toggle.
+
+          The long version lives at web/privacy.html and is gated
+          (check:policy-claims). Change what any line CLAIMS only alongside
+          the behaviour, and in both places. */}
       {supported && !on && (
-        <div style={{ fontFamily: "var(--sans)", fontSize: 12, fontWeight: 500, color: "var(--ink-2)", lineHeight: 1.5, marginTop: 8, paddingTop: 8, borderTop: NB_LINE }}>
-          While it&rsquo;s on, your phone shares a ~200-metre grid square. No
-          user can read your square — but people in it who also have this on
-          see your name, your type and your answers, and you see theirs. It
-          keeps counting for up to three hours after you close the app, and
-          turning this off deletes it at once.
-        </div>
+        <details style={{ marginTop: 8, paddingTop: 8, borderTop: NB_LINE }}>
+          <summary style={{ cursor: "pointer", fontFamily: "var(--sans)", fontSize: 12, fontWeight: 700, color: "var(--ink-3)", WebkitAppearance: "none" }}>
+            What&rsquo;s shared
+          </summary>
+          <ul style={{ fontFamily: "var(--sans)", fontSize: 12, fontWeight: 500, color: "var(--ink-2)", lineHeight: 1.5, listStyle: "none", margin: 0, padding: "7px 0 0", display: "flex", flexDirection: "column", gap: 3 }}>
+            <li>A ~200-metre grid square. No user can read it.</li>
+            <li>People in it with this on see your name, type and answers — and you see theirs.</li>
+            <li>It keeps counting up to three hours after you close the app.</li>
+            <li>Turning it off deletes it at once.</li>
+          </ul>
+        </details>
       )}
 
       {/* The beat's own failure, and the way out of it. Before D150 the card
@@ -418,7 +446,7 @@ function NearPresence() {
       {on && !near.tooFew() && (staleNote || n == null) && (
         <div role="status" style={{ display: "flex", alignItems: "center", gap: 9, marginTop: 8 }}>
           <span style={{ flex: 1, fontFamily: "var(--sans)", fontSize: 12, fontWeight: 600, color: "var(--ink-2)", lineHeight: 1.45 }}>
-            {staleNote || "This can take a moment on the first fix."}
+            {staleNote || "The first fix takes a moment."}
           </span>
           <button className="press" disabled={retrying} onClick={() => void retry()}
             style={{ border: NB_LINE, borderRadius: 999, padding: "5px 12px", flexShrink: 0,
@@ -510,8 +538,8 @@ function NearLiveBody() {
           one changed. */}
       <div style={{ fontFamily: "var(--sans)", fontSize: 12, fontWeight: 500, color: "var(--ink-3)", lineHeight: 1.55, padding: "10px 2px 0", textAlign: "center" }}>
         {supported
-          ? <>The field names nobody; <strong style={{ color: "var(--ink-2)" }}>People</strong> names who is here now. Your whole city is at <strong style={{ color: "var(--ink-2)" }}>City</strong>, one to the right.</>
-          : <>No location on this device — your city is at <strong style={{ color: "var(--ink-2)" }}>City</strong>, one to the right.</>}
+          ? <>The field names nobody — <strong style={{ color: "var(--ink-2)" }}>People</strong> does. Your whole city is one stop right.</>
+          : <>No location here — your city is one stop right.</>}
       </div>
     </div>
   );

@@ -198,7 +198,7 @@ export default function LiveRoomTabs({ tab }: { tab: string }) {
   // settled or it failed, and drawing "nobody is here" for a failed read
   // would tell somebody at a full party that they are alone.
   if (!room) {
-    return <RtNote>{loading ? "Reading the room…" : "Couldn’t read the room just now. It retries on the next count."}</RtNote>;
+    return <RtNote>{loading ? "Reading the room…" : "Couldn’t read the room — it retries on the next count."}</RtNote>;
   }
 
   const qs = roomQuestions(deck, room.qs, LIVE.myVotes());
@@ -209,7 +209,7 @@ export default function LiveRoomTabs({ tab }: { tab: string }) {
     <LiveAnswerRows
       rows={roomRows(qs)}
       whom={ROOM_WHOM}
-      emptyNote={<>Nobody here has answered today’s questions yet.</>}
+      emptyNote={<>Nobody here has answered today yet.</>}
     />
   );
 }

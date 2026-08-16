@@ -192,9 +192,7 @@ function LgPeopleCard({ g, P }: { g: LiveGroup; P: GroupPortrait }) {
             id: p.uid, label: names[p.uid] || "", match: p.pct,
           }))}
           caption="closer to you = agreed more often"
-          emptyLine={<>No day yet where you and someone here answered the
-            same question — the circle takes its places from the first
-            shared reveal.</>}
+          emptyLine={<>Places are taken from the first shared reveal.</>}
         />
       </React.Suspense>
       <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 11 }}>
@@ -302,7 +300,7 @@ function LiveGroupsMirrorBody() {
       {P.days === 0 ? (
         <div className="card" style={{ marginTop: 14, padding: "16px 15px" }}>
           <div style={{ fontFamily: "var(--sans)", fontSize: 13.5, fontWeight: 600, color: "var(--ink-2)", lineHeight: 1.45 }}>
-            Nothing revealed yet — answers stay sealed until the morning after. The portrait starts with the first reveal.
+            Nothing revealed yet — answers stay sealed until the morning after.
           </div>
         </div>
       ) : (

@@ -156,7 +156,7 @@ function LivePrivacyPanel() {
           the report control every named surface draws and a remove verdict
           hides it everywhere at once. */}
       <LpRow title="Your photo"
-        sub="Shows anywhere your name shows, including people near you. Reportable like a comment; taking it down is instant.">
+        sub="Shows anywhere your name shows. Reportable like a comment — taking it down is instant.">
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <Avatar uid={LIVE.uid || ""} name={name} size={38} />
           <label className="press" style={{
@@ -231,142 +231,52 @@ function LivePrivacyPanel() {
           // the local cache to Google Drive), linking is now the ONLY way an
           // anonymous session survives a phone swap. Say so plainly rather
           // than letting someone find out by losing everything.
-          : "You're on an anonymous session — it lives only on this phone. Link Google so your history survives a lost or replaced device; same account, nothing moves."}>
+          : "Anonymous session — it lives only on this phone. Link Google and your history survives a lost device."}>
         {btn(linked ? "Linked ✓" : "Link Google", link)}
       </LpRow>
 
       <LpRow title="Crash reports"
         sub={telemetry
-          ? "On (default) — anonymous crash and error reports (uid only, never your answers) help fix bugs. Turn off any time."
-          : "Off — this app sends no reports. Turn on to send anonymous crash reports (uid only, never your answers)."}>
+          ? "On — anonymous crash reports (uid only, never your answers)."
+          : "Off — no reports are sent."}>
         {btn(telemetry ? "On ✓" : "Off", toggleTelemetry)}
       </LpRow>
 
-      {/* TEN BULLETS BEHIND A SUMMARY (D172), and the split is the whole
-          point rather than a compromise.
+      {/* ONE SENTENCE AND A LINK (D183), where ten bullets behind a
+          summary stood (D172).
 
-          The owner's note was "you can remove almost the entire list — it
-          is not needed", and the vision's principle behind it is right:
-          this app removes text wherever text is standing in for a design.
-          But this list is not decoration. Every bullet is a promise the
-          rules or a function enforce, several exist because a specific
-          decision made them true (D9's location, D84's presence, D98's
-          public answers, D146's type cut), and both app stores require the
-          disclosure to be reachable. Deleting them would not simplify the
-          screen; it would make the screen stop being true.
+          D172's comment said a layout change "must not be read as
+          permission to thin the promises", and this is not one: the owner
+          asked for the list to leave the app and be disclosed elsewhere,
+          and "elsewhere" already existed. web/privacy.html is the
+          canonical copy, both stores require it to be reachable on the
+          open web anyway, and it is linked directly below.
 
-          So the SCREEN loses the wall and the DISCLOSURE loses nothing.
-          One sentence stays open — the bluntest one, the one CLAUDE.md
-          insists on, because a user learning that their answers are public
-          from a stranger quoting a vote back at them is the failure this
-          panel exists to prevent. The rest is one tap away, in a `details`
-          so the tap costs no JavaScript and screen readers get a real
-          disclosure widget rather than a div pretending.
+          What the move actually cost, and what was done about it: the
+          bullets were the only thing CI could see. LivePrivacyPanel.test
+          pinned D9's location promise, D84's presence square, D146's type
+          cut and D98's exact counts BY ASSERTING ON THEM, so deleting the
+          list deletes the assertions' subject. scripts/check-policy-claims
+          is where those assertions went — same claims, same failure, one
+          file over.
 
-          If a future bullet is genuinely obsolete, delete THAT bullet with
-          the decision that retires it. This is a layout change and must
-          not be read as permission to thin the promises. */}
+          And opening that page to move them into found three of them
+          already stale: it still said "kilometre-sized" (D175 shrank the
+          grid five-fold), "goes stale within minutes" (D174 made it three
+          hours) and "a count is all that comes back" (D177 made the room
+          readable). The app was right and the policy was wrong the whole
+          time — which is the argument FOR one canonical copy, and the
+          reason the gate exists rather than a promise to keep it updated.
+
+          The sentence that stays is the bluntest one, the one CLAUDE.md
+          insists on: a user learning that their answers are public from a
+          stranger quoting a vote back at them is the failure this panel
+          exists to prevent, and no link is a substitute for it. */}
       <div style={{ padding: "11px 0", borderBottom: LP_LINE }}>
         <div style={{ fontSize: 12.5, fontWeight: 500, color: "var(--ink-2)", lineHeight: 1.6 }}>
           <strong style={{ fontWeight: 800 }}>Your answers are public</strong>, under your display
           name, with the profile facts you have filled in. Nothing you answer here is private.
         </div>
-        <details style={{ marginTop: 8 }}>
-          <summary style={{ cursor: "pointer", fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 800, color: "var(--ink-2)", WebkitAppearance: "none" }}>
-            What leaves your device
-          </summary>
-        <ul style={{ margin: "8px 0 0", paddingLeft: 17, fontSize: 12.5, fontWeight: 500, color: "var(--ink-2)", lineHeight: 1.65 }}>
-          {/* The first bullet, and deliberately the bluntest sentence in
-              the app. D98 made answers public; a user learning that from
-              a stranger quoting their vote back at them would be the
-              worst possible way to find out.
-
-              It says "age" and not "age band" since D155: the snapshot
-              now carries BOTH, and the exact one is what a card naming a
-              person prints. Naming the coarser of the two would be the
-              same failure as the paragraph above describes, one field
-              down. "profession" was missing outright — an anchor that has
-              published since D8 and was never listed here. */}
-          <li><strong>Your answers are public.</strong> Anyone using InSight can see what you
-          answered, under your display name, along with the age, gender, city, country,
-          education, profession, relationship status and height band you have filled in.
-          That is what the app is for —
-          it is how you see who answers like you — but it means nothing you answer here is
-          private. Answer accordingly.</li>
-          <li>That includes the political, personal and sensitive questions. There is no
-          category of question that is held back, and no group size too small to show: counts
-          are exact from the very first answer, so in a small cohort a count of 1 is visibly
-          one person&apos;s answer.</li>
-          <li>Your display name is shown with your answers. Leave it blank to appear
-          as &ldquo;Someone&rdquo; — that hides the name, not the answers.</li>
-          {/* The type cut's disclosure. Nothing NEW leaves the device for
-              it — answers were already public and testResults already
-              world-readable, and the cut is arithmetic anyone could have
-              run on both. But "the app groups my answers by my
-              personality type and shows that to strangers" is not
-              something a user should have to derive from two other
-              bullets, and the retroactive half is the part they cannot
-              guess: it applies to answers given long before the type
-              existed. `docs/data-inventory.md` carried a flat "nothing is
-              ever cross-tabbed by a test result" and pointed HERE as the
-              place it was stated in full; that claim is now narrower, so
-              this is where the narrower one goes. */}
-          <li>Your answers can be grouped by your Big Five type. That type is worked out
-          from the test cards you answer in the feed, so it can change as you answer more —
-          and because it is read fresh each time, it applies to <em>everything</em> you have
-          ever answered, including answers you gave before you had a type at all. Your
-          politics, values and social results are never used to group answers this way.</li>
-          <li>Group &amp; 1v1 answers stay sealed until the next day&apos;s reveal — that is the
-          game, not a privacy promise. Once revealed they read like every other answer.</li>
-          {/* This line has been rewritten twice, and the second time the
-              GUARANTEE changed rather than the wording. "No device
-              location, ever" was true until D9 added the optional
-              "Use my location" button. What survives is the part that
-              actually matters and is still enforced by construction: the
-              fix is resolved to a city in src/v2/data/locate.ts and the
-              coordinate is discarded there — it is never returned to a
-              caller, stored, or transmitted. Claiming "no location" now
-              would be false, so it does not. */}
-          <li>Location is optional and off until you ask for it. If you tap &ldquo;use my location&rdquo;, your phone works out the nearest city <em>on the device</em> and sends only that name — never your coordinates, which are never stored or transmitted. You can skip it and pick your city from a list instead, and your country follows from the city either way.</li>
-          {/* D84. The presence cell is the second location-shaped thing the
-              app can hold, and this bullet is its disclosure: what is shared
-              (a ~200 m grid square, computed on the device, the coordinate
-              discarded), who can read it, when (foreground, opted in), and
-              the way out (off deletes the doc; deleting the account does
-              too). If the mechanics change, this sentence changes in the
-              same commit.
-
-              AND THEY CHANGED AT D177, which is the half of that promise
-              worth stating loudly. "A count is all that comes back" was
-              true for as long as Near WAS a count; the People tab names
-              the people in your square. So this bullet now separates the
-              two claims that used to travel as one: nobody can read your
-              SQUARE (still enforced, still `allow read: if false`), and
-              the people in it can see you — which is a different fact and
-              had to stop hiding behind the first. Mutuality and the way
-              out are what make it a fair trade, so both are named here
-              rather than left to the stop's own copy. */}
-          <li>&ldquo;Right now, around you&rdquo; (the Near stop) is optional and off by default. While it&rsquo;s on and the app is open, your phone shares a ~200-metre grid square — worked out on the device from a precise fix, the coordinates discarded there. No other user can ever read your square, and no user is ever told where you are. What people who are <em>in</em> that square and also have Near on can see is that you are there: your name, your type and the answers that were already public. It is exactly mutual — you appear to them only while they appear to you — and you can set it to end after two hours or turn it off, which deletes your square immediately (as does deleting your account). Your square keeps counting for up to three hours after you close the app, which is what lets a room stay populated while phones are in pockets.</li>
-          <li>No IP-based location lookup, no background or continuous location, no location history.</li>
-          {/* This line has now been wrong twice, in opposite directions,
-              and the second time is the one worth remembering. "No
-              comments from strangers" stood here until the D106 sweep,
-              and D83 had already made it false: world takes are exactly
-              strangers' comments. The sweep replaced it with "always
-              without a name" — a claim D98 had made false in the same
-              commit that made answers public, and one the takes panel
-              contradicts on screen, where it heads the composer "Takes ·
-              posted under your name" and resolves every author through
-              LIVE.nameFor. So the sweep meant to delete a false claim
-              wrote a new one, of the worse kind: claiming an anonymity
-              the app does not give reads as a protection, which is the
-              exact failure this panel exists to prevent. Pinned by
-              LivePrivacyPanel.test.tsx so the next rewrite has to argue
-              with an assertion. */}
-          <li>Takes are posted under your name — on world questions as well as inside a circle, the same name your answers carry. One take per person per question. Report a take, or hide that author on this device, from the take itself.</li>
-          <li>No contacts. No ads, no tracking, no third-party analytics.</li>
-        </ul>
-        </details>
         {/* Until now these pages shipped inside the bundle and were linked
             from nowhere — reachable only by knowing the filename. Both
             stores also require the policy to be reachable on the open web,

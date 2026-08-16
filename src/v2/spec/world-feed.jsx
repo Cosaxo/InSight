@@ -1311,11 +1311,11 @@ class WorldFeed extends React.Component {
                 {src === 'measured'
                   ? (() => {
                     const n = tally ? tally.total : 0;
-                    if (r.repeat) return 'From ' + n.toLocaleString() + ' first ' + (n === 1 ? 'try' : 'tries') + ' — only a first answer counts, so this one is not among them.';
+                    if (r.repeat) return 'From ' + n.toLocaleString() + ' first ' + (n === 1 ? 'try' : 'tries') + ' — yours is a repeat, so it is not in there.';
                     if (n === 1) return 'Yours is the only answer so far.';
-                    return 'From ' + n.toLocaleString() + ' answers — everyone’s first try at this card.';
+                    return 'From ' + n.toLocaleString() + ' first tries.';
                   })()
-                  : 'Nobody else has answered this one yet — you’re the first.'}
+                  : 'You’re the first.'}
               </div>
             ) : null}
             {card.w ? <p style={{ margin: 0, fontFamily: 'var(--sans)', fontSize: 13.5, fontWeight: 500, lineHeight: 1.5, color: 'var(--ink-2)', textWrap: 'pretty' }}>{card.w}</p> : null}
@@ -2328,7 +2328,7 @@ class WorldFeed extends React.Component {
         {LF ? (
           <div style={{ marginTop: open.length || openLeaves.length || mine.length ? 20 : 2 }}>
             <div style={label}>Learn</div>
-            <p style={{ margin: '0 2px 11px', fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 500, lineHeight: 1.45, color: 'var(--ink-3)', textWrap: 'pretty' }}>Questions with a right answer, mixed into the feed. Get one right and it lands on your map.</p>
+            <p style={{ margin: '0 2px 11px', fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 500, lineHeight: 1.45, color: 'var(--ink-3)', textWrap: 'pretty' }}>Questions with a right answer. Get one right and it lands on your map.</p>
             <div style={{ display: 'flex', gap: 4, padding: 3, border: '0.5px solid var(--rule)', background: 'var(--surface)', borderRadius: 999 }}>
               {LF.LEVELS.map((v) => {
                 const on = LF.freq() === v;
@@ -2787,9 +2787,8 @@ class WorldFeed extends React.Component {
             slice with nothing behind it yet. */}
         {live ? (
           <div style={{ fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 500, color: 'var(--ink-3)', lineHeight: 1.5, padding: '4px 2px 10px' }}>
-            Who knows this \u2014 by age, country or schooling \u2014 needs the answers
-            broken down per group, and knowledge cards do not publish that
-            yet. The rate above is everyone at once.
+            Knowledge cards don&apos;t publish per-group cuts yet — the rate above
+            is everyone at once.
           </div>
         ) : dim === 'friends' ? (
           seen.length ? (
@@ -3235,7 +3234,7 @@ class WorldFeed extends React.Component {
       const name = this.pickName(ent, q.domain);
       const c = window.PICKS ? window.PICKS.canon(q.id) : null;
       const lead = c && c.top.length ? this.pickName(c.top[0].entity, q.domain) : null;
-      return <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--ink-3)' }}>you {name || '\u2026'} \u00b7 crowd {lead || '\u2014'}</span>;
+      return <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--ink-3)' }}>you {name || '\u2026'} · crowd {lead || '\u2014'}</span>;
     }
     if (q.type === 'know') {
       const r = this.knowOf(q);

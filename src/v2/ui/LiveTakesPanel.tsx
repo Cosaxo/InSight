@@ -197,8 +197,8 @@ function LtTakeRow({ take, gid, name, mine, world, side }: {
           borderTop: LT_LINE, paddingTop: 8,
         }}>
           <span style={{ fontFamily: "var(--sans)", fontSize: 11.5, fontWeight: 600, color: "var(--ink-2)", lineHeight: 1.45 }}>
-            Hide every take from this author, on this device? Nothing is sent
-            and they won’t know — but there’s no unhide yet.
+            Hide this author on this device? They won’t know, and there’s no
+            unhide yet.
           </span>
           <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
             {act("Hide", () => { muteAuthor(take.authorUid); setMuting(false); }, true)}
@@ -217,8 +217,7 @@ function LtTakeRow({ take, gid, name, mine, world, side }: {
               its own policy line — a picker here would discard its answer
               on send. */}
           <span style={{ fontFamily: "var(--sans)", fontSize: 11.5, fontWeight: 600, color: "var(--ink-2)", lineHeight: 1.45 }}>
-            Report this take? A moderator reviews flagged takes against the
-            posted policy. You cannot undo a report.
+            Report this take? A moderator reviews it. No undo.
           </span>
           <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
             {act(busy ? "Reporting…" : "Report", () => void send(), true)}
@@ -477,7 +476,7 @@ function LiveTakesPanel({ gid, qid, options }: {
       )}
       {mineAlready ? (
         <span style={{ fontFamily: "var(--sans)", fontSize: 11.5, fontWeight: 600, color: "var(--ink-3)" }}>
-          One take per question — delete yours to write a new one.
+          One take each — delete yours to rewrite.
         </span>
       ) : (
         <LtComposer gid={gid} qid={qid} />

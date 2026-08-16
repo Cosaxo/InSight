@@ -199,18 +199,20 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
             shipped once and read as the placeholder it was. */}
         {finding ? (
           <LnNote title="Finding your city…">
-            Location is already on for the count, so your city is being
-            matched on this phone — only its name will be saved, never your
-            coordinates. You can also pick it yourself below.
+            Matched on this phone — only its name is saved, never your
+            coordinates.
           </LnNote>
         ) : (
+          /* The claim that keeps this ask honest is "only the name, never
+             your coordinates", and it survives at full strength. What went
+             was the scaffolding around it: "use your location or search the
+             list" describes the picker sitting directly underneath, and
+             "change it any time in your profile" is true of every anchor
+             and belongs where anchors are edited. */
           <LnNote title={scope === "city" ? "City needs your city" : "Country needs a city"}>
-            Set it right here — use your location or search the list. Either
-            way only the city name is saved, never your coordinates, and you
-            can change it any time in your profile.
+            Only the city name is saved, never your coordinates.
             {scope === "city" && !nearOn && LIVE.near.supported() && (
-              <> Turning on the count at the Near stop fills it in for you,
-              from the same location grant.</>
+              <> The Near count fills it in for you.</>
             )}
           </LnNote>
         )}

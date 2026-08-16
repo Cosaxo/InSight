@@ -60,7 +60,7 @@ function LiveCircleBody() {
   const loading = LIVE.circleLoading();
 
   if (loading && !members) {
-    return <ClNote title="Loading your circle…">Reading what the people you follow have answered.</ClNote>;
+    return <ClNote title="Loading your circle…">Reading their answers.</ClNote>;
   }
   if (!members) {
     // null after a settled load means the read failed — not that the
@@ -68,8 +68,7 @@ function LiveCircleBody() {
     // thirty follows that they have none.
     return (
       <ClNote title="Couldn&rsquo;t load your circle">
-        Something went wrong reading it. It will try again next time you
-        open this stop.
+        It retries next time you open this stop.
       </ClNote>
     );
   }
@@ -85,8 +84,7 @@ function LiveCircleBody() {
     // removing everywhere else.
     return (
       <EmptyField>
-        Follow someone from a question&rsquo;s who-voted sheet, or from the
-        People lens on Near or World, and they appear here.
+        Follow someone from a who-voted sheet and they appear here.
       </EmptyField>
     );
   }
@@ -119,8 +117,8 @@ function LiveCircleBody() {
         </div>
         <div style={{ fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 500, color: "var(--ink-3)", marginTop: 4, lineHeight: 1.5 }}>
           {mutuals > 0
-            ? <>Ranked by how alike your answers are. {mutuals} of them {mutuals === 1 ? "follows" : "follow"} you back.</>
-            : <>Ranked by how alike your answers are. Following is one-way — nobody is told.</>}
+            ? <>By likeness · {mutuals} {mutuals === 1 ? "follows" : "follow"} you back</>
+            : <>By likeness · following is one-way, nobody is told</>}
         </div>
       </div>
 
@@ -136,8 +134,7 @@ function LiveCircleBody() {
             id: m.uid, label: m.name || "", match: m.like.pct,
           }))}
           caption="closer to you = more alike"
-          emptyLine={<>Nobody here shares an answered question with you yet —
-            they take their places as you both answer the same things.</>}
+          emptyLine={<>They take their places as you answer the same things.</>}
         />
       </React.Suspense>
 
@@ -154,8 +151,8 @@ function LiveCircleBody() {
             </span>
             <span style={{ fontFamily: "var(--sans)", fontSize: 11.5, fontWeight: 500, color: "var(--ink-3)" }}>
               {m.like.shared
-                ? `${m.like.same}/${m.like.shared} the same`
-                : "nothing in common yet"}
+                ? `${m.like.same}/${m.like.shared} alike`
+                : "nothing shared yet"}
             </span>
             {!!m.like.shared && (
               <span style={{ width: 42, textAlign: "right", fontFamily: "var(--sans)", fontWeight: 800, fontSize: 13.5, fontVariantNumeric: "tabular-nums" }}>
@@ -169,13 +166,10 @@ function LiveCircleBody() {
             }}>Unfollow</button>
           </div>
         ))}
-        <span style={{ fontFamily: "var(--sans)", fontSize: 11.5, fontWeight: 500, color: "var(--ink-3)", marginTop: 9 }}>
-          {/* Same sentence the People lens carries, for the same reason: a
-              likeness number nobody can explain is one nobody should
-              trust. */}
-          Share of the questions you have both answered where you picked the
-          same option.
-        </span>
+        {/* The definition stood here as a sentence and is now the rows
+            themselves: every one prints "5/6 alike" beside its own
+            percentage, which is the arithmetic rather than a description
+            of it. */}
       </div>
 
       <div style={{ marginTop: 22, borderTop: CL_LINE, paddingTop: 14 }}>
@@ -186,8 +180,7 @@ function LiveCircleBody() {
           <div style={{ fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 600, color: "var(--ink-3)", lineHeight: 1.55 }}>
             {/* Two answers is the floor for a "split" to mean anything, and
                 saying which floor it is beats a bare "no data". */}
-            Nobody in your circle has answered the same question twice over
-            yet. This fills in as they answer.
+            Fills in once two of them answer the same question.
           </div>
         ) : rows.map(({ q, split }) => {
           const pct = pctFor(split.counts);

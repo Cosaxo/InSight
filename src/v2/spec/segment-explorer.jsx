@@ -396,7 +396,7 @@ import { IS_TEST_RESULTS } from './test-definitions.js';
     };
     return (
       <div>
-        <TabSection title="Explore" sub={duo ? 'two slices of the world — where they meet, where they part' : 'pick a slice — see what it believes'} />
+        <TabSection title="Explore" sub={duo ? 'two slices — where they meet, where they part' : 'pick a slice — see what it believes'} />
         {/* the control is ONE LINE until tapped — in the default state the
             findings, not the picker, own the top of the screen */}
         <div style={{ marginTop: -4, paddingBottom: 13, borderBottom: '0.5px solid color-mix(in oklch, var(--rule), transparent 20%)' }}>

@@ -103,7 +103,7 @@ export default function PulseTrends({ compact }: { compact?: boolean }): React.R
         {answered.length === 1 ? "One day in — not a trend yet." : answered.length + " days in — not a trend yet."}
       </span>
       <span style={{ fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 600, color: "var(--ink-3)" }}>
-        Answer again tomorrow and the first segment gets drawn.
+        Answer again tomorrow and the line starts.
       </span>
     </div>
   ) : (
@@ -191,7 +191,7 @@ export default function PulseTrends({ compact }: { compact?: boolean }): React.R
     answered.length < 2 && {
       key: "you",
       mark: <span style={{ width: 8, height: 8, borderRadius: "50%", boxShadow: "inset 0 0 0 1px " + HUE }}></span>,
-      text: answered.length === 1 ? "your side is 1 day of " + N + " — a line needs at least two" : "your side is empty — the pulse is one tap a day",
+      text: answered.length === 1 ? "your side is 1 day of " + N + " — a line needs at least two" : "your side is empty — one tap a day",
     },
     answered.length >= 2 && skipped > 0 && {
       key: "skip",
@@ -220,7 +220,7 @@ export default function PulseTrends({ compact }: { compact?: boolean }): React.R
         </div>
       ))}
       {!missing.length && (
-        <span style={{ fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 600, color: "var(--ink-2)" }}>Nothing — every day in this window has both sides.</span>
+        <span style={{ fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 600, color: "var(--ink-2)" }}>Nothing — every day here has both sides.</span>
       )}
       <span style={{ fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 600, color: "var(--ink-3)", paddingTop: 1 }}>
         {sc.label}: {PULSE.fmtN(totalN)} answers placed across {placedN.length} of {N} days · you: {answered.length}

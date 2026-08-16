@@ -118,7 +118,7 @@
 
   <span class="kicker">InSight · privacy</span>
   <h1>Privacy policy</h1>
-  <div class="updated">last updated 2026-08-12</div>
+  <div class="updated">last updated 2026-08-16</div>
 
   <p class="lead">
     InSight asks you one question a day, shows you how everyone else
@@ -191,11 +191,20 @@
       name, not the answers.
     </li>
     <li>
-      <strong>Optional details about you, if you fill them in.</strong> An
-      age band (never your exact birthday — the band is worked out on your
-      device and the date never leaves it), gender, city, country,
-      education and relationship status. Every one is optional and
-      skippable, and the app works fully without any of them.
+      <strong>A profile photo, if you add one.</strong> Optional, off
+      until you add it, and shown anywhere your name is shown — including
+      to people near you, if you switch that on. Its embedded metadata is
+      stripped on your device before it is uploaded. Anyone can report it
+      and a moderator can remove it; you can replace or delete it at any
+      time, and deleting your account deletes it.
+    </li>
+    <li>
+      <strong>Optional details about you, if you fill them in.</strong>
+      Your age and its band (never your exact birthday — both are worked
+      out on your device and the date itself never leaves it), gender,
+      city, country, education, profession, relationship status and a
+      height band. Every one is optional and skippable, and the app works
+      fully without any of them.
       <br />
       These are what let a question show how each kind of person answered,
       and they are public in the same way your answers are: a copy of them
@@ -230,6 +239,17 @@
       — passing on a card costs you nothing.
     </li>
     <li>
+      <strong>A personality type, once the feed has enough of your test
+      answers.</strong> The app works out a Big Five type from the test
+      cards you answer, and your answers can be grouped by it and shown
+      that way to anyone signed in. It is read fresh every time rather
+      than stored as a label, so it can change as you answer more — and
+      for the same reason it applies to <em>everything</em> you have ever
+      answered, including answers you gave before you had a type at all.
+      Your political, values and social results are never used to group
+      answers this way; only the Big Five is.
+    </li>
+    <li>
       <strong>Anything you write.</strong> A &ldquo;take&rdquo; is a short
       comment on a question, and it <em>carries your display name</em> —
       to a group&rsquo;s members when posted there, and to everyone when
@@ -249,12 +269,17 @@
     </li>
     <li>
       <strong>A rough presence square, only if you switch it on.</strong>
-      The Near screen can show how many people are around you right now.
-      It is off by default. While it is on and the app is open, your phone
-      sends a kilometre-sized grid square — worked out on the device, the
-      coordinate discarded — so the server can answer <em>how many</em>.
-      No other user can ever read your square; a count is all that comes
-      back. It goes stale within minutes of you closing the app, and
+      The Near screen can show who is around you right now. It is off by
+      default. While it is on, your phone sends a ~200-metre grid square —
+      worked out on the device, the coordinate discarded.
+      <br />
+      No other user can ever read your square. What the people inside it
+      can see is each other: anyone standing in the same square who also
+      has this switched on sees your display name, your type and your
+      answers, exactly while you see theirs. Nobody who has it switched
+      off appears, and nobody who appears is hidden from you.
+      <br />
+      It keeps counting for up to three hours after you close the app, and
       switching it off, or deleting your account, removes it immediately.
     </li>
     <li>
@@ -280,14 +305,18 @@
     reading is turned into a city name on your device and then discarded. No
     latitude or longitude is ever transmitted to us or stored, so the most
     precise thing we could ever hold about where you are is the name of a
-    city — or, if you switch on the Near counter, the kilometre-sized
+    city — or, if you switch on the Near counter, the ~200-metre
     square described above, which no other user can read. No location
     history, no background location, and no working out where you are from
     your IP address.
   </p>
 
   <p>
-    No contacts. No photos. No microphone or camera. No advertising
+    No contacts. No microphone or camera. No photo library beyond the
+    single picture you choose, if you choose one: a profile photo is
+    optional, off until you add it, and its embedded metadata (including
+    any location the camera wrote into it) is stripped on your device
+    before it is uploaded. No advertising
     identifiers. No third-party analytics or tracking of any kind — there
     is no product analytics SDK in this app at all. We do not sell or
     share data with advertisers, because we do not have the kind of data
@@ -318,8 +347,8 @@
   <ul>
     <li>
       <strong>Your answers, your profile details, your display name, your
-      test results and who you follow:</strong> anyone signed in to the
-      app.
+      photo, your test results, the Big Five type read from them, and who
+      you follow:</strong> anyone signed in to the app.
     </li>
     <li>
       <strong>Aggregate counts:</strong> anyone signed in to the app,
@@ -335,7 +364,9 @@
     </li>
     <li>
       <strong>Your presence square, your notification token, and the fact
-      that you reported someone&rsquo;s take:</strong> nobody. These are
+      that you reported someone&rsquo;s take:</strong> nobody — though
+      while Near is on, the people standing in your square see your name,
+      type and answers, and you see theirs. These are
       readable only by the server — the report deliberately not even by
       you, so that reporting cannot be retaliated against.
     </li>

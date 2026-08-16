@@ -227,7 +227,7 @@ describe("LiveDuelPanel · a solo duo says why nothing is happening", () => {
     // code above", which was the only path there was.
     LIVE.social.groups = () => [{ ...DUO, memberUids: ["u_me"] }];
     render(<LiveDuelPanel mode="duo" />);
-    expect(screen.getByText(/the duel starts when they accept/i)).toBeTruthy();
+    expect(screen.getByText(/Add them by handle or send the link/i)).toBeTruthy();
     expect(screen.getByPlaceholderText(/their-handle/i)).toBeTruthy();
     expect(screen.getByRole("button", { name: /copy invite link/i })).toBeTruthy();
   });

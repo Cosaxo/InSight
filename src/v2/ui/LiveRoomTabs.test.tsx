@@ -160,7 +160,7 @@ describe("LiveRoomTabs · Answers and Compare read the room", () => {
   it("compares you against the room, not against everyone", () => {
     render(<LiveRoomTabs tab="compare" />);
     const text = document.body.textContent || "";
-    expect(text).toMatch(/against this room/i);
+    expect(text).toMatch(/with this room/i);
     // 3 of 4 picked option 0 and so did the viewer, so the majority line
     // is about the ROOM's split — proof the counts crossing the wire are
     // the ones being read.

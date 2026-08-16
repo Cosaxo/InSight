@@ -161,7 +161,7 @@ function Verdict({ read, guess, onNext, hasNext }: {
           background: "var(--accent, var(--ink))", color: "var(--surface)", WebkitAppearance: "none",
         }}>Next read</button>
       ) : (
-        <FlEmpty>That is every slice big enough to read right now. More arrive as people answer.</FlEmpty>
+        <FlEmpty>That is every slice big enough to read. More arrive as people answer.</FlEmpty>
       )}
     </div>
   );
@@ -223,9 +223,7 @@ function LiveForesightLens({ qs }: { qs: ForesightSource[] }) {
         // for FAIRNESS, and saying so is the difference between "nothing
         // here" and "not enough answers yet to ask a fair question".
         <FlEmpty>
-          No slice has enough answers yet to make a fair read. A slice needs
-          a clear favourite before guessing it is a game rather than a coin
-          toss.
+          No slice has a clear enough favourite yet to make a fair read.
         </FlEmpty>
       ) : pending && current && pending.id === current.id ? (
         <Verdict
@@ -237,8 +235,7 @@ function LiveForesightLens({ qs }: { qs: ForesightSource[] }) {
         <ReadCard key={current.id} read={current} onDone={onDone} />
       ) : (
         <FlEmpty>
-          You have read every slice big enough to ask about. More arrive as
-          people answer.
+          You have read every slice big enough to ask about.
         </FlEmpty>
       )}
 

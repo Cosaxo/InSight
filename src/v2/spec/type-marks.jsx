@@ -204,10 +204,10 @@ function TypeIndexSheet({ testKey, onClose }) {
           {LIVE.enabled && !counted ? (
             <div style={{ padding: '4px 2px 12px', fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)', lineHeight: 1.45, textWrap: 'pretty' }}>
               {!shares
-                ? 'How common each type is is only counted for the Big Five.'
+                ? 'Shares are only counted for the Big Five.'
                 : shares.sampleN === 0
-                  ? 'How common each type is needs people to count — open a question’s who-voted sheet and this fills in.'
-                  : `${shares.sampleN} ${shares.sampleN === 1 ? 'person' : 'people'} counted so far, ${shares.sampleN === 1 ? 'without' : 'none of them with'} a result to read yet.`}
+                  ? 'Open a question’s who-voted sheet and this fills in.'
+                  : `${shares.sampleN} counted so far, none with a result yet.`}
             </div>
           ) : null}
           {list.map((a, i) => {

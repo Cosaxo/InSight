@@ -186,7 +186,7 @@ describe("the learn reveal counts the reader in (D157)", () => {
     expect(row.textContent, "the reader's own answer is still missing")
       .not.toMatch(/0 people/);
     expect(row.textContent).toMatch(/1 person/);
-    expect(screen.getByText(/From 2 answers/)).toBeTruthy();
+    expect(screen.getByText(/From 2 first tries/)).toBeTruthy();
   });
 
   it("says why a repeat is not in the count it shows", async () => {
@@ -215,8 +215,8 @@ describe("the learn reveal counts the reader in (D157)", () => {
     // included, has ever picked this option on a first try — so the fix
     // is the sentence that explains it, not the number.
     expect(row.textContent).toMatch(/0 people/);
-    expect(screen.getByText(/only a first answer counts/)).toBeTruthy();
-    expect(screen.queryByText(/everyone’s first try at this card/), "the misleading line survived")
+    expect(screen.getByText(/yours is a repeat, so it is not in there/)).toBeTruthy();
+    expect(screen.queryByText(/^From \d+ first tries\.$/), "the misleading line survived")
       .toBeNull();
   });
 

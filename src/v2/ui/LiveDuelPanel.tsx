@@ -186,8 +186,8 @@ function LdOnboard({ mode }: { mode?: string }) {
       </div>
       <div style={{ fontSize: 13.5, fontWeight: 500, color: "var(--ink-2)", lineHeight: 1.45 }}>
         {duo
-          ? "One question a day, both answers sealed until tomorrow — and only if you both play."
-          : "One question a day for your circle. Answers are sealed until tomorrow, then revealed with names."}
+          ? "One question a day, sealed until tomorrow — if you both play."
+          : "One question a day, sealed until tomorrow, then revealed with names."}
       </div>
       <LdInput value={me} onChange={setMe} placeholder="Your name (what friends see)" />
       <div style={{ display: "flex", gap: 8 }}>
@@ -306,7 +306,7 @@ function LdCopyLink({ g }: { g: LiveGroup }) {
     } catch { /* clipboard unavailable */ }
   };
   return (
-    <button onClick={copy} aria-label="Copy invite link — for someone who has no account yet" title="Copy invite link"
+    <button onClick={copy} aria-label="Copy invite link — no account needed" title="Copy invite link"
       style={{ flexShrink: 0, border: LD_LINE, background: "var(--surface-2)", borderRadius: 8, padding: "5px 10px",
         cursor: "pointer", fontFamily: "var(--mono, monospace)", fontSize: 11.5, fontWeight: 700,
         letterSpacing: "0.1em", color: "var(--ink-2)", WebkitAppearance: "none" }}>
@@ -568,7 +568,7 @@ function LdModeRow({ g, sealed }: { g: LiveGroup; sealed: boolean }) {
     if (busy || sealed || next === current) return;
     setBusy(true); setErr(null);
     try { await S.setDuoMode(g.id, next); }
-    catch { setErr("Couldn’t switch pools — check your connection and try again."); }
+    catch { setErr("Couldn’t switch pools — check your connection."); }
     setBusy(false);
   };
   return (
@@ -615,7 +615,7 @@ function LdManage({ g, onClose }: { g: LiveGroup; onClose: () => void }) {
   const leave = async () => {
     setLeaveErr(null);
     try { await S.leaveGroup(g.id); }
-    catch { setLeaveErr("Couldn’t leave — check your connection and try again."); }
+    catch { setLeaveErr("Couldn’t leave — check your connection."); }
   };
   return (
     <div style={{ ...col(11), border: LD_LINE, borderRadius: 13, background: "var(--surface)", padding: "12px 13px" }}>
@@ -645,7 +645,7 @@ function LdManage({ g, onClose }: { g: LiveGroup; onClose: () => void }) {
 
       <div style={{ display: "flex", alignItems: "center", gap: 8, borderTop: LD_HAIR, paddingTop: 10 }}>
         <span style={{ flex: 1, minWidth: 0, fontSize: 12, fontWeight: 600, color: "var(--ink-2)", textWrap: "pretty" }}>
-          Or send a link — it works for someone with no account yet.
+          Or send a link — no account needed.
         </span>
         <LdCopyLink g={g} />
       </div>
@@ -659,10 +659,10 @@ function LdManage({ g, onClose }: { g: LiveGroup; onClose: () => void }) {
           <>
             <span style={{ flex: 1, fontSize: 12, fontWeight: 600, color: "var(--ink-2)", textWrap: "pretty" }}>
               {members.length <= 1
-                ? "You’re the last one here — leaving deletes this circle and its history."
+                ? "You’re the last one — leaving deletes this circle and its history."
                 : duo
-                  ? "End this 1v1? You keep the days you played; you stop seeing new ones."
-                  : "Leave this circle? You keep the days you played; you stop seeing new ones."}
+                  ? "End this 1v1? You keep the days you played."
+                  : "Leave this circle? You keep the days you played."}
             </span>
             <button className="press" onClick={() => setConfirmLeave(false)}
               style={{ border: LD_LINE, background: "transparent", borderRadius: 999, padding: "6px 12px", cursor: "pointer", fontFamily: "var(--sans)", fontSize: 12, fontWeight: 700, color: "var(--ink-2)", WebkitAppearance: "none" }}>
@@ -732,7 +732,7 @@ function LdCard({ g, vh, nextName, newest }: {
     setBusy(true); setVoteErr(null);
     try { await S.voteDuel(g.id, optionIdx, guessIdx); }
     catch {
-      setVoteErr("That didn’t save — check your connection and try again.");
+      setVoteErr("That didn’t save — check your connection.");
       setPick(null);
     }
     setBusy(false);
@@ -811,7 +811,7 @@ function LdCard({ g, vh, nextName, newest }: {
         <GroupMark gid={g.id} name={g.name} size={52} />
         <div style={{ fontFamily: "var(--sans)", fontWeight: 800, fontSize: 21, letterSpacing: -0.4 }}>Waiting for someone</div>
         <div style={{ fontSize: 12.5, fontWeight: 600, color: "var(--ink-2)", maxWidth: 260, textWrap: "pretty" }}>
-          Add them by handle, or send the link — the duel starts when they accept.
+          Add them by handle or send the link.
         </div>
         <LdAddByHandle g={g} />
         <LdCopyLink g={g} />

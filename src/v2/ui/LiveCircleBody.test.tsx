@@ -54,7 +54,7 @@ describe("LiveCircleBody · an empty circle is a field, not a paragraph", () => 
     expect(screen.getByText("you")).toBeTruthy();
     // The sentence survives; it just sits under the field instead of
     // standing where the field goes.
-    expect(screen.getByText(/Follow someone from a question/i)).toBeTruthy();
+    expect(screen.getByText(/Follow someone from a who-voted sheet/i)).toBeTruthy();
     // And the retired headline is gone.
     expect(screen.queryByText(/You follow nobody yet/i)).toBeNull();
   });

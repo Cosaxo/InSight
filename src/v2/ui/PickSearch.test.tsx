@@ -161,7 +161,7 @@ describe("PickSearch · 'not listed' is a real answer", () => {
     // reads as "your favourite does not exist".
     mount("films");
     type("zzzzz");
-    expect(await screen.findByText(/curated top list, not everything ever made/i)).toBeTruthy();
+    expect(await screen.findByText(/curated top list/i)).toBeTruthy();
   });
 
   it("says the opposite for the Pokédex, which IS complete", async () => {

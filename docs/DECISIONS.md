@@ -18150,3 +18150,260 @@ exactly `now + PRESENCE_LINGER_MIN`, and the rules cap is
 write. The timed mode is unaffected (its deadline is two hours, well under
 the cap). Not the reported failure, which was in timed mode, but it is a
 real one and it is recorded here rather than fixed blind.
+
+## D182 · The copy pass: a visual beats a word, a word beats a sentence
+
+**2026-08-16.** Owner report, with two screenshots — the Mirror's People
+tab and the Near stop — and one rule to work by: **visual > word >
+sentence > sentences**, applied to the whole app rather than the two
+screens that prompted it.
+
+The screenshots are the argument. Under a histogram whose own bars say
+"25-34" sat *"Answers, not people — each question someone answered counts
+once."* Under a match ring whose fullness IS the likeness sat *"the fuller
+the ring, the closer"*. Under a bar list with exactly one row in the
+accent sat *"your own type is marked in the accent"*. Three legends for
+three things the reader was already looking at.
+
+### The rule that fell out of doing it
+
+Almost every cut belonged to one of four shapes, and they are worth naming
+because the next screen will grow them again:
+
+1. **A legend for a visual the reader is looking at.** The ring, the
+   accent row, the tick on a bar. Deleted outright — this is the purest
+   case of the rule, and the three above are all of it.
+2. **A noun the screen already carries.** Compare said *"against Oslo"*
+   under a ruler, a tab bar and a header that all say Oslo. Explore
+   repeated the selected chip's own name on every row beneath it.
+3. **A clause that restates its own first clause.** *"Nobody has answered
+   enough of the same questions yet. This fills in as you answer more."*
+   The second sentence is the whole message; the first is its setup.
+4. **An instruction for a control sitting directly underneath.** The city
+   ask explained "use your location or search the list" above a picker
+   that offers exactly those two things.
+
+Sentence fragments the eye has to assemble became glyphs where a glyph was
+honest: `5 of 6 the same` → `5/6 alike`, `You went with the majority in 3
+of 8, against Oslo. Least typical first.` → `3/8 with Oslo · least typical
+first`.
+
+### What did NOT get cut, and why the exceptions are the interesting part
+
+**A claim is not a word count.** Three kinds of copy were left at full
+strength, and one was made *longer* to read:
+
+- **`LivePrivacyPanel`'s disclosure bullets.** D172 already put them
+  behind a `details` and left a comment saying a layout change "must not
+  be read as permission to thin the promises". It was not. The
+  always-open sentence and the ten bullets keep every claim; only the
+  four never-collapsed `LpRow` sub-lines were tightened.
+- **Near's opt-in disclosure.** D9 records that the enable tap carries the
+  OS prompt and this is the sentence that tap agrees to. Every fact
+  survives — the square and its size, who can read it, what the people in
+  it see, the three-hour linger, what off does — but it is **four `li`s
+  instead of a 54-word paragraph**. That is more markup for the same
+  content, and it is the right trade: a consent notice nobody finishes
+  informs nobody. `NearLiveBody.test.tsx` still pins `200-metre grid
+  square` and `three hours`.
+- **Honesty qualifiers that name a limit.** "Answers, not people",
+  "dashed = answers only", "Too few for shares — these are counts",
+  "Nobody is named here". Shortened, never dropped. `TypeMixCard`'s basis
+  went from a clause to `12 typed in the world` with the full definition
+  moved to a `title` — findable, not free.
+
+### Two render bugs, found by the diff rather than by a test
+
+`\uXXXX` in JSX **text** is not an escape — it renders as the six literal
+characters. Two sites had it and both were live:
+
+- `world-feed.jsx` knowledge-cuts note — `yet — the rate above`.
+- `world-feed.jsx` pick summary — `you {name} · crowd {lead}`, where
+  the *quoted* `'…'` beside it on the same line is a real JS escape
+  and was always fine. That is why this survived: the line looks correct.
+
+Neither is reachable by grepping for `—` alone (most hits are inside
+string literals or comments, where the escape is genuine). The check that
+finds them strips quoted strings first, then looks for what survives.
+**Not gated** — two sites is not a class yet, and a gate that fires on the
+legitimate spelling would train people to ignore it. Recorded here so the
+next reader knows the shape.
+
+### The arithmetic
+
+Scanned user-facing prose across `src/v2/{spec,ui,data}`: **30,958 →
+30,053 words**, 3,639 → 3,586 strings. That figure counts question banks
+and sample comment content, which are the product and were not touched, so
+it badly understates the chrome cut — the two screens in the report lost
+roughly half their words each. It is quoted here and deliberately **not**
+in `CLAUDE.md` or `README.md`: a hand-maintained figure in prose is the
+one documentation error this repo keeps re-committing (D39), and this one
+has no gate behind it.
+
+**46 tests changed, none deleted.** Every one of them pins a *claim*, and
+the claim survived the rewording in all 46 — which is the evidence that
+this was a copy pass and not a behaviour change. Where a test asserted the
+sentence rather than the claim, it now asserts the claim: `Compare stops
+calling a tie the majority` matched `/majority in\s*0\s*of/` and now reads
+the fraction at the head of the line, so the next rewording does not break
+it. Full suite green: 1,218 unit, 228 functions, every non-Java gate,
+bundle 2,324 KB (ceiling 2,334).
+
+## D183 · The disclosures leave the app, and get a gate on the way out
+
+**2026-08-16.** The copy pass's second round (D182 is the first). Three
+owner instructions, and the third is the one with teeth:
+
+1. **Near's opt-in disclosure** — "cut down and maybe just indicated with
+   a word".
+2. **The privacy panel's bullets** — "removed, that should be disclosed
+   somewhere else, not in the app".
+3. **The honesty qualifiers** — "these as well can be reduced".
+
+### The panel: one sentence, one link, and the promises move house
+
+D172 put ten bullets behind a `details` and left a comment saying a layout
+change "must not be read as permission to thin the promises". This is not
+that change and the distinction is worth stating precisely: **nothing was
+thinned.** The list moved to `web/privacy.html`, which was already the
+canonical copy, is already linked from the panel, and is required by both
+stores to be reachable on the open web regardless.
+
+What stays in the app is the sentence CLAUDE.md insists on — *your answers
+are public* — because a user learning that from a stranger quoting their
+vote back at them is the failure the panel exists to prevent, and a link
+is not a substitute for it.
+
+**What the move actually cost.** The bullets were the only thing CI could
+see. `LivePrivacyPanel.test.tsx` pinned D9's coordinates, D84's square,
+D174's linger, D146's type cut and D98's exact counts *by asserting on
+them*, so deleting the list deletes those assertions' subject. That is a
+real loss and it is why `scripts/check-policy-claims.mjs` exists: sixteen
+claims, each labelled with the decision that produced it, checked against
+`web/privacy.html`. Same class as `check:public-copy` and `check:globals`
+— a fixed phrase list against an enumerated file, nothing that reads
+`firestore.rules` or reasons about behaviour (D106 declined to build that
+and was right to). The panel test imports the same list rather than
+re-typing it, the way `spec-globals.mjs` is shared by the checker and
+`eslint.config.js`.
+
+### The three claims that were ALREADY wrong
+
+Opening the policy to move the bullets into it found it three decisions
+behind the app, every one in the unsafe direction — the page under-stating
+what the app does:
+
+| Policy said | App said | Since |
+| --- | --- | --- |
+| "kilometre-sized grid square" | ~200-metre | D175 |
+| "goes stale within minutes" | up to three hours | D174 |
+| "a count is all that comes back" | the room names its people | D177 |
+
+Plus two the page never had: D178's profile photo (it still read "No
+photos" in the paragraph listing what the app never touches) and D146's
+Big Five cut, which had **no** line on that page at all — it existed only
+in the app bullet now deleted. And the profile list omitted profession and
+height band, and said "age band" where D155 made both the band and the
+exact age public.
+
+All fixed here. **This is the argument for one canonical copy**, not
+against it: two copies did not catch the drift, they hid it — the app was
+right and nobody was reading the page. And it is why the remedy is a gate
+rather than a resolution to keep the page in mind, because that resolution
+is exactly what failed three times.
+
+`check:public-copy` catches a retired promise that REAPPEARS.
+`check:policy-claims` catches a live promise that VANISHES. Neither
+catches a promise left behind by a change three commits away — stated in
+the script's own header so nobody reads a green run as more than it is.
+
+### Near: two words, and not one clause fewer
+
+`What's shared`, closed, with the four lines under it. A `details` rather
+than state: the tap costs no JavaScript, it survives a re-render, and a
+screen reader gets a real disclosure widget. It sits last before the
+switch's own row, so a reader who wants it has not scrolled past it.
+
+**The notice itself was not shortened.** The square and its size, that
+nobody reads it, what the people in it see, the three-hour linger, what
+off does — all intact. Moving a disclosure one tap away and deleting a
+clause from it are different edits, and only the first was asked for.
+
+### The qualifiers, and the one that was already redundant
+
+- **"Answers, not people"** (Who's here) — gone, because the KICKER on the
+  figure reads *"answers with an age"*. The unit was already printed on
+  the number it qualifies, which is the only place a unit belongs; the
+  footnote was that unit said again, further away, smaller.
+- **"Nobody is named here"** (Near's field) — gone, because the stop's
+  closing line says *"The field names nobody — People does"*, which is the
+  same promise plus the half a caption could not carry: where the names
+  are. Two copies of a promise is not twice the promise.
+- **"Same picks, out of the questions you both answered"** → `same picks ÷
+  shared · last 40`. **Circle's copy of it** — deleted outright; every row
+  prints `5/6 alike` beside its own percentage, which *is* the arithmetic.
+- **"Too few for shares — these are counts"** → `counts, not shares`.
+  **"too few to rank"** → `unranked`.
+
+### The arithmetic
+
+Unit 1,216 (two cases deleted with their subject, four added), scripts
+202, functions 228. Bundle 2,320 KB / 969 KB eager, against 2,334 / 978 —
+4 KB lighter than D182. `check:policy-claims` is wired into `ci.yml` beside
+`check:public-copy`, client-side only and deliberately off
+`backend-checks.yml`, same placement rule as the checks around it.
+
+**The gate's own test found a bug in the gate within the hour.** The
+exact-counts row shipped as an alternation — `/…from the first answer|no
+minimum, no delay/` — so either half could be deleted and the row still
+matched on the other. `check-policy-claims.test.mjs` deletes each claim
+from a copy of the page in turn and requires the checker to name that one,
+which is the only way to tell a pattern that guards a promise from a
+pattern that guards nothing. Split into two rows; sixteen, not fifteen.
+
+### The rule is a document now, not a commit message
+
+D182 named four recurring shapes and D183 named the three things the rule
+does not license, and both of those were buried in a decision entry —
+which is the wrong place for something the next person needs *before*
+touching a screen. [`docs/COPY.md`](COPY.md) is that content as a working
+guide: the four shapes with the screens they came off, the fragment→glyph
+table, and §3 on consent notices, honesty qualifiers and the blunt
+public-answers sentence, which are claims rather than word counts.
+`CLAUDE.md`'s House style points at it, and the repo map lists it.
+
+Deliberately no figures in it (D39): the word counts belong to D182, where
+they are a record of one pass rather than a number someone has to keep
+true.
+
+### Renumbered on the way in, and one section rewritten
+
+These two entries were written as D181/D182 and landed as D182/D183: #201
+took D181 for *Near's field drew the city it is not about* while this
+branch was open. The numbers moved; nothing else in either entry did.
+
+That collision was not only clerical. #201 rewrote `NearField` to draw the
+**room** rather than the city — the exact component this pass had just cut
+copy on — so the merge kept #201's body wholesale and re-applied the rule
+to its new copy instead of resurrecting the old:
+
+| #201 shipped | merged as |
+| --- | --- |
+| "Turn the switch on and the people around you draw in here, placed by how alike you are — never by where they are standing." | "Turn it on and people draw in here — by likeness, never by position." |
+| "Working out who around you is most like you…" | "Matching…" |
+| "Nobody here has taken the test yet, so there is no likeness to place them by. 3 people are in the room — People lists them." | "Nobody here has taken the test — 3 in the room, People lists them." |
+| "Nobody else has Near on here right now. This fills as people arrive with it turned on." | "Nobody else has Near on right now." |
+| caption "closer to you = more alike" + a sentence carrying the count and basis | caption "1 of 2 here · closer = more alike" + "Placed by test scores — the rest have not taken it." |
+
+**Both of #201's claims survive at full strength**: *never by where they
+are standing* (the rule the whole canvas rests on) and *the rest have not
+taken it* (the basis, which is why the ring is smaller than the room).
+What went is "Nobody is named here", for the reason §3 of
+[`docs/COPY.md`](COPY.md) gives — the stop's closing line already says it,
+with the half a caption cannot carry.
+
+Post-merge, and these are the figures that count: unit 1,216, scripts 202,
+functions 228, every non-Java gate, bundle 2,320 KB / 969 KB eager against
+2,334 / 978. `test:rules` and the e2e suites want Java 21, which the
+authoring environment did not have — unrun here, and neither touches
+client copy.

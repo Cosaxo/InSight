@@ -140,7 +140,9 @@ monitoring/        Cloud Monitoring policies, put live by
 content/           canonical question banks & archetypes (seed source)
 design/            the frozen design spec (read-only reference)
 docs/              DECISIONS · MIRROR (what the app shows, and how one
-                   answer reaches every surface) · SCHEMA-V2 · DEPLOYMENT ·
+                   answer reaches every surface) · COPY (the rule the
+                   app's words follow, and what it does not license) ·
+                   SCHEMA-V2 · DEPLOYMENT ·
                    LOCAL-TESTING · SHIP-CHECKLIST · LAUNCH-RUNBOOK ·
                    data-inventory · DEVICE-BIND · MONETIZATION · COSTS ·
                    MONITORING

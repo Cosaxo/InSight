@@ -111,8 +111,8 @@ describe("NearLiveBody · the stop is presence, not place (D111)", () => {
     // The stop shed the city cohort at D111; a user who came here for it
     // must leave with a direction, not a shrug.
     render(<NearLiveBody />);
-    expect(screen.getByText("City", { selector: "strong" })).toBeTruthy();
-    expect(screen.getByText(/one to the right/i)).toBeTruthy();
+    expect(screen.getByText("People", { selector: "strong" })).toBeTruthy();
+    expect(screen.getByText(/one stop right/i)).toBeTruthy();
   });
 
   it("says where the cohort went even on a device with no location", () => {
@@ -126,7 +126,7 @@ describe("NearLiveBody · the stop is presence, not place (D111)", () => {
     // narrowing that would pass if either disappeared.
     expect(screen.queryByRole("switch")).toBeNull();
     expect(screen.getAllByText(/can.t share a location/i).length).toBeGreaterThan(0);
-    expect(screen.getByText("City", { selector: "strong" })).toBeTruthy();
+    expect(screen.getByText(/one stop right/i)).toBeTruthy();
   });
 });
 
@@ -141,7 +141,7 @@ describe("the Right now card (D84 — moved with the stop)", () => {
     // false sentence on screen, so what it pins now is the pair of claims
     // that replaced it — what you get, and that it runs both ways.
     expect(text).not.toMatch(/a count, never\s+who/i);
-    expect(text).toMatch(/you appear to them exactly while they appear to you/i);
+    expect(text).toMatch(/mutual, never a place/i);
     // The SIZE of the square, and it has to track the grid. It said
     // "kilometre-sized" until D175 moved the grid to 0.002° (~200 m) —
     // which was only allowed to happen because the fix became precise in
@@ -179,7 +179,7 @@ describe("the Right now card (D84 — moved with the stop)", () => {
     // People tab made that untrue (D177). Mutuality is what it says
     // instead, and it is the claim the server actually enforces — the
     // callable refuses anyone without a live position of their own.
-    expect(screen.getByText(/They can see you here too/i)).toBeTruthy();
+    expect(screen.getByText(/They see you too/i)).toBeTruthy();
     cleanup();
 
     // The restored-floor era (D81 revert): the server answers tooFew for
@@ -225,7 +225,7 @@ describe("a beat that fails says so, and offers a way out", () => {
     LIVE.near.lastError = () => "denied";
     render(<NearLiveBody />);
     expect(screen.queryByText(/Counting/i), "the card is still counting a count that failed").toBeNull();
-    expect(screen.getByText(/switched off for InSight/i)).toBeTruthy();
+    expect(screen.getByText(/is off for InSight/i)).toBeTruthy();
     expect(screen.getByRole("button", { name: /Try again/i })).toBeTruthy();
   });
 
@@ -298,7 +298,7 @@ describe("NearLiveBody · the constellation, with nobody named", () => {
     // nothing about WHERE any of them is standing.
     roomOfTwo();
     render(<NearLiveBody />);
-    expect(await screen.findByText(/closer to you = more alike/i)).toBeTruthy();
+    expect(await screen.findByText(/closer = more alike/i)).toBeTruthy();
     expect(screen.getByRole("group", { name: /closer to the centre is more like you/i })).toBeTruthy();
   });
 
@@ -310,7 +310,7 @@ describe("NearLiveBody · the constellation, with nobody named", () => {
     // what this pins is that the two never merge.
     roomOfTwo();
     const { container } = render(<NearLiveBody />);
-    expect(await screen.findByText(/nobody is named here/i)).toBeTruthy();
+    expect(await screen.findByText(/field names nobody/i)).toBeTruthy();
     expect(screen.queryByText(/Name a/)).toBeNull();
     expect(screen.queryByText(/Name b/)).toBeNull();
     // The one interactive control on the stop is the permission toggle.
@@ -337,7 +337,7 @@ describe("NearLiveBody · the constellation, with nobody named", () => {
     // You at the centre, and nobody else — one text node in the whole svg.
     expect(container.querySelectorAll("svg text")).toHaveLength(1);
     // …and the explanation still follows it rather than replacing it.
-    expect(screen.getByText(/Nobody else has Near on here/i)).toBeTruthy();
+    expect(screen.getByText(/Nobody else has Near on/i)).toBeTruthy();
   });
 
   // THE SEAM THIS FIELD USED TO HAVE, and the case that keeps it shut
@@ -375,7 +375,7 @@ describe("NearLiveBody · the constellation, with nobody named", () => {
     // people made from a fact about their own settings.
     LIVE.near.on = () => false;
     render(<NearLiveBody />);
-    expect(await screen.findByText(/Turn the switch on/i)).toBeTruthy();
+    expect(await screen.findByText(/Turn it on and people draw in here/i)).toBeTruthy();
     expect(screen.queryByText(/Nobody else has Near on/i)).toBeNull();
   });
 
@@ -395,7 +395,7 @@ describe("NearLiveBody · the constellation, with nobody named", () => {
     render(<NearLiveBody />);
     // One of the two placed, and the caption says so rather than implying
     // the field drew the room.
-    expect(await screen.findByText(/1 of the 2 people here/)).toBeTruthy();
+    expect(await screen.findByText(/1 of 2 here/)).toBeTruthy();
     expect(screen.getByText(/the rest have not taken it/)).toBeTruthy();
     expect(screen.getByText("2,847")).toBeTruthy();
     expect(screen.getByText(/within a few hundred metres · Oslo/)).toBeTruthy();
@@ -405,13 +405,13 @@ describe("NearLiveBody · the constellation, with nobody named", () => {
     LIVE.near.on = () => true;
     LIVE.near.roomLoading = () => true;
     render(<NearLiveBody />);
-    expect(await screen.findByText(/working out who around you/i)).toBeTruthy();
+    expect(await screen.findByText(/^Matching…$/)).toBeTruthy();
 
     cleanup();
     LIVE.near.roomLoading = () => false;
     LIVE.near.room = () => ({ people: [], qs: {} });
     render(<NearLiveBody />);
-    expect(await screen.findByText(/Nobody else has Near on here/i)).toBeTruthy();
+    expect(await screen.findByText(/Nobody else has Near on/i)).toBeTruthy();
   });
 });
 
@@ -467,7 +467,13 @@ describe("NearField · a node is a radius, never a place and never a join key", 
   });
 
   it("says nobody is named, in the copy a reader actually sees", () => {
-    expect(nearField()).toMatch(/Nobody is named here/i);
+    // Read off the render rather than out of NearField's source (D183):
+    // the promise moved one component out, into the stop's closing line,
+    // where it is paired with the half a caption under the field could
+    // not carry — "People does". A source slice would now be watching the
+    // wrong function and passing for the wrong reason.
+    render(<NearLiveBody />);
+    expect(screen.getByText(/field names nobody/i)).toBeTruthy();
   });
 });
 
@@ -487,8 +493,8 @@ describe("NearPresence · the room", () => {
     // The basis is the TYPED count (11), not the headline count (24):
     // plenty of people nearby have never taken the test, and a reading
     // must not borrow a population it did not measure.
-    expect(text).toMatch(/11 people here have taken the test/);
-    expect(text).not.toMatch(/24 people here have taken/);
+    expect(text).toMatch(/11 typed/);
+    expect(text).not.toMatch(/24 typed/);
   });
 
   it("prints no share, ever", () => {
@@ -542,14 +548,14 @@ describe("NearPresence · the room", () => {
     // the who-voted sheet, which says "the latest 200 of N" when it binds.
     LIVE.near.mix = () => ({ top: ["Host"], n: 60, capped: true });
     render(<NearLiveBody />);
-    expect(document.body.textContent || "").toMatch(/60\+\s*people here have taken the test/);
+    expect(document.body.textContent || "").toMatch(/60\+\s*typed/);
   });
 
   it("does not mark an exact basis", () => {
     LIVE.near.mix = () => ({ top: ["Host"], n: 11, capped: false });
     render(<NearLiveBody />);
     const text = document.body.textContent || "";
-    expect(text).toMatch(/11 people here have taken the test/);
+    expect(text).toMatch(/11 typed/);
     expect(text).not.toMatch(/11\+/);
   });
 });

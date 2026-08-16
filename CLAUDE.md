@@ -39,9 +39,14 @@ picture, which is why most of the Mirror shipped dark.
 What survives from the old lens is the *discipline*, pointed the other
 way: if the UI says something about who can see what, `firestore.rules`
 or a Cloud Function has to make it true, and a test has to prove it. The
-account panel now says plainly that answers are public, because a user
+account panel still says plainly that answers are public, because a user
 learning that from a stranger quoting their vote would be the same
-failure as the reverse.
+failure as the reverse — but since D183 that sentence is *all* it says.
+The long disclosure lives once, in `web/privacy.html`, and
+`check:policy-claims` is what a promise is now proved by. Read that
+script before editing the page: three of its claims were already stale
+when D183 opened it, because D174, D175 and D177 each updated the app and
+not the policy.
 
 Three denies remain, none about answers, each labelled at its own path in
 `firestore.rules`: the unscored logic answer key (anti-cheat), flag
@@ -269,3 +274,12 @@ an emergency rules fix.
   not parse, an ESM export shape, a module evaluation order.
 - When you defer something, record it in `docs/DECISIONS.md` with the
   arithmetic. A known limit is survivable; a surprise is not.
+- **Copy follows `visual > word > sentence > sentences`** (the owner's
+  rule, D182). A caption explaining a shape the reader is looking at, a
+  noun the ruler and the tab bar already say, a clause restating its own
+  first clause, an instruction for the control directly underneath — all
+  four are deletions, and all four grow back.
+  [`docs/COPY.md`](docs/COPY.md) names them, and names what the rule does
+  **not** license: a consent notice, an honesty qualifier and the blunt
+  public-answers sentence are claims, not word counts. Read §3 before
+  shortening anything that promises something.

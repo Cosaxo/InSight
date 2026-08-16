@@ -303,7 +303,7 @@ describe("LiveBreakdownPanel · the Friends cut", () => {
     LIVE.follows = () => [];
     render(<LiveBreakdownPanel qid="q1" options={OPTS} />);
     fireEvent.click(chip("Friends"));
-    expect(screen.getByText(/have not followed anyone yet/i)).toBeTruthy();
+    expect(screen.getByText(/Follow someone from the Mirror/i)).toBeTruthy();
 
     cleanup();
     LIVE.follows = () => FRIENDS;
@@ -427,7 +427,7 @@ describe("LiveBreakdownPanel · the type cut", () => {
     render(<LiveBreakdownPanel qid="q1" options={OPTS} />);
     fireEvent.click(chip("Type"));
     expect(screen.queryByText(/Reading who answered/)).toBeNull();
-    expect(screen.getByText(/Nobody among the 2 answers here has a readable Big Five/)).toBeTruthy();
+    expect(screen.getByText(/None of the 2 answers here carries a Big Five/)).toBeTruthy();
   });
 
   it("redraws the question's own options with that type's numbers", () => {
