@@ -32,7 +32,7 @@ import LiveTakesPanel from '../ui/LiveTakesPanel.tsx';
 // coupling-meter reasoning. The three legacy stores stay window.* reads
 // below (in the D39 baseline); convert them on touch, never re-add one.
 import ELEMENTS_CATALOG from '../data/elements.ts';
-import { COUNTRIES } from '../data/catalogs.ts';
+import { COUNTRIES, DOGS } from '../data/catalogs.ts';
 // Imported for the D89 gate rather than read off window — same meter
 // reasoning as the imports above. The window.LIVE reads elsewhere in this
 // file predate the ratchet; new ones may not join them.
@@ -1353,6 +1353,7 @@ class WorldFeed extends React.Component {
       : domain === 'emoji' ? window.EMOJI
       : domain === 'elements' ? ELEMENTS_CATALOG
       : domain === 'countries' ? COUNTRIES
+      : domain === 'dogs' ? DOGS
       : window.POKEDEX;
   }
 

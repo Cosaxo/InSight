@@ -19,7 +19,7 @@
 import React from "react";
 import POKEDEX, { type Species } from "../data/pokedex";
 import ELEMENTS_CATALOG, { type Element } from "../data/elements";
-import { FILMS, ARTISTS, EMOJI, COUNTRIES, type CatalogEntry } from "../data/catalogs";
+import { FILMS, ARTISTS, EMOJI, COUNTRIES, DOGS, type CatalogEntry } from "../data/catalogs";
 
 const PS_LINE = "1px solid var(--rule)";
 
@@ -111,6 +111,16 @@ const DOMAINS: Record<string, DomainSpec> = {
       "No match — every base emoji is in here, so try the word for it " +
       "(“fire”, “skull”). Tones and combos count as their base; if yours " +
       "truly isn't here, “Not listed” below is the honest answer.",
+  },
+  dogs: {
+    ...catalogSpec(DOGS, "Search dog breeds…", "one pick from 554 — the crowd's canon reveals after"),
+    // A wide net rather than a curated top: most of the world's named
+    // breeds are here, so a miss is usually spelling — but crosses and
+    // mutts are real dogs with no row, and theirs is the honest miss.
+    noMatch:
+      "No match — try another spelling or the breed's common name. " +
+      "Crosses and mixed breeds count as “Not listed” below, and so does " +
+      "the best dog you know if the list fails it.",
   },
   countries: {
     ...catalogSpec(COUNTRIES, "Search countries…", "one pick from 250 — the crowd's canon reveals after"),
