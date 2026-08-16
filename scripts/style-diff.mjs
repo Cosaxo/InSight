@@ -47,6 +47,18 @@
 //           colours swapped in both directions — noise from the same cause,
 //           not a colour miss.
 //
+//           READ THAT AS A DEFECT, NOT AS AN EXCEPTION (D185). It was
+//           filed here, under "deliberate", as though it were a fact about
+//           c03. It is a fact about the JOIN: any count that differs
+//           between the builds shifts every later occurrence of a repeated
+//           string, and the pairs that come out of the shift look exactly
+//           like design faults. It cost a confident, wrong finding on the
+//           Groups stop — a `span` avatar paired against an svg `text`
+//           glyph, reported as five differences on a file that had not
+//           changed. Keying by tag as well as text (see COLLECT) removes
+//           the worst of it; the rest is why a surprising row is worth
+//           opening both DOMs over before it is written down.
+//
 //   ground  three surface values this repo tuned and the prototype never
 //           took back: --surface-a mixes the accent at 98% (prototype 94%,
 //           and re-declared per tab), the header/tabbar blur saturates at
@@ -88,6 +100,28 @@ const EXE = process.env.PW_EXECUTABLE || undefined;
 // Own text only — text belonging to this element rather than a descendant.
 // That gives one row per rendered string, which is a stable join key across
 // two builds whose DOM shapes differ.
+//
+// THE TAG IS PART OF THE KEY, AND IT HAS TO BE (D185). The key was text
+// plus its nth occurrence, so the nth "LA" in one build paired with the nth
+// "LA" in the other — fine until the two builds render a different NUMBER
+// of them, at which point every occurrence after the first extra one pairs
+// with its neighbour and the report fills with differences that are really
+// just the offset.
+//
+// It is not a hypothetical: the Groups stop draws the same initials twice,
+// as chip avatars (`span`) and as constellation nodes (svg `text`), and the
+// demo roster for The Crew is five members in the prototype and seven here.
+// The join therefore paired a `span` avatar against an svg `text` and
+// reported the difference between a filled disc and a bare glyph — radius
+// 50% vs 0, white vs ink, a background vs none — as five style faults on a
+// module that is byte-identical to the prototype apart from its ESM
+// conversion. That reads exactly like a real finding, and it cost a
+// commit's worth of chasing.
+//
+// Keying by tag as well as text does not fix an off-by-one WITHIN one tag —
+// nothing cheap does — but it stops the two worst cases, an svg glyph
+// pairing with a div and a heading pairing with a button, and those are the
+// pairs whose diffs look most like design drift.
 const COLLECT = `(() => {
   const out = {};
   const seen = {};
@@ -102,8 +136,12 @@ const COLLECT = `(() => {
         const r = node.getBoundingClientRect();
         if (r.width > 0 && r.height > 0) {
           const cs = getComputedStyle(node);
-          seen[own] = (seen[own] || 0) + 1;
-          out[own + "#" + seen[own]] = {
+          // localName, not tagName: an svg <text> reports 'text' here and
+          // 'text' there, while tagName is case-shifted between the HTML
+          // and SVG namespaces on some engines.
+          const k = own + "@" + node.localName;
+          seen[k] = (seen[k] || 0) + 1;
+          out[k + "#" + seen[k]] = {
             fontSize: cs.fontSize,
             fontWeight: cs.fontWeight,
             fontFamily: cs.fontFamily.split(",")[0].replace(/["']/g, ""),
@@ -256,7 +294,8 @@ for (const [screen] of SCREENS) {
   const A = proto.shots[screen] || {};
   const B = app.shots[screen] || {};
   for (const key of Object.keys(A)) {
-    const text = key.replace(/#\d+$/, "");
+    // key is `text@tag#n` (see COLLECT) — the report wants the text alone.
+    const text = key.replace(/@[\w-]+#\d+$/, "");
     if (!(key in B)) {
       if (!EXPECTED_MISSING.has(text)) missing.push({ screen, text });
       continue;

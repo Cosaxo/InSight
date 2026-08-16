@@ -18634,10 +18634,11 @@ that found it:
   top-left, Knowledge is a clipped stub on the left edge and You sits off
   centre. The prototype also carries a fifth branch, **Foresight**, which
   the Mirror dropped at D136 — that part is a decision, the balance is not.
-- **The Groups stop's member marks are a different object.** The prototype
-  draws initials as ink text on no ground (weight 700, radius 0); the app
-  draws white-on-fill discs (weight 800, radius 50%), with the sizes
-  disagreeing in both directions (10.7 vs 9, 9.5 vs 11.5).
+- ~~**The Groups stop's member marks are a different object.**~~ **WRONG,
+  and withdrawn the same day — see the correction at the end of this
+  entry.** They are the same object, drawn by a module that is
+  byte-identical to the prototype's. The report came from a defect in the
+  tool this entry is about.
 - **`GDAv` replaced dimming with a halo in the prototype.** It takes
   `sealed` and draws a hue ring — *"a row of half-washed circles read as
   broken"* — where the app takes `dim` and drops to 28% opacity. Inverted
@@ -18665,3 +18666,63 @@ different declarations and four of those are the deliberate "quieter ground"
 set `style-diff.mjs`'s own header lists (`--surface-a` at 98%, the two blurs
 at saturate 1.4, `.app-body::before` at 320px/6%). Colour tokens, type
 scale, and the kicker/micro-label tiers are identical.
+
+### Correction · the Groups marks were never different, and the join said they were
+
+**Same day.** Asked to fix the third item in the list above, and there was
+nothing to fix: `group-role-map.jsx` and `group-mirror.jsx` are the
+prototype's files line for line apart from the ESM conversion, the
+`div`→`button` a11y pass, one dropped test in a list of five and D185's own
+gate wrap. Both builds draw the constellation node the same way, from the
+same line:
+
+```jsx
+<text … fontSize={Math.min(11.5, rr * 0.72)} fontWeight="700" fill={p.me ? 'var(--surface)' : '#fff'}>
+```
+
+An svg `<text>` has no background and no border radius. So "radius 0px,
+transparent, ink, weight 700" was never the prototype's *mark* — it was the
+prototype's **glyph**, paired against one of the app's **chip avatars**, a
+`span` disc. The join did that, not the app.
+
+**Why the join did it.** The key was the rendered text plus its nth
+occurrence, so the nth "LA" in one build met the nth "LA" in the other. The
+Groups stop draws the same initials in two shapes — chip avatars and
+constellation glyphs — and the demo roster for The Crew is **five members
+in the prototype and seven here** (`duels-data.js`: `f12`/`f14` joined at
+D137). Two extra members shift every occurrence after them by two, and from
+there each "LA", "EA", "MH" and "you" met the wrong twin. Five style faults
+out of an off-by-two, on a file that had not changed.
+
+**The fix is in the key**: text *plus the element's `localName`*. A `span`
+can no longer pair with a `text`, a heading with a button. It does not fix
+an off-by-one within a single tag — nothing cheap does — but those two are
+the pairs whose diffs read most convincingly as design drift, which is
+exactly what happened here.
+
+Re-run after: `mirror-groups` drops from 7 differing elements to 4, and the
+four are one value — `fontSize` on the node glyphs, the same four sizes
+(9.504 · 10.728 · 11.5) permuted between people, because `rr` is a function
+of standing in the role votes and the two rosters are different sizes. Data,
+not style. Across all 11 screens the total falls from 65 elements to 63 and
+from 22 distinct differences to 9; the 14 rows on the word "daily" go too,
+another false pair (the prototype's pulse-cadence pill against this app's
+tab-bar label).
+
+**What is left is what was always real**: the Map's scale and balance (62
+elements) and one element rendering in Arial. Both stand.
+
+**The demo roster itself is left alone.** Making the constellation match the
+prototype's would mean editing `duels-data.js` fixtures that `PLAYED`,
+`READ_SKILL`, `BY_SKILL` and `PARTNER_TODAY` all key into, to change a
+screen that only exists in demo builds — the live Groups stop builds its
+cast from real members. That is a sample-data decision, not a design one,
+and it is the owner's.
+
+**The lesson worth keeping**: this tool's own header already warned about
+this class — the dropped Pokémon card "shifts card positions, which pairs
+the feed's 'i' context buttons off-by-one and reports their two ink colours
+swapped in both directions — noise from the same cause, not a colour miss."
+That note was written about ONE known case and filed under deliberate
+divergences. It was a general defect in the join, and reading it as a
+special case is how it survived to produce a confident, wrong finding.
