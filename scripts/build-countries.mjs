@@ -24,7 +24,7 @@
 // order beats a fabricated one. Search folds accents (catalogs.ts), so
 // "sao tome" finds São Tomé and Príncipe.
 import { createRequire } from "node:module";
-import { writeFileSync, readFileSync, existsSync } from "node:fs";
+import { writeFileSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { gzipSync } from "node:zlib";

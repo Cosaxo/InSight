@@ -20,7 +20,7 @@
 // the picker shows real emoji without a renderer of its own; search folds
 // over the whole string, so typing "joy" still finds it.
 import { createRequire } from "node:module";
-import { writeFileSync, readFileSync, existsSync } from "node:fs";
+import { writeFileSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { gzipSync } from "node:zlib";

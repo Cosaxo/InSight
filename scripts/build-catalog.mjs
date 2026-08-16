@@ -26,7 +26,7 @@
 // the article) is the least gameable popularity proxy Wikidata itself
 // stores — no third-party ratings feed, no API key, and it favours
 // era-spanning fame over this week's chart.
-import { writeFileSync, readFileSync, existsSync } from "node:fs";
+import { writeFileSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { gzipSync } from "node:zlib";
