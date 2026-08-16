@@ -359,6 +359,25 @@ nothing, but the general case does not: **read `appBuild` at the run's own
 `head_sha`.** Every record below names a run and a sha, which invites
 reading that sha as the release commit; run 22's is a Routine's.
 
+**Runs 23 and 24 delivered build 17 as a dry run and an upload, and the
+bump after them was skipped** (D180, caught 2026-08-16). Both archived
+`9a5f803` eight minutes apart — run 23's upload step `skipped`, run 24's
+`success` (18:37:44Z → 18:39:39Z, 1m 55s of transfer). That is the second
+pair shaped like runs 15 and 16, and the reason this file says to read the
+STEP's conclusion rather than the run's: both runs are `success` at the
+job level and only one of them spent a number.
+
+**The skip after run 24 refutes the explanation the last three releases
+had earned.** D143 named the gap as the one between "the upload finished"
+and "someone came back to the tree", and runs 20–22 each closed it by
+bumping while the step list was on screen. Here somebody came back
+*specifically to record the upload* — commit `5798623`, the next day,
+citing the run id and writing sixteen lines into the runbook — and left
+`appBuild` at 17. **The record and the number are two different edits**,
+and a session can discharge the first while the second, which is the one
+that costs ~150 minutes of macOS quota, sits untouched. Three skips now
+(runs 18, 19, 24) against three that held.
+
 **Build 16's pre-flight found nothing to do either, which is the first
 time that has happened twice running** (D158, 2026-08-15). Run 21 was
 still the highest run in the list, its upload step still `success`,
