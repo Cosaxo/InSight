@@ -113,6 +113,50 @@ function NearSwitch({ on, busy, onToggle }: {
   );
 }
 
+/**
+ * The third state, as a chip rather than a third position on the switch
+ * (D173).
+ *
+ * The control has three meanings — off, visible for a while, visible with
+ * no deadline — and a three-position slider in a header corner is a lot of
+ * furniture for a choice most people make once. So the switch keeps
+ * on/off, which is what a switch is for, and the chip beside it carries
+ * the one remaining question: does this end by itself?
+ *
+ * Turning it on lands on the TIMED state, because the default is the real
+ * decision — the other two are for people who mean them, and forgetting is
+ * the failure mode worth designing against.
+ *
+ * The remaining time is coarse ("1h", "20m"), like every other reading on
+ * this stop. The beat is four minutes, so a live countdown would be stale
+ * between ticks and precise-looking anyway.
+ */
+function nbLeft(ms: number): string {
+  if (ms <= 0) return "0m";
+  const m = Math.round(ms / 60_000);
+  return m >= 60 ? `${Math.round(m / 60)}h` : `${Math.max(5, Math.round(m / 5) * 5)}m`;
+}
+
+function NearModeChip({ mode, until, onPick }: {
+  mode: "session" | "always"; until: number; onPick: (m: "session" | "always") => void;
+}) {
+  const timed = mode === "session";
+  return (
+    <button type="button" className="press"
+      aria-label={timed
+        ? `Visible for ${nbLeft(until - Date.now())} more — tap to stay visible with no deadline`
+        : "Visible with no deadline — tap to set a two-hour limit"}
+      onClick={() => onPick(timed ? "always" : "session")}
+      style={{
+        flexShrink: 0, border: NB_LINE, borderRadius: 999, padding: "4px 11px",
+        background: "var(--surface-2)", color: "var(--ink-2)", cursor: "pointer",
+        fontFamily: "var(--sans)", fontWeight: 700, fontSize: 11.5, WebkitAppearance: "none",
+      }}>
+      {timed ? nbLeft(until - Date.now()) : "always"}
+    </button>
+  );
+}
+
 // ── the Right now card (D84) ─────────────────────────────────────────
 //
 // Moved verbatim from LiveCohortBody when D111 split the stops — Near owns
@@ -197,6 +241,10 @@ function NearPresence() {
           bolted above the constellation. */}
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         <div className="kicker" style={{ marginBottom: 0, flex: 1 }}>Around you</div>
+        {supported && on && near.mode() !== "off" && (
+          <NearModeChip mode={near.mode() as "session" | "always"} until={near.until()}
+            onPick={(m) => { void near.enable(m); }} />
+        )}
         {supported && (
           <NearSwitch on={on} busy={busy}
             onToggle={() => { if (on) void near.disable(); else void turnOn(); }} />

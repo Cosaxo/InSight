@@ -42,7 +42,7 @@ import {
   votesMatchingQid,
   presenceCellOk,
   presenceNeighbors,
-  PRESENCE_TTL_MIN,
+  PRESENCE_LINGER_MIN,
   type DuelVoteLike,
 } from "./pure";
 
@@ -1114,8 +1114,8 @@ export const declineGroupInviteV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, 
 // docs are `allow read: if false` to every client, because a readable
 // (uid → cell) pair is the D2 leak again — a script could follow any uid
 // around town at cell resolution. What the world may know is a NUMBER:
-// how many opted-in phones, foreground within the last PRESENCE_TTL_MIN
-// minutes, sit in the caller's cell or one of its eight neighbors —
+// how many opted-in phones whose position has not yet expired sit in the
+// caller's cell or one of its eight neighbors —
 // excluding the caller themself, so "just you here" reads as 0 rather
 // than a phantom 1.
 //
@@ -1128,7 +1128,18 @@ export const nearbyCountV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforce
   if (!presenceCellOk(cell)) throw new HttpsError("invalid-argument", "cell must be a la_lo grid id");
   const db = firestore();
   const cells = presenceNeighbors(cell as string);
-  const freshAfter = Timestamp.fromMillis(Date.now() - PRESENCE_TTL_MIN * 60_000);
+  // COUNTED BY `until`, NOT BY AGE (D173). Each doc carries the moment its
+  // position stops counting, and the client is what sets it: the linger
+  // for "always", the session deadline for the timed option. Filtering on
+  // age instead would make the timed option approximate — a phone that
+  // went into a pocket ten minutes before its deadline would keep standing
+  // for a further linger, which is precisely the promise the option makes.
+  //
+  // The rules cap `until` at PRESENCE_LINGER_MIN past write time, so a
+  // client cannot grant itself a longer stay than the design allows; the
+  // constant is imported here to keep the two definitions in one place.
+  void PRESENCE_LINGER_MIN;
+  const now = Timestamp.fromMillis(Date.now());
   // COUNTED, NOT FETCHED. This used to `.get()` the neighborhood and take
   // `snap.docs.length`, which materialises — and pays a billed read for —
   // every presence document in 6-9 cells purely to arrive at an integer.
@@ -1147,7 +1158,7 @@ export const nearbyCountV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforce
   // crowd rather than bound anything worth bounding.
   const agg = await db.collection("v2_presence")
     .where("cell", "in", cells)
-    .where("at", ">", freshAfter)
+    .where("until", ">", now)
     .count()
     .get();
   const total = agg.data().count;
@@ -1159,10 +1170,10 @@ export const nearbyCountV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforce
   // neighborhood, and fresh?" is asked rather than assumed. Subtracting a
   // blind 1 would under-count by one for any caller who is not there.
   const own = await db.collection("v2_presence").doc(request.auth.uid).get();
-  const ownAt = own.get("at") as Timestamp | undefined;
+  const ownUntil = own.get("until") as Timestamp | undefined;
   const countsSelf = own.exists
     && cells.includes(own.get("cell") as string)
-    && !!ownAt && ownAt.toMillis() > freshAfter.toMillis();
+    && !!ownUntil && ownUntil.toMillis() > now.toMillis();
   const n = Math.max(0, total - (countsSelf ? 1 : 0));
   return { n };
 });

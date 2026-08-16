@@ -194,6 +194,10 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
   const near: Dict = {
     supported: () => true,
     on: () => false,
+    // D173's three states. `session` is what enable() lands on, so a
+    // fixture that flips `on` gets the shape a real opt-in produces.
+    mode: () => "session",
+    until: () => Date.now() + 90 * 60_000,
     count: () => null,
     tooFew: () => false,
     updatedAt: () => 0,

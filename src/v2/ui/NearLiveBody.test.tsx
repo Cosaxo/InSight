@@ -35,6 +35,11 @@ const LIVE = vi.hoisted(() => ({
   near: {
     supported: () => true as boolean,
     on: () => false as boolean,
+    // D173's three states. The mock defaults to the timed one because
+    // that is what enable() lands on, so a case that only flips `on`
+    // gets the shape a real opt-in produces.
+    mode: () => "session" as "off" | "session" | "always",
+    until: () => Date.now() + 90 * 60_000,
     count: () => null as number | null,
     tooFew: () => false as boolean,
     updatedAt: () => 0 as number,

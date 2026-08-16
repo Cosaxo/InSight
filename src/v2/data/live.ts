@@ -150,7 +150,7 @@ import {
   utcDayIndex as utcDayIndexPure,
 } from "./deck";
 import type { AggDoc, LiveQuestion, QuestionDoc, VoteContext } from "./deck";
-import { nearOptedIn, setNearOptIn } from "./near";
+import { nearMode, nearOptedIn, nearUntil, setNearMode, type NearMode } from "./near";
 import { locateCell, locateSupported } from "./locate";
 import { scrubPersonaAnchors } from "./personaResidue";
 
@@ -1755,7 +1755,12 @@ function takeScopeKey(gid: string, qid?: string): string | null {
 // The opt-in flag lives in data/near.ts (its own purge listener — an
 // opt-in must not survive onto the next account); the loop stops on uid
 // change via stopPresence() in resetForNewUid.
-const PRESENCE_BEAT_MS = 4 * 60_000; // < the server's 10-min freshness window
+const PRESENCE_BEAT_MS = 4 * 60_000; // far inside the linger, so a foreground app never lapses
+// How long a position outlives the beat that wrote it (D173). Mirrors
+// PRESENCE_LINGER_MIN in functions/src/pure.ts, and firestore.rules caps
+// any `until` at the same 180 minutes — three copies of one number,
+// because rules cannot import and the server must not trust the client.
+const PRESENCE_LINGER_MS = 180 * 60_000;
 
 const nearState = {
   count: null as number | null,   // null = never fetched this session
@@ -1793,7 +1798,20 @@ async function runBeat(cell?: string): Promise<void> {
     // error and then stalling with nothing to explain it.
     if (!uid) { nearState.lastError = "unavailable"; return; }
     const db = await getDb();
-    await setDoc(doc(db, "v2_presence", uid), { cell: fix.cell, at: serverTimestamp() });
+    // `until` is when this position stops counting (D173). The linger is
+    // what makes the feature work at all — a phone in a pocket has to keep
+    // standing in the room — and the session's deadline is what keeps the
+    // timed option honest: clamped here, so closing the app just before it
+    // cannot leave the position up for a further linger. firestore.rules
+    // caps how far out this may be pushed, so the promise does not rest on
+    // the client being ours.
+    const deadline = nearUntil();
+    const lingerTo = Date.now() + PRESENCE_LINGER_MS;
+    await setDoc(doc(db, "v2_presence", uid), {
+      cell: fix.cell,
+      at: serverTimestamp(),
+      until: new Date(deadline ? Math.min(lingerTo, deadline) : lingerTo),
+    });
     const res = await callable<{ n?: number; tooFew?: boolean }>("nearbyCountV2", { cell: fix.cell });
     nearState.tooFew = res.tooFew === true;
     nearState.count = typeof res.n === "number" ? res.n : nearState.tooFew ? null : 0;
@@ -1813,6 +1831,13 @@ async function runBeat(cell?: string): Promise<void> {
 // card's "Try again" stop when there is an answer instead of one tick after
 // the tap.
 function presenceBeat(cell?: string): Promise<void> {
+  // An expired session is OFF, and finding that out here is the point:
+  // `nearMode` re-reads the deadline at the moment of use, so an app that
+  // was shut for three hours comes back already expired rather than
+  // beating once more before a timer notices. Tear the loop down and
+  // delete the doc — "stop being visible" must not wait for the server's
+  // own expiry to catch up.
+  if (nearMode() === "off" && nearState.timer) { void LIVE.near.disable(); return Promise.resolve(); }
   if (!nearOptedIn() || !LIVE.enabled) return Promise.resolve();
   if (typeof document !== "undefined" && document.hidden) return Promise.resolve();
   if (nearState.inFlight) return nearState.inFlight;
@@ -1859,6 +1884,14 @@ const NEAR = {
   on(): boolean {
     return nearOptedIn();
   },
+  /** Which of the three states is set (D173) — `off` once a session ends. */
+  mode(): NearMode {
+    return nearMode();
+  },
+  /** Epoch ms the session ends, 0 when there is no deadline. */
+  until(): number {
+    return nearUntil();
+  },
   // The count of OTHER fresh phones in the neighborhood: null when never
   // fetched, a number otherwise. `tooFew` used to distinguish
   // "withheld by the floor" from "never fetched" so the UI can say "a few
@@ -1878,10 +1911,10 @@ const NEAR = {
   // Opt in: one explicit tap. The first fix runs immediately, so the tap
   // also carries the OS permission prompt (D9's rule — location is never
   // requested until asked for).
-  async enable(): Promise<{ ok: boolean; reason?: string }> {
+  async enable(mode: Exclude<NearMode, "off"> = "session"): Promise<{ ok: boolean; reason?: string }> {
     const fix = await locateCell();
     if (!fix.ok) return { ok: false, reason: fix.reason };
-    setNearOptIn(true);
+    setNearMode(mode);
     // The fix just resolved goes straight into the first beat — see
     // presenceBeat's `cell` — and the tap WAITS for it. The button is
     // already spinning through the location fix; carrying it through the
@@ -1898,7 +1931,7 @@ const NEAR = {
   // Opt out: stop the loop AND delete the doc — "stop sharing" must not
   // wait for a freshness window to expire.
   async disable(): Promise<void> {
-    setNearOptIn(false);
+    setNearMode("off");
     stopPresence();
     notify();
     try {

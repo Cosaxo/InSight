@@ -700,7 +700,10 @@ ratchet).
 
 ## 10 · Near becomes the room — the settled design
 
-**Status: design settled with the owner 2026-08-15, NOT built.** It began
+**Status: design settled with the owner 2026-08-15. Step 1 of the build
+order below is SHIPPED — see [D173](DECISIONS.md#d173--nears-visibility-gets-three-states-and-a-position-that-expires-on-its-own)
+for the three-state control, the three-hour linger and the `until` cap.
+Everything else here is still design.** It began
 as *"when you are at a party or some sort of social event you can see what
 type of persons are around you"* and was worked out over a long exchange;
 what follows is where it landed, including the two places the owner
@@ -858,8 +861,11 @@ of strangers.
 
 ### Build order
 
-1. **The three-state control, the foreground guard, the ~3 h linger.**
-   Small, self-contained, and improvements to what already ships.
+1. ~~**The three-state control, the foreground guard, the ~3 h linger.**~~
+   **DONE (D173).** The foreground guard turned out to exist already —
+   `presenceBeat` returns early on `document.hidden`. What shipped beside
+   the control and the linger is `until` on the presence doc, so the timed
+   option is exact rather than approximate, capped in `firestore.rules`.
 2. **The finer grid** + the `STORE-FORMS.md` re-answer.
 3. **The room aggregate** (floor first, then the cache, then the reading).
 4. **The tabs.**

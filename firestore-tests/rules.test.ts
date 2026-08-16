@@ -1740,8 +1740,12 @@ describe("presence (D84 — Near by radius)", () => {
   // the nearbyCountV2 callable, which returns a count), and the cell
   // regex is the precision cap — nothing finer than the ~1 km grid id can
   // be written at all, however a client is modified.
+  // `until` is when the position stops counting (D173) — the count filters
+  // on it, so it is the field that makes "visible for two hours" a promise
+  // rather than an intention. The rules cap how far out it may be pushed.
+  const soon = (min: number) => new Date(Date.now() + min * 60_000);
   const cellDoc = (over: Record<string, unknown> = {}) => ({
-    cell: "5999_1074", at: serverTimestamp(), ...over,
+    cell: "5999_1074", at: serverTimestamp(), until: soon(120), ...over,
   });
 
   it("a user writes, overwrites and deletes their own presence", async () => {
@@ -1771,6 +1775,27 @@ describe("presence (D84 — Near by radius)", () => {
     await assertFails(setDoc(ref, cellDoc({ cell: "5999_1074_extra" }))); // sub-cell suffix
     await assertFails(setDoc(ref, cellDoc({ lat: 59.91 })));              // extra field
     await assertFails(setDoc(ref, cellDoc({ at: new Date() })));          // not request.time
+  });
+
+  // THE WRITE-SIDE VERSION OF THE READ DENY (D173).
+  //
+  // Presence is unreadable so nobody can follow an account around town.
+  // An uncapped `until` would reach the same place through the other door:
+  // a modified client writes a position good for a year and stands in the
+  // room permanently, whatever its own switch says. The ceiling is the
+  // rule that stops it, so it is the rule worth a case.
+  it("caps how long a position may claim to last, and demands one at all", async () => {
+    const ref = doc(asUser(OWNER), "v2_presence", OWNER);
+    await assertSucceeds(setDoc(ref, cellDoc({ until: soon(179) })));
+    // 180 minutes is PRESENCE_LINGER_MIN. Past it, refused.
+    await assertFails(setDoc(ref, cellDoc({ until: soon(181) })));
+    await assertFails(setDoc(ref, cellDoc({ until: soon(60 * 24 * 365) })));
+    // A position that has already expired is not a position.
+    await assertFails(setDoc(ref, cellDoc({ until: soon(-1) })));
+    // And it is required — without it the count has nothing to filter on,
+    // so an omitted `until` would be a doc that never expires.
+    await assertFails(setDoc(ref, { cell: "5999_1074", at: serverTimestamp() }));
+    await assertFails(setDoc(ref, cellDoc({ until: "soon" })));
   });
 });
 

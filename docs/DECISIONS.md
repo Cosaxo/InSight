@@ -16989,3 +16989,95 @@ refused — the People lens draws no shared-interest chips because D128
 named the Mirror as a surface that may not read stated interests. There is
 nothing to read now, so the refusal is noted as retired rather than
 deleted: the reasoning is still why the lens has no such chips.
+
+## D173 · Near's visibility gets three states, and a position that expires on its own
+
+**Decided:** 2026-08-15 · **Status:** binding, BUILT (the control, the
+linger and the cap; the venue radius, the room reading, the tabs and
+images are the rest of `NEXT-FUNCTIONALITY.md` §10 and are not built).
+
+The owner's design for Near as a room you can read — *"at a party you can
+see what type of persons are around you"* — worked out over a long
+exchange. §10 holds the whole thing; this record is the slice that shipped
+and the two facts it rests on.
+
+### 1 · Three states, because the failure mode is forgetting
+
+`off` · `session` (two hours) · `always`. Turning it on lands on
+**session**, because the default is the actual decision and the other two
+are for people who mean them.
+
+**`always` is a real option, not a grudging one.** It removes the deadline
+on the SETTING, never the expiry on the POSITION — every beat still writes
+an `until` capped at the linger, so it means "visible whenever the app is
+open", which is small enough to stand behind. Nobody asked for unbounded
+lingering and it is the one version that would be bad.
+
+The owner pushed back on time-boxing at all — *"is it that bad if they
+forget, the only info is face, age, gender, most of which you can see with
+your eyes"* — and the pushback was right about the DATA and moved the
+design. What survives is narrower: choosing to be permanently discoverable
+is legitimate; what nobody chooses is their home broadcasting a face that
+is reliably there at night. So the control solves **forgetting**, not
+choosing.
+
+### 2 · The linger — the part that makes the feature exist
+
+`PRESENCE_TTL_MIN = 10` is now `PRESENCE_LINGER_MIN = 180`.
+
+Not a freshness tolerance — the feature. Everyone's phone is in their
+pocket, so presence that lived only while the app was open would show an
+**empty room at a full party**: you open Near, and everyone else's app is
+shut. Find My and Snap Map keep a last-known position for the same reason.
+This was the owner's catch and it is the difference between a feature and
+a demo.
+
+Three hours: long enough that a venue stays populated between
+pocket-checks, short enough that closing the app in bed does not leave you
+at home all night. One number, meant to be re-tuned from use.
+
+**The staleness is a safety property, not an apology.** A blurred WHEN
+protects as well as a blurred WHERE — the smear that keeps a party
+populated is the same smear that makes a trail unreadable. Product need
+and safety pointing the same way is rare enough to build deliberately.
+
+### 3 · `until`, and why it is in the rules rather than the client
+
+The timed option is a promise about **when you stop being visible**. A
+client-side timer cannot keep it: a timer does not run while the app is
+shut, so a phone that went into a pocket ten minutes before its deadline
+would keep standing for a further three hours.
+
+So the doc carries `until` — the moment the position stops counting —
+clamped to the session deadline when there is one, and `nearbyCountV2`
+filters on it instead of on age. The index moves with it (`cell, until`).
+
+**The cap is in `firestore.rules`, and that is the point.** Presence is
+unreadable so nobody can follow an account around town; an uncapped
+`until` reaches the same place through the write door — a modified client
+writes a position good for a year and stands in the room permanently,
+whatever its own switch says. `until` must be a timestamp, in the future,
+and no more than 180 minutes out. The literal is hand-matched to
+`PRESENCE_LINGER_MIN`; rules cannot import, so both move in one commit.
+
+### 4 · A correction to the record
+
+I told the owner the beat had no foreground guard. **It does** —
+`presenceBeat` returns early on `document.hidden`, so the interval fires
+and the beat no-ops. The claim was wrong and the guard was already there;
+what this record adds beside it is that an EXPIRED session now tears the
+loop down and deletes the doc at the next beat rather than waiting for the
+server's own expiry.
+
+### 5 · What pins it
+
+Four cases in `data/near-presence.test.ts` — the default lands on
+`session`, a session clamps `until` to its deadline rather than the full
+linger, `always` gets the full linger and no deadline, and an expired
+session reads as `off` without a timer having run (the case that matters:
+nothing runs while the app is shut, so reading the mode is what has to
+notice). One case in `firestore-tests/rules.test.ts` for the cap, a year
+and a negative both refused, and `until` required at all.
+
+Mutation-checked: removing the clamp fails the session case, and widening
+the rules cap to a year fails the rules case.

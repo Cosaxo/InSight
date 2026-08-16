@@ -1478,5 +1478,38 @@ export function presenceNeighbors(cell: string): string[] {
   return out;
 }
 
-/** Presence docs older than this many minutes do not count as "here". */
-export const PRESENCE_TTL_MIN = 10;
+/**
+ * How long a position outlives the beat that wrote it — the LINGER.
+ *
+ * It is not a freshness tolerance, it is the feature. Everyone's phone is
+ * in their pocket, so presence that existed only while the app was open
+ * would show an empty room at a full party: you would open Near, and
+ * everyone else's app would be shut. Find My and Snap Map keep a
+ * last-known position for the same reason.
+ *
+ * Three hours is long enough that a venue stays populated between
+ * pocket-checks and short enough that closing the app in bed does not
+ * leave you at home all night. It is one number and is meant to be
+ * re-tuned from real use rather than defended.
+ *
+ * THE STALENESS IS SHOWN, NOT HIDDEN, and that is a safety property
+ * rather than an apology: a blurred WHEN protects as well as a blurred
+ * WHERE. The smear that keeps a party populated is the same smear that
+ * makes a trail unreadable.
+ *
+ * This is the CEILING the rules enforce on a client's `until`. What each
+ * doc actually claims is its own `until` field, which is what the count
+ * filters on — see nearbyCountV2.
+ */
+export const PRESENCE_LINGER_MIN = 180;
+
+/**
+ * The "visible for a while" option's length (D173's middle state).
+ *
+ * Shorter than the linger on purpose: the session is a promise about
+ * WHEN YOU STOP BEING VISIBLE, and `until` is what makes it exact. A
+ * client in session mode clamps every `until` it writes to the session's
+ * deadline, so closing the app ten minutes before the deadline cannot
+ * leave the position standing for a further linger.
+ */
+export const PRESENCE_SESSION_MIN = 120;

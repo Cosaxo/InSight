@@ -966,12 +966,28 @@ service cloud.firestore {
     // Oslo" is published, "is at this corner of Oslo at 14:02" is not.
     match /v2_presence/{uid} {
       allow read: if false;
+      // `until` is when this position stops counting, and the CAP is the
+      // point of having it in the rules rather than only in the client
+      // (D173). The timed "visible for a while" option is a promise about
+      // when you stop being visible; a client sets `until` to its session
+      // deadline so closing the app just before it cannot leave the
+      // position standing for a further linger. Without the ceiling here,
+      // a modified client could write `until` a year out and be permanently
+      // present — the exact shape this collection's read deny exists to
+      // prevent, arriving through the write side instead.
+      //
+      // 180 minutes is PRESENCE_LINGER_MIN (functions/src/pure.ts). The two
+      // are hand-matched: rules cannot import, so if that constant moves,
+      // this literal moves in the same commit.
       allow create, update: if request.auth != null
         && request.auth.uid == uid
-        && request.resource.data.keys().hasOnly(["cell", "at"])
+        && request.resource.data.keys().hasOnly(["cell", "at", "until"])
         && request.resource.data.cell is string
         && request.resource.data.cell.matches('^-?[0-9]{1,4}_-?[0-9]{1,5}$')
-        && request.resource.data.at == request.time;
+        && request.resource.data.at == request.time
+        && request.resource.data.until is timestamp
+        && request.resource.data.until > request.time
+        && request.resource.data.until <= request.time + duration.value(180, 'm');
       // Opting out deletes the doc — "stop sharing" must not depend on a
       // TTL sweep that runs later.
       allow delete: if request.auth != null && request.auth.uid == uid;
