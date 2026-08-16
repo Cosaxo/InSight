@@ -1840,6 +1840,33 @@ describe("presence (D84 — Near by radius)", () => {
       { top: ["Host"], n: 900, at: serverTimestamp() }));
     await assertFails(deleteDoc(doc(asUser(OWNER), "v2_presence_mix", "29999_5374")));
   });
+
+  // THE SHARPEST DENY IN THIS FILE (D176), because of what the document
+  // holds: a LIST OF UIDS standing in a named cell. Everything else about
+  // the room — the names, the answers, the test scores — has been public
+  // since D98; the pairing with "here" is the new thing, and it is the
+  // pairing v2_presence's read deny exists to prevent.
+  //
+  // `nearbyRoomV2` is the only door, and it refuses any caller without a
+  // live position of their own in that neighbourhood. A readable cache
+  // would route around that gate entirely: read the cells one by one and
+  // the result is a map of who is in every room, which is precisely the
+  // people-finder the whole design is arranged around not being.
+  it("nobody touches the room's roster cache — it is uids paired with a place (D176)", async () => {
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_presence_room", "29999_5374"), {
+        people: [{ uid: OWNER, type: "Host" }], qs: { q1: { "0": 3 } }, at: new Date(),
+      });
+    });
+    await assertFails(getDoc(doc(asUser(OWNER), "v2_presence_room", "29999_5374")));
+    await assertFails(getDoc(doc(asUser(STRANGER), "v2_presence_room", "29999_5374")));
+    await assertFails(getDocs(collection(asUser(STRANGER), "v2_presence_room")));
+    // Nor may a client seed one: a forged roster would put strangers in a
+    // room they are not in, and the callable serves this document back.
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_presence_room", "29999_5374"),
+      { people: [{ uid: STRANGER }], qs: {}, at: serverTimestamp() }));
+    await assertFails(deleteDoc(doc(asUser(OWNER), "v2_presence_room", "29999_5374")));
+  });
 });
 
 // ── handles and invitations (D122) ─────────────────────────────────

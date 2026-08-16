@@ -506,7 +506,25 @@ if (!DEMO && process.env.VITE_V2_LIVE !== "true") {
 // which is the trade the previous entry describes, run deliberately this
 // time rather than under a failing gate.
 const MAX_CHUNK_KB = 735;
-const MAX_TOTAL_JS_KB = 2285;
+// 2285 → 2292 (2026-08-16): D176's room tabs — Near's Answers · People ·
+// Compare, its shape functions and the store's room loader. Measured with
+// a DSN, so these are the numbers CI reads: total 2283 → 2289, eager
+// 966 → 969.
+//
+// The deferral was tried FIRST and it worked, which is why only the total
+// moved: the three bodies are React.lazy behind their own chunk (77 chunks,
+// up from 74), so the entry paid 3 KB for the tab row alone and the fold
+// arrives on the tap that asks for it. That is the split doing exactly what
+// the 2026-08-13 entries record it cannot do for the TOTAL — every chunk is
+// counted, so splitting relocates bytes and only deleting code moves this
+// number. The 6 KB is real product.
+//
+// The pattern the entry above says to watch is worth re-reading here: this
+// is the fifth raise, and MAX_EAGER_KB is still the ceiling that defends
+// anything (9 KB left after this one, and it did not have to move). If a
+// sixth lands soon the question is whether the total wants a wider band
+// rather than whether the app should be smaller.
+const MAX_TOTAL_JS_KB = 2292;
 // 955 → 966 (2026-08-14): D139's pulse card — the second fixed instrument
 // on the FIRST screen, so its card, its store's demo furniture and the
 // two LIVE members are legitimately eager (~10 KB min). What is not

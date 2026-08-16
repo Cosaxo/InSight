@@ -126,7 +126,7 @@ single ruler you can drag along; the stop you pick recolors the whole tab.
 | **You** | the Map — you, alone, visualized | your own answers, hydrated from Firestore into `DAILYQ` | yes, except the typicality stats (§5), which are mock and refused |
 | **Circle** | your close ties | the follow graph (`v2_users/{uid}/following`) + those accounts' answers | yes since D101 — a one-way follow, ranked by likeness |
 | **Groups** | your named circles | real reveal history, `groupPortrait.ts` | yes |
-| **Near** | who is around you right now — the radius counter (D84), over an anonymous field (D150) | `nearbyCountV2` for the count; the field is the city fold, drawn unnamed. The presence cell stays one of D98's three denies | yes |
+| **Near** | who is around you right now — the radius counter (D84), an anonymous field (D150), and since D176 the room itself: Answers · People · Compare | `nearbyCountV2` for the count and the mix (D175); `nearbyRoomV2` for the roster and the room's answers, both gated on the caller having a live position of their own. The field is the city fold, drawn unnamed. The presence CELL stays one of D98's three denies — what D176 discloses is membership, not place | yes |
 | **City** | your city: answers, lenses, and the kindred constellation | `v2_question_aggs.by.city[your city]`; kindred from voter lists + `testResults` (D112) | yes since D111/D112 — its own stop again |
 | **Country** | everyone in your country, plus its cities placed by score likeness | `v2_question_aggs.by.country[…]`; city profiles folded from `by.city` (D112) | yes |
 | **World** | everyone, plus countries placed by score likeness | `v2_question_aggs.counts`; country profiles from `by.country` (D112) | yes |
@@ -180,6 +180,28 @@ real and were already drawn one stop over, so Near draws them too —
 initials, no label, no role and no pick handler: the shape of a crowd,
 with no way into it. A field you can tap a person out of is a directory,
 which is the one thing this stop must not become.
+
+**And D176 draws the line one notch differently, without moving it.** The
+FIELD still names nobody — that paragraph stands unchanged, and the
+anonymous node is still the deny drawn. What the stop gained is a tab row
+under it: Answers, People and Compare over the people who are actually
+here. People names them.
+
+That is a real disclosure and it is the only one on this tab, so it is
+worth being exact about which claim changed. Nothing about anybody is new
+— names, answers and test results have been public since D98. The pairing
+with *here* is new, and four properties bound it, all enforced in
+`nearbyRoomV2` rather than assumed: the caller must have a live position
+of their own in that neighbourhood (so the grid cannot be walked and the
+seeing is mutual), the radius is a venue, it is opt-in on both sides and
+off by default, and it expires on its own (D173). §10's own test for it is
+"a room you are standing in, not a directory of strangers", and the radius
+is what keeps it the first.
+
+Near's row is three tabs, not five. Explore needs `by` breakdowns the room
+has none of, and Scores wants the archive's ordinal questions where the
+room is folded over today's deck — each would be a permanently empty tab,
+which is worse than an absent one.
 
 Two numbers, each captioned by what it counts (honesty rule 2 below): the
 figure is phones near you *right now*, the ring is people in your *city*.
@@ -443,6 +465,7 @@ Two gaps are worth stating in prose because no badge covers them:
 | the Map | `src/v2/spec/map-tab.jsx` (+ `map-*.js*`) |
 | City / Country / World, live | `src/v2/ui/LiveCohortBody.tsx` |
 | Near, live — the presence counter and its unnamed field (D111, D150) | `src/v2/ui/NearLiveBody.tsx` |
+| Near's room tabs — Answers · People · Compare over a server fold (D176) | `src/v2/ui/LiveRoomTabs.tsx` + `ui/roomShape.ts` |
 | the constellations, live (D112) | `src/v2/ui/LiveSimilarityField.tsx` |
 | the similarity folds (profiles, matches, ranking) | `src/v2/data/similarity.ts` |
 | Groups, live | `src/v2/ui/LiveGroupsMirrorBody.tsx` + `data/groupPortrait.ts` |

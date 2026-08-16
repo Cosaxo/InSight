@@ -280,11 +280,22 @@ function LivePrivacyPanel() {
           {/* D84. The presence cell is the second location-shaped thing the
               app can hold, and this bullet is its disclosure: what is shared
               (a ~200 m grid square, computed on the device, the coordinate
-              discarded), who can read it (no user — the server answers only
-              with a count), when (foreground, opted in), and the way out
-              (off deletes the doc; deleting the account does too). If the
-              mechanics change, this sentence changes in the same commit. */}
-          <li>&ldquo;Right now, around you&rdquo; (the Near counter) is optional and off by default. While it&rsquo;s on and the app is open, your phone shares a ~200-metre grid square — worked out on the device from a precise fix, the coordinates discarded there — so the server can answer <em>how many</em> people are around you. No other user can ever read your square; a count is all that comes back. Your square keeps counting for up to three hours after you close the app, which is what lets a room stay populated while phones are in pockets; turning Near off (or deleting your account) deletes it immediately.</li>
+              discarded), who can read it, when (foreground, opted in), and
+              the way out (off deletes the doc; deleting the account does
+              too). If the mechanics change, this sentence changes in the
+              same commit.
+
+              AND THEY CHANGED AT D176, which is the half of that promise
+              worth stating loudly. "A count is all that comes back" was
+              true for as long as Near WAS a count; the People tab names
+              the people in your square. So this bullet now separates the
+              two claims that used to travel as one: nobody can read your
+              SQUARE (still enforced, still `allow read: if false`), and
+              the people in it can see you — which is a different fact and
+              had to stop hiding behind the first. Mutuality and the way
+              out are what make it a fair trade, so both are named here
+              rather than left to the stop's own copy. */}
+          <li>&ldquo;Right now, around you&rdquo; (the Near stop) is optional and off by default. While it&rsquo;s on and the app is open, your phone shares a ~200-metre grid square — worked out on the device from a precise fix, the coordinates discarded there. No other user can ever read your square, and no user is ever told where you are. What people who are <em>in</em> that square and also have Near on can see is that you are there: your name, your type and the answers that were already public. It is exactly mutual — you appear to them only while they appear to you — and you can set it to end after two hours or turn it off, which deletes your square immediately (as does deleting your account). Your square keeps counting for up to three hours after you close the app, which is what lets a room stay populated while phones are in pockets.</li>
           <li>No IP-based location lookup, no background or continuous location, no location history.</li>
           {/* This line has now been wrong twice, in opposite directions,
               and the second time is the one worth remembering. "No

@@ -45,6 +45,9 @@ import {
   votesMatchingQid,
   ROOM_MIN_TYPED,
   ROOM_SAMPLE_CAP,
+  ROOM_QUESTION_CAP,
+  roomQids,
+  tallyPicks,
   roomMix,
   presenceCellOk,
   presenceNeighbors,
@@ -1585,5 +1588,58 @@ describe("roomMix", () => {
     const m = roomMix(sample, ROOM_MIN_TYPED, ROOM_SAMPLE_CAP);
     expect(m?.n).toBe(9);
     expect(m?.capped).toBe(true);
+  });
+});
+
+// ── the room, read (D176) ───────────────────────────────────────────
+describe("tallyPicks", () => {
+  it("counts picks into the aggregate's own shape", () => {
+    // Deliberately the `{ "0": n }` map v2_question_aggs uses: the client
+    // already turns exactly this into an option array, so the room's
+    // counts arrive in a shape four surfaces already read.
+    expect(tallyPicks([0, 1, 0, 2, 0])).toEqual({ "0": 3, "1": 1, "2": 1 });
+  });
+
+  it("drops anything that is not an option index", () => {
+    // An answer document is written by a client, so this is the door. A
+    // -1 (the client's "unanswered"), a float or a string would key a
+    // bucket no option list has a slot for — the client's
+    // `cell[String(i)]` walk would never look at it, so the count would
+    // exist, be wrong, and be invisible.
+    expect(tallyPicks([0, -1, 1.5, "2" as unknown as number, null, undefined, 1]))
+      .toEqual({ "0": 1, "1": 1 });
+  });
+
+  it("has no floor, and that is the D98 rule rather than an oversight", () => {
+    // A floor on an answer split would protect the answer, and answers
+    // are public. The room's roster is disclosed by the People tab
+    // anyway, so hiding a one-person split conceals nothing a reader
+    // could not get by tapping a name. What a thin split needs is its `n`
+    // shown beside it, which is what every other surface does.
+    expect(tallyPicks([1])).toEqual({ "1": 1 });
+  });
+});
+
+describe("roomQids", () => {
+  it("takes a clean list and caps it", () => {
+    const many = Array.from({ length: 40 }, (_, i) => `q${i}`);
+    expect(roomQids(many)).toHaveLength(ROOM_QUESTION_CAP);
+    expect(roomQids(["a", "b"])).toEqual(["a", "b"]);
+  });
+
+  it("de-duplicates, because a repeated qid folds and pays twice", () => {
+    expect(roomQids(["a", "a", "b", "a"])).toEqual(["a", "b"]);
+  });
+
+  // THE DOOR. These strings are concatenated into a document path
+  // (`v2_users/{uid}/answers/{qid}`), so a slash or a dot segment is a
+  // path injection rather than a bad id — refused here rather than
+  // escaped downstream, because there is exactly one place to get it
+  // right.
+  it("refuses anything that could reach outside the answers collection", () => {
+    expect(roomQids(["../../v2_users", "a/b", ".", "..", "", "   "])).toEqual([]);
+    expect(roomQids([{ id: "x" }, 3, null, undefined])).toEqual([]);
+    expect(roomQids(["x".repeat(121)])).toEqual([]);
+    expect(roomQids("not an array")).toEqual([]);
   });
 });

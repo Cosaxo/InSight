@@ -44,8 +44,12 @@ import {
   presenceNeighbors,
   PRESENCE_LINGER_MIN,
   ROOM_SAMPLE_CAP,
+  ROOM_PEOPLE_CAP,
   roomMix,
+  roomQids,
+  tallyPicks,
   type RoomMix,
+  type RoomCounts,
   type DuelVoteLike,
 } from "./pure";
 
@@ -1177,7 +1181,30 @@ export const nearbyCountV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforce
   const countsSelf = own.exists
     && cells.includes(own.get("cell") as string)
     && !!ownUntil && ownUntil.toMillis() > now.toMillis();
-  const n = Math.max(0, total - (countsSelf ? 1 : 0));
+  // YOU MAY ONLY ASK ABOUT A ROOM YOU ARE STANDING IN (D176).
+  //
+  // `cell` arrives from the client, and until now nothing checked that the
+  // caller was anywhere near it: a modified client could walk the grid and
+  // read the count and the mix of any square in the world. For a headcount
+  // and a coarse ranking that was a small leak and it was accepted. It
+  // stops being small the moment the room has a ROSTER — sweeping cells
+  // would be a people-finder, which is precisely what `v2_presence`'s read
+  // deny exists to prevent, arriving through a callable instead of a
+  // query.
+  //
+  // So the gate goes on both doors, not just the new one. It costs NOTHING
+  // — `countsSelf` is the same test, over a document already fetched for
+  // self-exclusion — and it makes the property structural rather than a
+  // convention the next callable might not follow.
+  //
+  // Mutual by construction, which is the design's own promise: the check
+  // passes only while your OWN position is live, so you can see the room
+  // exactly while the room can see you. Turning Near off does not merely
+  // stop you being counted, it stops you counting.
+  if (!countsSelf) {
+    throw new HttpsError("failed-precondition", "no live presence in that neighborhood");
+  }
+  const n = Math.max(0, total - 1);
   return { n, mix: await roomMixFor(cells, cell as string) };
 });
 
@@ -1260,4 +1287,160 @@ async function roomMixFor(cells: string[], own: string): Promise<RoomMix | null>
     logger.warn("roomMixFor failed", err);
     return null;
   }
+}
+
+// ── Near by radius: the room, read (D176) ───────────────────────────
+//
+// The Near stop's Answers, People and Compare tabs. Every other Mirror
+// stop folds these from published aggregates on the device; this one
+// cannot, because the cohort is a set of PHONES and presence is
+// unreadable. So the fold happens here and the client renders what comes
+// back.
+//
+// WHAT THIS DISCLOSES, stated plainly because it is the largest thing the
+// presence collection has ever been asked to give up: the uids of people
+// standing near you. It is not a widening of `v2_presence` — no cell, no
+// coordinate and no position history leaves — but it is membership, and
+// membership is what the read deny was protecting when the only reading
+// was a number.
+//
+// Four properties are what make it defensible, and all four are enforced
+// here rather than assumed:
+//
+//   1. MUTUAL. The gate below refuses anyone without a live position of
+//      their own. You are in the room exactly while the room is in yours,
+//      and turning Near off stops you reading as well as being read.
+//   2. YOUR OWN ROOM ONLY. Same gate: the neighbourhood you ask about has
+//      to be the one you are standing in, so the grid cannot be walked.
+//   3. OPT-IN ON BOTH SIDES, off by default, expiring on its own (D173).
+//   4. NOTHING NEW ABOUT ANYBODY. A uid resolves to a profile and its
+//      answers — which any signed-in user could already read by name
+//      since D98. What is new is the pairing with "here", and that is the
+//      pairing the venue radius, the mutuality and the expiry bound.
+//
+// A DIRECTORY OF STRANGERS IS THE FAILURE MODE, and the radius is what
+// keeps it from being one: at ~200 m these are people you can see.
+export const nearbyRoomV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforceAppCheck: ENFORCE_APP_CHECK }, async (request) => {
+  if (!request.auth) throw new HttpsError("unauthenticated", "must be signed in");
+  const uid = request.auth.uid;
+  const cell = request.data?.cell;
+  if (!presenceCellOk(cell)) throw new HttpsError("invalid-argument", "cell must be a la_lo grid id");
+  const qids = roomQids(request.data?.qids);
+  const db = firestore();
+  const cells = presenceNeighbors(cell as string);
+  const now = Timestamp.fromMillis(Date.now());
+
+  // THE GATE. Identical to nearbyCountV2's and deliberately duplicated
+  // rather than shared through a helper: it is four lines, and a helper is
+  // a thing a future callable can forget to call. Both doors carry the
+  // lock in full view.
+  const own = await db.collection("v2_presence").doc(uid).get();
+  const ownUntil = own.get("until") as Timestamp | undefined;
+  if (!own.exists
+    || !cells.includes(own.get("cell") as string)
+    || !ownUntil || ownUntil.toMillis() <= now.toMillis()) {
+    throw new HttpsError("failed-precondition", "no live presence in that neighborhood");
+  }
+
+  const room = await roomFor(cells, cell as string, qids);
+  return {
+    // The caller is not in their own room. Filtered here rather than in
+    // the cache, because the cache is shared by everyone in the cell and
+    // each of them is a different person to leave out.
+    people: room.people.filter((p) => p.uid !== uid),
+    qs: room.qs,
+  };
+});
+
+interface RoomDoc {
+  people: Array<{ uid: string; type?: string }>;
+  qs: RoomCounts;
+}
+
+/**
+ * The room's roster and its answers, cached per cell (D176).
+ *
+ * Same argument as roomMixFor's cache one function up, with more at stake:
+ * this fold reads a DOCUMENT PER PERSON PER QUESTION, so uncached it would
+ * charge (people) x (questions) x (viewers) and a crowded venue would pay
+ * that repeatedly for the same answer. Everyone in a cell is standing in
+ * the same room; it is folded once per beat window and read by the rest.
+ *
+ * PER-QUESTION, which is the part worth noticing. The cached document
+ * accumulates `qs` by qid, so a caller asking about a question the cell
+ * has already folded pays nothing for it and folds only what is missing.
+ * The day's deck is the same list for everybody (computeDeckIds is a pure
+ * function of the day), so in practice the first caller in a window pays
+ * for all of it and the rest pay one read.
+ *
+ * The missing questions are folded over the CACHED roster rather than a
+ * fresh sample, so People and Compare describe the same crowd even when
+ * they were computed a minute apart.
+ */
+async function roomFor(cells: string[], own: string, qids: string[]): Promise<RoomDoc> {
+  const db = firestore();
+  const ref = db.collection("v2_presence_room").doc(own);
+  const fresh = Date.now() - 4 * 60_000;
+  let people: Array<{ uid: string; type?: string }> = [];
+  const qs: RoomCounts = {};
+  let hit = false;
+  try {
+    const snap = await ref.get();
+    const at = snap.get("at") as Timestamp | undefined;
+    if (snap.exists && at && at.toMillis() > fresh) {
+      const cached = snap.get("people") as RoomDoc["people"] | undefined;
+      if (Array.isArray(cached)) { people = cached; hit = true; }
+      const cq = snap.get("qs") as RoomCounts | undefined;
+      if (cq && typeof cq === "object") {
+        for (const q of qids) if (cq[q]) qs[q] = cq[q];
+      }
+    }
+    if (!hit) {
+      const present = await db.collection("v2_presence")
+        .where("cell", "in", cells)
+        .where("until", ">", Timestamp.fromMillis(Date.now()))
+        .limit(ROOM_PEOPLE_CAP)
+        .get();
+      // See roomMixFor for why an uncapped-order sample is safe here: doc
+      // ids are uids, so Firestore's implicit ordering is random with
+      // respect to both cell and person.
+      people = present.docs.map((d) => {
+        const t = d.get("type");
+        return typeof t === "string" && t ? { uid: d.id, type: t } : { uid: d.id };
+      });
+    }
+    const missing = qids.filter((q) => !(q in qs));
+    if (missing.length && people.length) {
+      // One getAll per question rather than one for the whole grid: it
+      // bounds each call at ROOM_PEOPLE_CAP refs, and the misses cost
+      // nothing — a person who never answered a question is an absent
+      // document, not an error.
+      const folded = await Promise.all(missing.map(async (q) => {
+        const refs = people.map((p) => db.doc(`v2_users/${p.uid}/answers/${q}`));
+        const docs = await db.getAll(...refs);
+        return [q, tallyPicks(docs.map((d) => d.get("optionIdx") as number | undefined))] as const;
+      }));
+      for (const [q, counts] of folded) qs[q] = counts;
+    }
+    if (!hit || missing.length) {
+      // MERGE ONLY INSIDE A WINDOW, and this distinction is the whole
+      // correctness of the cache.
+      //
+      // On a hit, `qs` holds only what THIS call asked for, so a plain set
+      // would blank every other question the cell had already folded —
+      // merge, and the window accumulates.
+      //
+      // On a MISS the merge would be the bug: the stale document's `qs` is
+      // last window's crowd, and merging a fresh stamp on top of it would
+      // republish an hour-old split as current, for as long as nobody
+      // re-asked that question. A new window is a new room, so the counts
+      // go with the roster.
+      await ref.set({ people, qs, at: FieldValue.serverTimestamp() }, { merge: hit });
+    }
+  } catch (err) {
+    // The room is an extra on top of the count, like the mix: its failure
+    // must leave the stop with its number rather than an error screen.
+    logger.warn("roomFor failed", err);
+  }
+  return { people, qs };
 }

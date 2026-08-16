@@ -881,5 +881,17 @@ of strangers.
    profile. Ranked names and a basis, never a share; `ROOM_MIN_TYPED` = 8;
    cached per cell per beat window, which is what keeps the fold from being
    quadratic in crowd density (COSTS Finding 5).
-4. **The tabs.**
+4. ~~**The tabs.**~~ **DONE
+   ([D176](DECISIONS.md#d176--near-becomes-a-room-you-can-read-and-asking-requires-standing-in-it)).**
+   Answers · People · Compare over `nearbyRoomV2`, which refuses any caller
+   without a live position of their own in that neighbourhood — the gate
+   went on the count as well, and it is what makes a roster defensible
+   (your own room only, and mutual by construction). Explore and Scores are
+   absent on purpose: neither has data at this stop. Three on-screen
+   promises that the People tab made false were rewritten in the same
+   commit.
 5. **Images** last — the field works with initials from day one.
+   `initialsOf` in `ui/LiveRoomTabs.tsx` is the permanent fallback rather
+   than a placeholder, so this step adds a photo where a circle already
+   is — Storage rules, an upload path and image moderation, none of which
+   exists yet.

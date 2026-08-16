@@ -248,7 +248,27 @@ export const deleteAccount = onCall(
       await deleteQueryDocs(db.collection("v2_flags").where("uid", "==", uid));
       // The presence doc (D84) is keyed by uid — one delete, and the only
       // location-shaped datum the account ever held server-side is gone.
+      //
+      // AND ITS CELL'S ROOM CACHE WITH IT (D176). That cache holds a
+      // ROSTER — a list of uids standing in a named cell — so deleting
+      // the presence doc alone would leave this account listed in a room
+      // for up to one beat window after it asked to be erased. Read the
+      // cell first, then drop the cached fold for it; the next caller
+      // re-folds from presence, which no longer has this account in it.
+      //
+      // The mix cache next door needs no such sweep: it holds ranked type
+      // NAMES and a count, nothing keyed by a uid.
+      //
+      // Best-effort by construction, and that is honest rather than
+      // convenient: the cache is derived, expires on its own within
+      // minutes, and a failure here must not fail the phase that deletes
+      // the source of truth.
+      const pres = await db.collection("v2_presence").doc(uid).get();
+      const presCell = pres.get("cell");
       await db.collection("v2_presence").doc(uid).delete();
+      if (typeof presCell === "string" && presCell) {
+        await db.collection("v2_presence_room").doc(presCell).delete();
+      }
       // …and the queue's copy of the text, which the take's deletion does
       // not take with it. Must run AFTER the takes are gone — it identifies
       // its targets by their take being absent. See deleteOrphanedModQueue.
@@ -664,6 +684,7 @@ export {
   joinGroupV2,
   leaveGroupV2,
   nearbyCountV2,
+  nearbyRoomV2,
   registerPushToken,
   scheduledDuelReveals,
   revealDuelsNowV2,

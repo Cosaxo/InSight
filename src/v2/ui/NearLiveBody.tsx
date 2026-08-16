@@ -40,6 +40,35 @@ import PLACES from "../data/places";
 const NearField = React.lazy(() =>
   import("./LiveSimilarityField").then((m) => ({ default: m.NearField })),
 );
+// The room's three tab bodies (D176), lazy for the same reason and one
+// more: this module is a STATIC import in mirror-tab, so anything it pulls
+// eagerly lands in the entry chunk, where check:bundle leaves about a
+// dozen kilobytes. The row itself is static and instant; the fold arrives
+// on the tap that asks for it.
+const LiveRoomTabs = React.lazy(() => import("./LiveRoomTabs"));
+// The tab row — static, because it IS the stop's navigation and a suspense
+// gap where the tabs belong is a stop that looks broken (D119's note).
+import MirrorLensTabs from "./MirrorLensTabs";
+import type { LensTab } from "./lensTabs";
+
+/**
+ * Near's three, and the two it does not have.
+ *
+ * Not `lensesFor()`: that function answers for the geographic stops, whose
+ * lenses are folds over published breakdowns. The room has no breakdown —
+ * the server returns option counts over the people here — so Explore
+ * (which cuts a population by an anchor) and Scores (which wants the whole
+ * archive's ordinal questions) would each be a permanently empty tab.
+ *
+ * Answers first, and closed by default, which is D155's shape: a stop with
+ * nothing open is a header, a field and a tab bar sitting where a tab bar
+ * belongs.
+ */
+const ROOM_TABS: LensTab[] = [
+  { id: "answers", label: "Answers" },
+  { id: "people", label: "People" },
+  { id: "compare", label: "Compare" },
+];
 
 const NB_LINE = "1px solid var(--rule)";
 
@@ -318,10 +347,17 @@ function NearPresence() {
               within a few hundred metres{where ? ` · ${where}` : ""}
             </span>
           </div>
+          {/* "A COUNT, NEVER WHO" STOOD HERE FROM D84 UNTIL D176, and it
+              had to go in the commit that made it false. The People tab
+              below names the people in this square — which is the whole
+              point of the tab and is exactly the kind of claim this repo
+              refuses to leave stale on a screen. What replaces it is the
+              part that is still true and is now the one that matters:
+              nobody reads your SQUARE, and the seeing is mutual. */}
           <div style={{ fontFamily: "var(--sans)", fontSize: 12, fontWeight: 500, color: "var(--ink-3)", marginTop: 3, lineHeight: 1.5 }}>
             {n === 0
               ? "Just you right now — the count updates every few minutes."
-              : "People with InSight open near you right now — a count, never who."}
+              : "People with InSight open near you right now. They can see you here too, for as long as you can see them."}
           </div>
           {/* THE ROOM (D175) — the one sentence this stop was rebuilt for.
               Names in order and a basis; no shares, because a percentage
@@ -353,7 +389,7 @@ function NearPresence() {
                 deliberate: it is the PROMISE, and the off state is the only
                 moment it can be read before the decision it describes. */}
             {line || (supported
-              ? "How many people with InSight are near you at this moment — a count, never who, and never a place."
+              ? "Who has InSight open near you at this moment — the people, how they answered, and where you differ. Never a place, and never one-way: you appear to them exactly while they appear to you."
               : "This device can’t share a location, so there is no count to show here.")}
           </div>
         </>
@@ -365,9 +401,11 @@ function NearPresence() {
           before the decision, which is the only moment it can inform one. */}
       {supported && !on && (
         <div style={{ fontFamily: "var(--sans)", fontSize: 12, fontWeight: 500, color: "var(--ink-2)", lineHeight: 1.5, marginTop: 8, paddingTop: 8, borderTop: NB_LINE }}>
-          While it&rsquo;s on, your phone shares a ~200-metre grid square,
-          unreadable to other users. It keeps counting for up to three hours
-          after you close the app, and turning this off deletes it at once.
+          While it&rsquo;s on, your phone shares a ~200-metre grid square. No
+          user can read your square — but people in it who also have this on
+          see your name, your type and your answers, and you see theirs. It
+          keeps counting for up to three hours after you close the app, and
+          turning this off deletes it at once.
         </div>
       )}
 
@@ -397,7 +435,36 @@ function NearPresence() {
 }
 
 function NearLiveBody() {
+  const [, bump] = React.useReducer((n: number) => n + 1, 0);
+  // The row appears and disappears with the opt-in, so this body needs the
+  // store's notify as much as the card inside it does — without it,
+  // turning Near on re-rendered NearPresence and left the tabs missing
+  // until something else happened to bump the tree.
+  React.useEffect(() => LIVE.subscribe(bump), []);
   const supported = LIVE.near.supported();
+  const on = LIVE.near.on();
+  // Closed by default (D155). Toggling the open tab shut is the same
+  // gesture the cohort stops give their row.
+  const [tab, setTab] = React.useState("");
+  const rowRef = React.useRef<HTMLDivElement | null>(null);
+  // Opening a tab brings its row to the top of the scroller, the way the
+  // prototype does and the cohort stops already do. 60ms is their number
+  // too: the body mounts in the same commit as the flip, so measuring now
+  // measures the row before the panel it is about to sit above exists.
+  React.useEffect(() => {
+    const row = rowRef.current;
+    if (!tab || !row) return;
+    let sp: HTMLElement | null = row.parentElement;
+    while (sp && sp.scrollHeight <= sp.clientHeight) sp = sp.parentElement;
+    if (!sp) return;
+    const scroller = sp;
+    const t = setTimeout(() => {
+      const top = row.getBoundingClientRect().top
+        - scroller.getBoundingClientRect().top + scroller.scrollTop - 12;
+      scroller.scrollTo({ top, behavior: "smooth" });
+    }, 60);
+    return () => clearTimeout(t);
+  }, [tab]);
   return (
     <div className="fade-in" style={{ padding: "4px 16px 26px" }}>
       {/* One block, not a header and a card (D160): the stop's name, its
@@ -407,14 +474,43 @@ function NearLiveBody() {
       <React.Suspense fallback={null}>
         <NearField />
       </React.Suspense>
+      {/* THE ROOM, READ (D176). Answers · People · Compare over the people
+          actually here, folded by the server because presence is
+          unreadable and no device can compute this for itself.
+
+          Below the field, which keeps D136's shape: the constellation is
+          the stop's identity and draws always, the row is its navigation
+          and sits where a tab bar belongs. Only while the counter is ON —
+          with it off there is no room to have tabs about, and a row of
+          empty tabs reads as a broken stop rather than an unused one. */}
+      {on && (
+        <>
+          <div ref={rowRef} style={{ marginTop: 14 }}>
+            <MirrorLensTabs tabs={ROOM_TABS} open={tab}
+              onOpen={(id) => setTab(id === tab ? "" : id)} />
+          </div>
+          {tab && (
+            <React.Suspense fallback={null}>
+              <div style={{ paddingTop: 14 }}><LiveRoomTabs tab={tab} /></div>
+            </React.Suspense>
+          )}
+        </>
+      )}
+
       {/* The pointer to City, down from three lines to one (D171).
           The long version explained what City is — which City's own header
           does, one stop to the right, and the ruler above already shows it
-          is there. What this owes the reader is the one fact Near's field
-          does not carry on its face: nobody here is named. */}
+          is there.
+
+          IT USED TO SAY "nobody here is named", which was Near's whole
+          promise until D176 gave it a People tab. The FIELD still names
+          nobody — an anonymous node cannot be opened, and that is the
+          presence deny drawn — so the sentence now says which half is
+          which, rather than dropping a true fact because a neighbouring
+          one changed. */}
       <div style={{ fontFamily: "var(--sans)", fontSize: 12, fontWeight: 500, color: "var(--ink-3)", lineHeight: 1.55, padding: "10px 2px 0", textAlign: "center" }}>
         {supported
-          ? <>Nobody here is named — that&rsquo;s <strong style={{ color: "var(--ink-2)" }}>City</strong>, one to the right.</>
+          ? <>The field names nobody; <strong style={{ color: "var(--ink-2)" }}>People</strong> names who is here now. Your whole city is at <strong style={{ color: "var(--ink-2)" }}>City</strong>, one to the right.</>
           : <>No location on this device — your city is at <strong style={{ color: "var(--ink-2)" }}>City</strong>, one to the right.</>}
       </div>
     </div>

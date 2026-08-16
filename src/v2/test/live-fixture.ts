@@ -204,6 +204,12 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     tooFew: () => false,
     updatedAt: () => 0,
     lastError: () => null,
+    // D176's room. Null rather than an empty roster, which is the
+    // never-asked state — the tabs load it on a tap, so a smoke test that
+    // never opens one should see exactly this.
+    room: () => null as { people: Array<{ uid: string; type?: string }>; qs: Dict } | null,
+    roomLoading: () => false,
+    loadRoom: async () => {},
     enable: async () => ({ ok: true }),
     disable: async () => {},
     refresh: () => {},
@@ -320,6 +326,9 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     // mount renders a real name, and anything else falls back to
     // "Someone" — both branches reachable from the fixture.
     nameFor: (uid: string) => (uid === "u_fixture" ? "Tester" : ""),
+    // D176's read half of the same profile cache — the room roster has
+    // uids and nothing else, so it is the first consumer to need it.
+    scoresFor: () => null,
     loadNames: async () => {},
     // Kindred (D99): one overlapping person, so a live mount renders a
     // ranked row rather than only the empty state.

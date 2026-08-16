@@ -17308,3 +17308,151 @@ nothing else. Rules suite 91 → 93.
 no-share, floor, typed-only basis, stable ties, three-name limit. The card
 carries the reading's own four: names in order, basis is the typed count
 and not the headline, no share ever, silent below the floor.
+
+## D176 · Near becomes a room you can read, and asking requires standing in it
+
+**2026-08-16.** Step 4 of NEXT-FUNCTIONALITY §10, the tabs. Near now
+carries **Answers · People · Compare** over the people actually present,
+folded by `nearbyRoomV2` because no device can fold them: the cohort is a
+set of phones and `v2_presence` is unreadable to every client.
+
+**THE GATE IS THE DECISION.** Everything else here follows from it, and it
+went on the OLD door as well as the new one.
+
+Until now `nearbyCountV2` took a `cell` from the client and never checked
+that the caller was anywhere near it. A modified client could walk the grid
+and read any square's count and, since D175, its composition. For a
+headcount and a coarse ranking that was a small leak and it was accepted
+without being written down. It stops being small the moment the room has a
+**roster** — sweeping cells would be a people-finder, which is precisely
+what the presence read deny exists to prevent, arriving through a callable
+instead of a query.
+
+So both callables now refuse any caller without their own unexpired
+presence doc in the requested neighbourhood. It costs nothing — the
+document was already being fetched for self-exclusion — and it buys two
+properties that are otherwise wishes:
+
+- **Your own room only.** The grid cannot be walked.
+- **Mutual.** You can read the room exactly while the room can read you.
+  Turning Near off stops you reading, not just being read.
+
+### What is disclosed, stated plainly
+
+The uids of people standing near you. No cell, no coordinate and no
+position history leaves — but this is **membership**, and membership is
+what the deny was protecting while the only reading was a number.
+
+Nothing about anybody is new: a uid resolves to a profile and its answers,
+which any signed-in user has been able to read by name since D98. The
+pairing with *here* is new. Four properties bound it, all enforced rather
+than assumed — the gate above (two of them), the venue radius (D174's
+~200 m, without which this would be a district), opt-in on both sides and
+off by default, and expiry on its own (D173). §10's own test is the one to
+hold it to: *a room you are standing in, not a directory of strangers*.
+
+**Three promises on screen became false and were rewritten in this commit**,
+which is the part that must never be deferred:
+
+- The stop said **"a count, never who"**, twice. That was Near's whole
+  pitch from D84 and the People tab makes it a lie. It now says what
+  replaced it: they can see you here too, for as long as you can see them.
+- The field's foot said **"nobody here is named"**. Half of that is still
+  true and is the sharper half — the FIELD names nobody, an anonymous node
+  cannot be opened, and that is the deny drawn. So the sentence names which
+  half is which rather than dropping a true fact because a neighbour
+  changed.
+- The privacy panel said **"a count is all that comes back"**. It now
+  separates the two claims that used to travel as one: nobody can read your
+  square (still `allow read: if false`), and the people in it can see you.
+
+The test that asserted the old wording had to change with it, and that is
+worth a sentence: a test pinning "a count, never who" would have been the
+thing arguing to keep a false sentence on a screen. What it pins now is the
+claim the server actually enforces.
+
+### The shape of the fold
+
+`nearbyRoomV2` samples the neighbourhood once (`ROOM_PEOPLE_CAP` = 24) and
+serves both readings from that one sample — a roster and per-question
+option counts over exactly those people. Two caps would have meant People
+showing one set of people and Compare describing another, and "you against
+this room" is only true if the two words mean the same crowd.
+
+Counts come back in `{ "0": 3 }`, the shape `v2_question_aggs` already
+uses, so the client walk is one four surfaces already do. Returning an
+ARRAY would have meant agreeing with the client about how many options a
+question has, over a wire, with a length nobody validates.
+
+**No floor on the answer split, and that is a decision rather than an
+omission.** §10 said "the same floor" and the floor turns out to protect
+nothing here: a floor on an answer split protects the answer, answers are
+public, and the roster is disclosed by the People tab in any case — hiding
+a two-person split would conceal nothing a reader could not get by tapping
+a name. What a thin split needs is its `n` beside it, which is the
+post-D98 rule everywhere else and which `LiveAnswerRows` already does. The
+floor that does bind is D175's, on the mix, which is a different reading
+with a different exposure.
+
+**Explore and Scores are absent on purpose.** Explore cuts a population by
+an anchor and needs `by` breakdowns the room has none of; Scores wants the
+archive's ordinal questions where the room is folded over today's deck.
+Each would be a tab that draws an empty state forever, which is worse than
+a tab that is not there.
+
+**Compare is EXPORTED from `LiveMirrorLenses` rather than reimplemented.**
+The room reads exactly the way that lens reads, and a second copy would be
+a second place for D169's majority test to be got wrong.
+
+### The cost, priced before it shipped
+
+The fold reads a document per person per question, so uncached it is
+(people) × (questions) × (viewers) — the same trap D129 pulled the count
+out of. `v2_presence_room/{cell}` caches one cell's fold for one beat
+window, **per question**, so the first caller pays and the rest read one
+document; ~2.9M reads become ~29k for a 1,000-phone hour (COSTS Finding 6).
+It runs on the tab's mount, never on the beat, so a stop nobody opens costs
+nothing.
+
+The cache merges INSIDE a window and replaces at the boundary. Merging on a
+miss would have republished last window's split under a fresh stamp — an
+hour-old room served as current for as long as nobody re-asked that
+question.
+
+### Found under this stone
+
+- **The e2e had been red since D173, and I had not run it.** D173 made
+  `until` required on a presence write; the e2e's presence section wrote
+  `{cell, at}` and had been failing `PERMISSION_DENIED` for two commits.
+  The unit, rules and functions suites all pass without a functions
+  emulator, and this is the only suite that exercises a client write
+  against the deployed rules AND a callable behind them. The four-runner
+  table in CLAUDE.md says exactly this and I still skipped it. Fixed, and
+  the section now also covers the mix floor, the roster, the gate from
+  three angles, and the `until` cap.
+- **`deleteAccount` would have left an erased account listed in a room.**
+  `v2_presence_room` is keyed by CELL, so deleting the presence doc does
+  not touch a roster naming that uid — it would have survived up to a beat
+  window past the erasure. The wipe now reads the leaving account's cell
+  and drops the cached fold with it, and the erasure e2e proves it by
+  mutation.
+
+### Guards
+
+The gate is proved in the e2e from three angles (a phone in another cell,
+for both callables; a phone with no presence at all), because it is the
+only place a callable behind rules can be exercised. `v2_presence_room` is
+denied both ways in `firestore.rules`, mutation-checked. `roomQids` refuses
+path injection into the `getAll` — these strings are concatenated into a
+document path, so a slash or a dot segment is refused rather than escaped.
+`tallyPicks` drops anything that is not an option index, because a float or
+a `-1` would key a bucket the client's walk never looks at: a count that
+exists, is wrong, and is invisible.
+
+Client-side, `roomShape.test.ts` pins the translation (a room that has not
+answered stays at zero, a malformed cell reads as zero and never NaN, `mine`
+is -1 rather than 0 when absent) and `LiveRoomTabs.test.tsx` pins the three
+states of a read that can fail, plus People's two rules: an unnamed account
+is "Someone", and **the room is not ranked** — the field above places people
+by likeness because that is a reading, while a list of people you can see
+sorted best-match-first is a leaderboard of strangers in a bar.

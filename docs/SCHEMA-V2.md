@@ -196,6 +196,24 @@ read/write: NOBODY. Written by nearbyCountV2 on the admin SDK. Derived
 from presence, so it carries presence's deny: a client reading a cell it
 is not standing in has a map of every room, not a reading about its own.
 
+v2_presence_room/{cell}            the room, folded (D176)
+  people: [{uid, type?}]           the sampled roster, <= ROOM_PEOPLE_CAP.
+                                   `type` is the archetype the phone wrote
+                                   for itself; absent for an untyped phone
+  qs: { qid: {optionIdx: n} }      option counts over exactly those
+                                   people, in v2_question_aggs' own shape.
+                                   Accumulated per qid INSIDE a window and
+                                   replaced wholesale when the window
+                                   turns, so a stale split is never
+                                   republished under a fresh stamp
+  at: timestamp                    written at; one beat window
+read/write: NOBODY. Written by nearbyRoomV2 on the admin SDK, which
+refuses any caller without a live position of their own in that
+neighbourhood — the gate is what makes a roster defensible, and a
+readable cache would route around it. THE ONE DERIVED DOC THAT HOLDS
+UIDS: deleteAccount drops it alongside the leaving account's presence
+doc, so an erased account is not left listed in a room.
+
 v2_groups/{gid}                    groups AND duos (mode: group|duo)
   name, mode, ownerUid, memberUids[≤32; duo ≤2], memberNames{uid:name},
   memberJoinedAt{uid:ts},
@@ -364,7 +382,7 @@ not per boot. `LIVE.stats` reports `bankSource` / `answersFetched` /
 
 ## Verification
 
-- `npm run test:rules` — 93 rules tests (Firestore + Storage; the v2
+- `npm run test:rules` — 94 rules tests (Firestore + Storage; the v2
   surface, the anonymous-default lens, and the retired-v1 guard).
 - `firestore-tests/e2e-v2-loop.mjs` under
   `firebase emulators:exec --only auth,firestore,functions` — the full

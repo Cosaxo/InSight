@@ -44,7 +44,7 @@ export const LIVE_MEMBERS = [
   // The shared uid → name cache the same read fills. `nameFor` is a
   // synchronous best-effort read; `loadNames` is the batched fetch that
   // fills it for a surface that has uids but no names (world takes).
-  "nameFor", "loadNames",
+  "nameFor", "loadNames", "scoresFor",
   // Kindred (D99) — the People lens's ranking, derived on read from the
   // cached voter lists plus the viewer's own votes.
   "loadKindred", "kindred", "kindredLoading", "kindredDepth",
@@ -139,6 +139,6 @@ export const LIVE_SOCIAL_MEMBERS = [
 
 // LIVE.near's own members (D84), pinned like social's for the same reason.
 export const LIVE_NEAR_MEMBERS = [
-  "count", "disable", "enable", "lastError", "mix", "mode", "on", "refresh",
-  "supported", "tooFew", "until", "updatedAt",
+  "count", "disable", "enable", "lastError", "loadRoom", "mix", "mode", "on",
+  "refresh", "room", "roomLoading", "supported", "tooFew", "until", "updatedAt",
 ];

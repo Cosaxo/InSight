@@ -1025,5 +1025,21 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // ── The room's roster and answers cache (D176) ─────────────────
+    //
+    // The Near stop's Answers/People/Compare fold, cached per cell on the
+    // same argument as the mix beside it — and denied harder in effect,
+    // because this one holds a LIST OF UIDS standing in a named cell.
+    //
+    // That pairing is the thing `v2_presence`'s read deny exists to
+    // prevent, so it may only ever be assembled and served by
+    // `nearbyRoomV2`, which refuses any caller without a live position of
+    // their own in that neighbourhood. A client that could read this path
+    // would skip the gate and walk the grid, which is the people-finder
+    // the whole design is arranged around not being.
+    match /v2_presence_room/{cell} {
+      allow read, write: if false;
+    }
+
   }
 }

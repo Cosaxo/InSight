@@ -230,7 +230,19 @@ await adb.doc(`v2_ratelimits/suggest_${uid}`).set({ events: [Date.now()] });
 // The presence doc (D84): the one location-shaped datum an account can
 // hold, and the wipe must take it — a cell that outlives its account is a
 // standing "someone was here" nobody can retract.
-await adb.doc(`v2_presence/${uid}`).set({ cell: "5999_1074", at: new Date() });
+await adb.doc(`v2_presence/${uid}`).set({
+  cell: "5999_1074", at: new Date(), until: new Date(Date.now() + 60 * 60_000),
+});
+// …and the ROOM CACHE for that cell (D176), which is the one derived
+// document that holds a uid. A roster naming this account survives the
+// presence delete on its own — it is keyed by cell, not by uid — so the
+// wipe reads the cell and drops the fold with it. Seeded with a stranger
+// in it too, because what has to be proved is that the DOC goes, not that
+// one entry was edited out of it: the next caller re-folds from presence,
+// which no longer has this account in it.
+await adb.doc("v2_presence_room/5999_1074").set({
+  people: [{ uid, type: "Host" }, { uid: OTHER }], qs: {}, at: new Date(),
+});
 await adb.doc(`v2_mod_queue/${MY_TAKE}`).set({
   takeId: MY_TAKE, gid: SHARED, text: "words that must not outlive the account",
   flags: 3, escalations: 0,
@@ -283,6 +295,7 @@ for (const [path, label] of [
   [`v2_takes/${MY_TAKE}`, "their take"],
   [`v2_flags/${MY_TAKE}_${uid}`, "their flag on their own take"],
   [`v2_presence/${uid}`, "their presence cell"],
+  ["v2_presence_room/5999_1074", "the cached roster naming them"],
   [`v2_mod_queue/${MY_TAKE}`, "the queue's copy of their take"],
   [`v2_takes/${THEIR_TAKE}`, "someone else's take"],
   [`v2_mod_queue/${THEIR_TAKE}`, "the queue's copy of someone else's take"],
@@ -372,6 +385,7 @@ for (const [path, label] of [
   [`v2_users/${uid}/foresight/daily-000__ageBand__25-34`, "a foresight verdict"],
   [`v2_users/${OTHER}/following/${uid}`, "someone else's follow OF this account"],
   [`v2_presence/${uid}`, "their presence cell"],
+  ["v2_presence_room/5999_1074", "the cached roster naming them"],
   // The gap this leg exists for: the take was erased, and its words went on
   // living in the moderation queue's copy of them.
   [`v2_mod_queue/${MY_TAKE}`, "the queue's copy of their take"],

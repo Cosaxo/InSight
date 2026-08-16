@@ -481,7 +481,17 @@ function PeopleLens({ qs, scope, shortName }: {
 
 // ── Compare ─────────────────────────────────────────────────────────
 
-function CompareLens({ qs, shortName }: { qs: LensQuestion[]; shortName: string }) {
+/**
+ * Compare — you against a cohort, least typical first.
+ *
+ * EXPORTED since D176, and it is the only lens body that is: the Near
+ * stop's room reads exactly this way (you against the people here), and a
+ * second implementation would be a second place for D169's majority test
+ * to be got wrong. It asks nothing about scope — a `LensQuestion[]` and a
+ * noun — so a cohort the server folded reads the same as one the device
+ * did.
+ */
+export function CompareLens({ qs, shortName }: { qs: LensQuestion[]; shortName: string }) {
   const answered = qs.filter((q) => q.mine >= 0 && q.counts.some((c) => c > 0));
   if (!answered.length) {
     return <LlEmpty>Answer a few of today&apos;s questions and this fills in.</LlEmpty>;

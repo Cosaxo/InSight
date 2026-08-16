@@ -590,6 +590,49 @@ model — a guess at the opt-in rate would be the model's least-supported
 input and its most leveraged. The bound above is the whole answer: this
 term cannot grow faster than cells × time, whatever fraction opts in.
 
+### Finding 6 — the room's tabs read a document per person per question · **CAPPED AND CACHED AT BIRTH (D176)**
+
+> The same shape as Finding 5 one notch worse, priced the same way and for
+> the same reason: the fold is new, so this is the cheapest moment to bound
+> it.
+
+D176 gives Near the tabs every other Mirror stop has — Answers, People,
+Compare — over the people actually present. City and World fold those on
+the device out of published aggregates; Near cannot, because its cohort is
+a set of phones and `v2_presence` is unreadable. So `nearbyRoomV2` folds
+them, and the fold reads **one answer document per person per question**.
+
+Two caps bound one call: `ROOM_PEOPLE_CAP` (24) and `ROOM_QUESTION_CAP`
+(8), so a cold fold is at most **24 × 8 = 192 reads plus one sample query**
+— and 24 is one sample serving both the roster and the answers, because
+People and Compare describing different crowds would be a worse bug than
+either being small.
+
+`v2_presence_room/{cell}` caches it for one beat window (4 minutes), **per
+question**: a caller asking about a qid the cell has already folded pays
+nothing for it. The day's deck is identical on every device
+(`computeDeckIds` is a pure function of the day), so in practice the first
+caller in a window pays for the whole thing and everyone else pays one
+read.
+
+| 1,000 phones, one hour, ~10 cells, tabs opened | reads | cost |
+| --- | ---: | ---: |
+| uncached (per viewer per beat) | 15,000 × 192 = 2,880,000 | ~$1.73 |
+| cached (shipped) | 10 cells × 15 windows × 193 ≈ 29,000 | ~$0.02 |
+
+**On a tap, never on the beat**, which is the other half. `LIVE.near.loadRoom`
+runs from the tab body's mount, so a stop someone scrolled past costs
+nothing at all — the same gate D119 put on the cohort stops' lenses. The
+count and the mix keep riding the beat; only this waits to be asked for.
+
+**What is NOT bounded, named rather than fixed:** the room fold is charged
+per cell per window whether or not anyone opens a tab a second time, and a
+venue spanning many cells pays per cell. That is linear in area, not in
+crowd, which is the property worth having — but it means a festival
+sprawling over fifty cells costs five times the ten-cell row above. Still
+under a dime an hour, and the fix if it ever mattered is a coarser cache
+key, which trades the reading's precision for cells it does not need.
+
 ## The controls that are not in this repository
 
 Everything above this line predicts the bill. None of it **caps** the bill,

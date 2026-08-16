@@ -49,6 +49,11 @@ const LIVE = vi.hoisted(() => ({
     enable: vi.fn(async () => ({ ok: true } as { ok: boolean; reason?: string })),
     disable: vi.fn(async () => {}),
     refresh: () => {},
+    // D176's room. The tab BODIES are lazy and have their own file; what
+    // this fixture has to carry is enough for the row to mount.
+    room: () => null,
+    roomLoading: () => false,
+    loadRoom: async () => {},
   },
 }));
 vi.mock("../data/live", () => ({ default: LIVE }));
@@ -116,10 +121,17 @@ describe("NearLiveBody · the stop is presence, not place (D111)", () => {
 });
 
 describe("the Right now card (D84 — moved with the stop)", () => {
-  it("pitches honestly while off: a count, never who, the square, the linger", () => {
+  it("pitches honestly while off: who is here, the square, mutuality, the linger", () => {
     render(<NearLiveBody />);
     const text = document.body.textContent || "";
-    expect(text).toMatch(/a count, never\s+who/i);
+    // "A COUNT, NEVER WHO" WAS ASSERTED HERE UNTIL D176, and the case is
+    // more interesting for having had to change: that promise was the
+    // stop's whole pitch, and the People tab made it false. A test that
+    // pinned the old words would have been the thing arguing to keep a
+    // false sentence on screen, so what it pins now is the pair of claims
+    // that replaced it — what you get, and that it runs both ways.
+    expect(text).not.toMatch(/a count, never\s+who/i);
+    expect(text).toMatch(/you appear to them exactly while they appear to you/i);
     // The SIZE of the square, and it has to track the grid. It said
     // "kilometre-sized" until D174 moved the grid to 0.002° (~200 m) —
     // which was only allowed to happen because the fix became precise in
@@ -153,7 +165,11 @@ describe("the Right now card (D84 — moved with the stop)", () => {
     // FIGURE it names rather than as prose, so the next grid change fails
     // here instead of shipping a unit that flatters the number.
     expect(screen.getByText(/within a few hundred metres/i)).toBeTruthy();
-    expect(screen.getByText(/a count, never who/i)).toBeTruthy();
+    // The line under the figure, which said "a count, never who" until the
+    // People tab made that untrue (D176). Mutuality is what it says
+    // instead, and it is the claim the server actually enforces — the
+    // callable refuses anyone without a live position of their own.
+    expect(screen.getByText(/They can see you here too/i)).toBeTruthy();
     cleanup();
 
     // The restored-floor era (D81 revert): the server answers tooFew for
@@ -473,5 +489,43 @@ describe("NearPresence · the room", () => {
     const text = document.body.textContent || "";
     expect(text).toMatch(/11 people here have taken the test/);
     expect(text).not.toMatch(/11\+/);
+  });
+});
+
+
+// ── the room's tab row (D176) ────────────────────────────────────────
+describe("NearPresence · the row only exists when there is a room", () => {
+  it("offers Answers, People and Compare once the counter is on", async () => {
+    LIVE.near.on = () => true;
+    LIVE.near.count = () => 12;
+    render(<NearLiveBody />);
+    const row = await screen.findByRole("tablist");
+    expect([...row.querySelectorAll("[role=tab]")].map((t) => t.textContent))
+      .toEqual(["Answers", "People", "Compare"]);
+  });
+
+  it("offers no tabs at all with the counter off", () => {
+    // There is no room to have tabs about — presence is what produces the
+    // cohort, so a row here would be three doors onto an empty fold. A
+    // stop that draws its navigation and then refuses to use it reads as
+    // broken rather than as unused.
+    LIVE.near.on = () => false;
+    render(<NearLiveBody />);
+    expect(screen.queryByRole("tablist")).toBeNull();
+  });
+
+  // EXPLORE AND SCORES ARE ABSENT ON PURPOSE, and the absence is worth a
+  // case because the obvious "improvement" is to reach for lensesFor()
+  // and get five. Explore cuts a population by an anchor and needs `by`
+  // breakdowns the room has none of; Scores wants the archive's ordinal
+  // questions and the room is folded over today's deck. Both would draw
+  // an empty state forever.
+  it("does not offer the two lenses the room has no data for", async () => {
+    LIVE.near.on = () => true;
+    LIVE.near.count = () => 12;
+    render(<NearLiveBody />);
+    await screen.findByRole("tablist");
+    expect(screen.queryByText("Explore")).toBeNull();
+    expect(screen.queryByText("Scores")).toBeNull();
   });
 });

@@ -337,6 +337,14 @@ const state = {
 // linear in this number — see loadKindred for why it is bounded at all.
 const KINDRED_QUESTIONS = 12;
 
+// How many questions one room fold may ask about (D176). Mirrors
+// ROOM_QUESTION_CAP in functions/src/pure.ts, which is what actually
+// enforces it — this one only keeps the client from sending a list the
+// server will silently truncate, so the tab does not draw a question the
+// fold never counted. Hand-matched, like every other client/server pair
+// here; the server's cap is the one that binds.
+const ROOM_QIDS = 8;
+
 // One take as the circle reads it. `hidden` is always false on anything a
 // non-author can list — the read rule is an equality on that boolean, not a
 // presence test, and only the equality holds a LIST to the gate (D65).
@@ -1777,7 +1785,32 @@ const nearState = {
   timer: null as ReturnType<typeof setInterval> | null,
   mix: null as { top: string[]; n: number; capped?: boolean } | null,
   inFlight: null as Promise<void> | null,
+  // The cell the last successful beat counted (D176). Held so the room
+  // fold asks about the SAME neighbourhood the number on screen describes,
+  // rather than resolving a second fix that could land a cell away and
+  // quietly describe a different room.
+  cell: "",
+  // The room, from nearbyRoomV2 — loaded on a tab tap, never on the beat.
+  // `roomCell` is what it was loaded FOR, so walking to the next cell
+  // re-folds instead of showing the room you left.
+  room: null as RoomRead | null,
+  roomCell: "",
+  roomLoading: false,
 };
+
+/**
+ * What the Near stop's tabs read (D176).
+ *
+ * `people` is the roster with the archetype each phone wrote for itself
+ * (D175's `type`), the caller already removed. `qs` is per-question option
+ * counts in the aggregate's own `{ "0": 3 }` shape, folded over exactly
+ * those people — one sample, two readings, so People and Compare cannot
+ * describe different crowds.
+ */
+export interface RoomRead {
+  people: Array<{ uid: string; type?: string }>;
+  qs: Record<string, Record<string, number>>;
+}
 
 // One beat. `cell` lets a caller that ALREADY holds a fresh fix hand it over
 // instead of paying for a second one: enable() has just resolved a cell to
@@ -1845,6 +1878,10 @@ async function runBeat(cell?: string): Promise<void> {
       }
       : null;
     nearState.updatedAt = Date.now();
+    // The room the number is about (D176). Set only on a settled beat, so
+    // a failed round leaves the previous cell standing rather than
+    // blanking the tabs' idea of where they are.
+    nearState.cell = fix.cell;
     // Cleared only once a count is actually in hand: clearing it beside the
     // fix (where it used to sit) marked the round healthy before the two
     // calls that most often fail had run.
@@ -1905,6 +1942,13 @@ function stopPresence(): void {
   nearState.tooFew = false;
   nearState.updatedAt = 0;
   nearState.lastError = null;
+  // The room goes with the opt-in (D176). Leaving a roster in memory after
+  // "stop sharing" would keep a list of who was around you on a screen you
+  // just told the app to stop populating — and it is the one piece of
+  // Near's state that is about OTHER people.
+  nearState.cell = "";
+  nearState.room = null;
+  nearState.roomCell = "";
 }
 
 const NEAR = {
@@ -1942,6 +1986,79 @@ const NEAR = {
    */
   mix(): { top: string[]; n: number; capped?: boolean } | null {
     return nearState.mix;
+  },
+  /**
+   * The room's roster and answers (D176) — null until a tab asks for it.
+   *
+   * Null is not "empty room": `roomLoading` and this being null together
+   * mean a fold is in flight, and null after one has settled means the
+   * call failed. An empty `people` array is the empty room. Same three
+   * states LiveCircleBody keeps apart, for the same reason — telling
+   * someone at a full party that nobody is here is a lie about the room
+   * they are looking at.
+   */
+  room(): RoomRead | null {
+    return nearState.room;
+  },
+  roomLoading(): boolean {
+    return nearState.roomLoading;
+  },
+  /**
+   * Fold the room, for the questions the caller names.
+   *
+   * ON A TAB TAP, never on the beat — the same cost gate the Mirror's
+   * lens bodies keep (D119): the fold reads a document per person per
+   * question on a cache miss, and nobody should pay that for a stop they
+   * only scrolled past.
+   *
+   * Session-cached per CELL. Re-entering the tabs is free; walking into
+   * the next cell re-folds, because the room you left is not the room you
+   * are in. `qids` are appended to the cache key by way of the store's
+   * own `qs` map — a second call for a question already folded returns
+   * from the server's own per-cell cache at one read.
+   */
+  async loadRoom(qids: readonly string[]): Promise<void> {
+    const cell = nearState.cell;
+    // No cell means no settled beat, so there is no room to be in. Silent
+    // rather than an error: the tab is open under a card that is already
+    // saying why the count is missing.
+    if (!cell || nearState.roomLoading) return;
+    // Cached, unless the question set has grown past what is held. The
+    // second test matters on the day the deck rolls over: same cell, one
+    // new qid, and without it the tab would show yesterday's questions
+    // until someone walked to another block.
+    const held = nearState.room;
+    if (held && nearState.roomCell === cell && qids.every((q) => q in held.qs)) return;
+    nearState.roomLoading = true;
+    notify();
+    try {
+      const res = await callable<{
+        people?: Array<{ uid?: unknown; type?: unknown }>;
+        qs?: Record<string, Record<string, number>>;
+      }>("nearbyRoomV2", { cell, qids: qids.slice(0, ROOM_QIDS) });
+      // Defensive about the shape for the same reason the mix is: this
+      // crosses a wire, and a malformed payload has to read as "no room"
+      // rather than as an empty one.
+      const people = Array.isArray(res.people)
+        ? res.people
+          .filter((p): p is { uid: string; type?: string } =>
+            !!p && typeof p.uid === "string" && !!p.uid)
+          .map((p) => (typeof p.type === "string" && p.type
+            ? { uid: p.uid, type: p.type } : { uid: p.uid }))
+        : [];
+      const qs = res.qs && typeof res.qs === "object" ? res.qs : {};
+      nearState.room = { people, qs };
+      nearState.roomCell = cell;
+    } catch (err) {
+      // Left null, which the UI reads as a failed fold rather than as an
+      // empty room.
+      nearState.room = null;
+      nearState.roomCell = "";
+      reportError(err, { where: "loadRoom" });
+    } finally {
+      nearState.roomLoading = false;
+      notify();
+    }
   },
   updatedAt(): number {
     return nearState.updatedAt;
@@ -2124,6 +2241,19 @@ const LIVE = {
   // known ahead of the render (world takes do this).
   nameFor(uid: string): string {
     return state.names[uid] || "";
+  },
+  /**
+   * A uid's parsed test results from the shared profile cache, or null.
+   *
+   * The read half of `loadNames`, which has always fetched scores beside
+   * names into the same cache — every consumer so far reached them
+   * through a list (`kindredPeople`, `voters`), and D176's room roster is
+   * the first that has uids and nothing else. Null means "not cached or
+   * has none", which the caller must render as no match rather than as a
+   * bad one.
+   */
+  scoresFor(uid: string): ParsedResults | null {
+    return state.scores[uid] ?? null;
   },
   // Batched uid → name fetch into the shared cache. Used by any surface
   // that has uids but no names — world takes carry `authorUid` and no
