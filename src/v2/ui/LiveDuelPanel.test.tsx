@@ -36,6 +36,17 @@ const LIVE = vi.hoisted(() => {
     // day and a seeded history would put dots under all of them.
     revealHistory: () => [] as Array<Record<string, unknown>>,
     loadRevealHistory: async (gid: string) => { void gid; },
+    // The create-or-join pair. Both take the display name as an OPTIONAL
+    // third argument since D190 — the screen sends one only when it had to
+    // ask, and the callable reads the profile otherwise.
+    createGroup: async (name: string, mode: string, displayName?: string) => {
+      void name; void mode; void displayName;
+      return { gid: "g_new", inviteCode: "AAAA1111" };
+    },
+    joinGroup: async (code: string, displayName?: string) => {
+      void code; void displayName;
+      return { gid: "g_new", name: "Test" };
+    },
     voteDuel: async (gid: string, idx: number, guess?: number) => { void gid; void idx; void guess; },
     setDuoMode: async (gid: string, m: string) => { void gid; void m; },
     romanticPoolReady: () => false,
@@ -70,9 +81,19 @@ const LIVE = vi.hoisted(() => {
     acceptInvite: async (gid: string) => ({ gid, name: "Test" }),
     declineInvite: async (gid: string) => { void gid; return { ok: true }; },
   };
-  return { enabled: true, uid: "u_me", social, subscribe: () => () => {} };
+  // `displayName` is the account's own name (D190). The create screen READS
+  // it now instead of asking for one, so the default here is the ordinary
+  // case — an account that has been through the first-run screen.
+  return {
+    enabled: true, uid: "u_me", social, subscribe: () => () => {},
+    displayName: "Olaf",
+    saveDisplayName: async (n: string) => { void n; },
+  };
 });
-vi.mock("../data/live", () => ({ default: LIVE, TAKE_MAX_CHARS: 280 }));
+// `localName` is the store's device mirror of that name — the create
+// screen's fallback while the profile hydrates. "" here, so these cases
+// read the profile and nothing else.
+vi.mock("../data/live", () => ({ default: LIVE, TAKE_MAX_CHARS: 280, localName: () => "" }));
 
 const { default: LiveDuelPanel } = await import("./LiveDuelPanel");
 
@@ -576,6 +597,56 @@ describe("LiveDuelPanel · the rail", () => {
     render(<LiveDuelPanel mode="group" />);
     expect(screen.queryByRole("button", { name: /Create a group/i })).toBeNull();
     expect(screen.getByRole("button", { name: /^Create$/ })).toBeTruthy();
+  });
+});
+
+// ── the create screen does not ask for your name (D190) ────────────
+//
+// It did, in a field above the circle's name, and that was reported from a
+// device: the name is set at sign-in and belongs to the account, so a
+// screen that asks again is one that has not been told. What it keeps is
+// the BACKUP — the setup screen is skippable and its "asked already" flag
+// is per device, so an account with no name is a state that survives, and
+// a reveal with a blank where a name goes is worse than one more field.
+describe("LiveDuelPanel · your name is the account's, not this screen's", () => {
+  beforeEach(() => { LIVE.social.groups = () => []; });
+  afterEach(() => { LIVE.displayName = "Olaf"; });
+
+  it("asks only for the circle's name when the account has one", () => {
+    render(<LiveDuelPanel mode="group" />);
+    expect(screen.queryByPlaceholderText(/Your name/i)).toBeNull();
+    expect(screen.getByPlaceholderText(/Group name/i)).toBeTruthy();
+  });
+
+  it("creates without re-sending a name the profile already holds", async () => {
+    // undefined, never "": createGroupV2's callerName reads the profile
+    // when the client sends nothing, and an empty string would overwrite
+    // the name it is standing in for.
+    const create = vi.fn(async () => ({ gid: "g9", inviteCode: "AAAA1111" }));
+    LIVE.social.createGroup = create;
+    render(<LiveDuelPanel mode="group" />);
+    fireEvent.change(screen.getByPlaceholderText(/Group name/i), { target: { value: "Book Club" } });
+    fireEvent.click(screen.getByRole("button", { name: /^Create$/ }));
+    await waitFor(() => expect(create).toHaveBeenCalledWith("Book Club", "group", "Olaf"));
+  });
+
+  it("falls back to the field for an account that has no name at all", async () => {
+    LIVE.displayName = "";
+    const save = vi.fn(async (n: string) => { void n; });
+    const create = vi.fn(async () => ({ gid: "g9", inviteCode: "AAAA1111" }));
+    LIVE.saveDisplayName = save;
+    LIVE.social.createGroup = create;
+    render(<LiveDuelPanel mode="group" />);
+
+    const field = screen.getByPlaceholderText(/Your name/i);
+    expect(field, "the backup went with the field").toBeTruthy();
+    fireEvent.change(field, { target: { value: "Olaf" } });
+    fireEvent.change(screen.getByPlaceholderText(/Group name/i), { target: { value: "Book Club" } });
+    fireEvent.click(screen.getByRole("button", { name: /^Create$/ }));
+    // …and it lands on the ACCOUNT, so the next screen that needs a name
+    // has one and this fallback is never seen again.
+    await waitFor(() => expect(save).toHaveBeenCalledWith("Olaf"));
+    expect(create).toHaveBeenCalledWith("Book Club", "group", "Olaf");
   });
 });
 

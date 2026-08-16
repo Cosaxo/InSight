@@ -16,6 +16,8 @@ import PLACES from '../data/places';
 import { SCENES } from './scenes.js';
 // The rings-and-you drawing every empty surface shows now (D172).
 import EmptyField from '../ui/EmptyField.tsx';
+// "Open the topic list" — the ask this card's one button makes (D190).
+import { requestTopicSheet } from '../data/topicSheet.ts';
 // The vitals vocabulary and the anchor mapping, in their own module since
 // D151 — the Basics card below and ui/LiveProfileSetup.tsx (the
 // account-creation questions) must ask with the same words, and
@@ -468,8 +470,14 @@ import {
       // labelled. Same shape the empty Circle and Groups stops take now:
       // draw the thing, say one line, offer the one action that cannot
       // happen by itself.
+      //
+      // AND THE DOOR OPENS ONTO THE LIST, not onto the room it is in
+      // (D190). It used to jump to the daily feed and stop there, which is
+      // one search short of what the label promises \u2014 reported from a
+      // device as exactly that. `requestTopicSheet` is the ask; the feed
+      // owns the list and answers it, mounted or not.
       return (
-        <EmptyField action={{ label: 'Pick topics \u2192', nav: 'track:world' }}>
+        <EmptyField action={{ label: 'Pick topics \u2192', nav: 'track:world', prime: requestTopicSheet }}>
           Every topic runs in your feed until you narrow it.
         </EmptyField>
       );

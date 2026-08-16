@@ -2022,7 +2022,10 @@ describe("handles: the account registry (D122)", () => {
     await assertFails(setDoc(doc(asUser(STRANGER), "v2_handles", "olaf"), { uid: STRANGER }));
     // …and the denial-of-service one: freeing someone else's.
     await assertFails(deleteDoc(doc(asUser(STRANGER), "v2_handles", "olaf")));
-    // Not even your own — claimHandleV2 owns the release half of a rename.
+    // Not even your own. Since D190 there is no rename to free it FOR — a
+    // handle is claimed once and claimHandleV2 refuses a change — so a
+    // client delete here is the only path left that could orphan an
+    // address someone has already been handed.
     await assertFails(deleteDoc(doc(asUser(OWNER), "v2_handles", "olaf")));
   });
 

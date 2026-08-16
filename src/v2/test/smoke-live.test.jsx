@@ -516,7 +516,12 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     fireEvent.click(screen.getByRole("button", { name: /^mirror$/i }));
     fireEvent.click(screen.getByRole("tab", { name: "Groups" }));
     await act(async () => { for (let i = 0; i < 60; i++) await Promise.resolve(); });
-    expect(screen.getByText(/revealed with names the morning after/i)).toBeTruthy();
+    // findBy, not getBy: this body became a React.lazy chunk at D190 (the
+    // eager graph was 2 KB off its ceiling), so "the tab is open" and "the
+    // body has rendered" are separated by a dynamic import whose duration
+    // is the machine's — the same race Circle's case below documents, and
+    // the same fix.
+    expect(await screen.findByText(/revealed with names the morning after/i, {}, { timeout: 3000 })).toBeTruthy();
     expect(screen.queryByText(/No groups yet/i),
       "Groups still answers an empty stop with a headline").toBeNull();
     // The one action a field cannot fill by itself survives the trim.
@@ -544,11 +549,26 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     // purpose: against the null fallback this assertion is vacuously
     // true, so it only says something once the real body is in the DOM.
     expect(screen.queryByText(/aren.t built yet/i)).toBeNull();
+    // THE READINGS ARE BEHIND THE STOP'S OWN ROW SINCE D190, which is what
+    // every other Mirror stop does — so this walks the row rather than
+    // reading a page. The tabs themselves are the first assertion: a stop
+    // whose row failed to render would fail here rather than at a missing
+    // percentage twenty lines on.
+    expect(screen.getAllByRole("tab").map((t) => t.textContent))
+      .toEqual(expect.arrayContaining(["Answers", "People", "Compare"]));
+
+    fireEvent.click(screen.getByRole("tab", { name: "People" }));
     // The row's own mark, not the header's "1 of them follows you back".
     expect(screen.getByText(/^· follows you$/)).toBeTruthy();
     expect(screen.getByText("50%")).toBeTruthy();
-    // And the fold: where the circle splits, counted over answerers.
-    expect(screen.getByText(/Where your circle splits/i)).toBeTruthy();
+
+    // And the fold: where the circle splits, counted over answerers. With
+    // one member there is no split to draw — two answers is the floor for
+    // one to mean anything — so the tab says which floor it is waiting on,
+    // which is the same sentence the section used to carry under its
+    // heading.
+    fireEvent.click(screen.getByRole("tab", { name: "Answers" }));
+    expect(screen.getByText(/Fills in once two of them answer the same question/i)).toBeTruthy();
   });
 
   // D98's payoff, in the only test that executes a render of it inside the

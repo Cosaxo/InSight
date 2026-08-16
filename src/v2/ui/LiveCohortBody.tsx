@@ -52,6 +52,9 @@ const SimilaritySection = React.lazy(() => import("./LiveSimilarityField"));
 // The tab row (D119) — static, because it IS the stop's navigation and a
 // suspense gap where the tabs should be is a stop that looks broken.
 import MirrorLensTabs from "./MirrorLensTabs";
+// The row's own scroll-into-view, shared with the three other stops that
+// have a row (D190).
+import { useLensRowScroll } from "./lensRowScroll";
 // The Answers tab's list, in the prototype's row design (D120). An
 // ordinary import, not lazy: this body IS the default tab, and it rides
 // this module's own lazy chunk (D119) either way.
@@ -125,33 +128,17 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
   // check:globals, and the tab-open tests assert the panel MOUNTS, which it
   // did. Reported from a device, which is the only place it was visible.
   //
+  // The effect is ONE effect now (D190, ui/lensRowScroll.ts): this file and
+  // NearLiveBody each carried their own, and Circle and Groups getting rows
+  // would have made it four copies of something that has already been wrong
+  // once.
+  //
   // Keyed on `tab` rather than the derived `openTab` because this has to be
   // a hook and `openTab` is computed past the `needsCity` early return.
   // They agree in practice: setTab is only ever called with an id from
   // `tabs`, and mirror-tab keys this body per scope, so a tab cannot
   // survive into a scope that lacks it.
-  React.useEffect(() => {
-    if (!tab || !rowRef.current) return;
-    const row = rowRef.current;
-    // The scroller is the app's (.app-body), not ours — walk up to it, and
-    // take the first ancestor that both overflows and can actually scroll.
-    let sp: HTMLElement | null = row.parentElement;
-    while (sp && !(sp.scrollHeight > sp.clientHeight && /(auto|scroll)/.test(getComputedStyle(sp).overflowY))) {
-      sp = sp.parentElement;
-    }
-    if (!sp) return;
-    const scroller = sp;
-    // 60ms, the prototype's own number. The panel mounts in the same commit
-    // as the tab flip, so measuring now measures the row before the body it
-    // is about to sit above exists — and scrolls to a position that stops
-    // being right one frame later.
-    const t = setTimeout(() => {
-      const top = row.getBoundingClientRect().top
-        - scroller.getBoundingClientRect().top + scroller.scrollTop - 12;
-      scroller.scrollTo({ top, behavior: "smooth" });
-    }, 60);
-    return () => clearTimeout(t);
-  }, [tab]);
+  useLensRowScroll(tab, rowRef);
 
   const city = LIVE.myCity;
   const place = city ? PLACES.parse(city) : null;

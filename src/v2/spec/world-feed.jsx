@@ -25,6 +25,9 @@ import { Sheet } from './primitives.jsx';
 // rather than a copy of it (D11's claim, D42's citation; see the module).
 import { interleaveFeed, partitionAnswered } from '../data/feed-interleave.ts';
 import { deferUntil, isDeferred, pruneDeferred } from '../data/deferQueue.ts';
+// "Somebody asked for the topic list" (D190). The profile's scenes card is
+// the caller; this file owns the list, so this file is what answers.
+import { consumeTopicSheet, subscribeTopicSheet } from '../data/topicSheet.ts';
 // The live world-takes surface (D83) — an ordinary ESM import of the typed
 // panel, like the data imports above, so the D39 coupling meter stays flat.
 import LiveTakesPanel from '../ui/LiveTakesPanel.tsx';
@@ -270,6 +273,15 @@ class WorldFeed extends React.Component {
     this.applySnap(); this._retry = setTimeout(() => this.applySnap(), 400);
     // scenes followed elsewhere (orbit, suggestion card) appear here live
     this._unsubScenes = SCENES.subscribe(() => this.forceUpdate());
+    // The topic list, asked for from somewhere else (D190). BOTH halves are
+    // needed and neither is redundant: arriving from the Mirror tab mounts
+    // this component fresh (the request is waiting, so the mount consumes
+    // it), while the profile opened OVER the daily tab leaves it mounted
+    // throughout — there `goNav` closes an overlay and switches nothing,
+    // and only the subscription fires.
+    this._openTopics = () => { if (consumeTopicSheet()) this.setState({ sheet: { panel: 'add' } }); };
+    this._openTopics();
+    this._unsubTopics = subscribeTopicSheet(this._openTopics);
     // Reconcile with the live store. The feed seeds its votes from
     // localStorage at mount and never looked at LIVE again, so a vote the
     // server REFUSED — LIVE rolls it back and scrubs the WF_LS mirror —
@@ -360,6 +372,7 @@ class WorldFeed extends React.Component {
     clearTimeout(this._rippleT);
     clearTimeout(this._ehT);
     if (this._unsubScenes) this._unsubScenes();
+    if (this._unsubTopics) this._unsubTopics();
     if (this._unsubLive) this._unsubLive();
     if (this._unsubSubs) this._unsubSubs();
     if (this._unsubLearn) this._unsubLearn();

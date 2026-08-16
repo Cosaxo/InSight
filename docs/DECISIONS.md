@@ -19281,3 +19281,184 @@ swapped in both directions — noise from the same cause, not a colour miss."
 That note was written about ONE known case and filed under deliberate
 divergences. It was a general defect in the join, and reading it as a
 special case is how it survived to produce a confident, wrong finding.
+
+## D190 · Your name and your handle belong to the account, the topic list opens onto the topics, and Circle and Groups get their row
+
+**2026-08-16.** Five faults, reported from a device against a build that
+predates D188 (its screenshots show `Answers · People · Compare · Scores`,
+the pre-D188 order). One of them was therefore already fixed; the other
+four were not, and one of them is the feature D188 explicitly recorded as
+still missing.
+
+### 1 · The create-a-circle screen asked for a name the account already had
+
+> *"You should not put in your name when making a 1v1 — that should have
+> been set up in the sign in, and make a backup if not."*
+
+`LdOnboard` had a **Your name (what friends see)** field above the
+circle's own name, and it asked on every first run of both modes. The
+name is a fact about the ACCOUNT — `createGroupV2`'s `callerName` already
+falls back to `v2_users/{uid}.displayName` when the client sends nothing —
+so the field was a form asking for something the app could look up.
+
+Where it moved: **`LiveProfileSetup`**, the first-run screen D151 built for
+exactly this argument one level down (the anchors belong to the account, so
+ask once, at the top). The create screen reads `LIVE.displayName`, falling
+back to this device's mirror of it, and sends `undefined` rather than `""`
+when it has one — an empty string would overwrite the name it is standing
+in for.
+
+**The backup is not decoration.** `profileSetupSeen` is per DEVICE and the
+setup screen is skippable in one tap, so "an account with no name" is a
+state that survives. The field appears only then, and what it saves goes to
+the ACCOUNT (`saveDisplayName`), so the fallback is seen once and never
+again.
+
+The device mirror (`insight.displayName.v1`) had two writers and was about
+to get a third. It has one now — the store, in `saveDisplayName` — and one
+reader that needs it before hydration (`localName`, exported from
+`data/live.ts`). It is swept by `purgeLocalTrace` like every `insight.` key,
+so a uid change cannot leave the previous account's name behind (D51).
+
+### 2 · A handle could be changed, which means it could be taken
+
+> *"Same with handle: set on first sign in and is unchangeable."*
+
+`claimHandleV2` implemented a rename — take the new key, release the old
+one, one transaction — and the account panel offered it as a **Change**
+button. The transaction was correct. The rule was not: a handle is the
+ADDRESS a person hands out ("add me, I'm @olaf"), and D122 made it the
+primary way into a circle. Releasing it puts that address back in the pool
+the same minute, so an invitation typed a day later reaches a stranger and
+the account that answered to it answers to nothing.
+
+So: **claimed once.** The callable refuses a change with
+`failed-precondition` before it touches the registry, the release
+(`tx.delete(prev)`) is gone with it, and re-claiming the SAME handle stays
+a no-op because a client retries on a dropped response. The panel draws the
+handle as a fact with "It can't be changed" under it and offers the claim
+control only to an account that has none; the first-run screen says "picked
+once" before the tap.
+
+**The two costs are accepted, not overlooked**: a typo is permanent, and
+there is no way back from a name you have outgrown. That is why the claim
+moved to the first-run screen — a decision made deliberately beats one
+found in a settings panel — and why every surface that offers it says
+"once" first.
+
+The e2e loop grew four checks (§13): the claim folds and registers, a
+re-claim of the same handle is a no-op, a change is refused **and leaves
+both registry entries exactly as they were**, and somebody else's handle is
+still somebody else's. `firestore.rules` already refused every client write
+to `v2_handles` and to `v2_users.handle`; what was missing was a test of
+the one path that can move one.
+
+### 3 · "Pick topics →" navigated to the feed and stopped there
+
+The profile's scenes card, with nothing followed, draws the empty field and
+one button. It called `goNav('track:world')`, which closes the profile and
+lands you in the daily feed — one search short of what the label promises.
+
+The list it means is the feed's own **Add a topic** sheet, and that is where
+it stays: the sheet is built from the feed's pool (questions per topic, how
+many you have answered) and carries the mute the chip row has, so a copy in
+the profile would be a second list to keep in step — against D173, which
+made the sheet the one place a topic is tuned.
+
+`data/topicSheet.ts` is the ask: a one-shot `requestTopicSheet` /
+`consumeTopicSheet` pair with a subscription, the same shape as
+`consumeJoinCode` (links.ts) and for the same reason — a flag that stays set
+is a sheet that reopens the next time anything mounts. **Both halves of the
+delivery are load-bearing**: arriving from the Mirror tab mounts the feed
+fresh (the mount consumes the request), while the profile opened OVER the
+daily tab leaves it mounted throughout, where `goNav` closes an overlay and
+switches nothing — there only the subscription fires.
+
+A module rather than a `window.` flag: both ends are spec-layer `.jsx`, and
+a shared global read from them is exactly what `check:globals` rule 4
+counts and refuses to let grow (409, unchanged).
+
+### 4 · The tab row's height — already fixed, and worth saying so
+
+> *"The bottom tab with People, Compare should be exactly equally far down
+> — noticed some are too high."*
+
+This is D188, shipped hours earlier: the row floated 50px clear of the tab
+bar on City/Country/World and 80px on Near, against the prototype's 20px on
+every stop, because the live bodies added 26px of their own padding under a
+row already pushed as far down as it could go. The screenshots show the
+pre-D188 tab ORDER, which is what dates them. Nothing further was needed —
+verified by reading the frame both bodies now carry (`padding: "4px 16px 0"`,
+`flex: 1 0 auto` column, `marginTop: auto` on the row), and the two new rows
+below are built to the same recipe rather than to a new one.
+
+### 5 · Circle and Groups had no row at all
+
+> *"…and Group and Circle should have them even when empty."*
+
+D188 recorded this precisely: *"Circle and Groups have no row at all in live
+mode. The prototype gives both `Answers · People · Compare`… That is a
+missing feature, not a misplaced one — three tab bodies each over a
+population this tree does not yet fold — and it is not what was reported."*
+It is what was reported now.
+
+Both stops get the three, and neither needed a new source — each tab is a
+different cut of the fold the stop was already computing:
+
+| Stop | Answers | People | Compare |
+| --- | --- | --- | --- |
+| **Circle** | where your circle splits (`circleSplit`, most divided first) | the members, with likeness and Unfollow | `CompareLens` over the same splits |
+| **Groups** | what the group landed on, per revealed day | who runs closest to you, with the constellation | `CompareLens` over each revealed day (`lgCompareQs`) |
+
+`CompareLens` was exported at D177 so the Near room could read exactly the
+way a cohort stop does; this is the second and third caller, and both get
+D170's majority test for free. `LensQuestion.all` is `[]` in both — it is the
+GLOBE, only Explore reads it, and Explore is not a tab here (a circle of
+nine cut by age band is cohorts of one). An honest empty beats the stop's
+own counts wearing the globe's name, which is the mislabel D170 had to
+repair.
+
+**And the row draws when the stop is empty**, which is what was asked for:
+over the empty field on a circle with nobody in it, and over the
+Start-a-group field with no groups at all. Same argument D160 made for
+drawing an empty field — a stop whose navigation appears with its data
+reads as one that was never built, to exactly the account that has none.
+Two refusals stand: a **failed** circle read draws its retry sentence and no
+tabs, and Near still draws none while the counter is off.
+
+### The bundle, which paid for itself
+
+`LiveGroupsMirrorBody` is a static import in `mirror-tab` and the eager
+graph had 4 KB of headroom; the row and its tabs took 2 of them. So the
+Groups body follows Circle (D101) and Cohort (D119) into a `React.lazy`
+chunk, on the same merit those two had: the Mirror opens on You, Groups is
+three stops along, and the fetch overlaps a network round trip the stop was
+going to make anyway.
+
+| | eager | total |
+| --- | --- | --- |
+| before | 974 KB | 2325 KB |
+| after, Groups still eager | 976 KB | 2330 KB |
+| after, Groups deferred | **964 KB** | 2331 KB |
+
+Ceiling 978 / 2334. Headroom went from 4 KB to 14 KB.
+
+### One more thing that was four copies
+
+`useLensRowScroll` (`ui/lensRowScroll.ts`) is the "opening a tab walks the
+row to the top of the scroller" effect, which `LiveCohortBody` and
+`NearLiveBody` each carried a slightly different version of — Near walked
+up on height alone, the cohort's on `overflowY` as well — and which D155
+shipped a THIRD state of: the ref was declared, the ref was attached, and
+nothing read it, so the row pinned correctly and the panel stayed below the
+fold on every cohort stop. Circle and Groups would have made it four copies
+of a thing that has already been wrong once. All four use the one hook now,
+reconciled in the cohort version's favour.
+
+**Verified:** unit 1,241 (80 files), functions 228, `test:rules` 106,
+`test:e2e` (the full loop, including the four new handle checks), `tsc -b`
+in both trees, `lint`, `check:globals` (409, baseline 409), `:labels`
+`:a11y` `:figures` `:public-copy` `:policy-claims` `:data-inventory`
+`:quality`, and `check:bundle` on a shipping build (964 / 2331 against
+978 / 2334). `test:e2e:erasure` and `:moderation` were not run — neither
+touches a handle, a display name or a Mirror row.

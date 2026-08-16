@@ -147,9 +147,16 @@ profile readable, so following conveys no access and needs no request,
 acceptance or notification. One-way, like a subscription; mutual follows
 are a reading the client derives, not a state the server keeps.
 
-The stop draws the accounts you follow ranked by likeness, and under them
-the questions your circle is most split on (`circleSplit`, which counts
-members only — the opposite of the Map's `typicality`, and §5 says why).
+The stop draws the accounts you follow ranked by likeness, and — since
+D190 — reads them through the same row every other stop carries:
+**Answers** is the questions your circle is most split on (`circleSplit`,
+which counts members only — the opposite of the Map's `typicality`, and
+§5 says why), **People** is the members themselves, and **Compare** is
+`CompareLens` over that same fold, which is what it was exported for at
+D177. The row draws on an empty circle too, over the empty field: a stop
+whose tab bar arrives with its data reads as unfinished to exactly the
+account that has none.
+
 Follows start in exactly two places: a question's who-voted sheet, and
 the People lens's Kindred rows. Both are screens where a uid has already
 become a person with a reading attached.
@@ -160,6 +167,12 @@ the viewer can already read, over the last fortnight
 (`REVEAL_HIST_DAYS`) — every number is one the user could recompute from
 the reveals themselves. Duos are excluded on purpose: with two voters,
 "with the majority" is always true and the ring would read 100% forever.
+Since D190 the two cards are tabs — **Answers** (what the group landed
+on, one row per revealed day) and **People** (who runs closest to you) —
+with **Compare** beside them, folding each revealed day into a
+`LensQuestion` so the same `CompareLens` the cohort stops and Near use
+can put you against the group. Same as Circle: the row is there with no
+group at all, above the field and its Start-a-group door.
 What the demo body showed and this one does not — trait axes, compare
 populations, "how they see you" crowns — is unbuilt rather than refused
 since D98: the members' answers and test results are all readable now.
@@ -375,6 +388,23 @@ each run on the tap that asks for them and never because the stop was
 opened. The bodies behind the row are lazy chunks; the row itself is
 not, because a suspense gap where the navigation should be is a stop
 that looks broken.
+
+**Every stop with a population has the row now (D190).** D188 measured its
+geometry on the five that had one and recorded the gap it did not close —
+"Circle and Groups have no row at all in live mode… a missing feature, not
+a misplaced one". They have one: `Answers · People · Compare`, the three
+`group-mirror.jsx` gives the demo twins, drawn under the same
+`marginTop: auto` frame so the row lands at the same height on all seven.
+Neither stop invents a source for it — each tab is a different cut of the
+fold that stop was already computing, and Compare is the shared
+`CompareLens` in both. The two ends of the row are still the stop's own
+business: **Scores** and **Explore** need a published breakdown and a
+"everyone" baseline, and a circle of nine has neither.
+
+Where a row is refused, it is still refused for a reason: a **failed**
+circle read draws the retry sentence and no tabs (three empty readings of
+a circle nobody could load would bury it), and Near draws no row while the
+counter is off, because with no room there is nothing to have tabs about.
 
 ## 4 · The passive half: tests that fill themselves
 

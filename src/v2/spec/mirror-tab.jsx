@@ -14,9 +14,8 @@ import { bindSwipeBack } from './swipe-back.js';
 // the guard could only ever be false during a load-order accident that
 // an import makes impossible. The data conditions beside them (`liveGeo`,
 // the stop id) are unchanged, because those guard data, not loading.
-import LiveGroupsMirrorBody from '../ui/LiveGroupsMirrorBody';
 import NearLiveBody from '../ui/NearLiveBody';
-// Two of them load AFTER first paint, and the reason is the bundle budget
+// Three of them load AFTER first paint, and the reason is the bundle budget
 // rather than taste.
 //
 // Circle went first: it and data/circle.ts added 11 KB to the entry chunk,
@@ -24,15 +23,18 @@ import NearLiveBody from '../ui/NearLiveBody';
 // left 3 KB of headroom under so that the next eager addition would have to
 // defer instead of argue. Cohort followed at D119, when the stop's tab row
 // spent the eager graph's last kilobyte (check:bundle, MAX_EAGER_KB).
+// Groups followed at D190, when giving it that row put the eager graph 2 KB
+// off the ceiling — the rule this comment describes, applied to itself.
 //
-// Both are also the right ones to defer ON THE MERITS, for one reason: the
-// Mirror opens on You (the Map). Circle is two stops along and City three,
-// and each needs a network round trip of its own before it can render
-// anything, so the chunk fetch overlaps work the stop was going to do
-// regardless. Deferring the Map or Near would not be — those are what the
-// tab opens with.
+// All three are also the right ones to defer ON THE MERITS, for one reason:
+// the Mirror opens on You (the Map). Circle is two stops along, Groups
+// three and City four, and each needs a network round trip of its own
+// before it can render anything, so the chunk fetch overlaps work the stop
+// was going to do regardless. Deferring the Map or Near would not be —
+// those are what the tab opens with.
 const LiveCircleBody = React.lazy(() => import('../ui/LiveCircleBody'));
 const LiveCohortBody = React.lazy(() => import('../ui/LiveCohortBody'));
+const LiveGroupsMirrorBody = React.lazy(() => import('../ui/LiveGroupsMirrorBody'));
 
 // mirror-tab.jsx — MIRROR: one tab, one verb — see yourself against a population.
 // One telescope, seven stops, from fully retracted to fully extended:
@@ -326,7 +328,12 @@ function MirrorTab({ onPerson, pop, onPop, worldZoom, onZoom, firstRun, topNav, 
   } else if (isGroupsLive) {
     body = (
       <div key="groups-live" className="tab-swap mf-flex" style={{ overflowY: 'auto' }}>
-        <LiveGroupsMirrorBody />
+        {/* null fallback, not a spinner — same reasoning as Circle's and
+            Cohort's: the body's own first frame is its header and tab row,
+            and a spinner in front of that is one loading state too many. */}
+        <React.Suspense fallback={null}>
+          <LiveGroupsMirrorBody />
+        </React.Suspense>
       </div>
     );
   } else if (isGroups) {

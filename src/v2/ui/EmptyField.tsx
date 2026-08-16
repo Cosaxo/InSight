@@ -50,10 +50,17 @@ export default function EmptyField({ caption, children, action }: {
    * the call sites are spec-layer `.jsx`, where `window.goNav` counts as
    * new shared-global coupling and `check:globals` rule 4 only moves down.
    * One typed reader for all of them keeps the meter flat.
+   *
+   * `prime` runs BEFORE the jump, for a door that has to land on something
+   * in particular rather than on a tab (D190): the topics button asks the
+   * feed to open its topic sheet, and the feed reads that on the mount the
+   * jump causes. Before, never after — the screen it lands on is already
+   * looking by the time this returns.
    */
-  action?: { label: string; nav: string };
+  action?: { label: string; nav: string; prime?: () => void };
 }) {
   const go = () => {
+    if (action!.prime) action!.prime();
     const w = window as unknown as { goNav?: (k: string) => void; goTab?: (t: string) => void };
     if (w.goNav) w.goNav(action!.nav);
     else if (w.goTab) w.goTab(action!.nav.split(":")[0]);

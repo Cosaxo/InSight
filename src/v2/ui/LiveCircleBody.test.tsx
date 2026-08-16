@@ -18,7 +18,7 @@
 // circle of one on purpose (it exercises the filled shape), and emptying
 // it from outside is fighting the fixture to test a component.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 
 const LIVE = vi.hoisted(() => ({
   enabled: true,
@@ -77,5 +77,64 @@ describe("LiveCircleBody · an empty circle is a field, not a paragraph", () => 
     render(<LiveCircleBody />);
     expect(screen.getByText(/Loading your circle/i)).toBeTruthy();
     expect(screen.queryByText(/Couldn’t load/i)).toBeNull();
+  });
+});
+
+// ── the stop has a tab row now (D190) ────────────────────────────────
+//
+// D188 measured the row on every stop that had one and recorded that this
+// one had none: "a missing feature, not a misplaced one". The stop's three
+// readings — who is here, what they split on, you against them — were one
+// long scroll; they are Answers · People · Compare now, and the row draws
+// on an empty circle too. A row that appears only once there is data is a
+// stop that reads as unfinished to exactly the account that has none.
+describe("LiveCircleBody · the row is the stop's, not the data's", () => {
+  const MEMBER = {
+    uid: "u_ada", name: "Ada", mutual: true,
+    like: { pct: 80, same: 4, shared: 5 },
+    answers: {},
+  };
+  const tabNames = () => screen.getAllByRole("tab").map((t) => t.textContent);
+  const openTab = (label: string) =>
+    fireEvent.click(screen.getByRole("tab", { name: label }));
+
+  it("draws Answers · People · Compare with people in the circle", () => {
+    LIVE.circle = () => [MEMBER];
+    render(<LiveCircleBody />);
+    expect(tabNames()).toEqual(["Answers", "People", "Compare"]);
+  });
+
+  it("draws the same row on an empty circle, over the empty field", () => {
+    LIVE.circle = () => [];
+    const { container } = render(<LiveCircleBody />);
+    expect(tabNames()).toEqual(["Answers", "People", "Compare"]);
+    expect(container.querySelector("svg"), "the empty circle lost its field").toBeTruthy();
+  });
+
+  it("draws NO row for a failed read, where it has nothing to offer", () => {
+    // Three readings of a circle nobody could load is three empty states
+    // for one failure, and it would hide the retry sentence under them.
+    LIVE.circle = () => null;
+    render(<LiveCircleBody />);
+    expect(screen.queryAllByRole("tab")).toHaveLength(0);
+  });
+
+  it("opens on nothing, and a second tap closes what it opened", () => {
+    LIVE.circle = () => [MEMBER];
+    render(<LiveCircleBody />);
+    expect(screen.queryByRole("tabpanel")).toBeNull();
+    openTab("People");
+    expect(screen.getByText("Ada")).toBeTruthy();
+    openTab("People");
+    expect(screen.queryByRole("tabpanel")).toBeNull();
+  });
+
+  it("says why a tab is empty rather than drawing nothing", () => {
+    LIVE.circle = () => [];
+    render(<LiveCircleBody />);
+    openTab("People");
+    expect(screen.getByRole("tabpanel").textContent).toMatch(/a follow is one tap/i);
+    openTab("Answers");
+    expect(screen.getByRole("tabpanel").textContent).toMatch(/Fills in once two people you follow/i);
   });
 });
