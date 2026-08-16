@@ -18408,9 +18408,158 @@ functions 228, every non-Java gate, bundle 2,320 KB / 969 KB eager against
 authoring environment did not have — unrun here, and neither touches
 client copy.
 
----
+## D184 · Build 19's pre-flight: this time neither edit happened
 
-## D184 · Crossroads gets a brief, and the gates learn what a story is
+**Decided:** 2026-08-16 · **Status:** binding · Seventh release pre-flight
+(D130, D142, D143, D153, D158, D180). Bumps `appBuild` 18 → 19. **The bump
+is the finding again**, and the reason it is the finding has moved.
+
+### The comparison, made against the runs
+
+`ios-release.yml` has **26 runs**, not the 24 D180 recorded. Two landed on
+2026-08-16 after that entry was written:
+
+| Run | Id | Sha | Dispatched | Step 17 `Upload to App Store Connect` |
+| --- | --- | --- | --- | --- |
+| 25 | `31954391079` | `810b3af` | 15:01:04Z | **`skipped`** — the dry run |
+| 26 | `31954752095` | `810b3af` | 15:08:19Z | **`success`** — 15:13:07Z → 15:14:46Z, 1m 39s of transfer |
+
+Same commit, seven minutes apart: the third pair of this shape after runs
+15/16 and 23/24, and again both runs are `success` at the **job** level
+while only one of them spent a number. `appBuild` at `810b3af` — read at
+the run's own `head_sha`, per D159 — was **18**. So build 18 is spent.
+
+`appBuild` in the tree was **18**. Eighteen is not greater than eighteen,
+so runbook 2.4's question answers **bump, then run**. Done by hand, 18 →
+19, then `check:versions --fix` carried it to `versionCode` 19 and both
+`CURRENT_PROJECT_VERSION` entries. (`--fix` propagates; it does not
+increment. D158's note, load-bearing for the third time.)
+
+### The fourth skip, and it is not D180's shape either
+
+The post-upload bump has now been skipped after runs 18, 19, 24 and 26 —
+four against three that held (20, 21, 22). But this one is not the failure
+D180 diagnosed, and the difference is the whole entry.
+
+D180 found that **the record and the number are two different edits**, and
+that a session can discharge the first while leaving the second: commit
+`5798623` returned to the tree *specifically to record* run 24 and left
+`appBuild` at 17. The proposed remedy followed from that shape — *if
+LAUNCH-RUNBOOK claims build N was uploaded, then `appBuild` must be
+greater than N* — recorded there as the yield, unbuilt, for whoever took
+it next.
+
+**Here neither edit happened.** `grep` across `docs/` finds no mention of
+run 25, run 26, either run id, or build 18 having been uploaded. No record
+was written at all. The tree was returned to twice after the upload
+finished at 15:14:46Z — #201 merged 15:51Z and #202 merged 16:48Z, 37
+minutes and 93 minutes later — and neither had any reason to think about a
+build number, because neither was about the release.
+
+**So D180's gate would not have fired.** It keys on a claim in the runbook,
+and the claim is exactly what is missing; an invariant conditioned on the
+record is silent in the case where the record is the thing that was
+skipped. That is not an argument for a different gate so much as a
+correction to the one that was left half-designed — the sound version keys
+on the **run list**, which no gate in this tree can read (D73's shape, one
+layer out). Still not built here, and now for a second reason: it is a
+release pre-flight, the wrong moment to add a gate that can go red on
+wording, *and* the cheap local form of it has now been shown not to cover
+the observed failure.
+
+**What the four skips have in common is not inattention.** Runs 18, 19 and
+24 were followed by sessions doing release paperwork; run 26 by sessions
+doing feature work. The constant is that the bump depends on someone
+holding a fact that lives in App Store Connect, and nothing in the tree
+carries it between sessions. The only thing that has ever worked is
+reading the run list before dispatching — which is a procedure, and is why
+this file keeps recording the procedure rather than a fix.
+
+### What build 19 carries that 18 did not
+
+**A pure JavaScript payload**, the first since build 16. Against run 26's
+commit, `git diff --stat 810b3af..HEAD` touches nothing under `ios/` or
+`android/`, neither lockfile, neither rules file, and neither store-filing
+file (`content/app-privacy.json`, `docs/STORE-FORMS.md`) — 57 files, +1367
+/ −609, all of it `src/`, `docs/` and `web/privacy.html`.
+
+The payload is **D181** — Near's similarity field drew the city it is not
+about, reported from a device an hour after D170–D179 deployed — and
+**D182/D183**, the copy pass: `visual > word > sentence > sentences`, with
+the long privacy disclosures moved out of the app into `web/privacy.html`
+behind the new `check:policy-claims` gate.
+
+**So the store filing does not move**, and runbook 4.4 stands at the nine
+rows D180 corrected it to. The window D180 named is still open and is
+unchanged by this build: the live App Store label still describes build
+17's data collection, TestFlight has no review gate so build 19 can go up
+against it, and App Store review cannot.
+
+**`VITE_REQUIRE_SIGNIN` is untouched and still defaults to `true`**, so
+build 19 is another TestFlight-shaped binary with the sign-in wall up.
+D134's fork — drop the wall or build Sign in with Apple — is not this
+pre-flight's to close, but SHIP-CHECKLIST's 4.8 reply remains unusable
+against this build, and that is worth knowing *before* a submission rather
+than during one.
+
+### The bundle, and the tight half moved the right way
+
+| | D158 (build 16) | D180 (build 18) | here (build 19) | ceiling |
+| --- | --- | --- | --- | --- |
+| total JS | 2278 KB | 2329 KB | **2321 KB** | 2334 |
+| eager graph | 961 KB | 975 KB | **970 KB** | 978 |
+| chunks | 75 | 78 | 78 | — |
+
+Measured on the shipping artifact — `CAPACITOR_BUILD=1`,
+`VITE_V2_LIVE=true`, `VITE_REQUIRE_SIGNIN=true`, non-empty
+`VITE_SENTRY_DSN`, `VITE_RELEASE_TAG` set — the way `ios-release.yml`
+builds it.
+
+**D180 ended on the eager graph at 975 against 978 — 3 KB — and named the
+answer as "trim, not raise", because that ceiling has a refusal history
+(D144, D152) where the total has a raise history.** The next change to land
+trimmed it. The copy pass took the eager graph to 970 and the total to
+2321 without anything being asked of it: 8 KB back on the half that could
+not have been widened. Recorded because the prediction and the outcome are
+one release apart, and because it is the first time the eager number has
+gone down on a release path.
+
+### Measured, not asserted
+
+**1216 client tests (80 files), 202 script (11), 228 function (8), 106
+rules (2)**; all three e2e suites green — the loop, erasure and moderation,
+each with `npm` exiting 0 and its own `Script exited successfully`. `lint`
+clean, `tsc -b` clean, and the `check:*` gates. `check:globals` reports
+**409** cross-module references across 42 files over 183 files scanned — at
+its baseline and unmoved, so the payload added no coupling.
+
+**D183 shipped with `test:rules` and the three e2e suites unrun**, because
+the authoring environment had no Java 21; its own closing paragraph says
+so. This environment has Java 21, so they were run here, and that gap is
+closed rather than inherited: **106 rules tests and three green e2e suites
+against the merged tree**, which is the first execution of either since
+#201 and #202 landed.
+
+The three environmental gates behave as D158 and D180 enumerated, and the
+third one bit again in the predicted way: **`check:web-firebase` reads
+`VITE_FIREBASE_*` and `VITE_V2_LIVE` from the *environment* as well as
+from `dist/`**, so invoking it in a shell that did not carry the build's
+env block fails it on a `dist/` that is correct. Re-run inside the env
+block: OK, live config inlined into **78** chunks. That is the gate's
+mechanism confirmed for the third entry running, and the third time
+someone has had to learn it from the failure text rather than the name.
+
+### What is NOT written here
+
+That build 19 is "pre-flighted and unspent". That sentence has been wrong
+three times (D130, D142, D143) and it is not storable — the run is
+dispatched *from* the commit that makes the claim. This entry records what
+run 26 **did**. Whoever dispatches next re-makes the comparison against
+the run list, reads `appBuild` at the run's own `head_sha` (D159), and
+reads the conclusion of **step 17** rather than of the run (runs 25/26 are
+the third worked example).
+
+## D185 · Crossroads gets a brief, and the gates learn what a story is
 
 **Decided:** 2026-08-16 · **Status:** binding · Owner direction:
 *"Crossroads right now feels a bit boring in the type of questions"*, then
