@@ -474,6 +474,27 @@ arithmetic.
       automated writer, and the window between merging a release commit and
       dispatching from it is no longer quiet.
 
+      **BUILD 18 WAS UPLOADED BY RUN 26** (`810b3af`, 2026-08-16 15:08Z,
+      6m 32s, upload step `success`, 1m 39s of it transfer). Run 25 is the
+      **same commit seven minutes earlier** with its upload step `skipped`
+      — the dry run — making it the third runs-15/16-shaped pair after runs
+      23/24.
+
+      **The bump after run 26 did not happen either, and neither did the
+      record.** That is four skips (runs 18, 19, 24, 26) against three that
+      held (20, 21, 22), and it is a different failure from D180's. There,
+      somebody came back *specifically to record* the upload and left the
+      integer; the proposed remedy followed that shape — a gate asserting
+      `appBuild` exceeds whatever build this file claims was uploaded.
+      **Here nothing was written down at all**: no mention of run 25, run
+      26, either run id, or build 18 being delivered existed anywhere in
+      `docs/`, so that gate would have been silent. The tree was returned
+      to twice after the upload — #201 at 15:51Z and #202 at 16:48Z — by
+      sessions doing feature work, which had no reason to touch a build
+      number. **The invariant that would actually hold keys on the run
+      list, and nothing here can read it** (D73's shape again). Caught
+      2026-08-16 by build 19's pre-flight. D184.
+
       **BUILD 17 WAS UPLOADED BY RUN 24** (`9a5f803`, 2026-08-15 18:31Z,
       8m 42s, upload step `success`, 1m 55s of it transfer). Run 23 is the
       **same commit eight minutes earlier** with its upload step `skipped`
@@ -672,6 +693,39 @@ arithmetic.
       tabs and exact age, D156's rebuilt 1v1 and Group, D157's test
       surfaces — so the archive has less new surface than the last run that
       succeeded, and the store filing does not move.
+
+      **Build 19 pre-flighted 2026-08-16 (D184) — and this one bumped
+      too.** Run 26's upload step reads `success` and `appBuild` at
+      `810b3af` was 18, so build 18 is spent and the tree's 18 was NOT
+      ahead. `appBuild` 18 → 19 by hand, propagated by `--fix` to
+      `versionCode` and both `CURRENT_PROJECT_VERSION` entries. Two
+      pre-flights running have now had to bump.
+
+      **Build 19 is a pure JavaScript payload**, the first since build 16.
+      Against run 26's commit it touches nothing under `ios/` or
+      `android/`, neither lockfile, neither rules file, and neither
+      store-filing file — 57 files, +1367/−609, all `src/`, `docs/` and
+      `web/privacy.html`. It carries **D181** (Near's field drew the city
+      it is not about, reported from a device) and **D182/D183** (the copy
+      pass, and the long disclosures moving out of the app into
+      `web/privacy.html` behind `check:policy-claims`). **So 4.4's store
+      filing does not move** and stands at the nine rows D180 corrected it
+      to — the window that opened there is unchanged, not closed: the live
+      label still describes build 17.
+
+      **The bundle's tight half moved the right way.** D180 left the eager
+      graph at 975 against 978 and named the answer "trim, not raise". The
+      copy pass trimmed it: **2321 KB total / 970 KB eager** against
+      2334 / 978, measured in the workflow's own build shape. First time
+      the eager number has gone *down* on a release path.
+
+      Measured, not asserted: **1216 client, 202 script, 228 function and
+      106 rules tests**, all three e2e suites green (each `npm` exit 0 with
+      its own `Script exited successfully`), `lint`, `tsc -b`,
+      `check:globals` at **409** across 183 files — its baseline, unmoved.
+      **D183 shipped with `test:rules` and the e2e suites unrun** for want
+      of Java 21 in its authoring environment; they were run here, so that
+      gap is closed rather than inherited.
 
       **Build 18 pre-flighted 2026-08-16 (D180) — and this one bumped.**
       Run 24's upload step reads `success` and `appBuild` at `9a5f803` was
