@@ -727,6 +727,22 @@ start.
       **Build 1 is in TestFlight and an external group was submitted for
       Beta App Review 2026-08-07.** What is left here is people, not setup.
 
+      **Build 17 uploaded 2026-08-15** (`ios-release.yml`, run
+      31901336491) — the first build carrying the D161–D165 work: the
+      paged bank fetch, the `core` corpus flag, and the move to the
+      `insight` / `europe-west1` database. The dry run (`upload=false`)
+      was run first and went green before the upload, which is the order
+      that workflow's header asks for and the reason a bad archive did
+      not spend the build number.
+
+      **This is the first build that talks to `insight` rather than
+      `(default)`,** so it is the one that proves the migration end to
+      end on a real device. Two things worth watching on first launch,
+      because both would be silent: the daily card renders (the bank
+      loaded from the new database) and answering it moves the count (the
+      trigger fired on the new database — D165's third silent failure is
+      exactly a trigger that never runs).
+
       **Start with INTERNAL testing, which has no review gate at all.**
       Internal testers are App Store Connect users on the team — up to 100
       — and they get a build as soon as it finishes processing. External
