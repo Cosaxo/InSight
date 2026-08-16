@@ -469,7 +469,6 @@ function NearLiveBody() {
   // turning Near on re-rendered NearPresence and left the tabs missing
   // until something else happened to bump the tree.
   React.useEffect(() => LIVE.subscribe(bump), []);
-  const supported = LIVE.near.supported();
   const on = LIVE.near.on();
   // Closed by default (D155). Toggling the open tab shut is the same
   // gesture the cohort stops give their row.
@@ -494,7 +493,17 @@ function NearLiveBody() {
     return () => clearTimeout(t);
   }, [tab]);
   return (
-    <div className="fade-in" style={{ padding: "4px 16px 26px" }}>
+    <div className="fade-in" style={{
+      // Same frame as the cohort stops since D188, and for the same reason:
+      // a filling column with no bottom padding, so `marginTop: auto` on
+      // the row can put it at the bottom of the screen and `.app-body`'s
+      // own padding is the only gap between it and the app's tab bar. Near
+      // had neither — the row was drawn inline after the field with 26px
+      // under it, so it landed 80px above the tab bar on an empty room and
+      // wandered with the content on a full one.
+      padding: "4px 16px 0",
+      flex: "1 0 auto", display: "flex", flexDirection: "column",
+    }}>
       {/* One block, not a header and a card (D160): the stop's name, its
           switch in the corner, its figure, and whatever the beat has to say
           — then the field, which is what Near is FOR. */}
@@ -510,10 +519,15 @@ function NearLiveBody() {
           the stop's identity and draws always, the row is its navigation
           and sits where a tab bar belongs. Only while the counter is ON —
           with it off there is no room to have tabs about, and a row of
-          empty tabs reads as a broken stop rather than an unused one. */}
+          empty tabs reads as a broken stop rather than an unused one.
+
+          `marginTop: auto` is the prototype's own line (MirrorLenses) and
+          it is what makes "where a tab bar belongs" literal rather than
+          approximate: the row goes to the bottom of the screen instead of
+          following whatever the field happened to leave behind it. */}
       {on && (
         <>
-          <div ref={rowRef} style={{ marginTop: 14 }}>
+          <div ref={rowRef} style={{ marginTop: "auto", paddingTop: 16 }}>
             <MirrorLensTabs tabs={ROOM_TABS} open={tab}
               onOpen={(id) => setTab(id === tab ? "" : id)} />
           </div>
@@ -525,22 +539,29 @@ function NearLiveBody() {
         </>
       )}
 
-      {/* The pointer to City, down from three lines to one (D172).
-          The long version explained what City is — which City's own header
-          does, one stop to the right, and the ruler above already shows it
-          is there.
+      {/* THE CLOSING LINE IS GONE, AND ONE HALF OF IT MOVED (D188).
+          It read "The field names nobody — People does. Your whole city is
+          one stop right." and it sat UNDER the tab row, which is the one
+          place on this stop where nothing may sit: a row of tabs is the
+          last ink before the app's own tab bar, and a paragraph beneath it
+          reads as a caption for the tabs. The prototype has nothing there
+          on any stop.
 
-          IT USED TO SAY "nobody here is named", which was Near's whole
-          promise until D177 gave it a People tab. The FIELD still names
-          nobody — an anonymous node cannot be opened, and that is the
-          presence deny drawn — so the sentence now says which half is
-          which, rather than dropping a true fact because a neighbouring
-          one changed. */}
-      <div style={{ fontFamily: "var(--sans)", fontSize: 12, fontWeight: 500, color: "var(--ink-3)", lineHeight: 1.55, padding: "10px 2px 0", textAlign: "center" }}>
-        {supported
-          ? <>The field names nobody — <strong style={{ color: "var(--ink-2)" }}>People</strong> does. Your whole city is one stop right.</>
-          : <>No location here — your city is one stop right.</>}
-      </div>
+          The two halves went different ways, because they are different
+          kinds of copy (docs/COPY.md §3):
+
+          · "Your whole city is one stop right" is a noun the screen
+            already carries — the ruler at the top of this stop draws Near
+            and City side by side, City one to the right, and tapping it is
+            the control. D172 cut this from three lines to one for exactly
+            that reason; this is the last of it.
+
+          · "The field names nobody" is an honesty qualifier naming a
+            limit, and those do not get deleted for length. It went back to
+            the field it qualifies (LiveSimilarityField's NearField), which
+            is where it lived until D183 moved it out and where a legend
+            for an encoding belongs — an anonymous node is not something a
+            reader can infer. */}
     </div>
   );
 }

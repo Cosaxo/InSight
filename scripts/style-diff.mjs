@@ -47,6 +47,18 @@
 //           colours swapped in both directions — noise from the same cause,
 //           not a colour miss.
 //
+//           READ THAT AS A DEFECT, NOT AS AN EXCEPTION (D189). It was
+//           filed here, under "deliberate", as though it were a fact about
+//           c03. It is a fact about the JOIN: any count that differs
+//           between the builds shifts every later occurrence of a repeated
+//           string, and the pairs that come out of the shift look exactly
+//           like design faults. It cost a confident, wrong finding on the
+//           Groups stop — a `span` avatar paired against an svg `text`
+//           glyph, reported as five differences on a file that had not
+//           changed. Keying by tag as well as text (see COLLECT) removes
+//           the worst of it; the rest is why a surprising row is worth
+//           opening both DOMs over before it is written down.
+//
 //   ground  three surface values this repo tuned and the prototype never
 //           took back: --surface-a mixes the accent at 98% (prototype 94%,
 //           and re-declared per tab), the header/tabbar blur saturates at
@@ -88,6 +100,28 @@ const EXE = process.env.PW_EXECUTABLE || undefined;
 // Own text only — text belonging to this element rather than a descendant.
 // That gives one row per rendered string, which is a stable join key across
 // two builds whose DOM shapes differ.
+//
+// THE TAG IS PART OF THE KEY, AND IT HAS TO BE (D189). The key was text
+// plus its nth occurrence, so the nth "LA" in one build paired with the nth
+// "LA" in the other — fine until the two builds render a different NUMBER
+// of them, at which point every occurrence after the first extra one pairs
+// with its neighbour and the report fills with differences that are really
+// just the offset.
+//
+// It is not a hypothetical: the Groups stop draws the same initials twice,
+// as chip avatars (`span`) and as constellation nodes (svg `text`), and the
+// demo roster for The Crew is five members in the prototype and seven here.
+// The join therefore paired a `span` avatar against an svg `text` and
+// reported the difference between a filled disc and a bare glyph — radius
+// 50% vs 0, white vs ink, a background vs none — as five style faults on a
+// module that is byte-identical to the prototype apart from its ESM
+// conversion. That reads exactly like a real finding, and it cost a
+// commit's worth of chasing.
+//
+// Keying by tag as well as text does not fix an off-by-one WITHIN one tag —
+// nothing cheap does — but it stops the two worst cases, an svg glyph
+// pairing with a div and a heading pairing with a button, and those are the
+// pairs whose diffs look most like design drift.
 const COLLECT = `(() => {
   const out = {};
   const seen = {};
@@ -102,8 +136,12 @@ const COLLECT = `(() => {
         const r = node.getBoundingClientRect();
         if (r.width > 0 && r.height > 0) {
           const cs = getComputedStyle(node);
-          seen[own] = (seen[own] || 0) + 1;
-          out[own + "#" + seen[own]] = {
+          // localName, not tagName: an svg <text> reports 'text' here and
+          // 'text' there, while tagName is case-shifted between the HTML
+          // and SVG namespaces on some engines.
+          const k = own + "@" + node.localName;
+          seen[k] = (seen[k] || 0) + 1;
+          out[k + "#" + seen[k]] = {
             fontSize: cs.fontSize,
             fontWeight: cs.fontWeight,
             fontFamily: cs.fontFamily.split(",")[0].replace(/["']/g, ""),
@@ -125,19 +163,55 @@ const COLLECT = `(() => {
 
 // One entry per screen worth comparing. Each `go` runs in the page and
 // leaves it on that screen; both builds get the same sequence.
+//
+// SCOPED TO A RULER BY ITS OWN NAME, and that is load-bearing (D189). Both
+// rulers publish `[role=tab]`, and three of the labels collide — the
+// daily's axis runs World · Circle · 1v1 and the Mirror's runs You · Circle
+// · Groups · Near · City · Country · World. An unscoped `aria-label ===
+// 'Circle'` therefore matches whichever ruler is on screen, which is the
+// right answer by accident on one tab and the wrong one on the other.
+//
+// WHAT THESE USED TO SAY. Three steps drove `.sd-switch-btn`, the daily's
+// mode switcher — a control the v17 sync replaced with the ruler (D43), so
+// the class matches nothing in EITHER build and had not for six versions.
+// A fourth called the Mirror's first screen `mirror-near`; the Mirror opens
+// on You, so that name described a stop the sweep never visited. None of it
+// showed, because the string-vs-IIFE bug below meant no step ran at all —
+// two faults that hid each other, which is why the check that ends this
+// file reports movement rather than trusting it.
+const STOP = (ruler, label) =>
+  `() => { const r=[...document.querySelectorAll('[role=tablist]')]`
+  + `.find(x=>(x.getAttribute('aria-label')||'').includes(${JSON.stringify(ruler)}));`
+  + ` if(!r) return; const t=[...r.querySelectorAll('[role=tab]')]`
+  + `.find(x=>(x.getAttribute('aria-label')||x.textContent||'').trim()===${JSON.stringify(label)}); t&&t.click(); }`;
+const DAILY = "How far this answer reaches";
+const MIRROR = "How far the mirror reaches";
+
 const SCREENS = [
   ["daily-world", `() => { window.goTab && window.goTab('track'); }`],
-  ["daily-group", `() => { const b=[...document.querySelectorAll('.sd-switch-btn')].find(x=>x.textContent.trim().startsWith('Group')); b&&b.click(); }`],
-  ["daily-duo", `() => { const b=[...document.querySelectorAll('.sd-switch-btn')].find(x=>x.textContent.trim().startsWith('1v1')); b&&b.click(); }`],
-  ["mirror-near", `() => { window.goTab && window.goTab('mirror'); }`],
-  ["mirror-you", `() => { const t=[...document.querySelectorAll('[role=tab]')].find(x=>x.getAttribute('aria-label')==='You'); t&&t.click(); }`],
-  ["mirror-circle", `() => { const t=[...document.querySelectorAll('[role=tab]')].find(x=>x.getAttribute('aria-label')==='Circle'); t&&t.click(); }`],
-  ["mirror-world", `() => { const t=[...document.querySelectorAll('[role=tab]')].find(x=>x.getAttribute('aria-label')==='World'); t&&t.click(); }`],
+  ["daily-circle", STOP(DAILY, "Circle")],
+  ["daily-duo", STOP(DAILY, "1v1")],
+  ["daily-back", STOP(DAILY, "World")],
+  ["mirror-you", `() => { window.goTab && window.goTab('mirror'); }`],
+  ["mirror-circle", STOP(MIRROR, "Circle")],
+  ["mirror-groups", STOP(MIRROR, "Groups")],
+  ["mirror-near", STOP(MIRROR, "Near")],
+  ["mirror-city", STOP(MIRROR, "City")],
+  ["mirror-country", STOP(MIRROR, "Country")],
+  ["mirror-world", STOP(MIRROR, "World")],
 ];
 
 const FIELDS = ["fontSize", "fontWeight", "fontFamily", "letterSpacing", "textTransform", "color", "bg", "radius", "padding"];
 // Divergences the app makes on purpose. Keyed by the text they attach to.
 const EXPECTED_MISSING = new Set(["skip"]);
+
+// What screen the page is actually on, cheaply. Not for the report — for
+// the navigation check below, which is the whole reason it exists.
+const WHERE = `(() => {
+  const app = document.querySelector('.app');
+  return (app && (app.getAttribute('data-view') || app.getAttribute('data-tab')) || '?')
+    + '#' + document.querySelectorAll('.app *').length;
+})()`;
 
 async function capture(browser, url) {
   // 1440x900 puts both builds in the same centred 402px phone shell; at a
@@ -150,13 +224,29 @@ async function capture(browser, url) {
   await page.goto(url, { waitUntil: "networkidle" });
   await page.waitForTimeout(1800);
   const shots = {};
+  const where = {};
   for (const [name, go] of SCREENS) {
-    await page.evaluate(go);
+    // WRAPPED IN AN IIFE, AND THAT IS NOT A STYLE CHOICE (D189).
+    //
+    // `page.evaluate(str)` evaluates a STRING as an expression. Handed the
+    // source of an arrow function it therefore builds a function and
+    // throws it away — `evaluate('() => 1 + 1')` returns undefined, and
+    // `evaluate('(() => 1 + 1)()')` returns 2. Every `go` below is an
+    // arrow-function source, so from this tool's first commit until D189
+    // not one of them ran: the loop captured whatever screen the app boots
+    // on, once per entry, and diffed it against itself.
+    //
+    // The report that produced was "compared N elements across 7 screens"
+    // with almost nothing to say, which is exactly what a passing run
+    // looks like. That is the failure mode worth naming — a design gate
+    // whose silence means "I never looked".
+    await page.evaluate(`(${go})()`);
     await page.waitForTimeout(1100);
     shots[name] = await page.evaluate(COLLECT);
+    where[name] = await page.evaluate(WHERE);
   }
   await ctx.close();
-  return { shots, errors };
+  return { shots, errors, where };
 }
 
 const browser = await chromium.launch(EXE ? { executablePath: EXE } : {});
@@ -168,6 +258,35 @@ try {
   await browser.close();
 }
 
+// DID THE WALK ACTUALLY WALK? (D189)
+//
+// The bug above was invisible because a tool that looks at one screen
+// seven times reports the same shape as a tool that looks at seven. So
+// this checks the only thing that distinguishes them: a `go` that lands on
+// the screen it just came from did nothing, in whichever build it happened
+// in. Reported per build, because a selector can rot on one side alone —
+// the prototype is frozen and the app is not.
+//
+// Not fatal. A screen legitimately reachable only from another screen will
+// repeat if its predecessor failed, so one broken selector prints several
+// lines; the list is a worklist, not a verdict.
+const stuck = [];
+for (const build of [["prototype", proto], ["app", app]]) {
+  const [label, cap] = build;
+  let prev = null;
+  for (const [screen] of SCREENS) {
+    const here = cap.where[screen];
+    if (prev !== null && here === prev) stuck.push(`${label}/${screen}`);
+    prev = here;
+  }
+}
+if (stuck.length) {
+  console.log(`\n!! ${stuck.length} screen(s) did not move — their step ran and changed nothing,`);
+  console.log(`   so what got compared is the screen before them, twice:`);
+  console.log(`   ${stuck.join(", ")}`);
+  console.log(`   Fix the step's selector in SCREENS before reading anything below.\n`);
+}
+
 const rows = [];
 const missing = [];
 let compared = 0;
@@ -175,7 +294,8 @@ for (const [screen] of SCREENS) {
   const A = proto.shots[screen] || {};
   const B = app.shots[screen] || {};
   for (const key of Object.keys(A)) {
-    const text = key.replace(/#\d+$/, "");
+    // key is `text@tag#n` (see COLLECT) — the report wants the text alone.
+    const text = key.replace(/@[\w-]+#\d+$/, "");
     if (!(key in B)) {
       if (!EXPECTED_MISSING.has(text)) missing.push({ screen, text });
       continue;

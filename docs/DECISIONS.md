@@ -18963,3 +18963,321 @@ gate passes except the two that were already failing for environmental
 reasons and remain untouched by this change: `check:store-copy` (an
 unfilled Play signing SHA, account-gated) and `check:web-firebase`
 (wants the release build's secrets).
+## D188 · The Mirror's tab row sits where a tab bar sits, and stops arguing with the stop about colour
+
+**2026-08-16.** Reported against the live build with `InSight_standalone_30.html`
+held beside it — the owner's current visual vision, and the rule attached
+to it: *if something looks different from that, it is wrong.* Three faults,
+all at the bottom of a Mirror stop, all measured rather than eyeballed
+(Playwright over both builds at 402 CSS px, the geometry read off
+`getBoundingClientRect` and the colours off `getComputedStyle`).
+
+### 1 · The row floated, by 30px on four stops and 60px on one
+
+| Stop | prototype: row bottom → tab bar | live, before |
+| --- | --- | --- |
+| Circle · Groups · Near · City · Country · World | 20px, on every one | Near 80px · City/Country/World 50px |
+
+The prototype's number is `.app-body`'s own `padding-bottom` and nothing
+else: its stage (`.mf-stage`) carries no padding, so `marginTop: auto` puts
+the row against the bottom of the content box and the body's padding is the
+entire gap. The live bodies added `padding: "4px 16px 26px"`, so 26px of
+their own sat under a row already pushed as far down as it could go — and
+Near added the closing paragraph below on top of that, which is where the
+extra 30px came from and why that stop *scrolled* (713px of content in a
+695px box) when nothing on it was long enough to.
+
+Both bodies now end in `0`, and the open-tab panel ends against the same
+20px the prototype gives it (row and panel share one `marginTop: auto`
+wrapper in `MirrorLenses`, so this is its arrangement, not a compromise).
+
+### 2 · The rule was on the wrong side of the labels
+
+`MirrorLensTabs` shipped with `.mm-lensrow-top`, which is the class the
+prototype uses for a row promoted to the TOP of a stop: hairline *under*
+the labels, buttons 46px. Both live callers put the row at the bottom,
+where the prototype draws the plain `.mm-lensrow` — hairline *above*,
+closing the field off, buttons 44px, labels the last ink before the app's
+tab bar. One class, and the row measures 45px against the prototype's 45px
+instead of 47px.
+
+### 3 · Two stops wore another stop's colour
+
+`LiveCohortBody` re-declared `--accent` per zoom so the three would shade
+from near to far. The shading was real; the hues were borrowed:
+
+| Stop | `--accent` at the row, live | what that token is | `.app` says | prototype |
+| --- | --- | --- | --- | --- |
+| City | `--c-around` · oklch(0.52 0.14 40) | the **daily tab's** accent | 235 | 235 |
+| Country | `--c-city` · oklch(0.52 0.14 150) | **Near's** accent | 235 | 235 |
+| World | `--c-world` · oklch(0.52 0.14 235) | its own | 235 | 235 |
+
+So on Country the ruler tick, the wordmark and the tab bar drew indigo
+while the field and the row's underline drew sage — one screen with two
+answers to "what colour is this stop", and the stop one to the left already
+owned the answer it gave. The declaration is gone rather than corrected:
+`mirror-tab` already sets `--c-world` for pop `world`, which is exactly
+what the prototype resolves to at all three zooms. The near-to-far shading
+survives where it always lived — You, Circle, Groups and Near each own a
+hue on the ruler.
+
+### The order was wrong too, and it was in the same row
+
+`lensesFor` built `people, compare, scores` (+`explore` last). The
+prototype pushes `compare` last of all — `mirror-field-pops.jsx` appends
+answers → people → scores → explore → compare — and the reason ports: the
+first four describe the POPULATION, and Compare is the only one that puts
+you against it. `Answers · People · Scores · Compare`, with Explore before
+Compare at World.
+
+### The paragraph under the tab row, and where its one real claim went
+
+Near closed with *"The field names nobody — **People** does. Your whole
+city is one stop right."* rendered UNDER the row. That is the one place on
+the stop where nothing may sit: a paragraph below a tab row reads as a
+caption for the tabs. The prototype has nothing there, on any stop.
+
+The two halves are different kinds of copy ([`docs/COPY.md`](COPY.md) §3),
+so they went different ways:
+
+- *"Your whole city is one stop right"* is **a noun the screen already
+  carries**. The ruler at the top of this stop draws Near and City side by
+  side, City one to the right, and tapping it is the control. D172 cut this
+  from three lines to one for that reason; this is the last of it.
+- *"The field names nobody"* is **an honesty qualifier naming a limit**,
+  and §3 is explicit that those are shortened, never dropped. It went back
+  onto the field it qualifies (`NearField`'s caption), which is where it
+  lived until D183 moved it out, and it kept the half that made D183 prefer
+  the closing line: which surface *does* name people.
+
+D183's note said the promise moved "one component out"; it has moved one
+component back, and the test that pinned it now renders a room and reads it
+off the field. Two assertions on `/one stop right/` went with the sentence
+and are replaced by one on the **shape** — the row is the last thing in the
+body — which fails for a future caption whatever it says
+(`docs/COPY.md` §4.1: assert the claim, not the wording).
+
+### What this did NOT touch, and the arithmetic for it
+
+**Circle and Groups have no row at all in live mode.** The prototype gives
+both `Answers · People · Compare`; `LiveCircleBody` and
+`LiveGroupsMirrorBody` draw a list and a portrait with no tabs. That is a
+missing feature, not a misplaced one — three tab bodies each over a
+population this tree does not yet fold — and it is not what was reported.
+Recorded here so the next reader does not conclude from the table above
+that every stop was checked and passed.
+
+**The live bodies are inset 16px more than the prototype.** Their
+`padding: "4px 16px …"` sits inside `.app-body`'s 14px (compact), so
+content starts at 30px against the prototype's 14px and the row spans 342px
+against 374px. Real, visible on every live Mirror stop, and deliberately
+left: it is the whole body's inset rather than the row's, and moving it
+re-lays out `LiveAnswerRows`, `LiveMirrorLenses` and `LiveBreakdownPanel`
+for a fault nobody reported. One line in each body when it is called.
+
+**Verified after, at 402 CSS px, against the prototype:** every stop with a
+row now reports gap 20px, height 45px, the same labels in the same order,
+nothing below the row, and no stop scrolling that the prototype does not.
+Every `--accent` resolved at the row equals the one `.app` declares. No tab
+label clips at any count (`scrollWidth === clientWidth` on all five at
+World). Unit 1,216, ui 318, scripts 202, `tsc -b`, `lint`, and
+`check:globals` (409, baseline 409) `:labels` `:quality` `:public-copy`
+`:data-inventory` `:policy-claims` `:a11y` `:figures`. `test:rules` and the
+e2e suites want a running emulator per suite; the emulator was up for the
+visual capture and neither suite touches this layout.
+
+## D189 · The design gate was never looking, and two group hues never met the palette
+
+**2026-08-16.** Asked, after D188, whether anything else diverges from
+`InSight_standalone_30.html` — colour, type, placement, function. Answering
+it meant running `scripts/style-diff.mjs`, which is the tool
+[`design/README.md`](../design/README.md) tells you to use *instead of*
+comparing screenshots by eye. It had never compared anything but one screen.
+
+### The bug: `page.evaluate` on a string does not call it
+
+Every entry in `SCREENS` is the SOURCE of an arrow function, passed to
+`page.evaluate(go)`. Playwright evaluates a string as an **expression**, so
+handing it `() => { … }` builds a function and drops it on the floor.
+Measured, not reasoned:
+
+```
+evaluate('() => 1 + 1')     -> undefined
+evaluate('(() => 1 + 1)()') -> 2
+```
+
+So from the tool's first commit until today, no step ran. The loop captured
+whatever screen the app boots on — the daily — once per entry, and diffed
+it against the prototype's daily seven times. The report it printed was
+`compared N elements across 7 screens` with almost nothing to say, which is
+indistinguishable from a clean run. **A gate whose silence means "I never
+looked" is worse than no gate**, because `design/README.md` sends people to
+it *instead of* looking.
+
+One character each way fixes it (`` `(${go})()` ``). What it then found, on
+the same tree and the same prototype: 11 screens, 722 elements, 30 distinct
+differences where the old run reported 8 — every one of them phantom, from
+a single false text pair.
+
+### The second bug, which the first one hid
+
+With navigation working, three of the seven steps still did nothing. They
+drove `.sd-switch-btn` — the daily's mode switcher, replaced by the ruler at
+the **v17 sync (D43)**, six prototype versions ago. A fourth called the
+Mirror's first screen `mirror-near`, but the Mirror opens on You, so that
+name described a stop the sweep never visited.
+
+Two faults that hid each other: the selectors could rot because nothing ran
+them, and the dead run looked healthy because the selectors' silence was
+indistinguishable from success. So the fix is not only the IIFE — the tool
+now records what screen each step landed on and **reports any step that did
+not move**, per build:
+
+```
+!! 6 screen(s) did not move — their step ran and changed nothing,
+   so what got compared is the screen before them, twice:
+   prototype/daily-group, prototype/daily-duo, prototype/mirror-you, …
+```
+
+Not fatal, because one broken step makes its successors repeat too and the
+list is a worklist rather than a verdict. The screen list is rebuilt against
+what the two builds actually publish: both rulers are `[role=tablist]` with
+a name of their own, and three labels (World · Circle) collide between them,
+so every step is scoped to its ruler by that name. 11 screens now — the
+daily's three modes and all seven Mirror stops.
+
+### What it found first: two group hues that skip the palette gate
+
+`world-palette.js` exists because a flat `oklch(0.52 0.14 h)` is wrong at
+most hues in both directions — outside sRGB for teal and cyan, where the
+browser clips (dulling the colour *and* dragging the hue), and inside it for
+blue, violet and magenta, which come out undersaturated. Its header names
+the case for `ink()` exactly: *"wherever a full-strength fill carries #fff"*.
+
+Two modules wrote the hue raw. Counted across every ported module, they are
+the only two that differ from the prototype in gate calls:
+
+| module | v30 | app before |
+| --- | --- | --- |
+| `group-daily.jsx` | 3 | 0 |
+| `group-mirror.jsx` | 1 | 0 |
+
+`group-daily`'s two are marks whose fill carries white initials, over a hue
+**hashed from a group id** — any of 360, so a flat chroma is right at
+almost none of them. Measured against the prototype at the hues its demo
+groups land on: 0.155 wanted at hue 12, 38, 145 and 305; 0.092 at 220;
+0.091 at 182; 0.104 at 84; 0.117 at 117. The app drew 0.12/0.13 at every
+one.
+
+`group-mirror`'s single call is the costlier one: `gmAccent` is not a mark,
+it is the Groups stop's `--accent`, set on the stage and on every group
+card — so one un-gated value reached the identity ring, the chips, the lens
+row's underline and every accent-driven mark under it at once. Its hue is a
+circular mean of the members' hues, so it lands anywhere on the wheel.
+
+41 of the 65 differing elements were this. Gone after four wrapped calls.
+
+### What is recorded and NOT fixed
+
+Each is real, each is measured, and each is a bigger change than the report
+that found it:
+
+- **The Map (You) draws at a different scale and a different balance.** 62
+  labels differ by a constant factor of 1.0253 — the app 2.5% larger — and
+  the screenshots show more than a scale: the prototype's four branches sit
+  evenly around a centred You, while the app's Self cluster dominates the
+  top-left, Knowledge is a clipped stub on the left edge and You sits off
+  centre. The prototype also carries a fifth branch, **Foresight**, which
+  the Mirror dropped at D136 — that part is a decision, the balance is not.
+- ~~**The Groups stop's member marks are a different object.**~~ **WRONG,
+  and withdrawn the same day — see the correction at the end of this
+  entry.** They are the same object, drawn by a module that is
+  byte-identical to the prototype's. The report came from a defect in the
+  tool this entry is about.
+- **`GDAv` replaced dimming with a halo in the prototype.** It takes
+  `sealed` and draws a hue ring — *"a row of half-washed circles read as
+  broken"* — where the app takes `dim` and drops to 28% opacity. Inverted
+  semantics at every call site, so it is a port, not a wrap.
+- **One element renders in Arial.** `daily-circle`'s "You" at 16px Arial
+  against the prototype's 13.5px Hanken Grotesk — a node inheriting no font
+  at all. One element, not yet located to a line.
+- **The live Mirror bodies are inset 16px more than the prototype** (D188's
+  note, unchanged).
+
+### What is missing rather than wrong
+
+44 strings the prototype renders and the app does not, and they are almost
+entirely **v28/v30 features this tree has not built**, tracked in
+[`docs/VISION-V28.md`](VISION-V28.md): the `patterns` tab (11 screens'
+worth), the pulses and their cadence control (*ask me · daily · often ·
+weekly · off*), predictions, sponsored cards (*PAID*, *asked by Elvia*),
+Crossroads (*Shift it*, *Leave it alone*), the place scorecards (*Oslo ·
+Norway · World*) and *why me?*. The CSS agrees: of 205 rules the prototype
+has and the app lacks, 170 are five namespaces — `ar*` (arena), `a2*`,
+`or*` (oracle), `pt*` (patterns), `qm*` (question map).
+
+**The stylesheets are otherwise in sync.** Rule by rule, 26 selectors carry
+different declarations and four of those are the deliberate "quieter ground"
+set `style-diff.mjs`'s own header lists (`--surface-a` at 98%, the two blurs
+at saturate 1.4, `.app-body::before` at 320px/6%). Colour tokens, type
+scale, and the kicker/micro-label tiers are identical.
+
+### Correction · the Groups marks were never different, and the join said they were
+
+**Same day.** Asked to fix the third item in the list above, and there was
+nothing to fix: `group-role-map.jsx` and `group-mirror.jsx` are the
+prototype's files line for line apart from the ESM conversion, the
+`div`→`button` a11y pass, one dropped test in a list of five and D189's own
+gate wrap. Both builds draw the constellation node the same way, from the
+same line:
+
+```jsx
+<text … fontSize={Math.min(11.5, rr * 0.72)} fontWeight="700" fill={p.me ? 'var(--surface)' : '#fff'}>
+```
+
+An svg `<text>` has no background and no border radius. So "radius 0px,
+transparent, ink, weight 700" was never the prototype's *mark* — it was the
+prototype's **glyph**, paired against one of the app's **chip avatars**, a
+`span` disc. The join did that, not the app.
+
+**Why the join did it.** The key was the rendered text plus its nth
+occurrence, so the nth "LA" in one build met the nth "LA" in the other. The
+Groups stop draws the same initials in two shapes — chip avatars and
+constellation glyphs — and the demo roster for The Crew is **five members
+in the prototype and seven here** (`duels-data.js`: `f12`/`f14` joined at
+D137). Two extra members shift every occurrence after them by two, and from
+there each "LA", "EA", "MH" and "you" met the wrong twin. Five style faults
+out of an off-by-two, on a file that had not changed.
+
+**The fix is in the key**: text *plus the element's `localName`*. A `span`
+can no longer pair with a `text`, a heading with a button. It does not fix
+an off-by-one within a single tag — nothing cheap does — but those two are
+the pairs whose diffs read most convincingly as design drift, which is
+exactly what happened here.
+
+Re-run after: `mirror-groups` drops from 7 differing elements to 4, and the
+four are one value — `fontSize` on the node glyphs, the same four sizes
+(9.504 · 10.728 · 11.5) permuted between people, because `rr` is a function
+of standing in the role votes and the two rosters are different sizes. Data,
+not style. Across all 11 screens the total falls from 65 elements to 63 and
+from 22 distinct differences to 9; the 14 rows on the word "daily" go too,
+another false pair (the prototype's pulse-cadence pill against this app's
+tab-bar label).
+
+**What is left is what was always real**: the Map's scale and balance (62
+elements) and one element rendering in Arial. Both stand.
+
+**The demo roster itself is left alone.** Making the constellation match the
+prototype's would mean editing `duels-data.js` fixtures that `PLAYED`,
+`READ_SKILL`, `BY_SKILL` and `PARTNER_TODAY` all key into, to change a
+screen that only exists in demo builds — the live Groups stop builds its
+cast from real members. That is a sample-data decision, not a design one,
+and it is the owner's.
+
+**The lesson worth keeping**: this tool's own header already warned about
+this class — the dropped Pokémon card "shifts card positions, which pairs
+the feed's 'i' context buttons off-by-one and reports their two ink colours
+swapped in both directions — noise from the same cause, not a colour miss."
+That note was written about ONE known case and filed under deliberate
+divergences. It was a general defect in the join, and reading it as a
+special case is how it survived to produce a confident, wrong finding.

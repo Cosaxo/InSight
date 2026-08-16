@@ -234,14 +234,25 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
     scope === "city" ? (place ? place.name : city)
       : scope === "country" ? PLACES.countryName(country)
         : "the world";
-  // The stop's own colour. mirror-tab sets --accent per POP, and all three
-  // geographic zooms share one pop — so without this City, Country and
-  // World would draw in the same ink and the axis would stop shading from
-  // near to far. Set on the root rather than threaded as a prop: the rows,
-  // the stack, the chips and the lens bodies all read var(--accent), and
-  // one declaration reaches every one of them.
-  const accent =
-    scope === "city" ? "var(--c-around)" : scope === "country" ? "var(--c-city)" : "var(--c-world)";
+  // THE STOP'S COLOUR IS THE STOP'S, AND THIS FILE NO LONGER PICKS ONE
+  // (D188).
+  //
+  // It used to re-declare `--accent` per zoom — city sienna, country sage,
+  // world indigo — reasoning that all three zooms share one pop, so without
+  // it "the axis would stop shading from near to far". The shading was
+  // real; the hues were borrowed. `--c-around` is the DAILY tab's accent
+  // and `--c-city` is Near's, so City wore the daily's ink and Country wore
+  // the stop one to its left, while the header wordmark, the ruler tick and
+  // the tab bar — which read `--accent` from `.app`, set by mirror-tab per
+  // POP — all stayed indigo. One screen, two answers to "what colour is
+  // this stop", and the lens row's underline was on the losing side of it.
+  //
+  // The prototype draws all three zooms in `--c-world` (measured: the row
+  // thumb resolves to oklch(0.52 0.14 235) at City, Country and World
+  // alike), which is exactly what dropping this leaves behind, since
+  // mirror-tab already sets it for pop 'world'. The near-to-far shading
+  // survives where it always lived — You, Circle, Groups and Near each own
+  // a hue on the ruler above.
 
   // Every question this device holds an aggregate for, not just the
   // seven-day pager (D100). The pager was the wrong source for a panel
@@ -410,7 +421,20 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
 
   return (
     <div className="fade-in" style={{
-      padding: "4px 16px 26px", "--accent": accent,
+      // NO BOTTOM PADDING, and that is the whole of what pins the row
+      // (D188). `marginTop: auto` below put the row at the bottom of THIS
+      // box; 26px of padding under it then held it 26px off the bottom of
+      // the screen, on top of the 24px `.app-body` already reserves — so
+      // the tab bar floated 50px clear of the app's own, which is the
+      // "slightly up" the prototype never has. The prototype's stage
+      // (`.mf-stage`) carries no padding at all and lets `.app-body`'s
+      // padding-bottom be the only gap; measured there at 20px, and this
+      // now matches it to whatever `.app-body` says.
+      //
+      // An OPEN tab's body still ends against that same 24px, which is the
+      // prototype's arrangement too (row and panel share one
+      // `marginTop: auto` wrapper in MirrorLenses).
+      padding: "4px 16px 0",
       // A filling column, so `marginTop: auto` on the row below has
       // somewhere to push against. Without this the row sits under the
       // last thing drawn and floats mid-screen on an empty stop, which is

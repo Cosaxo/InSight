@@ -96,6 +96,31 @@ afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 // text query would be asserting the thing that was removed.
 const nearSwitch = () => screen.getByRole("switch") as HTMLButtonElement;
 
+// A room of two, both scored, so the field has somebody to place. Since
+// D181 the field draws the ROOM rather than the city, so what makes a node
+// is a presence roster entry plus a cross-user test score — not a kindred
+// row.
+//
+// AT FILE SCOPE since D188, because two describes need it: the field's own
+// block, and the constellation block it was declared in. The copy this
+// fixture makes visible (namelessness, the basis) moved back onto the
+// field, and a claim asserted from two angles should not be asserted
+// against two fixtures.
+const roomOfTwo = () => {
+  LIVE.near.on = () => true;
+  LIVE.near.room = () => ({ people: [{ uid: "a" }, { uid: "b" }], qs: {} });
+  // Three axes on BOTH sides: scoreMatch refuses under three shared, so a
+  // one-dim fixture would silently render the "nobody has taken it" arm and
+  // the case would pass for the wrong reason.
+  LIVE.myTestResults = () => ({
+    big5: { dims: [{ id: "o", value: 60 }, { id: "c", value: 55 }, { id: "e", value: 45 }] },
+  });
+  LIVE.scoresFor = (uid: string) => ({
+    a: { big5: { o: 62, c: 50, e: 40 } },
+    b: { big5: { o: 20, c: 80, e: 70 } },
+  }[uid] || null);
+};
+
 describe("NearLiveBody · the stop is presence, not place (D111)", () => {
   it("renders the counter with no city anywhere in sight", () => {
     render(<NearLiveBody />);
@@ -107,26 +132,35 @@ describe("NearLiveBody · the stop is presence, not place (D111)", () => {
     expect(screen.queryByText(/Choose your city/i)).toBeNull();
   });
 
-  it("points at the City stop for answers and kindred", () => {
-    // The stop shed the city cohort at D111; a user who came here for it
-    // must leave with a direction, not a shrug.
-    render(<NearLiveBody />);
-    expect(screen.getByText("People", { selector: "strong" })).toBeTruthy();
-    expect(screen.getByText(/one stop right/i)).toBeTruthy();
+  it("puts nothing at all under the tab row", () => {
+    // WHAT THIS REPLACES (D188): two tests that pinned "your whole city is
+    // one stop right" — the stop's closing line, which lived UNDER the tab
+    // row. It was there because D111 shed the city cohort and D172 cut the
+    // explanation down to a pointer; what finally removed it is that the
+    // ruler at the top of this stop already draws Near and City side by
+    // side, one apart, and a paragraph below a tab row reads as a caption
+    // for the tabs.
+    //
+    // So this asserts the SHAPE rather than any sentence: the row is the
+    // last thing in the body. A future caption slipped in beneath it fails
+    // here even if it says something else entirely.
+    LIVE.near.on = () => true;
+    const { container } = render(<NearLiveBody />);
+    const body = container.querySelector(".fade-in") as HTMLElement;
+    const row = body.querySelector("[role='tablist']");
+    expect(row).toBeTruthy();
+    // The row's own wrapper is the last child while every tab is closed;
+    // with one open, the panel it opened is (and nothing else can be).
+    expect(body.lastElementChild!.contains(row!)).toBe(true);
   });
 
-  it("says where the cohort went even on a device with no location", () => {
-    // supported() false drops the card entirely (nothing to pitch), and
-    // the pointer is then the whole body — it must not vanish with it.
+  it("keeps its own words on a device with no location", () => {
+    // supported() false drops the switch entirely (nothing to offer), and
+    // the stop must still say why rather than showing a bare field.
     LIVE.near.supported = () => false;
     render(<NearLiveBody />);
-    // No switch to offer — but the stop keeps its name and its pointer.
-    // Said twice now: once where the figure would be, once in the closing
-    // line, and getAllBy is the honest query for that rather than a
-    // narrowing that would pass if either disappeared.
     expect(screen.queryByRole("switch")).toBeNull();
     expect(screen.getAllByText(/can.t share a location/i).length).toBeGreaterThan(0);
-    expect(screen.getByText(/one stop right/i)).toBeTruthy();
   });
 });
 
@@ -270,25 +304,8 @@ describe("a beat that fails says so, and offers a way out", () => {
 describe("NearLiveBody · the constellation, with nobody named", () => {
   // The KindredPerson shape the similarity fold hands back. Named on
   // purpose: the point of these cases is that a name IS available here and
-  // the field still does not draw one.
-  // A room of two, both scored, so the field has somebody to place. Since
-  // D181 the field draws the ROOM rather than the city, so what makes a
-  // node is a presence roster entry plus a cross-user test score — not a
-  // kindred row.
-  const roomOfTwo = () => {
-    LIVE.near.on = () => true;
-    LIVE.near.room = () => ({ people: [{ uid: "a" }, { uid: "b" }], qs: {} });
-    // Three axes on BOTH sides: scoreMatch refuses under three shared, so
-    // a one-dim fixture would silently render the "nobody has taken it"
-    // arm and the case would pass for the wrong reason.
-    LIVE.myTestResults = () => ({
-      big5: { dims: [{ id: "o", value: 60 }, { id: "c", value: 55 }, { id: "e", value: 45 }] },
-    });
-    LIVE.scoresFor = (uid: string) => ({
-      a: { big5: { o: 62, c: 50, e: 40 } },
-      b: { big5: { o: 20, c: 80, e: 70 } },
-    }[uid] || null);
-  };
+  // the field still does not draw one. The fixture itself (`roomOfTwo`) is
+  // at file scope — the field's own describe needs it too since D188.
 
   it("draws the field, not only a counter", async () => {
     // The claim the old body made — "a count is the only thing this stop
@@ -310,7 +327,11 @@ describe("NearLiveBody · the constellation, with nobody named", () => {
     // what this pins is that the two never merge.
     roomOfTwo();
     const { container } = render(<NearLiveBody />);
-    expect(await screen.findByText(/field names nobody/i)).toBeTruthy();
+    // The CLAIM, not the sentence (docs/COPY.md §4.1): it has now been
+    // worded three ways and moved twice — field caption, stop closing
+    // line, field caption again (D183, D188) — and every rewording said
+    // the same thing about the same nodes.
+    expect(await screen.findByText(/nobody is named here/i)).toBeTruthy();
     expect(screen.queryByText(/Name a/)).toBeNull();
     expect(screen.queryByText(/Name b/)).toBeNull();
     // The one interactive control on the stop is the permission toggle.
@@ -466,14 +487,23 @@ describe("NearField · a node is a radius, never a place and never a join key", 
       .not.toMatch(/\b(lat|lon|lng|latitude|longitude|coord|cell)\b/i);
   });
 
-  it("says nobody is named, in the copy a reader actually sees", () => {
-    // Read off the render rather than out of NearField's source (D183):
-    // the promise moved one component out, into the stop's closing line,
-    // where it is paired with the half a caption under the field could
-    // not carry — "People does". A source slice would now be watching the
-    // wrong function and passing for the wrong reason.
+  it("says nobody is named, in the copy a reader actually sees", async () => {
+    // Read off the render rather than out of NearField's source (D183) —
+    // a source slice passes on a string the component never reaches.
+    //
+    // WITH A ROOM DRAWN (D188). The promise sat in the stop's closing line
+    // from D183 until that line was deleted for sitting under the tab row;
+    // it is back on the field, so this renders the state the field draws
+    // nodes in. The empty arms make no claim about namelessness because
+    // they place nobody to be nameless — what they say instead ("Turn it
+    // on and people draw in here — by likeness, never by position") is
+    // pinned two tests up.
+    roomOfTwo();
     render(<NearLiveBody />);
-    expect(screen.getByText(/field names nobody/i)).toBeTruthy();
+    expect(await screen.findByText(/nobody is named here/i)).toBeTruthy();
+    // And the half that made D183 prefer the closing line: where the names
+    // ARE. Dropping it would leave a limit with no way out of it.
+    expect(screen.getByText("People", { selector: "strong" })).toBeTruthy();
   });
 });
 

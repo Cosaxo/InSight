@@ -56,10 +56,20 @@ export const LENS_LABEL: Record<LensId, string> = {
  * A list per scope rather than a filter at the call site, so the answer to
  * "which lenses does this stop have" is in one place and the row and its
  * body cannot disagree about it.
+ *
+ * THE ORDER IS THE PROTOTYPE'S, AND COMPARE IS LAST (D184). This read
+ * `people, compare, scores` and drew `Answers · People · Compare · Scores`,
+ * with Explore appended after Scores at World. The prototype pushes
+ * `compare` last of all (`mirror-field-pops.jsx` builds answers → people →
+ * scores → explore → compare), and the reason survives the port: the first
+ * three describe the POPULATION — who is here, how they scored, what they
+ * answered — and Compare is the only one that puts you against them, which
+ * is where a row that runs from "them" to "you and them" wants to end.
  */
 export function lensesFor(scope: "city" | "country" | "world"): LensId[] {
-  const base: LensId[] = ["people", "compare", "scores"];
-  return scope === "world" ? [...base, "explore"] : base;
+  return scope === "world"
+    ? ["people", "scores", "explore", "compare"]
+    : ["people", "scores", "compare"];
 }
 
 /**
