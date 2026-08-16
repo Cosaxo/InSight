@@ -855,6 +855,69 @@ describe("window.LIVE public surface", () => {
   });
 });
 
+// The store's heavy folds, cached per CHANGE rather than per read (D169).
+//
+// `kindredPeople()` and `testFeedItems()` are whole-store folds with five
+// and six render-path callers between them, every one inside a component
+// that re-renders on notify(). They now compute once per notify() and hand
+// the same array back until the next one.
+//
+// Both halves of that need a test, and the second is the one that matters:
+// a cache keyed on the wrong signal reads exactly like a working one until
+// the store changes underneath it, and then it is a screen showing the
+// previous account's people. So identity is asserted (the optimisation)
+// AND a real bank change is asserted to come through (the correctness).
+describe("perRev — folds computed per change, not per read (D169)", () => {
+  const TEST_Q = {
+    id: "q_test_a",
+    data: {
+      surface: "test", seq: 9, type: "vote", prompt: "I keep appointments.",
+      options: ["1", "2", "3", "4", "5"], topic: "self", test: "big5", active: true,
+    },
+  };
+
+  it("hands back one fold across repeated reads, and a fresh one after a notify", async () => {
+    h.bankDocs.push(TEST_Q);
+    const LIVE = await bootLive();
+    h.setDocImpl = () => new Promise<void>(() => { /* never acks; the vote's notify is what this needs */ });
+
+    const items = LIVE.testFeedItems();
+    const people = LIVE.kindredPeople();
+    expect(items.map((q) => q.id)).toEqual(["q_test_a"]);
+    // The optimisation, stated as identity: repeated reads within one
+    // render are free, and a consumer may key a useMemo on the reference.
+    expect(LIVE.testFeedItems()).toBe(items);
+    expect(LIVE.kindredPeople()).toBe(people);
+
+    // …and the invalidation, keyed on the only event that can reach a
+    // renderer. vote() mutates and notifies, so both folds must be re-run
+    // even though this particular change touched neither's inputs —
+    // over-invalidating is the safe direction and the cheap one.
+    LIVE.vote("q_1", "1");
+    expect(LIVE.testFeedItems()).not.toBe(items);
+    expect(LIVE.kindredPeople()).not.toBe(people);
+  });
+
+  it("does not hide a bank that actually changed under it", async () => {
+    h.bankDocs.push(TEST_Q);
+    const LIVE = await bootLive();
+    expect(LIVE.testFeedItems().map((q) => q.id)).toEqual(["q_test_a"]);
+
+    // A uid change re-hydrates from scratch (resetForNewUid). If the fold
+    // were cached on anything but the store's own change signal, the new
+    // account would be shown the old one's test bank — which is the same
+    // class of failure the voter/name caches are purged to prevent.
+    h.bankDocs = [h.bankDocs[0], {
+      id: "q_test_b",
+      data: { ...TEST_Q.data, prompt: "I plan ahead." },
+    }];
+    h.authCb!({ uid: "someone_else" });
+    await vi.waitFor(() => {
+      expect(LIVE.testFeedItems().map((q) => q.id)).toEqual(["q_test_b"]);
+    });
+  });
+});
+
 // The learn crowd split, warmed before the tap (D125).
 //
 // learnAgg is a read-through cache that returns null on the first call for
