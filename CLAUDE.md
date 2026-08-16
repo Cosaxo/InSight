@@ -39,9 +39,14 @@ picture, which is why most of the Mirror shipped dark.
 What survives from the old lens is the *discipline*, pointed the other
 way: if the UI says something about who can see what, `firestore.rules`
 or a Cloud Function has to make it true, and a test has to prove it. The
-account panel now says plainly that answers are public, because a user
+account panel still says plainly that answers are public, because a user
 learning that from a stranger quoting their vote would be the same
-failure as the reverse.
+failure as the reverse — but since D182 that sentence is *all* it says.
+The long disclosure lives once, in `web/privacy.html`, and
+`check:policy-claims` is what a promise is now proved by. Read that
+script before editing the page: three of its claims were already stale
+when D182 opened it, because D174, D175 and D177 each updated the app and
+not the policy.
 
 Three denies remain, none about answers, each labelled at its own path in
 `firestore.rules`: the unscored logic answer key (anti-cheat), flag

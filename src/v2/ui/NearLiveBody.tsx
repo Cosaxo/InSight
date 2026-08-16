@@ -401,19 +401,40 @@ function NearPresence() {
           and this is what that tap agrees to). Shown while OFF — before the
           decision, which is the only moment it can inform one.
 
-          FOUR LINES RATHER THAN A PARAGRAPH, and not one fact fewer: the
-          square and its size, who can read it, what the people in it see,
-          how long it runs, and what off does. A consent notice may not lose
-          a clause to brevity — but a 54-word block is a notice most readers
-          skip, and four scannable lines is the same content actually read.
-          Change what any line CLAIMS only alongside the behaviour. */}
+          TWO WORDS, WITH THE DISCLOSURE UNDER THEM (D182). It was a
+          54-word paragraph, then four lines, and the owner's call is that
+          the stop should show neither — a screen whose subject is the
+          constellation should not open on a consent notice.
+
+          What is NOT done here: shortening the notice itself. Every fact
+          survives at full strength — the square and its size, that nobody
+          reads it, what the people in it see, the three-hour linger, what
+          off does — because a `details` moves a disclosure one tap away
+          and dropping a clause removes it. Those are different edits and
+          only the first one was asked for.
+
+          `details`, not state: the tap costs no JavaScript, it survives a
+          re-render, and a screen reader gets a real disclosure widget
+          rather than a div pretending to be one. Closed by default, which
+          is what makes it a word — and it is the LAST thing before the
+          switch's own row, so a reader who wants it has not scrolled past
+          it to get to the toggle.
+
+          The long version lives at web/privacy.html and is gated
+          (check:policy-claims). Change what any line CLAIMS only alongside
+          the behaviour, and in both places. */}
       {supported && !on && (
-        <ul style={{ fontFamily: "var(--sans)", fontSize: 12, fontWeight: 500, color: "var(--ink-2)", lineHeight: 1.5, marginTop: 8, paddingTop: 8, borderTop: NB_LINE, listStyle: "none", margin: 0, padding: "8px 0 0", display: "flex", flexDirection: "column", gap: 3 }}>
-          <li>Your phone shares a ~200-metre grid square. No user can read it.</li>
-          <li>People in it with this on see your name, type and answers — and you see theirs.</li>
-          <li>It keeps counting up to three hours after you close the app.</li>
-          <li>Turning it off deletes it at once.</li>
-        </ul>
+        <details style={{ marginTop: 8, paddingTop: 8, borderTop: NB_LINE }}>
+          <summary style={{ cursor: "pointer", fontFamily: "var(--sans)", fontSize: 12, fontWeight: 700, color: "var(--ink-3)", WebkitAppearance: "none" }}>
+            What&rsquo;s shared
+          </summary>
+          <ul style={{ fontFamily: "var(--sans)", fontSize: 12, fontWeight: 500, color: "var(--ink-2)", lineHeight: 1.5, listStyle: "none", margin: 0, padding: "7px 0 0", display: "flex", flexDirection: "column", gap: 3 }}>
+            <li>A ~200-metre grid square. No user can read it.</li>
+            <li>People in it with this on see your name, type and answers — and you see theirs.</li>
+            <li>It keeps counting up to three hours after you close the app.</li>
+            <li>Turning it off deletes it at once.</li>
+          </ul>
+        </details>
       )}
 
       {/* The beat's own failure, and the way out of it. Before D150 the card

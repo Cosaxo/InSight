@@ -311,13 +311,12 @@ function WhosHere({ qs, shortName }: { qs: LensQuestion[]; shortName: string }) 
         </div>
       )}
 
-      {/* Once, at the foot, rather than beside every figure. The clause that
-          used to follow ("each question someone answered counts once") said
-          the same thing twice: the three words carry the whole claim, and a
-          caption nobody finishes is a caption that informs nobody. */}
-      <span style={{ fontFamily: "var(--sans)", fontSize: 11, fontWeight: 500, color: "var(--ink-3)", lineHeight: 1.5 }}>
-        Answers, not people.
-      </span>
+      {/* "Answers, not people" stood here and is gone (D182). It is not a
+          claim the card stopped making — it is one the KICKER makes, on
+          the figure itself: "answers with an age" is the unit printed on
+          the number it qualifies, which is the only place a unit belongs.
+          The footnote was that unit said a second time, further from the
+          number, in smaller type. */}
     </div>
   );
 }
@@ -468,7 +467,7 @@ function PeopleLens({ qs, scope, shortName }: {
                 a likeness number nobody can explain is a number nobody
                 should trust. */}
             <span style={{ fontFamily: "var(--sans)", fontSize: 11.5, fontWeight: 500, color: "var(--ink-3)", marginTop: 2, lineHeight: 1.5 }}>
-              Same picks, out of the questions you both answered — last {LIVE.kindredDepth()}.
+              same picks &divide; shared &middot; last {LIVE.kindredDepth()}
             </span>
           </div>
         )}

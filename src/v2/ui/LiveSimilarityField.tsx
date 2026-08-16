@@ -560,7 +560,9 @@ export function NearField() {
         {shown.length} in {cityName} · closer = more alike
         {scoredN < shown.length ? " · dashed = answers only" : ""}
       </SfCaption>
-      <SfEmpty>Nobody is named here.</SfEmpty>
+      {/* The promise this used to carry is the stop's closing line
+          ("The field names nobody — People does"), which says the same
+          thing and the half this could not: where the names are. */}
     </div>
   );
 }

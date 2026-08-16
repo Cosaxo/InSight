@@ -82,12 +82,12 @@ export default function TypeMixCard({ scope }: { scope: "city" | "country" | "wo
         <div style={{ display: "flex", flexDirection: "column", gap: 5, borderTop: "1px solid color-mix(in oklch, var(--rule), transparent 25%)", paddingTop: 10 }}>
           {small && (
             <span style={{ fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 600, color: "var(--ink-2)", lineHeight: 1.45 }}>
-              Too few for shares — these are counts.
+              counts, not shares
             </span>
           )}
           {!small && mix.thin.length > 0 && (
             <span style={{ fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 600, color: "var(--ink-3)", lineHeight: 1.45 }}>
-              too few to rank: {mix.thin.map((r) => r.name + " (" + r.n + ")").join(", ")}
+              unranked: {mix.thin.map((r) => r.name + " (" + r.n + ")").join(", ")}
             </span>
           )}
           {mix.absent.length > 0 && (

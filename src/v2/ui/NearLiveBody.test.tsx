@@ -286,7 +286,7 @@ describe("NearLiveBody · the constellation, with nobody named", () => {
     LIVE.myCity = "Oslo, NO";
     LIVE.kindredPeople = () => [person("a", 80), person("b", 60)];
     const { container } = render(<NearLiveBody />);
-    expect(await screen.findByText(/nobody is named here/i)).toBeTruthy();
+    expect(await screen.findByText(/field names nobody/i)).toBeTruthy();
     expect(screen.queryByText(/Name a/)).toBeNull();
     expect(screen.queryByText(/Name b/)).toBeNull();
     // The one interactive control on the stop is the permission toggle.
@@ -405,7 +405,13 @@ describe("NearField · a node is a radius, never a place and never a join key", 
   });
 
   it("says nobody is named, in the copy a reader actually sees", () => {
-    expect(nearField()).toMatch(/Nobody is named here/i);
+    // Read off the render rather than out of NearField's source (D182):
+    // the promise moved one component out, into the stop's closing line,
+    // where it is paired with the half a caption under the field could
+    // not carry — "People does". A source slice would now be watching the
+    // wrong function and passing for the wrong reason.
+    render(<NearLiveBody />);
+    expect(screen.getByText(/field names nobody/i)).toBeTruthy();
   });
 });
 

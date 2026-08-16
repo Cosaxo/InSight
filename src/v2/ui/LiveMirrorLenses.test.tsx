@@ -127,7 +127,7 @@ describe("People", () => {
   // drawn as cards rather than listed as names. The claims below are the
   // ones that survived the redraw plus the ones it added.
 
-  it("shows the population's own shape, and calls it answers not people", () => {
+  it("shows the population's own shape, and counts it in answers", () => {
     mount("people");
     expect(screen.getByText(/who.s here/i)).toBeTruthy();
     // The age histogram is in scale order, so it reads as a distribution
@@ -135,7 +135,7 @@ describe("People", () => {
     // above it names a band too, which is the point of having one.
     expect(screen.getAllByText("25-34").length).toBeGreaterThan(0);
     expect(screen.getByText("35-44")).toBeTruthy();
-    expect(screen.getByText(/answers, not people/i)).toBeTruthy();
+    expect(screen.getByText(/answers with an age/i)).toBeTruthy();
   });
 
   it("marks your own age band rather than annotating it", () => {
@@ -164,7 +164,7 @@ describe("People", () => {
     expect(screen.getByText("5/6 alike")).toBeTruthy();
     // A likeness number nobody can explain is a number nobody should
     // trust, so the definition ships next to it.
-    expect(screen.getByText(/same picks, out of the questions you both answered/i)).toBeTruthy();
+    expect(screen.getByText(/same picks ÷ shared/i)).toBeTruthy();
     expect(screen.getByText(/who answers most like you/i)).toBeTruthy();
   });
 

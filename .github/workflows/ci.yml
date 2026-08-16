@@ -116,6 +116,14 @@ jobs:
       # placement rule as check:store-forms above: client/docs-only, and
       # deliberately off backend-checks.yml.
       - run: npm run check:public-copy
+      # The other half of the same discipline, and the newer half (D182).
+      # check:public-copy catches a retired promise that REAPPEARS; this
+      # catches a live promise that VANISHES. It was needed the moment the
+      # account panel stopped stating its own disclosures and started
+      # pointing at web/privacy.html instead: from that commit on, a claim
+      # deleted from that page is a claim deleted from the product.
+      # Client/docs-only, same placement rule as the checks around it.
+      - run: npm run check:policy-claims
       # Every collection the rules grant access to is named in
       # data-inventory.md — the document app-privacy.json derives the App
       # Store privacy label from (D130). A name check, like check:globals.

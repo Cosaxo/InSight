@@ -166,12 +166,10 @@ function LiveCircleBody() {
             }}>Unfollow</button>
           </div>
         ))}
-        <span style={{ fontFamily: "var(--sans)", fontSize: 11.5, fontWeight: 500, color: "var(--ink-3)", marginTop: 9 }}>
-          {/* Same sentence the People lens carries, for the same reason: a
-              likeness number nobody can explain is one nobody should
-              trust. */}
-          Same picks, out of the questions you both answered.
-        </span>
+        {/* The definition stood here as a sentence and is now the rows
+            themselves: every one prints "5/6 alike" beside its own
+            percentage, which is the arithmetic rather than a description
+            of it. */}
       </div>
 
       <div style={{ marginTop: 22, borderTop: CL_LINE, paddingTop: 14 }}>

@@ -21,6 +21,10 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+// The claim list the CI gate reads, shared rather than re-typed (D182):
+// a second copy of these patterns is a second thing to forget to update.
+// @ts-expect-error TS7016 — plain .mjs gate script, no types
+import { missingClaims, readPage } from "../../../scripts/check-policy-claims.mjs";
 
 const LIVE = vi.hoisted(() => ({
   // D178: every named surface draws a face now, so a LIVE stand-in
@@ -123,48 +127,23 @@ describe("LivePrivacyPanel · a refused deletion is shown, not swallowed", () =>
   });
 });
 
-describe("LivePrivacyPanel · the disclosure does not promise anonymity the app never gives", () => {
-  // The header comment above says copy is not worth a test that only
-  // re-types it. These two are the exception, and they are here because
-  // the copy went wrong exactly once in each direction.
-  //
-  // The takes bullet claimed world takes appear "always without a name"
-  // from the D106 sweep until this test existed, while LiveTakesPanel
-  // rendered LIVE.nameFor(authorUid) under a "posted under your name"
-  // header — a panel whose entire purpose is matching what the app SAYS
-  // to what the rules DO, promising an anonymity the rules never gave.
-  //
-  // So these assert on the *vocabulary of the retired model* rather than
-  // on today's sentence: a rewrite may say this any way it likes, but it
-  // may not go back to claiming namelessness or a floor.
-  // Scoped to the takes bullet, not the whole panel: "anonymous" is
-  // correct twice elsewhere here — the D3 anonymous session and the
-  // uid-only crash reports — so a panel-wide negative match would forbid
-  // two true sentences to catch one false one.
-  const takesBullet = () => {
-    render(<LivePrivacyPanel />);
-    const li = [...document.querySelectorAll("li")]
-      .find((el) => /\btakes?\b/i.test(el.textContent || ""));
-    if (!li) throw new Error("no bullet about takes — the disclosure lost it entirely");
-    return li.textContent || "";
-  };
-
-  it("says takes carry the author's name, and does not call them nameless", () => {
-    const text = takesBullet();
-    expect(text).toMatch(/posted under your name/i);
-    expect(text).not.toMatch(/without a name|anonymous|nameless|no names/i);
-  });
-
-  it("does not re-promise the k-floor anywhere in the disclosure", () => {
-    // The floor died at D98. The panel states the inverse — a count of 1
-    // is visibly one person — and that is the claim that must survive,
-    // because it is the one a user needs before answering.
-    render(<LivePrivacyPanel />);
-    const text = document.body.textContent || "";
-    expect(text).toMatch(/exact from the very first answer/i);
-    expect(text).not.toMatch(/k-anonym|floored|withheld until|minimum (?:group|cohort)/i);
-  });
-});
+// A DESCRIBE STOOD HERE — "the disclosure does not promise anonymity the
+// app never gives" — and its two cases are gone with the bullets they read
+// (D182). What they guarded is not:
+//
+// The takes bullet claimed world takes appear "always without a name" from
+// the D106 sweep until that test existed, while LiveTakesPanel rendered
+// LIVE.nameFor(authorUid) under a "posted under your name" header — a
+// panel whose entire purpose is matching what the app SAYS to what the
+// rules DO, promising an anonymity the rules never gave. The k-floor case
+// was the same shape, one promise over.
+//
+// Both asserted on the *vocabulary of the retired model* rather than on a
+// sentence, and that is precisely what `check:public-copy` does — over an
+// enumerated file list that already includes web/privacy.html, which is
+// where the takes and counts wording now lives. The guard did not move
+// because it was never only here; the positive half ("takes carry your
+// display name", "counts are exact") is a row in check-policy-claims.
 
 describe("LivePrivacyPanel · off in demo mode", () => {
   it("renders nothing when LIVE is disabled", () => {
@@ -176,75 +155,72 @@ describe("LivePrivacyPanel · off in demo mode", () => {
   });
 });
 
-describe("LivePrivacyPanel · the type cut's disclosure", () => {
-  // Pinned for the same reason the takes bullet is: the claim it replaces
-  // ("a test result is never a breakdown dim, so nothing is ever
-  // cross-tabbed by it") was TRUE and is now only half true, and the half
-  // that died is the half a user would want to know. A future sweep that
-  // deletes this bullet to tidy the list has to argue with an assertion.
-  const typeBullet = () => {
+describe("LivePrivacyPanel · the disclosure moved to the policy page (D182)", () => {
+  // WHERE THESE ASSERTIONS USED TO POINT, and why they still exist.
+  //
+  // Three describes stood here — the takes bullet, the type cut, and
+  // D172's "the list collapsed, the promises did not" — and every one of
+  // them read a `<li>` out of the panel. The owner asked for the list to
+  // leave the app and be disclosed elsewhere (D182), so the subject of all
+  // three is gone from this component.
+  //
+  // They are NOT deleted with it. A promise nothing asserts is a promise
+  // one tidy-up away from disappearing, which is exactly what D172's
+  // source comment was written to prevent. What changed is the file they
+  // read: the panel now owns the ROUTE, and web/privacy.html owns the
+  // words — so these read the page the panel points at, through the same
+  // claim list scripts/check-policy-claims.mjs gates in CI. One list, two
+  // readers, no chance of them drifting apart.
+  it("keeps the public-answers sentence open, and needs no tap for it", () => {
     render(<LivePrivacyPanel />);
-    const li = [...document.querySelectorAll("li")]
-      .find((el) => /Big Five/i.test(el.textContent || ""));
-    if (!li) throw new Error("no bullet about the type cut — the disclosure lost it entirely");
-    return li.textContent || "";
-  };
-
-  it("says answers can be grouped by type", () => {
-    expect(typeBullet()).toMatch(/grouped by your Big Five type/i);
-  });
-
-  it("says the grouping reaches answers given before the type existed", () => {
-    // The retroactive half. It is the one property a reader cannot guess
-    // from "answers are public" plus "results are public", because every
-    // other cut on the same sheet is frozen at vote time.
-    expect(typeBullet()).toMatch(/before you had a type/i);
-  });
-
-  it("keeps the Art. 9 instruments out of it, in writing", () => {
-    // data/typeMix.TYPE_TEST is the enforcement; this is the promise.
-    // They are pinned in two places on purpose — the code one is a
-    // constant a refactor could widen without touching any copy.
-    expect(typeBullet()).toMatch(/politics, values and social results are never used/i);
-  });
-});
-
-
-describe("LivePrivacyPanel · the list collapsed, the promises did not (D172)", () => {
-  it("keeps the public-answers sentence open and everything else one tap away", () => {
-    render(<LivePrivacyPanel />);
-    // Open on arrival, because a user learning this from a stranger
-    // quoting their vote is what the panel exists to prevent (CLAUDE.md).
-    // getAllBy: the open sentence and the first bullet inside the details
-    // both say it, which is deliberate — the summary line is the one that
-    // must not need a tap, and the bullet is the full version.
-    expect(screen.getAllByText(/Your answers are public/i).length).toBeGreaterThan(0);
+    // The bluntest sentence in the app, and the one CLAUDE.md insists on:
+    // a user learning that their answers are public from a stranger
+    // quoting their vote back at them is what this panel exists to
+    // prevent. A link is not a substitute for it.
     const openLine = [...document.querySelectorAll("div")].find(
       (el) => /Your answers are public/i.test(el.textContent || "") && !el.closest("details"),
     );
-    expect(openLine, "the public-answers line moved inside the disclosure").toBeTruthy();
+    expect(openLine, "the public-answers line stopped being open on arrival").toBeTruthy();
+  });
 
-    // The rest is behind a real disclosure widget, and `details` renders
-    // its children into the DOM whether open or shut — so this asserts
-    // REACHABILITY, which is what the stores and D9/D84/D98/D146 need,
-    // not visibility.
-    const d = document.querySelector("details");
-    if (!d) throw new Error("the disclosure widget is gone");
-    expect(d.querySelectorAll("li").length,
-      "bullets were deleted rather than collapsed").toBe(10);
+  it("states no disclosure it no longer owns", () => {
+    render(<LivePrivacyPanel />);
+    // The negative half, and the reason it is worth a case: a bullet
+    // re-added here would be a SECOND copy of a promise that is gated
+    // somewhere else, and two copies is how the takes line came to say
+    // "always without a name" while the takes panel said the opposite
+    // (D106, the failure check:public-copy exists for).
+    expect(document.querySelectorAll("details").length,
+      "the collapsed disclosure came back — it lives in web/privacy.html now").toBe(0);
+    expect(document.querySelectorAll("li").length,
+      "disclosure bullets came back into the panel").toBe(0);
+  });
 
-    // The four that exist because a specific decision made them true. If
-    // one of these ever disappears it should be because its decision was
-    // reversed, not because a layout pass thinned the list.
-    const text = d.textContent || "";
-    expect(text, "D9's location promise").toMatch(/never your coordinates/i);
-    // Tracks the grid: "kilometre-sized" until D175 moved it to 0.002°
-    // (~200 m) in the same commit that made the fix precise. This guard
-    // is the reason the copy could not quietly fall behind the constant.
-    expect(text, "D84's presence promise").toMatch(/200-metre grid square/i);
-    expect(text, "D174's linger, which the copy missed for one commit")
-      .toMatch(/three hours after you close the app/i);
-    expect(text, "D146's type cut").toMatch(/grouped by your Big Five type/i);
-    expect(text, "the exact-counts promise").toMatch(/counts\s+are exact/i);
+  it("routes to the policy, and the policy is reachable off the bundle", () => {
+    render(<LivePrivacyPanel />);
+    // Both stores require the policy on the open web, and a link that
+    // opened a bundled file would satisfy neither them nor a user who
+    // pastes it somewhere. Asserted as the href rather than the label so
+    // renaming the link cannot quietly break the route.
+    const link = [...document.querySelectorAll("a")]
+      .find((a) => /privacy\.html$/.test(a.getAttribute("href") || ""));
+    expect(link, "the route to the disclosure is gone — the promises are now unreachable").toBeTruthy();
+    expect(link!.getAttribute("href")).toMatch(/^https?:\/\//);
+  });
+
+  it("keeps every promise the panel gave up, on the page it points at", () => {
+    // The four that exist because a specific decision made them true —
+    // D9's coordinates, D84's square, D174's linger, D146's type cut —
+    // plus the rest of the list, checked by label so a failure names the
+    // decision rather than a regex.
+    //
+    // Opening that page to move them into found three ALREADY stale:
+    // "kilometre-sized" (D175 shrank the grid five-fold), "goes stale
+    // within minutes" (D174 made it three hours) and "a count is all that
+    // comes back" (D177 made the room readable). The app was right and
+    // the policy was wrong the whole time, which is the case for one
+    // canonical copy — and for this case, rather than a promise to keep
+    // the page in mind.
+    expect(missingClaims(readPage())).toEqual([]);
   });
 });
