@@ -21,7 +21,7 @@
     "pretest:e2e": "npm run build --prefix functions",
     "test:e2e": "firebase emulators:exec --only auth,firestore,functions --project demo-insight \"node firestore-tests/e2e-v2-loop.mjs\"",
     "pretest:e2e:erasure": "npm run build --prefix functions",
-    "test:e2e:erasure": "firebase emulators:exec --only auth,firestore,functions --project demo-insight \"node firestore-tests/e2e-delete-account.mjs\"",
+    "test:e2e:erasure": "firebase emulators:exec --only auth,firestore,functions,storage --project demo-insight \"node firestore-tests/e2e-delete-account.mjs\"",
     "pretest:e2e:moderation": "npm run build --prefix functions",
     "test:e2e:moderation": "firebase emulators:exec --only auth,firestore,functions --project demo-insight \"node firestore-tests/e2e-moderation.mjs\"",
     "check:globals": "node scripts/check-spec-globals.mjs",

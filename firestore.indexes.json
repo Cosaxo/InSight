@@ -63,7 +63,7 @@
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "at",
+          "fieldPath": "until",
           "order": "ASCENDING"
         }
       ]

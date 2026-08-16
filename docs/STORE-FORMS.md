@@ -68,7 +68,9 @@ companies' apps or sites.
 | Contact Info | **Email Address** | Yes | App Functionality | Only if the user links Google. See the warning below |
 | Contact Info | **Name** | Yes | App Functionality | Optional display name, shown in group and duel reveals |
 | User Content | **Other User Content** | Yes | App Functionality | Answers and test results, the anchors each answer was given under, and question suggestions (D138). See the note below the table |
-| Location | **Coarse Location** | Yes | App Functionality | City name only. **Never tick Precise** |
+| User Content | **Photos or Videos** | Yes | App Functionality | **Optional profile photo, off by default (D178)** — shown anywhere the app shows the user's name, including to people nearby since D177. Shrunk and re-encoded on the device, which drops the original's EXIF. See the note below the table |
+| Location | **Coarse Location** | Yes | App Functionality | City name; 0.002° presence cell |
+| Location | **Precise Location** | Yes | App Functionality | Requested since D175; nothing precise is retained — see §"The three that bite" |
 | Sensitive Info | **Sensitive Info** | Yes | App Functionality | Politics test result (GDPR Art. 9); gender if entered |
 | Diagnostics | **Crash Data** | Yes | App Functionality | Sentry. **On by default** (D76), opt-out in the privacy panel, carries the uid only |
 
@@ -102,12 +104,32 @@ what needed fixing.
 ### Not collected — leave every one of these unticked
 
 Phone Number · Physical Address · Other Contact Info · Health · Fitness ·
-Payment Info · Credit Info · Other Financial Info · **Precise Location** ·
-Contacts · Emails or Text Messages · Photos or Videos · Audio Data ·
+Payment Info · Credit Info · Other Financial Info ·
+Contacts · Emails or Text Messages · Audio Data ·
 Gameplay Content · Customer Support · Browsing History · Search History ·
 **Device ID** · Purchase History · **Product Interaction** ·
 **Advertising Data** · Other Usage Data · Performance Data · Other
 Diagnostic Data · Other Data Types
+
+**Precise Location left this list at D175** and is now a ticked row in the
+table above — the app requests a precise fix for Near even though nothing
+precise is retained. It is called out here because this is the line a
+future reviewer will check the change against.
+
+**Photos or Videos left this list at D178**, and it is the one that had
+been called load-bearing in this very document: §"Facial symmetry" refuses
+a feature partly *because* this row was a No. That refusal stands
+unchanged and the distinction is worth stating, because the two look
+alike and are not. The symmetry idea wanted to MEASURE a face — camera
+capture and face geometry, biometric data in GDPR and BIPA terms, feeding
+a pseudo-measurement into a personality reading. D178 stores a picture
+somebody chose to publish, and nothing reads it but a human eye. The app
+does no face processing of any kind, and this row moving does not open the
+door the other section closed.
+
+What moving it costs, stated plainly: an optional photo, off by default,
+one 256px object per account, deleted with the account (bytes included —
+`deleteAccount` reaches Storage since D178, which it never did before).
 
 Four of those are worth knowing *why*, because each looks tickable:
 
@@ -157,15 +179,34 @@ Four of those are worth knowing *why*, because each looks tickable:
 
 ### The three that bite
 
-1. **Coarse Location is a real Yes**, even though **no coordinate is ever
-   transmitted.** The fix is resolved to a city name on the device
-   (`src/v2/data/locate.ts`) and discarded, so what leaves the device is a
-   city name — which is still coarse location data. Under-declaring is the
-   direction that gets an app pulled.
+1. **Both location rows are a real Yes, and Precise moved at D175.**
+   No coordinate is ever transmitted: a fix is folded on the device
+   (`src/v2/data/locate.ts`) to a city name, or to a 0.002° presence cell,
+   and discarded. What leaves the phone is a city name or a grid square.
+   Under-declaring is the direction that gets an app pulled, so both rows
+   are ticked.
 
-   **Never tick Precise.** It is unobtainable by construction, not by
-   policy: iOS sets `NSLocationDefaultAccuracyReduced` and never calls
-   `requestTemporaryFullAccuracy`. If a reviewer asks, that is the answer.
+   **Precise Location: Yes (D175, was No).** The app now REQUESTS a
+   precise fix — iOS `NSLocationDefaultAccuracyReduced` is `false`,
+   Android's `ACCESS_FINE_LOCATION` is uncapped, and `enableHighAccuracy`
+   is on — because Near's venue-scale reading cannot be measured by a
+   coarse one, and a finer grid computed from a coarse fix would be
+   invented precision.
+
+   **The row describes what is REQUESTED, which is why it moves even
+   though what is KEPT did not get finer than the threshold.** Apple
+   defines Precise Location as a resolution of three or more decimal
+   places (0.001°); the presence cell is 0.002°, deliberately one step
+   coarser, and the city name is coarser still. So the honest position to
+   give a reviewer is: precise is requested, nothing precise is retained
+   or transmitted, and the grid was chosen to sit above the line rather
+   than at it.
+
+   **What the old answer said, so the change is not mistaken for drift:**
+   "Never tick Precise — it is unobtainable by construction, not by
+   policy." That was true and is not any more. D84 named this exact flip
+   as the owner's separate call ("request precise fixes, flip the App
+   Store label, rewrite the coarse-only lines"), and D175 is that call.
 
 2. **Sensitive Info is a real Yes, and D98 strengthened the reason.**
    The politics test result is special-category data under GDPR Art. 9.
@@ -422,7 +463,7 @@ same inventory and should not be re-derived in a hurry.
 | Personal info → Political or religious beliefs | Yes | No | Optional | App functionality |
 | Personal info → Gender | Yes | No | Optional | App functionality |
 | Location → Approximate location | Yes | No | **Optional** | App functionality |
-| Location → Precise location | **No** | — | — | — |
+| Location → Precise location | **Yes** (D175) | App Functionality | Not linked to identity beyond the account | No |
 | App activity, Web browsing, Contacts, Photos, Financial, Purchases | **No** | — | — | — |
 | App info & performance → Crash logs | Yes | No | **Optional** (on by default; the privacy panel has the off switch, which is what keeps Play's "users can choose" definition true) | App functionality |
 | Advertising ID / any ads box | **No** | — | — | — |

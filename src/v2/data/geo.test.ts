@@ -8,11 +8,13 @@ import { presenceCell, PRESENCE_CELL_RE } from "./geo";
 
 describe("presenceCell", () => {
   it("maps known places onto the shared vectors", () => {
-    expect(presenceCell(59.9139, 10.7522)).toBe("5991_1075");   // Oslo centre
-    expect(presenceCell(59.999, 10.749)).toBe("5999_1074");     // the pure-test cell
-    expect(presenceCell(-33.7301, 151.2172)).toBe("-3374_15121"); // Sydney-ish
+    // 0.002° since D175 — five-digit indices, and a cell that is ~222 m
+    // tall rather than ~1.1 km.
+    expect(presenceCell(59.9139, 10.7522)).toBe("29956_5376");   // Oslo centre
+    expect(presenceCell(59.999, 10.749)).toBe("29999_5374");     // the pure-test cell
+    expect(presenceCell(-33.7301, 151.2172)).toBe("-16866_75608"); // Sydney-ish
     expect(presenceCell(0, 0)).toBe("0_0");
-    expect(presenceCell(89.999, -180)).toBe("8999_-18000");
+    expect(presenceCell(89.999, -180)).toBe("44999_-90000");
   });
 
   it("negative coordinates floor toward the pole, not toward zero", () => {

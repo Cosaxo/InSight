@@ -27,6 +27,15 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { LensId, LensQuestion } from "./lensDefs";
 
 const LIVE = vi.hoisted(() => ({
+  // D178: every named surface draws a face now, so a LIVE stand-in
+  // that lacks this crashes the row rather than falling back to
+  // initials. "" is the no-photo shape, which is most accounts.
+  faceFor: () => "",
+  myFace: () => "",
+  setAvatar: async () => ({ ok: true }),
+  removeAvatar: async () => {},
+  flagAvatar: async () => {},
+  flaggedAvatar: () => false,
   enabled: true,
   subscribe: () => () => {},
   loadKindred: vi.fn(async () => {}),
@@ -55,6 +64,11 @@ const Q: LensQuestion = {
   text: "Pineapple on pizza?",
   options: ["Yes", "No"],
   counts: [12, 8],
+  // Explore's baseline (D170). Equal to `counts` in this fixture on
+  // purpose: these cases are about what a lens SAYS, and the case that
+  // holds the two APART lives in LiveCohortBody.test.tsx, where the
+  // wiring that fills them is.
+  all: [12, 8],
   by: {
     ageBand: { "25-34": { "0": 9, "1": 1 }, "35-44": { "0": 3, "1": 7 } },
     gender: { Woman: { "0": 6, "1": 4 }, Man: { "0": 6, "1": 4 } },
@@ -242,6 +256,7 @@ describe("Scores", () => {
     text: "How optimistic are you about the next ten years?",
     options: ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"],
     counts: [0, 0, 2, 0, 0, 0, 0, 0, 2, 0],
+    all: [0, 0, 2, 0, 0, 0, 0, 0, 2, 0],
     by: {}, mine: 8, // index 8 → a score of 9
   };
 
@@ -286,9 +301,9 @@ describe("Scores", () => {
     // put the 7 first and quietly sort by which scale a question used.
     const likert: LensQuestion = {
       id: "s1", type: "scale", text: "Rest is fine.",
-      options: ["1", "2", "3", "4", "5"], counts: [0, 0, 0, 3, 0], by: {}, mine: -1,
+      options: ["1", "2", "3", "4", "5"], counts: [0, 0, 0, 3, 0], all: [0, 0, 0, 3, 0], by: {}, mine: -1,
     };
-    const rating: LensQuestion = { ...RATED, id: "r2", text: "Curiosity?", counts: [0,0,0,0,0,0,3,0,0,0], mine: -1 };
+    const rating: LensQuestion = { ...RATED, id: "r2", text: "Curiosity?", counts: [0,0,0,0,0,0,3,0,0,0], all: [0,0,0,0,0,0,3,0,0,0], mine: -1 };
     mount("scores", [rating, likert]);
     const texts = screen.getAllByText(/Rest is fine\.|Curiosity\?/).map((n) => n.textContent);
     expect(texts).toEqual(["Rest is fine.", "Curiosity?"]);

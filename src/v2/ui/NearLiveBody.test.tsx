@@ -17,6 +17,8 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 
 const LIVE = vi.hoisted(() => ({
   enabled: true,
@@ -33,13 +35,25 @@ const LIVE = vi.hoisted(() => ({
   near: {
     supported: () => true as boolean,
     on: () => false as boolean,
+    // D174's three states. The mock defaults to the timed one because
+    // that is what enable() lands on, so a case that only flips `on`
+    // gets the shape a real opt-in produces.
+    mode: () => "session" as "off" | "session" | "always",
+    until: () => Date.now() + 90 * 60_000,
     count: () => null as number | null,
+    // D176's room mix — null by default, which is the quiet-street case.
+    mix: () => null as { top: string[]; n: number; capped?: boolean } | null,
     tooFew: () => false as boolean,
     updatedAt: () => 0 as number,
     lastError: () => null as string | null,
     enable: vi.fn(async () => ({ ok: true } as { ok: boolean; reason?: string })),
     disable: vi.fn(async () => {}),
     refresh: () => {},
+    // D177's room. The tab BODIES are lazy and have their own file; what
+    // this fixture has to carry is enough for the row to mount.
+    room: () => null,
+    roomLoading: () => false,
+    loadRoom: async () => {},
   },
 }));
 vi.mock("../data/live", () => ({ default: LIVE }));
@@ -107,14 +121,29 @@ describe("NearLiveBody · the stop is presence, not place (D111)", () => {
 });
 
 describe("the Right now card (D84 — moved with the stop)", () => {
-  it("pitches honestly while off: a count, never who, kilometre-sized", () => {
+  it("pitches honestly while off: who is here, the square, mutuality, the linger", () => {
     render(<NearLiveBody />);
     const text = document.body.textContent || "";
-    expect(text).toMatch(/a count, never\s+who/i);
-    expect(text).toMatch(/kilometre-sized grid square/i);
-    // No 500 m claim anywhere: the coarse permission cannot measure it,
-    // and the copy must not promise a radius the sensor cannot hold.
-    expect(text).not.toMatch(/500\s?m/i);
+    // "A COUNT, NEVER WHO" WAS ASSERTED HERE UNTIL D177, and the case is
+    // more interesting for having had to change: that promise was the
+    // stop's whole pitch, and the People tab made it false. A test that
+    // pinned the old words would have been the thing arguing to keep a
+    // false sentence on screen, so what it pins now is the pair of claims
+    // that replaced it — what you get, and that it runs both ways.
+    expect(text).not.toMatch(/a count, never\s+who/i);
+    expect(text).toMatch(/you appear to them exactly while they appear to you/i);
+    // The SIZE of the square, and it has to track the grid. It said
+    // "kilometre-sized" until D175 moved the grid to 0.002° (~200 m) —
+    // which was only allowed to happen because the fix became precise in
+    // the same commit. A copy line naming a radius the sensor cannot hold
+    // is the failure this case exists to catch, in either direction.
+    expect(text).toMatch(/200-metre grid square/i);
+    expect(text).not.toMatch(/kilometre-sized/i);
+    // The LINGER, which is a disclosure and not a detail: D174 made a
+    // position outlive the app by up to three hours, and this sentence
+    // said "goes stale within minutes" for one commit before anyone
+    // noticed. What a user is agreeing to includes how long it lasts.
+    expect(text).toMatch(/three hours/i);
   });
 
   it("says just-you at zero, counts people above it, and 'a few' when floored", () => {
@@ -130,8 +159,17 @@ describe("the Right now card (D84 — moved with the stop)", () => {
     // not one sentence — so this asserts the two halves rather than a
     // string that no longer exists in one element.
     expect(screen.getByText("3")).toBeTruthy();
-    expect(screen.getByText(/within a couple of kilometres/i)).toBeTruthy();
-    expect(screen.getByText(/a count, never who/i)).toBeTruthy();
+    // The unit moved at D175 with the grid (0.01° → 0.002°): nine cells
+    // span ~600 m, not ~3.3 km, so "a couple of kilometres" was an
+    // overstatement of the count's reach by five times. Asserted as the
+    // FIGURE it names rather than as prose, so the next grid change fails
+    // here instead of shipping a unit that flatters the number.
+    expect(screen.getByText(/within a few hundred metres/i)).toBeTruthy();
+    // The line under the figure, which said "a count, never who" until the
+    // People tab made that untrue (D177). Mutuality is what it says
+    // instead, and it is the claim the server actually enforces — the
+    // callable refuses anyone without a live position of their own.
+    expect(screen.getByText(/They can see you here too/i)).toBeTruthy();
     cleanup();
 
     // The restored-floor era (D81 revert): the server answers tooFew for
@@ -300,7 +338,7 @@ describe("NearLiveBody · the constellation, with nobody named", () => {
     render(<NearLiveBody />);
     expect(await screen.findByText(/1 person in Oslo/)).toBeTruthy();
     expect(screen.getByText("2,847")).toBeTruthy();
-    expect(screen.getByText(/within a couple of kilometres · Oslo/)).toBeTruthy();
+    expect(screen.getByText(/within a few hundred metres · Oslo/)).toBeTruthy();
   });
 
   it("asks for a city rather than drawing an empty ring", async () => {
@@ -319,5 +357,175 @@ describe("NearLiveBody · the constellation, with nobody named", () => {
     LIVE.similarityLoading = () => false;
     render(<NearLiveBody />);
     expect(await screen.findByText(/Nobody from Oslo yet/i)).toBeTruthy();
+  });
+});
+
+
+// ── the rule the whole Near stop rests on ────────────────────────────
+//
+// A source guard rather than a render assertion, on purpose: what has to
+// hold is a property of how the field is CONSTRUCTED, and the two ways to
+// break it both still render something plausible. The precedent is
+// LiveCohortBody.test.tsx's floor-literal check — same shape, same reason.
+//
+// If the room reading (NEXT-FUNCTIONALITY §10) is ever built, this is the
+// case it has to keep passing.
+describe("NearField · a node is a radius, never a place and never a join key", () => {
+  const src = () => readFileSync(
+    resolve(__dirname, "../../..", "src/v2/ui/LiveSimilarityField.tsx"), "utf8",
+  );
+  const nearField = () => {
+    const s = src();
+    const i = s.indexOf("function NearField");
+    expect(i, "NearField was renamed — this guard is now watching nothing").toBeGreaterThan(-1);
+    // To the next top-level function: the guard must not read its neighbours.
+    const j = s.indexOf("\nfunction ", i + 1);
+    return s.slice(i, j > -1 ? j : undefined);
+  };
+
+  it("draws Near anonymously and gives its nodes no label", () => {
+    const f = nearField();
+    expect(f, "Near stopped drawing anonymous nodes").toMatch(/kind="anon"/);
+    // The empty label is the join-key defence: everything a node could
+    // carry (type, age band, trade, answers) is world-readable under D98
+    // and none of it is sensitive alone — but together they identify a
+    // named public account, and then the node has said where that person
+    // is standing. A radius alone gives nothing to join on.
+    expect(f, "a Near node grew a label — that is a join key").toMatch(/label:\s*""/);
+  });
+
+  it("places nodes by likeness and never by a coordinate", () => {
+    const f = nearField();
+    // `match` is the radius. A coordinate reaching this canvas would turn
+    // an anonymous field into a map of where strangers are standing, which
+    // is what v2_presence's `allow read: if false` exists to prevent.
+    expect(f, "Near stopped placing nodes by match").toMatch(/match:/);
+    expect(f, "a coordinate reached the Near field")
+      .not.toMatch(/\b(lat|lon|lng|latitude|longitude|coord|cell)\b/i);
+  });
+
+  it("says nobody is named, in the copy a reader actually sees", () => {
+    expect(nearField()).toMatch(/Nobody is named here/i);
+  });
+});
+
+
+// ── the room's reading (D176) ────────────────────────────────────────
+describe("NearPresence · the room", () => {
+  beforeEach(() => {
+    LIVE.near.on = () => true;
+    LIVE.near.count = () => 24;
+  });
+
+  it("names the types in order and says what the reading rests on", () => {
+    LIVE.near.mix = () => ({ top: ["Host", "Explorer"], n: 11 });
+    render(<NearLiveBody />);
+    const text = document.body.textContent || "";
+    expect(text).toMatch(/Mostly\s*Host and Explorer/);
+    // The basis is the TYPED count (11), not the headline count (24):
+    // plenty of people nearby have never taken the test, and a reading
+    // must not borrow a population it did not measure.
+    expect(text).toMatch(/11 people here have taken the test/);
+    expect(text).not.toMatch(/24 people here have taken/);
+  });
+
+  it("prints no share, ever", () => {
+    LIVE.near.mix = () => ({ top: ["Host", "Explorer", "Planner"], n: 30 });
+    render(<NearLiveBody />);
+    // A percentage moves visibly when one person walks in — that is the
+    // differencing attack, and the ranked words exist to avoid it. If a
+    // share ever appears beside these names, this case is the alarm.
+    const room = [...document.querySelectorAll("div")]
+      .map((d) => d.textContent || "").filter((t) => /^Mostly/.test(t)).pop() || "";
+    expect(room).toBeTruthy();
+    expect(room).not.toMatch(/\d+\s?%/);
+  });
+
+  it("says nothing at all below the floor", () => {
+    // The callable returns null under ROOM_MIN_TYPED, and the card's job
+    // is to stay quiet rather than to explain the floor — an empty street
+    // owes the reader no arithmetic.
+    LIVE.near.mix = () => null;
+    render(<NearLiveBody />);
+    expect(document.body.textContent || "").not.toMatch(/Mostly/);
+  });
+
+  // The countdown reads a CLOCK, and the clock is the reason this needs a
+  // case at all. `Date.now()` during render is impure — the React Compiler
+  // bails out of any component that does it, which costs the memoisation on
+  // the whole card and reports as one eslint line rather than as anything
+  // visible. It shipped that way at D174 and was caught by `npm run lint`,
+  // not by a test. So the deadline now arrives as a prop sampled on the
+  // beat, and this pins the two ends of that: a real remaining time is
+  // rendered, and a not-yet-sampled clock renders the MODE instead of
+  // arithmetic on epoch zero.
+  it("shows the session's remaining time without reading the clock in render", async () => {
+    LIVE.near.mode = () => "session";
+    LIVE.near.until = () => Date.now() + 90 * 60_000;
+    render(<NearLiveBody />);
+    // Coarse by design (the beat is four minutes), so 90 minutes reads as
+    // "2h" — what matters is that it is a duration and not an epoch.
+    const chip = await screen.findByRole("button", { name: /Visible for .* more/i });
+    expect(chip.textContent).toMatch(/^\d+[hm]$/);
+    // The unsampled-clock frame would print this, six digits of hours from
+    // subtracting nothing from an epoch. If it ever appears, the prop is
+    // being fed a raw deadline again.
+    expect(chip.textContent).not.toMatch(/\d{5}/);
+  });
+
+  it("marks a capped basis, because past the cap n is a floor not a size", () => {
+    // The server samples at most ROOM_SAMPLE_CAP presence docs, so at a
+    // festival `n` is "at least this many", and printing it bare would
+    // report sixty of three thousand as the room. Same repair D102 made to
+    // the who-voted sheet, which says "the latest 200 of N" when it binds.
+    LIVE.near.mix = () => ({ top: ["Host"], n: 60, capped: true });
+    render(<NearLiveBody />);
+    expect(document.body.textContent || "").toMatch(/60\+\s*people here have taken the test/);
+  });
+
+  it("does not mark an exact basis", () => {
+    LIVE.near.mix = () => ({ top: ["Host"], n: 11, capped: false });
+    render(<NearLiveBody />);
+    const text = document.body.textContent || "";
+    expect(text).toMatch(/11 people here have taken the test/);
+    expect(text).not.toMatch(/11\+/);
+  });
+});
+
+
+// ── the room's tab row (D177) ────────────────────────────────────────
+describe("NearPresence · the row only exists when there is a room", () => {
+  it("offers Answers, People and Compare once the counter is on", async () => {
+    LIVE.near.on = () => true;
+    LIVE.near.count = () => 12;
+    render(<NearLiveBody />);
+    const row = await screen.findByRole("tablist");
+    expect([...row.querySelectorAll("[role=tab]")].map((t) => t.textContent))
+      .toEqual(["Answers", "People", "Compare"]);
+  });
+
+  it("offers no tabs at all with the counter off", () => {
+    // There is no room to have tabs about — presence is what produces the
+    // cohort, so a row here would be three doors onto an empty fold. A
+    // stop that draws its navigation and then refuses to use it reads as
+    // broken rather than as unused.
+    LIVE.near.on = () => false;
+    render(<NearLiveBody />);
+    expect(screen.queryByRole("tablist")).toBeNull();
+  });
+
+  // EXPLORE AND SCORES ARE ABSENT ON PURPOSE, and the absence is worth a
+  // case because the obvious "improvement" is to reach for lensesFor()
+  // and get five. Explore cuts a population by an anchor and needs `by`
+  // breakdowns the room has none of; Scores wants the archive's ordinal
+  // questions and the room is folded over today's deck. Both would draw
+  // an empty state forever.
+  it("does not offer the two lenses the room has no data for", async () => {
+    LIVE.near.on = () => true;
+    LIVE.near.count = () => 12;
+    render(<NearLiveBody />);
+    await screen.findByRole("tablist");
+    expect(screen.queryByText("Explore")).toBeNull();
+    expect(screen.queryByText("Scores")).toBeNull();
   });
 });

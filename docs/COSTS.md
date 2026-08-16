@@ -539,6 +539,146 @@ worth an incremental insert if circles grow; and a capped voters page has
 a natural cursor (`answeredAt`) if anyone ever needs page two. Neither is
 worth building before a user exists who would notice (D7's discipline).
 
+### Finding 5 — the room's mix would have been quadratic in density · **CACHED AT BIRTH (D176)**
+
+> Priced before it shipped rather than after, which is the whole point of
+> this document existing. The number below is small; the shape it would
+> have had is not.
+
+D176 gives Near a reading — "mostly Hosts and Explorers" — folded from the
+archetype names phones write into their own presence docs. A **count** is
+an aggregation and costs ~1 read however crowded the cell is (Finding 2's
+lesson, applied at D129). A **mix** needs the documents themselves, which
+puts back exactly the linearity the count was rewritten to remove.
+
+Every phone with Near on beats every 4 minutes, so an uncached fold would
+charge `(phones nearby) × (beats)` — **quadratic in local density**, at a
+festival, which is the one situation the feature exists for. At 1,000
+opted-in phones open for an hour that is 15,000 beats × 60 sampled docs =
+**900,000 reads, ~$0.54 for the hour**, and it grows as the square.
+
+**What was done, in the same commit as the feature.** `v2_presence_mix/{cell}`
+holds the folded reading for one beat window (4 minutes, matched to the
+beat). Everyone standing in a cell wants the same answer, so it is computed
+once per cell per window and read by everyone else in it. `ROOM_SAMPLE_CAP`
+(60) bounds one fold besides. The same festival hour:
+
+| | reads | writes | cost |
+| --- | ---: | ---: | ---: |
+| uncached fold | 900,000 | 15,000 | ~$0.54 |
+| cached (shipped) | ~24,000 | ~15,150 | ~$0.04 |
+
+The ratio is not the interesting part — **the exponent is**. Cached, the
+fold term is `(cells) × (windows) × 60`: bounded by geography and clock,
+flat in how many people are standing there. A stadium costs what a quiet
+street costs, per cell.
+
+**Two things named rather than fixed.** (1) A lone phone in its own cell
+misses the cache on every beat, because the window and the beat are the
+same four minutes — so it pays a cache write to store a refusal nobody
+reads. At `onlineMin` = 3 that is well under one beat per user per day;
+5,000 opted-in users would add ~5,000 writes/day, about **$0.01**. A
+size threshold would fix it and would be an optimisation for a cost
+nothing could notice (D7's discipline). (2) `n` saturates at the cap, so
+past 60 it is a floor on the typed crowd rather than its size — the card
+prints "60+" rather than presenting the slice as the room, which is
+D102's repair to the who-voted sheet applied here in advance.
+
+**Not in `scripts/cost-arith.mjs`, deliberately.** Near is off by default
+and per-person opt-in, so there is no honest DAU multiplier to put in the
+model — a guess at the opt-in rate would be the model's least-supported
+input and its most leveraged. The bound above is the whole answer: this
+term cannot grow faster than cells × time, whatever fraction opts in.
+
+### Finding 6 — the room's tabs read a document per person per question · **CAPPED AND CACHED AT BIRTH (D177)**
+
+> The same shape as Finding 5 one notch worse, priced the same way and for
+> the same reason: the fold is new, so this is the cheapest moment to bound
+> it.
+
+D177 gives Near the tabs every other Mirror stop has — Answers, People,
+Compare — over the people actually present. City and World fold those on
+the device out of published aggregates; Near cannot, because its cohort is
+a set of phones and `v2_presence` is unreadable. So `nearbyRoomV2` folds
+them, and the fold reads **one answer document per person per question**.
+
+Two caps bound one call: `ROOM_PEOPLE_CAP` (24) and `ROOM_QUESTION_CAP`
+(8), so a cold fold is at most **24 × 8 = 192 reads plus one sample query**
+— and 24 is one sample serving both the roster and the answers, because
+People and Compare describing different crowds would be a worse bug than
+either being small.
+
+`v2_presence_room/{cell}` caches it for one beat window (4 minutes), **per
+question**: a caller asking about a qid the cell has already folded pays
+nothing for it. The day's deck is identical on every device
+(`computeDeckIds` is a pure function of the day), so in practice the first
+caller in a window pays for the whole thing and everyone else pays one
+read.
+
+| 1,000 phones, one hour, ~10 cells, tabs opened | reads | cost |
+| --- | ---: | ---: |
+| uncached (per viewer per beat) | 15,000 × 192 = 2,880,000 | ~$1.73 |
+| cached (shipped) | 10 cells × 15 windows × 193 ≈ 29,000 | ~$0.02 |
+
+**On a tap, never on the beat**, which is the other half. `LIVE.near.loadRoom`
+runs from the tab body's mount, so a stop someone scrolled past costs
+nothing at all — the same gate D119 put on the cohort stops' lenses. The
+count and the mix keep riding the beat; only this waits to be asked for.
+
+**What is NOT bounded, named rather than fixed:** the room fold is charged
+per cell per window whether or not anyone opens a tab a second time, and a
+venue spanning many cells pays per cell. That is linear in area, not in
+crowd, which is the property worth having — but it means a festival
+sprawling over fifty cells costs five times the ten-cell row above. Still
+under a dime an hour, and the fix if it ever mattered is a coarser cache
+key, which trades the reading's precision for cells it does not need.
+
+### Finding 7 — the bucket stops being free · **BOUNDED BEFORE IT SHIPPED (D178)**
+
+> This document has billed Storage at **$0 (bucket unused)** since it was
+> written, and that line was true of the app's behaviour rather than of the
+> rules — the note in `storage.rules` records the 2026-08-13 fix that
+> closed an unbounded write grant nothing was using. D178 is the first
+> feature that actually puts bytes in the bucket.
+
+A profile photo is **the app's only egress path**. Everything else it
+serves is Firestore documents; this is the one thing measured in
+kilobytes, and Storage bills egress at ~$0.12/GB against Firestore's
+~$0.06 per 100k reads — different units, and the reason it gets its own
+finding rather than a line in the table.
+
+Three bounds, all structural rather than advisory:
+
+| | bound | where |
+| --- | --- | --- |
+| objects | **one per account**, fixed id | `avatars/{uid}` — a second upload overwrites |
+| bytes each | **256 KB** hard, ~20 KB real | `storage.rules`; the uploader shrinks to a 256px JPEG first |
+| reads | one per face drawn | `<img>`, browser-cached |
+
+So stored bytes are `DAU × 20 KB` at full adoption — **1 GB at 50,000
+accounts with a photo, ~$0.03/month**. Egress is the term that moves:
+Near's People tab draws up to `ROOM_PEOPLE_CAP` (24) faces, so an opened
+room is ~480 KB cold and ~0 warm. At 5,000 daily room-opens that is 2.4
+GB/day ≈ **$0.29/day, ~$9/month** — the largest single non-Firestore line
+in this document, and still an order of magnitude under the Firestore bill
+at the same size.
+
+**What is NOT bounded, named rather than fixed.** Nothing caps how often
+one account replaces its photo, so a client in a loop could overwrite
+`avatars/{uid}` continuously — bounded in STORED bytes (it is one object)
+but not in write operations. It is a rate limit's job and there is no rate
+limit; the ledgers in `v2_ratelimits` exist for exactly this shape and
+adding one is a small change if it is ever needed. Recorded rather than
+built, on D7's discipline: no user exists yet who would notice, and the
+worst case is a bill line, not a leak.
+
+**The CDN question, deliberately unanswered.** Firebase Storage serves
+these directly, with no CDN in front. That is the right default at this
+size — a CDN is a fixed cost and a cache-invalidation story, and a removed
+face still cached at an edge is exactly the failure the moderation freeze
+exists to prevent. It becomes worth revisiting when the egress line above
+passes the Firestore one, which the arithmetic here says is a long way off.
+
 ## The controls that are not in this repository
 
 Everything above this line predicts the bill. None of it **caps** the bill,
@@ -776,7 +916,7 @@ the day any of them is.
 | FCM push | $0 |
 | App Check — reCAPTCHA v3 / DeviceCheck / Play Integrity | $0 |
 | Firebase Hosting (`web/`, static pages) | $0 |
-| Cloud Storage | $0 — and since 2026-08-13 that is true of the *rules* and not only of the app. `storage.rules` granted any signed-in account write on `users/{uid}/dailyPhotos/{filename}`: 8 MB an object, `{filename}` unbounded, so unbounded objects, unbounded stored bytes and unbounded egress reading them back — by a free anonymous account (D3), against a feature D4 removed and which no file in `src/` or `functions/src/` imports. Uploads are now closed; read and delete stay open because the erasure argument for keeping them (deleteAccount does not touch Storage) is about reaching a leftover object, not about accepting new ones |
+| Cloud Storage | **~$9/mo at 5 k daily room-opens, and $0 before D178** — the profile photo is the first thing this app has ever stored, and the only egress path it has. Bounded three ways by construction: one object per account at a fixed id, 256 KB a piece (~20 KB real), one read per face drawn. Finding 7 has the arithmetic and the two things it does not bound. The 2026-08-13 note this row used to carry still applies to the RETIRED path beside it: `storage.rules` had granted any signed-in account write on `users/{uid}/dailyPhotos/{filename}` — 8 MB an object, `{filename}` unbounded, so unbounded objects and unbounded egress, by a free anonymous account (D3), against a feature D4 removed. Uploads there are closed; read and delete stay open for erasure. **`deleteAccount` reaches Storage since D178**, which that note said it did not |
 | Cloud Logging | $0 until ~500 k DAU, then ~$17/mo |
 | Firestore storage | 5.6 GiB after a year at 5 k DAU → $0.83/mo (4.0 GiB of documents, ×1.4 for index entries — a multiplier that was 1.0 in the model until D67, and would be ~5 without D64's `answers` exemptions; the indexed set has since grown by D86's `editedAt`, D98's who-voted composite and D102's `surface` re-enable, and 1.4 stays as the blended estimate) |
 | Network egress | in the Firestore column above, not free: $0–0.5/mo at 5 k DAU, **$7–147 at 50 k**, $647–14,686 at 500 k — see the band below |

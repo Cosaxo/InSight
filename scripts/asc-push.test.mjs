@@ -587,23 +587,48 @@ describe("asc-push privacy label", () => {
     expect(writes()).toHaveLength(0);
   });
 
-  it("prints exactly the rows app-privacy.json lists, and never Precise Location", async () => {
+  it("prints exactly the rows app-privacy.json lists, and no others", async () => {
     // A whole-set assertion rather than spot checks: under-declaring is the
-    // direction that gets an app pulled, so "these seven and no others" is
+    // direction that gets an app pulled, so "these and no others" is
     // the property worth pinning — and it is the same property whether the
     // rows go over the wire or onto someone's screen.
+    //
+    // IT USED TO END `expect(out).not.toMatch(/Precise Location/)`, a hard
+    // "this row can never exist" that D175 made false by requesting a
+    // precise fix for Near. That assertion then contradicted the loop above
+    // it — one demanding every declared row be printed, the other forbidding
+    // one of them — and the only way past a self-contradicting test is to
+    // delete half of it, which is how a store-form guard quietly stops
+    // guarding. So the negative is now the SET's own complement: nothing may
+    // appear that the file does not declare. That holds whichever way any
+    // individual answer goes.
+    //
+    // WHAT IT DOES AND DOES NOT CATCH, measured rather than claimed — the
+    // first draft of this comment overstated it. Mutating the JSON proves
+    // nothing here, because the script reads that same file and both sides
+    // move together. What it catches is the SCRIPT printing a row the file
+    // does not carry (verified: adding one hardcoded bullet fails this case
+    // and only this case). The file-side question — does the declared set
+    // match what a human approved — belongs to check:store-forms, which
+    // compares app-privacy.json against STORE-FORMS.md. Two halves, and
+    // neither is the other.
     const out = await push(["--privacy"]);
     const declared = JSON.parse(
       readFileSync(join(root, "design/store/app-privacy.json"), "utf8"),
     );
-    for (const row of declared.collected) {
-      // "IDENTIFIERS" → "Identifiers", "USER_ID" → "User Id".
-      const label = (s) => s.toLowerCase().split("_")
-        .map((w) => w[0].toUpperCase() + w.slice(1)).join(" ");
-      expect(out, `${row.category}.${row.type} missing from the form`)
-        .toContain(`${label(row.category)} › ${label(row.type)}`);
+    // "IDENTIFIERS" → "Identifiers", "USER_ID" → "User Id".
+    const label = (s) => s.toLowerCase().split("_")
+      .map((w) => w[0].toUpperCase() + w.slice(1)).join(" ");
+    const want = declared.collected.map((r) => `${label(r.category)} › ${label(r.type)}`);
+    for (const row of want) {
+      expect(out, `${row} missing from the form`).toContain(row);
     }
-    expect(out).not.toMatch(/Precise Location/);
+    // Anchored on the bullet the script actually prints ("    • X › Y"),
+    // so a heading that happens to contain "›" — and line 606 prints one —
+    // is not mistaken for a declared row.
+    const printed = [...out.matchAll(/^\s*• (.+ › .+)$/gm)].map((m) => m[1].trim());
+    expect([...new Set(printed)].sort(), "the form printed a row the file does not declare")
+      .toEqual([...new Set(want)].sort());
     // The tracking answer gates the whole form, so it is printed first and
     // by name rather than left for the reader to infer from the rows.
     expect(out).toMatch(/Tracking: No/);

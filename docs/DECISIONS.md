@@ -8219,6 +8219,13 @@ city ask, so Near is never a dead end again.
   move: the fix is the same coarse permission the city locate uses, no
   background or continuous location, no history (one doc, overwritten).
 
+> **Superseded by [D175](#d175--near-asks-for-a-precise-fix-so-its-radius-can-be-honest)
+> (2026-08-15).** The owner made the call this paragraph reserves for
+> them: the app now requests precise fixes, the grid is 0.002° (~220 m),
+> and the App Store label carries Precise Location. The reasoning below
+> stands as the record of why it could not be done under D84, and it is
+> the reasoning D175 had to answer rather than route around.
+
 **The 500 m that deliberately did not ship.** The owner said 500 m; the
 card says "a couple of kilometres", and the gap is the sensor, not
 timidity: the app requests COARSE location only
@@ -16769,3 +16776,1060 @@ directly, and the answer is only worth the checks behind it:
   get a fresh one. Every consumer was read: all of them `.filter()` or
   `.map()` before any `.sort()`, which copies. `myVotes()` and
   `confirmedVotes()` were left un-memoised for this reason.
+## D170 · Three Mirror tabs named a population and read a different one
+
+**Decided:** 2026-08-15 · **Status:** binding, BUILT. From four screenshots
+of the release with the report *"the tabs on mirror does in many instances
+look wrong and some places like score have wrong functionality"*.
+
+Same class as [D157](#d157--the-test-surfaces-stop-describing-a-crowd-they-never-counted),
+one tab over, and worth recording separately because the mechanism is
+different. D157 was an authored constant drawn as a measurement. This is a
+**real** number, correctly computed, describing a crowd it never counted.
+
+### 1 · The bug, and how the screenshots gave it away
+
+`LiveCohortBody` walks the archive **twice**. The answer rows resolved the
+cohort CELL — `agg.by[scope][bucket]`, i.e. Oslo — and `lensQs`, the shape
+the four lens bodies read, was assembled from `agg.counts`, which is the
+**globe**. So on the City stop:
+
+- **Compare** said *"You went with the majority in 3 of 3, against Oslo"*
+  over the world's splits.
+- **Scores** said *"How Oslo rated it"* over the world's mean.
+- **Answers** was right all along, which is what made it visible.
+
+The two tabs contradicted each other **on one screen**: Answers reported
+*"1 more question has no answers from Oslo yet"* while Compare drew that
+same question at 50/50. A question with an empty cohort cell cannot have a
+split, and there it was with one — the globe's.
+
+**Nothing in the tree could see it.** Both fields are `number[]`, both are
+populated, both render. `tsc`, eslint and `check:globals` are all name-level
+and every name was correct. The lens suite passes fixtures in directly, so
+it never exercised the host's wiring — the bug lived exactly in the seam
+between two files that each tested fine.
+
+### 2 · The fix: one resolver, and a second field for the one lens that wants the globe
+
+`cellFor(agg)` now answers "what are this stop's counts" once, and **both**
+walks read it. Two walks over one archive was two chances to disagree about
+which crowd the stop is, and they took it.
+
+`LensQuestion` grew `all` beside `counts`, because **Explore genuinely
+wants the globe** and that is not a special case to be tolerated — it is
+the lens's meaning. Its buckets are `by[dim]` cuts across everyone (there
+is no city × age cell to read) and its sentence ends *"Same as everyone."*
+Explore reads `all`; Compare and Scores read `counts`; People reads `by`.
+Each lens now names the population it is actually holding.
+
+The World stop is unaffected in behaviour and not by accident: there
+`cellFor` returns `agg.counts`, so `counts` and `all` are the same array
+and always were. The bug was invisible on the stop most people look at
+first, which is part of why it survived.
+
+### 3 · A share of ONE answer is not a share
+
+The second half of the report, and the one the screenshots led with. On a
+city whose only answer was the viewer's own:
+
+- Answers: **"100% of Oslo are with you."**
+- Scores: **"You gave it 4 — exactly the average · 1 answer"**
+
+Both are the viewer compared with themself, printed as a finding about a
+city. The fold is not wrong — D98 counts are exact and
+`typicality`'s note is deliberate that *"your own answer is included in the
+denominator"*, which is right and stays. What was wrong is phrasing a
+degenerate result as a proportion.
+
+**This is arithmetic, not a thin-data threshold anybody chose.** At n=1 the
+only values the fold can produce are 0% and 100%, so the percentage carries
+nothing the count does not. n=2 is thin too and still says something, so it
+is left alone — deliberately, because inventing a floor here would
+re-import the k-anonymity habit D98 removed.
+
+Both surfaces now say the count: *"One answer from Oslo so far."* and
+*"the only answer here so far"*. Neither claims the answer is YOURS, and
+that restraint is load-bearing: a vote carries the anchors it was cast with
+(D8), so someone who has moved cities has answers in their old city's cell
+while this stop shows the new one. "One answer" is true whoever it belongs
+to; "that's you" would not always be.
+
+### 4 · A tie is not a majority
+
+Compare counted `mineShare >= 50` as going with the majority. Wrong in both
+directions: on a three-way question the leading answer can win on 40%, and
+at 50/50 nobody is in the majority — which is what the release printed,
+counting a dead-heat row toward *"the majority in 3 of 3"*. It now tests
+whether your pick is the cohort's **most common** answer, ties excluded,
+which is what the sentence has always claimed.
+
+### 5 · What pins it
+
+Six cases in `ui/LiveCohortBody.test.tsx` — the host, not the lens suite,
+because the host is where the wiring is. The fixture is built so a scope
+bug cannot pass: every global count sits far from its Oslo cell, and one
+question has a globe and **no Oslo cell at all**, which is the case that
+used to draw a confident split out of a cohort with nothing in it.
+
+All three fixes were **mutation-checked**: reverting each one fails its own
+case and only its own. The scope cases were written first and watched to
+fail against the shipped code, which is how the diagnosis was confirmed
+rather than argued.
+
+### 6 · What was reported and is NOT a bug
+
+The pulse chart's large grey block (*"26 JUL – 13 AUG"*) is the void a run
+of three or more unanswered days draws, working as designed and matching
+the prototype — `pulse-trends.jsx` is byte-identical from v24 through v28.
+It dominates because the account has answered 2 days of 21, and the panel
+says so underneath in words. Left alone: it is honest, and the alternative
+is a chart that hides how little is in it. **If the owner wants a different
+day-one shape for it, that is a design change and belongs in
+`docs/VISION-V28.md` §3, not a fix here.**
+
+## D171 · The daily had no breakdown at all, and its own sheet was a hash
+
+**Decided:** 2026-08-15 · **Status:** binding, BUILT. From the report
+*"daily looks wrong on the breakdown"*, following D170.
+
+### 1 · What was actually there, which was nothing
+
+In live mode the daily question — one a day, the app's front door — had
+**no breakdown**, while every feed card beneath it has had D125's since
+August. Tapping the result opened nothing; the only thing under it was the
+consequence beat and, since D83, Takes.
+
+The reason is in `spec/daily-split.jsx`: the whole engage row (Comments +
+Who voted) is gated on `!S.live`, because those sheets are the prototype's
+— seeded named commenters, and a who-voted sheet whose every group row is
+built from `this.hash(question + group + option)` over cut chips (Job,
+Education, Where, four test cuts) that no published aggregate carries.
+`VOTECUTS` has no live gate of its own.
+
+**Suppressing it was right and stopping there was the mistake.** D125 built
+the real sheet for the feed and never came back for the daily, so the gate
+went from "hide the fake one until the real one exists" to "the daily has
+no breakdown", silently, for as long as the real one has existed.
+
+### 2 · The fix is the component the feed already uses
+
+`ui/LiveBreakdownPanel` now mounts on the live daily, from a "Who voted"
+button beside Takes — the same pair the demo card has always offered. Same
+component, same aggregate the card already fetched, so **no new read**.
+Cohort-first (D125), percentages not rosters (D149), names only under
+Friends — which is also why D1's "named who-voted is circle-scoped" is
+satisfied rather than bent: the panel names nobody outside that cut.
+
+The two panels are mutually exclusive. Both are full-width under one card,
+and opening both pushes the question itself off the top of the screen.
+
+**Lazy, and measured rather than assumed.** `daily-split.jsx` is eager —
+first screen — and `MAX_EAGER_KB` has almost no headroom. Built both ways:
+eager graph **963 KB → 964 KB** (+1), total 2283 → 2284, chunks 75 → 76.
+The panel lands in its own chunk; the kilobyte is the lazy-import glue.
+Ceiling is 978, so this is affordable and the arithmetic is here so the
+next person spending that headroom knows what is left.
+
+### 3 · What is pinned, and the two ways the tests were wrong first
+
+Two cases in `test/smoke-live.test.jsx`, and the second one only became
+real after two failures worth recording, because both are the same trap:
+
+- The first version **returned early** when it could not find the sheet
+  button, asserting nothing at all.
+- The second **asserted too soon**: the engage row renders only once the
+  consequence beat finishes (`st.beat !== S.id`), so it was reading a
+  screen that was still animating. Mutation-checked: removing the `!S.live`
+  gate did NOT fail it until the beat was dismissed inside the case.
+
+What they hold now: the demo row stays unreachable live (its markers are
+seeded Comments and the hash-built cut chips), and the live daily opens the
+real panel with the viewer's own pick marked **on the right option**. That
+last one is the end-to-end check on `mine`: the daily passes an index into
+its own options while the feed passes the store's numeric vote, and the two
+agree only because a live question's option ids are `String(i)`
+(`data/deck.ts` `buildSPure`). Flipping `mine` fails the case by name; no
+type could have caught it.
+
+### 4 · The demo sheet stays
+
+Not deleted. It is the offline dev surface and the demo room's, D1 governs
+it, and the hash is honest there — the room is seeded throughout. What
+changed is that live mode no longer answers "where is the breakdown" with
+silence.
+
+## D172 · The Mirror's stops stop explaining themselves
+
+**Decided:** 2026-08-15 · **Status:** binding, BUILT. From four screenshots
+of Near, City, Groups and Circle: *"they use too much text compared to the
+vision. 2 of the biggest offenders near and city. City also have extra
+'see who answered' that is not needed… I think group and circle should
+just show empty maps instead of the text."*
+
+### 1 · What the vision's header actually is
+
+Three things, and nothing else — `MFHeader` in the prototype's
+`mirror-field.jsx` takes a **kicker**, a **figure** and a **unit**:
+
+| Stop | kicker | fig | unit |
+| --- | --- | --- | --- |
+| Circle | Your people | 12 | close ties |
+| Groups | Your scenes | 4 | followed · 12.6k people |
+| Near | Around you | 2,847 | within 5 km · Grünerløkka |
+| City | Your city | 12.6k | in Oslo |
+| Country | Your country | 38k | across Norway |
+| World | Your world | 412k | worldwide |
+
+One line. No paragraph anywhere. The stop's identity is the FIELD under it,
+and the header exists to say how big the population is before you read
+their shape.
+
+### 2 · What the app had grown, and why each piece was a repeat
+
+**City / Country / World** carried the header, then a **25 px serif place
+name**, then a sentence explaining what a city cohort is. Both extras
+restated what was already on screen: the unit ends "in Oslo", so the serif
+line printed the same word twice the size, and *"everyone who picked this
+city, on every question they have answered"* is what "Your city · 1 person
+has answered in Oslo" already says — in prose the reader has to get past to
+reach the field.
+
+**Near** ended with three lines pointing at City and explaining what City
+is. City's own header does that, one stop to the right, and the ruler
+already shows it is there. What Near owes the reader is the single fact its
+field cannot show on its face — nobody here is named — so that is the line
+that stayed.
+
+**The "See what they answered" button** under every empty field is gone.
+D160 added it so an empty landing screen offered somewhere to go; D136 had
+already made Answers a tab in the row directly beneath it, so it was a
+second door to a door in view. Removing it also removes the `onGoAnswers`
+plumbing through three components.
+
+### 3 · Circle and Groups draw the field now
+
+They were the last two stops answering an empty account with a card of
+prose, while City, Country, World and Near all drew their rings (D160).
+They are also **the two stops a new account meets first**, so the app was
+at its wordiest exactly where it had least to say.
+
+`ui/EmptyField.tsx` draws the rings and you, with the sentence underneath
+instead of instead-of. Nothing in it is fabricated — "you, and nobody
+placed around you yet" is the true picture node for node, and the rings are
+the scale a radius will be read on once someone arrives. The captions were
+dropped after a first pass added them: the stop's kicker one line up
+already reads "Your circle", and a chip repeating it is the duplication
+this record is about.
+
+**Groups keeps its button.** A field cannot fill itself with groups the way
+City fills as strangers answer, so "Start a group" is the only route to
+that and removing it would trade wordiness for a dead end. The sentence
+around it is what shrank.
+
+**Why `EmptyField` is its own module** rather than an export from
+`LiveSimilarityField`, which draws exactly this: that file is the whole
+similarity engine and is LAZY for the reason. `LiveGroupsMirrorBody` is a
+STATIC import in `mirror-tab.jsx`, so importing the field from it would
+drag the engine into the first-paint graph. Forty lines duplicated beats a
+chunk moved. Measured: eager graph 964 → **965 KB** against a 978 ceiling.
+
+### 4 · What did NOT shrink, and must not
+
+**Near's off-state disclosure is untouched.** D9's rule is that the enable
+tap carries the OS prompt, so the sentence that tap agrees to has to be
+readable before it — the kilometre-sized-grid-square line and the phrase
+*"a count, never who"* both stay, word for word, and
+`NearLiveBody.test.tsx`'s `pitches honestly while off` still guards them.
+That case is why this pass trimmed the CLOSING pointer and left the pitch
+alone: the two look alike on screen and only one of them is decoration.
+
+### 5 · What pins it
+
+`ui/LiveCircleBody.test.tsx` is new and holds three states that look alike
+from outside and mean different things — empty draws the field, a FAILED
+read still says so and draws **no** field (a drawing there would tell
+someone with thirty follows they have none), and a first read in flight
+says neither. Mutation-checked: putting the paragraph back fails the first
+case by name.
+
+The rest ride existing suites, updated rather than deleted — `smoke-live`'s
+City helper polls the kicker now, and the Groups case asserts the drawing.
+
+### D172 addendum · the same pass on the profile and the scenes list
+
+Same report, two screens further in: *"lets go to war against the text
+other places as well — on your profile for example you can remove almost
+the entire list as its not needed… same with scenes, better with an empty
+map with a way to add. That is one of the principles that make the vision
+so much better: it removes as much text as possible."*
+
+**Scenes** now draws the field with a **Pick topics →** door, the same
+shape Circle and Groups took above. The old copy was three lines teaching
+where the topic row is and what tapping `+` does — instructions for a
+control one tap away that is already labelled.
+
+**The privacy list is COLLAPSED, not cut**, and the distinction is the
+whole of this note. The principle behind the report is right and this repo
+should keep applying it: text standing in for a design is a bug. But those
+ten bullets are not decoration — each is a promise `firestore.rules` or a
+function enforces, four exist because a specific decision made them true
+(D9 location, D84 presence, D98 public answers, D146 the type cut), and
+both stores require the disclosure to be reachable. Deleting them would
+not simplify the screen; it would make the screen stop being true.
+
+So the SCREEN loses the wall and the DISCLOSURE loses nothing: one
+sentence stays open — *"Your answers are public, under your display name…"*,
+the blunt one CLAUDE.md insists on — and the rest sits in a `<details>`,
+which costs no JavaScript and gives a screen reader a real widget.
+
+`LivePrivacyPanel.test.tsx` pins that the collapse was a collapse: ten
+`<li>` still in the DOM, and the four decision-backed promises matched by
+their own words. Mutation-checked — deleting one bullet fails it by name.
+**This was a layout change and must not be read as permission to thin the
+promises.** A bullet leaves when the decision behind it is reversed, in
+that commit.
+
+`ui/EmptyField` grew an optional `action` because three empty surfaces now
+want one door. The nav lookup lives in the typed component rather than at
+the call sites: two of them are spec-layer `.jsx`, where `window.goNav` is
+new shared-global coupling and `check:globals` rule 4 only moves down — the
+first attempt raised the count from 17 to 21 in one file and CI refused it.
+
+## D173 · The interest levers go; the algorithm owns "how much"
+
+**Decided:** 2026-08-15 · **Status:** binding, BUILT. **Reverses
+[D128](#d128--you-can-say-what-you-want-more-of-the-app-does-not-guess).**
+The owner, on the text pass: *"how much you see of different interests,
+algorithms should decide, not your levers"*.
+
+### What went
+
+`data/interests.ts`, `ui/LiveInterestsPanel.tsx` and their test — the
+three-state per-topic control (Muted · Normal · More) that sat at the
+bottom of the profile's privacy panel, plus the `applyInterests` call that
+weighted the feed pool in `data/live.ts`. Deleted rather than hidden: a
+store nothing reads is what `check:globals` rule 5 exists to sweep, and a
+lever behind a flag is still a lever.
+
+### Why this is a clean reversal rather than a loss
+
+D128's own header made the argument that retires it: *"If people use this,
+most of tiers 2 and 3 is redundant — and finding that out is cheaper than
+building the model that guesses."* That was the right experiment and the
+owner has called it. The replacement is already recorded:
+[D163](#d163--the-app-learns-what-you-are-into-and-the-model-never-leaves-the-phone)
+builds a per-topic interest model from behaviour the device already
+writes, and keeps it on the phone. "How much" becomes the model's job.
+
+**The gap between now and then is real and small.** D163 is binding and
+not built, so until it ships the feed pool is unweighted. That is what it
+effectively was anyway at this bank size — everyone sees everything — and
+it stops being acceptable at
+[D161](#d161--the-feed-goes-unbounded-and-the-mirror-gets-a-corpus-of-its-own)'s
+unbounded bank, where something must choose ~50 questions per person. So
+D163 is now load-bearing rather than merely adopted: **the tail cannot
+ship without it.** Recorded here so the sequence is not discovered later.
+
+### What did NOT go, and this is the part worth checking before reading the
+### diff as a loss of control
+
+**Muting a topic outright survives**, untouched, in the feed's own topic
+sheet (`spec/world-feed.jsx`'s add panel — its own `cats` on/off, a
+different mechanism from the deleted store). So a user who wants a subject
+gone can still switch the lane off; what they can no longer do is ask for
+*more* or *less* of one. That split is the owner's direction read
+literally — the levers were about AMOUNT, and mute is exclusion.
+
+It also means `NEXT-FUNCTIONALITY.md` §1's answer to "what about a user
+who hates news" still holds, and that file now says so through the mute
+rather than through the levers.
+
+### Two documentation consequences, both cheap
+
+`docs/MIRROR.md` recorded a REFUSAL that has now outlived the thing it
+refused — the People lens draws no shared-interest chips because D128
+named the Mirror as a surface that may not read stated interests. There is
+nothing to read now, so the refusal is noted as retired rather than
+deleted: the reasoning is still why the lens has no such chips.
+
+## D174 · Near's visibility gets three states, and a position that expires on its own
+
+**Decided:** 2026-08-15 · **Status:** binding, BUILT (the control, the
+linger and the cap; the venue radius, the room reading, the tabs and
+images are the rest of `NEXT-FUNCTIONALITY.md` §10 and are not built).
+
+The owner's design for Near as a room you can read — *"at a party you can
+see what type of persons are around you"* — worked out over a long
+exchange. §10 holds the whole thing; this record is the slice that shipped
+and the two facts it rests on.
+
+### 1 · Three states, because the failure mode is forgetting
+
+`off` · `session` (two hours) · `always`. Turning it on lands on
+**session**, because the default is the actual decision and the other two
+are for people who mean them.
+
+**`always` is a real option, not a grudging one.** It removes the deadline
+on the SETTING, never the expiry on the POSITION — every beat still writes
+an `until` capped at the linger, so it means "visible whenever the app is
+open", which is small enough to stand behind. Nobody asked for unbounded
+lingering and it is the one version that would be bad.
+
+The owner pushed back on time-boxing at all — *"is it that bad if they
+forget, the only info is face, age, gender, most of which you can see with
+your eyes"* — and the pushback was right about the DATA and moved the
+design. What survives is narrower: choosing to be permanently discoverable
+is legitimate; what nobody chooses is their home broadcasting a face that
+is reliably there at night. So the control solves **forgetting**, not
+choosing.
+
+### 2 · The linger — the part that makes the feature exist
+
+`PRESENCE_TTL_MIN = 10` is now `PRESENCE_LINGER_MIN = 180`.
+
+Not a freshness tolerance — the feature. Everyone's phone is in their
+pocket, so presence that lived only while the app was open would show an
+**empty room at a full party**: you open Near, and everyone else's app is
+shut. Find My and Snap Map keep a last-known position for the same reason.
+This was the owner's catch and it is the difference between a feature and
+a demo.
+
+Three hours: long enough that a venue stays populated between
+pocket-checks, short enough that closing the app in bed does not leave you
+at home all night. One number, meant to be re-tuned from use.
+
+**The staleness is a safety property, not an apology.** A blurred WHEN
+protects as well as a blurred WHERE — the smear that keeps a party
+populated is the same smear that makes a trail unreadable. Product need
+and safety pointing the same way is rare enough to build deliberately.
+
+### 3 · `until`, and why it is in the rules rather than the client
+
+The timed option is a promise about **when you stop being visible**. A
+client-side timer cannot keep it: a timer does not run while the app is
+shut, so a phone that went into a pocket ten minutes before its deadline
+would keep standing for a further three hours.
+
+So the doc carries `until` — the moment the position stops counting —
+clamped to the session deadline when there is one, and `nearbyCountV2`
+filters on it instead of on age. The index moves with it (`cell, until`).
+
+**The cap is in `firestore.rules`, and that is the point.** Presence is
+unreadable so nobody can follow an account around town; an uncapped
+`until` reaches the same place through the write door — a modified client
+writes a position good for a year and stands in the room permanently,
+whatever its own switch says. `until` must be a timestamp, in the future,
+and no more than 180 minutes out. The literal is hand-matched to
+`PRESENCE_LINGER_MIN`; rules cannot import, so both move in one commit.
+
+### 4 · A correction to the record
+
+I told the owner the beat had no foreground guard. **It does** —
+`presenceBeat` returns early on `document.hidden`, so the interval fires
+and the beat no-ops. The claim was wrong and the guard was already there;
+what this record adds beside it is that an EXPIRED session now tears the
+loop down and deletes the doc at the next beat rather than waiting for the
+server's own expiry.
+
+### 5 · What pins it
+
+Four cases in `data/near-presence.test.ts` — the default lands on
+`session`, a session clamps `until` to its deadline rather than the full
+linger, `always` gets the full linger and no deadline, and an expired
+session reads as `off` without a timer having run (the case that matters:
+nothing runs while the app is shut, so reading the mode is what has to
+notice). One case in `firestore-tests/rules.test.ts` for the cap, a year
+and a negative both refused, and `until` required at all.
+
+Mutation-checked: removing the clamp fails the session case, and widening
+the rules cap to a year fails the rules case.
+
+## D175 · Near asks for a precise fix, so its radius can be honest
+
+**Decided:** 2026-08-15 · **Status:** binding, BUILT. Step 2 of
+`NEXT-FUNCTIONALITY.md` §10, on the owner's explicit go after the cost was
+put to them. **Reverses D84's deferral and D9's "never tick Precise".**
+
+### What this is not
+
+It is not a grid constant that could have been edited. That was how I
+first described it to the owner, and it was wrong: at 0.01° the cell was
+~1.11 km tall, and that was **not a design choice — it was the ceiling of
+the fix the app requested.** iOS shipped `NSLocationDefaultAccuracyReduced`,
+Android capped `ACCESS_FINE_LOCATION` at API 30, and `enableHighAccuracy`
+was off. A finer grid over that fix would have produced precise-*looking*
+cell ids computed from a kilometre-wide measurement — invented precision,
+which is what this app refuses everywhere else and what the same
+conversation had just refused for the metre slider.
+
+D84 saw this coming and left it alone deliberately: *"True 500 m is one
+decision away… That is a listing-level change with its own review
+consequences, and it is left as the owner's explicit next call rather than
+smuggled in under this one."* The Info.plist said the same in its own
+words — *"reduced is not a default we quietly escalate from."* So the go
+was asked for, and given, before anything moved.
+
+### What changed
+
+- **iOS** `NSLocationDefaultAccuracyReduced` → `false`.
+- **Android** `ACCESS_FINE_LOCATION` uncapped (`maxSdkVersion="30"` gone).
+- **`enableHighAccuracy: true`**, which on Android 12+ is also what makes
+  `@capacitor/geolocation` request the `[COARSE, FINE]` alias rather than
+  COARSE alone — so the platform half of this decision is that one boolean
+  plus the manifest.
+- **`maximumAge` 10 min → 1 min.** A ten-minute-old fix was fine for
+  "which city" and is wrong for "which building": a cached position would
+  place you in a room you had left.
+- **The grid: 0.01° → 0.002°** on both halves, so a cell is ~222 m tall
+  and the 3×3 neighbourhood the count reads is ~670 × 330 m in Oslo — a
+  venue and its street rather than a district.
+- **The cell regex widens** to five digits per axis, in `geo.ts`,
+  `pure.ts` and `firestore.rules`.
+
+### The store label, and the line the grid was chosen to sit above
+
+`docs/STORE-FORMS.md` now ticks **Precise Location**, and Precise leaves
+the not-collected list.
+
+**The row describes what is REQUESTED, and that is why it moves even
+though what is KEPT did not cross the threshold.** Apple defines Precise
+Location as a resolution of three or more decimal places — 0.001°. The
+presence cell is **0.002°, deliberately one step coarser**, and the city
+name is coarser still. Nothing precise is retained or transmitted: the
+coordinate is folded on the device and discarded, exactly as before.
+
+Picking 0.002° rather than 0.001° was the point of picking at all. The
+honest sentence for a reviewer is: precise is requested, nothing precise
+is kept, and the grid sits above the line rather than on it.
+
+### A false promise this caught, and it was mine
+
+The privacy panel said the presence square *"goes stale within minutes
+when you close the app."* **[D174](#d174--nears-visibility-gets-three-states-and-a-position-that-expires-on-its-own)
+made that false one commit earlier** — the linger became three hours — and
+nothing caught it, because no test read that sentence against the
+constant. Both user-facing disclosures now name the real square (~200 m)
+and the real linger (three hours), and both are pinned: `NearLiveBody`'s
+`pitches honestly while off` and `LivePrivacyPanel`'s D172 promises case
+now assert the figures rather than the topic, so copy cannot fall behind a
+constant again without a red test.
+
+That is the actual lesson of this record. The grid and the permission were
+a decision; the stale sentence was a *silence*, and silence is what this
+tree's guards exist to break.
+
+### The transition, priced rather than migrated
+
+Old cell ids stay legal under the new regex — they simply mean a different
+place — so for up to one linger after deploy a stale doc could be counted
+in the wrong neighbourhood. No migration: presence is opt-in, one doc per
+user, overwritten every four minutes and expiring within three hours, so
+the window closes by itself. Named here rather than discovered later.
+
+### What pins it
+
+The grid contract is pinned on both sides by its own vectors — `geo.test.ts`
+and `pure.test.ts`, the floor.ts drift pattern, because a client and
+server disagreeing about cell shape fails soft (empty counts reading as
+"nobody nearby"). The rules suite carries the widened regex and the
+`until` cap together.
+
+## D176 · Near becomes a room, and the phone says what it is
+
+**2026-08-16.** Step 3 of NEXT-FUNCTIONALITY §10. The owner's sentence for
+this feature was *"at a party or some sort of social event you can see what
+type of persons are around you"*, and until now Near answered a strictly
+smaller question: **how many**. A count is a fact about a crowd that says
+nothing about the crowd.
+
+**WHAT SHIPPED.** `nearbyCountV2` returns `{ n, mix }`, where `mix` is
+`{ top: string[], n: number, capped?: true }` — up to three Big Five
+archetype names in rank order, and the number of phones the ranking was
+folded from. On screen: *"Mostly Host and Explorer · 11 people here have
+taken the test."*
+
+**THE DESIGN DECISION IS WHERE THE TYPE IS COMPUTED,** and everything else
+follows from it. `matchArchetype` lives client-side in
+`spec/archetype-data.js`; the table is content, not logic. The two obvious
+server-side routes were to port the table into `functions/` (two copies of
+a content table, drifting) or to join every nearby uid's profile at fold
+time (reads linear in the crowd, and a server holding "who is standing here
+AND what they scored" — the precise pairing `v2_presence`'s read deny
+exists to prevent). Instead **the phone writes its own archetype name into
+its own presence doc**, as an optional `type` field. The server counts
+names it does not understand. It never holds the table, never scores
+anybody, and never joins a profile to a position.
+
+**Why names and not shares, permanently.** `roomMix` returns a ranking and
+refuses a percentage, and the test asserts on the absence of `%`. At room
+sizes a share is a headcount wearing a disguise: "62% Hosts" moves visibly
+when one person walks in, and watching it move is a differencing attack
+anyone can run by standing at a door. A rank order does not move until a
+rank changes, which takes several people.
+
+**The floor is 8 typed phones** (`ROOM_MIN_TYPED`), matched to
+`data/typeMix.ts`'s `TYPE_THIN` — the same judgement about the same
+instrument one layer up. Below it there is no reading at all; the card says
+nothing rather than explaining the floor, because an empty street owes the
+reader no arithmetic.
+
+**`n` is the TYPED count, not the headline count.** Plenty of people nearby
+have never taken the test, and the two numbers sit on the same card. A
+reading that quoted the bigger one would be borrowing a population it did
+not measure — the D157 failure class, arriving as a basis instead of as a
+cell.
+
+### The cache is the feature, not an optimisation
+
+A count is an aggregation and costs ~1 read however crowded the cell is
+(D129). A mix needs the documents, which puts back exactly the linearity
+the count was rewritten to remove: every phone beats every 4 minutes, so an
+uncached fold charges (phones nearby) × (beats) — **quadratic in local
+density, at a festival, which is the one situation the feature is for.**
+
+`v2_presence_mix/{cell}` holds one cell's folded reading for one beat
+window. Everyone standing in a cell wants the same answer, so it is
+computed once and read by everyone else in it: ~900,000 reads become
+~24,000 for a 1,000-phone hour, and more to the point the fold term stops
+depending on crowd size at all (COSTS Finding 5 has the table). A cached
+REFUSAL is cached too — a crowded room where few have taken the test must
+not re-fold on every beat.
+
+The cache doc is `allow read, write: if false`, and the reason is
+presence's reason one level up: a client that could read a cell it is not
+standing in would have a map of every room rather than a reading about its
+own. The callable only ever answers for the caller's cell and its eight
+neighbours, and that restriction is the feature — it holds only while this
+is the sole door.
+
+### Two things checked rather than reasoned about
+
+**Which sixty, when the cap binds.** The fold reads at most
+`ROOM_SAMPLE_CAP` (60) docs via `where("cell", "in", cells).limit(60)`. If
+that merge were cell-major, a crowd above the cap would be sampled entirely
+from whichever corner the planner reached first — a reading drawn from one
+end of the field and printed as the room, appearing exactly at festival
+scale and nowhere in testing. **Probed against the emulator** (360 docs
+seeded evenly over the nine cells): the sixty returned spanned all nine,
+3–12 apiece. Firestore orders a query with no explicit `orderBy` by
+document id, and these ids are uids — random, uncorrelated with both cell
+and type. The property the design rests on is **the doc id being random**,
+not anything about the merge, and the comment says so: key presence by
+something ordered and this stops being true silently.
+
+An earlier pass "fixed" this by stratifying — nine queries with a per-cell
+cap. It was written and thrown away: `ceil(60/9)` = 7 puts the floor of 8
+out of reach in a single-cell venue, which is the *common* case. A fix for
+an unmeasured problem that breaks the ordinary path.
+
+**The cap makes `n` a floor, so it declares itself.** Past 60 sampled docs
+`n` is "at least this many", and printing it bare would report sixty of
+three thousand as the room. `capped` rides along and the card prints
+"60+" — D102's repair to the who-voted sheet ("the latest 200 of N"),
+applied here before the surface existed rather than after. Counted on the
+SAMPLE rather than on `n`, because a crowded mostly-untyped room is a
+truncated read either way.
+
+### Found under this stone
+
+- **A cached refusal decoded as an empty room.** The hit path returned
+  `{top: [], n: 0}` where the fold path returned `null`, and `{...}` is
+  truthy — the client's own `top.length` guard was the only thing between
+  that and *"Mostly  · 0 people here have taken the test."* The two paths
+  now agree at the source; a guard at one end of a wire is not a contract.
+- **D175 left its old radius in fifteen places,** including one the reader
+  sees: the count's unit still said *"within a couple of kilometres"* after
+  the grid went 0.01° → 0.002°, overstating the reach by five times. A unit
+  that flatters its number is the same failure as a fabricated number, and
+  `check:figures` does not cover prose that names a distance. Swept, and
+  the test now asserts the figure rather than the topic.
+- **D174 shipped a lint failure.** `NearModeChip` called `Date.now()`
+  during render, which `react-hooks/purity` refuses — so the React Compiler
+  had been bailing out of the card since that commit. The clock is sampled
+  in state on the same notify that already re-renders the component (the
+  beat is 4 minutes; the label is coarse to 5, so one sample per beat is
+  the right rate rather than a compromise), and a case pins it.
+
+### Guards
+
+Rules: `type` optional, non-empty, ≤40 chars, and `hasOnly` still names
+four keys — it is client-authored free text on a doc nobody can read, which
+is the shape that becomes storage for something else if it is not bounded.
+`v2_presence_mix` denied in both directions. Both mutation-checked: dropping
+the size cap and opening the cache each fail exactly their own case and
+nothing else. Rules suite 91 → 93.
+
+`roomMix` is pure and carries six cases plus the two capped ones — ranking,
+no-share, floor, typed-only basis, stable ties, three-name limit. The card
+carries the reading's own four: names in order, basis is the typed count
+and not the headline, no share ever, silent below the floor.
+
+## D177 · Near becomes a room you can read, and asking requires standing in it
+
+**2026-08-16.** Step 4 of NEXT-FUNCTIONALITY §10, the tabs. Near now
+carries **Answers · People · Compare** over the people actually present,
+folded by `nearbyRoomV2` because no device can fold them: the cohort is a
+set of phones and `v2_presence` is unreadable to every client.
+
+**THE GATE IS THE DECISION.** Everything else here follows from it, and it
+went on the OLD door as well as the new one.
+
+Until now `nearbyCountV2` took a `cell` from the client and never checked
+that the caller was anywhere near it. A modified client could walk the grid
+and read any square's count and, since D176, its composition. For a
+headcount and a coarse ranking that was a small leak and it was accepted
+without being written down. It stops being small the moment the room has a
+**roster** — sweeping cells would be a people-finder, which is precisely
+what the presence read deny exists to prevent, arriving through a callable
+instead of a query.
+
+So both callables now refuse any caller without their own unexpired
+presence doc in the requested neighbourhood. It costs nothing — the
+document was already being fetched for self-exclusion — and it buys two
+properties that are otherwise wishes:
+
+- **Your own room only.** The grid cannot be walked.
+- **Mutual.** You can read the room exactly while the room can read you.
+  Turning Near off stops you reading, not just being read.
+
+### What is disclosed, stated plainly
+
+The uids of people standing near you. No cell, no coordinate and no
+position history leaves — but this is **membership**, and membership is
+what the deny was protecting while the only reading was a number.
+
+Nothing about anybody is new: a uid resolves to a profile and its answers,
+which any signed-in user has been able to read by name since D98. The
+pairing with *here* is new. Four properties bound it, all enforced rather
+than assumed — the gate above (two of them), the venue radius (D175's
+~200 m, without which this would be a district), opt-in on both sides and
+off by default, and expiry on its own (D174). §10's own test is the one to
+hold it to: *a room you are standing in, not a directory of strangers*.
+
+**Three promises on screen became false and were rewritten in this commit**,
+which is the part that must never be deferred:
+
+- The stop said **"a count, never who"**, twice. That was Near's whole
+  pitch from D84 and the People tab makes it a lie. It now says what
+  replaced it: they can see you here too, for as long as you can see them.
+- The field's foot said **"nobody here is named"**. Half of that is still
+  true and is the sharper half — the FIELD names nobody, an anonymous node
+  cannot be opened, and that is the deny drawn. So the sentence names which
+  half is which rather than dropping a true fact because a neighbour
+  changed.
+- The privacy panel said **"a count is all that comes back"**. It now
+  separates the two claims that used to travel as one: nobody can read your
+  square (still `allow read: if false`), and the people in it can see you.
+
+The test that asserted the old wording had to change with it, and that is
+worth a sentence: a test pinning "a count, never who" would have been the
+thing arguing to keep a false sentence on a screen. What it pins now is the
+claim the server actually enforces.
+
+### The shape of the fold
+
+`nearbyRoomV2` samples the neighbourhood once (`ROOM_PEOPLE_CAP` = 24) and
+serves both readings from that one sample — a roster and per-question
+option counts over exactly those people. Two caps would have meant People
+showing one set of people and Compare describing another, and "you against
+this room" is only true if the two words mean the same crowd.
+
+Counts come back in `{ "0": 3 }`, the shape `v2_question_aggs` already
+uses, so the client walk is one four surfaces already do. Returning an
+ARRAY would have meant agreeing with the client about how many options a
+question has, over a wire, with a length nobody validates.
+
+**No floor on the answer split, and that is a decision rather than an
+omission.** §10 said "the same floor" and the floor turns out to protect
+nothing here: a floor on an answer split protects the answer, answers are
+public, and the roster is disclosed by the People tab in any case — hiding
+a two-person split would conceal nothing a reader could not get by tapping
+a name. What a thin split needs is its `n` beside it, which is the
+post-D98 rule everywhere else and which `LiveAnswerRows` already does. The
+floor that does bind is D176's, on the mix, which is a different reading
+with a different exposure.
+
+**Explore and Scores are absent on purpose.** Explore cuts a population by
+an anchor and needs `by` breakdowns the room has none of; Scores wants the
+archive's ordinal questions where the room is folded over today's deck.
+Each would be a tab that draws an empty state forever, which is worse than
+a tab that is not there.
+
+**Compare is EXPORTED from `LiveMirrorLenses` rather than reimplemented.**
+The room reads exactly the way that lens reads, and a second copy would be
+a second place for D170's majority test to be got wrong.
+
+### The cost, priced before it shipped
+
+The fold reads a document per person per question, so uncached it is
+(people) × (questions) × (viewers) — the same trap D129 pulled the count
+out of. `v2_presence_room/{cell}` caches one cell's fold for one beat
+window, **per question**, so the first caller pays and the rest read one
+document; ~2.9M reads become ~29k for a 1,000-phone hour (COSTS Finding 6).
+It runs on the tab's mount, never on the beat, so a stop nobody opens costs
+nothing.
+
+The cache merges INSIDE a window and replaces at the boundary. Merging on a
+miss would have republished last window's split under a fresh stamp — an
+hour-old room served as current for as long as nobody re-asked that
+question.
+
+### Found under this stone
+
+- **The e2e had been red since D174, and I had not run it.** D174 made
+  `until` required on a presence write; the e2e's presence section wrote
+  `{cell, at}` and had been failing `PERMISSION_DENIED` for two commits.
+  The unit, rules and functions suites all pass without a functions
+  emulator, and this is the only suite that exercises a client write
+  against the deployed rules AND a callable behind them. The four-runner
+  table in CLAUDE.md says exactly this and I still skipped it. Fixed, and
+  the section now also covers the mix floor, the roster, the gate from
+  three angles, and the `until` cap.
+- **`deleteAccount` would have left an erased account listed in a room.**
+  `v2_presence_room` is keyed by CELL, so deleting the presence doc does
+  not touch a roster naming that uid — it would have survived up to a beat
+  window past the erasure. The wipe now reads the leaving account's cell
+  and drops the cached fold with it, and the erasure e2e proves it by
+  mutation.
+
+### Guards
+
+The gate is proved in the e2e from three angles (a phone in another cell,
+for both callables; a phone with no presence at all), because it is the
+only place a callable behind rules can be exercised. `v2_presence_room` is
+denied both ways in `firestore.rules`, mutation-checked. `roomQids` refuses
+path injection into the `getAll` — these strings are concatenated into a
+document path, so a slash or a dot segment is refused rather than escaped.
+`tallyPicks` drops anything that is not an option index, because a float or
+a `-1` would key a bucket the client's walk never looks at: a count that
+exists, is wrong, and is invisible.
+
+Client-side, `roomShape.test.ts` pins the translation (a room that has not
+answered stays at zero, a malformed cell reads as zero and never NaN, `mine`
+is -1 rather than 0 when absent) and `LiveRoomTabs.test.tsx` pins the three
+states of a read that can fail, plus People's two rules: an unnamed account
+is "Someone", and **the room is not ranked** — the field above places people
+by likeness because that is a reading, while a list of people you can see
+sorted best-match-first is a leaderboard of strangers in a bar.
+
+## D178 · The app gets a face, and it is reported like anything else somebody says
+
+**2026-08-16.** Step 5 of NEXT-FUNCTIONALITY §10, the last one, and the
+only one that adds a subsystem rather than a surface. The app held no image
+of anybody until this.
+
+**Two owner calls decided the shape**, both asked before anything was
+built, because both had legal weight and neither had an obvious default:
+
+1. **Live from the moment it is set, with the report loop behind it** —
+   over reviewing a photo before it shows. The model takes have had since
+   D83.
+2. **Everywhere a name appears** — Near's People tab, the Kindred cards,
+   the profile — over Near only. A photo is a profile field.
+
+The first is the consequential one and it is worth stating what it costs:
+the loop is REACTIVE. Somebody sees an abusive picture before anybody
+reports it, in an app where an account is free (D3). The alternative was
+pre-review, which would have contradicted the "pre-moderation is out of
+scope" line in `docs/MODERATION.md` and put a human between a user and
+their own profile picture. The owner was asked directly and chose the
+reactive loop; that line in MODERATION.md therefore survives D178 rather
+than being quietly narrowed to "except faces".
+
+### What was built
+
+**One object per account, at a fixed id.** `avatars/{uid}`, no filename.
+The retired v1 path in `storage.rules` records exactly what a free filename
+costs — unbounded objects, unbounded stored bytes, unbounded egress, from
+an app where an account is free — so a second upload is an OVERWRITE and
+the object count is bounded by the account count by construction rather
+than by a rule someone has to remember.
+
+**The device does the shrinking**, and that is a privacy property rather
+than a bandwidth one. A camera photo carries EXIF, EXIF carries GPS, and
+this app spent D9, D84 and D175 being careful about precisely that datum. A
+canvas round-trip to a 256px JPEG drops all of it — there is no EXIF on a
+`toBlob` result — and the ~20 KB output sits ten times under the rules cap,
+which is what makes the cap a backstop rather than something real uploads
+have to fit.
+
+**A TOKEN IS STORED, NOT A URL**, and this is the field that would have
+been the quiet mistake. `v2_avatars` holds the Storage download token; the
+client builds the URL around it from its own config. A client-written URL
+could name a host we do not control — every viewer's IP goes to it, and the
+picture can be swapped after somebody reported it, which defeats the whole
+loop. The rules pin a charset with no dot, colon or slash, so the field
+cannot be a host or a path however it is written.
+
+**Its own collection, not a profile field**, for two reasons that both
+bind. A remove verdict has to write somewhere, and a field on `v2_users`
+would mean the moderator's credential holds a write on the document
+carrying display names, anchors and test results. And `hidden` +
+`hiddenMeta` is a take's exact shape, so the queue, the verdict log and the
+appeal path are reused rather than re-derived — `av_{uid}` namespaces the
+target id, `target` carries the uid so the flag rule can reach the document
+without doing string surgery, and `gid: "avatar"` is the sentinel D83's
+world takes already established.
+
+**Once removed, frozen.** A hidden avatar takes no client update and no
+client delete, because both are the way back: overwrite the token, or
+delete and re-create, and a removed face is live again from an account that
+costs nothing to make. The appeal is a human, which is what `hiddenMeta` is
+for. This is the single most important rule in the change and it has its own
+case.
+
+**A hidden face resolves to `""` in `resolveNames`**, so every surface
+falls back to initials at once and none of them needs to know moderation
+exists. One place turns a document into a picture, so one place checks.
+Faces are also the one thing the profile cache does NOT persist across
+sessions: a token held past a remove verdict would keep drawing a face that
+was taken down.
+
+### Erasure grew a new limb
+
+`deleteAccount` had never touched Storage — and `storage.rules` leaned on
+that: its retired read grant survives *because* "revoking access to objects
+that still exist would create an erasure gap rather than close a hole". A
+photo without a Storage delete would have made that sentence describe the
+live path too.
+
+It deletes both halves now, in its own phase, and it ABORTS on failure like
+every other phase rather than logging and moving on: an orphaned photo of
+somebody who asked to be deleted is exactly the leftover the abort exists
+to prevent. The erasure e2e proves it — with the seed itself asserted,
+because an object that never landed makes "it is gone afterwards" pass for
+the wrong reason.
+
+### Found under this stone: D175 broke three gates and I had found only one
+
+D177 recorded that the e2e had been red since D175. Running the FULL gate
+list — all thirty, rather than the dozen I had been running from memory —
+found two more, both from the same commit:
+
+- **`check:store-forms`** was red. D175 ticked Precise Location in
+  `docs/STORE-FORMS.md` and never touched `design/store/app-privacy.json`,
+  **which is the file that gets pushed to Apple**. The gate exists
+  precisely to catch the two copies disagreeing, and it had been saying so
+  for three commits.
+- **`check:ios-location`** was red, enforcing D9's `NSLocationDefaultAccuracyReduced
+  must be true` — the rule D175 deliberately reversed. Its own message said
+  "if that genuinely changed, this check is the last thing to update, not
+  the first," and it had not been updated.
+
+Both are now **consistency checks rather than opinions**: store-forms reads
+the plist and demands the label agree with it; ios-location demands the
+iOS plist and the Android manifest agree with each other. Neither has a
+view on which way the decision goes, so neither can go stale the same way.
+A gate that fires on every correct tree is worse than no gate, because the
+only way past it is to stop looking — and this repo's whole moderation and
+privacy posture rests on gates nobody has learned to ignore.
+
+Both scripts' SUCCESS lines were stale too ("Precise Location absent",
+"reduced accuracy on") and now report what they actually found. A gate that
+passes while printing a false summary is the same failure in a quieter key.
+
+### Guards
+
+Storage rules: five cases — the world-readable grant, the signed-out deny,
+the somebody-else's-face deny, overwrite-and-remove, and the byte and type
+caps (SVG refused explicitly; it can carry script). Firestore rules: six
+more, including the token charset against a URL, `hidden` unclaimable in
+either direction, the freeze against both ways back, and the flag arm —
+one report per person, never your own face, and none at all on a face
+already removed. The two new platform cross-checks were mutation-checked by
+flipping the plist and watching both fire.
+
+Client: `avatar.test.ts` pins that the URL is BUILT (a token that looks
+like a URL still lands in the query string of ours), and
+`LiveRoomTabs.test.tsx` pins that a face draws where there is one, initials
+where there is not, that the report takes two taps, and that a hidden face
+is indistinguishable from no face.
+
+## D179 · The rules deploy on merge and the app does not, so `until` is optional for one release
+
+**2026-08-16.** Found by asking whether D170–D178 were safe to merge rather
+than whether they were finished, which turned out to be a different
+question.
+
+**THE HAZARD.** `firebase-deploy.yml` fires on any push to `main` touching
+`functions/**`, `firestore.rules` or `storage.rules` — so merging *is*
+deploying. The app does not travel that way: it reaches phones through a
+store review, days later. Between those two moments the newest build in the
+wild is the one that predates D175, and it writes a presence document of
+`{cell, at}` with no `until` at all.
+
+D175 made `until` required. So on merge, every presence write from every
+existing install would have been denied, `runBeat` would have caught it,
+and Near would have shown *"Couldn't reach the count just now"* with a
+**Try again** button that could not succeed until the user updated the app.
+Nothing would have looked broken in CI, because CI runs the new client
+against the new rules — the only two things that are never paired in
+production.
+
+This is the D162 deploy-order shape one layer down: that note is about a
+bank that must be reseeded before a flag ships, and this is about a client
+that must ship before a rule tightens. Both fail in the gap between two
+deploys that nothing schedules together.
+
+### What was done
+
+**`until` is optional for one release, and capped exactly as before when
+present.** A compatibility arm rather than a retreat: a modified client
+gains nothing by omitting it, because the server treats a missing `until`
+as `at` + the linger — which is precisely what the pre-D175 freshness
+window meant.
+
+**The server BACKFILLS it**, and that is the part that makes this
+self-closing rather than merely survivable. The count filters `until > now`,
+and a Firestore range filter skips a document missing the field entirely —
+so a legacy phone would have been admitted to its own count and then been
+invisible to everybody else's. `nearbyCountV2` writes the field a legacy
+document should have had, on its owner's first beat, which is the same
+moment they are admitted. One extra write per legacy account, once.
+
+Undercounting rather than erroring would have been the worse failure and it
+is worth saying why: an error is visible and a wrong number is not. A room
+quietly reading 0 while six people stand in it is the fabrication this app
+refuses everywhere else, arriving through a compatibility gap instead of
+through arithmetic.
+
+**REMOVAL CONDITION, so this does not become permanent by inattention:**
+delete the arm when the D175+ build is the oldest one in the wild. That is
+a store-rollout condition, not a date. Until then, a presence document with
+no `until` is one nobody has opened the new app with yet — and after the
+backfill has run once for each of them, there should be none left.
+
+### Guards
+
+A rules case for the legacy write shape, beside the existing one for the
+cap — the cap case now owns only the ceiling, because the "it is required"
+half moved here and asserting both would have meant one of them lying. An
+e2e leg drives a FOURTH account through the whole thing as a real client:
+the legacy write is accepted, the gate admits it, and the document comes
+back carrying an `until` it never sent. Mutation-checked by removing the
+backfill, which fails exactly the third assertion.
+
+### Found on the way
+
+**`npm run test:scripts` is in CI's lint job and I had never run it.** It
+caught two things this branch broke, both of the same species as the two
+stale gates D178 records:
+
+- `scripts/pulse.test.mjs` counts `get(/databases/` sites in
+  `firestore.rules` as a billed-read tripwire; D178's avatar flag arm added
+  one (18 → 19). `RULE_READS` is deliberately unchanged — it charges the
+  answer-create paths, and reporting a photo is not one.
+- `scripts/asc-push.test.mjs` asserted the printed privacy form **never**
+  contains Precise Location — an invariant D175 reversed. It had become
+  self-contradicting: the loop above it demands every declared row be
+  printed, while that line forbade one of them, so the only way past it was
+  to delete half the test. It is now the set's own complement — nothing may
+  be printed that the file does not declare — and the comment says what
+  that does and does not catch, because the first draft of it overstated
+  the case and a mutation showed as much.
+
+Three commands run the gates this repo actually has: `npm run lint` is
+eslint alone, and the CI job of that name also runs `check:globals`,
+`check:figures`, `test:scripts` and `check:a11y`. Running the first and
+calling it "lint passes" is how all four of these got through.

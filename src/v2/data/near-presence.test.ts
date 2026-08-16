@@ -110,10 +110,12 @@ vi.mock("firebase/firestore", () => {
 
 interface NearApi {
   on(): boolean;
+  mode(): "off" | "session" | "always";
+  until(): number;
   count(): number | null;
   updatedAt(): number;
   lastError(): string | null;
-  enable(): Promise<{ ok: boolean; reason?: string }>;
+  enable(mode?: "session" | "always"): Promise<{ ok: boolean; reason?: string }>;
   disable(): Promise<void>;
   refresh(): Promise<void> | void;
 }
@@ -264,5 +266,65 @@ describe("disable() — stop sharing means stop, now", () => {
     expect(near.count()).toBeNull();
     expect(near.lastError()).toBeNull();
     expect(h.presenceDeletes).toEqual(["v2_presence/uid_test"]);
+  });
+});
+
+// ── the three states, and the promise each one makes (D174) ──────────
+//
+// The interesting one is `session`. "Visible for two hours" is a promise
+// about when you STOP being visible, and the thing that keeps it is not
+// the client's timer — a timer does not run while the app is shut. It is
+// the `until` on the doc, clamped to the deadline, which the server counts
+// on and firestore.rules caps.
+describe("the visibility states", () => {
+  const untilOf = (i = 0) => {
+    const u = h.presenceWrites[i].data.until as Date;
+    return u instanceof Date ? u.getTime() : Number(u);
+  };
+
+  it("lands on the timed state by default, because the default is the decision", async () => {
+    const near = await bootNear();
+    await near.enable();
+    expect(near.mode()).toBe("session");
+    expect(near.until()).toBeGreaterThan(Date.now());
+  });
+
+  it("clamps a session's `until` to its deadline, never the full linger", async () => {
+    const near = await bootNear();
+    await near.enable("session");
+    // The linger is three hours and the session is two, so a session beat
+    // must write the SHORTER of them. Writing the linger here is what
+    // would leave a phone standing for an extra hour after its deadline —
+    // the whole failure the timed option exists to prevent.
+    const slack = 5 * 60_000;
+    expect(untilOf()).toBeLessThanOrEqual(near.until() + slack);
+    expect(untilOf()).toBeLessThan(Date.now() + 150 * 60_000);
+  });
+
+  it("gives `always` the full linger, and no deadline", async () => {
+    const near = await bootNear();
+    await near.enable("always");
+    expect(near.mode()).toBe("always");
+    expect(near.until(), "always must not carry a session deadline").toBe(0);
+    // Still bounded: "always" is a setting with no end, not a position
+    // that never expires.
+    expect(untilOf()).toBeGreaterThan(Date.now() + 150 * 60_000);
+    expect(untilOf()).toBeLessThanOrEqual(Date.now() + 181 * 60_000);
+  });
+
+  it("reports an expired session as off without waiting for a timer", async () => {
+    const near = await bootNear();
+    await near.enable("session");
+    expect(near.mode()).toBe("session");
+    // The app was shut for three hours. Nothing ran; the deadline simply
+    // passed. Reading the mode has to be what notices, because that is the
+    // only thing that happens when the app comes back.
+    vi.setSystemTime(new Date(Date.now() + 3 * 60 * 60_000));
+    try {
+      expect(near.mode()).toBe("off");
+      expect(near.on()).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

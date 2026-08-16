@@ -65,6 +65,27 @@ const SF_LINE = "1px solid color-mix(in oklch, var(--rule), transparent 25%)";
 
 // ── shared field canvas ──────────────────────────────────────────────
 
+/**
+ * A node in the constellation.
+ *
+ * THE GEOMETRY IS SIMILARITY, NEVER POSITION — the one rule this whole
+ * canvas rests on, and the reason it can draw strangers at all.
+ *
+ * `match` sets the radius: closer to the centre is more like you. There is
+ * no coordinate here and there must never be one. It matters most at the
+ * Near stop, where the temptation is exactly backwards: the app knows a
+ * ~200 m presence cell, so placing nodes where people actually ARE would
+ * look like an improvement and would turn an anonymous field into a map of
+ * where named-able strangers are standing — the thing `v2_presence`'s
+ * `allow read: if false` exists to prevent (D84/D98).
+ *
+ * The same reasoning bans per-node ATTRIBUTES on an anonymous field. A
+ * trade and an age are not sensitive on their own — everything here
+ * publishes under D98 — but they are a JOIN KEY: enough to find a named
+ * public account, after which the node has told you where that person is.
+ * A node that carries only a radius gives an attacker nothing to join on.
+ * That is why Near passes `label: ""` and `kind="anon"`.
+ */
 interface FieldNode {
   id: string;
   /** Short label under the node — a first name or a place name. */
@@ -229,20 +250,6 @@ function SfCaption({ children }: { children: React.ReactNode }) {
  * rows publish from the first answer (D98). So every empty arm offers the
  * tab that has something today.
  */
-function SfGoAnswers({ onGo }: { onGo?: () => void }) {
-  if (!onGo) return null;
-  return (
-    <div style={{ textAlign: "center", paddingBottom: 10 }}>
-      <button className="press" onClick={onGo}
-        style={{ border: "1px solid color-mix(in oklch, var(--rule), transparent 25%)", borderRadius: 999,
-          background: "var(--surface-2)", color: "var(--ink)", cursor: "pointer", padding: "8px 16px",
-          fontFamily: "var(--sans)", fontWeight: 800, fontSize: 12.5, WebkitAppearance: "none" }}>
-        See what they answered
-      </button>
-    </div>
-  );
-}
-
 function SfEmpty({ children }: { children: React.ReactNode }) {
   return (
     <div style={{ fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 600, color: "var(--ink-3)", lineHeight: 1.55, padding: "8px 2px 12px", textAlign: "center", maxWidth: 340, margin: "0 auto" }}>
@@ -272,9 +279,8 @@ function SfEmpty({ children }: { children: React.ReactNode }) {
  * draws: an empty field has nothing to tap, and a `people` canvas with no
  * people would hand out roles and tab stops to nothing.
  */
-function SfEmptyField({ caption, onGo, children }: {
+function SfEmptyField({ caption, children }: {
   caption?: React.ReactNode;
-  onGo?: () => void;
   children: React.ReactNode;
 }) {
   return (
@@ -282,7 +288,6 @@ function SfEmptyField({ caption, onGo, children }: {
       <SimilarityCanvas kind="anon" nodes={[]} picked={null} onPick={() => {}} />
       {caption ? <SfCaption>{caption}</SfCaption> : null}
       <SfEmpty>{children}</SfEmpty>
-      <SfGoAnswers onGo={onGo} />
     </div>
   );
 }
@@ -366,9 +371,8 @@ function PersonCard({ p, myParsed }: { p: RankedPerson; myParsed: ParsedResults 
   );
 }
 
-function CityField({ myParsed, onGoAnswers }: {
+function CityField({ myParsed }: {
   myParsed: ParsedResults | null;
-  onGoAnswers?: () => void;
 }) {
   const [picked, setPicked] = React.useState<string | null>(null);
   const city = LIVE.myCity;
@@ -384,8 +388,7 @@ function CityField({ myParsed, onGoAnswers }: {
 
   if (!shown.length) {
     return (
-      <SfEmptyField caption={<>kindred strangers in {cityName}</>}
-        onGo={loading ? undefined : onGoAnswers}>
+      <SfEmptyField caption={<>kindred strangers in {cityName}</>}>
         {loading
           ? <>Working out who in {cityName} is most like you…</>
           : <>Nobody from {cityName} yet among the people on your questions —
@@ -604,10 +607,9 @@ function PlaceCard({ p, label, myFlat }: {
   );
 }
 
-function PlacesField({ scope, myFlat, onGoAnswers }: {
+function PlacesField({ scope, myFlat }: {
   scope: "country" | "world";
   myFlat: Record<string, number> | null;
-  onGoAnswers?: () => void;
 }) {
   const [picked, setPicked] = React.useState<string | null>(null);
   const myCity = LIVE.myCity;
@@ -631,8 +633,7 @@ function PlacesField({ scope, myFlat, onGoAnswers }: {
   if (!profiles.length) {
     return (
       <SfEmptyField
-        caption={<>{scope === "country" ? "your country's cities" : "the world's countries"}, by likeness</>}
-        onGo={loading ? undefined : onGoAnswers}>
+        caption={<>{scope === "country" ? "your country's cities" : "the world's countries"}, by likeness</>}>
         {loading
           ? <>Reading the score profiles…</>
           : <>No {what} has answered the score questions yet — profiles start
@@ -695,10 +696,9 @@ function PlacesField({ scope, myFlat, onGoAnswers }: {
 
 // ── the section host ─────────────────────────────────────────────────
 
-function SimilaritySection({ scope, onGoAnswers }: {
+function SimilaritySection({ scope }: {
   scope: "city" | "country" | "world";
   /** Sends the reader to the Answers tab from an empty field (D135). */
-  onGoAnswers?: () => void;
 }) {
   const [, bump] = React.useReducer((n: number) => n + 1, 0);
   React.useEffect(() => LIVE.subscribe(bump), []);
@@ -710,7 +710,7 @@ function SimilaritySection({ scope, onGoAnswers }: {
 
   const myParsed = parseTestResults(LIVE.myTestResults(), CORE_TEST_KINDS);
   if (scope === "city") {
-    return <CityField myParsed={myParsed} onGoAnswers={onGoAnswers} />;
+    return <CityField myParsed={myParsed} />;
   }
   // The viewer's own axes for the place fields: completed instruments
   // first, own answers to the bank's test items filling the gaps — real
@@ -721,7 +721,7 @@ function SimilaritySection({ scope, onGoAnswers }: {
   // is worth to a scorer.
   const items = testItemMeta(LIVE.testFeedItems(), DEFS);
   const myFlat = myFlatAxes(myParsed, items, DEFS, voteIndices(LIVE.myVotes()));
-  return <PlacesField scope={scope} myFlat={myFlat} onGoAnswers={onGoAnswers} />;
+  return <PlacesField scope={scope} myFlat={myFlat} />;
 }
 
 export default SimilaritySection;

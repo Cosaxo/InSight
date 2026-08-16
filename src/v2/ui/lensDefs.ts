@@ -48,7 +48,30 @@ export interface LensQuestion {
   id: string;
   text: string;
   options: string[];
+  /**
+   * The counts of the STOP THIS LENS IS STANDING ON — the City stop's
+   * city cell, the Country stop's country cell, the World stop's globe.
+   *
+   * It was the globe on every stop until D170, while Compare and Scores
+   * printed the stop's name over it ("against Oslo", "How Oslo rated
+   * it"). Not a fabricated number — a real one describing a crowd it
+   * never counted, which is D157's failure one tab over. It was visible
+   * from the app: Answers said "1 more question has no answers from Oslo
+   * yet" while Compare drew that same question at 50/50.
+   */
   counts: number[];
+  /**
+   * The published GLOBE, whatever stop this is — Explore's baseline and
+   * only Explore's.
+   *
+   * Explore is global by construction and says so: its slices are
+   * `by[dim]` buckets across everyone (there is no city × age cell to
+   * read), and its sentence is "25-34 are 12 points more likely…
+   * Same as everyone." So its comparison must stay against everyone,
+   * which is why the globe survives as its own field rather than being
+   * replaced by the scope cell.
+   */
+  all: number[];
   by: ByMap | undefined;
   mine: number;
   /** The bank's question type — Scores filters on ORDINAL_TYPES (D100). */
