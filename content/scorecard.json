@@ -1,11 +1,11 @@
 {
-  "generatedAt": "2026-08-15T07:17:19.278Z",
-  "daysSinceEpoch": 14,
+  "generatedAt": "2026-08-16T07:16:01.171Z",
+  "daysSinceEpoch": 15,
   "coverage": {
     "questions": 164,
-    "scored": 5,
-    "belowFloor": 53,
-    "unserved": 76
+    "scored": 0,
+    "belowFloor": 0,
+    "unserved": 75
   },
   "topics": {
     "Sport": {
@@ -42,11 +42,11 @@
     },
     "Mind": {
       "questions": 11,
-      "scored": 1,
-      "answers": 1,
+      "scored": 0,
+      "answers": 0,
       "strong": 0,
       "landslides": 0,
-      "avgEvenness": 0
+      "avgEvenness": null
     },
     "Morals": {
       "questions": 8,
@@ -170,11 +170,11 @@
     },
     "dilemma": {
       "questions": 12,
-      "scored": 2,
-      "answers": 2,
+      "scored": 0,
+      "answers": 0,
       "strong": 0,
       "landslides": 0,
-      "avgEvenness": 0
+      "avgEvenness": null
     },
     "event": {
       "questions": 4,
@@ -186,30 +186,30 @@
     },
     "people": {
       "questions": 3,
-      "scored": 1,
-      "answers": 1,
+      "scored": 0,
+      "answers": 0,
       "strong": 0,
       "landslides": 0,
-      "avgEvenness": 0
+      "avgEvenness": null
     },
     "bigq": {
       "questions": 11,
-      "scored": 1,
-      "answers": 1,
+      "scored": 0,
+      "answers": 0,
       "strong": 0,
       "landslides": 0,
-      "avgEvenness": 0
+      "avgEvenness": null
     }
   },
   "types": {
     "daily": {
       "binary": {
         "questions": 36,
-        "scored": 1,
-        "answers": 1,
+        "scored": 0,
+        "answers": 0,
         "strong": 0,
         "landslides": 0,
-        "avgEvenness": 0
+        "avgEvenness": null
       },
       "choice": {
         "questions": 27,
@@ -255,11 +255,11 @@
       },
       "vote": {
         "questions": 59,
-        "scored": 4,
-        "answers": 4,
+        "scored": 0,
+        "answers": 0,
         "strong": 0,
         "landslides": 0,
-        "avgEvenness": 0
+        "avgEvenness": null
       },
       "dial": {
         "questions": 4,
@@ -288,157 +288,21 @@
     }
   },
   "optionSlots": {
-    "daily": {
-      "binary/2": {
-        "questions": 1,
-        "avgMinShare": 0,
-        "avgShares": [
-          1,
-          0
-        ]
-      }
-    },
-    "feed": {
-      "vote/2": {
-        "questions": 3,
-        "avgMinShare": 0,
-        "avgShares": [
-          0.667,
-          0.333
-        ]
-      },
-      "vote/3": {
-        "questions": 1,
-        "avgMinShare": 0,
-        "avgShares": [
-          0,
-          0,
-          1
-        ]
-      }
-    }
+    "daily": {},
+    "feed": {}
   },
-  "leaders": [
-    {
-      "qid": "daily-009",
-      "prompt": "A pill that ends your need for sleep. Take it?",
-      "total": 1,
-      "evenness": 0,
-      "optionShares": [
-        1,
-        0
-      ]
-    },
-    {
-      "qid": "feed-f43",
-      "prompt": "Perfect memory — but you can never forget anything. Take it?",
-      "total": 1,
-      "evenness": 0,
-      "optionShares": [
-        1,
-        0
-      ]
-    },
-    {
-      "qid": "feed-f44",
-      "prompt": "Your dog talks for one day, or understands you forever?",
-      "total": 1,
-      "evenness": 0,
-      "optionShares": [
-        1,
-        0
-      ]
-    },
-    {
-      "qid": "feed-f51",
-      "prompt": "Dinner with one",
-      "total": 1,
-      "evenness": 0,
-      "optionShares": [
-        0,
-        0,
-        1
-      ]
-    },
-    {
-      "qid": "feed-s11",
-      "prompt": "Is morality discovered or invented?",
-      "total": 1,
-      "evenness": 0,
-      "optionShares": [
-        0,
-        1
-      ]
-    }
-  ],
-  "laggards": [
-    {
-      "qid": "feed-s11",
-      "prompt": "Is morality discovered or invented?",
-      "total": 1,
-      "evenness": 0,
-      "grade": "middling",
-      "optionShares": [
-        0,
-        1
-      ]
-    },
-    {
-      "qid": "feed-f51",
-      "prompt": "Dinner with one",
-      "total": 1,
-      "evenness": 0,
-      "grade": "middling",
-      "optionShares": [
-        0,
-        0,
-        1
-      ]
-    },
-    {
-      "qid": "feed-f44",
-      "prompt": "Your dog talks for one day, or understands you forever?",
-      "total": 1,
-      "evenness": 0,
-      "grade": "middling",
-      "optionShares": [
-        1,
-        0
-      ]
-    },
-    {
-      "qid": "feed-f43",
-      "prompt": "Perfect memory — but you can never forget anything. Take it?",
-      "total": 1,
-      "evenness": 0,
-      "grade": "middling",
-      "optionShares": [
-        1,
-        0
-      ]
-    },
-    {
-      "qid": "daily-009",
-      "prompt": "A pill that ends your need for sleep. Take it?",
-      "total": 1,
-      "evenness": 0,
-      "grade": "middling",
-      "optionShares": [
-        1,
-        0
-      ]
-    }
-  ],
+  "leaders": [],
+  "laggards": [],
   "production": {
     "bySource": {
       "editorial": {
         "questions": 152,
-        "served": 88,
-        "scored": 5,
-        "answers": 5,
+        "served": 89,
+        "scored": 0,
+        "answers": 0,
         "strong": 0,
         "landslides": 0,
-        "avgEvenness": 0
+        "avgEvenness": null
       },
       "farm": {
         "questions": 12,
@@ -453,12 +317,12 @@
     "byVintage": {
       "editorial:prototype": {
         "questions": 118,
-        "served": 79,
-        "scored": 5,
-        "answers": 5,
+        "served": 80,
+        "scored": 0,
+        "answers": 0,
         "strong": 0,
         "landslides": 0,
-        "avgEvenness": 0
+        "avgEvenness": null
       },
       "farm:2026-07-30": {
         "questions": 12,
@@ -503,7 +367,7 @@
     "coverage": {
       "cards": 106,
       "scored": 0,
-      "belowFloor": 28
+      "belowFloor": 2
     },
     "fields": {
       "cell": {
@@ -606,7 +470,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "below-floor"
+        "signal": "no-answers"
       },
       {
         "qid": "learn-cell3",
@@ -619,7 +483,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "below-floor"
+        "signal": "no-answers"
       },
       {
         "qid": "learn-cell4",
@@ -645,7 +509,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "below-floor"
+        "signal": "no-answers"
       },
       {
         "qid": "learn-cell6",
@@ -658,7 +522,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "below-floor"
+        "signal": "no-answers"
       },
       {
         "qid": "learn-cell7",
@@ -671,7 +535,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "below-floor"
+        "signal": "no-answers"
       },
       {
         "qid": "learn-cell8",
@@ -684,7 +548,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "below-floor"
+        "signal": "no-answers"
       },
       {
         "qid": "learn-gene1",
@@ -710,7 +574,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "below-floor"
+        "signal": "no-answers"
       },
       {
         "qid": "learn-gene3",
@@ -762,7 +626,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "below-floor"
+        "signal": "no-answers"
       },
       {
         "qid": "learn-gene7",
@@ -827,7 +691,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "below-floor"
+        "signal": "no-answers"
       },
       {
         "qid": "learn-body4",
@@ -1009,7 +873,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "below-floor"
+        "signal": "no-answers"
       },
       {
         "qid": "learn-sol2",
@@ -1022,7 +886,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "below-floor"
+        "signal": "no-answers"
       },
       {
         "qid": "learn-sol3",
@@ -1035,7 +899,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "below-floor"
+        "signal": "no-answers"
       },
       {
         "qid": "learn-sol4",
@@ -1061,7 +925,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "below-floor"
+        "signal": "no-answers"
       },
       {
         "qid": "learn-sol6",
@@ -1074,7 +938,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "below-floor"
+        "signal": "no-answers"
       },
       {
         "qid": "learn-sol7",
@@ -1087,7 +951,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "below-floor"
+        "signal": "no-answers"
       },
       {
         "qid": "learn-sol8",
@@ -1100,7 +964,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "below-floor"
+        "signal": "no-answers"
       },
       {
         "qid": "learn-str1",
@@ -1243,7 +1107,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "below-floor"
+        "signal": "no-answers"
       },
       {
         "qid": "learn-anc4",
@@ -1256,7 +1120,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "below-floor"
+        "signal": "no-answers"
       },
       {
         "qid": "learn-anc5",
@@ -1282,7 +1146,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "below-floor"
+        "signal": "no-answers"
       },
       {
         "qid": "learn-anc7",
@@ -1308,7 +1172,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "no-answers"
+        "signal": "below-floor"
       },
       {
         "qid": "learn-c201",
@@ -1529,7 +1393,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "below-floor"
+        "signal": "no-answers"
       },
       {
         "qid": "learn-cap2",
@@ -1542,7 +1406,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "below-floor"
+        "signal": "no-answers"
       },
       {
         "qid": "learn-cap3",
@@ -1555,7 +1419,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "below-floor"
+        "signal": "no-answers"
       },
       {
         "qid": "learn-cap4",
@@ -1568,7 +1432,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "below-floor"
+        "signal": "no-answers"
       },
       {
         "qid": "learn-cap5",
@@ -1581,7 +1445,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "below-floor"
+        "signal": "no-answers"
       },
       {
         "qid": "learn-cap6",
@@ -1594,7 +1458,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "below-floor"
+        "signal": "no-answers"
       },
       {
         "qid": "learn-cap7",
@@ -1607,7 +1471,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "below-floor"
+        "signal": "no-answers"
       },
       {
         "qid": "learn-cap8",
@@ -1620,7 +1484,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "below-floor"
+        "signal": "no-answers"
       },
       {
         "qid": "learn-org1",
@@ -1880,7 +1744,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "below-floor"
+        "signal": "no-answers"
       },
       {
         "qid": "learn-anc13",
@@ -1932,7 +1796,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "no-answers"
+        "signal": "below-floor"
       },
       {
         "qid": "learn-body12",
@@ -3065,7 +2929,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "daily-003",
@@ -3077,7 +2941,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "daily-004",
@@ -3089,7 +2953,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "daily-005",
@@ -3101,7 +2965,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "daily-006",
@@ -3125,7 +2989,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "daily-008",
@@ -3137,7 +3001,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "daily-009",
@@ -3146,14 +3010,10 @@
       "type": "binary",
       "prompt": "A pill that ends your need for sleep. Take it?",
       "served": true,
-      "total": 1,
-      "evenness": 0,
-      "optionShares": [
-        1,
-        0
-      ],
-      "signal": "scored",
-      "grade": "middling"
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
     },
     {
       "qid": "daily-010",
@@ -3177,7 +3037,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "daily-012",
@@ -3189,7 +3049,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "daily-013",
@@ -3201,7 +3061,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "daily-014",
@@ -3209,11 +3069,11 @@
       "topic": "Mind",
       "type": "rating",
       "prompt": "How much do you trust the news you read?",
-      "served": false,
+      "served": true,
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "unserved"
+      "signal": "no-answers"
     },
     {
       "qid": "daily-015",
@@ -4125,7 +3985,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-f02",
@@ -4137,7 +3997,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-f04",
@@ -4149,7 +4009,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-f05",
@@ -4161,7 +4021,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-f06",
@@ -4173,7 +4033,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-f07",
@@ -4185,7 +4045,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-f08",
@@ -4209,7 +4069,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-f11",
@@ -4221,7 +4081,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-f12",
@@ -4233,7 +4093,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-f13",
@@ -4269,7 +4129,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-f17",
@@ -4293,7 +4153,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-f19",
@@ -4305,7 +4165,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-f20",
@@ -4341,7 +4201,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-f24",
@@ -4377,7 +4237,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-f27",
@@ -4389,7 +4249,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-f29",
@@ -4413,7 +4273,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-f31",
@@ -4425,7 +4285,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-f32",
@@ -4437,7 +4297,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-f33",
@@ -4449,7 +4309,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-f35",
@@ -4461,7 +4321,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-f36",
@@ -4473,7 +4333,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-f37",
@@ -4485,7 +4345,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-f38",
@@ -4497,7 +4357,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-f39",
@@ -4509,7 +4369,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-f40",
@@ -4533,7 +4393,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-f42",
@@ -4545,7 +4405,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-f43",
@@ -4554,14 +4414,10 @@
       "type": "vote",
       "prompt": "Perfect memory — but you can never forget anything. Take it?",
       "served": true,
-      "total": 1,
-      "evenness": 0,
-      "optionShares": [
-        1,
-        0
-      ],
-      "signal": "scored",
-      "grade": "middling"
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
     },
     {
       "qid": "feed-f44",
@@ -4570,14 +4426,10 @@
       "type": "vote",
       "prompt": "Your dog talks for one day, or understands you forever?",
       "served": true,
-      "total": 1,
-      "evenness": 0,
-      "optionShares": [
-        1,
-        0
-      ],
-      "signal": "scored",
-      "grade": "middling"
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
     },
     {
       "qid": "feed-f45",
@@ -4589,7 +4441,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-f46",
@@ -4601,7 +4453,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-f47",
@@ -4613,7 +4465,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-f48",
@@ -4625,7 +4477,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-f49",
@@ -4637,7 +4489,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-f50",
@@ -4649,7 +4501,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-f51",
@@ -4658,15 +4510,10 @@
       "type": "vote",
       "prompt": "Dinner with one",
       "served": true,
-      "total": 1,
-      "evenness": 0,
-      "optionShares": [
-        0,
-        0,
-        1
-      ],
-      "signal": "scored",
-      "grade": "middling"
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
     },
     {
       "qid": "feed-f52",
@@ -4678,7 +4525,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-f53",
@@ -4690,7 +4537,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-f54",
@@ -4714,7 +4561,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-s01",
@@ -4822,7 +4669,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-s11",
@@ -4831,14 +4678,10 @@
       "type": "vote",
       "prompt": "Is morality discovered or invented?",
       "served": true,
-      "total": 1,
-      "evenness": 0,
-      "optionShares": [
-        0,
-        1
-      ],
-      "signal": "scored",
-      "grade": "middling"
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
     },
     {
       "qid": "feed-s12",
@@ -4850,7 +4693,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-s13",
@@ -4922,7 +4765,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-dl2",
@@ -4934,7 +4777,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-dl3",
@@ -4946,7 +4789,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-dl4",
@@ -4958,7 +4801,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-fd1",
@@ -4970,7 +4813,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-fd2",
@@ -4982,7 +4825,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-fd3",
@@ -4994,7 +4837,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-pt1",
