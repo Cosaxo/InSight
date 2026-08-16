@@ -274,3 +274,12 @@ an emergency rules fix.
   not parse, an ESM export shape, a module evaluation order.
 - When you defer something, record it in `docs/DECISIONS.md` with the
   arithmetic. A known limit is survivable; a surprise is not.
+- **Copy follows `visual > word > sentence > sentences`** (the owner's
+  rule, D181). A caption explaining a shape the reader is looking at, a
+  noun the ruler and the tab bar already say, a clause restating its own
+  first clause, an instruction for the control directly underneath — all
+  four are deletions, and all four grow back.
+  [`docs/COPY.md`](docs/COPY.md) names them, and names what the rule does
+  **not** license: a consent notice, an honesty qualifier and the blunt
+  public-answers sentence are claims, not word counts. Read §3 before
+  shortening anything that promises something.

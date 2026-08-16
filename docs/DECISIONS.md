@@ -18274,3 +18274,18 @@ matched on the other. `check-policy-claims.test.mjs` deletes each claim
 from a copy of the page in turn and requires the checker to name that one,
 which is the only way to tell a pattern that guards a promise from a
 pattern that guards nothing. Split into two rows; sixteen, not fifteen.
+
+### The rule is a document now, not a commit message
+
+D181 named four recurring shapes and D182 named the three things the rule
+does not license, and both of those were buried in a decision entry —
+which is the wrong place for something the next person needs *before*
+touching a screen. [`docs/COPY.md`](COPY.md) is that content as a working
+guide: the four shapes with the screens they came off, the fragment→glyph
+table, and §3 on consent notices, honesty qualifiers and the blunt
+public-answers sentence, which are claims rather than word counts.
+`CLAUDE.md`'s House style points at it, and the repo map lists it.
+
+Deliberately no figures in it (D39): the word counts belong to D181, where
+they are a record of one pass rather than a number someone has to keep
+true.
