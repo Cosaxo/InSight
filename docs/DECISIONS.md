@@ -18733,16 +18733,97 @@ budget constants like the eleven already there, and the failure is a
 different one: a manual quoting a longer ceiling than the gate enforces
 sends 38 hand-authored strings into a gate that refuses them, which is the
 most expensive thing in this lane to redo.
-## D186 · The place scorecard rates the place
+## D186 · Build 19 is delivered, and the bump was made from the step list
 
-**Written as D184 and renumbered here**, the same way D138–D141 were: this
-branch and main both took the next free number on the same day, and main
-merged first (D184 is build 19's pre-flight, D185 Crossroads' brief). The
-number moved in every file that cites it — the record, `MIRROR.md`,
-`CLAUDE.md`, `QUESTION-FARM.md`, the seed generator, the quality gate and
-six modules under `src/v2/` — so `D184` in this tree means build 19 and
-nothing else. **The commit message on `02511a3` still says D184** and is
-the one artifact that cannot be corrected in place; it is this decision.
+**Decided:** 2026-08-16 · **Status:** binding · The upload D184 prepared,
+and the post-upload bump 19 → 20 that four of the last seven releases
+skipped.
+
+**Numbered D185 when it was written, and renumbered here.** #204 landed
+its own D185 while this was in flight — the same collision D180 records
+against #199, at the same distance of about two hours. The commit message
+on `e0fa7eb` still says D185 and is the one artefact that cannot be
+corrected in place. Nothing else moved: #204 touches the question farm and
+its gates, this touches a build number, and the merged tree passes both
+sets of checks (`check:figures` now 28 figures across 12 files, script
+tests 215). **Twice in seven entries is the shape, not the accident** — a
+release entry is written against a tree that other lanes are still
+appending to, so the number it claims is provisional until it merges.
+
+### What ran
+
+| Run | Id | Sha | Dispatched | Step 17 |
+| --- | --- | --- | --- | --- |
+| 27 | `31963630320` | `e76731d` | 18:07:00Z | **`skipped`** — the dry run |
+| 28 | `31963956792` | `e76731d` | 18:13:34Z | **`success`** — 18:17:39Z → 18:18:55Z, 1m 16s of transfer |
+
+Both archived `e76731d`, the merge commit of #203, where `appBuild` is
+19 — so the comparison D184 made against runs 25/26 held at the sha each
+run actually built (D159). Job times 5m 44s and 5m 23s. **Build 19 is
+spent**, and `appBuild` is now **20**, propagated by `check:versions
+--fix` to `versionCode` and both `CURRENT_PROJECT_VERSION` entries.
+
+The dry run was not ceremony. It is what `ios-release.yml`'s header asks
+for, and it is the run that would have caught a signing or entitlement
+regression before anything reached TestFlight. Both silent-failure gates
+passed at both ends — step 13 (the archive carries `GoogleService-Info.plist`
+and `aps-environment`) and step 15 (the exported `.ipa` is
+production-signed, read out of the `.ipa` rather than the archive, which
+is the distinction that whole section of IOS-RELEASE.md exists to make).
+
+### The bump held, and the reason is the ordering
+
+Four bumps have now held (runs 20, 21, 22, 28) against four skipped (18,
+19, 24, 26). D153 and D158 credited the holding ones to the bump landing
+while the run's own step list was on screen; D180 refined that after run
+24 broke it, and **D184 broke the refinement** — run 26's skip happened
+with nobody looking at a step list at all, because no record was written
+either.
+
+**This release is the first where the dry run, the upload, the bump and
+the record were one session.** That is worth naming precisely, because
+the useful part is not diligence: the bump was computed **from step 17's
+conclusion**, read seconds after it turned `success`, rather than from
+anyone's memory of whether a build had been spent. Every skip in the list
+happened in the gap between those two things. The habit that works is not
+*remember to bump* — it is *never let the number be derived from memory*.
+
+**It still is not a guarantee, and nothing in this tree can make it one.**
+D184 established why: the fact lives in App Store Connect, the sound
+invariant keys on the run list, and no gate here can read either (D73's
+shape, one layer out). Four-for-eight is a procedure holding, not a
+mechanism working. The next dispatcher re-makes the comparison.
+
+### What is NOT written here
+
+That build 20 is "pre-flighted and unspent" — the sentence D130, D142 and
+D143 each got wrong, and which D184 declined to store. This entry records
+what run 28 **did**: it delivered build 19 at 18:18:55Z. Whoever
+dispatches next reads the run list, takes `appBuild` at the run's own
+`head_sha`, and reads the conclusion of **step 17** rather than of the
+run — runs 27/28 are now the fourth worked example of a pair that is
+`success` at the job level with only one of them having spent a number.
+## D187 · The place scorecard rates the place
+
+**Written as D184, renumbered to D186, and renumbered again to D187** —
+the D138–D141 precedent, twice in one afternoon. This branch took the
+next free number the same day build 19 shipped, and build 19 is three
+decisions all by itself: D184 its pre-flight, D186 its delivery, with
+D185 (Crossroads' brief) landing between them. Each time main merged
+first, so this record moved behind it.
+
+The number moved in every file that cites it — the record, `MIRROR.md`,
+`CLAUDE.md`, `QUESTION-FARM.md`, the seed generator, the quality gate
+and six modules under `src/v2/` — so `D184` and `D186` in this tree mean
+build 19 and nothing else. **The commit messages on `02511a3` and
+`b34a7ce` still say D184 and D186**; they are the artifacts that cannot
+be corrected in place, and this paragraph is where that is recorded.
+
+Worth naming rather than just fixing: a decision number is claimed by
+whoever merges, not by whoever writes, and a long-running branch against
+a repo that records release bookkeeping as decisions will lose the race
+every time. Cheap to fix while the number lives in prose and comments;
+it would not be if anything keyed on it.
 
 **2026-08-16.** Reported from a device, with a screenshot of the
 prototype's scorecard beside it: *"scores are currently weird as they

@@ -274,7 +274,7 @@ export let DAILYQ;
       cat: ['Home', 'The good spot'], alts: [['Body', 'Comfort'], ['Interests', 'Small pleasures']] },
     { type: 'rating', prompt: 'How alive is your curiosity these days?', tag: 'Curiosity', axis: 'curious', tone: 'blend',
       cat: ['Interests', 'Curiosity'], alts: [['Mind', 'Energy'], ['Goals', 'Growth']] },
-    // ── the place scorecard, 2026-08-16 (D186) ────────────────────────────
+    // ── the place scorecard, 2026-08-16 (D187) ────────────────────────────
     // The Mirror's Scores lens is the prototype's place scorecard, and the
     // live bank held nothing that rates a place — so it drew the ordinal
     // questions it could find ("Breakfast is the best meal of the day")

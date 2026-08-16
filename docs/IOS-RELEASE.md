@@ -398,6 +398,19 @@ work, which had no reason to think about a build number. Four skips now
 on the run list, which nothing in this tree can read** — so this stays a
 procedure, and the procedure is the next line.
 
+**Runs 27 and 28 delivered build 19, and the bump landed off step 17's
+conclusion** (D186, 2026-08-16). Both archived `e76731d` six minutes
+apart — run 27 (`31963630320`, 18:07:00Z) upload step `skipped`, run 28
+(`31963956792`, 18:13:34Z) `success` (18:17:39Z → 18:18:55Z, 1m 16s of
+transfer). Fourth pair of this shape.
+
+**This is the first release where the dry run, the upload, the bump and
+the record all happened in one session**, which is the only arrangement
+that has ever made the bump stick — and the point is not the diligence
+but the ordering: the bump was made *from* step 17's conclusion, not from
+a memory of it. Four that held (20, 21, 22, 28) against four skipped (18,
+19, 24, 26).
+
 **Build 16's pre-flight found nothing to do either, which is the first
 time that has happened twice running** (D158, 2026-08-15). Run 21 was
 still the highest run in the list, its upload step still `success`,

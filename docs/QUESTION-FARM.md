@@ -1043,7 +1043,7 @@ noticed a gap was indistinguishable from one that noticed and forgot.
   question written by an unsupervised job is exactly the kind of content
   that must have a human's name on it.
 
-  **D186's twenty-four place-rating dailies are not a hole in this, and
+  **D187's twenty-four place-rating dailies are not a hole in this, and
   the distinction is the whole of why.** They are written
   *self-referentially* — "How safe do you feel walking home at night?",
   never "How safe is Oslo?" — so one question is asked of everyone and
@@ -1053,10 +1053,10 @@ noticed a gap was indistinguishable from one that noticed and forgot.
   side. They also arrived the way this section requires — editorial, by
   hand, in a reviewed PR, with a human's instruction behind them. **The
   rule is unchanged for the farm: still never write a question scoped to
-  a specific city, country or region's citizens, and do not read D186 as
+  a specific city, country or region's citizens, and do not read D187 as
   licence to invent more `rates` questions** — that field is editorial
   content, and the tension it does carry (a universal affordability
-  question yields a per-city score for free) is recorded in D186 rather
+  question yields a per-city score for free) is recorded in D187 rather
   than settled.
 - **Writing the live seed catalog directly** (`content/`,
   `functions/src/v2content.ts`). This job deepens the spec-layer archive

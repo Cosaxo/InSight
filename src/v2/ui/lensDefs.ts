@@ -79,21 +79,21 @@ export interface LensQuestion {
   /** The bank's subject branch (D100); undefined on a pre-D100 seed. */
   branch?: string;
   /**
-   * The bank's short label — "Nature access", "Getting around" (D186).
+   * The bank's short label — "Nature access", "Getting around" (D187).
    *
    * Scores draws this instead of the prompt, because a scorecard is a
    * column of nouns beside one baseline and a column of questions is a
    * list you read one at a time. Undefined outside the daily bank and on
-   * a pre-D186 seed, so the card falls back to the prompt.
+   * a pre-D187 seed, so the card falls back to the prompt.
    */
   tag?: string;
   /**
    * Which Mirror stop's scorecard may fold this question — "city" |
-   * "country" | "world" (D186), absent on every question that rates no
+   * "country" | "world" (D187), absent on every question that rates no
    * place, which is most of the bank.
    *
    * THE POINT OF THE FIELD is that a place scorecard has to be about the
-   * place. Until D186 Scores drew every ordinal question the archive
+   * place. Until D187 Scores drew every ordinal question the archive
    * held, headed "How Oslo rated them" — so a city's scorecard led with
    * "Breakfast is the best meal of the day", which is a true average of
    * a real crowd and says nothing whatever about Oslo. The subject is
