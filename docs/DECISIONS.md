@@ -16612,3 +16612,160 @@ re-proposed as new.
 VISION-V28 §9 is struck. It was the last item still waiting on an owner
 call, so **the v28 plan now has no open owner decisions** — everything
 remaining is engineering, sequenced in §11.
+
+---
+
+## D169 · The read path was already careful; the fold path was not
+
+**Decided:** 2026-08-16 · **Status:** binding · Three changes, all
+client-side, none of them touching what is read or written. Every figure
+below is a measurement in node against synthetic data at the stated
+scale, not an estimate.
+
+**Decision.** The Mirror's derived data is folded **once per store
+change** rather than once per read, `placeProfiles` walks the cells that
+exist rather than the buckets that might, and `loadSimilarity` issues its
+chunked aggregate reads in parallel like its two siblings already did.
+
+### What prompted it
+
+An audit of the app's data handling, asked for in those words. The
+**read** path came out well — D129 replaced the deck's snapshot listeners
+with a one-document poll, the bank fetches deltas against `updatedAt`,
+every fan-out carries a cap (`VOTER_FETCH_CAP`, `FOLLOW_CAP`,
+`AGG_ID_CAP`, `KINDRED_QUESTIONS`), and `firestore.indexes.json` disables
+the single-field indexes nothing queries. There was little left to take.
+
+The **fold** path had never been looked at the same way, and it is where
+this app's weight actually sits.
+
+### 1 · `perRev` — derived on read, computed on change
+
+`kindredPeople()` walks every cached voter list and rebuilds a per-uid
+answer map plus an `agreement()` call per person. Its comment says it is
+derived on read so a ranking cannot go stale against its own inputs, and
+that reasoning is right. What it did not say is that the fold has **six
+call sites** — `LiveSimilarityField` ×2, `LiveMirrorLenses`, `typeMix`
+×2, `testNorms` — every one of them inside a component that re-renders on
+every `notify()`, and **not one of those six memoises**. (`useMemo`
+appears in `src/v2/ui/` exactly three times, all of them in pickers:
+`PickSearch`, `CityPicker` ×2, `LiveTakesPanel`. None is on this path,
+and the React Compiler is not enabled, so nothing is memoising these
+folds implicitly either.) So one Mirror stop folded the same voter cache
+four to six times per render.
+
+Measured: **14 ms per fold** at 120 cached questions × 200 voters (600
+people), 5 ms at 40 × 200. In node. Not on a phone.
+
+`rev` is a counter bumped inside `notify()`, and `perRev(compute)` caches
+against it. The staleness argument survives intact and for a stated
+reason: **`notify()` is the only way a store change reaches a renderer**,
+so a value computed at rev N is correct for every read until the next
+one, by construction. A component re-rendering on its own `useState` — a
+tab, a picked node — does not bump it and gets the fold it already paid
+for. Applied to `kindredPeople()` and `testFeedItems()`.
+
+**The condition, recorded because it is the one that could break
+silently:** a memoised getter hands every caller the same array where it
+used to hand each a fresh one. Every current consumer was checked —
+they all `.filter()`/`.map()` before any `.sort()`, which copies. A
+future consumer that sorts the returned array in place would reorder
+everybody else's. `myVotes()` and `confirmedVotes()` are deliberately
+**not** memoised: their defensive copy is the point of them.
+
+`vote.test.ts` pins both halves — identity across reads, and a uid switch
+with a different bank coming through. Verified by breaking `perRev` to
+never invalidate and watching both fail.
+
+### 2 · `placeProfiles`, output-sensitive
+
+It collected the union of place buckets, then for each bucket called
+`axisScores` once per instrument, each call re-scanning all 110 test
+items to keep the quarter belonging to that instrument.
+
+The ×4 is the smaller waste. The shape is the larger one: a question
+publishes at most `BREAKDOWN_MAX_BUCKETS` (24) cells per dim, while the
+union is uncapped — it is every city that has ever answered a test item
+(D112's known limit 3). So all but ~24 buckets miss for any given item,
+and the old loop paid a lookup for every (bucket, item) pair to discover
+that. Inverted to one pass over items, accumulating per bucket.
+
+Measured, 110 items, mean of 25 runs: 60-city union **3.0 → 1.6 ms**,
+400 cities **8.0 → 3.6 ms**, 2,000 cities **25.9 → 9.2 ms**. The gain
+grows with the union because that is the term that stopped multiplying.
+What remains is the per-bucket emit, which is linear and genuinely
+needed — every bucket must be scored before the field can rank them.
+
+Pinned by a differential test: the **old implementation kept verbatim**
+in `similarity.test.ts` and run beside the new one on randomised
+aggregates across 40 rounds from a fixed seed, covering absent, empty and
+partial cells. The hand-computed cases that were already there would have
+passed a fold that agreed on three cities and diverged on a fourth.
+Verified by inverting a sign and watching it fail.
+
+### 3 · `loadSimilarity`'s chunks, in parallel
+
+110 core test items over the 30-id `in` limit is always ~4 queries. They
+were awaited in turn. `hydrate.aggs` and `loadLearnAggs` both already use
+`Promise.all` over the same shape — this was the odd one out. Same
+documents, same billed reads, one round trip's latency instead of four,
+on the first open of City, Country and World. Its reads are now counted
+into `stats.aggsFetched` as well; they were the only agg fetch that was
+not, which under-reported the diagnostic in the one file `docs/COSTS.md`
+is derived against.
+
+**The serial loop had one property worth keeping, and the obvious
+parallel rewrite lost it.** A chunk already read stayed folded when a
+later one threw; `Promise.all` with the fold after the barrier drops
+every chunk when any chunk rejects — three quarters of the place profiles
+becoming none of them, on exactly the flaky connection where partial
+data is worth most. Caught by asking what the change removed rather than
+what it added. The fold now runs inside each chunk's own `.then`, which
+keeps both the partial progress and the parallelism; the rejection still
+reaches the same `catch`. Pinned by a test that fails against the
+fold-after-barrier version.
+
+### What was measured and left alone
+
+`LIVE.aggregated()` — the Answers lens's fold over the whole daily
+archive — looked like the same problem and is not: **0.4 ms at 1,200
+questions**, up from 0.1 ms at today's 90. Memoising it would have been a
+change with no benefit, and it is recorded here so the next audit does
+not re-derive it. The linear `.find()` lookups over `state.questions` /
+`state.feedBank` are in the same category today; the note in
+`docs/SCALE-PLAN.md` about `feedBank` growing without bound is what would
+change that, and `testFeedItems()` (now memoised) was the one already on
+a render path.
+
+### Cost
+
++1 KB minified. `check:bundle` reports 2284 KB against a 2285 KB ceiling
+— it passes, and it is worth saying plainly that the total budget now has
+**1 KB of headroom**. The eager graph is unchanged at 964 KB.
+
+### What none of this removes — checked, not assumed
+
+The question "did any of this take functionality away?" was asked
+directly, and the answer is only worth the checks behind it:
+
+- **`perRev` can go stale only where a store mutation skips `notify()`.**
+  Every write to the memoised folds' inputs was enumerated —
+  `state.votes`, `state.voters`, `state.uid`, `state.names`,
+  `state.scores`, `state.feedBank` — and each is followed by a `notify()`
+  before any render can read it (`loadVoters`, `loadNames` and
+  `loadKindred` in their `finally`; `hydrate` at the "loading groups"
+  stage; `resetForNewUid` at its end; every vote path inline). The one
+  conditional case is `subscribeToAuth`'s `next && !state.uid` branch,
+  which notifies only on `linkedChanged`. It cannot matter: `state.uid`
+  is never assigned null after boot, so that branch fires only before any
+  uid existed — and `state.voters` cannot be non-empty then, because
+  `loadVoters` runs after boot. `kindredPeople()` is `[]` on both sides.
+- **`placeProfiles` is output-identical**, pinned by the old fold kept
+  verbatim beside it. The `defs[it.test]` guard in the new walk was
+  checked by DELETING it and re-running: still green, so it is an
+  optimisation and not load-bearing, and the test says so in case someone
+  later preserves it for the wrong reason.
+- **The memoised getters now share one array** where each caller used to
+  get a fresh one. Every consumer was read: all of them `.filter()` or
+  `.map()` before any `.sort()`, which copies. `myVotes()` and
+  `confirmedVotes()` were left un-memoised for this reason.

@@ -580,7 +580,52 @@ function cancelAggCache(): void {
 }
 
 const listeners = new Set<() => void>();
+// ── derived-on-read, folded once per change (D169) ───────────────────
+//
+// Several getters below are whole-store folds, and every one of them
+// carries the same note: derived on read rather than cached, so a
+// ranking cannot go stale against its own inputs. That reasoning is
+// right and it was being paid for on every render rather than on every
+// change. `kindredPeople()` walks every cached voter list and has six
+// call sites (LiveSimilarityField ×2, LiveMirrorLenses, typeMix ×2,
+// testNorms); each of those is inside a component that re-renders on
+// every notify(), and none of them memoises. So one Mirror stop folded
+// the same voter cache four to six times per render — 14 ms a fold in
+// node at 120 cached questions × 200 voters, which is not 14 ms on a
+// phone.
+//
+// `rev` closes that without weakening the staleness argument, because
+// notify() is the ONLY way a store change reaches a renderer. A value
+// computed at rev N is correct for every read until the next notify(),
+// by construction rather than by hoping. A component re-rendering on its
+// own useState — a tab, a picked node, a text field — does not bump it
+// and gets the fold it already paid for.
+//
+// THE CONDITION, stated because it is the one that could break silently:
+// a memoised getter hands every caller the SAME array, where it used to
+// hand each one a fresh one. That is safe only while no consumer mutates
+// what it gets back, so only folds whose consumers were checked go
+// through here — and `myVotes()`/`confirmedVotes()` deliberately do NOT,
+// because their defensive copy is the point of them. `.filter()`/`.map()`
+// before a `.sort()` copies, which is what every current consumer does;
+// a future one that sorts the returned array in place would reorder
+// everybody else's, so sort a copy.
+let rev = 0;
+
+function perRev<T>(compute: () => T): () => T {
+  let at = -1;
+  let val: T;
+  return () => {
+    if (at !== rev) {
+      val = compute();
+      at = rev;
+    }
+    return val;
+  };
+}
+
 const notify = () => {
+  rev++;
   listeners.forEach((fn) => {
     try {
       fn();
@@ -2390,16 +2435,39 @@ const LIVE = {
         const missing = state.feedBank
           .filter((q) => q.surface === "test" && q.test && !state.aggs[q.id])
           .map((q) => q.id);
-        for (let i = 0; i < missing.length; i += 30) {
-          const chunk = missing.slice(i, i + 30);
-          const snap = await getDocs(query(
-            collection(db, "v2_question_aggs"),
-            where(documentId(), "in", chunk),
-          ));
-          snap.forEach((d) => {
-            state.aggs[d.id] = d.data() as AggDoc;
-          });
-        }
+        // Chunks IN PARALLEL, the shape hydrate.aggs and loadLearnAggs
+        // already use (D169). This awaited each `in` query in turn, and
+        // the four are independent: same documents, same billed reads,
+        // but four serial round trips instead of one. 110 core test items
+        // over the 30-id `in` limit is always ~4 chunks, so on a mobile
+        // RTT that was most of a second of "Reading the score profiles…"
+        // bought by nothing — the fields land on the FIRST open of City,
+        // Country and World, which is the moment it was spent.
+        const chunks: string[][] = [];
+        for (let i = 0; i < missing.length; i += 30) chunks.push(missing.slice(i, i + 30));
+        // Each chunk folds ITSELF, inside its own `.then`, rather than the
+        // barrier folding an array of snapshots afterwards. That is not a
+        // style preference: the serial loop this replaced kept the chunks
+        // it had already read when a later one threw, and folding after
+        // `Promise.all` would have quietly dropped them — a partial
+        // failure would go from "three quarters of the place profiles" to
+        // "none". Folding per chunk keeps the old partial-progress
+        // behaviour AND the parallelism; the rejection still reaches the
+        // catch below, and the sibling call sites' `Promise.all` shape is
+        // unchanged.
+        await Promise.all(chunks.map((chunk) =>
+          getDocs(query(collection(db, "v2_question_aggs"), where(documentId(), "in", chunk)))
+            .then((snap) => {
+              snap.docs.forEach((d) => {
+                state.aggs[d.id] = d.data() as AggDoc;
+              });
+              // Counted, which it was not before — the other three agg
+              // reads all increment this and these are the largest batch
+              // of the four. An uncounted read in the one file
+              // docs/COSTS.md is derived against is a diagnostic that
+              // under-reports exactly where it matters most.
+              state.stats.aggsFetched += snap.size;
+            })));
         // Set even when some docs came back absent: absent means no
         // answers yet (D98), which re-asking this session cannot change.
         state.testAggsLoaded = true;
@@ -2418,9 +2486,15 @@ const LIVE = {
   // The bank's core test items — the same filter that publishes
   // TEST_FEED_QS for the feed, exposed so the typed layer can join them
   // to IS_TESTS for scoring metadata without a bridge read.
-  testFeedItems(): Array<QuestionDoc & { id: string }> {
-    return state.feedBank.filter((q) => q.surface === "test" && !!q.test);
-  },
+  //
+  // perRev because the bank only changes at hydrate and this has five
+  // render-path callers (SimilaritySection, PlacesField, testNorms,
+  // result-card ×2), each feeding it straight into testItemMeta — and
+  // because docs/SCALE-PLAN.md makes `feedBank` the collection that grows
+  // without bound, so a per-call filter over it is the wrong shape to
+  // leave lying around.
+  testFeedItems: perRev((): Array<QuestionDoc & { id: string }> =>
+    state.feedBank.filter((q) => q.surface === "test" && !!q.test)),
   // The viewer's own completed instruments — the same server+device merge
   // publishTestResults dispatches, computed on read so a result saved a
   // moment ago is already in it.
@@ -2438,7 +2512,12 @@ const LIVE = {
   // staleness reason. The city is the anchor snapshot from their most
   // recent cached answer, never their live profile (D8: reading the
   // profile would re-cohort history and disagree with the aggregate).
-  kindredPeople(): KindredPerson[] {
+  //
+  // perRev (D169): this is the app's heaviest fold and its six callers
+  // all sit in components that re-render on every notify(). See the perRev
+  // block above — the cached array is shared, so a consumer must copy
+  // before sorting (they all do).
+  kindredPeople: perRev((): KindredPerson[] => {
     const mine: Record<string, number> = {};
     for (const [qid, opt] of Object.entries(state.votes)) {
       if (qid.startsWith("g_")) continue;
@@ -2472,7 +2551,7 @@ const LIVE = {
       results: state.scores[uid] ?? null,
       anchors: anchors[uid] || {},
     }));
-  },
+  }),
 
   // null while unfetched or failed; an array (possibly empty) once known.
   voters(qid: string): Voter[] | null {

@@ -281,6 +281,129 @@ describe("placeProfiles — cities and countries get real score profiles", () =>
     expect(out.every((p) => p.score === null)).toBe(true);
     expect(out[0].n).toBeGreaterThan(0);
   });
+
+  // ── the D169 rewrite, pinned against what it replaced ──────────────
+  //
+  // placeProfiles was inverted from bucket-major to item-major so it
+  // visits only the cells that exist (see the comment there for the
+  // measurement). The cases above are hand-computed and would still pass
+  // against a fold that agreed on three cities and diverged on the
+  // fourth, so the refactor gets the guard a refactor actually wants: the
+  // OLD implementation, kept here verbatim, run beside the new one on
+  // randomised aggregates. If they ever disagree — on values, on which
+  // buckets survive, on ordering — this fails naming the seed.
+  const legacyPlaceProfiles = (
+    items: typeof ITEMS_META,
+    defs: TestDefs,
+    of: (qid: string) => { by?: Record<string, Record<string, Record<string, number>>> } | null,
+    dim: "city" | "country",
+    myFlat: Record<string, number> | null,
+    filter?: (key: string) => boolean,
+  ) => {
+    const buckets = new Set<string>();
+    for (const it of items) {
+      const byDim = of(it.qid)?.by?.[dim];
+      if (!byDim) continue;
+      for (const key of Object.keys(byDim)) {
+        if (!filter || filter(key)) buckets.add(key);
+      }
+    }
+    const out = [];
+    for (const key of buckets) {
+      const cellOf = (qid: string): number[] | null => {
+        const cell = of(qid)?.by?.[dim]?.[key];
+        if (!cell) return null;
+        return Array.from({ length: 5 }, (_, i) => cell[String(i)] || 0);
+      };
+      const byTest: Record<string, ReturnType<typeof axisScores>> = {};
+      const flat: Record<string, number> = {};
+      let n = 0;
+      for (const kind of Object.keys(defs)) {
+        const axes = axisScores(kind, defs[kind], items, cellOf);
+        if (!axes.length) continue;
+        byTest[kind] = axes;
+        for (const a of axes) {
+          flat[`${kind}:${a.dim}`] = a.value;
+          n += a.n;
+        }
+      }
+      if (!n) continue;
+      out.push({ key, byTest, n, score: myFlat ? scoreMatch(myFlat, flat, MIN_PLACE_AXES) : null });
+    }
+    return out.sort((a, b) => {
+      if (!!a.score !== !!b.score) return a.score ? -1 : 1;
+      if (a.score && b.score) return b.score.match - a.score.match || b.n - a.n;
+      return b.n - a.n || a.key.localeCompare(b.key);
+    });
+  };
+
+  const ITEMS_META = ITEMS;
+
+  it("is identical to the pre-D169 fold on randomised aggregates", () => {
+    // Deterministic PRNG — a failure has to be reproducible from the seed
+    // printed in the message, not from "it went red once on CI".
+    let seed = 0x2f6e2b1;
+    const rnd = () => {
+      seed = (Math.imul(seed, 1103515245) + 12345) & 0x7fffffff;
+      return seed / 0x7fffffff;
+    };
+    for (let round = 0; round < 40; round++) {
+      const nCities = 1 + Math.floor(rnd() * 12);
+      const aggs: Record<string, { by?: Record<string, Record<string, Record<string, number>>> }> = {};
+      for (const it of ITEMS_META) {
+        // A third of items carry no aggregate at all, and a bucket may be
+        // all-zero or sparse — the three states the fold treats
+        // differently (absent, empty, partial).
+        if (rnd() < 0.33) continue;
+        const city: Record<string, Record<string, number>> = {};
+        for (let c = 0; c < nCities; c++) {
+          if (rnd() < 0.4) continue;
+          const cell: Record<string, number> = {};
+          for (let i = 0; i < 5; i++) if (rnd() < 0.6) cell[String(i)] = Math.floor(rnd() * 9);
+          city[`City${c}, NO`] = cell;
+        }
+        aggs[it.qid] = { by: { city } };
+      }
+      const of = (qid: string) => aggs[qid] || null;
+      const my = rnd() < 0.5
+        ? null
+        : { "big5:O": Math.floor(rnd() * 101), "big5:C": Math.floor(rnd() * 101),
+          "values:future": Math.floor(rnd() * 101) };
+      const filter = rnd() < 0.25 ? (k: string) => k.endsWith("0, NO") : undefined;
+      expect(
+        placeProfiles(ITEMS_META, DEFS, of, "city", my, filter),
+        `round ${round} (seed 0x2f6e2b1)`,
+      ).toEqual(legacyPlaceProfiles(ITEMS_META, DEFS, of, "city", my, filter));
+    }
+  });
+
+  // The one input shape the randomised rounds CANNOT reach: their items
+  // come from testItemMeta, which only ever emits tests present in
+  // `defs`. It is also the only place the two WALKS differ — the rewrite
+  // skips such an item outright, where the old fold let it put its bucket
+  // keys into the union and then scored nothing from them.
+  //
+  // The outputs agree anyway, and it is worth being exact about why:
+  // the emit loop iterates `Object.keys(defs)`, so a bucket carrying only
+  // an unknown instrument produces no axes, totals zero and is dropped at
+  // the `if (!n)`. Verified by deleting the `defs[it.test]` guard and
+  // watching this still pass — it is an optimisation, NOT load-bearing,
+  // and a future reader should not preserve it thinking otherwise.
+  it("drops a bucket reachable only from an item whose test is not in defs", () => {
+    const stray = [...ITEMS_META, { qid: "q_stray", test: "not_an_instrument", dim: "X", invert: false }];
+    const withStray: typeof AGGS = {
+      ...AGGS,
+      q_stray: { by: { city: { "Nowhere, XX": { "4": 9 } } } },
+    };
+    const of = (qid: string) => withStray[qid] || null;
+    const mine = { "big5:O": 50, "big5:C": 50, "values:future": 50 };
+    const out = placeProfiles(stray, DEFS, of, "city", mine);
+    expect(out).toEqual(legacyPlaceProfiles(stray, DEFS, of, "city", mine));
+    // …and that agreement is not two empty lists: the real cities profile,
+    // and the stray item's city is absent from both.
+    expect(out.map((p) => p.key)).toContain("Oslo, NO");
+    expect(out.map((p) => p.key)).not.toContain("Nowhere, XX");
+  });
 });
 
 describe("myFlatAxes — instruments first, own answers fill the gaps", () => {
