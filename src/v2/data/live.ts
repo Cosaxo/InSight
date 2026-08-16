@@ -2445,19 +2445,29 @@ const LIVE = {
         // Country and World, which is the moment it was spent.
         const chunks: string[][] = [];
         for (let i = 0; i < missing.length; i += 30) chunks.push(missing.slice(i, i + 30));
-        const snaps = await Promise.all(chunks.map((chunk) =>
-          getDocs(query(collection(db, "v2_question_aggs"), where(documentId(), "in", chunk)))));
-        snaps.forEach((snap) => {
-          snap.docs.forEach((d) => {
-            state.aggs[d.id] = d.data() as AggDoc;
-          });
-          // Counted, which it was not before — the other three agg reads
-          // all increment this and these are the largest batch of the
-          // four. An uncounted read in the one file docs/COSTS.md is
-          // derived against is a diagnostic that under-reports exactly
-          // where it matters most.
-          state.stats.aggsFetched += snap.size;
-        });
+        // Each chunk folds ITSELF, inside its own `.then`, rather than the
+        // barrier folding an array of snapshots afterwards. That is not a
+        // style preference: the serial loop this replaced kept the chunks
+        // it had already read when a later one threw, and folding after
+        // `Promise.all` would have quietly dropped them — a partial
+        // failure would go from "three quarters of the place profiles" to
+        // "none". Folding per chunk keeps the old partial-progress
+        // behaviour AND the parallelism; the rejection still reaches the
+        // catch below, and the sibling call sites' `Promise.all` shape is
+        // unchanged.
+        await Promise.all(chunks.map((chunk) =>
+          getDocs(query(collection(db, "v2_question_aggs"), where(documentId(), "in", chunk)))
+            .then((snap) => {
+              snap.docs.forEach((d) => {
+                state.aggs[d.id] = d.data() as AggDoc;
+              });
+              // Counted, which it was not before — the other three agg
+              // reads all increment this and these are the largest batch
+              // of the four. An uncounted read in the one file
+              // docs/COSTS.md is derived against is a diagnostic that
+              // under-reports exactly where it matters most.
+              state.stats.aggsFetched += snap.size;
+            })));
         // Set even when some docs came back absent: absent means no
         // answers yet (D98), which re-asking this session cannot change.
         state.testAggsLoaded = true;

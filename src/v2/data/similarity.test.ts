@@ -376,6 +376,34 @@ describe("placeProfiles — cities and countries get real score profiles", () =>
       ).toEqual(legacyPlaceProfiles(ITEMS_META, DEFS, of, "city", my, filter));
     }
   });
+
+  // The one input shape the randomised rounds CANNOT reach: their items
+  // come from testItemMeta, which only ever emits tests present in
+  // `defs`. It is also the only place the two WALKS differ — the rewrite
+  // skips such an item outright, where the old fold let it put its bucket
+  // keys into the union and then scored nothing from them.
+  //
+  // The outputs agree anyway, and it is worth being exact about why:
+  // the emit loop iterates `Object.keys(defs)`, so a bucket carrying only
+  // an unknown instrument produces no axes, totals zero and is dropped at
+  // the `if (!n)`. Verified by deleting the `defs[it.test]` guard and
+  // watching this still pass — it is an optimisation, NOT load-bearing,
+  // and a future reader should not preserve it thinking otherwise.
+  it("drops a bucket reachable only from an item whose test is not in defs", () => {
+    const stray = [...ITEMS_META, { qid: "q_stray", test: "not_an_instrument", dim: "X", invert: false }];
+    const withStray: typeof AGGS = {
+      ...AGGS,
+      q_stray: { by: { city: { "Nowhere, XX": { "4": 9 } } } },
+    };
+    const of = (qid: string) => withStray[qid] || null;
+    const mine = { "big5:O": 50, "big5:C": 50, "values:future": 50 };
+    const out = placeProfiles(stray, DEFS, of, "city", mine);
+    expect(out).toEqual(legacyPlaceProfiles(stray, DEFS, of, "city", mine));
+    // …and that agreement is not two empty lists: the real cities profile,
+    // and the stray item's city is absent from both.
+    expect(out.map((p) => p.key)).toContain("Oslo, NO");
+    expect(out.map((p) => p.key)).not.toContain("Nowhere, XX");
+  });
 });
 
 describe("myFlatAxes — instruments first, own answers fill the gaps", () => {

@@ -16714,6 +16714,17 @@ into `stats.aggsFetched` as well; they were the only agg fetch that was
 not, which under-reported the diagnostic in the one file `docs/COSTS.md`
 is derived against.
 
+**The serial loop had one property worth keeping, and the obvious
+parallel rewrite lost it.** A chunk already read stayed folded when a
+later one threw; `Promise.all` with the fold after the barrier drops
+every chunk when any chunk rejects — three quarters of the place profiles
+becoming none of them, on exactly the flaky connection where partial
+data is worth most. Caught by asking what the change removed rather than
+what it added. The fold now runs inside each chunk's own `.then`, which
+keeps both the partial progress and the parallelism; the rejection still
+reaches the same `catch`. Pinned by a test that fails against the
+fold-after-barrier version.
+
 ### What was measured and left alone
 
 `LIVE.aggregated()` — the Answers lens's fold over the whole daily
@@ -16731,3 +16742,30 @@ a render path.
 +1 KB minified. `check:bundle` reports 2284 KB against a 2285 KB ceiling
 — it passes, and it is worth saying plainly that the total budget now has
 **1 KB of headroom**. The eager graph is unchanged at 964 KB.
+
+### What none of this removes — checked, not assumed
+
+The question "did any of this take functionality away?" was asked
+directly, and the answer is only worth the checks behind it:
+
+- **`perRev` can go stale only where a store mutation skips `notify()`.**
+  Every write to the memoised folds' inputs was enumerated —
+  `state.votes`, `state.voters`, `state.uid`, `state.names`,
+  `state.scores`, `state.feedBank` — and each is followed by a `notify()`
+  before any render can read it (`loadVoters`, `loadNames` and
+  `loadKindred` in their `finally`; `hydrate` at the "loading groups"
+  stage; `resetForNewUid` at its end; every vote path inline). The one
+  conditional case is `subscribeToAuth`'s `next && !state.uid` branch,
+  which notifies only on `linkedChanged`. It cannot matter: `state.uid`
+  is never assigned null after boot, so that branch fires only before any
+  uid existed — and `state.voters` cannot be non-empty then, because
+  `loadVoters` runs after boot. `kindredPeople()` is `[]` on both sides.
+- **`placeProfiles` is output-identical**, pinned by the old fold kept
+  verbatim beside it. The `defs[it.test]` guard in the new walk was
+  checked by DELETING it and re-running: still green, so it is an
+  optimisation and not load-bearing, and the test says so in case someone
+  later preserves it for the wrong reason.
+- **The memoised getters now share one array** where each caller used to
+  get a fresh one. Every consumer was read: all of them `.filter()` or
+  `.map()` before any `.sort()`, which copies. `myVotes()` and
+  `confirmedVotes()` were left un-memoised for this reason.
