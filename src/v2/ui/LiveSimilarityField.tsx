@@ -597,14 +597,22 @@ export function NearField() {
       }))} />
       {/* What the ring counts, so it is not read as the presence figure
           above it (the D112 honesty rule), and the basis it is placed on.
-          Both are claims and both survive; what went is "Nobody is named
-          here", which the stop's closing line already says — with the half
-          a caption cannot carry: which surface DOES name people. */}
+
+          THE NAMELESSNESS IS BACK HERE (D184), where it was until D183 and
+          where a legend belongs. D183 dropped it because the stop's closing
+          line said the same thing plus where the names are; D184 deleted
+          that line, because it sat under the tab row and the prototype has
+          nothing there. Deleting a limit is not one of the moves available
+          (docs/COPY.md §3) — so it comes back to the visual it qualifies,
+          keeping the half that made D183 prefer the other copy: which
+          surface DOES name people. An anonymous node is exactly the kind of
+          encoding a reader cannot infer, which is what a legend is for. */}
       <SfCaption>
         {placed.length} of {roster.length} here · closer = more alike
       </SfCaption>
       <SfEmpty>
-        Placed by test scores{placed.length < roster.length ? " — the rest have not taken it" : ""}.
+        Nobody is named here; <strong>People</strong> names them. Placed by
+        test scores{placed.length < roster.length ? " — the rest have not taken it" : ""}.
       </SfEmpty>
     </div>
   );

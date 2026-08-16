@@ -18407,3 +18407,126 @@ functions 228, every non-Java gate, bundle 2,320 KB / 969 KB eager against
 2,334 / 978. `test:rules` and the e2e suites want Java 21, which the
 authoring environment did not have — unrun here, and neither touches
 client copy.
+
+## D184 · The Mirror's tab row sits where a tab bar sits, and stops arguing with the stop about colour
+
+**2026-08-16.** Reported against the live build with `InSight_standalone_30.html`
+held beside it — the owner's current visual vision, and the rule attached
+to it: *if something looks different from that, it is wrong.* Three faults,
+all at the bottom of a Mirror stop, all measured rather than eyeballed
+(Playwright over both builds at 402 CSS px, the geometry read off
+`getBoundingClientRect` and the colours off `getComputedStyle`).
+
+### 1 · The row floated, by 30px on four stops and 60px on one
+
+| Stop | prototype: row bottom → tab bar | live, before |
+| --- | --- | --- |
+| Circle · Groups · Near · City · Country · World | 20px, on every one | Near 80px · City/Country/World 50px |
+
+The prototype's number is `.app-body`'s own `padding-bottom` and nothing
+else: its stage (`.mf-stage`) carries no padding, so `marginTop: auto` puts
+the row against the bottom of the content box and the body's padding is the
+entire gap. The live bodies added `padding: "4px 16px 26px"`, so 26px of
+their own sat under a row already pushed as far down as it could go — and
+Near added the closing paragraph below on top of that, which is where the
+extra 30px came from and why that stop *scrolled* (713px of content in a
+695px box) when nothing on it was long enough to.
+
+Both bodies now end in `0`, and the open-tab panel ends against the same
+20px the prototype gives it (row and panel share one `marginTop: auto`
+wrapper in `MirrorLenses`, so this is its arrangement, not a compromise).
+
+### 2 · The rule was on the wrong side of the labels
+
+`MirrorLensTabs` shipped with `.mm-lensrow-top`, which is the class the
+prototype uses for a row promoted to the TOP of a stop: hairline *under*
+the labels, buttons 46px. Both live callers put the row at the bottom,
+where the prototype draws the plain `.mm-lensrow` — hairline *above*,
+closing the field off, buttons 44px, labels the last ink before the app's
+tab bar. One class, and the row measures 45px against the prototype's 45px
+instead of 47px.
+
+### 3 · Two stops wore another stop's colour
+
+`LiveCohortBody` re-declared `--accent` per zoom so the three would shade
+from near to far. The shading was real; the hues were borrowed:
+
+| Stop | `--accent` at the row, live | what that token is | `.app` says | prototype |
+| --- | --- | --- | --- | --- |
+| City | `--c-around` · oklch(0.52 0.14 40) | the **daily tab's** accent | 235 | 235 |
+| Country | `--c-city` · oklch(0.52 0.14 150) | **Near's** accent | 235 | 235 |
+| World | `--c-world` · oklch(0.52 0.14 235) | its own | 235 | 235 |
+
+So on Country the ruler tick, the wordmark and the tab bar drew indigo
+while the field and the row's underline drew sage — one screen with two
+answers to "what colour is this stop", and the stop one to the left already
+owned the answer it gave. The declaration is gone rather than corrected:
+`mirror-tab` already sets `--c-world` for pop `world`, which is exactly
+what the prototype resolves to at all three zooms. The near-to-far shading
+survives where it always lived — You, Circle, Groups and Near each own a
+hue on the ruler.
+
+### The order was wrong too, and it was in the same row
+
+`lensesFor` built `people, compare, scores` (+`explore` last). The
+prototype pushes `compare` last of all — `mirror-field-pops.jsx` appends
+answers → people → scores → explore → compare — and the reason ports: the
+first four describe the POPULATION, and Compare is the only one that puts
+you against it. `Answers · People · Scores · Compare`, with Explore before
+Compare at World.
+
+### The paragraph under the tab row, and where its one real claim went
+
+Near closed with *"The field names nobody — **People** does. Your whole
+city is one stop right."* rendered UNDER the row. That is the one place on
+the stop where nothing may sit: a paragraph below a tab row reads as a
+caption for the tabs. The prototype has nothing there, on any stop.
+
+The two halves are different kinds of copy ([`docs/COPY.md`](COPY.md) §3),
+so they went different ways:
+
+- *"Your whole city is one stop right"* is **a noun the screen already
+  carries**. The ruler at the top of this stop draws Near and City side by
+  side, City one to the right, and tapping it is the control. D172 cut this
+  from three lines to one for that reason; this is the last of it.
+- *"The field names nobody"* is **an honesty qualifier naming a limit**,
+  and §3 is explicit that those are shortened, never dropped. It went back
+  onto the field it qualifies (`NearField`'s caption), which is where it
+  lived until D183 moved it out, and it kept the half that made D183 prefer
+  the closing line: which surface *does* name people.
+
+D183's note said the promise moved "one component out"; it has moved one
+component back, and the test that pinned it now renders a room and reads it
+off the field. Two assertions on `/one stop right/` went with the sentence
+and are replaced by one on the **shape** — the row is the last thing in the
+body — which fails for a future caption whatever it says
+(`docs/COPY.md` §4.1: assert the claim, not the wording).
+
+### What this did NOT touch, and the arithmetic for it
+
+**Circle and Groups have no row at all in live mode.** The prototype gives
+both `Answers · People · Compare`; `LiveCircleBody` and
+`LiveGroupsMirrorBody` draw a list and a portrait with no tabs. That is a
+missing feature, not a misplaced one — three tab bodies each over a
+population this tree does not yet fold — and it is not what was reported.
+Recorded here so the next reader does not conclude from the table above
+that every stop was checked and passed.
+
+**The live bodies are inset 16px more than the prototype.** Their
+`padding: "4px 16px …"` sits inside `.app-body`'s 14px (compact), so
+content starts at 30px against the prototype's 14px and the row spans 342px
+against 374px. Real, visible on every live Mirror stop, and deliberately
+left: it is the whole body's inset rather than the row's, and moving it
+re-lays out `LiveAnswerRows`, `LiveMirrorLenses` and `LiveBreakdownPanel`
+for a fault nobody reported. One line in each body when it is called.
+
+**Verified after, at 402 CSS px, against the prototype:** every stop with a
+row now reports gap 20px, height 45px, the same labels in the same order,
+nothing below the row, and no stop scrolling that the prototype does not.
+Every `--accent` resolved at the row equals the one `.app` declares. No tab
+label clips at any count (`scrollWidth === clientWidth` on all five at
+World). Unit 1,216, ui 318, scripts 202, `tsc -b`, `lint`, and
+`check:globals` (409, baseline 409) `:labels` `:quality` `:public-copy`
+`:data-inventory` `:policy-claims` `:a11y` `:figures`. `test:rules` and the
+e2e suites want a running emulator per suite; the emulator was up for the
+visual capture and neither suite touches this layout.

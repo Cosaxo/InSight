@@ -592,10 +592,13 @@ describe("LiveCohortBody · the lens row is the stop's tabs", () => {
   it("offers Answers first, then the lenses this scope has", () => {
     render(<LiveCohortBody scope="city" />);
     // Order matters and is asserted as order, not as membership: which
-    // section leads the row is a decision (D119, reshaped at D136), and a
-    // set check would pass for a row that had quietly reordered itself.
+    // section leads the row is a decision (D119, reshaped at D136, and
+    // moved to the prototype's own order at D184 — the three readings of
+    // the population first, then Compare, which is the only one that puts
+    // you against them), and a set check would pass for a row that had
+    // quietly reordered itself.
     const names = [...tabs().querySelectorAll('[role="tab"]')].map((b) => b.textContent?.trim());
-    expect(names).toEqual(["Answers", "People", "Compare", "Scores"]);
+    expect(names).toEqual(["Answers", "People", "Scores", "Compare"]);
     // Overview is NOT among them (D136) and Foresight is gone from the
     // Mirror altogether — both asserted here rather than left to the
     // toEqual above, so a failure names the decision it broke.
@@ -717,7 +720,9 @@ describe("LiveCohortBody · the lens row is the stop's tabs", () => {
 
     render(<LiveCohortBody scope="world" />);
     const names = [...tabs().querySelectorAll('[role="tab"]')].map((b) => b.textContent?.trim());
-    expect(names).toEqual(["Answers", "People", "Compare", "Scores", "Explore"]);
+    // Explore lands BEFORE Compare, not after it (D184): it is a fourth
+    // reading of the population, and Compare closes the row everywhere.
+    expect(names).toEqual(["Answers", "People", "Scores", "Explore", "Compare"]);
   });
 
   it("draws the constellation above the row, whatever the row is showing", () => {
