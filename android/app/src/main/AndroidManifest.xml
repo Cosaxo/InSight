@@ -122,9 +122,14 @@
          choice in the OS prompt regardless of what is requested.
 
          Delete this the day minSdkVersion reaches 31. -->
-    <uses-permission
-        android:name="android.permission.ACCESS_FINE_LOCATION"
-        android:maxSdkVersion="30" />
+    <!-- UNCAPPED SINCE D174. The maxSdkVersion="30" above used to make
+         precise location unobtainable by construction on API 31+; the
+         venue-scale Near the owner asked for cannot be measured by a
+         coarse fix, and a finer grid over a coarse measurement would be
+         invented precision. The coordinate is still folded to a 0.002°
+         cell on the device and discarded, so the fix being precise
+         changes what is MEASURED, not what is sent. -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 
     <!-- That is the complete list. The app requests no camera and no photo
          library: the v1 surfaces that needed them were removed in D4. -->

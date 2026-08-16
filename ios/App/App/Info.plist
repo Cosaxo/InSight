@@ -101,15 +101,24 @@
 	     only. The same check holds that pair too. -->
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>Used once, on this device, to work out which city you are nearest so the daily can show how your city answered. Your coordinates are never sent anywhere and never stored — only the city name. You can skip this and pick your city from a list instead.</string>
-	<!-- Ask for REDUCED accuracy by default (iOS 14+). The system then hands
-	     back a coarse fix — roughly neighbourhood-level — and the permission
-	     sheet shows "Precise: Off" with the user free to turn it on rather
-	     than the app asking for precision it has no use for.
-	     The catalogue's own coordinates are 2dp (~1.1 km), so a precise fix
-	     could not change which city is nearest. There is no
-	     requestTemporaryFullAccuracy call anywhere in this app: reduced is
-	     not a default we quietly escalate from. -->
+	<!-- PRECISE SINCE D174, and this key flipping is the whole of that
+	     decision on iOS. It used to be <true/>, which asked for a
+	     neighbourhood-level fix and showed "Precise: Off" in the permission
+	     sheet, with the comment here promising that reduced was "not a
+	     default we quietly escalate from". It is not being escalated
+	     quietly: the owner asked for a venue-scale Near, a ~1 km fix cannot
+	     honestly measure one, and the alternative was a finer grid computed
+	     from a coarse measurement — precision invented rather than
+	     measured, which this app refuses everywhere else.
+	     What did NOT change: the coordinate is still folded to a grid cell
+	     on the device and discarded (src/v2/data/locate.ts), so nothing
+	     finer than the cell ever leaves the phone, and the cell is 0.002°
+	     (~220 m) — deliberately one step COARSER than Apple's own "Precise
+	     Location" threshold of three decimal places. The App Store label
+	     still moves to Precise Location, because what the app REQUESTS is
+	     what the label describes; docs/STORE-FORMS.md carries the row and
+	     the reasoning. -->
 	<key>NSLocationDefaultAccuracyReduced</key>
-	<true/>
+	<false/>
 </dict>
 </plist>

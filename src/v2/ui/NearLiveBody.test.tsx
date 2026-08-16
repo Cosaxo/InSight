@@ -114,14 +114,22 @@ describe("NearLiveBody · the stop is presence, not place (D111)", () => {
 });
 
 describe("the Right now card (D84 — moved with the stop)", () => {
-  it("pitches honestly while off: a count, never who, kilometre-sized", () => {
+  it("pitches honestly while off: a count, never who, the square, the linger", () => {
     render(<NearLiveBody />);
     const text = document.body.textContent || "";
     expect(text).toMatch(/a count, never\s+who/i);
-    expect(text).toMatch(/kilometre-sized grid square/i);
-    // No 500 m claim anywhere: the coarse permission cannot measure it,
-    // and the copy must not promise a radius the sensor cannot hold.
-    expect(text).not.toMatch(/500\s?m/i);
+    // The SIZE of the square, and it has to track the grid. It said
+    // "kilometre-sized" until D174 moved the grid to 0.002° (~200 m) —
+    // which was only allowed to happen because the fix became precise in
+    // the same commit. A copy line naming a radius the sensor cannot hold
+    // is the failure this case exists to catch, in either direction.
+    expect(text).toMatch(/200-metre grid square/i);
+    expect(text).not.toMatch(/kilometre-sized/i);
+    // The LINGER, which is a disclosure and not a detail: D173 made a
+    // position outlive the app by up to three hours, and this sentence
+    // said "goes stale within minutes" for one commit before anyone
+    // noticed. What a user is agreeing to includes how long it lasts.
+    expect(text).toMatch(/three hours/i);
   });
 
   it("says just-you at zero, counts people above it, and 'a few' when floored", () => {

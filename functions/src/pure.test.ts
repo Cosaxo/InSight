@@ -1398,47 +1398,47 @@ describe("what the reveal doc records per vote (revealVotes)", () => {
 
 describe("presence cells", () => {
   it("accepts legal la_lo ids and refuses everything else", () => {
-    expect(presenceCellOk("5999_1074")).toBe(true);   // Oslo-ish
-    expect(presenceCellOk("-3373_15121")).toBe(true); // Sydney-ish
+    expect(presenceCellOk("29999_5374")).toBe(true);  // Oslo-ish
+    expect(presenceCellOk("-16866_75608")).toBe(true); // Sydney-ish
     expect(presenceCellOk("0_0")).toBe(true);
-    expect(presenceCellOk("8999_-18000")).toBe(true); // last row, date line
+    expect(presenceCellOk("44999_-90000")).toBe(true); // last row, date line
     // Beyond the poles / the meridian span.
-    expect(presenceCellOk("9000_0")).toBe(false);
-    expect(presenceCellOk("-9001_0")).toBe(false);
-    expect(presenceCellOk("0_18000")).toBe(false);
+    expect(presenceCellOk("45000_0")).toBe(false);
+    expect(presenceCellOk("-45001_0")).toBe(false);
+    expect(presenceCellOk("0_90000")).toBe(false);
     // Shapes that try to smuggle precision or nonsense.
     expect(presenceCellOk("59.99_10.74")).toBe(false);
-    expect(presenceCellOk("5999_1074_77")).toBe(false);
+    expect(presenceCellOk("29999_5374_77")).toBe(false);
     expect(presenceCellOk("abc_def")).toBe(false);
     expect(presenceCellOk("")).toBe(false);
     expect(presenceCellOk(null)).toBe(false);
-    expect(presenceCellOk(5999)).toBe(false);
+    expect(presenceCellOk(29999)).toBe(false);
   });
 
   it("returns the 3×3 neighborhood in the interior", () => {
-    const n = presenceNeighbors("5999_1074");
+    const n = presenceNeighbors("29999_5374");
     expect(n).toHaveLength(9);
-    expect(n).toContain("5999_1074");
-    expect(n).toContain("5998_1073");
-    expect(n).toContain("6000_1075");
+    expect(n).toContain("29999_5374");
+    expect(n).toContain("29998_5373");
+    expect(n).toContain("30000_5375");
   });
 
   it("wraps longitude at the antimeridian instead of walking off it", () => {
-    const n = presenceNeighbors("0_-18000");
+    const n = presenceNeighbors("0_-90000");
     expect(n).toHaveLength(9);
     // The western neighbor of the western edge is the eastern edge.
-    expect(n).toContain("0_17999");
-    expect(n).not.toContain("0_-18001");
+    expect(n).toContain("0_89999");
+    expect(n).not.toContain("0_-90001");
   });
 
   it("drops rows beyond the poles rather than inventing them", () => {
-    const n = presenceNeighbors("8999_0");
+    const n = presenceNeighbors("44999_0");
     expect(n).toHaveLength(6); // no row above the top
-    expect(n.every((c) => Number(c.split("_")[0]) <= 8999)).toBe(true);
+    expect(n.every((c) => Number(c.split("_")[0]) <= 44999)).toBe(true);
   });
 
   it("returns nothing for an illegal cell — the callable's own guard", () => {
-    expect(presenceNeighbors("9000_0")).toEqual([]);
+    expect(presenceNeighbors("45000_0")).toEqual([]);
     expect(presenceNeighbors("junk")).toEqual([]);
   });
 });

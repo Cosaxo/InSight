@@ -1745,26 +1745,26 @@ describe("presence (D84 — Near by radius)", () => {
   // rather than an intention. The rules cap how far out it may be pushed.
   const soon = (min: number) => new Date(Date.now() + min * 60_000);
   const cellDoc = (over: Record<string, unknown> = {}) => ({
-    cell: "5999_1074", at: serverTimestamp(), until: soon(120), ...over,
+    cell: "29999_5374", at: serverTimestamp(), until: soon(120), ...over,
   });
 
   it("a user writes, overwrites and deletes their own presence", async () => {
     const ref = doc(asUser(OWNER), "v2_presence", OWNER);
     await assertSucceeds(setDoc(ref, cellDoc()));
-    await assertSucceeds(setDoc(ref, cellDoc({ cell: "6000_1075" })));
+    await assertSucceeds(setDoc(ref, cellDoc({ cell: "30000_5375" })));
     await assertSucceeds(deleteDoc(ref));
   });
 
   it("nobody reads presence — not even their own doc", async () => {
     await seed(async (db) => {
-      await setDoc(doc(db, "v2_presence", OWNER), { cell: "5999_1074", at: new Date() });
+      await setDoc(doc(db, "v2_presence", OWNER), { cell: "29999_5374", at: new Date() });
     });
     // Own doc: the client never needs to read it back, and a read grant is
     // surface someone will eventually widen. The callable is the read path.
     await assertFails(getDoc(doc(asUser(OWNER), "v2_presence", OWNER)));
     await assertFails(getDoc(doc(asUser(STRANGER), "v2_presence", OWNER)));
     await assertFails(getDocs(query(
-      collection(asUser(STRANGER), "v2_presence"), where("cell", "==", "5999_1074"),
+      collection(asUser(STRANGER), "v2_presence"), where("cell", "==", "29999_5374"),
     )));
   });
 
@@ -1772,7 +1772,7 @@ describe("presence (D84 — Near by radius)", () => {
     await assertFails(setDoc(doc(asUser(STRANGER), "v2_presence", OWNER), cellDoc()));
     const ref = doc(asUser(OWNER), "v2_presence", OWNER);
     await assertFails(setDoc(ref, cellDoc({ cell: "59.913_10.752" })));   // raw coords
-    await assertFails(setDoc(ref, cellDoc({ cell: "5999_1074_extra" }))); // sub-cell suffix
+    await assertFails(setDoc(ref, cellDoc({ cell: "29999_5374_extra" }))); // sub-cell suffix
     await assertFails(setDoc(ref, cellDoc({ lat: 59.91 })));              // extra field
     await assertFails(setDoc(ref, cellDoc({ at: new Date() })));          // not request.time
   });
@@ -1794,7 +1794,7 @@ describe("presence (D84 — Near by radius)", () => {
     await assertFails(setDoc(ref, cellDoc({ until: soon(-1) })));
     // And it is required — without it the count has nothing to filter on,
     // so an omitted `until` would be a doc that never expires.
-    await assertFails(setDoc(ref, { cell: "5999_1074", at: serverTimestamp() }));
+    await assertFails(setDoc(ref, { cell: "29999_5374", at: serverTimestamp() }));
     await assertFails(setDoc(ref, cellDoc({ until: "soon" })));
   });
 });

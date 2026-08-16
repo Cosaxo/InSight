@@ -296,9 +296,9 @@ function NearPresence() {
           before the decision, which is the only moment it can inform one. */}
       {supported && !on && (
         <div style={{ fontFamily: "var(--sans)", fontSize: 12, fontWeight: 500, color: "var(--ink-2)", lineHeight: 1.5, marginTop: 8, paddingTop: 8, borderTop: NB_LINE }}>
-          While it&rsquo;s on and the app is open, your phone shares only a
-          kilometre-sized grid square, unreadable to other users; it&rsquo;s
-          deleted the moment you turn this off.
+          While it&rsquo;s on, your phone shares a ~200-metre grid square,
+          unreadable to other users. It keeps counting for up to three hours
+          after you close the app, and turning this off deletes it at once.
         </div>
       )}
 

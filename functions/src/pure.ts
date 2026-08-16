@@ -1437,18 +1437,22 @@ export function describeSeedOptionConflicts(
 // from a fix and discards the coordinate (src/v2/data/geo.ts); what
 // arrives here is only the cell id, and these two functions are the whole
 // vocabulary the server has for it: is it a legal cell, and which nine
-// cells make up "around you". The grid contract (0.01°, "la_lo" ids) is
+// cells make up "around you". The grid contract (0.002° since D174, "la_lo"
+// ids) is
 // pinned to the same vectors on both sides by the two test suites — the
 // floor.ts drift pattern, because a client and server disagreeing about
 // cell shape fails soft (empty counts) and would read as "nobody nearby".
 
-const PRESENCE_LAT_MIN = Math.floor(-90 / 0.01);   // -9000
-const PRESENCE_LAT_MAX = Math.ceil(90 / 0.01) - 1; //  8999
-const PRESENCE_LON_MIN = Math.floor(-180 / 0.01);  // -18000
-const PRESENCE_LON_SPAN = 36000;
+// 0.002° since D174 — see src/v2/data/geo.ts for why the grid could not
+// move before the location permission did.
+const PRESENCE_CELL_DEG = 0.002;
+const PRESENCE_LAT_MIN = Math.floor(-90 / PRESENCE_CELL_DEG);   // -45000
+const PRESENCE_LAT_MAX = Math.ceil(90 / PRESENCE_CELL_DEG) - 1; //  44999
+const PRESENCE_LON_MIN = Math.floor(-180 / PRESENCE_CELL_DEG);  // -90000
+const PRESENCE_LON_SPAN = 180000;
 
 export function presenceCellOk(cell: unknown): boolean {
-  if (typeof cell !== "string" || !/^-?\d{1,4}_-?\d{1,5}$/.test(cell)) return false;
+  if (typeof cell !== "string" || !/^-?\d{1,5}_-?\d{1,5}$/.test(cell)) return false;
   const [la, lo] = cell.split("_").map(Number);
   return la >= PRESENCE_LAT_MIN && la <= PRESENCE_LAT_MAX
     && lo >= PRESENCE_LON_MIN && lo < PRESENCE_LON_MIN + PRESENCE_LON_SPAN;

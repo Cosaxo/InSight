@@ -983,7 +983,7 @@ service cloud.firestore {
         && request.auth.uid == uid
         && request.resource.data.keys().hasOnly(["cell", "at", "until"])
         && request.resource.data.cell is string
-        && request.resource.data.cell.matches('^-?[0-9]{1,4}_-?[0-9]{1,5}$')
+        && request.resource.data.cell.matches('^-?[0-9]{1,5}_-?[0-9]{1,5}$')
         && request.resource.data.at == request.time
         && request.resource.data.until is timestamp
         && request.resource.data.until > request.time

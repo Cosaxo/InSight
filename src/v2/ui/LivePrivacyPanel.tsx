@@ -284,7 +284,7 @@ function LivePrivacyPanel() {
               with a count), when (foreground, opted in), and the way out
               (off deletes the doc; deleting the account does too). If the
               mechanics change, this sentence changes in the same commit. */}
-          <li>&ldquo;Right now, around you&rdquo; (the Near counter) is optional and off by default. While it&rsquo;s on and the app is open, your phone shares a kilometre-sized grid square — worked out on the device, your coordinates discarded — so the server can answer <em>how many</em> people are around you. No other user can ever read your square; a count is all that comes back. It goes stale within minutes when you close the app, and turning it off (or deleting your account) deletes it immediately.</li>
+          <li>&ldquo;Right now, around you&rdquo; (the Near counter) is optional and off by default. While it&rsquo;s on and the app is open, your phone shares a ~200-metre grid square — worked out on the device from a precise fix, the coordinates discarded there — so the server can answer <em>how many</em> people are around you. No other user can ever read your square; a count is all that comes back. Your square keeps counting for up to three hours after you close the app, which is what lets a room stay populated while phones are in pockets; turning Near off (or deleting your account) deletes it immediately.</li>
           <li>No IP-based location lookup, no background or continuous location, no location history.</li>
           {/* This line has now been wrong twice, in opposite directions,
               and the second time is the one worth remembering. "No

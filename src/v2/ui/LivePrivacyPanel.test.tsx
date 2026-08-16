@@ -229,7 +229,12 @@ describe("LivePrivacyPanel · the list collapsed, the promises did not (D171)", 
     // reversed, not because a layout pass thinned the list.
     const text = d.textContent || "";
     expect(text, "D9's location promise").toMatch(/never your coordinates/i);
-    expect(text, "D84's presence promise").toMatch(/kilometre-sized grid square/i);
+    // Tracks the grid: "kilometre-sized" until D174 moved it to 0.002°
+    // (~200 m) in the same commit that made the fix precise. This guard
+    // is the reason the copy could not quietly fall behind the constant.
+    expect(text, "D84's presence promise").toMatch(/200-metre grid square/i);
+    expect(text, "D173's linger, which the copy missed for one commit")
+      .toMatch(/three hours after you close the app/i);
     expect(text, "D146's type cut").toMatch(/grouped by your Big Five type/i);
     expect(text, "the exact-counts promise").toMatch(/counts\s+are exact/i);
   });

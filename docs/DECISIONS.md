@@ -8219,6 +8219,13 @@ city ask, so Near is never a dead end again.
   move: the fix is the same coarse permission the city locate uses, no
   background or continuous location, no history (one doc, overwritten).
 
+> **Superseded by [D174](#d174--near-asks-for-a-precise-fix-so-its-radius-can-be-honest)
+> (2026-08-15).** The owner made the call this paragraph reserves for
+> them: the app now requests precise fixes, the grid is 0.002° (~220 m),
+> and the App Store label carries Precise Location. The reasoning below
+> stands as the record of why it could not be done under D84, and it is
+> the reasoning D174 had to answer rather than route around.
+
 **The 500 m that deliberately did not ship.** The owner said 500 m; the
 card says "a couple of kilometres", and the gap is the sensor, not
 timidity: the app requests COARSE location only
@@ -17081,3 +17088,93 @@ and a negative both refused, and `until` required at all.
 
 Mutation-checked: removing the clamp fails the session case, and widening
 the rules cap to a year fails the rules case.
+
+## D174 · Near asks for a precise fix, so its radius can be honest
+
+**Decided:** 2026-08-15 · **Status:** binding, BUILT. Step 2 of
+`NEXT-FUNCTIONALITY.md` §10, on the owner's explicit go after the cost was
+put to them. **Reverses D84's deferral and D9's "never tick Precise".**
+
+### What this is not
+
+It is not a grid constant that could have been edited. That was how I
+first described it to the owner, and it was wrong: at 0.01° the cell was
+~1.11 km tall, and that was **not a design choice — it was the ceiling of
+the fix the app requested.** iOS shipped `NSLocationDefaultAccuracyReduced`,
+Android capped `ACCESS_FINE_LOCATION` at API 30, and `enableHighAccuracy`
+was off. A finer grid over that fix would have produced precise-*looking*
+cell ids computed from a kilometre-wide measurement — invented precision,
+which is what this app refuses everywhere else and what the same
+conversation had just refused for the metre slider.
+
+D84 saw this coming and left it alone deliberately: *"True 500 m is one
+decision away… That is a listing-level change with its own review
+consequences, and it is left as the owner's explicit next call rather than
+smuggled in under this one."* The Info.plist said the same in its own
+words — *"reduced is not a default we quietly escalate from."* So the go
+was asked for, and given, before anything moved.
+
+### What changed
+
+- **iOS** `NSLocationDefaultAccuracyReduced` → `false`.
+- **Android** `ACCESS_FINE_LOCATION` uncapped (`maxSdkVersion="30"` gone).
+- **`enableHighAccuracy: true`**, which on Android 12+ is also what makes
+  `@capacitor/geolocation` request the `[COARSE, FINE]` alias rather than
+  COARSE alone — so the platform half of this decision is that one boolean
+  plus the manifest.
+- **`maximumAge` 10 min → 1 min.** A ten-minute-old fix was fine for
+  "which city" and is wrong for "which building": a cached position would
+  place you in a room you had left.
+- **The grid: 0.01° → 0.002°** on both halves, so a cell is ~222 m tall
+  and the 3×3 neighbourhood the count reads is ~670 × 330 m in Oslo — a
+  venue and its street rather than a district.
+- **The cell regex widens** to five digits per axis, in `geo.ts`,
+  `pure.ts` and `firestore.rules`.
+
+### The store label, and the line the grid was chosen to sit above
+
+`docs/STORE-FORMS.md` now ticks **Precise Location**, and Precise leaves
+the not-collected list.
+
+**The row describes what is REQUESTED, and that is why it moves even
+though what is KEPT did not cross the threshold.** Apple defines Precise
+Location as a resolution of three or more decimal places — 0.001°. The
+presence cell is **0.002°, deliberately one step coarser**, and the city
+name is coarser still. Nothing precise is retained or transmitted: the
+coordinate is folded on the device and discarded, exactly as before.
+
+Picking 0.002° rather than 0.001° was the point of picking at all. The
+honest sentence for a reviewer is: precise is requested, nothing precise
+is kept, and the grid sits above the line rather than on it.
+
+### A false promise this caught, and it was mine
+
+The privacy panel said the presence square *"goes stale within minutes
+when you close the app."* **[D173](#d173--nears-visibility-gets-three-states-and-a-position-that-expires-on-its-own)
+made that false one commit earlier** — the linger became three hours — and
+nothing caught it, because no test read that sentence against the
+constant. Both user-facing disclosures now name the real square (~200 m)
+and the real linger (three hours), and both are pinned: `NearLiveBody`'s
+`pitches honestly while off` and `LivePrivacyPanel`'s D171 promises case
+now assert the figures rather than the topic, so copy cannot fall behind a
+constant again without a red test.
+
+That is the actual lesson of this record. The grid and the permission were
+a decision; the stale sentence was a *silence*, and silence is what this
+tree's guards exist to break.
+
+### The transition, priced rather than migrated
+
+Old cell ids stay legal under the new regex — they simply mean a different
+place — so for up to one linger after deploy a stale doc could be counted
+in the wrong neighbourhood. No migration: presence is opt-in, one doc per
+user, overwritten every four minutes and expiring within three hours, so
+the window closes by itself. Named here rather than discovered later.
+
+### What pins it
+
+The grid contract is pinned on both sides by its own vectors — `geo.test.ts`
+and `pure.test.ts`, the floor.ts drift pattern, because a client and
+server disagreeing about cell shape fails soft (empty counts reading as
+"nobody nearby"). The rules suite carries the widened regex and the
+`until` cap together.

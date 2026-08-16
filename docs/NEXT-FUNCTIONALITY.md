@@ -819,10 +819,11 @@ deliberately.
 
 ### The radius, and the one cost it carries
 
-Today's grid is 0.01° ≈ **1.1 km per cell**, and `presenceNeighbors`
-returns 3×3 — so "around you" is currently ~3.3 × 1.8 km. That is a
-district, and the owner is right that it is not "near". A venue radius
-needs a finer grid.
+**Done at D174.** The grid was 0.01° ≈ 1.1 km per cell, so "around you"
+was ~3.3 × 1.8 km — a district, and the owner was right that it is not
+"near". It is 0.002° now (~222 m), and the 3×3 neighbourhood is ~670 × 330
+m in Oslo. The paragraph below is why it could not be done sooner and is
+kept as the reasoning, not as a pending item.
 
 **The consequence to state plainly:** a finer grid means the server holds
 a more precise location. That is acceptable — `v2_presence` is
@@ -866,7 +867,13 @@ of strangers.
    `presenceBeat` returns early on `document.hidden`. What shipped beside
    the control and the linger is `until` on the presence doc, so the timed
    option is exact rather than approximate, capped in `firestore.rules`.
-2. **The finer grid** + the `STORE-FORMS.md` re-answer.
+2. ~~**The finer grid** + the `STORE-FORMS.md` re-answer.~~ **DONE
+   ([D174](DECISIONS.md#d174--near-asks-for-a-precise-fix-so-its-radius-can-be-honest)).**
+   It was not a constant: the old ~1 km cell was the ceiling of the COARSE
+   fix the app requested, so the grid could only move once the permission
+   did. Precise on both platforms, 0.002° (~220 m) cells, Precise Location
+   ticked — and the grid picked to sit one step ABOVE Apple's own precise
+   threshold, so nothing precise is retained.
 3. **The room aggregate** (floor first, then the cache, then the reading).
 4. **The tabs.**
 5. **Images** last — the field works with initials from day one.
