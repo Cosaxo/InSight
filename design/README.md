@@ -168,6 +168,29 @@ node scripts/style-diff.mjs
 The script's header lists the divergences that are deliberate. Everything
 else it reports is a miss.
 
+**Read the "did not move" banner before anything under it (D185).** The
+sweep drives each screen with a click, and a selector that stops matching
+leaves the run comparing the previous screen twice — silently, and looking
+exactly like a clean pass. It now says so:
+
+```
+!! 6 screen(s) did not move — their step ran and changed nothing,
+   so what got compared is the screen before them, twice:
+```
+
+Fix those steps in `SCREENS` first; a run with the banner up is not
+evidence of anything. That check exists because the tool spent its whole
+life comparing the daily tab with itself — every step was passed to
+`page.evaluate` as an arrow-function *string*, which evaluates the source
+as an expression and never calls it — and three of the selectors had rotted
+meanwhile, unnoticed, because nothing ever ran them. D185 has the arithmetic.
+
+To aim it at a newer prototype than the committed one, pass its path:
+
+```
+PROTO_URL="file:///abs/path/InSight_standalone_30.html" node scripts/style-diff.mjs
+```
+
 ## Where the app is allowed to differ
 
 The prototype has no backend, so it never faces the k-anonymity floor, and

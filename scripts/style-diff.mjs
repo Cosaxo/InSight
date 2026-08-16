@@ -125,19 +125,55 @@ const COLLECT = `(() => {
 
 // One entry per screen worth comparing. Each `go` runs in the page and
 // leaves it on that screen; both builds get the same sequence.
+//
+// SCOPED TO A RULER BY ITS OWN NAME, and that is load-bearing (D185). Both
+// rulers publish `[role=tab]`, and three of the labels collide — the
+// daily's axis runs World · Circle · 1v1 and the Mirror's runs You · Circle
+// · Groups · Near · City · Country · World. An unscoped `aria-label ===
+// 'Circle'` therefore matches whichever ruler is on screen, which is the
+// right answer by accident on one tab and the wrong one on the other.
+//
+// WHAT THESE USED TO SAY. Three steps drove `.sd-switch-btn`, the daily's
+// mode switcher — a control the v17 sync replaced with the ruler (D43), so
+// the class matches nothing in EITHER build and had not for six versions.
+// A fourth called the Mirror's first screen `mirror-near`; the Mirror opens
+// on You, so that name described a stop the sweep never visited. None of it
+// showed, because the string-vs-IIFE bug below meant no step ran at all —
+// two faults that hid each other, which is why the check that ends this
+// file reports movement rather than trusting it.
+const STOP = (ruler, label) =>
+  `() => { const r=[...document.querySelectorAll('[role=tablist]')]`
+  + `.find(x=>(x.getAttribute('aria-label')||'').includes(${JSON.stringify(ruler)}));`
+  + ` if(!r) return; const t=[...r.querySelectorAll('[role=tab]')]`
+  + `.find(x=>(x.getAttribute('aria-label')||x.textContent||'').trim()===${JSON.stringify(label)}); t&&t.click(); }`;
+const DAILY = "How far this answer reaches";
+const MIRROR = "How far the mirror reaches";
+
 const SCREENS = [
   ["daily-world", `() => { window.goTab && window.goTab('track'); }`],
-  ["daily-group", `() => { const b=[...document.querySelectorAll('.sd-switch-btn')].find(x=>x.textContent.trim().startsWith('Group')); b&&b.click(); }`],
-  ["daily-duo", `() => { const b=[...document.querySelectorAll('.sd-switch-btn')].find(x=>x.textContent.trim().startsWith('1v1')); b&&b.click(); }`],
-  ["mirror-near", `() => { window.goTab && window.goTab('mirror'); }`],
-  ["mirror-you", `() => { const t=[...document.querySelectorAll('[role=tab]')].find(x=>x.getAttribute('aria-label')==='You'); t&&t.click(); }`],
-  ["mirror-circle", `() => { const t=[...document.querySelectorAll('[role=tab]')].find(x=>x.getAttribute('aria-label')==='Circle'); t&&t.click(); }`],
-  ["mirror-world", `() => { const t=[...document.querySelectorAll('[role=tab]')].find(x=>x.getAttribute('aria-label')==='World'); t&&t.click(); }`],
+  ["daily-circle", STOP(DAILY, "Circle")],
+  ["daily-duo", STOP(DAILY, "1v1")],
+  ["daily-back", STOP(DAILY, "World")],
+  ["mirror-you", `() => { window.goTab && window.goTab('mirror'); }`],
+  ["mirror-circle", STOP(MIRROR, "Circle")],
+  ["mirror-groups", STOP(MIRROR, "Groups")],
+  ["mirror-near", STOP(MIRROR, "Near")],
+  ["mirror-city", STOP(MIRROR, "City")],
+  ["mirror-country", STOP(MIRROR, "Country")],
+  ["mirror-world", STOP(MIRROR, "World")],
 ];
 
 const FIELDS = ["fontSize", "fontWeight", "fontFamily", "letterSpacing", "textTransform", "color", "bg", "radius", "padding"];
 // Divergences the app makes on purpose. Keyed by the text they attach to.
 const EXPECTED_MISSING = new Set(["skip"]);
+
+// What screen the page is actually on, cheaply. Not for the report — for
+// the navigation check below, which is the whole reason it exists.
+const WHERE = `(() => {
+  const app = document.querySelector('.app');
+  return (app && (app.getAttribute('data-view') || app.getAttribute('data-tab')) || '?')
+    + '#' + document.querySelectorAll('.app *').length;
+})()`;
 
 async function capture(browser, url) {
   // 1440x900 puts both builds in the same centred 402px phone shell; at a
@@ -150,13 +186,29 @@ async function capture(browser, url) {
   await page.goto(url, { waitUntil: "networkidle" });
   await page.waitForTimeout(1800);
   const shots = {};
+  const where = {};
   for (const [name, go] of SCREENS) {
-    await page.evaluate(go);
+    // WRAPPED IN AN IIFE, AND THAT IS NOT A STYLE CHOICE (D185).
+    //
+    // `page.evaluate(str)` evaluates a STRING as an expression. Handed the
+    // source of an arrow function it therefore builds a function and
+    // throws it away — `evaluate('() => 1 + 1')` returns undefined, and
+    // `evaluate('(() => 1 + 1)()')` returns 2. Every `go` below is an
+    // arrow-function source, so from this tool's first commit until D185
+    // not one of them ran: the loop captured whatever screen the app boots
+    // on, once per entry, and diffed it against itself.
+    //
+    // The report that produced was "compared N elements across 7 screens"
+    // with almost nothing to say, which is exactly what a passing run
+    // looks like. That is the failure mode worth naming — a design gate
+    // whose silence means "I never looked".
+    await page.evaluate(`(${go})()`);
     await page.waitForTimeout(1100);
     shots[name] = await page.evaluate(COLLECT);
+    where[name] = await page.evaluate(WHERE);
   }
   await ctx.close();
-  return { shots, errors };
+  return { shots, errors, where };
 }
 
 const browser = await chromium.launch(EXE ? { executablePath: EXE } : {});
@@ -166,6 +218,35 @@ try {
   app = await capture(browser, APP);
 } finally {
   await browser.close();
+}
+
+// DID THE WALK ACTUALLY WALK? (D185)
+//
+// The bug above was invisible because a tool that looks at one screen
+// seven times reports the same shape as a tool that looks at seven. So
+// this checks the only thing that distinguishes them: a `go` that lands on
+// the screen it just came from did nothing, in whichever build it happened
+// in. Reported per build, because a selector can rot on one side alone —
+// the prototype is frozen and the app is not.
+//
+// Not fatal. A screen legitimately reachable only from another screen will
+// repeat if its predecessor failed, so one broken selector prints several
+// lines; the list is a worklist, not a verdict.
+const stuck = [];
+for (const build of [["prototype", proto], ["app", app]]) {
+  const [label, cap] = build;
+  let prev = null;
+  for (const [screen] of SCREENS) {
+    const here = cap.where[screen];
+    if (prev !== null && here === prev) stuck.push(`${label}/${screen}`);
+    prev = here;
+  }
+}
+if (stuck.length) {
+  console.log(`\n!! ${stuck.length} screen(s) did not move — their step ran and changed nothing,`);
+  console.log(`   so what got compared is the screen before them, twice:`);
+  console.log(`   ${stuck.join(", ")}`);
+  console.log(`   Fix the step's selector in SCREENS before reading anything below.\n`);
 }
 
 const rows = [];

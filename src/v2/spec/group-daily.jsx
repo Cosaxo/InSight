@@ -7,6 +7,11 @@ import React from 'react';
 import { RevealClock } from './reveal-clock.js';
 import { DUELS } from './duels-data.js';
 import { Sheet } from './primitives.jsx';
+// The palette gate (D185). Both marks below are a full-strength fill
+// carrying #fff, which is the case world-palette.js's header names for
+// ink() in as many words — and this module was the one place a group hue
+// reached the screen without passing through it.
+import { WPAL } from './world-palette.js';
 import ReactDOM from 'react-dom';
 
 // group-daily.jsx — the daily tab's GROUP mode. Groups are named circles
@@ -23,6 +28,15 @@ import ReactDOM from 'react-dom';
   const ghash = (s) => { let h = 9; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 387420489); return ((h ^ (h >>> 9)) >>> 0) / 4294967295; };
   // one mark per group: a single colour + its initials. Three overlapping
   // avatars at rail size read as mush and never tell two groups apart.
+  //
+  // THE HUE IS ARBITRARY, WHICH IS EXACTLY WHY IT NEEDS THE GATE (D185).
+  // `ghue` hashes a group id to any of 360 hues, and a flat chroma is wrong
+  // at most of them in both directions: sRGB cannot hold 0.12/0.13 around
+  // teal and cyan, so the browser clips — which dulls the colour AND drags
+  // the hue — while blue, violet and magenta can hold far more and came out
+  // undersaturated. Measured against the prototype at the hues its demo
+  // groups land on: 0.155 wanted at hue 12/38/145/305, 0.092 at 220, 0.091
+  // at 182. One flat number was never right at more than a few of them.
   const ghue = (g) => Math.round(ghash(g.id) * 360);
   const ginit = (name) => { const w = name.replace(/^The\s+/i, '').split(/\s+/).filter(Boolean); return (w.length > 1 ? w.slice(0, 2).map((x) => x[0]).join('') : (w[0] || '?').slice(0, 2)).toUpperCase(); };
   function GDMark({ g, size = 34, faded }) {
@@ -31,7 +45,7 @@ import ReactDOM from 'react-dom';
         width: size, height: size, borderRadius: 11, flexShrink: 0,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         fontFamily: 'var(--sans)', fontWeight: 800, fontSize: Math.round(size * 0.38), letterSpacing: '-0.02em',
-        color: '#fff', background: `oklch(0.52 0.12 ${ghue(g)})`, opacity: faded ? 0.4 : 1,
+        color: '#fff', background: WPAL.ink(`oklch(0.52 0.12 ${ghue(g)})`), opacity: faded ? 0.4 : 1,
         transition: 'opacity .18s',
       }}>{ginit(g.name)}</span>
     );
@@ -52,7 +66,8 @@ import ReactDOM from 'react-dom';
         width: size, height: size, borderRadius: '50%', flexShrink: 0,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         fontFamily: 'var(--sans)', fontWeight: 800, fontSize: Math.round(size * 0.4),
-        color: '#fff', background: `oklch(0.52 0.13 ${p.hue})`,
+        // contrast-safe twin, since the fill carries the initials (D185)
+        color: '#fff', background: WPAL.ink(`oklch(0.52 0.13 ${p.hue})`),
         opacity: dim ? 0.28 : 1, boxShadow: '0 0 0 1.5px var(--surface-2)',
         cursor: linked ? 'pointer' : 'default',
       }}>{p.init}</span>

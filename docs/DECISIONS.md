@@ -18530,3 +18530,138 @@ World). Unit 1,216, ui 318, scripts 202, `tsc -b`, `lint`, and
 `:data-inventory` `:policy-claims` `:a11y` `:figures`. `test:rules` and the
 e2e suites want a running emulator per suite; the emulator was up for the
 visual capture and neither suite touches this layout.
+
+## D185 · The design gate was never looking, and two group hues never met the palette
+
+**2026-08-16.** Asked, after D184, whether anything else diverges from
+`InSight_standalone_30.html` — colour, type, placement, function. Answering
+it meant running `scripts/style-diff.mjs`, which is the tool
+[`design/README.md`](../design/README.md) tells you to use *instead of*
+comparing screenshots by eye. It had never compared anything but one screen.
+
+### The bug: `page.evaluate` on a string does not call it
+
+Every entry in `SCREENS` is the SOURCE of an arrow function, passed to
+`page.evaluate(go)`. Playwright evaluates a string as an **expression**, so
+handing it `() => { … }` builds a function and drops it on the floor.
+Measured, not reasoned:
+
+```
+evaluate('() => 1 + 1')     -> undefined
+evaluate('(() => 1 + 1)()') -> 2
+```
+
+So from the tool's first commit until today, no step ran. The loop captured
+whatever screen the app boots on — the daily — once per entry, and diffed
+it against the prototype's daily seven times. The report it printed was
+`compared N elements across 7 screens` with almost nothing to say, which is
+indistinguishable from a clean run. **A gate whose silence means "I never
+looked" is worse than no gate**, because `design/README.md` sends people to
+it *instead of* looking.
+
+One character each way fixes it (`` `(${go})()` ``). What it then found, on
+the same tree and the same prototype: 11 screens, 722 elements, 30 distinct
+differences where the old run reported 8 — every one of them phantom, from
+a single false text pair.
+
+### The second bug, which the first one hid
+
+With navigation working, three of the seven steps still did nothing. They
+drove `.sd-switch-btn` — the daily's mode switcher, replaced by the ruler at
+the **v17 sync (D43)**, six prototype versions ago. A fourth called the
+Mirror's first screen `mirror-near`, but the Mirror opens on You, so that
+name described a stop the sweep never visited.
+
+Two faults that hid each other: the selectors could rot because nothing ran
+them, and the dead run looked healthy because the selectors' silence was
+indistinguishable from success. So the fix is not only the IIFE — the tool
+now records what screen each step landed on and **reports any step that did
+not move**, per build:
+
+```
+!! 6 screen(s) did not move — their step ran and changed nothing,
+   so what got compared is the screen before them, twice:
+   prototype/daily-group, prototype/daily-duo, prototype/mirror-you, …
+```
+
+Not fatal, because one broken step makes its successors repeat too and the
+list is a worklist rather than a verdict. The screen list is rebuilt against
+what the two builds actually publish: both rulers are `[role=tablist]` with
+a name of their own, and three labels (World · Circle) collide between them,
+so every step is scoped to its ruler by that name. 11 screens now — the
+daily's three modes and all seven Mirror stops.
+
+### What it found first: two group hues that skip the palette gate
+
+`world-palette.js` exists because a flat `oklch(0.52 0.14 h)` is wrong at
+most hues in both directions — outside sRGB for teal and cyan, where the
+browser clips (dulling the colour *and* dragging the hue), and inside it for
+blue, violet and magenta, which come out undersaturated. Its header names
+the case for `ink()` exactly: *"wherever a full-strength fill carries #fff"*.
+
+Two modules wrote the hue raw. Counted across every ported module, they are
+the only two that differ from the prototype in gate calls:
+
+| module | v30 | app before |
+| --- | --- | --- |
+| `group-daily.jsx` | 3 | 0 |
+| `group-mirror.jsx` | 1 | 0 |
+
+`group-daily`'s two are marks whose fill carries white initials, over a hue
+**hashed from a group id** — any of 360, so a flat chroma is right at
+almost none of them. Measured against the prototype at the hues its demo
+groups land on: 0.155 wanted at hue 12, 38, 145 and 305; 0.092 at 220;
+0.091 at 182; 0.104 at 84; 0.117 at 117. The app drew 0.12/0.13 at every
+one.
+
+`group-mirror`'s single call is the costlier one: `gmAccent` is not a mark,
+it is the Groups stop's `--accent`, set on the stage and on every group
+card — so one un-gated value reached the identity ring, the chips, the lens
+row's underline and every accent-driven mark under it at once. Its hue is a
+circular mean of the members' hues, so it lands anywhere on the wheel.
+
+41 of the 65 differing elements were this. Gone after four wrapped calls.
+
+### What is recorded and NOT fixed
+
+Each is real, each is measured, and each is a bigger change than the report
+that found it:
+
+- **The Map (You) draws at a different scale and a different balance.** 62
+  labels differ by a constant factor of 1.0253 — the app 2.5% larger — and
+  the screenshots show more than a scale: the prototype's four branches sit
+  evenly around a centred You, while the app's Self cluster dominates the
+  top-left, Knowledge is a clipped stub on the left edge and You sits off
+  centre. The prototype also carries a fifth branch, **Foresight**, which
+  the Mirror dropped at D136 — that part is a decision, the balance is not.
+- **The Groups stop's member marks are a different object.** The prototype
+  draws initials as ink text on no ground (weight 700, radius 0); the app
+  draws white-on-fill discs (weight 800, radius 50%), with the sizes
+  disagreeing in both directions (10.7 vs 9, 9.5 vs 11.5).
+- **`GDAv` replaced dimming with a halo in the prototype.** It takes
+  `sealed` and draws a hue ring — *"a row of half-washed circles read as
+  broken"* — where the app takes `dim` and drops to 28% opacity. Inverted
+  semantics at every call site, so it is a port, not a wrap.
+- **One element renders in Arial.** `daily-circle`'s "You" at 16px Arial
+  against the prototype's 13.5px Hanken Grotesk — a node inheriting no font
+  at all. One element, not yet located to a line.
+- **The live Mirror bodies are inset 16px more than the prototype** (D184's
+  note, unchanged).
+
+### What is missing rather than wrong
+
+44 strings the prototype renders and the app does not, and they are almost
+entirely **v28/v30 features this tree has not built**, tracked in
+[`docs/VISION-V28.md`](VISION-V28.md): the `patterns` tab (11 screens'
+worth), the pulses and their cadence control (*ask me · daily · often ·
+weekly · off*), predictions, sponsored cards (*PAID*, *asked by Elvia*),
+Crossroads (*Shift it*, *Leave it alone*), the place scorecards (*Oslo ·
+Norway · World*) and *why me?*. The CSS agrees: of 205 rules the prototype
+has and the app lacks, 170 are five namespaces — `ar*` (arena), `a2*`,
+`or*` (oracle), `pt*` (patterns), `qm*` (question map).
+
+**The stylesheets are otherwise in sync.** Rule by rule, 26 selectors carry
+different declarations and four of those are the deliberate "quieter ground"
+set `style-diff.mjs`'s own header lists (`--surface-a` at 98%, the two blurs
+at saturate 1.4, `.app-body::before` at 320px/6%). Colour tokens, type
+scale, and the kicker/micro-label tiers are identical.
