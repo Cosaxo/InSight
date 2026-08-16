@@ -488,7 +488,7 @@ arithmetic.
       new here is that the dry run, the upload, the bump and the record
       were one session rather than four — the bump was made *from* the
       step list, not from a memory of it, which is the only arrangement
-      that has ever worked. D185.
+      that has ever worked. D186.
 
       **BUILD 18 WAS UPLOADED BY RUN 26** (`810b3af`, 2026-08-16 15:08Z,
       6m 32s, upload step `success`, 1m 39s of it transfer). Run 25 is the

@@ -399,7 +399,7 @@ on the run list, which nothing in this tree can read** — so this stays a
 procedure, and the procedure is the next line.
 
 **Runs 27 and 28 delivered build 19, and the bump landed off step 17's
-conclusion** (D185, 2026-08-16). Both archived `e76731d` six minutes
+conclusion** (D186, 2026-08-16). Both archived `e76731d` six minutes
 apart — run 27 (`31963630320`, 18:07:00Z) upload step `skipped`, run 28
 (`31963956792`, 18:13:34Z) `success` (18:17:39Z → 18:18:55Z, 1m 16s of
 transfer). Fourth pair of this shape.
