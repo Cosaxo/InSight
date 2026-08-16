@@ -18558,3 +18558,63 @@ run 26 **did**. Whoever dispatches next re-makes the comparison against
 the run list, reads `appBuild` at the run's own `head_sha` (D159), and
 reads the conclusion of **step 17** rather than of the run (runs 25/26 are
 the third worked example).
+
+## D185 · Build 19 is delivered, and the bump was made from the step list
+
+**Decided:** 2026-08-16 · **Status:** binding · The upload D184 prepared,
+and the post-upload bump 19 → 20 that four of the last seven releases
+skipped.
+
+### What ran
+
+| Run | Id | Sha | Dispatched | Step 17 |
+| --- | --- | --- | --- | --- |
+| 27 | `31963630320` | `e76731d` | 18:07:00Z | **`skipped`** — the dry run |
+| 28 | `31963956792` | `e76731d` | 18:13:34Z | **`success`** — 18:17:39Z → 18:18:55Z, 1m 16s of transfer |
+
+Both archived `e76731d`, the merge commit of #203, where `appBuild` is
+19 — so the comparison D184 made against runs 25/26 held at the sha each
+run actually built (D159). Job times 5m 44s and 5m 23s. **Build 19 is
+spent**, and `appBuild` is now **20**, propagated by `check:versions
+--fix` to `versionCode` and both `CURRENT_PROJECT_VERSION` entries.
+
+The dry run was not ceremony. It is what `ios-release.yml`'s header asks
+for, and it is the run that would have caught a signing or entitlement
+regression before anything reached TestFlight. Both silent-failure gates
+passed at both ends — step 13 (the archive carries `GoogleService-Info.plist`
+and `aps-environment`) and step 15 (the exported `.ipa` is
+production-signed, read out of the `.ipa` rather than the archive, which
+is the distinction that whole section of IOS-RELEASE.md exists to make).
+
+### The bump held, and the reason is the ordering
+
+Four bumps have now held (runs 20, 21, 22, 28) against four skipped (18,
+19, 24, 26). D153 and D158 credited the holding ones to the bump landing
+while the run's own step list was on screen; D180 refined that after run
+24 broke it, and **D184 broke the refinement** — run 26's skip happened
+with nobody looking at a step list at all, because no record was written
+either.
+
+**This release is the first where the dry run, the upload, the bump and
+the record were one session.** That is worth naming precisely, because
+the useful part is not diligence: the bump was computed **from step 17's
+conclusion**, read seconds after it turned `success`, rather than from
+anyone's memory of whether a build had been spent. Every skip in the list
+happened in the gap between those two things. The habit that works is not
+*remember to bump* — it is *never let the number be derived from memory*.
+
+**It still is not a guarantee, and nothing in this tree can make it one.**
+D184 established why: the fact lives in App Store Connect, the sound
+invariant keys on the run list, and no gate here can read either (D73's
+shape, one layer out). Four-for-eight is a procedure holding, not a
+mechanism working. The next dispatcher re-makes the comparison.
+
+### What is NOT written here
+
+That build 20 is "pre-flighted and unspent" — the sentence D130, D142 and
+D143 each got wrong, and which D184 declined to store. This entry records
+what run 28 **did**: it delivered build 19 at 18:18:55Z. Whoever
+dispatches next reads the run list, takes `appBuild` at the run's own
+`head_sha`, and reads the conclusion of **step 17** rather than of the
+run — runs 27/28 are now the fourth worked example of a pair that is
+`success` at the job level with only one of them having spent a number.

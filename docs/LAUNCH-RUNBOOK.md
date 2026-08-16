@@ -474,6 +474,22 @@ arithmetic.
       automated writer, and the window between merging a release commit and
       dispatching from it is no longer quiet.
 
+      **BUILD 19 WAS UPLOADED BY RUN 28** (`e76731d`, 2026-08-16 18:13Z,
+      5m 23s, upload step `success`, 1m 16s of it transfer). Run 27 is the
+      **same commit six minutes earlier** with its upload step `skipped` —
+      the dry run — making it the fourth pair of this shape. Both
+      silent-failure gates passed at both ends: the archive carried the
+      Firebase config and the APNs entitlement, and the exported `.ipa`
+      was production-signed.
+
+      **`appBuild` is now 20, bumped off step 17's own conclusion in the
+      same session that dispatched the run.** Four bumps have now held
+      (runs 20, 21, 22, 28) against four skipped (18, 19, 24, 26). What is
+      new here is that the dry run, the upload, the bump and the record
+      were one session rather than four — the bump was made *from* the
+      step list, not from a memory of it, which is the only arrangement
+      that has ever worked. D185.
+
       **BUILD 18 WAS UPLOADED BY RUN 26** (`810b3af`, 2026-08-16 15:08Z,
       6m 32s, upload step `success`, 1m 39s of it transfer). Run 25 is the
       **same commit seven minutes earlier** with its upload step `skipped`
