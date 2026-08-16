@@ -18558,3 +18558,178 @@ run 26 **did**. Whoever dispatches next re-makes the comparison against
 the run list, reads `appBuild` at the run's own `head_sha` (D159), and
 reads the conclusion of **step 17** rather than of the run (runs 25/26 are
 the third worked example).
+
+## D185 · Crossroads gets a brief, and the gates learn what a story is
+
+**Decided:** 2026-08-16 · **Status:** binding · Owner direction:
+*"Crossroads right now feels a bit boring in the type of questions"*, then
+*"suggest improvements to the crossroad generator"*. Amends D136's form
+with authoring rules and the gates to hold them; changes no client code
+and no seeded document.
+
+The complaint was about content and the cause was not. Two stories exist
+(D136), both `cat: dilemma`, in a bank spanning ten topics — and the
+pipeline that produced them had, between the manual and five gates,
+nothing that could notice.
+
+### 1 · What was actually missing, measured
+
+- **The lane had no brief.** A path is 38 authored strings under
+  exactly-spelled keys — the largest thing the feed lane writes by a wide
+  margin — and `QUESTION-FARM.md` gave it ONE bullet, entirely field
+  names. `dial`/`field` have a section; `vote` inherits the style guide; a
+  story inherited neither. So the lane wrote the same story twice and
+  every gate was green, which is the correct outcome for gates that were
+  only ever asked about shape.
+- **Dedup was reading 3% of the question.** `textOf` folds
+  prompt + options|items + ax/ay/ends. A path carries **none** of those —
+  the quality gate explicitly refuses `options`, because its answer space
+  is the eight endings and their labels are synthesized. Measured with the
+  script's own `tokensOf`: **4 tokens against 134 and 145.** The intro,
+  seven scene lines, fourteen choices and sixteen ending strings were
+  uncompared. Two stories differing only in their prompt line would have
+  scored 0.000.
+- **`checkBatch` had no feed arm.** Rules for `daily` (tone, form) and
+  `learn` (difficulty), nothing for the lane that writes the LARGEST
+  batch of the three. Eight votes on one topic printed eight ✓ and no
+  batch line.
+
+### 2 · The rule the form lives on: three forks, three axes
+
+Every node declares what its fork TRADES, from a closed vocabulary
+(`PATH_AXES`: risk · time · company · disclosure · ownership · certainty ·
+effort · loyalty), and no walk may turn one axis twice.
+
+A tree whose forks all turn one axis does not have eight endings; it has
+one gradient sampled at eight points, and the reveal — *"1 in 12 walks
+your road"* — then RANKS the reader along it instead of placing them. That
+is the wrong sentence for this product to say, and doubly so under D98:
+answers are public, so a fork with a visible virtuous road collects
+performance rather than disclosure.
+
+**Checked per WALK, not per tree**, because a tree is not one sequence of
+forks but eight, and a story can be varied down one branch and flat down
+another — pt1 is exactly that (`_`→B→BA turns three axes; `_`→A→AA turns
+one). A walk is what a reader experiences, so a walk is the unit.
+
+**The vocabulary is closed**, for the reason `cat` is: an open one is a
+free text field, and "money" / "cash" / "greed" would read as a spread
+while being one axis three times. Widening it is a PR-body note naming the
+story that needed it — § When no category fits' contract.
+
+**The annotation costs nothing on the wire, and this was verified rather
+than reasoned.** `gen-v2content.mjs` REBUILDS each node
+(`{ q, a: [{ t }] }`) rather than spreading it — the same whitelist that
+already drops the demo pool's authored `p` shares — so `axis` stops at the
+content bank. `check:content` regenerates `v2content.ts` and it came back
+**byte-identical**: no seeded field, no `SEEDED_FIELDS` comparison, no
+reseed of the two live docs, no bytes shipped to a device.
+
+### 3 · Both live stories fail the rule, and the exemption is permanent
+
+Annotated honestly and then counted: **pt1 is flat on 6 of its 8 walks**
+(certainty → ownership → ownership four ways, plus certainty → effort →
+effort twice) and **pt2 on 8 of 8** (disclosure and loyalty in every
+arrangement of three). pt2 has no varied walk at all — a reader who walks
+it twice down different roads answers the same question twice.
+
+**They cannot be fixed, and the reason is D52.** A path's OPTIONS are its
+eight ending names (`pathOptions`), so renaming one is an option edit: the
+seed refuses it, because the stored `optionIdx` would silently come to
+mean a different ending. And both trees encode their single axis IN those
+names — pt1's A-branch lands on "The Honest Trade" / "Finders, Keepers" /
+"The Long Way Round", which only parse if forks 2 and 3 both turn
+`ownership`. Re-axing the forks would leave walks arriving at names that
+no longer fit them. Fork prose is editable (D136 put `nodes` in
+`SEEDED_FIELDS` for exactly that); ending names are not. So the honest
+options were to exempt the two or to retire them (`active: false`,
+the operator's call), and this exempts them.
+
+`PATH_AXIS_LEGACY` carries both ids with the arithmetic above. Three
+properties make it a record rather than a loophole:
+
+- **It waives `axis-spread` alone, never `axis`.** Both stories still
+  declare all fourteen fork axes, so the defect is visible IN THE DATA
+  rather than implied by a missing field — the `core` argument (absent and
+  false are the same bytes; only one is a decision).
+- **They still count as predecessors** for the genre ratchet, which is
+  what forces the third story off `dilemma`.
+- **A test pins the arithmetic to the content** (6 and 8), so a waiver
+  whose recorded reasoning drifted from the tree fails — the stale-figure
+  failure class (D39) wearing a JSON hat.
+
+### 4 · The genre ratchet
+
+A path's `cat` must differ from the `cat` of each of the
+`PATH_GENRE_LOOKBACK` (2) paths before it. A corpus rule rather than a
+batch one, which is the opposite of every other mix rule and deliberate:
+the lane writes eight questions a run and at most one is a story, so a
+batch rule can never see two paths at once. What a reader meets is the
+SEQUENCE — Crossroads holds one pinned slot at the head of the feed
+(D136), so consecutive stories are consecutive on screen in a way
+consecutive votes are not.
+
+Two is the smallest window that forces a third topic rather than an
+A-B-A-B alternation, and it only ever rules out two of ten topics. The
+first two stories are unchecked by construction — no predecessors — so
+D136's pair needs no waiver here.
+
+### 5 · What the probe found, which reading had not
+
+Pre-flighting a synthetic story failed with **fourteen demands for an
+authored branch share `p`** — texture the live form must not carry.
+`printPacket` ran every candidate as the demo-pool form, which is right
+for a continuum question (written twice) and wrong for a story (written
+once, in the content bank; its demo twin is client code the lane does not
+touch). The pre-flight was instructing a run to write the one thing the
+content gate would then reject it for. Fixed with the texture flag keyed
+off the type, and `core` now rides through `candidateOf` — the SCALE-PLAN
+rule is scoped to content-form entries, so it had been firing on every
+story for a field the candidate did declare and the function dropped.
+
+### 6 · What is NOT closed, said plainly
+
+- **Dedup still cannot see genre.** pt1 and pt2 score **0.107 compared
+  whole** — far under the 0.5 gate — because they are the same KIND of
+  story in different vocabulary. Token overlap cannot catch that; §2 and
+  §4 are the instruments that can. The `textOf` fix is the narrower thing
+  it looks like: a gate reading 3% of its input now reads all of it.
+- **No new stories were written.** This is the pipeline, not the content.
+  The corpus is still two `dilemma` stories, and the next one now has
+  rules to be written against.
+- **The card still shows `pathQs()[0]`** — the head of the list, in both
+  the live and demo arms (`paths-card.jsx`). So "The Wrong Text" has never
+  been on a screen: the bank holds two stories and the app has always
+  shown one. That is a client change and not a generator one, which is why
+  it is recorded here and not fixed here.
+
+### What proves it
+
+`test:unit` (80 files, 1,216), `test:scripts` (11 files, 215 — up 13),
+`lint`, `check:globals` (coupling unchanged at 409), `check:quality` (376
+questions), `check:content` (v2content.ts byte-identical), `check:figures`
+(28 figures, up 2), `check:neighbors` (feed's closest pair unmoved at
+0.250 with the stories now read whole), `check:labels`,
+`check:public-copy`, `check:data-inventory`, `build`, and `check:bundle`
+on the shipping build — 2,320 KB / 969 KB eager against 2,334 / 978,
+unmoved, as it must be for a change that touches no client file.
+
+`test:rules` and the e2e suites want Java 21, which this environment does
+not have — unrun. Neither reads content: the seed path is exercised by
+`check:content` and `seed.test.ts`, and no seeded document changed.
+
+New cases: a story turning three axes on every walk; a missing axis and an
+invented one; the per-walk firing (one node moved → 2 of 8 walks flat, six
+clean); the legacy waiver covering `axis-spread` and not `axis`; the live
+pair's annotations and their 6-and-8 arithmetic; the ratchet's lookback,
+its silence on the first two and its live pass; the feed batch arm's form
+and topic spread, its 0.75 ceiling at 6-vs-7 of eight, and its silence
+under three; and a Crossroads story read whole by dedup, asserted on
+tokens that exist only in a node and an ending.
+
+The two figures quoted in the new manual section (`OPTION_MAX`,
+`PATH_CHOICE_MAX`) are registered with `check:figures`. They are not
+budget constants like the eleven already there, and the failure is a
+different one: a manual quoting a longer ceiling than the gate enforces
+sends 38 hand-authored strings into a gate that refuses them, which is the
+most expensive thing in this lane to redo.

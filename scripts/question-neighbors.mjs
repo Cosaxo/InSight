@@ -347,11 +347,36 @@ function extractArray(src, marker, at) {
 // Feed options are {label,count} objects; rank questions carry items;
 // continuum entries (dial/field, D113) label their scale ends instead —
 // ax/ay/ends carry the semantic tokens an optionless form has.
+//
+// A CROSSROADS STORY IS ALMOST ENTIRELY INVISIBLE WITHOUT THE LAST CLAUSE,
+// and the number is why it is here. A path carries no `options` — the gate
+// on the other side refuses them, because its answer space is the eight
+// endings and their labels are synthesized (D136) — no items, no ax/ay/ends.
+// So `textOf` saw its prompt and nothing else: MEASURED at 4 tokens against
+// 134 and 145 in the two live stories, i.e. 3% of the question, while the
+// intro, all seven scene lines, all fourteen choices and all sixteen ending
+// strings went uncompared. Two stories differing only in their one-line
+// prompt would have scored 0.000 and passed.
+//
+// What this does NOT close, said plainly so the next reader does not trust
+// it further than it goes: the same two stories score 0.107 compared WHOLE,
+// far under the 0.5 gate, because they are the same KIND of story in
+// different vocabulary — a moral test handed to a lone adult by accident.
+// Token overlap cannot see genre. That is check:quality's `axis-spread` and
+// the genre ratchet's job, and this fix is the narrower one it looks like:
+// a gate that was reading 3% of its input now reads all of it.
 function textOf(q) {
   const opts = (q.options || q.items || []).map((o) =>
     o && typeof o === "object" ? o.label : o,
   );
-  return [q.prompt, ...opts, ...(q.ax || []), ...(q.ay || []), ...(q.ends || [])]
+  const story = q.type === "path"
+    ? [
+        q.title, q.intro,
+        ...Object.values(q.nodes || {}).flatMap((n) => [n.q, ...(n.a || []).map((c) => c.t)]),
+        ...Object.values(q.endings || {}).flatMap((e) => [e.name, e.line]),
+      ]
+    : [];
+  return [q.prompt, ...opts, ...story, ...(q.ax || []), ...(q.ay || []), ...(q.ends || [])]
     .filter(Boolean)
     .join(" ");
 }
