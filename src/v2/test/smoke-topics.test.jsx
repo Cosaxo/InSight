@@ -8,8 +8,10 @@
 // way back out to the chip row.
 
 import { describe, expect, it, vi } from "vitest";
-import { fireEvent, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, screen } from "@testing-library/react";
 import { mountApp, registerSmokeHooks, SMOKE_TIMEOUT_MS } from "./mount-app.jsx";
+// The ask another screen makes of this sheet (D190).
+import { requestTopicSheet } from "../data/topicSheet.ts";
 
 vi.setConfig({ testTimeout: SMOKE_TIMEOUT_MS });
 registerSmokeHooks();
@@ -72,5 +74,42 @@ describe("the add-a-topic sheet", () => {
       "the chip stayed on after the sheet muted it",
     ).toBe("false");
     expectNoBoundary("add sheet, mute");
+  });
+});
+
+// ── opened from somewhere else (D190) ────────────────────────────────
+//
+// The profile's scenes card offers "Pick topics →" when you follow nothing.
+// It used to jump to the daily feed and stop there, which leaves the reader
+// in the room and not at the list — reported from a device as exactly that.
+// The button asks; this sheet answers.
+//
+// Asserted through the MECHANISM rather than through that button, because
+// the button's own arm needs an account following no scenes and a live
+// build, and what breaks in a rename is this wiring: a request nothing
+// listens for fails silently and looks identical.
+describe("the topic list opens on request", () => {
+  it("opens the sheet for a feed that is already mounted", () => {
+    const expectNoBoundary = mountApp();
+    expect(screen.queryByText("Your topics"), "the sheet was open before the ask").toBeNull();
+    // act(), because this sets state from outside React's event system —
+    // the same reason the cross-link openers are wrapped.
+    act(() => { requestTopicSheet(); });
+    expect(screen.getByText("Your topics"), "the request reached nothing").not.toBeNull();
+    expectNoBoundary("add sheet, opened on request");
+  });
+
+  it("consumes the request, so the sheet does not reopen by itself", () => {
+    // A flag that stays set is a sheet that comes back the next time
+    // anything mounts — which is the failure this one-shot shape exists to
+    // avoid (links.ts's consumeJoinCode, same reasoning). The second mount
+    // is the whole case: it asks for nothing and must get nothing.
+    mountApp();
+    act(() => { requestTopicSheet(); });
+    expect(screen.getByText("Your topics")).not.toBeNull();
+    cleanup();
+    const expectNoBoundary = mountApp();
+    expect(screen.queryByText("Your topics"), "the request outlived its use").toBeNull();
+    expectNoBoundary("add sheet, request consumed");
   });
 });

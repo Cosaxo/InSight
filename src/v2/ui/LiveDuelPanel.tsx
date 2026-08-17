@@ -34,7 +34,11 @@
 // typed TSX. Reached by React.lazy from daily-split.jsx since D156 — it is
 // two of the daily tab's three modes and none of the first paint.
 import React from "react";
-import LIVE from "../data/live";
+// `localName` is this device's copy of the display name, written by the
+// store whenever the name is saved — the create screen needs it before
+// hydration finishes, which is the one moment `LIVE.displayName` is empty
+// on an account that has one.
+import LIVE, { localName } from "../data/live";
 import { consumeJoinCode, inviteLinkFor } from "../data/links";
 // Handles and invitations (D122) — how a circle gains a member now. The
 // code survives inside the share link for people who have no account
@@ -60,7 +64,6 @@ const LiveTakesPanel = React.lazy(() => import("./LiveTakesPanel"));
 
 const LD_LINE = "1px solid color-mix(in oklch, var(--rule), transparent 25%)";
 const LD_HAIR = "0.5px solid color-mix(in oklch, var(--rule), transparent 30%)";
-const LD_NAME_LS = "insight.displayName.v1";
 // The prototype's two accents, kept apart: a circle is a likeness question,
 // a 1v1 is a people question, and the option buttons are tinted with
 // whichever it is.
@@ -92,11 +95,18 @@ interface LiveReveal extends RevealDocLike {
   names?: Record<string, string>;
 }
 
+/**
+ * The name this account already has — the profile's, or this device's copy
+ * of it while the profile is still hydrating.
+ *
+ * The screen used to ASK for this, in a field above the circle's name
+ * (D156's port of the prototype's create card). D190 took it out: a
+ * display name is a fact about the account, it is collected once at the
+ * top (LiveProfileSetup) and every screen that needs it reads it from
+ * here. The field survives only as the fallback below — see LdOnboard.
+ */
 function ldName(): string {
-  try { return localStorage.getItem(LD_NAME_LS) || ""; } catch { return ""; }
-}
-function ldSaveName(n: string): void {
-  try { localStorage.setItem(LD_NAME_LS, n); } catch { /* best-effort */ }
+  return LIVE.displayName || localName();
 }
 function errText(e: unknown): string {
   return String((e instanceof Error && e.message) || e);
@@ -168,14 +178,32 @@ function LdOnboard({ mode }: { mode?: string }) {
   // A tapped invite link lands here: the stashed code prefills the join
   // field (consume = one prefill, not a haunting).
   const [code, setCode] = React.useState(() => consumeJoinCode() || "");
-  const [me, setMe] = React.useState(ldName());
   const [codeOpen, setCodeOpen] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
   const [err, setErr] = React.useState<string | null>(null);
   const duo = mode === "duo";
   const S = LIVE.social;
+  // YOUR NAME IS NOT A QUESTION THIS SCREEN ASKS (D190).
+  //
+  // It asked for one in a field of its own, above the circle's name, and
+  // that was reported from a device as the wrong screen for it: the name
+  // is set at sign-in (LiveProfileSetup) and every account that has been
+  // through that screen already has one. So the account's name is read,
+  // and the field appears ONLY when there is none to read.
+  //
+  // The backup is not decoration. `profileSetupSeen` is per DEVICE and the
+  // setup screen is skippable in one tap, so an account with no name is a
+  // state that survives — and a reveal with a blank where a name goes is
+  // worse than one more field on a screen somebody chose to open.
+  const known = ldName().trim();
+  const [typedMe, setTypedMe] = React.useState("");
+  const me = known || typedMe.trim();
   const go = async (fn: () => Promise<unknown>) => {
-    setBusy(true); setErr(null); ldSaveName(me.trim());
+    setBusy(true); setErr(null);
+    // Only the fallback writes: with a known name there is nothing new to
+    // save, and re-saving it on every create would be a Firestore write
+    // per circle for a string the profile already holds.
+    if (!known && me) { try { await LIVE.saveDisplayName(me); } catch { /* the callable takes it too */ } }
     try { await fn(); } catch (e) { setErr(errText(e)); }
     setBusy(false);
   };
@@ -189,11 +217,14 @@ function LdOnboard({ mode }: { mode?: string }) {
           ? "One question a day, sealed until tomorrow — if you both play."
           : "One question a day, sealed until tomorrow, then revealed with names."}
       </div>
-      <LdInput value={me} onChange={setMe} placeholder="Your name (what friends see)" />
+      {!known && <LdInput value={typedMe} onChange={setTypedMe} placeholder="Your name (what friends see)" />}
       <div style={{ display: "flex", gap: 8 }}>
         <LdInput value={name} onChange={setName} placeholder={duo ? "Name it (e.g. Mira & Leo)" : "Group name"} />
-        <LdBtn primary disabled={busy || !name.trim() || !me.trim()}
-          onClick={() => void go(() => S.createGroup(name.trim(), mode === "duo" ? "duo" : "group", me.trim()))}>Create</LdBtn>
+        {/* `me || undefined`, never "": createGroupV2's callerName reads
+            the profile when the client sends nothing, and sending an empty
+            string would overwrite a name the profile already has. */}
+        <LdBtn primary disabled={busy || !name.trim() || !me}
+          onClick={() => void go(() => S.createGroup(name.trim(), mode === "duo" ? "duo" : "group", me || undefined))}>Create</LdBtn>
       </div>
       {/* THE CODE STOPS BEING THE SECOND HALF OF THIS SCREEN (D122).
           It used to sit here under an "OR JOIN WITH A CODE" rule, as a
@@ -215,8 +246,8 @@ function LdOnboard({ mode }: { mode?: string }) {
           </div>
           <div style={{ display: "flex", gap: 8 }}>
             <LdInput value={code} onChange={(v) => setCode(v.toUpperCase())} placeholder="Invite code" style={{ fontFamily: "var(--mono, monospace)", letterSpacing: "0.12em" }} />
-            <LdBtn primary disabled={busy || code.trim().length < 6 || !me.trim()}
-              onClick={() => void go(() => S.joinGroup(code.trim(), me.trim()))}>Join</LdBtn>
+            <LdBtn primary disabled={busy || code.trim().length < 6 || !me}
+              onClick={() => void go(() => S.joinGroup(code.trim(), me || undefined))}>Join</LdBtn>
           </div>
         </>
       ) : (

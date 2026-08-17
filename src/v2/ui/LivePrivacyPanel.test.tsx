@@ -39,12 +39,16 @@ const LIVE = vi.hoisted(() => ({
   enabled: true,
   uid: "u_me",
   displayName: "Tester",
+  // "" is an account with no handle — the state the claim control is for
+  // (D190). A case below sets one and asserts the control is gone.
+  handle: "",
   deleteAccount: async () => {},
   linkGoogle: async () => {},
   saveDisplayName: async () => {},
+  social: { claimHandle: async (h: string) => ({ handle: h }) },
   subscribe: () => () => {},
 }));
-vi.mock("../data/live", () => ({ default: LIVE }));
+vi.mock("../data/live", () => ({ default: LIVE, localName: () => "" }));
 vi.mock("../../lib/sentry", () => ({
   telemetryEnabled: true,
   setTelemetryEnabled: () => {},
@@ -222,5 +226,40 @@ describe("LivePrivacyPanel · the disclosure moved to the policy page (D183)", (
     // canonical copy — and for this case, rather than a promise to keep
     // the page in mind.
     expect(missingClaims(readPage())).toEqual([]);
+  });
+});
+
+// ── the handle is claimed once (D190) ────────────────────────────────
+//
+// The row offered a "Change" button and the rename behind it worked: the
+// callable took the new key and freed the old one in one transaction, so
+// the address a user had handed people went back in the pool the same
+// minute. A handle is how someone is ADDED to a circle (D122) — an address
+// that can be reassigned is one nobody can be given.
+//
+// The server is the gate (claimHandleV2 refuses a change); these are about
+// the panel not offering what the server will refuse, which is the other
+// half of the same promise.
+describe("LivePrivacyPanel · a handle is claimed once", () => {
+  afterEach(() => { LIVE.handle = ""; });
+
+  it("offers the claim only to an account that has no handle", () => {
+    LIVE.handle = "";
+    render(<LivePrivacyPanel />);
+    expect(screen.getByRole("button", { name: /^Claim$/ })).toBeTruthy();
+    // …and says so before the tap, because the tap cannot be taken back.
+    expect(screen.getByText(/only get to pick once/i)).toBeTruthy();
+  });
+
+  it("shows a claimed handle as a fact, with no way to change it", () => {
+    LIVE.handle = "olaf";
+    render(<LivePrivacyPanel />);
+    expect(screen.getByText("@olaf")).toBeTruthy();
+    // The control, in both of its shapes. "Change" is the one that shipped.
+    expect(screen.queryByRole("button", { name: /^Change$/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Claim$/ })).toBeNull();
+    expect(screen.queryByLabelText(/Your handle/i)).toBeNull();
+    // And the panel says it, rather than leaving the absence to be inferred.
+    expect(screen.getByText(/can’t be changed/i)).toBeTruthy();
   });
 });

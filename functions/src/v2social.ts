@@ -957,12 +957,30 @@ export const revealDuelsNowV2 = onCall({ region: REGION }, async (request) => {
 const INVITES_PER_HOUR = 40;
 
 /**
- * Claim (or change) this account's handle.
+ * Claim this account's handle. ONCE — there is no rename (D190).
  *
  * `v2_handles/{handle}` is the registry: one document per taken handle,
  * holding the uid. Uniqueness is the DOCUMENT ID, not a field — a
  * transaction that creates it fails if someone else got there first, and
  * no query or index is involved.
+ *
+ * WHY THE RENAME WENT. It worked, and that was the problem: taking the new
+ * key and releasing the old one in one transaction is correct as a
+ * transaction and wrong as a rule. A handle is the ADDRESS a person hands
+ * out — "add me, I'm @olaf" — and D122 made it the primary way into a
+ * circle. Releasing it puts that address back in the pool for anyone to
+ * take, so an invitation typed a day later can reach a stranger, and the
+ * account that answered to it now answers to nothing. An address that can
+ * be reassigned is one nobody can be given.
+ *
+ * The two costs are real and are accepted: a typo is permanent, and there
+ * is no way back from a name you have outgrown. Which is why the claim
+ * moved to the first-run screen (LiveProfileSetup, D190), where it is a
+ * decision made deliberately rather than a control found in a settings
+ * panel — and why every surface that offers it says "once" before the tap.
+ *
+ * Re-claiming the SAME handle stays a no-op: a retry after a dropped
+ * response must not be an error, and it changes nothing.
  */
 export const claimHandleV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforceAppCheck: ENFORCE_APP_CHECK }, async (request) => {
   if (!request.auth) throw new HttpsError("unauthenticated", "must be signed in");
@@ -975,6 +993,14 @@ export const claimHandleV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforce
   await db.runTransaction(async (tx) => {
     const [snap, me] = await Promise.all([tx.get(ref), tx.get(userRef)]);
     const prev = me.exists ? (me.get("handle") as string | undefined) : undefined;
+    // The claim-once rule, checked BEFORE the registry: an account that
+    // already answers to a handle gets a refusal, not a second one. The
+    // old release (`tx.delete` of `prev`) is gone with it — with no rename
+    // there is nothing to free, and a delete left in would be the one path
+    // able to orphan an address.
+    if (prev && prev !== handle) {
+      throw new HttpsError("failed-precondition", "a handle can't be changed once it is claimed");
+    }
     if (snap.exists) {
       // Re-claiming your own handle is a no-op rather than an error: the
       // client retries on a dropped response, and a retry that reports
@@ -984,10 +1010,6 @@ export const claimHandleV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforce
     }
     tx.set(ref, { uid, at: FieldValue.serverTimestamp() });
     tx.set(userRef, { handle }, { merge: true });
-    // Release the old one LAST, inside the same transaction: if the take
-    // above fails the release must not have happened, or a failed rename
-    // costs the user the name they already had.
-    if (prev && prev !== handle) tx.delete(db.collection("v2_handles").doc(prev));
   });
   return { handle };
 });

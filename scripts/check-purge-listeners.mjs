@@ -62,12 +62,13 @@ const EXEMPT = {
     "component state whose persist effect also runs on mount, so any "
     + "post-purge mount writes defaults; only an editor already open "
     + "across the uid change is exposed, and it heals on close",
-  "src/v2/ui/LiveDuelPanel.tsx":
-    "a single name string, read per call and written only on explicit "
-    + "save of the new value",
-  "src/v2/ui/LivePrivacyPanel.tsx":
-    "component state seeded per mount and written only on explicit save "
-    + "of the new value",
+  // LiveDuelPanel.tsx and LivePrivacyPanel.tsx were exempt here until
+  // D190, each for the same single string: `insight.displayName.v1`, the
+  // device's copy of your own name. They had a writer apiece and a third
+  // was about to join them, so the key moved to its owner — the store that
+  // writes the name (data/live.ts, `saveLocalName`), exempt above and the
+  // purge dispatcher itself. Neither panel touches localStorage now, which
+  // is why their entries are gone rather than reworded.
   "src/v2/data/cityAnchor.ts":
     "stateless write helper: reads the profile blob fresh from storage at "
     + "each call and touches one leaf — no module-scope copy exists to go "

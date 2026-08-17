@@ -242,7 +242,12 @@ an emergency rules fix.
   the exception and runs on arrival — free on re-entry
   (`state.testAggsLoaded`), and since it no longer unmounts, row
   navigation costs nothing; both pinned. The fields load behind one
-  bounded, session-cached loader (docs/MIRROR.md §2–3).
+  bounded, session-cached loader (docs/MIRROR.md §2–3). **Circle and
+  Groups carry a row too since D190** — `Answers · People · Compare`, the
+  three the prototype gives both, folded out of what each stop already
+  computes and drawn even when the stop is empty. Scores and Explore are
+  not theirs: one needs questions that rate a place, the other needs
+  "everyone" as a baseline, and a circle of nine has neither.
 - **`window.MapStats` is real for two anchors and refuses for five, and
   the split is structural.** `age` and `edu` are breakdown dims, so since
   D99 `dist`/`mode` compute from the published cells. `job` is

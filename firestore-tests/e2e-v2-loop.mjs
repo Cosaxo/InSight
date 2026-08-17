@@ -832,5 +832,58 @@ ok("learn crowd stat: 5 first attempts, exact through per-answer publishes, 3/5 
     () => httpsCallable(fns, "reviewSuggestionV2")({ id: "ghost", verdict: "picked" }));
 }
 
+// 13 · a handle is claimed once (D190)
+//
+// The app now SAYS so — the account panel prints the handle as a fact with
+// "It can't be changed" under it, and the first-run screen says "picked
+// once" before the tap. This is the half that makes the sentence true.
+//
+// It is here rather than in rules.test.ts because the rule is a callable's,
+// not a document's: firestore.rules already refuses every client write to
+// `v2_handles` and to `v2_users.handle` (both pinned there), so the only
+// path that can move a handle is claimHandleV2 — and the only way to prove
+// what it does is to call it.
+{
+  const expectCode = async (label, code, op) => {
+    try {
+      await op();
+    } catch (e) {
+      if (e?.code === code) return ok(label);
+      return fail(`${label} — expected ${code}, got ${e?.code || e}`);
+    }
+    fail(`${label} — the operation was ALLOWED`);
+  };
+
+  const first = await httpsCallable(fns, "claimHandleV2")({ handle: "Olaf_T" });
+  if (first.data?.handle !== "olaf_t") fail("claimHandleV2 did not fold the handle: " + JSON.stringify(first.data));
+  const reg = await getDoc(doc(db, "v2_handles", "olaf_t"));
+  if (reg.get("uid") !== uid) fail("the registry does not point at the claimant");
+  ok("handle claimed, folded to its canonical form, registered to the uid");
+
+  // The retry, which must NOT be an error: the client re-sends on a dropped
+  // response, and "that handle is taken" about your own name is the worst
+  // message this callable could produce.
+  const again = await httpsCallable(fns, "claimHandleV2")({ handle: "olaf_t" });
+  if (again.data?.handle !== "olaf_t") fail("re-claiming my own handle was refused");
+  ok("re-claiming the same handle is a no-op, not an error");
+
+  // The change, refused. A handle is the address a person hands out, and a
+  // rename frees it for a stranger the same minute — which is the failure
+  // D190 removed. The old registry entry must survive the attempt.
+  await expectCode("changing a claimed handle refused",
+    "functions/failed-precondition",
+    () => httpsCallable(fns, "claimHandleV2")({ handle: "olaf_two" }));
+  const still = await getDoc(doc(db, "v2_handles", "olaf_t"));
+  if (!still.exists() || still.get("uid") !== uid) fail("the refused rename freed the original handle");
+  const ghost = await getDoc(doc(db, "v2_handles", "olaf_two"));
+  if (ghost.exists()) fail("the refused rename took the new handle anyway");
+  ok("the refusal left both registry entries exactly as they were");
+
+  // …and somebody else's handle is still somebody else's.
+  await expectCode("claiming a handle another account holds refused",
+    "functions/already-exists",
+    () => httpsCallable(pFns, "claimHandleV2")({ handle: "olaf_t" }));
+}
+
 console.log("\nALL E2E CHECKS PASSED");
 process.exit(0);

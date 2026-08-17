@@ -445,6 +445,27 @@ function cacheVote(aid: string, optionIdx: number): void {
 // reason there is a TTL rather than an unbounded cache.
 const PROFILE_LS = "insight.profileCache.v1";
 const PROFILE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+// ── your own name, mirrored on this device (D190) ────────────────────
+//
+// The profile document is the source of truth; this is the copy the app
+// can read before hydration finishes, which is exactly when the create-a-
+// circle screen needs it. It was a bare string literal in two components
+// and a third was about to copy it — one owner instead, next to the store
+// that writes it, so a rename reaches every reader.
+//
+// Swept by purgeLocalTrace like every other `insight.` key, so a uid
+// change cannot leave the previous account's name behind (D51).
+const NAME_LS = "insight.displayName.v1";
+
+/** This device's copy of your display name, or "" if it has none. */
+export function localName(): string {
+  try { return localStorage.getItem(NAME_LS) || ""; } catch { return ""; }
+}
+
+function saveLocalName(name: string): void {
+  try { localStorage.setItem(NAME_LS, name); } catch { /* private mode */ }
+}
 // Entries kept, newest first. A voter list is capped at VOTER_FETCH_CAP and
 // a curious user opens many, so this map is the one client cache with no
 // natural ceiling — localStorage quota is ~5 MB and a blown quota throws on
@@ -2233,6 +2254,7 @@ const LIVE = {
     if (!uid) throw new Error("no session");
     await setDoc(doc(db, "v2_users", uid), { displayName: name }, { merge: true });
     state.profile.displayName = name;
+    saveLocalName(name);
     notify();
   },
   // The viewer's own anchors, as a plain map — the same seven keys an

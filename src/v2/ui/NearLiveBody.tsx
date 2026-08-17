@@ -49,6 +49,9 @@ const LiveRoomTabs = React.lazy(() => import("./LiveRoomTabs"));
 // The tab row — static, because it IS the stop's navigation and a suspense
 // gap where the tabs belong is a stop that looks broken (D119's note).
 import MirrorLensTabs from "./MirrorLensTabs";
+// The row's own scroll-into-view, shared with every other stop that has a
+// row (D190).
+import { useLensRowScroll } from "./lensRowScroll";
 import type { LensTab } from "./lensTabs";
 
 /**
@@ -475,23 +478,11 @@ function NearLiveBody() {
   const [tab, setTab] = React.useState("");
   const rowRef = React.useRef<HTMLDivElement | null>(null);
   // Opening a tab brings its row to the top of the scroller, the way the
-  // prototype does and the cohort stops already do. 60ms is their number
-  // too: the body mounts in the same commit as the flip, so measuring now
-  // measures the row before the panel it is about to sit above exists.
-  React.useEffect(() => {
-    const row = rowRef.current;
-    if (!tab || !row) return;
-    let sp: HTMLElement | null = row.parentElement;
-    while (sp && sp.scrollHeight <= sp.clientHeight) sp = sp.parentElement;
-    if (!sp) return;
-    const scroller = sp;
-    const t = setTimeout(() => {
-      const top = row.getBoundingClientRect().top
-        - scroller.getBoundingClientRect().top + scroller.scrollTop - 12;
-      scroller.scrollTo({ top, behavior: "smooth" });
-    }, 60);
-    return () => clearTimeout(t);
-  }, [tab]);
+  // prototype does and every other stop with a row does — literally the
+  // same effect since D190, which is also where the two versions that used
+  // to differ (this one walked up on height alone, the cohort's on
+  // `overflowY` as well) were reconciled in the cohort's favour.
+  useLensRowScroll(tab, rowRef);
   return (
     <div className="fade-in" style={{
       // Same frame as the cohort stops since D188, and for the same reason:

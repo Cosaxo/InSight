@@ -14,12 +14,14 @@
 // lives here as typed TSX. A globalThis assignment at the bottom
 // keeps the spec layer's render-time lookup working unchanged.
 import React from "react";
-import LIVE from "../data/live";
+import LIVE, { localName } from "../data/live";
 import Avatar from "./Avatar";
 // The handle is claimed here because this is where identity already
 // lives — the display name is next door, and the two are different
 // things: a name is what a reveal calls you, a handle is how someone
-// finds you (D122).
+// finds you (D122). Since D190 the first-run screen asks for both, and
+// this row is what remains for the accounts that predate it: a claim for
+// an account with no handle, and the handle itself for one that has.
 import { atHandle, handleProblem, normalizeHandle } from "../data/handles";
 // The hosted origin for the legal pages. Lives in data/links.ts now so
 // invites and legal links share one constant — a domain change stays a
@@ -52,9 +54,11 @@ function LpRow({ title, sub, children }: {
 function LivePrivacyPanel() {
   const [, tick] = React.useState(0);
   React.useEffect(() => LIVE.subscribe(() => tick((t) => t + 1)), []);
-  const [name, setName] = React.useState(() => {
-    try { return localStorage.getItem("insight.displayName.v1") || ""; } catch { return ""; }
-  });
+  // The profile's name first, this device's copy of it second (D190): the
+  // local mirror is what the app can read before hydration lands, not a
+  // second source of truth, and reading it first showed a stale name to
+  // anyone who had renamed on another device.
+  const [name, setName] = React.useState(() => LIVE.displayName || localName());
   const [saved, setSaved] = React.useState(false);
   const [handle, setHandle] = React.useState("");
   const [hBusy, setHBusy] = React.useState(false);
@@ -90,8 +94,10 @@ function LivePrivacyPanel() {
     if (!n) return;
     setBusy(true); setErr(null);
     try {
+      // The store writes the device mirror too, so this panel no longer
+      // owns that key (D190) — one writer, and a rename reaches every
+      // reader of it.
       await LIVE.saveDisplayName(n);
-      try { localStorage.setItem("insight.displayName.v1", n); } catch { /* best-effort */ }
       setSaved(true); setTimeout(() => setSaved(false), 1800);
     } catch (e) { setErr(String((e instanceof Error && e.message) || e)); }
     setBusy(false);
@@ -194,34 +200,56 @@ function LivePrivacyPanel() {
       {/* The handle. Under the name on purpose: the name is what a reveal
           calls you and can be anything, the handle is unique and is how a
           friend reaches you — and someone reading top to bottom meets
-          them in that order. */}
-      <LpRow title={LIVE.handle ? `Your handle · ${atHandle(LIVE.handle)}` : "Your handle"}
-        sub={LIVE.handle
-          ? "Friends add you by this. Changing it frees the old one for someone else."
-          : "Claim a handle so friends can add you to a circle without swapping codes."}>
-        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-          <input value={handle} onChange={(e) => setHandle(e.target.value)}
-            placeholder={LIVE.handle ? atHandle(LIVE.handle) : "@yourname"}
-            autoCapitalize="none" autoCorrect="off" spellCheck={false}
-            aria-label="Your handle"
-            style={{ border: LP_LINE, borderRadius: 9, padding: "8px 11px", width: 132,
-              fontFamily: "var(--sans)", fontSize: "var(--field-size)", fontWeight: 600, color: "var(--ink)",
-              background: "var(--surface-2)", outline: "none", minWidth: 0 }} />
-          <button className="press" onClick={() => void saveHandle()}
-            disabled={hBusy || !normalizeHandle(handle)}
-            style={{ border: LP_LINE, borderRadius: 999, cursor: hBusy ? "default" : "pointer", padding: "8px 15px",
-              fontFamily: "var(--sans)", fontWeight: 800, fontSize: 12.5, WebkitAppearance: "none",
-              background: "var(--surface-2)", color: "var(--ink)",
-              opacity: hBusy || !normalizeHandle(handle) ? 0.5 : 1, whiteSpace: "nowrap" }}>
-            {hBusy ? "…" : LIVE.handle ? "Change" : "Claim"}
-          </button>
-        </div>
-      </LpRow>
-      {(handleProblem(handle) || hMsg) && (
-        <div role="status" style={{ fontFamily: "var(--sans)", fontSize: 12, fontWeight: 600,
-          color: "var(--ink-2)", margin: "-6px 0 10px" }}>
-          {handleProblem(handle) || hMsg}
-        </div>
+          them in that order.
+
+          CLAIMED ONCE (D190). This row offered a "Change" button, and the
+          rename behind it was real: claimHandleV2 took the new key and
+          released the old one in one transaction, so the name you had
+          handed people became free for a stranger to take the same
+          minute. That is the whole failure — a handle is an ADDRESS, and
+          an address that can be reassigned is one nobody can be given.
+          The callable refuses a change now; this shows the handle as the
+          fact it is, and the claim control is only ever drawn for an
+          account that has none.
+
+          It is asked at sign-in since D190 (LiveProfileSetup), so the
+          control here is for the accounts that predate that screen and
+          for anyone who skipped it. */}
+      {LIVE.handle ? (
+        <LpRow title="Your handle" sub="Friends add you by this. It can’t be changed.">
+          <span style={{ fontFamily: "var(--mono, monospace)", fontSize: 13.5, fontWeight: 700, color: "var(--ink)", whiteSpace: "nowrap" }}>
+            {atHandle(LIVE.handle)}
+          </span>
+        </LpRow>
+      ) : (
+        <>
+          <LpRow title="Your handle"
+            sub="Claim a handle so friends can add you to a circle without swapping codes. You only get to pick once.">
+            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+              <input value={handle} onChange={(e) => setHandle(e.target.value)}
+                placeholder="@yourname"
+                autoCapitalize="none" autoCorrect="off" spellCheck={false}
+                aria-label="Your handle"
+                style={{ border: LP_LINE, borderRadius: 9, padding: "8px 11px", width: 132,
+                  fontFamily: "var(--sans)", fontSize: "var(--field-size)", fontWeight: 600, color: "var(--ink)",
+                  background: "var(--surface-2)", outline: "none", minWidth: 0 }} />
+              <button className="press" onClick={() => void saveHandle()}
+                disabled={hBusy || !normalizeHandle(handle)}
+                style={{ border: LP_LINE, borderRadius: 999, cursor: hBusy ? "default" : "pointer", padding: "8px 15px",
+                  fontFamily: "var(--sans)", fontWeight: 800, fontSize: 12.5, WebkitAppearance: "none",
+                  background: "var(--surface-2)", color: "var(--ink)",
+                  opacity: hBusy || !normalizeHandle(handle) ? 0.5 : 1, whiteSpace: "nowrap" }}>
+                {hBusy ? "…" : "Claim"}
+              </button>
+            </div>
+          </LpRow>
+          {(handleProblem(handle) || hMsg) && (
+            <div role="status" style={{ fontFamily: "var(--sans)", fontSize: 12, fontWeight: 600,
+              color: "var(--ink-2)", margin: "-6px 0 10px" }}>
+              {handleProblem(handle) || hMsg}
+            </div>
+          )}
+        </>
       )}
 
       <LpRow title="Sign-in"

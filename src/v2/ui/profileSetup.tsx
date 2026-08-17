@@ -46,10 +46,23 @@ export function markProfileSetupSeen(): void {
  * deliberately answered two of the seven and skipped the rest has already
  * been asked. The screen is for the empty case — which is every account
  * created before it ran.
+ *
+ * A MISSING NAME IS ALSO THE EMPTY CASE (D190). The screen collects the
+ * display name now, and the account it has to reach is exactly the one
+ * that has none: without this clause an account with anchors and no name
+ * would never be offered the field, and the first screen to need a name
+ * would go on asking for one — which is the fault D190 is fixing. Still
+ * behind `profileSetupSeen`, so it re-asks nobody who has already closed
+ * the screen on this device.
+ *
+ * The HANDLE is deliberately not a trigger. It is optional (nothing breaks
+ * without one), and a screen that reopened for it would reopen for most of
+ * the accounts that exist today.
  */
 export function profileSetupNeeded(): boolean {
   if (!LIVE.enabled || !LIVE.ready) return false;
   if (profileSetupSeen()) return false;
+  if (!LIVE.displayName) return true;
   return !Object.values(LIVE.anchors() || {}).some((v) => !!v);
 }
 
