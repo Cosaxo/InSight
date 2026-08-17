@@ -474,6 +474,25 @@ arithmetic.
       automated writer, and the window between merging a release commit and
       dispatching from it is no longer quiet.
 
+      **BUILD 20 WAS UPLOADED BY RUN 31** (`f8c8465`, 2026-08-17 10:30Z,
+      5m 38s, upload step `success`, 1m 17s of it transfer). Run 30 is the
+      **same commit eight minutes earlier** with its upload step `skipped`
+      — the dry run — making it the fifth pair of this shape. Both
+      silent-failure gates passed at both ends of both runs.
+
+      **`appBuild` is now 21, bumped off step 17's own conclusion in the
+      same session that dispatched the run.** Five bumps have now held
+      (runs 20, 21, 22, 28, 31) against four skipped (18, 19, 24, 26).
+      D159's sha check was made and came out clean: both runs archived
+      `f8c8465`, the release commit itself, with no Routine commit in the
+      window. D192.
+
+      **Run 29 was a healthy dry run cancelled by mistake** — step 11 was
+      read as hung at seventeen minutes when it was 85 seconds in, because
+      the step's start time was compared against a clock nobody fetched.
+      ~25 minutes of quota. Swift resolution measures 96–169s across the
+      four observed runs, so there was no anomaly to react to. D192.
+
       **BUILD 20'S PRE-FLIGHT FOUND NOTHING TO DO** (2026-08-17). The
       comparison was made against the run list: run 28 is still the
       highest run, its step 17 still `success`, and `appBuild` at that

@@ -411,6 +411,25 @@ but the ordering: the bump was made *from* step 17's conclusion, not from
 a memory of it. Four that held (20, 21, 22, 28) against four skipped (18,
 19, 24, 26).
 
+**Runs 30 and 31 delivered build 20, and the bump landed off step 17's
+conclusion** (D192, 2026-08-17). Both archived `f8c8465` eight minutes
+apart — run 30 (`32019849917`, 10:22:28Z) upload step `skipped`, run 31
+(`32020442257`, 10:30:04Z) `success` (10:34:21Z → 10:35:38Z, 1m 17s of
+transfer). Fifth pair of this shape. Five bumps have now held (runs 20,
+21, 22, 28, 31) against four skipped (18, 19, 24, 26), and this is the
+second release running where the dry run, the upload, the bump and the
+record were one session.
+
+**Run 29 is a new failure mode for this table, and it is not Apple's.** A
+healthy dry run was cancelled on the belief that `Resolve Swift packages`
+had hung for seventeen minutes; it was 85 seconds in, and the "seventeen
+minutes" came from reading the step's `started_at` against a current time
+that was never fetched. The supporting argument was wrong too: macOS
+runners keep no SPM cache, so run 28's 96s was quoted as *the* cold
+figure, but runs 30 and 31 resolved cold in 169s and 105s. **The step's
+range is 96–169s** — quote that, not one sample, and get the clock before
+calling anything slow.
+
 **Build 20's pre-flight found nothing to do, and turned up a gap in a
 gate instead** (D191, 2026-08-17). Run 28 was still the highest run, its
 step 17 still `success`, and `appBuild` at `e76731d` still 19 against a

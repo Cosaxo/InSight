@@ -19574,3 +19574,76 @@ and every other check gate: `:globals` `:figures` `:a11y` `:anchors`
 `:ios-facebook` `:ios-location`. `check:bundle` on a shipping build,
 2331 / 965 against 2334 / 978, and on a DSN-less one to prove the new
 branch withholds rather than passes.
+
+## D192 · Build 20 is delivered, and the bump was made from the step list again
+
+**Decided:** 2026-08-17 · **Status:** binding · The upload D191
+pre-flighted, and the post-upload bump 20 → 21.
+
+Run 31 (`32020442257`, `f8c8465`, 2026-08-17 10:30Z) has step 17,
+`Upload to App Store Connect`, at **`success`** — 10:34:21Z → 10:35:38Z,
+1m 17s of transfer, 5m 38s for the job. Run 30 (`32019849917`) is the
+**same commit eight minutes earlier** with step 17 `skipped`: the dry run
+`ios-release.yml`'s header asks for. Fifth pair of this shape after
+15/16, 23/24, 25/26 and 27/28.
+
+Both silent-failure gates passed at both ends of both runs — the archive
+carried the Firebase config and the APNs entitlement, and the exported
+`.ipa` was production-signed for APNs.
+
+So build 20 is spent, and `appBuild` goes **20 → 21** here, propagated by
+`check:versions --fix` to `versionCode` and both
+`CURRENT_PROJECT_VERSION` entries. Five bumps have now held (runs 20, 21,
+22, 28, 31) against four skipped (18, 19, 24, 26). Second release running
+where the dry run, the upload, the bump and the record were one session,
+and the bump was computed **from** step 17's conclusion rather than from a
+memory of it.
+
+**The sha check D159 asks for came out clean, and it is worth recording
+that it was actually made.** Runs 30 and 31 both archived `f8c8465`, which
+is the release commit itself — no Routine pushed a pulse trail row into
+the window this time, unlike run 22. `appBuild` was 20 at that sha, so the
+comparison and the bump are about the same tree.
+
+### Two operator errors in this release, both mine, both worth the record
+
+**1 · A healthy run cancelled on an imagined clock.** Run 29
+(`32019625202`, `f8c8465`, `upload = false`) was cancelled at 10:21:47Z on
+the belief that step 11, `Resolve Swift packages`, had hung for seventeen
+minutes. It had been running for **85 seconds**. The step's `started_at`
+was read against a "now" that was never fetched — the actual elapsed time
+from dispatch was 2m45s, confirmed afterwards by `date -u`. Cost: ~2.5
+minutes of macOS runner, ~25 minutes of quota at 10x.
+
+The reasoning that produced it was also wrong on its own terms: it argued
+that because macOS runners keep no SPM cache, run 28's 96s was cold and
+therefore 96s was the expected figure. Runs 30 and 31 resolved the same
+packages **cold** in 169s and 105s. The step's spread is 96–169s across
+four observed runs, so nothing about 85s was anomalous in the first place.
+**A step start time is not an elapsed time**, and this tree already has a
+rule for the general case (verify rather than assume) that was not applied
+to the clock.
+
+**2 · A CI failure diagnosed correctly, which is the contrast.** PR #217's
+`backend / e2e` failed once on `✗ learn public agg never appeared after
+20000ms`. That one was not retried on a hunch: the diff was three docs and
+one build script nothing imports, `test:e2e` passed 3/3 locally on the
+same tree, `main` was green across twelve consecutive runs, and the
+identical commit passed on re-run in 113s against the 82s it took to fail.
+Loaded-runner trigger delivery, the shape D119 records as "a fixed timeout
+next to a lazy boundary is a race, not a wait". The difference between the
+two incidents is not care, it is **whether a measurement was taken before
+a conclusion was drawn** — and the second one had four.
+
+### One thing this release could not measure
+
+Whether `VITE_SENTRY_DSN` is actually set as a repository secret, and
+therefore whether build 20 ships with crash reporting. D191 made
+`check:bundle` print which half of the artifact it graded precisely so
+this would be legible, and the line is in step 6 of runs 30 and 31 — but
+`get_job_logs` returns only the tail of a 2.9 MB log dominated by Xcode
+output, and the per-step ZIP is behind a host this sandbox's proxy
+refuses. Not chased further because nothing gates on it: a Sentry-less
+release is a supported build, and this is the same condition every build
+through 19 shipped under. **One glance at step 6 in a browser answers
+it** — `Sentry in` versus `Sentry OUT, total … ungraded`.
