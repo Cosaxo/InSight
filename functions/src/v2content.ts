@@ -21,11 +21,16 @@
 // forms' range/plane copy (D114), absent everywhere else; their options
 // are synthesized bucket/cell labels, so the D52 option freeze freezes
 // the range with them.
+// `sponsor` is feed-only (D194): `{ buyer, audience? }` on a question
+// somebody paid to ask. The WINDOW is `until`, not a field here, so the
+// label the card prints and the filter that stops serving it are one
+// value. A sponsored question is never `core` — paid questions inside
+// the Mirror's corpus would make the honest aggregate a paid-for sample.
 // `tier`/`resolvesAt`/`rubric` are the CALL surface's only (D193): the
 // admitted grading path, the earliest UTC day it may be graded, and the
 // expression the resolver RUNS. The outcome is not here — it lives in
 // v2_call_outcomes, so a reseed and the resolver never fight.
-export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; branch?: string; sub?: string; tag?: string; rates?: string; axis: string | null; test: string | null; mode?: string; active?: boolean; political?: boolean; core?: boolean; until?: string; lo?: number; hi?: number; unit?: string; ends?: string[]; ax?: string[]; ay?: string[]; title?: string; intro?: string; hue?: number; nodes?: Record<string, { q: string; a: Array<{ t: string }> }>; endings?: Record<string, { name: string; line: string }>; tier?: string; resolvesAt?: string; rubric?: { kind: string; qid: string; test: string; threshold?: number; dim?: string; buckets?: string[] }; }
+export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; branch?: string; sub?: string; tag?: string; rates?: string; axis: string | null; test: string | null; mode?: string; active?: boolean; political?: boolean; core?: boolean; until?: string; lo?: number; hi?: number; unit?: string; ends?: string[]; ax?: string[]; ay?: string[]; title?: string; intro?: string; hue?: number; nodes?: Record<string, { q: string; a: Array<{ t: string }> }>; endings?: Record<string, { name: string; line: string }>; sponsor?: { buyer: string; audience?: Record<string, string> }; tier?: string; resolvesAt?: string; rubric?: { kind: string; qid: string; test: string; threshold?: number; dim?: string; buckets?: string[] }; }
 export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "daily-000",

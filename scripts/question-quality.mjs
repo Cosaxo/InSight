@@ -951,7 +951,13 @@ export function checkProvenance(corpus) {
   const path = join(root, "content", "provenance.json");
   if (!existsSync(path)) return ["content/provenance.json is missing — the D97 vintage join has nothing to read"];
   const prov = JSON.parse(readFileSync(path, "utf8"));
-  const SOURCES = new Set(["editorial", "farm", "community"]);
+  // `sponsor` joined at D194 (docs/MONETIZATION.md path 2). It is a source
+  // like the others — who wrote the question — and it is the one that has
+  // to be true in BOTH directions: a sponsored question with an editorial
+  // provenance row would launder a paid question into the vintage rollup
+  // as house content, and an unpaid question filed as `sponsor` would put a
+  // PAID band on something nobody bought.
+  const SOURCES = new Set(["editorial", "farm", "community", "sponsor"]);
 
   for (const [surface, bank] of [
     ["daily", corpus.seed.map((q) => q.id)],
@@ -968,6 +974,24 @@ export function checkProvenance(corpus) {
       }
     }
   }
+  // ── sponsorship, both directions (D194) ──
+  {
+    const feedRows = prov.feed || {};
+    const paid = new Set(
+      corpus.feed.questions.filter((q) => q.sponsor !== undefined).map((q) => q.id),
+    );
+    for (const id of paid) {
+      if (feedRows[id] && feedRows[id].source !== "sponsor") {
+        errs.push(`provenance: feed ${id} carries a sponsor block but is filed as ${JSON.stringify(feedRows[id].source)} — a paid question filed as house content is undisclosed inventory`);
+      }
+    }
+    for (const [id, row] of Object.entries(feedRows)) {
+      if (row.source === "sponsor" && !paid.has(id)) {
+        errs.push(`provenance: feed ${id} is filed as sponsor but carries no sponsor block — the card would wear no PAID band`);
+      }
+    }
+  }
+
   const dailyRows = prov.daily || {};
   for (const [id, row] of Object.entries(dailyRows)) {
     if (row.archiveId && !/^dqx?\d+$/.test(row.archiveId)) {

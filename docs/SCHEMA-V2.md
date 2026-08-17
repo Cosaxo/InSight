@@ -23,15 +23,36 @@ cohort the Mirror slices by, and what is still prototype data — see
 
 ```
 v2_questions/{qid}                 canonical bank, seeded by seedContentV2
-  surface: daily|feed|group|duo|test|learn
+  surface: daily|feed|group|duo|test|learn|pulse|call
   seq: int            rotation order within a surface
-  type: binary|choice|scale|rating|vote|duel|ranking|catalog
+  type: binary|choice|scale|rating|vote|duel|ranking|catalog|pulse|call
   domain: pokemon|films|artists   (catalog questions only — names the key
                                    space the trigger validates against, D15)
   prompt: string
-  options: string[]   (scale → the 5-point agree scale; rating → "1".."10")
+  options: string[]   (scale → the 5-point agree scale; rating → "1".."10";
+                       pulse → exactly five steps; call → exactly two, and
+                       index 0 is the call coming true)
   topic, axis, test   metadata (test != null only on a test's own items)
   active: bool
+  until?              feed only (D179): the UTC day after which the card
+                      stops being SERVED. A client-side serving filter;
+                      `active: false` stays the hard, server-side kill, and
+                      answers and aggregates persist either way
+  core?               feed only (D161), and ABSENT MEANS TAIL — a question
+                      is in the Mirror's corpus only if it says so
+  sponsor?            feed only (D194): { buyer, audience? } on a question
+                      somebody paid to ask. `audience` is at most ONE
+                      dim → bucket from the published breakdown dims, and
+                      the DEVICE matches it (data/sponsored.ts) — the
+                      server is never asked who should see what. The window
+                      is `until` above rather than a field here, so the
+                      band's label and the serving filter are one value. A
+                      sponsored question is never `core`
+  tier/resolvesAt/    call only (D193): the admitted grading tier, the
+    rubric?           earliest UTC day it may be graded, and the expression
+                      resolveCallsV2 RUNS. The outcome is NOT here — it
+                      lives in v2_call_outcomes, so a reseed and the
+                      resolver never fight
 read: signed-in · write: nobody (admin SDK only)
   Learn cards (surface "learn", D32) carry only prompt/options/topic —
   the correctness metadata (correct index, trap, authored estimate, map

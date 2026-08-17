@@ -19836,14 +19836,16 @@ still blocked on the eager budget (D136, VISION-V28 §5).
 
 ### One ceiling moved, and it moved the right way
 
-`MAX_TOTAL_JS_KB` 2334 → 2343. Measured both sides of the change with the
-same command: **2331 KB total / 964 KB eager before, 2340 / 965 after.**
-The +8 KB lands in the `world-feed` chunk (the card, `data/calls.ts` and
-the shared `data/callRubric.ts`) and the EAGER graph moved one kilobyte,
-because `world-feed.jsx` is already past first paint behind
-`loadWorldFeed()` (D25). That is the shape a lazily-loaded feature is
-supposed to have, and the eager number — the one defending first paint —
-still has 13 KB of headroom against the total's 3.
+`MAX_TOTAL_JS_KB` 2334 → 2350, and the note in `check-bundle.mjs` measures
+this record and D194 together as one session's delta rather than as two
+raises hours apart — the second would otherwise read as a ceiling being
+nudged along behind the work. Measured both sides with the same command:
+**2331 KB total / 964 KB eager before, 2342 / 965 after.** The +11 KB is
+all in the `world-feed` chunk, and the EAGER graph moved one kilobyte,
+because everything added is reached through `world-feed.jsx` — already past
+first paint behind `loadWorldFeed()` (D25). That is the shape a
+lazily-loaded feature is supposed to have, and the eager number, the one
+defending first paint, keeps 13 KB of headroom.
 
 **Verified:** `lint`, `tsc -b`, `check:globals` (409, baseline 409),
 `:content` (540 questions), `:calls`, `:quality`, `:figures`,
@@ -19853,3 +19855,116 @@ over 83 files), functions (242) and `test:rules` (111, five of them new).
 Mutation-checked in three places rather than assumed: the gate (5
 mutations), the resolver (3), and the rules' `!exists` clause, which fails
 exactly one test when removed.
+
+## D194 · The paid slot is built, and nobody has bought it yet
+
+**2026-08-17.** **Status:** binding. Owner's ask, same sentence as D193:
+*"let's start building the remaining parts like … the ads."*
+[`MONETIZATION.md`](MONETIZATION.md) path 2 — sponsored questions — has
+been "designed, constraints recorded" since the file was written, with the
+note that picking it up graduates to a decision record. This is that
+record. It graduates the *machinery*, not a deal.
+
+### What ships, and what deliberately does not
+
+**Ships:** the `sponsor` field on a feed question, the disclosure band, the
+on-device audience match, the one-card cap, the slot's place in the
+interleave, and four gates holding all of it.
+
+**Does not ship: a single sponsored question.** `content/feed-questions.json`
+carries none, and `data/sponsored.test.ts` asserts that it carries none —
+because authoring one would mean printing a real company's name beside the
+word PAID on a card nobody bought. That is D1's no-fabrication rule pointed
+at a claim about money instead of a claim about a crowd, and it is the
+worse of the two: an invented crowd misleads about a number, an invented
+sponsor misleads about a relationship. `MONETIZATION.md` already records
+that the first buyer needs ~zero code; what it needed was this, and the
+next thing it needs is a contract.
+
+### The five properties, each enforced by something
+
+A sponsored question is an **ordinary question** — same trigger, same exact
+published split, same answers, same named who-voted sheet. What a sponsor
+buys is a slot and a window. That is only safe to sell because:
+
+1. **One card, whatever the bank holds.** `SPONSOR_SLOT = 1`, and
+   `partitionSponsored` takes EVERY sponsored question out of the ordinary
+   stream and puts at most one back. A cap that only labels the first card
+   is decorative — that exact mutation fails two tests.
+2. **Selection happens on the device.** The audience tag rides on content
+   every device downloads whole; `matches()` compares it against anchors
+   the device already holds. The server is never asked who should see
+   what, which is `QUESTION-FARM.md`'s structural line — server-side
+   per-user content selection is the moment a behavioural profile exists,
+   whatever the intentions. **Absent is not "any"**: a profile that has not
+   said is a non-match, and the mutation that softens it fails four tests.
+3. **One tag, from the published breakdown dims.** `check:content` refuses
+   two. The vocabulary is the cohorts a user can already see themselves
+   counted in — which excludes profession (never a dim, D8) and the
+   politics result (Art. 9) with no special rule for either, exactly as
+   [`SCALE-PLAN.md`](SCALE-PLAN.md) §5 predicted.
+4. **The tail, never the core.** `check:content` refuses `core: true` on a
+   sponsored question. A paid question inside the Mirror's corpus would
+   make the honest aggregate a paid-for sample — and the honest aggregate
+   is the only thing `MONETIZATION.md` says this product can sell.
+5. **The window is `until`, not a second field.** The label the band prints
+   and the filter that stops serving the card are one value, so they cannot
+   drift. `until` was already built (D179); this is its second consumer.
+
+### The disclosure is the app's, never the buyer's
+
+The band carries the word PAID, the buyer's name and the window, in the
+app's own ink — no brand colour, no logo, no link, no creative, and
+`check:content` refuses any key on the sponsor block other than `buyer` and
+`audience`. It **replaces the topic chip** rather than sitting beside it: a
+paid card wearing a topic hue reads as house content with a note attached.
+One tap opens why you got it, in your own vocabulary — or *"asked everyone
+— nothing about you decided this"*, which is information and is not
+omitted.
+
+**One line from the prototype could not be ported, and that is worth more
+than the rest of this section.** `design/standalone-v24/paid-data.js`
+promises the buyer receives *"the counts and the standard cuts — never
+names, never your profile"*. Since D98 that is **false**: answers are
+public and attributed, and the who-voted sheet is named. Shipping it would
+be the `check:public-copy` failure class (D116) with money behind it. The
+honest replacement is not a smaller promise but a different one — *they get
+the same public numbers you do; there is no private cut* — and it is
+pinned by a test that asserts the old words are absent.
+
+### Provenance, both directions
+
+`sponsor` joins editorial · farm · community as a provenance source, and
+`check:quality` holds it symmetrically: a question with a sponsor block
+filed as editorial is undisclosed inventory laundered into the vintage
+rollup, and a row filed `sponsor` with no block is a card that would wear
+no band. Both mutations fail.
+
+### What this does NOT do
+
+- **No auction, no bidding, no per-impression anything.** The slot is a
+  fixed, disclosed cadence. `SCALE-PLAN.md` §5's auction-*priced* variant
+  stays a note; nothing here widens it.
+- **No telemetry.** Billing is on **answers**, which already publish — so
+  buyer, seller and voter read one number and no party can audit the
+  others' figure. The feed's order is deterministic, so a slot's existence
+  is a property of the schedule rather than of observed behaviour, which is
+  what lets it be sold at all under `ATTENTION.md`'s cost rule.
+- **No ad SDK, no advertising identifier, no click-out.** A sponsor buys a
+  question. The store declarations do not move, because nothing new is
+  collected: `check:store-forms` is unchanged and green.
+- **No rotation by anything but the calendar.** With two buyers in one
+  window the slot alternates by UTC day, so neither gets every impression —
+  inventory nobody could price is inventory nobody buys.
+
+### Verified
+
+`lint`, `tsc -b`, `check:globals` (409, baseline 409), `:content` (540
+questions), `:quality`, `:docs`, `:data-inventory`, `:store-forms`,
+`:public-copy`, `:bundle` (2342/2350 total, 965/978 eager — the paid path
+is +2 KB in the lazy feed chunk and nothing at all in the eager graph),
+`test:unit` (1,308 over 85 files). Mutation-checked rather
+than assumed: six content rules (missing window, `core: true`, no buyer,
+two tags, a brand colour, an over-long name), two provenance rules in both
+directions, and three code paths — the band's dispatch, the cap, and the
+absent-anchor match — each of which fails a test when softened.

@@ -274,6 +274,17 @@ export function buildEntries(content = loadContent()) {
       // remains the hard, server-enforced kill; answers and aggregates
       // persist either way (the archive is the product).
       ...(typeof q.until === "string" ? { until: q.until } : {}),
+      // Sponsored questions (D194, docs/MONETIZATION.md path 2). A paid
+      // question is an ORDINARY question with three extra facts: who
+      // bought it (`buyer`), and at most one coarse audience tag the
+      // DEVICE matches against its own anchors. The window is not here —
+      // it is `until` above, so the card's window label and the serving
+      // filter cannot drift apart.
+      //
+      // What is deliberately absent: any brand colour, logo, click-out or
+      // creative. A sponsor buys a question and its honest split; the
+      // disclosure is the app's, never the buyer's.
+      ...(q.sponsor ? { sponsor: q.sponsor } : {}),
       // Core/tail (docs/SCALE-PLAN.md §1). `core: true` means the question
       // is served to EVERYONE, unpersonalized, and is therefore part of the
       // corpus the Mirror's cohort readings may fold over. Emit-when-set
@@ -523,11 +534,16 @@ const HEADER =
   "// forms' range/plane copy (D114), absent everywhere else; their options\n" +
   "// are synthesized bucket/cell labels, so the D52 option freeze freezes\n" +
   "// the range with them.\n" +
+  "// `sponsor` is feed-only (D194): `{ buyer, audience? }` on a question\n" +
+  "// somebody paid to ask. The WINDOW is `until`, not a field here, so the\n" +
+  "// label the card prints and the filter that stops serving it are one\n" +
+  "// value. A sponsored question is never `core` — paid questions inside\n" +
+  "// the Mirror's corpus would make the honest aggregate a paid-for sample.\n" +
   "// `tier`/`resolvesAt`/`rubric` are the CALL surface's only (D193): the\n" +
   "// admitted grading path, the earliest UTC day it may be graded, and the\n" +
   "// expression the resolver RUNS. The outcome is not here — it lives in\n" +
   "// v2_call_outcomes, so a reseed and the resolver never fight.\n" +
-  "export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; branch?: string; sub?: string; tag?: string; rates?: string; axis: string | null; test: string | null; mode?: string; active?: boolean; political?: boolean; core?: boolean; until?: string; lo?: number; hi?: number; unit?: string; ends?: string[]; ax?: string[]; ay?: string[]; title?: string; intro?: string; hue?: number; nodes?: Record<string, { q: string; a: Array<{ t: string }> }>; endings?: Record<string, { name: string; line: string }>; tier?: string; resolvesAt?: string; rubric?: { kind: string; qid: string; test: string; threshold?: number; dim?: string; buckets?: string[] }; }\n" +
+  "export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; branch?: string; sub?: string; tag?: string; rates?: string; axis: string | null; test: string | null; mode?: string; active?: boolean; political?: boolean; core?: boolean; until?: string; lo?: number; hi?: number; unit?: string; ends?: string[]; ax?: string[]; ay?: string[]; title?: string; intro?: string; hue?: number; nodes?: Record<string, { q: string; a: Array<{ t: string }> }>; endings?: Record<string, { name: string; line: string }>; sponsor?: { buyer: string; audience?: Record<string, string> }; tier?: string; resolvesAt?: string; rubric?: { kind: string; qid: string; test: string; threshold?: number; dim?: string; buckets?: string[] }; }\n" +
   "export const V2_QUESTIONS: V2SeedQuestion[] = ";
 
 export function generate(content = loadContent()) {

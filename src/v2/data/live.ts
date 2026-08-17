@@ -1301,6 +1301,11 @@ function buildFeedGlobals(): void {
               n: state.aggs[q.id]?.total ?? 0,
             }
           : {}),
+        // Sponsored questions (D194): the disclosure travels with the card
+        // and `until` travels with it, because the band composes its window
+        // label from that one value. Emit-when-set, so an ordinary card is
+        // byte-for-byte what it was.
+        ...(q.sponsor ? { sponsor: q.sponsor, until: q.until } : {}),
         live: true,
         noCountsYet: !hasPublishedCounts(state.aggs[q.id]),
       };

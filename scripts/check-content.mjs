@@ -107,6 +107,48 @@ for (const q of entries) {
     if (q.surface !== "feed") errors.push(`${q.id}: \`until\` is the feed's current-events window — no other surface carries it`);
     else if (!/^\d{4}-\d{2}-\d{2}$/.test(q.until)) errors.push(`${q.id}: \`until\` must be a YYYY-MM-DD UTC day key`);
   }
+  // Sponsored questions (D194). Every rule here is a promise the card
+  // makes on screen, held at the source so the disclosure cannot be
+  // authored away — a paid question that renders as an ordinary one is the
+  // single failure this whole path has to be unable to produce.
+  if (q.sponsor !== undefined) {
+    const s = q.sponsor;
+    if (q.surface !== "feed") {
+      errors.push(`${q.id}: only feed questions can be sponsored — the daily is one shared question and the tests are instruments`);
+    }
+    if (!s || typeof s !== "object" || Array.isArray(s)) {
+      errors.push(`${q.id}: sponsor must be an object`);
+    } else {
+      const extra = Object.keys(s).filter((k) => !["buyer", "audience"].includes(k));
+      if (extra.length) errors.push(`${q.id}: sponsor carries ${extra.join(", ")} — only buyer and audience. No colour, no logo, no link`);
+      if (typeof s.buyer !== "string" || !s.buyer.trim()) {
+        errors.push(`${q.id}: a sponsored question names its buyer — an undisclosed one is the thing this field exists to prevent`);
+      } else if (s.buyer.length > 40) {
+        errors.push(`${q.id}: buyer name is ${s.buyer.length} chars (max 40) — it rides in a band, not a paragraph`);
+      }
+      if (s.audience !== undefined) {
+        if (!s.audience || typeof s.audience !== "object" || Array.isArray(s.audience)) {
+          errors.push(`${q.id}: sponsor.audience must be an object of dim → bucket`);
+        } else if (Object.keys(s.audience).length !== 1) {
+          // One tag, always. Two compound into targeting, which is the
+          // line docs/MONETIZATION.md draws and the reason a sponsored
+          // question may never be narrowed to a person.
+          errors.push(`${q.id}: sponsor.audience carries ${Object.keys(s.audience).length} tags — exactly one, or none`);
+        }
+      }
+    }
+    // The window is `until`, not a second field, so the label the card
+    // prints and the filter that stops serving it are ONE value.
+    if (typeof q.until !== "string") {
+      errors.push(`${q.id}: a sponsored question carries \`until\` — a paid slot is a window, and an open-ended one is inventory nobody sold`);
+    }
+    // docs/SCALE-PLAN.md §5: sponsored content lives in the TAIL. A paid
+    // question inside the Mirror's corpus makes the honest aggregate a
+    // paid-for sample, which is the one asset MONETIZATION.md names.
+    if (q.core === true) {
+      errors.push(`${q.id}: a sponsored question is never core — paid questions in the Mirror's corpus make the honest aggregate a paid-for sample`);
+    }
+  }
   if (q.type === "scale") {
     // Lens items run the client's agree-FIRST scale (lens-defs.js SCALE):
     // stored optionIdx indexes it, and world-feed's `4 - val` store

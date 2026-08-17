@@ -89,14 +89,23 @@ this repo, and no code changes are needed to serve the first buyer — a
 place-scoped question is an ordinary question with an ordinary
 aggregate.
 
-**2 · Sponsored questions** — designed, constraints recorded
-(QUESTION-FARM.md, "Sponsored questions"): a sponsor's question with an
-unmissable disclosure mark, placement as a bounded cadence in the feed's
-existing interleave (never an auction), the same window as
-everyone, no compounding of sponsorship with precise targeting, and a
-`source` provenance field separating sponsor content from editorial,
-community and farm content. Building it graduates those notes to a
-decision record.
+**2 · Sponsored questions** — **BUILT, and unsold
+([D194](DECISIONS.md#d194--the-paid-slot-is-built-and-nobody-has-bought-it-yet)).**
+Every note this paragraph used to hold is now a thing with a gate behind
+it: the disclosure band (`ui/SponsorMark.tsx`, the app's ink and never a
+buyer's), the one-card cap and its slot in the interleave
+(`data/sponsored.ts`, `SPONSOR_SLOT`), the coarse audience tag matched **on
+the device** against the published breakdown dims, `until` as the window,
+and `sponsor` as a provenance source `check:quality` holds in both
+directions. The bank carries **zero** sponsored questions and a test
+asserts it: authoring one would print a real company's name beside the
+word PAID on a card nobody bought, which is D1 pointed at a claim about
+money. The next thing this path needs is a contract, not code.
+
+One sentence from the design could not be ported and is recorded here
+because it is a promise: the prototype's *"never names, never your
+profile"* is FALSE post-D98, and the shipped line is *they get the same
+public numbers you do; there is no private cut.*
 
 **3 · Ads in the world feed** — open as a path by the owner
 (2026-08-01), not ruled out. The version that coexists with the

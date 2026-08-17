@@ -70,6 +70,14 @@ export interface LiveFixtureOptions {
    * to D50's selfOnly acknowledgment.
    */
   lensBank?: boolean;
+  /**
+   * Mark the LAST world card as sponsored (D194). Off by default and
+   * opt-in for a reason: the shipped bank carries no sponsored question,
+   * so a fixture that always did would be the only place in the tree
+   * where a paid card exists — and every other live case would be
+   * asserting against a feed nobody serves.
+   */
+  sponsored?: boolean;
 }
 
 const OPTION_COLORS = ["var(--c-around)", "var(--c-today)", "var(--c-likeness)"];
@@ -571,6 +579,11 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
       })),
       live: true,
       tooSmall,
+      // D194: the disclosure travels ON the card, so world-feed's dispatch
+      // reads the same field buildFeedGlobals emits.
+      ...(opts.sponsored && i === Math.max(1, opts.feedCards ?? 1) - 1
+        ? { sponsor: { buyer: "Fixture Transit", audience: { city: "Oslo, NO" } }, until: "2099-01-01" }
+        : {}),
     }),
   );
   w.TEST_FEED_QS = [];

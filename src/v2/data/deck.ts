@@ -112,6 +112,12 @@ export interface QuestionDoc {
   tier?: string;
   resolvesAt?: string;
   rubric?: CallRubric;
+  // Sponsored questions (D194), on feed docs only: who bought the question,
+  // and at most one coarse audience tag the DEVICE matches against its own
+  // anchors. The window is `until` above rather than a field here, so the
+  // label the disclosure prints and the filter that stops serving the card
+  // are one value.
+  sponsor?: { buyer: string; audience?: Record<string, string> };
 }
 
 /** One published grade — `v2_call_outcomes/{qid}`, admin-written (D193). */

@@ -778,6 +778,44 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     expectNoBoundary("live add sheet");
   });
 
+  // D194: a paid question is an ordinary question wearing a disclosure it
+  // cannot take off. The band is what the whole commercial path rests on,
+  // so this asserts the two halves of it that a refactor could quietly
+  // undo — the mark is THERE, and the topic chip it replaces is NOT.
+  it("a sponsored live card wears the PAID band instead of its topic chip", async () => {
+    const expectNoBoundary = mountLive({ feedCards: 4, sponsored: true, anchors: { city: "Oslo, NO" } });
+    await growFeed();
+    const band = screen.getByRole("button", { name: /^Paid, by Fixture Transit/ });
+    expect(band).not.toBeNull();
+    expect(within(band).getByText("PAID")).not.toBeNull();
+    // The window is composed from `until`, so it is on screen unasked.
+    expect(within(band).getByText(/until 1 Jan/)).not.toBeNull();
+    // …and the card it sits on carries no topic chip — a paid card wearing
+    // a topic hue reads as house content with a note attached.
+    const card = band.closest("div").parentElement;
+    expect(within(card).queryByText("culture")).toBeNull();
+    // Why you got it, in the reader's own vocabulary, and what the buyer
+    // gets — the post-D98 truth rather than the prototype's retired line.
+    fireEvent.click(within(band).getByText("PAID"));
+    expect(screen.getByText(/asked for City: Oslo, NO/)).not.toBeNull();
+    expect(screen.getByText(/the same public numbers you do/)).not.toBeNull();
+    expectNoBoundary("live feed, sponsored card");
+  });
+
+  it("a sponsored card whose tag does not match is not served at all", async () => {
+    // The match runs on the DEVICE, against anchors the device already
+    // holds — so a profile that does not carry the bought bucket never
+    // sees the card, and the server was never asked who should. A profile
+    // that has said NOTHING is a non-match too: absent is not "any".
+    const expectNoBoundary = mountLive({ feedCards: 4, sponsored: true, anchors: { city: "Bergen, NO" } });
+    await growFeed();
+    expect(screen.queryByText("PAID")).toBeNull();
+    // …and it does not fall back into the ordinary stream wearing a topic
+    // chip, which would be the worst of both: delivered, and undisclosed.
+    expect(screen.queryByText(/Fixture Transit/)).toBeNull();
+    expectNoBoundary("live feed, unmatched sponsored card");
+  });
+
   it("renders no suggested-scene card in the live feed", () => {
     // The feed-side twin of the same offer — a dashed card proposing a
     // fabricated community one flick into a real feed.

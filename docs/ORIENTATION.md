@@ -113,7 +113,7 @@ directions.
 | [`NEXT-FUNCTIONALITY.md`](NEXT-FUNCTIONALITY.md) | Six ideas measured against the architecture. Plan notes, not decisions | plan |
 | [`ATTENTION.md`](ATTENTION.md) | "Does anyone like this, and what is this person into." No code exists | plan |
 | [`FORESIGHT-CALLS.md`](FORESIGHT-CALLS.md) | The half of Foresight that asserts a fact. Tier A built (D193); tier B still a proposal | mixed |
-| [`MONETIZATION.md`](MONETIZATION.md) | The revenue paths in one place. Picking one up graduates it to a decision | plan |
+| [`MONETIZATION.md`](MONETIZATION.md) | The revenue paths in one place. Path 2's machinery is built and unsold (D194); the rest is still plan | mixed |
 | [`COST-COMPARISON.md`](COST-COMPARISON.md) | InSight's bill against other apps'. Superseded in its conclusion by D129, kept for its method | past |
 | [`LAUNCH-PLAN.md`](LAUNCH-PLAN.md) | What was built for launch and why. The human chain moved to `LAUNCH-RUNBOOK.md` | past |
 
