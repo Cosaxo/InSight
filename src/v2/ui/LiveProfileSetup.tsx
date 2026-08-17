@@ -84,6 +84,20 @@ const control: React.CSSProperties = {
   boxSizing: "border-box", width: "100%", minWidth: 0, letterSpacing: "normal",
   textTransform: "none",
 };
+/**
+ * The same control, for the two fields you can TYPE in (D190).
+ *
+ * The one difference is the size, and it is not taste: a text field under
+ * 16px makes iOS zoom the whole app on focus, and the shell is
+ * `position: fixed`, so nothing zooms it back — the user is left on a
+ * scaled-up screen they cannot undo. `--field-size` is the token
+ * styles.css owns for exactly this, and `check:touch-zoom` is the gate
+ * that catches a field which forgets it (it caught these two).
+ *
+ * The selects above keep 15: the gate scopes to text fields, because a
+ * picker's focus opens a native wheel rather than a keyboard.
+ */
+const textField: React.CSSProperties = { ...control, fontSize: "var(--field-size)" };
 
 function PsSelect({ id, value, onChange, options, placeholder }: {
   id: string; value: string; onChange: (v: string) => void;
@@ -215,13 +229,13 @@ function LiveProfileSetup({ onDone }: { onDone: () => void }) {
         <div style={{ display: "flex", flexDirection: "column", gap: 14, margin: "16px 0 0" }}>
           <PsField id="ps-name" title="Your name">
             <input id="ps-name" value={name} onChange={(e) => setName(e.target.value)}
-              placeholder="What friends see" maxLength={60} style={control} />
+              placeholder="What friends see" maxLength={60} style={textField} />
           </PsField>
           <PsField id="ps-handle" title="Your handle">
             <input id="ps-handle" value={handle}
               onChange={(e) => { setHandle(e.target.value); setHErr(null); }}
               placeholder="@yourname" autoCapitalize="none" autoCorrect="off" spellCheck={false}
-              style={{ ...control, fontFamily: "var(--mono, monospace)" }} />
+              style={{ ...textField, fontFamily: "var(--mono, monospace)" }} />
           </PsField>
           {/* A claim, not a caption: "picked once" is a thing the app will
               hold you to, and docs/COPY.md §3 keeps those at full strength
