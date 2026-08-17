@@ -50,7 +50,7 @@ import { PASSIVE } from './passive-progress.js';
 // is the deferred feed group (spec-index.js), so neither reaches first
 // paint; check:bundle's eager ceiling has no headroom for either.
 import { PathsCard } from './paths-card.jsx';
-import LiveCallCard from '../ui/LiveCallCard.tsx';
+import LiveReadGame from '../ui/LiveReadGame.tsx';
 import {
   wfCatArt, wfFmt, wfHash, wfKnowBias, wfKnowRate, wfPcts, wfPickGroup,
   wfRateAvg, wfRateBg, wfRateInk, wfShadeText, wfTileArt, wfTint,
@@ -3677,14 +3677,20 @@ class WorldFeed extends React.Component {
                 — has anything to say about a walk, and the prototype pins
                 it here for the same reason. */}
             {i === 0 && <PathsCard />}
-            {/* Foresight CALL, tier A (D193) — pinned beside Crossroads
-                and for the same reason: a call is one open question you
-                are carrying, not a card dealt into the stream. It renders
-                nothing at all in a demo build and nothing until the
-                published grades have been read (the component's own
-                first two guards), so this line adds a card only where
-                there is a real one to add. */}
-            {i === 0 && <LiveCallCard />}
+            {/* The reading game (D195) — pinned beside Crossroads and for
+                the same reason: it is one thing you are doing, not a card
+                dealt into the stream. It renders nothing in a demo build
+                and nothing until there are enough fair reads to keep a
+                record worth believing, so this line adds a card only where
+                there is a real one to add.
+
+                THIS SLOT HELD THE FUTURE-PREDICTION CARD FOR ONE DAY
+                (D193's tier-A call, which guessed the app's own future
+                numbers). D195 took it off: the owner wants predictions to
+                be about real events or not at all, and that half is not
+                built. The machinery stands, unmounted, the way D136 left
+                this game's engine — see D195. */}
+            {i === 0 && <LiveReadGame />}
             {sugg && i === 2 && this.renderSuggestion(sugg, snap)}
             {this.renderCard(q, { closing: q.id === closingId })}
           </React.Fragment>

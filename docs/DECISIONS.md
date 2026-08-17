@@ -19701,6 +19701,13 @@ not there yet.
 
 ## D193 · Predictions ship, and the app only asserts what it can recompute
 
+> **Partly superseded the same day by [D195](#d195--the-reading-game-is-the-one-that-ships-and-it-waits-for-a-crowd).** The
+> machinery below is unchanged and still binding; what changed is that
+> none of it is offered. The owner wants a prediction to be about a real
+> upcoming EVENT, and this record's calls predict the app's own future
+> numbers instead. The bank is retired, the card is unmounted, and the
+> resolver skips what it cannot have been played. Read D195 first.
+
 **2026-08-17.** **Status:** binding. Owner's ask: *"let's start building
 the remaining parts like the predicts."* Foresight **CALL, tier A** — the
 half of [D126](#d126) that was designed at [D127](#d127) and never built —
@@ -19968,3 +19975,111 @@ than assumed: six content rules (missing window, `core: true`, no buyer,
 two tags, a brand colour, an over-long name), two provenance rules in both
 directions, and three code paths — the band's dispatch, the cap, and the
 absent-anchor match — each of which fails a test when softened.
+
+## D195 · The reading game is the one that ships, and it waits for a crowd
+
+**2026-08-17.** **Status:** binding. Owner's correction, after D193 built
+the wrong half of Foresight. Two instructions, and one of them cost a
+round of talking past each other because this repo and the owner use the
+words *read* and *call* the opposite way round. So this record names
+neither, and describes both games by what they do.
+
+### The two games, by behaviour
+
+- **Guessing how a group ALREADY answered.** The app shows a question the
+  crowd has settled and asks which side one slice picked; you are scored
+  the instant you answer, against the published cell. Nothing is
+  predicted. Built at D126 as a Mirror lens, taken off the row at D136,
+  and unmounted ever since. *(The code calls this a **read**.)*
+- **Guessing something that has NOT happened.** Sealed now, graded later.
+  D193 shipped the flavour whose subject is the app's own future numbers.
+  The flavour the owner wants is real-world events, and it is not built.
+  *(The code calls both a **call**.)*
+
+### The decision
+
+**The first game is the one that ships. The second is parked, and if it
+ever returns it must be about real events.**
+
+The owner's objection to D193 is not that it works badly — it grades
+honestly, and the arithmetic stands. It is that *predicting our own
+numbers is not the game anybody wanted*. A prediction is about the world.
+So:
+
+- The feed's head slot swaps: the future-prediction card comes off, the
+  reading game goes on.
+- `content/call-questions.json` is **entirely `active: false`**, with the
+  reason written into the file itself. Nothing is deleted: the schema, the
+  rules arm, the resolver, the two byte-identical rubric modules and
+  `check:calls` are all exactly what a real-event rubric would arrive on
+  top of. It would be a new `kind`, not a new feature.
+- `bankCalls()` skips retired calls, and that is a correctness fix rather
+  than tidiness: a retired call is one **nobody could have answered**, so
+  the overdue rule would eventually have published three VOID documents
+  apologising for a game that was never offered. A void is the app saying
+  it could not grade something people played.
+
+### "Hidden until enough data" is a number, not a flag
+
+The second instruction was to keep the reading game but hold it back until
+there is enough data. That could have been a boolean somebody flips when
+it feels right. It is `READ_MIN_POOL = 12` instead, in
+`data/gamesReady.ts`, and the reasoning is the part worth keeping:
+
+`data/foresight.ts` already refuses an individual read that cannot be
+scored fairly — `READ_MIN_N` answers in the slice, `READ_MIN_LEAD` points
+of lead. What it could not refuse is the **corpus**. Four fair reads is
+four honest questions and a record that means nothing, and the payoff of
+the whole feature is `byDim` — *"you read age well and education badly"* —
+which needs several reads across several cuts before it is a fact rather
+than a coincidence. So the gate is the same objection `READ_MIN_LEAD`
+makes about a single 51/49 slice, one level up.
+
+**It is not a privacy floor**, and it looks exactly like one, so:
+nothing is withheld from anybody. Every cell this reads publishes exactly
+and at any size (D98) and the Explore lens draws the same cells with no
+threshold at all. What is withheld is the GAME, from the player, until the
+record it produces can be believed.
+
+Below the gate the card renders **nothing** — no teaser, no frame, no
+"coming soon". A game that announces itself and cannot be played is worse
+than one that is simply not there yet, and the mutation that opens the
+gate early fails three tests.
+
+### Why the feed, when D126 argued for the Mirror
+
+Both earlier records were right about their own question. D126 put the
+game on the lens row; D136 took it off because the row is where a
+population gets **read** and this is a **game**. The prototype has always
+put it in the feed, and `LiveForesightLens.tsx`'s own header anticipated
+the move — *"the feed placement stays open as a follow-on; nothing here
+would have to change for it"*.
+
+Nothing did. That component is mounted verbatim inside a wrapper that
+supplies the three things the lens row gave it for free: the sources
+(built from what the store already holds — **zero new reads**), the gate,
+and **the scope, said once**. That last one was the standing objection to
+the feed placement, and one line answers it: the source is the daily bank,
+which is one shared question per day and therefore one shared population,
+so *"slices of everyone who answered"* is true of every card in the deck
+rather than something each would have to restate.
+
+### The word "ad" is now reserved
+
+Recorded because it caused real confusion: **a sponsored question (D194)
+is not an ad.** `MONETIZATION.md` has always kept them as separate paths —
+2 is sponsored questions, 3 is ad cards — and prose that blurs them makes
+a disclosure argument impossible to have. A sponsored question is a
+question somebody paid to ask, answered like any other and folded into the
+same public aggregate. An ad card is not a question, takes no answer and
+produces no data. They share the disclosure band and the single paid slot;
+they are otherwise different objects.
+
+### Verified
+
+`lint`, `tsc -b`, `check:globals` (409, baseline 409), `:content` (540
+questions, all 3 calls retired), `:calls`, `:quality`, `:docs`,
+`:figures`, `test:unit`, functions (243) and `test:rules` (111).
+Mutation-checked: opening the gate early fails three tests, dropping the
+scope line fails one, and the retired-call filter is asserted directly
+rather than inferred from an empty bank.

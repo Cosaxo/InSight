@@ -42,7 +42,7 @@ Two discoveries reshaped the owner's list more than any opinion could:
 | Genetics | **Refuse for now** (the owner already said "future") | — | Art. 9 data cannot live in a world-readable profile; an acceptable version is a separate consented tier, i.e. a different product posture. |
 | Suggest a question | **Build — the shortest distance to value** | M | The UI, the dedup gate and the `community` provenance source all exist; what is missing is a collection, a callable and the human gate wiring. |
 | Paid featured questions | **BUILT, and unsold (D194)** | S then L | Already the recorded primary revenue intent (`docs/MONETIZATION.md`). The machinery ships — disclosure band, one-card cap, on-device audience match, `until` window, `sponsor` provenance — with zero sponsored questions in the bank, because inventing a buyer is D1 pointed at money. The notes still refuse a *delivery* auction and precise targeting; a price auction over capped, disclosed slots survives both (§6) and is still a note. |
-| Predictions (Foresight CALL) | **BUILT — tier A (D193)** | M | The blocker was never stakes or money — it is resolution integrity (D127). Tier A self-resolves on the app's own aggregates and the device re-grades it; tier B is how news predictions arrive, and is still not built. |
+| Predictions (Foresight CALL) | **BUILT then RETIRED (D193 → D195)** | M | The blocker was never stakes or money — it is resolution integrity (D127). Tier A self-resolves on the app's own aggregates and the device re-grades it, and it turned out not to be the wanted game: a prediction is about the world. Retired in service, machinery intact, waiting on a real-event (tier B) design. |
 
 ## 1 · Current events — a category that stops being asked
 

@@ -10069,7 +10069,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "qid": "daily-000",
    "test": "topShareAtLeast",
    "threshold": 60
-  }
+  },
+  "active": false
  },
  {
   "id": "call-c02",
@@ -10096,7 +10097,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
     "18-24",
     "55-64"
    ]
-  }
+  },
+  "active": false
  },
  {
   "id": "call-c03",
@@ -10119,6 +10121,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "qid": "feed-f11",
    "test": "turnoutAtLeast",
    "threshold": 1000
-  }
+  },
+  "active": false
  }
 ];

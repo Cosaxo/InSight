@@ -1,7 +1,15 @@
 # CALL — the half of Foresight that asserts a fact
 
-**Status: mixed. TIER A IS BUILT ([D193](DECISIONS.md#d193--predictions-ship-and-the-app-only-asserts-what-it-can-recompute)); tier B is not, and stays a
-proposal.** D126 shipped Foresight's READ half; this was the write-up of
+**Status: mixed, and RETIRED IN SERVICE. Tier A is built
+([D193](DECISIONS.md#d193--predictions-ship-and-the-app-only-asserts-what-it-can-recompute))
+and switched off the same day
+([D195](DECISIONS.md#d195--the-reading-game-is-the-one-that-ships-and-it-waits-for-a-crowd)):
+the owner wants a prediction to be about a real upcoming EVENT, and tier A
+predicts the app's own future numbers. Every call in the bank is
+`active: false`, the card is unmounted and the resolver skips them. The
+machinery stands, because a real-event rubric is a new `kind` on this exact
+schema rather than a new feature — which makes tier B (§3) the live question
+this document now exists for, not a footnote to tier A.** D126 shipped Foresight's READ half; this was the write-up of
 the other half, written before any of it was built. What shipped follows
 this document closely, with three departures worth reading before trusting
 a paragraph below:

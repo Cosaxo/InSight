@@ -816,6 +816,18 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     expectNoBoundary("live feed, unmatched sponsored card");
   });
 
+  // D195: the reading game is gated on there being enough fair reads to
+  // keep a record worth believing. The fixture's two questions are nowhere
+  // near it, which is exactly the state a real launch is in — so the live
+  // feed must show no game and no placeholder for one.
+  it("shows no reading game while the corpus is too thin to score one", async () => {
+    const expectNoBoundary = mountLive({ feedCards: 4 });
+    await growFeed();
+    expect(screen.queryByText("read the room")).toBeNull();
+    expect(screen.queryByText(/Slices of everyone who answered/)).toBeNull();
+    expectNoBoundary("live feed, reading game below the gate");
+  });
+
   it("renders no suggested-scene card in the live feed", () => {
     // The feed-side twin of the same offer — a dashed card proposing a
     // fabricated community one flick into a real feed.

@@ -82,7 +82,19 @@ export interface BankCall {
 }
 
 export function bankCalls(): BankCall[] {
-  return V2_QUESTIONS.filter((q) => q.surface === "call").map((q) => ({
+  // `active: false` is the operational kill switch, and here it means
+  // something sharper than "stop serving" (D195). A retired call is one
+  // NOBODY COULD HAVE ANSWERED, so grading it would publish an outcome for
+  // an empty field — and, worse, the overdue rule would eventually write
+  // three VOID documents about a game that was never offered. A void is
+  // the app saying it could not grade something people played; saying it
+  // about something nobody played is noise wearing an apology.
+  //
+  // The whole bank is retired today: the owner wants predictions about
+  // real EVENTS, and these predict the app's own future numbers. The
+  // machinery stands so the day a real-event rubric arrives it is a new
+  // `kind`, not a new feature.
+  return V2_QUESTIONS.filter((q) => q.surface === "call" && q.active !== false).map((q) => ({
     id: q.id,
     resolvesAt: String(q.resolvesAt ?? ""),
     rubric: q.rubric as unknown as CallRubric,
@@ -160,10 +172,17 @@ export interface OutcomeDoc {
 export async function runResolveCalls(
   now = new Date(),
   store: CallStore = firestoreStore(),
+  // The calls to consider. Defaults to the live bank; a test supplies its
+  // own, which is what keeps the four decisions below covered while the
+  // shipped bank is retired (D195) and `bankCalls()` correctly returns
+  // nothing. Tying the tests to live content would mean the grading logic
+  // stops being exercised the moment the content is switched off — and
+  // that logic is what a real-event rubric would arrive on top of.
+  calls: readonly BankCall[] = bankCalls(),
 ): Promise<ResolveSummary> {
   const summary: ResolveSummary = { due: 0, resolved: 0, voided: 0, waiting: 0, faulty: 0 };
 
-  for (const call of bankCalls()) {
+  for (const call of calls) {
     if (!isDue(call.resolvesAt, now)) continue;
 
     // Already graded is not work: `due` counts what this pass had to

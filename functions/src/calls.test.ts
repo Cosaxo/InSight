@@ -13,6 +13,7 @@ import {
   daysPastDue,
   isDue,
   runResolveCalls,
+  type BankCall,
   type CallStore,
   type OutcomeDoc,
 } from "./calls";
@@ -69,10 +70,18 @@ describe("daysPastDue", () => {
 });
 
 describe("the bank's calls", () => {
-  it("ships at least one, and every one carries a rubric and a resolve day", () => {
-    const calls = bankCalls();
-    expect(calls.length).toBeGreaterThan(0);
-    for (const c of calls) {
+  it("offers NONE, because every entry is retired (D195)", () => {
+    // The owner wants a prediction to be about a real upcoming EVENT; this
+    // bank predicts the app's own future numbers, which is a different
+    // game. Every entry is `active: false`, and a retired call is one
+    // nobody could have answered — so it must not be graded at all. The
+    // alternative is three VOID documents apologising for a game that was
+    // never offered.
+    expect(bankCalls()).toHaveLength(0);
+  });
+
+  it("would carry a rubric and a resolve day on every entry it did offer", () => {
+    for (const c of bankCalls()) {
       expect(c.resolvesAt).toMatch(/^\d{4}-\d{2}-\d{2}$/);
       expect(c.rubric.kind).toBe("agg");
       expect(c.rubric.qid).toBeTruthy();
@@ -80,18 +89,24 @@ describe("the bank's calls", () => {
   });
 });
 
-// One rubric of each shape, driven through the pass. The bank's own calls
-// are what `bankCalls()` returns, so the fixtures below feed THEIR target
-// qids — a bank edit that changes a target moves these with it rather than
-// leaving a test passing against a question nobody asks.
-const calls = bankCalls();
+// One rubric of each shape, driven through the pass as FIXTURES rather than
+// as live bank rows. They were the bank's own until D195 retired it — and
+// the grading logic still has to be exercised, because a real-event rubric
+// (the thing the owner actually wants) would arrive on top of exactly this
+// machinery. A test that read the live bank would go quiet the moment the
+// content was switched off, which is the worst moment to stop looking.
+const calls: BankCall[] = [
+  { id: "call-c01", resolvesAt: "2026-10-01", rubric: { kind: "agg", qid: "daily-000", test: "topShareAtLeast", threshold: 60 } },
+  { id: "call-c02", resolvesAt: "2026-10-01", rubric: { kind: "agg", qid: "feed-f54", test: "slicesDisagree", dim: "ageBand", buckets: ["18-24", "55-64"] } },
+  { id: "call-c03", resolvesAt: "2026-10-01", rubric: { kind: "agg", qid: "feed-f11", test: "turnoutAtLeast", threshold: 1000 } },
+];
 const byTest = (t: CallRubric["test"]) => calls.find((c) => c.rubric.test === t)!;
 
 describe("runResolveCalls", () => {
   it("does nothing before the resolve day", async () => {
     const c = calls[0];
     const store = fakeStore({ [c.rubric.qid]: { total: 100, counts: { "0": 90, "1": 10 } } });
-    const s = await runResolveCalls(new Date("2000-01-01T00:00:00Z"), store);
+    const s = await runResolveCalls(new Date("2000-01-01T00:00:00Z"), store, calls);
     expect(s).toEqual({ due: 0, resolved: 0, voided: 0, waiting: 0, faulty: 0 });
     expect(store.written).toEqual({});
   });
@@ -100,7 +115,7 @@ describe("runResolveCalls", () => {
     const c = byTest("topShareAtLeast");
     const agg = { total: 100, counts: { "0": 90, "1": 10 } };
     const store = fakeStore({ [c.rubric.qid]: agg });
-    await runResolveCalls(AT(c.resolvesAt), store);
+    await runResolveCalls(AT(c.resolvesAt), store, calls);
     const out = store.written[c.id];
     expect(out.outcomeIdx).toBe(CALL_YES);
     expect(out.resolvedBy).toBe("auto");
@@ -112,13 +127,13 @@ describe("runResolveCalls", () => {
   it("grades the other way when the numbers say so", async () => {
     const c = byTest("topShareAtLeast");
     const store = fakeStore({ [c.rubric.qid]: { total: 100, counts: { "0": 51, "1": 49 } } });
-    await runResolveCalls(AT(c.resolvesAt), store);
+    await runResolveCalls(AT(c.resolvesAt), store, calls);
     expect(store.written[c.id].outcomeIdx).toBe(CALL_NO);
   });
 
   it("waits — and does not guess — while the aggregate cannot answer", async () => {
     const store = fakeStore({});
-    const s = await runResolveCalls(AT(calls[0].resolvesAt), store);
+    const s = await runResolveCalls(AT(calls[0].resolvesAt), store, calls);
     expect(s.waiting).toBe(calls.length);
     expect(s.resolved).toBe(0);
     expect(s.voided).toBe(0);
@@ -132,7 +147,7 @@ describe("runResolveCalls", () => {
     const c = calls[0];
     const late = new Date(Date.parse(`${c.resolvesAt}T00:00:00Z`) + CALL_VOID_AFTER_DAYS * 86_400_000);
     const store = fakeStore({});
-    const s = await runResolveCalls(late, store);
+    const s = await runResolveCalls(late, store, calls);
     expect(s.voided).toBe(calls.length);
     expect(store.written[c.id].outcomeIdx).toBe(CALL_VOID);
     expect(store.written[c.id].note).toContain(c.rubric.qid);
@@ -141,7 +156,7 @@ describe("runResolveCalls", () => {
   it("does not void one day early", async () => {
     const c = calls[0];
     const nearly = new Date(Date.parse(`${c.resolvesAt}T00:00:00Z`) + (CALL_VOID_AFTER_DAYS - 1) * 86_400_000);
-    const s = await runResolveCalls(nearly, fakeStore({}));
+    const s = await runResolveCalls(nearly, fakeStore({}), calls);
     expect(s.voided).toBe(0);
     expect(s.waiting).toBe(calls.length);
   });
@@ -152,7 +167,7 @@ describe("runResolveCalls", () => {
       { [c.rubric.qid]: { total: 100, counts: { "0": 90, "1": 10 } } },
       { [c.id]: true },
     );
-    const s = await runResolveCalls(AT(c.resolvesAt), store);
+    const s = await runResolveCalls(AT(c.resolvesAt), store, calls);
     expect(store.written[c.id]).toBeUndefined();
     // …and it is not counted as work, so the log line means what it says.
     expect(s.due).toBe(calls.length - 1);
@@ -168,14 +183,14 @@ describe("runResolveCalls", () => {
       by: { [dim]: { [a]: { "0": 12, "1": 3 }, [b]: { "0": 3, "1": 12 } } },
     };
     const store = fakeStore({ [c.rubric.qid]: disagree });
-    await runResolveCalls(AT(c.resolvesAt), store);
+    await runResolveCalls(AT(c.resolvesAt), store, calls);
     expect(store.written[c.id].outcomeIdx).toBe(CALL_YES);
 
     // One slice missing: the aggregate has answers but not the ones this
     // call is about. That is "not yet", never "they agree".
     const half = { total: 40, counts: { "0": 20, "1": 20 }, by: { [dim]: { [a]: { "0": 12, "1": 3 } } } };
     const store2 = fakeStore({ [c.rubric.qid]: half });
-    await runResolveCalls(AT(c.resolvesAt), store2);
+    await runResolveCalls(AT(c.resolvesAt), store2, calls);
     expect(store2.written[c.id]).toBeUndefined();
   });
 
@@ -183,11 +198,11 @@ describe("runResolveCalls", () => {
     const c = byTest("turnoutAtLeast");
     const n = c.rubric.threshold!;
     const under = fakeStore({ [c.rubric.qid]: { total: n - 1, counts: { "0": n - 1 } } });
-    await runResolveCalls(AT(c.resolvesAt), under);
+    await runResolveCalls(AT(c.resolvesAt), under, calls);
     expect(under.written[c.id].outcomeIdx).toBe(CALL_NO);
 
     const over = fakeStore({ [c.rubric.qid]: { total: n, counts: { "0": n } } });
-    await runResolveCalls(AT(c.resolvesAt), over);
+    await runResolveCalls(AT(c.resolvesAt), over, calls);
     expect(over.written[c.id].outcomeIdx).toBe(CALL_YES);
   });
 });
