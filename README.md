@@ -85,7 +85,7 @@ enforces is the opposite of what it used to (decision **D98**):
   because it is withheld.
 - **Three things are still closed, none of them answers.** The unscored
   logic answer key (anti-cheat), who flagged a comment
-  (anti-retaliation), and the ~1 km presence cell (physical safety: the
+  (anti-retaliation), and the ~200 m presence cell (physical safety: the
   app publishes what you answered, not where you are standing).
 - **Anonymous-first.** The app works instantly with no sign-in; Google is
   an *upgrade* via account linking that keeps your uid and history
@@ -129,7 +129,7 @@ src/lib/           firebase init + anonymous-first auth + emulator wiring
 functions/src/     v2.ts (seed + aggregates) · v2social.ts (groups, duos,
                    reveals, push) · index.ts (account deletion)
 firestore.rules    the access model (public answers, exact aggs,
-                   member-only groups/reveals) — 90 emulator tests
+                   member-only groups/reveals) — 106 emulator tests
 firestore.rules.v1-archive  the retired v1 client rules (D4) — reference,
                    NOT deployed
 monitoring/        Cloud Monitoring policies, put live by
@@ -140,7 +140,9 @@ monitoring/        Cloud Monitoring policies, put live by
 content/           canonical question banks & archetypes (seed source)
 design/            the frozen design spec (read-only reference)
 docs/              DECISIONS · MIRROR (what the app shows, and how one
-                   answer reaches every surface) · SCHEMA-V2 · DEPLOYMENT ·
+                   answer reaches every surface) · COPY (the rule the
+                   app's words follow, and what it does not license) ·
+                   SCHEMA-V2 · DEPLOYMENT ·
                    LOCAL-TESTING · SHIP-CHECKLIST · LAUNCH-RUNBOOK ·
                    data-inventory · DEVICE-BIND · MONETIZATION · COSTS ·
                    MONITORING
@@ -153,7 +155,7 @@ Local:
 - `npm run test:unit` — client store, pure deck logic, and the spec-layer
   mount tests (vitest + jsdom, no emulator).
 - `npm run test --prefix functions` — the aggregate fold, reveal and streak math.
-- `npm run test:rules` — 90 security-rules tests (Firestore + Storage)
+- `npm run test:rules` — 106 security-rules tests (Firestore + Storage)
   against the emulator. `npm run check:figures` holds this number and the
   one in the repo map above equal to the suites, because both said 40 for
   long enough to be quoted twice.

@@ -33,7 +33,7 @@ import { locateCity } from "../data/locate";
 // "Does this question have any answers yet?" — an existence test, and
 // since D98 the only test there is (data/floor.ts and its constants are
 // gone with the floor they mirrored).
-import { hasPublishedCounts } from "../data/deck";
+import { hasPublishedCounts, type AggDoc } from "../data/deck";
 // The four lens BODIES (D99), loaded when a lens tab is first opened
 // (D101, D119).
 //
@@ -52,6 +52,9 @@ const SimilaritySection = React.lazy(() => import("./LiveSimilarityField"));
 // The tab row (D119) — static, because it IS the stop's navigation and a
 // suspense gap where the tabs should be is a stop that looks broken.
 import MirrorLensTabs from "./MirrorLensTabs";
+// The row's own scroll-into-view, shared with the three other stops that
+// have a row (D190).
+import { useLensRowScroll } from "./lensRowScroll";
 // The Answers tab's list, in the prototype's row design (D120). An
 // ordinary import, not lazy: this body IS the default tab, and it rides
 // this module's own lazy chunk (D119) either way.
@@ -125,33 +128,17 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
   // check:globals, and the tab-open tests assert the panel MOUNTS, which it
   // did. Reported from a device, which is the only place it was visible.
   //
+  // The effect is ONE effect now (D190, ui/lensRowScroll.ts): this file and
+  // NearLiveBody each carried their own, and Circle and Groups getting rows
+  // would have made it four copies of something that has already been wrong
+  // once.
+  //
   // Keyed on `tab` rather than the derived `openTab` because this has to be
   // a hook and `openTab` is computed past the `needsCity` early return.
   // They agree in practice: setTab is only ever called with an id from
   // `tabs`, and mirror-tab keys this body per scope, so a tab cannot
   // survive into a scope that lacks it.
-  React.useEffect(() => {
-    if (!tab || !rowRef.current) return;
-    const row = rowRef.current;
-    // The scroller is the app's (.app-body), not ours — walk up to it, and
-    // take the first ancestor that both overflows and can actually scroll.
-    let sp: HTMLElement | null = row.parentElement;
-    while (sp && !(sp.scrollHeight > sp.clientHeight && /(auto|scroll)/.test(getComputedStyle(sp).overflowY))) {
-      sp = sp.parentElement;
-    }
-    if (!sp) return;
-    const scroller = sp;
-    // 60ms, the prototype's own number. The panel mounts in the same commit
-    // as the tab flip, so measuring now measures the row before the body it
-    // is about to sit above exists — and scrolls to a position that stops
-    // being right one frame later.
-    const t = setTimeout(() => {
-      const top = row.getBoundingClientRect().top
-        - scroller.getBoundingClientRect().top + scroller.scrollTop - 12;
-      scroller.scrollTo({ top, behavior: "smooth" });
-    }, 60);
-    return () => clearTimeout(t);
-  }, [tab]);
+  useLensRowScroll(tab, rowRef);
 
   const city = LIVE.myCity;
   const place = city ? PLACES.parse(city) : null;
@@ -163,7 +150,7 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
   // revocable location grant standing for a live feature — so Near stops
   // asking and derives the city from the same grant. The datum applied is
   // still only the catalogue key (locateCity's containment), which is
-  // strictly LESS information than the ~1 km presence cell the counter
+  // strictly LESS information than the ~200 m presence cell the counter
   // already shares. D9's suggest-never-apply rule stays for every other
   // path: with the counter off, the picker below is unchanged and its
   // located city remains a suggestion.
@@ -199,18 +186,20 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
             shipped once and read as the placeholder it was. */}
         {finding ? (
           <LnNote title="Finding your city…">
-            Location is already on for the count, so your city is being
-            matched on this phone — only its name will be saved, never your
-            coordinates. You can also pick it yourself below.
+            Matched on this phone — only its name is saved, never your
+            coordinates.
           </LnNote>
         ) : (
+          /* The claim that keeps this ask honest is "only the name, never
+             your coordinates", and it survives at full strength. What went
+             was the scaffolding around it: "use your location or search the
+             list" describes the picker sitting directly underneath, and
+             "change it any time in your profile" is true of every anchor
+             and belongs where anchors are edited. */
           <LnNote title={scope === "city" ? "City needs your city" : "Country needs a city"}>
-            Set it right here — use your location or search the list. Either
-            way only the city name is saved, never your coordinates, and you
-            can change it any time in your profile.
+            Only the city name is saved, never your coordinates.
             {scope === "city" && !nearOn && LIVE.near.supported() && (
-              <> Turning on the count at the Near stop fills it in for you,
-              from the same location grant.</>
+              <> The Near count fills it in for you.</>
             )}
           </LnNote>
         )}
@@ -228,22 +217,29 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
     );
   }
 
-  const heading =
-    scope === "city" ? (place ? PLACES.label(place) : city)
-      : scope === "country" ? PLACES.countryName(country)
-        : "The world";
   const shortName =
     scope === "city" ? (place ? place.name : city)
       : scope === "country" ? PLACES.countryName(country)
         : "the world";
-  // The stop's own colour. mirror-tab sets --accent per POP, and all three
-  // geographic zooms share one pop — so without this City, Country and
-  // World would draw in the same ink and the axis would stop shading from
-  // near to far. Set on the root rather than threaded as a prop: the rows,
-  // the stack, the chips and the lens bodies all read var(--accent), and
-  // one declaration reaches every one of them.
-  const accent =
-    scope === "city" ? "var(--c-around)" : scope === "country" ? "var(--c-city)" : "var(--c-world)";
+  // THE STOP'S COLOUR IS THE STOP'S, AND THIS FILE NO LONGER PICKS ONE
+  // (D188).
+  //
+  // It used to re-declare `--accent` per zoom — city sienna, country sage,
+  // world indigo — reasoning that all three zooms share one pop, so without
+  // it "the axis would stop shading from near to far". The shading was
+  // real; the hues were borrowed. `--c-around` is the DAILY tab's accent
+  // and `--c-city` is Near's, so City wore the daily's ink and Country wore
+  // the stop one to its left, while the header wordmark, the ruler tick and
+  // the tab bar — which read `--accent` from `.app`, set by mirror-tab per
+  // POP — all stayed indigo. One screen, two answers to "what colour is
+  // this stop", and the lens row's underline was on the losing side of it.
+  //
+  // The prototype draws all three zooms in `--c-world` (measured: the row
+  // thumb resolves to oklch(0.52 0.14 235) at City, Country and World
+  // alike), which is exactly what dropping this leaves behind, since
+  // mirror-tab already sets it for pop 'world'. The near-to-far shading
+  // survives where it always lived — You, Circle, Groups and Near each own
+  // a hue on the ruler above.
 
   // Every question this device holds an aggregate for, not just the
   // seven-day pager (D100). The pager was the wrong source for a panel
@@ -279,6 +275,23 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
   const archive = LIVE.aggregated().filter((q) => q.coreCorpus);
   const myVotes = LIVE.myVotes();
 
+  /**
+   * The counts for THIS STOP, from one aggregate — the globe on World,
+   * the city/country cell everywhere else.
+   *
+   * Shared by both walks below on purpose (D170). The rows resolved the
+   * cohort cell and the lens questions took `agg.counts`, so Answers
+   * described Oslo while Compare and Scores described the world under
+   * Oslo's name. Two walks over the same archive is two chances to
+   * disagree about which crowd the stop is; this is the one answer both
+   * of them read.
+   */
+  const cellFor = (agg: AggDoc | null | undefined): Record<string, number> | undefined => {
+    if (!agg) return undefined;
+    if (scope === "world") return hasPublishedCounts(agg) ? agg.counts : undefined;
+    return agg.by?.[scope]?.[scope === "city" ? city : country];
+  };
+
   const rows: AnswerRow[] = [];
   // Questions with no answers from this cohort yet. Since D98 nothing is
   // withheld, so an absent cell means exactly zero — the counter survives
@@ -287,16 +300,14 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
   for (const q of archive) {
     const agg = LIVE.aggFor(q.id);
     if (!agg) continue;
-    let cell: Record<string, number> | undefined;
+    const cell = cellFor(agg);
     let n = 0;
     if (scope === "world") {
       // The globe is the aggregate itself.
-      if (!hasPublishedCounts(agg)) { empty++; continue; }
-      cell = agg.counts;
+      if (!cell) { empty++; continue; }
       n = agg.total || 0;
     } else {
       const dim = agg.by?.[scope];
-      cell = dim?.[scope === "city" ? city : country];
       if (dim && !cell) empty++;
       if (cell) n = Object.values(cell).reduce((a, b) => a + b, 0);
     }
@@ -348,17 +359,29 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
   // without a second source that could disagree with the card you voted on.
   const lensQs: LensQuestion[] = archive.map((q) => {
     const agg = LIVE.aggFor(q.id);
-    const counts = (q.options || []).map((_, i) => ((agg?.counts || {})[String(i)] as number) || 0);
+    const opts = q.options || [];
+    // `counts` is THIS STOP (D170) — the same cell the rows above take, so
+    // a lens can no longer name a population and read another. `all` is
+    // the globe, which only Explore wants: its buckets are cuts of
+    // everyone and its sentence ends "same as everyone".
+    const cell = cellFor(agg);
     const mine = myVotes[q.id];
     return {
       id: q.id,
       text: q.text,
-      options: (q.options || []).map((o) => o.label),
-      counts,
+      options: opts.map((o) => o.label),
+      counts: opts.map((_, i) => (cell || {})[String(i)] || 0),
+      all: opts.map((_, i) => ((agg?.counts || {})[String(i)] as number) || 0),
       by: byOf(agg),
       mine: mine == null ? -1 : Number(mine),
       type: q.type,
       branch: q.branch,
+      // The scorecard's two fields (D187): which place the question rates,
+      // and the noun it is drawn under. Passed through rather than
+      // resolved here — Scores is the only lens that reads either, and the
+      // scope it compares `rates` against is its own prop.
+      tag: q.tag,
+      rates: q.rates,
     };
   }).filter((q) => q.options.length > 0);
 
@@ -385,7 +408,20 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
 
   return (
     <div className="fade-in" style={{
-      padding: "4px 16px 26px", "--accent": accent,
+      // NO BOTTOM PADDING, and that is the whole of what pins the row
+      // (D188). `marginTop: auto` below put the row at the bottom of THIS
+      // box; 26px of padding under it then held it 26px off the bottom of
+      // the screen, on top of the 24px `.app-body` already reserves — so
+      // the tab bar floated 50px clear of the app's own, which is the
+      // "slightly up" the prototype never has. The prototype's stage
+      // (`.mf-stage`) carries no padding at all and lets `.app-body`'s
+      // padding-bottom be the only gap; measured there at 20px, and this
+      // now matches it to whatever `.app-body` says.
+      //
+      // An OPEN tab's body still ends against that same 24px, which is the
+      // prototype's arrangement too (row and panel share one
+      // `marginTop: auto` wrapper in MirrorLenses).
+      padding: "4px 16px 0",
       // A filling column, so `marginTop: auto` on the row below has
       // somewhere to push against. Without this the row sits under the
       // last thing drawn and floats mid-screen on an empty stop, which is
@@ -416,16 +452,21 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
               : <>nobody has answered {scope === "world" ? "yet" : <>in {shortName} yet</>}</>}
           </span>
         </div>
-        <div style={{ fontFamily: "var(--serif)", fontSize: 25, letterSpacing: "-0.01em", color: "var(--ink)", marginTop: 6 }}>{heading}</div>
-        <div style={{ fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 500, color: "var(--ink-3)", marginTop: 4, lineHeight: 1.5 }}>
-          {/* Was "on today's questions" when this read the seven-day
-              pager. It reads the archive now (D100), so the old line
-              would have under-claimed by however long the user has
-              been answering. */}
-          {scope === "world"
-            ? "Everyone who has answered, on every question with answers."
-            : `Everyone who picked this ${scope}, on every question they have answered.`}
-        </div>
+        {/* THE PLACE NAME AND THE EXPLANATION ARE GONE (D172).
+            The prototype's header is three things — kicker, figure, unit
+            — and that is the whole of it (`MFHeader`: "Your city · 12.6k ·
+            in Oslo"). This stop had grown two more blocks under them: the
+            place name again in 25px serif, and a sentence explaining what
+            a city cohort is.
+
+            Both were repeats. The unit above already ends "in Oslo", so
+            the serif line said the same word twice the size; and "everyone
+            who picked this city, on every question they have answered" is
+            what the kicker plus that unit already say, in a sentence the
+            reader has to get through to reach the field the stop exists
+            for. The `heading` they shared went with them; `shortName` is
+            the one the readings still need, and it is the one the unit
+            already prints. */}
       </div>
 
       {/* The constellation (D112), and the head of the stop rather than a
@@ -438,7 +479,7 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
           and the host owns the tab state, so the field cannot do it. */}
       <div role="region" aria-label={TAB_LABEL.overview}>
         <React.Suspense fallback={null}>
-          <SimilaritySection scope={scope} onGoAnswers={() => setTab("answers")} />
+          <SimilaritySection scope={scope} />
         </React.Suspense>
       </div>
 

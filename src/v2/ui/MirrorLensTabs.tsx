@@ -13,6 +13,16 @@
 // tweak on `.app`), so the live row inherits the demo row's look and every
 // future change to it, exactly once.
 //
+// AND IT IS THE BOTTOM VARIANT, `.mm-lensrow` (D188). This file shipped
+// with `.mm-lensrow-top` from D119, which is the class the prototype uses
+// for the row it promotes to the TOP of a stop — so its hairline draws
+// UNDER the labels and its buttons stand 46px rather than 44. Both live
+// callers put the row at the bottom of the screen, where the prototype
+// draws the plain class: the rule sits ABOVE the labels, closing the field
+// off, and the labels are the last ink before the tab bar. On a stop that
+// is otherwise identical to the prototype's, a rule on the wrong side of
+// the row is the whole difference between a tab bar and a stray caption.
+//
 // WHAT CHANGED WHEN THIS ARRIVED. The live cohort stops used to draw their
 // answer rows inline with a COLLAPSED lens strip underneath, so "Answers"
 // was the page and everything else was a drawer under it. The prototype
@@ -54,7 +64,7 @@ function MirrorLensTabs({ tabs, open, onOpen }: {
   // the rest.
   const fs = tabs.length >= 7 ? 10.5 : tabs.length === 6 ? 11.5 : tabs.length === 5 ? 13 : 14.5;
   return (
-    <div className="mm-lensrow mm-lensrow-top" role="tablist" aria-label="Lenses"
+    <div className="mm-lensrow" role="tablist" aria-label="Lenses"
       style={{ "--n": tabs.length } as React.CSSProperties}>
       {/* The sliding indicator. `is-off` rather than unmounted so it fades
           instead of jumping when nothing is selected — a state this row

@@ -28,9 +28,15 @@ const LIVE = vi.hoisted(() => ({
   ready: true,
   anchors: () => ({}) as Record<string, string>,
   saveAnchors: vi.fn((a: Record<string, string>) => { void a; }),
+  // Identity, asked here since D190. `displayName` doubles as the gate's
+  // other trigger — an account with anchors and no name is still asked.
+  displayName: "",
+  handle: "",
+  saveDisplayName: vi.fn(async (n: string) => { void n; }),
+  social: { claimHandle: vi.fn(async (h: string) => ({ handle: h })) },
   subscribe: () => () => {},
 }));
-vi.mock("../data/live", () => ({ default: LIVE }));
+vi.mock("../data/live", () => ({ default: LIVE, localName: () => "" }));
 
 const { default: LiveProfileSetup } = await import("./LiveProfileSetup");
 const { PROFILE_SETUP_LS, profileSetupNeeded, mountProfileSetup } = await import("./profileSetup");
@@ -43,7 +49,12 @@ beforeEach(() => {
   LIVE.enabled = true;
   LIVE.ready = true;
   LIVE.anchors = () => ({});
+  // A name on the account by default, so the anchor cases below decide the
+  // gate on their own subject rather than on D190's new trigger.
+  LIVE.displayName = "Tester";
   LIVE.saveAnchors.mockClear();
+  LIVE.saveDisplayName.mockClear();
+  LIVE.social.claimHandle.mockClear();
   onDone.mockClear();
 });
 afterEach(cleanup);
@@ -167,6 +178,76 @@ describe("the ask is an ask, not a wall", () => {
   });
 });
 
+// ── identity, asked here and nowhere later (D190) ────────────────────
+//
+// The name was asked by the create-a-circle screen, in a field above the
+// circle's name, and reported from a device as the wrong screen for it.
+// The handle was only ever offered in the account panel, four taps deep,
+// with a Change button that freed the old one.
+//
+// Both are facts about the ACCOUNT, so they are asked once, here, and read
+// everywhere else. These are the two properties that makes true: what the
+// screen writes, and that a refused handle keeps the screen up rather than
+// closing over the failure.
+describe("the name and the handle", () => {
+  it("writes the name to the profile, not just to this screen", async () => {
+    render(<LiveProfileSetup onDone={onDone} />);
+    fireEvent.change(screen.getByLabelText("Your name"), { target: { value: "  Olaf  " } });
+    fireEvent.click(screen.getByRole("button", { name: /^Save$/ }));
+    await settle();
+    // Trimmed, and through the store — which is also what mirrors it onto
+    // this device for the create-a-circle screen to read.
+    expect(LIVE.saveDisplayName).toHaveBeenCalledWith("Olaf");
+    expect(onDone).toHaveBeenCalled();
+  });
+
+  it("claims the handle, folded the way the server folds it", async () => {
+    render(<LiveProfileSetup onDone={onDone} />);
+    fireEvent.change(screen.getByLabelText("Your handle"), { target: { value: "@Olaf_T" } });
+    fireEvent.click(screen.getByRole("button", { name: /^Save$/ }));
+    await settle();
+    // normalizeHandle is the same fold claimHandleV2 runs, so a handle this
+    // screen sends is one the server will accept or refuse on availability
+    // alone — never on a stray @ or a capital.
+    expect(LIVE.social.claimHandle).toHaveBeenCalledWith("olaf_t");
+  });
+
+  it("keeps the screen up when the handle is taken, and says which", async () => {
+    // The one failure on this screen a user has to see and can act on.
+    // Closing over it would hand them an account with no handle and no
+    // idea that the one they picked did not stick.
+    LIVE.social.claimHandle.mockRejectedValueOnce(new Error("already-exists: that handle is taken"));
+    render(<LiveProfileSetup onDone={onDone} />);
+    fireEvent.change(screen.getByLabelText("Your handle"), { target: { value: "olaf" } });
+    fireEvent.click(screen.getByRole("button", { name: /^Save$/ }));
+    await settle();
+    expect(screen.getByText(/@olaf is taken/i)).toBeTruthy();
+    expect(onDone).not.toHaveBeenCalled();
+  });
+
+  it("saves the anchors before it touches the network", async () => {
+    // Ordering, and it is load-bearing: the anchor write is synchronous
+    // and the identity writes are round trips. Behind them, a screen
+    // dismissed mid-flight would lose the anchors — which are the ones
+    // that cannot be re-filed later (D8/D5).
+    LIVE.social.claimHandle.mockRejectedValueOnce(new Error("already-exists"));
+    render(<LiveProfileSetup onDone={onDone} />);
+    pick("Gender", "Woman");
+    fireEvent.change(screen.getByLabelText("Your handle"), { target: { value: "olaf" } });
+    fireEvent.click(screen.getByRole("button", { name: /^Save 1 of 7$/ }));
+    // Synchronously, before any await settles.
+    expect(LIVE.saveAnchors).toHaveBeenCalledTimes(1);
+    await settle();
+  });
+
+  it("says a handle is picked once, before it is picked", () => {
+    // claimHandleV2 refuses a change (D190), so this is the only moment
+    // the choice can be informed.
+    render(<LiveProfileSetup onDone={onDone} />);
+    expect(screen.getByText(/picked once and can’t be changed/i)).toBeTruthy();
+  });
+});
+
 describe("who gets asked", () => {
   it("asks an account with no anchors at all", () => {
     expect(profileSetupNeeded()).toBe(true);
@@ -177,6 +258,15 @@ describe("who gets asked", () => {
     // existed. Re-asking them would be the app forgetting.
     LIVE.anchors = () => ({ gender: "Woman" });
     expect(profileSetupNeeded()).toBe(false);
+  });
+
+  it("asks an account with anchors but no name (D190)", () => {
+    // The account this screen now exists for as much as the empty one:
+    // it has been through the anchors and has nothing to be called, so
+    // every screen that needs a name would go on asking for one.
+    LIVE.anchors = () => ({ gender: "Woman" });
+    LIVE.displayName = "";
+    expect(profileSetupNeeded()).toBe(true);
   });
 
   it("does not ask before the store has hydrated", () => {

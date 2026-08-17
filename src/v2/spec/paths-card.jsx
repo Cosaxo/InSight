@@ -222,7 +222,7 @@ export function PathsCard() {
               // and an empty tree drawn at zero width would say "nobody went
               // anywhere" rather than "nobody has been here yet".
               <div className="pp-rule" style={{ marginTop: 14 }}>
-                You are the first to reach the end of this one. The roads fill in as people walk them.
+                You are the first to reach the end of this one.
               </div>
             )}
           <div className="pp-end">

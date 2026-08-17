@@ -13,19 +13,23 @@
 //            (data/cohort.ts `agreement`, over the cached voter lists).
 //   Compare  you against this population, question by question, with the
 //            questions you diverge on most surfaced first.
-//   Scores   the mean of every ordinal question this population answered,
-//            with your own score ticked onto their bar (D100).
+//   Scores   the place scorecard: what this population gives the place it
+//            is standing in, facet by facet, with your own score ticked
+//            onto their bar (D100, corrected at D187).
 //   Explore  pick a trait slice and see what it believes, led by where it
 //            differs from everyone — `divergence`.
 //
 // SCORES WAS REFUSED HERE UNTIL D100, and the note said the bank shipped
-// no `rate` questions so the lens would be an empty frame. That was true
-// about the PROTOTYPE'S Scores — a place scorecard, "rate Oslo's
-// nightlife" — and it read as true about the lens, which was wrong: the
-// bank ships five 1-10 `rating` items and sixteen 5-point `scale` ones,
-// and an ordinal question is an ordinal question whether its subject is a
-// city or your own outlook. The lens filters on TYPE, so place-rating
-// questions join it the day someone writes them, with no code change.
+// no `rate` questions so the lens would be an empty frame. D100 answered
+// that the lens could filter on question TYPE instead — an ordinal
+// question is an ordinal question whether its subject is a city or your
+// own outlook — and shipped it over the bank's `rating` and `scale`
+// items. The refusal was right and the answer was not: what a scorecard
+// of a place needs is not a number, it is a number ABOUT THE PLACE, and
+// filtering on type gave the City stop a card led by "Breakfast is the
+// best meal of the day". D187 wrote the questions the refusal was
+// waiting for and gave them a subject the lens can read (`rates`); the
+// section comment on ScoresLens has the full account.
 //
 //   Answers  is NOT in this file, and since D119 that is a division of
 //            labour rather than an absence: it is the host's own body
@@ -63,6 +67,7 @@ import { TypeMark } from "../spec/type-marks.jsx";
 // The row's own types and labels live next door: eslint's react-refresh
 // rule wants a component file to export only components, and it is right
 // that a constant shared with the host does not belong in one.
+import Avatar from "./Avatar";
 import { ORDINAL_TYPES, type LensId, type LensQuestion } from "./lensDefs";
 // D136 removed the Foresight lens from this row, so the import of
 // ./LiveForesightLens went with it. The component and data/foresight.ts
@@ -209,7 +214,7 @@ function WhosHere({ qs, shortName }: { qs: LensQuestion[]; shortName: string }) 
   const genderTotal = genderRows.reduce((a, r) => a + r.n, 0);
 
   if (!ageTotal && !genderTotal) {
-    return <LlEmpty>Nobody here has filled in their age or gender yet.</LlEmpty>;
+    return <LlEmpty>No ages or genders here yet.</LlEmpty>;
   }
 
   return (
@@ -219,7 +224,7 @@ function WhosHere({ qs, shortName }: { qs: LensQuestion[]; shortName: string }) 
           Who&rsquo;s here
         </div>
         <div style={{ fontFamily: "var(--sans)", fontSize: 12, fontWeight: 500, color: "var(--ink-3)", marginTop: 2 }}>
-          the people answering in {shortName}
+          in {shortName}
         </div>
       </div>
 
@@ -310,10 +315,12 @@ function WhosHere({ qs, shortName }: { qs: LensQuestion[]; shortName: string }) 
         </div>
       )}
 
-      {/* Once, at the foot, rather than beside every figure. */}
-      <span style={{ fontFamily: "var(--sans)", fontSize: 11, fontWeight: 500, color: "var(--ink-3)", lineHeight: 1.5 }}>
-        Answers, not people — each question someone answered counts once.
-      </span>
+      {/* "Answers, not people" stood here and is gone (D183). It is not a
+          claim the card stopped making — it is one the KICKER makes, on
+          the figure itself: "answers with an age" is the unit printed on
+          the number it qualifies, which is the only place a unit belongs.
+          The footnote was that unit said a second time, further from the
+          number, in smaller type. */}
     </div>
   );
 }
@@ -353,15 +360,13 @@ function KindredCard({ p }: { p: TypedPerson & { anchors?: Record<string, string
       background: "var(--surface)", border: LL_LINE, borderRadius: 14,
     }}>
       <MatchRing pct={pct} color={`oklch(0.52 0.13 ${hue})`} size={50} title={`${pct}% alike`}>
-        <span aria-hidden="true" style={{
-          width: 36, height: 36, borderRadius: "50%", display: "flex", alignItems: "center",
-          justifyContent: "center", background: `oklch(0.93 0.04 ${hue})`,
-        }}>
-          <svg viewBox="0 0 24 24" width={19} height={19} fill={`oklch(0.45 0.12 ${hue})`} aria-hidden="true">
-            <circle cx="12" cy="8.2" r="3.6"></circle>
-            <path d="M4.6 20.2a7.4 7.4 0 0 1 14.8 0z"></path>
-          </svg>
-        </span>
+        {/* THE FACE, WHERE THE GENERIC BODY GLYPH WAS (D178). A photo is a
+            profile field, so it draws anywhere a person is already named,
+            and this card names one. Avatar falls back to initials and,
+            failing those, to the same anonymous shape this used to be —
+            most accounts will never set a picture, and that has to look
+            deliberate rather than empty. */}
+        <Avatar uid={p.uid} name={p.name} size={36} />
       </MatchRing>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
@@ -410,8 +415,11 @@ function KindredCard({ p }: { p: TypedPerson & { anchors?: Record<string, string
             ))}
           </div>
         )}
-        <div style={{ fontFamily: "var(--sans)", fontSize: 11, fontWeight: 600, color: "var(--ink-3)", marginTop: 6 }}>
-          {p.like.same} of {p.like.shared} the same
+        {/* A ratio, read as one. "5 of 6 the same" is a sentence fragment
+            the eye has to assemble; "5/6 alike" is the same fact as a
+            glyph, next to a ring that already draws it. */}
+        <div style={{ fontFamily: "var(--sans)", fontSize: 11, fontWeight: 600, color: "var(--ink-3)", marginTop: 6, fontVariantNumeric: "tabular-nums" }}>
+          {p.like.same}/{p.like.shared} alike
         </div>
       </div>
       <FollowButton uid={p.uid} />
@@ -446,16 +454,16 @@ function PeopleLens({ qs, scope, shortName }: {
         <div style={{ fontFamily: "var(--sans)", fontSize: 15.5, fontWeight: 800, letterSpacing: "-0.015em", color: "var(--ink)" }}>
           Kindred
         </div>
+        {/* The second clause said what the ring already shows. A legend for
+            a shape the reader is looking at is words spent on the visual's
+            job. */}
         <div style={{ fontFamily: "var(--sans)", fontSize: 12, fontWeight: 500, color: "var(--ink-3)", marginTop: 2, marginBottom: 10, lineHeight: 1.5 }}>
-          strangers most aligned with you — the fuller the ring, the closer
+          who answers most like you
         </div>
         {loading && !people.length ? (
-          <LlEmpty>Working out who answers like you…</LlEmpty>
+          <LlEmpty>Matching…</LlEmpty>
         ) : !people.length ? (
-          <LlEmpty>
-            Nobody has answered enough of the same questions yet. This fills in
-            as you answer more.
-          </LlEmpty>
+          <LlEmpty>Fills in as you answer more.</LlEmpty>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {people.slice(0, 12).map((p) => <KindredCard key={p.uid} p={p} />)}
@@ -463,8 +471,7 @@ function PeopleLens({ qs, scope, shortName }: {
                 a likeness number nobody can explain is a number nobody
                 should trust. */}
             <span style={{ fontFamily: "var(--sans)", fontSize: 11.5, fontWeight: 500, color: "var(--ink-3)", marginTop: 2, lineHeight: 1.5 }}>
-              Share of the questions you have both answered where you picked the
-              same option, across your last {LIVE.kindredDepth()}.
+              same picks &divide; shared &middot; last {LIVE.kindredDepth()}
             </span>
           </div>
         )}
@@ -481,32 +488,60 @@ function PeopleLens({ qs, scope, shortName }: {
 
 // ── Compare ─────────────────────────────────────────────────────────
 
-function CompareLens({ qs, shortName }: { qs: LensQuestion[]; shortName: string }) {
+/**
+ * Compare — you against a cohort, least typical first.
+ *
+ * EXPORTED since D177, and it is the only lens body that is: the Near
+ * stop's room reads exactly this way (you against the people here), and a
+ * second implementation would be a second place for D170's majority test
+ * to be got wrong. It asks nothing about scope — a `LensQuestion[]` and a
+ * noun — so a cohort the server folded reads the same as one the device
+ * did.
+ */
+export function CompareLens({ qs, shortName }: { qs: LensQuestion[]; shortName: string }) {
   const answered = qs.filter((q) => q.mine >= 0 && q.counts.some((c) => c > 0));
   if (!answered.length) {
-    return <LlEmpty>Answer a few of today&apos;s questions and this fills in.</LlEmpty>;
+    return <LlEmpty>Fills in as you answer.</LlEmpty>;
   }
   // Ranked by how far you sit from the crowd on your own pick — the
   // interesting rows are the ones where you are unusual, not the ones
   // where everyone agrees with you.
   const rows = answered.map((q) => {
     const pct = pctFor(q.counts);
-    return { q, pct, mineShare: pct[q.mine] || 0 };
+    const n = q.counts.reduce((a, b) => a + b, 0);
+    // "With the majority" means your pick is what this cohort picked MOST
+    // — not that it cleared 50% (D170). The old rule was `mineShare >= 50`
+    // and it was wrong in both directions: on a three-way question the
+    // leading answer can win on 40%, and on a two-way tie at 50/50 nobody
+    // is in the majority, which is exactly what the release showed —
+    // "the majority in 3 of 3" over a row split 50/50.
+    const top = q.counts.reduce((t, v, i) => (v > q.counts[t] ? i : t), 0);
+    const tied = q.counts.filter((v) => v === q.counts[top]).length > 1;
+    return { q, pct, n, mineShare: pct[q.mine] || 0, withMost: !tied && q.mine === top };
   }).sort((a, b) => a.mineShare - b.mineShare);
 
-  const withMost = rows.filter((r) => r.mineShare >= 50).length;
+  const withMost = rows.filter((r) => r.withMost).length;
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      {/* A fraction and a sort order, which is all this line ever carried.
+          The noun stays — CompareLens is the Near stop's room as well as a
+          cohort stop (D177), and there "the people here" is the reading —
+          but the rest was scaffolding around two facts. */}
       <div style={{ fontFamily: "var(--sans)", fontSize: 13, fontWeight: 600, color: "var(--ink-2)", lineHeight: 1.5 }}>
-        You went with the majority in <strong>{withMost}</strong> of {rows.length},
-        against {shortName}. Least typical first.
+        <strong style={{ fontVariantNumeric: "tabular-nums" }}>{withMost}/{rows.length}</strong>
+        {" "}with {shortName} · least typical first
       </div>
-      {rows.map(({ q, pct, mineShare }) => (
+      {rows.map(({ q, pct, n, mineShare }) => (
         <div key={q.id} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           <span style={{ fontFamily: "var(--serif)", fontSize: 14.5, color: "var(--ink)", lineHeight: 1.35 }}>{q.text}</span>
           <LlBar pct={pct} labels={q.options} mark={q.mine} />
           <span style={{ fontFamily: "var(--sans)", fontSize: 11.5, fontWeight: 600, color: "var(--ink-3)" }}>
-            You said <strong style={{ color: "var(--ink-2)" }}>{q.options[q.mine]}</strong> · {mineShare}% here agreed
+            You said <strong style={{ color: "var(--ink-2)" }}>{q.options[q.mine]}</strong>
+            {/* A share of ONE answer is not a share: with n=1 the only
+                values the arithmetic can produce are 0% and 100%, so
+                "100% here agreed" reports the sample size and nothing
+                else. Arithmetic, not a threshold someone chose. */}
+            {n === 1 ? <> · one answer here so far</> : <> · {mineShare}% here agreed</>}
           </span>
         </div>
       ))}
@@ -536,9 +571,13 @@ function ExploreLens({ qs }: { qs: LensQuestion[] }) {
     ? qs.map((q) => {
       const split = sliceSplit(q.by, dim, picked, q.options.length);
       if (!split) return null;
-      const d = divergence(q.by, dim, q.counts, q.options.length)
+      // `all`, not `counts` (D170): Explore's slices are cuts of everyone
+      // and its sentence ends "same as everyone", so the globe is the
+      // right baseline on every stop. Compare and Scores read `counts`,
+      // which is the stop's own cohort.
+      const d = divergence(q.by, dim, q.all, q.options.length)
         .find((x) => x.bucket === picked);
-      return { q, split, overall: pctFor(q.counts), gap: d ? d.gap : 0, on: d ? d.optionIdx : 0 };
+      return { q, split, overall: pctFor(q.all), gap: d ? d.gap : 0, on: d ? d.optionIdx : 0 };
     }).filter(Boolean).sort((a, b) => b!.gap - a!.gap)
     : [];
 
@@ -569,14 +608,17 @@ function ExploreLens({ qs }: { qs: LensQuestion[] }) {
             ))}
           </div>
           {!rows.length ? (
-            <LlEmpty>Nobody in {pickedName} has answered these yet.</LlEmpty>
+            <LlEmpty>Nothing from {pickedName} yet.</LlEmpty>
           ) : rows.map((r) => (
             <div key={r!.q.id} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               <span style={{ fontFamily: "var(--serif)", fontSize: 14.5, color: "var(--ink)", lineHeight: 1.35 }}>{r!.q.text}</span>
               <LlBar pct={r!.split} labels={r!.q.options} mark={r!.q.mine >= 0 ? r!.q.mine : undefined} />
               <span style={{ fontFamily: "var(--sans)", fontSize: 11.5, fontWeight: 600, color: "var(--ink-3)" }}>
+                {/* The subject is the chip the reader just tapped, lit in
+                    the accent directly above — repeating it on every row
+                    spends a noun per row to say what the selection says. */}
                 {r!.gap > 0
-                  ? <>{pickedName} are <strong style={{ color: "var(--ink-2)" }}>{r!.gap} points</strong> {r!.split[r!.on] > r!.overall[r!.on] ? "more" : "less"} likely to say {r!.q.options[r!.on]}</>
+                  ? <><strong style={{ color: "var(--ink-2)" }}>{r!.gap} pts</strong> {r!.split[r!.on] > r!.overall[r!.on] ? "more" : "less"} likely to say {r!.q.options[r!.on]}</>
                   : <>Same as everyone.</>}
               </span>
             </div>
@@ -589,20 +631,41 @@ function ExploreLens({ qs }: { qs: LensQuestion[] }) {
 
 // ── Scores ──────────────────────────────────────────────────────────
 //
-// The scorecard: every ordinal question this population has answered,
-// ranked by what they gave it, with your own score beside theirs.
+// The place scorecard: what this population gives the place it is
+// standing in, facet by facet, best first, with your own score beside
+// theirs.
 //
-// The prototype's Scores is a place scorecard — rate Oslo's nightlife,
-// its transit, its cost — fed by `rate` questions that the live bank does
-// not carry. This is the same lens over the questions the bank DOES
-// carry: the five 1-10 `rating` items and the sixteen 5-point `scale`
-// ones. It is a narrower claim than "how good is this city" and a true
-// one, and when place-rating questions are written they will appear here
-// with no code change, because the lens filters on the type rather than
-// on a hardcoded list of categories.
+// IT DREW THE WRONG QUESTIONS UNTIL D187, and the failure is worth
+// keeping because every gate in the tree was green while it shipped.
+// D100 read the prototype's Scores as "average the ordinal questions"
+// and built exactly that — which is a true average of a real crowd, and
+// says nothing whatever about the place the card is named after. On a
+// device the City stop's scorecard led with "Breakfast is the best meal
+// of the day · 3.4 / 5", under the heading "How Oslo rated them".
+//
+// The subject of a question is not derivable from its counts, its type
+// or its branch: "How safe do you feel walking home at night?" and
+// "It's okay to do nothing sometimes" are both ordinal, both answered by
+// the same people, and only one of them is about Oslo. So the question
+// declares it — `rates: "city" | "country" | "world"` — and this lens
+// draws only what names the stop it is standing on. City reads its city
+// cell, Country its country cell, World the globe (the cell is the
+// host's, D170), and a question that rates no place is not on this card
+// at all. Its average is not lost: the Answers tab leads every ordinal
+// row with the same number (`headlineFor`, D120).
+//
+// The type filter stays under the subject filter rather than being
+// replaced by it. `rates` says what a question is about; ORDINAL_TYPES
+// says whether averaging it means anything, and a place question written
+// as a `choice` would otherwise render a confident mean of nothing.
 
-function ScoresLens({ qs, shortName }: { qs: LensQuestion[]; shortName: string }) {
-  const scored = qs
+function ScoresLens({ qs, shortName, scope }: {
+  qs: LensQuestion[];
+  shortName: string;
+  scope: "city" | "country" | "world";
+}) {
+  const rates = qs.filter((q) => q.rates === scope);
+  const scored = rates
     .filter((q) => ORDINAL_TYPES.has(q.type || ""))
     .map((q) => ({ q, score: meanScore(q.counts), mine: q.mine >= 0 ? q.mine + 1 : null }))
     .filter((r): r is { q: LensQuestion; score: Score; mine: number | null } => !!r.score)
@@ -611,13 +674,16 @@ function ScoresLens({ qs, shortName }: { qs: LensQuestion[]; shortName: string }
   if (!scored.length) {
     // Two different emptinesses, and collapsing them would hide which one
     // this is. Neither is "withheld" — that category is gone (D98).
-    const anyOrdinal = qs.some((q) => ORDINAL_TYPES.has(q.type || ""));
+    //
+    // The first is now also the shape a pre-D187 bank takes: the questions
+    // exist in `content/` and the seeded docs carry no `rates` until an
+    // operator reseeds, so the card is empty rather than wrong. That is
+    // the direction to be wrong in — the whole point of the change.
     return (
       <LlEmpty>
-        {anyOrdinal
-          ? <>Nobody here has answered a rated question yet.</>
-          : <>Nothing rated yet. Scores fills in from the questions that ask
-            for a number rather than a side — answer one and it appears here.</>}
+        {rates.length
+          ? <>Nobody here has scored {shortName} yet.</>
+          : <>Nothing scored yet — questions that rate {shortName} land here.</>}
       </LlEmpty>
     );
   }
@@ -625,14 +691,23 @@ function ScoresLens({ qs, shortName }: { qs: LensQuestion[]; shortName: string }
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
       <div style={{ fontFamily: "var(--sans)", fontSize: 13, fontWeight: 600, color: "var(--ink-2)", lineHeight: 1.5 }}>
-        How {shortName} rated {scored.length === 1 ? "it" : "them"}, best first.
+        {/* The one thing the ruler, the tab and the rows do not already
+            say: the crowd and the subject are the same people. Everything
+            else on this line would be a caption for a shape the reader is
+            looking at (docs/COPY.md). */}
+        How {shortName} rates itself · best first
       </div>
       {scored.map(({ q, score, mine }) => {
         const frac = score.mean / score.max;
         return (
           <div key={q.id} style={{ display: "flex", flexDirection: "column", gap: 5 }}>
             <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-              <span style={{ flex: 1, fontFamily: "var(--serif)", fontSize: 14.5, color: "var(--ink)", lineHeight: 1.35 }}>{q.text}</span>
+              {/* The bank's own short label, the prompt only when a doc
+                  carries none (D187). Eight nouns down a shared baseline
+                  is a shape; eight questions is a list you read one at a
+                  time, and the sort that makes the shape readable is
+                  wasted on it. */}
+              <span style={{ flex: 1, fontFamily: "var(--serif)", fontSize: 14.5, color: "var(--ink)", lineHeight: 1.35 }}>{q.tag || q.text}</span>
               {/* The scale's top ships with the number, always. "6.2"
                   means opposite things out of 10 and out of 5, and this
                   list mixes both. */}
@@ -656,11 +731,20 @@ function ScoresLens({ qs, shortName }: { qs: LensQuestion[]; shortName: string }
             </span>
             <span style={{ fontFamily: "var(--sans)", fontSize: 11.5, fontWeight: 600, color: "var(--ink-3)" }}>
               {mine == null
-                ? <>{score.n.toLocaleString()} {score.n === 1 ? "answer" : "answers"} · you have not rated this</>
-                : <>You gave it <strong style={{ color: "var(--ink-2)" }}>{mine}</strong>
-                  {mine === score.mean ? <> — exactly the average</>
-                    : <> · {Math.abs(Math.round((mine - score.mean) * 10) / 10)} {mine > score.mean ? "above" : "below"} them</>}
-                  {" "}· {score.n.toLocaleString()} {score.n === 1 ? "answer" : "answers"}</>}
+                ? <>{score.n.toLocaleString()} {score.n === 1 ? "answer" : "answers"} · you have not rated it</>
+                /* One answer is not an average, and when you are the one
+                   who gave it "exactly the average" is you compared with
+                   yourself — which is what the release printed, under the
+                   then-heading "How Oslo rated it" (D170). Said as a count
+                   instead: true whoever the answer belongs to, which
+                   matters because a vote carries the city it was cast
+                   from (D8) and this stop shows the city you are in now. */
+                : score.n === 1
+                  ? <>You gave it <strong style={{ color: "var(--ink-2)" }}>{mine}</strong> · the only answer here so far</>
+                  : <>You gave it <strong style={{ color: "var(--ink-2)" }}>{mine}</strong>
+                    {mine === score.mean ? <> — exactly the average</>
+                      : <> · {Math.abs(Math.round((mine - score.mean) * 10) / 10)} {mine > score.mean ? "above" : "below"} them</>}
+                    {" "}· {score.n.toLocaleString()} answers</>}
             </span>
           </div>
         );
@@ -694,7 +778,7 @@ function LiveMirrorLenses({ lens, qs, shortName, scope = "city" }: {
     <div style={{ paddingTop: 14 }}>
       {lens === "people" && <PeopleLens qs={qs} scope={scope} shortName={shortName} />}
       {lens === "compare" && <CompareLens qs={qs} shortName={shortName} />}
-      {lens === "scores" && <ScoresLens qs={qs} shortName={shortName} />}
+      {lens === "scores" && <ScoresLens qs={qs} shortName={shortName} scope={scope} />}
       {lens === "explore" && <ExploreLens qs={qs} />}
     </div>
   );

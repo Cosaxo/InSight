@@ -48,11 +48,57 @@ export interface LensQuestion {
   id: string;
   text: string;
   options: string[];
+  /**
+   * The counts of the STOP THIS LENS IS STANDING ON — the City stop's
+   * city cell, the Country stop's country cell, the World stop's globe.
+   *
+   * It was the globe on every stop until D170, while Compare and Scores
+   * printed the stop's name over it ("against Oslo", "How Oslo rated
+   * it"). Not a fabricated number — a real one describing a crowd it
+   * never counted, which is D157's failure one tab over. It was visible
+   * from the app: Answers said "1 more question has no answers from Oslo
+   * yet" while Compare drew that same question at 50/50.
+   */
   counts: number[];
+  /**
+   * The published GLOBE, whatever stop this is — Explore's baseline and
+   * only Explore's.
+   *
+   * Explore is global by construction and says so: its slices are
+   * `by[dim]` buckets across everyone (there is no city × age cell to
+   * read), and its sentence is "25-34 are 12 points more likely…
+   * Same as everyone." So its comparison must stay against everyone,
+   * which is why the globe survives as its own field rather than being
+   * replaced by the scope cell.
+   */
+  all: number[];
   by: ByMap | undefined;
   mine: number;
   /** The bank's question type — Scores filters on ORDINAL_TYPES (D100). */
   type?: string;
   /** The bank's subject branch (D100); undefined on a pre-D100 seed. */
   branch?: string;
+  /**
+   * The bank's short label — "Nature access", "Getting around" (D187).
+   *
+   * Scores draws this instead of the prompt, because a scorecard is a
+   * column of nouns beside one baseline and a column of questions is a
+   * list you read one at a time. Undefined outside the daily bank and on
+   * a pre-D187 seed, so the card falls back to the prompt.
+   */
+  tag?: string;
+  /**
+   * Which Mirror stop's scorecard may fold this question — "city" |
+   * "country" | "world" (D187), absent on every question that rates no
+   * place, which is most of the bank.
+   *
+   * THE POINT OF THE FIELD is that a place scorecard has to be about the
+   * place. Until D187 Scores drew every ordinal question the archive
+   * held, headed "How Oslo rated them" — so a city's scorecard led with
+   * "Breakfast is the best meal of the day", which is a true average of
+   * a real crowd and says nothing whatever about Oslo. The subject is
+   * not derivable from the counts, the type or the branch; it is a
+   * property of the QUESTION, so the question declares it.
+   */
+  rates?: string;
 }

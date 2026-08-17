@@ -14,11 +14,14 @@
 // lives here as typed TSX. A globalThis assignment at the bottom
 // keeps the spec layer's render-time lookup working unchanged.
 import React from "react";
-import LIVE from "../data/live";
+import LIVE, { localName } from "../data/live";
+import Avatar from "./Avatar";
 // The handle is claimed here because this is where identity already
 // lives — the display name is next door, and the two are different
 // things: a name is what a reveal calls you, a handle is how someone
-// finds you (D122).
+// finds you (D122). Since D190 the first-run screen asks for both, and
+// this row is what remains for the accounts that predate it: a claim for
+// an account with no handle, and the handle itself for one that has.
 import { atHandle, handleProblem, normalizeHandle } from "../data/handles";
 // The hosted origin for the legal pages. Lives in data/links.ts now so
 // invites and legal links share one constant — a domain change stays a
@@ -29,7 +32,6 @@ import { setTelemetryEnabled, telemetryEnabled } from "../../lib/sentry";
 // interests panel plus its store put the total 2 KB over. It is also the
 // right thing to defer on the merits — it renders inside the account
 // screen, which nothing on the first frame opens.
-const LiveInterestsPanel = React.lazy(() => import("./LiveInterestsPanel"));
 
 const LP_LINE = "1px solid color-mix(in oklch, var(--rule), transparent 25%)";
 
@@ -52,9 +54,11 @@ function LpRow({ title, sub, children }: {
 function LivePrivacyPanel() {
   const [, tick] = React.useState(0);
   React.useEffect(() => LIVE.subscribe(() => tick((t) => t + 1)), []);
-  const [name, setName] = React.useState(() => {
-    try { return localStorage.getItem("insight.displayName.v1") || ""; } catch { return ""; }
-  });
+  // The profile's name first, this device's copy of it second (D190): the
+  // local mirror is what the app can read before hydration lands, not a
+  // second source of truth, and reading it first showed a stale name to
+  // anyone who had renamed on another device.
+  const [name, setName] = React.useState(() => LIVE.displayName || localName());
   const [saved, setSaved] = React.useState(false);
   const [handle, setHandle] = React.useState("");
   const [hBusy, setHBusy] = React.useState(false);
@@ -69,15 +73,31 @@ function LivePrivacyPanel() {
   const linked = LIVE.linked || linkedNow;
   const [telemetry, setTelemetry] = React.useState(telemetryEnabled);
   const [err, setErr] = React.useState<string | null>(null);
+  const [photoMsg, setPhotoMsg] = React.useState<string | null>(null);
   if (!LIVE.enabled) return null;
 
+  // The three outcomes worth a sentence, and "removed" is the one that
+  // matters: a face a moderator took down is FROZEN against re-upload
+  // (firestore.rules), so "try again" would be a loop with no exit.
+  const PHOTO_FAIL: Record<string, string> = {
+    "too-big": "That picture is too large even after shrinking — try another.",
+    removed: "This photo was removed by moderation, so it can’t be replaced here.",
+    unavailable: "Couldn’t save that picture just now.",
+  };
+  const pickPhoto = async (file: File) => {
+    setPhotoMsg("Saving…");
+    const r = await LIVE.setAvatar(file);
+    setPhotoMsg(r.ok ? null : (PHOTO_FAIL[r.reason || ""] || PHOTO_FAIL.unavailable));
+  };
   const saveName = async () => {
     const n = name.trim().slice(0, 60);
     if (!n) return;
     setBusy(true); setErr(null);
     try {
+      // The store writes the device mirror too, so this panel no longer
+      // owns that key (D190) — one writer, and a rename reaches every
+      // reader of it.
       await LIVE.saveDisplayName(n);
-      try { localStorage.setItem("insight.displayName.v1", n); } catch { /* best-effort */ }
       setSaved(true); setTimeout(() => setSaved(false), 1800);
     } catch (e) { setErr(String((e instanceof Error && e.message) || e)); }
     setBusy(false);
@@ -131,6 +151,42 @@ function LivePrivacyPanel() {
     <div className="card" style={{ marginBottom: 14, padding: "14px 16px" }}>
       <div className="kicker" style={{ marginBottom: 4 }}>Account &amp; privacy</div>
 
+      {/* THE FACE, ABOVE THE NAME (D178). Both answer "who are you to
+          other people", and the photo is the louder half — so it goes
+          first, and its sub-line is the disclosure rather than an
+          instruction. A photo shows to anyone who can already see your
+          name, which since D177 includes people standing near you.
+
+          Reported like a take, not reviewed before it shows (the owner's
+          call): the same loop takes have had since D83, so a face carries
+          the report control every named surface draws and a remove verdict
+          hides it everywhere at once. */}
+      <LpRow title="Your photo"
+        sub="Shows anywhere your name shows. Reportable like a comment — taking it down is instant.">
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <Avatar uid={LIVE.uid || ""} name={name} size={38} />
+          <label className="press" style={{
+            border: LP_LINE, borderRadius: 999, padding: "7px 13px", cursor: "pointer",
+            fontFamily: "var(--sans)", fontWeight: 700, fontSize: 12.5, color: "var(--ink-2)",
+          }}>
+            {LIVE.myFace() ? "Replace" : "Add photo"}
+            {/* A plain file input rather than a camera plugin: it opens the
+                photo library on iOS and Android inside the WebView, needs
+                no new native permission, and adds nothing to the store
+                forms beyond the photo itself. */}
+            <input type="file" accept="image/jpeg,image/png,image/webp"
+              style={{ display: "none" }}
+              onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void pickPhoto(f); }} />
+          </label>
+          {LIVE.myFace() ? btn("Remove", () => LIVE.removeAvatar()) : null}
+        </div>
+      </LpRow>
+      {photoMsg && (
+        <div role="status" style={{ fontFamily: "var(--sans)", fontSize: 12, fontWeight: 600, color: "var(--ink-2)", margin: "-4px 0 10px" }}>
+          {photoMsg}
+        </div>
+      )}
+
       <LpRow title="Your name" sub="What group and 1v1 partners see in reveals.">
         <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Add a name"
@@ -144,34 +200,56 @@ function LivePrivacyPanel() {
       {/* The handle. Under the name on purpose: the name is what a reveal
           calls you and can be anything, the handle is unique and is how a
           friend reaches you — and someone reading top to bottom meets
-          them in that order. */}
-      <LpRow title={LIVE.handle ? `Your handle · ${atHandle(LIVE.handle)}` : "Your handle"}
-        sub={LIVE.handle
-          ? "Friends add you by this. Changing it frees the old one for someone else."
-          : "Claim a handle so friends can add you to a circle without swapping codes."}>
-        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-          <input value={handle} onChange={(e) => setHandle(e.target.value)}
-            placeholder={LIVE.handle ? atHandle(LIVE.handle) : "@yourname"}
-            autoCapitalize="none" autoCorrect="off" spellCheck={false}
-            aria-label="Your handle"
-            style={{ border: LP_LINE, borderRadius: 9, padding: "8px 11px", width: 132,
-              fontFamily: "var(--sans)", fontSize: "var(--field-size)", fontWeight: 600, color: "var(--ink)",
-              background: "var(--surface-2)", outline: "none", minWidth: 0 }} />
-          <button className="press" onClick={() => void saveHandle()}
-            disabled={hBusy || !normalizeHandle(handle)}
-            style={{ border: LP_LINE, borderRadius: 999, cursor: hBusy ? "default" : "pointer", padding: "8px 15px",
-              fontFamily: "var(--sans)", fontWeight: 800, fontSize: 12.5, WebkitAppearance: "none",
-              background: "var(--surface-2)", color: "var(--ink)",
-              opacity: hBusy || !normalizeHandle(handle) ? 0.5 : 1, whiteSpace: "nowrap" }}>
-            {hBusy ? "…" : LIVE.handle ? "Change" : "Claim"}
-          </button>
-        </div>
-      </LpRow>
-      {(handleProblem(handle) || hMsg) && (
-        <div role="status" style={{ fontFamily: "var(--sans)", fontSize: 12, fontWeight: 600,
-          color: "var(--ink-2)", margin: "-6px 0 10px" }}>
-          {handleProblem(handle) || hMsg}
-        </div>
+          them in that order.
+
+          CLAIMED ONCE (D190). This row offered a "Change" button, and the
+          rename behind it was real: claimHandleV2 took the new key and
+          released the old one in one transaction, so the name you had
+          handed people became free for a stranger to take the same
+          minute. That is the whole failure — a handle is an ADDRESS, and
+          an address that can be reassigned is one nobody can be given.
+          The callable refuses a change now; this shows the handle as the
+          fact it is, and the claim control is only ever drawn for an
+          account that has none.
+
+          It is asked at sign-in since D190 (LiveProfileSetup), so the
+          control here is for the accounts that predate that screen and
+          for anyone who skipped it. */}
+      {LIVE.handle ? (
+        <LpRow title="Your handle" sub="Friends add you by this. It can’t be changed.">
+          <span style={{ fontFamily: "var(--mono, monospace)", fontSize: 13.5, fontWeight: 700, color: "var(--ink)", whiteSpace: "nowrap" }}>
+            {atHandle(LIVE.handle)}
+          </span>
+        </LpRow>
+      ) : (
+        <>
+          <LpRow title="Your handle"
+            sub="Claim a handle so friends can add you to a circle without swapping codes. You only get to pick once.">
+            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+              <input value={handle} onChange={(e) => setHandle(e.target.value)}
+                placeholder="@yourname"
+                autoCapitalize="none" autoCorrect="off" spellCheck={false}
+                aria-label="Your handle"
+                style={{ border: LP_LINE, borderRadius: 9, padding: "8px 11px", width: 132,
+                  fontFamily: "var(--sans)", fontSize: "var(--field-size)", fontWeight: 600, color: "var(--ink)",
+                  background: "var(--surface-2)", outline: "none", minWidth: 0 }} />
+              <button className="press" onClick={() => void saveHandle()}
+                disabled={hBusy || !normalizeHandle(handle)}
+                style={{ border: LP_LINE, borderRadius: 999, cursor: hBusy ? "default" : "pointer", padding: "8px 15px",
+                  fontFamily: "var(--sans)", fontWeight: 800, fontSize: 12.5, WebkitAppearance: "none",
+                  background: "var(--surface-2)", color: "var(--ink)",
+                  opacity: hBusy || !normalizeHandle(handle) ? 0.5 : 1, whiteSpace: "nowrap" }}>
+                {hBusy ? "…" : "Claim"}
+              </button>
+            </div>
+          </LpRow>
+          {(handleProblem(handle) || hMsg) && (
+            <div role="status" style={{ fontFamily: "var(--sans)", fontSize: 12, fontWeight: 600,
+              color: "var(--ink-2)", margin: "-6px 0 10px" }}>
+              {handleProblem(handle) || hMsg}
+            </div>
+          )}
+        </>
       )}
 
       <LpRow title="Sign-in"
@@ -181,99 +259,52 @@ function LivePrivacyPanel() {
           // the local cache to Google Drive), linking is now the ONLY way an
           // anonymous session survives a phone swap. Say so plainly rather
           // than letting someone find out by losing everything.
-          : "You're on an anonymous session — it lives only on this phone. Link Google so your history survives a lost or replaced device; same account, nothing moves."}>
+          : "Anonymous session — it lives only on this phone. Link Google and your history survives a lost device."}>
         {btn(linked ? "Linked ✓" : "Link Google", link)}
       </LpRow>
 
       <LpRow title="Crash reports"
         sub={telemetry
-          ? "On (default) — anonymous crash and error reports (uid only, never your answers) help fix bugs. Turn off any time."
-          : "Off — this app sends no reports. Turn on to send anonymous crash reports (uid only, never your answers)."}>
+          ? "On — anonymous crash reports (uid only, never your answers)."
+          : "Off — no reports are sent."}>
         {btn(telemetry ? "On ✓" : "Off", toggleTelemetry)}
       </LpRow>
 
-      <div style={{ padding: "11px 0", borderBottom: LP_LINE }}>
-        <div style={{ fontWeight: 800, fontSize: 14.5, marginBottom: 6 }}>What leaves your device</div>
-        <ul style={{ margin: 0, paddingLeft: 17, fontSize: 12.5, fontWeight: 500, color: "var(--ink-2)", lineHeight: 1.65 }}>
-          {/* The first bullet, and deliberately the bluntest sentence in
-              the app. D98 made answers public; a user learning that from
-              a stranger quoting their vote back at them would be the
-              worst possible way to find out.
+      {/* ONE SENTENCE AND A LINK (D183), where ten bullets behind a
+          summary stood (D172).
 
-              It says "age" and not "age band" since D155: the snapshot
-              now carries BOTH, and the exact one is what a card naming a
-              person prints. Naming the coarser of the two would be the
-              same failure as the paragraph above describes, one field
-              down. "profession" was missing outright — an anchor that has
-              published since D8 and was never listed here. */}
-          <li><strong>Your answers are public.</strong> Anyone using InSight can see what you
-          answered, under your display name, along with the age, gender, city, country,
-          education, profession, relationship status and height band you have filled in.
-          That is what the app is for —
-          it is how you see who answers like you — but it means nothing you answer here is
-          private. Answer accordingly.</li>
-          <li>That includes the political, personal and sensitive questions. There is no
-          category of question that is held back, and no group size too small to show: counts
-          are exact from the very first answer, so in a small cohort a count of 1 is visibly
-          one person&apos;s answer.</li>
-          <li>Your display name is shown with your answers. Leave it blank to appear
-          as &ldquo;Someone&rdquo; — that hides the name, not the answers.</li>
-          {/* The type cut's disclosure. Nothing NEW leaves the device for
-              it — answers were already public and testResults already
-              world-readable, and the cut is arithmetic anyone could have
-              run on both. But "the app groups my answers by my
-              personality type and shows that to strangers" is not
-              something a user should have to derive from two other
-              bullets, and the retroactive half is the part they cannot
-              guess: it applies to answers given long before the type
-              existed. `docs/data-inventory.md` carried a flat "nothing is
-              ever cross-tabbed by a test result" and pointed HERE as the
-              place it was stated in full; that claim is now narrower, so
-              this is where the narrower one goes. */}
-          <li>Your answers can be grouped by your Big Five type. That type is worked out
-          from the test cards you answer in the feed, so it can change as you answer more —
-          and because it is read fresh each time, it applies to <em>everything</em> you have
-          ever answered, including answers you gave before you had a type at all. Your
-          politics, values and social results are never used to group answers this way.</li>
-          <li>Group &amp; 1v1 answers stay sealed until the next day&apos;s reveal — that is the
-          game, not a privacy promise. Once revealed they read like every other answer.</li>
-          {/* This line has been rewritten twice, and the second time the
-              GUARANTEE changed rather than the wording. "No device
-              location, ever" was true until D9 added the optional
-              "Use my location" button. What survives is the part that
-              actually matters and is still enforced by construction: the
-              fix is resolved to a city in src/v2/data/locate.ts and the
-              coordinate is discarded there — it is never returned to a
-              caller, stored, or transmitted. Claiming "no location" now
-              would be false, so it does not. */}
-          <li>Location is optional and off until you ask for it. If you tap &ldquo;use my location&rdquo;, your phone works out the nearest city <em>on the device</em> and sends only that name — never your coordinates, which are never stored or transmitted. You can skip it and pick your city from a list instead, and your country follows from the city either way.</li>
-          {/* D84. The presence cell is the second location-shaped thing the
-              app can hold, and this bullet is its disclosure: what is shared
-              (a ~1 km grid square, computed on the device, the coordinate
-              discarded), who can read it (no user — the server answers only
-              with a count), when (foreground, opted in), and the way out
-              (off deletes the doc; deleting the account does too). If the
-              mechanics change, this sentence changes in the same commit. */}
-          <li>&ldquo;Right now, around you&rdquo; (the Near counter) is optional and off by default. While it&rsquo;s on and the app is open, your phone shares a kilometre-sized grid square — worked out on the device, your coordinates discarded — so the server can answer <em>how many</em> people are around you. No other user can ever read your square; a count is all that comes back. It goes stale within minutes when you close the app, and turning it off (or deleting your account) deletes it immediately.</li>
-          <li>No IP-based location lookup, no background or continuous location, no location history.</li>
-          {/* This line has now been wrong twice, in opposite directions,
-              and the second time is the one worth remembering. "No
-              comments from strangers" stood here until the D106 sweep,
-              and D83 had already made it false: world takes are exactly
-              strangers' comments. The sweep replaced it with "always
-              without a name" — a claim D98 had made false in the same
-              commit that made answers public, and one the takes panel
-              contradicts on screen, where it heads the composer "Takes ·
-              posted under your name" and resolves every author through
-              LIVE.nameFor. So the sweep meant to delete a false claim
-              wrote a new one, of the worse kind: claiming an anonymity
-              the app does not give reads as a protection, which is the
-              exact failure this panel exists to prevent. Pinned by
-              LivePrivacyPanel.test.tsx so the next rewrite has to argue
-              with an assertion. */}
-          <li>Takes are posted under your name — on world questions as well as inside a circle, the same name your answers carry. One take per person per question. Report a take, or hide that author on this device, from the take itself.</li>
-          <li>No contacts. No ads, no tracking, no third-party analytics.</li>
-        </ul>
+          D172's comment said a layout change "must not be read as
+          permission to thin the promises", and this is not one: the owner
+          asked for the list to leave the app and be disclosed elsewhere,
+          and "elsewhere" already existed. web/privacy.html is the
+          canonical copy, both stores require it to be reachable on the
+          open web anyway, and it is linked directly below.
+
+          What the move actually cost, and what was done about it: the
+          bullets were the only thing CI could see. LivePrivacyPanel.test
+          pinned D9's location promise, D84's presence square, D146's type
+          cut and D98's exact counts BY ASSERTING ON THEM, so deleting the
+          list deletes the assertions' subject. scripts/check-policy-claims
+          is where those assertions went — same claims, same failure, one
+          file over.
+
+          And opening that page to move them into found three of them
+          already stale: it still said "kilometre-sized" (D175 shrank the
+          grid five-fold), "goes stale within minutes" (D174 made it three
+          hours) and "a count is all that comes back" (D177 made the room
+          readable). The app was right and the policy was wrong the whole
+          time — which is the argument FOR one canonical copy, and the
+          reason the gate exists rather than a promise to keep it updated.
+
+          The sentence that stays is the bluntest one, the one CLAUDE.md
+          insists on: a user learning that their answers are public from a
+          stranger quoting a vote back at them is the failure this panel
+          exists to prevent, and no link is a substitute for it. */}
+      <div style={{ padding: "11px 0", borderBottom: LP_LINE }}>
+        <div style={{ fontSize: 12.5, fontWeight: 500, color: "var(--ink-2)", lineHeight: 1.6 }}>
+          <strong style={{ fontWeight: 800 }}>Your answers are public</strong>, under your display
+          name, with the profile facts you have filled in. Nothing you answer here is private.
+        </div>
         {/* Until now these pages shipped inside the bundle and were linked
             from nowhere — reachable only by knowing the filename. Both
             stores also require the policy to be reachable on the open web,
@@ -301,20 +332,10 @@ function LivePrivacyPanel() {
 
       {err && <div style={{ fontSize: 12, fontWeight: 600, color: "oklch(0.5 0.19 25)", marginTop: 8 }}>{err.replace(/^.*?: */, "")}</div>}
 
-      {/* Topic preferences (D128). Mounted INSIDE this panel rather than
-          beside it in profile-overlay.jsx: a second `window.X &&` lookup
-          there would raise the shared-global count, and D39's ratchet only
-          moves down. It also belongs here — this is the screen that says
-          what the app does with what it knows about you, and "you can tell
-          it what you want more of" is the same conversation. */}
-      <div style={{ marginTop: 26 }}>
-        {/* null fallback: the row above it is the panel's own last row,
-            so an empty gap for one frame reads as the screen still
-            drawing rather than as something missing. */}
-        <React.Suspense fallback={null}>
-          <LiveInterestsPanel />
-        </React.Suspense>
-      </div>
+      {/* The topic-preference panel stood here (D128) and is gone (D173):
+          how much of a subject you see is the algorithm's job, not a
+          lever's. Muting a topic outright survives, in the feed's own
+          topic sheet, which is where it was always reachable. */}
     </div>
   );
 }

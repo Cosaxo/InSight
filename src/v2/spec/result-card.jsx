@@ -406,7 +406,7 @@ export function ResultProfileCard({ testKey, archetype, tagline }) {
               </span>
             ) : (
               <span style={{ fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 600, color: 'var(--ink-3)', textWrap: 'pretty' }}>
-                no crowd average yet — it appears once enough people have answered these
+                no crowd average yet
               </span>
             )}
           </div>
@@ -422,7 +422,7 @@ export function ResultProfileCard({ testKey, archetype, tagline }) {
             // one sheet deeper: it tells the reader a comparison is on
             // screen when none is.
             ...(hasAvg ? [[EX_GLYPH.most(), 'The hollow ring is where most people sit.']] : []),
-            [EX_GLYPH.petal(cfg.banner), cfg.bipolar ? 'Petal length is how far from the middle you sit — a long petal is a strong stance either way.' : 'Petal length is how strongly the trait shows.'],
+            [EX_GLYPH.petal(cfg.banner), cfg.bipolar ? 'Petal length is how far from the middle you sit.' : 'Petal length is how strongly the trait shows.'],
           ]}
           onClose={() => setExplain(false)} />
       ) : null}

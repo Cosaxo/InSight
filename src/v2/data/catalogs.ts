@@ -133,6 +133,9 @@ const EMOJI = makeCatalog("emoji.txt");
 // no popularity column in ISO, so the empty-query state reads A→Z rather
 // than pretending to a fame ranking the source does not carry.
 const COUNTRIES = makeCatalog("countries.txt");
+// Minted-key catalogue (build-dogs.mjs), alphabetical initial mint —
+// like COUNTRIES, export-only: its consumers import it.
+const DOGS = makeCatalog("dogs.txt");
 
 declare global {
   interface Window {
@@ -149,4 +152,4 @@ declare global {
 // exactly what check:globals rule 5 exists to delete.
 Object.assign(globalThis, { FILMS, ARTISTS, EMOJI });
 
-export { FILMS, ARTISTS, EMOJI, COUNTRIES };
+export { FILMS, ARTISTS, EMOJI, COUNTRIES, DOGS };

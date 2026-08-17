@@ -1499,6 +1499,110 @@ describe("moderation substrate: takes + flags (docs/MODERATION.md, D22)", () => 
       doc(asUser(FRIEND), "v2_flags", "t_gone_" + FRIEND), flag("t_gone", FRIEND)));
   });
 
+  // ── the profile photo (D178) ───────────────────────────────────
+  //
+  // The bytes are Storage's (storage.rules.test.ts); this document is what
+  // moderation acts on, and its rules carry three claims the feature rests
+  // on: a face is world-readable, only its owner writes it, and a REMOVED
+  // face is frozen — because otherwise the way back is one delete and one
+  // re-upload from an account that costs nothing to make.
+  describe("the profile photo's document (D178)", () => {
+    const av = (over: Record<string, unknown> = {}) => ({
+      token: "abc123DEF456-_xyz", at: serverTimestamp(), hidden: false, ...over,
+    });
+
+    it("the owner sets their own face and everyone signed in can read it", async () => {
+      await assertSucceeds(setDoc(doc(asUser(OWNER), "v2_avatars", OWNER), av()));
+      await assertSucceeds(getDoc(doc(asUser(STRANGER), "v2_avatars", OWNER)));
+      // Replacing it is an ordinary update; removing it is the way out.
+      await assertSucceeds(setDoc(doc(asUser(OWNER), "v2_avatars", OWNER), av({ token: "second00token" })));
+      await assertSucceeds(deleteDoc(doc(asUser(OWNER), "v2_avatars", OWNER)));
+    });
+
+    it("nobody writes somebody else's face", async () => {
+      await assertFails(setDoc(doc(asUser(STRANGER), "v2_avatars", OWNER), av()));
+      await seed(async (db) => {
+        await setDoc(doc(db, "v2_avatars", OWNER), { token: "t0000000", at: new Date(), hidden: false });
+      });
+      await assertFails(deleteDoc(doc(asUser(STRANGER), "v2_avatars", OWNER)));
+    });
+
+    // THE FIELD IS A TOKEN, NOT A URL, and this is the case that keeps it
+    // one. A client-written URL could name a host we do not control: every
+    // viewer's IP goes to it, and the picture can change after somebody
+    // reported it. The charset admits no dot, colon or slash, so the field
+    // cannot be a host or a path however it is written.
+    it("refuses anything that could be a URL rather than a token", async () => {
+      for (const token of [
+        "https://evil.example/x.png",
+        "../../../etc/passwd",
+        "abc.def",
+        "a b",
+        "short",
+        "x".repeat(65),
+        123,
+      ]) {
+        await assertFails(setDoc(doc(asUser(OWNER), "v2_avatars", OWNER), av({ token })));
+      }
+    });
+
+    it("lets no client claim `hidden`, in either direction", async () => {
+      // `true` is the server's word: a client that could write it could
+      // hide its own face to dodge a report mid-queue…
+      await assertFails(setDoc(doc(asUser(OWNER), "v2_avatars", OWNER), av({ hidden: true })));
+      // …and the field is required rather than optional, so the flag rule
+      // and the queue build can both read a bare boolean (D65).
+      await assertFails(setDoc(doc(asUser(OWNER), "v2_avatars", OWNER),
+        { token: "abc123DEF456", at: serverTimestamp() }));
+      await assertFails(setDoc(doc(asUser(OWNER), "v2_avatars", OWNER), av({ extra: 1 })));
+    });
+
+    // THE ONE THAT MATTERS MOST. A removed face has to stay removed, and
+    // the two ways back are an overwrite and a delete-then-recreate. Both
+    // are refused while `hidden` is true; the appeal is a human, which is
+    // what `hiddenMeta` exists for.
+    it("freezes a removed face against both ways back", async () => {
+      await seed(async (db) => {
+        await setDoc(doc(db, "v2_avatars", OWNER), {
+          token: "removed0token", at: new Date(), hidden: true,
+          hiddenMeta: { by: "mod", policyLine: "H2" },
+        });
+      });
+      await assertFails(setDoc(doc(asUser(OWNER), "v2_avatars", OWNER), av()));
+      await assertFails(deleteDoc(doc(asUser(OWNER), "v2_avatars", OWNER)));
+    });
+
+    it("is reportable by a stranger, once, and never by its owner", async () => {
+      await seed(async (db) => {
+        await setDoc(doc(db, "v2_avatars", OWNER), { token: "live0token00", at: new Date(), hidden: false });
+        await setDoc(doc(db, "v2_avatars", FRIEND), {
+          token: "gone0token00", at: new Date(), hidden: true,
+          hiddenMeta: { by: "mod", policyLine: "H2" },
+        });
+      });
+      const avFlag = (target: string, by: string) => ({
+        takeId: "av_" + target, gid: "avatar", uid: by, target, at: serverTimestamp(),
+      });
+      await assertSucceeds(setDoc(
+        doc(asUser(STRANGER), "v2_flags", `av_${OWNER}_${STRANGER}`), avFlag(OWNER, STRANGER)));
+      // One per person, the same pin takes have — the id IS the uniqueness.
+      await assertFails(setDoc(
+        doc(asUser(STRANGER), "v2_flags", `av_${OWNER}_${STRANGER}`), avFlag(OWNER, STRANGER)));
+      // Reporting your own face would only queue a moderator to look at it.
+      await assertFails(setDoc(
+        doc(asUser(OWNER), "v2_flags", `av_${OWNER}_${OWNER}`), avFlag(OWNER, OWNER)));
+      // A face already removed is settled; no further flag-stacking.
+      await assertFails(setDoc(
+        doc(asUser(STRANGER), "v2_flags", `av_${FRIEND}_${STRANGER}`), avFlag(FRIEND, STRANGER)));
+      // And the id still has to name its target: `target` is what the rule
+      // reaches the avatar document with, so a mismatch is a flag pointed
+      // at one face and counted against another.
+      await assertFails(setDoc(
+        doc(asUser(STRANGER), "v2_flags", `av_${OWNER}_${STRANGER}`),
+        { ...avFlag(OWNER, STRANGER), target: FRIEND }));
+    });
+  });
+
   it("the queue and verdict log are dark to every client", async () => {
     await seedCircle();
     await assertFails(getDoc(doc(asUser(OWNER), "v2_mod_queue", "t1")));
@@ -1738,29 +1842,33 @@ describe("presence (D84 — Near by radius)", () => {
   // The privacy shape in three lines: your own cell-sized doc is yours to
   // write and delete, NOBODY can read any of them (the only read path is
   // the nearbyCountV2 callable, which returns a count), and the cell
-  // regex is the precision cap — nothing finer than the ~1 km grid id can
+  // regex is the precision cap — nothing finer than the ~200 m grid id can
   // be written at all, however a client is modified.
+  // `until` is when the position stops counting (D174) — the count filters
+  // on it, so it is the field that makes "visible for two hours" a promise
+  // rather than an intention. The rules cap how far out it may be pushed.
+  const soon = (min: number) => new Date(Date.now() + min * 60_000);
   const cellDoc = (over: Record<string, unknown> = {}) => ({
-    cell: "5999_1074", at: serverTimestamp(), ...over,
+    cell: "29999_5374", at: serverTimestamp(), until: soon(120), ...over,
   });
 
   it("a user writes, overwrites and deletes their own presence", async () => {
     const ref = doc(asUser(OWNER), "v2_presence", OWNER);
     await assertSucceeds(setDoc(ref, cellDoc()));
-    await assertSucceeds(setDoc(ref, cellDoc({ cell: "6000_1075" })));
+    await assertSucceeds(setDoc(ref, cellDoc({ cell: "30000_5375" })));
     await assertSucceeds(deleteDoc(ref));
   });
 
   it("nobody reads presence — not even their own doc", async () => {
     await seed(async (db) => {
-      await setDoc(doc(db, "v2_presence", OWNER), { cell: "5999_1074", at: new Date() });
+      await setDoc(doc(db, "v2_presence", OWNER), { cell: "29999_5374", at: new Date() });
     });
     // Own doc: the client never needs to read it back, and a read grant is
     // surface someone will eventually widen. The callable is the read path.
     await assertFails(getDoc(doc(asUser(OWNER), "v2_presence", OWNER)));
     await assertFails(getDoc(doc(asUser(STRANGER), "v2_presence", OWNER)));
     await assertFails(getDocs(query(
-      collection(asUser(STRANGER), "v2_presence"), where("cell", "==", "5999_1074"),
+      collection(asUser(STRANGER), "v2_presence"), where("cell", "==", "29999_5374"),
     )));
   });
 
@@ -1768,9 +1876,119 @@ describe("presence (D84 — Near by radius)", () => {
     await assertFails(setDoc(doc(asUser(STRANGER), "v2_presence", OWNER), cellDoc()));
     const ref = doc(asUser(OWNER), "v2_presence", OWNER);
     await assertFails(setDoc(ref, cellDoc({ cell: "59.913_10.752" })));   // raw coords
-    await assertFails(setDoc(ref, cellDoc({ cell: "5999_1074_extra" }))); // sub-cell suffix
+    await assertFails(setDoc(ref, cellDoc({ cell: "29999_5374_extra" }))); // sub-cell suffix
     await assertFails(setDoc(ref, cellDoc({ lat: 59.91 })));              // extra field
     await assertFails(setDoc(ref, cellDoc({ at: new Date() })));          // not request.time
+  });
+
+  // THE WRITE-SIDE VERSION OF THE READ DENY (D174).
+  //
+  // Presence is unreadable so nobody can follow an account around town.
+  // An uncapped `until` would reach the same place through the other door:
+  // a modified client writes a position good for a year and stands in the
+  // room permanently, whatever its own switch says. The ceiling is the
+  // rule that stops it, so it is the rule worth a case.
+  it("caps how long a position may claim to last, and demands one at all", async () => {
+    const ref = doc(asUser(OWNER), "v2_presence", OWNER);
+    await assertSucceeds(setDoc(ref, cellDoc({ until: soon(179) })));
+    // 180 minutes is PRESENCE_LINGER_MIN. Past it, refused.
+    await assertFails(setDoc(ref, cellDoc({ until: soon(181) })));
+    await assertFails(setDoc(ref, cellDoc({ until: soon(60 * 24 * 365) })));
+    // A position that has already expired is not a position.
+    await assertFails(setDoc(ref, cellDoc({ until: soon(-1) })));
+    // It is no longer REQUIRED — see the compatibility case below, which
+    // owns that half now (D179). What this case owns is the ceiling, which
+    // is the half that stops a modified client standing in the room for a
+    // year.
+    await assertFails(setDoc(ref, cellDoc({ until: "soon" })));
+  });
+
+  // THE DEPLOY-ORDER WINDOW (D179), and it is the case that keeps an
+  // existing install working across the merge.
+  //
+  // Rules deploy the moment this reaches main; the app reaches phones
+  // through a store review. In between, the newest build in the wild is the
+  // one that predates D174 and writes `{cell, at}` — so a hard `until`
+  // requirement denies every presence write from every existing install,
+  // and Near fails with a retry button that cannot succeed.
+  it("still takes a pre-D174 write with no `until` at all, for one release", async () => {
+    const ref = doc(asUser(OWNER), "v2_presence", OWNER);
+    await assertSucceeds(setDoc(ref, { cell: "29999_5374", at: serverTimestamp() }));
+    // And the cap still binds when one IS supplied, so nothing is gained by
+    // omitting it — this is a compatibility arm, not a hole.
+    await assertFails(setDoc(ref, cellDoc({ until: soon(181) })));
+    await assertFails(setDoc(ref, cellDoc({ until: "soon" })));
+    await assertFails(setDoc(ref, cellDoc({ until: soon(-1) })));
+  });
+
+  // THE ONE FIELD A CLIENT CHOOSES THE CONTENTS OF (D176).
+  //
+  // `type` is the writer's own Big Five archetype name, and it is here
+  // because the archetype table lives on the DEVICE — the server folding
+  // the room's mix never joins a profile, never scores anybody, and never
+  // needs the table. The phone says what it is; the callable counts names.
+  //
+  // Which means this is a client-authored free-text field on a doc no
+  // client can read, i.e. exactly the shape that becomes storage for
+  // something else if it is not bounded. The size cap is the whole guard,
+  // so it is the one worth a case.
+  it("takes an optional archetype name, and refuses an unbounded one", async () => {
+    const ref = doc(asUser(OWNER), "v2_presence", OWNER);
+    // Optional: most people have not taken the test, and a room that only
+    // counted typed phones would be wrong about how full it is.
+    await assertSucceeds(setDoc(ref, cellDoc()));
+    await assertSucceeds(setDoc(ref, cellDoc({ type: "Host" })));
+    await assertSucceeds(setDoc(ref, cellDoc({ type: "x".repeat(40) })));
+    await assertFails(setDoc(ref, cellDoc({ type: "x".repeat(41) })));
+    await assertFails(setDoc(ref, cellDoc({ type: "" })));
+    await assertFails(setDoc(ref, cellDoc({ type: 3 })));
+    // And it does not open the doc to anything else riding alongside it —
+    // hasOnly still names four keys.
+    await assertFails(setDoc(ref, cellDoc({ type: "Host", score: 0.8 })));
+  });
+
+  // The mix cache is presence one level up, and the deny is the same
+  // argument: a client that could read a cell it is not standing in has a
+  // map of every room, not a reading about its own. The callable answers
+  // only for the caller's cell and its neighbours, and that restriction
+  // holds only while this is the sole door.
+  it("nobody touches the room's mix cache — read or write (D176)", async () => {
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_presence_mix", "29999_5374"),
+        { top: ["Host"], n: 9, at: new Date() });
+    });
+    await assertFails(getDoc(doc(asUser(OWNER), "v2_presence_mix", "29999_5374")));
+    await assertFails(getDocs(collection(asUser(STRANGER), "v2_presence_mix")));
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_presence_mix", "29999_5374"),
+      { top: ["Host"], n: 900, at: serverTimestamp() }));
+    await assertFails(deleteDoc(doc(asUser(OWNER), "v2_presence_mix", "29999_5374")));
+  });
+
+  // THE SHARPEST DENY IN THIS FILE (D177), because of what the document
+  // holds: a LIST OF UIDS standing in a named cell. Everything else about
+  // the room — the names, the answers, the test scores — has been public
+  // since D98; the pairing with "here" is the new thing, and it is the
+  // pairing v2_presence's read deny exists to prevent.
+  //
+  // `nearbyRoomV2` is the only door, and it refuses any caller without a
+  // live position of their own in that neighbourhood. A readable cache
+  // would route around that gate entirely: read the cells one by one and
+  // the result is a map of who is in every room, which is precisely the
+  // people-finder the whole design is arranged around not being.
+  it("nobody touches the room's roster cache — it is uids paired with a place (D177)", async () => {
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_presence_room", "29999_5374"), {
+        people: [{ uid: OWNER, type: "Host" }], qs: { q1: { "0": 3 } }, at: new Date(),
+      });
+    });
+    await assertFails(getDoc(doc(asUser(OWNER), "v2_presence_room", "29999_5374")));
+    await assertFails(getDoc(doc(asUser(STRANGER), "v2_presence_room", "29999_5374")));
+    await assertFails(getDocs(collection(asUser(STRANGER), "v2_presence_room")));
+    // Nor may a client seed one: a forged roster would put strangers in a
+    // room they are not in, and the callable serves this document back.
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_presence_room", "29999_5374"),
+      { people: [{ uid: STRANGER }], qs: {}, at: serverTimestamp() }));
+    await assertFails(deleteDoc(doc(asUser(OWNER), "v2_presence_room", "29999_5374")));
   });
 });
 
@@ -1804,7 +2022,10 @@ describe("handles: the account registry (D122)", () => {
     await assertFails(setDoc(doc(asUser(STRANGER), "v2_handles", "olaf"), { uid: STRANGER }));
     // …and the denial-of-service one: freeing someone else's.
     await assertFails(deleteDoc(doc(asUser(STRANGER), "v2_handles", "olaf")));
-    // Not even your own — claimHandleV2 owns the release half of a rename.
+    // Not even your own. Since D190 there is no rename to free it FOR — a
+    // handle is claimed once and claimHandleV2 refuses a change — so a
+    // client delete here is the only path left that could orphan an
+    // address someone has already been handed.
     await assertFails(deleteDoc(doc(asUser(OWNER), "v2_handles", "olaf")));
   });
 

@@ -21,17 +21,34 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+// The claim list the CI gate reads, shared rather than re-typed (D183):
+// a second copy of these patterns is a second thing to forget to update.
+// @ts-expect-error TS7016 — plain .mjs gate script, no types
+import { missingClaims, readPage } from "../../../scripts/check-policy-claims.mjs";
 
 const LIVE = vi.hoisted(() => ({
+  // D178: every named surface draws a face now, so a LIVE stand-in
+  // that lacks this crashes the row rather than falling back to
+  // initials. "" is the no-photo shape, which is most accounts.
+  faceFor: () => "",
+  myFace: () => "",
+  setAvatar: async () => ({ ok: true }),
+  removeAvatar: async () => {},
+  flagAvatar: async () => {},
+  flaggedAvatar: () => false,
   enabled: true,
   uid: "u_me",
   displayName: "Tester",
+  // "" is an account with no handle — the state the claim control is for
+  // (D190). A case below sets one and asserts the control is gone.
+  handle: "",
   deleteAccount: async () => {},
   linkGoogle: async () => {},
   saveDisplayName: async () => {},
+  social: { claimHandle: async (h: string) => ({ handle: h }) },
   subscribe: () => () => {},
 }));
-vi.mock("../data/live", () => ({ default: LIVE }));
+vi.mock("../data/live", () => ({ default: LIVE, localName: () => "" }));
 vi.mock("../../lib/sentry", () => ({
   telemetryEnabled: true,
   setTelemetryEnabled: () => {},
@@ -114,48 +131,23 @@ describe("LivePrivacyPanel · a refused deletion is shown, not swallowed", () =>
   });
 });
 
-describe("LivePrivacyPanel · the disclosure does not promise anonymity the app never gives", () => {
-  // The header comment above says copy is not worth a test that only
-  // re-types it. These two are the exception, and they are here because
-  // the copy went wrong exactly once in each direction.
-  //
-  // The takes bullet claimed world takes appear "always without a name"
-  // from the D106 sweep until this test existed, while LiveTakesPanel
-  // rendered LIVE.nameFor(authorUid) under a "posted under your name"
-  // header — a panel whose entire purpose is matching what the app SAYS
-  // to what the rules DO, promising an anonymity the rules never gave.
-  //
-  // So these assert on the *vocabulary of the retired model* rather than
-  // on today's sentence: a rewrite may say this any way it likes, but it
-  // may not go back to claiming namelessness or a floor.
-  // Scoped to the takes bullet, not the whole panel: "anonymous" is
-  // correct twice elsewhere here — the D3 anonymous session and the
-  // uid-only crash reports — so a panel-wide negative match would forbid
-  // two true sentences to catch one false one.
-  const takesBullet = () => {
-    render(<LivePrivacyPanel />);
-    const li = [...document.querySelectorAll("li")]
-      .find((el) => /\btakes?\b/i.test(el.textContent || ""));
-    if (!li) throw new Error("no bullet about takes — the disclosure lost it entirely");
-    return li.textContent || "";
-  };
-
-  it("says takes carry the author's name, and does not call them nameless", () => {
-    const text = takesBullet();
-    expect(text).toMatch(/posted under your name/i);
-    expect(text).not.toMatch(/without a name|anonymous|nameless|no names/i);
-  });
-
-  it("does not re-promise the k-floor anywhere in the disclosure", () => {
-    // The floor died at D98. The panel states the inverse — a count of 1
-    // is visibly one person — and that is the claim that must survive,
-    // because it is the one a user needs before answering.
-    render(<LivePrivacyPanel />);
-    const text = document.body.textContent || "";
-    expect(text).toMatch(/exact from the very first answer/i);
-    expect(text).not.toMatch(/k-anonym|floored|withheld until|minimum (?:group|cohort)/i);
-  });
-});
+// A DESCRIBE STOOD HERE — "the disclosure does not promise anonymity the
+// app never gives" — and its two cases are gone with the bullets they read
+// (D183). What they guarded is not:
+//
+// The takes bullet claimed world takes appear "always without a name" from
+// the D106 sweep until that test existed, while LiveTakesPanel rendered
+// LIVE.nameFor(authorUid) under a "posted under your name" header — a
+// panel whose entire purpose is matching what the app SAYS to what the
+// rules DO, promising an anonymity the rules never gave. The k-floor case
+// was the same shape, one promise over.
+//
+// Both asserted on the *vocabulary of the retired model* rather than on a
+// sentence, and that is precisely what `check:public-copy` does — over an
+// enumerated file list that already includes web/privacy.html, which is
+// where the takes and counts wording now lives. The guard did not move
+// because it was never only here; the positive half ("takes carry your
+// display name", "counts are exact") is a row in check-policy-claims.
 
 describe("LivePrivacyPanel · off in demo mode", () => {
   it("renders nothing when LIVE is disabled", () => {
@@ -167,35 +159,107 @@ describe("LivePrivacyPanel · off in demo mode", () => {
   });
 });
 
-describe("LivePrivacyPanel · the type cut's disclosure", () => {
-  // Pinned for the same reason the takes bullet is: the claim it replaces
-  // ("a test result is never a breakdown dim, so nothing is ever
-  // cross-tabbed by it") was TRUE and is now only half true, and the half
-  // that died is the half a user would want to know. A future sweep that
-  // deletes this bullet to tidy the list has to argue with an assertion.
-  const typeBullet = () => {
+describe("LivePrivacyPanel · the disclosure moved to the policy page (D183)", () => {
+  // WHERE THESE ASSERTIONS USED TO POINT, and why they still exist.
+  //
+  // Three describes stood here — the takes bullet, the type cut, and
+  // D172's "the list collapsed, the promises did not" — and every one of
+  // them read a `<li>` out of the panel. The owner asked for the list to
+  // leave the app and be disclosed elsewhere (D183), so the subject of all
+  // three is gone from this component.
+  //
+  // They are NOT deleted with it. A promise nothing asserts is a promise
+  // one tidy-up away from disappearing, which is exactly what D172's
+  // source comment was written to prevent. What changed is the file they
+  // read: the panel now owns the ROUTE, and web/privacy.html owns the
+  // words — so these read the page the panel points at, through the same
+  // claim list scripts/check-policy-claims.mjs gates in CI. One list, two
+  // readers, no chance of them drifting apart.
+  it("keeps the public-answers sentence open, and needs no tap for it", () => {
     render(<LivePrivacyPanel />);
-    const li = [...document.querySelectorAll("li")]
-      .find((el) => /Big Five/i.test(el.textContent || ""));
-    if (!li) throw new Error("no bullet about the type cut — the disclosure lost it entirely");
-    return li.textContent || "";
-  };
-
-  it("says answers can be grouped by type", () => {
-    expect(typeBullet()).toMatch(/grouped by your Big Five type/i);
+    // The bluntest sentence in the app, and the one CLAUDE.md insists on:
+    // a user learning that their answers are public from a stranger
+    // quoting their vote back at them is what this panel exists to
+    // prevent. A link is not a substitute for it.
+    const openLine = [...document.querySelectorAll("div")].find(
+      (el) => /Your answers are public/i.test(el.textContent || "") && !el.closest("details"),
+    );
+    expect(openLine, "the public-answers line stopped being open on arrival").toBeTruthy();
   });
 
-  it("says the grouping reaches answers given before the type existed", () => {
-    // The retroactive half. It is the one property a reader cannot guess
-    // from "answers are public" plus "results are public", because every
-    // other cut on the same sheet is frozen at vote time.
-    expect(typeBullet()).toMatch(/before you had a type/i);
+  it("states no disclosure it no longer owns", () => {
+    render(<LivePrivacyPanel />);
+    // The negative half, and the reason it is worth a case: a bullet
+    // re-added here would be a SECOND copy of a promise that is gated
+    // somewhere else, and two copies is how the takes line came to say
+    // "always without a name" while the takes panel said the opposite
+    // (D106, the failure check:public-copy exists for).
+    expect(document.querySelectorAll("details").length,
+      "the collapsed disclosure came back — it lives in web/privacy.html now").toBe(0);
+    expect(document.querySelectorAll("li").length,
+      "disclosure bullets came back into the panel").toBe(0);
   });
 
-  it("keeps the Art. 9 instruments out of it, in writing", () => {
-    // data/typeMix.TYPE_TEST is the enforcement; this is the promise.
-    // They are pinned in two places on purpose — the code one is a
-    // constant a refactor could widen without touching any copy.
-    expect(typeBullet()).toMatch(/politics, values and social results are never used/i);
+  it("routes to the policy, and the policy is reachable off the bundle", () => {
+    render(<LivePrivacyPanel />);
+    // Both stores require the policy on the open web, and a link that
+    // opened a bundled file would satisfy neither them nor a user who
+    // pastes it somewhere. Asserted as the href rather than the label so
+    // renaming the link cannot quietly break the route.
+    const link = [...document.querySelectorAll("a")]
+      .find((a) => /privacy\.html$/.test(a.getAttribute("href") || ""));
+    expect(link, "the route to the disclosure is gone — the promises are now unreachable").toBeTruthy();
+    expect(link!.getAttribute("href")).toMatch(/^https?:\/\//);
+  });
+
+  it("keeps every promise the panel gave up, on the page it points at", () => {
+    // The four that exist because a specific decision made them true —
+    // D9's coordinates, D84's square, D174's linger, D146's type cut —
+    // plus the rest of the list, checked by label so a failure names the
+    // decision rather than a regex.
+    //
+    // Opening that page to move them into found three ALREADY stale:
+    // "kilometre-sized" (D175 shrank the grid five-fold), "goes stale
+    // within minutes" (D174 made it three hours) and "a count is all that
+    // comes back" (D177 made the room readable). The app was right and
+    // the policy was wrong the whole time, which is the case for one
+    // canonical copy — and for this case, rather than a promise to keep
+    // the page in mind.
+    expect(missingClaims(readPage())).toEqual([]);
+  });
+});
+
+// ── the handle is claimed once (D190) ────────────────────────────────
+//
+// The row offered a "Change" button and the rename behind it worked: the
+// callable took the new key and freed the old one in one transaction, so
+// the address a user had handed people went back in the pool the same
+// minute. A handle is how someone is ADDED to a circle (D122) — an address
+// that can be reassigned is one nobody can be given.
+//
+// The server is the gate (claimHandleV2 refuses a change); these are about
+// the panel not offering what the server will refuse, which is the other
+// half of the same promise.
+describe("LivePrivacyPanel · a handle is claimed once", () => {
+  afterEach(() => { LIVE.handle = ""; });
+
+  it("offers the claim only to an account that has no handle", () => {
+    LIVE.handle = "";
+    render(<LivePrivacyPanel />);
+    expect(screen.getByRole("button", { name: /^Claim$/ })).toBeTruthy();
+    // …and says so before the tap, because the tap cannot be taken back.
+    expect(screen.getByText(/only get to pick once/i)).toBeTruthy();
+  });
+
+  it("shows a claimed handle as a fact, with no way to change it", () => {
+    LIVE.handle = "olaf";
+    render(<LivePrivacyPanel />);
+    expect(screen.getByText("@olaf")).toBeTruthy();
+    // The control, in both of its shapes. "Change" is the one that shipped.
+    expect(screen.queryByRole("button", { name: /^Change$/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Claim$/ })).toBeNull();
+    expect(screen.queryByLabelText(/Your handle/i)).toBeNull();
+    // And the panel says it, rather than leaving the absence to be inferred.
+    expect(screen.getByText(/can’t be changed/i)).toBeTruthy();
   });
 });

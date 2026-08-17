@@ -8219,6 +8219,13 @@ city ask, so Near is never a dead end again.
   move: the fix is the same coarse permission the city locate uses, no
   background or continuous location, no history (one doc, overwritten).
 
+> **Superseded by [D175](#d175--near-asks-for-a-precise-fix-so-its-radius-can-be-honest)
+> (2026-08-15).** The owner made the call this paragraph reserves for
+> them: the app now requests precise fixes, the grid is 0.002° (~220 m),
+> and the App Store label carries Precise Location. The reasoning below
+> stands as the record of why it could not be done under D84, and it is
+> the reasoning D175 had to answer rather than route around.
+
 **The 500 m that deliberately did not ship.** The owner said 500 m; the
 card says "a couple of kilometres", and the gap is the sensor, not
 timidity: the app requests COARSE location only
@@ -16612,3 +16619,2846 @@ re-proposed as new.
 VISION-V28 §9 is struck. It was the last item still waiting on an owner
 call, so **the v28 plan now has no open owner decisions** — everything
 remaining is engineering, sequenced in §11.
+
+---
+
+## D169 · The read path was already careful; the fold path was not
+
+**Decided:** 2026-08-16 · **Status:** binding · Three changes, all
+client-side, none of them touching what is read or written. Every figure
+below is a measurement in node against synthetic data at the stated
+scale, not an estimate.
+
+**Decision.** The Mirror's derived data is folded **once per store
+change** rather than once per read, `placeProfiles` walks the cells that
+exist rather than the buckets that might, and `loadSimilarity` issues its
+chunked aggregate reads in parallel like its two siblings already did.
+
+### What prompted it
+
+An audit of the app's data handling, asked for in those words. The
+**read** path came out well — D129 replaced the deck's snapshot listeners
+with a one-document poll, the bank fetches deltas against `updatedAt`,
+every fan-out carries a cap (`VOTER_FETCH_CAP`, `FOLLOW_CAP`,
+`AGG_ID_CAP`, `KINDRED_QUESTIONS`), and `firestore.indexes.json` disables
+the single-field indexes nothing queries. There was little left to take.
+
+The **fold** path had never been looked at the same way, and it is where
+this app's weight actually sits.
+
+### 1 · `perRev` — derived on read, computed on change
+
+`kindredPeople()` walks every cached voter list and rebuilds a per-uid
+answer map plus an `agreement()` call per person. Its comment says it is
+derived on read so a ranking cannot go stale against its own inputs, and
+that reasoning is right. What it did not say is that the fold has **six
+call sites** — `LiveSimilarityField` ×2, `LiveMirrorLenses`, `typeMix`
+×2, `testNorms` — every one of them inside a component that re-renders on
+every `notify()`, and **not one of those six memoises**. (`useMemo`
+appears in `src/v2/ui/` exactly three times, all of them in pickers:
+`PickSearch`, `CityPicker` ×2, `LiveTakesPanel`. None is on this path,
+and the React Compiler is not enabled, so nothing is memoising these
+folds implicitly either.) So one Mirror stop folded the same voter cache
+four to six times per render.
+
+Measured: **14 ms per fold** at 120 cached questions × 200 voters (600
+people), 5 ms at 40 × 200. In node. Not on a phone.
+
+`rev` is a counter bumped inside `notify()`, and `perRev(compute)` caches
+against it. The staleness argument survives intact and for a stated
+reason: **`notify()` is the only way a store change reaches a renderer**,
+so a value computed at rev N is correct for every read until the next
+one, by construction. A component re-rendering on its own `useState` — a
+tab, a picked node — does not bump it and gets the fold it already paid
+for. Applied to `kindredPeople()` and `testFeedItems()`.
+
+**The condition, recorded because it is the one that could break
+silently:** a memoised getter hands every caller the same array where it
+used to hand each a fresh one. Every current consumer was checked —
+they all `.filter()`/`.map()` before any `.sort()`, which copies. A
+future consumer that sorts the returned array in place would reorder
+everybody else's. `myVotes()` and `confirmedVotes()` are deliberately
+**not** memoised: their defensive copy is the point of them.
+
+`vote.test.ts` pins both halves — identity across reads, and a uid switch
+with a different bank coming through. Verified by breaking `perRev` to
+never invalidate and watching both fail.
+
+### 2 · `placeProfiles`, output-sensitive
+
+It collected the union of place buckets, then for each bucket called
+`axisScores` once per instrument, each call re-scanning all 110 test
+items to keep the quarter belonging to that instrument.
+
+The ×4 is the smaller waste. The shape is the larger one: a question
+publishes at most `BREAKDOWN_MAX_BUCKETS` (24) cells per dim, while the
+union is uncapped — it is every city that has ever answered a test item
+(D112's known limit 3). So all but ~24 buckets miss for any given item,
+and the old loop paid a lookup for every (bucket, item) pair to discover
+that. Inverted to one pass over items, accumulating per bucket.
+
+Measured, 110 items, mean of 25 runs: 60-city union **3.0 → 1.6 ms**,
+400 cities **8.0 → 3.6 ms**, 2,000 cities **25.9 → 9.2 ms**. The gain
+grows with the union because that is the term that stopped multiplying.
+What remains is the per-bucket emit, which is linear and genuinely
+needed — every bucket must be scored before the field can rank them.
+
+Pinned by a differential test: the **old implementation kept verbatim**
+in `similarity.test.ts` and run beside the new one on randomised
+aggregates across 40 rounds from a fixed seed, covering absent, empty and
+partial cells. The hand-computed cases that were already there would have
+passed a fold that agreed on three cities and diverged on a fourth.
+Verified by inverting a sign and watching it fail.
+
+### 3 · `loadSimilarity`'s chunks, in parallel
+
+110 core test items over the 30-id `in` limit is always ~4 queries. They
+were awaited in turn. `hydrate.aggs` and `loadLearnAggs` both already use
+`Promise.all` over the same shape — this was the odd one out. Same
+documents, same billed reads, one round trip's latency instead of four,
+on the first open of City, Country and World. Its reads are now counted
+into `stats.aggsFetched` as well; they were the only agg fetch that was
+not, which under-reported the diagnostic in the one file `docs/COSTS.md`
+is derived against.
+
+**The serial loop had one property worth keeping, and the obvious
+parallel rewrite lost it.** A chunk already read stayed folded when a
+later one threw; `Promise.all` with the fold after the barrier drops
+every chunk when any chunk rejects — three quarters of the place profiles
+becoming none of them, on exactly the flaky connection where partial
+data is worth most. Caught by asking what the change removed rather than
+what it added. The fold now runs inside each chunk's own `.then`, which
+keeps both the partial progress and the parallelism; the rejection still
+reaches the same `catch`. Pinned by a test that fails against the
+fold-after-barrier version.
+
+### What was measured and left alone
+
+`LIVE.aggregated()` — the Answers lens's fold over the whole daily
+archive — looked like the same problem and is not: **0.4 ms at 1,200
+questions**, up from 0.1 ms at today's 90. Memoising it would have been a
+change with no benefit, and it is recorded here so the next audit does
+not re-derive it. The linear `.find()` lookups over `state.questions` /
+`state.feedBank` are in the same category today; the note in
+`docs/SCALE-PLAN.md` about `feedBank` growing without bound is what would
+change that, and `testFeedItems()` (now memoised) was the one already on
+a render path.
+
+### Cost
+
++1 KB minified. `check:bundle` reports 2284 KB against a 2285 KB ceiling
+— it passes, and it is worth saying plainly that the total budget now has
+**1 KB of headroom**. The eager graph is unchanged at 964 KB.
+
+### What none of this removes — checked, not assumed
+
+The question "did any of this take functionality away?" was asked
+directly, and the answer is only worth the checks behind it:
+
+- **`perRev` can go stale only where a store mutation skips `notify()`.**
+  Every write to the memoised folds' inputs was enumerated —
+  `state.votes`, `state.voters`, `state.uid`, `state.names`,
+  `state.scores`, `state.feedBank` — and each is followed by a `notify()`
+  before any render can read it (`loadVoters`, `loadNames` and
+  `loadKindred` in their `finally`; `hydrate` at the "loading groups"
+  stage; `resetForNewUid` at its end; every vote path inline). The one
+  conditional case is `subscribeToAuth`'s `next && !state.uid` branch,
+  which notifies only on `linkedChanged`. It cannot matter: `state.uid`
+  is never assigned null after boot, so that branch fires only before any
+  uid existed — and `state.voters` cannot be non-empty then, because
+  `loadVoters` runs after boot. `kindredPeople()` is `[]` on both sides.
+- **`placeProfiles` is output-identical**, pinned by the old fold kept
+  verbatim beside it. The `defs[it.test]` guard in the new walk was
+  checked by DELETING it and re-running: still green, so it is an
+  optimisation and not load-bearing, and the test says so in case someone
+  later preserves it for the wrong reason.
+- **The memoised getters now share one array** where each caller used to
+  get a fresh one. Every consumer was read: all of them `.filter()` or
+  `.map()` before any `.sort()`, which copies. `myVotes()` and
+  `confirmedVotes()` were left un-memoised for this reason.
+## D170 · Three Mirror tabs named a population and read a different one
+
+**Decided:** 2026-08-15 · **Status:** binding, BUILT. From four screenshots
+of the release with the report *"the tabs on mirror does in many instances
+look wrong and some places like score have wrong functionality"*.
+
+Same class as [D157](#d157--the-test-surfaces-stop-describing-a-crowd-they-never-counted),
+one tab over, and worth recording separately because the mechanism is
+different. D157 was an authored constant drawn as a measurement. This is a
+**real** number, correctly computed, describing a crowd it never counted.
+
+### 1 · The bug, and how the screenshots gave it away
+
+`LiveCohortBody` walks the archive **twice**. The answer rows resolved the
+cohort CELL — `agg.by[scope][bucket]`, i.e. Oslo — and `lensQs`, the shape
+the four lens bodies read, was assembled from `agg.counts`, which is the
+**globe**. So on the City stop:
+
+- **Compare** said *"You went with the majority in 3 of 3, against Oslo"*
+  over the world's splits.
+- **Scores** said *"How Oslo rated it"* over the world's mean.
+- **Answers** was right all along, which is what made it visible.
+
+The two tabs contradicted each other **on one screen**: Answers reported
+*"1 more question has no answers from Oslo yet"* while Compare drew that
+same question at 50/50. A question with an empty cohort cell cannot have a
+split, and there it was with one — the globe's.
+
+**Nothing in the tree could see it.** Both fields are `number[]`, both are
+populated, both render. `tsc`, eslint and `check:globals` are all name-level
+and every name was correct. The lens suite passes fixtures in directly, so
+it never exercised the host's wiring — the bug lived exactly in the seam
+between two files that each tested fine.
+
+### 2 · The fix: one resolver, and a second field for the one lens that wants the globe
+
+`cellFor(agg)` now answers "what are this stop's counts" once, and **both**
+walks read it. Two walks over one archive was two chances to disagree about
+which crowd the stop is, and they took it.
+
+`LensQuestion` grew `all` beside `counts`, because **Explore genuinely
+wants the globe** and that is not a special case to be tolerated — it is
+the lens's meaning. Its buckets are `by[dim]` cuts across everyone (there
+is no city × age cell to read) and its sentence ends *"Same as everyone."*
+Explore reads `all`; Compare and Scores read `counts`; People reads `by`.
+Each lens now names the population it is actually holding.
+
+The World stop is unaffected in behaviour and not by accident: there
+`cellFor` returns `agg.counts`, so `counts` and `all` are the same array
+and always were. The bug was invisible on the stop most people look at
+first, which is part of why it survived.
+
+### 3 · A share of ONE answer is not a share
+
+The second half of the report, and the one the screenshots led with. On a
+city whose only answer was the viewer's own:
+
+- Answers: **"100% of Oslo are with you."**
+- Scores: **"You gave it 4 — exactly the average · 1 answer"**
+
+Both are the viewer compared with themself, printed as a finding about a
+city. The fold is not wrong — D98 counts are exact and
+`typicality`'s note is deliberate that *"your own answer is included in the
+denominator"*, which is right and stays. What was wrong is phrasing a
+degenerate result as a proportion.
+
+**This is arithmetic, not a thin-data threshold anybody chose.** At n=1 the
+only values the fold can produce are 0% and 100%, so the percentage carries
+nothing the count does not. n=2 is thin too and still says something, so it
+is left alone — deliberately, because inventing a floor here would
+re-import the k-anonymity habit D98 removed.
+
+Both surfaces now say the count: *"One answer from Oslo so far."* and
+*"the only answer here so far"*. Neither claims the answer is YOURS, and
+that restraint is load-bearing: a vote carries the anchors it was cast with
+(D8), so someone who has moved cities has answers in their old city's cell
+while this stop shows the new one. "One answer" is true whoever it belongs
+to; "that's you" would not always be.
+
+### 4 · A tie is not a majority
+
+Compare counted `mineShare >= 50` as going with the majority. Wrong in both
+directions: on a three-way question the leading answer can win on 40%, and
+at 50/50 nobody is in the majority — which is what the release printed,
+counting a dead-heat row toward *"the majority in 3 of 3"*. It now tests
+whether your pick is the cohort's **most common** answer, ties excluded,
+which is what the sentence has always claimed.
+
+### 5 · What pins it
+
+Six cases in `ui/LiveCohortBody.test.tsx` — the host, not the lens suite,
+because the host is where the wiring is. The fixture is built so a scope
+bug cannot pass: every global count sits far from its Oslo cell, and one
+question has a globe and **no Oslo cell at all**, which is the case that
+used to draw a confident split out of a cohort with nothing in it.
+
+All three fixes were **mutation-checked**: reverting each one fails its own
+case and only its own. The scope cases were written first and watched to
+fail against the shipped code, which is how the diagnosis was confirmed
+rather than argued.
+
+### 6 · What was reported and is NOT a bug
+
+The pulse chart's large grey block (*"26 JUL – 13 AUG"*) is the void a run
+of three or more unanswered days draws, working as designed and matching
+the prototype — `pulse-trends.jsx` is byte-identical from v24 through v28.
+It dominates because the account has answered 2 days of 21, and the panel
+says so underneath in words. Left alone: it is honest, and the alternative
+is a chart that hides how little is in it. **If the owner wants a different
+day-one shape for it, that is a design change and belongs in
+`docs/VISION-V28.md` §3, not a fix here.**
+
+## D171 · The daily had no breakdown at all, and its own sheet was a hash
+
+**Decided:** 2026-08-15 · **Status:** binding, BUILT. From the report
+*"daily looks wrong on the breakdown"*, following D170.
+
+### 1 · What was actually there, which was nothing
+
+In live mode the daily question — one a day, the app's front door — had
+**no breakdown**, while every feed card beneath it has had D125's since
+August. Tapping the result opened nothing; the only thing under it was the
+consequence beat and, since D83, Takes.
+
+The reason is in `spec/daily-split.jsx`: the whole engage row (Comments +
+Who voted) is gated on `!S.live`, because those sheets are the prototype's
+— seeded named commenters, and a who-voted sheet whose every group row is
+built from `this.hash(question + group + option)` over cut chips (Job,
+Education, Where, four test cuts) that no published aggregate carries.
+`VOTECUTS` has no live gate of its own.
+
+**Suppressing it was right and stopping there was the mistake.** D125 built
+the real sheet for the feed and never came back for the daily, so the gate
+went from "hide the fake one until the real one exists" to "the daily has
+no breakdown", silently, for as long as the real one has existed.
+
+### 2 · The fix is the component the feed already uses
+
+`ui/LiveBreakdownPanel` now mounts on the live daily, from a "Who voted"
+button beside Takes — the same pair the demo card has always offered. Same
+component, same aggregate the card already fetched, so **no new read**.
+Cohort-first (D125), percentages not rosters (D149), names only under
+Friends — which is also why D1's "named who-voted is circle-scoped" is
+satisfied rather than bent: the panel names nobody outside that cut.
+
+The two panels are mutually exclusive. Both are full-width under one card,
+and opening both pushes the question itself off the top of the screen.
+
+**Lazy, and measured rather than assumed.** `daily-split.jsx` is eager —
+first screen — and `MAX_EAGER_KB` has almost no headroom. Built both ways:
+eager graph **963 KB → 964 KB** (+1), total 2283 → 2284, chunks 75 → 76.
+The panel lands in its own chunk; the kilobyte is the lazy-import glue.
+Ceiling is 978, so this is affordable and the arithmetic is here so the
+next person spending that headroom knows what is left.
+
+### 3 · What is pinned, and the two ways the tests were wrong first
+
+Two cases in `test/smoke-live.test.jsx`, and the second one only became
+real after two failures worth recording, because both are the same trap:
+
+- The first version **returned early** when it could not find the sheet
+  button, asserting nothing at all.
+- The second **asserted too soon**: the engage row renders only once the
+  consequence beat finishes (`st.beat !== S.id`), so it was reading a
+  screen that was still animating. Mutation-checked: removing the `!S.live`
+  gate did NOT fail it until the beat was dismissed inside the case.
+
+What they hold now: the demo row stays unreachable live (its markers are
+seeded Comments and the hash-built cut chips), and the live daily opens the
+real panel with the viewer's own pick marked **on the right option**. That
+last one is the end-to-end check on `mine`: the daily passes an index into
+its own options while the feed passes the store's numeric vote, and the two
+agree only because a live question's option ids are `String(i)`
+(`data/deck.ts` `buildSPure`). Flipping `mine` fails the case by name; no
+type could have caught it.
+
+### 4 · The demo sheet stays
+
+Not deleted. It is the offline dev surface and the demo room's, D1 governs
+it, and the hash is honest there — the room is seeded throughout. What
+changed is that live mode no longer answers "where is the breakdown" with
+silence.
+
+## D172 · The Mirror's stops stop explaining themselves
+
+**Decided:** 2026-08-15 · **Status:** binding, BUILT. From four screenshots
+of Near, City, Groups and Circle: *"they use too much text compared to the
+vision. 2 of the biggest offenders near and city. City also have extra
+'see who answered' that is not needed… I think group and circle should
+just show empty maps instead of the text."*
+
+### 1 · What the vision's header actually is
+
+Three things, and nothing else — `MFHeader` in the prototype's
+`mirror-field.jsx` takes a **kicker**, a **figure** and a **unit**:
+
+| Stop | kicker | fig | unit |
+| --- | --- | --- | --- |
+| Circle | Your people | 12 | close ties |
+| Groups | Your scenes | 4 | followed · 12.6k people |
+| Near | Around you | 2,847 | within 5 km · Grünerløkka |
+| City | Your city | 12.6k | in Oslo |
+| Country | Your country | 38k | across Norway |
+| World | Your world | 412k | worldwide |
+
+One line. No paragraph anywhere. The stop's identity is the FIELD under it,
+and the header exists to say how big the population is before you read
+their shape.
+
+### 2 · What the app had grown, and why each piece was a repeat
+
+**City / Country / World** carried the header, then a **25 px serif place
+name**, then a sentence explaining what a city cohort is. Both extras
+restated what was already on screen: the unit ends "in Oslo", so the serif
+line printed the same word twice the size, and *"everyone who picked this
+city, on every question they have answered"* is what "Your city · 1 person
+has answered in Oslo" already says — in prose the reader has to get past to
+reach the field.
+
+**Near** ended with three lines pointing at City and explaining what City
+is. City's own header does that, one stop to the right, and the ruler
+already shows it is there. What Near owes the reader is the single fact its
+field cannot show on its face — nobody here is named — so that is the line
+that stayed.
+
+**The "See what they answered" button** under every empty field is gone.
+D160 added it so an empty landing screen offered somewhere to go; D136 had
+already made Answers a tab in the row directly beneath it, so it was a
+second door to a door in view. Removing it also removes the `onGoAnswers`
+plumbing through three components.
+
+### 3 · Circle and Groups draw the field now
+
+They were the last two stops answering an empty account with a card of
+prose, while City, Country, World and Near all drew their rings (D160).
+They are also **the two stops a new account meets first**, so the app was
+at its wordiest exactly where it had least to say.
+
+`ui/EmptyField.tsx` draws the rings and you, with the sentence underneath
+instead of instead-of. Nothing in it is fabricated — "you, and nobody
+placed around you yet" is the true picture node for node, and the rings are
+the scale a radius will be read on once someone arrives. The captions were
+dropped after a first pass added them: the stop's kicker one line up
+already reads "Your circle", and a chip repeating it is the duplication
+this record is about.
+
+**Groups keeps its button.** A field cannot fill itself with groups the way
+City fills as strangers answer, so "Start a group" is the only route to
+that and removing it would trade wordiness for a dead end. The sentence
+around it is what shrank.
+
+**Why `EmptyField` is its own module** rather than an export from
+`LiveSimilarityField`, which draws exactly this: that file is the whole
+similarity engine and is LAZY for the reason. `LiveGroupsMirrorBody` is a
+STATIC import in `mirror-tab.jsx`, so importing the field from it would
+drag the engine into the first-paint graph. Forty lines duplicated beats a
+chunk moved. Measured: eager graph 964 → **965 KB** against a 978 ceiling.
+
+### 4 · What did NOT shrink, and must not
+
+**Near's off-state disclosure is untouched.** D9's rule is that the enable
+tap carries the OS prompt, so the sentence that tap agrees to has to be
+readable before it — the kilometre-sized-grid-square line and the phrase
+*"a count, never who"* both stay, word for word, and
+`NearLiveBody.test.tsx`'s `pitches honestly while off` still guards them.
+That case is why this pass trimmed the CLOSING pointer and left the pitch
+alone: the two look alike on screen and only one of them is decoration.
+
+### 5 · What pins it
+
+`ui/LiveCircleBody.test.tsx` is new and holds three states that look alike
+from outside and mean different things — empty draws the field, a FAILED
+read still says so and draws **no** field (a drawing there would tell
+someone with thirty follows they have none), and a first read in flight
+says neither. Mutation-checked: putting the paragraph back fails the first
+case by name.
+
+The rest ride existing suites, updated rather than deleted — `smoke-live`'s
+City helper polls the kicker now, and the Groups case asserts the drawing.
+
+### D172 addendum · the same pass on the profile and the scenes list
+
+Same report, two screens further in: *"lets go to war against the text
+other places as well — on your profile for example you can remove almost
+the entire list as its not needed… same with scenes, better with an empty
+map with a way to add. That is one of the principles that make the vision
+so much better: it removes as much text as possible."*
+
+**Scenes** now draws the field with a **Pick topics →** door, the same
+shape Circle and Groups took above. The old copy was three lines teaching
+where the topic row is and what tapping `+` does — instructions for a
+control one tap away that is already labelled.
+
+**The privacy list is COLLAPSED, not cut**, and the distinction is the
+whole of this note. The principle behind the report is right and this repo
+should keep applying it: text standing in for a design is a bug. But those
+ten bullets are not decoration — each is a promise `firestore.rules` or a
+function enforces, four exist because a specific decision made them true
+(D9 location, D84 presence, D98 public answers, D146 the type cut), and
+both stores require the disclosure to be reachable. Deleting them would
+not simplify the screen; it would make the screen stop being true.
+
+So the SCREEN loses the wall and the DISCLOSURE loses nothing: one
+sentence stays open — *"Your answers are public, under your display name…"*,
+the blunt one CLAUDE.md insists on — and the rest sits in a `<details>`,
+which costs no JavaScript and gives a screen reader a real widget.
+
+`LivePrivacyPanel.test.tsx` pins that the collapse was a collapse: ten
+`<li>` still in the DOM, and the four decision-backed promises matched by
+their own words. Mutation-checked — deleting one bullet fails it by name.
+**This was a layout change and must not be read as permission to thin the
+promises.** A bullet leaves when the decision behind it is reversed, in
+that commit.
+
+`ui/EmptyField` grew an optional `action` because three empty surfaces now
+want one door. The nav lookup lives in the typed component rather than at
+the call sites: two of them are spec-layer `.jsx`, where `window.goNav` is
+new shared-global coupling and `check:globals` rule 4 only moves down — the
+first attempt raised the count from 17 to 21 in one file and CI refused it.
+
+## D173 · The interest levers go; the algorithm owns "how much"
+
+**Decided:** 2026-08-15 · **Status:** binding, BUILT. **Reverses
+[D128](#d128--you-can-say-what-you-want-more-of-the-app-does-not-guess).**
+The owner, on the text pass: *"how much you see of different interests,
+algorithms should decide, not your levers"*.
+
+### What went
+
+`data/interests.ts`, `ui/LiveInterestsPanel.tsx` and their test — the
+three-state per-topic control (Muted · Normal · More) that sat at the
+bottom of the profile's privacy panel, plus the `applyInterests` call that
+weighted the feed pool in `data/live.ts`. Deleted rather than hidden: a
+store nothing reads is what `check:globals` rule 5 exists to sweep, and a
+lever behind a flag is still a lever.
+
+### Why this is a clean reversal rather than a loss
+
+D128's own header made the argument that retires it: *"If people use this,
+most of tiers 2 and 3 is redundant — and finding that out is cheaper than
+building the model that guesses."* That was the right experiment and the
+owner has called it. The replacement is already recorded:
+[D163](#d163--the-app-learns-what-you-are-into-and-the-model-never-leaves-the-phone)
+builds a per-topic interest model from behaviour the device already
+writes, and keeps it on the phone. "How much" becomes the model's job.
+
+**The gap between now and then is real and small.** D163 is binding and
+not built, so until it ships the feed pool is unweighted. That is what it
+effectively was anyway at this bank size — everyone sees everything — and
+it stops being acceptable at
+[D161](#d161--the-feed-goes-unbounded-and-the-mirror-gets-a-corpus-of-its-own)'s
+unbounded bank, where something must choose ~50 questions per person. So
+D163 is now load-bearing rather than merely adopted: **the tail cannot
+ship without it.** Recorded here so the sequence is not discovered later.
+
+### What did NOT go, and this is the part worth checking before reading the
+### diff as a loss of control
+
+**Muting a topic outright survives**, untouched, in the feed's own topic
+sheet (`spec/world-feed.jsx`'s add panel — its own `cats` on/off, a
+different mechanism from the deleted store). So a user who wants a subject
+gone can still switch the lane off; what they can no longer do is ask for
+*more* or *less* of one. That split is the owner's direction read
+literally — the levers were about AMOUNT, and mute is exclusion.
+
+It also means `NEXT-FUNCTIONALITY.md` §1's answer to "what about a user
+who hates news" still holds, and that file now says so through the mute
+rather than through the levers.
+
+### Two documentation consequences, both cheap
+
+`docs/MIRROR.md` recorded a REFUSAL that has now outlived the thing it
+refused — the People lens draws no shared-interest chips because D128
+named the Mirror as a surface that may not read stated interests. There is
+nothing to read now, so the refusal is noted as retired rather than
+deleted: the reasoning is still why the lens has no such chips.
+
+## D174 · Near's visibility gets three states, and a position that expires on its own
+
+**Decided:** 2026-08-15 · **Status:** binding, BUILT (the control, the
+linger and the cap; the venue radius, the room reading, the tabs and
+images are the rest of `NEXT-FUNCTIONALITY.md` §10 and are not built).
+
+The owner's design for Near as a room you can read — *"at a party you can
+see what type of persons are around you"* — worked out over a long
+exchange. §10 holds the whole thing; this record is the slice that shipped
+and the two facts it rests on.
+
+### 1 · Three states, because the failure mode is forgetting
+
+`off` · `session` (two hours) · `always`. Turning it on lands on
+**session**, because the default is the actual decision and the other two
+are for people who mean them.
+
+**`always` is a real option, not a grudging one.** It removes the deadline
+on the SETTING, never the expiry on the POSITION — every beat still writes
+an `until` capped at the linger, so it means "visible whenever the app is
+open", which is small enough to stand behind. Nobody asked for unbounded
+lingering and it is the one version that would be bad.
+
+The owner pushed back on time-boxing at all — *"is it that bad if they
+forget, the only info is face, age, gender, most of which you can see with
+your eyes"* — and the pushback was right about the DATA and moved the
+design. What survives is narrower: choosing to be permanently discoverable
+is legitimate; what nobody chooses is their home broadcasting a face that
+is reliably there at night. So the control solves **forgetting**, not
+choosing.
+
+### 2 · The linger — the part that makes the feature exist
+
+`PRESENCE_TTL_MIN = 10` is now `PRESENCE_LINGER_MIN = 180`.
+
+Not a freshness tolerance — the feature. Everyone's phone is in their
+pocket, so presence that lived only while the app was open would show an
+**empty room at a full party**: you open Near, and everyone else's app is
+shut. Find My and Snap Map keep a last-known position for the same reason.
+This was the owner's catch and it is the difference between a feature and
+a demo.
+
+Three hours: long enough that a venue stays populated between
+pocket-checks, short enough that closing the app in bed does not leave you
+at home all night. One number, meant to be re-tuned from use.
+
+**The staleness is a safety property, not an apology.** A blurred WHEN
+protects as well as a blurred WHERE — the smear that keeps a party
+populated is the same smear that makes a trail unreadable. Product need
+and safety pointing the same way is rare enough to build deliberately.
+
+### 3 · `until`, and why it is in the rules rather than the client
+
+The timed option is a promise about **when you stop being visible**. A
+client-side timer cannot keep it: a timer does not run while the app is
+shut, so a phone that went into a pocket ten minutes before its deadline
+would keep standing for a further three hours.
+
+So the doc carries `until` — the moment the position stops counting —
+clamped to the session deadline when there is one, and `nearbyCountV2`
+filters on it instead of on age. The index moves with it (`cell, until`).
+
+**The cap is in `firestore.rules`, and that is the point.** Presence is
+unreadable so nobody can follow an account around town; an uncapped
+`until` reaches the same place through the write door — a modified client
+writes a position good for a year and stands in the room permanently,
+whatever its own switch says. `until` must be a timestamp, in the future,
+and no more than 180 minutes out. The literal is hand-matched to
+`PRESENCE_LINGER_MIN`; rules cannot import, so both move in one commit.
+
+### 4 · A correction to the record
+
+I told the owner the beat had no foreground guard. **It does** —
+`presenceBeat` returns early on `document.hidden`, so the interval fires
+and the beat no-ops. The claim was wrong and the guard was already there;
+what this record adds beside it is that an EXPIRED session now tears the
+loop down and deletes the doc at the next beat rather than waiting for the
+server's own expiry.
+
+### 5 · What pins it
+
+Four cases in `data/near-presence.test.ts` — the default lands on
+`session`, a session clamps `until` to its deadline rather than the full
+linger, `always` gets the full linger and no deadline, and an expired
+session reads as `off` without a timer having run (the case that matters:
+nothing runs while the app is shut, so reading the mode is what has to
+notice). One case in `firestore-tests/rules.test.ts` for the cap, a year
+and a negative both refused, and `until` required at all.
+
+Mutation-checked: removing the clamp fails the session case, and widening
+the rules cap to a year fails the rules case.
+
+## D175 · Near asks for a precise fix, so its radius can be honest
+
+**Decided:** 2026-08-15 · **Status:** binding, BUILT. Step 2 of
+`NEXT-FUNCTIONALITY.md` §10, on the owner's explicit go after the cost was
+put to them. **Reverses D84's deferral and D9's "never tick Precise".**
+
+### What this is not
+
+It is not a grid constant that could have been edited. That was how I
+first described it to the owner, and it was wrong: at 0.01° the cell was
+~1.11 km tall, and that was **not a design choice — it was the ceiling of
+the fix the app requested.** iOS shipped `NSLocationDefaultAccuracyReduced`,
+Android capped `ACCESS_FINE_LOCATION` at API 30, and `enableHighAccuracy`
+was off. A finer grid over that fix would have produced precise-*looking*
+cell ids computed from a kilometre-wide measurement — invented precision,
+which is what this app refuses everywhere else and what the same
+conversation had just refused for the metre slider.
+
+D84 saw this coming and left it alone deliberately: *"True 500 m is one
+decision away… That is a listing-level change with its own review
+consequences, and it is left as the owner's explicit next call rather than
+smuggled in under this one."* The Info.plist said the same in its own
+words — *"reduced is not a default we quietly escalate from."* So the go
+was asked for, and given, before anything moved.
+
+### What changed
+
+- **iOS** `NSLocationDefaultAccuracyReduced` → `false`.
+- **Android** `ACCESS_FINE_LOCATION` uncapped (`maxSdkVersion="30"` gone).
+- **`enableHighAccuracy: true`**, which on Android 12+ is also what makes
+  `@capacitor/geolocation` request the `[COARSE, FINE]` alias rather than
+  COARSE alone — so the platform half of this decision is that one boolean
+  plus the manifest.
+- **`maximumAge` 10 min → 1 min.** A ten-minute-old fix was fine for
+  "which city" and is wrong for "which building": a cached position would
+  place you in a room you had left.
+- **The grid: 0.01° → 0.002°** on both halves, so a cell is ~222 m tall
+  and the 3×3 neighbourhood the count reads is ~670 × 330 m in Oslo — a
+  venue and its street rather than a district.
+- **The cell regex widens** to five digits per axis, in `geo.ts`,
+  `pure.ts` and `firestore.rules`.
+
+### The store label, and the line the grid was chosen to sit above
+
+`docs/STORE-FORMS.md` now ticks **Precise Location**, and Precise leaves
+the not-collected list.
+
+**The row describes what is REQUESTED, and that is why it moves even
+though what is KEPT did not cross the threshold.** Apple defines Precise
+Location as a resolution of three or more decimal places — 0.001°. The
+presence cell is **0.002°, deliberately one step coarser**, and the city
+name is coarser still. Nothing precise is retained or transmitted: the
+coordinate is folded on the device and discarded, exactly as before.
+
+Picking 0.002° rather than 0.001° was the point of picking at all. The
+honest sentence for a reviewer is: precise is requested, nothing precise
+is kept, and the grid sits above the line rather than on it.
+
+### A false promise this caught, and it was mine
+
+The privacy panel said the presence square *"goes stale within minutes
+when you close the app."* **[D174](#d174--nears-visibility-gets-three-states-and-a-position-that-expires-on-its-own)
+made that false one commit earlier** — the linger became three hours — and
+nothing caught it, because no test read that sentence against the
+constant. Both user-facing disclosures now name the real square (~200 m)
+and the real linger (three hours), and both are pinned: `NearLiveBody`'s
+`pitches honestly while off` and `LivePrivacyPanel`'s D172 promises case
+now assert the figures rather than the topic, so copy cannot fall behind a
+constant again without a red test.
+
+That is the actual lesson of this record. The grid and the permission were
+a decision; the stale sentence was a *silence*, and silence is what this
+tree's guards exist to break.
+
+### The transition, priced rather than migrated
+
+Old cell ids stay legal under the new regex — they simply mean a different
+place — so for up to one linger after deploy a stale doc could be counted
+in the wrong neighbourhood. No migration: presence is opt-in, one doc per
+user, overwritten every four minutes and expiring within three hours, so
+the window closes by itself. Named here rather than discovered later.
+
+### What pins it
+
+The grid contract is pinned on both sides by its own vectors — `geo.test.ts`
+and `pure.test.ts`, the floor.ts drift pattern, because a client and
+server disagreeing about cell shape fails soft (empty counts reading as
+"nobody nearby"). The rules suite carries the widened regex and the
+`until` cap together.
+
+## D176 · Near becomes a room, and the phone says what it is
+
+**2026-08-16.** Step 3 of NEXT-FUNCTIONALITY §10. The owner's sentence for
+this feature was *"at a party or some sort of social event you can see what
+type of persons are around you"*, and until now Near answered a strictly
+smaller question: **how many**. A count is a fact about a crowd that says
+nothing about the crowd.
+
+**WHAT SHIPPED.** `nearbyCountV2` returns `{ n, mix }`, where `mix` is
+`{ top: string[], n: number, capped?: true }` — up to three Big Five
+archetype names in rank order, and the number of phones the ranking was
+folded from. On screen: *"Mostly Host and Explorer · 11 people here have
+taken the test."*
+
+**THE DESIGN DECISION IS WHERE THE TYPE IS COMPUTED,** and everything else
+follows from it. `matchArchetype` lives client-side in
+`spec/archetype-data.js`; the table is content, not logic. The two obvious
+server-side routes were to port the table into `functions/` (two copies of
+a content table, drifting) or to join every nearby uid's profile at fold
+time (reads linear in the crowd, and a server holding "who is standing here
+AND what they scored" — the precise pairing `v2_presence`'s read deny
+exists to prevent). Instead **the phone writes its own archetype name into
+its own presence doc**, as an optional `type` field. The server counts
+names it does not understand. It never holds the table, never scores
+anybody, and never joins a profile to a position.
+
+**Why names and not shares, permanently.** `roomMix` returns a ranking and
+refuses a percentage, and the test asserts on the absence of `%`. At room
+sizes a share is a headcount wearing a disguise: "62% Hosts" moves visibly
+when one person walks in, and watching it move is a differencing attack
+anyone can run by standing at a door. A rank order does not move until a
+rank changes, which takes several people.
+
+**The floor is 8 typed phones** (`ROOM_MIN_TYPED`), matched to
+`data/typeMix.ts`'s `TYPE_THIN` — the same judgement about the same
+instrument one layer up. Below it there is no reading at all; the card says
+nothing rather than explaining the floor, because an empty street owes the
+reader no arithmetic.
+
+**`n` is the TYPED count, not the headline count.** Plenty of people nearby
+have never taken the test, and the two numbers sit on the same card. A
+reading that quoted the bigger one would be borrowing a population it did
+not measure — the D157 failure class, arriving as a basis instead of as a
+cell.
+
+### The cache is the feature, not an optimisation
+
+A count is an aggregation and costs ~1 read however crowded the cell is
+(D129). A mix needs the documents, which puts back exactly the linearity
+the count was rewritten to remove: every phone beats every 4 minutes, so an
+uncached fold charges (phones nearby) × (beats) — **quadratic in local
+density, at a festival, which is the one situation the feature is for.**
+
+`v2_presence_mix/{cell}` holds one cell's folded reading for one beat
+window. Everyone standing in a cell wants the same answer, so it is
+computed once and read by everyone else in it: ~900,000 reads become
+~24,000 for a 1,000-phone hour, and more to the point the fold term stops
+depending on crowd size at all (COSTS Finding 5 has the table). A cached
+REFUSAL is cached too — a crowded room where few have taken the test must
+not re-fold on every beat.
+
+The cache doc is `allow read, write: if false`, and the reason is
+presence's reason one level up: a client that could read a cell it is not
+standing in would have a map of every room rather than a reading about its
+own. The callable only ever answers for the caller's cell and its eight
+neighbours, and that restriction is the feature — it holds only while this
+is the sole door.
+
+### Two things checked rather than reasoned about
+
+**Which sixty, when the cap binds.** The fold reads at most
+`ROOM_SAMPLE_CAP` (60) docs via `where("cell", "in", cells).limit(60)`. If
+that merge were cell-major, a crowd above the cap would be sampled entirely
+from whichever corner the planner reached first — a reading drawn from one
+end of the field and printed as the room, appearing exactly at festival
+scale and nowhere in testing. **Probed against the emulator** (360 docs
+seeded evenly over the nine cells): the sixty returned spanned all nine,
+3–12 apiece. Firestore orders a query with no explicit `orderBy` by
+document id, and these ids are uids — random, uncorrelated with both cell
+and type. The property the design rests on is **the doc id being random**,
+not anything about the merge, and the comment says so: key presence by
+something ordered and this stops being true silently.
+
+An earlier pass "fixed" this by stratifying — nine queries with a per-cell
+cap. It was written and thrown away: `ceil(60/9)` = 7 puts the floor of 8
+out of reach in a single-cell venue, which is the *common* case. A fix for
+an unmeasured problem that breaks the ordinary path.
+
+**The cap makes `n` a floor, so it declares itself.** Past 60 sampled docs
+`n` is "at least this many", and printing it bare would report sixty of
+three thousand as the room. `capped` rides along and the card prints
+"60+" — D102's repair to the who-voted sheet ("the latest 200 of N"),
+applied here before the surface existed rather than after. Counted on the
+SAMPLE rather than on `n`, because a crowded mostly-untyped room is a
+truncated read either way.
+
+### Found under this stone
+
+- **A cached refusal decoded as an empty room.** The hit path returned
+  `{top: [], n: 0}` where the fold path returned `null`, and `{...}` is
+  truthy — the client's own `top.length` guard was the only thing between
+  that and *"Mostly  · 0 people here have taken the test."* The two paths
+  now agree at the source; a guard at one end of a wire is not a contract.
+- **D175 left its old radius in fifteen places,** including one the reader
+  sees: the count's unit still said *"within a couple of kilometres"* after
+  the grid went 0.01° → 0.002°, overstating the reach by five times. A unit
+  that flatters its number is the same failure as a fabricated number, and
+  `check:figures` does not cover prose that names a distance. Swept, and
+  the test now asserts the figure rather than the topic.
+- **D174 shipped a lint failure.** `NearModeChip` called `Date.now()`
+  during render, which `react-hooks/purity` refuses — so the React Compiler
+  had been bailing out of the card since that commit. The clock is sampled
+  in state on the same notify that already re-renders the component (the
+  beat is 4 minutes; the label is coarse to 5, so one sample per beat is
+  the right rate rather than a compromise), and a case pins it.
+
+### Guards
+
+Rules: `type` optional, non-empty, ≤40 chars, and `hasOnly` still names
+four keys — it is client-authored free text on a doc nobody can read, which
+is the shape that becomes storage for something else if it is not bounded.
+`v2_presence_mix` denied in both directions. Both mutation-checked: dropping
+the size cap and opening the cache each fail exactly their own case and
+nothing else. Rules suite 91 → 93.
+
+`roomMix` is pure and carries six cases plus the two capped ones — ranking,
+no-share, floor, typed-only basis, stable ties, three-name limit. The card
+carries the reading's own four: names in order, basis is the typed count
+and not the headline, no share ever, silent below the floor.
+
+## D177 · Near becomes a room you can read, and asking requires standing in it
+
+**2026-08-16.** Step 4 of NEXT-FUNCTIONALITY §10, the tabs. Near now
+carries **Answers · People · Compare** over the people actually present,
+folded by `nearbyRoomV2` because no device can fold them: the cohort is a
+set of phones and `v2_presence` is unreadable to every client.
+
+**THE GATE IS THE DECISION.** Everything else here follows from it, and it
+went on the OLD door as well as the new one.
+
+Until now `nearbyCountV2` took a `cell` from the client and never checked
+that the caller was anywhere near it. A modified client could walk the grid
+and read any square's count and, since D176, its composition. For a
+headcount and a coarse ranking that was a small leak and it was accepted
+without being written down. It stops being small the moment the room has a
+**roster** — sweeping cells would be a people-finder, which is precisely
+what the presence read deny exists to prevent, arriving through a callable
+instead of a query.
+
+So both callables now refuse any caller without their own unexpired
+presence doc in the requested neighbourhood. It costs nothing — the
+document was already being fetched for self-exclusion — and it buys two
+properties that are otherwise wishes:
+
+- **Your own room only.** The grid cannot be walked.
+- **Mutual.** You can read the room exactly while the room can read you.
+  Turning Near off stops you reading, not just being read.
+
+### What is disclosed, stated plainly
+
+The uids of people standing near you. No cell, no coordinate and no
+position history leaves — but this is **membership**, and membership is
+what the deny was protecting while the only reading was a number.
+
+Nothing about anybody is new: a uid resolves to a profile and its answers,
+which any signed-in user has been able to read by name since D98. The
+pairing with *here* is new. Four properties bound it, all enforced rather
+than assumed — the gate above (two of them), the venue radius (D175's
+~200 m, without which this would be a district), opt-in on both sides and
+off by default, and expiry on its own (D174). §10's own test is the one to
+hold it to: *a room you are standing in, not a directory of strangers*.
+
+**Three promises on screen became false and were rewritten in this commit**,
+which is the part that must never be deferred:
+
+- The stop said **"a count, never who"**, twice. That was Near's whole
+  pitch from D84 and the People tab makes it a lie. It now says what
+  replaced it: they can see you here too, for as long as you can see them.
+- The field's foot said **"nobody here is named"**. Half of that is still
+  true and is the sharper half — the FIELD names nobody, an anonymous node
+  cannot be opened, and that is the deny drawn. So the sentence names which
+  half is which rather than dropping a true fact because a neighbour
+  changed.
+- The privacy panel said **"a count is all that comes back"**. It now
+  separates the two claims that used to travel as one: nobody can read your
+  square (still `allow read: if false`), and the people in it can see you.
+
+The test that asserted the old wording had to change with it, and that is
+worth a sentence: a test pinning "a count, never who" would have been the
+thing arguing to keep a false sentence on a screen. What it pins now is the
+claim the server actually enforces.
+
+### The shape of the fold
+
+`nearbyRoomV2` samples the neighbourhood once (`ROOM_PEOPLE_CAP` = 24) and
+serves both readings from that one sample — a roster and per-question
+option counts over exactly those people. Two caps would have meant People
+showing one set of people and Compare describing another, and "you against
+this room" is only true if the two words mean the same crowd.
+
+Counts come back in `{ "0": 3 }`, the shape `v2_question_aggs` already
+uses, so the client walk is one four surfaces already do. Returning an
+ARRAY would have meant agreeing with the client about how many options a
+question has, over a wire, with a length nobody validates.
+
+**No floor on the answer split, and that is a decision rather than an
+omission.** §10 said "the same floor" and the floor turns out to protect
+nothing here: a floor on an answer split protects the answer, answers are
+public, and the roster is disclosed by the People tab in any case — hiding
+a two-person split would conceal nothing a reader could not get by tapping
+a name. What a thin split needs is its `n` beside it, which is the
+post-D98 rule everywhere else and which `LiveAnswerRows` already does. The
+floor that does bind is D176's, on the mix, which is a different reading
+with a different exposure.
+
+**Explore and Scores are absent on purpose.** Explore cuts a population by
+an anchor and needs `by` breakdowns the room has none of; Scores wants the
+archive's ordinal questions where the room is folded over today's deck.
+Each would be a tab that draws an empty state forever, which is worse than
+a tab that is not there.
+
+**Compare is EXPORTED from `LiveMirrorLenses` rather than reimplemented.**
+The room reads exactly the way that lens reads, and a second copy would be
+a second place for D170's majority test to be got wrong.
+
+### The cost, priced before it shipped
+
+The fold reads a document per person per question, so uncached it is
+(people) × (questions) × (viewers) — the same trap D129 pulled the count
+out of. `v2_presence_room/{cell}` caches one cell's fold for one beat
+window, **per question**, so the first caller pays and the rest read one
+document; ~2.9M reads become ~29k for a 1,000-phone hour (COSTS Finding 6).
+It runs on the tab's mount, never on the beat, so a stop nobody opens costs
+nothing.
+
+The cache merges INSIDE a window and replaces at the boundary. Merging on a
+miss would have republished last window's split under a fresh stamp — an
+hour-old room served as current for as long as nobody re-asked that
+question.
+
+### Found under this stone
+
+- **The e2e had been red since D174, and I had not run it.** D174 made
+  `until` required on a presence write; the e2e's presence section wrote
+  `{cell, at}` and had been failing `PERMISSION_DENIED` for two commits.
+  The unit, rules and functions suites all pass without a functions
+  emulator, and this is the only suite that exercises a client write
+  against the deployed rules AND a callable behind them. The four-runner
+  table in CLAUDE.md says exactly this and I still skipped it. Fixed, and
+  the section now also covers the mix floor, the roster, the gate from
+  three angles, and the `until` cap.
+- **`deleteAccount` would have left an erased account listed in a room.**
+  `v2_presence_room` is keyed by CELL, so deleting the presence doc does
+  not touch a roster naming that uid — it would have survived up to a beat
+  window past the erasure. The wipe now reads the leaving account's cell
+  and drops the cached fold with it, and the erasure e2e proves it by
+  mutation.
+
+### Guards
+
+The gate is proved in the e2e from three angles (a phone in another cell,
+for both callables; a phone with no presence at all), because it is the
+only place a callable behind rules can be exercised. `v2_presence_room` is
+denied both ways in `firestore.rules`, mutation-checked. `roomQids` refuses
+path injection into the `getAll` — these strings are concatenated into a
+document path, so a slash or a dot segment is refused rather than escaped.
+`tallyPicks` drops anything that is not an option index, because a float or
+a `-1` would key a bucket the client's walk never looks at: a count that
+exists, is wrong, and is invisible.
+
+Client-side, `roomShape.test.ts` pins the translation (a room that has not
+answered stays at zero, a malformed cell reads as zero and never NaN, `mine`
+is -1 rather than 0 when absent) and `LiveRoomTabs.test.tsx` pins the three
+states of a read that can fail, plus People's two rules: an unnamed account
+is "Someone", and **the room is not ranked** — the field above places people
+by likeness because that is a reading, while a list of people you can see
+sorted best-match-first is a leaderboard of strangers in a bar.
+
+## D178 · The app gets a face, and it is reported like anything else somebody says
+
+**2026-08-16.** Step 5 of NEXT-FUNCTIONALITY §10, the last one, and the
+only one that adds a subsystem rather than a surface. The app held no image
+of anybody until this.
+
+**Two owner calls decided the shape**, both asked before anything was
+built, because both had legal weight and neither had an obvious default:
+
+1. **Live from the moment it is set, with the report loop behind it** —
+   over reviewing a photo before it shows. The model takes have had since
+   D83.
+2. **Everywhere a name appears** — Near's People tab, the Kindred cards,
+   the profile — over Near only. A photo is a profile field.
+
+The first is the consequential one and it is worth stating what it costs:
+the loop is REACTIVE. Somebody sees an abusive picture before anybody
+reports it, in an app where an account is free (D3). The alternative was
+pre-review, which would have contradicted the "pre-moderation is out of
+scope" line in `docs/MODERATION.md` and put a human between a user and
+their own profile picture. The owner was asked directly and chose the
+reactive loop; that line in MODERATION.md therefore survives D178 rather
+than being quietly narrowed to "except faces".
+
+### What was built
+
+**One object per account, at a fixed id.** `avatars/{uid}`, no filename.
+The retired v1 path in `storage.rules` records exactly what a free filename
+costs — unbounded objects, unbounded stored bytes, unbounded egress, from
+an app where an account is free — so a second upload is an OVERWRITE and
+the object count is bounded by the account count by construction rather
+than by a rule someone has to remember.
+
+**The device does the shrinking**, and that is a privacy property rather
+than a bandwidth one. A camera photo carries EXIF, EXIF carries GPS, and
+this app spent D9, D84 and D175 being careful about precisely that datum. A
+canvas round-trip to a 256px JPEG drops all of it — there is no EXIF on a
+`toBlob` result — and the ~20 KB output sits ten times under the rules cap,
+which is what makes the cap a backstop rather than something real uploads
+have to fit.
+
+**A TOKEN IS STORED, NOT A URL**, and this is the field that would have
+been the quiet mistake. `v2_avatars` holds the Storage download token; the
+client builds the URL around it from its own config. A client-written URL
+could name a host we do not control — every viewer's IP goes to it, and the
+picture can be swapped after somebody reported it, which defeats the whole
+loop. The rules pin a charset with no dot, colon or slash, so the field
+cannot be a host or a path however it is written.
+
+**Its own collection, not a profile field**, for two reasons that both
+bind. A remove verdict has to write somewhere, and a field on `v2_users`
+would mean the moderator's credential holds a write on the document
+carrying display names, anchors and test results. And `hidden` +
+`hiddenMeta` is a take's exact shape, so the queue, the verdict log and the
+appeal path are reused rather than re-derived — `av_{uid}` namespaces the
+target id, `target` carries the uid so the flag rule can reach the document
+without doing string surgery, and `gid: "avatar"` is the sentinel D83's
+world takes already established.
+
+**Once removed, frozen.** A hidden avatar takes no client update and no
+client delete, because both are the way back: overwrite the token, or
+delete and re-create, and a removed face is live again from an account that
+costs nothing to make. The appeal is a human, which is what `hiddenMeta` is
+for. This is the single most important rule in the change and it has its own
+case.
+
+**A hidden face resolves to `""` in `resolveNames`**, so every surface
+falls back to initials at once and none of them needs to know moderation
+exists. One place turns a document into a picture, so one place checks.
+Faces are also the one thing the profile cache does NOT persist across
+sessions: a token held past a remove verdict would keep drawing a face that
+was taken down.
+
+### Erasure grew a new limb
+
+`deleteAccount` had never touched Storage — and `storage.rules` leaned on
+that: its retired read grant survives *because* "revoking access to objects
+that still exist would create an erasure gap rather than close a hole". A
+photo without a Storage delete would have made that sentence describe the
+live path too.
+
+It deletes both halves now, in its own phase, and it ABORTS on failure like
+every other phase rather than logging and moving on: an orphaned photo of
+somebody who asked to be deleted is exactly the leftover the abort exists
+to prevent. The erasure e2e proves it — with the seed itself asserted,
+because an object that never landed makes "it is gone afterwards" pass for
+the wrong reason.
+
+### Found under this stone: D175 broke three gates and I had found only one
+
+D177 recorded that the e2e had been red since D175. Running the FULL gate
+list — all thirty, rather than the dozen I had been running from memory —
+found two more, both from the same commit:
+
+- **`check:store-forms`** was red. D175 ticked Precise Location in
+  `docs/STORE-FORMS.md` and never touched `design/store/app-privacy.json`,
+  **which is the file that gets pushed to Apple**. The gate exists
+  precisely to catch the two copies disagreeing, and it had been saying so
+  for three commits.
+- **`check:ios-location`** was red, enforcing D9's `NSLocationDefaultAccuracyReduced
+  must be true` — the rule D175 deliberately reversed. Its own message said
+  "if that genuinely changed, this check is the last thing to update, not
+  the first," and it had not been updated.
+
+Both are now **consistency checks rather than opinions**: store-forms reads
+the plist and demands the label agree with it; ios-location demands the
+iOS plist and the Android manifest agree with each other. Neither has a
+view on which way the decision goes, so neither can go stale the same way.
+A gate that fires on every correct tree is worse than no gate, because the
+only way past it is to stop looking — and this repo's whole moderation and
+privacy posture rests on gates nobody has learned to ignore.
+
+Both scripts' SUCCESS lines were stale too ("Precise Location absent",
+"reduced accuracy on") and now report what they actually found. A gate that
+passes while printing a false summary is the same failure in a quieter key.
+
+### Guards
+
+Storage rules: five cases — the world-readable grant, the signed-out deny,
+the somebody-else's-face deny, overwrite-and-remove, and the byte and type
+caps (SVG refused explicitly; it can carry script). Firestore rules: six
+more, including the token charset against a URL, `hidden` unclaimable in
+either direction, the freeze against both ways back, and the flag arm —
+one report per person, never your own face, and none at all on a face
+already removed. The two new platform cross-checks were mutation-checked by
+flipping the plist and watching both fire.
+
+Client: `avatar.test.ts` pins that the URL is BUILT (a token that looks
+like a URL still lands in the query string of ours), and
+`LiveRoomTabs.test.tsx` pins that a face draws where there is one, initials
+where there is not, that the report takes two taps, and that a hidden face
+is indistinguishable from no face.
+
+## D179 · The rules deploy on merge and the app does not, so `until` is optional for one release
+
+**2026-08-16.** Found by asking whether D170–D178 were safe to merge rather
+than whether they were finished, which turned out to be a different
+question.
+
+**THE HAZARD.** `firebase-deploy.yml` fires on any push to `main` touching
+`functions/**`, `firestore.rules` or `storage.rules` — so merging *is*
+deploying. The app does not travel that way: it reaches phones through a
+store review, days later. Between those two moments the newest build in the
+wild is the one that predates D175, and it writes a presence document of
+`{cell, at}` with no `until` at all.
+
+D175 made `until` required. So on merge, every presence write from every
+existing install would have been denied, `runBeat` would have caught it,
+and Near would have shown *"Couldn't reach the count just now"* with a
+**Try again** button that could not succeed until the user updated the app.
+Nothing would have looked broken in CI, because CI runs the new client
+against the new rules — the only two things that are never paired in
+production.
+
+This is the D162 deploy-order shape one layer down: that note is about a
+bank that must be reseeded before a flag ships, and this is about a client
+that must ship before a rule tightens. Both fail in the gap between two
+deploys that nothing schedules together.
+
+### What was done
+
+**`until` is optional for one release, and capped exactly as before when
+present.** A compatibility arm rather than a retreat: a modified client
+gains nothing by omitting it, because the server treats a missing `until`
+as `at` + the linger — which is precisely what the pre-D175 freshness
+window meant.
+
+**The server BACKFILLS it**, and that is the part that makes this
+self-closing rather than merely survivable. The count filters `until > now`,
+and a Firestore range filter skips a document missing the field entirely —
+so a legacy phone would have been admitted to its own count and then been
+invisible to everybody else's. `nearbyCountV2` writes the field a legacy
+document should have had, on its owner's first beat, which is the same
+moment they are admitted. One extra write per legacy account, once.
+
+Undercounting rather than erroring would have been the worse failure and it
+is worth saying why: an error is visible and a wrong number is not. A room
+quietly reading 0 while six people stand in it is the fabrication this app
+refuses everywhere else, arriving through a compatibility gap instead of
+through arithmetic.
+
+**REMOVAL CONDITION, so this does not become permanent by inattention:**
+delete the arm when the D175+ build is the oldest one in the wild. That is
+a store-rollout condition, not a date. Until then, a presence document with
+no `until` is one nobody has opened the new app with yet — and after the
+backfill has run once for each of them, there should be none left.
+
+### Guards
+
+A rules case for the legacy write shape, beside the existing one for the
+cap — the cap case now owns only the ceiling, because the "it is required"
+half moved here and asserting both would have meant one of them lying. An
+e2e leg drives a FOURTH account through the whole thing as a real client:
+the legacy write is accepted, the gate admits it, and the document comes
+back carrying an `until` it never sent. Mutation-checked by removing the
+backfill, which fails exactly the third assertion.
+
+### Found on the way
+
+**`npm run test:scripts` is in CI's lint job and I had never run it.** It
+caught two things this branch broke, both of the same species as the two
+stale gates D178 records:
+
+- `scripts/pulse.test.mjs` counts `get(/databases/` sites in
+  `firestore.rules` as a billed-read tripwire; D178's avatar flag arm added
+  one (18 → 19). `RULE_READS` is deliberately unchanged — it charges the
+  answer-create paths, and reporting a photo is not one.
+- `scripts/asc-push.test.mjs` asserted the printed privacy form **never**
+  contains Precise Location — an invariant D175 reversed. It had become
+  self-contradicting: the loop above it demands every declared row be
+  printed, while that line forbade one of them, so the only way past it was
+  to delete half the test. It is now the set's own complement — nothing may
+  be printed that the file does not declare — and the comment says what
+  that does and does not catch, because the first draft of it overstated
+  the case and a mutation showed as much.
+
+Three commands run the gates this repo actually has: `npm run lint` is
+eslint alone, and the CI job of that name also runs `check:globals`,
+`check:figures`, `test:scripts` and `check:a11y`. Running the first and
+calling it "lint passes" is how all four of these got through.
+
+## D180 · Build 18's pre-flight: the record was written and the number was not
+
+**Decided:** 2026-08-16 · **Status:** binding · Sixth release pre-flight
+(D130, D142, D143, D153, D158). Bumps `appBuild` 17 → 18. **The bump is
+the finding** — three pre-flights running had found nothing to do, and
+this one does.
+
+**Numbered D170 when it was written, and renumbered here.** #199 landed
+D170–D179 while this pre-flight was in flight, taking the number out from
+under it; the commit message on `64af3b9` still says D170 and is the one
+artefact that cannot be corrected in place. **The tree it pre-flighted
+also changed**, and not cosmetically: every payload, bundle and
+store-filing figure below is the re-measurement against the merged tree,
+not the original. What did *not* move is the part that made this
+pre-flight necessary — run 24's step list, and the 17 it left behind.
+
+### The comparison, made against the runs
+
+`ios-release.yml` has **24 runs and no more**. Run 24 (`31901336491`,
+`9a5f803`, 2026-08-15 18:31:02Z, job `archive` 8m 42s) has step 17,
+`Upload to App Store Connect`, at **`success`** — 18:37:44Z → 18:39:39Z,
+1m 55s of transfer — and `appBuild` at that sha was **17**. So build 17 is
+spent.
+
+Run 23 (`31900970820`) is the **same commit eight minutes earlier** with
+step 17 at `skipped`: the dry run that `ios-release.yml`'s header asks
+for. That is the second pair of its kind after runs 15 and 16, at the same
+eight-minute spacing, and it is why the conclusion is read per step rather
+than per run — both runs are `success` at the job level and only one of
+them spent a number.
+
+`appBuild` in the tree was **17**. Seventeen is not greater than
+seventeen, so runbook 2.4's question — *is `appBuild` greater than the
+highest build in App Store Connect?* — answers **bump, then run**. Done by
+hand, 17 → 18, then `check:versions --fix` carried it to `versionCode` 18
+and both `CURRENT_PROJECT_VERSION` entries. (`--fix` does not increment;
+it propagates. D158's note, load-bearing again.)
+
+### The third skip, and it is not the gap D143 named
+
+The post-upload bump has now been skipped after runs 18, 19 and 24. Runs
+20, 21 and 22 held, which D153 and D158 recorded as the habit sticking —
+**and the thing they credited was the bump landing in the session that
+read the run's own step list**, as against being deferred to whoever
+opened the repo next. D143 called that the gap: between *the upload
+finished* and *someone came back to the tree*.
+
+**Somebody came back.** Commit `5798623` — "Build 17 is in TestFlight, and
+it is the one that proves the migration", merged 2026-08-16, the day after
+run 24 — is a person returning to the tree **specifically to record this
+upload**. It cites the run id, notes the dry run went green first, and
+writes sixteen lines into LAUNCH-RUNBOOK 3.2 about what to watch on first
+launch. Its own body says *documentation only; deploys nothing*, and its
+diffstat is one file. `appBuild` stayed 17.
+
+So the diagnosis moves. The failure is not inattention and not the
+interval — it is that **the record and the number are two different
+edits**, and only one of them has a habit attached to it. A session can
+discharge the whole felt obligation ("run 24 is written down") while the
+integer that actually costs ~150 minutes of macOS quota sits untouched.
+Three releases where the bump landed with the step list on screen were not
+enough to make it survive a session that opened on the *record* instead.
+
+**No gate in this tree can catch it** — nothing here can see App Store
+Connect (D73's shape, one layer out), which is why the comparison is a
+procedure and not a check. But the *record* is in the tree, and that is a
+different thing to gate: if LAUNCH-RUNBOOK claims build N was uploaded,
+then `appBuild` must be greater than N. That invariant is local, cheap and
+exactly the shape `check:figures` already enforces for counts. **Not built
+here** — it is a gate with a real false-positive surface (the claim is
+prose, and the phrasing is not fixed), and a release pre-flight is the
+wrong moment to add a gate that can go red on wording. Recorded as the
+yield of this pre-flight, for whoever takes it.
+
+### The one thing 6.1's own command found
+
+Step 6.1 ends `npm run build && npx cap sync`. Running it rewrote
+`ios/App/CapApp-SPM/Package.swift`:
+
+```
+-.package(url: ".../capacitor-swift-pm.git", exact: "8.3.3"),
++.package(url: ".../capacitor-swift-pm.git", exact: "8.4.2"),
+```
+
+The pin has been wrong since `831f808` took `@capacitor/ios` 8.3.3 → 8.4.2
+— the dependabot bump D153 recorded as build 15's native surface. **The
+file has never been committed at 8.4.2**: `git log -S` finds no such
+commit. Reproduced with `native-sync-drift`'s own command, `npx cap sync
+--deployment`, not just the bare one.
+
+**Nothing shipped wrong, and the reason is worth stating rather than
+assuming.** Both `ios-build.yml` and `ios-release.yml` run `npx cap sync
+ios` before they build, so every archive since build 15 resolved 8.4.2
+from a file regenerated on the runner. The tree was the only copy that
+said 8.3.3. What it bit is narrow and real: a human opening Xcode without
+syncing first resolves a different Capacitor than CI and the release do.
+
+**#199 committed the same line independently, hours later**, so this
+change is absorbed rather than applied — the merge is a no-op on that
+file. Two `cap sync`es in one day both regenerated it, which is the
+clearest statement of the underlying fact: the tree had been carrying a
+value that nothing agreed with, and any run of the sync step corrected
+it. That is the argument for the warning being too quiet, not against it.
+
+**Why nine-jobs-green never said otherwise.** `native-sync-drift` reports
+drift as `::warning::` and its step exits 0 regardless — the job is green
+with or without drift. D153 and D158 both cited that job as green, and
+both were right; green there has never meant *in sync*. Committed here so
+that for once it does. The gate is left as a warning: making it fail is a
+policy change that could block an emergency fix, and it is not this
+pre-flight's call.
+
+### The bundle, with a kilobyte left
+
+| | D153 (build 15) | D158 (build 16) | here (build 18) | ceiling |
+| --- | --- | --- | --- | --- |
+| total JS | 2255 KB | 2278 KB | **2329 KB** | 2334 |
+| eager graph | 969 KB | 961 KB | **975 KB** | 978 |
+| chunks | 72 | 75 | 78 | — |
+
+Green, measured on the shipping artifact — `VITE_V2_LIVE=true`,
+`CAPACITOR_BUILD=1`, non-empty `VITE_SENTRY_DSN`, the way
+`ios-release.yml` builds it.
+
+**Measured twice, and the second measurement is the one in the table.**
+Before #199 this pre-flight read 2284 against a 2285 ceiling — 1 KB, the
+tightest the gate had ever been on a release path. #199 raised the total
+to 2334 for the Near room, so the total is comfortable again at 5 KB.
+
+**The half that is now tight is the half that cannot be raised.** The
+eager graph reads **975 against 978 — 3 KB**, where build 16 had 17 and
+this pre-flight's own first pass had 14. That is the constant D144 and
+D152 each declined to move and whose own header says it "has no headroom
+and cannot be raised without giving something up". The total has a raise
+history (2265 → 2285 → 2334); the eager one has a refusal history. **So
+the next change that lands anything in the entry graph meets a ceiling
+whose documented answer is "trim, not raise"** — and it meets it on the
+release path, where D144 put the gate deliberately. Not this pre-flight's
+call to make; it changed no application code.
+
+### Measured, not asserted
+
+Re-run against the merged tree, which is the only run that counts: **1218
+client tests (80 files), 228 function (8), 183 script (10), 106 rules
+(2)**; all three e2e suites green — the loop, erasure and moderation, each
+exiting 0. `lint`, `tsc -b`, and 28 `check:*` gates. `check:globals`
+reports **409** cross-module references across 42 files, at its baseline
+and unmoved, now over 183 files scanned rather than 177: #199 added six
+spec-layer files and no new coupling.
+
+*The pre-#199 figures, for the record, were 1175 / 214 / 183 / 90.*
+
+**Three gates are environmental, the same three D158 enumerated**, and
+each was run rather than skipped:
+
+- **`check:store-copy`** exits 1 bare on one placeholder — D42's parked
+  Play signing fingerprint — and passes with `--ios`, the flag the release
+  workflow hard-gates on.
+- **`check:fn-runtime`** reads `functions/lib/index.js`; `npm run build
+  --prefix functions` first, then it passes.
+- **`check:web-firebase`** reads `VITE_FIREBASE_*` and `VITE_V2_LIVE` from
+  the *environment* as well as from `dist/`, so it has to run inside the
+  same env block as the build — which is how `ios-release.yml` invokes it
+  and is not obvious from the script's name. Verified against an injected
+  fake config: OK, live config inlined into **72** chunks for project
+  `preflight-fake`. Seventy-two rather than the shipping 75 because that
+  build set no `VITE_SENTRY_DSN`. That proves the gate's mechanism, not
+  the real values; the run that matters is the workflow's, against its own
+  `dist/`.
+
+`learn-reserve.test.jsx` passed — 1175/1175 in one clean run. Third sample
+against D153's thin-margin note, and the second consecutive pass.
+
+### What build 18 carries that 17 did not
+
+**This paragraph said "nothing shell-facing" and was true for about an
+hour.** #199 changed that completely, and the difference matters to the
+archive rather than only to the changelog. Build 18 now carries, against
+run 24's commit: `ios/App/App/Info.plist` (+27/−), `storage.rules` (+58),
+`firestore.rules` (+196), and ~740 lines across `functions/src` —
+`v2social.ts`, `pure.ts`, `moderation.ts` and `index.ts` — plus
+`android/app/src/main/AndroidManifest.xml`. `package-lock.json` is still
+untouched, so no dependency moved; but this is **not** the pure JavaScript
+payload build 16 was, and the plist change is the kind that alters what
+the OS prompts a user for.
+
+The payload: the **dogs domain** (554 breeds on minted append-only keys),
+**D166**'s third tab on trial, **D167**, **D168**, **D169**'s fold-once
+Mirror — and then #199's **D170–D179**: the Mirror tabs reading the
+population they name, the daily's real breakdown, and **Near rebuilt as a
+room** — precise location (D175), a presence document with an expiring
+`until` (D173), and an optional profile photo (D178).
+
+### The store filing MOVES, for the first time since D141
+
+Two new rows, both from #199, both already consistent in the tree
+(`check:store-forms` passes, and D178 is where the gap between
+`app-privacy.json` and `STORE-FORMS.md` was caught):
+
+- **PRECISE_LOCATION** — `NSLocationDefaultAccuracyReduced` is now
+  `false`. Nothing precise is retained (the fix is folded to a ~220 m cell
+  on the device and discarded), but the form asks what the app
+  **requests**, and this one requests precision.
+- **PHOTOS_OR_VIDEOS** — an optional profile photo, off by default, EXIF
+  dropped on the device.
+
+**Nine rows now, and runbook 4.4 said seven.** That step is where a human
+types the label into Apple's web form — the one form Apple's API cannot
+write (D73), so the prose *is* the procedure — and it still read *"7 data
+types … Coarse Location, never Precise"*, which is the exact claim D175
+reversed. #199 updated the JSON, the prose table and the gate, and did not
+come back for the instruction that transcribes them. Following 4.4 as
+written would have under-declared two rows, which `app-privacy.json`'s own
+comment calls "the direction that gets an app pulled". **Fixed here**,
+along with the three-that-bite list, which taught Precise as impossible.
+
+**This does not block the upload and does block the submission.**
+TestFlight internal testing has no review gate, so build 18 can go up
+against the current label; App Store review (6.2) cannot. The window
+between them is the one where the live label describes a build that no
+longer exists, and nothing in this tree can see or close it — `asc-push`
+prints this form, it cannot write it.
+
+### What is NOT written here
+
+That build 18 is "pre-flighted and unspent". That sentence has been wrong
+three times (D130, D142, D143) and it is not storable: the run is
+dispatched *from* the commit that makes the claim. This entry records what
+run 24 **did**. Whoever dispatches next re-makes the comparison against
+the run list, and reads `appBuild` at the run's own `head_sha` (D159).
+## D181 · Near's field drew the city it is not about
+
+**2026-08-16.** Reported from a device, an hour after D170–D179 deployed:
+the Near stop, switch on, saying **"Nobody from Oslo yet among the people
+on your questions — this fills in as more of the city answers"** — directly
+above a tab row whose People tab lists the people actually in the room.
+
+**This is D170's finding, one stop over, and I shipped it.** D170 was three
+Mirror lenses naming a population and reading a different one; this is a
+stop drawing one crowd and captioning it as another. The difference is that
+D170 was inherited and this one I made, by adding a population to Near
+(D177) and never moving the field onto it.
+
+**WHY THE CITY WAS THERE, because it was not a mistake at the time.** D150
+gave Near a field when the stop had a count and nothing else true to show:
+the people of your city, ranked by likeness, drawn anonymously. Its own
+record argues the point well — *"the refusal was of a claim nobody had to
+make"* — and the honesty rule it shipped with kept the two numbers apart,
+the figure counting phones near you and the ring counting people in your
+city. That was a stand-in for data that did not exist.
+
+D177 made it exist. Once the stop has a roster of the people actually
+present, drawing the city's crowd above it is not a stand-in any more; it
+is a second population on a screen that already has one, and the caption
+has to name a place the stop is not about to explain itself.
+
+### What the field draws now
+
+The room, placed by test-score likeness — the same metric City and World
+use, and the one the owner named in as many words: *the map is not about
+position but how similar they are to you*. Nothing about position is drawn
+or could be; the roster carries a uid and a type and no geometry at all.
+
+**Only the people it can measure.** Somebody who has not taken the test
+cannot be placed by likeness, so they are omitted rather than parked at a
+default radius — a node at an invented distance is a claim about a person.
+The caption states the basis: *"3 of the 7 people here, placed by how close
+their test scores sit to yours — the rest have not taken it."*
+
+**The roster is asked for with NO qids**, which is the cheap half of the
+room call: the server returns the sampled people and folds no answers, so
+arriving at Near costs a presence sample rather than a document per person
+per question. The tabs ask again with the deck when one is opened, and the
+per-cell cache means the roster is already there (COSTS Finding 6).
+
+**Still anonymous.** `kind="anon"`, empty labels, no node you can open —
+the deny drawn, unchanged. The stop's own line says which half is which:
+the field names nobody, People names who is here.
+
+### Guards
+
+The city seam gets a case of its own that walks all three states — switch
+off, room empty, room populated — and fails if the word "Oslo" or either of
+the old city phrasings appears anywhere in the rendered stop.
+Mutation-checked by putting the old sentence back, which fails it and two
+neighbours.
+
+Every D150-era field case was **re-pointed rather than deleted**: they
+encoded the city design, and a test that survives a design change by being
+removed is a claim nobody replaced. What they assert now is the same
+property against the new source — the ring draws when empty, the two
+numbers stay attached to what each counts, loading is distinct from empty,
+and nothing is named.
+
+**And one guard was fixed rather than satisfied.** The source scan that
+refuses a coordinate in `NearField` fired on the word "cell" inside a
+comment explaining the per-cell room cache. It strips comments before
+matching now: the risk is a coordinate reaching the canvas, which is a
+property of the code, and a source guard that trips on prose is one people
+learn to reword around.
+
+### The thing this does not fix
+
+The screenshot also showed **"Couldn't reach the count just now"** with the
+switch on — a failed beat, which is a different problem and not diagnosable
+from an image. What would settle it is the actual error: `runBeat` collapses
+a denied presence write and a refused callable into the same `unavailable`,
+which is the shape that made this hard to read. Worth splitting those two
+if it recurs.
+
+One latent bug was found looking: in the **always** mode `until` is set to
+exactly `now + PRESENCE_LINGER_MIN`, and the rules cap is
+`request.time + 180m` — so any client clock ahead of the server denies the
+write. The timed mode is unaffected (its deadline is two hours, well under
+the cap). Not the reported failure, which was in timed mode, but it is a
+real one and it is recorded here rather than fixed blind.
+
+## D182 · The copy pass: a visual beats a word, a word beats a sentence
+
+**2026-08-16.** Owner report, with two screenshots — the Mirror's People
+tab and the Near stop — and one rule to work by: **visual > word >
+sentence > sentences**, applied to the whole app rather than the two
+screens that prompted it.
+
+The screenshots are the argument. Under a histogram whose own bars say
+"25-34" sat *"Answers, not people — each question someone answered counts
+once."* Under a match ring whose fullness IS the likeness sat *"the fuller
+the ring, the closer"*. Under a bar list with exactly one row in the
+accent sat *"your own type is marked in the accent"*. Three legends for
+three things the reader was already looking at.
+
+### The rule that fell out of doing it
+
+Almost every cut belonged to one of four shapes, and they are worth naming
+because the next screen will grow them again:
+
+1. **A legend for a visual the reader is looking at.** The ring, the
+   accent row, the tick on a bar. Deleted outright — this is the purest
+   case of the rule, and the three above are all of it.
+2. **A noun the screen already carries.** Compare said *"against Oslo"*
+   under a ruler, a tab bar and a header that all say Oslo. Explore
+   repeated the selected chip's own name on every row beneath it.
+3. **A clause that restates its own first clause.** *"Nobody has answered
+   enough of the same questions yet. This fills in as you answer more."*
+   The second sentence is the whole message; the first is its setup.
+4. **An instruction for a control sitting directly underneath.** The city
+   ask explained "use your location or search the list" above a picker
+   that offers exactly those two things.
+
+Sentence fragments the eye has to assemble became glyphs where a glyph was
+honest: `5 of 6 the same` → `5/6 alike`, `You went with the majority in 3
+of 8, against Oslo. Least typical first.` → `3/8 with Oslo · least typical
+first`.
+
+### What did NOT get cut, and why the exceptions are the interesting part
+
+**A claim is not a word count.** Three kinds of copy were left at full
+strength, and one was made *longer* to read:
+
+- **`LivePrivacyPanel`'s disclosure bullets.** D172 already put them
+  behind a `details` and left a comment saying a layout change "must not
+  be read as permission to thin the promises". It was not. The
+  always-open sentence and the ten bullets keep every claim; only the
+  four never-collapsed `LpRow` sub-lines were tightened.
+- **Near's opt-in disclosure.** D9 records that the enable tap carries the
+  OS prompt and this is the sentence that tap agrees to. Every fact
+  survives — the square and its size, who can read it, what the people in
+  it see, the three-hour linger, what off does — but it is **four `li`s
+  instead of a 54-word paragraph**. That is more markup for the same
+  content, and it is the right trade: a consent notice nobody finishes
+  informs nobody. `NearLiveBody.test.tsx` still pins `200-metre grid
+  square` and `three hours`.
+- **Honesty qualifiers that name a limit.** "Answers, not people",
+  "dashed = answers only", "Too few for shares — these are counts",
+  "Nobody is named here". Shortened, never dropped. `TypeMixCard`'s basis
+  went from a clause to `12 typed in the world` with the full definition
+  moved to a `title` — findable, not free.
+
+### Two render bugs, found by the diff rather than by a test
+
+`\uXXXX` in JSX **text** is not an escape — it renders as the six literal
+characters. Two sites had it and both were live:
+
+- `world-feed.jsx` knowledge-cuts note — `yet — the rate above`.
+- `world-feed.jsx` pick summary — `you {name} · crowd {lead}`, where
+  the *quoted* `'…'` beside it on the same line is a real JS escape
+  and was always fine. That is why this survived: the line looks correct.
+
+Neither is reachable by grepping for `—` alone (most hits are inside
+string literals or comments, where the escape is genuine). The check that
+finds them strips quoted strings first, then looks for what survives.
+**Not gated** — two sites is not a class yet, and a gate that fires on the
+legitimate spelling would train people to ignore it. Recorded here so the
+next reader knows the shape.
+
+### The arithmetic
+
+Scanned user-facing prose across `src/v2/{spec,ui,data}`: **30,958 →
+30,053 words**, 3,639 → 3,586 strings. That figure counts question banks
+and sample comment content, which are the product and were not touched, so
+it badly understates the chrome cut — the two screens in the report lost
+roughly half their words each. It is quoted here and deliberately **not**
+in `CLAUDE.md` or `README.md`: a hand-maintained figure in prose is the
+one documentation error this repo keeps re-committing (D39), and this one
+has no gate behind it.
+
+**46 tests changed, none deleted.** Every one of them pins a *claim*, and
+the claim survived the rewording in all 46 — which is the evidence that
+this was a copy pass and not a behaviour change. Where a test asserted the
+sentence rather than the claim, it now asserts the claim: `Compare stops
+calling a tie the majority` matched `/majority in\s*0\s*of/` and now reads
+the fraction at the head of the line, so the next rewording does not break
+it. Full suite green: 1,218 unit, 228 functions, every non-Java gate,
+bundle 2,324 KB (ceiling 2,334).
+
+## D183 · The disclosures leave the app, and get a gate on the way out
+
+**2026-08-16.** The copy pass's second round (D182 is the first). Three
+owner instructions, and the third is the one with teeth:
+
+1. **Near's opt-in disclosure** — "cut down and maybe just indicated with
+   a word".
+2. **The privacy panel's bullets** — "removed, that should be disclosed
+   somewhere else, not in the app".
+3. **The honesty qualifiers** — "these as well can be reduced".
+
+### The panel: one sentence, one link, and the promises move house
+
+D172 put ten bullets behind a `details` and left a comment saying a layout
+change "must not be read as permission to thin the promises". This is not
+that change and the distinction is worth stating precisely: **nothing was
+thinned.** The list moved to `web/privacy.html`, which was already the
+canonical copy, is already linked from the panel, and is required by both
+stores to be reachable on the open web regardless.
+
+What stays in the app is the sentence CLAUDE.md insists on — *your answers
+are public* — because a user learning that from a stranger quoting their
+vote back at them is the failure the panel exists to prevent, and a link
+is not a substitute for it.
+
+**What the move actually cost.** The bullets were the only thing CI could
+see. `LivePrivacyPanel.test.tsx` pinned D9's coordinates, D84's square,
+D174's linger, D146's type cut and D98's exact counts *by asserting on
+them*, so deleting the list deletes those assertions' subject. That is a
+real loss and it is why `scripts/check-policy-claims.mjs` exists: sixteen
+claims, each labelled with the decision that produced it, checked against
+`web/privacy.html`. Same class as `check:public-copy` and `check:globals`
+— a fixed phrase list against an enumerated file, nothing that reads
+`firestore.rules` or reasons about behaviour (D106 declined to build that
+and was right to). The panel test imports the same list rather than
+re-typing it, the way `spec-globals.mjs` is shared by the checker and
+`eslint.config.js`.
+
+### The three claims that were ALREADY wrong
+
+Opening the policy to move the bullets into it found it three decisions
+behind the app, every one in the unsafe direction — the page under-stating
+what the app does:
+
+| Policy said | App said | Since |
+| --- | --- | --- |
+| "kilometre-sized grid square" | ~200-metre | D175 |
+| "goes stale within minutes" | up to three hours | D174 |
+| "a count is all that comes back" | the room names its people | D177 |
+
+Plus two the page never had: D178's profile photo (it still read "No
+photos" in the paragraph listing what the app never touches) and D146's
+Big Five cut, which had **no** line on that page at all — it existed only
+in the app bullet now deleted. And the profile list omitted profession and
+height band, and said "age band" where D155 made both the band and the
+exact age public.
+
+All fixed here. **This is the argument for one canonical copy**, not
+against it: two copies did not catch the drift, they hid it — the app was
+right and nobody was reading the page. And it is why the remedy is a gate
+rather than a resolution to keep the page in mind, because that resolution
+is exactly what failed three times.
+
+`check:public-copy` catches a retired promise that REAPPEARS.
+`check:policy-claims` catches a live promise that VANISHES. Neither
+catches a promise left behind by a change three commits away — stated in
+the script's own header so nobody reads a green run as more than it is.
+
+### Near: two words, and not one clause fewer
+
+`What's shared`, closed, with the four lines under it. A `details` rather
+than state: the tap costs no JavaScript, it survives a re-render, and a
+screen reader gets a real disclosure widget. It sits last before the
+switch's own row, so a reader who wants it has not scrolled past it.
+
+**The notice itself was not shortened.** The square and its size, that
+nobody reads it, what the people in it see, the three-hour linger, what
+off does — all intact. Moving a disclosure one tap away and deleting a
+clause from it are different edits, and only the first was asked for.
+
+### The qualifiers, and the one that was already redundant
+
+- **"Answers, not people"** (Who's here) — gone, because the KICKER on the
+  figure reads *"answers with an age"*. The unit was already printed on
+  the number it qualifies, which is the only place a unit belongs; the
+  footnote was that unit said again, further away, smaller.
+- **"Nobody is named here"** (Near's field) — gone, because the stop's
+  closing line says *"The field names nobody — People does"*, which is the
+  same promise plus the half a caption could not carry: where the names
+  are. Two copies of a promise is not twice the promise.
+- **"Same picks, out of the questions you both answered"** → `same picks ÷
+  shared · last 40`. **Circle's copy of it** — deleted outright; every row
+  prints `5/6 alike` beside its own percentage, which *is* the arithmetic.
+- **"Too few for shares — these are counts"** → `counts, not shares`.
+  **"too few to rank"** → `unranked`.
+
+### The arithmetic
+
+Unit 1,216 (two cases deleted with their subject, four added), scripts
+202, functions 228. Bundle 2,320 KB / 969 KB eager, against 2,334 / 978 —
+4 KB lighter than D182. `check:policy-claims` is wired into `ci.yml` beside
+`check:public-copy`, client-side only and deliberately off
+`backend-checks.yml`, same placement rule as the checks around it.
+
+**The gate's own test found a bug in the gate within the hour.** The
+exact-counts row shipped as an alternation — `/…from the first answer|no
+minimum, no delay/` — so either half could be deleted and the row still
+matched on the other. `check-policy-claims.test.mjs` deletes each claim
+from a copy of the page in turn and requires the checker to name that one,
+which is the only way to tell a pattern that guards a promise from a
+pattern that guards nothing. Split into two rows; sixteen, not fifteen.
+
+### The rule is a document now, not a commit message
+
+D182 named four recurring shapes and D183 named the three things the rule
+does not license, and both of those were buried in a decision entry —
+which is the wrong place for something the next person needs *before*
+touching a screen. [`docs/COPY.md`](COPY.md) is that content as a working
+guide: the four shapes with the screens they came off, the fragment→glyph
+table, and §3 on consent notices, honesty qualifiers and the blunt
+public-answers sentence, which are claims rather than word counts.
+`CLAUDE.md`'s House style points at it, and the repo map lists it.
+
+Deliberately no figures in it (D39): the word counts belong to D182, where
+they are a record of one pass rather than a number someone has to keep
+true.
+
+### Renumbered on the way in, and one section rewritten
+
+These two entries were written as D181/D182 and landed as D182/D183: #201
+took D181 for *Near's field drew the city it is not about* while this
+branch was open. The numbers moved; nothing else in either entry did.
+
+That collision was not only clerical. #201 rewrote `NearField` to draw the
+**room** rather than the city — the exact component this pass had just cut
+copy on — so the merge kept #201's body wholesale and re-applied the rule
+to its new copy instead of resurrecting the old:
+
+| #201 shipped | merged as |
+| --- | --- |
+| "Turn the switch on and the people around you draw in here, placed by how alike you are — never by where they are standing." | "Turn it on and people draw in here — by likeness, never by position." |
+| "Working out who around you is most like you…" | "Matching…" |
+| "Nobody here has taken the test yet, so there is no likeness to place them by. 3 people are in the room — People lists them." | "Nobody here has taken the test — 3 in the room, People lists them." |
+| "Nobody else has Near on here right now. This fills as people arrive with it turned on." | "Nobody else has Near on right now." |
+| caption "closer to you = more alike" + a sentence carrying the count and basis | caption "1 of 2 here · closer = more alike" + "Placed by test scores — the rest have not taken it." |
+
+**Both of #201's claims survive at full strength**: *never by where they
+are standing* (the rule the whole canvas rests on) and *the rest have not
+taken it* (the basis, which is why the ring is smaller than the room).
+What went is "Nobody is named here", for the reason §3 of
+[`docs/COPY.md`](COPY.md) gives — the stop's closing line already says it,
+with the half a caption cannot carry.
+
+Post-merge, and these are the figures that count: unit 1,216, scripts 202,
+functions 228, every non-Java gate, bundle 2,320 KB / 969 KB eager against
+2,334 / 978. `test:rules` and the e2e suites want Java 21, which the
+authoring environment did not have — unrun here, and neither touches
+client copy.
+
+## D184 · Build 19's pre-flight: this time neither edit happened
+
+**Decided:** 2026-08-16 · **Status:** binding · Seventh release pre-flight
+(D130, D142, D143, D153, D158, D180). Bumps `appBuild` 18 → 19. **The bump
+is the finding again**, and the reason it is the finding has moved.
+
+### The comparison, made against the runs
+
+`ios-release.yml` has **26 runs**, not the 24 D180 recorded. Two landed on
+2026-08-16 after that entry was written:
+
+| Run | Id | Sha | Dispatched | Step 17 `Upload to App Store Connect` |
+| --- | --- | --- | --- | --- |
+| 25 | `31954391079` | `810b3af` | 15:01:04Z | **`skipped`** — the dry run |
+| 26 | `31954752095` | `810b3af` | 15:08:19Z | **`success`** — 15:13:07Z → 15:14:46Z, 1m 39s of transfer |
+
+Same commit, seven minutes apart: the third pair of this shape after runs
+15/16 and 23/24, and again both runs are `success` at the **job** level
+while only one of them spent a number. `appBuild` at `810b3af` — read at
+the run's own `head_sha`, per D159 — was **18**. So build 18 is spent.
+
+`appBuild` in the tree was **18**. Eighteen is not greater than eighteen,
+so runbook 2.4's question answers **bump, then run**. Done by hand, 18 →
+19, then `check:versions --fix` carried it to `versionCode` 19 and both
+`CURRENT_PROJECT_VERSION` entries. (`--fix` propagates; it does not
+increment. D158's note, load-bearing for the third time.)
+
+### The fourth skip, and it is not D180's shape either
+
+The post-upload bump has now been skipped after runs 18, 19, 24 and 26 —
+four against three that held (20, 21, 22). But this one is not the failure
+D180 diagnosed, and the difference is the whole entry.
+
+D180 found that **the record and the number are two different edits**, and
+that a session can discharge the first while leaving the second: commit
+`5798623` returned to the tree *specifically to record* run 24 and left
+`appBuild` at 17. The proposed remedy followed from that shape — *if
+LAUNCH-RUNBOOK claims build N was uploaded, then `appBuild` must be
+greater than N* — recorded there as the yield, unbuilt, for whoever took
+it next.
+
+**Here neither edit happened.** `grep` across `docs/` finds no mention of
+run 25, run 26, either run id, or build 18 having been uploaded. No record
+was written at all. The tree was returned to twice after the upload
+finished at 15:14:46Z — #201 merged 15:51Z and #202 merged 16:48Z, 37
+minutes and 93 minutes later — and neither had any reason to think about a
+build number, because neither was about the release.
+
+**So D180's gate would not have fired.** It keys on a claim in the runbook,
+and the claim is exactly what is missing; an invariant conditioned on the
+record is silent in the case where the record is the thing that was
+skipped. That is not an argument for a different gate so much as a
+correction to the one that was left half-designed — the sound version keys
+on the **run list**, which no gate in this tree can read (D73's shape, one
+layer out). Still not built here, and now for a second reason: it is a
+release pre-flight, the wrong moment to add a gate that can go red on
+wording, *and* the cheap local form of it has now been shown not to cover
+the observed failure.
+
+**What the four skips have in common is not inattention.** Runs 18, 19 and
+24 were followed by sessions doing release paperwork; run 26 by sessions
+doing feature work. The constant is that the bump depends on someone
+holding a fact that lives in App Store Connect, and nothing in the tree
+carries it between sessions. The only thing that has ever worked is
+reading the run list before dispatching — which is a procedure, and is why
+this file keeps recording the procedure rather than a fix.
+
+### What build 19 carries that 18 did not
+
+**A pure JavaScript payload**, the first since build 16. Against run 26's
+commit, `git diff --stat 810b3af..HEAD` touches nothing under `ios/` or
+`android/`, neither lockfile, neither rules file, and neither store-filing
+file (`content/app-privacy.json`, `docs/STORE-FORMS.md`) — 57 files, +1367
+/ −609, all of it `src/`, `docs/` and `web/privacy.html`.
+
+The payload is **D181** — Near's similarity field drew the city it is not
+about, reported from a device an hour after D170–D179 deployed — and
+**D182/D183**, the copy pass: `visual > word > sentence > sentences`, with
+the long privacy disclosures moved out of the app into `web/privacy.html`
+behind the new `check:policy-claims` gate.
+
+**So the store filing does not move**, and runbook 4.4 stands at the nine
+rows D180 corrected it to. The window D180 named is still open and is
+unchanged by this build: the live App Store label still describes build
+17's data collection, TestFlight has no review gate so build 19 can go up
+against it, and App Store review cannot.
+
+**`VITE_REQUIRE_SIGNIN` is untouched and still defaults to `true`**, so
+build 19 is another TestFlight-shaped binary with the sign-in wall up.
+D134's fork — drop the wall or build Sign in with Apple — is not this
+pre-flight's to close, but SHIP-CHECKLIST's 4.8 reply remains unusable
+against this build, and that is worth knowing *before* a submission rather
+than during one.
+
+### The bundle, and the tight half moved the right way
+
+| | D158 (build 16) | D180 (build 18) | here (build 19) | ceiling |
+| --- | --- | --- | --- | --- |
+| total JS | 2278 KB | 2329 KB | **2321 KB** | 2334 |
+| eager graph | 961 KB | 975 KB | **970 KB** | 978 |
+| chunks | 75 | 78 | 78 | — |
+
+Measured on the shipping artifact — `CAPACITOR_BUILD=1`,
+`VITE_V2_LIVE=true`, `VITE_REQUIRE_SIGNIN=true`, non-empty
+`VITE_SENTRY_DSN`, `VITE_RELEASE_TAG` set — the way `ios-release.yml`
+builds it.
+
+**D180 ended on the eager graph at 975 against 978 — 3 KB — and named the
+answer as "trim, not raise", because that ceiling has a refusal history
+(D144, D152) where the total has a raise history.** The next change to land
+trimmed it. The copy pass took the eager graph to 970 and the total to
+2321 without anything being asked of it: 8 KB back on the half that could
+not have been widened. Recorded because the prediction and the outcome are
+one release apart, and because it is the first time the eager number has
+gone down on a release path.
+
+### Measured, not asserted
+
+**1216 client tests (80 files), 202 script (11), 228 function (8), 106
+rules (2)**; all three e2e suites green — the loop, erasure and moderation,
+each with `npm` exiting 0 and its own `Script exited successfully`. `lint`
+clean, `tsc -b` clean, and the `check:*` gates. `check:globals` reports
+**409** cross-module references across 42 files over 183 files scanned — at
+its baseline and unmoved, so the payload added no coupling.
+
+**D183 shipped with `test:rules` and the three e2e suites unrun**, because
+the authoring environment had no Java 21; its own closing paragraph says
+so. This environment has Java 21, so they were run here, and that gap is
+closed rather than inherited: **106 rules tests and three green e2e suites
+against the merged tree**, which is the first execution of either since
+#201 and #202 landed.
+
+The three environmental gates behave as D158 and D180 enumerated, and the
+third one bit again in the predicted way: **`check:web-firebase` reads
+`VITE_FIREBASE_*` and `VITE_V2_LIVE` from the *environment* as well as
+from `dist/`**, so invoking it in a shell that did not carry the build's
+env block fails it on a `dist/` that is correct. Re-run inside the env
+block: OK, live config inlined into **78** chunks. That is the gate's
+mechanism confirmed for the third entry running, and the third time
+someone has had to learn it from the failure text rather than the name.
+
+### What is NOT written here
+
+That build 19 is "pre-flighted and unspent". That sentence has been wrong
+three times (D130, D142, D143) and it is not storable — the run is
+dispatched *from* the commit that makes the claim. This entry records what
+run 26 **did**. Whoever dispatches next re-makes the comparison against
+the run list, reads `appBuild` at the run's own `head_sha` (D159), and
+reads the conclusion of **step 17** rather than of the run (runs 25/26 are
+the third worked example).
+
+## D185 · Crossroads gets a brief, and the gates learn what a story is
+
+**Decided:** 2026-08-16 · **Status:** binding · Owner direction:
+*"Crossroads right now feels a bit boring in the type of questions"*, then
+*"suggest improvements to the crossroad generator"*. Amends D136's form
+with authoring rules and the gates to hold them; changes no client code
+and no seeded document.
+
+The complaint was about content and the cause was not. Two stories exist
+(D136), both `cat: dilemma`, in a bank spanning ten topics — and the
+pipeline that produced them had, between the manual and five gates,
+nothing that could notice.
+
+### 1 · What was actually missing, measured
+
+- **The lane had no brief.** A path is 38 authored strings under
+  exactly-spelled keys — the largest thing the feed lane writes by a wide
+  margin — and `QUESTION-FARM.md` gave it ONE bullet, entirely field
+  names. `dial`/`field` have a section; `vote` inherits the style guide; a
+  story inherited neither. So the lane wrote the same story twice and
+  every gate was green, which is the correct outcome for gates that were
+  only ever asked about shape.
+- **Dedup was reading 3% of the question.** `textOf` folds
+  prompt + options|items + ax/ay/ends. A path carries **none** of those —
+  the quality gate explicitly refuses `options`, because its answer space
+  is the eight endings and their labels are synthesized. Measured with the
+  script's own `tokensOf`: **4 tokens against 134 and 145.** The intro,
+  seven scene lines, fourteen choices and sixteen ending strings were
+  uncompared. Two stories differing only in their prompt line would have
+  scored 0.000.
+- **`checkBatch` had no feed arm.** Rules for `daily` (tone, form) and
+  `learn` (difficulty), nothing for the lane that writes the LARGEST
+  batch of the three. Eight votes on one topic printed eight ✓ and no
+  batch line.
+
+### 2 · The rule the form lives on: three forks, three axes
+
+Every node declares what its fork TRADES, from a closed vocabulary
+(`PATH_AXES`: risk · time · company · disclosure · ownership · certainty ·
+effort · loyalty), and no walk may turn one axis twice.
+
+A tree whose forks all turn one axis does not have eight endings; it has
+one gradient sampled at eight points, and the reveal — *"1 in 12 walks
+your road"* — then RANKS the reader along it instead of placing them. That
+is the wrong sentence for this product to say, and doubly so under D98:
+answers are public, so a fork with a visible virtuous road collects
+performance rather than disclosure.
+
+**Checked per WALK, not per tree**, because a tree is not one sequence of
+forks but eight, and a story can be varied down one branch and flat down
+another — pt1 is exactly that (`_`→B→BA turns three axes; `_`→A→AA turns
+one). A walk is what a reader experiences, so a walk is the unit.
+
+**The vocabulary is closed**, for the reason `cat` is: an open one is a
+free text field, and "money" / "cash" / "greed" would read as a spread
+while being one axis three times. Widening it is a PR-body note naming the
+story that needed it — § When no category fits' contract.
+
+**The annotation costs nothing on the wire, and this was verified rather
+than reasoned.** `gen-v2content.mjs` REBUILDS each node
+(`{ q, a: [{ t }] }`) rather than spreading it — the same whitelist that
+already drops the demo pool's authored `p` shares — so `axis` stops at the
+content bank. `check:content` regenerates `v2content.ts` and it came back
+**byte-identical**: no seeded field, no `SEEDED_FIELDS` comparison, no
+reseed of the two live docs, no bytes shipped to a device.
+
+### 3 · Both live stories fail the rule, and the exemption is permanent
+
+Annotated honestly and then counted: **pt1 is flat on 6 of its 8 walks**
+(certainty → ownership → ownership four ways, plus certainty → effort →
+effort twice) and **pt2 on 8 of 8** (disclosure and loyalty in every
+arrangement of three). pt2 has no varied walk at all — a reader who walks
+it twice down different roads answers the same question twice.
+
+**They cannot be fixed, and the reason is D52.** A path's OPTIONS are its
+eight ending names (`pathOptions`), so renaming one is an option edit: the
+seed refuses it, because the stored `optionIdx` would silently come to
+mean a different ending. And both trees encode their single axis IN those
+names — pt1's A-branch lands on "The Honest Trade" / "Finders, Keepers" /
+"The Long Way Round", which only parse if forks 2 and 3 both turn
+`ownership`. Re-axing the forks would leave walks arriving at names that
+no longer fit them. Fork prose is editable (D136 put `nodes` in
+`SEEDED_FIELDS` for exactly that); ending names are not. So the honest
+options were to exempt the two or to retire them (`active: false`,
+the operator's call), and this exempts them.
+
+`PATH_AXIS_LEGACY` carries both ids with the arithmetic above. Three
+properties make it a record rather than a loophole:
+
+- **It waives `axis-spread` alone, never `axis`.** Both stories still
+  declare all fourteen fork axes, so the defect is visible IN THE DATA
+  rather than implied by a missing field — the `core` argument (absent and
+  false are the same bytes; only one is a decision).
+- **They still count as predecessors** for the genre ratchet, which is
+  what forces the third story off `dilemma`.
+- **A test pins the arithmetic to the content** (6 and 8), so a waiver
+  whose recorded reasoning drifted from the tree fails — the stale-figure
+  failure class (D39) wearing a JSON hat.
+
+### 4 · The genre ratchet
+
+A path's `cat` must differ from the `cat` of each of the
+`PATH_GENRE_LOOKBACK` (2) paths before it. A corpus rule rather than a
+batch one, which is the opposite of every other mix rule and deliberate:
+the lane writes eight questions a run and at most one is a story, so a
+batch rule can never see two paths at once. What a reader meets is the
+SEQUENCE — Crossroads holds one pinned slot at the head of the feed
+(D136), so consecutive stories are consecutive on screen in a way
+consecutive votes are not.
+
+Two is the smallest window that forces a third topic rather than an
+A-B-A-B alternation, and it only ever rules out two of ten topics. The
+first two stories are unchecked by construction — no predecessors — so
+D136's pair needs no waiver here.
+
+### 5 · What the probe found, which reading had not
+
+Pre-flighting a synthetic story failed with **fourteen demands for an
+authored branch share `p`** — texture the live form must not carry.
+`printPacket` ran every candidate as the demo-pool form, which is right
+for a continuum question (written twice) and wrong for a story (written
+once, in the content bank; its demo twin is client code the lane does not
+touch). The pre-flight was instructing a run to write the one thing the
+content gate would then reject it for. Fixed with the texture flag keyed
+off the type, and `core` now rides through `candidateOf` — the SCALE-PLAN
+rule is scoped to content-form entries, so it had been firing on every
+story for a field the candidate did declare and the function dropped.
+
+### 6 · What is NOT closed, said plainly
+
+- **Dedup still cannot see genre.** pt1 and pt2 score **0.107 compared
+  whole** — far under the 0.5 gate — because they are the same KIND of
+  story in different vocabulary. Token overlap cannot catch that; §2 and
+  §4 are the instruments that can. The `textOf` fix is the narrower thing
+  it looks like: a gate reading 3% of its input now reads all of it.
+- **No new stories were written.** This is the pipeline, not the content.
+  The corpus is still two `dilemma` stories, and the next one now has
+  rules to be written against.
+- **The card still shows `pathQs()[0]`** — the head of the list, in both
+  the live and demo arms (`paths-card.jsx`). So "The Wrong Text" has never
+  been on a screen: the bank holds two stories and the app has always
+  shown one. That is a client change and not a generator one, which is why
+  it is recorded here and not fixed here.
+
+### What proves it
+
+`test:unit` (80 files, 1,216), `test:scripts` (11 files, 215 — up 13),
+`lint`, `check:globals` (coupling unchanged at 409), `check:quality` (376
+questions), `check:content` (v2content.ts byte-identical), `check:figures`
+(28 figures, up 2), `check:neighbors` (feed's closest pair unmoved at
+0.250 with the stories now read whole), `check:labels`,
+`check:public-copy`, `check:data-inventory`, `build`, and `check:bundle`
+on the shipping build — 2,320 KB / 969 KB eager against 2,334 / 978,
+unmoved, as it must be for a change that touches no client file.
+
+`test:rules` and the e2e suites want Java 21, which this environment does
+not have — unrun. Neither reads content: the seed path is exercised by
+`check:content` and `seed.test.ts`, and no seeded document changed.
+
+New cases: a story turning three axes on every walk; a missing axis and an
+invented one; the per-walk firing (one node moved → 2 of 8 walks flat, six
+clean); the legacy waiver covering `axis-spread` and not `axis`; the live
+pair's annotations and their 6-and-8 arithmetic; the ratchet's lookback,
+its silence on the first two and its live pass; the feed batch arm's form
+and topic spread, its 0.75 ceiling at 6-vs-7 of eight, and its silence
+under three; and a Crossroads story read whole by dedup, asserted on
+tokens that exist only in a node and an ending.
+
+The two figures quoted in the new manual section (`OPTION_MAX`,
+`PATH_CHOICE_MAX`) are registered with `check:figures`. They are not
+budget constants like the eleven already there, and the failure is a
+different one: a manual quoting a longer ceiling than the gate enforces
+sends 38 hand-authored strings into a gate that refuses them, which is the
+most expensive thing in this lane to redo.
+## D186 · Build 19 is delivered, and the bump was made from the step list
+
+**Decided:** 2026-08-16 · **Status:** binding · The upload D184 prepared,
+and the post-upload bump 19 → 20 that four of the last seven releases
+skipped.
+
+**Numbered D185 when it was written, and renumbered here.** #204 landed
+its own D185 while this was in flight — the same collision D180 records
+against #199, at the same distance of about two hours. The commit message
+on `e0fa7eb` still says D185 and is the one artefact that cannot be
+corrected in place. Nothing else moved: #204 touches the question farm and
+its gates, this touches a build number, and the merged tree passes both
+sets of checks (`check:figures` now 28 figures across 12 files, script
+tests 215). **Twice in seven entries is the shape, not the accident** — a
+release entry is written against a tree that other lanes are still
+appending to, so the number it claims is provisional until it merges.
+
+### What ran
+
+| Run | Id | Sha | Dispatched | Step 17 |
+| --- | --- | --- | --- | --- |
+| 27 | `31963630320` | `e76731d` | 18:07:00Z | **`skipped`** — the dry run |
+| 28 | `31963956792` | `e76731d` | 18:13:34Z | **`success`** — 18:17:39Z → 18:18:55Z, 1m 16s of transfer |
+
+Both archived `e76731d`, the merge commit of #203, where `appBuild` is
+19 — so the comparison D184 made against runs 25/26 held at the sha each
+run actually built (D159). Job times 5m 44s and 5m 23s. **Build 19 is
+spent**, and `appBuild` is now **20**, propagated by `check:versions
+--fix` to `versionCode` and both `CURRENT_PROJECT_VERSION` entries.
+
+The dry run was not ceremony. It is what `ios-release.yml`'s header asks
+for, and it is the run that would have caught a signing or entitlement
+regression before anything reached TestFlight. Both silent-failure gates
+passed at both ends — step 13 (the archive carries `GoogleService-Info.plist`
+and `aps-environment`) and step 15 (the exported `.ipa` is
+production-signed, read out of the `.ipa` rather than the archive, which
+is the distinction that whole section of IOS-RELEASE.md exists to make).
+
+### The bump held, and the reason is the ordering
+
+Four bumps have now held (runs 20, 21, 22, 28) against four skipped (18,
+19, 24, 26). D153 and D158 credited the holding ones to the bump landing
+while the run's own step list was on screen; D180 refined that after run
+24 broke it, and **D184 broke the refinement** — run 26's skip happened
+with nobody looking at a step list at all, because no record was written
+either.
+
+**This release is the first where the dry run, the upload, the bump and
+the record were one session.** That is worth naming precisely, because
+the useful part is not diligence: the bump was computed **from step 17's
+conclusion**, read seconds after it turned `success`, rather than from
+anyone's memory of whether a build had been spent. Every skip in the list
+happened in the gap between those two things. The habit that works is not
+*remember to bump* — it is *never let the number be derived from memory*.
+
+**It still is not a guarantee, and nothing in this tree can make it one.**
+D184 established why: the fact lives in App Store Connect, the sound
+invariant keys on the run list, and no gate here can read either (D73's
+shape, one layer out). Four-for-eight is a procedure holding, not a
+mechanism working. The next dispatcher re-makes the comparison.
+
+### What is NOT written here
+
+That build 20 is "pre-flighted and unspent" — the sentence D130, D142 and
+D143 each got wrong, and which D184 declined to store. This entry records
+what run 28 **did**: it delivered build 19 at 18:18:55Z. Whoever
+dispatches next reads the run list, takes `appBuild` at the run's own
+`head_sha`, and reads the conclusion of **step 17** rather than of the
+run — runs 27/28 are now the fourth worked example of a pair that is
+`success` at the job level with only one of them having spent a number.
+## D187 · The place scorecard rates the place
+
+**Written as D184, renumbered to D186, and renumbered again to D187** —
+the D138–D141 precedent, twice in one afternoon. This branch took the
+next free number the same day build 19 shipped, and build 19 is three
+decisions all by itself: D184 its pre-flight, D186 its delivery, with
+D185 (Crossroads' brief) landing between them. Each time main merged
+first, so this record moved behind it.
+
+The number moved in every file that cites it — the record, `MIRROR.md`,
+`CLAUDE.md`, `QUESTION-FARM.md`, the seed generator, the quality gate
+and six modules under `src/v2/` — so `D184` and `D186` in this tree mean
+build 19 and nothing else. **The branch's own commit messages still say
+D184 and D186** and are the one artifact that cannot be corrected in
+place; they survive on PR #206 rather than in this history, which
+squashes. This paragraph is the record of it.
+
+Worth naming rather than just fixing: a decision number is claimed by
+whoever merges, not by whoever writes, and a long-running branch against
+a repo that records release bookkeeping as decisions will lose the race
+every time. Cheap to fix while the number lives in prose and comments;
+it would not be if anything keyed on it.
+
+**2026-08-16.** Reported from a device, with a screenshot of the
+prototype's scorecard beside it: *"scores are currently weird as they
+should be something related to the city or world or country — right now
+they seem to be something else."*
+
+They were. On the City stop, the Scores tab drew this:
+
+| row | number |
+| --- | --- |
+| It's okay to do nothing sometimes. | 3.8 / 5 |
+| How optimistic are you about the next ten years? | 6.2 / 10 |
+| Breakfast is the best meal of the day. | 3.4 / 5 |
+
+…under the heading **"How Oslo rated them · best first"**. Every number
+is correct. Every number is Oslo's. Not one of them is *about* Oslo.
+
+### How a lens ends up averaging the wrong questions
+
+D100 shipped Scores over `ORDINAL_TYPES` — the bank's five 1-10 `rating`
+items and sixteen 5-point `scale` ones — and the note it shipped with is
+the whole story:
+
+> the bank ships five 1-10 `rating` items and sixteen 5-point `scale`
+> ones, and an ordinal question is an ordinal question whether its
+> subject is a city or your own outlook.
+
+That sentence is true and it answers a different question. The refusal it
+overturned (D99: "the bank ships no `rate` questions, so the lens would
+be an empty frame") was right, and right about the thing that matters —
+what a place scorecard needs is not *a number*, it is a number **about
+the place**. Type is a property of the answer space. Subject is a
+property of the question, and nothing in `counts`, `type` or `branch`
+carries it: "How safe do you feel walking home at night?" and "It's okay
+to do nothing sometimes" are both ordinal, both answered by the same
+people, and only one of them is about a city.
+
+**No gate could have caught it, and that is the point worth keeping.**
+`tsc -b`, eslint, check:globals, the smoke tests and 1,219 unit tests
+were green the whole time — including six cases in
+`LiveMirrorLenses.test.tsx` that assert the arithmetic, the ranking and
+both empty states of a card whose rows were the wrong rows. This is
+D157's failure class and D170's exactly: not a fabricated number, a real
+one describing something it does not name. Visible only from the app.
+
+### The fix, in two halves that do not work apart
+
+**A question declares what it rates.** `rates: "city" | "country" |
+"world"` on the daily source, carried through `gen-v2content.mjs` →
+`QuestionDoc` → `LiveQuestion` → `LensQuestion`, and Scores draws only
+what names the stop it is standing on. City reads its city cell, Country
+its country cell, World the globe — the same cell the rows take (D170),
+so the two tabs cannot disagree about which crowd this is. Absent means
+"rates no place", which is 90 of the 114 dailies, and they keep their
+average on the Answers tab, which has led every ordinal row with the
+same number since D120.
+
+**The bank gets the questions the refusal was waiting for.** Twenty-four
+dailies, eight per radius, ported from the eight facets the prototype's
+own scorecard was designed around (`spec/place-stats.js` — Nature
+access, Getting around, Safety, Food scene, Nightlife, Friendliness,
+Dating, Affordability, and the country/world sets beside them). All
+`rating`, on purpose: the card sorts best → worst on ONE shared 0-10
+baseline, which is what lets eight rows read as a single shape rather
+than eight lookups.
+
+**They are written self-referentially — "your city", never "Oslo".** One
+question serves every city on earth and the cohort cell does the
+scoping. That is not a style choice; it is what keeps them clear of the
+farm manual's **hard rule 6** (questions scoped to one place's citizens
+are commercial inventory, and an unsupervised job must never generate
+them). None of these is scoped to a place at all, and none is a civic or
+policy question — they rate a condition, they do not take a side. Three
+carry `political: true` on the D52 marker's own calibration, which
+already marks "How much do you trust the news you read?".
+
+**The tension worth naming rather than burying:** a universal "How
+affordable is your city on a normal wage?" does yield, free, a per-city
+affordability score for every city — which is adjacent to what
+`QUESTION-FARM.md` reserves as sold inventory. The scorecard is the
+product's own design and the owner asked for it, so this is recorded,
+not deferred. If it ever needs unwinding, `rates` is the field to filter
+on and the questions are a contiguous block (`daily-090`…`daily-113`).
+
+**`check:quality` gates the new field, because both ways of getting it
+wrong are silent** — the same class of failure this decision exists to
+close, one layer down. A typo'd scope (`rates: "citty"`) names no stop, a
+`rates` question written as a `choice` is dropped by the lens's own type
+filter, and in both cases the row is simply not there, which looks
+exactly like a question nobody has written yet. Verified by probe rather
+than by reasoning: both shapes fail the gate, the 400-question corpus
+passes it.
+
+**The row is labelled with the bank's `tag`, not the prompt.** "Safety",
+"Getting around", "Affordability" — the seed dropped that field on the
+floor until now. A column of nouns beside one baseline is a shape; a
+column of questions is a list you read one at a time, and the best-first
+sort that makes the shape legible is wasted on it
+([`COPY.md`](COPY.md): visual > word > sentence).
+
+### Arithmetic, and two limits recorded rather than discovered
+
+**Deploy order, same class as D161's.** The seeded bank carries no
+`rates` until an operator reseeds, so between merge and reseed Scores
+draws *nothing* rather than the wrong thing. That is the direction to be
+wrong in, and it is the empty state the card already prints ("Nothing
+scored yet — questions that rate Oslo land here").
+
+**Fill rate.** One daily a day over a 114-question bank means a given
+place question comes round about every 114 days, and a stop's card wants
+eight of them. The card fills slowly and from the archive, not the week
+— which is exactly why D100 pointed these lenses at `LIVE.aggregated()`
+in the first place. A faster fill needs a surface that serves more than
+one question a day; the feed is the obvious one and `aggregated()` is
+daily-only, so that is a real change, not a tweak.
+
+**Bundle.** The 24 archive entries cost **+5 KB of the eager graph**:
+969 → 974 KB against `MAX_EAGER_KB` 978. Green, and **4 KB is the whole
+remaining headroom** on the ceiling `check-bundle.mjs` says twice is not
+raiseable on request. The farm writes 12–14 dailies a week into the same
+eager module, so that headroom is ~2 weeks wide with or without this
+change — the structural answer is that `spec/daily-questions.js` is DEMO
+data and does not belong in the entry chunk at all (the D25
+`loadWorldFeed` pattern). Not attempted here; named so the next person
+adding archive questions meets a decision instead of a red gate.
+
+Post-change figures, **re-measured after merging main** (D185 landed 250
+lines of new question-quality rules and a changed neighbours scorer, so
+the pre-merge numbers were not the ones that matter): bank 537 seeded /
+114 daily (from 513 / 90), wire size 134.0 KiB (from 125.0), unit 1,219,
+scripts 215, functions 228, rules 106, all three e2e suites green (Java
+21 was available here, unlike D183's run), `check:quality` 400 questions
+against D185's widened rule set, `check:neighbors` unmoved at 0.333
+daily on its new scorer, bundle 2,325 KB / 974 KB eager. Every non-Java
+gate passes except the two that were already failing for environmental
+reasons and remain untouched by this change: `check:store-copy` (an
+unfilled Play signing SHA, account-gated) and `check:web-firebase`
+(wants the release build's secrets).
+## D188 · The Mirror's tab row sits where a tab bar sits, and stops arguing with the stop about colour
+
+**2026-08-16.** Reported against the live build with `InSight_standalone_30.html`
+held beside it — the owner's current visual vision, and the rule attached
+to it: *if something looks different from that, it is wrong.* Three faults,
+all at the bottom of a Mirror stop, all measured rather than eyeballed
+(Playwright over both builds at 402 CSS px, the geometry read off
+`getBoundingClientRect` and the colours off `getComputedStyle`).
+
+### 1 · The row floated, by 30px on four stops and 60px on one
+
+| Stop | prototype: row bottom → tab bar | live, before |
+| --- | --- | --- |
+| Circle · Groups · Near · City · Country · World | 20px, on every one | Near 80px · City/Country/World 50px |
+
+The prototype's number is `.app-body`'s own `padding-bottom` and nothing
+else: its stage (`.mf-stage`) carries no padding, so `marginTop: auto` puts
+the row against the bottom of the content box and the body's padding is the
+entire gap. The live bodies added `padding: "4px 16px 26px"`, so 26px of
+their own sat under a row already pushed as far down as it could go — and
+Near added the closing paragraph below on top of that, which is where the
+extra 30px came from and why that stop *scrolled* (713px of content in a
+695px box) when nothing on it was long enough to.
+
+Both bodies now end in `0`, and the open-tab panel ends against the same
+20px the prototype gives it (row and panel share one `marginTop: auto`
+wrapper in `MirrorLenses`, so this is its arrangement, not a compromise).
+
+### 2 · The rule was on the wrong side of the labels
+
+`MirrorLensTabs` shipped with `.mm-lensrow-top`, which is the class the
+prototype uses for a row promoted to the TOP of a stop: hairline *under*
+the labels, buttons 46px. Both live callers put the row at the bottom,
+where the prototype draws the plain `.mm-lensrow` — hairline *above*,
+closing the field off, buttons 44px, labels the last ink before the app's
+tab bar. One class, and the row measures 45px against the prototype's 45px
+instead of 47px.
+
+### 3 · Two stops wore another stop's colour
+
+`LiveCohortBody` re-declared `--accent` per zoom so the three would shade
+from near to far. The shading was real; the hues were borrowed:
+
+| Stop | `--accent` at the row, live | what that token is | `.app` says | prototype |
+| --- | --- | --- | --- | --- |
+| City | `--c-around` · oklch(0.52 0.14 40) | the **daily tab's** accent | 235 | 235 |
+| Country | `--c-city` · oklch(0.52 0.14 150) | **Near's** accent | 235 | 235 |
+| World | `--c-world` · oklch(0.52 0.14 235) | its own | 235 | 235 |
+
+So on Country the ruler tick, the wordmark and the tab bar drew indigo
+while the field and the row's underline drew sage — one screen with two
+answers to "what colour is this stop", and the stop one to the left already
+owned the answer it gave. The declaration is gone rather than corrected:
+`mirror-tab` already sets `--c-world` for pop `world`, which is exactly
+what the prototype resolves to at all three zooms. The near-to-far shading
+survives where it always lived — You, Circle, Groups and Near each own a
+hue on the ruler.
+
+### The order was wrong too, and it was in the same row
+
+`lensesFor` built `people, compare, scores` (+`explore` last). The
+prototype pushes `compare` last of all — `mirror-field-pops.jsx` appends
+answers → people → scores → explore → compare — and the reason ports: the
+first four describe the POPULATION, and Compare is the only one that puts
+you against it. `Answers · People · Scores · Compare`, with Explore before
+Compare at World.
+
+### The paragraph under the tab row, and where its one real claim went
+
+Near closed with *"The field names nobody — **People** does. Your whole
+city is one stop right."* rendered UNDER the row. That is the one place on
+the stop where nothing may sit: a paragraph below a tab row reads as a
+caption for the tabs. The prototype has nothing there, on any stop.
+
+The two halves are different kinds of copy ([`docs/COPY.md`](COPY.md) §3),
+so they went different ways:
+
+- *"Your whole city is one stop right"* is **a noun the screen already
+  carries**. The ruler at the top of this stop draws Near and City side by
+  side, City one to the right, and tapping it is the control. D172 cut this
+  from three lines to one for that reason; this is the last of it.
+- *"The field names nobody"* is **an honesty qualifier naming a limit**,
+  and §3 is explicit that those are shortened, never dropped. It went back
+  onto the field it qualifies (`NearField`'s caption), which is where it
+  lived until D183 moved it out, and it kept the half that made D183 prefer
+  the closing line: which surface *does* name people.
+
+D183's note said the promise moved "one component out"; it has moved one
+component back, and the test that pinned it now renders a room and reads it
+off the field. Two assertions on `/one stop right/` went with the sentence
+and are replaced by one on the **shape** — the row is the last thing in the
+body — which fails for a future caption whatever it says
+(`docs/COPY.md` §4.1: assert the claim, not the wording).
+
+### What this did NOT touch, and the arithmetic for it
+
+**Circle and Groups have no row at all in live mode.** The prototype gives
+both `Answers · People · Compare`; `LiveCircleBody` and
+`LiveGroupsMirrorBody` draw a list and a portrait with no tabs. That is a
+missing feature, not a misplaced one — three tab bodies each over a
+population this tree does not yet fold — and it is not what was reported.
+Recorded here so the next reader does not conclude from the table above
+that every stop was checked and passed.
+
+**The live bodies are inset 16px more than the prototype.** Their
+`padding: "4px 16px …"` sits inside `.app-body`'s 14px (compact), so
+content starts at 30px against the prototype's 14px and the row spans 342px
+against 374px. Real, visible on every live Mirror stop, and deliberately
+left: it is the whole body's inset rather than the row's, and moving it
+re-lays out `LiveAnswerRows`, `LiveMirrorLenses` and `LiveBreakdownPanel`
+for a fault nobody reported. One line in each body when it is called.
+
+**Verified after, at 402 CSS px, against the prototype:** every stop with a
+row now reports gap 20px, height 45px, the same labels in the same order,
+nothing below the row, and no stop scrolling that the prototype does not.
+Every `--accent` resolved at the row equals the one `.app` declares. No tab
+label clips at any count (`scrollWidth === clientWidth` on all five at
+World). Unit 1,216, ui 318, scripts 202, `tsc -b`, `lint`, and
+`check:globals` (409, baseline 409) `:labels` `:quality` `:public-copy`
+`:data-inventory` `:policy-claims` `:a11y` `:figures`. `test:rules` and the
+e2e suites want a running emulator per suite; the emulator was up for the
+visual capture and neither suite touches this layout.
+
+## D189 · The design gate was never looking, and two group hues never met the palette
+
+**2026-08-16.** Asked, after D188, whether anything else diverges from
+`InSight_standalone_30.html` — colour, type, placement, function. Answering
+it meant running `scripts/style-diff.mjs`, which is the tool
+[`design/README.md`](../design/README.md) tells you to use *instead of*
+comparing screenshots by eye. It had never compared anything but one screen.
+
+### The bug: `page.evaluate` on a string does not call it
+
+Every entry in `SCREENS` is the SOURCE of an arrow function, passed to
+`page.evaluate(go)`. Playwright evaluates a string as an **expression**, so
+handing it `() => { … }` builds a function and drops it on the floor.
+Measured, not reasoned:
+
+```
+evaluate('() => 1 + 1')     -> undefined
+evaluate('(() => 1 + 1)()') -> 2
+```
+
+So from the tool's first commit until today, no step ran. The loop captured
+whatever screen the app boots on — the daily — once per entry, and diffed
+it against the prototype's daily seven times. The report it printed was
+`compared N elements across 7 screens` with almost nothing to say, which is
+indistinguishable from a clean run. **A gate whose silence means "I never
+looked" is worse than no gate**, because `design/README.md` sends people to
+it *instead of* looking.
+
+One character each way fixes it (`` `(${go})()` ``). What it then found, on
+the same tree and the same prototype: 11 screens, 722 elements, 30 distinct
+differences where the old run reported 8 — every one of them phantom, from
+a single false text pair.
+
+### The second bug, which the first one hid
+
+With navigation working, three of the seven steps still did nothing. They
+drove `.sd-switch-btn` — the daily's mode switcher, replaced by the ruler at
+the **v17 sync (D43)**, six prototype versions ago. A fourth called the
+Mirror's first screen `mirror-near`, but the Mirror opens on You, so that
+name described a stop the sweep never visited.
+
+Two faults that hid each other: the selectors could rot because nothing ran
+them, and the dead run looked healthy because the selectors' silence was
+indistinguishable from success. So the fix is not only the IIFE — the tool
+now records what screen each step landed on and **reports any step that did
+not move**, per build:
+
+```
+!! 6 screen(s) did not move — their step ran and changed nothing,
+   so what got compared is the screen before them, twice:
+   prototype/daily-group, prototype/daily-duo, prototype/mirror-you, …
+```
+
+Not fatal, because one broken step makes its successors repeat too and the
+list is a worklist rather than a verdict. The screen list is rebuilt against
+what the two builds actually publish: both rulers are `[role=tablist]` with
+a name of their own, and three labels (World · Circle) collide between them,
+so every step is scoped to its ruler by that name. 11 screens now — the
+daily's three modes and all seven Mirror stops.
+
+### What it found first: two group hues that skip the palette gate
+
+`world-palette.js` exists because a flat `oklch(0.52 0.14 h)` is wrong at
+most hues in both directions — outside sRGB for teal and cyan, where the
+browser clips (dulling the colour *and* dragging the hue), and inside it for
+blue, violet and magenta, which come out undersaturated. Its header names
+the case for `ink()` exactly: *"wherever a full-strength fill carries #fff"*.
+
+Two modules wrote the hue raw. Counted across every ported module, they are
+the only two that differ from the prototype in gate calls:
+
+| module | v30 | app before |
+| --- | --- | --- |
+| `group-daily.jsx` | 3 | 0 |
+| `group-mirror.jsx` | 1 | 0 |
+
+`group-daily`'s two are marks whose fill carries white initials, over a hue
+**hashed from a group id** — any of 360, so a flat chroma is right at
+almost none of them. Measured against the prototype at the hues its demo
+groups land on: 0.155 wanted at hue 12, 38, 145 and 305; 0.092 at 220;
+0.091 at 182; 0.104 at 84; 0.117 at 117. The app drew 0.12/0.13 at every
+one.
+
+`group-mirror`'s single call is the costlier one: `gmAccent` is not a mark,
+it is the Groups stop's `--accent`, set on the stage and on every group
+card — so one un-gated value reached the identity ring, the chips, the lens
+row's underline and every accent-driven mark under it at once. Its hue is a
+circular mean of the members' hues, so it lands anywhere on the wheel.
+
+41 of the 65 differing elements were this. Gone after four wrapped calls.
+
+### What is recorded and NOT fixed
+
+Each is real, each is measured, and each is a bigger change than the report
+that found it:
+
+- **The Map (You) draws at a different scale and a different balance.** 62
+  labels differ by a constant factor of 1.0253 — the app 2.5% larger — and
+  the screenshots show more than a scale: the prototype's four branches sit
+  evenly around a centred You, while the app's Self cluster dominates the
+  top-left, Knowledge is a clipped stub on the left edge and You sits off
+  centre. The prototype also carries a fifth branch, **Foresight**, which
+  the Mirror dropped at D136 — that part is a decision, the balance is not.
+- ~~**The Groups stop's member marks are a different object.**~~ **WRONG,
+  and withdrawn the same day — see the correction at the end of this
+  entry.** They are the same object, drawn by a module that is
+  byte-identical to the prototype's. The report came from a defect in the
+  tool this entry is about.
+- **`GDAv` replaced dimming with a halo in the prototype.** It takes
+  `sealed` and draws a hue ring — *"a row of half-washed circles read as
+  broken"* — where the app takes `dim` and drops to 28% opacity. Inverted
+  semantics at every call site, so it is a port, not a wrap.
+- **One element renders in Arial.** `daily-circle`'s "You" at 16px Arial
+  against the prototype's 13.5px Hanken Grotesk — a node inheriting no font
+  at all. One element, not yet located to a line.
+- **The live Mirror bodies are inset 16px more than the prototype** (D188's
+  note, unchanged).
+
+### What is missing rather than wrong
+
+44 strings the prototype renders and the app does not, and they are almost
+entirely **v28/v30 features this tree has not built**, tracked in
+[`docs/VISION-V28.md`](VISION-V28.md): the `patterns` tab (11 screens'
+worth), the pulses and their cadence control (*ask me · daily · often ·
+weekly · off*), predictions, sponsored cards (*PAID*, *asked by Elvia*),
+Crossroads (*Shift it*, *Leave it alone*), the place scorecards (*Oslo ·
+Norway · World*) and *why me?*. The CSS agrees: of 205 rules the prototype
+has and the app lacks, 170 are five namespaces — `ar*` (arena), `a2*`,
+`or*` (oracle), `pt*` (patterns), `qm*` (question map).
+
+**The stylesheets are otherwise in sync.** Rule by rule, 26 selectors carry
+different declarations and four of those are the deliberate "quieter ground"
+set `style-diff.mjs`'s own header lists (`--surface-a` at 98%, the two blurs
+at saturate 1.4, `.app-body::before` at 320px/6%). Colour tokens, type
+scale, and the kicker/micro-label tiers are identical.
+
+### Correction · the Groups marks were never different, and the join said they were
+
+**Same day.** Asked to fix the third item in the list above, and there was
+nothing to fix: `group-role-map.jsx` and `group-mirror.jsx` are the
+prototype's files line for line apart from the ESM conversion, the
+`div`→`button` a11y pass, one dropped test in a list of five and D189's own
+gate wrap. Both builds draw the constellation node the same way, from the
+same line:
+
+```jsx
+<text … fontSize={Math.min(11.5, rr * 0.72)} fontWeight="700" fill={p.me ? 'var(--surface)' : '#fff'}>
+```
+
+An svg `<text>` has no background and no border radius. So "radius 0px,
+transparent, ink, weight 700" was never the prototype's *mark* — it was the
+prototype's **glyph**, paired against one of the app's **chip avatars**, a
+`span` disc. The join did that, not the app.
+
+**Why the join did it.** The key was the rendered text plus its nth
+occurrence, so the nth "LA" in one build met the nth "LA" in the other. The
+Groups stop draws the same initials in two shapes — chip avatars and
+constellation glyphs — and the demo roster for The Crew is **five members
+in the prototype and seven here** (`duels-data.js`: `f12`/`f14` joined at
+D137). Two extra members shift every occurrence after them by two, and from
+there each "LA", "EA", "MH" and "you" met the wrong twin. Five style faults
+out of an off-by-two, on a file that had not changed.
+
+**The fix is in the key**: text *plus the element's `localName`*. A `span`
+can no longer pair with a `text`, a heading with a button. It does not fix
+an off-by-one within a single tag — nothing cheap does — but those two are
+the pairs whose diffs read most convincingly as design drift, which is
+exactly what happened here.
+
+Re-run after: `mirror-groups` drops from 7 differing elements to 4, and the
+four are one value — `fontSize` on the node glyphs, the same four sizes
+(9.504 · 10.728 · 11.5) permuted between people, because `rr` is a function
+of standing in the role votes and the two rosters are different sizes. Data,
+not style. Across all 11 screens the total falls from 65 elements to 63 and
+from 22 distinct differences to 9; the 14 rows on the word "daily" go too,
+another false pair (the prototype's pulse-cadence pill against this app's
+tab-bar label).
+
+**What is left is what was always real**: the Map's scale and balance (62
+elements) and one element rendering in Arial. Both stand.
+
+**The demo roster itself is left alone.** Making the constellation match the
+prototype's would mean editing `duels-data.js` fixtures that `PLAYED`,
+`READ_SKILL`, `BY_SKILL` and `PARTNER_TODAY` all key into, to change a
+screen that only exists in demo builds — the live Groups stop builds its
+cast from real members. That is a sample-data decision, not a design one,
+and it is the owner's.
+
+**The lesson worth keeping**: this tool's own header already warned about
+this class — the dropped Pokémon card "shifts card positions, which pairs
+the feed's 'i' context buttons off-by-one and reports their two ink colours
+swapped in both directions — noise from the same cause, not a colour miss."
+That note was written about ONE known case and filed under deliberate
+divergences. It was a general defect in the join, and reading it as a
+special case is how it survived to produce a confident, wrong finding.
+
+## D190 · Your name and your handle belong to the account, the topic list opens onto the topics, and Circle and Groups get their row
+
+**2026-08-16.** Five faults, reported from a device against a build that
+predates D188 (its screenshots show `Answers · People · Compare · Scores`,
+the pre-D188 order). One of them was therefore already fixed; the other
+four were not, and one of them is the feature D188 explicitly recorded as
+still missing.
+
+### 1 · The create-a-circle screen asked for a name the account already had
+
+> *"You should not put in your name when making a 1v1 — that should have
+> been set up in the sign in, and make a backup if not."*
+
+`LdOnboard` had a **Your name (what friends see)** field above the
+circle's own name, and it asked on every first run of both modes. The
+name is a fact about the ACCOUNT — `createGroupV2`'s `callerName` already
+falls back to `v2_users/{uid}.displayName` when the client sends nothing —
+so the field was a form asking for something the app could look up.
+
+Where it moved: **`LiveProfileSetup`**, the first-run screen D151 built for
+exactly this argument one level down (the anchors belong to the account, so
+ask once, at the top). The create screen reads `LIVE.displayName`, falling
+back to this device's mirror of it, and sends `undefined` rather than `""`
+when it has one — an empty string would overwrite the name it is standing
+in for.
+
+**The backup is not decoration.** `profileSetupSeen` is per DEVICE and the
+setup screen is skippable in one tap, so "an account with no name" is a
+state that survives. The field appears only then, and what it saves goes to
+the ACCOUNT (`saveDisplayName`), so the fallback is seen once and never
+again.
+
+The device mirror (`insight.displayName.v1`) had two writers and was about
+to get a third. It has one now — the store, in `saveDisplayName` — and one
+reader that needs it before hydration (`localName`, exported from
+`data/live.ts`). It is swept by `purgeLocalTrace` like every `insight.` key,
+so a uid change cannot leave the previous account's name behind (D51).
+
+### 2 · A handle could be changed, which means it could be taken
+
+> *"Same with handle: set on first sign in and is unchangeable."*
+
+`claimHandleV2` implemented a rename — take the new key, release the old
+one, one transaction — and the account panel offered it as a **Change**
+button. The transaction was correct. The rule was not: a handle is the
+ADDRESS a person hands out ("add me, I'm @olaf"), and D122 made it the
+primary way into a circle. Releasing it puts that address back in the pool
+the same minute, so an invitation typed a day later reaches a stranger and
+the account that answered to it answers to nothing.
+
+So: **claimed once.** The callable refuses a change with
+`failed-precondition` before it touches the registry, the release
+(`tx.delete(prev)`) is gone with it, and re-claiming the SAME handle stays
+a no-op because a client retries on a dropped response. The panel draws the
+handle as a fact with "It can't be changed" under it and offers the claim
+control only to an account that has none; the first-run screen says "picked
+once" before the tap.
+
+**The two costs are accepted, not overlooked**: a typo is permanent, and
+there is no way back from a name you have outgrown. That is why the claim
+moved to the first-run screen — a decision made deliberately beats one
+found in a settings panel — and why every surface that offers it says
+"once" first.
+
+The e2e loop grew four checks (§13): the claim folds and registers, a
+re-claim of the same handle is a no-op, a change is refused **and leaves
+both registry entries exactly as they were**, and somebody else's handle is
+still somebody else's. `firestore.rules` already refused every client write
+to `v2_handles` and to `v2_users.handle`; what was missing was a test of
+the one path that can move one.
+
+### 3 · "Pick topics →" navigated to the feed and stopped there
+
+The profile's scenes card, with nothing followed, draws the empty field and
+one button. It called `goNav('track:world')`, which closes the profile and
+lands you in the daily feed — one search short of what the label promises.
+
+The list it means is the feed's own **Add a topic** sheet, and that is where
+it stays: the sheet is built from the feed's pool (questions per topic, how
+many you have answered) and carries the mute the chip row has, so a copy in
+the profile would be a second list to keep in step — against D173, which
+made the sheet the one place a topic is tuned.
+
+`data/topicSheet.ts` is the ask: a one-shot `requestTopicSheet` /
+`consumeTopicSheet` pair with a subscription, the same shape as
+`consumeJoinCode` (links.ts) and for the same reason — a flag that stays set
+is a sheet that reopens the next time anything mounts. **Both halves of the
+delivery are load-bearing**: arriving from the Mirror tab mounts the feed
+fresh (the mount consumes the request), while the profile opened OVER the
+daily tab leaves it mounted throughout, where `goNav` closes an overlay and
+switches nothing — there only the subscription fires.
+
+A module rather than a `window.` flag: both ends are spec-layer `.jsx`, and
+a shared global read from them is exactly what `check:globals` rule 4
+counts and refuses to let grow (409, unchanged).
+
+### 4 · The tab row's height — already fixed, and worth saying so
+
+> *"The bottom tab with People, Compare should be exactly equally far down
+> — noticed some are too high."*
+
+This is D188, shipped hours earlier: the row floated 50px clear of the tab
+bar on City/Country/World and 80px on Near, against the prototype's 20px on
+every stop, because the live bodies added 26px of their own padding under a
+row already pushed as far down as it could go. The screenshots show the
+pre-D188 tab ORDER, which is what dates them. Nothing further was needed —
+verified by reading the frame both bodies now carry (`padding: "4px 16px 0"`,
+`flex: 1 0 auto` column, `marginTop: auto` on the row), and the two new rows
+below are built to the same recipe rather than to a new one.
+
+### 5 · Circle and Groups had no row at all
+
+> *"…and Group and Circle should have them even when empty."*
+
+D188 recorded this precisely: *"Circle and Groups have no row at all in live
+mode. The prototype gives both `Answers · People · Compare`… That is a
+missing feature, not a misplaced one — three tab bodies each over a
+population this tree does not yet fold — and it is not what was reported."*
+It is what was reported now.
+
+Both stops get the three, and neither needed a new source — each tab is a
+different cut of the fold the stop was already computing:
+
+| Stop | Answers | People | Compare |
+| --- | --- | --- | --- |
+| **Circle** | where your circle splits (`circleSplit`, most divided first) | the members, with likeness and Unfollow | `CompareLens` over the same splits |
+| **Groups** | what the group landed on, per revealed day | who runs closest to you, with the constellation | `CompareLens` over each revealed day (`lgCompareQs`) |
+
+`CompareLens` was exported at D177 so the Near room could read exactly the
+way a cohort stop does; this is the second and third caller, and both get
+D170's majority test for free. `LensQuestion.all` is `[]` in both — it is the
+GLOBE, only Explore reads it, and Explore is not a tab here (a circle of
+nine cut by age band is cohorts of one). An honest empty beats the stop's
+own counts wearing the globe's name, which is the mislabel D170 had to
+repair.
+
+**And the row draws when the stop is empty**, which is what was asked for:
+over the empty field on a circle with nobody in it, and over the
+Start-a-group field with no groups at all. Same argument D160 made for
+drawing an empty field — a stop whose navigation appears with its data
+reads as one that was never built, to exactly the account that has none.
+Two refusals stand: a **failed** circle read draws its retry sentence and no
+tabs, and Near still draws none while the counter is off.
+
+### The bundle, which paid for itself
+
+`LiveGroupsMirrorBody` is a static import in `mirror-tab` and the eager
+graph had 4 KB of headroom; the row and its tabs took 2 of them. So the
+Groups body follows Circle (D101) and Cohort (D119) into a `React.lazy`
+chunk, on the same merit those two had: the Mirror opens on You, Groups is
+three stops along, and the fetch overlaps a network round trip the stop was
+going to make anyway.
+
+| | eager | total |
+| --- | --- | --- |
+| before | 974 KB | 2325 KB |
+| after, Groups still eager | 976 KB | 2330 KB |
+| after, Groups deferred | **964 KB** | 2331 KB |
+
+Ceiling 978 / 2334. Headroom went from 4 KB to 14 KB.
+
+### One more thing that was four copies
+
+`useLensRowScroll` (`ui/lensRowScroll.ts`) is the "opening a tab walks the
+row to the top of the scroller" effect, which `LiveCohortBody` and
+`NearLiveBody` each carried a slightly different version of — Near walked
+up on height alone, the cohort's on `overflowY` as well — and which D155
+shipped a THIRD state of: the ref was declared, the ref was attached, and
+nothing read it, so the row pinned correctly and the panel stayed below the
+fold on every cohort stop. Circle and Groups would have made it four copies
+of a thing that has already been wrong once. All four use the one hook now,
+reconciled in the cohort version's favour.
+
+**Verified:** unit 1,241 (80 files), functions 228, `test:rules` 106,
+`test:e2e` (the full loop, including the four new handle checks), `tsc -b`
+in both trees, `lint`, `check:globals` (409, baseline 409), `:labels`
+`:a11y` `:figures` `:public-copy` `:policy-claims` `:data-inventory`
+`:quality`, and `check:bundle` on a shipping build (964 / 2331 against
+978 / 2334). `test:e2e:erasure` and `:moderation` were not run — neither
+touches a handle, a display name or a Mirror row.

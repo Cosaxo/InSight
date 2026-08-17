@@ -51,6 +51,11 @@ const h = vi.hoisted(() => ({
   // rather than a callback, and they land in this same map.
   aggDocs: [] as FakeSnapshotDoc[],
   aggIdQueries: [] as string[][],
+  // Ids that make the `v2_question_aggs` query they appear in REJECT.
+  // Targeted rather than getDocsImpl's blanket failure, because the case
+  // it exists for is a partial one: several chunked `in` queries fire and
+  // only some come back (D169's loadSimilarity).
+  aggFailIds: [] as string[],
   // live.ts observes auth for the whole session; capture the callback so a
   // test can drive a uid change or a revoked session.
   authCb: null as null | ((u: { uid: string } | null) => void),
@@ -148,6 +153,9 @@ vi.mock("firebase/firestore", () => {
           .filter((p) => p && p.__kind === "where" && Array.isArray(p.value))
           .flatMap((p) => p.value as string[]);
         h.aggIdQueries.push(ids);
+        if (h.aggFailIds.some((id) => ids.includes(id))) {
+          return Promise.reject(new Error("offline"));
+        }
         return Promise.resolve(snapOf(h.aggDocs.filter((d) => ids.includes(d.id))));
       }
       return Promise.resolve(snapOf([]));
@@ -269,6 +277,7 @@ beforeEach(() => {
   h.hangSignIn = false;
   h.aggDocs.length = 0;
   h.aggIdQueries.length = 0;
+  h.aggFailIds.length = 0;
   h.bankDocs = [
     {
       id: "q_1",
@@ -852,6 +861,111 @@ describe("window.LIVE public surface", () => {
     const LIVE = await bootLive();
     const near = (LIVE as unknown as { near: Record<string, unknown> }).near;
     expect(Object.keys(near).sort()).toEqual([...EXPECTED_NEAR].sort());
+  });
+});
+
+// The store's heavy folds, cached per CHANGE rather than per read (D169).
+//
+// `kindredPeople()` and `testFeedItems()` are whole-store folds with five
+// and six render-path callers between them, every one inside a component
+// that re-renders on notify(). They now compute once per notify() and hand
+// the same array back until the next one.
+//
+// Both halves of that need a test, and the second is the one that matters:
+// a cache keyed on the wrong signal reads exactly like a working one until
+// the store changes underneath it, and then it is a screen showing the
+// previous account's people. So identity is asserted (the optimisation)
+// AND a real bank change is asserted to come through (the correctness).
+describe("perRev — folds computed per change, not per read (D169)", () => {
+  const TEST_Q = {
+    id: "q_test_a",
+    data: {
+      surface: "test", seq: 9, type: "vote", prompt: "I keep appointments.",
+      options: ["1", "2", "3", "4", "5"], topic: "self", test: "big5", active: true,
+    },
+  };
+
+  it("hands back one fold across repeated reads, and a fresh one after a notify", async () => {
+    h.bankDocs.push(TEST_Q);
+    const LIVE = await bootLive();
+    h.setDocImpl = () => new Promise<void>(() => { /* never acks; the vote's notify is what this needs */ });
+
+    const items = LIVE.testFeedItems();
+    const people = LIVE.kindredPeople();
+    expect(items.map((q) => q.id)).toEqual(["q_test_a"]);
+    // The optimisation, stated as identity: repeated reads within one
+    // render are free, and a consumer may key a useMemo on the reference.
+    expect(LIVE.testFeedItems()).toBe(items);
+    expect(LIVE.kindredPeople()).toBe(people);
+
+    // …and the invalidation, keyed on the only event that can reach a
+    // renderer. vote() mutates and notifies, so both folds must be re-run
+    // even though this particular change touched neither's inputs —
+    // over-invalidating is the safe direction and the cheap one.
+    LIVE.vote("q_1", "1");
+    expect(LIVE.testFeedItems()).not.toBe(items);
+    expect(LIVE.kindredPeople()).not.toBe(people);
+  });
+
+  it("does not hide a bank that actually changed under it", async () => {
+    h.bankDocs.push(TEST_Q);
+    const LIVE = await bootLive();
+    expect(LIVE.testFeedItems().map((q) => q.id)).toEqual(["q_test_a"]);
+
+    // A uid change re-hydrates from scratch (resetForNewUid). If the fold
+    // were cached on anything but the store's own change signal, the new
+    // account would be shown the old one's test bank — which is the same
+    // class of failure the voter/name caches are purged to prevent.
+    h.bankDocs = [h.bankDocs[0], {
+      id: "q_test_b",
+      data: { ...TEST_Q.data, prompt: "I plan ahead." },
+    }];
+    h.authCb!({ uid: "someone_else" });
+    await vi.waitFor(() => {
+      expect(LIVE.testFeedItems().map((q) => q.id)).toEqual(["q_test_b"]);
+    });
+  });
+});
+
+// loadSimilarity's chunked aggregate reads (D169).
+//
+// They went from serial to parallel, and the serial loop had a property
+// worth keeping that a naive `Promise.all` + fold-after would have thrown
+// away: a chunk that had already come back stayed folded when a later one
+// threw. With 110 core test items over the 30-id `in` limit that is the
+// difference between three quarters of the place profiles and none of
+// them, on exactly the flaky connection where it matters. The fold now
+// happens inside each chunk's own `.then`, so the parallelism is free of
+// that cost — asserted here rather than argued in a comment.
+describe("loadSimilarity — parallel chunks keep partial progress (D169)", () => {
+  it("folds the chunks that came back when a sibling chunk fails", async () => {
+    for (let i = 0; i < 35; i++) {
+      h.bankDocs.push({
+        id: `q_t${String(i).padStart(2, "0")}`,
+        data: {
+          surface: "test", seq: 100 + i, type: "vote", prompt: `Item ${i}`,
+          options: ["1", "2", "3", "4", "5"], topic: "self", test: "big5", active: true,
+        },
+      });
+      h.aggDocs.push({ id: `q_t${String(i).padStart(2, "0")}`, data: { total: 4, counts: { "2": 4 } } });
+    }
+    const LIVE = await bootLive();
+    // 35 ids over the 30-id `in` limit is two queries; kill whichever one
+    // carries the 35th so the other is a survivor rather than the only one.
+    h.aggFailIds = ["q_t34"];
+
+    await LIVE.loadSimilarity();
+
+    // The surviving chunk landed…
+    expect(LIVE.aggFor("q_t00")).not.toBeNull();
+    expect(LIVE.aggFor("q_t29")).not.toBeNull();
+    // …the failed one did not, and the failure was reported rather than
+    // swallowed into a half-loaded state nothing knows about.
+    expect(LIVE.aggFor("q_t34")).toBeNull();
+    expect(h.reportError).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ where: "loadSimilarity" }),
+    );
   });
 });
 

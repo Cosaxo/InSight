@@ -438,28 +438,94 @@ export function placeProfiles(
   myFlat: Readonly<Record<string, number>> | null,
   filter?: (key: string) => boolean,
 ): PlaceProfile[] {
-  // Union of buckets across every item — one question's 24-bucket cap
-  // (BREAKDOWN_MAX_BUCKETS) does not cap the union.
-  const buckets = new Set<string>();
+  // ONE PASS OVER ITEMS, not one pass per bucket (D169).
+  //
+  // This read the other way round until it was measured: collect the union
+  // of buckets, then for each bucket call `axisScores` once per instrument,
+  // each call re-scanning all 110 items to keep the quarter belonging to
+  // that instrument. So the work was buckets × instruments × items, and
+  // three quarters of it was the `it.test !== test` skip.
+  //
+  // The waste that dominates is not the ×4 though, it is the shape. A
+  // question publishes at most BREAKDOWN_MAX_BUCKETS (24) cells per dim,
+  // so of the buckets in the union — which is uncapped, and is every city
+  // the app has ever seen answer a test item (D112's known limit 3) — all
+  // but ~24 miss for any given item. The old loop paid a lookup for every
+  // (bucket, item) pair and threw away the misses; this one visits only
+  // the cells that exist, so the fold is output-sensitive.
+  //
+  // Measured on 110 items, node, mean of 25: a 60-city union 3.0 → 1.6 ms,
+  // 400 cities 8.0 → 3.6 ms, 2,000 cities 25.9 → 9.2 ms. The gain grows
+  // with the union because that is the term that stopped multiplying;
+  // what is left is the per-bucket emit (an AxisScore row per axis, then
+  // scoreMatch), which is linear in buckets and genuinely needed — every
+  // bucket has to be scored before the field can rank them and keep
+  // PLACE_FIELD_CAP.
+  //
+  // The accumulator is what `axisScores` builds internally, held per
+  // bucket instead of per call: bucket → test → axis → {norm, n, items}.
+  // Same arithmetic, same per-ANSWER weighting, same omit-an-unanswered-
+  // axis rule. `similarity.test.ts` keeps the OLD implementation verbatim
+  // and runs it beside this one on randomised aggregates, so this stays a
+  // refactor rather than a rewrite that happened to pass the cases
+  // somebody had already thought of.
+  type Acc = { norm: number; n: number; items: number };
+  const perBucket = new Map<string, Record<string, Record<string, Acc>>>();
   for (const it of items) {
+    if (!defs[it.test]) continue;
     const byDim = aggOf(it.qid)?.by?.[dim];
     if (!byDim) continue;
     for (const key of Object.keys(byDim)) {
-      if (!filter || filter(key)) buckets.add(key);
+      if (filter && !filter(key)) continue;
+      const cell = byDim[key];
+      let n = 0;
+      let norm = 0;
+      for (let i = 0; i < 5; i++) {
+        const c = cell[String(i)] || 0;
+        n += c;
+        norm += c * (it.invert ? 4 - i : i);
+      }
+      // Registered even at n === 0, because the old union was built from
+      // the KEYS and only dropped a bucket at the `if (!n)` below. A
+      // bucket whose every cell is empty must still reach that check
+      // rather than never existing — the two agree today, and they agree
+      // for the same stated reason rather than by luck.
+      let byTest = perBucket.get(key);
+      if (!byTest) perBucket.set(key, (byTest = {}));
+      const dims = byTest[it.test] || (byTest[it.test] = {});
+      if (!n) continue;
+      const a = dims[it.dim] || (dims[it.dim] = { norm: 0, n: 0, items: 0 });
+      a.norm += norm;
+      a.n += n;
+      a.items += 1;
     }
   }
+
   const out: PlaceProfile[] = [];
-  for (const key of buckets) {
-    const cellOf = (qid: string): number[] | null => {
-      const cell = aggOf(qid)?.by?.[dim]?.[key];
-      if (!cell) return null;
-      return Array.from({ length: 5 }, (_, i) => cell[String(i)] || 0);
-    };
+  // Map iteration is insertion-ordered, and insertion follows the same
+  // item-then-key walk the old Set did — so ties the sort below cannot
+  // break (equal match AND equal n) still land in the order they did.
+  for (const [key, acc] of perBucket) {
     const byTest: Record<string, AxisScore[]> = {};
     const flat: Record<string, number> = {};
     let n = 0;
     for (const kind of Object.keys(defs)) {
-      const axes = axisScores(kind, defs[kind], items, cellOf);
+      const dims = acc[kind];
+      if (!dims) continue;
+      const axes: AxisScore[] = [];
+      // `def.dims` order, not accumulation order: the axis row on the
+      // place card reads in the instrument's own order.
+      for (const d of defs[kind].dims || []) {
+        const a = dims[d.id];
+        if (!a) continue;
+        axes.push({
+          dim: d.id,
+          label: d.label,
+          value: Math.round((a.norm / (4 * a.n)) * 100),
+          n: a.n,
+          items: a.items,
+        });
+      }
       if (!axes.length) continue;
       byTest[kind] = axes;
       for (const a of axes) {

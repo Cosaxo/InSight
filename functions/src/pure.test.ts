@@ -43,6 +43,12 @@ import {
   revealQid,
   revealVotes,
   votesMatchingQid,
+  ROOM_MIN_TYPED,
+  ROOM_SAMPLE_CAP,
+  ROOM_QUESTION_CAP,
+  roomQids,
+  tallyPicks,
+  roomMix,
   presenceCellOk,
   presenceNeighbors,
   retargetCounts,
@@ -1398,47 +1404,47 @@ describe("what the reveal doc records per vote (revealVotes)", () => {
 
 describe("presence cells", () => {
   it("accepts legal la_lo ids and refuses everything else", () => {
-    expect(presenceCellOk("5999_1074")).toBe(true);   // Oslo-ish
-    expect(presenceCellOk("-3373_15121")).toBe(true); // Sydney-ish
+    expect(presenceCellOk("29999_5374")).toBe(true);  // Oslo-ish
+    expect(presenceCellOk("-16866_75608")).toBe(true); // Sydney-ish
     expect(presenceCellOk("0_0")).toBe(true);
-    expect(presenceCellOk("8999_-18000")).toBe(true); // last row, date line
+    expect(presenceCellOk("44999_-90000")).toBe(true); // last row, date line
     // Beyond the poles / the meridian span.
-    expect(presenceCellOk("9000_0")).toBe(false);
-    expect(presenceCellOk("-9001_0")).toBe(false);
-    expect(presenceCellOk("0_18000")).toBe(false);
+    expect(presenceCellOk("45000_0")).toBe(false);
+    expect(presenceCellOk("-45001_0")).toBe(false);
+    expect(presenceCellOk("0_90000")).toBe(false);
     // Shapes that try to smuggle precision or nonsense.
     expect(presenceCellOk("59.99_10.74")).toBe(false);
-    expect(presenceCellOk("5999_1074_77")).toBe(false);
+    expect(presenceCellOk("29999_5374_77")).toBe(false);
     expect(presenceCellOk("abc_def")).toBe(false);
     expect(presenceCellOk("")).toBe(false);
     expect(presenceCellOk(null)).toBe(false);
-    expect(presenceCellOk(5999)).toBe(false);
+    expect(presenceCellOk(29999)).toBe(false);
   });
 
   it("returns the 3×3 neighborhood in the interior", () => {
-    const n = presenceNeighbors("5999_1074");
+    const n = presenceNeighbors("29999_5374");
     expect(n).toHaveLength(9);
-    expect(n).toContain("5999_1074");
-    expect(n).toContain("5998_1073");
-    expect(n).toContain("6000_1075");
+    expect(n).toContain("29999_5374");
+    expect(n).toContain("29998_5373");
+    expect(n).toContain("30000_5375");
   });
 
   it("wraps longitude at the antimeridian instead of walking off it", () => {
-    const n = presenceNeighbors("0_-18000");
+    const n = presenceNeighbors("0_-90000");
     expect(n).toHaveLength(9);
     // The western neighbor of the western edge is the eastern edge.
-    expect(n).toContain("0_17999");
-    expect(n).not.toContain("0_-18001");
+    expect(n).toContain("0_89999");
+    expect(n).not.toContain("0_-90001");
   });
 
   it("drops rows beyond the poles rather than inventing them", () => {
-    const n = presenceNeighbors("8999_0");
+    const n = presenceNeighbors("44999_0");
     expect(n).toHaveLength(6); // no row above the top
-    expect(n.every((c) => Number(c.split("_")[0]) <= 8999)).toBe(true);
+    expect(n.every((c) => Number(c.split("_")[0]) <= 44999)).toBe(true);
   });
 
   it("returns nothing for an illegal cell — the callable's own guard", () => {
-    expect(presenceNeighbors("9000_0")).toEqual([]);
+    expect(presenceNeighbors("45000_0")).toEqual([]);
     expect(presenceNeighbors("junk")).toEqual([]);
   });
 });
@@ -1502,5 +1508,138 @@ describe("normalizeHandle", () => {
     for (const bad of [undefined, null, 42, {}, [], true, { toString: () => "olaf" }]) {
       expect(normalizeHandle(bad as unknown), String(bad)).toBeNull();
     }
+  });
+});
+
+// ── the room's mix (D176) ────────────────────────────────────────────
+//
+// The fold behind "mostly Hosts and Explorers". What it must NOT do is
+// most of the value: no shares, a floor, and an order that does not
+// flicker — each of those is a differencing defence, not a style choice.
+describe("roomMix", () => {
+  const many = (name: string, k: number) => Array.from({ length: k }, () => name);
+
+  it("ranks the types present, most common first", () => {
+    const m = roomMix([...many("Host", 5), ...many("Explorer", 3), ...many("Planner", 1)]);
+    expect(m?.top).toEqual(["Host", "Explorer", "Planner"]);
+    expect(m?.n).toBe(9);
+  });
+
+  it("returns names only — a share is the differencing attack handed over", () => {
+    const m = roomMix(many("Host", 12));
+    // Whatever else the shape gains, it must never gain a percentage: at
+    // room sizes a share moves visibly when one person walks in.
+    expect(JSON.stringify(m)).not.toMatch(/\d+(\.\d+)?%|share|pct/i);
+  });
+
+  it("refuses below the floor rather than drawing a thin room", () => {
+    expect(roomMix(many("Host", ROOM_MIN_TYPED - 1))).toBeNull();
+    expect(roomMix(many("Host", ROOM_MIN_TYPED))).not.toBeNull();
+  });
+
+  it("counts only phones that carried a type, and says so in n", () => {
+    // The headline count of phones nearby is bigger than this; the mix
+    // must not borrow it. Untyped entries vanish from both the tally and
+    // the basis rather than being counted as an unknown type.
+    const m = roomMix([...many("Host", 8), undefined, null, "", "   "]);
+    expect(m?.n).toBe(8);
+    expect(m?.top).toEqual(["Host"]);
+  });
+
+  it("keeps a stable order when two types tie", () => {
+    // A tie that resolves differently between beats makes the reading
+    // flicker, and a flicker is a signal an observer can read.
+    const a = roomMix([...many("Host", 4), ...many("Explorer", 4)]);
+    const b = roomMix([...many("Explorer", 4), ...many("Host", 4)]);
+    expect(a?.top).toEqual(b?.top);
+  });
+
+  it("keeps at most three names, however many types are in the room", () => {
+    const m = roomMix([
+      ...many("Host", 5), ...many("Explorer", 4), ...many("Planner", 3),
+      ...many("Diplomat", 2), ...many("Live Wire", 1),
+    ]);
+    expect(m?.top).toHaveLength(3);
+  });
+
+  // THE TRUNCATION HAS TO DECLARE ITSELF (D176, D102's rule).
+  //
+  // The fold reads at most ROOM_SAMPLE_CAP presence docs, so in a stadium
+  // `n` is a floor on the typed crowd rather than its size. Printing it
+  // bare would say "60 people here have taken the test" of a field with
+  // three thousand — not a fabricated number, but a slice presented as the
+  // room, which is the failure D102 repaired on the who-voted sheet.
+  it("declares a capped sample, because past the cap n is a floor not a size", () => {
+    const m = roomMix(many("Host", ROOM_SAMPLE_CAP), ROOM_MIN_TYPED, ROOM_SAMPLE_CAP);
+    expect(m?.capped).toBe(true);
+    expect(m?.n).toBe(ROOM_SAMPLE_CAP);
+    // Under the cap it is exact, and the flag is ABSENT rather than false —
+    // the card renders "60+" on truthiness.
+    expect(roomMix(many("Host", ROOM_SAMPLE_CAP - 1))?.capped).toBeUndefined();
+  });
+
+  it("counts the cap against the SAMPLE, not against the typed tally", () => {
+    // Sixty docs read, nine of them typed: the ranking still came out of a
+    // slice, so it is the slice that has to be declared. Testing this the
+    // other way round (capping on `n`) would let a crowded, mostly-untyped
+    // room print an exact-looking basis drawn from a truncated read.
+    const sample = [...many("Host", 9), ...Array.from({ length: 51 }, () => undefined)];
+    expect(sample).toHaveLength(ROOM_SAMPLE_CAP);
+    const m = roomMix(sample, ROOM_MIN_TYPED, ROOM_SAMPLE_CAP);
+    expect(m?.n).toBe(9);
+    expect(m?.capped).toBe(true);
+  });
+});
+
+// ── the room, read (D177) ───────────────────────────────────────────
+describe("tallyPicks", () => {
+  it("counts picks into the aggregate's own shape", () => {
+    // Deliberately the `{ "0": n }` map v2_question_aggs uses: the client
+    // already turns exactly this into an option array, so the room's
+    // counts arrive in a shape four surfaces already read.
+    expect(tallyPicks([0, 1, 0, 2, 0])).toEqual({ "0": 3, "1": 1, "2": 1 });
+  });
+
+  it("drops anything that is not an option index", () => {
+    // An answer document is written by a client, so this is the door. A
+    // -1 (the client's "unanswered"), a float or a string would key a
+    // bucket no option list has a slot for — the client's
+    // `cell[String(i)]` walk would never look at it, so the count would
+    // exist, be wrong, and be invisible.
+    expect(tallyPicks([0, -1, 1.5, "2" as unknown as number, null, undefined, 1]))
+      .toEqual({ "0": 1, "1": 1 });
+  });
+
+  it("has no floor, and that is the D98 rule rather than an oversight", () => {
+    // A floor on an answer split would protect the answer, and answers
+    // are public. The room's roster is disclosed by the People tab
+    // anyway, so hiding a one-person split conceals nothing a reader
+    // could not get by tapping a name. What a thin split needs is its `n`
+    // shown beside it, which is what every other surface does.
+    expect(tallyPicks([1])).toEqual({ "1": 1 });
+  });
+});
+
+describe("roomQids", () => {
+  it("takes a clean list and caps it", () => {
+    const many = Array.from({ length: 40 }, (_, i) => `q${i}`);
+    expect(roomQids(many)).toHaveLength(ROOM_QUESTION_CAP);
+    expect(roomQids(["a", "b"])).toEqual(["a", "b"]);
+  });
+
+  it("de-duplicates, because a repeated qid folds and pays twice", () => {
+    expect(roomQids(["a", "a", "b", "a"])).toEqual(["a", "b"]);
+  });
+
+  // THE DOOR. These strings are concatenated into a document path
+  // (`v2_users/{uid}/answers/{qid}`), so a slash or a dot segment is a
+  // path injection rather than a bad id — refused here rather than
+  // escaped downstream, because there is exactly one place to get it
+  // right.
+  it("refuses anything that could reach outside the answers collection", () => {
+    expect(roomQids(["../../v2_users", "a/b", ".", "..", "", "   "])).toEqual([]);
+    expect(roomQids([{ id: "x" }, 3, null, undefined])).toEqual([]);
+    expect(roomQids(["x".repeat(121)])).toEqual([]);
+    expect(roomQids("not an array")).toEqual([]);
   });
 });

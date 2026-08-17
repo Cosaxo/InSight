@@ -21,7 +21,7 @@
     "pretest:e2e": "npm run build --prefix functions",
     "test:e2e": "firebase emulators:exec --only auth,firestore,functions --project demo-insight \"node firestore-tests/e2e-v2-loop.mjs\"",
     "pretest:e2e:erasure": "npm run build --prefix functions",
-    "test:e2e:erasure": "firebase emulators:exec --only auth,firestore,functions --project demo-insight \"node firestore-tests/e2e-delete-account.mjs\"",
+    "test:e2e:erasure": "firebase emulators:exec --only auth,firestore,functions,storage --project demo-insight \"node firestore-tests/e2e-delete-account.mjs\"",
     "pretest:e2e:moderation": "npm run build --prefix functions",
     "test:e2e:moderation": "firebase emulators:exec --only auth,firestore,functions --project demo-insight \"node firestore-tests/e2e-moderation.mjs\"",
     "check:globals": "node scripts/check-spec-globals.mjs",
@@ -55,6 +55,7 @@
     "pulse": "node scripts/pulse.mjs",
     "build:emoji": "node scripts/build-emoji.mjs",
     "build:countries": "node scripts/build-countries.mjs",
+    "build:dogs": "node scripts/build-dogs.mjs",
     "check:ios-spm": "node scripts/check-ios-spm.mjs",
     "check:ios-facebook": "node scripts/check-ios-facebook.mjs",
     "check:ios-location": "node scripts/check-ios-location.mjs",
@@ -68,6 +69,7 @@
     "check:versions": "node scripts/check-versions.mjs",
     "check:store-copy": "node scripts/check-store-copy.mjs",
     "check:store-listing": "node scripts/check-store-listing.mjs",
+    "check:policy-claims": "node scripts/check-policy-claims.mjs",
     "check:public-copy": "node scripts/check-public-copy.mjs",
     "check:data-inventory": "node scripts/check-data-inventory.mjs",
     "build:screenshots": "node scripts/gen-screenshots.mjs",
@@ -128,5 +130,5 @@
   "overrides": {
     "tar": "^7.5.22"
   },
-  "appBuild": 17
+  "appBuild": 20
 }

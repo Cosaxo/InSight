@@ -808,7 +808,9 @@ Rules, each load-bearing:
   served. `check:quality` holds the measured bounds for all four;
   `check:content` holds the seed shapes. A continuum question is written
   TWICE — the content entry and its demo-pool twin — see § Continuum
-  questions; a path is written once, in the content bank.
+  questions; a path is written once, in the content bank, and has craft
+  rules of its own that the shape gates cannot express — see § Crossroads
+  stories before writing one.
 - **Append only, at the end of `questions`**, ids continuing the `fNN`
   series (continuum ids continue `dlN` / `fdN`; scene-attached `sNN`
   entries are out of the lane's scope — scenes are placeholder). Every
@@ -895,6 +897,91 @@ voters panel prints ("lean tastes good · middle").
   change of key, not a second genre (the hot sort pins one near the top;
   a glut buys nothing).
 
+### Crossroads stories (`path`)
+
+A branching scene, three forks deep, eight endings, no score (D136). It is
+the largest thing this lane authors — 38 strings under exactly-spelled
+keys — and until now it was also the least instructed: the bullet above
+named its FIELDS and nothing named its craft, so the first two stories
+came out as one story written twice. Both are `dilemma`; both hand a lone
+adult a moral test by accident; and both turn the same axis at every fork,
+which is the defect underneath the other two.
+
+**Three forks, three axes.** An axis is what a fork TRADES — the thing the
+two choices are actually weighing. Every node declares one from the closed
+vocabulary in `PATH_AXES` (`scripts/question-quality.mjs`):
+
+| axis | the trade |
+| --- | --- |
+| `risk` | safety / exposure |
+| `time` | now / later |
+| `company` | alone / with someone |
+| `disclosure` | say it / keep it |
+| `ownership` | keep it / give it up |
+| `certainty` | find out / stay not-knowing |
+| `effort` | push / coast |
+| `loyalty` | to a person / to a principle |
+
+No walk may turn one axis twice — checked per walk, all eight, by
+`check:quality`'s `axis-spread` rule. **This is the rule the form lives or
+dies on.** A tree whose forks all turn one axis does not have eight
+endings; it has one gradient sampled at eight points, and the reveal —
+*"1 in 12 walks your road"* — then ranks the reader along it instead of
+placing them. Turn three axes and the eight endings become eight kinds of
+person, which is the only reading the Mirror can use.
+
+The vocabulary is closed on purpose: an open one is a free text field, and
+"money" / "cash" / "greed" would read as a spread while being one axis
+three times. Widening it is a PR-body note naming the story that needed it
+and why no existing axis carried it — the same contract § When no category
+fits puts on a new topic.
+
+**No virtuous road.** If a reader can name the right answer at a fork, that
+fork is a test rather than a question, and it collects performance instead
+of disclosure — answers are public (D98), so the incentive is live. The
+bank's best `vote` questions all pass this test already; a story is not
+exempt from it for being longer.
+
+**Endings are nouns for kinds of people, not verdicts.** The ending name IS
+the synthesized option label, so read it in the sentence the voters panel
+prints before shipping it: *"picked The Quiet Good"* is a grade, *"picked
+The One Who Called First"* is a kind of person. Bounded by `OPTION_MAX`
+(32 chars) for exactly that reason; the ending's `line` is the sentence the
+walk earns, and it describes where you are standing rather than scoring how
+you got there.
+
+**Topic, not corner.** A story's `cat` must differ from the `cat` of each of
+the two paths before it in the bank (`PATH_GENRE_LOOKBACK`, gated). One
+pinned slot at the head of the feed shows one story at a time, so two in a
+row on one topic is the reader's entire experience of Crossroads. The
+scene is a scene with three turns — nothing in the form says the turns have
+to be about conduct, and nine of the taxonomy's ten topics have never had a
+story.
+
+**The intro is a scene, not a premise.** Two sentences at most, concrete
+objects, present tense, second person. A fork's choice runs to
+`PATH_CHOICE_MAX` (40 chars) — two of them read as a fork, not as
+paragraphs.
+
+**Written once, in the content bank** — unlike a continuum question. There
+is no demo twin to author: `spec/paths-data.js` is client code this lane
+does not touch, and a path in `content/feed-questions.json` carries no
+authored branch share `p`, because live the crowd is the aggregate.
+
+- Ids continue the `ptN` series; a provenance row like any feed append.
+- Scaffold: `node scripts/question-quality.mjs --new-path` prints the
+  skeleton — all seven nodes with the `_` sentinel already in place, all
+  eight endings, an empty `axis` on each fork. It emits no prose, because a
+  template with example sentences in it is a thing that gets half-edited
+  and shipped.
+- Pre-flight via `--batch` with the full object; a tree has no flag syntax
+  worth inventing. The packet runs the axis rules, and the genre ratchet
+  runs against the bank with the batch appended — so a repeated topic is
+  reported while a run can still change it.
+- Budget: a story counts inside the lane's ≤6/run and should be rare —
+  one slot, and a story replaced before its tree has a crowd is a reveal
+  nobody got to see.
+
 ## When no category fits (every question gets one; new ones are human)
 
 Two rules, and they pull in opposite directions on purpose.
@@ -955,6 +1042,22 @@ noticed a gap was indistinguishable from one that noticed and forgot.
   for free would undercut the business, and a government-flavored
   question written by an unsupervised job is exactly the kind of content
   that must have a human's name on it.
+
+  **D187's twenty-four place-rating dailies are not a hole in this, and
+  the distinction is the whole of why.** They are written
+  *self-referentially* — "How safe do you feel walking home at night?",
+  never "How safe is Oslo?" — so one question is asked of everyone and
+  the Mirror's cohort cell does the scoping. Nothing about them is
+  scoped to a place's citizens, which is what rule 6 names, and none is
+  a civic or policy question: they rate a condition, they do not take a
+  side. They also arrived the way this section requires — editorial, by
+  hand, in a reviewed PR, with a human's instruction behind them. **The
+  rule is unchanged for the farm: still never write a question scoped to
+  a specific city, country or region's citizens, and do not read D187 as
+  licence to invent more `rates` questions** — that field is editorial
+  content, and the tension it does carry (a universal affordability
+  question yields a per-city score for free) is recorded in D187 rather
+  than settled.
 - **Writing the live seed catalog directly** (`content/`,
   `functions/src/v2content.ts`). This job deepens the spec-layer archive
   only — that half of the rule stands. What changed (D30, 2026-08-01):

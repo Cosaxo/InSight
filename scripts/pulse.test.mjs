@@ -218,7 +218,14 @@ describe("cost-arith reads its constants from source, not from memory", () => {
       // (surface, active, options.size()) on ONE /v2_questions document, so
       // a pulse create bills 1 read exactly like a world create. Charged
       // through worldAnswers, which the pulse moved 3 → 4.
-    ).toEqual({ gets: 18, exists: 2 });
+      // 18 → 19 at D178: the flag rule's avatar arm reads
+      // /v2_avatars/{target} to refuse a report on a face already removed —
+      // the same shape the take arm's `hidden == false` get() has. RULE_READS
+      // is deliberately unchanged, for the reason the D98 note above gives:
+      // it charges the ANSWER-create paths, and reporting a photo is not one.
+      // The read is billed to whoever files a report, at most once per person
+      // per face (the doc id pins it), which is not a path worth modelling.
+    ).toEqual({ gets: 19, exists: 2 });
   });
 
   it("the answer trigger's transaction still issues the reads the model charges", () => {

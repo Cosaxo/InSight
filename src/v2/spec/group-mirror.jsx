@@ -7,6 +7,9 @@ import React from 'react';
 import { MirrorLensRow } from './mirror-field.jsx';
 import { DUELS } from './duels-data.js';
 import { Kicker, Lazy } from './primitives.jsx';
+// The palette gate (D189) — see gmAccent below for why this stop in
+// particular could not do without it.
+import { WPAL } from './world-palette.js';
 
 // group-mirror.jsx — the Mirror's GROUPS stop: your named circles as a cast
 // list. Pick a group → the role constellation, then the standard three lenses
@@ -23,7 +26,13 @@ import { Kicker, Lazy } from './primitives.jsx';
     g.members.forEach((p) => { sx += Math.cos(p.hue * Math.PI / 180); sy += Math.sin(p.hue * Math.PI / 180); });
     return Math.round(((Math.atan2(sy, sx) * 180 / Math.PI) + 360) % 360);
   }
-  const gmAccent = (g) => `oklch(0.52 0.14 ${gmGroupHue(g)})`;
+  // Through the gate (D189), and this is the site where skipping it cost the
+  // most: `gmAccent` is not one mark, it is the stop's `--accent` — set on
+  // the stage and on every group card — so an un-gated hue reached the ring,
+  // the chips, the lens row's underline and every accent-driven mark under
+  // it at once. A circular mean of member hues lands anywhere on the wheel,
+  // and 0.14 is outside sRGB for a good part of it.
+  const gmAccent = (g) => WPAL.ink(`oklch(0.52 0.14 ${gmGroupHue(g)})`);
 
   // group identity mark — the member cluster wrapped by the alignment ring;
   // ring sweep = how often you land with this group's majority (no number)
@@ -235,7 +244,7 @@ import { Kicker, Lazy } from './primitives.jsx';
             {crowns.some((r) => r.contested) && <div style={{ marginTop: 9, display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 700, color: 'var(--ink-3)', letterSpacing: '0.09em', textTransform: 'uppercase' }}><span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--surface)', border: '1.6px solid var(--ink-3)' }}></span>hollow = contested</div>}
             </>
           ) : (
-            <div style={{ marginTop: 10, fontFamily: 'var(--sans)', fontSize: 13, color: 'var(--ink-3)' }}>No crowns yet — the next scenario vote could change that.</div>
+            <div style={{ marginTop: 10, fontFamily: 'var(--sans)', fontSize: 13, color: 'var(--ink-3)' }}>No crowns yet.</div>
           )}
           <div style={{ marginTop: 15, paddingTop: 13, borderTop: LINE }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 5 }}>

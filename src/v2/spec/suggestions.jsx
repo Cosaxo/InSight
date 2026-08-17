@@ -328,14 +328,14 @@ function SgForm({ SG, onDone, onCancel }) {
               <span style={{ fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 700 }}>asked by you</span>
             </div>
             <span style={{ fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)', lineHeight: 1.5, textWrap: 'pretty' }}>
-              A featured question runs in that frame, for a window you choose, and skips the upvote queue. It does not skip the review, and the band cannot be removed or restyled.
+              Runs in that frame for a window you choose, and skips the queue — never the review. The band stays as it is.
             </span>
             <span style={{ fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 600, color: 'var(--ink-3)', lineHeight: 1.5 }}>
               You get the counts and the standard cuts — never names.
             </span>
             {LIVE.enabled ? (
               <span style={{ fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 700, color: 'var(--ink-3)', lineHeight: 1.5 }}>
-                Not open for self-serve yet — featured questions are arranged directly for now. Submit free above and it keeps its place in the queue.
+                Arranged directly for now — no self-serve yet.
               </span>
             ) : (
               <button className="press" onClick={async () => { if (!valid) return; setSending(true); const res = await SG.submit({ prompt, type, options: needOpts ? opts : [], topic: topic ? topic.label : '', hue, cadence, audience, featured: true }); setSending(false); if (res && res.ok === false) { setRefusal(res.message); return; } onDone(); }} disabled={!valid} style={{ alignSelf: 'flex-start', padding: '10px 16px', borderRadius: 999, cursor: valid ? 'pointer' : 'default', WebkitAppearance: 'none', border: '1px solid var(--ink)', background: valid ? 'var(--surface)' : 'var(--surface-3)', color: valid ? 'var(--ink)' : 'var(--ink-3)', fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 800 }}>
@@ -410,7 +410,7 @@ function SuggestOverlay({ onClose }) {
         </div>
         {communityPreview ? (
           <div style={{ margin: '-4px 2px 12px', fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 700, color: 'var(--ink-3)' }}>
-            Preview · sample suggestions until the community board goes live — yours are real, under Yours
+            Preview · samples until the board goes live — yours are real, under Yours
           </div>
         ) : null}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>

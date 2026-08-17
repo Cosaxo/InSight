@@ -5,7 +5,8 @@
 import { describe, it, expect } from "vitest";
 import {
   loadCorpus, checkQuestion, checkBatch, checkProvenance, checkHeadroom,
-  placeCivicHit, PROMPT_MAX, OPTION_SHAPES, FEED_TYPES, DIAL_BUCKETS,
+  checkPathGenre, placeCivicHit, PROMPT_MAX, OPTION_SHAPES, FEED_TYPES,
+  DIAL_BUCKETS, PATH_AXES, PATH_AXIS_LEGACY,
 } from "./question-quality.mjs";
 
 const corpus = loadCorpus();
@@ -80,6 +81,108 @@ const field = (over = {}) => ({
 });
 
 const TEX = { texture: true };
+
+// ── Crossroads (feed path) ──
+// A story whose every walk turns three axes: risk → time → company, eight
+// times. Built rather than written out so a test that MOVES an axis moves
+// exactly one thing — the flat variants below differ from this by a single
+// node, which is what makes them evidence about the rule and not about the
+// fixture.
+const PATH_WALKS = ["A", "B"].flatMap((a) => ["A", "B"].flatMap((b) => ["A", "B"].map((c) => a + b + c)));
+const path = (axes = {}, over = {}) => ({
+  id: "ptTest", core: true, cat: "food", type: "path", hue: 200,
+  title: "The Test Story", prompt: "A story — the probe one", intro: "A scene, two sentences at most.",
+  nodes: Object.fromEntries(["_", "A", "B", "AA", "AB", "BA", "BB"].map((k) => [k, {
+    // `k in axes`, not `??` — an override of `undefined` has to MEAN
+    // "this fork declares no axis", and a nullish default would quietly
+    // hand it one back and test nothing.
+    axis: k in axes ? axes[k] : (k === "_" ? "risk" : k.length === 1 ? "time" : "company"),
+    q: `Scene ${k}.`,
+    a: [{ t: "The first way" }, { t: "The other way" }],
+  }])),
+  endings: Object.fromEntries(PATH_WALKS.map((w) => [w, { name: `End ${w}`, line: "Where you are standing." }])),
+  ...over,
+});
+
+describe("checkQuestion (Crossroads shape and axes)", () => {
+  it("passes a story that turns three axes on every walk", () => {
+    expect(checkQuestion(path(), "feed", corpus).errs).toEqual([]);
+  });
+
+  it("demands an axis on every fork, from the closed vocabulary", () => {
+    const none = checkQuestion(path({ AB: undefined }), "feed", corpus).errs;
+    expect(none.some((e) => e.rule === "axis" && e.msg.includes('"AB"'))).toBe(true);
+    // An open vocabulary is a free text field, and three spellings of one
+    // axis would read as a spread — which is the rule inverted.
+    const invented = checkQuestion(path({ AB: "greed" }), "feed", corpus).errs;
+    expect(invented.some((e) => e.rule === "axis" && e.msg.includes("greed"))).toBe(true);
+    expect(PATH_AXES.has("ownership") && !PATH_AXES.has("greed")).toBe(true);
+  });
+
+  it("fires per WALK, not per tree — a story can be varied down one branch and flat down another", () => {
+    // One node moved: AA now repeats its parent's axis, so the two walks
+    // THROUGH it go flat and the other six stay clean. A per-tree rule
+    // would have said "this story is fine" (six of eight walks are).
+    const { errs } = checkQuestion(path({ AA: "time" }), "feed", corpus);
+    const spread = errs.filter((e) => e.rule === "axis-spread");
+    expect(spread.length).toBe(1);
+    expect(spread[0].msg).toContain("2 of 8 walks");
+    expect(spread[0].msg).toContain("AAA (risk → time → time)");
+  });
+
+  it("waives the spread rule for the two frozen stories — and only that rule", () => {
+    // Their ending names are the answer space and D52 freezes them, so the
+    // fork prose cannot be re-axed without landing walks on names that no
+    // longer fit. The annotation stays required: the waiver must not become
+    // permission to leave the field off.
+    const flat = Object.fromEntries(["_", "A", "B", "AA", "AB", "BA", "BB"].map((k) => [k, "ownership"]));
+    expect(checkQuestion(path(flat, { id: "pt1" }), "feed", corpus).errs).toEqual([]);
+    expect(checkQuestion(path(flat, { id: "pt3" }), "feed", corpus).errs
+      .some((e) => e.rule === "axis-spread")).toBe(true);
+    const bare = checkQuestion(path({ ...flat, BA: undefined }, { id: "pt1" }), "feed", corpus).errs;
+    expect(bare.some((e) => e.rule === "axis")).toBe(true);
+  });
+
+  it("the two live stories carry their axes, and they are the flat ones the waiver names", () => {
+    // The liveness half: the annotation is in the data, and it says what
+    // PATH_AXIS_LEGACY claims it says (pt1 flat on 6 of 8, pt2 on 8 of 8).
+    // A waiver whose recorded arithmetic drifted from the content would be
+    // the stale-figure failure wearing a JSON hat.
+    const live = corpus.feed.questions.filter((q) => q.type === "path");
+    expect(live.length).toBeGreaterThanOrEqual(2);
+    for (const q of live) {
+      expect(Object.values(q.nodes).every((n) => PATH_AXES.has(n.axis))).toBe(true);
+    }
+    const flatWalks = (q) => PATH_WALKS.filter((w) => {
+      const axes = [0, 1, 2].map((d) => q.nodes[w.slice(0, d) || "_"].axis);
+      return new Set(axes).size < 3;
+    }).length;
+    expect(flatWalks(live.find((q) => q.id === "pt1"))).toBe(6);
+    expect(flatWalks(live.find((q) => q.id === "pt2"))).toBe(8);
+    expect([...PATH_AXIS_LEGACY.keys()]).toEqual(["pt1", "pt2"]);
+  });
+});
+
+describe("the Crossroads genre ratchet", () => {
+  const at = (ids) => ({ feed: { questions: ids.map((cat, i) => ({ id: `pt${i + 1}`, type: "path", cat })) } });
+
+  it("leaves the first two alone and holds the third off their topics", () => {
+    // They have no predecessors, which is why the two D136 shipped need no
+    // waiver here — and they are still what the third has to differ from.
+    expect(checkPathGenre(at(["dilemma", "dilemma"]))).toEqual([]);
+    expect(checkPathGenre(at(["dilemma", "dilemma", "dilemma"])).length).toBe(1);
+    expect(checkPathGenre(at(["dilemma", "dilemma", "food"]))).toEqual([]);
+  });
+
+  it("looks back two, so an A-B-A-B alternation does not satisfy it", () => {
+    expect(checkPathGenre(at(["food", "sport", "food"])).length).toBe(1);
+    expect(checkPathGenre(at(["food", "sport", "music", "food"]))).toEqual([]);
+  });
+
+  it("the live sequence passes", () => {
+    expect(checkPathGenre(corpus)).toEqual([]);
+  });
+});
 
 describe("checkQuestion (feed continuum shapes)", () => {
   it("passes well-formed dial and field entries, in both their forms", () => {
@@ -177,6 +280,38 @@ describe("checkBatch", () => {
     const mono = Array.from({ length: 4 }, () => daily({ tone: "light" }));
     mono[1].tone = "deep"; // pass the tone rule; fail the form rule
     expect(checkBatch(mono).some((e) => e.includes("binary"))).toBe(true);
+  });
+
+  // The feed arm did not exist until the Crossroads review went looking for
+  // it: the lane that writes the LARGEST batch of the three had no batch
+  // rule at all, so eight votes on one topic printed eight ✓ and no batch
+  // line. Both rules are the daily arm's shape, including its 0.75 ceiling.
+  const feedQ = (over = {}) => ({ surface: "feed", type: "vote", cat: "food", prompt: "Which?", options: ["A", "B"], ...over });
+
+  it("wants a spread of forms in a feed batch", () => {
+    const mono = Array.from({ length: 4 }, (_, i) => feedQ({ cat: ["food", "sport", "music", "tech"][i] }));
+    expect(checkBatch(mono).some((e) => e.includes("form vote"))).toBe(true);
+    mono[3].type = "dial";
+    expect(checkBatch(mono)).toEqual([]);
+  });
+
+  it("wants a spread of topics in a feed batch — the regulator picks thin ones for a reason", () => {
+    const oneTopic = Array.from({ length: 4 }, (_, i) => feedQ({ type: ["vote", "vote", "dial", "field"][i] }));
+    expect(checkBatch(oneTopic).some((e) => e.includes("topic food"))).toBe(true);
+  });
+
+  it("lets a batch be mostly one thing, but not almost all of it", () => {
+    // Six votes in eight is honest; seven is the lane's whole run reading as
+    // one question asked repeatedly.
+    const eight = (votes) => Array.from({ length: 8 }, (_, i) => feedQ({
+      type: i < votes ? "vote" : "dial", cat: ["food", "sport", "music", "tech", "bigq", "culture", "movies", "event"][i],
+    }));
+    expect(checkBatch(eight(6))).toEqual([]);
+    expect(checkBatch(eight(7)).some((e) => e.includes("form vote"))).toBe(true);
+  });
+
+  it("stays quiet on batches smaller than three, where a spread is not a claim", () => {
+    expect(checkBatch([feedQ(), feedQ()])).toEqual([]);
   });
 });
 

@@ -23,6 +23,7 @@ import { getFunctions, connectFunctionsEmulator, httpsCallable } from "firebase/
 import { initializeApp as adminInit } from "firebase-admin/app";
 import { getFirestore as adminFirestore } from "firebase-admin/firestore";
 import { getAuth as adminAuth } from "firebase-admin/auth";
+import { getStorage as adminStorage } from "firebase-admin/storage";
 
 // The named database (D165). The backend writes to FIRESTORE_DB_ID, so a
 // harness on `(default)` reads an empty database and reports a phantom
@@ -37,7 +38,11 @@ const fail = (msg) => { console.error("✗ " + msg); process.exit(1); };
 const ok = (msg) => console.log("✓ " + msg);
 
 // ── admin (rules bypassed) — the only trustworthy observer here ──
-adminInit({ projectId: PROJECT });
+// The bucket has to be NAMED (D178). A demo project has no default one
+// to infer, and `bucket()` throws `storage/invalid-argument` rather than
+// guessing — which is the right behaviour and an easy half-hour if you
+// read it as "the emulator is broken".
+adminInit({ projectId: PROJECT, storageBucket: `${PROJECT}.appspot.com` });
 // The ADMIN handle needs the database too, and this is the one that got
 // missed first time round: it takes no argument, so it reads as fine and
 // silently targets `(default)`. It then wrote the question doc to one
@@ -230,7 +235,34 @@ await adb.doc(`v2_ratelimits/suggest_${uid}`).set({ events: [Date.now()] });
 // The presence doc (D84): the one location-shaped datum an account can
 // hold, and the wipe must take it — a cell that outlives its account is a
 // standing "someone was here" nobody can retract.
-await adb.doc(`v2_presence/${uid}`).set({ cell: "5999_1074", at: new Date() });
+// The profile photo (D178), both halves. The document is ordinary; the
+// OBJECT is the first thing deleteAccount has ever had to remove from
+// Storage, and the reason storage.rules could keep its retired read grant
+// was precisely that erasure did not reach the bucket.
+await adb.doc(`v2_avatars/${uid}`).set({ token: "tok0e2e0000", at: new Date(), hidden: false });
+await adminStorage().bucket().file(`avatars/${uid}`).save(Buffer.from([0xff, 0xd8, 0xff]), {
+  contentType: "image/jpeg",
+});
+// SEEDED, AND PROVED SEEDED. An object that never landed makes the
+// "it is gone afterwards" check below pass for the wrong reason — the
+// vacuous shape this suite exists to avoid, and one a Storage handle
+// pointed at the wrong bucket produces silently.
+if (!(await adminStorage().bucket().file(`avatars/${uid}`).exists())[0]) {
+  fail("seed did not land: avatars/" + uid + " is not in the bucket");
+}
+await adb.doc(`v2_presence/${uid}`).set({
+  cell: "5999_1074", at: new Date(), until: new Date(Date.now() + 60 * 60_000),
+});
+// …and the ROOM CACHE for that cell (D177), which is the one derived
+// document that holds a uid. A roster naming this account survives the
+// presence delete on its own — it is keyed by cell, not by uid — so the
+// wipe reads the cell and drops the fold with it. Seeded with a stranger
+// in it too, because what has to be proved is that the DOC goes, not that
+// one entry was edited out of it: the next caller re-folds from presence,
+// which no longer has this account in it.
+await adb.doc("v2_presence_room/5999_1074").set({
+  people: [{ uid, type: "Host" }, { uid: OTHER }], qs: {}, at: new Date(),
+});
 await adb.doc(`v2_mod_queue/${MY_TAKE}`).set({
   takeId: MY_TAKE, gid: SHARED, text: "words that must not outlive the account",
   flags: 3, escalations: 0,
@@ -282,7 +314,9 @@ for (const [path, label] of [
   [`v2_groups/${LEFT}/reveals/${DAY}`, "that group's reveal"],
   [`v2_takes/${MY_TAKE}`, "their take"],
   [`v2_flags/${MY_TAKE}_${uid}`, "their flag on their own take"],
+  [`v2_avatars/${uid}`, "their profile photo's document"],
   [`v2_presence/${uid}`, "their presence cell"],
+  ["v2_presence_room/5999_1074", "the cached roster naming them"],
   [`v2_mod_queue/${MY_TAKE}`, "the queue's copy of their take"],
   [`v2_takes/${THEIR_TAKE}`, "someone else's take"],
   [`v2_mod_queue/${THEIR_TAKE}`, "the queue's copy of someone else's take"],
@@ -371,7 +405,9 @@ for (const [path, label] of [
   [`v2_users/${uid}/following/${OTHER}`, "the account's own follow"],
   [`v2_users/${uid}/foresight/daily-000__ageBand__25-34`, "a foresight verdict"],
   [`v2_users/${OTHER}/following/${uid}`, "someone else's follow OF this account"],
+  [`v2_avatars/${uid}`, "their profile photo's document"],
   [`v2_presence/${uid}`, "their presence cell"],
+  ["v2_presence_room/5999_1074", "the cached roster naming them"],
   // The gap this leg exists for: the take was erased, and its words went on
   // living in the moderation queue's copy of them.
   [`v2_mod_queue/${MY_TAKE}`, "the queue's copy of their take"],
@@ -389,6 +425,16 @@ for (const [path, label] of [
 if ((await myLedgerEntries()).length !== 0)
   fail("agg-ledger entries for the deleted uid survive the sweep");
 ok("every owned document, subcollection and cross-user reference is gone");
+
+// THE BYTES, not only the document (D178). The photo is the app's first
+// object in Storage and the first thing erasure has ever had to reach
+// outside Firestore — a face outliving the account it belonged to is the
+// leftover this whole suite is written against, and it is the one no
+// Firestore query would ever notice.
+const [avatarStillThere] = await adminStorage().bucket()
+  .file(`avatars/${uid}`).exists();
+if (avatarStillThere) fail("LEFTOVER after deleteAccount: the profile photo's bytes (avatars/" + uid + ")");
+ok("the profile photo's bytes are gone from Storage too");
 
 // ── …and the sweep stopped at the edge of this account ──
 // deleteOrphanedModQueue keys on the take being ABSENT rather than on an

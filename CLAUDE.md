@@ -39,9 +39,14 @@ picture, which is why most of the Mirror shipped dark.
 What survives from the old lens is the *discipline*, pointed the other
 way: if the UI says something about who can see what, `firestore.rules`
 or a Cloud Function has to make it true, and a test has to prove it. The
-account panel now says plainly that answers are public, because a user
+account panel still says plainly that answers are public, because a user
 learning that from a stranger quoting their vote would be the same
-failure as the reverse.
+failure as the reverse — but since D183 that sentence is *all* it says.
+The long disclosure lives once, in `web/privacy.html`, and
+`check:policy-claims` is what a promise is now proved by. Read that
+script before editing the page: three of its claims were already stale
+when D183 opened it, because D174, D175 and D177 each updated the app and
+not the policy.
 
 Three denies remain, none about answers, each labelled at its own path in
 `firestore.rules`: the unscored logic answer key (anti-cheat), flag
@@ -208,9 +213,14 @@ an emergency rules fix.
 - **A live Mirror stop carries all five lenses (D99/D100) and, since
   D112, its constellation.** Answers · People · Compare · Explore are
   pure folds over `agg.by` (`src/v2/data/cohort.ts`) plus the D98 voter
-  lists; Scores joined at D100 over the bank's ordinal questions (the
-  old "no `rate` questions" refusal was about the prototype's *place*
-  scorecard, which still waits on content). The similarity fields
+  lists; Scores joined at D100 over the bank's ordinal questions and
+  became the *place* scorecard it is named for at D187 — a question now
+  declares what it rates (`rates: city | country | world`) and the lens
+  draws only what names its stop. The old "no `rate` questions" refusal
+  was right about the content and D100 read it as being about the lens:
+  averaging by TYPE gave the City stop a card led by "Breakfast is the
+  best meal of the day", which is a correct average of Oslo and not a
+  fact about Oslo. Every gate was green while it shipped. The similarity fields
   (`src/v2/data/similarity.ts`, `ui/LiveSimilarityField.tsx`) are the
   permanent head of the City/Country/World stops: your city's people ranked primarily by
   test-score match, cities and countries placed by their real
@@ -232,7 +242,12 @@ an emergency rules fix.
   the exception and runs on arrival — free on re-entry
   (`state.testAggsLoaded`), and since it no longer unmounts, row
   navigation costs nothing; both pinned. The fields load behind one
-  bounded, session-cached loader (docs/MIRROR.md §2–3).
+  bounded, session-cached loader (docs/MIRROR.md §2–3). **Circle and
+  Groups carry a row too since D190** — `Answers · People · Compare`, the
+  three the prototype gives both, folded out of what each stop already
+  computes and drawn even when the stop is empty. Scores and Explore are
+  not theirs: one needs questions that rate a place, the other needs
+  "everyone" as a baseline, and a circle of nine has neither.
 - **`window.MapStats` is real for two anchors and refuses for five, and
   the split is structural.** `age` and `edu` are breakdown dims, so since
   D99 `dist`/`mode` compute from the published cells. `job` is
@@ -269,3 +284,12 @@ an emergency rules fix.
   not parse, an ESM export shape, a module evaluation order.
 - When you defer something, record it in `docs/DECISIONS.md` with the
   arithmetic. A known limit is survivable; a surprise is not.
+- **Copy follows `visual > word > sentence > sentences`** (the owner's
+  rule, D182). A caption explaining a shape the reader is looking at, a
+  noun the ruler and the tab bar already say, a clause restating its own
+  first clause, an instruction for the control directly underneath — all
+  four are deletions, and all four grow back.
+  [`docs/COPY.md`](docs/COPY.md) names them, and names what the rule does
+  **not** license: a consent notice, an honesty qualifier and the blunt
+  public-answers sentence are claims, not word counts. Read §3 before
+  shortening anything that promises something.

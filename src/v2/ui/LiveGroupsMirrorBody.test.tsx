@@ -23,7 +23,7 @@
 //     empty portrait or a zeroed one.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { MIN_SHARED } from "../data/groupPortrait";
 
 const LIVE = vi.hoisted(() => {
@@ -54,6 +54,13 @@ const day = (d: string, me: number, ada: number, bo: number) => ({
   votes: { u_me: { optionIdx: me }, u_ada: { optionIdx: ada }, u_bo: { optionIdx: bo } },
 });
 
+// The stop's readings live behind its tab row since D190, closed on
+// arrival like every other Mirror stop (D155). Every case that asserts on a
+// reading opens the tab it lives in first — which is also the assertion
+// that the tab is there and reaches its body.
+const openTab = (label: string) =>
+  fireEvent.click(screen.getByRole("tab", { name: label }));
+
 beforeEach(() => {
   LIVE.enabled = true;
   LIVE.uid = "u_me";
@@ -69,6 +76,7 @@ describe("LiveGroupsMirrorBody · thin history makes no claims about people", ()
     // meaningless, because it is one coin flip. The panel must not print it.
     LIVE.social.revealHistory = () => [day("2026-07-29", 0, 0, 1)];
     render(<LiveGroupsMirrorBody />);
+    openTab("People");
     const text = document.body.textContent || "";
     expect(text).not.toMatch(/most like you/i);
     expect(text).not.toMatch(/100%/);
@@ -83,6 +91,7 @@ describe("LiveGroupsMirrorBody · thin history makes no claims about people", ()
       day("2026-07-28", 1, 1, 0),
     ];
     render(<LiveGroupsMirrorBody />);
+    openTab("People");
     const text = document.body.textContent || "";
     expect(text).toMatch(/Ada/);
   });
@@ -100,8 +109,12 @@ describe("LiveGroupsMirrorBody · states it refuses to fake", () => {
 
   it("offers to start one when there are no groups, rather than rendering blank", () => {
     LIVE.social.groups = () => [];
-    render(<LiveGroupsMirrorBody />);
-    expect(screen.getByText(/No groups yet/i)).toBeTruthy();
+    const { container } = render(<LiveGroupsMirrorBody />);
+    // D172: the empty stop DRAWS — the rings and you — rather than
+    // answering with a card of prose. The caption names the field and the
+    // one action that cannot fill itself stays.
+    expect(container.querySelector("svg"), "the empty field lost its drawing").toBeTruthy();
+    expect(screen.getByText(/revealed with names the morning after/i)).toBeTruthy();
     expect(screen.getByRole("button", { name: /Start a group/i })).toBeTruthy();
   });
 
@@ -156,6 +169,7 @@ describe("LiveGroupsMirrorBody · the day rows say what was actually chosen", ()
 
   it("labels the majority option from the bank, not the option index", () => {
     render(<LiveGroupsMirrorBody />);
+    openTab("Answers");
     // 2 of 3 picked index 0 on the 29th -> "Left"; index 1 on the 28th ->
     // "Right". Printing "Option 1" instead would be the fallback path for a
     // question the bank cannot resolve, and would be wrong here.
@@ -169,6 +183,7 @@ describe("LiveGroupsMirrorBody · the day rows say what was actually chosen", ()
     // members — so the label has to resolve through memberUids instead.
     LIVE.social.bankQ = () => ({ prompt: "Who would you trust with a secret?", options: [] });
     render(<LiveGroupsMirrorBody />);
+    openTab("Answers");
     // index 0 -> memberUids[0] -> "Me"; the row label is the picked member.
     expect(document.body.textContent).not.toMatch(/Option \d/);
     expect(document.body.textContent).toMatch(/Me|Ada|Bo/);
@@ -201,7 +216,57 @@ describe("LiveGroupsMirrorBody · the expand row is reachable without a mouse", 
     // a role and a tabIndex but no working key handler.
     LIVE.social.revealHistory = () => [day("2026-07-29", 0, 0, 1)];
     render(<LiveGroupsMirrorBody />);
+    openTab("Answers");
     const rows = screen.getAllByRole("button", { expanded: false });
     expect(rows.length).toBeGreaterThan(0);
+  });
+});
+
+// ── the stop has a tab row, and has it when empty (D190) ─────────────
+//
+// D188 measured every Mirror stop's row against the prototype and recorded
+// what it had not touched: "Circle and Groups have no row at all in live
+// mode… a missing feature, not a misplaced one." This is the feature, and
+// the case that matters is the EMPTY one — a row that appears only once a
+// stop has data is a stop that reads as unfinished on the day a new account
+// meets it, which is the same argument D160 made for drawing an empty field.
+describe("LiveGroupsMirrorBody · the row is the stop's, not the data's", () => {
+  const tabNames = () =>
+    screen.getAllByRole("tab").map((t) => t.textContent);
+
+  it("draws Answers · People · Compare with a group", () => {
+    LIVE.social.revealHistory = () => [day("2026-07-29", 0, 0, 1)];
+    render(<LiveGroupsMirrorBody />);
+    expect(tabNames()).toEqual(["Answers", "People", "Compare"]);
+  });
+
+  it("draws the same row with no groups at all", () => {
+    LIVE.social.groups = () => [];
+    render(<LiveGroupsMirrorBody />);
+    expect(tabNames()).toEqual(["Answers", "People", "Compare"]);
+    // …and the empty field above it, which is what the stop is FOR before
+    // a group exists.
+    expect(screen.getByRole("button", { name: /Start a group/i })).toBeTruthy();
+  });
+
+  it("opens on nothing, and a second tap closes what it opened", () => {
+    // D155's shape: a stop with nothing open is a header, a field and a tab
+    // bar sitting where a tab bar belongs.
+    LIVE.social.revealHistory = () => [day("2026-07-29", 0, 0, 1)];
+    render(<LiveGroupsMirrorBody />);
+    expect(screen.queryByRole("tabpanel")).toBeNull();
+    openTab("Answers");
+    expect(screen.getByRole("tabpanel")).toBeTruthy();
+    openTab("Answers");
+    expect(screen.queryByRole("tabpanel")).toBeNull();
+  });
+
+  it("says why a tab is empty rather than drawing nothing", () => {
+    // A card that renders null is fine when it is one of two things stacked
+    // on a page; behind a tab somebody tapped, it reads as a broken screen.
+    LIVE.social.groups = () => [];
+    render(<LiveGroupsMirrorBody />);
+    openTab("People");
+    expect(screen.getByRole("tabpanel").textContent).toMatch(/Start a group and this fills in/i);
   });
 });

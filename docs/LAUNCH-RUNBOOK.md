@@ -21,8 +21,8 @@ permanent non-blocker under D42, excused by `--ios`. **For an iOS launch
 the count is zero**, which is a change from 2026-08-04: the Team ID and the
 `REVERSED_CLIENT_ID` were the other two and both are filled.
 
-`check:store-listing` and `check:versions` pass; the daily bank is at 90
-questions of 513 seeded; the production backend is deployed. **Measured
+`check:store-listing` and `check:versions` pass; the daily bank is at 114
+questions of 537 seeded; the production backend is deployed. **Measured
 2026-08-04:** anonymous sign-in works (`accounts:signUp` returns an
 `idToken`, where it returned `ADMIN_ONLY_OPERATION` on 2026-08-03), the
 InSight web app is registered, and the default hosting site `prvfire33`
@@ -154,7 +154,7 @@ arithmetic.
 
 - [ ] **0.1 Seed the production question bank — run 2026-08-07 and already
       stale.** Actions → **Seed content** → Run workflow.
-      513 questions land in `v2_questions` — idempotent and, since D34,
+      537 questions land in `v2_questions` — idempotent and, since D34,
       cheap to repeat.
 
       **This step is now automatic for everything that follows it (D88):**
@@ -165,7 +165,7 @@ arithmetic.
       either way — `written: 0` means nothing landed.
 
       **It is unticked on purpose, and still is.** That run wrote **389**,
-      and the bank is **513** after the K=5 test expansion, D103's
+      and the bank is **537** after the K=5 test expansion, D103's
       retirement of the Thinking test and D114's continuum questions — so
       the difference is in the repo and not in production. Note that the gap now runs BOTH ways: 20
       `test-cognitive-*` questions are live in `v2_questions` and no longer
@@ -474,6 +474,63 @@ arithmetic.
       automated writer, and the window between merging a release commit and
       dispatching from it is no longer quiet.
 
+      **BUILD 19 WAS UPLOADED BY RUN 28** (`e76731d`, 2026-08-16 18:13Z,
+      5m 23s, upload step `success`, 1m 16s of it transfer). Run 27 is the
+      **same commit six minutes earlier** with its upload step `skipped` —
+      the dry run — making it the fourth pair of this shape. Both
+      silent-failure gates passed at both ends: the archive carried the
+      Firebase config and the APNs entitlement, and the exported `.ipa`
+      was production-signed.
+
+      **`appBuild` is now 20, bumped off step 17's own conclusion in the
+      same session that dispatched the run.** Four bumps have now held
+      (runs 20, 21, 22, 28) against four skipped (18, 19, 24, 26). What is
+      new here is that the dry run, the upload, the bump and the record
+      were one session rather than four — the bump was made *from* the
+      step list, not from a memory of it, which is the only arrangement
+      that has ever worked. D186.
+
+      **BUILD 18 WAS UPLOADED BY RUN 26** (`810b3af`, 2026-08-16 15:08Z,
+      6m 32s, upload step `success`, 1m 39s of it transfer). Run 25 is the
+      **same commit seven minutes earlier** with its upload step `skipped`
+      — the dry run — making it the third runs-15/16-shaped pair after runs
+      23/24.
+
+      **The bump after run 26 did not happen either, and neither did the
+      record.** That is four skips (runs 18, 19, 24, 26) against three that
+      held (20, 21, 22), and it is a different failure from D180's. There,
+      somebody came back *specifically to record* the upload and left the
+      integer; the proposed remedy followed that shape — a gate asserting
+      `appBuild` exceeds whatever build this file claims was uploaded.
+      **Here nothing was written down at all**: no mention of run 25, run
+      26, either run id, or build 18 being delivered existed anywhere in
+      `docs/`, so that gate would have been silent. The tree was returned
+      to twice after the upload — #201 at 15:51Z and #202 at 16:48Z — by
+      sessions doing feature work, which had no reason to touch a build
+      number. **The invariant that would actually hold keys on the run
+      list, and nothing here can read it** (D73's shape again). Caught
+      2026-08-16 by build 19's pre-flight. D184.
+
+      **BUILD 17 WAS UPLOADED BY RUN 24** (`9a5f803`, 2026-08-15 18:31Z,
+      8m 42s, upload step `success`, 1m 55s of it transfer). Run 23 is the
+      **same commit eight minutes earlier** with its upload step `skipped`
+      — the dry run — which makes it the second runs-15/16-shaped pair and
+      the reason the conclusion is read per STEP: both runs are `success`
+      at the job level and only one of them spent a number.
+
+      **The bump after run 24 did not happen**, and it is the third time
+      (runs 18, 19, 24) against three that held (runs 20, 21, 22).
+      `appBuild` sat at 17 with 17 already delivered, caught 2026-08-16 by
+      build 18's pre-flight. **What is new is that somebody did come back
+      to the tree.** Commit `5798623` — "Build 17 is in TestFlight" —
+      returned the next day *specifically to record this upload*, cited the
+      run id, noted the dry run, wrote sixteen lines into 3.2 below, and
+      left the integer at 17. So D143's gap ("the upload finished" vs
+      "someone came back") is not the mechanism: **the record and the
+      number are two separate edits, and only one of them has a habit.** A
+      session can discharge the whole felt obligation and still leave the
+      number that costs ~150 minutes of macOS quota. D180.
+
       **BUILD 16 WAS UPLOADED BY RUN 22** (`67af354`, 2026-08-15 11:07Z,
       5m 25s, upload step `success`, 1m 23s of it transfer). Both APNs
       gates passed and the Firebase config was verified in the archive and
@@ -653,6 +710,101 @@ arithmetic.
       surfaces — so the archive has less new surface than the last run that
       succeeded, and the store filing does not move.
 
+      **Build 19 pre-flighted 2026-08-16 (D184) — and this one bumped
+      too.** Run 26's upload step reads `success` and `appBuild` at
+      `810b3af` was 18, so build 18 is spent and the tree's 18 was NOT
+      ahead. `appBuild` 18 → 19 by hand, propagated by `--fix` to
+      `versionCode` and both `CURRENT_PROJECT_VERSION` entries. Two
+      pre-flights running have now had to bump.
+
+      **Build 19 is a pure JavaScript payload**, the first since build 16.
+      Against run 26's commit it touches nothing under `ios/` or
+      `android/`, neither lockfile, neither rules file, and neither
+      store-filing file — 57 files, +1367/−609, all `src/`, `docs/` and
+      `web/privacy.html`. It carries **D181** (Near's field drew the city
+      it is not about, reported from a device) and **D182/D183** (the copy
+      pass, and the long disclosures moving out of the app into
+      `web/privacy.html` behind `check:policy-claims`). **So 4.4's store
+      filing does not move** and stands at the nine rows D180 corrected it
+      to — the window that opened there is unchanged, not closed: the live
+      label still describes build 17.
+
+      **The bundle's tight half moved the right way.** D180 left the eager
+      graph at 975 against 978 and named the answer "trim, not raise". The
+      copy pass trimmed it: **2321 KB total / 970 KB eager** against
+      2334 / 978, measured in the workflow's own build shape. First time
+      the eager number has gone *down* on a release path.
+
+      Measured, not asserted: **1216 client, 202 script, 228 function and
+      106 rules tests**, all three e2e suites green (each `npm` exit 0 with
+      its own `Script exited successfully`), `lint`, `tsc -b`,
+      `check:globals` at **409** across 183 files — its baseline, unmoved.
+      **D183 shipped with `test:rules` and the e2e suites unrun** for want
+      of Java 21 in its authoring environment; they were run here, so that
+      gap is closed rather than inherited.
+
+      **Build 18 pre-flighted 2026-08-16 (D180) — and this one bumped.**
+      Run 24's upload step reads `success` and `appBuild` at `9a5f803` was
+      17, so build 17 is spent and the tree's 17 was NOT ahead. `appBuild`
+      17 → 18 by hand, propagated by `--fix` to `versionCode` and both
+      `CURRENT_PROJECT_VERSION` entries. Three pre-flights running had
+      answered *run as-is*; this one does not, and the paragraph above
+      about run 24 has why.
+
+      **It was pre-flighted twice, because #199 landed underneath it** —
+      D170–D179, which also took this entry's original number. Every figure
+      here is the re-measurement against the merged tree. That is worth
+      naming as a shape rather than an accident: a pre-flight measures a
+      tree, `main` has automated and human writers, and the answer is
+      re-measurement rather than a faster hand. D159 made the same point
+      about the *commit* a dispatch archives.
+
+      Measured, not asserted: **1218 client, 228 function, 183 script and
+      106 rules tests**, all three e2e suites, `lint`, `tsc -b`,
+      `check:globals` at **409** (its baseline, unmoved — the payload added
+      no coupling), and 28 check gates. The same three are environmental as
+      at D158, and `check:web-firebase` has a wrinkle worth knowing: it
+      reads `VITE_FIREBASE_*` from the **environment** as well as from
+      `dist/`, so it must run inside the same env block as the build —
+      which is how the workflow invokes it, and is not obvious from the
+      name. Verified against an injected config: 72 chunks carrying a fake
+      project id.
+
+      **6.1's own `cap sync` found a drift that had been in the tree since
+      build 15.** `ios/App/CapApp-SPM/Package.swift` pinned
+      `capacitor-swift-pm` at `8.3.3` while `@capacitor/ios` has been 8.4.2
+      since dependabot's `831f808`; the file had never been committed at
+      8.4.2. **Nothing shipped wrong** — both `ios-build.yml` and
+      `ios-release.yml` run `cap sync` before building, so every archive
+      since build 15 used 8.4.2 from a regenerated file — but a human
+      opening Xcode without syncing resolved a different Capacitor than the
+      release did. `native-sync-drift` had been reporting it all along as a
+      `::warning::` whose step exits 0, so that job being green has never
+      meant *in sync*. #199's own sync committed the identical line hours
+      later, so the fix landed twice and the merge is a no-op on that file.
+
+      **`check:bundle` is green, and the tight half is now the one that
+      cannot be raised.** 2329 KB total against a ceiling #199 moved to
+      2334, so 5 KB — but the **eager graph reads 975 against 978, 3 KB**,
+      where build 16 had 17. That constant is the one D144 and D152 each
+      refused to raise and whose own header says it cannot be. The total
+      has a raise history; the eager one has a refusal history, so the next
+      change landing in the entry graph meets a "trim, not raise" answer.
+
+      **Build 18 is NOT the pure JavaScript payload build 16 was**, and
+      this line said it was until #199 merged. It now carries
+      `ios/App/App/Info.plist`, `android/…/AndroidManifest.xml`,
+      `storage.rules` (+58), `firestore.rules` (+196) and ~740 lines across
+      `functions/src`. `package-lock.json` is still untouched, so no
+      dependency moved — but the archive has real new native surface, and
+      the plist change alters what the OS prompts for.
+
+      **The store filing moves, for the first time since D141**, and 4.4
+      below has the detail: **PRECISE_LOCATION** (D175 — the app now
+      requests a precise fix) and **PHOTOS_OR_VIDEOS** (D178 — an optional
+      profile photo). Nine rows, not seven. **The upload does not need the
+      label updated first; the submission does.**
+
       **`npm run check:versions -- --fix` does NOT increment.** It
       propagates package.json's value into the two native projects and
       nothing more, so "run --fix to bump" is wrong and reports a cheerful
@@ -727,6 +879,22 @@ start.
       **Build 1 is in TestFlight and an external group was submitted for
       Beta App Review 2026-08-07.** What is left here is people, not setup.
 
+      **Build 17 uploaded 2026-08-15** (`ios-release.yml`, run
+      31901336491) — the first build carrying the D161–D165 work: the
+      paged bank fetch, the `core` corpus flag, and the move to the
+      `insight` / `europe-west1` database. The dry run (`upload=false`)
+      was run first and went green before the upload, which is the order
+      that workflow's header asks for and the reason a bad archive did
+      not spend the build number.
+
+      **This is the first build that talks to `insight` rather than
+      `(default)`,** so it is the one that proves the migration end to
+      end on a real device. Two things worth watching on first launch,
+      because both would be silent: the daily card renders (the bank
+      loaded from the new database) and answering it moves the count (the
+      trigger fired on the new database — D165's third silent failure is
+      exactly a trigger that never runs).
+
       **Start with INTERNAL testing, which has no review gate at all.**
       Internal testers are App Store Connect users on the team — up to 100
       — and they get a build as soon as it finishes processing. External
@@ -741,7 +909,7 @@ start.
       your own name.** There is no k-floor since D98: the first answer
       publishes exactly, so a count of 1 on your own device is that one
       answer and the who-voted sheet will name you. That is the product
-      working, not a leak — the 513 seeded questions are live regardless.
+      working, not a leak — the 537 seeded questions are live regardless.
       What used to sit here was the opposite warning (*"You're early"*
       under `AGG_MIN_N`, paused by D81 and removed entirely by D98).
 - [ ] **3.3 Walk the on-device verification list** — six checks, first
@@ -887,14 +1055,31 @@ That is a tester-count problem, not a workflow problem.
 - [ ] **4.4 The privacy nutrition label — the last form, and it is manual.**
       Mandatory; Apple accepts no submission without it.
 
+      **NINE ROWS SINCE D175 AND D178, AND THIS STEP SAID SEVEN UNTIL
+      BUILD 18's PRE-FLIGHT.** Precise Location and Photos or Videos are
+      now declared, and the paragraph below used to end *"Coarse Location,
+      never Precise"* — the exact claim D175 reversed. #199 changed
+      `app-privacy.json`, `STORE-FORMS.md` and the gate, and did not come
+      back for this step, so the instruction for typing the form was
+      telling you to under-declare two rows. That is the direction
+      `app-privacy.json` itself calls "the direction that gets an app
+      pulled", in the one step whose output is a legal statement. D180.
+
       **Apple's API cannot write it.** Not through another path — there is
       no App Privacy resource in the App Store Connect API at all, verified
       three ways (D73). So **Actions → App Store metadata** with *privacy*
       selected prints the form, row by row, in the order App Store Connect
-      asks, and you copy it across: 7 data types, each **App Functionality
-      / linked Yes / tracking No**, tracking overall **No**. Coarse
-      Location, never Precise. ~15 minutes, and nothing recalled from
-      memory.
+      asks, and you copy it across: **9 data types**, each **App
+      Functionality / linked Yes / tracking No**, tracking overall **No**.
+      ~15 minutes, and nothing recalled from memory — least of all from
+      this paragraph, which is why the printout is the artefact and the
+      prose is not.
+
+      **The two new rows ship in build 18, so the label and the binary move
+      together or the label is wrong.** Uploading does not need it —
+      TestFlight internal testing has no review gate — but **submission
+      (6.2) does**, and the gap between them is the window where the live
+      label describes a build that no longer exists.
 
       **Read `STORE-FORMS.md` before typing.** What you are entering is a
       legal statement about what the app collects. The printout transcribes
@@ -906,9 +1091,15 @@ That is a tester-count problem, not a workflow problem.
       The three that bite, and why each is worth knowing before you
       approve: **Tracking = No** (no IDFA, no ATT prompt, no ad SDK — the
       Facebook SDK is stripped at postinstall and asserted by
-      `check:ios-facebook`); **Coarse location = Yes, optional, never
-      Precise** (precise is unobtainable by construction, and `check:store-forms`
-      fails if it ever appears); **Sensitive info = Yes** (the politics
+      `check:ios-facebook`); **Location = Yes on BOTH rows since D175**
+      (the app asks the OS for a precise fix, so the label says Precise
+      whatever the app does with it next — the coordinate is still folded
+      to a ~220 m cell on the device and discarded; `check:store-forms`
+      now holds the row and `NSLocationDefaultAccuracyReduced` to each
+      other **in both directions**, so it fails if either moves alone
+      rather than failing whenever Precise appears); **Photos or Videos =
+      Yes since D178** (an optional profile photo, off by default, EXIF
+      dropped on the device); **Sensitive info = Yes** (the politics
       result is GDPR Art. 9 data — the form asks what you *collect*, not
       what you publish).
 

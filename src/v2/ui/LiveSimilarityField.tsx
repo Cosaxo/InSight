@@ -39,6 +39,8 @@ import PLACES from "../data/places";
 import {
   angleHash,
   CORE_TEST_KINDS,
+  flattenAxes,
+  scoreMatch,
   MIN_PLACE_AXES,
   parseTestResults,
   placeProfiles,
@@ -65,6 +67,27 @@ const SF_LINE = "1px solid color-mix(in oklch, var(--rule), transparent 25%)";
 
 // ── shared field canvas ──────────────────────────────────────────────
 
+/**
+ * A node in the constellation.
+ *
+ * THE GEOMETRY IS SIMILARITY, NEVER POSITION — the one rule this whole
+ * canvas rests on, and the reason it can draw strangers at all.
+ *
+ * `match` sets the radius: closer to the centre is more like you. There is
+ * no coordinate here and there must never be one. It matters most at the
+ * Near stop, where the temptation is exactly backwards: the app knows a
+ * ~200 m presence cell, so placing nodes where people actually ARE would
+ * look like an improvement and would turn an anonymous field into a map of
+ * where named-able strangers are standing — the thing `v2_presence`'s
+ * `allow read: if false` exists to prevent (D84/D98).
+ *
+ * The same reasoning bans per-node ATTRIBUTES on an anonymous field. A
+ * trade and an age are not sensitive on their own — everything here
+ * publishes under D98 — but they are a JOIN KEY: enough to find a named
+ * public account, after which the node has told you where that person is.
+ * A node that carries only a radius gives an attacker nothing to join on.
+ * That is why Near passes `label: ""` and `kind="anon"`.
+ */
 interface FieldNode {
   id: string;
   /** Short label under the node — a first name or a place name. */
@@ -229,20 +252,6 @@ function SfCaption({ children }: { children: React.ReactNode }) {
  * rows publish from the first answer (D98). So every empty arm offers the
  * tab that has something today.
  */
-function SfGoAnswers({ onGo }: { onGo?: () => void }) {
-  if (!onGo) return null;
-  return (
-    <div style={{ textAlign: "center", paddingBottom: 10 }}>
-      <button className="press" onClick={onGo}
-        style={{ border: "1px solid color-mix(in oklch, var(--rule), transparent 25%)", borderRadius: 999,
-          background: "var(--surface-2)", color: "var(--ink)", cursor: "pointer", padding: "8px 16px",
-          fontFamily: "var(--sans)", fontWeight: 800, fontSize: 12.5, WebkitAppearance: "none" }}>
-        See what they answered
-      </button>
-    </div>
-  );
-}
-
 function SfEmpty({ children }: { children: React.ReactNode }) {
   return (
     <div style={{ fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 600, color: "var(--ink-3)", lineHeight: 1.55, padding: "8px 2px 12px", textAlign: "center", maxWidth: 340, margin: "0 auto" }}>
@@ -272,9 +281,8 @@ function SfEmpty({ children }: { children: React.ReactNode }) {
  * draws: an empty field has nothing to tap, and a `people` canvas with no
  * people would hand out roles and tab stops to nothing.
  */
-function SfEmptyField({ caption, onGo, children }: {
+function SfEmptyField({ caption, children }: {
   caption?: React.ReactNode;
-  onGo?: () => void;
   children: React.ReactNode;
 }) {
   return (
@@ -282,7 +290,6 @@ function SfEmptyField({ caption, onGo, children }: {
       <SimilarityCanvas kind="anon" nodes={[]} picked={null} onPick={() => {}} />
       {caption ? <SfCaption>{caption}</SfCaption> : null}
       <SfEmpty>{children}</SfEmpty>
-      <SfGoAnswers onGo={onGo} />
     </div>
   );
 }
@@ -366,9 +373,8 @@ function PersonCard({ p, myParsed }: { p: RankedPerson; myParsed: ParsedResults 
   );
 }
 
-function CityField({ myParsed, onGoAnswers }: {
+function CityField({ myParsed }: {
   myParsed: ParsedResults | null;
-  onGoAnswers?: () => void;
 }) {
   const [picked, setPicked] = React.useState<string | null>(null);
   const city = LIVE.myCity;
@@ -384,12 +390,10 @@ function CityField({ myParsed, onGoAnswers }: {
 
   if (!shown.length) {
     return (
-      <SfEmptyField caption={<>kindred strangers in {cityName}</>}
-        onGo={loading ? undefined : onGoAnswers}>
+      <SfEmptyField caption={<>{cityName}</>}>
         {loading
-          ? <>Working out who in {cityName} is most like you…</>
-          : <>Nobody from {cityName} yet among the people on your questions —
-            this fills in as more of the city answers.</>}
+          ? <>Matching…</>
+          : <>Nobody from {cityName} yet — fills in as the city answers.</>}
       </SfEmptyField>
     );
   }
@@ -403,15 +407,15 @@ function CityField({ myParsed, onGoAnswers }: {
         match: p.score ? p.score.match : p.like.pct,
         scored: !!p.score,
       }))} onPick={(id) => setPicked(picked === id ? null : id)} />
+      {/* A caption is a legend, not a description: the place, the radius's
+          meaning, and what a dashed ring encodes. "kindred strangers" was
+          the section's own heading said twice. */}
       <SfCaption>
-        kindred strangers in {cityName} · closer = more like you
-        {scoredN < shown.length ? " · dashed = from answers, not scores" : ""}
+        {cityName} · closer = more like you
+        {scoredN < shown.length ? " · dashed = answers only" : ""}
       </SfCaption>
       {!myParsed && (
-        <SfEmpty>
-          Ranked by matching answers for now — finish a test and this ranks
-          by scores.
-        </SfEmpty>
+        <SfEmpty>Finish a test to rank by scores.</SfEmpty>
       )}
       {pickedP && <PersonCard p={pickedP} myParsed={myParsed} />}
     </div>
@@ -506,60 +510,109 @@ const NEAR_FIELD_CAP = 14;
 export function NearField() {
   const [, bump] = React.useReducer((n: number) => n + 1, 0);
   React.useEffect(() => LIVE.subscribe(bump), []);
-  // The same bounded, session-cached loader the City stop's field uses, so
-  // arriving here after City costs nothing and arriving before it warms
-  // the cache City is about to want.
+  // THE ROOM, NOT THE CITY (D181). This field drew the people of your CITY
+  // from D150 until now, ranked by likeness and drawn anonymously — a
+  // deliberate choice made when Near had a count and nothing else true to
+  // show, and the right one at the time.
+  //
+  // D177 removed the premise. Near has its own population now: the people
+  // actually standing here, which the People tab lists two inches below
+  // this. Drawing the city's crowd above that list made one stop describe
+  // two different sets of people and name the wrong one — "Nobody from Oslo
+  // yet" on a stop called Near — which is D170's finding exactly, one stop
+  // over.
+  //
+  // The roster is asked for with NO qids, which is the cheap half of the
+  // room call: the server returns the sampled people and folds no answers,
+  // so arriving at Near costs a presence sample rather than a document per
+  // person per question. The tabs ask again with the deck when one is
+  // opened, and the per-cell cache means the roster is already there.
+  React.useEffect(() => { void LIVE.near.loadRoom([]); }, []);
   React.useEffect(() => { void LIVE.loadSimilarity(); }, []);
+
+  const on = LIVE.near.on();
+  const room = LIVE.near.room();
+  const roster = React.useMemo(() => (room ? room.people : []), [room]);
+  // Keyed on the uid LIST rather than the array, which `near.room()` hands
+  // back fresh on every notify — an effect keyed on the array itself would
+  // re-fire on every beat and re-ask for names it already holds.
+  const rosterKey = roster.map((p) => p.uid).join(",");
+  React.useEffect(() => {
+    void LIVE.loadNames(rosterKey ? rosterKey.split(",") : []);
+  }, [rosterKey]);
+  // AFTER the hooks, never before: an early return above them changes the
+  // hook order between renders (react-hooks/rules-of-hooks), and this
+  // component has four.
   if (!LIVE.enabled) return null;
 
-  const city = LIVE.myCity;
-  const place = city ? PLACES.parse(city) : null;
-  const cityName = place ? place.name : city;
-  const myParsed = parseTestResults(LIVE.myTestResults(), CORE_TEST_KINDS);
-  const people = rankKindred(LIVE.kindredPeople(), myParsed, { city, minShared: 2 });
-  const shown = people.slice(0, NEAR_FIELD_CAP);
-  const loading = LIVE.similarityLoading() || LIVE.kindredLoading();
+  const myFlat = flattenAxes(parseTestResults(LIVE.myTestResults(), CORE_TEST_KINDS) || {});
+  // Placed by test-score likeness, the same metric the City and World
+  // fields use — and the one the owner asked for in as many words: the map
+  // is not about position, it is about how alike people are.
+  //
+  // Somebody who has not taken the test cannot be placed by it, so they are
+  // NOT drawn rather than parked at a default radius: a node at an invented
+  // distance is a claim about a person, and the caption below says how many
+  // are missing instead.
+  const placed = Object.keys(myFlat).length
+    ? roster
+      .map((p) => {
+        const theirs = LIVE.scoresFor(p.uid);
+        return { uid: p.uid, m: theirs ? scoreMatch(myFlat, flattenAxes(theirs), 3) : null };
+      })
+      .filter((p): p is { uid: string; m: NonNullable<ReturnType<typeof scoreMatch>> } => !!p.m)
+      .sort((a, b) => b.m.match - a.m.match)
+      .slice(0, NEAR_FIELD_CAP)
+    : [];
 
-  // No city, no cohort to draw from. Said plainly rather than drawn empty:
-  // the picker lives one stop over and the counter above still works.
-  if (!city) {
+  if (!on) {
     return (
       <SfEmptyField>
-        Set your city — at the City stop, or by turning the count above on —
-        and the people around you draw in here, closest first.
+        Turn it on and people draw in here — by likeness, never by position.
       </SfEmptyField>
     );
   }
-  if (!shown.length) {
+  if (!placed.length) {
     return (
       <SfEmptyField>
-        {loading
-          ? <>Working out who around you is most like you…</>
-          : <>Nobody from {cityName} yet among the people on your questions —
-            this fills in as more of the city answers.</>}
+        {LIVE.near.roomLoading()
+          ? <>Matching…</>
+          : roster.length
+            ? <>Nobody here has taken the test — {roster.length} in the room,
+              {" "}<strong>People</strong> lists them.</>
+            : <>Nobody else has Near on right now.</>}
       </SfEmptyField>
     );
   }
 
-  const scoredN = shown.filter((p) => p.score).length;
   return (
     <div style={{ padding: "2px 0" }}>
-      <SimilarityCanvas kind="anon" picked={null} onPick={() => {}} nodes={shown.map((p) => ({
+      <SimilarityCanvas kind="anon" picked={null} onPick={() => {}} nodes={placed.map((p) => ({
         id: p.uid,
         // Deliberately empty. `anon` draws neither, and an id that carried
         // a name would be one refactor away from rendering it.
         label: "",
-        match: p.score ? p.score.match : p.like.pct,
-        scored: !!p.score,
+        match: p.m.match,
+        scored: true,
       }))} />
-      <SfCaption>closer to you = more alike</SfCaption>
-      {/* What the ring is, in the one sentence that keeps it apart from
-          the count above it. */}
+      {/* What the ring counts, so it is not read as the presence figure
+          above it (the D112 honesty rule), and the basis it is placed on.
+
+          THE NAMELESSNESS IS BACK HERE (D188), where it was until D183 and
+          where a legend belongs. D183 dropped it because the stop's closing
+          line said the same thing plus where the names are; D188 deleted
+          that line, because it sat under the tab row and the prototype has
+          nothing there. Deleting a limit is not one of the moves available
+          (docs/COPY.md §3) — so it comes back to the visual it qualifies,
+          keeping the half that made D183 prefer the other copy: which
+          surface DOES name people. An anonymous node is exactly the kind of
+          encoding a reader cannot infer, which is what a legend is for. */}
+      <SfCaption>
+        {placed.length} of {roster.length} here · closer = more alike
+      </SfCaption>
       <SfEmpty>
-        {shown.length} {shown.length === 1 ? "person" : "people"} in {cityName},
-        placed by how close {shown.length === 1 ? "their answers sit" : "their answers sit"} to
-        yours{scoredN < shown.length ? " — dashed rings are ranked from answers, not scores" : ""}.
-        Nobody is named here.
+        Nobody is named here; <strong>People</strong> names them. Placed by
+        test scores{placed.length < roster.length ? " — the rest have not taken it" : ""}.
       </SfEmpty>
     </div>
   );
@@ -582,16 +635,14 @@ function PlaceCard({ p, label, myFlat }: {
       </div>
       <div style={{ fontFamily: "var(--sans)", fontSize: 12, fontWeight: 600, color: "var(--ink-2)", lineHeight: 1.5 }}>
         {p.score
-          ? <>Average scores sit <strong>{p.score.match}%</strong> aligned with yours,
-            across {p.score.axes} shared axes.</>
-          : <>The average scores here — not enough overlap with your own axes
-            for a likeness yet (needs {MIN_PLACE_AXES}).</>}
+          ? <><strong>{p.score.match}%</strong> aligned with your scores, across {p.score.axes} axes.</>
+          : <>Too few shared axes for a likeness yet (needs {MIN_PLACE_AXES}).</>}
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {CORE_TEST_KINDS.filter((k) => p.byTest[k]?.length).map((kind) => (
           <div key={kind} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             <span style={{ fontFamily: "var(--sans)", fontSize: 10.5, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--ink-3)" }}>
-              {DEFS[kind]?.title || kind} — their average, with your tick
+              {DEFS[kind]?.title || kind} · their average
             </span>
             {p.byTest[kind].map((a) => (
               <SfAxisRow key={a.dim} label={a.label} value={a.value}
@@ -604,10 +655,9 @@ function PlaceCard({ p, label, myFlat }: {
   );
 }
 
-function PlacesField({ scope, myFlat, onGoAnswers }: {
+function PlacesField({ scope, myFlat }: {
   scope: "country" | "world";
   myFlat: Record<string, number> | null;
-  onGoAnswers?: () => void;
 }) {
   const [picked, setPicked] = React.useState<string | null>(null);
   const myCity = LIVE.myCity;
@@ -631,12 +681,10 @@ function PlacesField({ scope, myFlat, onGoAnswers }: {
   if (!profiles.length) {
     return (
       <SfEmptyField
-        caption={<>{scope === "country" ? "your country's cities" : "the world's countries"}, by likeness</>}
-        onGo={loading ? undefined : onGoAnswers}>
+        caption={<>{scope === "country" ? "your country's cities" : "the world's countries"}, by likeness</>}>
         {loading
-          ? <>Reading the score profiles…</>
-          : <>No {what} has answered the score questions yet — profiles start
-            with the first test answer.</>}
+          ? <>Reading profiles…</>
+          : <>No {what} has answered a score question yet.</>}
       </SfEmptyField>
     );
   }
@@ -652,7 +700,7 @@ function PlacesField({ scope, myFlat, onGoAnswers }: {
             home: homeOf(p.key),
             scored: true,
           }))} onPick={(id) => setPicked(picked === id ? null : id)} />
-          <SfCaption>closer = a {what} more like you · from average test scores</SfCaption>
+          <SfCaption>closer = more like you · from average test scores</SfCaption>
         </>
       ) : (
         <>
@@ -662,11 +710,8 @@ function PlacesField({ scope, myFlat, onGoAnswers }: {
               would be an invented likeness. */}
           <SfEmpty>
             {myFlat
-              ? <>Score profiles exist here, but none shares enough axes with
-                yours yet.</>
-              : <>Answer a few score questions — or finish a test — and these
-                {" "}{what === "city" ? "cities" : "countries"} take their
-                places around you.</>}
+              ? <>None of these shares enough axes with yours yet.</>
+              : <>Finish a test and these take their places around you.</>}
           </SfEmpty>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6, justifyContent: "center", padding: "2px 0 6px" }}>
             {profiles.slice(0, PLACE_FIELD_CAP).map((p) => (
@@ -684,8 +729,8 @@ function PlacesField({ scope, myFlat, onGoAnswers }: {
       )}
       {thin > 0 && positioned.length > 0 && (
         <SfEmpty>
-          {thin} more {thin === 1 ? `${what} has` : `${what === "city" ? "cities" : "countries"} have`} answers
-          but not enough shared axes for a place here yet.
+          {thin} more {thin === 1 ? what : what === "city" ? "cities" : "countries"} answered,
+          too few shared axes to place.
         </SfEmpty>
       )}
       {pickedP && <PlaceCard p={pickedP} label={labelOf(pickedP.key)} myFlat={myFlat} />}
@@ -695,10 +740,9 @@ function PlacesField({ scope, myFlat, onGoAnswers }: {
 
 // ── the section host ─────────────────────────────────────────────────
 
-function SimilaritySection({ scope, onGoAnswers }: {
+function SimilaritySection({ scope }: {
   scope: "city" | "country" | "world";
   /** Sends the reader to the Answers tab from an empty field (D135). */
-  onGoAnswers?: () => void;
 }) {
   const [, bump] = React.useReducer((n: number) => n + 1, 0);
   React.useEffect(() => LIVE.subscribe(bump), []);
@@ -710,7 +754,7 @@ function SimilaritySection({ scope, onGoAnswers }: {
 
   const myParsed = parseTestResults(LIVE.myTestResults(), CORE_TEST_KINDS);
   if (scope === "city") {
-    return <CityField myParsed={myParsed} onGoAnswers={onGoAnswers} />;
+    return <CityField myParsed={myParsed} />;
   }
   // The viewer's own axes for the place fields: completed instruments
   // first, own answers to the bank's test items filling the gaps — real
@@ -721,7 +765,7 @@ function SimilaritySection({ scope, onGoAnswers }: {
   // is worth to a scorer.
   const items = testItemMeta(LIVE.testFeedItems(), DEFS);
   const myFlat = myFlatAxes(myParsed, items, DEFS, voteIndices(LIVE.myVotes()));
-  return <PlacesField scope={scope} myFlat={myFlat} onGoAnswers={onGoAnswers} />;
+  return <PlacesField scope={scope} myFlat={myFlat} />;
 }
 
 export default SimilaritySection;

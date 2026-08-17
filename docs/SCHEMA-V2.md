@@ -155,17 +155,88 @@ v2_question_aggs/{qid}             the PUBLIC mirror, EXACT (D98)
                                    member sets, per-group anything
 read: signed-in · write: nobody
 
+v2_avatars/{uid}                   the profile photo's document (D178)
+  token: "…"                       the Storage download token for
+                                   avatars/{uid}. NOT a URL: the client
+                                   builds the URL around it, so this field
+                                   can never name a host we do not control
+                                   (rules pin the charset — no dot, colon
+                                   or slash)
+  at: request.time                 when it was set
+  hidden: false                    the server's word, never a client's.
+                                   True after a remove verdict, and then
+                                   the doc takes no client update AND no
+                                   client delete — both are the way back
+  hiddenMeta?: {by, policyLine,    the appeal's annotation, exactly a
+    runId, at}                     take's shape (D22/D65)
+read: any signed-in user · create/update/delete: owner only, and refused
+outright once hidden. The BYTES live in Storage at avatars/{uid}, one
+object per account at a fixed id so the count is bounded by accounts
+rather than by uploads. deleteAccount removes both halves.
+
 v2_presence/{uid}                  Near-by-radius presence (D84)
-  cell: "la_lo"                    a ~1 km 0.01-degree grid id, computed
-                                   ON DEVICE from a coarse fix whose
+  cell: "la_lo"                    a ~200 m 0.002-degree grid id (D175;
+                                   0.01° ≈ 1.1 km before it), computed
+                                   ON DEVICE from a precise fix whose
                                    coordinate is discarded (data/locate.ts)
-  at: request.time                 freshness; docs older than 10 min do
-                                   not count as "here"
+  at: request.time                 last write; the beat refreshes it
+  until?: timestamp                when this position STOPS counting
+                                   (D174) — the linger for the standing
+                                   option, the session deadline for the
+                                   timed one, whichever is sooner. The
+                                   count filters on it, and the rules cap
+                                   it at PRESENCE_LINGER_MIN so no client
+                                   grants itself a longer stay. OPTIONAL
+                                   for one release (D179): the build that
+                                   predates D175 writes no `until`, rules
+                                   deploy on merge and apps do not, and
+                                   the server reads a missing one as `at`
+                                   + the linger and backfills it
+  type?: "Host"                    optional: the writer's OWN Big Five
+                                   archetype NAME (D176), ≤40 chars. The
+                                   phone writes it because the archetype
+                                   table lives on the device — this is
+                                   the only thing the room's mix folds
+                                   from, so the server never joins a
+                                   profile and never scores anybody
 read: NOBODY (the only read path is nearbyCountV2, which returns a count
-of fresh presence in the 3x3 neighborhood, caller excluded) ·
+over the 3x3 neighborhood, caller excluded, plus a coarse mix of names) ·
 create/update/delete: owner only, shape-checked — the cell regex in the
 rules is the precision cap in structural form. Opting out deletes the
 doc; deleteAccount does too.
+
+v2_presence_mix/{cell}             the room's folded reading (D176)
+  top: ["Host", "Explorer"]        archetype names in rank order. NEVER a
+                                   share beside a name — a percentage of
+                                   a dozen people is a headcount wearing
+                                   a disguise
+  n: 11                            how many TYPED phones it was folded
+                                   from; below ROOM_MIN_TYPED there is no
+                                   reading and the refusal itself is
+                                   cached, so a quiet room folds once
+  at: timestamp                    written at; re-folded past the beat
+                                   window, served from here inside it
+read/write: NOBODY. Written by nearbyCountV2 on the admin SDK. Derived
+from presence, so it carries presence's deny: a client reading a cell it
+is not standing in has a map of every room, not a reading about its own.
+
+v2_presence_room/{cell}            the room, folded (D177)
+  people: [{uid, type?}]           the sampled roster, <= ROOM_PEOPLE_CAP.
+                                   `type` is the archetype the phone wrote
+                                   for itself; absent for an untyped phone
+  qs: { qid: {optionIdx: n} }      option counts over exactly those
+                                   people, in v2_question_aggs' own shape.
+                                   Accumulated per qid INSIDE a window and
+                                   replaced wholesale when the window
+                                   turns, so a stale split is never
+                                   republished under a fresh stamp
+  at: timestamp                    written at; one beat window
+read/write: NOBODY. Written by nearbyRoomV2 on the admin SDK, which
+refuses any caller without a live position of their own in that
+neighbourhood — the gate is what makes a roster defensible, and a
+readable cache would route around it. THE ONE DERIVED DOC THAT HOLDS
+UIDS: deleteAccount drops it alongside the leaving account's presence
+doc, so an erased account is not left listed in a room.
 
 v2_groups/{gid}                    groups AND duos (mode: group|duo)
   name, mode, ownerUid, memberUids[≤32; duo ≤2], memberNames{uid:name},
@@ -249,7 +320,7 @@ MOD_UIDS-gated callables (the D22 confinement)
 ## Functions
 
 - `seedContentV2` (callable; emulator or SEED_ADMIN_UIDS allowlist) — mirrors `/content` question banks
-  into `v2_questions` (513 docs, stable ids `daily-000`, `feed-<id>`,
+  into `v2_questions` (537 docs, stable ids `daily-000`, `feed-<id>`,
   `group-<id>`, `duo-000`, `test-<key>-NN`; idempotent merge; `active` written only on first create, preserving the
   operational kill switch). Bank source:
   `functions/src/v2content.ts`, generated from `/content/*.json`.
@@ -300,7 +371,7 @@ read: signed-in · write: nobody
 ## Read economics (client)
 
 A live boot costs ~20 reads, not ~380: one `v2_meta/app` read decides
-everything. The question bank (513 docs) caches in localStorage keyed by
+everything. The question bank (537 docs) caches in localStorage keyed by
 `contentRev`, and refreshes **incrementally** — one query for docs newer
 than the cache's `updatedAt` cursor, so a promotion cycle costs the
 handful of questions it added rather than the whole bank (D34;
@@ -335,7 +406,7 @@ not per boot. `LIVE.stats` reports `bankSource` / `answersFetched` /
 
 ## Verification
 
-- `npm run test:rules` — 90 rules tests (Firestore + Storage; the v2
+- `npm run test:rules` — 106 rules tests (Firestore + Storage; the v2
   surface, the anonymous-default lens, and the retired-v1 guard).
 - `firestore-tests/e2e-v2-loop.mjs` under
   `firebase emulators:exec --only auth,firestore,functions` — the full

@@ -29,11 +29,22 @@ export type LocateResult =
   | { ok: true; key: string; km: number }
   | { ok: false; reason: LocateFail };
 
-// Coarse is the whole point, so high accuracy is off. It also matters for
-// the permission the plugin asks for: on Android 12+ enableHighAccuracy
-// false is what makes @capacitor/geolocation request COARSE alone rather
-// than the [COARSE, FINE] alias (GeolocationPlugin.kt, getAlias).
-const OPTS = { enableHighAccuracy: false, timeout: 12000, maximumAge: 600000 };
+// PRECISE SINCE D175, and the flag does two jobs. It is the accuracy of
+// the fix, and on Android 12+ it is also what @capacitor/geolocation asks
+// the OS for: `false` requested COARSE alone, `true` requests the
+// [COARSE, FINE] alias (GeolocationPlugin.kt, getAlias). Both halves of
+// this decision are therefore this one boolean plus the manifest cap that
+// came off beside it.
+//
+// This was `false` — the coarse request that made the
+// old ~1 km grid the honest ceiling. A venue-scale Near needs a fix that
+// can actually resolve one; the alternative was a finer grid computed from
+// a kilometre-wide measurement, which is invented precision.
+//
+// `maximumAge` drops with it: a ten-minute-old fix was fine for "which
+// city", and is not fine for "which building" — a cached position from the
+// last neighbourhood would place you in a room you left.
+const OPTS = { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 };
 
 // A wall-clock deadline for the WHOLE operation, permission prompt included.
 //
@@ -149,7 +160,7 @@ export type LocateCellResult =
  * Resolve the presence-grid cell (D84), or a reason why not.
  *
  * Same containment rule as locateCity, one notch coarser: the fix is
- * folded to a ~1 km grid id inside this function and the coordinate never
+ * folded to a ~200 m grid id inside this function and the coordinate never
  * escapes. This module remains the only code that ever holds one, and no
  * caller can obtain a position — or anything finer than the cell — through
  * it. Same coarse permission, same wall-clock deadline, same failure

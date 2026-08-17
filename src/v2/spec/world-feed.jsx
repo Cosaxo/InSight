@@ -25,6 +25,9 @@ import { Sheet } from './primitives.jsx';
 // rather than a copy of it (D11's claim, D42's citation; see the module).
 import { interleaveFeed, partitionAnswered } from '../data/feed-interleave.ts';
 import { deferUntil, isDeferred, pruneDeferred } from '../data/deferQueue.ts';
+// "Somebody asked for the topic list" (D190). The profile's scenes card is
+// the caller; this file owns the list, so this file is what answers.
+import { consumeTopicSheet, subscribeTopicSheet } from '../data/topicSheet.ts';
 // The live world-takes surface (D83) — an ordinary ESM import of the typed
 // panel, like the data imports above, so the D39 coupling meter stays flat.
 import LiveTakesPanel from '../ui/LiveTakesPanel.tsx';
@@ -32,7 +35,7 @@ import LiveTakesPanel from '../ui/LiveTakesPanel.tsx';
 // coupling-meter reasoning. The three legacy stores stay window.* reads
 // below (in the D39 baseline); convert them on touch, never re-add one.
 import ELEMENTS_CATALOG from '../data/elements.ts';
-import { COUNTRIES } from '../data/catalogs.ts';
+import { COUNTRIES, DOGS } from '../data/catalogs.ts';
 // Imported for the D89 gate rather than read off window — same meter
 // reasoning as the imports above. The window.LIVE reads elsewhere in this
 // file predate the ratchet; new ones may not join them.
@@ -270,6 +273,15 @@ class WorldFeed extends React.Component {
     this.applySnap(); this._retry = setTimeout(() => this.applySnap(), 400);
     // scenes followed elsewhere (orbit, suggestion card) appear here live
     this._unsubScenes = SCENES.subscribe(() => this.forceUpdate());
+    // The topic list, asked for from somewhere else (D190). BOTH halves are
+    // needed and neither is redundant: arriving from the Mirror tab mounts
+    // this component fresh (the request is waiting, so the mount consumes
+    // it), while the profile opened OVER the daily tab leaves it mounted
+    // throughout — there `goNav` closes an overlay and switches nothing,
+    // and only the subscription fires.
+    this._openTopics = () => { if (consumeTopicSheet()) this.setState({ sheet: { panel: 'add' } }); };
+    this._openTopics();
+    this._unsubTopics = subscribeTopicSheet(this._openTopics);
     // Reconcile with the live store. The feed seeds its votes from
     // localStorage at mount and never looked at LIVE again, so a vote the
     // server REFUSED — LIVE rolls it back and scrubs the WF_LS mirror —
@@ -360,6 +372,7 @@ class WorldFeed extends React.Component {
     clearTimeout(this._rippleT);
     clearTimeout(this._ehT);
     if (this._unsubScenes) this._unsubScenes();
+    if (this._unsubTopics) this._unsubTopics();
     if (this._unsubLive) this._unsubLive();
     if (this._unsubSubs) this._unsubSubs();
     if (this._unsubLearn) this._unsubLearn();
@@ -1311,11 +1324,11 @@ class WorldFeed extends React.Component {
                 {src === 'measured'
                   ? (() => {
                     const n = tally ? tally.total : 0;
-                    if (r.repeat) return 'From ' + n.toLocaleString() + ' first ' + (n === 1 ? 'try' : 'tries') + ' — only a first answer counts, so this one is not among them.';
+                    if (r.repeat) return 'From ' + n.toLocaleString() + ' first ' + (n === 1 ? 'try' : 'tries') + ' — yours is a repeat, so it is not in there.';
                     if (n === 1) return 'Yours is the only answer so far.';
-                    return 'From ' + n.toLocaleString() + ' answers — everyone’s first try at this card.';
+                    return 'From ' + n.toLocaleString() + ' first tries.';
                   })()
-                  : 'Nobody else has answered this one yet — you’re the first.'}
+                  : 'You’re the first.'}
               </div>
             ) : null}
             {card.w ? <p style={{ margin: 0, fontFamily: 'var(--sans)', fontSize: 13.5, fontWeight: 500, lineHeight: 1.5, color: 'var(--ink-2)', textWrap: 'pretty' }}>{card.w}</p> : null}
@@ -1353,6 +1366,7 @@ class WorldFeed extends React.Component {
       : domain === 'emoji' ? window.EMOJI
       : domain === 'elements' ? ELEMENTS_CATALOG
       : domain === 'countries' ? COUNTRIES
+      : domain === 'dogs' ? DOGS
       : window.POKEDEX;
   }
 
@@ -2327,7 +2341,7 @@ class WorldFeed extends React.Component {
         {LF ? (
           <div style={{ marginTop: open.length || openLeaves.length || mine.length ? 20 : 2 }}>
             <div style={label}>Learn</div>
-            <p style={{ margin: '0 2px 11px', fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 500, lineHeight: 1.45, color: 'var(--ink-3)', textWrap: 'pretty' }}>Questions with a right answer, mixed into the feed. Get one right and it lands on your map.</p>
+            <p style={{ margin: '0 2px 11px', fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 500, lineHeight: 1.45, color: 'var(--ink-3)', textWrap: 'pretty' }}>Questions with a right answer. Get one right and it lands on your map.</p>
             <div style={{ display: 'flex', gap: 4, padding: 3, border: '0.5px solid var(--rule)', background: 'var(--surface)', borderRadius: 999 }}>
               {LF.LEVELS.map((v) => {
                 const on = LF.freq() === v;
@@ -2786,9 +2800,8 @@ class WorldFeed extends React.Component {
             slice with nothing behind it yet. */}
         {live ? (
           <div style={{ fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 500, color: 'var(--ink-3)', lineHeight: 1.5, padding: '4px 2px 10px' }}>
-            Who knows this \u2014 by age, country or schooling \u2014 needs the answers
-            broken down per group, and knowledge cards do not publish that
-            yet. The rate above is everyone at once.
+            Knowledge cards don&apos;t publish per-group cuts yet — the rate above
+            is everyone at once.
           </div>
         ) : dim === 'friends' ? (
           seen.length ? (
@@ -3234,7 +3247,7 @@ class WorldFeed extends React.Component {
       const name = this.pickName(ent, q.domain);
       const c = window.PICKS ? window.PICKS.canon(q.id) : null;
       const lead = c && c.top.length ? this.pickName(c.top[0].entity, q.domain) : null;
-      return <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--ink-3)' }}>you {name || '\u2026'} \u00b7 crowd {lead || '\u2014'}</span>;
+      return <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--ink-3)' }}>you {name || '\u2026'} · crowd {lead || '\u2014'}</span>;
     }
     if (q.type === 'know') {
       const r = this.knowOf(q);

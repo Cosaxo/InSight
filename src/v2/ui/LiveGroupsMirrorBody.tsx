@@ -22,6 +22,17 @@
 // layer's render-time lookup working unchanged.
 import React from "react";
 import LIVE from "../data/live";
+// The rings-and-you drawing every other stop shows when it is empty (D172).
+// A tiny standalone module, NOT LiveSimilarityField: this file is a static
+// import in mirror-tab, and that one is the whole similarity engine.
+import EmptyField from "./EmptyField";
+// The stop's tab row (D190) — static like every other host's, because it IS
+// the stop's navigation and a suspense gap where the tabs belong is a stop
+// that looks broken.
+import MirrorLensTabs from "./MirrorLensTabs";
+import { useLensRowScroll } from "./lensRowScroll";
+import type { LensTab } from "./lensTabs";
+import type { LensQuestion } from "./lensDefs";
 import { groupPortrait, MIN_SHARED, type GroupPortrait, type PortraitReveal } from "../data/groupPortrait";
 
 // The stop's constellation (D152) — shared with Circle and the cohort
@@ -31,8 +42,30 @@ import { groupPortrait, MIN_SHARED, type GroupPortrait, type PortraitReveal } fr
 const LgField = React.lazy(() =>
   import("./LiveSimilarityField").then((m) => ({ default: m.PeopleField })),
 );
+// Compare, borrowed rather than rebuilt (D190) — the same reuse Near makes
+// (LiveRoomTabs) and for the same reason: `CompareLens` takes
+// `LensQuestion[]` and a noun, so a cohort folded on the device reads
+// exactly as one folded by the server, D170's majority test included.
+//
+// LAZY IS NOT OPTIONAL HERE. This file is a STATIC import in mirror-tab, so
+// a static import of the lens chunk would put all four lens bodies in the
+// entry graph — where check:bundle leaves about a dozen kilobytes.
+const GroupCompare = React.lazy(() =>
+  import("./LiveMirrorLenses").then((m) => ({ default: m.CompareLens })),
+);
 
 const LG_LINE = "0.5px solid var(--rule)";
+
+/**
+ * The stop's three, in the prototype's order (`group-mirror.jsx` gives the
+ * demo twin exactly these, and D184's argument for ending on Compare
+ * ports: the first two describe the group, the third puts you against it).
+ */
+const GROUP_TABS: LensTab[] = [
+  { id: "answers", label: "Answers" },
+  { id: "people", label: "People" },
+  { id: "compare", label: "Compare" },
+];
 
 interface LiveGroup {
   id: string;
@@ -106,13 +139,28 @@ function lgPrompt(qid: string | null): string | null {
   return (bankQ && bankQ.prompt) || null;
 }
 
+/** A tab with nothing in it yet — one sentence, where the card would be. */
+function LgEmpty({ children }: { children: React.ReactNode }) {
+  return (
+    <div style={{ fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 600, color: "var(--ink-3)", lineHeight: 1.55, padding: "10px 2px" }}>
+      {children}
+    </div>
+  );
+}
+
 // ── Answers: what the group landed on, one row per revealed day ──
 function LgAnswersCard({ g, P }: { g: LiveGroup; P: GroupPortrait }) {
   const [open, setOpen] = React.useState<string | null>(null);
   const rows = P.rows.slice(0, 7);
-  if (!rows.length) return null;
+  // A TAB SAYS WHY IT IS EMPTY (D190). This returned null, which was right
+  // while the card was one of two things stacked on the stop — a card that
+  // draws nothing takes no space. Behind a tab somebody tapped, nothing at
+  // all reads as a screen that broke.
+  if (!rows.length) {
+    return <LgEmpty>Nothing revealed yet — answers stay sealed until the morning after.</LgEmpty>;
+  }
   return (
-    <div className="card" style={{ marginTop: 14 }}>
+    <div className="card">
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
         <LgKicker>What the group landed on</LgKicker>
         <span style={{ fontFamily: "var(--sans)", fontSize: 11, fontWeight: 700, color: "var(--ink-3)" }}>{P.days} {P.days === 1 ? "day" : "days"} revealed</span>
@@ -169,10 +217,18 @@ function LgAnswersCard({ g, P }: { g: LiveGroup; P: GroupPortrait }) {
 
 // ── People: how close each member runs to you, from shared days ──
 function LgPeopleCard({ g, P }: { g: LiveGroup; P: GroupPortrait }) {
-  if (!P.people.length) return null;
   const names = g.memberNames || {};
+  if (!P.people.length) {
+    return (
+      <LgEmpty>
+        {(g.memberUids || []).length > 1
+          ? <>Places are taken from the first shared reveal.</>
+          : <>Add someone from the daily tab and they appear here.</>}
+      </LgEmpty>
+    );
+  }
   return (
-    <div className="card" style={{ marginTop: 14 }}>
+    <div className="card">
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
         <LgKicker>Who runs closest to you</LgKicker>
         <span style={{ fontFamily: "var(--sans)", fontSize: 10.5, fontWeight: 600, color: "var(--ink-3)", letterSpacing: "0.06em", textTransform: "uppercase" }}>same pick, same day</span>
@@ -188,9 +244,7 @@ function LgPeopleCard({ g, P }: { g: LiveGroup; P: GroupPortrait }) {
             id: p.uid, label: names[p.uid] || "", match: p.pct,
           }))}
           caption="closer to you = agreed more often"
-          emptyLine={<>No day yet where you and someone here answered the
-            same question — the circle takes its places from the first
-            shared reveal.</>}
+          emptyLine={<>Places are taken from the first shared reveal.</>}
         />
       </React.Suspense>
       <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 11 }}>
@@ -229,11 +283,49 @@ function LgPeopleCard({ g, P }: { g: LiveGroup; P: GroupPortrait }) {
   );
 }
 
+/**
+ * The revealed days, shaped for Compare.
+ *
+ * One "question" per revealed day, which is what a group HAS: its history
+ * is a stack of reveals, not a slice of the public bank. The counts are
+ * the day's own votes (`portraitRow`, already folded and already on
+ * screen in the Answers tab), the options are the bank's — or the members
+ * themselves for a `pick` question, whose options ARE the group.
+ *
+ * `all` is empty on purpose: it is the globe, only Explore reads it, and
+ * Explore is not one of this stop's tabs. An honest empty beats the
+ * group's own counts wearing the globe's name (the mislabel D170 had to
+ * repair one tab over).
+ */
+function lgCompareQs(g: LiveGroup, P: GroupPortrait): LensQuestion[] {
+  return P.rows.map((r) => {
+    const bankQ = r.qid ? (LIVE.social.bankQ(r.qid) as { options?: string[] } | null) : null;
+    const options = bankQ && bankQ.options && bankQ.options.length
+      ? bankQ.options
+      : (g.memberUids || []).map((u, i) => (g.memberNames || {})[u] || `Member ${i + 1}`);
+    return {
+      // The DAY, not the qid: a group can be asked the same question twice
+      // over its life, and two rows under one key is a React list that
+      // silently drops one.
+      id: r.day,
+      text: lgPrompt(r.qid) || "",
+      options,
+      // Padded to the option list rather than left dense: an option nobody
+      // picked is a real zero, and a short array would draw a bar with a
+      // segment missing instead of one at 0%.
+      counts: options.map((_, i) => r.counts[i] || 0),
+      all: [],
+      by: undefined,
+      mine: r.mine == null ? -1 : r.mine,
+    };
+  }).filter((q) => !!q.text && q.options.length > 1);
+}
+
 function LiveGroupsMirrorBody() {
   const [, tick] = React.useState(0);
   React.useEffect(() => LIVE.subscribe(() => tick((t) => t + 1)), []);
   const S = LIVE.social;
-  const groups = (S.groups("group") as LiveGroup[]);
+  const groups = (LIVE.enabled ? S.groups("group") : []) as LiveGroup[];
   const [gid, setGid] = React.useState<string | null>(null);
   const g = groups.find((x) => x.id === gid) || groups[0] || null;
   // the history fetch is on-demand and idempotent — ≤13 doc reads per
@@ -241,68 +333,109 @@ function LiveGroupsMirrorBody() {
   React.useEffect(() => {
     if (g) void S.loadRevealHistory(g.id);
   }, [g && g.id]); // eslint-disable-line react-hooks/exhaustive-deps -- S is a module-level singleton
+  // Closed, like every other stop (D155/D190).
+  const [tab, setTab] = React.useState("");
+  const rowRef = React.useRef<HTMLDivElement | null>(null);
+  useLensRowScroll(tab, rowRef);
 
   if (!LIVE.enabled) return null;
 
-  if (!g) {
-    return (
-      <div className="card" style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 10, padding: "18px 16px" }}>
-        <div style={{ fontFamily: "var(--sans)", fontWeight: 800, fontSize: 17, letterSpacing: "-0.01em" }}>No groups yet</div>
-        <div style={{ fontFamily: "var(--sans)", fontSize: 13.5, fontWeight: 500, color: "var(--ink-2)", lineHeight: 1.45 }}>
-          This mirror reflects your named circles — one question a day, revealed with names the morning after. Start one and the portrait builds itself.
-        </div>
-        {/* goNav, not goTab: goTab("track") restores whatever daily scope was
-            last open — a user coming from the 1v1 tab landed back on 1v1, not
-            on the group create flow this button promises. goNav pins the mode. */}
-        <button className="press" onClick={() => { const w = window as unknown as { goNav?: (k: string) => void; goTab?: (t: string) => void }; if (w.goNav) w.goNav("track:group"); else if (w.goTab) w.goTab("track"); }}
-          style={{ alignSelf: "flex-start", border: "none", borderRadius: 999, padding: "10px 18px", cursor: "pointer", fontFamily: "var(--sans)", fontWeight: 800, fontSize: 13, background: "var(--accent, var(--ink))", color: "var(--surface)", WebkitAppearance: "none" }}>
-          Start a group →
-        </button>
-      </div>
-    );
-  }
+  const reveals = g ? (S.revealHistory(g.id) as unknown as PortraitReveal[]) : [];
+  const P = g ? groupPortrait(reveals, LIVE.uid) : null;
 
-  const reveals = S.revealHistory(g.id) as unknown as PortraitReveal[];
-  const P = groupPortrait(reveals, LIVE.uid);
   return (
-    <div className="mf-stage" data-screen-label="Mirror — groups (live)">
-      <div style={{ display: "flex", alignItems: "center", gap: 14, margin: "6px 2px 0" }}>
-        <LgIdentity key={g.id} g={g} pct={P.alignPct} />
-        <div style={{ minWidth: 0 }}>
-          <div style={{ fontFamily: "var(--sans)", fontSize: 21, fontWeight: 800, letterSpacing: "-0.02em", color: "var(--ink)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{g.name}</div>
-          <div style={{ marginTop: 2, fontFamily: "var(--sans)", fontSize: 12, fontWeight: 500, color: "var(--ink-3)" }}>
-            {P.daysPlayed ? `aligned with you · ${P.meWithMaj} of ${P.daysPlayed} days` : "aligned with you"}
-          </div>
-        </div>
-      </div>
-      {groups.length > 1 && (
-        <div className="h-scroll" style={{ display: "flex", gap: 8, overflowX: "auto", padding: "10px 2px 2px" }}>
-          {groups.map((x) => {
-            const on = x.id === g.id;
-            return (
-              <button key={x.id} className="press" onClick={() => setGid(x.id)} aria-pressed={on} style={{
-                display: "flex", alignItems: "center", gap: 8, flexShrink: 0, cursor: "pointer",
-                padding: "6px 13px", borderRadius: 999, WebkitAppearance: "none",
-                background: on ? "color-mix(in oklch, var(--accent) 10%, var(--surface-2))" : "var(--surface-2)",
-                border: on ? "1.5px solid color-mix(in oklch, var(--accent) 55%, transparent)" : LG_LINE,
-                boxShadow: "var(--shadow-card)",
-                fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: on ? 800 : 600,
-                color: on ? "var(--ink)" : "var(--ink-2)", whiteSpace: "nowrap" }}>{x.name}</button>
-            );
-          })}
-        </div>
-      )}
-      {P.days === 0 ? (
-        <div className="card" style={{ marginTop: 14, padding: "16px 15px" }}>
-          <div style={{ fontFamily: "var(--sans)", fontSize: 13.5, fontWeight: 600, color: "var(--ink-2)", lineHeight: 1.45 }}>
-            Nothing revealed yet — answers stay sealed until the morning after. The portrait starts with the first reveal.
-          </div>
-        </div>
-      ) : (
+    <div className="mf-stage" data-screen-label="Mirror — groups (live)" style={{
+      // The frame every other live Mirror stop wears since D188: 16px of
+      // inset, and NO bottom padding, so `marginTop: auto` on the row puts
+      // it against the bottom of the content box and `.app-body`'s own
+      // padding is the whole gap to the app's tab bar. `.mf-stage` supplies
+      // the filling column.
+      padding: "4px 16px 0",
+    }}>
+      {g && P ? (
         <>
-          <LgAnswersCard g={g} P={P} />
-          <LgPeopleCard g={g} P={P} />
+          <div style={{ display: "flex", alignItems: "center", gap: 14, margin: "6px 2px 0" }}>
+            <LgIdentity key={g.id} g={g} pct={P.alignPct} />
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontFamily: "var(--sans)", fontSize: 21, fontWeight: 800, letterSpacing: "-0.02em", color: "var(--ink)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{g.name}</div>
+              <div style={{ marginTop: 2, fontFamily: "var(--sans)", fontSize: 12, fontWeight: 500, color: "var(--ink-3)" }}>
+                {P.daysPlayed ? `aligned with you · ${P.meWithMaj} of ${P.daysPlayed} days` : "aligned with you"}
+              </div>
+            </div>
+          </div>
+          {groups.length > 1 && (
+            <div className="h-scroll" style={{ display: "flex", gap: 8, overflowX: "auto", padding: "10px 2px 2px" }}>
+              {groups.map((x) => {
+                const on = x.id === g.id;
+                return (
+                  <button key={x.id} className="press" onClick={() => setGid(x.id)} aria-pressed={on} style={{
+                    display: "flex", alignItems: "center", gap: 8, flexShrink: 0, cursor: "pointer",
+                    padding: "6px 13px", borderRadius: 999, WebkitAppearance: "none",
+                    background: on ? "color-mix(in oklch, var(--accent) 10%, var(--surface-2))" : "var(--surface-2)",
+                    border: on ? "1.5px solid color-mix(in oklch, var(--accent) 55%, transparent)" : LG_LINE,
+                    boxShadow: "var(--shadow-card)",
+                    fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: on ? 800 : 600,
+                    color: on ? "var(--ink)" : "var(--ink-2)", whiteSpace: "nowrap" }}>{x.name}</button>
+                );
+              })}
+            </div>
+          )}
+          {/* The stop's own state, above the row rather than inside a tab:
+              "nothing has been revealed yet" is true of the whole group,
+              not of one reading of it. */}
+          {P.days === 0 && (
+            <div className="card" style={{ marginTop: 14, padding: "16px 15px" }}>
+              <div style={{ fontFamily: "var(--sans)", fontSize: 13.5, fontWeight: 600, color: "var(--ink-2)", lineHeight: 1.45 }}>
+                Nothing revealed yet — answers stay sealed until the morning after.
+              </div>
+            </div>
+          )}
         </>
+      ) : (
+        // The FIELD, not a card of prose (D172). This and Circle were the
+        // last two stops answering an empty account with a paragraph while
+        // every other one drew its rings — and they are the two a new
+        // account meets first.
+        //
+        // The BUTTON stays. Creating a group is not something the stop can
+        // fill by itself the way City fills as strangers answer, so this is
+        // the only route to it and removing it would trade wordiness for a
+        // dead end. The sentence around it is what shrank.
+        // goNav, not goTab, and EmptyField owns that choice now: goTab("track")
+        // restores whatever daily scope was last open, so a user arriving from
+        // the 1v1 tab landed back on 1v1 — a button that promises a group and
+        // delivers a duel. The nav key pins the mode.
+        <EmptyField action={{ label: "Start a group →", nav: "track:group" }}>
+          One question a day, revealed with names the morning after.
+        </EmptyField>
+      )}
+
+      {/* The row, where every other stop's row is (D190) — including with
+          no group at all, which is the state a new account meets. A stop
+          whose tab bar appears only once it has data reads as a stop that
+          was never finished. */}
+      <div ref={rowRef} style={{ marginTop: "auto", paddingTop: 16 }}>
+        <MirrorLensTabs tabs={GROUP_TABS} open={tab}
+          onOpen={(id) => setTab(id === tab ? "" : id)} />
+      </div>
+
+      {!!tab && (
+        <div className="fade-in" role="tabpanel" style={{ paddingTop: 14 }}
+          aria-label={(GROUP_TABS.find((t) => t.id === tab) || { label: "" }).label}>
+          {!g || !P ? (
+            <LgEmpty>Start a group and this fills in from the first reveal.</LgEmpty>
+          ) : tab === "people" ? (
+            <LgPeopleCard g={g} P={P} />
+          ) : tab === "compare" ? (
+            <React.Suspense fallback={null}>
+              {/* The group's own name is the noun — the lens prints it in
+                  "3/5 with Book Club". */}
+              <GroupCompare qs={lgCompareQs(g, P)} shortName={g.name || "this group"} />
+            </React.Suspense>
+          ) : (
+            <LgAnswersCard g={g} P={P} />
+          )}
+        </div>
       )}
     </div>
   );

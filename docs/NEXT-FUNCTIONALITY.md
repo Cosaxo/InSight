@@ -57,7 +57,10 @@ and why D97 records "no epoch-safe retire lane for daily questions" as
 deliberately not done. The feed has none of that: it already carries
 `active:false` retirement (D52's shape), a topic taxonomy, and — since
 D128 — per-topic Less/Normal/More preferences, so a user who hates news
-can already turn the tap down themselves.
+could turn the tap down themselves. **D173 retired those levers** (the
+algorithm decides how much, not a lever), so this argument now rests on
+the feed's per-topic MUTE, which is untouched and still lets that user
+switch the lane off entirely.
 
 **The shape:**
 
@@ -694,3 +697,210 @@ ratchet).
   them; hand-copied figures are the documentation error this repo keeps
   re-committing (D39), and none of the numbers above should be trusted
   over the source named beside it.
+
+## 10 · Near becomes the room — the settled design
+
+**Status: design settled with the owner 2026-08-15. Step 1 of the build
+order below is SHIPPED — see [D174](DECISIONS.md#d174--nears-visibility-gets-three-states-and-a-position-that-expires-on-its-own)
+for the three-state control, the three-hour linger and the `until` cap.
+Everything else here is still design.** It began
+as *"when you are at a party or some sort of social event you can see what
+type of persons are around you"* and was worked out over a long exchange;
+what follows is where it landed, including the two places the owner
+corrected me. It graduates to a `DECISIONS.md` record when the first slice
+ships.
+
+### What it is
+
+At a venue you open Near and see the people around you — placed by how
+like you they are — with the ones you match drawn closest. Tap one and the
+card says who they are: face, age, gender, their type, their answers.
+Underneath, the same three readings every other stop carries: **Answers ·
+People · Compare**, over the room.
+
+### The rule everything else hangs off
+
+**Distance from the centre is UNLIKENESS, never position.** Same grammar as
+City, Country and World. A dot near the middle means *this person answers
+like you*, never *this person is standing near you*.
+
+This already holds and is now enforced: `NearField` builds `kind="anon"`
+nodes placed by `match`, and three cases in `ui/NearLiveBody.test.tsx`
+fail if a label, a coordinate or a non-anon kind ever reaches it. The
+tempting "improvement" here is exactly backwards — the app knows a grid
+cell, so drawing people where they actually are would look like a feature
+and would be the leak.
+
+### What the card may carry — the owner was right and I was wrong
+
+Face, age, gender, the four test results, answers. **None of it is
+sensitive and none of it is new**: all of it publishes under D98 already,
+and a face is the least secret thing about someone standing in a room.
+
+My earlier objection — that attributes are a join key that turns a node
+into "where this named person is" — **does not survive the rest of this
+design.** It assumed a 3 km radius and one-way visibility. With a venue
+radius and mutual visibility, the people who can see you are people you
+can see, in a place you both chose to be. That is a room, not
+surveillance.
+
+**Images are a real subsystem, not a field.** The app holds no photos at
+all today (avatars are initials and a hue), so this needs Storage rules,
+an upload path, and image moderation — which carries legal obligations and
+is the reason it is LAST in the build order. Initials stay the fallback
+for anyone without a picture, permanently.
+
+### Distance and recency are BANDS, not numbers
+
+The owner floated a 20 m–1000 m slider. The prototype already answers this
+and the prototype is right: v28 uses verbal bands — *"a few streets away"*,
+*"in the neighbourhood"*. Two reasons to keep it that way:
+
+1. **A metre figure is a promise the sensor cannot keep.** Phone GPS is
+   ±10–50 m outdoors and much worse indoors, and at a party you are
+   indoors. A slider reading "20 m" would be inventing precision, which
+   is the one thing this app does not do.
+2. A radius control is a **filter**, not a privacy setting — the server
+   holds your cell whatever the slider says. Putting it next to privacy
+   copy would imply otherwise.
+
+Bands to draw, tightest first: **same room · same block · a few streets
+away.** Recency gets bands too — **"here now" · "here in the last hour"** —
+and that second one is doing real work, see the linger below.
+
+### Visibility: off · 2 hours · always
+
+The owner's three-state control, and the shape that makes the always
+option safe enough to offer honestly rather than grudgingly:
+
+| State | What it means |
+| --- | --- |
+| **Off** (default) | No presence doc. Turning off **deletes it immediately** — that promise may never be on a timer. |
+| **On, 2 hours** | Default when first enabled. The beat stops at the deadline. |
+| **On, always** | No deadline on the SETTING. Not "my position never expires" — see the linger. |
+
+Two properties hold in every state:
+
+- **Mutual.** You are in other people's field only while they are in
+  yours. The prototype already says it: *"nobody nearby sees you, and the
+  field comes back empty for you too."*
+- **Foreground only.** Presence is written while the app is open. Today
+  this is true by accident — the interval has no `document.hidden` guard
+  and the platform's background throttling is what saves it. **Make it
+  explicit**, because it is what lets "always" mean "whenever the app is
+  open", which is a small enough claim to stand behind.
+
+### The linger, which is what makes it work at all
+
+**Your position must outlive the app being open.** Everyone's phone is in
+their pocket; if presence existed only while the app was foreground, you
+would open Near at a party and see an empty room, because everyone else's
+app is shut. The feature would be dead on arrival. Find My and Snap Map
+keep a last-known position for exactly this reason.
+
+The machinery exists: `PRESENCE_TTL_MIN` (10 today) is the server's
+freshness window, so the linger is **one constant**.
+
+**Set it to about 3 hours**, per the owner's "slightly longer" — long
+enough that a venue stays populated between pocket-checks, short enough
+that closing the app in bed does not leave you at home all night. It is
+one number and should be re-tuned from real use rather than defended.
+
+**"Always" does not lift the cap.** It removes the deadline on the
+setting, not the expiry on the position. Unbounded lingering is the one
+version that is genuinely bad, and nobody asked for it.
+
+**Staleness is shown, not hidden — and it is a safety property, not an
+apology.** The app knows where you *were*, so it says so. A blurred WHEN
+protects as well as a blurred WHERE: the smear that keeps a party
+populated is the same smear that makes a trail unreadable. Product need
+and safety point the same way here, which is rare enough to build
+deliberately.
+
+### The radius, and the one cost it carries
+
+**Done at D175.** The grid was 0.01° ≈ 1.1 km per cell, so "around you"
+was ~3.3 × 1.8 km — a district, and the owner was right that it is not
+"near". It is 0.002° now (~222 m), and the 3×3 neighbourhood is ~670 × 330
+m in Oslo. The paragraph below is why it could not be done sooner and is
+kept as the reasoning, not as a pending item.
+
+**The consequence to state plainly:** a finer grid means the server holds
+a more precise location. That is acceptable — `v2_presence` is
+`allow read: if false`, no client ever reads a cell, and the only path out
+is a count or an aggregate — but it raises the stakes on that deny, and it
+changes `docs/STORE-FORMS.md`'s location answer to a precise one. Both
+belong in the shipping commit.
+
+### The room reading, and its two engineering problems
+
+The composition — *"mostly Hosts and Explorers"* — is an aggregate the
+server folds from presence uids joined to world-readable `testResults`. It
+returns a summary; no identities leave.
+
+1. **A floor on the MIX, not on the count.** A composition that moves as
+   people arrive tells you an individual's type by subtraction. At n=8 one
+   arrival shifts a share 12 points. So: a minimum before the mix draws at
+   all, coarse words rather than exact shares, and no on-demand refresh —
+   it rides the beat, so an attacker's sampling rate is the app's.
+2. **The cost re-imports what was deliberately removed.** `nearbyCountV2`
+   was changed FROM a document read TO a `count()` because a dense cell
+   charged (people) × (beats) — *"quadratic in exactly the situation the
+   feature is for. A festival is the worst case and the one it is built to
+   serve."* A mix needs documents. Fix: a per-cell cached result
+   (`v2_presence_mix/{cell}`, server-written, unreadable like presence),
+   so the first caller in a window pays the fold and everyone else pays
+   one read. Measure into `docs/COSTS.md` before shipping.
+
+### The tabs
+
+**Answers and Compare read the room** — how this crowd answered, against
+you — through the same callable and the same floor. **People is fine here
+now**, which reverses what I argued earlier: at venue scale with mutual
+visibility, a people lens is a room you are standing in, not a directory
+of strangers.
+
+### Build order
+
+1. ~~**The three-state control, the foreground guard, the ~3 h linger.**~~
+   **DONE (D174).** The foreground guard turned out to exist already —
+   `presenceBeat` returns early on `document.hidden`. What shipped beside
+   the control and the linger is `until` on the presence doc, so the timed
+   option is exact rather than approximate, capped in `firestore.rules`.
+2. ~~**The finer grid** + the `STORE-FORMS.md` re-answer.~~ **DONE
+   ([D175](DECISIONS.md#d175--near-asks-for-a-precise-fix-so-its-radius-can-be-honest)).**
+   It was not a constant: the old ~1 km cell was the ceiling of the COARSE
+   fix the app requested, so the grid could only move once the permission
+   did. Precise on both platforms, 0.002° (~220 m) cells, Precise Location
+   ticked — and the grid picked to sit one step ABOVE Apple's own precise
+   threshold, so nothing precise is retained.
+3. ~~**The room aggregate** (floor first, then the cache, then the reading).~~
+   **DONE ([D176](DECISIONS.md#d176--near-becomes-a-room-and-the-phone-says-what-it-is)).**
+   The phone writes its own archetype NAME into its presence doc, so the
+   server folds a mix without ever holding the archetype table or joining a
+   profile. Ranked names and a basis, never a share; `ROOM_MIN_TYPED` = 8;
+   cached per cell per beat window, which is what keeps the fold from being
+   quadratic in crowd density (COSTS Finding 5).
+4. ~~**The tabs.**~~ **DONE
+   ([D177](DECISIONS.md#d177--near-becomes-a-room-you-can-read-and-asking-requires-standing-in-it)).**
+   Answers · People · Compare over `nearbyRoomV2`, which refuses any caller
+   without a live position of their own in that neighbourhood — the gate
+   went on the count as well, and it is what makes a roster defensible
+   (your own room only, and mutual by construction). Explore and Scores are
+   absent on purpose: neither has data at this stop. Three on-screen
+   promises that the People tab made false were rewritten in the same
+   commit.
+5. ~~**Images** last — the field works with initials from day one.~~
+   **DONE ([D178](DECISIONS.md#d178--the-app-gets-a-face-and-it-is-reported-like-anything-else-somebody-says)).**
+   One object per account at `avatars/{uid}`, shrunk and re-encoded on the
+   device (which drops EXIF), a token rather than a URL in Firestore so the
+   field can never name a host we do not control, and the SAME report loop
+   takes use — the owner's call over reviewing a photo first. Shows
+   anywhere a name shows, not only in the room. `deleteAccount` reaches
+   Storage for the first time; "Photos or Videos" leaves the not-collected
+   list.
+
+**§10 is complete.** What it does not cover, recorded so it is a decision
+rather than a gap: nothing rate-limits how often one account replaces its
+photo (COSTS Finding 7), and there is no automated image classification —
+a reported face waits for the same human/AI run a reported take does.

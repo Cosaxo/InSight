@@ -97,7 +97,7 @@ export default function PulseCard(): React.ReactElement | null {
           <span style={{ fontFamily: "var(--sans)", fontSize: 12, fontWeight: 600, color: "var(--ink-3)" }}>
             {nToday > 0
               ? bins[mine - 1] + "% of " + PULSE.fmtN(nToday) + (nToday === 1 ? " answer today" : " answers today")
-              : "the first answer today — the crowd shows as it arrives"}
+              : "the first answer today"}
           </span>
         </div>
         <button className="press" onClick={() => setOpen((o) => !o)} aria-expanded={open}

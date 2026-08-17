@@ -18,7 +18,7 @@ rules_version = '2';
 // THREE DENIES SURVIVE, and none of them is about answer privacy:
 //   · v2_logic_attempts — holds the unscored answer key (anti-cheat)
 //   · v2_flags          — reporter identity (anti-retaliation)
-//   · v2_presence       — uid → ~1 km cell (physical safety, not data)
+//   · v2_presence       — uid → ~200 m cell (physical safety, not data)
 // Each says so at its own path. If one of those should go too, it is a
 // separate decision from D98 and wants its own record.
 //
@@ -877,6 +877,57 @@ service cloud.firestore {
         && resource.data.authorUid == request.auth.uid;
     }
 
+    // ── The profile photo's document (D178) ────────────────────────
+    //
+    // The bytes live in Storage; this is the part moderation acts on. Its
+    // OWN collection rather than a field on `v2_users`, for two reasons
+    // that both matter:
+    //
+    //   1. The moderator's blast radius. A remove verdict has to write
+    //      somewhere; a field on the profile would mean `submitModVerdict`
+    //      holds a write on `v2_users`, which is the document carrying
+    //      display names, anchors and test results. Here it holds a write
+    //      on faces and nothing else.
+    //   2. It is a take, structurally. `hidden` + `hiddenMeta` is exactly
+    //      the shape D22/D65 built the queue, the verdict log and the
+    //      appeal path around, so the substrate is reused rather than
+    //      re-derived for a second content type.
+    //
+    // `token` is the Storage download token, NOT a URL, and the difference
+    // is the whole safety of the field. A client-written URL could point
+    // at a host we do not control — which leaks every viewer's IP to it
+    // and, worse, lets the image change after it was reported. A token is
+    // a bare id that names an object at `avatars/{uid}` in our own bucket;
+    // the client builds the URL around it from its own config. The charset
+    // below is what enforces that: no dot, colon or slash, so it cannot
+    // be a host or a path however it is written.
+    //
+    // ONCE HIDDEN, FROZEN. A hidden avatar takes no client update and no
+    // client delete, because either one would be the way back: delete and
+    // re-create, or overwrite the token, and a removed face is live again
+    // from a free anonymous account. The appeal path is a human, which is
+    // what `hiddenMeta` is for.
+    match /v2_avatars/{uid} {
+      allow read: if request.auth != null;
+      allow create, update: if request.auth != null
+        && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(["token", "at", "hidden"])
+        && request.resource.data.token is string
+        && request.resource.data.token.size() >= 8
+        && request.resource.data.token.size() <= 64
+        && request.resource.data.token.matches('^[A-Za-z0-9_-]+$')
+        && request.resource.data.at == request.time
+        // The client may only ever write `false` here; `true` is the
+        // server's word. Present rather than optional so the flag rule
+        // below and the queue build can both read a bare boolean — the
+        // D65 lesson, that only an equality holds a LIST to the gate.
+        && request.resource.data.hidden == false
+        && (resource == null || resource.data.hidden == false);
+      allow delete: if request.auth != null
+        && request.auth.uid == uid
+        && resource.data.hidden == false;
+    }
+
     match /v2_flags/{flagId} {
       // Write-only, one per (take, user): the doc id pins uniqueness the
       // way answer ids do — a second flag from the same account is an
@@ -889,10 +940,45 @@ service cloud.firestore {
       // anti-cheat deny. Reversing it is a moderation decision, not a
       // linkage one, and would want its own record.
       allow read: if false;
+      // AVATARS ARE FLAGGABLE TOO SINCE D178, through this same door.
+      //
+      // The owner's call was to ship a photo LIVE with the report loop
+      // behind it rather than to review it first — the model takes already
+      // use — so a face needs the same control a take has, and reusing
+      // this collection means it inherits one-per-person, the anonymity
+      // deny above, the queue and the verdict log rather than growing a
+      // parallel set of all four.
+      //
+      // The target id is `av_{uid}`, namespaced so it cannot collide with
+      // a take id, and `target` carries the uid separately so this rule can
+      // reach the avatar document without doing string surgery on an id.
+      // `gid` is the sentinel "avatar", the same trick D83's world takes
+      // play with the gid "world": the field is required by the shape, and
+      // a face belongs to no circle.
       allow create: if request.auth != null
-        && request.resource.data.keys().hasOnly(["takeId", "gid", "uid", "at"])
         && request.resource.data.uid == request.auth.uid
         && flagId == request.resource.data.takeId + "_" + request.auth.uid
+        && request.resource.data.at == request.time
+        && (
+          (request.resource.data.keys().hasOnly(["takeId", "gid", "uid", "at", "target"])
+            && request.resource.data.gid == "avatar"
+            && request.resource.data.target is string
+            && request.resource.data.takeId == "av_" + request.resource.data.target
+            // You cannot report your own face — the only thing that would
+            // achieve is queueing a moderator to look at it.
+            && request.resource.data.target != request.auth.uid
+            // Same equality, same reason as the take arm: it reads the
+            // boolean the avatar's own gate compares against, so a face
+            // already removed cannot be re-reported into the queue.
+            && get(/databases/$(database)/documents/v2_avatars/$(request.resource.data.target))
+                 .data.hidden == false)
+          || isTakeFlag()
+        );
+      allow update, delete: if false;
+    }
+
+    function isTakeFlag() {
+      return request.resource.data.keys().hasOnly(["takeId", "gid", "uid", "at"])
         && request.resource.data.gid is string
         && get(/databases/$(database)/documents/v2_takes/$(request.resource.data.takeId)).data.gid
           == request.resource.data.gid
@@ -908,9 +994,7 @@ service cloud.firestore {
         // one is a get() on ANOTHER document inside a create, not a query
         // predicate, so it was never the leak (D65).
         && get(/databases/$(database)/documents/v2_takes/$(request.resource.data.takeId))
-             .data.hidden == false
-        && request.resource.data.at == request.time;
-      allow update, delete: if false;
+             .data.hidden == false;
     }
 
     // Queue and verdict log: server-only surfaces of the confinement
@@ -949,7 +1033,7 @@ service cloud.firestore {
 
     // ── Near-by-radius presence (D84) ──────────────────────────────
     //
-    // One doc per opted-in user: a ~1 km grid cell and a freshness stamp,
+    // One doc per opted-in user: a ~200 m grid cell and a freshness stamp,
     // overwritten while the app is foreground. NO client read, ever.
     //
     // This deny SURVIVES D98, and the distinction matters: D98 publishes
@@ -957,24 +1041,110 @@ service cloud.firestore {
     // A readable (uid → cell) pair is a script following any account
     // around town at cell resolution — a physical-safety problem, not a
     // data-linkage feature, and nothing on the Mirror needs it. The only
-    // read path is nearbyCountV2, which returns a COUNT and nothing
-    // else. The cell regex is the precision cap in structural form: a
-    // "la_lo" integer grid id cannot carry anything finer than the 0.01°
-    // cell, however hard a client tries.
+    // read path is nearbyCountV2, which returns a COUNT and a coarse mix
+    // of archetype NAMES, never a row per person. The cell regex is the
+    // precision cap in structural form: a "la_lo" integer grid id cannot
+    // carry anything finer than the 0.002° cell, however hard a client
+    // tries. (0.01° until D175, which bought the finer grid with a
+    // precise-location permission — the deny is what makes that trade
+    // survivable, so it gets stricter as the cell gets smaller, never
+    // looser.)
     //
     // Note the city ANCHOR on a profile is public now (D98) — "lives in
     // Oslo" is published, "is at this corner of Oslo at 14:02" is not.
     match /v2_presence/{uid} {
       allow read: if false;
+      // `until` is when this position stops counting, and the CAP is the
+      // point of having it in the rules rather than only in the client
+      // (D174). The timed "visible for a while" option is a promise about
+      // when you stop being visible; a client sets `until` to its session
+      // deadline so closing the app just before it cannot leave the
+      // position standing for a further linger. Without the ceiling here,
+      // a modified client could write `until` a year out and be permanently
+      // present — the exact shape this collection's read deny exists to
+      // prevent, arriving through the write side instead.
+      //
+      // 180 minutes is PRESENCE_LINGER_MIN (functions/src/pure.ts). The two
+      // are hand-matched: rules cannot import, so if that constant moves,
+      // this literal moves in the same commit.
       allow create, update: if request.auth != null
         && request.auth.uid == uid
-        && request.resource.data.keys().hasOnly(["cell", "at"])
+        && request.resource.data.keys().hasOnly(["cell", "at", "until", "type"])
         && request.resource.data.cell is string
-        && request.resource.data.cell.matches('^-?[0-9]{1,4}_-?[0-9]{1,5}$')
-        && request.resource.data.at == request.time;
+        && request.resource.data.cell.matches('^-?[0-9]{1,5}_-?[0-9]{1,5}$')
+        && request.resource.data.at == request.time
+        // OPTIONAL FOR ONE RELEASE (D179), and this is a deploy-order
+        // compatibility window rather than a change of mind.
+        //
+        // Rules deploy the instant this branch reaches main; the app
+        // reaches phones through a store review. Between those two moments
+        // the shipped build is the one that predates D174 and writes
+        // `{cell, at}` with no `until` at all — so a hard `until is
+        // timestamp` would have denied every presence write from every
+        // existing install, and Near would have failed with a retry button
+        // that could never succeed until the user updated.
+        //
+        // Absent is therefore allowed; PRESENT is capped exactly as before,
+        // so a modified client gains nothing by supplying one. The server
+        // treats a missing `until` as `at` + the linger and BACKFILLS it on
+        // the next beat (nearbyCountV2), so a legacy document repairs
+        // itself the first time its owner is counted.
+        //
+        // REMOVE THIS ARM when the D174+ build is the oldest one in the
+        // wild — the condition is the store rollout, not a date, and until
+        // then a doc with no `until` is one nobody has opened the new app
+        // with yet.
+        && (!("until" in request.resource.data)
+            || (request.resource.data.until is timestamp
+                && request.resource.data.until > request.time
+                && request.resource.data.until <= request.time + duration.value(180, 'm')))
+        // `type` is the writer's OWN Big Five archetype name (D176), the
+        // one thing the room's mix is folded from. Optional — most people
+        // have not taken the test — and bounded, because this doc is
+        // written by a client and a free-text field on a doc nobody can
+        // read is still a place to park bytes. It is a NAME, not a score:
+        // the archetype table lives on the device, so the server never
+        // needs it and never joins a profile to compute the mix.
+        && (!("type" in request.resource.data)
+            || (request.resource.data.type is string
+                && request.resource.data.type.size() > 0
+                && request.resource.data.type.size() <= 40));
       // Opting out deletes the doc — "stop sharing" must not depend on a
       // TTL sweep that runs later.
       allow delete: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // ── The room's mix cache (D176) ────────────────────────────────
+    //
+    // One doc per cell holding the coarse reading nearbyCountV2 serves, so
+    // a busy venue folds once per beat window instead of once per phone in
+    // it. Written by the callable on the admin SDK, readable by NOBODY.
+    //
+    // The deny is not inherited politeness — it is the same argument as
+    // presence one level up. A client that could read this path directly
+    // could sweep cells it is nowhere near, which turns a reading about
+    // the room you are standing in into a map of who is in every other
+    // room. The callable only ever answers for the caller's own cell and
+    // its eight neighbours, and that restriction is the feature; it only
+    // holds while this is the sole door.
+    match /v2_presence_mix/{cell} {
+      allow read, write: if false;
+    }
+
+    // ── The room's roster and answers cache (D177) ─────────────────
+    //
+    // The Near stop's Answers/People/Compare fold, cached per cell on the
+    // same argument as the mix beside it — and denied harder in effect,
+    // because this one holds a LIST OF UIDS standing in a named cell.
+    //
+    // That pairing is the thing `v2_presence`'s read deny exists to
+    // prevent, so it may only ever be assembled and served by
+    // `nearbyRoomV2`, which refuses any caller without a live position of
+    // their own in that neighbourhood. A client that could read this path
+    // would skip the gate and walk the grid, which is the people-finder
+    // the whole design is arranged around not being.
+    match /v2_presence_room/{cell} {
+      allow read, write: if false;
     }
 
   }

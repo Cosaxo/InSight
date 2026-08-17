@@ -14,6 +14,10 @@ import { PROFILE_GENERAL_LS } from '../data/cityAnchor';
 // coupling meter moves DOWN with this change.
 import PLACES from '../data/places';
 import { SCENES } from './scenes.js';
+// The rings-and-you drawing every empty surface shows now (D172).
+import EmptyField from '../ui/EmptyField.tsx';
+// "Open the topic list" — the ask this card's one button makes (D190).
+import { requestTopicSheet } from '../data/topicSheet.ts';
 // The vitals vocabulary and the anchor mapping, in their own module since
 // D151 — the Basics card below and ui/LiveProfileSetup.tsx (the
 // account-creation questions) must ask with the same words, and
@@ -293,8 +297,7 @@ import {
                 right question to ask and it deserves an answer in place. */}
             <div style={{ fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 500, color: 'var(--ink-3)', lineHeight: 1.5, textWrap: 'pretty' }}>
               All optional. These are what let the daily show how each kind of
-              person split — never your exact birthday, and never a group small
-              enough to point at one person.
+              person split — never your exact birthday.
             </div>
             {/* the zodiac Sign row left with the v15 revision: signOf and
                 zodiacSign are gone from the prototype, so the row is too */}
@@ -461,12 +464,22 @@ import {
       // sample data, so the only honest instruction is the one that is
       // actually true of this build — every subject runs, and the feed's
       // topic sheet is where you tune them.
+      // The FIELD and a door, not a paragraph of instructions (D172).
+      // The old copy explained where the topic row is and what tapping +
+      // does — three lines teaching a control that is one tap away and
+      // labelled. Same shape the empty Circle and Groups stops take now:
+      // draw the thing, say one line, offer the one action that cannot
+      // happen by itself.
+      //
+      // AND THE DOOR OPENS ONTO THE LIST, not onto the room it is in
+      // (D190). It used to jump to the daily feed and stop there, which is
+      // one search short of what the label promises \u2014 reported from a
+      // device as exactly that. `requestTopicSheet` is the ask; the feed
+      // owns the list and answers it, mounted or not.
       return (
-        <div className="card" style={{ padding: '14px 15px', fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 500, color: 'var(--ink-2)', lineHeight: 1.5 }}>
-          No scenes yet — every topic runs in your feed instead. Tap
-          &#43; on the feed&rsquo;s topic row to see them all, with what
-          each one holds, and mute the ones you would rather not get.
-        </div>
+        <EmptyField action={{ label: 'Pick topics \u2192', nav: 'track:world', prime: requestTopicSheet }}>
+          Every topic runs in your feed until you narrow it.
+        </EmptyField>
       );
     }
     return (

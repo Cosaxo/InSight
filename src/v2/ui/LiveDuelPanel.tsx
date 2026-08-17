@@ -34,7 +34,11 @@
 // typed TSX. Reached by React.lazy from daily-split.jsx since D156 — it is
 // two of the daily tab's three modes and none of the first paint.
 import React from "react";
-import LIVE from "../data/live";
+// `localName` is this device's copy of the display name, written by the
+// store whenever the name is saved — the create screen needs it before
+// hydration finishes, which is the one moment `LIVE.displayName` is empty
+// on an account that has one.
+import LIVE, { localName } from "../data/live";
 import { consumeJoinCode, inviteLinkFor } from "../data/links";
 // Handles and invitations (D122) — how a circle gains a member now. The
 // code survives inside the share link for people who have no account
@@ -60,7 +64,6 @@ const LiveTakesPanel = React.lazy(() => import("./LiveTakesPanel"));
 
 const LD_LINE = "1px solid color-mix(in oklch, var(--rule), transparent 25%)";
 const LD_HAIR = "0.5px solid color-mix(in oklch, var(--rule), transparent 30%)";
-const LD_NAME_LS = "insight.displayName.v1";
 // The prototype's two accents, kept apart: a circle is a likeness question,
 // a 1v1 is a people question, and the option buttons are tinted with
 // whichever it is.
@@ -92,11 +95,18 @@ interface LiveReveal extends RevealDocLike {
   names?: Record<string, string>;
 }
 
+/**
+ * The name this account already has — the profile's, or this device's copy
+ * of it while the profile is still hydrating.
+ *
+ * The screen used to ASK for this, in a field above the circle's name
+ * (D156's port of the prototype's create card). D190 took it out: a
+ * display name is a fact about the account, it is collected once at the
+ * top (LiveProfileSetup) and every screen that needs it reads it from
+ * here. The field survives only as the fallback below — see LdOnboard.
+ */
 function ldName(): string {
-  try { return localStorage.getItem(LD_NAME_LS) || ""; } catch { return ""; }
-}
-function ldSaveName(n: string): void {
-  try { localStorage.setItem(LD_NAME_LS, n); } catch { /* best-effort */ }
+  return LIVE.displayName || localName();
 }
 function errText(e: unknown): string {
   return String((e instanceof Error && e.message) || e);
@@ -168,14 +178,32 @@ function LdOnboard({ mode }: { mode?: string }) {
   // A tapped invite link lands here: the stashed code prefills the join
   // field (consume = one prefill, not a haunting).
   const [code, setCode] = React.useState(() => consumeJoinCode() || "");
-  const [me, setMe] = React.useState(ldName());
   const [codeOpen, setCodeOpen] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
   const [err, setErr] = React.useState<string | null>(null);
   const duo = mode === "duo";
   const S = LIVE.social;
+  // YOUR NAME IS NOT A QUESTION THIS SCREEN ASKS (D190).
+  //
+  // It asked for one in a field of its own, above the circle's name, and
+  // that was reported from a device as the wrong screen for it: the name
+  // is set at sign-in (LiveProfileSetup) and every account that has been
+  // through that screen already has one. So the account's name is read,
+  // and the field appears ONLY when there is none to read.
+  //
+  // The backup is not decoration. `profileSetupSeen` is per DEVICE and the
+  // setup screen is skippable in one tap, so an account with no name is a
+  // state that survives — and a reveal with a blank where a name goes is
+  // worse than one more field on a screen somebody chose to open.
+  const known = ldName().trim();
+  const [typedMe, setTypedMe] = React.useState("");
+  const me = known || typedMe.trim();
   const go = async (fn: () => Promise<unknown>) => {
-    setBusy(true); setErr(null); ldSaveName(me.trim());
+    setBusy(true); setErr(null);
+    // Only the fallback writes: with a known name there is nothing new to
+    // save, and re-saving it on every create would be a Firestore write
+    // per circle for a string the profile already holds.
+    if (!known && me) { try { await LIVE.saveDisplayName(me); } catch { /* the callable takes it too */ } }
     try { await fn(); } catch (e) { setErr(errText(e)); }
     setBusy(false);
   };
@@ -186,14 +214,17 @@ function LdOnboard({ mode }: { mode?: string }) {
       </div>
       <div style={{ fontSize: 13.5, fontWeight: 500, color: "var(--ink-2)", lineHeight: 1.45 }}>
         {duo
-          ? "One question a day, both answers sealed until tomorrow — and only if you both play."
-          : "One question a day for your circle. Answers are sealed until tomorrow, then revealed with names."}
+          ? "One question a day, sealed until tomorrow — if you both play."
+          : "One question a day, sealed until tomorrow, then revealed with names."}
       </div>
-      <LdInput value={me} onChange={setMe} placeholder="Your name (what friends see)" />
+      {!known && <LdInput value={typedMe} onChange={setTypedMe} placeholder="Your name (what friends see)" />}
       <div style={{ display: "flex", gap: 8 }}>
         <LdInput value={name} onChange={setName} placeholder={duo ? "Name it (e.g. Mira & Leo)" : "Group name"} />
-        <LdBtn primary disabled={busy || !name.trim() || !me.trim()}
-          onClick={() => void go(() => S.createGroup(name.trim(), mode === "duo" ? "duo" : "group", me.trim()))}>Create</LdBtn>
+        {/* `me || undefined`, never "": createGroupV2's callerName reads
+            the profile when the client sends nothing, and sending an empty
+            string would overwrite a name the profile already has. */}
+        <LdBtn primary disabled={busy || !name.trim() || !me}
+          onClick={() => void go(() => S.createGroup(name.trim(), mode === "duo" ? "duo" : "group", me || undefined))}>Create</LdBtn>
       </div>
       {/* THE CODE STOPS BEING THE SECOND HALF OF THIS SCREEN (D122).
           It used to sit here under an "OR JOIN WITH A CODE" rule, as a
@@ -215,8 +246,8 @@ function LdOnboard({ mode }: { mode?: string }) {
           </div>
           <div style={{ display: "flex", gap: 8 }}>
             <LdInput value={code} onChange={(v) => setCode(v.toUpperCase())} placeholder="Invite code" style={{ fontFamily: "var(--mono, monospace)", letterSpacing: "0.12em" }} />
-            <LdBtn primary disabled={busy || code.trim().length < 6 || !me.trim()}
-              onClick={() => void go(() => S.joinGroup(code.trim(), me.trim()))}>Join</LdBtn>
+            <LdBtn primary disabled={busy || code.trim().length < 6 || !me}
+              onClick={() => void go(() => S.joinGroup(code.trim(), me || undefined))}>Join</LdBtn>
           </div>
         </>
       ) : (
@@ -306,7 +337,7 @@ function LdCopyLink({ g }: { g: LiveGroup }) {
     } catch { /* clipboard unavailable */ }
   };
   return (
-    <button onClick={copy} aria-label="Copy invite link — for someone who has no account yet" title="Copy invite link"
+    <button onClick={copy} aria-label="Copy invite link — no account needed" title="Copy invite link"
       style={{ flexShrink: 0, border: LD_LINE, background: "var(--surface-2)", borderRadius: 8, padding: "5px 10px",
         cursor: "pointer", fontFamily: "var(--mono, monospace)", fontSize: 11.5, fontWeight: 700,
         letterSpacing: "0.1em", color: "var(--ink-2)", WebkitAppearance: "none" }}>
@@ -568,7 +599,7 @@ function LdModeRow({ g, sealed }: { g: LiveGroup; sealed: boolean }) {
     if (busy || sealed || next === current) return;
     setBusy(true); setErr(null);
     try { await S.setDuoMode(g.id, next); }
-    catch { setErr("Couldn’t switch pools — check your connection and try again."); }
+    catch { setErr("Couldn’t switch pools — check your connection."); }
     setBusy(false);
   };
   return (
@@ -615,7 +646,7 @@ function LdManage({ g, onClose }: { g: LiveGroup; onClose: () => void }) {
   const leave = async () => {
     setLeaveErr(null);
     try { await S.leaveGroup(g.id); }
-    catch { setLeaveErr("Couldn’t leave — check your connection and try again."); }
+    catch { setLeaveErr("Couldn’t leave — check your connection."); }
   };
   return (
     <div style={{ ...col(11), border: LD_LINE, borderRadius: 13, background: "var(--surface)", padding: "12px 13px" }}>
@@ -645,7 +676,7 @@ function LdManage({ g, onClose }: { g: LiveGroup; onClose: () => void }) {
 
       <div style={{ display: "flex", alignItems: "center", gap: 8, borderTop: LD_HAIR, paddingTop: 10 }}>
         <span style={{ flex: 1, minWidth: 0, fontSize: 12, fontWeight: 600, color: "var(--ink-2)", textWrap: "pretty" }}>
-          Or send a link — it works for someone with no account yet.
+          Or send a link — no account needed.
         </span>
         <LdCopyLink g={g} />
       </div>
@@ -659,10 +690,10 @@ function LdManage({ g, onClose }: { g: LiveGroup; onClose: () => void }) {
           <>
             <span style={{ flex: 1, fontSize: 12, fontWeight: 600, color: "var(--ink-2)", textWrap: "pretty" }}>
               {members.length <= 1
-                ? "You’re the last one here — leaving deletes this circle and its history."
+                ? "You’re the last one — leaving deletes this circle and its history."
                 : duo
-                  ? "End this 1v1? You keep the days you played; you stop seeing new ones."
-                  : "Leave this circle? You keep the days you played; you stop seeing new ones."}
+                  ? "End this 1v1? You keep the days you played."
+                  : "Leave this circle? You keep the days you played."}
             </span>
             <button className="press" onClick={() => setConfirmLeave(false)}
               style={{ border: LD_LINE, background: "transparent", borderRadius: 999, padding: "6px 12px", cursor: "pointer", fontFamily: "var(--sans)", fontSize: 12, fontWeight: 700, color: "var(--ink-2)", WebkitAppearance: "none" }}>
@@ -732,7 +763,7 @@ function LdCard({ g, vh, nextName, newest }: {
     setBusy(true); setVoteErr(null);
     try { await S.voteDuel(g.id, optionIdx, guessIdx); }
     catch {
-      setVoteErr("That didn’t save — check your connection and try again.");
+      setVoteErr("That didn’t save — check your connection.");
       setPick(null);
     }
     setBusy(false);
@@ -811,7 +842,7 @@ function LdCard({ g, vh, nextName, newest }: {
         <GroupMark gid={g.id} name={g.name} size={52} />
         <div style={{ fontFamily: "var(--sans)", fontWeight: 800, fontSize: 21, letterSpacing: -0.4 }}>Waiting for someone</div>
         <div style={{ fontSize: 12.5, fontWeight: 600, color: "var(--ink-2)", maxWidth: 260, textWrap: "pretty" }}>
-          Add them by handle, or send the link — the duel starts when they accept.
+          Add them by handle or send the link.
         </div>
         <LdAddByHandle g={g} />
         <LdCopyLink g={g} />

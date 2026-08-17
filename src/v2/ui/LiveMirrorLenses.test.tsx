@@ -27,6 +27,15 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { LensId, LensQuestion } from "./lensDefs";
 
 const LIVE = vi.hoisted(() => ({
+  // D178: every named surface draws a face now, so a LIVE stand-in
+  // that lacks this crashes the row rather than falling back to
+  // initials. "" is the no-photo shape, which is most accounts.
+  faceFor: () => "",
+  myFace: () => "",
+  setAvatar: async () => ({ ok: true }),
+  removeAvatar: async () => {},
+  flagAvatar: async () => {},
+  flaggedAvatar: () => false,
   enabled: true,
   subscribe: () => () => {},
   loadKindred: vi.fn(async () => {}),
@@ -55,6 +64,11 @@ const Q: LensQuestion = {
   text: "Pineapple on pizza?",
   options: ["Yes", "No"],
   counts: [12, 8],
+  // Explore's baseline (D170). Equal to `counts` in this fixture on
+  // purpose: these cases are about what a lens SAYS, and the case that
+  // holds the two APART lives in LiveCohortBody.test.tsx, where the
+  // wiring that fills them is.
+  all: [12, 8],
   by: {
     ageBand: { "25-34": { "0": 9, "1": 1 }, "35-44": { "0": 3, "1": 7 } },
     gender: { Woman: { "0": 6, "1": 4 }, Man: { "0": 6, "1": 4 } },
@@ -65,8 +79,15 @@ const Q: LensQuestion = {
 // The row moved to the host at D119 (it is LiveCohortBody's tab bar now),
 // so a lens is chosen by prop rather than by tapping. `open` still drives
 // the controls INSIDE a lens — the dimension chips.
-const mount = (lens: LensId, qs: LensQuestion[] = [Q], shortName = "Oslo") =>
-  render(<LiveMirrorLenses lens={lens} qs={qs} shortName={shortName} />);
+// `scope` is Scores' own filter since D187 — it draws the questions that
+// rate THIS stop — so the mount has to be able to stand somewhere other
+// than the city. Defaulted, because every other lens ignores it.
+const mount = (
+  lens: LensId,
+  qs: LensQuestion[] = [Q],
+  shortName = "Oslo",
+  scope: "city" | "country" | "world" = "city",
+) => render(<LiveMirrorLenses lens={lens} qs={qs} shortName={shortName} scope={scope} />);
 const open = (name: RegExp) => fireEvent.click(screen.getByRole("button", { name }));
 
 // A ranked person as `kindredPeople` hands one back.
@@ -113,7 +134,7 @@ describe("People", () => {
   // drawn as cards rather than listed as names. The claims below are the
   // ones that survived the redraw plus the ones it added.
 
-  it("shows the population's own shape, and calls it answers not people", () => {
+  it("shows the population's own shape, and counts it in answers", () => {
     mount("people");
     expect(screen.getByText(/who.s here/i)).toBeTruthy();
     // The age histogram is in scale order, so it reads as a distribution
@@ -121,7 +142,7 @@ describe("People", () => {
     // above it names a band too, which is the point of having one.
     expect(screen.getAllByText("25-34").length).toBeGreaterThan(0);
     expect(screen.getByText("35-44")).toBeTruthy();
-    expect(screen.getByText(/answers, not people/i)).toBeTruthy();
+    expect(screen.getByText(/answers with an age/i)).toBeTruthy();
   });
 
   it("marks your own age band rather than annotating it", () => {
@@ -147,11 +168,11 @@ describe("People", () => {
     mount("people");
     expect(screen.getByText("Ceramicist · 25-34")).toBeTruthy();
     expect(screen.getByText("Ada")).toBeTruthy();
-    expect(screen.getByText("5 of 6 the same")).toBeTruthy();
+    expect(screen.getByText("5/6 alike")).toBeTruthy();
     // A likeness number nobody can explain is a number nobody should
     // trust, so the definition ships next to it.
-    expect(screen.getByText(/share of the questions you have both answered/i)).toBeTruthy();
-    expect(screen.getByText(/the fuller the ring, the closer/i)).toBeTruthy();
+    expect(screen.getByText(/same picks ÷ shared/i)).toBeTruthy();
+    expect(screen.getByText(/who answers most like you/i)).toBeTruthy();
   });
 
   it("falls back to the name when there is no profession to lead with", () => {
@@ -200,24 +221,24 @@ describe("People", () => {
     ];
     mount("people");
     expect(screen.queryByText("Thin")).toBeNull();
-    expect(screen.getByText(/nobody has answered enough/i)).toBeTruthy();
+    expect(screen.getByText(/fills in as you answer more/i)).toBeTruthy();
   });
 
   it("distinguishes 'still working' from 'nobody overlaps'", () => {
     LIVE.kindredLoading = () => true;
     mount("people");
-    expect(screen.getByText(/working out who answers like you/i)).toBeTruthy();
-    expect(screen.queryByText(/nobody has answered enough/i)).toBeNull();
+    expect(screen.getByText(/^Matching…$/)).toBeTruthy();
+    expect(screen.queryByText(/fills in as you answer more/i)).toBeNull();
 
     cleanup();
     LIVE.kindredLoading = () => false;
     mount("people");
-    expect(screen.getByText(/nobody has answered enough/i)).toBeTruthy();
+    expect(screen.getByText(/fills in as you answer more/i)).toBeTruthy();
   });
 
   it("says the card is empty rather than drawing an empty shape", () => {
     mount("people", [{ ...Q, by: {} }]);
-    expect(screen.getByText(/nobody here has filled in their age or gender/i)).toBeTruthy();
+    expect(screen.getByText(/no ages or genders here yet/i)).toBeTruthy();
   });
 });
 
@@ -225,23 +246,25 @@ describe("Compare", () => {
   it("counts how often you went with the majority, against this population", () => {
     mount("compare");
     // Own pick is option 1 ("No") at 40% — the minority — so 0 of 1.
-    expect(screen.getByText(/against Oslo/i)).toBeTruthy();
+    expect(screen.getByText(/with Oslo/i)).toBeTruthy();
     expect(screen.getByText(/40% here agreed/i)).toBeTruthy();
   });
 
   it("asks you to answer something rather than showing an empty frame", () => {
     mount("compare", [{ ...Q, mine: -1 }]);
-    expect(screen.getByText(/answer a few of today's questions/i)).toBeTruthy();
+    expect(screen.getByText(/fills in as you answer/i)).toBeTruthy();
   });
 });
 
 describe("Scores", () => {
-  // A 1-10 rating: two 3s and two 9s, so the mean is 6 exactly.
+  // A 1-10 rating of the city this stop is standing in: two 3s and two
+  // 9s, so the mean is 6 exactly.
   const RATED: LensQuestion = {
-    id: "r1", type: "rating",
-    text: "How optimistic are you about the next ten years?",
+    id: "r1", type: "rating", rates: "city", tag: "Safety",
+    text: "How safe do you feel walking home at night?",
     options: ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"],
     counts: [0, 0, 2, 0, 0, 0, 0, 0, 2, 0],
+    all: [0, 0, 2, 0, 0, 0, 0, 0, 2, 0],
     by: {}, mine: 8, // index 8 → a score of 9
   };
 
@@ -261,37 +284,76 @@ describe("Scores", () => {
 
   it("says so when you have not rated one, rather than implying a zero", () => {
     mount("scores", [{ ...RATED, mine: -1 }]);
-    expect(screen.getByText(/you have not rated this/i)).toBeTruthy();
+    expect(screen.getByText(/you have not rated it/i)).toBeTruthy();
+  });
+
+  // ── D187: the card is about the PLACE ──
+  //
+  // The three cases below are the ones that were green while the release
+  // drew a city scorecard led by "Breakfast is the best meal of the day".
+  // Nothing in the counts, the type or the branch could have caught it —
+  // the average was correct, of the wrong question.
+
+  it("REFUSES a question that rates no place, however ordinal it is", () => {
+    const outlook: LensQuestion = {
+      ...RATED, id: "o1", tag: "Doing nothing", text: "It's okay to do nothing sometimes.",
+      rates: undefined,
+    };
+    mount("scores", [outlook]);
+    expect(screen.queryByText("Doing nothing")).toBeNull();
+    expect(screen.getByText(/questions that rate Oslo land here/i)).toBeTruthy();
+  });
+
+  it("draws the stop it is standing on, not another stop's questions", () => {
+    const country: LensQuestion = { ...RATED, id: "c1", rates: "country", tag: "Healthcare" };
+    mount("scores", [RATED, country]);
+    expect(screen.getByText("Safety")).toBeTruthy();
+    expect(screen.queryByText("Healthcare")).toBeNull();
+    // …and the same pair one stop out reverses, so this is a filter
+    // rather than an ordering that happens to put the city first.
+    cleanup();
+    mount("scores", [RATED, country], "Norway", "country");
+    expect(screen.getByText("Healthcare")).toBeTruthy();
+    expect(screen.queryByText("Safety")).toBeNull();
   });
 
   it("REFUSES to average a categorical question", () => {
-    // The property this lens most needs. Q is a binary — "Yes" and "No"
-    // are different, not ordered — and a mean of it would render as a
-    // confident number about nothing. The filter is on the bank's type,
-    // because nothing in `counts` could tell the two apart.
-    mount("scores");
-    expect(screen.getByText(/nothing rated yet/i)).toBeTruthy();
+    // The type filter still does its own work under the subject filter. A
+    // place question written as a `choice` — "Yes" and "No" are different,
+    // not ordered — would otherwise render a confident number about
+    // nothing, and nothing in `counts` could tell the two apart.
+    mount("scores", [{ ...RATED, type: "choice", options: ["Yes", "No"], counts: [12, 8] }]);
     expect(screen.queryByText("/ 2")).toBeNull();
+    expect(screen.getByText(/nobody here has scored Oslo yet/i)).toBeTruthy();
   });
 
-  it("distinguishes 'no rated questions' from 'nobody answered them'", () => {
+  it("labels a row with the bank's noun rather than its prompt", () => {
+    // A scorecard is a column of nouns beside one baseline; a column of
+    // questions is a list you read one at a time, and the best-first sort
+    // that makes the shape readable is wasted on it (docs/COPY.md).
+    mount("scores", [RATED]);
+    expect(screen.getByText("Safety")).toBeTruthy();
+    expect(screen.queryByText(/walking home at night/)).toBeNull();
+  });
+
+  it("distinguishes 'no scored questions' from 'nobody answered them'", () => {
     // Two different emptinesses. Collapsing them into one "no data" is
     // the habit the withheld-cell era left behind (D98).
     mount("scores", [{ ...RATED, counts: [0,0,0,0,0,0,0,0,0,0] }]);
-    expect(screen.getByText(/nobody here has answered a rated question/i)).toBeTruthy();
+    expect(screen.getByText(/nobody here has scored Oslo yet/i)).toBeTruthy();
   });
 
   it("ranks by share of the scale, so a 5-point and a 10-point compare fairly", () => {
     // 4/5 (0.8) must outrank 7/10 (0.7). Ranking on the raw mean would
     // put the 7 first and quietly sort by which scale a question used.
     const likert: LensQuestion = {
-      id: "s1", type: "scale", text: "Rest is fine.",
-      options: ["1", "2", "3", "4", "5"], counts: [0, 0, 0, 3, 0], by: {}, mine: -1,
+      id: "s1", type: "scale", rates: "city", tag: "Rest", text: "Rest is fine.",
+      options: ["1", "2", "3", "4", "5"], counts: [0, 0, 0, 3, 0], all: [0, 0, 0, 3, 0], by: {}, mine: -1,
     };
-    const rating: LensQuestion = { ...RATED, id: "r2", text: "Curiosity?", counts: [0,0,0,0,0,0,3,0,0,0], mine: -1 };
+    const rating: LensQuestion = { ...RATED, id: "r2", tag: "Curiosity", counts: [0,0,0,0,0,0,3,0,0,0], all: [0,0,0,0,0,0,3,0,0,0], mine: -1 };
     mount("scores", [rating, likert]);
-    const texts = screen.getAllByText(/Rest is fine\.|Curiosity\?/).map((n) => n.textContent);
-    expect(texts).toEqual(["Rest is fine.", "Curiosity?"]);
+    const texts = screen.getAllByText(/Rest|Curiosity/).map((n) => n.textContent);
+    expect(texts).toEqual(["Rest", "Curiosity"]);
   });
 });
 
@@ -300,7 +362,7 @@ describe("Explore", () => {
     mount("explore");
     // The biggest age bucket leads; 25-34 is 90/10 against an overall
     // 60/40, so it is 30 points MORE likely to say Yes.
-    expect(screen.getByText(/30 points/)).toBeTruthy();
+    expect(screen.getByText(/30 pts/)).toBeTruthy();
     expect(screen.getByText(/more/)).toBeTruthy();
   });
 
