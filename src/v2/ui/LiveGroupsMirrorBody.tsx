@@ -32,7 +32,6 @@ import EmptyField from "./EmptyField";
 import MirrorLensTabs from "./MirrorLensTabs";
 import { useLensRowScroll } from "./lensRowScroll";
 import type { LensTab } from "./lensTabs";
-import type { LensQuestion } from "./lensDefs";
 import { groupPortrait, MIN_SHARED, type GroupPortrait, type PortraitReveal } from "../data/groupPortrait";
 
 // The stop's constellation (D152) — shared with Circle and the cohort
@@ -42,17 +41,14 @@ import { groupPortrait, MIN_SHARED, type GroupPortrait, type PortraitReveal } fr
 const LgField = React.lazy(() =>
   import("./LiveSimilarityField").then((m) => ({ default: m.PeopleField })),
 );
-// Compare, borrowed rather than rebuilt (D190) — the same reuse Near makes
-// (LiveRoomTabs) and for the same reason: `CompareLens` takes
-// `LensQuestion[]` and a noun, so a cohort folded on the device reads
-// exactly as one folded by the server, D170's majority test included.
+// Compare, borrowed rather than rebuilt (D190, re-pointed at D193) — the
+// same reuse Near makes (LiveRoomTabs) and for the same reason: the lens
+// asks for a population and a noun, so a group reads the way a city does.
 //
 // LAZY IS NOT OPTIONAL HERE. This file is a STATIC import in mirror-tab, so
-// a static import of the lens chunk would put all four lens bodies in the
-// entry graph — where check:bundle leaves about a dozen kilobytes.
-const GroupCompare = React.lazy(() =>
-  import("./LiveMirrorLenses").then((m) => ({ default: m.CompareLens })),
-);
+// a static import of the lens would put its four SVG canvases in the entry
+// graph — where check:bundle leaves about a dozen kilobytes.
+const GroupCompare = React.lazy(() => import("./LiveCompareLens"));
 
 const LG_LINE = "0.5px solid var(--rule)";
 
@@ -283,44 +279,6 @@ function LgPeopleCard({ g, P }: { g: LiveGroup; P: GroupPortrait }) {
   );
 }
 
-/**
- * The revealed days, shaped for Compare.
- *
- * One "question" per revealed day, which is what a group HAS: its history
- * is a stack of reveals, not a slice of the public bank. The counts are
- * the day's own votes (`portraitRow`, already folded and already on
- * screen in the Answers tab), the options are the bank's — or the members
- * themselves for a `pick` question, whose options ARE the group.
- *
- * `all` is empty on purpose: it is the globe, only Explore reads it, and
- * Explore is not one of this stop's tabs. An honest empty beats the
- * group's own counts wearing the globe's name (the mislabel D170 had to
- * repair one tab over).
- */
-function lgCompareQs(g: LiveGroup, P: GroupPortrait): LensQuestion[] {
-  return P.rows.map((r) => {
-    const bankQ = r.qid ? (LIVE.social.bankQ(r.qid) as { options?: string[] } | null) : null;
-    const options = bankQ && bankQ.options && bankQ.options.length
-      ? bankQ.options
-      : (g.memberUids || []).map((u, i) => (g.memberNames || {})[u] || `Member ${i + 1}`);
-    return {
-      // The DAY, not the qid: a group can be asked the same question twice
-      // over its life, and two rows under one key is a React list that
-      // silently drops one.
-      id: r.day,
-      text: lgPrompt(r.qid) || "",
-      options,
-      // Padded to the option list rather than left dense: an option nobody
-      // picked is a real zero, and a short array would draw a bar with a
-      // segment missing instead of one at 0%.
-      counts: options.map((_, i) => r.counts[i] || 0),
-      all: [],
-      by: undefined,
-      mine: r.mine == null ? -1 : r.mine,
-    };
-  }).filter((q) => !!q.text && q.options.length > 1);
-}
-
 function LiveGroupsMirrorBody() {
   const [, tick] = React.useState(0);
   React.useEffect(() => LIVE.subscribe(() => tick((t) => t + 1)), []);
@@ -429,8 +387,19 @@ function LiveGroupsMirrorBody() {
           ) : tab === "compare" ? (
             <React.Suspense fallback={null}>
               {/* The group's own name is the noun — the lens prints it in
-                  "3/5 with Book Club". */}
-              <GroupCompare qs={lgCompareQs(g, P)} shortName={g.name || "this group"} />
+                  "You ↔ Book Club".
+
+                  PEOPLE, not counts, and it is the one population that
+                  has no choice (D193). A group's history is its reveals,
+                  which are the group's own questions — it holds no
+                  answers to the test bank for a cell fold to read. What
+                  it does have is members whose completed instruments are
+                  public (D98) and cached beside their names, so its side
+                  is their mean, over the count the card prints. */}
+              <GroupCompare
+                pop={{ basis: "people", uids: g.memberUids || [] }}
+                whom={g.name || "this group"}
+                emptyThem={<>Nobody here has finished a test yet.</>} />
             </React.Suspense>
           ) : (
             <LgAnswersCard g={g} P={P} />

@@ -31,10 +31,17 @@ import LiveAnswerRows from "./LiveAnswerRows";
 // The face, since D178 — the same component every other named surface
 // draws, with initials as its permanent fallback.
 import Avatar from "./Avatar";
-// Compare, likewise. It takes `LensQuestion[]` and a noun, and asks
-// nothing about scope — so the room passes its own counts and the word
-// "this room", and inherits D170's majority test for free.
-import { CompareLens } from "./LiveMirrorLenses";
+// Compare, likewise — the profile drawing since D193, where it was a list
+// of questions before. The room passes the PEOPLE in it and the word "this
+// room": the server's fold returns today's deck, never the test bank, so a
+// cell fold has nothing here to read and the members' own completed
+// instruments — public since D98, and already cached beside the names this
+// tab resolves — are the room's side.
+//
+// Static rather than lazy, unlike the other three hosts': this module is
+// itself the lazy chunk NearLiveBody fetches on a tab tap, so the drawing
+// rides a fetch that has already happened.
+import LiveCompareLens from "./LiveCompareLens";
 import { ROOM_WHOM, roomQuestions, roomRows } from "./roomShape";
 import {
   CORE_TEST_KINDS, flattenAxes, parseTestResults, scoreMatch,
@@ -204,7 +211,15 @@ export default function LiveRoomTabs({ tab }: { tab: string }) {
   const qs = roomQuestions(deck, room.qs, LIVE.myVotes());
 
   if (tab === "people") return <RoomPeople people={room.people} />;
-  if (tab === "compare") return <CompareLens qs={qs} shortName={ROOM_WHOM} />;
+  if (tab === "compare") {
+    return (
+      <LiveCompareLens
+        pop={{ basis: "people", uids: room.people.map((p) => p.uid) }}
+        whom={ROOM_WHOM}
+        emptyThem={<>Nobody here has finished a test yet.</>}
+      />
+    );
+  }
   return (
     <LiveAnswerRows
       rows={roomRows(qs)}

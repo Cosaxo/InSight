@@ -579,7 +579,27 @@ const MAX_CHUNK_KB = 735;
 // number to watch — it is the one defending first paint, and the next
 // thing added to the entry graph will very likely need a dynamic import
 // rather than a raise.
-const MAX_TOTAL_JS_KB = 2334;
+//
+// 2334 → 2340 (2026-08-17): D193's Compare. Measured with a DSN on this
+// tree, both ways: total 2331 → 2336 (+5), eager 964 → 965 (+1), 82
+// chunks up from 79.
+//
+// SEVENTH RAISE, and the smallest of them — worth a line anyway, because
+// the entry two above asked what a sixth would mean and the answer holds
+// here too: the total is a DRIFT ALARM, and 5 KB of new product code
+// (`ui/LiveCompareLens.tsx`, `data/compare.ts`) is the boring end of what
+// it should notice. The eager graph, which is the constant defending
+// anything, moved 1 KB.
+//
+// THE THREE NEW CHUNKS ARE A SPLIT, NOT NEW WEIGHT, and it is the
+// counter-intuitive half worth writing down: `spec/compare-breakdown.jsx`
+// was inside the entry chunk (spec-index imports it eagerly), and a lazy
+// importer appearing is what made rolldown pull it out into a shared 14 KB
+// chunk of its own. So bytes moved OUT of the entry graph, which is why
+// +5 KB of source cost first paint +1. That relocation is exactly what
+// the 2026-08-13 entries say the TOTAL cannot see, and correctly: it
+// counts every chunk, so only the genuinely new code shows up here.
+const MAX_TOTAL_JS_KB = 2340;
 // 955 → 966 (2026-08-14): D139's pulse card — the second fixed instrument
 // on the FIRST screen, so its card, its store's demo furniture and the
 // two LIVE members are legitimately eager (~10 KB min). What is not

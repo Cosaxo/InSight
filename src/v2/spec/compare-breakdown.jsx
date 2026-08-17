@@ -56,7 +56,13 @@ const CB_ASSESS = [
 // ── alignment as a picture, not a percentage: your dot and theirs, drawn as
 //    close together as you actually are — solid you, washed them, one hue. At
 //    high alignment they land on the same spot and read as one dot in a halo. ──
-function CBAlignGlyph({ align, accent }) {
+// Exported since D193, when the LIVE Compare lens became this drawing
+// rather than a list of questions (ui/LiveCompareLens.tsx). A named export
+// beside the global publication rather than instead of it: the demo's
+// consumers still look this up by name at render time, and D39's ratchet
+// only moves down — a live module reading `window.CBAlignGlyph` would have
+// raised it for a component the ESM graph can hand over directly.
+export function CBAlignGlyph({ align, accent }) {
   const W = 44, H = 22, r = 7, cy = H / 2, cx = W / 2;
   const off = ((100 - align) / 100) * 25;
   const nest = off < 8;
@@ -178,7 +184,15 @@ function CBPoleRows({ dims, poles, hueOf, themV, hi, setHi }) {
 }
 
 // rose + poles as one linked unit — touching a pole row lights its petal
-function CBAssess({ dims, themV, hueOf, poles, themLabel }) {
+//
+// EXPORTED, and it is the seam the live lens hangs on (D193). Everything
+// above it takes props and nothing below it does: `CompareBreakdown` reads
+// the demo's `IS_TEST_RESULTS` and `IS_COMPARE_POP`, while this pair —
+// glyph and assessment — asks only for two profiles and a hue family. So
+// the live lens supplies real dims and a measured `themV` and draws the
+// identical picture, instead of the port growing a second copy of 150
+// lines of SVG that would drift the first time either was touched.
+export function CBAssess({ dims, themV, hueOf, poles, themLabel }) {
   const [hi, setHi] = React.useState(null);
   return (
     <>

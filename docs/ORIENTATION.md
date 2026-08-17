@@ -59,7 +59,7 @@ both enforced rather than promised:
 | --- | --- | --- |
 | `src/v2/spec/` | The JSX ported verbatim from the frozen prototype — the largest layer here. Shared-global scope, order-sensitive, shrinking under a ratchet. `mirror-*.jsx` and `map-*.js*` are the Mirror tab | `src/v2/README.md`, then `CLAUDE.md` §1 |
 | `src/v2/spec-index.js` | Imports every spec module for side effects. **The order is semantic.** Also exports the two lazy groups (`loadWorldFeed`, `loadOverlays`) | `src/v2/README.md` |
-| `src/v2/data/` | The typed client layer — `live.ts` publishes `window.LIVE`; `cohort.ts` and `similarity.ts` are the Mirror's folds; the rest is pure, tested logic | `docs/MIRROR.md` §6 |
+| `src/v2/data/` | The typed client layer — `live.ts` publishes `window.LIVE`; `cohort.ts`, `similarity.ts` and `compare.ts` are the Mirror's folds; the rest is pure, tested logic | `docs/MIRROR.md` §6 |
 | `src/v2/ui/` | The hand-written TSX panels — the live Mirror bodies, the duel, privacy, city and search panels. One test suite each, mutation-checked | `src/v2/README.md` § Panel tests |
 | `src/v2/test/` | The mount smoke tests over `src/v2/test/mount-app.jsx`. The only gate that renders the whole app — the spec layer's other three are all name-level | `src/v2/README.md` § Mount tests |
 | `src/v2/styles.css` | The design system, verbatim from the spec | — |

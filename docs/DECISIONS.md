@@ -19698,3 +19698,166 @@ functions suite fails to *load* six of its eight files with
 not a broken suite — `npm install --prefix functions` and all 228 pass.
 It reads like a real import error because it is one; the package is simply
 not there yet.
+
+## D193 · Compare draws the comparison it was always described as drawing
+
+**2026-08-17.** **Status:** binding. Owner's ask, verbatim: *"the compare
+functonality is wrong and should work more like the vison in the html
+file"* — the v33 standalone prototype, attached.
+
+**Decision.** The Mirror's **Compare** tab is the profile comparison the
+prototype draws and this file has described since D99: you and the
+population laid over each other instrument by instrument, in the results
+page's own visual language — your petal solid to your score, their value
+pinned on the same slice as a washed dot, pole rows underneath, an
+alignment figure per instrument and one pooled figure over the lot. It is
+computed from measured data on all six stops that carry the tab: City,
+Country, World, Circle, Groups and Near.
+
+The list of questions it used to be is gone. `CompareLens` is gone with
+it, along with the `LensQuestion` plumbing three of the four hosts existed
+to build.
+
+**What was wrong, and why nothing caught it.** Compare shipped at D99 as
+`pctFor` on your own option, question by question, ranked least-typical
+first. Every number on that screen was true, drawn from published counts,
+and D170 had already gone through and corrected *which* counts. Five
+gates, four suites and ninety-odd decisions passed over it.
+
+It was wrong twice.
+
+1. **It is not what the lens is.** `docs/MIRROR.md` has said since D99:
+   "**Compare** — you against them across every assessment, in the results
+   profile's own visual language: the petal is solid as far as you *both*
+   reach and pale for the distance between you." That paragraph sat six
+   inches above a table row reading "`pctFor` on your own option… ranked
+   least-typical first", and the two describe different screens. The
+   design was recorded, the build diverged, and the divergence was
+   recorded too — in the same document, as though it were a status note.
+   Nothing gates prose against code, and this is the shape that gap takes.
+2. **It was the Answers tab re-sorted.** `LiveAnswerRows` draws the same
+   population's every question with your own pick marked and "62% of Oslo
+   are with you" underneath (`standingIn`, D120) — plus a branch filter, a
+   sort band and an expander the lens never had. So the row's whole
+   reading already existed one tab to the left, better. What did not exist
+   anywhere is the comparison the prototype is built around: two whole
+   profiles, one shape against another.
+
+The refusal that kept it a list was real when it was made and is not real
+now. Until D98 the second person in a comparison was unreadable; since
+D112 the arithmetic that gives a place a score profile has been in the
+tree and the constellation has been drawing it. Compare was the one
+consumer that never picked it up.
+
+**The two bases, and why there are two.** `data/compare.ts` is the whole
+fold and it is pure.
+
+| basis | stops | their side is |
+| --- | --- | --- |
+| `cells` | City · Country · World · Circle | `axisScores` over per-option COUNTS — the published `by.city` / `by.country` cell, the globe, or the circle's own members via `circleSplit` |
+| `people` | Groups · Near | the MEAN of the members' completed `testResults`, public since D98 and already cached beside their names |
+
+Neither is the other and every card prints which one it drew, over what:
+"mean gap across 21 axes · 4,120 test answers", or "· 6 of 9 have taken
+one". That is testNorms' rule (D157) applied one screen over — a figure
+that cannot say what it was measured over is an authored constant wearing
+a measurement's clothes.
+
+Groups and Near take the `people` basis because they have no choice: a
+group's history is its own reveals and Near's server fold returns today's
+deck, so neither holds a test-bank answer for a cell fold to read. Circle
+does hold them — its members' answers are already fetched for its Answers
+tab — so it folds counts, and reads the way a city does.
+
+**Your side fills in from ordinary answering.** `myAxisMap` is
+`myFlatAxes`' merge kept per-instrument: a completed test where you have
+one, your own answers to that instrument's feed items where you have not.
+So Compare is not gated on sitting down for a test — it fills in as the
+feed's test cards get answered, which is the same thing that fills in the
+population's side.
+
+**Floors, and where they belong.** An axis is drawn for a PLACE only
+above `NORM_MIN_ANSWERS` (30) across `NORM_MIN_ITEMS` (2) — testNorms'
+numbers, imported rather than re-picked, because "the mean of four
+answers is four people's mood" is the same sentence there and here. A
+CIRCLE passes 2 and 2 instead, and the difference is a claim rather than a
+preference: a city is a *sample* of a city, a circle is the exact set you
+chose, and its mean is that set's mean at any size — including one, where
+the stop's own header says "1 person" one line above. The item floor
+travels with neither: "an axis is several questions agreeing" is true of
+every population, which is what makes it the floor that actually binds on
+a small one.
+
+A card needs `MIN_COMPARE_AXES` (3) axes the two of you SHARE —
+`MIN_PLACE_AXES`' number and reasoning. An instrument only one of you has
+is absent rather than drawn against a neutral 50, which is the
+middle-of-the-road population `axisScores` already refuses to invent.
+
+**One deliberate divergence from the prototype's arithmetic.**
+`compare-breakdown.jsx` averages the per-instrument percentages for its
+headline. The header figure here is `scoreMatch` over the UNION of every
+shared axis — the identical call the People lens and the constellation's
+place cards make — so "100 minus the average gap across the axes you both
+have" is one sentence true of every likeness number in the Mirror, and a
+six-axis instrument does not weigh the same as a five-axis one. The
+prototype's other clamp goes too: it pins alignment to 2–99, which would
+turn a measured 100 into a cosmetic 99.
+
+**The drawing is imported, not re-ported.** `CBAssess` and `CBAlignGlyph`
+are named exports of `spec/compare-breakdown.jsx` now. Everything above
+that seam takes props and knows nothing about where a profile came from;
+everything below it reads the demo's `IS_TEST_RESULTS` and
+`IS_COMPARE_POP`. So the live lens supplies measured dims and draws the
+identical picture, instead of the tree growing a second copy of 150 lines
+of SVG that would drift the first time either was touched. Named exports
+rather than `window` reads: D39's ratchet only moves down, and the file is
+in the eager graph already, so the live chunk pays nothing for it.
+
+**What this costs to open: nothing new.** The `cells` stops read the
+test-item aggregates the constellation above the row already fetches on
+arrival (D136, `loadSimilarity`) — and Compare deliberately does NOT call
+that loader itself, because it early-returns on the agg sweep and then
+awaits `loadKindred`, which is the People lens's own cost gate. A
+courtesy call would have charged Compare for voter lists nobody asked
+for. The `people` stops call `loadNames`, which is the call their People
+tab already makes and which brings scores down on the same document.
+
+**What the empty states say, kept apart.** Three of them, because
+collapsing them would tell someone who has taken every test that they have
+taken none: *you* have no profile ("Fills in as you answer the test cards
+in your feed"), *they* have none (the host's own sentence — "Nobody in
+Oslo has answered a test card yet"), or you have no instrument in common
+yet.
+
+**Two tests were deleted rather than adapted, and both are recorded where
+they stood.** `LiveCohortBody.test.tsx`'s "Compare stops calling a tie the
+majority" pinned D170's majority rule, and Compare no longer folds an
+option split, so there is no rule left to break. Its two siblings — the
+lens reads its own stop's cell, never the globe — are restated over the
+new fold in `LiveMirrorLenses.test.tsx`, where the code they describe now
+lives.
+
+**Known limit, stated rather than worked around.** A city's Compare needs
+30 answers across 2 items on an axis before it draws, so on a young
+install the tab says "Nobody in Oslo has answered a test card yet" while
+the Answers tab is already full. That is the correct order of events —
+answers publish from the first one (D98), profiles need a crowd — and it
+is why the empty arm names the population rather than apologising.
+
+**The bundle, measured both ways.** `MAX_TOTAL_JS_KB` goes 2334 → 2340,
+the seventh raise and the smallest: with a DSN, total 2331 → 2336 (+5),
+eager 964 → 965 (+1), 82 chunks up from 79. The three new chunks are a
+SPLIT rather than new weight, and it is the counter-intuitive half —
+`spec/compare-breakdown.jsx` sat inside the entry chunk because
+`spec-index.js` imports it eagerly, and a lazy importer appearing is what
+made rolldown pull it out into a shared 14 KB chunk. Bytes moved OUT of
+the entry graph, which is why +5 KB of source cost first paint +1.
+`MAX_EAGER_KB` — the constant that defends anything — did not move and
+keeps 13 KB of headroom.
+
+**Verified:** `tsc -b`, `lint`, `check:globals` (409, baseline 409),
+`test:unit` (1,266 over 81 files, including 17 new cases in
+`data/compare.test.ts`), `check:bundle` on a live build with a DSN,
+`check:docs`, `:figures`, `:labels`, `:a11y` (8, baseline 8),
+`:public-copy`. No rule, function, content bank or catalogue is touched,
+so the rules and e2e suites were not run.
