@@ -155,6 +155,26 @@ v2_question_aggs/{qid}             the PUBLIC mirror, EXACT (D98)
                                    member sets, per-group anything
 read: signed-in · write: nobody
 
+v2_call_outcomes/{qid}             a graded Foresight CALL (D193)
+  outcomeIdx: 0|1|-1               the winning option, or -1 for VOID:
+                                   nobody scored, and `note` says why
+  resolvedAt, resolvedBy           server clock; "auto" for a grade the
+                                   rubric produced, a uid for a hand
+                                   resolution
+  inputs {qid,total,counts,cells?} WHAT THE GRADER SAW — the aggregate,
+                                   narrowed to the cells the rubric read.
+                                   Without it the outcome is an assertion;
+                                   with it the DEVICE re-runs the same
+                                   arithmetic (data/callRubric.ts, held
+                                   byte-identical to the resolver's copy
+                                   by check:calls) and the card prints
+                                   whether the two agree
+  note?                            required on a void
+read: signed-in · write: NOBODY — a client-writable outcomeIdx would make
+every score in the feature forgeable in one request. Existence is
+load-bearing too: firestore.rules refuses a call answer once this document
+exists, or a player reads the grade and then "predicts" it.
+
 v2_avatars/{uid}                   the profile photo's document (D178)
   token: "…"                       the Storage download token for
                                    avatars/{uid}. NOT a URL: the client
@@ -320,7 +340,7 @@ MOD_UIDS-gated callables (the D22 confinement)
 ## Functions
 
 - `seedContentV2` (callable; emulator or SEED_ADMIN_UIDS allowlist) — mirrors `/content` question banks
-  into `v2_questions` (537 docs, stable ids `daily-000`, `feed-<id>`,
+  into `v2_questions` (540 docs, stable ids `daily-000`, `feed-<id>`,
   `group-<id>`, `duo-000`, `test-<key>-NN`; idempotent merge; `active` written only on first create, preserving the
   operational kill switch). Bank source:
   `functions/src/v2content.ts`, generated from `/content/*.json`.
@@ -337,6 +357,16 @@ MOD_UIDS-gated callables (the D22 confinement)
   operator) — materialize yesterday's reveals: groups reveal with ≥1
   answer; duos only when BOTH played (and the shared streak advances or
   resets accordingly).
+- `resolveCallsV2` (scheduled, 04:23 UTC daily; D193,
+  docs/FORESIGHT-CALLS.md) — grades every tier-A call past its
+  `resolvesAt` by EXECUTING the call's own rubric against
+  `v2_question_aggs`, and publishes the counts it read beside the
+  outcome. No model, no fetch, no judgement in that path. It never
+  guesses (an undecidable rubric returns null and the call waits), never
+  grades early (UTC day keys), never rewrites an outcome (the write is
+  `create`-shaped) — and after `CALL_VOID_AFTER_DAYS` of failing to
+  execute it writes a VOID rather than leaving a guess in the air, which
+  is safe precisely because a void asserts nothing.
 - `activateDeviceV2` (callable; D29, docs/DEVICE-BIND.md) — verifies a
   platform attestation token against the per-device bits Apple/Google
   hold (one counted account per device per calendar month) and stamps
@@ -371,7 +401,7 @@ read: signed-in · write: nobody
 ## Read economics (client)
 
 A live boot costs ~20 reads, not ~380: one `v2_meta/app` read decides
-everything. The question bank (537 docs) caches in localStorage keyed by
+everything. The question bank (540 docs) caches in localStorage keyed by
 `contentRev`, and refreshes **incrementally** — one query for docs newer
 than the cache's `updatedAt` cursor, so a promotion cycle costs the
 handful of questions it added rather than the whole bank (D34;
@@ -406,7 +436,7 @@ not per boot. `LIVE.stats` reports `bankSource` / `answersFetched` /
 
 ## Verification
 
-- `npm run test:rules` — 106 rules tests (Firestore + Storage; the v2
+- `npm run test:rules` — 111 rules tests (Firestore + Storage; the v2
   surface, the anonymous-default lens, and the retired-v1 guard).
 - `firestore-tests/e2e-v2-loop.mjs` under
   `firebase emulators:exec --only auth,firestore,functions` — the full

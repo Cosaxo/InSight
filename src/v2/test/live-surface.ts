@@ -118,6 +118,11 @@ export const LIVE_MEMBERS = [
   // spec/paths-card.jsx reads it here instead. Empty in a demo build, which
   // is the signal the card falls back to its authored pool on.
   "pathQs",
+  // Foresight CALL, tier A (D193): the bank's calls with their folded
+  // counts, the published grades (null per call = fetched-and-ungraded,
+  // the whole map null = nothing read yet — the card draws different
+  // things for those two), and the one bounded fetch that fills them.
+  "callQs", "callOutcomes", "loadCallOutcomes",
   "ready", "saveAnchors",
   "saveDisplayName",
   // Operator-only, and the one member here no spec-layer JSX reads — it is

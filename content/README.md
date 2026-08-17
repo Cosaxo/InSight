@@ -25,6 +25,8 @@ it mirrored, so editing it looked like changing the app and changed nothing.
 | `tests.json` | The four core tests' item banks (big5 · political · values · attachment) — 160 items over one shared counter |
 | `lenses.json` | The nine lens banks (moral · risk · trust · time · taste · conflict · humor · thinking · culture) — the client minted these ids |
 | `learn-questions.json` | Learn subjects, fields and cards (106) |
+| `pulse-questions.json` | The daily pulse's TEMPLATE questions (D139) — one doc per pulse question forever, never one per day; answers are keyed `{qid}_{day}` against them. Exactly five ordered steps each, because the trends chart's y-axis IS that scale |
+| `call-questions.json` | Foresight CALL, tier A (D193) — sealed predictions graded against this app's own published aggregates. Each carries `resolvesAt` and a `rubric` the resolver RUNS; `check:calls` dry-runs every one before it can ship. Editorial-only and outside the farm's lanes, like the pulse bank, so no provenance rows |
 | `provenance.json` | Who wrote each daily/feed question and in which vintage (D97) — written by `promote-questions.mjs` and the lane PRs, held in step with the banks by `check:quality`, read by the scorecard's `production` rollup. Measurement metadata, not content — never seeded |
 | `scorecard.json` | Generated measurement output for the scorecard renderer (`npm run scorecard`) — an output, never an input to the bank |
 

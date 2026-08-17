@@ -2,6 +2,7 @@
 // live.ts so it can be unit-tested without Firebase or a browser. Every
 // function here takes explicit inputs (no module state, no window, no
 // firebase imports); live.ts passes its store state in.
+import type { CallRubric, CallSnapshot } from "./callRubric";
 
 export interface LiveOption {
   id: string;
@@ -104,6 +105,23 @@ export interface QuestionDoc {
   hue?: number;
   nodes?: Record<string, { q: string; a: Array<{ t: string }> }>;
   endings?: Record<string, { name: string; line: string }>;
+  // Foresight CALL (D193), on `call` docs only: the admitted grading tier,
+  // the earliest UTC day the resolver may grade, and the expression it
+  // RUNS. The outcome is deliberately not here — it is written by the
+  // resolver into v2_call_outcomes, which the seed never touches.
+  tier?: string;
+  resolvesAt?: string;
+  rubric?: CallRubric;
+}
+
+/** One published grade — `v2_call_outcomes/{qid}`, admin-written (D193). */
+export interface CallOutcome {
+  /** The winning option, or CALL_VOID (-1): nobody is scored. */
+  outcomeIdx: number;
+  resolvedBy?: string;
+  /** What the grader SAW, so the device can re-run the same arithmetic. */
+  inputs?: CallSnapshot | null;
+  note?: string;
 }
 
 export interface AggDoc {
@@ -310,6 +328,7 @@ export function splitBanks(active: Array<QuestionDoc & { id: string }>): {
   feed: Array<QuestionDoc & { id: string }>;
   duel: Array<QuestionDoc & { id: string }>;
   learn: Array<QuestionDoc & { id: string }>;
+  call: Array<QuestionDoc & { id: string }>;
 } {
   const playable = (q: QuestionDoc & { id: string }) =>
     Array.isArray(q.options) && q.options.length >= 2;
@@ -332,6 +351,13 @@ export function splitBanks(active: Array<QuestionDoc & { id: string }>): {
         (playable(q) || q.topic === "pick"),
     ),
     learn: active.filter((q) => q.surface === "learn" && playable(q)),
+    // Foresight CALLs (D193). Their own bank rather than a member of the
+    // feed's: a call is not dealt into the stream, it is pinned at the head
+    // like Crossroads, and — more to the point — its card is the only one
+    // that has to read a SECOND document (the outcome) before it can say
+    // anything. Keeping it out of `feed` keeps that read off the feed's
+    // hot path entirely.
+    call: active.filter((q) => q.surface === "call" && playable(q)),
   };
 }
 

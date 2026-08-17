@@ -1,9 +1,25 @@
 # CALL — the half of Foresight that asserts a fact
 
-**Status: design only. No code exists.** D126 shipped Foresight's READ
-half; this is the write-up of the other half, requested before any of it
-is built. Read it as a proposal with the failure modes named, not as a
-description of the tree.
+**Status: mixed. TIER A IS BUILT ([D193](DECISIONS.md#d193--predictions-ship-and-the-app-only-asserts-what-it-can-recompute)); tier B is not, and stays a
+proposal.** D126 shipped Foresight's READ half; this was the write-up of
+the other half, written before any of it was built. What shipped follows
+this document closely, with three departures worth reading before trusting
+a paragraph below:
+
+- **§3's dry run is offline.** `check:calls` has no production aggregate,
+  so instead of one provisional execution it runs each rubric TWICE —
+  against a snapshot shaped to make it true and one shaped to make it
+  false — and demands both branches. A rubric that can only resolve one
+  way fails.
+- **§5's human on the exceptions has no console yet**, so the resolver
+  writes the VOID itself after 14 days of failing to execute. §7's
+  argument is why that is safe: a void asserts nothing and scores nobody,
+  where an automatic guess would do both.
+- **§4's rules changes are one function, not two words.** `isCallAnswer()`
+  adds `!exists(v2_call_outcomes/{aid})` — a call closes the moment it is
+  graded, or a player reads the outcome and then "predicts" it.
+
+Tier B, tiers C and D, and the failure modes below stand as written.
 
 A **CALL** is v19's second Foresight card: a real-world event sealed now
 and scored when it resolves. "Arsenal to win the league", answered in

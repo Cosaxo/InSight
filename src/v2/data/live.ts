@@ -152,7 +152,7 @@ import {
   splitBanks,
   utcDayIndex as utcDayIndexPure,
 } from "./deck";
-import type { AggDoc, LiveQuestion, QuestionDoc, VoteContext } from "./deck";
+import type { AggDoc, CallOutcome, LiveQuestion, QuestionDoc, VoteContext } from "./deck";
 import { nearMode, nearOptedIn, nearUntil, setNearMode, type NearMode } from "./near";
 // The device computes its own archetype name for the presence doc (D176).
 import { myType } from "./typeMix";
@@ -192,6 +192,13 @@ const state = {
   // Learn cards (D32) — consumed only through LIVE.learnAnswer/learnAgg;
   // splitBanks fences them out of every other bank.
   learnBank: [] as Array<QuestionDoc & { id: string }>,
+  // Foresight CALLs (D193). Their published grades, fetched once per
+  // session on the tap that opens the card: qid → outcome, or null for a
+  // call the resolver has not graded yet. `null` is a FETCHED ABSENCE and
+  // is what the card draws "sealed" from — undefined means nothing has
+  // been read, which is a different sentence.
+  callBank: [] as Array<QuestionDoc & { id: string }>,
+  callOutcomes: null as Record<string, CallOutcome | null> | null,
   // Per-session cache for learn aggregates: null = fetch in flight or
   // found nothing; a doc = the k-floored public agg. On-demand getDoc at
   // reveal time, NOT a standing subscription — 96 snapshots for cards
@@ -244,7 +251,7 @@ const state = {
     anchors: {} as Record<string, string>,
   },
   meta: { latestBuild: 0, minBuild: 0, updateUrl: "" },
-  stats: { bankSource: "none", aggsFetched: 0, answersFetched: 0 },
+  stats: { bankSource: "none", aggsFetched: 0, answersFetched: 0, callOutcomesFetched: 0 },
   groups: [] as Array<Record<string, unknown> & { id: string }>,
   duelBank: [] as Array<QuestionDoc & { id: string }>,
   reveals: {} as Record<string, Record<string, unknown> | null>,
@@ -339,6 +346,11 @@ const state = {
   invites: [] as Invite[],
   invitesLoading: false,
 };
+
+// In flight, so two cards opening at once share one query rather than
+// racing two. Module-level beside the other loaders' guards rather than in
+// `state`, because it is not state anything renders.
+let callOutcomesInflight: Promise<void> | null = null;
 
 // How many of the viewer's own answers the Kindred ranking reads across.
 // Twelve shared questions is a legible likeness claim and the cost is
@@ -1038,6 +1050,7 @@ async function hydrate(): Promise<void> {
   state.feedBank = banks.feed;
   state.duelBank = banks.duel;
   state.learnBank = banks.learn;
+  state.callBank = banks.call;
   // A completely unseeded project is a real failure: throw so boot leaves
   // LIVE disabled and the mock deck renders. Returning here used to let
   // boot flip enabled=true on an empty deck, which pins the user on
@@ -3417,6 +3430,70 @@ const LIVE = {
     });
     return out;
   },
+  // ── Foresight CALL, tier A (D193) ───────────────────────────────
+  //
+  // The calls in the bank, with their published counts — how the crowd
+  // itself called each one, which is an ordinary aggregate over ordinary
+  // answers. The GRADE is a second document and is not fetched here; see
+  // loadCallOutcomes below, which the card asks for when it opens.
+  callQs(): Array<QuestionDoc & { id: string; counts: number[] }> {
+    return state.callBank.map((q) => ({ ...q, counts: feedCounts(q) }));
+  },
+  /**
+   * The published grades, or null while nothing has been read.
+   *
+   * The distinction the card depends on: `null` here means "not fetched",
+   * an ENTRY of null means "fetched, the resolver has not graded it" —
+   * which is a sealed call, and a real thing to draw. Collapsing the two
+   * would make every call look sealed for a frame after boot, including
+   * the ones already graded.
+   */
+  callOutcomes(): Record<string, CallOutcome | null> | null {
+    return state.callOutcomes;
+  },
+  /**
+   * One bounded fetch per session for every call's grade.
+   *
+   * D124/D129 discipline: poll, never stream, and only on the tap that
+   * asks. The bank's calls are a handful, so this is one `documentId() in`
+   * query — the same shape data/pulse.ts uses for its per-day docs, capped
+   * at Firestore's 30-clause limit. An absent document is stored as null
+   * rather than skipped, so a second open does not refetch what it already
+   * knows is ungraded.
+   *
+   * `force` exists for one caller: the card after a vote, which wants to
+   * know whether the grade landed while it was open. Everything else takes
+   * the cache.
+   */
+  loadCallOutcomes(force = false): Promise<void> {
+    if (!LIVE.enabled || !state.callBank.length) return Promise.resolve();
+    if (state.callOutcomes && !force) return Promise.resolve();
+    if (callOutcomesInflight) return callOutcomesInflight;
+    callOutcomesInflight = (async () => {
+      try {
+        const db = await getDb();
+        const ids = state.callBank.slice(0, 30).map((q) => q.id);
+        const snap = await getDocs(
+          query(collection(db, "v2_call_outcomes"), where(documentId(), "in", ids)),
+        );
+        const got = new Map(snap.docs.map((d) => [d.id, d.data() as CallOutcome]));
+        const next: Record<string, CallOutcome | null> = {};
+        for (const id of ids) next[id] = got.get(id) ?? null;
+        state.callOutcomes = next;
+        state.stats.callOutcomesFetched = snap.size;
+        notify();
+      } catch (err) {
+        // A failed read leaves state.callOutcomes as it was — the card
+        // draws "not read yet" rather than inventing a sealed state for a
+        // call that may well be graded.
+        reportError(err, { where: "loadCallOutcomes" });
+      } finally {
+        callOutcomesInflight = null;
+      }
+    })();
+    return callOutcomesInflight;
+  },
+
   // ── the daily pulse (D139) ──────────────────────────────────────
   // One answer per day, id {baseQid}_{day} — the duel answers' shape on
   // a world-public surface. Create-only mirrors the rules: no re-pick
@@ -3475,7 +3552,11 @@ const LIVE = {
         if (!uid) throw new Error("no session");
         const q =
           state.questions.find((x) => x.id === qid) ||
-          state.feedBank.find((x) => x.id === qid);
+          state.feedBank.find((x) => x.id === qid) ||
+          // A call is voted through this same path (its answer doc has the
+          // world shape), so it has to be findable here or the write would
+          // claim `surface: "daily"` and rules would refuse it.
+          state.callBank.find((x) => x.id === qid);
         await setDoc(doc(db, "v2_users", uid, "answers", qid), {
           qid,
           surface: q?.surface ?? "daily",

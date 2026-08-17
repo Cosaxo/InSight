@@ -579,7 +579,17 @@ const MAX_CHUNK_KB = 735;
 // number to watch — it is the one defending first paint, and the next
 // thing added to the entry graph will very likely need a dynamic import
 // rather than a raise.
-const MAX_TOTAL_JS_KB = 2334;
+//
+// 2334 → 2343 (2026-08-17): D193's Foresight CALL card, and it moved the
+// two numbers the way a lazily-loaded feature is supposed to. The world-feed
+// chunk carries +8 KB (the card, `data/calls.ts` and the shared
+// `data/callRubric.ts`) and the eager graph moved **+1** — 964 → 965 —
+// because the card is imported by `world-feed.jsx`, which is already past
+// first paint behind `loadWorldFeed()` (D25). Measured both sides of the
+// change on this tree with the same command: 2331/964 before, 2340/965
+// after. Headroom left on the total is 3 KB, on the eager 13 — which is
+// the right way round, and the eager one is still the number to watch.
+const MAX_TOTAL_JS_KB = 2343;
 // 955 → 966 (2026-08-14): D139's pulse card — the second fixed instrument
 // on the FIRST screen, so its card, its store's demo furniture and the
 // two LIVE members are legitimately eager (~10 KB min). What is not

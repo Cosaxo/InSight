@@ -19698,3 +19698,158 @@ functions suite fails to *load* six of its eight files with
 not a broken suite — `npm install --prefix functions` and all 228 pass.
 It reads like a real import error because it is one; the package is simply
 not there yet.
+
+## D193 · Predictions ship, and the app only asserts what it can recompute
+
+**2026-08-17.** **Status:** binding. Owner's ask: *"let's start building
+the remaining parts like the predicts."* Foresight **CALL, tier A** — the
+half of [D126](#d126) that was designed at [D127](#d127) and never built —
+is live end to end: a bank surface, a rules arm, a scheduled resolver, a
+feed card, and a gate that refuses a call the grader cannot run.
+
+### The question this feature had to answer first
+
+Every number InSight draws is a fold over documents the reader can open. A
+resolved call is not: it is the app **asserting something**, and a wrong
+one marks real people wrong with nothing to appeal to. D127 answered that
+with admission criteria rather than a refusal, and **tier A is the tier
+where the assertion disappears**: the truth is this app's own published
+aggregate, so the grade is arithmetic and the reader can redo it.
+
+Three things make that a property rather than a promise:
+
+- **The rubric is data the grader RUNS**, not prose a reviewer interprets:
+  `{ kind:"agg", qid, test, threshold | dim+buckets }`. Three tests ship —
+  `topShareAtLeast`, `turnoutAtLeast`, `slicesDisagree` — each a different
+  kind of thinking over the same document, which is the design work
+  `docs/FORESIGHT-CALLS.md` §11 left open.
+- **The inputs are published with the outcome.** `v2_call_outcomes/{qid}`
+  carries `inputs`: the exact counts the resolver read, narrowed to the
+  cells the rubric touched.
+- **The device re-grades and says whether it agrees.** `recheck()` runs the
+  same module over those same numbers and the card prints the result — and
+  prints a DISAGREEMENT loudly rather than deferring to the server. That
+  line should never appear; it is drawn every time precisely because the
+  case it cannot produce is the one worth seeing if it ever does.
+
+The module is byte-identical across both trees (`src/v2/data/callRubric.ts`
+· `functions/src/callRubric.ts`), held equal by `npm run check:calls` — the
+[D57](#d57) logic-generator arrangement, for a sharper reason: a drifted
+copy would not merely mis-grade, it would make the app contradict itself on
+screen.
+
+### What the gate actually proves, and what it cannot
+
+`check:calls` runs on the deploy path and holds two things. The copies are
+byte-identical. And every authored rubric is **executable AND decidable**:
+each is run twice, against a synthetic snapshot shaped to make it true and
+one shaped to make it false, and both branches must come back. CI has no
+production aggregate, so this is the honest offline form of D127's dry-run
+requirement — and stronger than one provisional execution, because *a
+rubric that can only ever return one answer is not a prediction*. A
+`topShareAtLeast 50` on a two-option question is a sentence with a known
+ending, and it fails.
+
+Five mutations, all caught: a drifted copy, that trivial threshold, a
+bucket outside `ageBand`'s vocabulary, a target qid not in the bank, and a
+target on the pulse surface (which publishes under `{qid}_{day}` and so
+would never resolve).
+
+**What it cannot check, recorded rather than implied:** whether the answer
+is *unknown when the card is served*. That is a claim about production
+data, not about the file — a call on a threshold the target has already
+crossed is a lookup wearing a prediction's clothes — so it is rule 4 in
+`content/call-questions.json`'s authoring notes, for a human.
+
+### The resolver, and the one place it goes beyond the design
+
+`resolveCallsV2` is a daily pass over the compiled bank (no query — the
+bank ships in the deploy). It **never guesses**: `evalRubric` returns null
+for an absent aggregate, an empty one, a named slice with no answers, or a
+tie for the lead, and null is not an outcome. It **never grades early**
+(day-key comparison, so an instance's timezone cannot bring a call
+forward). It **never rewrites** an outcome — the write is `create`-shaped,
+which is also what makes the rules' answer-fence stable.
+
+Where it exceeds `FORESIGHT-CALLS.md` §5, deliberately: that document hands
+an unexecutable call to a human, and there is no operator console for that
+today. §7 is explicit that an unresolved call is worse than a missing
+feature — *it takes the player's guess and never comes back* — so after
+`CALL_VOID_AFTER_DAYS` (14) of failing to execute, the resolver writes the
+VOID itself, with the reason. **An automatic void is safe where an
+automatic guess would not be**: a void asserts nothing about the world and
+scores nobody. Every attempt in between logs, so a human who is watching
+still gets §5's chance.
+
+### Rules: one new clause, and it is the whole economy of the game
+
+A call answer is an ordinary world answer — same five keys, same D29
+binding, same public read (D98). `isCallAnswer()` is `isWorldAnswer()` plus
+`!exists(v2_call_outcomes/{aid})`, and that clause is why it is a separate
+function rather than another entry in a surface list: **outcomes are
+world-readable the moment they are written**, so without it a player reads
+the grade and then "predicts" it. Free points, and every score in the
+feature meaningless.
+
+No new seal otherwise (§8): a call reads like every other card while it is
+open, and seeing how the crowd called it is the interesting half. Answering
+late — after `resolvesAt`, before the next pass — stays legal on purpose:
+the target's aggregate is still moving, and a rules clause comparing a date
+string to `request.time` would be a second, weaker copy of a deadline the
+outcome document already states exactly. The D86 edit arm's surface list
+keeps `call` out, so a sealed guess cannot be moved.
+
+### The card, and the two things it refuses to show
+
+Pinned at the feed head beside Crossroads, one at a time, because a call is
+one open question you are carrying rather than a card dealt into the
+stream. Four states: open · sealed · graded · void.
+
+- **An unread call draws NOTHING.** Until the grades are fetched, an
+  apparently-open call may already be graded, and the rules are about to
+  refuse that tap. "Render the options while it loads" is the tidy-looking
+  version and it offers a write the server will reject.
+- **An open call never shows the target question's current numbers.**
+  Those numbers are exactly what the player is being asked to predict.
+
+**No clock.** The prototype's ten seconds are the game's pressure and need
+the IntersectionObserver arming its own module describes; it is a mechanic
+rather than data, and everything the card *says* is true without it.
+Recorded as deferred, not forgotten.
+
+### Cost
+
+One aggregate read per due call per day, server-side, against a bank of
+three. Client: one `documentId() in` query per session, on the tap that
+opens the card (D124/D129), session-cached, absent documents cached as
+absent. Neither reaches a rounding error in `docs/COSTS.md`'s three lines,
+which is why no row moves.
+
+### What is still not built, and stays that way
+
+**Tier B** — a rubric whose truth comes from a fetched endpoint. Every
+residual failure mode in `FORESIGHT-CALLS.md` §9 belongs to it, and that
+document already records shipping A alone forever as a legitimate end
+state. `rubricFault` refuses `kind: "fetch"` by name, so a tier-B rubric
+cannot arrive by accident. The Map's Foresight branch is unchanged and
+still blocked on the eager budget (D136, VISION-V28 §5).
+
+### One ceiling moved, and it moved the right way
+
+`MAX_TOTAL_JS_KB` 2334 → 2343. Measured both sides of the change with the
+same command: **2331 KB total / 964 KB eager before, 2340 / 965 after.**
+The +8 KB lands in the `world-feed` chunk (the card, `data/calls.ts` and
+the shared `data/callRubric.ts`) and the EAGER graph moved one kilobyte,
+because `world-feed.jsx` is already past first paint behind
+`loadWorldFeed()` (D25). That is the shape a lazily-loaded feature is
+supposed to have, and the eager number — the one defending first paint —
+still has 13 KB of headroom against the total's 3.
+
+**Verified:** `lint`, `tsc -b`, `check:globals` (409, baseline 409),
+`:content` (540 questions), `:calls`, `:quality`, `:figures`,
+`:data-inventory`, `:deploy-targets` (28 functions), `:fn-runtime`,
+`:appcheck`, `:bundle` (shipping build, Sentry in), `test:unit` (1,287
+over 83 files), functions (242) and `test:rules` (111, five of them new).
+Mutation-checked in three places rather than assumed: the gate (5
+mutations), the resolver (3), and the rules' `!exists` clause, which fails
+exactly one test when removed.

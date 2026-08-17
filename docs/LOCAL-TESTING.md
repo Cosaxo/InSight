@@ -107,7 +107,7 @@ so the harness re-creates any account that has gone missing.
 ## Test suites
 
 ```bash
-npm run test:rules            # 106 security-rules tests (Firestore + Storage emulators)
+npm run test:rules            # 111 security-rules tests (Firestore + Storage emulators)
 npm run test:e2e              # full SDK loop (auth+firestore+functions)
 npm run test:e2e:erasure      # account deletion, end to end
 npm run test:e2e:moderation   # moderation transport

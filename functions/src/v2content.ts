@@ -21,7 +21,11 @@
 // forms' range/plane copy (D114), absent everywhere else; their options
 // are synthesized bucket/cell labels, so the D52 option freeze freezes
 // the range with them.
-export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; branch?: string; sub?: string; tag?: string; rates?: string; axis: string | null; test: string | null; mode?: string; active?: boolean; political?: boolean; core?: boolean; until?: string; lo?: number; hi?: number; unit?: string; ends?: string[]; ax?: string[]; ay?: string[]; title?: string; intro?: string; hue?: number; nodes?: Record<string, { q: string; a: Array<{ t: string }> }>; endings?: Record<string, { name: string; line: string }>; }
+// `tier`/`resolvesAt`/`rubric` are the CALL surface's only (D193): the
+// admitted grading path, the earliest UTC day it may be graded, and the
+// expression the resolver RUNS. The outcome is not here — it lives in
+// v2_call_outcomes, so a reseed and the resolver never fight.
+export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; branch?: string; sub?: string; tag?: string; rates?: string; axis: string | null; test: string | null; mode?: string; active?: boolean; political?: boolean; core?: boolean; until?: string; lo?: number; hi?: number; unit?: string; ends?: string[]; ax?: string[]; ay?: string[]; title?: string; intro?: string; hue?: number; nodes?: Record<string, { q: string; a: Array<{ t: string }> }>; endings?: Record<string, { name: string; line: string }>; tier?: string; resolvesAt?: string; rubric?: { kind: string; qid: string; test: string; threshold?: number; dim?: string; buckets?: string[] }; }
 export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "daily-000",
@@ -10038,5 +10042,78 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": null,
   "axis": null,
   "test": null
+ },
+ {
+  "id": "call-c01",
+  "surface": "call",
+  "seq": 0,
+  "type": "call",
+  "domain": null,
+  "prompt": "By October, will 60% of everyone be on one side of Messi or Ronaldo?",
+  "options": [
+   "They will",
+   "It stays close"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null,
+  "tier": "A",
+  "resolvesAt": "2026-10-01",
+  "rubric": {
+   "kind": "agg",
+   "qid": "daily-000",
+   "test": "topShareAtLeast",
+   "threshold": 60
+  }
+ },
+ {
+  "id": "call-c02",
+  "surface": "call",
+  "seq": 1,
+  "type": "call",
+  "domain": null,
+  "prompt": "By October, will 18-24 and 55-64 be on opposite sides of “Money can buy happiness”?",
+  "options": [
+   "Opposite sides",
+   "The same side"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null,
+  "tier": "A",
+  "resolvesAt": "2026-10-01",
+  "rubric": {
+   "kind": "agg",
+   "qid": "feed-f54",
+   "test": "slicesDisagree",
+   "dim": "ageBand",
+   "buckets": [
+    "18-24",
+    "55-64"
+   ]
+  }
+ },
+ {
+  "id": "call-c03",
+  "surface": "call",
+  "seq": 2,
+  "type": "call",
+  "domain": null,
+  "prompt": "By October, will a thousand people have said whether they would eat lab-grown meat?",
+  "options": [
+   "A thousand",
+   "Fewer"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null,
+  "tier": "A",
+  "resolvesAt": "2026-10-01",
+  "rubric": {
+   "kind": "agg",
+   "qid": "feed-f11",
+   "test": "turnoutAtLeast",
+   "threshold": 1000
+  }
  }
 ];

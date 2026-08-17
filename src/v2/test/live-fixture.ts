@@ -419,6 +419,30 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
       total: tooSmall ? 0 : 100,
       live: true as const,
     }],
+    // Foresight CALL, tier A (D193). One open call, ungraded — the state
+    // the feed head shows most of the time, and the one the mount tests
+    // care about (the card renders, and it renders REAL bank shape rather
+    // than a demo cast). The grades map is present-but-empty-valued rather
+    // than null: null means "nothing read yet", in which state the card
+    // deliberately draws nothing, and a fixture that left it there would
+    // make every live mount test pass against an absent card.
+    callQs: () => [{
+      id: "call-fixture",
+      surface: "call",
+      seq: 0,
+      type: "call",
+      prompt: "Will the fixture question end up lopsided?",
+      options: ["It will", "It stays close"],
+      topic: null,
+      test: null,
+      active: true,
+      tier: "A",
+      resolvesAt: "2099-01-01",
+      rubric: { kind: "agg" as const, qid: "feed-fixture", test: "topShareAtLeast" as const, threshold: 60 },
+      counts: tooSmall ? [0, 0] : [61, 39],
+    }],
+    callOutcomes: () => ({ "call-fixture": null }),
+    loadCallOutcomes: () => Promise.resolve(),
     // (qid, optionId) — both strings. The spec layer calls this as
     // `window.LIVE.vote(id, String(val))`, and the first draft of this
     // fixture took a question OBJECT: the surface pin cannot catch that,

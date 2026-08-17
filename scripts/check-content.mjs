@@ -71,6 +71,10 @@ const ID_SHAPE = {
   // them — and it must never admit an underscore, which is the day
   // separator the rules parse on.
   pulse: /^pulse-[a-z0-9]+$/,
+  // Foresight CALL ids (D193). Answers are keyed on them like every other
+  // world answer, and `v2_call_outcomes` is keyed on them too — so a
+  // reshaped id would orphan a published grade from the call it graded.
+  call: /^call-[a-z0-9]+$/,
 };
 const seenIds = new Set();
 for (const q of entries) {
@@ -122,6 +126,23 @@ for (const q of entries) {
     }
   } else if (q.surface === "pulse") {
     errors.push(`${q.id}: the pulse surface carries only pulse-type questions`);
+  } else if (q.type === "call") {
+    // Two options, always, and the order IS the grade: index 0 is the call
+    // coming true and index 1 is it not (callRubric.ts CALL_YES/CALL_NO).
+    // A third option would have no verdict to map to, and a swapped pair
+    // would mark every player backwards with nothing on screen to show it.
+    // The rubric's own well-formedness is check:calls' — it needs the
+    // module, and this gate stays dependency-free.
+    if (q.surface !== "call") errors.push(`${q.id}: call type outside the call surface`);
+    if (q.options.length !== 2 || q.options.some((o) => !o || !o.trim())) {
+      errors.push(`${q.id}: a call carries exactly two non-empty options — index 0 is it coming true`);
+    }
+    if (q.tier !== "A") errors.push(`${q.id}: tier ${JSON.stringify(q.tier)} — only tier A is admitted (D127)`);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(q.resolvesAt))) {
+      errors.push(`${q.id}: resolvesAt must be a YYYY-MM-DD UTC day key`);
+    }
+  } else if (q.surface === "call") {
+    errors.push(`${q.id}: the call surface carries only call-type questions`);
   } else if (q.surface === "group" && q.topic === "pick") {
     if (q.options.length !== 0) errors.push(`${q.id}: pick questions carry no options`);
   } else if (q.type === "dial" || q.type === "field") {

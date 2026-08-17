@@ -87,6 +87,28 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Graded Foresight CALLs (D193) — the winning option, or -1 for VOID,
+    // with the aggregate snapshot the grader actually read.
+    //
+    // WRITE IS CLOSED TO EVERYONE, and this is the one line the whole
+    // feature rests on: `outcomeIdx` is the app asserting something, so a
+    // client-writable outcome would make every score in the feature
+    // forgeable in one request. Only resolveCallsV2 (admin SDK, which
+    // bypasses rules) writes here.
+    //
+    // Read is open to any signed-in user, because the outcome is the
+    // grade AND the basis for it — `inputs` carries the counts the
+    // resolver read, so a player can recompute the grade rather than
+    // trust it. The card does exactly that on the device.
+    //
+    // This document's mere EXISTENCE is also load-bearing: isCallAnswer()
+    // refuses an answer once it exists, which is what stops a player
+    // reading a published grade and then "predicting" it.
+    match /v2_call_outcomes/{qid} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
     function isValidV2Anchors(anchors) {
       return anchors is map
         && anchors.keys().hasOnly([
@@ -309,7 +331,7 @@ service cloud.firestore {
         // the query walks past).
         allow read: if request.auth != null
           && (request.auth.uid == uid
-            || resource.data.surface in ["daily", "feed", "test", "learn", "pulse"]);
+            || resource.data.surface in ["daily", "feed", "test", "learn", "pulse", "call"]);
 
         // D29 device binding: aggregate-feeding answers require the account
         // to have passed one silent per-device activation (activateDeviceV2
@@ -499,6 +521,47 @@ service cloud.firestore {
                   .data.options.size();
         }
 
+        // Foresight CALL, tier A (D193): a prediction sealed now and
+        // graded when it resolves. The doc is an ordinary world answer in
+        // every respect — same five keys, same D29 binding, same public
+        // read — so this function is isWorldAnswer plus ONE clause, and
+        // that clause is the whole reason it is not simply another entry
+        // in that surface list:
+        //
+        //   A CALL CANNOT BE ANSWERED ONCE IT HAS BEEN GRADED. The
+        //   outcome doc is world-readable the moment the resolver writes
+        //   it, so without this a player could read the grade and then
+        //   "predict" it — free points, and every score in the feature
+        //   becomes meaningless. `exists()` on the outcome is the exact
+        //   test, and it costs one document access on the call surface
+        //   alone.
+        //
+        // There is NO seal before that (FORESIGHT-CALLS §8): calls read
+        // like every other card while they are open, and seeing how the
+        // crowd called it is the interesting half rather than a leak.
+        // Answering late — after resolvesAt but before the resolver's next
+        // pass — is fine and deliberately not fenced: the target's
+        // aggregate is still moving, and a rules clause comparing a date
+        // string to request.time would be a second, weaker copy of a
+        // deadline the outcome document already states exactly.
+        //
+        // The D86 edit arm's surface list keeps `call` out, so a sealed
+        // guess cannot be moved afterwards.
+        function isCallAnswer() {
+          return request.resource.data.keys().hasOnly([
+              "qid", "surface", "optionIdx", "answeredAt", "anchors",
+            ])
+            && request.resource.data.surface == "call"
+            && request.resource.data.qid == aid
+            && request.resource.data.optionIdx
+              < get(/databases/$(database)/documents/v2_questions/$(aid)).data.options.size()
+            && get(/databases/$(database)/documents/v2_questions/$(aid))
+                 .data.get("active", true) == true
+            && get(/databases/$(database)/documents/v2_questions/$(aid))
+                 .data.get("surface", "daily") == "call"
+            && !exists(/databases/$(database)/documents/v2_call_outcomes/$(aid));
+        }
+
         // The index space BOTH duel indexes live in: the question's own
         // options, or — for "pick" questions, which carry none, because
         // their options ARE the group — the member count. Repeated get()s
@@ -526,7 +589,10 @@ service cloud.firestore {
                 || isDuelAnswer()
                 // Pulse answers feed a published aggregate, so they carry
                 // the same D29 binding the world surfaces do.
-                || (isPulseAnswer() && deviceBound())))
+                || (isPulseAnswer() && deviceBound())
+                // A call is exactly what a sybil would want to spam — a
+                // score with a leaderboard behind it — so it binds too.
+                || (isCallAnswer() && deviceBound())))
             // Catalog answers carry `entity` instead — the optionIdx block
             // must not apply, and each branch's hasOnly keeps the other
             // field out. They feed aggregates, so they carry the D29
@@ -610,7 +676,7 @@ service cloud.firestore {
     // collection anywhere else in future silently joins this grant.
     match /{path=**}/answers/{aid} {
       allow read: if request.auth != null
-        && resource.data.surface in ["daily", "feed", "test", "learn", "pulse"];
+        && resource.data.surface in ["daily", "feed", "test", "learn", "pulse", "call"];
     }
 
     // App/content metadata — contentRev (bank cache invalidation),

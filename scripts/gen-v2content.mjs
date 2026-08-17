@@ -133,6 +133,7 @@ export const CONTENT_SOURCES = {
   lenses: "lenses.json",
   learn: "learn-questions.json",
   pulse: "pulse-questions.json",
+  call: "call-questions.json",
 };
 
 export function loadContent() {
@@ -144,7 +145,7 @@ export function loadContent() {
 }
 
 // Builds the entries in emission order: daily → feed → group → duo →
-// romantic → test → learn → pulse. `seq` is per-surface and contiguous (the
+// romantic → test → learn → pulse → call. `seq` is per-surface and contiguous (the
 // romantic pool continues the duo surface's counter); note the test surface
 // runs ONE counter across all four tests (test-political-00 has seq 10, not 0).
 // Property order in each entry is load-bearing — JSON.stringify preserves
@@ -162,7 +163,7 @@ function requireId(q, where) {
 }
 
 export function buildEntries(content = loadContent()) {
-  const { daily, feed, duel, tests, lenses, learn, pulse } = content;
+  const { daily, feed, duel, tests, lenses, learn, pulse, call } = content;
   const entries = [];
 
   // `active: false` retires an entry from serving without touching its id
@@ -463,6 +464,36 @@ export function buildEntries(content = loadContent()) {
     });
   });
 
+  // Foresight CALL, tier A (D127, docs/FORESIGHT-CALLS.md): a question
+  // sealed now and graded when it resolves. Two fields ride along and both
+  // are OPERATIONAL rather than copy — `resolvesAt` is the earliest UTC day
+  // the resolver may grade, `rubric` is the expression it RUNS. Emitted
+  // last, after pulse, so no existing surface's seq or bytes move.
+  //
+  // The outcome is deliberately NOT a field here: runSeedV2 diffs each
+  // question against its stored payload and skips unchanged docs, so
+  // writing outcomes onto content the seed believes it owns would make
+  // every reseed fight the resolver (FORESIGHT-CALLS §4). It lives in
+  // v2_call_outcomes, admin-written, client-unwritable.
+  (call?.questions ?? []).forEach((q, i) => {
+    entries.push({
+      id: `call-${requireId(q, `call-questions.json[${i}]`)}`,
+      surface: "call",
+      seq: i,
+      type: "call",
+      domain: null,
+      prompt: q.prompt,
+      options: q.options,
+      topic: null,
+      axis: null,
+      test: null,
+      tier: q.tier,
+      resolvesAt: q.resolvesAt,
+      rubric: q.rubric,
+      ...flags(q),
+    });
+  });
+
   return entries;
 }
 
@@ -492,7 +523,11 @@ const HEADER =
   "// forms' range/plane copy (D114), absent everywhere else; their options\n" +
   "// are synthesized bucket/cell labels, so the D52 option freeze freezes\n" +
   "// the range with them.\n" +
-  "export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; branch?: string; sub?: string; tag?: string; rates?: string; axis: string | null; test: string | null; mode?: string; active?: boolean; political?: boolean; core?: boolean; until?: string; lo?: number; hi?: number; unit?: string; ends?: string[]; ax?: string[]; ay?: string[]; title?: string; intro?: string; hue?: number; nodes?: Record<string, { q: string; a: Array<{ t: string }> }>; endings?: Record<string, { name: string; line: string }>; }\n" +
+  "// `tier`/`resolvesAt`/`rubric` are the CALL surface's only (D193): the\n" +
+  "// admitted grading path, the earliest UTC day it may be graded, and the\n" +
+  "// expression the resolver RUNS. The outcome is not here — it lives in\n" +
+  "// v2_call_outcomes, so a reseed and the resolver never fight.\n" +
+  "export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; branch?: string; sub?: string; tag?: string; rates?: string; axis: string | null; test: string | null; mode?: string; active?: boolean; political?: boolean; core?: boolean; until?: string; lo?: number; hi?: number; unit?: string; ends?: string[]; ax?: string[]; ay?: string[]; title?: string; intro?: string; hue?: number; nodes?: Record<string, { q: string; a: Array<{ t: string }> }>; endings?: Record<string, { name: string; line: string }>; tier?: string; resolvesAt?: string; rubric?: { kind: string; qid: string; test: string; threshold?: number; dim?: string; buckets?: string[] }; }\n" +
   "export const V2_QUESTIONS: V2SeedQuestion[] = ";
 
 export function generate(content = loadContent()) {
