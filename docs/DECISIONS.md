@@ -19574,3 +19574,121 @@ and every other check gate: `:globals` `:figures` `:a11y` `:anchors`
 `:ios-facebook` `:ios-location`. `check:bundle` on a shipping build,
 2331 / 965 against 2334 / 978, and on a DSN-less one to prove the new
 branch withholds rather than passes.
+
+## D192 · The demo roster stops shipping, and the ceiling it frees is held rather than ratcheted
+
+**Decided:** 2026-08-17 · **Status:** binding · Owner's call ("the demo
+people can be removed, I am done testing with them"), plus the budget
+question it answers on the way.
+
+### What shipped
+
+`src/v2/spec/sample-data.js` gates its payload on the BUILD flag. A live
+build (`VITE_V2_LIVE=true`) gets `IS_DATA_EMPTY` — every top-level key
+present, every value empty — and rolldown folds the ternary and drops the
+demo roster. A demo build and the whole test suite are byte-for-byte
+unchanged.
+
+| | before | after |
+| --- | ---: | ---: |
+| eager graph | 964 KB | **925 KB** |
+| total JS | 2331 KB | **2291 KB** |
+| `sample-data` chunk | 40,533 B | **614 B** |
+
+**The build flag, not `window.LIVE.enabled`, and it is not a style
+preference.** `enabled` is a runtime read, so every byte stays in the
+bundle; only a build-time constant lets rolldown drop the payload. It is
+also the gate `scenes.js` and `learn-progress.js` already chose, for the
+reason they record: a demo default can be derived before the live boot
+attaches, and a live build must not seed demo people in that window
+either.
+
+**The test suite is deliberately unaffected.** It enters live mode by
+installing `window.LIVE` at runtime (`mountLive`), never by setting the
+flag, so the roster stays populated there — which it must, because
+`smoke-live.test.jsx`'s controls READ `IS_DATA.people` to find a name and
+then assert it is absent from the screen. An empty roster would turn those
+into assertions about nothing.
+
+That leaves the shape that ships as the shape nothing rendered, so
+`smoke-live-empty-roster.test.jsx` (10 cases) mounts the app on the real
+`IS_DATA_EMPTY` — exported for exactly that, because a copy in the test
+would drift the day a key is added and keep passing against a shape
+nothing ships.
+
+### It found two crashes, which is the whole argument for writing it
+
+- **`profile-overlay.jsx` read `me.personality.O` unguarded** and took the
+  entire overlay into the ErrorBoundary. `me` is `IS_DATA.me`, passed
+  straight through by app-shell. Fixed by deriving no dims and no
+  archetype when there is no persona: `ResultProfileCard` already returns
+  null without a real result and renders `arch ? … : archetype`, so an
+  undefined archetype draws nothing rather than a hole. **Absent rather
+  than substituted** — those five numbers are trait scores and D1 does not
+  invent one.
+- **`person-overlay.jsx` had the same read**, plus `me.political.econ`.
+  `derivePerson` EXISTS to mix those with seeded noise, so there is no
+  version of that screen without them: it now refuses via the early return
+  that already guards `!rawP`. Unreachable today — the roster is empty and
+  the live duel surfaces do not call `openPerson` — but `window.openPerson`
+  takes an OBJECT from four call sites, so "unreachable" is a property of
+  today's callers, not of the component.
+
+Both were mutation-checked: reverting either fix fails the new suite.
+
+**One copy change follows.** `MirrorPreviewTag` said *"Preview · sample
+people"* in both arms. There are no sample people in a live build now, so
+the label named something the reader cannot see — and a *false* honesty
+label is worse than none (`COPY.md` §3: a claim, not a word count). The
+arms now say *"Not connected — reconnecting…"* and *"No live data here
+yet"*.
+
+### The ceiling is HELD at 978, against this file's own convention
+
+`check:bundle`'s rule is that a ceiling comes down with a win. Not here,
+and the departure is argued rather than assumed:
+
+- **The win's purpose was headroom.** `VISION-V28.md` parked Foresight and
+  Crossroads on the Map on this exact constant. D136 refused
+  `paths.mapTree()` over **~1 KB** and an earlier entry refused a label set
+  over **2 KB**; ratcheting to ~936 would re-park them the same day the
+  block cleared. 53 KB is ~25× the largest thing this budget has ever
+  rejected.
+- **The guarantee is untouched.** Firestore (296 KB) and Sentry (435 KB)
+  rejoining first paint land at 1221 and 1360, so 978 still catches both
+  by 1.25× and 1.39× — the margins the 955 entry reasoned from, not weaker
+  ones.
+- **The residual is named, not accepted quietly.** 53 KB can now rejoin
+  first paint silently, and the likeliest 40 KB of it is the roster that
+  just left — one unguarded `IS_DATA.people` read from an eager module and
+  it returns 12 KB under the ceiling with every gate green.
+
+So the band is defended by a **content** check rather than a smaller
+number: `check:bundle` fails if `Mira Halvorsen` or `Sørenga` appears in
+any shipping chunk. Same move as `MAX_EAGER_CHUNK_KB` — *"a guarantee that
+survives only while a number stays small is not one"* — and mutation-checked
+by reverting the gate and confirming the build fails. `personaResidue.ts`'s
+`PERSONA_JOB`/`PERSONA_EDU` are deliberately **not** markers: `live.ts`
+ships those to scrub what a pre-fix build wrote, so they belong in the
+bundle.
+
+**No ceiling was raised.** The owner asked for one; the roster paid for it
+instead, which is the better trade — a raise would have spent the
+Firestore guarantee to buy what deleting dead weight gave for free.
+
+### Not done here
+
+- **`mirror-field-pops.jsx`'s module-local rosters stay** (`Anders K. ·
+  Torshov · 92%`, the city `match` constants). They are not in
+  `sample-data.js`, they are ~2.5 KB rather than 40, and they are default
+  parameter values rather than data reads — a different change with a
+  different risk, and D112 already confined them to demo mode.
+- **`daily-questions.js` is untouched and must stay so.** It reads as the
+  same class of thing and is not: `liveSync()` joins the live bank to its
+  local list *by prompt-string equality* and writes real counts into those
+  objects (`q.dist.world = pcts`), so the list is the live Map's data
+  structure, not leftover demo content. It also persists an `insight.*` key
+  and holds the `insight:local-purge` listener `check:purge` requires —
+  deferring it would reintroduce the D50/D51 bug. Recorded because the file
+  name invites exactly this mistake, and this session made it before
+  reading `liveSync`.

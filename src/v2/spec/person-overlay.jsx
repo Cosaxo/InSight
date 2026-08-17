@@ -157,7 +157,21 @@ function PersonOverlay({ p: rawP, onClose, me }) {
   // full-screen from a tap, and its state must not sit past the early return.
   const [mapOpen, setMapOpen] = React.useState(false);
 
-  if (!rawP) return null;
+  // `me.personality` joins the second guard for the same reason it got one in
+  // profile-overlay.jsx: it is the DEMO persona's Big Five, and a shipping
+  // build has no demo persona since 2026-08-17 (sample-data.js gates its
+  // payload on VITE_V2_LIVE). derivePerson below reads `me.personality.O` and
+  // `me.political.econ` unguarded — it EXISTS to mix those values with seeded
+  // noise, so there is no version of this screen that works without them.
+  //
+  // Refuse rather than default: every number this overlay draws is a claim
+  // about a person, and a neutral base would render a full, confident,
+  // invented profile (D1). Unreachable today — the roster is empty so no
+  // demo record exists to pass, and the live duel surfaces do not call
+  // openPerson — but `window.openPerson` takes an OBJECT from four call
+  // sites, so "unreachable" is a property of today's callers rather than of
+  // this component.
+  if (!rawP || !me || !me.personality) return null;
   // Normalize interests — some sources (IS_DATA.people) store them as
   // category-id strings; person-overlay expects [{t, c}] objects.
   const cats = IS_DATA.interestCats || [];

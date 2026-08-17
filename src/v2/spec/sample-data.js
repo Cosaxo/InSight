@@ -6,7 +6,51 @@
 import React from 'react';
 
 // Sample data for InSight prototype — richer than repo defaults
-export const IS_DATA = {
+//
+// DEMO ONLY SINCE 2026-08-17. This roster used to reach a live build: the
+// Mirror drew it behind a "Preview · sample people" tag on any stop with no
+// live cohort yet (mirror-tab.jsx's MirrorPreviewTag), and app-shell's
+// openCity/openPerson resolved against it. The owner is done testing with
+// it, so a shipping build now gets IS_DATA_EMPTY instead and those surfaces
+// draw their real empty state — which is what D1 asks for anyway ("where a
+// live surface shows nothing, it is because the data is absent").
+//
+// GATED ON THE BUILD FLAG, NOT window.LIVE.enabled, for the reason
+// scenes.js and learn-progress.js already record: a demo default can be
+// derived before the live boot has attached, and a live build must not seed
+// demo people in that window either. The build flag is also what lets
+// rolldown DROP the payload — `window.LIVE.enabled` is a runtime read and
+// would keep every byte in the bundle.
+//
+// The test suite is unaffected and deliberately so: it enters live mode by
+// installing `window.LIVE` at runtime (smoke-live.test.jsx's mountLive),
+// never by setting this flag, so the roster stays populated there. That
+// matters — smoke-live's controls READ IS_DATA.people to find a name and
+// then assert it is absent from the screen, and an empty roster would turn
+// those into assertions about nothing (the file says so at its own line
+// 151). sample-people.test.js pins the roster's internal wiring for the
+// same reason.
+const LIVE_BUILD = import.meta.env && import.meta.env.VITE_V2_LIVE === 'true';
+
+// Same keys, empty values. NOT `{}`: consumers read one level down without
+// guarding (`IS_DATA.cities.some` at mirror-field.jsx:385, and the several
+// `const me = IS_DATA.me` sites that then read `me.x`), so a bare object
+// would turn this into a crash instead of an empty screen. Every key here
+// is present in IS_DATA_DEMO below with the same type.
+// Exported ONLY so smoke-live-empty-roster.test.jsx can mount the app on the
+// exact object a shipping build gets. A copy in the test would drift the day
+// a key is added here, and drift in this direction is invisible: the test
+// would keep passing against a shape nothing ships.
+export const IS_DATA_EMPTY = {
+  me: {}, nearby: [], city: {}, cityScoreCats: [], cities: [],
+  cityCountries: [], cityRegions: [], around: {}, earth: {},
+  interestCats: [], ideologies: [], skillCats: [], baseCats: [], skills: [],
+  skillReach: {}, groups: [], groupReach: {}, groupPopular: {},
+  groupTest: [], people: [], dailyReports: [], connections: [],
+  aggregates: {}, media: {}, life: {}, lookback: [],
+};
+
+const IS_DATA_DEMO = {
   me: {
     name: "Mira Halvorsen",
     initials: "MH",
@@ -753,6 +797,8 @@ export const IS_DATA = {
   ],
 
 };
+
+export const IS_DATA = LIVE_BUILD ? IS_DATA_EMPTY : IS_DATA_DEMO;
 
 // compact population formatter — 340, 9.4k, 1.2M
 export function fmtPop(n) {

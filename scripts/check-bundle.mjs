@@ -607,6 +607,31 @@ const MAX_TOTAL_JS_KB = 2334;
 // from the 955 entry holds at the new figure: either SDK rejoining first
 // paint lands at 1265 or 1417, so any ceiling near 978 catches it, and the
 // 6 KB band is headroom for a feature rather than room for a library.
+//
+// 2026-08-17 (D192): the graph measured 964 and now measures **925** — the
+// demo roster stopped shipping to a live build (sample-data.js gates its
+// payload on VITE_V2_LIVE). The ceiling is HELD at 978, which is a
+// deliberate departure from this file's own "a ceiling comes down with a
+// win" convention, so it is argued rather than just done:
+//
+//   · The win's PURPOSE was headroom. `VISION-V28.md` parked Foresight and
+//     Crossroads on the Map on this exact constant, and D136 refused
+//     `paths.mapTree()` over ~1 KB while an earlier entry refused a label
+//     set over 2 KB. Ratcheting to ~936 would re-park them the same day
+//     the block was cleared, which is the opposite of what the work was
+//     for. The owner asked for the room; this is the room.
+//   · The guarantee is untouched. It exists to keep Firestore (296 KB) and
+//     Sentry (435 KB) out of first paint: they would land at 1221 and
+//     1360, so 978 catches both by a factor of 1.25 and 1.39 — the same
+//     margins the 955 entry reasoned from, not weaker ones.
+//   · The residual is real and named: 53 KB can now rejoin first paint
+//     silently, and the likeliest 40 KB of it is the roster that just
+//     left. That is exactly why the demo-roster rule below is a CONTENT
+//     check rather than a smaller number here. The band buys features;
+//     the marker check stops it buying back the thing it replaced.
+//
+// So: still not raiseable, and now also not lowerable without re-parking
+// named work. The next person to touch it should move the graph, not this.
 const MAX_EAGER_KB = 978;
 
 let files;
@@ -737,6 +762,50 @@ for (const s of eager.slice(1)) {
     failed = true;
   }
 }
+// ── the demo-roster rule (D192) ─────────────────────────────────────
+//
+// Same argument as the SDK rule directly above, applied to the thing that
+// just left. `sample-data.js` gates its 40 KB payload on VITE_V2_LIVE, so a
+// shipping build carries an empty shape and rolldown drops the roster —
+// 964 → 925 on the eager graph. That win is what unblocked the parked Map
+// features, and MAX_EAGER_KB was deliberately NOT ratcheted down to 936 to
+// keep the room it bought (see the note at the constant).
+//
+// Which leaves 53 KB the eager graph could reabsorb silently, and the
+// single most likely thing to reabsorb it is the 40 KB that just left: one
+// unguarded `IS_DATA.people` read from a module first paint touches, or one
+// hand back to `IS_DATA_DEMO`, and it returns 12 KB under the ceiling with
+// every gate green. Arithmetic cannot catch that; naming it can.
+//
+// Markers, not bytes, for the reason MAX_EAGER_CHUNK_KB is a rule rather
+// than a smaller number: a size check re-fails the moment anything else
+// grows and tells you nothing about why. These two strings exist only in
+// the demo payload — verified against src/ at the commit that added this
+// (`Mira Halvorsen` also appears in a test-definitions.js COMMENT, which
+// the build strips, and personaResidue.ts's PERSONA_JOB/PERSONA_EDU are
+// deliberately NOT used here: live.ts ships those to scrub the residue a
+// pre-fix build wrote, so they belong in the bundle).
+//
+// If this fires, do not delete the marker. Find the eager module that
+// started reading the roster again.
+const DEMO_ROSTER_MARKERS = ["Mira Halvorsen", "Sørenga"];
+for (const marker of DEMO_ROSTER_MARKERS) {
+  const hits = files.filter((f) => readFileSync(join(ASSETS, f), "utf8").includes(marker));
+  if (hits.length) {
+    console.error(
+      `\nDEMO ROSTER IN THE SHIPPING BUNDLE: "${marker}" is in ${hits.join(", ")}.`,
+    );
+    console.error(
+      "  sample-data.js's payload is supposed to be dead code in a live build\n"
+      + "  (D192). A module reached IS_DATA in a way rolldown cannot fold away,\n"
+      + "  so real users are downloading the demo roster again — and, if the\n"
+      + "  module is in the eager set, downloading it before first paint.\n"
+      + "  Find the new reader; do not edit this list.",
+    );
+    failed = true;
+  }
+}
+
 // Withheld rather than passed when Sentry is out — see SENTRY_IN. A total
 // that is missing 450 KB of the app cannot fail this ceiling and must not
 // be reported as having cleared it.

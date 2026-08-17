@@ -233,7 +233,19 @@ function MirrorPreviewTag({ popId }) {
   return (
     <div style={{ display: 'flex', justifyContent: 'center', margin: '2px 0 6px' }}>
       <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--ink-3)', border: '1px solid var(--rule)', borderRadius: 999, padding: '3px 10px' }}>
-        {demoInProd ? 'Preview · sample people — reconnecting…' : 'Preview · sample people until there’s live data here'}
+        {/* Both arms said "Preview · sample people" until 2026-08-17, when
+            sample-data.js stopped shipping its roster to a live build. There
+            are now no sample people in either state, so the old copy named
+            something the reader cannot see — an honesty label that has gone
+            false is worse than none (docs/COPY.md §3: this is a claim, not a
+            word count). What is true in each state is different:
+            demoInProd means the backend never attached, so the sentence is
+            about the connection; the other arm means enabled-but-not-yet-a-
+            cohort, and it is currently unreachable — every stop MirrorTab
+            can reach while LIVE.enabled is either geo/circle/groups-live
+            (tag suppressed at the call site) or 'you' (returned above).
+            Kept because that call-site condition is the kind that changes. */}
+        {demoInProd ? 'Not connected — reconnecting…' : 'No live data here yet'}
       </span>
     </div>
   );

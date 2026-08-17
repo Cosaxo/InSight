@@ -454,10 +454,20 @@ is written by a callable the rules refuse to let a client mutate (D57).
 ## 5 · What is still sample data, and how you can tell
 
 The Mirror is where the port's prototype data survives most, and the app
-labels it rather than hiding it. Any demo population in a live build wears
-a **Preview · sample people** tag; the live bodies (Groups, Near, City,
-Country, World) deliberately do not, because carrying nothing fabricated
-is the point of them.
+labels it rather than hiding it. **A live build stopped carrying the demo
+roster at all on 2026-08-17 (D192):** `sample-data.js` gates its payload on
+`VITE_V2_LIVE`, so a shipping build gets every key with an empty value and
+rolldown drops the data — 40 KB out of the bundle, 39 KB of it off first
+paint. There is consequently nothing left for a **Preview · sample people**
+tag to label, and the tag's two arms now say what is actually true instead
+(*"Not connected — reconnecting…"* when the boot never attached, *"No live
+data here yet"* otherwise). The live bodies (Groups, Near, City, Country,
+World) never wore it, because carrying nothing fabricated is the point of
+them.
+
+What this section describes below is therefore what a **demo build**
+(`npm run dev`) still draws, plus the module-local rosters that are not in
+`sample-data.js` and did not move — see the Circle note at the end.
 
 The biggest former resident of this section moved out at D112: the
 similarity constellations. `mirror-field-pops.jsx` still holds the

@@ -12,13 +12,30 @@ import { RP_TESTS } from './result-rose.jsx';
 // The test flow lives in test-overlay.jsx; question banks in test-defs.js.
 
 function ProfileOverlay({ onClose, me, lensBoxed }) {
-  const dims = [
-    { label: 'Openness', v: me.personality.O },
-    { label: 'Conscientiousness', v: me.personality.C },
-    { label: 'Extraversion', v: me.personality.E },
-    { label: 'Agreeableness', v: me.personality.A },
-    { label: 'Sensitivity', v: me.personality.N },
-  ];
+  // `me` is IS_DATA.me (app-shell passes it straight through), and its
+  // `personality` is the DEMO persona's Big Five. A shipping build has no
+  // demo persona at all since 2026-08-17 — sample-data.js gates its payload
+  // on VITE_V2_LIVE — so this read is `undefined.O` there, which crashed the
+  // whole overlay into the ErrorBoundary (caught by
+  // smoke-live-empty-roster.test.jsx, which is the only suite that mounts
+  // the shape a release actually gets).
+  //
+  // Absent rather than substituted, deliberately: these five numbers are
+  // trait scores, and the app does not invent one (D1). With no personality
+  // there are no dims, so no archetype is derived and the card below falls
+  // back to the REAL result's own type — which is what a live build should
+  // have been showing all along. ResultProfileCard already returns null when
+  // there is no real result, and renders `arch ? arch.list[…].name :
+  // archetype`, so an undefined archetype prop draws nothing rather than a
+  // hole.
+  const personality = (me && me.personality) || null;
+  const dims = personality ? [
+    { label: 'Openness', v: personality.O },
+    { label: 'Conscientiousness', v: personality.C },
+    { label: 'Extraversion', v: personality.E },
+    { label: 'Agreeableness', v: personality.A },
+    { label: 'Sensitivity', v: personality.N },
+  ] : [];
   const SUBTABS = [
     { id: 'general',    label: 'General' },
     { id: 'big5',       label: 'Big 5' },
@@ -42,7 +59,7 @@ function ProfileOverlay({ onClose, me, lensBoxed }) {
     }
   }, [sub]);
 
-  const top = [...dims].sort((a, b) => b.v - a.v)[0];
+  const top = dims.length ? [...dims].sort((a, b) => b.v - a.v)[0] : null;
 
   const labels = {
     Openness: { name: 'The Seeker', tag: 'open, curious, drawn to the new', glyph: '✶' },
@@ -51,7 +68,7 @@ function ProfileOverlay({ onClose, me, lensBoxed }) {
     Agreeableness: { name: 'The Kind', tag: 'gentle, trusting, slow to judge', glyph: '✿' },
     Sensitivity: { name: 'The Sensitive', tag: 'feels deeply, weather close to the skin', glyph: '☾' },
   };
-  const meta = labels[top.label];
+  const meta = top ? labels[top.label] : null;
 
   // ── one tab per test — the unified "results profile" card ──
   //
@@ -128,7 +145,7 @@ function ProfileOverlay({ onClose, me, lensBoxed }) {
   // No data guard was removed: none of them guarded data. The card still
   // returns null on its own for a test with no result or no RP_TESTS entry.
   const Big5Panel = () => (
-    <ResultProfileCard testKey="big5" archetype={meta.name} tagline={meta.tag} />
+    <ResultProfileCard testKey="big5" archetype={meta ? meta.name : undefined} tagline={meta ? meta.tag : undefined} />
   );
 
   const PoliticsPanel = () => (

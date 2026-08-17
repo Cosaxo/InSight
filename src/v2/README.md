@@ -521,6 +521,17 @@ first paint still preloads, because `app-shell` imports it eagerly. Total
 JS is unchanged at 1529 KB. `check:bundle` asserts a total precisely so a
 split cannot read as a win — see its header.
 
+**That chunk is 614 bytes as of 2026-08-17 (D192), and the paragraph above
+is why it took a build flag to get there.** `app-shell` still imports the
+module eagerly and first paint still preloads the chunk — none of that
+moved, and nothing about the conversion could move it. What moved is what
+is INSIDE: `IS_DATA` now resolves to an empty shape when `VITE_V2_LIVE` is
+set, so rolldown folds the ternary and drops the 40 KB payload from a
+shipping build (eager graph 964 → 925). The two inner-guard sentences above
+graduate from defensive to load-bearing with it — `.people`, `.groups` and
+`.me` are now genuinely empty in a release, which is the condition those
+`|| []` guards were always described as protecting and had never once met.
+
 **And the general form of that is now measured, and gated (D109, D110).**
 It is not a quirk of this one conversion: across D108 and D109 the entry
 chunk fell 728.5 → 685.2 KB while **entry + every `modulepreload` fell
