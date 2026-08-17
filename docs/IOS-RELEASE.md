@@ -411,6 +411,24 @@ but the ordering: the bump was made *from* step 17's conclusion, not from
 a memory of it. Four that held (20, 21, 22, 28) against four skipped (18,
 19, 24, 26).
 
+**Build 20's pre-flight found nothing to do, and turned up a gap in a
+gate instead** (D191, 2026-08-17). Run 28 was still the highest run, its
+step 17 still `success`, and `appBuild` at `e76731d` still 19 against a
+tree at 20 — so *run as-is*, and no number moved. Third pre-flight to come
+out that way, and the correspondence is now four for four in both
+directions: every bump that held was made off the step list while it was
+on screen, every skip was a session that came back later or not at all.
+
+What it did find is that `check:bundle` documented two load-bearing
+variables and guarded one. Building the release bundle without
+`VITE_SENTRY_DSN` drops the 445 KB Sentry group as dead code, and the gate
+reported `SHIPPING bundle (VITE_V2_LIVE=true), 1877 KB total` — 454 KB
+light, against a total ceiling with 3 KB of headroom. The script now
+withholds the total ceiling when the DSN is absent rather than passing it,
+and names both halves of the artifact in its verdict; it does not fail,
+because a Sentry-less release is a supported build and this workflow
+passes the secret straight through as optional.
+
 **Build 16's pre-flight found nothing to do either, which is the first
 time that has happened twice running** (D158, 2026-08-15). Run 21 was
 still the highest run in the list, its upload step still `success`,
