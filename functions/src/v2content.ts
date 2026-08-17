@@ -10022,6 +10022,176 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null
  },
  {
+  "id": "learn-c209",
+  "surface": "learn",
+  "seq": 106,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The Titanic sank in…",
+  "options": [
+   "1905",
+   "1923",
+   "1912",
+   "1899"
+  ],
+  "topic": "c20",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-c210",
+  "surface": "learn",
+  "seq": 107,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The Wright brothers first flew in…",
+  "options": [
+   "1913",
+   "1903",
+   "1896",
+   "1921"
+  ],
+  "topic": "c20",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-c211",
+  "surface": "learn",
+  "seq": 108,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The Chernobyl disaster happened in…",
+  "options": [
+   "1986",
+   "1991",
+   "1979",
+   "1972"
+  ],
+  "topic": "c20",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-c212",
+  "surface": "learn",
+  "seq": 109,
+  "type": "choice",
+  "domain": null,
+  "prompt": "India became independent in…",
+  "options": [
+   "1950",
+   "1939",
+   "1957",
+   "1947"
+  ],
+  "topic": "c20",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-c213",
+  "surface": "learn",
+  "seq": 110,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The first woman to win a Nobel Prize was…",
+  "options": [
+   "Rosalind Franklin",
+   "Marie Curie",
+   "Mother Teresa",
+   "Jane Goodall"
+  ],
+  "topic": "c20",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-cap9",
+  "surface": "learn",
+  "seq": 111,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The capital of the United States is…",
+  "options": [
+   "Washington, D.C.",
+   "New York City",
+   "Los Angeles",
+   "Philadelphia"
+  ],
+  "topic": "capitals",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-cap10",
+  "surface": "learn",
+  "seq": 112,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The capital of Vietnam is…",
+  "options": [
+   "Ho Chi Minh City",
+   "Da Nang",
+   "Hanoi",
+   "Hue"
+  ],
+  "topic": "capitals",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-cap11",
+  "surface": "learn",
+  "seq": 113,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The capital of the Netherlands is…",
+  "options": [
+   "The Hague",
+   "Amsterdam",
+   "Rotterdam",
+   "Utrecht"
+  ],
+  "topic": "capitals",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-cap12",
+  "surface": "learn",
+  "seq": 114,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The capital of Nigeria is…",
+  "options": [
+   "Lagos",
+   "Abuja",
+   "Kano",
+   "Ibadan"
+  ],
+  "topic": "capitals",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-cap13",
+  "surface": "learn",
+  "seq": 115,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The capital of Tanzania is…",
+  "options": [
+   "Dar es Salaam",
+   "Nairobi",
+   "Dodoma",
+   "Zanzibar City"
+  ],
+  "topic": "capitals",
+  "axis": null,
+  "test": null
+ },
+ {
   "id": "pulse-pace",
   "surface": "pulse",
   "seq": 0,
