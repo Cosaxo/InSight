@@ -165,7 +165,7 @@ the static gates, and where each one runs.
 | `check:labels` | ci | Every `htmlFor` / `aria-*` reference resolves to an id in the same file. jsx-a11y only checks the attribute is present |
 | `check:touch-zoom` | ci | No text field under 16px. One at 15px zooms the whole app on iOS and nothing zooms it back (D105) |
 | `check:purge` | ci | Every store persisting `insight.*` state hears the local purge. Deleting the keys is half a wipe if the in-memory copy writes itself back |
-| `check:bundle` | ci | Four ceilings, of which `MAX_EAGER_KB` is the one to quote for a first-paint claim. Refuses to grade a build not made as the shipping one |
+| `check:bundle` | ci | Four ceilings, of which `MAX_EAGER_KB` is the one to quote for a first-paint claim. Refuses to grade a build not made as the shipping one, and withholds the total-JS ceiling when the Sentry DSN is unset (D191) |
 | `check:versions` | ci | Five version numbers that must move together across three files |
 | `check:monitoring` | ci | The alert chain from the log line a function emits to the policy that reads it. Every link fails the same silent way |
 | `check:data-inventory` | ci | Every collection the rules reach is named in `docs/data-inventory.md` (D130) |

@@ -19463,11 +19463,130 @@ in both trees, `lint`, `check:globals` (409, baseline 409), `:labels`
 978 / 2334). `test:e2e:erasure` and `:moderation` were not run — neither
 touches a handle, a display name or a Mirror row.
 
-## D191 · The docs get a map, and the map gets a gate
+## D191 · Build 20's pre-flight: nothing to bump, and check:bundle's second load-bearing variable
+
+**Decided:** 2026-08-17 · **Status:** binding · The comparison D184's
+procedure asks for, made against the run list, plus the one gap it turned
+up on the way.
+
+### The comparison, and it came out *run as-is*
+
+Run 28 (`31963956792`, `e76731d`, 2026-08-16 18:13Z) has step 17,
+`Upload to App Store Connect`, at **`success`** — 18:17:39Z → 18:18:55Z,
+1m 16s of transfer. Run 27 is the same commit six minutes earlier with
+step 17 `skipped`: the dry run. So **build 19 is spent**, and it is the
+highest that is.
+
+`appBuild` **at run 28's own `head_sha`** — D159's correction, read at
+`e76731d` rather than at whatever was merged — is **19**. The tree is at
+**20**. So `appBuild` is already greater than the highest build App Store
+Connect has seen, runbook 2.4 answers *run as-is*, and **no number moved
+here.**
+
+That is the third pre-flight to find nothing to do (D153, D158, this),
+and all three follow a release where the bump was made from the upload
+step's own conclusion in the session that dispatched it. The
+correspondence is now four for four in each direction: every skip (runs
+18, 19, 24, 26) was a session that came back later or not at all, and
+every bump that held (20, 21, 22, 28) was made off the step list while it
+was on screen. Still a procedure, and D184 has why nothing in this tree
+can make it a mechanism — the sound invariant keys on the run list, which
+nothing here can read.
+
+### What build 20 carries
+
+A pure JavaScript payload, the second in a row after build 19. The only
+diff under `ios/` or `android/` since `e76731d` is the D186 bump itself
+(`versionCode` 19 → 20 and both `CURRENT_PROJECT_VERSION` entries) —
+neither lockfile, neither rules file, no store-filing file, so the store
+filing does not move. It carries D187 (the place scorecard rating the
+place), D188 and D189 (the Mirror's tab row where a tab bar sits, and the
+design gate learning to look), D190 (identity asked once, the topic door,
+and Circle and Groups getting their row) and the pk18 catalog question.
+
+### The gap: the gate documented a trap and guarded the other one
+
+`check:bundle` refuses to grade a build made without `VITE_V2_LIVE`,
+because the whole history of that script is the same failure — measuring
+a bundle nobody installs and reporting it as the one that ships. Its
+header documents a **second** variable with exactly that property:
+without `VITE_SENTRY_DSN` the 445 KB Sentry group is provably dead,
+rolldown drops it, and the total comes out ~450 KB light. That one got a
+paragraph addressed to whoever runs the command, and no guard.
+
+So the failure was still reachable one variable over, and this pre-flight
+walked into it: built the release bundle without a DSN, and the gate
+printed
+
+```
+bundle budget OK — SHIPPING bundle (VITE_V2_LIVE=true), 1877 KB total / 963 KB eager (max 2334 / 978)
+```
+
+Measured on this tree, the same command, the DSN the only difference:
+
+| | chunks | total | eager |
+| --- | ---: | ---: | ---: |
+| no DSN | 76 | 1877 KB | 963 KB |
+| with DSN | 79 | **2331 KB** | 965 KB |
+
+454 KB, against a total ceiling with **3 KB** of headroom. The line
+asserting `SHIPPING bundle` was itself the false artifact claim its own
+comment was written to prevent — "a log line saying OK without saying *of
+what* is the one that let four builds through."
+
+**Withheld, not failed, and the distinction is the whole design.** A
+Sentry-less release is supported: `ios-release.yml` passes
+`secrets.VITE_SENTRY_DSN` through and documents it as optional, "without
+it the release ships with no crash reporting" — survivable, deliberately
+not gated. Hard-failing would convert that documented choice into a
+broken release path, which is a worse bug than the one being fixed. So
+the script now grades what stays measurable and declines the rest: the
+per-chunk and eager ceilings still apply (Sentry is dynamically imported,
+in no modulepreload link — D64 measured first paint identical with and
+without it — and its chunk is 435 KB against a 735 KB limit), and only
+`MAX_TOTAL_JS_KB` is withheld, with the reason printed. The verdict line
+now names **both** halves of the artifact, because `VITE_V2_LIVE=true`
+says the V2 half is in and says nothing about Sentry.
+
+### The headroom, which is the finding to carry forward
+
+The shipping bundle measures **2331 KB total / 965 KB eager against 2334
+/ 978** — 3 KB and 13 KB. The total is where D190 left it (2331) plus
+D190's own note that the eager number went 964 → 965 with the catalog
+question. Three kilobytes is not headroom, and the ceiling's own comment
+already forbids the obvious answer: deferral relocates bytes and moves
+the total by zero, so the next feature to touch this cannot split its way
+under. The D64 candidates still stand un-taken — the Mirror tab (~168 KB,
+first frame for anyone who opens on that tab) and an audit of what of
+Sentry's remaining ~435 KB is reachable — and the sixth raise should have
+to walk past them again.
+
+**Verified:** unit 1,241 (80 files), scripts 215 (11 files), functions
+228, `test:rules` 106, and all three e2e suites — `test:e2e`,
+`:erasure` and `:moderation` — green on Java 21. `lint`, `tsc -b` in both
+trees, the workflow's own three pre-flight gates (`check-store-copy
+--ios`, `:public-copy`, `:versions` — "versions OK — 2.0.0 (build 20)"),
+and every other check gate: `:globals` `:figures` `:a11y` `:anchors`
+`:labels` `:touch-zoom` `:purge` `:cities` `:pokedex` `:elements`
+`:catalogs` `:logic-sync` `:content` `:quality` `:deploy-targets`
+`:fn-runtime` `:appcheck` `:store-listing` `:policy-claims`
+`:data-inventory` `:monitoring` `:store-forms` `:ios-spm`
+`:ios-facebook` `:ios-location`. `check:bundle` on a shipping build,
+2331 / 965 against 2334 / 978, and on a DSN-less one to prove the new
+branch withholds rather than passes.
+## D192 · The docs get a map, and the map gets a gate
 
 **2026-08-17.** **Status:** binding. Owner's ask, verbatim: *"update the
 docs so another claude instance can understand how everything in the
 project works."*
+
+> Written as D191 and renumbered on merge: #217 took that number first,
+> the same day. Worth one line rather than a silent fix, because two
+> branches picking the same next number is the ordinary failure of a
+> file whose numbering is append-only and whose next value is read by
+> eye — and `check:docs` cannot catch it. The index is what makes it
+> cheap to notice: a duplicate number is visible in one screen of it.
+
 
 **Decision.** [`docs/ORIENTATION.md`](ORIENTATION.md) is the entry point
 for a reader with no context: every document with whether it describes the
