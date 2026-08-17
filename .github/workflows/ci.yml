@@ -134,6 +134,22 @@ jobs:
       # whether a rule is correct, and on that path a missing doc row would
       # block an emergency rules fix — the exact trade CLAUDE.md names.
       - run: npm run check:data-inventory
+      # The maps in docs/ORIENTATION.md — every doc, every README, every
+      # gate, and where each gate runs — plus whether DECISIONS-INDEX.md is
+      # current. A map is worth exactly its currency, and the alternative is
+      # a hand-maintained list of every document and every gate: the one
+      # documentation error this repo keeps re-committing, which
+      # check:figures exists for and counts four instances of.
+      #
+      # It also holds the Status column against each document's own
+      # declaration, because four of those files are proposals with no code
+      # behind them and reading one as a description of the tree is the most
+      # expensive mistake the page can cause.
+      #
+      # Docs-only, so the same placement rule as check:figures above: a stale
+      # map says nothing about whether a rules fix is safe to deploy, and
+      # nothing that cannot answer that question gets to block one.
+      - run: npm run check:docs
       # Five version numbers that must move together across three files.
       - run: npm run check:versions
       # Near-duplicate questions across the banks (D63). Exact-dupe checks

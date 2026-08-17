@@ -1,5 +1,14 @@
 # Working in this repo
 
+This file is the conventions and the traps — the things that will surprise
+you and cost a day. **[`docs/ORIENTATION.md`](docs/ORIENTATION.md) is the
+map**: every document with whether it describes the app or proposes
+something, every gate with where it runs, every directory with what to read
+first, and [`docs/DECISIONS-INDEX.md`](docs/DECISIONS-INDEX.md) to find a
+decision by number. Read this file, then go there for where your task
+lives. Both are gated by `check:docs`, so neither can quietly stop being
+true.
+
 InSight is a two-tab app (daily · mirror). The **daily** tab is where you
 answer: one blind question a day, a feed under it, and sealed
 group/1v1 duels revealed the next day. The feed is finite *today* and the

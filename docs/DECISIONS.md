@@ -19462,3 +19462,120 @@ in both trees, `lint`, `check:globals` (409, baseline 409), `:labels`
 `:quality`, and `check:bundle` on a shipping build (964 / 2331 against
 978 / 2334). `test:e2e:erasure` and `:moderation` were not run — neither
 touches a handle, a display name or a Mirror row.
+
+## D191 · The docs get a map, and the map gets a gate
+
+**2026-08-17.** **Status:** binding. Owner's ask, verbatim: *"update the
+docs so another claude instance can understand how everything in the
+project works."*
+
+**Decision.** [`docs/ORIENTATION.md`](ORIENTATION.md) is the entry point
+for a reader with no context: every document with whether it describes the
+app or proposes something, every gate with where it runs, every directory
+with what to read first. [`docs/DECISIONS-INDEX.md`](DECISIONS-INDEX.md)
+is a generated index of this file. `npm run check:docs`
+(`scripts/doc-index.mjs`) holds both to the tree. `CLAUDE.md` keeps its
+job — the conventions and the traps — and points at the map for
+everything else.
+
+**Why a map and not more prose.** This tree is heavily documented and
+badly navigable, which are different problems. The state at this record:
+28 files under `docs/`, ~33k lines, no index; six more `README.md` files
+elsewhere plus `CLAUDE.md` and the frozen prototype's own notes; 19,464
+lines and 194 headings in this file with no table of contents, addressed
+by number from every other document.
+Nothing said which document owned a subject, and nothing said which
+documents describe the app. Four of them are proposals with no code behind
+them (`ATTENTION`, `FORESIGHT-CALLS`, `NEXT-FUNCTIONALITY`, `VISION-V28`)
+and three more are partly built — reading one of those as a description of
+the tree is the most expensive mistake this repo's documentation can
+cause, and it was available on the first read of any of them.
+
+**The finding that made it a gate rather than a page.** `README.md`
+described the Mirror per **D9** — "Six of them in live mode: Near *is*
+your city there" — after **D111** (2026-08-12) split exactly that fold
+back into two stops. The same paragraph named Near, Country and World as
+"the same question at three radii", which is D9's sentence about a cohort
+D111 gave to City. So the product's front page told a new reader the
+Mirror had six live stops when it has seven, and told them the wrong one
+was a place.
+
+Two things about that, both verified rather than assumed:
+
+- **The duration is not recoverable here.** The git history available in
+  this clone begins 2026-08-14, after D111, and the README line and D111's
+  own record appear in the same imported commit. So this record does not
+  claim how long it was wrong — only that it was, and that the record
+  invalidating that paragraph sits 102 records below the one it cites.
+- **It is the same class `check:figures` was built for**, whose header
+  already counts four instances of it. This is the fifth, and the first
+  where the stale thing is a *claim* rather than a number — which is why
+  the remedy is a coverage gate rather than a figure entry: no static
+  check can hold "this paragraph describes the app", but one can hold
+  "every document is named, and its own status line agrees with the map".
+
+**What the gate holds** — seven rules, each mutation-checked by breaking
+it and watching the failure, then reverting:
+
+1. `DECISIONS-INDEX.md` regenerates identically (`--write` rebuilds it).
+2. Every `docs/*.md` is named in the map.
+3. Every `README.md` in the tree is named in the map.
+4. Every `check:*` script in `package.json` has a row.
+5. Every gate's *where it runs* marker matches the workflows. Computed
+   from them, not from the prose: `check:anchors` and `check:pokedex` both
+   moved onto `backend-checks.yml` after they were written, and a gate
+   described as client-only while sitting on the deploy path is a wrong
+   answer to "can this block an emergency rules fix".
+6. Every path the map names in backticks exists.
+7. A document that declares its own status must be marked to match, in
+   both directions. The second direction is the one that earns the rule: a
+   plan that gets built updates its own header — `MODERATION.md` and
+   `CATALOG-QUESTIONS.md` both did — and nothing would otherwise notice
+   the map still calling it a plan.
+
+**What it does not hold, so nobody assumes more.** Nothing here reads
+whether a description is *true*. Rule 2 asks that `MIRROR.md` appears,
+not that the sentence beside it describes `MIRROR.md`; rule 5 checks
+placement, not the reason given for it. Prose accuracy is not a static
+property — the limit `check-public-copy.mjs` works around by checking a
+closed vocabulary instead. What the rules buy is that the map cannot
+silently omit a thing or point at a thing that is gone, which is how a map
+dies.
+
+**Three choices inside the index worth recording.**
+
+- **Citations, not supersession.** The index's *Cited later by* column is
+  the newest record mentioning each one, plus a count. It is not "superseded
+  by", because supersession is marked three inconsistent ways in this file
+  — a leading blockquote, a mid-record amendment paragraph, or only in the
+  superseding record's prose — so a flag would be wrong often enough to
+  mislead, and a wrong flag is worse than a citation the reader judges.
+  Only the newest is published: the fan-in reaches 34 (D1), and a 34-id
+  cell is not a line anyone reads.
+- **Sorted by number, not by file position.** This file is not strictly
+  numeric — D7 sits above D6, D4 and D5 — so a reader trusting file order
+  looks in the wrong place. Amendments sort under their parent record.
+- **This file's own figures stay ungated**, for `check-figures.mjs`'s
+  reason: a record's arithmetic is the state when the decision was taken,
+  so one going stale is the record working. The index derives structure
+  only — number, title, line, citations.
+
+**One deletion.** `README.md`'s repo map listed `docs/` as a hand-picked
+subset — 13 of the 28 files — which is the same failure one level up. It
+is a pointer now.
+
+**Verified:** `lint`, `tsc -b`, `check:docs` (28 docs, 6 READMEs, 32
+gates), `check:globals` (409, baseline 409), `:figures` `:public-copy`
+`:policy-claims` `:data-inventory`, `test:scripts` (215), `test:unit`
+(1,241 over 80 files), functions (228) and `test:rules` (106). The three
+e2e suites were not run: this change touches no rule, no function, no
+content bank and no client module — the only executable it adds is a docs
+gate, and `test:scripts` covers the script layer it lives in.
+
+**One environment note, so the next run does not misread it.** The
+functions suite fails to *load* six of its eight files with
+`Cannot find package 'firebase-functions/v2/scheduler'` when only the root
+`npm install` has been run. That is a missing `functions/node_modules`,
+not a broken suite — `npm install --prefix functions` and all 228 pass.
+It reads like a real import error because it is one; the package is simply
+not there yet.
