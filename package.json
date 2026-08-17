@@ -92,7 +92,7 @@
     "@capacitor/keyboard": "^8.0.3",
     "@capacitor/push-notifications": "^8.1.2",
     "@capacitor/splash-screen": "^8.0.2",
-    "@capacitor/status-bar": "^8.0.2",
+    "@capacitor/status-bar": "^8.0.3",
     "@sentry/browser": "10.60.0",
     "@sentry/capacitor": "^4.2.0",
     "@sentry/react": "10.60.0",
