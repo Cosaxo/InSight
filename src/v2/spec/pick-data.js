@@ -385,6 +385,27 @@
       268: 2,  // Jack Russell Terrier — below the floor
       0: 10,   // Not listed — the mutts, and rightly so
     },
+    // daily catalog-question run, 2026-08-17 — taste, the second countries
+    // canon: pk16 asks where you'd LIVE, this asks whose table you'd eat
+    // at forever, and the boards disagree from the top (nobody moves to
+    // Italy for the trains). The war this question starts is the point.
+    pk18: {
+      380: 31, // Italy — the default answer, and it knows it
+      392: 26, // Japan — the counterargument
+      484: 21, // Mexico — the one UNESCO listed first
+      764: 17, // Thailand
+      356: 14, // India — the deepest bench
+      250: 12, // France — the old champion, still seated
+      704: 10, // Vietnam
+      300: 8,  // Greece
+      410: 7,  // South Korea
+      724: 6,  // Spain
+      156: 5,  // China — clears the floor but not the top 10; folds
+      422: 5,  // Lebanon — same
+      268: 3,  // Georgia — below the floor, the travellers' secret
+      792: 2,  // Türkiye — below the floor
+      0: 9,    // Not listed
+    },
   };
 
   // Baked demo segment slices, per question: how each cohort orders the
@@ -591,6 +612,18 @@
         Men: { 216: 9, 84: 7, 307: 6, 467: 5, 237: 5 },
       },
     },
+    pk18: {
+      ageBand: {
+        // Japan and Korea are the streaming generation's kitchens; the
+        // Italy-France axis holds with age, Mexico crosses everything
+        '18-24': { 392: 9, 410: 7, 764: 6, 484: 5, 380: 4 },
+        '25-34': { 380: 8, 392: 7, 484: 6, 704: 5, 764: 4 },
+      },
+      gender: {
+        Women: { 380: 8, 764: 7, 392: 6, 300: 5, 704: 4 },
+        Men: { 484: 9, 380: 8, 392: 7, 356: 5, 250: 5 },
+      },
+    },
   };
 
   const api = {
@@ -732,5 +765,9 @@
     // domain slot) — commitment, not affection: the dog you'd GET is an
     // argument people have actually had, and mutts get the honest bucket.
     { id: 'pk17', cat: 'fav', type: 'pick', domain: 'dogs', prompt: 'The dog you’d get?', n: 168 },
+    // 2026-08-17 daily run: taste — the second countries canon. Where
+    // you'd live (pk16) and whose food you'd claim are different
+    // loyalties with different winners.
+    { id: 'pk18', cat: 'fav', type: 'pick', domain: 'countries', prompt: 'The country with the best food?', n: 176 },
   ];
 })();
