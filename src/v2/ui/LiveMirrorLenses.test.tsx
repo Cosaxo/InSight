@@ -53,10 +53,27 @@ const LIVE = vi.hoisted(() => ({
   kindredPeople: () => [] as Array<Record<string, unknown>>,
   myTestResults: () => ({}) as Record<string, unknown>,
   anchors: () => ({}) as Record<string, string>,
+  // Compare's own reads since D193: the bank's test items, the cells this
+  // stop folds them over, and your side of the comparison. Stubbed empty
+  // by default, which is the "fills in as you answer" arm — the cases
+  // that want a drawing supply all four.
+  myCity: "Oslo, NO",
+  myVotes: () => ({}) as Record<string, string>,
+  testFeedItems: () => [] as Array<Record<string, unknown>>,
+  aggFor: (qid: string) => { void qid; return null as Record<string, unknown> | null; },
+  loadNames: vi.fn(async () => {}),
+  scoresFor: (uid: string) => { void uid; return null as Record<string, Record<string, number>> | null; },
+  loadSimilarity: vi.fn(async () => {}),
 }));
 vi.mock("../data/live", () => ({ default: LIVE }));
 
 const { default: LiveMirrorLenses } = await import("./LiveMirrorLenses");
+// The instrument definitions the Compare fold joins the bank to. Read
+// rather than fabricated: the join runs on PROMPT TEXT (similarity.ts
+// testItemMeta), so a hand-written prompt would silently match nothing
+// and every Compare case would pass by drawing the empty state.
+// @ts-expect-error TS7016 — untyped spec module (the LiveSimilarityField pattern)
+const { IS_TESTS } = await import("../spec/test-definitions.js");
 
 // One question, 60/40 overall, split hard by age and not at all by gender.
 const Q: LensQuestion = {
@@ -104,6 +121,13 @@ beforeEach(() => {
   LIVE.kindredPeople = () => [];
   LIVE.kindredLoading = () => false;
   LIVE.anchors = () => ({});
+  // Compare's four (D193), back to the empty arm between cases — the
+  // suite is shared and a fixture left standing would make the next
+  // describe's Compare draw a card nobody set up.
+  LIVE.myVotes = () => ({});
+  LIVE.testFeedItems = () => [];
+  LIVE.myTestResults = () => ({});
+  LIVE.aggFor = () => null;
 });
 afterEach(cleanup);
 
@@ -242,17 +266,108 @@ describe("People", () => {
   });
 });
 
+// ── Compare ──────────────────────────────────────────────────────────
+//
+// D193 replaced the reading, not the discipline. What stood here was a
+// list of questions with your own pick's share in each — real numbers,
+// answering a question docs/MIRROR.md has never said this lens asks, and
+// one the Answers tab already answers better. What it draws now is the
+// prototype's: your profile and this population's, laid over each other
+// per instrument.
+//
+// The cases that matter are the two the old lens had (which CELL, and
+// which emptiness) plus the two the new arithmetic adds (a floor, and an
+// instrument only one side has).
 describe("Compare", () => {
-  it("counts how often you went with the majority, against this population", () => {
+  // Every big5 item, as the seeded bank carries them. `prompt` comes off
+  // IS_TESTS itself because the scoring join matches on prompt text.
+  const BIG5 = (IS_TESTS as Record<string, { questions: Array<{ q: string }> }>)
+    .big5.questions.map((q, i) => ({
+      id: `t_big5_${i}`, prompt: q.q, test: "big5", surface: "test",
+      options: ["1", "2", "3", "4", "5"],
+    }));
+  /**
+   * A cell with every answer on the MIDDLE option.
+   *
+   * Which scores every axis at exactly 50 whether the item is reversed or
+   * not — `invert ? 4 - 2 : 2` is 2 either way — so these fixtures cannot
+   * accidentally depend on which of the twenty-five items carry the flag.
+   */
+  const middle = (n: number) => ({ "0": 0, "1": 0, "2": n, "3": 0, "4": 0 });
+  /** A finished Big Five, in the shape `testResults` stores one. */
+  const MY_BIG5 = {
+    big5: { dims: [
+      { id: "O", value: 70 }, { id: "C", value: 60 }, { id: "E", value: 50 },
+      { id: "A", value: 40 }, { id: "N", value: 30 },
+    ] },
+  };
+
+  beforeEach(() => {
+    LIVE.testFeedItems = () => BIG5;
+    LIVE.myTestResults = () => MY_BIG5;
+    // Oslo answered the middle; the globe is not the same crowd and says
+    // so — every answer at the far end.
+    LIVE.aggFor = () => ({
+      counts: { "0": 0, "1": 0, "2": 0, "3": 0, "4": 40 },
+      by: { city: { "Oslo, NO": middle(20) } },
+    });
+  });
+
+  it("lays your profile over this population's, one card per instrument", () => {
     mount("compare");
-    // Own pick is option 1 ("No") at 40% — the minority — so 0 of 1.
-    expect(screen.getByText(/with Oslo/i)).toBeTruthy();
-    expect(screen.getByText(/40% here agreed/i)).toBeTruthy();
+    expect(screen.getByText(/You .* Oslo/)).toBeTruthy();
+    // Oslo sits at 50 on all five; your gaps are 20, 10, 0, 10, 20 — mean
+    // 12, so 88. `queryAllByText` because the figure is on screen more
+    // than once by design — the header's pooled number, the instrument
+    // card's own, and the alignment glyph's title — and asserting one
+    // occurrence would be asserting the layout rather than the reading.
+    expect(screen.queryAllByText(/^88$/).length).toBeGreaterThan(0);
+    // The basis it stands on, which is the half a percentage is worthless
+    // without.
+    expect(screen.getByText(/across 5 axes/)).toBeTruthy();
+    expect(screen.getByText("Big Five")).toBeTruthy();
+  });
+
+  it("reads THIS stop's cell, never the globe", () => {
+    mount("compare");
+    // The globe is 100 on every forward axis and 0 on every reversed one,
+    // so a lens reading `agg.counts` could not land on 88 — and at the
+    // World stop, where the globe IS the stop, the same fixture must.
+    expect(screen.queryAllByText(/^88$/).length).toBeGreaterThan(0);
+    cleanup();
+    mount("compare", [Q], "the world", "world");
+    expect(screen.queryAllByText(/^88$/)).toEqual([]);
+  });
+
+  it("says nobody here has answered rather than drawing a thin profile", () => {
+    // A globe full of answers and no Oslo cell at all — the shape that
+    // used to draw a confident split out of a cohort with nothing in it.
+    LIVE.aggFor = () => ({ counts: { "0": 0, "1": 0, "2": 0, "3": 0, "4": 40 }, by: {} });
+    mount("compare");
+    expect(screen.getByText(/Nobody in Oslo has answered a test card yet/i)).toBeTruthy();
+  });
+
+  it("refuses an axis the population has too few answers on", () => {
+    // Five answers per item is twenty-five per axis, under the floor the
+    // result cards' "most people" ring uses (NORM_MIN_ANSWERS).
+    LIVE.aggFor = () => ({ counts: {}, by: { city: { "Oslo, NO": middle(5) } } });
+    mount("compare");
+    expect(screen.getByText(/Nobody in Oslo has answered a test card yet/i)).toBeTruthy();
   });
 
   it("asks you to answer something rather than showing an empty frame", () => {
-    mount("compare", [{ ...Q, mine: -1 }]);
-    expect(screen.getByText(/fills in as you answer/i)).toBeTruthy();
+    LIVE.myTestResults = () => ({});
+    mount("compare");
+    expect(screen.getByText(/fills in as you answer the test cards/i)).toBeTruthy();
+  });
+
+  it("fills your side in from your own feed answers, with no test finished", () => {
+    LIVE.myTestResults = () => ({});
+    // The middle on every item, which is 50 on every axis — the same
+    // place Oslo is standing.
+    LIVE.myVotes = () => Object.fromEntries(BIG5.map((q) => [q.id, "2"]));
+    mount("compare");
+    expect(screen.queryAllByText(/^100$/).length).toBeGreaterThan(0);
   });
 });
 

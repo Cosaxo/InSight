@@ -36,7 +36,6 @@ import EmptyField from "./EmptyField";
 import MirrorLensTabs from "./MirrorLensTabs";
 import { useLensRowScroll } from "./lensRowScroll";
 import type { LensTab } from "./lensTabs";
-import type { LensQuestion } from "./lensDefs";
 import { circleSplit } from "../data/circle";
 import { divisiveness, pctFor } from "../data/cohort";
 
@@ -49,14 +48,14 @@ import { divisiveness, pctFor } from "../data/cohort";
 const PeopleField = React.lazy(() =>
   import("./LiveSimilarityField").then((m) => ({ default: m.PeopleField })),
 );
-// Compare, borrowed rather than rebuilt (D190). `CompareLens` was exported
-// at D177 for exactly this: it takes `LensQuestion[]` and a noun and asks
-// nothing about scope, so a cohort this device folded reads the same as one
-// the server did. Lazy for the reason the field is — it lives in the lens
-// chunk, and opening Circle must not fetch it before the tab is tapped.
-const CircleCompare = React.lazy(() =>
-  import("./LiveMirrorLenses").then((m) => ({ default: m.CompareLens })),
-);
+// Compare, borrowed rather than rebuilt (D190, re-pointed at D193). It
+// used to be `CompareLens`, a list of questions; it is the profile
+// drawing now, and the borrowing survives the change because
+// LiveCompareLens asks only for a way to count this population's answers
+// and a noun. Lazy for the reason the field is — it is an SVG canvas per
+// instrument, and opening Circle must not fetch it before the tab is
+// tapped.
+const CircleCompare = React.lazy(() => import("./LiveCompareLens"));
 
 const CL_LINE = "1px solid var(--rule)";
 
@@ -147,28 +146,41 @@ function LiveCircleBody() {
   const mutuals = members.filter((m) => m.mutual).length;
 
   /**
-   * The same fold, shaped for Compare.
+   * The circle's side of Compare (D193): the members' own answers to the
+   * bank's test items, folded into per-option counts.
    *
-   * `all` is empty on purpose: it is the GLOBE, and only Explore reads it
-   * — which is not one of this stop's tabs, and could not be (a circle is
-   * a handful of people, and cutting it by age band would report on
-   * cohorts of one). An honest empty beats the stop's own counts wearing
-   * the globe's name, which is the mislabel D170 had to repair one tab
-   * over.
+   * The SAME arithmetic every other population's profile runs on — a
+   * circle differs from a city only in where the counts come from, which
+   * is exactly the property `axisScores` was written for (D112: "one
+   * arithmetic, any cohort"). `circleSplit` is already the fold this stop
+   * uses for its Answers tab, and it already excludes you, which is what
+   * keeps a circle of one from reflecting your own answers back as
+   * agreement with yourself.
+   *
+   * Five options because the instruments are written on a 5-point
+   * agreement scale and `testItemMeta` drops anything else; a qid the
+   * circle has not answered folds to n=0 and the lens reads it as absent.
+   *
+   * The answer floor is 2 rather than testNorms' 30, and the difference
+   * is the claim: a city is a SAMPLE of a city, so a mean of four answers
+   * there is four people's mood drawn as a population's centre. A circle
+   * is the exact set you chose — its mean is that set's mean at any size,
+   * including one, and the header directly above says what that size is.
+   *
+   * The floor that actually binds here is the ITEM one, and it binds on
+   * every population for a reason that is not about sample size: an axis
+   * is several questions agreeing, so one item's mean is that item's mean
+   * whoever answered it.
    */
-  const lensQs: LensQuestion[] = splits
-    .filter((r) => r.split.n > 0)
-    .map(({ q, split }) => ({
-      id: q.id,
-      text: q.text,
-      options: q.options.map((o) => o.label),
-      counts: split.counts,
-      all: [],
-      by: undefined,
-      mine: myVotes[q.id] == null ? -1 : Number(myVotes[q.id]),
-      type: q.type,
-      branch: q.branch,
-    }));
+  const comparePop = {
+    basis: "cells" as const,
+    cellOf: (qid: string) => {
+      const s = circleSplit(members, qid, 5);
+      return s.n ? s.counts : null;
+    },
+    minAnswers: 2,
+    minItems: 2,
+  };
 
   return (
     <div className="fade-in" style={{
@@ -329,8 +341,9 @@ function LiveCircleBody() {
         <div className="fade-in" role="tabpanel" aria-label="Compare" style={{ paddingTop: 14 }}>
           <React.Suspense fallback={null}>
             {/* "your circle", the same noun the rows above use — the lens
-                prints it in "3/7 with your circle". */}
-            <CircleCompare qs={lensQs} shortName="your circle" />
+                prints it in "You ↔ your circle". */}
+            <CircleCompare pop={comparePop} whom="your circle"
+              emptyThem={<>Fills in as the people you follow answer test cards.</>} />
           </React.Suspense>
         </div>
       )}

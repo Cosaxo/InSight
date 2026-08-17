@@ -30,6 +30,10 @@ const LIVE = vi.hoisted(() => {
     deck: () => deck,
     myVotes: () => ({ a: "0" }) as Record<string, string>,
     myTestResults: () => ({}) as Record<string, unknown>,
+    // Compare's fold since D193. Empty is the honest default here: the
+    // room's side is its members' completed instruments, and the bank is
+    // only read to fill YOUR side in from feed answers.
+    testFeedItems: () => [] as Array<Record<string, unknown>>,
     loadNames: vi.fn(async () => {}),
     nameFor: (uid: string) => ({ u1: "Ada Lovelace", u2: "" }[uid] ?? ""),
     scoresFor: () => null as Record<string, Record<string, number>> | null,
@@ -61,6 +65,10 @@ beforeEach(() => {
   LIVE.near.roomLoading = () => false;
   LIVE.scoresFor = () => null;
   LIVE.faceFor = () => "";
+  // Compare's two sides, back to empty between cases (D193). A profile
+  // left standing from the previous case would put a card in front of an
+  // empty-state assertion, which is a pass for the wrong reason.
+  LIVE.myTestResults = () => ({});
 });
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
@@ -157,14 +165,44 @@ describe("LiveRoomTabs · Answers and Compare read the room", () => {
     expect(document.body.textContent || "").toMatch(/this room/i);
   });
 
-  it("compares you against the room, not against everyone", () => {
+  it("compares you against the people in the room, under the room's noun", () => {
+    // D193: Compare is the profile drawing, and the room is the one
+    // population with no cells to fold — the server returns today's deck,
+    // never the test bank — so its side is the members' own completed
+    // instruments, averaged.
+    LIVE.myTestResults = () => ({
+      big5: { dims: [
+        { id: "O", value: 70 }, { id: "C", value: 60 }, { id: "E", value: 50 },
+        { id: "A", value: 40 }, { id: "N", value: 30 },
+      ] },
+    });
+    LIVE.scoresFor = () => ({ big5: { O: 50, C: 50, E: 50, A: 50, N: 50 } });
     render(<LiveRoomTabs tab="compare" />);
     const text = document.body.textContent || "";
-    expect(text).toMatch(/with this room/i);
-    // 3 of 4 picked option 0 and so did the viewer, so the majority line
-    // is about the ROOM's split — proof the counts crossing the wire are
-    // the ones being read.
-    expect(text).toMatch(/75% here agreed/);
+    // The cohort noun matters as much as the number: D170's whole finding
+    // was three lenses naming one population and reading another.
+    expect(text).toMatch(/this room/i);
+    // gaps 20, 10, 0, 10, 20 → mean 12 → 88, over the one person in the
+    // room who has a profile.
+    expect(text).toMatch(/88/);
+    expect(text).toMatch(/1 of 1 have taken one/);
+  });
+
+  it("keeps your empty and theirs apart", () => {
+    // Two different facts, and one "no data" would collapse them. You
+    // first: nothing of yours to lay over anybody.
+    render(<LiveRoomTabs tab="compare" />);
+    expect(screen.getByText(/fills in as you answer the test cards/i)).toBeTruthy();
+    cleanup();
+    // …then them: your profile against a room where nobody has one.
+    LIVE.myTestResults = () => ({
+      big5: { dims: [
+        { id: "O", value: 70 }, { id: "C", value: 60 }, { id: "E", value: 50 },
+        { id: "A", value: 40 }, { id: "N", value: 30 },
+      ] },
+    });
+    render(<LiveRoomTabs tab="compare" />);
+    expect(screen.getByText(/Nobody here has finished a test yet/i)).toBeTruthy();
   });
 
   it("asks the store for exactly the deck it is about to draw", () => {
