@@ -11,8 +11,11 @@
 //   People   the cohort's demographic mix (a fold over `agg.by`) and
 //            Kindred, the people whose answers most match yours
 //            (data/cohort.ts `agreement`, over the cached voter lists).
-//   Compare  you against this population, question by question, with the
-//            questions you diverge on most surfaced first.
+//   Compare  you against this population as whole profiles — the
+//            prototype's rose-and-poles drawing over measured axes
+//            (ui/LiveCompareLens.tsx, D193). It shipped as a list of
+//            questions and that was the Answers tab re-sorted; the
+//            section comment on CohortCompare has the account.
 //   Scores   the place scorecard: what this population gives the place it
 //            is standing in, facet by facet, with your own score ticked
 //            onto their bar (D100, corrected at D187).
@@ -68,6 +71,14 @@ import { TypeMark } from "../spec/type-marks.jsx";
 // rule wants a component file to export only components, and it is right
 // that a constant shared with the host does not belong in one.
 import Avatar from "./Avatar";
+// The Compare tab's whole body (D193). A static import rather than a lazy
+// one: this module IS the lazy lens chunk, so the drawing rides the same
+// fetch the row already pays for when a lens is opened.
+import LiveCompareLens from "./LiveCompareLens";
+// The meaning floors an axis must clear before a PLACE's mean is drawn as
+// that place's centre. Shared with the result cards' "most people" ring
+// rather than re-picked here — one number, one reason (D157).
+import { NORM_MIN_ANSWERS, NORM_MIN_ITEMS } from "../data/testNorms";
 import { ORDINAL_TYPES, type LensId, type LensQuestion } from "./lensDefs";
 // D136 removed the Foresight lens from this row, so the import of
 // ./LiveForesightLens went with it. The component and data/foresight.ts
@@ -489,63 +500,56 @@ function PeopleLens({ qs, scope, shortName }: {
 // ── Compare ─────────────────────────────────────────────────────────
 
 /**
- * Compare — you against a cohort, least typical first.
+ * Compare — you against this place, profile against profile (D193).
  *
- * EXPORTED since D177, and it is the only lens body that is: the Near
- * stop's room reads exactly this way (you against the people here), and a
- * second implementation would be a second place for D170's majority test
- * to be got wrong. It asks nothing about scope — a `LensQuestion[]` and a
- * noun — so a cohort the server folded reads the same as one the device
- * did.
+ * WHAT STOOD HERE UNTIL D193: `pctFor` on your own option, question by
+ * question, ranked least-typical first. A correct reading of real counts,
+ * and the wrong one twice over — it is what docs/MIRROR.md has described
+ * this lens as NOT being since D99 ("you against them across every
+ * assessment, in the results profile's own visual language"), and it was
+ * the Answers tab with a different sort, since `LiveAnswerRows` draws the
+ * same population's every question with your pick marked and "62% of Oslo
+ * are with you" underneath. ui/LiveCompareLens.tsx is the drawing; this
+ * is only the part that knows which cells a place is.
+ *
+ * The cells are the stop's own — D170's rule, unchanged by the change of
+ * reading: the City stop folds the city's cell, Country its country's,
+ * World the globe. The FLOORS are testNorms', because a place is a sample
+ * of a place: below them an axis is a handful of people's mood drawn as a
+ * population's centre, which is the failure D157 removed from the result
+ * cards and must not be reintroduced one tab over.
  */
-export function CompareLens({ qs, shortName }: { qs: LensQuestion[]; shortName: string }) {
-  const answered = qs.filter((q) => q.mine >= 0 && q.counts.some((c) => c > 0));
-  if (!answered.length) {
-    return <LlEmpty>Fills in as you answer.</LlEmpty>;
-  }
-  // Ranked by how far you sit from the crowd on your own pick — the
-  // interesting rows are the ones where you are unusual, not the ones
-  // where everyone agrees with you.
-  const rows = answered.map((q) => {
-    const pct = pctFor(q.counts);
-    const n = q.counts.reduce((a, b) => a + b, 0);
-    // "With the majority" means your pick is what this cohort picked MOST
-    // — not that it cleared 50% (D170). The old rule was `mineShare >= 50`
-    // and it was wrong in both directions: on a three-way question the
-    // leading answer can win on 40%, and on a two-way tie at 50/50 nobody
-    // is in the majority, which is exactly what the release showed —
-    // "the majority in 3 of 3" over a row split 50/50.
-    const top = q.counts.reduce((t, v, i) => (v > q.counts[t] ? i : t), 0);
-    const tied = q.counts.filter((v) => v === q.counts[top]).length > 1;
-    return { q, pct, n, mineShare: pct[q.mine] || 0, withMost: !tied && q.mine === top };
-  }).sort((a, b) => a.mineShare - b.mineShare);
+function CohortCompare({ scope, shortName }: {
+  scope: "city" | "country" | "world"; shortName: string;
+}) {
+  // NO LOADER HERE, deliberately. The test-item aggregates this fold
+  // reads are the constellation's, and the constellation is the permanent
+  // head of all three of these stops (D136) — it asks for them on arrival
+  // and never unmounts, so they are in flight before this tab can be
+  // tapped. Asking again would not be free either: `loadSimilarity`
+  // early-returns on the agg sweep but still awaits `loadKindred`, which
+  // is the People lens's own cost gate — so a courtesy call here would
+  // charge Compare for voter lists nobody asked for
+  // (LiveCohortBody.test.tsx pins that the row costs nothing to navigate).
+  const city = LIVE.myCity;
+  const country = city ? (PLACES.parse(city)?.country || "") : "";
+  const key = scope === "city" ? city : country;
+  const cellOf = React.useCallback((qid: string): number[] | null => {
+    const agg = LIVE.aggFor(qid);
+    if (!agg) return null;
+    const raw = scope === "world" ? agg.counts : agg.by?.[scope]?.[key];
+    if (!raw) return null;
+    // Dense to the 5-point scale the instruments are written on — the
+    // same shape testNorms builds for the globe.
+    return Array.from({ length: 5 }, (_, i) => Number(raw[String(i)]) || 0);
+  }, [scope, key]);
 
-  const withMost = rows.filter((r) => r.withMost).length;
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-      {/* A fraction and a sort order, which is all this line ever carried.
-          The noun stays — CompareLens is the Near stop's room as well as a
-          cohort stop (D177), and there "the people here" is the reading —
-          but the rest was scaffolding around two facts. */}
-      <div style={{ fontFamily: "var(--sans)", fontSize: 13, fontWeight: 600, color: "var(--ink-2)", lineHeight: 1.5 }}>
-        <strong style={{ fontVariantNumeric: "tabular-nums" }}>{withMost}/{rows.length}</strong>
-        {" "}with {shortName} · least typical first
-      </div>
-      {rows.map(({ q, pct, n, mineShare }) => (
-        <div key={q.id} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <span style={{ fontFamily: "var(--serif)", fontSize: 14.5, color: "var(--ink)", lineHeight: 1.35 }}>{q.text}</span>
-          <LlBar pct={pct} labels={q.options} mark={q.mine} />
-          <span style={{ fontFamily: "var(--sans)", fontSize: 11.5, fontWeight: 600, color: "var(--ink-3)" }}>
-            You said <strong style={{ color: "var(--ink-2)" }}>{q.options[q.mine]}</strong>
-            {/* A share of ONE answer is not a share: with n=1 the only
-                values the arithmetic can produce are 0% and 100%, so
-                "100% here agreed" reports the sample size and nothing
-                else. Arithmetic, not a threshold someone chose. */}
-            {n === 1 ? <> · one answer here so far</> : <> · {mineShare}% here agreed</>}
-          </span>
-        </div>
-      ))}
-    </div>
+    <LiveCompareLens
+      pop={{ basis: "cells", cellOf, minAnswers: NORM_MIN_ANSWERS, minItems: NORM_MIN_ITEMS }}
+      whom={shortName}
+      emptyThem={<>Nobody in {shortName} has answered a test card yet.</>}
+    />
   );
 }
 
@@ -777,7 +781,7 @@ function LiveMirrorLenses({ lens, qs, shortName, scope = "city" }: {
   return (
     <div style={{ paddingTop: 14 }}>
       {lens === "people" && <PeopleLens qs={qs} scope={scope} shortName={shortName} />}
-      {lens === "compare" && <CompareLens qs={qs} shortName={shortName} />}
+      {lens === "compare" && <CohortCompare scope={scope} shortName={shortName} />}
       {lens === "scores" && <ScoresLens qs={qs} shortName={shortName} scope={scope} />}
       {lens === "explore" && <ExploreLens qs={qs} />}
     </div>

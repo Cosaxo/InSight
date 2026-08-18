@@ -30,14 +30,27 @@ const LIVE = vi.hoisted(() => ({
   aggregated: () => [] as Array<Record<string, unknown>>,
   aggFor: () => null,
   myVotes: () => ({}) as Record<string, string>,
+  // Compare's fold since D193 — the circle's own answers to the bank's
+  // test items, and your side of the comparison.
+  testFeedItems: () => [] as Array<Record<string, unknown>>,
+  myTestResults: () => ({}) as Record<string, unknown>,
+  loadNames: vi.fn(async () => {}),
+  scoresFor: () => null as Record<string, Record<string, number>> | null,
 }));
 vi.mock("../data/live", () => ({ default: LIVE }));
 
 const { default: LiveCircleBody } = await import("./LiveCircleBody");
+// The instrument definitions the fold joins the bank to. Read rather than
+// invented: the join matches on PROMPT TEXT, so a made-up prompt would
+// score nothing and the case would pass by drawing an empty state.
+// @ts-expect-error TS7016 — untyped spec module (the LiveSimilarityField pattern)
+const { IS_TESTS } = await import("../spec/test-definitions.js");
 
 beforeEach(() => {
   LIVE.circle = () => [];
   LIVE.circleLoading = () => false;
+  LIVE.testFeedItems = () => [];
+  LIVE.myTestResults = () => ({});
 });
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
@@ -136,5 +149,77 @@ describe("LiveCircleBody · the row is the stop's, not the data's", () => {
     expect(screen.getByRole("tabpanel").textContent).toMatch(/a follow is one tap/i);
     openTab("Answers");
     expect(screen.getByRole("tabpanel").textContent).toMatch(/Fills in once two people you follow/i);
+  });
+});
+
+// ── Compare is the profile drawing here too (D193) ──────────────────
+//
+// The circle is the one SET the Mirror can fold from counts: its members'
+// answers are already fetched for the Answers tab, so its side of the
+// comparison is the same `axisScores` arithmetic a city's is — with a
+// sample floor of two rather than thirty, because a circle is not a
+// sample of anything. It is the exact set you chose, and its mean is
+// that set's mean at any size.
+describe("LiveCircleBody · Compare lays two profiles over each other", () => {
+  // Every big5 item, in the seeded bank's shape.
+  const BIG5 = (IS_TESTS as Record<string, { questions: Array<{ q: string }> }>)
+    .big5.questions.map((q, i) => ({
+      id: `t_big5_${i}`, prompt: q.q, test: "big5", surface: "test",
+      options: ["1", "2", "3", "4", "5"],
+    }));
+  // The MIDDLE option on every item, which scores every axis at exactly
+  // 50 whether the item is reversed or not (`invert ? 4 - 2 : 2` is 2
+  // either way) — so the fixture cannot depend on which items carry the
+  // flag.
+  const answers = Object.fromEntries(BIG5.map((q) => [q.id, 2]));
+  const member = (uid: string) => ({
+    uid, name: uid, mutual: false, like: { pct: 0, same: 0, shared: 0 }, answers,
+  });
+
+  beforeEach(() => {
+    LIVE.testFeedItems = () => BIG5;
+    LIVE.myTestResults = () => ({
+      big5: { dims: [
+        { id: "O", value: 70 }, { id: "C", value: 60 }, { id: "E", value: 50 },
+        { id: "A", value: 40 }, { id: "N", value: 30 },
+      ] },
+    });
+  });
+
+  it("folds the circle's own answers into a profile", async () => {
+    LIVE.circle = () => [member("u_ada"), member("u_bo")];
+    render(<LiveCircleBody />);
+    fireEvent.click(screen.getByRole("tab", { name: "Compare" }));
+    // The circle sits at 50 on all five; your gaps are 20, 10, 0, 10, 20
+    // — mean 12, so 88.
+    const panel = await screen.findByText(/across 5 axes/);
+    expect(panel).toBeTruthy();
+    expect(screen.getByRole("tabpanel").textContent).toMatch(/88/);
+    expect(screen.getByRole("tabpanel").textContent).toMatch(/your circle/);
+  });
+
+  it("draws for a circle of one, because one member IS that circle", async () => {
+    // Not a thin sample of a crowd — the whole population, which happens
+    // to be one person. The header directly above says "1 person", so the
+    // reader is never left guessing how many the mean ran over.
+    LIVE.circle = () => [member("u_ada")];
+    render(<LiveCircleBody />);
+    fireEvent.click(screen.getByRole("tab", { name: "Compare" }));
+    expect(await screen.findByText(/across 5 axes/)).toBeTruthy();
+  });
+
+  it("refuses an axis the circle has answered one item of", async () => {
+    // Two members, one item each — five answers is plenty and one item is
+    // not an axis. `minItems` is the floor that binds, and it binds on
+    // every population: "an axis is several questions agreeing" is not a
+    // claim about sample size.
+    const one = { [BIG5[0].id]: 2 };
+    LIVE.circle = () => [
+      { uid: "u_ada", name: "Ada", mutual: false, like: { pct: 0, same: 0, shared: 0 }, answers: one },
+      { uid: "u_bo", name: "Bo", mutual: false, like: { pct: 0, same: 0, shared: 0 }, answers: one },
+    ];
+    render(<LiveCircleBody />);
+    fireEvent.click(screen.getByRole("tab", { name: "Compare" }));
+    expect(await screen.findByText(/Fills in as the people you follow answer/i)).toBeTruthy();
   });
 });

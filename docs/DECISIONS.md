@@ -19462,3 +19462,402 @@ in both trees, `lint`, `check:globals` (409, baseline 409), `:labels`
 `:quality`, and `check:bundle` on a shipping build (964 / 2331 against
 978 / 2334). `test:e2e:erasure` and `:moderation` were not run — neither
 touches a handle, a display name or a Mirror row.
+
+## D191 · Build 20's pre-flight: nothing to bump, and check:bundle's second load-bearing variable
+
+**Decided:** 2026-08-17 · **Status:** binding · The comparison D184's
+procedure asks for, made against the run list, plus the one gap it turned
+up on the way.
+
+### The comparison, and it came out *run as-is*
+
+Run 28 (`31963956792`, `e76731d`, 2026-08-16 18:13Z) has step 17,
+`Upload to App Store Connect`, at **`success`** — 18:17:39Z → 18:18:55Z,
+1m 16s of transfer. Run 27 is the same commit six minutes earlier with
+step 17 `skipped`: the dry run. So **build 19 is spent**, and it is the
+highest that is.
+
+`appBuild` **at run 28's own `head_sha`** — D159's correction, read at
+`e76731d` rather than at whatever was merged — is **19**. The tree is at
+**20**. So `appBuild` is already greater than the highest build App Store
+Connect has seen, runbook 2.4 answers *run as-is*, and **no number moved
+here.**
+
+That is the third pre-flight to find nothing to do (D153, D158, this),
+and all three follow a release where the bump was made from the upload
+step's own conclusion in the session that dispatched it. The
+correspondence is now four for four in each direction: every skip (runs
+18, 19, 24, 26) was a session that came back later or not at all, and
+every bump that held (20, 21, 22, 28) was made off the step list while it
+was on screen. Still a procedure, and D184 has why nothing in this tree
+can make it a mechanism — the sound invariant keys on the run list, which
+nothing here can read.
+
+### What build 20 carries
+
+A pure JavaScript payload, the second in a row after build 19. The only
+diff under `ios/` or `android/` since `e76731d` is the D186 bump itself
+(`versionCode` 19 → 20 and both `CURRENT_PROJECT_VERSION` entries) —
+neither lockfile, neither rules file, no store-filing file, so the store
+filing does not move. It carries D187 (the place scorecard rating the
+place), D188 and D189 (the Mirror's tab row where a tab bar sits, and the
+design gate learning to look), D190 (identity asked once, the topic door,
+and Circle and Groups getting their row) and the pk18 catalog question.
+
+### The gap: the gate documented a trap and guarded the other one
+
+`check:bundle` refuses to grade a build made without `VITE_V2_LIVE`,
+because the whole history of that script is the same failure — measuring
+a bundle nobody installs and reporting it as the one that ships. Its
+header documents a **second** variable with exactly that property:
+without `VITE_SENTRY_DSN` the 445 KB Sentry group is provably dead,
+rolldown drops it, and the total comes out ~450 KB light. That one got a
+paragraph addressed to whoever runs the command, and no guard.
+
+So the failure was still reachable one variable over, and this pre-flight
+walked into it: built the release bundle without a DSN, and the gate
+printed
+
+```
+bundle budget OK — SHIPPING bundle (VITE_V2_LIVE=true), 1877 KB total / 963 KB eager (max 2334 / 978)
+```
+
+Measured on this tree, the same command, the DSN the only difference:
+
+| | chunks | total | eager |
+| --- | ---: | ---: | ---: |
+| no DSN | 76 | 1877 KB | 963 KB |
+| with DSN | 79 | **2331 KB** | 965 KB |
+
+454 KB, against a total ceiling with **3 KB** of headroom. The line
+asserting `SHIPPING bundle` was itself the false artifact claim its own
+comment was written to prevent — "a log line saying OK without saying *of
+what* is the one that let four builds through."
+
+**Withheld, not failed, and the distinction is the whole design.** A
+Sentry-less release is supported: `ios-release.yml` passes
+`secrets.VITE_SENTRY_DSN` through and documents it as optional, "without
+it the release ships with no crash reporting" — survivable, deliberately
+not gated. Hard-failing would convert that documented choice into a
+broken release path, which is a worse bug than the one being fixed. So
+the script now grades what stays measurable and declines the rest: the
+per-chunk and eager ceilings still apply (Sentry is dynamically imported,
+in no modulepreload link — D64 measured first paint identical with and
+without it — and its chunk is 435 KB against a 735 KB limit), and only
+`MAX_TOTAL_JS_KB` is withheld, with the reason printed. The verdict line
+now names **both** halves of the artifact, because `VITE_V2_LIVE=true`
+says the V2 half is in and says nothing about Sentry.
+
+### The headroom, which is the finding to carry forward
+
+The shipping bundle measures **2331 KB total / 965 KB eager against 2334
+/ 978** — 3 KB and 13 KB. The total is where D190 left it (2331) plus
+D190's own note that the eager number went 964 → 965 with the catalog
+question. Three kilobytes is not headroom, and the ceiling's own comment
+already forbids the obvious answer: deferral relocates bytes and moves
+the total by zero, so the next feature to touch this cannot split its way
+under. The D64 candidates still stand un-taken — the Mirror tab (~168 KB,
+first frame for anyone who opens on that tab) and an audit of what of
+Sentry's remaining ~435 KB is reachable — and the sixth raise should have
+to walk past them again.
+
+**Verified:** unit 1,241 (80 files), scripts 215 (11 files), functions
+228, `test:rules` 106, and all three e2e suites — `test:e2e`,
+`:erasure` and `:moderation` — green on Java 21. `lint`, `tsc -b` in both
+trees, the workflow's own three pre-flight gates (`check-store-copy
+--ios`, `:public-copy`, `:versions` — "versions OK — 2.0.0 (build 20)"),
+and every other check gate: `:globals` `:figures` `:a11y` `:anchors`
+`:labels` `:touch-zoom` `:purge` `:cities` `:pokedex` `:elements`
+`:catalogs` `:logic-sync` `:content` `:quality` `:deploy-targets`
+`:fn-runtime` `:appcheck` `:store-listing` `:policy-claims`
+`:data-inventory` `:monitoring` `:store-forms` `:ios-spm`
+`:ios-facebook` `:ios-location`. `check:bundle` on a shipping build,
+2331 / 965 against 2334 / 978, and on a DSN-less one to prove the new
+branch withholds rather than passes.
+## D192 · The docs get a map, and the map gets a gate
+
+**2026-08-17.** **Status:** binding. Owner's ask, verbatim: *"update the
+docs so another claude instance can understand how everything in the
+project works."*
+
+> Written as D191 and renumbered on merge: #217 took that number first,
+> the same day. Worth one line rather than a silent fix, because two
+> branches picking the same next number is the ordinary failure of a
+> file whose numbering is append-only and whose next value is read by
+> eye — and `check:docs` cannot catch it. The index is what makes it
+> cheap to notice: a duplicate number is visible in one screen of it.
+
+
+**Decision.** [`docs/ORIENTATION.md`](ORIENTATION.md) is the entry point
+for a reader with no context: every document with whether it describes the
+app or proposes something, every gate with where it runs, every directory
+with what to read first. [`docs/DECISIONS-INDEX.md`](DECISIONS-INDEX.md)
+is a generated index of this file. `npm run check:docs`
+(`scripts/doc-index.mjs`) holds both to the tree. `CLAUDE.md` keeps its
+job — the conventions and the traps — and points at the map for
+everything else.
+
+**Why a map and not more prose.** This tree is heavily documented and
+badly navigable, which are different problems. The state at this record:
+28 files under `docs/`, ~33k lines, no index; six more `README.md` files
+elsewhere plus `CLAUDE.md` and the frozen prototype's own notes; 19,464
+lines and 194 headings in this file with no table of contents, addressed
+by number from every other document.
+Nothing said which document owned a subject, and nothing said which
+documents describe the app. Four of them are proposals with no code behind
+them (`ATTENTION`, `FORESIGHT-CALLS`, `NEXT-FUNCTIONALITY`, `VISION-V28`)
+and three more are partly built — reading one of those as a description of
+the tree is the most expensive mistake this repo's documentation can
+cause, and it was available on the first read of any of them.
+
+**The finding that made it a gate rather than a page.** `README.md`
+described the Mirror per **D9** — "Six of them in live mode: Near *is*
+your city there" — after **D111** (2026-08-12) split exactly that fold
+back into two stops. The same paragraph named Near, Country and World as
+"the same question at three radii", which is D9's sentence about a cohort
+D111 gave to City. So the product's front page told a new reader the
+Mirror had six live stops when it has seven, and told them the wrong one
+was a place.
+
+Two things about that, both verified rather than assumed:
+
+- **The duration is not recoverable here.** The git history available in
+  this clone begins 2026-08-14, after D111, and the README line and D111's
+  own record appear in the same imported commit. So this record does not
+  claim how long it was wrong — only that it was, and that the record
+  invalidating that paragraph sits 102 records below the one it cites.
+- **It is the same class `check:figures` was built for**, whose header
+  already counts four instances of it. This is the fifth, and the first
+  where the stale thing is a *claim* rather than a number — which is why
+  the remedy is a coverage gate rather than a figure entry: no static
+  check can hold "this paragraph describes the app", but one can hold
+  "every document is named, and its own status line agrees with the map".
+
+**What the gate holds** — seven rules, each mutation-checked by breaking
+it and watching the failure, then reverting:
+
+1. `DECISIONS-INDEX.md` regenerates identically (`--write` rebuilds it).
+2. Every `docs/*.md` is named in the map.
+3. Every `README.md` in the tree is named in the map.
+4. Every `check:*` script in `package.json` has a row.
+5. Every gate's *where it runs* marker matches the workflows. Computed
+   from them, not from the prose: `check:anchors` and `check:pokedex` both
+   moved onto `backend-checks.yml` after they were written, and a gate
+   described as client-only while sitting on the deploy path is a wrong
+   answer to "can this block an emergency rules fix".
+6. Every path the map names in backticks exists.
+7. A document that declares its own status must be marked to match, in
+   both directions. The second direction is the one that earns the rule: a
+   plan that gets built updates its own header — `MODERATION.md` and
+   `CATALOG-QUESTIONS.md` both did — and nothing would otherwise notice
+   the map still calling it a plan.
+
+**What it does not hold, so nobody assumes more.** Nothing here reads
+whether a description is *true*. Rule 2 asks that `MIRROR.md` appears,
+not that the sentence beside it describes `MIRROR.md`; rule 5 checks
+placement, not the reason given for it. Prose accuracy is not a static
+property — the limit `check-public-copy.mjs` works around by checking a
+closed vocabulary instead. What the rules buy is that the map cannot
+silently omit a thing or point at a thing that is gone, which is how a map
+dies.
+
+**Three choices inside the index worth recording.**
+
+- **Citations, not supersession.** The index's *Cited later by* column is
+  the newest record mentioning each one, plus a count. It is not "superseded
+  by", because supersession is marked three inconsistent ways in this file
+  — a leading blockquote, a mid-record amendment paragraph, or only in the
+  superseding record's prose — so a flag would be wrong often enough to
+  mislead, and a wrong flag is worse than a citation the reader judges.
+  Only the newest is published: the fan-in reaches 34 (D1), and a 34-id
+  cell is not a line anyone reads.
+- **Sorted by number, not by file position.** This file is not strictly
+  numeric — D7 sits above D6, D4 and D5 — so a reader trusting file order
+  looks in the wrong place. Amendments sort under their parent record.
+- **This file's own figures stay ungated**, for `check-figures.mjs`'s
+  reason: a record's arithmetic is the state when the decision was taken,
+  so one going stale is the record working. The index derives structure
+  only — number, title, line, citations.
+
+**One deletion.** `README.md`'s repo map listed `docs/` as a hand-picked
+subset — 13 of the 28 files — which is the same failure one level up. It
+is a pointer now.
+
+**Verified:** `lint`, `tsc -b`, `check:docs` (28 docs, 6 READMEs, 32
+gates), `check:globals` (409, baseline 409), `:figures` `:public-copy`
+`:policy-claims` `:data-inventory`, `test:scripts` (215), `test:unit`
+(1,241 over 80 files), functions (228) and `test:rules` (106). The three
+e2e suites were not run: this change touches no rule, no function, no
+content bank and no client module — the only executable it adds is a docs
+gate, and `test:scripts` covers the script layer it lives in.
+
+**One environment note, so the next run does not misread it.** The
+functions suite fails to *load* six of its eight files with
+`Cannot find package 'firebase-functions/v2/scheduler'` when only the root
+`npm install` has been run. That is a missing `functions/node_modules`,
+not a broken suite — `npm install --prefix functions` and all 228 pass.
+It reads like a real import error because it is one; the package is simply
+not there yet.
+
+## D193 · Compare draws the comparison it was always described as drawing
+
+**2026-08-17.** **Status:** binding. Owner's ask, verbatim: *"the compare
+functonality is wrong and should work more like the vison in the html
+file"* — the v33 standalone prototype, attached.
+
+**Decision.** The Mirror's **Compare** tab is the profile comparison the
+prototype draws and this file has described since D99: you and the
+population laid over each other instrument by instrument, in the results
+page's own visual language — your petal solid to your score, their value
+pinned on the same slice as a washed dot, pole rows underneath, an
+alignment figure per instrument and one pooled figure over the lot. It is
+computed from measured data on all six stops that carry the tab: City,
+Country, World, Circle, Groups and Near.
+
+The list of questions it used to be is gone. `CompareLens` is gone with
+it, along with the `LensQuestion` plumbing three of the four hosts existed
+to build.
+
+**What was wrong, and why nothing caught it.** Compare shipped at D99 as
+`pctFor` on your own option, question by question, ranked least-typical
+first. Every number on that screen was true, drawn from published counts,
+and D170 had already gone through and corrected *which* counts. Five
+gates, four suites and ninety-odd decisions passed over it.
+
+It was wrong twice.
+
+1. **It is not what the lens is.** `docs/MIRROR.md` has said since D99:
+   "**Compare** — you against them across every assessment, in the results
+   profile's own visual language: the petal is solid as far as you *both*
+   reach and pale for the distance between you." That paragraph sat six
+   inches above a table row reading "`pctFor` on your own option… ranked
+   least-typical first", and the two describe different screens. The
+   design was recorded, the build diverged, and the divergence was
+   recorded too — in the same document, as though it were a status note.
+   Nothing gates prose against code, and this is the shape that gap takes.
+2. **It was the Answers tab re-sorted.** `LiveAnswerRows` draws the same
+   population's every question with your own pick marked and "62% of Oslo
+   are with you" underneath (`standingIn`, D120) — plus a branch filter, a
+   sort band and an expander the lens never had. So the row's whole
+   reading already existed one tab to the left, better. What did not exist
+   anywhere is the comparison the prototype is built around: two whole
+   profiles, one shape against another.
+
+The refusal that kept it a list was real when it was made and is not real
+now. Until D98 the second person in a comparison was unreadable; since
+D112 the arithmetic that gives a place a score profile has been in the
+tree and the constellation has been drawing it. Compare was the one
+consumer that never picked it up.
+
+**The two bases, and why there are two.** `data/compare.ts` is the whole
+fold and it is pure.
+
+| basis | stops | their side is |
+| --- | --- | --- |
+| `cells` | City · Country · World · Circle | `axisScores` over per-option COUNTS — the published `by.city` / `by.country` cell, the globe, or the circle's own members via `circleSplit` |
+| `people` | Groups · Near | the MEAN of the members' completed `testResults`, public since D98 and already cached beside their names |
+
+Neither is the other and every card prints which one it drew, over what:
+"mean gap across 21 axes · 4,120 test answers", or "· 6 of 9 have taken
+one". That is testNorms' rule (D157) applied one screen over — a figure
+that cannot say what it was measured over is an authored constant wearing
+a measurement's clothes.
+
+Groups and Near take the `people` basis because they have no choice: a
+group's history is its own reveals and Near's server fold returns today's
+deck, so neither holds a test-bank answer for a cell fold to read. Circle
+does hold them — its members' answers are already fetched for its Answers
+tab — so it folds counts, and reads the way a city does.
+
+**Your side fills in from ordinary answering.** `myAxisMap` is
+`myFlatAxes`' merge kept per-instrument: a completed test where you have
+one, your own answers to that instrument's feed items where you have not.
+So Compare is not gated on sitting down for a test — it fills in as the
+feed's test cards get answered, which is the same thing that fills in the
+population's side.
+
+**Floors, and where they belong.** An axis is drawn for a PLACE only
+above `NORM_MIN_ANSWERS` (30) across `NORM_MIN_ITEMS` (2) — testNorms'
+numbers, imported rather than re-picked, because "the mean of four
+answers is four people's mood" is the same sentence there and here. A
+CIRCLE passes 2 and 2 instead, and the difference is a claim rather than a
+preference: a city is a *sample* of a city, a circle is the exact set you
+chose, and its mean is that set's mean at any size — including one, where
+the stop's own header says "1 person" one line above. The item floor
+travels with neither: "an axis is several questions agreeing" is true of
+every population, which is what makes it the floor that actually binds on
+a small one.
+
+A card needs `MIN_COMPARE_AXES` (3) axes the two of you SHARE —
+`MIN_PLACE_AXES`' number and reasoning. An instrument only one of you has
+is absent rather than drawn against a neutral 50, which is the
+middle-of-the-road population `axisScores` already refuses to invent.
+
+**One deliberate divergence from the prototype's arithmetic.**
+`compare-breakdown.jsx` averages the per-instrument percentages for its
+headline. The header figure here is `scoreMatch` over the UNION of every
+shared axis — the identical call the People lens and the constellation's
+place cards make — so "100 minus the average gap across the axes you both
+have" is one sentence true of every likeness number in the Mirror, and a
+six-axis instrument does not weigh the same as a five-axis one. The
+prototype's other clamp goes too: it pins alignment to 2–99, which would
+turn a measured 100 into a cosmetic 99.
+
+**The drawing is imported, not re-ported.** `CBAssess` and `CBAlignGlyph`
+are named exports of `spec/compare-breakdown.jsx` now. Everything above
+that seam takes props and knows nothing about where a profile came from;
+everything below it reads the demo's `IS_TEST_RESULTS` and
+`IS_COMPARE_POP`. So the live lens supplies measured dims and draws the
+identical picture, instead of the tree growing a second copy of 150 lines
+of SVG that would drift the first time either was touched. Named exports
+rather than `window` reads: D39's ratchet only moves down, and the file is
+in the eager graph already, so the live chunk pays nothing for it.
+
+**What this costs to open: nothing new.** The `cells` stops read the
+test-item aggregates the constellation above the row already fetches on
+arrival (D136, `loadSimilarity`) — and Compare deliberately does NOT call
+that loader itself, because it early-returns on the agg sweep and then
+awaits `loadKindred`, which is the People lens's own cost gate. A
+courtesy call would have charged Compare for voter lists nobody asked
+for. The `people` stops call `loadNames`, which is the call their People
+tab already makes and which brings scores down on the same document.
+
+**What the empty states say, kept apart.** Three of them, because
+collapsing them would tell someone who has taken every test that they have
+taken none: *you* have no profile ("Fills in as you answer the test cards
+in your feed"), *they* have none (the host's own sentence — "Nobody in
+Oslo has answered a test card yet"), or you have no instrument in common
+yet.
+
+**Two tests were deleted rather than adapted, and both are recorded where
+they stood.** `LiveCohortBody.test.tsx`'s "Compare stops calling a tie the
+majority" pinned D170's majority rule, and Compare no longer folds an
+option split, so there is no rule left to break. Its two siblings — the
+lens reads its own stop's cell, never the globe — are restated over the
+new fold in `LiveMirrorLenses.test.tsx`, where the code they describe now
+lives.
+
+**Known limit, stated rather than worked around.** A city's Compare needs
+30 answers across 2 items on an axis before it draws, so on a young
+install the tab says "Nobody in Oslo has answered a test card yet" while
+the Answers tab is already full. That is the correct order of events —
+answers publish from the first one (D98), profiles need a crowd — and it
+is why the empty arm names the population rather than apologising.
+
+**The bundle, measured both ways.** `MAX_TOTAL_JS_KB` goes 2334 → 2340,
+the seventh raise and the smallest: with a DSN, total 2331 → 2336 (+5),
+eager 964 → 965 (+1), 82 chunks up from 79. The three new chunks are a
+SPLIT rather than new weight, and it is the counter-intuitive half —
+`spec/compare-breakdown.jsx` sat inside the entry chunk because
+`spec-index.js` imports it eagerly, and a lazy importer appearing is what
+made rolldown pull it out into a shared 14 KB chunk. Bytes moved OUT of
+the entry graph, which is why +5 KB of source cost first paint +1.
+`MAX_EAGER_KB` — the constant that defends anything — did not move and
+keeps 13 KB of headroom.
+
+**Verified:** `tsc -b`, `lint`, `check:globals` (409, baseline 409),
+`test:unit` (1,266 over 81 files, including 17 new cases in
+`data/compare.test.ts`), `check:bundle` on a live build with a DSN,
+`check:docs`, `:figures`, `:labels`, `:a11y` (8, baseline 8),
+`:public-copy`. No rule, function, content bank or catalogue is touched,
+so the rules and e2e suites were not run.

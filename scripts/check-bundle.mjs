@@ -46,6 +46,36 @@ const INDEX_HTML = join(root, "dist", "index.html");
 // still has to know which command produced which numbers. Refusing to
 // grade the wrong artifact is the property that cannot rot.
 const DEMO = process.argv.includes("--demo");
+
+// ── THE SECOND LOAD-BEARING VARIABLE, which this file documented and did
+//    not guard (found by build 20's pre-flight) ───────────────────────
+//
+// The header above says it twice: without a DSN the 445 KB Sentry group is
+// provably dead, rolldown drops it, and the TOTAL comes out ~450 KB light.
+// That was written as advice to whoever runs the command, and VITE_V2_LIVE
+// got a hard guard while this one got a paragraph. So the exact failure
+// this script exists to refuse — grading a bundle nobody installs and
+// calling it the shipping one — was still reachable, one variable over:
+// build with VITE_V2_LIVE=true and no DSN and the final line below prints
+// `SHIPPING bundle (VITE_V2_LIVE=true)` over a total that is missing a
+// fifth of the app. Measured on this tree at build 20, same command, DSN
+// the only difference: 1877 KB across 76 chunks against 2331 KB across 79.
+//
+// It is NOT a hard refusal, and that is the difference from VITE_V2_LIVE.
+// A Sentry-less release is a supported build — `ios-release.yml` passes
+// `secrets.VITE_SENTRY_DSN` straight through and documents it as optional,
+// "without it the release ships with no crash reporting", survivable and
+// deliberately not gated. Failing here would turn that documented choice
+// into a broken release path, which is a worse bug than the one being
+// fixed.
+//
+// So: grade what is still measurable and decline to grade what is not.
+// The per-chunk and eager ceilings are unaffected — Sentry is dynamically
+// imported, appears in no modulepreload link (D64 measured first paint
+// identical with and without it), and its chunk is 435 KB against a 735 KB
+// per-chunk limit. Only MAX_TOTAL_JS_KB counts those bytes, so only
+// MAX_TOTAL_JS_KB is withheld.
+const SENTRY_IN = (process.env.VITE_SENTRY_DSN ?? "") !== "";
 if (!DEMO && process.env.VITE_V2_LIVE !== "true") {
   console.error(
     "check-bundle: this gate describes the SHIPPING bundle, and dist/ was\n"
@@ -549,7 +579,27 @@ const MAX_CHUNK_KB = 735;
 // number to watch — it is the one defending first paint, and the next
 // thing added to the entry graph will very likely need a dynamic import
 // rather than a raise.
-const MAX_TOTAL_JS_KB = 2334;
+//
+// 2334 → 2340 (2026-08-17): D193's Compare. Measured with a DSN on this
+// tree, both ways: total 2331 → 2336 (+5), eager 964 → 965 (+1), 82
+// chunks up from 79.
+//
+// SEVENTH RAISE, and the smallest of them — worth a line anyway, because
+// the entry two above asked what a sixth would mean and the answer holds
+// here too: the total is a DRIFT ALARM, and 5 KB of new product code
+// (`ui/LiveCompareLens.tsx`, `data/compare.ts`) is the boring end of what
+// it should notice. The eager graph, which is the constant defending
+// anything, moved 1 KB.
+//
+// THE THREE NEW CHUNKS ARE A SPLIT, NOT NEW WEIGHT, and it is the
+// counter-intuitive half worth writing down: `spec/compare-breakdown.jsx`
+// was inside the entry chunk (spec-index imports it eagerly), and a lazy
+// importer appearing is what made rolldown pull it out into a shared 14 KB
+// chunk of its own. So bytes moved OUT of the entry graph, which is why
+// +5 KB of source cost first paint +1. That relocation is exactly what
+// the 2026-08-13 entries say the TOTAL cannot see, and correctly: it
+// counts every chunk, so only the genuinely new code shows up here.
+const MAX_TOTAL_JS_KB = 2340;
 // 955 → 966 (2026-08-14): D139's pulse card — the second fixed instrument
 // on the FIRST screen, so its card, its store's demo furniture and the
 // two LIVE members are legitimately eager (~10 KB min). What is not
@@ -707,7 +757,21 @@ for (const s of eager.slice(1)) {
     failed = true;
   }
 }
-if (totalKb > MAX_TOTAL_JS_KB) {
+// Withheld rather than passed when Sentry is out — see SENTRY_IN. A total
+// that is missing 450 KB of the app cannot fail this ceiling and must not
+// be reported as having cleared it.
+if (!SENTRY_IN) {
+  console.log(
+    `\n  total NOT GRADED — VITE_SENTRY_DSN is `
+    + (process.env.VITE_SENTRY_DSN === undefined ? "unset" : "empty")
+    + ` for this process, so the 445 KB Sentry group is\n`
+    + `  dead code and dropped. ${totalKb.toFixed(0)} KB is ~450 KB light and is not this\n`
+    + `  app's size; MAX_TOTAL_JS_KB (${MAX_TOTAL_JS_KB} KB) was not applied. The per-chunk and\n`
+    + `  eager ceilings above still hold — Sentry is in neither.\n\n`
+    + `  To grade the total, set any non-empty DSN at BUILD time and re-run:\n`
+    + `    VITE_SENTRY_DSN=https://ci@example.invalid/0 VITE_V2_LIVE=true npm run build`,
+  );
+} else if (totalKb > MAX_TOTAL_JS_KB) {
   console.error(`\nOVER total budget: ${totalKb.toFixed(0)} KB (max ${MAX_TOTAL_JS_KB} KB)`);
   failed = true;
 }
@@ -736,8 +800,16 @@ if (failed) {
 // Name the artifact, not just the verdict. Every failure this gate has had
 // was a question of WHICH bundle got measured, so a log line saying "OK"
 // without saying "of what" is the one that let four builds through.
+// "SHIPPING bundle (VITE_V2_LIVE=true)" was itself an artifact claim that
+// could be false: the flag says the V2 half is in, and says nothing about
+// Sentry. Both halves are named now, so the line cannot assert more than
+// was measured.
 console.log(
-  `bundle budget OK — SHIPPING bundle (VITE_V2_LIVE=true), `
-  + `${totalKb.toFixed(0)} KB total / ${eagerKb.toFixed(0)} KB eager `
-  + `(max ${MAX_TOTAL_JS_KB} / ${MAX_EAGER_KB})`,
+  SENTRY_IN
+    ? `bundle budget OK — SHIPPING bundle (VITE_V2_LIVE=true, Sentry in), `
+      + `${totalKb.toFixed(0)} KB total / ${eagerKb.toFixed(0)} KB eager `
+      + `(max ${MAX_TOTAL_JS_KB} / ${MAX_EAGER_KB})`
+    : `bundle budget OK on what was gradable — VITE_V2_LIVE=true, Sentry OUT, `
+      + `${eagerKb.toFixed(0)} KB eager (max ${MAX_EAGER_KB}); `
+      + `total ${totalKb.toFixed(0)} KB ungraded`,
 );

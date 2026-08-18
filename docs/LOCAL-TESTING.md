@@ -117,6 +117,22 @@ The three e2e suites each have a `pre` script that builds `functions`
 first, so run them through npm rather than by hand — a raw
 `firebase emulators:exec` will happily run the *previous* build.
 
+**`npm install` at the root does not install the backend's dependencies**,
+and the way that surfaces looks like a broken suite rather than a missing
+install. `npm run test --prefix functions` fails to *load* six of its eight
+files with
+
+```
+Error: Cannot find package 'firebase-functions/v2/scheduler'
+    imported from functions/src/velocity.ts
+```
+
+and reports `6 failed | 2 passed` while every test that did run passed.
+It is a real import error — the package genuinely is not there. Run
+`npm install --prefix functions` and all 228 pass. Two installs, two
+`node_modules`, which is why `backend-checks.yml` carries
+`npm ci --prefix functions` as its own step next to the root one.
+
 `npm run test:unit` expects the **demo** defaults, so run it with no `.env` in
 the tree (or one that leaves `VITE_V2_LIVE` unset). With the live-mode `.env`
 from the top of this file in place, 8 tests across `follow-seeds`,

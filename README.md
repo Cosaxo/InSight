@@ -6,6 +6,11 @@ InSight is a two-tab app — **daily · mirror**. One tab is where you
 answer; the other is where the answering turns into a picture of you
 against every population you belong to. Answering is the smaller half.
 
+*Working on it rather than reading about it?*
+[`docs/ORIENTATION.md`](./docs/ORIENTATION.md) is the map — every
+document, gate and directory, one line each — and `CLAUDE.md` is the
+conventions you have to know before the first edit.
+
 ## Answering — three ways in, all blind until you've played
 
 - **The daily.** One blind vote a day, *then* how the world split, with
@@ -28,17 +33,27 @@ fully extended:
 you · circle · groups · near · city · country · world
 ```
 
-Six of them in live mode: **Near** *is* your city there, so a City stop
-would be the same cohort offered twice (decision D9).
+All seven in live mode since decision **D111**, which split the two
+questions D9 had folded into one stop: **Near** is who is around you
+*right now* — a presence radius and a count, never a list — and **City**
+is how the people who live there answered.
 
 **You** is the Map: every answer you've given becomes a dot, filed under
 its question's branch and sitting further from the centre the more
 unusual it was — mastered Learn facts land on the same canvas. **Groups**
 is your named circles, their alignment computed from real reveal history.
-**Near**, **Country** and **World** are the same question at three radii.
+**City**, **Country** and **World** are the same question at three radii.
 **Circle** is the accounts you follow, ranked by how alike your answers
 are (decision D101) — a follow is a bookmark, not a permission grant, so
 there is no request to send and nothing to accept.
+
+A live stop is not one reading. City, Country and World carry a tab row —
+**Answers · People · Compare · Explore · Scores** — under a similarity
+field that draws above it always: your city's people ranked by test-score
+match, and cities and countries placed by their real average-score
+profiles (decisions D112, D136). Circle and Groups carry the three of
+those a circle of nine can answer (D190). Every one of them is a fold
+over aggregates that were publishing anyway.
 
 The slicing is the whole trick, and it costs one write. An answer is
 stored once, readable by anyone, carrying a snapshot of the profile
@@ -139,16 +154,21 @@ monitoring/        Cloud Monitoring policies, put live by
                    (`npm run pulse` — MONITORING.md, D47)
 content/           canonical question banks & archetypes (seed source)
 design/            the frozen design spec (read-only reference)
-docs/              DECISIONS · MIRROR (what the app shows, and how one
-                   answer reaches every surface) · COPY (the rule the
-                   app's words follow, and what it does not license) ·
-                   SCHEMA-V2 · DEPLOYMENT ·
-                   LOCAL-TESTING · SHIP-CHECKLIST · LAUNCH-RUNBOOK ·
-                   data-inventory · DEVICE-BIND · MONETIZATION · COSTS ·
-                   MONITORING
+docs/              ORIENTATION is the index — every document, every gate,
+                   every directory, one line each, and which docs describe
+                   the app versus which describe a proposal. This line used
+                   to be a hand-picked subset of it, which is why it is a
+                   pointer now: `check:docs` holds that page to the tree and
+                   held nothing here. DECISIONS-INDEX is the same treatment
+                   for the decision records
 ```
 
 ## Testing & CI
+
+The gates below are the ones worth the reasoning. For the *complete* list —
+all of them, with where each one runs — see
+[`docs/ORIENTATION.md`](./docs/ORIENTATION.md) §5, which `check:docs` holds
+equal to `package.json` and the workflows.
 
 Local:
 
