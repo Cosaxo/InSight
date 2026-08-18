@@ -16,6 +16,10 @@ import { getFunctions, connectFunctionsEmulator, httpsCallable } from "firebase/
 // weakening it for a test.
 import { initializeApp as adminInit } from "firebase-admin/app";
 import { getFirestore as adminFirestore } from "firebase-admin/firestore";
+// The region the EMULATOR serves, taken from the functions' own compiled
+// output rather than repeated here (D199). `pretest:e2e` builds it, so
+// this harness cannot be pointed at a region the emulator is not on.
+import { FUNCTIONS_REGION } from "../functions/lib/ops.js";
 
 // The named database (D165). The backend writes to FIRESTORE_DB_ID, so a
 // harness on `(default)` reads an empty database and reports a phantom
@@ -27,7 +31,7 @@ const E2E_DB_ID = process.env.FIRESTORE_DB_ID || "insight";
 const app = initializeApp({ projectId: "demo-insight", apiKey: "demo", appId: "demo" });
 const auth = getAuth(app); connectAuthEmulator(auth, "http://127.0.0.1:9099", { disableWarnings: true });
 const db = getFirestore(app, E2E_DB_ID); connectFirestoreEmulator(db, "127.0.0.1", 8080);
-const fns = getFunctions(app, "us-central1"); connectFunctionsEmulator(fns, "127.0.0.1", 5001);
+const fns = getFunctions(app, FUNCTIONS_REGION); connectFunctionsEmulator(fns, "127.0.0.1", 5001);
 adminInit({ projectId: "demo-insight" });
 const adminDb = adminFirestore(E2E_DB_ID);
 
@@ -361,7 +365,7 @@ ok("duo created: " + gid + " code " + inviteCode);
 const pApp = initializeApp({ projectId: "demo-insight", apiKey: "demo", appId: "demo" }, "partner");
 const pAuth = getAuth(pApp); connectAuthEmulator(pAuth, "http://127.0.0.1:9099", { disableWarnings: true });
 const pDb = getFirestore(pApp, E2E_DB_ID); connectFirestoreEmulator(pDb, "127.0.0.1", 8080);
-const pFns = getFunctions(pApp, "us-central1"); connectFunctionsEmulator(pFns, "127.0.0.1", 5001);
+const pFns = getFunctions(pApp, FUNCTIONS_REGION); connectFunctionsEmulator(pFns, "127.0.0.1", 5001);
 const partner = await signInAnonymously(pAuth);
 const joined = await httpsCallable(pFns, "joinGroupV2")({ code: inviteCode });
 if (joined.data.gid !== gid) fail("joinGroupV2 landed in wrong group");
@@ -469,7 +473,7 @@ const lateGid = gCreated.data.gid;
 const lateApp = initializeApp({ projectId: "demo-insight", apiKey: "demo", appId: "demo" }, "latecomer");
 const lateAuth = getAuth(lateApp); connectAuthEmulator(lateAuth, "http://127.0.0.1:9099", { disableWarnings: true });
 const lateDb = getFirestore(lateApp, E2E_DB_ID); connectFirestoreEmulator(lateDb, "127.0.0.1", 8080);
-const lateFns = getFunctions(lateApp, "us-central1"); connectFunctionsEmulator(lateFns, "127.0.0.1", 5001);
+const lateFns = getFunctions(lateApp, FUNCTIONS_REGION); connectFunctionsEmulator(lateFns, "127.0.0.1", 5001);
 const latecomer = await signInAnonymously(lateAuth);
 await httpsCallable(lateFns, "joinGroupV2")({ code: gCreated.data.inviteCode });
 
@@ -647,7 +651,7 @@ ok("learn crowd stat: 5 first attempts, exact through per-answer publishes, 3/5 
   // a people-finder, which is precisely what v2_presence's read deny
   // exists to prevent, arriving through a callable instead of a query.
   const expectRefused = async (label, app, name, data) => {
-    const f = getFunctions(app, "us-central1");
+    const f = getFunctions(app, FUNCTIONS_REGION);
     connectFunctionsEmulator(f, "127.0.0.1", 5001);
     try {
       await httpsCallable(f, name)(data);
@@ -689,7 +693,7 @@ ok("learn crowd stat: 5 first attempts, exact through per-answer publishes, 3/5 
       cell: meCell, at: serverTimestamp(),
     });
     ok("legacy presence write (no `until`) still accepted by the rules");
-    const lFns = getFunctions(lApp, "us-central1");
+    const lFns = getFunctions(lApp, FUNCTIONS_REGION);
     connectFunctionsEmulator(lFns, "127.0.0.1", 5001);
     const legacy = await httpsCallable(lFns, "nearbyCountV2")({ cell: meCell });
     if (typeof legacy.data.n !== "number") {

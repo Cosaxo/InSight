@@ -20553,3 +20553,120 @@ session's own first answer to the owner repeated it as fact.
 `test:unit` (1362), `test:scripts` (217), functions (243). Mutation-
 checked: the demo Circle map two ways, the cost model's default price
 sheet, and the client/server region pairing.
+
+## D199 · The functions follow the database to europe-west1
+
+**2026-08-18.** **Status:** binding. Owner's instruction — *"move the
+functions to europe-west1"* — after D198 measured the split and
+recommended closing it before launch.
+
+### What moved, and what a region actually is
+
+All 28 functions, from `us-central1` to `europe-west1`, matching the
+database D165 moved on 2026-08-15. **In code only. The deploy is an
+operator step**, recorded at LAUNCH-RUNBOOK 5.9 with its procedure in
+`DEPLOYMENT.md § Moving the functions`.
+
+D198 already established that cost is not the argument: ~5.5 KB crosses
+per answer through the fold, $0.47/month at 5 k DAU and $4.65 at 50 k,
+about 2% of the Firestore line beside it. The argument is a transatlantic
+round trip on every fold, EU answers processed in the US, and a deadline
+made of installs rather than dates — every client calls the region its own
+bundle names, so this gets more expensive with each person who installs
+the app. Same shape as D165's "last free reset", one layer up.
+
+### One constant per side, because eighteen literals is how this fails
+
+The value was spelled out **ten times on the backend and eight on the
+client**. Moving it by editing eighteen literals is the failure this repo
+has already had twice — D165's own procedure listed three edits and missed
+37 call sites, and D198 found the database's location in no
+machine-readable place at all.
+
+- **`FUNCTIONS_REGION` in `functions/src/ops.ts`**, imported by all nine
+  modules that define functions. They all already imported `./ops`, which
+  is the file `check:fn-runtime` exists to keep load-bearing.
+- **`FUNCTIONS_REGION` in `src/lib/region.ts`** — a new **zero-import leaf
+  module**, and the emptiness is the design. The obvious home was beside
+  `FIRESTORE_DB_ID` in `firebaseImpl.ts`, and a static import from there
+  would drag the lazily-loaded implementation and the Firebase SDK behind
+  it back into the first-paint graph. That is D110 exactly, which went
+  unnoticed for weeks; a file with no imports of its own cannot cause it.
+
+Three consumers cannot import either one and are handled by shape rather
+than by exception. The **e2e harnesses** run under bare `node`, so they
+import the constant from the functions' own COMPILED output
+(`functions/lib/ops.js`, which `pretest:e2e` builds) — the emulator serves
+exactly what that file says, so the harness cannot be pointed elsewhere.
+**`test-users.mjs`** runs with `--experimental-strip-types` and already
+imports `.ts`, so it imports the client constant. **`seed-content.mjs`**
+runs under bare `node` and scans the constant out of `region.ts`'s source,
+throwing on a rename — the same trade `cost-arith.mjs` takes, and its
+previous comment ("us-central1, matching functions/src/v2.ts and the
+client's `getFunctions(app, "us-central1")`") was a hand-maintained list
+of the files it had to agree with, which is the shape D47 caught.
+
+### The gate gained a second rule, and it is the one that lasts
+
+`check:fn-runtime` (D198) compared client literals against the compiled
+endpoints. With one constant per side that comparison is a single read —
+so a second rule now forbids any call site from naming a region
+**literally at all**, matched on the call shape rather than on the string.
+It fires on a *correct* literal too, which is the point: the failure being
+prevented is the second copy, not the wrong value. Both rules
+mutation-checked.
+
+### The deploy hazard, written down because it can corrupt data
+
+**A function's region is part of its identity**, so deploying does not
+move anything — it creates `europe-west1/onV2AnswerCreated` and leaves
+`us-central1/onV2AnswerCreated` subscribed to the same path. While both
+exist, **every answer folds twice.**
+
+**The event-ledger dedup does not prevent this, and it looks like it
+should.** `v2.ts` opens each aggregate transaction with
+`const seen = await tx.get(eventRef); if (seen.exists) return;`, keyed on
+the CloudEvent id — written for `retry: true`, and exactly right for it.
+Two Eventarc subscriptions deliver two events with two ids for one write,
+so each writes its own ledger row and folds again. Nothing errors. Checked
+in the source rather than assumed, and it changed the shape of the
+procedure: step 3 is `gcloud functions list --regions us-central1` and a
+manual delete of anything that survives, rather than trusting `--force`
+to have planned the deletion. Expected behaviour is that it does; no
+region move has ever been run against this project, so it is verified by
+looking rather than by believing.
+
+**A client build has to follow.** Builds 20 and earlier keep calling
+`us-central1` and get a 404 the app reports as `internal` on every
+callable — account deletion, push registration, the logic test, circles
+and duels, device activation, suggestions. The daily and the Mirror keep
+working, because they read Firestore directly and never go through a
+callable. At today's install base that is one TestFlight device, which is
+the whole reason this is happening now.
+
+### One literal that must NOT move
+
+`DEPLOYMENT.md`'s D13 cleanup command still says
+`--region us-central1`, and it is correct: those nine v1 functions were
+deployed there and never moved. Naming the new region would delete nothing
+and report success. Noted in place, because it is the one spot where the
+old value is the right answer and a careful reader would otherwise fix it.
+
+### Verified
+
+`lint`, `tsc -b`, `check:fn-runtime` (28 functions on `europe-west1`,
+client matching), `:appcheck` (22 callables), `:deploy-targets` (28),
+`:monitoring` (5 policies — none filters by region, checked rather than
+assumed), `:bundle` (906 eager, unmoved), `:docs`, `:globals`, `:figures`,
+`:a11y`, `:versions`, `test:unit` (1362), `test:scripts` (217), functions
+(243). Compiled endpoints re-read after the change: 28 functions, one
+region.
+
+**And all four emulator suites, which is the part that matters here** —
+they are the only thing that executes a callable end to end, and the
+harnesses were changed to resolve the region from the functions' compiled
+output. `test:e2e` (ALL E2E CHECKS PASSED), `:erasure` (ALL ERASURE CHECKS
+PASSED), `:moderation`, `test:rules`. The emulator log names every
+invocation `europe-west1-<fn>`, which is the move working rather than a
+claim about it. In this sandbox they need `HTTPS_PROXY` unset — the
+standing note in docs/LOCAL-TESTING.md, not a symptom of this change.

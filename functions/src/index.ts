@@ -29,7 +29,7 @@ import { logger } from "firebase-functions";
 // import (not `import "./ops"`) because deleteAccount reads
 // ENFORCE_APP_CHECK; if that ever changes, keep the bare side-effect
 // import rather than dropping the line.
-import { ENFORCE_APP_CHECK } from "./ops";
+import { ENFORCE_APP_CHECK, FUNCTIONS_REGION } from "./ops";
 import { db as firestore } from "./db";
 
 initializeApp();
@@ -156,7 +156,7 @@ async function deleteUserSubtree(uid: string): Promise<number> {
 export const deleteAccount = onCall(
   // Unbounded per-account work, and a partial failure refuses the auth
   // delete — so a timeout here is a job the user can never complete.
-  { region: "us-central1", enforceAppCheck: ENFORCE_APP_CHECK },
+  { region: FUNCTIONS_REGION, enforceAppCheck: ENFORCE_APP_CHECK },
   async (request) => {
     if (!request.auth) {
       throw new HttpsError("unauthenticated", "must be signed in");

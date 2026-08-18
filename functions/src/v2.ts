@@ -31,7 +31,7 @@
 import { FieldValue, type Firestore, type Transaction } from "firebase-admin/firestore";
 import { db as firestore, FIRESTORE_DB_ID } from "./db";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
-import { assertOperator, HOT_TRIGGER } from "./ops";
+import { assertOperator, HOT_TRIGGER, FUNCTIONS_REGION } from "./ops";
 import { onDocumentCreated, onDocumentUpdated } from "firebase-functions/v2/firestore";
 import { logger } from "firebase-functions";
 import { V2_ADS, V2_QUESTIONS } from "./v2content";
@@ -53,7 +53,7 @@ import {
 } from "./pure";
 import { FILM_KEYS, ARTIST_KEYS, EMOJI_KEYS, COUNTRY_KEYS, DOG_KEYS } from "./catalogKeys";
 
-const REGION = "us-central1";
+const REGION = FUNCTIONS_REGION;
 
 // ── no floor, no cadence (D98) ──────────────────────────────────
 //

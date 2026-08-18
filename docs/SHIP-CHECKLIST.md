@@ -851,31 +851,32 @@ Until then links open the fallback page — degraded, not broken.
 - ~~Functions runtime Node 20 → upgrade before 2026-10-30
   decommission.~~ Done: nodejs22 + firebase-functions v6 +
   firebase-admin v13. Verify the first scheduled runs after deploy.
-- **Every function runs in `us-central1`; the database has been
-  `europe-west1` since D165.** This line named `eur3` until D198 and was
-  stale in its facts while right in its substance — the hop is real, it
-  works, and relocating requires delete+recreate of the triggers.
+- ~~**Every function runs in `us-central1`; the database has been
+  `europe-west1` since D165.**~~ **Moved in code (D199) — the DEPLOY is
+  outstanding, and it is not an ordinary one.** Both constants
+  (`functions/src/ops.ts`, `src/lib/region.ts`) read `europe-west1`, all 28
+  functions compile to it, and `check:fn-runtime` fails if the two sides
+  disagree or if a call site starts spelling a region out again.
 
-  **Now measured rather than waved at (D198).** The inter-region traffic is
-  ~5.5 KB per answer through the fold, which is **$0.47/month at 5 k DAU
-  and $4.65 at 50 k** — about 2% of the Firestore line beside it, so cost
-  is not the argument either way. What the hop actually costs is a
-  transatlantic round trip on every fold (off the user's path: the trigger
-  is asynchronous, so it delays the aggregate, not the tap) and a posture
-  that reads oddly for an app that just moved its database to Europe —
-  EU users' answers processed in the US. Nothing false is claimed anywhere:
-  `web/privacy.html` makes no residency promise, which `check:policy-claims`
-  would catch if it did.
+  This line named `eur3` until D198 and was stale in its facts while right
+  in its substance. D198 measured what the split cost before closing it:
+  ~5.5 KB crosses per answer through the fold, **$0.47/month at 5 k DAU and
+  $4.65 at 50 k** — about 2% of the Firestore line, so cost was never the
+  argument. The argument was a transatlantic round trip on every fold and
+  EU answers processed in the US, and the deadline is the install base:
+  every client calls the region its own bundle names, so this gets more
+  expensive with every person who installs the app.
 
-  **The recommendation is to move it BEFORE launch, and the reason is the
-  install base rather than the bill.** Relocating means recreating the
-  triggers, 8 client call sites and a new build — and every already-
-  installed client keeps calling `us-central1` until it updates, which is
-  survivable at today's install base (the maintainer's own TestFlight
-  devices) and is exactly the sort of thing that stops being survivable
-  once there are users. Same shape as D165's "last free reset", one layer
-  up. `check:fn-runtime` now fails if the client and the functions disagree
-  about the region, so the move cannot half-happen silently.
+  **Two things make the deploy different from every other one here**, both
+  in `DEPLOYMENT.md § Moving the functions`: a region is part of a
+  function's identity, so the deploy CREATES the new copies and the old
+  ones must be confirmed gone — while both exist, both Firestore triggers
+  fire and **every answer folds twice**, which the event-ledger dedup does
+  not prevent (it keys on the CloudEvent id, so it makes a retry safe and
+  says nothing about a second subscription). And a client build has to
+  follow, because builds 20 and earlier keep calling `us-central1` and get
+  a 404 on every callable — the daily and the Mirror keep working, since
+  they read Firestore directly.
 - Ranking/scale feed card types; Circle/Near mirror population fields
   (need geo opt-in + circle data); world comments are OUT by decision D1.
 - Bundle: the world feed now loads after first paint (D25), taking the

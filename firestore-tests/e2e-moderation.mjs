@@ -23,6 +23,10 @@ import {
 import { getFunctions, connectFunctionsEmulator, httpsCallable } from "firebase/functions";
 import { initializeApp as adminInit } from "firebase-admin/app";
 import { getFirestore as adminFirestore } from "firebase-admin/firestore";
+// The region the EMULATOR serves, taken from the functions' own compiled
+// output rather than repeated here (D199). `pretest:e2e` builds it, so
+// this harness cannot be pointed at a region the emulator is not on.
+import { FUNCTIONS_REGION } from "../functions/lib/ops.js";
 
 // The named database (D165). The backend writes to FIRESTORE_DB_ID, so a
 // harness on `(default)` reads an empty database and reports a phantom
@@ -47,7 +51,7 @@ adminInit({ projectId: "demo-insight" });
 // get() on the missing question denied the write — a null-value error
 // four layers from the actual mistake.
 const adb = adminFirestore(E2E_DB_ID);
-const fns = getFunctions(app, "us-central1"); connectFunctionsEmulator(fns, "127.0.0.1", 5001);
+const fns = getFunctions(app, FUNCTIONS_REGION); connectFunctionsEmulator(fns, "127.0.0.1", 5001);
 
 const fail = (msg) => { console.error("✗ " + msg); process.exit(1); };
 const ok = (msg) => console.log("✓ " + msg);

@@ -149,27 +149,19 @@ if (wrongDb.length) {
 // in any test that mocks the SDK — the first signal is a user tapping a
 // button that does nothing.
 //
-// It is a live question rather than a hypothetical one: D165 moved the
-// DATABASE to europe-west1 and left every function in us-central1, so the
-// pair is deliberately mismatched today (D198 records why) and the two
-// halves that must agree are the client and the functions — not the
-// functions and the database.
+// It was a live mismatch when this check was written: D165 moved the
+// DATABASE and left the functions where they were, and D198 measured the
+// split before D199 closed it. The two halves that must agree are the
+// client and the functions — not the functions and the database, which may
+// legitimately differ.
+//
+// TWO RULES, because the constant and the literals fail differently. The
+// client names its region ONCE (src/lib/region.ts, D199), so rule one is a
+// single comparison against the compiled endpoints. Rule two is what keeps
+// that true: any call site that goes back to spelling the region out is a
+// second copy, and a second copy is how one of them ends up stale — which
+// is the whole reason D199 collapsed eight of them into one.
 const served = [...new Set(rows.flatMap((r) => r.region || []))];
-const CLIENT_GLOB = /getFunctions\((?:db\.)?app, "([a-z0-9-]+)"\)/g;
-const clientPins = [];
-for (const rel of clientRegionFiles(resolve(root, "src"))) {
-  const src = readFileSync(rel, "utf8");
-  for (const m of src.matchAll(CLIENT_GLOB)) clientPins.push({ rel, region: m[1] });
-}
-if (!clientPins.length) {
-  console.error(
-    "\ncheck-fn-runtime: found no `getFunctions(app, \"region\")` call sites in src/.\n"
-    + "The client stopped naming a region, or the call shape changed — fix this\n"
-    + "scan rather than letting the pairing go unchecked.",
-  );
-  process.exit(1);
-}
-const strayPins = served.length === 1 ? clientPins.filter((p) => p.region !== served[0]) : [];
 if (served.length !== 1) {
   console.error(
     `\nfunctions are served from ${served.length} regions (${served.join(", ")}) —`
@@ -177,15 +169,50 @@ if (served.length !== 1) {
   );
   process.exit(1);
 }
-if (strayPins.length) {
+
+const REGION_TS = resolve(root, "src/lib/region.ts");
+const clientRegion = (() => {
+  const m = readFileSync(REGION_TS, "utf8").match(/export const FUNCTIONS_REGION = "([^"]+)"/);
+  return m ? m[1] : null;
+})();
+if (!clientRegion) {
   console.error(
-    `\n${strayPins.length} client call site(s) name a region the functions are not served from`
-    + ` (${JSON.stringify(served[0])}):`,
+    "\ncheck-fn-runtime: could not read FUNCTIONS_REGION from src/lib/region.ts.\n"
+    + "It was renamed or reshaped — fix this scan rather than letting the\n"
+    + "client/server pairing go unchecked.",
   );
-  for (const p of strayPins) console.error(`  - ${p.rel.slice(root.length + 1)} → ${JSON.stringify(p.region)}`);
+  process.exit(1);
+}
+if (clientRegion !== served[0]) {
   console.error(
-    "\nA callable in a region nothing serves is a 404 the app reports as\n"
-    + "`internal`. Move the functions and the client together, or not at all.",
+    `\nthe client calls ${JSON.stringify(clientRegion)} and the functions are served from`
+    + ` ${JSON.stringify(served[0])}.\n\n`
+    + "A callable in a region nothing serves is a 404 the app reports as\n"
+    + "`internal` with nothing in it to read — no build, deploy or mocked test\n"
+    + "fails, and the first signal is a button that does nothing. Move\n"
+    + "src/lib/region.ts and functions/src/ops.ts together, or neither.",
+  );
+  process.exit(1);
+}
+
+// Rule two: nobody spells it out again. Scoped to the call shape rather
+// than to the string, so it catches a NEW literal in any region — the
+// failure is the second copy, not the value in it.
+const RELITERAL = /getFunctions\([^)]*?["']([a-z]+-[a-z]+\d|nam\d|eur\d)["']/g;
+const relit = [];
+for (const rel of clientRegionFiles(resolve(root, "src"))) {
+  if (rel === REGION_TS) continue;
+  for (const m of readFileSync(rel, "utf8").matchAll(RELITERAL)) {
+    relit.push({ rel, region: m[1] });
+  }
+}
+if (relit.length) {
+  console.error(`\n${relit.length} call site(s) name a region literally instead of importing it:`);
+  for (const p of relit) console.error(`  - ${p.rel.slice(root.length + 1)} → ${JSON.stringify(p.region)}`);
+  console.error(
+    "\nImport FUNCTIONS_REGION from src/lib/region.ts. A second copy of this\n"
+    + "value is how the first one goes stale (D165 missed 37 call sites;\n"
+    + "D198 found the region spelled out in eight files).",
   );
   process.exit(1);
 }
@@ -206,5 +233,5 @@ console.log(
   `\nfn-runtime OK — ${rows.length} functions, all with explicit memory, `
   + "timeout and maxInstances (the compute ceiling); "
   + `${triggers.length} Firestore trigger(s) on database ${JSON.stringify(expectedDb)}, matching firebase.json; `
-  + `${clientPins.length} client call site(s) on ${JSON.stringify(served[0])}, matching the deploy`,
+  + `client on ${JSON.stringify(clientRegion)}, matching the deploy`,
 );

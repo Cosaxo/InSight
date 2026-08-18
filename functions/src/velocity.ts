@@ -41,11 +41,11 @@ import { logger } from "firebase-functions";
 // must be evaluated before any function here is defined — same reason
 // every other function module imports it (check:fn-runtime guards the
 // outcome).
-import { LIGHT_UNBOUNDED } from "./ops";
+import { LIGHT_UNBOUNDED, FUNCTIONS_REGION } from "./ops";
 import { V2_QUESTIONS } from "./v2content";
 import { db as firestore } from "./db";
 
-const REGION = "us-central1";
+const REGION = FUNCTIONS_REGION;
 
 // ── pure signal logic (unit-tested, velocity.test.ts) ───────────
 //

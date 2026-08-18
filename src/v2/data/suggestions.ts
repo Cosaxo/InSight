@@ -19,6 +19,7 @@
 // written to be shown (suggestions.ts, functions/).
 
 import { getFirestoreApi, getFunctionsApi, getDb, subscribeToAuth } from "../../lib/firebase";
+import { FUNCTIONS_REGION } from "../../lib/region";
 
 export interface MySuggestion {
   id: string;
@@ -141,7 +142,7 @@ export async function submitSuggestion(p: SuggestionPayload): Promise<SubmitResu
   try {
     const db = await getDb();
     const { getFunctions, httpsCallable } = await getFunctionsApi();
-    const fns = getFunctions(db.app, "us-central1");
+    const fns = getFunctions(db.app, FUNCTIONS_REGION);
     const res = await httpsCallable(fns, "suggestQuestionV2")(p);
     const id = (res.data as { id?: string } | null)?.id ?? "";
     rows = [
