@@ -51,6 +51,7 @@
 import { readFileSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { bankArray } from "./v2content-lib.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const sources = new Map();
@@ -112,16 +113,11 @@ const dailyQuestions = surfaces.filter((s) => s === "daily").length;
 // to catch a promotion cycle moving the figure by kilobytes, not to make a
 // whitespace change red the tree.
 const bankKiB = (() => {
-  const head = "V2_QUESTIONS: V2SeedQuestion[] = ";
-  const body = v2content.slice(v2content.indexOf(head) + head.length);
-  // The FIRST terminator, not the last. `lastIndexOf` was right while the
-  // questions array was the only thing in the file and became wrong the
-  // moment a second export arrived (D197's V2_ADS) — the slice then ran
-  // past the array's own `];` and swallowed the next declaration whole.
-  // It failed loudly, which is the good version of this bug; a scan that
-  // had quietly measured both arrays would have moved the documented
-  // figure with no visible cause.
-  const arr = JSON.parse(body.slice(0, body.indexOf("];") + 1));
+  // scripts/v2content-lib.mjs — one parser, shared with cost-arith and
+  // question-quality, because all three had their own copy and all three
+  // broke differently when a second export arrived (D197). Its header has
+  // the three failure modes.
+  const arr = bankArray(v2content);
   return Math.round((JSON.stringify(arr).length / 1024) * 10) / 10;
 })();
 

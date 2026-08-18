@@ -67,6 +67,7 @@ import { readFileSync, existsSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import vm from "node:vm";
+import { bankArray } from "./v2content-lib.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -1069,12 +1070,18 @@ export function checkHeadroom(corpus) {
   // the estimate moves when the documents do (adding `core` to 82 entries
   // moved it by ~1 KiB and check:figures caught that on COSTS.md).
   const bankBytes = (() => {
-    const head = "V2_QUESTIONS: V2SeedQuestion[] = ";
-    const body = v2content.slice(v2content.indexOf(head) + head.length);
     try {
-      return JSON.stringify(JSON.parse(body.slice(0, body.lastIndexOf("];") + 1))).length;
+      return JSON.stringify(bankArray(v2content)).length;
     } catch {
-      return bankSize * 250; // the scan's shape changed; fall back rather than crash the gate
+      // The fallback stays, and the comment it used to carry was too
+      // relaxed about it: this path reports an INVENTED wire size rather
+      // than failing, so a parser that quietly stopped working would move
+      // a documented figure with nothing to show for it. That is exactly
+      // what happened when V2_ADS arrived (D197) — the other two copies
+      // of this scan crashed and this one silently guessed. It survives
+      // because a scorecard is not worth crashing a gate over; the scan
+      // itself now lives in one place so it cannot half-break again.
+      return bankSize * 250;
     }
   })();
   const cacheMB = (n) => ((bankBytes / Math.max(bankSize, 1)) * n / 1024 / 1024).toFixed(1);

@@ -225,7 +225,23 @@ describe("cost-arith reads its constants from source, not from memory", () => {
       // it charges the ANSWER-create paths, and reporting a photo is not one.
       // The read is billed to whoever files a report, at most once per person
       // per face (the doc id pins it), which is not a path worth modelling.
-    ).toEqual({ gets: 19, exists: 2 });
+      // 19 → 22 gets and 2 → 3 exists at D194: isCallAnswer's three get()
+      // sites (options.size(), active, surface) on ONE /v2_questions
+      // document — 1 billed read, the same shape as the world and pulse
+      // arms — PLUS an exists() on /v2_call_outcomes/{aid}, a genuinely
+      // second document, which is what makes a call answer cost 2 where a
+      // world answer costs 1. That exists() is the clause that closes a
+      // call once it is graded, so the extra read is the feature rather
+      // than an accident of the rule's shape.
+      //
+      // RULE_READS gains `call: 2` and the model does NOT charge it, for
+      // a reason narrower than the D98 and D178 notes above: this IS an
+      // answer-create path, so it would be charged — except that every
+      // call in the bank is `active: false` (D196), so the path cannot be
+      // reached and charging it would model traffic that cannot exist.
+      // The number is recorded rather than omitted so that re-enabling the
+      // surface is one term, not a recount.
+    ).toEqual({ gets: 22, exists: 3 });
   });
 
   it("the answer trigger's transaction still issues the reads the model charges", () => {

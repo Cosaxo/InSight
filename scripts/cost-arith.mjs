@@ -18,6 +18,7 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import { bankArrayFrom } from "./v2content-lib.mjs";
 
 export const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -41,10 +42,7 @@ export const FREE_MO = { cpu: 180_000, mem: 360_000, req: 2_000_000 };
 // Counted from the generated seed rather than hardcoded: the bank grows
 // every promotion cycle (D30) and the cold-boot read cost grows with it.
 export function bankDocs() {
-  const src = readFileSync(join(ROOT, "functions/src/v2content.ts"), "utf8");
-  const head = "V2_QUESTIONS: V2SeedQuestion[] = ";
-  const body = src.slice(src.indexOf(head) + head.length);
-  return JSON.parse(body.slice(0, body.lastIndexOf("];") + 1)).length;
+  return bankArrayFrom(join(ROOT, "functions/src/v2content.ts")).length;
 }
 
 // READ FROM SOURCE, NOT RETYPED. These four used to be hand-copied numbers
@@ -232,7 +230,19 @@ export const TRIG = {
 // their own boot), and charging the create paths is what this model is
 // for. If edits ever grow a real volume story, add an `edit: 1` term here
 // and charge it from a measured edit rate, not a guess.
-export const RULE_READS = { world: 1, duel: 3 };
+// A CALL answer (isCallAnswer, D194) bills 2: three get() sites on one
+// /v2_questions document — 1 by the dedup measurement above — plus an
+// exists() on /v2_call_outcomes/{aid}, which is a genuinely second
+// document. That exists() is the clause refusing an answer once the call
+// is graded, so the second read is the feature rather than an accident.
+//
+// NOT a term in the model below, and for a narrower reason than the edit
+// arm's: this is a real answer-create path and would be charged, except
+// that every call in the bank is `active: false` (D196), so no call answer
+// can be written and charging it would model traffic that cannot exist.
+// Recorded here rather than omitted so that re-enabling the surface is one
+// term rather than a recount.
+export const RULE_READS = { world: 1, duel: 3, call: 2 };
 
 // Reads issued by Cloud Functions, per answer.
 //

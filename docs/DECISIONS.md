@@ -20353,12 +20353,51 @@ document every client pages past.
 SDK, no click, no impression log — the ad path collects nothing, so
 `check:store-forms` is unchanged and green.
 
+### Three script-layer breakages, all found by CI rather than by me
+
+`test:scripts` was the one suite not run locally before pushing, and it
+held three findings — every one a consequence of adding the first second
+export to `v2content.ts` or the first new answer arm since D139.
+
+**One parser, in three copies, failing three different ways.**
+`check-figures.mjs`, `cost-arith.mjs` and `question-quality.mjs` each
+sliced the bank out of `v2content.ts` to the LAST `];` in the file. With
+`V2_ADS` beneath it, that swallowed the next declaration. The first two
+died on a SyntaxError — the good outcome, though the second named a cost
+model rather than a parser. **The third had a `try/catch` and fell back to
+`bankSize * 250`**: it did not fail, it quietly reported an invented wire
+size, which is the worst of the three and the one nobody would have
+noticed. All three now call `scripts/v2content-lib.mjs`, whose header
+carries this paragraph so a fourth export breaks one function with a clear
+message or none.
+
+**The pulse console's bank counter missed the new bank.** Its two
+independent paths — counting `content/*.json` by hand, and parsing
+`V2_QUESTIONS` — disagreed 537 against 540. That assertion has now caught
+three missing rows in a row (the romantic pool, the pulse templates, and
+this one), which means every new bank has arrived through the test rather
+than through anybody remembering. Ads are deliberately NOT counted there:
+they are not questions and are seeded to `v2_ads`.
+
+**The rules gained billed reads, and the tripwire made me count them.**
+Every `get()`/`exists()` in a rule is a read charged to the project.
+`isCallAnswer` adds three `get()` sites on ONE `/v2_questions` document —
+1 read by the dedup measurement `cost-arith.mjs` already documents — plus
+an `exists()` on `/v2_call_outcomes/{aid}`, a genuinely second document.
+So **a call answer bills 2 where a world answer bills 1**, and that second
+read is the clause closing a graded call rather than an accident of the
+rule's shape. `RULE_READS` gains `call: 2` and the model does not charge
+it — narrower than the edit arm's exemption above it: this IS an
+answer-create path and would be charged, except that D196 retires every
+call, so charging it would model traffic that cannot exist. Recorded so
+re-enabling the surface is one term rather than a recount.
+
 ### Verified
 
 `lint`, `tsc -b`, `check:globals` (409, baseline 409), `:content`,
 `:calls`, `:quality`, `:docs`, `:figures`, `:data-inventory` (28
 collections), `:store-forms`, `:public-copy`, `:deploy-targets`,
-`:fn-runtime`, `test:unit` (1,334 over 88 files), functions (243) and
+`:fn-runtime`, `test:unit`, `test:scripts` (215), functions (243) and
 `test:rules` (113, two of them new). Mutation-checked:
 ten content refusals (image, logo, colour, link, pixel, unknown field, a
 URL in the prose, two length caps, a malformed id), the feed's ad dispatch,

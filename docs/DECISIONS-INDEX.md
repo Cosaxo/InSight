@@ -3,7 +3,7 @@
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
 "which decision governs this" is 201 lines instead of
-20,368. Do not hand-edit; `npm run check:docs` fails when this
+20,407. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -156,7 +156,7 @@ detect it.
 | **D136** | [The Mirror stop loses two tabs; Crossroads and a feed window arrive](DECISIONS.md#d136--the-mirror-stop-loses-two-tabs-crossroads-and-a-feed-window-arrive) | D196 (+7) | 13487 |
 | **D137** | [The bridge kept the names nobody was crossing on](DECISIONS.md#d137--the-bridge-kept-the-names-nobody-was-crossing-on) | D189 (+2) | 13719 |
 | **D138** | [The suggestion board gets a server: a budgeted door, an author-only read, and the same human gate](DECISIONS.md#d138--the-suggestion-board-gets-a-server-a-budgeted-door-an-author-only-read-and-the-same-human-gate) | D187 (+4) | 13898 |
-| **D139** | [The daily pulse: one question asked every day, folded per day by the trigger that did not change](DECISIONS.md#d139--the-daily-pulse-one-question-asked-every-day-folded-per-day-by-the-trigger-that-did-not-change) | D167 (+3) | 13979 |
+| **D139** | [The daily pulse: one question asked every day, folded per day by the trigger that did not change](DECISIONS.md#d139--the-daily-pulse-one-question-asked-every-day-folded-per-day-by-the-trigger-that-did-not-change) | D197 (+4) | 13979 |
 | **D140** | [Height joins the anchors — a band select, never a centimetre field](DECISIONS.md#d140--height-joins-the-anchors--a-band-select-never-a-centimetre-field) | D166 (+2) | 14048 |
 | **D141** | [Types leave the profile — tier 1, arithmetic on what is already public](DECISIONS.md#d141--types-leave-the-profile--tier-1-arithmetic-on-what-is-already-public) | D187 (+6) | 14082 |
 | **D142** | [Build 13's pre-flight: a build was spent while this file said it was not](DECISIONS.md#d142--build-13s-pre-flight-a-build-was-spent-while-this-file-said-it-was-not) | D186 (+5) | 13362 |
@@ -213,5 +213,5 @@ detect it.
 | **D193** | [Compare draws the comparison it was always described as drawing](DECISIONS.md#d193--compare-draws-the-comparison-it-was-always-described-as-drawing) | D194 | 19702 |
 | **D194** | [Predictions ship, and the app only asserts what it can recompute](DECISIONS.md#d194--predictions-ship-and-the-app-only-asserts-what-it-can-recompute) | D196 (+1) | 19864 |
 | **D195** | [The paid slot is built, and nobody has bought it yet](DECISIONS.md#d195--the-paid-slot-is-built-and-nobody-has-bought-it-yet) | D197 (+1) | 20037 |
-| **D196** | [The reading game is the one that ships, and it waits for a crowd](DECISIONS.md#d196--the-reading-game-is-the-one-that-ships-and-it-waits-for-a-crowd) | — | 20150 |
+| **D196** | [The reading game is the one that ships, and it waits for a crowd](DECISIONS.md#d196--the-reading-game-is-the-one-that-ships-and-it-waits-for-a-crowd) | D197 | 20150 |
 | **D197** | [The feed gets real ads, and they are not sponsored questions](DECISIONS.md#d197--the-feed-gets-real-ads-and-they-are-not-sponsored-questions) | — | 20258 |
