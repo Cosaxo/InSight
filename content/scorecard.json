@@ -1,11 +1,11 @@
 {
-  "generatedAt": "2026-08-17T07:37:49.156Z",
-  "daysSinceEpoch": 16,
+  "generatedAt": "2026-08-18T07:15:56.214Z",
+  "daysSinceEpoch": 17,
   "coverage": {
     "questions": 188,
     "scored": 0,
-    "belowFloor": 3,
-    "unserved": 98
+    "belowFloor": 6,
+    "unserved": 97
   },
   "topics": {
     "Sport": {
@@ -297,7 +297,7 @@
     "bySource": {
       "editorial": {
         "questions": 176,
-        "served": 90,
+        "served": 91,
         "scored": 0,
         "answers": 0,
         "strong": 0,
@@ -317,7 +317,7 @@
     "byVintage": {
       "editorial:prototype": {
         "questions": 118,
-        "served": 81,
+        "served": 82,
         "scored": 0,
         "answers": 0,
         "strong": 0,
@@ -376,7 +376,7 @@
     "coverage": {
       "cards": 106,
       "scored": 0,
-      "belowFloor": 4
+      "belowFloor": 10
     },
     "fields": {
       "cell": {
@@ -674,7 +674,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "no-answers"
+        "signal": "below-floor"
       },
       {
         "qid": "learn-body2",
@@ -765,7 +765,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "no-answers"
+        "signal": "below-floor"
       },
       {
         "qid": "learn-evo1",
@@ -1493,7 +1493,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "no-answers"
+        "signal": "below-floor"
       },
       {
         "qid": "learn-org1",
@@ -1714,7 +1714,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "no-answers"
+        "signal": "below-floor"
       },
       {
         "qid": "learn-anc10",
@@ -1740,7 +1740,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "no-answers"
+        "signal": "below-floor"
       },
       {
         "qid": "learn-anc12",
@@ -1766,7 +1766,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "no-answers"
+        "signal": "below-floor"
       },
       {
         "qid": "learn-body9",
@@ -3102,11 +3102,11 @@
       "topic": "Mind",
       "type": "choice",
       "prompt": "Humanity's best invention?",
-      "served": false,
+      "served": true,
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "unserved"
+      "signal": "no-answers"
     },
     {
       "qid": "daily-017",
@@ -4414,7 +4414,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "no-answers"
+      "signal": "below-floor"
     },
     {
       "qid": "feed-f15",
@@ -4810,7 +4810,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "no-answers"
+      "signal": "below-floor"
     },
     {
       "qid": "feed-f52",
@@ -4990,7 +4990,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "no-answers"
+      "signal": "below-floor"
     },
     {
       "qid": "feed-s13",
