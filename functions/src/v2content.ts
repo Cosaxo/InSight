@@ -4141,6 +4141,115 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   }
  },
  {
+  "id": "feed-f57",
+  "surface": "feed",
+  "seq": 82,
+  "type": "vote",
+  "domain": null,
+  "prompt": "ABBA or Queen?",
+  "options": [
+   "ABBA",
+   "Queen"
+  ],
+  "topic": "music",
+  "axis": null,
+  "test": null,
+  "core": true
+ },
+ {
+  "id": "feed-f58",
+  "surface": "feed",
+  "seq": 83,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Who left the bigger mark: Einstein or Shakespeare?",
+  "options": [
+   "Einstein",
+   "Shakespeare"
+  ],
+  "topic": "people",
+  "axis": null,
+  "test": null,
+  "core": true
+ },
+ {
+  "id": "feed-dl5",
+  "surface": "feed",
+  "seq": 84,
+  "type": "dial",
+  "domain": null,
+  "prompt": "How many years until a human walks on Mars?",
+  "options": [
+   "0–8 yrs",
+   "8–17 yrs",
+   "17–25 yrs",
+   "25–33 yrs",
+   "33–42 yrs",
+   "42–50 yrs",
+   "50–58 yrs",
+   "58–67 yrs",
+   "67–75 yrs",
+   "75–83 yrs",
+   "83–92 yrs",
+   "92–100 yrs"
+  ],
+  "topic": "event",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 100,
+  "unit": "yrs",
+  "core": true
+ },
+ {
+  "id": "feed-f60",
+  "surface": "feed",
+  "seq": 85,
+  "type": "vote",
+  "domain": null,
+  "prompt": "The right way to see a film?",
+  "options": [
+   "A cinema seat",
+   "Your own couch"
+  ],
+  "topic": "movies",
+  "axis": null,
+  "test": null,
+  "core": true
+ },
+ {
+  "id": "feed-f61",
+  "surface": "feed",
+  "seq": 86,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Let AI write your texts for you?",
+  "options": [
+   "Sure — it saves time",
+   "Never. It’s my voice"
+  ],
+  "topic": "tech",
+  "axis": null,
+  "test": null,
+  "core": true
+ },
+ {
+  "id": "feed-f62",
+  "surface": "feed",
+  "seq": 87,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Is a hot dog a sandwich?",
+  "options": [
+   "Obviously",
+   "Obviously not"
+  ],
+  "topic": "food",
+  "axis": null,
+  "test": null,
+  "core": true
+ },
+ {
   "id": "group-gu0",
   "surface": "group",
   "seq": 0,

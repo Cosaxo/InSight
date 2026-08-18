@@ -1725,6 +1725,101 @@
           "line": "You stayed with the receipts. Leverage keeps better than anger."
         }
       }
+    },
+    {
+      "id": "f57",
+      "core": true,
+      "cat": "music",
+      "type": "vote",
+      "prompt": "ABBA or Queen?",
+      "options": [
+        {
+          "label": "ABBA",
+          "count": 2100
+        },
+        {
+          "label": "Queen",
+          "count": 2600
+        }
+      ]
+    },
+    {
+      "id": "f58",
+      "core": true,
+      "cat": "people",
+      "type": "vote",
+      "prompt": "Who left the bigger mark: Einstein or Shakespeare?",
+      "options": [
+        {
+          "label": "Einstein",
+          "count": 2900
+        },
+        {
+          "label": "Shakespeare",
+          "count": 2400
+        }
+      ]
+    },
+    {
+      "id": "dl5",
+      "core": true,
+      "cat": "event",
+      "type": "dial",
+      "prompt": "How many years until a human walks on Mars?",
+      "lo": 0,
+      "hi": 100,
+      "unit": "yrs"
+    },
+    {
+      "id": "f60",
+      "core": true,
+      "cat": "movies",
+      "type": "vote",
+      "prompt": "The right way to see a film?",
+      "options": [
+        {
+          "label": "A cinema seat",
+          "count": 2300
+        },
+        {
+          "label": "Your own couch",
+          "count": 3400
+        }
+      ]
+    },
+    {
+      "id": "f61",
+      "core": true,
+      "cat": "tech",
+      "type": "vote",
+      "prompt": "Let AI write your texts for you?",
+      "options": [
+        {
+          "label": "Sure — it saves time",
+          "count": 1400
+        },
+        {
+          "label": "Never. It’s my voice",
+          "count": 3900
+        }
+      ]
+    },
+    {
+      "id": "f62",
+      "core": true,
+      "cat": "food",
+      "type": "vote",
+      "prompt": "Is a hot dog a sandwich?",
+      "options": [
+        {
+          "label": "Obviously",
+          "count": 2800
+        },
+        {
+          "label": "Obviously not",
+          "count": 3100
+        }
+      ]
     }
   ]
 }

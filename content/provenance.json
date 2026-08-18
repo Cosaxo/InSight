@@ -970,6 +970,54 @@
     "pt2": {
       "source": "editorial",
       "batch": "v23"
+    },
+    "f57": {
+      "source": "farm",
+      "batch": "2026-08-18",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f58": {
+      "source": "farm",
+      "batch": "2026-08-18",
+      "review": {
+        "by": "ai",
+        "audited": true
+      }
+    },
+    "dl5": {
+      "source": "farm",
+      "batch": "2026-08-18",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f60": {
+      "source": "farm",
+      "batch": "2026-08-18",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f61": {
+      "source": "farm",
+      "batch": "2026-08-18",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f62": {
+      "source": "farm",
+      "batch": "2026-08-18",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
     }
   }
 }
