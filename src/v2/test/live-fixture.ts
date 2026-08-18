@@ -70,6 +70,22 @@ export interface LiveFixtureOptions {
    * to D50's selfOnly acknowledgment.
    */
   lensBank?: boolean;
+  /**
+   * Mark the LAST world card as sponsored (D195). Off by default and
+   * opt-in for a reason: the shipped bank carries no sponsored question,
+   * so a fixture that always did would be the only place in the tree
+   * where a paid card exists — and every other live case would be
+   * asserting against a feed nobody serves.
+   */
+  sponsored?: boolean;
+  /**
+   * Put one ad in the pool (D197). Off by default and opt-in for the same
+   * reason `sponsored` is: `content/ads.json` ships empty, so a fixture
+   * that always carried one would be the only place in the tree where an
+   * ad exists — and every other live case would assert against a feed
+   * nobody is served.
+   */
+  adCard?: boolean;
 }
 
 const OPTION_COLORS = ["var(--c-around)", "var(--c-today)", "var(--c-likeness)"];
@@ -419,6 +435,42 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
       total: tooSmall ? 0 : 100,
       live: true as const,
     }],
+    // Foresight CALL, tier A (D194). One open call, ungraded — the state
+    // the feed head shows most of the time, and the one the mount tests
+    // care about (the card renders, and it renders REAL bank shape rather
+    // than a demo cast). The grades map is present-but-empty-valued rather
+    // than null: null means "nothing read yet", in which state the card
+    // deliberately draws nothing, and a fixture that left it there would
+    // make every live mount test pass against an absent card.
+    callQs: () => [{
+      id: "call-fixture",
+      surface: "call",
+      seq: 0,
+      type: "call",
+      prompt: "Will the fixture question end up lopsided?",
+      options: ["It will", "It stays close"],
+      topic: null,
+      test: null,
+      active: true,
+      tier: "A",
+      resolvesAt: "2099-01-01",
+      rubric: { kind: "agg" as const, qid: "feed-fixture", test: "topShareAtLeast" as const, threshold: 60 },
+      counts: tooSmall ? [0, 0] : [61, 39],
+    }],
+    callOutcomes: () => ({ "call-fixture": null }),
+    loadCallOutcomes: () => Promise.resolve(),
+    // Feed ads (D197). Empty by default, exactly like the shipped pool —
+    // `adCard` opts one in, so every other live case keeps asserting
+    // against the feed real users actually get.
+    feedAds: (): unknown[] => (opts.adCard
+      ? [{
+        id: "ad-fixture", seq: 0, advertiser: "Fixture Transit",
+        headline: "Night buses now run until three.",
+        body: "Every Friday and Saturday, on the four city lines.",
+        until: "2099-01-01", audience: { city: "Oslo, NO" },
+      }]
+      : []),
+    loadAds: () => Promise.resolve(),
     // (qid, optionId) — both strings. The spec layer calls this as
     // `window.LIVE.vote(id, String(val))`, and the first draft of this
     // fixture took a question OBJECT: the surface pin cannot catch that,
@@ -547,6 +599,11 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
       })),
       live: true,
       tooSmall,
+      // D195: the disclosure travels ON the card, so world-feed's dispatch
+      // reads the same field buildFeedGlobals emits.
+      ...(opts.sponsored && i === Math.max(1, opts.feedCards ?? 1) - 1
+        ? { sponsor: { buyer: "Fixture Transit", audience: { city: "Oslo, NO" } }, until: "2099-01-01" }
+        : {}),
     }),
   );
   w.TEST_FEED_QS = [];

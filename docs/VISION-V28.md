@@ -52,7 +52,7 @@ what is actually left is much smaller than the diff suggested.
 | **Patterns · Oracle** (guess your next answer) | **Build, second** | rides Map's publication — no second fold | Rides the *same* publication as the Map. Two readers, one server fold — that is the whole reason to sequence them together. Distinct from [D163](DECISIONS.md#d163--the-app-learns-what-you-are-into-and-the-model-never-leaves-the-phone)'s interest model: that one orders the tail and never leaves the phone; this one guesses an answer from a published fold and shows its working. |
 | **Pulse: one → five, with cadence** | **Approved — all five** (D166 §3) | extend D139: per-day docs × 5 pulses, + cadence | D139's store is single-pulse by deliberate choice ("a roster becomes a parameter the day a second pulse ships"). This is that day. |
 | **Pulses take their turn in the feed** | **Build, with the above** | none — a client interleave rule | The interleave is a feed-lane change; `feed-interleave.ts` already owns exactly this kind of cadence rule. |
-| **Foresight CALL + its feed cards** | **Tier A only** | a resolver that grades a call on our own aggregates | D127 is unchanged by v28: the blocker is resolution integrity, not design. Tier A self-resolves on our own aggregates and is buildable now. |
+| **Foresight CALL + its feed cards** | **BUILT (D194), RETIRED (D196)** | shipped: `resolveCallsV2`, then switched off | D127 is unchanged. Tier A works and is not what was wanted: the owner wants predictions about real EVENTS, so the bank is `active: false` and the card is unmounted. What ships in the feed instead is the READ half (D196), gated on having enough fair reads to keep a record worth believing. |
 | **Foresight & Crossroads on the Map** | **Build when the eager budget moves** | none — blocked on bytes, not data | Both need `map-tab.jsx` — which is EAGER — to read a new store, and `MAX_EAGER_KB` has no headroom. D136 already parked `paths.mapTree()` for exactly this. |
 | **Born or built** (heritability rows on the result card) | **REFUSED** (D168) | n/a — and that is the reason it is refused | Population science, not this app's data. Every other number here is recomputable from what people answered; a heritability figure is the app asserting a fact about the world, which D127 already gates. |
 | **What moves together** (cross-test threads on the profile) | **Build** | **none — already real** (folds your own results) | Pure fold over `IS_TEST_RESULTS`; no new reads, no new collection. The cheapest real feature in the file. |
@@ -253,13 +253,20 @@ one number in the app a reader cannot recompute. v28's clock, its cards
 and its map branch are the *presentation* of a mechanism whose admission
 criteria are already written in `docs/FORESIGHT-CALLS.md`.
 
-The buildable slice, unchanged from NEXT-FUNCTIONALITY §"Predictions":
+The buildable slice, unchanged from NEXT-FUNCTIONALITY §"Predictions" —
+and **shipped at [D194](DECISIONS.md#d194--predictions-ship-and-the-app-only-asserts-what-it-can-recompute)**:
 
-- **Tier A calls** — self-resolving on our own published aggregates
-  ("will tomorrow's daily split pass 60/40?"). Graded by arithmetic, no
-  operator, no external source. `predict-cards.jsx` is the card for them.
+- **Tier A calls** — self-resolving on our own published aggregates.
+  Graded by arithmetic, no operator, no external source. `predict-cards.jsx`
+  was the card; the live one is `ui/LiveCallCard.tsx`, pinned at the feed
+  head, and it publishes the working: the counts the grade was made from,
+  and whether the device re-running the same test on them agrees.
 - **Tier B** waits on an executable rubric and VOID as a first-class
-  outcome. v28 gives it no new argument.
+  outcome. v28 gives it no new argument, and D194 gives it no code —
+  `rubricFault` refuses `kind: "fetch"` by name.
+- **The clock is not ported.** Ten seconds is the game's pressure; it needs
+  `predict-cards.jsx`'s IntersectionObserver arming, and it is a mechanic
+  rather than data.
 
 The map branch (`map-fore-card.jsx`, `map-groups.js`'s `g-fore`) is
 blocked on the same budget as Crossroads — see §5.
@@ -506,11 +513,11 @@ reason it is now refused: nothing in the app produces that number. See
   absence case. **The cost line moves and belongs in `docs/COSTS.md`
   before the roster ships** — five pulses is five times the per-day docs,
   and the existing note was written for one.
-- **Foresight tier A (§4).** The READ half is live (D126). CALL needs a
-  resolver that grades a sealed call against our own published aggregates
-  — no operator, no external source, which is exactly the tier D127
-  admits. The scheduled-function pattern exists three times already
-  (`moderation.ts`, `v2social.ts`, `velocity.ts`).
+- ~~**Foresight tier A (§4).**~~ **DONE (D194).** `resolveCallsV2` is the
+  fourth scheduled function, in the pattern the three named here set. What
+  the plan did not anticipate is the second half of the honesty story: the
+  grade's INPUTS publish with it and the card re-runs them, so a resolved
+  call keeps the property every other number in the app has.
 
 ### The backend IS the item
 

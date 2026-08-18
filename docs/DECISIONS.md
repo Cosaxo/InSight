@@ -19861,3 +19861,546 @@ keeps 13 KB of headroom.
 `check:docs`, `:figures`, `:labels`, `:a11y` (8, baseline 8),
 `:public-copy`. No rule, function, content bank or catalogue is touched,
 so the rules and e2e suites were not run.
+## D194 · Predictions ship, and the app only asserts what it can recompute
+
+> Written as D193 and renumbered on merge, along with the three records
+> below it: #219 took that number first, the same day. The second time
+> this has happened in a week — D192 recorded the first and said why it
+> is the ordinary failure of a file whose numbering is append-only and
+> whose next value is read by eye. `check:docs` still cannot catch it;
+> the index still makes it visible in one screen. Worth one line rather
+> than a silent fix, because the alternative reading is that somebody
+> skipped a number.
+
+> **Partly superseded the same day by [D196](#d196--the-reading-game-is-the-one-that-ships-and-it-waits-for-a-crowd).** The
+> machinery below is unchanged and still binding; what changed is that
+> none of it is offered. The owner wants a prediction to be about a real
+> upcoming EVENT, and this record's calls predict the app's own future
+> numbers instead. The bank is retired, the card is unmounted, and the
+> resolver skips what it cannot have been played. Read D196 first.
+
+**2026-08-17.** **Status:** binding. Owner's ask: *"let's start building
+the remaining parts like the predicts."* Foresight **CALL, tier A** — the
+half of [D126](#d126) that was designed at [D127](#d127) and never built —
+is live end to end: a bank surface, a rules arm, a scheduled resolver, a
+feed card, and a gate that refuses a call the grader cannot run.
+
+### The question this feature had to answer first
+
+Every number InSight draws is a fold over documents the reader can open. A
+resolved call is not: it is the app **asserting something**, and a wrong
+one marks real people wrong with nothing to appeal to. D127 answered that
+with admission criteria rather than a refusal, and **tier A is the tier
+where the assertion disappears**: the truth is this app's own published
+aggregate, so the grade is arithmetic and the reader can redo it.
+
+Three things make that a property rather than a promise:
+
+- **The rubric is data the grader RUNS**, not prose a reviewer interprets:
+  `{ kind:"agg", qid, test, threshold | dim+buckets }`. Three tests ship —
+  `topShareAtLeast`, `turnoutAtLeast`, `slicesDisagree` — each a different
+  kind of thinking over the same document, which is the design work
+  `docs/FORESIGHT-CALLS.md` §11 left open.
+- **The inputs are published with the outcome.** `v2_call_outcomes/{qid}`
+  carries `inputs`: the exact counts the resolver read, narrowed to the
+  cells the rubric touched.
+- **The device re-grades and says whether it agrees.** `recheck()` runs the
+  same module over those same numbers and the card prints the result — and
+  prints a DISAGREEMENT loudly rather than deferring to the server. That
+  line should never appear; it is drawn every time precisely because the
+  case it cannot produce is the one worth seeing if it ever does.
+
+The module is byte-identical across both trees (`src/v2/data/callRubric.ts`
+· `functions/src/callRubric.ts`), held equal by `npm run check:calls` — the
+[D57](#d57) logic-generator arrangement, for a sharper reason: a drifted
+copy would not merely mis-grade, it would make the app contradict itself on
+screen.
+
+### What the gate actually proves, and what it cannot
+
+`check:calls` runs on the deploy path and holds two things. The copies are
+byte-identical. And every authored rubric is **executable AND decidable**:
+each is run twice, against a synthetic snapshot shaped to make it true and
+one shaped to make it false, and both branches must come back. CI has no
+production aggregate, so this is the honest offline form of D127's dry-run
+requirement — and stronger than one provisional execution, because *a
+rubric that can only ever return one answer is not a prediction*. A
+`topShareAtLeast 50` on a two-option question is a sentence with a known
+ending, and it fails.
+
+Five mutations, all caught: a drifted copy, that trivial threshold, a
+bucket outside `ageBand`'s vocabulary, a target qid not in the bank, and a
+target on the pulse surface (which publishes under `{qid}_{day}` and so
+would never resolve).
+
+**What it cannot check, recorded rather than implied:** whether the answer
+is *unknown when the card is served*. That is a claim about production
+data, not about the file — a call on a threshold the target has already
+crossed is a lookup wearing a prediction's clothes — so it is rule 4 in
+`content/call-questions.json`'s authoring notes, for a human.
+
+### The resolver, and the one place it goes beyond the design
+
+`resolveCallsV2` is a daily pass over the compiled bank (no query — the
+bank ships in the deploy). It **never guesses**: `evalRubric` returns null
+for an absent aggregate, an empty one, a named slice with no answers, or a
+tie for the lead, and null is not an outcome. It **never grades early**
+(day-key comparison, so an instance's timezone cannot bring a call
+forward). It **never rewrites** an outcome — the write is `create`-shaped,
+which is also what makes the rules' answer-fence stable.
+
+Where it exceeds `FORESIGHT-CALLS.md` §5, deliberately: that document hands
+an unexecutable call to a human, and there is no operator console for that
+today. §7 is explicit that an unresolved call is worse than a missing
+feature — *it takes the player's guess and never comes back* — so after
+`CALL_VOID_AFTER_DAYS` (14) of failing to execute, the resolver writes the
+VOID itself, with the reason. **An automatic void is safe where an
+automatic guess would not be**: a void asserts nothing about the world and
+scores nobody. Every attempt in between logs, so a human who is watching
+still gets §5's chance.
+
+### Rules: one new clause, and it is the whole economy of the game
+
+A call answer is an ordinary world answer — same five keys, same D29
+binding, same public read (D98). `isCallAnswer()` is `isWorldAnswer()` plus
+`!exists(v2_call_outcomes/{aid})`, and that clause is why it is a separate
+function rather than another entry in a surface list: **outcomes are
+world-readable the moment they are written**, so without it a player reads
+the grade and then "predicts" it. Free points, and every score in the
+feature meaningless.
+
+No new seal otherwise (§8): a call reads like every other card while it is
+open, and seeing how the crowd called it is the interesting half. Answering
+late — after `resolvesAt`, before the next pass — stays legal on purpose:
+the target's aggregate is still moving, and a rules clause comparing a date
+string to `request.time` would be a second, weaker copy of a deadline the
+outcome document already states exactly. The D86 edit arm's surface list
+keeps `call` out, so a sealed guess cannot be moved.
+
+### The card, and the two things it refuses to show
+
+Pinned at the feed head beside Crossroads, one at a time, because a call is
+one open question you are carrying rather than a card dealt into the
+stream. Four states: open · sealed · graded · void.
+
+- **An unread call draws NOTHING.** Until the grades are fetched, an
+  apparently-open call may already be graded, and the rules are about to
+  refuse that tap. "Render the options while it loads" is the tidy-looking
+  version and it offers a write the server will reject.
+- **An open call never shows the target question's current numbers.**
+  Those numbers are exactly what the player is being asked to predict.
+
+**No clock.** The prototype's ten seconds are the game's pressure and need
+the IntersectionObserver arming its own module describes; it is a mechanic
+rather than data, and everything the card *says* is true without it.
+Recorded as deferred, not forgotten.
+
+### Cost
+
+One aggregate read per due call per day, server-side, against a bank of
+three. Client: one `documentId() in` query per session, on the tap that
+opens the card (D124/D129), session-cached, absent documents cached as
+absent. Neither reaches a rounding error in `docs/COSTS.md`'s three lines,
+which is why no row moves.
+
+### What is still not built, and stays that way
+
+**Tier B** — a rubric whose truth comes from a fetched endpoint. Every
+residual failure mode in `FORESIGHT-CALLS.md` §9 belongs to it, and that
+document already records shipping A alone forever as a legitimate end
+state. `rubricFault` refuses `kind: "fetch"` by name, so a tier-B rubric
+cannot arrive by accident. The Map's Foresight branch is unchanged and
+still blocked on the eager budget (D136, VISION-V28 §5).
+
+### One ceiling moved, and it moved the right way
+
+`MAX_TOTAL_JS_KB` 2334 → 2350, and the note in `check-bundle.mjs` measures
+this record and D195 together as one session's delta rather than as two
+raises hours apart — the second would otherwise read as a ceiling being
+nudged along behind the work. Measured both sides with the same command:
+**2331 KB total / 964 KB eager before, 2342 / 965 after.** The +11 KB is
+all in the `world-feed` chunk, and the EAGER graph moved one kilobyte,
+because everything added is reached through `world-feed.jsx` — already past
+first paint behind `loadWorldFeed()` (D25). That is the shape a
+lazily-loaded feature is supposed to have, and the eager number, the one
+defending first paint, keeps 13 KB of headroom.
+
+**Verified:** `lint`, `tsc -b`, `check:globals` (409, baseline 409),
+`:content` (540 questions), `:calls`, `:quality`, `:figures`,
+`:data-inventory`, `:deploy-targets` (28 functions), `:fn-runtime`,
+`:appcheck`, `:bundle` (shipping build, Sentry in), `test:unit` (1,287
+over 83 files), functions (242) and `test:rules` (111, five of them new).
+Mutation-checked in three places rather than assumed: the gate (5
+mutations), the resolver (3), and the rules' `!exists` clause, which fails
+exactly one test when removed.
+
+## D195 · The paid slot is built, and nobody has bought it yet
+
+**2026-08-17.** **Status:** binding. Owner's ask, same sentence as D194:
+*"let's start building the remaining parts like … the ads."*
+[`MONETIZATION.md`](MONETIZATION.md) path 2 — sponsored questions — has
+been "designed, constraints recorded" since the file was written, with the
+note that picking it up graduates to a decision record. This is that
+record. It graduates the *machinery*, not a deal.
+
+### What ships, and what deliberately does not
+
+**Ships:** the `sponsor` field on a feed question, the disclosure band, the
+on-device audience match, the one-card cap, the slot's place in the
+interleave, and four gates holding all of it.
+
+**Does not ship: a single sponsored question.** `content/feed-questions.json`
+carries none, and `data/sponsored.test.ts` asserts that it carries none —
+because authoring one would mean printing a real company's name beside the
+word PAID on a card nobody bought. That is D1's no-fabrication rule pointed
+at a claim about money instead of a claim about a crowd, and it is the
+worse of the two: an invented crowd misleads about a number, an invented
+sponsor misleads about a relationship. `MONETIZATION.md` already records
+that the first buyer needs ~zero code; what it needed was this, and the
+next thing it needs is a contract.
+
+### The five properties, each enforced by something
+
+A sponsored question is an **ordinary question** — same trigger, same exact
+published split, same answers, same named who-voted sheet. What a sponsor
+buys is a slot and a window. That is only safe to sell because:
+
+1. **One card, whatever the bank holds.** `SPONSOR_SLOT = 1`, and
+   `partitionSponsored` takes EVERY sponsored question out of the ordinary
+   stream and puts at most one back. A cap that only labels the first card
+   is decorative — that exact mutation fails two tests.
+2. **Selection happens on the device.** The audience tag rides on content
+   every device downloads whole; `matches()` compares it against anchors
+   the device already holds. The server is never asked who should see
+   what, which is `QUESTION-FARM.md`'s structural line — server-side
+   per-user content selection is the moment a behavioural profile exists,
+   whatever the intentions. **Absent is not "any"**: a profile that has not
+   said is a non-match, and the mutation that softens it fails four tests.
+3. **One tag, from the published breakdown dims.** `check:content` refuses
+   two. The vocabulary is the cohorts a user can already see themselves
+   counted in — which excludes profession (never a dim, D8) and the
+   politics result (Art. 9) with no special rule for either, exactly as
+   [`SCALE-PLAN.md`](SCALE-PLAN.md) §5 predicted.
+4. **The tail, never the core.** `check:content` refuses `core: true` on a
+   sponsored question. A paid question inside the Mirror's corpus would
+   make the honest aggregate a paid-for sample — and the honest aggregate
+   is the only thing `MONETIZATION.md` says this product can sell.
+5. **The window is `until`, not a second field.** The label the band prints
+   and the filter that stops serving the card are one value, so they cannot
+   drift. `until` was already built (D179); this is its second consumer.
+
+### The disclosure is the app's, never the buyer's
+
+The band carries the word PAID, the buyer's name and the window, in the
+app's own ink — no brand colour, no logo, no link, no creative, and
+`check:content` refuses any key on the sponsor block other than `buyer` and
+`audience`. It **replaces the topic chip** rather than sitting beside it: a
+paid card wearing a topic hue reads as house content with a note attached.
+One tap opens why you got it, in your own vocabulary — or *"asked everyone
+— nothing about you decided this"*, which is information and is not
+omitted.
+
+**One line from the prototype could not be ported, and that is worth more
+than the rest of this section.** `design/standalone-v24/paid-data.js`
+promises the buyer receives *"the counts and the standard cuts — never
+names, never your profile"*. Since D98 that is **false**: answers are
+public and attributed, and the who-voted sheet is named. Shipping it would
+be the `check:public-copy` failure class (D116) with money behind it. The
+honest replacement is not a smaller promise but a different one — *they get
+the same public numbers you do; there is no private cut* — and it is
+pinned by a test that asserts the old words are absent.
+
+### Provenance, both directions
+
+`sponsor` joins editorial · farm · community as a provenance source, and
+`check:quality` holds it symmetrically: a question with a sponsor block
+filed as editorial is undisclosed inventory laundered into the vintage
+rollup, and a row filed `sponsor` with no block is a card that would wear
+no band. Both mutations fail.
+
+### What this does NOT do
+
+- **No auction, no bidding, no per-impression anything.** The slot is a
+  fixed, disclosed cadence. `SCALE-PLAN.md` §5's auction-*priced* variant
+  stays a note; nothing here widens it.
+- **No telemetry.** Billing is on **answers**, which already publish — so
+  buyer, seller and voter read one number and no party can audit the
+  others' figure. The feed's order is deterministic, so a slot's existence
+  is a property of the schedule rather than of observed behaviour, which is
+  what lets it be sold at all under `ATTENTION.md`'s cost rule.
+- **No ad SDK, no advertising identifier, no click-out.** A sponsor buys a
+  question. The store declarations do not move, because nothing new is
+  collected: `check:store-forms` is unchanged and green.
+- **No rotation by anything but the calendar.** With two buyers in one
+  window the slot alternates by UTC day, so neither gets every impression —
+  inventory nobody could price is inventory nobody buys.
+
+### Verified
+
+`lint`, `tsc -b`, `check:globals` (409, baseline 409), `:content` (540
+questions), `:quality`, `:docs`, `:data-inventory`, `:store-forms`,
+`:public-copy`, `:bundle` (2342/2350 total, 965/978 eager — the paid path
+is +2 KB in the lazy feed chunk and nothing at all in the eager graph),
+`test:unit` (1,308 over 85 files). Mutation-checked rather
+than assumed: six content rules (missing window, `core: true`, no buyer,
+two tags, a brand colour, an over-long name), two provenance rules in both
+directions, and three code paths — the band's dispatch, the cap, and the
+absent-anchor match — each of which fails a test when softened.
+
+## D196 · The reading game is the one that ships, and it waits for a crowd
+
+**2026-08-17.** **Status:** binding. Owner's correction, after D194 built
+the wrong half of Foresight. Two instructions, and one of them cost a
+round of talking past each other because this repo and the owner use the
+words *read* and *call* the opposite way round. So this record names
+neither, and describes both games by what they do.
+
+### The two games, by behaviour
+
+- **Guessing how a group ALREADY answered.** The app shows a question the
+  crowd has settled and asks which side one slice picked; you are scored
+  the instant you answer, against the published cell. Nothing is
+  predicted. Built at D126 as a Mirror lens, taken off the row at D136,
+  and unmounted ever since. *(The code calls this a **read**.)*
+- **Guessing something that has NOT happened.** Sealed now, graded later.
+  D194 shipped the flavour whose subject is the app's own future numbers.
+  The flavour the owner wants is real-world events, and it is not built.
+  *(The code calls both a **call**.)*
+
+### The decision
+
+**The first game is the one that ships. The second is parked, and if it
+ever returns it must be about real events.**
+
+The owner's objection to D194 is not that it works badly — it grades
+honestly, and the arithmetic stands. It is that *predicting our own
+numbers is not the game anybody wanted*. A prediction is about the world.
+So:
+
+- The feed's head slot swaps: the future-prediction card comes off, the
+  reading game goes on.
+- `content/call-questions.json` is **entirely `active: false`**, with the
+  reason written into the file itself. Nothing is deleted: the schema, the
+  rules arm, the resolver, the two byte-identical rubric modules and
+  `check:calls` are all exactly what a real-event rubric would arrive on
+  top of. It would be a new `kind`, not a new feature.
+- `bankCalls()` skips retired calls, and that is a correctness fix rather
+  than tidiness: a retired call is one **nobody could have answered**, so
+  the overdue rule would eventually have published three VOID documents
+  apologising for a game that was never offered. A void is the app saying
+  it could not grade something people played.
+
+### "Hidden until enough data" is a number, not a flag
+
+The second instruction was to keep the reading game but hold it back until
+there is enough data. That could have been a boolean somebody flips when
+it feels right. It is `READ_MIN_POOL = 12` instead, in
+`data/gamesReady.ts`, and the reasoning is the part worth keeping:
+
+`data/foresight.ts` already refuses an individual read that cannot be
+scored fairly — `READ_MIN_N` answers in the slice, `READ_MIN_LEAD` points
+of lead. What it could not refuse is the **corpus**. Four fair reads is
+four honest questions and a record that means nothing, and the payoff of
+the whole feature is `byDim` — *"you read age well and education badly"* —
+which needs several reads across several cuts before it is a fact rather
+than a coincidence. So the gate is the same objection `READ_MIN_LEAD`
+makes about a single 51/49 slice, one level up.
+
+**It is not a privacy floor**, and it looks exactly like one, so:
+nothing is withheld from anybody. Every cell this reads publishes exactly
+and at any size (D98) and the Explore lens draws the same cells with no
+threshold at all. What is withheld is the GAME, from the player, until the
+record it produces can be believed.
+
+Below the gate the card renders **nothing** — no teaser, no frame, no
+"coming soon". A game that announces itself and cannot be played is worse
+than one that is simply not there yet, and the mutation that opens the
+gate early fails three tests.
+
+### Why the feed, when D126 argued for the Mirror
+
+Both earlier records were right about their own question. D126 put the
+game on the lens row; D136 took it off because the row is where a
+population gets **read** and this is a **game**. The prototype has always
+put it in the feed, and `LiveForesightLens.tsx`'s own header anticipated
+the move — *"the feed placement stays open as a follow-on; nothing here
+would have to change for it"*.
+
+Nothing did. That component is mounted verbatim inside a wrapper that
+supplies the three things the lens row gave it for free: the sources
+(built from what the store already holds — **zero new reads**), the gate,
+and **the scope, said once**. That last one was the standing objection to
+the feed placement, and one line answers it: the source is the daily bank,
+which is one shared question per day and therefore one shared population,
+so *"slices of everyone who answered"* is true of every card in the deck
+rather than something each would have to restate.
+
+### The word "ad" is now reserved
+
+Recorded because it caused real confusion: **a sponsored question (D195)
+is not an ad.** `MONETIZATION.md` has always kept them as separate paths —
+2 is sponsored questions, 3 is ad cards — and prose that blurs them makes
+a disclosure argument impossible to have. A sponsored question is a
+question somebody paid to ask, answered like any other and folded into the
+same public aggregate. An ad card is not a question, takes no answer and
+produces no data. They share the disclosure band and the single paid slot;
+they are otherwise different objects.
+
+### Verified
+
+`lint`, `tsc -b`, `check:globals` (409, baseline 409), `:content` (540
+questions, all 3 calls retired), `:calls`, `:quality`, `:docs`,
+`:figures`, `test:unit`, functions (243) and `test:rules` (111).
+Mutation-checked: opening the gate early fails three tests, dropping the
+scope line fails one, and the retired-call filter is asserted directly
+rather than inferred from an empty bank.
+
+## D197 · The feed gets real ads, and they are not sponsored questions
+
+**2026-08-17.** **Status:** binding. Owner's ask, and the correction that
+came with it: *"we need normal ads as well that aren't sponsored
+questions — I don't like that you use the word 'ad' about the sponsored
+questions, it is confusing."* Both halves are acted on here.
+
+### The distinction, and why it is worth a record
+
+[`MONETIZATION.md`](MONETIZATION.md) has always had these as separate
+paths, and the prose that blurred them was mine rather than the repo's.
+Stated once, plainly:
+
+| | **Sponsored question** (path 2, D195) | **Ad** (path 3, this record) |
+| --- | --- | --- |
+| What is sold | a QUESTION | a CARD |
+| Answered? | yes, like any other | no — it asks nothing |
+| Produces data? | yes: the same public aggregate everyone reads | none at all |
+| What the buyer gets | the honest split of their own question | the card being seen |
+| Where it lives | `v2_questions`, `surface: "feed"` | `v2_ads`, its own collection |
+
+They share exactly two things: the disclosure band, and the single paid
+slot. Everything else is different, which is why an ad is a separate
+collection rather than a flag — putting it in the question bank would mean
+`splitBanks`, the quality gate, the velocity ceiling and the aggregate
+trigger each learning to skip it, and the first one to forget would be a
+silent bug.
+
+### Text only, and the missing link is the design
+
+An ad carries an advertiser, a headline, one line of body, a window and at
+most one coarse audience tag. `check:content` refuses an image, a logo, a
+brand colour, a link, a call to action, a script and a tracking pixel **by
+name** on the source entry — so adding one produces an error message with
+that word in it, which makes it a conversation rather than a commit. A web
+address typed into the prose is refused too: the card renders text, so a
+URL in it is a link the app does not make tappable and the reader retypes
+by hand, which is a worse click-out rather than a clever one.
+
+**No tap-through is load-bearing.** With nowhere to send anyone there is no
+click; with no click there is nothing to attribute; with nothing to
+attribute there is no reason to log an impression. That is what keeps this
+path clear of the tracking apparatus `MONETIZATION.md` rules out, and it
+is a structural argument rather than a promise — the absence of the
+feature is the absence of the data.
+
+### One slot, two kinds, and they rotate together
+
+`pickPaid` returns a discriminated union: the slot holds a question, or an
+ad, or nothing. A union rather than two slots, because the cap IS the
+product — two slots would be two paid cards with extra words on top. The
+combined pool rotates by UTC day, so a week with one of each splits the
+days rather than giving the question every one of them because questions
+were checked first.
+
+That last property was the one my own test missed and a mutation caught:
+the case only bites on the day the AD wins, because an implementation that
+computed the sponsored question independently of the slot agrees by
+accident on the other day. The test now asserts both days and asserts that
+each kind wins one of them, so the assertion is exercised on both branches
+rather than twice on one.
+
+### One gate bug worth recording, because it was invisible
+
+The refusal rules above did nothing when first written. `buildAds` maps the
+fields it knows and drops the rest, so an ad carrying a logo arrived at the
+gate already stripped of it — every refusal passed while the source file
+said something the app does not do. They read the **raw source entries**
+now. It is the same shape of failure as a gate asserting against its own
+fixture, and it was caught by probing rather than by reading.
+
+### One gate broke on the way past, which is the good version
+
+`check:figures` parses the question bank out of `v2content.ts` by slicing
+to the LAST `];` in the file. That was right while the questions array was
+the only thing there and became wrong the moment a second export arrived:
+the slice ran past its own terminator and swallowed the ads declaration,
+and the gate died on a syntax error. It reads the FIRST terminator now.
+
+Worth a paragraph because of how it failed rather than that it did. A scan
+that had quietly measured both arrays would have moved the documented
+figure with no visible cause, and `check:figures` exists precisely to stop
+documentation drifting for reasons nobody can see.
+
+### What ships, and what does not
+
+`content/ads.json` is **empty**, and a test asserts it — the same posture
+as D195 and for the same reason: writing an ad means printing a real
+company's name on a card nobody bought. The seed DELETES what the bank no
+longer names, which `runSeedV2` deliberately does not do for questions; a
+question is permanent because answers are keyed to it, an ad has none, and
+a collection that only grew would accumulate every campaign ever sold as a
+document every client pages past.
+
+**Nothing about the store filing moves.** No advertising identifier, no
+SDK, no click, no impression log — the ad path collects nothing, so
+`check:store-forms` is unchanged and green.
+
+### Three script-layer breakages, all found by CI rather than by me
+
+`test:scripts` was the one suite not run locally before pushing, and it
+held three findings — every one a consequence of adding the first second
+export to `v2content.ts` or the first new answer arm since D139.
+
+**One parser, in three copies, failing three different ways.**
+`check-figures.mjs`, `cost-arith.mjs` and `question-quality.mjs` each
+sliced the bank out of `v2content.ts` to the LAST `];` in the file. With
+`V2_ADS` beneath it, that swallowed the next declaration. The first two
+died on a SyntaxError — the good outcome, though the second named a cost
+model rather than a parser. **The third had a `try/catch` and fell back to
+`bankSize * 250`**: it did not fail, it quietly reported an invented wire
+size, which is the worst of the three and the one nobody would have
+noticed. All three now call `scripts/v2content-lib.mjs`, whose header
+carries this paragraph so a fourth export breaks one function with a clear
+message or none.
+
+**The pulse console's bank counter missed the new bank.** Its two
+independent paths — counting `content/*.json` by hand, and parsing
+`V2_QUESTIONS` — disagreed 537 against 540. That assertion has now caught
+three missing rows in a row (the romantic pool, the pulse templates, and
+this one), which means every new bank has arrived through the test rather
+than through anybody remembering. Ads are deliberately NOT counted there:
+they are not questions and are seeded to `v2_ads`.
+
+**The rules gained billed reads, and the tripwire made me count them.**
+Every `get()`/`exists()` in a rule is a read charged to the project.
+`isCallAnswer` adds three `get()` sites on ONE `/v2_questions` document —
+1 read by the dedup measurement `cost-arith.mjs` already documents — plus
+an `exists()` on `/v2_call_outcomes/{aid}`, a genuinely second document.
+So **a call answer bills 2 where a world answer bills 1**, and that second
+read is the clause closing a graded call rather than an accident of the
+rule's shape. `RULE_READS` gains `call: 2` and the model does not charge
+it — narrower than the edit arm's exemption above it: this IS an
+answer-create path and would be charged, except that D196 retires every
+call, so charging it would model traffic that cannot exist. Recorded so
+re-enabling the surface is one term rather than a recount.
+
+### Verified
+
+`lint`, `tsc -b`, `check:globals` (409, baseline 409), `:content`,
+`:calls`, `:quality`, `:docs`, `:figures`, `:data-inventory` (28
+collections), `:store-forms`, `:public-copy`, `:deploy-targets`,
+`:fn-runtime`, `test:unit`, `test:scripts` (215), functions (243) and
+`test:rules` (113, two of them new). Mutation-checked:
+ten content refusals (image, logo, colour, link, pixel, unknown field, a
+URL in the prose, two length caps, a malformed id), the feed's ad dispatch,
+the expired-ad filter, and the one-slot rule — the last of which required
+the test to be fixed before it bit.
+

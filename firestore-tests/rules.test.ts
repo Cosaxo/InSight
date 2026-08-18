@@ -569,6 +569,114 @@ describe("the daily pulse (D139): one answer per day, day-keyed like a duel's", 
   });
 });
 
+describe("feed ads (D197): readable by everyone, writable by nobody", () => {
+  const AD = "ad-a";
+  it("any signed-in user reads the whole pool, and nobody can write one", async () => {
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_ads", AD), {
+        seq: 0, advertiser: "Transit", headline: "H", body: "B", until: "2099-01-01",
+      });
+    });
+    // The whole pool reaches every device, because the MATCH happens
+    // there — asking the server for "my" ads is the moment a behavioural
+    // profile exists, whatever the intentions.
+    await assertSucceeds(getDoc(doc(asUser(STRANGER), "v2_ads", AD)));
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_ads", AD), { advertiser: "Me" }));
+    await assertFails(updateDoc(doc(asUser(OWNER), "v2_ads", AD), { headline: "Mine" }));
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_ads", "ad-mine"), { advertiser: "Me" }));
+  });
+
+  it("is not an answer surface at all — an ad cannot be answered", async () => {
+    // There is no answer arm for an ad anywhere in the ruleset, and this
+    // is what says so: the id is not a question, so the answer create's
+    // question lookup finds nothing and the write is refused. An ad that
+    // could be answered would fold into an aggregate nobody asked for.
+    await assertFails(setDoc(
+      doc(asUser(OWNER), "v2_users", OWNER, "answers", AD),
+      { qid: AD, surface: "feed", optionIdx: 0, answeredAt: serverTimestamp(), anchors: {} },
+    ));
+  });
+});
+
+describe("Foresight CALL, tier A (D194): sealed, public, and closed once graded", () => {
+  const CALL = "call-c01";
+  const seedCall = () => seed(async (db) => {
+    await setDoc(doc(db, "v2_questions", CALL), {
+      surface: "call", seq: 0, type: "call", prompt: "Will it be lopsided?",
+      options: ["It will", "It stays close"], active: true, tier: "A",
+      resolvesAt: "2026-10-01",
+      rubric: { kind: "agg", qid: "daily-000", test: "topShareAtLeast", threshold: 60 },
+    });
+  });
+  const callAnswer = (over: Record<string, unknown> = {}) => ({
+    qid: CALL, surface: "call", optionIdx: 0,
+    answeredAt: serverTimestamp(), anchors: {}, ...over,
+  });
+  const mine = () => doc(asUser(OWNER), "v2_users", OWNER, "answers", CALL);
+
+  it("a call is answered like any world question, and read like one", async () => {
+    await seedCall();
+    await assertSucceeds(setDoc(mine(), callAnswer()));
+    // Public (D98) — the crowd's split on a call is the card's own reveal.
+    await assertSucceeds(getDoc(doc(asUser(STRANGER), "v2_users", OWNER, "answers", CALL)));
+  });
+
+  it("A SEALED GUESS CANNOT BE MOVED — the D86 edit arm's surface list keeps `call` out", async () => {
+    await seedCall();
+    await assertSucceeds(setDoc(mine(), callAnswer()));
+    await assertFails(updateDoc(mine(), { optionIdx: 1, editedAt: serverTimestamp() }));
+    await assertFails(setDoc(mine(), callAnswer({ optionIdx: 1 })));
+  });
+
+  it("ONCE A GRADE IS PUBLISHED, THE CALL CLOSES", async () => {
+    // The clause isCallAnswer() exists for. Outcomes are world-readable
+    // the moment the resolver writes them, so without this a player reads
+    // the grade and then "predicts" it — every score in the feature would
+    // be free.
+    await seedCall();
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_call_outcomes", CALL), {
+        outcomeIdx: 0, resolvedBy: "auto", inputs: { qid: "daily-000", total: 100, counts: { "0": 70 } },
+      });
+    });
+    await assertFails(setDoc(mine(), callAnswer()));
+  });
+
+  it("the outcome is readable by anyone and writable by nobody", async () => {
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_call_outcomes", CALL), { outcomeIdx: 0, resolvedBy: "auto" });
+    });
+    // Read: the grade AND its basis, so a player can recompute rather than
+    // trust (FORESIGHT-CALLS §6).
+    await assertSucceeds(getDoc(doc(asUser(STRANGER), "v2_call_outcomes", CALL)));
+    // Write: nobody. A client-writable outcomeIdx would make every score in
+    // the feature forgeable in one request.
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_call_outcomes", CALL), { outcomeIdx: 1 }));
+    await assertFails(updateDoc(doc(asUser(OWNER), "v2_call_outcomes", CALL), { outcomeIdx: 1 }));
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_call_outcomes", "call-new"), { outcomeIdx: 0 }));
+  });
+
+  it("the option bound, the kill switch and the surface claim all read off the question", async () => {
+    await seedCall();
+    await assertFails(setDoc(mine(), callAnswer({ optionIdx: 2 })));
+    // A daily question cannot be answered as a call, so the call surface
+    // buys no second answer to a question already answered.
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_questions", "daily-000"), {
+        surface: "daily", seq: 0, type: "binary", prompt: "P", options: ["Yes", "No"], active: true,
+      });
+    });
+    await assertFails(setDoc(
+      doc(asUser(OWNER), "v2_users", OWNER, "answers", "daily-000"),
+      callAnswer({ qid: "daily-000" }),
+    ));
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_questions", CALL), { active: false }, { merge: true });
+    });
+    await assertFails(setDoc(mine(), callAnswer()));
+  });
+});
+
 describe("v2 answers (world-readable since D98; option edits only — D86)", () => {
   const QID = "daily-000";
   const seedQuestion = () => seed(async (db) => {

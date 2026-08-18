@@ -37,12 +37,19 @@ function fakeDb(storedDocs: Record<string, Record<string, unknown>>) {
         get: async () => snapFor(id),
         set: async () => {},
       }),
+      // The collection-level read runSeedAds does (D197), so the ads pass
+      // runs in these cases rather than throwing through them. Empty:
+      // `content/ads.json` ships empty, so the honest fake of the live
+      // collection is an empty one, and the ads pass writing nothing is
+      // exactly what the no-op case below is asserting about questions.
+      get: async () => ({ docs: [] as Array<{ id: string; ref: unknown }> }),
     }),
     getAll: async (...refs: { _id: string }[]) => refs.map((r) => snapFor(r._id)),
     batch: () => ({
       set: (ref: { _id: string }, payload: Record<string, unknown>) => {
         written[ref._id] = payload;
       },
+      delete: () => {},
       commit: async () => { commits++; },
     }),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

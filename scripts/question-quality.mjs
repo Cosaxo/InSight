@@ -67,6 +67,7 @@ import { readFileSync, existsSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import vm from "node:vm";
+import { bankArray } from "./v2content-lib.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -951,7 +952,13 @@ export function checkProvenance(corpus) {
   const path = join(root, "content", "provenance.json");
   if (!existsSync(path)) return ["content/provenance.json is missing — the D97 vintage join has nothing to read"];
   const prov = JSON.parse(readFileSync(path, "utf8"));
-  const SOURCES = new Set(["editorial", "farm", "community"]);
+  // `sponsor` joined at D195 (docs/MONETIZATION.md path 2). It is a source
+  // like the others — who wrote the question — and it is the one that has
+  // to be true in BOTH directions: a sponsored question with an editorial
+  // provenance row would launder a paid question into the vintage rollup
+  // as house content, and an unpaid question filed as `sponsor` would put a
+  // PAID band on something nobody bought.
+  const SOURCES = new Set(["editorial", "farm", "community", "sponsor"]);
 
   for (const [surface, bank] of [
     ["daily", corpus.seed.map((q) => q.id)],
@@ -968,6 +975,24 @@ export function checkProvenance(corpus) {
       }
     }
   }
+  // ── sponsorship, both directions (D195) ──
+  {
+    const feedRows = prov.feed || {};
+    const paid = new Set(
+      corpus.feed.questions.filter((q) => q.sponsor !== undefined).map((q) => q.id),
+    );
+    for (const id of paid) {
+      if (feedRows[id] && feedRows[id].source !== "sponsor") {
+        errs.push(`provenance: feed ${id} carries a sponsor block but is filed as ${JSON.stringify(feedRows[id].source)} — a paid question filed as house content is undisclosed inventory`);
+      }
+    }
+    for (const [id, row] of Object.entries(feedRows)) {
+      if (row.source === "sponsor" && !paid.has(id)) {
+        errs.push(`provenance: feed ${id} is filed as sponsor but carries no sponsor block — the card would wear no PAID band`);
+      }
+    }
+  }
+
   const dailyRows = prov.daily || {};
   for (const [id, row] of Object.entries(dailyRows)) {
     if (row.archiveId && !/^dqx?\d+$/.test(row.archiveId)) {
@@ -1045,12 +1070,18 @@ export function checkHeadroom(corpus) {
   // the estimate moves when the documents do (adding `core` to 82 entries
   // moved it by ~1 KiB and check:figures caught that on COSTS.md).
   const bankBytes = (() => {
-    const head = "V2_QUESTIONS: V2SeedQuestion[] = ";
-    const body = v2content.slice(v2content.indexOf(head) + head.length);
     try {
-      return JSON.stringify(JSON.parse(body.slice(0, body.lastIndexOf("];") + 1))).length;
+      return JSON.stringify(bankArray(v2content)).length;
     } catch {
-      return bankSize * 250; // the scan's shape changed; fall back rather than crash the gate
+      // The fallback stays, and the comment it used to carry was too
+      // relaxed about it: this path reports an INVENTED wire size rather
+      // than failing, so a parser that quietly stopped working would move
+      // a documented figure with nothing to show for it. That is exactly
+      // what happened when V2_ADS arrived (D197) — the other two copies
+      // of this scan crashed and this one silently guessed. It survives
+      // because a scorecard is not worth crashing a gate over; the scan
+      // itself now lives in one place so it cannot half-break again.
+      return bankSize * 250;
     }
   })();
   const cacheMB = (n) => ((bankBytes / Math.max(bankSize, 1)) * n / 1024 / 1024).toFixed(1);

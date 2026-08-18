@@ -133,6 +133,8 @@ export const CONTENT_SOURCES = {
   lenses: "lenses.json",
   learn: "learn-questions.json",
   pulse: "pulse-questions.json",
+  call: "call-questions.json",
+  ads: "ads.json",
 };
 
 export function loadContent() {
@@ -144,7 +146,7 @@ export function loadContent() {
 }
 
 // Builds the entries in emission order: daily → feed → group → duo →
-// romantic → test → learn → pulse. `seq` is per-surface and contiguous (the
+// romantic → test → learn → pulse → call. `seq` is per-surface and contiguous (the
 // romantic pool continues the duo surface's counter); note the test surface
 // runs ONE counter across all four tests (test-political-00 has seq 10, not 0).
 // Property order in each entry is load-bearing — JSON.stringify preserves
@@ -162,7 +164,7 @@ function requireId(q, where) {
 }
 
 export function buildEntries(content = loadContent()) {
-  const { daily, feed, duel, tests, lenses, learn, pulse } = content;
+  const { daily, feed, duel, tests, lenses, learn, pulse, call } = content;
   const entries = [];
 
   // `active: false` retires an entry from serving without touching its id
@@ -273,6 +275,17 @@ export function buildEntries(content = loadContent()) {
       // remains the hard, server-enforced kill; answers and aggregates
       // persist either way (the archive is the product).
       ...(typeof q.until === "string" ? { until: q.until } : {}),
+      // Sponsored questions (D195, docs/MONETIZATION.md path 2). A paid
+      // question is an ORDINARY question with three extra facts: who
+      // bought it (`buyer`), and at most one coarse audience tag the
+      // DEVICE matches against its own anchors. The window is not here —
+      // it is `until` above, so the card's window label and the serving
+      // filter cannot drift apart.
+      //
+      // What is deliberately absent: any brand colour, logo, click-out or
+      // creative. A sponsor buys a question and its honest split; the
+      // disclosure is the app's, never the buyer's.
+      ...(q.sponsor ? { sponsor: q.sponsor } : {}),
       // Core/tail (docs/SCALE-PLAN.md §1). `core: true` means the question
       // is served to EVERYONE, unpersonalized, and is therefore part of the
       // corpus the Mirror's cohort readings may fold over. Emit-when-set
@@ -463,6 +476,36 @@ export function buildEntries(content = loadContent()) {
     });
   });
 
+  // Foresight CALL, tier A (D127, docs/FORESIGHT-CALLS.md): a question
+  // sealed now and graded when it resolves. Two fields ride along and both
+  // are OPERATIONAL rather than copy — `resolvesAt` is the earliest UTC day
+  // the resolver may grade, `rubric` is the expression it RUNS. Emitted
+  // last, after pulse, so no existing surface's seq or bytes move.
+  //
+  // The outcome is deliberately NOT a field here: runSeedV2 diffs each
+  // question against its stored payload and skips unchanged docs, so
+  // writing outcomes onto content the seed believes it owns would make
+  // every reseed fight the resolver (FORESIGHT-CALLS §4). It lives in
+  // v2_call_outcomes, admin-written, client-unwritable.
+  (call?.questions ?? []).forEach((q, i) => {
+    entries.push({
+      id: `call-${requireId(q, `call-questions.json[${i}]`)}`,
+      surface: "call",
+      seq: i,
+      type: "call",
+      domain: null,
+      prompt: q.prompt,
+      options: q.options,
+      topic: null,
+      axis: null,
+      test: null,
+      tier: q.tier,
+      resolvesAt: q.resolvesAt,
+      rubric: q.rubric,
+      ...flags(q),
+    });
+  });
+
   return entries;
 }
 
@@ -492,11 +535,49 @@ const HEADER =
   "// forms' range/plane copy (D114), absent everywhere else; their options\n" +
   "// are synthesized bucket/cell labels, so the D52 option freeze freezes\n" +
   "// the range with them.\n" +
-  "export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; branch?: string; sub?: string; tag?: string; rates?: string; axis: string | null; test: string | null; mode?: string; active?: boolean; political?: boolean; core?: boolean; until?: string; lo?: number; hi?: number; unit?: string; ends?: string[]; ax?: string[]; ay?: string[]; title?: string; intro?: string; hue?: number; nodes?: Record<string, { q: string; a: Array<{ t: string }> }>; endings?: Record<string, { name: string; line: string }>; }\n" +
+  "// `sponsor` is feed-only (D195): `{ buyer, audience? }` on a question\n" +
+  "// somebody paid to ask. The WINDOW is `until`, not a field here, so the\n" +
+  "// label the card prints and the filter that stops serving it are one\n" +
+  "// value. A sponsored question is never `core` — paid questions inside\n" +
+  "// the Mirror's corpus would make the honest aggregate a paid-for sample.\n" +
+  "// `tier`/`resolvesAt`/`rubric` are the CALL surface's only (D194): the\n" +
+  "// admitted grading path, the earliest UTC day it may be graded, and the\n" +
+  "// expression the resolver RUNS. The outcome is not here — it lives in\n" +
+  "// v2_call_outcomes, so a reseed and the resolver never fight.\n" +
+  "export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; branch?: string; sub?: string; tag?: string; rates?: string; axis: string | null; test: string | null; mode?: string; active?: boolean; political?: boolean; core?: boolean; until?: string; lo?: number; hi?: number; unit?: string; ends?: string[]; ax?: string[]; ay?: string[]; title?: string; intro?: string; hue?: number; nodes?: Record<string, { q: string; a: Array<{ t: string }> }>; endings?: Record<string, { name: string; line: string }>; sponsor?: { buyer: string; audience?: Record<string, string> }; tier?: string; resolvesAt?: string; rubric?: { kind: string; qid: string; test: string; threshold?: number; dim?: string; buckets?: string[] }; }\n" +
   "export const V2_QUESTIONS: V2SeedQuestion[] = ";
 
+// Feed ads (D197, docs/MONETIZATION.md path 3). A SEPARATE array from the
+// questions, and separate is the whole point: an ad takes no answer, folds
+// into no aggregate and carries no options, so putting it in the question
+// bank would mean every consumer of that bank — splitBanks, the quality
+// gate, the velocity ceiling, the aggregate trigger — learning to skip it.
+// One collection each instead, and neither has to know about the other.
+export function buildAds(content = loadContent()) {
+  return (content.ads?.ads ?? []).map((a, i) => ({
+    id: `ad-${requireId(a, `ads.json[${i}]`)}`,
+    seq: i,
+    advertiser: a.advertiser,
+    headline: a.headline,
+    body: a.body,
+    until: a.until,
+    ...(a.audience ? { audience: a.audience } : {}),
+    ...(a.active === false ? { active: false } : {}),
+  }));
+}
+
+const ADS_HEADER =
+  "\n// Feed ads (D197) — docs/MONETIZATION.md path 3, and NOT path 2's\n" +
+  "// sponsored questions. An ad takes no answer and folds into no\n" +
+  "// aggregate, which is why it is a separate array and a separate\n" +
+  "// collection: nothing that reads the question bank has to learn to skip\n" +
+  "// it. Text only, no link, one coarse audience tag matched on the DEVICE.\n" +
+  "export interface V2SeedAd { id: string; seq: number; advertiser: string; headline: string; body: string; until: string; audience?: Record<string, string>; active?: boolean; }\n" +
+  "export const V2_ADS: V2SeedAd[] = ";
+
 export function generate(content = loadContent()) {
-  return HEADER + JSON.stringify(buildEntries(content), null, 1) + ";\n";
+  return HEADER + JSON.stringify(buildEntries(content), null, 1) + ";\n"
+    + ADS_HEADER + JSON.stringify(buildAds(content), null, 1) + ";\n";
 }
 
 // CLI — guarded so check-content.mjs can import the builders without

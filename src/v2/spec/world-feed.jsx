@@ -24,6 +24,10 @@ import { Sheet } from './primitives.jsx';
 // The feed's cadence arithmetic — extracted so the test exercises THIS loop
 // rather than a copy of it (D11's claim, D42's citation; see the module).
 import { interleaveFeed, partitionAnswered } from '../data/feed-interleave.ts';
+import { SPONSOR_AT, partitionSponsored } from '../data/sponsored.ts';
+import { utcDayIndex } from '../data/deck.ts';
+import SponsorMark from '../ui/SponsorMark.tsx';
+import AdCard from '../ui/AdCard.tsx';
 import { deferUntil, isDeferred, pruneDeferred } from '../data/deferQueue.ts';
 // "Somebody asked for the topic list" (D190). The profile's scenes card is
 // the caller; this file owns the list, so this file is what answers.
@@ -47,6 +51,7 @@ import { PASSIVE } from './passive-progress.js';
 // is the deferred feed group (spec-index.js), so neither reaches first
 // paint; check:bundle's eager ceiling has no headroom for either.
 import { PathsCard } from './paths-card.jsx';
+import LiveReadGame from '../ui/LiveReadGame.tsx';
 import {
   wfCatArt, wfFmt, wfHash, wfKnowBias, wfKnowRate, wfPcts, wfPickGroup,
   wfRateAvg, wfRateBg, wfRateInk, wfShadeText, wfTileArt, wfTint,
@@ -3337,7 +3342,15 @@ class WorldFeed extends React.Component {
     const collapsed = compact && !open;
     const kicker = (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 12.5, fontWeight: 700, letterSpacing: '0.01em', textTransform: 'lowercase', color: mk ? WPAL.ink(T.color) : 'var(--ink-2)', background: mk ? WPAL.wash(T.color, 13, 'var(--surface-2)') : 'transparent', border: '0.5px solid ' + (mk ? `color-mix(in oklch, ${T.color} 40%, var(--rule))` : 'var(--rule)'), borderRadius: 999, padding: '4px 12px 4px 10px', minWidth: 0 }}><span aria-hidden="true" style={kickDot}></span>{kickLabel}</span>
+        {/* A sponsored card wears the disclosure INSTEAD of its topic chip
+            (D195). Not beside it: a paid card carrying a topic hue reads as
+            house content with a note attached, which is the one thing the
+            band exists to prevent. The rest of the row — the `i` button,
+            the closing ring, the passive tag — is unchanged, because a paid
+            question is in every other respect an ordinary question. */}
+        {q.sponsor
+          ? <SponsorMark sponsor={q.sponsor} until={q.until}></SponsorMark>
+          : <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 12.5, fontWeight: 700, letterSpacing: '0.01em', textTransform: 'lowercase', color: mk ? WPAL.ink(T.color) : 'var(--ink-2)', background: mk ? WPAL.wash(T.color, 13, 'var(--surface-2)') : 'transparent', border: '0.5px solid ' + (mk ? `color-mix(in oklch, ${T.color} 40%, var(--rule))` : 'var(--rule)'), borderRadius: 999, padding: '4px 12px 4px 10px', minWidth: 0 }}><span aria-hidden="true" style={kickDot}></span>{kickLabel}</span>}
         {bgText ? (
           <button className="press tap44" onClick={(e) => { e.stopPropagation(); clearTimeout(this._sheetT); this.setState({ sheet: { panel: 'bg', q, T } }); }} aria-label="What you need to know" style={{ flexShrink: 0, width: 20, height: 20, borderRadius: '50%', border: '0.5px solid color-mix(in oklch, var(--ink) 26%, var(--rule))', background: 'transparent', color: 'var(--ink-2)', fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 800, lineHeight: 1, cursor: 'pointer', WebkitAppearance: 'none', padding: 0 }}>i</button>
         ) : (
@@ -3566,7 +3579,25 @@ class WorldFeed extends React.Component {
     // caught-up end degrades into exactly the right thing: the remaining
     // fresh test/lens cards, in cadence order, with no world cards
     // between them.
-    const ordered = sorted;
+    // The paid slot (D195). Every sponsored card leaves the ordinary
+    // stream and at most ONE comes back, at a fixed depth — the cap is the
+    // unit of sale, so it has to be a property of the code rather than of
+    // how many the bank happens to hold. The match runs HERE, on the
+    // device, against anchors the device already has: the server is never
+    // asked who should see what.
+    // ONE paid slot, and both kinds compete for it (D197): a sponsored
+    // QUESTION (path 2 — answered like any other, folds into the public
+    // aggregate) and an AD (path 3 — text, no answer, no data). They
+    // rotate together by day, so a week with one of each splits the days
+    // rather than giving the question every one of them.
+    const paidSplit = partitionSponsored(
+      sorted,
+      (LIVE.enabled && LIVE.anchors()) || {},
+      utcDayIndex(heldNow),
+      (LIVE.enabled && LIVE.feedAds()) || [],
+      new Date(heldNow).toISOString().slice(0, 10),
+    );
+    const ordered = paidSplit.rest;
     const kEvery = window.LEARN_FEED ? window.LEARN_FEED.every() : 0;
     // The knowledge stream is NOT partitioned: LEARN_FEED schedules its own
     // spaced repetition, and re-serving an answered card on its due day is
@@ -3574,8 +3605,16 @@ class WorldFeed extends React.Component {
     const kqs = kEvery ? this.knowQs(Math.ceil(ordered.length / kEvery) + 1, cats) : [];
     // The cadences, their coprimality and the empty-feed drain all live in
     // data/feed-interleave.ts, which is where the test now reaches them.
+    // The slot carries whichever kind won the day. An ad is not a question,
+    // so it rides as `{ id, ad }` and the render loop dispatches on it —
+    // renderCard's apparatus (options, who-voted, takes, the insight line)
+    // has nothing to say about a card that asks nothing.
+    const paidCard = paidSplit.ad
+      ? { id: paidSplit.ad.id, ad: paidSplit.ad }
+      : paidSplit.sponsored;
     const woven = interleaveFeed(ordered, {
       tests: tqs, lenses: lqs, know: kqs, knowEvery: kEvery,
+      sponsored: paidCard, sponsorAt: SPONSOR_AT,
     });
     // …and only now do the answered world cards leave the feed (fresh
     // questions only — release feedback; they park behind the Answered
@@ -3657,8 +3696,24 @@ class WorldFeed extends React.Component {
                 — has anything to say about a walk, and the prototype pins
                 it here for the same reason. */}
             {i === 0 && <PathsCard />}
+            {/* The reading game (D196) — pinned beside Crossroads and for
+                the same reason: it is one thing you are doing, not a card
+                dealt into the stream. It renders nothing in a demo build
+                and nothing until there are enough fair reads to keep a
+                record worth believing, so this line adds a card only where
+                there is a real one to add.
+
+                THIS SLOT HELD THE FUTURE-PREDICTION CARD FOR ONE DAY
+                (D194's tier-A call, which guessed the app's own future
+                numbers). D196 took it off: the owner wants predictions to
+                be about real events or not at all, and that half is not
+                built. The machinery stands, unmounted, the way D136 left
+                this game's engine — see D196. */}
+            {i === 0 && <LiveReadGame />}
             {sugg && i === 2 && this.renderSuggestion(sugg, snap)}
-            {this.renderCard(q, { closing: q.id === closingId })}
+            {q.ad
+              ? <AdCard ad={q.ad}></AdCard>
+              : this.renderCard(q, { closing: q.id === closingId })}
           </React.Fragment>
         ))}
         {/* Room to scroll INTO while the window is still short of the list.

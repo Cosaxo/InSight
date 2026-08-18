@@ -730,6 +730,10 @@ export { activateDeviceV2 } from "./deviceBind";
 // story. Logs flags for manual review; never denies a vote.
 export { ledgerVelocityScan } from "./velocity";
 export { logicStartV2, logicSubmitV2 } from "./logic";
+// D194: Foresight CALL, tier A — the daily pass that grades a sealed
+// prediction against our OWN published aggregate and publishes the numbers
+// it read. No model, no fetch, no judgement anywhere in that path.
+export { resolveCallsV2 } from "./calls";
 // "Suggest a question" — the community board's write path and the
 // operator review instruments (docs/NEXT-FUNCTIONALITY.md §6).
 export { suggestQuestionV2, fetchSuggestionsV2, reviewSuggestionV2 } from "./suggestions";
