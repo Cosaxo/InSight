@@ -9,7 +9,7 @@
 // the live half would pass for a section that broke for any reason at all.
 
 import { describe, expect, it, vi } from "vitest";
-import { fireEvent, screen, within } from "@testing-library/react";
+import { act, fireEvent, screen, within } from "@testing-library/react";
 import { IS_DATA } from "../spec/sample-data.js";
 import { FRIENDS } from "../spec/follows.js";
 import { mountApp, registerSmokeHooks, SMOKE_TIMEOUT_MS } from "./mount-app.jsx";
@@ -55,6 +55,35 @@ describe("the mirror tab and the header's overlays", () => {
     // renamed member would first throw.
     fireEvent.click(screen.getByRole("button", { name: /like me/i }));
     expectNoBoundary("mirror world · explore lens");
+  });
+
+  it("draws the embedded relationship map on the Circle stop", async () => {
+    // D198 moved relmap.jsx off the eager graph, which turned this picture
+    // from a synchronous `typeof RelationshipMap === 'function'` read into an
+    // awaited import. Nothing executed the Circle stop before, so the move
+    // could have swapped the map for the generic field canvas with every gate
+    // green — the same silent swap the old spec-index comment was protecting
+    // against, arriving through the fix for it.
+    //
+    // Demo only, and that is the point rather than a limitation: a live build
+    // takes LiveCircleBody (D101) and never renders this component at all,
+    // which is WHY the module can be deferred.
+    const expectNoBoundary = mountApp();
+    fireEvent.click(screen.getByRole("button", { name: /^mirror$/i }));
+    const ruler = screen.getByRole("tablist", { name: /how far the mirror reaches/i });
+    fireEvent.click(within(ruler).getByRole("tab", { name: /^circle$/i }));
+    // An awaited act, for the reason openVia's is awaited: the import resolves
+    // in a microtask, and a synchronous assertion would read the frame before
+    // the map arrived — passing against the fallback it is here to rule out.
+    await act(async () => {});
+    // The map's own header, which renders only when the embedded map does.
+    expect(document.body.textContent, "the Circle stop drew no relationship map")
+      .toMatch(/across \d+ circles/i);
+    // …and the field canvas it replaces is absent. Without this half the case
+    // would pass on a screen showing both, which is not a state the layout has.
+    expect(document.body.textContent, "the generic field canvas drew as well")
+      .not.toMatch(/closer to you = more alike/i);
+    expectNoBoundary("mirror circle · embedded relationship map");
   });
 
   it("opens the profile overlay without tripping the boundary", () => {

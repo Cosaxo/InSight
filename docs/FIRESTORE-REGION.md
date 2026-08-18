@@ -1,5 +1,20 @@
 # The Firestore region, and how to change it
 
+> **TAKEN 2026-08-15 (D165): production is `insight` / `europe-west1`, a
+> single region.** Everything below is written in the present tense of a
+> decision that was still open, which is how it should stay — the argument
+> is the useful part and re-tensing it would cost the reasoning. Read
+> "today" and "current" as *2026-08-13*, and `nam5` as the option not
+> taken. Only step 5 of the procedure is outstanding (deleting `(default)`),
+> and the tables below are therefore the counterfactual: what the app would
+> cost if this page had been ignored.
+>
+> **The saving is real and was invisible for three days.** The cost model
+> kept pricing `nam5` until D198, because the region was a default
+> parameter rather than a fact read from the tree, so the pulse console
+> published roughly double the true bill every morning. It now reads
+> `FIRESTORE_LOCATION` from `functions/src/db.ts`.
+
 The one cost decision in this repository with a **deadline**, and the one
 that cannot be revisited afterwards. Everything else in
 [`COSTS.md`](COSTS.md) can be tuned after launch; a Firestore database's
@@ -10,7 +25,9 @@ the bill and left this as the largest remaining lever.
 
 ## What it is worth
 
-`node scripts/cost-model.mjs --regional` against the default run:
+`node scripts/cost-model.mjs` against `--multi-region` (the flags were
+`--regional` against the default run when this was written — D198 swapped
+which one is the default, because the default is now read from the tree):
 
 | DAU | `nam5` (today) | single-region | saved |
 | ---: | ---: | ---: | ---: |

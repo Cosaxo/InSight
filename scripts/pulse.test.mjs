@@ -30,7 +30,7 @@ import { renderPulse } from "./pulse-render.mjs";
 import {
   costModel, DECK_DAYS, AGG_CAP, PUBLISH_EVERY, TRIG, B, writesPerSec, CONTENTION_DAU,
   VOTER_FETCH_CAP, KINDRED_QUESTIONS, FOLLOW_CAP, CIRCLE_ANSWER_CAP, IDLE_DETACH_MS,
-  AGG_POLL_MS, POLL_DOCS,
+  AGG_POLL_MS, POLL_DOCS, LOCATION, LOCATION_LABEL, REGIONAL, priceSheet,
 } from "./cost-arith.mjs";
 
 const read = (rel) => readFileSync(join(ROOT, rel), "utf8");
@@ -45,6 +45,52 @@ describe("cost-arith reads its constants from source, not from memory", () => {
 
   it("AGG_CAP matches live.ts's AGG_ID_CAP", () => {
     expect(AGG_CAP).toBe(Number(read("src/v2/data/live.ts").match(/AGG_ID_CAP = (\d+)/)[1]));
+  });
+
+  it("the price sheet follows the database's own region, not a default", () => {
+    // D198's gate, and it is a different shape from its four neighbours.
+    // Those pin a number the model RETYPED; this pins a premise the model
+    // ASSUMED. `costModel({ regional = false })` was correct arithmetic on a
+    // false input for the three days after D165 moved production to a single
+    // region, and no gate could see it: check:figures compares quoted
+    // figures against the tree, and this was never quoted anywhere.
+    const declared = read("functions/src/db.ts").match(/FIRESTORE_LOCATION = "([^"]+)"/)[1];
+    expect(LOCATION).toBe(declared);
+    // The rule that turns a place into a price: GCP multi-regions are bare
+    // names (nam5, eur3) and every real region carries a hyphen.
+    expect(REGIONAL).toBe(declared.includes("-"));
+    // And the sheet actually moves with it — the assertion that would have
+    // failed on 2026-08-15.
+    const single = priceSheet(true);
+    const multi = priceSheet(false);
+    // The three OPERATION prices are exactly half. Storage is not, and the
+    // first draft of this test asserted it was: $0.108/GiB against $0.18 is
+    // 60%, not 50%. Worth keeping the distinction rather than loosening the
+    // whole check to "cheaper", because "a single region halves every
+    // Firestore line" is the sentence docs/COSTS.md leads with and it is
+    // true of the three lines the bill actually consists of.
+    for (const k of ["read", "write", "del"]) {
+      expect(single[k], `${k} is not half the multi-region price`).toBeCloseTo(multi[k] / 2, 12);
+    }
+    expect(single.store).toBeLessThan(multi.store);
+    expect(priceSheet(REGIONAL)).toEqual(REGIONAL ? single : multi);
+    // THE DEFAULT ITSELF, because that is the line that was wrong and every
+    // caller passes the flag explicitly — so a first draft of this test
+    // watched `costModel({ regional = REGIONAL })` revert to `= false` and
+    // reported green. Called with no arguments is how the default is
+    // reachable at all, and it is the shape any new caller will use.
+    expect(costModel().P).toEqual(priceSheet(REGIONAL));
+    expect(costModel().P).not.toEqual(priceSheet(!REGIONAL));
+  });
+
+  it("the pulse publishes the region it priced", () => {
+    // The console prints a `region` line beside its burn figures, and it
+    // used to be a second hardcoded copy of the same premise ("nam5
+    // multi-region") sitting next to numbers computed from the flag. Two
+    // copies of one fact is how the label kept agreeing with itself while
+    // both halves were wrong.
+    expect(collect().cost.region).toBe(LOCATION_LABEL);
+    expect(LOCATION_LABEL).toContain(LOCATION);
   });
 
   it("the fan-out's bound is still in live.ts, and the app still detaches", () => {

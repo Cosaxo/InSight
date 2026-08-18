@@ -13,6 +13,15 @@ import { useDialog } from './primitives.jsx';
 // own hub; members orbit their hub. Four lenses recolor the graph. Pan, zoom,
 // drag a node to pin it, search to filter, tap a node for the full profile.
 // Data + layout: relationship-map-core.js · panels: relationship-map-panels.jsx
+//
+// The map itself is EXPORTED (D198) in the shape relmap-core.js beside it
+// already uses: a binding hoisted out of the IIFE, assigned at the foot,
+// re-exported as a const. Its one consumer — mirror-field-pops.jsx, the
+// demo Circle field — imports it and dynamic-imports this file, which is
+// what takes ~102 KB of map off the eager graph. The window mirror below
+// keeps ONLY the overlay, because a publication nothing reads is a
+// check:globals rule 5 failure and the map now has an importer instead.
+let RelationshipMapExport;
 (function () {
   const { DEFAULT_GROUPS, AGE_BANDS, ageBand, ageColor, statusMeta, yearsWord,
     politicalColor, personalityColor, politicalLabel, personalityLabel,
@@ -889,6 +898,12 @@ import { useDialog } from './primitives.jsx';
     );
   }
 
-  Object.assign(window, { RelationshipMap, RelationshipMapOverlay });
+  RelationshipMapExport = RelationshipMap;
+  // The overlay stays on the bridge: app-shell.jsx mounts it by bare name
+  // and importing it there would drag this chunk back into the entry graph,
+  // which is the whole thing D198 just undid.
+  Object.assign(window, { RelationshipMapOverlay });
 })();
+
+export const RelationshipMap = RelationshipMapExport;
 

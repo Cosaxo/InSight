@@ -8,8 +8,14 @@
 // sheet, the reseed cadence, the behaviour assumptions — so the numbers in
 // COSTS.md never become folklore.
 //
-//   node scripts/cost-model.mjs              # nam5 multi-region (the default)
-//   node scripts/cost-model.mjs --regional   # single-region price sheet
+//   node scripts/cost-model.mjs                  # the region production is on
+//   node scripts/cost-model.mjs --multi-region   # the multi-region counterfactual
+//
+// The default is READ from functions/src/db.ts rather than assumed (D198).
+// It used to be multi-region regardless of where the database was, which is
+// how every table below priced nam5 for three days after D165 moved
+// production to europe-west1 — a bill roughly twice the real one, computed
+// correctly from a false premise.
 //
 // The arithmetic itself moved to scripts/cost-arith.mjs when pulse.mjs
 // wanted the same numbers — one model, two consumers, no second copy to go
@@ -19,16 +25,19 @@
 import {
   costModel, authCost, writesPerSec, B, SCENARIOS,
   firestoreCost, functionsCost, totalCost,
-  BYTES, CONTENTION_DAU,
+  BYTES, CONTENTION_DAU, REGIONAL, LOCATION_LABEL,
 } from "./cost-arith.mjs";
 
-const regional = process.argv.includes("--regional");
+// `--regional` is still accepted and is now a no-op wherever production is
+// already regional, which is the harmless direction: it asks for the sheet
+// it would get anyway. `--multi-region` is the one that changes anything.
+const regional = process.argv.includes("--multi-region") ? false : REGIONAL;
 const { bank, model } = costModel({ regional });
 
 const money = (n) => (n < 10 ? n.toFixed(2) : Math.round(n).toLocaleString());
 const int = (n) => Math.round(n).toLocaleString();
 
-console.log(`\nInSight cost model — ${regional ? "single-region" : "nam5 multi-region"} prices`);
+console.log(`\nInSight cost model — ${regional === REGIONAL ? LOCATION_LABEL : "nam5 multi-region"} prices`);
 console.log(`bank: ${bank} question docs (counted from functions/src/v2content.ts)\n`);
 
 console.log("scenario                 DAU     reads/day   writes/day   Firestore  functions      TOTAL");

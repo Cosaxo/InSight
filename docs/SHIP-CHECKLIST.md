@@ -851,9 +851,31 @@ Until then links open the fallback page — degraded, not broken.
 - ~~Functions runtime Node 20 → upgrade before 2026-10-30
   decommission.~~ Done: nodejs22 + firebase-functions v6 +
   firebase-admin v13. Verify the first scheduled runs after deploy.
-- `onV2AnswerCreated` region (us-central1) vs Firestore (eur3) — works,
-  cross-region hop; relocate when convenient (requires delete+recreate
-  of the trigger).
+- **Every function runs in `us-central1`; the database has been
+  `europe-west1` since D165.** This line named `eur3` until D198 and was
+  stale in its facts while right in its substance — the hop is real, it
+  works, and relocating requires delete+recreate of the triggers.
+
+  **Now measured rather than waved at (D198).** The inter-region traffic is
+  ~5.5 KB per answer through the fold, which is **$0.47/month at 5 k DAU
+  and $4.65 at 50 k** — about 2% of the Firestore line beside it, so cost
+  is not the argument either way. What the hop actually costs is a
+  transatlantic round trip on every fold (off the user's path: the trigger
+  is asynchronous, so it delays the aggregate, not the tap) and a posture
+  that reads oddly for an app that just moved its database to Europe —
+  EU users' answers processed in the US. Nothing false is claimed anywhere:
+  `web/privacy.html` makes no residency promise, which `check:policy-claims`
+  would catch if it did.
+
+  **The recommendation is to move it BEFORE launch, and the reason is the
+  install base rather than the bill.** Relocating means recreating the
+  triggers, 8 client call sites and a new build — and every already-
+  installed client keeps calling `us-central1` until it updates, which is
+  survivable at today's install base (the maintainer's own TestFlight
+  devices) and is exactly the sort of thing that stops being survivable
+  once there are users. Same shape as D165's "last free reset", one layer
+  up. `check:fn-runtime` now fails if the client and the functions disagree
+  about the region, so the move cannot half-happen silently.
 - Ranking/scale feed card types; Circle/Near mirror population fields
   (need geo opt-in + circle data); world comments are OUT by decision D1.
 - Bundle: the world feed now loads after first paint (D25), taking the

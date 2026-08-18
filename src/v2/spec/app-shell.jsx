@@ -500,13 +500,23 @@ function App() {
           {ov === 'profile' && <ProfileOverlay onClose={() => setOv(null)} me={me} lensBoxed={!!t.lensBoxed} />}
           {ov === 'suggest' && window.SuggestOverlay && <window.SuggestOverlay onClose={() => setOv(null)} />}
           {/* samplePeople: the overlay's people rows are sample-data personas
-              with invented relationships ("sister", "% match"). Live mode has
-              no person graph at all (D3), so they must not render there — the
-              gate rides down as a prop from the liveOn this shell already
-              computes, rather than a window.LIVE read in the overlay, so the
-              spec layer's coupling meter (D39 rule 4) stays flat. */}
+              with invented relationships ("sister", "% match"), so they must
+              not render in live mode — the gate rides down as a prop from the
+              liveOn this shell already computes, rather than a window.LIVE
+              read in the overlay, so the spec layer's coupling meter (D39
+              rule 4) stays flat. This said "live mode has no person graph at
+              all (D3)" until D198; D101 gave it one, and what the gate is
+              about is that these particular people are made up. */}
           {ov === 'search' && <SearchOverlay onClose={() => setOv(null)} samplePeople={!liveOn} onPerson={(p) => { setOv(null); setPerson(p); }} onCity={(c) => { setOv(null); setCity(c); }} />}
           {ov === 'logic' && window.LogicOverlay && <window.LogicOverlay onClose={() => setOv(null)} />}
+          {/* The one overlay here NOT read off window, though its module is
+              deferred like the rest (D198). Reachable only from the embedded
+              map's own expand button — which exists only once the chunk that
+              defines this component has loaded — so `ov` cannot be 'relmap'
+              with the name unbound. If a second opener ever appears it must
+              go through openDeferred like the others, and this line becomes
+              `window.RelationshipMapOverlay && …`; until then the
+              ErrorBoundary above is the backstop rather than the plan. */}
           {ov === 'relmap' && <RelationshipMapOverlay onClose={() => setOv(null)} />}
         </ErrorBoundary>
       </div>

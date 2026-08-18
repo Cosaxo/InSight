@@ -15,7 +15,7 @@ import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   costModel, authCost, writesPerSec, CONTENTION_DAU, B, SCENARIOS,
-  firestoreCost, functionsCost, totalCost,
+  firestoreCost, functionsCost, totalCost, REGIONAL, LOCATION_LABEL,
 } from "./cost-arith.mjs";
 
 export const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -68,7 +68,7 @@ export function collectCost(regional) {
   });
 
   return {
-    region: regional ? "single-region" : "nam5 multi-region",
+    region: regional === REGIONAL ? LOCATION_LABEL : "nam5 multi-region",
     seededBankDocs: bank,
     assumptions: { ...B },
     scenarios,
@@ -620,7 +620,7 @@ export function collectInstrumentation() {
 
 // ── assembly ────────────────────────────────────────────────────
 
-export function collect({ regional = false } = {}) {
+export function collect({ regional = REGIONAL } = {}) {
   const cost = collectCost(regional);
   const pipeline = collectPipeline();
   return {

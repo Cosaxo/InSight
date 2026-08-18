@@ -25,7 +25,7 @@
 //   node scripts/pulse.mjs               # write monitoring/pulse.json + .html
 //   node scripts/pulse.mjs --json        # print the artifact, write nothing
 //   node scripts/pulse.mjs --check       # operator gate: runway + staleness
-//   node scripts/pulse.mjs --regional    # model the single-region price sheet
+//   node scripts/pulse.mjs --multi-region  # model the multi-region counterfactual
 //
 // Node stdlib only, like every deploy-adjacent script here.
 
@@ -33,13 +33,17 @@ import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { collect } from "./pulse-collect.mjs";
+import { REGIONAL as PROD_REGIONAL } from "./cost-arith.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const OUT_JSON = join(ROOT, "monitoring", "pulse.json");
 const OUT_HTML = join(ROOT, "monitoring", "pulse.html");
 
 const args = process.argv.slice(2);
-const REGIONAL = args.includes("--regional");
+// The price sheet follows the database (D198, functions/src/db.ts) rather
+// than a flag defaulting to the more expensive answer; the flag is left for
+// asking what the other region would have cost.
+const REGIONAL = args.includes("--multi-region") ? false : PROD_REGIONAL;
 const CHECK = args.includes("--check");
 const JSON_ONLY = args.includes("--json");
 

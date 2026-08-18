@@ -17,12 +17,23 @@
 //
 // Reads the compiled output, so run after `npm run build --prefix functions`.
 
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { pathToFileURL } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+
+/** Every .ts/.tsx under src/, so a new call site cannot hide in a new file. */
+function clientRegionFiles(dir) {
+  const out = [];
+  for (const e of readdirSync(dir, { withFileTypes: true })) {
+    const full = resolve(dir, e.name);
+    if (e.isDirectory()) out.push(...clientRegionFiles(full));
+    else if (/\.tsx?$/.test(e.name)) out.push(full);
+  }
+  return out;
+}
 const entry = resolve(root, "functions/lib/index.js");
 
 if (!existsSync(entry)) {
@@ -64,6 +75,9 @@ for (const [name, fn] of Object.entries(mod)) {
       // nothing either; the first signal is a human noticing the Mirror
       // has stopped moving.
       db: ep.eventTrigger?.eventFilters?.database,
+      // Where the function is SERVED, which the client has to name exactly
+      // (D198). An array, because gen-2 endpoints can carry several.
+      region: ep.region,
       isTrigger: !!ep.eventTrigger,
     });
   }
@@ -126,6 +140,56 @@ if (wrongDb.length) {
   process.exit(1);
 }
 
+// ── the client calls the region the functions are served from (D198) ──
+//
+// Same two-independent-files shape as the database check above, and the
+// same class of silent failure: `getFunctions(app, "<region>")` builds a
+// URL, and a callable in a region nothing serves is a 404 the app surfaces
+// as `internal` with nothing to read. Nothing fails at build, at deploy or
+// in any test that mocks the SDK — the first signal is a user tapping a
+// button that does nothing.
+//
+// It is a live question rather than a hypothetical one: D165 moved the
+// DATABASE to europe-west1 and left every function in us-central1, so the
+// pair is deliberately mismatched today (D198 records why) and the two
+// halves that must agree are the client and the functions — not the
+// functions and the database.
+const served = [...new Set(rows.flatMap((r) => r.region || []))];
+const CLIENT_GLOB = /getFunctions\((?:db\.)?app, "([a-z0-9-]+)"\)/g;
+const clientPins = [];
+for (const rel of clientRegionFiles(resolve(root, "src"))) {
+  const src = readFileSync(rel, "utf8");
+  for (const m of src.matchAll(CLIENT_GLOB)) clientPins.push({ rel, region: m[1] });
+}
+if (!clientPins.length) {
+  console.error(
+    "\ncheck-fn-runtime: found no `getFunctions(app, \"region\")` call sites in src/.\n"
+    + "The client stopped naming a region, or the call shape changed — fix this\n"
+    + "scan rather than letting the pairing go unchecked.",
+  );
+  process.exit(1);
+}
+const strayPins = served.length === 1 ? clientPins.filter((p) => p.region !== served[0]) : [];
+if (served.length !== 1) {
+  console.error(
+    `\nfunctions are served from ${served.length} regions (${served.join(", ")}) —`
+    + " this check cannot say which one the client should call.",
+  );
+  process.exit(1);
+}
+if (strayPins.length) {
+  console.error(
+    `\n${strayPins.length} client call site(s) name a region the functions are not served from`
+    + ` (${JSON.stringify(served[0])}):`,
+  );
+  for (const p of strayPins) console.error(`  - ${p.rel.slice(root.length + 1)} → ${JSON.stringify(p.region)}`);
+  console.error(
+    "\nA callable in a region nothing serves is a 404 the app reports as\n"
+    + "`internal`. Move the functions and the client together, or not at all.",
+  );
+  process.exit(1);
+}
+
 if (bare.length) {
   console.error(
     `\n${bare.length} function(s) missing an explicit memory, timeout or maxInstances:`,
@@ -141,5 +205,6 @@ if (bare.length) {
 console.log(
   `\nfn-runtime OK — ${rows.length} functions, all with explicit memory, `
   + "timeout and maxInstances (the compute ceiling); "
-  + `${triggers.length} Firestore trigger(s) on database ${JSON.stringify(expectedDb)}, matching firebase.json`,
+  + `${triggers.length} Firestore trigger(s) on database ${JSON.stringify(expectedDb)}, matching firebase.json; `
+  + `${clientPins.length} client call site(s) on ${JSON.stringify(served[0])}, matching the deploy`,
 );

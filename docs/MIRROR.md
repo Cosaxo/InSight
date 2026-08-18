@@ -508,13 +508,25 @@ Two gaps are worth stating in prose because no badge covers them:
   at the source, not a gate at each call site — which is precisely what
   made this fix findable: the null marked which readings were invented
   rather than merely unbuilt.
-- **The Circle and its relationship map are prototype-only.** Not for
-  want of permission — D98 opened every answer — but because v2 has no
-  person-to-person graph at all to draw. `relmap`'s people are invented, and it is the largest module still loaded eagerly
-  — the one overlay excluded from the after-first-paint group, because
-  the Mirror reads `RelationshipMap` during a render nothing re-triggers
-  to decide whether Circle draws the embedded map or the generic field
-  (D38).
+- **The relationship MAP is prototype-only; the Circle stop is not, and
+  this bullet said otherwise for three months.** It read "v2 has no
+  person-to-person graph at all to draw", which D101 made false: the
+  follow graph is `v2_users/{uid}/following`, `data/circle.ts` folds it,
+  and `LiveCircleBody` is what a live build draws at that stop. What is
+  still invented is `relmap`'s cast — the 49 named people in
+  `relmap-core.js`, their categories and their closeness years — and
+  nothing live renders them.
+
+  **Which is why the map left the eager graph at D198.** It was the one
+  overlay excluded from the after-first-paint group, because the Mirror
+  read `RelationshipMap` during a render nothing re-triggers, to decide
+  whether Circle drew the embedded map or the generic field (D38). That
+  read is DEMO-ONLY once Circle has a live body, so the module was
+  costing every shipping build ~60 KB of first paint to answer a question
+  a live build never asks. `mirror-field-pops.jsx` imports it now and
+  re-renders when it lands, and `smoke-mirror.test.jsx` draws the demo
+  Circle stop — which nothing did before, so the swap this bullet
+  describes could have happened silently.
 
 ## 6 · Where the code is
 

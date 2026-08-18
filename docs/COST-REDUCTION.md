@@ -26,11 +26,17 @@
 > rested on that one term. `AGG_POLL_MS` is now read from source and
 > `pulse.test.mjs` pins the term non-zero.
 >
-> **The rest of this page still stands and is now the remaining work.** The
-> region is untaken and is the largest single lever left (47–50% of every
-> Firestore line, one console setting, fixed at database creation) —
-> [`docs/FIRESTORE-REGION.md`](FIRESTORE-REGION.md) has the procedure and
-> the two ways it fails silently. The cap
+> **THE REGION LEVER IS TAKEN (D165, 2026-08-15).** Every table below
+> measures its levers against the `nam5` baseline this page was written on,
+> and row **[C]** — the single-region database, 47–50% of every Firestore
+> line and the largest saving in the file — is **already done**: production
+> is `insight` / `europe-west1`. Read `[C]` as history and every other
+> row's percentage as a share of a bill that is already half what these
+> tables print. The model itself was still pricing `nam5` until D198, three
+> days after the migration, because the region was a default parameter
+> rather than a fact read from the tree.
+>
+> **The rest of this page still stands and is now the remaining work.** The cap
 > trims are still the worst ratio of product cost to money and are still
 > not recommended. Batching the mirror publish has gone from −78% to −0.0%,
 > because it divided a fan-out that no longer exists. Numbers below the

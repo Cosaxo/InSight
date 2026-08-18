@@ -20404,3 +20404,152 @@ URL in the prose, two length caps, a malformed id), the feed's ad dispatch,
 the expired-ad filter, and the one-slot rule — the last of which required
 the test to be fixed before it bit.
 
+
+## D198 · Three things were true and stopped being, and nothing was looking
+
+**2026-08-18.** **Status:** binding. Owner's direction, after a review of
+what is still missing: *"we should start by fixing this"* — the
+relationship map, the cost model's region, and the functions' region. One
+record because they are one failure repeated three times.
+
+### The shape they share
+
+Each was a correct statement that expired without being touched:
+
+| Written | True when written | Falsified by | Noticed |
+| --- | --- | --- | --- |
+| relmap must load eagerly — the Mirror reads it on a first frame | D38 | **D101** gave Circle a live body, so that read is demo-only | 3 months later |
+| the cost model prices `nam5`, "what prvfire33 is on" | before D165 | **D165** moved production to `europe-west1` | 3 days later |
+| the trigger's hop is `us-central1` vs **`eur3`** | before D165 | **D165**, same day | 3 days later |
+
+None was a mistake at the time and none was edited into being wrong.
+Every gate here compares the tree against itself — `check:figures` holds a
+quoted figure to the code, `check:globals` holds a reference to its
+assignment — and a **premise** is neither. That is the general lesson and
+the reason two of the three fixes below are new gates rather than new
+values.
+
+### 1 · The relationship map leaves the eager graph
+
+`spec/relmap.jsx`, `relmap-core.js` and `relmap-panels.jsx` — ~102 KB of
+source — are reachable ONLY from the demo Circle field. A live build takes
+`LiveCircleBody` (D101), so `MirrorFieldBody` is never called with
+`pop === 'circle'` at all, and the `typeof RelationshipMap === 'function'`
+probe that D38 kept the module eager to protect cannot run on the shipping
+path.
+
+Measured, both ways, at this commit: **eager graph 966 → 906 KB, entry
+chunk 494 → 435 KB, total 2349 → 2349 across 82 → 83 chunks.** The total
+holding still is the finding — this is a relocation, and `check:bundle`'s
+own ledger already says the total cannot see one.
+
+Three things came with it, and each is the interesting half:
+
+- **`MAX_EAGER_KB` comes DOWN, 978 → 920**, the first fall after seven
+  raises. The band is 14 KB rather than 72 on purpose: the freed room is
+  what `VISION-V28.md` §5's Map branches are waiting on ("blocked on
+  bytes, not data"), and leaving it inside the ceiling would hand it over
+  silently instead of on a measurement.
+- **The consumer imports rather than probes.** `mirror-field-pops.jsx`
+  dynamic-imports the module and re-renders when it lands, which is the
+  one thing a `typeof` cannot do, and `relmap.jsx` exports the component
+  in the shape `relmap-core.js` beside it already used. Coupling **409 →
+  408**; the `window.RelationshipMap` publication is gone because rule 5
+  correctly refuses a publication nothing reads.
+- **The demo Circle stop gets its first test.** Nothing rendered it
+  before, so this swap — map replaced by the generic field canvas —
+  could have shipped green. Mutation-checked twice: dropping the awaited
+  `act` fails it, and deferring without the re-render (D38's exact
+  predicted failure) fails it.
+
+`scripts/spec-globals.mjs` gained a bracket strip on the way past:
+`const [RelMap, setRelMap] = useState(null)` declared no local as far as
+the scanner was concerned, so a JSX tag by that name read as a dangling
+global. Nothing in the spec layer had held a COMPONENT in array-
+destructured state before, which is why a gap that plain survived.
+
+### 2 · The cost model reads the region instead of assuming it
+
+`costModel({ regional = false })`, with a comment beside the price sheet
+saying multi-region "is what prvfire33 is on". Both were true until
+2026-08-15 and neither moved, so for three days every table in
+`COSTS.md` and every `burnUsd` the pulse console published was **roughly
+double the real bill**: $4,774 → **$2,517** at 500 k DAU, $472 → **$247**
+at 50 k, $44 → **$22** at real traction. The console's daily trail row
+went from $72.11 to **$50.65** (fixed costs do not halve).
+
+Nothing about the app changed and no estimate was revised. One input had
+been true and stopped being.
+
+**The region was in no machine-readable place at all** — `firebase.json`
+names the database, `functions/src/db.ts` named the id, and the *location*
+existed only in prose. So it is a constant now, `FIRESTORE_LOCATION`,
+beside the id in the file whose whole job is being the one place the
+database can be wrong. `cost-arith.mjs` reads it with the same
+throw-on-shape-change scan D47 gave the deck constants, and the
+multi-region/region split falls out of GCP's own naming: a multi-region is
+a bare name, a region has a hyphen.
+
+`--regional` became `--multi-region`, because the flag was how the TRUTH
+was supplied and is now only how the counterfactual is asked for.
+
+Two tests pin it, and the first draft of them failed to: every caller
+passes `regional` explicitly, so watching the callers left the default
+untested and a revert to `= false` reported green. `costModel()` with no
+arguments is asserted directly. A second draft error is worth keeping too
+— it asserted a single region halves all four price lines, and storage is
+$0.108 against $0.18, which is 60%. The three OPERATION lines do halve,
+which is what "halves every Firestore line" means and all the bill
+consists of.
+
+### 3 · The functions stay in us-central1, and now that is a decision
+
+D165 moved the database to `europe-west1` and left all 28 functions in
+`us-central1`. **Measured rather than waved at:** ~5.5 KB crosses per
+answer through the fold, which is **$0.47/month at 5 k DAU and $4.65 at
+50 k** — about 2% of the Firestore line beside it. Cost is not the
+argument in either direction.
+
+What the hop actually costs is a transatlantic round trip on every fold —
+off the user's path, since the trigger is asynchronous, so it delays the
+aggregate rather than the tap — and a posture that reads oddly for an app
+that just moved its database to Europe. Nothing false is claimed: the
+privacy policy makes no residency promise, and `check:policy-claims`
+would catch it if it did.
+
+**Not moved here, and the recommendation is to move it before launch.**
+Relocating means recreating the triggers, eight client call sites and a
+new build, and every installed client keeps calling `us-central1` until it
+updates — survivable at today's install base (the maintainer's own
+TestFlight devices), and exactly the sort of thing that stops being
+survivable once there are users. Same shape as D165's "last free reset",
+one layer up. It is an operator action, so it is recorded with its
+arithmetic rather than taken in a commit.
+
+**`check:fn-runtime` gained the pairing that matters**, in the
+two-independent-files shape it already uses for the database: the client's
+`getFunctions(app, "…")` literals must name the region the compiled
+endpoints are served from. A callable in a region nothing serves is a 404
+the app reports as `internal` with nothing to read — no build, deploy or
+mocked test fails, and the first signal is a button that does nothing.
+Eight call sites, all on `us-central1`, matching the deploy. Mutation-
+checked by moving one.
+
+### One documentation claim corrected, because I repeated it myself
+
+`MIRROR.md` §5 said "v2 has no person-to-person graph at all to draw" —
+false since D101, and the reason the Circle stop's live body exists. Two
+code comments carried the same stale premise with a still-correct
+conclusion (`search-overlay.jsx`, `app-shell.jsx`: the sample personas
+must not render live because THEY are invented, not because no people
+exist). Corrected in place. The claim survived long enough that this
+session's own first answer to the owner repeated it as fact.
+
+### Verified
+
+`lint`, `tsc -b`, `check:globals` (408, baseline 408 — lowered), `:a11y`
+(8, baseline 8), `:figures`, `:docs`, `:bundle` (906 eager against a new
+920 ceiling), `:fn-runtime` (28 functions, 8 client call sites),
+`test:unit` (1362), `test:scripts` (217), functions (243). Mutation-
+checked: the demo Circle map two ways, the cost model's default price
+sheet, and the client/server region pairing.

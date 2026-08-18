@@ -168,7 +168,17 @@ for (const file of files) {
         // Initialiser first, then any `key: alias` rename — in that order,
         // so `F = React.Fragment` yields F rather than the tail of its
         // value, and `{ Card: C }` still yields C.
-        const key = part.split("=")[0].split(":").pop().trim().replace(/^\.\.\./, "");
+        //
+        // The bracket strip is for ARRAY destructuring, which the patterns
+        // above see as `[RelMap` and `setRelMap]` and then reject for the
+        // punctuation — so `const [RelMap, setRelMap] = useState(null)`
+        // declared no local at all, and `<RelMap/>` beneath it read as a
+        // dangling global. Nothing in the spec layer had ever held a
+        // COMPONENT in array-destructured state, which is why a gap this
+        // plain survived: the miss is invisible unless the name is also a
+        // JSX tag. Found by D198 doing exactly that.
+        const key = part.split("=")[0].split(":").pop().trim()
+          .replace(/^\.\.\./, "").replace(/^\[|\]$/g, "");
         if (/^[A-Za-z_$][\w$]*$/.test(key)) localNames.add(key);
       }
     }
