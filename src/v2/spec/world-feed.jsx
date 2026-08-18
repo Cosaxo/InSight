@@ -27,6 +27,7 @@ import { interleaveFeed, partitionAnswered } from '../data/feed-interleave.ts';
 import { SPONSOR_AT, partitionSponsored } from '../data/sponsored.ts';
 import { utcDayIndex } from '../data/deck.ts';
 import SponsorMark from '../ui/SponsorMark.tsx';
+import AdCard from '../ui/AdCard.tsx';
 import { deferUntil, isDeferred, pruneDeferred } from '../data/deferQueue.ts';
 // "Somebody asked for the topic list" (D190). The profile's scenes card is
 // the caller; this file owns the list, so this file is what answers.
@@ -3584,7 +3585,18 @@ class WorldFeed extends React.Component {
     // how many the bank happens to hold. The match runs HERE, on the
     // device, against anchors the device already has: the server is never
     // asked who should see what.
-    const paidSplit = partitionSponsored(sorted, (LIVE.enabled && LIVE.anchors()) || {}, utcDayIndex(heldNow));
+    // ONE paid slot, and both kinds compete for it (D196): a sponsored
+    // QUESTION (path 2 — answered like any other, folds into the public
+    // aggregate) and an AD (path 3 — text, no answer, no data). They
+    // rotate together by day, so a week with one of each splits the days
+    // rather than giving the question every one of them.
+    const paidSplit = partitionSponsored(
+      sorted,
+      (LIVE.enabled && LIVE.anchors()) || {},
+      utcDayIndex(heldNow),
+      (LIVE.enabled && LIVE.feedAds()) || [],
+      new Date(heldNow).toISOString().slice(0, 10),
+    );
     const ordered = paidSplit.rest;
     const kEvery = window.LEARN_FEED ? window.LEARN_FEED.every() : 0;
     // The knowledge stream is NOT partitioned: LEARN_FEED schedules its own
@@ -3593,9 +3605,16 @@ class WorldFeed extends React.Component {
     const kqs = kEvery ? this.knowQs(Math.ceil(ordered.length / kEvery) + 1, cats) : [];
     // The cadences, their coprimality and the empty-feed drain all live in
     // data/feed-interleave.ts, which is where the test now reaches them.
+    // The slot carries whichever kind won the day. An ad is not a question,
+    // so it rides as `{ id, ad }` and the render loop dispatches on it —
+    // renderCard's apparatus (options, who-voted, takes, the insight line)
+    // has nothing to say about a card that asks nothing.
+    const paidCard = paidSplit.ad
+      ? { id: paidSplit.ad.id, ad: paidSplit.ad }
+      : paidSplit.sponsored;
     const woven = interleaveFeed(ordered, {
       tests: tqs, lenses: lqs, know: kqs, knowEvery: kEvery,
-      sponsored: paidSplit.sponsored, sponsorAt: SPONSOR_AT,
+      sponsored: paidCard, sponsorAt: SPONSOR_AT,
     });
     // …and only now do the answered world cards leave the feed (fresh
     // questions only — release feedback; they park behind the Answered
@@ -3692,7 +3711,9 @@ class WorldFeed extends React.Component {
                 this game's engine — see D195. */}
             {i === 0 && <LiveReadGame />}
             {sugg && i === 2 && this.renderSuggestion(sugg, snap)}
-            {this.renderCard(q, { closing: q.id === closingId })}
+            {q.ad
+              ? <AdCard ad={q.ad}></AdCard>
+              : this.renderCard(q, { closing: q.id === closingId })}
           </React.Fragment>
         ))}
         {/* Room to scroll INTO while the window is still short of the list.

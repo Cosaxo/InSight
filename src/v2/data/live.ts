@@ -153,6 +153,7 @@ import {
   utcDayIndex as utcDayIndexPure,
 } from "./deck";
 import type { AggDoc, CallOutcome, LiveQuestion, QuestionDoc, VoteContext } from "./deck";
+import type { FeedAd } from "./sponsored";
 import { nearMode, nearOptedIn, nearUntil, setNearMode, type NearMode } from "./near";
 // The device computes its own archetype name for the presence doc (D176).
 import { myType } from "./typeMix";
@@ -199,6 +200,11 @@ const state = {
   // been read, which is a different sentence.
   callBank: [] as Array<QuestionDoc & { id: string }>,
   callOutcomes: null as Record<string, CallOutcome | null> | null,
+  // Feed ads (D196). Null while unread, an array once known — the same
+  // "could not ask" / "there are none" distinction every other pool here
+  // keeps. Read once per session with the feed, which is lazy, so a boot
+  // that never opens the feed never pays for it.
+  ads: null as FeedAd[] | null,
   // Per-session cache for learn aggregates: null = fetch in flight or
   // found nothing; a doc = the k-floored public agg. On-demand getDoc at
   // reveal time, NOT a standing subscription — 96 snapshots for cards
@@ -351,6 +357,19 @@ const state = {
 // racing two. Module-level beside the other loaders' guards rather than in
 // `state`, because it is not state anything renders.
 let callOutcomesInflight: Promise<void> | null = null;
+let adsInflight: Promise<void> | null = null;
+
+/**
+ * How many ads one read may return.
+ *
+ * A ceiling rather than a page: the whole pool has to reach the device
+ * for the match to happen there, so a pool that outgrew one read would
+ * mean either paging (fine) or server-side selection (not). The number is
+ * far above any plausible amount of sold inventory, and if it is ever
+ * approached the answer is to page, never to ask the server which ones
+ * are mine.
+ */
+const AD_POOL_CAP = 200;
 
 // How many of the viewer's own answers the Kindred ranking reads across.
 // Twelve shared questions is a legible likeness claim and the cost is
@@ -3435,6 +3454,46 @@ const LIVE = {
     });
     return out;
   },
+  // ── feed ads (D196) ─────────────────────────────────────────────
+  //
+  // NOT sponsored questions. An ad takes no answer and folds into no
+  // aggregate, so it has its own collection and its own accessor — and
+  // nothing that reads the question bank has to learn to skip it.
+  feedAds(): FeedAd[] | null {
+    return state.ads;
+  },
+  /**
+   * One bounded read per session, on the tap that opens the feed.
+   *
+   * The whole pool, unfiltered by anything the server could learn from:
+   * every device downloads every live ad and decides locally which one it
+   * matches (data/sponsored.ts). Asking the server for "my" ads is the
+   * moment a behavioural profile exists, whatever the intentions.
+   *
+   * A query returning nothing still costs one read, and today it always
+   * returns nothing — the pool is deliberately empty. One read per
+   * session for an empty collection is the price of the path existing.
+   */
+  loadAds(): Promise<void> {
+    if (!LIVE.enabled || state.ads) return Promise.resolve();
+    if (adsInflight) return adsInflight;
+    adsInflight = (async () => {
+      try {
+        const db = await getDb();
+        const snap = await getDocs(query(collection(db, "v2_ads"), limit(AD_POOL_CAP)));
+        state.ads = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<FeedAd, "id">) }));
+        notify();
+      } catch (err) {
+        // Left null: the feed draws no ad rather than an empty pool it
+        // would then stop trying to fill.
+        reportError(err, { where: "loadAds" });
+      } finally {
+        adsInflight = null;
+      }
+    })();
+    return adsInflight;
+  },
+
   // ── Foresight CALL, tier A (D193) ───────────────────────────────
   //
   // The calls in the bank, with their published counts — how the crowd

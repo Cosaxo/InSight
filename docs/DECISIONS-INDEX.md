@@ -2,8 +2,8 @@
 
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
-"which decision governs this" is 199 lines instead of
-20,086. Do not hand-edit; `npm run check:docs` fails when this
+"which decision governs this" is 200 lines instead of
+20,196. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -211,5 +211,6 @@ detect it.
 | **D191** | [Build 20's pre-flight: nothing to bump, and check:bundle's second load-bearing variable](DECISIONS.md#d191--build-20s-pre-flight-nothing-to-bump-and-checkbundles-second-load-bearing-variable) | D192 | 19466 |
 | **D192** | [The docs get a map, and the map gets a gate](DECISIONS.md#d192--the-docs-get-a-map-and-the-map-gets-a-gate) | — | 19577 |
 | **D193** | [Predictions ship, and the app only asserts what it can recompute](DECISIONS.md#d193--predictions-ship-and-the-app-only-asserts-what-it-can-recompute) | D195 (+1) | 19702 |
-| **D194** | [The paid slot is built, and nobody has bought it yet](DECISIONS.md#d194--the-paid-slot-is-built-and-nobody-has-bought-it-yet) | D195 | 19866 |
+| **D194** | [The paid slot is built, and nobody has bought it yet](DECISIONS.md#d194--the-paid-slot-is-built-and-nobody-has-bought-it-yet) | D196 (+1) | 19866 |
 | **D195** | [The reading game is the one that ships, and it waits for a crowd](DECISIONS.md#d195--the-reading-game-is-the-one-that-ships-and-it-waits-for-a-crowd) | — | 19979 |
+| **D196** | [The feed gets real ads, and they are not sponsored questions](DECISIONS.md#d196--the-feed-gets-real-ads-and-they-are-not-sponsored-questions) | — | 20087 |

@@ -20083,3 +20083,113 @@ questions, all 3 calls retired), `:calls`, `:quality`, `:docs`,
 Mutation-checked: opening the gate early fails three tests, dropping the
 scope line fails one, and the retired-call filter is asserted directly
 rather than inferred from an empty bank.
+
+## D196 · The feed gets real ads, and they are not sponsored questions
+
+**2026-08-17.** **Status:** binding. Owner's ask, and the correction that
+came with it: *"we need normal ads as well that aren't sponsored
+questions — I don't like that you use the word 'ad' about the sponsored
+questions, it is confusing."* Both halves are acted on here.
+
+### The distinction, and why it is worth a record
+
+[`MONETIZATION.md`](MONETIZATION.md) has always had these as separate
+paths, and the prose that blurred them was mine rather than the repo's.
+Stated once, plainly:
+
+| | **Sponsored question** (path 2, D194) | **Ad** (path 3, this record) |
+| --- | --- | --- |
+| What is sold | a QUESTION | a CARD |
+| Answered? | yes, like any other | no — it asks nothing |
+| Produces data? | yes: the same public aggregate everyone reads | none at all |
+| What the buyer gets | the honest split of their own question | the card being seen |
+| Where it lives | `v2_questions`, `surface: "feed"` | `v2_ads`, its own collection |
+
+They share exactly two things: the disclosure band, and the single paid
+slot. Everything else is different, which is why an ad is a separate
+collection rather than a flag — putting it in the question bank would mean
+`splitBanks`, the quality gate, the velocity ceiling and the aggregate
+trigger each learning to skip it, and the first one to forget would be a
+silent bug.
+
+### Text only, and the missing link is the design
+
+An ad carries an advertiser, a headline, one line of body, a window and at
+most one coarse audience tag. `check:content` refuses an image, a logo, a
+brand colour, a link, a call to action, a script and a tracking pixel **by
+name** on the source entry — so adding one produces an error message with
+that word in it, which makes it a conversation rather than a commit. A web
+address typed into the prose is refused too: the card renders text, so a
+URL in it is a link the app does not make tappable and the reader retypes
+by hand, which is a worse click-out rather than a clever one.
+
+**No tap-through is load-bearing.** With nowhere to send anyone there is no
+click; with no click there is nothing to attribute; with nothing to
+attribute there is no reason to log an impression. That is what keeps this
+path clear of the tracking apparatus `MONETIZATION.md` rules out, and it
+is a structural argument rather than a promise — the absence of the
+feature is the absence of the data.
+
+### One slot, two kinds, and they rotate together
+
+`pickPaid` returns a discriminated union: the slot holds a question, or an
+ad, or nothing. A union rather than two slots, because the cap IS the
+product — two slots would be two paid cards with extra words on top. The
+combined pool rotates by UTC day, so a week with one of each splits the
+days rather than giving the question every one of them because questions
+were checked first.
+
+That last property was the one my own test missed and a mutation caught:
+the case only bites on the day the AD wins, because an implementation that
+computed the sponsored question independently of the slot agrees by
+accident on the other day. The test now asserts both days and asserts that
+each kind wins one of them, so the assertion is exercised on both branches
+rather than twice on one.
+
+### One gate bug worth recording, because it was invisible
+
+The refusal rules above did nothing when first written. `buildAds` maps the
+fields it knows and drops the rest, so an ad carrying a logo arrived at the
+gate already stripped of it — every refusal passed while the source file
+said something the app does not do. They read the **raw source entries**
+now. It is the same shape of failure as a gate asserting against its own
+fixture, and it was caught by probing rather than by reading.
+
+### One gate broke on the way past, which is the good version
+
+`check:figures` parses the question bank out of `v2content.ts` by slicing
+to the LAST `];` in the file. That was right while the questions array was
+the only thing there and became wrong the moment a second export arrived:
+the slice ran past its own terminator and swallowed the ads declaration,
+and the gate died on a syntax error. It reads the FIRST terminator now.
+
+Worth a paragraph because of how it failed rather than that it did. A scan
+that had quietly measured both arrays would have moved the documented
+figure with no visible cause, and `check:figures` exists precisely to stop
+documentation drifting for reasons nobody can see.
+
+### What ships, and what does not
+
+`content/ads.json` is **empty**, and a test asserts it — the same posture
+as D194 and for the same reason: writing an ad means printing a real
+company's name on a card nobody bought. The seed DELETES what the bank no
+longer names, which `runSeedV2` deliberately does not do for questions; a
+question is permanent because answers are keyed to it, an ad has none, and
+a collection that only grew would accumulate every campaign ever sold as a
+document every client pages past.
+
+**Nothing about the store filing moves.** No advertising identifier, no
+SDK, no click, no impression log — the ad path collects nothing, so
+`check:store-forms` is unchanged and green.
+
+### Verified
+
+`lint`, `tsc -b`, `check:globals` (409, baseline 409), `:content`,
+`:calls`, `:quality`, `:docs`, `:figures`, `:data-inventory` (28
+collections), `:store-forms`, `:public-copy`, `:deploy-targets`,
+`:fn-runtime`, `test:unit` (1,334 over 88 files), functions (243) and
+`test:rules` (113, two of them new). Mutation-checked:
+ten content refusals (image, logo, colour, link, pixel, unknown field, a
+URL in the prose, two length caps, a malformed id), the feed's ad dispatch,
+the expired-ad filter, and the one-slot rule — the last of which required
+the test to be fixed before it bit.

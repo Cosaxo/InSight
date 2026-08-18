@@ -107,8 +107,19 @@ because it is a promise: the prototype's *"never names, never your
 profile"* is FALSE post-D98, and the shipped line is *they get the same
 public numbers you do; there is no private cut.*
 
-**3 · Ads in the world feed** — open as a path by the owner
-(2026-08-01), not ruled out. The version that coexists with the
+**3 · Ads in the world feed** — **BUILT, and unsold
+([D196](DECISIONS.md#d196--the-feed-gets-real-ads-and-they-are-not-sponsored-questions)).**
+A text card: advertiser, headline, one line, the same disclosure band a
+sponsored question wears, and no image, logo, brand colour or link —
+`check:content` refuses each by name. **No tap-through is the design, not
+an omission**: with nowhere to send you there is no click, and with no
+click there is nothing to attribute, which is what keeps this path clear
+of the tracking apparatus below. It shares the SINGLE paid slot with path
+2 and rotates with it by day, so the feed can never show two paid things
+at once. `content/ads.json` ships empty and a test asserts it.
+
+The original note, kept because it is what the build was measured
+against — open as a path by the owner (2026-08-01), not ruled out. The version that coexists with the
 standing posture is an ad *card*: disclosed like a sponsored question,
 riding the feed's bounded-cadence interleave (the sponsored-question
 slot mechanics generalize to it), and selected **without a per-user

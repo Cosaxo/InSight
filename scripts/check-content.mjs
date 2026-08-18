@@ -20,7 +20,7 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { buildEntries, generate, loadContent, CONTENT_SOURCES, LENS_SCALE, LIKERT, dialOptions, fieldOptions, DIAL_BUCKETS } from "./gen-v2content.mjs";
+import { buildAds, buildEntries, generate, loadContent, CONTENT_SOURCES, LENS_SCALE, LIKERT, dialOptions, fieldOptions, DIAL_BUCKETS } from "./gen-v2content.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const OUT = join(root, "functions", "src", "v2content.ts");
@@ -215,6 +215,72 @@ for (const q of entries) {
   } else if (q.options.length < 2 || q.options.length > 10) {
     errors.push(`${q.id}: ${q.options.length} options (want 2..10)`);
   }
+}
+
+// ---- feed ads (D196). Every rule here is a promise the card makes on
+// screen, held at the source. The refusals are BY NAME rather than by
+// omission — an ad that wanted a logo would fail with the word "logo" in
+// the message, which makes adding one a conversation rather than a commit.
+{
+  const ads = buildAds(content);
+  const seenAdIds = new Set();
+  const ALLOWED = ["id", "advertiser", "headline", "body", "until", "audience", "active"];
+  const REFUSED = {
+    image: "an image", img: "an image", logo: "a logo", brand: "a brand",
+    color: "a brand colour", colour: "a brand colour", url: "a link",
+    href: "a link", link: "a link", cta: "a call to action", script: "a script",
+    pixel: "a tracking pixel", track: "tracking",
+  };
+  // THE FIELD-NAME RULES READ THE SOURCE, NOT THE BUILT OUTPUT, and that is
+  // the whole reason they work. `buildAds` maps the fields it knows and
+  // drops the rest, so an ad carrying a logo would arrive here already
+  // stripped of it — every refusal below would pass while the source file
+  // said something the app does not do. Checked against the raw entries
+  // instead, so the gate sees what an author actually wrote.
+  const rawAds = content.ads?.ads ?? [];
+  rawAds.forEach((raw, i) => {
+    const at = `ads.json[${i}]${raw?.id ? ` (${raw.id})` : ""}`;
+    for (const k of Object.keys(raw ?? {})) {
+      if (ALLOWED.includes(k)) continue;
+      const why = REFUSED[k.toLowerCase()];
+      errors.push(
+        why
+          ? `${at}: an ad carries no ${k} — text only (D196), and ${why} is refused BY NAME rather than forgotten`
+          : `${at}: unknown ad field ${JSON.stringify(k)}`,
+      );
+    }
+  });
+  for (const a of ads) {
+    if (seenAdIds.has(a.id)) errors.push(`duplicate ad id ${a.id}`);
+    seenAdIds.add(a.id);
+    if (!/^ad-[a-z0-9]+$/.test(a.id)) errors.push(`${a.id}: ad id does not match ad-<id>`);
+    for (const [k, cap] of [["advertiser", 40], ["headline", 70], ["body", 140]]) {
+      const v = a[k];
+      if (typeof v !== "string" || !v.trim()) errors.push(`${a.id}: ad needs a non-empty ${k}`);
+      else if (v.length > cap) errors.push(`${a.id}: ${k} is ${v.length} chars (max ${cap})`);
+      // A link cannot arrive through the prose either — the card renders
+      // text, so a URL in it would be a link the app does not make tappable
+      // and the reader would type by hand. That is a worse click-out, not a
+      // clever one.
+      else if (/https?:\/\/|www\.|\.com\b|\.no\b/i.test(v)) {
+        errors.push(`${a.id}: ${k} carries a web address — an ad card has no tap-through (D196), and a typed-out one is a worse click-out rather than a clever one`);
+      }
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(a.until))) {
+      errors.push(`${a.id}: an ad carries \`until\` as a YYYY-MM-DD UTC day — a slot with no window is inventory nobody sold`);
+    }
+    if (a.audience !== undefined) {
+      if (!a.audience || typeof a.audience !== "object" || Array.isArray(a.audience)) {
+        errors.push(`${a.id}: audience must be an object of dim → bucket`);
+      } else if (Object.keys(a.audience).length !== 1) {
+        errors.push(`${a.id}: audience carries ${Object.keys(a.audience).length} tags — exactly one, or none`);
+      }
+    }
+  }
+  // Ads and questions share one id space in the reader's head, and one
+  // slot in the feed. A collision would be confusing rather than harmful,
+  // which is exactly the kind of thing that survives to production.
+  for (const a of ads) if (seenIds.has(a.id)) errors.push(`${a.id}: an ad and a question share an id`);
 }
 
 // ---- duplicate prompts within a surface read as the same question twice.

@@ -10125,3 +10125,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "active": false
  }
 ];
+
+// Feed ads (D196) — docs/MONETIZATION.md path 3, and NOT path 2's
+// sponsored questions. An ad takes no answer and folds into no
+// aggregate, which is why it is a separate array and a separate
+// collection: nothing that reads the question bank has to learn to skip
+// it. Text only, no link, one coarse audience tag matched on the DEVICE.
+export interface V2SeedAd { id: string; seq: number; advertiser: string; headline: string; body: string; until: string; audience?: Record<string, string>; active?: boolean; }
+export const V2_ADS: V2SeedAd[] = [];

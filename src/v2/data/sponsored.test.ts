@@ -11,8 +11,10 @@ import {
   matches,
   partitionSponsored,
   pickSponsored,
+  pickPaid,
   whyMatched,
   windowLabel,
+  type FeedAd,
   type SponsoredQ,
 } from "./sponsored";
 import { COHORT_DIMS } from "./cohort";
@@ -159,5 +161,82 @@ describe("the shipped bank", () => {
         expect(COHORT_DIMS as readonly string[], `${x.id} targets ${dim}`).toContain(dim);
       }
     }
+  });
+});
+
+describe("the paid slot holds ONE thing, of either kind (D196)", () => {
+  const ad = (id: string, over: Partial<FeedAd> = {}): FeedAd => ({
+    id, advertiser: "Transit", headline: "H", body: "B", until: "2099-01-01", ...over,
+  });
+
+  it("a sponsored question and an ad compete for the same slot", () => {
+    const qs = [q("feed-p", { sponsor: { buyer: "One" } })];
+    const ads = [ad("ad-a")];
+    // Two paid things bought for the same window get alternate days, not
+    // one card each. The cap is the unit of sale.
+    const day0 = pickPaid(qs, ads, OSLO, 0);
+    const day1 = pickPaid(qs, ads, OSLO, 1);
+    expect([day0?.kind, day1?.kind].sort()).toEqual(["ad", "question"]);
+  });
+
+  it("never returns both, whatever the pool holds", () => {
+    const qs = [q("feed-p1", { sponsor: { buyer: "One" } }), q("feed-p2", { sponsor: { buyer: "Two" } })];
+    const ads = [ad("ad-a"), ad("ad-b")];
+    for (let d = 0; d < 8; d++) {
+      const slot = pickPaid(qs, ads, OSLO, d);
+      expect(slot).not.toBeNull();
+      // A union, so "both" is not even expressible — which is the point of
+      // the shape rather than a property to test around it.
+      expect(slot!.kind === "ad" ? "ad" : "question").toBeTruthy();
+    }
+  });
+
+  it("matches an ad's audience on the device, like a question's", () => {
+    expect(pickPaid([], [ad("ad-a", { audience: { city: "Oslo, NO" } })], OSLO, 0)?.kind).toBe("ad");
+    expect(pickPaid([], [ad("ad-a", { audience: { city: "Bergen, NO" } })], OSLO, 0)).toBeNull();
+    // A profile that has said nothing is a non-match, not a wildcard.
+    expect(pickPaid([], [ad("ad-a", { audience: { city: "Oslo, NO" } })], {}, 0)).toBeNull();
+  });
+
+  it("drops an ad past its window even from a cached pool", () => {
+    // The session outliving the campaign is the case the seed cannot
+    // catch: the pool is already on the device.
+    expect(pickPaid([], [ad("ad-a", { until: "2020-01-01" })], OSLO, 0, "2026-08-17")).toBeNull();
+    expect(pickPaid([], [ad("ad-a", { until: "2026-08-17" })], OSLO, 0, "2026-08-17")?.kind).toBe("ad");
+  });
+
+  it("drops a retired ad", () => {
+    expect(pickPaid([], [ad("ad-a", { active: false })], OSLO, 0)).toBeNull();
+  });
+
+  it("partitionSponsored reports the ad separately and still strips every paid question", () => {
+    const pool = [q("feed-a"), q("feed-p", { sponsor: { buyer: "One" } })];
+    // BOTH days, and that is not thoroughness for its own sake: on the day
+    // the QUESTION wins, an implementation that computed `sponsored`
+    // independently of the slot would agree by accident and the case would
+    // pass while being wrong. The ad's day is the one that catches it.
+    const days = [0, 1].map((d) => partitionSponsored(pool, OSLO, d, [ad("ad-a")], "2026-08-17"));
+    for (const r of days) {
+      expect(r.rest.map((x) => x.id)).toEqual(["feed-a"]);
+      // Exactly one paid thing, every day. Never both.
+      expect([r.sponsored, r.ad].filter(Boolean)).toHaveLength(1);
+    }
+    // …and over the two days each kind wins once, so the assertion above
+    // is actually exercised on both branches rather than twice on one.
+    expect(days.filter((r) => r.ad).length).toBe(1);
+    expect(days.filter((r) => r.sponsored).length).toBe(1);
+  });
+});
+
+describe("the shipped ad pool", () => {
+  const ads = JSON.parse(
+    readFileSync(resolve(__dirname, "../../../content/ads.json"), "utf8"),
+  ) as { ads: unknown[] };
+
+  it("is EMPTY, and that is deliberate", () => {
+    // Writing one means printing a real company's name on a card nobody
+    // bought — D1's no-fabrication rule pointed at money. The machinery
+    // ships; the inventory arrives with a contract.
+    expect(ads.ads).toHaveLength(0);
   });
 });

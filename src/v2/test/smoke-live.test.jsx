@@ -828,6 +828,31 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     expectNoBoundary("live feed, reading game below the gate");
   });
 
+  // D196: an ad is not a sponsored question. It rides the same single paid
+  // slot and wears the same disclosure, and it must render as a CARD —
+  // never through renderCard's question apparatus, which has nothing to
+  // say about something that asks nothing.
+  it("a live ad renders as a card, disclosed, with nothing to answer", async () => {
+    const expectNoBoundary = mountLive({ feedCards: 4, adCard: true, anchors: { city: "Oslo, NO" } });
+    await growFeed();
+    const band = screen.getByRole("button", { name: /^Paid, by Fixture Transit/ });
+    expect(band).not.toBeNull();
+    expect(screen.getByText("Night buses now run until three.")).not.toBeNull();
+    // No options, no vote — the question apparatus never ran on it.
+    const card = band.closest("[data-screen-label='Ad']");
+    expect(card).not.toBeNull();
+    expect(within(card).queryByText("Gate holds")).toBeNull();
+    expectNoBoundary("live feed, ad card");
+  });
+
+  it("an ad whose tag does not match is not served at all", async () => {
+    const expectNoBoundary = mountLive({ feedCards: 4, adCard: true, anchors: { city: "Bergen, NO" } });
+    await growFeed();
+    expect(screen.queryByText("Night buses now run until three.")).toBeNull();
+    expect(screen.queryByText("PAID")).toBeNull();
+    expectNoBoundary("live feed, unmatched ad");
+  });
+
   it("renders no suggested-scene card in the live feed", () => {
     // The feed-side twin of the same offer — a dashed card proposing a
     // fabricated community one flick into a real feed.

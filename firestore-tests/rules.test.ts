@@ -569,6 +569,35 @@ describe("the daily pulse (D139): one answer per day, day-keyed like a duel's", 
   });
 });
 
+describe("feed ads (D196): readable by everyone, writable by nobody", () => {
+  const AD = "ad-a";
+  it("any signed-in user reads the whole pool, and nobody can write one", async () => {
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_ads", AD), {
+        seq: 0, advertiser: "Transit", headline: "H", body: "B", until: "2099-01-01",
+      });
+    });
+    // The whole pool reaches every device, because the MATCH happens
+    // there — asking the server for "my" ads is the moment a behavioural
+    // profile exists, whatever the intentions.
+    await assertSucceeds(getDoc(doc(asUser(STRANGER), "v2_ads", AD)));
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_ads", AD), { advertiser: "Me" }));
+    await assertFails(updateDoc(doc(asUser(OWNER), "v2_ads", AD), { headline: "Mine" }));
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_ads", "ad-mine"), { advertiser: "Me" }));
+  });
+
+  it("is not an answer surface at all — an ad cannot be answered", async () => {
+    // There is no answer arm for an ad anywhere in the ruleset, and this
+    // is what says so: the id is not a question, so the answer create's
+    // question lookup finds nothing and the write is refused. An ad that
+    // could be answered would fold into an aggregate nobody asked for.
+    await assertFails(setDoc(
+      doc(asUser(OWNER), "v2_users", OWNER, "answers", AD),
+      { qid: AD, surface: "feed", optionIdx: 0, answeredAt: serverTimestamp(), anchors: {} },
+    ));
+  });
+});
+
 describe("Foresight CALL, tier A (D193): sealed, public, and closed once graded", () => {
   const CALL = "call-c01";
   const seedCall = () => seed(async (db) => {

@@ -87,6 +87,21 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Feed ads (D196) — docs/MONETIZATION.md path 3, and NOT path 2's
+    // sponsored questions. An ad is a CARD: text, an advertiser, a window.
+    // It takes no answer, so there is no answer arm anywhere in this file
+    // for it, no aggregate keyed to it and nothing a client could write.
+    //
+    // Read is open to any signed-in user for the same reason the question
+    // bank is: every device downloads the pool whole and decides locally
+    // which one it matches (data/sponsored.ts). That is what keeps the
+    // server from ever being asked who should see what — the moment it
+    // were, a behavioural profile would exist whatever the intentions.
+    match /v2_ads/{adId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
     // Graded Foresight CALLs (D193) — the winning option, or -1 for VOID,
     // with the aggregate snapshot the grader actually read.
     //

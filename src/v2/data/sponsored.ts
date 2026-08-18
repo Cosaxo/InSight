@@ -116,19 +116,82 @@ export function pickSponsored<T extends SponsoredQ>(
   return sorted[i];
 }
 
+/** One feed ad (D196) — text, an advertiser, a window. Never a question. */
+export interface FeedAd {
+  id: string;
+  seq?: number;
+  advertiser: string;
+  headline: string;
+  body: string;
+  until?: string;
+  audience?: Record<string, string>;
+  active?: boolean;
+}
+
+/**
+ * What the single paid slot is holding, if anything.
+ *
+ * A discriminated union rather than two separate slots, because the CAP
+ * is the product: one paid thing in the feed, whichever kind it is. Two
+ * slots would be two paid cards with extra words on top.
+ */
+export type PaidSlot<T> =
+  | { kind: "question"; question: T }
+  | { kind: "ad"; ad: FeedAd }
+  | null;
+
+/**
+ * Pick the one paid item, across BOTH kinds.
+ *
+ * Sponsored questions and ads compete for the same slot and rotate
+ * together by day, so a week with one of each gives them alternate days
+ * rather than giving the question every day because questions were
+ * checked first. The combined pool is sorted by id for the same reason
+ * the question-only pool was: the rotation should be a property of what
+ * was bought, not of which query returned first.
+ */
+export function pickPaid<T extends SponsoredQ>(
+  questions: readonly T[],
+  ads: readonly FeedAd[],
+  anchors: Readonly<Record<string, string>>,
+  utcDay: number,
+  today = "",
+): PaidSlot<T> {
+  const eligibleQs = questions.filter((q) => q.sponsor && matches(q.sponsor, anchors));
+  const eligibleAds = ads.filter((a) =>
+    a.active !== false
+    // An ad's window is enforced HERE as well as by the seed, because the
+    // pool is cached on the device: a session that outlived the last day
+    // of a campaign would otherwise keep serving it. Questions get the
+    // same filter one layer up, in live.ts's bank build.
+    && (!today || !a.until || a.until >= today)
+    && matches({ buyer: a.advertiser, audience: a.audience }, anchors));
+  const pool: Array<{ id: string; slot: PaidSlot<T> }> = [
+    ...eligibleQs.map((q) => ({ id: q.id, slot: { kind: "question" as const, question: q } })),
+    ...eligibleAds.map((a) => ({ id: a.id, slot: { kind: "ad" as const, ad: a } })),
+  ].sort((x, y) => x.id.localeCompare(y.id));
+  if (!pool.length) return null;
+  const i = ((utcDay % pool.length) + pool.length) % pool.length;
+  return pool[i].slot;
+}
+
 /** Split a feed pool into the sponsored card and everything else. */
 export function partitionSponsored<T extends SponsoredQ>(
   pool: readonly T[],
   anchors: Readonly<Record<string, string>>,
   utcDay: number,
-): { sponsored: T | null; rest: T[] } {
-  const sponsored = pickSponsored(pool, anchors, utcDay);
+  ads: readonly FeedAd[] = [],
+  today = "",
+): { sponsored: T | null; ad: FeedAd | null; rest: T[] } {
+  const slot = pickPaid(pool, ads, anchors, utcDay, today);
+  const sponsored = slot?.kind === "question" ? slot.question : null;
+  const ad = slot?.kind === "ad" ? slot.ad : null;
   // EVERY sponsored question leaves the ordinary stream, not just the one
   // that was picked. Otherwise the cap is decorative: three bought cards
   // would still be three cards in the feed, one of them merely labelled
   // first.
   const rest = pool.filter((q) => !q.sponsor);
-  return { sponsored, rest };
+  return { sponsored, ad, rest };
 }
 
 /**

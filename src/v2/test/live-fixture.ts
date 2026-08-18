@@ -78,6 +78,14 @@ export interface LiveFixtureOptions {
    * asserting against a feed nobody serves.
    */
   sponsored?: boolean;
+  /**
+   * Put one ad in the pool (D196). Off by default and opt-in for the same
+   * reason `sponsored` is: `content/ads.json` ships empty, so a fixture
+   * that always carried one would be the only place in the tree where an
+   * ad exists — and every other live case would assert against a feed
+   * nobody is served.
+   */
+  adCard?: boolean;
 }
 
 const OPTION_COLORS = ["var(--c-around)", "var(--c-today)", "var(--c-likeness)"];
@@ -451,6 +459,18 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     }],
     callOutcomes: () => ({ "call-fixture": null }),
     loadCallOutcomes: () => Promise.resolve(),
+    // Feed ads (D196). Empty by default, exactly like the shipped pool —
+    // `adCard` opts one in, so every other live case keeps asserting
+    // against the feed real users actually get.
+    feedAds: (): unknown[] => (opts.adCard
+      ? [{
+        id: "ad-fixture", seq: 0, advertiser: "Fixture Transit",
+        headline: "Night buses now run until three.",
+        body: "Every Friday and Saturday, on the four city lines.",
+        until: "2099-01-01", audience: { city: "Oslo, NO" },
+      }]
+      : []),
+    loadAds: () => Promise.resolve(),
     // (qid, optionId) — both strings. The spec layer calls this as
     // `window.LIVE.vote(id, String(val))`, and the first draft of this
     // fixture took a question OBJECT: the surface pin cannot catch that,

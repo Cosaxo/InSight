@@ -123,6 +123,10 @@ export const LIVE_MEMBERS = [
   // the whole map null = nothing read yet — the card draws different
   // things for those two), and the one bounded fetch that fills them.
   "callQs", "callOutcomes", "loadCallOutcomes",
+  // Feed ads (D196) — path 3, and NOT path 2's sponsored questions. Their
+  // own pool because an ad takes no answer and folds into no aggregate;
+  // null while unread, an array once known.
+  "feedAds", "loadAds",
   "ready", "saveAnchors",
   "saveDisplayName",
   // Operator-only, and the one member here no spec-layer JSX reads — it is

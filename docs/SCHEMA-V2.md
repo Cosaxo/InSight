@@ -176,6 +176,24 @@ v2_question_aggs/{qid}             the PUBLIC mirror, EXACT (D98)
                                    member sets, per-group anything
 read: signed-in · write: nobody
 
+v2_ads/{id}                        a feed ad (D196) — path 3, NOT path 2
+  advertiser, headline, body       text only. No image, no logo, no brand
+                                   colour, no link — check:content refuses
+                                   each BY NAME on the source entry
+  until                            the UTC day it stops being served, the
+                                   same field and filter feed questions use
+  audience? {dim: bucket}          at most ONE, from the published
+                                   breakdown dims, matched ON THE DEVICE
+                                   (data/sponsored.ts). The server is never
+                                   asked who should see what
+  active?, seq, updatedAt
+read: signed-in · write: nobody (seed only). An ad takes no answer, so
+there is no answer arm for it anywhere in firestore.rules, no aggregate
+keyed to it and nothing per-person in it — which is why deleteAccount has
+nothing to reach here. The seed DELETES what the bank no longer names,
+unlike v2_questions: a question is permanent because answers are keyed to
+it, and an ad has none.
+
 v2_call_outcomes/{qid}             a graded Foresight CALL (D193)
   outcomeIdx: 0|1|-1               the winning option, or -1 for VOID:
                                    nobody scored, and `note` says why
@@ -457,7 +475,7 @@ not per boot. `LIVE.stats` reports `bankSource` / `answersFetched` /
 
 ## Verification
 
-- `npm run test:rules` — 111 rules tests (Firestore + Storage; the v2
+- `npm run test:rules` — 113 rules tests (Firestore + Storage; the v2
   surface, the anonymous-default lens, and the retired-v1 guard).
 - `firestore-tests/e2e-v2-loop.mjs` under
   `firebase emulators:exec --only auth,firestore,functions` — the full
