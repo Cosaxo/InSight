@@ -406,6 +406,27 @@
       792: 2,  // Türkiye — below the floor
       0: 9,    // Not listed
     },
+    // daily catalog-question run, 2026-08-18 — beauty, the second dogs
+    // canon (pk03's aesthetics class crossing domains): what you'd get
+    // (pk17) ranks lifestyle fits; what stops you on the street is a
+    // different board, led by dogs almost nobody takes home.
+    pk19: {
+      440: 28, // Samoyed — the smiling cloud
+      467: 24, // Siberian Husky — the wolf-eyed one
+      2: 19,   // Afghan Hound — the supermodel; nobody's first dog
+      223: 16, // Golden Retriever — beauty by warmth
+      86: 13,  // Borzoi — a profile from a tapestry
+      261: 11, // Irish Setter — the red coat
+      165: 9,  // Dalmatian
+      67: 8,   // Bernese Mountain Dog
+      439: 7,  // Saluki
+      533: 6,  // Weimaraner — the grey ghost
+      7: 5,    // Akita — clears the floor but not the top 10; folds
+      232: 5,  // Great Dane — same
+      370: 3,  // Papillon — below the floor
+      463: 2,  // Shiba Inu — below the floor
+      0: 9,    // Not listed
+    },
   };
 
   // Baked demo segment slices, per question: how each cohort orders the
@@ -624,6 +645,18 @@
         Men: { 484: 9, 380: 8, 392: 7, 356: 5, 250: 5 },
       },
     },
+    pk19: {
+      ageBand: {
+        // husky and samoyed are feed aesthetics; the borzoi joke era
+        // made it a youth vote; setters and bernese hold with age
+        '18-24': { 467: 9, 440: 7, 86: 6, 2: 5, 165: 4 },
+        '25-34': { 440: 8, 223: 7, 67: 6, 261: 5, 533: 4 },
+      },
+      gender: {
+        Women: { 440: 9, 223: 7, 261: 6, 2: 5, 86: 4 },
+        Men: { 467: 9, 533: 7, 2: 6, 440: 5, 165: 5 },
+      },
+    },
   };
 
   const api = {
@@ -769,5 +802,9 @@
     // you'd live (pk16) and whose food you'd claim are different
     // loyalties with different winners.
     { id: 'pk18', cat: 'fav', type: 'pick', domain: 'countries', prompt: 'The country with the best food?', n: 176 },
+    // 2026-08-18 daily run: beauty — the second dogs canon. The board
+    // what-you'd-get never surfaces: the supermodels, the wolf-eyed and
+    // the tapestry profiles, led by dogs almost nobody takes home.
+    { id: 'pk19', cat: 'fav', type: 'pick', domain: 'dogs', prompt: 'The most beautiful dog?', n: 165 },
   ];
 })();
