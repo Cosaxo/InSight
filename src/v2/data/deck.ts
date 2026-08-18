@@ -105,14 +105,14 @@ export interface QuestionDoc {
   hue?: number;
   nodes?: Record<string, { q: string; a: Array<{ t: string }> }>;
   endings?: Record<string, { name: string; line: string }>;
-  // Foresight CALL (D193), on `call` docs only: the admitted grading tier,
+  // Foresight CALL (D194), on `call` docs only: the admitted grading tier,
   // the earliest UTC day the resolver may grade, and the expression it
   // RUNS. The outcome is deliberately not here — it is written by the
   // resolver into v2_call_outcomes, which the seed never touches.
   tier?: string;
   resolvesAt?: string;
   rubric?: CallRubric;
-  // Sponsored questions (D194), on feed docs only: who bought the question,
+  // Sponsored questions (D195), on feed docs only: who bought the question,
   // and at most one coarse audience tag the DEVICE matches against its own
   // anchors. The window is `until` above rather than a field here, so the
   // label the disclosure prints and the filter that stops serving the card
@@ -120,7 +120,7 @@ export interface QuestionDoc {
   sponsor?: { buyer: string; audience?: Record<string, string> };
 }
 
-/** One published grade — `v2_call_outcomes/{qid}`, admin-written (D193). */
+/** One published grade — `v2_call_outcomes/{qid}`, admin-written (D194). */
 export interface CallOutcome {
   /** The winning option, or CALL_VOID (-1): nobody is scored. */
   outcomeIdx: number;
@@ -357,7 +357,7 @@ export function splitBanks(active: Array<QuestionDoc & { id: string }>): {
         (playable(q) || q.topic === "pick"),
     ),
     learn: active.filter((q) => q.surface === "learn" && playable(q)),
-    // Foresight CALLs (D193). Their own bank rather than a member of the
+    // Foresight CALLs (D194). Their own bank rather than a member of the
     // feed's: a call is not dealt into the stream, it is pinned at the head
     // like Crossroads, and — more to the point — its card is the only one
     // that has to read a SECOND document (the outcome) before it can say

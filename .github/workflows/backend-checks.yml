@@ -83,7 +83,7 @@ jobs:
       # memory and compares bytes. Node stdlib only, no root node_modules.
       - run: npm run check:content
       # The CALL rubric's two copies, and a dry run of every rubric in the
-      # bank the same seed callable ships (D193). Deploy-path for both
+      # bank the same seed callable ships (D194). Deploy-path for both
       # halves: a drifted copy makes the deployed resolver and the shipped
       # card disagree about what a test means, and an unexecutable rubric
       # deploys as a call nothing can ever grade — which costs everyone who

@@ -2,7 +2,7 @@
 //
 // The CALL card's four states, and two properties that are decisions
 // rather than styling — both of which read as tidy-able by someone with
-// only this file open (D193):
+// only this file open (D194):
 //
 //   1. AN UNREAD CALL DRAWS NOTHING. Until the published grades have been
 //      fetched, an apparently-open call may already be graded, and the

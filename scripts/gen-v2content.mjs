@@ -275,7 +275,7 @@ export function buildEntries(content = loadContent()) {
       // remains the hard, server-enforced kill; answers and aggregates
       // persist either way (the archive is the product).
       ...(typeof q.until === "string" ? { until: q.until } : {}),
-      // Sponsored questions (D194, docs/MONETIZATION.md path 2). A paid
+      // Sponsored questions (D195, docs/MONETIZATION.md path 2). A paid
       // question is an ORDINARY question with three extra facts: who
       // bought it (`buyer`), and at most one coarse audience tag the
       // DEVICE matches against its own anchors. The window is not here —
@@ -535,19 +535,19 @@ const HEADER =
   "// forms' range/plane copy (D114), absent everywhere else; their options\n" +
   "// are synthesized bucket/cell labels, so the D52 option freeze freezes\n" +
   "// the range with them.\n" +
-  "// `sponsor` is feed-only (D194): `{ buyer, audience? }` on a question\n" +
+  "// `sponsor` is feed-only (D195): `{ buyer, audience? }` on a question\n" +
   "// somebody paid to ask. The WINDOW is `until`, not a field here, so the\n" +
   "// label the card prints and the filter that stops serving it are one\n" +
   "// value. A sponsored question is never `core` — paid questions inside\n" +
   "// the Mirror's corpus would make the honest aggregate a paid-for sample.\n" +
-  "// `tier`/`resolvesAt`/`rubric` are the CALL surface's only (D193): the\n" +
+  "// `tier`/`resolvesAt`/`rubric` are the CALL surface's only (D194): the\n" +
   "// admitted grading path, the earliest UTC day it may be graded, and the\n" +
   "// expression the resolver RUNS. The outcome is not here — it lives in\n" +
   "// v2_call_outcomes, so a reseed and the resolver never fight.\n" +
   "export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; branch?: string; sub?: string; tag?: string; rates?: string; axis: string | null; test: string | null; mode?: string; active?: boolean; political?: boolean; core?: boolean; until?: string; lo?: number; hi?: number; unit?: string; ends?: string[]; ax?: string[]; ay?: string[]; title?: string; intro?: string; hue?: number; nodes?: Record<string, { q: string; a: Array<{ t: string }> }>; endings?: Record<string, { name: string; line: string }>; sponsor?: { buyer: string; audience?: Record<string, string> }; tier?: string; resolvesAt?: string; rubric?: { kind: string; qid: string; test: string; threshold?: number; dim?: string; buckets?: string[] }; }\n" +
   "export const V2_QUESTIONS: V2SeedQuestion[] = ";
 
-// Feed ads (D196, docs/MONETIZATION.md path 3). A SEPARATE array from the
+// Feed ads (D197, docs/MONETIZATION.md path 3). A SEPARATE array from the
 // questions, and separate is the whole point: an ad takes no answer, folds
 // into no aggregate and carries no options, so putting it in the question
 // bank would mean every consumer of that bank — splitBanks, the quality
@@ -567,7 +567,7 @@ export function buildAds(content = loadContent()) {
 }
 
 const ADS_HEADER =
-  "\n// Feed ads (D196) — docs/MONETIZATION.md path 3, and NOT path 2's\n" +
+  "\n// Feed ads (D197) — docs/MONETIZATION.md path 3, and NOT path 2's\n" +
   "// sponsored questions. An ad takes no answer and folds into no\n" +
   "// aggregate, which is why it is a separate array and a separate\n" +
   "// collection: nothing that reads the question bank has to learn to skip\n" +

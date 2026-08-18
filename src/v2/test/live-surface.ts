@@ -118,12 +118,12 @@ export const LIVE_MEMBERS = [
   // spec/paths-card.jsx reads it here instead. Empty in a demo build, which
   // is the signal the card falls back to its authored pool on.
   "pathQs",
-  // Foresight CALL, tier A (D193): the bank's calls with their folded
+  // Foresight CALL, tier A (D194): the bank's calls with their folded
   // counts, the published grades (null per call = fetched-and-ungraded,
   // the whole map null = nothing read yet — the card draws different
   // things for those two), and the one bounded fetch that fills them.
   "callQs", "callOutcomes", "loadCallOutcomes",
-  // Feed ads (D196) — path 3, and NOT path 2's sponsored questions. Their
+  // Feed ads (D197) — path 3, and NOT path 2's sponsored questions. Their
   // own pool because an ad takes no answer and folds into no aggregate;
   // null while unread, an array once known.
   "feedAds", "loadAds",

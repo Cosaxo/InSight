@@ -71,7 +71,7 @@ export interface LiveFixtureOptions {
    */
   lensBank?: boolean;
   /**
-   * Mark the LAST world card as sponsored (D194). Off by default and
+   * Mark the LAST world card as sponsored (D195). Off by default and
    * opt-in for a reason: the shipped bank carries no sponsored question,
    * so a fixture that always did would be the only place in the tree
    * where a paid card exists — and every other live case would be
@@ -79,7 +79,7 @@ export interface LiveFixtureOptions {
    */
   sponsored?: boolean;
   /**
-   * Put one ad in the pool (D196). Off by default and opt-in for the same
+   * Put one ad in the pool (D197). Off by default and opt-in for the same
    * reason `sponsored` is: `content/ads.json` ships empty, so a fixture
    * that always carried one would be the only place in the tree where an
    * ad exists — and every other live case would assert against a feed
@@ -435,7 +435,7 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
       total: tooSmall ? 0 : 100,
       live: true as const,
     }],
-    // Foresight CALL, tier A (D193). One open call, ungraded — the state
+    // Foresight CALL, tier A (D194). One open call, ungraded — the state
     // the feed head shows most of the time, and the one the mount tests
     // care about (the card renders, and it renders REAL bank shape rather
     // than a demo cast). The grades map is present-but-empty-valued rather
@@ -459,7 +459,7 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     }],
     callOutcomes: () => ({ "call-fixture": null }),
     loadCallOutcomes: () => Promise.resolve(),
-    // Feed ads (D196). Empty by default, exactly like the shipped pool —
+    // Feed ads (D197). Empty by default, exactly like the shipped pool —
     // `adCard` opts one in, so every other live case keeps asserting
     // against the feed real users actually get.
     feedAds: (): unknown[] => (opts.adCard
@@ -599,7 +599,7 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
       })),
       live: true,
       tooSmall,
-      // D194: the disclosure travels ON the card, so world-feed's dispatch
+      // D195: the disclosure travels ON the card, so world-feed's dispatch
       // reads the same field buildFeedGlobals emits.
       ...(opts.sponsored && i === Math.max(1, opts.feedCards ?? 1) - 1
         ? { sponsor: { buyer: "Fixture Transit", audience: { city: "Oslo, NO" } }, until: "2099-01-01" }

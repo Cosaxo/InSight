@@ -37,7 +37,7 @@ function fakeDb(storedDocs: Record<string, Record<string, unknown>>) {
         get: async () => snapFor(id),
         set: async () => {},
       }),
-      // The collection-level read runSeedAds does (D196), so the ads pass
+      // The collection-level read runSeedAds does (D197), so the ads pass
       // runs in these cases rather than throwing through them. Empty:
       // `content/ads.json` ships empty, so the honest fake of the live
       // collection is an empty one, and the ads pass writing nothing is

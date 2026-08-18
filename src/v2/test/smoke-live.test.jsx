@@ -778,7 +778,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     expectNoBoundary("live add sheet");
   });
 
-  // D194: a paid question is an ordinary question wearing a disclosure it
+  // D195: a paid question is an ordinary question wearing a disclosure it
   // cannot take off. The band is what the whole commercial path rests on,
   // so this asserts the two halves of it that a refactor could quietly
   // undo — the mark is THERE, and the topic chip it replaces is NOT.
@@ -816,7 +816,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     expectNoBoundary("live feed, unmatched sponsored card");
   });
 
-  // D195: the reading game is gated on there being enough fair reads to
+  // D196: the reading game is gated on there being enough fair reads to
   // keep a record worth believing. The fixture's two questions are nowhere
   // near it, which is exactly the state a real launch is in — so the live
   // feed must show no game and no placeholder for one.
@@ -828,7 +828,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     expectNoBoundary("live feed, reading game below the gate");
   });
 
-  // D196: an ad is not a sponsored question. It rides the same single paid
+  // D197: an ad is not a sponsored question. It rides the same single paid
   // slot and wears the same disclosure, and it must render as a CARD —
   // never through renderCard's question apparatus, which has nothing to
   // say about something that asks nothing.

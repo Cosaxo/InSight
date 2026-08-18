@@ -332,7 +332,7 @@ forbids an event per impression outright. So:
 - **Sponsored content lives in the tail, never the core.** New, and it
   falls straight out of §1: paid questions in the Mirror's corpus would
   make the honest aggregate a paid-for sample. **Built and enforced at
-  [D194](DECISIONS.md#d194--the-paid-slot-is-built-and-nobody-has-bought-it-yet)** — `check:content` refuses `core: true` on a sponsored question. A sponsor still gets the
+  [D195](DECISIONS.md#d195--the-paid-slot-is-built-and-nobody-has-bought-it-yet)** — `check:content` refuses `core: true` on a sponsored question. A sponsor still gets the
   exact public split of their own question — aggregates publish for every
   question — they simply do not get their question woven into everyone's
   Mirror.

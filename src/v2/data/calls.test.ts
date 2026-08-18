@@ -1,5 +1,5 @@
 // What the CALL card shows, and — the case worth the whole feature — what
-// it says when the device disagrees with the grade it was handed (D193).
+// it says when the device disagrees with the grade it was handed (D194).
 import { describe, expect, it } from "vitest";
 import {
   callPcts,

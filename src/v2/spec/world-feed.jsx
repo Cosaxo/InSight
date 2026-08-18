@@ -3343,7 +3343,7 @@ class WorldFeed extends React.Component {
     const kicker = (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
         {/* A sponsored card wears the disclosure INSTEAD of its topic chip
-            (D194). Not beside it: a paid card carrying a topic hue reads as
+            (D195). Not beside it: a paid card carrying a topic hue reads as
             house content with a note attached, which is the one thing the
             band exists to prevent. The rest of the row — the `i` button,
             the closing ring, the passive tag — is unchanged, because a paid
@@ -3579,13 +3579,13 @@ class WorldFeed extends React.Component {
     // caught-up end degrades into exactly the right thing: the remaining
     // fresh test/lens cards, in cadence order, with no world cards
     // between them.
-    // The paid slot (D194). Every sponsored card leaves the ordinary
+    // The paid slot (D195). Every sponsored card leaves the ordinary
     // stream and at most ONE comes back, at a fixed depth — the cap is the
     // unit of sale, so it has to be a property of the code rather than of
     // how many the bank happens to hold. The match runs HERE, on the
     // device, against anchors the device already has: the server is never
     // asked who should see what.
-    // ONE paid slot, and both kinds compete for it (D196): a sponsored
+    // ONE paid slot, and both kinds compete for it (D197): a sponsored
     // QUESTION (path 2 — answered like any other, folds into the public
     // aggregate) and an AD (path 3 — text, no answer, no data). They
     // rotate together by day, so a week with one of each splits the days
@@ -3696,7 +3696,7 @@ class WorldFeed extends React.Component {
                 — has anything to say about a walk, and the prototype pins
                 it here for the same reason. */}
             {i === 0 && <PathsCard />}
-            {/* The reading game (D195) — pinned beside Crossroads and for
+            {/* The reading game (D196) — pinned beside Crossroads and for
                 the same reason: it is one thing you are doing, not a card
                 dealt into the stream. It renders nothing in a demo build
                 and nothing until there are enough fair reads to keep a
@@ -3704,11 +3704,11 @@ class WorldFeed extends React.Component {
                 there is a real one to add.
 
                 THIS SLOT HELD THE FUTURE-PREDICTION CARD FOR ONE DAY
-                (D193's tier-A call, which guessed the app's own future
-                numbers). D195 took it off: the owner wants predictions to
+                (D194's tier-A call, which guessed the app's own future
+                numbers). D196 took it off: the owner wants predictions to
                 be about real events or not at all, and that half is not
                 built. The machinery stands, unmounted, the way D136 left
-                this game's engine — see D195. */}
+                this game's engine — see D196. */}
             {i === 0 && <LiveReadGame />}
             {sugg && i === 2 && this.renderSuggestion(sugg, snap)}
             {q.ad

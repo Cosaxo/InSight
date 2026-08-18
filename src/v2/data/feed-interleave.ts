@@ -71,7 +71,7 @@ export interface InterleaveStreams<T> {
   testEvery?: number;
   lensEvery?: number;
   /**
-   * The ONE sponsored card, or null (D194).
+   * The ONE sponsored card, or null (D195).
    *
    * A single card rather than a stream, and that is the design rather than
    * a simplification: the cap on paid inventory is what makes a slot

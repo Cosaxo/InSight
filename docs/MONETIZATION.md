@@ -90,7 +90,7 @@ place-scoped question is an ordinary question with an ordinary
 aggregate.
 
 **2 · Sponsored questions** — **BUILT, and unsold
-([D194](DECISIONS.md#d194--the-paid-slot-is-built-and-nobody-has-bought-it-yet)).**
+([D195](DECISIONS.md#d195--the-paid-slot-is-built-and-nobody-has-bought-it-yet)).**
 Every note this paragraph used to hold is now a thing with a gate behind
 it: the disclosure band (`ui/SponsorMark.tsx`, the app's ink and never a
 buyer's), the one-card cap and its slot in the interleave
@@ -108,7 +108,7 @@ profile"* is FALSE post-D98, and the shipped line is *they get the same
 public numbers you do; there is no private cut.*
 
 **3 · Ads in the world feed** — **BUILT, and unsold
-([D196](DECISIONS.md#d196--the-feed-gets-real-ads-and-they-are-not-sponsored-questions)).**
+([D197](DECISIONS.md#d197--the-feed-gets-real-ads-and-they-are-not-sponsored-questions)).**
 A text card: advertiser, headline, one line, the same disclosure band a
 sponsored question wears, and no image, logo, brand colour or link —
 `check:content` refuses each by name. **No tap-through is the design, not

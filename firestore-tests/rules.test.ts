@@ -569,7 +569,7 @@ describe("the daily pulse (D139): one answer per day, day-keyed like a duel's", 
   });
 });
 
-describe("feed ads (D196): readable by everyone, writable by nobody", () => {
+describe("feed ads (D197): readable by everyone, writable by nobody", () => {
   const AD = "ad-a";
   it("any signed-in user reads the whole pool, and nobody can write one", async () => {
     await seed(async (db) => {
@@ -598,7 +598,7 @@ describe("feed ads (D196): readable by everyone, writable by nobody", () => {
   });
 });
 
-describe("Foresight CALL, tier A (D193): sealed, public, and closed once graded", () => {
+describe("Foresight CALL, tier A (D194): sealed, public, and closed once graded", () => {
   const CALL = "call-c01";
   const seedCall = () => seed(async (db) => {
     await setDoc(doc(db, "v2_questions", CALL), {

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 //
-// The reading game's feed placement (D195). Three properties, and the
+// The reading game's feed placement (D196). Three properties, and the
 // first is the one the whole "hidden until enough data" instruction comes
 // down to:
 //

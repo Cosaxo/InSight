@@ -71,7 +71,7 @@ const ID_SHAPE = {
   // them — and it must never admit an underscore, which is the day
   // separator the rules parse on.
   pulse: /^pulse-[a-z0-9]+$/,
-  // Foresight CALL ids (D193). Answers are keyed on them like every other
+  // Foresight CALL ids (D194). Answers are keyed on them like every other
   // world answer, and `v2_call_outcomes` is keyed on them too — so a
   // reshaped id would orphan a published grade from the call it graded.
   call: /^call-[a-z0-9]+$/,
@@ -107,7 +107,7 @@ for (const q of entries) {
     if (q.surface !== "feed") errors.push(`${q.id}: \`until\` is the feed's current-events window — no other surface carries it`);
     else if (!/^\d{4}-\d{2}-\d{2}$/.test(q.until)) errors.push(`${q.id}: \`until\` must be a YYYY-MM-DD UTC day key`);
   }
-  // Sponsored questions (D194). Every rule here is a promise the card
+  // Sponsored questions (D195). Every rule here is a promise the card
   // makes on screen, held at the source so the disclosure cannot be
   // authored away — a paid question that renders as an ordinary one is the
   // single failure this whole path has to be unable to produce.
@@ -217,7 +217,7 @@ for (const q of entries) {
   }
 }
 
-// ---- feed ads (D196). Every rule here is a promise the card makes on
+// ---- feed ads (D197). Every rule here is a promise the card makes on
 // screen, held at the source. The refusals are BY NAME rather than by
 // omission — an ad that wanted a logo would fail with the word "logo" in
 // the message, which makes adding one a conversation rather than a commit.
@@ -245,7 +245,7 @@ for (const q of entries) {
       const why = REFUSED[k.toLowerCase()];
       errors.push(
         why
-          ? `${at}: an ad carries no ${k} — text only (D196), and ${why} is refused BY NAME rather than forgotten`
+          ? `${at}: an ad carries no ${k} — text only (D197), and ${why} is refused BY NAME rather than forgotten`
           : `${at}: unknown ad field ${JSON.stringify(k)}`,
       );
     }
@@ -263,7 +263,7 @@ for (const q of entries) {
       // and the reader would type by hand. That is a worse click-out, not a
       // clever one.
       else if (/https?:\/\/|www\.|\.com\b|\.no\b/i.test(v)) {
-        errors.push(`${a.id}: ${k} carries a web address — an ad card has no tap-through (D196), and a typed-out one is a worse click-out rather than a clever one`);
+        errors.push(`${a.id}: ${k} carries a web address — an ad card has no tap-through (D197), and a typed-out one is a worse click-out rather than a clever one`);
       }
     }
     if (!/^\d{4}-\d{2}-\d{2}$/.test(String(a.until))) {

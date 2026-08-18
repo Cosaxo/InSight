@@ -1,4 +1,4 @@
-// The paid slot (D194). Three of these are the commercial contract made
+// The paid slot (D195). Three of these are the commercial contract made
 // executable — the cap, the on-device match, and the tail-only rule — and
 // the last block binds the shipped bank to the vocabulary the device can
 // actually match, which no other gate sees.
@@ -164,7 +164,7 @@ describe("the shipped bank", () => {
   });
 });
 
-describe("the paid slot holds ONE thing, of either kind (D196)", () => {
+describe("the paid slot holds ONE thing, of either kind (D197)", () => {
   const ad = (id: string, over: Partial<FeedAd> = {}): FeedAd => ({
     id, advertiser: "Transit", headline: "H", body: "B", until: "2099-01-01", ...over,
   });

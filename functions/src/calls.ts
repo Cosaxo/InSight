@@ -1,4 +1,4 @@
-// calls.ts — the Foresight CALL resolver (D193, docs/FORESIGHT-CALLS.md).
+// calls.ts — the Foresight CALL resolver (D194, docs/FORESIGHT-CALLS.md).
 //
 //   resolveCallsV2   a daily scheduled pass that grades every tier-A call
 //                    past its `resolvesAt`, by EXECUTING the call's own
@@ -83,7 +83,7 @@ export interface BankCall {
 
 export function bankCalls(): BankCall[] {
   // `active: false` is the operational kill switch, and here it means
-  // something sharper than "stop serving" (D195). A retired call is one
+  // something sharper than "stop serving" (D196). A retired call is one
   // NOBODY COULD HAVE ANSWERED, so grading it would publish an outcome for
   // an empty field — and, worse, the overdue rule would eventually write
   // three VOID documents about a game that was never offered. A void is
@@ -174,7 +174,7 @@ export async function runResolveCalls(
   store: CallStore = firestoreStore(),
   // The calls to consider. Defaults to the live bank; a test supplies its
   // own, which is what keeps the four decisions below covered while the
-  // shipped bank is retired (D195) and `bankCalls()` correctly returns
+  // shipped bank is retired (D196) and `bankCalls()` correctly returns
   // nothing. Tying the tests to live content would mean the grading logic
   // stops being exercised the moment the content is switched off — and
   // that logic is what a real-event rubric would arrive on top of.

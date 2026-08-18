@@ -87,7 +87,7 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    // Feed ads (D196) — docs/MONETIZATION.md path 3, and NOT path 2's
+    // Feed ads (D197) — docs/MONETIZATION.md path 3, and NOT path 2's
     // sponsored questions. An ad is a CARD: text, an advertiser, a window.
     // It takes no answer, so there is no answer arm anywhere in this file
     // for it, no aggregate keyed to it and nothing a client could write.
@@ -102,7 +102,7 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    // Graded Foresight CALLs (D193) — the winning option, or -1 for VOID,
+    // Graded Foresight CALLs (D194) — the winning option, or -1 for VOID,
     // with the aggregate snapshot the grader actually read.
     //
     // WRITE IS CLOSED TO EVERYONE, and this is the one line the whole
@@ -536,7 +536,7 @@ service cloud.firestore {
                   .data.options.size();
         }
 
-        // Foresight CALL, tier A (D193): a prediction sealed now and
+        // Foresight CALL, tier A (D194): a prediction sealed now and
         // graded when it resolves. The doc is an ordinary world answer in
         // every respect — same five keys, same D29 binding, same public
         // read — so this function is isWorldAnswer plus ONE clause, and

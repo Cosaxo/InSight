@@ -1,4 +1,4 @@
-// The CALL surface's client-side reading (D193) — which call the feed's
+// The CALL surface's client-side reading (D194) — which call the feed's
 // one slot shows, what state it is in, and whether this device agrees with
 // the grade it was given.
 //

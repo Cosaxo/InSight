@@ -951,7 +951,7 @@ export function checkProvenance(corpus) {
   const path = join(root, "content", "provenance.json");
   if (!existsSync(path)) return ["content/provenance.json is missing — the D97 vintage join has nothing to read"];
   const prov = JSON.parse(readFileSync(path, "utf8"));
-  // `sponsor` joined at D194 (docs/MONETIZATION.md path 2). It is a source
+  // `sponsor` joined at D195 (docs/MONETIZATION.md path 2). It is a source
   // like the others — who wrote the question — and it is the one that has
   // to be true in BOTH directions: a sponsored question with an editorial
   // provenance row would launder a paid question into the vintage rollup
@@ -974,7 +974,7 @@ export function checkProvenance(corpus) {
       }
     }
   }
-  // ── sponsorship, both directions (D194) ──
+  // ── sponsorship, both directions (D195) ──
   {
     const feedRows = prov.feed || {};
     const paid = new Set(

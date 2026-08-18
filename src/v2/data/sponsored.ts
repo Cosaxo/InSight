@@ -1,4 +1,4 @@
-// Sponsored questions in the feed (D194) — which one is offered, why, and
+// Sponsored questions in the feed (D195) — which one is offered, why, and
 // the sentences the disclosure band prints.
 //
 // A sponsored question is an ORDINARY question. It aggregates through the
@@ -116,7 +116,7 @@ export function pickSponsored<T extends SponsoredQ>(
   return sorted[i];
 }
 
-/** One feed ad (D196) — text, an advertiser, a window. Never a question. */
+/** One feed ad (D197) — text, an advertiser, a window. Never a question. */
 export interface FeedAd {
   id: string;
   seq?: number;

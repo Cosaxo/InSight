@@ -1,4 +1,4 @@
-// The CALL resolver's four decisions (D193): grade, wait, void, skip.
+// The CALL resolver's four decisions (D194): grade, wait, void, skip.
 //
 // The rubric arithmetic itself is pinned on the client side
 // (src/v2/data/callRubric.test.ts) against the byte-identical copy
@@ -70,7 +70,7 @@ describe("daysPastDue", () => {
 });
 
 describe("the bank's calls", () => {
-  it("offers NONE, because every entry is retired (D195)", () => {
+  it("offers NONE, because every entry is retired (D196)", () => {
     // The owner wants a prediction to be about a real upcoming EVENT; this
     // bank predicts the app's own future numbers, which is a different
     // game. Every entry is `active: false`, and a retired call is one
@@ -90,7 +90,7 @@ describe("the bank's calls", () => {
 });
 
 // One rubric of each shape, driven through the pass as FIXTURES rather than
-// as live bank rows. They were the bank's own until D195 retired it — and
+// as live bank rows. They were the bank's own until D196 retired it — and
 // the grading logic still has to be exercised, because a real-event rubric
 // (the thing the owner actually wants) would arrive on top of exactly this
 // machinery. A test that read the live bank would go quiet the moment the

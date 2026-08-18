@@ -1,4 +1,4 @@
-// Foresight CALL, tier A, in the feed (D193) — the v28 predict card's
+// Foresight CALL, tier A, in the feed (D194) — the v28 predict card's
 // CALL half (design/standalone-v28/predict-cards.jsx), live.
 //
 // Four states, and the last one is why the feature was allowed to exist:

@@ -1,4 +1,4 @@
-// The tier-A grading arithmetic (D193). This module decides whether a real
+// The tier-A grading arithmetic (D194). This module decides whether a real
 // person's sealed prediction was right, so every case here is a boundary
 // where "correct" and "plausible" part company — and the one property the
 // whole design turns on is that an undecidable case returns NULL rather

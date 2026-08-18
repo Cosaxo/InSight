@@ -1,4 +1,4 @@
-// The gate that decides when the reading game exists at all (D195).
+// The gate that decides when the reading game exists at all (D196).
 //
 // Two things are worth pinning here, and both are the difference between
 // a game and a scoreboard nobody should believe: the pool has to be deep

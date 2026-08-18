@@ -40,7 +40,7 @@ v2_questions/{qid}                 canonical bank, seeded by seedContentV2
                       answers and aggregates persist either way
   core?               feed only (D161), and ABSENT MEANS TAIL — a question
                       is in the Mirror's corpus only if it says so
-  sponsor?            feed only (D194): { buyer, audience? } on a question
+  sponsor?            feed only (D195): { buyer, audience? } on a question
                       somebody paid to ask. `audience` is at most ONE
                       dim → bucket from the published breakdown dims, and
                       the DEVICE matches it (data/sponsored.ts) — the
@@ -48,7 +48,7 @@ v2_questions/{qid}                 canonical bank, seeded by seedContentV2
                       is `until` above rather than a field here, so the
                       band's label and the serving filter are one value. A
                       sponsored question is never `core`
-  tier/resolvesAt/    call only (D193): the admitted grading tier, the
+  tier/resolvesAt/    call only (D194): the admitted grading tier, the
     rubric?           earliest UTC day it may be graded, and the expression
                       resolveCallsV2 RUNS. The outcome is NOT here — it
                       lives in v2_call_outcomes, so a reseed and the
@@ -176,7 +176,7 @@ v2_question_aggs/{qid}             the PUBLIC mirror, EXACT (D98)
                                    member sets, per-group anything
 read: signed-in · write: nobody
 
-v2_ads/{id}                        a feed ad (D196) — path 3, NOT path 2
+v2_ads/{id}                        a feed ad (D197) — path 3, NOT path 2
   advertiser, headline, body       text only. No image, no logo, no brand
                                    colour, no link — check:content refuses
                                    each BY NAME on the source entry
@@ -194,7 +194,7 @@ nothing to reach here. The seed DELETES what the bank no longer names,
 unlike v2_questions: a question is permanent because answers are keyed to
 it, and an ad has none.
 
-v2_call_outcomes/{qid}             a graded Foresight CALL (D193)
+v2_call_outcomes/{qid}             a graded Foresight CALL (D194)
   outcomeIdx: 0|1|-1               the winning option, or -1 for VOID:
                                    nobody scored, and `note` says why
   resolvedAt, resolvedBy           server clock; "auto" for a grade the
@@ -396,7 +396,7 @@ MOD_UIDS-gated callables (the D22 confinement)
   operator) — materialize yesterday's reveals: groups reveal with ≥1
   answer; duos only when BOTH played (and the shared streak advances or
   resets accordingly).
-- `resolveCallsV2` (scheduled, 04:23 UTC daily; D193,
+- `resolveCallsV2` (scheduled, 04:23 UTC daily; D194,
   docs/FORESIGHT-CALLS.md) — grades every tier-A call past its
   `resolvesAt` by EXECUTING the call's own rubric against
   `v2_question_aggs`, and publishes the counts it read beside the

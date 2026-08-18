@@ -874,22 +874,15 @@ describe("LiveCohortBody · a lens reads its own stop, never the globe", () => {
     fireEvent.click(screen.getByRole("tab", { name }));
   };
 
-  it("Compare scores you against this city, not against the world", async () => {
-    openLens("Compare");
-    // Oslo: 3 of 4 said "No", and "No" is your pick.
-    expect(await screen.findByText(/75% here agreed/)).toBeTruthy();
-    // The globe's number for the same pick. Its presence would mean the
-    // lens is reading agg.counts.
-    expect(screen.queryByText(/10% here agreed/)).toBeNull();
-  });
-
-  it("Compare drops a question this city has not answered", async () => {
-    openLens("Compare");
-    expect(await screen.findByText("Split question")).toBeTruthy();
-    // Answers already reports this one as absent; a lens that shows it
-    // anyway makes two tabs of one screen disagree about the same cohort.
-    expect(screen.queryByText("Absent in Oslo")).toBeNull();
-  });
+  // COMPARE IS NOT IN THIS DESCRIBE ANY MORE (D193), and the property is
+  // not gone with it. The lens stopped taking `LensQuestion[]` from this
+  // host when it became the profile drawing, so there is no longer any
+  // wiring here to get wrong: it reads the bank's TEST items out of the
+  // store directly, and which cell it takes them from is decided inside
+  // `CohortCompare`. The two cases that stood here — "scores you against
+  // this city, not the world" and "drops a question this city has not
+  // answered" — are restated over that fold in LiveMirrorLenses.test.tsx,
+  // where the code they describe now lives.
 
   it("Scores averages this city's ratings, not the world's", async () => {
     openLens("Scores");
@@ -941,15 +934,10 @@ describe("LiveCohortBody · one answer is a count, not a share", () => {
     expect(screen.queryByText(/exactly the average/i)).toBeNull();
   });
 
-  it("Compare stops calling a tie the majority", async () => {
-    // Two answers, one each way: nobody is in the majority, and the
-    // release counted this row as one.
-    LIVE.aggFor = () => ({ counts: { "0": 1, "1": 1 }, total: 2, by: { city: { "Oslo, NO": { "0": 1, "1": 1 } } } });
-    render(<LiveCohortBody scope="city" />);
-    fireEvent.click(screen.getByRole("tab", { name: "Compare" }));
-    // The line is a fraction now, not a sentence, so the tie has to show
-    // up as the numerator rather than as a word.
-    const head = await screen.findByText(/least typical first/i);
-    expect(head.textContent).toMatch(/^\s*0\//);
-  });
+  // D170's third case stood here — "Compare stops calling a tie the
+  // majority", over a 50/50 row the release had counted as a majority.
+  // It went with the reading at D193: Compare no longer folds an option
+  // split at all, so there is no majority test left to get wrong. The two
+  // above are the surviving halves of the same decision and they are the
+  // ones that were always about a NUMBER rather than about a word.
 });

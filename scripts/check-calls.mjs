@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// check-calls.mjs — the CALL surface's two gates (D193, docs/FORESIGHT-CALLS.md).
+// check-calls.mjs — the CALL surface's two gates (D194, docs/FORESIGHT-CALLS.md).
 //
 // A resolved call is the one number in this app a reader cannot recompute
 // from the app's own documents — unless the grade is arithmetic over an

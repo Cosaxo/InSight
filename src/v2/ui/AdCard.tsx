@@ -1,4 +1,4 @@
-// A feed ad (D196) — docs/MONETIZATION.md path 3.
+// A feed ad (D197) — docs/MONETIZATION.md path 3.
 //
 // AN AD IS NOT A SPONSORED QUESTION, and keeping the two apart is the
 // reason this file exists rather than a flag on the other one. Path 2
@@ -7,7 +7,7 @@
 // Path 3 sells a CARD: it asks nothing, takes no answer, and produces no
 // data at all. They share the disclosure band and the single paid slot;
 // they are otherwise different objects, and prose that blurred them made
-// the disclosure argument impossible to have (D195).
+// the disclosure argument impossible to have (D196).
 //
 // TEXT ONLY, AND NO TAP-THROUGH. No image, no logo, no brand colour, no
 // link — `check:content` refuses each of those BY NAME on the source

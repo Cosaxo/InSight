@@ -193,14 +193,14 @@ const state = {
   // Learn cards (D32) — consumed only through LIVE.learnAnswer/learnAgg;
   // splitBanks fences them out of every other bank.
   learnBank: [] as Array<QuestionDoc & { id: string }>,
-  // Foresight CALLs (D193). Their published grades, fetched once per
+  // Foresight CALLs (D194). Their published grades, fetched once per
   // session on the tap that opens the card: qid → outcome, or null for a
   // call the resolver has not graded yet. `null` is a FETCHED ABSENCE and
   // is what the card draws "sealed" from — undefined means nothing has
   // been read, which is a different sentence.
   callBank: [] as Array<QuestionDoc & { id: string }>,
   callOutcomes: null as Record<string, CallOutcome | null> | null,
-  // Feed ads (D196). Null while unread, an array once known — the same
+  // Feed ads (D197). Null while unread, an array once known — the same
   // "could not ask" / "there are none" distinction every other pool here
   // keeps. Read once per session with the feed, which is lazy, so a boot
   // that never opens the feed never pays for it.
@@ -1320,7 +1320,7 @@ function buildFeedGlobals(): void {
               n: state.aggs[q.id]?.total ?? 0,
             }
           : {}),
-        // Sponsored questions (D194): the disclosure travels with the card
+        // Sponsored questions (D195): the disclosure travels with the card
         // and `until` travels with it, because the band composes its window
         // label from that one value. Emit-when-set, so an ordinary card is
         // byte-for-byte what it was.
@@ -3454,7 +3454,7 @@ const LIVE = {
     });
     return out;
   },
-  // ── feed ads (D196) ─────────────────────────────────────────────
+  // ── feed ads (D197) ─────────────────────────────────────────────
   //
   // NOT sponsored questions. An ad takes no answer and folds into no
   // aggregate, so it has its own collection and its own accessor — and
@@ -3494,7 +3494,7 @@ const LIVE = {
     return adsInflight;
   },
 
-  // ── Foresight CALL, tier A (D193) ───────────────────────────────
+  // ── Foresight CALL, tier A (D194) ───────────────────────────────
   //
   // The calls in the bank, with their published counts — how the crowd
   // itself called each one, which is an ordinary aggregate over ordinary

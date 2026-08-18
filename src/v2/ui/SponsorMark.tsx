@@ -1,4 +1,4 @@
-// The disclosure on a sponsored question (D194).
+// The disclosure on a sponsored question (D195).
 //
 // THE HOUSE RULE, recorded before the first paid deal and built here:
 // **the disclosure is the app's, never the buyer's.** So this band carries

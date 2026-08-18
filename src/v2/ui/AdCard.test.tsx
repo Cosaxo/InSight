@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 //
-// A feed ad (D196). Three properties, and all three are the difference
+// A feed ad (D197). Three properties, and all three are the difference
 // between an ad card and every other ad card:
 //
 //   1. It carries NO image, NO logo, NO link. `check:content` refuses each

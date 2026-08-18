@@ -21,12 +21,12 @@
 // forms' range/plane copy (D114), absent everywhere else; their options
 // are synthesized bucket/cell labels, so the D52 option freeze freezes
 // the range with them.
-// `sponsor` is feed-only (D194): `{ buyer, audience? }` on a question
+// `sponsor` is feed-only (D195): `{ buyer, audience? }` on a question
 // somebody paid to ask. The WINDOW is `until`, not a field here, so the
 // label the card prints and the filter that stops serving it are one
 // value. A sponsored question is never `core` — paid questions inside
 // the Mirror's corpus would make the honest aggregate a paid-for sample.
-// `tier`/`resolvesAt`/`rubric` are the CALL surface's only (D193): the
+// `tier`/`resolvesAt`/`rubric` are the CALL surface's only (D194): the
 // admitted grading path, the earliest UTC day it may be graded, and the
 // expression the resolver RUNS. The outcome is not here — it lives in
 // v2_call_outcomes, so a reseed and the resolver never fight.
@@ -10126,7 +10126,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  }
 ];
 
-// Feed ads (D196) — docs/MONETIZATION.md path 3, and NOT path 2's
+// Feed ads (D197) — docs/MONETIZATION.md path 3, and NOT path 2's
 // sponsored questions. An ad takes no answer and folds into no
 // aggregate, which is why it is a separate array and a separate
 // collection: nothing that reads the question bank has to learn to skip

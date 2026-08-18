@@ -1,9 +1,9 @@
 # CALL — the half of Foresight that asserts a fact
 
 **Status: mixed, and RETIRED IN SERVICE. Tier A is built
-([D193](DECISIONS.md#d193--predictions-ship-and-the-app-only-asserts-what-it-can-recompute))
+([D194](DECISIONS.md#d194--predictions-ship-and-the-app-only-asserts-what-it-can-recompute))
 and switched off the same day
-([D195](DECISIONS.md#d195--the-reading-game-is-the-one-that-ships-and-it-waits-for-a-crowd)):
+([D196](DECISIONS.md#d196--the-reading-game-is-the-one-that-ships-and-it-waits-for-a-crowd)):
 the owner wants a prediction to be about a real upcoming EVENT, and tier A
 predicts the app's own future numbers. Every call in the bank is
 `active: false`, the card is unmounted and the resolver skips them. The

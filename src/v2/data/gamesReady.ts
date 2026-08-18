@@ -1,4 +1,4 @@
-// When the reading game may be OFFERED (D195), and the number behind the
+// When the reading game may be OFFERED (D196), and the number behind the
 // word "hidden".
 //
 // The read game is the only surface in this app that MARKS A PERSON WRONG.

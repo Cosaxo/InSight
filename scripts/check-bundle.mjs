@@ -580,24 +580,47 @@ const MAX_CHUNK_KB = 735;
 // thing added to the entry graph will very likely need a dynamic import
 // rather than a raise.
 //
-// 2334 → 2350 (2026-08-17): D193's Foresight CALL card and D194's sponsored
-// slot, measured as one session's delta rather than as two raises a few
-// hours apart — the second would otherwise read as a ceiling being nudged
-// along behind the work, which is the failure a drift alarm has.
+// 2334 → 2340 (2026-08-17): D193's Compare. Measured with a DSN on this
+// tree, both ways: total 2331 → 2336 (+5), eager 964 → 965 (+1), 82
+// chunks up from 79.
 //
-// Both moved the two numbers the way a lazily-loaded feature is supposed
-// to. Measured on this tree, same command, before and after:
-// **2331 KB total / 964 KB eager → 2342 / 965.** The +11 KB is all in the
-// `world-feed` chunk (145 → 156): the call card, `data/calls.ts`, the
-// shared `data/callRubric.ts`, `data/sponsored.ts` and `ui/SponsorMark.tsx`.
-// The EAGER graph moved one kilobyte, because every one of those is reached
-// through `world-feed.jsx`, which is already past first paint behind
+// SEVENTH RAISE, and the smallest of them — worth a line anyway, because
+// the entry two above asked what a sixth would mean and the answer holds
+// here too: the total is a DRIFT ALARM, and 5 KB of new product code
+// (`ui/LiveCompareLens.tsx`, `data/compare.ts`) is the boring end of what
+// it should notice. The eager graph, which is the constant defending
+// anything, moved 1 KB.
+//
+// THE THREE NEW CHUNKS ARE A SPLIT, NOT NEW WEIGHT, and it is the
+// counter-intuitive half worth writing down: `spec/compare-breakdown.jsx`
+// was inside the entry chunk (spec-index imports it eagerly), and a lazy
+// importer appearing is what made rolldown pull it out into a shared 14 KB
+// chunk of its own. So bytes moved OUT of the entry graph, which is why
+// +5 KB of source cost first paint +1. That relocation is exactly what
+// the 2026-08-13 entries say the TOTAL cannot see, and correctly: it
+// counts every chunk, so only the genuinely new code shows up here.
+
+// 2340 → 2357 (2026-08-18): D194's Foresight CALL card, D195's sponsored
+// slot and D197's ad card, landing on top of the entry above rather than
+// instead of it — both branches raised this constant in the same window and
+// the merge is where the two deltas meet.
+//
+// MEASURED ON THE MERGE, not added up — and the two numbers differ, which
+// is the point. Each side measured its own delta against a 2331 KB base
+// (Compare +5, this branch +11), so the arithmetic says 2347. The merged
+// tree builds **2349 KB / 966 KB eager**, across 82 chunks. The extra two
+// kilobytes are the bundler re-splitting once both lazy importers exist —
+// exactly what the entry above documents happening to
+// `compare-breakdown.jsx` — and they are why a ceiling set by adding two
+// branches' deltas would have been wrong on the day it was written.
+//
+// The eager graph — the constant that defends first paint — is the half
+// worth watching, and it moved 1 KB per side: everything this branch adds is
+// reached through `world-feed.jsx`, already past first paint behind
 // `loadWorldFeed()` (D25).
 //
-// Headroom left: 8 KB on the total, 13 on the eager — the same posture as
-// the 955 and 966 raises above, and still the right way round. The eager
-// number remains the one to watch.
-const MAX_TOTAL_JS_KB = 2350;
+// Headroom left: 8 KB on the total, 12 on the eager.
+const MAX_TOTAL_JS_KB = 2357;
 // 955 → 966 (2026-08-14): D139's pulse card — the second fixed instrument
 // on the FIRST screen, so its card, its store's demo furniture and the
 // two LIVE members are legitimately eager (~10 KB min). What is not

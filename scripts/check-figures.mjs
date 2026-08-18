@@ -116,7 +116,7 @@ const bankKiB = (() => {
   const body = v2content.slice(v2content.indexOf(head) + head.length);
   // The FIRST terminator, not the last. `lastIndexOf` was right while the
   // questions array was the only thing in the file and became wrong the
-  // moment a second export arrived (D196's V2_ADS) — the slice then ran
+  // moment a second export arrived (D197's V2_ADS) — the slice then ran
   // past the array's own `];` and swallowed the next declaration whole.
   // It failed loudly, which is the good version of this bug; a scan that
   // had quietly measured both arrays would have moved the documented

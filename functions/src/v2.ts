@@ -262,7 +262,7 @@ const CATALOG_DOMAINS: Record<string, CatalogSpec> = {
  * for as long as it did. seed.test.ts drives it with a stand-in.
  */
 /**
- * Mirror `content/ads.json` into `v2_ads` (D196).
+ * Mirror `content/ads.json` into `v2_ads` (D197).
  *
  * Deletes what the bank no longer names, which `runSeedV2` deliberately
  * does NOT do for questions — and the difference is the whole reason ads
@@ -435,7 +435,7 @@ export async function runSeedV2(
   // creates carry `updatedAt` like every other write, so the cursor pages
   // them in. The only automatic bump left is the first seed of an empty
   // project, which initialises the field.
-  // Feed ads (D196) — a separate collection, written in the same run.
+  // Feed ads (D197) — a separate collection, written in the same run.
   // Separate because an ad is not a question: it takes no answer, folds
   // into no aggregate and has no options, so putting it in `v2_questions`
   // would mean splitBanks, the quality gate, the velocity ceiling and the

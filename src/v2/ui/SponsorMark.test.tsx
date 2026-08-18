@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 //
-// The disclosure on a sponsored question (D194). Four of these are the
+// The disclosure on a sponsored question (D195). Four of these are the
 // house rule made executable rather than promised:
 //
 //   1. The word PAID and the buyer's name are ALWAYS on screen — not

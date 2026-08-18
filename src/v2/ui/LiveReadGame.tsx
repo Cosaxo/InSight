@@ -1,11 +1,11 @@
-// The reading game, in the feed (D195).
+// The reading game, in the feed (D196).
 //
 // THE GAME, and what it is not: you are shown a question the crowd has
 // ALREADY settled and asked which side one slice of it picked. You are
 // scored the instant you answer, against the published cell — the same
 // cell the Explore lens draws and the same numbers the who-voted sheet
 // lists by name. Nothing is being predicted. This is the half of Foresight
-// whose truth already exists (D126), and after D195 it is the only half
+// whose truth already exists (D126), and after D196 it is the only half
 // the app offers.
 //
 // WHY IT IS HERE AND NOT ON THE MIRROR. D126 put it on the Mirror's lens
