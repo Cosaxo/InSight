@@ -38,6 +38,7 @@
     "build:elements": "node scripts/build-elements.mjs",
     "check:catalogs": "node scripts/check-catalogs.mjs",
     "check:logic-sync": "node scripts/check-logic-sync.mjs",
+    "check:calls": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/check-calls.mjs",
     "build:catalog": "node scripts/build-catalog.mjs",
     "build:doc-index": "node scripts/doc-index.mjs --write",
     "check:content": "node scripts/check-content.mjs",

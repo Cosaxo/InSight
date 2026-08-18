@@ -89,17 +89,37 @@ this repo, and no code changes are needed to serve the first buyer — a
 place-scoped question is an ordinary question with an ordinary
 aggregate.
 
-**2 · Sponsored questions** — designed, constraints recorded
-(QUESTION-FARM.md, "Sponsored questions"): a sponsor's question with an
-unmissable disclosure mark, placement as a bounded cadence in the feed's
-existing interleave (never an auction), the same window as
-everyone, no compounding of sponsorship with precise targeting, and a
-`source` provenance field separating sponsor content from editorial,
-community and farm content. Building it graduates those notes to a
-decision record.
+**2 · Sponsored questions** — **BUILT, and unsold
+([D195](DECISIONS.md#d195--the-paid-slot-is-built-and-nobody-has-bought-it-yet)).**
+Every note this paragraph used to hold is now a thing with a gate behind
+it: the disclosure band (`ui/SponsorMark.tsx`, the app's ink and never a
+buyer's), the one-card cap and its slot in the interleave
+(`data/sponsored.ts`, `SPONSOR_SLOT`), the coarse audience tag matched **on
+the device** against the published breakdown dims, `until` as the window,
+and `sponsor` as a provenance source `check:quality` holds in both
+directions. The bank carries **zero** sponsored questions and a test
+asserts it: authoring one would print a real company's name beside the
+word PAID on a card nobody bought, which is D1 pointed at a claim about
+money. The next thing this path needs is a contract, not code.
 
-**3 · Ads in the world feed** — open as a path by the owner
-(2026-08-01), not ruled out. The version that coexists with the
+One sentence from the design could not be ported and is recorded here
+because it is a promise: the prototype's *"never names, never your
+profile"* is FALSE post-D98, and the shipped line is *they get the same
+public numbers you do; there is no private cut.*
+
+**3 · Ads in the world feed** — **BUILT, and unsold
+([D197](DECISIONS.md#d197--the-feed-gets-real-ads-and-they-are-not-sponsored-questions)).**
+A text card: advertiser, headline, one line, the same disclosure band a
+sponsored question wears, and no image, logo, brand colour or link —
+`check:content` refuses each by name. **No tap-through is the design, not
+an omission**: with nowhere to send you there is no click, and with no
+click there is nothing to attribute, which is what keeps this path clear
+of the tracking apparatus below. It shares the SINGLE paid slot with path
+2 and rotates with it by day, so the feed can never show two paid things
+at once. `content/ads.json` ships empty and a test asserts it.
+
+The original note, kept because it is what the build was measured
+against — open as a path by the owner (2026-08-01), not ruled out. The version that coexists with the
 standing posture is an ad *card*: disclosed like a sponsored question,
 riding the feed's bounded-cadence interleave (the sponsored-question
 slot mechanics generalize to it), and selected **without a per-user

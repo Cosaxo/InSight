@@ -23,15 +23,36 @@ cohort the Mirror slices by, and what is still prototype data — see
 
 ```
 v2_questions/{qid}                 canonical bank, seeded by seedContentV2
-  surface: daily|feed|group|duo|test|learn
+  surface: daily|feed|group|duo|test|learn|pulse|call
   seq: int            rotation order within a surface
-  type: binary|choice|scale|rating|vote|duel|ranking|catalog
+  type: binary|choice|scale|rating|vote|duel|ranking|catalog|pulse|call
   domain: pokemon|films|artists   (catalog questions only — names the key
                                    space the trigger validates against, D15)
   prompt: string
-  options: string[]   (scale → the 5-point agree scale; rating → "1".."10")
+  options: string[]   (scale → the 5-point agree scale; rating → "1".."10";
+                       pulse → exactly five steps; call → exactly two, and
+                       index 0 is the call coming true)
   topic, axis, test   metadata (test != null only on a test's own items)
   active: bool
+  until?              feed only (D179): the UTC day after which the card
+                      stops being SERVED. A client-side serving filter;
+                      `active: false` stays the hard, server-side kill, and
+                      answers and aggregates persist either way
+  core?               feed only (D161), and ABSENT MEANS TAIL — a question
+                      is in the Mirror's corpus only if it says so
+  sponsor?            feed only (D195): { buyer, audience? } on a question
+                      somebody paid to ask. `audience` is at most ONE
+                      dim → bucket from the published breakdown dims, and
+                      the DEVICE matches it (data/sponsored.ts) — the
+                      server is never asked who should see what. The window
+                      is `until` above rather than a field here, so the
+                      band's label and the serving filter are one value. A
+                      sponsored question is never `core`
+  tier/resolvesAt/    call only (D194): the admitted grading tier, the
+    rubric?           earliest UTC day it may be graded, and the expression
+                      resolveCallsV2 RUNS. The outcome is NOT here — it
+                      lives in v2_call_outcomes, so a reseed and the
+                      resolver never fight
 read: signed-in · write: nobody (admin SDK only)
   Learn cards (surface "learn", D32) carry only prompt/options/topic —
   the correctness metadata (correct index, trap, authored estimate, map
@@ -154,6 +175,44 @@ v2_question_aggs/{qid}             the PUBLIC mirror, EXACT (D98)
                                    timestamp. Never: gids, uids, names,
                                    member sets, per-group anything
 read: signed-in · write: nobody
+
+v2_ads/{id}                        a feed ad (D197) — path 3, NOT path 2
+  advertiser, headline, body       text only. No image, no logo, no brand
+                                   colour, no link — check:content refuses
+                                   each BY NAME on the source entry
+  until                            the UTC day it stops being served, the
+                                   same field and filter feed questions use
+  audience? {dim: bucket}          at most ONE, from the published
+                                   breakdown dims, matched ON THE DEVICE
+                                   (data/sponsored.ts). The server is never
+                                   asked who should see what
+  active?, seq, updatedAt
+read: signed-in · write: nobody (seed only). An ad takes no answer, so
+there is no answer arm for it anywhere in firestore.rules, no aggregate
+keyed to it and nothing per-person in it — which is why deleteAccount has
+nothing to reach here. The seed DELETES what the bank no longer names,
+unlike v2_questions: a question is permanent because answers are keyed to
+it, and an ad has none.
+
+v2_call_outcomes/{qid}             a graded Foresight CALL (D194)
+  outcomeIdx: 0|1|-1               the winning option, or -1 for VOID:
+                                   nobody scored, and `note` says why
+  resolvedAt, resolvedBy           server clock; "auto" for a grade the
+                                   rubric produced, a uid for a hand
+                                   resolution
+  inputs {qid,total,counts,cells?} WHAT THE GRADER SAW — the aggregate,
+                                   narrowed to the cells the rubric read.
+                                   Without it the outcome is an assertion;
+                                   with it the DEVICE re-runs the same
+                                   arithmetic (data/callRubric.ts, held
+                                   byte-identical to the resolver's copy
+                                   by check:calls) and the card prints
+                                   whether the two agree
+  note?                            required on a void
+read: signed-in · write: NOBODY — a client-writable outcomeIdx would make
+every score in the feature forgeable in one request. Existence is
+load-bearing too: firestore.rules refuses a call answer once this document
+exists, or a player reads the grade and then "predicts" it.
 
 v2_avatars/{uid}                   the profile photo's document (D178)
   token: "…"                       the Storage download token for
@@ -320,7 +379,7 @@ MOD_UIDS-gated callables (the D22 confinement)
 ## Functions
 
 - `seedContentV2` (callable; emulator or SEED_ADMIN_UIDS allowlist) — mirrors `/content` question banks
-  into `v2_questions` (537 docs, stable ids `daily-000`, `feed-<id>`,
+  into `v2_questions` (540 docs, stable ids `daily-000`, `feed-<id>`,
   `group-<id>`, `duo-000`, `test-<key>-NN`; idempotent merge; `active` written only on first create, preserving the
   operational kill switch). Bank source:
   `functions/src/v2content.ts`, generated from `/content/*.json`.
@@ -337,6 +396,16 @@ MOD_UIDS-gated callables (the D22 confinement)
   operator) — materialize yesterday's reveals: groups reveal with ≥1
   answer; duos only when BOTH played (and the shared streak advances or
   resets accordingly).
+- `resolveCallsV2` (scheduled, 04:23 UTC daily; D194,
+  docs/FORESIGHT-CALLS.md) — grades every tier-A call past its
+  `resolvesAt` by EXECUTING the call's own rubric against
+  `v2_question_aggs`, and publishes the counts it read beside the
+  outcome. No model, no fetch, no judgement in that path. It never
+  guesses (an undecidable rubric returns null and the call waits), never
+  grades early (UTC day keys), never rewrites an outcome (the write is
+  `create`-shaped) — and after `CALL_VOID_AFTER_DAYS` of failing to
+  execute it writes a VOID rather than leaving a guess in the air, which
+  is safe precisely because a void asserts nothing.
 - `activateDeviceV2` (callable; D29, docs/DEVICE-BIND.md) — verifies a
   platform attestation token against the per-device bits Apple/Google
   hold (one counted account per device per calendar month) and stamps
@@ -371,7 +440,7 @@ read: signed-in · write: nobody
 ## Read economics (client)
 
 A live boot costs ~20 reads, not ~380: one `v2_meta/app` read decides
-everything. The question bank (537 docs) caches in localStorage keyed by
+everything. The question bank (540 docs) caches in localStorage keyed by
 `contentRev`, and refreshes **incrementally** — one query for docs newer
 than the cache's `updatedAt` cursor, so a promotion cycle costs the
 handful of questions it added rather than the whole bank (D34;
@@ -406,7 +475,7 @@ not per boot. `LIVE.stats` reports `bankSource` / `answersFetched` /
 
 ## Verification
 
-- `npm run test:rules` — 106 rules tests (Firestore + Storage; the v2
+- `npm run test:rules` — 113 rules tests (Firestore + Storage; the v2
   surface, the anonymous-default lens, and the retired-v1 guard).
 - `firestore-tests/e2e-v2-loop.mjs` under
   `firebase emulators:exec --only auth,firestore,functions` — the full

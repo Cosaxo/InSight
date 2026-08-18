@@ -112,8 +112,8 @@ directions.
 | [`VISION-V28.md`](VISION-V28.md) | The v28 design, including the third tab adopted on trial and not built | plan |
 | [`NEXT-FUNCTIONALITY.md`](NEXT-FUNCTIONALITY.md) | Six ideas measured against the architecture. Plan notes, not decisions | plan |
 | [`ATTENTION.md`](ATTENTION.md) | "Does anyone like this, and what is this person into." No code exists | plan |
-| [`FORESIGHT-CALLS.md`](FORESIGHT-CALLS.md) | The half of Foresight that asserts a fact. Design only | plan |
-| [`MONETIZATION.md`](MONETIZATION.md) | The revenue paths in one place. Picking one up graduates it to a decision | plan |
+| [`FORESIGHT-CALLS.md`](FORESIGHT-CALLS.md) | The half of Foresight that asserts a fact. Tier A built and retired in service (D194→D196); tier B is the live question | mixed |
+| [`MONETIZATION.md`](MONETIZATION.md) | The revenue paths in one place. Path 2's machinery is built and unsold (D195); the rest is still plan | mixed |
 | [`COST-COMPARISON.md`](COST-COMPARISON.md) | InSight's bill against other apps'. Superseded in its conclusion by D129, kept for its method | past |
 | [`LAUNCH-PLAN.md`](LAUNCH-PLAN.md) | What was built for launch and why. The human chain moved to `LAUNCH-RUNBOOK.md` | past |
 
@@ -158,6 +158,7 @@ the static gates, and where each one runs.
 | `check:pokedex` | deploy | The Pokédex catalogue's contiguous keys — stored answers are dex numbers into it, so a gap is an answer resolving to the wrong species |
 | `check:elements` | deploy | The same for the elements catalogue, keyed by atomic number |
 | `check:logic-sync` | deploy | The logic generator's two byte-identical copies (client + functions, D57). Drift means the server scores forms the client never rendered |
+| `check:calls` | deploy | The CALL rubric's two byte-identical copies (D194) **and** a dry run of every authored rubric — twice each, once shaped to come out true and once false. A rubric that can only resolve one way is not a prediction; a drifted copy makes the card contradict the grade it is printing |
 | `check:globals` | ci | The spec layer's shared-global wiring: dangling references, files `spec-index.js` forgot, undefined JSX tags, publications nothing reads, and (**rule 4**) a ratchet on remaining coupling that may only go down |
 | `check:docs` | ci | This page's maps, and that `DECISIONS-INDEX.md` is current |
 | `check:figures` | ci | Counts quoted in prose, held equal to the tree. Exists because a figure kept current by intention does not stay current |

@@ -204,6 +204,7 @@ export function collectPipeline() {
   const tests = readJson("content/tests.json");
   const lenses = readJson("content/lenses.json");
   const pulse = readJson("content/pulse-questions.json");
+  const call = readJson("content/call-questions.json");
 
   const banks = [
     { surface: "daily", count: daily.length, source: "content/daily-questions.json" },
@@ -220,6 +221,17 @@ export function collectPipeline() {
     // many days it runs. The two-path bank-size check in pulse.test.mjs is
     // what caught THIS row missing, same as romantic's above.
     { surface: "pulse", count: pulse.questions.length, source: "content/pulse-questions.json" },
+    // Foresight CALLs (D194). Every one is `active: false` today (D196) —
+    // still bank docs, so still counted, exactly like the romantic pool
+    // two rows up. The two-path bank-size check caught this row missing
+    // too, which makes it three for three: every new bank has arrived
+    // through that assertion rather than through anybody remembering.
+    //
+    // Feed ADS are deliberately NOT here. They are not questions, they are
+    // seeded to v2_ads rather than v2_questions, and this total is checked
+    // against a parse of V2_QUESTIONS — counting them would break the very
+    // agreement this row exists to keep.
+    { surface: "call", count: call.questions.length, source: "content/call-questions.json" },
     {
       surface: "test items",
       count: Object.values(tests).reduce(

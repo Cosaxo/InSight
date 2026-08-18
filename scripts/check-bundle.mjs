@@ -599,7 +599,28 @@ const MAX_CHUNK_KB = 735;
 // +5 KB of source cost first paint +1. That relocation is exactly what
 // the 2026-08-13 entries say the TOTAL cannot see, and correctly: it
 // counts every chunk, so only the genuinely new code shows up here.
-const MAX_TOTAL_JS_KB = 2340;
+
+// 2340 → 2357 (2026-08-18): D194's Foresight CALL card, D195's sponsored
+// slot and D197's ad card, landing on top of the entry above rather than
+// instead of it — both branches raised this constant in the same window and
+// the merge is where the two deltas meet.
+//
+// MEASURED ON THE MERGE, not added up — and the two numbers differ, which
+// is the point. Each side measured its own delta against a 2331 KB base
+// (Compare +5, this branch +11), so the arithmetic says 2347. The merged
+// tree builds **2349 KB / 966 KB eager**, across 82 chunks. The extra two
+// kilobytes are the bundler re-splitting once both lazy importers exist —
+// exactly what the entry above documents happening to
+// `compare-breakdown.jsx` — and they are why a ceiling set by adding two
+// branches' deltas would have been wrong on the day it was written.
+//
+// The eager graph — the constant that defends first paint — is the half
+// worth watching, and it moved 1 KB per side: everything this branch adds is
+// reached through `world-feed.jsx`, already past first paint behind
+// `loadWorldFeed()` (D25).
+//
+// Headroom left: 8 KB on the total, 12 on the eager.
+const MAX_TOTAL_JS_KB = 2357;
 // 955 → 966 (2026-08-14): D139's pulse card — the second fixed instrument
 // on the FIRST screen, so its card, its store's demo furniture and the
 // two LIVE members are legitimately eager (~10 KB min). What is not
