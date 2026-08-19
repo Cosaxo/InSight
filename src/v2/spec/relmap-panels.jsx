@@ -14,7 +14,6 @@ import { RMCore } from './relmap-core.js';
 // RelationshipMap — the selected-person and selected-circle detail panels.
 const { P } = RMCore;
 const SANS = "'Hanken Grotesk', sans-serif";
-const SERIF = SANS;
 const upLabel = { fontFamily: SANS, fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: P.ink3 };
 const card = { background: P.card, border: '1px solid ' + P.cardBorder, boxShadow: P.shadow };
 
@@ -31,7 +30,7 @@ export function RMPersonPanel({ s, onSelect, onClose }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: 13, marginBottom: 16 }}>
             <div style={{ width: 48, height: 48, flex: 'none', borderRadius: '50%', background: s.color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: P.initFill, fontFamily: SANS, fontSize: 18, fontWeight: 700 }}>{s.initials}</div>
             <div>
-              <h2 style={{ fontFamily: SERIF, fontWeight: 700, fontSize: 23, lineHeight: 1.05, margin: '0 0 3px', letterSpacing: '-0.01em', color: P.inkName }}>{s.name}</h2>
+              <h2 style={{ fontFamily: SANS, fontWeight: 700, fontSize: 23, lineHeight: 1.05, margin: '0 0 3px', letterSpacing: '-0.01em', color: P.inkName }}>{s.name}</h2>
               <div style={{ fontFamily: SANS, fontSize: 14, color: P.body }}>{s.relationship}</div>
             </div>
           </div>
@@ -111,7 +110,7 @@ export function RMHubPanel({ h, onSelect, onDrill, onClose }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: 13, marginBottom: 18 }}>
             <div style={{ width: 48, height: 48, flex: 'none', borderRadius: '50%', background: h.color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: P.initFill, fontFamily: SANS, fontSize: 18, fontWeight: 700 }}>{h.count}</div>
             <div>
-              <h2 style={{ fontFamily: SERIF, fontWeight: 700, fontSize: 23, lineHeight: 1.05, margin: '0 0 3px', letterSpacing: '-0.01em', color: P.inkName }}>{h.name}</h2>
+              <h2 style={{ fontFamily: SANS, fontWeight: 700, fontSize: 23, lineHeight: 1.05, margin: '0 0 3px', letterSpacing: '-0.01em', color: P.inkName }}>{h.name}</h2>
               <div style={{ fontFamily: SANS, fontSize: 14, color: P.body }}>{h.countLabel}</div>
             </div>
           </div>

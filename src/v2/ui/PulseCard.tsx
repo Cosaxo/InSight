@@ -165,7 +165,7 @@ export default function PulseCard({ pid }: { pid?: string } = {}): React.ReactEl
       {open && (
         <div style={{ borderTop: "1px solid color-mix(in oklch, var(--rule), transparent 30%)", paddingTop: 12 }}>
           <React.Suspense fallback={null}>
-            <PulseTrendsLazy compact pid={id} />
+            <PulseTrendsLazy compact pid={id} mapLink />
           </React.Suspense>
         </div>
       )}

@@ -668,7 +668,19 @@ const MAX_CHUNK_KB = 735;
 // Headroom left: 6 KB on the total, 6 on the eager. Both are tight and
 // MAX_EAGER_KB is not raiseable, so the next thing added to the daily
 // screen has to earn its bytes or defer.
-const MAX_TOTAL_JS_KB = 2372;
+//
+// 2372 → 2404 (2026-08-19, the #231 merge): the Patterns tab (v28
+// §2, ON TRIAL per D166 §1), the lazy Map with its parked branches
+// (D207) and the trait web (v28 §13) land ON TOP of the D202–D204 entry
+// above. Everything the three add is lazy — app-shell reaches
+// ui/PatternsTab.tsx through React.lazy, the Map's seven modules left
+// the eager list for loadMapTab() (the MAX_EAGER_KB lowering below), and
+// the trait web rides behind the profile overlay. On their own branch
+// these measured 2383 KB / 850 KB eager across 95 chunks; MEASURED ON
+// THE MERGE: **2396 KB / 869 KB eager across 99 chunks** —
+// the Map deferral paying back the eager bytes the roster spent in the
+// entry above.
+const MAX_TOTAL_JS_KB = 2404;
 // 955 → 966 (2026-08-14): D139's pulse card — the second fixed instrument
 // on the FIRST screen, so its card, its store's demo furniture and the
 // two LIVE members are legitimately eager (~10 KB min). What is not
@@ -716,7 +728,23 @@ const MAX_TOTAL_JS_KB = 2372;
 // 72 KB of slack defends nothing; the next feature to want that room should
 // raise this line with a measurement beside it, which is what every entry
 // above did.
-const MAX_EAGER_KB = 920;
+//
+// 920 → 860 (2026-08-19): v28 §5 opened the door the entry above was
+// holding — the Map's seven modules left the eager graph for loadMapTab()
+// (mirror-tab lazy-loads the body, main.jsx prewarms the chunk). Measured
+// at this commit: eager 890 → 849 (−41), total 2370 → 2371 and 86 → 92
+// chunks — a relocation again, which is the shape these moves have. The
+// same doctrine as the 978 → 920 entry: the freed room is FOR the parked
+// map branches (g-fore, g-paths, the pulse trend branch), and they now
+// grow inside the LAZY map chunk where the eager ceiling no longer taxes
+// them — so the band stays ~11 KB and this constant should not need to
+// move for them at all.
+//
+// 860 → 880 (2026-08-19, the #231 merge): the 860 above was measured on
+// the branch, before D203's pulse roster — legitimately eager, the entry
+// far above records why — joined the graph. Merged: 869 KB eager, the
+// deferral still paying for most of the roster. Band stays ~11 KB.
+const MAX_EAGER_KB = 880;
 
 let files;
 try {

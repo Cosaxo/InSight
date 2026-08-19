@@ -244,4 +244,84 @@ export function PathsCard() {
   );
 }
 
+// ── the Map's Crossroads branch (v28 §5, D207) ─────────────────────────
+//
+// paths-data.js's header note #2 recorded why mapTree stayed unbuilt: the
+// eager map had no room and reading the store off the bridge would spend
+// the ratchet. D207 moved both budgets — the Map is lazy and this file is
+// an import away — so the fold lives HERE rather than in the store,
+// because it needs this card's live/demo source discipline (srcOf): live,
+// a finished walk is the SERVER's answer (recoverable on any device) and
+// the crowd share folds from real counts or is ABSENT; demo, both come
+// authored. `typ` carries the walk's rarity, so an uncommon road drifts
+// to the map's edge with no number printed.
+const walkFor = (sid) => {
+  if (LIVE.enabled && LIVE.myVotes) {
+    const mine = LIVE.myVotes()[sid];
+    if (mine != null) return PATH_ENDINGS[Number(mine)] || '';
+  }
+  return PATHS.walkOf(sid);
+};
+const demoSrc = (d) => ({
+  id: d.id, title: d.title, hue: d.hue, nodes: d.nodes, endings: d.endings,
+  flow: (key) => PATHS.flowOf(d.id, key),
+});
+
+export function pathsMapTree() {
+  const srcs = LIVE.enabled
+    ? (LIVE.pathQs ? LIVE.pathQs() : []).map((q) => srcOf(q))
+    : PATHS.stories().map(demoSrc);
+  const done = srcs.map((s) => ({ s, w: walkFor(s.id) })).filter((x) => x.w.length >= 3);
+  if (!done.length) return { cats: [], nodes: [] };
+  const cats = [{ id: 'path-walks', label: 'Walks', hue: 200, walk: true }];
+  const nodes = done.map(({ s, w }, i) => {
+    const end = s.endings[w] || {};
+    const f = s.flow ? s.flow(w) : null;
+    return {
+      id: 'path-' + s.id, parentId: 'path-walks', walk: true, daily: true, sid: s.id,
+      label: s.title + ' → ' + (end.name || ''), tag: s.title, ans: end.name || '', prompt: s.title,
+      // no flow (a live story nobody has answered into yet) → no rarity
+      // claim, same rule as the card's own tree
+      note: f ? '1 in ' + Math.max(2, Math.round(1 / f)) : '',
+      age: i, typ: f == null ? 0.5 : Math.max(0.05, Math.min(0.95, f * 2)), maj: false,
+    };
+  });
+  return { cats, nodes };
+}
+
+// the Map's Crossroads leaf: the walked road, small — tree, ending, rarity
+export function MTPathsCard({ node }) {
+  let st = null;
+  if (LIVE.enabled) {
+    const q = LIVE.pathQs ? LIVE.pathQs().find((x) => x.id === node.sid) : null;
+    if (q) st = srcOf(q);
+  } else {
+    const d = PATHS.storyOf(node.sid);
+    if (d) st = demoSrc(d);
+  }
+  if (!st) return null;
+  const walk = walkFor(st.id);
+  if (walk.length < 3) return null;
+  const end = st.endings[walk] || {};
+  const f = st.flow ? st.flow(walk) : null;
+  return (
+    <div style={{ '--pp-c': ppC(st.hue), '--pp-ink': ppInk(st.hue), '--hue': st.hue }}>
+      <div className="mmt-kicker"><span className="mmt-dot"></span>Crossroads</div>
+      <div className="mmt-title" style={{ marginTop: 4 }}>{st.title}</div>
+      {/* the tree needs a flow to draw branch widths — absent means the
+          walk shows as its ending alone rather than a tree of invented
+          widths (srcOf's own rule) */}
+      {st.flow ? <PathsTree st={st} walk={walk} flow={st.flow}></PathsTree> : null}
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, marginTop: 6, flexWrap: 'wrap' }}>
+        <b style={{ fontFamily: 'var(--sans)', fontSize: 14.5, color: 'var(--ink)' }}>{end.name || ''}</b>
+        {f ? (
+          <span style={{ fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 600, color: 'var(--ink-3)' }}>
+            1 in {Math.max(2, Math.round(1 / f))} walks this road
+          </span>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 export default PathsCard;

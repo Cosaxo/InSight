@@ -138,13 +138,16 @@ import './spec/group-role-map.jsx';
 import './spec/group-mirror.jsx';
 import './spec/segment-explorer.jsx';
 import './spec/mirror-tab.jsx';
-import './spec/map-bottom-card.jsx';
-import './spec/map-learn-card.jsx';
-import './spec/map-people.jsx';
-import './spec/map-layout.js';
-import './spec/map-groups.js';
-import './spec/map-chiprow.jsx';
-import './spec/map-tab.jsx';
+// The Map's seven modules (map-bottom-card, map-learn-card, map-people,
+// map-layout, map-groups, map-chiprow, map-tab) left this list for
+// loadMapTab() at the foot of this file (v28 §5): the Map is a Mirror-tab
+// destination, not a first-paint surface, and ~93 KB of source was the
+// eager graph's single cheapest win. Their order now lives as static
+// imports at the top of map-tab.jsx, so one import of that file evaluates
+// the family in the order this list used to guarantee. (map-branches,
+// map-anchors and map-group-stats stay eager above — daily-questions,
+// profile-general and the profile's stats read them on first-paint
+// surfaces.)
 // logic-test.jsx loads after first paint; it imports data/logic-gen
 // directly (D53), so the generator rides the same deferred chunk without
 // a listing of its own.
@@ -293,6 +296,31 @@ export const loadWorldFeed = retryable(async () => {
 // through an opener that awaits this promise, so a cached rejection turned
 // each of them into a tap that does nothing, permanently. Now the second tap
 // re-attempts the import; nothing else had to change to get that.
+// ── the Map, after first paint too (v28 §5) ────────────────────────────
+//
+// One import, not seven: map-tab.jsx carries its six siblings as static
+// side-effect imports, so the ESM graph evaluates the family in the order
+// the eager list used to hold — including the one hard constraint, the
+// module-scope destructure of window.MapTabLayout in map-tab.jsx needing
+// map-layout.js first.
+//
+// SYNCHRONISED BY THE CONSUMER, not by a re-render from here: mirror-tab's
+// MapSlot runs its own dynamic import of the same module and holds the
+// named export in state, so the You stop re-renders itself when the chunk
+// lands (mirror-field-pops' relmap pattern, D200). This loader exists so
+// main.jsx can start the fetch right after first paint — by the time a
+// thumb reaches the Mirror the module cache already has it — and so
+// check:globals rule 2 sees the './spec/map-tab.jsx' literal that proves
+// the family is loaded by something.
+//
+// person-mindmap (the loadOverlays group below) reads four of the family's
+// globals at render time; it carries its own static imports of those four
+// now, so the overlay chunk does not depend on this loader having run —
+// the ESM graph is the guarantee there too.
+export const loadMapTab = retryable(async () => {
+  await import('./spec/map-tab.jsx');
+});
+
 export const loadOverlays = retryable(async () => {
   // First, because this list is spec-index's own order with the eager
   // modules removed and relmap.jsx sat above every other member of it.

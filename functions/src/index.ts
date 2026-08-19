@@ -734,6 +734,10 @@ export { logicStartV2, logicSubmitV2 } from "./logic";
 // prediction against our OWN published aggregate and publishes the numbers
 // it read. No model, no fetch, no judgement anywhere in that path.
 export { resolveCallsV2 } from "./calls";
+// v28 §2 (trial per D166 §1): the nightly Patterns fit — per-question
+// loading vectors from the vote log, core corpus only (D161). The fold
+// that has to exist before the Patterns tab may ship (D167).
+export { fitPatternsV2 } from "./patterns";
 // "Suggest a question" — the community board's write path and the
 // operator review instruments (docs/NEXT-FUNCTIONALITY.md §6).
 export { suggestQuestionV2, fetchSuggestionsV2, reviewSuggestionV2 } from "./suggestions";

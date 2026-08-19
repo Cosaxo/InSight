@@ -5,7 +5,7 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import './styles.css';
-import { loadWorldFeed, loadOverlays } from './spec-index.js';
+import { loadWorldFeed, loadMapTab, loadOverlays } from './spec-index.js';
 import { initLive } from './data/live';
 // side effect: publishes window.registerBackHandler for the shell
 import './data/back';
@@ -76,6 +76,15 @@ initLive().finally(() => {
   // parse-and-eval off local disk in a native package, so they contend for
   // the same main thread, and the feed is the one a user reaches first.
   loadOverlays().catch((err) => reportError(err, { where: 'loadOverlays' }));
+
+  // The Map (v28 §5) — the Mirror's landing stop, one tap away, so this is
+  // a prewarm rather than a defer-until-needed: by the time a thumb reaches
+  // the Mirror the chunk is in the module cache and mirror-tab's lazy body
+  // resolves without a visible wait. No re-render needed here — the lazy
+  // body suspends and settles itself (unlike daily-split's window.WorldFeed
+  // read above). A failed chunk costs the You stop its Map until the next
+  // visit re-attempts (retryable), not the app.
+  loadMapTab().catch((err) => reportError(err, { where: 'loadMapTab' }));
 
   // The account-creation questions (D151) — the anchors every answer
   // snapshots (D8), asked once, at the top of a new account instead of

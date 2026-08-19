@@ -12,7 +12,11 @@ import React from 'react';
 // believable vote counts.
 
 // ── topic palette ── id doubles as the question's cat. Hues share one chroma tier.
-window.WORLD_TOPICS = [
+// Named export alongside the global (D39's "convert on touch", the WPAL
+// precedent): typed panels — ui/PatternsTab first — import the binding, so
+// the coupling meter (rule 4) never counts them, while the nine spec
+// consumers keep reading the global until their own touch converts them.
+export const WORLD_TOPICS = [
   { id: 'sport',   label: 'Sport',          color: 'oklch(0.52 0.14 145)' },
   { id: 'food',    label: 'Food',           color: 'oklch(0.52 0.14 40)'  },
   { id: 'movies',  label: 'Movies & TV',    color: 'oklch(0.52 0.14 310)' },
@@ -30,6 +34,7 @@ window.WORLD_TOPICS = [
   // never reach the feed.
   { id: 'fav',     label: 'Favourites',     color: 'oklch(0.52 0.14 170)' },
 ];
+window.WORLD_TOPICS = WORLD_TOPICS;
 
 // ── channels ── always-on formats (not communities); they follow your scenes in the chip row
 //
