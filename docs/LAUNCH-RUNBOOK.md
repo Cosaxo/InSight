@@ -474,6 +474,23 @@ arithmetic.
       automated writer, and the window between merging a release commit and
       dispatching from it is no longer quiet.
 
+      **BUILD 21 IS IN TESTFLIGHT, AND THE NUMBER MOVED WITH IT**
+      (2026-08-19). Run 32 (`32228796376`, `d547f7a`, 07:38:55Z) was the
+      dry run — step 17 `skipped`, 5m 18s, signed `.ipa` kept as artifact
+      `9356608227` — and run 33 (`32229389551`, same sha, 07:46:29Z)
+      uploaded: step 17 `success`, 07:52:10Z → 07:54:11Z, 2m 01s of
+      transfer, `UPLOAD SUCCEEDED with no errors`, delivery UUID
+      `f1ab4ae5-0673-4a89-a4f3-c3ab03c6e87d`. Both silent-failure gates
+      passed at both ends on both runs — `aps-environment = production`
+      out of the exported `.ipa`, Firebase config in the bundle.
+
+      **`appBuild` is now 22, read off step 17 rather than recalled.**
+      Five bumps have held (runs 20, 21, 22, 28, 33) against five skipped
+      (18, 19, 24, 26, 31). D159's trap fired once more and cost nothing:
+      `5c9c4a5` merged, both runs archived `d547f7a` after a pulse trail
+      row landed in between, and `appBuild` was 21 at both. D199.
+
+
       **BUILD 20 WAS UPLOADED BY RUN 31, AND BUILD 21'S PRE-FLIGHT HAD TO
       BUMP** (2026-08-19). Three runs sit at `f8c8465` and no document
       named any of them: run 29 (`32019625202`, 10:19:31Z) cancelled at
