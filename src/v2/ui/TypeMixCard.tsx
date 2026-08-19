@@ -12,12 +12,12 @@
 // and says shares would lie; thin types are listed, never ranked;
 // absent types are named as missing.
 //
-// D199 added the system switch: all four instruments, not just the Big
+// D202 added the system switch: all four instruments, not just the Big
 // Five, with the choice remembered per device. The honesty rules above
 // apply PER INSTRUMENT rather than once — coverage differs by how far
 // each person has got through the test feed, so `typedN`, the thin list
 // and the counts-not-shares state are all recomputed on every switch.
-// The reversal that made this legal is D199 itself; `data/typeMix.ts`
+// The reversal that made this legal is D202 itself; `data/typeMix.ts`
 // carries the argument and what it cost.
 import React from "react";
 import LIVE from "../data/live";
@@ -26,7 +26,7 @@ import { myTypeOn, typeMixFor, TYPE_SMALL, TYPE_SYSTEMS, TYPE_TEST, isTypeSystem
 import { TypeMark } from "../spec/type-marks.jsx";
 import { bucketLabel } from "./cohortLabels";
 
-/** The chosen instrument, remembered across opens (D199). Device state, so
+/** The chosen instrument, remembered across opens (D202). Device state, so
  * `purgeLocalTrace`'s `insight.` prefix sweep takes it for free — the
  * listener below is what `check:purge` asks for in exchange. */
 const SYS_LS = "insight.typeMixSys.v1";

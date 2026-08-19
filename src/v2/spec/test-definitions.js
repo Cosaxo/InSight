@@ -116,7 +116,7 @@ export const IS_TEST_AVG = {
   political:  { econ: 50, auth: 52, foreign: 48, env: 55, tech: 60, estab: 55 },
   values:     { future: 52, circle: 45, hedonism: 55, meaning: 58, moral: 55, beauty: 60 },
   attachment: { warm: 64, loyal: 66, open: 56, play: 58, easy: 60 },
-  // The role instruments (D201). These are the baselines the matcher
+  // The role instruments (D204). These are the baselines the matcher
   // centres BOTH sides on before comparing, and they are authored like the
   // four above rather than measured — deliberately, and for the reason
   // D157 gave when it moved everything else onto measured folds: which

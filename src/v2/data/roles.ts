@@ -1,4 +1,4 @@
-// YOUR ROLE, as a test result (D201) — the prototype's `role-data.js`,
+// YOUR ROLE, as a test result (D204) — the prototype's `role-data.js`,
 // folded from the app's real duel record instead of its seeded one.
 //
 // WHAT IT IS. The duels already record how each 1v1 and each group goes;
@@ -28,17 +28,20 @@
 // rose. A dead axis presented as a measurement is precisely what D167
 // forbids and what D157 spent a release removing. So `cast` is not here.
 //
-// Dropping it costs two of the nine group types, and they are dropped
-// rather than kept hollow: "The First Pick" and "The Spark" are DEFINED
-// by `cast` (94 and 78 against a near-neutral rest), so without it they
-// collapse onto "The Floater". Seven remain, their shares renormalised to
-// 100 because `IS_archScores` taxes rare types by log(maxShare/share) and
-// a table summing to 82 would quietly shift every match. The pick
+// Dropping it costs THREE of the nine group types, and they are dropped
+// rather than kept hollow. "The First Pick" and "The Spark" are DEFINED
+// by `cast` (94 and 78 against a near-neutral rest). "The Floater" is the
+// one the first pass missed: without `cast` its signature is 46/46/44,
+// and `IS_archScores` weights each dim by |sig − 50|, so a type
+// near-neutral on everything can never be picked — a registry case caught
+// it. Six remain, their shares renormalised from 83 to 100 because
+// `IS_archScores` also taxes rare types by log(maxShare/share) and a
+// table that does not sum to 100 quietly shifts every match. The pick
 // questions in the group bank could ground a real `cast` later — 7 of 24
 // are `kind: "pick"` and their options ARE the member list — but the
 // reveal doc does not store the option→uid mapping the answering client
 // used, so it is a new fold with a real correctness hazard, not a free
-// one. See D201 for the arithmetic.
+// one. See D204 for the arithmetic.
 import { duoRuns, type RevealDocLike } from "./duelRuns";
 import { groupPortrait, type PortraitReveal } from "./groupPortrait";
 

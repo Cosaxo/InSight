@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 //
-// The pulse roster and its cadences (D200).
+// The pulse roster and its cadences (D203).
 //
 // D139 shipped one pulse and said a roster would make it a parameter.
 // These cases pin the two things that parameterisation is allowed to be

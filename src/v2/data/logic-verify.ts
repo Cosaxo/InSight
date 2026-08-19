@@ -18,6 +18,7 @@ import { getFunctions, httpsCallable } from "firebase/functions";
 import { getAuth } from "firebase/auth";
 import { getDb } from "../../lib/firebase";
 import type { Cell } from "./logic-gen";
+import { FUNCTIONS_REGION } from "../../lib/region";
 
 export interface VerifiedItem {
   cells: Cell[];
@@ -44,13 +45,13 @@ export interface VerifiedScore {
 export async function startVerified(): Promise<VerifiedStart> {
   const db = await getDb();
   if (!getAuth(db.app).currentUser) throw new Error("still signing in — try again in a moment");
-  const res = await httpsCallable(getFunctions(db.app, "us-central1"), "logicStartV2")({});
+  const res = await httpsCallable(getFunctions(db.app, FUNCTIONS_REGION), "logicStartV2")({});
   return res.data as VerifiedStart;
 }
 
 export async function submitVerified(picks: number[]): Promise<VerifiedScore> {
   const db = await getDb();
-  const res = await httpsCallable(getFunctions(db.app, "us-central1"), "logicSubmitV2")({ picks });
+  const res = await httpsCallable(getFunctions(db.app, FUNCTIONS_REGION), "logicSubmitV2")({ picks });
   return res.data as VerifiedScore;
 }
 

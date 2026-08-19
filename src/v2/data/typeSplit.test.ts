@@ -228,9 +228,9 @@ describe("uidsOfType", () => {
   });
 });
 
-// ── the scope that survived D199 ──────────────────────────────────────
+// ── the scope that survived D202 ──────────────────────────────────────
 //
-// D199 widened the population MIX to every instrument and demoted
+// D202 widened the population MIX to every instrument and demoted
 // `typeMix.TYPE_TEST` from an enforcement point to a default. The promise
 // in web/privacy.html that did NOT move is this module's: answers are
 // grouped by the Big Five and by nothing else. That promise used to be

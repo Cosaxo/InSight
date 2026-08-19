@@ -111,8 +111,8 @@ describe("the type system itself", () => {
   });
 
   it("defaults to the Big Five", () => {
-    // Until D199 this constant was the ENFORCEMENT of a scope promise and
-    // this case said so. D199 reversed D157 §4 on the owner's call, so the
+    // Until D202 this constant was the ENFORCEMENT of a scope promise and
+    // this case said so. D202 reversed D157 §4 on the owner's call, so the
     // constant is now only the instrument a reader who has not chosen one
     // gets. Changing THAT is still a decision rather than a refactor — it
     // moves which system every first-time reader sees.
@@ -140,10 +140,10 @@ describe("typeSharesOn", () => {
     expect(typeSharesOn(TYPE_TEST)).toBeNull();
   });
 
-  it("answers for every instrument the archetype module defines (D199)", () => {
+  it("answers for every instrument the archetype module defines (D202)", () => {
     // This case is the inverse of the one it replaces. It used to assert
     // that politics, values and attachment each returned null — the Art. 9
-    // scope D141 enforced and D157 §4 declined to widen. D199 reversed
+    // scope D141 enforced and D157 §4 declined to widen. D202 reversed
     // that, so all four now answer, and the case stays to pin the reversal
     // rather than being deleted: a silent return to null would be a
     // promise moving back without a record.

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 //
-// The Roles tab (D201) — the panel half.
+// The Roles tab (D204) — the panel half.
 //
 // `data/roles.test.ts` holds the arithmetic. What matters here is what the
 // screen does with it, and the three properties are all refusals:

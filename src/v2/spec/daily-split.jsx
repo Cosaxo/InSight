@@ -902,7 +902,7 @@ class DailySplit extends React.Component {
         h('span', { 'aria-hidden': true, style: { display: 'flex', gap: 1.5, width: 66, height: 9, borderRadius: 999, overflow: 'hidden', flexShrink: 0 } },
           S.options.map((o, i) => h('span', { key: o.id, title: o.label + ' \u00b7 ' + rp[i] + '%', style: { width: rp[i] + '%', background: myVote === o.id ? o.color : 'color-mix(in oklch, ' + o.color + ' 32%, var(--surface-3))' } })))),
       dailyCard,
-      // The pulses due today (D139, roster at D200): the fixed instruments
+      // The pulses due today (D139, roster at D203): the fixed instruments
       // on the World day, compact, beside the blind daily — same contract
       // (answer before you see anyone), one hue, and the trends reading
       // opens from each card itself.

@@ -25,13 +25,13 @@ import { ARCHETYPES, matchArchetype } from "../spec/archetype-data.js";
 
 /** The instrument a population reading uses when nobody has chosen one.
  *
- * **This was the enforcement point of a promise until D199, and the change
+ * **This was the enforcement point of a promise until D202, and the change
  * is the whole of that record — read it before touching anything here.**
  * D141 made this constant the single place the fold could be widened
  * ("enforced rather than intended"), and D157 §4 refused to widen it,
  * noting in as many words that it would have been one parameter and
  * accepting the loss of a frequency on three profile sheets as the price.
- * D199 reversed that on the owner's call: every instrument the archetype
+ * D202 reversed that on the owner's call: every instrument the archetype
  * module defines is now readable as a population, the reader picks which,
  * and `web/privacy.html` says so rather than promising the opposite.
  *
@@ -153,7 +153,7 @@ const inScope = (p: KindredPerson, scope: string): boolean => {
 
 /** The whole reading for one scope, in one pass over the cached sample.
  *
- * `kind` is the instrument being charted (D199). It changes nothing about
+ * `kind` is the instrument being charted (D202). It changes nothing about
  * WHICH people are counted — the scope does that — only which result each
  * of them is typed against, so `sampleN` is identical across systems and
  * `typedN` is not: coverage differs by how far each person has got through
@@ -206,7 +206,7 @@ export function typeMixFor(
 // swapping it for a live sample would make which type you ARE drift with
 // whoever the app happened to fetch this session.
 //
-// THE SCOPE WIDENED AT D199, having been refused at D157 §4. The sheet
+// THE SCOPE WIDENED AT D202, having been refused at D157 §4. The sheet
 // renders for all four instruments and this now measures all four, so the
 // three that showed no frequency at all get a real one instead of a blank.
 //
@@ -243,7 +243,7 @@ export interface TypeShares {
  * Measured type frequencies, or null in a demo build — where the authored
  * share IS the content, like the seeded circle.
  *
- * Since D199 this answers for every instrument in `TYPE_SYSTEMS`, not only
+ * Since D202 this answers for every instrument in `TYPE_SYSTEMS`, not only
  * `TYPE_TEST`. It still returns null for a key the archetype module does
  * not define, and still returns null rather than a fallback when the fold
  * cannot be done — the D72 posture, so a caller that forgets the check

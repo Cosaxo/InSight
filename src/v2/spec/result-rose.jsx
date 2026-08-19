@@ -71,7 +71,7 @@ export const RP_TESTS = {
       easy:  ['invested', 'easygoing'],
     },
   },
-  // ── the role instruments (D201) ──────────────────────────────────────
+  // ── the role instruments (D204) ──────────────────────────────────────
   // A role card IS a result card — same rose, same rarity, same nearby
   // types — so the two settings need exactly what every other instrument
   // needs and nothing more. The hues sit in each setting's own family

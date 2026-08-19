@@ -1,6 +1,6 @@
 // A pulse, compact, beside the blind daily — the v24 design
 // (design/standalone-v24/pulse-card.jsx) ported typed, at roster size
-// since D200. Same contract as the daily question: you answer before you
+// since D203. Same contract as the daily question: you answer before you
 // see anyone else; the five inputs BECOME the chart on reveal. One hue
 // throughout (--pulse).
 // "Your line →" opens the Trends reading in place — the chart is a lazy
@@ -42,7 +42,7 @@ export default function PulseCard({ pid }: { pid?: string } = {}): React.ReactEl
 
   // ── the streak: the last fourteen ASKS as they were, not a trophy.
   // Filled = answered, faint = missed, ring = today still open. Tap → the
-  // reading. Asks rather than days since D200: a weekly pulse's strip is
+  // reading. Asks rather than days since D203: a weekly pulse's strip is
   // fourteen Sundays, not a fortnight with two marks in it.
   const strip = (
     <button className="press" onClick={() => { const next = !open; setOpen(next); if (next) void PULSE.ensureTrend(id).catch(() => { /* the reading draws your own line regardless */ }); }}
@@ -117,7 +117,7 @@ export default function PulseCard({ pid }: { pid?: string } = {}): React.ReactEl
     </div>
   );
 
-  // ── the rhythm (D200): how often this pulse asks, set where it asks.
+  // ── the rhythm (D203): how often this pulse asks, set where it asks.
   // "Show up more often" is a cadence rather than a settings screen, so
   // the control lives on the card and says only its current state until
   // it is tapped — four chips standing open on every pulse would be more

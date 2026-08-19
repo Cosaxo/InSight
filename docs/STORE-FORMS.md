@@ -70,7 +70,7 @@ companies' apps or sites.
 | User Content | **Other User Content** | Yes | App Functionality | Answers and test results, the anchors each answer was given under, and question suggestions (D138). See the note below the table |
 | User Content | **Photos or Videos** | Yes | App Functionality | **Optional profile photo, off by default (D178)** — shown anywhere the app shows the user's name, including to people nearby since D177. Shrunk and re-encoded on the device, which drops the original's EXIF. See the note below the table |
 | Location | **Coarse Location** | Yes | App Functionality | City name; 0.002° presence cell |
-| Health & Fitness | **Health** | Yes | App Functionality | **New at D200.** Two of the five pulse questions are "How did you sleep?" and "How was your energy today?" — one five-step answer a day each, keyed to a UTC day. See the note below the table |
+| Health & Fitness | **Health** | Yes | App Functionality | **New at D203.** Two of the five pulse questions are "How did you sleep?" and "How was your energy today?" — one five-step answer a day each, keyed to a UTC day. See the note below the table |
 | Location | **Precise Location** | Yes | App Functionality | Requested since D175; nothing precise is retained — see §"The three that bite" |
 | Sensitive Info | **Sensitive Info** | Yes | App Functionality | Politics test result (GDPR Art. 9); gender if entered |
 | Diagnostics | **Crash Data** | Yes | App Functionality | Sentry. **On by default** (D76), opt-out in the privacy panel, carries the uid only |
@@ -134,7 +134,7 @@ one 256px object per account, deleted with the account (bytes included —
 
 Four of those are worth knowing *why*, because each looks tickable:
 
-- **Health — YES since D200, and the trip-wire is what moved it.** This
+- **Health — YES since D203, and the trip-wire is what moved it.** This
   bullet answered **No** from the first filing until the pulse roster
   shipped, and the No was argued at D140 for the **height band** alone: a
   six-value demographic select (`Under 160 cm` … `190 cm or taller`, plus
@@ -142,7 +142,7 @@ Four of those are worth knowing *why*, because each looks tickable:
   measurement, with no centimetre field to hold anything finer. That
   argument still stands for height and is not what changed.
   **What changed is that the app started asking about sleep.** D166 §3
-  approved the five-pulse roster and D200 built it; two of the five are
+  approved the five-pulse roster and D203 built it; two of the five are
   *"How did you sleep?"* and *"How was your energy today?"*, answered once
   per scheduled day on a five-step scale. Apple's wording for this row is
   health and medical data — HealthKit, Clinical Health Records,

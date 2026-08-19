@@ -31,7 +31,7 @@ console of the running app (the seed callable is open in the emulator):
 
 ```js
 const { getFunctions, httpsCallable } = await import("firebase/functions");
-await httpsCallable(getFunctions(undefined, "us-central1"), "seedContentV2")({});
+await httpsCallable(getFunctions(undefined, "europe-west1"), "seedContentV2")({});
 ```
 
 What live mode gives you:

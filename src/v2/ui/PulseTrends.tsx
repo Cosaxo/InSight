@@ -15,7 +15,7 @@ export default function PulseTrends({ compact, pid }: { compact?: boolean; pid?:
   const id = pid || PULSE.first();
   React.useEffect(() => {
     // The 21-day window, for THIS pulse, on the tap that opened the
-    // reading (D200). The card's own fetch is today-only; a roster that
+    // reading (D203). The card's own fetch is today-only; a roster that
     // pulled five windows on every open would be 105 ids over a 30-clause
     // cap, for data the first screen never draws.
     void PULSE.ensureTrend(id).catch(() => { /* the panel lists the absence honestly */ });
@@ -49,7 +49,7 @@ export default function PulseTrends({ compact, pid }: { compact?: boolean; pid?:
   // never dips. With fewer than two answers there is no line yet, so
   // nothing can break: day one stays a clean frame, not one grey box.
   //
-  // A day the cadence did not ask on is NOT a gap (D200's fourth honesty
+  // A day the cadence did not ask on is NOT a gap (D203's fourth honesty
   // rule). Counting it as one is the specific lie the rule exists to stop:
   // a weekly pulse answered every Sunday would otherwise draw three grey
   // voids and report "you skipped 18 days" about a question nobody put.

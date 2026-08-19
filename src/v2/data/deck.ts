@@ -365,7 +365,7 @@ export function splitBanks(active: Array<QuestionDoc & { id: string }>): {
     // anything. Keeping it out of `feed` keeps that read off the feed's
     // hot path entirely.
     call: active.filter((q) => q.surface === "call" && playable(q)),
-    // The pulse roster (D200). It had no bank until the roster shipped,
+    // The pulse roster (D203). It had no bank until the roster shipped,
     // and the omission cost two live defects rather than one: `data/pulse`
     // paid its own `getDoc` for a template `hydrate()` had already
     // downloaded and cached, AND that read took only `prompt`/`options`,

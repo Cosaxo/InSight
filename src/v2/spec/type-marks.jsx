@@ -203,8 +203,8 @@ function TypeIndexSheet({ testKey, onClose }) {
         <div className="wf-sheet-body" style={{ display: 'flex', flexDirection: 'column' }}>
           {LIVE.enabled && !counted ? (
             <div style={{ padding: '4px 2px 12px', fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)', lineHeight: 1.45, textWrap: 'pretty' }}>
-              {/* Before D199 this branch was the Art. 9 refusal and said so
-                  ("only counted for the Big Five"). D199 made every
+              {/* Before D202 this branch was the Art. 9 refusal and said so
+                  ("only counted for the Big Five"). D202 made every
                   instrument in TYPE_SYSTEMS answer, so for the four this
                   sheet can render it is now unreachable — `typeSharesOn`
                   returns null only for a key the archetype module does not

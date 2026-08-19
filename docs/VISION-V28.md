@@ -59,13 +59,13 @@ what is actually left is much smaller than the diff suggested.
 | **Three tabs** (`patterns · daily · mirror`) | **Adopted ON TRIAL** (D166 §1) | none of its own — it is a shell | The tab count is the app's thesis sentence — `CLAUDE.md` opens with "a two-tab app". Cheap to build, expensive to be wrong about, so it ships behind the lazy loader with the reversal kept to one import site. |
 | **Patterns · Map** (questions placed by mutual prediction) | **Build — but the engine is a backend item** | **the item IS the backend**: a fold publishing per-question loading vectors | The prototype invents 560 people. A real map needs cross-question co-occurrence, which no aggregate publishes today. |
 | **Patterns · Oracle** (guess your next answer) | **Build, second** | rides Map's publication — no second fold | Rides the *same* publication as the Map. Two readers, one server fold — that is the whole reason to sequence them together. Distinct from [D163](DECISIONS.md#d163--the-app-learns-what-you-are-into-and-the-model-never-leaves-the-phone)'s interest model: that one orders the tail and never leaves the phone; this one guesses an answer from a published fold and shows its working. |
-| **Pulse: one → five, with cadence** | **BUILT (D200)** | done — and it needed no rules or function change at all; `isPulseAnswer` already keyed on the payload's `baseQid` and the trigger on `event.params.qid` | D139's store is single-pulse by deliberate choice ("a roster becomes a parameter the day a second pulse ships"). This is that day. |
-| **Pulses take their turn in the feed** | **BUILT (D200)** | none — a client cadence rule | Not via `feed-interleave` in the end: a pulse is not dealt into the stream at a cadence measured in CARDS, it is due or not due on a given DAY. `dueToday()` decides, and the due cards sit beside the daily. |
+| **Pulse: one → five, with cadence** | **BUILT (D203)** | done — and it needed no rules or function change at all; `isPulseAnswer` already keyed on the payload's `baseQid` and the trigger on `event.params.qid` | D139's store is single-pulse by deliberate choice ("a roster becomes a parameter the day a second pulse ships"). This is that day. |
+| **Pulses take their turn in the feed** | **BUILT (D203)** | none — a client cadence rule | Not via `feed-interleave` in the end: a pulse is not dealt into the stream at a cadence measured in CARDS, it is due or not due on a given DAY. `dueToday()` decides, and the due cards sit beside the daily. |
 | **Foresight CALL + its feed cards** | **BUILT (D194), RETIRED (D196)** | shipped: `resolveCallsV2`, then switched off | D127 is unchanged. Tier A works and is not what was wanted: the owner wants predictions about real EVENTS, so the bank is `active: false` and the card is unmounted. What ships in the feed instead is the READ half (D196), gated on having enough fair reads to keep a record worth believing. |
 | **Foresight & Crossroads on the Map** | **Build when the eager budget moves** | none — blocked on bytes, not data | Both need `map-tab.jsx` — which is EAGER — to read a new store, and `MAX_EAGER_KB` has no headroom. D136 already parked `paths.mapTree()` for exactly this. |
 | **Born or built** (heritability rows on the result card) | **REFUSED** (D168) | n/a — and that is the reason it is refused | Population science, not this app's data. Every other number here is recomputable from what people answered; a heritability figure is the app asserting a fact about the world, which D127 already gates. |
 | **What moves together** (cross-test threads on the profile) | **Build** | **none — already real** (folds your own results) | Pure fold over `IS_TEST_RESULTS`; no new reads, no new collection. The cheapest real feature in the file. |
-| **Type-mix system switch** (all four instruments) | **BUILT (D199)** — and it needed an owner decision this row did not know about | **none — already real** (test results publish, D98) | D141 shipped the card; this was one control and a persisted key. "Does not touch D8" was true and beside the point: **D157 §4** was the binding constraint, and D199 reversed it. See §8. |
+| **Type-mix system switch** (all four instruments) | **BUILT (D202)** — and it needed an owner decision this row did not know about | **none — already real** (test results publish, D98) | D141 shipped the card; this was one control and a persisted key. "Does not touch D8" was true and beside the point: **D157 §4** was the binding constraint, and D202 reversed it. See §8. |
 | **The sponsored frame** | **Unchanged: waiting on the paid path** | the paid path itself — now shaped by [D164](DECISIONS.md#d164--the-revenue-paths-re-derived-against-an-unbounded-feed) | `paid-data.js` is byte-identical to v24. D164 (landed on main) re-derived the revenue paths against an unbounded feed: scheduled slots not impressions, billed on answers. The card's disclosure design is unaffected — what changed is what it discloses. |
 | **The visual corrections** (nine small ones) | **Build as one pass** | **none — pure visuals** | No decisions in any of them. Best done in a single commit against the patches. |
 | **The tweak teardown** (19 flags settled) | **Adopt as the record** | **none — deletions** | The prototype deleting a flag *is* the decision. The app's cost is dead-branch removal, which is what rule 4 and the compiler want anyway. |
@@ -225,7 +225,7 @@ Cost notes to settle before building, not after:
   the duel reveal, and it belongs in a test the way `surface` pins the
   duel seal.
 
-## 3 · Pulse: one question becomes five, each with a rhythm — **BUILT (D200)**
+## 3 · Pulse: one question becomes five, each with a rhythm — **BUILT (D203)**
 
 `pulse-data.js` drifted hard past v24. Five pulses — mood · energy ·
 sleep · focus · social — each carrying its own **cadence**: daily · often
@@ -251,7 +251,7 @@ bridged; a thin day keeps its count and is listed, not positioned; a day
 the pulse was not scheduled is absent too; no smoothing anywhere. v28 adds
 the fourth clause; the other three are already pinned in `data/pulse.ts`.
 
-**BUILT at [D200](DECISIONS.md#d200--five-pulses-each-with-its-own-rhythm).**
+**BUILT at [D203](DECISIONS.md#d200--five-pulses-each-with-its-own-rhythm).**
 Three things this section did not anticipate, all recorded there: the
 roster made the reads *cheaper* rather than five times dearer (the card
 needs today, not the window — a naive ×5 would have been 105 ids over a
@@ -389,7 +389,7 @@ Best done as one commit against `design/standalone-v28/changes/`:
 8. **`passive-meter.jsx`** — the redundant "profile" label goes.
 9. **`mirror-field-pops.jsx`** — type chips on field rows (needs §8).
 
-## 8 · Type-mix — one control — **BUILT (D199)**
+## 8 · Type-mix — one control — **BUILT (D202)**
 
 The card gained a **system switch**: all four instruments, not just the
 default test, persisted to `insight.typeMixSys.v1` (the plan's
@@ -411,7 +411,7 @@ was — it refused this exact reading for these exact instruments, named
 widening was "one parameter" away before declining it anyway. Clearing D8
 and shipping would have been clearing a constraint nobody was blocked on.
 
-The owner reversed D157 §4 ([D199](DECISIONS.md#d199--the-type-mix-reads-every-instrument-and-d157-4-is-reversed)),
+The owner reversed D157 §4 ([D202](DECISIONS.md#d199--the-type-mix-reads-every-instrument-and-d157-4-is-reversed)),
 which is a decision this file could recommend but not take. What shipped
 with it, none of which was in this section's plan:
 
@@ -420,7 +420,7 @@ with it, none of which was in this section's plan:
   the new claim and the surviving one.
 - **The promise that survived got an owner.** Answers still group by the
   Big Five alone; that was enforced by `typeMix.TYPE_TEST`, the constant
-  D199 demotes to a default, so the scope moved to
+  D202 demotes to a default, so the scope moved to
   `data/typeSplit.SPLIT_TEST` — explicit at every call site, with its own
   cases.
 - **It could not be a port.** The prototype derives its non-Big-Five mixes
@@ -644,7 +644,7 @@ Named so the rule is not read as sweeping them in:
 
 ## 14 · Roles — the item this plan never had a section for
 
-**BUILT ([D201](DECISIONS.md#d201--your-role-is-a-test-result-and-the-dimension-without-data-is-not-shipped).)**
+**BUILT ([D204](DECISIONS.md#d201--your-role-is-a-test-result-and-the-dimension-without-data-is-not-shipped).)**
 
 `role-data.js` and `roles-panel.jsx` are new to the 2026-08-19 prototype.
 The August-15 build had no such module, which is why every other section
@@ -668,6 +668,6 @@ scenario generator. Shipping it would have meant a constant equal to its
 own baseline: no contribution to any match, an identical petal on every
 rose, and a dead axis presented as a measurement — which is what §13's own
 D167 paragraph forbids. It is not computed, and the three group types that
-`cast` alone made distinct went with it. D201 has the arithmetic, including
+`cast` alone made distinct went with it. D204 has the arithmetic, including
 what a real `cast` would need (pick questions can ground it; the reveal doc
 does not store the option→uid mapping they would need to be read safely).

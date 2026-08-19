@@ -15,7 +15,7 @@ import { RP_TESTS } from './result-rose.jsx';
 // exists to force.
 import LIVE from '../data/live.ts';
 
-// The Roles tab (D201), behind a lazy boundary. THIS FILE IS EAGER — it is
+// The Roles tab (D204), behind a lazy boundary. THIS FILE IS EAGER — it is
 // imported by spec-index.js at line ~123 — and check:bundle's MAX_EAGER_KB
 // had ~8 KB of headroom when Roles shipped, so a static import here would
 // have put two roses, the archetype matcher and the panel itself on first
@@ -40,7 +40,7 @@ function ProfileOverlay({ onClose, me, lensBoxed }) {
     { id: 'politics',   label: 'Politics' },
     { id: 'values',     label: 'Values' },
     { id: 'attachment', label: 'Social' },
-    // Roles (D201) — the role you play in a 1v1 and in a group, folded
+    // Roles (D204) — the role you play in a 1v1 and in a group, folded
     // from the duel record. LIVE ONLY, and that is not a stub: it reads
     // reveal documents, and the demo room has none. A tab that could only
     // ever draw its own refusal is worse than no tab, and D167's rule is

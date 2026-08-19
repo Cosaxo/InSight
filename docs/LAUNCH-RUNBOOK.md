@@ -474,6 +474,23 @@ arithmetic.
       automated writer, and the window between merging a release commit and
       dispatching from it is no longer quiet.
 
+      **BUILD 21 IS IN TESTFLIGHT, AND THE NUMBER MOVED WITH IT**
+      (2026-08-19). Run 32 (`32228796376`, `d547f7a`, 07:38:55Z) was the
+      dry run — step 17 `skipped`, 5m 18s, signed `.ipa` kept as artifact
+      `9356608227` — and run 33 (`32229389551`, same sha, 07:46:29Z)
+      uploaded: step 17 `success`, 07:52:10Z → 07:54:11Z, 2m 01s of
+      transfer, `UPLOAD SUCCEEDED with no errors`, delivery UUID
+      `f1ab4ae5-0673-4a89-a4f3-c3ab03c6e87d`. Both silent-failure gates
+      passed at both ends on both runs — `aps-environment = production`
+      out of the exported `.ipa`, Firebase config in the bundle.
+
+      **`appBuild` is now 22, read off step 17 rather than recalled.**
+      Five bumps have held (runs 20, 21, 22, 28, 33) against five skipped
+      (18, 19, 24, 26, 31). D159's trap fired once more and cost nothing:
+      `5c9c4a5` merged, both runs archived `d547f7a` after a pulse trail
+      row landed in between, and `appBuild` was 21 at both. D199.
+
+
       **BUILD 20 WAS UPLOADED BY RUN 31, AND BUILD 21'S PRE-FLIGHT HAD TO
       BUMP** (2026-08-19). Three runs sit at `f8c8465` and no document
       named any of them: run 29 (`32019625202`, 10:19:31Z) cancelled at
@@ -1284,6 +1301,38 @@ That is a tester-count problem, not a workflow problem.
       Reversing #1 costs nothing. Reversing #2 costs the four clicks per
       dispatch that #2 exists to save, which is the trade being made, and
       it is the cheaper side once releases stop being daily.
+
+- [ ] **5.9 Deploy the functions to `europe-west1` (D201), then confirm
+      the old region is empty.** The code is merged and every gate is
+      green; this is the operator half, and it is the one deploy here that
+      can corrupt data rather than just fail.
+
+      **Why now:** every client calls the region its own bundle names, so
+      this gets more expensive with each install — the same "last free
+      reset" argument D165 made about the database, one layer up. It also
+      ends the split D200 measured: the database has been in Europe since
+      2026-08-15 and the functions were still in Iowa.
+
+      **The hazard, in one sentence:** a region is part of a function's
+      identity, so the deploy CREATES the new copies and leaves the old
+      ones running, and while both exist **both Firestore triggers fire
+      and every answer folds twice** — the event-ledger dedup keys on the
+      CloudEvent id, which makes a retry safe and says nothing about a
+      second subscription.
+
+      The full procedure, the verification command and the rollback are in
+      [`DEPLOYMENT.md`](DEPLOYMENT.md) § Moving the functions. The short
+      form: deploy while nothing is being answered, then
+      `gcloud functions list --project prvfire33 --regions us-central1`
+      and delete anything that is not one of D13's nine v1 leftovers.
+
+      **Then bump the build and ship it** (2.4). Every build shipped before
+      this deploy — 21 and earlier — keeps
+      calling `us-central1` and get a 404 the app reports as `internal` on
+      every callable — account deletion, push registration, the logic test,
+      circles and duels, device activation, suggestions. The daily and the
+      Mirror keep working, because they read Firestore directly and never
+      go through a callable.
 
 ## Phase 6 — Submit
 

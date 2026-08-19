@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 //
-// Your role, as a test result (D201).
+// Your role, as a test result (D204).
 //
 // Two things are worth pinning here and they pull in opposite directions.
 //
@@ -169,7 +169,7 @@ describe("groupRole", () => {
     expect(by.pull.value).toBe(75);
   });
 
-  it("has exactly three dimensions — cast is not computed (D201)", () => {
+  it("has exactly three dimensions — cast is not computed (D204)", () => {
     const hist = [
       gday("2026-08-01", { me: 0, a: 0 }),
       gday("2026-08-02", { me: 0, a: 0 }),

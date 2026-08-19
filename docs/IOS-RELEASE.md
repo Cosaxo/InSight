@@ -429,6 +429,27 @@ and names both halves of the artifact in its verdict; it does not fail,
 because a Sentry-less release is a supported build and this workflow
 passes the secret straight through as optional.
 
+**Runs 32 and 33 delivered build 21, and the bump landed off step 17's
+conclusion** (D199, 2026-08-19). Both archived `d547f7a` seven and a half
+minutes apart — run 32 (`32228796376`, 07:38:55Z) step 17 `skipped`, the
+dry run, 5m 18s; run 33 (`32229389551`, 07:46:29Z) `success`, 07:52:10Z →
+07:54:11Z, 2m 01s of transfer. `UPLOAD SUCCEEDED with no errors`, delivery
+UUID `f1ab4ae5-0673-4a89-a4f3-c3ab03c6e87d`, 6,037,139 bytes. Fifth pair of
+this shape after 15/16, 23/24, 25/26 and 27/28.
+
+`appBuild` went 21 → 22 in the same session, read off step 17 rather than
+recalled. Five that held (20, 21, 22, 28, 33) against five skipped (18, 19,
+24, 26, 31) — and this is the first release run under D198's reading, which
+is narrower than "remember to bump": the bump is not a follow-up task, it is
+the reading of step 17.
+
+**D159's trap fired again and the rule caught it.** `5c9c4a5` merged; both
+runs archived `d547f7a`, a pulse trail row pushed in the ~40 seconds
+between. `appBuild` was 21 at both, so it cost nothing — the same outcome as
+run 22 — but it is the second worked example of why the comparison is made
+at the run's own `head_sha` and not at the commit you merged.
+
+
 **Runs 29, 30 and 31 delivered build 20, and the bump was skipped — by the
 pre-flight session itself** (D198, caught 2026-08-19). All three archived
 `f8c8465`, which is D191's own commit: run 29 (`32019625202`, 10:19:31Z)

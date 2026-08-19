@@ -427,6 +427,27 @@
       463: 2,  // Shiba Inu — below the floor
       0: 9,    // Not listed
     },
+    // daily catalog-question run, 2026-08-19 — flags, the third countries
+    // canon: pk16 ranks livability and pk18 kitchens; this one is pure
+    // graphic design, and the board knows things the other two can't —
+    // it is led by the only flag on earth that isn't a rectangle.
+    pk20: {
+      524: 27, // Nepal — the two pennants; the perennial fan favourite
+      392: 23, // Japan — one circle, nothing wasted
+      124: 19, // Canada — the leaf
+      64: 15,  // Bhutan — the dragon
+      484: 13, // Mexico — the eagle eating the snake
+      76: 11,  // Brazil — the starred globe
+      826: 9,  // United Kingdom — the composite classic
+      710: 8,  // South Africa — six colours converging
+      296: 7,  // Kiribati — the sun rising out of the waves
+      8: 6,    // Albania — the double-headed eagle
+      756: 5,  // Switzerland — square; clears the floor, not the top 10
+      144: 5,  // Sri Lanka — the lion with the sword; same
+      690: 3,  // Seychelles — below the floor, the rays
+      398: 2,  // Kazakhstan — below the floor, teal and gold
+      0: 10,   // Not listed
+    },
   };
 
   // Baked demo segment slices, per question: how each cohort orders the
@@ -657,6 +678,19 @@
         Men: { 467: 9, 533: 7, 2: 6, 440: 5, 165: 5 },
       },
     },
+    pk20: {
+      ageBand: {
+        // flag ranking is an internet-native canon, so the youth cell is
+        // the vexillology board (Nepal, Kiribati, Bhutan); the older cell
+        // drifts toward the classics
+        '18-24': { 524: 9, 296: 7, 64: 6, 392: 5, 710: 4 },
+        '25-34': { 392: 8, 524: 7, 124: 6, 76: 5, 826: 4 },
+      },
+      gender: {
+        Women: { 124: 8, 392: 7, 524: 6, 710: 5, 64: 4 },
+        Men: { 524: 9, 64: 7, 826: 6, 392: 5, 484: 5 },
+      },
+    },
   };
 
   const api = {
@@ -806,5 +840,6 @@
     // what-you'd-get never surfaces: the supermodels, the wolf-eyed and
     // the tapestry profiles, led by dogs almost nobody takes home.
     { id: 'pk19', cat: 'fav', type: 'pick', domain: 'dogs', prompt: 'The most beautiful dog?', n: 165 },
+    { id: 'pk20', cat: 'fav', type: 'pick', domain: 'countries', prompt: 'The best flag in the world?', n: 163 },
   ];
 })();

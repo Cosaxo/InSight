@@ -639,31 +639,35 @@ const MAX_CHUNK_KB = 735;
 //
 // Headroom left: 8 KB on the total, 12 on the eager.
 //
-// 2357 → 2372 at build 22 (D199 · D200 · D201), and this one is genuine
+// 2357 → 2372 at build 22 (D202 · D203 · D204), and this one is genuine
 // growth rather than a re-split: three features landed, none of which
 // relocates bytes that were already there.
 //
-//   · D199, the type-mix system switch — a chip row, a persisted key and
+//   · D202, the type-mix system switch — a chip row, a persisted key and
 //     a wider name column. Smallest of the three.
-//   · D200, the pulse roster — `data/pulse.ts` roughly doubled (a roster,
+//   · D203, the pulse roster — `data/pulse.ts` roughly doubled (a roster,
 //     a cadence store, a second fetch path) and `PulseCard` gained the
 //     rhythm control. Both are EAGER, which is why the eager line moved
 //     with the total here and did not for the world-feed work above.
-//   · D201, Roles — `data/roles.ts`, `ui/LiveRolesPanel.tsx` and two new
+//   · D204, Roles — `data/roles.ts`, `ui/LiveRolesPanel.tsx` and two new
 //     archetype tables. The panel is behind React.lazy from an eager
 //     importer (`profile-overlay.jsx`), so it is five of the extra chunks
 //     and almost none of the extra eager bytes.
 //
-// MEASURED: 2364 KB / 974 KB eager across 87 chunks, against 2349 / 966 /
-// 82 at build 21. The eager graph — the constant that defends first paint
-// — took 8 KB of the 15, all of it the pulse roster, and that is the half
-// worth watching: Roles is the biggest of the three features and the
-// smallest of the three first-paint costs, because it is the only one not
-// on the daily screen.
+// MEASURED ON THE MERGE, not on the branch, and the two differ enough to
+// be worth recording. On its own branch this work built 2364 KB / 974 KB
+// eager across 87 chunks, against 2349 / 966 / 82 at build 21 — the eager
+// graph taking 8 KB of the 15, all of it the pulse roster. Merged with the
+// relationship-map deferral that lowered MAX_EAGER_KB to 920, it builds
+// **2366 KB / 914 KB eager across 89 chunks**.
 //
-// Headroom left: 8 KB on the total, 4 on the eager. THE EAGER ONE IS THE
-// TIGHT CONSTRAINT NOW and MAX_EAGER_KB is not raiseable, so the next
-// thing added to the daily screen has to earn its bytes or defer.
+// So the eager line came DOWN 52 KB across the merge while three features
+// landed on it, which is the deferral paying for the roster and then some.
+// The total is the one that moved, and it moved for the reason above.
+//
+// Headroom left: 6 KB on the total, 6 on the eager. Both are tight and
+// MAX_EAGER_KB is not raiseable, so the next thing added to the daily
+// screen has to earn its bytes or defer.
 const MAX_TOTAL_JS_KB = 2372;
 // 955 → 966 (2026-08-14): D139's pulse card — the second fixed instrument
 // on the FIRST screen, so its card, its store's demo furniture and the
@@ -692,7 +696,27 @@ const MAX_TOTAL_JS_KB = 2372;
 // from the 955 entry holds at the new figure: either SDK rejoining first
 // paint lands at 1265 or 1417, so any ceiling near 978 catches it, and the
 // 6 KB band is headroom for a feature rather than room for a library.
-const MAX_EAGER_KB = 978;
+//
+// 978 → 920 (2026-08-18): D200 took the relationship map off the eager
+// graph. THE FIRST TIME THIS CONSTANT HAS COME DOWN, and the entries above
+// are seven raises in a row, so it is worth naming what was different:
+// nothing was optimised. `spec/relmap.jsx` + its core and panels are
+// reachable only from the DEMO Circle field — a live build takes
+// LiveCircleBody (D101) — so the entry chunk was carrying ~102 KB of source
+// that a shipping app cannot execute. Measured both ways at this commit:
+// eager 966 → 906 (−60), entry chunk 494 → 435 (−59), total 2349 → 2349
+// and 82 → 83 chunks. The total not moving IS the finding: this is a
+// relocation, and the 2026-08-13 entries already say the total cannot see
+// one.
+//
+// THE BAND IS 14 KB, NOT 72, and that is the deliberate half. The freed
+// room is exactly what docs/VISION-V28.md §5 is waiting on — the Map's
+// Foresight and Crossroads branches are "blocked on bytes, not data" — and
+// leaving it inside the ceiling would hand it over silently. A ceiling with
+// 72 KB of slack defends nothing; the next feature to want that room should
+// raise this line with a measurement beside it, which is what every entry
+// above did.
+const MAX_EAGER_KB = 920;
 
 let files;
 try {

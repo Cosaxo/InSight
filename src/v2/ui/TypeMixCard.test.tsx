@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 //
-// The type-mix card's system switch (D199).
+// The type-mix card's system switch (D202).
 //
-// D199 reversed D157 §4 and let this card read every instrument the
+// D202 reversed D157 §4 and let this card read every instrument the
 // archetype module defines, not only the Big Five. The reversal is the
 // owner's; what these cases hold is the part that was NOT reversed, and
 // the part the prototype got wrong:
@@ -56,7 +56,7 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("the switch", () => {
-  it("offers all four instruments (D199 — it was Big Five only until then)", () => {
+  it("offers all four instruments (D202 — it was Big Five only until then)", () => {
     render(<TypeMixCard scope="city" />);
     for (const label of ["Personality", "Politics", "Values", "Social"]) {
       expect(screen.getByRole("tab", { name: label })).toBeTruthy();

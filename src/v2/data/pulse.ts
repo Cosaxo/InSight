@@ -1,4 +1,4 @@
-// The pulse store (D139, roster at D200) — the design's PULSE contract
+// The pulse store (D139, roster at D203) — the design's PULSE contract
 // (design/standalone-v28/pulse-data.js), typed, in two honest modes:
 //
 //   · DEMO — the prototype room: seeded histories (one per honest case:
@@ -9,7 +9,7 @@
 //     publishes, session-cached, poll-not-stream (D124/D129; the costs
 //     line is in docs/COSTS.md).
 //
-// FIVE PULSES, NOT ONE (D200). D139 shipped a constant and said why:
+// FIVE PULSES, NOT ONE (D203). D139 shipped a constant and said why:
 // "a roster becomes a parameter the day a second pulse ships". This is
 // that day. Every reading below takes a pulse id; nothing is singular any
 // more except the default the card opens on.
@@ -39,7 +39,7 @@ import LIVE from "./live";
 import { getDb, getFirestoreApi } from "../../lib/firebase";
 
 /** The pulse the card opens on, and the only one that existed before
- * D200. Kept as a named export because it is also the id whose option set
+ * D203. Kept as a named export because it is also the id whose option set
  * D52 froze — the roster appends, it never rewrites this one. */
 export const PULSE_QID = "pulse-pace";
 
@@ -166,7 +166,7 @@ const demoSaved = (): Record<string, Record<string, number>> => {
  * Every pulse this build can ask, in bank order.
  *
  * LIVE reads `LIVE.pulseQs()` — the hydrated bank, which means `active`
- * has already been applied upstream. Before D200 this module fetched its
+ * has already been applied upstream. Before D203 this module fetched its
  * own template with `getDoc` and read only `prompt`/`options`, so an
  * operator flipping a pulse off left a tappable card whose every write the
  * rules refused: the answer appeared, then silently vanished. Reading the
@@ -246,7 +246,7 @@ export function dueToday(): string[] {
  * many ids as there are pulses.
  *
  * This is the read the card needs, and splitting it out is what keeps the
- * roster affordable. Before D200 a single `ensureLive()` fetched the whole
+ * roster affordable. Before D203 a single `ensureLive()` fetched the whole
  * 21-day window on every open even though the card only ever draws today;
  * multiplying THAT by five would have been 105 ids, over the 30-clause
  * `documentId() in` cap, so four-plus queries per open for data nothing on

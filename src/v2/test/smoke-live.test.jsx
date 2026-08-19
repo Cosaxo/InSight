@@ -778,7 +778,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     expectNoBoundary("live add sheet");
   });
 
-  // D167 rule 4 for Roles (D201). The tab is LIVE ONLY — it reads reveal
+  // D167 rule 4 for Roles (D204). The tab is LIVE ONLY — it reads reveal
   // documents and the demo room has none — so the case that matters is
   // the one that proves the subtab exists at all in a live build, and
   // that it refuses rather than inventing when nothing clears the floor.
@@ -816,7 +816,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     delete window.__profileSub;
   });
 
-  // D167 rule 4 for the pulse roster (D200): mount live and assert the
+  // D167 rule 4 for the pulse roster (D203): mount live and assert the
   // real thing renders and the demo cast does not.
   //
   // The two failure modes this catches are both silent. (1) The roster is
@@ -1494,10 +1494,10 @@ describe("live mode never inherits the sample persona (D55)", () => {
     }
   });
 
-  it("measures politics frequencies too, and measures them (D199)", () => {
-    // The inverse of the case it replaces. Until D199 this asserted that
+  it("measures politics frequencies too, and measures them (D202)", () => {
+    // The inverse of the case it replaces. Until D202 this asserted that
     // the politics sheet lost its numbers rather than keeping fabricated
-    // ones — the Art. 9 scope D157 §4 held. D199 reversed that on the
+    // ones — the Art. 9 scope D157 §4 held. D202 reversed that on the
     // owner's call, so the assertion flips to the thing that still
     // matters: the number on screen is a COUNT of real typed people, and
     // no authored share came back with the reversal.
@@ -1507,7 +1507,7 @@ describe("live mode never inherits the sample persona (D55)", () => {
     try {
       expect(host.textContent, "the sheet did not render — test is vacuous")
         .toMatch(/Liberal Centrist/);
-      expect(host.textContent, "the pre-D199 refusal copy is still on screen")
+      expect(host.textContent, "the pre-D202 refusal copy is still on screen")
         .not.toMatch(/only counted for the Big Five/);
       // The fixture's one scored person carries a Big Five result and no
       // politics one, so the honest answer here is a measured ZERO with

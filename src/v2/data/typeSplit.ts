@@ -51,11 +51,11 @@
 // counts, not on cross-tabbing by result. `typeMix.TYPE_TEST` picked the
 // Big Five as the app's least charged system for exactly this reason.
 //
-// **THIS MODULE NOW OWNS THAT SCOPE RATHER THAN INHERITING IT (D199).**
-// Until D199, `typeMix.TYPE_TEST` was an enforcement point and this file
-// could lean on it. D199 demoted that constant to a default so a reader
+// **THIS MODULE NOW OWNS THAT SCOPE RATHER THAN INHERITING IT (D202).**
+// Until D202, `typeMix.TYPE_TEST` was an enforcement point and this file
+// could lean on it. D202 demoted that constant to a default so a reader
 // could switch the population MIX between instruments — and the promise
-// in `web/privacy.html` that survived D199 is precisely the one this file
+// in `web/privacy.html` that survived D202 is precisely the one this file
 // keeps: *answers* are grouped by the Big Five and by nothing else.
 // Leaning on someone else's default for that would mean the promise had
 // no owner, so `SPLIT_TEST` below is explicit, passed at every call site,
@@ -70,7 +70,7 @@ import type { ParsedResults } from "./similarity";
 export { TYPE_TEST, TYPE_THIN };
 
 /**
- * The instrument answers may be grouped by — the whole of the D199-surviving
+ * The instrument answers may be grouped by — the whole of the D202-surviving
  * promise, in one constant.
  *
  * It is `TYPE_TEST` today and must be passed explicitly rather than left to

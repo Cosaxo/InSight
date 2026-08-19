@@ -69,7 +69,7 @@ export const IS_ARCHETYPES = {
     { name: 'The Slow Burn',     share: 10, line: 'Hard to earn, harder to lose.',               sig: { warm: 45, loyal: 70, open: 40, play: 35, easy: 65 } },
     { name: 'The Small Circle',  share: 4,  line: 'A small circle, fiercely kept.',              sig: { warm: 40, loyal: 80, open: 25, play: 40, easy: 45 } },
   ]},
-  // ── the role instruments (D201) ──────────────────────────────────────
+  // ── the role instruments (D204) ──────────────────────────────────────
   // Same discipline as the four above: extreme on the 1–2 dims that DEFINE
   // the type, near-neutral elsewhere, shares summing to 100 — all three are
   // assumptions `IS_archScores` makes (it weights by |sig − 50| and taxes
