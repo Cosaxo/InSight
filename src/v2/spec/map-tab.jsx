@@ -22,6 +22,16 @@ import './map-people.jsx';
 import { MapTabLayout } from './map-layout.js';
 import { MAP_GROUPS } from './map-groups.js';
 import { MTBranchChips } from './map-chiprow.jsx';
+// The v28 branches (§5, D202) — all reachable only because this chunk is
+// lazy now: the walks, the pulse lines and the Foresight aims, plus the
+// typed cue that opens the Map on one of them (data/mapCue's take-once).
+import { PATHS } from './paths-data.js';
+import { MTPathsCard, pathsMapTree } from './paths-card.jsx';
+import { foreTree, pulseTree } from '../data/mapTrees.ts';
+import { onMapCue, takeMapCue } from '../data/mapCue.ts';
+import LIVE from '../data/live.ts';
+import PULSE from '../data/pulse.ts';
+import PulseTrends from '../ui/PulseTrends';
 
 // InSight — Map tab: a constellation of every Daily-Question answer around a
 // ring of profile anchors (age · work · study · the test results). Tap an
@@ -30,6 +40,38 @@ import { MTBranchChips } from './map-chiprow.jsx';
 // map-group-stats.js; the branch list in map-lens.js; the layout engine in
 // map-tab-layout.js; the chip row in map-tab-chips.jsx.
 const { mtSlug, mtHash, mtTopCat, mtClusterLayout, MT_ZLAB } = MapTabLayout;
+
+// ── the v28 leaf cards (§5, D202) ────────────────────────────────────────
+// A pulse leaf IS its line: the same trend reading the pulse card opens
+// inline (ui/PulseTrends), so the map and the feed cannot drift apart on
+// what a pulse says.
+function MTPulseLeaf({ node }) {
+  return (
+    <div>
+      <div className="mmt-kicker"><span className="mmt-dot"></span>Pulse</div>
+      <div className="mmt-title" style={{ marginTop: 4 }}>{node.prompt}</div>
+      <div style={{ marginTop: 10 }}>
+        <PulseTrends compact qid={node.qid}></PulseTrends>
+      </div>
+    </div>
+  );
+}
+
+// A Foresight leaf is an aim, not an answer: the node already carries the
+// honest reading (right/n, sealed-or-scored — data/mapTrees.ts). Distance
+// from You says how good; this card says it in words.
+function MTForeLeaf({ node }) {
+  return (
+    <div>
+      <div className="mmt-kicker"><span className="mmt-dot"></span>{node.tag === 'Call' ? 'Calls' : 'Reads'}</div>
+      <div className="mmt-title" style={{ marginTop: 4 }}>{node.prompt}</div>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 9, marginTop: 10, flexWrap: 'wrap' }}>
+        <b style={{ fontFamily: 'var(--sans)', fontSize: 14.5, color: 'var(--ink)' }}>{node.ans}</b>
+        <span style={{ fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 600, color: 'var(--ink-3)' }}>{node.note}</span>
+      </div>
+    </div>
+  );
+}
 
 // ── the tab ─────────────────────────────────────────────────────────────────
 export function MapTab({ rail = true, anchorsOn = true, recency = true, fields: fieldsOn = true }) {
@@ -46,6 +88,20 @@ export function MapTab({ rail = true, anchorsOn = true, recency = true, fields: 
   }, []);
   useEffect(() => LEARN.subscribe(() => setDqv((x) => x + 1)), []);
   useEffect(() => DUELS.subscribe(() => setDqv((x) => x + 1)), []);
+  // the v28 branches' stores: walks (own store) and the pulse — whose
+  // subscribe already rides LIVE's, so Foresight verdicts and call
+  // outcomes landing bump this too
+  useEffect(() => PATHS.sub(() => setDqv((x) => x + 1)), []);
+  useEffect(() => PULSE.subscribe(() => setDqv((x) => x + 1)), []);
+  // Foresight's two inputs load on demand elsewhere (the lens, the feed's
+  // call card); the Map tops them up once per mount so its g-fore branch
+  // does not depend on which other screen the session happened to visit.
+  // Both bounded and cached: one log doc, one outcomes read per call.
+  useEffect(() => {
+    if (!LIVE.enabled) return;
+    void LIVE.loadForesight().catch(() => { /* no leaves rather than a crash */ });
+    void LIVE.loadCallOutcomes().catch(() => { /* sealed leaves rather than a crash */ });
+  }, []);
   // ── anchors: the profile ring at the centre ───────────────────────────────
   // State fed by the store's own event, not a mount-once memo. The mock list
   // is a constant and `useMemo(…, [])` was fine for it; the live one is not
@@ -130,6 +186,26 @@ export function MapTab({ rail = true, anchorsOn = true, recency = true, fields: 
         });
       });
     }
+    // ── the v28 branches (§5, D202): walks, aims and pulse lines. Each
+    // fold returns an empty tree when it has nothing real to say, and an
+    // empty branch never reaches the map (its cat is only seated when a
+    // leaf uses it) — so the demo grows only what its stores actually
+    // hold, and a fresh live account grows nothing.
+    const graft = (tree) => {
+      const use = {};
+      tree.nodes.forEach((n) => { out.push(n); use[n.parentId] = (use[n.parentId] || 0) + 1; });
+      tree.cats.forEach((c) => { if (use[c.id]) { topSeen.set(c.id, c); counts[c.id] = use[c.id]; } });
+    };
+    // Crossroads: the stories you walked to their end. A leaf is a road
+    // taken, not an answer — rarity pushes it outward like everything
+    // else, so an uncommon ending sits at the map's edge without a number.
+    graft(pathsMapTree());
+    // Foresight: what you call, and who you read. A leaf's distance from
+    // You is its accuracy — the map says where you see clearly.
+    graft(foreTree());
+    // The pulse: the questions that repeat. Distance is consistency, and
+    // the leaf card carries the line itself.
+    graft(pulseTree());
     // single-answer sub-topics collapse into the answer itself — the sub card
     // and the answer card would be the same card, so keep only one step
     const kidCt = {};
@@ -146,7 +222,12 @@ export function MapTab({ rail = true, anchorsOn = true, recency = true, fields: 
   // eslint-disable-next-line react-hooks/exhaustive-deps -- ported effect; see src/v2/README.md § Lint suppressions
   }, [dqv]);
   const nodes0 = built.nodes;
-  const allAnswers = useMemo(() => nodes0.filter((n) => n.daily), [nodes0]);
+  // the v28 leaves are aims, walks and lines, not answers — they sit on
+  // the map but never inflate the answer count or the time scrub
+  const allAnswers = useMemo(
+    () => nodes0.filter((n) => n.daily && !n.fore && !n.walk && !n.pulse),
+    [nodes0],
+  );
 
   // active branches: any that hold at least one answer — renames applied
   const allCats = useMemo(() => {
@@ -165,7 +246,14 @@ export function MapTab({ rail = true, anchorsOn = true, recency = true, fields: 
   // the ring is groups and the answers stay as unlabelled dots inside them: the
   // constellation's silhouette survives, only the competing labels go.
   const GRP = MAP_GROUPS;
+  // A typed cue can hand the map where to open (data/mapCue, D202 — the
+  // pulse card's "on the Map" link). Taken ONCE per mount, before the two
+  // initializers below split it; the take-once contract means an old cue
+  // cannot re-fire on a later hand-opened Map.
+  const cue0 = useRef(undefined);
+  if (cue0.current === undefined) cue0.current = takeMapCue();
   const [openGroup, setOpenGroup] = useState(() => {
+    if (cue0.current && cue0.current.group) return cue0.current.group;
     // Learn's “See it” hands the map the group to land on
     const g = typeof window !== 'undefined' ? window.MAP_OPEN_GROUP : null;
     if (g) { try { delete window.MAP_OPEN_GROUP; } catch (e) { /* localStorage can throw: private mode, quota, disabled storage. Best-effort — in-memory state stays correct. */ } return g; }
@@ -227,7 +315,15 @@ export function MapTab({ rail = true, anchorsOn = true, recency = true, fields: 
   const pos = laid.pos;
 
   // ── selection ──────────────────────────────────────────────────────────────
-  const [sel, setSel] = useState(null);     // 'root' | catId | nodeId | 'ax-<anchor>'
+  const [sel, setSel] = useState(cue0.current && cue0.current.sel ? cue0.current.sel : null);     // 'root' | catId | nodeId | 'ax-<anchor>'
+  // …and the already-mounted half of the same cue: a Map sitting open when
+  // the cue fires (the user was on the You stop already) re-aims itself.
+  useEffect(() => onMapCue(() => {
+    const c = takeMapCue();
+    if (!c) return;
+    if (c.group !== undefined) setOpenGroup(c.group || null);
+    if (c.sel) setSel(c.sel);
+  }), []);
   const [cut, setCut] = useState(null);     // time-scrub position (null = off)
   const scrubAnim = useRef(null);
   const [hlCat, setHlCat] = useState(null); // spotlit branch id
@@ -1045,7 +1141,13 @@ export function MapTab({ rail = true, anchorsOn = true, recency = true, fields: 
             ></MTSubCard>
             )
           ) : selNode ? (
-            selNode.learn && window.MTLearnCard ? (
+            selNode.pulse ? (
+              <MTPulseLeaf node={selNode} key={selNode.id}></MTPulseLeaf>
+            ) : selNode.fore ? (
+              <MTForeLeaf node={selNode} key={selNode.id}></MTForeLeaf>
+            ) : selNode.walk ? (
+              <MTPathsCard node={selNode} key={selNode.id}></MTPathsCard>
+            ) : selNode.learn && window.MTLearnCard ? (
               <MTLearnCard node={selNode} key={selNode.id}></MTLearnCard>
             ) : selNode.person && window.MTPersonCard ? (
               <MTPersonCard node={selNode} key={selNode.id}></MTPersonCard>

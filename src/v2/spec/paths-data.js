@@ -13,14 +13,14 @@
 //      it would fail CI for adding two references. Its one consumer
 //      (paths-card.jsx) imports it.
 //
-//   2. NO `mapTree()`. The prototype files finished walks onto the Map as a
-//      `g-paths` over-category. That needs `map-tab.jsx` — which is EAGER —
-//      to read this store, and the eager graph has no room (check:bundle's
-//      MAX_EAGER_KB is at exactly its ceiling). Reading it off the bridge
-//      instead would buy the bytes back and spend the coupling ratchet, so
-//      both doors are shut until one of the two budgets moves. Omitted
-//      rather than kept unused: an exported function with no caller is the
-//      thing rule 4 exists to stop accumulating.
+//   2. NO `mapTree()` — SUPERSEDED at D202. This note recorded why the
+//      fold stayed unbuilt: map-tab was eager with no room, and reading
+//      this store off the bridge would spend the coupling ratchet. D202
+//      moved both budgets (the Map is lazy; imports cost the ratchet
+//      nothing), and the fold now lives in paths-card.jsx (pathsMapTree)
+//      rather than here, because it needs that card's live/demo source
+//      discipline. Kept rather than deleted for the shape it documents:
+//      a correct reason for an omission, and the entry that ended it.
 //
 //   3. The crowd shares here are AUTHORED. This store is the card's DEMO
 //      source only — live, a story is a bank question whose eight endings

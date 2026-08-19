@@ -15,10 +15,14 @@
 // days — the exact bridge the first rule refuses.
 import React from "react";
 import PULSE, { ROSTER } from "../data/pulse";
+import { cueMap } from "../data/mapCue";
 // @ts-expect-error TS7016 — untyped spec module (named export, D189)
 import { WPAL } from "../spec/world-palette.js";
 
-export default function PulseTrends({ compact, qid = ROSTER[0].qid }: { compact?: boolean; qid?: string }): React.ReactElement | null {
+// `mapLink` is passed by the feed's pulse card and NOT by the Map's own
+// pulse leaf, which renders this same reading — a "see it on the Map" link
+// on the Map would be a door into the room you are standing in.
+export default function PulseTrends({ compact, qid = ROSTER[0].qid, mapLink }: { compact?: boolean; qid?: string; mapLink?: boolean }): React.ReactElement | null {
   const [, bump] = React.useState(0);
   React.useEffect(() => {
     void PULSE.ensureLive(qid).catch(() => { /* the panel lists the absence honestly */ });
@@ -264,6 +268,12 @@ export default function PulseTrends({ compact, qid = ROSTER[0].qid }: { compact?
         {chart}
       </div>
       {panel}
+      {mapLink && (
+        <button className="press" onClick={() => cueMap({ group: "g-self", sel: "pulse-" + qid })}
+          style={{ alignSelf: "flex-start", border: "none", background: "none", padding: "2px 0", cursor: "pointer", WebkitAppearance: "none", fontFamily: "var(--sans)", fontWeight: 700, fontSize: 13, color: HUE }}>
+          on the Map →
+        </button>
+      )}
     </div>
   );
 }

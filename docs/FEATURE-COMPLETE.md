@@ -201,8 +201,13 @@ refused the third.
    pair card fetches ONE exact 2×2 per selection (the plan's own
    singular phrasing; widening is one line if the trial earns it). §2,
    §11.
-5. **The Map's parked branches** — Foresight (`g-fore`) and Crossroads
-   (`g-paths`), once the Map is lazy. §5.
+5. ~~**The Map's parked branches**~~ — **done 2026-08-19 (D202,
+   amended)**: `g-paths` leafs finished walks under the card's own
+   live/demo source discipline, `g-fore` folds the READ log and tier-A
+   calls (sealed until an outcome publishes, no invented "better than
+   most"), the pulse branch leafs answered pulses with `ui/PulseTrends`
+   as the leaf card, and `window.goTrends` became the typed take-once
+   `data/mapCue`. All inside the lazy map chunk. §5.
 6. **Every v28 item ships with a `smoke-live` case** (D167) — mount
    live, assert the real thing renders and the demo cast does not. §13.
 

@@ -10,6 +10,11 @@ import { HAPTIC } from './haptics.js';
 import { markNav } from './swipe-back.js';
 import { useTweaks, TweaksPanel, TweakSection, TweakRadio, TweakButton } from './tweaks-panel.jsx';
 import { reportError } from '../../lib/sentry';
+// The typed cue that opens the Map on a branch (v28 §5, D202 — the shape
+// window.goTrends would have been): the caller stores WHERE, this shell
+// answers with the navigation, map-tab reads the where. ESM on all three
+// sides, so the coupling ratchet never counts it.
+import { onMapCue } from '../data/mapCue.ts';
 
 // The third tab, ON TRIAL (D166 §1) — lazy by requirement, not taste:
 // check:bundle has no eager headroom, and the trial clause wants the
@@ -310,7 +315,10 @@ function App() {
       const p = typeof who === 'object' ? who : list.find(x => x.id === who || x.name === who);
       if (p) return openDeferred(() => { closeAll(); setPerson(p); });
     };
-    return () => { delete window.openOverlay; delete window.goTab; delete window.goNav; delete window.openCity; delete window.openPerson; };
+    // a Map cue lands on the Mirror's You stop; map-tab itself reads the
+    // where (data/mapCue's take-once) — this shell only does the walking
+    const offCue = onMapCue(() => { closeAll(); setTweak('mirrorPop', 'you'); setTab('mirror'); });
+    return () => { offCue(); delete window.openOverlay; delete window.goTab; delete window.goNav; delete window.openCity; delete window.openPerson; };
     // Mount-only by design: this registers the window.* cross-link
     // handlers once and tears them down on unmount. Re-running it on every
     // setTweak identity change would re-register the same closures for no

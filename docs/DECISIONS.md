@@ -21018,3 +21018,54 @@ commit already hit once), `check:globals` (396, baseline lowered),
 `check:bundle` on the shipping build (2371 / 849 against 2378 / 860),
 lint, `tsc -b`. map-ring.test.js pins the layout arithmetic through the
 named export now — the window copy is gone.
+
+### Amended, same day: the branches are built
+
+The "next work item" paragraph above lasted one commit. The three parked
+features now grow inside the lazy chunk exactly as planned, each under
+the honesty rule its data allows:
+
+- **`g-paths` · Crossroads** (`pathsMapTree`/`MTPathsCard`, living in
+  `paths-card.jsx` because they need its live/demo source discipline):
+  one leaf per story walked to its end. Live, the walk is the SERVER's
+  answer — recoverable on any device — and rarity folds from real counts
+  or is ABSENT; demo, both come authored. `typ` carries the walk's
+  rarity, so an uncommon road drifts outward with no number printed.
+  paths-data.js's header note #2 (the parked mapTree) is superseded and
+  says so.
+- **`g-fore` · Foresight** (`data/mapTrees.ts`, `foreTree`): two clouds
+  of AIMS — dimensions the READ game has graded (distance = accuracy,
+  via foresight.ts's own `byDim`) and tier-A calls you made (D194). An
+  ungraded call draws SEALED at neutral distance, because "waiting" and
+  "wrong" are different claims; the prototype's "better than N% of
+  people" line is NOT ported — nothing measures other people's read
+  accuracy, so the note says "reading clearly"/"blind spot" against the
+  game's own coin. Demo: no branch at all — there is no honest demo log.
+  The Map tops up the two inputs once per mount; both loaders are
+  session-cached and inflight-guarded, so the cost is at most one log
+  read and one bounded outcomes read per session.
+- **The pulse branch** (`data/mapTrees.ts`, `pulseTree`, filed under
+  g-self via the 'pulse' cat): one leaf per pulse with an answered day,
+  distance = consistency (answered scheduled days over scheduled), the
+  leaf card the SAME trend reading the pulse card opens inline
+  (`ui/PulseTrends`), so the map and the feed cannot drift. Demo leafs
+  only the first pulse — D166 §3's own rule.
+
+**`window.goTrends` became `data/mapCue.ts`.** The v28 patch's three
+globals (goTrends, MAP_OPEN_GROUP, MAP_SELECT) would each have been a new
+shared-global read, and rule 4 only moves down — so the cross-link is a
+typed take-once cue store instead: `ui/PulseTrends` ("on the Map →")
+stores the where, app-shell's listener does the walking, map-tab reads
+the cue from its initializers or, already mounted, its subscription.
+map-groups gained the two over-categories with the prototype's own
+hue-rejection notes (282 violet, 200 petrol) and the prefix arms.
+
+Measured on the amended tree: total 2371 → 2377 KB (the branches, all in
+lazy chunks), eager 849 → 850, coupling flat at 396. Verified:
+`test:unit` (95 files, 1425 tests — the folds pinned in
+`mapTrees.test.ts`, `mapCue.test.ts` and paths-card.test.jsx's new Map
+describe), lint, `tsc -b`, `check:globals`, `check:bundle`,
+`check:purge`. The Map's ground does not render in jsdom (map-ring's
+standing note), so the smoke suites pin the mounts and the fold tests
+pin the leaves — the D167 case for these surfaces is the pair, not one
+file.

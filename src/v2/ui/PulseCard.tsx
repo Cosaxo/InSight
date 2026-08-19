@@ -161,7 +161,7 @@ export default function PulseCard({ qid = ROSTER[0].qid }: { qid?: string }): Re
       {open && (
         <div style={{ borderTop: "1px solid color-mix(in oklch, var(--rule), transparent 30%)", paddingTop: 12 }}>
           <React.Suspense fallback={null}>
-            <PulseTrendsLazy compact qid={qid} />
+            <PulseTrendsLazy compact qid={qid} mapLink />
           </React.Suspense>
         </div>
       )}
