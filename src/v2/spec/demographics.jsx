@@ -164,8 +164,4 @@ function DemographicsCard({ audId }) {
 
 Object.assign(window, { DemographicsCard });
 
-;globalThis.GenderBar = typeof GenderBar === 'undefined' ? globalThis.GenderBar : GenderBar;
-;globalThis.AgeHistogram = typeof AgeHistogram === 'undefined' ? globalThis.AgeHistogram : AgeHistogram;
-;globalThis.ThirdBars = typeof ThirdBars === 'undefined' ? globalThis.ThirdBars : ThirdBars;
 ;globalThis.DemographicsCard = typeof DemographicsCard === 'undefined' ? globalThis.DemographicsCard : DemographicsCard;
-;globalThis.GENDER_TINTS = typeof GENDER_TINTS === 'undefined' ? globalThis.GENDER_TINTS : GENDER_TINTS;

@@ -219,12 +219,5 @@ function ValuesTiltCard({ me, accent }) {
   );
 }
 
-Object.assign(window, { AttachmentCard, TestHeroRow, ValuesTiltCard });
 
-;globalThis.ptvResult = typeof ptvResult === 'undefined' ? globalThis.ptvResult : ptvResult;
-;globalThis.TestHeroRow = typeof TestHeroRow === 'undefined' ? globalThis.TestHeroRow : TestHeroRow;
-;globalThis.AttachmentCard = typeof AttachmentCard === 'undefined' ? globalThis.AttachmentCard : AttachmentCard;
-;globalThis.ValuesTiltCard = typeof ValuesTiltCard === 'undefined' ? globalThis.ValuesTiltCard : ValuesTiltCard;
-;globalThis.SOCIAL_NOTE = typeof SOCIAL_NOTE === 'undefined' ? globalThis.SOCIAL_NOTE : SOCIAL_NOTE;
-;globalThis.VALUE_TENSIONS = typeof VALUE_TENSIONS === 'undefined' ? globalThis.VALUE_TENSIONS : VALUE_TENSIONS;
-;globalThis.VALUE_LEAD = typeof VALUE_LEAD === 'undefined' ? globalThis.VALUE_LEAD : VALUE_LEAD;
+

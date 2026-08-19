@@ -177,7 +177,7 @@ window.IS_STANDOUT = {
 };
 
 // Compact direction words per dim — used on "nearly" chips: "if {word}"
-window.IS_DIM_WORD = {
+const IS_DIM_WORD = {
   big5: { O: ['more practical', 'more curious'], C: ['looser', 'more disciplined'], E: ['quieter', 'more outgoing'], A: ['blunter', 'warmer'], N: ['steadier', 'more sensitive'] },
   political: { econ: ['further left on money', 'further right on money'], auth: ['more liberty-minded', 'more order-minded'], foreign: ['more nation-first', 'more global'], env: ['cooler on climate', 'more climate-urgent'], tech: ['warier of tech', 'more tech-hopeful'], estab: ['more system-trusting', 'more anti-establishment'] },
   values: { future: ['darker on the future', 'more hopeful'], circle: ['more family-first', 'more stranger-minded'], hedonism: ['more duty-bound', 'more pleasure-first'], meaning: ['more happiness-first', 'more struggle-friendly'], moral: ['more relativist', 'more certain'], beauty: ['more truth-first', 'more beauty-first'] },
@@ -191,7 +191,7 @@ window.IS_DIM_WORD = {
 // Weighted the same way as matching: the gap only counts on dims that DEFINE
 // that neighbour, so we never explain a Sentinel as "if more playful".
 window.IS_nearWhy = function (testKey, dims, a) {
-  const words = (window.IS_DIM_WORD || {})[testKey];
+  const words = IS_DIM_WORD[testKey];
   if (!words || !dims || !a) return null;
   let best = null, bm = 0;
   dims.forEach(d => {
@@ -278,7 +278,7 @@ window.IS_profileRarity = function (testKey, dims) {
 // drift out of sync with what the matcher actually rewards.
 // Nouns for the rule line — dim labels are adjectives in some sets ("loyal"),
 // which reads as broken English after "high". These are always nouns.
-window.IS_RULE_WORD = {
+const IS_RULE_WORD = {
   big5:       { O: 'openness', C: 'discipline', E: 'outgoingness', A: 'warmth', N: 'sensitivity' },
   political:  { econ: 'market freedom', auth: 'order', foreign: 'global outlook', env: 'climate urgency', tech: 'tech optimism', estab: 'distrust of the system' },
   values:     { future: 'hope', circle: 'breadth of care', hedonism: 'pleasure', meaning: 'meaning', moral: 'moral certainty', beauty: 'beauty' },
@@ -289,7 +289,7 @@ window.IS_RULE_WORD = {
 // needs adjectives, not the nouns the axis labels use. Written out rather than
 // derived from IS_DIM_WORD because those are comparatives ("warmer", "looser")
 // and don't survive a prefix.
-window.IS_RULE_ADJ = {
+const IS_RULE_ADJ = {
   big5: { O: ['practical', 'curious'], C: ['loose', 'disciplined'], E: ['reserved', 'outgoing'], A: ['blunt', 'warm'], N: ['unshakeable', 'sensitive'] },
   political: { econ: ['left on money', 'pro-market'], auth: ['liberty-first', 'order-first'], foreign: ['nation-first', 'globally-minded'], env: ['growth-first', 'climate-urgent'], tech: ['tech-wary', 'tech-hopeful'], estab: ['system-trusting', 'anti-system'] },
   values: { future: ['dark on the future', 'hopeful'], circle: ['family-first', 'stranger-minded'], hedonism: ['duty-bound', 'pleasure-first'], meaning: ['happiness-first', 'meaning-seeking'], moral: ['relativist', 'morally certain'], beauty: ['truth-first', 'beauty-first'] },
@@ -313,8 +313,8 @@ const RULE_REAL = 8;     // ...a lean worth naming at all
 
 window.IS_typeRuleParts = function (testKey, dims, a, max) {
   if (!a || !dims) return [];
-  const nouns = (window.IS_RULE_WORD || {})[testKey] || {};
-  const adjs = (window.IS_RULE_ADJ || {})[testKey] || {};
+  const nouns = IS_RULE_WORD[testKey] || {};
+  const adjs = IS_RULE_ADJ[testKey] || {};
   const avg = IS_TEST_AVG[testKey] || {};
   const cap = max || 3;
   const scored = dims.filter(d => a.sig[d.id] != null).map(d => {

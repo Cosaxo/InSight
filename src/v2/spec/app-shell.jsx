@@ -510,13 +510,6 @@ function App() {
 
 
 
-;globalThis.NavGlyph = typeof NavGlyph === 'undefined' ? globalThis.NavGlyph : NavGlyph;
 ;globalThis.ErrorBoundary = typeof ErrorBoundary === 'undefined' ? globalThis.ErrorBoundary : ErrorBoundary;
 ;globalThis.App = typeof App === 'undefined' ? globalThis.App : App;
 ;globalThis.TWEAK_DEFAULTS = typeof TWEAK_DEFAULTS === 'undefined' ? globalThis.TWEAK_DEFAULTS : TWEAK_DEFAULTS;
-;globalThis.TABS = typeof TABS === 'undefined' ? globalThis.TABS : TABS;
-;globalThis.MIRROR_POP_IDS = typeof MIRROR_POP_IDS === 'undefined' ? globalThis.MIRROR_POP_IDS : MIRROR_POP_IDS;
-;globalThis.WORLD_ZOOM_IDS = typeof WORLD_ZOOM_IDS === 'undefined' ? globalThis.WORLD_ZOOM_IDS : WORLD_ZOOM_IDS;
-;globalThis.LIVE_OVERLAYS = typeof LIVE_OVERLAYS === 'undefined' ? globalThis.LIVE_OVERLAYS : LIVE_OVERLAYS;
-;globalThis.NAV_ONE = typeof NAV_ONE === 'undefined' ? globalThis.NAV_ONE : NAV_ONE;
-;globalThis.DOCK_STOPS = typeof DOCK_STOPS === 'undefined' ? globalThis.DOCK_STOPS : DOCK_STOPS;

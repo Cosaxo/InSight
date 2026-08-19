@@ -15,7 +15,7 @@ import React from 'react';
 //     an equal, and depth lives only in the discover sheet.
 //   · following a parent gives you everything under it; following a leaf gives
 //     you only the leaf.
-window.WORLD_SUBTOPICS = [
+const WORLD_SUBTOPICS = [
   { id: 'sub_tennis',   parent: 'sport', label: 'Tennis' },
   { id: 'sub_football', parent: 'sport', label: 'Football' },
   { id: 'sub_running',  parent: 'sport', label: 'Running' },
@@ -109,7 +109,7 @@ window.WORLD_BG.s03 = window.WORLD_BG.t04;
 // ── follow state — a leaf is followed exactly like a topic ──────────────────
 window.SUBTOPICS = (function () {
   const LS = 'insight.subtopics.v1';
-  const ALL = window.WORLD_SUBTOPICS;
+  const ALL = WORLD_SUBTOPICS;
   const BY = {};
   ALL.forEach((s) => { BY[s.id] = s; });
   const listeners = new Set();

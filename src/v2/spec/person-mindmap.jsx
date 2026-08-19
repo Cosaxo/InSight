@@ -814,13 +814,6 @@ window.PersonMindMap = PersonMindMap;
   PersonMindMapImpl = PersonMindMap;
 })();
 
-;globalThis.pmmHash = typeof pmmHash === 'undefined' ? globalThis.pmmHash : pmmHash;
-;globalThis.pmmRng = typeof pmmRng === 'undefined' ? globalThis.pmmRng : pmmRng;
-;globalThis.pmmBuild = typeof pmmBuild === 'undefined' ? globalThis.pmmBuild : pmmBuild;
-;globalThis.PMM_ZLAB = typeof PMM_ZLAB === 'undefined' ? globalThis.PMM_ZLAB : PMM_ZLAB;
-;globalThis.pmmCap = typeof pmmCap === 'undefined' ? globalThis.pmmCap : pmmCap;
-;globalThis.pmmSlug = typeof pmmSlug === 'undefined' ? globalThis.pmmSlug : pmmSlug;
-;globalThis.PMM_POOLS = typeof PMM_POOLS === 'undefined' ? globalThis.PMM_POOLS : PMM_POOLS;
 
 // A live binding, not a wrapper component: the IIFE assigns it during module
 // evaluation, so every consumer sees the real component rather than an extra

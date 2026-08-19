@@ -1251,15 +1251,17 @@ That is a tester-count problem, not a workflow problem.
       it for two policies is the worse trade. Both cover failures that look like nothing from the
       outside: the app keeps serving while the Mirror stops moving, or
       keeps moving while falling further behind. `DEPLOYMENT.md § Alerting`.
-- [x] **5.6 Version lockstep — holds at 2.0.0 build 13 (verified 2026-08-13).**
-      *This line has now been stale twice, both times one bump behind 2.4 —
-      it said build 11 on 2026-08-13, and build 12 later the same day.*
-      Harmless in itself and worth naming twice: it is the D39 shape — a
-      figure kept current by intention — inside the very step whose job is
-      to notice numbers disagreeing. Twice is a pattern rather than a slip,
-      and the honest reading is that this number will be wrong again. The
-      checker reads the three files and never this sentence, so run the
-      command rather than reading this line.
+- [x] **5.6 Version lockstep — holds at 2.0.0 build 22.**
+      *This line was stale three times, each one a bump behind 2.4 — build
+      11 on 2026-08-13, build 12 later the same day, then 13 against a tree
+      at 22.* It is the D39 shape — a figure kept current by intention —
+      inside the very step whose job is to notice numbers disagreeing, and
+      three times is not a slip. Its own paragraph had already drawn the
+      conclusion ("this number will be wrong again") and stopped one move
+      short of the remedy: **`check:figures` owns both numbers now**, read
+      off `package.json`, so this sentence is current or CI is red. That is
+      the same fix `src/v2/README.md`'s suppression count took, for the
+      same reason, after the same two failures.
       `npm run check:versions` (`--fix` writes package.json's values into
       both native projects). `appBuild` + android `versionCode` + iOS
       `CURRENT_PROJECT_VERSION` — five numbers across three files — move

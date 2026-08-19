@@ -21559,3 +21559,311 @@ describe), lint, `tsc -b`, `check:globals`, `check:bundle`,
 standing note), so the smoke suites pin the mounts and the fold tests
 pin the leaves — the D167 case for these surfaces is the pair, not one
 file.
+
+## D208 · The pen is not an error state, and a gate said it was
+
+**2026-08-19.** **Status:** binding. Found by reading a red `main`: run
+32284949131 (`a62041f`) failed `scripts/pulse.test.mjs` with *expected 122
+to be 114*, and it is the first CI failure on `main` since the branch
+protection went on. Nothing was broken. **PR #195 did exactly what
+[D30](#d30--farm-questions-may-graduate-to-the-live-seed-the-deck-gets-an-epoch) asks** — it
+appended eight farm questions to the spec-layer archive and promoted none
+of them, saying so in its own commit message ("nothing reaches the live
+seed until promotion") — and a test asserted that could never happen.
+
+### What was wrong
+
+`pulse.test.mjs`'s archive-join block asserted two things about
+`collectArchive`:
+
+```js
+expect(a.archiveEntries).toBe(daily.length);
+expect(a.unpromoted).toBe(0);
+```
+
+Neither is an invariant. Both are what an **empty pen** looks like, and
+the pen was empty (0 of 56) for as long as the assertion had existed, so
+the test measured a coincidence and reported it as a property.
+
+Two other parts of the same tooling already contradicted it, which is why
+the direction of this fix is read off the tree rather than argued:
+
+- `farm-budget.mjs` calls the unpromoted archive **the pen**, sizes it at
+  `PEN_TARGET = 56` ("eight weeks of promotion cover"), and grants a
+  budget precisely *while* it is non-empty.
+- `pulse-render.mjs` draws a non-empty pen with status **`good`** —
+  *"already written — a promotion PR, not a writing session"* — and an
+  empty one with no status at all.
+
+So the console called it healthy, the regulator called it inventory, and
+the test called it a failure. `check:figures` holds the 56 in
+`QUESTION-FARM.md` equal to the script, and could not see that a third
+file disagreed about what the number means.
+
+### What it is now
+
+```js
+expect(a.archiveEntries).toBe(daily.length + a.unpromoted);
+expect(a.unpromoted).toBeLessThanOrEqual(PEN_TARGET);
+```
+
+The **identity** is a bijection given the `orphans === 0` case above it:
+every live prompt is in the archive, and the archive holds exactly one
+entry for each — so a duplicated archive prompt fails here, which the old
+equality also caught and no other gate does. The **ceiling** is the
+regulator's own: a pen over target means generation kept running after
+the tap should have closed, which is the failure this block should have
+been watching for all along.
+
+`PEN_TARGET` is imported from `farm-budget.mjs` rather than retyped, for
+[D47](#d47--monitoring-grows-a-decision-console--and-the-refusals-become-part-of-it)'s reason.
+Both arms are mutation-checked: `archiveEntries + 1` fails the identity,
+and `+100` on both fails the ceiling with the identity still holding.
+
+### The shape worth keeping
+
+**A gate that has only ever seen one state is not yet a gate**, and this
+one was green for the whole window in which it was wrong. The pen was
+never full before, so nothing distinguished "the archive equals the bank"
+from "the archive equals the bank *today*" — and the first correct farm
+run is what told them apart. Same family as
+[D74](#d74--a-tick-is-a-claim-and-this-one-was-printed-before-the-write) and
+[D116](#d116--the-store-listing-was-still-selling-the-retired-privacy-model-and-the-closed-vocabulary-becomes-a-gate): the
+assertion was true when it was written and stopped being, and the thing
+that noticed was the work it was blocking.
+
+The blast radius was small because the failure was **loud** — a red tree
+on `main`, at the one moment content production started working. Had the
+assertion sat on the other side (a warning, or a check that only ran on
+the farm's own PR) the farm would have learned to stop filling the pen.
+
+**Amendment (2026-08-19) — swept for the same shape, and it had one more
+instance and one near-miss.** A gate green for its whole life is not
+evidence, so the tree was searched for other assertions over committed
+content that a *designed* operation would break:
+
+- **`feed-budget.test.mjs`** asserted
+  `topics.some((t) => t.questions < TOPIC_TARGET)` under the title
+  *"covers every topic in the taxonomy, thin ones included"*. That is not
+  the coverage property — it is **the deficit's current existence**, and
+  the feed lane exists to remove it. Four topics sit under 12 today, so it
+  passes; the day the lane finishes levelling them it goes red for the
+  lane having worked. `feed-budget.mjs` already writes the message for
+  that state (*"every topic is at the 12-question target"*), so the script
+  and its own test disagreed about whether it was reachable — the same
+  disagreement `pulse-render` and `pulse.test` had about a full pen. It
+  now asserts the fold's real promise: a row per taxonomy id, in the
+  taxonomy's own order, at any level. Mutation-checked, and it catches a
+  dropped or reordered topic, which the old form could not.
+- **The near-miss** is `question-quality.mjs`'s headroom tripwires
+  (`DAILY_ID_WARN`, `BANK_WARN`), which look like the same thing and are
+  its opposite: they fire *when a number crosses a threshold*, and the
+  crossing is the decision they exist to demand. Forward-looking alarms,
+  not backward-looking pins. Worth naming so the sweep does not come back
+  for them.
+
+**And one figure was made gate-owned rather than fixed a fourth time.**
+`LAUNCH-RUNBOOK.md` 5.6 — the version-lockstep step — read *"holds at
+2.0.0 build 13"* against a tree at build 22, its third staleness, inside
+the one step whose job is noticing version numbers disagree. Its own
+paragraph had already concluded *"this number will be wrong again"* and
+stopped one move short of this file's standing remedy, so `check:figures`
+now owns both halves off `package.json`. That needed one line in the
+comparison loop: every figure there had been numeric, and `Number("2.0.0")`
+is `NaN`, which compares unequal to everything and would have reported a
+permanently correct sentence as permanently wrong.
+
+## D209 · Three readers walk the archive, and only one of them is a population
+
+**2026-08-19.** **Status:** binding, as an application of
+[D161](#d161--the-feed-goes-unbounded-and-the-mirror-gets-a-corpus-of-its-own)
+rather than a new constraint. `SCALE-RUNBOOK.md` 2.1 asked for the
+core/tail filter written down **per call site**, on the grounds that "the
+Mirror folds core only" is a sentence and not an instruction. The list is
+[`SCALE-PLAN.md`](SCALE-PLAN.md) §1 § *Where the filter goes*; this record
+is the two verdicts in it that are decisions rather than readings of the
+code, and the premise it had to correct.
+
+### The tail is feed-only, and that decides most of the table
+
+`isCore` (`data/deck.ts:246`) is
+`q.surface === "feed" ? q.core === true : true`. So the daily bank, the
+four instruments' items, duels, learn and pick cards are core whatever
+anyone writes on them, and a reader that never touches a feed question
+cannot be diluted by production however far it scales. Naming *why* each
+of those is immune is worth more than a filter none of them needs — an
+added no-op reads as a safeguard, and the next person maintains it.
+
+Exactly **three** readers walk `LIVE.aggregated()` (`data/live.ts:3214`),
+which is the only corpus a tail question can enter. Measured by grep, not
+by recollection.
+
+### The two verdicts
+
+**Circle folds all.** Already recorded at runbook 2.2 as a decision rather
+than an oversight; this is its reasoning. Circle folds the answers of
+people you chose to follow, which is a fact about *them* — the sample
+bias §1 exists to prevent (*"a question about hiking answered mostly by
+outdoorsy people does not report what the population thinks about
+hiking"*) needs a claim about a population to be false about, and Circle
+makes none.
+
+**The reading game folds all** (D196, `ui/LiveReadGame.tsx:49`). Nothing
+is averaged across the corpus: each read names its own question and asks
+you to guess one cohort's split on it. A tail question is therefore a
+playable read rather than a thinned aggregate — and the gate here wants a
+*bigger* pool (`READ_MIN_POOL = 12`), which makes this the one surface an
+unbounded tail unambiguously improves.
+
+The shape both share: **the filter belongs where a reading claims to
+describe a population, and nowhere else.** Cost is not the argument at any
+of the three sites.
+
+### The premise 2.1 was written on was false
+
+2.1 warned that `aggregated()` "also feeds your own answer list, which
+must keep showing everything you answered, tail included", and called
+hiding a person's own answer from them the worse bug. It would be. **No
+personal answer archive reads `aggregated()` at all** — `myVotes()` has
+one consumer per surface, and the two that archive your own answering are
+the daily record (`spec/mirror-answers.jsx`) and the Map
+(`spec/map-tab.jsx`), both over `DAILYQ`, the daily bank, core by
+construction. The filter cannot reach either however the tail grows.
+
+So the accepted consequence is narrower than the step feared, and it is
+now stated rather than left to be found: **a tail question you answered
+gets no row in the Mirror's Answers tab.** That tab is a population
+reading with your answer marked on it, not your archive
+([`MIRROR.md`](MIRROR.md) §3) — the Map is your archive, and the card
+itself still shows your answer beside its split. If the Mirror ever grows
+a real "everything you have answered" surface, it reads `aggregated()`
+**unfiltered**, and this paragraph is why.
+
+### What this does not close
+
+Runbook 6.1 — the core-size ratio gate, D161's named open item — still
+needs a population to measure, and until it exists the Mirror can thin
+without anyone noticing. That is the residual D161 accepted, unchanged
+here. What this record removes is a different risk: that the filter gets
+applied by whoever next reads §1, at whichever call site looks like a
+cohort fold, with no list saying which ones are and which ones only look
+it.
+
+## D210 · Rule 5 could not fire, and 123 dead publications were behind it
+
+**2026-08-19.** **Status:** binding. Found while measuring VISION-V28 §10's
+claim that the tweak flags "thread through `daily-split.jsx` and
+`world-feed.jsx` as a conditional" — they do not; every one is confined to
+`app-shell.jsx`. What the measurement turned up on the way is that
+`globalThis.TWEAK_DEFAULTS` is read by nothing, and
+[`check:globals`](../scripts/check-spec-globals.mjs) **rule 5** — the gate
+[D137](#d137--the-bridge-kept-the-names-nobody-was-crossing-on) added to catch
+exactly that — was green.
+
+### Two reasons it could not fire, and both are structural
+
+**The idiom reads the name it publishes.** The publication footer is
+`;globalThis.X = typeof X === 'undefined' ? globalThis.X : X;`, and the
+right-hand side contains a `globalThis.X`. The scanner's `REF_RE` matches
+`globalThis|window.NAME` anywhere on a line, so every name written this way
+put **itself** into `referenced` and rule 5 skipped it. 176 names use the
+idiom. A publication nobody consumes was, to the mirror rule, indis-
+tinguishable from one carrying the whole bridge — which is the exact
+sentence rule 5's own header uses about why it exists.
+
+**And rule 5 was asking rule 1's question.** `referenced` holds `window.X`
+reads and JSX tags, because that is what rules 1 and 3 need. But the
+convention's third shape is a **bare cross-module call** — `mfLayout(…)` in
+a file that never imported it, resolving through global scope at render
+time — and that is a real consumer this scanner cannot see. Asking rule 5
+"is it in `referenced`?" reports live wiring as dead: 138 findings against
+the 123 that are genuinely unmentioned, measured.
+
+So rule 5 now blanks the idiom out of a line before the reference scan
+(blanks, not skips — a line may publish X and legitimately read Y), and
+asks its own conservative question: **does the name appear anywhere in
+`src/`, outside the file that publishes it?** A word-boundary match over
+every source file including tests and strings, deliberately over-generous,
+because a false positive here deletes live wiring and a false negative
+leaves one line of residue.
+
+### What the sweep removed
+
+**123 publications, and the published-globals count went 259 → 136 in one
+commit** — seven times D137's seventeen. Three shapes, all mechanical:
+
+- **118** footer-idiom lines, deleted outright.
+- **Seven `Object.assign(window, {…})` blocks** pruned per name, the
+  statement removed where it emptied.
+- **Five same-file publications converted to module `const`s**
+  (`IS_DIM_WORD`, `IS_RULE_WORD`, `IS_RULE_ADJ`, `WORLD_FEED_COUNTERS`,
+  `WORLD_SUBTOPICS`). These were never dead — each is read through
+  `window.X` *inside its own file* — so the remedy is rule 5's own second
+  sentence: the declaration resolves lexically, the global adds nothing.
+  Their `(window.X || {})` guards went with them, per the standing rule
+  that a conversion removes the load-order condition and never the data
+  one.
+
+**The bundler was holding them.** The shipping build came out 2368 → 2346 KB
+total and 917 → **896 KB eager**, which is rule 5's header claiming "it
+keeps the value alive for the bundler" turning out to be worth 21 KB of
+first paint.
+
+### The one thing greps could not see, and what caught it
+
+`scripts/question-quality.mjs` locates the subtopic tree by **parsing the
+source text** for the literal marker `"window.WORLD_SUBTOPICS = ["`.
+Converting that publication to a `const` broke `loadCorpus` — and no search
+for the *name* could have found it, because the dependency is on the
+**declaration form**. `question-quality.test.mjs` failed on the sweep's
+first run and is the only thing in the tree that would have. The marker is
+repointed with a comment saying what it is.
+
+That is the argument for running every suite rather than the ones a diff
+looks like it touches: this change edits 23 files under `src/v2/spec/` and
+broke a script gate two directories away.
+
+### What did NOT move
+
+**Rule 4's coupling count is unchanged at 404.** It counts reads, and these
+had none — which is the same fact that let them accumulate. Nobody should
+read this sweep as progress on the migration ratchet; it is removal of the
+*claim* that 123 names were on the bridge.
+
+### The example in `CLAUDE.md` was false before this
+
+§1 taught the convention with `globalThis.useTweaks = useTweaks;` and
+"app-shell.jsx just uses the bare name, no import" — but `app-shell.jsx`
+has imported `useTweaks` for some time, and the publication under it was
+residue this sweep deleted. So the file teaching the convention illustrated
+it with a pair that had already left. It now names `GDAv`, published by
+`group-daily.jsx` and used as a bare tag in three other spec modules, and
+carries the note to pick a live pair from `check:globals` if that one ever
+converts.
+
+### It earned itself within the hour
+
+Merging main to open the PR brought in the v28 Patterns work
+([D207](#d207--the-map-goes-lazy-and-the-door-5-was-waiting-on-is-open)),
+which removed the last consumer of `TweakToggle` — and the fixed rule 5
+failed on its publication, in both the footer and the `Object.assign`
+block. A dead line produced by a **merge**, which neither side's diff
+contains and neither author could have seen, caught before it landed. That
+is the argument for the rule better than any count of what it swept: the
+residue is not a one-off backlog, it accrues every time a consumer moves.
+
+Worth one more note from that merge: main's D207 converted
+`map-layout.js` off the bridge and deleted six of these lines with a
+sharper reading than this record's — every name there is IIFE-scoped, so
+`typeof x` was **always** `'undefined'` at module level and each line
+reassigned the global to itself. Not merely unread: inert since written.
+
+### The shape, again
+
+Same family as [D208](#d208--the-pen-is-not-an-error-state-and-a-gate-said-it-was)
+two records up, and the sweep for it is what put this in reach: **a gate
+green for its whole life is not evidence.** D208's assertion could not fail
+because the state it forbade had never occurred; this one could not fail
+because the thing it looked for erased itself. Both were found by asking
+what would have to be true for the gate to fire, rather than by reading
+its output.

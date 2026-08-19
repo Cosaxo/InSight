@@ -326,7 +326,4 @@ function SearchOverlay({ onClose, onPerson, samplePeople }) {
 
 Object.assign(window, { SearchOverlay });
 
-;globalThis.srchMatch = typeof srchMatch === 'undefined' ? globalThis.srchMatch : srchMatch;
-;globalThis.SrchMark = typeof SrchMark === 'undefined' ? globalThis.SrchMark : SrchMark;
-;globalThis.SrchHit = typeof SrchHit === 'undefined' ? globalThis.SrchHit : SrchHit;
 ;globalThis.SearchOverlay = typeof SearchOverlay === 'undefined' ? globalThis.SearchOverlay : SearchOverlay;

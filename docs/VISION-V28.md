@@ -364,6 +364,35 @@ Checked file by file at extraction time:
 
 ## 7 · The small pass — nine corrections, no decisions
 
+**Measured against the tree 2026-08-19, and it is half-shipped.** The
+verdicts below stand; what changed is that four of the nine are done or
+partly done, and the plan did not say so. This is §6's job arriving late —
+so the state is recorded here per item rather than left for the next
+person to re-derive by patch-reading. **Two were already better in the
+tree than in the patch**, which is the more useful half of the finding: a
+patch is a proposal, and porting one blind would have regressed both.
+
+| # | State | What is actually there |
+| --- | --- | --- |
+| 1 group-daily sealed avatars | **open** | still `opacity: dim ? 0.28 : 1` (`group-daily.jsx:71`) |
+| 2 duo-daily redaction bars | **open** | still one solid block (`duo-daily.jsx:250`), carrying its own note that the block replaced a blur |
+| 3 person-mindmap `MTSwipeRow` + serif title | **open** | zero `MTSwipeRow` uses there against five in `map-bottom-card.jsx`; `mmt-title-serif` still on the node title |
+| 4 `daily-split` drag guard | **DONE, and not from this patch** | the tree shares `OWNS_X` with `swipe-back.js` on both the touch and wheel paths. It deliberately does **not** skip `svg`, and says why: the cards draw roses and day dots in svg, and the axis swipe has to keep working across them. The patch's `SKIP` includes `svg, canvas`, so porting it would have killed the swipe on every card |
+| 5 relmap serif headings | **DONE** | both `SANS` and `SERIF` in `relmap.jsx` are already `'Hanken Grotesk', sans-serif`; the `SERIF` name is vestigial |
+| 6 `WPAL.ink` coverage | **two-thirds done** | `group-mirror.jsx:35` and `group-daily.jsx:48,70` route through it; `person-overlay.jsx:122–125,174` still hold raw `oklch(0.5x …)` |
+| 7 `.rule-dashed` deleted | **DONE 2026-08-19** | and it was **one** live site, not two. The class was a byte-for-byte duplicate of `.rule` — same height, background, border and margin, nothing dashed about it — so switching the one `<hr>` and deleting the rule is a provable no-op, which is why it shipped while the rest of this list did not |
+| 8 passive-meter "profile" label | **open** | `passive-meter.jsx:115` |
+| 9 mirror-field-pops type chips | **open** | no chips on field rows, and note the item has **no hunk** in `mirror-field-pops.jsx.patch` — its source is the new build, not the patch set |
+
+**The seven still open are visual judgement, and that is why they are
+still open.** Each changes what a person sees, none has a test that
+asserts what it should look like, and the tree cannot render the
+prototype to compare against — `scripts/style-diff.mjs` is the tool for
+that and it needs Playwright and a running app (D189). Shipping them from
+a patch file without seeing either result is the blind change this repo's
+house style refuses; do them at a screen, in one commit, against the
+patches.
+
 Best done as one commit against `design/standalone-v28/changes/`:
 
 1. **`group-daily.jsx`** — no half-washed avatars. A row of dimmed discs
@@ -503,6 +532,40 @@ conditional. Removing them lowers the coupling count, deletes branches
 the React Compiler currently has to reason about, and shortens the two
 biggest files in the spec layer. Do it as its own commit, after §7, so
 the diff is legible as "deletions only".
+
+**Measured 2026-08-19, and that paragraph is wrong in every clause it
+makes about cost.** `world-feed.jsx` references **none** of these keys.
+Every flag lives in `app-shell.jsx` alone, except three that reach exactly
+one other file each — `markStyle` → `type-marks.jsx`, `lensBoxed` →
+`profile-overlay.jsx`, `feedHier` → `daily-split.jsx`. They are locals and
+props, not shared globals, so rule 4 does not count them and removing them
+lowers the coupling number by **zero**. (Measuring that claim is what
+turned up [D210](DECISIONS.md#d210--rule-5-could-not-fire-and-123-dead-publications-were-behind-it),
+which is the one real thing in this section's vicinity.)
+
+**And the outcome is already shipped.** Every winner listed above is
+already the tree's default: `navMode: "ruler"`, `dockRuler: true`,
+`markStyle: "slice"`, `wpal: "full"`, `lensStyle: "underline"`,
+`quietGround: true`, `feedHier: true`, `mirrorLensTop: false`,
+`lensBoxed: false`. `mirrorFirstRun` is **gone** already — `app-shell.jsx`
+drives the sparse Mirror off the real signal (`FEEDREAD.stats().n < 8`)
+instead, with a note saying the tweak that used to do it is retired. And
+the ten `wf*` feed flags never existed here: `TWEAK_DEFAULTS` says so in
+its own comment, and the `wf*` names in `world-feed.jsx` are helper
+functions, not flags. So the app already **behaves** as this section asks.
+
+**What is actually left is a decision, not engineering, and it goes the
+other way from the rest of this file.** The remaining alternatives —
+`'pill'`/`'bar'` navs, `'ring'`/`'dots'` marks, `'family'`/`'one'`
+palettes — are three `TweakRadio` rows and three branches in
+`app-shell.jsx`, and the tree keeps them **on purpose**: *"the alternatives
+exist so the three navs and the two palettes can still be judged against
+each other, which is what the standalone keeps them for."* §10's verdict
+("adopt as the record") would delete the owner's comparison, and unlike
+every other item here it is not one of the five that graduated at D166–D168
+— so it is a verdict still awaiting adoption, buying no ratchet movement
+and costing a tool. **Do not do it as a cleanup.** If the owner is done
+comparing navs, that is one sentence and then it is three minutes' work.
 
 ## 11 · Sequencing
 

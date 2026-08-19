@@ -86,11 +86,17 @@ prototype. Modules do **not** import each other. They assign to
 `globalThis`/`window` and look each other up **by name at render time**:
 
 ```jsx
-// tweaks-panel.jsx defines it…
-globalThis.useTweaks = useTweaks;
-// …app-shell.jsx just uses the bare name, no import
-const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
+// group-daily.jsx defines it…
+Object.assign(window, { GroupDailyBody, GDAv });
+// …duo-daily.jsx just uses the bare tag, no import
+<GDAv p={p} size={38} plain></GDAv>
 ```
+
+*(This example named `useTweaks` until D210 and was false: `app-shell.jsx`
+had long since converted to a real `import`, and the publication beneath it
+was the residue that sweep removed. `check:globals` rule 5 could not see
+either — see D210 for why, and pick a live pair from its own output if this
+one ever converts.)*
 
 `src/v2/spec-index.js` imports every module for side effects, and **the
 order is semantic** — later modules read globals set by earlier ones.

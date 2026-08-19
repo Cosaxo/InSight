@@ -300,11 +300,7 @@ function IOSKeyboard({ dark = false }) {
 }
 
 Object.assign(window, {
-  IOSDevice, IOSStatusBar, IOSNavBar, IOSGlassPill, IOSKeyboard,
+  IOSDevice,
 });
 
-;globalThis.IOSStatusBar = typeof IOSStatusBar === 'undefined' ? globalThis.IOSStatusBar : IOSStatusBar;
-;globalThis.IOSGlassPill = typeof IOSGlassPill === 'undefined' ? globalThis.IOSGlassPill : IOSGlassPill;
-;globalThis.IOSNavBar = typeof IOSNavBar === 'undefined' ? globalThis.IOSNavBar : IOSNavBar;
 ;globalThis.IOSDevice = typeof IOSDevice === 'undefined' ? globalThis.IOSDevice : IOSDevice;
-;globalThis.IOSKeyboard = typeof IOSKeyboard === 'undefined' ? globalThis.IOSKeyboard : IOSKeyboard;

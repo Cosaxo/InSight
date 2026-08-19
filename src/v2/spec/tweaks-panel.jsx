@@ -596,23 +596,15 @@ export function TweakButton({ label, onClick, secondary = false }) {
 }
 
 Object.assign(window, {
-  useTweaks, TweaksPanel, TweakSection, TweakRow,
-  TweakSlider, TweakToggle, TweakRadio, TweakSelect,
-  TweakText, TweakNumber, TweakColor, TweakButton,
+  useTweaks,
+  TweaksPanel,
+  TweakSection,
+  TweakRadio,
+  TweakButton,
 });
 
 ;globalThis.useTweaks = typeof useTweaks === 'undefined' ? globalThis.useTweaks : useTweaks;
 ;globalThis.TweaksPanel = typeof TweaksPanel === 'undefined' ? globalThis.TweaksPanel : TweaksPanel;
 ;globalThis.TweakSection = typeof TweakSection === 'undefined' ? globalThis.TweakSection : TweakSection;
-;globalThis.TweakRow = typeof TweakRow === 'undefined' ? globalThis.TweakRow : TweakRow;
-;globalThis.TweakSlider = typeof TweakSlider === 'undefined' ? globalThis.TweakSlider : TweakSlider;
-;globalThis.TweakToggle = typeof TweakToggle === 'undefined' ? globalThis.TweakToggle : TweakToggle;
 ;globalThis.TweakRadio = typeof TweakRadio === 'undefined' ? globalThis.TweakRadio : TweakRadio;
-;globalThis.TweakSelect = typeof TweakSelect === 'undefined' ? globalThis.TweakSelect : TweakSelect;
-;globalThis.TweakText = typeof TweakText === 'undefined' ? globalThis.TweakText : TweakText;
-;globalThis.TweakNumber = typeof TweakNumber === 'undefined' ? globalThis.TweakNumber : TweakNumber;
-;globalThis.__twkIsLight = typeof __twkIsLight === 'undefined' ? globalThis.__twkIsLight : __twkIsLight;
-;globalThis.TweakColor = typeof TweakColor === 'undefined' ? globalThis.TweakColor : TweakColor;
 ;globalThis.TweakButton = typeof TweakButton === 'undefined' ? globalThis.TweakButton : TweakButton;
-;globalThis.__TWEAKS_STYLE = typeof __TWEAKS_STYLE === 'undefined' ? globalThis.__TWEAKS_STYLE : __TWEAKS_STYLE;
-;globalThis.__TwkCheck = typeof __TwkCheck === 'undefined' ? globalThis.__TwkCheck : __TwkCheck;
