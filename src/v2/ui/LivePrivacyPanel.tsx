@@ -16,22 +16,17 @@
 import React from "react";
 import LIVE, { localName } from "../data/live";
 import Avatar from "./Avatar";
-// The handle is claimed here because this is where identity already
-// lives — the display name is next door, and the two are different
-// things: a name is what a reveal calls you, a handle is how someone
-// finds you (D122). Since D190 the first-run screen asks for both, and
-// this row is what remains for the accounts that predate it: a claim for
-// an account with no handle, and the handle itself for one that has.
-import { atHandle, handleProblem, normalizeHandle } from "../data/handles";
+// The handle is a FACT here, never a control (D208). The claim control
+// this panel carried for accounts that predate D190's first-run screen
+// was read on a device as an offer to change the handle — which is
+// exactly the thing D190 §2 abolished, and a control that looks like the
+// abolished thing is as bad as having it. Identity is asked at sign-in
+// (LiveProfileSetup); this panel only states what the account holds.
+import { atHandle } from "../data/handles";
 // The hosted origin for the legal pages. Lives in data/links.ts now so
 // invites and legal links share one constant — a domain change stays a
 // single edit (D3).
 import { SITE_ORIGIN as LP_SITE } from "../data/links";
-import { setTelemetryEnabled, telemetryEnabled } from "../../lib/sentry";
-// Lazy, for the bundle budget: this panel is eager (spec-index), and the
-// interests panel plus its store put the total 2 KB over. It is also the
-// right thing to defer on the merits — it renders inside the account
-// screen, which nothing on the first frame opens.
 
 const LP_LINE = "1px solid color-mix(in oklch, var(--rule), transparent 25%)";
 
@@ -60,18 +55,8 @@ function LivePrivacyPanel() {
   // anyone who had renamed on another device.
   const [name, setName] = React.useState(() => LIVE.displayName || localName());
   const [saved, setSaved] = React.useState(false);
-  const [handle, setHandle] = React.useState("");
-  const [hBusy, setHBusy] = React.useState(false);
-  const [hMsg, setHMsg] = React.useState<string | null>(null);
   const [busy, setBusy] = React.useState(false);
   const [confirmDel, setConfirmDel] = React.useState(false);
-  // Derived from auth via the store, not local state seeded to false: the
-  // panel is remounted on every subtab change (profile-overlay.jsx keys on
-  // it), so a Google-linked user was told they were anonymous and offered a
-  // link that then failed with auth/provider-already-linked.
-  const [linkedNow, setLinkedNow] = React.useState(false);
-  const linked = LIVE.linked || linkedNow;
-  const [telemetry, setTelemetry] = React.useState(telemetryEnabled);
   const [err, setErr] = React.useState<string | null>(null);
   const [photoMsg, setPhotoMsg] = React.useState<string | null>(null);
   if (!LIVE.enabled) return null;
@@ -102,42 +87,10 @@ function LivePrivacyPanel() {
     } catch (e) { setErr(String((e instanceof Error && e.message) || e)); }
     setBusy(false);
   };
-  const saveHandle = async () => {
-    const h = normalizeHandle(handle);
-    // The button is disabled without one, so this is the belt on the
-    // braces — and it is the same fold the callable runs, so a handle
-    // that gets here is one the server will accept or refuse on
-    // availability alone.
-    if (!h) return;
-    setHBusy(true); setHMsg(null);
-    try {
-      await LIVE.social.claimHandle(h);
-      setHandle("");
-      setHMsg(`Claimed ${atHandle(h)}`);
-      setTimeout(() => setHMsg(null), 2400);
-    } catch (e) {
-      // "already-exists" is the ONE failure worth its own sentence: it is
-      // the common one, it is not the user's mistake, and the raw
-      // callable message is a Firebase error code.
-      const raw = String((e instanceof Error && e.message) || e);
-      setHMsg(/already-exists|taken/i.test(raw) ? `${atHandle(h)} is taken.` : raw.replace(/^.*?: */, ""));
-    }
-    setHBusy(false);
-  };
-  const link = async () => {
-    setBusy(true); setErr(null);
-    try { await LIVE.linkGoogle(); setLinkedNow(true); } catch (e) { setErr(String((e instanceof Error && e.message) || e)); }
-    setBusy(false);
-  };
   const nuke = async () => {
     setBusy(true); setErr(null);
     try { await LIVE.deleteAccount(); location.reload(); }
     catch (e) { setErr(String((e instanceof Error && e.message) || e)); setBusy(false); }
-  };
-  const toggleTelemetry = () => {
-    const next = !telemetry;
-    setTelemetryEnabled(next);
-    setTelemetry(next);
   };
   const btn = (label: string, onClick: () => void, danger?: boolean) => (
     <button className="press" onClick={onClick} disabled={busy}
@@ -197,78 +150,38 @@ function LivePrivacyPanel() {
         </div>
       </LpRow>
 
-      {/* The handle. Under the name on purpose: the name is what a reveal
-          calls you and can be anything, the handle is unique and is how a
-          friend reaches you — and someone reading top to bottom meets
-          them in that order.
+      {/* The handle, as the FACT it is (D208) — and only when there is one.
+          Under the name on purpose: the name is what a reveal calls you and
+          can be anything, the handle is unique and is how a friend reaches
+          you — and someone reading top to bottom meets them in that order.
 
-          CLAIMED ONCE (D190). This row offered a "Change" button, and the
-          rename behind it was real: claimHandleV2 took the new key and
-          released the old one in one transaction, so the name you had
-          handed people became free for a stranger to take the same
-          minute. That is the whole failure — a handle is an ADDRESS, and
-          an address that can be reassigned is one nobody can be given.
-          The callable refuses a change now; this shows the handle as the
-          fact it is, and the claim control is only ever drawn for an
-          account that has none.
+          THE CLAIM CONTROL IS GONE. D190 made a handle claimed-once and
+          left this row a claim form "for the accounts that predate that
+          screen and for anyone who skipped it" — and that form is exactly
+          what the owner's own device drew (LIVE.handle is "" until the
+          profile doc hydrates, and for any account that skipped the
+          screen), where it reads as an offer to pick a handle from
+          settings — the thing D190 §2 abolished. A control that looks
+          like the abolished thing is as bad as having it. The handle is
+          asked where identity is set (LiveProfileSetup, at first run); an
+          account that skipped it stays handle-less and can still be added
+          to circles by invite code.
 
-          It is asked at sign-in since D190 (LiveProfileSetup), so the
-          control here is for the accounts that predate that screen and
-          for anyone who skipped it. */}
+          THREE ROWS LEFT WITH IT (D208): Sign-in — the D134 gate walls
+          every release build behind Google, so the row could only ever
+          read "Linked ✓", and on a build without the gate a link control
+          in settings is not the fix for a session that should have been
+          linked at the door. Crash reports — the toggle is gone and
+          reporting is on (D76 amended); a recorded opt-out from an older
+          build is still honoured at every send site (sentry.ts), because
+          removing a switch must not flip anyone's recorded choice. */}
       {LIVE.handle ? (
         <LpRow title="Your handle" sub="Friends add you by this. It can’t be changed.">
           <span style={{ fontFamily: "var(--mono, monospace)", fontSize: 13.5, fontWeight: 700, color: "var(--ink)", whiteSpace: "nowrap" }}>
             {atHandle(LIVE.handle)}
           </span>
         </LpRow>
-      ) : (
-        <>
-          <LpRow title="Your handle"
-            sub="Claim a handle so friends can add you to a circle without swapping codes. You only get to pick once.">
-            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-              <input value={handle} onChange={(e) => setHandle(e.target.value)}
-                placeholder="@yourname"
-                autoCapitalize="none" autoCorrect="off" spellCheck={false}
-                aria-label="Your handle"
-                style={{ border: LP_LINE, borderRadius: 9, padding: "8px 11px", width: 132,
-                  fontFamily: "var(--sans)", fontSize: "var(--field-size)", fontWeight: 600, color: "var(--ink)",
-                  background: "var(--surface-2)", outline: "none", minWidth: 0 }} />
-              <button className="press" onClick={() => void saveHandle()}
-                disabled={hBusy || !normalizeHandle(handle)}
-                style={{ border: LP_LINE, borderRadius: 999, cursor: hBusy ? "default" : "pointer", padding: "8px 15px",
-                  fontFamily: "var(--sans)", fontWeight: 800, fontSize: 12.5, WebkitAppearance: "none",
-                  background: "var(--surface-2)", color: "var(--ink)",
-                  opacity: hBusy || !normalizeHandle(handle) ? 0.5 : 1, whiteSpace: "nowrap" }}>
-                {hBusy ? "…" : "Claim"}
-              </button>
-            </div>
-          </LpRow>
-          {(handleProblem(handle) || hMsg) && (
-            <div role="status" style={{ fontFamily: "var(--sans)", fontSize: 12, fontWeight: 600,
-              color: "var(--ink-2)", margin: "-6px 0 10px" }}>
-              {handleProblem(handle) || hMsg}
-            </div>
-          )}
-        </>
-      )}
-
-      <LpRow title="Sign-in"
-        sub={linked
-          ? "Linked — your history now survives any device."
-          // Since D6 turned Android system backup off (it would have copied
-          // the local cache to Google Drive), linking is now the ONLY way an
-          // anonymous session survives a phone swap. Say so plainly rather
-          // than letting someone find out by losing everything.
-          : "Anonymous session — it lives only on this phone. Link Google and your history survives a lost device."}>
-        {btn(linked ? "Linked ✓" : "Link Google", link)}
-      </LpRow>
-
-      <LpRow title="Crash reports"
-        sub={telemetry
-          ? "On — anonymous crash reports (uid only, never your answers)."
-          : "Off — no reports are sent."}>
-        {btn(telemetry ? "On ✓" : "Off", toggleTelemetry)}
-      </LpRow>
+      ) : null}
 
       {/* ONE SENTENCE AND A LINK (D183), where ten bullets behind a
           summary stood (D172).

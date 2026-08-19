@@ -72,7 +72,7 @@ describe("Crossroads · the card", () => {
     expect(screen.getByRole("img", { name: new RegExp(st.endings["AAA"].name) })).toBeTruthy();
   });
 
-  it("keeps the walk when the card unmounts, and Walk again clears it", () => {
+  it("keeps the walk when the card unmounts, and a finished one is final", () => {
     const st = PATHS.stories()[0];
     const { unmount } = render(<PathsCard />);
     choose(st.nodes["_"].a[1].t);
@@ -88,9 +88,12 @@ describe("Crossroads · the card", () => {
     choose(st.nodes["BA"].a[0].t);
     expect(screen.getAllByText(st.endings["BAA"].name).length).toBe(2);
 
-    fireEvent.click(screen.getByRole("button", { name: "Walk again" }));
-    expect(PATHS.walkOf(st.id)).toBe("");
-    expect(screen.getByText(st.intro)).toBeTruthy();
+    // "Walk again" stood here and is gone (D208): a re-walk moved the
+    // recorded result, so a finished card offers no way back in — no redo
+    // control, no choices, and the walk it keeps is the one you took.
+    expect(screen.queryByRole("button", { name: "Walk again" })).toBeNull();
+    expect(screen.queryByRole("button", { name: st.nodes["_"].a[0].t })).toBeNull();
+    expect(PATHS.walkOf(st.id)).toBe("BAA");
   });
 
   it("refuses a fourth choice", () => {
@@ -191,6 +194,24 @@ describe("Crossroads · live", () => {
     expect(screen.getByText("1 in 3 walks your road")).toBeTruthy();
   });
 
+  it("says first-to-end-here while the crowd holds nobody at your ending", () => {
+    // The fold that will count this walk is still in flight (or nobody
+    // ever follows): a crowd exists, none of it at your ending. The card
+    // printed "you and 0% ended here" and "1 in Infinity walks your road"
+    // to the person standing there — from a device, verbatim (D208).
+    globalThis.__pathsLive = {
+      ...LIVE,
+      pathQs: () => [{ ...STORY, counts: [0, 5, 10, 5, 20, 5, 10, 5], total: 60 }],
+    };
+    render(<PathsCard />);
+    walk3();
+    expect(screen.getByText("you’re the first to end here")).toBeTruthy();
+    expect(screen.queryByText(/Infinity/)).toBeNull();
+    expect(screen.queryByText(/you and 0% ended here/)).toBeNull();
+    // The tree still draws — the crowd is real, it just went elsewhere.
+    expect(screen.getByRole("img", { name: /Your road through/ })).toBeTruthy();
+  });
+
   it("restores a finished walk from the server, with no local trace", () => {
     // A returning device: the answer exists, localStorage does not. The
     // walk has to come back off the vote, or a user who cleared their
@@ -201,26 +222,33 @@ describe("Crossroads · live", () => {
     expect(screen.getAllByText("End BAA").length).toBe(2);
   });
 
-  it("treats a second finished walk as a D86 edit, not a second answer", () => {
+  it("offers no redo over a standing answer — a walk is final (D208)", () => {
+    // "Walk again" existed and re-walking wrote a D86 edit of the answer —
+    // a redo control on a card whose reveal is how rare your road was,
+    // moving the results it had just shown. The finished card now has no
+    // way back in: the ending stands and no fork is on offer.
     votes["feed-pt1"] = "4";
     render(<PathsCard />);
-    fireEvent.click(screen.getByRole("button", { name: "Walk again" }));
-    // Back at the opening — the standing answer is ignored while re-walking.
-    expect(screen.getByText("A live intro.")).toBeTruthy();
-    walk3();
-    expect(LIVE.editVote).toHaveBeenCalledWith("feed-pt1", "0");
+    expect(screen.getAllByText("End BAA").length).toBe(2);
+    expect(screen.queryByRole("button", { name: "Walk again" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "_ left" })).toBeNull();
     expect(LIVE.vote).not.toHaveBeenCalled();
+    expect(LIVE.editVote).not.toHaveBeenCalled();
   });
 
-  it("snaps back to the standing answer when the edit is refused", () => {
-    votes["feed-pt1"] = "4";
-    LIVE.editVote.mockImplementationOnce(() => false);   // the 60s cooldown
+  it("snaps back when a standing answer hydrates mid-walk, and never edits", () => {
+    // The one path that can still reach the third fork with an answer on
+    // record: the vote hydrates while this device is mid-walk (another
+    // device's answer, or this one's arriving late). The server's record
+    // wins — the raced walk is dropped, nothing is written, and showing it
+    // would be showing an answer nobody stored.
     render(<PathsCard />);
-    fireEvent.click(screen.getByRole("button", { name: "Walk again" }));
-    walk3();
-    // The refused walk is NOT what the card shows: the server's ending is
-    // still the record, and showing the other one would be showing an
-    // answer nobody stored.
+    choose("_ left"); choose("A left");
+    votes["feed-pt1"] = "4";                       // BAA lands before the last tap
+    choose("AA left");
+    expect(LIVE.vote).not.toHaveBeenCalled();
+    expect(LIVE.editVote).not.toHaveBeenCalled();
+    expect(PATHS.walkOf(STORY.id)).toBe("");
     expect(screen.getAllByText("End BAA").length).toBe(2);
     expect(screen.queryByText("End AAA")).toBeNull();
   });

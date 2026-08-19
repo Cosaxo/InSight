@@ -15,9 +15,11 @@
 //     most callables — and "nothing was lost, please retry" is only useful
 //     if the user is shown it.
 //
-// Everything else here — telemetry toggle, name, Google linking — is covered
-// only as far as "the control exists and reaches the store", which is what
-// its own case asserts.
+// Everything else here — the name, the handle-as-fact — is covered only as
+// far as "the control exists and reaches the store"; the last describe pins
+// the three controls D208 REMOVED (handle claim, Sign-in, Crash reports),
+// because a control that quietly returns re-offers what the server refuses
+// or what the release build already settled at the door.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
@@ -43,18 +45,10 @@ const LIVE = vi.hoisted(() => ({
   // (D190). A case below sets one and asserts the control is gone.
   handle: "",
   deleteAccount: async () => {},
-  linkGoogle: async () => {},
   saveDisplayName: async () => {},
-  social: { claimHandle: async (h: string) => ({ handle: h }) },
   subscribe: () => () => {},
 }));
 vi.mock("../data/live", () => ({ default: LIVE, localName: () => "" }));
-vi.mock("../../lib/sentry", () => ({
-  telemetryEnabled: true,
-  setTelemetryEnabled: () => {},
-  reportError: () => {},
-  setSentryUser: () => {},
-}));
 
 const { default: LivePrivacyPanel } = await import("./LivePrivacyPanel");
 
@@ -229,37 +223,58 @@ describe("LivePrivacyPanel · the disclosure moved to the policy page (D183)", (
   });
 });
 
-// ── the handle is claimed once (D190) ────────────────────────────────
+// ── the panel states identity, it no longer edits it (D190 → D208) ────
 //
-// The row offered a "Change" button and the rename behind it worked: the
-// callable took the new key and freed the old one in one transaction, so
-// the address a user had handed people went back in the pool the same
-// minute. A handle is how someone is ADDED to a circle (D122) — an address
-// that can be reassigned is one nobody can be given.
+// The history in two steps. The handle row offered a "Change" button and
+// the rename behind it worked, so D190 made a handle claimed-once and
+// left this panel a CLAIM control for accounts with none. D208 removed
+// that too: the claim form is what an account whose handle has not
+// hydrated is shown, where it reads as an offer to pick a new handle from
+// settings — the thing D190 abolished. Identity is asked at first run
+// (LiveProfileSetup); here a handle is a fact or absent, never a form.
 //
-// The server is the gate (claimHandleV2 refuses a change); these are about
-// the panel not offering what the server will refuse, which is the other
-// half of the same promise.
-describe("LivePrivacyPanel · a handle is claimed once", () => {
+// The server is still the gate (claimHandleV2 refuses a change); these
+// are about the panel not offering what the server will refuse, which is
+// the other half of the same promise.
+describe("LivePrivacyPanel · a handle is a fact here, never a form", () => {
   afterEach(() => { LIVE.handle = ""; });
 
-  it("offers the claim only to an account that has no handle", () => {
+  it("offers no claim to an account without one — the row is simply absent", () => {
     LIVE.handle = "";
     render(<LivePrivacyPanel />);
-    expect(screen.getByRole("button", { name: /^Claim$/ })).toBeTruthy();
-    // …and says so before the tap, because the tap cannot be taken back.
-    expect(screen.getByText(/only get to pick once/i)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /^Claim$/ })).toBeNull();
+    expect(screen.queryByLabelText(/Your handle/i)).toBeNull();
+    expect(screen.queryByText(/Your handle/)).toBeNull();
   });
 
   it("shows a claimed handle as a fact, with no way to change it", () => {
     LIVE.handle = "olaf";
     render(<LivePrivacyPanel />);
     expect(screen.getByText("@olaf")).toBeTruthy();
-    // The control, in both of its shapes. "Change" is the one that shipped.
+    // The control, in all three of its historical shapes.
     expect(screen.queryByRole("button", { name: /^Change$/ })).toBeNull();
     expect(screen.queryByRole("button", { name: /^Claim$/ })).toBeNull();
     expect(screen.queryByLabelText(/Your handle/i)).toBeNull();
     // And the panel says it, rather than leaving the absence to be inferred.
     expect(screen.getByText(/can’t be changed/i)).toBeTruthy();
+  });
+});
+
+// ── two settings rows removed outright (D208) ─────────────────────────
+//
+// Sign-in: the D134 gate walls every release build behind Google before
+// the app opens, so the row could only ever read "Linked ✓" — a control
+// re-offering what the door already settled. Crash reports: the toggle is
+// gone and reporting is on by default (D76 amended by D208); the recorded
+// opt-outs of older builds stay honoured in sentry.ts, which
+// sentry.test.ts pins. What is pinned HERE is only that neither control
+// quietly returns.
+describe("LivePrivacyPanel · no Sign-in row, no Crash-reports toggle", () => {
+  it("renders neither row nor their controls", () => {
+    render(<LivePrivacyPanel />);
+    expect(screen.queryByText("Sign-in")).toBeNull();
+    expect(screen.queryByRole("button", { name: /Link Google|Linked/ })).toBeNull();
+    expect(screen.queryByText("Crash reports")).toBeNull();
+    expect(screen.queryByRole("button", { name: /^(On|Off) ?✓?$/ })).toBeNull();
   });
 });

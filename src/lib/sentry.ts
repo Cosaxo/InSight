@@ -33,10 +33,13 @@
 // Configuration is via env vars — set VITE_SENTRY_DSN to enable.
 // Dev builds without the env var skip Sentry entirely.
 //
-// User choice: reporting is ON by default (D76), and the local
-// `insight.telemetry.v1` flag records an opt-out. The switch lives in
-// the account panel (LivePrivacyPanel); an explicit "false" is
-// honoured at every send site, not just at init.
+// Reporting is ON by default (D76) and the account panel's off switch
+// is gone (D208) — the owner's call: a release build has no toggle. The
+// local `insight.telemetry.v1` flag survives as a READ-ONLY record of
+// opt-outs recorded by older builds: nothing writes it any more, but an
+// explicit "false" is still honoured at every send site, not just at
+// init, because removing a switch must not flip anyone's recorded
+// choice.
 
 type SentryCapacitor = typeof import("@sentry/capacitor");
 
@@ -61,41 +64,18 @@ export function telemetryEnabled(): boolean {
   }
 }
 
-export function setTelemetryEnabled(on: boolean): void {
-  try {
-    localStorage.setItem(TELEMETRY_KEY, on ? "true" : "false");
-  } catch {
-    // Best-effort; private mode blocks localStorage.
-  }
-  if (on) {
-    sentryInit();
-  } else if (sdk) {
-    // Already-initialised Sentry cannot be cleanly torn down at runtime, so
-    // OFF is enforced at the two send sites (reportError, setSentryUser)
-    // rather than trusted to teardown — they gate on consent, not on `sdk`
-    // being non-null. Nulling the user and closing the client is the
-    // best-effort half; the gates are the half that holds.
-    //
-    // The panel used to say "Off — nothing is reported" while this ran, and
-    // that was false for the rest of the session: ~30 reportError sites, all
-    // unhandled exceptions, and 5% of traces kept transmitting, and
-    // setSentryUser (reached from wake()) re-attached the uid afterwards, so
-    // the residual was uid-linked.
-    try {
-      sdk.setUser(null);
-      sdk.getClient?.()?.close?.();
-    } catch {
-      // ignore
-    }
-  }
-}
+// `setTelemetryEnabled` stood here and left with the panel's switch
+// (D208). The OFF half of its job — send-site gating, because an
+// initialised SDK cannot be cleanly torn down — is unchanged below:
+// reportError and setSentryUser gate on telemetryEnabled(), not on `sdk`
+// being non-null, so a recorded opt-out still holds for the whole
+// session.
 
 export function sentryInit(): void {
   if (sdk || loading) return;
   const dsn = import.meta.env.VITE_SENTRY_DSN;
   if (!dsn) return;
-  // Honour the recorded opt-out — the LivePrivacyPanel toggle calls
-  // sentryInit() again if the flag is flipped back on.
+  // Honour a recorded opt-out from an older build.
   if (!telemetryEnabled()) return;
   loading = true;
   void (async () => {
