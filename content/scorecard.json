@@ -1,11 +1,11 @@
 {
-  "generatedAt": "2026-08-18T07:15:56.214Z",
-  "daysSinceEpoch": 17,
+  "generatedAt": "2026-08-19T07:17:15.866Z",
+  "daysSinceEpoch": 18,
   "coverage": {
     "questions": 188,
     "scored": 0,
     "belowFloor": 6,
-    "unserved": 97
+    "unserved": 96
   },
   "topics": {
     "Sport": {
@@ -297,7 +297,7 @@
     "bySource": {
       "editorial": {
         "questions": 176,
-        "served": 91,
+        "served": 92,
         "scored": 0,
         "answers": 0,
         "strong": 0,
@@ -317,7 +317,7 @@
     "byVintage": {
       "editorial:prototype": {
         "questions": 118,
-        "served": 82,
+        "served": 83,
         "scored": 0,
         "answers": 0,
         "strong": 0,
@@ -3114,11 +3114,11 @@
       "topic": "Mind",
       "type": "scale",
       "prompt": "Technology is making us lonelier.",
-      "served": false,
+      "served": true,
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "unserved"
+      "signal": "no-answers"
     },
     {
       "qid": "daily-018",
