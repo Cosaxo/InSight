@@ -49,10 +49,10 @@ const BUMP = argv.includes("--bump-rev");
 const DRY = argv.includes("--dry-run");
 
 const PROJECT = process.env.FIREBASE_PROJECT_ID || "prvfire33";
-// READ, not retyped (D199). A wrong region is a 404 from a URL that looks
+// READ, not retyped (D201). A wrong region is a 404 from a URL that looks
 // entirely plausible, and this script had the value spelled out with the
 // two files it had to match named in a comment beside it — which is the
-// exact shape D47 caught in the cost model and D198 caught in its region.
+// exact shape D47 caught in the cost model and D200 caught in its region.
 // Bare `node`, so no .ts import: the constant is scanned out of its source,
 // and a rename throws here rather than serving a plausible 404.
 const REGION = (() => {

@@ -25,7 +25,7 @@ import { getFirestore as adminFirestore } from "firebase-admin/firestore";
 import { getAuth as adminAuth } from "firebase-admin/auth";
 import { getStorage as adminStorage } from "firebase-admin/storage";
 // The region the EMULATOR serves, taken from the functions' own compiled
-// output rather than repeated here (D199). `pretest:e2e` builds it, so
+// output rather than repeated here (D201). `pretest:e2e` builds it, so
 // this harness cannot be pointed at a region the emulator is not on.
 import { FUNCTIONS_REGION } from "../functions/lib/ops.js";
 

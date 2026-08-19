@@ -29,12 +29,12 @@ import type { Firestore } from "firebase-admin/firestore";
 export const FIRESTORE_DB_ID = process.env.FIRESTORE_DB_ID || "insight";
 
 /**
- * WHERE that database is, which is a price as much as a place (D198).
+ * WHERE that database is, which is a price as much as a place (D200).
  *
  * Not read by any function — the region a function runs in is its own
  * `setGlobalOptions` setting and is deliberately not this. It is here
  * because this file is already the one place the database's identity may
- * be wrong, and until D198 the region was in NO machine-readable place at
+ * be wrong, and until D200 the region was in NO machine-readable place at
  * all: `firebase.json` names the database, this file named the id, and the
  * region existed only in prose. So `scripts/cost-arith.mjs` went on
  * pricing `nam5` for three days after D165 moved production to a single

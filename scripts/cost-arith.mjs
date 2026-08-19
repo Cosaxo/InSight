@@ -91,7 +91,7 @@ function readStr(rel, re, what) {
   return m[1];
 }
 
-// WHERE THE DATABASE IS, read rather than assumed (D198).
+// WHERE THE DATABASE IS, read rather than assumed (D200).
 //
 // This was a default parameter — `costModel({ regional = false })` — with a
 // comment beside the price sheet saying multi-region "is what prvfire33 is

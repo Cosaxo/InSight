@@ -474,6 +474,45 @@ arithmetic.
       automated writer, and the window between merging a release commit and
       dispatching from it is no longer quiet.
 
+      **BUILD 21 IS IN TESTFLIGHT, AND THE NUMBER MOVED WITH IT**
+      (2026-08-19). Run 32 (`32228796376`, `d547f7a`, 07:38:55Z) was the
+      dry run — step 17 `skipped`, 5m 18s, signed `.ipa` kept as artifact
+      `9356608227` — and run 33 (`32229389551`, same sha, 07:46:29Z)
+      uploaded: step 17 `success`, 07:52:10Z → 07:54:11Z, 2m 01s of
+      transfer, `UPLOAD SUCCEEDED with no errors`, delivery UUID
+      `f1ab4ae5-0673-4a89-a4f3-c3ab03c6e87d`. Both silent-failure gates
+      passed at both ends on both runs — `aps-environment = production`
+      out of the exported `.ipa`, Firebase config in the bundle.
+
+      **`appBuild` is now 22, read off step 17 rather than recalled.**
+      Five bumps have held (runs 20, 21, 22, 28, 33) against five skipped
+      (18, 19, 24, 26, 31). D159's trap fired once more and cost nothing:
+      `5c9c4a5` merged, both runs archived `d547f7a` after a pulse trail
+      row landed in between, and `appBuild` was 21 at both. D199.
+
+
+      **BUILD 20 WAS UPLOADED BY RUN 31, AND BUILD 21'S PRE-FLIGHT HAD TO
+      BUMP** (2026-08-19). Three runs sit at `f8c8465` and no document
+      named any of them: run 29 (`32019625202`, 10:19:31Z) cancelled at
+      Resolve Swift packages, run 30 (`32019849917`, 10:22:28Z) upload
+      step `skipped` — the dry run — and run 31 (`32020442257`,
+      10:30:02Z) `success`, 10:34:21Z → 10:35:38Z, 1m 17s of transfer.
+      `appBuild` at that run's own `head_sha` is **20**, and the tree was
+      **also** at 20: equal is not greater, so **bump**, and it went to
+      21. Fifth skip (18, 19, 24, 26, 31) against four that held.
+
+      **The skip refutes the explanation the entry below earned.**
+      `f8c8465` is D191's own commit, and it landed at 10:19:05Z — run 29
+      was dispatched **26 seconds later**. Same session, run list on
+      screen, cancelling one of its own three dispatches: it made the
+      comparison *first*, got *run as-is*, and then spent the number that
+      answer was about. So a pre-flight verdict has a shelf life of
+      exactly one dispatch, and "no number moved" is a report about a
+      comparison rather than a statement about the tree — the same claim
+      this section struck for build 12, in the past tense. As at runs 25
+      and 26, no record was written either, so a gate keyed on the record
+      would again have had nothing to fire on. D198.
+
       **BUILD 20'S PRE-FLIGHT FOUND NOTHING TO DO** (2026-08-17). The
       comparison was made against the run list: run 28 is still the
       highest run, its step 17 still `success`, and `appBuild` at that
@@ -1263,7 +1302,7 @@ That is a tester-count problem, not a workflow problem.
       dispatch that #2 exists to save, which is the trade being made, and
       it is the cheaper side once releases stop being daily.
 
-- [ ] **5.9 Deploy the functions to `europe-west1` (D199), then confirm
+- [ ] **5.9 Deploy the functions to `europe-west1` (D201), then confirm
       the old region is empty.** The code is merged and every gate is
       green; this is the operator half, and it is the one deploy here that
       can corrupt data rather than just fail.
@@ -1271,7 +1310,7 @@ That is a tester-count problem, not a workflow problem.
       **Why now:** every client calls the region its own bundle names, so
       this gets more expensive with each install — the same "last free
       reset" argument D165 made about the database, one layer up. It also
-      ends the split D198 measured: the database has been in Europe since
+      ends the split D200 measured: the database has been in Europe since
       2026-08-15 and the functions were still in Iowa.
 
       **The hazard, in one sentence:** a region is part of a function's
@@ -1287,7 +1326,8 @@ That is a tester-count problem, not a workflow problem.
       `gcloud functions list --project prvfire33 --regions us-central1`
       and delete anything that is not one of D13's nine v1 leftovers.
 
-      **Then bump the build and ship it** (2.4). Builds 20 and earlier keep
+      **Then bump the build and ship it** (2.4). Every build shipped before
+      this deploy — 21 and earlier — keeps
       calling `us-central1` and get a 404 the app reports as `internal` on
       every callable — account deletion, push registration, the logic test,
       circles and duels, device activation, suggestions. The daily and the

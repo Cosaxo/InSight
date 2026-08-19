@@ -517,7 +517,7 @@ Two gaps are worth stating in prose because no badge covers them:
   `relmap-core.js`, their categories and their closeness years — and
   nothing live renders them.
 
-  **Which is why the map left the eager graph at D198.** It was the one
+  **Which is why the map left the eager graph at D200.** It was the one
   overlay excluded from the after-first-paint group, because the Mirror
   read `RelationshipMap` during a render nothing re-triggers, to decide
   whether Circle drew the embedded map or the generic field (D38). That

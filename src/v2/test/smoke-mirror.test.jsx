@@ -58,7 +58,7 @@ describe("the mirror tab and the header's overlays", () => {
   });
 
   it("draws the embedded relationship map on the Circle stop", async () => {
-    // D198 moved relmap.jsx off the eager graph, which turned this picture
+    // D200 moved relmap.jsx off the eager graph, which turned this picture
     // from a synchronous `typeof RelationshipMap === 'function'` read into an
     // awaited import. Nothing executed the Circle stop before, so the move
     // could have swapped the map for the generic field canvas with every gate

@@ -32,7 +32,7 @@
 > line and the largest saving in the file — is **already done**: production
 > is `insight` / `europe-west1`. Read `[C]` as history and every other
 > row's percentage as a share of a bill that is already half what these
-> tables print. The model itself was still pricing `nam5` until D198, three
+> tables print. The model itself was still pricing `nam5` until D200, three
 > days after the migration, because the region was a default parameter
 > rather than a fact read from the tree.
 >

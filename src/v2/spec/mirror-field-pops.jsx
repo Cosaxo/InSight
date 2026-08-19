@@ -213,7 +213,7 @@ function MirrorFieldBody({ pop, worldZoom, zoomCtl, onPerson, firstRun, topLense
 
   useEffectMFP(() => { setSelId(null); setSelNode(null); }, [pop, worldZoom]);
 
-  // relmap.jsx left the eager graph at D198, so Circle's embedded map is not
+  // relmap.jsx left the eager graph at D200, so Circle's embedded map is not
   // on screen the first time this renders. The old test — a bare
   // `typeof RelationshipMap === 'function'` — could not survive that move:
   // it reads false, Circle draws the generic field canvas instead, and

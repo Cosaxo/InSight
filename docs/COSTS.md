@@ -10,7 +10,7 @@ at scale with its arithmetic, and do not build for it yet.
 
 Reproduce with `node scripts/cost-model.mjs` (add `--multi-region` for the
 counterfactual). Which price sheet is the default is **read from
-`functions/src/db.ts`** rather than assumed, since D198. It prints every table below except the fixed
+`functions/src/db.ts`** rather than assumed, since D200. It prints every table below except the fixed
 costs, including the read decomposition, the egress band and the crossover
 the walls section quotes — the arithmetic lives in
 `scripts/cost-arith.mjs`, which `scripts/pulse.test.mjs` holds to the tree.
@@ -96,7 +96,7 @@ roughly double on the three operation lines.
 | Scale | 50,000 | 21.7 M | 910 K | 245 | 2.20 | **247** |
 | Hit | 500,000 | 217 M | 9.1 M | 2,474 | 43 | **2,517** |
 
-> **Corrected 2026-08-18 (D198) — the region was already decided and this
+> **Corrected 2026-08-18 (D200) — the region was already decided and this
 > page had not heard.** D165 moved production to `europe-west1` on
 > 2026-08-15. The model went on pricing `nam5` for three days, because the
 > region was a DEFAULT PARAMETER (`costModel({ regional = false })`) with a
@@ -769,7 +769,7 @@ rules-shaped fix and none should be attempted. `ledgerVelocityScan` (D54)
 is detection and says so in its own header: "nothing here denies, delays or
 down-weights a vote." Detection does not stop a bill.
 
-The arithmetic, at the `europe-west1` read price of $0.03/100 k (D198 —
+The arithmetic, at the `europe-west1` read price of $0.03/100 k (D200 —
 this table read $0.06 and double every figure until the model was pointed
 at the region production is actually on):
 
@@ -1035,7 +1035,7 @@ Three caveats worth carrying:
   project has been on `europe-west1` since 2026-08-15, so this is a lever
   in the list's history rather than in its inventory. It stayed written as
   an open choice for three days after it was taken, which is the whole
-  subject of D198's note above the scenario table. The figures it used to
+  subject of D200's note above the scenario table. The figures it used to
   quote — $2.12 / $41 / $440 / $4,448 at 500 / 5 k / 50 k / 500 k DAU —
   are now the COUNTERFACTUAL (`node scripts/cost-model.mjs
   --multi-region`), and the halved column is what the tables print.

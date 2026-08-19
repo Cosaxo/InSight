@@ -14,7 +14,7 @@ import { useDialog } from './primitives.jsx';
 // drag a node to pin it, search to filter, tap a node for the full profile.
 // Data + layout: relationship-map-core.js · panels: relationship-map-panels.jsx
 //
-// The map itself is EXPORTED (D198) in the shape relmap-core.js beside it
+// The map itself is EXPORTED (D200) in the shape relmap-core.js beside it
 // already uses: a binding hoisted out of the IIFE, assigned at the foot,
 // re-exported as a const. Its one consumer — mirror-field-pops.jsx, the
 // demo Circle field — imports it and dynamic-imports this file, which is
@@ -901,7 +901,7 @@ let RelationshipMapExport;
   RelationshipMapExport = RelationshipMap;
   // The overlay stays on the bridge: app-shell.jsx mounts it by bare name
   // and importing it there would drag this chunk back into the entry graph,
-  // which is the whole thing D198 just undid.
+  // which is the whole thing D200 just undid.
   Object.assign(window, { RelationshipMapOverlay });
 })();
 

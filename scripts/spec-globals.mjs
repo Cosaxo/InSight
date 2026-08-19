@@ -176,7 +176,7 @@ for (const file of files) {
         // dangling global. Nothing in the spec layer had ever held a
         // COMPONENT in array-destructured state, which is why a gap this
         // plain survived: the miss is invisible unless the name is also a
-        // JSX tag. Found by D198 doing exactly that.
+        // JSX tag. Found by D200 doing exactly that.
         const key = part.split("=")[0].split(":").pop().trim()
           .replace(/^\.\.\./, "").replace(/^\[|\]$/g, "");
         if (/^[A-Za-z_$][\w$]*$/.test(key)) localNames.add(key);

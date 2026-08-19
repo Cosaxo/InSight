@@ -99,7 +99,7 @@ npx firebase functions:delete rebuildAreaAggregates scheduledAreaAggregates \
 ```
 
 **`us-central1` in that command is correct and must not be "fixed" to
-match D199.** Those nine functions were deployed before the move and are
+match D201.** Those nine functions were deployed before the move and are
 still sitting in the old region; naming the new one would delete nothing
 and report success. It is the one place in this repo where the old region
 is the right answer — everywhere else it is a stale copy.
@@ -338,7 +338,7 @@ single-holder too, and none of them is a comma-separated variable. Those are
 account-level delegation (Play has user management; Apple has App Store
 Connect roles), and they belong on the pre-launch list for the same reason.
 
-## Moving the functions to another region (D199)
+## Moving the functions to another region (D201)
 
 The code half is done: `FUNCTIONS_REGION` in
 `functions/src/ops.ts` and `src/lib/region.ts` both read `europe-west1`,
@@ -396,7 +396,8 @@ against this project — so step 3 below is a check rather than a formality.
    looks exactly like success. The `scheduledDuelReveals-silent` alert
    covers the reveal scan, not this.
 5. **Ship a client build.** Every installed client calls the region its
-   own bundle names, so build 20 and earlier keep calling `us-central1`
+   own bundle names, so every build shipped before this deploy — 21 and
+   earlier — keeps calling `us-central1`
    and get a 404 the app reports as `internal` on every callable —
    account deletion, push registration, the logic test, circles and
    duels, device activation, suggestions. The daily and the Mirror keep

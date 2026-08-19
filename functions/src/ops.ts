@@ -65,7 +65,7 @@ export const ENFORCE_APP_CHECK =
 //     --format="value(serviceConfig.timeoutSeconds,serviceConfig.availableMemory)"
 
 /**
- * WHERE EVERY FUNCTION RUNS (D199).
+ * WHERE EVERY FUNCTION RUNS (D201).
  *
  * One constant, imported by all nine modules that define functions, for the
  * reason `db.ts` is one accessor rather than 37 literal edits: this value
@@ -75,7 +75,7 @@ export const ENFORCE_APP_CHECK =
  * 404 as `internal`.
  *
  * `europe-west1`, matching the database (D165). It was `us-central1` while
- * the database was `nam5`, stayed there when the database moved, and D198
+ * the database was `nam5`, stayed there when the database moved, and D200
  * measured what the split was costing before deciding to close it.
  *
  * CHANGING THIS IS A MIGRATION, NOT AN EDIT. A function's region is part of

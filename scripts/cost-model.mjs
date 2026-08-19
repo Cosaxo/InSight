@@ -11,7 +11,7 @@
 //   node scripts/cost-model.mjs                  # the region production is on
 //   node scripts/cost-model.mjs --multi-region   # the multi-region counterfactual
 //
-// The default is READ from functions/src/db.ts rather than assumed (D198).
+// The default is READ from functions/src/db.ts rather than assumed (D200).
 // It used to be multi-region regardless of where the database was, which is
 // how every table below priced nam5 for three days after D165 moved
 // production to europe-west1 — a bill roughly twice the real one, computed

@@ -20405,7 +20405,285 @@ the expired-ad filter, and the one-slot rule — the last of which required
 the test to be fixed before it bit.
 
 
-## D198 · Three things were true and stopped being, and nothing was looking
+## D198 · Build 21's pre-flight: the number run 31 spent, and the bundle gate's artifact claim
+
+**Decided:** 2026-08-19 · **Status:** binding · The comparison runbook 2.4
+asks for, made against the run list, plus the gap it walked into on the
+way — which is the same gate D191 fixed, one variable further out.
+
+### The comparison, and it came out *bump*
+
+Three runs exist at `f8c8465` that no document in this tree names, and
+the middle one is the whole answer:
+
+| Run | id | dispatched | step 17 `Upload to App Store Connect` |
+| --- | --- | --- | --- |
+| 29 | `32019625202` | 10:19:31Z | `skipped` — **cancelled** at step 11, Resolve Swift packages |
+| 30 | `32019849917` | 10:22:28Z | `skipped` — the dry run |
+| 31 | `32020442257` | 10:30:02Z | **`success`** — 10:34:21Z → 10:35:38Z, 1m 17s of transfer |
+
+So **build 20 is spent**, and it is the highest that is. `appBuild` **at
+run 31's own `head_sha`** — D159's correction, read at `f8c8465` — is
+**20**. The tree is **also at 20**. Equal is not greater: runbook 2.4
+answers *bump*, and `appBuild` went **20 → 21**, `check:versions --fix`
+carrying `versionCode` and both `CURRENT_PROJECT_VERSION` entries with
+it. Had it run as-is, the archive, the export, both gates and the
+transfer would all have succeeded and App Store Connect would have
+refused the number afterwards — ~150 minutes of macOS quota at 10x, for
+an integer.
+
+Five skips now (runs 18, 19, 24, 26, 31) against four that held (20, 21,
+22, 28).
+
+### The fifth skip breaks the explanation the fourth one earned
+
+D191 closed with a correspondence it called four for four: *every* bump
+that held was made off the step list while it was on screen, and *every*
+skip was a session that came back later or not at all. Run 31 is neither
+half of that.
+
+`f8c8465` is D191's own commit, and it landed at **10:19:05Z**. Run 29
+was dispatched **26 seconds later**, run 30 at +3m 23s, run 31 at +10m
+57s. That is one session, holding the run list — it cancelled one of the
+three — which is precisely the arrangement D186 identified as the only
+one that has ever made the bump stick. It did not come back later. It did
+the comparison **first**, got *nothing to do*, and then spent the number
+its own verdict was about.
+
+**So the failure is not attention, and it is not the record-versus-number
+split D180 named either.** A pre-flight verdict has a shelf life of
+exactly one dispatch. D191 stored it as prose — *"run as-is, and no
+number moved"* — which was true when committed and false eleven minutes
+later, in the commit all three runs archived. That is D142/D143's disease
+in a new sentence: the runbook struck *"build N is pre-flighted and
+unspent"* because a doc cannot see App Store Connect, and the same claim
+came back wearing the past tense. **A pre-flight may report what it
+compared; it may not report what the tree is now**, because the next
+dispatch is what decides that and it has not happened yet.
+
+The other half is D184's shape, for the second time: **no record was
+written at all.** Nothing in `docs/` names run 29, 30 or 31, any of their
+ids, or build 20 being delivered — so D180's proposed gate (*if the
+runbook claims build N was uploaded, `appBuild` must exceed N*) would
+again have stayed silent, having nothing to key on. The sound invariant
+still keys on the run list, which nothing in this tree can read. It stays
+a procedure, and the procedure is unchanged: **ask the run list.**
+
+### What build 21 carries
+
+A pure JavaScript payload, the third in a row. The only diff under `ios/`
+or `android/` since `f8c8465` is this pre-flight's own bump — no
+lockfile, no rules file, no store-filing file, so the store filing does
+not move. It carries D192 (the docs map and its gate), D193 (Compare
+drawing the comparison it was described as drawing), D194 (predictions
+the app can recompute), D195 (the paid slot), D196 (the reading game),
+D197 (real ads in the feed), the pk19 catalog question and the planned
+event discussions.
+
+### The gap: the gate asked the environment what only the artifact knows
+
+D191 found that `check:bundle` documented a second load-bearing variable
+and guarded only the first, and gave `VITE_SENTRY_DSN` the withhold
+branch: without a DSN the 445 KB Sentry group is dead code, rolldown
+drops it, and a total ~450 KB light must not be reported as having
+cleared a ceiling. That branch is right. **What it keys on is not.**
+
+```js
+const SENTRY_IN = (process.env.VITE_SENTRY_DSN ?? "") !== "";
+```
+
+That is the environment of the process running the **check**, not of the
+one that ran the **build** — and the script's own error message tells you
+to separate them ("set any non-empty DSN at BUILD time and re-run").
+Measured on this tree, the original script against a bundle built *with*
+a DSN, given nothing but `VITE_V2_LIVE=true`:
+
+```
+bundle budget OK on what was gradable — VITE_V2_LIVE=true, Sentry OUT,
+967 KB eager (max 978); total 2349 KB ungraded
+```
+
+`Sentry OUT`, over a bundle carrying **453 KB of Sentry across 3
+chunks**, with `MAX_TOTAL_JS_KB` declined. This is the file's own
+founding bug — grading the wrong artifact — inverted: not a light bundle
+passed off as the shipping one, but the shipping one waved through
+ungraded.
+
+**And it is live on the PR path, not merely reachable.** `ci.yml` builds
+with `VITE_SENTRY_DSN: https://ci@example.invalid/0` and then runs
+`check:bundle` **as a separate step** whose env carries `VITE_V2_LIVE`
+and not the DSN. Its comment explains the repetition as "the assertion
+that these two steps agree about which bundle they are talking about" —
+correct for the flag, and the DSN was never added beside it. So since
+D191 the total ceiling has been silently unapplied on every PR, against
+a bundle sitting **8 KB** under it.
+
+**Fixed by asking `dist/`**, which is what `check:web-firebase` — its
+neighbour in the same release step — already does, and for the reason
+quoted there: a stale `dist/` from a reordered step answers the
+environment's question differently. Detection is by SDK marker rather
+than by chunk name (`prod-*.js` is a rolldown output name, not a
+promise). Measured at build 21, same command, the DSN the only
+difference:
+
+| | chunks | total | eager | `prod-*.js` |
+| --- | ---: | ---: | ---: | --- |
+| no DSN | 79 | 1895 KB | 965 KB | absent |
+| with DSN | 82 | **2349 KB** | 967 KB | 435 KB |
+
+| marker | chunks with DSN | chunks without |
+| --- | ---: | ---: |
+| `__SENTRY__` | 2 | 0 |
+| `_sentryDebugIds` | 1 | 0 |
+| `sentryWrapped` | 1 | 0 |
+| `captureException` | 3 | 0 |
+| ~~`sentry`~~ | 12 | **9** |
+
+The last row is why the obvious marker is not used: the app names its own
+lazy module and its dynamic-import path after Sentry, so a bare substring
+match reports the SDK present in every build — failing in the direction
+that grades 1895 KB against the full ceiling and calls it the shipping
+one. The four above are SDK internals, two of them Sentry's own globals.
+
+The withhold branch and the verdict line now describe the artifact rather
+than the process, and the verdict names the weight it found (`Sentry in,
+453 KB over 3 chunk(s)`), so the line cannot assert more than was
+measured — D191's rule, applied to the fact D191 read from the wrong
+place.
+
+### The headroom, which is the finding to carry forward
+
+The shipping bundle measures **2349 KB total / 967 KB eager against 2357
+/ 978** — 8 KB and 11 KB. The total moved 2331 → 2349 across D193–D197
+and the ceiling with it, 2334 → 2357. Eight kilobytes is not headroom,
+and the ceiling's own comment forbids the obvious answer: deferral
+relocates bytes and moves the total by zero. The D64 candidates still
+stand un-taken — the Mirror tab (~168 KB) and an audit of what of
+Sentry's 435 KB is reachable — and the next raise should have to walk
+past them again. **The gate that was supposed to force that conversation
+was switched off for the whole stretch that spent the last 18 KB**, which
+is the part worth remembering.
+
+### Verified
+
+`lint`, `tsc -b` in both trees, and the workflow's own three pre-flight
+gates at the new number (`check:store-copy --ios` — one parked Play
+placeholder under D42, `:public-copy`, `:versions` — "versions OK — 2.0.0
+(build 21) across package.json, Android and iOS"). Every other check
+gate: `:globals` (409, baseline 409), `:figures`, `:a11y`, `:anchors`,
+`:labels`, `:touch-zoom`, `:purge`, `:cities`, `:pokedex`, `:elements`,
+`:catalogs`, `:logic-sync`, `:calls`, `:content`, `:quality`,
+`:deploy-targets`, `:fn-runtime`, `:appcheck`, `:store-listing`,
+`:policy-claims`, `:data-inventory`, `:monitoring`, `:store-forms`,
+`:ios-spm`, `:ios-facebook`, `:ios-location`, `:docs`. Tests: unit 1,361
+(89 files), scripts 215 (11 files), functions 243 (9 files), `test:rules`
+113, and all three e2e suites on Java 21 — 67 + 15 + 19 checks.
+
+`check:bundle` exercised on **both** branches and in the configuration
+that was broken: a DSN-less build (withheld — 1895 KB ungraded), a
+DSN-built one (graded — 2349 / 967 against 2357 / 978), and the DSN-built
+one with the DSN absent from the checking process, which is `ci.yml`'s
+exact arrangement and the case that previously reported `Sentry OUT`.
+`--demo` still reports without applying a ceiling.
+
+**Two first-run failures, neither reproducible, and they are recorded
+rather than rounded to "green".** The first full `test:unit` run failed 3
+of 1,361, all in `smoke-daily.test.jsx`; that run shared four cores with
+`npm ci` and the functions suite, and the file passes alone and in a
+suite that has the machine to itself. The first `test:e2e` run exited 1
+with no detail captured, and passed on both re-runs. Neither cause is
+established, so neither is called a flake here — what *is* established is
+that this branch cannot have caused either: it changes `appBuild`, two
+native version numbers, `check-bundle.mjs` and docs, and `test:e2e`
+exercises functions and rules, which it does not touch. The one path by
+which a build bump could reach a mounted app was checked directly and
+does not exist — `state.meta.latestBuild` defaults to 0, so
+`updateAvailable` (`appBuild > 0 && latestBuild > appBuild`) is false at
+20 and at 21 alike.
+
+## D199 · Build 21 is in TestFlight, and the number moved with it
+
+**Decided:** 2026-08-19 · **Status:** binding · The dispatch D198's
+pre-flight cleared for, and the bump made from the step list rather than
+from a memory of it.
+
+### The two runs
+
+Both archived `d547f7a`, seven and a half minutes apart — the fifth pair
+of the runs-15/16 shape, after 23/24, 25/26 and 27/28.
+
+| Run | id | dispatched | step 17 | duration |
+| --- | --- | --- | --- | --- |
+| 32 | `32228796376` | 07:38:55Z | `skipped` — the dry run | 5m 18s |
+| 33 | `32229389551` | 07:46:29Z | **`success`** — 07:52:10Z → 07:54:11Z | 7m 46s |
+
+```
+UPLOAD SUCCEEDED with no errors
+Delivery UUID: f1ab4ae5-0673-4a89-a4f3-c3ab03c6e87d
+Transferred 6037139 bytes in 0.107 seconds
+```
+
+Both silent-failure gates passed at both ends, on both runs — the archive
+carried the Firebase config and the APNs entitlement, and the exported
+`.ipa` printed the line the whole mechanism exists for:
+
+```
+aps-environment = production
+the .ipa is production-signed and carries the Firebase config
+```
+
+Run 32 also left the signed `.ipa` as artifact `9356608227`, 5,913,053
+bytes, which is what a dry run is for: the archive was known good before
+anything outward-facing happened.
+
+### The bump, which is the point of this entry
+
+**`appBuild` went 21 → 22 off step 17's own conclusion, in the session
+that dispatched the run**, `check:versions --fix` carrying `versionCode`
+and both `CURRENT_PROJECT_VERSION` entries. Five that held (runs 20, 21,
+22, 28, 33) against five skipped (18, 19, 24, 26, 31).
+
+D198 argued the correspondence D191 drew was wrong — that the failure is
+not "came back later" but that a pre-flight verdict expires on the next
+dispatch. This release is the first run under that reading, and the
+procedure it implies is narrower than "remember to bump": the bump is not
+a follow-up task, it is the *reading* of step 17. So the number moved
+before this entry was written, and this entry is the record of a bump
+that had already happened rather than a plan to make one.
+
+### D159's trap fired again, and the rule caught it
+
+`5c9c4a5` is the commit that merged; **both runs archived `d547f7a`**, a
+pulse trail row a Routine pushed in the ~40 seconds between the merge and
+the dispatch. `appBuild` was 21 at both and the only diff is one line of
+`monitoring/pulse-trail.jsonl`, so this cost nothing — the same outcome
+as run 22, which is where the rule came from. It is the second worked
+example, and the reason the comparison is written as *read `appBuild` at
+the run's own `head_sha`*: what makes it sound is not that the
+intervening commit is usually harmless, but that nobody checked whether
+this one was until they looked.
+
+### What is now live
+
+Build 21 carries D192–D197, the pk19 catalog question, the planned event
+discussions, and D198's own bundle-gate fix. App Store Connect processes
+for ~5–30 minutes before it appears in TestFlight; internal testing needs
+no Beta App Review.
+
+**Not yet verified from here:** that the build finishes processing and
+lands in TestFlight, and that `ITMS-90683`-class mail did not follow the
+delivery (D107 — a missing purpose string is emailed *after* a successful
+upload, and the fix rides the next build rather than invalidating this
+one). Both are outside anything this tree can read, which is D73's shape
+again, so they are named rather than asserted.
+
+### Verified
+
+`check:versions` — "versions OK — 2.0.0 (build 22) across package.json,
+Android and iOS". The tree's own gates green at the new number, and the
+release path's three pre-flight gates are what runs 32 and 33 both ran as
+their step 5.
+## D200 · Three things were true and stopped being, and nothing was looking
 
 **2026-08-18.** **Status:** binding. Owner's direction, after a review of
 what is still missing: *"we should start by fixing this"* — the
@@ -20554,10 +20832,10 @@ session's own first answer to the owner repeated it as fact.
 checked: the demo Circle map two ways, the cost model's default price
 sheet, and the client/server region pairing.
 
-## D199 · The functions follow the database to europe-west1
+## D201 · The functions follow the database to europe-west1
 
 **2026-08-18.** **Status:** binding. Owner's instruction — *"move the
-functions to europe-west1"* — after D198 measured the split and
+functions to europe-west1"* — after D200 measured the split and
 recommended closing it before launch.
 
 ### What moved, and what a region actually is
@@ -20567,7 +20845,7 @@ database D165 moved on 2026-08-15. **In code only. The deploy is an
 operator step**, recorded at LAUNCH-RUNBOOK 5.9 with its procedure in
 `DEPLOYMENT.md § Moving the functions`.
 
-D198 already established that cost is not the argument: ~5.5 KB crosses
+D200 already established that cost is not the argument: ~5.5 KB crosses
 per answer through the fold, $0.47/month at 5 k DAU and $4.65 at 50 k,
 about 2% of the Firestore line beside it. The argument is a transatlantic
 round trip on every fold, EU answers processed in the US, and a deadline
@@ -20580,7 +20858,7 @@ the app. Same shape as D165's "last free reset", one layer up.
 The value was spelled out **ten times on the backend and eight on the
 client**. Moving it by editing eighteen literals is the failure this repo
 has already had twice — D165's own procedure listed three edits and missed
-37 call sites, and D198 found the database's location in no
+37 call sites, and D200 found the database's location in no
 machine-readable place at all.
 
 - **`FUNCTIONS_REGION` in `functions/src/ops.ts`**, imported by all nine
@@ -20608,7 +20886,7 @@ of the files it had to agree with, which is the shape D47 caught.
 
 ### The gate gained a second rule, and it is the one that lasts
 
-`check:fn-runtime` (D198) compared client literals against the compiled
+`check:fn-runtime` (D200) compared client literals against the compiled
 endpoints. With one constant per side that comparison is a single read —
 so a second rule now forbids any call site from naming a region
 **literally at all**, matched on the call shape rather than on the string.
@@ -20636,13 +20914,21 @@ to have planned the deletion. Expected behaviour is that it does; no
 region move has ever been run against this project, so it is verified by
 looking rather than by believing.
 
-**A client build has to follow.** Builds 20 and earlier keep calling
-`us-central1` and get a 404 the app reports as `internal` on every
-callable — account deletion, push registration, the logic test, circles
-and duels, device activation, suggestions. The daily and the Mirror keep
-working, because they read Firestore directly and never go through a
-callable. At today's install base that is one TestFlight device, which is
-the whole reason this is happening now.
+**A client build has to follow.** Every build shipped before the deploy
+keeps calling `us-central1` and gets a 404 the app reports as `internal`
+on every callable — account deletion, push registration, the logic test,
+circles and duels, device activation, suggestions. The daily and the
+Mirror keep working, because they read Firestore directly and never go
+through a callable. At today's install base that is one TestFlight
+device, which is the whole reason this is happening now.
+
+**That set grew while this record waited to merge**, which is worth a line
+because it is the argument working rather than an inconvenience: this said
+"builds 20 and earlier" when it was written, and D199 put **build 21** in
+TestFlight the next day — without the region change, because it shipped
+from main. Every release before the deploy joins the list. Naming a build
+number here was the mistake; the property is *shipped before the deploy*,
+and it is why the deadline is the install base rather than a date.
 
 ### One literal that must NOT move
 

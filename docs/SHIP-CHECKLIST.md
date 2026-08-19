@@ -852,14 +852,14 @@ Until then links open the fallback page — degraded, not broken.
   decommission.~~ Done: nodejs22 + firebase-functions v6 +
   firebase-admin v13. Verify the first scheduled runs after deploy.
 - ~~**Every function runs in `us-central1`; the database has been
-  `europe-west1` since D165.**~~ **Moved in code (D199) — the DEPLOY is
+  `europe-west1` since D165.**~~ **Moved in code (D201) — the DEPLOY is
   outstanding, and it is not an ordinary one.** Both constants
   (`functions/src/ops.ts`, `src/lib/region.ts`) read `europe-west1`, all 28
   functions compile to it, and `check:fn-runtime` fails if the two sides
   disagree or if a call site starts spelling a region out again.
 
-  This line named `eur3` until D198 and was stale in its facts while right
-  in its substance. D198 measured what the split cost before closing it:
+  This line named `eur3` until D200 and was stale in its facts while right
+  in its substance. D200 measured what the split cost before closing it:
   ~5.5 KB crosses per answer through the fold, **$0.47/month at 5 k DAU and
   $4.65 at 50 k** — about 2% of the Firestore line, so cost was never the
   argument. The argument was a transatlantic round trip on every fold and
@@ -874,7 +874,8 @@ Until then links open the fallback page — degraded, not broken.
   fire and **every answer folds twice**, which the event-ledger dedup does
   not prevent (it keys on the CloudEvent id, so it makes a retry safe and
   says nothing about a second subscription). And a client build has to
-  follow, because builds 20 and earlier keep calling `us-central1` and get
+  follow, because every build shipped before it — 21 and earlier — keeps
+  calling `us-central1` and gets
   a 404 on every callable — the daily and the Mirror keep working, since
   they read Firestore directly.
 - Ranking/scale feed card types; Circle/Near mirror population fields

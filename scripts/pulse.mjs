@@ -40,7 +40,7 @@ const OUT_JSON = join(ROOT, "monitoring", "pulse.json");
 const OUT_HTML = join(ROOT, "monitoring", "pulse.html");
 
 const args = process.argv.slice(2);
-// The price sheet follows the database (D198, functions/src/db.ts) rather
+// The price sheet follows the database (D200, functions/src/db.ts) rather
 // than a flag defaulting to the more expensive answer; the flag is left for
 // asking what the other region would have cost.
 const REGIONAL = args.includes("--multi-region") ? false : PROD_REGIONAL;

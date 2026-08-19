@@ -10,7 +10,7 @@
 > cost if this page had been ignored.
 >
 > **The saving is real and was invisible for three days.** The cost model
-> kept pricing `nam5` until D198, because the region was a default
+> kept pricing `nam5` until D200, because the region was a default
 > parameter rather than a fact read from the tree, so the pulse console
 > published roughly double the true bill every morning. It now reads
 > `FIRESTORE_LOCATION` from `functions/src/db.ts`.
@@ -26,7 +26,7 @@ the bill and left this as the largest remaining lever.
 ## What it is worth
 
 `node scripts/cost-model.mjs` against `--multi-region` (the flags were
-`--regional` against the default run when this was written — D198 swapped
+`--regional` against the default run when this was written — D200 swapped
 which one is the default, because the default is now read from the tree):
 
 | DAU | `nam5` (today) | single-region | saved |

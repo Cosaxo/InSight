@@ -48,7 +48,7 @@ describe("cost-arith reads its constants from source, not from memory", () => {
   });
 
   it("the price sheet follows the database's own region, not a default", () => {
-    // D198's gate, and it is a different shape from its four neighbours.
+    // D200's gate, and it is a different shape from its four neighbours.
     // Those pin a number the model RETYPED; this pins a premise the model
     // ASSUMED. `costModel({ regional = false })` was correct arithmetic on a
     // false input for the three days after D165 moved production to a single

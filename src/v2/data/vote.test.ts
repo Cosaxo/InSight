@@ -1246,7 +1246,7 @@ describe("LIVE.seedContent — the operator instrument", () => {
 
     const res = await LIVE.seedContent();
 
-    // Asserted against the constant rather than a repeated literal (D199).
+    // Asserted against the constant rather than a repeated literal (D201).
     // A literal here would have to be edited in lockstep with a region
     // move and is the one place a stale copy passes silently — the test
     // would go on proving the client calls a region nothing serves.

@@ -52,7 +52,7 @@ import './spec/primitives.jsx';
 import './spec/explain-sheet.jsx';
 import './spec/viz-primitives.jsx';
 import './spec/compare-breakdown.jsx';
-// The relmap group SPLIT at D198, and the split is by consumer rather than
+// The relmap group SPLIT at D200, and the split is by consumer rather than
 // by size. relmap-lenses.jsx stays eager because it has a LIVE consumer —
 // vote-cuts.js reads window.RMLenses for the who-voted sheet's Type cut
 // (D146) — and it is the small one anyway. Its three siblings moved to
@@ -264,7 +264,7 @@ export const loadWorldFeed = retryable(async () => {
 // it directly now — D53 — so the ESM graph carries it into the same
 // chunk without a line of its own.)
 //
-// relmap.jsx JOINED this group at D198, and the entry that kept it out is
+// relmap.jsx JOINED this group at D200, and the entry that kept it out is
 // worth keeping because it was right when it was written and stopped being
 // right without anything touching it. It read: relmap is the one overlay
 // with a first-frame consumer — mirror-field-pops.jsx reads
@@ -280,7 +280,7 @@ export const loadWorldFeed = retryable(async () => {
 // shape worth noticing — a correct reason for an eager import outlives the
 // branch that made it true, and nothing measures a reason.
 //
-// The read itself is gone rather than deferred (D198): mirror-field-pops
+// The read itself is gone rather than deferred (D200): mirror-field-pops
 // awaits this group and re-renders, which is the same synchronisation
 // app-shell's openers use and the one thing a `typeof` probe cannot do.
 //

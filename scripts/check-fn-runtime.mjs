@@ -76,7 +76,7 @@ for (const [name, fn] of Object.entries(mod)) {
       // has stopped moving.
       db: ep.eventTrigger?.eventFilters?.database,
       // Where the function is SERVED, which the client has to name exactly
-      // (D198). An array, because gen-2 endpoints can carry several.
+      // (D200). An array, because gen-2 endpoints can carry several.
       region: ep.region,
       isTrigger: !!ep.eventTrigger,
     });
@@ -140,7 +140,7 @@ if (wrongDb.length) {
   process.exit(1);
 }
 
-// ── the client calls the region the functions are served from (D198) ──
+// ── the client calls the region the functions are served from (D200) ──
 //
 // Same two-independent-files shape as the database check above, and the
 // same class of silent failure: `getFunctions(app, "<region>")` builds a
@@ -150,17 +150,17 @@ if (wrongDb.length) {
 // button that does nothing.
 //
 // It was a live mismatch when this check was written: D165 moved the
-// DATABASE and left the functions where they were, and D198 measured the
-// split before D199 closed it. The two halves that must agree are the
+// DATABASE and left the functions where they were, and D200 measured the
+// split before D201 closed it. The two halves that must agree are the
 // client and the functions — not the functions and the database, which may
 // legitimately differ.
 //
 // TWO RULES, because the constant and the literals fail differently. The
-// client names its region ONCE (src/lib/region.ts, D199), so rule one is a
+// client names its region ONCE (src/lib/region.ts, D201), so rule one is a
 // single comparison against the compiled endpoints. Rule two is what keeps
 // that true: any call site that goes back to spelling the region out is a
 // second copy, and a second copy is how one of them ends up stale — which
-// is the whole reason D199 collapsed eight of them into one.
+// is the whole reason D201 collapsed eight of them into one.
 const served = [...new Set(rows.flatMap((r) => r.region || []))];
 if (served.length !== 1) {
   console.error(
@@ -212,7 +212,7 @@ if (relit.length) {
   console.error(
     "\nImport FUNCTIONS_REGION from src/lib/region.ts. A second copy of this\n"
     + "value is how the first one goes stale (D165 missed 37 call sites;\n"
-    + "D198 found the region spelled out in eight files).",
+    + "D200 found the region spelled out in eight files).",
   );
   process.exit(1);
 }

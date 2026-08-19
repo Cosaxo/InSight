@@ -505,12 +505,12 @@ function App() {
               liveOn this shell already computes, rather than a window.LIVE
               read in the overlay, so the spec layer's coupling meter (D39
               rule 4) stays flat. This said "live mode has no person graph at
-              all (D3)" until D198; D101 gave it one, and what the gate is
+              all (D3)" until D200; D101 gave it one, and what the gate is
               about is that these particular people are made up. */}
           {ov === 'search' && <SearchOverlay onClose={() => setOv(null)} samplePeople={!liveOn} onPerson={(p) => { setOv(null); setPerson(p); }} onCity={(c) => { setOv(null); setCity(c); }} />}
           {ov === 'logic' && window.LogicOverlay && <window.LogicOverlay onClose={() => setOv(null)} />}
           {/* The one overlay here NOT read off window, though its module is
-              deferred like the rest (D198). Reachable only from the embedded
+              deferred like the rest (D200). Reachable only from the embedded
               map's own expand button — which exists only once the chunk that
               defines this component has loaded — so `ov` cannot be 'relmap'
               with the name unbound. If a second opener ever appears it must
