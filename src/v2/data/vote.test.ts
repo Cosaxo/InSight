@@ -1272,3 +1272,89 @@ describe("LIVE.seedContent — the operator instrument", () => {
     expect(invoke).toHaveBeenCalledWith({ bumpRev: true });
   });
 });
+
+// ── an unconfirmed city does not score the place it names (D205) ────────
+//
+// The scorecard D187 built reads ONE pre-summed cell keyed by city, so a
+// reader cannot filter unconfirmed people out of it — the app never sees
+// who is in it. The gate therefore sits at write time: a question that
+// rates a city takes no city cell from someone the device has never
+// placed there.
+//
+// It could not sit at the deck instead. All 24 rating questions are in the
+// DAILY bank, the daily deck is positional, and it is the same question
+// for everyone — filtering per person would shift every other day or leave
+// some people with no daily at all. So the answer is given normally and
+// simply lands in no city cell, which costs the answerer nothing they can
+// see.
+describe("rating questions and the confirmed city", () => {
+  const RATES_CITY = {
+    id: "q_rate_city",
+    data: {
+      surface: "daily", seq: 2, type: "scale", prompt: "How safe is it here?",
+      options: ["1", "2", "3", "4", "5"], topic: null, test: null, active: true,
+      rates: "city", tag: "Safety",
+    },
+  };
+
+  /** Anchors reach the store through the profile doc hydrate reads, not
+   * through `saveAnchors` — its own async write races the answer's in this
+   * harness, and the thing under test is the SNAPSHOT, not the setter. */
+  const withAnchors = (a: Record<string, string>) => {
+    h.getDocImpl = (path: string) => (path === "v2_users/uid_test" ? { anchors: a } : null);
+  };
+  const confirm = (city: string) => {
+    storage.setItem("insight.profileGeneral.v2", JSON.stringify({ vitals: { city, cityOk: city } }));
+  };
+  const anchorsOf = (qid: string) =>
+    (h.setDocCalls.find((c) => c.path.endsWith("/answers/" + qid))?.data.anchors ?? {}) as Record<string, string>;
+
+  it("writes an EMPTY city when the phone has never agreed with it", async () => {
+    h.bankDocs.push(RATES_CITY);
+    withAnchors({ city: "Oslo, NO", country: "NO", ageBand: "25-34" });
+    const LIVE = await bootLive();
+    LIVE.vote("q_rate_city", "4");
+    await flush();
+    const a = anchorsOf("q_rate_city");
+    expect(a.city, "an unverified city took a cell in the scorecard").toBe("");
+    // Everything else still travels: the answer counts for the country and
+    // the world, and the person stays in every other cohort they were in.
+    expect(a.country).toBe("NO");
+    expect(a.ageBand).toBe("25-34");
+  });
+
+  it("writes the city once the device's own fix has agreed with it", async () => {
+    h.bankDocs.push(RATES_CITY);
+    withAnchors({ city: "Oslo, NO", country: "NO" });
+    const LIVE = await bootLive();
+    confirm("Oslo, NO");
+    LIVE.vote("q_rate_city", "4");
+    await flush();
+    expect(anchorsOf("q_rate_city").city).toBe("Oslo, NO");
+  });
+
+  it("does not accept a confirmation of a DIFFERENT city", async () => {
+    // The staleness the key-not-a-flag shape rules out, checked at the
+    // reader rather than trusted to the writer.
+    h.bankDocs.push(RATES_CITY);
+    withAnchors({ city: "Oslo, NO", country: "NO" });
+    const LIVE = await bootLive();
+    storage.setItem("insight.profileGeneral.v2", JSON.stringify({
+      vitals: { city: "Oslo, NO", cityOk: "Bergen, NO" },
+    }));
+    LIVE.vote("q_rate_city", "4");
+    await flush();
+    expect(anchorsOf("q_rate_city").city).toBe("");
+  });
+
+  it("leaves an ordinary question's city alone, confirmed or not", async () => {
+    // The gate is about SCORING A PLACE, not about the person. Widening it
+    // to every answer would quietly empty the City stop for anyone who has
+    // not tapped "use my location" — a far bigger change than this one.
+    withAnchors({ city: "Oslo, NO", country: "NO" });
+    const LIVE = await bootLive();
+    LIVE.vote("q_1", "1");
+    await flush();
+    expect(anchorsOf("q_1").city).toBe("Oslo, NO");
+  });
+});
