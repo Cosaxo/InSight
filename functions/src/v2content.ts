@@ -10513,6 +10513,176 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null
  },
  {
+  "id": "learn-cell9",
+  "surface": "learn",
+  "seq": 116,
+  "type": "choice",
+  "domain": null,
+  "prompt": "What controls what enters and leaves a cell?",
+  "options": [
+   "The cell wall",
+   "The cell membrane",
+   "The nucleus",
+   "The cytoplasm"
+  ],
+  "topic": "cell",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-cell10",
+  "surface": "learn",
+  "seq": 117,
+  "type": "choice",
+  "domain": null,
+  "prompt": "What speeds a cell's chemical reactions up without being used up?",
+  "options": [
+   "A hormone",
+   "An enzyme",
+   "A vitamin",
+   "A mineral"
+  ],
+  "topic": "cell",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-cell11",
+  "surface": "learn",
+  "seq": 118,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Water moving across a membrane toward the saltier side is…",
+  "options": [
+   "Diffusion",
+   "Filtration",
+   "Osmosis",
+   "Active transport"
+  ],
+  "topic": "cell",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-cell12",
+  "surface": "learn",
+  "seq": 119,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Where does a new cell come from?",
+  "options": [
+   "Another cell",
+   "Non-living matter",
+   "The bloodstream",
+   "A virus"
+  ],
+  "topic": "cell",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-cell13",
+  "surface": "learn",
+  "seq": 120,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Which organelle packages and ships proteins?",
+  "options": [
+   "The ribosome",
+   "The lysosome",
+   "The nucleus",
+   "The Golgi apparatus"
+  ],
+  "topic": "cell",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-con9",
+  "surface": "learn",
+  "seq": 121,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Weather and climate differ because…",
+  "options": [
+   "Climate is the long-run average",
+   "Climate is today's conditions",
+   "They mean the same thing",
+   "Weather is the long-run average"
+  ],
+  "topic": "confused",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-con10",
+  "surface": "learn",
+  "seq": 122,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Standing on the Moon, what actually changes?",
+  "options": [
+   "Your mass",
+   "Your weight",
+   "Both equally",
+   "Neither"
+  ],
+  "topic": "confused",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-con11",
+  "surface": "learn",
+  "seq": 123,
+  "type": "choice",
+  "domain": null,
+  "prompt": "A snake that injects toxin through a bite is…",
+  "options": [
+   "Poisonous",
+   "Toxic",
+   "Venomous",
+   "Caustic"
+  ],
+  "topic": "confused",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-con12",
+  "surface": "learn",
+  "seq": 124,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Comparing two things, you use…",
+  "options": [
+   "Then",
+   "Than",
+   "Thence",
+   "Thus"
+  ],
+  "topic": "confused",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-con13",
+  "surface": "learn",
+  "seq": 125,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Antibiotics work against…",
+  "options": [
+   "Viruses",
+   "Bacteria",
+   "Both equally",
+   "Neither"
+  ],
+  "topic": "confused",
+  "axis": null,
+  "test": null
+ },
+ {
   "id": "pulse-pace",
   "surface": "pulse",
   "seq": 0,
