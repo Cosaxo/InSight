@@ -20702,3 +20702,117 @@ and `typeSharesOn` still returns null — never a fallback — for a key the
 archetype module does not define.
 
 **D8 stands unamended.** No test result is a breakdown dim.
+
+## D200 · Five pulses, each with its own rhythm
+
+**2026-08-19.** **Status:** binding. Builds §3 of
+[`VISION-V28.md`](VISION-V28.md), which [D166 §3](#d166--the-third-tab-is-adopted-on-trial-the-arena-is-dropped-the-pulse-roster-is-approved)
+approved in full — sleep and energy included — having weighed what they
+cost. This record is the build and the three things the plan did not
+anticipate.
+
+### What shipped
+
+`pace · energy · sleep · focus · social`, each carrying its own **cadence**
+— daily · often (Mon/Wed/Fri) · weekly (Sunday) · off — set on the card
+itself, because "ask me more often" is a rhythm rather than a settings
+screen. Due pulses take their turn in the feed beside the blind daily. **No
+tray, no block pinned above the feed**: a pulse that is not due today is
+simply not there, and nothing announces what you are not being asked.
+
+D139 wrote its own retirement note — *"a roster becomes a parameter the day
+a second pulse ships; until then a constant is honest about the design"* —
+and this is that day.
+
+### Cadence is device state, and that is a decision
+
+`insight.pulseCadence.v1` in localStorage, swept by the D51 purge. It has
+**no server representation and should not get one.** `dueOn(cadence, date)`
+is a pure function of a preference and the calendar, every device computes
+the same answer, and the reading is drawn on the device — so the server
+would buy cross-device sync at the price of a new field, a new rules arm, a
+`data-inventory` row, and a second store-forms conversation about a
+health-adjacent preference. How often someone wants to be asked how they
+slept is arguably the more revealing half of this feature; it never leaves
+the phone.
+
+The rules deliberately do not fence it either: an "off" pulse is still
+writable, exactly as a paused one should be.
+
+### The honesty rules gained a fourth clause, and it is the whole point
+
+The three that stood — an unanswered day is absent, never zero-filled or
+bridged; a thin day is counted, not placed; no smoothing anywhere — are
+joined by: **a day the pulse was not scheduled is absent too, and is not a
+miss.**
+
+This is not decoration. `design/standalone-v28/pulse-data.js` still walks
+CALENDAR days, so in the prototype a weekly pulse answered faithfully every
+Sunday for three weeks reports a streak that can never exceed 1, three grey
+voids, and *"you didn't answer on 18 days"* — a statement about a question
+nobody put. The store counts runs in **asks**; the strip draws the last
+fourteen **asks**; the gap detector bridges unscheduled days; and the crowd
+series refuses to place a point on a day this reading has no row for. Six
+cases in `data/pulse.test.ts` pin it.
+
+### Three things the plan did not anticipate
+
+**1. The roster made the reads CHEAPER, not five times dearer.** D139
+fetched the whole 21-day window on every open although the card only ever
+draws today. A naive ×5 would have been 105 ids — over the 30-clause
+`documentId() in` cap, so four-plus queries per open for data the first
+screen never reads. Split instead: `ensureToday` is one query of at most
+five ids for the card, `ensureTrend` is one 21-id query paid on the tap
+that opens a reading. Five pulses now cost fewer reads per open than one
+did.
+
+**2. It surfaced two shipped defects, and the roster would have multiplied
+both by five.** `splitBanks` had no pulse lane, so `data/pulse` paid its
+own `getDoc` for a template `hydrate()` had already downloaded and cached —
+and that read took only `prompt` and `options`, so **`active` never reached
+the client**. Flipping a pulse off in the console left a fully rendered,
+tappable card whose every write the rules refused: the answer appeared and
+silently vanished. Giving the pulse a bank like every other surface fixes
+both, because `active` is filtered upstream.
+
+**3. `worldAnswers` did not move, and the reason is in the model.** The
+default cadences (pace daily, energy and sleep weekly, focus and social
+off) ask 1 + 2/7 ≈ 1.29 pulse answers per user per day against the 1 the
+cost model already assumes. Rounding that in would move every figure in
+`COSTS.md` on a guess about how many people raise a cadence. The ceiling is
+real and is recorded next to the assumption instead: everyone setting every
+pulse to daily takes the term 4 → 8, about +$128/mo at 50 k DAU and
++$1,280 at 500 k.
+
+### The store filing moved, and it was the silent one
+
+**Apple's Health row is now YES**, and `design/store/app-privacy.json`
+declares it collected and linked. `docs/STORE-FORMS.md`'s Health bullet has
+carried a trip-wire since D140 saying the No was argued for the height band
+alone and *"whoever picks that decision back up owns this row"*. A
+self-reported daily sleep and energy series is Apple's *"any other user
+provided health or medical data"* on any reading, so this is that
+trip-wire being honoured rather than overruled — D140's own refusal of
+weight and BMI is untouched, and neither is collected.
+
+It is filed **linked**, because under D98 a pulse answer folds into the
+same exact aggregate any signed-in user can read. Filing it unlinked would
+have been the more flattering lie.
+
+**`check:store-forms` passed throughout the change and would have passed
+without it** — it holds the two files equal to each other, not to the app.
+That is the failure mode `docs/SHIP-CHECKLIST.md` calls the one that fails
+silently, in the under-declaring direction, and the only thing that catches
+it is someone remembering the trip-wire. The bullet now says so at the top
+rather than at the bottom.
+
+### What did not change
+
+`firestore.rules` needed **nothing**: `isPulseAnswer()` already validated
+against `request.resource.data.baseQid` rather than a constant, so any
+template with `surface: "pulse"` was already legal. Neither did the
+aggregate trigger — `onV2AnswerCreated` keys everything off
+`event.params.qid`, which for a pulse is `{baseQid}_{day}`, and never reads
+the question doc on that branch. Five pulses mint five per-day agg pairs
+instead of one and no function changed. `pulse-pace` keeps its option set
+forever (D52); the roster appends around it.

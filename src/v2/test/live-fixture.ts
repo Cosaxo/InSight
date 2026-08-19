@@ -402,6 +402,14 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
       if (!votes[aid]) votes[aid] = String(optionIdx);
       return Promise.resolve();
     },
+    // The roster as the bank hands it over (D200). Two pulses on purpose:
+    // one on the default daily cadence and one that is not, so a fixture
+    // mount exercises the "not scheduled today" absence rather than only
+    // the answered/missed pair.
+    pulseQs: () => ([
+      { id: "pulse-pace", prompt: "What pace was today?", options: ["Crawling", "Dragging", "Steady", "Brisk", "Flying"] },
+      { id: "pulse-sleep", prompt: "How did you sleep?", options: ["Badly", "Patchy", "OK", "Well", "Deeply"] },
+    ]),
     pulseVotes: (baseQid: string) => {
       const out: Record<string, number> = {};
       for (const [aid, v] of Object.entries(votes)) {

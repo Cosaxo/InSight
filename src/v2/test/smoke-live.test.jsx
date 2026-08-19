@@ -778,6 +778,33 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     expectNoBoundary("live add sheet");
   });
 
+  // D167 rule 4 for the pulse roster (D200): mount live and assert the
+  // real thing renders and the demo cast does not.
+  //
+  // The two failure modes this catches are both silent. (1) The roster is
+  // read from `LIVE.pulseQs()` — the hydrated bank — so a regression that
+  // went back to the demo furniture would draw "What pace was today?"
+  // from DEMO_ROSTER and look identical until you read the prompt beside
+  // it. The fixture's bank deliberately differs from the demo room. (2) A
+  // pulse whose cadence does not ask today must not be on screen at all;
+  // the fixture ships one daily and one weekly for exactly that contrast.
+  it("draws the pulses the live bank offers, and only the ones due", async () => {
+    const expectNoBoundary = mountLive({ feedCards: 2, anchors: { city: "Oslo, NO" } });
+    await growFeed();
+    // pace is daily — always due, always drawn, and its prompt comes from
+    // the bank rather than from the demo roster.
+    expect(screen.getByText("What pace was today?")).not.toBeNull();
+    // sleep is weekly (Sundays). On any other day it must be absent —
+    // no tray, no placeholder, nothing announcing what is not being asked.
+    const sunday = new Date().getUTCDay() === 0;
+    if (sunday) expect(screen.getByText("How did you sleep?")).not.toBeNull();
+    else expect(screen.queryByText("How did you sleep?")).toBeNull();
+    // The demo room's other three pulses are not in the live bank at all.
+    expect(screen.queryByText("How clear was your head today?")).toBeNull();
+    expect(screen.queryByText("How connected did you feel today?")).toBeNull();
+    expectNoBoundary();
+  });
+
   // D195: a paid question is an ordinary question wearing a disclosure it
   // cannot take off. The band is what the whole commercial path rests on,
   // so this asserts the two halves of it that a refactor could quietly
