@@ -16,86 +16,42 @@ import { myTypeOn, typeSharesOn } from '../data/typeMix.ts';
 // type-marks.jsx — data-true type marks. A type's mark IS its signature.
 // Archetype signatures are built EXTREME on 1–2 defining axes and near-neutral
 // elsewhere, so the mark is built from those two axes only — never all six.
-// Each axis owns a hue and a position on a clock. Three forms, tweakable:
-//   ring  — two arcs on a faint circle: where = which axis, length = how hard,
-//           pushed out for the high pole / pulled in for the low one.
-//   slice — one two-tone disc: the split angle is the defining axis, the darker
-//           share is how much it dominates. Pure colour + angle; reads at 16px.
-//   dots  — the original six-row signature plot (kept for comparison).
-// Exported by name (D39, "convert on touch") alongside the window bag.
-export // Which of the three forms the marks draw in. Pushed in by the shell rather
-// than read off a global, so this module owns the setting it uses.
-let markStyle = 'slice';
-export function setMarkStyle(m) { markStyle = ['ring', 'slice', 'dots'].includes(m) ? m : 'slice'; }
-
+// Each axis owns a hue and a position on a clock, drawn as a SLICE: one
+// two-tone disc whose split angle is the defining axis and whose darker share
+// is how much it dominates. Pure colour + angle; reads at 16px. The judged
+// alternatives (ring, dots) left with the v28 teardown (§10) — the slice won.
 // Exported by name (D39, "convert on touch") alongside the window bag below.
-export function TypeMark({ testKey, name, values, size = 20, plate = true, style, title }) {
+export function TypeMark({ testKey, name, values, size = 20, style, title }) {
   const cfg = RP_TESTS[testKey];
   let sig = values;
   if (!sig && name) { const sys = IS_ARCHETYPES[testKey]; const a = sys && sys.list.find(t => t.name === name); sig = a && a.sig; }
   if (!cfg || !sig) return null;
   const ids = Object.keys(cfg.hues).filter(id => sig[id] != null);
   if (!ids.length) return null;
-  const mode = markStyle;
-  const pad = 3.4, span = 24 - pad * 2, n = ids.length, half = span / 2;
+  const n = ids.length;
   const rows = ids.map((id, i) => {
     const v = Math.max(0, Math.min(100, sig[id]));
-    return { id, v, i, st: Math.abs(v - 50) / 50, hue: cfg.hues[id], hi: v >= 50, y: pad + (i + 0.5) * (span / n), sign: v >= 50 ? 1 : -1 };
+    return { id, v, i, st: Math.abs(v - 50) / 50, hue: cfg.hues[id], hi: v >= 50 };
   });
   const ranked = rows.slice().sort((a, b) => b.st - a.st);
   const ang = (r) => (-90 + r.i * (360 / n)) * Math.PI / 180;   // each axis owns a clock position
   const deep = (h) => `oklch(0.52 0.14 ${h})`;
   const lift = (h) => `oklch(0.79 0.08 ${h})`;
 
-  if (mode === 'ring' || mode === 'slice') {
-    const P = (a, r) => [(12 + Math.cos(a) * r).toFixed(2), (12 + Math.sin(a) * r).toFixed(2)];
-    let body;
-    if (mode === 'ring') {
-      const keep = ranked.filter((r) => r.st >= 0.3).slice(0, 2);
-      if (!keep.length) keep.push(ranked[0]);
-      body = <>
-        <circle cx="12" cy="12" r="8.2" fill="none" stroke="var(--ink-3)" strokeWidth="0.9" opacity="0.16"></circle>
-        {keep.map((r, k) => {
-          const rad = 8.2 + (r.hi ? 1.15 : -1.15);
-          const w = (22 + r.st * 42) * Math.PI / 360;   // half-span in radians
-          const a0 = ang(r) - w, a1 = ang(r) + w;
-          const [x0, y0] = P(a0, rad), [x1, y1] = P(a1, rad);
-          return <path key={r.id} d={`M ${x0} ${y0} A ${rad} ${rad} 0 0 1 ${x1} ${y1}`} fill="none" stroke={k === 0 ? deep(r.hue) : `oklch(0.62 0.125 ${r.hue})`} strokeWidth={k === 0 ? 3.1 : 2.6} strokeLinecap="round"></path>;
-        })}
-      </>;
-    } else {
-      const A = ranked[0], B = ranked[1] || ranked[0];
-      const R = 9.4;
-      const th = ang(A) + (A.hi ? 0 : Math.PI);
-      const ratio = Math.max(0.52, Math.min(0.8, 0.54 + 0.6 * (A.st - B.st)));
-      const d = R * (1 - 2 * ratio);
-      const al = Math.acos(Math.max(-1, Math.min(1, d / R)));
-      const [x0, y0] = P(th - al, R), [x1, y1] = P(th + al, R);
-      body = <>
+  const P = (a, r) => [(12 + Math.cos(a) * r).toFixed(2), (12 + Math.sin(a) * r).toFixed(2)];
+  const A = ranked[0], B = ranked[1] || ranked[0];
+  const R = 9.4;
+  const th = ang(A) + (A.hi ? 0 : Math.PI);
+  const ratio = Math.max(0.52, Math.min(0.8, 0.54 + 0.6 * (A.st - B.st)));
+  const d = R * (1 - 2 * ratio);
+  const al = Math.acos(Math.max(-1, Math.min(1, d / R)));
+  const [x0, y0] = P(th - al, R), [x1, y1] = P(th + al, R);
+  return (
+    <span title={title} aria-hidden={title ? undefined : true} style={{ display: 'inline-flex', flexShrink: 0, width: size, height: size, ...style }}>
+      <svg width={size} height={size} viewBox="0 0 24 24" style={{ display: 'block' }}>
         <circle cx="12" cy="12" r={R} fill={lift(B.hue)}></circle>
         <path d={`M ${x0} ${y0} A ${R} ${R} 0 ${2 * al > Math.PI ? 1 : 0} 1 ${x1} ${y1} Z`} fill={deep(A.hue)}></path>
         <circle cx="12" cy="12" r={R} fill="none" stroke="var(--ink)" strokeWidth="0.6" opacity="0.1"></circle>
-      </>;
-    }
-    return (
-      <span title={title} aria-hidden={title ? undefined : true} style={{ display: 'inline-flex', flexShrink: 0, width: size, height: size, ...style }}>
-        <svg width={size} height={size} viewBox="0 0 24 24" style={{ display: 'block' }}>{body}</svg>
-      </span>
-    );
-  }
-
-  const inner = plate ? Math.round(size * 0.76) : size;
-  const base = n > 5 ? 1.45 : 1.65;
-  return (
-    <span title={title} aria-hidden={title ? undefined : true} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, width: size, height: size, borderRadius: '28%', background: plate ? `color-mix(in oklch, ${cfg.banner} 12%, var(--surface-2))` : 'none', border: plate ? `0.5px solid color-mix(in oklch, ${cfg.banner} 30%, var(--rule))` : 'none', boxSizing: 'border-box', ...style }}>
-      <svg width={inner} height={inner} viewBox="0 0 24 24" style={{ display: 'block' }}>
-        <line x1="12" y1={pad - 0.6} x2="12" y2={24 - pad + 0.6} stroke="var(--ink-3)" strokeWidth="0.9" opacity="0.32"></line>
-        {rows.map((r) => (
-          <g key={r.id}>
-            <line x1={pad} y1={r.y} x2={24 - pad} y2={r.y} stroke="var(--ink-3)" strokeWidth="0.8" opacity="0.18"></line>
-            <circle cx={pad + (r.v / 100) * span} cy={r.y} r={base * (0.78 + 0.5 * r.st)} fill={`oklch(0.5 0.13 ${r.hue})`} opacity={0.45 + 0.55 * r.st}></circle>
-          </g>
-        ))}
       </svg>
     </span>
   );

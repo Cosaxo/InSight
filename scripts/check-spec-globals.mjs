@@ -202,7 +202,7 @@ const COUPLING_BASELINE = {
   "src/v2/spec/learn-data.js": 1,
   "src/v2/spec/learn-progress.js": 4,
   "src/v2/spec/learn-social.js": 4,
-  "src/v2/spec/lens-cards.jsx": 4,
+  "src/v2/spec/lens-cards.jsx": 3,
   "src/v2/spec/map-bottom-card.jsx": 5,
   "src/v2/spec/map-learn-card.jsx": 3,
   "src/v2/spec/map-people.jsx": 4,

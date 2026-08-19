@@ -81,7 +81,7 @@ export function sdSplitStageH(n) { return n <= 4 ? 244 : n * 53 + 123; }
 
 class DailySplit extends React.Component {
   state = {
-    mode: this.props.mode || 'world', feedOpen: false, condensed: false, earlierOpen: false, modeSlot: null, reportFor: null,
+    mode: this.props.mode || 'world', feedOpen: false, condensed: false, earlierOpen: false, reportFor: null,
     idx: 0, idxG: 0,
     votes: (window.LIVE && window.LIVE.enabled ? window.LIVE.myVotes() : {}), tab: null, filter: 'all', dim: 'friends', dimAxis: null, ups: {}, mine: {}, draft: '', dreplies: this.loadDailyReplies(), replyTo: null,
     mapToast: null, pressing: false, editHold: null,
@@ -123,15 +123,6 @@ class DailySplit extends React.Component {
     // clears too; the live-update sync refills it for the new uid.
     this._onPurge = () => this.setState({ dreplies: {}, cats: {}, votes: {} });
     window.addEventListener('insight:local-purge', this._onPurge);
-    // The mode switcher belongs in the app header, which is rendered by a
-    // component above this one — so it is portaled into a slot app-shell
-    // leaves for it. Resolved here rather than at render: the slot only
-    // exists once the header has mounted, and looking it up during render
-    // would read the DOM mid-commit.
-    if (typeof document !== 'undefined') {
-      const el = document.getElementById('daily-mode-slot');
-      if (el) this.setState({ modeSlot: el });
-    }
     // the window event fires on every store notify AND on push-tap
     // dispatch — either way, try to consume a pending reveal target
     this._pendingHandler = () => this.consumePendingReveal();
@@ -181,7 +172,6 @@ class DailySplit extends React.Component {
   // container actually moved, the check runs.
   watchRuler() {
     if (this._offScroll) { this._offScroll(); this._offScroll = null; }
-    if (!this.props.ruler || !this.props.dock) return;
     const host = this.rootEl && this.rootEl.closest('.app');
     if (!host) return;
     const check = () => {
@@ -385,7 +375,7 @@ class DailySplit extends React.Component {
       const MODES = this.modeAxis;
       const mi = MODES.indexOf(this.state.mode), ni = mi + dir;
       // the axis continues past the far end into Mirror — act, then see
-      if (ni >= MODES.length) { if ((this.props.hideSwitcher || this.props.ruler) && window.goNav) { window.goNav('mirror'); return; } spring(); return; }
+      if (ni >= MODES.length) { if (window.goNav) { window.goNav('mirror'); return; } spring(); return; }
       if (ni < 0) { spring(); return; } // spring at the near end
       try { localStorage.setItem('insight.swipeHinted', '1'); } catch { /* best-effort */ } // they've learned it — no more hinting
       const b = T();
@@ -933,23 +923,14 @@ class DailySplit extends React.Component {
       group: mode !== 'group' && pendG ? String(pendG) : null,
       duo: mode !== 'duo' && pendD ? String(pendD) : null,
     };
-    const MODE_TABS = [{ id: 'world', label: 'World' }, { id: 'group', label: 'Group' }, { id: 'duo', label: '1v1' }];
-    const modeIdx = Math.max(0, MODE_TABS.findIndex(m => m.id === mode));
-    const switcher = h('div', { className: 'sd-switch', style: { '--sw-n': MODE_TABS.length } },
-      h('span', { className: 'sd-thumb', 'aria-hidden': true, style: { transform: 'translateX(' + modeIdx * 100 + '%)' } },
-        h('span', { style: { width: 34, height: 2.5, borderRadius: 99, background: accents[mode], display: 'block', transition: 'background .25s ease' } })),
-      MODE_TABS.map(m => h('button', { key: m.id, className: 'sd-switch-btn' + (mode === m.id ? ' is-on' : ''), onClick: () => this.switchMode(m.id), style: { '--sw-acc': accents[m.id] } }, m.label,
-        badges[m.id] && h('span', { style: { marginLeft: 6, minWidth: 15, height: 15, padding: '0 4px', borderRadius: 999, background: 'var(--c-around)', color: '#fff', fontSize: 9.5, fontWeight: 800, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', boxSizing: 'border-box' } }, badges[m.id]))));
-
     const body = mode === 'world' ? worldBody
       : mode === 'group' ? groupBody : duoBody;
 
     return {
       rootRef: (el) => this.setupGestures(el),
-      // the switcher renders into the header slot when there is one, and
-      // falls back to sitting inline — so a mount order that has not yet
-      // produced the slot still shows the modes rather than dropping them
-      screen: h(F, null, this.props.ruler ? this.dailyRuler(mode, accents, badges) : this.props.hideSwitcher ? null : (st.modeSlot && st.modeSlot.isConnected) ? ReactDOM.createPortal(switcher, st.modeSlot) : switcher,
+      // the ruler is the mode switcher (v28 §10 settled the nav) — in flow,
+      // docking into the header once scrolled past
+      screen: h(F, null, this.dailyRuler(mode, accents, badges),
         // the sliding surface — swipes translate this, not the whole page
         h('div', { ref: (n) => { this.bodyEl = n; }, style: { display: 'flex', flexDirection: 'column', gap: 13, flex: 1, willChange: 'transform' } }, body),
         // quiet footer — suggest a question for the daily (community board)

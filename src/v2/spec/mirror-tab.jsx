@@ -97,14 +97,15 @@ const stopAccent = (id) => mirrorAccent((MIRROR_STOPS.find((s) => s.id === id) |
 // Tap a stop, or DRAG along the ruler to scrub through the populations: the
 // mirror follows your finger stop by stop, with a tick as each one passes. The
 // axis is a slider, so it should feel like one; vertical pans still scroll.
-function MirrorPopPicker({ stopId, onPick, big }) {
+function MirrorPopPicker({ stopId, onPick }) {
   const stops = MIRROR_STOPS;
   const n = stops.length;
   const idx = Math.max(0, stops.findIndex(p => p.id === stopId));
   const accent = stopAccent(stopId);
   // 38px of visual ruler, 44px of tap target — the extra 6px reaches UP into the
   // empty gap under the header, so it never steals a tap from the content below
-  const H = big ? 54 : 44;
+  // (the `big` variant left with mirrorLensTop, v28 §10)
+  const H = 44;
   const railRef = React.useRef(null);
   const drag = React.useRef({ on: false, last: idx, moved: false, x0: 0, t0: 0, x1: 0, t1: 0 });
   const [scrubbing, setScrubbing] = React.useState(false);
@@ -177,7 +178,7 @@ function MirrorPopPicker({ stopId, onPick, big }) {
   };
 
   return (
-    <div style={{ margin: big ? '0 0 6px' : '-4px 0 6px' }}>
+    <div style={{ margin: '-4px 0 6px' }}>
       {/* data-nopan: the rail owns this drag (OWNS_X, swipe-back.js). The
           scrub runs on pointer events, but the same touches also reach the
           tab root's swipe-back listener — without the mark, releasing a
@@ -186,26 +187,26 @@ function MirrorPopPicker({ stopId, onPick, big }) {
       <div ref={railRef} data-nopan="" style={{ position: 'relative', display: 'flex', height: H, touchAction: 'pan-y', userSelect: 'none', WebkitUserSelect: 'none', cursor: scrubbing ? 'grabbing' : 'default' }} role="tablist" aria-label="How far the mirror reaches"
         onPointerDown={onDown}>
         {/* the axis itself — one hairline the ticks stand on */}
-        <div style={{ position: 'absolute', left: 6, right: 6, bottom: big ? 20 : 15, height: 1, background: 'color-mix(in oklch, var(--rule), transparent 30%)' }}></div>
+        <div style={{ position: 'absolute', left: 6, right: 6, bottom: 15, height: 1, background: 'color-mix(in oklch, var(--rule), transparent 30%)' }}></div>
         {stops.map((p, i) => {
           const on = i === idx;
           // ticks lengthen as the telescope extends, so the axis reads as a
           // scale rather than as a row of equal buttons
-          const tick = (big ? 5.5 : 4.5) + (i / (n - 1)) * (big ? 8 : 5);
+          const tick = 4.5 + (i / (n - 1)) * 5;
           return (
             <button key={p.id} role="tab" aria-selected={on} aria-label={p.label} onClick={() => { if (drag.current.moved) { drag.current.moved = false; return; } onPick(p); }} style={{
               flex: 1, minWidth: 0, position: 'relative', height: H, border: 'none', background: 'none',
               cursor: 'pointer', WebkitAppearance: 'none', padding: 0,
             }}>
               <span style={{
-                position: 'absolute', left: '50%', bottom: big ? 20 : 15, transform: 'translateX(-50%)',
-                width: on ? (big ? 3.5 : 3) : 1.5, height: on ? (big ? 18 : 12) : tick, borderRadius: 99,
+                position: 'absolute', left: '50%', bottom: 15, transform: 'translateX(-50%)',
+                width: on ? 3 : 1.5, height: on ? 12 : tick, borderRadius: 99,
                 background: on ? accent : 'color-mix(in oklch, var(--ink-3), transparent 45%)',
                 transition: scrubbing ? 'height .12s linear, background .12s, width .12s' : 'height .28s cubic-bezier(0.2,0.8,0.2,1), background .3s, width .2s',
               }}></span>
               <span style={{
                 position: 'absolute', left: 0, right: 0, bottom: 0, textAlign: 'center', whiteSpace: 'nowrap',
-                fontFamily: 'var(--sans)', fontSize: on ? (big ? 14 : 12) : (big ? 11.5 : 10.5), fontWeight: on ? 800 : 600,
+                fontFamily: 'var(--sans)', fontSize: on ? 12 : 10.5, fontWeight: on ? 800 : 600,
                 letterSpacing: '-0.02em', color: on ? 'var(--ink)' : 'var(--ink-3)',
                 transition: 'color .2s, font-size .2s',
               }}>{p.label}</span>
@@ -239,7 +240,7 @@ function MirrorPreviewTag({ popId }) {
   );
 }
 
-function MirrorTab({ onPerson, pop, onPop, worldZoom, onZoom, firstRun, topNav, backKey }) {
+function MirrorTab({ onPerson, pop, onPop, worldZoom, onZoom, firstRun, backKey }) {
   const p = mirrorPop(pop);
   const zoom = WORLD_ZOOMS.some(z => z.id === worldZoom) ? worldZoom : 'world';
   const scaleId = p.id === 'world' ? zoom : p.id;
@@ -340,14 +341,14 @@ function MirrorTab({ onPerson, pop, onPop, worldZoom, onZoom, firstRun, topNav, 
     // named groups — their own body: member field + accrued group portrait
     body = (
       <div key="groups-mirror" className="tab-swap mf-flex">
-        <window.GroupsMirrorBody onPerson={onPerson} topLenses={topNav} />
+        <window.GroupsMirrorBody onPerson={onPerson} />
       </div>
     );
   } else {
     body = (
       <div key={scaleId + '-field'} className="tab-swap mf-flex">
         <MirrorFieldBody pop={p.id} worldZoom={zoom} onPerson={onPerson}
-          zoomCtl={null} firstRun={firstRun} topLenses={topNav} />
+          zoomCtl={null} firstRun={firstRun} />
       </div>
     );
   }
@@ -363,7 +364,7 @@ function MirrorTab({ onPerson, pop, onPop, worldZoom, onZoom, firstRun, topNav, 
     <div ref={backRef} className={'fade-in' + (isYou ? '' : ' mf-flex')}
       style={isYou ? { '--accent': accentVar, height: '100%', display: 'flex', flexDirection: 'column' } : { '--accent': accentVar }}>
       <div style={isYou ? { flexShrink: 0, padding: '10px 14px 0' } : { flexShrink: 0 }}>
-        <MirrorPopPicker stopId={stopId} onPick={pick} big={topNav} />
+        <MirrorPopPicker stopId={stopId} onPick={pick} />
       </div>
       {tag}
       {body}

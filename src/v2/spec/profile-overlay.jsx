@@ -11,7 +11,7 @@ import { RP_TESTS } from './result-rose.jsx';
 // InSight — ProfileOverlay (your own profile) + the Politics cards.
 // The test flow lives in test-overlay.jsx; question banks in test-defs.js.
 
-function ProfileOverlay({ onClose, me, lensBoxed }) {
+function ProfileOverlay({ onClose, me }) {
   const dims = [
     { label: 'Openness', v: me.personality.O },
     { label: 'Conscientiousness', v: me.personality.C },
@@ -193,7 +193,7 @@ function ProfileOverlay({ onClose, me, lensBoxed }) {
           {sub === 'politics' && <><PoliticsPanel /><TestProgress k="political" /></>}
           {sub === 'values' && <><ValuesPanel /><TestProgress k="values" /></>}
           {sub === 'attachment' && <><AttachmentPanel /><TestProgress k="attachment" /></>}
-          {sub === 'lenses' && window.LensesPanel && <window.LensesPanel boxed={lensBoxed} />}
+          {sub === 'lenses' && window.LensesPanel && <window.LensesPanel />}
         </div>
       </div>
     </div>
