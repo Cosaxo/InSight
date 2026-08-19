@@ -263,6 +263,11 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     // The archive entries carry the bank fields the pager's do not, so
     // the Answers lens's branch chips and Scores have something to read.
     aggregated: () => deck,
+    // The Patterns pool's feed half. Empty rather than invented: the tab's
+    // live mount is asserted on its honest empty state (no loadings doc in
+    // jsdom), so fixture feed questions here would be furniture nothing
+    // reads.
+    coreFeedAggregated: () => [],
     dailyBank: () => deck.map((q) => ({ id: q.id, prompt: q.text })),
     // Below the floor the server publishes `{ tooSmall: true }` and nothing
     // else — no counts, no total. Returning a full document with a flag set

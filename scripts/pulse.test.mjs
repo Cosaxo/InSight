@@ -350,9 +350,15 @@ describe("the archive join", () => {
   });
 
   it("counts an archive entry for every live daily question", () => {
+    // The invariant is the JOIN, not the sizes: every live prompt has its
+    // archive twin (the orphan case above is the other direction), and
+    // whatever the archive holds beyond the live bank is exactly the
+    // farm's pen. `unpromoted === 0` stood here until 2026-08-19 — a
+    // snapshot of an empty pen, not a rule, and the first merged farm
+    // batch (#195) broke it by doing precisely what the pen is for.
     const a = collectArchive(daily);
-    expect(a.archiveEntries).toBe(daily.length);
-    expect(a.unpromoted).toBe(0);
+    expect(a.archiveEntries - a.unpromoted).toBe(daily.length);
+    expect(a.unpromoted).toBeGreaterThanOrEqual(0);
   });
 
   it("does not mistake a double-quoted prompt for an orphan", () => {

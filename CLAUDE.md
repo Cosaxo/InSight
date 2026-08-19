@@ -9,7 +9,8 @@ decision by number. Read this file, then go there for where your task
 lives. Both are gated by `check:docs`, so neither can quietly stop being
 true.
 
-InSight is a two-tab app (daily · mirror). The **daily** tab is where you
+InSight is a three-tab app (patterns · daily · mirror), the third **on
+trial** (D166 §1 — see the patterns note below). The **daily** tab is where you
 answer: one blind question a day, a feed under it, and sealed
 group/1v1 duels revealed the next day. The feed is finite *today* and the
 owner has decided it should not stay that way —
@@ -29,13 +30,22 @@ before changing anything on that tab. React 19 + TypeScript + Vite,
 Capacitor shells for iOS/Android, Firebase (anonymous-first auth,
 Firestore, Cloud Functions).
 
-**A third tab is adopted on trial and not built yet (D166 §1).** The v28
-design makes the app `patterns · daily · mirror`; the sentence above stays
-true until that tab ships, and this note exists so nobody plans against
-"two" as though it were settled. It arrives lazily, nothing outside it may
-depend on there being three, and the opening sentence changes in the same
-commit the tab first appears. The plan is
-[`docs/VISION-V28.md`](docs/VISION-V28.md).
+**The patterns tab is ON TRIAL (D166 §1), shipped 2026-08-19.** Two
+lenses over the loading vectors a nightly server fit publishes
+(`functions/src/patterns.ts` → `v2_patterns/loadings`): the **Map** places
+every core question by how much its answer predicts the others, and the
+**Oracle** guesses your next answer — sealed before the options render
+(pinned in `src/v2/data/patterns.test.ts`), graded in surprisal bits when
+the real vote lands through the ordinary vote path. Live data only: a
+build with no published loadings — the demo included — says so instead of
+drawing the prototype's 560 invented people. The tab loads lazily
+(`React.lazy` in `app-shell.jsx`), nothing outside it may depend on there
+being three (the daily ruler's near-end exit is the one licensed
+exception), and reversal — one import site, one `TABS` entry — is a
+decision recorded in `docs/DECISIONS.md`, never a silent removal. The
+plan was [`docs/VISION-V28.md`](docs/VISION-V28.md); the corpus is core
+only (D161), and which questions the fit folds is
+`PATTERNS_QIDS` in `functions/src/patterns.ts`.
 
 **Answers are public (D98).** Any signed-in user may read any other
 user's answers and profile; population counts are exact and publish from
@@ -86,7 +96,10 @@ const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
 order is semantic** — later modules read globals set by earlier ones.
 Never sort it, never drop an entry. Four of them are deferred past first
 paint via `loadWorldFeed()` (D25) — still listed, still in order, just
-awaited in sequence instead of imported at the top.
+awaited in sequence instead of imported at the top. The Map's seven defer
+too since v28 §5, differently: `loadMapTab()` names only `map-tab.jsx`,
+and that file's own static imports carry the other six in order — see the
+comment where the eager list used to hold them.
 
 This is deliberate and temporary (see `src/v2/README.md`), but it is
 load-bearing today — and "temporary" only became true when something

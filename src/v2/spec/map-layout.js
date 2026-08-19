@@ -7,7 +7,10 @@ import React from 'react';
 
 // InSight — Map tab layout engine + shared helpers. No JSX — plain script.
 // The tab component lives in map-tab.jsx; branch chips in map-tab-chips.jsx.
-(function () {
+// A named export since the Map went lazy (v28 §5, D39's convert-on-touch):
+// map-tab and person-mindmap import the binding, map-ring.test.js pins the
+// arithmetic through it, and no window copy remains to drift.
+export const MapTabLayout = (function () {
 // slug for ids built from labels
 function mtSlug(s) {
   return String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
@@ -174,12 +177,10 @@ function mtClusterLayout(nodes, cats) {
   return { pos, fields, ring: Math.max(RING_MIN, RING_SHARE * reach) };
 }
 
-  window.MapTabLayout = { mtSlug, mtHash, mtTopCat, mtClusterLayout, MT_ZLAB };
+  return { mtSlug, mtHash, mtTopCat, mtClusterLayout, MT_ZLAB };
 })();
-
-;globalThis.mtSlug = typeof mtSlug === 'undefined' ? globalThis.mtSlug : mtSlug;
-;globalThis.mtHash = typeof mtHash === 'undefined' ? globalThis.mtHash : mtHash;
-;globalThis.mtTopCat = typeof mtTopCat === 'undefined' ? globalThis.mtTopCat : mtTopCat;
-;globalThis.mtClusterLayout = typeof mtClusterLayout === 'undefined' ? globalThis.mtClusterLayout : mtClusterLayout;
-;globalThis.MT_GOLD = typeof MT_GOLD === 'undefined' ? globalThis.MT_GOLD : MT_GOLD;
-;globalThis.MT_ZLAB = typeof MT_ZLAB === 'undefined' ? globalThis.MT_ZLAB : MT_ZLAB;
+// The six trailing `;globalThis.x = typeof x === 'undefined' ? …` lines
+// that stood here were no-ops from the day they were written — every name
+// is IIFE-scoped, so `typeof x` was always 'undefined' at module level and
+// each line reassigned the global to itself. Deleted with the conversion
+// rather than kept as furniture.
