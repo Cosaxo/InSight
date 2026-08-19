@@ -71,6 +71,34 @@ export const RP_TESTS = {
       easy:  ['invested', 'easygoing'],
     },
   },
+  // ── the role instruments (D201) ──────────────────────────────────────
+  // A role card IS a result card — same rose, same rarity, same nearby
+  // types — so the two settings need exactly what every other instrument
+  // needs and nothing more. The hues sit in each setting's own family
+  // (`--c-people` rose for a 1v1, `--c-groups` gold for a group), which
+  // means a role card is already the colour of the thing it describes and
+  // no label has to say which one you are looking at.
+  duo: {
+    banner: 'oklch(0.47 0.11 8)',
+    kicker: 'Role · in 1v1s',
+    hues: { read: 8, seen: 35, like: 62, steady: 340 },
+    poles: {
+      read:   ['guessing', 'reading'],
+      seen:   ['unreadable', 'readable'],
+      like:   ['opposite', 'alike'],
+      steady: ['streaky', 'steady'],
+    },
+  },
+  group: {
+    banner: 'oklch(0.47 0.10 85)',
+    kicker: 'Role · in groups',
+    hues: { own: 85, pull: 55, settle: 110 },
+    poles: {
+      own:    ['with the room', 'your own'],
+      pull:   ['at the edge', 'in the middle'],
+      settle: ['streaky', 'steady'],
+    },
+  },
 };
 
 // hue → petal fill / deep text / dot colours (same L+C family everywhere)

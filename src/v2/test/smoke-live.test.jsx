@@ -778,6 +778,44 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     expectNoBoundary("live add sheet");
   });
 
+  // D167 rule 4 for Roles (D201). The tab is LIVE ONLY — it reads reveal
+  // documents and the demo room has none — so the case that matters is
+  // the one that proves the subtab exists at all in a live build, and
+  // that it refuses rather than inventing when nothing clears the floor.
+  //
+  // The refusal IS the assertion here. Every other smoke-live case guards
+  // against the demo cast reaching a live screen; this one guards against
+  // the opposite failure, which Roles is uniquely exposed to: a role is
+  // four numbers about a person, and four numbers are trivially
+  // computable from one revealed day. The floor is the only thing
+  // stopping a coin flip being drawn with a name on it.
+  it("offers the Roles tab live, and refuses under the floor", async () => {
+    const expectNoBoundary = mountLive({ feedCards: 2 });
+    await growFeed();
+    fireEvent.click(screen.getByRole("button", { name: /^profile$/i }));
+    await act(async () => {});
+    const roles = screen.queryByRole("button", { name: "Roles" })
+      || screen.queryByText("Roles");
+    expect(roles, "the Roles subtab is missing in a live build").not.toBeNull();
+    fireEvent.click(roles);
+    // The panel is behind a React.lazy boundary (profile-overlay is eager
+    // and the eager budget had 4 KB left), so the assertion has to wait
+    // for the chunk rather than for a render.
+    await screen.findByText(/No 1v1 has run 3 revealed days yet/);
+    // The fixture has no reveal history, so both instruments refuse — with
+    // their floors named, not with an empty rose.
+    expect(screen.getByText(/No 1v1 has run 3 revealed days yet/)).not.toBeNull();
+    expect(screen.getByText(/No group has run 2 revealed days yet/)).not.toBeNull();
+    expectNoBoundary();
+    // `window.__profileSub` remembers the last-visited subtab so returning
+    // from a tracker lands back on it — and it lives on `window`, which
+    // `localStorage.clear()` does not touch. Leaving it on "roles" put
+    // every later case that opens the profile on this tab instead of
+    // General; two of the D55 vitals cases failed exactly that way when
+    // this was written. Cases that change it put it back.
+    delete window.__profileSub;
+  });
+
   // D167 rule 4 for the pulse roster (D200): mount live and assert the
   // real thing renders and the demo cast does not.
   //

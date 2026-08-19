@@ -20816,3 +20816,104 @@ aggregate trigger — `onV2AnswerCreated` keys everything off
 the question doc on that branch. Five pulses mint five per-day agg pairs
 instead of one and no function changed. `pulse-pace` keeps its option set
 forever (D52); the roster appends around it.
+
+## D201 · Your role is a test result, and the dimension without data is not shipped
+
+**2026-08-19.** **Status:** binding. Roles is the one item in the
+2026-08-19 prototype that [`VISION-V28.md`](VISION-V28.md) had no section
+for — the August-15 build had no such module — so it arrives with a record
+rather than a plan entry.
+
+### What shipped
+
+A seventh profile subtab: **the role you play in a 1v1, and the role you
+play in a group**, each read as an instrument. Four dimensions for a 1v1
+(Insight · Legibility · Likeness · Steadiness) and three for a group
+(Independence · Centrality · Steadiness), matched to a named type by the
+same `IS_matchArchetype` every other test uses. A role card is a result
+card: same rose, same matcher, same nearby-type language, no new visual
+vocabulary.
+
+Each instrument opens with the **average across your settings** — weighted
+by revealed days, so a three-day duel cannot swing a portrait a
+twenty-four-day one built — then lists every setting one row deep, because
+a role is only interesting next to the other roles you play.
+
+### Real on arrival, which is why it could ship at all
+
+`data/roles.ts` is a pure fold over `LIVE.social.revealHistory` — the same
+reveal documents `duelRuns` (D156) and `groupPortrait` already read, which
+the duel panel already fetches. **No new read, no new field, no new
+collection, no Cloud Function.** That is what makes it a
+[D167](#d167--every-v28-surface-ships-with-its-backend-or-it-does-not-ship)
+item that needed no backend half, in the same class as the trait web.
+
+### The dimension that did not ship, and why that is the whole record
+
+The prototype's group instrument has a **fourth** dimension — `cast`
+("Standing": how often the group crowns you). It is the only part of
+`role-data.js` with no live source at all. It reads
+`DUELS.roleVotes(gid)`, a scenario-pack generator that exists solely in
+the demo module, and [`MIRROR.md`](MIRROR.md) records those crowns as
+unbuilt.
+
+Shipping it anyway would have meant a constant 50 for every user. Fifty is
+*exactly* the authored baseline, so it would have contributed nothing to
+any type match while drawing an identical petal on every rose — **a dead
+axis presented as a measurement.** That is what D167 forbids and what
+[D157](#d157--the-test-surfaces-stop-describing-a-crowd-they-never-counted)
+spent a release removing. So `cast` is not computed.
+
+**Dropping it cost three of the nine group types, and they are dropped
+rather than kept hollow.** "The First Pick" (cast 94) and "The Spark"
+(cast 78) are *defined* by it. "The Floater" is the subtler one and the
+reason this is a decision rather than a deletion: without `cast` its
+signature is `own 46 · pull 46 · settle 44`, and `IS_archScores` weights
+each dim by |sig − 50| — so a type near-neutral on everything can never be
+picked. Keeping it would have left dead weight in a table the rarity tax
+reads as a distribution. Six types remain, shares renormalised 83 → 100.
+
+`data/roles.test.ts` pins all three assumptions the matcher makes silently:
+shares summing to 100, signatures covering exactly the fold's dim ids, and
+every type extreme on at least one dim — the last at the house's own
+observed floor of 12 (Communitarian, in the politics table), so the role
+tables are held no looser than the four that shipped and no tighter.
+
+**What would make `cast` real:** 7 of the 24 group-bank questions are
+`kind: "pick"`, and their options ARE the member list. But the reveal doc
+does not store the option→uid mapping the answering client used —
+`revealMembersFor` filters late joiners out, so neither `members` nor the
+current `memberUids` is reliably the array that was indexed into. A roster
+change silently remaps every historical pick. That is a new fold with a
+real correctness hazard, and at ~4 pick days in a 14-day window it would
+be thin even if it were safe.
+
+### Two places the port could not be literal
+
+**The registries moved off the global bridge.** The prototype writes
+`window.RP_TESTS[key] = …` for seven registries; in this tree four of them
+(`RP_TESTS`, `IS_TEST_RESULTS`, `IS_TEST_AVG`, `DUELS`) are ESM exports
+with no window mirror, so a verbatim port would have been silent no-ops
+behind a guard that returns early — green under tsc, eslint and the
+checkers. The instruments are declared in the modules that own them
+instead.
+
+**`own` divides by days you PLAYED, not days revealed.** The prototype
+divides by all revealed days, which makes not turning up look like
+independence. "Away from the majority" has to mean something you did.
+
+### The ratchet did what it is for
+
+Adding the subtab through `window.LIVE` would have taken
+`profile-overlay.jsx` from 10 cross-module global references to 12, and
+`check:globals` rule 4 refused it. Converting the three sites already
+there took the file 10 → 5 and the tree **409 → 404**. That is the trade
+the ratchet exists to force, and it is the third time "convert on touch"
+has paid for itself rather than costing.
+
+### Live only, and that is not a stub
+
+The tab does not exist in a demo build. It reads reveal documents and the
+demo room has none, so a demo tab could only ever draw its own refusal —
+worse than no tab, and against D167's rule that a surface ships with real
+data or does not ship.

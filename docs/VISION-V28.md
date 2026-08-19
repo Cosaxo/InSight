@@ -641,3 +641,33 @@ Named so the rule is not read as sweeping them in:
 - **The suggestion board's community half**, still *"Preview · sample
   suggestions"*. A real backlog item, but it belongs to the suggestions
   work (D138), not to v28.
+
+## 14 · Roles — the item this plan never had a section for
+
+**BUILT ([D201](DECISIONS.md#d201--your-role-is-a-test-result-and-the-dimension-without-data-is-not-shipped).)**
+
+`role-data.js` and `roles-panel.jsx` are new to the 2026-08-19 prototype.
+The August-15 build had no such module, which is why every other section
+here predates them and why §0.1 flags Roles as the one item with no plan
+entry.
+
+**What it is.** Your role in a 1v1 and your role in a group, each read as
+an instrument and matched to a named type the way every other test is — so
+a role card is a result card, with the same rose, the same matcher and the
+same nearby-type language. A seventh profile subtab.
+
+**Why it was cheap.** Pure fold over `LIVE.social.revealHistory`, the same
+reveal documents `duelRuns` (D156) and `groupPortrait` already read and the
+duel panel already fetches. No new read, no field, no collection, no
+function — the same "real on arrival" class as the trait web in §13, and it
+would have belonged in that table had it existed on August 15.
+
+**Why it is not the prototype's instrument.** The prototype's group
+reading has a fourth dimension, `cast`, whose only source is a demo-only
+scenario generator. Shipping it would have meant a constant equal to its
+own baseline: no contribution to any match, an identical petal on every
+rose, and a dead axis presented as a measurement — which is what §13's own
+D167 paragraph forbids. It is not computed, and the three group types that
+`cast` alone made distinct went with it. D201 has the arithmetic, including
+what a real `cast` would need (pick questions can ground it; the reveal doc
+does not store the option→uid mapping they would need to be read safely).
