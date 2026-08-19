@@ -80,6 +80,12 @@ export interface QuestionDoc {
   // construction and carries no key, which is why readers must go through
   // `isCore()` below rather than testing this field directly.
   core?: boolean;
+  // Doors (docs/TAGS-PLAN.md §1): the topics a feed question ALSO belongs
+  // to, beside its `topic` home. Feed-only, emit-when-set, and reach-only —
+  // the feed's filter, stock and search read topic ∪ also, while everything
+  // that PLACES the card (Map branch, kicker, stream grouping) stays on
+  // `topic`. Absent everywhere else and on any doc seeded before it landed.
+  also?: string[];
   // Pool scope for duel questions (D40 part 4): absent = the shared pool;
   // "romantic" = served only to duos whose doc says duoMode: "romantic".
   // Absent everywhere else — the seed emits it only when set.

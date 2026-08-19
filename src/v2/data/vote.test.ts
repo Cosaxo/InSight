@@ -771,6 +771,32 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     expect(dial!.options).toHaveLength(12);
   });
 
+  it("a feed doc's doors reach the mapped card, and absence stays absent (docs/TAGS-PLAN.md)", async () => {
+    // `also` is how the filter, stock and search reach a straddler from its
+    // second topic — a bank doc whose doors get dropped here is a card the
+    // taxonomy claims two audiences for and only one can find. The
+    // absence half matters equally: emit-when-set end to end, so a card
+    // without doors is byte-for-byte what it was before the field existed.
+    h.bankDocs.push(
+      {
+        id: "q_feed_doors",
+        data: { surface: "feed", seq: 5, type: "vote", prompt: "E-sports are real sports.",
+          options: ["They are", "They're not"], topic: "sport", also: ["tech"], test: null, active: true },
+      },
+      {
+        id: "q_feed_plain",
+        data: { surface: "feed", seq: 6, type: "vote", prompt: "Vote two",
+          options: ["A", "B"], topic: "culture", test: null, active: true },
+      },
+    );
+    await bootLive();
+    const feed = (window as unknown as {
+      WORLD_FEED_QS?: Array<{ id: string; also?: string[] }>;
+    }).WORLD_FEED_QS || [];
+    expect(feed.find((q) => q.id === "q_feed_doors")?.also).toEqual(["tech"]);
+    expect("also" in (feed.find((q) => q.id === "q_feed_plain") || {})).toBe(false);
+  });
+
   it("reports a failed agg poll and leaves the cached counts standing", async () => {
     // Was "reports and re-notifies when an agg listener errors". The
     // listener is gone (D129) and its error arm with it, but the contract

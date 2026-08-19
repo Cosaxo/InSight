@@ -148,6 +148,14 @@ for (const q of entries) {
     if (q.core === true) {
       errors.push(`${q.id}: a sponsored question is never core — paid questions in the Mirror's corpus make the honest aggregate a paid-for sample`);
     }
+    // docs/TAGS-PLAN.md §3, the same line one field over: a paid card
+    // reaches the audience it declared, and doors would multiply where the
+    // slot surfaces. A buyer who wants two audiences buys two windows. (The
+    // demand rollup already excludes sponsored rows, so a door here could
+    // only ever be reach — there is no honest use left to allow.)
+    if (q.also !== undefined) {
+      errors.push(`${q.id}: a sponsored question carries no \`also\` — a paid slot reaches the audience it declared, and a buyer who wants two buys two windows`);
+    }
   }
   if (q.type === "scale") {
     // Lens items run the client's agree-FIRST scale (lens-defs.js SCALE):
