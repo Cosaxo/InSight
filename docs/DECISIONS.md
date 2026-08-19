@@ -21446,3 +21446,116 @@ The D163 on-device model reads doors when tier 2 is built — the contract
 TAGS-PLAN.md §4 so the field is not re-litigated then. And the demand
 lanes have nothing to read until aggregates exist: the machinery is
 whole; what arrives with users is only the numbers flowing through it.
+
+## D207 · The Map goes lazy, and the door §5 was waiting on is open
+
+**2026-08-19.** VISION-V28 §5 named one blocked door with three features
+behind it: Crossroads' `mapTree`, Foresight's map branch and the pulse
+branch `window.goTrends` wants to open, all needing `map-tab.jsx` to grow
+and the eager graph having no room to grow it in. D136 recorded the wall;
+§5's recommendation — fold the unlock into the Patterns work, because
+Patterns forces a lazy-tab pattern to exist anyway — is what this entry
+executes.
+
+**The move.** The Map's seven modules (`map-bottom-card`, `map-learn-card`,
+`map-people`, `map-layout`, `map-groups`, `map-chiprow`, `map-tab`) left
+`spec-index.js`'s eager list. Their load order — semantic, including the
+module-scope destructure in `map-tab.jsx` that needs `map-layout.js`
+evaluated first — now lives as static imports at the top of `map-tab.jsx`,
+so ONE import of that file evaluates the family correctly.
+`spec-index.js` gains `loadMapTab()` (the `retryable` memo shape both
+existing groups use), `main.jsx` prewarms it right after first paint, and
+`mirror-tab.jsx` renders the You stop through `React.lazy` — the same
+mechanism its Circle, Cohort and Groups bodies already use, so by the time
+a thumb reaches the Mirror the resolve is a module-cache hit, not a wait.
+
+**The old objection, answered rather than deleted.** mirror-tab's own
+comment argued the Map must stay eager because "the Mirror opens on You".
+The prewarm is the answer — the comment now says so — and Near, the other
+half of that sentence, stays eager.
+
+**Convert-on-touch rode along, and the ratchet moved.** person-mindmap
+(the overlays chunk) read four of the family's globals and would have been
+one unvisited Mirror away from a `ReferenceError` on `MAP_GROUPS.of` —
+the only unguarded read, found by reading every site rather than assuming
+the guards were uniform. `MapTabLayout`, `MAP_GROUPS` and `MTBranchChips`
+became named exports; both consumers import them; the dead load-order
+guards (D108's shapes: `window.X && …`, the ring-320 fallback, `Chips &&`)
+left with the conversion, as did map-layout's six no-op trailing
+publications and the `window.MapTab` publication itself.
+
+**Measured at this commit, not estimated:**
+
+- eager graph **890 → 849 KB** (−41), total 2370 → 2371 KB and 86 → 92
+  chunks — a relocation, the shape D200's entry documents;
+- `MAX_EAGER_KB` **920 → 860**, the second time the constant has come
+  down, same doctrine as the first: the freed room is FOR the parked
+  branches, and they grow inside the lazy map chunk where the eager
+  ceiling no longer taxes them;
+- rule-4 coupling **406 → 396** (map-tab 21 → 18, mirror-tab 9 → 8,
+  person-mindmap 10 → 4); published globals 259 → 249.
+
+**What this deliberately does not do:** build the branches. `g-fore`,
+`g-paths` and the pulse trend branch are the next work item and land in
+the lazy chunk this entry created; nothing outside `map-tab.jsx` needs to
+move for them again.
+
+### Verified
+
+`test:unit` (93 files, 1412 tests — smoke-nav's Map case now AWAITS the
+lazy body's arrival via `awaitNode`, the fixed-sleep race the Patterns
+commit already hit once), `check:globals` (396, baseline lowered),
+`check:bundle` on the shipping build (2371 / 849 against 2378 / 860),
+lint, `tsc -b`. map-ring.test.js pins the layout arithmetic through the
+named export now — the window copy is gone.
+
+### Amended, same day: the branches are built
+
+The "next work item" paragraph above lasted one commit. The three parked
+features now grow inside the lazy chunk exactly as planned, each under
+the honesty rule its data allows:
+
+- **`g-paths` · Crossroads** (`pathsMapTree`/`MTPathsCard`, living in
+  `paths-card.jsx` because they need its live/demo source discipline):
+  one leaf per story walked to its end. Live, the walk is the SERVER's
+  answer — recoverable on any device — and rarity folds from real counts
+  or is ABSENT; demo, both come authored. `typ` carries the walk's
+  rarity, so an uncommon road drifts outward with no number printed.
+  paths-data.js's header note #2 (the parked mapTree) is superseded and
+  says so.
+- **`g-fore` · Foresight** (`data/mapTrees.ts`, `foreTree`): two clouds
+  of AIMS — dimensions the READ game has graded (distance = accuracy,
+  via foresight.ts's own `byDim`) and tier-A calls you made (D194). An
+  ungraded call draws SEALED at neutral distance, because "waiting" and
+  "wrong" are different claims; the prototype's "better than N% of
+  people" line is NOT ported — nothing measures other people's read
+  accuracy, so the note says "reading clearly"/"blind spot" against the
+  game's own coin. Demo: no branch at all — there is no honest demo log.
+  The Map tops up the two inputs once per mount; both loaders are
+  session-cached and inflight-guarded, so the cost is at most one log
+  read and one bounded outcomes read per session.
+- **The pulse branch** (`data/mapTrees.ts`, `pulseTree`, filed under
+  g-self via the 'pulse' cat): one leaf per pulse with an answered day,
+  distance = consistency (answered scheduled days over scheduled), the
+  leaf card the SAME trend reading the pulse card opens inline
+  (`ui/PulseTrends`), so the map and the feed cannot drift. Demo leafs
+  only the first pulse — D166 §3's own rule.
+
+**`window.goTrends` became `data/mapCue.ts`.** The v28 patch's three
+globals (goTrends, MAP_OPEN_GROUP, MAP_SELECT) would each have been a new
+shared-global read, and rule 4 only moves down — so the cross-link is a
+typed take-once cue store instead: `ui/PulseTrends` ("on the Map →")
+stores the where, app-shell's listener does the walking, map-tab reads
+the cue from its initializers or, already mounted, its subscription.
+map-groups gained the two over-categories with the prototype's own
+hue-rejection notes (282 violet, 200 petrol) and the prefix arms.
+
+Measured on the amended tree: total 2371 → 2377 KB (the branches, all in
+lazy chunks), eager 849 → 850, coupling flat at 396. Verified:
+`test:unit` (95 files, 1425 tests — the folds pinned in
+`mapTrees.test.ts`, `mapCue.test.ts` and paths-card.test.jsx's new Map
+describe), lint, `tsc -b`, `check:globals`, `check:bundle`,
+`check:purge`. The Map's ground does not render in jsdom (map-ring's
+standing note), so the smoke suites pin the mounts and the fold tests
+pin the leaves — the D167 case for these surfaces is the pair, not one
+file.

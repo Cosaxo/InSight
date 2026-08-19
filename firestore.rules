@@ -124,6 +124,21 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // The Patterns loadings (v28 §2, trial per D166 §1) — one document,
+    // `loadings`: per-question vectors of K numbers the nightly fit
+    // (fitPatternsV2, admin SDK) derives from the vote log, each with the
+    // answer count it rests on. CORE corpus only (D161) — the fit's
+    // eligible set compiles from the bank, so nothing tail-shaped can be
+    // in here to read. Nothing per-person either: the numbers are a
+    // refactoring of counts that already publish per question.
+    //
+    // Write is closed to everyone for the aggregate reason: a client-
+    // writable model would make the whole map forgeable in one request.
+    match /v2_patterns/{docId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
     function isValidV2Anchors(anchors) {
       return anchors is map
         && anchors.keys().hasOnly([
@@ -214,6 +229,18 @@ service cloud.firestore {
       // recursive delete of v2_users/{uid} takes this subcollection with
       // it, so erasure needs no new arm.
       match /push/{docId} {
+        allow read, write: if false;
+      }
+
+      // The Patterns fit's per-person state (v28 §2) — K numbers the
+      // nightly fold carries a person's PUBLIC answers as, so it never
+      // re-reads their history. Derived from nothing that is not already
+      // world-readable, and still closed both ways for the push/ reason:
+      // a path with no read grant cannot be opened by accident, and a
+      // latent vector is a summary nobody signed up to be read AS.
+      // Written only by fitPatternsV2 (admin SDK); deleteAccount's
+      // recursive delete of v2_users/{uid} takes it with the account.
+      match /patterns/{docId} {
         allow read, write: if false;
       }
 

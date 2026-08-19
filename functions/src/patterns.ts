@@ -1,0 +1,261 @@
+// patterns.ts — the Patterns fold's wiring (v28 §2, trial per D166 §1,
+// gated by D167). The arithmetic lives in patternsFit.ts, pure; this file
+// decides WHAT gets folded and WHERE the state lives, behind an injected
+// store (the calls.ts precedent) so the pass logic tests without an
+// emulator.
+//
+// THE SHAPE, and why it is a nightly sweep rather than a trigger arm.
+// VISION-V28 §2 asks for "a streaming/incremental fit over the vote log",
+// and the app already KEEPS a vote log: the agg-events ledger (D28) —
+// one entry per aggregate answer, uid + qid, 90-day TTL, deleted with the
+// account. The trigger option — updating vectors inside onV2AnswerCreated
+// — would put a read and a write on the app's hottest path (the exact
+// worry §2 names), break the pulse.test.mjs tripwire that pins the
+// trigger at 5 tx.get sites, and buy real-time vectors nothing needs: a
+// map redraws daily at most. So the fit runs where the app's other four
+// daily jobs run, folds YESTERDAY's ledger in one pass, and publishes
+// once — the write-contention wall (D7) never hears about it.
+//
+// The ledger lacked one field the fit needs — WHICH option — so
+// ledgerEntry now carries optionIdx (v2.ts). Entries written before that
+// field existed simply do not fold; the basis counts say so.
+//
+// THE CORPUS IS CORE ONLY (D161), enforced here at build time: the
+// eligible set compiles from the bank the same way POLITICAL_QIDS does,
+// so a tail answer cannot enter the fold by any path. Eligibility is the
+// prototype's own pool rule — two options, nothing else — over the daily
+// bank (core by construction) and the feed's core: true questions.
+//
+// Scale note, recorded not built (D7): the day's per-user fold holds the
+// active users' vectors in memory — fine to ~100k DAU under 256MiB, and
+// the fix at that size is paging the fold by uid range, not a bigger box.
+import { onSchedule } from "firebase-functions/v2/scheduler";
+import { logger } from "firebase-functions";
+import { FieldValue } from "firebase-admin/firestore";
+import type { Firestore } from "firebase-admin/firestore";
+// ops.ts sets the global runtime options as an import side effect and must
+// stay imported for that reason wherever a function is declared, like every
+// other function module imports it (check:fn-runtime guards the outcome).
+import { LIGHT_UNBOUNDED, FUNCTIONS_REGION } from "./ops";
+import { V2_QUESTIONS } from "./v2content";
+import { db as firestore } from "./db";
+import {
+  PATTERNS_K,
+  emptyModel,
+  emptyUser,
+  encodeAnswer,
+  foldUserDay,
+  publishableLoadings,
+  type PatternsModel,
+  type PatternsObservation,
+  type PatternsUserState,
+} from "./patternsFit";
+
+/** The eligible pool: two options (the engine is one bit per question —
+ * the prototype's own rule), and CORE ONLY (D161): the daily bank is core
+ * by construction, a feed question only if it says so. Everything else —
+ * tests, learn, pulse's composite ids, calls, catalog — never enters. */
+export const PATTERNS_QIDS: ReadonlySet<string> = new Set(
+  V2_QUESTIONS.filter(
+    (q) =>
+      Array.isArray(q.options) && q.options.length === 2 &&
+      (q.surface === "daily" || (q.surface === "feed" && q.core === true)),
+  ).map((q) => q.id),
+);
+
+/** A missed night folds on the next run, up to a week back — bounded, so
+ * a long outage cannot turn the catch-up into an unbounded ledger scan.
+ * Beyond it, unfolded days stay unfolded and the basis counts say so. */
+export const PATTERNS_CATCHUP_DAYS = 7;
+
+export interface PatternsLedgerEntry {
+  uid: string;
+  qid: string;
+  optionIdx?: number;
+}
+
+/** The I/O the fit needs, as an interface (calls.ts's store precedent) —
+ * the sweep's pass logic is testable without any Firestore shape. */
+export interface PatternsStore {
+  /** The ledger entries for one UTC day, oldest first. */
+  ledgerDay(dayKey: string): Promise<PatternsLedgerEntry[]>;
+  getModel(): Promise<(PatternsModel & { lastDay?: string }) | null>;
+  putModel(model: PatternsModel, lastDay: string, folded: number): Promise<void>;
+  getUsers(uids: string[]): Promise<Map<string, PatternsUserState>>;
+  putUsers(states: Map<string, PatternsUserState>): Promise<void>;
+}
+
+const pad = (n: number) => String(n).padStart(2, "0");
+export function utcDay(nowMs: number, offsetDays: number): string {
+  const d = new Date(nowMs);
+  d.setUTCHours(0, 0, 0, 0);
+  d.setUTCDate(d.getUTCDate() + offsetDays);
+  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
+}
+
+/**
+ * Fold every unfolded day up to and including yesterday. Idempotent: the
+ * model carries the last folded day, so a retried schedule re-folds
+ * nothing and a missed night folds on the next run.
+ */
+export async function runPatternsFit(
+  store: PatternsStore,
+  nowMs: number,
+  eligible: ReadonlySet<string> = PATTERNS_QIDS,
+): Promise<{ days: number; folded: number; users: number; questions: number }> {
+  const yesterday = utcDay(nowMs, -1);
+  const floor = utcDay(nowMs, -PATTERNS_CATCHUP_DAYS);
+  const model = (await store.getModel()) ?? { ...emptyModel(PATTERNS_K), lastDay: "" };
+  const lastDay = model.lastDay ?? "";
+
+  // the days still owed, oldest first, bounded by the catch-up window
+  const days: string[] = [];
+  for (let off = -PATTERNS_CATCHUP_DAYS; off <= -1; off++) {
+    const day = utcDay(nowMs, off);
+    if (day > lastDay && day >= floor) days.push(day);
+  }
+  if (!days.length || yesterday <= lastDay) {
+    return { days: 0, folded: 0, users: 0, questions: Object.keys(model.q).length };
+  }
+
+  let folded = 0;
+  const touched = new Set<string>();
+  for (const day of days) {
+    const entries = (await store.ledgerDay(day)).filter(
+      (e) => eligible.has(e.qid) && (e.optionIdx === 0 || e.optionIdx === 1),
+    );
+    if (!entries.length) continue;
+    // group by person; sort each person's day by qid so a replay
+    // reproduces the run (the fit is order-sensitive within a day)
+    const byUid = new Map<string, PatternsObservation[]>();
+    for (const e of entries) {
+      const obs = byUid.get(e.uid) ?? [];
+      obs.push({ qid: e.qid, x: encodeAnswer(e.optionIdx as number) });
+      byUid.set(e.uid, obs);
+    }
+    const states = await store.getUsers([...byUid.keys()].sort());
+    for (const [uid, obs] of [...byUid.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1))) {
+      obs.sort((a, b) => (a.qid < b.qid ? -1 : 1));
+      const user = states.get(uid) ?? emptyUser(model.k);
+      foldUserDay(model, user, obs);
+      states.set(uid, user);
+      touched.add(uid);
+      folded += obs.length;
+    }
+    await store.putUsers(states);
+  }
+  await store.putModel(model, yesterday, folded);
+  return { days: days.length, folded, users: touched.size, questions: Object.keys(model.q).length };
+}
+
+/** The Firestore store. State lives in two places, each chosen for its
+ * erasure story: the model in ONE public doc (v2_patterns/loadings —
+ * world-readable like every aggregate, written once per run so D7's
+ * write wall never hears about it, nothing per-person in it), and each
+ * person's vector under their own subtree (v2_users/{uid}/patterns/state
+ * — readable by NOBODY, the push/ precedent, and deleteAccount's
+ * recursive delete takes it with the account, no new arm). */
+export function firestorePatternsStore(db: Firestore): PatternsStore {
+  const modelRef = db.collection("v2_patterns").doc("loadings");
+  return {
+    async ledgerDay(dayKey) {
+      const start = new Date(`${dayKey}T00:00:00Z`);
+      const end = new Date(start.getTime() + 86400000);
+      const out: PatternsLedgerEntry[] = [];
+      // paged like the velocity scan — the day's ledger can be large and
+      // the fold only needs three fields of it
+      let query = db
+        .collection("v2_agg_events")
+        .where("at", ">=", start)
+        .where("at", "<", end)
+        .orderBy("at")
+        .select("uid", "qid", "optionIdx", "at")
+        .limit(5000);
+      for (;;) {
+        const snap = await query.get();
+        for (const d of snap.docs) {
+          out.push({
+            uid: String(d.get("uid") ?? ""),
+            qid: String(d.get("qid") ?? ""),
+            optionIdx: d.get("optionIdx") as number | undefined,
+          });
+        }
+        if (snap.size < 5000) break;
+        query = query.startAfter(snap.docs[snap.size - 1]);
+      }
+      return out;
+    },
+    async getModel() {
+      const snap = await modelRef.get();
+      if (!snap.exists) return null;
+      return {
+        k: (snap.get("k") as number) ?? PATTERNS_K,
+        q: (snap.get("q") as PatternsModel["q"]) ?? {},
+        lastDay: (snap.get("lastDay") as string) ?? "",
+      };
+    },
+    async putModel(model, lastDay, folded) {
+      // publishableLoadings rounds to 4 dp — the next run refits from the
+      // rounded values, a perturbation orders of magnitude under the
+      // step size, and the doc stays small enough to read in one go
+      const q: Record<string, { v: number[]; n: number; sum: number }> = {};
+      const pub = publishableLoadings(model);
+      for (const [qid, L] of Object.entries(model.q)) {
+        q[qid] = { v: pub[qid].v, n: L.n, sum: L.sum };
+      }
+      await modelRef.set({
+        k: model.k,
+        lastDay,
+        folded,
+        at: FieldValue.serverTimestamp(),
+        q,
+      });
+    },
+    async getUsers(uids) {
+      const out = new Map<string, PatternsUserState>();
+      for (let i = 0; i < uids.length; i += 300) {
+        const chunk = uids.slice(i, i + 300);
+        const refs = chunk.map((uid) =>
+          db.collection("v2_users").doc(uid).collection("patterns").doc("state"));
+        const snaps = await db.getAll(...refs);
+        snaps.forEach((snap, j) => {
+          if (snap.exists) {
+            out.set(chunk[j], {
+              v: (snap.get("v") as number[]) ?? [],
+              n: (snap.get("n") as number) ?? 0,
+            });
+          }
+        });
+      }
+      return out;
+    },
+    async putUsers(states) {
+      const entries = [...states.entries()];
+      for (let i = 0; i < entries.length; i += 400) {
+        const batch = db.batch();
+        for (const [uid, s] of entries.slice(i, i + 400)) {
+          batch.set(
+            db.collection("v2_users").doc(uid).collection("patterns").doc("state"),
+            { v: s.v, n: s.n, at: FieldValue.serverTimestamp() },
+          );
+        }
+        await batch.commit();
+      }
+    },
+  };
+}
+
+const REGION = FUNCTIONS_REGION;
+
+export const fitPatternsV2 = onSchedule(
+  // Nightly, off the top-of-hour herd and before the velocity scan reads
+  // the same ledger for its own purpose. Cost is in docs/COSTS.md's
+  // Patterns row — measured before this shipped, per VISION-V28 §11.4.
+  { schedule: "37 2 * * *", region: REGION, ...LIGHT_UNBOUNDED },
+  async () => {
+    const summary = await runPatternsFit(firestorePatternsStore(firestore()), Date.now());
+    if (summary.folded > 0 || summary.days > 0) {
+      logger.info("patterns fit", { metric: "patterns_fit", ...summary });
+    }
+  },
+);

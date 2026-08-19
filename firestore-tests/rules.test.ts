@@ -656,6 +656,28 @@ describe("Foresight CALL, tier A (D194): sealed, public, and closed once graded"
     await assertFails(setDoc(doc(asUser(OWNER), "v2_call_outcomes", "call-new"), { outcomeIdx: 0 }));
   });
 
+  it("the Patterns loadings read like an aggregate and write like one — nobody (v28 §2)", async () => {
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_patterns", "loadings"), { k: 8, q: { "daily-000": { v: [0.1], n: 3 } } });
+    });
+    await assertSucceeds(getDoc(doc(asUser(STRANGER), "v2_patterns", "loadings")));
+    // A client-writable model would make the whole map forgeable in one request.
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_patterns", "loadings"), { k: 8, q: {} }));
+    await assertFails(updateDoc(doc(asUser(OWNER), "v2_patterns", "loadings"), { k: 9 }));
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_patterns", "loadings-2"), { k: 8 }));
+  });
+
+  it("a person's Patterns state is readable and writable by NOBODY — the owner included", async () => {
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_users", OWNER, "patterns", "state"), { v: [0.2], n: 4 });
+    });
+    // The push/ shape: no read grant at all, so the latent vector cannot
+    // be opened by accident — not by a stranger, not by its own subject.
+    await assertFails(getDoc(doc(asUser(STRANGER), "v2_users", OWNER, "patterns", "state")));
+    await assertFails(getDoc(doc(asUser(OWNER), "v2_users", OWNER, "patterns", "state")));
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_users", OWNER, "patterns", "state"), { v: [1], n: 1 }));
+  });
+
   it("the option bound, the kill switch and the surface claim all read off the question", async () => {
     await seedCall();
     await assertFails(setDoc(mine(), callAnswer({ optionIdx: 2 })));

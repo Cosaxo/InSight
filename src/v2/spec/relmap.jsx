@@ -715,7 +715,6 @@ let RelationshipMapExport;
       const v = this.computeVals();
       const st = this.state;
       const SANS = "'Hanken Grotesk', sans-serif";
-      const SERIF = "'Hanken Grotesk', sans-serif";
       const inputStyle = { border: '1px solid ' + P.rule, outline: 'none', background: P.card, borderRadius: 8, padding: '7px 10px', fontFamily: SANS, fontSize: 'var(--field-size)', color: P.ink };
       const card = { background: P.card, border: '1px solid ' + P.cardBorder, boxShadow: P.shadow };
       const pillBg = { background: P.card, border: '1px solid ' + P.rule, boxShadow: P.shadow };
@@ -735,7 +734,7 @@ let RelationshipMapExport;
           {!this.props.embedded && (
             <div style={{ position: 'absolute', top: 17, left: 20, right: 62, pointerEvents: 'none' }}>
               <div style={{ fontFamily: SANS, fontSize: 11, fontWeight: 600, letterSpacing: '0.14em', textTransform: 'uppercase', color: P.faint, marginBottom: 5 }}>Relationship map</div>
-              <h1 style={{ fontFamily: SERIF, fontWeight: 700, fontSize: 'clamp(22px, 5vw, 30px)', lineHeight: 1, margin: 0, letterSpacing: '-0.01em', color: P.inkName }}>Your People</h1>
+              <h1 style={{ fontFamily: SANS, fontWeight: 700, fontSize: 'clamp(22px, 5vw, 30px)', lineHeight: 1, margin: 0, letterSpacing: '-0.01em', color: P.inkName }}>Your People</h1>
             </div>
           )}
 

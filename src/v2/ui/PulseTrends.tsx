@@ -8,9 +8,13 @@
 //   · every reading carries its n
 //   · two instruments only: you (the hue) and them (neutral)
 import React from "react";
+import { cueMap } from "../data/mapCue";
 import PULSE from "../data/pulse";
 
-export default function PulseTrends({ compact, pid }: { compact?: boolean; pid?: string }): React.ReactElement | null {
+// `mapLink` is passed by the daily's pulse card and NOT by the Map's own
+// pulse leaf, which renders this same reading — a "see it on the Map" link
+// on the Map would be a door into the room you are standing in.
+export default function PulseTrends({ compact, pid, mapLink }: { compact?: boolean; pid?: string; mapLink?: boolean }): React.ReactElement | null {
   const [, bump] = React.useState(0);
   const id = pid || PULSE.first();
   React.useEffect(() => {
@@ -262,6 +266,12 @@ export default function PulseTrends({ compact, pid }: { compact?: boolean; pid?:
         {chart}
       </div>
       {panel}
+      {mapLink && (
+        <button className="press" onClick={() => cueMap({ group: "g-self", sel: pid || PULSE.first() })}
+          style={{ alignSelf: "flex-start", border: "none", background: "none", padding: "2px 0", cursor: "pointer", WebkitAppearance: "none", fontFamily: "var(--sans)", fontWeight: 700, fontSize: 13, color: HUE }}>
+          on the Map →
+        </button>
+      )}
     </div>
   );
 }

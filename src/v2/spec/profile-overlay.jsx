@@ -25,7 +25,10 @@ const RolesPanelLazy = React.lazy(() => import('../ui/LiveRolesPanel.tsx'));
 // InSight — ProfileOverlay (your own profile) + the Politics cards.
 // The test flow lives in test-overlay.jsx; question banks in test-defs.js.
 
-function ProfileOverlay({ onClose, me, lensBoxed }) {
+// `lensBoxed` left the signature with the v28 §10 teardown (this branch);
+// the Roles panel and the LIVE read arrived with D204 (main). The merge
+// keeps both changes.
+function ProfileOverlay({ onClose, me }) {
   const L = window.LIVE || {};
   const dims = [
     { label: 'Openness', v: me.personality.O },
@@ -217,7 +220,7 @@ function ProfileOverlay({ onClose, me, lensBoxed }) {
           {sub === 'roles' && (
             <React.Suspense fallback={null}><RolesPanelLazy /></React.Suspense>
           )}
-          {sub === 'lenses' && window.LensesPanel && <window.LensesPanel boxed={lensBoxed} />}
+          {sub === 'lenses' && window.LensesPanel && <window.LensesPanel />}
         </div>
       </div>
     </div>

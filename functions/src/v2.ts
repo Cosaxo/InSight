@@ -155,10 +155,19 @@ export const LEDGER_RETENTION_DAYS = 90;
 // cannot drift apart. `uid` is the attribution: qid alone dedups fine, but
 // leaves no way to identify — and unwind — a fake account's contributions
 // after the fact.
-function ledgerEntry(uid: string, qid: string) {
+//
+// `optionIdx` joined for the Patterns fit (patterns.ts): the nightly
+// sweep reads yesterday's ledger as its vote log, and (uid, qid) alone
+// says who answered, not what. It adds nothing the answer doc does not
+// already publish (D98), rides the same 90-day TTL, and erases with the
+// account (index.ts phase 4c). Absent on catalog entries — the fit's
+// pool is two-option questions only — and an edit's entry carries the
+// NEW side, so a refit leans toward what the person now says.
+function ledgerEntry(uid: string, qid: string, optionIdx?: number) {
   return {
     qid,
     uid,
+    ...(optionIdx === undefined ? {} : { optionIdx }),
     at: FieldValue.serverTimestamp(),
     expireAt: new Date(Date.now() + LEDGER_RETENTION_DAYS * 86400000),
   };
@@ -680,7 +689,7 @@ export const onV2AnswerCreated = onDocumentCreated(
         snap.get("anchors"),
         optionIdx,
       );
-      tx.set(eventRef, ledgerEntry(event.params.uid, qid));
+      tx.set(eventRef, ledgerEntry(event.params.uid, qid, optionIdx));
       tx.set(privRef, { counts, total, by }, { merge: false });
       // The public mirror, written on EVERY answer with exact counts.
       //
@@ -761,7 +770,7 @@ export const onV2AnswerUpdated = onDocumentUpdated(
       // churn means the old vote is no longer represented (pure.ts has the
       // accounting). Bucket totals never move.
       retargetAnchors(by, after.get("anchors"), fromIdx, toIdx);
-      tx.set(eventRef, ledgerEntry(event.params.uid, qid));
+      tx.set(eventRef, ledgerEntry(event.params.uid, qid, toIdx));
       tx.set(privRef, { counts, total, by }, { merge: false });
       // An edit always republishes now. It used to be conditional on
       // EDITS_REPUBLISH — a guard that existed because, under a publish

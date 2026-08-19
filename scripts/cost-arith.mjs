@@ -300,6 +300,17 @@ export const TRIGGER_READS = { world: 2, duel: 0 };
 // day — a flat term the size of the boot's top-up and reseed combined, and
 // invisible in the model until now. `.select()` narrows egress, not reads.
 export const VELOCITY_READS_PER_LEDGER_ENTRY = 1;
+// The Patterns fit (v28 §2, trial D166 §1), measured BEFORE the fold
+// shipped per VISION-V28 §11.4: the nightly sweep re-reads the day's
+// ledger as its vote log — the velocity scan's own shape, a second reader
+// of the same entries — and carries each active answerer's latent vector,
+// one state read and one state write per active user per day. The model
+// doc itself is one read and one write per PROJECT per night, under any
+// rounding here. The named lever if the ledger re-read ever matters at
+// scale: flag eligible entries at write time and query the flag (a
+// composite index), which drops the term by the ineligible share.
+export const PATTERNS_READS_PER_LEDGER_ENTRY = 1;
+export const PATTERNS_USER_STATE_OPS = 1;
 
 // The reveal pipeline (revealGroupDay), per group-day actually revealed, for
 // a group of M members:
@@ -616,11 +627,15 @@ export function costModel({ regional = REGIONAL, bank = bankDocs() } = {}) {
     const rules =
       B.worldAnswers * RULE_READS.world + B.duelAnswers * RULE_READS.duel;
     // Reads the SERVER issues: the aggregate transaction, the nightly
-    // velocity scan walking the day's ledger, and the reveal pipeline.
+    // velocity scan walking the day's ledger, the nightly Patterns fit
+    // walking it again (plus one state read per active user), and the
+    // reveal pipeline.
     const server =
       B.worldAnswers * TRIGGER_READS.world
       + B.duelAnswers * TRIGGER_READS.duel
       + B.worldAnswers * VELOCITY_READS_PER_LEDGER_ENTRY
+      + B.worldAnswers * PATTERNS_READS_PER_LEDGER_ENTRY
+      + PATTERNS_USER_STATE_OPS
       + B.duelAnswers * revealReadsPerMember(B.duelGroupSize);
     // The D98 surfaces (D102): who-voted, Kindred, Circle — a client
     // reading OTHER users' answers on demand. One key rather than three
@@ -658,7 +673,8 @@ export function costModel({ regional = REGIONAL, bank = bankDocs() } = {}) {
     // returns (as a performance measure — PUBLISH_EVERY's note), it now
     // discounts every phase, which is what a floorless world means.
     const pub = 1 / PUBLISH_EVERY;
-    const writes = dau * (B.worldAnswers * (1 + 2 + pub) + B.duelAnswers * 2 + 0.2);
+    // + the Patterns fit's one state write per active user per night.
+    const writes = dau * (B.worldAnswers * (1 + 2 + pub) + B.duelAnswers * 2 + PATTERNS_USER_STATE_OPS + 0.2);
     const deletes = dau * B.worldAnswers; // ledger TTL, 90 days later
     const inv = dau * (B.worldAnswers + B.duelAnswers);
     // Concurrency 20 only pays off under queue pressure; at low volume each

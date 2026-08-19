@@ -245,36 +245,9 @@ import { ExplainBtn, ExplainSheet, EX_GLYPH } from './explain-sheet.jsx';
     );
   }
 
-  // ── boxed variant, kept behind a tweak for comparison ──
-  function LensCard({ lens, onTick }) {
-    const L = window.LENSES;
-    const [asking, setAsking] = useState(false);
-    const pct = L.pct(lens.id), full = L.complete(lens.id);
-    const Viz = VIZ[lens.viz] || Mini;
-    const t2 = lens.tier === 2;
-    const fill = pct < 60 ? prov(lens.hue) : col(lens.hue);
-    return (
-      <div className="card" style={{ marginBottom: 12, padding: t2 ? '14px 16px' : '16px 18px', background: `linear-gradient(180deg, color-mix(in oklch, ${col(lens.hue)} 5%, var(--surface-2)), var(--surface-2) 110px)`, borderColor: `color-mix(in oklch, ${col(lens.hue)} 13%, var(--rule))` }}>
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: t2 ? 12 : 15 }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontFamily: 'var(--sans)', fontSize: t2 ? 14.5 : 16, fontWeight: 700, letterSpacing: '-0.01em' }}>{lens.title}</div>
-            <div style={{ ...tiny, marginTop: 2, fontWeight: 500 }}>{lens.lead}</div>
-          </div>
-          {!full && <Ring pct={pct} hue={lens.hue} />}
-        </div>
-        <Viz dims={lens.dims} v={L.score(lens.id)} hue={lens.hue} fill={fill} />
-        {!full && (asking
-          ? <div style={{ marginTop: 14, paddingTop: 14, borderTop: '0.5px solid var(--rule)' }}><Asker lens={lens} onDone={() => { onTick(); if (L.complete(lens.id)) setAsking(false); }} /></div>
-          : <button onClick={() => setAsking(true)} style={{
-              marginTop: 14, width: '100%', padding: '10px', cursor: 'pointer', WebkitAppearance: 'none', appearance: 'none',
-              background: `color-mix(in oklch, ${col(lens.hue)} 4%, transparent)`, border: `0.5px solid color-mix(in oklch, ${col(lens.hue)} 24%, var(--rule))`, borderRadius: 12, color: deep(lens.hue),
-              fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 600,
-            }}>Sharpen it — {L.needed(lens.id) - L.done(lens.id)} left</button>)}
-      </div>
-    );
-  }
-
-  function LensesPanel({ boxed }) {
+  // The boxed card-per-lens variant sat here behind a tweak for comparison;
+  // the tiered flat panel won (v28 §10) and the boxed LensCard went with it.
+  function LensesPanel() {
     const L = window.LENSES;
     const [tick, setTick] = useState(0);
     const [explain, setExplain] = useState(null);
@@ -290,14 +263,6 @@ import { ExplainBtn, ExplainSheet, EX_GLYPH } from './explain-sheet.jsx';
         ]}
         onClose={() => setExplain(null)} />
     ) : null;
-    if (boxed) return (
-      <div style={{ paddingBottom: 8 }}>
-        <div style={{ ...tiny, fontSize: 13.5, lineHeight: 1.5, margin: '14px 2px 16px', fontWeight: 500, textWrap: 'pretty' }}>
-          Smaller readings than the four tests, filling in from the feed.
-        </div>
-        {L.all.map(l => <LensCard key={l.id} lens={l} onTick={bump} />)}
-      </div>
-    );
     const t1 = L.all.filter(l => l.tier === 1), t2 = L.all.filter(l => l.tier === 2);
     const groupHead = (label, sub, first) => (
       <div style={{ margin: first ? '18px 2px 0' : '26px 2px 0' }}>
