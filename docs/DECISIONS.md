@@ -20600,3 +20600,86 @@ which a build bump could reach a mounted app was checked directly and
 does not exist — `state.meta.latestBuild` defaults to 0, so
 `updateAvailable` (`appBuild > 0 && latestBuild > appBuild`) is false at
 20 and at 21 alike.
+
+## D199 · Build 21 is in TestFlight, and the number moved with it
+
+**Decided:** 2026-08-19 · **Status:** binding · The dispatch D198's
+pre-flight cleared for, and the bump made from the step list rather than
+from a memory of it.
+
+### The two runs
+
+Both archived `d547f7a`, seven and a half minutes apart — the fifth pair
+of the runs-15/16 shape, after 23/24, 25/26 and 27/28.
+
+| Run | id | dispatched | step 17 | duration |
+| --- | --- | --- | --- | --- |
+| 32 | `32228796376` | 07:38:55Z | `skipped` — the dry run | 5m 18s |
+| 33 | `32229389551` | 07:46:29Z | **`success`** — 07:52:10Z → 07:54:11Z | 7m 46s |
+
+```
+UPLOAD SUCCEEDED with no errors
+Delivery UUID: f1ab4ae5-0673-4a89-a4f3-c3ab03c6e87d
+Transferred 6037139 bytes in 0.107 seconds
+```
+
+Both silent-failure gates passed at both ends, on both runs — the archive
+carried the Firebase config and the APNs entitlement, and the exported
+`.ipa` printed the line the whole mechanism exists for:
+
+```
+aps-environment = production
+the .ipa is production-signed and carries the Firebase config
+```
+
+Run 32 also left the signed `.ipa` as artifact `9356608227`, 5,913,053
+bytes, which is what a dry run is for: the archive was known good before
+anything outward-facing happened.
+
+### The bump, which is the point of this entry
+
+**`appBuild` went 21 → 22 off step 17's own conclusion, in the session
+that dispatched the run**, `check:versions --fix` carrying `versionCode`
+and both `CURRENT_PROJECT_VERSION` entries. Five that held (runs 20, 21,
+22, 28, 33) against five skipped (18, 19, 24, 26, 31).
+
+D198 argued the correspondence D191 drew was wrong — that the failure is
+not "came back later" but that a pre-flight verdict expires on the next
+dispatch. This release is the first run under that reading, and the
+procedure it implies is narrower than "remember to bump": the bump is not
+a follow-up task, it is the *reading* of step 17. So the number moved
+before this entry was written, and this entry is the record of a bump
+that had already happened rather than a plan to make one.
+
+### D159's trap fired again, and the rule caught it
+
+`5c9c4a5` is the commit that merged; **both runs archived `d547f7a`**, a
+pulse trail row a Routine pushed in the ~40 seconds between the merge and
+the dispatch. `appBuild` was 21 at both and the only diff is one line of
+`monitoring/pulse-trail.jsonl`, so this cost nothing — the same outcome
+as run 22, which is where the rule came from. It is the second worked
+example, and the reason the comparison is written as *read `appBuild` at
+the run's own `head_sha`*: what makes it sound is not that the
+intervening commit is usually harmless, but that nobody checked whether
+this one was until they looked.
+
+### What is now live
+
+Build 21 carries D192–D197, the pk19 catalog question, the planned event
+discussions, and D198's own bundle-gate fix. App Store Connect processes
+for ~5–30 minutes before it appears in TestFlight; internal testing needs
+no Beta App Review.
+
+**Not yet verified from here:** that the build finishes processing and
+lands in TestFlight, and that `ITMS-90683`-class mail did not follow the
+delivery (D107 — a missing purpose string is emailed *after* a successful
+upload, and the fix rides the next build rather than invalidating this
+one). Both are outside anything this tree can read, which is D73's shape
+again, so they are named rather than asserted.
+
+### Verified
+
+`check:versions` — "versions OK — 2.0.0 (build 22) across package.json,
+Android and iOS". The tree's own gates green at the new number, and the
+release path's three pre-flight gates are what runs 32 and 33 both ran as
+their step 5.
