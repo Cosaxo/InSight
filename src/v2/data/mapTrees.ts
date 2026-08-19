@@ -1,4 +1,4 @@
-// mapTrees.ts — the Map's v28 branch folds (§5, D202's second half): the
+// mapTrees.ts — the Map's v28 branch folds (§5, D207's second half): the
 // pulse and Foresight leaves the lazy map chunk grows. Crossroads' fold
 // lives with its own store (spec/paths-card.jsx, pathsMapTree) because it
 // needs that card's live/demo source discipline; these two are typed folds
@@ -52,13 +52,12 @@ export function pulseTree(): MapTree {
   const nodes: MapTreeNode[] = [];
   // The demo asks only the first pulse (D166 §3 — the other four have no
   // honest demo crowd), so only it may leaf there; days() serves the same
-  // design history for any qid and five identical demo lines would be an
-  // invention. Live, a pulse leafs once its template has loaded — the feed
-  // card's own fetch, which precedes any Mirror visit in practice.
-  const roster = LIVE.enabled ? PULSE.ROSTER : PULSE.ROSTER.slice(0, 1);
+  // design history for any pid and five identical demo lines would be an
+  // invention. Live, roster() is the bank's own list (D203), so a pulse
+  // leafs once the bank has arrived — boot's own fetch.
+  const roster = LIVE.enabled ? PULSE.roster() : PULSE.roster().slice(0, 1);
   for (const p of roster) {
-    if (!PULSE.ready(p.qid)) continue; // live before the template: nothing to name
-    const days = PULSE.days(p.qid);
+    const days = PULSE.days(p.id);
     const answered = days.filter((d) => d.v != null);
     if (!answered.length) continue;
     const scheduled = days.filter((d) => d.scheduled);
@@ -67,13 +66,14 @@ export function pulseTree(): MapTree {
       : answered.length / days.length;
     const lastIdx = days.reduce((a, d, i) => (d.v != null ? i : a), 0);
     const last = days[lastIdx];
-    const st = PULSE.streak(p.qid);
-    const qq = PULSE.q(p.qid);
+    const st = PULSE.streak(p.id);
     nodes.push({
-      id: "pulse-" + p.qid, parentId: "pulse", pulse: true, daily: true,
-      qid: p.qid,
-      label: qq.kicker, tag: "Pulse", prompt: qq.text,
-      ans: last.v != null ? PULSE.word(last.v, p.qid) : "",
+      // p.id is already the "pulse-…" bank id — unique, and distinct
+      // from the cat id "pulse" the branch files under
+      id: p.id, parentId: "pulse", pulse: true, daily: true,
+      qid: p.id,
+      label: p.kicker, tag: "Pulse", prompt: p.text,
+      ans: last.v != null ? PULSE.word(p.id, last.v) : "",
       note: st.run >= 2 ? st.run + " in a row" : answered.length + (answered.length === 1 ? " day" : " days"),
       age: days.length - 1 - lastIdx,
       typ: clampTyp(kept),

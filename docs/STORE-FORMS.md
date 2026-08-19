@@ -60,7 +60,7 @@ companies' apps or sites.
 
 **Every row below is therefore "Not used for tracking".**
 
-### Collected — declare these ten
+### Collected — declare these eight
 
 | Apple category | Type | Linked? | Purpose | What it actually is |
 | --- | --- | --- | --- | --- |
@@ -70,8 +70,8 @@ companies' apps or sites.
 | User Content | **Other User Content** | Yes | App Functionality | Answers and test results, the anchors each answer was given under, and question suggestions (D138). See the note below the table |
 | User Content | **Photos or Videos** | Yes | App Functionality | **Optional profile photo, off by default (D178)** — shown anywhere the app shows the user's name, including to people nearby since D177. Shrunk and re-encoded on the device, which drops the original's EXIF. See the note below the table |
 | Location | **Coarse Location** | Yes | App Functionality | City name; 0.002° presence cell |
+| Health & Fitness | **Health** | Yes | App Functionality | **New at D203.** Two of the five pulse questions are "How did you sleep?" and "How was your energy today?" — one five-step answer a day each, keyed to a UTC day. See the note below the table |
 | Location | **Precise Location** | Yes | App Functionality | Requested since D175; nothing precise is retained — see §"The three that bite" |
-| Health & Fitness | **Health** | Yes | App Functionality | The pulse roster (D166 §3): one-tap self-reports on a chosen cadence — pace, energy, sleep, focus, social — public like every answer, folded into public per-day aggregates. See the note below the "Not collected" list |
 | Sensitive Info | **Sensitive Info** | Yes | App Functionality | Politics test result (GDPR Art. 9); gender if entered |
 | Diagnostics | **Crash Data** | Yes | App Functionality | Sentry. **On by default** (D76), opt-out in the privacy panel, carries the uid only |
 
@@ -132,26 +132,41 @@ What moving it costs, stated plainly: an optional photo, off by default,
 one 256px object per account, deleted with the account (bytes included —
 `deleteAccount` reaches Storage since D178, which it never did before).
 
-**Health left this list with the pulse roster (D166 §3)** and is now a
-ticked row in the table above. The bullet that held it carried an explicit
-trip-wire — *"Whoever picks that decision back up owns this row"* — written
-for D140's height band, and this is the pass that tripped it. The height
-argument stands unchanged and was never what moved the row: a six-value
-demographic band on the Basics card is a cohort label, not a health record,
-and D140 declined the centimetre field precisely so there would be nothing
-finer to hold. What moved it is the roster: *"How did you sleep?"* and
-*"How is your energy today?"*, answered on a chosen cadence and drawn as a
-three-week series, are "any other user provided health or medical data" by
-a plain reading of Apple's row — closer to it than a demographic band ever
-was, which is exactly what the trip-wire predicted. No HealthKit API, no
-clinical records, nothing inferred; the collection is five one-tap
-questions, two of which ship dormant, all public like every answer (D98 —
-the owner weighed that and said ship, D166 §3). Weight/BMI stays declined
-(D140's §4 trilemma), and its arrival would be a new decision, not this
-row re-argued.
+Four of those are worth knowing *why*, because each looks tickable:
 
-Three of those are worth knowing *why*, because each looks tickable:
-
+- **Health — YES since D203, and the trip-wire is what moved it.** This
+  bullet answered **No** from the first filing until the pulse roster
+  shipped, and the No was argued at D140 for the **height band** alone: a
+  six-value demographic select (`Under 160 cm` … `190 cm or taller`, plus
+  a real `Prefer not to say`) collected to slice cohorts, never a
+  measurement, with no centimetre field to hold anything finer. That
+  argument still stands for height and is not what changed.
+  **What changed is that the app started asking about sleep.** D166 §3
+  approved the five-pulse roster and D203 built it; two of the five are
+  *"How did you sleep?"* and *"How was your energy today?"*, answered once
+  per scheduled day on a five-step scale. Apple's wording for this row is
+  health and medical data — HealthKit, Clinical Health Records,
+  health-related research, **"or any other user provided health or medical
+  data"** — and a self-reported daily sleep series is that, on any reading.
+  So the row is Yes, and it is Yes on the roster rather than on the band.
+  **This is the D140 trip-wire being honoured, not overruled.** That
+  bullet said, in as many words, *"Whoever picks that decision back up owns
+  this row"* — it was written about weight and BMI, and the general case it
+  was really about is anything that turns a demographic app into one
+  holding a health series. Neither weight nor BMI is collected; D140's own
+  refusal is untouched, and this row would already have been Yes without
+  it.
+  *What is collected:* one ordinal answer a day per pulse, keyed to a UTC
+  day, written under `v2_users/{uid}/answers` like every other answer. It
+  is **Linked**, because under D98 it folds into the same exact aggregate
+  any signed-in user can read — a pulse answer is as public as a feed
+  answer, and filing it as unlinked would be the more flattering lie.
+  No HealthKit API is touched and nothing medical is inferred.
+  *What is NOT collected:* the **cadence**. How often someone wants to be
+  asked how they slept is arguably the more revealing half, and it never
+  leaves the device — `insight.pulseCadence.v1` in localStorage, swept by
+  the D51 purge, with no field, no rules arm and no server representation
+  to file. That is a design choice made partly for this row.
 - **Device ID — No.** Device binding (D29) receives 2–3 bits from Apple
   DeviceCheck meaning "an account was activated from this device
   recently". The server stores **no device identifier**; the platforms
@@ -334,7 +349,7 @@ The value column is the literal JSON. Frequency questions are an enum
 | `lootBox` | Loot boxes | `false` |
 | `parentalControls` | Parental controls | `false` |
 | `ageAssurance` | Age assurance | `false` |
-| `healthOrWellnessTopics` | Health or wellness topics | `true` |
+| `healthOrWellnessTopics` | Health or wellness topics | `false` |
 
 The two that are not simply "no content of that kind":
 
@@ -395,15 +410,12 @@ answers came from:
 - **`gunsOrOtherWeapons`** — zero hits across all five banks for gun, rifle,
   pistol, firearm, weapon, knife, sword, bomb, shoot, ammo, bullet, blade,
   dagger, missile, grenade.
-- **`healthOrWellnessTopics` — `true` since the pulse roster (D166 §3).**
-  The app asks daily/weekly self-reports of sleep, energy, focus and
-  social connection and draws three-week wellbeing readings from them —
-  a health-or-wellness topic by any reading. The earlier content scan's
-  finding stands and was never what moved this row: its three hits were
-  taxonomy (*Medicine* as a quiz option, the `Body` category's palette
-  seed, one cuisine filing), and a category label is still not a health
-  topic. The roster is what moved it, in the same commit as the privacy
-  label's Health row.
+- **`healthOrWellnessTopics`** — three hits, none of them health content.
+  *Medicine* is one of four options on "Humanity's best invention?"; the
+  other two are Map taxonomy (the `Body` category's palette seed, and one
+  cuisine question filing under `Body / Health`). A category label is not a
+  health topic. The nearest real candidate is the personality and politics
+  profiles, and neither is health or wellness.
 
 Also **Made for Kids: No**, and **In-app purchases: No** — `MONETIZATION.md`
 records no consumer paid tier at launch. Neither is an

@@ -114,6 +114,7 @@ export const LIVE_MEMBERS = [
   "near",
   // The daily pulse (D139): the day-keyed create and the derived
   // day → optionIdx view over the hydrated vote mirror.
+  "pulseQs",
   "pulseVotes",
   // Crossroads' stories with their folded ending counts (D136). A story is
   // an ordinary bank question — real options, real fold, the ordinary vote

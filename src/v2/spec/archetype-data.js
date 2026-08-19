@@ -69,6 +69,41 @@ export const IS_ARCHETYPES = {
     { name: 'The Slow Burn',     share: 10, line: 'Hard to earn, harder to lose.',               sig: { warm: 45, loyal: 70, open: 40, play: 35, easy: 65 } },
     { name: 'The Small Circle',  share: 4,  line: 'A small circle, fiercely kept.',              sig: { warm: 40, loyal: 80, open: 25, play: 40, easy: 45 } },
   ]},
+  // ── the role instruments (D204) ──────────────────────────────────────
+  // Same discipline as the four above: extreme on the 1–2 dims that DEFINE
+  // the type, near-neutral elsewhere, shares summing to 100 — all three are
+  // assumptions `IS_archScores` makes (it weights by |sig − 50| and taxes
+  // rare types by log(maxShare/share)).
+  duo: { list: [
+    { name: 'The Mind Reader', share: 7,  line: 'Calls their answer before they do.',                 sig: { read: 92, seen: 52, like: 55, steady: 68 } },
+    { name: 'The Open Book',   share: 12, line: 'Easy to call, and fine with it.',                    sig: { read: 52, seen: 92, like: 58, steady: 62 } },
+    { name: 'The Poker Face',  share: 8,  line: 'Nobody\u2019s guess lands.',                          sig: { read: 55, seen: 10, like: 45, steady: 60 } },
+    { name: 'The Two-Way',     share: 6,  line: 'You read each other equally well.',                  sig: { read: 86, seen: 86, like: 66, steady: 72 } },
+    { name: 'The Stranger',    share: 9,  line: 'Two people still guessing.',                         sig: { read: 18, seen: 20, like: 42, steady: 45 } },
+    { name: 'The Twin',        share: 13, line: 'Same answer before either of you guesses.',          sig: { read: 64, seen: 64, like: 94, steady: 70 } },
+    { name: 'The Wildcard',    share: 10, line: 'Right, wrong, right \u2014 no pattern to hold.',       sig: { read: 55, seen: 48, like: 50, steady: 8 } },
+    { name: 'The Opposite',    share: 11, line: 'Never the same answer \u2014 you read each other anyway.', sig: { read: 72, seen: 68, like: 8, steady: 60 } },
+    { name: 'The Watcher',     share: 9,  line: 'Reads more than gets read.',                         sig: { read: 82, seen: 24, like: 50, steady: 66 } },
+    { name: 'The Steady Hand', share: 15, line: 'Same call, week after week.',                        sig: { read: 60, seen: 60, like: 55, steady: 94 } },
+  ] },
+  // SIX, not the prototype's nine. `cast` (how often the group crowns you)
+  // has no live source — it reads a demo-only scenario generator — so
+  // data/roles.ts does not compute it, and three of the nine types cannot
+  // survive its removal: "The First Pick" (cast 94) and "The Spark" (78)
+  // are DEFINED by it, and "The Floater" was only distinguishable from the
+  // neutral by a low one (16) — without it its signature is 46/46/44,
+  // which `IS_archScores` weights by |sig − 50| and can therefore never
+  // pick. A type that cannot win is dead weight in a table the rarity tax
+  // reads as a distribution, so all three are dropped rather than kept
+  // hollow and the shares renormalised from 83 back to 100.
+  group: { list: [
+    { name: 'The Anchor',         share: 19, line: 'Where the group lands, you already were.',  sig: { own: 12, pull: 84, settle: 86 } },
+    { name: 'The Contrarian',     share: 13, line: 'The one vote against, most weeks.',         sig: { own: 92, pull: 28, settle: 58 } },
+    { name: 'The Bellwether',     share: 18, line: 'Vote with you and you vote with everyone.', sig: { own: 20, pull: 92, settle: 66 } },
+    { name: 'The Wildcard',       share: 16, line: 'In with them, then out, no rhythm.',        sig: { own: 58, pull: 44, settle: 8 } },
+    { name: 'The Quiet Majority', share: 24, line: 'With the group, never at the front.',       sig: { own: 10, pull: 68, settle: 78 } },
+    { name: 'The Outlier',        share: 10, line: 'Your own answer, every time.',              sig: { own: 88, pull: 10, settle: 54 } },
+  ] },
 };
 
 // Which named type each of your people landed on, per test (by person id).
@@ -147,6 +182,8 @@ window.IS_DIM_WORD = {
   political: { econ: ['further left on money', 'further right on money'], auth: ['more liberty-minded', 'more order-minded'], foreign: ['more nation-first', 'more global'], env: ['cooler on climate', 'more climate-urgent'], tech: ['warier of tech', 'more tech-hopeful'], estab: ['more system-trusting', 'more anti-establishment'] },
   values: { future: ['darker on the future', 'more hopeful'], circle: ['more family-first', 'more stranger-minded'], hedonism: ['more duty-bound', 'more pleasure-first'], meaning: ['more happiness-first', 'more struggle-friendly'], moral: ['more relativist', 'more certain'], beauty: ['more truth-first', 'more beauty-first'] },
   attachment: { warm: ['more reserved', 'warmer'], loyal: ['lighter-touch', 'more loyal'], open: ['more guarded', 'more open'], play: ['more grounded', 'more playful'], easy: ['more invested', 'more easygoing'] },
+  duo: { read: ['harder to read them', 'sharper on them'], seen: ['harder to read', 'easier to read'], like: ['further apart', 'closer together'], steady: ['streakier', 'steadier'] },
+  group: { own: ['more with the room', 'more your own'], pull: ['further from the middle', 'closer to the middle'], settle: ['streakier', 'steadier'] },
 };
 
 // Why you're NOT that neighbour type: the dim you'd have to shift most, as

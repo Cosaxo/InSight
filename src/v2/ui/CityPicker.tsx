@@ -40,7 +40,13 @@ const CP_FAIL: Record<LocateFail, string> = {
 export type CityPickerProps = {
   /** Current anchor value, e.g. "Oslo, NO". May be legacy free text. */
   value: string;
-  onChange: (next: string) => void;
+  /**
+   * `confirmed` is true only when this key came from the device's own
+   * location fix and the user kept it (D205). Scrolling the list is never
+   * a confirmation, however right the answer happens to be — the point of
+   * the flag is that a machine checked, not that the city is correct.
+   */
+  onChange: (next: string, confirmed: boolean) => void;
   inputStyle?: React.CSSProperties;
 };
 
@@ -99,8 +105,8 @@ function CityPicker({ value, onChange, inputStyle }: CityPickerProps) {
   const legacy = !!value && !parsed;
   const shown = parsed ? placeLabel(parsed) : value;
 
-  const pick = (p: Place) => {
-    onChange(PLACES.key(p));
+  const pick = (p: Place, confirmed = false) => {
+    onChange(PLACES.key(p), confirmed);
     setOpen(false);
     setQ("");
     setSuggest(null);
@@ -206,7 +212,7 @@ function CityPicker({ value, onChange, inputStyle }: CityPickerProps) {
             {suggest ? (
               <button type="button"
                 onPointerDown={(e) => { e.preventDefault(); }}
-                onClick={() => pick(suggest.place)}
+                onClick={() => pick(suggest.place, true)}
                 style={{ display: "block", width: "100%", textAlign: "left", cursor: "pointer",
                   border: "none", background: "transparent", padding: 0,
                   fontFamily: "var(--sans)", fontSize: 14, fontWeight: 700, color: "var(--ink)" }}>

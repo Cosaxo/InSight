@@ -1,118 +1,130 @@
 // @vitest-environment jsdom
 //
-// The v28 §8 system switch, and the line it must not cross. Four
-// properties:
+// The type-mix card's system switch (D202).
 //
-//   1. The remembered instrument survives a remount (insight.typemix.sys)
-//      and a foreign stored value falls back to the default test rather
-//      than selecting a system the archetype module does not define.
-//   2. The purge event snaps the mounted card back to the default WITHOUT
-//      rewriting the key — writing it back would undo purgeLocalTrace's
-//      sweep for the next account (check:purge's contract).
-//   3. The three non-Big-Five positions state the type-index sheet's
-//      refusal and never a type name or a share — the Art. 9 scope
-//      data/typeMix.test.ts pins means those mixes are never measured,
-//      and D167 means they are never faked.
-//   4. The switch stays reachable on the empty branch, or a reader parked
-//      on an empty position could never switch away.
+// D202 reversed D157 §4 and let this card read every instrument the
+// archetype module defines, not only the Big Five. The reversal is the
+// owner's; what these cases hold is the part that was NOT reversed, and
+// the part the prototype got wrong:
+//
+//   1. Every row is a COUNT of real typed people. The v28 prototype
+//      derives its non-Big-Five mixes from authored per-type shares with a
+//      per-population wobble; D167 forbids that and D157 removed exactly
+//      that class. Switching to Politics must therefore be able to draw
+//      NOTHING — a measured zero — rather than a plausible number.
+//   2. The honesty rules apply PER INSTRUMENT. Coverage differs by how far
+//      each person has got through the round-robined test feed, so
+//      `typedN`, the thin list and the counts-not-shares state are
+//      recomputed on every switch rather than carried across it.
+//   3. The switch is reachable from an empty system. It is the way back
+//      out of one, so hiding it on the empty state would strand a reader
+//      on the instrument they have least coverage of.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import type { TypeRow } from "../data/typeMix";
 
-const MIX: {
-  typedN: number; sampleN: number;
-  ranked: TypeRow[]; thin: TypeRow[]; absent: TypeRow[];
-} = {
-  typedN: 42,
-  sampleN: 60,
-  ranked: [
-    { name: "The Quiet One", n: 30 },
-    { name: "The Host", n: 12 },
-  ],
-  thin: [],
-  absent: [],
-};
-
-vi.mock("../data/typeMix", () => ({
-  TYPE_TEST: "big5",
-  TYPE_SMALL: 40,
-  typeMixFor: vi.fn(() => MIX),
-  myType: vi.fn(() => "The Quiet One"),
+vi.mock("../data/live", () => ({
+  default: {
+    enabled: true,
+    anchors: () => ({ city: "Oslo, NO", country: "NO" }),
+    kindredPeople: () => PEOPLE,
+    myTestResults: () => ({}),
+  },
 }));
-vi.mock("../data/live", () => ({ default: { anchors: () => ({}) } }));
-// The mark is SVG arithmetic exercised by its own surface's tests; here it
-// would only add noise to queries that ask about words.
-vi.mock("../spec/type-marks.jsx", () => ({ TypeMark: () => null }));
 
 import TypeMixCard from "./TypeMixCard";
 
-const KEY = "insight.typemix.sys";
-const selected = (label: string) =>
-  screen.getByRole("tab", { name: label, selected: true });
+/** A cross-user result as `parseTestResults` leaves it: kind → dim → value. */
+const person = (uid: string, results: Record<string, Record<string, number>>) => ({
+  uid, name: uid, city: "Oslo, NO", results, like: { pct: 50 },
+});
 
-beforeEach(() => localStorage.removeItem(KEY));
+// Everyone carries a Big Five result; only two carry a politics one. That
+// asymmetry is the point — it is what a real bank produces, because the
+// test feed hands the four instruments out over time.
+const BIG5 = { O: 72, C: 55, E: 15, A: 58, N: 50 };
+const POL = { econ: 30, auth: 40, foreign: 60, env: 70, tech: 55, estab: 45 };
+let PEOPLE: ReturnType<typeof person>[] = [];
+
+beforeEach(() => {
+  PEOPLE = [
+    ...Array.from({ length: 6 }, (_, i) => person(`b${i}`, { big5: BIG5 })),
+    person("p0", { big5: BIG5, political: POL }),
+    person("p1", { big5: BIG5, political: POL }),
+  ];
+  try { localStorage.clear(); } catch { /* jsdom always has one */ }
+});
 afterEach(cleanup);
 
-describe("the remembered instrument", () => {
-  it("mounts on the stored system", () => {
-    localStorage.setItem(KEY, "political");
+describe("the switch", () => {
+  it("offers all four instruments (D202 — it was Big Five only until then)", () => {
     render(<TypeMixCard scope="city" />);
-    expect(selected("Politics")).toBeTruthy();
-    expect(screen.getByText("Shares are only counted for the Big Five.")).toBeTruthy();
+    for (const label of ["Personality", "Politics", "Values", "Social"]) {
+      expect(screen.getByRole("tab", { name: label })).toBeTruthy();
+    }
   });
 
-  it("falls back to Personality on a value no instrument owns", () => {
-    localStorage.setItem(KEY, "zodiac");
+  it("starts on Personality and moves the selection when tapped", () => {
     render(<TypeMixCard scope="city" />);
-    expect(selected("Personality")).toBeTruthy();
-    // The measured Big Five body, not the refusal.
-    expect(screen.getByText("The Quiet One")).toBeTruthy();
+    expect(screen.getByRole("tab", { name: "Personality" }).getAttribute("aria-selected")).toBe("true");
+    fireEvent.click(screen.getByRole("tab", { name: "Politics" }));
+    expect(screen.getByRole("tab", { name: "Politics" }).getAttribute("aria-selected")).toBe("true");
+    expect(screen.getByRole("tab", { name: "Personality" }).getAttribute("aria-selected")).toBe("false");
   });
 
-  it("remembers a pick", () => {
+  it("remembers the choice across a remount, and forgets it on a purge", () => {
+    const first = render(<TypeMixCard scope="city" />);
+    fireEvent.click(screen.getByRole("tab", { name: "Values" }));
+    first.unmount();
+
+    render(<TypeMixCard scope="city" />);
+    expect(screen.getByRole("tab", { name: "Values" }).getAttribute("aria-selected")).toBe("true");
+
+    // D51: the choice is device state, so the purge takes it. The prefix
+    // sweep clears the key; this asserts the live component follows rather
+    // than sitting on a system the store no longer remembers.
+    fireEvent(window, new Event("insight:local-purge"));
+    expect(screen.getByRole("tab", { name: "Personality" }).getAttribute("aria-selected")).toBe("true");
+  });
+});
+
+describe("what each instrument is allowed to say", () => {
+  it("counts the people it actually typed, per instrument", () => {
+    render(<TypeMixCard scope="city" />);
+    // Eight people, all with a Big Five result.
+    expect(screen.getByText(/8 typed in Oslo/)).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("tab", { name: "Politics" }));
+    // The same eight sampled; two of them typed. The denominator moves
+    // with the instrument, which is the whole of rule 2.
+    expect(screen.getByText(/2 typed in Oslo/)).toBeTruthy();
+  });
+
+  it("draws a measured nothing rather than a plausible share", () => {
+    // Nobody carries a values result. The prototype would still have drawn
+    // a full bar stack here, derived from authored shares. This must not.
     render(<TypeMixCard scope="city" />);
     fireEvent.click(screen.getByRole("tab", { name: "Values" }));
-    expect(localStorage.getItem(KEY)).toBe("values");
-    expect(selected("Values")).toBeTruthy();
+    expect(screen.getByText(/none typed on this one yet/)).toBeTruthy();
+    expect(document.body.textContent).not.toMatch(/\d+\s*%/);
   });
-});
 
-describe("the purge", () => {
-  it("drops the mounted choice and does not write the key back", () => {
-    localStorage.setItem(KEY, "attachment");
+  it("keeps the switch reachable from an empty instrument", () => {
     render(<TypeMixCard scope="city" />);
-    expect(selected("Social")).toBeTruthy();
-    // purgeLocalTrace has already swept the key when the event fires.
-    localStorage.removeItem(KEY);
-    fireEvent(window, new Event("insight:local-purge"));
-    expect(selected("Personality")).toBeTruthy();
-    expect(localStorage.getItem(KEY)).toBeNull();
+    fireEvent.click(screen.getByRole("tab", { name: "Social" }));
+    expect(screen.getByText(/none typed on this one yet/)).toBeTruthy();
+    // The way back out.
+    expect(screen.getByRole("tab", { name: "Personality" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("tab", { name: "Personality" }));
+    expect(screen.getByText(/8 typed in Oslo/)).toBeTruthy();
   });
-});
 
-describe("the three refusing positions", () => {
-  it("state the refusal and never a type name or a share", () => {
-    localStorage.setItem(KEY, "values");
+  it("withholds shares under TYPE_SMALL, on the instrument being read", () => {
+    // Two typed politics people is far under TYPE_SMALL (40), so the
+    // politics view owes counts and says so — even though the Big Five
+    // view beside it has four times the sample.
     render(<TypeMixCard scope="city" />);
-    expect(screen.getByText("Shares are only counted for the Big Five.")).toBeTruthy();
-    expect(screen.queryByText("The Quiet One")).toBeNull();
-    expect(screen.queryByText(/%/)).toBeNull();
-    // And no basis count: "42 typed" is a Big Five measurement.
-    expect(screen.queryByText(/typed in/)).toBeNull();
-  });
-});
-
-describe("the empty branch", () => {
-  it("keeps the switch reachable when nothing is typed", () => {
-    MIX.typedN = 0;
-    MIX.sampleN = 0;
-    try {
-      render(<TypeMixCard scope="city" />);
-      expect(screen.getByText("Open a question's who-voted sheet and this fills in.")).toBeTruthy();
-      expect(screen.getAllByRole("tab")).toHaveLength(4);
-    } finally {
-      MIX.typedN = 42;
-      MIX.sampleN = 60;
-    }
+    fireEvent.click(screen.getByRole("tab", { name: "Politics" }));
+    expect(screen.getByText("counts, not shares")).toBeTruthy();
+    expect(document.body.textContent).not.toMatch(/\d+\s*%/);
   });
 });

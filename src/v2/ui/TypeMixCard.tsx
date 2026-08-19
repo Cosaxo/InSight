@@ -12,66 +12,55 @@
 // and says shares would lie; thin types are listed, never ranked;
 // absent types are named as missing.
 //
-// The v28 §8 SYSTEM SWITCH sits on top: four instruments, remembered per
-// device under insight.typemix.sys. The measured mix stays Big Five only —
-// the recorded Art. 9 scope (docs/data-inventory.md, pinned in
-// data/typeMix.test.ts) computes no population reading from the politics,
-// values or attachment results, and a live build fabricates nothing
-// (D167/D72) — so the other three positions state the type-index sheet's
-// refusal rather than a mix that was never measured. Widening that is a
-// decision, not a switch position.
+// D202 added the system switch: all four instruments, not just the Big
+// Five, with the choice remembered per device. The honesty rules above
+// apply PER INSTRUMENT rather than once — coverage differs by how far
+// each person has got through the test feed, so `typedN`, the thin list
+// and the counts-not-shares state are all recomputed on every switch.
+// The reversal that made this legal is D202 itself; `data/typeMix.ts`
+// carries the argument and what it cost.
 import React from "react";
 import LIVE from "../data/live";
-import { myType, typeMixFor, TYPE_SMALL, TYPE_TEST, type TypeRow } from "../data/typeMix";
+import { myTypeOn, typeMixFor, TYPE_SMALL, TYPE_SYSTEMS, TYPE_TEST, isTypeSystem, type TypeRow } from "../data/typeMix";
 // @ts-expect-error TS7016 — untyped spec module (additive export, D141)
 import { TypeMark } from "../spec/type-marks.jsx";
 import { bucketLabel } from "./cohortLabels";
 
-// The four instruments the switch offers (v28 §8), in the order the
-// profile lists their tests. Keys are archetype-data.js's own. A module
-// constant rather than a shared global: this card is the roster's only
-// consumer, and a window.* copy would raise check:globals rule 4's count.
-const TMX_SYS = [
-  { key: "big5", label: "Personality" },
-  { key: "political", label: "Politics" },
-  { key: "values", label: "Values" },
-  { key: "attachment", label: "Social" },
-] as const;
-type SysKey = (typeof TMX_SYS)[number]["key"];
-// The remembered lens — swept with every other insight.* key by
-// purgeLocalTrace; the mounted card drops its copy too (check:purge).
-const TMX_LS = "insight.typemix.sys";
-// A stale or foreign stored value falls back to the default test rather
-// than selecting an instrument the archetype module does not define.
-const okSys = (v: string | null): SysKey =>
-  TMX_SYS.some((s) => s.key === v) ? (v as SysKey) : TYPE_TEST;
+/** The chosen instrument, remembered across opens (D202). Device state, so
+ * `purgeLocalTrace`'s `insight.` prefix sweep takes it for free — the
+ * listener below is what `check:purge` asks for in exchange. */
+const SYS_LS = "insight.typeMixSys.v1";
+const readSys = (): string => {
+  try {
+    const v = localStorage.getItem(SYS_LS);
+    return v && isTypeSystem(v) ? v : TYPE_TEST;
+  } catch { return TYPE_TEST; }
+};
+
+/** Politics and Values name their types in up to 24 characters
+ * ("Traditional Conservative"); the Big Five's longest is 17. One column
+ * width for all four would either clip those two or leave the other two
+ * padded, so the column follows the system. */
+const nameWidth = (sys: string): number => (sys === "political" || sys === "values" ? 142 : 118);
 
 export default function TypeMixCard({ scope }: { scope: "city" | "country" | "world" }): React.ReactElement | null {
-  // v28 §8: the system switch. A device preference, but still a trace of
-  // an account's behaviour, so the purge drops it like everything else.
-  const [sys, setSys] = React.useState<SysKey>(() => {
-    try { return okSys(localStorage.getItem(TMX_LS)); } catch { return TYPE_TEST; }
-  });
+  const [sys, setSysRaw] = React.useState<string>(readSys);
   React.useEffect(() => {
-    // check:purge: purgeLocalTrace has already removed the key; this drops
-    // the mounted copy so the next tap cannot write the previous account's
-    // choice back under the new uid. No setItem here — that would
-    // re-create the purged key.
-    const drop = () => setSys(TYPE_TEST);
-    window.addEventListener("insight:local-purge", drop);
-    return () => window.removeEventListener("insight:local-purge", drop);
+    const reset = () => setSysRaw(TYPE_TEST);
+    window.addEventListener("insight:local-purge", reset);
+    return () => window.removeEventListener("insight:local-purge", reset);
   }, []);
-  const pick = (k: SysKey) => {
-    setSys(k);
-    try { localStorage.setItem(TMX_LS, k); } catch { /* storage denied — the choice holds for this mount */ }
+  const setSys = (k: string) => {
+    setSysRaw(k);
+    try { localStorage.setItem(SYS_LS, k); } catch { /* private mode — the choice still holds for this session */ }
   };
-
-  const mix = typeMixFor(scope);
-  const mine = myType();
+  const mix = typeMixFor(scope, sys);
+  const mine = myTypeOn(sys);
   const a = LIVE.anchors() || {};
   const place = scope === "city" ? (a.city ? bucketLabel("city", a.city) : "your city")
     : scope === "country" ? (a.country ? bucketLabel("country", a.country) : "your country")
       : "the world";
+  const sysLabel = TYPE_SYSTEMS.find((s) => s.kind === sys)?.label ?? "Personality";
 
   const header = (sub: string, title?: string) => (
     <div style={{ display: "flex", flexDirection: "column", gap: 2, marginBottom: 8 }}>
@@ -80,47 +69,28 @@ export default function TypeMixCard({ scope }: { scope: "city" | "country" | "wo
     </div>
   );
 
-  // The switch row: four pills, the open one outlined in ink — the
-  // prototype's tablist chrome, on the app's existing press/h-scroll
-  // classes. Rendered on every branch below, because a control that
-  // disappears with the data would strand a reader on an empty position.
-  const switchRow = (
+  // The switch is drawn even when the current system has nothing to show —
+  // it is the way back out of an empty one, so hiding it would strand the
+  // reader on the instrument they have least coverage of.
+  const chips = (
     <div className="h-scroll" role="tablist" aria-label="Which type system"
       style={{ display: "flex", gap: 6, overflowX: "auto", padding: "0 2px 10px" }}>
-      {TMX_SYS.map((s) => {
-        const on = s.key === sys;
+      {TYPE_SYSTEMS.map((s) => {
+        const on = s.kind === sys;
         return (
-          <button key={s.key} role="tab" aria-selected={on} onClick={() => pick(s.key)} className="press"
+          <button key={s.kind} role="tab" aria-selected={on} onClick={() => setSys(s.kind)}
             style={{
-              flexShrink: 0, height: 30, padding: "0 13px", borderRadius: 999, boxSizing: "border-box", cursor: "pointer", WebkitAppearance: "none",
-              fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: on ? 800 : 600, letterSpacing: "-0.01em",
-              color: on ? "var(--ink)" : "var(--ink-3)",
-              border: on ? "1.5px solid var(--ink)" : "1px solid color-mix(in oklch, var(--rule), transparent 30%)",
-              background: on ? "var(--surface-3)" : "var(--surface-2)",
+              flexShrink: 0, border: "none", cursor: "pointer", WebkitAppearance: "none",
+              padding: "5px 11px", borderRadius: 999,
+              fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: on ? 800 : 650,
+              letterSpacing: "-0.01em",
+              color: on ? "var(--accent-ink)" : "var(--ink-3)",
+              background: on ? "color-mix(in oklch, var(--accent), var(--surface) 86%)" : "var(--surface-3)",
             }}>{s.label}</button>
         );
       })}
     </div>
   );
-
-  // The Art. 9 line, which the switch does not move: no population reading
-  // is computed from the politics, values or attachment results
-  // (data/typeMix.ts's header; pinned in data/typeMix.test.ts). The
-  // prototype derives demo shares here; a live build must neither
-  // fabricate them (D167) nor measure them, so the other three positions
-  // state the refusal in the type-index sheet's own words
-  // (spec/type-marks.jsx).
-  if (sys !== TYPE_TEST) {
-    return (
-      <div>
-        {header(`in ${place}`)}
-        {switchRow}
-        <span style={{ fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 600, color: "var(--ink-2)", lineHeight: 1.45, textWrap: "pretty" }}>
-          Shares are only counted for the Big Five.
-        </span>
-      </div>
-    );
-  }
 
   // Nothing typed in the sample: say so once, quietly — an empty bar
   // stack would read as a broken card rather than a thin population.
@@ -128,11 +98,11 @@ export default function TypeMixCard({ scope }: { scope: "city" | "country" | "wo
     return (
       <div>
         {header(`in ${place}`)}
-        {switchRow}
+        {chips}
         <span style={{ fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 600, color: "var(--ink-2)", lineHeight: 1.45, textWrap: "pretty" }}>
           {mix.sampleN === 0
             ? "Open a question's who-voted sheet and this fills in."
-            : mix.sampleN + " sampled here, none typed yet."}
+            : mix.sampleN + " sampled here, none typed on this one yet."}
         </span>
       </div>
     );
@@ -152,16 +122,16 @@ export default function TypeMixCard({ scope }: { scope: "city" | "country" | "wo
 
   return (
     <div>
-      {header(basisLabel, `of ${mix.sampleN} sampled voters in ${place}, ${mix.typedN} have a Big Five result`)}
-      {switchRow}
+      {header(basisLabel, `of ${mix.sampleN} sampled voters in ${place}, ${mix.typedN} have a ${sysLabel} result`)}
+      {chips}
       <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
         {rows.map((r) => {
           const you = r.name === mine;
           const pct = Math.round((r.n / mix.typedN) * 100);
           return (
             <div key={r.name} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <TypeMark testKey={TYPE_TEST} name={r.name} size={20} />
-              <span style={{ width: 118, flexShrink: 0, fontFamily: "var(--sans)", fontSize: 13, fontWeight: you ? 800 : 650, letterSpacing: "-0.015em", color: you ? "var(--ink)" : "var(--ink-2)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.name}</span>
+              <TypeMark testKey={sys} name={r.name} size={20} />
+              <span style={{ width: nameWidth(sys), flexShrink: 0, fontFamily: "var(--sans)", fontSize: 13, fontWeight: you ? 800 : 650, letterSpacing: "-0.015em", color: you ? "var(--ink)" : "var(--ink-2)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.name}</span>
               <span style={{ flex: 1, minWidth: 0, height: 7 }}>
                 <span style={{ display: "block", height: 7, width: Math.max(3, (r.n / top) * 100) + "%", borderRadius: 999, background: you ? "var(--accent)" : "color-mix(in oklch, var(--ink-3) 46%, var(--surface-3))" }}></span>
               </span>

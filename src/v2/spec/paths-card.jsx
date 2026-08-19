@@ -244,11 +244,11 @@ export function PathsCard() {
   );
 }
 
-// ── the Map's Crossroads branch (v28 §5, D202) ─────────────────────────
+// ── the Map's Crossroads branch (v28 §5, D207) ─────────────────────────
 //
 // paths-data.js's header note #2 recorded why mapTree stayed unbuilt: the
 // eager map had no room and reading the store off the bridge would spend
-// the ratchet. D202 moved both budgets — the Map is lazy and this file is
+// the ratchet. D207 moved both budgets — the Map is lazy and this file is
 // an import away — so the fold lives HERE rather than in the store,
 // because it needs this card's live/demo source discipline (srcOf): live,
 // a finished walk is the SERVER's answer (recoverable on any device) and

@@ -22,7 +22,7 @@ import './map-people.jsx';
 import { MapTabLayout } from './map-layout.js';
 import { MAP_GROUPS } from './map-groups.js';
 import { MTBranchChips } from './map-chiprow.jsx';
-// The v28 branches (§5, D202) — all reachable only because this chunk is
+// The v28 branches (§5, D207) — all reachable only because this chunk is
 // lazy now: the walks, the pulse lines and the Foresight aims, plus the
 // typed cue that opens the Map on one of them (data/mapCue's take-once).
 import { PATHS } from './paths-data.js';
@@ -41,7 +41,7 @@ import PulseTrends from '../ui/PulseTrends';
 // map-tab-layout.js; the chip row in map-tab-chips.jsx.
 const { mtSlug, mtHash, mtTopCat, mtClusterLayout, MT_ZLAB } = MapTabLayout;
 
-// ── the v28 leaf cards (§5, D202) ────────────────────────────────────────
+// ── the v28 leaf cards (§5, D207) ────────────────────────────────────────
 // A pulse leaf IS its line: the same trend reading the pulse card opens
 // inline (ui/PulseTrends), so the map and the feed cannot drift apart on
 // what a pulse says.
@@ -51,7 +51,7 @@ function MTPulseLeaf({ node }) {
       <div className="mmt-kicker"><span className="mmt-dot"></span>Pulse</div>
       <div className="mmt-title" style={{ marginTop: 4 }}>{node.prompt}</div>
       <div style={{ marginTop: 10 }}>
-        <PulseTrends compact qid={node.qid}></PulseTrends>
+        <PulseTrends compact pid={node.qid}></PulseTrends>
       </div>
     </div>
   );
@@ -186,7 +186,7 @@ export function MapTab({ rail = true, anchorsOn = true, recency = true, fields: 
         });
       });
     }
-    // ── the v28 branches (§5, D202): walks, aims and pulse lines. Each
+    // ── the v28 branches (§5, D207): walks, aims and pulse lines. Each
     // fold returns an empty tree when it has nothing real to say, and an
     // empty branch never reaches the map (its cat is only seated when a
     // leaf uses it) — so the demo grows only what its stores actually
@@ -246,7 +246,7 @@ export function MapTab({ rail = true, anchorsOn = true, recency = true, fields: 
   // the ring is groups and the answers stay as unlabelled dots inside them: the
   // constellation's silhouette survives, only the competing labels go.
   const GRP = MAP_GROUPS;
-  // A typed cue can hand the map where to open (data/mapCue, D202 — the
+  // A typed cue can hand the map where to open (data/mapCue, D207 — the
   // pulse card's "on the Map" link). Taken ONCE per mount, before the two
   // initializers below split it; the take-once contract means an old cue
   // cannot re-fire on a later hand-opened Map.

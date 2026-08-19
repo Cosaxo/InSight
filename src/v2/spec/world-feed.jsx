@@ -28,8 +28,6 @@ import { SPONSOR_AT, partitionSponsored } from '../data/sponsored.ts';
 import { utcDayIndex } from '../data/deck.ts';
 import SponsorMark from '../ui/SponsorMark.tsx';
 import AdCard from '../ui/AdCard.tsx';
-import PulseCard from '../ui/PulseCard.tsx';
-import PULSE from '../data/pulse.ts';
 import { deferUntil, isDeferred, pruneDeferred } from '../data/deferQueue.ts';
 // "Somebody asked for the topic list" (D190). The profile's scenes card is
 // the caller; this file owns the list, so this file is what answers.
@@ -55,8 +53,9 @@ import { PASSIVE } from './passive-progress.js';
 import { PathsCard } from './paths-card.jsx';
 import LiveReadGame from '../ui/LiveReadGame.tsx';
 import {
-  wfCatArt, wfFmt, wfHash, wfKnowBias, wfKnowRate, wfPcts, wfPickGroup,
-  wfRateAvg, wfRateBg, wfRateInk, wfShadeText, wfTileArt, wfTint,
+  wfCarried, wfCatArt, wfFeedMatch, wfFmt, wfHash, wfKnowBias, wfKnowRate,
+  wfPcts, wfPickGroup, wfRateAvg, wfRateBg, wfRateInk, wfShadeText,
+  wfTileArt, wfTint,
 } from './world-feed-math.js';
 
 // world-feed.jsx — the question feed under the World daily. Answer today's
@@ -325,10 +324,6 @@ class WorldFeed extends React.Component {
     this._unsubSubs = window.SUBTOPICS ? window.SUBTOPICS.subscribe(() => this.forceUpdate()) : null;
     this._unsubLearn = LEARN.subscribe(() => this.forceUpdate());
     this._unsubLF = window.LEARN_FEED ? window.LEARN_FEED.subscribe(() => this.forceUpdate()) : null;
-    // The pulse roster (v28 §3): a cadence tap on a card changes what is
-    // due, and "a dormant pulse is simply not asked" is only true if the
-    // feed hears about it — setting `off` removes the card on this notify.
-    this._unsubPulse = PULSE.subscribe(() => this.forceUpdate());
     // The purge (data/live.ts, D51): this component PERSISTS four of its
     // maps (votes, passed, takes, replies) by spreading state back to the
     // keys the purge just removed — and it stays mounted across a uid
@@ -388,7 +383,6 @@ class WorldFeed extends React.Component {
     if (this._unsubSubs) this._unsubSubs();
     if (this._unsubLearn) this._unsubLearn();
     if (this._unsubLF) this._unsubLF();
-    if (this._unsubPulse) this._unsubPulse();
     if (this._onPurge) window.removeEventListener('insight:local-purge', this._onPurge);
     if (this._io) this._io.disconnect();
     const sc = this._scroller;
@@ -2280,9 +2274,18 @@ class WorldFeed extends React.Component {
     const stock = {};
     this.feedPool().forEach((q) => {
       if (!q || !q.cat) return;
-      const s = stock[q.cat] || (stock[q.cat] = { n: 0, done: 0 });
-      s.n++;
-      if (this.answered(q)) s.done++;
+      // Stock counts MEMBERSHIP — home plus `also` doors — because this
+      // number advertises what a topic's shelf holds, and a straddler is on
+      // every shelf it can be met through (docs/TAGS-PLAN.md §2). So this
+      // is not a partition: per-topic stock can sum past the pool size, and
+      // a reader adding the column is re-counting straddlers, not finding
+      // a bug.
+      const done = this.answered(q);
+      wfCarried(q).forEach((t) => {
+        const s = stock[t] || (stock[t] = { n: 0, done: 0 });
+        s.n++;
+        if (done) s.done++;
+      });
     });
     const mine = WF_CHANNELS.map((id) => WF_TOPIC[id]).filter(Boolean)
       .map((t) => ({ ...t, ...(stock[t.id] || { n: 0, done: 0 }) }))
@@ -3491,9 +3494,13 @@ class WorldFeed extends React.Component {
       const t = SCENES.topicOf(s.id); if (t) pulled[t] = true;
     });
     if (ST) ST.mine().forEach((s) => { if (cats[s.id] !== false && !owned[s.id]) leafOn[s.id] = true; });
+    // Room cards match on the room alone; everything else matches on every
+    // topic it carries — home plus `also` doors — with a mute on any of them
+    // as a veto (wfFeedMatch, docs/TAGS-PLAN.md §2). One matched door shows
+    // the card once: the stream grouping below still keys on `cat` alone.
     const qs = this.feedPool().filter((q) => q.scene
       ? SCENES.has(q.scene) && cats[q.scene] !== false
-      : (q.sub && leafOn[q.sub]) || (WF_CHAN_SET[q.cat] ? cats[q.cat] !== false : !!pulled[q.cat]));
+      : wfFeedMatch(q, { cats, pulled, leafOn, chanSet: WF_CHAN_SET }));
     // interleave streams round-robin so the feed reads as a mix, not blocks
     const byKey = {}; const keys = [];
     qs.forEach((q) => { const k = q.scene || q.sub || q.cat; if (!byKey[k]) { byKey[k] = []; keys.push(k); } byKey[k].push(q); });
@@ -3619,17 +3626,8 @@ class WorldFeed extends React.Component {
     const paidCard = paidSplit.ad
       ? { id: paidSplit.ad.id, ad: paidSplit.ad }
       : paidSplit.sponsored;
-    // The pulse roster's turn (v28 §3, D166 §3): the pulses due today ride
-    // the stream as cards like any other question — no tray, no block
-    // pinned above the feed; a dormant pulse is simply not asked. Each
-    // rides as `{ id, pulse }` and the render loop dispatches on it, the
-    // ad slot's own shape — renderCard has nothing to say about a card
-    // whose store answers for it. An answered pulse keeps its place for
-    // the session (the reveal is the card), same as every world card.
-    const pulseCards = PULSE.dueToday().map((pqid) => ({ id: 'pulse:' + pqid, pulse: pqid }));
     const woven = interleaveFeed(ordered, {
       tests: tqs, lenses: lqs, know: kqs, knowEvery: kEvery,
-      pulses: pulseCards,
       sponsored: paidCard, sponsorAt: SPONSOR_AT,
     });
     // …and only now do the answered world cards leave the feed (fresh
@@ -3729,9 +3727,7 @@ class WorldFeed extends React.Component {
             {sugg && i === 2 && this.renderSuggestion(sugg, snap)}
             {q.ad
               ? <AdCard ad={q.ad}></AdCard>
-              : q.pulse
-                ? <PulseCard qid={q.pulse}></PulseCard>
-                : this.renderCard(q, { closing: q.id === closingId })}
+              : this.renderCard(q, { closing: q.id === closingId })}
           </React.Fragment>
         ))}
         {/* Room to scroll INTO while the window is still short of the list.

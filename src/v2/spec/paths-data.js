@@ -13,9 +13,9 @@
 //      it would fail CI for adding two references. Its one consumer
 //      (paths-card.jsx) imports it.
 //
-//   2. NO `mapTree()` — SUPERSEDED at D202. This note recorded why the
+//   2. NO `mapTree()` — SUPERSEDED at D207. This note recorded why the
 //      fold stayed unbuilt: map-tab was eager with no room, and reading
-//      this store off the bridge would spend the coupling ratchet. D202
+//      this store off the bridge would spend the coupling ratchet. D207
 //      moved both budgets (the Map is lazy; imports cost the ratchet
 //      nothing), and the fold now lives in paths-card.jsx (pathsMapTree)
 //      rather than here, because it needs that card's live/demo source

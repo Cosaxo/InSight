@@ -1,5 +1,5 @@
 {
-  "comment": "The pulse roster (D139 built the machinery single-pulse; D166 §3 approved the full five). Each is the same question answered once per day, drawn as a line. Exactly five ordered options — the trends chart's y-axis is the 1..5 step scale, and the card renders five growing dots. Ids must never carry an underscore (the day separator the rules parse on). `pace` keeps the neutral wording D139 shipped: it already plays the mood slot with live answers keyed against it, and the record's follow-through is that this file GAINS the four new templates — the other four are v28's own prompts verbatim. Cadence (which days a pulse is asked) is a device preference in src/v2/data/pulse.ts, never content. No provenance rows: the pulse bank is editorial-only and outside the farm's lanes.",
+  "comment": "The pulse roster (D139, five at D203): a short question answered once per scheduled day and drawn as a line. Exactly five ordered options each — the trends chart's y-axis is the 1..5 step scale, and the card renders five growing dots. `pace` shipped first and deliberately neutral, because a wellbeing question moves the App Store's Health row; D166 §3 weighed that and approved the full roster, so `sleep` and `energy` are here and docs/STORE-FORMS.md answers Health YES accordingly. CADENCE IS NOT IN THIS FILE and must not be: it is per-person device state (`insight.pulseCadence.v1`), so the bank says what may be asked and the phone says how often. Ids stay underscore-free — `_` is the day separator the rules parse the answer id on. `pace` keeps its option set forever (D52 freezes a shipped one); a reworded pulse is a new id, never an edit here. No provenance rows: the pulse bank is editorial-only and outside the farm's lanes.",
   "questions": [
     {
       "id": "pace",
@@ -10,7 +10,7 @@
     {
       "id": "energy",
       "type": "pulse",
-      "prompt": "How is your energy today?",
+      "prompt": "How was your energy today?",
       "options": ["Drained", "Low", "OK", "Charged", "Wired"]
     },
     {
@@ -22,13 +22,13 @@
     {
       "id": "focus",
       "type": "pulse",
-      "prompt": "How clear is your head?",
-      "options": ["Scattered", "Foggy", "OK", "Clear", "Sharp"]
+      "prompt": "How clear was your head today?",
+      "options": ["Scattered", "Foggy", "OK", "Sharp", "Locked in"]
     },
     {
       "id": "social",
       "type": "pulse",
-      "prompt": "How connected do you feel?",
+      "prompt": "How connected did you feel today?",
       "options": ["Alone", "Distant", "OK", "Close", "Held"]
     }
   ]

@@ -21,104 +21,131 @@
     "privacy label simply drifts from this file with nothing noticing —",
     "which is the failure this file was created to prevent."
   ],
-
   "tracking": {
     "used": false,
     "$why": "No IDFA, no ATT prompt, no advertising SDK. The Facebook SDK is a transitive SwiftPM dependency of @capacitor-firebase/authentication and is stripped at postinstall (D16); check:ios-facebook asserts its absence. Every collected row below is therefore NOT_USED_FOR_TRACKING."
   },
-
   "collected": [
     {
       "category": "IDENTIFIERS",
       "type": "USER_ID",
       "linked": true,
-      "purposes": ["APP_FUNCTIONALITY"],
+      "purposes": [
+        "APP_FUNCTIONALITY"
+      ],
       "$why": "The Firebase uid. Anonymous by default (D3) — every install becomes one at first paint. ALSO THE HANDLE since D122 (v2_users/{uid}.handle, plus the v2_handles registry keyed by the name): user-chosen, unique, and readable by any signed-in user. Apple's own definition of this type names it — 'any screen name, handle, account ID …' — so the handle lands in the row that was already Yes and the ANSWER does not move. The basis for it did, which is why this line says so: a row whose stated reason is stale is the D116 failure one layer in, and a future contributor deciding whether this row still holds reads this sentence."
     },
     {
       "category": "CONTACT_INFO",
       "type": "EMAIL_ADDRESS",
       "linked": true,
-      "purposes": ["APP_FUNCTIONALITY"],
+      "purposes": [
+        "APP_FUNCTIONALITY"
+      ],
       "$why": "Only if the user links Google. linkGoogle() calls new GoogleAuthProvider() with no addScope (src/lib/firebaseImpl.ts:167) and Firebase requests email and profile by default, so the auth record holds it. No Firestore document of ours does — but the form asks what is collected."
     },
     {
       "category": "CONTACT_INFO",
       "type": "NAME",
       "linked": true,
-      "purposes": ["APP_FUNCTIONALITY"],
+      "purposes": [
+        "APP_FUNCTIONALITY"
+      ],
       "$why": "Optional display name, shown beside every answer, take and reveal — since D98 answers are public and attributed, so this is the label the whole app renders people under. Also arrives from Google's default profile scope. An account that sets none renders as 'Someone'."
     },
     {
       "category": "USER_CONTENT",
       "type": "OTHER_USER_CONTENT",
       "linked": true,
-      "purposes": ["APP_FUNCTIONALITY"],
+      "purposes": [
+        "APP_FUNCTIONALITY"
+      ],
       "$why": "Answers and test results. Since D98 these are READABLE BY ANY SIGNED-IN USER, under the author's display name and with the age band, gender, city, country, education and — since D140 — height band the answer was given under. That is the product, not a leak; the form asks what is collected, and this row was already Yes. ALSO QUESTION SUGGESTIONS since D138 (v2_suggestions): free text a user writes — a prompt, its options and a credit opt-in. Those are author-only reads, not public, but this row is about what is COLLECTED rather than who can see it, so the answer does not move and the basis does. Same shape as the handle note under the User ID row; see STORE-FORMS.md."
     },
     {
       "category": "LOCATION",
       "type": "COARSE_LOCATION",
       "linked": true,
-      "purposes": ["APP_FUNCTIONALITY"],
+      "purposes": [
+        "APP_FUNCTIONALITY"
+      ],
       "$why": "City name only. The fix is resolved to a city on the device (src/v2/data/locate.ts) and discarded, so no coordinate is ever transmitted — but a city name is still coarse location data, and under-declaring is the direction that gets an app pulled. This row used to end 'NEVER add PRECISE_LOCATION: iOS sets NSLocationDefaultAccuracyReduced', and D175 reversed exactly that — see the PRECISE_LOCATION row below."
     },
     {
       "category": "LOCATION",
       "type": "PRECISE_LOCATION",
       "linked": true,
-      "purposes": ["APP_FUNCTIONALITY"],
+      "purposes": [
+        "APP_FUNCTIONALITY"
+      ],
       "$why": "D175. The app REQUESTS a precise fix for Near — iOS NSLocationDefaultAccuracyReduced is false, Android ACCESS_FINE_LOCATION is uncapped, enableHighAccuracy is true — so this is ticked even though nothing precise is retained: the fix is folded to a ~200 m grid cell on the device and the coordinate is discarded there (src/v2/data/geo.ts, data/locate.ts). The form asks what the app COLLECTS, and an app that asks the OS for precise location collects it, whatever it does next. Declared late: D175 updated STORE-FORMS.md and not this file, and check:store-forms caught the gap at D178."
     },
     {
       "category": "USER_CONTENT",
       "type": "PHOTOS_OR_VIDEOS",
       "linked": true,
-      "purposes": ["APP_FUNCTIONALITY"],
+      "purposes": [
+        "APP_FUNCTIONALITY"
+      ],
       "$why": "D178. An OPTIONAL profile photo, off by default, shown anywhere the app already shows the user's name — including, since D177, to people standing within a few hundred metres. Shrunk to a 256px square and re-encoded on the device before upload, which also drops the original's EXIF (a camera photo carries GPS, and this app is careful about exactly that datum). One object per account at avatars/{uid}; deleteAccount removes the bytes and the document. Reportable like a comment, and a remove verdict hides it everywhere at once. THIS ROW WAS A DELIBERATE NO until D178 and STORE-FORMS.md called it load-bearing — see the reasoning there, which is why the reversal is recorded rather than absorbed."
-    },
-    {
-      "category": "HEALTH_AND_FITNESS",
-      "type": "HEALTH",
-      "linked": true,
-      "purposes": ["APP_FUNCTIONALITY"],
-      "$why": "D166 §3, the pulse roster. The app asks one-tap self-reports on a chosen cadence — pace, energy, sleep, focus, social connection — each answer public and linked to the account like every answer (D98), each folding into a public per-day aggregate and drawn as a three-week reading. Apple's row is 'health and medical data … or any other user provided health or medical data', and a self-reported sleep and energy series is that by a plain reading; under-declaring is the direction that gets an app pulled. No HealthKit API, no clinical records, nothing inferred — the collection is five questions a user set a cadence for, and two of the five ship dormant. THIS ROW WAS A DELIBERATE NO until the roster: the height band alone was argued down as a demographic band (D140), and that bullet's own trip-wire — 'whoever picks that decision back up owns this row' — is what moved it here. See STORE-FORMS.md."
     },
     {
       "category": "SENSITIVE_INFO",
       "type": "SENSITIVE_INFO",
       "linked": true,
-      "purposes": ["APP_FUNCTIONALITY"],
+      "purposes": [
+        "APP_FUNCTIONALITY"
+      ],
       "$why": "The politics test result is GDPR Art. 9 special-category data; gender if entered. STAYS DECLARED, and the justification changed at D98: it is no longer true that this never leaves the owner document. Political ITEM answers are public and now slice by cohort like every other question (D98 reversed D44), and the politics RESULT vector sits on a profile any signed-in user may read. The row was Yes before because the form asks what you collect; it is Yes now for that reason and because the app also publishes it. Deleting this row would be an under-declaration and check-store-forms rule 2 refuses it."
     },
     {
       "category": "DIAGNOSTICS",
       "type": "CRASH_DATA",
       "linked": true,
-      "purposes": ["APP_FUNCTIONALITY"],
+      "purposes": [
+        "APP_FUNCTIONALITY"
+      ],
       "$why": "Sentry. On by default with an opt-out in the privacy panel (D76), carries the uid only — no email, no name, no session replay, sendDefaultPii: false. Was a Yes even while opt-in: the form asks what the app CAN collect."
+    },
+    {
+      "category": "HEALTH_AND_FITNESS",
+      "type": "HEALTH",
+      "linked": true,
+      "purposes": [
+        "APP_FUNCTIONALITY"
+      ],
+      "$why": "YES since D203, and the row moved because the app asked for it rather than because Apple's wording changed. The pulse roster ships five short daily questions, two of which are 'How did you sleep?' and 'How was your energy today?'. docs/STORE-FORMS.md's Health bullet has carried a trip-wire since D140 saying the No was argued for HEIGHT ALONE and that whoever added anything further owned this row; a self-reported daily sleep and energy series is squarely Apple's 'any other user provided health or medical data', so this is that owner honouring it rather than re-arguing it. WHAT IT IS: one answer a day per pulse, on a five-step ordinal scale, keyed to a UTC day. No HealthKit API is touched, nothing medical is inferred, there is no free text and there is no weight or BMI — D140's other trip-wire is untouched. LINKED because a pulse answer is written under v2_users/{uid}/answers like every other answer and, under D98, folds into the same exact aggregate any signed-in user can read. THE CADENCE IS NOT COLLECTED: how often someone wants to be asked lives only on the device (insight.pulseCadence.v1) and never reaches the server, which is why there is no second row for it here."
     }
   ],
-
   "notCollected": {
     "$why": "Recorded so a reviewer's question has an answer and so a future contributor sees which absences were decided rather than forgotten. Three of these look tickable and are not:",
     "DEVICE_ID": "Device binding (D29) receives 2-3 bits from Apple DeviceCheck meaning 'an account was activated from this device recently'. The server stores no device identifier; the platforms hold the state. There is nothing for deleteAccount to erase because nothing is held.",
     "PRODUCT_INTERACTION": "data-inventory.md: no product analytics of any kind ship today. Adding any would change this row.",
     "EMAILS_OR_TEXT_MESSAGES": "Still No, and still for the shape reason: a take is a POST — to a circle (D78 part 1) or, since D83, anonymously to the world — never a message to a person, and Apple files posts under User Content > Other User Content, which is already declared Yes above. So the CONTENT is declared either way and this row is about shape. It moves if a direct person-to-person surface ships. The age rating did move — messagingAndChat is true (D79) — because that question asks whether the app has chat at all rather than what category the text lands in, and the two forms genuinely diverge here. D122's circle INVITATION is the first thing to test that trigger, and it does not trip it — checked against the write rather than the feature name: inviteToGroupV2 sets to, from, fromName, groupName, mode and at, and there is NO free-text field for a sender to write into. An invitation is a capability offered to one person, not a message sent to them. It would move this row the day an invite carries a note.",
     "others": [
-      "PHONE_NUMBER", "PHYSICAL_ADDRESS", "OTHER_CONTACT_INFO",
-      "FITNESS", "PAYMENT_INFO", "CREDIT_INFO", "OTHER_FINANCIAL_INFO",
-      "CONTACTS", "AUDIO_DATA",
-      "GAMEPLAY_CONTENT", "CUSTOMER_SUPPORT", "BROWSING_HISTORY",
-      "SEARCH_HISTORY", "PURCHASE_HISTORY", "ADVERTISING_DATA",
-      "OTHER_USAGE_DATA", "PERFORMANCE_DATA", "OTHER_DIAGNOSTIC_DATA",
+      "PHONE_NUMBER",
+      "PHYSICAL_ADDRESS",
+      "OTHER_CONTACT_INFO",
+      "FITNESS",
+      "PAYMENT_INFO",
+      "CREDIT_INFO",
+      "OTHER_FINANCIAL_INFO",
+      "CONTACTS",
+      "AUDIO_DATA",
+      "GAMEPLAY_CONTENT",
+      "CUSTOMER_SUPPORT",
+      "BROWSING_HISTORY",
+      "SEARCH_HISTORY",
+      "PURCHASE_HISTORY",
+      "ADVERTISING_DATA",
+      "OTHER_USAGE_DATA",
+      "PERFORMANCE_DATA",
+      "OTHER_DIAGNOSTIC_DATA",
       "OTHER_DATA_TYPES"
     ]
   },
-
   "ageRating": {
     "$why": "Every content frequency question is NONE, measured rather than assumed: scanning all four committed banks for violence, sex, substances, gambling and profanity returns four hits, all references rather than depictions — 'Pub' as a place option, 'Cry in a film', an etymology card for the word alcohol, and a history card naming the Second World War. Re-run that scan if the banks grow substantially (the farm, D33, writes the spec layer; promotion, D30, is the gate where new content reaches users).",
-
     "violenceCartoonOrFantasy": "NONE",
     "violenceRealistic": "NONE",
     "violenceRealisticProlongedGraphicOrSadistic": "NONE",
@@ -131,43 +158,29 @@
     "sexualContentOrNudity": "NONE",
     "sexualContentGraphicAndNudity": "NONE",
     "contests": "NONE",
-
     "gambling": false,
     "unrestrictedWebAccess": false,
     "kidsAgeBand": null,
-
     "$new2025": "The eight below are Apple's newer questions — the ones $socialMediaQuestions predicted. They are REQUIRED: omitting them makes the PATCH 409 with 'You must provide a value for the attribute …', naming each one (D75). Types are Apple's: seven booleans and one frequency enum, taken from the App Store Connect OpenAPI spec rather than inferred from the field names.",
-
     "userGeneratedContent": true,
     "$userGeneratedContent": "Yes, and it is the one that actually drives the rating. Group and duel reveals show display names — user-generated content on any version of this form, whatever the content answers say. STORE-FORMS.md structural fact 1.",
-
     "messagingAndChat": true,
     "$messagingAndChat": "YES since 2026-08-09 (D79), and it was false for one day. D78 part 1 shipped the circle takes client — postTake writes free text that other members of the group read — so the second half of the old reasoning ('demo-only in a shipping build') expired the moment it merged. Scope limits the AUDIENCE, not the feature: Apple asks whether the app has messaging or chat, and a private group where members write to each other is chat — all the more so now that takes also exist at world scale (D83, anonymous). Under-declaring is the direction that pulls an app, and the honest answer costs nothing here — the rating is already driven to 12+ by userGeneratedContent. D78's cost table filed this flip under its world-takes part; D79 settled it early in the safer direction, and D83 then shipped the part it was filed under.",
-
     "advertising": false,
     "$advertising": "No ad SDK of any kind. The Facebook SDK arrives only as a transitive SwiftPM dependency of @capacitor-firebase/authentication and is stripped at postinstall (D16); check:ios-facebook asserts its absence on every CI run.",
-
     "lootBox": false,
     "$lootBox": "No in-app purchases at all, so nothing randomised to sell. MONETIZATION.md records no consumer paid tier at launch.",
-
     "parentalControls": false,
     "$parentalControls": "The app ships none. This asks what the app PROVIDES, not what it needs — answering yes without the feature is the over-declaration direction.",
-
     "ageAssurance": false,
     "$ageAssurance": "No age verification or estimation mechanism. Anonymous-first auth (D3) collects no birth date and nothing gates on age.",
-
-    "healthOrWellnessTopics": true,
-    "$healthOrWellnessTopics": "TRUE since the pulse roster (D166 §3): the app asks daily/weekly self-reports of sleep, energy, focus and social connection and draws three-week wellbeing readings from them — a health-or-wellness topic by any reading. The earlier content scan's finding stands and did not move this row (its three hits were taxonomy — 'Medicine' as a quiz option, a palette seedId, one cuisine filing — and a category label is still not a health topic); the roster is what moved it, in the same commit as the privacy label's Health row above.",
-
+    "healthOrWellnessTopics": false,
+    "$healthOrWellnessTopics": "Measured across all five committed banks, not assumed: three hits, none of them health content. 'Medicine' is one of four options on \"Humanity's best invention?\"; the other two are Map taxonomy — CAT_META's Body category carries seedId 'health' for its palette hue, and one cuisine question files under ['Body','Health']. A category label is not a health topic. The nearest real candidate is the personality and politics profiles, and neither is health or wellness. Re-run the scan if the banks grow substantially, on the same trigger as the content scan above.",
     "gunsOrOtherWeapons": "NONE",
     "$gunsOrOtherWeapons": "Measured across all five committed banks for gun, rifle, pistol, firearm, weapon, knife, sword, bomb, shoot, ammo, bullet, blade, dagger, missile and grenade: ZERO hits. A frequency enum rather than a boolean, so NONE rather than false — the type came from Apple's spec, because guessing boolean here is a 400 that reads like a wrong value.",
-
     "$structural": "These three are what actually drive the rating, and they are structural rather than content facts: users see each other's display names in group and duel reveals (user-generated content and social interaction on any version of this form, whatever the content answers say); coarse location exists and is optional (D9); and free text is LIVE at BOTH scopes — circle-scoped with names since D78 part 1 (2026-08-09), and world-scale WITHOUT names since D83 (2026-08-10): anonymous takes, one per person per question, behind enforced moderation (MOD_ADVISORY=false). The fact this form answers from has moved twice: from 'no live free-text surface' to 'circle-scoped' (D79) to 'both scopes, world anonymous' (D83).",
-
     "$expect": "12+ / 13+. Answer it deliberately rather than accepting a default.",
-
     "$socialMediaQuestions": "ANSWERED — the eight $new2025 keys above are those questions. This note predicted them (banner seen 2026-08-07) and correctly predicted that asc-push would leave anything new UNSET, but it was wrong about the consequence in a way worth keeping: it said an unset required field 'blocks submission'. Apple is stricter than that — it rejects the whole PATCH with a 409 per missing attribute, so the age rating could not be written at all until every one was supplied (D75). A prediction that is right about the cause and wrong about the symptom still costs a debugging round. The three structural facts below are what these turn on. The free-text one has moved twice (see $structural); since D83 there IS a world-scale surface, and what answers guideline 1.2 for it is the full kit: enforced moderation, report, per-author mute, anonymity by construction — not absence.",
-
     "$guideline12": "1.2 demands four things of any app with user-generated content, and each has a real answer. FILTERING: the moderation substrate is deployed and ENFORCING since D83 (MOD_ADVISORY = false, a remove verdict really hides, a per-run cap bounds a bad run). REPORTING: live since D78 part 1 — flagTake writes to v2_flags from the takes panel, and since D98 any signed-in user may flag any take at either scope, because reading is no longer membership-gated. BLOCKING: this answer was re-derived at D98 and is now ONE shape rather than two. It used to be 'leave the circle, or hide the author', on the reasoning that circle members were the only NAMED people whose content you saw. D98 makes every take named at world scale, so leaving a circle no longer bounds who you see — the real, universal control is the per-author mute (Hide author, data/mutes.ts, local and silent), which applies at both scopes and is what a reviewer should be pointed at. Leaving a circle remains available and still stops that circle's content, but it is no longer the block. CONTACT: olaftaule01@gmail.com on web/terms.html."
   }
 }

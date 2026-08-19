@@ -75,6 +75,12 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 export const PROMPT_MAX = 120; // corpus max 97 — "short, concrete, blind-answerable"
 export const OPTION_MAX = 32; // corpus max 26 — an option is a label, not a sentence
 export const TAG_WORDS_MAX = 4; // corpus max 4 — "a two-or-three-word label", plus one of drift
+// Doors per question (docs/TAGS-PLAN.md §1). A ceiling, not a target: `also`
+// is for genuine straddlers, and a question that needs three doors is usually
+// a vague question — the same nose PROMPT_MAX encodes. The demand arithmetic
+// makes broad tagging pointless (credit is conserved, a door never adds any);
+// this cap is what makes it impossible to try at scale anyway.
+export const ALSO_MAX = 2;
 export const TONES = new Set(["light", "blend", "deep"]);
 // Option-count shapes per type, exactly as the corpus uses them. scale and
 // rating carry no options (labels are synthesized: LIKERT / "1".."10") and
@@ -399,6 +405,15 @@ export function loadCorpus() {
   // when the Patterns tab started importing it (the WPAL precedent), with
   // `window.WORLD_TOPICS = WORLD_TOPICS` kept beneath for spec consumers.
   const worldTopics = extractLiteral(wfdSrc, "export const WORLD_TOPICS = [", "world-feed-data.js");
+  // The subtopic tree, for `also` (docs/TAGS-PLAN.md §1): a door may be a
+  // leaf, and the leaf→parent map is what the redundancy rule below reads —
+  // following a parent already gives you everything under it
+  // (world-subtopics.js), so a card carrying both says one thing twice.
+  const worldSubs = extractLiteral(
+    readFileSync(join(root, "src", "v2", "spec", "world-subtopics.js"), "utf8"),
+    "window.WORLD_SUBTOPICS = [",
+    "world-subtopics.js",
+  );
   return {
     specQ,
     dailyIdOf,
@@ -407,6 +422,7 @@ export function loadCorpus() {
     feed,
     feedTopics: new Set(feed.topics.map((t) => t.id)),
     worldTopics: new Set(worldTopics.map((t) => t.id)),
+    subParents: new Map(worldSubs.map((s) => [s.id, s.parent])),
     duel: [...duel.group, ...duel.oneVsOne, ...(duel.romantic ?? [])],
     pick,
     learn,
@@ -443,6 +459,58 @@ export function placeCivicHit(q) {
   const hits = words.filter((w) => PLACES.has(w));
   if (!hits.length || !CIVIC.test(text)) return null;
   return { places: [...new Set(hits)], cue: text.match(CIVIC)[0] };
+}
+
+// ── doors (docs/TAGS-PLAN.md) ──
+// `also` is reach, never placement: the Map, kicker and stream grouping stay
+// on `cat`; the filter, stock, search and demand rollup read cat ∪ also.
+// These are the rules conservation cannot enforce by itself. An unknown id is
+// a door onto nothing and fails SILENTLY — the card serves, the filter just
+// never matches the door — which is the same failure class as a typo'd
+// `rates` scope, so it gets the same treatment: refused at the gate, not
+// discovered in production. The vocabulary is closed for the reason `cat`'s
+// is (farm hard rule 3): an open one is a free-text field wearing a schema.
+function checkAlso(q, topicVocab, ctx, err) {
+  if (q.also === undefined) return;
+  if (q.scene) {
+    // A scene is a room, not a topic; the filter matches room cards on the
+    // room alone (docs/TAGS-PLAN.md §2). A door here would be a publication
+    // nothing reads — check:globals rule 5's smell, arriving as content.
+    err("also", "a scene card cannot carry `also` — the filter matches room cards on the room alone, so a door here is metadata nothing reads");
+    return;
+  }
+  if (!Array.isArray(q.also) || q.also.some((t) => typeof t !== "string" || !t.trim())) {
+    err("also", `also must be an array of topic ids (got ${JSON.stringify(q.also)})`);
+    return;
+  }
+  if (!q.also.length) {
+    // Emit-when-set end to end: an empty array is "nobody decided" wearing
+    // a decision's bytes — the same argument `core` makes about absence.
+    err("also", "empty `also` — omit the key on a question with no doors");
+    return;
+  }
+  if (q.also.length > ALSO_MAX) {
+    err("also", `${q.also.length} doors (max ${ALSO_MAX}) — a question that needs more is usually a vague question (docs/TAGS-PLAN.md §1)`);
+  }
+  const seen = new Set();
+  for (const t of q.also) {
+    if (seen.has(t)) err("also", `door ${JSON.stringify(t)} repeats`);
+    seen.add(t);
+    if (t === q.cat) err("also", `door ${JSON.stringify(t)} repeats the home — \`cat\` already places the card there`);
+    else if (!topicVocab.has(t) && !ctx.subParents.has(t)) {
+      err("also", `door ${JSON.stringify(t)} is not a committed topic or subtopic id — the vocabulary is closed (farm hard rule 3; new topics go through § When no category fits)`);
+    }
+  }
+  // Parent/leaf redundancy, both directions: following a parent gives you
+  // everything under it, so home-or-door carrying a leaf AND its parent is
+  // one claim stated twice — and twice the demand credit dilution for it.
+  const carried = [q.cat, ...q.also];
+  for (const t of carried) {
+    const parent = ctx.subParents.get(t);
+    if (parent && carried.includes(parent)) {
+      err("also", `${JSON.stringify(t)} and its parent ${JSON.stringify(parent)} are both carried — following the parent already reaches the leaf`);
+    }
+  }
 }
 
 // Findings for one question. `surface` decides which rules apply: daily
@@ -486,6 +554,14 @@ export function checkQuestion(q, surface, ctx, mode = {}) {
   // geography are 4 of the 12 fields — so the false positives grow with the
   // bank. A gate that reliably cries wolf on legitimate content is one whose
   // waivers stop being read.
+  // Doors are a feed-surface mechanic (pick rides the same filter). On the
+  // daily the near-neighbour is `alts` — CANDIDATE placements the crowd
+  // votes between, not extra reach — and on every other surface a door is
+  // metadata nothing reads, which is how fields rot into lore.
+  if (q.also !== undefined && surface !== "feed" && surface !== "pick") {
+    err("also", `\`also\` is feed/pick only (docs/TAGS-PLAN.md §1) — on ${surface} nothing reads doors${surface === "daily" ? ", and alternative placements are `alts`" : ""}`);
+  }
+
   const place = surface === "learn" ? null : placeCivicHit(q);
   if (place) {
     err(
@@ -541,6 +617,8 @@ export function checkQuestion(q, surface, ctx, mode = {}) {
     // rule that was true in the data becomes a rule in the gate.
     if (!q.cat) err("topic", "a feed question needs a topic — without one its kicker is broken and the topic filter cannot reach it");
     else if (!ctx.feedTopics.has(q.cat)) err("topic", `topic ${JSON.stringify(q.cat)} is not in the feed taxonomy`);
+
+    checkAlso(q, ctx.feedTopics, ctx, err);
 
     // Core/tail must be DECLARED, not defaulted (docs/SCALE-PLAN.md §1).
     //
@@ -751,6 +829,11 @@ export function checkQuestion(q, surface, ctx, mode = {}) {
     // the feed's chip row filters out, and it is the one every card uses.
     if (!q.cat) err("topic", "a pick card needs a cat (catalog contract rule 3) — without one its kicker is broken and the topic filter cannot reach it");
     else if (!ctx.worldTopics.has(q.cat)) err("topic", `cat ${JSON.stringify(q.cat)} is not a WORLD_TOPICS id`);
+
+    // Same doors, wider vocabulary — a pick card's cat already validates
+    // against WORLD_TOPICS (the superset holding `fav`/`places`), so its
+    // doors do too.
+    checkAlso(q, ctx.worldTopics, ctx, err);
   }
 
   if (surface === "pulse") {

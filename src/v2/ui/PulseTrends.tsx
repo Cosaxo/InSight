@@ -1,33 +1,30 @@
-// THE READING (D139, per-pulse since the D166 §3 roster): your pulse line
-// held against your city, country or the world, three weeks at a time —
-// the v24 design ported typed (design/standalone-v24/pulse-trends.jsx).
-// House rules, visible in the drawing itself:
+// THE READING (D139): your pulse line held against your city, country or
+// the world, three weeks at a time — the v24 design ported typed
+// (design/standalone-v24/pulse-trends.jsx). House rules, visible in the
+// drawing itself:
 //   · no smoothing, no interpolation — a missing day breaks the line
 //   · absent ≠ zero: a day with no answers has no mark, and the panel says so
-//   · a day the pulse was NOT SCHEDULED is absent, never a miss — it
-//     cannot count as a skip and cannot open a void on its own
 //   · a day too thin to place is listed with its reason, never positioned
 //   · every reading carries its n
 //   · two instruments only: you (the hue) and them (neutral)
-//
-// A weekly pulse's "line" is dots: adjacent days never both carry an
-// answer, and bridging Sunday to Sunday would draw through six absent
-// days — the exact bridge the first rule refuses.
 import React from "react";
-import PULSE, { ROSTER } from "../data/pulse";
 import { cueMap } from "../data/mapCue";
-// @ts-expect-error TS7016 — untyped spec module (named export, D189)
-import { WPAL } from "../spec/world-palette.js";
+import PULSE from "../data/pulse";
 
-// `mapLink` is passed by the feed's pulse card and NOT by the Map's own
+// `mapLink` is passed by the daily's pulse card and NOT by the Map's own
 // pulse leaf, which renders this same reading — a "see it on the Map" link
 // on the Map would be a door into the room you are standing in.
-export default function PulseTrends({ compact, qid = ROSTER[0].qid, mapLink }: { compact?: boolean; qid?: string; mapLink?: boolean }): React.ReactElement | null {
+export default function PulseTrends({ compact, pid, mapLink }: { compact?: boolean; pid?: string; mapLink?: boolean }): React.ReactElement | null {
   const [, bump] = React.useState(0);
+  const id = pid || PULSE.first();
   React.useEffect(() => {
-    void PULSE.ensureLive(qid).catch(() => { /* the panel lists the absence honestly */ });
+    // The 21-day window, for THIS pulse, on the tap that opened the
+    // reading (D203). The card's own fetch is today-only; a roster that
+    // pulled five windows on every open would be 105 ids over a 30-clause
+    // cap, for data the first screen never draws.
+    void PULSE.ensureTrend(id).catch(() => { /* the panel lists the absence honestly */ });
     return PULSE.subscribe(() => bump((x) => x + 1));
-  }, [bump, qid]);
+  }, [bump, id]);
   const [scopeId, setScopeId] = React.useState("city");
   const [sel, setSel] = React.useState(PULSE.DAYS - 1);
   const [w, setW] = React.useState(342);
@@ -36,12 +33,12 @@ export default function PulseTrends({ compact, qid = ROSTER[0].qid, mapLink }: {
   // the one real variance is the device, not a resize mid-read.
   React.useEffect(() => { const el = boxRef.current; if (el && el.clientWidth) setW(el.clientWidth); }, []);
 
-  const hue = ROSTER.find((p) => p.qid === qid)?.hue ?? null;
-  const HUE = hue == null ? "var(--pulse)" : (WPAL.ink(`oklch(0.52 0.14 ${hue})`) as string);
+  const HUE = "var(--pulse)";
   const N = PULSE.DAYS;
-  const steps = PULSE.steps(qid);
-  const days = PULSE.days(qid);
-  const sc = PULSE.scope(scopeId, qid);
+  const steps = PULSE.steps(id);
+  const q = PULSE.q(id);
+  const days = PULSE.days(id);
+  const sc = PULSE.scope(id, scopeId);
   const ser = sc.series;
 
   const answered = days.filter((d) => d.v != null);
@@ -52,24 +49,27 @@ export default function PulseTrends({ compact, qid = ROSTER[0].qid, mapLink }: {
     if (Math.abs(diff) < 0.05) level++; else if (diff > 0) above++; else below++;
   });
 
-  // your gaps — runs of three or more days with nothing, drawn as voids,
-  // never dips. A run must hold at least three SCHEDULED days to count:
-  // for a weekly pulse every weekday is empty by design, and painting the
-  // whole chart grey would read absence as failure. With fewer than two
-  // answers there is no line yet, so nothing can break: day one stays a
-  // clean frame, not one grey box.
+  // your gaps — runs of three or more ASKS with nothing, drawn as voids,
+  // never dips. With fewer than two answers there is no line yet, so
+  // nothing can break: day one stays a clean frame, not one grey box.
+  //
+  // A day the cadence did not ask on is NOT a gap (D203's fourth honesty
+  // rule). Counting it as one is the specific lie the rule exists to stop:
+  // a weekly pulse answered every Sunday would otherwise draw three grey
+  // voids and report "you skipped 18 days" about a question nobody put.
+  // The run therefore walks scheduled days and bridges the rest.
   const gaps: { a: number; b: number }[] = [];
   if (answered.length >= 2) for (let i = 0; i < N; i++) {
-    if (days[i].v != null) continue;
-    let j = i; while (j + 1 < N && days[j + 1].v == null) j++;
-    let missed = 0;
-    for (let k = i; k <= j; k++) if (days[k].scheduled) missed++;
-    if (j - i + 1 >= 3 && missed >= 3) gaps.push({ a: i, b: j });
+    if (!days[i].scheduled || days[i].v != null) continue;
+    let j = i, miss = 1;
+    while (j + 1 < N && (!days[j + 1].scheduled || days[j + 1].v == null)) {
+      j++;
+      if (days[j].scheduled) miss++;
+    }
+    if (miss >= 3) gaps.push({ a: i, b: j });
     i = j;
   }
-  // a skip is a SCHEDULED day that went unanswered — an unasked day is
-  // absent, never a miss (the fourth honesty clause)
-  const skipped = days.filter((d) => d.v == null && !d.today && d.scheduled).length;
+  const skipped = days.filter((d) => d.scheduled && d.v == null && !d.today).length;
   const zeroDays = ser.filter((s) => s.n === 0);
   const thinDays = ser.filter((s) => s.thin);
   const placedN = ser.filter((s) => s.placed);
@@ -101,11 +101,11 @@ export default function PulseTrends({ compact, qid = ROSTER[0].qid, mapLink }: {
 
   const scopeRow = (
     <div style={{ display: "flex", gap: 6 }}>
-      {PULSE.SCOPES.map((id) => {
-        const on = id === scopeId;
-        const label = PULSE.scope(id, qid).label;
+      {PULSE.SCOPES.map((sid) => {
+        const on = sid === scopeId;
+        const label = PULSE.scope(id, sid).label;
         return (
-          <button key={id} className="press" onClick={() => setScopeId(id)} aria-pressed={on}
+          <button key={sid} className="press" onClick={() => setScopeId(sid)} aria-pressed={on}
             style={{ flex: 1, minWidth: 0, height: 34, borderRadius: 999, cursor: "pointer", WebkitAppearance: "none", fontFamily: "var(--sans)", fontWeight: 700, fontSize: 13, letterSpacing: "-0.01em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", border: "1px solid " + (on ? "var(--ink)" : "var(--rule)"), background: on ? "var(--ink)" : "var(--surface-2)", color: on ? "var(--surface)" : "var(--ink-2)" }}>
             {label}
           </button>
@@ -123,9 +123,7 @@ export default function PulseTrends({ compact, qid = ROSTER[0].qid, mapLink }: {
         {answered.length === 1 ? "One day in — not a trend yet." : answered.length + " days in — not a trend yet."}
       </span>
       <span style={{ fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 600, color: "var(--ink-3)" }}>
-        {PULSE.cadence(qid) === "daily"
-          ? "Answer again tomorrow and the line starts."
-          : "Answer again next time it's asked and the line starts."}
+        Answer again tomorrow and the line starts.
       </span>
     </div>
   ) : (
@@ -150,7 +148,7 @@ export default function PulseTrends({ compact, qid = ROSTER[0].qid, mapLink }: {
       <span style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
         <span style={{ display: "flex", alignItems: "center", gap: 5, whiteSpace: "nowrap" }}>
           <span aria-hidden="true" style={{ width: 7, height: 7, borderRadius: "50%", background: d.v != null ? HUE : "transparent", boxShadow: d.v != null ? "none" : "inset 0 0 0 1px color-mix(in oklab, " + HUE + " 50%, var(--surface-2))" }}></span>
-          <span style={{ fontFamily: "var(--sans)", fontWeight: 700, fontSize: 13, color: d.v != null ? "var(--ink)" : "var(--ink-3)" }}>{d.v != null ? PULSE.word(d.v, qid) : d.scheduled ? "you skipped" : "not asked"}</span>
+          <span style={{ fontFamily: "var(--sans)", fontWeight: 700, fontSize: 13, color: d.v != null ? "var(--ink)" : "var(--ink-3)" }}>{d.v != null ? PULSE.word(id, d.v) : "you skipped"}</span>
         </span>
         <span style={{ display: "flex", alignItems: "center", gap: 5, whiteSpace: "nowrap" }}>
           <span aria-hidden="true" style={{ width: 10, height: 2, borderRadius: 1, background: grey, opacity: 0.55 }}></span>
@@ -256,10 +254,10 @@ export default function PulseTrends({ compact, qid = ROSTER[0].qid, mapLink }: {
         {!compact && (
           <span style={{ display: "flex", alignItems: "center", gap: 7 }}>
             <span aria-hidden="true" style={{ width: 6, height: 6, borderRadius: "50%", background: HUE }}></span>
-            <span className="kicker" style={{ marginBottom: 0 }}>{PULSE.q(qid).kicker} · 3 weeks</span>
+            <span className="kicker" style={{ marginBottom: 0 }}>{(q ? q.kicker : "pulse")} · 3 weeks</span>
           </span>
         )}
-        <span style={{ fontFamily: "var(--sans)", fontWeight: 800, fontSize: 17, letterSpacing: "-0.03em", color: "var(--ink-2)" }}>{PULSE.q(qid).text}</span>
+        <span style={{ fontFamily: "var(--sans)", fontWeight: 800, fontSize: 17, letterSpacing: "-0.03em", color: "var(--ink-2)" }}>{q ? q.text : ""}</span>
         {headline}
       </div>
       {scopeRow}
@@ -269,7 +267,7 @@ export default function PulseTrends({ compact, qid = ROSTER[0].qid, mapLink }: {
       </div>
       {panel}
       {mapLink && (
-        <button className="press" onClick={() => cueMap({ group: "g-self", sel: "pulse-" + qid })}
+        <button className="press" onClick={() => cueMap({ group: "g-self", sel: pid || PULSE.first() })}
           style={{ alignSelf: "flex-start", border: "none", background: "none", padding: "2px 0", cursor: "pointer", WebkitAppearance: "none", fontFamily: "var(--sans)", fontWeight: 700, fontSize: 13, color: HUE }}>
           on the Map →
         </button>

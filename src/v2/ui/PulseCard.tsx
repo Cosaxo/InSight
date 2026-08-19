@@ -1,56 +1,53 @@
-// A pulse card — the v28 design (design/standalone-v28/pulse-card.jsx)
-// ported typed, one card per roster entry. Same contract as the daily
-// question: you answer before you see anyone else; the five inputs BECOME
-// the chart on reveal. One hue throughout — the first pulse keeps the
-// house --pulse token, the others carry their v28 hue through the palette
-// gate's contrast-safe twin. "Your line →" opens the Trends reading in
-// place — the chart is a lazy chunk (check:bundle).
-//
-// The card is a feed question like any other: it takes its turn in the
-// world feed (feed-interleave's pulse slot), never a block pinned above
-// it, and there is no tray of the ones you are not being asked — a
-// dormant pulse is simply not asked. Cadence lives on each card.
+// A pulse, compact, beside the blind daily — the v24 design
+// (design/standalone-v24/pulse-card.jsx) ported typed, at roster size
+// since D203. Same contract as the daily question: you answer before you
+// see anyone else; the five inputs BECOME the chart on reveal. One hue
+// throughout (--pulse).
+// "Your line →" opens the Trends reading in place — the chart is a lazy
+// chunk (check:bundle: the card is first-screen, the reading is not), and
+// its 21-day window is fetched on that tap rather than on every open.
 import React from "react";
-import PULSE, { ROSTER, type Cadence } from "../data/pulse";
-// @ts-expect-error TS7016 — untyped spec module (named export, D189)
-import { WPAL } from "../spec/world-palette.js";
+import PULSE, { CADENCES, CADENCE_LABEL, type Cadence } from "../data/pulse";
 
 const PulseTrendsLazy = React.lazy(() => import("./PulseTrends"));
 
-export default function PulseCard({ qid = ROSTER[0].qid }: { qid?: string }): React.ReactElement | null {
+export default function PulseCard({ pid }: { pid?: string } = {}): React.ReactElement | null {
   const [, bump] = React.useState(0);
   const [open, setOpen] = React.useState(false);
+  const [cadOpen, setCadOpen] = React.useState(false);
   React.useEffect(() => {
-    void PULSE.ensureLive(qid).catch(() => { /* the ask renders without a crowd */ });
+    void PULSE.ensureToday().catch(() => { /* the ask renders without a crowd */ });
     return PULSE.subscribe(() => bump((x) => x + 1));
-  }, [bump, qid]);
+  }, [bump]);
 
-  // Live before the template arrives: render nothing rather than a blank
+  // Live before the bank arrives: render nothing rather than a blank
   // question — the effect above fills it within the open's one fetch.
-  if (!PULSE.ready(qid)) return null;
+  if (!PULSE.ready()) return null;
+  const id = pid || PULSE.first();
+  const q = PULSE.q(id);
+  if (!q) return null;
 
-  const hue = ROSTER.find((p) => p.qid === qid)?.hue ?? null;
-  const HUE = hue == null ? "var(--pulse)" : (WPAL.ink(`oklch(0.52 0.14 ${hue})`) as string);
-  const steps = PULSE.steps(qid);
-  const qq = PULSE.q(qid);
-  const mine = PULSE.mineToday(qid);
-  const st = PULSE.streak(qid);
-  const nToday = PULSE.todayN("world", qid);
-  const bins = PULSE.bins("world", qid);
+  const HUE = "var(--pulse)";
+  const steps = PULSE.steps(id);
+  const mine = PULSE.mineToday(id);
+  const st = PULSE.streak(id);
+  const nToday = PULSE.todayN(id, "world");
+  const bins = PULSE.bins(id, "world");
+  const cad = PULSE.cadence(id);
   const maxBin = Math.max(1, ...bins);
-  const cad = PULSE.cadence(qid);
   // Rectangular mixing on purpose: an oklch mix from indigo (282°) into
   // the warm near-neutral surfaces takes the short way round the wheel
   // and lands in the salmon/rose arc. oklab holds the hue.
   const wash = (pct: number) => `color-mix(in oklab, ${HUE} ${pct}%, var(--surface-2))`;
 
-  // ── the streak: fourteen days as they were, not a trophy. Filled =
-  // answered, faint = missed (an unscheduled day draws nothing brighter —
-  // it was never asked), ring = today still open. Tap → the reading.
+  // ── the streak: the last fourteen ASKS as they were, not a trophy.
+  // Filled = answered, faint = missed, ring = today still open. Tap → the
+  // reading. Asks rather than days since D203: a weekly pulse's strip is
+  // fourteen Sundays, not a fortnight with two marks in it.
   const strip = (
-    <button className="press" onClick={() => setOpen((o) => !o)}
+    <button className="press" onClick={() => { const next = !open; setOpen(next); if (next) void PULSE.ensureTrend(id).catch(() => { /* the reading draws your own line regardless */ }); }}
       aria-expanded={open}
-      aria-label={"Your last 14 days" + (st.run ? " — " + st.run + " in a row" : "") + ". Open your trend."}
+      aria-label={"Your last 14 asks" + (st.run ? " — " + st.run + " in a row" : "") + ". Open your trend."}
       style={{ display: "flex", alignItems: "center", gap: 8, border: "none", background: "none", padding: "4px 0", cursor: "pointer", WebkitAppearance: "none" }}>
       {st.run >= 3 && <span style={{ fontFamily: "var(--sans)", fontWeight: 800, fontSize: 13, letterSpacing: "-0.02em", color: HUE }}>{st.run}</span>}
       <span aria-hidden="true" style={{ display: "flex", alignItems: "flex-end", gap: 2.5 }}>
@@ -76,7 +73,7 @@ export default function PulseCard({ qid = ROSTER[0].qid }: { qid?: string }): Re
     <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
       <div style={{ display: "flex", gap: 6 }}>
         {steps.map((s, i) => (
-          <button key={s.v} className="press" onClick={() => PULSE.answer(s.v, qid)} aria-label={s.label}
+          <button key={s.v} className="press" onClick={() => PULSE.answer(id, s.v)} aria-label={s.label}
             style={{ flex: 1, height: "var(--field-size)", border: "1px solid color-mix(in oklab, " + HUE + " 24%, var(--rule))", borderRadius: 13, background: wash(7), display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", WebkitAppearance: "none", padding: 0 }}>
             <span aria-hidden="true" style={{ width: 9 + i * 4, height: 9 + i * 4, borderRadius: "50%", background: HUE }}></span>
           </button>
@@ -104,7 +101,7 @@ export default function PulseCard({ qid = ROSTER[0].qid }: { qid?: string }): Re
         <div style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
           <span style={{ display: "flex", alignItems: "center", gap: 6, fontFamily: "var(--sans)", fontWeight: 800, fontSize: 14, letterSpacing: "-0.02em" }}>
             <span aria-hidden="true" style={{ width: 8, height: 8, borderRadius: "50%", background: HUE }}></span>
-            you · {PULSE.word(mine, qid)}
+            you · {PULSE.word(id, mine)}
           </span>
           <span style={{ fontFamily: "var(--sans)", fontSize: 12, fontWeight: 600, color: "var(--ink-3)" }}>
             {nToday > 0
@@ -112,7 +109,7 @@ export default function PulseCard({ qid = ROSTER[0].qid }: { qid?: string }): Re
               : "the first answer today"}
           </span>
         </div>
-        <button className="press" onClick={() => setOpen((o) => !o)} aria-expanded={open}
+        <button className="press" onClick={() => { const next = !open; setOpen(next); if (next) void PULSE.ensureTrend(id).catch(() => { /* the reading draws your own line regardless */ }); }} aria-expanded={open}
           style={{ border: "none", background: "none", padding: "4px 0", cursor: "pointer", fontFamily: "var(--sans)", fontWeight: 700, fontSize: 13, color: HUE, whiteSpace: "nowrap", WebkitAppearance: "none" }}>
           {open ? "close ↑" : "your line →"}
         </button>
@@ -120,52 +117,58 @@ export default function PulseCard({ qid = ROSTER[0].qid }: { qid?: string }): Re
     </div>
   );
 
-  // ── the cadence, on the card and always visible — it is the answer to
-  // "ask me this more often", and turning a pulse up is how the roster
-  // gets used. Setting `off` removes the card from the feed on the next
-  // render: a dormant pulse is simply not asked, so the control has to
-  // live here rather than on a settings screen the dormant card could
-  // never be reached from.
-  const cadRow = (
-    <div style={{ display: "flex", alignItems: "center", gap: 10, borderTop: "1px solid color-mix(in oklch, var(--rule), transparent 40%)", paddingTop: 10 }}>
-      <span style={{ fontFamily: "var(--sans)", fontSize: 11.5, fontWeight: 650, color: "var(--ink-3)", flexShrink: 0 }}>ask me</span>
-      <div role="tablist" aria-label="How often to ask this pulse" style={{ display: "flex", gap: 5, flex: 1 }}>
-        {PULSE.CADENCES.map((c: Cadence) => {
-          const on = c === cad;
-          return (
-            <button key={c} role="tab" aria-selected={on} className="press" onClick={() => PULSE.setCadence(qid, c)}
-              style={{
-                flex: 1, height: 28, borderRadius: 999, cursor: "pointer", WebkitAppearance: "none", padding: 0,
-                fontFamily: "var(--sans)", fontSize: 11.5, fontWeight: on ? 800 : 600,
-                color: on ? "#fff" : "var(--ink-2)",
-                background: on ? HUE : wash(7),
-                border: on ? "1px solid transparent" : "1px solid " + wash(20),
-              }}>{c}</button>
-          );
-        })}
-      </div>
+  // ── the rhythm (D203): how often this pulse asks, set where it asks.
+  // "Show up more often" is a cadence rather than a settings screen, so
+  // the control lives on the card and says only its current state until
+  // it is tapped — four chips standing open on every pulse would be more
+  // chrome than question.
+  const rhythm = (
+    <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+      <button className="press" onClick={() => setCadOpen((o) => !o)} aria-expanded={cadOpen}
+        aria-label={"How often this pulse asks — " + CADENCE_LABEL[cad] + ". Change it."}
+        style={{ alignSelf: "flex-start", border: "none", background: "none", padding: "2px 0", cursor: "pointer", WebkitAppearance: "none", fontFamily: "var(--sans)", fontSize: 12, fontWeight: 650, color: "var(--ink-3)" }}>
+        {CADENCE_LABEL[cad]} {cadOpen ? "↑" : "↓"}
+      </button>
+      {cadOpen && (
+        <div role="radiogroup" aria-label="How often this pulse asks" style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          {CADENCES.map((c) => {
+            const on = c === cad;
+            return (
+              <button key={c} role="radio" aria-checked={on}
+                onClick={() => { PULSE.setCadence(id, c as Cadence); setCadOpen(false); }}
+                style={{
+                  border: "none", cursor: "pointer", WebkitAppearance: "none",
+                  padding: "5px 11px", borderRadius: 999,
+                  fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: on ? 800 : 650,
+                  color: on ? "var(--accent-ink)" : "var(--ink-3)",
+                  background: on ? wash(16) : "var(--surface-3)",
+                }}>{CADENCE_LABEL[c]}</button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 
   return (
-    <div className="card" data-screen-label={qq.kicker} style={{ display: "flex", flexDirection: "column", gap: 11, padding: "13px 14px 14px" }}>
+    <div className="card" data-screen-label="Daily pulse" style={{ display: "flex", flexDirection: "column", gap: 11, padding: "13px 14px 14px" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
         <span style={{ display: "flex", alignItems: "center", gap: 7 }}>
           <span aria-hidden="true" style={{ width: 6, height: 6, borderRadius: "50%", background: HUE }}></span>
-          <span className="kicker" style={{ marginBottom: 0 }}>{qq.kicker}</span>
+          <span className="kicker" style={{ marginBottom: 0 }}>{q.kicker}</span>
         </span>
         {strip}
       </div>
-      <div style={{ fontFamily: "var(--sans)", fontWeight: 800, fontSize: 21, lineHeight: 1.12, letterSpacing: "-0.03em", textWrap: "balance" }}>{qq.text}</div>
+      <div style={{ fontFamily: "var(--sans)", fontWeight: 800, fontSize: 21, lineHeight: 1.12, letterSpacing: "-0.03em", textWrap: "balance" }}>{q.text}</div>
       {mine == null ? ask : reveal}
+      {rhythm}
       {open && (
         <div style={{ borderTop: "1px solid color-mix(in oklch, var(--rule), transparent 30%)", paddingTop: 12 }}>
           <React.Suspense fallback={null}>
-            <PulseTrendsLazy compact qid={qid} mapLink />
+            <PulseTrendsLazy compact pid={id} mapLink />
           </React.Suspense>
         </div>
       )}
-      {cadRow}
     </div>
   );
 }

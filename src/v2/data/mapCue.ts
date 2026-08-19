@@ -1,5 +1,5 @@
 // The one cross-link INTO the Map: "open the Mirror's You stop on this
-// branch or leaf" (v28 §5's `window.goTrends`, D202). Typed and ESM
+// branch or leaf" (v28 §5's `window.goTrends`, D207). Typed and ESM
 // instead of the prototype's three window globals (goTrends,
 // MAP_OPEN_GROUP, MAP_SELECT) — a new shared-global READ anywhere in the
 // scanned set would raise check:globals' rule-4 ratchet, and this route

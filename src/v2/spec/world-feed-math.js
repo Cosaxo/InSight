@@ -76,6 +76,46 @@ export function wfCatArt(color, seed) {
 }
 
 // the overall counts + a hash, like the daily's.
+// ── doors (docs/TAGS-PLAN.md §2) ──
+// Every topic a card can be met through: its home plus its `also` doors.
+// Reach only — everything that PLACES the card (Map branch, kicker, stream
+// grouping) stays on `cat` alone, which is why this helper exists instead of
+// a `cats` field: the two reads must not be confusable at a call site.
+export function wfCarried(q) { return [q.cat, ...(q.also || [])]; }
+
+// The feed's topic filter over one card. Pure so it is testable — the filter
+// shipped inside a 2,350-line class component, which is how the single-cat
+// assumption survived unnamed for as long as it did.
+//
+//   cats:    the mute/follow map (scene ids, channel ids, and — in a live
+//            build, where every subject is a channel — topic ids; false
+//            means explicitly muted)
+//   pulled:  topics pulled in by a live followed scene (demo builds)
+//   leafOn:  followed subtopic leaves
+//   chanSet: the always-on channel set for this build
+//
+// Two rules, in order:
+//   1. A MUTE IS A VETO. "Less of this" on any carried topic hides the card
+//      everywhere — a dismissed card must not ride back in through its
+//      second topic. This is the one place doors make the feed smaller,
+//      and it is the correct place (ATTENTION.md ranks explicit dismissal
+//      above every other signal).
+//   2. A FOLLOW IS A VOTE. Any carried id that passes its own kind's rule
+//      shows the card: a followed leaf, an un-muted channel, a pulled
+//      topic. One door suffices; the card still renders once (the stream
+//      grouping keys on `cat` alone).
+// Scene cards never reach here — a scene is a room, not a topic, and the
+// caller matches room cards on the room alone.
+export function wfFeedMatch(q, { cats, pulled, leafOn, chanSet }) {
+  const carried = wfCarried(q);
+  if (carried.some((t) => cats[t] === false)) return false;
+  if (q.sub && leafOn[q.sub]) return true;
+  // After the veto a channel id is definitionally un-muted, so each kind's
+  // rule collapses to membership. A leaf id is never in chanSet or pulled
+  // and a topic id is never in leafOn, so one expression covers both.
+  return carried.some((t) => !!(leafOn[t] || chanSet[t] || pulled[t]));
+}
+
 export function wfHash(s) { let h = 9; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 387420489); return ((h ^ (h >>> 9)) >>> 0) / 4294967295; }
 
 // v2: one hue per card. Strength encodes rank, so the winner reads first and a

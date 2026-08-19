@@ -639,29 +639,48 @@ const MAX_CHUNK_KB = 735;
 //
 // Headroom left: 8 KB on the total, 12 on the eager.
 //
-// 2357 → 2378 (2026-08-19): the Patterns tab (v28 §2, ON TRIAL per D166
-// §1) — a whole third tab, which is exactly the kind of growth this
-// constant exists to make deliberate. Everything it adds is lazy:
-// `app-shell.jsx` reaches `ui/PatternsTab.tsx` through React.lazy, so the
-// store (`data/patterns.ts`), the map arithmetic (`data/patternsMap.ts`)
-// and the tab body all live in a chunk the first paint never loads.
+// 2357 → 2372 at build 22 (D202 · D203 · D204), and this one is genuine
+// growth rather than a re-split: three features landed, none of which
+// relocates bytes that were already there.
 //
-// MEASURED ON THIS TREE: **2370 KB / 890 KB eager**, across 86 chunks.
-// The eager graph moved +2 KB — the TABS entry, the glyph and the lazy
-// import site in app-shell, which are the whole cost the trial clause
-// budgets for ("one import site and one TABS entry away from not
-// existing"). A reversal deletes the lazy chunks and this entry's delta
-// with them.
+//   · D202, the type-mix system switch — a chip row, a persisted key and
+//     a wider name column. Smallest of the three.
+//   · D203, the pulse roster — `data/pulse.ts` roughly doubled (a roster,
+//     a cadence store, a second fetch path) and `PulseCard` gained the
+//     rhythm control. Both are EAGER, which is why the eager line moved
+//     with the total here and did not for the world-feed work above.
+//   · D204, Roles — `data/roles.ts`, `ui/LiveRolesPanel.tsx` and two new
+//     archetype tables. The panel is behind React.lazy from an eager
+//     importer (`profile-overlay.jsx`), so it is five of the extra chunks
+//     and almost none of the extra eager bytes.
 //
-// Headroom left: 8 KB on the total, 30 on the eager.
+// MEASURED ON THE MERGE, not on the branch, and the two differ enough to
+// be worth recording. On its own branch this work built 2364 KB / 974 KB
+// eager across 87 chunks, against 2349 / 966 / 82 at build 21 — the eager
+// graph taking 8 KB of the 15, all of it the pulse roster. Merged with the
+// relationship-map deferral that lowered MAX_EAGER_KB to 920, it builds
+// **2366 KB / 914 KB eager across 89 chunks**.
 //
-// 2378 → 2391 (2026-08-19): the Map's parked branches (D202 amended, +6:
-// pathsMapTree/MTPathsCard, mapTrees, mapCue, the leaf cards) and the
-// trait web (v28 §13, +6: data/traitLinks + ui/TraitWebCard, lazy behind
-// the profile overlay). Measured on this tree: **2383 KB / 850 KB eager**
-// across 95 chunks — every byte of both features in lazy chunks, the
-// eager graph flat against its own 860 ceiling. Headroom left: 8 KB.
-const MAX_TOTAL_JS_KB = 2391;
+// So the eager line came DOWN 52 KB across the merge while three features
+// landed on it, which is the deferral paying for the roster and then some.
+// The total is the one that moved, and it moved for the reason above.
+//
+// Headroom left: 6 KB on the total, 6 on the eager. Both are tight and
+// MAX_EAGER_KB is not raiseable, so the next thing added to the daily
+// screen has to earn its bytes or defer.
+//
+// 2372 → 2404 (2026-08-19, the #231 merge): the Patterns tab (v28
+// §2, ON TRIAL per D166 §1), the lazy Map with its parked branches
+// (D207) and the trait web (v28 §13) land ON TOP of the D202–D204 entry
+// above. Everything the three add is lazy — app-shell reaches
+// ui/PatternsTab.tsx through React.lazy, the Map's seven modules left
+// the eager list for loadMapTab() (the MAX_EAGER_KB lowering below), and
+// the trait web rides behind the profile overlay. On their own branch
+// these measured 2383 KB / 850 KB eager across 95 chunks; MEASURED ON
+// THE MERGE: **2396 KB / 869 KB eager across 99 chunks** —
+// the Map deferral paying back the eager bytes the roster spent in the
+// entry above.
+const MAX_TOTAL_JS_KB = 2404;
 // 955 → 966 (2026-08-14): D139's pulse card — the second fixed instrument
 // on the FIRST screen, so its card, its store's demo furniture and the
 // two LIVE members are legitimately eager (~10 KB min). What is not
@@ -720,7 +739,12 @@ const MAX_TOTAL_JS_KB = 2391;
 // grow inside the LAZY map chunk where the eager ceiling no longer taxes
 // them — so the band stays ~11 KB and this constant should not need to
 // move for them at all.
-const MAX_EAGER_KB = 860;
+//
+// 860 → 880 (2026-08-19, the #231 merge): the 860 above was measured on
+// the branch, before D203's pulse roster — legitimately eager, the entry
+// far above records why — joined the graph. Merged: 869 KB eager, the
+// deferral still paying for most of the roster. Band stays ~11 KB.
+const MAX_EAGER_KB = 880;
 
 let files;
 try {

@@ -7,11 +7,29 @@ import React from 'react';
 import { Av, useDialog } from './primitives.jsx';
 import { ownProgress, ResultProfileCard } from './result-card.jsx';
 import { RP_TESTS } from './result-rose.jsx';
+// CONVERTED off the shared-global bridge (D39, "convert on touch"): the
+// Roles subtab below needs to know whether the build is live, and reading
+// it through `window.LIVE` would have taken this file's cross-module count
+// UP — which check:globals rule 4 refuses. Converting the three sites that
+// were already here takes it DOWN instead, which is the trade the ratchet
+// exists to force.
+import LIVE from '../data/live.ts';
+
+// The Roles tab (D204), behind a lazy boundary. THIS FILE IS EAGER — it is
+// imported by spec-index.js at line ~123 — and check:bundle's MAX_EAGER_KB
+// had ~8 KB of headroom when Roles shipped, so a static import here would
+// have put two roses, the archetype matcher and the panel itself on first
+// paint for a subtab most opens never reach.
+const RolesPanelLazy = React.lazy(() => import('../ui/LiveRolesPanel.tsx'));
 
 // InSight — ProfileOverlay (your own profile) + the Politics cards.
 // The test flow lives in test-overlay.jsx; question banks in test-defs.js.
 
+// `lensBoxed` left the signature with the v28 §10 teardown (this branch);
+// the Roles panel and the LIVE read arrived with D204 (main). The merge
+// keeps both changes.
 function ProfileOverlay({ onClose, me }) {
+  const L = window.LIVE || {};
   const dims = [
     { label: 'Openness', v: me.personality.O },
     { label: 'Conscientiousness', v: me.personality.C },
@@ -25,6 +43,12 @@ function ProfileOverlay({ onClose, me }) {
     { id: 'politics',   label: 'Politics' },
     { id: 'values',     label: 'Values' },
     { id: 'attachment', label: 'Social' },
+    // Roles (D204) — the role you play in a 1v1 and in a group, folded
+    // from the duel record. LIVE ONLY, and that is not a stub: it reads
+    // reveal documents, and the demo room has none. A tab that could only
+    // ever draw its own refusal is worse than no tab, and D167's rule is
+    // that a surface ships with real data or does not ship.
+    ...(L.enabled ? [{ id: 'roles', label: 'Roles' }] : []),
     // the minor instruments. Last on purpose: the four core tests are the
     // profile, lenses are the footnotes that explain it.
     { id: 'lenses',     label: 'Lenses' },
@@ -159,8 +183,8 @@ function ProfileOverlay({ onClose, me }) {
             that opened on a third of a screen saying "You". */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 10 }}>
           {(() => {
-            const live = window.LIVE && window.LIVE.enabled;
-            const nm = live ? (window.LIVE.displayName || 'You') : me.name;
+            const live = L.enabled;
+            const nm = live ? (L.displayName || 'You') : me.name;
             const init = live
               ? ((nm.split(' ').map((w) => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase()) || '·')
               : me.initials;
@@ -187,12 +211,15 @@ function ProfileOverlay({ onClose, me }) {
         </div>
 
         <div key={sub} className="tab-swap" style={{ marginTop: 4 }}>
-          {sub === 'general' && window.LIVE && window.LIVE.enabled && window.LivePrivacyPanel && <window.LivePrivacyPanel />}
+          {sub === 'general' && L.enabled && window.LivePrivacyPanel && <window.LivePrivacyPanel />}
           {sub === 'general' && <window.GeneralPanel onGo={setSub} />}
           {sub === 'big5' && <><Big5Panel /><TestProgress k="big5" /></>}
           {sub === 'politics' && <><PoliticsPanel /><TestProgress k="political" /></>}
           {sub === 'values' && <><ValuesPanel /><TestProgress k="values" /></>}
           {sub === 'attachment' && <><AttachmentPanel /><TestProgress k="attachment" /></>}
+          {sub === 'roles' && (
+            <React.Suspense fallback={null}><RolesPanelLazy /></React.Suspense>
+          )}
           {sub === 'lenses' && window.LensesPanel && <window.LensesPanel />}
         </div>
       </div>

@@ -80,6 +80,12 @@ export interface QuestionDoc {
   // construction and carries no key, which is why readers must go through
   // `isCore()` below rather than testing this field directly.
   core?: boolean;
+  // Doors (docs/TAGS-PLAN.md §1): the topics a feed question ALSO belongs
+  // to, beside its `topic` home. Feed-only, emit-when-set, and reach-only —
+  // the feed's filter, stock and search read topic ∪ also, while everything
+  // that PLACES the card (Map branch, kicker, stream grouping) stays on
+  // `topic`. Absent everywhere else and on any doc seeded before it landed.
+  also?: string[];
   // Pool scope for duel questions (D40 part 4): absent = the shared pool;
   // "romantic" = served only to duos whose doc says duoMode: "romantic".
   // Absent everywhere else — the seed emits it only when set.
@@ -335,6 +341,7 @@ export function splitBanks(active: Array<QuestionDoc & { id: string }>): {
   duel: Array<QuestionDoc & { id: string }>;
   learn: Array<QuestionDoc & { id: string }>;
   call: Array<QuestionDoc & { id: string }>;
+  pulse: Array<QuestionDoc & { id: string }>;
 } {
   const playable = (q: QuestionDoc & { id: string }) =>
     Array.isArray(q.options) && q.options.length >= 2;
@@ -364,6 +371,16 @@ export function splitBanks(active: Array<QuestionDoc & { id: string }>): {
     // anything. Keeping it out of `feed` keeps that read off the feed's
     // hot path entirely.
     call: active.filter((q) => q.surface === "call" && playable(q)),
+    // The pulse roster (D203). It had no bank until the roster shipped,
+    // and the omission cost two live defects rather than one: `data/pulse`
+    // paid its own `getDoc` for a template `hydrate()` had already
+    // downloaded and cached, AND that read took only `prompt`/`options`,
+    // so `active` never reached the client. Flipping a pulse off in the
+    // console left a fully rendered, tappable card whose every write the
+    // rules refused — the answer appeared and silently vanished. Both are
+    // fixed by the pulse being a bank like the others, because `active` is
+    // already filtered out of `active` above.
+    pulse: active.filter((q) => q.surface === "pulse" && playable(q)),
   };
 }
 

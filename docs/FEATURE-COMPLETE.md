@@ -160,7 +160,7 @@ ordered list. Open, in its order:
   cache key; an avatar-overwrite rate limit; the CDN question; the
   graded breaker `mode` field, which needs an owner decision about what
   a degraded app *says* before it can be built. [`COSTS.md`](COSTS.md).
-- ~~**The eager-bytes door**~~ (v28 §5) — **open 2026-08-19 (D202)**:
+- ~~**The eager-bytes door**~~ (v28 §5) — **open 2026-08-19 (D207)**:
   Patterns arrives through `React.lazy` in `app-shell.jsx`, and the Map's
   seven modules left the eager list for `loadMapTab()` the same day
   (eager 890 → 849 KB, `MAX_EAGER_KB` 920 → 860). The three parked
@@ -207,7 +207,7 @@ refused the third.
    pair card fetches ONE exact 2×2 per selection (the plan's own
    singular phrasing; widening is one line if the trial earns it). §2,
    §11.
-5. ~~**The Map's parked branches**~~ — **done 2026-08-19 (D202,
+5. ~~**The Map's parked branches**~~ — **done 2026-08-19 (D207,
    amended)**: `g-paths` leafs finished walks under the card's own
    live/demo source discipline, `g-fore` folds the READ log and tier-A
    calls (sealed until an outcome publishes, no invented "better than
@@ -218,7 +218,7 @@ refused the third.
    2026-08-19 with §11 complete: the pulse roster and Patterns carry
    dedicated live cases, type-mix pins its switch at the component and
    rides the Mirror walks, and the Map branches are the fold-test +
-   mount pair D202 records (the map ground does not render in jsdom).
+   mount pair D207 records (the map ground does not render in jsdom).
    Standing rule for anything v28-shaped that ships later. §13.
 
 Beyond v28, still open on the Mirror ([`MIRROR.md`](MIRROR.md)):

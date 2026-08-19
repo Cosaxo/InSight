@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 //
-// The Map's v28 branch folds (§5, D202), pinned on their honesty rules:
+// The Map's v28 branch folds (§5, D207), pinned on their honesty rules:
 //
 //   1. Every leaf is real — a pulse leaf needs an answered day, a read
 //      leaf a graded verdict, a call leaf a call you actually made — and
@@ -13,7 +13,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const live = vi.hoisted(() => ({
   enabled: true,
-  pulseVotes: vi.fn<(qid: string) => Record<string, number>>(() => ({})),
+  pulseVotes: vi.fn<(pid: string) => Record<string, number>>(() => ({})),
+  // the roster's live source (D203): empty until the bank hydrates
+  pulseQs: vi.fn((): { id: string; prompt: string; options: string[] }[] => []),
   anchors: () => ({}),
   subscribe: () => () => {},
   votePulse: vi.fn(),
@@ -26,7 +28,6 @@ vi.mock("./live", () => ({ default: live }));
 vi.mock("../../lib/firebase", () => ({ getDb: vi.fn(), getFirestoreApi: vi.fn() }));
 
 import { foreTree, pulseTree } from "./mapTrees";
-import { PULSE } from "./pulse";
 
 const dayKey = (back: number): string => {
   const d = new Date();
@@ -48,11 +49,27 @@ beforeEach(() => {
 afterEach(() => vi.clearAllMocks());
 
 describe("the pulse branch", () => {
-  it("live: leafs only pulses with an answered day, distance = consistency", () => {
-    // live templates have not loaded in this harness — ready() is false —
-    // so the honest result is NO leaves, not a nameless dot
+  it("live: no roster until the bank hydrates — votes alone leaf nothing", () => {
+    // roster() reads LIVE.pulseQs() (D203); an empty bank means there is
+    // nothing to NAME, so the honest result is no leaves, not a nameless dot
     live.pulseVotes.mockReturnValue({ [dayKey(0)]: 2 });
     expect(pulseTree()).toEqual({ cats: [], nodes: [] });
+  });
+
+  it("live: an answered bank pulse leafs, distance = consistency", () => {
+    live.pulseQs.mockReturnValue([
+      { id: "pulse-pace", prompt: "What pace was today?", options: ["Crawling", "Dragging", "Steady", "Brisk", "Flying"] },
+    ]);
+    live.pulseVotes.mockReturnValue({ [dayKey(0)]: 2, [dayKey(1)]: 3 }); // optionIdx → steps 3 and 4
+    const tree = pulseTree();
+    expect(tree.nodes).toHaveLength(1);
+    const n = tree.nodes[0];
+    expect(n.id).toBe("pulse-pace");
+    expect(n.qid).toBe("pulse-pace");
+    expect(n.ans).toBe("Steady"); // today's answer, optionIdx 2 → step 3
+    expect(n.note).toBe("2 in a row");
+    expect(n.typ).toBeGreaterThan(0);
+    expect(n.typ).toBeLessThan(0.2); // 2 of 21 scheduled days kept
   });
 
   it("demo: only the first pulse may leaf, and only once answered", () => {
@@ -62,7 +79,7 @@ describe("the pulse branch", () => {
     const tree = pulseTree();
     expect(tree.cats.map((c) => c.id)).toEqual(["pulse"]);
     expect(tree.nodes).toHaveLength(1);
-    expect(tree.nodes[0].id).toBe("pulse-" + PULSE.ROSTER[0].qid);
+    expect(tree.nodes[0].id).toBe("pulse-pace"); // DEMO_ROSTER's first
     expect(tree.nodes[0].pulse).toBe(true);
     expect(tree.nodes[0].typ).toBeGreaterThan(0);
     expect(tree.nodes[0].typ).toBeLessThan(1);

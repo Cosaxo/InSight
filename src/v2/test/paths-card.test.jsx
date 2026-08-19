@@ -236,7 +236,7 @@ describe("Crossroads · live", () => {
   });
 });
 
-// ── the Map's Crossroads branch (v28 §5, D202) ─────────────────────────
+// ── the Map's Crossroads branch (v28 §5, D207) ─────────────────────────
 //
 // Same source discipline as the card: live, a leaf's walk is the SERVER's
 // answer and its rarity folds from real counts or is ABSENT; demo, both

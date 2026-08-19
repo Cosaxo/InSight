@@ -118,6 +118,13 @@ What a reviewing run judges is exactly the residue
    *measures* this once the question is live, and the measurement wins.
    Do not reject on a predicted landslide alone; flag it and let the
    retirement lane settle it.
+5. **Tag honesty** (docs/TAGS-PLAN.md §3). Judge each `also` door by one
+   question: *would a follower of that topic nod at meeting this card, or
+   is this reach?* The gate already held the mechanical half (committed
+   ids, the cap, no leaf-beside-parent); what needs a reader is whether
+   the membership is real. This is also part of what the human audit
+   reads — the reviewer shares the generator's tilt about what "belongs"
+   in a topic, which is exactly the correlated-blind-spot rule below.
 
 **Two rules that are not about quality, and are the reason a human is
 still here at all:**
@@ -199,7 +206,17 @@ but the public aggregates: per question, the published
 landslide — the "splits, not landslides" bar as a number; for
 scale/rating it is measured on the axis, side balance × dispersion,
 because a consensus on the middle must not read as "even" — D33
-amendment 2026-08-06), rolled up per topic. What it deliberately cannot see: skip/pass rates (never
+amendment 2026-08-06), rolled up per topic. Three rules of that rollup
+carry the doors design (docs/TAGS-PLAN.md §3) and are worth knowing
+before reading the numbers: a row's answers credit every topic it
+carries in **conserved shares** (home 2 : door 1 — `creditShares`, with
+the conservation property pinned in `scorecard-metrics.test.mjs`), so
+per-topic `answers` are fractional and sum exactly to the bank's real
+answers; `questions`/`scored` count **membership**, so a straddler sits
+in both its topics' columns and the columns are not a partition; and
+**sponsored rows are excluded from the rollup entirely** — the buyer
+keeps the per-question row they paid for, and the demand signal the
+lanes read is not for sale. What it deliberately cannot see: skip/pass rates (never
 collected — local-only, D-series), anything per-user, anything below
 the floor. Daily topics are capitalized `CAT_META` tops; feed topics
 are lowercase `WORLD_TOPICS` ids — score them per-surface, never mixed
@@ -827,6 +844,29 @@ Rules, each load-bearing:
   see § When no category fits. Mark politically charged questions
   `political: true` (D52's rule: the passive-collection marker and the
   feed kicker key off it).
+- **Doors are earned, not decorative** (docs/TAGS-PLAN.md). A genuine
+  straddler may carry `also` — up to two more committed topic ids beside
+  its `cat` — and each door gets **one justifying line in the PR body**,
+  answering the audit's question in advance: *would a follower of that
+  topic nod, or is this reach?* Most questions carry none; a run whose
+  batch is mostly doored is reaching. There is no demand upside to reach
+  for anyway — credit is conserved (`creditShares`, home 2 : door 1), so
+  a door redistributes the question's answers across topics and never
+  adds any; what broad tagging buys is dilution of the home topic's own
+  signal plus an audit finding. `check:quality` holds the mechanical half
+  (committed ids, the cap, no repeats, no leaf-beside-parent, none on
+  scene cards); the honesty half is the reviewing run's and the audit's
+  (§ The review contract). Doors count toward a topic's depth in the
+  budget — membership follows visibility — which makes **a door on an
+  existing question the free first fix for a thin topic**: unlike a new
+  question it splits no answer budget, so check whether a straddler
+  already in the bank covers the gap before writing into it.
+- **The lanes allocate the tail; a human allocates the core.** New feed
+  production lands core-absent (docs/SCALE-PLAN.md §1: absent means
+  tail), and no demand signal — however popular a topic reads — moves a
+  question INTO the core. Core membership is what the Mirror folds over,
+  and it stays a curatorial act with a human on the merge, exactly so
+  popularity cannot tilt the corpus toward what is already popular.
 - **Ship active.** The feed's retire path is real (`active: false`, the
   D52 shape) and stays the operator's; the lane never flips flags,
   and cites the scorecard's feed `retireProposals` in its PR body like

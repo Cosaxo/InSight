@@ -10,7 +10,7 @@ import { HAPTIC } from './haptics.js';
 import { markNav } from './swipe-back.js';
 import { useTweaks, TweaksPanel, TweakSection, TweakRadio, TweakButton } from './tweaks-panel.jsx';
 import { reportError } from '../../lib/sentry';
-// The typed cue that opens the Map on a branch (v28 §5, D202 — the shape
+// The typed cue that opens the Map on a branch (v28 §5, D207 — the shape
 // window.goTrends would have been): the caller stores WHERE, this shell
 // answers with the navigation, map-tab reads the where. ESM on all three
 // sides, so the coupling ratchet never counts it.

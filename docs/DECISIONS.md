@@ -20957,7 +20957,497 @@ invocation `europe-west1-<fn>`, which is the move working rather than a
 claim about it. In this sandbox they need `HTTPS_PROXY` unset — the
 standing note in docs/LOCAL-TESTING.md, not a symptom of this change.
 
-## D202 · The Map goes lazy, and the door §5 was waiting on is open
+## D202 · The type mix reads every instrument, and D157 §4 is reversed
+
+**2026-08-19.** **Status:** binding. Owner's call, made twice: asked
+whether to skip the switch, narrow it to politics, or amend fully, the
+answer was *"build it remove the promise"* and then, unprompted, *"yeah
+override the privacy promise."* This record is what that cost and what it
+did not.
+
+### What shipped
+
+The Mirror's type-mix card (People lens, City · Country · World) gains a
+four-position switch — **Personality · Politics · Values · Social** — and
+remembers the choice per device. Every instrument the archetype module
+defines can now be read as a population: *of the people this session has
+seen in Oslo who carry a politics result, how many hold each type.*
+
+### What it reversed, stated plainly because it was refused on the merits
+
+[D157 §4](#d157--the-test-surfaces-stop-describing-a-crowd-they-never-counted)
+refused this exact reading for these exact instruments. It is worth
+quoting against itself, because the reversal is not the discovery of a new
+fact:
+
+> `typeSharesOn` refuses every instrument but `TYPE_TEST`. That is the
+> Art. 9 scope `docs/data-inventory.md` draws and `typeMix.TYPE_TEST`
+> already enforced: no population reading is computed from the politics
+> result.
+
+D157 also identified the number it was refusing as **this card's** number
+("the count of people per type is the reading `TypeMixCard` has published
+on the Mirror since D141"), and noted the widening was *"one parameter"*
+away — accepting a blank on three profile sheets as the price. So this is
+a re-litigation, decided the other way by the person entitled to decide
+it.
+
+**[`VISION-V28.md`](VISION-V28.md) §8 defended the switch by saying it
+"does not touch D8". That is true and was never the point.** D8 forbids a
+test result becoming a *breakdown dim* — a cut the server slices an
+aggregate by. Nothing here does that: no cell is keyed by a result, no
+result enters the anchors snapshot, the fold is entirely on the device.
+D8 is untouched and was not the constraint. D157 §4 was, and §8 checked
+the wrong door. That mistake is recorded here rather than quietly fixed,
+because a plan that clears the wrong constraint reads exactly like a plan
+that cleared the right one.
+
+### The argument that carried
+
+Not "it is easy" — D157 heard that one and refused it. What is different:
+
+- Every input already publishes. `voters.ts` parses all four instruments
+  into the same session cache today; the politics axes are on the wire
+  regardless, because the web SDK has no field mask.
+- **The per-person view already ships.** Since D112/D193, `data/compare.ts`
+  and the City constellation show a *named* person's politics axes beside
+  yours. An aggregate over people is strictly less identifying than a
+  surface that has been live for months. Refusing the aggregate while
+  shipping the named per-person read was the incoherent position.
+
+### What did NOT move, and now has an owner
+
+**Answers are still grouped by the Big Five and by nothing else.** That is
+a different act from counting people, it is the promise `web/privacy.html`
+makes in those words, and it was not part of the ask.
+
+It was, however, enforced by `typeMix.TYPE_TEST` — the constant this
+record demotes to a default. A promise whose enforcement point has been
+repurposed has no owner, so the scope moved to where it belongs:
+`data/typeSplit.SPLIT_TEST`, explicit at every call site rather than
+inherited from another module's default, and pinned by its own cases. A
+later widening of the mix cannot now carry the split with it.
+
+### The disclosure was rewritten, not deleted
+
+"Override the privacy promise" is executed as *change what the page says*,
+not *stop saying it*. `web/privacy.html` gains a bullet describing the new
+reading in the terms a reader needs — a count of people rather than a
+grouping of answers, computed on the device, a sample and not a census,
+and the one control that exists (a test you have not taken cannot type
+you). `check:policy-claims` gains **two** rows, not one: the new claim,
+and the surviving one. Either half deleted alone would leave a page that
+reads as the pre-D199 promise while the app does something wider — which
+is the D174/D175/D177 failure mode the gate exists for.
+
+Two stale citations were fixed in passing, both the same class: `typeMix.ts`
+and `docs/data-inventory.md` each said the scope was "promised in the
+panel copy", which D183 made false when it moved the disclosures out of
+`ui/LivePrivacyPanel` and into `web/privacy.html`.
+
+### What this does not license
+
+**The numbers are measured or they are not drawn.** The v28 prototype
+derives its non-Big-Five mixes from authored per-type shares with a
+per-population wobble (`design/standalone-v28/type-mix.js`). That is the
+exact class D157 §4 removed and [D167](#d167--every-v28-surface-ships-with-its-backend-or-it-does-not-ship)
+forbids, so this could not be a port. Every row is a count of real typed
+people, the thin and small-sample states are recomputed per instrument
+(coverage differs by how far each person has got through the test feed),
+and `typeSharesOn` still returns null — never a fallback — for a key the
+archetype module does not define.
+
+**D8 stands unamended.** No test result is a breakdown dim.
+
+## D203 · Five pulses, each with its own rhythm
+
+**2026-08-19.** **Status:** binding. Builds §3 of
+[`VISION-V28.md`](VISION-V28.md), which [D166 §3](#d166--the-third-tab-is-adopted-on-trial-the-arena-is-dropped-the-pulse-roster-is-approved)
+approved in full — sleep and energy included — having weighed what they
+cost. This record is the build and the three things the plan did not
+anticipate.
+
+### What shipped
+
+`pace · energy · sleep · focus · social`, each carrying its own **cadence**
+— daily · often (Mon/Wed/Fri) · weekly (Sunday) · off — set on the card
+itself, because "ask me more often" is a rhythm rather than a settings
+screen. Due pulses take their turn in the feed beside the blind daily. **No
+tray, no block pinned above the feed**: a pulse that is not due today is
+simply not there, and nothing announces what you are not being asked.
+
+D139 wrote its own retirement note — *"a roster becomes a parameter the day
+a second pulse ships; until then a constant is honest about the design"* —
+and this is that day.
+
+### Cadence is device state, and that is a decision
+
+`insight.pulseCadence.v1` in localStorage, swept by the D51 purge. It has
+**no server representation and should not get one.** `dueOn(cadence, date)`
+is a pure function of a preference and the calendar, every device computes
+the same answer, and the reading is drawn on the device — so the server
+would buy cross-device sync at the price of a new field, a new rules arm, a
+`data-inventory` row, and a second store-forms conversation about a
+health-adjacent preference. How often someone wants to be asked how they
+slept is arguably the more revealing half of this feature; it never leaves
+the phone.
+
+The rules deliberately do not fence it either: an "off" pulse is still
+writable, exactly as a paused one should be.
+
+### The honesty rules gained a fourth clause, and it is the whole point
+
+The three that stood — an unanswered day is absent, never zero-filled or
+bridged; a thin day is counted, not placed; no smoothing anywhere — are
+joined by: **a day the pulse was not scheduled is absent too, and is not a
+miss.**
+
+This is not decoration. `design/standalone-v28/pulse-data.js` still walks
+CALENDAR days, so in the prototype a weekly pulse answered faithfully every
+Sunday for three weeks reports a streak that can never exceed 1, three grey
+voids, and *"you didn't answer on 18 days"* — a statement about a question
+nobody put. The store counts runs in **asks**; the strip draws the last
+fourteen **asks**; the gap detector bridges unscheduled days; and the crowd
+series refuses to place a point on a day this reading has no row for. Six
+cases in `data/pulse.test.ts` pin it.
+
+### Three things the plan did not anticipate
+
+**1. The roster made the reads CHEAPER, not five times dearer.** D139
+fetched the whole 21-day window on every open although the card only ever
+draws today. A naive ×5 would have been 105 ids — over the 30-clause
+`documentId() in` cap, so four-plus queries per open for data the first
+screen never reads. Split instead: `ensureToday` is one query of at most
+five ids for the card, `ensureTrend` is one 21-id query paid on the tap
+that opens a reading. Five pulses now cost fewer reads per open than one
+did.
+
+**2. It surfaced two shipped defects, and the roster would have multiplied
+both by five.** `splitBanks` had no pulse lane, so `data/pulse` paid its
+own `getDoc` for a template `hydrate()` had already downloaded and cached —
+and that read took only `prompt` and `options`, so **`active` never reached
+the client**. Flipping a pulse off in the console left a fully rendered,
+tappable card whose every write the rules refused: the answer appeared and
+silently vanished. Giving the pulse a bank like every other surface fixes
+both, because `active` is filtered upstream.
+
+**3. `worldAnswers` did not move, and the reason is in the model.** The
+default cadences (pace daily, energy and sleep weekly, focus and social
+off) ask 1 + 2/7 ≈ 1.29 pulse answers per user per day against the 1 the
+cost model already assumes. Rounding that in would move every figure in
+`COSTS.md` on a guess about how many people raise a cadence. The ceiling is
+real and is recorded next to the assumption instead: everyone setting every
+pulse to daily takes the term 4 → 8, about +$128/mo at 50 k DAU and
++$1,280 at 500 k.
+
+### The store filing moved, and it was the silent one
+
+**Apple's Health row is now YES**, and `design/store/app-privacy.json`
+declares it collected and linked. `docs/STORE-FORMS.md`'s Health bullet has
+carried a trip-wire since D140 saying the No was argued for the height band
+alone and *"whoever picks that decision back up owns this row"*. A
+self-reported daily sleep and energy series is Apple's *"any other user
+provided health or medical data"* on any reading, so this is that
+trip-wire being honoured rather than overruled — D140's own refusal of
+weight and BMI is untouched, and neither is collected.
+
+It is filed **linked**, because under D98 a pulse answer folds into the
+same exact aggregate any signed-in user can read. Filing it unlinked would
+have been the more flattering lie.
+
+**`check:store-forms` passed throughout the change and would have passed
+without it** — it holds the two files equal to each other, not to the app.
+That is the failure mode `docs/SHIP-CHECKLIST.md` calls the one that fails
+silently, in the under-declaring direction, and the only thing that catches
+it is someone remembering the trip-wire. The bullet now says so at the top
+rather than at the bottom.
+
+### What did not change
+
+`firestore.rules` needed **nothing**: `isPulseAnswer()` already validated
+against `request.resource.data.baseQid` rather than a constant, so any
+template with `surface: "pulse"` was already legal. Neither did the
+aggregate trigger — `onV2AnswerCreated` keys everything off
+`event.params.qid`, which for a pulse is `{baseQid}_{day}`, and never reads
+the question doc on that branch. Five pulses mint five per-day agg pairs
+instead of one and no function changed. `pulse-pace` keeps its option set
+forever (D52); the roster appends around it.
+
+## D204 · Your role is a test result, and the dimension without data is not shipped
+
+**2026-08-19.** **Status:** binding. Roles is the one item in the
+2026-08-19 prototype that [`VISION-V28.md`](VISION-V28.md) had no section
+for — the August-15 build had no such module — so it arrives with a record
+rather than a plan entry.
+
+### What shipped
+
+A seventh profile subtab: **the role you play in a 1v1, and the role you
+play in a group**, each read as an instrument. Four dimensions for a 1v1
+(Insight · Legibility · Likeness · Steadiness) and three for a group
+(Independence · Centrality · Steadiness), matched to a named type by the
+same `IS_matchArchetype` every other test uses. A role card is a result
+card: same rose, same matcher, same nearby-type language, no new visual
+vocabulary.
+
+Each instrument opens with the **average across your settings** — weighted
+by revealed days, so a three-day duel cannot swing a portrait a
+twenty-four-day one built — then lists every setting one row deep, because
+a role is only interesting next to the other roles you play.
+
+### Real on arrival, which is why it could ship at all
+
+`data/roles.ts` is a pure fold over `LIVE.social.revealHistory` — the same
+reveal documents `duelRuns` (D156) and `groupPortrait` already read, which
+the duel panel already fetches. **No new read, no new field, no new
+collection, no Cloud Function.** That is what makes it a
+[D167](#d167--every-v28-surface-ships-with-its-backend-or-it-does-not-ship)
+item that needed no backend half, in the same class as the trait web.
+
+### The dimension that did not ship, and why that is the whole record
+
+The prototype's group instrument has a **fourth** dimension — `cast`
+("Standing": how often the group crowns you). It is the only part of
+`role-data.js` with no live source at all. It reads
+`DUELS.roleVotes(gid)`, a scenario-pack generator that exists solely in
+the demo module, and [`MIRROR.md`](MIRROR.md) records those crowns as
+unbuilt.
+
+Shipping it anyway would have meant a constant 50 for every user. Fifty is
+*exactly* the authored baseline, so it would have contributed nothing to
+any type match while drawing an identical petal on every rose — **a dead
+axis presented as a measurement.** That is what D167 forbids and what
+[D157](#d157--the-test-surfaces-stop-describing-a-crowd-they-never-counted)
+spent a release removing. So `cast` is not computed.
+
+**Dropping it cost three of the nine group types, and they are dropped
+rather than kept hollow.** "The First Pick" (cast 94) and "The Spark"
+(cast 78) are *defined* by it. "The Floater" is the subtler one and the
+reason this is a decision rather than a deletion: without `cast` its
+signature is `own 46 · pull 46 · settle 44`, and `IS_archScores` weights
+each dim by |sig − 50| — so a type near-neutral on everything can never be
+picked. Keeping it would have left dead weight in a table the rarity tax
+reads as a distribution. Six types remain, shares renormalised 83 → 100.
+
+`data/roles.test.ts` pins all three assumptions the matcher makes silently:
+shares summing to 100, signatures covering exactly the fold's dim ids, and
+every type extreme on at least one dim — the last at the house's own
+observed floor of 12 (Communitarian, in the politics table), so the role
+tables are held no looser than the four that shipped and no tighter.
+
+**What would make `cast` real:** 7 of the 24 group-bank questions are
+`kind: "pick"`, and their options ARE the member list. But the reveal doc
+does not store the option→uid mapping the answering client used —
+`revealMembersFor` filters late joiners out, so neither `members` nor the
+current `memberUids` is reliably the array that was indexed into. A roster
+change silently remaps every historical pick. That is a new fold with a
+real correctness hazard, and at ~4 pick days in a 14-day window it would
+be thin even if it were safe.
+
+### Two places the port could not be literal
+
+**The registries moved off the global bridge.** The prototype writes
+`window.RP_TESTS[key] = …` for seven registries; in this tree four of them
+(`RP_TESTS`, `IS_TEST_RESULTS`, `IS_TEST_AVG`, `DUELS`) are ESM exports
+with no window mirror, so a verbatim port would have been silent no-ops
+behind a guard that returns early — green under tsc, eslint and the
+checkers. The instruments are declared in the modules that own them
+instead.
+
+**`own` divides by days you PLAYED, not days revealed.** The prototype
+divides by all revealed days, which makes not turning up look like
+independence. "Away from the majority" has to mean something you did.
+
+### The ratchet did what it is for
+
+Adding the subtab through `window.LIVE` would have taken
+`profile-overlay.jsx` from 10 cross-module global references to 12, and
+`check:globals` rule 4 refused it. Converting the three sites already
+there took the file 10 → 5 and the tree **409 → 404**. That is the trade
+the ratchet exists to force, and it is the third time "convert on touch"
+has paid for itself rather than costing.
+
+### Live only, and that is not a stub
+
+The tab does not exist in a demo build. It reads reveal documents and the
+demo room has none, so a demo tab could only ever draw its own refusal —
+worse than no tab, and against D167's rule that a surface ships with real
+data or does not ship.
+
+## D205 · An unconfirmed city does not score the place it names
+
+**2026-08-19.** **Status:** binding. Owner's problem, in their words:
+*"we should solve the issue with people picking cities they are not in."*
+The proposal that came with it — remove the picker, default to the nearest
+city — is **not** what shipped, and §"Why not the sensor" says why.
+
+### What shipped
+
+Three pieces, all client-side:
+
+1. **The anchor remembers how it was set.** `vitals.cityOk` holds the city
+   key the device's own location fix agreed with. `CityPicker` now reports
+   which path produced a value — accepting the located suggestion confirms,
+   scrolling the list does not.
+2. **A question that rates a city takes no city cell from an unconfirmed
+   anchor.** `answerAnchors(rates)` writes `city: ""` when the question
+   scores a city and the phone has never agreed. The answer still counts
+   for country and world.
+3. **The Scores card says so**, on the City stop, to a reader whose scores
+   are not in it.
+
+### Why not the sensor
+
+**Nearest-city tells you where the phone is, not where the person lives**,
+and those come apart exactly where this matters. A tourist standing in Oslo
+with a perfect fix is precisely the person whose rating of Oslo you do not
+want, and sensor-only would enrol them **silently**, with no deliberate act
+required. Someone who lives in Oslo and travels for a fortnight would
+become a Berliner — and because anchors are snapshotted per answer (D8),
+their history would smear across cities permanently.
+
+So the picker stays. It is also the fallback for a path with five
+documented failure modes — `data/locate.ts` names `unsupported`, `denied`,
+`unavailable`, `timeout` and `no-match`, and carries a 30-second wall-clock
+deadline because a dismissed permission prompt leaves `getCurrentPosition`
+pending forever. Its own contract closes: *"Everything here is optional.
+Every failure path returns a reason the UI can show and leaves the manual
+picker exactly as it was."* Removing it turns each of those into a dead end
+with nothing tappable — the failure `setCityAnchor` exists to have fixed.
+
+### Why the gate is at the ANSWER and not at the deck
+
+The obvious shape — stop serving the question — cannot work, and finding
+out why changed the design.
+
+**All 24 rating questions are in the DAILY bank.** The daily deck is
+POSITIONAL (`computeDeckIds` indexes `questionIds[(today − epoch − back) %
+n]`) and it is the same question for everyone on the day. Filtering it per
+person would either shift every other day's question or leave some people
+with no daily at all.
+
+**And filtering the READING is impossible too**, which is the part worth
+recording. The scorecard reads `agg.by.city[city]` — **one number the
+server has already summed**. The client never sees who is in it, so there
+is nothing to filter out. Splitting it would need a new breakdown
+dimension, against a per-dimension cap of `BREAKDOWN_MAX_BUCKETS = 24` that
+`pure.ts` calls *"a scarce resource"* and that `city` already exhausts (its
+own comment: "a global question can touch far more than 24 cities, so the
+long tail degrades").
+
+Suppressing the CELL at write time costs the answerer nothing they can see:
+they get the same question, answer it normally, and it counts everywhere it
+honestly can.
+
+### Three shapes chosen deliberately
+
+**The confirmation is a KEY, not a flag.** A boolean would need clearing on
+every path that changes the city, and the one that got missed would leave a
+stale "confirmed" on a city nobody checked. A key cannot go stale — it
+either equals the current city or it does not — so re-picking invalidates
+it for free, with no clearing code to forget.
+
+**It is not an anchor.** `anchorsFrom` whitelists the nine keys it sends
+and `cityOk` is not among them. An anchor would be a tenth key on every
+answer forever, a rules arm, a `data-inventory` row and a bucket in that
+same scarce list — all to carry a fact the client is the only reader of.
+
+**Empty, not absent.** `city: ""` is the path a profile with no city
+already writes: `isValidV2Anchors` accepts it (`hasOnly`, every key
+optional) and `breakdownBucket` already declines to mint a bucket for it.
+
+### What this does NOT do
+
+- **Forward-only.** Answers already given under unconfirmed cities keep
+  their cells. Nothing rewrites history and D5 would not allow it.
+- **City only.** `country` is untouched: it is coarse enough that D90's
+  timezone hint already lands it, and gating it would be a second decision
+  dressed as a consequence of this one.
+- **Ordinary questions are untouched.** The gate is about scoring a place,
+  not about the person. Widening it to every answer would quietly empty the
+  City stop for anyone who has not tapped "use my location" — a far bigger
+  change, and not the one that was asked for.
+- **Nobody is locked out.** No location permission is required for
+  anything. An unconfirmed reader keeps their city, their City stop, their
+  city's people, and every question. They do not score the place.
+
+### What is left
+
+The re-check — noticing that the phone has disagreed with the saved city
+for weeks and asking *"did you move?"* — is designed and not built. It only
+starts to matter once real people move, and it must never change the anchor
+on its own: travel has to stay invisible, and moving has to stay a question
+someone answers.
+
+## D206 · A question carries several doors, and demand credit is conserved
+
+**2026-08-19.** **Status:** binding. Owner's ask, in their words: *"adding
+multiple tags to questions and basing the question production based on
+what tags are most popular"* — then, over the plan that answered it,
+*"build it."* The plan is [`TAGS-PLAN.md`](TAGS-PLAN.md); this record is
+the delta it shipped, and the four sentences that must survive it.
+
+### What shipped
+
+Feed and pick questions may carry **`also`** — up to two more committed
+topic or subtopic ids beside the `cat` home (`ALSO_MAX`,
+`question-quality.mjs`). Fifteen of the bank's questions were retro-tagged
+in the same change, one door each, editorially. Around the field, in the
+plan's §6 order: the gate (ids, cap, no repeats, no leaf-beside-parent,
+none on scene cards, none outside feed/pick), the wire
+(`gen-v2content.mjs` emit-when-set → `QuestionDoc.also` → the live feed
+mapper), the reach (`wfFeedMatch` in `world-feed-math.js` — the filter as
+a pure, tested function — plus stock, and door labels in search), and the
+demand arithmetic (`creditShares` in `scorecard-metrics.mjs`, the
+scorecard's rollup, `feed-budget`'s membership counting).
+
+### The four sentences
+
+1. **A card appears once; `also` multiplies the ways to reach it, never
+   the copies of it.** Everything that PLACES stays on `cat` — the Map
+   branch, the kicker, the stream grouping. Everything that MATCHES reads
+   `cat ∪ also` — filter, stock, search, demand. The Map files an answer
+   at one path forever, so placement stays singular exactly because a
+   wrong door is recoverable and a wrong home is not.
+2. **A mute is a veto; a follow is a vote.** "Less of this" on any
+   carried topic hides the card everywhere — a dismissed card must not
+   ride back in through its second topic. The one place doors make the
+   feed smaller, pinned in `feed-doors.test.js`.
+3. **Credit is conserved** — home 2 shares, each door 1, normalized, so
+   summing credited answers across topics equals summing answers across
+   questions, exactly. This is the anti-gaming design rather than an
+   accounting taste: the generator that assigns doors is the species that
+   reviews them, and the demand lanes steer its own future budget. Under
+   conservation a door redistributes credit and never mints it, so broad
+   tagging buys nothing but dilution of the home's own signal. The
+   residue — a tilt inside individually defensible tags — is the human
+   audit's, which gained tag honesty as its fifth judgement
+   (QUESTION-FARM.md § The review contract).
+4. **Popularity steers the tail, never the core, and is not for sale.**
+   Sponsored rows are excluded from the topic rollup the lanes read (and
+   refuse `also` outright, `check-content.mjs`) — D195's line extended
+   from the Mirror's corpus to the production signal. New production
+   lands core-absent (D161), and no demand signal moves a question into
+   the core: the lanes allocate the tail, a human allocates the core.
+
+### What was deliberately kept
+
+The ask read "most popular tags"; the lanes keep **popularity × depth**
+(D97), because raw popularity compounds — the daily answer budget is
+conserved (SCALE-PLAN §1), so popular topics would eat it — and depth is
+what lets a small devoted topic earn content. And popularity still means
+**published answer counts, nothing else**: passes and skips stay
+local-only, per the standing MONITORING.md refusal and D163.
+
+### What is left
+
+The D163 on-device model reads doors when tier 2 is built — the contract
+(share-weighted affinity at the same 2:1, mute as veto) is written in
+TAGS-PLAN.md §4 so the field is not re-litigated then. And the demand
+lanes have nothing to read until aggregates exist: the machinery is
+whole; what arrives with users is only the numbers flowing through it.
+
+## D207 · The Map goes lazy, and the door §5 was waiting on is open
 
 **2026-08-19.** VISION-V28 §5 named one blocked door with three features
 behind it: Crossroads' `mapTree`, Foresight's map branch and the pulse

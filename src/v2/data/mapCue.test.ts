@@ -1,4 +1,4 @@
-// The Map cue's contract (v28 §5, D202): take-once — a cue is a
+// The Map cue's contract (v28 §5, D207): take-once — a cue is a
 // navigation, not a setting — and the subscription fires at cue time so
 // an already-mounted Map can re-aim while a fresh mount reads the same
 // cue from its initializer. Whoever takes first wins; nobody reads twice.

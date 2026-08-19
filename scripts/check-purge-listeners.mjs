@@ -69,11 +69,17 @@ const EXEMPT = {
   // writes the name (data/live.ts, `saveLocalName`), exempt above and the
   // purge dispatcher itself. Neither panel touches localStorage now, which
   // is why their entries are gone rather than reworded.
-  "src/v2/data/cityAnchor.ts":
-    "stateless write helper: reads the profile blob fresh from storage at "
-    + "each call and touches one leaf — no module-scope copy exists to go "
-    + "stale, and a post-purge call starts from the purged (absent) blob; "
-    + "the blob's own store is profile-general.jsx, exempt above",
+  // `src/v2/data/cityAnchor.ts` stood here until D205 and its entry is
+  // GONE rather than reworded, for the same reason the two panels above
+  // lost theirs: the key moved to its owner. `insight.profileGeneral.v2`
+  // is now named by `data/cityConfirm.ts` — a module with no imports, so
+  // `data/live.ts` can read the city confirmation at vote time without
+  // closing a cycle back through cityAnchor. cityAnchor still writes the
+  // blob through `mergeProfileVitals` and still needs no listener, for the
+  // reason its entry used to give: it reads storage fresh at each call and
+  // holds no module-scope copy to go stale. What changed is that it no
+  // longer NAMES an insight key, so this gate no longer asks it to explain
+  // itself. The blob's own store is profile-general.jsx, exempt above.
 };
 
 const dirs = ["src/v2/spec", "src/v2/ui", "src/v2/data", "src/lib"];

@@ -1,82 +1,92 @@
-// The pulse roster's store (D139 built it single-pulse; D166 §3 approved
-// the full five) — the design's PULSE contract
+// The pulse store (D139, roster at D203) — the design's PULSE contract
 // (design/standalone-v28/pulse-data.js), typed, in two honest modes:
 //
 //   · DEMO — the prototype room: seeded histories (one per honest case:
 //     typical, gap, day-one, perfect), invented crowds, localStorage
-//     answers. The design's furniture, verbatim — and ONE pulse only:
-//     the prototype fabricates crowds for the other four (synth()), which
-//     is exactly the invention D166 §1 refused, so in demo mode only the
-//     first pulse is ever due and the rest exist live-only.
+//     answers. The design's furniture, verbatim.
 //   · LIVE — your days from the hydrated vote mirror (zero extra reads),
 //     the crowd from the PER-DAY aggregate docs the untouched trigger
-//     publishes, one bounded query per open pulse (session-cached,
-//     poll-not-stream — D124/D129; the costs line is in docs/COSTS.md).
-//     Per pulse rather than one batch: five windows are 105 ids, over
-//     Firestore's 30-clause in-query cap, and a card that never mounts
-//     should never bill — the default roster asks one pulse a weekday.
+//     publishes, session-cached, poll-not-stream (D124/D129; the costs
+//     line is in docs/COSTS.md).
 //
-// The design's honesty rules are the contract, not decoration:
+// FIVE PULSES, NOT ONE (D203). D139 shipped a constant and said why:
+// "a roster becomes a parameter the day a second pulse ships". This is
+// that day. Every reading below takes a pulse id; nothing is singular any
+// more except the default the card opens on.
+//
+// EACH CARRIES ITS OWN CADENCE — daily · often (Mon/Wed/Fri) · weekly
+// (Sunday) · off — set on the card itself, because "show up more often"
+// is a rhythm rather than a settings screen. Cadence is DEVICE state and
+// deliberately has no server representation: `dueOn` is a pure function
+// of the cadence and the calendar, the reading is drawn on the device,
+// and putting it on the server would buy cross-device sync at the price
+// of a new field, a new rules arm, a new data-inventory row and a second
+// store-forms conversation about how often someone wants to be asked how
+// they slept. The rules do not fence it either — an "off" pulse is still
+// writable, exactly as a paused one should be.
+//
+// The design's honesty rules are the contract, not decoration, and the
+// roster adds the fourth:
 //   · a day nobody answered is ABSENT — never zero-filled, never bridged
 //   · a day too thin to place keeps its count and is listed, not placed
-//   · a day the pulse was NOT SCHEDULED is absent too — never a miss
+//   · a day the pulse was NOT SCHEDULED is absent too, and is not a miss:
+//     a weekly pulse that ran every Sunday for three weeks has a streak
+//     of 3, not "you skipped 18 days". The prototype gets this wrong —
+//     its `streak` still walks calendar days — and getting it wrong is
+//     precisely the lie these rules exist to prevent.
 //   · no smoothing, no rolling mean, no invented baseline anywhere
 import LIVE from "./live";
 import { getDb, getFirestoreApi } from "../../lib/firebase";
 
-/** How often a pulse is asked. A device preference, set on the card
- * itself — "show up more often" is a cadence, not a settings screen. */
-export const CADENCES = ["daily", "often", "weekly", "off"] as const;
-export type Cadence = (typeof CADENCES)[number];
-
-export interface PulseDef {
-  qid: string; kicker: string; cad: Cadence;
-  /** The card's hue. null = the app's own --pulse token (the first
-   * instrument keeps the house violet); a number is an oklch hue the
-   * card routes through the palette gate. */
-  hue: number | null;
-}
-
-/** The roster (D166 §3 — "the roster is the full five"). Order is serve
- * order in the feed. `pace` keeps D139's neutral wording — it already
- * plays the first slot with live answers keyed against it, and the
- * record's follow-through is that the bank GAINS the four v28 templates.
- * Each qid must match content/pulse-questions.json — the template doc is
- * fetched, these are only the keys. Cadence defaults are v28's own: the
- * first pulse daily, energy and sleep weekly, focus and social off. */
-export const ROSTER: PulseDef[] = [
-  { qid: "pulse-pace", kicker: "daily pulse", cad: "daily", hue: null },
-  { qid: "pulse-energy", kicker: "energy pulse", cad: "weekly", hue: 42 },
-  { qid: "pulse-sleep", kicker: "sleep pulse", cad: "weekly", hue: 258 },
-  { qid: "pulse-focus", kicker: "focus pulse", cad: "off", hue: 152 },
-  { qid: "pulse-social", kicker: "social pulse", cad: "off", hue: 330 },
-];
-const DEFAULT_QID = ROSTER[0].qid;
+/** The pulse the card opens on, and the only one that existed before
+ * D203. Kept as a named export because it is also the id whose option set
+ * D52 froze — the roster appends, it never rewrites this one. */
+export const PULSE_QID = "pulse-pace";
 
 export const DAYS = 21; // three weeks — the window the reading covers
 export const THIN = 20; // fewer answers than this: counted, never placed
+
+/** How often a pulse asks. `off` is paused rather than retired — the
+ * history stays readable, the question simply stops being due. */
+export type Cadence = "daily" | "often" | "weekly" | "off";
+export const CADENCES: Cadence[] = ["daily", "often", "weekly", "off"];
+/** What each cadence is called on the card. */
+export const CADENCE_LABEL: Record<Cadence, string> = {
+  daily: "every day", often: "Mon · Wed · Fri", weekly: "Sundays", off: "paused",
+};
 
 export interface PulseStep { v: number; label: string }
 export interface PulseDay {
   i: number; key: string; date: Date; label: string; today: boolean;
   weekStart: boolean; v: number | null;
-  /** Whether this day is asked under the pulse's CURRENT cadence. The
-   * schedule is a device preference with no history, so the past is read
-   * through today's setting — the honest approximation, and the same one
-   * the design makes. An unscheduled day is absent, never a miss. */
+  /** False when the cadence did not ask on this day — absent, not missed. */
   scheduled: boolean;
 }
 export interface ScopeDay { i: number; mean: number | null; n: number; placed: boolean; thin: boolean }
 export interface PulseScope { id: string; label: string; short: string; series: ScopeDay[] }
+export interface PulseQ { id: string; kicker: string; text: string; steps: PulseStep[] }
 
 const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-// ── demo furniture (the design's, verbatim — first pulse only) ──────────
+// ── demo furniture (the design's, verbatim) ─────────────────────────────
 const DEMO_STEPS: PulseStep[] = [
-  { v: 1, label: "Rough" }, { v: 2, label: "Off" }, { v: 3, label: "Fine" },
-  { v: 4, label: "Good" }, { v: 5, label: "Great" },
+  { v: 1, label: "Crawling" }, { v: 2, label: "Dragging" }, { v: 3, label: "Steady" },
+  { v: 4, label: "Brisk" }, { v: 5, label: "Flying" },
 ];
-const DEMO_Q = { kicker: "daily pulse", text: "How is today going?" };
+/** The demo roster mirrors the live bank so the two rooms have the same
+ * shape — same ids, same order, same default cadences. */
+const DEMO_ROSTER: { id: string; kicker: string; text: string; steps: string[]; cad: Cadence }[] = [
+  { id: "pulse-pace", kicker: "daily pulse", text: "What pace was today?", cad: "daily",
+    steps: ["Crawling", "Dragging", "Steady", "Brisk", "Flying"] },
+  { id: "pulse-energy", kicker: "energy pulse", text: "How was your energy today?", cad: "weekly",
+    steps: ["Drained", "Low", "OK", "Charged", "Wired"] },
+  { id: "pulse-sleep", kicker: "sleep pulse", text: "How did you sleep?", cad: "weekly",
+    steps: ["Badly", "Patchy", "OK", "Well", "Deeply"] },
+  { id: "pulse-focus", kicker: "focus pulse", text: "How clear was your head?", cad: "off",
+    steps: ["Scattered", "Foggy", "OK", "Sharp", "Locked in"] },
+  { id: "pulse-social", kicker: "social pulse", text: "How connected did you feel?", cad: "off",
+    steps: ["Alone", "Distant", "OK", "Close", "Held"] },
+];
 const HISTORY: Record<string, (number | null)[]> = {
   typical: [3, 4, 4, null, 3, 2, 3, 4, 4, 4, null, 3, 3, 4, 5, 4, null, 3, 4, 4, null],
   gap: [4, 3, 3, 4, 4, 3, 4, null, null, null, null, null, null, null, 3, 4, 4, 3, 4, 4, null],
@@ -98,17 +108,14 @@ const DEMO_BINS: Record<string, number[]> = {
   city: [7, 12, 27, 35, 19], country: [8, 14, 28, 33, 17], world: [6, 13, 28, 34, 19],
 };
 const LS = "insight.pulse.v1";
-/** The remembered cadences — {qid: cadence}, validated on read. Swept
- * with every other insight.* key by purgeLocalTrace; the in-memory copy
- * drops on the purge event without writing the key back. */
-const CKEY = "insight.pulse.cadence.v1";
+const CAD_LS = "insight.pulseCadence.v1";
 
 // ── shared clock arithmetic ─────────────────────────────────────────────
 // Day keys are UTC — the rules window, the vote's utcDayKey and the
 // per-day agg ids are all UTC, so the reading has to bucket the same way
-// or a late evening answers into "tomorrow's" row. The SCHEDULE buckets
-// UTC too, for the same reason: a pulse due on local-Sunday but answered
-// into a UTC-Monday key would read as an unscheduled answer.
+// or a late evening answers into "tomorrow's" row. The cadence reads the
+// same clock for the same reason: a pulse due "Sundays" has to be due on
+// the Sunday its answer would be keyed to.
 const pad = (n: number) => String(n).padStart(2, "0");
 const utcKey = (d: Date) =>
   `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
@@ -120,155 +127,230 @@ const dayAt = (i: number): Date => {
 };
 const dayLabel = (d: Date) => `${d.getUTCDate()} ${MON[d.getUTCMonth()]}`;
 
-/** The cadence calendar: daily · often (Mon·Wed·Fri) · weekly (Sunday) ·
- * off. UTC weekday, per the clock note above. */
-const dueOn = (cad: Cadence, d: Date): boolean => {
+/**
+ * Whether a cadence asks on a given day. Pure, explainable, and the whole
+ * of the scheduling model — there is no queue, no server job and nothing
+ * to drift out of sync, because every device computes the same answer
+ * from the same calendar.
+ */
+export function dueOn(cad: Cadence, d: Date): boolean {
   if (cad === "off") return false;
   if (cad === "daily") return true;
-  const w = d.getUTCDay();
+  const w = d.getUTCDay(); // 0 = Sunday
   if (cad === "often") return w === 1 || w === 3 || w === 5;
-  return w === 0;
-};
-
-// ── state ───────────────────────────────────────────────────────────────
-interface LiveTemplate { prompt: string; options: string[] }
-interface DayAgg { counts: Record<string, number>; total: number; by?: Record<string, Record<string, Record<string, number>>> }
-interface PulseState {
-  template: LiveTemplate | null;
-  dayAggs: Record<string, DayAgg | null> | null; // key → agg (null = fetched, absent)
-  loading: Promise<void> | null;
-  loadedForKey: string; // today's key at load time — a day rollover invalidates
+  return w === 0; // weekly — Sunday
 }
 
-const states = new Map<string, PulseState>();
-const st = (qid: string): PulseState => {
-  let s = states.get(qid);
-  if (!s) { s = { template: null, dayAggs: null, loading: null, loadedForKey: "" }; states.set(qid, s); }
-  return s;
-};
-let cadMap: Record<string, string> | null = null;
+// ── state ───────────────────────────────────────────────────────────────
+interface DayAgg { counts: Record<string, number>; total: number; by?: Record<string, Record<string, Record<string, number>>> }
+
+/** Today's aggregate per pulse — the only thing the CARD needs. */
+let todayAggs: Record<string, DayAgg | null> | null = null;
+/** The 21-day window per pulse — fetched only when a reading is opened. */
+const trendAggs: Record<string, Record<string, DayAgg | null>> = {};
+let loadingToday: Promise<void> | null = null;
+const loadingTrend: Record<string, Promise<void> | undefined> = {};
+let loadedForKey = ""; // today's key at load time — a day rollover invalidates
 const subs = new Set<() => void>();
 const notify = () => subs.forEach((f) => { try { f(); } catch { /* a broken listener must not stop the rest */ } });
 
-const demoSaved = (): Record<string, number> => {
+const demoSaved = (): Record<string, Record<string, number>> => {
   try {
     const v = JSON.parse(localStorage.getItem(LS) || "{}");
     return v && typeof v === "object" ? v : {};
   } catch { return {}; }
 };
 
-const cadSaved = (): Record<string, string> => {
-  if (cadMap) return cadMap;
-  try {
-    const v = JSON.parse(localStorage.getItem(CKEY) || "{}");
-    cadMap = v && typeof v === "object" ? v : {};
-  } catch { cadMap = {}; }
-  return cadMap as Record<string, string>;
-};
-
-/** A pulse's cadence: the stored choice if it is a real one, else the
- * roster's authored default — a foreign stored value must not invent a
- * fifth schedule. */
-export function cadence(qid: string = DEFAULT_QID): Cadence {
-  const def = ROSTER.find((p) => p.qid === qid)?.cad ?? "off";
-  const v = cadSaved()[qid];
-  return (CADENCES as readonly string[]).includes(v) ? (v as Cadence) : def;
+// ── the roster ──────────────────────────────────────────────────────────
+/**
+ * Every pulse this build can ask, in bank order.
+ *
+ * LIVE reads `LIVE.pulseQs()` — the hydrated bank, which means `active`
+ * has already been applied upstream. Before D203 this module fetched its
+ * own template with `getDoc` and read only `prompt`/`options`, so an
+ * operator flipping a pulse off left a tappable card whose every write the
+ * rules refused: the answer appeared, then silently vanished. Reading the
+ * bank is what fixes that, and it also stops paying for a document
+ * `hydrate()` had already cached — five times over, at roster size.
+ */
+export function roster(): PulseQ[] {
+  if (LIVE.enabled) {
+    return (LIVE.pulseQs() as { id: string; prompt: string; options: string[] }[])
+      .filter((q) => q.options.length === 5)
+      .map((q) => ({
+        id: q.id,
+        kicker: kickerFor(q.id),
+        text: q.prompt,
+        steps: q.options.map((label, i) => ({ v: i + 1, label })),
+      }));
+  }
+  return DEMO_ROSTER.map((r) => ({
+    id: r.id, kicker: r.kicker, text: r.text,
+    steps: r.steps.map((label, i) => ({ v: i + 1, label })),
+  }));
 }
 
-export function setCadence(qid: string, c: Cadence): void {
-  if (!(CADENCES as readonly string[]).includes(c)) return;
-  const m = { ...cadSaved(), [qid]: c };
-  cadMap = m;
-  try { localStorage.setItem(CKEY, JSON.stringify(m)); } catch { /* best-effort — the in-memory choice holds for this session */ }
+/** The eyebrow. Derived from the id so the bank does not have to carry a
+ * field for it, and falls back to the neutral word for an id the roster
+ * gains later. */
+function kickerFor(pid: string): string {
+  const known: Record<string, string> = {
+    "pulse-pace": "daily pulse", "pulse-energy": "energy pulse",
+    "pulse-sleep": "sleep pulse", "pulse-focus": "focus pulse",
+    "pulse-social": "social pulse",
+  };
+  return known[pid] ?? "pulse";
+}
+
+const qOf = (pid: string): PulseQ | null => roster().find((q) => q.id === pid) ?? null;
+
+// ── cadence ─────────────────────────────────────────────────────────────
+const defaultCad = (pid: string): Cadence =>
+  DEMO_ROSTER.find((r) => r.id === pid)?.cad ?? "daily";
+
+const savedCads = (): Record<string, Cadence> => {
+  try {
+    const v = JSON.parse(localStorage.getItem(CAD_LS) || "{}");
+    return v && typeof v === "object" ? v : {};
+  } catch { return {}; }
+};
+
+export function cadence(pid: string): Cadence {
+  const c = savedCads()[pid];
+  return c && CADENCES.includes(c) ? c : defaultCad(pid);
+}
+
+export function setCadence(pid: string, cad: Cadence): void {
+  if (!CADENCES.includes(cad)) return;
+  const all = savedCads();
+  all[pid] = cad;
+  try { localStorage.setItem(CAD_LS, JSON.stringify(all)); } catch { /* private mode — holds for the session */ }
   notify();
 }
 
-/** The pulses due today, in roster order. A dormant pulse is simply not
- * asked — no tray, no pinned block; this list is the feed's whole
- * knowledge of the roster. Demo mode asks only the first pulse: the
- * other four have no honest demo crowd (see the header). */
+/**
+ * The pulses due today, in roster order.
+ *
+ * A pulse you have ALREADY answered today stays in the list — it is due,
+ * and the card draws its reveal. Dropping it would make today's card
+ * vanish under your own tap, which reads as a bug rather than as progress.
+ */
 export function dueToday(): string[] {
-  if (!LIVE.enabled) {
-    return dueOn(cadence(DEFAULT_QID), dayAt(DAYS - 1)) ? [DEFAULT_QID] : [];
-  }
-  const today = dayAt(DAYS - 1);
-  return ROSTER.filter((p) => dueOn(cadence(p.qid), today)).map((p) => p.qid);
+  const d = dayAt(DAYS - 1);
+  return roster().filter((q) => dueOn(cadence(q.id), d)).map((q) => q.id);
 }
 
-/** One bounded fetch per open pulse: its template plus the window's
- * per-day agg docs, in a single documentId() in-query (21 ids ≤ the
- * 30-clause cap). An absent doc means nobody answered that day — stored
- * as null so the reading can say so rather than refetching. */
-export function ensureLive(qid: string = DEFAULT_QID, force = false): Promise<void> {
+// ── reads ───────────────────────────────────────────────────────────────
+/**
+ * Today's aggregate for every pulse in the roster — ONE query, at most as
+ * many ids as there are pulses.
+ *
+ * This is the read the card needs, and splitting it out is what keeps the
+ * roster affordable. Before D203 a single `ensureLive()` fetched the whole
+ * 21-day window on every open even though the card only ever draws today;
+ * multiplying THAT by five would have been 105 ids, over the 30-clause
+ * `documentId() in` cap, so four-plus queries per open for data nothing on
+ * the first screen reads. The window is now `ensureTrend`, paid on the tap
+ * that opens a reading — so five pulses cost FEWER reads per open than one
+ * pulse did.
+ */
+export function ensureToday(force = false): Promise<void> {
   if (!LIVE.enabled) return Promise.resolve();
-  const s = st(qid);
   const today = utcKey(dayAt(DAYS - 1));
-  if (s.dayAggs && s.loadedForKey === today && !force) return Promise.resolve();
-  if (s.loading) return s.loading;
-  s.loading = (async () => {
+  if (todayAggs && loadedForKey === today && !force) return Promise.resolve();
+  if (loadingToday) return loadingToday;
+  loadingToday = (async () => {
     try {
-      const db = await getDb();
-      const { collection, doc, documentId, getDoc, getDocs, query, where } = await getFirestoreApi();
-      if (!s.template) {
-        const t = await getDoc(doc(db, "v2_questions", qid));
-        if (t.exists()) {
-          s.template = {
-            prompt: String(t.get("prompt") ?? ""),
-            options: (t.get("options") as string[] | undefined) ?? [],
-          };
-        }
-      }
-      const keys = Array.from({ length: DAYS }, (_, i) => `${qid}_${utcKey(dayAt(i))}`);
-      const snap = await getDocs(
-        query(collection(db, "v2_question_aggs"), where(documentId(), "in", keys)),
-      );
-      const got = new Map(snap.docs.map((d) => [d.id, d.data() as DayAgg]));
+      const ids = roster().map((q) => `${q.id}_${today}`);
+      if (!ids.length) { todayAggs = {}; loadedForKey = today; return; }
+      const got = await fetchAggs(ids);
       const next: Record<string, DayAgg | null> = {};
-      for (let i = 0; i < DAYS; i++) {
-        next[utcKey(dayAt(i))] = got.get(`${qid}_${utcKey(dayAt(i))}`) ?? null;
-      }
-      s.dayAggs = next;
-      s.loadedForKey = today;
+      for (const q of roster()) next[q.id] = got.get(`${q.id}_${today}`) ?? null;
+      todayAggs = next;
+      loadedForKey = today;
       notify();
     } finally {
-      s.loading = null;
+      loadingToday = null;
     }
   })();
-  return s.loading;
+  return loadingToday;
 }
 
-// ── the store (the design's PULSE API, live-aware, per-pulse) ───────────
-function steps(qid: string = DEFAULT_QID): PulseStep[] {
-  const t = st(qid).template;
-  if (LIVE.enabled && t && t.options.length === 5) {
-    return t.options.map((label, i) => ({ v: i + 1, label }));
-  }
-  return DEMO_STEPS;
+/**
+ * One pulse's 21-day window, for the reading. Paid on the tap that opens
+ * it and cached for the session — 21 ids is inside the 30-clause cap, so
+ * it stays a single query.
+ */
+export function ensureTrend(pid: string): Promise<void> {
+  if (!LIVE.enabled) return Promise.resolve();
+  if (trendAggs[pid]) return Promise.resolve();
+  const inflight = loadingTrend[pid];
+  if (inflight) return inflight;
+  const p = (async () => {
+    try {
+      const keys = Array.from({ length: DAYS }, (_, i) => `${pid}_${utcKey(dayAt(i))}`);
+      const got = await fetchAggs(keys);
+      const next: Record<string, DayAgg | null> = {};
+      for (let i = 0; i < DAYS; i++) {
+        const k = utcKey(dayAt(i));
+        next[k] = got.get(`${pid}_${k}`) ?? null;
+      }
+      trendAggs[pid] = next;
+      notify();
+    } finally {
+      loadingTrend[pid] = undefined;
+    }
+  })();
+  loadingTrend[pid] = p;
+  return p;
 }
 
-function q(qid: string = DEFAULT_QID): { kicker: string; text: string } {
-  const kicker = ROSTER.find((p) => p.qid === qid)?.kicker ?? "daily pulse";
-  if (LIVE.enabled) return { kicker, text: st(qid).template?.prompt ?? "" };
-  return DEMO_Q;
+/** An absent doc means nobody answered that day — stored as null so the
+ * reading can say so rather than refetching. */
+async function fetchAggs(ids: string[]): Promise<Map<string, DayAgg>> {
+  const db = await getDb();
+  const { collection, documentId, getDocs, query, where } = await getFirestoreApi();
+  const snap = await getDocs(
+    query(collection(db, "v2_question_aggs"), where(documentId(), "in", ids)),
+  );
+  return new Map(snap.docs.map((d) => [d.id, d.data() as DayAgg]));
 }
 
-function days(qid: string = DEFAULT_QID): PulseDay[] {
-  const mineDemo = demoSaved();
-  const mineLive = LIVE.enabled ? LIVE.pulseVotes(qid) : {};
+/** Back-compat: the card's old single entry point. Today only. */
+export const ensureLive = ensureToday;
+
+// ── the readings ────────────────────────────────────────────────────────
+function stepsOf(pid: string): PulseStep[] {
+  return qOf(pid)?.steps ?? DEMO_STEPS;
+}
+
+function aggFor(pid: string, key: string): DayAgg | null {
+  const t = trendAggs[pid];
+  if (t && key in t) return t[key];
+  if (key === utcKey(dayAt(DAYS - 1))) return todayAggs?.[pid] ?? null;
+  return null;
+}
+
+function days(pid: string): PulseDay[] {
+  const cad = cadence(pid);
+  const mineDemo = demoSaved()[pid] || {};
+  const mineLive = LIVE.enabled ? LIVE.pulseVotes(pid) : {};
   const hist = LIVE.enabled
     ? Array(DAYS).fill(null)
     : HISTORY[(window as { IS_PULSE_HISTORY?: string }).IS_PULSE_HISTORY ?? "typical"] ?? HISTORY.typical;
-  const cad = cadence(qid);
   return hist.map((v: number | null, i: number) => {
     const d = dayAt(i);
     const k = utcKey(d);
-    const mine = LIVE.enabled
+    const scheduled = dueOn(cad, d);
+    // A day the pulse never asked on carries no answer, even in the demo
+    // room's seeded history — otherwise a weekly pulse would draw a
+    // Tuesday it was never offered on.
+    const mine = !scheduled ? null : LIVE.enabled
       ? (k in mineLive ? mineLive[k] + 1 : null) // optionIdx 0..4 → step 1..5
       : (mineDemo[k] != null ? mineDemo[k] : v);
     return {
       i, key: k, date: d, label: dayLabel(d), today: i === DAYS - 1,
-      weekStart: i % 7 === 0, v: mine,
-      scheduled: dueOn(cad, d),
+      weekStart: i % 7 === 0, v: mine, scheduled,
     };
   });
 }
@@ -296,13 +378,19 @@ const cutOf = (agg: DayAgg, scopeId: string): { n: number; mean: number | null }
   return { n, mean: n > 0 ? sum / n : null };
 };
 
-function scope(id: string, qid: string = DEFAULT_QID): PulseScope {
+function scope(pid: string, id: string): PulseScope {
   if (LIVE.enabled) {
     const a = LIVE.anchors() || {};
     const label = id === "city" ? (a.city || "Your city") : id === "country" ? (a.country || "Your country") : "World";
-    const aggs = st(qid).dayAggs;
+    const cad = cadence(pid);
     const series: ScopeDay[] = Array.from({ length: DAYS }, (_, i) => {
-      const agg = aggs?.[utcKey(dayAt(i))] ?? null;
+      const d = dayAt(i);
+      // An unscheduled day is absent for the crowd too. Everyone's cadence
+      // is their own, so the cell may well hold answers — but placing them
+      // on a day THIS reading does not draw would put a point on a line
+      // the reader has no row for.
+      if (!dueOn(cad, d)) return { i, n: 0, mean: null, placed: false, thin: false };
+      const agg = aggFor(pid, utcKey(d));
       const cut = agg ? cutOf(agg, id) : { n: 0, mean: null };
       return {
         i, n: cut.n,
@@ -316,26 +404,39 @@ function scope(id: string, qid: string = DEFAULT_QID): PulseScope {
   const s = DEMO_SCOPES.find((x) => x.id === id) ?? DEMO_SCOPES[0];
   const me = (window as { IS_DATA?: { me?: { location?: string; country?: string } } }).IS_DATA?.me ?? {};
   const label = s.label || (s.id === "city" ? (me.location || "Your city") : s.id === "country" ? (me.country || "Your country") : "World");
+  const cad = cadence(pid);
   const series: ScopeDay[] = s.mean.map((m, i) => {
+    if (!dueOn(cad, dayAt(i))) return { i, mean: null, n: 0, placed: false, thin: false };
     const n = s.n[i] || 0;
     return { i, mean: n > 0 ? m : null, n, placed: n >= THIN && m != null, thin: n > 0 && n < THIN };
   });
   return { id: s.id, label, short: s.short, series };
 }
 
-/** The streak counts SCHEDULED days only: a weekly pulse answered every
- * Sunday is a perfect run, and a day it was never asked cannot break it
- * (the fourth honesty clause). */
-function streak(qid: string = DEFAULT_QID): { run: number; live: boolean; ticks: PulseDay[] } {
-  const d = days(qid);
-  const live = d[DAYS - 1].v != null;
+/**
+ * The run, counted in ASKS rather than in calendar days.
+ *
+ * This is the whole of the fourth honesty rule. A weekly pulse answered
+ * three Sundays running has a streak of 3; walking the calendar the way
+ * the prototype still does would call it 1 and report eighteen misses,
+ * which is a statement about a question that was never put. `ticks` is
+ * likewise the last 14 SCHEDULED days, so the strip draws asks rather
+ * than a fortnight of blanks with three marks in it.
+ */
+function streak(pid: string): { run: number; live: boolean; ticks: PulseDay[] } {
+  const d = days(pid);
+  const asked = d.filter((x) => x.scheduled);
+  if (!asked.length) return { run: 0, live: false, ticks: [] };
+  const last = asked[asked.length - 1];
+  const live = last.today && last.v != null;
   let run = 0;
-  for (let i = DAYS - 1 - (live ? 0 : 1); i >= 0; i--) {
-    if (!d[i].scheduled) continue;
-    if (d[i].v == null) break;
+  // Start at the most recent ask, skipping today when it is still open —
+  // an unanswered today is not yet a broken run.
+  for (let i = asked.length - 1 - (last.today && last.v == null ? 1 : 0); i >= 0; i--) {
+    if (asked[i].v == null) break;
     run++;
   }
-  return { run, live, ticks: d.slice(DAYS - 14) };
+  return { run, live, ticks: asked.slice(-14) };
 }
 
 const fmtN = (n: number): string =>
@@ -345,19 +446,23 @@ const fmtN = (n: number): string =>
         : String(n);
 
 export const PULSE = {
-  DAYS, THIN, ROSTER, CADENCES,
+  DAYS, THIN, CADENCES, CADENCE_LABEL,
   SCOPES: ["city", "country", "world"],
-  steps, q, cadence, setCadence, dueToday,
-  /** Live: the template exists and the card can render. Demo: always. */
-  ready(qid: string = DEFAULT_QID): boolean { return !LIVE.enabled || st(qid).template != null; },
+  roster, dueToday, cadence, setCadence, dueOn,
+  /** The default pulse — what a card with no id asks. */
+  first(): string { return roster()[0]?.id ?? PULSE_QID; },
+  q(pid: string): PulseQ | null { return qOf(pid); },
+  steps(pid: string): PulseStep[] { return stepsOf(pid); },
+  /** Live: the bank arrived and a card can render. Demo: always. */
+  ready(): boolean { return !LIVE.enabled || roster().length > 0; },
   days, scope, streak, fmtN,
-  word(v: number, qid: string = DEFAULT_QID): string { return steps(qid).find((s) => s.v === v)?.label ?? ""; },
+  word(pid: string, v: number): string { return stepsOf(pid).find((s) => s.v === v)?.label ?? ""; },
   /** Today's crowd split as percentages — live from today's per-day agg
    * (empty until anyone answers: an honest zero, never invented), demo
    * from the design's bins. */
-  bins(id: string, qid: string = DEFAULT_QID): number[] {
+  bins(pid: string, id: string): number[] {
     if (!LIVE.enabled) return DEMO_BINS[id] ?? DEMO_BINS.world;
-    const agg = st(qid).dayAggs?.[utcKey(dayAt(DAYS - 1))];
+    const agg = aggFor(pid, utcKey(dayAt(DAYS - 1)));
     if (!agg) return [0, 0, 0, 0, 0];
     if (id === "world") {
       const total = agg.total || 0;
@@ -371,33 +476,38 @@ export const PULSE = {
     return Array.from({ length: 5 }, (_, i) =>
       n > 0 && cell ? Math.round(100 * (cell[String(i)] ?? 0) / n) : 0);
   },
-  todayN(id: string, qid: string = DEFAULT_QID): number {
+  todayN(pid: string, id: string): number {
     if (!LIVE.enabled) {
       const s = DEMO_SCOPES.find((x) => x.id === id) ?? DEMO_SCOPES[2];
       return s.n[DAYS - 1];
     }
-    const agg = st(qid).dayAggs?.[utcKey(dayAt(DAYS - 1))];
+    const agg = aggFor(pid, utcKey(dayAt(DAYS - 1)));
     if (!agg) return 0;
     return cutOf(agg, id).n;
   },
-  mineToday(qid: string = DEFAULT_QID): number | null { return days(qid)[DAYS - 1].v; },
+  mineToday(pid: string): number | null {
+    const d = days(pid);
+    return d[DAYS - 1].v;
+  },
   /** Answer today. Live: the day-keyed write through the rules (create-
    * only — the store mirrors immediately, LIVE rolls back on refusal).
    * Demo: localStorage, the design's room. */
-  answer(v: number, qid: string = DEFAULT_QID): void {
+  answer(pid: string, v: number): void {
     if (LIVE.enabled) {
-      void LIVE.votePulse(qid, v - 1);
+      void LIVE.votePulse(pid, v - 1);
       // The crowd for today moves with your own answer on the next poll;
-      // refresh so the reveal's bins include you promptly.
-      void ensureLive(qid, true).catch(() => { /* the card renders your side regardless */ });
+      // refresh so the reveal's bins include you promptly. Today only —
+      // the window behind it cannot have changed.
+      void ensureToday(true).catch(() => { /* the card renders your side regardless */ });
     } else {
-      const m = demoSaved();
-      m[utcKey(dayAt(DAYS - 1))] = v;
-      try { localStorage.setItem(LS, JSON.stringify(m)); } catch { /* best-effort, in-memory state stays right */ }
+      const all = demoSaved();
+      const mine = all[pid] || (all[pid] = {});
+      mine[utcKey(dayAt(DAYS - 1))] = v;
+      try { localStorage.setItem(LS, JSON.stringify(all)); } catch { /* best-effort, in-memory state stays right */ }
     }
     notify();
   },
-  ensureLive,
+  ensureToday, ensureTrend, ensureLive,
   subscribe(f: () => void): () => void {
     subs.add(f);
     const un = LIVE.enabled ? LIVE.subscribe?.(f) : undefined;
@@ -405,13 +515,14 @@ export const PULSE = {
   },
 };
 
-// The purge (D51): the demo answers are device state; the live caches and
-// the remembered cadences are account state. All go — purgeLocalTrace has
-// already swept the keys, so the in-memory copies drop WITHOUT writing
-// anything back.
+// The purge (D51): the demo answers and the cadence are device state; the
+// live caches are account state. All of it goes — the cadence included,
+// because "ask me about my sleep every day" is a statement about the
+// person, not about the device.
 window.addEventListener("insight:local-purge", () => {
-  states.clear();
-  cadMap = null;
+  todayAggs = null;
+  for (const k of Object.keys(trendAggs)) delete trendAggs[k];
+  loadedForKey = "";
   notify();
 });
 

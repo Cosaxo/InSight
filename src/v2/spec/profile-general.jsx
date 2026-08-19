@@ -9,6 +9,7 @@ import { IS_TEST_RESULTS } from './test-definitions.js';
 import { PASSIVE } from './passive-progress.js';
 import { list as anchorList } from './map-anchors.js';
 import { PROFILE_GENERAL_LS } from '../data/cityAnchor';
+import { CITY_OK_LEAF } from '../data/cityConfirm.ts';
 // An import, not the window.PLACES read this file used to carry — the
 // typed module is importable from spec (logic-test precedent), so the D39
 // coupling meter moves DOWN with this change.
@@ -253,6 +254,14 @@ import {
     const uid = useId();
     const v = data.vitals;
     const upd = (k, val) => set(d => ({ ...d, vitals: { ...d.vitals, [k]: val } }));
+    // The city and its confirmation move as ONE write (D205). Two `upd`
+    // calls would be two renders over the same object and the second could
+    // read a stale `d`; more to the point, a city that landed without its
+    // confirmation being cleared would leave the previous city's `cityOk`
+    // standing beside a new city.
+    const updCity = (next, ok) => set(d => ({
+      ...d, vitals: { ...d.vitals, city: next, [CITY_OK_LEAF]: ok ? next : '' },
+    }));
     const setPart = (k, val) => set(d => {
       const nv = { ...d.vitals, [k]: val };
       nv.age = calcAge(nv.born, nv.bornM, nv.bornD);
@@ -295,7 +304,8 @@ import {
                 aria-label added to work around this exact wrapper. The
                 caption is visual; the control names itself. */}
             <span style={fieldLabel}>City
-              <CityPicker value={v.city || ''} onChange={next => upd('city', next)} />
+              <CityPicker value={v.city || ''}
+                onChange={(next, ok) => updCity(next, ok)} />
             </span>
             {/* Every field here is optional and skippable. The note says what
                 it buys, because "why does a privacy app want my age?" is the

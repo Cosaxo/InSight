@@ -134,17 +134,6 @@ describe("spec layer mounts in live mode", () => {
     expect(document.body.textContent).not.toMatch(/560/);
   });
 
-  it("never serves the demo pulse in a live feed (D166 §3, D167)", () => {
-    // The roster's cards ride the feed and each renders NOTHING until its
-    // real template arrives (PULSE.ready) — so a live mount must carry
-    // neither the demo pulse question nor a blank card asking it. The
-    // demo wording is the pin: it exists only in data/pulse.ts's demo
-    // furniture, never in content/pulse-questions.json.
-    const expectNoBoundary = mountLive();
-    expectNoBoundary("daily/live+pulse");
-    expect(screen.queryByText("How is today going?")).toBeNull();
-  });
-
   it("shows the real follow list in the live profile, none of the demo field", () => {
     // The General tab used to embed MirrorFieldBody pop="groups" — the
     // scenes orbit with invented populations ("5.6k people" / "22k
@@ -811,6 +800,71 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     expectNoBoundary("live add sheet");
   });
 
+  // D167 rule 4 for Roles (D204). The tab is LIVE ONLY — it reads reveal
+  // documents and the demo room has none — so the case that matters is
+  // the one that proves the subtab exists at all in a live build, and
+  // that it refuses rather than inventing when nothing clears the floor.
+  //
+  // The refusal IS the assertion here. Every other smoke-live case guards
+  // against the demo cast reaching a live screen; this one guards against
+  // the opposite failure, which Roles is uniquely exposed to: a role is
+  // four numbers about a person, and four numbers are trivially
+  // computable from one revealed day. The floor is the only thing
+  // stopping a coin flip being drawn with a name on it.
+  it("offers the Roles tab live, and refuses under the floor", async () => {
+    const expectNoBoundary = mountLive({ feedCards: 2 });
+    await growFeed();
+    fireEvent.click(screen.getByRole("button", { name: /^profile$/i }));
+    await act(async () => {});
+    const roles = screen.queryByRole("button", { name: "Roles" })
+      || screen.queryByText("Roles");
+    expect(roles, "the Roles subtab is missing in a live build").not.toBeNull();
+    fireEvent.click(roles);
+    // The panel is behind a React.lazy boundary (profile-overlay is eager
+    // and the eager budget had 4 KB left), so the assertion has to wait
+    // for the chunk rather than for a render.
+    await screen.findByText(/No 1v1 has run 3 revealed days yet/);
+    // The fixture has no reveal history, so both instruments refuse — with
+    // their floors named, not with an empty rose.
+    expect(screen.getByText(/No 1v1 has run 3 revealed days yet/)).not.toBeNull();
+    expect(screen.getByText(/No group has run 2 revealed days yet/)).not.toBeNull();
+    expectNoBoundary();
+    // `window.__profileSub` remembers the last-visited subtab so returning
+    // from a tracker lands back on it — and it lives on `window`, which
+    // `localStorage.clear()` does not touch. Leaving it on "roles" put
+    // every later case that opens the profile on this tab instead of
+    // General; two of the D55 vitals cases failed exactly that way when
+    // this was written. Cases that change it put it back.
+    delete window.__profileSub;
+  });
+
+  // D167 rule 4 for the pulse roster (D203): mount live and assert the
+  // real thing renders and the demo cast does not.
+  //
+  // The two failure modes this catches are both silent. (1) The roster is
+  // read from `LIVE.pulseQs()` — the hydrated bank — so a regression that
+  // went back to the demo furniture would draw "What pace was today?"
+  // from DEMO_ROSTER and look identical until you read the prompt beside
+  // it. The fixture's bank deliberately differs from the demo room. (2) A
+  // pulse whose cadence does not ask today must not be on screen at all;
+  // the fixture ships one daily and one weekly for exactly that contrast.
+  it("draws the pulses the live bank offers, and only the ones due", async () => {
+    const expectNoBoundary = mountLive({ feedCards: 2, anchors: { city: "Oslo, NO" } });
+    await growFeed();
+    // pace is daily — always due, always drawn, and its prompt comes from
+    // the bank rather than from the demo roster.
+    expect(screen.getByText("What pace was today?")).not.toBeNull();
+    // sleep is weekly (Sundays). On any other day it must be absent —
+    // no tray, no placeholder, nothing announcing what is not being asked.
+    const sunday = new Date().getUTCDay() === 0;
+    if (sunday) expect(screen.getByText("How did you sleep?")).not.toBeNull();
+    else expect(screen.queryByText("How did you sleep?")).toBeNull();
+    // The demo room's other three pulses are not in the live bank at all.
+    expect(screen.queryByText("How clear was your head today?")).toBeNull();
+    expect(screen.queryByText("How connected did you feel today?")).toBeNull();
+    expectNoBoundary();
+  });
+
   // D195: a paid question is an ordinary question wearing a disclosure it
   // cannot take off. The band is what the whole commercial path rests on,
   // so this asserts the two halves of it that a refactor could quietly
@@ -1462,18 +1516,33 @@ describe("live mode never inherits the sample persona (D55)", () => {
     }
   });
 
-  it("says nothing at all about politics frequencies", () => {
-    // The Art. 9 scope docs/data-inventory.md draws: no population reading
-    // is computed from the politics result, so the sheet that renders for
-    // all four instruments loses its numbers on three of them rather than
-    // keeping fabricated ones.
+  it("measures politics frequencies too, and measures them (D202)", () => {
+    // The inverse of the case it replaces. Until D202 this asserted that
+    // the politics sheet lost its numbers rather than keeping fabricated
+    // ones — the Art. 9 scope D157 §4 held. D202 reversed that on the
+    // owner's call, so the assertion flips to the thing that still
+    // matters: the number on screen is a COUNT of real typed people, and
+    // no authored share came back with the reversal.
     live = installLive();
     resetNormCache();
     const host = renderTypeSheet("political");
     try {
-      expect(host.textContent).toMatch(/Liberal Centrist/);
-      expect(host.textContent).not.toMatch(/\d+\s*%/);
-      expect(host.textContent).toMatch(/only counted for the Big Five/);
+      expect(host.textContent, "the sheet did not render — test is vacuous")
+        .toMatch(/Liberal Centrist/);
+      expect(host.textContent, "the pre-D202 refusal copy is still on screen")
+        .not.toMatch(/only counted for the Big Five/);
+      // The fixture's one scored person carries a Big Five result and no
+      // politics one, so the honest answer here is a measured ZERO with
+      // its basis stated — which is the better demonstration of the two:
+      // the widening reached the instrument without inventing a number for
+      // it. `typedN` 0 is a real answer and not the same as null.
+      expect(host.textContent).toMatch(/\d+ counted so far, none with a result yet/);
+      // The authored `share` field still exists and still feeds the
+      // matcher's commonness prior — it must not reach the screen.
+      expect(host.textContent, "an authored politics share is on screen")
+        .not.toMatch(
+          new RegExp("(" + IS_ARCHETYPES.political.list.map((t) => t.share).join("|") + ")\\s*%"),
+        );
     } finally {
       host.remove();
     }
