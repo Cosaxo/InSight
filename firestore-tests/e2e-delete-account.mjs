@@ -24,6 +24,10 @@ import { initializeApp as adminInit } from "firebase-admin/app";
 import { getFirestore as adminFirestore } from "firebase-admin/firestore";
 import { getAuth as adminAuth } from "firebase-admin/auth";
 import { getStorage as adminStorage } from "firebase-admin/storage";
+// The region the EMULATOR serves, taken from the functions' own compiled
+// output rather than repeated here (D201). `pretest:e2e` builds it, so
+// this harness cannot be pointed at a region the emulator is not on.
+import { FUNCTIONS_REGION } from "../functions/lib/ops.js";
 
 // The named database (D165). The backend writes to FIRESTORE_DB_ID, so a
 // harness on `(default)` reads an empty database and reports a phantom
@@ -64,7 +68,7 @@ const mustBeGone = async (path, label) => {
 const app = initializeApp({ projectId: PROJECT, apiKey: "demo", appId: "demo" });
 const auth = getAuth(app); connectAuthEmulator(auth, "http://127.0.0.1:9099", { disableWarnings: true });
 const db = getFirestore(app, E2E_DB_ID); connectFirestoreEmulator(db, "127.0.0.1", 8080);
-const fns = getFunctions(app, "us-central1"); connectFunctionsEmulator(fns, "127.0.0.1", 5001);
+const fns = getFunctions(app, FUNCTIONS_REGION); connectFunctionsEmulator(fns, "127.0.0.1", 5001);
 
 const cred = await signInAnonymously(auth);
 const uid = cred.user.uid;

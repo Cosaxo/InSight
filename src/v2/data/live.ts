@@ -96,6 +96,9 @@ async function getDb(): Promise<import("firebase/firestore").Firestore> {
   return db;
 }
 import { reportError, setSentryUser } from "../../lib/sentry";
+// No imports of its own, so reading it here closes no cycle back through
+// data/cityAnchor — which imports this module.
+import { cityIsConfirmed } from "./cityConfirm";
 // The cross-user read (D98). Pure helpers + the two queries live there so
 // the grouping/sorting can be unit-tested without Firebase.
 import { fetchVoters, groupByOption, resolveNames, sortVoters, type Voter } from "./voters";
@@ -159,6 +162,7 @@ import { nearMode, nearOptedIn, nearUntil, setNearMode, type NearMode } from "./
 import { myType } from "./typeMix";
 import { locateCell, locateSupported } from "./locate";
 import { scrubPersonaAnchors } from "./personaResidue";
+import { FUNCTIONS_REGION } from "../../lib/region";
 
 /**
  * One Crossroads story, folded (D136).
@@ -199,6 +203,8 @@ const state = {
   // is what the card draws "sealed" from — undefined means nothing has
   // been read, which is a different sentence.
   callBank: [] as Array<QuestionDoc & { id: string }>,
+  // The pulse roster, straight off the hydrated bank — see splitBanks.
+  pulseBank: [] as Array<QuestionDoc & { id: string }>,
   callOutcomes: null as Record<string, CallOutcome | null> | null,
   // Feed ads (D197). Null while unread, an array once known — the same
   // "could not ask" / "there are none" distinction every other pool here
@@ -412,8 +418,38 @@ const ANCHOR_FIELDS: Record<string, number> = {
 
 // The snapshot written onto an answer. A copy, so a later profile edit
 // cannot retroactively move a past answer into a different cohort.
-function answerAnchors(): Record<string, string> {
-  return { ...state.profile.anchors };
+/**
+ * The anchors an answer freezes at vote time (D8).
+ *
+ * `rates` is the place the question being answered scores (D187), and it
+ * is the one reason this is not a plain copy. **An unconfirmed city does
+ * not score the place it names (D205):** if the question rates a city and
+ * the device's own location fix has never agreed with the anchor, the city
+ * is written EMPTY, so the answer folds into country and world and lands
+ * in no city cell.
+ *
+ * WHY HERE AND NOT AT THE DECK. The obvious fix — stop serving the
+ * question — cannot work: all 24 rating questions are in the DAILY bank,
+ * the daily deck is positional (`computeDeckIds` indexes by day), and it
+ * is the same question for everyone. Filtering it per person would either
+ * shift every other day's question or leave some people with no daily at
+ * all. Suppressing the CELL instead costs the answerer nothing: they see
+ * the same question, answer it normally, and it counts everywhere except
+ * the one place it could not honestly count.
+ *
+ * Empty rather than absent because that is the path already worn smooth —
+ * a profile with no city writes exactly this, `isValidV2Anchors` accepts
+ * it (`hasOnly`, every key optional), and `breakdownBucket` already
+ * declines to mint a bucket for it.
+ *
+ * FORWARD-ONLY, and the alternative was worse. Answers already given under
+ * unconfirmed cities keep their cells; nothing rewrites history, and D5
+ * would not allow it if we wanted to.
+ */
+function answerAnchors(rates?: string): Record<string, string> {
+  const a = { ...state.profile.anchors };
+  if (rates === "city" && !cityIsConfirmed(a.city)) a.city = "";
+  return a;
 }
 
 function utcDayKey(offsetDays = 0): string {
@@ -1070,6 +1106,7 @@ async function hydrate(): Promise<void> {
   state.duelBank = banks.duel;
   state.learnBank = banks.learn;
   state.callBank = banks.call;
+  state.pulseBank = banks.pulse;
   // A completely unseeded project is a real failure: throw so boot leaves
   // LIVE disabled and the mock deck renders. Returning here used to let
   // boot flip enabled=true on an empty deck, which pins the user on
@@ -1441,7 +1478,7 @@ async function hydrateSocial(): Promise<void> {
 
 async function callable<T>(name: string, data: unknown): Promise<T> {
   const db = await getDb();
-  const fns = getFunctions(db.app, "us-central1");
+  const fns = getFunctions(db.app, FUNCTIONS_REGION);
   const res = await httpsCallable(fns, name)(data);
   return res.data as T;
 }
@@ -3088,7 +3125,7 @@ const LIVE = {
     // not gated, so writes kept flowing the whole time. Only a restart
     // cleared it.
     const db = await getDb().catch((err) => { torndown = false; throw err; });
-    await httpsCallable(getFunctions(db.app, "us-central1"), "deleteAccount")({})
+    await httpsCallable(getFunctions(db.app, FUNCTIONS_REGION), "deleteAccount")({})
       .catch((err) => { torndown = false; throw err; });
     // The account is gone: stop the uid-scoped groups listener before
     // the purge/reload — left running it would only error
@@ -3601,6 +3638,26 @@ const LIVE = {
     }
     return out;
   },
+  /**
+   * The live pulse roster, in bank order — id, prompt and the five steps.
+   *
+   * This is the whole of what `data/pulse` needs to render, and it is
+   * already on the device: `hydrate()` downloads the entire question bank
+   * and `splitBanks` now keeps a pulse lane out of it. Before D203 the
+   * pulse paid its own `getDoc` for a document it had already cached, five
+   * times over once the roster shipped — and read only `prompt`/`options`
+   * from it, so a pulse flipped to `active: false` still drew a tappable
+   * card whose every write the rules refused. Reading the bank fixes both:
+   * `active` is filtered upstream, so an inactive pulse is simply not in
+   * this list.
+   */
+  pulseQs(): Array<{ id: string; prompt: string; options: string[] }> {
+    return state.pulseBank.map((q) => ({
+      id: q.id,
+      prompt: String(q.prompt ?? ""),
+      options: Array.isArray(q.options) ? q.options.map(String) : [],
+    }));
+  },
   vote(qid: string, optionId: string): void {
     if (state.votes[qid]) return; // one answer per question, mirroring rules
     const optionIdx = Number(optionId);
@@ -3626,7 +3683,10 @@ const LIVE = {
           surface: q?.surface ?? "daily",
           optionIdx,
           answeredAt: serverTimestamp(),
-          anchors: answerAnchors(),
+          // `q.rates` is why this is the one anchor site that passes an
+          // argument (D205): a question that scores a city must not take a
+          // city cell from someone the device has never placed there.
+          anchors: answerAnchors(q?.rates),
         });
         // Server ack: the write is durable, so the vote may now enter
         // confirmedVotes(). Mirror it into the answers cache only NOW —

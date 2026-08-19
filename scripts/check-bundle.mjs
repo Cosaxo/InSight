@@ -75,7 +75,25 @@ const DEMO = process.argv.includes("--demo");
 // identical with and without it), and its chunk is 435 KB against a 735 KB
 // per-chunk limit. Only MAX_TOTAL_JS_KB counts those bytes, so only
 // MAX_TOTAL_JS_KB is withheld.
-const SENTRY_IN = (process.env.VITE_SENTRY_DSN ?? "") !== "";
+//
+// WHICH IS DECIDED FROM dist/, and D198 is why that is not a detail. This
+// guard first read `process.env.VITE_SENTRY_DSN` — the environment of the
+// process running the CHECK, not of the one that ran the BUILD — and the
+// two are the same only because ios-release.yml happens to put the build
+// and this script in one `run:` block. Split them, as the script's own
+// error message tells you to ("set any non-empty DSN at BUILD time and
+// re-run"), and it reported `Sentry OUT` over a bundle with all 453 KB of
+// Sentry in it, withholding the total ceiling from the artifact the
+// ceiling exists for. Measured at build 21: 2349 KB graded as ungradable,
+// against a ceiling with 8 KB of headroom.
+//
+// That is this file's own founding bug, one variable further out. The
+// header above says it: refusing to grade the wrong artifact is the
+// property that cannot rot — and an artifact claim read off the
+// environment is exactly the kind that rots. check:web-firebase, its
+// neighbour in that same workflow step, already asserts against `dist/`
+// for this reason, "because a stale dist/ from a reordered step answers
+// that differently". SENTRY_IN is computed where the chunks are, below.
 if (!DEMO && process.env.VITE_V2_LIVE !== "true") {
   console.error(
     "check-bundle: this gate describes the SHIPPING bundle, and dist/ was\n"
@@ -620,7 +638,37 @@ const MAX_CHUNK_KB = 735;
 // `loadWorldFeed()` (D25).
 //
 // Headroom left: 8 KB on the total, 12 on the eager.
-const MAX_TOTAL_JS_KB = 2357;
+//
+// 2357 → 2372 at build 22 (D202 · D203 · D204), and this one is genuine
+// growth rather than a re-split: three features landed, none of which
+// relocates bytes that were already there.
+//
+//   · D202, the type-mix system switch — a chip row, a persisted key and
+//     a wider name column. Smallest of the three.
+//   · D203, the pulse roster — `data/pulse.ts` roughly doubled (a roster,
+//     a cadence store, a second fetch path) and `PulseCard` gained the
+//     rhythm control. Both are EAGER, which is why the eager line moved
+//     with the total here and did not for the world-feed work above.
+//   · D204, Roles — `data/roles.ts`, `ui/LiveRolesPanel.tsx` and two new
+//     archetype tables. The panel is behind React.lazy from an eager
+//     importer (`profile-overlay.jsx`), so it is five of the extra chunks
+//     and almost none of the extra eager bytes.
+//
+// MEASURED ON THE MERGE, not on the branch, and the two differ enough to
+// be worth recording. On its own branch this work built 2364 KB / 974 KB
+// eager across 87 chunks, against 2349 / 966 / 82 at build 21 — the eager
+// graph taking 8 KB of the 15, all of it the pulse roster. Merged with the
+// relationship-map deferral that lowered MAX_EAGER_KB to 920, it builds
+// **2366 KB / 914 KB eager across 89 chunks**.
+//
+// So the eager line came DOWN 52 KB across the merge while three features
+// landed on it, which is the deferral paying for the roster and then some.
+// The total is the one that moved, and it moved for the reason above.
+//
+// Headroom left: 6 KB on the total, 6 on the eager. Both are tight and
+// MAX_EAGER_KB is not raiseable, so the next thing added to the daily
+// screen has to earn its bytes or defer.
+const MAX_TOTAL_JS_KB = 2372;
 // 955 → 966 (2026-08-14): D139's pulse card — the second fixed instrument
 // on the FIRST screen, so its card, its store's demo furniture and the
 // two LIVE members are legitimately eager (~10 KB min). What is not
@@ -648,7 +696,27 @@ const MAX_TOTAL_JS_KB = 2357;
 // from the 955 entry holds at the new figure: either SDK rejoining first
 // paint lands at 1265 or 1417, so any ceiling near 978 catches it, and the
 // 6 KB band is headroom for a feature rather than room for a library.
-const MAX_EAGER_KB = 978;
+//
+// 978 → 920 (2026-08-18): D200 took the relationship map off the eager
+// graph. THE FIRST TIME THIS CONSTANT HAS COME DOWN, and the entries above
+// are seven raises in a row, so it is worth naming what was different:
+// nothing was optimised. `spec/relmap.jsx` + its core and panels are
+// reachable only from the DEMO Circle field — a live build takes
+// LiveCircleBody (D101) — so the entry chunk was carrying ~102 KB of source
+// that a shipping app cannot execute. Measured both ways at this commit:
+// eager 966 → 906 (−60), entry chunk 494 → 435 (−59), total 2349 → 2349
+// and 82 → 83 chunks. The total not moving IS the finding: this is a
+// relocation, and the 2026-08-13 entries already say the total cannot see
+// one.
+//
+// THE BAND IS 14 KB, NOT 72, and that is the deliberate half. The freed
+// room is exactly what docs/VISION-V28.md §5 is waiting on — the Map's
+// Foresight and Crossroads branches are "blocked on bytes, not data" — and
+// leaving it inside the ceiling would hand it over silently. A ceiling with
+// 72 KB of slack defends nothing; the next feature to want that room should
+// raise this line with a measurement beside it, which is what every entry
+// above did.
+const MAX_EAGER_KB = 920;
 
 let files;
 try {
@@ -672,6 +740,35 @@ const sized = files
 
 const totalKb = sized.reduce((n, s) => n + s.kb, 0);
 const over = sized.filter((s) => s.kb > MAX_CHUNK_KB);
+
+// ── IS SENTRY IN THIS BUNDLE? Asked of the bundle ────────────────────
+//
+// Markers, not a filename: the group is `prod-*.js` today, which is a
+// rolldown output name and not a promise. These four are SDK internals —
+// two of them Sentry's own globals — and each splits cleanly. Measured on
+// this tree at build 21, the same command with the DSN the only
+// difference:
+//
+//                        chunks WITH dsn   chunks WITHOUT
+//   __SENTRY__                  2                0
+//   _sentryDebugIds             1                0
+//   sentryWrapped               1                0
+//   captureException            3                0
+//
+// The obvious marker is the one that does NOT work: the bare string
+// "sentry" matches 12 chunks with the DSN and 9 without, because the app
+// names its own lazy module and its dynamic-import path after it. A
+// detector that cannot tell `src/lib/sentry.ts` from `@sentry/browser`
+// would report the SDK present in every build, which fails in the
+// direction that grades a 1895 KB bundle against the full ceiling and
+// calls it the shipping one.
+const SENTRY_MARKERS = ["__SENTRY__", "_sentryDebugIds", "sentryWrapped", "captureException"];
+const sentryChunks = sized.filter(({ f }) => {
+  const src = readFileSync(join(ASSETS, f), "utf8");
+  return SENTRY_MARKERS.some((m) => src.includes(m));
+});
+const SENTRY_IN = sentryChunks.length > 0;
+const sentryKb = sentryChunks.reduce((n, s) => n + s.kb, 0);
 
 // ── the eager graph ─────────────────────────────────────────────────
 //
@@ -783,13 +880,13 @@ for (const s of eager.slice(1)) {
 // be reported as having cleared it.
 if (!SENTRY_IN) {
   console.log(
-    `\n  total NOT GRADED — VITE_SENTRY_DSN is `
-    + (process.env.VITE_SENTRY_DSN === undefined ? "unset" : "empty")
-    + ` for this process, so the 445 KB Sentry group is\n`
-    + `  dead code and dropped. ${totalKb.toFixed(0)} KB is ~450 KB light and is not this\n`
-    + `  app's size; MAX_TOTAL_JS_KB (${MAX_TOTAL_JS_KB} KB) was not applied. The per-chunk and\n`
-    + `  eager ceilings above still hold — Sentry is in neither.\n\n`
-    + `  To grade the total, set any non-empty DSN at BUILD time and re-run:\n`
+    `\n  total NOT GRADED — no Sentry chunk in ${ASSETS.replace(root + "/", "")}, so the build saw no\n`
+    + `  VITE_SENTRY_DSN and the 445 KB group is dead code rolldown dropped.\n`
+    + `  ${totalKb.toFixed(0)} KB is ~450 KB light and is not this app's size;\n`
+    + `  MAX_TOTAL_JS_KB (${MAX_TOTAL_JS_KB} KB) was not applied. The per-chunk and eager\n`
+    + `  ceilings above still hold — Sentry is in neither.\n\n`
+    + `  To grade the total, set any non-empty DSN and REBUILD — the check\n`
+    + `  reads dist/, so exporting it for this process alone changes nothing:\n`
     + `    VITE_SENTRY_DSN=https://ci@example.invalid/0 VITE_V2_LIVE=true npm run build`,
   );
 } else if (totalKb > MAX_TOTAL_JS_KB) {
@@ -827,7 +924,8 @@ if (failed) {
 // was measured.
 console.log(
   SENTRY_IN
-    ? `bundle budget OK — SHIPPING bundle (VITE_V2_LIVE=true, Sentry in), `
+    ? `bundle budget OK — SHIPPING bundle (VITE_V2_LIVE=true, Sentry in, `
+      + `${sentryKb.toFixed(0)} KB over ${sentryChunks.length} chunk(s)), `
       + `${totalKb.toFixed(0)} KB total / ${eagerKb.toFixed(0)} KB eager `
       + `(max ${MAX_TOTAL_JS_KB} / ${MAX_EAGER_KB})`
     : `bundle budget OK on what was gradable — VITE_V2_LIVE=true, Sentry OUT, `

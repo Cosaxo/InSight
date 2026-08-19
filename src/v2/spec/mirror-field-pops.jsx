@@ -213,6 +213,34 @@ function MirrorFieldBody({ pop, worldZoom, zoomCtl, onPerson, firstRun, topLense
 
   useEffectMFP(() => { setSelId(null); setSelNode(null); }, [pop, worldZoom]);
 
+  // relmap.jsx left the eager graph at D200, so Circle's embedded map is not
+  // on screen the first time this renders. The old test — a bare
+  // `typeof RelationshipMap === 'function'` — could not survive that move:
+  // it reads false, Circle draws the generic field canvas instead, and
+  // nothing re-triggers the render that would read it again. So the module
+  // is IMPORTED and its arrival is state.
+  //
+  // An import rather than `window.loadOverlays()` for two reasons: it is
+  // what check:globals asks for (a name that arrives through the ESM graph
+  // is not coupling, and this file's rule-4 count drops by two), and it
+  // names the one module Circle needs rather than the whole overlay group.
+  //
+  // Only Circle asks, and only in DEMO mode — a live build takes
+  // LiveCircleBody (D101) and never renders this component with
+  // `pop === 'circle'` at all, so on the shipping path this effect is dead.
+  const [RelMap, setRelMap] = useStateMFP(null);
+  useEffectMFP(() => {
+    if (RelMap || pop !== 'circle') return undefined;
+    let live = true;
+    // No retry and console.error rather than reportError: main.jsx already
+    // reports a dead chunk once (app-shell's openDeferred says why), and the
+    // fallback here is the field canvas — a real picture, not a blank.
+    import('./relmap.jsx')
+      .then((m) => { if (live) setRelMap(() => m.RelationshipMap); })
+      .catch((e) => { console.error('[InSight] relationship map chunk failed to load:', e); });
+    return () => { live = false; };
+  }, [RelMap, pop]);
+
   const cfg = mfpConfig(pop, worldZoom, mine);
   const [selNode, setSelNode] = useStateMFP(null);
   const sel = selNode;
@@ -286,7 +314,7 @@ function MirrorFieldBody({ pop, worldZoom, zoomCtl, onPerson, firstRun, topLense
   const sparse = !!firstRun;
 
   // Circle: the full relationship map IS the picture — embedded, no field canvas.
-  const noCanvas = !sparse && pop === 'circle' && typeof RelationshipMap === 'function';
+  const noCanvas = !sparse && pop === 'circle' && !!RelMap;
   // nav v2: lens row at the top, field as its first tab
   const topL = !!topLenses && !sparse;
   const lensList = topL ? [{ id: '__ov', label: 'Overview' }, ...lenses] : lenses;
@@ -314,7 +342,7 @@ function MirrorFieldBody({ pop, worldZoom, zoomCtl, onPerson, firstRun, topLense
       </>)}
       {noCanvas && showField && (
         <div className="rm-embed">
-          <RelationshipMap embedded={true}></RelationshipMap>
+          <RelMap embedded={true}></RelMap>
         </div>
       )}
       {openLens && (

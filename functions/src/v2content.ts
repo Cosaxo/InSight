@@ -10158,6 +10158,78 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null
  },
  {
+  "id": "pulse-energy",
+  "surface": "pulse",
+  "seq": 1,
+  "type": "pulse",
+  "domain": null,
+  "prompt": "How was your energy today?",
+  "options": [
+   "Drained",
+   "Low",
+   "OK",
+   "Charged",
+   "Wired"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "pulse-sleep",
+  "surface": "pulse",
+  "seq": 2,
+  "type": "pulse",
+  "domain": null,
+  "prompt": "How did you sleep?",
+  "options": [
+   "Badly",
+   "Patchy",
+   "OK",
+   "Well",
+   "Deeply"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "pulse-focus",
+  "surface": "pulse",
+  "seq": 3,
+  "type": "pulse",
+  "domain": null,
+  "prompt": "How clear was your head today?",
+  "options": [
+   "Scattered",
+   "Foggy",
+   "OK",
+   "Sharp",
+   "Locked in"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "pulse-social",
+  "surface": "pulse",
+  "seq": 4,
+  "type": "pulse",
+  "domain": null,
+  "prompt": "How connected did you feel today?",
+  "options": [
+   "Alone",
+   "Distant",
+   "OK",
+   "Close",
+   "Held"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null
+ },
+ {
   "id": "call-c01",
   "surface": "call",
   "seq": 0,

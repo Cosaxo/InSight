@@ -20,7 +20,7 @@ import { getStorage } from "firebase-admin/storage";
 import { onCall, HttpsError, type CallableRequest } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { logger } from "firebase-functions";
-import { LIGHT_CALLABLE, LIGHT_UNBOUNDED } from "./ops";
+import { LIGHT_CALLABLE, LIGHT_UNBOUNDED, FUNCTIONS_REGION } from "./ops";
 import { db as firestore } from "./db";
 import {
   buildModQueueFrom,
@@ -30,7 +30,7 @@ import {
   tallyFlagsInto,
 } from "./pure";
 
-const REGION = "us-central1";
+const REGION = FUNCTIONS_REGION;
 
 // Drafted in docs/MODERATION.md as open questions; live here as the
 // operator-tunable answers until the maintainer settles them.

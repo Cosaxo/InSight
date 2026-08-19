@@ -49,7 +49,7 @@ import { logger } from "firebase-functions";
 // ops.ts sets the global runtime options as an import side effect and must
 // be evaluated before any function here is defined — the same reason every
 // other function module imports it (check:fn-runtime guards the outcome).
-import { LIGHT_UNBOUNDED } from "./ops";
+import { LIGHT_UNBOUNDED, FUNCTIONS_REGION } from "./ops";
 import { V2_QUESTIONS } from "./v2content";
 import { db as firestore } from "./db";
 import {
@@ -61,7 +61,7 @@ import {
   type CallSnapshot,
 } from "./callRubric";
 
-const REGION = "us-central1";
+const REGION = FUNCTIONS_REGION;
 
 /**
  * How long an unexecutable call stays open before it is voided.

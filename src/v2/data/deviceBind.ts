@@ -19,6 +19,7 @@ import { getFunctions, httpsCallable } from "firebase/functions";
 import { getAuth } from "firebase/auth";
 import { getDb } from "../../lib/firebase";
 import { reportError } from "../../lib/sentry";
+import { FUNCTIONS_REGION } from "../../lib/region";
 
 const KEY = "insight.deviceBind.v1";
 
@@ -109,7 +110,7 @@ export async function ensureDeviceBound(uid: string): Promise<void> {
     // production refuses — production has no web build, so a web caller
     // there is not a user we are locking out.
     const db = await getDb();
-    const fns = getFunctions(db.app, "us-central1");
+    const fns = getFunctions(db.app, FUNCTIONS_REGION);
     const res = (
       await httpsCallable(fns, "activateDeviceV2")({
         platform,

@@ -10,12 +10,17 @@
 import React from "react";
 import PULSE from "../data/pulse";
 
-export default function PulseTrends({ compact }: { compact?: boolean }): React.ReactElement | null {
+export default function PulseTrends({ compact, pid }: { compact?: boolean; pid?: string }): React.ReactElement | null {
   const [, bump] = React.useState(0);
+  const id = pid || PULSE.first();
   React.useEffect(() => {
-    void PULSE.ensureLive().catch(() => { /* the panel lists the absence honestly */ });
+    // The 21-day window, for THIS pulse, on the tap that opened the
+    // reading (D203). The card's own fetch is today-only; a roster that
+    // pulled five windows on every open would be 105 ids over a 30-clause
+    // cap, for data the first screen never draws.
+    void PULSE.ensureTrend(id).catch(() => { /* the panel lists the absence honestly */ });
     return PULSE.subscribe(() => bump((x) => x + 1));
-  }, [bump]);
+  }, [bump, id]);
   const [scopeId, setScopeId] = React.useState("city");
   const [sel, setSel] = React.useState(PULSE.DAYS - 1);
   const [w, setW] = React.useState(342);
@@ -26,9 +31,10 @@ export default function PulseTrends({ compact }: { compact?: boolean }): React.R
 
   const HUE = "var(--pulse)";
   const N = PULSE.DAYS;
-  const steps = PULSE.STEPS;
-  const days = PULSE.days();
-  const sc = PULSE.scope(scopeId);
+  const steps = PULSE.steps(id);
+  const q = PULSE.q(id);
+  const days = PULSE.days(id);
+  const sc = PULSE.scope(id, scopeId);
   const ser = sc.series;
 
   const answered = days.filter((d) => d.v != null);
@@ -39,17 +45,27 @@ export default function PulseTrends({ compact }: { compact?: boolean }): React.R
     if (Math.abs(diff) < 0.05) level++; else if (diff > 0) above++; else below++;
   });
 
-  // your gaps — runs of three or more days with nothing, drawn as voids,
+  // your gaps — runs of three or more ASKS with nothing, drawn as voids,
   // never dips. With fewer than two answers there is no line yet, so
   // nothing can break: day one stays a clean frame, not one grey box.
+  //
+  // A day the cadence did not ask on is NOT a gap (D203's fourth honesty
+  // rule). Counting it as one is the specific lie the rule exists to stop:
+  // a weekly pulse answered every Sunday would otherwise draw three grey
+  // voids and report "you skipped 18 days" about a question nobody put.
+  // The run therefore walks scheduled days and bridges the rest.
   const gaps: { a: number; b: number }[] = [];
   if (answered.length >= 2) for (let i = 0; i < N; i++) {
-    if (days[i].v != null) continue;
-    let j = i; while (j + 1 < N && days[j + 1].v == null) j++;
-    if (j - i + 1 >= 3) gaps.push({ a: i, b: j });
+    if (!days[i].scheduled || days[i].v != null) continue;
+    let j = i, miss = 1;
+    while (j + 1 < N && (!days[j + 1].scheduled || days[j + 1].v == null)) {
+      j++;
+      if (days[j].scheduled) miss++;
+    }
+    if (miss >= 3) gaps.push({ a: i, b: j });
     i = j;
   }
-  const skipped = days.filter((d) => d.v == null && !d.today).length;
+  const skipped = days.filter((d) => d.scheduled && d.v == null && !d.today).length;
   const zeroDays = ser.filter((s) => s.n === 0);
   const thinDays = ser.filter((s) => s.thin);
   const placedN = ser.filter((s) => s.placed);
@@ -81,11 +97,11 @@ export default function PulseTrends({ compact }: { compact?: boolean }): React.R
 
   const scopeRow = (
     <div style={{ display: "flex", gap: 6 }}>
-      {PULSE.SCOPES.map((id) => {
-        const on = id === scopeId;
-        const label = PULSE.scope(id).label;
+      {PULSE.SCOPES.map((sid) => {
+        const on = sid === scopeId;
+        const label = PULSE.scope(id, sid).label;
         return (
-          <button key={id} className="press" onClick={() => setScopeId(id)} aria-pressed={on}
+          <button key={sid} className="press" onClick={() => setScopeId(sid)} aria-pressed={on}
             style={{ flex: 1, minWidth: 0, height: 34, borderRadius: 999, cursor: "pointer", WebkitAppearance: "none", fontFamily: "var(--sans)", fontWeight: 700, fontSize: 13, letterSpacing: "-0.01em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", border: "1px solid " + (on ? "var(--ink)" : "var(--rule)"), background: on ? "var(--ink)" : "var(--surface-2)", color: on ? "var(--surface)" : "var(--ink-2)" }}>
             {label}
           </button>
@@ -128,7 +144,7 @@ export default function PulseTrends({ compact }: { compact?: boolean }): React.R
       <span style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
         <span style={{ display: "flex", alignItems: "center", gap: 5, whiteSpace: "nowrap" }}>
           <span aria-hidden="true" style={{ width: 7, height: 7, borderRadius: "50%", background: d.v != null ? HUE : "transparent", boxShadow: d.v != null ? "none" : "inset 0 0 0 1px color-mix(in oklab, " + HUE + " 50%, var(--surface-2))" }}></span>
-          <span style={{ fontFamily: "var(--sans)", fontWeight: 700, fontSize: 13, color: d.v != null ? "var(--ink)" : "var(--ink-3)" }}>{d.v != null ? PULSE.word(d.v) : "you skipped"}</span>
+          <span style={{ fontFamily: "var(--sans)", fontWeight: 700, fontSize: 13, color: d.v != null ? "var(--ink)" : "var(--ink-3)" }}>{d.v != null ? PULSE.word(id, d.v) : "you skipped"}</span>
         </span>
         <span style={{ display: "flex", alignItems: "center", gap: 5, whiteSpace: "nowrap" }}>
           <span aria-hidden="true" style={{ width: 10, height: 2, borderRadius: 1, background: grey, opacity: 0.55 }}></span>
@@ -234,10 +250,10 @@ export default function PulseTrends({ compact }: { compact?: boolean }): React.R
         {!compact && (
           <span style={{ display: "flex", alignItems: "center", gap: 7 }}>
             <span aria-hidden="true" style={{ width: 6, height: 6, borderRadius: "50%", background: HUE }}></span>
-            <span className="kicker" style={{ marginBottom: 0 }}>{PULSE.Q.kicker} · 3 weeks</span>
+            <span className="kicker" style={{ marginBottom: 0 }}>{(q ? q.kicker : "pulse")} · 3 weeks</span>
           </span>
         )}
-        <span style={{ fontFamily: "var(--sans)", fontWeight: 800, fontSize: 17, letterSpacing: "-0.03em", color: "var(--ink-2)" }}>{PULSE.Q.text}</span>
+        <span style={{ fontFamily: "var(--sans)", fontWeight: 800, fontSize: 17, letterSpacing: "-0.03em", color: "var(--ink-2)" }}>{q ? q.text : ""}</span>
         {headline}
       </div>
       {scopeRow}

@@ -46,6 +46,7 @@
 // opened. That one is behind its own tab and fetches on first view.
 import React from "react";
 import LIVE from "../data/live";
+import { cityIsConfirmed } from "../data/cityConfirm";
 import {
   COHORT_DIMS, DIM_LABEL, divergence, meanScore, mixFor, pctFor, sliceSplit,
   type Score,
@@ -668,6 +669,11 @@ function ScoresLens({ qs, shortName, scope }: {
   shortName: string;
   scope: "city" | "country" | "world";
 }) {
+  // Whether this reader's own scores reach the city cell (D205). Only the
+  // CITY scope is gated — a country is coarse enough that the timezone
+  // hint D90 already lands it, and gating it would be a second decision
+  // dressed as a consequence of this one.
+  const unconfirmed = scope === "city" && LIVE.enabled && !cityIsConfirmed((LIVE.anchors() || {}).city);
   const rates = qs.filter((q) => q.rates === scope);
   const scored = rates
     .filter((q) => ORDINAL_TYPES.has(q.type || ""))
@@ -701,6 +707,17 @@ function ScoresLens({ qs, shortName, scope }: {
             looking at (docs/COPY.md). */}
         How {shortName} rates itself · best first
       </div>
+      {unconfirmed && (
+        // The one sentence this card owes a reader whose scores are not in
+        // it (D205). It is a CLAIM and a remedy, not a caption for a shape
+        // — docs/COPY.md §3 — so it earns the sentence the rule would
+        // otherwise refuse. Only on City, and only when the phone has
+        // never agreed: for everyone else the number simply includes them
+        // and there is nothing to explain.
+        <div style={{ fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 600, color: "var(--ink-3)", lineHeight: 1.45, textWrap: "pretty" }}>
+          Confirm your city in your profile to have your scores count for {shortName}.
+        </div>
+      )}
       {scored.map(({ q, score, mine }) => {
         const frac = score.mean / score.max;
         return (

@@ -1,6 +1,105 @@
 --- v18/person-overlay.jsx
 +++ v28/person-overlay.jsx
-@@ -141,7 +141,7 @@
+@@ -126,6 +126,98 @@
+   );
+ }
+ 
++// ─── Receipts — the concrete answers behind the affinity number. Their
++// answers are derived with the SAME seed + formula as PersonMindMap, so the
++// profile, these rows and the map never disagree about what they said.
++function ReceiptsCard({ p, themColor, firstName }) {
++  const [open, setOpen] = React.useState(null);
++  const rows = React.useMemo(() => {
++    const D = window.DAILYQ;
++    if (!D || !D.questions) return null;
++    const seed = String(p.id || p.init || p.name || 'x');
++    const H = (s) => poHash(seed + '|' + s);
++    const agreeP = Math.min(0.9, Math.max(0.35, (p.match || 60) / 100 - 0.05));
++    const ansText = (q, idx) => q.type === 'rating' ? (idx + 1) + '/10' : (q.options && q.options[idx] != null) ? q.options[idx] : '—';
++    const out = [];
++    D.questions.forEach((q) => {
++      if (H('has' + q.id) > 0.68) return; // one they haven't answered
++      const mineIdx = D.myAnswer(q);
++      if (mineIdx == null) return;        // receipts need both signatures
++      const n = Math.max(2, q.type === 'rating' ? 10 : q.type === 'binary' ? 2 : q.type === 'scale' ? 5 : (q.options || []).length || 2);
++      const gd = window.MapStats ? window.MapStats.dist(q.id, 'all', n, mineIdx) : null;
++      const majIdx = gd ? gd.indexOf(Math.max(...gd)) : Math.floor(H('mj' + q.id) * n);
++      let aidx;
++      if (H('agree' + q.id) < agreeP) aidx = mineIdx;
++      else {
++        aidx = H('majb' + q.id) < 0.6 ? majIdx : Math.floor(H('pick' + q.id) * n);
++        if (aidx === mineIdx) aidx = (aidx + 1 + Math.floor(H('shift' + q.id) * (n - 1))) % n;
++      }
++      const typ = gd ? gd[aidx] / 100 : 0.5; // how common their answer is
++      out.push({
++        id: q.id, prompt: q.prompt.replace(/[.\s]+$/, ''),
++        same: aidx === mineIdx, mine: ansText(q, mineIdx), them: ansText(q, aidx), typ,
++        gap: (q.type === 'rating' || q.type === 'scale') ? Math.abs(aidx - mineIdx) / (n - 1) : 1,
++      });
++    });
++    return out;
++  }, [p.id]);
++  if (!rows || rows.length < 4) return null;
++  // a match is strongest where the shared answer is RARE; a split where the
++  // daylight is widest — three receipts each, not the whole ledger
++  const matches = rows.filter((r) => r.same).sort((a, b) => a.typ - b.typ).slice(0, 3);
++  const splits = rows.filter((r) => !r.same).sort((a, b) => b.gap - a.gap || a.typ - b.typ).slice(0, 3);
++  const nSame = rows.filter((r) => r.same).length;
++  const secLabel = { fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: 'var(--ink-3)' };
++  const dot = (same) => (
++    <span style={{ width: 9, height: 9, borderRadius: '50%', flexShrink: 0, boxSizing: 'border-box', marginTop: 5, background: same ? themColor : 'transparent', border: same ? 'none' : `2px solid ${themColor}` }}></span>
++  );
++  const row = (r, last) => (
++    <div key={r.id} role="button" tabIndex={0} aria-expanded={open === r.id}
++      onClick={() => setOpen(open === r.id ? null : r.id)}
++      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpen(open === r.id ? null : r.id); } }}
++      style={{ display: 'flex', gap: 10, padding: '9px 0', borderBottom: last ? 'none' : '0.5px solid var(--rule)', cursor: 'pointer' }}>
++      {dot(r.same)}
++      <div style={{ flex: 1, minWidth: 0 }}>
++        <div style={{ fontFamily: 'var(--sans)', fontSize: 14, fontWeight: 800, letterSpacing: '-0.01em', color: 'var(--ink)', textWrap: 'pretty' }}>
++          {r.same ? r.mine : (
++            <>
++              <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--ink-3)' }}>you </span>{r.mine}
++              <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--ink-3)' }}> · {firstName} </span>
++              <span style={{ color: themColor }}>{r.them}</span>
++            </>
++          )}
++        </div>
++        <div style={{ marginTop: 3, fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 500, color: 'var(--ink-3)', textWrap: 'pretty', ...(open === r.id ? {} : { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }) }}>{r.prompt}</div>
++      </div>
++    </div>
++  );
++  return (
++    <div style={{ marginBottom: 26 }}>
++      <div style={{ marginBottom: 11 }}><Kicker>The answers behind it</Kicker></div>
++      <div className="card">
++        <div style={{ fontFamily: 'var(--sans)', fontSize: 13.5, fontWeight: 600, color: 'var(--ink-2)', textWrap: 'pretty' }}>
++          Same pick on <span style={{ fontWeight: 800, color: 'var(--ink)' }}>{nSame}</span> of the {rows.length} daily questions you{'\u2019'}ve both answered.
++        </div>
++        <div style={{ display: 'flex', height: 7, borderRadius: 999, overflow: 'hidden', background: 'var(--surface-3)', marginTop: 9 }}>
++          <span style={{ width: (nSame / rows.length) * 100 + '%', background: themColor }}></span>
++        </div>
++        {matches.length > 0 && (
++          <>
++            <div style={{ ...secLabel, marginTop: 15 }}>where you match</div>
++            <div style={{ marginTop: 2 }}>{matches.map((r, i) => row(r, i === matches.length - 1))}</div>
++          </>
++        )}
++        {splits.length > 0 && (
++          <>
++            <div style={{ ...secLabel, marginTop: 13, paddingTop: 12, borderTop: '0.5px solid var(--rule)' }}>where you split</div>
++            <div style={{ marginTop: 2 }}>{splits.map((r, i) => row(r, i === splits.length - 1))}</div>
++          </>
++        )}
++      </div>
++    </div>
++  );
++}
++
+ function PersonOverlay({ p: rawP, onClose, me }) {
+   if (!rawP) return null;
+   // Normalize interests — some sources (IS_DATA.people) store them as
+@@ -141,7 +233,7 @@
    const p = { ...rawP, interests: normInterests };
    const prof = derivePerson(p, me);
    const parts = affinityBreakdown(me, prof, p);
@@ -9,7 +108,7 @@
  
    const overall = Math.round(p.match);
    const firstName = p.anon ? 'Them' : (p.name ? p.name.split(' ')[0] : p.init);
-@@ -163,7 +163,6 @@
+@@ -163,7 +255,6 @@
        <div className="app-header">
          <button className="avatar-btn" onClick={onClose}>←</button>
          <div className="h-title" style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textTransform: p.anon ? 'capitalize' : 'none' }}>{anonName(p)}</div>
@@ -17,16 +116,16 @@
        </div>
        <div className="app-body">
  
-@@ -191,7 +190,7 @@
+@@ -191,7 +282,7 @@
            <div style={{ fontFamily: 'var(--sans)', fontSize: 28, fontWeight: 800, marginTop: 18, letterSpacing: '-0.03em', lineHeight: 1.1, textTransform: p.anon ? 'capitalize' : 'none' }}>{anonName(p)}</div>
            <div style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 700, color: 'var(--ink-3)', letterSpacing: '0.09em', marginTop: 7, textTransform: 'uppercase' }}>
              {p.anon
 -              ? `${p.role || 'nearby'} · ${p.dist || 'nearby'}`
-+              ? (p.dist || 'nearby')
++              ? null
                : <>{p.role || p.rel} · {p.age ? `aged ${p.age} · ` : ''}{p.dist || 'in your orbit'}</>}
            </div>
  
-@@ -213,11 +212,11 @@
+@@ -213,11 +304,11 @@
                  transition: 'background 0.15s, color 0.15s, box-shadow 0.15s',
                }}>{isFriend ? 'Friends ✓' : fStatus === 'invited' ? 'Invited · waiting' : 'Add friend'}</button>
              ))}
@@ -40,7 +139,17 @@
  
          {/* ─── Affinity composer — one compare card per category, swipeable ─── */}
          {(() => {
-@@ -346,13 +345,15 @@
+@@ -326,6 +417,9 @@
+           );
+         })()}
+ 
++        {/* receipts: the concrete answers the number is made of */}
++        <ReceiptsCard p={p} themColor={themColor} firstName={firstName}></ReceiptsCard>
++
+         {/* ─── The 1v1 record — the one thing only a duel can tell you: how well
+             each of you actually reads the other. Same dot language as the daily,
+             so a filled dot means the same thing everywhere. ─── */}
+@@ -346,13 +440,15 @@
            return (
              <div style={{ marginBottom: 26 }}>
                <div style={{ marginBottom: 11 }}><Kicker>How well you read each other</Kicker></div>

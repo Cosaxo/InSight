@@ -9,3 +9,134 @@
  
    // group identity mark — the member cluster wrapped by the alignment ring;
    // ring sweep = how often you land with this group's majority (no number)
+@@ -245,6 +245,108 @@
+     );
+   }
+ 
++  // ── Spread: how the group actually decides — every verdict placed on an
++  // axis from one voice to a coin flip. The average hid this; the spread IS
++  // the group's character. You are the filled dot when you sat with the room.
++  function GroupSpreadCard({ g }) {
++    const D = window.DUELS;
++    const days = D.groupDays(g.id).filter((d) => d.idx > 0).map((d) => {
++      const gp = D.groupPicks(g.id, d.idx);
++      const total = gp.counts.reduce((a, b) => a + b, 0) || 1;
++      const sorted = [...gp.counts].sort((a, b) => b - a);
++      const margin = sorted[0] - (sorted[1] || 0);
++      return { idx: d.idx, label: d.label, gp, total, share: sorted[0] / total, unan: sorted[0] === total, close: (sorted[1] || 0) > 0 && margin <= 1, withMe: gp.mine === gp.majority };
++    });
++    // the most contested day is the interesting one — it opens the card
++    const [sel, setSel] = useState(() => { const s = [...days].sort((a, b) => a.share - b.share)[0]; return s ? s.idx : null; });
++    if (!days.length) return (
++      <div className="card" style={{ marginTop: 14 }}>
++        <Kicker>How this group decides</Kicker>
++        <div style={{ marginTop: 10, fontFamily: 'var(--sans)', fontSize: 13, color: 'var(--ink-3)', textWrap: 'pretty' }}>Too new to tell — the spread appears once the first verdicts are revealed.</div>
++      </div>
++    );
++    const xOf = (s) => 6 + Math.max(0, Math.min(1, (1 - s) / 0.5)) * 88;
++    const placed = [];
++    const pts = [...days].sort((a, b) => a.share - b.share).map((d) => {
++      const x = xOf(d.share);
++      let lvl = 0;
++      for (const c of [0, -1, 1, -2, 2]) { if (!placed.some((q) => q.lvl === c && Math.abs(q.x - x) < 11)) { lvl = c; break; } }
++      placed.push({ x, lvl });
++      return { d, x, lvl };
++    });
++    const maxAbs = Math.max(...pts.map((q) => Math.abs(q.lvl)), 0);
++    const BH = 46 + maxAbs * 26, cy = BH / 2;
++    const selD = days.find((d) => d.idx === sel);
++    // swing: across the close calls, who sat with the winning side most
++    const closeDays = days.filter((d) => d.close);
++    let swing = null;
++    if (closeDays.length >= 2) {
++      const tally = {};
++      closeDays.forEach((d) => {
++        d.gp.rows[d.gp.majority].who.forEach((p) => { tally[p.id] = (tally[p.id] || 0) + 1; });
++        if (d.withMe) tally.me = (tally.me || 0) + 1;
++      });
++      const top = Object.entries(tally).sort((a, b) => b[1] - a[1])[0];
++      if (top && top[1] >= 2) swing = { pid: top[0], n: top[1], p: top[0] === 'me' ? null : D.groupMembers(g.id).find((m) => m.id === top[0]) };
++    }
++    const axLabel = { fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: 'var(--ink-3)' };
++    return (
++      <div className="card" style={{ marginTop: 14 }}>
++        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
++          <Kicker>How this group decides</Kicker>
++          <span style={{ fontFamily: 'var(--sans)', fontSize: 11, fontWeight: 700, color: 'var(--ink-3)' }}>{days.length} verdicts</span>
++        </div>
++        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 12 }}>
++          <span style={axLabel}>one voice</span><span style={axLabel}>coin flip</span>
++        </div>
++        <div style={{ position: 'relative', height: BH, marginTop: 0 }}>
++          <div style={{ position: 'absolute', left: '2%', right: '2%', top: cy, height: 1, background: 'var(--rule)' }}></div>
++          {pts.map(({ d, x, lvl }) => (
++            <button key={d.idx} className="press" onClick={() => setSel(d.idx)} aria-label={`${d.label}: ${d.gp.q.prompt}`} aria-pressed={sel === d.idx}
++              style={{ position: 'absolute', left: x + '%', top: cy + lvl * 26, transform: 'translate(-50%,-50%)', width: 28, height: 28, border: 'none', background: 'transparent', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
++              <span style={{ width: 13, height: 13, borderRadius: '50%', boxSizing: 'border-box', background: d.withMe ? 'var(--accent)' : 'var(--surface)', border: d.withMe ? 'none' : '2px solid var(--accent)', boxShadow: sel === d.idx ? '0 0 0 3px color-mix(in oklch, var(--accent) 28%, transparent)' : '0 0 0 2px var(--surface)', transition: 'box-shadow 0.15s ease' }}></span>
++            </button>
++          ))}
++        </div>
++        {selD && (
++          <div key={selD.idx} className="fade-in" style={{ marginTop: 4, padding: '11px 13px', borderRadius: 12, background: 'var(--surface-2)', border: LINE }}>
++            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, ...axLabel }}>
++              <span>{selD.label}</span>
++              <span>{selD.unan ? 'unanimous' : selD.close ? 'a close call' : 'clear majority'}</span>
++            </div>
++            <div style={{ marginTop: 6, fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 500, color: 'var(--ink-2)', textWrap: 'pretty' }}>{selD.gp.q.prompt}</div>
++            <div style={{ marginTop: 7, fontFamily: 'var(--sans)', fontSize: 14.5, fontWeight: 800, letterSpacing: '-0.01em', color: 'var(--ink)', textWrap: 'pretty' }}>
++              {selD.gp.q.options[selD.gp.majority]}
++              <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink-3)' }}> · {selD.gp.counts[selD.gp.majority]} of {selD.total}</span>
++            </div>
++            <div style={{ display: 'flex', gap: 2, height: 7, borderRadius: 999, overflow: 'hidden', marginTop: 9 }}>
++              {selD.gp.counts.map((c, i) => c > 0 && (
++                <span key={i} style={{ width: (c / selD.total) * 100 + '%', background: i === selD.gp.majority ? 'var(--accent)' : 'color-mix(in oklch, var(--ink-3) 28%, transparent)' }}></span>
++              ))}
++            </div>
++            {selD.gp.mine != null && !selD.withMe && (
++              <div style={{ marginTop: 8, fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 600, color: 'var(--ink-3)' }}>you picked {selD.gp.q.options[selD.gp.mine]}</div>
++            )}
++          </div>
++        )}
++        <div style={{ marginTop: 12, paddingTop: 11, borderTop: LINE, display: 'flex', flexDirection: 'column', gap: 9 }}>
++          <div className="legend" style={{ justifyContent: 'center' }}>
++            <span style={{ '--lgc': 'var(--accent)' }}><span className="lg-dot"></span>you with the room</span>
++            <span style={{ '--lgc': 'var(--accent)' }}><span className="lg-dot" data-hollow=""></span>you broke ranks</span>
++          </div>
++          {swing && (
++            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)' }}>
++              {swing.p && <window.GDAv p={swing.p} size={20} plain></window.GDAv>}
++              <span style={{ textWrap: 'pretty' }}>
++                <span style={{ fontWeight: 800, color: 'var(--ink)' }}>{swing.p ? swing.p.name.split(' ')[0] : 'You'}</span> tip{swing.p ? 's' : ''} the close calls — with the winning side in {swing.n} of {closeDays.length}
++              </span>
++            </div>
++          )}
++        </div>
++      </div>
++    );
++  }
++
+   function GroupsMirrorBody({ onPerson, topLenses }) {
+     const D = window.DUELS;
+     const [, bump] = useReducer((x) => x + 1, 0);
+@@ -258,7 +360,7 @@
+     const align = Math.round((P.meWithMaj / Math.max(P.days, 1)) * 100);
+     const lenses = [
+       { id: 'answers', label: 'Answers', render: () => <GroupAnswersCard g={g}></GroupAnswersCard> },
+-      { id: 'people', label: 'People', render: () => <GroupPeopleCard g={g}></GroupPeopleCard> },
++      { id: 'people', label: 'People', render: () => <><GroupPeopleCard g={g}></GroupPeopleCard><GroupSpreadCard key={'sp' + g.id} g={g}></GroupSpreadCard></> },
+       { id: 'compare', label: 'Compare', render: () => <GroupCompareCard g={g}></GroupCompareCard> },
+     ];
+     // nav v2: lens row above the content, the role map as its first tab
+@@ -276,7 +378,11 @@
+         </div>
+         <GroupPicker gs={gs} cur={g.id} onPick={setGid}></GroupPicker>
+         {topLenses && <window.MirrorLensRow lenses={lensList} open={openId} onOpen={setLensOpen}></window.MirrorLensRow>}
+-        {(!topLenses || openId === '__ov') && <window.GroupRoleMap key={g.id} gid={g.id} gname={g.name}></window.GroupRoleMap>}
++        {(!topLenses || openId === '__ov') && (
++          <>
++            <window.GroupRoleMap key={g.id} gid={g.id} gname={g.name}></window.GroupRoleMap>
++          </>
++        )}
+         {openLens && <div key={openId} className="fade-in" style={{ paddingTop: 4 }}><window.Lazy minHeight={480}>{openLens.render()}</window.Lazy></div>}
+         {!topLenses && <MirrorLenses key={'lens-' + g.id} lenses={lenses}></MirrorLenses>}
+       </div>

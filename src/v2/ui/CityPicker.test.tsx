@@ -91,7 +91,10 @@ describe("CityPicker · every value it emits is one the server accepts", () => {
     type("Oslo");
     await waitFor(() => expect(screen.getAllByRole("option").length).toBeGreaterThan(0));
     chooseOption(/Oslo/);
-    expect(onChange).toHaveBeenCalledWith("Oslo, NO");
+    // Not confirmed: scrolling to the right answer is still not a machine
+    // agreeing with it (D205). The flag says a check happened, not that
+    // the city is correct.
+    expect(onChange).toHaveBeenCalledWith("Oslo, NO", false);
     expect(onChange.mock.calls[0][0]).toMatch(SERVER_CITY_SHAPE);
   });
 
@@ -178,7 +181,22 @@ describe("CityPicker · a located city is suggested, never applied", () => {
     tapLocate();
     const suggestion = await screen.findByText(/Nearest city/i);
     fireEvent.click(suggestion.closest("button")!);
-    expect(onChange).toHaveBeenCalledWith("Oslo, NO");
+    // The one path that confirms: the device produced this key and the
+    // user kept it (D205).
+    expect(onChange).toHaveBeenCalledWith("Oslo, NO", true);
+  });
+
+  it("does NOT confirm a city typed after the suggestion was offered", async () => {
+    // The trap the two-argument signature exists to avoid: a located
+    // suggestion on screen does not make the NEXT pick a confirmed one.
+    locate.result = { ok: true, key: "Oslo, NO", km: 3 };
+    const onChange = open();
+    tapLocate();
+    await screen.findByText(/Nearest city/i);
+    type("Bergen");
+    await waitFor(() => expect(screen.getAllByRole("option").length).toBeGreaterThan(0));
+    chooseOption(/Bergen/);
+    expect(onChange).toHaveBeenCalledWith("Bergen, NO", false);
   });
 });
 

@@ -52,15 +52,21 @@ import './spec/primitives.jsx';
 import './spec/explain-sheet.jsx';
 import './spec/viz-primitives.jsx';
 import './spec/compare-breakdown.jsx';
-import './spec/relmap-core.js';
+// The relmap group SPLIT at D200, and the split is by consumer rather than
+// by size. relmap-lenses.jsx stays eager because it has a LIVE consumer —
+// vote-cuts.js reads window.RMLenses for the who-voted sheet's Type cut
+// (D146) — and it is the small one anyway. Its three siblings moved to
+// loadOverlays: they are reachable only through the demo Circle field, and
+// a live build never renders that (Circle takes LiveCircleBody since D101).
 import './spec/relmap-lenses.jsx';
 // vote-cuts sits between the relmap lenses and their consumers, exactly where
 // the standalone loads it: VOTECUTS reuses the lens band definitions, and the
 // who-voted breakdowns (daily-split, world-feed) read VOTECUTS at render time.
 import './spec/vote-cuts.js';
-// relmap-panels.jsx is not listed: relmap.jsx imports its two panels by name
-// (D137), so the ESM graph loads it and rule 2 is satisfied without a line.
-import './spec/relmap.jsx';
+// relmap-core.js and relmap-panels.jsx are not listed anywhere: relmap.jsx
+// imports both by name (D137), so the ESM graph loads them into whichever
+// chunk it lands in and rule 2 is satisfied without a line. relmap.jsx
+// itself is named in loadOverlays at the foot of this file.
 import './spec/test-viz.jsx';
 import './spec/profile-test-viz.jsx';
 import './spec/type-marks.jsx';
@@ -258,14 +264,25 @@ export const loadWorldFeed = retryable(async () => {
 // it directly now — D53 — so the ESM graph carries it into the same
 // chunk without a line of its own.)
 //
-// relmap.jsx is deliberately NOT here despite being the largest candidate
-// (~43 KB). It is the one overlay with a first-frame consumer:
-// mirror-field-pops.jsx reads `typeof RelationshipMap === 'function'` to
-// decide whether the Mirror's Circle population renders the embedded map or
-// the generic field canvas. That read is on a render nothing re-triggers,
-// so deferring it would silently swap the Circle picture for the fallback
-// until some later state change — the same failure world-feed-data.js stays
-// eager to avoid. Not a size decision; a reachability one.
+// relmap.jsx JOINED this group at D200, and the entry that kept it out is
+// worth keeping because it was right when it was written and stopped being
+// right without anything touching it. It read: relmap is the one overlay
+// with a first-frame consumer — mirror-field-pops.jsx reads
+// `typeof RelationshipMap === 'function'` to decide whether the Mirror's
+// Circle population renders the embedded map or the generic field canvas,
+// on a render nothing re-triggers, so deferring it would silently swap the
+// Circle picture for the fallback. Not a size decision; a reachability one.
+//
+// What changed is the reachability, at D101 and not here: Circle in a live
+// build takes LiveCircleBody, so MirrorFieldBody is never called with
+// `pop === 'circle'` at all and that first-frame read is DEMO-ONLY. The
+// argument stood for three months after its premise expired, which is the
+// shape worth noticing — a correct reason for an eager import outlives the
+// branch that made it true, and nothing measures a reason.
+//
+// The read itself is gone rather than deferred (D200): mirror-field-pops
+// awaits this group and re-renders, which is the same synchronisation
+// app-shell's openers use and the one thing a `typeof` probe cannot do.
 //
 // Memoised for the same reason as loadWorldFeed: main.jsx starts it once,
 // every opener awaits it, and the mount tests await it in beforeAll — all
@@ -277,6 +294,9 @@ export const loadWorldFeed = retryable(async () => {
 // each of them into a tap that does nothing, permanently. Now the second tap
 // re-attempts the import; nothing else had to change to get that.
 export const loadOverlays = retryable(async () => {
+  // First, because this list is spec-index's own order with the eager
+  // modules removed and relmap.jsx sat above every other member of it.
+  await import('./spec/relmap.jsx');
   await import('./spec/person-mindmap.jsx');
   await import('./spec/person-overlay.jsx');
   await import('./spec/city-overlay.jsx');

@@ -429,6 +429,49 @@ and names both halves of the artifact in its verdict; it does not fail,
 because a Sentry-less release is a supported build and this workflow
 passes the secret straight through as optional.
 
+**Runs 32 and 33 delivered build 21, and the bump landed off step 17's
+conclusion** (D199, 2026-08-19). Both archived `d547f7a` seven and a half
+minutes apart — run 32 (`32228796376`, 07:38:55Z) step 17 `skipped`, the
+dry run, 5m 18s; run 33 (`32229389551`, 07:46:29Z) `success`, 07:52:10Z →
+07:54:11Z, 2m 01s of transfer. `UPLOAD SUCCEEDED with no errors`, delivery
+UUID `f1ab4ae5-0673-4a89-a4f3-c3ab03c6e87d`, 6,037,139 bytes. Fifth pair of
+this shape after 15/16, 23/24, 25/26 and 27/28.
+
+`appBuild` went 21 → 22 in the same session, read off step 17 rather than
+recalled. Five that held (20, 21, 22, 28, 33) against five skipped (18, 19,
+24, 26, 31) — and this is the first release run under D198's reading, which
+is narrower than "remember to bump": the bump is not a follow-up task, it is
+the reading of step 17.
+
+**D159's trap fired again and the rule caught it.** `5c9c4a5` merged; both
+runs archived `d547f7a`, a pulse trail row pushed in the ~40 seconds
+between. `appBuild` was 21 at both, so it cost nothing — the same outcome as
+run 22 — but it is the second worked example of why the comparison is made
+at the run's own `head_sha` and not at the commit you merged.
+
+
+**Runs 29, 30 and 31 delivered build 20, and the bump was skipped — by the
+pre-flight session itself** (D198, caught 2026-08-19). All three archived
+`f8c8465`, which is D191's own commit: run 29 (`32019625202`, 10:19:31Z)
+cancelled at Resolve Swift packages, run 30 (`32019849917`, 10:22:28Z)
+step 17 `skipped` — the dry run — and run 31 (`32020442257`, 10:30:02Z)
+`success`, 10:34:21Z → 10:35:38Z, 1m 17s of transfer. Fifth skip (runs 18,
+19, 24, 26, 31) against four that held.
+
+**This one refutes the correspondence D191 had just claimed.** That entry
+closed four for four: every skip a session that came back later or not at
+all, every bump that held made off the step list while it was on screen.
+`f8c8465` landed at 10:19:05Z and run 29 was dispatched **26 seconds
+later** — one session, holding the run list, cancelling one of its own
+three dispatches. It made the comparison *first*, got *run as-is*, and
+then spent the number that answer was about. **A pre-flight verdict has a
+shelf life of exactly one dispatch**, so "no number moved" is a report
+about a comparison and never a statement about the tree — the same claim
+this file struck for build 12, in the past tense. As in D184, no record
+was written either: nothing in `docs/` named any of the three runs or
+build 20's delivery until build 21's pre-flight read the run list.
+
+
 **Build 16's pre-flight found nothing to do either, which is the first
 time that has happened twice running** (D158, 2026-08-15). Run 21 was
 still the highest run in the list, its upload step still `success`,

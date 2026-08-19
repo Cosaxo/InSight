@@ -20404,3 +20404,977 @@ URL in the prose, two length caps, a malformed id), the feed's ad dispatch,
 the expired-ad filter, and the one-slot rule — the last of which required
 the test to be fixed before it bit.
 
+
+## D198 · Build 21's pre-flight: the number run 31 spent, and the bundle gate's artifact claim
+
+**Decided:** 2026-08-19 · **Status:** binding · The comparison runbook 2.4
+asks for, made against the run list, plus the gap it walked into on the
+way — which is the same gate D191 fixed, one variable further out.
+
+### The comparison, and it came out *bump*
+
+Three runs exist at `f8c8465` that no document in this tree names, and
+the middle one is the whole answer:
+
+| Run | id | dispatched | step 17 `Upload to App Store Connect` |
+| --- | --- | --- | --- |
+| 29 | `32019625202` | 10:19:31Z | `skipped` — **cancelled** at step 11, Resolve Swift packages |
+| 30 | `32019849917` | 10:22:28Z | `skipped` — the dry run |
+| 31 | `32020442257` | 10:30:02Z | **`success`** — 10:34:21Z → 10:35:38Z, 1m 17s of transfer |
+
+So **build 20 is spent**, and it is the highest that is. `appBuild` **at
+run 31's own `head_sha`** — D159's correction, read at `f8c8465` — is
+**20**. The tree is **also at 20**. Equal is not greater: runbook 2.4
+answers *bump*, and `appBuild` went **20 → 21**, `check:versions --fix`
+carrying `versionCode` and both `CURRENT_PROJECT_VERSION` entries with
+it. Had it run as-is, the archive, the export, both gates and the
+transfer would all have succeeded and App Store Connect would have
+refused the number afterwards — ~150 minutes of macOS quota at 10x, for
+an integer.
+
+Five skips now (runs 18, 19, 24, 26, 31) against four that held (20, 21,
+22, 28).
+
+### The fifth skip breaks the explanation the fourth one earned
+
+D191 closed with a correspondence it called four for four: *every* bump
+that held was made off the step list while it was on screen, and *every*
+skip was a session that came back later or not at all. Run 31 is neither
+half of that.
+
+`f8c8465` is D191's own commit, and it landed at **10:19:05Z**. Run 29
+was dispatched **26 seconds later**, run 30 at +3m 23s, run 31 at +10m
+57s. That is one session, holding the run list — it cancelled one of the
+three — which is precisely the arrangement D186 identified as the only
+one that has ever made the bump stick. It did not come back later. It did
+the comparison **first**, got *nothing to do*, and then spent the number
+its own verdict was about.
+
+**So the failure is not attention, and it is not the record-versus-number
+split D180 named either.** A pre-flight verdict has a shelf life of
+exactly one dispatch. D191 stored it as prose — *"run as-is, and no
+number moved"* — which was true when committed and false eleven minutes
+later, in the commit all three runs archived. That is D142/D143's disease
+in a new sentence: the runbook struck *"build N is pre-flighted and
+unspent"* because a doc cannot see App Store Connect, and the same claim
+came back wearing the past tense. **A pre-flight may report what it
+compared; it may not report what the tree is now**, because the next
+dispatch is what decides that and it has not happened yet.
+
+The other half is D184's shape, for the second time: **no record was
+written at all.** Nothing in `docs/` names run 29, 30 or 31, any of their
+ids, or build 20 being delivered — so D180's proposed gate (*if the
+runbook claims build N was uploaded, `appBuild` must exceed N*) would
+again have stayed silent, having nothing to key on. The sound invariant
+still keys on the run list, which nothing in this tree can read. It stays
+a procedure, and the procedure is unchanged: **ask the run list.**
+
+### What build 21 carries
+
+A pure JavaScript payload, the third in a row. The only diff under `ios/`
+or `android/` since `f8c8465` is this pre-flight's own bump — no
+lockfile, no rules file, no store-filing file, so the store filing does
+not move. It carries D192 (the docs map and its gate), D193 (Compare
+drawing the comparison it was described as drawing), D194 (predictions
+the app can recompute), D195 (the paid slot), D196 (the reading game),
+D197 (real ads in the feed), the pk19 catalog question and the planned
+event discussions.
+
+### The gap: the gate asked the environment what only the artifact knows
+
+D191 found that `check:bundle` documented a second load-bearing variable
+and guarded only the first, and gave `VITE_SENTRY_DSN` the withhold
+branch: without a DSN the 445 KB Sentry group is dead code, rolldown
+drops it, and a total ~450 KB light must not be reported as having
+cleared a ceiling. That branch is right. **What it keys on is not.**
+
+```js
+const SENTRY_IN = (process.env.VITE_SENTRY_DSN ?? "") !== "";
+```
+
+That is the environment of the process running the **check**, not of the
+one that ran the **build** — and the script's own error message tells you
+to separate them ("set any non-empty DSN at BUILD time and re-run").
+Measured on this tree, the original script against a bundle built *with*
+a DSN, given nothing but `VITE_V2_LIVE=true`:
+
+```
+bundle budget OK on what was gradable — VITE_V2_LIVE=true, Sentry OUT,
+967 KB eager (max 978); total 2349 KB ungraded
+```
+
+`Sentry OUT`, over a bundle carrying **453 KB of Sentry across 3
+chunks**, with `MAX_TOTAL_JS_KB` declined. This is the file's own
+founding bug — grading the wrong artifact — inverted: not a light bundle
+passed off as the shipping one, but the shipping one waved through
+ungraded.
+
+**And it is live on the PR path, not merely reachable.** `ci.yml` builds
+with `VITE_SENTRY_DSN: https://ci@example.invalid/0` and then runs
+`check:bundle` **as a separate step** whose env carries `VITE_V2_LIVE`
+and not the DSN. Its comment explains the repetition as "the assertion
+that these two steps agree about which bundle they are talking about" —
+correct for the flag, and the DSN was never added beside it. So since
+D191 the total ceiling has been silently unapplied on every PR, against
+a bundle sitting **8 KB** under it.
+
+**Fixed by asking `dist/`**, which is what `check:web-firebase` — its
+neighbour in the same release step — already does, and for the reason
+quoted there: a stale `dist/` from a reordered step answers the
+environment's question differently. Detection is by SDK marker rather
+than by chunk name (`prod-*.js` is a rolldown output name, not a
+promise). Measured at build 21, same command, the DSN the only
+difference:
+
+| | chunks | total | eager | `prod-*.js` |
+| --- | ---: | ---: | ---: | --- |
+| no DSN | 79 | 1895 KB | 965 KB | absent |
+| with DSN | 82 | **2349 KB** | 967 KB | 435 KB |
+
+| marker | chunks with DSN | chunks without |
+| --- | ---: | ---: |
+| `__SENTRY__` | 2 | 0 |
+| `_sentryDebugIds` | 1 | 0 |
+| `sentryWrapped` | 1 | 0 |
+| `captureException` | 3 | 0 |
+| ~~`sentry`~~ | 12 | **9** |
+
+The last row is why the obvious marker is not used: the app names its own
+lazy module and its dynamic-import path after Sentry, so a bare substring
+match reports the SDK present in every build — failing in the direction
+that grades 1895 KB against the full ceiling and calls it the shipping
+one. The four above are SDK internals, two of them Sentry's own globals.
+
+The withhold branch and the verdict line now describe the artifact rather
+than the process, and the verdict names the weight it found (`Sentry in,
+453 KB over 3 chunk(s)`), so the line cannot assert more than was
+measured — D191's rule, applied to the fact D191 read from the wrong
+place.
+
+### The headroom, which is the finding to carry forward
+
+The shipping bundle measures **2349 KB total / 967 KB eager against 2357
+/ 978** — 8 KB and 11 KB. The total moved 2331 → 2349 across D193–D197
+and the ceiling with it, 2334 → 2357. Eight kilobytes is not headroom,
+and the ceiling's own comment forbids the obvious answer: deferral
+relocates bytes and moves the total by zero. The D64 candidates still
+stand un-taken — the Mirror tab (~168 KB) and an audit of what of
+Sentry's 435 KB is reachable — and the next raise should have to walk
+past them again. **The gate that was supposed to force that conversation
+was switched off for the whole stretch that spent the last 18 KB**, which
+is the part worth remembering.
+
+### Verified
+
+`lint`, `tsc -b` in both trees, and the workflow's own three pre-flight
+gates at the new number (`check:store-copy --ios` — one parked Play
+placeholder under D42, `:public-copy`, `:versions` — "versions OK — 2.0.0
+(build 21) across package.json, Android and iOS"). Every other check
+gate: `:globals` (409, baseline 409), `:figures`, `:a11y`, `:anchors`,
+`:labels`, `:touch-zoom`, `:purge`, `:cities`, `:pokedex`, `:elements`,
+`:catalogs`, `:logic-sync`, `:calls`, `:content`, `:quality`,
+`:deploy-targets`, `:fn-runtime`, `:appcheck`, `:store-listing`,
+`:policy-claims`, `:data-inventory`, `:monitoring`, `:store-forms`,
+`:ios-spm`, `:ios-facebook`, `:ios-location`, `:docs`. Tests: unit 1,361
+(89 files), scripts 215 (11 files), functions 243 (9 files), `test:rules`
+113, and all three e2e suites on Java 21 — 67 + 15 + 19 checks.
+
+`check:bundle` exercised on **both** branches and in the configuration
+that was broken: a DSN-less build (withheld — 1895 KB ungraded), a
+DSN-built one (graded — 2349 / 967 against 2357 / 978), and the DSN-built
+one with the DSN absent from the checking process, which is `ci.yml`'s
+exact arrangement and the case that previously reported `Sentry OUT`.
+`--demo` still reports without applying a ceiling.
+
+**Two first-run failures, neither reproducible, and they are recorded
+rather than rounded to "green".** The first full `test:unit` run failed 3
+of 1,361, all in `smoke-daily.test.jsx`; that run shared four cores with
+`npm ci` and the functions suite, and the file passes alone and in a
+suite that has the machine to itself. The first `test:e2e` run exited 1
+with no detail captured, and passed on both re-runs. Neither cause is
+established, so neither is called a flake here — what *is* established is
+that this branch cannot have caused either: it changes `appBuild`, two
+native version numbers, `check-bundle.mjs` and docs, and `test:e2e`
+exercises functions and rules, which it does not touch. The one path by
+which a build bump could reach a mounted app was checked directly and
+does not exist — `state.meta.latestBuild` defaults to 0, so
+`updateAvailable` (`appBuild > 0 && latestBuild > appBuild`) is false at
+20 and at 21 alike.
+
+## D199 · Build 21 is in TestFlight, and the number moved with it
+
+**Decided:** 2026-08-19 · **Status:** binding · The dispatch D198's
+pre-flight cleared for, and the bump made from the step list rather than
+from a memory of it.
+
+### The two runs
+
+Both archived `d547f7a`, seven and a half minutes apart — the fifth pair
+of the runs-15/16 shape, after 23/24, 25/26 and 27/28.
+
+| Run | id | dispatched | step 17 | duration |
+| --- | --- | --- | --- | --- |
+| 32 | `32228796376` | 07:38:55Z | `skipped` — the dry run | 5m 18s |
+| 33 | `32229389551` | 07:46:29Z | **`success`** — 07:52:10Z → 07:54:11Z | 7m 46s |
+
+```
+UPLOAD SUCCEEDED with no errors
+Delivery UUID: f1ab4ae5-0673-4a89-a4f3-c3ab03c6e87d
+Transferred 6037139 bytes in 0.107 seconds
+```
+
+Both silent-failure gates passed at both ends, on both runs — the archive
+carried the Firebase config and the APNs entitlement, and the exported
+`.ipa` printed the line the whole mechanism exists for:
+
+```
+aps-environment = production
+the .ipa is production-signed and carries the Firebase config
+```
+
+Run 32 also left the signed `.ipa` as artifact `9356608227`, 5,913,053
+bytes, which is what a dry run is for: the archive was known good before
+anything outward-facing happened.
+
+### The bump, which is the point of this entry
+
+**`appBuild` went 21 → 22 off step 17's own conclusion, in the session
+that dispatched the run**, `check:versions --fix` carrying `versionCode`
+and both `CURRENT_PROJECT_VERSION` entries. Five that held (runs 20, 21,
+22, 28, 33) against five skipped (18, 19, 24, 26, 31).
+
+D198 argued the correspondence D191 drew was wrong — that the failure is
+not "came back later" but that a pre-flight verdict expires on the next
+dispatch. This release is the first run under that reading, and the
+procedure it implies is narrower than "remember to bump": the bump is not
+a follow-up task, it is the *reading* of step 17. So the number moved
+before this entry was written, and this entry is the record of a bump
+that had already happened rather than a plan to make one.
+
+### D159's trap fired again, and the rule caught it
+
+`5c9c4a5` is the commit that merged; **both runs archived `d547f7a`**, a
+pulse trail row a Routine pushed in the ~40 seconds between the merge and
+the dispatch. `appBuild` was 21 at both and the only diff is one line of
+`monitoring/pulse-trail.jsonl`, so this cost nothing — the same outcome
+as run 22, which is where the rule came from. It is the second worked
+example, and the reason the comparison is written as *read `appBuild` at
+the run's own `head_sha`*: what makes it sound is not that the
+intervening commit is usually harmless, but that nobody checked whether
+this one was until they looked.
+
+### What is now live
+
+Build 21 carries D192–D197, the pk19 catalog question, the planned event
+discussions, and D198's own bundle-gate fix. App Store Connect processes
+for ~5–30 minutes before it appears in TestFlight; internal testing needs
+no Beta App Review.
+
+**Not yet verified from here:** that the build finishes processing and
+lands in TestFlight, and that `ITMS-90683`-class mail did not follow the
+delivery (D107 — a missing purpose string is emailed *after* a successful
+upload, and the fix rides the next build rather than invalidating this
+one). Both are outside anything this tree can read, which is D73's shape
+again, so they are named rather than asserted.
+
+### Verified
+
+`check:versions` — "versions OK — 2.0.0 (build 22) across package.json,
+Android and iOS". The tree's own gates green at the new number, and the
+release path's three pre-flight gates are what runs 32 and 33 both ran as
+their step 5.
+## D200 · Three things were true and stopped being, and nothing was looking
+
+**2026-08-18.** **Status:** binding. Owner's direction, after a review of
+what is still missing: *"we should start by fixing this"* — the
+relationship map, the cost model's region, and the functions' region. One
+record because they are one failure repeated three times.
+
+### The shape they share
+
+Each was a correct statement that expired without being touched:
+
+| Written | True when written | Falsified by | Noticed |
+| --- | --- | --- | --- |
+| relmap must load eagerly — the Mirror reads it on a first frame | D38 | **D101** gave Circle a live body, so that read is demo-only | 3 months later |
+| the cost model prices `nam5`, "what prvfire33 is on" | before D165 | **D165** moved production to `europe-west1` | 3 days later |
+| the trigger's hop is `us-central1` vs **`eur3`** | before D165 | **D165**, same day | 3 days later |
+
+None was a mistake at the time and none was edited into being wrong.
+Every gate here compares the tree against itself — `check:figures` holds a
+quoted figure to the code, `check:globals` holds a reference to its
+assignment — and a **premise** is neither. That is the general lesson and
+the reason two of the three fixes below are new gates rather than new
+values.
+
+### 1 · The relationship map leaves the eager graph
+
+`spec/relmap.jsx`, `relmap-core.js` and `relmap-panels.jsx` — ~102 KB of
+source — are reachable ONLY from the demo Circle field. A live build takes
+`LiveCircleBody` (D101), so `MirrorFieldBody` is never called with
+`pop === 'circle'` at all, and the `typeof RelationshipMap === 'function'`
+probe that D38 kept the module eager to protect cannot run on the shipping
+path.
+
+Measured, both ways, at this commit: **eager graph 966 → 906 KB, entry
+chunk 494 → 435 KB, total 2349 → 2349 across 82 → 83 chunks.** The total
+holding still is the finding — this is a relocation, and `check:bundle`'s
+own ledger already says the total cannot see one.
+
+Three things came with it, and each is the interesting half:
+
+- **`MAX_EAGER_KB` comes DOWN, 978 → 920**, the first fall after seven
+  raises. The band is 14 KB rather than 72 on purpose: the freed room is
+  what `VISION-V28.md` §5's Map branches are waiting on ("blocked on
+  bytes, not data"), and leaving it inside the ceiling would hand it over
+  silently instead of on a measurement.
+- **The consumer imports rather than probes.** `mirror-field-pops.jsx`
+  dynamic-imports the module and re-renders when it lands, which is the
+  one thing a `typeof` cannot do, and `relmap.jsx` exports the component
+  in the shape `relmap-core.js` beside it already used. Coupling **409 →
+  408**; the `window.RelationshipMap` publication is gone because rule 5
+  correctly refuses a publication nothing reads.
+- **The demo Circle stop gets its first test.** Nothing rendered it
+  before, so this swap — map replaced by the generic field canvas —
+  could have shipped green. Mutation-checked twice: dropping the awaited
+  `act` fails it, and deferring without the re-render (D38's exact
+  predicted failure) fails it.
+
+`scripts/spec-globals.mjs` gained a bracket strip on the way past:
+`const [RelMap, setRelMap] = useState(null)` declared no local as far as
+the scanner was concerned, so a JSX tag by that name read as a dangling
+global. Nothing in the spec layer had held a COMPONENT in array-
+destructured state before, which is why a gap that plain survived.
+
+### 2 · The cost model reads the region instead of assuming it
+
+`costModel({ regional = false })`, with a comment beside the price sheet
+saying multi-region "is what prvfire33 is on". Both were true until
+2026-08-15 and neither moved, so for three days every table in
+`COSTS.md` and every `burnUsd` the pulse console published was **roughly
+double the real bill**: $4,774 → **$2,517** at 500 k DAU, $472 → **$247**
+at 50 k, $44 → **$22** at real traction. The console's daily trail row
+went from $72.11 to **$50.65** (fixed costs do not halve).
+
+Nothing about the app changed and no estimate was revised. One input had
+been true and stopped being.
+
+**The region was in no machine-readable place at all** — `firebase.json`
+names the database, `functions/src/db.ts` named the id, and the *location*
+existed only in prose. So it is a constant now, `FIRESTORE_LOCATION`,
+beside the id in the file whose whole job is being the one place the
+database can be wrong. `cost-arith.mjs` reads it with the same
+throw-on-shape-change scan D47 gave the deck constants, and the
+multi-region/region split falls out of GCP's own naming: a multi-region is
+a bare name, a region has a hyphen.
+
+`--regional` became `--multi-region`, because the flag was how the TRUTH
+was supplied and is now only how the counterfactual is asked for.
+
+Two tests pin it, and the first draft of them failed to: every caller
+passes `regional` explicitly, so watching the callers left the default
+untested and a revert to `= false` reported green. `costModel()` with no
+arguments is asserted directly. A second draft error is worth keeping too
+— it asserted a single region halves all four price lines, and storage is
+$0.108 against $0.18, which is 60%. The three OPERATION lines do halve,
+which is what "halves every Firestore line" means and all the bill
+consists of.
+
+### 3 · The functions stay in us-central1, and now that is a decision
+
+D165 moved the database to `europe-west1` and left all 28 functions in
+`us-central1`. **Measured rather than waved at:** ~5.5 KB crosses per
+answer through the fold, which is **$0.47/month at 5 k DAU and $4.65 at
+50 k** — about 2% of the Firestore line beside it. Cost is not the
+argument in either direction.
+
+What the hop actually costs is a transatlantic round trip on every fold —
+off the user's path, since the trigger is asynchronous, so it delays the
+aggregate rather than the tap — and a posture that reads oddly for an app
+that just moved its database to Europe. Nothing false is claimed: the
+privacy policy makes no residency promise, and `check:policy-claims`
+would catch it if it did.
+
+**Not moved here, and the recommendation is to move it before launch.**
+Relocating means recreating the triggers, eight client call sites and a
+new build, and every installed client keeps calling `us-central1` until it
+updates — survivable at today's install base (the maintainer's own
+TestFlight devices), and exactly the sort of thing that stops being
+survivable once there are users. Same shape as D165's "last free reset",
+one layer up. It is an operator action, so it is recorded with its
+arithmetic rather than taken in a commit.
+
+**`check:fn-runtime` gained the pairing that matters**, in the
+two-independent-files shape it already uses for the database: the client's
+`getFunctions(app, "…")` literals must name the region the compiled
+endpoints are served from. A callable in a region nothing serves is a 404
+the app reports as `internal` with nothing to read — no build, deploy or
+mocked test fails, and the first signal is a button that does nothing.
+Eight call sites, all on `us-central1`, matching the deploy. Mutation-
+checked by moving one.
+
+### One documentation claim corrected, because I repeated it myself
+
+`MIRROR.md` §5 said "v2 has no person-to-person graph at all to draw" —
+false since D101, and the reason the Circle stop's live body exists. Two
+code comments carried the same stale premise with a still-correct
+conclusion (`search-overlay.jsx`, `app-shell.jsx`: the sample personas
+must not render live because THEY are invented, not because no people
+exist). Corrected in place. The claim survived long enough that this
+session's own first answer to the owner repeated it as fact.
+
+### Verified
+
+`lint`, `tsc -b`, `check:globals` (408, baseline 408 — lowered), `:a11y`
+(8, baseline 8), `:figures`, `:docs`, `:bundle` (906 eager against a new
+920 ceiling), `:fn-runtime` (28 functions, 8 client call sites),
+`test:unit` (1362), `test:scripts` (217), functions (243). Mutation-
+checked: the demo Circle map two ways, the cost model's default price
+sheet, and the client/server region pairing.
+
+## D201 · The functions follow the database to europe-west1
+
+**2026-08-18.** **Status:** binding. Owner's instruction — *"move the
+functions to europe-west1"* — after D200 measured the split and
+recommended closing it before launch.
+
+### What moved, and what a region actually is
+
+All 28 functions, from `us-central1` to `europe-west1`, matching the
+database D165 moved on 2026-08-15. **In code only. The deploy is an
+operator step**, recorded at LAUNCH-RUNBOOK 5.9 with its procedure in
+`DEPLOYMENT.md § Moving the functions`.
+
+D200 already established that cost is not the argument: ~5.5 KB crosses
+per answer through the fold, $0.47/month at 5 k DAU and $4.65 at 50 k,
+about 2% of the Firestore line beside it. The argument is a transatlantic
+round trip on every fold, EU answers processed in the US, and a deadline
+made of installs rather than dates — every client calls the region its own
+bundle names, so this gets more expensive with each person who installs
+the app. Same shape as D165's "last free reset", one layer up.
+
+### One constant per side, because eighteen literals is how this fails
+
+The value was spelled out **ten times on the backend and eight on the
+client**. Moving it by editing eighteen literals is the failure this repo
+has already had twice — D165's own procedure listed three edits and missed
+37 call sites, and D200 found the database's location in no
+machine-readable place at all.
+
+- **`FUNCTIONS_REGION` in `functions/src/ops.ts`**, imported by all nine
+  modules that define functions. They all already imported `./ops`, which
+  is the file `check:fn-runtime` exists to keep load-bearing.
+- **`FUNCTIONS_REGION` in `src/lib/region.ts`** — a new **zero-import leaf
+  module**, and the emptiness is the design. The obvious home was beside
+  `FIRESTORE_DB_ID` in `firebaseImpl.ts`, and a static import from there
+  would drag the lazily-loaded implementation and the Firebase SDK behind
+  it back into the first-paint graph. That is D110 exactly, which went
+  unnoticed for weeks; a file with no imports of its own cannot cause it.
+
+Three consumers cannot import either one and are handled by shape rather
+than by exception. The **e2e harnesses** run under bare `node`, so they
+import the constant from the functions' own COMPILED output
+(`functions/lib/ops.js`, which `pretest:e2e` builds) — the emulator serves
+exactly what that file says, so the harness cannot be pointed elsewhere.
+**`test-users.mjs`** runs with `--experimental-strip-types` and already
+imports `.ts`, so it imports the client constant. **`seed-content.mjs`**
+runs under bare `node` and scans the constant out of `region.ts`'s source,
+throwing on a rename — the same trade `cost-arith.mjs` takes, and its
+previous comment ("us-central1, matching functions/src/v2.ts and the
+client's `getFunctions(app, "us-central1")`") was a hand-maintained list
+of the files it had to agree with, which is the shape D47 caught.
+
+### The gate gained a second rule, and it is the one that lasts
+
+`check:fn-runtime` (D200) compared client literals against the compiled
+endpoints. With one constant per side that comparison is a single read —
+so a second rule now forbids any call site from naming a region
+**literally at all**, matched on the call shape rather than on the string.
+It fires on a *correct* literal too, which is the point: the failure being
+prevented is the second copy, not the wrong value. Both rules
+mutation-checked.
+
+### The deploy hazard, written down because it can corrupt data
+
+**A function's region is part of its identity**, so deploying does not
+move anything — it creates `europe-west1/onV2AnswerCreated` and leaves
+`us-central1/onV2AnswerCreated` subscribed to the same path. While both
+exist, **every answer folds twice.**
+
+**The event-ledger dedup does not prevent this, and it looks like it
+should.** `v2.ts` opens each aggregate transaction with
+`const seen = await tx.get(eventRef); if (seen.exists) return;`, keyed on
+the CloudEvent id — written for `retry: true`, and exactly right for it.
+Two Eventarc subscriptions deliver two events with two ids for one write,
+so each writes its own ledger row and folds again. Nothing errors. Checked
+in the source rather than assumed, and it changed the shape of the
+procedure: step 3 is `gcloud functions list --regions us-central1` and a
+manual delete of anything that survives, rather than trusting `--force`
+to have planned the deletion. Expected behaviour is that it does; no
+region move has ever been run against this project, so it is verified by
+looking rather than by believing.
+
+**A client build has to follow.** Every build shipped before the deploy
+keeps calling `us-central1` and gets a 404 the app reports as `internal`
+on every callable — account deletion, push registration, the logic test,
+circles and duels, device activation, suggestions. The daily and the
+Mirror keep working, because they read Firestore directly and never go
+through a callable. At today's install base that is one TestFlight
+device, which is the whole reason this is happening now.
+
+**That set grew while this record waited to merge**, which is worth a line
+because it is the argument working rather than an inconvenience: this said
+"builds 20 and earlier" when it was written, and D199 put **build 21** in
+TestFlight the next day — without the region change, because it shipped
+from main. Every release before the deploy joins the list. Naming a build
+number here was the mistake; the property is *shipped before the deploy*,
+and it is why the deadline is the install base rather than a date.
+
+### One literal that must NOT move
+
+`DEPLOYMENT.md`'s D13 cleanup command still says
+`--region us-central1`, and it is correct: those nine v1 functions were
+deployed there and never moved. Naming the new region would delete nothing
+and report success. Noted in place, because it is the one spot where the
+old value is the right answer and a careful reader would otherwise fix it.
+
+### Verified
+
+`lint`, `tsc -b`, `check:fn-runtime` (28 functions on `europe-west1`,
+client matching), `:appcheck` (22 callables), `:deploy-targets` (28),
+`:monitoring` (5 policies — none filters by region, checked rather than
+assumed), `:bundle` (906 eager, unmoved), `:docs`, `:globals`, `:figures`,
+`:a11y`, `:versions`, `test:unit` (1362), `test:scripts` (217), functions
+(243). Compiled endpoints re-read after the change: 28 functions, one
+region.
+
+**And all four emulator suites, which is the part that matters here** —
+they are the only thing that executes a callable end to end, and the
+harnesses were changed to resolve the region from the functions' compiled
+output. `test:e2e` (ALL E2E CHECKS PASSED), `:erasure` (ALL ERASURE CHECKS
+PASSED), `:moderation`, `test:rules`. The emulator log names every
+invocation `europe-west1-<fn>`, which is the move working rather than a
+claim about it. In this sandbox they need `HTTPS_PROXY` unset — the
+standing note in docs/LOCAL-TESTING.md, not a symptom of this change.
+
+## D202 · The type mix reads every instrument, and D157 §4 is reversed
+
+**2026-08-19.** **Status:** binding. Owner's call, made twice: asked
+whether to skip the switch, narrow it to politics, or amend fully, the
+answer was *"build it remove the promise"* and then, unprompted, *"yeah
+override the privacy promise."* This record is what that cost and what it
+did not.
+
+### What shipped
+
+The Mirror's type-mix card (People lens, City · Country · World) gains a
+four-position switch — **Personality · Politics · Values · Social** — and
+remembers the choice per device. Every instrument the archetype module
+defines can now be read as a population: *of the people this session has
+seen in Oslo who carry a politics result, how many hold each type.*
+
+### What it reversed, stated plainly because it was refused on the merits
+
+[D157 §4](#d157--the-test-surfaces-stop-describing-a-crowd-they-never-counted)
+refused this exact reading for these exact instruments. It is worth
+quoting against itself, because the reversal is not the discovery of a new
+fact:
+
+> `typeSharesOn` refuses every instrument but `TYPE_TEST`. That is the
+> Art. 9 scope `docs/data-inventory.md` draws and `typeMix.TYPE_TEST`
+> already enforced: no population reading is computed from the politics
+> result.
+
+D157 also identified the number it was refusing as **this card's** number
+("the count of people per type is the reading `TypeMixCard` has published
+on the Mirror since D141"), and noted the widening was *"one parameter"*
+away — accepting a blank on three profile sheets as the price. So this is
+a re-litigation, decided the other way by the person entitled to decide
+it.
+
+**[`VISION-V28.md`](VISION-V28.md) §8 defended the switch by saying it
+"does not touch D8". That is true and was never the point.** D8 forbids a
+test result becoming a *breakdown dim* — a cut the server slices an
+aggregate by. Nothing here does that: no cell is keyed by a result, no
+result enters the anchors snapshot, the fold is entirely on the device.
+D8 is untouched and was not the constraint. D157 §4 was, and §8 checked
+the wrong door. That mistake is recorded here rather than quietly fixed,
+because a plan that clears the wrong constraint reads exactly like a plan
+that cleared the right one.
+
+### The argument that carried
+
+Not "it is easy" — D157 heard that one and refused it. What is different:
+
+- Every input already publishes. `voters.ts` parses all four instruments
+  into the same session cache today; the politics axes are on the wire
+  regardless, because the web SDK has no field mask.
+- **The per-person view already ships.** Since D112/D193, `data/compare.ts`
+  and the City constellation show a *named* person's politics axes beside
+  yours. An aggregate over people is strictly less identifying than a
+  surface that has been live for months. Refusing the aggregate while
+  shipping the named per-person read was the incoherent position.
+
+### What did NOT move, and now has an owner
+
+**Answers are still grouped by the Big Five and by nothing else.** That is
+a different act from counting people, it is the promise `web/privacy.html`
+makes in those words, and it was not part of the ask.
+
+It was, however, enforced by `typeMix.TYPE_TEST` — the constant this
+record demotes to a default. A promise whose enforcement point has been
+repurposed has no owner, so the scope moved to where it belongs:
+`data/typeSplit.SPLIT_TEST`, explicit at every call site rather than
+inherited from another module's default, and pinned by its own cases. A
+later widening of the mix cannot now carry the split with it.
+
+### The disclosure was rewritten, not deleted
+
+"Override the privacy promise" is executed as *change what the page says*,
+not *stop saying it*. `web/privacy.html` gains a bullet describing the new
+reading in the terms a reader needs — a count of people rather than a
+grouping of answers, computed on the device, a sample and not a census,
+and the one control that exists (a test you have not taken cannot type
+you). `check:policy-claims` gains **two** rows, not one: the new claim,
+and the surviving one. Either half deleted alone would leave a page that
+reads as the pre-D199 promise while the app does something wider — which
+is the D174/D175/D177 failure mode the gate exists for.
+
+Two stale citations were fixed in passing, both the same class: `typeMix.ts`
+and `docs/data-inventory.md` each said the scope was "promised in the
+panel copy", which D183 made false when it moved the disclosures out of
+`ui/LivePrivacyPanel` and into `web/privacy.html`.
+
+### What this does not license
+
+**The numbers are measured or they are not drawn.** The v28 prototype
+derives its non-Big-Five mixes from authored per-type shares with a
+per-population wobble (`design/standalone-v28/type-mix.js`). That is the
+exact class D157 §4 removed and [D167](#d167--every-v28-surface-ships-with-its-backend-or-it-does-not-ship)
+forbids, so this could not be a port. Every row is a count of real typed
+people, the thin and small-sample states are recomputed per instrument
+(coverage differs by how far each person has got through the test feed),
+and `typeSharesOn` still returns null — never a fallback — for a key the
+archetype module does not define.
+
+**D8 stands unamended.** No test result is a breakdown dim.
+
+## D203 · Five pulses, each with its own rhythm
+
+**2026-08-19.** **Status:** binding. Builds §3 of
+[`VISION-V28.md`](VISION-V28.md), which [D166 §3](#d166--the-third-tab-is-adopted-on-trial-the-arena-is-dropped-the-pulse-roster-is-approved)
+approved in full — sleep and energy included — having weighed what they
+cost. This record is the build and the three things the plan did not
+anticipate.
+
+### What shipped
+
+`pace · energy · sleep · focus · social`, each carrying its own **cadence**
+— daily · often (Mon/Wed/Fri) · weekly (Sunday) · off — set on the card
+itself, because "ask me more often" is a rhythm rather than a settings
+screen. Due pulses take their turn in the feed beside the blind daily. **No
+tray, no block pinned above the feed**: a pulse that is not due today is
+simply not there, and nothing announces what you are not being asked.
+
+D139 wrote its own retirement note — *"a roster becomes a parameter the day
+a second pulse ships; until then a constant is honest about the design"* —
+and this is that day.
+
+### Cadence is device state, and that is a decision
+
+`insight.pulseCadence.v1` in localStorage, swept by the D51 purge. It has
+**no server representation and should not get one.** `dueOn(cadence, date)`
+is a pure function of a preference and the calendar, every device computes
+the same answer, and the reading is drawn on the device — so the server
+would buy cross-device sync at the price of a new field, a new rules arm, a
+`data-inventory` row, and a second store-forms conversation about a
+health-adjacent preference. How often someone wants to be asked how they
+slept is arguably the more revealing half of this feature; it never leaves
+the phone.
+
+The rules deliberately do not fence it either: an "off" pulse is still
+writable, exactly as a paused one should be.
+
+### The honesty rules gained a fourth clause, and it is the whole point
+
+The three that stood — an unanswered day is absent, never zero-filled or
+bridged; a thin day is counted, not placed; no smoothing anywhere — are
+joined by: **a day the pulse was not scheduled is absent too, and is not a
+miss.**
+
+This is not decoration. `design/standalone-v28/pulse-data.js` still walks
+CALENDAR days, so in the prototype a weekly pulse answered faithfully every
+Sunday for three weeks reports a streak that can never exceed 1, three grey
+voids, and *"you didn't answer on 18 days"* — a statement about a question
+nobody put. The store counts runs in **asks**; the strip draws the last
+fourteen **asks**; the gap detector bridges unscheduled days; and the crowd
+series refuses to place a point on a day this reading has no row for. Six
+cases in `data/pulse.test.ts` pin it.
+
+### Three things the plan did not anticipate
+
+**1. The roster made the reads CHEAPER, not five times dearer.** D139
+fetched the whole 21-day window on every open although the card only ever
+draws today. A naive ×5 would have been 105 ids — over the 30-clause
+`documentId() in` cap, so four-plus queries per open for data the first
+screen never reads. Split instead: `ensureToday` is one query of at most
+five ids for the card, `ensureTrend` is one 21-id query paid on the tap
+that opens a reading. Five pulses now cost fewer reads per open than one
+did.
+
+**2. It surfaced two shipped defects, and the roster would have multiplied
+both by five.** `splitBanks` had no pulse lane, so `data/pulse` paid its
+own `getDoc` for a template `hydrate()` had already downloaded and cached —
+and that read took only `prompt` and `options`, so **`active` never reached
+the client**. Flipping a pulse off in the console left a fully rendered,
+tappable card whose every write the rules refused: the answer appeared and
+silently vanished. Giving the pulse a bank like every other surface fixes
+both, because `active` is filtered upstream.
+
+**3. `worldAnswers` did not move, and the reason is in the model.** The
+default cadences (pace daily, energy and sleep weekly, focus and social
+off) ask 1 + 2/7 ≈ 1.29 pulse answers per user per day against the 1 the
+cost model already assumes. Rounding that in would move every figure in
+`COSTS.md` on a guess about how many people raise a cadence. The ceiling is
+real and is recorded next to the assumption instead: everyone setting every
+pulse to daily takes the term 4 → 8, about +$128/mo at 50 k DAU and
++$1,280 at 500 k.
+
+### The store filing moved, and it was the silent one
+
+**Apple's Health row is now YES**, and `design/store/app-privacy.json`
+declares it collected and linked. `docs/STORE-FORMS.md`'s Health bullet has
+carried a trip-wire since D140 saying the No was argued for the height band
+alone and *"whoever picks that decision back up owns this row"*. A
+self-reported daily sleep and energy series is Apple's *"any other user
+provided health or medical data"* on any reading, so this is that
+trip-wire being honoured rather than overruled — D140's own refusal of
+weight and BMI is untouched, and neither is collected.
+
+It is filed **linked**, because under D98 a pulse answer folds into the
+same exact aggregate any signed-in user can read. Filing it unlinked would
+have been the more flattering lie.
+
+**`check:store-forms` passed throughout the change and would have passed
+without it** — it holds the two files equal to each other, not to the app.
+That is the failure mode `docs/SHIP-CHECKLIST.md` calls the one that fails
+silently, in the under-declaring direction, and the only thing that catches
+it is someone remembering the trip-wire. The bullet now says so at the top
+rather than at the bottom.
+
+### What did not change
+
+`firestore.rules` needed **nothing**: `isPulseAnswer()` already validated
+against `request.resource.data.baseQid` rather than a constant, so any
+template with `surface: "pulse"` was already legal. Neither did the
+aggregate trigger — `onV2AnswerCreated` keys everything off
+`event.params.qid`, which for a pulse is `{baseQid}_{day}`, and never reads
+the question doc on that branch. Five pulses mint five per-day agg pairs
+instead of one and no function changed. `pulse-pace` keeps its option set
+forever (D52); the roster appends around it.
+
+## D204 · Your role is a test result, and the dimension without data is not shipped
+
+**2026-08-19.** **Status:** binding. Roles is the one item in the
+2026-08-19 prototype that [`VISION-V28.md`](VISION-V28.md) had no section
+for — the August-15 build had no such module — so it arrives with a record
+rather than a plan entry.
+
+### What shipped
+
+A seventh profile subtab: **the role you play in a 1v1, and the role you
+play in a group**, each read as an instrument. Four dimensions for a 1v1
+(Insight · Legibility · Likeness · Steadiness) and three for a group
+(Independence · Centrality · Steadiness), matched to a named type by the
+same `IS_matchArchetype` every other test uses. A role card is a result
+card: same rose, same matcher, same nearby-type language, no new visual
+vocabulary.
+
+Each instrument opens with the **average across your settings** — weighted
+by revealed days, so a three-day duel cannot swing a portrait a
+twenty-four-day one built — then lists every setting one row deep, because
+a role is only interesting next to the other roles you play.
+
+### Real on arrival, which is why it could ship at all
+
+`data/roles.ts` is a pure fold over `LIVE.social.revealHistory` — the same
+reveal documents `duelRuns` (D156) and `groupPortrait` already read, which
+the duel panel already fetches. **No new read, no new field, no new
+collection, no Cloud Function.** That is what makes it a
+[D167](#d167--every-v28-surface-ships-with-its-backend-or-it-does-not-ship)
+item that needed no backend half, in the same class as the trait web.
+
+### The dimension that did not ship, and why that is the whole record
+
+The prototype's group instrument has a **fourth** dimension — `cast`
+("Standing": how often the group crowns you). It is the only part of
+`role-data.js` with no live source at all. It reads
+`DUELS.roleVotes(gid)`, a scenario-pack generator that exists solely in
+the demo module, and [`MIRROR.md`](MIRROR.md) records those crowns as
+unbuilt.
+
+Shipping it anyway would have meant a constant 50 for every user. Fifty is
+*exactly* the authored baseline, so it would have contributed nothing to
+any type match while drawing an identical petal on every rose — **a dead
+axis presented as a measurement.** That is what D167 forbids and what
+[D157](#d157--the-test-surfaces-stop-describing-a-crowd-they-never-counted)
+spent a release removing. So `cast` is not computed.
+
+**Dropping it cost three of the nine group types, and they are dropped
+rather than kept hollow.** "The First Pick" (cast 94) and "The Spark"
+(cast 78) are *defined* by it. "The Floater" is the subtler one and the
+reason this is a decision rather than a deletion: without `cast` its
+signature is `own 46 · pull 46 · settle 44`, and `IS_archScores` weights
+each dim by |sig − 50| — so a type near-neutral on everything can never be
+picked. Keeping it would have left dead weight in a table the rarity tax
+reads as a distribution. Six types remain, shares renormalised 83 → 100.
+
+`data/roles.test.ts` pins all three assumptions the matcher makes silently:
+shares summing to 100, signatures covering exactly the fold's dim ids, and
+every type extreme on at least one dim — the last at the house's own
+observed floor of 12 (Communitarian, in the politics table), so the role
+tables are held no looser than the four that shipped and no tighter.
+
+**What would make `cast` real:** 7 of the 24 group-bank questions are
+`kind: "pick"`, and their options ARE the member list. But the reveal doc
+does not store the option→uid mapping the answering client used —
+`revealMembersFor` filters late joiners out, so neither `members` nor the
+current `memberUids` is reliably the array that was indexed into. A roster
+change silently remaps every historical pick. That is a new fold with a
+real correctness hazard, and at ~4 pick days in a 14-day window it would
+be thin even if it were safe.
+
+### Two places the port could not be literal
+
+**The registries moved off the global bridge.** The prototype writes
+`window.RP_TESTS[key] = …` for seven registries; in this tree four of them
+(`RP_TESTS`, `IS_TEST_RESULTS`, `IS_TEST_AVG`, `DUELS`) are ESM exports
+with no window mirror, so a verbatim port would have been silent no-ops
+behind a guard that returns early — green under tsc, eslint and the
+checkers. The instruments are declared in the modules that own them
+instead.
+
+**`own` divides by days you PLAYED, not days revealed.** The prototype
+divides by all revealed days, which makes not turning up look like
+independence. "Away from the majority" has to mean something you did.
+
+### The ratchet did what it is for
+
+Adding the subtab through `window.LIVE` would have taken
+`profile-overlay.jsx` from 10 cross-module global references to 12, and
+`check:globals` rule 4 refused it. Converting the three sites already
+there took the file 10 → 5 and the tree **409 → 404**. That is the trade
+the ratchet exists to force, and it is the third time "convert on touch"
+has paid for itself rather than costing.
+
+### Live only, and that is not a stub
+
+The tab does not exist in a demo build. It reads reveal documents and the
+demo room has none, so a demo tab could only ever draw its own refusal —
+worse than no tab, and against D167's rule that a surface ships with real
+data or does not ship.
+
+## D205 · An unconfirmed city does not score the place it names
+
+**2026-08-19.** **Status:** binding. Owner's problem, in their words:
+*"we should solve the issue with people picking cities they are not in."*
+The proposal that came with it — remove the picker, default to the nearest
+city — is **not** what shipped, and §"Why not the sensor" says why.
+
+### What shipped
+
+Three pieces, all client-side:
+
+1. **The anchor remembers how it was set.** `vitals.cityOk` holds the city
+   key the device's own location fix agreed with. `CityPicker` now reports
+   which path produced a value — accepting the located suggestion confirms,
+   scrolling the list does not.
+2. **A question that rates a city takes no city cell from an unconfirmed
+   anchor.** `answerAnchors(rates)` writes `city: ""` when the question
+   scores a city and the phone has never agreed. The answer still counts
+   for country and world.
+3. **The Scores card says so**, on the City stop, to a reader whose scores
+   are not in it.
+
+### Why not the sensor
+
+**Nearest-city tells you where the phone is, not where the person lives**,
+and those come apart exactly where this matters. A tourist standing in Oslo
+with a perfect fix is precisely the person whose rating of Oslo you do not
+want, and sensor-only would enrol them **silently**, with no deliberate act
+required. Someone who lives in Oslo and travels for a fortnight would
+become a Berliner — and because anchors are snapshotted per answer (D8),
+their history would smear across cities permanently.
+
+So the picker stays. It is also the fallback for a path with five
+documented failure modes — `data/locate.ts` names `unsupported`, `denied`,
+`unavailable`, `timeout` and `no-match`, and carries a 30-second wall-clock
+deadline because a dismissed permission prompt leaves `getCurrentPosition`
+pending forever. Its own contract closes: *"Everything here is optional.
+Every failure path returns a reason the UI can show and leaves the manual
+picker exactly as it was."* Removing it turns each of those into a dead end
+with nothing tappable — the failure `setCityAnchor` exists to have fixed.
+
+### Why the gate is at the ANSWER and not at the deck
+
+The obvious shape — stop serving the question — cannot work, and finding
+out why changed the design.
+
+**All 24 rating questions are in the DAILY bank.** The daily deck is
+POSITIONAL (`computeDeckIds` indexes `questionIds[(today − epoch − back) %
+n]`) and it is the same question for everyone on the day. Filtering it per
+person would either shift every other day's question or leave some people
+with no daily at all.
+
+**And filtering the READING is impossible too**, which is the part worth
+recording. The scorecard reads `agg.by.city[city]` — **one number the
+server has already summed**. The client never sees who is in it, so there
+is nothing to filter out. Splitting it would need a new breakdown
+dimension, against a per-dimension cap of `BREAKDOWN_MAX_BUCKETS = 24` that
+`pure.ts` calls *"a scarce resource"* and that `city` already exhausts (its
+own comment: "a global question can touch far more than 24 cities, so the
+long tail degrades").
+
+Suppressing the CELL at write time costs the answerer nothing they can see:
+they get the same question, answer it normally, and it counts everywhere it
+honestly can.
+
+### Three shapes chosen deliberately
+
+**The confirmation is a KEY, not a flag.** A boolean would need clearing on
+every path that changes the city, and the one that got missed would leave a
+stale "confirmed" on a city nobody checked. A key cannot go stale — it
+either equals the current city or it does not — so re-picking invalidates
+it for free, with no clearing code to forget.
+
+**It is not an anchor.** `anchorsFrom` whitelists the nine keys it sends
+and `cityOk` is not among them. An anchor would be a tenth key on every
+answer forever, a rules arm, a `data-inventory` row and a bucket in that
+same scarce list — all to carry a fact the client is the only reader of.
+
+**Empty, not absent.** `city: ""` is the path a profile with no city
+already writes: `isValidV2Anchors` accepts it (`hasOnly`, every key
+optional) and `breakdownBucket` already declines to mint a bucket for it.
+
+### What this does NOT do
+
+- **Forward-only.** Answers already given under unconfirmed cities keep
+  their cells. Nothing rewrites history and D5 would not allow it.
+- **City only.** `country` is untouched: it is coarse enough that D90's
+  timezone hint already lands it, and gating it would be a second decision
+  dressed as a consequence of this one.
+- **Ordinary questions are untouched.** The gate is about scoring a place,
+  not about the person. Widening it to every answer would quietly empty the
+  City stop for anyone who has not tapped "use my location" — a far bigger
+  change, and not the one that was asked for.
+- **Nobody is locked out.** No location permission is required for
+  anything. An unconfirmed reader keeps their city, their City stop, their
+  city's people, and every question. They do not score the place.
+
+### What is left
+
+The re-check — noticing that the phone has disagreed with the saved city
+for weeks and asking *"did you move?"* — is designed and not built. It only
+starts to matter once real people move, and it must never change the anchor
+on its own: travel has to stay invisible, and moving has to stay a question
+someone answers.

@@ -494,3 +494,46 @@ describe("Explore", () => {
     expect(screen.getByText(/no answers carry a city yet/i)).toBeTruthy();
   });
 });
+
+// ── who may score the place (D205) ──────────────────────────────────────
+//
+// The scorecard reads ONE pre-summed cell, so a reader whose scores are
+// not in it cannot be shown that by absence — nothing on the card would
+// look different. The card says it instead, and only where it is true:
+// City, live, and the phone has never agreed with the anchor.
+describe("Scores · the confirmed-city note", () => {
+  const RATED_CITY: LensQuestion = {
+    id: "d1", type: "rating", rates: "city", tag: "Safety",
+    text: "How safe do you feel walking home at night?",
+    options: ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"],
+    counts: [0, 0, 2, 0, 0, 0, 0, 0, 2, 0],
+    all: [0, 0, 2, 0, 0, 0, 0, 0, 2, 0],
+    by: {}, mine: 8,
+  };
+  const setCity = (city: string, ok: string) => {
+    LIVE.anchors = () => ({ city });
+    localStorage.setItem("insight.profileGeneral.v2", JSON.stringify({ vitals: { city, cityOk: ok } }));
+  };
+  afterEach(() => { localStorage.clear(); });
+
+  it("tells an unconfirmed reader why their scores are not in the number", () => {
+    setCity("Oslo, NO", "");
+    mount("scores", [RATED_CITY], "Oslo", "city");
+    expect(screen.getByText(/Confirm your city in your profile/)).toBeTruthy();
+  });
+
+  it("says nothing once the device's own fix has agreed", () => {
+    setCity("Oslo, NO", "Oslo, NO");
+    mount("scores", [RATED_CITY], "Oslo", "city");
+    expect(screen.queryByText(/Confirm your city in your profile/)).toBeNull();
+  });
+
+  it("stays off the Country stop — only the city anchor is gated", () => {
+    // `country` is coarse enough that D90's timezone hint already lands
+    // it, and gating it would be a second decision dressed as a
+    // consequence of this one.
+    setCity("Oslo, NO", "");
+    mount("scores", [{ ...RATED_CITY, id: "c9", rates: "country", tag: "Healthcare" }], "Norway", "country");
+    expect(screen.queryByText(/Confirm your city in your profile/)).toBeNull();
+  });
+});

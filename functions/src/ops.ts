@@ -61,10 +61,35 @@ export const ENFORCE_APP_CHECK =
 //
 // NOTE: the emulator ignores memory, timeout and concurrency entirely.
 // The only real verification is post-deploy:
-//   gcloud functions describe <name> --gen2 --region us-central1 \
+//   gcloud functions describe <name> --gen2 --region europe-west1 \
 //     --format="value(serviceConfig.timeoutSeconds,serviceConfig.availableMemory)"
+
+/**
+ * WHERE EVERY FUNCTION RUNS (D201).
+ *
+ * One constant, imported by all nine modules that define functions, for the
+ * reason `db.ts` is one accessor rather than 37 literal edits: this value
+ * was spelled out in ten places on this side and eight on the client's, and
+ * a move that reaches some of them is worse than one that reaches none —
+ * the client would call a region nothing serves and every callable would
+ * 404 as `internal`.
+ *
+ * `europe-west1`, matching the database (D165). It was `us-central1` while
+ * the database was `nam5`, stayed there when the database moved, and D200
+ * measured what the split was costing before deciding to close it.
+ *
+ * CHANGING THIS IS A MIGRATION, NOT AN EDIT. A function's region is part of
+ * its identity, so a deploy CREATES the new one and must DELETE the old —
+ * and while both exist, both Firestore triggers fire. The event-ledger
+ * dedup in v2.ts does not save you: it keys on the CloudEvent id, which
+ * makes a retry of one trigger safe and says nothing about a second
+ * subscription delivering its own event for the same write. docs/
+ * DEPLOYMENT.md § Moving the functions has the procedure and the check.
+ */
+export const FUNCTIONS_REGION = "europe-west1";
+
 setGlobalOptions({
-  region: "us-central1",
+  region: FUNCTIONS_REGION,
   memory: "512MiB",
   // 8 minutes. Deliberately not 540 (the gen-2 max): the scheduler's
   // attemptDeadline should not be exactly equal to the function's own wall

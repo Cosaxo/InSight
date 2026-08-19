@@ -244,7 +244,27 @@ window.PAT = (function () {
     let p0 = Math.min(0.95, Math.max(0.05, e0 / (e0 + e1)));
     const pred = p0 >= 0.5 ? 0 : 1, sgn = pred === 0 ? 1 : -1;
     const ev = contrib.map((c) => ({ j: c.j, w: c.d * sgn })).filter((c) => c.w > 0.015).sort((a, b) => b.w - a.w).slice(0, 2).map((c) => c.j);
-    return { pred, conf: Math.max(p0, 1 - p0), post: [p0, 1 - p0], ev };
+    // mass = how much your answers actually discriminate on THIS question, i.e.
+    // how much evidence the call rests on (0 on a cold start). The Oracle lens
+    // draws it as the disc's ink density, so a guess made on nothing looks like
+    // a guess made on nothing.
+    const mass = contrib.reduce((s, c) => s + Math.abs(c.d), 0);
+    return { pred, conf: Math.max(p0, 1 - p0), post: [p0, 1 - p0], ev, mass, nf: answered.length };
+  }
+  // ── the tell: ONE piece of evidence, counted directly, only when asked.
+  // Among world voters who answered the evidence question the way YOU did, how
+  // do they split on this one? One pass over two columns, on demand — same
+  // bargain as the Map's say().
+  function tell(qid, evId) {
+    init(); const Q = qs(), IX = qix();
+    if (!IX.has(qid) || !IX.has(evId)) return null;
+    const t = IX.get(qid), j = IX.get(evId); if (t === j) return null;
+    const mine = eff()[evId]; if (mine == null) return null;
+    const C = colsOf('world'), tc = C[t], jc = C[j], n = tc.length;
+    let m = 0; const c = [0, 0];
+    for (let i = 0; i < n; i++) if (jc[i] === mine) { m++; c[tc[i]]++; }
+    if (m < 12) return null;
+    return { q: Q[j], side: mine, share: [c[0] / m, c[1] / m], n: m };
   }
   function answer(qid, side) {
     init(); if (eff()[qid] != null && seedA()[qid] == null) return null;
@@ -448,7 +468,7 @@ window.PAT = (function () {
   function reset() { try { localStorage.removeItem(LS); } catch (e) {} S = null; _mePt = null; init(); fire(); }
 
   return {
-    qs, pop, links, counts, pca, fieldPts, mePoint, kin, compare, answer, nextQ, meter, reset, pairIn, trail, fingerprint, defiances, pull, myco: () => MYCO,
+    qs, pop, links, counts, pca, fieldPts, mePoint, kin, compare, answer, nextQ, meter, reset, pairIn, trail, fingerprint, defiances, pull, tell, myco: () => MYCO,
     pops: () => [{ id: 'circle', label: 'Circle', n: circle().length }, { id: 'country', label: MYCO, n: members('country').length }, { id: 'world', label: 'World', n: N }],
     oracleFor: (qid) => { init(); return _oracle(qid); },
     log: () => { init(); return S.log.slice(); },
