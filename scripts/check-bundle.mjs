@@ -75,7 +75,25 @@ const DEMO = process.argv.includes("--demo");
 // identical with and without it), and its chunk is 435 KB against a 735 KB
 // per-chunk limit. Only MAX_TOTAL_JS_KB counts those bytes, so only
 // MAX_TOTAL_JS_KB is withheld.
-const SENTRY_IN = (process.env.VITE_SENTRY_DSN ?? "") !== "";
+//
+// WHICH IS DECIDED FROM dist/, and D198 is why that is not a detail. This
+// guard first read `process.env.VITE_SENTRY_DSN` — the environment of the
+// process running the CHECK, not of the one that ran the BUILD — and the
+// two are the same only because ios-release.yml happens to put the build
+// and this script in one `run:` block. Split them, as the script's own
+// error message tells you to ("set any non-empty DSN at BUILD time and
+// re-run"), and it reported `Sentry OUT` over a bundle with all 453 KB of
+// Sentry in it, withholding the total ceiling from the artifact the
+// ceiling exists for. Measured at build 21: 2349 KB graded as ungradable,
+// against a ceiling with 8 KB of headroom.
+//
+// That is this file's own founding bug, one variable further out. The
+// header above says it: refusing to grade the wrong artifact is the
+// property that cannot rot — and an artifact claim read off the
+// environment is exactly the kind that rots. check:web-firebase, its
+// neighbour in that same workflow step, already asserts against `dist/`
+// for this reason, "because a stale dist/ from a reordered step answers
+// that differently". SENTRY_IN is computed where the chunks are, below.
 if (!DEMO && process.env.VITE_V2_LIVE !== "true") {
   console.error(
     "check-bundle: this gate describes the SHIPPING bundle, and dist/ was\n"
@@ -673,6 +691,35 @@ const sized = files
 const totalKb = sized.reduce((n, s) => n + s.kb, 0);
 const over = sized.filter((s) => s.kb > MAX_CHUNK_KB);
 
+// ── IS SENTRY IN THIS BUNDLE? Asked of the bundle ────────────────────
+//
+// Markers, not a filename: the group is `prod-*.js` today, which is a
+// rolldown output name and not a promise. These four are SDK internals —
+// two of them Sentry's own globals — and each splits cleanly. Measured on
+// this tree at build 21, the same command with the DSN the only
+// difference:
+//
+//                        chunks WITH dsn   chunks WITHOUT
+//   __SENTRY__                  2                0
+//   _sentryDebugIds             1                0
+//   sentryWrapped               1                0
+//   captureException            3                0
+//
+// The obvious marker is the one that does NOT work: the bare string
+// "sentry" matches 12 chunks with the DSN and 9 without, because the app
+// names its own lazy module and its dynamic-import path after it. A
+// detector that cannot tell `src/lib/sentry.ts` from `@sentry/browser`
+// would report the SDK present in every build, which fails in the
+// direction that grades a 1895 KB bundle against the full ceiling and
+// calls it the shipping one.
+const SENTRY_MARKERS = ["__SENTRY__", "_sentryDebugIds", "sentryWrapped", "captureException"];
+const sentryChunks = sized.filter(({ f }) => {
+  const src = readFileSync(join(ASSETS, f), "utf8");
+  return SENTRY_MARKERS.some((m) => src.includes(m));
+});
+const SENTRY_IN = sentryChunks.length > 0;
+const sentryKb = sentryChunks.reduce((n, s) => n + s.kb, 0);
+
 // ── the eager graph ─────────────────────────────────────────────────
 //
 // Vite writes the entry as a <script type="module"> and every STATIC
@@ -783,13 +830,13 @@ for (const s of eager.slice(1)) {
 // be reported as having cleared it.
 if (!SENTRY_IN) {
   console.log(
-    `\n  total NOT GRADED — VITE_SENTRY_DSN is `
-    + (process.env.VITE_SENTRY_DSN === undefined ? "unset" : "empty")
-    + ` for this process, so the 445 KB Sentry group is\n`
-    + `  dead code and dropped. ${totalKb.toFixed(0)} KB is ~450 KB light and is not this\n`
-    + `  app's size; MAX_TOTAL_JS_KB (${MAX_TOTAL_JS_KB} KB) was not applied. The per-chunk and\n`
-    + `  eager ceilings above still hold — Sentry is in neither.\n\n`
-    + `  To grade the total, set any non-empty DSN at BUILD time and re-run:\n`
+    `\n  total NOT GRADED — no Sentry chunk in ${ASSETS.replace(root + "/", "")}, so the build saw no\n`
+    + `  VITE_SENTRY_DSN and the 445 KB group is dead code rolldown dropped.\n`
+    + `  ${totalKb.toFixed(0)} KB is ~450 KB light and is not this app's size;\n`
+    + `  MAX_TOTAL_JS_KB (${MAX_TOTAL_JS_KB} KB) was not applied. The per-chunk and eager\n`
+    + `  ceilings above still hold — Sentry is in neither.\n\n`
+    + `  To grade the total, set any non-empty DSN and REBUILD — the check\n`
+    + `  reads dist/, so exporting it for this process alone changes nothing:\n`
     + `    VITE_SENTRY_DSN=https://ci@example.invalid/0 VITE_V2_LIVE=true npm run build`,
   );
 } else if (totalKb > MAX_TOTAL_JS_KB) {
@@ -827,7 +874,8 @@ if (failed) {
 // was measured.
 console.log(
   SENTRY_IN
-    ? `bundle budget OK — SHIPPING bundle (VITE_V2_LIVE=true, Sentry in), `
+    ? `bundle budget OK — SHIPPING bundle (VITE_V2_LIVE=true, Sentry in, `
+      + `${sentryKb.toFixed(0)} KB over ${sentryChunks.length} chunk(s)), `
       + `${totalKb.toFixed(0)} KB total / ${eagerKb.toFixed(0)} KB eager `
       + `(max ${MAX_TOTAL_JS_KB} / ${MAX_EAGER_KB})`
     : `bundle budget OK on what was gradable — VITE_V2_LIVE=true, Sentry OUT, `

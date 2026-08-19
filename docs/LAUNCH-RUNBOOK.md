@@ -474,6 +474,28 @@ arithmetic.
       automated writer, and the window between merging a release commit and
       dispatching from it is no longer quiet.
 
+      **BUILD 20 WAS UPLOADED BY RUN 31, AND BUILD 21'S PRE-FLIGHT HAD TO
+      BUMP** (2026-08-19). Three runs sit at `f8c8465` and no document
+      named any of them: run 29 (`32019625202`, 10:19:31Z) cancelled at
+      Resolve Swift packages, run 30 (`32019849917`, 10:22:28Z) upload
+      step `skipped` — the dry run — and run 31 (`32020442257`,
+      10:30:02Z) `success`, 10:34:21Z → 10:35:38Z, 1m 17s of transfer.
+      `appBuild` at that run's own `head_sha` is **20**, and the tree was
+      **also** at 20: equal is not greater, so **bump**, and it went to
+      21. Fifth skip (18, 19, 24, 26, 31) against four that held.
+
+      **The skip refutes the explanation the entry below earned.**
+      `f8c8465` is D191's own commit, and it landed at 10:19:05Z — run 29
+      was dispatched **26 seconds later**. Same session, run list on
+      screen, cancelling one of its own three dispatches: it made the
+      comparison *first*, got *run as-is*, and then spent the number that
+      answer was about. So a pre-flight verdict has a shelf life of
+      exactly one dispatch, and "no number moved" is a report about a
+      comparison rather than a statement about the tree — the same claim
+      this section struck for build 12, in the past tense. As at runs 25
+      and 26, no record was written either, so a gate keyed on the record
+      would again have had nothing to fire on. D198.
+
       **BUILD 20'S PRE-FLIGHT FOUND NOTHING TO DO** (2026-08-17). The
       comparison was made against the run list: run 28 is still the
       highest run, its step 17 still `success`, and `appBuild` at that
