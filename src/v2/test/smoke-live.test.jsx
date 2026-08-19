@@ -112,6 +112,17 @@ describe("spec layer mounts in live mode", () => {
     expectNoBoundary("profile/live");
   });
 
+  it("never serves the demo pulse in a live feed (D166 §3, D167)", () => {
+    // The roster's cards ride the feed and each renders NOTHING until its
+    // real template arrives (PULSE.ready) — so a live mount must carry
+    // neither the demo pulse question nor a blank card asking it. The
+    // demo wording is the pin: it exists only in data/pulse.ts's demo
+    // furniture, never in content/pulse-questions.json.
+    const expectNoBoundary = mountLive();
+    expectNoBoundary("daily/live+pulse");
+    expect(screen.queryByText("How is today going?")).toBeNull();
+  });
+
   it("shows the real follow list in the live profile, none of the demo field", () => {
     // The General tab used to embed MirrorFieldBody pop="groups" — the
     // scenes orbit with invented populations ("5.6k people" / "22k

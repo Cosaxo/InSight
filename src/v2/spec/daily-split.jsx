@@ -29,7 +29,6 @@ import LIVE from '../data/live';
 // entry imports statically is preloaded whether or not anything renders
 // it. The one place it was spent is the one place it is never needed at
 // boot.
-import PulseCard from '../ui/PulseCard.tsx';
 const LiveTakesPanel = React.lazy(() => import('../ui/LiveTakesPanel.tsx'));
 // The live who-voted sheet (D125), on exactly the same terms — lazy, for
 // the same measured reason, and reached by ESM so the coupling meter stays
@@ -891,11 +890,10 @@ class DailySplit extends React.Component {
         h('span', { 'aria-hidden': true, style: { display: 'flex', gap: 1.5, width: 66, height: 9, borderRadius: 999, overflow: 'hidden', flexShrink: 0 } },
           S.options.map((o, i) => h('span', { key: o.id, title: o.label + ' \u00b7 ' + rp[i] + '%', style: { width: rp[i] + '%', background: myVote === o.id ? o.color : 'color-mix(in oklch, ' + o.color + ' 32%, var(--surface-3))' } })))),
       dailyCard,
-      // The daily pulse (D139): the second fixed instrument on the World
-      // day, compact, beside the blind daily — same contract (answer
-      // before you see anyone), one hue, and the trends reading opens
-      // from the card itself.
-      h(PulseCard, { key: 'pulse' }),
+      // The pulse card stood here as a fixed block from D139 until the
+      // D166 §3 roster: five pulses cannot be a pinned stack, so the cards
+      // take their turn in the world feed instead (v28 §3 — no tray, no
+      // block above the feed; feed-interleave's pulse slot places them).
       sheetNode,
       feedNode);
 

@@ -78,6 +78,13 @@
       "$why": "D178. An OPTIONAL profile photo, off by default, shown anywhere the app already shows the user's name — including, since D177, to people standing within a few hundred metres. Shrunk to a 256px square and re-encoded on the device before upload, which also drops the original's EXIF (a camera photo carries GPS, and this app is careful about exactly that datum). One object per account at avatars/{uid}; deleteAccount removes the bytes and the document. Reportable like a comment, and a remove verdict hides it everywhere at once. THIS ROW WAS A DELIBERATE NO until D178 and STORE-FORMS.md called it load-bearing — see the reasoning there, which is why the reversal is recorded rather than absorbed."
     },
     {
+      "category": "HEALTH_AND_FITNESS",
+      "type": "HEALTH",
+      "linked": true,
+      "purposes": ["APP_FUNCTIONALITY"],
+      "$why": "D166 §3, the pulse roster. The app asks one-tap self-reports on a chosen cadence — pace, energy, sleep, focus, social connection — each answer public and linked to the account like every answer (D98), each folding into a public per-day aggregate and drawn as a three-week reading. Apple's row is 'health and medical data … or any other user provided health or medical data', and a self-reported sleep and energy series is that by a plain reading; under-declaring is the direction that gets an app pulled. No HealthKit API, no clinical records, nothing inferred — the collection is five questions a user set a cadence for, and two of the five ship dormant. THIS ROW WAS A DELIBERATE NO until the roster: the height band alone was argued down as a demographic band (D140), and that bullet's own trip-wire — 'whoever picks that decision back up owns this row' — is what moved it here. See STORE-FORMS.md."
+    },
+    {
       "category": "SENSITIVE_INFO",
       "type": "SENSITIVE_INFO",
       "linked": true,
@@ -99,7 +106,7 @@
     "PRODUCT_INTERACTION": "data-inventory.md: no product analytics of any kind ship today. Adding any would change this row.",
     "EMAILS_OR_TEXT_MESSAGES": "Still No, and still for the shape reason: a take is a POST — to a circle (D78 part 1) or, since D83, anonymously to the world — never a message to a person, and Apple files posts under User Content > Other User Content, which is already declared Yes above. So the CONTENT is declared either way and this row is about shape. It moves if a direct person-to-person surface ships. The age rating did move — messagingAndChat is true (D79) — because that question asks whether the app has chat at all rather than what category the text lands in, and the two forms genuinely diverge here. D122's circle INVITATION is the first thing to test that trigger, and it does not trip it — checked against the write rather than the feature name: inviteToGroupV2 sets to, from, fromName, groupName, mode and at, and there is NO free-text field for a sender to write into. An invitation is a capability offered to one person, not a message sent to them. It would move this row the day an invite carries a note.",
     "others": [
-      "PHONE_NUMBER", "PHYSICAL_ADDRESS", "OTHER_CONTACT_INFO", "HEALTH",
+      "PHONE_NUMBER", "PHYSICAL_ADDRESS", "OTHER_CONTACT_INFO",
       "FITNESS", "PAYMENT_INFO", "CREDIT_INFO", "OTHER_FINANCIAL_INFO",
       "CONTACTS", "AUDIO_DATA",
       "GAMEPLAY_CONTENT", "CUSTOMER_SUPPORT", "BROWSING_HISTORY",
@@ -149,8 +156,8 @@
     "ageAssurance": false,
     "$ageAssurance": "No age verification or estimation mechanism. Anonymous-first auth (D3) collects no birth date and nothing gates on age.",
 
-    "healthOrWellnessTopics": false,
-    "$healthOrWellnessTopics": "Measured across all five committed banks, not assumed: three hits, none of them health content. 'Medicine' is one of four options on \"Humanity's best invention?\"; the other two are Map taxonomy — CAT_META's Body category carries seedId 'health' for its palette hue, and one cuisine question files under ['Body','Health']. A category label is not a health topic. The nearest real candidate is the personality and politics profiles, and neither is health or wellness. Re-run the scan if the banks grow substantially, on the same trigger as the content scan above.",
+    "healthOrWellnessTopics": true,
+    "$healthOrWellnessTopics": "TRUE since the pulse roster (D166 §3): the app asks daily/weekly self-reports of sleep, energy, focus and social connection and draws three-week wellbeing readings from them — a health-or-wellness topic by any reading. The earlier content scan's finding stands and did not move this row (its three hits were taxonomy — 'Medicine' as a quiz option, a palette seedId, one cuisine filing — and a category label is still not a health topic); the roster is what moved it, in the same commit as the privacy label's Health row above.",
 
     "gunsOrOtherWeapons": "NONE",
     "$gunsOrOtherWeapons": "Measured across all five committed banks for gun, rifle, pistol, firearm, weapon, knife, sword, bomb, shoot, ammo, bullet, blade, dagger, missile and grenade: ZERO hits. A frequency enum rather than a boolean, so NONE rather than false — the type came from Apple's spec, because guessing boolean here is a 400 that reads like a wrong value.",

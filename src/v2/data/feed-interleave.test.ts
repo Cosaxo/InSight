@@ -137,6 +137,35 @@ describe("the knowledge stream the copy never modelled (D32)", () => {
   });
 });
 
+describe("the pulse roster's turn (v28 §3, D166 §3)", () => {
+  it("takes its turn one card in four, ahead of the slot's other streams", () => {
+    const out = interleaveFeed(world(8), {
+      tests: tests(2), lenses: [], pulses: ["p0", "p1"],
+    });
+    // slot after w3: pulse then test; same again after w7 — a clump, not
+    // a starvation (independent ifs, own counters)
+    expect(out).toEqual(["w0", "w1", "w2", "w3", "p0", "t0", "w4", "w5", "w6", "w7", "p1", "t1"]);
+  });
+
+  it("places every due pulse even when the feed is too short to host its turn", () => {
+    // A due pulse silently dropped is a miss the user cannot see — the
+    // schedule owes today's questions whatever the feed's length.
+    const out = interleaveFeed(world(2), { tests: [], lenses: [], pulses: ["p0", "p1"] });
+    expect(out).toEqual(["w0", "w1", "p0", "p1"]);
+  });
+
+  it("does not disturb the other streams' positions", () => {
+    const without = interleaveFeed(world(20), { tests: tests(3), lenses: lenses(2) });
+    const withPulses = interleaveFeed(world(20), { tests: tests(3), lenses: lenses(2), pulses: ["p0"] });
+    expect(withPulses.filter((c) => c !== "p0")).toEqual(without);
+  });
+
+  it("asks nothing when nothing is due", () => {
+    const out = interleaveFeed(world(8), { tests: [], lenses: [], pulses: [] });
+    expect(out).toEqual(world(8));
+  });
+});
+
 describe("partitionAnswered — the finite bank stops serving your own past", () => {
   // The release feedback came twice: "I keep seeing things I have
   // answered", then "answered questions shouldn't appear in the feed at

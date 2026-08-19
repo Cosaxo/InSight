@@ -1,21 +1,29 @@
-// THE READING (D139): your pulse line held against your city, country or
-// the world, three weeks at a time — the v24 design ported typed
-// (design/standalone-v24/pulse-trends.jsx). House rules, visible in the
-// drawing itself:
+// THE READING (D139, per-pulse since the D166 §3 roster): your pulse line
+// held against your city, country or the world, three weeks at a time —
+// the v24 design ported typed (design/standalone-v24/pulse-trends.jsx).
+// House rules, visible in the drawing itself:
 //   · no smoothing, no interpolation — a missing day breaks the line
 //   · absent ≠ zero: a day with no answers has no mark, and the panel says so
+//   · a day the pulse was NOT SCHEDULED is absent, never a miss — it
+//     cannot count as a skip and cannot open a void on its own
 //   · a day too thin to place is listed with its reason, never positioned
 //   · every reading carries its n
 //   · two instruments only: you (the hue) and them (neutral)
+//
+// A weekly pulse's "line" is dots: adjacent days never both carry an
+// answer, and bridging Sunday to Sunday would draw through six absent
+// days — the exact bridge the first rule refuses.
 import React from "react";
-import PULSE from "../data/pulse";
+import PULSE, { ROSTER } from "../data/pulse";
+// @ts-expect-error TS7016 — untyped spec module (named export, D189)
+import { WPAL } from "../spec/world-palette.js";
 
-export default function PulseTrends({ compact }: { compact?: boolean }): React.ReactElement | null {
+export default function PulseTrends({ compact, qid = ROSTER[0].qid }: { compact?: boolean; qid?: string }): React.ReactElement | null {
   const [, bump] = React.useState(0);
   React.useEffect(() => {
-    void PULSE.ensureLive().catch(() => { /* the panel lists the absence honestly */ });
+    void PULSE.ensureLive(qid).catch(() => { /* the panel lists the absence honestly */ });
     return PULSE.subscribe(() => bump((x) => x + 1));
-  }, [bump]);
+  }, [bump, qid]);
   const [scopeId, setScopeId] = React.useState("city");
   const [sel, setSel] = React.useState(PULSE.DAYS - 1);
   const [w, setW] = React.useState(342);
@@ -24,11 +32,12 @@ export default function PulseTrends({ compact }: { compact?: boolean }): React.R
   // the one real variance is the device, not a resize mid-read.
   React.useEffect(() => { const el = boxRef.current; if (el && el.clientWidth) setW(el.clientWidth); }, []);
 
-  const HUE = "var(--pulse)";
+  const hue = ROSTER.find((p) => p.qid === qid)?.hue ?? null;
+  const HUE = hue == null ? "var(--pulse)" : (WPAL.ink(`oklch(0.52 0.14 ${hue})`) as string);
   const N = PULSE.DAYS;
-  const steps = PULSE.STEPS;
-  const days = PULSE.days();
-  const sc = PULSE.scope(scopeId);
+  const steps = PULSE.steps(qid);
+  const days = PULSE.days(qid);
+  const sc = PULSE.scope(scopeId, qid);
   const ser = sc.series;
 
   const answered = days.filter((d) => d.v != null);
@@ -40,16 +49,23 @@ export default function PulseTrends({ compact }: { compact?: boolean }): React.R
   });
 
   // your gaps — runs of three or more days with nothing, drawn as voids,
-  // never dips. With fewer than two answers there is no line yet, so
-  // nothing can break: day one stays a clean frame, not one grey box.
+  // never dips. A run must hold at least three SCHEDULED days to count:
+  // for a weekly pulse every weekday is empty by design, and painting the
+  // whole chart grey would read absence as failure. With fewer than two
+  // answers there is no line yet, so nothing can break: day one stays a
+  // clean frame, not one grey box.
   const gaps: { a: number; b: number }[] = [];
   if (answered.length >= 2) for (let i = 0; i < N; i++) {
     if (days[i].v != null) continue;
     let j = i; while (j + 1 < N && days[j + 1].v == null) j++;
-    if (j - i + 1 >= 3) gaps.push({ a: i, b: j });
+    let missed = 0;
+    for (let k = i; k <= j; k++) if (days[k].scheduled) missed++;
+    if (j - i + 1 >= 3 && missed >= 3) gaps.push({ a: i, b: j });
     i = j;
   }
-  const skipped = days.filter((d) => d.v == null && !d.today).length;
+  // a skip is a SCHEDULED day that went unanswered — an unasked day is
+  // absent, never a miss (the fourth honesty clause)
+  const skipped = days.filter((d) => d.v == null && !d.today && d.scheduled).length;
   const zeroDays = ser.filter((s) => s.n === 0);
   const thinDays = ser.filter((s) => s.thin);
   const placedN = ser.filter((s) => s.placed);
@@ -83,7 +99,7 @@ export default function PulseTrends({ compact }: { compact?: boolean }): React.R
     <div style={{ display: "flex", gap: 6 }}>
       {PULSE.SCOPES.map((id) => {
         const on = id === scopeId;
-        const label = PULSE.scope(id).label;
+        const label = PULSE.scope(id, qid).label;
         return (
           <button key={id} className="press" onClick={() => setScopeId(id)} aria-pressed={on}
             style={{ flex: 1, minWidth: 0, height: 34, borderRadius: 999, cursor: "pointer", WebkitAppearance: "none", fontFamily: "var(--sans)", fontWeight: 700, fontSize: 13, letterSpacing: "-0.01em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", border: "1px solid " + (on ? "var(--ink)" : "var(--rule)"), background: on ? "var(--ink)" : "var(--surface-2)", color: on ? "var(--surface)" : "var(--ink-2)" }}>
@@ -103,7 +119,9 @@ export default function PulseTrends({ compact }: { compact?: boolean }): React.R
         {answered.length === 1 ? "One day in — not a trend yet." : answered.length + " days in — not a trend yet."}
       </span>
       <span style={{ fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 600, color: "var(--ink-3)" }}>
-        Answer again tomorrow and the line starts.
+        {PULSE.cadence(qid) === "daily"
+          ? "Answer again tomorrow and the line starts."
+          : "Answer again next time it's asked and the line starts."}
       </span>
     </div>
   ) : (
@@ -128,7 +146,7 @@ export default function PulseTrends({ compact }: { compact?: boolean }): React.R
       <span style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
         <span style={{ display: "flex", alignItems: "center", gap: 5, whiteSpace: "nowrap" }}>
           <span aria-hidden="true" style={{ width: 7, height: 7, borderRadius: "50%", background: d.v != null ? HUE : "transparent", boxShadow: d.v != null ? "none" : "inset 0 0 0 1px color-mix(in oklab, " + HUE + " 50%, var(--surface-2))" }}></span>
-          <span style={{ fontFamily: "var(--sans)", fontWeight: 700, fontSize: 13, color: d.v != null ? "var(--ink)" : "var(--ink-3)" }}>{d.v != null ? PULSE.word(d.v) : "you skipped"}</span>
+          <span style={{ fontFamily: "var(--sans)", fontWeight: 700, fontSize: 13, color: d.v != null ? "var(--ink)" : "var(--ink-3)" }}>{d.v != null ? PULSE.word(d.v, qid) : d.scheduled ? "you skipped" : "not asked"}</span>
         </span>
         <span style={{ display: "flex", alignItems: "center", gap: 5, whiteSpace: "nowrap" }}>
           <span aria-hidden="true" style={{ width: 10, height: 2, borderRadius: 1, background: grey, opacity: 0.55 }}></span>
@@ -234,10 +252,10 @@ export default function PulseTrends({ compact }: { compact?: boolean }): React.R
         {!compact && (
           <span style={{ display: "flex", alignItems: "center", gap: 7 }}>
             <span aria-hidden="true" style={{ width: 6, height: 6, borderRadius: "50%", background: HUE }}></span>
-            <span className="kicker" style={{ marginBottom: 0 }}>{PULSE.Q.kicker} · 3 weeks</span>
+            <span className="kicker" style={{ marginBottom: 0 }}>{PULSE.q(qid).kicker} · 3 weeks</span>
           </span>
         )}
-        <span style={{ fontFamily: "var(--sans)", fontWeight: 800, fontSize: 17, letterSpacing: "-0.03em", color: "var(--ink-2)" }}>{PULSE.Q.text}</span>
+        <span style={{ fontFamily: "var(--sans)", fontWeight: 800, fontSize: 17, letterSpacing: "-0.03em", color: "var(--ink-2)" }}>{PULSE.q(qid).text}</span>
         {headline}
       </div>
       {scopeRow}

@@ -1,11 +1,35 @@
 {
-  "comment": "The daily pulse (D139): the same question, answered once per day, drawn as a line. Exactly five ordered options — the trends chart's y-axis is the 1..5 step scale, and the card renders five growing dots. The first live pulse is deliberately NEUTRAL (a day's pace, not a day's mood): 'How is today going?' — the design's demo question — is wellbeing tracking, which moves the store forms (Health sits on the not-collected list) and waits on its own decision per docs/NEXT-FUNCTIONALITY.md §2. Swapping the content here is the whole change when that decision lands. No provenance rows: the pulse bank is editorial-only and outside the farm's lanes.",
+  "comment": "The pulse roster (D139 built the machinery single-pulse; D166 §3 approved the full five). Each is the same question answered once per day, drawn as a line. Exactly five ordered options — the trends chart's y-axis is the 1..5 step scale, and the card renders five growing dots. Ids must never carry an underscore (the day separator the rules parse on). `pace` keeps the neutral wording D139 shipped: it already plays the mood slot with live answers keyed against it, and the record's follow-through is that this file GAINS the four new templates — the other four are v28's own prompts verbatim. Cadence (which days a pulse is asked) is a device preference in src/v2/data/pulse.ts, never content. No provenance rows: the pulse bank is editorial-only and outside the farm's lanes.",
   "questions": [
     {
       "id": "pace",
       "type": "pulse",
       "prompt": "What pace was today?",
       "options": ["Crawling", "Dragging", "Steady", "Brisk", "Flying"]
+    },
+    {
+      "id": "energy",
+      "type": "pulse",
+      "prompt": "How is your energy today?",
+      "options": ["Drained", "Low", "OK", "Charged", "Wired"]
+    },
+    {
+      "id": "sleep",
+      "type": "pulse",
+      "prompt": "How did you sleep?",
+      "options": ["Badly", "Patchy", "OK", "Well", "Deeply"]
+    },
+    {
+      "id": "focus",
+      "type": "pulse",
+      "prompt": "How clear is your head?",
+      "options": ["Scattered", "Foggy", "OK", "Clear", "Sharp"]
+    },
+    {
+      "id": "social",
+      "type": "pulse",
+      "prompt": "How connected do you feel?",
+      "options": ["Alone", "Distant", "OK", "Close", "Held"]
     }
   ]
 }

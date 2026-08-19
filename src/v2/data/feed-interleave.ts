@@ -28,6 +28,13 @@
 /** One feed card every this many world questions, per stream. */
 export const TEST_EVERY = 4;
 export const LENS_EVERY = 9;
+/** The pulse roster's turn — one card in four (v28 §3, D166 §3). Sharing
+ * TEST_EVERY's period is deliberate: the streams are independent `if`s
+ * with their own counters, so nothing starves — a slot where both fire
+ * pushes a pulse then a test, the same clumping the 36th card has always
+ * had — and the roster is at most five cards, typically one, so the
+ * overlap drains in the first slots. */
+export const PULSE_EVERY = 4;
 
 /**
  * Stable partition: everything the viewer has NOT answered in `fresh`,
@@ -65,6 +72,14 @@ export interface InterleaveStreams<T> {
   tests: readonly T[];
   /** The minor lenses' questions. */
   lenses: readonly T[];
+  /** The pulses due today (v28 §3) — the cards take their turn in the
+   * stream like any other question, never a block pinned above it, and
+   * there is no tray of the ones you are not being asked: a dormant
+   * pulse is simply not asked. Every due pulse is placed — a short world
+   * list drains the remainder at the end rather than silently dropping a
+   * card the schedule owes (the knowledge stream's own argument). */
+  pulses?: readonly T[];
+  pulseEvery?: number;
   /** The knowledge stream (D32); `knowEvery` of 0 disables it. */
   know?: readonly T[];
   knowEvery?: number;
@@ -88,13 +103,16 @@ export interface InterleaveStreams<T> {
 /**
  * Weave the side streams into the sorted world list.
  *
- * Order inside a slot is knowledge, then test, then lens — the order the
- * feed has always pushed them in, kept because a card's position is what a
- * returning user recognises.
+ * Order inside a slot is pulse, then knowledge, then test, then lens —
+ * the pulse first because it is the day's own instrument (the blind
+ * daily's sibling), the rest in the order the feed has always pushed
+ * them, kept because a card's position is what a returning user
+ * recognises.
  */
 export function interleaveFeed<T>(world: readonly T[], streams: InterleaveStreams<T>): T[] {
   const {
     tests, lenses, know = [], knowEvery = 0,
+    pulses = [], pulseEvery = PULSE_EVERY,
     testEvery = TEST_EVERY, lensEvery = LENS_EVERY,
     sponsored = null, sponsorAt = 0,
   } = streams;
@@ -102,6 +120,7 @@ export function interleaveFeed<T>(world: readonly T[], streams: InterleaveStream
   let ti = 0;
   let li = 0;
   let ki = 0;
+  let pi = 0;
   let paidPlaced = false;
   world.forEach((q, i) => {
     out.push(q);
@@ -109,6 +128,7 @@ export function interleaveFeed<T>(world: readonly T[], streams: InterleaveStream
     // cadences — a card that could land twice is inventory the seller did
     // not sell and the reader did not agree to.
     if (sponsored && !paidPlaced && i + 1 >= sponsorAt) { out.push(sponsored); paidPlaced = true; }
+    if (pulseEvery && (i + 1) % pulseEvery === 0 && pi < pulses.length) out.push(pulses[pi++]);
     if (knowEvery && (i + 1) % knowEvery === 0 && ki < know.length) out.push(know[ki++]);
     if ((i + 1) % testEvery === 0 && ti < tests.length) out.push(tests[ti++]);
     if ((i + 1) % lensEvery === 0 && li < lenses.length) out.push(lenses[li++]);
@@ -116,6 +136,10 @@ export function interleaveFeed<T>(world: readonly T[], streams: InterleaveStream
   // Mute every opinion topic and the knowledge stream should still be there —
   // it is a subscription of its own, not a garnish on the others.
   if (knowEvery && world.length < knowEvery) while (ki < know.length) out.push(know[ki++]);
+  // Every due pulse lands — a feed too short to host the roster's turn
+  // still owes today's scheduled questions, and a due pulse silently
+  // dropped is a miss the user cannot see.
+  while (pi < pulses.length) out.push(pulses[pi++]);
   // A world list shorter than the slot depth still owes the buyer their
   // card — the alternative is a window that silently delivers nothing to
   // anyone with a heavily muted feed, which is the measurement asymmetry

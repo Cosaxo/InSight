@@ -55,10 +55,9 @@ exists.
   scorecard's evenness measurement and retirement proposals to
   `active: false`, feed surface only.
   [`SCALE-RUNBOOK.md`](SCALE-RUNBOOK.md) 3.4.
-- **Pulse cadence arithmetic** (decided, D166 §3): five pulses × per-day
-  docs, a cadence store, the fourth honest-absence clause ("not
-  scheduled"), and the feed interleave — one card in four, no tray.
-  [`VISION-V28.md`](VISION-V28.md) §3.
+- ~~**Pulse cadence arithmetic**~~ — **done 2026-08-19** with the roster
+  (v28 §11 step 3): the cadence store, the "not scheduled" clause, and
+  the feed interleave all landed. [`VISION-V28.md`](VISION-V28.md) §3.
 - **Foresight's remaining vocabulary** (open by design): new tier-A test
   names — "will these two slices disagree", "will turnout beat
   yesterday", "will the leading option change" — are unblocked design
@@ -181,10 +180,11 @@ refused the third.
 2. ~~**The tweak teardown**~~ — **done 2026-08-19**: ten flags left
    `TWEAK_DEFAULTS` (the other nine were already absorbed), the ratchet
    came down with it. §10.
-3. **The pulse roster** (decided, D166 §3) — the parameterisation D139
-   anticipated, with the [`STORE-FORMS.md`](STORE-FORMS.md) Health row
-   re-answered **in the same commit**, the four templates, and the
-   data-inventory row. §3.
+3. ~~**The pulse roster**~~ — **done 2026-08-19**: five pulses with the
+   cadence store and the fourth honest-absence clause, the cards riding
+   the feed's own interleave (the D139 pinned block retired), the Health
+   row re-answered in the same commit with the four templates, the
+   data-inventory row and the COSTS line. §3.
 4. **Patterns** (trial, D166 §1) — fold, then loader, then the Map and
    Oracle lenses, in that order and no other; typed ESM only, lazy only,
    and the tab's first appearance rewrites `CLAUDE.md`'s opening

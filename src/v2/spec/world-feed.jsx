@@ -28,6 +28,8 @@ import { SPONSOR_AT, partitionSponsored } from '../data/sponsored.ts';
 import { utcDayIndex } from '../data/deck.ts';
 import SponsorMark from '../ui/SponsorMark.tsx';
 import AdCard from '../ui/AdCard.tsx';
+import PulseCard from '../ui/PulseCard.tsx';
+import PULSE from '../data/pulse.ts';
 import { deferUntil, isDeferred, pruneDeferred } from '../data/deferQueue.ts';
 // "Somebody asked for the topic list" (D190). The profile's scenes card is
 // the caller; this file owns the list, so this file is what answers.
@@ -323,6 +325,10 @@ class WorldFeed extends React.Component {
     this._unsubSubs = window.SUBTOPICS ? window.SUBTOPICS.subscribe(() => this.forceUpdate()) : null;
     this._unsubLearn = LEARN.subscribe(() => this.forceUpdate());
     this._unsubLF = window.LEARN_FEED ? window.LEARN_FEED.subscribe(() => this.forceUpdate()) : null;
+    // The pulse roster (v28 §3): a cadence tap on a card changes what is
+    // due, and "a dormant pulse is simply not asked" is only true if the
+    // feed hears about it — setting `off` removes the card on this notify.
+    this._unsubPulse = PULSE.subscribe(() => this.forceUpdate());
     // The purge (data/live.ts, D51): this component PERSISTS four of its
     // maps (votes, passed, takes, replies) by spreading state back to the
     // keys the purge just removed — and it stays mounted across a uid
@@ -382,6 +388,7 @@ class WorldFeed extends React.Component {
     if (this._unsubSubs) this._unsubSubs();
     if (this._unsubLearn) this._unsubLearn();
     if (this._unsubLF) this._unsubLF();
+    if (this._unsubPulse) this._unsubPulse();
     if (this._onPurge) window.removeEventListener('insight:local-purge', this._onPurge);
     if (this._io) this._io.disconnect();
     const sc = this._scroller;
@@ -3612,8 +3619,17 @@ class WorldFeed extends React.Component {
     const paidCard = paidSplit.ad
       ? { id: paidSplit.ad.id, ad: paidSplit.ad }
       : paidSplit.sponsored;
+    // The pulse roster's turn (v28 §3, D166 §3): the pulses due today ride
+    // the stream as cards like any other question — no tray, no block
+    // pinned above the feed; a dormant pulse is simply not asked. Each
+    // rides as `{ id, pulse }` and the render loop dispatches on it, the
+    // ad slot's own shape — renderCard has nothing to say about a card
+    // whose store answers for it. An answered pulse keeps its place for
+    // the session (the reveal is the card), same as every world card.
+    const pulseCards = PULSE.dueToday().map((pqid) => ({ id: 'pulse:' + pqid, pulse: pqid }));
     const woven = interleaveFeed(ordered, {
       tests: tqs, lenses: lqs, know: kqs, knowEvery: kEvery,
+      pulses: pulseCards,
       sponsored: paidCard, sponsorAt: SPONSOR_AT,
     });
     // …and only now do the answered world cards leave the feed (fresh
@@ -3713,7 +3729,9 @@ class WorldFeed extends React.Component {
             {sugg && i === 2 && this.renderSuggestion(sugg, snap)}
             {q.ad
               ? <AdCard ad={q.ad}></AdCard>
-              : this.renderCard(q, { closing: q.id === closingId })}
+              : q.pulse
+                ? <PulseCard qid={q.pulse}></PulseCard>
+                : this.renderCard(q, { closing: q.id === closingId })}
           </React.Fragment>
         ))}
         {/* Room to scroll INTO while the window is still short of the list.

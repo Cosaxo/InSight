@@ -52,7 +52,7 @@ Every constant below is sourced, not assumed:
 | One duel answer | 1 client write + 1 `pendingDays` arrayUnion | v2.ts group branch |
 | One trigger invocation | 512 MiB, 1 vCPU, concurrency 20, ~200 ms | `HOT_TRIGGER`, functions/src/ops.ts |
 | One warm boot | ~15 reads (meta, profile, answers query, 7 deck aggregates, groups, 2 group docs, 2 reveals) | `hydrate()`, src/v2/data/live.ts. The deck reads are one batched fetch since D129, not seven listener attachments |
-| One cold boot | **+540 reads** — the whole question bank | `V2_QUESTIONS`, 540 docs / 135.1 KiB of JSON |
+| One cold boot | **+544 reads** — the whole question bank | `V2_QUESTIONS`, 544 docs / 135.9 KiB of JSON |
 | Agg top-up | ≤120 reads, ≤1 per qid per 6 h | `AGG_ID_CAP`, `AGG_RECHECK_MS` |
 | One world answer, again | +1 **rule** read (the question doc) + 2 **server** reads (ledger event, private agg) | `isWorldAnswer` in firestore.rules; the `runAggTransaction` in v2.ts |
 | One duel answer, again | +3 rule reads (group, reveal, question); the trigger's duel branch reads nothing | `isDuelAnswer`; "one blind write, no read" |
@@ -60,7 +60,7 @@ Every constant below is sourced, not assumed:
 | One group-day reveal | `4 + 3m` reads for `m` members — 10 for a duo | `revealGroupDay`, functions/src/v2social.ts |
 | One who-voted sheet | ≤200 answer reads + ≤200 profile reads (names), once per question per session | `VOTER_FETCH_CAP`, src/v2/data/voters.ts (D102 — was unbounded, ~DAU reads per open). "Per session" became true on 2026-08-13: `loadVoters` guarded only on the fetch being IN FLIGHT, so the panel's `[qid]` effect re-ran the whole thing on every open, and this row described an intention rather than a behaviour |
 | One Kindred first view | ≤12 sheets' worth, shared with the sheet cache | `KINDRED_QUESTIONS`, src/v2/data/live.ts (D99) |
-| One pulse open | 1 template + one 21-id documentId() in-query over the per-day aggs, once per UTC day per session (a same-day answer forces one refresh so the reveal's bins include you) | `DAYS`, src/v2/data/pulse.ts (D139). Your own series costs zero — it is derived from the hydrated vote mirror |
+| One pulse open | Per PULSE: 1 template + one 21-id documentId() in-query over its per-day aggs, once per UTC day per session (a same-day answer forces one refresh so the reveal's bins include you). Per pulse rather than one batch since the D166 §3 roster — five windows are 105 ids, over the 30-clause in-query cap, and a card that never mounts never bills; the default roster asks one pulse a weekday, three on Sunday | `DAYS`, src/v2/data/pulse.ts (D139). Your own series costs zero — it is derived from the hydrated vote mirror |
 | One Circle open | 1 + one query per member: ≤50 members × ≤300 answers, +1 followers query | `FOLLOW_CAP` / `CIRCLE_ANSWER_CAP`, src/v2/data/circle.ts (D101). Also once per session since 2026-08-13, with `setFollowing` the one caller that may force a refetch — it changes the membership the fold is over |
 | One takes panel | ≤100 world takes per question, ≤500 per group, once per scope per session | `TAKE_FETCH_CAP` / `TAKE_GROUP_FETCH_CAP`, src/v2/data/live.ts — both caps and the cache are new on 2026-08-13; the world query had no `limit()` and returned roughly everyone who spoke that day |
 
@@ -90,11 +90,22 @@ roughly double on the three operation lines.
 
 | Scenario | DAU | reads/day | writes/day | Firestore $/mo | Functions $/mo | **Total $/mo** |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| Launch / TestFlight | 50 | 9.6 K | 910 | 0.00 | 0.00 | **0.00** |
-| Friends-of-friends | 500 | 172 K | 9.1 K | 1.10 | 0.00 | **1.10** |
-| Real traction | 5,000 | 2.2 M | 91 K | 22 | 0.00 | **22** |
-| Scale | 50,000 | 21.7 M | 910 K | 245 | 2.20 | **247** |
-| Hit | 500,000 | 217 M | 9.1 M | 2,474 | 43 | **2,517** |
+| Launch / TestFlight | 50 | 9.7 K | 970 | 0.00 | 0.00 | **0.00** |
+| Friends-of-friends | 500 | 174 K | 9.7 K | 1.11 | 0.00 | **1.11** |
+| Real traction | 5,000 | 2.2 M | 97 K | 23 | 0.00 | **23** |
+| Scale | 50,000 | 21.8 M | 970 K | 248 | 2.38 | **250** |
+| Hit | 500,000 | 218 M | 9.7 M | 2,501 | 46 | **2,547** |
+
+> **Corrected 2026-08-19 (D166 §3).** The pulse roster joined the budget —
+> `B.worldAnswers` 4 → 4.3 — and every row above moved with it ($247 →
+> $250 at 50 k). Not a re-estimate: five pulses at their DEFAULT cadence
+> are one daily + two weekly + two off = 9/7 ≈ 1.3 world-shaped pulse
+> answers per user per day where D139's single pulse charged 1, through
+> the same terms as every other answer. The decomposition below moved the
+> same way — server 17 → 18, flat total 435 → 436. The ceiling is a user
+> who turns all five daily (`worldAnswers` 8): a per-user choice the
+> model deliberately does not price as typical, and the cadence store
+> never leaves the device, so the real rate arrives only as answers.
 
 > **Corrected 2026-08-18 (D200) — the region was already decided and this
 > page had not heard.** D165 moved production to `europe-west1` on
@@ -228,11 +239,11 @@ Per active user per day:
 
 | DAU | boot | agg top-up | reseed delta | poll | re-attach | rule reads | server reads | **D98 surfaces** | total/user |
 | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| 50 | 21 | 42 | 3 | 3 | 28 | 7 | 17 | 71 | 192 |
-| 500 | 21 | 42 | 3 | 3 | 28 | 7 | 17 | 224 | 345 |
-| 5,000 | 21 | 2 | 3 | 3 | 28 | 7 | 17 | **354** | 435 |
-| 50,000 | 21 | 2 | 3 | 3 | 28 | 7 | 17 | 354 | 435 |
-| 500,000 | 21 | 2 | 3 | 3 | 28 | 7 | 17 | 354 | 435 |
+| 50 | 21 | 42 | 3 | 3 | 28 | 7 | 18 | 73 | 195 |
+| 500 | 21 | 42 | 3 | 3 | 28 | 7 | 18 | 226 | 348 |
+| 5,000 | 21 | 2 | 3 | 3 | 28 | 7 | 18 | **354** | 436 |
+| 50,000 | 21 | 2 | 3 | 3 | 28 | 7 | 18 | 354 | 436 |
+| 500,000 | 21 | 2 | 3 | 3 | 28 | 7 | 18 | 354 | 436 |
 
 **Every column is now flat in DAU, and that is the headline.** The
 `fanOut` column above is the poll (D129) — three reads a day, because the
@@ -845,7 +856,7 @@ complement is a `mode` field on `v2_meta/app` — a document `hydrate()`
 already reads once per boot, so it costs nothing to add — with the client
 skipping the discretionary reads when it is set: the D98 social surfaces
 (who-voted, Kindred, Circle, takes, similarity) at one level, the deck's
-snapshot listeners at the next. That is 354 of 435 reads/user/day at 5,000
+snapshot listeners at the next. That is 354 of 436 reads/user/day at 5,000
 DAU for the first level and most of the rest for the second, and unlike
 App Check it degrades the app for *everyone* rather than only for
 unattested callers.
