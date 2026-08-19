@@ -335,6 +335,7 @@ export function splitBanks(active: Array<QuestionDoc & { id: string }>): {
   duel: Array<QuestionDoc & { id: string }>;
   learn: Array<QuestionDoc & { id: string }>;
   call: Array<QuestionDoc & { id: string }>;
+  pulse: Array<QuestionDoc & { id: string }>;
 } {
   const playable = (q: QuestionDoc & { id: string }) =>
     Array.isArray(q.options) && q.options.length >= 2;
@@ -364,6 +365,16 @@ export function splitBanks(active: Array<QuestionDoc & { id: string }>): {
     // anything. Keeping it out of `feed` keeps that read off the feed's
     // hot path entirely.
     call: active.filter((q) => q.surface === "call" && playable(q)),
+    // The pulse roster (D203). It had no bank until the roster shipped,
+    // and the omission cost two live defects rather than one: `data/pulse`
+    // paid its own `getDoc` for a template `hydrate()` had already
+    // downloaded and cached, AND that read took only `prompt`/`options`,
+    // so `active` never reached the client. Flipping a pulse off in the
+    // console left a fully rendered, tappable card whose every write the
+    // rules refused — the answer appeared and silently vanished. Both are
+    // fixed by the pulse being a bank like the others, because `active` is
+    // already filtered out of `active` above.
+    pulse: active.filter((q) => q.surface === "pulse" && playable(q)),
   };
 }
 

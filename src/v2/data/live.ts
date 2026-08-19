@@ -200,6 +200,8 @@ const state = {
   // is what the card draws "sealed" from — undefined means nothing has
   // been read, which is a different sentence.
   callBank: [] as Array<QuestionDoc & { id: string }>,
+  // The pulse roster, straight off the hydrated bank — see splitBanks.
+  pulseBank: [] as Array<QuestionDoc & { id: string }>,
   callOutcomes: null as Record<string, CallOutcome | null> | null,
   // Feed ads (D197). Null while unread, an array once known — the same
   // "could not ask" / "there are none" distinction every other pool here
@@ -1071,6 +1073,7 @@ async function hydrate(): Promise<void> {
   state.duelBank = banks.duel;
   state.learnBank = banks.learn;
   state.callBank = banks.call;
+  state.pulseBank = banks.pulse;
   // A completely unseeded project is a real failure: throw so boot leaves
   // LIVE disabled and the mock deck renders. Returning here used to let
   // boot flip enabled=true on an empty deck, which pins the user on
@@ -3601,6 +3604,26 @@ const LIVE = {
       if (aid.startsWith(prefix)) out[aid.slice(prefix.length)] = Number(v);
     }
     return out;
+  },
+  /**
+   * The live pulse roster, in bank order — id, prompt and the five steps.
+   *
+   * This is the whole of what `data/pulse` needs to render, and it is
+   * already on the device: `hydrate()` downloads the entire question bank
+   * and `splitBanks` now keeps a pulse lane out of it. Before D203 the
+   * pulse paid its own `getDoc` for a document it had already cached, five
+   * times over once the roster shipped — and read only `prompt`/`options`
+   * from it, so a pulse flipped to `active: false` still drew a tappable
+   * card whose every write the rules refused. Reading the bank fixes both:
+   * `active` is filtered upstream, so an inactive pulse is simply not in
+   * this list.
+   */
+  pulseQs(): Array<{ id: string; prompt: string; options: string[] }> {
+    return state.pulseBank.map((q) => ({
+      id: q.id,
+      prompt: String(q.prompt ?? ""),
+      options: Array.isArray(q.options) ? q.options.map(String) : [],
+    }));
   },
   vote(qid: string, optionId: string): void {
     if (state.votes[qid]) return; // one answer per question, mirroring rules

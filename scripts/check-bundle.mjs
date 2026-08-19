@@ -638,7 +638,37 @@ const MAX_CHUNK_KB = 735;
 // `loadWorldFeed()` (D25).
 //
 // Headroom left: 8 KB on the total, 12 on the eager.
-const MAX_TOTAL_JS_KB = 2357;
+//
+// 2357 → 2372 at build 22 (D202 · D203 · D204), and this one is genuine
+// growth rather than a re-split: three features landed, none of which
+// relocates bytes that were already there.
+//
+//   · D202, the type-mix system switch — a chip row, a persisted key and
+//     a wider name column. Smallest of the three.
+//   · D203, the pulse roster — `data/pulse.ts` roughly doubled (a roster,
+//     a cadence store, a second fetch path) and `PulseCard` gained the
+//     rhythm control. Both are EAGER, which is why the eager line moved
+//     with the total here and did not for the world-feed work above.
+//   · D204, Roles — `data/roles.ts`, `ui/LiveRolesPanel.tsx` and two new
+//     archetype tables. The panel is behind React.lazy from an eager
+//     importer (`profile-overlay.jsx`), so it is five of the extra chunks
+//     and almost none of the extra eager bytes.
+//
+// MEASURED ON THE MERGE, not on the branch, and the two differ enough to
+// be worth recording. On its own branch this work built 2364 KB / 974 KB
+// eager across 87 chunks, against 2349 / 966 / 82 at build 21 — the eager
+// graph taking 8 KB of the 15, all of it the pulse roster. Merged with the
+// relationship-map deferral that lowered MAX_EAGER_KB to 920, it builds
+// **2366 KB / 914 KB eager across 89 chunks**.
+//
+// So the eager line came DOWN 52 KB across the merge while three features
+// landed on it, which is the deferral paying for the roster and then some.
+// The total is the one that moved, and it moved for the reason above.
+//
+// Headroom left: 6 KB on the total, 6 on the eager. Both are tight and
+// MAX_EAGER_KB is not raiseable, so the next thing added to the daily
+// screen has to earn its bytes or defer.
+const MAX_TOTAL_JS_KB = 2372;
 // 955 → 966 (2026-08-14): D139's pulse card — the second fixed instrument
 // on the FIRST screen, so its card, its store's demo furniture and the
 // two LIVE members are legitimately eager (~10 KB min). What is not

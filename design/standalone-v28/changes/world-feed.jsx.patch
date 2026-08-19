@@ -267,7 +267,7 @@
      return q.type === 'rank' ? !!(v && v.order) : v != null;
    }
  
-@@ -1001,9 +1171,58 @@
+@@ -1001,14 +1171,72 @@
      );
    }
  
@@ -326,7 +326,21 @@
      if (!window.feedInsight || !q.options) return null;
      const mine = typeof this.state.votes[q.id] === 'number' ? this.state.votes[q.id] : null;
      const counts = q.options.map((o) => o.count);
-@@ -1484,6 +1703,96 @@
+     const ins = window.feedInsight(q, counts, mine, wfHash, WF_FRIENDS);
+     if (!ins) return null;
++    // rhythm: every card ending on the same bordered line turned the fact into
++    // furniture. A strong one always lands; a merely-true one waits until the
++    // last card didn't already carry one, so some cards end on their bars.
++    if (!ins.strong && this._cardSeq - this._insAt < 2) return null;
++    // and never the same cut twice in one screenful — two cards apart, the same
++    // group name reads as a template, however true it is
++    const gkey = ins.kind === 'friends' ? 'friends' : ins.group;
++    if (gkey === this._insGroup && this._cardSeq - this._insAt < 5) return null;
++    this._insAt = this._cardSeq; this._insGroup = gkey;
+     const n = q.options.length;
+     const v2 = this.opts.v2;
+     const other = ins.kind === 'friends' ? (ins.mySide === 0 ? 1 : 0) : ins.sideIdx;
+@@ -1484,6 +1712,96 @@
      );
    }
  
@@ -423,7 +437,7 @@
    // On an opinion question the cuts tell you who thinks what. On a knowledge
    // question they answer a different question — who KNOWS this — and that read
    // isn't available anywhere else: a fact can belong to the old, to one country,
-@@ -1584,6 +1893,8 @@
+@@ -1584,6 +1902,8 @@
    }
  
    renderStats(q, T) {
@@ -432,7 +446,7 @@
      if (q.type === 'pick') return this.renderPickStats(q, T);
      if (q.type === 'know') return this.renderKnowStats(q, T);
      if (q.type === 'rate') return this.renderRateStats(q, T);
-@@ -1717,6 +2028,21 @@
+@@ -1717,6 +2037,21 @@
  
    // compact density: answered vote/duel cards collapse to one thin split bar
    renderThinBar(q, T) {
@@ -454,7 +468,7 @@
      if (q.type === 'pick') {
        const C = (window.WF_CATALOGS || {})[q.catalog];
        const it = C && C.items.find((i) => i.id === this.state.votes[q.id]);
-@@ -1738,6 +2064,16 @@
+@@ -1738,6 +2073,16 @@
        const m = done.order.filter((it, pos) => q.crowd[it] === pos + 1).length;
        return <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--ink-3)' }}>ranked{' · '}{m}/{q.items.length} with the crowd</span>;
      }
@@ -471,7 +485,7 @@
      const mine = this.state.votes[q.id];
      const { p } = wfPcts(q.options.map((o) => o.count), mine);
      return (
-@@ -1766,6 +2102,44 @@
+@@ -1766,8 +2111,48 @@
      );
    }
  
@@ -515,8 +529,12 @@
 +
    renderCard(q, flags) {
      const F = flags || {};
++    // position in this render pass — the surprise line uses it to keep a beat
++    this._cardSeq = (this._cardSeq == null ? 0 : this._cardSeq) + 1;
      if (this.state.passed[q.id]) {
-@@ -1817,9 +2191,13 @@
+       return (
+         <button key={q.id} onClick={() => this.setPass(q.id, false)} style={{ border: WF_LINE, borderRadius: 14, background: 'transparent', padding: '11px 14px', display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', textAlign: 'left', WebkitAppearance: 'none' }}>
+@@ -1817,9 +2202,13 @@
        </div>
      );
      const snap = !compact && !focus;
@@ -531,7 +549,7 @@
      const card = { background: 'var(--surface-2)', border: mk ? '1px solid color-mix(in oklch, ' + T.color + ' 32%, var(--rule))' : WF_LINE, borderRadius: 18, boxShadow: 'var(--shadow-card)', padding: collapsed ? '12px 14px' : '16px 15px', display: 'flex', flexDirection: 'column', gap: collapsed ? 8 : 12 };
      // hero cards carry a whisper of their topic hue so the breathing room reads designed, not blank
      if (!collapsed) { const cbase = skin === 'bleed' ? 'var(--surface-a)' : 'var(--surface-2)'; card.backgroundImage = 'radial-gradient(120% 80% at 50% -25%, ' + window.WPAL.wash(T.color, 11, cbase) + ', ' + cbase + ' 62%)'; }
-@@ -1832,6 +2210,8 @@
+@@ -1832,6 +2221,8 @@
      // where borders and shadows used to, and the topic hue stays in the kicker.
      if (this.opts.v2 && skin === 'bare') { card.borderTop = WF_LINE; card.padding = '20px 1px 24px'; }
      if (this.opts.v2 && skin === 'bleed') { card.borderBottom = 'none'; }
@@ -540,7 +558,7 @@
      if (snap) {
        // content-height cards: an unanswered question gets a comfortable floor so
        // it has air, an answered one shrinks to its result and lets the next
-@@ -1842,7 +2222,7 @@
+@@ -1842,7 +2233,7 @@
      if (collapsed) {
        return (
          <div key={q.id} className={this._io ? 'wf-card' : ''} ref={(el) => { if (el && this._io && !el._wfSeen) { el._wfSeen = 1; this._io.observe(el); } }} role="button" tabIndex={0} onClick={() => this.setState((s) => ({ open: { ...s.open, [q.id]: true } }))} onKeyDown={(e) => { if (e.key === 'Enter') this.setState((s) => ({ open: { ...s.open, [q.id]: true } })); }} style={{ ...card, cursor: 'pointer' }}>
@@ -549,7 +567,7 @@
            <div style={{ fontFamily: 'var(--sans)', fontWeight: 750, fontSize: 14.5, lineHeight: 1.3, letterSpacing: -0.2, textWrap: 'pretty' }}>{q.prompt}</div>
            {answered && this.renderThinBar(q, T)}
          </div>
-@@ -1850,15 +2230,19 @@
+@@ -1850,15 +2241,19 @@
      }
      return (
        <div key={q.id} className={this._io ? 'wf-card' : ''} ref={(el) => { if (el && this._io && !el._wfSeen) { el._wfSeen = 1; this._io.observe(el); } }} style={card}>
@@ -570,7 +588,15 @@
          {!answered && this.opts.pass && (
            <button className="press" onClick={() => this.setPass(q.id, true)} style={{ alignSelf: 'center', border: 'none', background: 'none', padding: '6px 16px', marginTop: 2, cursor: 'pointer', fontFamily: 'var(--sans)', fontWeight: 500, fontSize: 13, color: 'var(--ink-3)', WebkitAppearance: 'none' }}>skip</button>
          )}
-@@ -1926,6 +2310,17 @@
+@@ -1887,6 +2282,7 @@
+   }
+ 
+   render() {
++    this._cardSeq = 0; this._insAt = -99;
+     // focus mode — just the given question(s), no chip rail, no weaving.
+     // Search hosts this so a result IS the real card: same votes, same reveal.
+     if (this.props.focus) {
+@@ -1926,6 +2322,17 @@
      // sort lenses: hot = the interleaved mix · top = most votes · new = latest first
      const sort = this.state.sort;
      const sorted = sort === 'top' ? [...qs].sort((a, b) => wfVotes(b) - wfVotes(a)) : sort === 'new' ? [...qs].reverse() : mixed;
@@ -588,7 +614,7 @@
      // weave in the tests' own questions — one marked card every few feed items
      const tqs = window.TEST_FEED_QS || [];
      // …and the minor lenses' questions, at a much lower rate than the core tests
-@@ -1951,6 +2346,10 @@
+@@ -1951,6 +2358,10 @@
        sugg = cand[0] || null;
      }
      const snap = this.props.density !== 'compact';
@@ -599,7 +625,7 @@
      // the clock lands on one question near the top, picked deterministically
      const closingId = this.opts.clock ? ((feedList.slice(0, 8).find((q) => wfHash(q.id + ':close') < 0.3) || feedList[1] || {}).id) : null;
      return (
-@@ -1962,7 +2361,7 @@
+@@ -1962,7 +2373,7 @@
            <div className="h-scroll" style={{ display: 'flex', gap: 8, flexWrap: 'nowrap', overflowX: 'auto', flex: 1, minWidth: 0, padding: '2px 0' }}>
              {/* one chip grammar in this rail: same shape, same size, same weight.
                  the sort control cycles hot → top → new instead of wearing a caret. */}
@@ -608,7 +634,7 @@
              {chips.map((t, ci) => {
                const on = cats[t.id] !== false;
                const col = t.color;
-@@ -1983,12 +2382,16 @@
+@@ -1983,12 +2394,16 @@
            </button>
            </div>
          </div>

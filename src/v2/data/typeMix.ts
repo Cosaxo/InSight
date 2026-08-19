@@ -23,16 +23,43 @@ import type { KindredPerson, ParsedResults } from "./similarity";
 // @ts-expect-error TS7016 — untyped spec module (additive exports, D141)
 import { ARCHETYPES, matchArchetype } from "../spec/archetype-data.js";
 
-/** The one instrument types read from in tier 1. The Big Five archetypes
- * are the app's least charged system; the politics types stay on the
- * profile only, deliberately.
+/** The instrument a population reading uses when nobody has chosen one.
  *
- * It is also the ENFORCEMENT of the scope docs/data-inventory.md promises
- * and `ui/LivePrivacyPanel` prints: no population reading of any kind is
- * computed from the politics, values or attachment result. D157 pointed a
- * second surface at this fold (the profile's type index) and did not
- * widen it — see `typeSharesOn`. */
+ * **This was the enforcement point of a promise until D202, and the change
+ * is the whole of that record — read it before touching anything here.**
+ * D141 made this constant the single place the fold could be widened
+ * ("enforced rather than intended"), and D157 §4 refused to widen it,
+ * noting in as many words that it would have been one parameter and
+ * accepting the loss of a frequency on three profile sheets as the price.
+ * D202 reversed that on the owner's call: every instrument the archetype
+ * module defines is now readable as a population, the reader picks which,
+ * and `web/privacy.html` says so rather than promising the opposite.
+ *
+ * What did NOT change, and is a different claim: a test result is still
+ * never a **breakdown dim** (D8). No cell is keyed by one, the server
+ * still never slices an aggregate by a result, and nothing here puts a
+ * result into the anchors snapshot. Widening WHICH result is charted for a
+ * population the reader already chose is not the same act as letting the
+ * server cut cohorts by it, and D8 is untouched — which is true, and was
+ * never the constraint that bound this file. */
 export const TYPE_TEST = "big5";
+
+/** Every instrument a population can be read through, in switch order,
+ * with the label the chip row prints. Drawn from `IS_ARCHETYPES`' own
+ * keys rather than re-listed, so a fifth system cannot appear in the
+ * archetype module and be silently missing here. `logic` is deliberately
+ * absent upstream — a verified score, not an axis profile (D57). */
+export const TYPE_SYSTEMS: { kind: string; label: string }[] = [
+  { kind: "big5", label: "Personality" },
+  { kind: "political", label: "Politics" },
+  { kind: "values", label: "Values" },
+  { kind: "attachment", label: "Social" },
+];
+
+/** Whether a key is one this fold will read. An unknown key falls back to
+ * the default rather than folding an empty system into a card of zeroes. */
+export const isTypeSystem = (kind: string): boolean =>
+  TYPE_SYSTEMS.some((s) => s.kind === kind);
 /** Below this, a count is listed, not ranked. */
 export const TYPE_THIN = 8;
 /** Below this, a basis has no shares at all — counts only. */
@@ -55,11 +82,12 @@ export interface TypeMix {
 interface ArchetypeSystem { list: { name: string; line: string }[] }
 const systemOf = (kind: string): ArchetypeSystem | null =>
   ((ARCHETYPES as Record<string, ArchetypeSystem | undefined>)[kind]) ?? null;
-const system = (): ArchetypeSystem | null => systemOf(TYPE_TEST);
+const system = (kind: string = TYPE_TEST): ArchetypeSystem | null => systemOf(kind);
 
-export const typeNames = (): string[] => (system()?.list ?? []).map((t) => t.name);
-export const typeLine = (name: string): string =>
-  system()?.list.find((t) => t.name === name)?.line ?? "";
+export const typeNames = (kind: string = TYPE_TEST): string[] =>
+  (system(kind)?.list ?? []).map((t) => t.name);
+export const typeLine = (name: string, kind: string = TYPE_TEST): string =>
+  system(kind)?.list.find((t) => t.name === name)?.line ?? "";
 
 type Dim = { id: string; value: number };
 const typeOfDims = (dims: Dim[] | undefined | null, kind: string = TYPE_TEST): string | null => {
@@ -123,17 +151,28 @@ const inScope = (p: KindredPerson, scope: string): boolean => {
   return !!cc && p.city.endsWith(`, ${cc}`);
 }
 
-/** The whole reading for one scope, in one pass over the cached sample. */
-export function typeMixFor(scope: "city" | "country" | "world"): TypeMix {
+/** The whole reading for one scope, in one pass over the cached sample.
+ *
+ * `kind` is the instrument being charted (D202). It changes nothing about
+ * WHICH people are counted — the scope does that — only which result each
+ * of them is typed against, so `sampleN` is identical across systems and
+ * `typedN` is not: coverage differs by how far each person has got through
+ * the round-robined test feed, which is why the thin and small states are
+ * computed per instrument rather than once. */
+export function typeMixFor(
+  scope: "city" | "country" | "world",
+  kind: string = TYPE_TEST,
+): TypeMix {
+  const sys = isTypeSystem(kind) ? kind : TYPE_TEST;
   const sample = (LIVE.kindredPeople() as KindredPerson[]).filter((p) => inScope(p, scope));
   const people: TypedPerson[] = sample
-    .map((p) => ({ ...p, type: typeOfPerson(p) }))
+    .map((p) => ({ ...p, type: typeOfParsed(p.results, sys) }))
     .filter((p) => p.type != null)
     // Likeness order, the People lens's own: most-agreeing first.
     .sort((a, b) => (b.like?.pct ?? 0) - (a.like?.pct ?? 0));
   const counts = new Map<string, number>();
   for (const p of people) counts.set(p.type as string, (counts.get(p.type as string) ?? 0) + 1);
-  const rows: TypeRow[] = typeNames().map((name) => ({ name, n: counts.get(name) ?? 0 }));
+  const rows: TypeRow[] = typeNames(sys).map((name) => ({ name, n: counts.get(name) ?? 0 }));
   return {
     ranked: rows.filter((r) => r.n >= TYPE_THIN).sort((a, b) => b.n - a.n),
     thin: rows.filter((r) => r.n > 0 && r.n < TYPE_THIN).sort((a, b) => b.n - a.n),
@@ -167,15 +206,29 @@ export function typeMixFor(scope: "city" | "country" | "world"): TypeMix {
 // swapping it for a live sample would make which type you ARE drift with
 // whoever the app happened to fetch this session.
 //
-// THE SCOPE DOES NOT WIDEN. The sheet renders for all four instruments,
-// and it would have been one parameter to type the sample against each of
-// them — which is exactly the line docs/data-inventory.md draws and
-// `LivePrivacyPanel` prints: the politics result is Art. 9 data and no
-// population reading is computed from it, nor from the other two that
-// travel with it in that promise. So the other three instruments show no
-// frequency at all in a live build rather than a measured one. That is a
-// loss of a number, and the alternative was keeping a fabricated one to
-// avoid noticing.
+// THE SCOPE WIDENED AT D202, having been refused at D157 §4. The sheet
+// renders for all four instruments and this now measures all four, so the
+// three that showed no frequency at all get a real one instead of a blank.
+//
+// D157 §4 called that widening "one parameter" and declined it, on the
+// ground that the politics result is Art. 9 data and no population reading
+// should be computed from it. The owner reversed it. The argument that
+// carried: every input here already publishes under D98, `voters.ts`
+// already parses all four instruments into the same session cache, and
+// `data/compare.ts` and the City constellation already show a NAMED
+// person's politics axes beside yours (D112/D193) — so an aggregate over
+// people is strictly less identifying than the per-person view that has
+// been shipping for months. What the reversal costs is a promise, and the
+// promise was rewritten rather than quietly dropped: `web/privacy.html`
+// now describes this reading instead of denying it, and
+// `check:policy-claims` pins both the new sentence and the absence of the
+// old one.
+//
+// One thing the reversal did not license: **the numbers must be measured**.
+// The v28 prototype derives its non-Big-Five mixes from authored per-type
+// shares with a per-population wobble, which is exactly the class D157
+// removed and D167 forbids. Every row below is a count of real typed
+// people or it is not drawn.
 
 export interface TypeShare { name: string; n: number; pct: number }
 export interface TypeShares {
@@ -187,12 +240,17 @@ export interface TypeShares {
 }
 
 /**
- * Measured type frequencies, or null — in a demo build (where the
- * authored share IS the content, like the seeded circle), and on every
- * instrument but TYPE_TEST (see above).
+ * Measured type frequencies, or null in a demo build — where the authored
+ * share IS the content, like the seeded circle.
+ *
+ * Since D202 this answers for every instrument in `TYPE_SYSTEMS`, not only
+ * `TYPE_TEST`. It still returns null for a key the archetype module does
+ * not define, and still returns null rather than a fallback when the fold
+ * cannot be done — the D72 posture, so a caller that forgets the check
+ * fails a test instead of quietly fabricating.
  */
 export function typeSharesOn(kind: string): TypeShares | null {
-  if (!LIVE.enabled || kind !== TYPE_TEST) return null;
+  if (!LIVE.enabled || !isTypeSystem(kind)) return null;
   const names = (systemOf(kind)?.list ?? []).map((t) => t.name);
   if (!names.length) return null;
   const sample = LIVE.kindredPeople() as KindredPerson[];

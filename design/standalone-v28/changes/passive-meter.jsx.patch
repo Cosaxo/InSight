@@ -1,6 +1,17 @@
 --- v18/passive-meter.jsx
 +++ v28/passive-meter.jsx
-@@ -51,7 +51,6 @@
+@@ -28,7 +28,9 @@
+   const P = window.PASSIVE; if (!P) return null;
+   const p = P.pct(k), { col, sp } = passiveStanding(k);
+   const deg = p * 3.6;
+-  // filled arc carries the split as two solid parts, exactly like the sheet's dots
++  // filled arc carries the split as two solid parts, exactly like the sheet's
++  // dots — and at full strength: the header ring must read as the same colour
++  // as the type it stands for, so no muting anywhere.
+   const fill = sp ? `${sp.deep} 0 ${(deg * sp.ratio).toFixed(2)}deg, ${sp.lift} 0 ${deg.toFixed(2)}deg` : `${col} 0 ${deg.toFixed(2)}deg`;
+   return (
+     <span aria-hidden="true" style={{ width: size, height: size, borderRadius: '50%', flexShrink: 0, background: `conic-gradient(${fill}, color-mix(in oklch, var(--ink-3) 24%, transparent) 0)`, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', transition: 'background .3s ease' }}>
+@@ -51,7 +53,6 @@
          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
            {P.KEYS.map((k) => <PassiveRing key={k} k={k} size={13} thick={3.2}></PassiveRing>)}
          </span>

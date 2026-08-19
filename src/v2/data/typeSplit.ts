@@ -48,9 +48,18 @@
 // BIG FIVE ONLY, and that is not a stub. The politics result is Art. 9
 // data (`docs/data-inventory.md`) and slicing every answer by political
 // type is the exposure D44 was about; D98 reversed D44 on the ITEMS'
-// counts, not on cross-tabbing by result. `typeMix.TYPE_TEST` already
-// picked the Big Five as the app's least charged system for exactly this
-// reason, and this module inherits the choice rather than re-taking it.
+// counts, not on cross-tabbing by result. `typeMix.TYPE_TEST` picked the
+// Big Five as the app's least charged system for exactly this reason.
+//
+// **THIS MODULE NOW OWNS THAT SCOPE RATHER THAN INHERITING IT (D202).**
+// Until D202, `typeMix.TYPE_TEST` was an enforcement point and this file
+// could lean on it. D202 demoted that constant to a default so a reader
+// could switch the population MIX between instruments — and the promise
+// in `web/privacy.html` that survived D202 is precisely the one this file
+// keeps: *answers* are grouped by the Big Five and by nothing else.
+// Leaning on someone else's default for that would mean the promise had
+// no owner, so `SPLIT_TEST` below is explicit, passed at every call site,
+// and pinned by a test.
 //
 // Pure — no Firebase, no window, no LIVE. The caller joins voters to
 // scores (both already in the store) and hands the rows in, the way
@@ -59,6 +68,17 @@ import { TYPE_TEST, TYPE_THIN, typeNames, typeOfParsed } from "./typeMix";
 import type { ParsedResults } from "./similarity";
 
 export { TYPE_TEST, TYPE_THIN };
+
+/**
+ * The instrument answers may be grouped by — the whole of the D202-surviving
+ * promise, in one constant.
+ *
+ * It is `TYPE_TEST` today and must be passed explicitly rather than left to
+ * default: the point is that widening `typeMix`'s default can no longer
+ * widen this. `web/privacy.html` states the scope to users and
+ * `check:policy-claims` pins that sentence; this is the code half.
+ */
+export const SPLIT_TEST = TYPE_TEST;
 
 /**
  * Below this many typed voters, the split has no shares at all.
@@ -147,7 +167,7 @@ export function typeSplitFor(
   let typedN = 0;
 
   for (const v of voters) {
-    const type = typeOfParsed(v.results);
+    const type = typeOfParsed(v.results, SPLIT_TEST);
     // No readable result is not a type — it thins the basis and is
     // reported as the gap between sampleN and typedN, never bucketed as
     // an "unknown" type that would then rank against the real ones.
@@ -171,7 +191,7 @@ export function typeSplitFor(
   // Every type the system defines gets considered, not just the ones
   // present — `absent` is a finding (D141's rule, kept), and it can only
   // be stated by starting from the full list.
-  const rows: TypeSplitRow[] = typeNames().map((type) => ({
+  const rows: TypeSplitRow[] = typeNames(SPLIT_TEST).map((type) => ({
     type,
     n: counts.has(type) ? sum(counts.get(type)!) : 0,
     counts: counts.get(type) || dense(optionCount),
@@ -204,7 +224,7 @@ export function uidsOfType<T extends { uid: string; results: ParsedResults | nul
   type: string,
 ): Set<string> {
   const out = new Set<string>();
-  for (const v of voters) if (typeOfParsed(v.results) === type) out.add(v.uid);
+  for (const v of voters) if (typeOfParsed(v.results, SPLIT_TEST) === type) out.add(v.uid);
   return out;
 }
 

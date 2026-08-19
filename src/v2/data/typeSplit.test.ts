@@ -10,9 +10,9 @@
 // cells, so every property that keeps the two apart is pinned here.
 import { describe, expect, it } from "vitest";
 import { CORE_TEST_KINDS, parseTestResults } from "./similarity";
-import { typeNames, typeOfParsed } from "./typeMix";
+import { TYPE_SYSTEMS, typeNames, typeOfParsed } from "./typeMix";
 import {
-  TYPE_SPLIT_SMALL, TYPE_THIN, typeDivergence, typeSplitFor, uidsOfType,
+  SPLIT_TEST, TYPE_SPLIT_SMALL, TYPE_THIN, typeDivergence, typeSplitFor, uidsOfType,
   type ScoredVoter,
 } from "./typeSplit";
 
@@ -227,3 +227,35 @@ describe("uidsOfType", () => {
     }
   });
 });
+
+// ── the scope that survived D202 ──────────────────────────────────────
+//
+// D202 widened the population MIX to every instrument and demoted
+// `typeMix.TYPE_TEST` from an enforcement point to a default. The promise
+// in web/privacy.html that did NOT move is this module's: answers are
+// grouped by the Big Five and by nothing else. That promise used to be
+// enforced by a constant in another file; this case is what enforces it
+// now, so a later widening of the mix cannot carry the split with it.
+describe("SPLIT_TEST — answers group by the Big Five only", () => {
+  it("is the Big Five, and that is a decision rather than a default", () => {
+    expect(SPLIT_TEST).toBe("big5");
+  });
+
+  it("names an instrument the archetype module actually defines", () => {
+    expect(TYPE_SYSTEMS.some((s) => s.kind === SPLIT_TEST)).toBe(true);
+  });
+
+  it("draws the Big Five's own type list, not whichever the mix is on", () => {
+    // typeNames() defaults to typeMix.TYPE_TEST. If someone later changes
+    // that default, this stays pinned to the Big Five's roster because the
+    // fold passes SPLIT_TEST explicitly at every call site.
+    expect(typeSplitRosterIsBigFive()).toBe(true);
+  });
+});
+
+/** The split's own row roster, compared against the Big Five's. */
+function typeSplitRosterIsBigFive(): boolean {
+  const big5 = typeNames("big5");
+  const split = typeSplitFor([], 2, null).absent;
+  return split.length === big5.length && split.every((t, i) => t === big5[i]);
+}

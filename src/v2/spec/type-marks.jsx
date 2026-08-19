@@ -203,8 +203,16 @@ function TypeIndexSheet({ testKey, onClose }) {
         <div className="wf-sheet-body" style={{ display: 'flex', flexDirection: 'column' }}>
           {LIVE.enabled && !counted ? (
             <div style={{ padding: '4px 2px 12px', fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)', lineHeight: 1.45, textWrap: 'pretty' }}>
+              {/* Before D202 this branch was the Art. 9 refusal and said so
+                  ("only counted for the Big Five"). D202 made every
+                  instrument in TYPE_SYSTEMS answer, so for the four this
+                  sheet can render it is now unreachable — `typeSharesOn`
+                  returns null only for a key the archetype module does not
+                  define. The guard stays as the D72 posture (null rather
+                  than a fabricated fold) and the copy stops naming a scope
+                  that is no longer the reason. */}
               {!shares
-                ? 'Shares are only counted for the Big Five.'
+                ? 'Not counted on this one.'
                 : shares.sampleN === 0
                   ? 'Open a question’s who-voted sheet and this fills in.'
                   : `${shares.sampleN} counted so far, none with a result yet.`}

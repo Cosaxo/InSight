@@ -116,6 +116,20 @@ export const IS_TEST_AVG = {
   political:  { econ: 50, auth: 52, foreign: 48, env: 55, tech: 60, estab: 55 },
   values:     { future: 52, circle: 45, hedonism: 55, meaning: 58, moral: 55, beauty: 60 },
   attachment: { warm: 64, loyal: 66, open: 56, play: 58, easy: 60 },
+  // The role instruments (D204). These are the baselines the matcher
+  // centres BOTH sides on before comparing, and they are authored like the
+  // four above rather than measured — deliberately, and for the reason
+  // D157 gave when it moved everything else onto measured folds: which
+  // type you ARE must not drift with whoever the app happened to fetch
+  // this session. A duel record is also the thinnest sample in the app
+  // (14 readable reveal days), so a measured baseline here would be a
+  // handful of people wide.
+  //
+  // Not 50s: reading a partner is easier than being unreadable, and most
+  // people sit with their group more often than against it, so a neutral
+  // baseline would call an ordinary run remarkable.
+  duo:        { read: 62, seen: 62, like: 54, steady: 58 },
+  group:      { own: 34, pull: 58, settle: 58 },
 };
 
 // ── Persist completed results so a retake (or reload) keeps what you scored ──
