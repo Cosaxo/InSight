@@ -83,3 +83,10 @@
          </div>
          <div ref={railRef} style={{ position: 'sticky', top: 0, zIndex: 6, margin: '-1px -16px 0', padding: '1px 10px 0', background: 'var(--surface-a, var(--surface))', borderBottom: '0.5px solid color-mix(in oklch, var(--rule), transparent 25%)' }}>
            <GroupRail gs={ordered} cur={cur} onPick={jump} onAdd={() => setAddOpen(true)}></GroupRail>
+@@ -423,5 +429,5 @@
+     );
+   }
+ 
+-  Object.assign(window, { GroupDailyBody, GDAv });
++  Object.assign(window, { GroupDailyBody, GDAv, GDMark, GDHue: ghue, GDInit: ginit });
+ })();

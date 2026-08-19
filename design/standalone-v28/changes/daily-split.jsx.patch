@@ -1,5 +1,14 @@
 --- v18/daily-split.jsx
 +++ v28/daily-split.jsx
+@@ -207,7 +207,7 @@
+ 
+   get modeAccent() {
+     return this.state.mode === 'world' && this.state.testOpen
+-      ? 'var(--ochre)'
++      ? 'var(--test)'
+       : ({ world: 'var(--c-around)', group: 'var(--c-likeness)', duo: 'var(--c-people)' })[this.state.mode];
+   }
+   // lift the mode's accent onto the app root so the header wordmark and tab
 @@ -315,9 +315,10 @@
        // can flip the axis under it without remounting
        const MODES = this.modeAxis;
@@ -33,3 +42,21 @@
        if (Math.abs(e.deltaX) > Math.abs(e.deltaY) + 4) { e.preventDefault(); if (wheelLock || Math.abs(e.deltaX) < 24) return; if (Date.now() - (window.NAV_AT || 0) < 700) return; wheelLock = true; commit(e.deltaX > 0 ? 1 : -1); setTimeout(() => { wheelLock = false; }, 650); }
      }, { passive: false });
      // first-run hint — a gentle sideways nudge teaches that modes swipe; retires after the first real swipe
+@@ -736,7 +741,7 @@
+ 
+     // ===== TEST =====
+     const testBody = (() => {
+-      const OCHRE = 'var(--ochre-ink)';
++      const OCHRE = 'var(--test-ink)';
+       const defs = this.testDefs;
+ 
+       // just finished a test — one clear payoff card
+@@ -777,7 +782,7 @@
+       const LIKERT = ['Strongly disagree', 'Disagree', 'Neither', 'Agree', 'Strongly agree'];
+       return h('div', { style: col(13) },
+         h('div', { style: { display: 'flex', alignItems: 'center', gap: 10 } },
+-          h('span', { style: { background: 'color-mix(in oklch, var(--ochre) 9%, transparent)', border: '1px solid color-mix(in oklch, var(--ochre) 42%, transparent)', color: OCHRE, fontWeight: 800, fontSize: 11.5, letterSpacing: '0.08em', textTransform: 'uppercase', padding: '5px 11px', borderRadius: 999 } }, T.title),
++          h('span', { style: { background: 'color-mix(in oklch, var(--test) 9%, transparent)', border: '1px solid color-mix(in oklch, var(--test) 42%, transparent)', color: OCHRE, fontWeight: 800, fontSize: 11.5, letterSpacing: '0.08em', textTransform: 'uppercase', padding: '5px 11px', borderRadius: 999 } }, T.title),
+           h('span', { style: { border: LINE, fontWeight: 700, fontSize: 12, padding: '4px 10px', borderRadius: 999 } }, (qi + 1) + ' of ' + T.questions.length)),
+         base > 0 && h('span', { style: { fontSize: 12, fontWeight: 600, color: 'var(--ink-3)', marginTop: -6 } }, 'first ' + base + ' mapped from your feed answers — picking up from there'),
+         h('div', { key: k + ':' + qi, style: { ...col(13), animation: 'popIn .3s cubic-bezier(0.2,0.8,0.2,1)' } },

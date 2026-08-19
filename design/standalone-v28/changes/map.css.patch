@@ -1,0 +1,41 @@
+--- v18/map.css
++++ v28/map.css
+@@ -28,6 +28,11 @@
+ .mmt-field { display: none; }
+ .mmt-field.is-dim { opacity: 0.12; }
+ 
++/* Reads bullseye — hairline accuracy rings; closer to the hub = a sharper read */
++.mmt-ring { position: absolute; left: 0; top: 0; border-radius: 50%; pointer-events: none; border: 1px solid oklch(0.605 0.118 var(--hue) / 0.30); transition: opacity 0.3s ease; }
++.app.dark .mmt-ring { border-color: oklch(0.62 0.115 var(--hue) / 0.34); }
++.mmt-root.is-ringstage .mmt-ring { opacity: 0.08 !important; }
++
+ /* nodes */
+ .mmt-node { position: absolute; left: 0; top: 0; cursor: pointer; user-select: none; -webkit-user-select: none; }
+ .mmt-node.is-dim { opacity: 0.13; pointer-events: none; }
+@@ -132,6 +137,17 @@
+   transition: opacity 0.25s ease;
+ }
+ .mmt-hub.is-nolab .mmt-hub-label { opacity: 0; }
++/* hub badge — your standing across every cut, right on the hub */
++.mmt-hub-badge { margin-top: -1px; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; white-space: nowrap; color: oklch(0.46 0.10 var(--hue)); }
++.app.dark .mmt-hub-badge { color: oklch(0.78 0.08 var(--hue)); }
++/* a read is waiting in the feed — the hub breathes until it's taken */
++@media (prefers-reduced-motion: no-preference) {
++  .mmt-hub.is-wait .mmt-hub-dot { animation: mmtHubWait 3.2s ease-in-out infinite; }
++  @keyframes mmtHubWait {
++    0%, 100% { box-shadow: 0 0 0 4px var(--surface-2), 0 0 0 0 oklch(0.605 0.118 var(--hue) / 0); }
++    50% { box-shadow: 0 0 0 4px var(--surface-2), 0 0 12px 5px oklch(0.605 0.118 var(--hue) / 0.4); }
++  }
++}
+ .app.dark .mmt-hub-dot { background: oklch(0.62 0.115 var(--hue)); box-shadow: 0 0 0 4px var(--surface-2); }
+ .app.dark .mmt-hub.is-sel .mmt-hub-dot { box-shadow: 0 0 0 4px var(--surface-2), 0 0 0 6.5px oklch(0.62 0.115 var(--hue)); }
+ .app.dark .mmt-hub-label { color: oklch(0.85 0.06 var(--hue)); background: color-mix(in oklch, var(--surface-2) 88%, oklch(0.62 0.115 var(--hue))); }
+@@ -214,6 +230,8 @@
+ }
+ .mmt-dotnode.is-labL .mmt-dlab { left: auto; right: calc(100% + 8px); text-align: right; }
+ .mmt-dotnode.is-showlab .mmt-dlab { opacity: 1; }
++/* cut context rides the answer label, quieter */
++.mmt-dlab-ctx { opacity: 0.62; font-weight: 600; }
+ .app.dark .mmt-ddot { background: oklch(0.62 0.115 var(--hue)); }
+ .app.dark .mmt-dlab { color: oklch(0.84 0.06 var(--hue)); background: oklch(0.295 0.045 var(--hue)); }
+ .app.dark .mmt-dotnode.is-leaf .mmt-dlab { color: var(--ink-2); background: none; }

@@ -13,6 +13,15 @@ The source is the maintainer's `InSight_standalone_28.html`, extracted to
 README is the inventory (every module, every patch, how the extraction was
 done). This file is the plan.
 
+**The prototype moved on 2026-08-19 and that directory was re-extracted
+against it.** The thesis did not move — still three tabs, same roster of
+Mirror stops — so nothing below is reopened, and the verdicts in §0 stand.
+Three things in this file are now *narrower or wider* than the build they
+describe, and §0.1 is the list. Read it before picking an item up; the
+inventory in `design/standalone-v28/README.md` is the current state, this
+file's section bodies still describe the August-15 build except where §0.1
+says otherwise.
+
 ## What has been decided
 
 | Record | Item | Answer |
@@ -62,6 +71,26 @@ what is actually left is much smaller than the diff suggested.
 | **The tweak teardown** (19 flags settled) | **Adopt as the record** | **none — deletions** | The prototype deleting a flag *is* the decision. The app's cost is dead-branch removal, which is what rule 4 and the compiler want anyway. |
 | **The Arena** | **Dropped for now** (D166 §2) | n/a | 103 lines of CSS for a card that is not in the bundle. Verified orphaned; the owner confirms it was dropped, not lost. The file stays as the record. |
 | ~~Feed windowing, dial/field + breakdowns, compare rose, Near anonymity + switch, Explore deviation, suggestion declines~~ | ~~build~~ **already shipped** | — | Checked file by file; see §6. |
+
+## 0.1 · What the 2026-08-19 build changed about this plan
+
+Re-extracted against the same v18 baseline. Fourteen of the twenty-two
+patches were stale and four modules are new; the full delta is
+`design/standalone-v28/README.md` § "What the later build changed". Only
+these four items change what *this* file tells you to do.
+
+| What | Effect on the plan |
+| --- | --- |
+| **Roles is a new item with no section here** (`role-data.js`, `roles-panel.jsx`) | The August-15 build had no such module, so nothing below plans it. It reads the duel record as an instrument — four dimensions per setting, matched to a named type, registered into the existing test machinery so a role card *is* a result card — and adds a seventh profile subtab. It needs an owner decision before it can ship, like every other item here; see §14. |
+| **The `result-card.jsx` patch is no longer purely the refused section** | §9 and the snapshot README both said the whole patch is Born-or-built and should be dropped whole. That is now wrong: 46 of 69 added lines are the refused section (two hunks), and 23 are an unrelated compact-card `brief` mode. **D168 is unchanged** — but "drop the patch" has to become "drop those two hunks". |
+| **Near stops stating distance at all** | §7's small pass recorded coarse distance bands for anonymous kindred. The later build removes them outright — *"knowing how close a stranger is, is itself a leak"* — and reads alignment as size instead. This is strictly tighter than what was planned, runs the same direction as the presence cell's deny in `firestore.rules`, and costs nothing to honour. |
+| **`g-fore` is renamed Foresight → "Intuition"** | §4/§5 name the map branch "Foresight". The later build calls it Intuition and notes it as "how well you read groups of people" — which is the READ half, and READ is the half that shipped (D196) after CALL was retired. The rename agrees with where the app landed; take it with the branch. |
+
+**What did not move**, checked file by file rather than assumed: the pulse
+roster and its card (§3), the type-mix switch (§8), the trait web (§7.9),
+`question-map.js` (§2's engine), `predict-cards.jsx`, `nature-data.js` and
+the Crossroads pair are byte-identical to the August-15 extraction. Every
+verdict in §0 stands as written.
 
 ## 1 · The structural change: two tabs become three
 
@@ -396,11 +425,21 @@ result is read as a claim about you. `nature-data.js`'s own header says
 every surface showing it must keep the population framing — and the result
 card is the worst place in the app to try.
 
-**Clean removal, verified:** `window.NATURE` is consumed by
-`result-card.jsx` and nothing else, and all 37 added lines of the v28
-`result-card.jsx` patch are this section. No orphaned store, no
-half-applied patch. Both files stay in `design/standalone-v28/`, marked
-refused, so the idea is not re-proposed as new.
+**Clean removal, verified — but no longer a clean *file*.** `window.NATURE`
+is still consumed by `result-card.jsx` and nothing else, so dropping the
+section leaves no orphaned store. What changed on 2026-08-19 is the patch
+around it: it was +37/−0 and entirely this section, which made *"drop the
+whole patch"* both true and safe. It is now +69/−19 across eight hunks, and
+only two of them are Born-or-built — `@@ -157,10 +157,38 @@` (`NatureRows`,
++29) and `@@ -264,6 +297,23 @@` (the section render, +17). The other six are
+a compact `brief` result-card mode that nothing has refused.
+
+**So the instruction narrows: drop those two hunks, not the file.** Applying
+the patch whole ships a refused surface; skipping it whole silently drops an
+unrelated design change. Neither is what D168 decided.
+
+Both files stay in `design/standalone-v28/`, marked refused, so the idea is
+not re-proposed as new.
 
 **What this does not refuse:** the four instruments' own results (computed
 here from your answers), or authored content generally — question banks,

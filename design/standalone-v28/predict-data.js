@@ -108,6 +108,33 @@
   const READ_SKILL = { age: 0.7, gender: 0.56, edu: 0.45, job: 0.52, where: 0.63 };
   const CROWD = { sport: 0.58, food: 0.55, movies: 0.53, music: 0.51, tech: 0.56, culture: 0.5, event: 0.52, places: 0.54 };
 
+  // per-group skill inside a cut — a cut is never read evenly, so each group
+  // gets its own seeded skill spread around the cut's base
+  function grpSkill(dim, gi) {
+    const base = READ_SKILL[dim] || 0.5;
+    return Math.max(0.2, Math.min(0.94, base + (pHash('r:' + dim + ':g' + gi) - 0.5) * 0.5));
+  }
+  // one group's run: its seed plus every real read you logged against it
+  function groupRunsOf(dim) {
+    return grpLabels(dim).map((label, gi) => {
+      const key = 'r:' + dim + ':g' + gi;
+      const n0 = 4 + Math.floor(pHash(key + ':n') * 5);
+      const seed = [];
+      for (let i = 0; i < n0; i++) seed.push(pHash(key + ':d' + i) < grpSkill(dim, gi));
+      const days = seed.concat(S.log.filter((r) => r.k === 'r:' + dim && r.g === gi).map((r) => !!r.ok));
+      const right = days.filter(Boolean).length;
+      return { gi, label, seed, days, right, n: days.length, rate: days.length ? right / days.length : 0 };
+    });
+  }
+  function interleave(arrs) {
+    const out = [];
+    for (let i = 0; ; i++) {
+      let hit = false;
+      arrs.forEach((a) => { if (i < a.length) { out.push(a[i]); hit = true; } });
+      if (!hit) return out;
+    }
+  }
+
   function seedRun(key, skill) {
     const n = 7 + Math.floor(pHash(key + ':n') * 9);
     const days = [];
@@ -130,7 +157,10 @@
     const kind = key[0], id = key.slice(2);
     const skill = kind === 'c' ? CALL_SKILL[id] : READ_SKILL[id];
     if (skill == null) return null;
-    const days = seedRun(key, skill).concat(S.log.filter((r) => r.k === key).map((r) => !!r.ok));
+    // a read's history is the sum of its groups — interleaved so it reads as one
+    // mixed run — so the cut card and its group cards can never disagree
+    const seeded = kind === 'r' ? interleave(groupRunsOf(id).map((g) => g.seed)) : seedRun(key, skill);
+    const days = seeded.concat(S.log.filter((r) => r.k === key).map((r) => !!r.ok));
     const right = days.filter(Boolean).length;
     const rate = days.length ? right / days.length : 0;
     // the crowd's own hit rate on this key — the percentile line reads off it
@@ -154,7 +184,7 @@
       const key = this.keyOf(q);
       if (q.type === 'read') {
         if (S.log.some((r) => r.id === q.id)) return;
-        S.log.push({ id: q.id, k: key, ok: !!ok });
+        S.log.push({ id: q.id, k: key, ok: !!ok, g: q.gi });
       } else {
         S.calls[q.id] = { k: key, v: val, t: Date.now() };
       }
@@ -163,6 +193,16 @@
       save();
     },
     openCalls() { return Object.keys(S.calls).length; },
+    groupRuns(dim) { return groupRunsOf(dim); },
+    // the events behind one Calls subject — sealed calls waiting, settled ones scored
+    callsFor(key) {
+      const id = key.slice(2);
+      const evs = EVENTS.filter((e) => (CALL_SKILL[e.subject] ? e.subject : 'event') === id);
+      return {
+        open: evs.filter((e) => e.days > 0 && S.calls[e.id]).map((e) => ({ prompt: e.prompt, days: e.days, pick: e.options[S.calls[e.id].v] ? e.options[S.calls[e.id].v].label : '' })),
+        settled: evs.filter((e) => e.days < 0 && e.you != null).map((e) => ({ prompt: e.prompt, ok: e.you === e.out, pick: e.options[e.you].label })),
+      };
+    },
     runs() { return KEYS().map(runOf).filter(Boolean); },
     run(key) { return runOf(key); },
     label(key) {
@@ -182,19 +222,46 @@
     // when you read it well and drifts out where you don't — the distance IS
     // the score, so the map needs no numbers to be read.
     mapTree() {
+      // hub badge: your standing across every cut, plus how many reads wait in the feed
+      const rds = this.runs().filter((x) => x.kind === 'r');
+      const avg = rds.length ? Math.round(rds.reduce((s, x) => s + x.pct, 0) / rds.length) : null;
+      const waiting = (window.WORLD_FEED_QS || []).filter((q) => q.type === 'read' && !S.log.some((r) => r.id === q.id)).length;
       const cats = [
-        { id: 'fore-calls', label: 'Calls', hue: 265, fore: true },
-        { id: 'fore-reads', label: 'Reads', hue: 300, fore: true },
+        // Calls is parked for now — sealed events can't show skill until they
+        // resolve, and they diluted the Reads story. Data + feed still carry them.
+        // ring: the layout draws this branch as a bullseye — a dot's distance
+        // from the Reads hub IS its hit rate, closer = sharper
+        { id: 'fore-reads', label: 'Intuition', hue: 282, fore: true, ring: true, badge: avg != null && avg >= 50 ? 'top ' + (100 - avg) + '%' : null, waiting },
       ];
-      const nodes = this.runs().map((r) => ({
-        id: 'fore-' + r.key.replace(':', '-'),
-        parentId: r.kind === 'c' ? 'fore-calls' : 'fore-reads',
-        fore: true, daily: true, fkey: r.key,
-        label: window.PREDICT.label(r.key), tag: window.PREDICT.label(r.key),
-        ans: r.right + '/' + r.n, prompt: r.kind === 'c' ? 'Calls on ' + window.PREDICT.label(r.key) : 'Reading ' + window.PREDICT.label(r.key),
-        note: r.pct >= 50 ? 'better than most' : 'blind spot',
-        age: r.fresh ? 0 : 30, typ: r.rate, maj: r.pct >= 50,
-      }));
+      const nodes = [];
+      const reads = [];
+      this.runs().forEach((r) => {
+        const label = window.PREDICT.label(r.key);
+        if (r.kind === 'c') return; // no Calls on the map for now
+        // a cut is a hub; the groups inside it are the leaves. A group's distance
+        // from the hub is its hit rate and hollow means below your average on this
+        // cut — the map itself says who you read best, no card needed.
+        const subId = 'fore-' + r.key.replace(':', '-');
+        nodes.push({ id: subId, parentId: 'fore-reads', sub: true, fore: true, fkey: r.key, label, age: r.fresh ? 0 : 30 });
+        groupRunsOf(r.id).forEach((g) => {
+          reads.push({
+            id: subId + '-g' + g.gi, parentId: subId,
+            fore: true, daily: true, fkey: r.key, gi: g.gi, label: g.label, tag: g.label,
+            ctx: label, ev: g.n, rate: g.rate,
+            ans: g.right + '/' + g.n, prompt: label + ' · ' + g.label,
+            note: g.rate >= r.rate ? 'sharp' : 'blind spot',
+            age: r.fresh ? 0 : 30, typ: g.rate, maj: g.rate >= r.rate,
+          });
+        });
+      });
+      // one voice each: only the single sharpest read and the single blind spot
+      // across every cut get a callout — everything else stays a quiet dot
+      if (reads.length > 1) {
+        const byRate = reads.slice().sort((a, b) => b.rate - a.rate);
+        byRate[0].ext = 'sharpest'; byRate[0].ctx = 'sharpest';
+        byRate[byRate.length - 1].ext = 'blind spot'; byRate[byRate.length - 1].ctx = 'blind spot';
+      }
+      reads.forEach((n) => { delete n.rate; nodes.push(n); });
       return { cats, nodes };
     },
     reset() { S = { log: [], calls: {} }; save(); },

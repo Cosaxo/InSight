@@ -1,6 +1,38 @@
 --- v18/result-card.jsx
 +++ v28/result-card.jsx
-@@ -157,6 +157,31 @@
+@@ -36,18 +36,18 @@
+ 
+ // ── signature emblem — the type rendered as its own shape, tone-on-tone in the
+ // test hue. Defining dims read darker; same-type friends orbit the rim.
+-function SigEmblem({ testKey, sig, color, people, typeName }) {
++function SigEmblem({ testKey, sig, color, people, typeName, brief }) {
+   const mark = typeName && window.TypeMark ? window.TypeMark : null;
+   const cfg = (window.RP_TESTS || {})[testKey];
+   const ids = cfg ? Object.keys(cfg.hues).filter(id => sig && sig[id] != null) : [];
+   if (!cfg || !ids.length) return null;
+-  const size = 170, C = size / 2, R = C - 3, r0 = 6, n = ids.length, slice = 360 / n, gapD = n > 6 ? 10 : 14;
++  const size = brief ? 76 : 170, C = size / 2, R = C - 3, r0 = brief ? 4 : 6, n = ids.length, slice = 360 / n, gapD = n > 6 ? 10 : 14;
+   const rad = (d) => (d * Math.PI) / 180;
+   const pt = (a, r) => [C + Math.cos(rad(a)) * r, C + Math.sin(rad(a)) * r];
+   const gid = 'rpv2-emb-' + testKey;
+-  const ppl = (people || []).slice(0, 4);
++  const ppl = brief ? [] : (people || []).slice(0, 4);
+   return (
+-    <div style={{ position: 'absolute', right: -28, top: '50%', transform: 'translateY(-50%)', width: size, height: size, pointerEvents: 'none' }} aria-hidden="true">
++    <div style={{ position: 'absolute', right: brief ? 14 : -28, top: '50%', transform: 'translateY(-50%)', width: size, height: size, pointerEvents: 'none' }} aria-hidden="true">
+       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ display: 'block' }}>
+         <defs><radialGradient id={gid}><stop offset="0%" stopColor={color} stopOpacity="0.15"></stop><stop offset="100%" stopColor={color} stopOpacity="0"></stop></radialGradient></defs>
+         <circle cx={C} cy={C} r={R} fill={`url(#${gid})`}></circle>
+@@ -61,7 +61,7 @@
+           return <path key={id} className="rpv2-pop" style={{ transformOrigin: `${C}px ${C}px`, animationDelay: `calc(var(--rv-row) * ${i})` }} d={`M ${xa.toFixed(1)} ${ya.toFixed(1)} L ${xb.toFixed(1)} ${yb.toFixed(1)} A ${r.toFixed(1)} ${r.toFixed(1)} 0 0 1 ${xc.toFixed(1)} ${yc.toFixed(1)} L ${xd.toFixed(1)} ${yd.toFixed(1)} A ${r0} ${r0} 0 0 0 ${xa.toFixed(1)} ${ya.toFixed(1)} Z`} fill={color} opacity={op}></path>;
+         })}
+       </svg>
+-      {mark ? <span style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%,-50%)', display: 'inline-flex' }}><span className="rpv2-pop" style={{ display: 'inline-flex', animationDelay: '80ms' }}>{React.createElement(mark, { testKey, name: typeName, size: 82 })}</span></span> : null}
++      {mark ? <span style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%,-50%)', display: 'inline-flex' }}><span className="rpv2-pop" style={{ display: 'inline-flex', animationDelay: '80ms' }}>{React.createElement(mark, { testKey, name: typeName, size: brief ? 52 : 82 })}</span></span> : null}
+       {window.Av ? ppl.map((p, i) => {
+         const [x, y] = pt(132 + i * 33, R - 5);
+         return <span key={p.id} className="rpv2-pop" style={{ position: 'absolute', left: x - 10, top: y - 10, borderRadius: '50%', boxShadow: '0 0 0 2px var(--surface-2)', display: 'inline-flex', animationDelay: `${300 + i * 70}ms` }}><window.Av init={p.init} hue={p.hue} size={20} /></span>;
+@@ -157,10 +157,38 @@
    );
  }
  
@@ -30,13 +62,96 @@
 +}
 +
  // ── the v2 card: banner (identity + rarity + near-misses) → native chart → differ ──
- function ResultProfileCard({ testKey, archetype, tagline }) {
+-function ResultProfileCard({ testKey, archetype, tagline }) {
++function ResultProfileCard({ testKey, archetype, tagline, brief }) {
    const [typesOpen, setTypesOpen] = React.useState(false);
-@@ -264,6 +289,18 @@
+   const [explain, setExplain] = React.useState(false);
++  // brief: banner + rose only; the deep sections unfold on demand
++  const [full, setFull] = React.useState(false);
++  const deep = !brief || full;
+   const R = (window.IS_TEST_RESULTS || {})[testKey];
+   const cfg = (window.RP_TESTS || {})[testKey];
+   if (!R || !cfg || !R.dims || !R.dims.length) return null;
+@@ -174,6 +202,8 @@
+   // fit strength, in dim points of separation from the runner-up
+   const fit = arch ? (arch.gap < 5 ? 'close' : arch.gap >= 12 && arch.rms < 12 ? 'textbook' : 'clear') : 'clear';
+   const streak = fit === 'close' ? near[0].a.name.replace(/^The /, '') : null;
++  // 'an Outlier streak', not 'a Outlier streak'
++  const streakArt = streak && /^[aeiou]/i.test(streak) ? 'an' : 'a';
+   // people of yours who landed on the same type
+   const sameType = (() => {
+     if (!arch) return [];
+@@ -187,24 +217,24 @@
+   const pct = window.PASSIVE ? window.PASSIVE.pct(testKey) : 100;
+   const nLeft = window.PASSIVE ? Math.max(0, window.PASSIVE.needed(testKey) - window.PASSIVE.done(testKey)) : 0;
+   const avg = (window.IS_TEST_AVG || {})[testKey];
+-  const hero = window.TestRose ? <window.TestRose testKey={testKey} dims={R.dims} animate={true} /> : null;
++  const hero = window.TestRose ? <window.TestRose testKey={testKey} dims={R.dims} animate={true} compact={brief && !full} /> : null;
+   const otherAxes = null;
+   return (
+     <div className="card" style={{ padding: 0, overflow: 'hidden', marginBottom: 14 }}>
+       <div title={pct < 100 ? `${nLeft} more answers to fully map this` : 'fully mapped'} style={{ height: 3, background: `color-mix(in oklch, ${cfg.banner} 14%, var(--surface-3))` }}>
+         <div className="rpv2-bar" style={{ height: '100%', width: `${pct}%`, background: cfg.banner, transformOrigin: 'left' }}></div>
+       </div>
+-      <div style={{ position: 'relative', overflow: 'hidden', background: `linear-gradient(115deg, color-mix(in oklch, ${cfg.banner} 17%, var(--surface)) 0%, color-mix(in oklch, ${cfg.banner} 6%, var(--surface)) 78%)`, borderBottom: `0.5px solid color-mix(in oklch, ${cfg.banner} 28%, var(--rule))`, padding: '15px 18px 16px' }}>
+-        <SigEmblem testKey={testKey} sig={arch ? arch.list[you].sig : R.dims.reduce((o, d) => (o[d.id] = d.value, o), {})} color={cfg.banner} people={sameType} typeName={arch ? arch.list[you].name : null} />
+-        <div style={{ position: 'relative', zIndex: 1, paddingRight: 96 }}>
+-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10 }}>
++      <div style={{ position: 'relative', overflow: 'hidden', background: `linear-gradient(115deg, color-mix(in oklch, ${cfg.banner} 17%, var(--surface)) 0%, color-mix(in oklch, ${cfg.banner} 6%, var(--surface)) 78%)`, borderBottom: `0.5px solid color-mix(in oklch, ${cfg.banner} 28%, var(--rule))`, padding: brief ? '13px 16px 14px' : '15px 18px 16px' }}>
++        <SigEmblem testKey={testKey} sig={arch ? arch.list[you].sig : R.dims.reduce((o, d) => (o[d.id] = d.value, o), {})} color={cfg.banner} people={sameType} typeName={arch ? arch.list[you].name : null} brief={brief} />
++        <div style={{ position: 'relative', zIndex: 1, paddingRight: brief ? 88 : 96 }}>
++          {!brief ? <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10 }}>
+             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+               <span className="kicker" style={{ color: cfg.banner, marginBottom: 0 }}>{cfg.kicker}</span>
+               {window.ExplainBtn && <window.ExplainBtn onClick={() => setExplain(true)} label="What this measures" />}
+             </span>
+             {pct >= 100 && fit === 'textbook' ? <span style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: cfg.banner, whiteSpace: 'nowrap' }}>textbook fit</span> : null}
+-          </div>
+-          {ruleParts.length ? (
++          </div> : null}
++          {ruleParts.length && deep ? (
+             <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap', marginTop: 10 }}>
+               {ruleParts.map((p, i) => {
+                 const h = cfg.hues[p.id] != null ? cfg.hues[p.id] : 40;
+@@ -224,16 +254,19 @@
+               <span aria-hidden="true" style={{ fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 500, color: 'var(--ink-3)', opacity: 0.7 }}>{'\u2192'}</span>
+             </div>
+           ) : null}
+-          <div style={{ fontFamily: 'var(--sans)', fontSize: 25, fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1.1, textTransform: 'capitalize', color: `color-mix(in oklch, ${cfg.banner} 78%, var(--ink))`, marginTop: ruleParts.length ? 3 : 9 }}>{arch ? arch.list[you].name : archetype}</div>
+-          {streak ? <div style={{ fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 600, color: `color-mix(in oklch, ${cfg.banner} 72%, var(--ink))`, marginTop: 4, lineHeight: 1.35 }}>with a {streak} streak</div> : null}
++          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: brief ? (ruleParts.length && deep ? 3 : 0) : (ruleParts.length ? 3 : 9) }}>
++            <span style={{ fontFamily: 'var(--sans)', fontSize: 25, fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1.1, textTransform: 'capitalize', color: `color-mix(in oklch, ${cfg.banner} 78%, var(--ink))` }}>{arch ? arch.list[you].name : archetype}</span>
++            {brief && window.ExplainBtn ? <window.ExplainBtn onClick={() => setExplain(true)} label="What this measures" /> : null}
++          </div>
++          {streak ? <div style={{ fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 600, color: `color-mix(in oklch, ${cfg.banner} 72%, var(--ink))`, marginTop: 4, lineHeight: 1.35 }}>with {streakArt} {streak} streak</div> : null}
+           {(typeLine || tagline) ? <div style={{ fontFamily: 'var(--sans)', fontSize: 13, color: 'var(--ink-2)', marginTop: 6, lineHeight: 1.4, textWrap: 'pretty' }}>{typeLine || tagline}</div> : null}
+-          {rar ? <div style={{ marginTop: 14 }}><RarityField pct={rar.pct} label={rar.label.toLowerCase()} color={cfg.banner} title={`${rar.label.toLowerCase()} sit as far from average as you — also this type: ${sameType.map(p => p.name.split(' ')[0]).join(', ') || 'none of yours'}`} /></div> : null}
++          {rar && deep ? <div style={{ marginTop: 14 }}><RarityField pct={rar.pct} label={rar.label.toLowerCase()} color={cfg.banner} title={`${rar.label.toLowerCase()} sit as far from average as you — also this type: ${sameType.map(p => p.name.split(' ')[0]).join(', ') || 'none of yours'}`} /></div> : null}
+         </div>
+       </div>
+       <div style={{ padding: '10px 16px 16px' }}>
+         {hero}
+-        {hero ? <div style={{ textAlign: 'center', fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 600, color: 'var(--ink-3)' }}>{cfg.bipolar ? 'petal length = how far from the middle you sit' : 'petal length = how strongly the trait shows'}</div> : null}
+-        {arch ? (
++        {hero && deep ? <div style={{ textAlign: 'center', fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 600, color: 'var(--ink-3)' }}>{cfg.bipolar ? 'petal length = how far from the middle you sit' : 'petal length = how strongly the trait shows'}</div> : null}
++        {arch && deep ? (
+           <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 10, flexWrap: 'wrap' }}>
+             {near.map(({ a, why, border }) => (
+               <span key={a.name} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px 4px 5px', borderRadius: 999, background: border ? `color-mix(in oklch, ${cfg.banner} 8%, var(--surface))` : 'var(--surface)', border: `0.5px solid ${border ? `color-mix(in oklch, ${cfg.banner} 45%, var(--rule))` : 'var(--rule)'}`, fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 600, color: 'var(--ink-2)' }}>
+@@ -250,7 +283,7 @@
+             <TensionSpine dims={otherAxes} poles={cfg.poles} hues={cfg.hues} avg={avg} />
+           </div>
+         ) : null}
+-        {avg ? (
++        {avg && deep ? (
+           <div style={{ marginTop: testKey === 'values' ? 6 : 4, paddingTop: 14, borderTop: '0.5px solid var(--rule)' }}>
+             <div className="kicker" style={{ marginBottom: 12 }}>Where you stand</div>
+             <DifferRows testKey={testKey} R={R} cfg={cfg} />
+@@ -264,6 +297,23 @@
              </div>
            </div>
          ) : null}
-+        {window.NATURE && window.NATURE.h2[testKey] ? (
++        {deep && window.NATURE && window.NATURE.h2[testKey] ? (
 +          <div style={{ marginTop: 4, paddingTop: 14, borderTop: '0.5px solid var(--rule)' }}>
 +            <div className="kicker" style={{ marginBottom: 4 }}>Born or built</div>
 +            <div style={{ fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 500, color: 'var(--ink-3)', lineHeight: 1.45, marginBottom: 12, textWrap: 'pretty' }}>How much of the spread between people on each trait twin studies trace to genes.</div>
@@ -47,6 +162,11 @@
 +              <span style={{ flex: 1, textAlign: 'right', fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 500, color: 'var(--ink-3)' }}>averages across people — not slices of you</span>
 +            </div>
 +          </div>
++        ) : null}
++        {brief ? (
++          <button className="press" onClick={() => setFull(f => !f)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, width: '100%', marginTop: 12, padding: '8px 0', borderRadius: 10, background: 'none', border: '0.5px solid var(--rule)', cursor: 'pointer', fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 700, color: 'var(--ink-3)', WebkitAppearance: 'none' }}>
++            {full ? 'Less' : 'Full breakdown'} <span aria-hidden="true" style={{ transform: full ? 'rotate(180deg)' : 'none', transition: 'transform .18s' }}>{'\u25be'}</span>
++          </button>
 +        ) : null}
        </div>
        {explain && window.ExplainSheet ? (
