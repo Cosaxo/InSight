@@ -55,6 +55,7 @@ import {
   httpsCallable,
 } from "firebase/functions";
 import { initAppCheck } from "./appcheck";
+import { FUNCTIONS_REGION } from "./region";
 
 // The API surfaces, re-exported so nothing outside this module has to import
 // `firebase/*` statically (D110). This file is reached ONLY through
@@ -156,7 +157,7 @@ export function init(config: FirebaseConfig): void {
       disableWarnings: true,
     });
     connectFirestoreEmulator(dbInstance, EMULATOR_HOST, 8080);
-    connectFunctionsEmulator(getFunctions(app, "us-central1"), EMULATOR_HOST, 5001);
+    connectFunctionsEmulator(getFunctions(app, FUNCTIONS_REGION), EMULATOR_HOST, 5001);
   } else {
     // Attest this client before the first Firestore / callable
     // request. Fire-and-forget: the App Check token attaches to

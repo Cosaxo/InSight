@@ -159,6 +159,7 @@ import { nearMode, nearOptedIn, nearUntil, setNearMode, type NearMode } from "./
 import { myType } from "./typeMix";
 import { locateCell, locateSupported } from "./locate";
 import { scrubPersonaAnchors } from "./personaResidue";
+import { FUNCTIONS_REGION } from "../../lib/region";
 
 /**
  * One Crossroads story, folded (D136).
@@ -1441,7 +1442,7 @@ async function hydrateSocial(): Promise<void> {
 
 async function callable<T>(name: string, data: unknown): Promise<T> {
   const db = await getDb();
-  const fns = getFunctions(db.app, "us-central1");
+  const fns = getFunctions(db.app, FUNCTIONS_REGION);
   const res = await httpsCallable(fns, name)(data);
   return res.data as T;
 }
@@ -3088,7 +3089,7 @@ const LIVE = {
     // not gated, so writes kept flowing the whole time. Only a restart
     // cleared it.
     const db = await getDb().catch((err) => { torndown = false; throw err; });
-    await httpsCallable(getFunctions(db.app, "us-central1"), "deleteAccount")({})
+    await httpsCallable(getFunctions(db.app, FUNCTIONS_REGION), "deleteAccount")({})
       .catch((err) => { torndown = false; throw err; });
     // The account is gone: stop the uid-scoped groups listener before
     // the purge/reload — left running it would only error

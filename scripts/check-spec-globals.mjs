@@ -207,7 +207,7 @@ const COUPLING_BASELINE = {
   "src/v2/spec/map-learn-card.jsx": 3,
   "src/v2/spec/map-people.jsx": 4,
   "src/v2/spec/map-tab.jsx": 21,
-  "src/v2/spec/mirror-field-pops.jsx": 24,
+  "src/v2/spec/mirror-field-pops.jsx": 23,
   "src/v2/spec/mirror-field.jsx": 4,
   "src/v2/spec/mirror-tab.jsx": 9,
   "src/v2/spec/passive-meter.jsx": 4,

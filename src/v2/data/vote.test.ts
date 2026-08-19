@@ -12,6 +12,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LIVE_MEMBERS, LIVE_NEAR_MEMBERS, LIVE_SOCIAL_MEMBERS } from "../test/live-surface";
+import { FUNCTIONS_REGION } from "../../lib/region";
 
 interface FakeSnapshotDoc {
   id: string;
@@ -1239,13 +1240,19 @@ describe("LIVE.seedContent — the operator instrument", () => {
     return { fns, invoke };
   }
 
-  it("calls seedContentV2 in us-central1 and returns its payload", async () => {
+  it("calls seedContentV2 in the deployed region and returns its payload", async () => {
     const LIVE = await bootLive();
     const { fns, invoke } = await captureCallable();
 
     const res = await LIVE.seedContent();
 
-    expect(vi.mocked(fns.getFunctions).mock.calls[0][1]).toBe("us-central1");
+    // Asserted against the constant rather than a repeated literal (D201).
+    // A literal here would have to be edited in lockstep with a region
+    // move and is the one place a stale copy passes silently — the test
+    // would go on proving the client calls a region nothing serves.
+    // What holds the constant to the DEPLOY is check:fn-runtime, which
+    // compares it against the compiled endpoints.
+    expect(vi.mocked(fns.getFunctions).mock.calls[0][1]).toBe(FUNCTIONS_REGION);
     expect(vi.mocked(fns.httpsCallable).mock.calls[0][1]).toBe("seedContentV2");
     // Default is the cheap reseed (D34): rewrite changed documents, leave
     // contentRev alone so returning devices don't refetch the whole bank.

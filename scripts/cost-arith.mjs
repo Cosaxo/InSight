@@ -23,8 +23,10 @@ import { bankArrayFrom } from "./v2content-lib.mjs";
 export const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 
 // ── price sheet (Blaze) ─────────────────────────────────────────
-// Multi-region nam5 is the Firebase default and what prvfire33 is on.
-// Regional is roughly half; both are here so the choice is visible.
+// Multi-region is the Firebase default and roughly DOUBLE a single region.
+// Which one prvfire33 is on is not stated here any more — that sentence is
+// what went stale at D165 — it is read from the tree as REGIONAL above.
+// Both sheets stay so the counterfactual is one flag away.
 export const priceSheet = (regional) =>
   regional
     ? { read: 0.03e-5, write: 0.09e-5, del: 0.01e-5, store: 0.108 }
@@ -73,6 +75,44 @@ function readNum(rel, re, what) {
   // A no-op for the `(\d+)` patterns above.
   return Number(String(m[1]).replace(/_/g, ""));
 }
+
+// The string form of the same trade, for the one input that is a place
+// rather than a count.
+function readStr(rel, re, what) {
+  const src = readFileSync(join(ROOT, rel), "utf8");
+  const m = src.match(re);
+  if (!m) {
+    throw new Error(
+      `cost-arith: could not read ${what} from ${rel}.\n`
+      + `    Pattern ${re} matched nothing. The constant was probably renamed or\n`
+      + "    reshaped. Fix the pattern here — do NOT paste the value back in.",
+    );
+  }
+  return m[1];
+}
+
+// WHERE THE DATABASE IS, read rather than assumed (D200).
+//
+// This was a default parameter — `costModel({ regional = false })` — with a
+// comment beside the price sheet saying multi-region "is what prvfire33 is
+// on". D165 moved production to a single region on 2026-08-15 and neither
+// line changed, so every table in docs/COSTS.md and every `burnUsd` the
+// pulse console published was roughly DOUBLE the real bill. Nothing caught
+// it for three days because the region is an INPUT: check:figures compares
+// quoted numbers against the tree, and the model was computing exactly what
+// it had been told, correctly, from a false premise.
+//
+// So the premise now comes from the same file the backend gets the database
+// from, and the flag became an override for the counterfactual rather than
+// the way the truth is supplied.
+export const LOCATION = readStr(
+  "functions/src/db.ts", /export const FIRESTORE_LOCATION = "([^"]+)"/, "FIRESTORE_LOCATION");
+
+/** True when production is on a single region — half the price of a multi-region. */
+export const REGIONAL = LOCATION.includes("-");
+
+/** How to name the location in output, so no caller spells it out again. */
+export const LOCATION_LABEL = REGIONAL ? `${LOCATION} regional` : `${LOCATION} multi-region`;
 
 // Deck listeners attached per boot — 7 onSnapshot subscriptions, and the
 // single largest term in the boot read count.
@@ -471,7 +511,7 @@ export function socialTerms(dau, mature, o = {}) {
   };
 }
 
-export function costModel({ regional = false, bank = bankDocs() } = {}) {
+export function costModel({ regional = REGIONAL, bank = bankDocs() } = {}) {
   const P = priceSheet(regional);
 
   // Reads decompose into seven sources — see COSTS.md "Where the reads

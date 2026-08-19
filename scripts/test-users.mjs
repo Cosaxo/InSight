@@ -99,9 +99,10 @@ import {
 // dependency-free at module scope, so nothing Vite-shaped comes with them.
 import { duelQFor, splitBanks, utcDayIndex } from "../src/v2/data/deck.ts";
 import { parseCatalogue, placeKey } from "../src/v2/data/places.ts";
+import { FUNCTIONS_REGION } from "../src/lib/region.ts";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const REGION = "us-central1";
+const REGION = FUNCTIONS_REGION;
 const DAY_MS = 86400000;
 
 // How far back a duel answer may be dated, in whole days.

@@ -98,6 +98,12 @@ npx firebase functions:delete rebuildAreaAggregates scheduledAreaAggregates \
   scheduledTaxonomies --project prvfire33 --region us-central1 --force
 ```
 
+**`us-central1` in that command is correct and must not be "fixed" to
+match D201.** Those nine functions were deployed before the move and are
+still sitting in the old region; naming the new one would delete nothing
+and report success. It is the one place in this repo where the old region
+is the right answer — everywhere else it is a stale copy.
+
 Until that runs, three schedules keep firing against empty collections —
 harmless and near-free, but it is billed work that produces nothing. The
 inert `aggregates_*` and `taxonomies` documents they leave behind can be
@@ -331,6 +337,81 @@ secret, the Apple Developer account and the Play Console account are all
 single-holder too, and none of them is a comma-separated variable. Those are
 account-level delegation (Play has user management; Apple has App Store
 Connect roles), and they belong on the pre-launch list for the same reason.
+
+## Moving the functions to another region (D201)
+
+The code half is done: `FUNCTIONS_REGION` in
+`functions/src/ops.ts` and `src/lib/region.ts` both read `europe-west1`,
+every function compiles to it, and `check:fn-runtime` fails if the two
+sides ever disagree or if a call site starts spelling a region out again.
+**The deploy half is an operator action, and it is the one deploy in this
+repo that can corrupt data.** Read this section before running it.
+
+### Why it is not an ordinary deploy
+
+**A function's region is part of its identity.** Deploying the new region
+does not move anything — it CREATES `europe-west1/onV2AnswerCreated` and
+leaves `us-central1/onV2AnswerCreated` exactly where it is. While both
+exist, both are subscribed to the same document path, and **every answer
+folds twice**.
+
+**The event-ledger dedup does not save you, and it looks like it should.**
+`functions/src/v2.ts` opens each aggregate transaction with
+`const seen = await tx.get(eventRef); if (seen.exists) return;`, keyed on
+the CloudEvent id. That makes a RETRY of one trigger idempotent, which is
+what it was written for (`retry: true` on both triggers). Two independent
+Eventarc subscriptions deliver two events with two ids for the same write,
+so each writes its own ledger row and folds again. The counts end up
+double and nothing errors.
+
+The deploy step in `firebase-deploy.yml` passes `--force` with an
+id-only `--only functions:<name>` filter, which is the combination that
+lets firebase-tools plan the old-region function as a deletion rather than
+prompting. **Expected, not verified** — no region move has been run
+against this project — so step 3 below is a check rather than a formality.
+
+### The procedure
+
+1. **Pick a quiet moment and do not answer anything while it runs.** At
+   the current install base this is trivially satisfiable; it stops being
+   trivial the day there are users, which is most of why this is being
+   done before launch rather than after.
+2. **Merge to `main` and let *Deploy Firebase backend* run**, or dispatch
+   it. It deploys all 28 functions to `europe-west1`.
+3. **Verify nothing survives in the old region — this is the step that
+   matters:**
+   ```bash
+   gcloud functions list --project prvfire33 --regions us-central1
+   ```
+   Anything listed that is not one of D13's nine v1 leftovers is a live
+   duplicate. Delete it before the next answer is written:
+   ```bash
+   npx firebase functions:delete <name> --project prvfire33 \
+     --region us-central1 --force
+   ```
+   The two Firestore triggers are the urgent ones; a duplicated *callable*
+   is harmless (nothing routes to it) and still worth removing.
+4. **Confirm the fold still runs.** Answer one question and watch the
+   count move — `onV2AnswerCreated` is the only function whose silence
+   looks exactly like success. The `scheduledDuelReveals-silent` alert
+   covers the reveal scan, not this.
+5. **Ship a client build.** Every installed client calls the region its
+   own bundle names, so every build shipped before this deploy — 21 and
+   earlier — keeps calling `us-central1`
+   and get a 404 the app reports as `internal` on every callable —
+   account deletion, push registration, the logic test, circles and
+   duels, device activation, suggestions. The daily and the Mirror keep
+   working, because those read Firestore directly and never go through a
+   callable. Bump the build and release before anyone is on the old one.
+
+### If it goes wrong
+
+The rollback is the same operation in reverse — flip both constants back,
+deploy, delete the `europe-west1` copies — with the same double-fold
+window. Aggregates already double-counted are NOT self-healing: the
+ledger says the work was done. `## Correcting aggregates after a
+fake-account ring (D28)` below is the closest thing to a repair path, and
+it is a rebuild rather than an undo.
 
 ## Rolling back a bad deploy
 

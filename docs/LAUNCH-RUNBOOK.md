@@ -1302,6 +1302,38 @@ That is a tester-count problem, not a workflow problem.
       dispatch that #2 exists to save, which is the trade being made, and
       it is the cheaper side once releases stop being daily.
 
+- [ ] **5.9 Deploy the functions to `europe-west1` (D201), then confirm
+      the old region is empty.** The code is merged and every gate is
+      green; this is the operator half, and it is the one deploy here that
+      can corrupt data rather than just fail.
+
+      **Why now:** every client calls the region its own bundle names, so
+      this gets more expensive with each install — the same "last free
+      reset" argument D165 made about the database, one layer up. It also
+      ends the split D200 measured: the database has been in Europe since
+      2026-08-15 and the functions were still in Iowa.
+
+      **The hazard, in one sentence:** a region is part of a function's
+      identity, so the deploy CREATES the new copies and leaves the old
+      ones running, and while both exist **both Firestore triggers fire
+      and every answer folds twice** — the event-ledger dedup keys on the
+      CloudEvent id, which makes a retry safe and says nothing about a
+      second subscription.
+
+      The full procedure, the verification command and the rollback are in
+      [`DEPLOYMENT.md`](DEPLOYMENT.md) § Moving the functions. The short
+      form: deploy while nothing is being answered, then
+      `gcloud functions list --project prvfire33 --regions us-central1`
+      and delete anything that is not one of D13's nine v1 leftovers.
+
+      **Then bump the build and ship it** (2.4). Every build shipped before
+      this deploy — 21 and earlier — keeps
+      calling `us-central1` and get a 404 the app reports as `internal` on
+      every callable — account deletion, push registration, the logic test,
+      circles and duels, device activation, suggestions. The daily and the
+      Mirror keep working, because they read Firestore directly and never
+      go through a callable.
+
 ## Phase 6 — Submit
 
 - [ ] **6.1 Pre-flight, before every archive and every upload:**

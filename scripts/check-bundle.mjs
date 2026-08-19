@@ -666,7 +666,27 @@ const MAX_TOTAL_JS_KB = 2357;
 // from the 955 entry holds at the new figure: either SDK rejoining first
 // paint lands at 1265 or 1417, so any ceiling near 978 catches it, and the
 // 6 KB band is headroom for a feature rather than room for a library.
-const MAX_EAGER_KB = 978;
+//
+// 978 → 920 (2026-08-18): D200 took the relationship map off the eager
+// graph. THE FIRST TIME THIS CONSTANT HAS COME DOWN, and the entries above
+// are seven raises in a row, so it is worth naming what was different:
+// nothing was optimised. `spec/relmap.jsx` + its core and panels are
+// reachable only from the DEMO Circle field — a live build takes
+// LiveCircleBody (D101) — so the entry chunk was carrying ~102 KB of source
+// that a shipping app cannot execute. Measured both ways at this commit:
+// eager 966 → 906 (−60), entry chunk 494 → 435 (−59), total 2349 → 2349
+// and 82 → 83 chunks. The total not moving IS the finding: this is a
+// relocation, and the 2026-08-13 entries already say the total cannot see
+// one.
+//
+// THE BAND IS 14 KB, NOT 72, and that is the deliberate half. The freed
+// room is exactly what docs/VISION-V28.md §5 is waiting on — the Map's
+// Foresight and Crossroads branches are "blocked on bytes, not data" — and
+// leaving it inside the ceiling would hand it over silently. A ceiling with
+// 72 KB of slack defends nothing; the next feature to want that room should
+// raise this line with a measurement beside it, which is what every entry
+// above did.
+const MAX_EAGER_KB = 920;
 
 let files;
 try {
