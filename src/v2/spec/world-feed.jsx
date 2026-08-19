@@ -2220,8 +2220,18 @@ class WorldFeed extends React.Component {
       clearTimeout(this._sheetT);
       this._sheetT = setTimeout(() => this.setState((st) => (st.sheet && st.sheet.closing ? { sheet: null } : null)), 230);
     };
+    // The topic list rises FROM the tab bar rather than over it (D211):
+    // "Pick topics →" sends people here from the profile, and a
+    // destination that hides the app's own way out reads as a trap —
+    // reported from a device as the bottom navigation going missing. The
+    // bar stays visible and tappable (the lifted scrim no longer covers
+    // it); leaving the tab unmounts the feed and the sheet with it.
+    // Measured, not a constant, because the bar's height moves with the
+    // safe-area inset. Content sheets keep full cover — see Sheet.
+    const barEl = panel === 'add' ? host.querySelector('.tabbar') : null;
+    const lift = barEl ? barEl.offsetHeight : 0;
     return ReactDOM.createPortal(
-      <Sheet onClose={close} closing={s.closing}
+      <Sheet onClose={close} closing={s.closing} lift={lift}
         label={panel === 'add' ? 'Add a topic' : panel === 'bg' ? 'About this question' : panel === 'takes' ? 'Takes' : panel === 'pick' || (q && q.type === 'pick') ? 'Who picked what' : panel === 'know' || (q && q.type === 'know') ? 'Who knows this' : q && q.type === 'rank' ? 'How people ranked' : 'Who voted'}>
           <div style={{ padding: '10px 18px 8px', display: 'flex', alignItems: 'baseline', gap: 10 }}>
             <span style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 15 }}>{panel === 'add' ? 'Add a topic' : panel === 'bg' ? (WF_BGTEXT(q) ? 'What you need to know' : 'About this question') : panel === 'takes' ? 'Takes' : panel === 'pick' || (q && q.type === 'pick') ? 'Who picked what' : panel === 'know' || (q && q.type === 'know') ? 'Who knows this' : q && q.type === 'rank' ? 'How people ranked' : 'Who voted'}</span>

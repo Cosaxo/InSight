@@ -215,11 +215,20 @@ export function useDialog(onClose, label) {
 
 // The bottom-sheet pattern: scrim + sheet + grab handle, with the dialog
 // semantics already attached. `children` land inside the sheet.
-export function Sheet({ onClose, closing, label, children }) {
+//
+// `lift` (px) raises the whole thing — scrim floor and sheet with it — so
+// the app chrome below stays visible AND tappable: the scrim no longer
+// covers it, so taps land on the real controls underneath. The topic
+// sheet passes the tab bar's height here (D211): it is a destination you
+// are SENT to from other screens, and arriving somewhere whose way out is
+// hidden reads as being trapped. Content sheets (voters, takes) pass
+// nothing and keep covering the bar, which is the ordinary sheet grammar.
+export function Sheet({ onClose, closing, label, lift, children }) {
   const dlg = useDialog(onClose, label);
   return (
     <div
       className={'wf-scrim' + (closing ? ' is-closing' : '')}
+      style={lift ? { bottom: lift } : undefined}
       // The backdrop dismisses on click, but it is NOT a control: the
       // sheet's own Close button and Escape are the real paths, and giving
       // this a button role would announce a duplicate of both. presentation
@@ -231,7 +240,10 @@ export function Sheet({ onClose, closing, label, children }) {
       // removes both.
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="wf-sheet" {...dlg}>
+      {/* Lifted, the sheet sits on chrome that already clears the home
+          indicator, so the native safe-area padding it normally carries
+          (.native-shell .wf-sheet) would be dead space inside it. */}
+      <div className="wf-sheet" style={lift ? { paddingBottom: 0 } : undefined} {...dlg}>
         <div className="wf-sheet-grab"></div>
         {children}
       </div>

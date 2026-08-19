@@ -51,9 +51,11 @@ const EXEMPT = {
   "src/v2/data/push.ts":
     "the token memo carries the uid and is compared before use; a new uid "
     + "re-registers and overwrites",
-  "src/lib/sentry.ts":
-    "the telemetry opt-in flag is read from storage on every check — no "
-    + "in-memory copy exists to go stale",
+  // src/lib/sentry.ts was exempt here ("the flag is read from storage on
+  // every check") until D211 removed the panel's toggle and with it
+  // setTelemetryEnabled — the file's last insight.* WRITE. telemetryEnabled
+  // still reads the key, but the predicate is about writers, so the entry
+  // would be stale (and this gate fails stale entries by design).
   "src/v2/data/logic-score.ts":
     "stateless helpers (D53): the result loads per mount and every save "
     + "writes a whole fresh attempt — no module-scope copy exists to go "

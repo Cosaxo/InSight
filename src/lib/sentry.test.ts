@@ -3,11 +3,15 @@
 // Pins D76's default: telemetry is ON unless an opt-out was recorded.
 // The absent-key case is the one that fails on the pre-D76 code, where
 // absence meant off. It matters because the claim lives in prose all
-// over the tree — privacy.html's "on by default", the panel's
-// "On (default)", the store forms — and flipping the comparison back
-// would turn every one of them into fiction while lint, tsc,
-// check:globals and check:store-forms all stay green. This is the only
-// gate that executes the default.
+// over the tree — privacy.html's "on by default", the store forms — and
+// flipping the comparison back would turn every one of them into fiction
+// while lint, tsc, check:globals and check:store-forms all stay green.
+// This is the only gate that executes the default.
+//
+// The account panel's off switch is gone (D211), so nothing writes the
+// flag any more — the second case writes the KEY exactly as an older
+// build's switch did, because those recorded opt-outs are what must stay
+// honoured for as long as the storage carrying them lives.
 //
 // The send-site gating (an SDK initialised before an opt-out must not
 // keep transmitting) is deliberately NOT tested here: it lives behind
@@ -16,7 +20,7 @@
 // the enforcement instead.
 
 import { beforeEach, describe, expect, it } from "vitest";
-import { setTelemetryEnabled, telemetryEnabled } from "./sentry";
+import { telemetryEnabled } from "./sentry";
 
 beforeEach(() => localStorage.clear());
 
@@ -25,18 +29,14 @@ describe("telemetryEnabled — on unless an opt-out was recorded (D76)", () => {
     expect(telemetryEnabled(), "a fresh install must report by default").toBe(true);
   });
 
-  it("honours a recorded opt-out", () => {
-    setTelemetryEnabled(false);
+  it("honours an opt-out an older build recorded", () => {
+    localStorage.setItem("insight.telemetry.v1", "false");
     expect(telemetryEnabled()).toBe(false);
+    expect(telemetryEnabled(), "a read must not consume the record").toBe(false);
   });
 
-  it("an opt-out survives being read repeatedly, and an explicit re-enable lifts it", () => {
-    setTelemetryEnabled(false);
-    expect(telemetryEnabled()).toBe(false);
-    expect(telemetryEnabled()).toBe(false);
-    // setTelemetryEnabled(true) also calls sentryInit(); with no
-    // VITE_SENTRY_DSN in the test env that is a no-op by design.
-    setTelemetryEnabled(true);
+  it("only the recorded 'false' opts out — any other residue stays on", () => {
+    localStorage.setItem("insight.telemetry.v1", "true");
     expect(telemetryEnabled()).toBe(true);
   });
 });

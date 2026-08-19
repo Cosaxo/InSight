@@ -99,6 +99,23 @@ describe("the topic list opens on request", () => {
     expectNoBoundary("add sheet, opened on request");
   });
 
+  it("keeps the tab bar on screen: the sheet lifts by the bar's height", () => {
+    // The other half of D190's door (D211). Landing here from the profile
+    // is only an arrival if the app's own navigation survives it: the
+    // sheet used to scrim the tab bar over, and on a device that read as
+    // the bottom navigation going missing. The lift is measured off the
+    // bar, so it is stubbed here — jsdom lays nothing out and reports 0,
+    // which is exactly the no-op the mechanism must not regress to.
+    const expectNoBoundary = mountApp();
+    const bar = document.querySelector(".tabbar");
+    Object.defineProperty(bar, "offsetHeight", { value: 66, configurable: true });
+    act(() => { requestTopicSheet(); });
+    expect(screen.getByText("Your topics")).not.toBeNull();
+    const scrim = document.querySelector(".wf-scrim");
+    expect(scrim.style.bottom, "the scrim still covers the tab bar").toBe("66px");
+    expectNoBoundary("add sheet, lifted clear of the tab bar");
+  });
+
   it("consumes the request, so the sheet does not reopen by itself", () => {
     // A flag that stays set is a sheet that comes back the next time
     // anything mounts — which is the failure this one-shot shape exists to

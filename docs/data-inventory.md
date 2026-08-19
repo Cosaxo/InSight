@@ -53,7 +53,7 @@ Safety answers when store listing time comes.
 | Device activation bits | **Apple / Google, not us** | nobody (the platforms hold them) | 2–3 bits per device (DeviceCheck / Play Integrity Device Recall) meaning "an account was activated from this device recently". The server receives allow/deny and stores **no device identifier**; there is nothing here for `deleteAccount` to erase because nothing is held (D29) |
 | Local device state | localStorage (~29 `insight.*` keys) | this device | vote cache, display-name draft, passive-test progress, replies, likes, scenes |
 | Offline data cache | Firestore `persistentLocalCache` (IndexedDB) | this device | mirrors the questions and answers fetched for this account |
-| Crash reports | Sentry (third party) | Sentry project members | **on by default, opt-out in the privacy panel** (D76); errors carry the **uid** (no email, no name, no session replay, `sendDefaultPii: false`) |
+| Crash reports | Sentry (third party) | Sentry project members | **on, with no in-app switch** (D76, the panel toggle removed at D211; an opt-out recorded by an older build is still honoured at every send site); errors carry the **uid** (no email, no name, no session replay, `sendDefaultPii: false`) |
 
 **Not collected:** contacts, photos, free-text from strangers, advertising
 or analytics identifiers. No product analytics of any kind ship today.
@@ -135,7 +135,8 @@ Three things deliberately survive, and all belong on a store form:
 - **the uid attached to any Sentry event already sent.** `deleteAccount`
   does not reach into Sentry, so those reports persist for the Sentry
   project's retention period. Only relevant if telemetry was on when a
-  report went out — it is on by default (D76), off after opt-out — and
+  report went out — it is on (D76; since D211 there is no in-app switch,
+  and only an opt-out recorded by an older build turns it off) — and
 - **moderation verdict rows** (`v2_mod_verdicts`). They record that a take
   id was removed, kept or escalated, under which policy line, by which
   moderator — no author text, no author uid. Once the take, the flags and

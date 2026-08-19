@@ -21867,3 +21867,132 @@ because the state it forbade had never occurred; this one could not fail
 because the thing it looked for erased itself. Both were found by asking
 what would have to be true for the gate to fire, rather than by reading
 its output.
+
+## D211 · The topic door keeps the tab bar, a walk is final, and the account panel stops offering what sign-in settled
+
+**2026-08-19.** Three faults, reported from a device running Build 20 —
+the screenshots carry D190's "You only get to pick once" copy, which is
+what dates them, the same way D190 dated its own report by the tab order.
+The report is terse, so each section quotes it and says what was read
+into it.
+
+### 1 · "Pick topics" landed you somewhere whose navigation had vanished
+
+> *"when i press add intrest i get navigated to feed i just need the
+> bottom feed bot navigation as well"*
+
+D190 §3 made the profile's "Pick topics →" open the feed's **Add a
+topic** sheet after the jump, and that half holds. What the report is
+about is the other half of the arrival: the sheet is portaled to the app
+screen precisely so it can cover the tab bar, so the button dropped you
+on a new screen with the app's own navigation nowhere in sight — scrimmed
+over, for as long as the sheet is up.
+
+That grammar is right for the feed's CONTENT sheets (voters, takes,
+stats, context): they are opened in place by someone already standing in
+the feed, and a sheet that dims everything else is how a sheet says
+"this is a detour". It is wrong for a sheet that is somewhere people are
+SENT: a destination that hides the way out reads as a trap, not a detour.
+
+So the topic sheet now rises FROM the tab bar instead of over it.
+`Sheet` (primitives.jsx) takes a `lift`; the feed passes the tab bar's
+measured height — measured, not a constant, because the bar's padding
+moves with the safe-area inset — and the scrim's floor rises by it, the
+sheet with it (it positions against the scrim), the sheet's own
+safe-area padding zeroed since the bar below already clears the home
+indicator. The bar stays visible AND tappable: switching tabs unmounts
+the feed and the sheet with it, which is the correct meaning of tapping
+navigation under an open topic list. Content sheets pass nothing and
+keep full cover. Pinned in smoke-topics with a stubbed `offsetHeight`,
+because jsdom lays nothing out and reports 0 — which is exactly the
+no-op the mechanism must not regress to.
+
+### 2 · A crossroads could be re-walked, which re-wrote the result
+
+> *"You should not be able to redo a crossroad just change the resualts"*
+
+**Walk again** reset the local walk, and the second finished walk went
+through `editVote` — a D86 edit of the standing answer. Legal, and wrong
+for THIS card: its entire reveal is how rare your road was, and a redo
+control moves the very numbers it just showed you, as many times as you
+like within the cooldown. The other feed cards that allow a D86 edit
+reveal a split, not a rarity claim about the answer you are re-picking.
+
+Removed: the button (`.pp-again` with it), the `rewalk` state, and the
+card's edit path. `choose()` writes only a FIRST answer; a standing
+answer reached mid-walk — a vote hydrating late, or another device's —
+snaps the card back to the server's record exactly as a refused edit used
+to, because showing the raced walk would be showing an answer nobody
+stored. **D86 itself is unchanged**: the server still accepts an
+optionIdx edit; this card just never asks for one. Demo walks are final
+too — one rule, and the demo's job is to show the real behaviour.
+
+And the finished card told its first walker **"you and 0% ended here ·
+1 in Infinity walks your road"** — the report's own screenshot. `myShare`
+is 0 until the aggregate fold lands your vote (and stays 0 if nobody
+follows), so the card divided by zero and printed it. The chips now read
+"you're the first to end here" while the crowd holds nobody at your
+ending, and a share that rounds to zero prints "<1%" rather than "0%" —
+the D72 posture, one card over: a null is a refusal, not a zero.
+
+### 3 · The account panel offered three things sign-in already settled
+
+> *"you should not be able to change your handle or crash report or sign
+> in is mandetory so those shold be removed"*
+
+**The handle claim control is gone.** D190 §2 made a handle claimed-once
+and left this panel a claim form "for the accounts that predate that
+screen and for anyone who skipped it" — and that form is what the
+owner's own device drew (`LIVE.handle` is `""` until the profile doc
+hydrates, and for any account that skipped the first-run screen), where
+it reads as an offer to pick a handle from settings: the thing D190 §2
+abolished, wearing its clothes. The panel now shows a handle as a FACT
+("It can't be changed") or nothing at all. **Cost accepted and named**:
+an account that skipped `LiveProfileSetup` has no claim surface left —
+it stays handle-less, and joins circles by invite code.
+
+**The Sign-in row is gone.** The D134 gate walls every release build
+behind Google before the app opens (`ios-release.yml` sets
+`VITE_REQUIRE_SIGNIN`, default true), so on any build a user actually
+holds the row could only ever read "Linked ✓" — a control re-offering
+what the door already settled, which is the copy rule's first deletion
+(D182: a noun the screen already says). **Cost accepted and named**: a
+build WITHOUT the gate now has no Google entry point at all. Android has
+no release workflow yet; when it gets one, it sets the same flag — the
+gate is the door, not the panel.
+
+**The Crash-reports toggle is gone, and D76 is amended**: reporting is
+on, with no in-app switch — the owner's call, same authority as D76
+itself. `setTelemetryEnabled` is deleted (sentry.ts); what must not move
+is the recorded past: an opt-out an OLDER build wrote
+(`insight.telemetry.v1` = `"false"`) is still honoured at every send
+site, because removing a switch must not flip anyone's recorded choice.
+Nothing writes that key any more — which `check:purge` noticed on its
+own (sentry.ts stopped matching the writer predicate, so its exemption
+was stale), and that is the gate working as designed.
+
+The prose moved in the same commit, because a promise the app no longer
+keeps must leave the pages that make it (D183's whole argument):
+`web/privacy.html` loses "you can switch it off at any time" and its two
+echoes (dateline bumped), `docs/data-inventory.md`'s crash row now says
+"no in-app switch", `docs/STORE-FORMS.md` updates both stores' crash
+rows — **Play's crash-logs answer flips from Optional to Required**,
+since Play's "users can choose" definition stopped being true, and an
+answer kept at Optional would have been the under-declaration direction
+SHIP-CHECKLIST warns about — and SHIP-CHECKLIST's crib table and
+on-device list follow. `check:policy-claims` pins no claim about the
+switch (by luck, not design), so this paragraph is the record that the
+page edits were deliberate.
+
+**Verified:** `test:unit` (101 files, 1511 tests — paths-card's rewritten
+walk cases and first-walker chip, the panel's absent-rows describe,
+sentry's legacy-opt-out cases, smoke-topics' lifted sheet), lint,
+`tsc -b`, `check:globals` (coupling flat at 392), `check:bundle` on a
+shipping build (2373 / 850 against 2404 / 880, re-measured on the
+D210-merged tree), `check:purge` (5 exempt,
+was 6), `test:scripts`, `:policy-claims` `:public-copy` `:store-forms`
+`:data-inventory` `:figures` `:a11y` `:labels` `:touch-zoom`
+`:monitoring` `:versions` `:quality` `:anchors` `:logic-sync`, and
+`check:docs` after the index regeneration. Backend suites were not run —
+nothing in functions/, firestore.rules or the vote path changed (the
+card stopped CALLING editVote; the callable is untouched).
