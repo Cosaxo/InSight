@@ -60,7 +60,7 @@ companies' apps or sites.
 
 **Every row below is therefore "Not used for tracking".**
 
-### Collected — declare these seven
+### Collected — declare these eight
 
 | Apple category | Type | Linked? | Purpose | What it actually is |
 | --- | --- | --- | --- | --- |
@@ -70,6 +70,7 @@ companies' apps or sites.
 | User Content | **Other User Content** | Yes | App Functionality | Answers and test results, the anchors each answer was given under, and question suggestions (D138). See the note below the table |
 | User Content | **Photos or Videos** | Yes | App Functionality | **Optional profile photo, off by default (D178)** — shown anywhere the app shows the user's name, including to people nearby since D177. Shrunk and re-encoded on the device, which drops the original's EXIF. See the note below the table |
 | Location | **Coarse Location** | Yes | App Functionality | City name; 0.002° presence cell |
+| Health & Fitness | **Health** | Yes | App Functionality | **New at D203.** Two of the five pulse questions are "How did you sleep?" and "How was your energy today?" — one five-step answer a day each, keyed to a UTC day. See the note below the table |
 | Location | **Precise Location** | Yes | App Functionality | Requested since D175; nothing precise is retained — see §"The three that bite" |
 | Sensitive Info | **Sensitive Info** | Yes | App Functionality | Politics test result (GDPR Art. 9); gender if entered |
 | Diagnostics | **Crash Data** | Yes | App Functionality | Sentry. **On by default** (D76), opt-out in the privacy panel, carries the uid only |
@@ -103,7 +104,7 @@ what needed fixing.
 
 ### Not collected — leave every one of these unticked
 
-Phone Number · Physical Address · Other Contact Info · Health · Fitness ·
+Phone Number · Physical Address · Other Contact Info · Fitness ·
 Payment Info · Credit Info · Other Financial Info ·
 Contacts · Emails or Text Messages · Audio Data ·
 Gameplay Content · Customer Support · Browsing History · Search History ·
@@ -133,27 +134,39 @@ one 256px object per account, deleted with the account (bytes included —
 
 Four of those are worth knowing *why*, because each looks tickable:
 
-- **Health — No, and this one changed shape at D140.** The profile now
-  collects a **height band** as the seventh breakdown dimension, which is
-  the first body measurement this app has ever held, so a row that used to
-  be obviously No is now a judgement. It stays No on two grounds and they
-  have to hold together. *What it is:* a six-value select (`Under 160 cm`
-  … `190 cm or taller`, plus a real `Prefer not to say`) sitting on the
-  Basics card beside gender and education — a demographic band collected
-  to slice cohorts, never a measurement, never a centimetre field, and
-  D140 declined the precise input precisely so there would be nothing
-  finer to hold. *What Apple means by this row:* health and medical data —
-  HealthKit, Clinical Health Records, health-related research, "or any
-  other user provided health or medical data". This app touches no
-  HealthKit API, infers nothing medical, and shows the band only as a
-  cohort label. A demographic band is not a health record.
-  **The trip-wire, and it is the reason this bullet exists rather than a
-  silent No:** the argument above is about height *alone*. Add weight, or
-  anything that combines with height into a BMI, and this row becomes Yes
-  — that is health data by any reading, including Apple's. D140 declined
-  weight/BMI on unrelated grounds (the §4 trilemma re-imports the
-  suppression floor), so the answer here has never been tested. Whoever
-  picks that decision back up owns this row.
+- **Health — YES since D203, and the trip-wire is what moved it.** This
+  bullet answered **No** from the first filing until the pulse roster
+  shipped, and the No was argued at D140 for the **height band** alone: a
+  six-value demographic select (`Under 160 cm` … `190 cm or taller`, plus
+  a real `Prefer not to say`) collected to slice cohorts, never a
+  measurement, with no centimetre field to hold anything finer. That
+  argument still stands for height and is not what changed.
+  **What changed is that the app started asking about sleep.** D166 §3
+  approved the five-pulse roster and D203 built it; two of the five are
+  *"How did you sleep?"* and *"How was your energy today?"*, answered once
+  per scheduled day on a five-step scale. Apple's wording for this row is
+  health and medical data — HealthKit, Clinical Health Records,
+  health-related research, **"or any other user provided health or medical
+  data"** — and a self-reported daily sleep series is that, on any reading.
+  So the row is Yes, and it is Yes on the roster rather than on the band.
+  **This is the D140 trip-wire being honoured, not overruled.** That
+  bullet said, in as many words, *"Whoever picks that decision back up owns
+  this row"* — it was written about weight and BMI, and the general case it
+  was really about is anything that turns a demographic app into one
+  holding a health series. Neither weight nor BMI is collected; D140's own
+  refusal is untouched, and this row would already have been Yes without
+  it.
+  *What is collected:* one ordinal answer a day per pulse, keyed to a UTC
+  day, written under `v2_users/{uid}/answers` like every other answer. It
+  is **Linked**, because under D98 it folds into the same exact aggregate
+  any signed-in user can read — a pulse answer is as public as a feed
+  answer, and filing it as unlinked would be the more flattering lie.
+  No HealthKit API is touched and nothing medical is inferred.
+  *What is NOT collected:* the **cadence**. How often someone wants to be
+  asked how they slept is arguably the more revealing half, and it never
+  leaves the device — `insight.pulseCadence.v1` in localStorage, swept by
+  the D51 purge, with no field, no rules arm and no server representation
+  to file. That is a design choice made partly for this row.
 - **Device ID — No.** Device binding (D29) receives 2–3 bits from Apple
   DeviceCheck meaning "an account was activated from this device
   recently". The server stores **no device identifier**; the platforms

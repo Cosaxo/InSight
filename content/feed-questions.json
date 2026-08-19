@@ -154,6 +154,7 @@
       "id": "f06",
       "core": true,
       "cat": "sport",
+      "also": ["tech"],
       "type": "vote",
       "prompt": "E-sports are real sports.",
       "options": [
@@ -171,6 +172,7 @@
       "id": "f07",
       "core": true,
       "cat": "sport",
+      "also": ["dilemma"],
       "type": "vote",
       "prompt": "Your team wins it all — but you can never watch them again. Deal?",
       "options": [
@@ -243,6 +245,7 @@
       "id": "f11",
       "core": true,
       "cat": "food",
+      "also": ["tech"],
       "type": "vote",
       "prompt": "Would you eat lab-grown meat?",
       "options": [
@@ -260,6 +263,7 @@
       "id": "f12",
       "core": true,
       "cat": "food",
+      "also": ["dilemma"],
       "type": "vote",
       "prompt": "A free pill replaces all meals. Food becomes hobby-only. Take it?",
       "options": [
@@ -365,6 +369,7 @@
       "id": "f18",
       "core": true,
       "cat": "movies",
+      "also": ["culture"],
       "type": "vote",
       "prompt": "Watching at 1.5× speed is disrespectful.",
       "options": [
@@ -459,6 +464,7 @@
       "id": "f23",
       "core": true,
       "cat": "music",
+      "also": ["tech"],
       "type": "vote",
       "prompt": "Vinyl actually sounds better.",
       "options": [
@@ -532,6 +538,7 @@
       "id": "f27",
       "core": true,
       "cat": "tech",
+      "also": ["event"],
       "type": "vote",
       "prompt": "Phones should be banned in schools.",
       "options": [
@@ -569,6 +576,7 @@
       "id": "f29",
       "core": true,
       "cat": "tech",
+      "also": ["dilemma"],
       "type": "vote",
       "prompt": "Delete all your data and start clean, or keep everything forever?",
       "options": [
@@ -586,6 +594,7 @@
       "id": "f30",
       "core": true,
       "cat": "tech",
+      "also": ["dilemma"],
       "type": "vote",
       "prompt": "A robot does your chores but records everything. Deal?",
       "options": [
@@ -620,6 +629,7 @@
       "id": "f32",
       "core": true,
       "cat": "culture",
+      "also": ["event"],
       "type": "vote",
       "prompt": "Tipping should be abolished.",
       "options": [
@@ -1395,6 +1405,7 @@
       "id": "dl2",
       "core": true,
       "cat": "dilemma",
+      "also": ["culture"],
       "type": "dial",
       "prompt": "The right tip",
       "lo": 0,
@@ -1405,6 +1416,7 @@
       "id": "dl3",
       "core": true,
       "cat": "dilemma",
+      "also": ["tech"],
       "type": "dial",
       "prompt": "Daily screen time — where does “too much” start?",
       "lo": 1,
@@ -1425,6 +1437,7 @@
       "id": "fd1",
       "core": true,
       "cat": "dilemma",
+      "also": ["food"],
       "type": "field",
       "prompt": "Pineapple on pizza — place it",
       "ax": [
@@ -1440,6 +1453,7 @@
       "id": "fd2",
       "core": true,
       "cat": "bigq",
+      "also": ["culture"],
       "type": "field",
       "prompt": "Small talk — place it",
       "ax": [
@@ -1455,6 +1469,7 @@
       "id": "fd3",
       "core": true,
       "cat": "bigq",
+      "also": ["tech"],
       "type": "field",
       "prompt": "AI assistants, today — place them",
       "ax": [
@@ -1725,6 +1740,101 @@
           "line": "You stayed with the receipts. Leverage keeps better than anger."
         }
       }
+    },
+    {
+      "id": "f57",
+      "core": true,
+      "cat": "music",
+      "type": "vote",
+      "prompt": "ABBA or Queen?",
+      "options": [
+        {
+          "label": "ABBA",
+          "count": 2100
+        },
+        {
+          "label": "Queen",
+          "count": 2600
+        }
+      ]
+    },
+    {
+      "id": "f58",
+      "core": true,
+      "cat": "people",
+      "type": "vote",
+      "prompt": "Who left the bigger mark: Einstein or Shakespeare?",
+      "options": [
+        {
+          "label": "Einstein",
+          "count": 2900
+        },
+        {
+          "label": "Shakespeare",
+          "count": 2400
+        }
+      ]
+    },
+    {
+      "id": "dl5",
+      "core": true,
+      "cat": "event",
+      "type": "dial",
+      "prompt": "How many years until a human walks on Mars?",
+      "lo": 0,
+      "hi": 100,
+      "unit": "yrs"
+    },
+    {
+      "id": "f60",
+      "core": true,
+      "cat": "movies",
+      "type": "vote",
+      "prompt": "The right way to see a film?",
+      "options": [
+        {
+          "label": "A cinema seat",
+          "count": 2300
+        },
+        {
+          "label": "Your own couch",
+          "count": 3400
+        }
+      ]
+    },
+    {
+      "id": "f61",
+      "core": true,
+      "cat": "tech",
+      "type": "vote",
+      "prompt": "Let AI write your texts for you?",
+      "options": [
+        {
+          "label": "Sure — it saves time",
+          "count": 1400
+        },
+        {
+          "label": "Never. It’s my voice",
+          "count": 3900
+        }
+      ]
+    },
+    {
+      "id": "f62",
+      "core": true,
+      "cat": "food",
+      "type": "vote",
+      "prompt": "Is a hot dog a sandwich?",
+      "options": [
+        {
+          "label": "Obviously",
+          "count": 2800
+        },
+        {
+          "label": "Obviously not",
+          "count": 3100
+        }
+      ]
     }
   ]
 }

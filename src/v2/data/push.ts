@@ -7,6 +7,7 @@ import { Capacitor } from "@capacitor/core";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { getDb } from "../../lib/firebase";
 import { reportError } from "../../lib/sentry";
+import { FUNCTIONS_REGION } from "../../lib/region";
 
 export async function registerPushForReveals(uid: string): Promise<void> {
   if (!Capacitor.isNativePlatform()) return;
@@ -63,7 +64,7 @@ export async function registerPushForReveals(uid: string): Promise<void> {
           // and a client-writable one could carry a stolen token. The
           // callable also drops the rotated predecessor in the same step.
           const db = await getDb();
-          const fns = getFunctions(db.app, "us-central1");
+          const fns = getFunctions(db.app, FUNCTIONS_REGION);
           await httpsCallable(fns, "registerPushToken")({
             token: token.value,
             prev: staleToken,

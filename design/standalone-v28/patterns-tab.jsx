@@ -2,6 +2,7 @@
 //   Map    — every question placed by how much its answer predicts the others
 //            (question-map.js / .jsx). This is the tab's centre.
 //   Oracle — the app guesses your next answer before you give it; beat it.
+//            One instrument, no card (oracle.jsx / oracle.css).
 // Chrome rules: ONE sub-row under the lens tabs (topic chips on the map, run
 // progress on the oracle) so switching never jumps; the lens explainer is
 // scaffolding that retires the first time you use the lens; and no type below
@@ -36,18 +37,9 @@ function PTRuler({ lens, onLens }) {
 }
 const PT_NOTES = {
   map: 'Every question in the pool, placed by how much its answer predicts the others \u2014 close together means tightly tied. A solid line joins answers that travel together, a dotted one where a pick predicts the opposite. Tap any place.',
-  oracle: 'It studies your past answers — your real feed votes included — then guesses your next one, sealed before you tap. Tall bar = a time you surprised it.',
+  oracle: 'It reads your past answers — feed votes included — and seals a guess before you tap. The taller fill is the side it called; a mark up on the ledger is a time you broke it.',
 };
 const ptTopic = (cat) => (window.WORLD_TOPICS || []).find((t) => t.id === cat);
-const ptHue = (cat) => { const t = ptTopic(cat); return t ? window.WPAL.c(t.color) : 'var(--accent)'; };
-const ptInk = (cat) => { const t = ptTopic(cat); return t ? window.WPAL.ink(t.color) : 'var(--accent)'; };
-const ptShort = (s, n) => (s.length > n ? s.slice(0, n - 1).trimEnd().replace(/[.,;:!?…]$/, '') + '…' : s);
-// arms one frame after mount — lets fills animate in from zero
-function usePTArmed(key) {
-  const [armed, setArmed] = React.useState(false);
-  React.useEffect(() => { setArmed(false); const t = requestAnimationFrame(() => requestAnimationFrame(() => setArmed(true))); return () => cancelAnimationFrame(t); }, [key]);
-  return armed;
-}
 // the explainer shows until you've actually used the lens once, then never again
 const PT_SEEN = 'insight.patterns.used.v1';
 function usePTUsed(lens) {
@@ -61,79 +53,6 @@ function usePTUsed(lens) {
     });
   }, [lens]);
   return [used, mark];
-}
-
-// ── Oracle ──────────────────────────────────────────────────────────────────
-// after an answer: where the guess landed, and which of your past answers gave
-// you away
-function PTOracle({ onUse }) {
-  const [, force] = React.useReducer((x) => x + 1, 0);
-  React.useEffect(() => window.PAT.sub(force), []);
-  const [rec, setRec] = React.useState(null); // last reveal, held until "next"
-  const Q = window.PAT.qs();
-  const curQ = rec ? Q.find((q) => q.id === rec.q) : window.PAT.nextQ();
-  const m = window.PAT.meter(), log = window.PAT.log(), A = window.PAT.answers();
-  const t = ptTopic(curQ ? curQ.cat : null);
-  const hit = rec && rec.pred === rec.mine;
-  const armed = usePTArmed(rec && rec.q);
-  const called = Math.round(m.acc * m.n);
-  return (
-    <div className="pt-oracle">
-      <div className="pt-record">
-        <div className="pt-scorerow">
-          <div className="pt-score"><b>{called}</b><span>of {m.n} called</span></div>
-          {m.streak >= 2 && <span className="pt-streak">{m.streak} surprises running</span>}
-        </div>
-        <div className="pt-spark" aria-label="Your last answers — height is how much you surprised it">
-          {log.slice(-18).map((r, i) => <i key={i} className={r.pred === r.mine ? '' : 'pop'} style={{ height: 6 + (Math.min(2, r.bits) / 2) * 52 + 'px' }} title={r.bits + ' bits'}></i>)}
-        </div>
-      </div>
-      {curQ ? (
-        <div className="card pt-qcard">
-          <div className="pt-qhead">
-            {t && <span className="pt-cat" style={{ background: window.WPAL.wash(ptHue(curQ.cat), 16), color: ptInk(curQ.cat) }}>{t.label}</span>}
-            {!rec && <span className="pt-seal">guess sealed</span>}
-          </div>
-          <div className="pt-qbody">
-            <div className="pt-prompt">{curQ.prompt}</div>
-            <div className="pt-opts">
-              {curQ.options.map((op, i) => rec ? (
-                <div key={i} className={'pt-opt' + (i === rec.mine ? ' is-you' : '') + (i === rec.pred ? ' is-pred' : '')}>
-                  {op.label}
-                  {i === rec.mine && <span className="pt-tag">you</span>}
-                  {i === rec.pred && <span className="pt-tag pred">oracle</span>}
-                </div>
-              ) : (
-                <button key={i} className="pt-opt" onClick={() => { const r = window.PAT.answer(curQ.id, i); if (r) { if (window.HAPTIC) window.HAPTIC.tick(); setRec(r); if (onUse) onUse(); } }}>{op.label}</button>
-              ))}
-            </div>
-          </div>
-          {rec && (
-            <div className="pt-reveal">
-              <div className="pt-confbar"><i style={{ width: (armed ? Math.round(rec.conf * 100) : 0) + '%' }}></i><span><b>{Math.round(rec.conf * 100)}%</b> sure you{'\u2019'}d say {curQ.options[rec.pred].label}</span></div>
-              {rec.ev && rec.ev.length > 0 && (
-                <div className="pt-tell">
-                  <span className="pt-tlab">{hit ? 'what gave you away' : 'it leaned on'}</span>
-                  {rec.ev.map((id) => { const q = Q.find((x) => x.id === id); if (!q || A[id] == null) return null; return <span key={id} className="pt-chip" style={{ background: window.WPAL.wash(ptHue(q.cat), 14), color: ptInk(q.cat) }}>{ptShort(q.options[A[id]].label, 20)}</span>; })}
-                </div>
-              )}
-              <div className="pt-verdict">
-                <b style={!hit ? { color: 'var(--accent)' } : undefined}>{hit ? 'Called it.' : 'You surprised it.'}</b>
-                <span>{hit ? 'predictable, this once' : '+' + rec.bits.toFixed(2) + ' bits of you'}</span>
-              </div>
-              <button className="pt-next" onClick={() => setRec(null)}>Next question</button>
-            </div>
-          )}
-        </div>
-      ) : (
-        <div className="card pt-done">
-          <div>You answered all {Q.length}.</div>
-          <p>The oracle has nothing left to guess.</p>
-          <button className="pt-next" onClick={() => window.PAT.reset()}>Start over</button>
-        </div>
-      )}
-    </div>
-  );
 }
 
 function PatternsTab() {
@@ -153,7 +72,10 @@ function PatternsTab() {
         {lens === 'map' ? (
           <div className="pt-pops h-scroll" role="tablist" aria-label="Topic">
             {chips.map((p) => (
-              <button key={p.id} role="tab" aria-selected={topic === p.id} className={'pt-pop' + (topic === p.id ? ' is-on' : '')} onClick={() => setTopic(p.id)}>{p.label}</button>
+              <button key={p.id} role="tab" aria-selected={topic === p.id} className={'pt-pop' + (topic === p.id ? ' is-on' : '')} onClick={() => setTopic(p.id)}>
+                {p.id !== 'all' && <i className="pt-dot" style={{ background: window.WPAL.c((ptTopic(p.id) || {}).color) }}></i>}
+                {p.label}
+              </button>
             ))}
           </div>
         ) : (
@@ -166,7 +88,7 @@ function PatternsTab() {
       <div key={lens} className="fade-in pt-stack">
         {!used && <div className="pt-note">{PT_NOTES[lens]}</div>}
         {lens === 'map' && <window.QuestionMap topic={topic} onUse={markUsed}></window.QuestionMap>}
-        {lens === 'oracle' && <PTOracle onUse={markUsed}></PTOracle>}
+        {lens === 'oracle' && <window.OracleLens onUse={markUsed}></window.OracleLens>}
       </div>
     </div>
   );

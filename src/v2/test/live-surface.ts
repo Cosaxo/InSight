@@ -27,6 +27,10 @@ export const LIVE_MEMBERS = [
   // what the Mirror's Answers and Scores lenses read. Distinct from
   // `deck()`, which is strictly the seven-day pager.
   "aggregated",
+  // The core feed questions with aggregates, same view models — the
+  // Patterns pool's other half (v28 §2). Core only, D161's sample-bias
+  // rule; two-option only, the fit's own encoding.
+  "coreFeedAggregated",
   "anchors", "appBuild",
   // Named who-voted (D98) — the app's only cross-user read, and the
   // reason the reversal was worth doing. On LIVE rather than LIVE.social
@@ -110,6 +114,7 @@ export const LIVE_MEMBERS = [
   "near",
   // The daily pulse (D139): the day-keyed create and the derived
   // day → optionIdx view over the hydrated vote mirror.
+  "pulseQs",
   "pulseVotes",
   // Crossroads' stories with their folded ending counts (D136). A story is
   // an ordinary bank question — real options, real fold, the ordinary vote
@@ -118,6 +123,15 @@ export const LIVE_MEMBERS = [
   // spec/paths-card.jsx reads it here instead. Empty in a demo build, which
   // is the signal the card falls back to its authored pool on.
   "pathQs",
+  // Foresight CALL, tier A (D194): the bank's calls with their folded
+  // counts, the published grades (null per call = fetched-and-ungraded,
+  // the whole map null = nothing read yet — the card draws different
+  // things for those two), and the one bounded fetch that fills them.
+  "callQs", "callOutcomes", "loadCallOutcomes",
+  // Feed ads (D197) — path 3, and NOT path 2's sponsored questions. Their
+  // own pool because an ad takes no answer and folds into no aggregate;
+  // null while unread, an array once known.
+  "feedAds", "loadAds",
   "ready", "saveAnchors",
   "saveDisplayName",
   // Operator-only, and the one member here no spec-layer JSX reads — it is

@@ -1,0 +1,30 @@
+{
+  "status": "EMPTY, DELIBERATELY (D197). The machinery ships; the inventory does not. Writing an ad here means printing a real company's name on a card nobody bought — D1's no-fabrication rule pointed at a claim about money rather than about a crowd, and the worse of the two: an invented crowd misleads about a number, an invented advertiser misleads about a relationship. The first row arrives with a contract behind it.",
+  "comment": "Feed ads (docs/MONETIZATION.md path 3). AN AD IS NOT A SPONSORED QUESTION, and the two are kept apart on purpose — path 2 sells a QUESTION, which is answered like any other and folds into the same public aggregate everyone reads; path 3 sells a CARD, which takes no answer and produces no data at all. They share the disclosure band and the single paid slot; they are otherwise different objects, and prose that blurs them makes the disclosure argument impossible to have (D196).",
+  "authoring": [
+    "Five rules, and `npm run check:content` holds all five:",
+    "1. TEXT ONLY. `advertiser`, `headline`, `body` — and nothing else.",
+    "   No image, no logo, no brand colour, no link. Every one of those is",
+    "   refused by name rather than by omission, so adding one is a",
+    "   conversation rather than a commit.",
+    "2. NO TAP-THROUGH. There is nowhere for the card to send you, which is",
+    "   why there is nothing to count. This is what keeps the ad path free",
+    "   of the measurement apparatus MONETIZATION.md rules out: with no",
+    "   click there is no click to attribute, and billing stays on the",
+    "   answers the sponsored-question path already publishes.",
+    "3. A WINDOW. `until` is a UTC day key, the same field and the same",
+    "   filter the feed already uses to stop serving an expired card.",
+    "4. AT MOST ONE AUDIENCE TAG, from the published breakdown dims, matched",
+    "   ON THE DEVICE (src/v2/data/sponsored.ts). The server is never asked",
+    "   who should see what.",
+    "5. THE BAND IS THE APP'S. The disclosure is drawn by ui/SponsorMark",
+    "   — the app's ink, the word PAID, the advertiser's name, the window —",
+    "   and an advertiser cannot restyle it, because nothing in this file",
+    "   can carry a style.",
+    "",
+    "Ads are never questions, so they carry no options, no provenance row",
+    "and no aggregate. They are seeded to v2_ads, which is read-only to",
+    "every client and written only by the seed."
+  ],
+  "ads": []
+}

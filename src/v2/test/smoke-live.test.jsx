@@ -36,7 +36,7 @@ import { act, cleanup, fireEvent, render, screen, within } from "@testing-librar
 // the slowest cases sat at ~4.8s before it and tip over under suite load.
 vi.setConfig({ testTimeout: 15000 });
 import { FEED_OPTIONS, PATH_TITLE, fixtureSurfaceMismatch, installLive } from "./live-fixture";
-import { growFeed } from "./mount-app";
+import { awaitText, growFeed } from "./mount-app";
 import { list as anchorList } from "../spec/map-anchors.js";
 import { IS_TESTS, IS_TEST_RESULTS } from "../spec/test-definitions.js";
 import { IS_ARCHETYPES } from "../spec/archetype-data.js";
@@ -58,6 +58,11 @@ beforeAll(async () => {
   // a tab that never rendered one — the vacuous pass this file's own
   // comments were written about.
   await specIndex.loadWorldFeed();
+  // The Map's family is lazy since v28 §5 and two cases below render
+  // window.MTAnswerCard directly — without this await the global is
+  // simply absent and both would fail on `undefined`, not on the gate
+  // they pin.
+  await specIndex.loadMapTab();
   App = globalThis.App;
 });
 
@@ -110,6 +115,23 @@ describe("spec layer mounts in live mode", () => {
     const expectNoBoundary = mountLive();
     fireEvent.click(screen.getByRole("button", { name: /^profile$/i }));
     expectNoBoundary("profile/live");
+  });
+
+  it("renders the patterns tab live with no invented people (D166 §1, D167)", async () => {
+    // The tab is a lazy chunk — awaitText waits for it. In jsdom the
+    // loadings fetch cannot resolve, so the honest state here is the
+    // waiting card; what the case pins is that a LIVE mount never falls
+    // back to the prototype's synthetic crowd (560 people, fabricated
+    // "78% pick that" lines) and never trips the boundary.
+    const expectNoBoundary = mountLive();
+    fireEvent.click(screen.getByRole("button", { name: /^patterns$/i }));
+    await awaitText(/pattern fit|No patterns yet/i);
+    expectNoBoundary("patterns/live");
+    expect(document.body.textContent).toMatch(/pattern fit|No patterns yet/i);
+    // the demo-only sentence must not show on a live build…
+    expect(screen.queryByText(/only from real answers/i)).toBeNull();
+    // …and nothing fabricated may either (the prototype's engine size)
+    expect(document.body.textContent).not.toMatch(/560/);
   });
 
   it("shows the real follow list in the live profile, none of the demo field", () => {
@@ -778,6 +800,146 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     expectNoBoundary("live add sheet");
   });
 
+  // D167 rule 4 for Roles (D204). The tab is LIVE ONLY — it reads reveal
+  // documents and the demo room has none — so the case that matters is
+  // the one that proves the subtab exists at all in a live build, and
+  // that it refuses rather than inventing when nothing clears the floor.
+  //
+  // The refusal IS the assertion here. Every other smoke-live case guards
+  // against the demo cast reaching a live screen; this one guards against
+  // the opposite failure, which Roles is uniquely exposed to: a role is
+  // four numbers about a person, and four numbers are trivially
+  // computable from one revealed day. The floor is the only thing
+  // stopping a coin flip being drawn with a name on it.
+  it("offers the Roles tab live, and refuses under the floor", async () => {
+    const expectNoBoundary = mountLive({ feedCards: 2 });
+    await growFeed();
+    fireEvent.click(screen.getByRole("button", { name: /^profile$/i }));
+    await act(async () => {});
+    const roles = screen.queryByRole("button", { name: "Roles" })
+      || screen.queryByText("Roles");
+    expect(roles, "the Roles subtab is missing in a live build").not.toBeNull();
+    fireEvent.click(roles);
+    // The panel is behind a React.lazy boundary (profile-overlay is eager
+    // and the eager budget had 4 KB left), so the assertion has to wait
+    // for the chunk rather than for a render.
+    await screen.findByText(/No 1v1 has run 3 revealed days yet/);
+    // The fixture has no reveal history, so both instruments refuse — with
+    // their floors named, not with an empty rose.
+    expect(screen.getByText(/No 1v1 has run 3 revealed days yet/)).not.toBeNull();
+    expect(screen.getByText(/No group has run 2 revealed days yet/)).not.toBeNull();
+    expectNoBoundary();
+    // `window.__profileSub` remembers the last-visited subtab so returning
+    // from a tracker lands back on it — and it lives on `window`, which
+    // `localStorage.clear()` does not touch. Leaving it on "roles" put
+    // every later case that opens the profile on this tab instead of
+    // General; two of the D55 vitals cases failed exactly that way when
+    // this was written. Cases that change it put it back.
+    delete window.__profileSub;
+  });
+
+  // D167 rule 4 for the pulse roster (D203): mount live and assert the
+  // real thing renders and the demo cast does not.
+  //
+  // The two failure modes this catches are both silent. (1) The roster is
+  // read from `LIVE.pulseQs()` — the hydrated bank — so a regression that
+  // went back to the demo furniture would draw "What pace was today?"
+  // from DEMO_ROSTER and look identical until you read the prompt beside
+  // it. The fixture's bank deliberately differs from the demo room. (2) A
+  // pulse whose cadence does not ask today must not be on screen at all;
+  // the fixture ships one daily and one weekly for exactly that contrast.
+  it("draws the pulses the live bank offers, and only the ones due", async () => {
+    const expectNoBoundary = mountLive({ feedCards: 2, anchors: { city: "Oslo, NO" } });
+    await growFeed();
+    // pace is daily — always due, always drawn, and its prompt comes from
+    // the bank rather than from the demo roster.
+    expect(screen.getByText("What pace was today?")).not.toBeNull();
+    // sleep is weekly (Sundays). On any other day it must be absent —
+    // no tray, no placeholder, nothing announcing what is not being asked.
+    const sunday = new Date().getUTCDay() === 0;
+    if (sunday) expect(screen.getByText("How did you sleep?")).not.toBeNull();
+    else expect(screen.queryByText("How did you sleep?")).toBeNull();
+    // The demo room's other three pulses are not in the live bank at all.
+    expect(screen.queryByText("How clear was your head today?")).toBeNull();
+    expect(screen.queryByText("How connected did you feel today?")).toBeNull();
+    expectNoBoundary();
+  });
+
+  // D195: a paid question is an ordinary question wearing a disclosure it
+  // cannot take off. The band is what the whole commercial path rests on,
+  // so this asserts the two halves of it that a refactor could quietly
+  // undo — the mark is THERE, and the topic chip it replaces is NOT.
+  it("a sponsored live card wears the PAID band instead of its topic chip", async () => {
+    const expectNoBoundary = mountLive({ feedCards: 4, sponsored: true, anchors: { city: "Oslo, NO" } });
+    await growFeed();
+    const band = screen.getByRole("button", { name: /^Paid, by Fixture Transit/ });
+    expect(band).not.toBeNull();
+    expect(within(band).getByText("PAID")).not.toBeNull();
+    // The window is composed from `until`, so it is on screen unasked.
+    expect(within(band).getByText(/until 1 Jan/)).not.toBeNull();
+    // …and the card it sits on carries no topic chip — a paid card wearing
+    // a topic hue reads as house content with a note attached.
+    const card = band.closest("div").parentElement;
+    expect(within(card).queryByText("culture")).toBeNull();
+    // Why you got it, in the reader's own vocabulary, and what the buyer
+    // gets — the post-D98 truth rather than the prototype's retired line.
+    fireEvent.click(within(band).getByText("PAID"));
+    expect(screen.getByText(/asked for City: Oslo, NO/)).not.toBeNull();
+    expect(screen.getByText(/the same public numbers you do/)).not.toBeNull();
+    expectNoBoundary("live feed, sponsored card");
+  });
+
+  it("a sponsored card whose tag does not match is not served at all", async () => {
+    // The match runs on the DEVICE, against anchors the device already
+    // holds — so a profile that does not carry the bought bucket never
+    // sees the card, and the server was never asked who should. A profile
+    // that has said NOTHING is a non-match too: absent is not "any".
+    const expectNoBoundary = mountLive({ feedCards: 4, sponsored: true, anchors: { city: "Bergen, NO" } });
+    await growFeed();
+    expect(screen.queryByText("PAID")).toBeNull();
+    // …and it does not fall back into the ordinary stream wearing a topic
+    // chip, which would be the worst of both: delivered, and undisclosed.
+    expect(screen.queryByText(/Fixture Transit/)).toBeNull();
+    expectNoBoundary("live feed, unmatched sponsored card");
+  });
+
+  // D196: the reading game is gated on there being enough fair reads to
+  // keep a record worth believing. The fixture's two questions are nowhere
+  // near it, which is exactly the state a real launch is in — so the live
+  // feed must show no game and no placeholder for one.
+  it("shows no reading game while the corpus is too thin to score one", async () => {
+    const expectNoBoundary = mountLive({ feedCards: 4 });
+    await growFeed();
+    expect(screen.queryByText("read the room")).toBeNull();
+    expect(screen.queryByText(/Slices of everyone who answered/)).toBeNull();
+    expectNoBoundary("live feed, reading game below the gate");
+  });
+
+  // D197: an ad is not a sponsored question. It rides the same single paid
+  // slot and wears the same disclosure, and it must render as a CARD —
+  // never through renderCard's question apparatus, which has nothing to
+  // say about something that asks nothing.
+  it("a live ad renders as a card, disclosed, with nothing to answer", async () => {
+    const expectNoBoundary = mountLive({ feedCards: 4, adCard: true, anchors: { city: "Oslo, NO" } });
+    await growFeed();
+    const band = screen.getByRole("button", { name: /^Paid, by Fixture Transit/ });
+    expect(band).not.toBeNull();
+    expect(screen.getByText("Night buses now run until three.")).not.toBeNull();
+    // No options, no vote — the question apparatus never ran on it.
+    const card = band.closest("[data-screen-label='Ad']");
+    expect(card).not.toBeNull();
+    expect(within(card).queryByText("Gate holds")).toBeNull();
+    expectNoBoundary("live feed, ad card");
+  });
+
+  it("an ad whose tag does not match is not served at all", async () => {
+    const expectNoBoundary = mountLive({ feedCards: 4, adCard: true, anchors: { city: "Bergen, NO" } });
+    await growFeed();
+    expect(screen.queryByText("Night buses now run until three.")).toBeNull();
+    expect(screen.queryByText("PAID")).toBeNull();
+    expectNoBoundary("live feed, unmatched ad");
+  });
+
   it("renders no suggested-scene card in the live feed", () => {
     // The feed-side twin of the same offer — a dashed card proposing a
     // fabricated community one flick into a real feed.
@@ -1354,18 +1516,33 @@ describe("live mode never inherits the sample persona (D55)", () => {
     }
   });
 
-  it("says nothing at all about politics frequencies", () => {
-    // The Art. 9 scope docs/data-inventory.md draws: no population reading
-    // is computed from the politics result, so the sheet that renders for
-    // all four instruments loses its numbers on three of them rather than
-    // keeping fabricated ones.
+  it("measures politics frequencies too, and measures them (D202)", () => {
+    // The inverse of the case it replaces. Until D202 this asserted that
+    // the politics sheet lost its numbers rather than keeping fabricated
+    // ones — the Art. 9 scope D157 §4 held. D202 reversed that on the
+    // owner's call, so the assertion flips to the thing that still
+    // matters: the number on screen is a COUNT of real typed people, and
+    // no authored share came back with the reversal.
     live = installLive();
     resetNormCache();
     const host = renderTypeSheet("political");
     try {
-      expect(host.textContent).toMatch(/Liberal Centrist/);
-      expect(host.textContent).not.toMatch(/\d+\s*%/);
-      expect(host.textContent).toMatch(/only counted for the Big Five/);
+      expect(host.textContent, "the sheet did not render — test is vacuous")
+        .toMatch(/Liberal Centrist/);
+      expect(host.textContent, "the pre-D202 refusal copy is still on screen")
+        .not.toMatch(/only counted for the Big Five/);
+      // The fixture's one scored person carries a Big Five result and no
+      // politics one, so the honest answer here is a measured ZERO with
+      // its basis stated — which is the better demonstration of the two:
+      // the widening reached the instrument without inventing a number for
+      // it. `typedN` 0 is a real answer and not the same as null.
+      expect(host.textContent).toMatch(/\d+ counted so far, none with a result yet/);
+      // The authored `share` field still exists and still feeds the
+      // matcher's commonness prior — it must not reach the screen.
+      expect(host.textContent, "an authored politics share is on screen")
+        .not.toMatch(
+          new RegExp("(" + IS_ARCHETYPES.political.list.map((t) => t.share).join("|") + ")\\s*%"),
+        );
     } finally {
       host.remove();
     }

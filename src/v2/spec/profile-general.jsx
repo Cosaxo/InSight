@@ -9,6 +9,7 @@ import { IS_TEST_RESULTS } from './test-definitions.js';
 import { PASSIVE } from './passive-progress.js';
 import { list as anchorList } from './map-anchors.js';
 import { PROFILE_GENERAL_LS } from '../data/cityAnchor';
+import { CITY_OK_LEAF } from '../data/cityConfirm.ts';
 // An import, not the window.PLACES read this file used to carry — the
 // typed module is importable from spec (logic-test precedent), so the D39
 // coupling meter moves DOWN with this change.
@@ -18,6 +19,11 @@ import { SCENES } from './scenes.js';
 import EmptyField from '../ui/EmptyField.tsx';
 // "Open the topic list" — the ask this card's one button makes (D190).
 import { requestTopicSheet } from '../data/topicSheet.ts';
+// "What moves together" (v28 §13) — the cross-test threads, drawn from
+// the viewer's own results only. Lazy because this panel is eager (the
+// profile is one tap from first paint) and the card is reachable only
+// once the overlay opens — the LiveDuelPanel pattern.
+const TraitWebCardLazy = React.lazy(() => import('../ui/TraitWebCard.tsx'));
 // The vitals vocabulary and the anchor mapping, in their own module since
 // D151 — the Basics card below and ui/LiveProfileSetup.tsx (the
 // account-creation questions) must ask with the same words, and
@@ -248,6 +254,14 @@ import {
     const uid = useId();
     const v = data.vitals;
     const upd = (k, val) => set(d => ({ ...d, vitals: { ...d.vitals, [k]: val } }));
+    // The city and its confirmation move as ONE write (D205). Two `upd`
+    // calls would be two renders over the same object and the second could
+    // read a stale `d`; more to the point, a city that landed without its
+    // confirmation being cleared would leave the previous city's `cityOk`
+    // standing beside a new city.
+    const updCity = (next, ok) => set(d => ({
+      ...d, vitals: { ...d.vitals, city: next, [CITY_OK_LEAF]: ok ? next : '' },
+    }));
     const setPart = (k, val) => set(d => {
       const nv = { ...d.vitals, [k]: val };
       nv.age = calcAge(nv.born, nv.bornM, nv.bornD);
@@ -290,7 +304,8 @@ import {
                 aria-label added to work around this exact wrapper. The
                 caption is visual; the control names itself. */}
             <span style={fieldLabel}>City
-              <CityPicker value={v.city || ''} onChange={next => upd('city', next)} />
+              <CityPicker value={v.city || ''}
+                onChange={(next, ok) => updCity(next, ok)} />
             </span>
             {/* Every field here is optional and skippable. The note says what
                 it buys, because "why does a privacy app want my age?" is the
@@ -535,6 +550,13 @@ import {
         <BasicsCard data={data} set={set} />
         <MapThumbCard />
         <TestArcsCard onGo={onGo} />
+        {/* the v28 patch seats the web here, between the arcs it reads
+            and the lens row; null fallback — the card renders nothing
+            under four resolvable pairs anyway, so a spinner would promise
+            content the data may not hold */}
+        <React.Suspense fallback={null}>
+          <TraitWebCardLazy />
+        </React.Suspense>
         <LensesRowCard onGo={onGo} />
         <LogicCard />
         {/* DEMO ONLY. This field body is the scenes orbit plus its lenses,

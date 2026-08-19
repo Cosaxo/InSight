@@ -12,7 +12,11 @@ import React from 'react';
 // believable vote counts.
 
 // ── topic palette ── id doubles as the question's cat. Hues share one chroma tier.
-window.WORLD_TOPICS = [
+// Named export alongside the global (D39's "convert on touch", the WPAL
+// precedent): typed panels — ui/PatternsTab first — import the binding, so
+// the coupling meter (rule 4) never counts them, while the nine spec
+// consumers keep reading the global until their own touch converts them.
+export const WORLD_TOPICS = [
   { id: 'sport',   label: 'Sport',          color: 'oklch(0.52 0.14 145)' },
   { id: 'food',    label: 'Food',           color: 'oklch(0.52 0.14 40)'  },
   { id: 'movies',  label: 'Movies & TV',    color: 'oklch(0.52 0.14 310)' },
@@ -30,6 +34,7 @@ window.WORLD_TOPICS = [
   // never reach the feed.
   { id: 'fav',     label: 'Favourites',     color: 'oklch(0.52 0.14 170)' },
 ];
+window.WORLD_TOPICS = WORLD_TOPICS;
 
 // ── channels ── always-on formats (not communities); they follow your scenes in the chip row
 //
@@ -139,13 +144,15 @@ window.WORLD_FEED_QS = [
 
   // \u2500\u2500 dials & fields \u2500\u2500 continuum answers.
   // dial: a value on a range \u2014 dist: 12 crowd buckets lo\u2192hi, med: crowd median.
-  // (all filed under always-on channels \u2014 bigq/dilemma \u2014 so they reach every demo feed)
+  // (dl1\u2013dl4 filed under always-on channels \u2014 bigq/dilemma \u2014 so they reach
+  // every demo feed; later dials keep the topic their batch allocated)
   // field: a dot on a 2D plane \u2014 ax/ay: axis end labels, cloud: [x, y, count,
   // spread] clusters in 0\u2013100 coords (y runs 0=top), n: answers.
   { id: 'dl1', cat: 'bigq', type: 'dial', prompt: 'When does old age begin?', lo: 40, hi: 90, unit: 'yrs', med: 63, n: 5200, dist: [1, 3, 5, 9, 14, 18, 17, 13, 9, 6, 3, 2] },
   { id: 'dl2', cat: 'dilemma', type: 'dial', prompt: 'The right tip', lo: 0, hi: 30, unit: '%', med: 10, n: 7400, dist: [6, 9, 14, 18, 16, 12, 9, 6, 4, 3, 2, 1] },
   { id: 'dl3', cat: 'dilemma', type: 'dial', prompt: 'Daily screen time \u2014 where does \u201ctoo much\u201d start?', lo: 1, hi: 12, unit: 'h', med: 5, n: 6100, dist: [2, 6, 12, 17, 18, 14, 10, 4, 3, 2, 1, 1] },
   { id: 'dl4', cat: 'bigq', type: 'dial', prompt: 'How much of your life is actually in your control?', lo: 0, hi: 100, unit: '%', med: 55, n: 4800, dist: [4, 6, 8, 9, 10, 12, 14, 13, 10, 7, 4, 3] },
+  { id: 'dl5', cat: 'event', type: 'dial', prompt: 'How many years until a human walks on Mars?', lo: 0, hi: 100, unit: 'yrs', med: 28, n: 4700, dist: [2, 9, 16, 18, 14, 10, 7, 5, 4, 3, 3, 9] },
   { id: 'fd1', cat: 'dilemma', type: 'field', prompt: 'Pineapple on pizza \u2014 place it', ax: ['tastes bad', 'tastes good'], ay: ['a crime', 'high art'], n: 6800, cloud: [[22, 72, 10, 14], [76, 26, 12, 15], [54, 50, 4, 10]] },
   { id: 'fd2', cat: 'bigq', type: 'field', prompt: 'Small talk \u2014 place it', ax: ['painful', 'pleasant'], ay: ['pointless', 'essential'], n: 4100, cloud: [[64, 32, 12, 16], [30, 60, 8, 14], [50, 48, 6, 12]] },
   { id: 'fd3', cat: 'bigq', type: 'field', prompt: 'AI assistants, today \u2014 place them', ax: ['overhyped', 'underrated'], ay: ['scary', 'exciting'], n: 5600, cloud: [[42, 38, 10, 16], [68, 30, 8, 13], [30, 66, 7, 12]] },

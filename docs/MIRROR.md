@@ -151,9 +151,11 @@ The stop draws the accounts you follow ranked by likeness, and — since
 D190 — reads them through the same row every other stop carries:
 **Answers** is the questions your circle is most split on (`circleSplit`,
 which counts members only — the opposite of the Map's `typicality`, and
-§5 says why), **People** is the members themselves, and **Compare** is
-`CompareLens` over that same fold, which is what it was exported for at
-D177. The row draws on an empty circle too, over the empty field: a stop
+§5 says why), **People** is the members themselves, and **Compare** puts
+your profile against the circle's — folded from the members' own answers
+to the bank's test items by the same `axisScores` a city's profile uses,
+at a floor of two rather than thirty, because a circle is not a sample of
+anything (D193). The row draws on an empty circle too, over the empty field: a stop
 whose tab bar arrives with its data reads as unfinished to exactly the
 account that has none.
 
@@ -169,13 +171,16 @@ the reveals themselves. Duos are excluded on purpose: with two voters,
 "with the majority" is always true and the ring would read 100% forever.
 Since D190 the two cards are tabs — **Answers** (what the group landed
 on, one row per revealed day) and **People** (who runs closest to you) —
-with **Compare** beside them, folding each revealed day into a
-`LensQuestion` so the same `CompareLens` the cohort stops and Near use
-can put you against the group. Same as Circle: the row is there with no
+with **Compare** beside them. A group is one of the two Mirror populations
+with no counts to fold — its history is its own reveals, never the test
+bank — so since D193 its side of the comparison is the MEAN of its
+members' completed `testResults`, public since D98 and cached beside the
+names the stop already resolves. Same as Circle: the row is there with no
 group at all, above the field and its Start-a-group door.
-What the demo body showed and this one does not — trait axes, compare
-populations, "how they see you" crowns — is unbuilt rather than refused
-since D98: the members' answers and test results are all readable now.
+What the demo body showed and this one still does not — trait axes, "how
+they see you" crowns — is unbuilt rather than refused since D98. The
+compare populations it invented (`spec/compare-pop.js`, whose own comment
+says "Tuned, not random") are measured now.
 
 **Near.** The Right-now radius counter (D84) — how many opted-in phones
 are within a few hundred metres (the 3x3 of 0.002° cells, ~600 m across
@@ -323,9 +328,13 @@ these lenses its population can support:
   levers entirely**, so there is now nothing to read: the refusal outlived
   the thing it refused, which is the cheapest way for one to end.
 - **Compare** — you against them across every assessment, in the results
-  profile's own visual language: the petal is solid as far as you *both*
-  reach and pale for the distance between you, so agreement looks like a
-  whole shape.
+  profile's own visual language: your petal solid to your own score, their
+  value pinned on the same slice as a washed dot, and the span between you
+  washed faintly so distance reads as a shape. **Live since D193**, and
+  the one line in this section that described the design for ninety
+  decisions while the build did something else — the lens shipped as a
+  list of questions, which is the Answers tab re-sorted. D193's record has
+  the account and the two bases the live fold reads.
 - **Scores** — the place-rating scorecard: what this population gives the
   place it is standing in, facet by facet, best first, your own score
   ticked onto each bar. World stop only, at each of its three zooms.
@@ -374,9 +383,9 @@ a lens row again:
 | --- | --- | --- |
 | **Answers** | **live**, a peer tab since D119, the prototype's row since D120 | `ui/LiveAnswerRows.tsx` — headline + thin stack + your answer, expanding into labelled option bars (or a histogram for a `rating`) and a where-you-sit sentence. Readings from `cohort.headlineFor` / `cohort.standingIn`. Still no "newest": nothing the client holds dates an answer, so the row prints the answer count where the prototype prints a date |
 | **People** | **live** | the mix is `mixFor` over the deck's aggregates; Kindred is `agreement` over the cached voter lists, bounded at 12 of your own answers × the latest 200 voters each (D102) |
-| **Compare** | **live** | `pctFor` on your own option **within this stop's own cohort** (D170 — it read the globe under the stop's name until then), ranked least-typical first, no new read. "With the majority" means your pick is what this cohort picked MOST, not that it cleared 50%: a three-way leader can win on 40%, and a 50/50 tie is nobody's majority |
+| **Compare** | **live**, and the drawing above since D193 | `data/compare.ts` folds both sides into axis maps and `ui/LiveCompareLens.tsx` lays them over each other — the prototype's `CBAssess` and `CBAlignGlyph`, imported rather than re-ported. Their side comes off **counts** at City / Country / World / Circle (`axisScores` over this stop's own cell — D170's rule, unchanged by the change of reading) and off **people** at Groups and Near, which hold no test-bank answers to fold and average their members' completed `testResults` instead. Yours is a completed test where you have one and your own feed answers where you have not, so the tab fills in from ordinary answering. Every card states its basis; a place's axis needs testNorms' floors (30 answers, 2 items) and a card needs three axes you SHARE. **What it was until D193** is worth keeping: `pctFor` on your own option, question by question, least-typical first — every number true, and the Answers tab re-sorted |
 | **Explore** | **live** | `divergence` across the six breakdown dims, against the GLOBE on every stop — its buckets are cuts of everyone and its sentence ends "same as everyone", so it reads `LensQuestion.all` rather than the stop's cohort (D170). The v18 test-pole axis is the one part with no source *here*, since test results are not a dim — but the reading itself is no longer dark: D146 draws it on the who-voted sheet as the **Type** cut, folded on the client from the cached voter lists plus public `testResults` rather than from a published cell (a bounded sample, stated as one, Big Five only). If Explore ever takes the axis it should read `data/typeSplit.ts` rather than grow a second way to type people. Its chips and its sentences printed the raw bucket KEY until D125 — a country row read "NO" — and now resolve through `ui/cohortLabels.ts`, the same one a feed card's breakdown sheet uses |
-| **Scores** | **live since D100**, about the place since D187 | `meanScore` over the questions that RATE this stop (`LensQuestion.rates === scope`, D187) **as this stop answered them** (D170), labelled with the bank's `tag` rather than the prompt, your own score ticked onto each bar. The type filter (`rating` + `scale`) stays under the subject filter: `rates` says what a question is about, `ORDINAL_TYPES` says whether averaging it means anything |
+| **Scores** | **live since D100**, about the place since D187 | `meanScore` over the questions that RATE this stop (`LensQuestion.rates === scope`, D187) **as this stop answered them** (D170), labelled with the bank's `tag` rather than the prompt, your own score ticked onto each bar. The type filter (`rating` + `scale`) stays under the subject filter: `rates` says what a question is about, `ORDINAL_TYPES` says whether averaging it means anything. **Since D205 the City stop's card also says who may score it**: a question that rates a city writes no city anchor when the device's own location fix has never agreed with it, so an unconfirmed reader's scores are absent from this number — and the card says so rather than letting them wonder. The gate is at the ANSWER because it cannot be here: this reads `agg.by.city[city]`, one pre-summed cell, and a client cannot filter people out of a total it never sees itemised |
 | **the field itself** | **live since D112**; a tab from D119, the stop's permanent head since D136 | `LiveSimilarityField` — the constellation the demo bodies drew from constants, now computed: kindred by scores on City, place profiles on Country/World. Outside the tab conditional, so it never unmounts and row navigation costs nothing |
 
 The row is the stop's navigation (`ui/MirrorLensTabs`, the prototype's
@@ -396,8 +405,9 @@ a misplaced one". They have one: `Answers · People · Compare`, the three
 `group-mirror.jsx` gives the demo twins, drawn under the same
 `marginTop: auto` frame so the row lands at the same height on all seven.
 Neither stop invents a source for it — each tab is a different cut of the
-fold that stop was already computing, and Compare is the shared
-`CompareLens` in both. The two ends of the row are still the stop's own
+fold that stop was already computing, and Compare is the shared lens in
+both (`CompareLens` at D190; `LiveCompareLens` since D193, over each
+stop's own basis). The two ends of the row are still the stop's own
 business: **Scores** and **Explore** need a published breakdown and a
 "everyone" baseline, and a circle of nine has neither.
 
@@ -498,13 +508,25 @@ Two gaps are worth stating in prose because no badge covers them:
   at the source, not a gate at each call site — which is precisely what
   made this fix findable: the null marked which readings were invented
   rather than merely unbuilt.
-- **The Circle and its relationship map are prototype-only.** Not for
-  want of permission — D98 opened every answer — but because v2 has no
-  person-to-person graph at all to draw. `relmap`'s people are invented, and it is the largest module still loaded eagerly
-  — the one overlay excluded from the after-first-paint group, because
-  the Mirror reads `RelationshipMap` during a render nothing re-triggers
-  to decide whether Circle draws the embedded map or the generic field
-  (D38).
+- **The relationship MAP is prototype-only; the Circle stop is not, and
+  this bullet said otherwise for three months.** It read "v2 has no
+  person-to-person graph at all to draw", which D101 made false: the
+  follow graph is `v2_users/{uid}/following`, `data/circle.ts` folds it,
+  and `LiveCircleBody` is what a live build draws at that stop. What is
+  still invented is `relmap`'s cast — the 49 named people in
+  `relmap-core.js`, their categories and their closeness years — and
+  nothing live renders them.
+
+  **Which is why the map left the eager graph at D200.** It was the one
+  overlay excluded from the after-first-paint group, because the Mirror
+  read `RelationshipMap` during a render nothing re-triggers, to decide
+  whether Circle drew the embedded map or the generic field (D38). That
+  read is DEMO-ONLY once Circle has a live body, so the module was
+  costing every shipping build ~60 KB of first paint to answer a question
+  a live build never asks. `mirror-field-pops.jsx` imports it now and
+  re-renders when it lands, and `smoke-mirror.test.jsx` draws the demo
+  Circle stop — which nothing did before, so the swap this bullet
+  describes could have happened silently.
 
 ## 6 · Where the code is
 
@@ -522,7 +544,8 @@ Two gaps are worth stating in prose because no badge covers them:
 | the similarity folds (profiles, matches, ranking) | `src/v2/data/similarity.ts` |
 | Groups, live | `src/v2/ui/LiveGroupsMirrorBody.tsx` + `data/groupPortrait.ts` |
 | the group as a cast of roles | `src/v2/spec/group-role-map.jsx` |
-| Compare | `src/v2/spec/compare-breakdown.jsx` |
+| Compare, live (D193) | `src/v2/ui/LiveCompareLens.tsx` + `data/compare.ts` |
+| Compare's drawing, shared with the demo | `src/v2/spec/compare-breakdown.jsx` (`CBAssess`, `CBAlignGlyph`) |
 | Explore | `src/v2/spec/segment-explorer.jsx` |
 | the cut list every breakdown reads | `src/v2/spec/vote-cuts.js` |
 | the fold (no floor, no suppression — D98) | `functions/src/pure.ts`, `functions/src/v2.ts` |

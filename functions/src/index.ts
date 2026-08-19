@@ -29,7 +29,7 @@ import { logger } from "firebase-functions";
 // import (not `import "./ops"`) because deleteAccount reads
 // ENFORCE_APP_CHECK; if that ever changes, keep the bare side-effect
 // import rather than dropping the line.
-import { ENFORCE_APP_CHECK } from "./ops";
+import { ENFORCE_APP_CHECK, FUNCTIONS_REGION } from "./ops";
 import { db as firestore } from "./db";
 
 initializeApp();
@@ -156,7 +156,7 @@ async function deleteUserSubtree(uid: string): Promise<number> {
 export const deleteAccount = onCall(
   // Unbounded per-account work, and a partial failure refuses the auth
   // delete — so a timeout here is a job the user can never complete.
-  { region: "us-central1", enforceAppCheck: ENFORCE_APP_CHECK },
+  { region: FUNCTIONS_REGION, enforceAppCheck: ENFORCE_APP_CHECK },
   async (request) => {
     if (!request.auth) {
       throw new HttpsError("unauthenticated", "must be signed in");
@@ -730,6 +730,14 @@ export { activateDeviceV2 } from "./deviceBind";
 // story. Logs flags for manual review; never denies a vote.
 export { ledgerVelocityScan } from "./velocity";
 export { logicStartV2, logicSubmitV2 } from "./logic";
+// D194: Foresight CALL, tier A — the daily pass that grades a sealed
+// prediction against our OWN published aggregate and publishes the numbers
+// it read. No model, no fetch, no judgement anywhere in that path.
+export { resolveCallsV2 } from "./calls";
+// v28 §2 (trial per D166 §1): the nightly Patterns fit — per-question
+// loading vectors from the vote log, core corpus only (D161). The fold
+// that has to exist before the Patterns tab may ship (D167).
+export { fitPatternsV2 } from "./patterns";
 // "Suggest a question" — the community board's write path and the
 // operator review instruments (docs/NEXT-FUNCTIONALITY.md §6).
 export { suggestQuestionV2, fetchSuggestionsV2, reviewSuggestionV2 } from "./suggestions";

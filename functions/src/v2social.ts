@@ -17,7 +17,13 @@
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { getMessaging } from "firebase-admin/messaging";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
-import { assertOperator, ENFORCE_APP_CHECK, LIGHT_CALLABLE, LIGHT_UNBOUNDED } from "./ops";
+import {
+  assertOperator,
+  ENFORCE_APP_CHECK,
+  LIGHT_CALLABLE,
+  LIGHT_UNBOUNDED,
+  FUNCTIONS_REGION,
+} from "./ops";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { logger } from "firebase-functions";
 import { randomBytes } from "node:crypto";
@@ -53,7 +59,7 @@ import {
   type DuelVoteLike,
 } from "./pure";
 
-const REGION = "us-central1";
+const REGION = FUNCTIONS_REGION;
 const GROUP_CAP = 32;
 const MEMBERSHIP_CAP = 20;      // groups+duos one account may belong to
 const JOIN_ATTEMPTS_PER_HOUR = 30; // invite codes are 31^8 — this makes

@@ -51,6 +51,7 @@
 import { readFileSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { bankArray } from "./v2content-lib.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const sources = new Map();
@@ -112,9 +113,11 @@ const dailyQuestions = surfaces.filter((s) => s === "daily").length;
 // to catch a promotion cycle moving the figure by kilobytes, not to make a
 // whitespace change red the tree.
 const bankKiB = (() => {
-  const head = "V2_QUESTIONS: V2SeedQuestion[] = ";
-  const body = v2content.slice(v2content.indexOf(head) + head.length);
-  const arr = JSON.parse(body.slice(0, body.lastIndexOf("];") + 1));
+  // scripts/v2content-lib.mjs — one parser, shared with cost-arith and
+  // question-quality, because all three had their own copy and all three
+  // broke differently when a second export arrived (D197). Its header has
+  // the three failure modes.
+  const arr = bankArray(v2content);
   return Math.round((JSON.stringify(arr).length / 1024) * 10) / 10;
 })();
 
@@ -213,6 +216,17 @@ const FIGURES = [
     re: /(\d+) questions land in `v2_questions`/,
     actual: seededQuestions,
     fix: (n) => `"${n} questions land in \`v2_questions\`"`,
+  },
+  // content/README.md's bank table quoted the pool size ungated and sat at
+  // 90 for a full promotion vintage while the bank held 114 — the D187 batch
+  // landed 2026-08-16 and nothing read the sentence. Same figure, another
+  // consumer; the count is already computed for the runbook entries below.
+  {
+    file: "content/README.md",
+    what: "the daily pool size (the bank table)",
+    re: /The daily World question pool \((\d+)\)/,
+    actual: dailyQuestions,
+    fix: (n) => `"The daily World question pool (${n})"`,
   },
   {
     file: "docs/LAUNCH-RUNBOOK.md",

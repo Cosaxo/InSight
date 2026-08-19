@@ -21,8 +21,8 @@ permanent non-blocker under D42, excused by `--ios`. **For an iOS launch
 the count is zero**, which is a change from 2026-08-04: the Team ID and the
 `REVERSED_CLIENT_ID` were the other two and both are filled.
 
-`check:store-listing` and `check:versions` pass; the daily bank is at 114
-questions of 537 seeded; the production backend is deployed. **Measured
+`check:store-listing` and `check:versions` pass; the daily bank is at 122
+questions of 558 seeded; the production backend is deployed. **Measured
 2026-08-04:** anonymous sign-in works (`accounts:signUp` returns an
 `idToken`, where it returned `ADMIN_ONLY_OPERATION` on 2026-08-03), the
 InSight web app is registered, and the default hosting site `prvfire33`
@@ -154,7 +154,7 @@ arithmetic.
 
 - [ ] **0.1 Seed the production question bank — run 2026-08-07 and already
       stale.** Actions → **Seed content** → Run workflow.
-      537 questions land in `v2_questions` — idempotent and, since D34,
+      558 questions land in `v2_questions` — idempotent and, since D34,
       cheap to repeat.
 
       **This step is now automatic for everything that follows it (D88):**
@@ -165,7 +165,7 @@ arithmetic.
       either way — `written: 0` means nothing landed.
 
       **It is unticked on purpose, and still is.** That run wrote **389**,
-      and the bank is **537** after the K=5 test expansion, D103's
+      and the bank is **558** after the K=5 test expansion, D103's
       retirement of the Thinking test and D114's continuum questions — so
       the difference is in the repo and not in production. Note that the gap now runs BOTH ways: 20
       `test-cognitive-*` questions are live in `v2_questions` and no longer
@@ -473,6 +473,55 @@ arithmetic.
       the question lanes and the pulse their Routines, `main` has an
       automated writer, and the window between merging a release commit and
       dispatching from it is no longer quiet.
+
+      **BUILD 21 IS IN TESTFLIGHT, AND THE NUMBER MOVED WITH IT**
+      (2026-08-19). Run 32 (`32228796376`, `d547f7a`, 07:38:55Z) was the
+      dry run — step 17 `skipped`, 5m 18s, signed `.ipa` kept as artifact
+      `9356608227` — and run 33 (`32229389551`, same sha, 07:46:29Z)
+      uploaded: step 17 `success`, 07:52:10Z → 07:54:11Z, 2m 01s of
+      transfer, `UPLOAD SUCCEEDED with no errors`, delivery UUID
+      `f1ab4ae5-0673-4a89-a4f3-c3ab03c6e87d`. Both silent-failure gates
+      passed at both ends on both runs — `aps-environment = production`
+      out of the exported `.ipa`, Firebase config in the bundle.
+
+      **`appBuild` is now 22, read off step 17 rather than recalled.**
+      Five bumps have held (runs 20, 21, 22, 28, 33) against five skipped
+      (18, 19, 24, 26, 31). D159's trap fired once more and cost nothing:
+      `5c9c4a5` merged, both runs archived `d547f7a` after a pulse trail
+      row landed in between, and `appBuild` was 21 at both. D199.
+
+
+      **BUILD 20 WAS UPLOADED BY RUN 31, AND BUILD 21'S PRE-FLIGHT HAD TO
+      BUMP** (2026-08-19). Three runs sit at `f8c8465` and no document
+      named any of them: run 29 (`32019625202`, 10:19:31Z) cancelled at
+      Resolve Swift packages, run 30 (`32019849917`, 10:22:28Z) upload
+      step `skipped` — the dry run — and run 31 (`32020442257`,
+      10:30:02Z) `success`, 10:34:21Z → 10:35:38Z, 1m 17s of transfer.
+      `appBuild` at that run's own `head_sha` is **20**, and the tree was
+      **also** at 20: equal is not greater, so **bump**, and it went to
+      21. Fifth skip (18, 19, 24, 26, 31) against four that held.
+
+      **The skip refutes the explanation the entry below earned.**
+      `f8c8465` is D191's own commit, and it landed at 10:19:05Z — run 29
+      was dispatched **26 seconds later**. Same session, run list on
+      screen, cancelling one of its own three dispatches: it made the
+      comparison *first*, got *run as-is*, and then spent the number that
+      answer was about. So a pre-flight verdict has a shelf life of
+      exactly one dispatch, and "no number moved" is a report about a
+      comparison rather than a statement about the tree — the same claim
+      this section struck for build 12, in the past tense. As at runs 25
+      and 26, no record was written either, so a gate keyed on the record
+      would again have had nothing to fire on. D198.
+
+      **BUILD 20'S PRE-FLIGHT FOUND NOTHING TO DO** (2026-08-17). The
+      comparison was made against the run list: run 28 is still the
+      highest run, its step 17 still `success`, and `appBuild` at that
+      run's own `head_sha` (`e76731d`) is 19 against a tree at 20. So
+      `appBuild` is already ahead of the highest build App Store Connect
+      has seen — **run as-is**, and no number moved. Third pre-flight to
+      come out this way (D153, D158, D191), and all three follow a
+      release where the bump was made off the step list in the session
+      that dispatched the run. D191.
 
       **BUILD 19 WAS UPLOADED BY RUN 28** (`e76731d`, 2026-08-16 18:13Z,
       5m 23s, upload step `success`, 1m 16s of it transfer). Run 27 is the
@@ -909,7 +958,7 @@ start.
       your own name.** There is no k-floor since D98: the first answer
       publishes exactly, so a count of 1 on your own device is that one
       answer and the who-voted sheet will name you. That is the product
-      working, not a leak — the 537 seeded questions are live regardless.
+      working, not a leak — the 558 seeded questions are live regardless.
       What used to sit here was the opposite warning (*"You're early"*
       under `AGG_MIN_N`, paused by D81 and removed entirely by D98).
 - [ ] **3.3 Walk the on-device verification list** — six checks, first
@@ -1252,6 +1301,38 @@ That is a tester-count problem, not a workflow problem.
       Reversing #1 costs nothing. Reversing #2 costs the four clicks per
       dispatch that #2 exists to save, which is the trade being made, and
       it is the cheaper side once releases stop being daily.
+
+- [ ] **5.9 Deploy the functions to `europe-west1` (D201), then confirm
+      the old region is empty.** The code is merged and every gate is
+      green; this is the operator half, and it is the one deploy here that
+      can corrupt data rather than just fail.
+
+      **Why now:** every client calls the region its own bundle names, so
+      this gets more expensive with each install — the same "last free
+      reset" argument D165 made about the database, one layer up. It also
+      ends the split D200 measured: the database has been in Europe since
+      2026-08-15 and the functions were still in Iowa.
+
+      **The hazard, in one sentence:** a region is part of a function's
+      identity, so the deploy CREATES the new copies and leaves the old
+      ones running, and while both exist **both Firestore triggers fire
+      and every answer folds twice** — the event-ledger dedup keys on the
+      CloudEvent id, which makes a retry safe and says nothing about a
+      second subscription.
+
+      The full procedure, the verification command and the rollback are in
+      [`DEPLOYMENT.md`](DEPLOYMENT.md) § Moving the functions. The short
+      form: deploy while nothing is being answered, then
+      `gcloud functions list --project prvfire33 --regions us-central1`
+      and delete anything that is not one of D13's nine v1 leftovers.
+
+      **Then bump the build and ship it** (2.4). Every build shipped before
+      this deploy — 21 and earlier — keeps
+      calling `us-central1` and get a 404 the app reports as `internal` on
+      every callable — account deletion, push registration, the logic test,
+      circles and duels, device activation, suggestions. The daily and the
+      Mirror keep working, because they read Firestore directly and never
+      go through a callable.
 
 ## Phase 6 — Submit
 

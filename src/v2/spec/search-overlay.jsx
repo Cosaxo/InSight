@@ -170,8 +170,14 @@ function SearchOverlay({ onClose, onPerson, samplePeople }) {
       }
       return out;
     }
+    // Door labels join the match text (docs/TAGS-PLAN.md §2): a straddler is
+    // findable by every topic it carries, not only its home's name — the
+    // e-sports card should answer a search for "tech".
+    const extraOf = (x) => [labelOf(x).label]
+      .concat((x.also || []).map((t) => (TOPIC[t] || {}).label || (ST && (ST.get(t) || {}).label) || t))
+      .join(' ');
     return pool
-      .map((x) => ({ x, s: srchQScore(x, query, labelOf(x).label) }))
+      .map((x) => ({ x, s: srchQScore(x, query, extraOf(x)) }))
       .filter((r) => r.s >= 0)
       .sort((a, b) => b.s - a.s
         || (srchAnswered(a.x, votes) ? 1 : 0) - (srchAnswered(b.x, votes) ? 1 : 0)
@@ -223,9 +229,15 @@ function SearchOverlay({ onClose, onPerson, samplePeople }) {
   // Every one of these people is a sample-data persona, and so is every
   // subtitle ("sister · since birth · 86% match") — claims about nobody.
   // In a live build the section renders empty instead (samplePeople is
-  // false there): v2 has no person-to-person graph (D3), and a real user
-  // reading an invented sister into their search is the D1 fabrication
-  // this store predates.
+  // false there), and a real user reading an invented sister into their
+  // search is the D1 fabrication this store predates.
+  //
+  // The reason used to read "v2 has no person-to-person graph (D3)", which
+  // D101 made false — the follow graph is real and `data/circle.ts` folds
+  // it. The conclusion is unchanged and the correction matters anyway: the
+  // gate is that THESE people are invented, not that no people exist, so
+  // wiring the real graph in here would be a feature rather than the
+  // removal of a limitation.
   const people = useSrchMemo(() => {
     if (samplePeople === false) return [];
     const friends = FRIENDS.list().map(id => (D.people || []).find(p => p.id === id)).filter(Boolean);

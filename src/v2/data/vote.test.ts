@@ -12,6 +12,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LIVE_MEMBERS, LIVE_NEAR_MEMBERS, LIVE_SOCIAL_MEMBERS } from "../test/live-surface";
+import { FUNCTIONS_REGION } from "../../lib/region";
 
 interface FakeSnapshotDoc {
   id: string;
@@ -770,6 +771,32 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     expect(dial!.options).toHaveLength(12);
   });
 
+  it("a feed doc's doors reach the mapped card, and absence stays absent (docs/TAGS-PLAN.md)", async () => {
+    // `also` is how the filter, stock and search reach a straddler from its
+    // second topic — a bank doc whose doors get dropped here is a card the
+    // taxonomy claims two audiences for and only one can find. The
+    // absence half matters equally: emit-when-set end to end, so a card
+    // without doors is byte-for-byte what it was before the field existed.
+    h.bankDocs.push(
+      {
+        id: "q_feed_doors",
+        data: { surface: "feed", seq: 5, type: "vote", prompt: "E-sports are real sports.",
+          options: ["They are", "They're not"], topic: "sport", also: ["tech"], test: null, active: true },
+      },
+      {
+        id: "q_feed_plain",
+        data: { surface: "feed", seq: 6, type: "vote", prompt: "Vote two",
+          options: ["A", "B"], topic: "culture", test: null, active: true },
+      },
+    );
+    await bootLive();
+    const feed = (window as unknown as {
+      WORLD_FEED_QS?: Array<{ id: string; also?: string[] }>;
+    }).WORLD_FEED_QS || [];
+    expect(feed.find((q) => q.id === "q_feed_doors")?.also).toEqual(["tech"]);
+    expect("also" in (feed.find((q) => q.id === "q_feed_plain") || {})).toBe(false);
+  });
+
   it("reports a failed agg poll and leaves the cached counts standing", async () => {
     // Was "reports and re-notifies when an agg listener errors". The
     // listener is gone (D129) and its error arm with it, but the contract
@@ -1239,13 +1266,19 @@ describe("LIVE.seedContent — the operator instrument", () => {
     return { fns, invoke };
   }
 
-  it("calls seedContentV2 in us-central1 and returns its payload", async () => {
+  it("calls seedContentV2 in the deployed region and returns its payload", async () => {
     const LIVE = await bootLive();
     const { fns, invoke } = await captureCallable();
 
     const res = await LIVE.seedContent();
 
-    expect(vi.mocked(fns.getFunctions).mock.calls[0][1]).toBe("us-central1");
+    // Asserted against the constant rather than a repeated literal (D201).
+    // A literal here would have to be edited in lockstep with a region
+    // move and is the one place a stale copy passes silently — the test
+    // would go on proving the client calls a region nothing serves.
+    // What holds the constant to the DEPLOY is check:fn-runtime, which
+    // compares it against the compiled endpoints.
+    expect(vi.mocked(fns.getFunctions).mock.calls[0][1]).toBe(FUNCTIONS_REGION);
     expect(vi.mocked(fns.httpsCallable).mock.calls[0][1]).toBe("seedContentV2");
     // Default is the cheap reseed (D34): rewrite changed documents, leave
     // contentRev alone so returning devices don't refetch the whole bank.
@@ -1263,5 +1296,91 @@ describe("LIVE.seedContent — the operator instrument", () => {
     // truthy-but-not-true would silently invalidate every device's cached
     // bank, so the wire value is normalised rather than forwarded.
     expect(invoke).toHaveBeenCalledWith({ bumpRev: true });
+  });
+});
+
+// ── an unconfirmed city does not score the place it names (D205) ────────
+//
+// The scorecard D187 built reads ONE pre-summed cell keyed by city, so a
+// reader cannot filter unconfirmed people out of it — the app never sees
+// who is in it. The gate therefore sits at write time: a question that
+// rates a city takes no city cell from someone the device has never
+// placed there.
+//
+// It could not sit at the deck instead. All 24 rating questions are in the
+// DAILY bank, the daily deck is positional, and it is the same question
+// for everyone — filtering per person would shift every other day or leave
+// some people with no daily at all. So the answer is given normally and
+// simply lands in no city cell, which costs the answerer nothing they can
+// see.
+describe("rating questions and the confirmed city", () => {
+  const RATES_CITY = {
+    id: "q_rate_city",
+    data: {
+      surface: "daily", seq: 2, type: "scale", prompt: "How safe is it here?",
+      options: ["1", "2", "3", "4", "5"], topic: null, test: null, active: true,
+      rates: "city", tag: "Safety",
+    },
+  };
+
+  /** Anchors reach the store through the profile doc hydrate reads, not
+   * through `saveAnchors` — its own async write races the answer's in this
+   * harness, and the thing under test is the SNAPSHOT, not the setter. */
+  const withAnchors = (a: Record<string, string>) => {
+    h.getDocImpl = (path: string) => (path === "v2_users/uid_test" ? { anchors: a } : null);
+  };
+  const confirm = (city: string) => {
+    storage.setItem("insight.profileGeneral.v2", JSON.stringify({ vitals: { city, cityOk: city } }));
+  };
+  const anchorsOf = (qid: string) =>
+    (h.setDocCalls.find((c) => c.path.endsWith("/answers/" + qid))?.data.anchors ?? {}) as Record<string, string>;
+
+  it("writes an EMPTY city when the phone has never agreed with it", async () => {
+    h.bankDocs.push(RATES_CITY);
+    withAnchors({ city: "Oslo, NO", country: "NO", ageBand: "25-34" });
+    const LIVE = await bootLive();
+    LIVE.vote("q_rate_city", "4");
+    await flush();
+    const a = anchorsOf("q_rate_city");
+    expect(a.city, "an unverified city took a cell in the scorecard").toBe("");
+    // Everything else still travels: the answer counts for the country and
+    // the world, and the person stays in every other cohort they were in.
+    expect(a.country).toBe("NO");
+    expect(a.ageBand).toBe("25-34");
+  });
+
+  it("writes the city once the device's own fix has agreed with it", async () => {
+    h.bankDocs.push(RATES_CITY);
+    withAnchors({ city: "Oslo, NO", country: "NO" });
+    const LIVE = await bootLive();
+    confirm("Oslo, NO");
+    LIVE.vote("q_rate_city", "4");
+    await flush();
+    expect(anchorsOf("q_rate_city").city).toBe("Oslo, NO");
+  });
+
+  it("does not accept a confirmation of a DIFFERENT city", async () => {
+    // The staleness the key-not-a-flag shape rules out, checked at the
+    // reader rather than trusted to the writer.
+    h.bankDocs.push(RATES_CITY);
+    withAnchors({ city: "Oslo, NO", country: "NO" });
+    const LIVE = await bootLive();
+    storage.setItem("insight.profileGeneral.v2", JSON.stringify({
+      vitals: { city: "Oslo, NO", cityOk: "Bergen, NO" },
+    }));
+    LIVE.vote("q_rate_city", "4");
+    await flush();
+    expect(anchorsOf("q_rate_city").city).toBe("");
+  });
+
+  it("leaves an ordinary question's city alone, confirmed or not", async () => {
+    // The gate is about SCORING A PLACE, not about the person. Widening it
+    // to every answer would quietly empty the City stop for anyone who has
+    // not tapped "use my location" — a far bigger change than this one.
+    withAnchors({ city: "Oslo, NO", country: "NO" });
+    const LIVE = await bootLive();
+    LIVE.vote("q_1", "1");
+    await flush();
+    expect(anchorsOf("q_1").city).toBe("Oslo, NO");
   });
 });

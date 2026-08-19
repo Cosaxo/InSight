@@ -8,11 +8,20 @@ import { IS_DATA } from './sample-data.js';
 import { DUELS } from './duels-data.js';
 import { HAPTIC } from './haptics.js';
 import { markNav } from './swipe-back.js';
-import { WPAL } from './world-palette.js';
-import { setMarkStyle } from './type-marks.jsx';
-import { useTweaks, TweaksPanel, TweakSection, TweakToggle, TweakRadio, TweakButton } from './tweaks-panel.jsx';
+import { useTweaks, TweaksPanel, TweakSection, TweakRadio, TweakButton } from './tweaks-panel.jsx';
 import { reportError } from '../../lib/sentry';
+// The typed cue that opens the Map on a branch (v28 §5, D207 — the shape
+// window.goTrends would have been): the caller stores WHERE, this shell
+// answers with the navigation, map-tab reads the where. ESM on all three
+// sides, so the coupling ratchet never counts it.
+import { onMapCue } from '../data/mapCue.ts';
 
+// The third tab, ON TRIAL (D166 §1) — lazy by requirement, not taste:
+// check:bundle has no eager headroom, and the trial clause wants the
+// reversal to be one import site and one TABS entry. React.lazy is the
+// same pattern daily-split uses for its typed panels; the chunk loads on
+// the first visit to the tab and never before.
+const PatternsTabLazy = React.lazy(() => import('../ui/PatternsTab.tsx'));
 
 const { useState, useEffect } = React;
 
@@ -26,26 +35,16 @@ const { useState, useEffect } = React;
 // styles survive in styles.css with nothing setting the class). Dark mode
 // stays tracked as its own piece of work — resurrecting it means wiring
 // prefers-color-scheme, not just re-adding a key here.
+// The v28 teardown (VISION-V28 §10) settled every judged alternative: nav is
+// the ruler, marks are slices, the palette is full, lenses underline below
+// the field, the ground is quiet, the feed keeps its hierarchy. Each winner
+// is hardcoded at its own site now; what remains here is live state (which
+// tab, which population, which zoom) plus the one surviving flag, density.
 const TWEAK_DEFAULTS = {
   density: "compact",
   tab: "track",
   mirrorPop: "you",
-  lensStyle: "underline",
-  accents: "now",
   worldZoom: "world",
-  lensBoxed: false,
-  quietGround: true,
-  // v17's nav and palette keys. Every value here is the SHIPPING one — the
-  // alternatives ('pill', 'bar', 'ring', 'dots', 'family', 'one') exist so the
-  // three navs and the two palettes can still be judged against each other,
-  // which is what the standalone keeps them for. The feed's own flags stay
-  // out: world-feed.jsx defaults them ON and nothing here passes them.
-  navMode: "ruler",
-  dockRuler: true,
-  mirrorLensTop: false,
-  feedHier: true,
-  markStyle: "slice",
-  wpal: "full",
 };
 
 // Hand-drawn-feel SVG glyphs — each one a small ink illustration
@@ -73,33 +72,29 @@ function NavGlyph({ id, active }) {
       </svg>
     );
   }
-  if (id === 'groups') {
-    // three ties, one circle — a named group
+  if (id === 'patterns') {
+    // A small constellation — places joined by their ties, one inked
     return (
       <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke={stroke} strokeWidth={sw} strokeLinecap="round">
-        <path d="M12 6.6 L6.6 15.6 M12 6.6 L17.4 15.6 M6.6 15.6 L17.4 15.6" opacity="0.42"></path>
-        <circle cx="12" cy="6.6" r="2.5" fill={active ? 'var(--ink)' : 'transparent'} fillOpacity="0.14"></circle>
-        <circle cx="6.6" cy="15.6" r="2.5" fill={active ? 'var(--ink)' : 'transparent'} fillOpacity="0.14"></circle>
-        <circle cx="17.4" cy="15.6" r="2.5" fill={active ? 'var(--ink)' : 'transparent'} fillOpacity="0.14"></circle>
+        <path d="M6 17.5 L11.5 8.5 L18.5 13.5"></path>
+        <path d="M6 17.5 L18.5 13.5" strokeDasharray="1.5 2"></path>
+        <circle cx="6" cy="17.5" r="1.6" fill={stroke} stroke="none"></circle>
+        <circle cx="18.5" cy="13.5" r="1.6" fill={stroke} stroke="none"></circle>
+        <circle cx="11.5" cy="8.5" r="2.6" fill={active ? 'var(--ink)' : 'transparent'} fillOpacity="0.14"></circle>
+        <circle cx="11.5" cy="8.5" r="1.6" fill={active ? stroke : 'none'} stroke={stroke}></circle>
       </svg>
     );
   }
-  if (id === 'duo') {
-    // two, joined — one on one
-    return (
-      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke={stroke} strokeWidth={sw} strokeLinecap="round">
-        <path d="M8.6 12 H15.4" opacity="0.42"></path>
-        <circle cx="6" cy="12" r="3.1" fill={active ? 'var(--ink)' : 'transparent'} fillOpacity="0.14"></circle>
-        <circle cx="18" cy="12" r="3.1" fill={active ? 'var(--ink)' : 'transparent'} fillOpacity="0.14"></circle>
-      </svg>
-    );
-  }
+  // 'groups' and 'duo' glyphs left with the bar nav (v28 §10) — only the
+  // tab bar renders glyphs, and it knows 'patterns', 'track' and 'mirror'.
   return null;
 }
 
-// Two tabs: daily · mirror — act, then see.
+// Three tabs: patterns · daily · mirror — the daily in the middle so a
+// swipe either way lands somewhere (v28 §1; patterns is ON TRIAL, D166 §1).
 // (Internal ids keep their historical names; only labels are user-facing.)
 const TABS = [
+  { id: 'patterns', label: 'patterns' },
   { id: 'track',  label: 'daily'  },
   { id: 'mirror', label: 'mirror' },
 ];
@@ -107,13 +102,16 @@ const TABS = [
 const MIRROR_POP_IDS = ['you', 'circle', 'groups', 'near', 'world'];
 const WORLD_ZOOM_IDS = ['city', 'country', 'world'];
 
-// nav v2 — ONE primary nav. The three daily modes and the mirror are the same
-// kind of choice, so they live on the same bar instead of at two altitudes.
+// The one nav-key axis: any tab-or-mode destination, from anywhere. The bar
+// nav that rendered these as buttons left with the v28 teardown (§10); the
+// entries survive because window.goNav (below) and the swipe gestures still
+// address the app by these keys.
 const NAV_ONE = [
-  { key: 'track:world', tab: 'track',  mode: 'world', label: 'daily',  glyph: 'track' },
-  { key: 'track:group', tab: 'track',  mode: 'group', label: 'groups', glyph: 'groups' },
-  { key: 'track:duo',   tab: 'track',  mode: 'duo',   label: '1v1',    glyph: 'duo' },
-  { key: 'mirror',      tab: 'mirror',                label: 'mirror', glyph: 'mirror' },
+  { key: 'patterns',    tab: 'patterns'              },
+  { key: 'track:world', tab: 'track',  mode: 'world' },
+  { key: 'track:group', tab: 'track',  mode: 'group' },
+  { key: 'track:duo',   tab: 'track',  mode: 'duo'   },
+  { key: 'mirror',      tab: 'mirror'                },
 ];
 
 // The daily's scale, compact, for the header once the in-flow ruler scrolls away.
@@ -294,6 +292,7 @@ function App() {
       markNav();
       closeAll();
       if (it.tab === 'mirror') { setTweak('mirrorPop', 'you'); setTab('mirror'); return; }
+      if (it.tab === 'patterns') { setTab('patterns'); return; }
       setDailyMode(it.mode); setTab('track');
     };
     // `window.openTest` stood here (D121). Every caller is gone with it —
@@ -316,7 +315,10 @@ function App() {
       const p = typeof who === 'object' ? who : list.find(x => x.id === who || x.name === who);
       if (p) return openDeferred(() => { closeAll(); setPerson(p); });
     };
-    return () => { delete window.openOverlay; delete window.goTab; delete window.goNav; delete window.openCity; delete window.openPerson; };
+    // a Map cue lands on the Mirror's You stop; map-tab itself reads the
+    // where (data/mapCue's take-once) — this shell only does the walking
+    const offCue = onMapCue(() => { closeAll(); setTweak('mirrorPop', 'you'); setTab('mirror'); });
+    return () => { offCue(); delete window.openOverlay; delete window.goTab; delete window.goNav; delete window.openCity; delete window.openPerson; };
     // Mount-only by design: this registers the window.* cross-link
     // handlers once and tears them down on unmount. Re-running it on every
     // setTweak identity change would re-register the same closures for no
@@ -345,54 +347,36 @@ function App() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { if (t.tab !== tab) setTweak('tab', tab); }, [tab]);
 
-  const appClasses = `app surface-tint acc-${t.accents || 'now'} ${t.density || 'regular'} ${t.quietGround !== false ? 'quiet-ground' : ''}`;
-  // three ways to navigate, so they can be judged against each other:
-  //   ruler — two tabs; the daily's three stops are a scale (World · Circle · 1v1)
-  //   pill  — two tabs; the original segmented switcher in the header
-  //   bar   — one flat bar of four: daily · groups · 1v1 · mirror
-  const navMode = ['ruler', 'pill', 'bar'].includes(t.navMode) ? t.navMode : 'ruler';
-  const navBar = navMode === 'bar';
-  const navKey = tab === 'mirror' ? 'mirror' : 'track:' + dailyMode;
-  // How archetype marks draw, and how far World's many topic hues are pulled
-  // toward the tab accent. Both are settings the shell PUSHES into the module
-  // that owns them, rather than globals those modules read back — see
-  // type-marks.jsx and world-palette.js.
-  setMarkStyle(t.markStyle);
-  WPAL.setMode(t.wpal);
+  // acc-now, quiet-ground and the ruler nav are the v28 winners (§10) —
+  // literals now, not judged alternatives.
+  const appClasses = `app surface-tint acc-now ${t.density || 'regular'} quiet-ground`;
 
   return (
     <IOSDevice width={402} height={874}>
-      <div className={appClasses} data-tab={tab} data-view={tab === 'track' ? 'track:' + dailyMode : 'mirror:' + mirrorPop} data-lens-style={t.lensStyle || 'underline'} data-docked={tab === 'track' && docked ? '' : undefined} data-mpop={tab === 'mirror' ? mirrorPop : undefined} style={tab === 'mirror' ? { '--accent': mirrorPop === 'you' ? 'var(--c-today)' : mirrorPop === 'circle' ? 'var(--c-people)' : mirrorPop === 'groups' ? 'var(--c-groups)' : mirrorPop === 'world' ? 'var(--c-world)' : 'var(--c-city)' } : undefined}>
+      <div className={appClasses} data-tab={tab} data-view={tab === 'track' ? 'track:' + dailyMode : tab === 'patterns' ? 'patterns' : 'mirror:' + mirrorPop} data-lens-style="underline" data-docked={tab === 'track' && docked ? '' : undefined} data-mpop={tab === 'mirror' ? mirrorPop : undefined} style={tab === 'mirror' ? { '--accent': mirrorPop === 'you' ? 'var(--c-today)' : mirrorPop === 'circle' ? 'var(--c-people)' : mirrorPop === 'groups' ? 'var(--c-groups)' : mirrorPop === 'world' ? 'var(--c-world)' : 'var(--c-city)' } : tab === 'patterns' ? { '--accent': 'var(--c-today)' } : undefined}>
 
         <header className="app-header">
           <button aria-label="Profile" className={"avatar-btn" + (ov === 'profile' ? ' is-on' : '')} onClick={() => { if (ov === 'profile') { setOv(null); } else { closeAll(); setOv('profile'); } }}>
             {ov === 'profile' ? '✕' : (liveInitials != null ? liveInitials : me.initials)}
           </button>
-          {/* Under `pill`, the header IS the mode switcher: DailySplit portals
-              its World/Group/1v1 row into this slot, which is why the feed has
-              no second tab row. The slot must be a plain empty div — the
-              portal target is looked up by id at mount.
-
-              Under `ruler` (the shipping nav) the switcher is in flow instead,
-              and this centre carries the wordmark until the ruler scrolls
-              away — then the two crossfade and a compact ruler takes over. */}
-          {tab === 'track' && navMode === 'pill' ? <div className="h-modeslot" id="daily-mode-slot"></div> : (
-            <div className="h-center">
-              <div className="h-title">in<em>Sight</em></div>
-              {tab === 'track' && navMode === 'ruler' && t.dockRuler !== false && (
-                <div className="h-dockslot">
-                  <div className="h-dockruler" role="tablist" aria-label="How far this answer reaches">
-                    {DOCK_STOPS.map((s) => (
-                      <button key={s.id} role="tab" aria-selected={dailyMode === s.id} tabIndex={docked ? 0 : -1}
-                        className={"h-dockstop" + (dailyMode === s.id ? ' is-on' : '')}
-                        style={dailyMode === s.id ? { '--dacc': s.acc } : undefined}
-                        onClick={() => { setDailyMode(s.id); setDocked(false); }}>{s.label}</button>
-                    ))}
-                  </div>
+          {/* The switcher is in flow (the ruler), so this centre carries the
+              wordmark until the ruler scrolls away — then the two crossfade
+              and a compact ruler takes over. */}
+          <div className="h-center">
+            <div className="h-title">in<em>Sight</em></div>
+            {tab === 'track' && (
+              <div className="h-dockslot">
+                <div className="h-dockruler" role="tablist" aria-label="How far this answer reaches">
+                  {DOCK_STOPS.map((s) => (
+                    <button key={s.id} role="tab" aria-selected={dailyMode === s.id} tabIndex={docked ? 0 : -1}
+                      className={"h-dockstop" + (dailyMode === s.id ? ' is-on' : '')}
+                      style={dailyMode === s.id ? { '--dacc': s.acc } : undefined}
+                      onClick={() => { setDailyMode(s.id); setDocked(false); }}>{s.label}</button>
+                  ))}
                 </div>
-              )}
-            </div>
-          )}
+              </div>
+            )}
+          </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             {/* the passive lens ring rides in the header, not in the feed's
                 chip row — it reports across tabs, not just the feed */}
@@ -431,14 +415,9 @@ function App() {
         <div className="app-body">
           <ErrorBoundary key={'tab-' + tab} onReset={() => { setTab('track'); setTweak('tab', 'track'); }}>
             <div className="tab-swap" key={tab}>
-              {/* The key carries the nav shape as well as the reset counter:
-                  `ruler` and `dock` decide which listeners DailySplit installs
-                  at mount, so flipping either from the Tweaks panel has to
-                  remount it rather than leave a stale watcher behind. */}
-              {tab === 'track' && <DailySplit key={dailyKey + ':' + navMode + ':' + (t.dockRuler !== false)}
+              {tab === 'track' && <DailySplit key={dailyKey}
                 mode={dailyMode} onMode={setDailyMode} onDock={setDocked}
-                hideSwitcher={navBar} ruler={navMode === 'ruler'} dock={t.dockRuler !== false}
-                feedHier={!!t.feedHier} feedOpts={{ hier: !!t.feedHier }} />}
+                feedHier feedOpts={{ hier: true }} />}
               {/* The prototype drove the sparse first-run mirror from a Tweaks
                   switch (`mirrorFirstRun`); the panel that hosted it is gone.
                   Gate it on the real signal instead — feed-read's header names
@@ -448,35 +427,33 @@ function App() {
                   field), so style-diff still compares like with like. */}
               {tab === 'mirror' && <MirrorTab onPerson={setPerson} pop={mirrorPop} onPop={(v) => setTweak('mirrorPop', v)} worldZoom={worldZoom} onZoom={(v) => setTweak('worldZoom', v)}
                 firstRun={!!(window.LIVE && window.LIVE.enabled && window.FEEDREAD && window.FEEDREAD.stats().n < 8)}
-                topNav={!!t.mirrorLensTop} backKey={'track:duo'} />}
+                backKey={'track:duo'} />}
+              {/* Suspense fallback null, PulseCard's rule: nothing rather
+                  than a blank card — the chunk arrives inside the tap's
+                  own beat, and the ErrorBoundary above owns a failed one. */}
+              {tab === 'patterns' && (
+                <React.Suspense fallback={null}>
+                  <PatternsTabLazy />
+                </React.Suspense>
+              )}
             </div>
           </ErrorBoundary>
         </div>
 
         {/* Tabbar */}
-        <nav className="tabbar" data-n={navBar ? 4 : 2}>
+        <nav className="tabbar" data-n={TABS.length}>
           <div className="tab-group">
-            {navBar ? NAV_ONE.map((it) => (
-              <button key={it.key} className={"tab-btn" + (navKey === it.key ? ' is-active' : '')}
-                onClick={() => {
-                  if (navKey !== it.key) HAPTIC.tick();
-                  markNav();
-                  closeAll();
-                  if (it.tab === 'mirror') { setTab('mirror'); setTweak('mirrorPop', 'you'); return; }
-                  setDailyMode(it.mode); setTab('track');
-                }}>
-                <span className="glyph"><NavGlyph id={it.glyph} active={navKey === it.key} /></span>
-                <span>{it.label}</span>
-              </button>
-            )) : TABS.map(({ id, label }) => (
+            {TABS.map(({ id, label }) => (
               <button key={id} className={"tab-btn" + (tab === id ? ' is-active' : '')}
                 onClick={() => {
                   if (tab !== id) HAPTIC.tick();
                   markNav();
                   // the daily's scale runs World · Circle · 1v1, with Mirror just
-                  // past its far end — so arriving from Mirror lands on the stop
-                  // that sits next to it, not on whatever you last had open
+                  // past its far end and Patterns past the near one — so arriving
+                  // from either lands on the stop that sits next to it, not on
+                  // whatever you last had open
                   if (id === 'track' && tab === 'mirror') setDailyMode('duo');
+                  if (id === 'track' && tab === 'patterns') setDailyMode('world');
                   setTab(id); closeAll(); if (id === 'mirror') setTweak('mirrorPop', 'you');
                 }}>
                 <span className="glyph"><NavGlyph id={id} active={tab === id} /></span>
@@ -497,37 +474,35 @@ function App() {
               `logic` was already written this way and is unchanged. */}
           {person && window.PersonOverlay && <window.PersonOverlay p={person} me={me} onClose={() => setPerson(null)} />}
           {city && window.CityOverlay && <window.CityOverlay city={city} onClose={() => setCity(null)} />}
-          {ov === 'profile' && <ProfileOverlay onClose={() => setOv(null)} me={me} lensBoxed={!!t.lensBoxed} />}
+          {ov === 'profile' && <ProfileOverlay onClose={() => setOv(null)} me={me} />}
           {ov === 'suggest' && window.SuggestOverlay && <window.SuggestOverlay onClose={() => setOv(null)} />}
           {/* samplePeople: the overlay's people rows are sample-data personas
-              with invented relationships ("sister", "% match"). Live mode has
-              no person graph at all (D3), so they must not render there — the
-              gate rides down as a prop from the liveOn this shell already
-              computes, rather than a window.LIVE read in the overlay, so the
-              spec layer's coupling meter (D39 rule 4) stays flat. */}
+              with invented relationships ("sister", "% match"), so they must
+              not render in live mode — the gate rides down as a prop from the
+              liveOn this shell already computes, rather than a window.LIVE
+              read in the overlay, so the spec layer's coupling meter (D39
+              rule 4) stays flat. This said "live mode has no person graph at
+              all (D3)" until D200; D101 gave it one, and what the gate is
+              about is that these particular people are made up. */}
           {ov === 'search' && <SearchOverlay onClose={() => setOv(null)} samplePeople={!liveOn} onPerson={(p) => { setOv(null); setPerson(p); }} onCity={(c) => { setOv(null); setCity(c); }} />}
           {ov === 'logic' && window.LogicOverlay && <window.LogicOverlay onClose={() => setOv(null)} />}
+          {/* The one overlay here NOT read off window, though its module is
+              deferred like the rest (D200). Reachable only from the embedded
+              map's own expand button — which exists only once the chunk that
+              defines this component has loaded — so `ov` cannot be 'relmap'
+              with the name unbound. If a second opener ever appears it must
+              go through openDeferred like the others, and this line becomes
+              `window.RelationshipMapOverlay && …`; until then the
+              ErrorBoundary above is the backstop rather than the plan. */}
           {ov === 'relmap' && <RelationshipMapOverlay onClose={() => setOv(null)} />}
         </ErrorBoundary>
       </div>
 
       <TweaksPanel>
-        <TweakSection label="Navigation" />
-        <TweakRadio label="Nav" value={navMode} options={['ruler', 'pill', 'bar']} onChange={(v) => setTweak('navMode', v)} />
-        <TweakToggle label="Ruler docks on scroll" value={t.dockRuler !== false} onChange={(v) => setTweak('dockRuler', v)} />
-        <TweakToggle label="Mirror: lenses on top" value={!!t.mirrorLensTop} onChange={(v) => setTweak('mirrorLensTop', v)} />
-        <TweakToggle label="Feed hierarchy" value={!!t.feedHier} onChange={(v) => setTweak('feedHier', v)} />
-        <TweakSection label="Aesthetic" />
-        <TweakRadio label="Accents" value={t.accents || 'now'} options={['now', 'daily', 'family']} onChange={(v) => setTweak('accents', v)} />
-        <TweakToggle label="Quiet ground" value={t.quietGround !== false} onChange={(v) => setTweak('quietGround', v)} />
+        <TweakSection label="Display" />
         <TweakRadio label="Density" value={t.density} options={['compact', 'regular']} onChange={(v) => setTweak('density', v)} />
-        <TweakRadio label="Lens tabs" value={t.lensStyle || 'segmented'} options={['segmented', 'underline', 'chips']} onChange={(v) => setTweak('lensStyle', v)} />
-        <TweakRadio label="Type marks" value={t.markStyle || 'slice'} options={['slice', 'ring', 'dots']} onChange={(v) => setTweak('markStyle', v)} />
-        <TweakToggle label="Lenses: boxed cards" value={!!t.lensBoxed} onChange={(v) => setTweak('lensBoxed', v)} />
         <TweakSection label="Daily" />
         <TweakButton label="Reset today's answers" secondary onClick={() => { DUELS.resetToday(); setDailyKey((k) => k + 1); }} />
-        <TweakSection label="World feed" />
-        <TweakRadio label="Palette" value={t.wpal || 'full'} options={['full', 'family', 'one']} onChange={(v) => setTweak('wpal', v)} />
       </TweaksPanel>
     </IOSDevice>
   );

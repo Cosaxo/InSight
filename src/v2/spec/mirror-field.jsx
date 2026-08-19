@@ -408,28 +408,6 @@ function MFDetail({ node, onPerson, onJoin, onLeave, joined }) {
   );
 }
 
-// ─── nav v2: the lens row alone, promoted to the top of the screen. The row is
-// real tabs and "Overview" is the field itself, so all navigation sits above
-// the content instead of hiding at the bottom edge.
-// Exported by name (D39, "convert on touch"): the Mirror bodies import it.
-// It stayed on the window bag as well until D137, for sites that had all
-// already moved — group-mirror.jsx and mirror-field-pops.jsx import it.
-export function MirrorLensRow({ lenses, open, onOpen }) {
-  const idx = lenses.findIndex((l) => l.id === open);
-  // six stops have to fit a phone without clipping — the row never scrolls
-  const fs = lenses.length >= 6 ? 11.5 : lenses.length === 5 ? 13 : 14.5;
-  return (
-    <div className="mm-lensrow mm-lensrow-top" role="tablist" aria-label="Lenses" style={{ '--n': lenses.length }}>
-      <span className={'mm-lensthumb' + (idx < 0 ? ' is-off' : '')} style={{ transform: `translateX(${Math.max(0, idx) * 100}%)` }} aria-hidden="true"></span>
-      {lenses.map((l) => (
-        <button key={l.id} data-lens={l.id} role="tab" aria-selected={open === l.id}
-          className={'mm-lensbtn' + (open === l.id ? ' is-on' : '')} style={{ fontSize: fs, padding: '10px 3px' }}
-          onClick={() => onOpen(l.id)}>{l.label}</button>
-      ))}
-    </div>
-  );
-}
-
 // ─── lens chips — the old sections, now opt-in layers under the field ───
 function MirrorLenses({ lenses }) {
   const [open, setOpen] = React.useState(null);

@@ -70,6 +70,19 @@ export interface InterleaveStreams<T> {
   knowEvery?: number;
   testEvery?: number;
   lensEvery?: number;
+  /**
+   * The ONE sponsored card, or null (D195).
+   *
+   * A single card rather than a stream, and that is the design rather than
+   * a simplification: the cap on paid inventory is what makes a slot
+   * sellable at all (docs/SCALE-PLAN.md §5 — naming a cohort's attention
+   * as finite makes the cap the unit of sale, so inventory cannot be
+   * quietly inflated without visibly devaluing what was already sold).
+   * `data/sponsored.ts` picks it; this only places it.
+   */
+  sponsored?: T | null;
+  /** Which world card it lands after. */
+  sponsorAt?: number;
 }
 
 /**
@@ -83,13 +96,19 @@ export function interleaveFeed<T>(world: readonly T[], streams: InterleaveStream
   const {
     tests, lenses, know = [], knowEvery = 0,
     testEvery = TEST_EVERY, lensEvery = LENS_EVERY,
+    sponsored = null, sponsorAt = 0,
   } = streams;
   const out: T[] = [];
   let ti = 0;
   let li = 0;
   let ki = 0;
+  let paidPlaced = false;
   world.forEach((q, i) => {
     out.push(q);
+    // The paid slot fires ONCE, at a fixed depth, before the side streams'
+    // cadences — a card that could land twice is inventory the seller did
+    // not sell and the reader did not agree to.
+    if (sponsored && !paidPlaced && i + 1 >= sponsorAt) { out.push(sponsored); paidPlaced = true; }
     if (knowEvery && (i + 1) % knowEvery === 0 && ki < know.length) out.push(know[ki++]);
     if ((i + 1) % testEvery === 0 && ti < tests.length) out.push(tests[ti++]);
     if ((i + 1) % lensEvery === 0 && li < lenses.length) out.push(lenses[li++]);
@@ -97,6 +116,12 @@ export function interleaveFeed<T>(world: readonly T[], streams: InterleaveStream
   // Mute every opinion topic and the knowledge stream should still be there —
   // it is a subscription of its own, not a garnish on the others.
   if (knowEvery && world.length < knowEvery) while (ki < know.length) out.push(know[ki++]);
+  // A world list shorter than the slot depth still owes the buyer their
+  // card — the alternative is a window that silently delivers nothing to
+  // anyone with a heavily muted feed, which is the measurement asymmetry
+  // billing-on-answers exists to avoid. It lands at the end, not at the
+  // top: a paid card must never be the first thing in the stream.
+  if (sponsored && !paidPlaced) out.push(sponsored);
   return out;
 }
 

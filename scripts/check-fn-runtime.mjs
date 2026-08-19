@@ -17,12 +17,23 @@
 //
 // Reads the compiled output, so run after `npm run build --prefix functions`.
 
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { pathToFileURL } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+
+/** Every .ts/.tsx under src/, so a new call site cannot hide in a new file. */
+function clientRegionFiles(dir) {
+  const out = [];
+  for (const e of readdirSync(dir, { withFileTypes: true })) {
+    const full = resolve(dir, e.name);
+    if (e.isDirectory()) out.push(...clientRegionFiles(full));
+    else if (/\.tsx?$/.test(e.name)) out.push(full);
+  }
+  return out;
+}
 const entry = resolve(root, "functions/lib/index.js");
 
 if (!existsSync(entry)) {
@@ -64,6 +75,9 @@ for (const [name, fn] of Object.entries(mod)) {
       // nothing either; the first signal is a human noticing the Mirror
       // has stopped moving.
       db: ep.eventTrigger?.eventFilters?.database,
+      // Where the function is SERVED, which the client has to name exactly
+      // (D200). An array, because gen-2 endpoints can carry several.
+      region: ep.region,
       isTrigger: !!ep.eventTrigger,
     });
   }
@@ -126,6 +140,83 @@ if (wrongDb.length) {
   process.exit(1);
 }
 
+// ── the client calls the region the functions are served from (D200) ──
+//
+// Same two-independent-files shape as the database check above, and the
+// same class of silent failure: `getFunctions(app, "<region>")` builds a
+// URL, and a callable in a region nothing serves is a 404 the app surfaces
+// as `internal` with nothing to read. Nothing fails at build, at deploy or
+// in any test that mocks the SDK — the first signal is a user tapping a
+// button that does nothing.
+//
+// It was a live mismatch when this check was written: D165 moved the
+// DATABASE and left the functions where they were, and D200 measured the
+// split before D201 closed it. The two halves that must agree are the
+// client and the functions — not the functions and the database, which may
+// legitimately differ.
+//
+// TWO RULES, because the constant and the literals fail differently. The
+// client names its region ONCE (src/lib/region.ts, D201), so rule one is a
+// single comparison against the compiled endpoints. Rule two is what keeps
+// that true: any call site that goes back to spelling the region out is a
+// second copy, and a second copy is how one of them ends up stale — which
+// is the whole reason D201 collapsed eight of them into one.
+const served = [...new Set(rows.flatMap((r) => r.region || []))];
+if (served.length !== 1) {
+  console.error(
+    `\nfunctions are served from ${served.length} regions (${served.join(", ")}) —`
+    + " this check cannot say which one the client should call.",
+  );
+  process.exit(1);
+}
+
+const REGION_TS = resolve(root, "src/lib/region.ts");
+const clientRegion = (() => {
+  const m = readFileSync(REGION_TS, "utf8").match(/export const FUNCTIONS_REGION = "([^"]+)"/);
+  return m ? m[1] : null;
+})();
+if (!clientRegion) {
+  console.error(
+    "\ncheck-fn-runtime: could not read FUNCTIONS_REGION from src/lib/region.ts.\n"
+    + "It was renamed or reshaped — fix this scan rather than letting the\n"
+    + "client/server pairing go unchecked.",
+  );
+  process.exit(1);
+}
+if (clientRegion !== served[0]) {
+  console.error(
+    `\nthe client calls ${JSON.stringify(clientRegion)} and the functions are served from`
+    + ` ${JSON.stringify(served[0])}.\n\n`
+    + "A callable in a region nothing serves is a 404 the app reports as\n"
+    + "`internal` with nothing in it to read — no build, deploy or mocked test\n"
+    + "fails, and the first signal is a button that does nothing. Move\n"
+    + "src/lib/region.ts and functions/src/ops.ts together, or neither.",
+  );
+  process.exit(1);
+}
+
+// Rule two: nobody spells it out again. Scoped to the call shape rather
+// than to the string, so it catches a NEW literal in any region — the
+// failure is the second copy, not the value in it.
+const RELITERAL = /getFunctions\([^)]*?["']([a-z]+-[a-z]+\d|nam\d|eur\d)["']/g;
+const relit = [];
+for (const rel of clientRegionFiles(resolve(root, "src"))) {
+  if (rel === REGION_TS) continue;
+  for (const m of readFileSync(rel, "utf8").matchAll(RELITERAL)) {
+    relit.push({ rel, region: m[1] });
+  }
+}
+if (relit.length) {
+  console.error(`\n${relit.length} call site(s) name a region literally instead of importing it:`);
+  for (const p of relit) console.error(`  - ${p.rel.slice(root.length + 1)} → ${JSON.stringify(p.region)}`);
+  console.error(
+    "\nImport FUNCTIONS_REGION from src/lib/region.ts. A second copy of this\n"
+    + "value is how the first one goes stale (D165 missed 37 call sites;\n"
+    + "D200 found the region spelled out in eight files).",
+  );
+  process.exit(1);
+}
+
 if (bare.length) {
   console.error(
     `\n${bare.length} function(s) missing an explicit memory, timeout or maxInstances:`,
@@ -141,5 +232,6 @@ if (bare.length) {
 console.log(
   `\nfn-runtime OK — ${rows.length} functions, all with explicit memory, `
   + "timeout and maxInstances (the compute ceiling); "
-  + `${triggers.length} Firestore trigger(s) on database ${JSON.stringify(expectedDb)}, matching firebase.json`,
+  + `${triggers.length} Firestore trigger(s) on database ${JSON.stringify(expectedDb)}, matching firebase.json; `
+  + `client on ${JSON.stringify(clientRegion)}, matching the deploy`,
 );

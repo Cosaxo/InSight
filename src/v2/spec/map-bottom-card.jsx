@@ -347,7 +347,10 @@ function MTRootCard({ count, anchorCount }) {
 }
 
 // ── swipeable row of answer tokens (branch / sub browsing) ──────────────────
-function MTSwipeRow({ items, onPick, activeId }) {
+// Exported by name for person-mindmap.jsx (v28 §7.3; D39 "convert on touch")
+// — a window read there would raise the rule-4 ratchet. The window
+// publication below stays for the bridge.
+export function MTSwipeRow({ items, onPick, activeId }) {
   return (
     <div className="mmt-swipe">
       {items.map((it) => (

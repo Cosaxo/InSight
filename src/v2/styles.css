@@ -612,18 +612,9 @@
 
 /* nav v2 — one primary bar of four: glyph over label so it fits a phone and
    keeps 44px targets, instead of a two-item pill plus a second row up top */
-.tabbar[data-n="4"] .tab-group { gap: 2px; max-width: 100%; }
-.tabbar[data-n="4"] .tab-btn { flex-direction: column; gap: 2px; padding: 5px 13px; min-height: 46px; font-size: 11px; font-weight: 650; letter-spacing: 0.02em; }
-.tabbar[data-n="4"] .tab-btn.is-active { font-weight: 800; }
 
-/* Hand-drawn rule */
+/* Rule */
 .rule { height: 0.5px; background: var(--rule); margin: 14px 0; border: none; }
-.rule-dashed {
-  height: 0.5px;
-  background: var(--rule);
-  border: none;
-  margin: 14px 0;
-}
 
 /* Kicker — THE micro-label tier, app-wide. One spec (matches the edition's
    edMicro): sans 700 · 10.5px · 0.09em · uppercase · ink-3. */
@@ -738,23 +729,6 @@ button.card:active,
   font-weight: 800;
   box-shadow: 0 1px 3px rgba(20,20,40,0.14), 0 0 0 0.5px color-mix(in oklch, var(--seg-fill, var(--ink)) 26%, transparent);
 }
-
-/* Daily mode switcher (World · Group · 1v1) — quiet underline tabs; one
-   pill tier fewer on the page so filters and the tabbar stand apart */
-.sd-switch { position: relative; display: flex; border-bottom: 0.5px solid color-mix(in oklch, var(--rule), transparent 20%); }
-.sd-switch-btn { position: relative; z-index: 1; flex: 1; min-height: 42px; padding: 8px 4px; border: none; background: none; cursor: pointer; font-family: var(--sans); font-size: 13.5px; font-weight: 650; letter-spacing: 0.01em; color: var(--ink-3); display: inline-flex; align-items: center; justify-content: center; transition: color 0.18s ease, transform 0.22s var(--ease-spring); }
-.sd-switch-btn:active { transform: scale(0.96); }
-.sd-switch-btn.is-on { color: var(--sw-acc, var(--ink)); font-weight: 800; }
-.sd-thumb { position: absolute; z-index: 0; bottom: -0.5px; left: 0; width: calc(100% / var(--sw-n, 3)); display: flex; justify-content: center; transition: transform 0.32s var(--ease-spring); }
-
-/* …and the same switcher once DailySplit portals it into the app header:
-   narrower, shorter, and without the rule, because the header already has
-   one under it. The switcher is the same element, so the sliding thumb
-   (now sized by --sw-n for N modes) keeps working. */
-.h-modeslot { flex: 1; min-width: 0; display: flex; justify-content: center; }
-/* fluid, capped — a fixed width would push the header's right group out of frame */
-.h-modeslot .sd-switch { width: 100%; max-width: 200px; border-bottom: none; }
-.h-modeslot .sd-switch-btn { min-height: 32px; padding: 3px 1px; font-size: 12.5px; letter-spacing: -0.01em; }
 
 /* Daily pre-vote option — quiet at rest, faint accent tint on hover so the
    filled result reveal after answering feels like a real payoff. */
@@ -910,7 +884,10 @@ button.card:active,
    animation (throttled/backgrounded tab) never hides it. JS removes it at 3s. */
 @keyframes toastFade { 0% { opacity: 1; transform: translateY(4px); } 10% { transform: none; } 78% { opacity: 1; } 100% { opacity: 0; } }
 
-/* Mirror lens row (Answers · People · Compare) — three styles via data-lens-style */
+/* Mirror lens row (Answers · People · Compare) — underline tabs. The judged
+   alternatives (segmented, chips) left with the v28 teardown (§10); the
+   data-lens-style attribute stays because every rule below keys off it and
+   logic-test.jsx sets it locally too. */
 .mm-lensrow { position: relative; display: flex; }
 .mm-lensbtn { position: relative; z-index: 1; flex: 1; min-height: 44px; padding: 10px 8px; border: none; background: transparent; cursor: pointer; font-family: var(--sans); font-size: 14px; font-weight: 650; letter-spacing: -0.01em; color: var(--ink-2); transition: color 0.18s ease, transform 0.22s var(--ease-spring); }
 @media (hover: hover) { .mm-lensbtn:hover { color: var(--ink-2); } }
@@ -918,13 +895,6 @@ button.card:active,
 .mm-lensbtn.is-on { color: var(--accent-ink); font-weight: 800; }
 .mm-lensthumb { position: absolute; z-index: 0; transition: transform 0.32s var(--ease-spring), opacity 0.18s ease; }
 .mm-lensthumb.is-off { opacity: 0; }
-/* 1 · segmented — pill track, sliding thumb, hairline separators */
-[data-lens-style="segmented"] .mm-lensrow { padding: 3px; border-radius: 999px; background: color-mix(in oklch, color-mix(in oklch, var(--surface-3) 88%, var(--accent)) 93%, var(--ink)); border: 0.5px solid color-mix(in oklch, var(--rule), transparent 30%); }
-[data-lens-style="segmented"] .mm-lensbtn { border-radius: 999px; }
-[data-lens-style="segmented"] .mm-lensthumb { top: 3px; bottom: 3px; left: 3px; width: calc((100% - 6px) / var(--n)); border-radius: 999px; background: var(--surface-2); box-shadow: 0 1px 4px color-mix(in oklch, var(--shadow-ink, var(--ink)) 16%, transparent), 0 0 0 0.5px color-mix(in oklch, var(--accent) 32%, transparent); }
-[data-lens-style="segmented"] .mm-lensbtn + .mm-lensbtn::before { content: ''; position: absolute; left: 0; top: 13px; bottom: 13px; width: 0.5px; background: color-mix(in oklch, var(--ink-3) 38%, transparent); transition: opacity 0.18s ease; }
-[data-lens-style="segmented"] .mm-lensbtn.is-on::before, [data-lens-style="segmented"] .mm-lensbtn.is-on + .mm-lensbtn::before { opacity: 0; }
-/* 2 · underline — quiet text tabs, accent bar slides beneath */
 [data-lens-style="underline"] .mm-lensrow { border-top: 0.5px solid color-mix(in oklch, var(--rule), transparent 20%); }
 /* no resting tick under closed lenses — three short grey dashes read as broken
    underlines, not as inactive tabs. Weight + the sliding accent bar carry state. */
@@ -932,16 +902,6 @@ button.card:active,
 [data-lens-style="underline"] .mm-lensbtn.is-on { color: var(--ink); }
 [data-lens-style="underline"] .mm-lensthumb { left: 0; bottom: 0; height: 3px; width: calc(100% / var(--n)); }
 [data-lens-style="underline"] .mm-lensthumb::after { content: ''; position: absolute; left: 50%; bottom: 0; width: 34px; margin-left: -17px; height: 2.5px; border-radius: 99px; background: var(--accent); }
-/* 3 · chips — each lens its own hue, dot + tinted fill when open */
-[data-lens-style="chips"] .mm-lensrow { gap: 7px; }
-[data-lens-style="chips"] .mm-lensthumb { display: none; }
-[data-lens-style="chips"] .mm-lensbtn { --lh: 75; display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 42px; border-radius: 999px; border: 0.5px solid color-mix(in oklch, var(--rule), transparent 10%); background: var(--surface-2); color: var(--ink-2); }
-[data-lens-style="chips"] .mm-lensbtn[data-lens="answers"] { --lh: 155; }
-[data-lens-style="chips"] .mm-lensbtn[data-lens="people"] { --lh: 250; }
-[data-lens-style="chips"] .mm-lensbtn[data-lens="explore"] { --lh: 320; }
-[data-lens-style="chips"] .mm-lensbtn::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: oklch(0.62 0.12 var(--lh)); opacity: 0.75; transition: opacity 0.18s ease; }
-[data-lens-style="chips"] .mm-lensbtn.is-on { background: color-mix(in oklch, oklch(0.62 0.12 var(--lh)) 12%, var(--surface-2)); border-color: oklch(0.62 0.12 var(--lh) / 0.5); color: oklch(0.36 0.12 var(--lh)); }
-[data-lens-style="chips"] .mm-lensbtn.is-on::before { opacity: 1; }
 
 /* Bare button — strips the UA chrome so a <button> lays out like the <div>
    it replaced. For the many spec-layer rows, tiles and chips that were
@@ -960,11 +920,6 @@ button.card:active,
    with left:% + translate(-50%) becomes a full-width box). Sites that need
    it in a plain block context set width themselves — cf. .mmt-astat-row. */
 
-/* nav v2 — the lens row promoted above the content: it reads as the screen's
-   tabs, with the field itself as the first one, instead of hiding at the edge */
-.mm-lensrow-top { margin: 2px 0 4px; }
-[data-lens-style="underline"] .mm-lensrow-top { border-top: none; border-bottom: 0.5px solid color-mix(in oklch, var(--rule), transparent 20%); }
-[data-lens-style="underline"] .mm-lensrow-top .mm-lensbtn { min-height: 46px; font-size: 14.5px; }
 
 /* Universal tactile press feedback */
 .press { transition: transform 0.22s var(--ease-spring); }
@@ -1253,8 +1208,8 @@ button.card:active,
 .app :focus:not(:focus-visible), .overlay :focus:not(:focus-visible) { outline: none; }
 /* elements that already draw their own edge get the ring tight to it */
 .tab-btn:focus-visible, .subnav-btn:focus-visible, .pill:focus-visible,
-.wf-chip:focus-visible, .mm-lensbtn:focus-visible, .h-dockstop:focus-visible,
-.sd-switch-btn:focus-visible { outline-offset: 1px; }
+.wf-chip:focus-visible, .mm-lensbtn:focus-visible,
+.h-dockstop:focus-visible { outline-offset: 1px; }
 .avatar-btn:focus-visible, .icon-btn:focus-visible { outline-offset: 3px; }
 /* fields whose wrapper already carries the focus state — the ring would draw a
    second box inside the first */
@@ -1271,7 +1226,7 @@ button.card:active,
    shouldn't blue-select the nav. Real content stays selectable, so a question
    or a comment can still be copied. */
 .app button, .overlay button, .wf-sheet button,
-.kicker, .tabbar, .subnav, .stamp, .h-dockruler, .sd-switch,
+.kicker, .tabbar, .subnav, .stamp, .h-dockruler,
 .mm-lensrow, .search-group, .fig-num, .app-header .h-title {
   -webkit-user-select: none; user-select: none;
 }
@@ -1397,33 +1352,13 @@ button.card:active,
 /* the band's scrim is set inline in renderDuel (one value over photography, a
    lighter one over generated art) — nothing to override here */
 
-/* ── Accent ramp experiments · Tweaks → Aesthetic → Accents ──────────────────
-   Grounded in "Accent ramp study.html", which solves each hue against the sRGB
-   boundary. The flat :root ramp writes C .14 at L .52 for all seven — a value
-   three of them cannot hold (World .108, Groups .104, Likeness .086 are clipped
-   and ship as something duller and hue-shifted) and four of them could far
-   exceed (violet 282 can hold .277). One number, two opposite errors.
-
-   acc-daily  — the front-door option. Violet alone goes to the .20 house
-     ceiling; petrol drops to the .086 it can actually hold, so the daily's
-     scene palette stops shipping a colour nobody wrote. Lightness untouched,
-     so contrast is unchanged and no ink twin is needed.
-   acc-family — the whole set at one lightness, each hue at its own ceiling.
-     L .555 is the brightest shared lightness where white-on-fill still clears
-     4.5:1, and it sits inside World's own .545–.655 band, so chrome and feed
-     stop reading as two systems. City lands at 4.4:1 — the one ink twin owed. */
-.app.acc-daily { --c-today: oklch(0.52 0.20 282); --c-likeness: oklch(0.52 0.086 195); }
-.app.acc-family {
-  --c-today:    oklch(0.555 0.200 282);
-  --c-around:   oklch(0.555 0.170 40);
-  --c-world:    oklch(0.555 0.115 235);
-  --c-city:     oklch(0.555 0.149 150);
-  --c-groups:   oklch(0.555 0.111 85);
-  --c-people:   oklch(0.555 0.200 8);
-  --c-likeness: oklch(0.555 0.092 195);
-  --pulse:      oklch(0.555 0.135 282);
-  --c-city-ink: oklch(0.52 0.144 150);
-}
+/* ── Accent ramp ─────────────────────────────────────────────────────────────
+   'now' — the flat :root ramp — won the v28 teardown (§10) over two judged
+   alternatives grounded in "Accent ramp study.html" (acc-daily: per-hue chroma
+   against the sRGB boundary; acc-family: one shared lightness, each hue at its
+   own ceiling). The study's arithmetic is real — the flat C .14 at L .52 clips
+   three hues and undersells four — but neither remedy earned the second system
+   it created, so the ramp stays :root's and nothing overrides it here. */
 
 
 /* ═══ next style block ═══ */

@@ -36,11 +36,11 @@ import { type Transaction } from "firebase-admin/firestore";
 import { randomBytes } from "node:crypto";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions";
-import { ENFORCE_APP_CHECK, LIGHT_CALLABLE } from "./ops";
+import { ENFORCE_APP_CHECK, LIGHT_CALLABLE, FUNCTIONS_REGION } from "./ops";
 import { generateForm, version as GEN_VERSION, type Cell } from "./logic-gen";
 import { db as firestore } from "./db";
 
-const REGION = "us-central1";
+const REGION = FUNCTIONS_REGION;
 
 // ── administration constants ──
 // The per-item cap mirrors the overlay's ITEM_CAP (90s, D56); the server

@@ -106,7 +106,7 @@ describe("feedBudget", () => {
 });
 
 describe("loadFeedTopics", () => {
-  it("counts only servable forms", () => {
+  it("counts only servable forms, once per carried topic", () => {
     // rank is not live-servable (D12) and duel-type feed cards are prototype
     // legacy; a topic must not read as covered on questions nobody can meet.
     expect(SERVABLE_TYPES.has("rank")).toBe(false);
@@ -114,12 +114,23 @@ describe("loadFeedTopics", () => {
     expect(SERVABLE_TYPES.has("path")).toBe(true);
 
     const topics = loadFeedTopics();
-    const servable = topics.reduce((n, t) => n + t.questions, 0);
+    const counted = topics.reduce((n, t) => n + t.questions, 0);
     const raw = JSON.parse(
       readFileSync(new URL("../content/feed-questions.json", import.meta.url), "utf8"),
     );
-    expect(servable).toBeLessThan(raw.questions.length);
-    expect(servable).toBe(raw.questions.filter((q) => SERVABLE_TYPES.has(q.type)).length);
+    // MEMBERSHIP, not a partition (docs/TAGS-PLAN.md §3): a straddler covers
+    // every topic it carries, so the per-topic column sums to servable
+    // questions PLUS their servable in-taxonomy doors. This test asserted
+    // `< bank size` until doors existed — that inequality was the
+    // single-topic premise itself, worn as a test.
+    const inTaxonomy = new Set(raw.topics.map((t) => t.id));
+    const servable = raw.questions.filter((q) => SERVABLE_TYPES.has(q.type));
+    const doorCount = servable.reduce(
+      (n, q) => n + (q.also || []).filter((t) => inTaxonomy.has(t)).length,
+      0,
+    );
+    expect(doorCount).toBeGreaterThan(0); // the retro-tag is real, not vestigial
+    expect(counted).toBe(servable.length + doorCount);
   });
 
   it("covers every topic in the taxonomy, thin ones included", () => {

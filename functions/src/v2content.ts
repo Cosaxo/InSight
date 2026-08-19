@@ -21,7 +21,20 @@
 // forms' range/plane copy (D114), absent everywhere else; their options
 // are synthesized bucket/cell labels, so the D52 option freeze freezes
 // the range with them.
-export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; branch?: string; sub?: string; tag?: string; rates?: string; axis: string | null; test: string | null; mode?: string; active?: boolean; political?: boolean; core?: boolean; until?: string; lo?: number; hi?: number; unit?: string; ends?: string[]; ax?: string[]; ay?: string[]; title?: string; intro?: string; hue?: number; nodes?: Record<string, { q: string; a: Array<{ t: string }> }>; endings?: Record<string, { name: string; line: string }>; }
+// `also` is feed/pick-only (docs/TAGS-PLAN.md, D206): the topics a
+// question ALSO belongs to beside its `topic` home. Reach, never
+// placement — the client's filter/stock/search read topic ∪ also, the
+// Map and grouping stay on `topic`. Emit-when-set; never on sponsored.
+// `sponsor` is feed-only (D195): `{ buyer, audience? }` on a question
+// somebody paid to ask. The WINDOW is `until`, not a field here, so the
+// label the card prints and the filter that stops serving it are one
+// value. A sponsored question is never `core` — paid questions inside
+// the Mirror's corpus would make the honest aggregate a paid-for sample.
+// `tier`/`resolvesAt`/`rubric` are the CALL surface's only (D194): the
+// admitted grading path, the earliest UTC day it may be graded, and the
+// expression the resolver RUNS. The outcome is not here — it lives in
+// v2_call_outcomes, so a reseed and the resolver never fight.
+export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; also?: string[]; branch?: string; sub?: string; tag?: string; rates?: string; axis: string | null; test: string | null; mode?: string; active?: boolean; political?: boolean; core?: boolean; until?: string; lo?: number; hi?: number; unit?: string; ends?: string[]; ax?: string[]; ay?: string[]; title?: string; intro?: string; hue?: number; nodes?: Record<string, { q: string; a: Array<{ t: string }> }>; endings?: Record<string, { name: string; line: string }>; sponsor?: { buyer: string; audience?: Record<string, string> }; tier?: string; resolvesAt?: string; rubric?: { kind: string; qid: string; test: string; threshold?: number; dim?: string; buckets?: string[] }; }
 export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "daily-000",
@@ -2437,6 +2450,160 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "political": true
  },
  {
+  "id": "daily-114",
+  "surface": "daily",
+  "seq": 114,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Win ugly, or lose beautifully?",
+  "options": [
+   "Win ugly",
+   "Lose beautifully"
+  ],
+  "topic": "blend",
+  "branch": "Sport",
+  "sub": "Style",
+  "tag": "Ugly win",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-115",
+  "surface": "daily",
+  "seq": 115,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Black and white films: timeless, or homework?",
+  "options": [
+   "Timeless",
+   "Homework"
+  ],
+  "topic": "light",
+  "branch": "Film",
+  "sub": "The classics",
+  "tag": "Black and white",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-116",
+  "surface": "daily",
+  "seq": 116,
+  "type": "scale",
+  "domain": null,
+  "prompt": "A skill isn't yours until you've taught it to someone.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "blend",
+  "branch": "Skills",
+  "sub": "Mastery",
+  "tag": "Teach it",
+  "axis": "teaching-minded",
+  "test": null
+ },
+ {
+  "id": "daily-117",
+  "surface": "daily",
+  "seq": 117,
+  "type": "choice",
+  "domain": null,
+  "prompt": "What pulls you down a rabbit hole at 1 a.m.?",
+  "options": [
+   "History",
+   "How things work",
+   "Other people's lives",
+   "Maps"
+  ],
+  "topic": "light",
+  "branch": "Interests",
+  "sub": "Rabbit holes",
+  "tag": "Rabbit holes",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-118",
+  "surface": "daily",
+  "seq": 118,
+  "type": "binary",
+  "domain": null,
+  "prompt": "The last slice: take it, or offer it?",
+  "options": [
+   "Take it",
+   "Offer it"
+  ],
+  "topic": "light",
+  "branch": "Food",
+  "sub": "Table manners",
+  "tag": "Last slice",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-119",
+  "surface": "daily",
+  "seq": 119,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Window seat or aisle?",
+  "options": [
+   "Window",
+   "Aisle"
+  ],
+  "topic": "light",
+  "branch": "Travel",
+  "sub": "In transit",
+  "tag": "The seat",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-120",
+  "surface": "daily",
+  "seq": 120,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Where does music hit you hardest?",
+  "options": [
+   "Alone in headphones",
+   "Live in a crowd",
+   "In the car",
+   "On the dance floor"
+  ],
+  "topic": "blend",
+  "branch": "Music",
+  "sub": "Where it hits",
+  "tag": "Where it hits",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-121",
+  "surface": "daily",
+  "seq": 121,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Your body runs your mood more than your mind does.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "deep",
+  "branch": "Body",
+  "sub": "Mind and body",
+  "tag": "Body first",
+  "axis": "body-led",
+  "test": null
+ },
+ {
   "id": "feed-f01",
   "surface": "feed",
   "seq": 0,
@@ -2533,6 +2700,9 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "sport",
   "axis": null,
   "test": null,
+  "also": [
+   "tech"
+  ],
   "core": true
  },
  {
@@ -2549,6 +2719,9 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "sport",
   "axis": null,
   "test": null,
+  "also": [
+   "dilemma"
+  ],
   "core": true
  },
  {
@@ -2616,6 +2789,9 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "food",
   "axis": null,
   "test": null,
+  "also": [
+   "tech"
+  ],
   "core": true
  },
  {
@@ -2632,6 +2808,9 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "food",
   "axis": null,
   "test": null,
+  "also": [
+   "dilemma"
+  ],
   "core": true
  },
  {
@@ -2730,6 +2909,9 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "movies",
   "axis": null,
   "test": null,
+  "also": [
+   "culture"
+  ],
   "core": true
  },
  {
@@ -2815,6 +2997,9 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "music",
   "axis": null,
   "test": null,
+  "also": [
+   "tech"
+  ],
   "core": true
  },
  {
@@ -2881,6 +3066,9 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "tech",
   "axis": null,
   "test": null,
+  "also": [
+   "event"
+  ],
   "core": true
  },
  {
@@ -2915,6 +3103,9 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "tech",
   "axis": null,
   "test": null,
+  "also": [
+   "dilemma"
+  ],
   "core": true
  },
  {
@@ -2931,6 +3122,9 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "tech",
   "axis": null,
   "test": null,
+  "also": [
+   "dilemma"
+  ],
   "core": true
  },
  {
@@ -2963,6 +3157,9 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "culture",
   "axis": null,
   "test": null,
+  "also": [
+   "event"
+  ],
   "core": true
  },
  {
@@ -3690,6 +3887,9 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "dilemma",
   "axis": null,
   "test": null,
+  "also": [
+   "culture"
+  ],
   "lo": 0,
   "hi": 30,
   "unit": "%",
@@ -3719,6 +3919,9 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "dilemma",
   "axis": null,
   "test": null,
+  "also": [
+   "tech"
+  ],
   "lo": 1,
   "hi": 12,
   "unit": "h",
@@ -3777,6 +3980,9 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "dilemma",
   "axis": null,
   "test": null,
+  "also": [
+   "food"
+  ],
   "ax": [
    "tastes bad",
    "tastes good"
@@ -3811,6 +4017,9 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "bigq",
   "axis": null,
   "test": null,
+  "also": [
+   "culture"
+  ],
   "ax": [
    "painful",
    "pleasant"
@@ -3845,6 +4054,9 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "bigq",
   "axis": null,
   "test": null,
+  "also": [
+   "tech"
+  ],
   "ax": [
    "overhyped",
    "underrated"
@@ -4130,6 +4342,115 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
     "line": "You stayed with the receipts. Leverage keeps better than anger."
    }
   }
+ },
+ {
+  "id": "feed-f57",
+  "surface": "feed",
+  "seq": 82,
+  "type": "vote",
+  "domain": null,
+  "prompt": "ABBA or Queen?",
+  "options": [
+   "ABBA",
+   "Queen"
+  ],
+  "topic": "music",
+  "axis": null,
+  "test": null,
+  "core": true
+ },
+ {
+  "id": "feed-f58",
+  "surface": "feed",
+  "seq": 83,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Who left the bigger mark: Einstein or Shakespeare?",
+  "options": [
+   "Einstein",
+   "Shakespeare"
+  ],
+  "topic": "people",
+  "axis": null,
+  "test": null,
+  "core": true
+ },
+ {
+  "id": "feed-dl5",
+  "surface": "feed",
+  "seq": 84,
+  "type": "dial",
+  "domain": null,
+  "prompt": "How many years until a human walks on Mars?",
+  "options": [
+   "0–8 yrs",
+   "8–17 yrs",
+   "17–25 yrs",
+   "25–33 yrs",
+   "33–42 yrs",
+   "42–50 yrs",
+   "50–58 yrs",
+   "58–67 yrs",
+   "67–75 yrs",
+   "75–83 yrs",
+   "83–92 yrs",
+   "92–100 yrs"
+  ],
+  "topic": "event",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 100,
+  "unit": "yrs",
+  "core": true
+ },
+ {
+  "id": "feed-f60",
+  "surface": "feed",
+  "seq": 85,
+  "type": "vote",
+  "domain": null,
+  "prompt": "The right way to see a film?",
+  "options": [
+   "A cinema seat",
+   "Your own couch"
+  ],
+  "topic": "movies",
+  "axis": null,
+  "test": null,
+  "core": true
+ },
+ {
+  "id": "feed-f61",
+  "surface": "feed",
+  "seq": 86,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Let AI write your texts for you?",
+  "options": [
+   "Sure — it saves time",
+   "Never. It’s my voice"
+  ],
+  "topic": "tech",
+  "axis": null,
+  "test": null,
+  "core": true
+ },
+ {
+  "id": "feed-f62",
+  "surface": "feed",
+  "seq": 87,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Is a hot dog a sandwich?",
+  "options": [
+   "Obviously",
+   "Obviously not"
+  ],
+  "topic": "food",
+  "axis": null,
+  "test": null,
+  "core": true
  },
  {
   "id": "group-gu0",
@@ -10208,5 +10529,161 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": null,
   "axis": null,
   "test": null
+ },
+ {
+  "id": "pulse-energy",
+  "surface": "pulse",
+  "seq": 1,
+  "type": "pulse",
+  "domain": null,
+  "prompt": "How was your energy today?",
+  "options": [
+   "Drained",
+   "Low",
+   "OK",
+   "Charged",
+   "Wired"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "pulse-sleep",
+  "surface": "pulse",
+  "seq": 2,
+  "type": "pulse",
+  "domain": null,
+  "prompt": "How did you sleep?",
+  "options": [
+   "Badly",
+   "Patchy",
+   "OK",
+   "Well",
+   "Deeply"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "pulse-focus",
+  "surface": "pulse",
+  "seq": 3,
+  "type": "pulse",
+  "domain": null,
+  "prompt": "How clear was your head today?",
+  "options": [
+   "Scattered",
+   "Foggy",
+   "OK",
+   "Sharp",
+   "Locked in"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "pulse-social",
+  "surface": "pulse",
+  "seq": 4,
+  "type": "pulse",
+  "domain": null,
+  "prompt": "How connected did you feel today?",
+  "options": [
+   "Alone",
+   "Distant",
+   "OK",
+   "Close",
+   "Held"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "call-c01",
+  "surface": "call",
+  "seq": 0,
+  "type": "call",
+  "domain": null,
+  "prompt": "By October, will 60% of everyone be on one side of Messi or Ronaldo?",
+  "options": [
+   "They will",
+   "It stays close"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null,
+  "tier": "A",
+  "resolvesAt": "2026-10-01",
+  "rubric": {
+   "kind": "agg",
+   "qid": "daily-000",
+   "test": "topShareAtLeast",
+   "threshold": 60
+  },
+  "active": false
+ },
+ {
+  "id": "call-c02",
+  "surface": "call",
+  "seq": 1,
+  "type": "call",
+  "domain": null,
+  "prompt": "By October, will 18-24 and 55-64 be on opposite sides of “Money can buy happiness”?",
+  "options": [
+   "Opposite sides",
+   "The same side"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null,
+  "tier": "A",
+  "resolvesAt": "2026-10-01",
+  "rubric": {
+   "kind": "agg",
+   "qid": "feed-f54",
+   "test": "slicesDisagree",
+   "dim": "ageBand",
+   "buckets": [
+    "18-24",
+    "55-64"
+   ]
+  },
+  "active": false
+ },
+ {
+  "id": "call-c03",
+  "surface": "call",
+  "seq": 2,
+  "type": "call",
+  "domain": null,
+  "prompt": "By October, will a thousand people have said whether they would eat lab-grown meat?",
+  "options": [
+   "A thousand",
+   "Fewer"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null,
+  "tier": "A",
+  "resolvesAt": "2026-10-01",
+  "rubric": {
+   "kind": "agg",
+   "qid": "feed-f11",
+   "test": "turnoutAtLeast",
+   "threshold": 1000
+  },
+  "active": false
  }
 ];
+
+// Feed ads (D197) — docs/MONETIZATION.md path 3, and NOT path 2's
+// sponsored questions. An ad takes no answer and folds into no
+// aggregate, which is why it is a separate array and a separate
+// collection: nothing that reads the question bank has to learn to skip
+// it. Text only, no link, one coarse audience tag matched on the DEVICE.
+export interface V2SeedAd { id: string; seq: number; advertiser: string; headline: string; body: string; until: string; audience?: Record<string, string>; active?: boolean; }
+export const V2_ADS: V2SeedAd[] = [];

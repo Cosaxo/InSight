@@ -20,7 +20,7 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { buildEntries, generate, loadContent, CONTENT_SOURCES, LENS_SCALE, LIKERT, dialOptions, fieldOptions, DIAL_BUCKETS } from "./gen-v2content.mjs";
+import { buildAds, buildEntries, generate, loadContent, CONTENT_SOURCES, LENS_SCALE, LIKERT, dialOptions, fieldOptions, DIAL_BUCKETS } from "./gen-v2content.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const OUT = join(root, "functions", "src", "v2content.ts");
@@ -71,6 +71,10 @@ const ID_SHAPE = {
   // them — and it must never admit an underscore, which is the day
   // separator the rules parse on.
   pulse: /^pulse-[a-z0-9]+$/,
+  // Foresight CALL ids (D194). Answers are keyed on them like every other
+  // world answer, and `v2_call_outcomes` is keyed on them too — so a
+  // reshaped id would orphan a published grade from the call it graded.
+  call: /^call-[a-z0-9]+$/,
 };
 const seenIds = new Set();
 for (const q of entries) {
@@ -103,6 +107,56 @@ for (const q of entries) {
     if (q.surface !== "feed") errors.push(`${q.id}: \`until\` is the feed's current-events window — no other surface carries it`);
     else if (!/^\d{4}-\d{2}-\d{2}$/.test(q.until)) errors.push(`${q.id}: \`until\` must be a YYYY-MM-DD UTC day key`);
   }
+  // Sponsored questions (D195). Every rule here is a promise the card
+  // makes on screen, held at the source so the disclosure cannot be
+  // authored away — a paid question that renders as an ordinary one is the
+  // single failure this whole path has to be unable to produce.
+  if (q.sponsor !== undefined) {
+    const s = q.sponsor;
+    if (q.surface !== "feed") {
+      errors.push(`${q.id}: only feed questions can be sponsored — the daily is one shared question and the tests are instruments`);
+    }
+    if (!s || typeof s !== "object" || Array.isArray(s)) {
+      errors.push(`${q.id}: sponsor must be an object`);
+    } else {
+      const extra = Object.keys(s).filter((k) => !["buyer", "audience"].includes(k));
+      if (extra.length) errors.push(`${q.id}: sponsor carries ${extra.join(", ")} — only buyer and audience. No colour, no logo, no link`);
+      if (typeof s.buyer !== "string" || !s.buyer.trim()) {
+        errors.push(`${q.id}: a sponsored question names its buyer — an undisclosed one is the thing this field exists to prevent`);
+      } else if (s.buyer.length > 40) {
+        errors.push(`${q.id}: buyer name is ${s.buyer.length} chars (max 40) — it rides in a band, not a paragraph`);
+      }
+      if (s.audience !== undefined) {
+        if (!s.audience || typeof s.audience !== "object" || Array.isArray(s.audience)) {
+          errors.push(`${q.id}: sponsor.audience must be an object of dim → bucket`);
+        } else if (Object.keys(s.audience).length !== 1) {
+          // One tag, always. Two compound into targeting, which is the
+          // line docs/MONETIZATION.md draws and the reason a sponsored
+          // question may never be narrowed to a person.
+          errors.push(`${q.id}: sponsor.audience carries ${Object.keys(s.audience).length} tags — exactly one, or none`);
+        }
+      }
+    }
+    // The window is `until`, not a second field, so the label the card
+    // prints and the filter that stops serving it are ONE value.
+    if (typeof q.until !== "string") {
+      errors.push(`${q.id}: a sponsored question carries \`until\` — a paid slot is a window, and an open-ended one is inventory nobody sold`);
+    }
+    // docs/SCALE-PLAN.md §5: sponsored content lives in the TAIL. A paid
+    // question inside the Mirror's corpus makes the honest aggregate a
+    // paid-for sample, which is the one asset MONETIZATION.md names.
+    if (q.core === true) {
+      errors.push(`${q.id}: a sponsored question is never core — paid questions in the Mirror's corpus make the honest aggregate a paid-for sample`);
+    }
+    // docs/TAGS-PLAN.md §3, the same line one field over: a paid card
+    // reaches the audience it declared, and doors would multiply where the
+    // slot surfaces. A buyer who wants two audiences buys two windows. (The
+    // demand rollup already excludes sponsored rows, so a door here could
+    // only ever be reach — there is no honest use left to allow.)
+    if (q.also !== undefined) {
+      errors.push(`${q.id}: a sponsored question carries no \`also\` — a paid slot reaches the audience it declared, and a buyer who wants two buys two windows`);
+    }
+  }
   if (q.type === "scale") {
     // Lens items run the client's agree-FIRST scale (lens-defs.js SCALE):
     // stored optionIdx indexes it, and world-feed's `4 - val` store
@@ -122,6 +176,23 @@ for (const q of entries) {
     }
   } else if (q.surface === "pulse") {
     errors.push(`${q.id}: the pulse surface carries only pulse-type questions`);
+  } else if (q.type === "call") {
+    // Two options, always, and the order IS the grade: index 0 is the call
+    // coming true and index 1 is it not (callRubric.ts CALL_YES/CALL_NO).
+    // A third option would have no verdict to map to, and a swapped pair
+    // would mark every player backwards with nothing on screen to show it.
+    // The rubric's own well-formedness is check:calls' — it needs the
+    // module, and this gate stays dependency-free.
+    if (q.surface !== "call") errors.push(`${q.id}: call type outside the call surface`);
+    if (q.options.length !== 2 || q.options.some((o) => !o || !o.trim())) {
+      errors.push(`${q.id}: a call carries exactly two non-empty options — index 0 is it coming true`);
+    }
+    if (q.tier !== "A") errors.push(`${q.id}: tier ${JSON.stringify(q.tier)} — only tier A is admitted (D127)`);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(q.resolvesAt))) {
+      errors.push(`${q.id}: resolvesAt must be a YYYY-MM-DD UTC day key`);
+    }
+  } else if (q.surface === "call") {
+    errors.push(`${q.id}: the call surface carries only call-type questions`);
   } else if (q.surface === "group" && q.topic === "pick") {
     if (q.options.length !== 0) errors.push(`${q.id}: pick questions carry no options`);
   } else if (q.type === "dial" || q.type === "field") {
@@ -152,6 +223,72 @@ for (const q of entries) {
   } else if (q.options.length < 2 || q.options.length > 10) {
     errors.push(`${q.id}: ${q.options.length} options (want 2..10)`);
   }
+}
+
+// ---- feed ads (D197). Every rule here is a promise the card makes on
+// screen, held at the source. The refusals are BY NAME rather than by
+// omission — an ad that wanted a logo would fail with the word "logo" in
+// the message, which makes adding one a conversation rather than a commit.
+{
+  const ads = buildAds(content);
+  const seenAdIds = new Set();
+  const ALLOWED = ["id", "advertiser", "headline", "body", "until", "audience", "active"];
+  const REFUSED = {
+    image: "an image", img: "an image", logo: "a logo", brand: "a brand",
+    color: "a brand colour", colour: "a brand colour", url: "a link",
+    href: "a link", link: "a link", cta: "a call to action", script: "a script",
+    pixel: "a tracking pixel", track: "tracking",
+  };
+  // THE FIELD-NAME RULES READ THE SOURCE, NOT THE BUILT OUTPUT, and that is
+  // the whole reason they work. `buildAds` maps the fields it knows and
+  // drops the rest, so an ad carrying a logo would arrive here already
+  // stripped of it — every refusal below would pass while the source file
+  // said something the app does not do. Checked against the raw entries
+  // instead, so the gate sees what an author actually wrote.
+  const rawAds = content.ads?.ads ?? [];
+  rawAds.forEach((raw, i) => {
+    const at = `ads.json[${i}]${raw?.id ? ` (${raw.id})` : ""}`;
+    for (const k of Object.keys(raw ?? {})) {
+      if (ALLOWED.includes(k)) continue;
+      const why = REFUSED[k.toLowerCase()];
+      errors.push(
+        why
+          ? `${at}: an ad carries no ${k} — text only (D197), and ${why} is refused BY NAME rather than forgotten`
+          : `${at}: unknown ad field ${JSON.stringify(k)}`,
+      );
+    }
+  });
+  for (const a of ads) {
+    if (seenAdIds.has(a.id)) errors.push(`duplicate ad id ${a.id}`);
+    seenAdIds.add(a.id);
+    if (!/^ad-[a-z0-9]+$/.test(a.id)) errors.push(`${a.id}: ad id does not match ad-<id>`);
+    for (const [k, cap] of [["advertiser", 40], ["headline", 70], ["body", 140]]) {
+      const v = a[k];
+      if (typeof v !== "string" || !v.trim()) errors.push(`${a.id}: ad needs a non-empty ${k}`);
+      else if (v.length > cap) errors.push(`${a.id}: ${k} is ${v.length} chars (max ${cap})`);
+      // A link cannot arrive through the prose either — the card renders
+      // text, so a URL in it would be a link the app does not make tappable
+      // and the reader would type by hand. That is a worse click-out, not a
+      // clever one.
+      else if (/https?:\/\/|www\.|\.com\b|\.no\b/i.test(v)) {
+        errors.push(`${a.id}: ${k} carries a web address — an ad card has no tap-through (D197), and a typed-out one is a worse click-out rather than a clever one`);
+      }
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(a.until))) {
+      errors.push(`${a.id}: an ad carries \`until\` as a YYYY-MM-DD UTC day — a slot with no window is inventory nobody sold`);
+    }
+    if (a.audience !== undefined) {
+      if (!a.audience || typeof a.audience !== "object" || Array.isArray(a.audience)) {
+        errors.push(`${a.id}: audience must be an object of dim → bucket`);
+      } else if (Object.keys(a.audience).length !== 1) {
+        errors.push(`${a.id}: audience carries ${Object.keys(a.audience).length} tags — exactly one, or none`);
+      }
+    }
+  }
+  // Ads and questions share one id space in the reader's head, and one
+  // slot in the feed. A collision would be confusing rather than harmful,
+  // which is exactly the kind of thing that survives to production.
+  for (const a of ads) if (seenIds.has(a.id)) errors.push(`${a.id}: an ad and a question share an id`);
 }
 
 // ---- duplicate prompts within a surface read as the same question twice.

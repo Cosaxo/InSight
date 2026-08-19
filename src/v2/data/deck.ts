@@ -2,6 +2,7 @@
 // live.ts so it can be unit-tested without Firebase or a browser. Every
 // function here takes explicit inputs (no module state, no window, no
 // firebase imports); live.ts passes its store state in.
+import type { CallRubric, CallSnapshot } from "./callRubric";
 
 export interface LiveOption {
   id: string;
@@ -79,6 +80,12 @@ export interface QuestionDoc {
   // construction and carries no key, which is why readers must go through
   // `isCore()` below rather than testing this field directly.
   core?: boolean;
+  // Doors (docs/TAGS-PLAN.md §1): the topics a feed question ALSO belongs
+  // to, beside its `topic` home. Feed-only, emit-when-set, and reach-only —
+  // the feed's filter, stock and search read topic ∪ also, while everything
+  // that PLACES the card (Map branch, kicker, stream grouping) stays on
+  // `topic`. Absent everywhere else and on any doc seeded before it landed.
+  also?: string[];
   // Pool scope for duel questions (D40 part 4): absent = the shared pool;
   // "romantic" = served only to duos whose doc says duoMode: "romantic".
   // Absent everywhere else — the seed emits it only when set.
@@ -104,6 +111,29 @@ export interface QuestionDoc {
   hue?: number;
   nodes?: Record<string, { q: string; a: Array<{ t: string }> }>;
   endings?: Record<string, { name: string; line: string }>;
+  // Foresight CALL (D194), on `call` docs only: the admitted grading tier,
+  // the earliest UTC day the resolver may grade, and the expression it
+  // RUNS. The outcome is deliberately not here — it is written by the
+  // resolver into v2_call_outcomes, which the seed never touches.
+  tier?: string;
+  resolvesAt?: string;
+  rubric?: CallRubric;
+  // Sponsored questions (D195), on feed docs only: who bought the question,
+  // and at most one coarse audience tag the DEVICE matches against its own
+  // anchors. The window is `until` above rather than a field here, so the
+  // label the disclosure prints and the filter that stops serving the card
+  // are one value.
+  sponsor?: { buyer: string; audience?: Record<string, string> };
+}
+
+/** One published grade — `v2_call_outcomes/{qid}`, admin-written (D194). */
+export interface CallOutcome {
+  /** The winning option, or CALL_VOID (-1): nobody is scored. */
+  outcomeIdx: number;
+  resolvedBy?: string;
+  /** What the grader SAW, so the device can re-run the same arithmetic. */
+  inputs?: CallSnapshot | null;
+  note?: string;
 }
 
 export interface AggDoc {
@@ -310,6 +340,8 @@ export function splitBanks(active: Array<QuestionDoc & { id: string }>): {
   feed: Array<QuestionDoc & { id: string }>;
   duel: Array<QuestionDoc & { id: string }>;
   learn: Array<QuestionDoc & { id: string }>;
+  call: Array<QuestionDoc & { id: string }>;
+  pulse: Array<QuestionDoc & { id: string }>;
 } {
   const playable = (q: QuestionDoc & { id: string }) =>
     Array.isArray(q.options) && q.options.length >= 2;
@@ -332,6 +364,23 @@ export function splitBanks(active: Array<QuestionDoc & { id: string }>): {
         (playable(q) || q.topic === "pick"),
     ),
     learn: active.filter((q) => q.surface === "learn" && playable(q)),
+    // Foresight CALLs (D194). Their own bank rather than a member of the
+    // feed's: a call is not dealt into the stream, it is pinned at the head
+    // like Crossroads, and — more to the point — its card is the only one
+    // that has to read a SECOND document (the outcome) before it can say
+    // anything. Keeping it out of `feed` keeps that read off the feed's
+    // hot path entirely.
+    call: active.filter((q) => q.surface === "call" && playable(q)),
+    // The pulse roster (D203). It had no bank until the roster shipped,
+    // and the omission cost two live defects rather than one: `data/pulse`
+    // paid its own `getDoc` for a template `hydrate()` had already
+    // downloaded and cached, AND that read took only `prompt`/`options`,
+    // so `active` never reached the client. Flipping a pulse off in the
+    // console left a fully rendered, tappable card whose every write the
+    // rules refused — the answer appeared and silently vanished. Both are
+    // fixed by the pulse being a bank like the others, because `active` is
+    // already filtered out of `active` above.
+    pulse: active.filter((q) => q.surface === "pulse" && playable(q)),
   };
 }
 

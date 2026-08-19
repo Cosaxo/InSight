@@ -31,10 +31,10 @@
 import { FieldValue, type Firestore, type Transaction } from "firebase-admin/firestore";
 import { db as firestore, FIRESTORE_DB_ID } from "./db";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
-import { assertOperator, HOT_TRIGGER } from "./ops";
+import { assertOperator, HOT_TRIGGER, FUNCTIONS_REGION } from "./ops";
 import { onDocumentCreated, onDocumentUpdated } from "firebase-functions/v2/firestore";
 import { logger } from "firebase-functions";
-import { V2_QUESTIONS } from "./v2content";
+import { V2_ADS, V2_QUESTIONS } from "./v2content";
 import {
   canonBreakdownFor,
   catalogEntityKey,
@@ -53,7 +53,7 @@ import {
 } from "./pure";
 import { FILM_KEYS, ARTIST_KEYS, EMOJI_KEYS, COUNTRY_KEYS, DOG_KEYS } from "./catalogKeys";
 
-const REGION = "us-central1";
+const REGION = FUNCTIONS_REGION;
 
 // ── no floor, no cadence (D98) ──────────────────────────────────
 //
@@ -155,10 +155,19 @@ export const LEDGER_RETENTION_DAYS = 90;
 // cannot drift apart. `uid` is the attribution: qid alone dedups fine, but
 // leaves no way to identify — and unwind — a fake account's contributions
 // after the fact.
-function ledgerEntry(uid: string, qid: string) {
+//
+// `optionIdx` joined for the Patterns fit (patterns.ts): the nightly
+// sweep reads yesterday's ledger as its vote log, and (uid, qid) alone
+// says who answered, not what. It adds nothing the answer doc does not
+// already publish (D98), rides the same 90-day TTL, and erases with the
+// account (index.ts phase 4c). Absent on catalog entries — the fit's
+// pool is two-option questions only — and an edit's entry carries the
+// NEW side, so a refit leans toward what the person now says.
+function ledgerEntry(uid: string, qid: string, optionIdx?: number) {
   return {
     qid,
     uid,
+    ...(optionIdx === undefined ? {} : { optionIdx }),
     at: FieldValue.serverTimestamp(),
     expireAt: new Date(Date.now() + LEDGER_RETENTION_DAYS * 86400000),
   };
@@ -261,6 +270,46 @@ const CATALOG_DOMAINS: Record<string, CatalogSpec> = {
  * emulator — which is exactly the gap that let the invariant go unenforced
  * for as long as it did. seed.test.ts drives it with a stand-in.
  */
+/**
+ * Mirror `content/ads.json` into `v2_ads` (D197).
+ *
+ * Deletes what the bank no longer names, which `runSeedV2` deliberately
+ * does NOT do for questions — and the difference is the whole reason ads
+ * get their own function. A question is permanent because answers are
+ * keyed to it: removing one would orphan real votes, so the bank retires
+ * with `active: false` instead. An ad has no answers, no aggregate and no
+ * history; a campaign that has ended should simply not be there, and a
+ * collection that only ever grows would accumulate every ad ever sold as
+ * a document every client pages past.
+ */
+export async function runSeedAds(db: Firestore): Promise<number> {
+  const want = new Map(V2_ADS.map((a) => [a.id, a]));
+  const existing = await db.collection("v2_ads").get();
+  const batch = db.batch();
+  let n = 0;
+  for (const doc of existing.docs) {
+    if (!want.has(doc.id)) { batch.delete(doc.ref); n++; }
+  }
+  for (const a of V2_ADS) {
+    batch.set(db.collection("v2_ads").doc(a.id), {
+      seq: a.seq,
+      advertiser: a.advertiser,
+      headline: a.headline,
+      body: a.body,
+      until: a.until,
+      // Emit-when-set, the bank's own convention: an ad with no tag is
+      // shown to everyone, and writing `null` would make "untargeted" and
+      // "targeted at nothing" the same document.
+      ...(a.audience ? { audience: a.audience } : {}),
+      ...(a.active === false ? { active: false } : {}),
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: false });
+    n++;
+  }
+  if (n) await batch.commit();
+  return n;
+}
+
 export async function runSeedV2(
   db: Firestore,
   bumpRev = false,
@@ -395,6 +444,20 @@ export async function runSeedV2(
   // creates carry `updatedAt` like every other write, so the cursor pages
   // them in. The only automatic bump left is the first seed of an empty
   // project, which initialises the field.
+  // Feed ads (D197) — a separate collection, written in the same run.
+  // Separate because an ad is not a question: it takes no answer, folds
+  // into no aggregate and has no options, so putting it in `v2_questions`
+  // would mean splitBanks, the quality gate, the velocity ceiling and the
+  // aggregate trigger all learning to skip it. One collection each, and
+  // neither has to know about the other.
+  //
+  // Plain `set` with merge rather than the option-freeze dance above:
+  // there are no stored answers keyed to an ad, so an edit re-keys
+  // nothing. `active` is written every time for the same reason — the
+  // D52 argument that makes it create-only for questions is about
+  // protecting votes, and an ad has none.
+  const adsWritten = await runSeedAds(db);
+
   const metaRef = db.collection("v2_meta").doc("app");
   const firstEver = (await metaRef.get()).get("contentRev") === undefined;
   const bumped = bumpRev || firstEver;
@@ -403,7 +466,7 @@ export async function runSeedV2(
   }
   const skipped = V2_QUESTIONS.length - written - refused.length;
   logger.info(
-    `[v2] seeded ${written} questions, ${skipped} unchanged ` +
+    `[v2] seeded ${written} questions, ${skipped} unchanged, ${adsWritten} ad(s) ` +
       `(${present.size} pre-existing, contentRev ${bumped ? "bumped" : "held"})`,
   );
   // Loud, and after the commit. The legitimate writes are already durable —
@@ -626,7 +689,7 @@ export const onV2AnswerCreated = onDocumentCreated(
         snap.get("anchors"),
         optionIdx,
       );
-      tx.set(eventRef, ledgerEntry(event.params.uid, qid));
+      tx.set(eventRef, ledgerEntry(event.params.uid, qid, optionIdx));
       tx.set(privRef, { counts, total, by }, { merge: false });
       // The public mirror, written on EVERY answer with exact counts.
       //
@@ -707,7 +770,7 @@ export const onV2AnswerUpdated = onDocumentUpdated(
       // churn means the old vote is no longer represented (pure.ts has the
       // accounting). Bucket totals never move.
       retargetAnchors(by, after.get("anchors"), fromIdx, toIdx);
-      tx.set(eventRef, ledgerEntry(event.params.uid, qid));
+      tx.set(eventRef, ledgerEntry(event.params.uid, qid, toIdx));
       tx.set(privRef, { counts, total, by }, { merge: false });
       // An edit always republishes now. It used to be conditional on
       // EDITS_REPUBLISH — a guard that existed because, under a publish

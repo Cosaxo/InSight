@@ -35,7 +35,12 @@ import { rate, money, unit, int } from "./cost-peers.mjs";
 
 // Both price sheets built once: costModel() re-reads and re-parses the seed
 // to count the bank on every call, which is fine once and silly in a loop.
-const MODELS = { false: costModel({}), true: costModel({ regional: true }) };
+// EXPLICIT on both sides since D200. `costModel({})` used to mean
+// multi-region because that was the parameter default; it now means "the
+// region production is on", which for a table whose whole job is comparing
+// the two would have collapsed the baseline onto the lever and reported a
+// 0% saving for a lever that saves 50%.
+const MODELS = { false: costModel({ regional: false }), true: costModel({ regional: true }) };
 const evaluate = (dau, mature, { regional = false, ...opts } = {}) =>
   totalCost(MODELS[String(regional)].model(dau, mature, opts).cost);
 const readsOf = (dau, mature, { regional = false, ...opts } = {}) =>
@@ -73,7 +78,14 @@ const cut = (base, after) => {
 const LEVERS = [
   {
     band: "config",
-    name: "Single-region database",
+    // TAKEN 2026-08-15 (D165): production is `insight` / europe-west1. The
+    // row stays because this table is the argument as much as the answer —
+    // deleting it would leave the biggest saving in the file's history with
+    // no trace of where it went — and because every other row is measured
+    // against the multi-region baseline the tables here were written on.
+    // What it must NOT do is read as available: see the banner D200 added
+    // to docs/COST-REDUCTION.md.
+    name: "Single-region database [TAKEN — D165]",
     change: "nam5 -> a single region, at database creation",
     opts: { regional: true },
     effort: "one setting",

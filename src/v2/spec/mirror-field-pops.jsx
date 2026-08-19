@@ -4,10 +4,14 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
-import { MirrorLensRow } from './mirror-field.jsx';
 import { IS_DATA, fmtPop } from './sample-data.js';
 import { SCENES } from './scenes.js';
-import { Av, TabSection, MatchRing, Lazy } from './primitives.jsx';
+import { Av, TabSection, MatchRing } from './primitives.jsx';
+// The type's own mark, imported by name (D39) rather than read off the
+// window bag — a window.TypeMark reference would raise this file's rule-4
+// coupling count, and both modules are eager so the ESM graph carries it
+// into the same chunk for free.
+import { TypeMark } from './type-marks.jsx';
 
 // mirror-field-pops.jsx — the four Mirror populations, each built as a node
 // list for the shared field canvas (mirror-field.jsx). One grammar throughout:
@@ -19,10 +23,14 @@ const { useState: useStateMFP, useEffect: useEffectMFP } = React;
 const MFP_SECTORS = { family: -128, friends: -50, colleagues: 26, neighbors: 100, acquaintances: 168 };
 
 // ─── kindred strangers in Oslo (mirrors KindredInOslo's roster) ───
+// Types are the v28 roster's (design/standalone-v28/type-mix.js, byName) —
+// authored demo data, Big Five only: the same instrument the live fold
+// enforces (data/typeMix.ts TYPE_TEST) and the only one the prototype's
+// field-row chip ever draws.
 const MFP_KINDRED = [
-  { init: 'AK', name: 'Anders K.', hood: 'Torshov', match: 92, hue: 145, shared: ['ceramics', 'cold swims', 'Pärt'] },
-  { init: 'IM', name: 'Ingrid M.', hood: 'Grünerløkka', match: 89, hue: 38, shared: ['rye baking', 'Solnit', 'fjord walks'] },
-  { init: 'PV', name: 'Petter V.', hood: 'Sagene', match: 85, hue: 250, shared: ['field notes', 'birding', 'silence'] },
+  { init: 'AK', name: 'Anders K.', hood: 'Torshov', match: 92, hue: 145, type: 'The Quiet One', shared: ['ceramics', 'cold swims', 'Pärt'] },
+  { init: 'IM', name: 'Ingrid M.', hood: 'Grünerløkka', match: 89, hue: 38, type: 'The Diplomat', shared: ['rye baking', 'Solnit', 'fjord walks'] },
+  { init: 'PV', name: 'Petter V.', hood: 'Sagene', match: 85, hue: 250, type: 'The Lookout', shared: ['field notes', 'birding', 'silence'] },
 ];
 
 // ─── how like-you each Norwegian city's people run (country zoom) ───
@@ -37,16 +45,16 @@ const MFP_NO_CITIES = [
 
 // ─── kindred strangers across Norway (country zoom) ───
 const MFP_KINDRED_COUNTRY = [
-  { init: 'SB', name: 'Sigrid B.', place: 'Tromsø', match: 94, hue: 200, shared: ['cold swims', 'northern light', 'Pärt'] },
-  { init: 'EH', name: 'Eirik H.', place: 'Bergen', match: 90, hue: 220, shared: ['rye baking', 'rain walks', 'field notes'] },
-  { init: 'LT', name: 'Live T.', place: 'Trondheim', match: 87, hue: 145, shared: ['ceramics', 'birding', 'quiet mornings'] },
+  { init: 'SB', name: 'Sigrid B.', place: 'Tromsø', match: 94, hue: 200, type: 'The Quiet One', shared: ['cold swims', 'northern light', 'Pärt'] },
+  { init: 'EH', name: 'Eirik H.', place: 'Bergen', match: 90, hue: 220, type: 'The Dependable', shared: ['rye baking', 'rain walks', 'field notes'] },
+  { init: 'LT', name: 'Live T.', place: 'Trondheim', match: 87, hue: 145, type: 'The Reader', shared: ['ceramics', 'birding', 'quiet mornings'] },
 ];
 
 // ─── kindred strangers across the world — farther pool, closer matches ───
 const MFP_KINDRED_WORLD = [
-  { init: 'YO', name: 'Yuki O.',  place: 'Osaka · JP',       match: 96, hue: 250, shared: ['ceramics', 'field notes', 'quiet mornings'] },
-  { init: 'RD', name: 'Rui D.',   place: 'Porto · PT',       match: 94, hue: 38,  shared: ['rye baking', 'cold swims', 'old stone'] },
-  { init: 'CS', name: 'Clara S.', place: 'Valparaíso · CL', match: 91, hue: 145, shared: ['birding', 'Solnit', 'hills'] },
+  { init: 'YO', name: 'Yuki O.',  place: 'Osaka · JP',       match: 96, hue: 250, type: 'The Quiet One',  shared: ['ceramics', 'field notes', 'quiet mornings'] },
+  { init: 'RD', name: 'Rui D.',   place: 'Porto · PT',       match: 94, hue: 38,  type: 'The Dependable', shared: ['rye baking', 'cold swims', 'old stone'] },
+  { init: 'CS', name: 'Clara S.', place: 'Valparaíso · CL', match: 91, hue: 145, type: 'The Host',       shared: ['birding', 'Solnit', 'hills'] },
 ];
 
 // ─── the Kindred lens — the strangers most aligned with you, as a card ───
@@ -66,9 +74,25 @@ function KindredLensCard({ people = MFP_KINDRED }) {
                 <Av init={p.init} hue={p.hue} size={36}></Av>
               </MatchRing>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                  <span style={{ fontFamily: 'var(--sans)', fontSize: 15, fontWeight: 700, letterSpacing: '-0.015em' }}>{p.name}</span>
-                  <span style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 600, color: 'var(--ink-3)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>{p.place || p.hood}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontFamily: 'var(--sans)', fontSize: 15, fontWeight: 700, letterSpacing: '-0.015em', whiteSpace: 'nowrap', flexShrink: 0 }}>{p.name}</span>
+                  <span style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 600, color: 'var(--ink-3)', letterSpacing: '0.04em', textTransform: 'uppercase', minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.place || p.hood}</span>
+                  {/* v28 §7.9: the type, as the chip the LIVE KindredCard already
+                      wears (ui/LiveMirrorLenses.tsx, D156) — mark + name, one
+                      shape for demo and live so a badge on a person always
+                      reads the same. Big Five only, and roster-authored: the
+                      demo has no per-person fold to draw from. */}
+                  {p.type && (
+                    <span style={{
+                      marginLeft: 'auto', flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 5,
+                      border: '1px solid color-mix(in oklch, var(--rule), transparent 25%)', borderRadius: 999, padding: '2px 9px 2px 4px',
+                      fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 700, color: 'var(--ink-2)',
+                      background: 'var(--surface-2)', whiteSpace: 'nowrap',
+                    }}>
+                      <TypeMark testKey="big5" name={p.type} size={16}></TypeMark>
+                      {p.type}
+                    </span>
+                  )}
                 </div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 6 }}>
                   {p.shared.map(s => (
@@ -201,9 +225,8 @@ function mfpConfig(pop, zoom, mine) {
 // (see the note below). The prototype kept both the dangling branch and the
 // props; taking its parameter list would have re-declared two arguments
 // nothing can read.
-function MirrorFieldBody({ pop, worldZoom, zoomCtl, onPerson, firstRun, topLenses }) {
+function MirrorFieldBody({ pop, worldZoom, zoomCtl, onPerson, firstRun }) {
   const D = IS_DATA;
-  const [lensOpen, setLensOpen] = useStateMFP('__ov');
   const [selId, setSelId] = useStateMFP(null);
   const [mine, setMine] = useStateMFP(() => new Set(SCENES.list()));
   const [gSelId, setGSelId] = useStateMFP(() => { const g = D.groups.find((x) => x.joined); return g ? g.id : null; });
@@ -212,6 +235,34 @@ function MirrorFieldBody({ pop, worldZoom, zoomCtl, onPerson, firstRun, topLense
   useEffectMFP(() => SCENES.subscribe(() => setMine(new Set(SCENES.list()))), []);
 
   useEffectMFP(() => { setSelId(null); setSelNode(null); }, [pop, worldZoom]);
+
+  // relmap.jsx left the eager graph at D200, so Circle's embedded map is not
+  // on screen the first time this renders. The old test — a bare
+  // `typeof RelationshipMap === 'function'` — could not survive that move:
+  // it reads false, Circle draws the generic field canvas instead, and
+  // nothing re-triggers the render that would read it again. So the module
+  // is IMPORTED and its arrival is state.
+  //
+  // An import rather than `window.loadOverlays()` for two reasons: it is
+  // what check:globals asks for (a name that arrives through the ESM graph
+  // is not coupling, and this file's rule-4 count drops by two), and it
+  // names the one module Circle needs rather than the whole overlay group.
+  //
+  // Only Circle asks, and only in DEMO mode — a live build takes
+  // LiveCircleBody (D101) and never renders this component with
+  // `pop === 'circle'` at all, so on the shipping path this effect is dead.
+  const [RelMap, setRelMap] = useStateMFP(null);
+  useEffectMFP(() => {
+    if (RelMap || pop !== 'circle') return undefined;
+    let live = true;
+    // No retry and console.error rather than reportError: main.jsx already
+    // reports a dead chunk once (app-shell's openDeferred says why), and the
+    // fallback here is the field canvas — a real picture, not a blank.
+    import('./relmap.jsx')
+      .then((m) => { if (live) setRelMap(() => m.RelationshipMap); })
+      .catch((e) => { console.error('[InSight] relationship map chunk failed to load:', e); });
+    return () => { live = false; };
+  }, [RelMap, pop]);
 
   const cfg = mfpConfig(pop, worldZoom, mine);
   const [selNode, setSelNode] = useStateMFP(null);
@@ -286,13 +337,7 @@ function MirrorFieldBody({ pop, worldZoom, zoomCtl, onPerson, firstRun, topLense
   const sparse = !!firstRun;
 
   // Circle: the full relationship map IS the picture — embedded, no field canvas.
-  const noCanvas = !sparse && pop === 'circle' && typeof RelationshipMap === 'function';
-  // nav v2: lens row at the top, field as its first tab
-  const topL = !!topLenses && !sparse;
-  const lensList = topL ? [{ id: '__ov', label: 'Overview' }, ...lenses] : lenses;
-  const openId = topL ? (lensList.some((l) => l.id === lensOpen) ? lensOpen : '__ov') : null;
-  const showField = !topL || openId === '__ov';
-  const openLens = topL && openId !== '__ov' ? lenses.find((l) => l.id === openId) : null;
+  const noCanvas = !sparse && pop === 'circle' && !!RelMap;
   const rm = window.RMCore;
   const rmHeader = noCanvas && rm ? { fig: String(rm.defaultPeople().length), unit: 'across ' + rm.DEFAULT_GROUPS.length + ' circles' } : null;
 
@@ -306,23 +351,17 @@ function MirrorFieldBody({ pop, worldZoom, zoomCtl, onPerson, firstRun, topLense
       </>)}
       {!sparse && !noCanvas && <MFHeader kicker={cfg.header.kicker} fig={cfg.header.fig} unit={cfg.header.unit} right={pop === 'world' ? zoomCtl : null}></MFHeader>}
       {rmHeader && <MFHeader kicker="Your circle" fig={rmHeader.fig} unit={rmHeader.unit} right={null}></MFHeader>}
-      {topL && <MirrorLensRow lenses={lensList} open={openId} onOpen={setLensOpen}></MirrorLensRow>}
-      {!sparse && !noCanvas && showField && (<>
+      {!sparse && !noCanvas && (<>
         <MFCanvas key={pop + ':' + (pop === 'world' ? worldZoom : '')} nodes={cfg.nodes} selId={selId} onSel={onSel} seedDeg={cfg.seed} mist={cfg.mist} mistSeed={cfg.mistSeed || 1} tall={pop === 'near' || pop === 'world'} stretch={pop === 'world' ? 1.15 : 1.08} maxLabels={pop === 'world' ? (worldZoom === 'world' ? 3 : 4) : undefined}></MFCanvas>
         <MFKey items={cfg.key}></MFKey>
         <MFDetail node={sel} onPerson={onPerson} onJoin={onJoin} onLeave={onLeave} joined={sel && sel.kind === 'group' ? mine.has(sel.data.id) : false}></MFDetail>
       </>)}
-      {noCanvas && showField && (
+      {noCanvas && (
         <div className="rm-embed">
-          <RelationshipMap embedded={true}></RelationshipMap>
+          <RelMap embedded={true}></RelMap>
         </div>
       )}
-      {openLens && (
-        <div key={openId} className="fade-in" style={{ paddingTop: 4 }}>
-          <Lazy minHeight={480}>{openLens.render()}</Lazy>
-        </div>
-      )}
-      {!topL && !sparse && <MirrorLenses key={pop + ':' + (pop === 'world' ? worldZoom : '') + ':' + (gSel ? gSel.id : '')} lenses={lenses}></MirrorLenses>}
+      {!sparse && <MirrorLenses key={pop + ':' + (pop === 'world' ? worldZoom : '') + ':' + (gSel ? gSel.id : '')} lenses={lenses}></MirrorLenses>}
     </div>
   );
 }

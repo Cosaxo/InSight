@@ -6,14 +6,14 @@
  
 +// ─── nearby kindred, anonymous ───
 +// Near is the one population where a name would be a leak: these are people
-+// standing a few streets away, not opt-in matches. Same rule as the field's
-+// anon nodes — a silhouette, their trade and age, a coarse distance band.
++// standing nearby, not opt-in matches. Same rule as the field's anon nodes —
++// a silhouette, their trade and age. Distance is never stated: knowing how
++// close a stranger is, is itself a leak. Size reads alignment instead.
 +const mfpNearKindred = () => (window.IS_DATA.nearby || []).slice()
 +  .sort((a, b) => b.match - a.match).slice(0, 3)
 +  .map((p) => ({
 +    anon: true, hue: p.hue, match: p.match,
 +    name: (p.role || 'someone').replace(/^\w/, (c) => c.toUpperCase()) + (p.age ? ', ' + p.age : ''),
-+    hood: p.dist || 'nearby',
 +    shared: (p.interests || []).slice(0, 3).map((x) => x.t || x),
 +  }));
 +
@@ -38,7 +38,25 @@
                  </div>
                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 6 }}>
                    {p.shared.map(s => (
-@@ -188,6 +202,24 @@
+@@ -124,15 +138,14 @@
+   }
+ 
+   if (pop === 'near') {
+-    // privacy: distances are coarse bands, never exact
+-    const bandSize = { 'a few streets away': 12, 'in the neighbourhood': 10.5, 'a short ride away': 9 };
++    // privacy: nothing here encodes distance — size is how aligned they are
+     return {
+       seed: -60, mist: 62, mistSeed: 3,
+       header: { kicker: 'Around you', fig: '2,847', unit: 'within 5 km · Grünerløkka' },
+       key: [{ label: 'closer to you = more alike' }],
+       nodes: D.nearby.map((p) => ({
+         id: 'n:' + p.id, kind: 'anon', match: p.match, hue: p.hue,
+-        size: bandSize[p.dist] || 12, data: p,
++        size: 9 + ((Math.max(60, Math.min(95, p.match || 70)) - 60) / 35) * 4, data: p,
+       })),
+       answersAud: 'around', makeupAud: 'around',
+       compare: { scope: 'around', label: 'near you' },
+@@ -188,6 +201,24 @@
  function MirrorFieldBody({ pop, worldZoom, zoomCtl, onPerson, levelTrait, levelMarker, firstRun, topLenses }) {
    const D = window.IS_DATA;
    const [lensOpen, setLensOpen] = useStateMFP('__ov');
@@ -63,7 +81,7 @@
    const [selId, setSelId] = useStateMFP(null);
    const [mine, setMine] = useStateMFP(() => new Set(window.SCENES ? window.SCENES.list() : D.groups.filter((g) => g.joined).map((g) => g.id)));
    const [gSelId, setGSelId] = useStateMFP(() => { const g = D.groups.find((x) => x.joined); return g ? g.id : null; });
-@@ -230,16 +262,19 @@
+@@ -230,16 +261,19 @@
    const lenses = [];
    lenses.push({ id: 'answers', label: 'Answers', render: () => <MirrorAnswers audId={cfg.answersAud}></MirrorAnswers> });
    // Kindred + Mix travel together — one "People" lens
@@ -86,7 +104,7 @@
          {hasMix && <DemographicsCard audId={cfg.makeupAud}></DemographicsCard>}
        </React.Fragment>
      ) });
-@@ -282,13 +317,15 @@
+@@ -282,13 +316,15 @@
            seedDeg={cfg.seed} mist={cfg.mist || 54} mistSeed={cfg.mistSeed || 1} tall={true} stretch={1.1}></MFCanvas>
          <MFSparse done={Math.min(readN, 8)} need={8}></MFSparse>
        </>)}

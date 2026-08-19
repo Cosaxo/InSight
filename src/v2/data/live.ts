@@ -96,6 +96,9 @@ async function getDb(): Promise<import("firebase/firestore").Firestore> {
   return db;
 }
 import { reportError, setSentryUser } from "../../lib/sentry";
+// No imports of its own, so reading it here closes no cycle back through
+// data/cityAnchor — which imports this module.
+import { cityIsConfirmed } from "./cityConfirm";
 // The cross-user read (D98). Pure helpers + the two queries live there so
 // the grouping/sorting can be unit-tested without Firebase.
 import { fetchVoters, groupByOption, resolveNames, sortVoters, type Voter } from "./voters";
@@ -149,15 +152,18 @@ import {
   dayIndex as dayIndexPure,
   duelQFor as duelQForPure,
   hasPublishedCounts,
+  isCore,
   splitBanks,
   utcDayIndex as utcDayIndexPure,
 } from "./deck";
-import type { AggDoc, LiveQuestion, QuestionDoc, VoteContext } from "./deck";
+import type { AggDoc, CallOutcome, LiveQuestion, QuestionDoc, VoteContext } from "./deck";
+import type { FeedAd } from "./sponsored";
 import { nearMode, nearOptedIn, nearUntil, setNearMode, type NearMode } from "./near";
 // The device computes its own archetype name for the presence doc (D176).
 import { myType } from "./typeMix";
 import { locateCell, locateSupported } from "./locate";
 import { scrubPersonaAnchors } from "./personaResidue";
+import { FUNCTIONS_REGION } from "../../lib/region";
 
 /**
  * One Crossroads story, folded (D136).
@@ -192,6 +198,20 @@ const state = {
   // Learn cards (D32) — consumed only through LIVE.learnAnswer/learnAgg;
   // splitBanks fences them out of every other bank.
   learnBank: [] as Array<QuestionDoc & { id: string }>,
+  // Foresight CALLs (D194). Their published grades, fetched once per
+  // session on the tap that opens the card: qid → outcome, or null for a
+  // call the resolver has not graded yet. `null` is a FETCHED ABSENCE and
+  // is what the card draws "sealed" from — undefined means nothing has
+  // been read, which is a different sentence.
+  callBank: [] as Array<QuestionDoc & { id: string }>,
+  // The pulse roster, straight off the hydrated bank — see splitBanks.
+  pulseBank: [] as Array<QuestionDoc & { id: string }>,
+  callOutcomes: null as Record<string, CallOutcome | null> | null,
+  // Feed ads (D197). Null while unread, an array once known — the same
+  // "could not ask" / "there are none" distinction every other pool here
+  // keeps. Read once per session with the feed, which is lazy, so a boot
+  // that never opens the feed never pays for it.
+  ads: null as FeedAd[] | null,
   // Per-session cache for learn aggregates: null = fetch in flight or
   // found nothing; a doc = the k-floored public agg. On-demand getDoc at
   // reveal time, NOT a standing subscription — 96 snapshots for cards
@@ -244,7 +264,7 @@ const state = {
     anchors: {} as Record<string, string>,
   },
   meta: { latestBuild: 0, minBuild: 0, updateUrl: "" },
-  stats: { bankSource: "none", aggsFetched: 0, answersFetched: 0 },
+  stats: { bankSource: "none", aggsFetched: 0, answersFetched: 0, callOutcomesFetched: 0 },
   groups: [] as Array<Record<string, unknown> & { id: string }>,
   duelBank: [] as Array<QuestionDoc & { id: string }>,
   reveals: {} as Record<string, Record<string, unknown> | null>,
@@ -340,6 +360,24 @@ const state = {
   invitesLoading: false,
 };
 
+// In flight, so two cards opening at once share one query rather than
+// racing two. Module-level beside the other loaders' guards rather than in
+// `state`, because it is not state anything renders.
+let callOutcomesInflight: Promise<void> | null = null;
+let adsInflight: Promise<void> | null = null;
+
+/**
+ * How many ads one read may return.
+ *
+ * A ceiling rather than a page: the whole pool has to reach the device
+ * for the match to happen there, so a pool that outgrew one read would
+ * mean either paging (fine) or server-side selection (not). The number is
+ * far above any plausible amount of sold inventory, and if it is ever
+ * approached the answer is to page, never to ask the server which ones
+ * are mine.
+ */
+const AD_POOL_CAP = 200;
+
 // How many of the viewer's own answers the Kindred ranking reads across.
 // Twelve shared questions is a legible likeness claim and the cost is
 // linear in this number — see loadKindred for why it is bounded at all.
@@ -381,8 +419,38 @@ const ANCHOR_FIELDS: Record<string, number> = {
 
 // The snapshot written onto an answer. A copy, so a later profile edit
 // cannot retroactively move a past answer into a different cohort.
-function answerAnchors(): Record<string, string> {
-  return { ...state.profile.anchors };
+/**
+ * The anchors an answer freezes at vote time (D8).
+ *
+ * `rates` is the place the question being answered scores (D187), and it
+ * is the one reason this is not a plain copy. **An unconfirmed city does
+ * not score the place it names (D205):** if the question rates a city and
+ * the device's own location fix has never agreed with the anchor, the city
+ * is written EMPTY, so the answer folds into country and world and lands
+ * in no city cell.
+ *
+ * WHY HERE AND NOT AT THE DECK. The obvious fix — stop serving the
+ * question — cannot work: all 24 rating questions are in the DAILY bank,
+ * the daily deck is positional (`computeDeckIds` indexes by day), and it
+ * is the same question for everyone. Filtering it per person would either
+ * shift every other day's question or leave some people with no daily at
+ * all. Suppressing the CELL instead costs the answerer nothing: they see
+ * the same question, answer it normally, and it counts everywhere except
+ * the one place it could not honestly count.
+ *
+ * Empty rather than absent because that is the path already worn smooth —
+ * a profile with no city writes exactly this, `isValidV2Anchors` accepts
+ * it (`hasOnly`, every key optional), and `breakdownBucket` already
+ * declines to mint a bucket for it.
+ *
+ * FORWARD-ONLY, and the alternative was worse. Answers already given under
+ * unconfirmed cities keep their cells; nothing rewrites history, and D5
+ * would not allow it if we wanted to.
+ */
+function answerAnchors(rates?: string): Record<string, string> {
+  const a = { ...state.profile.anchors };
+  if (rates === "city" && !cityIsConfirmed(a.city)) a.city = "";
+  return a;
 }
 
 function utcDayKey(offsetDays = 0): string {
@@ -1038,6 +1106,8 @@ async function hydrate(): Promise<void> {
   state.feedBank = banks.feed;
   state.duelBank = banks.duel;
   state.learnBank = banks.learn;
+  state.callBank = banks.call;
+  state.pulseBank = banks.pulse;
   // A completely unseeded project is a real failure: throw so boot leaves
   // LIVE disabled and the mock deck renders. Returning here used to let
   // boot flip enabled=true on an empty deck, which pins the user on
@@ -1288,6 +1358,15 @@ function buildFeedGlobals(): void {
               n: state.aggs[q.id]?.total ?? 0,
             }
           : {}),
+        // Sponsored questions (D195): the disclosure travels with the card
+        // and `until` travels with it, because the band composes its window
+        // label from that one value. Emit-when-set, so an ordinary card is
+        // byte-for-byte what it was.
+        ...(q.sponsor ? { sponsor: q.sponsor, until: q.until } : {}),
+        // Doors (docs/TAGS-PLAN.md §2): the topics this card also belongs
+        // to. The feed's filter, stock and search read cat ∪ also; nothing
+        // that PLACES the card does. Emit-when-set, same rule as sponsor.
+        ...(q.also && q.also.length ? { also: q.also } : {}),
         live: true,
         noCountsYet: !hasPublishedCounts(state.aggs[q.id]),
       };
@@ -1404,7 +1483,7 @@ async function hydrateSocial(): Promise<void> {
 
 async function callable<T>(name: string, data: unknown): Promise<T> {
   const db = await getDb();
-  const fns = getFunctions(db.app, "us-central1");
+  const fns = getFunctions(db.app, FUNCTIONS_REGION);
   const res = await httpsCallable(fns, name)(data);
   return res.data as T;
 }
@@ -3051,7 +3130,7 @@ const LIVE = {
     // not gated, so writes kept flowing the whole time. Only a restart
     // cleared it.
     const db = await getDb().catch((err) => { torndown = false; throw err; });
-    await httpsCallable(getFunctions(db.app, "us-central1"), "deleteAccount")({})
+    await httpsCallable(getFunctions(db.app, FUNCTIONS_REGION), "deleteAccount")({})
       .catch((err) => { torndown = false; throw err; });
     // The account is gone: stop the uid-scoped groups listener before
     // the purge/reload — left running it would only error
@@ -3139,6 +3218,24 @@ const LIVE = {
       .filter((q) => q.active !== false && hasPublishedCounts(state.aggs[q.id]))
       // No `back`, so no day label: these come from any day and a pager
       // label on them would be a guess (deck.ts's buildS takes null).
+      .map((q) => buildSPure(q, null, voteCtx(q.id), now));
+  },
+  /**
+   * The core feed questions with a published aggregate, as the same view
+   * models — the Patterns pool's other half (the nightly fit folds
+   * two-option daily + core feed, functions/src/patterns.ts). Core only
+   * for D161's reason: who answers a tail question is interest-selected,
+   * so a correlation over tail answers reports the selection rather than
+   * the population — the client must not offer to draw what the fit
+   * refuses to fold. Two-option only, the fit's own rule (±1 encoding).
+   * Same walk as aggregated(): every aggregate here is already cached for
+   * the feed card that displayed it, so this is no new read.
+   */
+  coreFeedAggregated(): LiveQuestion[] {
+    const now = new Date();
+    return state.feedBank
+      .filter((q) => q.surface === "feed" && isCore(q) && q.active !== false
+        && (q.options || []).length === 2 && hasPublishedCounts(state.aggs[q.id]))
       .map((q) => buildSPure(q, null, voteCtx(q.id), now));
   },
   // ── Learn (D32) ──
@@ -3417,6 +3514,110 @@ const LIVE = {
     });
     return out;
   },
+  // ── feed ads (D197) ─────────────────────────────────────────────
+  //
+  // NOT sponsored questions. An ad takes no answer and folds into no
+  // aggregate, so it has its own collection and its own accessor — and
+  // nothing that reads the question bank has to learn to skip it.
+  feedAds(): FeedAd[] | null {
+    return state.ads;
+  },
+  /**
+   * One bounded read per session, on the tap that opens the feed.
+   *
+   * The whole pool, unfiltered by anything the server could learn from:
+   * every device downloads every live ad and decides locally which one it
+   * matches (data/sponsored.ts). Asking the server for "my" ads is the
+   * moment a behavioural profile exists, whatever the intentions.
+   *
+   * A query returning nothing still costs one read, and today it always
+   * returns nothing — the pool is deliberately empty. One read per
+   * session for an empty collection is the price of the path existing.
+   */
+  loadAds(): Promise<void> {
+    if (!LIVE.enabled || state.ads) return Promise.resolve();
+    if (adsInflight) return adsInflight;
+    adsInflight = (async () => {
+      try {
+        const db = await getDb();
+        const snap = await getDocs(query(collection(db, "v2_ads"), limit(AD_POOL_CAP)));
+        state.ads = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<FeedAd, "id">) }));
+        notify();
+      } catch (err) {
+        // Left null: the feed draws no ad rather than an empty pool it
+        // would then stop trying to fill.
+        reportError(err, { where: "loadAds" });
+      } finally {
+        adsInflight = null;
+      }
+    })();
+    return adsInflight;
+  },
+
+  // ── Foresight CALL, tier A (D194) ───────────────────────────────
+  //
+  // The calls in the bank, with their published counts — how the crowd
+  // itself called each one, which is an ordinary aggregate over ordinary
+  // answers. The GRADE is a second document and is not fetched here; see
+  // loadCallOutcomes below, which the card asks for when it opens.
+  callQs(): Array<QuestionDoc & { id: string; counts: number[] }> {
+    return state.callBank.map((q) => ({ ...q, counts: feedCounts(q) }));
+  },
+  /**
+   * The published grades, or null while nothing has been read.
+   *
+   * The distinction the card depends on: `null` here means "not fetched",
+   * an ENTRY of null means "fetched, the resolver has not graded it" —
+   * which is a sealed call, and a real thing to draw. Collapsing the two
+   * would make every call look sealed for a frame after boot, including
+   * the ones already graded.
+   */
+  callOutcomes(): Record<string, CallOutcome | null> | null {
+    return state.callOutcomes;
+  },
+  /**
+   * One bounded fetch per session for every call's grade.
+   *
+   * D124/D129 discipline: poll, never stream, and only on the tap that
+   * asks. The bank's calls are a handful, so this is one `documentId() in`
+   * query — the same shape data/pulse.ts uses for its per-day docs, capped
+   * at Firestore's 30-clause limit. An absent document is stored as null
+   * rather than skipped, so a second open does not refetch what it already
+   * knows is ungraded.
+   *
+   * `force` exists for one caller: the card after a vote, which wants to
+   * know whether the grade landed while it was open. Everything else takes
+   * the cache.
+   */
+  loadCallOutcomes(force = false): Promise<void> {
+    if (!LIVE.enabled || !state.callBank.length) return Promise.resolve();
+    if (state.callOutcomes && !force) return Promise.resolve();
+    if (callOutcomesInflight) return callOutcomesInflight;
+    callOutcomesInflight = (async () => {
+      try {
+        const db = await getDb();
+        const ids = state.callBank.slice(0, 30).map((q) => q.id);
+        const snap = await getDocs(
+          query(collection(db, "v2_call_outcomes"), where(documentId(), "in", ids)),
+        );
+        const got = new Map(snap.docs.map((d) => [d.id, d.data() as CallOutcome]));
+        const next: Record<string, CallOutcome | null> = {};
+        for (const id of ids) next[id] = got.get(id) ?? null;
+        state.callOutcomes = next;
+        state.stats.callOutcomesFetched = snap.size;
+        notify();
+      } catch (err) {
+        // A failed read leaves state.callOutcomes as it was — the card
+        // draws "not read yet" rather than inventing a sealed state for a
+        // call that may well be graded.
+        reportError(err, { where: "loadCallOutcomes" });
+      } finally {
+        callOutcomesInflight = null;
+      }
+    })();
+    return callOutcomesInflight;
+  },
+
   // ── the daily pulse (D139) ──────────────────────────────────────
   // One answer per day, id {baseQid}_{day} — the duel answers' shape on
   // a world-public surface. Create-only mirrors the rules: no re-pick
@@ -3460,6 +3661,26 @@ const LIVE = {
     }
     return out;
   },
+  /**
+   * The live pulse roster, in bank order — id, prompt and the five steps.
+   *
+   * This is the whole of what `data/pulse` needs to render, and it is
+   * already on the device: `hydrate()` downloads the entire question bank
+   * and `splitBanks` now keeps a pulse lane out of it. Before D203 the
+   * pulse paid its own `getDoc` for a document it had already cached, five
+   * times over once the roster shipped — and read only `prompt`/`options`
+   * from it, so a pulse flipped to `active: false` still drew a tappable
+   * card whose every write the rules refused. Reading the bank fixes both:
+   * `active` is filtered upstream, so an inactive pulse is simply not in
+   * this list.
+   */
+  pulseQs(): Array<{ id: string; prompt: string; options: string[] }> {
+    return state.pulseBank.map((q) => ({
+      id: q.id,
+      prompt: String(q.prompt ?? ""),
+      options: Array.isArray(q.options) ? q.options.map(String) : [],
+    }));
+  },
   vote(qid: string, optionId: string): void {
     if (state.votes[qid]) return; // one answer per question, mirroring rules
     const optionIdx = Number(optionId);
@@ -3475,13 +3696,20 @@ const LIVE = {
         if (!uid) throw new Error("no session");
         const q =
           state.questions.find((x) => x.id === qid) ||
-          state.feedBank.find((x) => x.id === qid);
+          state.feedBank.find((x) => x.id === qid) ||
+          // A call is voted through this same path (its answer doc has the
+          // world shape), so it has to be findable here or the write would
+          // claim `surface: "daily"` and rules would refuse it.
+          state.callBank.find((x) => x.id === qid);
         await setDoc(doc(db, "v2_users", uid, "answers", qid), {
           qid,
           surface: q?.surface ?? "daily",
           optionIdx,
           answeredAt: serverTimestamp(),
-          anchors: answerAnchors(),
+          // `q.rates` is why this is the one anchor site that passes an
+          // argument (D205): a question that scores a city must not take a
+          // city cell from someone the device has never placed there.
+          anchors: answerAnchors(q?.rates),
         });
         // Server ack: the write is durable, so the vote may now enter
         // confirmedVotes(). Mirror it into the answers cache only NOW —

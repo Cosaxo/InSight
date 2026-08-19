@@ -42,16 +42,25 @@
 //   --dry-run    resolve credentials and report what would be called
 
 import { createSign } from "node:crypto";
+import { readFileSync } from "node:fs";
 
 const argv = process.argv.slice(2);
 const BUMP = argv.includes("--bump-rev");
 const DRY = argv.includes("--dry-run");
 
 const PROJECT = process.env.FIREBASE_PROJECT_ID || "prvfire33";
-// us-central1, matching functions/src/v2.ts and the client's
-// getFunctions(app, "us-central1"). Not a default worth guessing: a wrong
-// region is a 404 from a URL that looks entirely plausible.
-const REGION = "us-central1";
+// READ, not retyped (D201). A wrong region is a 404 from a URL that looks
+// entirely plausible, and this script had the value spelled out with the
+// two files it had to match named in a comment beside it — which is the
+// exact shape D47 caught in the cost model and D200 caught in its region.
+// Bare `node`, so no .ts import: the constant is scanned out of its source,
+// and a rename throws here rather than serving a plausible 404.
+const REGION = (() => {
+  const src = readFileSync(new URL("../src/lib/region.ts", import.meta.url), "utf8");
+  const m = src.match(/export const FUNCTIONS_REGION = "([^"]+)"/);
+  if (!m) die("could not read FUNCTIONS_REGION from src/lib/region.ts");
+  return m[1];
+})();
 const API_KEY = process.env.VITE_FIREBASE_API_KEY;
 const RAW_SA = process.env.FIREBASE_SERVICE_ACCOUNT;
 const UIDS = (process.env.SEED_ADMIN_UIDS || "").split(",").map((s) => s.trim()).filter(Boolean);

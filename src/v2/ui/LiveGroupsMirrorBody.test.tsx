@@ -33,7 +33,18 @@ const LIVE = vi.hoisted(() => {
     loadRevealHistory: async () => {},
     bankQ: () => null as Record<string, unknown> | null,
   };
-  return { enabled: true, uid: "u_me", social, subscribe: () => () => {} };
+  return {
+    enabled: true, uid: "u_me", social, subscribe: () => () => {},
+    // Compare's fold since D193. A group is the one Mirror population
+    // with no cells to read — its history is its own reveals, never the
+    // test bank — so its side is the members' completed instruments,
+    // cached beside their names.
+    myVotes: () => ({}) as Record<string, string>,
+    myTestResults: () => ({}) as Record<string, unknown>,
+    testFeedItems: () => [] as Array<Record<string, unknown>>,
+    loadNames: vi.fn(async () => {}),
+    scoresFor: (uid: string) => { void uid; return null as Record<string, Record<string, number>> | null; },
+  };
 });
 vi.mock("../data/live", () => ({ default: LIVE }));
 
@@ -67,6 +78,8 @@ beforeEach(() => {
   LIVE.social.groups = () => [GROUP];
   LIVE.social.revealHistory = () => [];
   LIVE.social.bankQ = () => ({ prompt: "Who moves first?", options: ["Left", "Right"] });
+  LIVE.myTestResults = () => ({});
+  LIVE.scoresFor = () => null;
 });
 afterEach(cleanup);
 
@@ -268,5 +281,62 @@ describe("LiveGroupsMirrorBody · the row is the stop's, not the data's", () => 
     render(<LiveGroupsMirrorBody />);
     openTab("People");
     expect(screen.getByRole("tabpanel").textContent).toMatch(/Start a group and this fills in/i);
+  });
+});
+
+// ── Compare is the profile drawing here too (D193) ──────────────────
+//
+// The group is the population that has to be read from PEOPLE rather than
+// counts: its history is a stack of its own reveals, so there are no test
+// answers to fold, and what it does have is members whose completed
+// instruments are public since D98. The two cases are the reading and the
+// refusal, because a group where nobody has sat a test must say so rather
+// than draw a shape out of one member.
+describe("LiveGroupsMirrorBody · Compare averages the members' own results", () => {
+  beforeEach(() => {
+    LIVE.social.revealHistory = () => [day("2026-07-29", 0, 0, 1)];
+    LIVE.myTestResults = () => ({
+      big5: { dims: [
+        { id: "O", value: 70 }, { id: "C", value: 60 }, { id: "E", value: 50 },
+        { id: "A", value: 40 }, { id: "N", value: 30 },
+      ] },
+    });
+  });
+
+  it("lays your profile over the group's mean, under the group's name", async () => {
+    // Two members either side of 50 on every axis, so the mean is 50 and
+    // the arithmetic is visible rather than borrowed from one person.
+    LIVE.scoresFor = (uid: string) => (uid === "u_ada"
+      ? { big5: { O: 40, C: 40, E: 40, A: 40, N: 40 } }
+      : uid === "u_bo"
+        ? { big5: { O: 60, C: 60, E: 60, A: 60, N: 60 } }
+        : null);
+    render(<LiveGroupsMirrorBody />);
+    openTab("Compare");
+    // gaps 20, 10, 0, 10, 20 → mean 12 → 88.
+    expect(await screen.findByText(/across 5 axes/)).toBeTruthy();
+    const panel = screen.getByRole("tabpanel").textContent || "";
+    expect(panel).toMatch(/88/);
+    expect(panel).toMatch(/The Crew/);
+    // The basis, over the members who actually have one — three uids in
+    // the group and two profiles between them.
+    expect(panel).toMatch(/2 of 3 have taken one/);
+  });
+
+  it("says nobody here has finished a test rather than drawing one member", async () => {
+    render(<LiveGroupsMirrorBody />);
+    openTab("Compare");
+    expect(await screen.findByText(/Nobody here has finished a test yet/i)).toBeTruthy();
+  });
+
+  it("resolves the members' profiles in one batched call", async () => {
+    render(<LiveGroupsMirrorBody />);
+    openTab("Compare");
+    // The scores ride the same document as the names (live.ts loadNames),
+    // so a group's Compare costs one read per member and not one per
+    // member per instrument.
+    await vi.waitFor(() => {
+      expect(LIVE.loadNames).toHaveBeenCalledWith(["u_me", "u_ada", "u_bo"]);
+    });
   });
 });

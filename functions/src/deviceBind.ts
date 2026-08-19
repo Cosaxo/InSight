@@ -32,9 +32,9 @@ import { getAuth } from "firebase-admin/auth";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions";
 import { GoogleAuth } from "google-auth-library";
-import { ENFORCE_APP_CHECK, LIGHT_CALLABLE } from "./ops";
+import { ENFORCE_APP_CHECK, LIGHT_CALLABLE, FUNCTIONS_REGION } from "./ops";
 
-const REGION = "us-central1";
+const REGION = FUNCTIONS_REGION;
 
 // ── pure decision logic (unit-tested) ───────────────────────────
 

@@ -339,6 +339,26 @@ export let DAILYQ;
       cat: ['Morals', 'Fairness'], alts: [['Values', 'Fairness'], ['Mind', 'Outlook']] },
     { type: 'rating', prompt: 'How well is the world being led?', tag: 'Leadership', axis: 'leader-trusting', tone: 'deep', rates: 'world', political: true,
       cat: ['Values', 'Leadership'], alts: [['Morals', 'Power'], ['Story', 'This era']] },
+    // ── question farm 2026-08-19 (docs/QUESTION-FARM.md): the pen was empty
+    // (0 of 56) with zero scorecard signal, so lane-3 thin-first — one each
+    // into the eight thinnest topics (Sport, Film, Skills, Interests, Food,
+    // Travel, Music, Body). AI-proposed, human-reviewed via PR.
+    { type: 'binary', prompt: 'Win ugly, or lose beautifully?', tag: 'Ugly win', options: ['Win ugly', 'Lose beautifully'], tone: 'blend',
+      cat: ['Sport', 'Style'], alts: [['Values', 'What you admire'], ['Story', 'Narratives']] },
+    { type: 'binary', prompt: 'Black and white films: timeless, or homework?', tag: 'Black and white', options: ['Timeless', 'Homework'], tone: 'light',
+      cat: ['Film', 'The classics'], alts: [['Interests', 'Cinema'], ['Story', 'History']] },
+    { type: 'scale', prompt: "A skill isn't yours until you've taught it to someone.", tag: 'Teach it', axis: 'teaching-minded', tone: 'blend',
+      cat: ['Skills', 'Mastery'], alts: [['Mind', 'Understanding'], ['Goals', 'Craft']] },
+    { type: 'choice', prompt: 'What pulls you down a rabbit hole at 1 a.m.?', tag: 'Rabbit holes', options: ['History', 'How things work', "Other people's lives", 'Maps'], tone: 'light',
+      cat: ['Interests', 'Rabbit holes'], alts: [['Mind', 'Curiosity'], ['Story', 'History']] },
+    { type: 'binary', prompt: 'The last slice: take it, or offer it?', tag: 'Last slice', options: ['Take it', 'Offer it'], tone: 'light',
+      cat: ['Food', 'Table manners'], alts: [['Morals', 'Small courtesies'], ['Values', 'Generosity']] },
+    { type: 'binary', prompt: 'Window seat or aisle?', tag: 'The seat', options: ['Window', 'Aisle'], tone: 'light',
+      cat: ['Travel', 'In transit'], alts: [['Body', 'Comfort'], ['Mind', 'The view']] },
+    { type: 'choice', prompt: 'Where does music hit you hardest?', tag: 'Where it hits', options: ['Alone in headphones', 'Live in a crowd', 'In the car', 'On the dance floor'], tone: 'blend',
+      cat: ['Music', 'Where it hits'], alts: [['Body', 'Presence'], ['Mind', 'Feeling']] },
+    { type: 'scale', prompt: 'Your body runs your mood more than your mind does.', tag: 'Body first', axis: 'body-led', tone: 'deep',
+      cat: ['Body', 'Mind and body'], alts: [['Mind', 'Mood'], ['Values', 'Self-knowledge']] },
   ];
 
   const UNANSWERED_RECENT = 3; // today + 2 missed days carry no baked answer

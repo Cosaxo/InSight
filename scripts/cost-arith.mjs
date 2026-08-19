@@ -18,12 +18,15 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import { bankArrayFrom } from "./v2content-lib.mjs";
 
 export const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 
 // ── price sheet (Blaze) ─────────────────────────────────────────
-// Multi-region nam5 is the Firebase default and what prvfire33 is on.
-// Regional is roughly half; both are here so the choice is visible.
+// Multi-region is the Firebase default and roughly DOUBLE a single region.
+// Which one prvfire33 is on is not stated here any more — that sentence is
+// what went stale at D165 — it is read from the tree as REGIONAL above.
+// Both sheets stay so the counterfactual is one flag away.
 export const priceSheet = (regional) =>
   regional
     ? { read: 0.03e-5, write: 0.09e-5, del: 0.01e-5, store: 0.108 }
@@ -41,10 +44,7 @@ export const FREE_MO = { cpu: 180_000, mem: 360_000, req: 2_000_000 };
 // Counted from the generated seed rather than hardcoded: the bank grows
 // every promotion cycle (D30) and the cold-boot read cost grows with it.
 export function bankDocs() {
-  const src = readFileSync(join(ROOT, "functions/src/v2content.ts"), "utf8");
-  const head = "V2_QUESTIONS: V2SeedQuestion[] = ";
-  const body = src.slice(src.indexOf(head) + head.length);
-  return JSON.parse(body.slice(0, body.lastIndexOf("];") + 1)).length;
+  return bankArrayFrom(join(ROOT, "functions/src/v2content.ts")).length;
 }
 
 // READ FROM SOURCE, NOT RETYPED. These four used to be hand-copied numbers
@@ -75,6 +75,44 @@ function readNum(rel, re, what) {
   // A no-op for the `(\d+)` patterns above.
   return Number(String(m[1]).replace(/_/g, ""));
 }
+
+// The string form of the same trade, for the one input that is a place
+// rather than a count.
+function readStr(rel, re, what) {
+  const src = readFileSync(join(ROOT, rel), "utf8");
+  const m = src.match(re);
+  if (!m) {
+    throw new Error(
+      `cost-arith: could not read ${what} from ${rel}.\n`
+      + `    Pattern ${re} matched nothing. The constant was probably renamed or\n`
+      + "    reshaped. Fix the pattern here — do NOT paste the value back in.",
+    );
+  }
+  return m[1];
+}
+
+// WHERE THE DATABASE IS, read rather than assumed (D200).
+//
+// This was a default parameter — `costModel({ regional = false })` — with a
+// comment beside the price sheet saying multi-region "is what prvfire33 is
+// on". D165 moved production to a single region on 2026-08-15 and neither
+// line changed, so every table in docs/COSTS.md and every `burnUsd` the
+// pulse console published was roughly DOUBLE the real bill. Nothing caught
+// it for three days because the region is an INPUT: check:figures compares
+// quoted numbers against the tree, and the model was computing exactly what
+// it had been told, correctly, from a false premise.
+//
+// So the premise now comes from the same file the backend gets the database
+// from, and the flag became an override for the counterfactual rather than
+// the way the truth is supplied.
+export const LOCATION = readStr(
+  "functions/src/db.ts", /export const FIRESTORE_LOCATION = "([^"]+)"/, "FIRESTORE_LOCATION");
+
+/** True when production is on a single region — half the price of a multi-region. */
+export const REGIONAL = LOCATION.includes("-");
+
+/** How to name the location in output, so no caller spells it out again. */
+export const LOCATION_LABEL = REGIONAL ? `${LOCATION} regional` : `${LOCATION} multi-region`;
 
 // Deck listeners attached per boot — 7 onSnapshot subscriptions, and the
 // single largest term in the boot read count.
@@ -232,7 +270,19 @@ export const TRIG = {
 // their own boot), and charging the create paths is what this model is
 // for. If edits ever grow a real volume story, add an `edit: 1` term here
 // and charge it from a measured edit rate, not a guess.
-export const RULE_READS = { world: 1, duel: 3 };
+// A CALL answer (isCallAnswer, D194) bills 2: three get() sites on one
+// /v2_questions document — 1 by the dedup measurement above — plus an
+// exists() on /v2_call_outcomes/{aid}, which is a genuinely second
+// document. That exists() is the clause refusing an answer once the call
+// is graded, so the second read is the feature rather than an accident.
+//
+// NOT a term in the model below, and for a narrower reason than the edit
+// arm's: this is a real answer-create path and would be charged, except
+// that every call in the bank is `active: false` (D196), so no call answer
+// can be written and charging it would model traffic that cannot exist.
+// Recorded here rather than omitted so that re-enabling the surface is one
+// term rather than a recount.
+export const RULE_READS = { world: 1, duel: 3, call: 2 };
 
 // Reads issued by Cloud Functions, per answer.
 //
@@ -250,6 +300,17 @@ export const TRIGGER_READS = { world: 2, duel: 0 };
 // day — a flat term the size of the boot's top-up and reseed combined, and
 // invisible in the model until now. `.select()` narrows egress, not reads.
 export const VELOCITY_READS_PER_LEDGER_ENTRY = 1;
+// The Patterns fit (v28 §2, trial D166 §1), measured BEFORE the fold
+// shipped per VISION-V28 §11.4: the nightly sweep re-reads the day's
+// ledger as its vote log — the velocity scan's own shape, a second reader
+// of the same entries — and carries each active answerer's latent vector,
+// one state read and one state write per active user per day. The model
+// doc itself is one read and one write per PROJECT per night, under any
+// rounding here. The named lever if the ledger re-read ever matters at
+// scale: flag eligible entries at write time and query the flag (a
+// composite index), which drops the term by the ineligible share.
+export const PATTERNS_READS_PER_LEDGER_ENTRY = 1;
+export const PATTERNS_USER_STATE_OPS = 1;
 
 // The reveal pipeline (revealGroupDay), per group-day actually revealed, for
 // a group of M members:
@@ -266,13 +327,29 @@ export const revealReadsPerMember = (m) => (4 + 3 * m) / m;
 // about the code, which is why they are named and grouped rather than
 // scattered through the arithmetic.
 export const B = {
-  // daily + feed + learn + pulse. The pulse (D139) is one create-only,
+  // daily + feed + learn + pulses. A pulse (D139) is one create-only,
   // day-keyed answer that is world-shaped in every charged pipeline: the
   // rules bill 1 read (three template get() sites, ONE document — the same
   // dedup as the world create's 3-sites-1-document), the trigger's
   // transaction folds it for 2, and its ledger entry feeds the velocity
   // scan like any other. Assuming the typical DAU answers it daily is the
   // same assumption the "daily" term already makes.
+  //
+  // THE ROSTER (D203) DID NOT MOVE THIS NUMBER, and the reason is the
+  // cadence rather than optimism. Five pulses ship, but their DEFAULT
+  // cadences are pace daily, energy and sleep weekly, focus and social
+  // off — so the default roster asks 1 + 2/7 ≈ 1.29 pulse answers per
+  // user per day against the 1 this term already assumes. Rounding that
+  // into `worldAnswers` would move every figure in COSTS.md by ~0.3 of a
+  // world answer (~$9/mo at 50 k DAU) on an assumption about how many
+  // people raise a cadence, which is exactly the class of guess this
+  // block exists to keep visible rather than bury.
+  //
+  // WHAT WOULD MOVE IT: every user setting every pulse to daily takes the
+  // term 4 → 8 (~+$128/mo at 50 k, ~+$1,280 at 500 k). That is the
+  // ceiling, it is a real number, and it is a product outcome rather than
+  // a code change — so it belongs here, next to the assumption it would
+  // break, rather than in a commit message.
   worldAnswers: 4,
   duelAnswers: 1,
   boots: 1.4,          // app opens per active user per day
@@ -461,7 +538,7 @@ export function socialTerms(dau, mature, o = {}) {
   };
 }
 
-export function costModel({ regional = false, bank = bankDocs() } = {}) {
+export function costModel({ regional = REGIONAL, bank = bankDocs() } = {}) {
   const P = priceSheet(regional);
 
   // Reads decompose into seven sources — see COSTS.md "Where the reads
@@ -550,11 +627,15 @@ export function costModel({ regional = false, bank = bankDocs() } = {}) {
     const rules =
       B.worldAnswers * RULE_READS.world + B.duelAnswers * RULE_READS.duel;
     // Reads the SERVER issues: the aggregate transaction, the nightly
-    // velocity scan walking the day's ledger, and the reveal pipeline.
+    // velocity scan walking the day's ledger, the nightly Patterns fit
+    // walking it again (plus one state read per active user), and the
+    // reveal pipeline.
     const server =
       B.worldAnswers * TRIGGER_READS.world
       + B.duelAnswers * TRIGGER_READS.duel
       + B.worldAnswers * VELOCITY_READS_PER_LEDGER_ENTRY
+      + B.worldAnswers * PATTERNS_READS_PER_LEDGER_ENTRY
+      + PATTERNS_USER_STATE_OPS
       + B.duelAnswers * revealReadsPerMember(B.duelGroupSize);
     // The D98 surfaces (D102): who-voted, Kindred, Circle — a client
     // reading OTHER users' answers on demand. One key rather than three
@@ -592,7 +673,8 @@ export function costModel({ regional = false, bank = bankDocs() } = {}) {
     // returns (as a performance measure — PUBLISH_EVERY's note), it now
     // discounts every phase, which is what a floorless world means.
     const pub = 1 / PUBLISH_EVERY;
-    const writes = dau * (B.worldAnswers * (1 + 2 + pub) + B.duelAnswers * 2 + 0.2);
+    // + the Patterns fit's one state write per active user per night.
+    const writes = dau * (B.worldAnswers * (1 + 2 + pub) + B.duelAnswers * 2 + PATTERNS_USER_STATE_OPS + 0.2);
     const deletes = dau * B.worldAnswers; // ledger TTL, 90 days later
     const inv = dau * (B.worldAnswers + B.duelAnswers);
     // Concurrency 20 only pays off under queue pressure; at low volume each

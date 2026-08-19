@@ -55,10 +55,10 @@ the verification — treat a successful seed as proof of both.
 3. **The remaining step: Actions → *Seed content* → Run workflow.** No
    sign-in, no dev machine, nothing to install.
 
-   537 questions land in `v2_questions`. Re-running is safe (idempotent,
+   558 questions land in `v2_questions`. Re-running is safe (idempotent,
    never resets the `active` kill switch) and, since D34, genuinely cheap:
    it rewrites only documents whose content changed and leaves `contentRev`
-   alone, so a reseed no longer costs every returning device a 537-read
+   alone, so a reseed no longer costs every returning device a 558-read
 bank refetch. The job summary reports `{written, skipped}` — a no-op
    reseed reports `written: 0`.
 
@@ -851,9 +851,33 @@ Until then links open the fallback page — degraded, not broken.
 - ~~Functions runtime Node 20 → upgrade before 2026-10-30
   decommission.~~ Done: nodejs22 + firebase-functions v6 +
   firebase-admin v13. Verify the first scheduled runs after deploy.
-- `onV2AnswerCreated` region (us-central1) vs Firestore (eur3) — works,
-  cross-region hop; relocate when convenient (requires delete+recreate
-  of the trigger).
+- ~~**Every function runs in `us-central1`; the database has been
+  `europe-west1` since D165.**~~ **Moved in code (D201) — the DEPLOY is
+  outstanding, and it is not an ordinary one.** Both constants
+  (`functions/src/ops.ts`, `src/lib/region.ts`) read `europe-west1`, all 28
+  functions compile to it, and `check:fn-runtime` fails if the two sides
+  disagree or if a call site starts spelling a region out again.
+
+  This line named `eur3` until D200 and was stale in its facts while right
+  in its substance. D200 measured what the split cost before closing it:
+  ~5.5 KB crosses per answer through the fold, **$0.47/month at 5 k DAU and
+  $4.65 at 50 k** — about 2% of the Firestore line, so cost was never the
+  argument. The argument was a transatlantic round trip on every fold and
+  EU answers processed in the US, and the deadline is the install base:
+  every client calls the region its own bundle names, so this gets more
+  expensive with every person who installs the app.
+
+  **Two things make the deploy different from every other one here**, both
+  in `DEPLOYMENT.md § Moving the functions`: a region is part of a
+  function's identity, so the deploy CREATES the new copies and the old
+  ones must be confirmed gone — while both exist, both Firestore triggers
+  fire and **every answer folds twice**, which the event-ledger dedup does
+  not prevent (it keys on the CloudEvent id, so it makes a retry safe and
+  says nothing about a second subscription). And a client build has to
+  follow, because every build shipped before it — 21 and earlier — keeps
+  calling `us-central1` and gets
+  a 404 on every callable — the daily and the Mirror keep working, since
+  they read Firestore directly.
 - Ranking/scale feed card types; Circle/Near mirror population fields
   (need geo opt-in + circle data); world comments are OUT by decision D1.
 - Bundle: the world feed now loads after first paint (D25), taking the

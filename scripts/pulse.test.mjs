@@ -30,7 +30,7 @@ import { renderPulse } from "./pulse-render.mjs";
 import {
   costModel, DECK_DAYS, AGG_CAP, PUBLISH_EVERY, TRIG, B, writesPerSec, CONTENTION_DAU,
   VOTER_FETCH_CAP, KINDRED_QUESTIONS, FOLLOW_CAP, CIRCLE_ANSWER_CAP, IDLE_DETACH_MS,
-  AGG_POLL_MS, POLL_DOCS,
+  AGG_POLL_MS, POLL_DOCS, LOCATION, LOCATION_LABEL, REGIONAL, priceSheet,
 } from "./cost-arith.mjs";
 
 const read = (rel) => readFileSync(join(ROOT, rel), "utf8");
@@ -45,6 +45,52 @@ describe("cost-arith reads its constants from source, not from memory", () => {
 
   it("AGG_CAP matches live.ts's AGG_ID_CAP", () => {
     expect(AGG_CAP).toBe(Number(read("src/v2/data/live.ts").match(/AGG_ID_CAP = (\d+)/)[1]));
+  });
+
+  it("the price sheet follows the database's own region, not a default", () => {
+    // D200's gate, and it is a different shape from its four neighbours.
+    // Those pin a number the model RETYPED; this pins a premise the model
+    // ASSUMED. `costModel({ regional = false })` was correct arithmetic on a
+    // false input for the three days after D165 moved production to a single
+    // region, and no gate could see it: check:figures compares quoted
+    // figures against the tree, and this was never quoted anywhere.
+    const declared = read("functions/src/db.ts").match(/FIRESTORE_LOCATION = "([^"]+)"/)[1];
+    expect(LOCATION).toBe(declared);
+    // The rule that turns a place into a price: GCP multi-regions are bare
+    // names (nam5, eur3) and every real region carries a hyphen.
+    expect(REGIONAL).toBe(declared.includes("-"));
+    // And the sheet actually moves with it — the assertion that would have
+    // failed on 2026-08-15.
+    const single = priceSheet(true);
+    const multi = priceSheet(false);
+    // The three OPERATION prices are exactly half. Storage is not, and the
+    // first draft of this test asserted it was: $0.108/GiB against $0.18 is
+    // 60%, not 50%. Worth keeping the distinction rather than loosening the
+    // whole check to "cheaper", because "a single region halves every
+    // Firestore line" is the sentence docs/COSTS.md leads with and it is
+    // true of the three lines the bill actually consists of.
+    for (const k of ["read", "write", "del"]) {
+      expect(single[k], `${k} is not half the multi-region price`).toBeCloseTo(multi[k] / 2, 12);
+    }
+    expect(single.store).toBeLessThan(multi.store);
+    expect(priceSheet(REGIONAL)).toEqual(REGIONAL ? single : multi);
+    // THE DEFAULT ITSELF, because that is the line that was wrong and every
+    // caller passes the flag explicitly — so a first draft of this test
+    // watched `costModel({ regional = REGIONAL })` revert to `= false` and
+    // reported green. Called with no arguments is how the default is
+    // reachable at all, and it is the shape any new caller will use.
+    expect(costModel().P).toEqual(priceSheet(REGIONAL));
+    expect(costModel().P).not.toEqual(priceSheet(!REGIONAL));
+  });
+
+  it("the pulse publishes the region it priced", () => {
+    // The console prints a `region` line beside its burn figures, and it
+    // used to be a second hardcoded copy of the same premise ("nam5
+    // multi-region") sitting next to numbers computed from the flag. Two
+    // copies of one fact is how the label kept agreeing with itself while
+    // both halves were wrong.
+    expect(collect().cost.region).toBe(LOCATION_LABEL);
+    expect(LOCATION_LABEL).toContain(LOCATION);
   });
 
   it("the fan-out's bound is still in live.ts, and the app still detaches", () => {
@@ -225,7 +271,23 @@ describe("cost-arith reads its constants from source, not from memory", () => {
       // it charges the ANSWER-create paths, and reporting a photo is not one.
       // The read is billed to whoever files a report, at most once per person
       // per face (the doc id pins it), which is not a path worth modelling.
-    ).toEqual({ gets: 19, exists: 2 });
+      // 19 → 22 gets and 2 → 3 exists at D194: isCallAnswer's three get()
+      // sites (options.size(), active, surface) on ONE /v2_questions
+      // document — 1 billed read, the same shape as the world and pulse
+      // arms — PLUS an exists() on /v2_call_outcomes/{aid}, a genuinely
+      // second document, which is what makes a call answer cost 2 where a
+      // world answer costs 1. That exists() is the clause that closes a
+      // call once it is graded, so the extra read is the feature rather
+      // than an accident of the rule's shape.
+      //
+      // RULE_READS gains `call: 2` and the model does NOT charge it, for
+      // a reason narrower than the D98 and D178 notes above: this IS an
+      // answer-create path, so it would be charged — except that every
+      // call in the bank is `active: false` (D196), so the path cannot be
+      // reached and charging it would model traffic that cannot exist.
+      // The number is recorded rather than omitted so that re-enabling the
+      // surface is one term, not a recount.
+    ).toEqual({ gets: 22, exists: 3 });
   });
 
   it("the answer trigger's transaction still issues the reads the model charges", () => {
@@ -288,9 +350,15 @@ describe("the archive join", () => {
   });
 
   it("counts an archive entry for every live daily question", () => {
+    // The invariant is the JOIN, not the sizes: every live prompt has its
+    // archive twin (the orphan case above is the other direction), and
+    // whatever the archive holds beyond the live bank is exactly the
+    // farm's pen. `unpromoted === 0` stood here until 2026-08-19 — a
+    // snapshot of an empty pen, not a rule, and the first merged farm
+    // batch (#195) broke it by doing precisely what the pen is for.
     const a = collectArchive(daily);
-    expect(a.archiveEntries).toBe(daily.length);
-    expect(a.unpromoted).toBe(0);
+    expect(a.archiveEntries - a.unpromoted).toBe(daily.length);
+    expect(a.unpromoted).toBeGreaterThanOrEqual(0);
   });
 
   it("does not mistake a double-quoted prompt for an orphan", () => {

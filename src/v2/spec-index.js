@@ -52,15 +52,21 @@ import './spec/primitives.jsx';
 import './spec/explain-sheet.jsx';
 import './spec/viz-primitives.jsx';
 import './spec/compare-breakdown.jsx';
-import './spec/relmap-core.js';
+// The relmap group SPLIT at D200, and the split is by consumer rather than
+// by size. relmap-lenses.jsx stays eager because it has a LIVE consumer —
+// vote-cuts.js reads window.RMLenses for the who-voted sheet's Type cut
+// (D146) — and it is the small one anyway. Its three siblings moved to
+// loadOverlays: they are reachable only through the demo Circle field, and
+// a live build never renders that (Circle takes LiveCircleBody since D101).
 import './spec/relmap-lenses.jsx';
 // vote-cuts sits between the relmap lenses and their consumers, exactly where
 // the standalone loads it: VOTECUTS reuses the lens band definitions, and the
 // who-voted breakdowns (daily-split, world-feed) read VOTECUTS at render time.
 import './spec/vote-cuts.js';
-// relmap-panels.jsx is not listed: relmap.jsx imports its two panels by name
-// (D137), so the ESM graph loads it and rule 2 is satisfied without a line.
-import './spec/relmap.jsx';
+// relmap-core.js and relmap-panels.jsx are not listed anywhere: relmap.jsx
+// imports both by name (D137), so the ESM graph loads them into whichever
+// chunk it lands in and rule 2 is satisfied without a line. relmap.jsx
+// itself is named in loadOverlays at the foot of this file.
 import './spec/test-viz.jsx';
 import './spec/profile-test-viz.jsx';
 import './spec/type-marks.jsx';
@@ -132,13 +138,16 @@ import './spec/group-role-map.jsx';
 import './spec/group-mirror.jsx';
 import './spec/segment-explorer.jsx';
 import './spec/mirror-tab.jsx';
-import './spec/map-bottom-card.jsx';
-import './spec/map-learn-card.jsx';
-import './spec/map-people.jsx';
-import './spec/map-layout.js';
-import './spec/map-groups.js';
-import './spec/map-chiprow.jsx';
-import './spec/map-tab.jsx';
+// The Map's seven modules (map-bottom-card, map-learn-card, map-people,
+// map-layout, map-groups, map-chiprow, map-tab) left this list for
+// loadMapTab() at the foot of this file (v28 §5): the Map is a Mirror-tab
+// destination, not a first-paint surface, and ~93 KB of source was the
+// eager graph's single cheapest win. Their order now lives as static
+// imports at the top of map-tab.jsx, so one import of that file evaluates
+// the family in the order this list used to guarantee. (map-branches,
+// map-anchors and map-group-stats stay eager above — daily-questions,
+// profile-general and the profile's stats read them on first-paint
+// surfaces.)
 // logic-test.jsx loads after first paint; it imports data/logic-gen
 // directly (D53), so the generator rides the same deferred chunk without
 // a listing of its own.
@@ -258,14 +267,25 @@ export const loadWorldFeed = retryable(async () => {
 // it directly now — D53 — so the ESM graph carries it into the same
 // chunk without a line of its own.)
 //
-// relmap.jsx is deliberately NOT here despite being the largest candidate
-// (~43 KB). It is the one overlay with a first-frame consumer:
-// mirror-field-pops.jsx reads `typeof RelationshipMap === 'function'` to
-// decide whether the Mirror's Circle population renders the embedded map or
-// the generic field canvas. That read is on a render nothing re-triggers,
-// so deferring it would silently swap the Circle picture for the fallback
-// until some later state change — the same failure world-feed-data.js stays
-// eager to avoid. Not a size decision; a reachability one.
+// relmap.jsx JOINED this group at D200, and the entry that kept it out is
+// worth keeping because it was right when it was written and stopped being
+// right without anything touching it. It read: relmap is the one overlay
+// with a first-frame consumer — mirror-field-pops.jsx reads
+// `typeof RelationshipMap === 'function'` to decide whether the Mirror's
+// Circle population renders the embedded map or the generic field canvas,
+// on a render nothing re-triggers, so deferring it would silently swap the
+// Circle picture for the fallback. Not a size decision; a reachability one.
+//
+// What changed is the reachability, at D101 and not here: Circle in a live
+// build takes LiveCircleBody, so MirrorFieldBody is never called with
+// `pop === 'circle'` at all and that first-frame read is DEMO-ONLY. The
+// argument stood for three months after its premise expired, which is the
+// shape worth noticing — a correct reason for an eager import outlives the
+// branch that made it true, and nothing measures a reason.
+//
+// The read itself is gone rather than deferred (D200): mirror-field-pops
+// awaits this group and re-renders, which is the same synchronisation
+// app-shell's openers use and the one thing a `typeof` probe cannot do.
 //
 // Memoised for the same reason as loadWorldFeed: main.jsx starts it once,
 // every opener awaits it, and the mount tests await it in beforeAll — all
@@ -276,7 +296,35 @@ export const loadWorldFeed = retryable(async () => {
 // through an opener that awaits this promise, so a cached rejection turned
 // each of them into a tap that does nothing, permanently. Now the second tap
 // re-attempts the import; nothing else had to change to get that.
+// ── the Map, after first paint too (v28 §5) ────────────────────────────
+//
+// One import, not seven: map-tab.jsx carries its six siblings as static
+// side-effect imports, so the ESM graph evaluates the family in the order
+// the eager list used to hold — including the one hard constraint, the
+// module-scope destructure of window.MapTabLayout in map-tab.jsx needing
+// map-layout.js first.
+//
+// SYNCHRONISED BY THE CONSUMER, not by a re-render from here: mirror-tab's
+// MapSlot runs its own dynamic import of the same module and holds the
+// named export in state, so the You stop re-renders itself when the chunk
+// lands (mirror-field-pops' relmap pattern, D200). This loader exists so
+// main.jsx can start the fetch right after first paint — by the time a
+// thumb reaches the Mirror the module cache already has it — and so
+// check:globals rule 2 sees the './spec/map-tab.jsx' literal that proves
+// the family is loaded by something.
+//
+// person-mindmap (the loadOverlays group below) reads four of the family's
+// globals at render time; it carries its own static imports of those four
+// now, so the overlay chunk does not depend on this loader having run —
+// the ESM graph is the guarantee there too.
+export const loadMapTab = retryable(async () => {
+  await import('./spec/map-tab.jsx');
+});
+
 export const loadOverlays = retryable(async () => {
+  // First, because this list is spec-index's own order with the eager
+  // modules removed and relmap.jsx sat above every other member of it.
+  await import('./spec/relmap.jsx');
   await import('./spec/person-mindmap.jsx');
   await import('./spec/person-overlay.jsx');
   await import('./spec/city-overlay.jsx');
