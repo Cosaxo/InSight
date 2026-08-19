@@ -18,6 +18,11 @@ import { SCENES } from './scenes.js';
 import EmptyField from '../ui/EmptyField.tsx';
 // "Open the topic list" — the ask this card's one button makes (D190).
 import { requestTopicSheet } from '../data/topicSheet.ts';
+// "What moves together" (v28 §13) — the cross-test threads, drawn from
+// the viewer's own results only. Lazy because this panel is eager (the
+// profile is one tap from first paint) and the card is reachable only
+// once the overlay opens — the LiveDuelPanel pattern.
+const TraitWebCardLazy = React.lazy(() => import('../ui/TraitWebCard.tsx'));
 // The vitals vocabulary and the anchor mapping, in their own module since
 // D151 — the Basics card below and ui/LiveProfileSetup.tsx (the
 // account-creation questions) must ask with the same words, and
@@ -535,6 +540,13 @@ import {
         <BasicsCard data={data} set={set} />
         <MapThumbCard />
         <TestArcsCard onGo={onGo} />
+        {/* the v28 patch seats the web here, between the arcs it reads
+            and the lens row; null fallback — the card renders nothing
+            under four resolvable pairs anyway, so a spinner would promise
+            content the data may not hold */}
+        <React.Suspense fallback={null}>
+          <TraitWebCardLazy />
+        </React.Suspense>
         <LensesRowCard onGo={onGo} />
         <LogicCard />
         {/* DEMO ONLY. This field body is the scenes orbit plus its lenses,

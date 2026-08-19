@@ -52,9 +52,13 @@ exists.
   read it, or the constraint rots.
   [`SCALE-RUNBOOK.md`](SCALE-RUNBOOK.md) Phase 5,
   [`ATTENTION.md`](ATTENTION.md) §3.
-- **Trait web / "what moves together"** (trial): a pure fold over the
-  viewer's own test results; no reads, no collection — the cheapest real
-  feature in the v28 file. [`VISION-V28.md`](VISION-V28.md) §13.
+- ~~**Trait web / "what moves together"**~~ — **done 2026-08-19**
+  (`data/traitLinks.ts` + `ui/TraitWebCard.tsx`, lazy on the profile's
+  General panel): the eleven authored cross-test threads checked against
+  the viewer's OWN results — live from `LIVE.myTestResults`, demo from
+  the design's persona, and NOTHING under four resolvable pairs. No
+  reads, no collection, outside Art. 9's scope by construction.
+  [`VISION-V28.md`](VISION-V28.md) §13.
 - **Measure-and-retire** (decided, D162 — blocked on traffic): wire the
   scorecard's evenness measurement and retirement proposals to
   `active: false`, feed surface only.
@@ -105,9 +109,9 @@ the live figures: `node scripts/farm-budget.mjs`,
   Wikidata (unreachable from sandboxes; measured), then the demo cards,
   the trademark check, and go-live. The pick surface stays unscored
   until it is live. [`CATALOG-QUESTIONS.md`](CATALOG-QUESTIONS.md).
-- **Pulse templates** (rides the roster, D166 §3):
-  `content/pulse-questions.json` gains four templates — energy, sleep,
-  focus, social — through the ordinary content gates.
+- ~~**Pulse templates**~~ — **done 2026-08-19** with the roster commit:
+  `content/pulse-questions.json` carries all five (pace, energy, sleep,
+  focus, social) through the ordinary content gates.
   [`VISION-V28.md`](VISION-V28.md) §3.
 - **Event topics** (proposed only): `content/event-topics.json`, the
   discussion-window rules arm, the feed card, editorial first topics,
@@ -208,8 +212,12 @@ refused the third.
    most"), the pulse branch leafs answered pulses with `ui/PulseTrends`
    as the leaf card, and `window.goTrends` became the typed take-once
    `data/mapCue`. All inside the lazy map chunk. §5.
-6. **Every v28 item ships with a `smoke-live` case** (D167) — mount
-   live, assert the real thing renders and the demo cast does not. §13.
+6. **Every v28 item ships with a `smoke-live` case** (D167) — audited
+   2026-08-19 with §11 complete: the pulse roster and Patterns carry
+   dedicated live cases, type-mix pins its switch at the component and
+   rides the Mirror walks, and the Map branches are the fold-test +
+   mount pair D202 records (the map ground does not render in jsdom).
+   Standing rule for anything v28-shaped that ships later. §13.
 
 Beyond v28, still open on the Mirror ([`MIRROR.md`](MIRROR.md)):
 

@@ -654,7 +654,14 @@ const MAX_CHUNK_KB = 735;
 // with them.
 //
 // Headroom left: 8 KB on the total, 30 on the eager.
-const MAX_TOTAL_JS_KB = 2378;
+//
+// 2378 → 2391 (2026-08-19): the Map's parked branches (D202 amended, +6:
+// pathsMapTree/MTPathsCard, mapTrees, mapCue, the leaf cards) and the
+// trait web (v28 §13, +6: data/traitLinks + ui/TraitWebCard, lazy behind
+// the profile overlay). Measured on this tree: **2383 KB / 850 KB eager**
+// across 95 chunks — every byte of both features in lazy chunks, the
+// eager graph flat against its own 860 ceiling. Headroom left: 8 KB.
+const MAX_TOTAL_JS_KB = 2391;
 // 955 → 966 (2026-08-14): D139's pulse card — the second fixed instrument
 // on the FIRST screen, so its card, its store's demo furniture and the
 // two LIVE members are legitimately eager (~10 KB min). What is not
