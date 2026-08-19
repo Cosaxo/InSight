@@ -429,6 +429,28 @@ and names both halves of the artifact in its verdict; it does not fail,
 because a Sentry-less release is a supported build and this workflow
 passes the secret straight through as optional.
 
+**Runs 29, 30 and 31 delivered build 20, and the bump was skipped — by the
+pre-flight session itself** (D198, caught 2026-08-19). All three archived
+`f8c8465`, which is D191's own commit: run 29 (`32019625202`, 10:19:31Z)
+cancelled at Resolve Swift packages, run 30 (`32019849917`, 10:22:28Z)
+step 17 `skipped` — the dry run — and run 31 (`32020442257`, 10:30:02Z)
+`success`, 10:34:21Z → 10:35:38Z, 1m 17s of transfer. Fifth skip (runs 18,
+19, 24, 26, 31) against four that held.
+
+**This one refutes the correspondence D191 had just claimed.** That entry
+closed four for four: every skip a session that came back later or not at
+all, every bump that held made off the step list while it was on screen.
+`f8c8465` landed at 10:19:05Z and run 29 was dispatched **26 seconds
+later** — one session, holding the run list, cancelling one of its own
+three dispatches. It made the comparison *first*, got *run as-is*, and
+then spent the number that answer was about. **A pre-flight verdict has a
+shelf life of exactly one dispatch**, so "no number moved" is a report
+about a comparison and never a statement about the tree — the same claim
+this file struck for build 12, in the past tense. As in D184, no record
+was written either: nothing in `docs/` named any of the three runs or
+build 20's delivery until build 21's pre-flight read the run list.
+
+
 **Build 16's pre-flight found nothing to do either, which is the first
 time that has happened twice running** (D158, 2026-08-15). Run 21 was
 still the highest run in the list, its upload step still `success`,
