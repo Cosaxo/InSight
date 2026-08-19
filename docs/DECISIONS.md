@@ -21524,6 +21524,42 @@ on `main`, at the one moment content production started working. Had the
 assertion sat on the other side (a warning, or a check that only ran on
 the farm's own PR) the farm would have learned to stop filling the pen.
 
+**Amendment (2026-08-19) — swept for the same shape, and it had one more
+instance and one near-miss.** A gate green for its whole life is not
+evidence, so the tree was searched for other assertions over committed
+content that a *designed* operation would break:
+
+- **`feed-budget.test.mjs`** asserted
+  `topics.some((t) => t.questions < TOPIC_TARGET)` under the title
+  *"covers every topic in the taxonomy, thin ones included"*. That is not
+  the coverage property — it is **the deficit's current existence**, and
+  the feed lane exists to remove it. Four topics sit under 12 today, so it
+  passes; the day the lane finishes levelling them it goes red for the
+  lane having worked. `feed-budget.mjs` already writes the message for
+  that state (*"every topic is at the 12-question target"*), so the script
+  and its own test disagreed about whether it was reachable — the same
+  disagreement `pulse-render` and `pulse.test` had about a full pen. It
+  now asserts the fold's real promise: a row per taxonomy id, in the
+  taxonomy's own order, at any level. Mutation-checked, and it catches a
+  dropped or reordered topic, which the old form could not.
+- **The near-miss** is `question-quality.mjs`'s headroom tripwires
+  (`DAILY_ID_WARN`, `BANK_WARN`), which look like the same thing and are
+  its opposite: they fire *when a number crosses a threshold*, and the
+  crossing is the decision they exist to demand. Forward-looking alarms,
+  not backward-looking pins. Worth naming so the sweep does not come back
+  for them.
+
+**And one figure was made gate-owned rather than fixed a fourth time.**
+`LAUNCH-RUNBOOK.md` 5.6 — the version-lockstep step — read *"holds at
+2.0.0 build 13"* against a tree at build 22, its third staleness, inside
+the one step whose job is noticing version numbers disagree. Its own
+paragraph had already concluded *"this number will be wrong again"* and
+stopped one move short of this file's standing remedy, so `check:figures`
+now owns both halves off `package.json`. That needed one line in the
+comparison loop: every figure there had been numeric, and `Number("2.0.0")`
+is `NaN`, which compares unequal to everything and would have reported a
+permanently correct sentence as permanently wrong.
+
 ## D208 · Three readers walk the archive, and only one of them is a population
 
 **2026-08-19.** **Status:** binding, as an application of

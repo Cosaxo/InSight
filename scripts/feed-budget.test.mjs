@@ -134,9 +134,33 @@ describe("loadFeedTopics", () => {
   });
 
   it("covers every topic in the taxonomy, thin ones included", () => {
+    // THE SECOND ASSERTION HERE USED TO BE
+    // `topics.some((t) => t.questions < TOPIC_TARGET)`, which is not the
+    // coverage property in this test's name — it is the DEFICIT'S CURRENT
+    // EXISTENCE, and this lane exists to remove it. Today four topics sit
+    // under 12 and it passes; the day the lane finishes levelling them it
+    // goes red for the lane having worked. `feed-budget.mjs` already writes
+    // the message for that state ("every topic is at the 12-question
+    // target"), so the script and its own test disagreed about whether it
+    // was reachable — the D207 shape, one lane over, found by sweeping for
+    // it after that one.
+    //
+    // What the fold actually promises: a row per taxonomy id, in the
+    // taxonomy's own order, whatever the level. It builds its counter from
+    // `feed.topics` and reads back with `?? 0`, so a topic nothing serves
+    // yet gets a ZERO row rather than vanishing — which is exactly the case
+    // the deficit arithmetic needs and the one the tree cannot demonstrate,
+    // because every committed topic currently has questions in it.
+    const raw = JSON.parse(
+      readFileSync(new URL("../content/feed-questions.json", import.meta.url), "utf8"),
+    );
     const topics = loadFeedTopics();
     expect(topics).toHaveLength(10);
-    expect(topics.some((t) => t.questions < TOPIC_TARGET)).toBe(true);
+    expect(topics.map((t) => t.id)).toEqual(raw.topics.map((t) => t.id));
+    for (const t of topics) {
+      expect(Number.isInteger(t.questions)).toBe(true);
+      expect(t.questions).toBeGreaterThanOrEqual(0);
+    }
   });
 });
 

@@ -3,7 +3,7 @@
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
 "which decision governs this" is 212 lines instead of
-21,602. Do not hand-edit; `npm run check:docs` fails when this
+21,638. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -225,4 +225,4 @@ detect it.
 | **D205** | [An unconfirmed city does not score the place it names](DECISIONS.md#d205--an-unconfirmed-city-does-not-score-the-place-it-names) | — | 21277 |
 | **D206** | [A question carries several doors, and demand credit is conserved](DECISIONS.md#d206--a-question-carries-several-doors-and-demand-credit-is-conserved) | — | 21382 |
 | **D207** | [The pen is not an error state, and a gate said it was](DECISIONS.md#d207--the-pen-is-not-an-error-state-and-a-gate-said-it-was) | — | 21450 |
-| **D208** | [Three readers walk the archive, and only one of them is a population](DECISIONS.md#d208--three-readers-walk-the-archive-and-only-one-of-them-is-a-population) | — | 21527 |
+| **D208** | [Three readers walk the archive, and only one of them is a population](DECISIONS.md#d208--three-readers-walk-the-archive-and-only-one-of-them-is-a-population) | — | 21563 |
