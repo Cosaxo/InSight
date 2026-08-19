@@ -1,11 +1,11 @@
 {
-  "generatedAt": "2026-08-15T07:17:19.278Z",
-  "daysSinceEpoch": 14,
+  "generatedAt": "2026-08-19T07:17:15.866Z",
+  "daysSinceEpoch": 18,
   "coverage": {
-    "questions": 164,
-    "scored": 5,
-    "belowFloor": 53,
-    "unserved": 76
+    "questions": 188,
+    "scored": 0,
+    "belowFloor": 6,
+    "unserved": 96
   },
   "topics": {
     "Sport": {
@@ -25,7 +25,7 @@
       "avgEvenness": null
     },
     "Food": {
-      "questions": 5,
+      "questions": 7,
       "scored": 0,
       "answers": 0,
       "strong": 0,
@@ -33,7 +33,7 @@
       "avgEvenness": null
     },
     "Values": {
-      "questions": 10,
+      "questions": 12,
       "scored": 0,
       "answers": 0,
       "strong": 0,
@@ -42,14 +42,14 @@
     },
     "Mind": {
       "questions": 11,
-      "scored": 1,
-      "answers": 1,
+      "scored": 0,
+      "answers": 0,
       "strong": 0,
       "landslides": 0,
-      "avgEvenness": 0
+      "avgEvenness": null
     },
     "Morals": {
-      "questions": 8,
+      "questions": 11,
       "scored": 0,
       "answers": 0,
       "strong": 0,
@@ -57,7 +57,7 @@
       "avgEvenness": null
     },
     "Travel": {
-      "questions": 5,
+      "questions": 7,
       "scored": 0,
       "answers": 0,
       "strong": 0,
@@ -65,7 +65,7 @@
       "avgEvenness": null
     },
     "Music": {
-      "questions": 6,
+      "questions": 7,
       "scored": 0,
       "answers": 0,
       "strong": 0,
@@ -73,7 +73,7 @@
       "avgEvenness": null
     },
     "Body": {
-      "questions": 6,
+      "questions": 7,
       "scored": 0,
       "answers": 0,
       "strong": 0,
@@ -81,7 +81,7 @@
       "avgEvenness": null
     },
     "Story": {
-      "questions": 6,
+      "questions": 7,
       "scored": 0,
       "answers": 0,
       "strong": 0,
@@ -89,7 +89,7 @@
       "avgEvenness": null
     },
     "Goals": {
-      "questions": 6,
+      "questions": 8,
       "scored": 0,
       "answers": 0,
       "strong": 0,
@@ -97,7 +97,7 @@
       "avgEvenness": null
     },
     "Home": {
-      "questions": 6,
+      "questions": 16,
       "scored": 0,
       "answers": 0,
       "strong": 0,
@@ -170,11 +170,11 @@
     },
     "dilemma": {
       "questions": 12,
-      "scored": 2,
-      "answers": 2,
+      "scored": 0,
+      "answers": 0,
       "strong": 0,
       "landslides": 0,
-      "avgEvenness": 0
+      "avgEvenness": null
     },
     "event": {
       "questions": 4,
@@ -186,30 +186,30 @@
     },
     "people": {
       "questions": 3,
-      "scored": 1,
-      "answers": 1,
+      "scored": 0,
+      "answers": 0,
       "strong": 0,
       "landslides": 0,
-      "avgEvenness": 0
+      "avgEvenness": null
     },
     "bigq": {
       "questions": 11,
-      "scored": 1,
-      "answers": 1,
+      "scored": 0,
+      "answers": 0,
       "strong": 0,
       "landslides": 0,
-      "avgEvenness": 0
+      "avgEvenness": null
     }
   },
   "types": {
     "daily": {
       "binary": {
         "questions": 36,
-        "scored": 1,
-        "answers": 1,
+        "scored": 0,
+        "answers": 0,
         "strong": 0,
         "landslides": 0,
-        "avgEvenness": 0
+        "avgEvenness": null
       },
       "choice": {
         "questions": 27,
@@ -236,7 +236,7 @@
         "avgEvenness": null
       },
       "rating": {
-        "questions": 5,
+        "questions": 29,
         "scored": 0,
         "answers": 0,
         "strong": 0,
@@ -255,11 +255,11 @@
       },
       "vote": {
         "questions": 59,
-        "scored": 4,
-        "answers": 4,
+        "scored": 0,
+        "answers": 0,
         "strong": 0,
         "landslides": 0,
-        "avgEvenness": 0
+        "avgEvenness": null
       },
       "dial": {
         "questions": 4,
@@ -288,157 +288,21 @@
     }
   },
   "optionSlots": {
-    "daily": {
-      "binary/2": {
-        "questions": 1,
-        "avgMinShare": 0,
-        "avgShares": [
-          1,
-          0
-        ]
-      }
-    },
-    "feed": {
-      "vote/2": {
-        "questions": 3,
-        "avgMinShare": 0,
-        "avgShares": [
-          0.667,
-          0.333
-        ]
-      },
-      "vote/3": {
-        "questions": 1,
-        "avgMinShare": 0,
-        "avgShares": [
-          0,
-          0,
-          1
-        ]
-      }
-    }
+    "daily": {},
+    "feed": {}
   },
-  "leaders": [
-    {
-      "qid": "daily-009",
-      "prompt": "A pill that ends your need for sleep. Take it?",
-      "total": 1,
-      "evenness": 0,
-      "optionShares": [
-        1,
-        0
-      ]
-    },
-    {
-      "qid": "feed-f43",
-      "prompt": "Perfect memory — but you can never forget anything. Take it?",
-      "total": 1,
-      "evenness": 0,
-      "optionShares": [
-        1,
-        0
-      ]
-    },
-    {
-      "qid": "feed-f44",
-      "prompt": "Your dog talks for one day, or understands you forever?",
-      "total": 1,
-      "evenness": 0,
-      "optionShares": [
-        1,
-        0
-      ]
-    },
-    {
-      "qid": "feed-f51",
-      "prompt": "Dinner with one",
-      "total": 1,
-      "evenness": 0,
-      "optionShares": [
-        0,
-        0,
-        1
-      ]
-    },
-    {
-      "qid": "feed-s11",
-      "prompt": "Is morality discovered or invented?",
-      "total": 1,
-      "evenness": 0,
-      "optionShares": [
-        0,
-        1
-      ]
-    }
-  ],
-  "laggards": [
-    {
-      "qid": "feed-s11",
-      "prompt": "Is morality discovered or invented?",
-      "total": 1,
-      "evenness": 0,
-      "grade": "middling",
-      "optionShares": [
-        0,
-        1
-      ]
-    },
-    {
-      "qid": "feed-f51",
-      "prompt": "Dinner with one",
-      "total": 1,
-      "evenness": 0,
-      "grade": "middling",
-      "optionShares": [
-        0,
-        0,
-        1
-      ]
-    },
-    {
-      "qid": "feed-f44",
-      "prompt": "Your dog talks for one day, or understands you forever?",
-      "total": 1,
-      "evenness": 0,
-      "grade": "middling",
-      "optionShares": [
-        1,
-        0
-      ]
-    },
-    {
-      "qid": "feed-f43",
-      "prompt": "Perfect memory — but you can never forget anything. Take it?",
-      "total": 1,
-      "evenness": 0,
-      "grade": "middling",
-      "optionShares": [
-        1,
-        0
-      ]
-    },
-    {
-      "qid": "daily-009",
-      "prompt": "A pill that ends your need for sleep. Take it?",
-      "total": 1,
-      "evenness": 0,
-      "grade": "middling",
-      "optionShares": [
-        1,
-        0
-      ]
-    }
-  ],
+  "leaders": [],
+  "laggards": [],
   "production": {
     "bySource": {
       "editorial": {
-        "questions": 152,
-        "served": 88,
-        "scored": 5,
-        "answers": 5,
+        "questions": 176,
+        "served": 92,
+        "scored": 0,
+        "answers": 0,
         "strong": 0,
         "landslides": 0,
-        "avgEvenness": 0
+        "avgEvenness": null
       },
       "farm": {
         "questions": 12,
@@ -453,12 +317,12 @@
     "byVintage": {
       "editorial:prototype": {
         "questions": 118,
-        "served": 79,
-        "scored": 5,
-        "answers": 5,
+        "served": 83,
+        "scored": 0,
+        "answers": 0,
         "strong": 0,
         "landslides": 0,
-        "avgEvenness": 0
+        "avgEvenness": null
       },
       "farm:2026-07-30": {
         "questions": 12,
@@ -471,6 +335,15 @@
       },
       "editorial:2026-08-01": {
         "questions": 25,
+        "served": 0,
+        "scored": 0,
+        "answers": 0,
+        "strong": 0,
+        "landslides": 0,
+        "avgEvenness": null
+      },
+      "editorial:2026-08-16": {
+        "questions": 24,
         "served": 0,
         "scored": 0,
         "answers": 0,
@@ -503,7 +376,7 @@
     "coverage": {
       "cards": 106,
       "scored": 0,
-      "belowFloor": 28
+      "belowFloor": 10
     },
     "fields": {
       "cell": {
@@ -606,7 +479,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "below-floor"
+        "signal": "no-answers"
       },
       {
         "qid": "learn-cell3",
@@ -619,7 +492,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "below-floor"
+        "signal": "no-answers"
       },
       {
         "qid": "learn-cell4",
@@ -645,7 +518,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "below-floor"
+        "signal": "no-answers"
       },
       {
         "qid": "learn-cell6",
@@ -658,7 +531,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "below-floor"
+        "signal": "no-answers"
       },
       {
         "qid": "learn-cell7",
@@ -671,7 +544,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "below-floor"
+        "signal": "no-answers"
       },
       {
         "qid": "learn-cell8",
@@ -684,7 +557,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "below-floor"
+        "signal": "no-answers"
       },
       {
         "qid": "learn-gene1",
@@ -710,7 +583,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "below-floor"
+        "signal": "no-answers"
       },
       {
         "qid": "learn-gene3",
@@ -762,7 +635,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "below-floor"
+        "signal": "no-answers"
       },
       {
         "qid": "learn-gene7",
@@ -801,7 +674,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "no-answers"
+        "signal": "below-floor"
       },
       {
         "qid": "learn-body2",
@@ -827,7 +700,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "below-floor"
+        "signal": "no-answers"
       },
       {
         "qid": "learn-body4",
@@ -866,7 +739,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "no-answers"
+        "signal": "below-floor"
       },
       {
         "qid": "learn-body7",
@@ -892,7 +765,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "no-answers"
+        "signal": "below-floor"
       },
       {
         "qid": "learn-evo1",
@@ -1009,7 +882,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "below-floor"
+        "signal": "no-answers"
       },
       {
         "qid": "learn-sol2",
@@ -1022,7 +895,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "below-floor"
+        "signal": "no-answers"
       },
       {
         "qid": "learn-sol3",
@@ -1035,7 +908,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "below-floor"
+        "signal": "no-answers"
       },
       {
         "qid": "learn-sol4",
@@ -1061,7 +934,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "below-floor"
+        "signal": "no-answers"
       },
       {
         "qid": "learn-sol6",
@@ -1074,7 +947,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "below-floor"
+        "signal": "no-answers"
       },
       {
         "qid": "learn-sol7",
@@ -1087,7 +960,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "below-floor"
+        "signal": "no-answers"
       },
       {
         "qid": "learn-sol8",
@@ -1100,7 +973,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "below-floor"
+        "signal": "no-answers"
       },
       {
         "qid": "learn-str1",
@@ -1217,7 +1090,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "no-answers"
+        "signal": "below-floor"
       },
       {
         "qid": "learn-anc2",
@@ -1243,7 +1116,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "below-floor"
+        "signal": "no-answers"
       },
       {
         "qid": "learn-anc4",
@@ -1256,7 +1129,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "below-floor"
+        "signal": "no-answers"
       },
       {
         "qid": "learn-anc5",
@@ -1282,7 +1155,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "below-floor"
+        "signal": "no-answers"
       },
       {
         "qid": "learn-anc7",
@@ -1308,7 +1181,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "no-answers"
+        "signal": "below-floor"
       },
       {
         "qid": "learn-c201",
@@ -1529,7 +1402,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "below-floor"
+        "signal": "no-answers"
       },
       {
         "qid": "learn-cap2",
@@ -1542,7 +1415,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "below-floor"
+        "signal": "no-answers"
       },
       {
         "qid": "learn-cap3",
@@ -1555,7 +1428,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "below-floor"
+        "signal": "no-answers"
       },
       {
         "qid": "learn-cap4",
@@ -1568,7 +1441,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "below-floor"
+        "signal": "no-answers"
       },
       {
         "qid": "learn-cap5",
@@ -1581,7 +1454,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "below-floor"
+        "signal": "no-answers"
       },
       {
         "qid": "learn-cap6",
@@ -1594,7 +1467,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "below-floor"
+        "signal": "no-answers"
       },
       {
         "qid": "learn-cap7",
@@ -1607,7 +1480,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "below-floor"
+        "signal": "no-answers"
       },
       {
         "qid": "learn-cap8",
@@ -1841,7 +1714,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "no-answers"
+        "signal": "below-floor"
       },
       {
         "qid": "learn-anc10",
@@ -1867,7 +1740,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "no-answers"
+        "signal": "below-floor"
       },
       {
         "qid": "learn-anc12",
@@ -1880,7 +1753,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "below-floor"
+        "signal": "no-answers"
       },
       {
         "qid": "learn-anc13",
@@ -1893,7 +1766,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "no-answers"
+        "signal": "below-floor"
       },
       {
         "qid": "learn-body9",
@@ -1932,7 +1805,7 @@
         "gap": null,
         "trapShare": null,
         "wrongCount": 0,
-        "signal": "no-answers"
+        "signal": "below-floor"
       },
       {
         "qid": "learn-body12",
@@ -3065,7 +2938,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "daily-003",
@@ -3077,7 +2950,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "daily-004",
@@ -3089,7 +2962,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "daily-005",
@@ -3101,7 +2974,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "daily-006",
@@ -3125,7 +2998,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "daily-008",
@@ -3137,7 +3010,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "daily-009",
@@ -3146,14 +3019,10 @@
       "type": "binary",
       "prompt": "A pill that ends your need for sleep. Take it?",
       "served": true,
-      "total": 1,
-      "evenness": 0,
-      "optionShares": [
-        1,
-        0
-      ],
-      "signal": "scored",
-      "grade": "middling"
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
     },
     {
       "qid": "daily-010",
@@ -3177,7 +3046,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "daily-012",
@@ -3189,7 +3058,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "daily-013",
@@ -3201,7 +3070,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "daily-014",
@@ -3209,11 +3078,11 @@
       "topic": "Mind",
       "type": "rating",
       "prompt": "How much do you trust the news you read?",
-      "served": false,
+      "served": true,
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "unserved"
+      "signal": "below-floor"
     },
     {
       "qid": "daily-015",
@@ -3221,11 +3090,11 @@
       "topic": "Mind",
       "type": "binary",
       "prompt": "Will AI make everyday life better, or worse?",
-      "served": false,
+      "served": true,
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "unserved"
+      "signal": "below-floor"
     },
     {
       "qid": "daily-016",
@@ -3233,11 +3102,11 @@
       "topic": "Mind",
       "type": "choice",
       "prompt": "Humanity's best invention?",
-      "served": false,
+      "served": true,
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "unserved"
+      "signal": "no-answers"
     },
     {
       "qid": "daily-017",
@@ -3245,11 +3114,11 @@
       "topic": "Mind",
       "type": "scale",
       "prompt": "Technology is making us lonelier.",
-      "served": false,
+      "served": true,
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "unserved"
+      "signal": "no-answers"
     },
     {
       "qid": "daily-018",
@@ -4116,6 +3985,294 @@
       "signal": "unserved"
     },
     {
+      "qid": "daily-090",
+      "surface": "daily",
+      "topic": "Home",
+      "type": "rating",
+      "prompt": "How easy is it to get into nature from where you live?",
+      "served": false,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "unserved"
+    },
+    {
+      "qid": "daily-091",
+      "surface": "daily",
+      "topic": "Home",
+      "type": "rating",
+      "prompt": "How well does your city move you around?",
+      "served": false,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "unserved"
+    },
+    {
+      "qid": "daily-092",
+      "surface": "daily",
+      "topic": "Home",
+      "type": "rating",
+      "prompt": "How safe do you feel walking home at night?",
+      "served": false,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "unserved"
+    },
+    {
+      "qid": "daily-093",
+      "surface": "daily",
+      "topic": "Food",
+      "type": "rating",
+      "prompt": "Rate the food where you live.",
+      "served": false,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "unserved"
+    },
+    {
+      "qid": "daily-094",
+      "surface": "daily",
+      "topic": "Home",
+      "type": "rating",
+      "prompt": "Your city after dark — rate the nightlife.",
+      "served": false,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "unserved"
+    },
+    {
+      "qid": "daily-095",
+      "surface": "daily",
+      "topic": "Home",
+      "type": "rating",
+      "prompt": "How easy is it to talk to a stranger here?",
+      "served": false,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "unserved"
+    },
+    {
+      "qid": "daily-096",
+      "surface": "daily",
+      "topic": "Home",
+      "type": "rating",
+      "prompt": "How is dating where you live?",
+      "served": false,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "unserved"
+    },
+    {
+      "qid": "daily-097",
+      "surface": "daily",
+      "topic": "Home",
+      "type": "rating",
+      "prompt": "How affordable is your city on a normal wage?",
+      "served": false,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "unserved"
+    },
+    {
+      "qid": "daily-098",
+      "surface": "daily",
+      "topic": "Travel",
+      "type": "rating",
+      "prompt": "Your country's landscapes — how good are they?",
+      "served": false,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "unserved"
+    },
+    {
+      "qid": "daily-099",
+      "surface": "daily",
+      "topic": "Home",
+      "type": "rating",
+      "prompt": "How safe a country is yours to live in?",
+      "served": false,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "unserved"
+    },
+    {
+      "qid": "daily-100",
+      "surface": "daily",
+      "topic": "Goals",
+      "type": "rating",
+      "prompt": "Work and rest in your country — how well do they balance?",
+      "served": false,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "unserved"
+    },
+    {
+      "qid": "daily-101",
+      "surface": "daily",
+      "topic": "Body",
+      "type": "rating",
+      "prompt": "If you got sick tomorrow, how good would the care be?",
+      "served": false,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "unserved"
+    },
+    {
+      "qid": "daily-102",
+      "surface": "daily",
+      "topic": "Home",
+      "type": "rating",
+      "prompt": "Do everyday services work where you are?",
+      "served": false,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "unserved"
+    },
+    {
+      "qid": "daily-103",
+      "surface": "daily",
+      "topic": "Values",
+      "type": "rating",
+      "prompt": "How welcoming is your country to people who move there?",
+      "served": false,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "unserved"
+    },
+    {
+      "qid": "daily-104",
+      "surface": "daily",
+      "topic": "Home",
+      "type": "rating",
+      "prompt": "The weather you live with. Be honest.",
+      "served": false,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "unserved"
+    },
+    {
+      "qid": "daily-105",
+      "surface": "daily",
+      "topic": "Goals",
+      "type": "rating",
+      "prompt": "Can an ordinary wage carry an ordinary life here?",
+      "served": false,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "unserved"
+    },
+    {
+      "qid": "daily-106",
+      "surface": "daily",
+      "topic": "Food",
+      "type": "rating",
+      "prompt": "How good is what the world eats these days?",
+      "served": false,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "unserved"
+    },
+    {
+      "qid": "daily-107",
+      "surface": "daily",
+      "topic": "Music",
+      "type": "rating",
+      "prompt": "Music right now, worldwide — rate it.",
+      "served": false,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "unserved"
+    },
+    {
+      "qid": "daily-108",
+      "surface": "daily",
+      "topic": "Morals",
+      "type": "rating",
+      "prompt": "How kind are strangers these days?",
+      "served": false,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "unserved"
+    },
+    {
+      "qid": "daily-109",
+      "surface": "daily",
+      "topic": "Story",
+      "type": "rating",
+      "prompt": "Where the world is heading — rate it.",
+      "served": false,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "unserved"
+    },
+    {
+      "qid": "daily-110",
+      "surface": "daily",
+      "topic": "Travel",
+      "type": "rating",
+      "prompt": "The state of nature worldwide — rate it.",
+      "served": false,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "unserved"
+    },
+    {
+      "qid": "daily-111",
+      "surface": "daily",
+      "topic": "Morals",
+      "type": "rating",
+      "prompt": "How honest is public life these days?",
+      "served": false,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "unserved"
+    },
+    {
+      "qid": "daily-112",
+      "surface": "daily",
+      "topic": "Morals",
+      "type": "rating",
+      "prompt": "How fair is the world right now?",
+      "served": false,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "unserved"
+    },
+    {
+      "qid": "daily-113",
+      "surface": "daily",
+      "topic": "Values",
+      "type": "rating",
+      "prompt": "How well is the world being led?",
+      "served": false,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "unserved"
+    },
+    {
       "qid": "feed-f01",
       "surface": "feed",
       "topic": "sport",
@@ -4125,7 +4282,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-f02",
@@ -4137,7 +4294,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-f04",
@@ -4149,7 +4306,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-f05",
@@ -4161,7 +4318,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-f06",
@@ -4173,7 +4330,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-f07",
@@ -4185,7 +4342,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-f08",
@@ -4209,7 +4366,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-f11",
@@ -4221,7 +4378,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-f12",
@@ -4233,7 +4390,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-f13",
@@ -4257,7 +4414,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "no-answers"
+      "signal": "below-floor"
     },
     {
       "qid": "feed-f15",
@@ -4269,7 +4426,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-f17",
@@ -4293,7 +4450,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-f19",
@@ -4305,7 +4462,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-f20",
@@ -4341,7 +4498,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-f24",
@@ -4377,7 +4534,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-f27",
@@ -4389,7 +4546,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-f29",
@@ -4413,7 +4570,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-f31",
@@ -4425,7 +4582,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-f32",
@@ -4437,7 +4594,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-f33",
@@ -4449,7 +4606,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-f35",
@@ -4461,7 +4618,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-f36",
@@ -4473,7 +4630,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-f37",
@@ -4485,7 +4642,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-f38",
@@ -4497,7 +4654,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-f39",
@@ -4509,7 +4666,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-f40",
@@ -4533,7 +4690,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-f42",
@@ -4545,7 +4702,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-f43",
@@ -4554,14 +4711,10 @@
       "type": "vote",
       "prompt": "Perfect memory — but you can never forget anything. Take it?",
       "served": true,
-      "total": 1,
-      "evenness": 0,
-      "optionShares": [
-        1,
-        0
-      ],
-      "signal": "scored",
-      "grade": "middling"
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
     },
     {
       "qid": "feed-f44",
@@ -4570,14 +4723,10 @@
       "type": "vote",
       "prompt": "Your dog talks for one day, or understands you forever?",
       "served": true,
-      "total": 1,
-      "evenness": 0,
-      "optionShares": [
-        1,
-        0
-      ],
-      "signal": "scored",
-      "grade": "middling"
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
     },
     {
       "qid": "feed-f45",
@@ -4589,7 +4738,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-f46",
@@ -4601,7 +4750,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-f47",
@@ -4613,7 +4762,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-f48",
@@ -4625,7 +4774,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-f49",
@@ -4637,7 +4786,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-f50",
@@ -4649,7 +4798,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-f51",
@@ -4658,15 +4807,10 @@
       "type": "vote",
       "prompt": "Dinner with one",
       "served": true,
-      "total": 1,
-      "evenness": 0,
-      "optionShares": [
-        0,
-        0,
-        1
-      ],
-      "signal": "scored",
-      "grade": "middling"
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "below-floor"
     },
     {
       "qid": "feed-f52",
@@ -4678,7 +4822,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-f53",
@@ -4690,7 +4834,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-f54",
@@ -4714,7 +4858,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-s01",
@@ -4822,7 +4966,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-s11",
@@ -4831,14 +4975,10 @@
       "type": "vote",
       "prompt": "Is morality discovered or invented?",
       "served": true,
-      "total": 1,
-      "evenness": 0,
-      "optionShares": [
-        0,
-        1
-      ],
-      "signal": "scored",
-      "grade": "middling"
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
     },
     {
       "qid": "feed-s12",
@@ -4922,7 +5062,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-dl2",
@@ -4934,7 +5074,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-dl3",
@@ -4946,7 +5086,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-dl4",
@@ -4958,7 +5098,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-fd1",
@@ -4970,7 +5110,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-fd2",
@@ -4982,7 +5122,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-fd3",
@@ -4994,7 +5134,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "below-floor"
+      "signal": "no-answers"
     },
     {
       "qid": "feed-pt1",
@@ -5006,7 +5146,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "no-answers"
+      "signal": "below-floor"
     },
     {
       "qid": "feed-pt2",

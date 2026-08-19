@@ -170,8 +170,14 @@ function SearchOverlay({ onClose, onPerson, samplePeople }) {
       }
       return out;
     }
+    // Door labels join the match text (docs/TAGS-PLAN.md §2): a straddler is
+    // findable by every topic it carries, not only its home's name — the
+    // e-sports card should answer a search for "tech".
+    const extraOf = (x) => [labelOf(x).label]
+      .concat((x.also || []).map((t) => (TOPIC[t] || {}).label || (ST && (ST.get(t) || {}).label) || t))
+      .join(' ');
     return pool
-      .map((x) => ({ x, s: srchQScore(x, query, labelOf(x).label) }))
+      .map((x) => ({ x, s: srchQScore(x, query, extraOf(x)) }))
       .filter((r) => r.s >= 0)
       .sort((a, b) => b.s - a.s
         || (srchAnswered(a.x, votes) ? 1 : 0) - (srchAnswered(b.x, votes) ? 1 : 0)

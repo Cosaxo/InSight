@@ -81,7 +81,7 @@
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { splitQualityOf, rollupProduction } from "./scorecard-metrics.mjs";
+import { splitQualityOf, rollupProduction, creditShares } from "./scorecard-metrics.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const OUT = join(root, "content", "scorecard.json");
@@ -201,6 +201,11 @@ function score(aggs) {
       qid,
       surface: "daily",
       topic: q.cat[0],
+      // Carried topics, home first (docs/TAGS-PLAN.md §3). The daily has no
+      // doors — its `alts` are placement candidates, not reach — so the list
+      // is one long here; it exists so the rollup below reads every surface
+      // through one shape.
+      topics: [q.cat[0]],
       type: q.type,
       prompt: q.prompt,
       served,
@@ -221,6 +226,17 @@ function score(aggs) {
       qid,
       surface: "feed",
       topic: q.cat,
+      // Home plus `also` doors (docs/TAGS-PLAN.md §3): the rollup credits a
+      // row's answers across these in conserved shares. `topic` above stays
+      // the home alone — it is what the retirement lane and the run-log
+      // tallies name a question by.
+      topics: [q.cat, ...(q.also || [])],
+      // A paid question keeps its per-question row — the buyer bought the
+      // honest split, and the retirement lane still reads grades — but the
+      // topic rollup below skips it: production allocation must not be
+      // buyable any more than the Mirror's corpus is (D195, extended by
+      // docs/TAGS-PLAN.md §3 from the corpus to the production signal).
+      ...(q.sponsor ? { sponsored: true } : {}),
       type: q.type,
       prompt: q.prompt,
       served: true, // the feed serves continuously
@@ -247,23 +263,47 @@ function score(aggs) {
     }
   }
 
-  // Topic rollups — the demand signal lanes 1–2 read.
+  // Topic rollups — the demand signal lanes 1–2 read. Two different counts
+  // on purpose (docs/TAGS-PLAN.md §3):
+  //
+  //   · `questions`/`scored`/grades count MEMBERSHIP — a straddler sits in
+  //     every topic it carries, because that is the pool whose audience
+  //     actually meets it (the filter shows it there, feed-budget counts it
+  //     there). Membership is not a partition, so these columns can sum
+  //     past the bank size; a reader adding them is re-counting straddlers.
+  //   · `answers` is CREDITED in conserved shares (creditShares: home 2,
+  //     each door 1, normalized) — summing it across topics equals summing
+  //     answers across questions, exactly, so tagging can redistribute
+  //     demand but never mint it. scorecard-metrics.test.mjs pins the
+  //     property; the share reasoning lives at creditShares itself.
+  //
+  // Sponsored rows are excluded outright: a paid question keeps its
+  // per-question row above, but the demand signal the lanes read must not
+  // be buyable (D195's line, extended from the Mirror's corpus to the
+  // production signal).
   const topics = {};
   for (const r of rows) {
-    const t = (topics[r.topic] ||= {
-      questions: 0, scored: 0, answers: 0, evenSum: 0, strong: 0, landslides: 0,
-    });
-    t.questions++;
-    if (r.signal === "scored") {
-      t.scored++;
-      t.answers += r.total;
-      t.evenSum += r.evenness ?? 0;
-      if (r.grade === "strong") t.strong++;
-      if (r.grade === "landslide") t.landslides++;
+    if (r.sponsored) continue;
+    for (const { topic, share } of creditShares(r.topics ?? [r.topic])) {
+      const t = (topics[topic] ||= {
+        questions: 0, scored: 0, answers: 0, evenSum: 0, strong: 0, landslides: 0,
+      });
+      t.questions++;
+      if (r.signal === "scored") {
+        t.scored++;
+        t.answers += r.total * share;
+        t.evenSum += r.evenness ?? 0;
+        if (r.grade === "strong") t.strong++;
+        if (r.grade === "landslide") t.landslides++;
+      }
     }
   }
   for (const t of Object.values(topics)) {
     t.avgEvenness = t.scored ? +(t.evenSum / t.scored).toFixed(3) : null;
+    // Credited answers are fractional by construction (a 2/3 share of 31
+    // answers); one decimal keeps the committed artifact readable without
+    // hiding that they are shares rather than raw counts.
+    t.answers = +t.answers.toFixed(1);
     delete t.evenSum;
   }
 

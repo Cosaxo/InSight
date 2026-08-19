@@ -21378,3 +21378,71 @@ for weeks and asking *"did you move?"* — is designed and not built. It only
 starts to matter once real people move, and it must never change the anchor
 on its own: travel has to stay invisible, and moving has to stay a question
 someone answers.
+
+## D206 · A question carries several doors, and demand credit is conserved
+
+**2026-08-19.** **Status:** binding. Owner's ask, in their words: *"adding
+multiple tags to questions and basing the question production based on
+what tags are most popular"* — then, over the plan that answered it,
+*"build it."* The plan is [`TAGS-PLAN.md`](TAGS-PLAN.md); this record is
+the delta it shipped, and the four sentences that must survive it.
+
+### What shipped
+
+Feed and pick questions may carry **`also`** — up to two more committed
+topic or subtopic ids beside the `cat` home (`ALSO_MAX`,
+`question-quality.mjs`). Fifteen of the bank's questions were retro-tagged
+in the same change, one door each, editorially. Around the field, in the
+plan's §6 order: the gate (ids, cap, no repeats, no leaf-beside-parent,
+none on scene cards, none outside feed/pick), the wire
+(`gen-v2content.mjs` emit-when-set → `QuestionDoc.also` → the live feed
+mapper), the reach (`wfFeedMatch` in `world-feed-math.js` — the filter as
+a pure, tested function — plus stock, and door labels in search), and the
+demand arithmetic (`creditShares` in `scorecard-metrics.mjs`, the
+scorecard's rollup, `feed-budget`'s membership counting).
+
+### The four sentences
+
+1. **A card appears once; `also` multiplies the ways to reach it, never
+   the copies of it.** Everything that PLACES stays on `cat` — the Map
+   branch, the kicker, the stream grouping. Everything that MATCHES reads
+   `cat ∪ also` — filter, stock, search, demand. The Map files an answer
+   at one path forever, so placement stays singular exactly because a
+   wrong door is recoverable and a wrong home is not.
+2. **A mute is a veto; a follow is a vote.** "Less of this" on any
+   carried topic hides the card everywhere — a dismissed card must not
+   ride back in through its second topic. The one place doors make the
+   feed smaller, pinned in `feed-doors.test.js`.
+3. **Credit is conserved** — home 2 shares, each door 1, normalized, so
+   summing credited answers across topics equals summing answers across
+   questions, exactly. This is the anti-gaming design rather than an
+   accounting taste: the generator that assigns doors is the species that
+   reviews them, and the demand lanes steer its own future budget. Under
+   conservation a door redistributes credit and never mints it, so broad
+   tagging buys nothing but dilution of the home's own signal. The
+   residue — a tilt inside individually defensible tags — is the human
+   audit's, which gained tag honesty as its fifth judgement
+   (QUESTION-FARM.md § The review contract).
+4. **Popularity steers the tail, never the core, and is not for sale.**
+   Sponsored rows are excluded from the topic rollup the lanes read (and
+   refuse `also` outright, `check-content.mjs`) — D195's line extended
+   from the Mirror's corpus to the production signal. New production
+   lands core-absent (D161), and no demand signal moves a question into
+   the core: the lanes allocate the tail, a human allocates the core.
+
+### What was deliberately kept
+
+The ask read "most popular tags"; the lanes keep **popularity × depth**
+(D97), because raw popularity compounds — the daily answer budget is
+conserved (SCALE-PLAN §1), so popular topics would eat it — and depth is
+what lets a small devoted topic earn content. And popularity still means
+**published answer counts, nothing else**: passes and skips stay
+local-only, per the standing MONITORING.md refusal and D163.
+
+### What is left
+
+The D163 on-device model reads doors when tier 2 is built — the contract
+(share-weighted affinity at the same 2:1, mute as veto) is written in
+TAGS-PLAN.md §4 so the field is not re-litigated then. And the demand
+lanes have nothing to read until aggregates exist: the machinery is
+whole; what arrives with users is only the numbers flowing through it.
