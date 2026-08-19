@@ -154,11 +154,13 @@ ordered list. Open, in its order:
   cache key; an avatar-overwrite rate limit; the CDN question; the
   graded breaker `mode` field, which needs an owner decision about what
   a degraded app *says* before it can be built. [`COSTS.md`](COSTS.md).
-- **The eager-bytes door** (v28 §5): the lazy-tab half landed
-  2026-08-19 (Patterns arrives through `React.lazy` in `app-shell.jsx`);
-  what remains is a lazy `map-tab.jsx` — the one change that unblocks
-  Crossroads' `mapTree`, the Foresight map branch and the pulse branch
-  `window.goTrends` wants to open. [`VISION-V28.md`](VISION-V28.md) §5.
+- ~~**The eager-bytes door**~~ (v28 §5) — **open 2026-08-19 (D202)**:
+  Patterns arrives through `React.lazy` in `app-shell.jsx`, and the Map's
+  seven modules left the eager list for `loadMapTab()` the same day
+  (eager 890 → 849 KB, `MAX_EAGER_KB` 920 → 860). The three parked
+  features — Crossroads' `mapTree`, the Foresight map branch, the pulse
+  branch — now grow inside the lazy map chunk; building them is the next
+  item. [`VISION-V28.md`](VISION-V28.md) §5.
 - **The bridge migration** (ratchet, D39): `check:globals` rule 4 only
   moves down; the v28 tweak teardown is the next large lump of it, and
   `passive-progress.js` / `test-definitions.js` still want to become

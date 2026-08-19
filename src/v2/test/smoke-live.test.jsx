@@ -58,6 +58,11 @@ beforeAll(async () => {
   // a tab that never rendered one — the vacuous pass this file's own
   // comments were written about.
   await specIndex.loadWorldFeed();
+  // The Map's family is lazy since v28 §5 and two cases below render
+  // window.MTAnswerCard directly — without this await the global is
+  // simply absent and both would fail on `undefined`, not on the gate
+  // they pin.
+  await specIndex.loadMapTab();
   App = globalThis.App;
 });
 

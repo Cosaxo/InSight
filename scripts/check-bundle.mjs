@@ -702,7 +702,18 @@ const MAX_TOTAL_JS_KB = 2378;
 // 72 KB of slack defends nothing; the next feature to want that room should
 // raise this line with a measurement beside it, which is what every entry
 // above did.
-const MAX_EAGER_KB = 920;
+//
+// 920 → 860 (2026-08-19): v28 §5 opened the door the entry above was
+// holding — the Map's seven modules left the eager graph for loadMapTab()
+// (mirror-tab lazy-loads the body, main.jsx prewarms the chunk). Measured
+// at this commit: eager 890 → 849 (−41), total 2370 → 2371 and 86 → 92
+// chunks — a relocation again, which is the shape these moves have. The
+// same doctrine as the 978 → 920 entry: the freed room is FOR the parked
+// map branches (g-fore, g-paths, the pulse trend branch), and they now
+// grow inside the LAZY map chunk where the eager ceiling no longer taxes
+// them — so the band stays ~11 KB and this constant should not need to
+// move for them at all.
+const MAX_EAGER_KB = 860;
 
 let files;
 try {

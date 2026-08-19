@@ -20956,3 +20956,65 @@ PASSED), `:moderation`, `test:rules`. The emulator log names every
 invocation `europe-west1-<fn>`, which is the move working rather than a
 claim about it. In this sandbox they need `HTTPS_PROXY` unset — the
 standing note in docs/LOCAL-TESTING.md, not a symptom of this change.
+
+## D202 · The Map goes lazy, and the door §5 was waiting on is open
+
+**2026-08-19.** VISION-V28 §5 named one blocked door with three features
+behind it: Crossroads' `mapTree`, Foresight's map branch and the pulse
+branch `window.goTrends` wants to open, all needing `map-tab.jsx` to grow
+and the eager graph having no room to grow it in. D136 recorded the wall;
+§5's recommendation — fold the unlock into the Patterns work, because
+Patterns forces a lazy-tab pattern to exist anyway — is what this entry
+executes.
+
+**The move.** The Map's seven modules (`map-bottom-card`, `map-learn-card`,
+`map-people`, `map-layout`, `map-groups`, `map-chiprow`, `map-tab`) left
+`spec-index.js`'s eager list. Their load order — semantic, including the
+module-scope destructure in `map-tab.jsx` that needs `map-layout.js`
+evaluated first — now lives as static imports at the top of `map-tab.jsx`,
+so ONE import of that file evaluates the family correctly.
+`spec-index.js` gains `loadMapTab()` (the `retryable` memo shape both
+existing groups use), `main.jsx` prewarms it right after first paint, and
+`mirror-tab.jsx` renders the You stop through `React.lazy` — the same
+mechanism its Circle, Cohort and Groups bodies already use, so by the time
+a thumb reaches the Mirror the resolve is a module-cache hit, not a wait.
+
+**The old objection, answered rather than deleted.** mirror-tab's own
+comment argued the Map must stay eager because "the Mirror opens on You".
+The prewarm is the answer — the comment now says so — and Near, the other
+half of that sentence, stays eager.
+
+**Convert-on-touch rode along, and the ratchet moved.** person-mindmap
+(the overlays chunk) read four of the family's globals and would have been
+one unvisited Mirror away from a `ReferenceError` on `MAP_GROUPS.of` —
+the only unguarded read, found by reading every site rather than assuming
+the guards were uniform. `MapTabLayout`, `MAP_GROUPS` and `MTBranchChips`
+became named exports; both consumers import them; the dead load-order
+guards (D108's shapes: `window.X && …`, the ring-320 fallback, `Chips &&`)
+left with the conversion, as did map-layout's six no-op trailing
+publications and the `window.MapTab` publication itself.
+
+**Measured at this commit, not estimated:**
+
+- eager graph **890 → 849 KB** (−41), total 2370 → 2371 KB and 86 → 92
+  chunks — a relocation, the shape D200's entry documents;
+- `MAX_EAGER_KB` **920 → 860**, the second time the constant has come
+  down, same doctrine as the first: the freed room is FOR the parked
+  branches, and they grow inside the lazy map chunk where the eager
+  ceiling no longer taxes them;
+- rule-4 coupling **406 → 396** (map-tab 21 → 18, mirror-tab 9 → 8,
+  person-mindmap 10 → 4); published globals 259 → 249.
+
+**What this deliberately does not do:** build the branches. `g-fore`,
+`g-paths` and the pulse trend branch are the next work item and land in
+the lazy chunk this entry created; nothing outside `map-tab.jsx` needs to
+move for them again.
+
+### Verified
+
+`test:unit` (93 files, 1412 tests — smoke-nav's Map case now AWAITS the
+lazy body's arrival via `awaitNode`, the fixed-sleep race the Patterns
+commit already hit once), `check:globals` (396, baseline lowered),
+`check:bundle` on the shipping build (2371 / 849 against 2378 / 860),
+lint, `tsc -b`. map-ring.test.js pins the layout arithmetic through the
+named export now — the window copy is gone.

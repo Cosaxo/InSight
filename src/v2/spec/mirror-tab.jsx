@@ -30,11 +30,21 @@ import NearLiveBody from '../ui/NearLiveBody';
 // the Mirror opens on You (the Map). Circle is two stops along, Groups
 // three and City four, and each needs a network round trip of its own
 // before it can render anything, so the chunk fetch overlaps work the stop
-// was going to do regardless. Deferring the Map or Near would not be —
-// those are what the tab opens with.
+// was going to do regardless.
+//
+// This paragraph used to end "deferring the Map or Near would not be —
+// those are what the tab opens with", and v28 §5 overrode the Map half:
+// three parked features (Crossroads' mapTree, Foresight's branch, the
+// pulse branch) all need map-tab to grow, and the eager graph had no room
+// to grow it in. What answers the old objection is the prewarm — main.jsx
+// starts loadMapTab() right after first paint, so by the time a thumb
+// reaches the Mirror the chunk is in the module cache and the Suspense
+// fallback is a frame, not a wait. Near stays eager; the objection still
+// holds there.
 const LiveCircleBody = React.lazy(() => import('../ui/LiveCircleBody'));
 const LiveCohortBody = React.lazy(() => import('../ui/LiveCohortBody'));
 const LiveGroupsMirrorBody = React.lazy(() => import('../ui/LiveGroupsMirrorBody'));
+const MapTabLazy = React.lazy(() => import('./map-tab.jsx').then((m) => ({ default: m.MapTab })));
 
 // mirror-tab.jsx — MIRROR: one tab, one verb — see yourself against a population.
 // One telescope, seven stops, from fully retracted to fully extended:
@@ -295,7 +305,12 @@ function MirrorTab({ onPerson, pop, onPop, worldZoom, onZoom, firstRun, backKey 
     // fully retracted — you, alone, visualized: the Map lives here
     body = (
       <div className="tab-swap" style={{ flex: 1, minHeight: 0, position: 'relative' }}>
-        <MapTab />
+        {/* null fallback like the three below — and here it is genuinely a
+            frame, not a wait: main.jsx prewarms loadMapTab() right after
+            first paint, so the lazy resolve is a module-cache hit. */}
+        <React.Suspense fallback={null}>
+          <MapTabLazy />
+        </React.Suspense>
       </div>
     );
   } else if (isGeoLive) {

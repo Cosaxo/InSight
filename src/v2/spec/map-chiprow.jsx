@@ -7,7 +7,9 @@ import React from 'react';
 
 // InSight — Map tab: the branch chip row along the top.
 // ── branch chips — every branch one tap away, along the top ─────────────────
-function MTBranchChips({ cats, activeCat, atHome, onPick, onHome }) {
+// Exported since the Map went lazy (v28 §5, convert-on-touch): map-tab and
+// person-mindmap import the binding.
+export function MTBranchChips({ cats, activeCat, atHome, onPick, onHome }) {
   const { useRef, useEffect } = React;
   const rowRef = useRef(null);
   // keep the active chip in view (scrollTo, never scrollIntoView)
@@ -48,6 +50,6 @@ function MTBranchChips({ cats, activeCat, atHome, onPick, onHome }) {
   );
 }
 
-window.MTBranchChips = MTBranchChips;
-
-;globalThis.MTBranchChips = typeof MTBranchChips === 'undefined' ? globalThis.MTBranchChips : MTBranchChips;
+// The window/globalThis publications left with the conversion — both
+// readers import the export, so a publication here would be one nothing
+// reads (check:globals rule 5).

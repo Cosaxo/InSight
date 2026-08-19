@@ -8,6 +8,20 @@ import { DAILYQ } from './daily-questions.js';
 import { DUELS } from './duels-data.js';
 import { LEARN } from './learn-progress.js';
 import { list as anchorList } from './map-anchors.js';
+// The Map's own family, imported (v28 §5): until the Map went lazy,
+// spec-index's eager list carried these six and their order. Now the ESM
+// graph does — imports evaluate before this module's body — and one
+// dynamic import of THIS file (mirror-tab's lazy body, spec-index's
+// loadMapTab) brings the whole family in one deferred chunk. Three arrive
+// as named bindings (convert-on-touch); the first three still talk
+// through globals this file reads at render time, so their imports are
+// for the side effect.
+import './map-bottom-card.jsx';
+import './map-learn-card.jsx';
+import './map-people.jsx';
+import { MapTabLayout } from './map-layout.js';
+import { MAP_GROUPS } from './map-groups.js';
+import { MTBranchChips } from './map-chiprow.jsx';
 
 // InSight — Map tab: a constellation of every Daily-Question answer around a
 // ring of profile anchors (age · work · study · the test results). Tap an
@@ -15,10 +29,10 @@ import { list as anchorList } from './map-anchors.js';
 // answer to see how any of those groups answered it. Group stats live in
 // map-group-stats.js; the branch list in map-lens.js; the layout engine in
 // map-tab-layout.js; the chip row in map-tab-chips.jsx.
-const { mtSlug, mtHash, mtTopCat, mtClusterLayout, MT_ZLAB } = window.MapTabLayout;
+const { mtSlug, mtHash, mtTopCat, mtClusterLayout, MT_ZLAB } = MapTabLayout;
 
 // ── the tab ─────────────────────────────────────────────────────────────────
-function MapTab({ rail = true, anchorsOn = true, recency = true, fields: fieldsOn = true }) {
+export function MapTab({ rail = true, anchorsOn = true, recency = true, fields: fieldsOn = true }) {
   const { useState, useEffect, useMemo, useRef } = React;
 
   // editable branch labels (persisted)
@@ -150,7 +164,7 @@ function MapTab({ rail = true, anchorsOn = true, recency = true, fields: fieldsO
   // You → group → branch → sub → answer, navigated by drilling. At the top level
   // the ring is groups and the answers stay as unlabelled dots inside them: the
   // constellation's silhouette survives, only the competing labels go.
-  const GRP = window.MAP_GROUPS;
+  const GRP = MAP_GROUPS;
   const [openGroup, setOpenGroup] = useState(() => {
     // Learn's “See it” hands the map the group to land on
     const g = typeof window !== 'undefined' ? window.MAP_OPEN_GROUP : null;
@@ -1051,6 +1065,7 @@ function MapTab({ rail = true, anchorsOn = true, recency = true, fields: fieldsO
   );
 }
 
-window.MapTab = MapTab;
-
-;globalThis.MapTab = typeof MapTab === 'undefined' ? globalThis.MapTab : MapTab;
+// The `window.MapTab = MapTab` publication left with the lazy move (v28
+// §5): mirror-tab was the only reader and it takes the named export off
+// its own dynamic import now, so the line would be a publication nothing
+// reads (check:globals rule 5).

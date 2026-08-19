@@ -16,7 +16,9 @@ import React from 'react';
 //
 // Knowledge being its own group is the point of it: "what you think" and "what
 // you know" become a fact of the map's shape, not just a dot style.
-window.MAP_GROUPS = (function () {
+// A named export since the Map went lazy (v28 §5, convert-on-touch): both
+// readers — map-tab and person-mindmap — import the binding now.
+export const MAP_GROUPS = (function () {
   const GROUPS = [
     { id: 'g-self',   label: 'Self',      hue: 150, cats: ['health', 'story', 'home', 'craft', 'goals'] },
     { id: 'g-taste',  label: 'Taste',     hue: 35,  cats: ['interests', 'top-food', 'top-film', 'top-music', 'top-sport', 'top-travel'] },

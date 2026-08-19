@@ -7,7 +7,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { act, fireEvent, screen } from "@testing-library/react";
 import { OWNS_X } from "../spec/swipe-back.js";
-import { awaitText, mountApp, registerSmokeHooks, SMOKE_TIMEOUT_MS } from "./mount-app.jsx";
+import { awaitNode, awaitText, mountApp, registerSmokeHooks, SMOKE_TIMEOUT_MS } from "./mount-app.jsx";
 
 vi.setConfig({ testTimeout: SMOKE_TIMEOUT_MS });
 registerSmokeHooks();
@@ -113,7 +113,7 @@ describe("the patterns tab (trial)", () => {
 describe("the surfaces that own their drag are excluded from the axis swipes", () => {
   // One mount for both surfaces: the mirror's default stop is You, which IS the
   // Map, so the ruler and the pan canvas are on screen together.
-  it("the mirror ruler and the Map's pan surface are covered by OWNS_X", () => {
+  it("the mirror ruler and the Map's pan surface are covered by OWNS_X", async () => {
     mountApp();
     fireEvent.click(screen.getByRole("button", { name: /^mirror$/i }));
     const rail = screen.getByRole("tablist", { name: /how far the mirror reaches/i });
@@ -122,8 +122,9 @@ describe("the surfaces that own their drag are excluded from the axis swipes", (
       "the ruler lost its data-nopan — releasing a rightward scrub will land on the daily",
     ).not.toBeNull();
     // The canvas renders even before its first fit (the null-view branch), so
-    // this holds in jsdom's zero-size panes.
-    const canvas = document.querySelector(".mmt-canvas");
+    // this holds in jsdom's zero-size panes — but the Map is a lazy body
+    // since v28 §5, so its arrival is awaited rather than assumed.
+    const canvas = await awaitNode(".mmt-canvas");
     expect(canvas, "the Map's canvas did not mount on the You stop").not.toBeNull();
     expect(
       canvas.closest(OWNS_X),
