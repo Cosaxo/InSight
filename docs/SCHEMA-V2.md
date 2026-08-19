@@ -128,14 +128,20 @@ v2_aggs_private/{qid}              the trigger's working state (no readers)
                                    per document is unchanged. Bounded:
                                    low-cardinality anchors only (no city,
                                    no profession) and ≤24 buckets/dim.
-v2_agg_events/{eventId}            trigger ledger (opaque), two jobs (D28)
-  { qid, uid, at, expireAt }       dedup: at-least-once delivery can't
-                                   double-count. Attribution: uid is what
+v2_agg_events/{eventId}            trigger ledger (opaque), three jobs (D28)
+  { qid, uid, optionIdx?, at,      dedup: at-least-once delivery can't
+    expireAt }                     double-count. Attribution: uid is what
                                    lets an operator subtract a discovered
                                    fake-account ring from the exact counts
                                    and republish (DEPLOYMENT.md,
-                                   "Correcting aggregates"). TTL'd at 90
-                                   days (LEDGER_RETENTION_DAYS); a uid's
+                                   "Correcting aggregates"). Vote log:
+                                   optionIdx (vote and edit arms only —
+                                   an edit records the NEW side) is what
+                                   the nightly Patterns fit reads as its
+                                   stream (patterns.ts); it adds nothing
+                                   the answer doc does not publish (D98).
+                                   TTL'd at 90 days
+                                   (LEDGER_RETENTION_DAYS); a uid's
                                    entries are erased with the account
 v2_question_aggs/{qid}             the PUBLIC mirror, EXACT (D98)
   { counts, total }                rewritten on EVERY answer. No
@@ -213,6 +219,31 @@ read: signed-in · write: NOBODY — a client-writable outcomeIdx would make
 every score in the feature forgeable in one request. Existence is
 load-bearing too: firestore.rules refuses a call answer once this document
 exists, or a player reads the grade and then "predicts" it.
+
+v2_patterns/loadings               the Patterns fold (v28 §2, trial D166 §1)
+  k                                the vectors' length (8)
+  q {qid: {v: number[k], n, sum}}  one loading vector per CORE two-option
+                                   question (D161 — the eligible set
+                                   compiles from the bank): the streaming
+                                   fit's factorisation of the vote log.
+                                   n is the answers folded (the basis a
+                                   client states or refuses on); sum/n is
+                                   the running marginal the fit centres
+                                   by — the same figure the question's
+                                   public aggregate already carries
+  lastDay, folded, at              the last UTC day folded (idempotence),
+                                   the last run's fold count, server clock
+read: signed-in · write: NOBODY — written once per night by fitPatternsV2
+(admin SDK), so D7's per-document write ceiling never hears about it. The
+device derives everything else: sim(i,j) is a cosine over two vectors,
+position seeds from the first two components, hub-ness is the norm.
+
+v2_users/{uid}/patterns/state      the fit's per-person carry (v28 §2)
+  v: number[k], n, at              the latent vector the nightly fold
+                                   carries this person's PUBLIC answers
+                                   as, and how many it has folded
+read: NOBODY · write: NOBODY — the push/ shape; fitPatternsV2 (admin SDK)
+writes it, deleteAccount's recursive delete erases it with the account.
 
 v2_avatars/{uid}                   the profile photo's document (D178)
   token: "…"                       the Storage download token for
@@ -475,7 +506,7 @@ not per boot. `LIVE.stats` reports `bankSource` / `answersFetched` /
 
 ## Verification
 
-- `npm run test:rules` — 113 rules tests (Firestore + Storage; the v2
+- `npm run test:rules` — 115 rules tests (Firestore + Storage; the v2
   surface, the anonymous-default lens, and the retired-v1 guard).
 - `firestore-tests/e2e-v2-loop.mjs` under
   `firebase emulators:exec --only auth,firestore,functions` — the full

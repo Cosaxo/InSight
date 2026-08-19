@@ -20,13 +20,13 @@ The Patterns engine is the largest single item, and D167 makes it a
 gate: the tab does not ship, in trial or otherwise, until the fold
 exists.
 
-- **The co-occurrence fold** (trial, D166 §1 + D167): a Cloud Function
-  on the existing aggregate trigger publishing a per-question loading
-  vector (K ≈ 8) — a streaming rank-K fit over the vote log, folded over
-  the **core corpus only** (D161). No document today carries
-  P(answer j | answer i); both Patterns lenses need it. Cost-measure it
-  into `docs/COSTS.md` **before** building — that trigger is the app's
-  hottest write path. [`VISION-V28.md`](VISION-V28.md) §2, §13.
+- ~~**The co-occurrence fold**~~ — **done 2026-08-19**
+  (`functions/src/patterns.ts`): a nightly streaming rank-K fit over the
+  agg-events ledger — deliberately OFF the hottest write path — folding
+  the core corpus only into one public loadings doc, cost-measured into
+  [`COSTS.md`](COSTS.md) before it shipped. The deploy that turns it on
+  is the standing europe-west1 deploy (D201).
+  [`VISION-V28.md`](VISION-V28.md) §2, §13.
 - **Device-side similarity and placement**: cosine over 2K floats,
   position from the first two components — O(questions), honest at any
   bank size. Rides the fold. [`VISION-V28.md`](VISION-V28.md) §2.

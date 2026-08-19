@@ -61,6 +61,7 @@ Every constant below is sourced, not assumed:
 | One who-voted sheet | ≤200 answer reads + ≤200 profile reads (names), once per question per session | `VOTER_FETCH_CAP`, src/v2/data/voters.ts (D102 — was unbounded, ~DAU reads per open). "Per session" became true on 2026-08-13: `loadVoters` guarded only on the fetch being IN FLIGHT, so the panel's `[qid]` effect re-ran the whole thing on every open, and this row described an intention rather than a behaviour |
 | One Kindred first view | ≤12 sheets' worth, shared with the sheet cache | `KINDRED_QUESTIONS`, src/v2/data/live.ts (D99) |
 | One pulse open | Per PULSE: 1 template + one 21-id documentId() in-query over its per-day aggs, once per UTC day per session (a same-day answer forces one refresh so the reveal's bins include you). Per pulse rather than one batch since the D166 §3 roster — five windows are 105 ids, over the 30-clause in-query cap, and a card that never mounts never bills; the default roster asks one pulse a weekday, three on Sunday | `DAYS`, src/v2/data/pulse.ts (D139). Your own series costs zero — it is derived from the hydrated vote mirror |
+| The Patterns fit, nightly | The day's ledger entries re-read as the vote log (the velocity scan's shape, second reader), one private state read+write per active answerer, one model doc read+write per project | functions/src/patterns.ts (v28 §2, trial D166 §1). Measured BEFORE the fold shipped — the dated note under the scenario table has the movement |
 | One Circle open | 1 + one query per member: ≤50 members × ≤300 answers, +1 followers query | `FOLLOW_CAP` / `CIRCLE_ANSWER_CAP`, src/v2/data/circle.ts (D101). Also once per session since 2026-08-13, with `setFollowing` the one caller that may force a refetch — it changes the membership the fold is over |
 | One takes panel | ≤100 world takes per question, ≤500 per group, once per scope per session | `TAKE_FETCH_CAP` / `TAKE_GROUP_FETCH_CAP`, src/v2/data/live.ts — both caps and the cache are new on 2026-08-13; the world query had no `limit()` and returned roughly everyone who spoke that day |
 
@@ -90,11 +91,25 @@ roughly double on the three operation lines.
 
 | Scenario | DAU | reads/day | writes/day | Firestore $/mo | Functions $/mo | **Total $/mo** |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| Launch / TestFlight | 50 | 9.7 K | 970 | 0.00 | 0.00 | **0.00** |
-| Friends-of-friends | 500 | 174 K | 9.7 K | 1.11 | 0.00 | **1.11** |
-| Real traction | 5,000 | 2.2 M | 97 K | 23 | 0.00 | **23** |
-| Scale | 50,000 | 21.8 M | 970 K | 248 | 2.38 | **250** |
-| Hit | 500,000 | 218 M | 9.7 M | 2,501 | 46 | **2,547** |
+| Launch / TestFlight | 50 | 10.0 K | 1.0 K | 0.00 | 0.00 | **0.00** |
+| Friends-of-friends | 500 | 176 K | 10.2 K | 1.14 | 0.00 | **1.14** |
+| Real traction | 5,000 | 2.2 M | 102 K | 23 | 0.00 | **23** |
+| Scale | 50,000 | 22.1 M | 1.02 M | 252 | 2.38 | **254** |
+| Hit | 500,000 | 221 M | 10.2 M | 2,541 | 46 | **2,587** |
+
+> **Measured 2026-08-19, BEFORE the fold shipped (VISION-V28 §11.4).**
+> The Patterns fit (v28 §2, trial D166 §1) joined the model:
+> `PATTERNS_READS_PER_LEDGER_ENTRY` and `PATTERNS_USER_STATE_OPS` in
+> `scripts/cost-arith.mjs`. The nightly sweep re-reads the day's ledger as
+> its vote log (the velocity scan's own shape, a second reader of the same
+> entries) and carries one private state doc per active answerer — server
+> reads 18 → 23 per user-day, one write per user-day, $250 → $254 at
+> 50 k and $2,547 → $2,587 at 500 k. Deliberately NOT on the answer
+> trigger: a read and a write on the app's hottest path would move
+> `TRIGGER_READS.world` and D7's contention wall for vectors nobody needs
+> in real time — a map redraws nightly. The named lever if the ledger
+> re-read ever matters: flag eligible entries at write time and query the
+> flag, dropping the term by the ineligible share.
 
 > **Corrected 2026-08-19 (D166 §3).** The pulse roster joined the budget —
 > `B.worldAnswers` 4 → 4.3 — and every row above moved with it ($247 →
@@ -239,11 +254,11 @@ Per active user per day:
 
 | DAU | boot | agg top-up | reseed delta | poll | re-attach | rule reads | server reads | **D98 surfaces** | total/user |
 | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| 50 | 21 | 42 | 3 | 3 | 28 | 7 | 18 | 73 | 195 |
-| 500 | 21 | 42 | 3 | 3 | 28 | 7 | 18 | 226 | 348 |
-| 5,000 | 21 | 2 | 3 | 3 | 28 | 7 | 18 | **354** | 436 |
-| 50,000 | 21 | 2 | 3 | 3 | 28 | 7 | 18 | 354 | 436 |
-| 500,000 | 21 | 2 | 3 | 3 | 28 | 7 | 18 | 354 | 436 |
+| 50 | 21 | 42 | 3 | 3 | 28 | 7 | 23 | 73 | 200 |
+| 500 | 21 | 42 | 3 | 3 | 28 | 7 | 23 | 226 | 353 |
+| 5,000 | 21 | 2 | 3 | 3 | 28 | 7 | 23 | **354** | 441 |
+| 50,000 | 21 | 2 | 3 | 3 | 28 | 7 | 23 | 354 | 441 |
+| 500,000 | 21 | 2 | 3 | 3 | 28 | 7 | 23 | 354 | 441 |
 
 **Every column is now flat in DAU, and that is the headline.** The
 `fanOut` column above is the poll (D129) — three reads a day, because the
@@ -856,7 +871,7 @@ complement is a `mode` field on `v2_meta/app` — a document `hydrate()`
 already reads once per boot, so it costs nothing to add — with the client
 skipping the discretionary reads when it is set: the D98 social surfaces
 (who-voted, Kindred, Circle, takes, similarity) at one level, the deck's
-snapshot listeners at the next. That is 354 of 436 reads/user/day at 5,000
+snapshot listeners at the next. That is 354 of 441 reads/user/day at 5,000
 DAU for the first level and most of the rest for the second, and unlike
 App Check it degrades the app for *everyone* rather than only for
 unattested callers.
