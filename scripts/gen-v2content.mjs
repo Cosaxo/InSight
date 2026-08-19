@@ -261,6 +261,14 @@ export function buildEntries(content = loadContent()) {
       topic: q.cat,
       axis: null,
       test: null,
+      // Doors (docs/TAGS-PLAN.md §1): the topics this question ALSO belongs
+      // to. Reach only, never placement — the Map, kicker and stream
+      // grouping stay on `topic` above; the filter, stock, search and the
+      // scorecard's demand rollup read both. Emit-when-set like the flags
+      // below, and validated at check:quality (committed ids, capped,
+      // disjoint from the home) so an unknown door — which fails silently,
+      // the card just never matches it — cannot reach the bank.
+      ...(Array.isArray(q.also) && q.also.length ? { also: q.also.map(String) } : {}),
       // The range/plane copy the client renders from — emit-when-set, like
       // flags: only continuum entries carry these.
       ...(typeof q.lo === "number" ? { lo: q.lo } : {}),

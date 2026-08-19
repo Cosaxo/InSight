@@ -53,8 +53,9 @@ import { PASSIVE } from './passive-progress.js';
 import { PathsCard } from './paths-card.jsx';
 import LiveReadGame from '../ui/LiveReadGame.tsx';
 import {
-  wfCatArt, wfFmt, wfHash, wfKnowBias, wfKnowRate, wfPcts, wfPickGroup,
-  wfRateAvg, wfRateBg, wfRateInk, wfShadeText, wfTileArt, wfTint,
+  wfCarried, wfCatArt, wfFeedMatch, wfFmt, wfHash, wfKnowBias, wfKnowRate,
+  wfPcts, wfPickGroup, wfRateAvg, wfRateBg, wfRateInk, wfShadeText,
+  wfTileArt, wfTint,
 } from './world-feed-math.js';
 
 // world-feed.jsx — the question feed under the World daily. Answer today's
@@ -2273,9 +2274,18 @@ class WorldFeed extends React.Component {
     const stock = {};
     this.feedPool().forEach((q) => {
       if (!q || !q.cat) return;
-      const s = stock[q.cat] || (stock[q.cat] = { n: 0, done: 0 });
-      s.n++;
-      if (this.answered(q)) s.done++;
+      // Stock counts MEMBERSHIP — home plus `also` doors — because this
+      // number advertises what a topic's shelf holds, and a straddler is on
+      // every shelf it can be met through (docs/TAGS-PLAN.md §2). So this
+      // is not a partition: per-topic stock can sum past the pool size, and
+      // a reader adding the column is re-counting straddlers, not finding
+      // a bug.
+      const done = this.answered(q);
+      wfCarried(q).forEach((t) => {
+        const s = stock[t] || (stock[t] = { n: 0, done: 0 });
+        s.n++;
+        if (done) s.done++;
+      });
     });
     const mine = WF_CHANNELS.map((id) => WF_TOPIC[id]).filter(Boolean)
       .map((t) => ({ ...t, ...(stock[t.id] || { n: 0, done: 0 }) }))
@@ -3484,9 +3494,13 @@ class WorldFeed extends React.Component {
       const t = SCENES.topicOf(s.id); if (t) pulled[t] = true;
     });
     if (ST) ST.mine().forEach((s) => { if (cats[s.id] !== false && !owned[s.id]) leafOn[s.id] = true; });
+    // Room cards match on the room alone; everything else matches on every
+    // topic it carries — home plus `also` doors — with a mute on any of them
+    // as a veto (wfFeedMatch, docs/TAGS-PLAN.md §2). One matched door shows
+    // the card once: the stream grouping below still keys on `cat` alone.
     const qs = this.feedPool().filter((q) => q.scene
       ? SCENES.has(q.scene) && cats[q.scene] !== false
-      : (q.sub && leafOn[q.sub]) || (WF_CHAN_SET[q.cat] ? cats[q.cat] !== false : !!pulled[q.cat]));
+      : wfFeedMatch(q, { cats, pulled, leafOn, chanSet: WF_CHAN_SET }));
     // interleave streams round-robin so the feed reads as a mix, not blocks
     const byKey = {}; const keys = [];
     qs.forEach((q) => { const k = q.scene || q.sub || q.cat; if (!byKey[k]) { byKey[k] = []; keys.push(k); } byKey[k].push(q); });

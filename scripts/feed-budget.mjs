@@ -170,10 +170,19 @@ export function loadFeedTopics() {
   const counts = new Map(feed.topics.map((t) => [t.id, 0]));
   for (const q of feed.questions) {
     if (!SERVABLE_TYPES.has(q.type)) continue;
-    // A question whose topic left the taxonomy is a check:quality failure, not
-    // this script's to reinterpret — count only what the taxonomy names.
-    if (!counts.has(q.cat)) continue;
-    counts.set(q.cat, counts.get(q.cat) + 1);
+    // Membership, not a partition (docs/TAGS-PLAN.md §3): a straddler covers
+    // every topic it can be met through — home plus `also` doors — so a door
+    // on an existing question is the free first fix for a thin topic. Free
+    // precisely where this lane's dilution bound bites: a new question
+    // splits the conserved answer budget, a door on an existing one does
+    // not. Doors onto subtopic leaves fall out at the taxonomy guard below,
+    // the same way a retired topic would.
+    for (const t of [q.cat, ...(q.also || [])]) {
+      // A question whose topic left the taxonomy is a check:quality failure,
+      // not this script's to reinterpret — count only what the taxonomy names.
+      if (!counts.has(t)) continue;
+      counts.set(t, counts.get(t) + 1);
+    }
   }
   return feed.topics.map((t) => ({ id: t.id, label: t.label, questions: counts.get(t.id) ?? 0 }));
 }

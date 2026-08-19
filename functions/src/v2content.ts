@@ -2542,6 +2542,9 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "sport",
   "axis": null,
   "test": null,
+  "also": [
+   "tech"
+  ],
   "core": true
  },
  {
@@ -2558,6 +2561,9 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "sport",
   "axis": null,
   "test": null,
+  "also": [
+   "dilemma"
+  ],
   "core": true
  },
  {
@@ -2625,6 +2631,9 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "food",
   "axis": null,
   "test": null,
+  "also": [
+   "tech"
+  ],
   "core": true
  },
  {
@@ -2641,6 +2650,9 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "food",
   "axis": null,
   "test": null,
+  "also": [
+   "dilemma"
+  ],
   "core": true
  },
  {
@@ -2739,6 +2751,9 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "movies",
   "axis": null,
   "test": null,
+  "also": [
+   "culture"
+  ],
   "core": true
  },
  {
@@ -2824,6 +2839,9 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "music",
   "axis": null,
   "test": null,
+  "also": [
+   "tech"
+  ],
   "core": true
  },
  {
@@ -2890,6 +2908,9 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "tech",
   "axis": null,
   "test": null,
+  "also": [
+   "event"
+  ],
   "core": true
  },
  {
@@ -2924,6 +2945,9 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "tech",
   "axis": null,
   "test": null,
+  "also": [
+   "dilemma"
+  ],
   "core": true
  },
  {
@@ -2940,6 +2964,9 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "tech",
   "axis": null,
   "test": null,
+  "also": [
+   "dilemma"
+  ],
   "core": true
  },
  {
@@ -2972,6 +2999,9 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "culture",
   "axis": null,
   "test": null,
+  "also": [
+   "event"
+  ],
   "core": true
  },
  {
@@ -3699,6 +3729,9 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "dilemma",
   "axis": null,
   "test": null,
+  "also": [
+   "culture"
+  ],
   "lo": 0,
   "hi": 30,
   "unit": "%",
@@ -3728,6 +3761,9 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "dilemma",
   "axis": null,
   "test": null,
+  "also": [
+   "tech"
+  ],
   "lo": 1,
   "hi": 12,
   "unit": "h",
@@ -3786,6 +3822,9 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "dilemma",
   "axis": null,
   "test": null,
+  "also": [
+   "food"
+  ],
   "ax": [
    "tastes bad",
    "tastes good"
@@ -3820,6 +3859,9 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "bigq",
   "axis": null,
   "test": null,
+  "also": [
+   "culture"
+  ],
   "ax": [
    "painful",
    "pleasant"
@@ -3854,6 +3896,9 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "bigq",
   "axis": null,
   "test": null,
+  "also": [
+   "tech"
+  ],
   "ax": [
    "overhyped",
    "underrated"

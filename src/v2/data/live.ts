@@ -1362,6 +1362,10 @@ function buildFeedGlobals(): void {
         // label from that one value. Emit-when-set, so an ordinary card is
         // byte-for-byte what it was.
         ...(q.sponsor ? { sponsor: q.sponsor, until: q.until } : {}),
+        // Doors (docs/TAGS-PLAN.md §2): the topics this card also belongs
+        // to. The feed's filter, stock and search read cat ∪ also; nothing
+        // that PLACES the card does. Emit-when-set, same rule as sponsor.
+        ...(q.also && q.also.length ? { also: q.also } : {}),
         live: true,
         noCountsYet: !hasPublishedCounts(state.aggs[q.id]),
       };

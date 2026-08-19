@@ -4,7 +4,7 @@
 // assertion here fails if someone routes scale/rating back through
 // evennessOf.
 import { describe, it, expect } from "vitest";
-import { evennessOf, ordinalSplit, splitQualityOf, rollupProduction } from "./scorecard-metrics.mjs";
+import { evennessOf, ordinalSplit, splitQualityOf, rollupProduction, creditShares, HOME_SHARES } from "./scorecard-metrics.mjs";
 
 describe("categorical evenness (unchanged bar)", () => {
   it("scores the canonical cases", () => {
@@ -61,6 +61,49 @@ describe("ordinal split (scale/rating)", () => {
     // sides, no dispersion: a consensus on "middle", not a split.
     const sh = [0, 0, 0, 0, 0.5, 0.5, 0, 0, 0, 0];
     expect(ordinalSplit(sh)).toBeCloseTo(0.222, 3);
+  });
+});
+
+describe("demand credit (docs/TAGS-PLAN.md §3)", () => {
+  it("a doorless question credits its home in full", () => {
+    expect(creditShares(["sport"])).toEqual([{ topic: "sport", share: 1 }]);
+  });
+
+  it("holds the home:door ratio at HOME_SHARES:1", () => {
+    const [home, door] = creditShares(["sport", "tech"]);
+    expect(home.share / door.share).toBeCloseTo(HOME_SHARES, 10);
+  });
+
+  it("CONSERVATION: a question's shares sum to exactly one, at every door count", () => {
+    // The property the whole demand design rests on: a door redistributes
+    // credit and never mints it, so the generator that assigns doors — and
+    // whose future budget the demand lanes steer — cannot manufacture
+    // demand by tagging broadly. If this stops holding, the rollup's
+    // credited answers stop equalling the bank's real answers and the
+    // popularity signal quietly inflates.
+    for (const topics of [["a"], ["a", "b"], ["a", "b", "c"]]) {
+      const sum = creditShares(topics).reduce((s, c) => s + c.share, 0);
+      expect(sum).toBeCloseTo(1, 12);
+    }
+  });
+
+  it("summing credited answers across topics equals summing answers across questions", () => {
+    // The rollup-level statement of the same property, over a bank shaped
+    // like the real one (mixed door counts).
+    const bank = [
+      { topics: ["sport", "tech"], total: 31 },
+      { topics: ["food"], total: 17 },
+      { topics: ["culture", "event", "bigq"], total: 5 },
+    ];
+    const perTopic = {};
+    for (const q of bank) {
+      for (const { topic, share } of creditShares(q.topics)) {
+        perTopic[topic] = (perTopic[topic] || 0) + q.total * share;
+      }
+    }
+    const credited = Object.values(perTopic).reduce((a, b) => a + b, 0);
+    const answered = bank.reduce((a, q) => a + q.total, 0);
+    expect(credited).toBeCloseTo(answered, 9);
   });
 });
 

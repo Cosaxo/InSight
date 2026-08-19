@@ -34,6 +34,36 @@
 
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
 
+// ── demand credit (docs/TAGS-PLAN.md §3) ──
+// A question's answers credit every topic it carries — its home `cat` plus
+// its `also` doors — in CONSERVED shares: the home takes HOME_SHARES, each
+// door one, normalized so a question's shares sum to exactly 1. Summing
+// credited answers across topics therefore equals summing answers across
+// questions, and that property is pinned as a test rather than prose.
+//
+// Conservation is the anti-gaming design, not an accounting taste: the
+// generator that assigns doors is the same species as the run that reviews
+// them, and the demand lanes steer that generator's own future budget. Full
+// credit per door would pay it to tag broadly — a closed loop where liberal
+// tagging manufactures the demand that justifies more of the same. Under
+// conservation a door never ADDS credit, only redistributes it, so broad
+// tagging costs the home topic's own signal and buys nothing. What is left —
+// a tilt inside individually defensible tags — is the human audit's job
+// (QUESTION-FARM.md, tag honesty in the 1-in-AUDIT_ONE_IN read).
+//
+// 2:1 rather than even, because the home is a stronger claim than a door:
+// it is where the Map files the card and what the kicker names. The same
+// ratio is the D163 contract for the on-device model's card affinity
+// (docs/TAGS-PLAN.md §4) — one constant, used everywhere, so nobody tunes
+// the two apart by accident.
+export const HOME_SHARES = 2;
+
+export function creditShares(topics) {
+  const weights = topics.map((_, i) => (i === 0 ? HOME_SHARES : 1));
+  const total = weights.reduce((a, b) => a + b, 0);
+  return topics.map((topic, i) => ({ topic, share: weights[i] / total }));
+}
+
 export const evennessOf = (shares, n) => {
   const maxShare = Math.max(...shares);
   return clamp01(1 - (maxShare - 1 / n) / (1 - 1 / n));

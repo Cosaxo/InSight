@@ -247,6 +247,58 @@ describe("checkQuestion (feed continuum shapes)", () => {
   });
 });
 
+describe("checkQuestion (doors — `also`, docs/TAGS-PLAN.md)", () => {
+  const feedQ = (over = {}) => ({
+    type: "vote", cat: "sport", core: true,
+    prompt: "E-sports are real sports.", options: ["Yes", "No"],
+    ...over,
+  });
+
+  it("passes a straddler with a topic door, and one with a subtopic door", () => {
+    expect(checkQuestion(feedQ({ also: ["tech"] }), "feed", corpus).errs).toEqual([]);
+    expect(checkQuestion(feedQ({ cat: "culture", also: ["sub_tennis"] }), "feed", corpus).errs).toEqual([]);
+  });
+
+  it("holds the cap, the closed vocabulary, and the no-repeat rules", () => {
+    const slug = (q) => checkQuestion(q, "feed", corpus).errs.filter((e) => e.rule === "also");
+    expect(slug(feedQ({ also: ["tech", "food", "music"] })).length).toBeGreaterThan(0); // over ALSO_MAX
+    expect(slug(feedQ({ also: ["hiking"] })).length).toBeGreaterThan(0); // not a committed id
+    expect(slug(feedQ({ also: ["sport"] })).length).toBeGreaterThan(0); // repeats the home
+    expect(slug(feedQ({ also: ["tech", "tech"] })).length).toBeGreaterThan(0); // repeats itself
+    expect(slug(feedQ({ also: [] })).length).toBeGreaterThan(0); // emit-when-set, end to end
+    expect(slug(feedQ({ also: "tech" })).length).toBeGreaterThan(0); // an array, not a string
+  });
+
+  it("refuses a leaf beside its parent — following the parent already reaches the leaf", () => {
+    // sub_tennis's parent is sport; carrying both as home+door (either way
+    // around) states one membership twice and dilutes the home's credit
+    // for nothing.
+    const home = checkQuestion(feedQ({ also: ["sub_tennis"] }), "feed", corpus).errs;
+    expect(home.some((e) => e.rule === "also" && e.msg.includes("parent"))).toBe(true);
+    const doors = checkQuestion(feedQ({ cat: "culture", also: ["sport", "sub_tennis"] }), "feed", corpus).errs;
+    expect(doors.some((e) => e.rule === "also" && e.msg.includes("parent"))).toBe(true);
+  });
+
+  it("refuses doors on a scene card — a scene is a room, and the filter never reads them there", () => {
+    const { errs } = checkQuestion(feedQ({ scene: "tennis", also: ["tech"] }), "feed", corpus);
+    expect(errs.some((e) => e.rule === "also" && e.msg.includes("scene"))).toBe(true);
+  });
+
+  it("is feed/pick only — the daily's near-neighbour is `alts`, and elsewhere nothing reads doors", () => {
+    const d = checkQuestion(daily({ also: ["tech"] }), "daily", corpus).errs;
+    expect(d.some((e) => e.rule === "also" && e.msg.includes("alts"))).toBe(true);
+    const duel = checkQuestion({ prompt: "Coffee or tea?", options: ["Coffee", "Tea"], also: ["food"] }, "duel", corpus).errs;
+    expect(duel.some((e) => e.rule === "also")).toBe(true);
+  });
+
+  it("pick cards take doors against WORLD_TOPICS, the superset their cat already uses", () => {
+    const card = { type: "pick", cat: "fav", prompt: "Favourite of these?", options: ["A", "B", "C"] };
+    expect(checkQuestion({ ...card, also: ["sport"] }, "pick", corpus).errs).toEqual([]);
+    const { errs } = checkQuestion({ ...card, also: ["hiking"] }, "pick", corpus);
+    expect(errs.some((e) => e.rule === "also")).toBe(true);
+  });
+});
+
 describe("the hard-rule-6 tripwire", () => {
   it("needs the conjunction — a place OR a cue alone is personal flavor", () => {
     expect(placeCivicHit({ prompt: "Mountains or sea?", options: [] })).toBeNull();

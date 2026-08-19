@@ -1,14 +1,17 @@
 # Tags — several doors to one question, and demand that cannot be bought
 
-**Status: plan only. No code exists.** Requested 2026-08-19: *multiple tags on
-questions, and question production based on what tags are most popular.*
-Read it as a proposal, in `ATTENTION.md`'s shape: what it builds on and
-the one premise it retires named at the top, failure modes at the bottom,
-and every figure cited to the script that computes it rather than
-restated — the constants this plan touches (`feed-budget.mjs`'s caps,
-`farm-budget.mjs`'s audit rate, `COSTS.md`'s wire sizes) are already held
-by `check:figures`, and quoting them here would add copies for that gate
-to chase.
+**Status: BUILT 2026-08-19, recorded as
+[D206](DECISIONS.md#d206--a-question-carries-several-doors-and-demand-credit-is-conserved)
+— except §4, whose tier-2 reading has no tier 2 to land in yet (D163 is
+still a plan).** Requested 2026-08-19: *multiple tags on questions, and
+question production based on what tags are most popular*; built the same
+day on the owner's "build it", in §6's order. The reasoning below is kept
+as written — it is why the code has the shape it has — and every figure
+stays cited to the script that computes it rather than restated: the
+constants this design touches (`feed-budget.mjs`'s caps,
+`farm-budget.mjs`'s audit rate, `COSTS.md`'s wire sizes) are held by
+`check:figures`, and quoting them here would add copies for that gate to
+chase.
 
 The request is two asks that look like one feature and are not:
 
@@ -257,6 +260,10 @@ Every claim above, with the gate or test that keeps it true:
 | The bridge does not grow | `check:globals` rule 4, count unmoved |
 
 ## 6 · Order of work — complete machinery now; only the data arrives later
+
+> All six landed 2026-08-19 in this order (D206). Kept as written — the
+> order is the argument, and the argument is why a future lane change
+> starts from the gate rather than from the generator.
 
 1. **Gate before content.** `also` validation in `question-quality.mjs`
    and the sponsored rules in `check-content.mjs` — the farm's own
