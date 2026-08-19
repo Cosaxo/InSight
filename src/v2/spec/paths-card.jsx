@@ -159,7 +159,7 @@ export function PathsCard() {
     if (!live || next.length < 3) return;
     const idx = PATH_ENDINGS.indexOf(next);
     if (idx < 0) return;
-    // A WALK IS FINAL (D208). "Walk again" stood here and re-walking wrote
+    // A WALK IS FINAL (D211). "Walk again" stood here and re-walking wrote
     // a D86 edit of the standing answer — a redo control on a card whose
     // whole reveal is how rare your road was, moving the results it had
     // just shown you. The only write is the first one. A standing answer

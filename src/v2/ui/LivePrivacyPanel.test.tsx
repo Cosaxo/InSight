@@ -17,7 +17,7 @@
 //
 // Everything else here — the name, the handle-as-fact — is covered only as
 // far as "the control exists and reaches the store"; the last describe pins
-// the three controls D208 REMOVED (handle claim, Sign-in, Crash reports),
+// the three controls D211 REMOVED (handle claim, Sign-in, Crash reports),
 // because a control that quietly returns re-offers what the server refuses
 // or what the release build already settled at the door.
 
@@ -223,11 +223,11 @@ describe("LivePrivacyPanel · the disclosure moved to the policy page (D183)", (
   });
 });
 
-// ── the panel states identity, it no longer edits it (D190 → D208) ────
+// ── the panel states identity, it no longer edits it (D190 → D211) ────
 //
 // The history in two steps. The handle row offered a "Change" button and
 // the rename behind it worked, so D190 made a handle claimed-once and
-// left this panel a CLAIM control for accounts with none. D208 removed
+// left this panel a CLAIM control for accounts with none. D211 removed
 // that too: the claim form is what an account whose handle has not
 // hydrated is shown, where it reads as an offer to pick a new handle from
 // settings — the thing D190 abolished. Identity is asked at first run
@@ -260,12 +260,12 @@ describe("LivePrivacyPanel · a handle is a fact here, never a form", () => {
   });
 });
 
-// ── two settings rows removed outright (D208) ─────────────────────────
+// ── two settings rows removed outright (D211) ─────────────────────────
 //
 // Sign-in: the D134 gate walls every release build behind Google before
 // the app opens, so the row could only ever read "Linked ✓" — a control
 // re-offering what the door already settled. Crash reports: the toggle is
-// gone and reporting is on by default (D76 amended by D208); the recorded
+// gone and reporting is on by default (D76 amended by D211); the recorded
 // opt-outs of older builds stay honoured in sentry.ts, which
 // sentry.test.ts pins. What is pinned HERE is only that neither control
 // quietly returns.

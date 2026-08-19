@@ -88,7 +88,7 @@ describe("Crossroads · the card", () => {
     choose(st.nodes["BA"].a[0].t);
     expect(screen.getAllByText(st.endings["BAA"].name).length).toBe(2);
 
-    // "Walk again" stood here and is gone (D208): a re-walk moved the
+    // "Walk again" stood here and is gone (D211): a re-walk moved the
     // recorded result, so a finished card offers no way back in — no redo
     // control, no choices, and the walk it keeps is the one you took.
     expect(screen.queryByRole("button", { name: "Walk again" })).toBeNull();
@@ -198,7 +198,7 @@ describe("Crossroads · live", () => {
     // The fold that will count this walk is still in flight (or nobody
     // ever follows): a crowd exists, none of it at your ending. The card
     // printed "you and 0% ended here" and "1 in Infinity walks your road"
-    // to the person standing there — from a device, verbatim (D208).
+    // to the person standing there — from a device, verbatim (D211).
     globalThis.__pathsLive = {
       ...LIVE,
       pathQs: () => [{ ...STORY, counts: [0, 5, 10, 5, 20, 5, 10, 5], total: 60 }],
@@ -222,7 +222,7 @@ describe("Crossroads · live", () => {
     expect(screen.getAllByText("End BAA").length).toBe(2);
   });
 
-  it("offers no redo over a standing answer — a walk is final (D208)", () => {
+  it("offers no redo over a standing answer — a walk is final (D211)", () => {
     // "Walk again" existed and re-walking wrote a D86 edit of the answer —
     // a redo control on a card whose reveal is how rare your road was,
     // moving the results it had just shown. The finished card now has no

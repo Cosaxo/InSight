@@ -100,7 +100,7 @@ describe("the topic list opens on request", () => {
   });
 
   it("keeps the tab bar on screen: the sheet lifts by the bar's height", () => {
-    // The other half of D190's door (D208). Landing here from the profile
+    // The other half of D190's door (D211). Landing here from the profile
     // is only an arrival if the app's own navigation survives it: the
     // sheet used to scrim the tab bar over, and on a device that read as
     // the bottom navigation going missing. The lift is measured off the

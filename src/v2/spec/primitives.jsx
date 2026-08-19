@@ -219,7 +219,7 @@ export function useDialog(onClose, label) {
 // `lift` (px) raises the whole thing — scrim floor and sheet with it — so
 // the app chrome below stays visible AND tappable: the scrim no longer
 // covers it, so taps land on the real controls underneath. The topic
-// sheet passes the tab bar's height here (D208): it is a destination you
+// sheet passes the tab bar's height here (D211): it is a destination you
 // are SENT to from other screens, and arriving somewhere whose way out is
 // hidden reads as being trapped. Content sheets (voters, takes) pass
 // nothing and keep covering the bar, which is the ordinary sheet grammar.

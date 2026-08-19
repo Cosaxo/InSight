@@ -2794,5 +2794,203 @@
         "This era"
       ]
     ]
+  },
+  {
+    "id": "114",
+    "type": "binary",
+    "prompt": "Win ugly, or lose beautifully?",
+    "tag": "Ugly win",
+    "options": [
+      "Win ugly",
+      "Lose beautifully"
+    ],
+    "tone": "blend",
+    "cat": [
+      "Sport",
+      "Style"
+    ],
+    "alts": [
+      [
+        "Values",
+        "What you admire"
+      ],
+      [
+        "Story",
+        "Narratives"
+      ]
+    ]
+  },
+  {
+    "id": "115",
+    "type": "binary",
+    "prompt": "Black and white films: timeless, or homework?",
+    "tag": "Black and white",
+    "options": [
+      "Timeless",
+      "Homework"
+    ],
+    "tone": "light",
+    "cat": [
+      "Film",
+      "The classics"
+    ],
+    "alts": [
+      [
+        "Interests",
+        "Cinema"
+      ],
+      [
+        "Story",
+        "History"
+      ]
+    ]
+  },
+  {
+    "id": "116",
+    "type": "scale",
+    "prompt": "A skill isn't yours until you've taught it to someone.",
+    "tag": "Teach it",
+    "axis": "teaching-minded",
+    "tone": "blend",
+    "cat": [
+      "Skills",
+      "Mastery"
+    ],
+    "alts": [
+      [
+        "Mind",
+        "Understanding"
+      ],
+      [
+        "Goals",
+        "Craft"
+      ]
+    ]
+  },
+  {
+    "id": "117",
+    "type": "choice",
+    "prompt": "What pulls you down a rabbit hole at 1 a.m.?",
+    "tag": "Rabbit holes",
+    "options": [
+      "History",
+      "How things work",
+      "Other people's lives",
+      "Maps"
+    ],
+    "tone": "light",
+    "cat": [
+      "Interests",
+      "Rabbit holes"
+    ],
+    "alts": [
+      [
+        "Mind",
+        "Curiosity"
+      ],
+      [
+        "Story",
+        "History"
+      ]
+    ]
+  },
+  {
+    "id": "118",
+    "type": "binary",
+    "prompt": "The last slice: take it, or offer it?",
+    "tag": "Last slice",
+    "options": [
+      "Take it",
+      "Offer it"
+    ],
+    "tone": "light",
+    "cat": [
+      "Food",
+      "Table manners"
+    ],
+    "alts": [
+      [
+        "Morals",
+        "Small courtesies"
+      ],
+      [
+        "Values",
+        "Generosity"
+      ]
+    ]
+  },
+  {
+    "id": "119",
+    "type": "binary",
+    "prompt": "Window seat or aisle?",
+    "tag": "The seat",
+    "options": [
+      "Window",
+      "Aisle"
+    ],
+    "tone": "light",
+    "cat": [
+      "Travel",
+      "In transit"
+    ],
+    "alts": [
+      [
+        "Body",
+        "Comfort"
+      ],
+      [
+        "Mind",
+        "The view"
+      ]
+    ]
+  },
+  {
+    "id": "120",
+    "type": "choice",
+    "prompt": "Where does music hit you hardest?",
+    "tag": "Where it hits",
+    "options": [
+      "Alone in headphones",
+      "Live in a crowd",
+      "In the car",
+      "On the dance floor"
+    ],
+    "tone": "blend",
+    "cat": [
+      "Music",
+      "Where it hits"
+    ],
+    "alts": [
+      [
+        "Body",
+        "Presence"
+      ],
+      [
+        "Mind",
+        "Feeling"
+      ]
+    ]
+  },
+  {
+    "id": "121",
+    "type": "scale",
+    "prompt": "Your body runs your mood more than your mind does.",
+    "tag": "Body first",
+    "axis": "body-led",
+    "tone": "deep",
+    "cat": [
+      "Body",
+      "Mind and body"
+    ],
+    "alts": [
+      [
+        "Mind",
+        "Mood"
+      ],
+      [
+        "Values",
+        "Self-knowledge"
+      ]
+    ]
   }
 ]

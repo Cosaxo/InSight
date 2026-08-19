@@ -445,21 +445,12 @@ function MirrorLenses({ lenses }) {
   );
 }
 
-Object.assign(window, { MFCanvas, MFDetail, MFHeader, MFKey, MFSparse, MirrorLenses, mfRadius });
+Object.assign(window, { MFCanvas, MFDetail, MFHeader, MFKey, MFSparse, MirrorLenses });
 
 
-;globalThis.mfRand = typeof mfRand === 'undefined' ? globalThis.mfRand : mfRand;
-;globalThis.mfLayout = typeof mfLayout === 'undefined' ? globalThis.mfLayout : mfLayout;
-;globalThis.MFNode = typeof MFNode === 'undefined' ? globalThis.MFNode : MFNode;
 ;globalThis.MFCanvas = typeof MFCanvas === 'undefined' ? globalThis.MFCanvas : MFCanvas;
 ;globalThis.MFKey = typeof MFKey === 'undefined' ? globalThis.MFKey : MFKey;
 ;globalThis.MFHeader = typeof MFHeader === 'undefined' ? globalThis.MFHeader : MFHeader;
-;globalThis.MFAnonAv = typeof MFAnonAv === 'undefined' ? globalThis.MFAnonAv : MFAnonAv;
 ;globalThis.MFDetail = typeof MFDetail === 'undefined' ? globalThis.MFDetail : MFDetail;
 ;globalThis.MirrorLenses = typeof MirrorLenses === 'undefined' ? globalThis.MirrorLenses : MirrorLenses;
-;globalThis.MF_W = typeof MF_W === 'undefined' ? globalThis.MF_W : MF_W;
-;globalThis.mfRadius = typeof mfRadius === 'undefined' ? globalThis.mfRadius : mfRadius;
-;globalThis.mfGroupFill = typeof mfGroupFill === 'undefined' ? globalThis.mfGroupFill : mfGroupFill;
-;globalThis.mfBandR = typeof mfBandR === 'undefined' ? globalThis.mfBandR : mfBandR;
-;globalThis.MF_H = typeof MF_H === 'undefined' ? globalThis.MF_H : MF_H;
 ;globalThis.MFSparse = typeof MFSparse === 'undefined' ? globalThis.MFSparse : MFSparse;

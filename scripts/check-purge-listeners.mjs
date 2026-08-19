@@ -52,7 +52,7 @@ const EXEMPT = {
     "the token memo carries the uid and is compared before use; a new uid "
     + "re-registers and overwrites",
   // src/lib/sentry.ts was exempt here ("the flag is read from storage on
-  // every check") until D208 removed the panel's toggle and with it
+  // every check") until D211 removed the panel's toggle and with it
   // setTelemetryEnabled — the file's last insight.* WRITE. telemetryEnabled
   // still reads the key, but the predicate is about writers, so the entry
   // would be stale (and this gate fails stale entries by design).

@@ -138,6 +138,82 @@ bank's wire size by ~1 KiB (`check:figures` failed on `COSTS.md`'s figure
 and was corrected). That is a one-time install cost, which is exactly the
 category §2 says bank growth falls into.
 
+### Where the filter goes — every reader, decided 2026-08-19
+
+`SCALE-RUNBOOK.md` 2.1 asked for the split written down per call site,
+because "the Mirror folds core only" is a sentence and not an instruction.
+This is that list. **Read by grep, not by memory** — every row below names
+the line it was read off, and the classification came out of the code
+rather than being applied to it.
+
+**The tail is feed-only.** `isCore` (`data/deck.ts:246`) is
+`q.surface === "feed" ? q.core === true : true`, so the daily, the test
+items, duels, learn and pick cards are core whatever anyone writes on
+them. That single fact decides most of the table: a reader that never
+touches a feed question cannot be diluted, and saying *why* it cannot is
+worth more than a filter it does not need.
+
+**Only three readers walk the archive**, which is the only corpus a tail
+question can enter (`LIVE.aggregated()`, `data/live.ts:3214` — every
+question this device holds a published aggregate for):
+
+| Reader | Verdict | Why |
+| --- | --- | --- |
+| **City / Country / World** — `ui/LiveCohortBody.tsx:275`, and through `lensQs` (:360) all five of that stop's lenses: Answers, People, Compare, Explore, Scores | **core only** | The population portrait §1 exists to protect. Built at 2.2; the lenses inherit it because they derive from the same already-filtered `archive`, which is the reason to apply it once at the corpus rather than five times at the readings |
+| **Circle** — `ui/LiveCircleBody.tsx:134` | **all** | Circle folds the answers of people you chose to follow. That is a fact about *them*, not a claim about a population, so interest-selected serving cannot make it false — the bias §1 minds does not exist here. Recorded at 2.2 as a decision rather than an oversight, and this is its reasoning |
+| **The reading game** — `ui/LiveReadGame.tsx:49` (D196) | **all** | Nothing is averaged across the corpus: each read names its own question and asks you to guess one cohort's split on it, so a tail question adds a playable read rather than thinning an aggregate. The gate here wants a *bigger* pool (`READ_MIN_POOL`), which is the tail's one unambiguous gift |
+
+**Every other reading is bounded by construction.** Listed because the
+next person to read §1 will otherwise go looking for a filter to add, and
+adding one to any of these would be a no-op that reads as a safeguard:
+
+- **The similarity fields, Compare, Scores' axes, Kindred and the place
+  norms** fold `LIVE.testFeedItems()` — `state.feedBank.filter(q =>
+  q.surface === "test" && q.test)` (`data/live.ts:2935`) — through
+  `testItemMeta` (`data/similarity.ts:87`). Call sites:
+  `ui/LiveSimilarityField.tsx:666,766`, `ui/LiveCompareLens.tsx:163`,
+  `data/testNorms.ts:124`, `data/passiveProfile.ts:70`. The four
+  instruments are a fixed bank pinned item-for-item by content parity, and
+  `isCore` cannot call a test item tail. Production grows the feed; it
+  does not grow an instrument.
+- **Near** reads `LIVE.deck()` and the server fold's own cell map
+  (`ui/LiveRoomTabs.tsx:194,211` → `ui/roomShape.ts:33`) — a window of
+  days, never the archive.
+- **Groups** reads reveal documents (`ui/LiveGroupsMirrorBody.tsx:301` →
+  `data/groupPortrait.ts`). Duels never become world aggregates.
+- **The Map's typicality** is one (question × anchor) pair for an answer
+  you tapped (`spec/map-group-stats.js`), and **the who-voted sheet** is
+  one question's (`ui/LiveBreakdownPanel.tsx`). A corpus of one is not a
+  corpus.
+- **The type mix and the passive profile** read published test results and
+  your own votes (`data/typeSplit.ts`, `data/typeMix.ts`,
+  `data/passiveProfile.ts`).
+
+### The premise 2.1 was written on turned out to be false
+
+2.1 warned that `aggregated()` "**also feeds your own answer list**, which
+must keep showing everything you answered, tail included", and called
+hiding a person's own answer from them the worse bug. It would be. It is
+not this one: **no personal answer archive reads `aggregated()` at all.**
+
+Measured — `myVotes()` has exactly one consumer per surface
+(`grep -rn "myVotes()" src/`), and the two that are archives of your own
+answering are the daily record (`spec/mirror-answers.jsx`, over `DAILYQ`)
+and the Map (`spec/map-tab.jsx`, same store). Both are the **daily bank**,
+core by construction, so the filter cannot reach them however the tail
+grows. What `aggregated()` feeds is the *population* readings, on which
+your own answer appears as a mark on a row rather than as the row's
+subject.
+
+So the accepted consequence is narrower than 2.1 feared, and it is stated
+here rather than left to be discovered: after the filter, **a tail
+question you answered does not get a row in the Mirror's Answers tab.**
+That tab is a population reading with your answer marked on it
+(`MIRROR.md` §3), not your archive — your archive is the Map, and the
+card itself still shows your answer and its split. If the Mirror ever
+grows a genuine "everything you have answered" surface, it reads
+`aggregated()` **unfiltered**, and this paragraph is the reason.
+
 ### What makes the rest enforceable rather than aspirational
 
 What remains is the Mirror's fold reading only flagged questions, plus a

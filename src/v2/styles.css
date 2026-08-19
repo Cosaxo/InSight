@@ -2154,7 +2154,7 @@ button.card:active,
   background: color-mix(in oklch, var(--pp-c), var(--surface) 82%);
   color: var(--pp-ink);
 }
-/* .pp-again left with the "Walk again" control (D208) — a walk is final. */
+/* .pp-again left with the "Walk again" control (D211) — a walk is final. */
 @media (prefers-reduced-motion: reduce) {
   .pp-choice { transition: border-color 0.15s ease; }
   .pp-choice:hover { transform: none; }

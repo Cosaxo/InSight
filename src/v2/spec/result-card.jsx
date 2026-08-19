@@ -432,9 +432,5 @@ export function ResultProfileCard({ testKey, archetype, tagline }) {
 
 Object.assign(window, { ResultProfileCard });
 
-;globalThis.RarityField = typeof RarityField === 'undefined' ? globalThis.RarityField : RarityField;
-;globalThis.TensionSpine = typeof TensionSpine === 'undefined' ? globalThis.TensionSpine : TensionSpine;
 ;globalThis.DifferRows = typeof DifferRows === 'undefined' ? globalThis.DifferRows : DifferRows;
 ;globalThis.ResultProfileCard = typeof ResultProfileCard === 'undefined' ? globalThis.ResultProfileCard : ResultProfileCard;
-;globalThis.rpv2Deep = typeof rpv2Deep === 'undefined' ? globalThis.rpv2Deep : rpv2Deep;
-;globalThis.rpv2Dot = typeof rpv2Dot === 'undefined' ? globalThis.rpv2Dot : rpv2Dot;

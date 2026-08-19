@@ -398,20 +398,10 @@ function MTSubCard({ node, cat, rows, anchors, activeA, onFilter }) {
   );
 }
 
-Object.assign(window, { MTRootCard, MTAnswerBody, MTAnswerCard, MTAnchorCard, MTAnchorStat, MTBranchCard, MTSubCard, MTSwipeRow });
+Object.assign(window, { MTRootCard, MTAnswerCard, MTAnchorCard, MTBranchCard, MTSubCard });
 
-;globalThis.mtNOpts = typeof mtNOpts === 'undefined' ? globalThis.mtNOpts : mtNOpts;
-;globalThis.mtOptLabel = typeof mtOptLabel === 'undefined' ? globalThis.mtOptLabel : mtOptLabel;
-;globalThis.MTFilterChips = typeof MTFilterChips === 'undefined' ? globalThis.MTFilterChips : MTFilterChips;
-;globalThis.mtAnchorSelf = typeof mtAnchorSelf === 'undefined' ? globalThis.mtAnchorSelf : mtAnchorSelf;
-;globalThis.MTVerdict = typeof MTVerdict === 'undefined' ? globalThis.MTVerdict : MTVerdict;
-;globalThis.MTGroupBars = typeof MTGroupBars === 'undefined' ? globalThis.MTGroupBars : MTGroupBars;
-;globalThis.MTAnswerBody = typeof MTAnswerBody === 'undefined' ? globalThis.MTAnswerBody : MTAnswerBody;
 ;globalThis.MTAnswerCard = typeof MTAnswerCard === 'undefined' ? globalThis.MTAnswerCard : MTAnswerCard;
-;globalThis.mtDimEnds = typeof mtDimEnds === 'undefined' ? globalThis.mtDimEnds : mtDimEnds;
-;globalThis.MTAnchorStat = typeof MTAnchorStat === 'undefined' ? globalThis.MTAnchorStat : MTAnchorStat;
 ;globalThis.MTAnchorCard = typeof MTAnchorCard === 'undefined' ? globalThis.MTAnchorCard : MTAnchorCard;
 ;globalThis.MTRootCard = typeof MTRootCard === 'undefined' ? globalThis.MTRootCard : MTRootCard;
-;globalThis.MTSwipeRow = typeof MTSwipeRow === 'undefined' ? globalThis.MTSwipeRow : MTSwipeRow;
 ;globalThis.MTBranchCard = typeof MTBranchCard === 'undefined' ? globalThis.MTBranchCard : MTBranchCard;
 ;globalThis.MTSubCard = typeof MTSubCard === 'undefined' ? globalThis.MTSubCard : MTSubCard;

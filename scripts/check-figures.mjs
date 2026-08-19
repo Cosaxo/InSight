@@ -177,6 +177,18 @@ const feedConst = constFrom("scripts/feed-budget.mjs");
 // reject after the writing is done.
 const qualityConst = constFrom("scripts/question-quality.mjs");
 
+// The shipped version pair, off package.json — the source `check:versions`
+// itself treats as authoritative when it writes the two native projects.
+//
+// This entry exists because LAUNCH-RUNBOOK 5.6 went stale THREE times, and
+// 5.6 is the step whose whole job is noticing version numbers disagree.
+// Its own paragraph had already drawn the conclusion ("the honest reading
+// is that this number will be wrong again") and stopped one move short of
+// the remedy this file is: where a number is load-bearing, make the gate
+// own it. Read as strings — a build is an integer today and the version is
+// not, and comparing text is what the fix line has to write anyway.
+const appPkg = JSON.parse(read("package.json"));
+
 const FIGURES = [
   {
     file: "README.md",
@@ -307,6 +319,20 @@ const FIGURES = [
     re: /`V2_QUESTIONS`, (\d+) docs/,
     actual: seededQuestions,
     fix: (n) => `"\`V2_QUESTIONS\`, ${n} docs"`,
+  },
+  {
+    file: "docs/LAUNCH-RUNBOOK.md",
+    what: "the shipped version (5.6, version lockstep)",
+    re: /holds at (\d+\.\d+\.\d+) build \d+/,
+    actual: appPkg.version,
+    fix: (v) => `"holds at ${v} build ${appPkg.appBuild}"`,
+  },
+  {
+    file: "docs/LAUNCH-RUNBOOK.md",
+    what: "the shipped build number (5.6, version lockstep)",
+    re: /holds at \d+\.\d+\.\d+ build (\d+)/,
+    actual: String(appPkg.appBuild),
+    fix: (n) => `"holds at ${appPkg.version} build ${n}"`,
   },
   {
     file: "docs/LAUNCH-RUNBOOK.md",
@@ -449,7 +475,12 @@ for (const fig of FIGURES) {
     );
     continue;
   }
-  const claimed = Number(m[1]);
+  // Numeric by default, because every figure here was one until the
+  // version pair arrived: "2.0.0" through Number() is NaN, which compares
+  // unequal to everything and would have reported a permanently wrong
+  // figure as permanently wrong. An entry declares its own type by what it
+  // puts in `actual`.
+  const claimed = typeof fig.actual === "string" ? m[1] : Number(m[1]);
   if (claimed !== fig.actual) {
     errors.push(
       `${fig.file} states ${claimed} for ${fig.what}; the tree has ${fig.actual}.\n`

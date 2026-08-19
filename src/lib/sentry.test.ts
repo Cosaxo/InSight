@@ -8,7 +8,7 @@
 // while lint, tsc, check:globals and check:store-forms all stay green.
 // This is the only gate that executes the default.
 //
-// The account panel's off switch is gone (D208), so nothing writes the
+// The account panel's off switch is gone (D211), so nothing writes the
 // flag any more — the second case writes the KEY exactly as an older
 // build's switch did, because those recorded opt-outs are what must stay
 // honoured for as long as the storage carrying them lives.

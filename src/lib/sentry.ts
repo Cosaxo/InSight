@@ -34,7 +34,7 @@
 // Dev builds without the env var skip Sentry entirely.
 //
 // Reporting is ON by default (D76) and the account panel's off switch
-// is gone (D208) — the owner's call: a release build has no toggle. The
+// is gone (D211) — the owner's call: a release build has no toggle. The
 // local `insight.telemetry.v1` flag survives as a READ-ONLY record of
 // opt-outs recorded by older builds: nothing writes it any more, but an
 // explicit "false" is still honoured at every send site, not just at
@@ -65,7 +65,7 @@ export function telemetryEnabled(): boolean {
 }
 
 // `setTelemetryEnabled` stood here and left with the panel's switch
-// (D208). The OFF half of its job — send-site gating, because an
+// (D211). The OFF half of its job — send-site gating, because an
 // initialised SDK cannot be cleanly torn down — is unchanged below:
 // reportError and setSentryUser gate on telemetryEnabled(), not on `sdk`
 // being non-null, so a recorded opt-out still holds for the whole

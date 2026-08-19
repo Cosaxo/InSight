@@ -453,6 +453,28 @@ and a publication nobody reads has none. Rule 5 asks the mirror of rule 1
 — an assignment whose references went away — so what is on the bridge is
 what is still crossing it.
 
+**And it could not fire for its first eight months (D210).** Two reasons,
+both structural. The footer idiom
+`;globalThis.X = typeof X === 'undefined' ? globalThis.X : X;` **reads the
+name it publishes**, so every name written that way put itself in
+`referenced` — 176 of them. And rule 5 was asking rule 1's question ("is
+there a `window.X` read?") when its own is broader: a bare cross-module
+call resolving through global scope is a real consumer this scanner cannot
+see, so that question reports live wiring as dead. Rule 5 now blanks the
+idiom out of a line before scanning it, and asks the conservative question
+instead — does the name appear **anywhere** in `src/`, outside the file
+that publishes it. It found **123** on the tree it landed against, taking
+the published count from 259 to 136 in one commit; `npm run check:globals`
+prints the live figure, which is the number to quote. Deliberately
+over-generous: a false positive here deletes live wiring, a false negative
+leaves one line of residue — so five publications that are strictly
+redundant (ESM-exported *and* imported by name) survive it on purpose.
+
+**It earned itself within the hour.** Merging the v28 Patterns work
+(D207) on top removed the last consumer of `TweakToggle`, and the gate
+failed on its publication — a dead line introduced by a merge neither
+side could see, caught before it landed.
+
 **Rule 4** counts every site where one file reads a name another file
 assigns to global scope, per file, and the number may only go down. The
 baseline is in `scripts/check-spec-globals.mjs`; `npm run check:globals`

@@ -330,14 +330,5 @@ function CompareCarousel({ pop, accent = 'var(--accent)', label, aligns = {}, ex
 Object.assign(window, { CompareBreakdown, CompareCarousel });
 
 ;globalThis.CBAlignGlyph = typeof CBAlignGlyph === 'undefined' ? globalThis.CBAlignGlyph : CBAlignGlyph;
-;globalThis.cbAlign = typeof cbAlign === 'undefined' ? globalThis.cbAlign : cbAlign;
-;globalThis.CBRoseOverlay = typeof CBRoseOverlay === 'undefined' ? globalThis.CBRoseOverlay : CBRoseOverlay;
-;globalThis.CBPoleRows = typeof CBPoleRows === 'undefined' ? globalThis.CBPoleRows : CBPoleRows;
 ;globalThis.CompareBreakdown = typeof CompareBreakdown === 'undefined' ? globalThis.CompareBreakdown : CompareBreakdown;
 ;globalThis.CompareCarousel = typeof CompareCarousel === 'undefined' ? globalThis.CompareCarousel : CompareCarousel;
-;globalThis.CB_INK = typeof CB_INK === 'undefined' ? globalThis.CB_INK : CB_INK;
-;globalThis.cbPetal = typeof cbPetal === 'undefined' ? globalThis.cbPetal : cbPetal;
-;globalThis.cbDot = typeof cbDot === 'undefined' ? globalThis.cbDot : cbDot;
-;globalThis.CB_EXTRA_CFG = typeof CB_EXTRA_CFG === 'undefined' ? globalThis.CB_EXTRA_CFG : CB_EXTRA_CFG;
-;globalThis.cbCfg = typeof cbCfg === 'undefined' ? globalThis.cbCfg : cbCfg;
-;globalThis.CB_ASSESS = typeof CB_ASSESS === 'undefined' ? globalThis.CB_ASSESS : CB_ASSESS;

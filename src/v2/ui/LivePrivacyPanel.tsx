@@ -16,7 +16,7 @@
 import React from "react";
 import LIVE, { localName } from "../data/live";
 import Avatar from "./Avatar";
-// The handle is a FACT here, never a control (D208). The claim control
+// The handle is a FACT here, never a control (D211). The claim control
 // this panel carried for accounts that predate D190's first-run screen
 // was read on a device as an offer to change the handle — which is
 // exactly the thing D190 §2 abolished, and a control that looks like the
@@ -150,7 +150,7 @@ function LivePrivacyPanel() {
         </div>
       </LpRow>
 
-      {/* The handle, as the FACT it is (D208) — and only when there is one.
+      {/* The handle, as the FACT it is (D211) — and only when there is one.
           Under the name on purpose: the name is what a reveal calls you and
           can be anything, the handle is unique and is how a friend reaches
           you — and someone reading top to bottom meets them in that order.
@@ -167,7 +167,7 @@ function LivePrivacyPanel() {
           account that skipped it stays handle-less and can still be added
           to circles by invite code.
 
-          THREE ROWS LEFT WITH IT (D208): Sign-in — the D134 gate walls
+          THREE ROWS LEFT WITH IT (D211): Sign-in — the D134 gate walls
           every release build behind Google, so the row could only ever
           read "Linked ✓", and on a build without the gate a link control
           in settings is not the fix for a session that should have been

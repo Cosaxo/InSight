@@ -2450,6 +2450,160 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "political": true
  },
  {
+  "id": "daily-114",
+  "surface": "daily",
+  "seq": 114,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Win ugly, or lose beautifully?",
+  "options": [
+   "Win ugly",
+   "Lose beautifully"
+  ],
+  "topic": "blend",
+  "branch": "Sport",
+  "sub": "Style",
+  "tag": "Ugly win",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-115",
+  "surface": "daily",
+  "seq": 115,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Black and white films: timeless, or homework?",
+  "options": [
+   "Timeless",
+   "Homework"
+  ],
+  "topic": "light",
+  "branch": "Film",
+  "sub": "The classics",
+  "tag": "Black and white",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-116",
+  "surface": "daily",
+  "seq": 116,
+  "type": "scale",
+  "domain": null,
+  "prompt": "A skill isn't yours until you've taught it to someone.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "blend",
+  "branch": "Skills",
+  "sub": "Mastery",
+  "tag": "Teach it",
+  "axis": "teaching-minded",
+  "test": null
+ },
+ {
+  "id": "daily-117",
+  "surface": "daily",
+  "seq": 117,
+  "type": "choice",
+  "domain": null,
+  "prompt": "What pulls you down a rabbit hole at 1 a.m.?",
+  "options": [
+   "History",
+   "How things work",
+   "Other people's lives",
+   "Maps"
+  ],
+  "topic": "light",
+  "branch": "Interests",
+  "sub": "Rabbit holes",
+  "tag": "Rabbit holes",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-118",
+  "surface": "daily",
+  "seq": 118,
+  "type": "binary",
+  "domain": null,
+  "prompt": "The last slice: take it, or offer it?",
+  "options": [
+   "Take it",
+   "Offer it"
+  ],
+  "topic": "light",
+  "branch": "Food",
+  "sub": "Table manners",
+  "tag": "Last slice",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-119",
+  "surface": "daily",
+  "seq": 119,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Window seat or aisle?",
+  "options": [
+   "Window",
+   "Aisle"
+  ],
+  "topic": "light",
+  "branch": "Travel",
+  "sub": "In transit",
+  "tag": "The seat",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-120",
+  "surface": "daily",
+  "seq": 120,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Where does music hit you hardest?",
+  "options": [
+   "Alone in headphones",
+   "Live in a crowd",
+   "In the car",
+   "On the dance floor"
+  ],
+  "topic": "blend",
+  "branch": "Music",
+  "sub": "Where it hits",
+  "tag": "Where it hits",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-121",
+  "surface": "daily",
+  "seq": 121,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Your body runs your mood more than your mind does.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "deep",
+  "branch": "Body",
+  "sub": "Mind and body",
+  "tag": "Body first",
+  "axis": "body-led",
+  "test": null
+ },
+ {
   "id": "feed-f01",
   "surface": "feed",
   "seq": 0,
@@ -4188,6 +4342,115 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
     "line": "You stayed with the receipts. Leverage keeps better than anger."
    }
   }
+ },
+ {
+  "id": "feed-f57",
+  "surface": "feed",
+  "seq": 82,
+  "type": "vote",
+  "domain": null,
+  "prompt": "ABBA or Queen?",
+  "options": [
+   "ABBA",
+   "Queen"
+  ],
+  "topic": "music",
+  "axis": null,
+  "test": null,
+  "core": true
+ },
+ {
+  "id": "feed-f58",
+  "surface": "feed",
+  "seq": 83,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Who left the bigger mark: Einstein or Shakespeare?",
+  "options": [
+   "Einstein",
+   "Shakespeare"
+  ],
+  "topic": "people",
+  "axis": null,
+  "test": null,
+  "core": true
+ },
+ {
+  "id": "feed-dl5",
+  "surface": "feed",
+  "seq": 84,
+  "type": "dial",
+  "domain": null,
+  "prompt": "How many years until a human walks on Mars?",
+  "options": [
+   "0–8 yrs",
+   "8–17 yrs",
+   "17–25 yrs",
+   "25–33 yrs",
+   "33–42 yrs",
+   "42–50 yrs",
+   "50–58 yrs",
+   "58–67 yrs",
+   "67–75 yrs",
+   "75–83 yrs",
+   "83–92 yrs",
+   "92–100 yrs"
+  ],
+  "topic": "event",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 100,
+  "unit": "yrs",
+  "core": true
+ },
+ {
+  "id": "feed-f60",
+  "surface": "feed",
+  "seq": 85,
+  "type": "vote",
+  "domain": null,
+  "prompt": "The right way to see a film?",
+  "options": [
+   "A cinema seat",
+   "Your own couch"
+  ],
+  "topic": "movies",
+  "axis": null,
+  "test": null,
+  "core": true
+ },
+ {
+  "id": "feed-f61",
+  "surface": "feed",
+  "seq": 86,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Let AI write your texts for you?",
+  "options": [
+   "Sure — it saves time",
+   "Never. It’s my voice"
+  ],
+  "topic": "tech",
+  "axis": null,
+  "test": null,
+  "core": true
+ },
+ {
+  "id": "feed-f62",
+  "surface": "feed",
+  "seq": 87,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Is a hot dog a sandwich?",
+  "options": [
+   "Obviously",
+   "Obviously not"
+  ],
+  "topic": "food",
+  "axis": null,
+  "test": null,
+  "core": true
  },
  {
   "id": "group-gu0",
@@ -10076,6 +10339,176 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "A day"
   ],
   "topic": "body",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-c209",
+  "surface": "learn",
+  "seq": 106,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The Titanic sank in…",
+  "options": [
+   "1905",
+   "1923",
+   "1912",
+   "1899"
+  ],
+  "topic": "c20",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-c210",
+  "surface": "learn",
+  "seq": 107,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The Wright brothers first flew in…",
+  "options": [
+   "1913",
+   "1903",
+   "1896",
+   "1921"
+  ],
+  "topic": "c20",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-c211",
+  "surface": "learn",
+  "seq": 108,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The Chernobyl disaster happened in…",
+  "options": [
+   "1986",
+   "1991",
+   "1979",
+   "1972"
+  ],
+  "topic": "c20",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-c212",
+  "surface": "learn",
+  "seq": 109,
+  "type": "choice",
+  "domain": null,
+  "prompt": "India became independent in…",
+  "options": [
+   "1950",
+   "1939",
+   "1957",
+   "1947"
+  ],
+  "topic": "c20",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-c213",
+  "surface": "learn",
+  "seq": 110,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The first woman to win a Nobel Prize was…",
+  "options": [
+   "Rosalind Franklin",
+   "Marie Curie",
+   "Mother Teresa",
+   "Jane Goodall"
+  ],
+  "topic": "c20",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-cap9",
+  "surface": "learn",
+  "seq": 111,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The capital of the United States is…",
+  "options": [
+   "Washington, D.C.",
+   "New York City",
+   "Los Angeles",
+   "Philadelphia"
+  ],
+  "topic": "capitals",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-cap10",
+  "surface": "learn",
+  "seq": 112,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The capital of Vietnam is…",
+  "options": [
+   "Ho Chi Minh City",
+   "Da Nang",
+   "Hanoi",
+   "Hue"
+  ],
+  "topic": "capitals",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-cap11",
+  "surface": "learn",
+  "seq": 113,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The capital of the Netherlands is…",
+  "options": [
+   "The Hague",
+   "Amsterdam",
+   "Rotterdam",
+   "Utrecht"
+  ],
+  "topic": "capitals",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-cap12",
+  "surface": "learn",
+  "seq": 114,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The capital of Nigeria is…",
+  "options": [
+   "Lagos",
+   "Abuja",
+   "Kano",
+   "Ibadan"
+  ],
+  "topic": "capitals",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-cap13",
+  "surface": "learn",
+  "seq": 115,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The capital of Tanzania is…",
+  "options": [
+   "Dar es Salaam",
+   "Nairobi",
+   "Dodoma",
+   "Zanzibar City"
+  ],
+  "topic": "capitals",
   "axis": null,
   "test": null
  },

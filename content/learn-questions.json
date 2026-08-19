@@ -1698,6 +1698,163 @@
       "t": 0,
       "p": 33,
       "k": "Red cells last four months"
+    },
+    {
+      "id": "c209",
+      "f": "c20",
+      "q": "The Titanic sank in…",
+      "a": [
+        "1905",
+        "1923",
+        "1912",
+        "1899"
+      ],
+      "c": 2,
+      "t": 0,
+      "p": 72,
+      "k": "Titanic sank in 1912"
+    },
+    {
+      "id": "c210",
+      "f": "c20",
+      "q": "The Wright brothers first flew in…",
+      "a": [
+        "1913",
+        "1903",
+        "1896",
+        "1921"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 55,
+      "k": "First flight: 1903",
+      "w": "A decade before WWI made aeroplanes ordinary — earlier than most people place it."
+    },
+    {
+      "id": "c211",
+      "f": "c20",
+      "q": "The Chernobyl disaster happened in…",
+      "a": [
+        "1986",
+        "1991",
+        "1979",
+        "1972"
+      ],
+      "c": 0,
+      "t": 1,
+      "p": 63,
+      "k": "Chernobyl: 1986",
+      "w": "1991 is the Soviet collapse — the association that pulls the guess late."
+    },
+    {
+      "id": "c212",
+      "f": "c20",
+      "q": "India became independent in…",
+      "a": [
+        "1950",
+        "1939",
+        "1957",
+        "1947"
+      ],
+      "c": 3,
+      "t": 0,
+      "p": 48,
+      "k": "India independent in 1947",
+      "w": "1950 is Republic Day — the constitution, not independence."
+    },
+    {
+      "id": "c213",
+      "f": "c20",
+      "q": "The first woman to win a Nobel Prize was…",
+      "a": [
+        "Rosalind Franklin",
+        "Marie Curie",
+        "Mother Teresa",
+        "Jane Goodall"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 67,
+      "k": "Curie, first female Nobel",
+      "w": "Physics, 1903, shared with Pierre and Becquerel. Franklin famously never won — the injustice people remember pulls the guess."
+    },
+    {
+      "id": "cap9",
+      "f": "capitals",
+      "q": "The capital of the United States is…",
+      "a": [
+        "Washington, D.C.",
+        "New York City",
+        "Los Angeles",
+        "Philadelphia"
+      ],
+      "c": 0,
+      "t": 1,
+      "p": 88,
+      "k": "USA: Washington, D.C."
+    },
+    {
+      "id": "cap10",
+      "f": "capitals",
+      "q": "The capital of Vietnam is…",
+      "a": [
+        "Ho Chi Minh City",
+        "Da Nang",
+        "Hanoi",
+        "Hue"
+      ],
+      "c": 2,
+      "t": 0,
+      "p": 52,
+      "k": "Vietnam: Hanoi"
+    },
+    {
+      "id": "cap11",
+      "f": "capitals",
+      "q": "The capital of the Netherlands is…",
+      "a": [
+        "The Hague",
+        "Amsterdam",
+        "Rotterdam",
+        "Utrecht"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 46,
+      "k": "Netherlands: Amsterdam",
+      "w": "The government sits in The Hague, but the constitution names Amsterdam the capital — the trap catches people who know half the story."
+    },
+    {
+      "id": "cap12",
+      "f": "capitals",
+      "q": "The capital of Nigeria is…",
+      "a": [
+        "Lagos",
+        "Abuja",
+        "Kano",
+        "Ibadan"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 36,
+      "k": "Nigeria: Abuja",
+      "w": "The capital moved from Lagos to purpose-built Abuja in 1991; Lagos stays the giant."
+    },
+    {
+      "id": "cap13",
+      "f": "capitals",
+      "q": "The capital of Tanzania is…",
+      "a": [
+        "Dar es Salaam",
+        "Nairobi",
+        "Dodoma",
+        "Zanzibar City"
+      ],
+      "c": 2,
+      "t": 0,
+      "p": 27,
+      "k": "Tanzania: Dodoma",
+      "w": "Dodoma has been the official capital since 1996; Dar es Salaam remains the largest city and former capital."
     }
   ]
 }

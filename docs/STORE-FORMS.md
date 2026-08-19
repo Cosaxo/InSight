@@ -73,7 +73,7 @@ companies' apps or sites.
 | Health & Fitness | **Health** | Yes | App Functionality | **New at D203.** Two of the five pulse questions are "How did you sleep?" and "How was your energy today?" — one five-step answer a day each, keyed to a UTC day. See the note below the table |
 | Location | **Precise Location** | Yes | App Functionality | Requested since D175; nothing precise is retained — see §"The three that bite" |
 | Sensitive Info | **Sensitive Info** | Yes | App Functionality | Politics test result (GDPR Art. 9); gender if entered |
-| Diagnostics | **Crash Data** | Yes | App Functionality | Sentry. **On** (D76; the in-app switch left at D208), carries the uid only |
+| Diagnostics | **Crash Data** | Yes | App Functionality | Sentry. **On** (D76; the in-app switch left at D211), carries the uid only |
 
 **The handle (D122) lands in *User ID*, and the answer does not move.**
 Worth a line anyway, because the row's stated basis was "the Firebase uid"
@@ -240,7 +240,7 @@ Four of those are worth knowing *why*, because each looks tickable:
 3. **Crash Data is a straightforward Yes: reporting is on** (D76 — it
    was opt-in until 2026-08-08, and the answer was Yes even then,
    because the form asks what the app *can* collect; the privacy panel's
-   off switch was removed at D208). Sentry carries the uid, no email, no
+   off switch was removed at D211). Sentry carries the uid, no email, no
    name, no session replay, `sendDefaultPii: false`. The SDKs still load
    dynamically, and an opt-out an OLDER build recorded
    (`insight.telemetry.v1` = "false") is still honoured at every send
@@ -479,7 +479,7 @@ same inventory and should not be re-derived in a hurry.
 | Location → Approximate location | Yes | No | **Optional** | App functionality |
 | Location → Precise location | **Yes** (D175) | App Functionality | Not linked to identity beyond the account | No |
 | App activity, Web browsing, Contacts, Photos, Financial, Purchases | **No** | — | — | — |
-| App info & performance → Crash logs | Yes | No | **Required** (on with no in-app switch since D208 — Play's "users can choose" definition no longer holds, so the honest answer moved from Optional to Required with it) | App functionality |
+| App info & performance → Crash logs | Yes | No | **Required** (on with no in-app switch since D211 — Play's "users can choose" definition no longer holds, so the honest answer moved from Optional to Required with it) | App functionality |
 | Advertising ID / any ads box | **No** | — | — | — |
 
 Play additionally asks two things Apple does not:
