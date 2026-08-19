@@ -2,9 +2,11 @@
 
 **Answer things. See what they add up to.**
 
-InSight is a two-tab app — **daily · mirror**. One tab is where you
-answer; the other is where the answering turns into a picture of you
-against every population you belong to. Answering is the smaller half.
+InSight is a three-tab app — **patterns · daily · mirror**, the first on
+trial (D166 §1). The middle tab is where you answer; the other two are
+where the answering turns into pictures: how your answers tie to
+everyone else's, and you against every population you belong to.
+Answering is the smaller half.
 
 *Working on it rather than reading about it?*
 [`docs/ORIENTATION.md`](./docs/ORIENTATION.md) is the map — every

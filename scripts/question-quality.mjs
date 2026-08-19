@@ -395,7 +395,10 @@ export function loadCorpus() {
   // world-feed filters out of the feed's chip row. So a pick card's `cat` is
   // checked against this set and a feed question's against feed.topics —
   // one vocabulary would reject every card that ships today.
-  const worldTopics = extractLiteral(wfdSrc, "window.WORLD_TOPICS = [", "world-feed-data.js");
+  // The marker followed the source: WORLD_TOPICS became a named export
+  // when the Patterns tab started importing it (the WPAL precedent), with
+  // `window.WORLD_TOPICS = WORLD_TOPICS` kept beneath for spec consumers.
+  const worldTopics = extractLiteral(wfdSrc, "export const WORLD_TOPICS = [", "world-feed-data.js");
   return {
     specQ,
     dailyIdOf,

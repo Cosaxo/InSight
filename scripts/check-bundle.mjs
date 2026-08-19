@@ -638,7 +638,23 @@ const MAX_CHUNK_KB = 735;
 // `loadWorldFeed()` (D25).
 //
 // Headroom left: 8 KB on the total, 12 on the eager.
-const MAX_TOTAL_JS_KB = 2357;
+//
+// 2357 → 2378 (2026-08-19): the Patterns tab (v28 §2, ON TRIAL per D166
+// §1) — a whole third tab, which is exactly the kind of growth this
+// constant exists to make deliberate. Everything it adds is lazy:
+// `app-shell.jsx` reaches `ui/PatternsTab.tsx` through React.lazy, so the
+// store (`data/patterns.ts`), the map arithmetic (`data/patternsMap.ts`)
+// and the tab body all live in a chunk the first paint never loads.
+//
+// MEASURED ON THIS TREE: **2370 KB / 890 KB eager**, across 86 chunks.
+// The eager graph moved +2 KB — the TABS entry, the glyph and the lazy
+// import site in app-shell, which are the whole cost the trial clause
+// budgets for ("one import site and one TABS entry away from not
+// existing"). A reversal deletes the lazy chunks and this entry's delta
+// with them.
+//
+// Headroom left: 8 KB on the total, 30 on the eager.
+const MAX_TOTAL_JS_KB = 2378;
 // 955 → 966 (2026-08-14): D139's pulse card — the second fixed instrument
 // on the FIRST screen, so its card, its store's demo furniture and the
 // two LIVE members are legitimately eager (~10 KB min). What is not

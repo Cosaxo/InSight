@@ -373,9 +373,17 @@ class DailySplit extends React.Component {
       // can flip the axis under it without remounting
       const MODES = this.modeAxis;
       const mi = MODES.indexOf(this.state.mode), ni = mi + dir;
-      // the axis continues past the far end into Mirror — act, then see
-      if (ni >= MODES.length) { if (window.goNav) { window.goNav('mirror'); return; } spring(); return; }
-      if (ni < 0) { spring(); return; } // spring at the near end
+      // the axis continues past BOTH ends — Mirror past the far one (act,
+      // then see), Patterns past the near one (v28 §1; the near exit is
+      // the one place outside the tab itself that knows the third tab
+      // exists — the exception D166 §1 names). One window.goNav read for
+      // both, because the coupling meter (rule 4) counts occurrences and
+      // only moves down.
+      if (ni >= MODES.length || ni < 0) {
+        const nav = window.goNav;
+        if (nav) { nav(ni < 0 ? 'patterns' : 'mirror'); return; }
+        spring(); return;
+      }
       try { localStorage.setItem('insight.swipeHinted', '1'); } catch { /* best-effort */ } // they've learned it — no more hinting
       const b = T();
       b.style.transition = 'transform 0.17s ease, opacity 0.17s ease';

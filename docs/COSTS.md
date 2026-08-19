@@ -111,6 +111,15 @@ roughly double on the three operation lines.
 > re-read ever matters: flag eligible entries at write time and query the
 > flag, dropping the term by the ineligible share.
 
+> **The tab's client half (2026-08-19, same day)** adds reads too small
+> for the model's terms, stated so nobody hunts for them later: ONE
+> loadings-doc read per session (session-cached, absence cached too), and
+> the pair card's exact 2×2 at two bounded voter queries (≤ 200 docs
+> each) per FIRST tap on a pair — the strongest link only, session-cached
+> per pair, silent under 12 shared voters. The Oracle adds zero reads: it
+> folds the loadings doc and the viewer's own votes, both already on the
+> device, and its votes go through the ordinary answer path.
+
 > **Corrected 2026-08-19 (D166 §3).** The pulse roster joined the budget —
 > `B.worldAnswers` 4 → 4.3 — and every row above moved with it ($247 →
 > $250 at 50 k). Not a re-estimate: five pulses at their DEFAULT cadence

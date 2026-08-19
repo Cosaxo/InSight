@@ -149,6 +149,7 @@ import {
   dayIndex as dayIndexPure,
   duelQFor as duelQForPure,
   hasPublishedCounts,
+  isCore,
   splitBanks,
   utcDayIndex as utcDayIndexPure,
 } from "./deck";
@@ -3177,6 +3178,24 @@ const LIVE = {
       .filter((q) => q.active !== false && hasPublishedCounts(state.aggs[q.id]))
       // No `back`, so no day label: these come from any day and a pager
       // label on them would be a guess (deck.ts's buildS takes null).
+      .map((q) => buildSPure(q, null, voteCtx(q.id), now));
+  },
+  /**
+   * The core feed questions with a published aggregate, as the same view
+   * models — the Patterns pool's other half (the nightly fit folds
+   * two-option daily + core feed, functions/src/patterns.ts). Core only
+   * for D161's reason: who answers a tail question is interest-selected,
+   * so a correlation over tail answers reports the selection rather than
+   * the population — the client must not offer to draw what the fit
+   * refuses to fold. Two-option only, the fit's own rule (±1 encoding).
+   * Same walk as aggregated(): every aggregate here is already cached for
+   * the feed card that displayed it, so this is no new read.
+   */
+  coreFeedAggregated(): LiveQuestion[] {
+    const now = new Date();
+    return state.feedBank
+      .filter((q) => q.surface === "feed" && isCore(q) && q.active !== false
+        && (q.options || []).length === 2 && hasPublishedCounts(state.aggs[q.id]))
       .map((q) => buildSPure(q, null, voteCtx(q.id), now));
   },
   // ── Learn (D32) ──

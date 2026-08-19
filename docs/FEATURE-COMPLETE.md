@@ -27,18 +27,22 @@ exists.
   [`COSTS.md`](COSTS.md) before it shipped. The deploy that turns it on
   is the standing europe-west1 deploy (D201).
   [`VISION-V28.md`](VISION-V28.md) §2, §13.
-- **Device-side similarity and placement**: cosine over 2K floats,
-  position from the first two components — O(questions), honest at any
-  bank size. Rides the fold. [`VISION-V28.md`](VISION-V28.md) §2.
-- **The exact 2×2 pair read**: the "pick this — and 78% pick that" line
-  is one exact table fetched for the pair on screen, never a pairwise
-  matrix. Its read path is designed with the fold.
+- ~~**Device-side similarity and placement**~~ — **done 2026-08-19**
+  (`src/v2/data/patternsMap.ts`): cosine over 2K floats, position from
+  the first two components plus the prototype's spring/declutter passes,
+  pure and deterministic — O(questions), tested without a device.
   [`VISION-V28.md`](VISION-V28.md) §2.
-- **The Oracle** (trial; build second): naive-Bayes posterior over the
-  same published fold; the guess is **sealed before the options are
-  tappable** and surprisal in bits is the score. The seal gets a test
-  the way `surface` pins the duel seal. [`VISION-V28.md`](VISION-V28.md)
-  §2.
+- ~~**The exact 2×2 pair read**~~ — **done 2026-08-19**
+  (`PATTERNS.say`): one exact table per pair on screen, both voter
+  samples bounded and intersected on the device, basis stated on the
+  card, session-cached; silent under 12 people in both samples.
+  [`VISION-V28.md`](VISION-V28.md) §2.
+- ~~**The Oracle**~~ — **done 2026-08-19** (`data/patterns.ts` +
+  `ui/PatternsTab.tsx`): device-side ridge estimate over the published
+  loadings, guess **sealed and persisted before the options render**
+  (`patterns.test.ts` pins it the way `surface` pins the duel seal),
+  graded in surprisal bits through the ordinary vote path.
+  [`VISION-V28.md`](VISION-V28.md) §2.
 - **The on-device interest model** (decided, D163 — binding, not built,
   and load-bearing since D173: the tail cannot ship without it):
   per-topic weights from signals the device already stores
@@ -150,8 +154,9 @@ ordered list. Open, in its order:
   cache key; an avatar-overwrite rate limit; the CDN question; the
   graded breaker `mode` field, which needs an owner decision about what
   a degraded app *says* before it can be built. [`COSTS.md`](COSTS.md).
-- **The eager-bytes door** (v28 §5): a lazy-tab loader (Patterns needs
-  it anyway), then a lazy `map-tab.jsx` — one change that unblocks
+- **The eager-bytes door** (v28 §5): the lazy-tab half landed
+  2026-08-19 (Patterns arrives through `React.lazy` in `app-shell.jsx`);
+  what remains is a lazy `map-tab.jsx` — the one change that unblocks
   Crossroads' `mapTree`, the Foresight map branch and the pulse branch
   `window.goTrends` wants to open. [`VISION-V28.md`](VISION-V28.md) §5.
 - **The bridge migration** (ratchet, D39): `check:globals` rule 4 only
@@ -185,10 +190,15 @@ refused the third.
    the feed's own interleave (the D139 pinned block retired), the Health
    row re-answered in the same commit with the four templates, the
    data-inventory row and the COSTS line. §3.
-4. **Patterns** (trial, D166 §1) — fold, then loader, then the Map and
-   Oracle lenses, in that order and no other; typed ESM only, lazy only,
-   and the tab's first appearance rewrites `CLAUDE.md`'s opening
-   sentence in the same commit. §2, §11.
+4. ~~**Patterns**~~ (trial, D166 §1) — **done 2026-08-19**: the tab
+   shipped in the ordered shape — fold first, then the typed store
+   (`data/patterns.ts`, seal pinned in its test) and map arithmetic
+   (`data/patternsMap.ts`), then the Map and Oracle lenses
+   (`ui/PatternsTab.tsx`) behind `React.lazy`; `CLAUDE.md`'s opening
+   sentence and the near-end exit landed in the same commit, and the
+   pair card fetches ONE exact 2×2 per selection (the plan's own
+   singular phrasing; widening is one line if the trial earns it). §2,
+   §11.
 5. **The Map's parked branches** — Foresight (`g-fore`) and Crossroads
    (`g-paths`), once the Map is lazy. §5.
 6. **Every v28 item ships with a `smoke-live` case** (D167) — mount

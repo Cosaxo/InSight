@@ -11,6 +11,12 @@ import { markNav } from './swipe-back.js';
 import { useTweaks, TweaksPanel, TweakSection, TweakRadio, TweakButton } from './tweaks-panel.jsx';
 import { reportError } from '../../lib/sentry';
 
+// The third tab, ON TRIAL (D166 §1) — lazy by requirement, not taste:
+// check:bundle has no eager headroom, and the trial clause wants the
+// reversal to be one import site and one TABS entry. React.lazy is the
+// same pattern daily-split uses for its typed panels; the chunk loads on
+// the first visit to the tab and never before.
+const PatternsTabLazy = React.lazy(() => import('../ui/PatternsTab.tsx'));
 
 const { useState, useEffect } = React;
 
@@ -61,14 +67,29 @@ function NavGlyph({ id, active }) {
       </svg>
     );
   }
+  if (id === 'patterns') {
+    // A small constellation — places joined by their ties, one inked
+    return (
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke={stroke} strokeWidth={sw} strokeLinecap="round">
+        <path d="M6 17.5 L11.5 8.5 L18.5 13.5"></path>
+        <path d="M6 17.5 L18.5 13.5" strokeDasharray="1.5 2"></path>
+        <circle cx="6" cy="17.5" r="1.6" fill={stroke} stroke="none"></circle>
+        <circle cx="18.5" cy="13.5" r="1.6" fill={stroke} stroke="none"></circle>
+        <circle cx="11.5" cy="8.5" r="2.6" fill={active ? 'var(--ink)' : 'transparent'} fillOpacity="0.14"></circle>
+        <circle cx="11.5" cy="8.5" r="1.6" fill={active ? stroke : 'none'} stroke={stroke}></circle>
+      </svg>
+    );
+  }
   // 'groups' and 'duo' glyphs left with the bar nav (v28 §10) — only the
-  // two-tab bar renders glyphs, and it knows 'track' and 'mirror'.
+  // tab bar renders glyphs, and it knows 'patterns', 'track' and 'mirror'.
   return null;
 }
 
-// Two tabs: daily · mirror — act, then see.
+// Three tabs: patterns · daily · mirror — the daily in the middle so a
+// swipe either way lands somewhere (v28 §1; patterns is ON TRIAL, D166 §1).
 // (Internal ids keep their historical names; only labels are user-facing.)
 const TABS = [
+  { id: 'patterns', label: 'patterns' },
   { id: 'track',  label: 'daily'  },
   { id: 'mirror', label: 'mirror' },
 ];
@@ -81,6 +102,7 @@ const WORLD_ZOOM_IDS = ['city', 'country', 'world'];
 // entries survive because window.goNav (below) and the swipe gestures still
 // address the app by these keys.
 const NAV_ONE = [
+  { key: 'patterns',    tab: 'patterns'              },
   { key: 'track:world', tab: 'track',  mode: 'world' },
   { key: 'track:group', tab: 'track',  mode: 'group' },
   { key: 'track:duo',   tab: 'track',  mode: 'duo'   },
@@ -265,6 +287,7 @@ function App() {
       markNav();
       closeAll();
       if (it.tab === 'mirror') { setTweak('mirrorPop', 'you'); setTab('mirror'); return; }
+      if (it.tab === 'patterns') { setTab('patterns'); return; }
       setDailyMode(it.mode); setTab('track');
     };
     // `window.openTest` stood here (D121). Every caller is gone with it —
@@ -322,7 +345,7 @@ function App() {
 
   return (
     <IOSDevice width={402} height={874}>
-      <div className={appClasses} data-tab={tab} data-view={tab === 'track' ? 'track:' + dailyMode : 'mirror:' + mirrorPop} data-lens-style="underline" data-docked={tab === 'track' && docked ? '' : undefined} data-mpop={tab === 'mirror' ? mirrorPop : undefined} style={tab === 'mirror' ? { '--accent': mirrorPop === 'you' ? 'var(--c-today)' : mirrorPop === 'circle' ? 'var(--c-people)' : mirrorPop === 'groups' ? 'var(--c-groups)' : mirrorPop === 'world' ? 'var(--c-world)' : 'var(--c-city)' } : undefined}>
+      <div className={appClasses} data-tab={tab} data-view={tab === 'track' ? 'track:' + dailyMode : tab === 'patterns' ? 'patterns' : 'mirror:' + mirrorPop} data-lens-style="underline" data-docked={tab === 'track' && docked ? '' : undefined} data-mpop={tab === 'mirror' ? mirrorPop : undefined} style={tab === 'mirror' ? { '--accent': mirrorPop === 'you' ? 'var(--c-today)' : mirrorPop === 'circle' ? 'var(--c-people)' : mirrorPop === 'groups' ? 'var(--c-groups)' : mirrorPop === 'world' ? 'var(--c-world)' : 'var(--c-city)' } : tab === 'patterns' ? { '--accent': 'var(--c-today)' } : undefined}>
 
         <header className="app-header">
           <button aria-label="Profile" className={"avatar-btn" + (ov === 'profile' ? ' is-on' : '')} onClick={() => { if (ov === 'profile') { setOv(null); } else { closeAll(); setOv('profile'); } }}>
@@ -397,12 +420,20 @@ function App() {
               {tab === 'mirror' && <MirrorTab onPerson={setPerson} pop={mirrorPop} onPop={(v) => setTweak('mirrorPop', v)} worldZoom={worldZoom} onZoom={(v) => setTweak('worldZoom', v)}
                 firstRun={!!(window.LIVE && window.LIVE.enabled && window.FEEDREAD && window.FEEDREAD.stats().n < 8)}
                 backKey={'track:duo'} />}
+              {/* Suspense fallback null, PulseCard's rule: nothing rather
+                  than a blank card — the chunk arrives inside the tap's
+                  own beat, and the ErrorBoundary above owns a failed one. */}
+              {tab === 'patterns' && (
+                <React.Suspense fallback={null}>
+                  <PatternsTabLazy />
+                </React.Suspense>
+              )}
             </div>
           </ErrorBoundary>
         </div>
 
         {/* Tabbar */}
-        <nav className="tabbar" data-n={2}>
+        <nav className="tabbar" data-n={TABS.length}>
           <div className="tab-group">
             {TABS.map(({ id, label }) => (
               <button key={id} className={"tab-btn" + (tab === id ? ' is-active' : '')}
@@ -410,9 +441,11 @@ function App() {
                   if (tab !== id) HAPTIC.tick();
                   markNav();
                   // the daily's scale runs World · Circle · 1v1, with Mirror just
-                  // past its far end — so arriving from Mirror lands on the stop
-                  // that sits next to it, not on whatever you last had open
+                  // past its far end and Patterns past the near one — so arriving
+                  // from either lands on the stop that sits next to it, not on
+                  // whatever you last had open
                   if (id === 'track' && tab === 'mirror') setDailyMode('duo');
+                  if (id === 'track' && tab === 'patterns') setDailyMode('world');
                   setTab(id); closeAll(); if (id === 'mirror') setTweak('mirrorPop', 'you');
                 }}>
                 <span className="glyph"><NavGlyph id={id} active={tab === id} /></span>

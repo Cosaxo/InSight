@@ -135,6 +135,18 @@ export function expectOpened(re, where) {
   expect(document.body.textContent, `${where}: overlay never opened`).toMatch(re);
 }
 
+// ── lazy tab bodies ────────────────────────────────────────────────────
+//
+// A React.lazy body (the patterns tab) arrives on its own chunk, so the
+// click alone renders nothing. A fixed sleep is a race — it lost one under
+// full-suite load — so wait for the copy itself, bounded the way growFeed
+// is: a body that never arrives should fail an assertion, not hang a suite.
+export async function awaitText(re, max = 50) {
+  for (let i = 0; i < max && !re.test(document.body.textContent); i++) {
+    await act(async () => { await new Promise((r) => setTimeout(r, 40)); });
+  }
+}
+
 // ── the feed's mounted window ──────────────────────────────────────────
 //
 // The feed mounts a window that grows as its tail comes into range (D136),

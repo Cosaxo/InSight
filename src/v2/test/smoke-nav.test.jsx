@@ -7,7 +7,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { act, fireEvent, screen } from "@testing-library/react";
 import { OWNS_X } from "../spec/swipe-back.js";
-import { mountApp, registerSmokeHooks, SMOKE_TIMEOUT_MS } from "./mount-app.jsx";
+import { awaitText, mountApp, registerSmokeHooks, SMOKE_TIMEOUT_MS } from "./mount-app.jsx";
 
 vi.setConfig({ testTimeout: SMOKE_TIMEOUT_MS });
 registerSmokeHooks();
@@ -74,6 +74,31 @@ describe("the daily's ruler is the nav (v17)", () => {
     expect(view()).toBe("track:world");
     fireEvent.click(screen.getByRole("button", { name: /^mirror$/i }));
     expect(view()).toBe("mirror:you");
+  });
+});
+
+// ── the patterns tab (v28 §1, ON TRIAL per D166 §1) ───────────────────
+//
+// The tab body is a React.lazy chunk, so the click alone renders nothing —
+// the await lets the import resolve before asserting. What the demo owes
+// here is the HONEST state: the trial ships live data only, so a demo
+// mount must say so rather than draw the prototype's invented crowd.
+describe("the patterns tab (trial)", () => {
+  it("mounts lazily from the tab bar and shows the honest demo state", async () => {
+    const expectNoBoundary = mountApp();
+    fireEvent.click(screen.getByRole("button", { name: /^patterns$/i }));
+    await awaitText(/only from real answers/i);
+    expect(document.querySelector(".app").getAttribute("data-view")).toBe("patterns");
+    expect(document.body.textContent).toMatch(/only from real answers/i);
+    expectNoBoundary("patterns/demo");
+  });
+
+  it("the daily's near-end exit goes to patterns through goNav", async () => {
+    const expectNoBoundary = mountApp();
+    act(() => { window.goNav("patterns"); });
+    await awaitText(/only from real answers/i);
+    expect(document.querySelector(".app").getAttribute("data-tab")).toBe("patterns");
+    expectNoBoundary("patterns via goNav");
   });
 });
 

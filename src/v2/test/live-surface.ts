@@ -27,6 +27,10 @@ export const LIVE_MEMBERS = [
   // what the Mirror's Answers and Scores lenses read. Distinct from
   // `deck()`, which is strictly the seven-day pager.
   "aggregated",
+  // The core feed questions with aggregates, same view models — the
+  // Patterns pool's other half (v28 §2). Core only, D161's sample-bias
+  // rule; two-option only, the fit's own encoding.
+  "coreFeedAggregated",
   "anchors", "appBuild",
   // Named who-voted (D98) — the app's only cross-user read, and the
   // reason the reversal was worth doing. On LIVE rather than LIVE.social
