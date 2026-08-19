@@ -533,6 +533,40 @@ the React Compiler currently has to reason about, and shortens the two
 biggest files in the spec layer. Do it as its own commit, after §7, so
 the diff is legible as "deletions only".
 
+**Measured 2026-08-19, and that paragraph is wrong in every clause it
+makes about cost.** `world-feed.jsx` references **none** of these keys.
+Every flag lives in `app-shell.jsx` alone, except three that reach exactly
+one other file each — `markStyle` → `type-marks.jsx`, `lensBoxed` →
+`profile-overlay.jsx`, `feedHier` → `daily-split.jsx`. They are locals and
+props, not shared globals, so rule 4 does not count them and removing them
+lowers the coupling number by **zero**. (Measuring that claim is what
+turned up [D209](DECISIONS.md#d209--rule-5-could-not-fire-and-123-dead-publications-were-behind-it),
+which is the one real thing in this section's vicinity.)
+
+**And the outcome is already shipped.** Every winner listed above is
+already the tree's default: `navMode: "ruler"`, `dockRuler: true`,
+`markStyle: "slice"`, `wpal: "full"`, `lensStyle: "underline"`,
+`quietGround: true`, `feedHier: true`, `mirrorLensTop: false`,
+`lensBoxed: false`. `mirrorFirstRun` is **gone** already — `app-shell.jsx`
+drives the sparse Mirror off the real signal (`FEEDREAD.stats().n < 8`)
+instead, with a note saying the tweak that used to do it is retired. And
+the ten `wf*` feed flags never existed here: `TWEAK_DEFAULTS` says so in
+its own comment, and the `wf*` names in `world-feed.jsx` are helper
+functions, not flags. So the app already **behaves** as this section asks.
+
+**What is actually left is a decision, not engineering, and it goes the
+other way from the rest of this file.** The remaining alternatives —
+`'pill'`/`'bar'` navs, `'ring'`/`'dots'` marks, `'family'`/`'one'`
+palettes — are three `TweakRadio` rows and three branches in
+`app-shell.jsx`, and the tree keeps them **on purpose**: *"the alternatives
+exist so the three navs and the two palettes can still be judged against
+each other, which is what the standalone keeps them for."* §10's verdict
+("adopt as the record") would delete the owner's comparison, and unlike
+every other item here it is not one of the five that graduated at D166–D168
+— so it is a verdict still awaiting adoption, buying no ratchet movement
+and costing a tool. **Do not do it as a cleanup.** If the owner is done
+comparing navs, that is one sentence and then it is three minutes' work.
+
 ## 11 · Sequencing
 
 **No owner decisions are left.** D166 cleared two of the three and D168
