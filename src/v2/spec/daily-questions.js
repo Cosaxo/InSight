@@ -359,6 +359,26 @@ export let DAILYQ;
       cat: ['Music', 'Where it hits'], alts: [['Body', 'Presence'], ['Mind', 'Feeling']] },
     { type: 'scale', prompt: 'Your body runs your mood more than your mind does.', tag: 'Body first', axis: 'body-led', tone: 'deep',
       cat: ['Body', 'Mind and body'], alts: [['Mind', 'Mood'], ['Values', 'Self-knowledge']] },
+    // ── question farm 2026-08-19 (docs/QUESTION-FARM.md): the pen was empty
+    // (0 of 56) after #232 promoted the previous batch, so lane-3 thin-first —
+    // one each into the eight thinnest tops (Sport, Film, Skills, Story,
+    // Interests, Goals, Body, Music). AI-proposed, human-reviewed via PR.
+    { type: 'binary', prompt: 'The team you support: inherited, or chosen?', tag: 'How you got them', options: ['Inherited', 'Chosen'], tone: 'blend',
+      cat: ['Sport', 'Rooting'], alts: [['Story', 'Memory'], ['Values', 'Loyalty']] },
+    { type: 'binary', prompt: 'Rewatch a favourite, or risk something new?', tag: 'Rewatch or risk', options: ['Rewatch', 'Risk it'], tone: 'light',
+      cat: ['Film', 'How you watch'], alts: [['Interests', 'Taste'], ['Values', 'Openness']] },
+    { type: 'choice', prompt: 'Which could you do perfectly, starting right now?', tag: 'The instant skill', options: ['Play an instrument', 'Speak a language', 'Draw anything', 'Fix anything'], tone: 'blend',
+      cat: ['Skills', 'Wishlist'], alts: [['Interests', 'Curiosity'], ['Story', 'Self']] },
+    { type: 'choice', prompt: 'Your life so far reads most like…', tag: 'The shape of it', options: ['A straight line', 'A few sharp turns', 'A slow drift', 'Still chapter one'], tone: 'deep',
+      cat: ['Story', 'Chapters'], alts: [['Mind', 'Outlook'], ['Goals', 'The long game']] },
+    { type: 'scale', prompt: 'The best hobbies have nothing to show for them.', tag: 'Nothing to show', axis: 'unproductive', tone: 'deep',
+      cat: ['Interests', 'The point'], alts: [['Values', 'Rest'], ['Morals', 'The good life']] },
+    { type: 'binary', prompt: 'Respected at work, or free to walk away from it?', tag: 'Respect or freedom', options: ['Respected', 'Free to walk'], tone: 'deep',
+      cat: ['Goals', 'Work and life'], alts: [['Values', 'Meaning'], ['Morals', 'The good life']] },
+    { type: 'choice', prompt: 'First thing you want in the morning?', tag: 'First thing', options: ['Quiet', 'Coffee', 'Movement', 'Ten more minutes'], tone: 'light',
+      cat: ['Body', 'Mornings'], alts: [['Home', 'Rituals'], ['Mind', 'Rest']] },
+    { type: 'binary', prompt: 'At a concert: front row, or back with space?', tag: 'Where you stand', options: ['Front row', 'Back with space'], tone: 'light',
+      cat: ['Music', 'Going out'], alts: [['Interests', 'Nightlife'], ['Body', 'Comfort']] },
   ];
 
   const UNANSWERED_RECENT = 3; // today + 2 missed days carry no baked answer
