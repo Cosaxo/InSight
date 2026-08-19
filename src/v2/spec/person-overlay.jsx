@@ -451,7 +451,4 @@ window.PersonOverlay = PersonOverlay;
 
 })();
 
-;globalThis.derivePerson = typeof derivePerson === 'undefined' ? globalThis.derivePerson : derivePerson;
-;globalThis.affinityBreakdown = typeof affinityBreakdown === 'undefined' ? globalThis.affinityBreakdown : affinityBreakdown;
-;globalThis.AffinityBreakdown = typeof AffinityBreakdown === 'undefined' ? globalThis.AffinityBreakdown : AffinityBreakdown;
 ;globalThis.PersonOverlay = typeof PersonOverlay === 'undefined' ? globalThis.PersonOverlay : PersonOverlay;

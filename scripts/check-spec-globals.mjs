@@ -133,8 +133,45 @@ for (const [name, why] of Object.entries(PUBLISHED_FOR_OUTSIDE)) {
   }
 }
 
+// RULE 5 ASKS A BROADER QUESTION THAN RULE 1, and it has to.
+//
+// `referenced` holds `window.X` reads and JSX tags — the two shapes rule 1
+// and rule 3 need. But the convention's third shape is a BARE CROSS-MODULE
+// CALL (`mfLayout(…)` in a file that never imported it, resolving through
+// global scope at render time), and that is a real consumer this scanner
+// cannot see. Asking rule 5 "is it in `referenced`?" would therefore report
+// live wiring as dead — 138 findings against the 117 that are actually
+// unmentioned, measured when this was written.
+//
+// So rule 5 asks the conservative question instead: **does the name appear
+// anywhere at all outside the file that publishes it?** A word-boundary
+// match, over every scanned file, including strings — deliberately
+// over-generous, because the cost of a false positive here is deleting live
+// wiring and the cost of a false negative is one line of residue.
+const mentionedElsewhere = new Set();
+{
+  // Over the whole of src/, not just the scanned set. `files` is spec + ui +
+  // data, which leaves out src/v2/test — and a mount test reaching a global
+  // (`openVia` does, through `window[name]`) is a consumer like any other.
+  // Eight names separated the two sets when this was written.
+  const walk = (dir) => readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
+    const at = join(dir, e.name);
+    if (e.isDirectory()) return walk(at);
+    return /\.(js|jsx|ts|tsx)$/.test(e.name) ? [at] : [];
+  });
+  const sources = walk(join(root, "src")).map((f) => [f.slice(root.length + 1), readFileSync(f, "utf8")]);
+  for (const name of defined) {
+    const owners = definedBy.get(name) || new Set();
+    const word = new RegExp(`\\b${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`);
+    for (const [rel, src] of sources) {
+      if (owners.has(rel)) continue;
+      if (word.test(src)) { mentionedElsewhere.add(name); break; }
+    }
+  }
+}
+
 for (const name of [...defined].sort()) {
-  if (referenced.has(name) || PUBLISHED_FOR_OUTSIDE[name]) continue;
+  if (mentionedElsewhere.has(name) || PUBLISHED_FOR_OUTSIDE[name]) continue;
   failed = true;
   const where = [...(definedBy.get(name) || [])].join(", ");
   console.error(

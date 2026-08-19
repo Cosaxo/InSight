@@ -96,10 +96,5 @@ function TestVizCard({ testKey, accent }) {
   );
 }
 
-Object.assign(window, { TestVizCard });
 
-;globalThis.bloomPalette = typeof bloomPalette === 'undefined' ? globalThis.bloomPalette : bloomPalette;
-;globalThis.VizRange = typeof VizRange === 'undefined' ? globalThis.VizRange : VizRange;
-;globalThis.TestVizCard = typeof TestVizCard === 'undefined' ? globalThis.TestVizCard : TestVizCard;
-;globalThis.BLOOM_PAL = typeof BLOOM_PAL === 'undefined' ? globalThis.BLOOM_PAL : BLOOM_PAL;
-;globalThis.bloomColor = typeof bloomColor === 'undefined' ? globalThis.bloomColor : bloomColor;
+

@@ -357,11 +357,5 @@ function MirrorFieldBody({ pop, worldZoom, zoomCtl, onPerson, firstRun, topLense
 
 Object.assign(window, { MirrorFieldBody });
 
-;globalThis.KindredLensCard = typeof KindredLensCard === 'undefined' ? globalThis.KindredLensCard : KindredLensCard;
-;globalThis.mfpConfig = typeof mfpConfig === 'undefined' ? globalThis.mfpConfig : mfpConfig;
 ;globalThis.MirrorFieldBody = typeof MirrorFieldBody === 'undefined' ? globalThis.MirrorFieldBody : MirrorFieldBody;
 ;globalThis.MFP_SECTORS = typeof MFP_SECTORS === 'undefined' ? globalThis.MFP_SECTORS : MFP_SECTORS;
-;globalThis.MFP_KINDRED = typeof MFP_KINDRED === 'undefined' ? globalThis.MFP_KINDRED : MFP_KINDRED;
-;globalThis.MFP_NO_CITIES = typeof MFP_NO_CITIES === 'undefined' ? globalThis.MFP_NO_CITIES : MFP_NO_CITIES;
-;globalThis.MFP_KINDRED_COUNTRY = typeof MFP_KINDRED_COUNTRY === 'undefined' ? globalThis.MFP_KINDRED_COUNTRY : MFP_KINDRED_COUNTRY;
-;globalThis.MFP_KINDRED_WORLD = typeof MFP_KINDRED_WORLD === 'undefined' ? globalThis.MFP_KINDRED_WORLD : MFP_KINDRED_WORLD;

@@ -408,7 +408,12 @@ export function loadCorpus() {
   // (world-subtopics.js), so a card carrying both says one thing twice.
   const worldSubs = extractLiteral(
     readFileSync(join(root, "src", "v2", "spec", "world-subtopics.js"), "utf8"),
-    "window.WORLD_SUBTOPICS = [",
+    // `const`, not `window.` — the publication was swept at D209 (nothing
+    // read the global; the file reads the value lexically). This marker is a
+    // TEXT dependency on a declaration form, which no grep for the name can
+    // see and which `question-quality.test.mjs` is the only thing that
+    // catches: it is what failed the sweep's first run.
+    "const WORLD_SUBTOPICS = [",
     "world-subtopics.js",
   );
   return {

@@ -134,7 +134,4 @@ function ConsequenceBeat({ seed, options, pcts, mineIdx, height = 220, onDone })
 
 window.ConsequenceBeat = ConsequenceBeat;
 
-;globalThis.cbRand = typeof cbRand === 'undefined' ? globalThis.cbRand : cbRand;
 ;globalThis.ConsequenceBeat = typeof ConsequenceBeat === 'undefined' ? globalThis.ConsequenceBeat : ConsequenceBeat;
-;globalThis.cbEaseOut = typeof cbEaseOut === 'undefined' ? globalThis.cbEaseOut : cbEaseOut;
-;globalThis.cbEaseInOut = typeof cbEaseInOut === 'undefined' ? globalThis.cbEaseInOut : cbEaseInOut;

@@ -21635,3 +21635,105 @@ here. What this record removes is a different risk: that the filter gets
 applied by whoever next reads §1, at whichever call site looks like a
 cohort fold, with no list saying which ones are and which ones only look
 it.
+
+## D209 · Rule 5 could not fire, and 123 dead publications were behind it
+
+**2026-08-19.** **Status:** binding. Found while measuring VISION-V28 §10's
+claim that the tweak flags "thread through `daily-split.jsx` and
+`world-feed.jsx` as a conditional" — they do not; every one is confined to
+`app-shell.jsx`. What the measurement turned up on the way is that
+`globalThis.TWEAK_DEFAULTS` is read by nothing, and
+[`check:globals`](../scripts/check-spec-globals.mjs) **rule 5** — the gate
+[D137](#d137--the-bridge-kept-the-names-nobody-was-crossing-on) added to catch
+exactly that — was green.
+
+### Two reasons it could not fire, and both are structural
+
+**The idiom reads the name it publishes.** The publication footer is
+`;globalThis.X = typeof X === 'undefined' ? globalThis.X : X;`, and the
+right-hand side contains a `globalThis.X`. The scanner's `REF_RE` matches
+`globalThis|window.NAME` anywhere on a line, so every name written this way
+put **itself** into `referenced` and rule 5 skipped it. 176 names use the
+idiom. A publication nobody consumes was, to the mirror rule, indis-
+tinguishable from one carrying the whole bridge — which is the exact
+sentence rule 5's own header uses about why it exists.
+
+**And rule 5 was asking rule 1's question.** `referenced` holds `window.X`
+reads and JSX tags, because that is what rules 1 and 3 need. But the
+convention's third shape is a **bare cross-module call** — `mfLayout(…)` in
+a file that never imported it, resolving through global scope at render
+time — and that is a real consumer this scanner cannot see. Asking rule 5
+"is it in `referenced`?" reports live wiring as dead: 138 findings against
+the 123 that are genuinely unmentioned, measured.
+
+So rule 5 now blanks the idiom out of a line before the reference scan
+(blanks, not skips — a line may publish X and legitimately read Y), and
+asks its own conservative question: **does the name appear anywhere in
+`src/`, outside the file that publishes it?** A word-boundary match over
+every source file including tests and strings, deliberately over-generous,
+because a false positive here deletes live wiring and a false negative
+leaves one line of residue.
+
+### What the sweep removed
+
+**123 publications, and the published-globals count went 259 → 136 in one
+commit** — seven times D137's seventeen. Three shapes, all mechanical:
+
+- **118** footer-idiom lines, deleted outright.
+- **Seven `Object.assign(window, {…})` blocks** pruned per name, the
+  statement removed where it emptied.
+- **Five same-file publications converted to module `const`s**
+  (`IS_DIM_WORD`, `IS_RULE_WORD`, `IS_RULE_ADJ`, `WORLD_FEED_COUNTERS`,
+  `WORLD_SUBTOPICS`). These were never dead — each is read through
+  `window.X` *inside its own file* — so the remedy is rule 5's own second
+  sentence: the declaration resolves lexically, the global adds nothing.
+  Their `(window.X || {})` guards went with them, per the standing rule
+  that a conversion removes the load-order condition and never the data
+  one.
+
+**The bundler was holding them.** The shipping build came out 2368 → 2346 KB
+total and 917 → **896 KB eager**, which is rule 5's header claiming "it
+keeps the value alive for the bundler" turning out to be worth 21 KB of
+first paint.
+
+### The one thing greps could not see, and what caught it
+
+`scripts/question-quality.mjs` locates the subtopic tree by **parsing the
+source text** for the literal marker `"window.WORLD_SUBTOPICS = ["`.
+Converting that publication to a `const` broke `loadCorpus` — and no search
+for the *name* could have found it, because the dependency is on the
+**declaration form**. `question-quality.test.mjs` failed on the sweep's
+first run and is the only thing in the tree that would have. The marker is
+repointed with a comment saying what it is.
+
+That is the argument for running every suite rather than the ones a diff
+looks like it touches: this change edits 23 files under `src/v2/spec/` and
+broke a script gate two directories away.
+
+### What did NOT move
+
+**Rule 4's coupling count is unchanged at 404.** It counts reads, and these
+had none — which is the same fact that let them accumulate. Nobody should
+read this sweep as progress on the migration ratchet; it is removal of the
+*claim* that 123 names were on the bridge.
+
+### The example in `CLAUDE.md` was false before this
+
+§1 taught the convention with `globalThis.useTweaks = useTweaks;` and
+"app-shell.jsx just uses the bare name, no import" — but `app-shell.jsx`
+has imported `useTweaks` for some time, and the publication under it was
+residue this sweep deleted. So the file teaching the convention illustrated
+it with a pair that had already left. It now names `GDAv`, published by
+`group-daily.jsx` and used as a bare tag in three other spec modules, and
+carries the note to pick a live pair from `check:globals` if that one ever
+converts.
+
+### The shape, again
+
+Same family as [D207](#d207--the-pen-is-not-an-error-state-and-a-gate-said-it-was)
+two records up, and the sweep for it is what put this in reach: **a gate
+green for its whole life is not evidence.** D207's assertion could not fail
+because the state it forbade had never occurred; this one could not fail
+because the thing it looked for erased itself. Both were found by asking
+what would have to be true for the gate to fire, rather than by reading
+its output.

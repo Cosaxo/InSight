@@ -181,5 +181,4 @@ function mtClusterLayout(nodes, cats) {
 ;globalThis.mtHash = typeof mtHash === 'undefined' ? globalThis.mtHash : mtHash;
 ;globalThis.mtTopCat = typeof mtTopCat === 'undefined' ? globalThis.mtTopCat : mtTopCat;
 ;globalThis.mtClusterLayout = typeof mtClusterLayout === 'undefined' ? globalThis.mtClusterLayout : mtClusterLayout;
-;globalThis.MT_GOLD = typeof MT_GOLD === 'undefined' ? globalThis.MT_GOLD : MT_GOLD;
 ;globalThis.MT_ZLAB = typeof MT_ZLAB === 'undefined' ? globalThis.MT_ZLAB : MT_ZLAB;

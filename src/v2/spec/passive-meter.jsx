@@ -177,10 +177,7 @@ function PassiveTag({ q, answered, style }) {
   );
 }
 
-Object.assign(window, { PassiveRing, PassiveMeter, PassiveTag });
+Object.assign(window, { PassiveMeter, PassiveTag });
 
-;globalThis.usePassive = typeof usePassive === 'undefined' ? globalThis.usePassive : usePassive;
-;globalThis.PassiveRing = typeof PassiveRing === 'undefined' ? globalThis.PassiveRing : PassiveRing;
 ;globalThis.PassiveMeter = typeof PassiveMeter === 'undefined' ? globalThis.PassiveMeter : PassiveMeter;
 ;globalThis.PassiveTag = typeof PassiveTag === 'undefined' ? globalThis.PassiveTag : PassiveTag;
-;globalThis.PM_LINE = typeof PM_LINE === 'undefined' ? globalThis.PM_LINE : PM_LINE;

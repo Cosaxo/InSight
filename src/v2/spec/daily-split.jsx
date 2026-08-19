@@ -1018,5 +1018,3 @@ class DailySplit extends React.Component {
 window.DailySplit = DailySplit;
 
 ;globalThis.DailySplit = typeof DailySplit === 'undefined' ? globalThis.DailySplit : DailySplit;
-;globalThis.WORLD_TOPICS_V2 = typeof WORLD_TOPICS_V2 === 'undefined' ? globalThis.WORLD_TOPICS_V2 : WORLD_TOPICS_V2;
-;globalThis.DAILYSPLIT_DQ_SYNC = typeof DAILYSPLIT_DQ_SYNC === 'undefined' ? globalThis.DAILYSPLIT_DQ_SYNC : DAILYSPLIT_DQ_SYNC;

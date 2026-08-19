@@ -13,7 +13,7 @@
 // world-feed-counters.js — the reply that argues back.
 // Each key is "questionId:takeIndex"; the counter is written by someone who
 // voted the OTHER way, so every hot take ships with an argument attached.
-window.WORLD_FEED_COUNTERS = {
+const WORLD_FEED_COUNTERS = {
   'f01:0': [
     { name: 'Dana W.', init: 'DW', opt: 1, time: '2h', ups: 96, text: 'The ad breaks are when the room actually talks to each other. That IS the event.' },
     { name: 'Priya S.', init: 'PS', opt: 1, time: '5h', ups: 61, text: 'Flow is why nobody who didn\u2019t grow up with it can follow a word of it.' },
@@ -63,7 +63,7 @@ window.WF_TAKE_SIG = function (key, ups) {
   for (let i = 0; i < key.length; i++) { h ^= key.charCodeAt(i); h = Math.imul(h, 16777619); }
   const r = ((h >>> 0) % 10000) / 10000;
   const r2 = (((h >>> 7) >>> 0) % 10000) / 10000;
-  const hasCounter = !!window.WORLD_FEED_COUNTERS[key];
+  const hasCounter = !!WORLD_FEED_COUNTERS[key];
   const cross = 0.14 + r * 0.62 + (hasCounter ? 0.06 : 0);
   return { mind: Math.max(1, Math.round((ups || 40) * (0.04 + r2 * 0.22))), cross: Math.min(0.86, cross) };
 };
@@ -71,7 +71,7 @@ window.WF_TAKE_SIG = function (key, ups) {
 // counters normalise to a list — a take can draw several rebuttals, shown one
 // at a time. Strongest (by minds moved) first.
 window.WF_COUNTERS = function (key) {
-  const v = (window.WORLD_FEED_COUNTERS || {})[key];
+  const v = WORLD_FEED_COUNTERS[key];
   if (!v) return [];
   const list = (Array.isArray(v) ? v : [v]).map((x, i) => ({ ...x, sig: window.WF_TAKE_SIG(key + '#' + i, x.ups), ckey: key + '#' + i }));
   return list.sort((a, b) => b.sig.mind - a.sig.mind);

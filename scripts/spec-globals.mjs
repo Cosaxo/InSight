@@ -87,6 +87,21 @@ const DEFINE_RES = [
   /Object\.assign\(\s*(?:globalThis|window)\s*,\s*\{([^}]*)\}/g,
 ];
 const REF_RE = /(?:globalThis|window)\.([A-Za-z_$][\w$]*)/g;
+// The publication idiom READS THE NAME IT PUBLISHES, and that made rule 5
+// unable to fire on a whole class. `;globalThis.X = typeof X === 'undefined'
+// ? globalThis.X : X;` contains a `globalThis.X` on its right-hand side, so
+// every name written this way landed in `referenced` by its own hand — a
+// publication nobody consumes looked, to the mirror rule, exactly like one
+// that is load-bearing. Measured at the moment this was added: 176 names use
+// the idiom and 117 of them appear in no other file in the tree, tests,
+// scripts and index.html included.
+//
+// The fix is to blank the idiom out of a line before scanning it for
+// references, rather than to skip the line: a line may publish X and
+// legitimately read Y, and skipping it would stop checking Y. Same shape as
+// D207 — a gate green for its whole life is not evidence that it can fire.
+const SELF_PUBLISH_RE =
+  /(?:globalThis|window)\.([A-Za-z_$][\w$]*)\s*=\s*typeof \1 === 'undefined' \? (?:globalThis|window)\.\1 : \1;/g;
 // <Foo> / <Foo.Bar> / <Foo /> — capitalised leading segment only, which is
 // how JSX distinguishes a component from an html element.
 //
@@ -197,9 +212,14 @@ for (const file of files) {
       if (!referenced.has(name)) referenced.set(name, []);
       referenced.get(name).push(at);
     };
+    // Blank out any self-publishing statement first — see SELF_PUBLISH_RE.
+    // Replaced with spaces rather than removed so nothing on either side of
+    // it joins up into a name that was never written.
+    SELF_PUBLISH_RE.lastIndex = 0;
+    const scanLine = line.replace(SELF_PUBLISH_RE, (t) => " ".repeat(t.length));
     REF_RE.lastIndex = 0;
     let m;
-    while ((m = REF_RE.exec(line))) note(m[1]);
+    while ((m = REF_RE.exec(scanLine))) note(m[1]);
     // A capitalised JSX tag resolves through the shared global scope at
     // render time, exactly like window.X — and renaming a component while
     // missing one call site was caught by NOTHING before this rule: the
