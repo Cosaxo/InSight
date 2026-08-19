@@ -17,7 +17,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import LIVE from "./live";
 import { CORE_TEST_KINDS, parseTestResults, type KindredPerson } from "./similarity";
-import { TYPE_TEST, typeLine, typeNames, typeOfParsed, typeOfPerson, typeSharesOn } from "./typeMix";
+import { TYPE_SYSTEMS, TYPE_TEST, typeLine, typeNames, typeOfParsed, typeOfPerson, typeSharesOn } from "./typeMix";
 
 /** A profile's `testResults` as the owner's client writes it. */
 const rawBig5 = (dims: Record<string, number>) => ({
@@ -110,10 +110,12 @@ describe("the type system itself", () => {
     expect(new Set(names).size).toBe(names.length);
   });
 
-  it("is the Big Five, deliberately", () => {
-    // The politics result is Art. 9 data and is kept off every population
-    // surface (docs/data-inventory.md). A change here is a decision, not a
-    // refactor.
+  it("defaults to the Big Five", () => {
+    // Until D199 this constant was the ENFORCEMENT of a scope promise and
+    // this case said so. D199 reversed D157 §4 on the owner's call, so the
+    // constant is now only the instrument a reader who has not chosen one
+    // gets. Changing THAT is still a decision rather than a refactor — it
+    // moves which system every first-time reader sees.
     expect(TYPE_TEST).toBe("big5");
   });
 });
@@ -138,16 +140,26 @@ describe("typeSharesOn", () => {
     expect(typeSharesOn(TYPE_TEST)).toBeNull();
   });
 
-  it("refuses every instrument but the Big Five", () => {
-    // The Art. 9 scope, enforced rather than promised. A politics type
-    // frequency is a population reading of special-category data, and the
-    // sheet renders for all four instruments.
+  it("answers for every instrument the archetype module defines (D199)", () => {
+    // This case is the inverse of the one it replaces. It used to assert
+    // that politics, values and attachment each returned null — the Art. 9
+    // scope D141 enforced and D157 §4 declined to widen. D199 reversed
+    // that, so all four now answer, and the case stays to pin the reversal
+    // rather than being deleted: a silent return to null would be a
+    // promise moving back without a record.
     store.enabled = true;
     store.kindredPeople = () => [];
-    expect(typeSharesOn("political")).toBeNull();
-    expect(typeSharesOn("values")).toBeNull();
-    expect(typeSharesOn("attachment")).toBeNull();
-    expect(typeSharesOn(TYPE_TEST)).not.toBeNull();
+    for (const { kind } of TYPE_SYSTEMS) expect(typeSharesOn(kind)).not.toBeNull();
+  });
+
+  it("still refuses a key the archetype module does not define", () => {
+    // The D72 posture survives the widening: null rather than an empty
+    // system folded into a card of zeroes, so a caller that forgets the
+    // check fails a test instead of drawing a fabricated population.
+    store.enabled = true;
+    store.kindredPeople = () => [];
+    expect(typeSharesOn("logic")).toBeNull();
+    expect(typeSharesOn("nonesuch")).toBeNull();
   });
 
   it("counts the sample and divides by the people it could type", () => {

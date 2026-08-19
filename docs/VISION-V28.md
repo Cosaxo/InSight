@@ -378,18 +378,44 @@ Best done as one commit against `design/standalone-v28/changes/`:
 8. **`passive-meter.jsx`** — the redundant "profile" label goes.
 9. **`mirror-field-pops.jsx`** — type chips on field rows (needs §8).
 
-## 8 · Type-mix — one control
+## 8 · Type-mix — one control — **BUILT (D199)**
 
-The card gains a **system switch**: all four instruments, not just the
-default test, persisted to `insight.typemix.sys`. D141 shipped the card;
-this is a control, a key and a longer label column (politics type names
-run long).
+The card gained a **system switch**: all four instruments, not just the
+default test, persisted to `insight.typeMixSys.v1` (the plan's
+`insight.typemix.sys` was off the tree's `insight.<camelCase>.vN`
+convention on two counts). D141 shipped the card; this was a control, a
+key and a longer label column — 142px for politics and values, whose type
+names run to 24 characters against the Big Five's 17.
 
-**It does not touch D8.** D8 forbids a test result being a *breakdown
-dim* — the thing cohorts are cut by. This switches which result is being
-charted for an already-chosen population. Worth saying in the record when
-it ships, because the two read similarly at a glance and the distinction
-is the whole of D8.
+**This section had the constraint wrong, and the error is worth keeping.**
+
+> ~~**It does not touch D8.** D8 forbids a test result being a *breakdown
+> dim* — the thing cohorts are cut by. This switches which result is being
+> charted for an already-chosen population.~~
+
+Every word of that is true. It is also beside the point: **D8 was never
+what stood in the way.** [D157 §4](DECISIONS.md#d157--the-test-surfaces-stop-describing-a-crowd-they-never-counted)
+was — it refused this exact reading for these exact instruments, named
+`TypeMixCard`'s own number as the thing it was refusing, and noted the
+widening was "one parameter" away before declining it anyway. Clearing D8
+and shipping would have been clearing a constraint nobody was blocked on.
+
+The owner reversed D157 §4 ([D199](DECISIONS.md#d199--the-type-mix-reads-every-instrument-and-d157-4-is-reversed)),
+which is a decision this file could recommend but not take. What shipped
+with it, none of which was in this section's plan:
+
+- `web/privacy.html` gains a bullet **describing** the new reading rather
+  than losing the old denial, and `check:policy-claims` pins two rows —
+  the new claim and the surviving one.
+- **The promise that survived got an owner.** Answers still group by the
+  Big Five alone; that was enforced by `typeMix.TYPE_TEST`, the constant
+  D199 demotes to a default, so the scope moved to
+  `data/typeSplit.SPLIT_TEST` — explicit at every call site, with its own
+  cases.
+- **It could not be a port.** The prototype derives its non-Big-Five mixes
+  from authored shares with a per-population wobble; D167 forbids it, so
+  the live fold measures, and the thin/small states are recomputed per
+  instrument because coverage differs by instrument.
 
 ## 9 · Born or built — REFUSED (D168)
 

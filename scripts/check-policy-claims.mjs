@@ -72,6 +72,16 @@ export const CLAIMS = [
     /grouped by it[\s\S]{0,400}?before you had a type at all/i],
   ["D146 · politics/values/social results are NOT used to group answers",
     /political, values and social results are never used to group/i],
+  // D199 widened the population MIX to all four instruments and left the
+  // claim above untouched — answers still group by the Big Five alone.
+  // Two rows, because the pair is the whole disclosure: one says the app
+  // counts people by political type, the other says it still does not
+  // group answers by one. Deleting either half would leave a page that
+  // reads as the pre-D199 promise while the app does something wider.
+  ["D199 · people are counted by type on all four tests, not just the Big Five",
+    /count of people by type, on any of the four[\s\S]{0,600}?not only the Big\s+Five/i],
+  ["D199 · and that count is people, not a grouping of answers",
+    /count of <em>people<\/em>, not a grouping of anyone/i],
   ["D5 · duel picks stay sealed until the next day's reveal",
     /sealed[\s\S]{0,200}?until the day after/i],
   ["D9 · coordinates are never transmitted or stored",

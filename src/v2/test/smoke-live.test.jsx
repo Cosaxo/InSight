@@ -1429,18 +1429,33 @@ describe("live mode never inherits the sample persona (D55)", () => {
     }
   });
 
-  it("says nothing at all about politics frequencies", () => {
-    // The Art. 9 scope docs/data-inventory.md draws: no population reading
-    // is computed from the politics result, so the sheet that renders for
-    // all four instruments loses its numbers on three of them rather than
-    // keeping fabricated ones.
+  it("measures politics frequencies too, and measures them (D199)", () => {
+    // The inverse of the case it replaces. Until D199 this asserted that
+    // the politics sheet lost its numbers rather than keeping fabricated
+    // ones — the Art. 9 scope D157 §4 held. D199 reversed that on the
+    // owner's call, so the assertion flips to the thing that still
+    // matters: the number on screen is a COUNT of real typed people, and
+    // no authored share came back with the reversal.
     live = installLive();
     resetNormCache();
     const host = renderTypeSheet("political");
     try {
-      expect(host.textContent).toMatch(/Liberal Centrist/);
-      expect(host.textContent).not.toMatch(/\d+\s*%/);
-      expect(host.textContent).toMatch(/only counted for the Big Five/);
+      expect(host.textContent, "the sheet did not render — test is vacuous")
+        .toMatch(/Liberal Centrist/);
+      expect(host.textContent, "the pre-D199 refusal copy is still on screen")
+        .not.toMatch(/only counted for the Big Five/);
+      // The fixture's one scored person carries a Big Five result and no
+      // politics one, so the honest answer here is a measured ZERO with
+      // its basis stated — which is the better demonstration of the two:
+      // the widening reached the instrument without inventing a number for
+      // it. `typedN` 0 is a real answer and not the same as null.
+      expect(host.textContent).toMatch(/\d+ counted so far, none with a result yet/);
+      // The authored `share` field still exists and still feeds the
+      // matcher's commonness prior — it must not reach the screen.
+      expect(host.textContent, "an authored politics share is on screen")
+        .not.toMatch(
+          new RegExp("(" + IS_ARCHETYPES.political.list.map((t) => t.share).join("|") + ")\\s*%"),
+        );
     } finally {
       host.remove();
     }

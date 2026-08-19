@@ -20600,3 +20600,105 @@ which a build bump could reach a mounted app was checked directly and
 does not exist — `state.meta.latestBuild` defaults to 0, so
 `updateAvailable` (`appBuild > 0 && latestBuild > appBuild`) is false at
 20 and at 21 alike.
+
+## D199 · The type mix reads every instrument, and D157 §4 is reversed
+
+**2026-08-19.** **Status:** binding. Owner's call, made twice: asked
+whether to skip the switch, narrow it to politics, or amend fully, the
+answer was *"build it remove the promise"* and then, unprompted, *"yeah
+override the privacy promise."* This record is what that cost and what it
+did not.
+
+### What shipped
+
+The Mirror's type-mix card (People lens, City · Country · World) gains a
+four-position switch — **Personality · Politics · Values · Social** — and
+remembers the choice per device. Every instrument the archetype module
+defines can now be read as a population: *of the people this session has
+seen in Oslo who carry a politics result, how many hold each type.*
+
+### What it reversed, stated plainly because it was refused on the merits
+
+[D157 §4](#d157--the-test-surfaces-stop-describing-a-crowd-they-never-counted)
+refused this exact reading for these exact instruments. It is worth
+quoting against itself, because the reversal is not the discovery of a new
+fact:
+
+> `typeSharesOn` refuses every instrument but `TYPE_TEST`. That is the
+> Art. 9 scope `docs/data-inventory.md` draws and `typeMix.TYPE_TEST`
+> already enforced: no population reading is computed from the politics
+> result.
+
+D157 also identified the number it was refusing as **this card's** number
+("the count of people per type is the reading `TypeMixCard` has published
+on the Mirror since D141"), and noted the widening was *"one parameter"*
+away — accepting a blank on three profile sheets as the price. So this is
+a re-litigation, decided the other way by the person entitled to decide
+it.
+
+**[`VISION-V28.md`](VISION-V28.md) §8 defended the switch by saying it
+"does not touch D8". That is true and was never the point.** D8 forbids a
+test result becoming a *breakdown dim* — a cut the server slices an
+aggregate by. Nothing here does that: no cell is keyed by a result, no
+result enters the anchors snapshot, the fold is entirely on the device.
+D8 is untouched and was not the constraint. D157 §4 was, and §8 checked
+the wrong door. That mistake is recorded here rather than quietly fixed,
+because a plan that clears the wrong constraint reads exactly like a plan
+that cleared the right one.
+
+### The argument that carried
+
+Not "it is easy" — D157 heard that one and refused it. What is different:
+
+- Every input already publishes. `voters.ts` parses all four instruments
+  into the same session cache today; the politics axes are on the wire
+  regardless, because the web SDK has no field mask.
+- **The per-person view already ships.** Since D112/D193, `data/compare.ts`
+  and the City constellation show a *named* person's politics axes beside
+  yours. An aggregate over people is strictly less identifying than a
+  surface that has been live for months. Refusing the aggregate while
+  shipping the named per-person read was the incoherent position.
+
+### What did NOT move, and now has an owner
+
+**Answers are still grouped by the Big Five and by nothing else.** That is
+a different act from counting people, it is the promise `web/privacy.html`
+makes in those words, and it was not part of the ask.
+
+It was, however, enforced by `typeMix.TYPE_TEST` — the constant this
+record demotes to a default. A promise whose enforcement point has been
+repurposed has no owner, so the scope moved to where it belongs:
+`data/typeSplit.SPLIT_TEST`, explicit at every call site rather than
+inherited from another module's default, and pinned by its own cases. A
+later widening of the mix cannot now carry the split with it.
+
+### The disclosure was rewritten, not deleted
+
+"Override the privacy promise" is executed as *change what the page says*,
+not *stop saying it*. `web/privacy.html` gains a bullet describing the new
+reading in the terms a reader needs — a count of people rather than a
+grouping of answers, computed on the device, a sample and not a census,
+and the one control that exists (a test you have not taken cannot type
+you). `check:policy-claims` gains **two** rows, not one: the new claim,
+and the surviving one. Either half deleted alone would leave a page that
+reads as the pre-D199 promise while the app does something wider — which
+is the D174/D175/D177 failure mode the gate exists for.
+
+Two stale citations were fixed in passing, both the same class: `typeMix.ts`
+and `docs/data-inventory.md` each said the scope was "promised in the
+panel copy", which D183 made false when it moved the disclosures out of
+`ui/LivePrivacyPanel` and into `web/privacy.html`.
+
+### What this does not license
+
+**The numbers are measured or they are not drawn.** The v28 prototype
+derives its non-Big-Five mixes from authored per-type shares with a
+per-population wobble (`design/standalone-v28/type-mix.js`). That is the
+exact class D157 §4 removed and [D167](#d167--every-v28-surface-ships-with-its-backend-or-it-does-not-ship)
+forbids, so this could not be a port. Every row is a count of real typed
+people, the thin and small-sample states are recomputed per instrument
+(coverage differs by how far each person has got through the test feed),
+and `typeSharesOn` still returns null — never a fallback — for a key the
+archetype module does not define.
+
+**D8 stands unamended.** No test result is a breakdown dim.
