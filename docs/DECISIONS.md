@@ -21446,3 +21446,80 @@ The D163 on-device model reads doors when tier 2 is built — the contract
 TAGS-PLAN.md §4 so the field is not re-litigated then. And the demand
 lanes have nothing to read until aggregates exist: the machinery is
 whole; what arrives with users is only the numbers flowing through it.
+
+## D207 · The pen is not an error state, and a gate said it was
+
+**2026-08-19.** **Status:** binding. Found by reading a red `main`: run
+32284949131 (`a62041f`) failed `scripts/pulse.test.mjs` with *expected 122
+to be 114*, and it is the first CI failure on `main` since the branch
+protection went on. Nothing was broken. **PR #195 did exactly what
+[D30](#d30--farm-questions-may-graduate-to-the-live-seed-the-deck-gets-an-epoch) asks** — it
+appended eight farm questions to the spec-layer archive and promoted none
+of them, saying so in its own commit message ("nothing reaches the live
+seed until promotion") — and a test asserted that could never happen.
+
+### What was wrong
+
+`pulse.test.mjs`'s archive-join block asserted two things about
+`collectArchive`:
+
+```js
+expect(a.archiveEntries).toBe(daily.length);
+expect(a.unpromoted).toBe(0);
+```
+
+Neither is an invariant. Both are what an **empty pen** looks like, and
+the pen was empty (0 of 56) for as long as the assertion had existed, so
+the test measured a coincidence and reported it as a property.
+
+Two other parts of the same tooling already contradicted it, which is why
+the direction of this fix is read off the tree rather than argued:
+
+- `farm-budget.mjs` calls the unpromoted archive **the pen**, sizes it at
+  `PEN_TARGET = 56` ("eight weeks of promotion cover"), and grants a
+  budget precisely *while* it is non-empty.
+- `pulse-render.mjs` draws a non-empty pen with status **`good`** —
+  *"already written — a promotion PR, not a writing session"* — and an
+  empty one with no status at all.
+
+So the console called it healthy, the regulator called it inventory, and
+the test called it a failure. `check:figures` holds the 56 in
+`QUESTION-FARM.md` equal to the script, and could not see that a third
+file disagreed about what the number means.
+
+### What it is now
+
+```js
+expect(a.archiveEntries).toBe(daily.length + a.unpromoted);
+expect(a.unpromoted).toBeLessThanOrEqual(PEN_TARGET);
+```
+
+The **identity** is a bijection given the `orphans === 0` case above it:
+every live prompt is in the archive, and the archive holds exactly one
+entry for each — so a duplicated archive prompt fails here, which the old
+equality also caught and no other gate does. The **ceiling** is the
+regulator's own: a pen over target means generation kept running after
+the tap should have closed, which is the failure this block should have
+been watching for all along.
+
+`PEN_TARGET` is imported from `farm-budget.mjs` rather than retyped, for
+[D47](#d47--monitoring-grows-a-decision-console--and-the-refusals-become-part-of-it)'s reason.
+Both arms are mutation-checked: `archiveEntries + 1` fails the identity,
+and `+100` on both fails the ceiling with the identity still holding.
+
+### The shape worth keeping
+
+**A gate that has only ever seen one state is not yet a gate**, and this
+one was green for the whole window in which it was wrong. The pen was
+never full before, so nothing distinguished "the archive equals the bank"
+from "the archive equals the bank *today*" — and the first correct farm
+run is what told them apart. Same family as
+[D74](#d74--a-tick-is-a-claim-and-this-one-was-printed-before-the-write) and
+[D116](#d116--the-store-listing-was-still-selling-the-retired-privacy-model-and-the-closed-vocabulary-becomes-a-gate): the
+assertion was true when it was written and stopped being, and the thing
+that noticed was the work it was blocking.
+
+The blast radius was small because the failure was **loud** — a red tree
+on `main`, at the one moment content production started working. Had the
+assertion sat on the other side (a warning, or a check that only ran on
+the farm's own PR) the farm would have learned to stop filling the pen.

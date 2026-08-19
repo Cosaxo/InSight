@@ -27,6 +27,7 @@ import {
   collect, collectArchive, bucketEvenness, addressablePlaces, isoDay, ROOT,
 } from "./pulse-collect.mjs";
 import { renderPulse } from "./pulse-render.mjs";
+import { PEN_TARGET } from "./farm-budget.mjs";
 import {
   costModel, DECK_DAYS, AGG_CAP, PUBLISH_EVERY, TRIG, B, writesPerSec, CONTENTION_DAU,
   VOTER_FETCH_CAP, KINDRED_QUESTIONS, FOLLOW_CAP, CIRCLE_ANSWER_CAP, IDLE_DETACH_MS,
@@ -349,10 +350,30 @@ describe("the archive join", () => {
     expect(a.orphanIds).toEqual([]);
   });
 
-  it("counts an archive entry for every live daily question", () => {
+  it("is the live bank plus the pen, and the pen is inside its target", () => {
+    // THE PEN IS SUPPOSED TO HAVE STOCK IN IT. This asserted
+    // `unpromoted === 0` until 2026-08-19, which is not an invariant — it
+    // is what an empty pen looks like. It passed for as long as the archive
+    // and the bank happened to be the same list, and went red the first
+    // time the farm did its job: PR #195 appended eight archive-only
+    // questions ("nothing reaches the live seed until promotion"), exactly
+    // as D30 asks.
+    //
+    // Two other parts of this same tooling already said so, which is how
+    // the direction of the fix is known rather than chosen:
+    // `farm-budget.mjs` calls the unpromoted archive **the pen** and sizes
+    // it at PEN_TARGET, and `pulse-render.mjs` draws a non-empty one with
+    // status "good" — already written is cheaper than still to write.
+    //
+    // So what is true is the identity and the ceiling. The identity is a
+    // bijection given `orphans === 0` above: every live prompt is in the
+    // archive, and the archive holds exactly one entry for each, so a
+    // duplicated archive prompt fails here. The ceiling is the regulator's
+    // own — a pen over target means generation kept running after the tap
+    // should have closed.
     const a = collectArchive(daily);
-    expect(a.archiveEntries).toBe(daily.length);
-    expect(a.unpromoted).toBe(0);
+    expect(a.archiveEntries).toBe(daily.length + a.unpromoted);
+    expect(a.unpromoted).toBeLessThanOrEqual(PEN_TARGET);
   });
 
   it("does not mistake a double-quoted prompt for an orphan", () => {
