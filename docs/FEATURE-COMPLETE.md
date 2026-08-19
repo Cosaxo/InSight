@@ -171,12 +171,16 @@ The v28 build order ([`VISION-V28.md`](VISION-V28.md) §11) is most of
 this, and no owner decisions are left in it — D166 cleared two and D168
 refused the third.
 
-1. **The small pass and type-mix** — nine visual corrections in one
-   commit (the `daily-split` drag guard is a bug fix regardless of the
-   tab decision), plus the type-mix system switch: one control, one
-   persisted key, and it does not touch D8. §7, §8.
-2. **The tweak teardown** — the settled flags deleted from
-   `TWEAK_DEFAULTS`; deletions only, lowers the coupling ratchet. §10.
+1. ~~**The small pass and type-mix**~~ — **done 2026-08-19**: the nine
+   corrections landed in one commit (the `daily-split` drag guard was
+   already shipped in stronger form via `OWNS_X`), and the type-mix
+   switch landed with the Art. 9 scope honoured — the three non-Big-Five
+   positions state the type-index sheet's refusal, since the prototype's
+   measured-everywhere version needs a decision the plan did not name.
+   §7, §8.
+2. ~~**The tweak teardown**~~ — **done 2026-08-19**: ten flags left
+   `TWEAK_DEFAULTS` (the other nine were already absorbed), the ratchet
+   came down with it. §10.
 3. **The pulse roster** (decided, D166 §3) — the parameterisation D139
    anticipated, with the [`STORE-FORMS.md`](STORE-FORMS.md) Health row
    re-answered **in the same commit**, the four templates, and the
