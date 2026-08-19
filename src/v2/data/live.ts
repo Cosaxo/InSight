@@ -96,6 +96,9 @@ async function getDb(): Promise<import("firebase/firestore").Firestore> {
   return db;
 }
 import { reportError, setSentryUser } from "../../lib/sentry";
+// No imports of its own, so reading it here closes no cycle back through
+// data/cityAnchor — which imports this module.
+import { cityIsConfirmed } from "./cityConfirm";
 // The cross-user read (D98). Pure helpers + the two queries live there so
 // the grouping/sorting can be unit-tested without Firebase.
 import { fetchVoters, groupByOption, resolveNames, sortVoters, type Voter } from "./voters";
@@ -415,8 +418,38 @@ const ANCHOR_FIELDS: Record<string, number> = {
 
 // The snapshot written onto an answer. A copy, so a later profile edit
 // cannot retroactively move a past answer into a different cohort.
-function answerAnchors(): Record<string, string> {
-  return { ...state.profile.anchors };
+/**
+ * The anchors an answer freezes at vote time (D8).
+ *
+ * `rates` is the place the question being answered scores (D187), and it
+ * is the one reason this is not a plain copy. **An unconfirmed city does
+ * not score the place it names (D205):** if the question rates a city and
+ * the device's own location fix has never agreed with the anchor, the city
+ * is written EMPTY, so the answer folds into country and world and lands
+ * in no city cell.
+ *
+ * WHY HERE AND NOT AT THE DECK. The obvious fix — stop serving the
+ * question — cannot work: all 24 rating questions are in the DAILY bank,
+ * the daily deck is positional (`computeDeckIds` indexes by day), and it
+ * is the same question for everyone. Filtering it per person would either
+ * shift every other day's question or leave some people with no daily at
+ * all. Suppressing the CELL instead costs the answerer nothing: they see
+ * the same question, answer it normally, and it counts everywhere except
+ * the one place it could not honestly count.
+ *
+ * Empty rather than absent because that is the path already worn smooth —
+ * a profile with no city writes exactly this, `isValidV2Anchors` accepts
+ * it (`hasOnly`, every key optional), and `breakdownBucket` already
+ * declines to mint a bucket for it.
+ *
+ * FORWARD-ONLY, and the alternative was worse. Answers already given under
+ * unconfirmed cities keep their cells; nothing rewrites history, and D5
+ * would not allow it if we wanted to.
+ */
+function answerAnchors(rates?: string): Record<string, string> {
+  const a = { ...state.profile.anchors };
+  if (rates === "city" && !cityIsConfirmed(a.city)) a.city = "";
+  return a;
 }
 
 function utcDayKey(offsetDays = 0): string {
@@ -3650,7 +3683,10 @@ const LIVE = {
           surface: q?.surface ?? "daily",
           optionIdx,
           answeredAt: serverTimestamp(),
-          anchors: answerAnchors(),
+          // `q.rates` is why this is the one anchor site that passes an
+          // argument (D205): a question that scores a city must not take a
+          // city cell from someone the device has never placed there.
+          anchors: answerAnchors(q?.rates),
         });
         // Server ack: the write is durable, so the vote may now enter
         // confirmedVotes(). Mirror it into the answers cache only NOW —

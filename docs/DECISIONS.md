@@ -21273,3 +21273,108 @@ The tab does not exist in a demo build. It reads reveal documents and the
 demo room has none, so a demo tab could only ever draw its own refusal —
 worse than no tab, and against D167's rule that a surface ships with real
 data or does not ship.
+
+## D205 · An unconfirmed city does not score the place it names
+
+**2026-08-19.** **Status:** binding. Owner's problem, in their words:
+*"we should solve the issue with people picking cities they are not in."*
+The proposal that came with it — remove the picker, default to the nearest
+city — is **not** what shipped, and §"Why not the sensor" says why.
+
+### What shipped
+
+Three pieces, all client-side:
+
+1. **The anchor remembers how it was set.** `vitals.cityOk` holds the city
+   key the device's own location fix agreed with. `CityPicker` now reports
+   which path produced a value — accepting the located suggestion confirms,
+   scrolling the list does not.
+2. **A question that rates a city takes no city cell from an unconfirmed
+   anchor.** `answerAnchors(rates)` writes `city: ""` when the question
+   scores a city and the phone has never agreed. The answer still counts
+   for country and world.
+3. **The Scores card says so**, on the City stop, to a reader whose scores
+   are not in it.
+
+### Why not the sensor
+
+**Nearest-city tells you where the phone is, not where the person lives**,
+and those come apart exactly where this matters. A tourist standing in Oslo
+with a perfect fix is precisely the person whose rating of Oslo you do not
+want, and sensor-only would enrol them **silently**, with no deliberate act
+required. Someone who lives in Oslo and travels for a fortnight would
+become a Berliner — and because anchors are snapshotted per answer (D8),
+their history would smear across cities permanently.
+
+So the picker stays. It is also the fallback for a path with five
+documented failure modes — `data/locate.ts` names `unsupported`, `denied`,
+`unavailable`, `timeout` and `no-match`, and carries a 30-second wall-clock
+deadline because a dismissed permission prompt leaves `getCurrentPosition`
+pending forever. Its own contract closes: *"Everything here is optional.
+Every failure path returns a reason the UI can show and leaves the manual
+picker exactly as it was."* Removing it turns each of those into a dead end
+with nothing tappable — the failure `setCityAnchor` exists to have fixed.
+
+### Why the gate is at the ANSWER and not at the deck
+
+The obvious shape — stop serving the question — cannot work, and finding
+out why changed the design.
+
+**All 24 rating questions are in the DAILY bank.** The daily deck is
+POSITIONAL (`computeDeckIds` indexes `questionIds[(today − epoch − back) %
+n]`) and it is the same question for everyone on the day. Filtering it per
+person would either shift every other day's question or leave some people
+with no daily at all.
+
+**And filtering the READING is impossible too**, which is the part worth
+recording. The scorecard reads `agg.by.city[city]` — **one number the
+server has already summed**. The client never sees who is in it, so there
+is nothing to filter out. Splitting it would need a new breakdown
+dimension, against a per-dimension cap of `BREAKDOWN_MAX_BUCKETS = 24` that
+`pure.ts` calls *"a scarce resource"* and that `city` already exhausts (its
+own comment: "a global question can touch far more than 24 cities, so the
+long tail degrades").
+
+Suppressing the CELL at write time costs the answerer nothing they can see:
+they get the same question, answer it normally, and it counts everywhere it
+honestly can.
+
+### Three shapes chosen deliberately
+
+**The confirmation is a KEY, not a flag.** A boolean would need clearing on
+every path that changes the city, and the one that got missed would leave a
+stale "confirmed" on a city nobody checked. A key cannot go stale — it
+either equals the current city or it does not — so re-picking invalidates
+it for free, with no clearing code to forget.
+
+**It is not an anchor.** `anchorsFrom` whitelists the nine keys it sends
+and `cityOk` is not among them. An anchor would be a tenth key on every
+answer forever, a rules arm, a `data-inventory` row and a bucket in that
+same scarce list — all to carry a fact the client is the only reader of.
+
+**Empty, not absent.** `city: ""` is the path a profile with no city
+already writes: `isValidV2Anchors` accepts it (`hasOnly`, every key
+optional) and `breakdownBucket` already declines to mint a bucket for it.
+
+### What this does NOT do
+
+- **Forward-only.** Answers already given under unconfirmed cities keep
+  their cells. Nothing rewrites history and D5 would not allow it.
+- **City only.** `country` is untouched: it is coarse enough that D90's
+  timezone hint already lands it, and gating it would be a second decision
+  dressed as a consequence of this one.
+- **Ordinary questions are untouched.** The gate is about scoring a place,
+  not about the person. Widening it to every answer would quietly empty the
+  City stop for anyone who has not tapped "use my location" — a far bigger
+  change, and not the one that was asked for.
+- **Nobody is locked out.** No location permission is required for
+  anything. An unconfirmed reader keeps their city, their City stop, their
+  city's people, and every question. They do not score the place.
+
+### What is left
+
+The re-check — noticing that the phone has disagreed with the saved city
+for weeks and asking *"did you move?"* — is designed and not built. It only
+starts to matter once real people move, and it must never change the anchor
+on its own: travel has to stay invisible, and moving has to stay a question
+someone answers.

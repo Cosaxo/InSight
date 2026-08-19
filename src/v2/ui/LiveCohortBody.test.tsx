@@ -312,7 +312,9 @@ describe("LiveCohortBody · no city is a prompt, not an empty panel", () => {
     fireEvent.click(screen.getByRole("button", { name: /Choose your city/i }));
     fireEvent.change(screen.getByRole("combobox", { name: /Search cities/i }), { target: { value: "Berg" } });
     fireEvent.click(await screen.findByRole("option", { name: /Bergen/i }));
-    expect(setCityAnchor).toHaveBeenCalledWith("Bergen, NO");
+    // The second argument is the D205 confirmation: a list pick is
+    // never one.
+    expect(setCityAnchor).toHaveBeenCalledWith("Bergen, NO", false);
   });
 
   it("still renders the globe without a city", () => {

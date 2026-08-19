@@ -58,6 +58,7 @@ import React from "react";
 import LIVE from "../data/live";
 import CityPicker from "./CityPicker";
 import { mergeProfileVitals } from "../data/cityAnchor";
+import { CITY_OK_LEAF } from "../data/cityConfirm";
 // The handle's fold and its problem sentences — the same pair the account
 // panel uses, so a handle this screen accepts is one that panel would.
 import { atHandle, handleProblem, normalizeHandle } from "../data/handles";
@@ -298,7 +299,13 @@ function LiveProfileSetup({ onDone }: { onDone: () => void }) {
               chosen city, never asked. */}
           <div style={label}>
             City
-            <CityPicker value={v.city || ""} onChange={(x) => set("city", x)} inputStyle={control} />
+            {/* The confirmation travels with the city (D205): a key the
+                device's fix agreed with, "" for a manual pick. Set as one
+                pair, because a city written without clearing the previous
+                city's confirmation is exactly the staleness storing a key
+                rather than a flag is meant to rule out. */}
+            <CityPicker value={v.city || ""} inputStyle={control}
+              onChange={(x, ok) => { set("city", x); set(CITY_OK_LEAF, ok ? x : ""); }} />
           </div>
 
           <PsField id="ps-education" title="Education">
