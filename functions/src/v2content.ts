@@ -2450,6 +2450,160 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "political": true
  },
  {
+  "id": "daily-114",
+  "surface": "daily",
+  "seq": 114,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Win ugly, or lose beautifully?",
+  "options": [
+   "Win ugly",
+   "Lose beautifully"
+  ],
+  "topic": "blend",
+  "branch": "Sport",
+  "sub": "Style",
+  "tag": "Ugly win",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-115",
+  "surface": "daily",
+  "seq": 115,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Black and white films: timeless, or homework?",
+  "options": [
+   "Timeless",
+   "Homework"
+  ],
+  "topic": "light",
+  "branch": "Film",
+  "sub": "The classics",
+  "tag": "Black and white",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-116",
+  "surface": "daily",
+  "seq": 116,
+  "type": "scale",
+  "domain": null,
+  "prompt": "A skill isn't yours until you've taught it to someone.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "blend",
+  "branch": "Skills",
+  "sub": "Mastery",
+  "tag": "Teach it",
+  "axis": "teaching-minded",
+  "test": null
+ },
+ {
+  "id": "daily-117",
+  "surface": "daily",
+  "seq": 117,
+  "type": "choice",
+  "domain": null,
+  "prompt": "What pulls you down a rabbit hole at 1 a.m.?",
+  "options": [
+   "History",
+   "How things work",
+   "Other people's lives",
+   "Maps"
+  ],
+  "topic": "light",
+  "branch": "Interests",
+  "sub": "Rabbit holes",
+  "tag": "Rabbit holes",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-118",
+  "surface": "daily",
+  "seq": 118,
+  "type": "binary",
+  "domain": null,
+  "prompt": "The last slice: take it, or offer it?",
+  "options": [
+   "Take it",
+   "Offer it"
+  ],
+  "topic": "light",
+  "branch": "Food",
+  "sub": "Table manners",
+  "tag": "Last slice",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-119",
+  "surface": "daily",
+  "seq": 119,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Window seat or aisle?",
+  "options": [
+   "Window",
+   "Aisle"
+  ],
+  "topic": "light",
+  "branch": "Travel",
+  "sub": "In transit",
+  "tag": "The seat",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-120",
+  "surface": "daily",
+  "seq": 120,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Where does music hit you hardest?",
+  "options": [
+   "Alone in headphones",
+   "Live in a crowd",
+   "In the car",
+   "On the dance floor"
+  ],
+  "topic": "blend",
+  "branch": "Music",
+  "sub": "Where it hits",
+  "tag": "Where it hits",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-121",
+  "surface": "daily",
+  "seq": 121,
+  "type": "scale",
+  "domain": null,
+  "prompt": "Your body runs your mood more than your mind does.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "deep",
+  "branch": "Body",
+  "sub": "Mind and body",
+  "tag": "Body first",
+  "axis": "body-led",
+  "test": null
+ },
+ {
   "id": "feed-f01",
   "surface": "feed",
   "seq": 0,
