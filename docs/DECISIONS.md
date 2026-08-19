@@ -21523,3 +21523,79 @@ The blast radius was small because the failure was **loud** — a red tree
 on `main`, at the one moment content production started working. Had the
 assertion sat on the other side (a warning, or a check that only ran on
 the farm's own PR) the farm would have learned to stop filling the pen.
+
+## D208 · Three readers walk the archive, and only one of them is a population
+
+**2026-08-19.** **Status:** binding, as an application of
+[D161](#d161--the-feed-goes-unbounded-and-the-mirror-gets-a-corpus-of-its-own)
+rather than a new constraint. `SCALE-RUNBOOK.md` 2.1 asked for the
+core/tail filter written down **per call site**, on the grounds that "the
+Mirror folds core only" is a sentence and not an instruction. The list is
+[`SCALE-PLAN.md`](SCALE-PLAN.md) §1 § *Where the filter goes*; this record
+is the two verdicts in it that are decisions rather than readings of the
+code, and the premise it had to correct.
+
+### The tail is feed-only, and that decides most of the table
+
+`isCore` (`data/deck.ts:246`) is
+`q.surface === "feed" ? q.core === true : true`. So the daily bank, the
+four instruments' items, duels, learn and pick cards are core whatever
+anyone writes on them, and a reader that never touches a feed question
+cannot be diluted by production however far it scales. Naming *why* each
+of those is immune is worth more than a filter none of them needs — an
+added no-op reads as a safeguard, and the next person maintains it.
+
+Exactly **three** readers walk `LIVE.aggregated()` (`data/live.ts:3214`),
+which is the only corpus a tail question can enter. Measured by grep, not
+by recollection.
+
+### The two verdicts
+
+**Circle folds all.** Already recorded at runbook 2.2 as a decision rather
+than an oversight; this is its reasoning. Circle folds the answers of
+people you chose to follow, which is a fact about *them* — the sample
+bias §1 exists to prevent (*"a question about hiking answered mostly by
+outdoorsy people does not report what the population thinks about
+hiking"*) needs a claim about a population to be false about, and Circle
+makes none.
+
+**The reading game folds all** (D196, `ui/LiveReadGame.tsx:49`). Nothing
+is averaged across the corpus: each read names its own question and asks
+you to guess one cohort's split on it. A tail question is therefore a
+playable read rather than a thinned aggregate — and the gate here wants a
+*bigger* pool (`READ_MIN_POOL = 12`), which makes this the one surface an
+unbounded tail unambiguously improves.
+
+The shape both share: **the filter belongs where a reading claims to
+describe a population, and nowhere else.** Cost is not the argument at any
+of the three sites.
+
+### The premise 2.1 was written on was false
+
+2.1 warned that `aggregated()` "also feeds your own answer list, which
+must keep showing everything you answered, tail included", and called
+hiding a person's own answer from them the worse bug. It would be. **No
+personal answer archive reads `aggregated()` at all** — `myVotes()` has
+one consumer per surface, and the two that archive your own answering are
+the daily record (`spec/mirror-answers.jsx`) and the Map
+(`spec/map-tab.jsx`), both over `DAILYQ`, the daily bank, core by
+construction. The filter cannot reach either however the tail grows.
+
+So the accepted consequence is narrower than the step feared, and it is
+now stated rather than left to be found: **a tail question you answered
+gets no row in the Mirror's Answers tab.** That tab is a population
+reading with your answer marked on it, not your archive
+([`MIRROR.md`](MIRROR.md) §3) — the Map is your archive, and the card
+itself still shows your answer beside its split. If the Mirror ever grows
+a real "everything you have answered" surface, it reads `aggregated()`
+**unfiltered**, and this paragraph is why.
+
+### What this does not close
+
+Runbook 6.1 — the core-size ratio gate, D161's named open item — still
+needs a population to measure, and until it exists the Mirror can thin
+without anyone noticing. That is the residual D161 accepted, unchanged
+here. What this record removes is a different risk: that the filter gets
+applied by whoever next reads §1, at whichever call site looks like a
+cohort fold, with no list saying which ones are and which ones only look
+it.

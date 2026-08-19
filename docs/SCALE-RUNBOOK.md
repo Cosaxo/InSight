@@ -105,20 +105,29 @@ Sequenced with the first tail content, not before: while the tail is
 empty this changes nothing, and it touches the app's highest-risk read
 path ([`MIRROR.md`](MIRROR.md)).
 
-- [ ] **2.1 Decide where the filter goes, and it is not one line.**
-      The obvious candidate is wrong. `live.ts`'s `aggregated()` feeds the
-      Mirror's Answers and Scores lenses — **and it also feeds your own
-      answer list**, which must keep showing everything you answered,
-      tail included. Hiding a person's own answer from them would be a
-      worse bug than the one being fixed.
+- [x] **2.1 Decide where the filter goes. DONE 2026-08-19.** The list is
+      [`SCALE-PLAN.md`](SCALE-PLAN.md) §1 § *Where the filter goes* — every
+      reader, the line it was read off, and its verdict. Three readers walk
+      the archive: the City/Country/World stop folds **core only** (and its
+      five lenses inherit it from the same filtered list), Circle and the
+      reading game fold **all**, each for a reason that is about what the
+      reading claims rather than about cost. Everything else is bounded by
+      construction, because `isCore` makes the tail **feed-only** — the
+      instruments, the deck, the reveals and the single-question sheets
+      cannot be diluted, and the plan says why rather than leaving a no-op
+      filter to be added later.
 
-      The rule to implement: **cohort readings fold core only; your own
-      answers are always all of them.** So the filter belongs on the
-      cohort folds (`data/cohort.ts`'s callers, the similarity fields,
-      Kindred), not on the archive walk.
+      **The premise this step was written on was false, which is the part
+      worth carrying forward.** It warned that `aggregated()` also feeds
+      your own answer list; it does not. Measured by grep: every personal
+      archive (the daily record, the Map) reads `DAILYQ`, the daily bank,
+      core by construction. The real accepted consequence is one line
+      narrower and is now written down — a tail question you answered gets
+      no row in the Mirror's **Answers** tab, which is a population reading
+      with your answer marked, not your archive.
 
-      **Done when:** the split is written down per call site. · **Gate:**
-      review — this step is a decision, not code. · **Size:** S.
+      **Gate:** review — this step is a decision, not code. The code half
+      it feeds is 2.2 (shipped) and 2.3's mutation-checked test (shipped).
 
 - [x] **2.2 Applied at the City/Country/World stop. DONE 2026-08-15.**
       `LiveCohortBody` folds `LIVE.aggregated().filter((q) => q.coreCorpus)`.
