@@ -3,10 +3,10 @@
 // source now, hand-edits and all.
 //
 // A NEW module, so `WPAL` is an ordinary named export rather than a shared
-// global (D39's "convert on touch"). The prototype read the Tweaks-panel mode
-// off `window.IS_WPAL`; here the shell PUSHES it in through `WPAL.setMode`
-// instead, so the dependency runs one way and this file reads nothing it does
-// not own.
+// global (D39's "convert on touch"). The prototype read a Tweaks-panel mode
+// off `window.IS_WPAL`; the shell then pushed it in through `WPAL.setMode`;
+// the v28 teardown (§10) settled the mode at 'full', so nothing is pushed or
+// read — this file owns everything it uses.
 
 // ── World's palette gate ────────────────────────────────────────────────────
 // World keeps its many hues — topics, learn-field subjects, catalogue hues, lens
@@ -107,12 +107,10 @@ export const WPAL = (function () {
     } catch { /* no document: stay null, the caller falls back to the accent. */ }
     return (_vh[k] = v);
   };
-  // band: null keeps every source hue (World's own spectrum, cleaned);
-  // a number folds the wheel into that arc around the tab accent; 0 = accent only
-  const M = { full: { band: null, spin: null }, family: { band: 90, spin: 22 }, one: { band: 0, spin: 0 } };
-  let _mode = 'full';
-  const mode = () => (M[_mode] ? _mode : 'full');
-  // the tab accent's hue, cached per frame — every accent in the app is a literal
+  // The 'family' and 'one' modes — folding the wheel into an arc around the
+  // tab accent — left with the v28 teardown (§10): 'full' won, so every
+  // source hue is kept (World's own spectrum, cleaned) and nothing bands.
+  // The tab accent's hue, cached per frame — every accent in the app is a literal
   // oklch in styles.css, so the hue is readable off the computed value
   let _ah = 40, _ahT = 0;
   const ACCENT_H = () => {
@@ -125,33 +123,19 @@ export const WPAL = (function () {
     } catch { /* no document, or a --accent this parser doesn't recognise: keep the last hue. */ }
     return _ah;
   };
-  const band = (h, b, textSafe) => {
-    const off = (((h - 115) % 360 + 360) % 360) * (b / 360) - b / 2;
-    // the accent's hue is only known to CSS, so borrow the ramp values at the
-    // accent's own position on the wheel — set per tab, read here once
-    const ah = ACCENT_H(), v = textSafe ? inkAt(norm(ah + off)) : dispAt(norm(ah + off));
-    return 'oklch(from var(--accent) ' + v[0].toFixed(3) + ' ' + v[1].toFixed(3) + ' calc(h ' + (off < 0 ? '- ' + (-off).toFixed(1) : '+ ' + off.toFixed(1)) + '))';
-  };
   return {
-    MODES: Object.keys(M),
-    mode,
-    setMode(m) { _mode = M[m] ? m : 'full'; },
     // the hue a card wears — washes, bars, dots, borders, tiles
     c(color) {
       if (!color) return color;
-      const b = M[mode()].band, h = hueOf(color);
-      if (b == null) return h == null ? color : disp(h);
-      if (!b || h == null) return 'var(--accent)';
-      return band(h, b, false);
+      const h = hueOf(color);
+      return h == null ? color : disp(h);
     },
     // the same hue, contrast-safe: for fills that carry white text, and for the
     // hue used AS text on the light grounds
     ink(color) {
       if (!color) return color;
-      const b = M[mode()].band, h = hueOf(color);
-      if (b == null) return h == null ? color : ink(h);
-      if (!b || h == null) return 'var(--accent)';
-      return band(h, b, true);
+      const h = hueOf(color);
+      return h == null ? color : ink(h);
     },
     // the ONLY way a hue becomes a tint. Mixing toward `transparent` hands the
     // job to the compositor, which blends in gamma-encoded sRGB — the path that
@@ -164,8 +148,7 @@ export const WPAL = (function () {
     // a side's hue, rotated off its card's — cleaned at the destination too, so a
     // rotated side never lands on a clipped chroma either
     opt(color, i, n, textSafe) {
-      const s = M[mode()].spin;
-      const step = s == null ? ((n || 2) > 2 ? 120 : 150) : s;
+      const step = (n || 2) > 2 ? 120 : 150;
       const h = hueOf(color);
       if (!step || !i) return h == null ? color : (textSafe ? ink(h) : disp(h));
       if (h != null) return textSafe ? ink(h + i * step) : disp(h + i * step);

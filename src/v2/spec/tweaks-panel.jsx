@@ -599,7 +599,6 @@ Object.assign(window, {
   useTweaks,
   TweaksPanel,
   TweakSection,
-  TweakToggle,
   TweakRadio,
   TweakButton,
 });
@@ -607,6 +606,5 @@ Object.assign(window, {
 ;globalThis.useTweaks = typeof useTweaks === 'undefined' ? globalThis.useTweaks : useTweaks;
 ;globalThis.TweaksPanel = typeof TweaksPanel === 'undefined' ? globalThis.TweaksPanel : TweaksPanel;
 ;globalThis.TweakSection = typeof TweakSection === 'undefined' ? globalThis.TweakSection : TweakSection;
-;globalThis.TweakToggle = typeof TweakToggle === 'undefined' ? globalThis.TweakToggle : TweakToggle;
 ;globalThis.TweakRadio = typeof TweakRadio === 'undefined' ? globalThis.TweakRadio : TweakRadio;
 ;globalThis.TweakButton = typeof TweakButton === 'undefined' ? globalThis.TweakButton : TweakButton;

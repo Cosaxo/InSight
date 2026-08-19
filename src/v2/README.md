@@ -118,12 +118,18 @@ nothing to re-read the global**, so the overlay stays blank until an
 unrelated state change. The guards are a second line, for a chunk that never
 arrives at all; the await is the mechanism.
 
-**`relmap.jsx` stays eager despite being the biggest candidate (~43 KB).**
-It is the only one with a first-frame consumer: `mirror-field-pops.jsx`
-reads `typeof RelationshipMap === 'function'` to choose between the embedded
-map and the generic field canvas for the Mirror's Circle population. Same
-shape as `world-feed-data.js` above — a reachability decision, not a size
-one.
+**`relmap.jsx` left the eager graph at D200.** This paragraph used to say
+it stayed — the one overlay with a first-frame consumer, because
+`mirror-field-pops.jsx` read `typeof RelationshipMap === 'function'` on a
+render nothing re-triggers. That reason was right when written and expired
+at D101 without anything touching it: a live Circle takes `LiveCircleBody`,
+so the first-frame read was demo-only, and it kept ~43 KB eager for three
+months after its premise ended. D200 replaced the `typeof` probe with a
+demo-only `import('./relmap.jsx')` whose arrival is state, and split the
+group by consumer — `relmap-lenses.jsx` stays eager for `vote-cuts.js`'s
+live Type cut (D146). Both edit sites carry the reasoning inline
+(`spec-index.js` at the loadOverlays list, `mirror-field-pops.jsx` at the
+import).
 
 **Two gates, and what each does not cover.** `check:bundle`'s per-chunk
 ceiling came down 940 → 850 with the win, and its header records exactly
@@ -447,7 +453,7 @@ and a publication nobody reads has none. Rule 5 asks the mirror of rule 1
 — an assignment whose references went away — so what is on the bridge is
 what is still crossing it.
 
-**And it could not fire for its first eight months (D209).** Two reasons,
+**And it could not fire for its first eight months (D210).** Two reasons,
 both structural. The footer idiom
 `;globalThis.X = typeof X === 'undefined' ? globalThis.X : X;` **reads the
 name it publishes**, so every name written that way put itself in
@@ -457,15 +463,22 @@ call resolving through global scope is a real consumer this scanner cannot
 see, so that question reports live wiring as dead. Rule 5 now blanks the
 idiom out of a line before scanning it, and asks the conservative question
 instead — does the name appear **anywhere** in `src/`, outside the file
-that publishes it. It found **123**, which is why the published count
-dropped from 259 to 136 in one commit. Deliberately over-generous: a false
-positive here deletes live wiring, a false negative leaves one line of
-residue.
+that publishes it. It found **123** on the tree it landed against, taking
+the published count from 259 to 136 in one commit; `npm run check:globals`
+prints the live figure, which is the number to quote. Deliberately
+over-generous: a false positive here deletes live wiring, a false negative
+leaves one line of residue — so five publications that are strictly
+redundant (ESM-exported *and* imported by name) survive it on purpose.
+
+**It earned itself within the hour.** Merging the v28 Patterns work
+(D207) on top removed the last consumer of `TweakToggle`, and the gate
+failed on its publication — a dead line introduced by a merge neither
+side could see, caught before it landed.
 
 **Rule 4** counts every site where one file reads a name another file
 assigns to global scope, per file, and the number may only go down. The
 baseline is in `scripts/check-spec-globals.mjs`; `npm run check:globals`
-prints the current total on every run. The count today is **404 across 42
+prints the current total on every run. The count today is **392 across 42
 files**, down from 799 when the ratchet landed.
 
 The mechanism needs no bookkeeping, which is what makes it usable. The

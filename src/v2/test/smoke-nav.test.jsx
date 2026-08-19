@@ -7,7 +7,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { act, fireEvent, screen } from "@testing-library/react";
 import { OWNS_X } from "../spec/swipe-back.js";
-import { mountApp, registerSmokeHooks, SMOKE_TIMEOUT_MS } from "./mount-app.jsx";
+import { awaitNode, awaitText, mountApp, registerSmokeHooks, SMOKE_TIMEOUT_MS } from "./mount-app.jsx";
 
 vi.setConfig({ testTimeout: SMOKE_TIMEOUT_MS });
 registerSmokeHooks();
@@ -77,6 +77,31 @@ describe("the daily's ruler is the nav (v17)", () => {
   });
 });
 
+// ── the patterns tab (v28 §1, ON TRIAL per D166 §1) ───────────────────
+//
+// The tab body is a React.lazy chunk, so the click alone renders nothing —
+// the await lets the import resolve before asserting. What the demo owes
+// here is the HONEST state: the trial ships live data only, so a demo
+// mount must say so rather than draw the prototype's invented crowd.
+describe("the patterns tab (trial)", () => {
+  it("mounts lazily from the tab bar and shows the honest demo state", async () => {
+    const expectNoBoundary = mountApp();
+    fireEvent.click(screen.getByRole("button", { name: /^patterns$/i }));
+    await awaitText(/only from real answers/i);
+    expect(document.querySelector(".app").getAttribute("data-view")).toBe("patterns");
+    expect(document.body.textContent).toMatch(/only from real answers/i);
+    expectNoBoundary("patterns/demo");
+  });
+
+  it("the daily's near-end exit goes to patterns through goNav", async () => {
+    const expectNoBoundary = mountApp();
+    act(() => { window.goNav("patterns"); });
+    await awaitText(/only from real answers/i);
+    expect(document.querySelector(".app").getAttribute("data-tab")).toBe("patterns");
+    expectNoBoundary("patterns via goNav");
+  });
+});
+
 // ── gesture ownership (the 2026-08 iPhone bugs) ────────────────────────
 //
 // swipe-back.test.js proves the MECHANISM: a touch sequence starting inside
@@ -88,7 +113,7 @@ describe("the daily's ruler is the nav (v17)", () => {
 describe("the surfaces that own their drag are excluded from the axis swipes", () => {
   // One mount for both surfaces: the mirror's default stop is You, which IS the
   // Map, so the ruler and the pan canvas are on screen together.
-  it("the mirror ruler and the Map's pan surface are covered by OWNS_X", () => {
+  it("the mirror ruler and the Map's pan surface are covered by OWNS_X", async () => {
     mountApp();
     fireEvent.click(screen.getByRole("button", { name: /^mirror$/i }));
     const rail = screen.getByRole("tablist", { name: /how far the mirror reaches/i });
@@ -97,8 +122,9 @@ describe("the surfaces that own their drag are excluded from the axis swipes", (
       "the ruler lost its data-nopan — releasing a rightward scrub will land on the daily",
     ).not.toBeNull();
     // The canvas renders even before its first fit (the null-view branch), so
-    // this holds in jsdom's zero-size panes.
-    const canvas = document.querySelector(".mmt-canvas");
+    // this holds in jsdom's zero-size panes — but the Map is a lazy body
+    // since v28 §5, so its arrival is awaited rather than assumed.
+    const canvas = await awaitNode(".mmt-canvas");
     expect(canvas, "the Map's canvas did not mount on the You stop").not.toBeNull();
     expect(
       canvas.closest(OWNS_X),

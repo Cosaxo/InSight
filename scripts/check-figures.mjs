@@ -229,6 +229,17 @@ const FIGURES = [
     actual: seededQuestions,
     fix: (n) => `"${n} questions land in \`v2_questions\`"`,
   },
+  // content/README.md's bank table quoted the pool size ungated and sat at
+  // 90 for a full promotion vintage while the bank held 114 — the D187 batch
+  // landed 2026-08-16 and nothing read the sentence. Same figure, another
+  // consumer; the count is already computed for the runbook entries below.
+  {
+    file: "content/README.md",
+    what: "the daily pool size (the bank table)",
+    re: /The daily World question pool \((\d+)\)/,
+    actual: dailyQuestions,
+    fix: (n) => `"The daily World question pool (${n})"`,
+  },
   {
     file: "docs/LAUNCH-RUNBOOK.md",
     what: "the daily bank and the seeded total (status header)",

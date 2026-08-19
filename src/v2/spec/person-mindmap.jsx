@@ -5,6 +5,20 @@
 // guards the wiring in CI.
 import React from 'react';
 import { DAILYQ } from './daily-questions.js';
+// MTSwipeRow arrives as an import, not the v28 patch's window.MTSwipeRow: a
+// new cross-module global read would raise check:globals' rule-4 ratchet,
+// and the checker's remedy is the ESM import (D39, "convert on touch").
+import { MTSwipeRow } from './map-bottom-card.jsx';
+// The other three map-family reads converted when the Map went lazy (v28
+// §5): this overlay used to lean on spec-index's eager list having
+// evaluated them, and once that list stopped carrying the family the
+// window reads here were one unvisited Mirror away from a ReferenceError.
+// The imports are the guarantee the load order used to be — and they pull
+// nothing extra: rollup shares these modules between the map chunk and
+// this overlay chunk, both past first paint.
+import { MapTabLayout } from './map-layout.js';
+import { MAP_GROUPS } from './map-groups.js';
+import { MTBranchChips } from './map-chiprow.jsx';
 
 // InSight — PersonMindMap: a read-only map of someone else's answers, grown
 // from the SAME daily-question pool as your own map: same branches, same
@@ -21,7 +35,9 @@ let PersonMindMapImpl;
 (function () {
 const { useState, useRef, useEffect, useMemo } = React;
 
-const PMM_ZLAB = (window.MapTabLayout && window.MapTabLayout.MT_ZLAB) || 0.5;
+// Bare read — the `(window.X && …) || 0.5` fallback was a load-order
+// guard, and an imported binding cannot be unset (D108's rule).
+const PMM_ZLAB = MapTabLayout.MT_ZLAB;
 function pmmHash(s) {
   let h = 2166136261 >>> 0;
   for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
@@ -136,7 +152,7 @@ function PersonMindMap({ p, following, centerName, still }) {
   // Same ladder as your own map: them → group → branch → sub → answer. At the
   // top level the hubs are the over-categories and the answers stay as
   // unlabelled mass inside them; drilling into one opens its branches.
-  const GRP = window.MAP_GROUPS;
+  const GRP = MAP_GROUPS;
   const [openGroup, setOpenGroup] = useState(null);
   const topOfId = useMemo(() => {
     const parent = {};
@@ -151,13 +167,14 @@ function PersonMindMap({ p, following, centerName, still }) {
     return m;
   }, [nodes0, allCats]);
   const groups = useMemo(() => {
-    if (!GRP) return [];
     const ct = {};
     allCats.forEach((c) => { const g = GRP.of(c.id); ct[g] = (ct[g] || 0) + (counts[c.id] || 0); });
     return GRP.all().filter((g) => ct[g.id] > 0).map((g) => ({ ...g, ct: ct[g.id] }));
   }, [GRP, allCats, counts]);
-  const grouped = !!GRP && groups.length > 1 && !openGroup;
-  const openGroupDef = openGroup && GRP ? GRP.get(openGroup) : null;
+  // the `!!GRP` / `GRP &&` arms that stood in the next two lines were
+  // load-order guards on the old window read — dead now (D108)
+  const grouped = groups.length > 1 && !openGroup;
+  const openGroupDef = openGroup ? GRP.get(openGroup) : null;
   const CATS = grouped ? groups : (openGroup ? allCats.filter((c) => GRP.of(c.id) === openGroup) : allCats);
   const nodes = useMemo(() => {
     if (openGroup) return nodes0.filter((n) => GRP.of(topOfId[n.id]) === openGroup);
@@ -179,12 +196,9 @@ function PersonMindMap({ p, following, centerName, still }) {
     return m;
   }, [nodes]);
   // same cluster engine as the You map (sub-topic spirals, typicality drift)
-  const laid = useMemo(() => {
-    if (window.MapTabLayout) return window.MapTabLayout.mtClusterLayout(nodes, CATS);
-    // ring 320 = the stylesheet's own fallback, so the load-order miss draws
-    // the old fixed circle rather than collapsing it to a dot
-    return { pos: { root: { x: 0, y: 0 } }, fields: [], ring: 320 };
-  }, [CATS, nodes]);
+  // the ring-320 load-order fallback that stood here left with the
+  // conversion — the import cannot miss (D108)
+  const laid = useMemo(() => MapTabLayout.mtClusterLayout(nodes, CATS), [CATS, nodes]);
   const pos = laid.pos;
   const topOf = (n) => { let c = n; while (c && c.parentId && CATS.every((x) => x.id !== c.parentId)) c = byId[c.parentId]; return c ? c.parentId : n.parentId; };
   const catOf = (n) => CATS.find((c) => c.id === topOf(n));
@@ -576,7 +590,7 @@ function PersonMindMap({ p, following, centerName, still }) {
     }
   }
 
-  const Chips = window.MTBranchChips;
+  const Chips = MTBranchChips;
   const maxCt = Math.max(1, ...CATS.map((c) => catCount(c.id)));
   // small same/different chip for the answer card
   const sameChip = (n) => n.mine == null ? null : (
@@ -724,8 +738,9 @@ function PersonMindMap({ p, following, centerName, still }) {
         </div>
       </div>
 
-      {/* floating chrome — same rail as the Map tab */}
-      {Chips && !still ? (
+      {/* floating chrome — same rail as the Map tab. The `Chips &&` arm
+          left with the conversion: an imported binding cannot be unset. */}
+      {!still ? (
         <Chips
           cats={CATS}
           activeCat={activeCat}
@@ -757,14 +772,12 @@ function PersonMindMap({ p, following, centerName, still }) {
       {still ? null : selCat ? (
         <div className="mmt-card mmt-ui" style={{ '--hue': cardHue }}>
           <button className="mmt-card-x" onClick={clearSel} aria-label="Close">✕</button>
-          <div className="mmt-kicker">{selCat.label} · their map</div>
-          <div className="mmt-chiprow" style={{ marginTop: 8 }}>
-            {underCat(selCat.id).filter((n) => !n.sub && !hidden(n)).map((n) => (
-              <button key={n.id} className="mmt-mini" onClick={() => selectNode(n)}>
-                <span className="mmt-dot"></span>{n.tag || n.label}
-              </button>
-            ))}
+          <div className="mmt-slim">
+            <span className="mmt-dot"></span>
+            <span className="mmt-slim-name">{selCat.label}</span>
+            <span className="mmt-slim-ct">{underCat(selCat.id).filter((n) => !n.sub && !hidden(n)).length}</span>
           </div>
+          <MTSwipeRow items={underCat(selCat.id).filter((n) => !n.sub && !hidden(n)).map((n) => ({ id: n.id, q: n.prompt || n.label, ans: n.ans || n.tag || n.label, hue: cardHue }))} onPick={(id) => selectNode(byId[id])}></MTSwipeRow>
           {underCat(selCat.id).some(hidden) ? (
             <div className="mmt-meta">{underCat(selCat.id).filter(hidden).length} more once you're friends</div>
           ) : null}
@@ -772,14 +785,12 @@ function PersonMindMap({ p, following, centerName, still }) {
       ) : selNode && selNode.sub ? (
         <div className="mmt-card mmt-ui" style={{ '--hue': cardHue }}>
           <button className="mmt-card-x" onClick={clearSel} aria-label="Close">✕</button>
-          <div className="mmt-kicker">{selNodeCat ? selNodeCat.label : ''} · {selNode.label}</div>
-          <div className="mmt-chiprow" style={{ marginTop: 8 }}>
-            {(byParent[selNode.id] || []).filter((n) => !hidden(n)).map((n) => (
-              <button key={n.id} className="mmt-mini" onClick={() => selectNode(n)}>
-                <span className="mmt-dot"></span>{n.tag || n.label}
-              </button>
-            ))}
+          <div className="mmt-slim">
+            <span className="mmt-dot"></span>
+            <span className="mmt-slim-name">{selNode.label}</span>
+            <span className="mmt-slim-ct">{(byParent[selNode.id] || []).filter((n) => !hidden(n)).length}</span>
           </div>
+          <MTSwipeRow items={(byParent[selNode.id] || []).filter((n) => !hidden(n)).map((n) => ({ id: n.id, q: n.prompt || n.label, ans: n.ans || n.tag || n.label, hue: cardHue }))} onPick={(id) => selectNode(byId[id])}></MTSwipeRow>
           {(byParent[selNode.id] || []).some(hidden) ? (
             <div className="mmt-meta">{(byParent[selNode.id] || []).filter(hidden).length} more once you're friends</div>
           ) : null}
@@ -788,7 +799,7 @@ function PersonMindMap({ p, following, centerName, still }) {
         <div className="mmt-card mmt-ui" style={{ '--hue': cardHue }}>
           <button className="mmt-card-x" onClick={clearSel} aria-label="Close">✕</button>
           <div className="mmt-kicker">{selNodeCat ? selNodeCat.label : ''} · their map</div>
-          <div className="mmt-title mmt-title-serif">{selNode.label}</div>
+          <div className="mmt-title">{selNode.label}</div>
           {selNode.daily && selNode.prompt ? <div className="mmt-note">{selNode.prompt}</div> : selNode.note ? <div className="mmt-note">{selNode.note}</div> : null}
           {selNode.daily && !selNode.maj ? <div className="mmt-meta">a rare take</div> : null}
           {selNode.daily ? sameChip(selNode) : null}

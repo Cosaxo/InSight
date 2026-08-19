@@ -1004,8 +1004,8 @@ function LdRail({ items, cur, onPick, onNew, duo }: {
             <span style={{ position: "relative", display: "inline-flex", borderRadius: 14, padding: 2,
               boxShadow: sel ? `0 0 0 2px ${duo ? ACC_DUO : ACC_GROUP}` : "none", transition: "box-shadow .18s" }}>
               {duo && themUid
-                ? <DuelAv uid={themUid} name={label} size={38} dim={!pending && !sel} />
-                : <GroupMark gid={g.id} name={g.name} size={38} faded={!pending && !sel} />}
+                ? <DuelAv uid={themUid} name={label} size={38} />
+                : <GroupMark gid={g.id} name={g.name} size={38} />}
               {/* only the waiting state wears a mark — a check on every
                   circle carried no information and made the rail read as
                   noise */}

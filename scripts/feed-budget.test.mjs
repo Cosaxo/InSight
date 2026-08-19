@@ -142,7 +142,7 @@ describe("loadFeedTopics", () => {
     // goes red for the lane having worked. `feed-budget.mjs` already writes
     // the message for that state ("every topic is at the 12-question
     // target"), so the script and its own test disagreed about whether it
-    // was reachable — the D207 shape, one lane over, found by sweeping for
+    // was reachable — the D208 shape, one lane over, found by sweeping for
     // it after that one.
     //
     // What the fold actually promises: a row per taxonomy id, in the

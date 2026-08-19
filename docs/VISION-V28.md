@@ -540,7 +540,7 @@ one other file each — `markStyle` → `type-marks.jsx`, `lensBoxed` →
 `profile-overlay.jsx`, `feedHier` → `daily-split.jsx`. They are locals and
 props, not shared globals, so rule 4 does not count them and removing them
 lowers the coupling number by **zero**. (Measuring that claim is what
-turned up [D209](DECISIONS.md#d209--rule-5-could-not-fire-and-123-dead-publications-were-behind-it),
+turned up [D210](DECISIONS.md#d210--rule-5-could-not-fire-and-123-dead-publications-were-behind-it),
 which is the one real thing in this section's vicinity.)
 
 **And the outcome is already shipped.** Every winner listed above is

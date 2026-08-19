@@ -75,6 +75,12 @@ export function registerSmokeHooks() {
     // it because the module cache is per worker, and after the split no file
     // can assume another already paid for this.
     await specIndex.loadOverlays();
+    // …and the Map (v28 §5), which the Mirror's landing stop lazy-loads.
+    // Awaiting it here mirrors main.jsx's prewarm: the chunk is in the
+    // module cache before any case clicks Mirror, so the lazy body resolves
+    // in a microtask instead of a network beat. Cases that assert on Map
+    // DOM still flush that microtask (see awaitNode below).
+    await specIndex.loadMapTab();
     App = globalThis.App;
   });
 
@@ -133,6 +139,27 @@ export async function openVia(name, ...args) {
 // the boundary, and skipping the open() call fails the copy assertion.
 export function expectOpened(re, where) {
   expect(document.body.textContent, `${where}: overlay never opened`).toMatch(re);
+}
+
+// ── lazy tab bodies ────────────────────────────────────────────────────
+//
+// A React.lazy body (the patterns tab) arrives on its own chunk, so the
+// click alone renders nothing. A fixed sleep is a race — it lost one under
+// full-suite load — so wait for the copy itself, bounded the way growFeed
+// is: a body that never arrives should fail an assertion, not hang a suite.
+export async function awaitText(re, max = 50) {
+  for (let i = 0; i < max && !re.test(document.body.textContent); i++) {
+    await act(async () => { await new Promise((r) => setTimeout(r, 40)); });
+  }
+}
+
+// Same wait, keyed on a selector instead of copy — for lazy bodies whose
+// arrival is an element rather than a sentence (the Map's canvas).
+export async function awaitNode(selector, max = 50) {
+  for (let i = 0; i < max && !document.querySelector(selector); i++) {
+    await act(async () => { await new Promise((r) => setTimeout(r, 40)); });
+  }
+  return document.querySelector(selector);
 }
 
 // ── the feed's mounted window ──────────────────────────────────────────

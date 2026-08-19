@@ -401,14 +401,17 @@ export function loadCorpus() {
   // world-feed filters out of the feed's chip row. So a pick card's `cat` is
   // checked against this set and a feed question's against feed.topics —
   // one vocabulary would reject every card that ships today.
-  const worldTopics = extractLiteral(wfdSrc, "window.WORLD_TOPICS = [", "world-feed-data.js");
+  // The marker followed the source: WORLD_TOPICS became a named export
+  // when the Patterns tab started importing it (the WPAL precedent), with
+  // `window.WORLD_TOPICS = WORLD_TOPICS` kept beneath for spec consumers.
+  const worldTopics = extractLiteral(wfdSrc, "export const WORLD_TOPICS = [", "world-feed-data.js");
   // The subtopic tree, for `also` (docs/TAGS-PLAN.md §1): a door may be a
   // leaf, and the leaf→parent map is what the redundancy rule below reads —
   // following a parent already gives you everything under it
   // (world-subtopics.js), so a card carrying both says one thing twice.
   const worldSubs = extractLiteral(
     readFileSync(join(root, "src", "v2", "spec", "world-subtopics.js"), "utf8"),
-    // `const`, not `window.` — the publication was swept at D209 (nothing
+    // `const`, not `window.` — the publication was swept at D210 (nothing
     // read the global; the file reads the value lexically). This marker is a
     // TEXT dependency on a declaration form, which no grep for the name can
     // see and which `question-quality.test.mjs` is the only thing that

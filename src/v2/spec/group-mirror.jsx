@@ -4,9 +4,8 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
-import { MirrorLensRow } from './mirror-field.jsx';
 import { DUELS } from './duels-data.js';
-import { Kicker, Lazy } from './primitives.jsx';
+import { Kicker } from './primitives.jsx';
 // The palette gate (D189) — see gmAccent below for why this stop in
 // particular could not do without it.
 import { WPAL } from './world-palette.js';
@@ -258,12 +257,11 @@ import { WPAL } from './world-palette.js';
     );
   }
 
-  function GroupsMirrorBody({ onPerson, topLenses }) {
+  function GroupsMirrorBody({ onPerson }) {
     const [, bump] = useReducer((x) => x + 1, 0);
     useEffect(() => DUELS.subscribe(bump), []);
     const gs = DUELS.groups();
     const [gid, setGid] = useState(gs[0] && gs[0].id);
-    const [lensOpen, setLensOpen] = useState('__ov');
     const g = gs.find((x) => x.id === gid) || gs[0];
     if (!g) return null;
     const P = DUELS.groupPortrait(g.id);
@@ -273,10 +271,6 @@ import { WPAL } from './world-palette.js';
       { id: 'people', label: 'People', render: () => <GroupPeopleCard g={g}></GroupPeopleCard> },
       { id: 'compare', label: 'Compare', render: () => <GroupCompareCard g={g}></GroupCompareCard> },
     ];
-    // nav v2: lens row above the content, the role map as its first tab
-    const lensList = topLenses ? [{ id: '__ov', label: 'Overview' }, ...lenses] : lenses;
-    const openId = topLenses ? (lensList.some((l) => l.id === lensOpen) ? lensOpen : '__ov') : null;
-    const openLens = topLenses && openId !== '__ov' ? lenses.find((l) => l.id === openId) : null;
     return (
       <div className="mf-stage" data-screen-label="Mirror — groups" style={{ '--accent': gmAccent(g) }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, margin: '6px 2px 0' }}>
@@ -287,10 +281,8 @@ import { WPAL } from './world-palette.js';
           </div>
         </div>
         <GroupPicker gs={gs} cur={g.id} onPick={setGid}></GroupPicker>
-        {topLenses && <MirrorLensRow lenses={lensList} open={openId} onOpen={setLensOpen}></MirrorLensRow>}
-        {(!topLenses || openId === '__ov') && <window.GroupRoleMap key={g.id} gid={g.id} gname={g.name}></window.GroupRoleMap>}
-        {openLens && <div key={openId} className="fade-in" style={{ paddingTop: 4 }}><Lazy minHeight={480}>{openLens.render()}</Lazy></div>}
-        {!topLenses && <MirrorLenses key={'lens-' + g.id} lenses={lenses}></MirrorLenses>}
+        <window.GroupRoleMap key={g.id} gid={g.id} gname={g.name}></window.GroupRoleMap>
+        <MirrorLenses key={'lens-' + g.id} lenses={lenses}></MirrorLenses>
       </div>
     );
   }

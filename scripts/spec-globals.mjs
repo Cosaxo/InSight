@@ -99,7 +99,7 @@ const REF_RE = /(?:globalThis|window)\.([A-Za-z_$][\w$]*)/g;
 // The fix is to blank the idiom out of a line before scanning it for
 // references, rather than to skip the line: a line may publish X and
 // legitimately read Y, and skipping it would stop checking Y. Same shape as
-// D207 — a gate green for its whole life is not evidence that it can fire.
+// D208 — a gate green for its whole life is not evidence that it can fire.
 const SELF_PUBLISH_RE =
   /(?:globalThis|window)\.([A-Za-z_$][\w$]*)\s*=\s*typeof \1 === 'undefined' \? (?:globalThis|window)\.\1 : \1;/g;
 // <Foo> / <Foo.Bar> / <Foo /> — capitalised leading segment only, which is

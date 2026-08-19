@@ -365,6 +365,13 @@ describe("the archive join", () => {
     // it at PEN_TARGET, and `pulse-render.mjs` draws a non-empty one with
     // status "good" — already written is cheaper than still to write.
     //
+    // #232 reached the same identity independently, from the other side —
+    // it promoted the batch and rewrote this as
+    // `archiveEntries - unpromoted === daily.length`, which is the same
+    // equation rearranged. Kept in this form, with the second assertion
+    // BOUNDED: `unpromoted >= 0` cannot fail (it is a `.length`), and the
+    // regulator's ceiling can.
+    //
     // So what is true is the identity and the ceiling. The identity is a
     // bijection given `orphans === 0` above: every live prompt is in the
     // archive, and the archive holds exactly one entry for each, so a

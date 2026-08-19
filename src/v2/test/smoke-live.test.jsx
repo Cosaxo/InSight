@@ -36,7 +36,7 @@ import { act, cleanup, fireEvent, render, screen, within } from "@testing-librar
 // the slowest cases sat at ~4.8s before it and tip over under suite load.
 vi.setConfig({ testTimeout: 15000 });
 import { FEED_OPTIONS, PATH_TITLE, fixtureSurfaceMismatch, installLive } from "./live-fixture";
-import { growFeed } from "./mount-app";
+import { awaitText, growFeed } from "./mount-app";
 import { list as anchorList } from "../spec/map-anchors.js";
 import { IS_TESTS, IS_TEST_RESULTS } from "../spec/test-definitions.js";
 import { IS_ARCHETYPES } from "../spec/archetype-data.js";
@@ -58,6 +58,11 @@ beforeAll(async () => {
   // a tab that never rendered one — the vacuous pass this file's own
   // comments were written about.
   await specIndex.loadWorldFeed();
+  // The Map's family is lazy since v28 §5 and two cases below render
+  // window.MTAnswerCard directly — without this await the global is
+  // simply absent and both would fail on `undefined`, not on the gate
+  // they pin.
+  await specIndex.loadMapTab();
   App = globalThis.App;
 });
 
@@ -110,6 +115,23 @@ describe("spec layer mounts in live mode", () => {
     const expectNoBoundary = mountLive();
     fireEvent.click(screen.getByRole("button", { name: /^profile$/i }));
     expectNoBoundary("profile/live");
+  });
+
+  it("renders the patterns tab live with no invented people (D166 §1, D167)", async () => {
+    // The tab is a lazy chunk — awaitText waits for it. In jsdom the
+    // loadings fetch cannot resolve, so the honest state here is the
+    // waiting card; what the case pins is that a LIVE mount never falls
+    // back to the prototype's synthetic crowd (560 people, fabricated
+    // "78% pick that" lines) and never trips the boundary.
+    const expectNoBoundary = mountLive();
+    fireEvent.click(screen.getByRole("button", { name: /^patterns$/i }));
+    await awaitText(/pattern fit|No patterns yet/i);
+    expectNoBoundary("patterns/live");
+    expect(document.body.textContent).toMatch(/pattern fit|No patterns yet/i);
+    // the demo-only sentence must not show on a live build…
+    expect(screen.queryByText(/only from real answers/i)).toBeNull();
+    // …and nothing fabricated may either (the prototype's engine size)
+    expect(document.body.textContent).not.toMatch(/560/);
   });
 
   it("shows the real follow list in the live profile, none of the demo field", () => {

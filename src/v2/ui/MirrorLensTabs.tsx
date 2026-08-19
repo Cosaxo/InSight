@@ -8,10 +8,10 @@
 // bodies are typed TSX, where D39's ratchet says new code belongs.
 //
 // The CSS is NOT duplicated. `.mm-lensrow` / `.mm-lensbtn` /
-// `.mm-lensthumb` are already in styles.css with their three
-// `data-lens-style` variants (segmented · underline · chips, chosen by the
-// tweak on `.app`), so the live row inherits the demo row's look and every
-// future change to it, exactly once.
+// `.mm-lensthumb` are already in styles.css under the underline
+// `data-lens-style` (the v28 teardown settled the three variants, §10), so
+// the live row inherits the demo row's look and every future change to it,
+// exactly once.
 //
 // AND IT IS THE BOTTOM VARIANT, `.mm-lensrow` (D188). This file shipped
 // with `.mm-lensrow-top` from D119, which is the class the prototype uses

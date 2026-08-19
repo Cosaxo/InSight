@@ -2,9 +2,11 @@
 
 **Answer things. See what they add up to.**
 
-InSight is a two-tab app — **daily · mirror**. One tab is where you
-answer; the other is where the answering turns into a picture of you
-against every population you belong to. Answering is the smaller half.
+InSight is a three-tab app — **patterns · daily · mirror**, the first on
+trial (D166 §1). The middle tab is where you answer; the other two are
+where the answering turns into pictures: how your answers tie to
+everyone else's, and you against every population you belong to.
+Answering is the smaller half.
 
 *Working on it rather than reading about it?*
 [`docs/ORIENTATION.md`](./docs/ORIENTATION.md) is the map — every
@@ -144,7 +146,7 @@ src/lib/           firebase init + anonymous-first auth + emulator wiring
 functions/src/     v2.ts (seed + aggregates) · v2social.ts (groups, duos,
                    reveals, push) · index.ts (account deletion)
 firestore.rules    the access model (public answers, exact aggs,
-                   member-only groups/reveals) — 113 emulator tests
+                   member-only groups/reveals) — 115 emulator tests
 firestore.rules.v1-archive  the retired v1 client rules (D4) — reference,
                    NOT deployed
 monitoring/        Cloud Monitoring policies, put live by
@@ -175,7 +177,7 @@ Local:
 - `npm run test:unit` — client store, pure deck logic, and the spec-layer
   mount tests (vitest + jsdom, no emulator).
 - `npm run test --prefix functions` — the aggregate fold, reveal and streak math.
-- `npm run test:rules` — 113 security-rules tests (Firestore + Storage)
+- `npm run test:rules` — 115 security-rules tests (Firestore + Storage)
   against the emulator. `npm run check:figures` holds this number and the
   one in the repo map above equal to the suites, because both said 40 for
   long enough to be quoted twice.

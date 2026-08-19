@@ -112,7 +112,6 @@ function PassiveMeter() {
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
           {P.KEYS.map((k) => <PassiveRing key={k} k={k} size={13} thick={3.2}></PassiveRing>)}
         </span>
-        <span style={{ fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 10.5, letterSpacing: '0.04em', color: 'var(--ink-3)' }}>profile</span>
       </button>
       {open && host && ReactDOM.createPortal(
         <Sheet onClose={close} closing={closing} label={PM_TITLE}>

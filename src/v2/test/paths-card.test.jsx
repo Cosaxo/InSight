@@ -26,7 +26,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import React from "react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { PATHS } from "../spec/paths-data.js";
-import { PathsCard } from "../spec/paths-card.jsx";
+import { MTPathsCard, PathsCard, pathsMapTree } from "../spec/paths-card.jsx";
 
 // The store is mocked for the whole file, because the live cases below need
 // to swap it per test and vi.mock is hoisted to module scope either way.
@@ -233,5 +233,71 @@ describe("Crossroads · live", () => {
     expect(screen.queryByText(/ended here$/)).toBeNull();
     // The ending is still yours, and still named.
     expect(screen.getByText("End AAA")).toBeTruthy();
+  });
+});
+
+// ── the Map's Crossroads branch (v28 §5, D207) ─────────────────────────
+//
+// Same source discipline as the card: live, a leaf's walk is the SERVER's
+// answer and its rarity folds from real counts or is ABSENT; demo, both
+// come authored. And the honesty case that matters most: no finished walk
+// means no branch — never an empty hub.
+describe("Crossroads · the Map branch", () => {
+  const ENDINGS = ["A", "B"].flatMap((a) => ["A", "B"].flatMap((b) => ["A", "B"].map((c) => a + b + c)));
+  const STORY = {
+    id: "feed-pt1", title: "Live Story", intro: "A live intro.", hue: 20,
+    nodes: {},
+    endings: Object.fromEntries(ENDINGS.map((k) => [k, { name: `End ${k}`, line: `Line ${k}.` }])),
+    counts: [40, 5, 10, 5, 20, 5, 10, 5], total: 100, live: true,
+  };
+
+  beforeEach(() => {
+    localStorage.clear();
+    PATHS.stories().forEach((s) => PATHS.reset(s.id));
+    PATHS.reset(STORY.id);
+  });
+
+  it("demo: a finished walk leafs with its authored rarity, unfinished stays off", () => {
+    expect(pathsMapTree()).toEqual({ cats: [], nodes: [] });
+    const st = PATHS.stories()[0];
+    PATHS.choose(st.id, 0); PATHS.choose(st.id, 0); PATHS.choose(st.id, 0); // AAA
+    const tree = pathsMapTree();
+    expect(tree.cats.map((c) => c.id)).toEqual(["path-walks"]);
+    expect(tree.nodes).toHaveLength(1);
+    expect(tree.nodes[0].id).toBe("path-" + st.id);
+    expect(tree.nodes[0].ans).toBe(st.endings.AAA.name);
+    expect(tree.nodes[0].walk).toBe(true);
+    expect(tree.nodes[0].note).toMatch(/^1 in \d+$/);
+  });
+
+  it("live: the leaf reads the SERVER's ending and folds rarity from counts", () => {
+    globalThis.__pathsLive = { enabled: true, pathQs: () => [STORY], myVotes: () => ({ "feed-pt1": "0" }) };
+    const tree = pathsMapTree();
+    expect(tree.nodes).toHaveLength(1);
+    expect(tree.nodes[0].ans).toBe("End AAA");
+    expect(tree.nodes[0].note).toBe("1 in 3"); // 40 of 100 → 1 in 2.5 → 3
+  });
+
+  it("live: a story nobody has answered into claims no rarity", () => {
+    globalThis.__pathsLive = {
+      enabled: true,
+      pathQs: () => [{ ...STORY, counts: [0, 0, 0, 0, 0, 0, 0, 0], total: 0 }],
+      myVotes: () => ({ "feed-pt1": "0" }),
+    };
+    const tree = pathsMapTree();
+    expect(tree.nodes).toHaveLength(1);
+    expect(tree.nodes[0].note).toBe("");
+    const { container } = render(<MTPathsCard node={tree.nodes[0]} />);
+    expect(container.textContent).toContain("End AAA");
+    expect(container.textContent).not.toMatch(/1 in \d+/);
+  });
+
+  it("live: the leaf card draws the tree and states the rarity when counts exist", () => {
+    globalThis.__pathsLive = { enabled: true, pathQs: () => [STORY], myVotes: () => ({ "feed-pt1": "0" }) };
+    const node = pathsMapTree().nodes[0];
+    const { container } = render(<MTPathsCard node={node} />);
+    expect(container.textContent).toContain("Live Story");
+    expect(container.textContent).toContain("1 in 3 walks this road");
+    expect(container.querySelector("svg")).not.toBeNull();
   });
 });
