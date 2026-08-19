@@ -12,6 +12,7 @@ import { DUELS } from './duels-data.js';
 import { IS_DATA } from './sample-data.js';
 import { Av, AnonAv, anonName, Kicker, useDialog } from './primitives.jsx';
 import { IS_TEST_RESULTS } from './test-definitions.js';
+import { WPAL } from './world-palette.js';
 
 // Expanded Person profile — a detailed portrait of similarity
 // Replaces the basic PersonOverlay registered in overlays.jsx
@@ -118,11 +119,13 @@ function affinityBreakdown(me, prof, p) {
 
 // ─── Affinity, broken into bars — the fallback when CompareCarousel is absent ───
 function AffinityBreakdown({ parts }) {
+  // hue-as-text and full-strength bar fills go through the palette gate
+  // (v28: no raw 0.5x ink literals)
   const dims = [
-    { k: 'personality', label: 'Personality', col: 'oklch(0.55 0.13 38)' },
-    { k: 'politics',    label: 'Politics',    col: 'oklch(0.50 0.12 220)' },
-    { k: 'values',      label: 'Values',      col: 'oklch(0.52 0.14 305)' },
-    { k: 'interests',   label: 'Interests',   col: 'oklch(0.55 0.10 145)' },
+    { k: 'personality', label: 'Personality', col: WPAL.ink('oklch(0.55 0.13 38)') },
+    { k: 'politics',    label: 'Politics',    col: WPAL.ink('oklch(0.50 0.12 220)') },
+    { k: 'values',      label: 'Values',      col: WPAL.ink('oklch(0.52 0.14 305)') },
+    { k: 'interests',   label: 'Interests',   col: WPAL.ink('oklch(0.55 0.10 145)') },
   ].map(d => ({ ...d, v: Math.round(parts[d.k]) })).sort((a, b) => b.v - a.v);
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -171,7 +174,7 @@ function PersonOverlay({ p: rawP, onClose, me }) {
   const p = { ...rawP, interests: normInterests };
   const prof = derivePerson(p, me);
   const parts = affinityBreakdown(me, prof, p);
-  const themColor = `oklch(0.55 0.13 ${p.hue})`;
+  const themColor = WPAL.ink(`oklch(0.55 0.13 ${p.hue})`);
 
   const overall = Math.round(p.match);
   const firstName = p.anon ? 'Them' : (p.name ? p.name.split(' ')[0] : p.init);
@@ -243,7 +246,7 @@ function PersonOverlay({ p: rawP, onClose, me }) {
           </div>
         </div>
 
-        <hr className="rule-dashed" />
+        <hr className="rule" />
 
         {/* ─── Affinity composer — one compare card per category, swipeable ─── */}
         {(() => {

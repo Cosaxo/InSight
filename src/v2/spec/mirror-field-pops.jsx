@@ -8,6 +8,11 @@ import { MirrorLensRow } from './mirror-field.jsx';
 import { IS_DATA, fmtPop } from './sample-data.js';
 import { SCENES } from './scenes.js';
 import { Av, TabSection, MatchRing, Lazy } from './primitives.jsx';
+// The type's own mark, imported by name (D39) rather than read off the
+// window bag — a window.TypeMark reference would raise this file's rule-4
+// coupling count, and both modules are eager so the ESM graph carries it
+// into the same chunk for free.
+import { TypeMark } from './type-marks.jsx';
 
 // mirror-field-pops.jsx — the four Mirror populations, each built as a node
 // list for the shared field canvas (mirror-field.jsx). One grammar throughout:
@@ -19,10 +24,14 @@ const { useState: useStateMFP, useEffect: useEffectMFP } = React;
 const MFP_SECTORS = { family: -128, friends: -50, colleagues: 26, neighbors: 100, acquaintances: 168 };
 
 // ─── kindred strangers in Oslo (mirrors KindredInOslo's roster) ───
+// Types are the v28 roster's (design/standalone-v28/type-mix.js, byName) —
+// authored demo data, Big Five only: the same instrument the live fold
+// enforces (data/typeMix.ts TYPE_TEST) and the only one the prototype's
+// field-row chip ever draws.
 const MFP_KINDRED = [
-  { init: 'AK', name: 'Anders K.', hood: 'Torshov', match: 92, hue: 145, shared: ['ceramics', 'cold swims', 'Pärt'] },
-  { init: 'IM', name: 'Ingrid M.', hood: 'Grünerløkka', match: 89, hue: 38, shared: ['rye baking', 'Solnit', 'fjord walks'] },
-  { init: 'PV', name: 'Petter V.', hood: 'Sagene', match: 85, hue: 250, shared: ['field notes', 'birding', 'silence'] },
+  { init: 'AK', name: 'Anders K.', hood: 'Torshov', match: 92, hue: 145, type: 'The Quiet One', shared: ['ceramics', 'cold swims', 'Pärt'] },
+  { init: 'IM', name: 'Ingrid M.', hood: 'Grünerløkka', match: 89, hue: 38, type: 'The Diplomat', shared: ['rye baking', 'Solnit', 'fjord walks'] },
+  { init: 'PV', name: 'Petter V.', hood: 'Sagene', match: 85, hue: 250, type: 'The Lookout', shared: ['field notes', 'birding', 'silence'] },
 ];
 
 // ─── how like-you each Norwegian city's people run (country zoom) ───
@@ -37,16 +46,16 @@ const MFP_NO_CITIES = [
 
 // ─── kindred strangers across Norway (country zoom) ───
 const MFP_KINDRED_COUNTRY = [
-  { init: 'SB', name: 'Sigrid B.', place: 'Tromsø', match: 94, hue: 200, shared: ['cold swims', 'northern light', 'Pärt'] },
-  { init: 'EH', name: 'Eirik H.', place: 'Bergen', match: 90, hue: 220, shared: ['rye baking', 'rain walks', 'field notes'] },
-  { init: 'LT', name: 'Live T.', place: 'Trondheim', match: 87, hue: 145, shared: ['ceramics', 'birding', 'quiet mornings'] },
+  { init: 'SB', name: 'Sigrid B.', place: 'Tromsø', match: 94, hue: 200, type: 'The Quiet One', shared: ['cold swims', 'northern light', 'Pärt'] },
+  { init: 'EH', name: 'Eirik H.', place: 'Bergen', match: 90, hue: 220, type: 'The Dependable', shared: ['rye baking', 'rain walks', 'field notes'] },
+  { init: 'LT', name: 'Live T.', place: 'Trondheim', match: 87, hue: 145, type: 'The Reader', shared: ['ceramics', 'birding', 'quiet mornings'] },
 ];
 
 // ─── kindred strangers across the world — farther pool, closer matches ───
 const MFP_KINDRED_WORLD = [
-  { init: 'YO', name: 'Yuki O.',  place: 'Osaka · JP',       match: 96, hue: 250, shared: ['ceramics', 'field notes', 'quiet mornings'] },
-  { init: 'RD', name: 'Rui D.',   place: 'Porto · PT',       match: 94, hue: 38,  shared: ['rye baking', 'cold swims', 'old stone'] },
-  { init: 'CS', name: 'Clara S.', place: 'Valparaíso · CL', match: 91, hue: 145, shared: ['birding', 'Solnit', 'hills'] },
+  { init: 'YO', name: 'Yuki O.',  place: 'Osaka · JP',       match: 96, hue: 250, type: 'The Quiet One',  shared: ['ceramics', 'field notes', 'quiet mornings'] },
+  { init: 'RD', name: 'Rui D.',   place: 'Porto · PT',       match: 94, hue: 38,  type: 'The Dependable', shared: ['rye baking', 'cold swims', 'old stone'] },
+  { init: 'CS', name: 'Clara S.', place: 'Valparaíso · CL', match: 91, hue: 145, type: 'The Host',       shared: ['birding', 'Solnit', 'hills'] },
 ];
 
 // ─── the Kindred lens — the strangers most aligned with you, as a card ───
@@ -66,9 +75,25 @@ function KindredLensCard({ people = MFP_KINDRED }) {
                 <Av init={p.init} hue={p.hue} size={36}></Av>
               </MatchRing>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                  <span style={{ fontFamily: 'var(--sans)', fontSize: 15, fontWeight: 700, letterSpacing: '-0.015em' }}>{p.name}</span>
-                  <span style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 600, color: 'var(--ink-3)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>{p.place || p.hood}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontFamily: 'var(--sans)', fontSize: 15, fontWeight: 700, letterSpacing: '-0.015em', whiteSpace: 'nowrap', flexShrink: 0 }}>{p.name}</span>
+                  <span style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 600, color: 'var(--ink-3)', letterSpacing: '0.04em', textTransform: 'uppercase', minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.place || p.hood}</span>
+                  {/* v28 §7.9: the type, as the chip the LIVE KindredCard already
+                      wears (ui/LiveMirrorLenses.tsx, D156) — mark + name, one
+                      shape for demo and live so a badge on a person always
+                      reads the same. Big Five only, and roster-authored: the
+                      demo has no per-person fold to draw from. */}
+                  {p.type && (
+                    <span style={{
+                      marginLeft: 'auto', flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 5,
+                      border: '1px solid color-mix(in oklch, var(--rule), transparent 25%)', borderRadius: 999, padding: '2px 9px 2px 4px',
+                      fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 700, color: 'var(--ink-2)',
+                      background: 'var(--surface-2)', whiteSpace: 'nowrap',
+                    }}>
+                      <TypeMark testKey="big5" name={p.type} size={16}></TypeMark>
+                      {p.type}
+                    </span>
+                  )}
                 </div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 6 }}>
                   {p.shared.map(s => (

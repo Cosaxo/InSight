@@ -5,6 +5,12 @@
 // guards the wiring in CI.
 import React from 'react';
 import { DAILYQ } from './daily-questions.js';
+// MTSwipeRow arrives as an import, not the v28 patch's window.MTSwipeRow: a
+// new cross-module global read would raise check:globals' rule-4 ratchet,
+// and the checker's remedy is the ESM import (D39, "convert on touch").
+// map-bottom-card.jsx is eager, so this deferred chunk pulls nothing new
+// into first paint.
+import { MTSwipeRow } from './map-bottom-card.jsx';
 
 // InSight — PersonMindMap: a read-only map of someone else's answers, grown
 // from the SAME daily-question pool as your own map: same branches, same
@@ -757,14 +763,12 @@ function PersonMindMap({ p, following, centerName, still }) {
       {still ? null : selCat ? (
         <div className="mmt-card mmt-ui" style={{ '--hue': cardHue }}>
           <button className="mmt-card-x" onClick={clearSel} aria-label="Close">✕</button>
-          <div className="mmt-kicker">{selCat.label} · their map</div>
-          <div className="mmt-chiprow" style={{ marginTop: 8 }}>
-            {underCat(selCat.id).filter((n) => !n.sub && !hidden(n)).map((n) => (
-              <button key={n.id} className="mmt-mini" onClick={() => selectNode(n)}>
-                <span className="mmt-dot"></span>{n.tag || n.label}
-              </button>
-            ))}
+          <div className="mmt-slim">
+            <span className="mmt-dot"></span>
+            <span className="mmt-slim-name">{selCat.label}</span>
+            <span className="mmt-slim-ct">{underCat(selCat.id).filter((n) => !n.sub && !hidden(n)).length}</span>
           </div>
+          <MTSwipeRow items={underCat(selCat.id).filter((n) => !n.sub && !hidden(n)).map((n) => ({ id: n.id, q: n.prompt || n.label, ans: n.ans || n.tag || n.label, hue: cardHue }))} onPick={(id) => selectNode(byId[id])}></MTSwipeRow>
           {underCat(selCat.id).some(hidden) ? (
             <div className="mmt-meta">{underCat(selCat.id).filter(hidden).length} more once you're friends</div>
           ) : null}
@@ -772,14 +776,12 @@ function PersonMindMap({ p, following, centerName, still }) {
       ) : selNode && selNode.sub ? (
         <div className="mmt-card mmt-ui" style={{ '--hue': cardHue }}>
           <button className="mmt-card-x" onClick={clearSel} aria-label="Close">✕</button>
-          <div className="mmt-kicker">{selNodeCat ? selNodeCat.label : ''} · {selNode.label}</div>
-          <div className="mmt-chiprow" style={{ marginTop: 8 }}>
-            {(byParent[selNode.id] || []).filter((n) => !hidden(n)).map((n) => (
-              <button key={n.id} className="mmt-mini" onClick={() => selectNode(n)}>
-                <span className="mmt-dot"></span>{n.tag || n.label}
-              </button>
-            ))}
+          <div className="mmt-slim">
+            <span className="mmt-dot"></span>
+            <span className="mmt-slim-name">{selNode.label}</span>
+            <span className="mmt-slim-ct">{(byParent[selNode.id] || []).filter((n) => !hidden(n)).length}</span>
           </div>
+          <MTSwipeRow items={(byParent[selNode.id] || []).filter((n) => !hidden(n)).map((n) => ({ id: n.id, q: n.prompt || n.label, ans: n.ans || n.tag || n.label, hue: cardHue }))} onPick={(id) => selectNode(byId[id])}></MTSwipeRow>
           {(byParent[selNode.id] || []).some(hidden) ? (
             <div className="mmt-meta">{(byParent[selNode.id] || []).filter(hidden).length} more once you're friends</div>
           ) : null}
@@ -788,7 +790,7 @@ function PersonMindMap({ p, following, centerName, still }) {
         <div className="mmt-card mmt-ui" style={{ '--hue': cardHue }}>
           <button className="mmt-card-x" onClick={clearSel} aria-label="Close">✕</button>
           <div className="mmt-kicker">{selNodeCat ? selNodeCat.label : ''} · their map</div>
-          <div className="mmt-title mmt-title-serif">{selNode.label}</div>
+          <div className="mmt-title">{selNode.label}</div>
           {selNode.daily && selNode.prompt ? <div className="mmt-note">{selNode.prompt}</div> : selNode.note ? <div className="mmt-note">{selNode.note}</div> : null}
           {selNode.daily && !selNode.maj ? <div className="mmt-meta">a rare take</div> : null}
           {selNode.daily ? sameChip(selNode) : null}
