@@ -243,7 +243,7 @@ function PersonOverlay({ p: rawP, onClose, me }) {
           </div>
         </div>
 
-        <hr className="rule-dashed" />
+        <hr className="rule" />
 
         {/* ─── Affinity composer — one compare card per category, swipeable ─── */}
         {(() => {

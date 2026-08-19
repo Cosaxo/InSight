@@ -618,12 +618,6 @@
 
 /* Hand-drawn rule */
 .rule { height: 0.5px; background: var(--rule); margin: 14px 0; border: none; }
-.rule-dashed {
-  height: 0.5px;
-  background: var(--rule);
-  border: none;
-  margin: 14px 0;
-}
 
 /* Kicker — THE micro-label tier, app-wide. One spec (matches the edition's
    edMicro): sans 700 · 10.5px · 0.09em · uppercase · ink-3. */
