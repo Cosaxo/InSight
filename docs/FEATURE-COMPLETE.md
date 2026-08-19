@@ -66,13 +66,15 @@ exists.
 - ~~**Pulse cadence arithmetic**~~ — **done 2026-08-19** with the roster
   (v28 §11 step 3): the cadence store, the "not scheduled" clause, and
   the feed interleave all landed. [`VISION-V28.md`](VISION-V28.md) §3.
-- **Foresight's remaining vocabulary** (open by design): new tier-A test
-  names — "will these two slices disagree", "will turnout beat
-  yesterday", "will the leading option change" — are unblocked design
-  work. Tier B (`kind: "fetch"` rubrics, their dry-run gate arm, the
-  human-exceptions console) is the live question, and shipping A alone
-  forever is a legitimate end state.
-  [`FORESIGHT-CALLS.md`](FORESIGHT-CALLS.md) §3, §11.
+- **Foresight's remaining vocabulary** — reframed by D196, which this
+  entry predated: the owner recorded that predicting the app's own
+  numbers is "a different game and not the wanted one", and every tier-A
+  call ships `active: false` (`content/call-questions.json`'s own status
+  says so). New tier-A names would grow an inactive bank; the real open
+  item is tier B (`kind: "fetch"` rubrics against real events, their
+  dry-run gate arm, the human-exceptions console) — an owner-decision
+  design, not backlog. [`FORESIGHT-CALLS.md`](FORESIGHT-CALLS.md) §3,
+  §11; D196.
 
 ## 2 · Question generation
 
