@@ -27,6 +27,7 @@ import {
   carriedEscalations,
   modVerdictError,
   modVerdictId,
+  tallyFirstFlagInto,
   tallyFlagsInto,
 } from "./pure";
 
@@ -37,6 +38,31 @@ const REGION = FUNCTIONS_REGION;
 const MOD_QUEUE_MIN_FLAGS = 3;
 const MOD_QUEUE_SIZE = 25;
 const MOD_RUN_CAP = 50;
+// How many over-threshold takes the build will CONSIDER to fill those 25.
+//
+// The queue used to be cut to MOD_QUEUE_SIZE inside buildModQueueFrom, and
+// only then did this file discover — one take document at a time, the only
+// place that can — that an entry's target had vanished or was already
+// hidden. Those entries were skipped with `continue`, so the slot went to
+// nobody: 25 candidates, fewer than 25 queued, and the difference was
+// invisible except as a smaller number in the log line.
+//
+// Now the pure fold hands back a WINDOW and the loop below stops at
+// MOD_QUEUE_SIZE live entries. The factor bounds what that costs: at worst
+// this reads 100 documents instead of 25, and only when the tail is full of
+// settled targets — which the sweep below then drains, so the worst case is
+// self-limiting rather than the standing state.
+const MOD_QUEUE_CANDIDATES = MOD_QUEUE_SIZE * 4;
+// No author may hold more than this many of the 25 slots in one generation.
+//
+// The arithmetic: the floor is 3 flags, accounts are free (D3), and a take
+// id is client-chosen — so before this, three accounts and 75 flags could
+// occupy the entire queue with 25 takes by one author, and every honest
+// report below the floor of that block waited a generation behind it. A cap
+// of 5 makes filling the queue cost five authors rather than one, and still
+// lets a genuinely prolific offender have their five worst judged now and
+// the rest next generation, once these settle and their flags clear.
+const MOD_QUEUE_PER_AUTHOR = 5;
 // FALSE since D83 (2026-08-10): world takes shipped, and D78 made this
 // flip their hard prerequisite — at world scale, circle-scope trust can no
 // longer stand in for enforcement. The header note asked the flip to cite
@@ -89,6 +115,68 @@ function avatarTarget(targetId: string): string | null {
     ? targetId.slice(3) || null : null;
 }
 
+/**
+ * Delete every flag cast on one moderation target. Returns how many went.
+ *
+ * ONE reader for "this target is settled, its flags are spent", because
+ * there are now three callers and they must not disagree: the keep verdict,
+ * the remove verdict, and the queue build's sweep of targets it finds
+ * already gone. A flag that outlives the thing it reported is not evidence
+ * of anything — it is a permanent vote in a tally the queue is ranked by.
+ *
+ * PAGED, unlike the single WriteBatch this replaces. A batch is capped at
+ * 500 writes and `commit()` throws over it — and the throw lands AFTER the
+ * verdict transaction has already committed, so the moderator would see a
+ * failure for a decision that took, and every retry would then hit
+ * failed-precondition on the queue entry that is already gone. 500
+ * reporters on one take is exactly the mass-false-report case moderation
+ * exists for, so it is the wrong place to have a cliff.
+ *
+ * Best-effort by design, as the keep sweep always was: leftover flags cost
+ * a redundant queue entry, never a wrong hide.
+ */
+async function clearFlagsFor(
+  db: FirebaseFirestore.Firestore,
+  takeId: string,
+): Promise<number> {
+  const FLAG_DELETE_PAGE = 400;
+  let cleared = 0;
+  for (;;) {
+    const page = await db.collection("v2_flags")
+      .where("takeId", "==", takeId).limit(FLAG_DELETE_PAGE).get();
+    if (page.empty) break;
+    const batch = db.batch();
+    for (const f of page.docs) batch.delete(f.ref);
+    await batch.commit();
+    cleared += page.size;
+    if (page.size < FLAG_DELETE_PAGE) break;
+  }
+  return cleared;
+}
+
+/**
+ * Count one queued entry against its author, and say whether it is over.
+ *
+ * A Map for the same reason the tally and priorEscalations are ones: the key
+ * is a uid, and on an object literal a uid of `constructor` reads back as
+ * the Object constructor — truthy, and `>= MOD_QUEUE_PER_AUTHOR` against a
+ * function is false, so that one account would have been exempt from its own
+ * cap. Uids are Firebase-minted rather than client-chosen, so this is
+ * belt-and-braces rather than a live hole; it costs a Map.
+ *
+ * An unknown author (a take written before `authorUid` was required, or a
+ * malformed doc) is NEVER capped: the cap exists to stop one account
+ * crowding the queue, and refusing to queue a take because its author
+ * cannot be read would hide content from moderation on a technicality.
+ */
+function overAuthorCap(perAuthor: Map<string, number>, author: unknown): boolean {
+  if (typeof author !== "string" || !author) return false;
+  const held = perAuthor.get(author) || 0;
+  if (held >= MOD_QUEUE_PER_AUTHOR) return true;
+  perAuthor.set(author, held + 1);
+  return false;
+}
+
 /** The Storage bucket avatars live in, for the queue's viewing URL. */
 function avatarBucket(): string {
   try {
@@ -133,6 +221,9 @@ async function runBuildModQueue(): Promise<void> {
     // unqueueable however often it was flagged).
     const FLAG_PAGE = 1000;
     const tally = new Map<string, number>();
+    // Folded in the same pass as the tally, for the queue's tie-break —
+    // see tallyFirstFlagInto in pure.ts for why the id could not stay it.
+    const firstAt = new Map<string, number>();
     let flagCursor: FirebaseFirestore.QueryDocumentSnapshot | null = null;
     let flagCount = 0;
     for (;;) {
@@ -141,12 +232,21 @@ async function runBuildModQueue(): Promise<void> {
       const page = await fq.get();
       if (page.empty) break;
       tallyFlagsInto(tally, page.docs.map((f) => f.get("takeId")));
+      tallyFirstFlagInto(firstAt, page.docs.map((f) => ({
+        takeId: f.get("takeId"),
+        // Timestamp → millis here rather than in pure.ts, which knows
+        // nothing about Firestore. A flag written before `at` was required
+        // has none; tallyFirstFlagInto skips a non-number rather than
+        // reading it as 0, which would sort it to the front of its tie.
+        at: f.get("at")?.toMillis?.(),
+      })));
       flagCount += page.size;
       if (page.size < FLAG_PAGE) break;
       flagCursor = page.docs[page.docs.length - 1];
     }
     const counts = Object.fromEntries(tally);
-    const queue = buildModQueueFrom(counts, MOD_QUEUE_MIN_FLAGS, MOD_QUEUE_SIZE);
+    // A candidate WINDOW, not the queue — see MOD_QUEUE_CANDIDATES.
+    const queue = buildModQueueFrom(counts, MOD_QUEUE_MIN_FLAGS, MOD_QUEUE_CANDIDATES, firstAt);
 
     // Rebuild wholesale: stale entries (verdicted, or takes since deleted)
     // must not linger, and the queue is small by construction.
@@ -188,7 +288,23 @@ async function runBuildModQueue(): Promise<void> {
     // assert, and a moderator holding the app's own read grant is the
     // smaller claim.
     const bucket = avatarBucket();
+    // Targets found settled while filling the queue, swept after the loop.
+    //
+    // The queue build is the only thing that ever LEARNS a flagged target
+    // is gone — a take its author deleted, or one hidden before the remove
+    // verdict started clearing flags. Their flags otherwise sit in the
+    // tally forever, ranking a target that can never be queued and holding
+    // a candidate slot on every run from here to the end of the app. Swept
+    // here, the tally self-heals on the first run and the residue is gone
+    // rather than permanent.
+    const settled: string[] = [];
+    // Per author, to bound one account's share of a generation.
+    const perAuthor = new Map<string, number>();
+    let capped = 0;
     for (const item of queue) {
+      // The window exists to be walked past dead entries; the QUEUE is
+      // still MOD_QUEUE_SIZE, and it is full.
+      if (queued >= MOD_QUEUE_SIZE) break;
       // AVATARS ARE MODERATED THROUGH THIS SAME QUEUE (D178), namespaced
       // by an `av_` target id so they cannot collide with a take id.
       //
@@ -199,8 +315,12 @@ async function runBuildModQueue(): Promise<void> {
       const target = avatarTarget(item.takeId);
       if (target) {
         const av = await db.collection("v2_avatars").doc(target).get();
-        // Same two exits as a take: vanished, or already settled.
-        if (!av.exists || av.get("hidden")) continue;
+        // Same two exits as a take: vanished, or already settled. Both now
+        // hand the target to the sweep — the entry is not coming back, so
+        // neither should its flags.
+        if (!av.exists || av.get("hidden")) { settled.push(item.takeId); continue; }
+        // An avatar's author is the uid its target names, no read required.
+        if (overAuthorCap(perAuthor, target)) { capped += 1; continue; }
         const escalations = priorEscalations.get(item.takeId) || 0;
         if (escalations > 0) carried += 1;
         batch.set(db.collection("v2_mod_queue").doc(item.takeId), {
@@ -229,7 +349,12 @@ async function runBuildModQueue(): Promise<void> {
       // boolean now (D65), but a take hidden before that change carries the
       // old annotation MAP here, and a map is truthy while `=== true` would
       // silently re-queue every one of them.
-      if (!take.exists || take.get("hidden")) continue;
+      if (!take.exists || take.get("hidden")) { settled.push(item.takeId); continue; }
+      // `authorUid` off the document rather than parsed out of the id: a
+      // world take's id is `qid + "_" + uid` and qid may itself contain an
+      // underscore, and a circle take's id says nothing about its author at
+      // all. The document is already in hand, so this costs no read.
+      if (overAuthorCap(perAuthor, take.get("authorUid"))) { capped += 1; continue; }
       const escalations = priorEscalations.get(item.takeId) || 0;
       if (escalations > 0) carried += 1;
       batch.set(db.collection("v2_mod_queue").doc(item.takeId), {
@@ -247,10 +372,28 @@ async function runBuildModQueue(): Promise<void> {
       queued += 1;
     }
     await batch.commit();
+    // AFTER the queue is committed, and deliberately: a sweep that failed
+    // half way must not be able to take the rebuild down with it, and the
+    // queue is the part that has to land. Sequential rather than
+    // Promise.all — this is a scheduled job on the long deadline, and the
+    // list is empty on every run after the first that drains the residue.
+    let swept = 0;
+    for (const takeId of settled) {
+      try {
+        swept += await clearFlagsFor(db, takeId);
+      } catch (err) {
+        // Best-effort, like the verdict sweeps: leftover flags cost a
+        // candidate slot on the next run, never a wrong hide.
+        logger.warn(`[mod] settled-flag sweep failed for ${takeId}:`, err);
+      }
+    }
     logger.info(
-      `[mod] queue rebuilt: ${queued} queued of ${queue.length} over-threshold ` +
-        `(${flagCount} flags over ${tally.size} takes, floor ${MOD_QUEUE_MIN_FLAGS}); ` +
-        `${carried} carrying a prior escalation`,
+      `[mod] queue rebuilt: ${queued} queued of ${queue.length} candidate(s) ` +
+        `(${flagCount} flags over ${tally.size} takes, floor ${MOD_QUEUE_MIN_FLAGS}, ` +
+        `window ${MOD_QUEUE_CANDIDATES}, size ${MOD_QUEUE_SIZE}); ` +
+        `${carried} carrying a prior escalation; ` +
+        `${capped} held back by the per-author cap (${MOD_QUEUE_PER_AUTHOR}); ` +
+        `${swept} flag(s) swept from ${settled.length} settled target(s)`,
     );
 }
 
@@ -406,15 +549,26 @@ export const submitModVerdict = onCall({ ...LIGHT_CALLABLE, region: REGION }, as
     }
   });
 
-  // keep-verdicts clear the take's flags so a kept take re-enters the
-  // queue only on FRESH flags — outside the transaction because flag
-  // docs are unbounded in principle and best-effort is enough (leftover
-  // flags cost a redundant queue entry, never a wrong hide).
-  if (!MOD_ADVISORY && verdict === "keep") {
-    const flags = await db.collection("v2_flags").where("takeId", "==", takeId).get();
-    const batch = db.batch();
-    for (const f of flags.docs) batch.delete(f.ref);
-    await batch.commit();
+  // A SETTLED verdict clears the target's flags — keep AND remove — so it
+  // re-enters the queue only on FRESH flags. Outside the transaction
+  // because flag docs are unbounded in principle and best-effort is enough
+  // (leftover flags cost a redundant queue entry, never a wrong hide).
+  //
+  // `remove` was missing here, and its absence was the whole moderation
+  // pipeline's undo. A removed take keeps its flag count in the daily
+  // tally forever; the tally is what the queue is RANKED by; so the take
+  // keeps ranking at the top of every rebuild and is then skipped as
+  // already-hidden, one candidate slot at a time. Twenty-five organic
+  // removes and the queue could not reach anything below the top
+  // twenty-five flag counts again — with MOD_ADVISORY false and hand
+  // verdicts the only source (D83), that is moderation off, reporting
+  // nothing. It needed no attacker: it was the ordinary consequence of
+  // using the tool as designed.
+  //
+  // Escalate is deliberately NOT here. An escalated take is unsettled — a
+  // human is still to look at it — and its flags are the evidence.
+  if (!MOD_ADVISORY && (verdict === "keep" || verdict === "remove")) {
+    await clearFlagsFor(db, takeId);
   }
   return { ok: true, advisory: MOD_ADVISORY };
 });

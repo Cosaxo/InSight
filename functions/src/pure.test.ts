@@ -22,6 +22,7 @@ import {
   BREAKDOWN_MAX_BUCKETS,
   catalogEntityKey,
   buildModQueueFrom,
+  tallyFirstFlagInto,
   tallyFlags,
   tallyFlagsInto,
   carriedEscalations,
@@ -880,6 +881,69 @@ describe("moderation — queue fold + verdict channel (docs/MODERATION.md)", () 
       { takeId: "d", flags: 3 },
     ]);
     expect(buildModQueueFrom(counts, 10, 25)).toEqual([]);
+  });
+
+  it("breaks a tie on the earliest flag, not on the client-chosen id", () => {
+    // The control, not a nicety. At the floor most takes sit on exactly
+    // minFlags, so the tie-break decides the whole queue below the busy
+    // head — and a world take's id is `qid + "_" + uid` with qid a free
+    // 1-120 char string, so id-ascending let anyone mint `!`-prefixed ids
+    // and sort to the front of every generation for three flags each.
+    const counts = { "!squat": 3, honest: 3, older: 3 };
+    const firstAt = new Map([["!squat", 3_000], ["honest", 2_000], ["older", 1_000]]);
+    expect(buildModQueueFrom(counts, 3, 25, firstAt).map((r) => r.takeId))
+      .toEqual(["older", "honest", "!squat"]);
+    // …and without the map it is the old order, which is what the squatter
+    // was buying.
+    expect(buildModQueueFrom(counts, 3, 25).map((r) => r.takeId))
+      .toEqual(["!squat", "honest", "older"]);
+  });
+
+  it("keeps flag count ahead of age, and stays a total order without stamps", () => {
+    // Age breaks TIES; it does not outrank the count. A take flagged once
+    // long ago must not precede one flagged nine times this morning.
+    const counts = { old1: 3, hot: 9 };
+    const firstAt = new Map([["old1", 1], ["hot", 9_999]]);
+    expect(buildModQueueFrom(counts, 3, 25, firstAt).map((r) => r.takeId))
+      .toEqual(["hot", "old1"]);
+    // Two takes with no usable stamp are both Infinity. Subtracting would
+    // give NaN and fall through to the id compare by accident; comparing
+    // gives 0 and falls through by decision. Same result, and the reason
+    // the comparator is written the way it is.
+    const nostamp = buildModQueueFrom({ b: 3, a: 3 }, 3, 25, new Map());
+    expect(nostamp.map((r) => r.takeId)).toEqual(["a", "b"]);
+  });
+
+  it("folds the earliest flag per take and ignores unusable stamps", () => {
+    const firstAt = tallyFirstFlagInto(new Map(), [
+      { takeId: "t", at: 500 },
+      { takeId: "t", at: 200 },   // earlier wins
+      { takeId: "t", at: 900 },
+      { takeId: "u", at: undefined },  // pre-`at` flag: skipped, not 0
+      { takeId: "u", at: "nope" },     // non-numeric: skipped
+      { takeId: "", at: 1 },           // no take: skipped
+      { takeId: 7, at: 1 },            // not a string: skipped
+    ]);
+    expect(firstAt.get("t")).toBe(200);
+    // Skipped rather than defaulted — a 0 would sort `u` to the FRONT of
+    // its tie, which is the opposite of what an unknown age deserves.
+    expect(firstAt.has("u")).toBe(false);
+    expect(firstAt.size).toBe(1);
+  });
+
+  it("does not let a settled target's flags rank it forever", () => {
+    // The queue-starvation shape, at the level this module can see it: the
+    // fold has no idea a take is hidden, so `k` here is a CANDIDATE window
+    // and moderation.ts stops at the real size once it has that many live
+    // entries. Cutting to the size here handed the dead ones' slots to
+    // nobody. Twenty-five settled takes at the top and a window of 25
+    // returns exactly the twenty-five that will all be skipped.
+    const counts: Record<string, number> = {};
+    for (let i = 0; i < 25; i++) counts[`settled${i}`] = 9;
+    counts.live = 3;
+    expect(buildModQueueFrom(counts, 3, 25).map((r) => r.takeId)).not.toContain("live");
+    // With the window, the live take is reachable behind them.
+    expect(buildModQueueFrom(counts, 3, 100).map((r) => r.takeId)).toContain("live");
   });
 
   it("tallies a take whose id is a prototype key, and queues it", () => {

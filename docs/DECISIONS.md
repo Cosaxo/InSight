@@ -22122,3 +22122,94 @@ light up by themselves the day live questions carry their tag. At
 42/week against a 136-question deficit the levelling takes roughly a
 month; the leaf step lands with its own gates (leaf ids in `sub`,
 stock-aware offers, budget counting) as its own change.
+
+## D214 · A settled report is spent, and the queue stopped ranking ghosts
+
+**2026-08-20.** **Status:** binding. Found by audit, not in service —
+there is no traffic yet, which is the only reason this is a fix rather
+than an incident report. Three defects in one pipeline, one of which
+needed no attacker and disabled moderation as a whole. D83's confinement
+design, its two instruments and the MOD_UIDS allowlist are unchanged:
+this record moves what the queue is BUILT from, never who may judge it.
+
+### The bug that needed nobody
+
+`submitModVerdict` swept `v2_flags` only on `verdict === "keep"`. A
+removed take therefore kept its flag count in the daily tally forever —
+and the tally is what `buildModQueueFrom` RANKS by, so the take kept
+sorting into the top 25 of every rebuild, where `runBuildModQueue` then
+skipped it as already-hidden. The slot went to nobody: the fold sliced
+to 25 *before* this file could learn the target was gone, so each skip
+cost a candidate rather than reallocating one.
+
+The arithmetic: `MOD_QUEUE_SIZE` is 25. After 25 organic removes the
+queue could reach nothing below the top twenty-five flag counts, ever
+again. With `MOD_ADVISORY` false since D83 and hand verdicts the only
+source, that is the whole enforcement path going quiet while every gate
+stayed green — including the moderation e2e, which asserted that a
+removed take does not RE-QUEUE (true with the bug: hidden takes are
+skipped) and never asked what the skip cost.
+
+Author-deleted takes leave flags behind the same way and always did, so
+the residue was not only moderator-made.
+
+### What shipped
+
+1. **A settled target's flags are cleared, wherever the settlement is
+   noticed.** `remove` sweeps like `keep`; the rebuild sweeps anything
+   it finds vanished or already hidden, so the tally self-heals on the
+   first run and the pre-existing residue drains rather than compounds.
+   `escalate` deliberately does not sweep — the take is unsettled, a
+   human is still to look at it, and the flags are the evidence. One
+   reader for all three (`clearFlagsFor`), now PAGED at 400: the old
+   single `WriteBatch` threw over 500 flags, *after* the verdict
+   transaction had committed, so a moderator saw a failure for a
+   decision that took and every retry hit `failed-precondition`.
+2. **The cut to 25 happens after the visibility filter.**
+   `buildModQueueFrom`'s `k` is now a candidate WINDOW
+   (`MOD_QUEUE_CANDIDATES = 100`) and the loop stops at 25 live entries.
+   Bounded at 4×: worst case 100 document reads instead of 25, only
+   while a tail of settled targets exists, which the sweep then drains.
+3. **Ties break on the earliest flag, not the take id.** At the floor
+   most takes sit on exactly `MOD_QUEUE_MIN_FLAGS`, so the tie-break
+   decides the whole queue below the busy head — and a world take's id
+   is `qid + "_" + uid` with `qid` a free 1–120 char string, so
+   id-ascending sold the front of every generation for three flags and
+   a `!` prefix. `at` is server-written (`== request.time` in the create
+   rule). EARLIEST, not the newest the audit proposed: fresh accounts
+   can always make a take newly flagged and can never make it older.
+4. **A per-author cap** (`MOD_QUEUE_PER_AUTHOR = 5`) on one account's
+   share of a generation, read from `authorUid` on a document already in
+   hand. Three free accounts (D3) and 75 flags could otherwise hold all
+   25 slots with one author's takes. An unknown author is never capped —
+   the cap stops crowding, and refusing to queue a take because its
+   author cannot be read would hide content from moderation on a
+   technicality.
+5. **You cannot flag your own take** (`isTakeFlag()`), the refusal the
+   avatar arm has carried since D178. Three of your own accounts on your
+   own take is the flag floor, so this was also a way to spend a
+   generation on something you could delete yourself. It reads
+   `authorUid` off the same `/v2_takes` document the arm already gets
+   twice — three sites, one document, one billed read, the D139/D194
+   shape. `RULE_READS` is unchanged for the D98/D178 reason: it charges
+   the ANSWER-create paths, and flagging is not one. The `pulse.test.mjs`
+   tripwire moves 22 → 23 gets.
+
+### What the gates could not see, and what now can
+
+Every one of these passed `npm run test:rules`, the moderation e2e, and
+all 35 static gates. What was missing was an assertion that a settled
+target's FLAGS are gone — the e2e now makes it, and reverting the sweep
+fails it with `remove left 3 flag(s) standing`. The queue-window and
+tie-break properties are pinned in `pure.test.ts`; the self-flag deny is
+pinned in `rules.test.ts` and fails without the rule.
+
+### Deferred with the arithmetic
+
+Flag RETENTION is still not a policy (D55 §11). These changes bound the
+tally by settlement rather than by age, which is strictly better than
+what was there and still not a TTL: a take that is flagged twice, below
+the floor of 3, holds two flags forever and nothing ever settles it. At
+1.2 KB of heap per snapshot doc the paged tally OOMs somewhere above
+100k flags — unchanged by this record, and the reason the retention
+decision is still owed.

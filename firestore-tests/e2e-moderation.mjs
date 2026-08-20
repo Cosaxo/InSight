@@ -163,6 +163,19 @@ if (!removed.data.ok || removed.data.advisory) fail("remove reply: " + JSON.stri
   // The queue entry is settled and gone — a removed take is not re-judged.
   const entry = await adb.doc(`v2_mod_queue/${T_REMOVE}`).get();
   if (entry.exists) fail("queue entry survived an enforced remove");
+  // …and so are its flags, which is the half that was missing and the one
+  // that mattered most. A remove used to leave them standing, and the daily
+  // tally is what the queue is RANKED by — so a removed take kept its count
+  // forever, kept ranking at the top of every rebuild, and was then skipped
+  // as already-hidden, burning a candidate slot each time. Step 7 below
+  // cannot see this: it asserts the take does not RE-QUEUE, which was true
+  // with the bug (hidden takes are skipped) and says nothing about what the
+  // skip costs. Twenty-five removes and the queue could reach nothing below
+  // the top twenty-five flag counts again.
+  const leftover = await adb.collection("v2_flags").where("takeId", "==", T_REMOVE).get();
+  if (!leftover.empty) {
+    fail(`remove left ${leftover.size} flag(s) standing — they rank a take that can never be queued`);
+  }
 }
 // The client half of the same fact: a circle MEMBER (the moderator caller
 // is one) can no longer read it — the soft-hide is the read rule working,

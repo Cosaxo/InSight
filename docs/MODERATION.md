@@ -76,10 +76,10 @@ threat model below remain the contract.
 ## The job in one sentence
 
 A scheduled run reads the most-flagged takes and, for each, either
-removes it (soft-hide, citing a policy line), clears its flags, or
-escalates it to the maintainer — and is built so that a hostile comment
-can, at absolute worst, cause one wrong verdict, never a change to code
-or data.
+removes it (soft-hide, citing a policy line) or keeps it — clearing its
+flags either way — or escalates it to the maintainer, and is built so
+that a hostile comment can, at absolute worst, cause one wrong verdict,
+never a change to code or data.
 
 ## What exists today (and deliberately doesn't)
 
@@ -180,6 +180,28 @@ verdict.
    The session judges what the queue hands it; verdicts referencing ids
    not in the queue are rejected by rules. "Also moderate comment X"
    fails structurally.
+
+   Three things bound *which* takes fill those K slots, and each exists
+   because the obvious version starves the queue:
+   - **A settled target's flags are cleared** — on a remove as well as a
+     keep, and by the rebuild itself for anything it finds already gone.
+     The tally is what the queue is ranked by, so a flag that outlives
+     what it reported is a permanent vote for a target that can never be
+     queued again.
+   - **The cut to K happens after the visibility filter, not before.**
+     Only the rebuild can see that a take has vanished or is already
+     hidden, so the fold hands it a candidate *window*
+     (`MOD_QUEUE_CANDIDATES`) and it stops at `MOD_QUEUE_SIZE` live
+     entries. Cutting first gave the dead entries' slots to nobody.
+   - **Ties break on the earliest flag, not the take id.** A take id is
+     client-chosen, so id-ascending let anyone sort themselves to the
+     front of every generation; `at` is server-written. Earliest rather
+     than latest because an attacker can always make a take newly
+     flagged and can never make it older.
+
+   Plus a per-author cap (`MOD_QUEUE_PER_AUTHOR`) on one account's share
+   of a generation, and — in the rules rather than here — the refusal to
+   flag your own take, which the avatar arm has had since D178.
 4. **Soft removal only.** A removed take is hidden (`hidden: true`, with
    the annotation — `by`, `policyLine`, `runId`, `at` — alongside it in
    `hiddenMeta`), content retained — reversible by the maintainer,

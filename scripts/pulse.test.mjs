@@ -288,7 +288,17 @@ describe("cost-arith reads its constants from source, not from memory", () => {
       // reached and charging it would model traffic that cannot exist.
       // The number is recorded rather than omitted so that re-enabling the
       // surface is one term, not a recount.
-    ).toEqual({ gets: 22, exists: 3 });
+      //
+      // 22 → 23 gets: isTakeFlag() gained the self-flag refusal the avatar
+      // arm has had since D178 — you cannot report your own take. It reads
+      // `authorUid` off /v2_takes/{takeId}, which is the SAME document the
+      // arm's other two get() sites already read, so this is the D139 and
+      // D194 shape exactly: three sites, one document, one billed read.
+      // The site count moves; the cost does not.
+      //
+      // RULE_READS is deliberately unchanged, for the D98 and D178 reason:
+      // it charges the ANSWER-create paths, and flagging a take is not one.
+    ).toEqual({ gets: 23, exists: 3 });
   });
 
   it("the answer trigger's transaction still issues the reads the model charges", () => {

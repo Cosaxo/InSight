@@ -1156,19 +1156,77 @@ export function tallyFlagsInto(
 }
 
 /**
+ * The earliest flag time per take, folded a page at a time beside the tally.
+ *
+ * Exists for the queue's TIE-BREAK, and the tie-break is a control rather
+ * than a tidiness: at the flag floor most takes sit on exactly `minFlags`,
+ * so whatever breaks that tie decides the whole queue below the busy head.
+ * That used to be the take id ascending — and a take id is CLIENT-CHOSEN
+ * (`qid + "_" + uid`, with qid a free 1-120 char string), so anyone could
+ * mint `!`-prefixed ids and sort themselves to the front of every
+ * generation for the price of three flags each.
+ *
+ * `at` is server-written (`request.resource.data.at == request.time` in the
+ * flag create rule), so it is the one field on a flag the flagger cannot
+ * choose. EARLIEST, not latest: oldest-waiting-first is FIFO, it drains a
+ * backlog instead of starving it, and — the reason it is not the other
+ * direction — an attacker with fresh accounts can always make a take
+ * NEWLY flagged and can never make it older.
+ *
+ * Non-numeric and missing stamps are skipped rather than defaulted: a take
+ * with no usable time sorts last among its tie (Infinity below) instead of
+ * jumping the queue on a zero.
+ */
+export function tallyFirstFlagInto(
+  firstAt: Map<string, number>,
+  flags: readonly { takeId: unknown; at: unknown }[],
+): Map<string, number> {
+  for (const f of flags) {
+    if (typeof f.takeId !== "string" || !f.takeId) continue;
+    if (typeof f.at !== "number" || !Number.isFinite(f.at)) continue;
+    const held = firstAt.get(f.takeId);
+    if (held === undefined || f.at < held) firstAt.set(f.takeId, f.at);
+  }
+  return firstAt;
+}
+
+/**
  * Fold raw flag counts into the queue: takes at or above the flag
- * threshold, most-flagged first (id ascending on ties so equal inputs
- * give equal queues), capped at k.
+ * threshold, most-flagged first, capped at k.
+ *
+ * Ties break on the earliest flag (tallyFirstFlagInto, above) and then on
+ * the id, so equal inputs still give equal queues. `firstAt` is optional
+ * only so the pinned cases that predate it keep reading as they were
+ * written; the live caller always passes it.
+ *
+ * WHAT k IS NOT: the queue size. Entries whose target has vanished or is
+ * already hidden are dropped by the CALLER, which is the only side that can
+ * see a take document — so cutting to the queue size here handed those
+ * slots to nobody (moderation.ts sliced 25, then `continue`d past the dead
+ * ones and queued fewer). k is the CANDIDATE window; the caller stops at
+ * the real size once it has that many live entries.
  */
 export function buildModQueueFrom(
   flagCounts: Record<string, number>,
   minFlags: number,
   k: number,
+  firstAt?: ReadonlyMap<string, number>,
 ): { takeId: string; flags: number }[] {
+  const at = (id: string): number => firstAt?.get(id) ?? Infinity;
+  // Subtraction would be wrong here, not merely inelegant: two takes with
+  // no usable stamp are both Infinity and `Infinity - Infinity` is NaN,
+  // which is falsy, so the id tie-break would fire by accident rather than
+  // by decision. Comparing gives a total order with no NaN in it.
+  const byAge = (x: string, y: string): number => {
+    const ax = at(x), ay = at(y);
+    return ax === ay ? 0 : ax < ay ? -1 : 1;
+  };
   return Object.keys(flagCounts)
     .map((takeId) => ({ takeId, flags: flagCounts[takeId] }))
     .filter((r) => r.flags >= minFlags)
-    .sort((a, b) => b.flags - a.flags || (a.takeId < b.takeId ? -1 : 1))
+    .sort((a, b) => b.flags - a.flags
+      || byAge(a.takeId, b.takeId)
+      || (a.takeId < b.takeId ? -1 : 1))
     .slice(0, k);
 }
 
