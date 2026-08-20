@@ -45,9 +45,33 @@
 import { duoRuns, type RevealDocLike } from "./duelRuns";
 import { groupPortrait, type PortraitReveal } from "./groupPortrait";
 
-/** Revealed days below this and a run says nothing about a person. */
+/** Days below this and a run says nothing about a person — in the floor's
+ * own unit (see duoRoleDays / groupRoleDays). */
 export const MIN_DUO = 3;
 export const MIN_GROUP = 2;
+
+/**
+ * How far a setting still under its floor has got — the thin row's
+ * "1 of 3". Deliberately the SAME unit the floor checks, which is not
+ * "revealed days": a 1v1 counts scored days (both guessed, the same
+ * question — duoRuns drops the rest), a group counts days YOU played.
+ * A pair can reveal five days and guess on two, and telling them "no 1v1
+ * has run 3 revealed days" would be false — the copy bug this exists to
+ * keep out of the panel.
+ */
+export function duoRoleDays(
+  history: readonly RevealDocLike[],
+  me: string,
+  them: string,
+): number {
+  return duoRuns(history, me, them).read.length;
+}
+export function groupRoleDays(
+  reveals: readonly PortraitReveal[],
+  myUid: string | null,
+): number {
+  return groupPortrait(reveals as PortraitReveal[], myUid).daysPlayed;
+}
 
 export interface RoleDim {
   id: string;

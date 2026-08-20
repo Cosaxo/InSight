@@ -6,7 +6,11 @@
 // settings and then listing every setting one row deep — because a role
 // is only interesting next to the other roles you play. The same rose,
 // the same archetype matcher and the same nearby-type language every
-// other result card uses; nothing new is invented for it.
+// other result card uses; nothing new is invented for it. A setting
+// still under its floor is listed too, as a thin row with its count
+// ("1 of 3 days both guessed") — the prototype's shape, restored after
+// this panel first shipped without it and a below-floor duel was simply
+// invisible while the average silently excluded it.
 //
 // LAZY ON PURPOSE. `profile-overlay.jsx` is in the EAGER graph and
 // `check:bundle`'s MAX_EAGER_KB had ~8 KB of headroom when this shipped,
@@ -22,7 +26,7 @@
 // them on mount and only on mount — see docs/COSTS.md.
 import React from "react";
 import LIVE from "../data/live";
-import { blendRoles, duoRole, groupRole, MIN_DUO, MIN_GROUP, type RoleResult } from "../data/roles";
+import { blendRoles, duoRole, duoRoleDays, groupRole, groupRoleDays, MIN_DUO, MIN_GROUP, type RoleResult } from "../data/roles";
 // @ts-expect-error TS7016 — untyped spec module (additive export)
 import { RoseMini, TestRose } from "../spec/result-rose.jsx";
 // @ts-expect-error TS7016 — untyped spec module (additive export)
@@ -30,6 +34,9 @@ import { TypeMark } from "../spec/type-marks.jsx";
 
 interface Room { id: string; mode?: string; name?: string; memberUids?: string[]; memberNames?: Record<string, string> }
 interface Setting { key: string; label: string; res: RoleResult }
+/** A setting still under its floor — listed with how far it has got
+ * (the prototype's ThinRow), never silently missing from the panel. */
+interface ThinSetting { key: string; label: string; note: string }
 
 /** The matcher, through the one global the archetype module still owns. */
 function typeOf(kind: string, dims: { id: string; value: number }[]): { name: string; line: string } | null {
@@ -73,7 +80,9 @@ export default function LiveRolesPanel(): React.ReactElement {
   }, [rooms, S]);
 
   const duos: Setting[] = [];
+  const duosThin: ThinSetting[] = [];
   const groups: Setting[] = [];
+  const groupsThin: ThinSetting[] = [];
   for (const r of rooms) {
     const hist = S.revealHistory(r.id) || [];
     if ((r.mode || "group") === "duo") {
@@ -82,11 +91,25 @@ export default function LiveRolesPanel(): React.ReactElement {
       // The name the duel panel itself uses: the room's own snapshot,
       // topped up by whatever the newest reveal carried.
       const revealNames = (hist[0]?.names as Record<string, string> | undefined) || {};
-      const label = revealNames[them] || (r.memberNames || {})[them] || r.name || "1v1";
-      if (res) duos.push({ key: r.id, label: firstName(label), res });
+      const label = firstName(revealNames[them] || (r.memberNames || {})[them] || r.name || "1v1");
+      if (res) duos.push({ key: r.id, label, res });
+      else duosThin.push({
+        key: r.id, label,
+        // The floor's own unit, which is not "revealed days" (see
+        // duoRoleDays): a pair can reveal five days and guess on two.
+        note: !them || !hist.length
+          ? "nothing revealed yet"
+          : `${duoRoleDays(hist as never[], uid, them)} of ${MIN_DUO} days both guessed`,
+      });
     } else {
       const res = groupRole(hist as never[], uid);
       if (res) groups.push({ key: r.id, label: r.name || "Group", res });
+      else groupsThin.push({
+        key: r.id, label: r.name || "Group",
+        note: !hist.length
+          ? "nothing revealed yet"
+          : `${groupRoleDays(hist as never[], uid)} of ${MIN_GROUP} days played`,
+      });
     }
   }
 
@@ -94,23 +117,31 @@ export default function LiveRolesPanel(): React.ReactElement {
     kind: "duo" | "group",
     title: string,
     settings: Setting[],
+    thin: ThinSetting[],
     floor: number,
     empty: string,
   ) => {
     const avg = blendRoles(settings.map((s) => s.res));
     const t = avg ? typeOf(kind, avg.dims) : null;
+    // The list draws whenever there is more than one thing to put in it —
+    // a second reading, or a setting still on its way. With one reading
+    // and nothing else, a row would only repeat the card above it.
+    const showRows = settings.length > 1 || thin.length > 0;
     return (
       <div style={{ marginBottom: 22 }}>
         <div className="kicker" style={{ marginBottom: 9 }}>{title}</div>
-        {!avg ? (
-          // The honest refusal, not an empty rose. A role drawn from one
-          // revealed day would be a coin flip with a name on it.
+        {!avg && !thin.length ? (
+          // The honest refusal, not an empty rose — for a section with no
+          // settings at all. A setting that merely has too few days is a
+          // thin row below instead: "1 of 3" says the same thing without a
+          // sentence (visual > word > sentence, D182).
           <div style={{ fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 600, color: "var(--ink-2)", lineHeight: 1.45, textWrap: "pretty" }}>
             {empty.replace("{n}", String(floor))}
           </div>
         ) : (
           <>
-            <div style={{ display: "flex", alignItems: "center", gap: 13, marginBottom: settings.length > 1 ? 14 : 0 }}>
+            {avg && (
+            <div style={{ display: "flex", alignItems: "center", gap: 13, marginBottom: showRows ? 14 : 0 }}>
               <TestRose testKey={kind} dims={avg.dims} animate={false} compact={true} />
               <div style={{ minWidth: 0 }}>
                 {t && (
@@ -129,9 +160,10 @@ export default function LiveRolesPanel(): React.ReactElement {
                 </div>
               </div>
             </div>
+            )}
             {/* One row per setting — a role is only interesting beside the
                 other roles you play, so the average never stands alone. */}
-            {settings.length > 1 && settings.map((s) => {
+            {showRows && settings.map((s) => {
               const st = typeOf(kind, s.res.dims);
               const isOpen = open === s.key;
               return (
@@ -161,6 +193,18 @@ export default function LiveRolesPanel(): React.ReactElement {
                 </div>
               );
             })}
+            {/* The settings still under the floor — a dashed ring where the
+                rose will be, and how far along the count is. Omitting them
+                (as this panel first shipped) made the average silently
+                partial: a 4-day duel drew a card while a 2-day one simply
+                did not exist on screen. */}
+            {showRows && thin.map((s) => (
+              <div key={s.key} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 0", borderTop: "0.5px solid color-mix(in oklch, var(--rule), transparent 35%)" }}>
+                <span aria-hidden="true" style={{ width: 34, height: 34, borderRadius: "50%", flexShrink: 0, boxSizing: "border-box", border: "1px dashed color-mix(in oklch, var(--ink-3) 40%, transparent)" }} />
+                <span style={{ flex: 1, minWidth: 0, fontFamily: "var(--sans)", fontWeight: 700, fontSize: 13.5, letterSpacing: "-0.015em", color: "var(--ink-2)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.label}</span>
+                <span style={{ flexShrink: 0, fontFamily: "var(--sans)", fontSize: 11, fontWeight: 600, color: "var(--ink-3)", whiteSpace: "nowrap" }}>{s.note}</span>
+              </div>
+            ))}
           </>
         )}
       </div>
@@ -169,10 +213,13 @@ export default function LiveRolesPanel(): React.ReactElement {
 
   return (
     <div data-screen-label="Roles">
-      {section("duo", "In 1v1s", duos, MIN_DUO,
-        "No 1v1 has run {n} revealed days yet — the role appears once one has.")}
-      {section("group", "In groups", groups, MIN_GROUP,
-        "No group has run {n} revealed days yet — the role appears once one has.")}
+      {/* The sentences name the floor's real unit. "Revealed days" was
+          false for a 1v1: the gate counts days BOTH of you guessed, and a
+          pair can reveal five days and guess on two. */}
+      {section("duo", "In 1v1s", duos, duosThin, MIN_DUO,
+        "No 1v1 has {n} days you both guessed yet — the role appears once one has.")}
+      {section("group", "In groups", groups, groupsThin, MIN_GROUP,
+        "No group has {n} revealed days you played yet — the role appears once one has.")}
     </div>
   );
 }

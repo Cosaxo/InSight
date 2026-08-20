@@ -16,7 +16,7 @@
 //     the matcher still returns a type, just the wrong one. The registry
 //     cases at the foot are the only thing that would notice.
 import { describe, expect, it } from "vitest";
-import { blendRoles, duoRole, groupRole, steadiness, MIN_DUO, MIN_GROUP } from "./roles";
+import { blendRoles, duoRole, duoRoleDays, groupRole, groupRoleDays, steadiness, MIN_DUO, MIN_GROUP } from "./roles";
 // @ts-expect-error TS7016 — untyped spec module
 import { IS_ARCHETYPES } from "../spec/archetype-data.js";
 // @ts-expect-error TS7016 — untyped spec module
@@ -179,6 +179,30 @@ describe("groupRole", () => {
     // A constant 50 equal to the baseline would have contributed nothing
     // to any match while drawing an identical petal on every rose.
     expect(r.dims.some((d) => d.id === "cast")).toBe(false);
+  });
+});
+
+describe("the floor's own unit, for thin rows", () => {
+  it("duoRoleDays counts scored days, not revealed days", () => {
+    // Three revealed days, guesses on two — a thin row saying "3 of 3"
+    // here would promise a role the fold then refuses.
+    const hist = [
+      day("2026-08-01", [0, 1], [1, 1]),
+      day("2026-08-02", [0, 1], [1, 1]),
+      day("2026-08-03", [0, undefined], [1, undefined]),
+    ];
+    expect(duoRoleDays(hist, ME, THEM)).toBe(2);
+    // The count agrees with the gate: under MIN_DUO here, so no role…
+    expect(duoRole(hist, ME, THEM)).toBeNull();
+  });
+
+  it("groupRoleDays counts days you played, matching groupRole's gate", () => {
+    const hist = [
+      gday("2026-08-01", { me: 0, a: 0 }),
+      gday("2026-08-02", { a: 0, b: 1 }), // revealed, but I sat it out
+    ];
+    expect(groupRoleDays(hist, ME)).toBe(1);
+    expect(groupRole(hist, ME)).toBeNull();
   });
 });
 
