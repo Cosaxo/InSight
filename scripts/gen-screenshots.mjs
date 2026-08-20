@@ -84,6 +84,25 @@ const PROFILES = {
 // Note the /mirror/i flag: the dock's DOM text is lowercase and CSS
 // uppercases it, so a case-sensitive match finds nothing. Found by
 // dumping the tabbar, not by reading the JSX.
+// The daily's nav is the ruler since v17 — role="tab" stops labelled
+// World · Circle · 1v1 — and TWO rulers carry that label at once: the
+// in-flow row and the compact copy the header holds ready to dock.
+// Resolve a stop the way smoke-nav.test.jsx does (the in-flow ruler is
+// the one outside .app-header), and fail loudly when it is missing. The
+// old duel/group drives clicked buttons named "1v1" and "Group": the
+// first is a tab rather than a button, and the second label left with
+// the pill — both were written against the pre-v17 app, and nothing ran
+// this harness between then and today to notice.
+async function clickRulerStop(page, label) {
+  await page.evaluate((want) => {
+    const rulers = [...document.querySelectorAll('[role="tablist"][aria-label="How far this answer reaches"]')];
+    const row = rulers.find((r) => !r.closest(".app-header"));
+    const tab = row && [...row.querySelectorAll('[role="tab"]')].find((b) => b.textContent.trim() === want);
+    if (!tab) throw new Error(`no in-flow ruler stop "${want}"`);
+    tab.click();
+  }, label);
+}
+
 const SCENES = [
   {
     id: "daily",
@@ -113,14 +132,17 @@ const SCENES = [
   {
     id: "duel",
     async drive(p) {
-      await p.getByRole("button", { name: /1v1/ }).first().click();
+      await clickRulerStop(p, "1v1");
       await p.waitForTimeout(900);
     },
   },
   {
     id: "group",
+    // The scene id and its caption key stay "group" — renaming to the
+    // ruler's word would orphan `05-group` in listing.json for no pixel
+    // difference.
     async drive(p) {
-      await p.getByRole("button", { name: /Group/ }).first().click();
+      await clickRulerStop(p, "Circle");
       await p.waitForTimeout(900);
     },
   },
@@ -198,7 +220,19 @@ for (const [profileId, cfg] of profiles) {
         (window.LIVE && window.LIVE.enabled) ? "live" : "demo");
     }
 
-    await scene.drive(page);
+    // A scene whose drive fails records a problem and moves on rather
+    // than killing the process: the run still exits 1, but ONE run
+    // reports every wall and the artifact keeps whatever landed. Run 3
+    // paid the alternative — three good live captures died with the
+    // process because the duel scene's selector had no live match.
+    try {
+      await scene.drive(page);
+    } catch (e) {
+      problems.push(`${profileId}/${scene.id}: drive failed — ${String(e).slice(0, 200)}`);
+      console.log(`  ✗ ${profileId}/${scene.id}  (drive failed, no capture)`);
+      await page.close();
+      continue;
+    }
     await page.waitForTimeout(500);
 
     // Demo-only affordances, by their accessible names. Checked on the
@@ -217,11 +251,19 @@ for (const [profileId, cfg] of profiles) {
     // daily-split.jsx), so an honest live capture showing real named
     // voters does not trip this. That near-collision is the whole reason
     // to match on exact labels here rather than a substring.
-    const demoOnly = await page.evaluate(() =>
-      ["Comments", "Who voted what"].filter((label) => {
+    // "Who voted what" is carried by BOTH rows since D171: the demo
+    // sheet's door and the live row's LiveBreakdownPanel door
+    // (daily-split.jsx) share the exact label, and only the rows'
+    // S.live gates tell them apart. In live mode the demo row cannot
+    // render, so any match there IS the shippable D98 panel — checking
+    // it flagged run 3's honest live reveal as unshippable. The
+    // world-feed near-collision note above is about a third button and
+    // still holds; "Comments" stays demo-unique in both modes.
+    const demoOnly = await page.evaluate((labels) =>
+      labels.filter((label) => {
         const el = document.querySelector(`[aria-label="${label}"]`);
         return el && el.getBoundingClientRect().width > 0;
-      }));
+      }), manifest.mode === "live" ? ["Comments"] : ["Comments", "Who voted what"]);
 
     const n = String((onlyScene ? SCENES.findIndex((s) => s.id === scene.id) : i) + 1).padStart(2, "0");
     const file = join(dir, `${n}-${scene.id}.png`);
