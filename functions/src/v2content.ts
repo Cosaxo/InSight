@@ -10787,6 +10787,176 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null
  },
  {
+  "id": "learn-ear9",
+  "surface": "learn",
+  "seq": 126,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The second-highest mountain on Earth is…",
+  "options": [
+   "Kangchenjunga",
+   "K2",
+   "Lhotse",
+   "Annapurna"
+  ],
+  "topic": "earth",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-ear10",
+  "surface": "learn",
+  "seq": 127,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Which river carries the most water?",
+  "options": [
+   "The Amazon",
+   "The Nile",
+   "The Congo",
+   "The Yangtze"
+  ],
+  "topic": "earth",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-ear11",
+  "surface": "learn",
+  "seq": 128,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Kilimanjaro, Africa's highest peak, is a…",
+  "options": [
+   "Fold mountain",
+   "Fault-block ridge",
+   "Dormant volcano",
+   "Plateau remnant"
+  ],
+  "topic": "earth",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-ear12",
+  "surface": "learn",
+  "seq": 129,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The river that carved the Grand Canyon is the…",
+  "options": [
+   "Rio Grande",
+   "Colorado",
+   "Mississippi",
+   "Missouri"
+  ],
+  "topic": "earth",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-ear13",
+  "surface": "learn",
+  "seq": 130,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Which mountains draw the classic Europe–Asia line?",
+  "options": [
+   "The Urals",
+   "The Caucasus",
+   "The Alps",
+   "The Carpathians"
+  ],
+  "topic": "earth",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-evo9",
+  "surface": "learn",
+  "seq": 131,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Onboard leftovers from an ancestor — those structures are…",
+  "options": [
+   "Homologous",
+   "Analogous",
+   "Adaptive",
+   "Vestigial"
+  ],
+  "topic": "evo",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-evo10",
+  "surface": "learn",
+  "seq": 132,
+  "type": "choice",
+  "domain": null,
+  "prompt": "England's peppered moths turned dark because…",
+  "options": [
+   "Soot stained their wings",
+   "Dark moths dodged the birds",
+   "They chose camouflage",
+   "Smog sped up mutation"
+  ],
+  "topic": "evo",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-evo11",
+  "surface": "learn",
+  "seq": 133,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Most of life's history on Earth was spent as…",
+  "options": [
+   "Fish",
+   "Reptiles",
+   "Single cells",
+   "Plants"
+  ],
+  "topic": "evo",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-evo12",
+  "surface": "learn",
+  "seq": 134,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Lucy, the famous fossil, was a…",
+  "options": [
+   "Neanderthal",
+   "Homo erectus",
+   "Cro-Magnon",
+   "An Australopithecus"
+  ],
+  "topic": "evo",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-evo13",
+  "surface": "learn",
+  "seq": 135,
+  "type": "choice",
+  "domain": null,
+  "prompt": "In biology, \"the fittest\" is the one that…",
+  "options": [
+   "Is the strongest",
+   "Leaves the most offspring",
+   "Lives the longest",
+   "Beats its rivals"
+  ],
+  "topic": "evo",
+  "axis": null,
+  "test": null
+ },
+ {
   "id": "pulse-pace",
   "surface": "pulse",
   "seq": 0,

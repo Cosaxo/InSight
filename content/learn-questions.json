@@ -2015,6 +2015,157 @@
       "p": 70,
       "k": "Antibiotics miss viruses",
       "w": "Antibiotics attack bacterial machinery viruses do not have — which is why they do nothing for a cold."
+    },
+    {
+      "id": "ear9",
+      "f": "earth",
+      "q": "The second-highest mountain on Earth is…",
+      "a": [
+        "Kangchenjunga",
+        "K2",
+        "Lhotse",
+        "Annapurna"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 55,
+      "k": "K2 stands second"
+    },
+    {
+      "id": "ear10",
+      "f": "earth",
+      "q": "Which river carries the most water?",
+      "a": [
+        "The Amazon",
+        "The Nile",
+        "The Congo",
+        "The Yangtze"
+      ],
+      "c": 0,
+      "t": 1,
+      "p": 48,
+      "k": "Amazon: the biggest flow"
+    },
+    {
+      "id": "ear11",
+      "f": "earth",
+      "q": "Kilimanjaro, Africa's highest peak, is a…",
+      "a": [
+        "Fold mountain",
+        "Fault-block ridge",
+        "Dormant volcano",
+        "Plateau remnant"
+      ],
+      "c": 2,
+      "t": 0,
+      "p": 64,
+      "k": "Kilimanjaro is a volcano"
+    },
+    {
+      "id": "ear12",
+      "f": "earth",
+      "q": "The river that carved the Grand Canyon is the…",
+      "a": [
+        "Rio Grande",
+        "Colorado",
+        "Mississippi",
+        "Missouri"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 42,
+      "k": "The Colorado carved it"
+    },
+    {
+      "id": "ear13",
+      "f": "earth",
+      "q": "Which mountains draw the classic Europe–Asia line?",
+      "a": [
+        "The Urals",
+        "The Caucasus",
+        "The Alps",
+        "The Carpathians"
+      ],
+      "c": 0,
+      "t": 1,
+      "p": 58,
+      "k": "Urals: the continental line",
+      "w": "The 18th-century convention puts the line on the Urals; the Caucasus marks its disputed southern stretch, which is why it pulls votes."
+    },
+    {
+      "id": "evo9",
+      "f": "evo",
+      "q": "Onboard leftovers from an ancestor — those structures are…",
+      "a": [
+        "Homologous",
+        "Analogous",
+        "Adaptive",
+        "Vestigial"
+      ],
+      "c": 3,
+      "t": 0,
+      "p": 66,
+      "k": "Vestigial: evolution's leftovers"
+    },
+    {
+      "id": "evo10",
+      "f": "evo",
+      "q": "England's peppered moths turned dark because…",
+      "a": [
+        "Soot stained their wings",
+        "Dark moths dodged the birds",
+        "They chose camouflage",
+        "Smog sped up mutation"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 61,
+      "k": "Peppered moth: selection"
+    },
+    {
+      "id": "evo11",
+      "f": "evo",
+      "q": "Most of life's history on Earth was spent as…",
+      "a": [
+        "Fish",
+        "Reptiles",
+        "Single cells",
+        "Plants"
+      ],
+      "c": 2,
+      "t": 0,
+      "p": 71,
+      "k": "Mostly single cells"
+    },
+    {
+      "id": "evo12",
+      "f": "evo",
+      "q": "Lucy, the famous fossil, was a…",
+      "a": [
+        "Neanderthal",
+        "Homo erectus",
+        "Cro-Magnon",
+        "An Australopithecus"
+      ],
+      "c": 3,
+      "t": 0,
+      "p": 74,
+      "k": "Lucy: Australopithecus"
+    },
+    {
+      "id": "evo13",
+      "f": "evo",
+      "q": "In biology, \"the fittest\" is the one that…",
+      "a": [
+        "Is the strongest",
+        "Leaves the most offspring",
+        "Lives the longest",
+        "Beats its rivals"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 44,
+      "k": "Fitness counts offspring"
     }
   ]
 }
