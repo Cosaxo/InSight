@@ -190,6 +190,41 @@ export function shouldReveal(mode: string, played: number): boolean {
   return mode === "duo" ? played >= 2 : played >= 1;
 }
 
+/**
+ * May a reveal for `dayKey` move the group's PRESENT-TENSE state — its
+ * streak and its `lastRevealDay`?
+ *
+ * Only if the day is newer than the last one revealed. `utcDayKey` is
+ * `YYYY-MM-DD`, so a string compare is a date compare.
+ *
+ * WHY IT IS NEEDED. `scanDays()` walks the pending window NEWEST FIRST, and
+ * `revealDuelsNowV2` defaults to `mode: "full"` over all six days — so a
+ * run routinely reveals yesterday (streak +1, lastRevealDay = yesterday)
+ * and then reaches a day-before-that that was still pending. Without this,
+ * that older reveal wrote `lastRevealDay = day-2`, REGRESSING it, and
+ * `nextStreak(yesterday, day-2, n)` returns 1 because yesterday is not the
+ * day before day-2. A duo's streak went to 1 for having a gap FILLED IN.
+ *
+ * The next legitimate reveal then computed `nextStreak(day-2, day-1)` and
+ * got 2, so the count recovered from 1 rather than resuming — the loss is
+ * permanent in the only sense that matters to the user, who watched a
+ * 40-day streak become 1.
+ *
+ * The operator's own recovery lever was the sharpest way to trigger it:
+ * `revealDuelsNowV2` with no dayKey zeroed the current streak of any duo
+ * younger than six days or with a settled gap.
+ *
+ * A backfilled day still PUBLISHES its reveal — the reveal doc is the
+ * record of what was answered, and it is written either way. What it stops
+ * doing is claiming to be the present.
+ */
+export function movesPresentState(
+  lastRevealDay: string | null | undefined,
+  dayKey: string,
+): boolean {
+  return typeof lastRevealDay !== "string" || !lastRevealDay || dayKey > lastRevealDay;
+}
+
 // A streak extends only when the previous reveal was for the day
 // immediately before this one; any gap resets to 1.
 export function nextStreak(

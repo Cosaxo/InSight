@@ -12,6 +12,7 @@ import {
   utcDayKey,
   prevDayKey,
   shouldReveal,
+  movesPresentState,
   nextStreak,
   PENDING_DAYS_KEEP,
   prunePendingDays,
@@ -335,6 +336,51 @@ describe("revealMembersFor", () => {
 });
 
 // ── streaks ─────────────────────────────────────────────────────
+
+describe("movesPresentState — which day may claim to be the present", () => {
+  it("lets a newer day move the streak and lastRevealDay", () => {
+    expect(movesPresentState("2026-07-26", "2026-07-27")).toBe(true);
+    expect(movesPresentState("2026-07-20", "2026-07-27")).toBe(true);
+  });
+
+  it("refuses a day the group has already moved past", () => {
+    // THE regression. scanDays() walks the pending window newest-first and
+    // revealDuelsNowV2 defaults to `full` over six days, so a run routinely
+    // reveals yesterday and THEN reaches an older day still pending. That
+    // older reveal used to write lastRevealDay backwards and recompute the
+    // streak from it — nextStreak("2026-07-27", "2026-07-25", 40) is 1,
+    // because the 27th is not the day before the 25th. A duo watched a
+    // 40-day streak become 1 for having a gap filled in.
+    expect(movesPresentState("2026-07-27", "2026-07-25")).toBe(false);
+    expect(nextStreak("2026-07-27", "2026-07-25", 40)).toBe(1);  // why it matters
+  });
+
+  it("refuses the same day twice", () => {
+    // Belt to the reveal path's own `lastRevealDay === dayKey` early return:
+    // a re-reveal must not extend a streak it already counted.
+    expect(movesPresentState("2026-07-27", "2026-07-27")).toBe(false);
+  });
+
+  it("lets the first ever reveal through, whatever the field holds", () => {
+    expect(movesPresentState(null, "2026-07-27")).toBe(true);
+    expect(movesPresentState(undefined, "2026-07-27")).toBe(true);
+    expect(movesPresentState("", "2026-07-27")).toBe(true);
+    // A group written before the field existed, or one whose field was
+    // corrupted to a non-string: treated as "never revealed" rather than
+    // compared with >, which would be a string/number comparison returning
+    // false and freezing the streak forever.
+    expect(movesPresentState(42 as unknown as string, "2026-07-27")).toBe(true);
+  });
+
+  it("orders by date, which for YYYY-MM-DD is the string order", () => {
+    // The whole predicate rests on this. Across a month and a year end,
+    // where a naive day-number comparison would be the tempting mistake.
+    expect(movesPresentState("2026-07-31", "2026-08-01")).toBe(true);
+    expect(movesPresentState("2026-08-01", "2026-07-31")).toBe(false);
+    expect(movesPresentState("2026-12-31", "2027-01-01")).toBe(true);
+    expect(movesPresentState("2027-01-01", "2026-12-31")).toBe(false);
+  });
+});
 
 describe("nextStreak", () => {
   it("extends when the previous reveal was the day before", () => {

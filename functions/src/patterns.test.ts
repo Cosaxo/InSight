@@ -117,6 +117,63 @@ describe("idempotence and catch-up", () => {
     expect(r.folded).toBe(1);
   });
 
+  it("folds a D86 edit as ONE answer, not as two people disagreeing", async () => {
+    // The ledger is a log of aggregate EVENTS. An optionIdx edit writes a
+    // second entry under a fresh event.id, byte-identical in shape to the
+    // create it supersedes — so a person who answered 0 and changed their
+    // mind to 1 arrived here as two rows. Thirty of them folded as
+    // {n: 60, marginal: 0}: a p0 of 0.500 against a truth of 0.050, which
+    // inflates the basis nextAsk(minBasis = 8) gates the Oracle on.
+    const { store } = memoryStore({
+      [yesterday]: [
+        { uid: "u1", qid: CORE_A, optionIdx: 0 },   // answered
+        { uid: "u1", qid: CORE_A, optionIdx: 1 },   // …then edited
+        { uid: "u2", qid: CORE_A, optionIdx: 1 },   // one real second person
+      ],
+    });
+    const r = await runPatternsFit(store, NOW);
+    // Two people, two observations — not three.
+    expect(r.folded).toBe(2);
+    expect(r.users).toBe(2);
+  });
+
+  it("keeps the LATEST answer of an edited pair, not the first", async () => {
+    // Last-wins, because ledgerDay returns the day in `at` order. Taking the
+    // first would fold the answer the user explicitly retracted, which is
+    // worse than double-counting: it is confidently wrong rather than noisy.
+    //
+    // Read through the user state: u1's only surviving observation must be
+    // the one u2 agrees with, so both users fold identically.
+    const edited = memoryStore({
+      [yesterday]: [
+        { uid: "u1", qid: CORE_A, optionIdx: 0 },
+        { uid: "u1", qid: CORE_A, optionIdx: 1 },
+      ],
+    });
+    await runPatternsFit(edited.store, NOW);
+    const plain = memoryStore({
+      [yesterday]: [{ uid: "u1", qid: CORE_A, optionIdx: 1 }],
+    });
+    await runPatternsFit(plain.store, NOW);
+    expect(edited.state.users.get("u1")).toEqual(plain.state.users.get("u1"));
+    expect(edited.state.model?.q).toEqual(plain.state.model?.q);
+  });
+
+  it("still folds two DIFFERENT questions from one person", async () => {
+    // The dedup is per (person, question). Collapsing to one observation per
+    // person would be the obvious wrong version of this fix, and it would
+    // quietly halve the model's input.
+    const { store } = memoryStore({
+      [yesterday]: [
+        { uid: "u1", qid: CORE_A, optionIdx: 0 },
+        { uid: "u1", qid: CORE_B, optionIdx: 1 },
+      ],
+    });
+    const r = await runPatternsFit(store, NOW);
+    expect(r.folded).toBe(2);
+    expect(r.users).toBe(1);
+  });
+
   it("the catch-up window is bounded — an ancient lastDay does not scan the whole ledger", async () => {
     const { store, state } = memoryStore({});
     state.model = { k: 8, q: {}, lastDay: "2020-01-01" };
