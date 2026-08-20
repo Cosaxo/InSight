@@ -934,11 +934,20 @@ async function hydrate(): Promise<void> {
   // advancing (a bug), and BOTH are reported rather than truncated
   // quietly.
   const BANK_MAX_PAGES = 100;
-  const BANK_SURFACES = ["daily", "feed", "test", "group", "duo", "learn"];
+  // Every surface splitBanks() deals a bank for. "pulse" and "call" were
+  // missing until 2026-08-20: this list is the only fence between
+  // v2_questions and the banks — it filters both the server query below
+  // and rowsOf() — so their banks stayed permanently empty in live builds
+  // while every pulse/call test passed against a stubbed bank.
+  const BANK_SURFACES = ["daily", "feed", "test", "group", "duo", "learn", "pulse", "call"];
   let all: BankEntry[] | null = null;
-  // v2: the entry gained an `updatedAt` cursor. A v1 payload simply misses
-  // and pays one full refetch, which is the correct upgrade cost.
-  const BANK_LS = "insight.bankCache.v2";
+  // v2: the entry gained an `updatedAt` cursor. v3: BANK_SURFACES widened
+  // to pulse/call — a v2 payload was FETCHED under the narrower filter, so
+  // its rows can never contain those surfaces and its cursor would never
+  // backfill them (the delta only sees docs whose updatedAt moved). An old
+  // payload simply misses and pays one full refetch, which is the correct
+  // upgrade cost.
+  const BANK_LS = "insight.bankCache.v3";
   let cursor = 0;
   try {
     const cached = JSON.parse(localStorage.getItem(BANK_LS) || "null");

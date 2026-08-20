@@ -324,7 +324,7 @@ export const DAILY_ID_FAIL = 970; // an id-scheme decision is due before 999
 // ceiling wants the same alarm at a different number.
 //
 // The next one is the localStorage bank cache. live.ts writes the whole
-// bank to `insight.bankCache.v2` inside a try/catch that ignores failure,
+// bank to `insight.bankCache.v3` inside a try/catch that ignores failure,
 // so crossing the browser quota does not break the app: it silently stops
 // caching, and every boot then pays a full bank fetch forever. A cost
 // cliff with no symptom is exactly this gate's subject.
@@ -1088,7 +1088,7 @@ export function checkHeadroom(corpus) {
   if (bankSize >= BANK_FAIL) {
     errs.push(
       `seeded bank holds ${bankSize} docs ≈ ${cacheMB(bankSize)} MB of localStorage cache — over budget. `
-      + "live.ts caches the whole bank in `insight.bankCache.v2` and SWALLOWS a quota failure, so crossing this "
+      + "live.ts caches the whole bank in `insight.bankCache.v3` and SWALLOWS a quota failure, so crossing this "
       + "does not break anything: it silently stops caching and every boot pays a full bank fetch forever. "
       + "Move the cache off localStorage (IndexedDB) before promoting more.",
     );

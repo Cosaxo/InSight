@@ -149,7 +149,7 @@ class MemoryStorage {
 
 let storage: MemoryStorage;
 
-const BANK_LS = "insight.bankCache.v2";
+const BANK_LS = "insight.bankCache.v3";
 
 const q = (id: string, updatedAt: number, over: Record<string, unknown> = {}): FakeDoc => ({
   id,
@@ -366,5 +366,24 @@ describe("question-bank cache", () => {
     expect(bankFetches()).toBe(1);
     expect(isDelta(0)).toBe(false);
     expect(readCache().questions.map((x: { id: string }) => x.id)).toEqual(["q_1", "q_2"]);
+  });
+
+  it("carries pulse and call docs through hydrate into their banks", async () => {
+    // The regression this pins: BANK_SURFACES is the only fence between
+    // v2_questions and the banks, and it silently omitted "pulse" and
+    // "call" — so both banks were permanently empty in live builds while
+    // every pulse/call test passed against a stubbed bank. This is the one
+    // test that walks the real hydrate path, so the list can never drop a
+    // bank lane quietly again. (The mock's full fetch ignores `where`
+    // constraints, so the client-side rowsOf() filter is what is exercised;
+    // the server filter is the same array.)
+    h.bankDocs = [
+      ...h.bankDocs,
+      q("q_pulse_1", 1000, { surface: "pulse" }),
+      q("q_call_1", 1000, { surface: "call" }),
+    ];
+    const LIVE = await bootLive();
+    expect(LIVE.pulseQs().map((x) => x.id)).toEqual(["q_pulse_1"]);
+    expect(LIVE.callQs().map((x) => x.id)).toEqual(["q_call_1"]);
   });
 });
