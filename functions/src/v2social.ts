@@ -48,6 +48,7 @@ import {
   votesMatchingQid,
   presenceCellOk,
   presenceNeighbors,
+  roomPick,
   PRESENCE_LINGER_MIN,
   ROOM_SAMPLE_CAP,
   ROOM_PEOPLE_CAP,
@@ -1482,7 +1483,10 @@ async function roomFor(cells: string[], own: string, qids: string[]): Promise<Ro
       const folded = await Promise.all(missing.map(async (q) => {
         const refs = people.map((p) => db.doc(`v2_users/${p.uid}/answers/${q}`));
         const docs = await db.getAll(...refs);
-        return [q, tallyPicks(docs.map((d) => d.get("optionIdx") as number | undefined))] as const;
+        // roomPick, not a bare optionIdx read: this is an Admin-SDK read of
+        // client-chosen qids, so it is the one answer-read path the rules'
+        // duel seal does not cover — pure.ts has the full reasoning.
+        return [q, tallyPicks(docs.map((d) => roomPick(d.get("surface"), d.get("optionIdx"))))] as const;
       }));
       for (const [q, counts] of folded) qs[q] = counts;
     }

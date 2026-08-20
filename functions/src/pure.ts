@@ -1701,6 +1701,23 @@ export type RoomCounts = Record<string, Record<string, number>>;
  * that a reader could not get by tapping a name. What a small split needs
  * is its `n` shown beside it, which is the post-D98 rule everywhere else.
  */
+// What a room fold may read out of one person's answer doc — or undefined,
+// which tallyPicks counts as "didn't answer".
+//
+// The surface check IS the duel seal for this path. The seal (sealed
+// group/duo answers unreadable until the next-day reveal) is enforced in
+// firestore.rules' surface test, and roomFor reads answer docs on the
+// Admin SDK, where rules do not apply — while the qids it folds are
+// client-supplied and only path-checked (roomQids). A duel answer's id,
+// `g_{gid}_{day}`, is a perfectly path-safe qid, so without this check a
+// co-present caller could fold today's sealed tally out of the room —
+// and the result would then sit in the shared room cache for its window.
+// A sealed answer therefore reads as absent, exactly what rules answer.
+export function roomPick(surface: unknown, optionIdx: unknown): number | undefined {
+  if (surface === "group" || surface === "duo") return undefined;
+  return typeof optionIdx === "number" ? optionIdx : undefined;
+}
+
 export function tallyPicks(picks: readonly (number | null | undefined)[]): Record<string, number> {
   const out: Record<string, number> = {};
   for (const p of picks) {

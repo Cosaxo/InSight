@@ -14,6 +14,7 @@ import {
   shouldReveal,
   nextStreak,
   groupRevealStamp,
+  roomPick,
   PENDING_DAYS_KEEP,
   prunePendingDays,
   scanDays,
@@ -281,6 +282,29 @@ describe("groupRevealStamp", () => {
     // group's bookkeeping stands.
     expect(groupRevealStamp("2026-07-25", "2026-07-24", 4)).toBeNull();
     expect(groupRevealStamp("2026-07-25", "2026-07-25", 4)).toBeNull();
+  });
+});
+// ── what a room fold may read from an answer ────────────────────
+
+describe("roomPick", () => {
+  it("passes an ordinary answer's pick through", () => {
+    expect(roomPick("daily", 2)).toBe(2);
+    expect(roomPick("feed", 0)).toBe(0);
+    expect(roomPick(undefined, 1)).toBe(1);
+  });
+
+  it("reads a sealed duel answer as absent", () => {
+    // The seal bypass this pins: roomFor reads client-chosen qids on the
+    // Admin SDK, and `g_{gid}_{day}` is a path-safe qid — so without this,
+    // a co-present caller folded today's sealed duel tally out of the room
+    // before the reveal, into the shared room cache.
+    expect(roomPick("group", 1)).toBeUndefined();
+    expect(roomPick("duo", 0)).toBeUndefined();
+  });
+
+  it("reads a malformed pick as absent", () => {
+    expect(roomPick("daily", "1")).toBeUndefined();
+    expect(roomPick("daily", undefined)).toBeUndefined();
   });
 });
 
