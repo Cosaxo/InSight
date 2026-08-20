@@ -272,6 +272,31 @@ describe("headlineFor — three kinds of question, three readings", () => {
     expect(headlineFor([0, 0, 0, 9, 0, 1, 3], "scale")).toEqual({ kind: "agree", pct: 31 });
   });
 
+  it("prints an agree share the bars beneath it actually add up to", () => {
+    // The regression, exhaustively. The scale branch used to divide
+    // locally — `Math.round((agree / n) * 100)` — which is the same
+    // mistake as the "62, not 63" case below, one branch over, and more
+    // visible: the headline sits directly above the bars it summarizes.
+    //
+    // Every 5-option vector with counts 0..12. 95,368 of them disagreed.
+    const bad: string[] = [];
+    const rec = (v: number[]): void => {
+      if (v.length === 5) {
+        const n = v.reduce((a, b) => a + b, 0);
+        if (!n) return;
+        const h = headlineFor(v, "scale");
+        if (h?.kind !== "agree") return;
+        const bars = pctFor(v).slice(-2).reduce((a, b) => a + b, 0);
+        if (h.pct !== bars) bad.push(`[${v}] headline ${h.pct}% vs bars ${bars}%`);
+        return;
+      }
+      for (let c = 0; c <= 12; c++) rec([...v, c]);
+    };
+    rec([]);
+    expect(bad.slice(0, 3)).toEqual([]);
+    expect(bad.length).toBe(0);
+  });
+
   it("names the leading option for anything categorical", () => {
     expect(headlineFor([12, 8], "binary")).toEqual({ kind: "top", pct: 60, optionIdx: 0 });
     // No type at all is categorical too — the fold must not guess ordinal
