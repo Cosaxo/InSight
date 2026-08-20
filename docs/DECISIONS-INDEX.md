@@ -2,8 +2,8 @@
 
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
-"which decision governs this" is 219 lines instead of
-22,335. Do not hand-edit; `npm run check:docs` fails when this
+"which decision governs this" is 220 lines instead of
+22,424. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -74,7 +74,7 @@ detect it.
 | **D54** | [The ledger gets eyes: a daily velocity scan, feeding manual review](DECISIONS.md#d54--the-ledger-gets-eyes-a-daily-velocity-scan-feeding-manual-review) | D130 (+2) | 5128 |
 | **D55** | [Three guarantees were enforced on a value and not on the way it moves](DECISIONS.md#d55--three-guarantees-were-enforced-on-a-value-and-not-on-the-way-it-moves) | D214 (+2) | 5226 |
 | **D56** | [The logic test stops telegraphing its rules: banded families, and every puzzle is on the clock](DECISIONS.md#d56--the-logic-test-stops-telegraphing-its-rules-banded-families-and-every-puzzle-is-on-the-clock) | D62 (+1) | 5626 |
-| **D57** | [Verified logic attempts: D31's deferral reversed — the server holds the key](DECISIONS.md#d57--verified-logic-attempts-d31s-deferral-reversed--the-server-holds-the-key) | D194 (+7) | 5709 |
+| **D57** | [Verified logic attempts: D31's deferral reversed — the server holds the key](DECISIONS.md#d57--verified-logic-attempts-d31s-deferral-reversed--the-server-holds-the-key) | D216 (+8) | 5709 |
 | **D58** | [The seed refuses to edit a shipped option set](DECISIONS.md#d58--the-seed-refuses-to-edit-a-shipped-option-set) | D68 | 5836 |
 | **D59** | [The deferred chunks stop caching their own failure](DECISIONS.md#d59--the-deferred-chunks-stop-caching-their-own-failure) | — | 5909 |
 | **D60** | [The verified percentile becomes a measurement at one hundred players](DECISIONS.md#d60--the-verified-percentile-becomes-a-measurement-at-one-hundred-players) | D62 (+1) | 5959 |
@@ -211,7 +211,7 @@ detect it.
 | **D191** | [Build 20's pre-flight: nothing to bump, and check:bundle's second load-bearing variable](DECISIONS.md#d191--build-20s-pre-flight-nothing-to-bump-and-checkbundles-second-load-bearing-variable) | D199 (+2) | 19466 |
 | **D192** | [The docs get a map, and the map gets a gate](DECISIONS.md#d192--the-docs-get-a-map-and-the-map-gets-a-gate) | D199 (+2) | 19577 |
 | **D193** | [Compare draws the comparison it was always described as drawing](DECISIONS.md#d193--compare-draws-the-comparison-it-was-always-described-as-drawing) | D202 (+2) | 19702 |
-| **D194** | [Predictions ship, and the app only asserts what it can recompute](DECISIONS.md#d194--predictions-ship-and-the-app-only-asserts-what-it-can-recompute) | D214 (+4) | 19864 |
+| **D194** | [Predictions ship, and the app only asserts what it can recompute](DECISIONS.md#d194--predictions-ship-and-the-app-only-asserts-what-it-can-recompute) | D216 (+5) | 19864 |
 | **D195** | [The paid slot is built, and nobody has bought it yet](DECISIONS.md#d195--the-paid-slot-is-built-and-nobody-has-bought-it-yet) | D213 (+4) | 20037 |
 | **D196** | [The reading game is the one that ships, and it waits for a crowd](DECISIONS.md#d196--the-reading-game-is-the-one-that-ships-and-it-waits-for-a-crowd) | D209 (+2) | 20150 |
 | **D197** | [The feed gets real ads, and they are not sponsored questions](DECISIONS.md#d197--the-feed-gets-real-ads-and-they-are-not-sponsored-questions) | D199 (+1) | 20258 |
@@ -232,4 +232,5 @@ detect it.
 | **D212** | [Questions ship without waiting for a person](DECISIONS.md#d212--questions-ship-without-waiting-for-a-person) | — | 22000 |
 | **D213** | [Every servable type generates, and the feed goes daily](DECISIONS.md#d213--every-servable-type-generates-and-the-feed-goes-daily) | — | 22074 |
 | **D214** | [A settled report is spent, and the queue stopped ranking ghosts](DECISIONS.md#d214--a-settled-report-is-spent-and-the-queue-stopped-ranking-ghosts) | D215 | 22126 |
-| **D215** | [Four things nothing was standing behind](DECISIONS.md#d215--four-things-nothing-was-standing-behind) | — | 22217 |
+| **D215** | [Four things nothing was standing behind](DECISIONS.md#d215--four-things-nothing-was-standing-behind) | D216 | 22217 |
+| **D216** | [One rounding rule, and it stopped drawing three votes above four](DECISIONS.md#d216--one-rounding-rule-and-it-stopped-drawing-three-votes-above-four) | — | 22336 |

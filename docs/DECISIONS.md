@@ -22332,3 +22332,92 @@ that had been disarmed without anyone noticing: the TZ case that could not
 see a zone, and `LiveRoomTabs.test.tsx`'s `type: "Host"` in D214's item 3.
 A test that cannot fail is worse than no test, because it is counted. Every
 fix here was reverted after the fact to confirm its test goes red.
+
+## D216 · One rounding rule, and it stopped drawing three votes above four
+
+**2026-08-20.** **Status:** binding. Follows D215 §1, which fixed the
+`scale` headline by routing it through `pctFor` and explicitly did NOT
+touch `pctFor` itself — the fix needed `wfPcts` to move in the same
+commit, and this is that commit.
+
+### The rule that looked right
+
+Both surfaces carried the same four lines: round each share, then push the
+whole residue onto the largest bucket.
+
+    const p = counts.map((c) => Math.round((c / total) * 100));
+    p[p.indexOf(Math.max(...p))] += 100 - p.reduce((a, b) => a + b, 0);
+
+It sums to 100, which is the property everyone checks. What it does not
+say is that the residue is not always one point: with many options the
+rounding errors accumulate, and the correction lands on ONE bucket however
+far that pushes it. Measured over 840,000 sampled count vectors of 6 to 12
+options — the live shapes, not a stress test: a 10-point rating, a
+12-bucket dial, a 4×3 field:
+
+- **13,307 (1.58%) drew a smaller count at a larger percentage.**
+  `[3,3,4,4,4,4,4,4,4,4]` gave `[8,8,7,11,…]`: an option with four votes
+  drawn shorter than one with three.
+- **8,646 handed the largest percentage to a bucket that did not have the
+  most votes.** `[5,7,1,9,1,7,10]` printed the 10-vote winner at 22% and a
+  9-vote option at 23%.
+
+The second is the sharper one, because `world-feed-math.test.js` **states
+that exact invariant** — *"a maximal bucket stays maximal. Rounding must
+never hand the card's headline to a side that did not win"* — and pinned
+it with four hand-picked vectors, every one of which passes under the
+broken rule. The test's own comment records a first draft being
+strengthened after a `Math.max`/`Math.min` swap survived it. The method
+was the problem, not the diligence: hand-picked cases can only check what
+someone already suspected.
+
+Under 6 options neither failure occurs, which is why this survived. The
+exhaustive sweep at lengths 2–5 is clean for both rules.
+
+### What shipped
+
+**`src/v2/data/pct.ts`, one implementation.** Largest remainder
+(Hamilton): floor every share, hand the remaining points to the largest
+fractional remainders, ties to the lower index. Zero inversions and zero
+misplaced maxima over the same 840,000 vectors, and not by luck — every
+result is `floor(exact)` or `floor(exact)+1` with the +1 handed out in
+remainder order, so `c[i] > c[j]` implies `p[i] >= p[j]`.
+
+Integer arithmetic (`c * 100` before the division, remainder as
+`c*100 - floor*total`), so no share can land on 24.999999999999996 and
+floor to 24. Counts are always whole votes; this is exact.
+
+`pctFor` and `wfPcts` both call it. That is the point: `pctFor`'s comment
+has always said two surfaces rounding differently on the same numbers is
+how a 51/49 becomes a 51/48 one screen over, and the two agreed only by
+carrying the same four lines each — the arrangement `check:logic-sync`
+(D57) and `check:calls` (D194) exist to police. One implementation needs
+no gate.
+
+### The cost, stated
+
+Equal counts can now render a point apart. `[1,1,1,3]` gives
+`[17,17,16,50]`; the old rule gave `[17,17,17,49]`. Both distort someone —
+the old one shaved a full point off the winner to keep the three ones
+level — and Hamilton's total deviation from the exact shares is smaller
+there (1.33 against 1.99). The reason to prefer it anyway is not the
+deviation: **unequal rendering of equal counts is a rounding artifact, and
+a smaller count drawn larger is a claim about the data that is false.**
+Only one of the two rules can tell the second kind of lie.
+
+That case is pinned by value in both suites so a revert is visible rather
+than merely red.
+
+### Two things worth carrying forward
+
+- **`tsc` caught what `lint` could not.** The first draft put the
+  cross-surface agreement case in `cohort.test.ts`, which is typed; it
+  imports `world-feed-math.js`, which is not, so `tsc -b` failed TS7016.
+  The suppression would have worked and would also have crossed the
+  boundary DECISIONS.md:3337 rests the no-`allowJs` argument on. The case
+  lives on the feed side instead, which is plain JS and is the surface
+  that owns the convention.
+- **The sweep is the test.** `data/pct.test.ts` is exhaustive to 5 options
+  (402,216 vectors) and fixed-seed sampled to 12, rather than a longer
+  list of hand-picked cases. Reverting `sharePcts` fails seven cases
+  across both surfaces.
