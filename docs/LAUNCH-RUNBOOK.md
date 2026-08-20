@@ -154,8 +154,20 @@ arithmetic.
       separate commit that lands **after** the database exists, because a
       PR that cannot be merged until a console action happens is a trap.
 
-- [ ] **0.1 Seed the production question bank — run 2026-08-07 and already
-      stale.** Actions → **Seed content** → Run workflow.
+- [x] **0.1 Seed the production question bank — CLOSED, measured
+      2026-08-20.** A client-path read of the live `insight` database
+      (anonymous auth, the same read every install does) returned
+      **exactly 600 documents and zero `test-cognitive-*` docs**: the
+      flip-and-bump instruction below described the pre-D165 `(default)`
+      database, and the D165 fresh reset (2026-08-15) reseeded from the
+      post-D103 bank, so the 20 retired questions never entered the
+      database the app now reads. Nothing to flip. The bank is current
+      by the D88 chain (seed run 52 rode today's deploy), and run 53
+      (bump_rev, same day) bumped `contentRev` besides — harmless, spent
+      on an instruction this measurement retired. Original text kept
+      below because it documents how the gap was reasoned about while it
+      was real.
+      Actions → **Seed content** → Run workflow.
       600 questions land in `v2_questions` — idempotent and, since D34,
       cheap to repeat.
 
