@@ -92,7 +92,14 @@ const SCENES = [
   {
     id: "reveal",
     async drive(p) {
-      await p.getByRole("button", { name: "Absolutely" }).first().click();
+      // The first option of today's card, whatever its text. This used
+      // to click "Absolutely" by name — the DEMO deck's first option —
+      // which live mode can only satisfy on days the real question
+      // happens to share that label. `sd-opt` is the daily option
+      // buttons' own class (daily-split.jsx), so `.first()` still fails
+      // loudly when the card is missing, which is the property the
+      // by-name selector bought.
+      await p.locator("button.sd-opt").first().click();
       await p.waitForTimeout(1400); // the split animates in
     },
   },
@@ -175,7 +182,15 @@ for (const [profileId, cfg] of profiles) {
     const errors = [];
     page.on("pageerror", (e) => errors.push(String(e)));
 
-    await page.goto(url, { waitUntil: "networkidle" });
+    // "load", not "networkidle": a LIVE build holds a Firestore listen
+    // channel open for as long as the page lives, so the network never
+    // goes idle — the old wait timed out on this harness's first live
+    // run (Screenshots run 2). The app renders only after live boot
+    // resolves (initLive().finally — src/v2/main.jsx), so the dock
+    // appearing IS the ready signal, in both modes; 60s covers a cold
+    // anonymous sign-in on a busy runner.
+    await page.goto(url, { waitUntil: "load" });
+    await page.getByRole("button", { name: /mirror/i }).first().waitFor({ timeout: 60_000 });
     await page.waitForTimeout(1200); // spec layer settles after first paint
 
     if (manifest.mode === null) {
