@@ -771,6 +771,83 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     expect(dial!.options).toHaveLength(12);
   });
 
+  it("hydrate mirrors a continuum answer in the control's units, not the store's (D218)", async () => {
+    // The WF_LS mirror is what world-feed renders as YOUR value. A dial's
+    // optionIdx is the 12-bucket index (deck.ts), and mirroring that raw
+    // number is how a 1-cup answer stood on screen as "0 cups": the index
+    // wearing the value's clothes. A dial mirrors as its bucket's
+    // midpoint, a field as its cell's point, and a vote card keeps the
+    // index, which IS its unit. The literals below are also the drift pin
+    // for mirrorVoteValue's twins in world-feed.jsx (dialBucketMid /
+    // fieldCellMid — data/ cannot import the spec layer, so the midpoint
+    // math exists twice): hand-computed from the 12-bucket geometry, not
+    // re-derived from either copy.
+    h.bankDocs.push(
+      {
+        id: "q_feed_dial",
+        data: {
+          surface: "feed", seq: 4, type: "dial", prompt: "When does old age begin?",
+          options: Array.from({ length: 12 }, (_, i) => `b${i}`),
+          topic: "bigq", test: null, active: true, lo: 40, hi: 90, unit: "yrs",
+        },
+      },
+      {
+        id: "q_feed_field",
+        data: {
+          surface: "feed", seq: 5, type: "field", prompt: "Place your week",
+          options: Array.from({ length: 12 }, (_, i) => `c${i}`),
+          topic: "bigq", test: null, active: true,
+        },
+      },
+      {
+        id: "q_feed_vote",
+        data: { surface: "feed", seq: 6, type: "vote", prompt: "Vote one",
+          options: ["A", "B"], topic: "culture", test: null, active: true },
+      },
+    );
+    // answers from an earlier session, exactly as the warm cache hands
+    // them over (maxTs > 0 keeps this the incremental-boot path)
+    storage.setItem(ANS_LS, JSON.stringify({
+      uid: "uid_test",
+      votes: { q_feed_dial: "0", q_feed_field: "6", q_feed_vote: "1" },
+      maxTs: 5, maxEditTs: 0,
+    }));
+    await bootLive();
+    const wf = JSON.parse(storage.getItem(WF_LS) || "{}");
+    expect(wf.q_feed_dial).toBeCloseTo(42.0833, 3); // bucket 0 of 40–90 — NOT 0
+    expect(wf.q_feed_field.x).toBeCloseTo(62.5, 6); // cell 6 = col 2, row 1
+    expect(wf.q_feed_field.y).toBeCloseTo(50, 6);
+    expect(wf.q_feed_vote).toBe(1);
+  });
+
+  it("editVote's refusal restores a dial's mirror as the standing bucket's midpoint (D218)", async () => {
+    // The raw drag the mirror held is gone (only the feed ever knew it),
+    // so the closest the answer doc can testify to is its standing
+    // bucket's midpoint — never the index, and never the refused edit.
+    h.bankDocs.push({
+      id: "q_feed_dial",
+      data: {
+        surface: "feed", seq: 4, type: "dial", prompt: "When does old age begin?",
+        options: Array.from({ length: 12 }, (_, i) => `b${i}`),
+        topic: "bigq", test: null, active: true, lo: 40, hi: 90, unit: "yrs",
+      },
+    });
+    const LIVE = await bootLive();
+    LIVE.vote("q_feed_dial", "3");
+    await flush();
+    // what the FEED wrote after the edit's own drag: the new raw value,
+    // already persisted optimistically (bucket 9 spans 77.5–81.7)
+    storage.setItem(WF_LS, JSON.stringify({ q_feed_dial: 80 }));
+    const d = deferred();
+    h.updateDocImpl = () => d.promise;
+    expect(LIVE.editVote("q_feed_dial", "9")).toBe(true);
+    await flush();
+    d.reject(new Error("PERMISSION_DENIED: one change a minute"));
+    await flush();
+    // NOT 3 (the index) and NOT 80 (the refused edit): bucket 3's midpoint
+    expect(JSON.parse(storage.getItem(WF_LS) || "{}").q_feed_dial).toBeCloseTo(54.5833, 3);
+  });
+
   it("a feed doc's doors reach the mapped card, and absence stays absent (docs/TAGS-PLAN.md)", async () => {
     // `also` is how the filter, stock and search reach a straddler from its
     // second topic — a bank doc whose doors get dropped here is a card the

@@ -1303,7 +1303,7 @@ async function hydrate(): Promise<void> {
     const wf = JSON.parse(localStorage.getItem(WF_LS) || "{}") || {};
     state.feedBank.forEach((q) => {
       const v = state.votes[q.id];
-      if (v != null && wf[q.id] == null) wf[q.id] = Number(v);
+      if (v != null && wf[q.id] == null) wf[q.id] = mirrorVoteValue(q, Number(v));
     });
     localStorage.setItem(WF_LS, JSON.stringify(wf));
   } catch {
@@ -1318,6 +1318,32 @@ async function hydrate(): Promise<void> {
 function feedCounts(q: QuestionDoc & { id: string }): number[] {
   // subtract own vote only once the trigger has folded it in
   return countsFor(q.options, voteCtx(q.id));
+}
+
+// The WF_LS mirror's value for one stored answer. The mirror holds the
+// CONTROL's units, not the store's: a vote-shaped entry is the option
+// index, but a dial entry is a value on lo..hi and a field entry a point
+// {x,y}, while the answer doc's optionIdx for both is the 12-bucket index
+// (deck.ts — "a position on this range"). Mirroring the raw index
+// rendered it as the value — "0 cups" standing on a 1–10 card (D218) —
+// so a continuum answer mirrors as its bucket's midpoint instead, the
+// same read world-feed's dialVal/fieldVal derive when only the store
+// knows. The midpoint math duplicates dialBucketMid/fieldCellMid
+// (world-feed.jsx) because data/ cannot import the spec layer;
+// vote.test.ts pins the values so the twins cannot drift apart silently.
+function mirrorVoteValue(
+  q: QuestionDoc,
+  idx: number,
+): number | { x: number; y: number } {
+  if (q.type === "dial") {
+    const lo = q.lo ?? 0;
+    const hi = q.hi ?? 100;
+    return lo + ((idx + 0.5) / 12) * (hi - lo);
+  }
+  if (q.type === "field") {
+    return { x: ((idx % 4) + 0.5) * 25, y: (Math.floor(idx / 4) + 0.5) * (100 / 3) };
+  }
+  return idx;
 }
 
 // Replace the demo feed globals with live-shaped cards: real questions,
@@ -3797,7 +3823,13 @@ const LIVE = {
           const WF_LS = "insight.feedVotes.v1";
           const wf = JSON.parse(localStorage.getItem(WF_LS) || "{}") || {};
           if (qid in wf) {
-            wf[qid] = Number(prev);
+            // Through mirrorVoteValue, not Number(prev) directly: a dial's
+            // mirror entry is a VALUE, and restoring the bucket index here
+            // was D218's rarest door in. The raw drag the mirror held is
+            // gone (only the feed ever knew it) — the standing bucket's
+            // midpoint is the closest the doc can testify to.
+            const q = state.feedBank.find((x) => x.id === qid);
+            wf[qid] = q ? mirrorVoteValue(q, Number(prev)) : Number(prev);
             localStorage.setItem(WF_LS, JSON.stringify(wf));
           }
         } catch {
