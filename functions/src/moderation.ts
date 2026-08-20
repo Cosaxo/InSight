@@ -570,5 +570,49 @@ export const submitModVerdict = onCall({ ...LIGHT_CALLABLE, region: REGION }, as
   if (!MOD_ADVISORY && (verdict === "keep" || verdict === "remove")) {
     await clearFlagsFor(db, takeId);
   }
-  return { ok: true, advisory: MOD_ADVISORY };
+
+  // A REMOVED FACE HAS TO LEAVE THE BUCKET, not just gain a field.
+  //
+  // The transaction above writes `hidden: true` on the v2_avatars document
+  // and stops there — which hides the face everywhere the APP draws it, and
+  // nowhere else. storage.rules grants `avatars/{uid}` to any signed-in
+  // caller with no reference to that document, so two ordinary API calls —
+  // read the token off the profile, fetch the media URL — still served the
+  // image a moderator had just removed.
+  //
+  // Why the fix is the delete and not the rules. Storage rules can reach
+  // Firestore with `firestore.get()`, but only the (default) database, and
+  // D165 moved this app to a named one — so the gate cannot be written
+  // there at all. Even if it could, it would put a Firestore read on every
+  // face fetched, on what storage.rules calls "the app's only egress path,
+  // and a room of two dozen faces reads two dozen objects".
+  //
+  // THE COST, and it is the one D178 would care about: once the object is
+  // gone a wrongly-removed face is unappealable in substance. `hiddenMeta`
+  // still records who removed it, under which policy line and when, so the
+  // DECISION is auditable — the image itself is not recoverable. That is
+  // the same trade deleteAccount makes one file over, and the same
+  // direction: a face that must not be served is worse than a face that
+  // cannot be restored.
+  const removedFace = !MOD_ADVISORY && verdict === "remove" ? avatarTarget(takeId) : null;
+  let mediaRemoved = false;
+  if (removedFace) {
+    try {
+      // ignoreNotFound: a face removed twice, or one whose owner deleted
+      // their account between the report and the verdict, is the same
+      // outcome either way.
+      await getStorage().bucket().file(`avatars/${removedFace}`)
+        .delete({ ignoreNotFound: true });
+      mediaRemoved = true;
+    } catch (err) {
+      // NOT a throw. The verdict has already committed, so throwing would
+      // show the moderator a failure for a decision that took and send them
+      // into a retry that hits failed-precondition on a queue entry already
+      // gone — the exact shape the unpaged flag batch used to have.
+      // ERROR-level so monitoring sees it, and reported back so the
+      // moderator knows the object outlived the verdict.
+      logger.error(`[mod] avatar object delete failed for ${removedFace}:`, err);
+    }
+  }
+  return { ok: true, advisory: MOD_ADVISORY, ...(removedFace ? { mediaRemoved } : {}) };
 });

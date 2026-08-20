@@ -36,6 +36,10 @@ const h = vi.hoisted(() => ({
   // Every v2_users read, as the uid list it asked for. The whole point of
   // the cache is that this list gets shorter, so it is the measurement.
   profileReads: [] as string[][],
+  // …and the same measurement for the face query (D178), which is what
+  // shows the split below asks for faces WITHOUT re-asking for names.
+  avatarReads: [] as string[][],
+  avatars: {} as Record<string, Record<string, unknown>>,
   profiles: {} as Record<string, Record<string, unknown>>,
   answerDocs: [] as Array<{ path: string; data: Record<string, unknown> }>,
   uid: "uid_me",
@@ -96,6 +100,13 @@ vi.mock("firebase/firestore", () => {
         h.profileReads.push([...ids]);
         return Promise.resolve(mk(
           ids.filter((u) => h.profiles[u]).map((u) => ({ id: u, data: h.profiles[u] })),
+        ));
+      }
+      if (q?.path === "v2_avatars") {
+        const ids = q.ids ?? [];
+        h.avatarReads.push([...ids]);
+        return Promise.resolve(mk(
+          ids.filter((u) => h.avatars[u]).map((u) => ({ id: u, data: h.avatars[u] })),
         ));
       }
       if (q?.path === "answers") {
@@ -233,5 +244,83 @@ describe("the profile cache survives a session", () => {
     const mod = await bootLive();
     expect(mod.default.ready).toBe(true);
     expect(mod.default.nameFor("uid_a")).toBe("");
+  });
+});
+
+describe("resolveNames asks for what is missing, not for the union", () => {
+  beforeEach(() => {
+    h.profileReads.length = 0;
+    h.avatarReads.length = 0;
+    h.profiles = {};
+    h.avatars = {};
+  });
+
+  it("does not re-read a profile it already holds just because the face is wanted", () => {
+    // THE regression, and the one D129's cache was silently losing to.
+    // Names and scores persist across sessions; faces deliberately do not
+    // (D178 — a token cached past a remove verdict is a removed face still
+    // rendering). The `missing` filter used to be a union, so every uid
+    // whose name and score were already in hand went back into the
+    // v2_users query purely because its face was not — which is every uid,
+    // on every surface that draws faces, on every open.
+    return (async () => {
+      const { resolveNames } = await import("./voters");
+      h.profiles = { u1: { displayName: "Ada" } };
+      h.avatars = { u1: { token: "tok1" } };
+      // A warm cache: name and score known, face unknown.
+      const names: Record<string, string> = { u1: "Ada" };
+      const scores: Record<string, unknown> = { u1: null };
+      const faces: Record<string, string> = {};
+      await resolveNames(
+        { __db: true } as never, ["u1"], names,
+        scores as Record<string, never>, faces,
+      );
+      expect(h.profileReads, "a cached profile was re-read for want of a face").toEqual([]);
+      expect(h.avatarReads).toEqual([["u1"]]);
+      expect(faces.u1).toBe("tok1");
+    })();
+  });
+
+  it("still reads the profile when the name is the missing half", () => {
+    // The other direction, so the fix cannot be "never read profiles".
+    return (async () => {
+      const { resolveNames } = await import("./voters");
+      h.profiles = { u2: { displayName: "Grace" } };
+      const names: Record<string, string> = {};
+      const faces: Record<string, string> = { u2: "" };
+      await resolveNames({ __db: true } as never, ["u2"], names, undefined, faces);
+      expect(h.profileReads).toEqual([["u2"]]);
+      expect(h.avatarReads, "a cached face was re-read for want of a name").toEqual([]);
+      expect(names.u2).toBe("Grace");
+    })();
+  });
+
+  it("asks both when both are missing, in one round trip", () => {
+    return (async () => {
+      const { resolveNames } = await import("./voters");
+      h.profiles = { u3: { displayName: "Alan" } };
+      h.avatars = { u3: { token: "tok3" } };
+      const names: Record<string, string> = {};
+      const faces: Record<string, string> = {};
+      await resolveNames({ __db: true } as never, ["u3"], names, undefined, faces);
+      expect(h.profileReads).toEqual([["u3"]]);
+      expect(h.avatarReads).toEqual([["u3"]]);
+    })();
+  });
+
+  it("caches each absence against its own query, not the other's", () => {
+    // The trap in splitting them: marking a face absent because the
+    // PROFILE query covered that uid would cache "no photo" for someone
+    // whose avatar was never asked about, and D178's convention is that a
+    // cached "" is never re-fetched.
+    return (async () => {
+      const { resolveNames } = await import("./voters");
+      const names: Record<string, string> = { u4: "Known" };
+      const faces: Record<string, string> = {};
+      await resolveNames({ __db: true } as never, ["u4"], names, undefined, faces);
+      // The face query ran and found nothing, so "" is correct here.
+      expect(faces.u4).toBe("");
+      expect(h.profileReads).toEqual([]);
+    })();
   });
 });

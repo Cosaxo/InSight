@@ -203,14 +203,39 @@ export async function resolveNames(
   scores?: Record<string, ParsedResults | null>,
   faces?: Record<string, string>,
 ): Promise<void> {
-  const missing = uids.filter((u) => !(u in names)
-    || (scores ? !(u in scores) : false)
-    || (faces ? !(u in faces) : false));
-  if (!missing.length) return;
+  // TWO MISSING SETS, not one union, and the difference is a read per
+  // person on five surfaces.
+  //
+  // Names and scores PERSIST across sessions (`insight.profileCache.v1`,
+  // D129); faces deliberately do not (D178 — a token cached past a remove
+  // verdict is a removed face still rendering). One union therefore put
+  // every uid whose name and score were already in hand back into the
+  // v2_users query, purely because its face was not — which is every uid,
+  // on every surface that asks for faces, on every open. D129's persisted
+  // cache was doing nothing there.
+  //
+  // It does not touch the -41% that decision reports: that is earned on the
+  // `fetchVoters` path, which passes no `faces`, and where the union and
+  // the split are the same set.
+  const needProfile = uids.filter((u) => !(u in names)
+    || (scores ? !(u in scores) : false));
+  const needFace = faces ? uids.filter((u) => !(u in faces)) : [];
+  if (!needProfile.length && !needFace.length) return;
   const {
     collection: fsCollection, documentId, getDocs, query, where,
   } = await getFirestoreApi();
-  for (const batch of chunkUids(missing)) {
+  // Chunked separately and walked in step: the round-trip count is the
+  // LONGER of the two lists, not their sum, so a surface wanting both still
+  // pays what it paid before. Sequential over rounds rather than firing
+  // every chunk at once — the same restraint loadKindred states, for the
+  // same reason (a burst at a boot-adjacent moment is what gets a client
+  // rate-limited).
+  const profileChunks = chunkUids(needProfile);
+  const faceChunks = chunkUids(needFace);
+  const rounds = Math.max(profileChunks.length, faceChunks.length);
+  for (let round = 0; round < rounds; round++) {
+    const profileBatch = profileChunks[round];
+    const faceBatch = faceChunks[round];
     // TWO QUERIES PER CHUNK SINCE D178, not one, and the second is the
     // price of the photo living in its own collection.
     //
@@ -224,15 +249,19 @@ export async function resolveNames(
     // Parallel rather than sequential: they are independent, and a room
     // of two dozen is one round trip either way only if they overlap.
     const [snap, avSnap] = await Promise.all([
-      getDocs(query(fsCollection(db, "v2_users"), where(documentId(), "in", batch))),
-      faces
-        ? getDocs(query(fsCollection(db, "v2_avatars"), where(documentId(), "in", batch)))
+      profileBatch
+        ? getDocs(query(fsCollection(db, "v2_users"), where(documentId(), "in", profileBatch)))
+        : Promise.resolve(null),
+      faces && faceBatch
+        ? getDocs(query(fsCollection(db, "v2_avatars"), where(documentId(), "in", faceBatch)))
         : Promise.resolve(null),
     ]);
-    for (const d of snap.docs) {
-      const n = d.get("displayName");
-      names[d.id] = typeof n === "string" ? n.trim().slice(0, 60) : "";
-      if (scores) scores[d.id] = parseTestResults(d.get("testResults"), CORE_TEST_KINDS);
+    if (snap) {
+      for (const d of snap.docs) {
+        const n = d.get("displayName");
+        names[d.id] = typeof n === "string" ? n.trim().slice(0, 60) : "";
+        if (scores) scores[d.id] = parseTestResults(d.get("testResults"), CORE_TEST_KINDS);
+      }
     }
     if (faces && avSnap) {
       for (const d of avSnap.docs) {
@@ -247,11 +276,18 @@ export async function resolveNames(
       }
     }
     // Anything the query did not return does not exist — cache the
-    // absence so the next open does not re-ask for it.
-    for (const u of batch) {
+    // absence so the next open does not re-ask for it. Per SET now, since
+    // the two batches no longer hold the same uids: marking a face absent
+    // because the PROFILE query covered that uid would cache "no photo" for
+    // someone nobody asked about yet.
+    for (const u of profileBatch || []) {
       if (!(u in names)) names[u] = "";
       if (scores && !(u in scores)) scores[u] = null;
-      if (faces && !(u in faces)) faces[u] = "";
+    }
+    if (faces) {
+      for (const u of faceBatch || []) {
+        if (!(u in faces)) faces[u] = "";
+      }
     }
   }
 }
