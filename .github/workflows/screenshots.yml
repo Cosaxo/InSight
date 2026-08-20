@@ -70,6 +70,22 @@ jobs:
           VITE_FIREBASE_STORAGE_BUCKET: ${{ vars.VITE_FIREBASE_STORAGE_BUCKET }}
           VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ vars.VITE_FIREBASE_MESSAGING_SENDER_ID }}
           VITE_FIREBASE_MEASUREMENT_ID: ${{ vars.VITE_FIREBASE_MEASUREMENT_ID }}
+          # The two build flags the shipping bundle carries (D144; ci.yml's
+          # bundle job holds the measurement). Run 1 — this workflow's first
+          # dispatch ever — failed without them:
+          #   - VITE_V2_LIVE is what turns live mode on (src/v2/main.jsx);
+          #     the Firebase config alone builds the DEMO app, the exact
+          #     thing this workflow exists to stop capturing.
+          #   - CAPACITOR_BUILD waives vite.config.ts's reCAPTCHA-key guard
+          #     and defines nothing else. Honest here because the captures
+          #     depict the native app, which ships keyless on DeviceCheck /
+          #     Play Integrity. The capture browser therefore runs with App
+          #     Check uninitialised — fine until Firestore enforcement flips
+          #     (LAUNCH-RUNBOOK 3.4). After that, register the web app
+          #     (1.4), put VITE_APPCHECK_RECAPTCHA_SITE_KEY in the repo
+          #     variables and add it here instead of re-waiving the guard.
+          VITE_V2_LIVE: "true"
+          CAPACITOR_BUILD: "1"
         run: |
           set -o pipefail
           npm run build
