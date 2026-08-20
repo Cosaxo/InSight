@@ -3,7 +3,7 @@
 // closer = more like you); this is deliberately the OTHER grammar — one
 // plane that exists whether you look or not, and you sit wherever your
 // answers put you. Ported from the 2026-08-20 standalone's people-lens.jsx
-// (design/standalone-people-2026-08-20/) with its engine replaced: the
+// (design/standalone-2026-08-20/) with its engine replaced: the
 // prototype placed 560 invented people through a simulated activity hash;
 // here every row is a real voter from the lists live.ts already caches,
 // and every position is a device-side ridge solve over the published

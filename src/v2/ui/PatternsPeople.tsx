@@ -1,6 +1,6 @@
 // The People lens (D214) — the crowd as a shared map with no centre.
 // Ported from the 2026-08-20 standalone's people-lens.jsx
-// (design/standalone-people-2026-08-20/) with the engine swapped for real
+// (design/standalone-2026-08-20/) with the engine swapped for real
 // data (D167): the prototype's simulated crowd becomes the voter lists
 // live.ts already caches for the who-voted sheet, Kindred and the pair
 // card, and every position is data/peopleMap.ts's device-side solve over

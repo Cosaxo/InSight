@@ -5,7 +5,7 @@
 2026-08-20)** — the engine is `src/v2/data/peopleMap.ts`, the lens
 `src/v2/ui/PatternsPeople.tsx`, and §0's one owner decision was taken by
 D214 with the owner's own standalone as the design
-(`design/standalone-people-2026-08-20/`). §6's plane switch and §7's
+(`design/standalone-2026-08-20/`). §6's plane switch and §7's
 whole-world map stay deferred with their arithmetic — those sections are
 still proposals. Written 2026-08-20, verified against the tree rather
 than assumed — every "already exists" claim below names the file it was

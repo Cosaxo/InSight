@@ -22181,3 +22181,78 @@ plan the way v28 got one. The People pieces are preserved at
 `design/standalone-people-2026-08-20/`; its README lists the unported
 remainder so the next reader does not mistake this record for a verdict
 on it.
+
+## D215 · The Map and the Oracle take the 2026-08-20 standalone's shape
+
+**Decided:** 2026-08-20 · **Status:** binding, inside D166 §1's trial
+clause. The owner, completing what D214 deliberately left: *"yes port
+the new map and oracle visuals as well"*. The remaining two lenses of
+the 2026-08-20 standalone's Patterns tab are adopted; the sources join
+the People pieces at `design/standalone-2026-08-20/` (renamed from the
+narrower name D214's record cites, now that it holds the whole tab).
+
+### 1 · What shipped
+
+- **The Map** (`src/v2/ui/PatternsMap.tsx`): the neutral ink-on-paper
+  field where topic colour appears only where it means something (the
+  tapped web, an active topic filter, the next-up beacon), three
+  discrete dot sizes, the strongest-tie chain on the idle card, a
+  "you went the other way" line when your own answers break a pattern
+  you sit in — and the layout's real news, the **archipelago passes**
+  in `data/patternsMap.ts` (`planeOf`): label-propagation communities
+  of the drawn web become islands, exaggerated once and held through
+  the relax, with the declutter gap tightened (17 → `PATTERNS_MIN_GAP`
+  10.5) because tight clusters ARE the signal.
+- **The Oracle** (`src/v2/ui/PatternsOracle.tsx`): one instrument, no
+  card — the guess an ink disc sealed on the seam, confidence a height
+  and a size, evidence an ink density, the verdict a glyph (solid when
+  it had you, a ring when you broke it), the record a one-baseline
+  ledger that re-lays itself by topic in the done state. No percentage
+  prints anywhere; the store's bits still power every height.
+- **The shell** (`PatternsTab.tsx` + `src/v2/ui/patterns.css`): the
+  one sub-row under the ruler — topic chips on the Map, run progress on
+  the Oracle, held empty at height for People — and the standalone's
+  own sheet, shipped with the lazy chunk.
+- **The store half** (`data/patterns.ts`): `say()` now keys its cache
+  by DIRECTION (the sentence reads A→B; the reverse order is a
+  different sentence and used to return the first-seen orientation),
+  carries the option indices so the Map can read the viewer's breaks
+  without the store reading their votes, and fetches each question's
+  voter rows ONCE per session (`sayRows`) — three links sharing an
+  endpoint cost four bounded lists, not six, and the pinned
+  either-order test holds unchanged. `tell()` is new: the Oracle's
+  evidence sentence as a real crowd reading over the same cached rows,
+  refusing under 12 people in both samples.
+
+### 2 · What the port refused, and why
+
+- **Counted sentences without a basis.** The prototype's say cards and
+  evidence line print shares with no sample size — it counted an
+  invented population and had none to state. Live cards append "of the
+  N in both samples" (D146), the one line this port adds to the design.
+- **"Start over" on the done state.** The prototype resets its
+  simulation; a live answer cannot be unanswered, so the done state
+  says what the pool will do instead.
+- **The tap-anywhere advance.** A clickable `<div>` over the whole
+  instrument is the a11y ratchet's exact case (unreachable without a
+  mouse, `check:a11y` caught it at 0 → 2); Next already advances, so
+  only real controls take input and the ratchet stays at its baseline.
+- **The engine.** `question-map.js`'s SVD fit stays unported, as at
+  D166/D214: loadings come from the nightly server fit; only the
+  layout's archipelago passes were arithmetic worth taking.
+
+### 3 · Still unported, still deliberate
+
+The People lens's per-population views (world · circle chips). A circle
+cut needs the circle's uids joined against the placed crowd and its own
+thin-state reading — a design with no decision behind it. The sub-row
+holds its height so the day it arrives nothing jumps.
+
+### 4 · The gates' word
+
+Unit 1534 green with four new lens-level cases (seal-gates-the-tap, no
+percentage on the reveal, no Start over, stated bases on the Map's
+sentences); lint 0; rule-4 ratchet flat at 392; `check:a11y` back at
+its baseline after the div fix; shipping bundle 2395/2404 KB total,
+eager unchanged at 855/880 — everything rides the Patterns lazy chunk,
+so D166's reversal price is still one import site and one `TABS` entry.

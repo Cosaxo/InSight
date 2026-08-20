@@ -257,7 +257,9 @@ describe("the pair card", () => {
     // ten people picked qa:0 → qb:0, ten picked qa:1 → qb:1
     overlap(20, (i) => (i < 10 ? [0, 0] : [1, 1]));
     const say = await PATTERNS.say("qa", "qb");
-    expect(say).toEqual({ pick: "qa-opt0", then: "qb-opt0", pct: 100, base: 50, both: 20 });
+    expect(say).toEqual({
+      pick: "qa-opt0", then: "qb-opt0", pickIdx: 0, thenIdx: 0, pct: 100, base: 50, both: 20,
+    });
   });
 
   it("says nothing under 12 people in both samples", async () => {
