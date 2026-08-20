@@ -2718,7 +2718,11 @@ const LIVE = {
     state.followsLoading = true;
     try {
       const [db, circleMod] = await Promise.all([getDb(), import("./circle")]);
-      state.follows = circleMod.capFollows(await circleMod.fetchFollowing(db, me));
+      const follows = circleMod.capFollows(await circleMod.fetchFollowing(db, me));
+      // A fetch that outlives its account must not land: resetForNewUid may
+      // have run while this awaited, and writing here would re-plant the
+      // old account's list right after the reset cleared it.
+      if (state.uid === me) state.follows = follows;
     } catch (err) {
       // Left null, like circle's catch: "could not ask" must not render as
       // "you follow nobody".
@@ -3878,6 +3882,13 @@ function resetForNewUid(uid: string): void {
   state.testAggsLoaded = false;
   state.circle = null;
   state.circleLoading = false;
+  // The follow list is the same graph as circle, viewed from this uid — a
+  // survivor is the PREVIOUS account's friends, and it can never self-heal:
+  // loadFollows's cache guard (`if (state.follows) return`) would serve it
+  // to the new account until the Circle stop happens to refold it. The
+  // who-voted sheet's Friends cut reads it directly.
+  state.follows = null;
+  state.followsLoading = false;
   // A verdict is about the PREVIOUS account's reads, and the log is
   // keyed by slice rather than by uid, so leaving it would credit the
   // new account with someone else's record.

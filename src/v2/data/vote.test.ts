@@ -567,11 +567,19 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     expect(LIVE.myVotes()).toMatchObject({ q_1: "1" });
     storage.setItem("insight.testResults.v2", JSON.stringify({ big5: "done" }));
     storage.setItem("insight.likes.v1", JSON.stringify({ x: 1 }));
+    // The follow list rides the same reset: it went unswept until
+    // 2026-08-20, and loadFollows's cache guard (`if (state.follows)
+    // return`) meant a survivor could never self-heal — the new account
+    // read the old one's friends in the who-voted sheet. [] here (the
+    // mock's empty follow query), null after: "wiped", not "nobody".
+    await LIVE.loadFollows();
+    expect(LIVE.follows()).toEqual([]);
 
     expect(h.authCb).toBeTypeOf("function");
     h.authCb!({ uid: "someone_else" });
     await flush();
 
+    expect(LIVE.follows()).toBeNull();
     expect(LIVE.myVotes()).not.toHaveProperty("q_1");
     // every insight.* key goes, not a hand-listed subset
     expect(storage.getItem("insight.testResults.v2")).toBeNull();
