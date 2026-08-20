@@ -22213,3 +22213,122 @@ the floor of 3, holds two flags forever and nothing ever settles it. At
 1.2 KB of heap per snapshot doc the paged tally OOMs somewhere above
 100k flags — unchanged by this record, and the reason the retention
 decision is still owed.
+
+## D215 · Four things nothing was standing behind
+
+**2026-08-20.** **Status:** binding. The audit pass that produced D214,
+continued. Four unrelated defects with one thing in common: in each, a
+property the code states in prose had nothing underneath it — no gate, no
+executing test, and in two cases a test that had been quietly disarmed.
+
+### 1 · The agree headline contradicted the bars beneath it
+
+`headlineFor`'s `scale` branch computed `Math.round((agree / n) * 100)`
+instead of summing `pctFor`'s output. DECISIONS.md:11605 already records
+this exact mistake being removed from the categorical branch — *"A first
+draft of this had a local `pctOf` in the UI module… The '62%, not 63%'
+test case exists to keep it going through `pctFor` rather than dividing
+locally"* — and the scale branch, one `if` above it, kept doing it.
+
+Brute-forced over every 5-option vector with counts 0..12: **95,368**
+printed a headline the two bars under it do not add up to. `[0,0,1,0,7]`
+printed "88% agree" over bars of 13 and 87. Now summed from `pctFor`,
+whose shares total exactly 100, so the headline is the agree share by
+construction. The exhaustive sweep is the test.
+
+Not touched: `pctFor`'s own largest-share drift rule, which can render an
+option with MORE votes at a LOWER percentage at k=10
+(`[3,3,4,4,4,4,4,4,4,4]` → `[8,8,7,11,…]`). That is a different defect, it
+only bites rating histograms, and the fix has to move `wfPcts` in
+`world-feed-math.js` in the same commit or it introduces the cross-surface
+drift `pctFor` exists to prevent. Recorded, not bundled.
+
+### 2 · `dayIndex` lost a day every spring and skipped one every autumn
+
+`new Date(y, m, d).getTime() / 86400000` is local midnight as a UTC
+INSTANT, so the zone's offset leaks into the day number: one lower east of
+UTC, unchanged at UTC and west. Constant per zone, and therefore
+invisible — except where the offset CROSSES ZERO at a DST transition. The
+UK, Ireland, mainland Portugal, the Canaries, Casablanca. Measured under
+`TZ=Europe/London`:
+
+    2026-03-29 → 20541, 2026-03-30 → 20541   (delta 0)
+    2026-10-25 → 20750, 2026-10-26 → 20752   (delta 2)
+
+Spring: no daily question that day at all — `vote()` is create-only, so
+the card renders answered — and "Yesterday" points at the wrong card.
+Autumn: a bank question is skipped and never served. `state.deckDay !==
+dayIndex()` also failed to fire at local midnight, and `dayLabel` uses
+`setDate`, which is calendar-correct, so the two disagreed about the date.
+
+Now `Date.UTC` over the LOCAL parts, which never consults the offset.
+
+**The one-time remap, and why this direction.** `DECK_EPOCH` stays 20666.
+It cannot be re-derived to hold everyone still, because the old error was
+a per-zone shift and not a constant: +1 would freeze east-of-UTC rotations
+and move UTC and the Americas instead. Keeping it leaves UTC and west
+exactly where they were and moves everyone east by one position, once —
+and east of UTC is where the index was wrong. It also makes the constant's
+own description true for the first time: 20666 IS the calendar day number
+for 2026-08-01, which is now what `dayIndex` returns there in every zone.
+The cost is the one the epoch's own comment already accounts for: a 7-day
+pager whose answered cards are keyed by qid renders that history
+unanswered once. At today's population that is free.
+
+**The test is a child process, and that is the finding.** Setting
+`process.env.TZ` inside a vitest case does nothing: the threads pool
+resolved its zone before the file was imported and a thread does not
+re-read TZ — every zone reports offset 0. The first draft of this test did
+exactly that, passed, and **still passed against the original buggy
+`dayIndex`**. Only a fresh process gets a real zone, and CI runs UTC, where
+the bug cannot reproduce at all.
+
+### 3 · Android back quit the app from any open bottom sheet
+
+`app-shell`'s handler peeled person → city → overlay → tab and knew nothing
+about the eight `Sheet` instances, each holding its open state inside
+whichever module rendered it. Back fell through every branch, returned
+false, and `back.ts` called `App.exitApp()` — the exact failure that file's
+own header describes ("reads as a crash rather than a missing handler"),
+one layer deeper than the case it was written for. From the default tab
+with nothing open: tap the ⓘ on today's question, press back, app gone.
+
+`data/backLayers.ts` is a LIFO stack of transient closers — sheets nest, so
+a single slot would not do — registered by `Sheet` on mount and consulted
+by the shell's handler before any of its own levels. A real module rather
+than another `window.X`, because both consumers are already off the bridge:
+`check:globals` rule 4 stays at 392 instead of gaining two.
+
+It could ship because nothing tested the handler:
+`grep -rn registerBackHandler src/v2/test` returned nothing. D25's overlay
+work was proven by mount tests that never exercise back, and D24's Escape
+is a different mechanism — a back press is not a DOM event a focused dialog
+can receive.
+
+### 4 · The allowlist that stands in for App Check had never executed
+
+`assertOperator` and `assertModerator` are the whole control on the seven
+callables `check-appcheck.mjs` exempts from attestation — including
+`seedContentV2`, which rewrites the question bank. No test imported either;
+the only greps outside `functions/src` were comments. And every runner sets
+`FUNCTIONS_EMULATOR=true`, which is the bypass arm, so the production
+branch had never run in this repo.
+
+Worse, the gate on the DEPLOY path printed the exemption's reason as an OK
+line — "gated on SEED_ADMIN_UIDS" — and never checked it. Deleting the
+`assertOperator` call from `seedContentV2` left every gate green.
+
+Both closed: `functions/src/ops.test.ts` runs both asserters with
+`FUNCTIONS_EMULATOR` deleted (fail-closed on an unset list, whole-uid not
+prefix match, read at call time not load time, and the disjointness the
+prose claims), and `EXEMPT` entries now carry the `gate` they name, with
+the run asserting the callable's body calls it. `assertModerator` is
+exported for the first time, for the test.
+
+### The shape, again
+
+Every one of these passed all four runners and 35 gates. Two carried a test
+that had been disarmed without anyone noticing: the TZ case that could not
+see a zone, and `LiveRoomTabs.test.tsx`'s `type: "Host"` in D214's item 3.
+A test that cannot fail is worse than no test, because it is counted. Every
+fix here was reverted after the fact to confirm its test goes red.
