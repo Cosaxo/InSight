@@ -22122,3 +22122,62 @@ light up by themselves the day live questions carry their tag. At
 42/week against a 136-question deficit the levelling takes roughly a
 month; the leaf step lands with its own gates (leaf ids in `sub`,
 stock-aware offers, budget counting) as its own change.
+
+## D214 · The People lens joins the Patterns trial
+
+**Decided:** 2026-08-20 · **Status:** binding, inside D166 §1's trial
+clause. The owner, delivering a new standalone build (`InSight_1.html`,
+2026-08-20) whose Patterns tab carries a third lens, on the plan in
+[`docs/PEOPLE-MAP.md`](PEOPLE-MAP.md): *"here is the visual no start your
+work"*. That plan's §0 asked for exactly one owner sentence — People
+joining the trial — and this is it, with the design attached.
+
+### 1 · What was adopted
+
+The Patterns tab gains a **People** lens: the crowd as a shared map with
+no centre — every dot a real voter, placed by a device-side solve over
+the same published loadings the Map and the Oracle already read, you
+among them, exact agreement stated with its basis on tap. The lens joins
+the tab **inside the existing trial**: it lives in the same lazy chunk,
+so D166 §1's reversal price (one import site, one `TABS` entry) is
+unchanged, and removing the lens alone is one `LENSES` entry plus its
+two files. The trial's end-of-trial question (does Patterns earn a tab)
+now gets asked of the tab at its social best, which is half the reason
+PEOPLE-MAP.md recommended building it.
+
+### 2 · What shipped, and where the arithmetic lives
+
+`src/v2/data/peopleMap.ts` (pure fold + geometry, tested without a
+device) and `src/v2/ui/PatternsPeople.tsx` (states and pixels), wired as
+`PatternsTab.tsx`'s third lens. No new backend, no new collection, no
+rules change, no new read shape: at most `PEOPLE_QUESTIONS` bounded
+voter-list queries per session through `loadVoters`' existing session
+cache, shared with the who-voted sheet, Kindred and the pair card. The
+cost story, the reading contract and the deferred variants (plane
+switching, the published whole-world map) are PEOPLE-MAP.md §2, §6–§8 —
+that file's status line now records the built half.
+
+### 3 · Two transpositions from the prototype, recorded
+
+- **The placement floor's denominator moved.** The prototype gated
+  "placed" at max(4, 32% of ALL your answers), against a simulated crowd
+  whose shares had no ceiling. Live shares are bounded by the fetch cap,
+  so the ratio runs over the fetch horizon instead — against unbounded
+  history, an active viewer's floor would exceed the cap and nobody
+  could ever be placed. `peopleMap.ts` carries the why at the fold.
+- **No invented names.** The prototype dressed nameless accounts in a
+  32-name roster; live draws them unlabeled and their card says
+  "Someone" — the who-voted convention, and D167's rule that the demo
+  cast never reaches a live surface.
+
+### 4 · What the same upload contained and this decision does NOT adopt
+
+The 2026-08-20 standalone also reshapes the Map lens (`.qm-*`: tie
+rails, topic chips, a legend key), rebuilds the Oracle as a two-tile
+instrument that prints no number (`.or-*`), and gives People
+per-population views (world · circle) behind a `pt-sub` chip row. None
+of that is ported, none is refused — each needs its own extraction and
+plan the way v28 got one. The People pieces are preserved at
+`design/standalone-people-2026-08-20/`; its README lists the unported
+remainder so the next reader does not mistake this record for a verdict
+on it.

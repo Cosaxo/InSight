@@ -1,12 +1,15 @@
 # The People lens — everyone placed by what they answer
 
-**Status: plan notes — nothing below is built.** Same convention as
-[`VISION-V28.md`](VISION-V28.md): this file is a recommendation with its
-arithmetic written down; an item picked up graduates to a record in
-[`DECISIONS.md`](DECISIONS.md), and the one owner decision this plan
-waits on is named in §0. Written 2026-08-20, verified against the tree
-rather than assumed — every "already exists" claim below names the file
-it was read in.
+**Status:** §3–§4 are **BUILT
+([D214](DECISIONS.md#d214--the-people-lens-joins-the-patterns-trial),
+2026-08-20)** — the engine is `src/v2/data/peopleMap.ts`, the lens
+`src/v2/ui/PatternsPeople.tsx`, and §0's one owner decision was taken by
+D214 with the owner's own standalone as the design
+(`design/standalone-people-2026-08-20/`). §6's plane switch and §7's
+whole-world map stay deferred with their arithmetic — those sections are
+still proposals. Written 2026-08-20, verified against the tree rather
+than assumed — every "already exists" claim below names the file it was
+read in.
 
 ## 0 · The idea, and the one decision it waits on
 
@@ -105,7 +108,7 @@ spec rather than the apology:
    physical distance stays out — presence is denied in the rules for
    physical-safety reasons and this lens never touches it.
 
-## 3 · Phase 1 — the arithmetic (`src/v2/data/peopleMap.ts`, pure)
+## 3 · Phase 1 — the arithmetic (`src/v2/data/peopleMap.ts`, pure) — **BUILT (D214)**
 
 A new typed ESM module beside `patternsMap.ts` — pure, no Firebase, no
 `window`, unit-tested without a device (the `similarity.ts` posture).
@@ -142,7 +145,7 @@ hand-folded rows; hostile voter rows (out-of-range `optionIdx`, missing
 fields) fold to nothing; the whole pipeline is deterministic given its
 inputs.
 
-## 4 · Phase 2 — the lens (`src/v2/ui/PatternsTab.tsx`)
+## 4 · Phase 2 — the lens (`src/v2/ui/PatternsTab.tsx`) — **BUILT (D214)**, as its own file `src/v2/ui/PatternsPeople.tsx`
 
 A third `LENSES` entry — `people` — with its one-sentence `NOTES`
 explainer (retiring on first use like the other two). The Oracle and the

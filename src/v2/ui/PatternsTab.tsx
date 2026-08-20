@@ -1,4 +1,4 @@
-// The Patterns tab (v28 §2, ON TRIAL per D166 §1) — two lenses over the
+// The Patterns tab (v28 §2, ON TRIAL per D166 §1) — three lenses over the
 // loading vectors the nightly fit publishes (functions/src/patterns.ts):
 //
 //   Oracle — the app guesses your next answer, SEALED before the options
@@ -9,11 +9,16 @@
 //   Map    — every question in the pool as a place; distance IS how much
 //            two answers predict each other. Position, colour, size, fill
 //            and line each carry exactly one fact, no legend prose.
+//   People — the crowd itself in the same space (D214): real voters
+//            placed by their answers, you among them, exact agreement
+//            stated with its basis. PatternsPeople.tsx / data/peopleMap.ts.
 //
 // Ported from design/standalone-v28/patterns-tab.jsx + question-map.jsx
-// with the 560-person synthetic engine removed: the trial ships LIVE DATA
-// ONLY (the narrowing D166 §1 licenses), so a build with no published
-// loadings — the demo included — says so instead of inventing a crowd.
+// (People from the 2026-08-20 standalone's people-lens.jsx,
+// design/standalone-people-2026-08-20/) with the 560-person synthetic
+// engine removed: the trial ships LIVE DATA ONLY (the narrowing D166 §1
+// licenses), so a build with no published loadings — the demo included —
+// says so instead of inventing a crowd.
 //
 // One deliberate narrowing from the prototype: the pair card fetches the
 // exact 2×2 for the STRONGEST link only, not all three — each say() costs
@@ -25,6 +30,7 @@ import React from "react";
 import LIVE from "../data/live";
 import PATTERNS, { ensureLive, type OracleRecord, type PairSay, type PoolItem } from "../data/patterns";
 import { edgesOf, mapGeometry, nearOf, planeOf, type MapNode } from "../data/patternsMap";
+import PatternsPeople from "./PatternsPeople";
 // @ts-expect-error TS7016 — untyped spec module (named export, D189)
 import { WPAL } from "../spec/world-palette.js";
 // @ts-expect-error TS7016 — untyped spec module (named export, convert-on-touch)
@@ -91,11 +97,16 @@ function usePatterns(): number {
 const NOTES: Record<string, string> = {
   map: "Every question placed by how much its answer predicts the others — close together means tightly tied. A solid line joins answers that travel together, a dotted one where a pick predicts the opposite. Tap any place.",
   oracle: "It studies your past answers, then guesses your next one — sealed before you tap. A tall bar is a time you surprised it.",
+  people: "Real people who share your questions, placed by their answers — close together means alike. You sit wherever your answers put you, not at the centre. Fainter = fewer shared answers. Tap anyone.",
 };
 
+// People sits on the far right — read left to right the ruler widens:
+// one question about you, the whole pool, the whole crowd (the
+// 2026-08-20 standalone's own order).
 const LENSES = [
   { id: "oracle", label: "Oracle" },
   { id: "map", label: "Map" },
+  { id: "people", label: "People" },
 ] as const;
 type Lens = (typeof LENSES)[number]["id"];
 
@@ -500,9 +511,11 @@ export default function PatternsTab(): React.ReactElement {
           {NOTES[lens]}
         </div>
       )}
-      {lens === "map"
-        ? <MapLens items={items} version={version} onUse={markUsed} />
-        : <OracleLens items={items} onUse={markUsed} />}
+      {lens === "map" && <MapLens items={items} version={version} onUse={markUsed} />}
+      {lens === "oracle" && <OracleLens items={items} onUse={markUsed} />}
+      {lens === "people" && (
+        <PatternsPeople items={items} version={version} onUse={markUsed} onOracle={() => setLens("oracle")} />
+      )}
     </div>
   );
 }
