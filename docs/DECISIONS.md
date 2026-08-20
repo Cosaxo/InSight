@@ -22122,3 +22122,196 @@ light up by themselves the day live questions carry their tag. At
 42/week against a 136-question deficit the levelling takes roughly a
 month; the leaf step lands with its own gates (leaf ids in `sub`,
 stock-aware offers, budget counting) as its own change.
+
+## D214 · The People lens joins the Patterns trial
+
+**Decided:** 2026-08-20 · **Status:** binding, inside D166 §1's trial
+clause. The owner, delivering a new standalone build (`InSight_1.html`,
+2026-08-20) whose Patterns tab carries a third lens, on the plan in
+[`docs/PEOPLE-MAP.md`](PEOPLE-MAP.md): *"here is the visual no start your
+work"*. That plan's §0 asked for exactly one owner sentence — People
+joining the trial — and this is it, with the design attached.
+
+### 1 · What was adopted
+
+The Patterns tab gains a **People** lens: the crowd as a shared map with
+no centre — every dot a real voter, placed by a device-side solve over
+the same published loadings the Map and the Oracle already read, you
+among them, exact agreement stated with its basis on tap. The lens joins
+the tab **inside the existing trial**: it lives in the same lazy chunk,
+so D166 §1's reversal price (one import site, one `TABS` entry) is
+unchanged, and removing the lens alone is one `LENSES` entry plus its
+two files. The trial's end-of-trial question (does Patterns earn a tab)
+now gets asked of the tab at its social best, which is half the reason
+PEOPLE-MAP.md recommended building it.
+
+### 2 · What shipped, and where the arithmetic lives
+
+`src/v2/data/peopleMap.ts` (pure fold + geometry, tested without a
+device) and `src/v2/ui/PatternsPeople.tsx` (states and pixels), wired as
+`PatternsTab.tsx`'s third lens. No new backend, no new collection, no
+rules change, no new read shape: at most `PEOPLE_QUESTIONS` bounded
+voter-list queries per session through `loadVoters`' existing session
+cache, shared with the who-voted sheet, Kindred and the pair card. The
+cost story, the reading contract and the deferred variants (plane
+switching, the published whole-world map) are PEOPLE-MAP.md §2, §6–§8 —
+that file's status line now records the built half.
+
+### 3 · Two transpositions from the prototype, recorded
+
+- **The placement floor's denominator moved.** The prototype gated
+  "placed" at max(4, 32% of ALL your answers), against a simulated crowd
+  whose shares had no ceiling. Live shares are bounded by the fetch cap,
+  so the ratio runs over the fetch horizon instead — against unbounded
+  history, an active viewer's floor would exceed the cap and nobody
+  could ever be placed. `peopleMap.ts` carries the why at the fold.
+- **No invented names.** The prototype dressed nameless accounts in a
+  32-name roster; live draws them unlabeled and their card says
+  "Someone" — the who-voted convention, and D167's rule that the demo
+  cast never reaches a live surface.
+
+### 4 · What the same upload contained and this decision does NOT adopt
+
+The 2026-08-20 standalone also reshapes the Map lens (`.qm-*`: tie
+rails, topic chips, a legend key), rebuilds the Oracle as a two-tile
+instrument that prints no number (`.or-*`), and gives People
+per-population views (world · circle) behind a `pt-sub` chip row. None
+of that is ported, none is refused — each needs its own extraction and
+plan the way v28 got one. The People pieces are preserved at
+`design/standalone-people-2026-08-20/`; its README lists the unported
+remainder so the next reader does not mistake this record for a verdict
+on it.
+
+## D215 · The Map and the Oracle take the 2026-08-20 standalone's shape
+
+**Decided:** 2026-08-20 · **Status:** binding, inside D166 §1's trial
+clause. The owner, completing what D214 deliberately left: *"yes port
+the new map and oracle visuals as well"*. The remaining two lenses of
+the 2026-08-20 standalone's Patterns tab are adopted; the sources join
+the People pieces at `design/standalone-2026-08-20/` (renamed from the
+narrower name D214's record cites, now that it holds the whole tab).
+
+### 1 · What shipped
+
+- **The Map** (`src/v2/ui/PatternsMap.tsx`): the neutral ink-on-paper
+  field where topic colour appears only where it means something (the
+  tapped web, an active topic filter, the next-up beacon), three
+  discrete dot sizes, the strongest-tie chain on the idle card, a
+  "you went the other way" line when your own answers break a pattern
+  you sit in — and the layout's real news, the **archipelago passes**
+  in `data/patternsMap.ts` (`planeOf`): label-propagation communities
+  of the drawn web become islands, exaggerated once and held through
+  the relax, with the declutter gap tightened (17 → `PATTERNS_MIN_GAP`
+  10.5) because tight clusters ARE the signal.
+- **The Oracle** (`src/v2/ui/PatternsOracle.tsx`): one instrument, no
+  card — the guess an ink disc sealed on the seam, confidence a height
+  and a size, evidence an ink density, the verdict a glyph (solid when
+  it had you, a ring when you broke it), the record a one-baseline
+  ledger that re-lays itself by topic in the done state. No percentage
+  prints anywhere; the store's bits still power every height.
+- **The shell** (`PatternsTab.tsx` + `src/v2/ui/patterns.css`): the
+  one sub-row under the ruler — topic chips on the Map, run progress on
+  the Oracle, held empty at height for People — and the standalone's
+  own sheet, shipped with the lazy chunk.
+- **The store half** (`data/patterns.ts`): `say()` now keys its cache
+  by DIRECTION (the sentence reads A→B; the reverse order is a
+  different sentence and used to return the first-seen orientation),
+  carries the option indices so the Map can read the viewer's breaks
+  without the store reading their votes, and fetches each question's
+  voter rows ONCE per session (`sayRows`) — three links sharing an
+  endpoint cost four bounded lists, not six, and the pinned
+  either-order test holds unchanged. `tell()` is new: the Oracle's
+  evidence sentence as a real crowd reading over the same cached rows,
+  refusing under 12 people in both samples.
+
+### 2 · What the port refused, and why
+
+- **Counted sentences without a basis.** The prototype's say cards and
+  evidence line print shares with no sample size — it counted an
+  invented population and had none to state. Live cards append "of the
+  N in both samples" (D146), the one line this port adds to the design.
+- **"Start over" on the done state.** The prototype resets its
+  simulation; a live answer cannot be unanswered, so the done state
+  says what the pool will do instead.
+- **The tap-anywhere advance.** A clickable `<div>` over the whole
+  instrument is the a11y ratchet's exact case (unreachable without a
+  mouse, `check:a11y` caught it at 0 → 2); Next already advances, so
+  only real controls take input and the ratchet stays at its baseline.
+- **The engine.** `question-map.js`'s SVD fit stays unported, as at
+  D166/D214: loadings come from the nightly server fit; only the
+  layout's archipelago passes were arithmetic worth taking.
+
+### 3 · Still unported, still deliberate
+
+The People lens's per-population views (world · circle chips). A circle
+cut needs the circle's uids joined against the placed crowd and its own
+thin-state reading — a design with no decision behind it. The sub-row
+holds its height so the day it arrives nothing jumps.
+
+### 4 · The gates' word
+
+Unit 1534 green with four new lens-level cases (seal-gates-the-tap, no
+percentage on the reveal, no Start over, stated bases on the Map's
+sentences); lint 0; rule-4 ratchet flat at 392; `check:a11y` back at
+its baseline after the div fix; shipping bundle 2395/2404 KB total,
+eager unchanged at 855/880 — everything rides the Patterns lazy chunk,
+so D166's reversal price is still one import site and one `TABS` entry.
+
+## D216 · The People lens gets its populations
+
+**Decided:** 2026-08-20 · **Status:** binding, inside D166 §1's trial
+clause. The owner, on D215 §3's one remaining unported piece: *"port the
+population chips as well"*. The 2026-08-20 standalone's Patterns tab is
+now ported whole.
+
+### 1 · What shipped
+
+The People lens's sub-row carries the standalone's population chips —
+**Circle · your country's code · World** — and the lens narrows WHO is
+placed, never what is counted: shared and agree are the same figures in
+every view, and each population reframes, de-overlaps and labels its own
+picture (`foldPeople` gains a `keep` filter and a `circle` set;
+membership only, the arithmetic untouched and pinned so). Country
+membership reads the frozen city anchor's code (`countryOf`, D8's
+snapshot — never the live profile); circle membership reads the capped,
+session-cached follows list the Mirror's Circle stop already loads.
+Circle members wear a **"your circle"** chip instead of demographics in
+every population — the prototype's own swap. No new read shape: one
+`loadFollows` on top of the same bounded voter lists.
+
+### 2 · Three transpositions, recorded
+
+- **The circle's crowd floor is its own** (`PEOPLE_MIN_CROWD_CIRCLE`,
+  1). The world floor of eight guards an ANONYMOUS crowd — eight
+  strangers is the least that reads as one. The prototype never met the
+  question (its circle was sixteen invented friends); a live circle is
+  FOLLOW_CAP-bounded named people the viewer chose, each drawn with its
+  stated basis, so the view draws from the first placeable friend, and
+  its empty state names the real cause ("Nobody from your circle is
+  placed here yet") instead of the stranger line.
+- **The tie clause says "overall", not "here".** The share beside "You
+  both said X" is the fit's world marginal in every population — a
+  per-population share would be a new small-sample claim, and one word
+  keeps the sentence exactly true instead.
+- **The country chip only exists when it can be named.** The prototype
+  assumed a country; live, a viewer with no city anchor gets Circle ·
+  World and no unlabelable third stop.
+
+### 3 · The known limit, stated rather than discovered
+
+Every population filters the same universe: people found in the latest
+bounded samples of the questions the viewer answered. A circle member
+absent from those samples is not placed — the honest state says so, and
+the "you appear to each other as you both answer" line is literally the
+mechanism. If the circle view reads thin in practice, the door is the
+Circle stop's own read path (members' answers, `CIRCLE_ANSWER_CAP`) —
+a second rowsOf source for the fold, one bounded read per member, and
+its own decision when wanted.
+
+### 4 · The gates' word
+
+Unit green with eight population cases across the fold and the lens
+(filter-excludes, counts-invariant-under-filter, the chip swap, the
+circle floor, the circle empty state, the country cut); lint 0; rule-4
+flat; eager bundle unchanged — the chips live in the same lazy chunk as
+everything else on this tab.

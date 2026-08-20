@@ -24,6 +24,13 @@ is [`docs/VISION-V28.md`](../docs/VISION-V28.md). Same rule as above
 applies to all three: **none of them re-points this file**, and v18 stays
 what `style-diff.mjs` aims at until a full sync lands.
 
+**A 2026-08-20 standalone followed v28** and was extracted in three
+passes: its People lens at D214, its Map and Oracle redesigns at D215,
+its population chips at D216 — the Patterns tab ported whole
+(`standalone-2026-08-20/` — that directory's README maps every file to
+its port and lists the behaviours the ports refused). Same rule again:
+it does not re-point this file.
+
 The earlier v9 prototype and the extracted `spec-modules/`
 directory were deleted on 2026-07-29, v14 on 2026-07-30, v15 on
 2026-08-04 when v17 superseded it, and v17 on 2026-08-07 when v18 did:
