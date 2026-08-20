@@ -1416,28 +1416,24 @@ That is a tester-count problem, not a workflow problem.
       optional upgrade rather than a login wall. Only add the Apple
       provider if a reviewer insists.
 
-      **That drafted reply is FALSE for any build this workflow makes
-      today, and the cause is a flag rather than a copy error.**
-      `ios-release.yml` sets `VITE_REQUIRE_SIGNIN` from
-      `vars.REQUIRE_SIGNIN` and **defaults it to `true`** (D134), so a
-      release build opens on a mandatory Google sign-in and nothing else
-      works until it succeeds. Every clause of the answer above — *no
-      account is required*, *an optional upgrade rather than a login wall*
-      — describes the build the flag turns OFF, not the one that ships by
-      default. Sending that reply with a walled binary argues against the
-      app the reviewer is holding, which is the same shape as a listing
-      contradicting its own nutrition label.
-
-      **So the submission build must either drop the wall or add Sign in
-      with Apple**, and D134 deliberately left which one open. Dropping it
-      is a repository variable and no code change: Settings → Secrets and
-      variables → Actions → **Variables** → set `REQUIRE_SIGNIN` to
-      `false`, then re-run *iOS release*. Anything other than the literal
-      `true` works — `signInRequired()` compares exactly, on purpose — but
-      set it explicitly rather than deleting it, so the next reader can see
-      which fork was taken. Adding Apple instead is a provider, a native
-      capability and a new review surface that `SHIP-CHECKLIST § 4.8` says
-      not to pre-build.
+      **RESOLVED 2026-08-20 (D219): the fork went the drop-the-wall way,
+      and the default itself now says so.** This step used to read: the
+      drafted reply is false for any build this workflow makes, because
+      `ios-release.yml` defaulted `VITE_REQUIRE_SIGNIN` to `true` (D134)
+      and a release build opened on a mandatory Google sign-in — every
+      clause of the 4.8 answer described the build the flag turns OFF.
+      The owner resolved it on the release thread (condition — everyone
+      has an account, answers attributed, duplicates hard — checked and
+      holding without the wall; D219 has the reasoning), and the workflow
+      default flipped to `'false'` **in the repo rather than in the
+      settings page**, so the record is where the next reader looks. The
+      variable survives as the override for a deliberately walled test
+      build (`REQUIRE_SIGNIN=true`); `signInRequired()` still compares to
+      the literal `true`, on purpose. Build 23 is the first wall-less
+      build; 22 and earlier ship the wall and are superseded. Adding
+      Apple instead remains un-pre-built (`SHIP-CHECKLIST § 4.8`) — it
+      joins only if a reviewer insists, in the rejection round this step
+      budgets.
 
       **The wall is also a 5.1.1(v) question, not only a 4.8 one**, and
       that is the more expensive half: Apple expects an app to be usable

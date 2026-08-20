@@ -22439,3 +22439,44 @@ midpoint. smoke-live mounts all three doors: the committed value
 survives the store's next notify, a store-only answer renders as its
 bucket's value and never its index, and the reported device's exact
 residue (mirror 0, store bucket "0", 1–10 axis) heals to "1 cups".
+
+## D219 · The wall comes down for the store build: D134's fork, resolved
+
+**Decided:** 2026-08-20 · **Status:** binding · Owner's call on the
+release thread, with the condition stated first and checked before the
+flip: *"we can do a as long as that means that everyone has a account
+and question can be attribute to a spesific user that cant easly create
+duplicate acounts"*.
+
+The condition holds without the wall, and the wall was never what
+provided it:
+
+- **Every install gets a real account regardless.** Anonymous-first
+  (D3) signs the device in at first launch; every answer is owner-bound
+  to that uid by rules, and D98 publishes the attribution. There is no
+  no-account mode to fall into — the wall only gated WHICH account
+  starts things, and the gate always LINKED the existing session rather
+  than replacing it.
+- **Duplicate resistance never came from the wall** — a second Google
+  account is minutes. It comes from App Check on the account-creation
+  surface and from D29's device binding: one counted account per
+  physical device per calendar month, held in bits Apple keeps across
+  reinstalls. That layer is shipped end to end and soft; it hardens
+  when the owner's DeviceCheck key and the two native bridges land
+  (DEVICE-BIND.md), then flips per D37's sequence — trailing the
+  launch by design, which the runbook already classifies as a working
+  state.
+
+**What changed:** `ios-release.yml`'s default flips from `|| 'true'` to
+`|| 'false'`, so the DEFAULT is the release posture and the repo is the
+record — reviewable, unlike a settings-page variable, and set where the
+next reader will look. The variable survives as the override for a
+deliberately walled test build. The old default also contradicted its
+own comment, which promised that UNSET compiles to a pass-through while
+`|| 'true'` made unset mean walled; expression and comment now agree.
+
+**Not done, deliberately:** Sign in with Apple stays un-pre-built
+(SHIP-CHECKLIST §4.8's standing call) — added only if a reviewer
+insists, inside the rejection round 6.2 already budgets. Build 23 is
+the first build this applies to; 22 and earlier ship the wall and are
+superseded by it.
