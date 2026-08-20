@@ -51,38 +51,66 @@ const SRC = join(root, "functions", "src");
 // that read "the console call", naming a caller that never existed — the
 // app has no browser build. The exemption was right; only its stated
 // caller was wrong, in all three places it was written down.)
+// Each entry carries the `gate` its reason NAMES, and the run asserts the
+// callable's body actually calls it. Until it did, the reason was prose the
+// script printed and never read: it announced, as an OK line on the DEPLOY
+// path, that seedContentV2 was "gated on SEED_ADMIN_UIDS" while checking
+// only that the callable did not enforce App Check. Delete the
+// assertOperator line from that function — the one that rewrites the whole
+// question bank — and this gate went on saying it was protected.
 const EXEMPT = {
   // Operator instruments (assertOperator, SEED_ADMIN_UIDS).
-  seedContentV2:
-    "operator callable, invoked by the Seed content workflow "
-    + "(scripts/seed-content.mjs, SHIP-CHECKLIST §1) and by the e2e; "
-    + "gated on SEED_ADMIN_UIDS",
-  revealDuelsNowV2:
-    "operator callable, the scheduled scan's manual lever (D19 rollback "
-    + "runbook); gated on SEED_ADMIN_UIDS",
-  fetchSuggestionsV2:
-    "operator callable, invoked from the maintainer's dev session to read "
-    + "the suggestion queue (docs/NEXT-FUNCTIONALITY.md §6) — no attested "
-    + "app to call from; gated on SEED_ADMIN_UIDS",
-  reviewSuggestionV2:
-    "operator callable, the suggestion queue's verdict instrument — same "
-    + "caller and same reason as fetchSuggestionsV2; gated on "
-    + "SEED_ADMIN_UIDS",
+  seedContentV2: {
+    gate: "assertOperator",
+    reason:
+      "operator callable, invoked by the Seed content workflow "
+      + "(scripts/seed-content.mjs, SHIP-CHECKLIST §1) and by the e2e; "
+      + "gated on SEED_ADMIN_UIDS",
+  },
+  revealDuelsNowV2: {
+    gate: "assertOperator",
+    reason:
+      "operator callable, the scheduled scan's manual lever (D19 rollback "
+      + "runbook); gated on SEED_ADMIN_UIDS",
+  },
+  fetchSuggestionsV2: {
+    gate: "assertOperator",
+    reason:
+      "operator callable, invoked from the maintainer's dev session to read "
+      + "the suggestion queue (docs/NEXT-FUNCTIONALITY.md §6) — no attested "
+      + "app to call from; gated on SEED_ADMIN_UIDS",
+  },
+  reviewSuggestionV2: {
+    gate: "assertOperator",
+    reason:
+      "operator callable, the suggestion queue's verdict instrument — same "
+      + "caller and same reason as fetchSuggestionsV2; gated on "
+      + "SEED_ADMIN_UIDS",
+  },
 
   // Moderation instruments (assertModerator, MOD_UIDS). The moderation
   // Routine runs in a dedicated low-privilege environment with no repo
   // checkout and no app (docs/MODERATION.md, D22) — there is no attested
   // client for it to call from, by design, because confinement is the
   // point of that environment.
-  buildModQueueNow:
-    "moderator callable, invoked by the out-of-app moderation Routine; "
-    + "gated on MOD_UIDS",
-  fetchModQueue:
-    "moderator callable, invoked by the out-of-app moderation Routine; "
-    + "gated on MOD_UIDS",
-  submitModVerdict:
-    "moderator callable, invoked by the out-of-app moderation Routine; "
-    + "gated on MOD_UIDS",
+  buildModQueueNow: {
+    gate: "assertModerator",
+    reason:
+      "moderator callable, invoked by the out-of-app moderation Routine; "
+      + "gated on MOD_UIDS",
+  },
+  fetchModQueue: {
+    gate: "assertModerator",
+    reason:
+      "moderator callable, invoked by the out-of-app moderation Routine; "
+      + "gated on MOD_UIDS",
+  },
+  submitModVerdict: {
+    gate: "assertModerator",
+    reason:
+      "moderator callable, invoked by the out-of-app moderation Routine; "
+      + "gated on MOD_UIDS",
+  },
 };
 
 // `export const NAME = onCall(` followed by its options object literal.
@@ -104,6 +132,8 @@ const CALLABLE =
 
 const enforcing = [];
 const missing = [];
+// name -> source text of the callable, for the exemption gate check.
+const bodies = new Map();
 let onCallSites = 0;
 
 // RECURSIVE, for the reason check-deploy-targets.mjs now is: a callable in a
@@ -122,8 +152,17 @@ for (const file of readdirSync(SRC, { recursive: true })
   // scores zero and reports clean.
   onCallSites += (src.match(/\bonCall\s*(?:<[^>]*>)?\s*\(/g) || []).length;
 
-  for (const [, name, opts] of src.matchAll(CALLABLE)) {
+  for (const m of src.matchAll(CALLABLE)) {
+    const [, name, opts] = m;
     const where = `${name} (functions/src/${file})`;
+    // The callable's own body, for the exemption check below: from this
+    // match to the next top-level declaration, or the end of the file.
+    // Coarse on purpose — it only ever answers "does this function call its
+    // gate", and erring long is the safe direction for a question whose
+    // wrong answer is a false ACCUSATION rather than a false clearance.
+    const rest = src.slice(m.index);
+    const next = rest.slice(1).search(/\n(?:export\s+)?const\s+\w+\s*=/);
+    bodies.set(name, next === -1 ? rest : rest.slice(0, next + 1));
     if (/enforceAppCheck\s*:\s*ENFORCE_APP_CHECK\b/.test(opts)) {
       enforcing.push({ name, where });
     } else if (/enforceAppCheck/.test(opts)) {
@@ -172,6 +211,34 @@ if (staleExemptions.length) {
   );
 }
 
+// The exemption's own claim, checked rather than printed.
+//
+// Every entry above says the callable is "gated on SEED_ADMIN_UIDS" or "on
+// MOD_UIDS". That sentence was the whole justification for skipping
+// attestation on the DEPLOY path, and nothing read it: this script only ever
+// confirmed the callable did NOT enforce App Check, which is the half that
+// is true by construction for anything in this list. So the one control
+// standing between seven callables and the open internet was asserted by
+// prose. Removing assertOperator from seedContentV2 — the callable that
+// rewrites the question bank — left every gate in the repo green.
+const ungated = missing
+  .filter((c) => c.name in EXEMPT)
+  .filter((c) => {
+    const { gate } = EXEMPT[c.name];
+    const body = bodies.get(c.name) || "";
+    return !new RegExp(`\\b${gate}\\s*\\(`).test(body);
+  });
+if (ungated.length) {
+  errors.push(
+    "these callables are exempt from App Check but do not call the gate\n"
+    + "  their exemption names:\n"
+    + ungated.map((c) => `    ${c.where} — expected ${EXEMPT[c.name].gate}(…)`).join("\n")
+    + "\n\n  An exemption is only as good as the allowlist that replaces\n"
+    + "  attestation. If the gate moved, update EXEMPT; if it went, this\n"
+    + "  callable is now open to any caller on the internet.",
+  );
+}
+
 const known = new Set([...enforcing, ...missing].map((c) => c.name));
 const ghosts = Object.keys(EXEMPT).filter((n) => !known.has(n));
 if (ghosts.length) {
@@ -186,7 +253,7 @@ for (const c of [...enforcing].sort((a, b) => a.name.localeCompare(b.name))) {
   console.log(`  enforced  ${c.name}`);
 }
 for (const c of [...missing].sort((a, b) => a.name.localeCompare(b.name))) {
-  console.log(`  exempt    ${c.name}  — ${EXEMPT[c.name] ?? c.note}`);
+  console.log(`  exempt    ${c.name}  — ${EXEMPT[c.name]?.reason ?? c.note}`);
 }
 
 if (errors.length) {

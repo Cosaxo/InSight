@@ -86,7 +86,7 @@ function modUids(): string[] {
 // the same list: least privilege cuts both ways — an operator uid is not
 // thereby a moderator, and a leaked moderator credential cannot seed
 // content or trigger reveals.
-function assertModerator(request: CallableRequest): void {
+export function assertModerator(request: CallableRequest): void {
   if (!request.auth) {
     throw new HttpsError("unauthenticated", "must be signed in");
   }
