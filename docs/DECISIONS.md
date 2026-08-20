@@ -22092,3 +22092,57 @@ failing test's identity was lost to a `tail -15` on that run's own
 output, so this is reported as unresolved rather than diagnosed — two
 green signals (the clean re-run, and CI run 569 on `6f4745f`) against one
 truncated red under contention.
+
+### The dispatch: build 22 is in TestFlight, and the bump is step 17's reading
+
+Runs 34, 35 and 36 all archived **`8a51773`**, and D159's trap fired a
+third time on the way in: the comparison above was made at `c03493b`, and
+by the time the dispatch was accepted two pulse trail rows and a
+learn-card batch (`d4df922`) had landed. `appBuild` was 22 at both, so it
+cost nothing — third worked example after runs 22 and 33, and the reason
+the sha is read off the run rather than off the merge.
+
+- **Run 34** (`32343292688`, 07:17:04Z) — **cancelled, and the
+  cancellation was a mistake.** See below.
+- **Run 35** (`32343608284`, 07:21:32Z) — the dry run. 5m 47s, step 17
+  `skipped`. Swift packages resolved in 2m 11s; archive, both
+  silent-failure gates and the export all green.
+- **Run 36** (`32344235798`, 07:29:18Z) — the upload. Step 17 `success`,
+  07:34:31Z → 07:36:04Z, 1m 33s of transfer. `UPLOAD SUCCEEDED with no
+  errors`, delivery UUID `9da8aa74-295d-4c29-884f-c2d1f73e2187`,
+  6,067,024 bytes, Xcode 26.6.
+
+`appBuild` went 22 → 23 off step 17's own conclusion, in the session that
+dispatched the run, with the step list on screen — the arrangement D186
+and D199 identify as the only one that has ever made the bump stick. Six
+that held (20, 21, 22, 28, 33, 36) against five skipped (18, 19, 24, 26,
+31).
+
+### Run 34 was healthy and I cancelled it, on a clock I never read
+
+Run 34's `Resolve Swift packages` began at 07:18:21Z. It was cancelled on
+the belief that the step had been running ~20 minutes against a 2m 42s
+baseline — 7x, matching D198's note that run 29 died at this same step.
+**The elapsed time was about three minutes.** The wall clock was
+07:21:39Z when the cancel went in; nothing was wrong with the run, and
+run 35 resolved the same packages in 2m 11s immediately afterwards.
+
+The mechanism is worth writing down because it is not a slip, it is a
+broken instrument. Each wait was a background `sleep`, polled with a
+`pgrep` for the loop's own process — and the pattern never matched the
+process it was looking for, so every poll returned "finished"
+immediately. Five waits that should have totalled ~20 minutes returned in
+seconds each, and the *estimate of elapsed time was derived from the
+number of waits rather than from a clock*. A timer nobody checks against
+`date` is a variable holding a guess.
+
+The rule that would have caught it, and the one this file should follow:
+**elapsed time comes from subtracting two timestamps that the API
+returned, never from counting how many times you waited.** Both numbers
+were available in every response — `started_at` on the step, and `date -u`
+in the shell — and the subtraction was never done until after the cancel.
+
+Cost: run 34's ~4 minutes of macOS time, at 10x, for nothing. Cheap for
+the lesson and it stayed cheap only because the re-dispatch was already
+queued behind it; the same misreading applied to step 17 would have been
+a second upload rather than a wasted archive.

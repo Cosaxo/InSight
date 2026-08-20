@@ -512,6 +512,28 @@ arithmetic.
       the age rating did not move, and `web/privacy.html` is already live
       (last changed at `6f4745f`, deploy run 95). D212.
 
+      **BUILD 22 UPLOADED 2026-08-20** (run 36, `32344235798`,
+      `8a51773`, upload step `success`, 07:34:31Z → 07:36:04Z, 1m 33s of
+      transfer). `UPLOAD SUCCEEDED with no errors`, delivery UUID
+      `9da8aa74-295d-4c29-884f-c2d1f73e2187`, 6,067,024 bytes. Run 35
+      (`32343608284`, same sha, 07:21:32Z) was the dry run, step 17
+      `skipped`, 5m 47s. Both silent-failure gates passed at both ends on
+      both runs — `aps-environment = production` out of the exported
+      `.ipa`, Firebase config in the bundle.
+
+      **`appBuild` is now 23, read off step 17 rather than recalled.**
+      Six bumps have held (runs 20, 21, 22, 28, 33, 36) against five
+      skipped (18, 19, 24, 26, 31). D159's trap fired a third time and
+      cost nothing: the comparison was made at `c03493b`, two pulse rows
+      and a learn-card batch landed before the dispatch was accepted, and
+      all three runs archived `8a51773` with `appBuild` 22 at both.
+
+      **Still open for this build: the privacy label.** Build 22 is in
+      TestFlight processing (~5–30 min), and the Health row is not filed
+      until someone enters it in App Store Connect › App Privacy › Edit.
+      The form is printed in full by App Store metadata run 11
+      (`32343295097`). D212.
+
 
       **BUILD 20 WAS UPLOADED BY RUN 31, AND BUILD 21'S PRE-FLIGHT HAD TO
       BUMP** (2026-08-19). Three runs sit at `f8c8465` and no document
@@ -1273,7 +1295,7 @@ That is a tester-count problem, not a workflow problem.
       it for two policies is the worse trade. Both cover failures that look like nothing from the
       outside: the app keeps serving while the Mirror stops moving, or
       keeps moving while falling further behind. `DEPLOYMENT.md § Alerting`.
-- [x] **5.6 Version lockstep — holds at 2.0.0 build 22.**
+- [x] **5.6 Version lockstep — holds at 2.0.0 build 23.**
       *This line was stale three times, each one a bump behind 2.4 — build
       11 on 2026-08-13, build 12 later the same day, then 13 against a tree
       at 22.* It is the D39 shape — a figure kept current by intention —

@@ -474,6 +474,33 @@ eleven hours after run 33 archived). Its rules shipped ahead of it —
 deploy run 91 carried the `v2_patterns` read grant — which is the right
 order and was checked rather than assumed.
 
+**Runs 35 and 36 delivered build 22, and the bump landed off step 17's
+conclusion** (D212, 2026-08-20). Both archived `8a51773` — run 35
+(`32343608284`, 07:21:32Z) step 17 `skipped`, the dry run, 5m 47s; run 36
+(`32344235798`, 07:29:18Z) `success`, 07:34:31Z → 07:36:04Z, 1m 33s of
+transfer. `UPLOAD SUCCEEDED with no errors`, delivery UUID
+`9da8aa74-295d-4c29-884f-c2d1f73e2187`, 6,067,024 bytes. Sixth pair of
+this shape. `appBuild` went 22 → 23 in the same session, read off step 17
+rather than recalled — six that held (20, 21, 22, 28, 33, 36) against
+five skipped (18, 19, 24, 26, 31).
+
+**D159's trap fired a third time and again cost nothing.** The pre-flight
+comparison was made at `c03493b`; by the time the dispatch was accepted,
+two pulse trail rows and a learn-card batch had landed, so all three runs
+archived `8a51773`. `appBuild` was 22 at both commits. Third worked
+example after runs 22 and 33.
+
+**A fourth run exists and it is a self-inflicted one.** Run 34
+(`32343292688`) was cancelled at `Resolve Swift packages` in the belief
+that the step had hung — it had been running about three minutes, not the
+twenty its canceller believed, and run 35 resolved the same packages in
+2m 11s minutes later. The waits used to time it were polled with a
+`pgrep` that never matched its own process, so each returned instantly
+and the elapsed estimate came from counting waits instead of from a
+clock. **Subtract the step's `started_at` from `date -u` before calling
+anything hung** — both numbers are always available, and neither was
+used. Cost ~4 minutes of macOS time at 10x. D212.
+
 
 **Runs 29, 30 and 31 delivered build 20, and the bump was skipped — by the
 pre-flight session itself** (D198, caught 2026-08-19). All three archived
