@@ -2,8 +2,8 @@
 
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
-"which decision governs this" is 220 lines instead of
-22,424. Do not hand-edit; `npm run check:docs` fails when this
+"which decision governs this" is 221 lines instead of
+22,513. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -16,7 +16,7 @@ detect it.
 | --- | --- | --- | --- |
 | **D1** | [Comments and "who voted" are circle-scoped only](DECISIONS.md#d1--comments-and-who-voted-are-circle-scoped-only) | D195 (+35) | 14 |
 | **D2** | ["Near" means geohash5 (~5 km), reusing the existing geo system](DECISIONS.md#d2--near-means-geohash5-5-km-reusing-the-existing-geo-system) | D84 (+3) | 29 |
-| **D3** | [Anonymous-first auth with account linking](DECISIONS.md#d3--anonymous-first-auth-with-account-linking) | D214 (+15) | 97 |
+| **D3** | [Anonymous-first auth with account linking](DECISIONS.md#d3--anonymous-first-auth-with-account-linking) | D217 (+16) | 97 |
 | **D4** | [The v1 shelf, and the legacy boundary](DECISIONS.md#d4--the-v1-shelf-and-the-legacy-boundary) | D192 (+6) | 342 |
 | **D5** | [Sealed answers are owner-only; reveals are materialized server-side](DECISIONS.md#d5--sealed-answers-are-owner-only-reveals-are-materialized-server-side) | D205 (+17) | 393 |
 | **D6** | [Android backup off; iPhone-only; no custom crypto](DECISIONS.md#d6--android-backup-off-iphone-only-no-custom-crypto) | D192 (+3) | 296 |
@@ -27,7 +27,7 @@ detect it.
 | **D10** | [@capacitor-firebase/app-check is installed under an npm alias](DECISIONS.md#d10--capacitor-firebaseapp-check-is-installed-under-an-npm-alias) | D29 | 816 |
 | **D11** | [The feed's argument surfaces are demo-only, by structure not by flag](DECISIONS.md#d11--the-feeds-argument-surfaces-are-demo-only-by-structure-not-by-flag) | D98 (+3) | 885 |
 | **D12** | [Rank questions are out of the live feed until answers can carry an order](DECISIONS.md#d12--rank-questions-are-out-of-the-live-feed-until-answers-can-carry-an-order) | D213 (+6) | 1054 |
-| **D13** | [The v1 compute is deleted, for the reason D4 deleted the v1 rules](DECISIONS.md#d13--the-v1-compute-is-deleted-for-the-reason-d4-deleted-the-v1-rules) | D201 (+1) | 1093 |
+| **D13** | [The v1 compute is deleted, for the reason D4 deleted the v1 rules](DECISIONS.md#d13--the-v1-compute-is-deleted-for-the-reason-d4-deleted-the-v1-rules) | D217 (+2) | 1093 |
 | **D14** | [Catalog answers are keys into a shipped catalogue; the reveal is a canon](DECISIONS.md#d14--catalog-answers-are-keys-into-a-shipped-catalogue-the-reveal-is-a-canon) | D78 (+3) | 1218 |
 | **D15** | [Films/artists catalogues: QID keys, and generation is an operator step](DECISIONS.md#d15--filmsartists-catalogues-qid-keys-and-generation-is-an-operator-step) | D145 (+1) | 1270 |
 | **D16** | [The Facebook SDK is stripped from the iOS build, not declared](DECISIONS.md#d16--the-facebook-sdk-is-stripped-from-the-ios-build-not-declared) | D164 (+2) | 1312 |
@@ -100,7 +100,7 @@ detect it.
 | **D80** | [Two ways to hang on the same line, and the device found both](DECISIONS.md#d80--two-ways-to-hang-on-the-same-line-and-the-device-found-both) | D167 | 7853 |
 | **D81** | [The k-floor is paused at 1 until launch traction](DECISIONS.md#d81--the-k-floor-is-paused-at-1-until-launch-traction) | D106 (+4) | 7927 |
 | **D82** | [Near by radius (~500 m) — asked for, priced, and deferred](DECISIONS.md#d82--near-by-radius-500-m--asked-for-priced-and-deferred) | D84 (+1) | 8005 |
-| **D83** | [World takes ship — D78 part 2 adopted, anonymous, behind enforcement](DECISIONS.md#d83--world-takes-ship--d78-part-2-adopted-anonymous-behind-enforcement) | D214 (+6) | 8051 |
+| **D83** | [World takes ship — D78 part 2 adopted, anonymous, behind enforcement](DECISIONS.md#d83--world-takes-ship--d78-part-2-adopted-anonymous-behind-enforcement) | D217 (+7) | 8051 |
 | **D84** | [Near by radius ships — presence cells, a count and nothing else](DECISIONS.md#d84--near-by-radius-ships--presence-cells-a-count-and-nothing-else) | D183 (+6) | 8173 |
 | **D85** | [The personality tests go to 5 items per dimension, and `cognitive` gets a question bank](DECISIONS.md#d85--the-personality-tests-go-to-5-items-per-dimension-and-cognitive-gets-a-question-bank) | D103 | 8250 |
 | **D86** | [Answers become editable — D5 amended, not repealed](DECISIONS.md#d86--answers-become-editable--d5-amended-not-repealed) | D211 (+13) | 8351 |
@@ -115,7 +115,7 @@ detect it.
 | **D95** | [A re-served learn card arrives answerable — the feed's vote mirror no longer outlives the serve](DECISIONS.md#d95--a-re-served-learn-card-arrives-answerable--the-feeds-vote-mirror-no-longer-outlives-the-serve) | D153 | 8883 |
 | **D96** | [A live build advertises no demo communities or empty leaves — and every bank subject runs always-on](DECISIONS.md#d96--a-live-build-advertises-no-demo-communities-or-empty-leaves--and-every-bank-subject-runs-always-on) | D213 (+2) | 8950 |
 | **D97** | [Question production upscales behind a regulator: computed budgets, a mechanical style gate, and measured vintages](DECISIONS.md#d97--question-production-upscales-behind-a-regulator-computed-budgets-a-mechanical-style-gate-and-measured-vintages) | D212 (+9) | 9017 |
-| **D98** | [Answers are public — the privacy model is retired, not paused](DECISIONS.md#d98--answers-are-public--the-privacy-model-is-retired-not-paused) | D214 (+38) | 9131 |
+| **D98** | [Answers are public — the privacy model is retired, not paused](DECISIONS.md#d98--answers-are-public--the-privacy-model-is-retired-not-paused) | D217 (+39) | 9131 |
 | **D99** | [The Mirror's lens row comes back, on data that was already there](DECISIONS.md#d99--the-mirrors-lens-row-comes-back-on-data-that-was-already-there) | D193 (+8) | 9253 |
 | **D100** | [Scores and the Answers lens, on the archive rather than the week](DECISIONS.md#d100--scores-and-the-answers-lens-on-the-archive-rather-than-the-week) | D187 (+4) | 9396 |
 | **D101** | [Circle, on a follow graph that needs no handshake](DECISIONS.md#d101--circle-on-a-follow-graph-that-needs-no-handshake) | D200 (+6) | 9497 |
@@ -195,7 +195,7 @@ detect it.
 | **D175** | [Near asks for a precise fix, so its radius can be honest](DECISIONS.md#d175--near-asks-for-a-precise-fix-so-its-radius-can-be-honest) | D202 (+6) | 17248 |
 | **D176** | [Near becomes a room, and the phone says what it is](DECISIONS.md#d176--near-becomes-a-room-and-the-phone-says-what-it-is) | D177 | 17338 |
 | **D177** | [Near becomes a room you can read, and asking requires standing in it](DECISIONS.md#d177--near-becomes-a-room-you-can-read-and-asking-requires-standing-in-it) | D202 (+4) | 17468 |
-| **D178** | [The app gets a face, and it is reported like anything else somebody says](DECISIONS.md#d178--the-app-gets-a-face-and-it-is-reported-like-anything-else-somebody-says) | D214 (+3) | 17616 |
+| **D178** | [The app gets a face, and it is reported like anything else somebody says](DECISIONS.md#d178--the-app-gets-a-face-and-it-is-reported-like-anything-else-somebody-says) | D217 (+4) | 17616 |
 | **D179** | [The rules deploy on merge and the app does not, so `until` is optional for one release](DECISIONS.md#d179--the-rules-deploy-on-merge-and-the-app-does-not-so-until-is-optional-for-one-release) | D195 (+3) | 17749 |
 | **D180** | [Build 18's pre-flight: the record was written and the number was not](DECISIONS.md#d180--build-18s-pre-flight-the-record-was-written-and-the-number-was-not) | D198 (+2) | 17837 |
 | **D181** | [Near's field drew the city it is not about](DECISIONS.md#d181--nears-field-drew-the-city-it-is-not-about) | D184 (+1) | 18067 |
@@ -217,7 +217,7 @@ detect it.
 | **D197** | [The feed gets real ads, and they are not sponsored questions](DECISIONS.md#d197--the-feed-gets-real-ads-and-they-are-not-sponsored-questions) | D199 (+1) | 20258 |
 | **D198** | [Build 21's pre-flight: the number run 31 spent, and the bundle gate's artifact claim](DECISIONS.md#d198--build-21s-pre-flight-the-number-run-31-spent-and-the-bundle-gates-artifact-claim) | D199 | 20408 |
 | **D199** | [Build 21 is in TestFlight, and the number moved with it](DECISIONS.md#d199--build-21-is-in-testflight-and-the-number-moved-with-it) | D202 (+1) | 20604 |
-| **D200** | [Three things were true and stopped being, and nothing was looking](DECISIONS.md#d200--three-things-were-true-and-stopped-being-and-nothing-was-looking) | D207 (+1) | 20686 |
+| **D200** | [Three things were true and stopped being, and nothing was looking](DECISIONS.md#d200--three-things-were-true-and-stopped-being-and-nothing-was-looking) | D217 (+2) | 20686 |
 | **D201** | [The functions follow the database to europe-west1](DECISIONS.md#d201--the-functions-follow-the-database-to-europe-west1) | — | 20835 |
 | **D202** | [The type mix reads every instrument, and D157 §4 is reversed](DECISIONS.md#d202--the-type-mix-reads-every-instrument-and-d157-4-is-reversed) | — | 20960 |
 | **D203** | [Five pulses, each with its own rhythm](DECISIONS.md#d203--five-pulses-each-with-its-own-rhythm) | D213 | 21062 |
@@ -227,10 +227,11 @@ detect it.
 | **D207** | [The Map goes lazy, and the door §5 was waiting on is open](DECISIONS.md#d207--the-map-goes-lazy-and-the-door-5-was-waiting-on-is-open) | D210 | 21450 |
 | **D208** | [The pen is not an error state, and a gate said it was](DECISIONS.md#d208--the-pen-is-not-an-error-state-and-a-gate-said-it-was) | D212 (+1) | 21563 |
 | **D209** | [Three readers walk the archive, and only one of them is a population](DECISIONS.md#d209--three-readers-walk-the-archive-and-only-one-of-them-is-a-population) | — | 21676 |
-| **D210** | [Rule 5 could not fire, and 123 dead publications were behind it](DECISIONS.md#d210--rule-5-could-not-fire-and-123-dead-publications-were-behind-it) | D211 | 21752 |
+| **D210** | [Rule 5 could not fire, and 123 dead publications were behind it](DECISIONS.md#d210--rule-5-could-not-fire-and-123-dead-publications-were-behind-it) | D217 (+1) | 21752 |
 | **D211** | [The topic door keeps the tab bar, a walk is final, and the account panel stops offering what sign-in settled](DECISIONS.md#d211--the-topic-door-keeps-the-tab-bar-a-walk-is-final-and-the-account-panel-stops-offering-what-sign-in-settled) | — | 21871 |
 | **D212** | [Questions ship without waiting for a person](DECISIONS.md#d212--questions-ship-without-waiting-for-a-person) | — | 22000 |
 | **D213** | [Every servable type generates, and the feed goes daily](DECISIONS.md#d213--every-servable-type-generates-and-the-feed-goes-daily) | — | 22074 |
-| **D214** | [A settled report is spent, and the queue stopped ranking ghosts](DECISIONS.md#d214--a-settled-report-is-spent-and-the-queue-stopped-ranking-ghosts) | D215 | 22126 |
-| **D215** | [Four things nothing was standing behind](DECISIONS.md#d215--four-things-nothing-was-standing-behind) | D216 | 22217 |
-| **D216** | [One rounding rule, and it stopped drawing three votes above four](DECISIONS.md#d216--one-rounding-rule-and-it-stopped-drawing-three-votes-above-four) | — | 22336 |
+| **D214** | [A settled report is spent, and the queue stopped ranking ghosts](DECISIONS.md#d214--a-settled-report-is-spent-and-the-queue-stopped-ranking-ghosts) | D217 (+1) | 22126 |
+| **D215** | [Four things nothing was standing behind](DECISIONS.md#d215--four-things-nothing-was-standing-behind) | D217 (+1) | 22217 |
+| **D216** | [One rounding rule, and it stopped drawing three votes above four](DECISIONS.md#d216--one-rounding-rule-and-it-stopped-drawing-three-votes-above-four) | D217 | 22336 |
+| **D217** | [The long tail, and the two things it declined to build](DECISIONS.md#d217--the-long-tail-and-the-two-things-it-declined-to-build) | — | 22425 |

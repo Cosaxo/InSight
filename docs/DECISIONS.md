@@ -22421,3 +22421,92 @@ than merely red.
   (402,216 vectors) and fixed-seed sampled to 12, rather than a longer
   list of hand-picked cases. Reverting `sharePcts` fails seven cases
   across both surfaces.
+
+## D217 · The long tail, and the two things it declined to build
+
+**2026-08-20.** **Status:** binding. The rest of the audit that produced
+D214–D216, worked through in seven commits. Nothing here is a new idea;
+it is the tail of one pass, recorded together because the items share a
+diagnosis and because two of them were declined and that needs to be
+written down rather than left as silence.
+
+### The diagnosis, once more
+
+Every item was a property the repo states somewhere and nothing
+underneath enforces. That is D215's finding, and the tail is where it
+shows as VOLUME rather than as severity:
+
+- `functions/README.md` described a geohash5 aggregator with a
+  k-anonymity floor, in the present tense, with a copy-paste console
+  invocation. D13 deleted the subsystem; D98 retired the model. It
+  survived because `check:public-copy` reads copy a USER sees, and
+  ORIENTATION §3 sends every newcomer to this file first.
+- `src/v2/README.md` said "one suite each, mutation-checked" about
+  `ui/`. Nine panels had none.
+- `world-feed-math.test.js` ASSERTED "a maximal bucket stays maximal"
+  with four hand-picked vectors (D216).
+- `MONITORING.md` named "which of the other 12 functions has no alert"
+  as a question. Both nightly jobs already emitted their metric; nothing
+  read it.
+
+Four new gates came out of it, all client-side ratchets on `ci.yml`:
+`check:tap-targets`, `check:panel-suites`, plus CSS and font ceilings in
+`check:bundle` and a function-count figure in `check:figures`.
+
+### The eager chunk: 858 → 831 KB
+
+`MAX_EAGER_KB` is 880 and its own comment says it is not raiseable, so
+this is the number that decides what can ship next.
+
+- **The Tweaks panel** — ~12 KB of controls, drag handling and a 6.7 KB
+  stylesheet string that production *cannot open* (its only
+  `setOpen(true)` is behind `if (!import.meta.env.DEV) return`). It
+  shared a module with `useTweaks`, which app-shell reads every render.
+  Split to `data/tweaks.jsx` + `src/dev/TweaksPanel.jsx`, the window
+  publication deleted with it (D210's measurement is why that matters).
+- **Search and Profile** — ~15 KB only a header tap reaches. The
+  criterion that kept them eager ("no control in the header or tabbar")
+  was about SYNCHRONISATION, and `openDeferred` is that mechanism.
+- **The italic fonts** — 12 `@font-face` blocks and four woff2 files, 66
+  KB, for a voice `styles.css` states has no italic. `.app em {
+  font-style: normal }` is load-bearing now rather than tidy: without
+  the faces a browser would shear the roman into a fake oblique, on the
+  app's own wordmark.
+
+Two things worth keeping from that work. Deferring the overlays first
+tried the `window.X &&` guard form the other deferred overlays use, and
+**check:globals rule 4 refused it** — 39 → 41 in app-shell, because the
+guard costs two shared-global references where a bare name costs one.
+The bare name is safe for the same reason the guard is redundant: every
+path that sets `ov` now awaits the chunk. And that await **fixed a
+latent ReferenceError** — `openOverlay` said "All three are eager" and
+called `show()` with no await, which stopped being true at D200 when
+relmap moved into `loadOverlays` and stayed in `LIVE_OVERLAYS`.
+
+### Declined, with the arithmetic
+
+**A world take's `qid` is not checked to name a real question**
+(`firestore.rules`). Adding `exists()` is the consistent fix and the only
+one that closes it — a charset matcher restricts the alphabet and leaves
+the qid dimension unbounded. It is declined for now on cost and churn: it
+puts a billed read on every take create, and it needs a `v2_questions`
+doc seeded across the rules suite and the moderation e2e wherever a take
+is posted through the rules. D83's own reasoning is unaffected — "one
+account cannot stack a question under fresh ids" is still literally true
+— and since accounts are free (D3) total document count was already
+unbounded. What `exists()` would buy is bounding the qid dimension to the
+real bank, which is a cost-amplification control rather than an access
+one. Build it with the next change that touches those tests.
+
+**`displayName` has no report path.** `firestore.rules:213` accepts any
+60-char client string, D98 makes `v2_users` world-readable, and the name
+is drawn beside every face on Near's People tab, the Kindred cards and
+the profile. The only report arms in the product are takes (D83) and
+photos (D178), and `v2_flags`' create rule has only those two shapes —
+so D178 built the whole photo-report loop on the argument that "every
+surface that will draw this face already draws the NAME beside it", and
+the name it leaned on has no loop of its own. That is the stronger Apple
+guideline 1.2 gap and it is NOT a bug fix: it needs a flag shape, a
+queue kind, a moderator verdict that clears a name rather than hides a
+document, and a decision about what a cleared name shows instead. An
+owner-decision design, recorded here so it stops being invisible.
