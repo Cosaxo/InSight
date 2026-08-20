@@ -448,6 +448,28 @@
       398: 2,  // Kazakhstan — below the floor, teal and gold
       0: 10,   // Not listed
     },
+    // daily catalog-question run, 2026-08-20 — brains, the third dogs
+    // canon: pk17 ranks lifestyle fits, pk19 what stops you on the
+    // street; this is the professor's list against the internet's.
+    // Coren's ranking gives the top three; the Belgian Shepherd is the
+    // Malinois vote wearing the catalogue's breed-level name.
+    pk21: {
+      84: 34,  // Border Collie — the undisputed valedictorian
+      400: 22, // Poodle — the genius under the haircut
+      216: 20, // German Shepherd — the working-dog vote
+      64: 13,  // Belgian Shepherd — the Malinois vote, the internet's pick
+      223: 12, // Golden Retriever — smart the way a good friend is smart
+      307: 10, // Labrador Retriever
+      172: 9,  // Dobermann
+      38: 8,   // Australian Shepherd
+      370: 7,  // Papillon — the small one nobody expects on this board
+      462: 6,  // Shetland Sheepdog
+      428: 5,  // Rottweiler — clears the floor but not the top 10; folds
+      268: 5,  // Jack Russell Terrier — same
+      59: 3,   // Beagle — below the floor; brilliant nose, selective ears
+      75: 2,   // Bloodhound — below the floor
+      0: 8,    // Not listed
+    },
   };
 
   // Baked demo segment slices, per question: how each cohort orders the
@@ -691,6 +713,18 @@
         Men: { 524: 9, 64: 7, 826: 6, 392: 5, 484: 5 },
       },
     },
+    pk21: {
+      ageBand: {
+        // the Malinois-content era makes the youth cell the internet's
+        // board; the older cell keeps the classic Coren top of the class
+        '18-24': { 84: 9, 64: 7, 216: 6, 400: 5, 172: 4 },
+        '25-34': { 84: 8, 400: 7, 223: 6, 307: 5, 38: 4 },
+      },
+      gender: {
+        Women: { 400: 8, 84: 7, 223: 6, 370: 5, 462: 4 },
+        Men: { 216: 9, 84: 7, 64: 6, 172: 5, 307: 5 },
+      },
+    },
   };
 
   const api = {
@@ -841,5 +875,6 @@
     // the tapestry profiles, led by dogs almost nobody takes home.
     { id: 'pk19', cat: 'fav', type: 'pick', domain: 'dogs', prompt: 'The most beautiful dog?', n: 165 },
     { id: 'pk20', cat: 'fav', type: 'pick', domain: 'countries', prompt: 'The best flag in the world?', n: 163 },
+    { id: 'pk21', cat: 'fav', type: 'pick', domain: 'dogs', prompt: 'The smartest dog?', n: 164 },
   ];
 })();
