@@ -22315,3 +22315,68 @@ Unit green with eight population cases across the fold and the lens
 circle floor, the circle empty state, the country cut); lint 0; rule-4
 flat; eager bundle unchanged — the chips live in the same lazy chunk as
 everything else on this tab.
+
+## D217 · A continuum answer lives in two units, and the bucket arbitrates
+
+**Decided:** 2026-08-20 · **Status:** binding. Owner report, off a
+device: the coffee dial ("How many coffees a day is too many?", 1–10)
+answered at 1 cup stood on the card as **"0 cups"** — a value its own
+axis cannot hold, the "you" dot off-screen left.
+
+### 1 · What was wrong
+
+A dial/field answer exists in two units, and deck.ts already said so:
+the answer doc's `optionIdx` is the **12-bucket index** ("a position on
+this range"), while the feed's local state and its WF_LS mirror hold the
+**control's units** — the drag's value on lo..hi, the field's point
+{x, y}. Three writers copied the index into the value's slot, and one
+reader did the reverse:
+
+- **world-feed's LIVE reconcile** (componentDidMount) copied
+  `myVotes()`'s number over local state on EVERY store notify — so the
+  card showed the picked value only until the next notify (the vote's
+  own ack, any agg poll), then flipped to the bucket index and the next
+  `wfSave` persisted it. This is the door the report came through:
+  1 cup → bucket 0 → "0 cups", standing.
+- **hydrate's WF_LS seeding** wrote `Number(optionIdx)` for every bank
+  answer the mirror lacked — the same wrong unit on every fresh device.
+- **editVote's refusal restore** put `Number(prev)` back into the
+  mirror — the index again, through the rarest door.
+- **`liveMine`** read local state (the raw value) as an option index
+  for the breakdown panel's "you" marker, so "7 cups" highlighted
+  bucket 7 while the answer lived in bucket 8.
+
+### 2 · The contract, recorded
+
+The store speaks indices; the feed speaks values; conversion happens at
+the boundary, in one direction per read:
+
+- The reconcile no longer copies a continuum id — the bucket
+  **arbitrates**: a local value that lands in the store's bucket is a
+  finer reading of the same answer and stays; anything else (no local
+  value, an edit from another device, a refused edit rolled back, or
+  copied-index residue the bucket math can tell apart) becomes the
+  bucket's **midpoint** — exactly what dialVal/fieldVal derive when only
+  the store knows. Vote-shaped cards keep the plain copy: the index IS
+  their unit.
+- hydrate seeds the mirror through `mirrorVoteValue` — midpoint for a
+  dial, cell point for a field, index for a vote — and the refusal
+  restore goes through the same helper. The midpoint math exists twice
+  (data/ cannot import the spec layer); vote.test.ts pins the values as
+  hand-computed literals so the twins cannot drift silently.
+- dialVal/fieldVal treat residue as absent and read the store instead:
+  a number OFF the card's range (dial), a non-point (field). Range is
+  the test because provenance is gone — **in-range residue is
+  indistinguishable from a real drag and stands**, the known limit; the
+  reconcile converges it on the next notify wherever
+  `bucket(residue) ≠ storedBucket`, and the user's next edit settles
+  the rest. `liveMine` reads the stored bucket for continuum cards.
+
+### 3 · The gates' word
+
+vote.test.ts: hydrate mirrors dial/field/vote each in its own unit (the
+drift-pin literals), and a refused edit restores the standing bucket's
+midpoint. smoke-live mounts all three doors: the committed value
+survives the store's next notify, a store-only answer renders as its
+bucket's value and never its index, and the reported device's exact
+residue (mirror 0, store bucket "0", 1–10 axis) heals to "1 cups".

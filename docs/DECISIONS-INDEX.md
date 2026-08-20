@@ -2,8 +2,8 @@
 
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
-"which decision governs this" is 220 lines instead of
-22,318. Do not hand-edit; `npm run check:docs` fails when this
+"which decision governs this" is 221 lines instead of
+22,383. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -234,3 +234,4 @@ detect it.
 | **D214** | [The People lens joins the Patterns trial](DECISIONS.md#d214--the-people-lens-joins-the-patterns-trial) | D215 | 22126 |
 | **D215** | [The Map and the Oracle take the 2026-08-20 standalone's shape](DECISIONS.md#d215--the-map-and-the-oracle-take-the-2026-08-20-standalones-shape) | D216 | 22185 |
 | **D216** | [The People lens gets its populations](DECISIONS.md#d216--the-people-lens-gets-its-populations) | — | 22260 |
+| **D217** | [A continuum answer lives in two units, and the bucket arbitrates](DECISIONS.md#d217--a-continuum-answer-lives-in-two-units-and-the-bucket-arbitrates) | — | 22319 |

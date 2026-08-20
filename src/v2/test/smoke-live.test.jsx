@@ -73,8 +73,12 @@ afterEach(() => {
   live = undefined;
 });
 
-function mountLive(opts) {
+// `prep` runs between installLive and render — the seam for a case that
+// must shape the fixture's globals (an extra feed card, a pre-existing
+// store vote) before the first paint reads them.
+function mountLive(opts, prep) {
   live = installLive(opts);
+  if (prep) prep(live);
   errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
   render(<App />);
   return function expectNoBoundary(where) {
@@ -1076,6 +1080,99 @@ describe("the live gates hold in the DOM, not just in the source", () => {
       "the purge did not clear the feed's vote state",
     ).not.toBeNull();
     expectNoBoundary("feed after purge");
+  });
+});
+
+// The feed dial's unit contract (D217), on the real mount. The store holds
+// the 12-bucket INDEX for a continuum answer; the feed's local state holds
+// the drag's own VALUE. The reconcile in componentDidMount used to copy
+// the index over the value on every store notify — so a card answered
+// "1 cups" on a 1–10 dial stood at "0 cups", off its own axis, and the
+// mirror then persisted it. One case per door: the in-session clobber,
+// the store-only fallback, and the residue a corrupted mirror still holds.
+describe("the feed dial keeps the value you slid (D217)", () => {
+  const DIAL_ID = "feed-fixture-dial";
+  const DIAL_PROMPT = "How many fixture cups is too many?";
+  const dialCard = () => ({
+    id: DIAL_ID,
+    cat: "culture",
+    type: "dial",
+    prompt: DIAL_PROMPT,
+    lo: 1, hi: 10, unit: "cups",
+    // live shape, as buildFeedGlobals emits it: 12 synthesized buckets
+    // whose counts ARE the crowd — empty here, the viewer's own bucket
+    // rides back in through dialDist
+    options: Array.from({ length: 12 }, (_, i) => ({ label: `b${i}`, count: 0 })),
+    n: 0,
+    live: true,
+  });
+  const addDial = (prep) => (handle) => {
+    window.WORLD_FEED_QS.push(dialCard());
+    if (prep) prep(handle);
+  };
+  // jsdom's localStorage is shared across this file and the feed both
+  // seeds from and persists to insight.feedVotes.v1 — start clean so no
+  // earlier case decides what the dial (or the notify-by-voting card 0)
+  // mounts as, and leave clean for the same reason.
+  beforeEach(() => { localStorage.clear(); });
+  afterEach(() => { localStorage.removeItem("insight.feedVotes.v1"); });
+
+  it("the committed value survives the store's next notify", async () => {
+    const expectNoBoundary = mountLive({}, addDial());
+    await growFeed();
+    const card = screen.getByText(DIAL_PROMPT).parentElement;
+    const slider = within(card).getByRole("slider");
+    // keyboard commit, because it is deterministic in jsdom: one step from
+    // the middle is frac 0.5 + 1/9 → value 7 of 1–10, which quantizes to
+    // bucket 8 — a pair the copy loop cannot tell apart from an edit.
+    fireEvent.keyDown(slider, { key: "ArrowRight" });
+    fireEvent.keyDown(slider, { key: "Enter" });
+    expect(within(card).getAllByText("7 cups").length).toBeGreaterThan(0);
+    // Any later notify replays the reconcile — voting another card is the
+    // cheapest real one. The old copy loop flipped the answer to "8 cups"
+    // here: the bucket index wearing the value's clothes.
+    act(() => { window.LIVE.vote("feed-fixture-0", "1"); });
+    expect(within(card).getAllByText("7 cups").length).toBeGreaterThan(0);
+    expect(within(card).queryByText("8 cups")).toBeNull();
+    expectNoBoundary("feed dial after notify");
+  });
+
+  it("a store-only answer renders as its bucket's value, never its index", async () => {
+    // Another device answered "1 cups" → optionIdx "0". This device has no
+    // raw value, so the card claims bucket 0's midpoint (≈1.4 → "1 cups").
+    // The pre-D217 reconcile copied the 0 in and the card said "0 cups" —
+    // a value the 1–10 axis cannot even hold.
+    const expectNoBoundary = mountLive({}, addDial((h) => { h.votes[DIAL_ID] = "0"; }));
+    await growFeed();
+    // A store notify replays the reconcile — without one this case passes
+    // on the fallback alone and pins nothing about the copy loop, which is
+    // exactly the door the cross-device report would come through.
+    act(() => { window.LIVE.vote("feed-fixture-0", "1"); });
+    // answered before this mount ever saw it, so the card parks behind the
+    // Answered expander (D133) — open it to reach the render
+    fireEvent.click(screen.getByRole("button", { name: /^Answered · 1$/ }));
+    const card = screen.getByText(DIAL_PROMPT).parentElement;
+    const you = within(card).getByText("you");
+    expect(you.previousSibling.textContent).toBe("1 cups");
+    expect(within(card).queryByText("0 cups")).toBeNull();
+    expectNoBoundary("feed dial from store");
+  });
+
+  it("heals the residue a pre-D217 mirror still holds", async () => {
+    // The reported device's exact state: the mirror kept the copied index
+    // (0), the store holds bucket "0". The card must read the store, not
+    // the residue — range is the tell, since 0 is off a 1–10 dial.
+    const expectNoBoundary = mountLive({}, addDial((h) => {
+      h.votes[DIAL_ID] = "0";
+      localStorage.setItem("insight.feedVotes.v1", JSON.stringify({ [DIAL_ID]: 0 }));
+    }));
+    await growFeed();
+    fireEvent.click(screen.getByRole("button", { name: /^Answered · 1$/ }));
+    const card = screen.getByText(DIAL_PROMPT).parentElement;
+    const you = within(card).getByText("you");
+    expect(you.previousSibling.textContent).toBe("1 cups");
+    expect(within(card).queryByText("0 cups")).toBeNull();
+    expectNoBoundary("feed dial healed");
   });
 });
 
