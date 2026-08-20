@@ -23,7 +23,7 @@ const BY = {
 const OVERALL = [12, 8];
 
 describe("pctFor", () => {
-  it("sums to exactly 100 and puts the drift on the largest share", () => {
+  it("sums to exactly 100, sharing the drift by largest remainder", () => {
     // Three thirds round to 33/33/33 and lose a point. A split that does
     // not sum to 100 is visible on a stacked bar as a gap.
     expect(pctFor([1, 1, 1])).toEqual([34, 33, 33]);

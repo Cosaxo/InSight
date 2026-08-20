@@ -21,6 +21,7 @@
 // inversion that made "absent ≠ zero" a doctrine worth writing down.
 
 import type { AggDoc } from "./deck";
+import { sharePcts } from "./pct";
 
 /** dim → bucket → optionIdx → count, as published. */
 export type ByMap = Record<string, Record<string, Record<string, number>>>;
@@ -85,17 +86,17 @@ export function cellFor(
 /**
  * Integer percentages that sum to exactly 100.
  *
- * The largest share absorbs the rounding drift, which is the convention
- * every other split in this app uses — two surfaces rounding differently
- * on the same numbers is how a 51/49 becomes a 51/48 one screen over.
+ * The rule itself lives in data/pct.ts, shared with the feed's `wfPcts` —
+ * two surfaces rounding differently on the same numbers is how a 51/49
+ * becomes a 51/48 one screen over, and until that module existed the two
+ * agreed only by carrying the same four lines.
+ *
+ * It used to dump the whole rounding residue on the largest share, which
+ * could draw a smaller count LARGER than a bigger one and could move the
+ * top bar off the top count. pct.ts has the measurements.
  */
 export function pctFor(counts: readonly number[]): number[] {
-  const total = counts.reduce((a, b) => a + b, 0);
-  if (!total) return counts.map(() => 0);
-  const pct = counts.map((c) => Math.round((c / total) * 100));
-  const drift = 100 - pct.reduce((a, b) => a + b, 0);
-  if (drift) pct[pct.indexOf(Math.max(...pct))] += drift;
-  return pct;
+  return sharePcts(counts);
 }
 
 /**

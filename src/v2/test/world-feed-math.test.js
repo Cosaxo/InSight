@@ -14,10 +14,13 @@
 //      from the stored counts ("the UI adds its own +1 for you, so including
 //      it here would double-count"), so the +1 here is the other half of
 //      that contract. Breaking either half silently shifts every percentage.
-//   2. It forces the rounded parts to sum to exactly 100 by pushing the
-//      rounding residue onto the largest bucket — because three-way splits
-//      round to 99 or 101 more often than not, and a split that does not sum
-//      to 100 reads as a bug in the product's central claim.
+//   2. It forces the rounded parts to sum to exactly 100 — because three-way
+//      splits round to 99 or 101 more often than not, and a split that does
+//      not sum to 100 reads as a bug in the product's central claim. The
+//      rounding itself is data/pct.ts now, shared with the Mirror's pctFor;
+//      it used to push the whole residue onto the largest bucket, and this
+//      file's own "maximal bucket stays maximal" case asserted a property
+//      that rule did not have.
 
 import { describe, expect, it } from "vitest";
 
@@ -25,6 +28,7 @@ import {
   wfCatArt, wfFmt, wfHash, wfKnowBias, wfKnowRate, wfPcts, wfPickGroup,
   wfRateAvg, wfRateBg, wfTileArt, wfTint,
 } from "../spec/world-feed-math.js";
+import { pctFor } from "../data/cohort";
 
 describe("wfPcts — the split a user reads", () => {
   it("counts the viewer's own vote, which the store leaves out", () => {
@@ -52,23 +56,83 @@ describe("wfPcts — the split a user reads", () => {
     }
   });
 
-  it("puts the rounding residue on the LARGEST bucket, not an arbitrary one", () => {
-    // These cases are chosen because they distinguish max from min. A first
-    // draft used [1,1,1] and [10,3,3]: the first is symmetric so the two
-    // rules pick the same bucket, and in the second the residue is too small
-    // to change the winner — so swapping Math.max for Math.min passed the
-    // whole suite. Verified by making that swap and watching these fail.
-    expect(wfPcts([1, 1, 4], -1).p).toEqual([17, 17, 66]);   // min would give [16,17,67]
-    expect(wfPcts([1, 4, 4], -1).p).toEqual([11, 45, 44]);   // min would give [12,44,44]
-    expect(wfPcts([1, 1, 1, 3], -1).p).toEqual([17, 17, 17, 49]);
+  it("hands the residue to the largest remainders, and never past the winner", () => {
+    // This case USED TO READ "puts the rounding residue on the LARGEST
+    // bucket", and pinned [1,1,1,3] as [17,17,17,49]. That rule is retired:
+    // it pushed the WHOLE residue onto one bucket, and with enough options
+    // the residue is several points, so it could push that bucket below one
+    // with fewer votes. data/pct.ts has the measurement and the reasoning;
+    // the sweep in data/pct.test.ts is the exhaustive half. Here: the cases
+    // that distinguish the two rules at this surface.
+    expect(wfPcts([1, 1, 4], -1).p).toEqual([17, 17, 66]);
+    expect(wfPcts([1, 4, 4], -1).p).toEqual([11, 45, 44]);
+    // The one the old rule answered differently — [17,17,17,49] then. Both
+    // distort somebody: the old one shaved a full point off the winner to
+    // keep the three ones equal, this one leaves the winner exact and puts
+    // the three ones a point apart. Pinned so a revert is visible.
+    expect(wfPcts([1, 1, 1, 3], -1).p).toEqual([17, 17, 16, 50]);
 
-    // …and the general property those pin: whichever bucket absorbed the
-    // residue, a maximal bucket stays maximal. Rounding must never hand the
-    // card's headline to a side that did not win.
-    for (const counts of [[1, 1, 4], [1, 4, 4], [10, 3, 3], [7, 11, 13, 17]]) {
+    // …and the general property, which the previous draft ASSERTED and did
+    // not hold: a maximal bucket stays maximal, so rounding never hands the
+    // card's headline to a side that did not win. It checked four
+    // hand-picked vectors, all of which passed under the broken rule.
+    // [5,7,1,9,1,7,10] did not: it printed the 10-vote winner at 22% and a
+    // 9-vote option at 23%.
+    for (const counts of [
+      [1, 1, 4], [1, 4, 4], [10, 3, 3], [7, 11, 13, 17],
+      [5, 7, 1, 9, 1, 7, 10],
+    ]) {
       const { p } = wfPcts(counts, -1);
       const winner = counts.indexOf(Math.max(...counts));
       expect(p[winner], JSON.stringify(counts)).toBe(Math.max(...p));
+    }
+  });
+
+  it("never draws a smaller count wider than a bigger one", () => {
+    // The feed's live shapes are what make this reachable: a dial is 12
+    // buckets and a field is 4x3, so a card's split routinely has ten or
+    // more parts and the residue grows with them. A vote count is the one
+    // thing a bar is claiming to represent, and drawing 3 votes above 4 is
+    // the split contradicting itself on screen.
+    const cases = [
+      [3, 3, 4, 4, 4, 4, 4, 4, 4, 4],       // the k=10 case, [8,8,7,11,…] before
+      [5, 7, 1, 9, 1, 7, 10],
+      [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+      [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1],
+    ];
+    for (const counts of cases) {
+      for (const mine of [-1, 0, 3]) {
+        const { p } = wfPcts(counts, mine);
+        const c = counts.map((n, i) => n + (mine === i ? 1 : 0));
+        for (let i = 0; i < c.length; i++) {
+          for (let j = 0; j < c.length; j++) {
+            if (c[i] > c[j]) {
+              expect(p[i], `${JSON.stringify(counts)}@${mine}: ${c[i]} votes drew ${p[i]}%, ${c[j]} drew ${p[j]}%`)
+                .toBeGreaterThanOrEqual(p[j]);
+            }
+          }
+        }
+      }
+    }
+  });
+
+  it("rounds identically to the Mirror's pctFor, because it is the same rule", () => {
+    // The cross-surface half, and the reason data/pct.ts exists at all.
+    // pctFor's own comment has always said that two surfaces rounding
+    // differently on the same numbers is how a 51/49 becomes a 51/48 one
+    // screen over — and until that module the two agreed only by carrying
+    // the same four lines each. Now there is one implementation and this
+    // says so out loud.
+    //
+    // Asserted from THIS side rather than from cohort.test.ts: `data/` is
+    // typed and world-feed-math.js is not, so importing it there costs a
+    // @ts-expect-error and crosses the boundary DECISIONS.md:3337 rests the
+    // no-allowJs argument on. This file is plain JS and is the feed's own.
+    //
+    // mineIdx -1 is the comparable call: adding the viewer's vote is this
+    // surface's convention, not the rounding's.
+    for (const counts of [[1, 1, 1], [1, 5, 2], [1, 1, 1, 3], [3, 3, 4, 4, 4, 4, 4, 4, 4, 4]]) {
+      expect(wfPcts(counts, -1).p, JSON.stringify(counts)).toEqual(pctFor(counts));
     }
   });
 
