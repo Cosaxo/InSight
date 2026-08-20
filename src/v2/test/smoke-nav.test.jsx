@@ -77,14 +77,14 @@ describe("the daily's ruler is the nav (v17)", () => {
   });
 });
 
-// ── the patterns tab is unmounted for v1 (D214) ───────────────────────
+// ── the patterns tab is unmounted for v1 (D217) ───────────────────────
 //
 // The two cases that walked it live in this file's history and return
 // with the mount. What the unmount owes a test instead: the tab bar is
 // two tabs, and the retired nav key is a no-op rather than a crash — a
 // stale caller (a remembered deep link, an old build's gesture) must
 // land nowhere, not on a boundary.
-describe("the patterns tab is out (D214)", () => {
+describe("the patterns tab is out (D217)", () => {
   it("the tab bar carries two tabs and no patterns button", () => {
     const expectNoBoundary = mountApp();
     expect(screen.queryByRole("button", { name: /^patterns$/i })).toBeNull();
@@ -96,7 +96,7 @@ describe("the patterns tab is out (D214)", () => {
     const expectNoBoundary = mountApp();
     act(() => { window.goNav("patterns"); });
     expect(document.querySelector(".app").getAttribute("data-tab")).not.toBe("patterns");
-    expectNoBoundary("goNav('patterns') after D214");
+    expectNoBoundary("goNav('patterns') after D217");
   });
 });
 

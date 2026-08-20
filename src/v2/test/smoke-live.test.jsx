@@ -118,7 +118,7 @@ describe("spec layer mounts in live mode", () => {
   });
 
   // The patterns-tab live case (no invented people — D166 §1, D167) left
-  // with the mount at D214 and returns with it; the honesty rule it
+  // with the mount at D217 and returns with it; the honesty rule it
   // pinned still holds inside ui/PatternsTab.tsx, which is unreachable
   // while unmounted.
 

@@ -16,7 +16,7 @@ import { reportError } from '../../lib/sentry';
 // sides, so the coupling ratchet never counts it.
 import { onMapCue } from '../data/mapCue.ts';
 
-// The patterns tab is UNMOUNTED for v1 (D214) — this is the import site
+// The patterns tab is UNMOUNTED for v1 (D217) — this is the import site
 // the D166 §1 trial clause priced the reversal at. ui/PatternsTab.tsx,
 // the patterns data layer and the nightly fit all stand untouched;
 // remounting is this React.lazy import back, the TABS entry below, and
@@ -72,13 +72,13 @@ function NavGlyph({ id, active }) {
     );
   }
   // 'groups' and 'duo' glyphs left with the bar nav (v28 §10), and the
-  // patterns constellation left with its tab (D214) — only the tab bar
+  // patterns constellation left with its tab (D217) — only the tab bar
   // renders glyphs, and it knows 'track' and 'mirror'.
   return null;
 }
 
 // Two tabs for v1: daily · mirror. v28 §1 made it three with the daily in
-// the middle; the patterns entry is unmounted with its import (D214), and
+// the middle; the patterns entry is unmounted with its import (D217), and
 // this list is where it returns.
 // (Internal ids keep their historical names; only labels are user-facing.)
 const TABS = [
@@ -428,7 +428,7 @@ function App() {
                   // the daily's scale runs World · Circle · 1v1, with Mirror just
                   // past its far end — so arriving from it lands on the stop that
                   // sits next to it, not on whatever you last had open. (Patterns
-                  // sat past the near end until D214 unmounted it for v1.)
+                  // sat past the near end until D217 unmounted it for v1.)
                   if (id === 'track' && tab === 'mirror') setDailyMode('duo');
                   setTab(id); closeAll(); if (id === 'mirror') setTweak('mirrorPop', 'you');
                 }}>

@@ -376,7 +376,7 @@ class DailySplit extends React.Component {
       const MODES = this.modeAxis;
       const mi = MODES.indexOf(this.state.mode), ni = mi + dir;
       // the axis continues past its FAR end only — Mirror (act, then
-      // see). Patterns sat past the near one until D214 unmounted it for
+      // see). Patterns sat past the near one until D217 unmounted it for
       // v1; while it is out, the near end springs back like any other
       // edge, and this branch is where the exit returns (the exception
       // D166 §1 licensed). Still one window.goNav read, because the
