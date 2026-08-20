@@ -1855,6 +1855,166 @@
       "p": 27,
       "k": "Tanzania: Dodoma",
       "w": "Dodoma has been the official capital since 1996; Dar es Salaam remains the largest city and former capital."
+    },
+    {
+      "id": "cell9",
+      "f": "cell",
+      "q": "What controls what enters and leaves a cell?",
+      "a": [
+        "The cell wall",
+        "The cell membrane",
+        "The nucleus",
+        "The cytoplasm"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 55,
+      "k": "Membranes control what enters",
+      "w": "Plant cells have a wall too, but that is rigid support — the membrane underneath is what actually decides what crosses."
+    },
+    {
+      "id": "cell10",
+      "f": "cell",
+      "q": "What speeds a cell's chemical reactions up without being used up?",
+      "a": [
+        "A hormone",
+        "An enzyme",
+        "A vitamin",
+        "A mineral"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 66,
+      "k": "Enzymes speed reactions up",
+      "w": "Enzymes lower the energy a reaction needs and come out unchanged, so a tiny amount works over and over."
+    },
+    {
+      "id": "cell11",
+      "f": "cell",
+      "q": "Water moving across a membrane toward the saltier side is…",
+      "a": [
+        "Diffusion",
+        "Filtration",
+        "Osmosis",
+        "Active transport"
+      ],
+      "c": 2,
+      "t": 0,
+      "p": 72,
+      "k": "Osmosis moves the water",
+      "w": "Osmosis is diffusion's special case: the membrane lets water through but not the salt, so the water is what moves."
+    },
+    {
+      "id": "cell12",
+      "f": "cell",
+      "q": "Where does a new cell come from?",
+      "a": [
+        "Another cell",
+        "Non-living matter",
+        "The bloodstream",
+        "A virus"
+      ],
+      "c": 0,
+      "t": 1,
+      "p": 48,
+      "k": "Cells come only from cells",
+      "w": "Virchow's line — omnis cellula e cellula. It is the observation that closed the door on spontaneous generation."
+    },
+    {
+      "id": "cell13",
+      "f": "cell",
+      "q": "Which organelle packages and ships proteins?",
+      "a": [
+        "The ribosome",
+        "The lysosome",
+        "The nucleus",
+        "The Golgi apparatus"
+      ],
+      "c": 3,
+      "t": 0,
+      "p": 80,
+      "k": "The Golgi ships proteins",
+      "w": "Ribosomes build the protein; the Golgi folds, tags and sends it on. Building and shipping are different jobs in the same factory."
+    },
+    {
+      "id": "con9",
+      "f": "confused",
+      "q": "Weather and climate differ because…",
+      "a": [
+        "Climate is the long-run average",
+        "Climate is today's conditions",
+        "They mean the same thing",
+        "Weather is the long-run average"
+      ],
+      "c": 0,
+      "t": 3,
+      "p": 50,
+      "k": "Climate is the long average",
+      "w": "Climate is weather averaged over about thirty years, which is why one cold week is not evidence about it either way."
+    },
+    {
+      "id": "con10",
+      "f": "confused",
+      "q": "Standing on the Moon, what actually changes?",
+      "a": [
+        "Your mass",
+        "Your weight",
+        "Both equally",
+        "Neither"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 63,
+      "k": "Weight changes, mass does not",
+      "w": "Mass is how much of you there is; weight is gravity pulling on it. The Moon pulls a sixth as hard."
+    },
+    {
+      "id": "con11",
+      "f": "confused",
+      "q": "A snake that injects toxin through a bite is…",
+      "a": [
+        "Poisonous",
+        "Toxic",
+        "Venomous",
+        "Caustic"
+      ],
+      "c": 2,
+      "t": 0,
+      "p": 58,
+      "k": "Venom is injected",
+      "w": "Venom is delivered by a bite or sting; poison is absorbed or swallowed. A pufferfish is poisonous, a cobra is venomous."
+    },
+    {
+      "id": "con12",
+      "f": "confused",
+      "q": "Comparing two things, you use…",
+      "a": [
+        "Then",
+        "Than",
+        "Thence",
+        "Thus"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 44,
+      "k": "Than compares two things",
+      "w": "Than compares, then sequences. If the sentence would take “next”, it wants then."
+    },
+    {
+      "id": "con13",
+      "f": "confused",
+      "q": "Antibiotics work against…",
+      "a": [
+        "Viruses",
+        "Bacteria",
+        "Both equally",
+        "Neither"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 70,
+      "k": "Antibiotics miss viruses",
+      "w": "Antibiotics attack bacterial machinery viruses do not have — which is why they do nothing for a cold."
     }
   ]
 }
