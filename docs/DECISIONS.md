@@ -22256,3 +22256,62 @@ sentences); lint 0; rule-4 ratchet flat at 392; `check:a11y` back at
 its baseline after the div fix; shipping bundle 2395/2404 KB total,
 eager unchanged at 855/880 — everything rides the Patterns lazy chunk,
 so D166's reversal price is still one import site and one `TABS` entry.
+
+## D216 · The People lens gets its populations
+
+**Decided:** 2026-08-20 · **Status:** binding, inside D166 §1's trial
+clause. The owner, on D215 §3's one remaining unported piece: *"port the
+population chips as well"*. The 2026-08-20 standalone's Patterns tab is
+now ported whole.
+
+### 1 · What shipped
+
+The People lens's sub-row carries the standalone's population chips —
+**Circle · your country's code · World** — and the lens narrows WHO is
+placed, never what is counted: shared and agree are the same figures in
+every view, and each population reframes, de-overlaps and labels its own
+picture (`foldPeople` gains a `keep` filter and a `circle` set;
+membership only, the arithmetic untouched and pinned so). Country
+membership reads the frozen city anchor's code (`countryOf`, D8's
+snapshot — never the live profile); circle membership reads the capped,
+session-cached follows list the Mirror's Circle stop already loads.
+Circle members wear a **"your circle"** chip instead of demographics in
+every population — the prototype's own swap. No new read shape: one
+`loadFollows` on top of the same bounded voter lists.
+
+### 2 · Three transpositions, recorded
+
+- **The circle's crowd floor is its own** (`PEOPLE_MIN_CROWD_CIRCLE`,
+  1). The world floor of eight guards an ANONYMOUS crowd — eight
+  strangers is the least that reads as one. The prototype never met the
+  question (its circle was sixteen invented friends); a live circle is
+  FOLLOW_CAP-bounded named people the viewer chose, each drawn with its
+  stated basis, so the view draws from the first placeable friend, and
+  its empty state names the real cause ("Nobody from your circle is
+  placed here yet") instead of the stranger line.
+- **The tie clause says "overall", not "here".** The share beside "You
+  both said X" is the fit's world marginal in every population — a
+  per-population share would be a new small-sample claim, and one word
+  keeps the sentence exactly true instead.
+- **The country chip only exists when it can be named.** The prototype
+  assumed a country; live, a viewer with no city anchor gets Circle ·
+  World and no unlabelable third stop.
+
+### 3 · The known limit, stated rather than discovered
+
+Every population filters the same universe: people found in the latest
+bounded samples of the questions the viewer answered. A circle member
+absent from those samples is not placed — the honest state says so, and
+the "you appear to each other as you both answer" line is literally the
+mechanism. If the circle view reads thin in practice, the door is the
+Circle stop's own read path (members' answers, `CIRCLE_ANSWER_CAP`) —
+a second rowsOf source for the fold, one bounded read per member, and
+its own decision when wanted.
+
+### 4 · The gates' word
+
+Unit green with eight population cases across the fold and the lens
+(filter-excludes, counts-invariant-under-filter, the chip swap, the
+circle floor, the circle empty state, the country cut); lint 0; rule-4
+flat; eager bundle unchanged — the chips live in the same lazy chunk as
+everything else on this tab.

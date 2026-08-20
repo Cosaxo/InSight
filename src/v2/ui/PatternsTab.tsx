@@ -14,13 +14,12 @@
 //            stated with its basis. PatternsPeople.tsx / data/peopleMap.ts.
 //
 // This file is the SHELL the standalone's patterns-tab.jsx draws: the
-// ruler, one sub-row under it (topic chips on the map, run progress on
-// the oracle — same height whichever lens is open, so switching never
-// jumps), the one-time lens explainer, and the live gates. Ported from
-// design/standalone-2026-08-20/patterns-tab.jsx with the population chips
-// left out (the People lens is world-wide until per-population views get
-// their own decision — D215 §4). Chrome rule carried with it: no type
-// below 10.5px anywhere, in SVG or out.
+// ruler, one sub-row under it (topic chips on the map, population chips
+// on people since D216, run progress on the oracle — same height
+// whichever lens is open, so switching never jumps), the one-time lens
+// explainer, and the live gates. Ported from
+// design/standalone-2026-08-20/patterns-tab.jsx. Chrome rule carried
+// with it: no type below 10.5px anywhere, in SVG or out.
 //
 // The trial ships LIVE DATA ONLY (the narrowing D166 §1 licenses): a
 // build with no published loadings — the demo included — says so instead
@@ -30,7 +29,8 @@ import LIVE from "../data/live";
 import PATTERNS, { ensureLive } from "../data/patterns";
 import PatternsMap from "./PatternsMap";
 import PatternsOracle from "./PatternsOracle";
-import PatternsPeople from "./PatternsPeople";
+import PatternsPeople, { type PeoplePop } from "./PatternsPeople";
+import { countryOf } from "../data/peopleMap";
 // @ts-expect-error TS7016 — untyped spec module (named export, D189)
 import { WPAL } from "../spec/world-palette.js";
 // @ts-expect-error TS7016 — untyped spec module (named export, convert-on-touch)
@@ -126,6 +126,7 @@ export default function PatternsTab(): React.ReactElement {
   const version = usePatterns();
   const [lens, setLens] = React.useState<Lens>("map");
   const [topic, setTopic] = React.useState("all");
+  const [ppop, setPpop] = React.useState<PeoplePop>("world");
   const [used, markUsed] = useUsed(lens);
 
   if (!PATTERNS.ready()) {
@@ -164,6 +165,17 @@ export default function PatternsTab(): React.ReactElement {
   const cats = [...new Set(items.map((p) => p.q.cat).filter((c): c is string => !!c))];
   const chips = [{ id: "all", label: "All" }, ...cats.map((c) => ({ id: c, label: topicOf(c)?.label || c }))];
   const answered = items.filter((p) => p.mine != null).length;
+  // The population roster (D216) — the standalone's own: Circle · your
+  // country's code · World. Circle always offers (the D190 posture: a row
+  // draws even when the stop is empty — the lens says the honest state);
+  // country only exists for a viewer whose frozen city anchor names one.
+  const myCo = countryOf(LIVE.anchors().city);
+  const pops: { id: PeoplePop; label: string }[] = [
+    { id: "circle", label: "Circle" },
+    ...(myCo ? [{ id: "country" as const, label: myCo }] : []),
+    { id: "world", label: "World" },
+  ];
+  const pop: PeoplePop = pops.some((p) => p.id === ppop) ? ppop : "world";
 
   return (
     <div className={"pt-wrap" + (lens === "oracle" ? " pt-oracle" : "")} style={{ padding: "6px 16px 18px" }}>
@@ -185,10 +197,14 @@ export default function PatternsTab(): React.ReactElement {
             <span className="pt-prognum">{answered}<em>/{items.length}</em></span>
           </div>
         ) : (
-          // the People lens has no sub-controls yet (populations are D215
-          // §4's unported remainder) — the row still holds its height so
-          // switching lenses never jumps
-          <span></span>
+          <div className="pt-pops h-scroll" role="tablist" aria-label="Population">
+            {pops.map((p) => (
+              <button key={p.id} role="tab" aria-selected={pop === p.id}
+                className={"pt-pop" + (pop === p.id ? " is-on" : "")} onClick={() => setPpop(p.id)}>
+                {p.label}
+              </button>
+            ))}
+          </div>
         )}
       </div>
       <div key={lens} className="fade-in pt-stack">
@@ -196,7 +212,7 @@ export default function PatternsTab(): React.ReactElement {
         {lens === "map" && <PatternsMap items={items} version={version} topic={topic} onUse={markUsed} />}
         {lens === "oracle" && <PatternsOracle items={items} version={version} onUse={markUsed} />}
         {lens === "people" && (
-          <PatternsPeople items={items} version={version} onUse={markUsed} onOracle={() => setLens("oracle")} />
+          <PatternsPeople items={items} version={version} pop={pop} onUse={markUsed} onOracle={() => setLens("oracle")} />
         )}
       </div>
     </div>

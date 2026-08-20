@@ -4,6 +4,7 @@
 // each case below names the rule it holds.
 import { describe, expect, it } from "vitest";
 import {
+  countryOf,
   foldPeople,
   peopleFetchSet,
   PEOPLE_LABELS,
@@ -167,6 +168,46 @@ describe("the fold's guards", () => {
     expect(field.placed).toEqual([]);
     expect(field.answered).toBe(0);
     expect(Number.isFinite(field.me.x)).toBe(true);
+  });
+});
+
+describe("populations (D216)", () => {
+  it("places only who the filter passes, and reframes around them", () => {
+    // keep the A faction only — the field must be A's own picture, not
+    // the world's with dots removed
+    const field = foldPeople(ITEMS, FETCHED, rowsOf, { keep: (uid) => uid.startsWith("a") });
+    const uids = field.placed.map((p) => p.uid);
+    expect(uids.every((u) => u.startsWith("a"))).toBe(true);
+    expect(uids.length).toBe(5);
+    // the viewer is still drawn — a population that excludes you is not
+    // a place you can be looking from
+    expect(Number.isFinite(field.me.x)).toBe(true);
+  });
+
+  it("keeps the same counts under a filter — membership, never arithmetic", () => {
+    const world = foldPeople(ITEMS, FETCHED, rowsOf);
+    const only = foldPeople(ITEMS, FETCHED, rowsOf, { keep: (uid) => uid === "a2" });
+    const wa = world.placed.find((p) => p.uid === "a2")!;
+    const fa = only.placed.find((p) => p.uid === "a2")!;
+    expect(fa.shared).toBe(wa.shared);
+    expect(fa.agree).toBe(wa.agree);
+    expect(fa.tie).toEqual(wa.tie);
+  });
+
+  it("swaps a circle member's chips for the one that matters", () => {
+    const field = foldPeople(ITEMS, FETCHED, rowsOf, { circle: new Set(["a1"]) });
+    expect(field.placed.find((p) => p.uid === "a1")!.chips).toEqual(["your circle"]);
+    expect(field.placed.find((p) => p.uid === "a2")!.chips).toEqual(["Oslo, NO", "25-34"]);
+  });
+});
+
+describe("countryOf", () => {
+  it("reads the code off a frozen city anchor, and refuses the rest", () => {
+    expect(countryOf("Oslo, NO")).toBe("NO");
+    expect(countryOf("San Cristóbal de las Casas, MX")).toBe("MX");
+    expect(countryOf("Nowhere")).toBeNull();
+    expect(countryOf("")).toBeNull();
+    expect(countryOf(undefined)).toBeNull();
   });
 });
 

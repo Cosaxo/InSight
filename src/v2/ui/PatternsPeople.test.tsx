@@ -20,6 +20,10 @@ const LIVE = vi.hoisted(() => ({
   loadVoters: vi.fn(() => Promise.resolve()),
   voters: (): PeopleRow[] | null => [],
   votersLoading: (): boolean => false,
+  loadFollows: vi.fn(() => Promise.resolve()),
+  follows: (): string[] | null => [],
+  followsLoading: (): boolean => false,
+  anchors: (): Record<string, string> => ({}),
 }));
 
 vi.mock("../data/live", () => ({ default: LIVE, LIVE }));
@@ -57,6 +61,9 @@ beforeEach(() => {
   LIVE.voters = () => CROWD;
   LIVE.votersLoading = () => false;
   LIVE.loadVoters = vi.fn(() => Promise.resolve());
+  LIVE.follows = () => [];
+  LIVE.followsLoading = () => false;
+  LIVE.anchors = () => ({});
 });
 afterEach(cleanup);
 
@@ -98,6 +105,39 @@ describe("the placed field", () => {
     await vi.waitFor(() => {
       expect((LIVE.loadVoters as ReturnType<typeof vi.fn>).mock.calls.length).toBe(ITEMS.length);
     });
+  });
+
+  it("narrows to the circle without changing anyone's numbers (D216)", () => {
+    LIVE.follows = () => ["ada", "gus"];
+    const { container } = render(
+      <PatternsPeople items={ITEMS} version={1} pop="circle" onUse={noop} onOracle={noop} />,
+    );
+    // two friends placed — the circle's own floor draws from the first
+    expect(container.querySelectorAll('svg g[role="button"]').length).toBe(2);
+    fireEvent.click(container.querySelector('svg g[role="button"]')!);
+    expect(screen.getByText("your circle")).toBeTruthy();
+    expect(screen.getByText(/Agrees with you on/)).toBeTruthy();
+  });
+
+  it("says the circle's own honest empty state, not the stranger one", () => {
+    LIVE.follows = () => [];
+    render(<PatternsPeople items={ITEMS} version={1} pop="circle" onUse={noop} onOracle={noop} />);
+    expect(screen.getByText(/Nobody from your circle is placed here yet/)).toBeTruthy();
+  });
+
+  it("narrows to the viewer's country by the frozen anchor code", () => {
+    LIVE.anchors = () => ({ city: "Oslo, NO" });
+    // ten at home, ten abroad — country keeps its full anonymous-crowd
+    // floor, so the in-country half must clear it on its own
+    const abroad = [
+      ...CROWD,
+      ...Array.from({ length: 10 }, (_, i) => ({ ...row(`de${i}`, i % 2), anchors: { city: "Berlin, DE" } })),
+    ];
+    LIVE.voters = () => abroad;
+    const { container } = render(
+      <PatternsPeople items={ITEMS} version={1} pop="country" onUse={noop} onOracle={noop} />,
+    );
+    expect(container.querySelectorAll('svg g[role="button"]').length).toBe(CROWD.length);
   });
 
   it("answers a tap with the exact count and the rarest shared answer", () => {

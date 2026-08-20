@@ -38,11 +38,11 @@ every core question by how much its answer predicts the others, the
 (pinned in `src/v2/data/patterns.test.ts`), graded in surprisal bits when
 the real vote lands through the ordinary vote path — and the **People**
 lens (D214, `docs/PEOPLE-MAP.md`) draws the crowd itself in the same
-space: real voters placed by a device-side solve over the published
-loadings, exact agreement stated with its basis, fed only by the bounded
-voter lists `live.ts` already caches. All three wear the 2026-08-20
-standalone's shapes (D215, `design/standalone-2026-08-20/`). Live data
-only: a
+space — world, your country, your circle (D216) — real voters placed by
+a device-side solve over the published loadings, exact agreement stated
+with its basis, fed only by the bounded lists `live.ts` already caches.
+All three wear the 2026-08-20 standalone's shapes (D215,
+`design/standalone-2026-08-20/`). Live data only: a
 build with no published loadings — the demo included — says so instead of
 drawing the prototype's 560 invented people. The tab loads lazily
 (`React.lazy` in `app-shell.jsx`), nothing outside it may depend on there

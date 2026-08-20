@@ -47,6 +47,19 @@ export const PEOPLE_MIN_ANSWERED = 5;
 export const PEOPLE_QUESTIONS = 12;
 /** At most this many dots carry a name label; the rest name on tap. */
 export const PEOPLE_LABELS = 5;
+/** The circle view's own crowd floor (D216). PEOPLE_MIN_CROWD guards an
+ * ANONYMOUS crowd — eight strangers is the least that reads as one. Your
+ * circle is named people you chose (FOLLOW_CAP-bounded), each drawn with
+ * its stated basis, so the view draws from the first placeable friend. */
+export const PEOPLE_MIN_CROWD_CIRCLE = 1;
+
+/** The country code off a frozen city anchor ("Oslo, NO" → "NO"), or null
+ * where the anchor is absent or carries no code — a person the country
+ * filter then simply cannot claim. */
+export function countryOf(city: string | undefined): string | null {
+  const m = /,\s*([A-Z]{2})$/.exec(city ?? "");
+  return m ? m[1] : null;
+}
 
 /** One pool question, slimmed to what the fold reads (PoolItem, narrowed —
  * the component adapts; keeping the shape local keeps this module pure). */
@@ -145,10 +158,24 @@ const unit = (v: readonly number[]): number[] => {
  * against the unbounded count, an active viewer's floor would sit above
  * the cap and nobody could ever be placed.
  */
+export interface PeopleFoldOpts {
+  /** The population filter (D216): only rows it passes are placed. The
+   * viewer is always drawn — a population that excludes you is not a
+   * place you can be looking from. Framing, de-overlap and labels all
+   * rerun on the filtered set, so each population is its own picture. */
+  keep?: (uid: string, anchors: Readonly<Record<string, string>>) => boolean;
+  /** The viewer's follow list — a member's chips read "your circle"
+   * instead of demographics (the prototype's own swap), in EVERY
+   * population, because knowing a friend when you see one outranks a
+   * city band you already know. */
+  circle?: ReadonlySet<string>;
+}
+
 export function foldPeople(
   items: readonly PeopleItem[],
   fetched: readonly string[],
   rowsOf: (qid: string) => readonly PeopleRow[] | null,
+  opts: PeopleFoldOpts = {},
 ): PeopleField {
   const byQid = new Map(items.map((i) => [i.qid, i]));
   const mineAll = items.filter((i) => i.mine != null);
@@ -197,12 +224,15 @@ export function foldPeople(
   const placed: PlacedPerson[] = [];
   for (const a of acc.values()) {
     if (a.shared < minShared) continue;
+    if (opts.keep && !opts.keep(a.uid, a.anchors)) continue;
     const u = unit(estimateTheta(a.obs, k));
     const t = Math.max(0, Math.min(1, (a.shared - minShared) / Math.max(1, fetched.length - minShared)));
     placed.push({
       uid: a.uid,
       name: String(a.name || "").split(" ")[0],
-      chips: [a.anchors.city, a.anchors.age].filter((c): c is string => !!c),
+      chips: opts.circle?.has(a.uid)
+        ? ["your circle"]
+        : [a.anchors.city, a.anchors.age].filter((c): c is string => !!c),
       hue: Math.round(angleHash(a.uid + "#hue") * 360),
       px: u[0] ?? 0,
       py: u[1] ?? 0,

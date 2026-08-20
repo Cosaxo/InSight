@@ -13,20 +13,36 @@
 // visible here: a dot below the floor was never in `placed` (so nothing
 // here can accidentally draw it), and a nameless account reads "Someone"
 // rather than wearing an invented name.
+//
+// Populations since D216 — the standalone's chips, live: `pop` narrows
+// WHO is placed (your country by the frozen city anchor's code, your
+// circle by the capped follows list), never what is counted — shared and
+// agree are the same figures in every view, and each population reframes
+// its own picture. The circle's crowd floor is its own (see
+// PEOPLE_MIN_CROWD_CIRCLE), and the one wording change is the tie
+// clause: "% overall do", because the share is the fit's world marginal
+// in every population.
 import React from "react";
 import LIVE from "../data/live";
 import type { PoolItem } from "../data/patterns";
 import {
+  countryOf,
   foldPeople,
   peopleFetchSet,
   PEOPLE_H,
   PEOPLE_MIN_ANSWERED,
   PEOPLE_MIN_CROWD,
+  PEOPLE_MIN_CROWD_CIRCLE,
   PEOPLE_W,
+  type PeopleFoldOpts,
   type PeopleItem,
   type PeopleRow,
   type PlacedPerson,
 } from "../data/peopleMap";
+
+/** The populations (D216) — the standalone's own roster. `country` only
+ * exists for a viewer whose frozen city anchor names one. */
+export type PeoplePop = "world" | "country" | "circle";
 
 const SANS = "var(--sans)";
 
@@ -60,16 +76,37 @@ const chipStyle: React.CSSProperties = {
   color: "var(--accent-ink, var(--accent))",
 };
 
-export default function PatternsPeople({ items, version, onUse, onOracle }: {
+export default function PatternsPeople({ items, version, pop = "world", onUse, onOracle }: {
   items: PoolItem[];
   version: number;
+  pop?: PeoplePop;
   onUse: () => void;
   onOracle: () => void;
 }): React.ReactElement {
   const [sel, setSel] = React.useState<string | null>(null);
+  React.useEffect(() => { setSel(null); }, [pop]);
 
   const people = React.useMemo(() => slim(items), [items]);
   const fetchSet = React.useMemo(() => peopleFetchSet(people), [people]);
+
+  // The circle's membership list — one capped, session-cached fetch
+  // (loadFollows' own guards make re-kicks free). Needed in every
+  // population: members wear the "your circle" chip wherever they stand.
+  React.useEffect(() => { void LIVE.loadFollows(); }, []);
+  const circleSet = React.useMemo(
+    () => new Set(LIVE.follows() ?? []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- version IS the follows cache's identity
+    [version],
+  );
+  const myCo = countryOf(LIVE.anchors().city);
+  const foldOpts = React.useMemo<PeopleFoldOpts>(() => ({
+    circle: circleSet,
+    keep: pop === "circle"
+      ? (uid) => circleSet.has(uid)
+      : pop === "country" && myCo
+        ? (_uid, anchors) => countryOf(anchors.city) === myCo
+        : undefined,
+  }), [pop, circleSet, myCo]);
 
   // One pass of bounded loads, sequential like Kindred's (a dozen
   // collection-group queries fired at once is the shape that gets a
@@ -90,9 +127,9 @@ export default function PatternsPeople({ items, version, onUse, onOracle }: {
   // Refolds when the subscription version moves — the fold is a pure
   // function of exactly the state that bumps it (the MapLens idiom).
   const field = React.useMemo(
-    () => foldPeople(people, fetchSet, rowsOf),
+    () => foldPeople(people, fetchSet, rowsOf, foldOpts),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- version IS the caches' identity (see above)
-    [version, people, fetchSet],
+    [version, people, fetchSet, foldOpts],
   );
 
   if (field.answered < PEOPLE_MIN_ANSWERED) {
@@ -106,17 +143,22 @@ export default function PatternsPeople({ items, version, onUse, onOracle }: {
     );
   }
 
-  if (field.placed.length < PEOPLE_MIN_CROWD) {
+  // The crowd floor guards an anonymous crowd; your own circle draws from
+  // the first placeable friend (PEOPLE_MIN_CROWD_CIRCLE's comment).
+  const minCrowd = pop === "circle" ? PEOPLE_MIN_CROWD_CIRCLE : PEOPLE_MIN_CROWD;
+  if (field.placed.length < minCrowd) {
     // Loading and thin render differently on purpose: "could not say yet"
     // is not "there is nobody" (the absent-vs-empty rule, loadVoters' own).
-    if (fetchSet.some((qid) => LIVE.votersLoading(qid))) {
+    if (fetchSet.some((qid) => LIVE.votersLoading(qid)) || (pop === "circle" && LIVE.followsLoading())) {
       return (
         <div className="card" style={{ minHeight: 330, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: SANS, fontSize: 13.5, fontWeight: 600, color: "var(--ink-2)" }}>
           Reading the crowd…
         </div>
       );
     }
-    return <Empty head="Crowd too thin" line="Too few people share your questions yet. The map fills as the crowd answers." />;
+    return pop === "circle"
+      ? <Empty head="Crowd too thin" line="Nobody from your circle is placed here yet — you appear to each other as you both answer." />
+      : <Empty head="Crowd too thin" line="Too few people share your questions yet. The map fills as the crowd answers." />;
   }
 
   const { placed, me } = field;
@@ -184,8 +226,11 @@ export default function PatternsPeople({ items, version, onUse, onOracle }: {
           </div>
           {selP.tie ? (
             <div style={{ marginTop: 11, fontFamily: SANS, fontSize: 12.5, fontWeight: 600, color: "var(--ink-2)" }}>
+              {/* "overall", not "here" (D216): the share is the fit's own
+                  world marginal, and stays that in every population — a
+                  per-population share would be a new small-sample claim */}
               You both said <b style={{ fontWeight: 700, color: "var(--ink)" }}>{selP.tie.label}</b>{" "}
-              <span style={{ color: "var(--ink-3)" }}>· {Math.round(selP.tie.share * 100)}% here do</span>
+              <span style={{ color: "var(--ink-3)" }}>· {Math.round(selP.tie.share * 100)}% overall do</span>
             </div>
           ) : (
             <div style={{ marginTop: 11, fontFamily: SANS, fontSize: 12.5, fontWeight: 600, color: "var(--ink-2)" }}>

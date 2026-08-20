@@ -2,8 +2,8 @@
 
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
-"which decision governs this" is 219 lines instead of
-22,259. Do not hand-edit; `npm run check:docs` fails when this
+"which decision governs this" is 220 lines instead of
+22,318. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -22,7 +22,7 @@ detect it.
 | **D6** | [Android backup off; iPhone-only; no custom crypto](DECISIONS.md#d6--android-backup-off-iphone-only-no-custom-crypto) | D192 (+3) | 296 |
 | **D7** | [Backend scale ceilings — recorded, not engineered around](DECISIONS.md#d7--backend-scale-ceilings--recorded-not-engineered-around) | D192 (+20) | 167 |
 |  | ↳ *amendment 2026-08-03* — [The retry-logging trigger now has an instrument](DECISIONS.md#d7-amendment-2026-08-03--the-retry-logging-trigger-now-has-an-instrument) | — | 3524 |
-| **D8** | [Per-anchor breakdowns are built; collecting the anchors is not](DECISIONS.md#d8--per-anchor-breakdowns-are-built-collecting-the-anchors-is-not) | D205 (+27) | 449 |
+| **D8** | [Per-anchor breakdowns are built; collecting the anchors is not](DECISIONS.md#d8--per-anchor-breakdowns-are-built-collecting-the-anchors-is-not) | D216 (+28) | 449 |
 | **D9** | [Near is your city — picked from a list, or located on the device](DECISIONS.md#d9--near-is-your-city--picked-from-a-list-or-located-on-the-device) | D192 (+21) | 556 |
 | **D10** | [@capacitor-firebase/app-check is installed under an npm alias](DECISIONS.md#d10--capacitor-firebaseapp-check-is-installed-under-an-npm-alias) | D29 | 816 |
 | **D11** | [The feed's argument surfaces are demo-only, by structure not by flag](DECISIONS.md#d11--the-feeds-argument-surfaces-are-demo-only-by-structure-not-by-flag) | D98 (+3) | 885 |
@@ -183,7 +183,7 @@ detect it.
 | **D163** | [The app learns what you are into, and the model never leaves the phone](DECISIONS.md#d163--the-app-learns-what-you-are-into-and-the-model-never-leaves-the-phone) | D206 (+2) | 16115 |
 | **D164** | [The revenue paths, re-derived against an unbounded feed](DECISIONS.md#d164--the-revenue-paths-re-derived-against-an-unbounded-feed) | D165 | 16171 |
 | **D165** | [The database moves to one EU region, and the old answers are let go](DECISIONS.md#d165--the-database-moves-to-one-eu-region-and-the-old-answers-are-let-go) | D201 (+1) | 16249 |
-| **D166** | [The third tab is adopted ON TRIAL, the Arena is dropped, the pulse roster is approved](DECISIONS.md#d166--the-third-tab-is-adopted-on-trial-the-arena-is-dropped-the-pulse-roster-is-approved) | D215 (+6) | 16339 |
+| **D166** | [The third tab is adopted ON TRIAL, the Arena is dropped, the pulse roster is approved](DECISIONS.md#d166--the-third-tab-is-adopted-on-trial-the-arena-is-dropped-the-pulse-roster-is-approved) | D216 (+7) | 16339 |
 | **D167** | [Every v28 surface ships with its backend, or it does not ship](DECISIONS.md#d167--every-v28-surface-ships-with-its-backend-or-it-does-not-ship) | D214 (+5) | 16449 |
 | **D168** | [Born or built is refused: the app does not assert facts it cannot recompute](DECISIONS.md#d168--born-or-built-is-refused-the-app-does-not-assert-facts-it-cannot-recompute) | D180 | 16536 |
 | **D169** | [The read path was already careful; the fold path was not](DECISIONS.md#d169--the-read-path-was-already-careful-the-fold-path-was-not) | D180 | 16625 |
@@ -232,4 +232,5 @@ detect it.
 | **D212** | [Questions ship without waiting for a person](DECISIONS.md#d212--questions-ship-without-waiting-for-a-person) | — | 22000 |
 | **D213** | [Every servable type generates, and the feed goes daily](DECISIONS.md#d213--every-servable-type-generates-and-the-feed-goes-daily) | — | 22074 |
 | **D214** | [The People lens joins the Patterns trial](DECISIONS.md#d214--the-people-lens-joins-the-patterns-trial) | D215 | 22126 |
-| **D215** | [The Map and the Oracle take the 2026-08-20 standalone's shape](DECISIONS.md#d215--the-map-and-the-oracle-take-the-2026-08-20-standalones-shape) | — | 22185 |
+| **D215** | [The Map and the Oracle take the 2026-08-20 standalone's shape](DECISIONS.md#d215--the-map-and-the-oracle-take-the-2026-08-20-standalones-shape) | D216 | 22185 |
+| **D216** | [The People lens gets its populations](DECISIONS.md#d216--the-people-lens-gets-its-populations) | — | 22260 |
