@@ -22316,9 +22316,68 @@ circle floor, the circle empty state, the country cut); lint 0; rule-4
 flat; eager bundle unchanged — the chips live in the same lazy chunk as
 everything else on this tab.
 
-## D217 · A continuum answer lives in two units, and the bucket arbitrates
+## D217 · Patterns is out of the v1 release, and the trial pauses with the mount
 
-**Decided:** 2026-08-20 · **Status:** binding. Owner report, off a
+**Decided:** 2026-08-20 · **Status:** binding · **Owner's call**, on the
+release thread: *"not of patterns yet as that is not sure to be shiped
+with the relese it is probebly released later"*, then "do these" over the
+offered removal. Written as D214 on its branch and renumbered on merge —
+main took D214–D216 for the People lens while the branch was open, the
+same collision D161–D165 record.
+
+D166 §1 adopted the third tab ON TRIAL and priced the reversal in
+advance: one `React.lazy` import site, one `TABS` entry, one branch in
+`daily-split.jsx`. This record spends exactly that price — and not as the
+trial's verdict. Nobody has the usage the trial's question needs
+(TestFlight has a handful of testers); the owner scoped v1 to the two
+tabs the pushed listing copy and the review argument already describe,
+and the store screenshots being recaptured the same day made the
+mismatch concrete: a capture-only run for the listing would have
+advertised a tab v1 does not ship.
+
+**The same-day irony, stated so it cannot read as a contradiction:**
+D214–D216 landed hours earlier from the parallel patterns thread — the
+People lens, the 2026-08-20 shapes, the population chips. They say what
+the tab IS; this record says when it SHIPS. Development continues on
+main against the same lazy chunk; the release build simply does not
+mount it. Both threads were the owner's, and this one merges after, so
+the unmount covers the tab as D214–D216 left it.
+
+**What changed**, revert-shaped on purpose, one commit:
+
+- `app-shell.jsx` — the lazy import, the `TABS` entry, the `NAV_ONE`
+  row, the `goNav` branch, the `data-view`/accent arms, the mount and
+  the tab-bar glyph. The bar is two tabs again.
+- `daily-split.jsx` — the ruler's near-end exit, the one external
+  dependence D166 licensed, springs back like any other edge instead of
+  navigating. The far-end Mirror exit stands.
+- `smoke-nav.test.jsx` — the two cases that walked the tab are replaced
+  by the two the unmount owes: the bar is two tabs, and the retired
+  `goNav('patterns')` key is refused quietly — a stale caller (a
+  remembered gesture, an old build's deep link) must land nowhere, not
+  on a boundary. `smoke-live`'s no-invented-people case left with the
+  mount and returns with it.
+
+**What deliberately stands:** `ui/PatternsTab.tsx` and the lens
+components under it, the patterns data layer and its tests (the Oracle
+seal stays pinned in `src/v2/data/patterns.test.ts`; the People lens's
+arithmetic in `peopleMap.test.ts`), and the nightly fit, which keeps
+publishing `v2_patterns/loadings` to a tab nothing mounts. Left running
+on purpose: it costs one scheduled function a night, keeps the corpus
+continuously real, and means the remount ships against live loadings on
+day one instead of an empty screen.
+
+**Remounting is a recorded decision too** — the import, the entry and
+the branch back, citing this record. A silent re-addition would be the
+same failure as the silent removal D166 forbade, in the direction that
+flatters the roadmap instead of the tree.
+
+## D218 · A continuum answer lives in two units, and the bucket arbitrates
+
+**Decided:** 2026-08-20 · **Status:** binding. Written as D217 on its
+branch and renumbered on merge — main took D217 for the release-scope
+call while the branch was open, the same collision D161–D165 and D217
+itself record. Owner report, off a
 device: the coffee dial ("How many coffees a day is too many?", 1–10)
 answered at 1 cup stood on the card as **"0 cups"** — a value its own
 axis cannot hold, the "you" dot off-screen left.

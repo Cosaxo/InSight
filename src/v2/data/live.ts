@@ -1325,7 +1325,7 @@ function feedCounts(q: QuestionDoc & { id: string }): number[] {
 // index, but a dial entry is a value on lo..hi and a field entry a point
 // {x,y}, while the answer doc's optionIdx for both is the 12-bucket index
 // (deck.ts — "a position on this range"). Mirroring the raw index
-// rendered it as the value — "0 cups" standing on a 1–10 card (D217) —
+// rendered it as the value — "0 cups" standing on a 1–10 card (D218) —
 // so a continuum answer mirrors as its bucket's midpoint instead, the
 // same read world-feed's dialVal/fieldVal derive when only the store
 // knows. The midpoint math duplicates dialBucketMid/fieldCellMid
@@ -3825,7 +3825,7 @@ const LIVE = {
           if (qid in wf) {
             // Through mirrorVoteValue, not Number(prev) directly: a dial's
             // mirror entry is a VALUE, and restoring the bucket index here
-            // was D217's rarest door in. The raw drag the mirror held is
+            // was D218's rarest door in. The raw drag the mirror held is
             // gone (only the feed ever knew it) — the standing bucket's
             // midpoint is the closest the doc can testify to.
             const q = state.feedBank.find((x) => x.id === qid);

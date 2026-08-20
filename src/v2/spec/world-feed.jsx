@@ -318,13 +318,13 @@ class WorldFeed extends React.Component {
           // reconcile. Continuum cards (dial/field) hold the drag's own
           // units here — a value on lo..hi, a point {x,y} — while the
           // store holds the 12-bucket index, and copying that number in
-          // is what showed "0 cups" for a 1-cup answer (D217): the bucket
+          // is what showed "0 cups" for a 1-cup answer (D218): the bucket
           // index wearing the value's clothes, persisted by the next
           // wfSave. For those the bucket ARBITRATES instead: a local
           // value that lands in the store's bucket is a finer reading of
           // the same answer and stays; anything else — no local value
           // (purge refill, another device), an edit made elsewhere, a
-          // refused edit the store rolled back, or D217's residue where
+          // refused edit the store rolled back, or D218's residue where
           // the bucket math can tell — becomes the bucket's midpoint,
           // exactly the read dialVal/fieldVal derive when only the store
           // knows. Ids the pool cannot name (the daily deck's, a bank the
@@ -678,7 +678,7 @@ class WorldFeed extends React.Component {
   dialVal(q) {
     const v = this.state.votes[q.id];
     // A number OFF the card's own range is not an answer: it is the
-    // store's bucket index (0–11), which the pre-D217 reconcile copied
+    // store's bucket index (0–11), which the pre-D218 reconcile copied
     // into this raw slot and localStorage then kept — "0 cups" standing
     // on a 1–10 card. Range, not provenance, is the test, because
     // in-range residue is indistinguishable from a real drag; treat the
@@ -695,7 +695,7 @@ class WorldFeed extends React.Component {
   fieldVal(q) {
     const v = this.state.votes[q.id];
     // Same residue, field-shaped: this slot holds a point, so a NUMBER
-    // here is the store's cell index wearing the wrong type (D217).
+    // here is the store's cell index wearing the wrong type (D218).
     const stale = q.live && v != null && (typeof v !== 'object' || typeof v.x !== 'number');
     if ((v != null && !stale) || !q.live || !LIVE.myVotes) return v;
     const b = LIVE.myVotes()[q.id];
@@ -2718,7 +2718,7 @@ class WorldFeed extends React.Component {
   // store has confirmed it; the store's map is the fallback for a card
   // answered on another device or in an earlier session.
   //
-  // Continuum cards skip the local-first read (D217): their local state
+  // Continuum cards skip the local-first read (D218): their local state
   // holds the drag's own units — a value on lo..hi, a point {x,y} — never
   // an index, so "7 cups" read as an index marked bucket 7 as yours when
   // the answer lived in bucket 8. The stored bucket is the only

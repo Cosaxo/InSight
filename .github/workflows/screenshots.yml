@@ -70,6 +70,22 @@ jobs:
           VITE_FIREBASE_STORAGE_BUCKET: ${{ vars.VITE_FIREBASE_STORAGE_BUCKET }}
           VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ vars.VITE_FIREBASE_MESSAGING_SENDER_ID }}
           VITE_FIREBASE_MEASUREMENT_ID: ${{ vars.VITE_FIREBASE_MEASUREMENT_ID }}
+          # The two build flags the shipping bundle carries (D144; ci.yml's
+          # bundle job holds the measurement). Run 1 — this workflow's first
+          # dispatch ever — failed without them:
+          #   - VITE_V2_LIVE is what turns live mode on (src/v2/main.jsx);
+          #     the Firebase config alone builds the DEMO app, the exact
+          #     thing this workflow exists to stop capturing.
+          #   - CAPACITOR_BUILD waives vite.config.ts's reCAPTCHA-key guard
+          #     and defines nothing else. Honest here because the captures
+          #     depict the native app, which ships keyless on DeviceCheck /
+          #     Play Integrity. The capture browser therefore runs with App
+          #     Check uninitialised — fine until Firestore enforcement flips
+          #     (LAUNCH-RUNBOOK 3.4). After that, register the web app
+          #     (1.4), put VITE_APPCHECK_RECAPTCHA_SITE_KEY in the repo
+          #     variables and add it here instead of re-waiving the guard.
+          VITE_V2_LIVE: "true"
+          CAPACITOR_BUILD: "1"
         run: |
           set -o pipefail
           npm run build
@@ -87,8 +103,12 @@ jobs:
           npm run build:screenshots | tee "$RUNNER_TEMP/shots.log"
 
       # Always worth having, even when uploading: this is the thing a human
-      # should look at before it reaches a store listing.
+      # should look at before it reaches a store listing. `if: always()`
+      # because a failed capture run is precisely when the partial set is
+      # worth inspecting — runs 2 and 3 left nothing behind, so every
+      # diagnosis had to come from the step log alone.
       - name: Keep the captures as an artifact
+        if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: store-screenshots

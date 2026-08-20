@@ -42,8 +42,10 @@ exports and passes both gates with no Mac (run 6).
 - **The privacy nutrition label is not pushable at all.** Apple's API has
   no App Privacy resource (D73), so the metadata workflow prints it as the
   form and it is typed in by hand. **Still outstanding.**
-- **Trader status: declared** (D69). Waiting on a *bostedsattest* by post
-  as the address document.
+- **Trader status: declared** (D69). Waiting on a *bostedsattest* as the
+  address document — and the wait has two exits (4.3b, measured
+  2026-08-20): Skatteetaten issues it digitally to the Altinn inbox in
+  ~3 days, and pending verification gates only the EU-27 storefronts.
 
 **Three decisions came out of that week and each is a gate now**: D73 (the
 privacy label has no endpoint), D74 (a tick is printed after the write, not
@@ -152,8 +154,20 @@ arithmetic.
       separate commit that lands **after** the database exists, because a
       PR that cannot be merged until a console action happens is a trap.
 
-- [ ] **0.1 Seed the production question bank — run 2026-08-07 and already
-      stale.** Actions → **Seed content** → Run workflow.
+- [x] **0.1 Seed the production question bank — CLOSED, measured
+      2026-08-20.** A client-path read of the live `insight` database
+      (anonymous auth, the same read every install does) returned
+      **exactly 600 documents and zero `test-cognitive-*` docs**: the
+      flip-and-bump instruction below described the pre-D165 `(default)`
+      database, and the D165 fresh reset (2026-08-15) reseeded from the
+      post-D103 bank, so the 20 retired questions never entered the
+      database the app now reads. Nothing to flip. The bank is current
+      by the D88 chain (seed run 52 rode today's deploy), and run 53
+      (bump_rev, same day) bumped `contentRev` besides — harmless, spent
+      on an instruction this measurement retired. Original text kept
+      below because it documents how the gap was reasoned about while it
+      was real.
+      Actions → **Seed content** → Run workflow.
       600 questions land in `v2_questions` — idempotent and, since D34,
       cheap to repeat.
 
@@ -215,7 +229,14 @@ arithmetic.
       privacy, terms) and the app ships only as the iOS shell. Both
       survived because running the instruction needed something nobody
       had. See the checklist.
-- [ ] **0.2 Confirm the hosting pages are actually live.** Open
+- [x] **0.2 Confirm the hosting pages are actually live — confirmed
+      2026-08-20.** The *Deploy hosting* step of deploy run 99 reports
+      **success** (09:52 UTC), read at the step itself because the step
+      is `continue-on-error` and only its own outcome counts — which is
+      exactly the check this box prescribed. That one green step also
+      closes the redeploy debt 0.3 and 2.7 share with this box: the
+      D116-corrected `privacy.html`, the filled terms values and the
+      AASA published together. Original instruction: open
       `https://prvfire33.web.app/privacy.html` and
       `https://prvfire33.web.app/`. Both store listings require these
       URLs. The hosting step of *Deploy Firebase backend* is
@@ -243,6 +264,8 @@ arithmetic.
       remaining three are all account-gated IDs from Phases 1–2.
       **Still owed: redeploy hosting** so the live page shows the filled
       values — the committed file is not what a store reviewer reads.
+      **Closed 2026-08-20**: hosting has deployed green repeatedly since
+      (see 0.2), so the live page carries the filled values.
       `SHIP-CHECKLIST §3` also notes one EEA follow-up that is a decision,
       not a blocker.
 
@@ -885,18 +908,18 @@ arithmetic.
       --ignored` and confirm nothing sensitive is tracked — a `git add -A`
       after a signing session is an incident a revert cannot fix.
       `SHIP-CHECKLIST § hardening`.
-- [ ] **2.7 The app-link fingerprints — the file is filled, the deploy is
-      owed.** `web/.well-known/apple-app-site-association` carries the real
+- [ ] **2.7 The app-link fingerprints — the file is filled, the deploy
+      landed 2026-08-20 (see 0.2); the on-device link tap is what
+      remains.** `web/.well-known/apple-app-site-association` carries the real
       Team ID as of 2026-08-05 (`U2LVW456S7.com.cosaxo.insight`). The
       `assetlinks.json` SHA-256 comes from Play Console → Setup → App
       signing and is **[PARKED — D42]**, so `check:store-copy` will keep
       reporting that one placeholder: a known permanent non-blocker, not
       an unfinished task.
 
-      **What remains is a hosting redeploy**, which this step shares with
-      0.2 and 0.3 — three separate reasons the live site is behind the
-      repo, one deploy that closes all three. *The committed file is not
-      what iOS fetches.* Then reinstall and tap a `/join/CODE` link.
+      **The hosting redeploy this step shared with 0.2 and 0.3 landed**
+      (2026-08-20 — see 0.2), so the live AASA carries the Team ID and
+      what remains is on-device: reinstall and tap a `/join/CODE` link.
       Android verifies with `adb shell pm get-app-links com.cosaxo.insight`;
       iOS re-fetches AASA on install (CDN-cached, allow a day). Until then
       invite links open the fallback page — degraded, not broken, so this
@@ -1023,15 +1046,17 @@ That is a tester-count problem, not a workflow problem.
       → `design/store/feature-graphic.png`, 1024×500, built from
       `mark.svg` and the app's own stylesheet so it cannot drift from the
       palette. Regenerate if the mark or tagline changes.
-- [ ] **4.3 Marketing copy — pushed 2026-08-08, CORRECTED 2026-08-12,
-      and the correction is not live until it is re-pushed (D116).**
+- [x] **4.3 Marketing copy — pushed 2026-08-08, CORRECTED 2026-08-12,
+      RE-PUSHED the same evening, and this box only learned that
+      2026-08-20 (see the correction below).**
       `design/store/listing.json` carries every field both consoles ask
       for; `npm run check:store-listing` holds each against its character
       limit (all currently fit, the longest at 161/170). No placeholders
       remain: `shared.supportEmail` was filled with 0.3's address on
       2026-08-03.
 
-      **Unticked on purpose, and this one is not a matter of voice.** The
+      **Unticked on purpose while the store served stale copy — resolved;
+      the paragraph after next has the evidence.** The
       description pushed on 08-08 was still selling the pre-D98 privacy
       model to every visitor of the listing — *"Your answers are
       owner-only. The database rules enforce it"* and *"Crowd numbers are
@@ -1044,9 +1069,15 @@ That is a tester-count problem, not a workflow problem.
 
       The repo copy is fixed and `npm run check:public-copy` now fails on
       that vocabulary in `listing.json`, `web/*.html` and the privacy
-      panel. **App Store Connect still serves the old text**: nothing here
-      can read it, the same limitation as the age rating (D74/D75), so a
-      green tree is not a corrected listing. One dispatch fixes it.
+      panel. **"App Store Connect still serves the old text" — it does
+      not, and it had not for eight days when this box was re-read on
+      2026-08-20**: metadata run 9 was the dry run and run 10 the apply
+      (2026-08-12 19:02 UTC, `what=all`, on the correction commit
+      itself), and run 10's summary reads **"Applied."** The box stayed
+      unticked because nothing in the repo can read the store — the
+      D74/D75 limitation — but the run log CAN be read, and reading it
+      is what closed this. Run 11 (2026-08-20, privacy report) reported
+      "nothing to write" against the same key, so the pipe still works.
 
       **You do not have to retype it into the web form.** **Actions → App
       Store metadata** pushes name, subtitle, privacy-policy URL,
@@ -1101,6 +1132,25 @@ That is a tester-count problem, not a workflow problem.
       is the one that fits and it arrives by post. This step is open only
       until that envelope does — it is waiting, not work, so do not let it
       block anything below it.
+
+      **The envelope is the slow path, and it is not the only one
+      (researched 2026-08-20, still unarrived at ~2 weeks).** Two exits,
+      independent of each other:
+
+      - **Order the attest digitally.** Skatteetaten issues the
+        bostedsattest to the Altinn inbox in about three days; the
+        stamped paper copy is the one that costs up to two weeks plus
+        postage, and Apple never sees the stamp — the upload takes a
+        PDF, and Apple's wording asks only for "business or legal
+        records" that verify name and address. Ordering the digital one
+        now does not conflict with the paper order already in flight.
+      - **Ship without the EU 27, add them on verification.** Pending
+        trader verification gates ONLY EU distribution — Norway is EEA
+        (D69), and submission, TestFlight and every non-EU storefront
+        are untouched. Pricing and Availability can exclude the EU 27 at
+        launch and add them later without a new review. That order also
+        buys time to register the ENK (D69's way out) before the home
+        address publishes on any listing.
 - [ ] **4.4 The privacy nutrition label — the last form, and it is manual.**
       Mandatory; Apple accepts no submission without it.
 

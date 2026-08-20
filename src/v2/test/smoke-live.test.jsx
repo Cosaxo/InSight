@@ -121,22 +121,10 @@ describe("spec layer mounts in live mode", () => {
     expectNoBoundary("profile/live");
   });
 
-  it("renders the patterns tab live with no invented people (D166 §1, D167)", async () => {
-    // The tab is a lazy chunk — awaitText waits for it. In jsdom the
-    // loadings fetch cannot resolve, so the honest state here is the
-    // waiting card; what the case pins is that a LIVE mount never falls
-    // back to the prototype's synthetic crowd (560 people, fabricated
-    // "78% pick that" lines) and never trips the boundary.
-    const expectNoBoundary = mountLive();
-    fireEvent.click(screen.getByRole("button", { name: /^patterns$/i }));
-    await awaitText(/pattern fit|No patterns yet/i);
-    expectNoBoundary("patterns/live");
-    expect(document.body.textContent).toMatch(/pattern fit|No patterns yet/i);
-    // the demo-only sentence must not show on a live build…
-    expect(screen.queryByText(/only from real answers/i)).toBeNull();
-    // …and nothing fabricated may either (the prototype's engine size)
-    expect(document.body.textContent).not.toMatch(/560/);
-  });
+  // The patterns-tab live case (no invented people — D166 §1, D167) left
+  // with the mount at D217 and returns with it; the honesty rule it
+  // pinned still holds inside ui/PatternsTab.tsx, which is unreachable
+  // while unmounted.
 
   it("shows the real follow list in the live profile, none of the demo field", () => {
     // The General tab used to embed MirrorFieldBody pop="groups" — the
@@ -1083,14 +1071,14 @@ describe("the live gates hold in the DOM, not just in the source", () => {
   });
 });
 
-// The feed dial's unit contract (D217), on the real mount. The store holds
+// The feed dial's unit contract (D218), on the real mount. The store holds
 // the 12-bucket INDEX for a continuum answer; the feed's local state holds
 // the drag's own VALUE. The reconcile in componentDidMount used to copy
 // the index over the value on every store notify — so a card answered
 // "1 cups" on a 1–10 dial stood at "0 cups", off its own axis, and the
 // mirror then persisted it. One case per door: the in-session clobber,
 // the store-only fallback, and the residue a corrupted mirror still holds.
-describe("the feed dial keeps the value you slid (D217)", () => {
+describe("the feed dial keeps the value you slid (D218)", () => {
   const DIAL_ID = "feed-fixture-dial";
   const DIAL_PROMPT = "How many fixture cups is too many?";
   const dialCard = () => ({
@@ -1140,7 +1128,7 @@ describe("the feed dial keeps the value you slid (D217)", () => {
   it("a store-only answer renders as its bucket's value, never its index", async () => {
     // Another device answered "1 cups" → optionIdx "0". This device has no
     // raw value, so the card claims bucket 0's midpoint (≈1.4 → "1 cups").
-    // The pre-D217 reconcile copied the 0 in and the card said "0 cups" —
+    // The pre-D218 reconcile copied the 0 in and the card said "0 cups" —
     // a value the 1–10 axis cannot even hold.
     const expectNoBoundary = mountLive({}, addDial((h) => { h.votes[DIAL_ID] = "0"; }));
     await growFeed();
@@ -1158,7 +1146,7 @@ describe("the feed dial keeps the value you slid (D217)", () => {
     expectNoBoundary("feed dial from store");
   });
 
-  it("heals the residue a pre-D217 mirror still holds", async () => {
+  it("heals the residue a pre-D218 mirror still holds", async () => {
     // The reported device's exact state: the mirror kept the copied index
     // (0), the store holds bucket "0". The card must read the store, not
     // the residue — range is the tell, since 0 is off a 1–10 dial.

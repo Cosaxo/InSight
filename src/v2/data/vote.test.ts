@@ -771,7 +771,7 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     expect(dial!.options).toHaveLength(12);
   });
 
-  it("hydrate mirrors a continuum answer in the control's units, not the store's (D217)", async () => {
+  it("hydrate mirrors a continuum answer in the control's units, not the store's (D218)", async () => {
     // The WF_LS mirror is what world-feed renders as YOUR value. A dial's
     // optionIdx is the 12-bucket index (deck.ts), and mirroring that raw
     // number is how a 1-cup answer stood on screen as "0 cups": the index
@@ -820,7 +820,7 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     expect(wf.q_feed_vote).toBe(1);
   });
 
-  it("editVote's refusal restores a dial's mirror as the standing bucket's midpoint (D217)", async () => {
+  it("editVote's refusal restores a dial's mirror as the standing bucket's midpoint (D218)", async () => {
     // The raw drag the mirror held is gone (only the feed ever knew it),
     // so the closest the answer doc can testify to is its standing
     // bucket's midpoint — never the index, and never the refused edit.
