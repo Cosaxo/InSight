@@ -21996,3 +21996,99 @@ was 6), `test:scripts`, `:policy-claims` `:public-copy` `:store-forms`
 `check:docs` after the index regeneration. Backend suites were not run —
 nothing in functions/, firestore.rules or the vote path changed (the
 card stopped CALLING editVote; the callable is untouched).
+
+## D212 · Build 22's pre-flight: nothing to bump, and the label grew a row the API cannot push
+
+**Decided:** 2026-08-20 · **Status:** binding · The comparison runbook 2.4
+asks for, made against the run list, plus the one thing this release needs
+from a human that the last several did not.
+
+### The comparison, and it came out *run as-is*
+
+Run 33 (`32229389551`, `d547f7a`, 2026-08-19 07:46Z) has step 17, `Upload
+to App Store Connect`, at **`success`** — 07:52:10Z → 07:54:11Z, 2m 01s of
+transfer. Run 32 is the same commit seven and a half minutes earlier with
+step 17 `skipped`: the dry run. So **build 21 is spent**, and it is the
+highest that is — run 33 is also the highest run in the list, so nothing
+has been dispatched since.
+
+`appBuild` **at run 33's own `head_sha`** — D159's correction, read at
+`d547f7a` rather than at whatever was merged — is **21**. The tree is at
+**22**. So `appBuild` is already greater than the highest build App Store
+Connect has seen, runbook 2.4 answers *run as-is*, and **no number moved
+here.**
+
+That is the fourth pre-flight to find nothing to do (D153, D158, D191,
+this), and D199's bump is why: it was made off step 17's conclusion while
+the run's own step list was on screen, which remains the only arrangement
+that has ever made the bump stick. **D198's warning is the one that
+governs what happens next**, though — a pre-flight verdict has a shelf
+life of exactly one dispatch, so the paragraph above is a report about a
+comparison made at `c03493b` and is not a standing statement about the
+tree. Whoever dispatches spends 22, and the bump to 23 is the reading of
+step 17, not a follow-up task.
+
+### What build 22 carries, and why it is not a routine payload
+
+The only diff under `ios/` or `android/` since `d547f7a` is D199's bump
+itself (`versionCode` 21 → 22 and both `CURRENT_PROJECT_VERSION`
+entries) — verified as the whole of it, not assumed. The shell is
+unchanged. What is not routine is the JavaScript:
+
+- **The Patterns tab ships for the first time.** `76191e4` is the only
+  commit that touches `functions/src/patterns.ts` or the tab, and it
+  landed 18:54Z on 2026-08-19 — eleven hours *after* run 33 archived. So
+  build 21 predates the tab entirely and every device on TestFlight is
+  running a two-tab app. Its backend half is already live: deploy run 91
+  carried `76191e4`'s `v2_patterns` read grant and run 95 carried
+  `6f4745f`, so the rules the tab reads through are deployed ahead of the
+  binary that needs them — the right order, and checked rather than
+  assumed.
+- D202–D211, the 08-19 daily seed promotion, six feed questions, ten
+  learn cards and pk20.
+
+### The row: Health is Yes now, and Apple's API cannot be told
+
+`docs/STORE-FORMS.md` moved 78 lines since build 21, and one of them is a
+new **Health & Fitness → Health** row (Linked, App Functionality).
+D203's pulse roster is why: two of the five are *"How did you sleep?"*
+and *"How was your energy today?"*, and a self-reported daily sleep
+series is health data on any reading of Apple's wording. **Build 22 is
+the first binary that asks.** Measured, not inferred — the two questions
+are absent from `content/pulse-questions.json` at `d547f7a` and present
+at `c03493b`, landing in `efe9bbd`.
+
+This matters for the release rather than only for the repo, because
+**D73 is still true: Apple's API has no App Privacy resource**, so
+`asc-push.mjs` cannot write this row the way it writes listing text.
+`design/store/app-privacy.json` already carries it (`"type": "HEALTH"`,
+linked, `APP_FUNCTIONALITY`) and `check:store-forms` holds it against
+STORE-FORMS.md, so the data is right and gated — it simply has to be
+copied into App Store Connect by hand, which the **App Store metadata**
+workflow prints row by row with `what: privacy (report only)`.
+
+Nothing else in the filing moved: `design/store/listing.json` and the
+age rating are byte-identical to build 21's, so the copy-across is the
+privacy label alone. The hosted policy needs nothing — `web/privacy.html`
+last changed at `6f4745f`, which deploy run 95 shipped, and the only
+commit after it is a pulse trail row.
+
+**Verified:** `test:unit` (101 files, 1511 tests, all passing on an
+isolated run), the release workflow's own pre-flight trio
+(`check-store-copy --ios`, `:public-copy`, `:versions` — *versions OK —
+2.0.0 (build 22) across package.json, Android and iOS*), `check:globals`
+(coupling flat at 392), `check:bundle` on a release-shaped build with
+`VITE_V2_LIVE=true` and a DSN set — 2374 / 850 against 2404 / 880 — plus
+`:fn-runtime` `:appcheck` `:deploy-targets` `:ios-spm` `:ios-facebook`
+`:ios-location` `:docs` `:figures` `:policy-claims` `:data-inventory`
+`:labels` `:store-forms`. `check:web-firebase` is not runnable here and
+is not meant to be: it asserts against a `dist/` built from repository
+variables this checkout does not have, and run 33 is where it is proven.
+
+**One flake worth naming rather than burying.** The first `test:unit` run
+reported 1 failed / 1510 passed while `npm ci --prefix functions` was
+competing for the same CPU; the isolated re-run is 1511 / 1511. The
+failing test's identity was lost to a `tail -15` on that run's own
+output, so this is reported as unresolved rather than diagnosed — two
+green signals (the clean re-run, and CI run 569 on `6f4745f`) against one
+truncated red under contention.

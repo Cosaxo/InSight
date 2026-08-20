@@ -449,6 +449,31 @@ between. `appBuild` was 21 at both, so it cost nothing — the same outcome as
 run 22 — but it is the second worked example of why the comparison is made
 at the run's own `head_sha` and not at the commit you merged.
 
+**Build 22's pre-flight found nothing to bump, and one thing to hand a
+human** (D212, 2026-08-20). Run 33 was still the highest run, its step 17
+still `success`, and `appBuild` at `d547f7a` still 21 against a tree at
+22 — so *run as-is*, and no number moved. Fourth pre-flight to come out
+that way (D153, D158, D191, this).
+
+What it found instead is that **build 22 is the first binary this filing
+does not already cover.** D203's pulse roster asks *"How did you sleep?"*
+and *"How was your energy today?"* — absent from
+`content/pulse-questions.json` at `d547f7a`, present now — so
+`docs/STORE-FORMS.md` gained a **Health & Fitness → Health** row (Linked,
+App Functionality), and `design/store/app-privacy.json` carries it under
+`check:store-forms`. **D73 is why that is a step rather than a note:**
+Apple's API has no App Privacy resource, so nothing pushes this row.
+Dispatch **App Store metadata** with `what: privacy (report only)` and
+copy the printed form across before the build reaches a tester. Listing
+text and the age rating are byte-identical to build 21's, so the label is
+the whole of it, and the hosted policy needs nothing — `web/privacy.html`
+last moved at `6f4745f`, which deploy run 95 shipped.
+
+Build 22 is also the first to carry the **Patterns tab** (`76191e4`,
+eleven hours after run 33 archived). Its rules shipped ahead of it —
+deploy run 91 carried the `v2_patterns` read grant — which is the right
+order and was checked rather than assumed.
+
 
 **Runs 29, 30 and 31 delivered build 20, and the bump was skipped — by the
 pre-flight session itself** (D198, caught 2026-08-19). All three archived

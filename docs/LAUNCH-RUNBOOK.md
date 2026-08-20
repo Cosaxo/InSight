@@ -490,6 +490,28 @@ arithmetic.
       `5c9c4a5` merged, both runs archived `d547f7a` after a pulse trail
       row landed in between, and `appBuild` was 21 at both. D199.
 
+      **BUILD 22'S PRE-FLIGHT: RUN AS-IS, AND ONE STEP THE API CANNOT DO**
+      (2026-08-20). Run 33 is still the highest run, its step 17 still
+      `success`, and `appBuild` at its own `head_sha` (`d547f7a`) still
+      **21** against a tree at **22** — so the comparison answers *run
+      as-is* and no number moved. Fourth pre-flight to come out that way
+      (D153, D158, D191, this). It is a report about a comparison made at
+      `c03493b`, not a standing fact: whoever dispatches spends 22, and
+      the bump to 23 is the reading of step 17.
+
+      **Before this build reaches a tester, the privacy label needs a
+      human.** Build 22 is the first binary carrying D203's pulse roster,
+      two of whose five questions are *"How did you sleep?"* and *"How
+      was your energy today?"*, so the filing gained a **Health & Fitness
+      → Health** row (Linked, App Functionality).
+      `design/store/app-privacy.json` already carries it and
+      `check:store-forms` holds it against `docs/STORE-FORMS.md` — but
+      **D73**: Apple's API has no App Privacy resource, so nothing pushes
+      it. Actions → **App Store metadata** → `what: privacy (report
+      only)` prints the form row by row; copy it across. Listing text and
+      the age rating did not move, and `web/privacy.html` is already live
+      (last changed at `6f4745f`, deploy run 95). D212.
+
 
       **BUILD 20 WAS UPLOADED BY RUN 31, AND BUILD 21'S PRE-FLIGHT HAD TO
       BUMP** (2026-08-19). Three runs sit at `f8c8465` and no document
