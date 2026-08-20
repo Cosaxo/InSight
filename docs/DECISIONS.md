@@ -22122,3 +22122,63 @@ light up by themselves the day live questions carry their tag. At
 42/week against a 136-question deficit the levelling takes roughly a
 month; the leaf step lands with its own gates (leaf ids in `sub`,
 stock-aware offers, budget counting) as its own change.
+
+## D214 · A premise fix reaches every consumer, or it is not fixed
+
+**2026-08-20.** **Status:** binding.
+
+D200 found the cost model pricing `nam5` for three days after D165 moved
+production to `europe-west1`, fixed it at the source — `FIRESTORE_LOCATION`
+in `functions/src/db.ts`, read by `scripts/cost-arith.mjs` — and pinned the
+link in `scripts/pulse.test.mjs`. It then updated **two** of the five
+consumers of that premise. The other three had their own defaults, and kept
+them for eight days.
+
+### What was actually wrong
+
+- **`scripts/cost-compare.mjs` defaulted to `nam5`** and its usage header
+  advertised that as "the default". Every dollar it printed was ~2× the
+  real bill, which matters more here than anywhere else because this
+  script's output is a **grade**: it rated the app **C at 50 k, 100 k and
+  500 k DAU** — "expensive for what it does" — where the sheet the project
+  is billed on grades all three **B**, and 500 DAU **A**. The file's own
+  header states the invariant it was breaking: *"If a number here disagrees
+  with `npm run costs`, this file has a formatting bug, not a modelling
+  one."* Every number disagreed, by a factor of two.
+- **`scripts/cost-scale.mjs` printed the title "nam5 multi-region prices"
+  above numbers it had computed on the real sheet** — it calls
+  `costModel({})`, whose default D200 had already fixed. A hardcoded label
+  disagreeing with the arithmetic beneath it, which is the exact shape D200
+  removed from the pulse console. Its bank table also opened on a typed
+  `513` against a bank of 600.
+- **`scripts/cost-levers.mjs` prices `nam5` on purpose** and that stays:
+  row `[C]` is the region lever, so a single-region baseline would measure
+  it against itself and report 0% for a change worth ~50%. What was wrong
+  was the silence — an unlabelled `as built` row is an unstated premise,
+  which is what D200 was about. It now prints the baseline and the real
+  region above the table, and the two path notes that still told the reader
+  to "decide before the seed" say the decision was taken at D165.
+
+### The gate
+
+`pulse.test.mjs` pinned `costModel()`'s own default and nothing else, so
+each script's private default was invisible to it. The new test runs all
+four printers and asserts the printed output **names the production
+region**, plus that the two which price the app *as built* differ from
+their own `--multi-region` run — because a label fix without the arithmetic
+behind it is the same bug wearing the fix's clothes. Verified by
+reintroducing the original line: the pin fails on it.
+
+The general form, and the reason this is binding: **a premise read from the
+tree in one module is not fixed until every consumer that can override it
+is checked.** `check:figures` cannot see this class — it compares quoted
+figures against the tree, and a default parameter is not a quotation.
+
+### Not done, deliberately
+
+`docs/COSTS.md`'s prose below its own D200 banner still quotes `nam5`
+figures, and that banner already says so and says how to convert them
+("halve an operation-priced figure"). Re-deriving 1,100 lines of narrated
+history would rewrite the record of what was believed when, which is the
+part of that document worth most. The scripts are the live answer; the page
+says which command prints it.

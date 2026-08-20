@@ -11,8 +11,19 @@
 // What it is for is re-running the rating when an input moves, so
 // docs/COST-COMPARISON.md never becomes folklore.
 //
-//   node scripts/cost-compare.mjs              # nam5 multi-region (the default)
-//   node scripts/cost-compare.mjs --regional   # single-region price sheet
+//   node scripts/cost-compare.mjs                 # the region production is on
+//   node scripts/cost-compare.mjs --multi-region  # the nam5 counterfactual
+//
+// THE DEFAULT IS READ FROM functions/src/db.ts, not assumed. D200 pointed
+// cost-model.mjs and the pulse at `FIRESTORE_LOCATION` and did not reach
+// this file, so for the days after it every table below — and every GRADE,
+// which is this page's whole output — priced `nam5` at twice the real bill
+// while the header advertised that as "the default". The comment above the
+// import already said it: if a number here disagrees with `npm run costs`,
+// this file has a bug. Every number did.
+//
+// `--regional` is still accepted for the docs that cite it; on a
+// single-region database it asks for the sheet it would get anyway.
 //
 // THE ARITHMETIC IS NOT HERE. Every InSight figure below comes from
 // scripts/cost-arith.mjs, the same module cost-model.mjs and pulse.mjs read.
@@ -30,10 +41,10 @@
 // this repository, and carries the arithmetic that produced it, the URL it
 // came from, and which way the comparison is unfair.
 
-import { costModel, totalCost, B, SCENARIOS } from "./cost-arith.mjs";
+import { costModel, totalCost, B, SCENARIOS, REGIONAL, LOCATION_LABEL } from "./cost-arith.mjs";
 import { PEERS, OBJECT_STORAGE_GIB_MO, BENCH, rate, money, unit, int, x } from "./cost-peers.mjs";
 
-const regional = process.argv.includes("--regional");
+const regional = process.argv.includes("--multi-region") ? false : REGIONAL;
 const { model } = costModel({ regional });
 
 // The model's own scenario list, plus the two sizes the Firestore benchmark
@@ -47,7 +58,7 @@ const SIZES = [...SCENARIOS.map(([dau, mature, label]) => ({ dau, mature, label 
 
 const perDau = (dau, mature) => totalCost(model(dau, mature).cost) / dau;
 
-console.log(`\nInSight cost comparison — ${regional ? "single-region" : "nam5 multi-region"} prices`);
+console.log(`\nInSight cost comparison — ${regional === REGIONAL ? LOCATION_LABEL : "nam5 multi-region"} prices`);
 console.log("InSight figures from scripts/cost-arith.mjs; peer figures from scripts/cost-peers.mjs\n");
 
 // ── 1. unit economics ───────────────────────────────────────────

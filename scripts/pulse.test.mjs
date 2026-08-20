@@ -94,6 +94,39 @@ describe("cost-arith reads its constants from source, not from memory", () => {
     expect(LOCATION_LABEL).toContain(LOCATION);
   });
 
+  it("every cost printer names the region it priced", () => {
+    // D200 fixed the premise in cost-arith.mjs and pointed cost-model.mjs
+    // and the pulse at it. It reached two of the five consumers. For the
+    // days after it, `costs:compare` — the script whose entire output is a
+    // GRADE, and whose own header promises that any disagreement with
+    // `npm run costs` is a formatting bug — defaulted to `nam5` and graded
+    // the app C at three sizes that are B on the sheet production is billed
+    // on; `costs:scale` printed a "nam5 multi-region" title above numbers
+    // it had computed on the real one. Neither was catchable: the existing
+    // test pins `costModel()`'s default, and each of those scripts had its
+    // own.
+    //
+    // So the pin is per-PRINTER and it is the printed line, because that is
+    // the artifact a reader quotes. A script may legitimately COMPUTE on the
+    // counterfactual sheet — cost-levers.mjs does, or its region row would
+    // price itself against itself — but it may not stay silent about which
+    // sheet production is on.
+    for (const script of ["cost-model", "cost-compare", "cost-levers", "cost-scale"]) {
+      const out = execFileSync(process.execPath, [join(ROOT, `scripts/${script}.mjs`)],
+        { encoding: "utf8" });
+      expect(out, `${script}.mjs does not name the production region`).toContain(LOCATION_LABEL);
+    }
+    // And the two that price the app AS BUILT must default to the real
+    // sheet, not merely mention it — a label fix without the arithmetic
+    // behind it is the same bug wearing the fix's clothes.
+    for (const script of ["cost-model", "cost-compare"]) {
+      const run = (...args) => execFileSync(process.execPath,
+        [join(ROOT, `scripts/${script}.mjs`), ...args], { encoding: "utf8" });
+      expect(run(), `${script}.mjs defaults to the counterfactual sheet`)
+        .not.toBe(run("--multi-region"));
+    }
+  });
+
   it("the fan-out's bound is still in live.ts, and the app still detaches", () => {
     // Two assertions, because the constant surviving is not the same claim
     // as the behaviour surviving. `onlineMin` is the input the fan-out term

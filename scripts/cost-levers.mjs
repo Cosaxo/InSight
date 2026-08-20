@@ -30,7 +30,7 @@
 // Those three fields are stated per lever so they can be argued with; only
 // the dollars are computed.
 
-import { costModel, totalCost, SCENARIOS } from "./cost-arith.mjs";
+import { costModel, totalCost, SCENARIOS, LOCATION_LABEL } from "./cost-arith.mjs";
 import { rate, money, unit, int } from "./cost-peers.mjs";
 
 // Both price sheets built once: costModel() re-reads and re-parses the seed
@@ -184,7 +184,19 @@ console.log("dollars from scripts/cost-arith.mjs, grades from scripts/cost-peers
 // these overlap (pollAggs subsumes both publishEvery and deckListeners), so
 // a column of individually-true savings would sum to more than exists. The
 // stacking is section 3's job, and it is computed rather than added up.
+// The baseline is the `nam5` sheet, NOT the region production runs on, and
+// that is deliberate (see MODELS above): row [C] is the region lever, so
+// pricing the baseline on the single region it already took would collapse
+// the lever onto its own baseline and report 0% for a change worth ~50%.
+// The cost of that choice is that every dollar in this file is ~2x the real
+// bill, so it is said in the header rather than left to the reader — an
+// unlabelled "as built" is exactly the premise D200 was about. `npm run
+// costs` and `npm run costs:compare` print the bill on the real sheet.
 console.log("1 · Each lever on its own, against the app as built");
+console.log("  BASELINE: nam5 multi-region, the sheet these levers were priced against.");
+console.log(`  Production has been ${LOCATION_LABEL} since D165, so every dollar below is`);
+console.log("  about twice the real bill and every percentage is a share of it. Row [C]");
+console.log("  is what that migration already banked, not a saving still on the table.");
 console.log("                                                " +
   SIZES.map((s) => int(s.dau).padStart(11)).join(""));
 console.log("-".repeat(46 + 11 * SIZES.length));
@@ -247,7 +259,7 @@ const PATHS = [
   {
     name: "R · Region only",
     opts: { regional: true },
-    note: "the one remaining zero-product-change lever, and it has a deadline",
+    note: "zero product change, and TAKEN at D165 — this row is what that bought",
   },
   {
     name: "R + the remaining client trim",
@@ -273,7 +285,7 @@ const PATHS = [
     opts: merge(pick("Kindred walks 4 lists, not 12", "Who-voted pages at 50",
       "Circle reads 100 answers/member", "Serve the bank off Hosting"),
     { regional: true }),
-    note: "the same, on a single-region database — decide before the seed",
+    note: "the same, on the single region production already runs in",
   },
 ];
 

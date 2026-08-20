@@ -34,7 +34,7 @@
 // term ever becomes a proper option, this script should use it.
 
 import {
-  costModel, firestoreCost, functionsCost, SCENARIOS, B,
+  costModel, firestoreCost, functionsCost, SCENARIOS, B, bankDocs, LOCATION_LABEL,
 } from "./cost-arith.mjs";
 
 const money = (n) => (n < 10 ? n.toFixed(2) : Math.round(n).toLocaleString());
@@ -51,7 +51,12 @@ const RATES = [
   [700, "700/wk · 100/day"],
 ];
 
-const BANKS = [513, 1500, 5000, 20000, 100000];
+// The first row is the bank as it stands, counted from the seed like every
+// other bank figure in this repo — it was typed as 513 and the bank passed
+// it two promotion cycles ago. A hand-maintained figure in a table whose
+// finding is "these rows are identical" is the safest place for one to go
+// stale and the least excusable (D39, check:figures).
+const BANKS = [bankDocs(), 1500, 5000, 20000, 100000];
 
 const header = (label) =>
   label.padEnd(28) + SCENARIOS.map(([d]) => `DAU ${d.toLocaleString()}`.padStart(13)).join("");
@@ -67,7 +72,11 @@ const totalsFor = () =>
     return firestoreCost(m.cost) + functionsCost(m.cost);
   });
 
-console.log("\nInSight scale model — nam5 multi-region prices");
+// The label, not a second copy of the premise: this script has always
+// priced `costModel({})`, which since D200 means the region production is
+// actually on — so the hardcoded "nam5" above these tables disagreed with
+// the numbers under it rather than with the tree.
+console.log(`\nInSight scale model — ${LOCATION_LABEL} prices`);
 console.log("the question the table answers: what does an infinite feed cost\n");
 
 console.log("1 · PROMOTION RATE — the term that moves ($/mo)\n");

@@ -36,6 +36,13 @@
 > days after the migration, because the region was a default parameter
 > rather than a fact read from the tree.
 >
+> **`costs:levers` still prices `nam5`, and that one is deliberate**: row
+> `[C]` IS the region, so a single-region baseline would measure the lever
+> against itself and report 0% for a change worth ~50%. What was wrong was
+> only that the script never said so — an unlabelled "as built" is the same
+> unstated premise D200 was about. It now prints the baseline and the real
+> region above the table (D214).
+>
 > **The rest of this page still stands and is now the remaining work.** The cap
 > trims are still the worst ratio of product cost to money and are still
 > not recommended. Batching the mirror publish has gone from −78% to −0.0%,

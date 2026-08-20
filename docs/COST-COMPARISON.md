@@ -5,18 +5,26 @@
 > and badly shaped — cost per user rising 87× between 500 and 500,000 DAU,
 > and passing Snapchat's per-user infrastructure cost at ~361 k DAU. That
 > analysis is what prompted the fix. The deck is polled now, the fan-out is
-> gone, and the same script prints a **flat 2.1× rise and a B at every
-> size**. The peer table, the denominators and the skews below are unchanged
+> gone, and the same script prints a **flat ~2× rise and no grade worse
+> than B**. The peer table, the denominators and the skews below are unchanged
 > and still the way to re-run this; the grades and multiples in the prose
 > are the pre-D129 ones. `npm run costs:compare` prints today's.
+>
+> **And for eight days it did not** (D214). This script kept `nam5` as its
+> default while production moved to `europe-west1` at D165 — so the sentence
+> above was true of the app and false of the script, which graded three
+> sizes a C on a sheet the project is not billed on. Fixed at the premise:
+> the default is read from `functions/src/db.ts` like `npm run costs`, and
+> `scripts/pulse.test.mjs` now pins every cost printer, not just the two
+> D200 reached.
 
 [`docs/COSTS.md`](COSTS.md) answers *what will this cost*. This answers *is
 that a lot*, which is a different question and needs something the model
 cannot supply: somebody else's invoice.
 
 Written 2026-08-13 against `c388d7a`. Reproduce with
-`node scripts/cost-compare.mjs` (add `--regional` for the single-region
-price sheet). Every InSight figure comes from `scripts/cost-arith.mjs` —
+`node scripts/cost-compare.mjs` (add `--multi-region` for the `nam5`
+counterfactual; the default follows `FIRESTORE_LOCATION`). Every InSight figure comes from `scripts/cost-arith.mjs` —
 the same module `cost-model.mjs` and `pulse.mjs` read, so there is no
 second copy of the arithmetic to drift. The peer figures are new, they are
 the only numbers here nothing in this repository can check, and they are
