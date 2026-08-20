@@ -305,6 +305,16 @@ render **real user data** and each can lie in its own way. Mounting them
 inside the app (the two smoke files) proves they do not crash; these assert
 what they claim.
 
+That was a CONVENTION until 2026-08-20, and it drifted the way conventions
+do: an audit found nine panels with no suite at all — including
+`PatternsTab`, the entire shipped product of the on-trial third tab, at
+4.71% branch coverage, where one flipped ternary tells every user they
+answered the opposite of what they did. `npm run check:panel-suites` holds
+it now, as a ratchet: the panels still owed one are listed by name in that
+script and the count may only go down, and DELETING a suite fails it too.
+Run it for the live figure rather than quoting one here (D39,
+`check:figures`).
+
 | suite | the property it exists for |
 | --- | --- |
 | `LiveCohortBody` | an absent breakdown cell means ZERO and is still counted and named in words, because a silent gap reads as "this question doesn't exist here"; a question with no aggregate at all is a different state from an empty cohort and is not counted as either; nothing consults a `tooSmall` field (D98 — the row exists to catch its return) |
