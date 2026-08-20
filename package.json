@@ -30,6 +30,7 @@
     "check:anchors": "node scripts/check-anchors.mjs",
     "check:labels": "node scripts/check-labels.mjs",
     "check:touch-zoom": "node scripts/check-touch-zoom.mjs",
+    "check:tap-targets": "node scripts/check-tap-targets.mjs",
     "check:purge": "node scripts/check-purge-listeners.mjs",
     "check:cities": "node scripts/check-cities.mjs",
     "check:pokedex": "node scripts/check-pokedex.mjs",

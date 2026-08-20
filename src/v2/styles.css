@@ -1289,6 +1289,13 @@ button.card:active,
    changes nothing you can see. */
 .tap44 { position: relative; }
 .tap44::after { content: ''; position: absolute; left: 50%; top: 50%; width: max(100%, 34px); height: max(100%, 44px); transform: translate(-50%, -50%); }
+/* …and the tight variant, for controls in a ROW of their own kind. The feed's
+   counter pager is 7px dots on a 5px gap — a 12px pitch — so the 34px box
+   above would have each dot's hit area covering two neighbours, and a tap
+   near an edge would land on the wrong page. That is worse than a small
+   target, not better: a miss you can retry beats a hit on the wrong control.
+   Height still 44; width tracks the pitch. */
+.tap44.is-tight::after { width: max(100%, 12px); }
 /* The two chips live inside clipping scrollers (an edge mask, an overflow
    collapse), so a pseudo hit box gets cut off — they grow their own box
    instead. Both were also the odd height in their row: the meter chip stood
@@ -1749,6 +1756,12 @@ button.card:active,
 }
 .mmt-card-x:hover { color: var(--ink); border-color: var(--ink-3); }
 .mmt-card-x:active { transform: scale(0.88); }
+/* 26px drawn, 44 tall to press. Same trick and same reason as .tap44 above —
+   these sit on the Map's cards, where the drawn size is the design and the
+   hit box is not. Its own rule rather than the class because the card is a
+   transform container, so a pseudo on a positioned child is the reliable
+   shape here. */
+.mmt-card-x::after { content: ''; position: absolute; left: 50%; top: 50%; width: max(100%, 34px); height: max(100%, 44px); transform: translate(-50%, -50%); }
 .mmt-kicker {
   display: flex; align-items: center; gap: 6px;
   font-family: var(--sans); font-size: 11.5px; font-weight: 600; letter-spacing: 0;

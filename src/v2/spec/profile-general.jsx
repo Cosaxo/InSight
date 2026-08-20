@@ -204,7 +204,7 @@ import {
   }
   function EditBtn({ on, onClick }) {
     return (
-      <button onClick={onClick} aria-label={on ? 'Done editing' : 'Edit'} style={{
+      <button className="tap44" onClick={onClick} aria-label={on ? 'Done editing' : 'Edit'} style={{
         flexShrink: 0, cursor: 'pointer', WebkitAppearance: 'none', appearance: 'none',
         display: 'inline-flex', alignItems: 'center', gap: 6,
         height: 30, padding: on ? '0 13px' : '0 9px', borderRadius: 999,

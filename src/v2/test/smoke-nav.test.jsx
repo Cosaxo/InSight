@@ -83,6 +83,38 @@ describe("the daily's ruler is the nav (v17)", () => {
 // the await lets the import resolve before asserting. What the demo owes
 // here is the HONEST state: the trial ships live data only, so a demo
 // mount must say so rather than draw the prototype's invented crowd.
+describe("the tab bar says which tab you are on", () => {
+  it("marks exactly one tab current, and moves the mark when you switch", () => {
+    // The app's PRIMARY navigation was the only ruler in the tree with no
+    // current-tab semantics: `is-active` is a CSS class and the glyph takes
+    // a prop, and a screen reader sees neither. Eight other rulers use
+    // role="tab"/aria-selected and seven secondary pickers use
+    // aria-current — this one told nobody where they were.
+    //
+    // `page` rather than `true` because these are destinations, not tabs
+    // over a single panel: there is no tablist here, and claiming one would
+    // promise arrow-key navigation the bar does not implement.
+    const expectNoBoundary = mountApp();
+    const tabs = () => [...document.querySelectorAll(".tabbar .tab-btn")];
+    const current = () => tabs().filter((b) => b.getAttribute("aria-current") === "page");
+
+    expect(tabs().length, "the tab bar did not render").toBeGreaterThan(1);
+    expect(current().length, "no tab, or more than one, is marked current").toBe(1);
+    // The default tab is the daily, in the middle.
+    expect(current()[0].textContent).toContain("daily");
+
+    const mirror = tabs().find((b) => b.textContent.includes("mirror"));
+    act(() => { fireEvent.click(mirror); });
+    expect(current().length, "switching tabs left the mark on two of them").toBe(1);
+    expect(current()[0].textContent, "the mark did not follow the tab").toContain("mirror");
+    // …and the tab you left is not still claiming to be current.
+    expect(
+      tabs().find((b) => b.textContent.includes("daily")).getAttribute("aria-current"),
+    ).toBeNull();
+    expectNoBoundary("tab bar aria-current");
+  });
+});
+
 describe("the patterns tab (trial)", () => {
   it("mounts lazily from the tab bar and shows the honest demo state", async () => {
     const expectNoBoundary = mountApp();

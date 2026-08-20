@@ -453,6 +453,16 @@ function App() {
           <div className="tab-group">
             {TABS.map(({ id, label }) => (
               <button key={id} className={"tab-btn" + (tab === id ? ' is-active' : '')}
+                // The app's primary navigation was the only ruler in the tree
+                // with no current-tab semantics: `is-active` is a CSS class
+                // and the glyph takes a prop, both invisible to a screen
+                // reader. Eight other rulers use role="tab"/aria-selected and
+                // seven secondary pickers use aria-current; this is the one
+                // that told nobody where they were. `page` rather than `true`
+                // because these are destinations, not tabs over one panel —
+                // there is no tablist here and claiming one would promise
+                // arrow-key navigation this does not implement.
+                aria-current={tab === id ? 'page' : undefined}
                 onClick={() => {
                   if (tab !== id) HAPTIC.tick();
                   markNav();

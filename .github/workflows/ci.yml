@@ -74,6 +74,16 @@ jobs:
       # with vitest's CSS handling off, so the stylesheet size that caused it
       # never resolves there at all. Client-only, off backend-checks.yml.
       - run: npm run check:touch-zoom
+      # …and the other half of the same finger. check:touch-zoom is about a
+      # field being READABLE without iOS zooming the app; this is about a
+      # control being PRESSABLE at all. jsx-a11y has no size rule, so
+      # check:a11y reported 8 findings and green while fourteen controls sat
+      # at 7-26px of real hit area — including the Close button on every
+      # bottom sheet in the app. The class to fix it already existed and had
+      # been forgotten on one of two identical controls for months, which is
+      # the shape a gate holds and a convention does not. Client-only, so it
+      # stays off backend-checks.yml on that workflow's own rule.
+      - run: npm run check:tap-targets
       # Every store that persists insight.* state must hear the purge
       # (insight:local-purge, D51) — deleting the keys is only half the
       # wipe when the in-memory copy writes itself back on the next

@@ -154,7 +154,7 @@ function TypeIndexSheet({ testKey, onClose }) {
         <div style={{ padding: '10px 18px 4px', display: 'flex', alignItems: 'baseline', gap: 10 }}>
           <span style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 15, flex: 1 }}>The {list.length} types</span>
           {caption ? <span style={{ fontFamily: 'var(--sans)', fontSize: 11, fontWeight: 600, color: 'var(--ink-3)' }}>{caption}</span> : null}
-          <button onClick={close} aria-label="Close" style={{ border: 'none', background: 'var(--surface-2)', width: 26, height: 26, borderRadius: '50%', cursor: 'pointer', fontSize: 13, fontWeight: 800, color: 'var(--ink-2)', flexShrink: 0, alignSelf: 'center', WebkitAppearance: 'none' }}>{'\u2715'}</button>
+          <button className="tap44" onClick={close} aria-label="Close" style={{ border: 'none', background: 'var(--surface-2)', width: 26, height: 26, borderRadius: '50%', cursor: 'pointer', fontSize: 13, fontWeight: 800, color: 'var(--ink-2)', flexShrink: 0, alignSelf: 'center', WebkitAppearance: 'none' }}>{'\u2715'}</button>
         </div>
         <div className="wf-sheet-body" style={{ display: 'flex', flexDirection: 'column' }}>
           {LIVE.enabled && !counted ? (

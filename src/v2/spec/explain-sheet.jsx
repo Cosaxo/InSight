@@ -172,7 +172,7 @@ export function ExplainSheet({ title, kicker, keyRows, dims, dimKey, onClose }) 
       <div style={{ padding: '10px 18px 8px', display: 'flex', alignItems: 'baseline', gap: 10 }}>
         <span style={{ fontFamily: exSans, fontWeight: 800, fontSize: 15 }}>{title}</span>
         <span style={{ flex: 1, minWidth: 0, fontFamily: exSans, fontWeight: 600, fontSize: 12, color: 'var(--ink-3)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{kicker}</span>
-        <button onClick={close} aria-label="Close" style={{ border: 'none', background: 'var(--surface-2)', width: 26, height: 26, borderRadius: '50%', cursor: 'pointer', fontSize: 13, fontWeight: 700, color: 'var(--ink-2)', flexShrink: 0 }}>✕</button>
+        <button className="tap44" onClick={close} aria-label="Close" style={{ border: 'none', background: 'var(--surface-2)', width: 26, height: 26, borderRadius: '50%', cursor: 'pointer', fontSize: 13, fontWeight: 700, color: 'var(--ink-2)', flexShrink: 0 }}>✕</button>
       </div>
       <div className="wf-sheet-body">
         {ex.about && <p style={{ margin: '2px 0 0', fontFamily: exSans, fontSize: 15, fontWeight: 500, lineHeight: 1.55, color: 'var(--ink)', textWrap: 'pretty' }}>{ex.about}</p>}
