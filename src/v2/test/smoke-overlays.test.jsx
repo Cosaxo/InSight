@@ -19,7 +19,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, screen } from "@testing-library/react";
 import { IS_DATA } from "../spec/sample-data.js";
-import {
+import { openHeaderOverlay,
   expectOpened, mountApp, openVia, registerSmokeHooks, SMOKE_TIMEOUT_MS,
 } from "./mount-app.jsx";
 
@@ -177,7 +177,7 @@ describe("the retired Thinking test is gone from every surface", () => {
 
   it("is off the profile's sub-tab row", async () => {
     const expectNoBoundary = mountApp();
-    fireEvent.click(screen.getByRole("button", { name: /^profile$/i }));
+    await openHeaderOverlay("profile");
     expect(
       screen.queryByRole("button", { name: /^Thinking$/ }),
       "the profile still has a Thinking tab",
@@ -196,7 +196,7 @@ describe("the retired Thinking test is gone from every surface", () => {
     // Through the profile's sub-tab row since D121 — the picker this used to
     // read is gone, and the row is where the four instruments are offered now.
     const expectNoBoundary = mountApp();
-    fireEvent.click(screen.getByRole("button", { name: /^profile$/i }));
+    await openHeaderOverlay("profile");
     for (const label of ["Big 5", "Politics", "Values", "Social"]) {
       expect(
         screen.queryByRole("button", { name: new RegExp(`^${label}$`) }),

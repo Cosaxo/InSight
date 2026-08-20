@@ -7,7 +7,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { act, fireEvent, screen } from "@testing-library/react";
 import { OWNS_X } from "../spec/swipe-back.js";
-import { awaitNode, awaitText, mountApp, registerSmokeHooks, SMOKE_TIMEOUT_MS } from "./mount-app.jsx";
+import { openHeaderOverlay, awaitNode, awaitText, mountApp, registerSmokeHooks, SMOKE_TIMEOUT_MS } from "./mount-app.jsx";
 
 vi.setConfig({ testTimeout: SMOKE_TIMEOUT_MS });
 registerSmokeHooks();
@@ -193,9 +193,9 @@ describe("the surfaces that own their drag are excluded from the axis swipes", (
   // inside the profile's scrolling body — the scrim grew as tall as the content
   // and the sheet landed at the bottom of the SCROLL, off-screen. The fix
   // portals it to the app frame; this pins the portal.
-  it("the lens ⓘ sheet mounts on the app frame, not in the scrolling page", () => {
+  it("the lens ⓘ sheet mounts on the app frame, not in the scrolling page", async () => {
     const expectNoBoundary = mountApp();
-    fireEvent.click(screen.getByRole("button", { name: /^profile$/i }));
+    await openHeaderOverlay("profile");
     fireEvent.click(screen.getByRole("button", { name: /^lenses$/i }));
     fireEvent.click(screen.getAllByRole("button", { name: /^what .* measures$/i })[0]);
     const scrim = document.querySelector(".wf-scrim");

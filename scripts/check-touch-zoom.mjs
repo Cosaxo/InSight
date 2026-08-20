@@ -45,11 +45,11 @@ const NO_ZOOM = new Set([
   "reset", "file", "image", "hidden",
 ]);
 
-// tweaks-panel.jsx is the design-time Tweaks panel: `if (!open) return null`
+// src/dev/TweaksPanel.jsx is the design-time Tweaks panel: `if (!open) return null`
 // and `open` only ever flips from a listener behind `import.meta.env.DEV`,
 // so it does not exist in a production bundle and cannot be focused on a
 // device. Its 11.5px `font:inherit` fields stay as the prototype drew them.
-const SKIP_FILES = new Set(["src/v2/spec/tweaks-panel.jsx"]);
+const SKIP_FILES = new Set(["src/dev/TweaksPanel.jsx"]);
 
 const walk = (dir, out = []) => {
   for (const name of readdirSync(dir)) {

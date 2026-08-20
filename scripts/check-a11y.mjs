@@ -100,7 +100,7 @@ const BASELINE = {
   "src/v2/spec/group-daily.jsx": 1,
   "src/v2/spec/relmap.jsx": 1,
   "src/v2/spec/suggestions.jsx": 1,
-  "src/v2/spec/tweaks-panel.jsx": 1,
+  "src/dev/TweaksPanel.jsx": 1,
   "src/v2/spec/world-feed.jsx": 1,
   "src/v2/ui/CityPicker.tsx": 1,
   "src/v2/ui/PickSearch.tsx": 1,

@@ -24,6 +24,7 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import React from "react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { awaitNode } from "./mount-app.jsx";
 import { Sheet } from "../spec/primitives.jsx";
 import {
   backLayerCount, closeTopBackLayer, pushBackLayer, resetBackLayers,
@@ -45,12 +46,19 @@ afterEach(() => {
 // Open an overlay from the header and hand back the pieces each case needs.
 // `opener` is captured BEFORE the click, because the whole focus-restore
 // assertion is about returning to it.
-function openOverlay(name) {
+//
+// ASYNC since D217. Both of these overlays moved into the after-first-paint
+// chunk, so the header button awaits `loadOverlays()` before setting the
+// state that mounts one — the click no longer paints in the same tick.
+// This is the app's real behaviour, not a test artifact: a synchronous
+// helper here was asserting an overlay that no longer exists yet.
+async function openOverlay(name) {
   errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
   const { container } = render(<App />);
   const opener = screen.getByRole("button", { name: new RegExp(`^${name}$`, "i") });
+  opener.focus();
   fireEvent.click(opener);
-  const dialog = container.querySelector('[role="dialog"]');
+  const dialog = await awaitNode('[role="dialog"]');
   return { container, opener, dialog };
 }
 
@@ -58,8 +66,8 @@ describe("overlays are modal dialogs", () => {
   it.each([
     ["profile", "Your profile"],
     ["search", "Search"],
-  ])("%s carries dialog semantics", (name, label) => {
-    const { dialog } = openOverlay(name);
+  ])("%s carries dialog semantics", async (name, label) => {
+    const { dialog } = await openOverlay(name);
     expect(dialog, `${name}: no [role=dialog] rendered`).toBeTruthy();
     expect(dialog.getAttribute("aria-modal")).toBe("true");
     expect(dialog.getAttribute("aria-label")).toBe(label);
@@ -68,22 +76,22 @@ describe("overlays are modal dialogs", () => {
     expect(dialog.getAttribute("tabindex")).toBe("-1");
   });
 
-  it.each([["profile"], ["search"]])("%s moves focus inside on open", (name) => {
-    const { dialog } = openOverlay(name);
+  it.each([["profile"], ["search"]])("%s moves focus inside on open", async (name) => {
+    const { dialog } = await openOverlay(name);
     // Not asserting WHICH element — that is the first focusable in document
     // order and may legitimately change. Asserting it is inside the dialog,
     // which is the property that matters.
     expect(dialog.contains(document.activeElement), `${name}: focus stayed outside the dialog`).toBe(true);
   });
 
-  it("Escape closes the overlay", () => {
-    const { container, dialog } = openOverlay("profile");
+  it("Escape closes the overlay", async () => {
+    const { container, dialog } = await openOverlay("profile");
     expect(container.querySelector('[role="dialog"]')).toBeTruthy();
     fireEvent.keyDown(dialog, { key: "Escape" });
     expect(container.querySelector('[role="dialog"]'), "Escape did not close the overlay").toBeNull();
   });
 
-  it("returns focus to the control that opened it", () => {
+  it("returns focus to the control that opened it", async () => {
     // The opener is focused explicitly here because jsdom's fireEvent.click
     // does NOT move focus, while a real browser's click on a button does.
     // Without this the hook reads document.activeElement === <body>, and the
@@ -91,11 +99,11 @@ describe("overlays are modal dialogs", () => {
     // Verified separately in Chromium: clicking the header button focuses it,
     // and closing the overlay hands focus back to it.
     errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    const { container } = render(<App />);
+    render(<App />);
     const opener = screen.getByRole("button", { name: /^profile$/i });
     opener.focus();
     fireEvent.click(opener);
-    const dialog = container.querySelector('[role="dialog"]');
+    const dialog = await awaitNode('[role="dialog"]');
 
     // Focus is inside the dialog at this point; closing must hand it back
     // rather than dropping the caret at the top of the document.
@@ -104,8 +112,8 @@ describe("overlays are modal dialogs", () => {
     expect(document.activeElement, "focus was not restored to the opener").toBe(opener);
   });
 
-  it("traps Tab inside the dialog", () => {
-    const { dialog } = openOverlay("profile");
+  it("traps Tab inside the dialog", async () => {
+    const { dialog } = await openOverlay("profile");
     const items = [...dialog.querySelectorAll(
       'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
     )];

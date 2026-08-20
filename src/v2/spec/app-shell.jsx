@@ -8,7 +8,7 @@ import { IS_DATA } from './sample-data.js';
 import { DUELS } from './duels-data.js';
 import { HAPTIC } from './haptics.js';
 import { markNav } from './swipe-back.js';
-import { useTweaks, TweaksPanel, TweakSection, TweakRadio, TweakButton } from './tweaks-panel.jsx';
+import { useTweaks } from '../data/tweaks.jsx';
 import { reportError } from '../../lib/sentry';
 // The typed cue that opens the Map on a branch (v28 §5, D207 — the shape
 // window.goTrends would have been): the caller stores WHERE, this shell
@@ -23,6 +23,31 @@ import { closeTopBackLayer } from '../data/backLayers';
 // same pattern daily-split uses for its typed panels; the chunk loads on
 // the first visit to the tab and never before.
 const PatternsTabLazy = React.lazy(() => import('../ui/PatternsTab.tsx'));
+
+// The Tweaks panel is DESIGN-TIME tooling and production cannot open it —
+// its only setOpen(true) is behind `if (!import.meta.env.DEV) return`. It
+// used to share a module with useTweaks, so ~11.8 KB of controls, drag
+// handling and a 6.7 KB stylesheet string rode into the ENTRY chunk, where
+// check:bundle has the least headroom in the repo (D217).
+//
+// The ternary is what makes it free: `import.meta.env.DEV` is a literal at
+// build time, so a production build has no import of src/dev/ at all and
+// rolldown drops the file whole rather than emitting an unreachable chunk.
+const DevTweaks = import.meta.env.DEV
+  ? React.lazy(() => import('../../dev/TweaksPanel.jsx').then((m) => ({
+    default: function DevTweaksBody({ t, setTweak, onResetToday }) {
+      return (
+        <m.TweaksPanel>
+          <m.TweakSection label="Display" />
+          <m.TweakRadio label="Density" value={t.density} options={['compact', 'regular']}
+            onChange={(v) => setTweak('density', v)} />
+          <m.TweakSection label="Daily" />
+          <m.TweakButton label="Reset today's answers" secondary onClick={onResetToday} />
+        </m.TweaksPanel>
+      );
+    },
+  })))
+  : null;
 
 const { useState, useEffect } = React;
 
@@ -273,9 +298,21 @@ function App() {
         closeAll(); setOv(key);
         setOvBack(from === 'profile' && key !== 'profile' ? 'profile' : null);
       };
-      // All three are eager. `test` was the one that waited on the
-      // deferred overlay chunk, and it is gone (D121).
-      return show();
+      // EVERY one of these awaits the deferred chunk now, and the comment
+      // that stood here said the opposite: "All three are eager." That
+      // stopped being true at D200, which moved relmap.jsx into
+      // loadOverlays while leaving it in LIVE_OVERLAYS — so
+      // openOverlay('relmap') called show() with no await. It was safe only
+      // by accident: the sole opener lives inside the deferred chunk
+      // itself, so by the time anything could call it the chunk was loaded.
+      // A second opener anywhere else would have rendered nothing, and the
+      // render site is a bare identifier rather than the `window.X &&`
+      // form, so it would have been a ReferenceError.
+      //
+      // Awaiting unconditionally costs an already-resolved promise for a
+      // module that is already in, and removes the class of bug entirely
+      // rather than tracking which member of the list is in which chunk.
+      return openDeferred(show);
     };
     // Open the profile ON one of its tabs. The passive meter's rows used
     // to open the sit-down flow for an instrument; they open its profile
@@ -364,7 +401,7 @@ function App() {
       <div className={appClasses} data-tab={tab} data-view={tab === 'track' ? 'track:' + dailyMode : tab === 'patterns' ? 'patterns' : 'mirror:' + mirrorPop} data-lens-style="underline" data-docked={tab === 'track' && docked ? '' : undefined} data-mpop={tab === 'mirror' ? mirrorPop : undefined} style={tab === 'mirror' ? { '--accent': mirrorPop === 'you' ? 'var(--c-today)' : mirrorPop === 'circle' ? 'var(--c-people)' : mirrorPop === 'groups' ? 'var(--c-groups)' : mirrorPop === 'world' ? 'var(--c-world)' : 'var(--c-city)' } : tab === 'patterns' ? { '--accent': 'var(--c-today)' } : undefined}>
 
         <header className="app-header">
-          <button aria-label="Profile" className={"avatar-btn" + (ov === 'profile' ? ' is-on' : '')} onClick={() => { if (ov === 'profile') { setOv(null); } else { closeAll(); setOv('profile'); } }}>
+          <button aria-label="Profile" className={"avatar-btn" + (ov === 'profile' ? ' is-on' : '')} onClick={() => { if (ov === 'profile') { setOv(null); } else { openDeferred(() => { closeAll(); setOv('profile'); }); } }}>
             {ov === 'profile' ? '✕' : (liveInitials != null ? liveInitials : me.initials)}
           </button>
           {/* The switcher is in flow (the ruler), so this centre carries the
@@ -389,7 +426,7 @@ function App() {
             {/* the passive lens ring rides in the header, not in the feed's
                 chip row — it reports across tabs, not just the feed */}
             {window.PassiveMeter && <window.PassiveMeter></window.PassiveMeter>}
-            <button className="icon-btn" aria-label="Search" onClick={() => { closeAll(); setOv('search'); }}>
+            <button className="icon-btn" aria-label="Search" onClick={() => openDeferred(() => { closeAll(); setOv('search'); })}>
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><circle cx="11" cy="11" r="7"></circle><line x1="16.5" y1="16.5" x2="21" y2="21"></line></svg>
             </button>
           </div>
@@ -483,13 +520,21 @@ function App() {
 
         {/* Overlays — one at a time, keyed by `ov` */}
         <ErrorBoundary key={'ov-' + (ov || 'none') + (person ? '-p' : '') + (city ? '-c' : '')} onReset={closeAll}>
-          {/* The five below read their component off window rather than as a
+          {/* Some below read their component off window rather than as a
               bare identifier: they ship in the after-first-paint overlay
               chunk (loadOverlays, spec-index.js), and a bare name would be a
               ReferenceError rather than a blank if the chunk ever failed.
               The openers await the chunk, so in practice these are never
               false while their state is set — see openDeferred above.
-              `logic` was already written this way and is unchanged. */}
+
+              `profile` and `search` joined that chunk at D217 and KEPT the
+              bare identifier, deliberately: the `window.X &&` form costs two
+              shared-global references where a bare name costs one, and
+              check:globals rule 4 only moves down. What makes them safe is
+              the same thing that makes the guard redundant — every path that
+              sets `ov` now goes through openDeferred, including the two
+              header buttons, so the module is in before the state that
+              mounts it. */}
           {person && window.PersonOverlay && <window.PersonOverlay p={person} me={me} onClose={() => setPerson(null)} />}
           {city && window.CityOverlay && <window.CityOverlay city={city} onClose={() => setCity(null)} />}
           {ov === 'profile' && <ProfileOverlay onClose={() => setOv(null)} me={me} />}
@@ -516,12 +561,12 @@ function App() {
         </ErrorBoundary>
       </div>
 
-      <TweaksPanel>
-        <TweakSection label="Display" />
-        <TweakRadio label="Density" value={t.density} options={['compact', 'regular']} onChange={(v) => setTweak('density', v)} />
-        <TweakSection label="Daily" />
-        <TweakButton label="Reset today's answers" secondary onClick={() => { DUELS.resetToday(); setDailyKey((k) => k + 1); }} />
-      </TweaksPanel>
+      {DevTweaks && (
+        <React.Suspense fallback={null}>
+          <DevTweaks t={t} setTweak={setTweak}
+            onResetToday={() => { DUELS.resetToday(); setDailyKey((k) => k + 1); }} />
+        </React.Suspense>
+      )}
     </IOSDevice>
   );
 }
