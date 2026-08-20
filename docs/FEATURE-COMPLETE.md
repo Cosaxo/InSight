@@ -131,15 +131,19 @@ the live figures: `node scripts/farm-budget.mjs`,
 D161–D164 are the frame; [`SCALE-RUNBOOK.md`](SCALE-RUNBOOK.md) is the
 ordered list. Open, in its order:
 
-- **The core/tail enforcement half** (decided, D161 — lands with the
-  first tail content, not before): write the filter placement down per
-  call site (cohort folds read core only; a person's own answers are
-  always all of them), extend the fold filter beyond `LiveCohortBody` to
-  the similarity fields and Kindred, and add the test that a non-core
-  aggregate never reaches a Mirror stop. `LiveCircleBody` stays
-  unfiltered on purpose. Never ship the interest model before this.
-  [`SCALE-RUNBOOK.md`](SCALE-RUNBOOK.md) 2.1, [`MIRROR.md`](MIRROR.md)
-  preamble.
+- ~~**The core/tail enforcement half**~~ (D161) — **closed 2026-08-19
+  (D209)**: the placement is written down per call site in
+  [`SCALE-PLAN.md`](SCALE-PLAN.md) §1 § *Where the filter goes*. The
+  extension this bullet asked for turned out not to exist: exactly three
+  readers walk `aggregated()` — `LiveCohortBody` folds core only,
+  `LiveCircleBody` and the reading game fold all, each for a reason about
+  what the reading claims — and the five lenses take `lensQs` off that
+  already-filtered `archive`, Kindred included, while the similarity
+  field ranks by test score rather than the feed bank. Neither was ever a
+  second call site. The test is
+  [`SCALE-RUNBOOK.md`](SCALE-RUNBOOK.md) 2.3, verified by mutation, and
+  the interest model is unblocked. The ratio gate below is what stays
+  open.
 - **The core-size ratio gate** (decided, blocked on population): core
   may grow only as fast as the audience that fills its cohort cells — a
   `check:quality` gate once there is a population to measure against.
@@ -165,8 +169,8 @@ ordered list. Open, in its order:
   seven modules left the eager list for `loadMapTab()` the same day
   (eager 890 → 849 KB, `MAX_EAGER_KB` 920 → 860). The three parked
   features — Crossroads' `mapTree`, the Foresight map branch, the pulse
-  branch — now grow inside the lazy map chunk; building them is the next
-  item. [`VISION-V28.md`](VISION-V28.md) §5.
+  branch — grew inside the lazy map chunk and all three shipped the same
+  day (§4 item 5). [`VISION-V28.md`](VISION-V28.md) §5.
 - **The bridge migration** (ratchet, D39): `check:globals` rule 4 only
   moves down; the v28 tweak teardown is the next large lump of it, and
   `passive-progress.js` / `test-definitions.js` still want to become
