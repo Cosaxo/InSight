@@ -63,6 +63,13 @@ const HTML_FILES = [
   "web/privacy.html",
   "web/home.html",
   "web/terms.html",
+  // The invite-link fallback: firebase.json rewrites /join/** here, so it
+  // is the page a NON-user lands on first — and it already makes an
+  // answer-visibility claim ("sealed until tomorrow — then revealed").
+  // It went unlisted until 2026-08-20, which was exactly D106's failure
+  // shape: the surface nobody enumerated is where the vocabulary comes
+  // back.
+  "web/join.html",
 ];
 const TSX_FILES = [
   "src/v2/ui/LivePrivacyPanel.tsx",
