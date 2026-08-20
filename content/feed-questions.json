@@ -154,7 +154,9 @@
       "id": "f06",
       "core": true,
       "cat": "sport",
-      "also": ["tech"],
+      "also": [
+        "tech"
+      ],
       "type": "vote",
       "prompt": "E-sports are real sports.",
       "options": [
@@ -172,7 +174,9 @@
       "id": "f07",
       "core": true,
       "cat": "sport",
-      "also": ["dilemma"],
+      "also": [
+        "dilemma"
+      ],
       "type": "vote",
       "prompt": "Your team wins it all — but you can never watch them again. Deal?",
       "options": [
@@ -245,7 +249,9 @@
       "id": "f11",
       "core": true,
       "cat": "food",
-      "also": ["tech"],
+      "also": [
+        "tech"
+      ],
       "type": "vote",
       "prompt": "Would you eat lab-grown meat?",
       "options": [
@@ -263,7 +269,9 @@
       "id": "f12",
       "core": true,
       "cat": "food",
-      "also": ["dilemma"],
+      "also": [
+        "dilemma"
+      ],
       "type": "vote",
       "prompt": "A free pill replaces all meals. Food becomes hobby-only. Take it?",
       "options": [
@@ -369,7 +377,9 @@
       "id": "f18",
       "core": true,
       "cat": "movies",
-      "also": ["culture"],
+      "also": [
+        "culture"
+      ],
       "type": "vote",
       "prompt": "Watching at 1.5× speed is disrespectful.",
       "options": [
@@ -464,7 +474,9 @@
       "id": "f23",
       "core": true,
       "cat": "music",
-      "also": ["tech"],
+      "also": [
+        "tech"
+      ],
       "type": "vote",
       "prompt": "Vinyl actually sounds better.",
       "options": [
@@ -538,7 +550,9 @@
       "id": "f27",
       "core": true,
       "cat": "tech",
-      "also": ["event"],
+      "also": [
+        "event"
+      ],
       "type": "vote",
       "prompt": "Phones should be banned in schools.",
       "options": [
@@ -576,7 +590,9 @@
       "id": "f29",
       "core": true,
       "cat": "tech",
-      "also": ["dilemma"],
+      "also": [
+        "dilemma"
+      ],
       "type": "vote",
       "prompt": "Delete all your data and start clean, or keep everything forever?",
       "options": [
@@ -594,7 +610,9 @@
       "id": "f30",
       "core": true,
       "cat": "tech",
-      "also": ["dilemma"],
+      "also": [
+        "dilemma"
+      ],
       "type": "vote",
       "prompt": "A robot does your chores but records everything. Deal?",
       "options": [
@@ -629,7 +647,9 @@
       "id": "f32",
       "core": true,
       "cat": "culture",
-      "also": ["event"],
+      "also": [
+        "event"
+      ],
       "type": "vote",
       "prompt": "Tipping should be abolished.",
       "options": [
@@ -1405,7 +1425,9 @@
       "id": "dl2",
       "core": true,
       "cat": "dilemma",
-      "also": ["culture"],
+      "also": [
+        "culture"
+      ],
       "type": "dial",
       "prompt": "The right tip",
       "lo": 0,
@@ -1416,7 +1438,9 @@
       "id": "dl3",
       "core": true,
       "cat": "dilemma",
-      "also": ["tech"],
+      "also": [
+        "tech"
+      ],
       "type": "dial",
       "prompt": "Daily screen time — where does “too much” start?",
       "lo": 1,
@@ -1437,7 +1461,9 @@
       "id": "fd1",
       "core": true,
       "cat": "dilemma",
-      "also": ["food"],
+      "also": [
+        "food"
+      ],
       "type": "field",
       "prompt": "Pineapple on pizza — place it",
       "ax": [
@@ -1453,7 +1479,9 @@
       "id": "fd2",
       "core": true,
       "cat": "bigq",
-      "also": ["culture"],
+      "also": [
+        "culture"
+      ],
       "type": "field",
       "prompt": "Small talk — place it",
       "ax": [
@@ -1469,7 +1497,9 @@
       "id": "fd3",
       "core": true,
       "cat": "bigq",
-      "also": ["tech"],
+      "also": [
+        "tech"
+      ],
       "type": "field",
       "prompt": "AI assistants, today — place them",
       "ax": [
@@ -1931,6 +1961,109 @@
       "lo": 25,
       "hi": 45,
       "unit": "yrs"
+    },
+    {
+      "id": "f68",
+      "core": false,
+      "cat": "music",
+      "type": "vote",
+      "prompt": "Mozart or Beethoven?",
+      "options": [
+        {
+          "label": "Mozart",
+          "count": 2400
+        },
+        {
+          "label": "Beethoven",
+          "count": 2700
+        }
+      ]
+    },
+    {
+      "id": "f69",
+      "core": false,
+      "cat": "people",
+      "type": "vote",
+      "prompt": "Would you take fame, if it were offered?",
+      "options": [
+        {
+          "label": "Take it",
+          "count": 2100
+        },
+        {
+          "label": "No thanks",
+          "count": 3300
+        }
+      ]
+    },
+    {
+      "id": "f70",
+      "core": false,
+      "cat": "movies",
+      "type": "vote",
+      "prompt": "The best seat in the cinema?",
+      "options": [
+        {
+          "label": "Front row",
+          "count": 600
+        },
+        {
+          "label": "Middle of the middle",
+          "count": 3400
+        },
+        {
+          "label": "Back corner",
+          "count": 1500
+        },
+        {
+          "label": "On the aisle",
+          "count": 900
+        }
+      ]
+    },
+    {
+      "id": "f71",
+      "core": false,
+      "cat": "event",
+      "type": "vote",
+      "prompt": "Should the Olympics settle in one permanent home?",
+      "options": [
+        {
+          "label": "One home",
+          "count": 1900
+        },
+        {
+          "label": "Keep it moving",
+          "count": 3600
+        }
+      ]
+    },
+    {
+      "id": "dl7",
+      "core": false,
+      "cat": "food",
+      "type": "dial",
+      "prompt": "How many coffees a day is too many?",
+      "lo": 1,
+      "hi": 10,
+      "unit": "cups"
+    },
+    {
+      "id": "f72",
+      "core": false,
+      "cat": "bigq",
+      "type": "vote",
+      "prompt": "Would you live forever, if you could?",
+      "options": [
+        {
+          "label": "Forever, yes",
+          "count": 2300
+        },
+        {
+          "label": "One life is right",
+          "count": 3200
+        }
+      ]
     }
   ]
 }

@@ -4557,6 +4557,111 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "unit": "yrs"
  },
  {
+  "id": "feed-f68",
+  "surface": "feed",
+  "seq": 94,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Mozart or Beethoven?",
+  "options": [
+   "Mozart",
+   "Beethoven"
+  ],
+  "topic": "music",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f69",
+  "surface": "feed",
+  "seq": 95,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Would you take fame, if it were offered?",
+  "options": [
+   "Take it",
+   "No thanks"
+  ],
+  "topic": "people",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f70",
+  "surface": "feed",
+  "seq": 96,
+  "type": "vote",
+  "domain": null,
+  "prompt": "The best seat in the cinema?",
+  "options": [
+   "Front row",
+   "Middle of the middle",
+   "Back corner",
+   "On the aisle"
+  ],
+  "topic": "movies",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f71",
+  "surface": "feed",
+  "seq": 97,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Should the Olympics settle in one permanent home?",
+  "options": [
+   "One home",
+   "Keep it moving"
+  ],
+  "topic": "event",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-dl7",
+  "surface": "feed",
+  "seq": 98,
+  "type": "dial",
+  "domain": null,
+  "prompt": "How many coffees a day is too many?",
+  "options": [
+   "1–2 cups",
+   "2–3 cups",
+   "3–3 cups",
+   "3–4 cups",
+   "4–5 cups",
+   "5–6 cups",
+   "6–6 cups",
+   "6–7 cups",
+   "7–8 cups",
+   "8–9 cups",
+   "9–9 cups",
+   "9–10 cups"
+  ],
+  "topic": "food",
+  "axis": null,
+  "test": null,
+  "lo": 1,
+  "hi": 10,
+  "unit": "cups"
+ },
+ {
+  "id": "feed-f72",
+  "surface": "feed",
+  "seq": 99,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Would you live forever, if you could?",
+  "options": [
+   "Forever, yes",
+   "One life is right"
+  ],
+  "topic": "bigq",
+  "axis": null,
+  "test": null
+ },
+ {
   "id": "group-gu0",
   "surface": "group",
   "seq": 0,
