@@ -1,15 +1,15 @@
 {
-  "generatedAt": "2026-08-19T07:17:15.866Z",
-  "daysSinceEpoch": 18,
+  "generatedAt": "2026-08-20T07:17:43.355Z",
+  "daysSinceEpoch": 19,
   "coverage": {
-    "questions": 188,
+    "questions": 208,
     "scored": 0,
     "belowFloor": 6,
-    "unserved": 96
+    "unserved": 103
   },
   "topics": {
     "Sport": {
-      "questions": 5,
+      "questions": 6,
       "scored": 0,
       "answers": 0,
       "strong": 0,
@@ -17,7 +17,7 @@
       "avgEvenness": null
     },
     "Film": {
-      "questions": 5,
+      "questions": 6,
       "scored": 0,
       "answers": 0,
       "strong": 0,
@@ -25,7 +25,7 @@
       "avgEvenness": null
     },
     "Food": {
-      "questions": 7,
+      "questions": 8,
       "scored": 0,
       "answers": 0,
       "strong": 0,
@@ -57,7 +57,7 @@
       "avgEvenness": null
     },
     "Travel": {
-      "questions": 7,
+      "questions": 8,
       "scored": 0,
       "answers": 0,
       "strong": 0,
@@ -65,7 +65,7 @@
       "avgEvenness": null
     },
     "Music": {
-      "questions": 7,
+      "questions": 8,
       "scored": 0,
       "answers": 0,
       "strong": 0,
@@ -73,7 +73,7 @@
       "avgEvenness": null
     },
     "Body": {
-      "questions": 7,
+      "questions": 8,
       "scored": 0,
       "answers": 0,
       "strong": 0,
@@ -105,14 +105,6 @@
       "avgEvenness": null
     },
     "Skills": {
-      "questions": 5,
-      "scored": 0,
-      "answers": 0,
-      "strong": 0,
-      "landslides": 0,
-      "avgEvenness": null
-    },
-    "Interests": {
       "questions": 6,
       "scored": 0,
       "answers": 0,
@@ -120,32 +112,16 @@
       "landslides": 0,
       "avgEvenness": null
     },
+    "Interests": {
+      "questions": 7,
+      "scored": 0,
+      "answers": 0,
+      "strong": 0,
+      "landslides": 0,
+      "avgEvenness": null
+    },
     "sport": {
-      "questions": 11,
-      "scored": 0,
-      "answers": 0,
-      "strong": 0,
-      "landslides": 0,
-      "avgEvenness": null
-    },
-    "food": {
-      "questions": 8,
-      "scored": 0,
-      "answers": 0,
-      "strong": 0,
-      "landslides": 0,
-      "avgEvenness": null
-    },
-    "movies": {
-      "questions": 5,
-      "scored": 0,
-      "answers": 0,
-      "strong": 0,
-      "landslides": 0,
-      "avgEvenness": null
-    },
-    "music": {
-      "questions": 4,
+      "questions": 12,
       "scored": 0,
       "answers": 0,
       "strong": 0,
@@ -153,14 +129,6 @@
       "avgEvenness": null
     },
     "tech": {
-      "questions": 5,
-      "scored": 0,
-      "answers": 0,
-      "strong": 0,
-      "landslides": 0,
-      "avgEvenness": null
-    },
-    "culture": {
       "questions": 11,
       "scored": 0,
       "answers": 0,
@@ -169,7 +137,39 @@
       "avgEvenness": null
     },
     "dilemma": {
-      "questions": 12,
+      "questions": 16,
+      "scored": 0,
+      "answers": 0,
+      "strong": 0,
+      "landslides": 0,
+      "avgEvenness": null
+    },
+    "food": {
+      "questions": 11,
+      "scored": 0,
+      "answers": 0,
+      "strong": 0,
+      "landslides": 0,
+      "avgEvenness": null
+    },
+    "movies": {
+      "questions": 7,
+      "scored": 0,
+      "answers": 0,
+      "strong": 0,
+      "landslides": 0,
+      "avgEvenness": null
+    },
+    "culture": {
+      "questions": 14,
+      "scored": 0,
+      "answers": 0,
+      "strong": 0,
+      "landslides": 0,
+      "avgEvenness": null
+    },
+    "music": {
+      "questions": 6,
       "scored": 0,
       "answers": 0,
       "strong": 0,
@@ -177,7 +177,7 @@
       "avgEvenness": null
     },
     "event": {
-      "questions": 4,
+      "questions": 8,
       "scored": 0,
       "answers": 0,
       "strong": 0,
@@ -185,7 +185,7 @@
       "avgEvenness": null
     },
     "people": {
-      "questions": 3,
+      "questions": 5,
       "scored": 0,
       "answers": 0,
       "strong": 0,
@@ -204,7 +204,7 @@
   "types": {
     "daily": {
       "binary": {
-        "questions": 36,
+        "questions": 40,
         "scored": 0,
         "answers": 0,
         "strong": 0,
@@ -212,7 +212,7 @@
         "avgEvenness": null
       },
       "choice": {
-        "questions": 27,
+        "questions": 29,
         "scored": 0,
         "answers": 0,
         "strong": 0,
@@ -220,7 +220,7 @@
         "avgEvenness": null
       },
       "scale": {
-        "questions": 16,
+        "questions": 18,
         "scored": 0,
         "answers": 0,
         "strong": 0,
@@ -254,7 +254,7 @@
         "avgEvenness": null
       },
       "vote": {
-        "questions": 59,
+        "questions": 69,
         "scored": 0,
         "answers": 0,
         "strong": 0,
@@ -262,7 +262,7 @@
         "avgEvenness": null
       },
       "dial": {
-        "questions": 4,
+        "questions": 6,
         "scored": 0,
         "answers": 0,
         "strong": 0,
@@ -297,7 +297,7 @@
     "bySource": {
       "editorial": {
         "questions": 176,
-        "served": 92,
+        "served": 93,
         "scored": 0,
         "answers": 0,
         "strong": 0,
@@ -305,8 +305,8 @@
         "avgEvenness": null
       },
       "farm": {
-        "questions": 12,
-        "served": 0,
+        "questions": 32,
+        "served": 12,
         "scored": 0,
         "answers": 0,
         "strong": 0,
@@ -317,7 +317,7 @@
     "byVintage": {
       "editorial:prototype": {
         "questions": 118,
-        "served": 83,
+        "served": 84,
         "scored": 0,
         "answers": 0,
         "strong": 0,
@@ -351,6 +351,15 @@
         "landslides": 0,
         "avgEvenness": null
       },
+      "farm:2026-08-19": {
+        "questions": 14,
+        "served": 6,
+        "scored": 0,
+        "answers": 0,
+        "strong": 0,
+        "landslides": 0,
+        "avgEvenness": null
+      },
       "editorial:v20": {
         "questions": 7,
         "served": 7,
@@ -368,19 +377,28 @@
         "strong": 0,
         "landslides": 0,
         "avgEvenness": null
+      },
+      "farm:2026-08-18": {
+        "questions": 6,
+        "served": 6,
+        "scored": 0,
+        "answers": 0,
+        "strong": 0,
+        "landslides": 0,
+        "avgEvenness": null
       }
     }
   },
   "retireProposals": [],
   "learn": {
     "coverage": {
-      "cards": 106,
+      "cards": 126,
       "scored": 0,
       "belowFloor": 10
     },
     "fields": {
       "cell": {
-        "cards": 8,
+        "cards": 13,
         "scored": 0,
         "answers": 0,
         "avgAbsGap": null
@@ -422,7 +440,7 @@
         "avgAbsGap": null
       },
       "c20": {
-        "cards": 8,
+        "cards": 13,
         "scored": 0,
         "answers": 0,
         "avgAbsGap": null
@@ -434,7 +452,7 @@
         "avgAbsGap": null
       },
       "capitals": {
-        "cards": 8,
+        "cards": 13,
         "scored": 0,
         "answers": 0,
         "avgAbsGap": null
@@ -446,7 +464,7 @@
         "avgAbsGap": null
       },
       "confused": {
-        "cards": 8,
+        "cards": 13,
         "scored": 0,
         "answers": 0,
         "avgAbsGap": null
@@ -1832,6 +1850,266 @@
         "trapShare": null,
         "wrongCount": 0,
         "signal": "no-answers"
+      },
+      {
+        "qid": "learn-c209",
+        "field": "c20",
+        "n": 4,
+        "prompt": "The Titanic sank in…",
+        "total": 0,
+        "authoredP": 0.72,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-c210",
+        "field": "c20",
+        "n": 4,
+        "prompt": "The Wright brothers first flew in…",
+        "total": 0,
+        "authoredP": 0.55,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-c211",
+        "field": "c20",
+        "n": 4,
+        "prompt": "The Chernobyl disaster happened in…",
+        "total": 0,
+        "authoredP": 0.63,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-c212",
+        "field": "c20",
+        "n": 4,
+        "prompt": "India became independent in…",
+        "total": 0,
+        "authoredP": 0.48,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-c213",
+        "field": "c20",
+        "n": 4,
+        "prompt": "The first woman to win a Nobel Prize was…",
+        "total": 0,
+        "authoredP": 0.67,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-cap9",
+        "field": "capitals",
+        "n": 4,
+        "prompt": "The capital of the United States is…",
+        "total": 0,
+        "authoredP": 0.88,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-cap10",
+        "field": "capitals",
+        "n": 4,
+        "prompt": "The capital of Vietnam is…",
+        "total": 0,
+        "authoredP": 0.52,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-cap11",
+        "field": "capitals",
+        "n": 4,
+        "prompt": "The capital of the Netherlands is…",
+        "total": 0,
+        "authoredP": 0.46,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-cap12",
+        "field": "capitals",
+        "n": 4,
+        "prompt": "The capital of Nigeria is…",
+        "total": 0,
+        "authoredP": 0.36,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-cap13",
+        "field": "capitals",
+        "n": 4,
+        "prompt": "The capital of Tanzania is…",
+        "total": 0,
+        "authoredP": 0.27,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-cell9",
+        "field": "cell",
+        "n": 4,
+        "prompt": "What controls what enters and leaves a cell?",
+        "total": 0,
+        "authoredP": 0.55,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-cell10",
+        "field": "cell",
+        "n": 4,
+        "prompt": "What speeds a cell's chemical reactions up without being used up?",
+        "total": 0,
+        "authoredP": 0.66,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-cell11",
+        "field": "cell",
+        "n": 4,
+        "prompt": "Water moving across a membrane toward the saltier side is…",
+        "total": 0,
+        "authoredP": 0.72,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-cell12",
+        "field": "cell",
+        "n": 4,
+        "prompt": "Where does a new cell come from?",
+        "total": 0,
+        "authoredP": 0.48,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-cell13",
+        "field": "cell",
+        "n": 4,
+        "prompt": "Which organelle packages and ships proteins?",
+        "total": 0,
+        "authoredP": 0.8,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-con9",
+        "field": "confused",
+        "n": 4,
+        "prompt": "Weather and climate differ because…",
+        "total": 0,
+        "authoredP": 0.5,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-con10",
+        "field": "confused",
+        "n": 4,
+        "prompt": "Standing on the Moon, what actually changes?",
+        "total": 0,
+        "authoredP": 0.63,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-con11",
+        "field": "confused",
+        "n": 4,
+        "prompt": "A snake that injects toxin through a bite is…",
+        "total": 0,
+        "authoredP": 0.58,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-con12",
+        "field": "confused",
+        "n": 4,
+        "prompt": "Comparing two things, you use…",
+        "total": 0,
+        "authoredP": 0.44,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-con13",
+        "field": "confused",
+        "n": 4,
+        "prompt": "Antibiotics work against…",
+        "total": 0,
+        "authoredP": 0.7,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
       }
     ]
   },
@@ -2908,6 +3186,9 @@
       "qid": "daily-000",
       "surface": "daily",
       "topic": "Sport",
+      "topics": [
+        "Sport"
+      ],
       "type": "binary",
       "prompt": "Messi or Ronaldo?",
       "served": true,
@@ -2920,6 +3201,9 @@
       "qid": "daily-001",
       "surface": "daily",
       "topic": "Film",
+      "topics": [
+        "Film"
+      ],
       "type": "binary",
       "prompt": "Tarantino or Wes Anderson?",
       "served": true,
@@ -2932,6 +3216,9 @@
       "qid": "daily-002",
       "surface": "daily",
       "topic": "Food",
+      "topics": [
+        "Food"
+      ],
       "type": "binary",
       "prompt": "Pineapple on pizza?",
       "served": true,
@@ -2944,6 +3231,9 @@
       "qid": "daily-003",
       "surface": "daily",
       "topic": "Values",
+      "topics": [
+        "Values"
+      ],
       "type": "choice",
       "prompt": "What do you want more of this year?",
       "served": true,
@@ -2956,6 +3246,9 @@
       "qid": "daily-004",
       "surface": "daily",
       "topic": "Mind",
+      "topics": [
+        "Mind"
+      ],
       "type": "scale",
       "prompt": "It's okay to do nothing sometimes.",
       "served": true,
@@ -2968,6 +3261,9 @@
       "qid": "daily-005",
       "surface": "daily",
       "topic": "Morals",
+      "topics": [
+        "Morals"
+      ],
       "type": "binary",
       "prompt": "Are people getting kinder, or meaner?",
       "served": true,
@@ -2980,6 +3276,9 @@
       "qid": "daily-006",
       "surface": "daily",
       "topic": "Morals",
+      "topics": [
+        "Morals"
+      ],
       "type": "dilemma",
       "prompt": "You find a week's pay in cash on an empty street. What do you do?",
       "served": true,
@@ -2992,6 +3291,9 @@
       "qid": "daily-007",
       "surface": "daily",
       "topic": "Mind",
+      "topics": [
+        "Mind"
+      ],
       "type": "rating",
       "prompt": "How optimistic are you about the next ten years?",
       "served": true,
@@ -3004,6 +3306,9 @@
       "qid": "daily-008",
       "surface": "daily",
       "topic": "Values",
+      "topics": [
+        "Values"
+      ],
       "type": "scale",
       "prompt": "People are basically trustworthy.",
       "served": true,
@@ -3016,6 +3321,9 @@
       "qid": "daily-009",
       "surface": "daily",
       "topic": "Mind",
+      "topics": [
+        "Mind"
+      ],
       "type": "binary",
       "prompt": "A pill that ends your need for sleep. Take it?",
       "served": true,
@@ -3028,6 +3336,9 @@
       "qid": "daily-010",
       "surface": "daily",
       "topic": "Values",
+      "topics": [
+        "Values"
+      ],
       "type": "choice",
       "prompt": "What should schools teach more of?",
       "served": true,
@@ -3040,6 +3351,9 @@
       "qid": "daily-011",
       "surface": "daily",
       "topic": "Morals",
+      "topics": [
+        "Morals"
+      ],
       "type": "dilemma",
       "prompt": "A job you would love means moving somewhere the person closest to you would hate. Do you take it?",
       "served": true,
@@ -3052,6 +3366,9 @@
       "qid": "daily-012",
       "surface": "daily",
       "topic": "Sport",
+      "topics": [
+        "Sport"
+      ],
       "type": "binary",
       "prompt": "Would you rather watch sport, or play it?",
       "served": true,
@@ -3064,6 +3381,9 @@
       "qid": "daily-013",
       "surface": "daily",
       "topic": "Values",
+      "topics": [
+        "Values"
+      ],
       "type": "scale",
       "prompt": "Suffering can give life meaning.",
       "served": true,
@@ -3076,6 +3396,9 @@
       "qid": "daily-014",
       "surface": "daily",
       "topic": "Mind",
+      "topics": [
+        "Mind"
+      ],
       "type": "rating",
       "prompt": "How much do you trust the news you read?",
       "served": true,
@@ -3088,6 +3411,9 @@
       "qid": "daily-015",
       "surface": "daily",
       "topic": "Mind",
+      "topics": [
+        "Mind"
+      ],
       "type": "binary",
       "prompt": "Will AI make everyday life better, or worse?",
       "served": true,
@@ -3100,6 +3426,9 @@
       "qid": "daily-016",
       "surface": "daily",
       "topic": "Mind",
+      "topics": [
+        "Mind"
+      ],
       "type": "choice",
       "prompt": "Humanity's best invention?",
       "served": true,
@@ -3112,6 +3441,9 @@
       "qid": "daily-017",
       "surface": "daily",
       "topic": "Mind",
+      "topics": [
+        "Mind"
+      ],
       "type": "scale",
       "prompt": "Technology is making us lonelier.",
       "served": true,
@@ -3124,18 +3456,24 @@
       "qid": "daily-018",
       "surface": "daily",
       "topic": "Values",
+      "topics": [
+        "Values"
+      ],
       "type": "choice",
       "prompt": "What matters most in a life well lived?",
-      "served": false,
+      "served": true,
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "unserved"
+      "signal": "no-answers"
     },
     {
       "qid": "daily-019",
       "surface": "daily",
       "topic": "Mind",
+      "topics": [
+        "Mind"
+      ],
       "type": "dilemma",
       "prompt": "Would you rather know the exact date of your death?",
       "served": false,
@@ -3148,6 +3486,9 @@
       "qid": "daily-020",
       "surface": "daily",
       "topic": "Mind",
+      "topics": [
+        "Mind"
+      ],
       "type": "rating",
       "prompt": "How much of your life so far is luck?",
       "served": false,
@@ -3160,6 +3501,9 @@
       "qid": "daily-021",
       "surface": "daily",
       "topic": "Values",
+      "topics": [
+        "Values"
+      ],
       "type": "scale",
       "prompt": "I'd rather have a few deep friendships than many.",
       "served": false,
@@ -3172,6 +3516,9 @@
       "qid": "daily-022",
       "surface": "daily",
       "topic": "Morals",
+      "topics": [
+        "Morals"
+      ],
       "type": "dilemma",
       "prompt": "A lie that spares someone real pain. Tell it?",
       "served": false,
@@ -3184,6 +3531,9 @@
       "qid": "daily-023",
       "surface": "daily",
       "topic": "Morals",
+      "topics": [
+        "Morals"
+      ],
       "type": "scale",
       "prompt": "It's better to be honest than kind.",
       "served": false,
@@ -3196,6 +3546,9 @@
       "qid": "daily-024",
       "surface": "daily",
       "topic": "Values",
+      "topics": [
+        "Values"
+      ],
       "type": "scale",
       "prompt": "Money buys happiness.",
       "served": false,
@@ -3208,6 +3561,9 @@
       "qid": "daily-025",
       "surface": "daily",
       "topic": "Mind",
+      "topics": [
+        "Mind"
+      ],
       "type": "rating",
       "prompt": "How much control do you feel over your life?",
       "served": false,
@@ -3220,6 +3576,9 @@
       "qid": "daily-026",
       "surface": "daily",
       "topic": "Values",
+      "topics": [
+        "Values"
+      ],
       "type": "choice",
       "prompt": "Where does your sense of self come from?",
       "served": false,
@@ -3232,6 +3591,9 @@
       "qid": "daily-027",
       "surface": "daily",
       "topic": "Mind",
+      "topics": [
+        "Mind"
+      ],
       "type": "binary",
       "prompt": "Relive your best day, or live a new one?",
       "served": false,
@@ -3244,6 +3606,9 @@
       "qid": "daily-028",
       "surface": "daily",
       "topic": "Travel",
+      "topics": [
+        "Travel"
+      ],
       "type": "choice",
       "prompt": "Pick a season for the soul.",
       "served": false,
@@ -3256,6 +3621,9 @@
       "qid": "daily-029",
       "surface": "daily",
       "topic": "Morals",
+      "topics": [
+        "Morals"
+      ],
       "type": "scale",
       "prompt": "Most people would help a stranger in need.",
       "served": false,
@@ -3268,6 +3636,9 @@
       "qid": "daily-030",
       "surface": "daily",
       "topic": "Sport",
+      "topics": [
+        "Sport"
+      ],
       "type": "binary",
       "prompt": "Team sports or solo sports?",
       "served": false,
@@ -3280,6 +3651,9 @@
       "qid": "daily-031",
       "surface": "daily",
       "topic": "Sport",
+      "topics": [
+        "Sport"
+      ],
       "type": "choice",
       "prompt": "Best way to watch a final?",
       "served": false,
@@ -3292,6 +3666,9 @@
       "qid": "daily-032",
       "surface": "daily",
       "topic": "Film",
+      "topics": [
+        "Film"
+      ],
       "type": "binary",
       "prompt": "Subtitles or dubbing?",
       "served": false,
@@ -3304,6 +3681,9 @@
       "qid": "daily-033",
       "surface": "daily",
       "topic": "Film",
+      "topics": [
+        "Film"
+      ],
       "type": "choice",
       "prompt": "A great film should leave you…",
       "served": false,
@@ -3316,6 +3696,9 @@
       "qid": "daily-034",
       "surface": "daily",
       "topic": "Film",
+      "topics": [
+        "Film"
+      ],
       "type": "binary",
       "prompt": "Cinema or sofa?",
       "served": false,
@@ -3328,6 +3711,9 @@
       "qid": "daily-035",
       "surface": "daily",
       "topic": "Food",
+      "topics": [
+        "Food"
+      ],
       "type": "binary",
       "prompt": "Cook at home or eat out?",
       "served": false,
@@ -3340,6 +3726,9 @@
       "qid": "daily-036",
       "surface": "daily",
       "topic": "Food",
+      "topics": [
+        "Food"
+      ],
       "type": "choice",
       "prompt": "One cuisine, forever?",
       "served": false,
@@ -3352,6 +3741,9 @@
       "qid": "daily-037",
       "surface": "daily",
       "topic": "Food",
+      "topics": [
+        "Food"
+      ],
       "type": "scale",
       "prompt": "Breakfast is the best meal of the day.",
       "served": false,
@@ -3364,6 +3756,9 @@
       "qid": "daily-038",
       "surface": "daily",
       "topic": "Travel",
+      "topics": [
+        "Travel"
+      ],
       "type": "binary",
       "prompt": "Mountains or sea?",
       "served": false,
@@ -3376,6 +3771,9 @@
       "qid": "daily-039",
       "surface": "daily",
       "topic": "Travel",
+      "topics": [
+        "Travel"
+      ],
       "type": "choice",
       "prompt": "The best part of a trip?",
       "served": false,
@@ -3388,6 +3786,9 @@
       "qid": "daily-040",
       "surface": "daily",
       "topic": "Travel",
+      "topics": [
+        "Travel"
+      ],
       "type": "binary",
       "prompt": "One trip in a time machine: past or future?",
       "served": false,
@@ -3400,6 +3801,9 @@
       "qid": "daily-041",
       "surface": "daily",
       "topic": "Music",
+      "topics": [
+        "Music"
+      ],
       "type": "binary",
       "prompt": "A live gig or the perfect recording?",
       "served": false,
@@ -3412,6 +3816,9 @@
       "qid": "daily-042",
       "surface": "daily",
       "topic": "Music",
+      "topics": [
+        "Music"
+      ],
       "type": "choice",
       "prompt": "Music is mostly for…",
       "served": false,
@@ -3424,6 +3831,9 @@
       "qid": "daily-043",
       "surface": "daily",
       "topic": "Music",
+      "topics": [
+        "Music"
+      ],
       "type": "binary",
       "prompt": "Lyrics or melody?",
       "served": false,
@@ -3436,6 +3846,9 @@
       "qid": "daily-044",
       "surface": "daily",
       "topic": "Body",
+      "topics": [
+        "Body"
+      ],
       "type": "binary",
       "prompt": "Morning person or night owl?",
       "served": false,
@@ -3448,6 +3861,9 @@
       "qid": "daily-045",
       "surface": "daily",
       "topic": "Body",
+      "topics": [
+        "Body"
+      ],
       "type": "scale",
       "prompt": "I feel better after moving — every time.",
       "served": false,
@@ -3460,6 +3876,9 @@
       "qid": "daily-046",
       "surface": "daily",
       "topic": "Story",
+      "topics": [
+        "Story"
+      ],
       "type": "choice",
       "prompt": "Your childhood self would think you’re…",
       "served": false,
@@ -3472,6 +3891,9 @@
       "qid": "daily-047",
       "surface": "daily",
       "topic": "Story",
+      "topics": [
+        "Story"
+      ],
       "type": "binary",
       "prompt": "Would you read a diary you kept at 15?",
       "served": false,
@@ -3484,6 +3906,9 @@
       "qid": "daily-048",
       "surface": "daily",
       "topic": "Goals",
+      "topics": [
+        "Goals"
+      ],
       "type": "choice",
       "prompt": "This decade is mostly for…",
       "served": false,
@@ -3496,6 +3921,9 @@
       "qid": "daily-049",
       "surface": "daily",
       "topic": "Goals",
+      "topics": [
+        "Goals"
+      ],
       "type": "scale",
       "prompt": "I know what I want from the next five years.",
       "served": false,
@@ -3508,6 +3936,9 @@
       "qid": "daily-050",
       "surface": "daily",
       "topic": "Home",
+      "topics": [
+        "Home"
+      ],
       "type": "choice",
       "prompt": "Home is mostly…",
       "served": false,
@@ -3520,6 +3951,9 @@
       "qid": "daily-051",
       "surface": "daily",
       "topic": "Skills",
+      "topics": [
+        "Skills"
+      ],
       "type": "binary",
       "prompt": "Master one thing, or dabble in many?",
       "served": false,
@@ -3532,6 +3966,9 @@
       "qid": "daily-052",
       "surface": "daily",
       "topic": "Interests",
+      "topics": [
+        "Interests"
+      ],
       "type": "binary",
       "prompt": "New hobby: learn alone or join a club?",
       "served": false,
@@ -3544,6 +3981,9 @@
       "qid": "daily-053",
       "surface": "daily",
       "topic": "Home",
+      "topics": [
+        "Home"
+      ],
       "type": "binary",
       "prompt": "A tidy home or a lived-in one?",
       "served": false,
@@ -3556,6 +3996,9 @@
       "qid": "daily-054",
       "surface": "daily",
       "topic": "Home",
+      "topics": [
+        "Home"
+      ],
       "type": "choice",
       "prompt": "What makes a place feel like home first?",
       "served": false,
@@ -3568,6 +4011,9 @@
       "qid": "daily-055",
       "surface": "daily",
       "topic": "Home",
+      "topics": [
+        "Home"
+      ],
       "type": "binary",
       "prompt": "A full house or a quiet one?",
       "served": false,
@@ -3580,6 +4026,9 @@
       "qid": "daily-056",
       "surface": "daily",
       "topic": "Home",
+      "topics": [
+        "Home"
+      ],
       "type": "choice",
       "prompt": "Your home’s one non-negotiable?",
       "served": false,
@@ -3592,6 +4041,9 @@
       "qid": "daily-057",
       "surface": "daily",
       "topic": "Skills",
+      "topics": [
+        "Skills"
+      ],
       "type": "binary",
       "prompt": "Read the manual, or wing it?",
       "served": false,
@@ -3604,6 +4056,9 @@
       "qid": "daily-058",
       "surface": "daily",
       "topic": "Skills",
+      "topics": [
+        "Skills"
+      ],
       "type": "choice",
       "prompt": "Which would you master overnight, if you could?",
       "served": false,
@@ -3616,6 +4071,9 @@
       "qid": "daily-059",
       "surface": "daily",
       "topic": "Skills",
+      "topics": [
+        "Skills"
+      ],
       "type": "choice",
       "prompt": "The hardest thing to learn?",
       "served": false,
@@ -3628,6 +4086,9 @@
       "qid": "daily-060",
       "surface": "daily",
       "topic": "Skills",
+      "topics": [
+        "Skills"
+      ],
       "type": "scale",
       "prompt": "Being bad at something new is half the fun.",
       "served": false,
@@ -3640,6 +4101,9 @@
       "qid": "daily-061",
       "surface": "daily",
       "topic": "Interests",
+      "topics": [
+        "Interests"
+      ],
       "type": "binary",
       "prompt": "Collect things, or experiences?",
       "served": false,
@@ -3652,6 +4116,9 @@
       "qid": "daily-062",
       "surface": "daily",
       "topic": "Interests",
+      "topics": [
+        "Interests"
+      ],
       "type": "choice",
       "prompt": "A free Saturday, no plans. What pulls you?",
       "served": false,
@@ -3664,6 +4131,9 @@
       "qid": "daily-063",
       "surface": "daily",
       "topic": "Interests",
+      "topics": [
+        "Interests"
+      ],
       "type": "scale",
       "prompt": "Everyone needs at least one useless hobby.",
       "served": false,
@@ -3676,6 +4146,9 @@
       "qid": "daily-064",
       "surface": "daily",
       "topic": "Interests",
+      "topics": [
+        "Interests"
+      ],
       "type": "binary",
       "prompt": "Would you rather be interesting, or interested?",
       "served": false,
@@ -3688,6 +4161,9 @@
       "qid": "daily-065",
       "surface": "daily",
       "topic": "Story",
+      "topics": [
+        "Story"
+      ],
       "type": "choice",
       "prompt": "Which chapter are you in?",
       "served": false,
@@ -3700,6 +4176,9 @@
       "qid": "daily-066",
       "surface": "daily",
       "topic": "Story",
+      "topics": [
+        "Story"
+      ],
       "type": "choice",
       "prompt": "The story you tell most often is about…",
       "served": false,
@@ -3712,6 +4191,9 @@
       "qid": "daily-067",
       "surface": "daily",
       "topic": "Story",
+      "topics": [
+        "Story"
+      ],
       "type": "binary",
       "prompt": "Do you remember your past in pictures, or in stories?",
       "served": false,
@@ -3724,6 +4206,9 @@
       "qid": "daily-068",
       "surface": "daily",
       "topic": "Story",
+      "topics": [
+        "Story"
+      ],
       "type": "choice",
       "prompt": "If someone wrote your biography, the title would mention…",
       "served": false,
@@ -3736,6 +4221,9 @@
       "qid": "daily-069",
       "surface": "daily",
       "topic": "Goals",
+      "topics": [
+        "Goals"
+      ],
       "type": "binary",
       "prompt": "Big goals: write them down, or keep them quiet?",
       "served": false,
@@ -3748,6 +4236,9 @@
       "qid": "daily-070",
       "surface": "daily",
       "topic": "Goals",
+      "topics": [
+        "Goals"
+      ],
       "type": "scale",
       "prompt": "I'd rather aim high and miss than aim safe and hit.",
       "served": false,
@@ -3760,6 +4251,9 @@
       "qid": "daily-071",
       "surface": "daily",
       "topic": "Goals",
+      "topics": [
+        "Goals"
+      ],
       "type": "choice",
       "prompt": "What usually stops you?",
       "served": false,
@@ -3772,6 +4266,9 @@
       "qid": "daily-072",
       "surface": "daily",
       "topic": "Goals",
+      "topics": [
+        "Goals"
+      ],
       "type": "binary",
       "prompt": "Retire early, or never fully retire?",
       "served": false,
@@ -3784,6 +4281,9 @@
       "qid": "daily-073",
       "surface": "daily",
       "topic": "Body",
+      "topics": [
+        "Body"
+      ],
       "type": "choice",
       "prompt": "Your body mostly asks for…",
       "served": false,
@@ -3796,6 +4296,9 @@
       "qid": "daily-074",
       "surface": "daily",
       "topic": "Body",
+      "topics": [
+        "Body"
+      ],
       "type": "binary",
       "prompt": "Sauna or ice bath?",
       "served": false,
@@ -3808,6 +4311,9 @@
       "qid": "daily-075",
       "surface": "daily",
       "topic": "Body",
+      "topics": [
+        "Body"
+      ],
       "type": "scale",
       "prompt": "Eight hours of sleep is non-negotiable.",
       "served": false,
@@ -3820,6 +4326,9 @@
       "qid": "daily-076",
       "surface": "daily",
       "topic": "Body",
+      "topics": [
+        "Body"
+      ],
       "type": "binary",
       "prompt": "Stairs or escalator?",
       "served": false,
@@ -3832,6 +4341,9 @@
       "qid": "daily-077",
       "surface": "daily",
       "topic": "Music",
+      "topics": [
+        "Music"
+      ],
       "type": "binary",
       "prompt": "Music while you work?",
       "served": false,
@@ -3844,6 +4356,9 @@
       "qid": "daily-078",
       "surface": "daily",
       "topic": "Music",
+      "topics": [
+        "Music"
+      ],
       "type": "choice",
       "prompt": "The music that made you was from your…",
       "served": false,
@@ -3856,6 +4371,9 @@
       "qid": "daily-079",
       "surface": "daily",
       "topic": "Music",
+      "topics": [
+        "Music"
+      ],
       "type": "binary",
       "prompt": "One album forever, or shuffle forever?",
       "served": false,
@@ -3868,6 +4386,9 @@
       "qid": "daily-080",
       "surface": "daily",
       "topic": "Travel",
+      "topics": [
+        "Travel"
+      ],
       "type": "binary",
       "prompt": "Same place every year, or somewhere new every time?",
       "served": false,
@@ -3880,6 +4401,9 @@
       "qid": "daily-081",
       "surface": "daily",
       "topic": "Sport",
+      "topics": [
+        "Sport"
+      ],
       "type": "binary",
       "prompt": "Underdog stories or dynasties?",
       "served": false,
@@ -3892,6 +4416,9 @@
       "qid": "daily-082",
       "surface": "daily",
       "topic": "Food",
+      "topics": [
+        "Food"
+      ],
       "type": "binary",
       "prompt": "Sweet or salty?",
       "served": false,
@@ -3904,6 +4431,9 @@
       "qid": "daily-083",
       "surface": "daily",
       "topic": "Film",
+      "topics": [
+        "Film"
+      ],
       "type": "binary",
       "prompt": "Spoilers: ruin everything, or don't matter?",
       "served": false,
@@ -3916,6 +4446,9 @@
       "qid": "daily-084",
       "surface": "daily",
       "topic": "Values",
+      "topics": [
+        "Values"
+      ],
       "type": "dilemma",
       "prompt": "You can know one true thing about how someone sees you. Ask, or not?",
       "served": false,
@@ -3928,6 +4461,9 @@
       "qid": "daily-085",
       "surface": "daily",
       "topic": "Values",
+      "topics": [
+        "Values"
+      ],
       "type": "scale",
       "prompt": "An apology can fix almost anything.",
       "served": false,
@@ -3940,6 +4476,9 @@
       "qid": "daily-086",
       "surface": "daily",
       "topic": "Morals",
+      "topics": [
+        "Morals"
+      ],
       "type": "choice",
       "prompt": "Who do you owe most?",
       "served": false,
@@ -3952,6 +4491,9 @@
       "qid": "daily-087",
       "surface": "daily",
       "topic": "Morals",
+      "topics": [
+        "Morals"
+      ],
       "type": "dilemma",
       "prompt": "A favourite artist turns out to have done something awful. Keep listening?",
       "served": false,
@@ -3964,6 +4506,9 @@
       "qid": "daily-088",
       "surface": "daily",
       "topic": "Home",
+      "topics": [
+        "Home"
+      ],
       "type": "choice",
       "prompt": "The best seat in your home is…",
       "served": false,
@@ -3976,6 +4521,9 @@
       "qid": "daily-089",
       "surface": "daily",
       "topic": "Interests",
+      "topics": [
+        "Interests"
+      ],
       "type": "rating",
       "prompt": "How alive is your curiosity these days?",
       "served": false,
@@ -3988,6 +4536,9 @@
       "qid": "daily-090",
       "surface": "daily",
       "topic": "Home",
+      "topics": [
+        "Home"
+      ],
       "type": "rating",
       "prompt": "How easy is it to get into nature from where you live?",
       "served": false,
@@ -4000,6 +4551,9 @@
       "qid": "daily-091",
       "surface": "daily",
       "topic": "Home",
+      "topics": [
+        "Home"
+      ],
       "type": "rating",
       "prompt": "How well does your city move you around?",
       "served": false,
@@ -4012,6 +4566,9 @@
       "qid": "daily-092",
       "surface": "daily",
       "topic": "Home",
+      "topics": [
+        "Home"
+      ],
       "type": "rating",
       "prompt": "How safe do you feel walking home at night?",
       "served": false,
@@ -4024,6 +4581,9 @@
       "qid": "daily-093",
       "surface": "daily",
       "topic": "Food",
+      "topics": [
+        "Food"
+      ],
       "type": "rating",
       "prompt": "Rate the food where you live.",
       "served": false,
@@ -4036,6 +4596,9 @@
       "qid": "daily-094",
       "surface": "daily",
       "topic": "Home",
+      "topics": [
+        "Home"
+      ],
       "type": "rating",
       "prompt": "Your city after dark — rate the nightlife.",
       "served": false,
@@ -4048,6 +4611,9 @@
       "qid": "daily-095",
       "surface": "daily",
       "topic": "Home",
+      "topics": [
+        "Home"
+      ],
       "type": "rating",
       "prompt": "How easy is it to talk to a stranger here?",
       "served": false,
@@ -4060,6 +4626,9 @@
       "qid": "daily-096",
       "surface": "daily",
       "topic": "Home",
+      "topics": [
+        "Home"
+      ],
       "type": "rating",
       "prompt": "How is dating where you live?",
       "served": false,
@@ -4072,6 +4641,9 @@
       "qid": "daily-097",
       "surface": "daily",
       "topic": "Home",
+      "topics": [
+        "Home"
+      ],
       "type": "rating",
       "prompt": "How affordable is your city on a normal wage?",
       "served": false,
@@ -4084,6 +4656,9 @@
       "qid": "daily-098",
       "surface": "daily",
       "topic": "Travel",
+      "topics": [
+        "Travel"
+      ],
       "type": "rating",
       "prompt": "Your country's landscapes — how good are they?",
       "served": false,
@@ -4096,6 +4671,9 @@
       "qid": "daily-099",
       "surface": "daily",
       "topic": "Home",
+      "topics": [
+        "Home"
+      ],
       "type": "rating",
       "prompt": "How safe a country is yours to live in?",
       "served": false,
@@ -4108,6 +4686,9 @@
       "qid": "daily-100",
       "surface": "daily",
       "topic": "Goals",
+      "topics": [
+        "Goals"
+      ],
       "type": "rating",
       "prompt": "Work and rest in your country — how well do they balance?",
       "served": false,
@@ -4120,6 +4701,9 @@
       "qid": "daily-101",
       "surface": "daily",
       "topic": "Body",
+      "topics": [
+        "Body"
+      ],
       "type": "rating",
       "prompt": "If you got sick tomorrow, how good would the care be?",
       "served": false,
@@ -4132,6 +4716,9 @@
       "qid": "daily-102",
       "surface": "daily",
       "topic": "Home",
+      "topics": [
+        "Home"
+      ],
       "type": "rating",
       "prompt": "Do everyday services work where you are?",
       "served": false,
@@ -4144,6 +4731,9 @@
       "qid": "daily-103",
       "surface": "daily",
       "topic": "Values",
+      "topics": [
+        "Values"
+      ],
       "type": "rating",
       "prompt": "How welcoming is your country to people who move there?",
       "served": false,
@@ -4156,6 +4746,9 @@
       "qid": "daily-104",
       "surface": "daily",
       "topic": "Home",
+      "topics": [
+        "Home"
+      ],
       "type": "rating",
       "prompt": "The weather you live with. Be honest.",
       "served": false,
@@ -4168,6 +4761,9 @@
       "qid": "daily-105",
       "surface": "daily",
       "topic": "Goals",
+      "topics": [
+        "Goals"
+      ],
       "type": "rating",
       "prompt": "Can an ordinary wage carry an ordinary life here?",
       "served": false,
@@ -4180,6 +4776,9 @@
       "qid": "daily-106",
       "surface": "daily",
       "topic": "Food",
+      "topics": [
+        "Food"
+      ],
       "type": "rating",
       "prompt": "How good is what the world eats these days?",
       "served": false,
@@ -4192,6 +4791,9 @@
       "qid": "daily-107",
       "surface": "daily",
       "topic": "Music",
+      "topics": [
+        "Music"
+      ],
       "type": "rating",
       "prompt": "Music right now, worldwide — rate it.",
       "served": false,
@@ -4204,6 +4806,9 @@
       "qid": "daily-108",
       "surface": "daily",
       "topic": "Morals",
+      "topics": [
+        "Morals"
+      ],
       "type": "rating",
       "prompt": "How kind are strangers these days?",
       "served": false,
@@ -4216,6 +4821,9 @@
       "qid": "daily-109",
       "surface": "daily",
       "topic": "Story",
+      "topics": [
+        "Story"
+      ],
       "type": "rating",
       "prompt": "Where the world is heading — rate it.",
       "served": false,
@@ -4228,6 +4836,9 @@
       "qid": "daily-110",
       "surface": "daily",
       "topic": "Travel",
+      "topics": [
+        "Travel"
+      ],
       "type": "rating",
       "prompt": "The state of nature worldwide — rate it.",
       "served": false,
@@ -4240,6 +4851,9 @@
       "qid": "daily-111",
       "surface": "daily",
       "topic": "Morals",
+      "topics": [
+        "Morals"
+      ],
       "type": "rating",
       "prompt": "How honest is public life these days?",
       "served": false,
@@ -4252,6 +4866,9 @@
       "qid": "daily-112",
       "surface": "daily",
       "topic": "Morals",
+      "topics": [
+        "Morals"
+      ],
       "type": "rating",
       "prompt": "How fair is the world right now?",
       "served": false,
@@ -4264,8 +4881,131 @@
       "qid": "daily-113",
       "surface": "daily",
       "topic": "Values",
+      "topics": [
+        "Values"
+      ],
       "type": "rating",
       "prompt": "How well is the world being led?",
+      "served": false,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "unserved"
+    },
+    {
+      "qid": "daily-114",
+      "surface": "daily",
+      "topic": "Sport",
+      "topics": [
+        "Sport"
+      ],
+      "type": "binary",
+      "prompt": "Win ugly, or lose beautifully?",
+      "served": false,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "unserved"
+    },
+    {
+      "qid": "daily-115",
+      "surface": "daily",
+      "topic": "Film",
+      "topics": [
+        "Film"
+      ],
+      "type": "binary",
+      "prompt": "Black and white films: timeless, or homework?",
+      "served": false,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "unserved"
+    },
+    {
+      "qid": "daily-116",
+      "surface": "daily",
+      "topic": "Skills",
+      "topics": [
+        "Skills"
+      ],
+      "type": "scale",
+      "prompt": "A skill isn't yours until you've taught it to someone.",
+      "served": false,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "unserved"
+    },
+    {
+      "qid": "daily-117",
+      "surface": "daily",
+      "topic": "Interests",
+      "topics": [
+        "Interests"
+      ],
+      "type": "choice",
+      "prompt": "What pulls you down a rabbit hole at 1 a.m.?",
+      "served": false,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "unserved"
+    },
+    {
+      "qid": "daily-118",
+      "surface": "daily",
+      "topic": "Food",
+      "topics": [
+        "Food"
+      ],
+      "type": "binary",
+      "prompt": "The last slice: take it, or offer it?",
+      "served": false,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "unserved"
+    },
+    {
+      "qid": "daily-119",
+      "surface": "daily",
+      "topic": "Travel",
+      "topics": [
+        "Travel"
+      ],
+      "type": "binary",
+      "prompt": "Window seat or aisle?",
+      "served": false,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "unserved"
+    },
+    {
+      "qid": "daily-120",
+      "surface": "daily",
+      "topic": "Music",
+      "topics": [
+        "Music"
+      ],
+      "type": "choice",
+      "prompt": "Where does music hit you hardest?",
+      "served": false,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "unserved"
+    },
+    {
+      "qid": "daily-121",
+      "surface": "daily",
+      "topic": "Body",
+      "topics": [
+        "Body"
+      ],
+      "type": "scale",
+      "prompt": "Your body runs your mood more than your mind does.",
       "served": false,
       "total": 0,
       "evenness": null,
@@ -4276,6 +5016,9 @@
       "qid": "feed-f01",
       "surface": "feed",
       "topic": "sport",
+      "topics": [
+        "sport"
+      ],
       "type": "duel",
       "prompt": "The better night in front of the TV?",
       "served": true,
@@ -4288,6 +5031,9 @@
       "qid": "feed-f02",
       "surface": "feed",
       "topic": "sport",
+      "topics": [
+        "sport"
+      ],
       "type": "vote",
       "prompt": "Would you rather win…",
       "served": true,
@@ -4300,6 +5046,9 @@
       "qid": "feed-f04",
       "surface": "feed",
       "topic": "sport",
+      "topics": [
+        "sport"
+      ],
       "type": "vote",
       "prompt": "VAR made football better.",
       "served": true,
@@ -4312,6 +5061,9 @@
       "qid": "feed-f05",
       "surface": "feed",
       "topic": "sport",
+      "topics": [
+        "sport"
+      ],
       "type": "vote",
       "prompt": "Best sport to watch live in a stadium",
       "served": true,
@@ -4324,6 +5076,10 @@
       "qid": "feed-f06",
       "surface": "feed",
       "topic": "sport",
+      "topics": [
+        "sport",
+        "tech"
+      ],
       "type": "vote",
       "prompt": "E-sports are real sports.",
       "served": true,
@@ -4336,6 +5092,10 @@
       "qid": "feed-f07",
       "surface": "feed",
       "topic": "sport",
+      "topics": [
+        "sport",
+        "dilemma"
+      ],
       "type": "vote",
       "prompt": "Your team wins it all — but you can never watch them again. Deal?",
       "served": true,
@@ -4348,6 +5108,9 @@
       "qid": "feed-f08",
       "surface": "feed",
       "topic": "food",
+      "topics": [
+        "food"
+      ],
       "type": "duel",
       "prompt": "One cuisine forever",
       "served": true,
@@ -4360,6 +5123,9 @@
       "qid": "feed-f09",
       "surface": "feed",
       "topic": "food",
+      "topics": [
+        "food"
+      ],
       "type": "vote",
       "prompt": "Milk before cereal is a crime.",
       "served": true,
@@ -4372,6 +5138,10 @@
       "qid": "feed-f11",
       "surface": "feed",
       "topic": "food",
+      "topics": [
+        "food",
+        "tech"
+      ],
       "type": "vote",
       "prompt": "Would you eat lab-grown meat?",
       "served": true,
@@ -4384,6 +5154,10 @@
       "qid": "feed-f12",
       "surface": "feed",
       "topic": "food",
+      "topics": [
+        "food",
+        "dilemma"
+      ],
       "type": "vote",
       "prompt": "A free pill replaces all meals. Food becomes hobby-only. Take it?",
       "served": true,
@@ -4396,6 +5170,9 @@
       "qid": "feed-f13",
       "surface": "feed",
       "topic": "food",
+      "topics": [
+        "food"
+      ],
       "type": "duel",
       "prompt": "Final dessert on earth",
       "served": true,
@@ -4408,6 +5185,9 @@
       "qid": "feed-f14",
       "surface": "feed",
       "topic": "food",
+      "topics": [
+        "food"
+      ],
       "type": "vote",
       "prompt": "Spicy food: worth the pain?",
       "served": true,
@@ -4420,6 +5200,9 @@
       "qid": "feed-f15",
       "surface": "feed",
       "topic": "movies",
+      "topics": [
+        "movies"
+      ],
       "type": "vote",
       "prompt": "The book is always better.",
       "served": true,
@@ -4432,6 +5215,9 @@
       "qid": "feed-f17",
       "surface": "feed",
       "topic": "movies",
+      "topics": [
+        "movies"
+      ],
       "type": "duel",
       "prompt": "One world to live in",
       "served": true,
@@ -4444,6 +5230,10 @@
       "qid": "feed-f18",
       "surface": "feed",
       "topic": "movies",
+      "topics": [
+        "movies",
+        "culture"
+      ],
       "type": "vote",
       "prompt": "Watching at 1.5× speed is disrespectful.",
       "served": true,
@@ -4456,6 +5246,9 @@
       "qid": "feed-f19",
       "surface": "feed",
       "topic": "movies",
+      "topics": [
+        "movies"
+      ],
       "type": "vote",
       "prompt": "The ideal movie length",
       "served": true,
@@ -4468,6 +5261,9 @@
       "qid": "feed-f20",
       "surface": "feed",
       "topic": "movies",
+      "topics": [
+        "movies"
+      ],
       "type": "vote",
       "prompt": "Spoilers ruin nothing for a good story.",
       "served": true,
@@ -4480,6 +5276,9 @@
       "qid": "feed-f21",
       "surface": "feed",
       "topic": "music",
+      "topics": [
+        "music"
+      ],
       "type": "vote",
       "prompt": "Great lyrics or great melody?",
       "served": true,
@@ -4492,6 +5291,10 @@
       "qid": "feed-f23",
       "surface": "feed",
       "topic": "music",
+      "topics": [
+        "music",
+        "tech"
+      ],
       "type": "vote",
       "prompt": "Vinyl actually sounds better.",
       "served": true,
@@ -4504,6 +5307,9 @@
       "qid": "feed-f24",
       "surface": "feed",
       "topic": "music",
+      "topics": [
+        "music"
+      ],
       "type": "vote",
       "prompt": "Music while working?",
       "served": true,
@@ -4516,6 +5322,9 @@
       "qid": "feed-f25",
       "surface": "feed",
       "topic": "music",
+      "topics": [
+        "music"
+      ],
       "type": "duel",
       "prompt": "One decade of music forever",
       "served": true,
@@ -4528,6 +5337,9 @@
       "qid": "feed-f26",
       "surface": "feed",
       "topic": "tech",
+      "topics": [
+        "tech"
+      ],
       "type": "vote",
       "prompt": "Brain-computer interface, once it’s proven safe?",
       "served": true,
@@ -4540,6 +5352,10 @@
       "qid": "feed-f27",
       "surface": "feed",
       "topic": "tech",
+      "topics": [
+        "tech",
+        "event"
+      ],
       "type": "vote",
       "prompt": "Phones should be banned in schools.",
       "served": true,
@@ -4552,6 +5368,10 @@
       "qid": "feed-f29",
       "surface": "feed",
       "topic": "tech",
+      "topics": [
+        "tech",
+        "dilemma"
+      ],
       "type": "vote",
       "prompt": "Delete all your data and start clean, or keep everything forever?",
       "served": true,
@@ -4564,6 +5384,10 @@
       "qid": "feed-f30",
       "surface": "feed",
       "topic": "tech",
+      "topics": [
+        "tech",
+        "dilemma"
+      ],
       "type": "vote",
       "prompt": "A robot does your chores but records everything. Deal?",
       "served": true,
@@ -4576,6 +5400,9 @@
       "qid": "feed-f31",
       "surface": "feed",
       "topic": "tech",
+      "topics": [
+        "tech"
+      ],
       "type": "vote",
       "prompt": "Would you ride a driverless taxi tonight?",
       "served": true,
@@ -4588,6 +5415,10 @@
       "qid": "feed-f32",
       "surface": "feed",
       "topic": "culture",
+      "topics": [
+        "culture",
+        "event"
+      ],
       "type": "vote",
       "prompt": "Tipping should be abolished.",
       "served": true,
@@ -4600,6 +5431,9 @@
       "qid": "feed-f33",
       "surface": "feed",
       "topic": "culture",
+      "topics": [
+        "culture"
+      ],
       "type": "vote",
       "prompt": "Ten minutes early or exactly on time?",
       "served": true,
@@ -4612,6 +5446,9 @@
       "qid": "feed-f35",
       "surface": "feed",
       "topic": "culture",
+      "topics": [
+        "culture"
+      ],
       "type": "vote",
       "prompt": "The best age to be",
       "served": true,
@@ -4624,6 +5461,9 @@
       "qid": "feed-f36",
       "surface": "feed",
       "topic": "culture",
+      "topics": [
+        "culture"
+      ],
       "type": "duel",
       "prompt": "The view from your window, forever",
       "served": true,
@@ -4636,6 +5476,9 @@
       "qid": "feed-f37",
       "surface": "feed",
       "topic": "culture",
+      "topics": [
+        "culture"
+      ],
       "type": "vote",
       "prompt": "Small talk is a skill, not a chore.",
       "served": true,
@@ -4648,6 +5491,9 @@
       "qid": "feed-f38",
       "surface": "feed",
       "topic": "dilemma",
+      "topics": [
+        "dilemma"
+      ],
       "type": "vote",
       "prompt": "Read minds — but everyone knows you can. Take it?",
       "served": true,
@@ -4660,6 +5506,9 @@
       "qid": "feed-f39",
       "surface": "feed",
       "topic": "dilemma",
+      "topics": [
+        "dilemma"
+      ],
       "type": "vote",
       "prompt": "A million now, but a stranger somewhere loses everything. Press the button?",
       "served": true,
@@ -4672,6 +5521,9 @@
       "qid": "feed-f40",
       "surface": "feed",
       "topic": "dilemma",
+      "topics": [
+        "dilemma"
+      ],
       "type": "vote",
       "prompt": "Would you want to know the date of your death?",
       "served": true,
@@ -4684,6 +5536,9 @@
       "qid": "feed-f41",
       "surface": "feed",
       "topic": "dilemma",
+      "topics": [
+        "dilemma"
+      ],
       "type": "vote",
       "prompt": "Five years in a job you hate, then never work again?",
       "served": true,
@@ -4696,6 +5551,9 @@
       "qid": "feed-f42",
       "surface": "feed",
       "topic": "dilemma",
+      "topics": [
+        "dilemma"
+      ],
       "type": "vote",
       "prompt": "Restart life at 10, everything you know intact?",
       "served": true,
@@ -4708,6 +5566,9 @@
       "qid": "feed-f43",
       "surface": "feed",
       "topic": "dilemma",
+      "topics": [
+        "dilemma"
+      ],
       "type": "vote",
       "prompt": "Perfect memory — but you can never forget anything. Take it?",
       "served": true,
@@ -4720,6 +5581,9 @@
       "qid": "feed-f44",
       "surface": "feed",
       "topic": "dilemma",
+      "topics": [
+        "dilemma"
+      ],
       "type": "vote",
       "prompt": "Your dog talks for one day, or understands you forever?",
       "served": true,
@@ -4732,6 +5596,9 @@
       "qid": "feed-f45",
       "surface": "feed",
       "topic": "event",
+      "topics": [
+        "event"
+      ],
       "type": "vote",
       "prompt": "Should voting be mandatory?",
       "served": true,
@@ -4744,6 +5611,9 @@
       "qid": "feed-f46",
       "surface": "feed",
       "topic": "event",
+      "topics": [
+        "event"
+      ],
       "type": "vote",
       "prompt": "Four-day work week: inevitable or fantasy?",
       "served": true,
@@ -4756,6 +5626,9 @@
       "qid": "feed-f47",
       "surface": "feed",
       "topic": "event",
+      "topics": [
+        "event"
+      ],
       "type": "vote",
       "prompt": "City centers should be car-free.",
       "served": true,
@@ -4768,6 +5641,9 @@
       "qid": "feed-f48",
       "surface": "feed",
       "topic": "event",
+      "topics": [
+        "event"
+      ],
       "type": "vote",
       "prompt": "Would you move to another country for good?",
       "served": true,
@@ -4780,6 +5656,9 @@
       "qid": "feed-f49",
       "surface": "feed",
       "topic": "people",
+      "topics": [
+        "people"
+      ],
       "type": "vote",
       "prompt": "Judge the art apart from the artist?",
       "served": true,
@@ -4792,6 +5671,9 @@
       "qid": "feed-f50",
       "surface": "feed",
       "topic": "people",
+      "topics": [
+        "people"
+      ],
       "type": "vote",
       "prompt": "Celebrities should stay out of politics.",
       "served": true,
@@ -4804,6 +5686,9 @@
       "qid": "feed-f51",
       "surface": "feed",
       "topic": "people",
+      "topics": [
+        "people"
+      ],
       "type": "vote",
       "prompt": "Dinner with one",
       "served": true,
@@ -4816,6 +5701,9 @@
       "qid": "feed-f52",
       "surface": "feed",
       "topic": "bigq",
+      "topics": [
+        "bigq"
+      ],
       "type": "vote",
       "prompt": "Free will is an illusion.",
       "served": true,
@@ -4828,6 +5716,9 @@
       "qid": "feed-f53",
       "surface": "feed",
       "topic": "bigq",
+      "topics": [
+        "bigq"
+      ],
       "type": "vote",
       "prompt": "We’re not alone in the universe.",
       "served": true,
@@ -4840,6 +5731,9 @@
       "qid": "feed-f54",
       "surface": "feed",
       "topic": "bigq",
+      "topics": [
+        "bigq"
+      ],
       "type": "vote",
       "prompt": "Money can buy happiness.",
       "served": true,
@@ -4852,6 +5746,9 @@
       "qid": "feed-f55",
       "surface": "feed",
       "topic": "bigq",
+      "topics": [
+        "bigq"
+      ],
       "type": "vote",
       "prompt": "Humanity’s best days are ahead.",
       "served": true,
@@ -4864,6 +5761,9 @@
       "qid": "feed-s01",
       "surface": "feed",
       "topic": "sport",
+      "topics": [
+        "sport"
+      ],
       "type": "vote",
       "prompt": "Doubles or singles?",
       "served": true,
@@ -4876,6 +5776,9 @@
       "qid": "feed-s02",
       "surface": "feed",
       "topic": "sport",
+      "topics": [
+        "sport"
+      ],
       "type": "vote",
       "prompt": "Pick your surface",
       "served": true,
@@ -4888,6 +5791,9 @@
       "qid": "feed-s03",
       "surface": "feed",
       "topic": "sport",
+      "topics": [
+        "sport"
+      ],
       "type": "vote",
       "prompt": "Line judges or full electronic calls?",
       "served": true,
@@ -4900,6 +5806,9 @@
       "qid": "feed-s04",
       "surface": "feed",
       "topic": "sport",
+      "topics": [
+        "sport"
+      ],
       "type": "vote",
       "prompt": "Cold water: wetsuit or skin?",
       "served": true,
@@ -4912,6 +5821,9 @@
       "qid": "feed-s06",
       "surface": "feed",
       "topic": "sport",
+      "topics": [
+        "sport"
+      ],
       "type": "vote",
       "prompt": "Pool or open water?",
       "served": true,
@@ -4924,6 +5836,9 @@
       "qid": "feed-s07",
       "surface": "feed",
       "topic": "culture",
+      "topics": [
+        "culture"
+      ],
       "type": "vote",
       "prompt": "First drafts: longhand or keyboard?",
       "served": true,
@@ -4936,6 +5851,9 @@
       "qid": "feed-s08",
       "surface": "feed",
       "topic": "culture",
+      "topics": [
+        "culture"
+      ],
       "type": "vote",
       "prompt": "Plot it all, or find it as you write?",
       "served": true,
@@ -4948,6 +5866,9 @@
       "qid": "feed-s09",
       "surface": "feed",
       "topic": "culture",
+      "topics": [
+        "culture"
+      ],
       "type": "vote",
       "prompt": "Can great writing be taught?",
       "served": true,
@@ -4960,6 +5881,9 @@
       "qid": "feed-s10",
       "surface": "feed",
       "topic": "bigq",
+      "topics": [
+        "bigq"
+      ],
       "type": "vote",
       "prompt": "The Ship of Theseus, fully replaced — same ship?",
       "served": true,
@@ -4972,6 +5896,9 @@
       "qid": "feed-s11",
       "surface": "feed",
       "topic": "bigq",
+      "topics": [
+        "bigq"
+      ],
       "type": "vote",
       "prompt": "Is morality discovered or invented?",
       "served": true,
@@ -4984,6 +5911,9 @@
       "qid": "feed-s12",
       "surface": "feed",
       "topic": "bigq",
+      "topics": [
+        "bigq"
+      ],
       "type": "vote",
       "prompt": "A perfectly happy simulated life — plug in?",
       "served": true,
@@ -4996,6 +5926,9 @@
       "qid": "feed-s13",
       "surface": "feed",
       "topic": "culture",
+      "topics": [
+        "culture"
+      ],
       "type": "vote",
       "prompt": "Blitz or classical?",
       "served": true,
@@ -5008,6 +5941,9 @@
       "qid": "feed-s14",
       "surface": "feed",
       "topic": "culture",
+      "topics": [
+        "culture"
+      ],
       "type": "vote",
       "prompt": "Best first move",
       "served": true,
@@ -5020,6 +5956,9 @@
       "qid": "feed-s15",
       "surface": "feed",
       "topic": "culture",
+      "topics": [
+        "culture"
+      ],
       "type": "vote",
       "prompt": "A draw offer from a stronger player — take it?",
       "served": true,
@@ -5032,6 +5971,9 @@
       "qid": "feed-s16",
       "surface": "feed",
       "topic": "food",
+      "topics": [
+        "food"
+      ],
       "type": "vote",
       "prompt": "Your sourdough starter deserves a name.",
       "served": true,
@@ -5044,6 +5986,9 @@
       "qid": "feed-s17",
       "surface": "feed",
       "topic": "food",
+      "topics": [
+        "food"
+      ],
       "type": "vote",
       "prompt": "Kombucha or kefir?",
       "served": true,
@@ -5056,6 +6001,9 @@
       "qid": "feed-dl1",
       "surface": "feed",
       "topic": "bigq",
+      "topics": [
+        "bigq"
+      ],
       "type": "dial",
       "prompt": "When does old age begin?",
       "served": true,
@@ -5068,6 +6016,10 @@
       "qid": "feed-dl2",
       "surface": "feed",
       "topic": "dilemma",
+      "topics": [
+        "dilemma",
+        "culture"
+      ],
       "type": "dial",
       "prompt": "The right tip",
       "served": true,
@@ -5080,6 +6032,10 @@
       "qid": "feed-dl3",
       "surface": "feed",
       "topic": "dilemma",
+      "topics": [
+        "dilemma",
+        "tech"
+      ],
       "type": "dial",
       "prompt": "Daily screen time — where does “too much” start?",
       "served": true,
@@ -5092,6 +6048,9 @@
       "qid": "feed-dl4",
       "surface": "feed",
       "topic": "bigq",
+      "topics": [
+        "bigq"
+      ],
       "type": "dial",
       "prompt": "How much of your life is actually in your control?",
       "served": true,
@@ -5104,6 +6063,10 @@
       "qid": "feed-fd1",
       "surface": "feed",
       "topic": "dilemma",
+      "topics": [
+        "dilemma",
+        "food"
+      ],
       "type": "field",
       "prompt": "Pineapple on pizza — place it",
       "served": true,
@@ -5116,6 +6079,10 @@
       "qid": "feed-fd2",
       "surface": "feed",
       "topic": "bigq",
+      "topics": [
+        "bigq",
+        "culture"
+      ],
       "type": "field",
       "prompt": "Small talk — place it",
       "served": true,
@@ -5128,6 +6095,10 @@
       "qid": "feed-fd3",
       "surface": "feed",
       "topic": "bigq",
+      "topics": [
+        "bigq",
+        "tech"
+      ],
       "type": "field",
       "prompt": "AI assistants, today — place them",
       "served": true,
@@ -5140,6 +6111,9 @@
       "qid": "feed-pt1",
       "surface": "feed",
       "topic": "dilemma",
+      "topics": [
+        "dilemma"
+      ],
       "type": "path",
       "prompt": "The Wallet — a wallet, a bus, and nobody watching",
       "served": true,
@@ -5152,8 +6126,191 @@
       "qid": "feed-pt2",
       "surface": "feed",
       "topic": "dilemma",
+      "topics": [
+        "dilemma"
+      ],
       "type": "path",
       "prompt": "The Wrong Text — a message that was not meant for you",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f57",
+      "surface": "feed",
+      "topic": "music",
+      "topics": [
+        "music"
+      ],
+      "type": "vote",
+      "prompt": "ABBA or Queen?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f58",
+      "surface": "feed",
+      "topic": "people",
+      "topics": [
+        "people"
+      ],
+      "type": "vote",
+      "prompt": "Who left the bigger mark: Einstein or Shakespeare?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-dl5",
+      "surface": "feed",
+      "topic": "event",
+      "topics": [
+        "event"
+      ],
+      "type": "dial",
+      "prompt": "How many years until a human walks on Mars?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f60",
+      "surface": "feed",
+      "topic": "movies",
+      "topics": [
+        "movies"
+      ],
+      "type": "vote",
+      "prompt": "The right way to see a film?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f61",
+      "surface": "feed",
+      "topic": "tech",
+      "topics": [
+        "tech"
+      ],
+      "type": "vote",
+      "prompt": "Let AI write your texts for you?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f62",
+      "surface": "feed",
+      "topic": "food",
+      "topics": [
+        "food"
+      ],
+      "type": "vote",
+      "prompt": "Is a hot dog a sandwich?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f63",
+      "surface": "feed",
+      "topic": "music",
+      "topics": [
+        "music"
+      ],
+      "type": "vote",
+      "prompt": "The music you loved at 15 — still good, or evidence?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f64",
+      "surface": "feed",
+      "topic": "people",
+      "topics": [
+        "people"
+      ],
+      "type": "vote",
+      "prompt": "Marie Curie or Ada Lovelace — whose name should more kids know?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f65",
+      "surface": "feed",
+      "topic": "movies",
+      "topics": [
+        "movies"
+      ],
+      "type": "vote",
+      "prompt": "Subtitles on, even in your own language?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f66",
+      "surface": "feed",
+      "topic": "event",
+      "topics": [
+        "event"
+      ],
+      "type": "vote",
+      "prompt": "Should social media have a minimum age of 16?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f67",
+      "surface": "feed",
+      "topic": "food",
+      "topics": [
+        "food"
+      ],
+      "type": "vote",
+      "prompt": "Breakfast: the same thing every day, or never the same?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-dl6",
+      "surface": "feed",
+      "topic": "sport",
+      "topics": [
+        "sport"
+      ],
+      "type": "dial",
+      "prompt": "At what age is an athlete past their peak?",
       "served": true,
       "total": 0,
       "evenness": null,
