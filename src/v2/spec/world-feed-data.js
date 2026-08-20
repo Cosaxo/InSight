@@ -153,6 +153,7 @@ window.WORLD_FEED_QS = [
   { id: 'dl3', cat: 'dilemma', type: 'dial', prompt: 'Daily screen time \u2014 where does \u201ctoo much\u201d start?', lo: 1, hi: 12, unit: 'h', med: 5, n: 6100, dist: [2, 6, 12, 17, 18, 14, 10, 4, 3, 2, 1, 1] },
   { id: 'dl4', cat: 'bigq', type: 'dial', prompt: 'How much of your life is actually in your control?', lo: 0, hi: 100, unit: '%', med: 55, n: 4800, dist: [4, 6, 8, 9, 10, 12, 14, 13, 10, 7, 4, 3] },
   { id: 'dl5', cat: 'event', type: 'dial', prompt: 'How many years until a human walks on Mars?', lo: 0, hi: 100, unit: 'yrs', med: 28, n: 4700, dist: [2, 9, 16, 18, 14, 10, 7, 5, 4, 3, 3, 9] },
+  { id: 'dl6', cat: 'sport', type: 'dial', prompt: 'At what age is an athlete past their peak?', lo: 25, hi: 45, unit: 'yrs', med: 32, n: 5100, dist: [2, 5, 11, 17, 18, 15, 11, 8, 5, 4, 2, 2] },
   { id: 'fd1', cat: 'dilemma', type: 'field', prompt: 'Pineapple on pizza \u2014 place it', ax: ['tastes bad', 'tastes good'], ay: ['a crime', 'high art'], n: 6800, cloud: [[22, 72, 10, 14], [76, 26, 12, 15], [54, 50, 4, 10]] },
   { id: 'fd2', cat: 'bigq', type: 'field', prompt: 'Small talk \u2014 place it', ax: ['painful', 'pleasant'], ay: ['pointless', 'essential'], n: 4100, cloud: [[64, 32, 12, 16], [30, 60, 8, 14], [50, 48, 6, 12]] },
   { id: 'fd3', cat: 'bigq', type: 'field', prompt: 'AI assistants, today \u2014 place them', ax: ['overhyped', 'underrated'], ay: ['scary', 'exciting'], n: 5600, cloud: [[42, 38, 10, 16], [68, 30, 8, 13], [30, 66, 7, 12]] },

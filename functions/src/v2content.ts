@@ -4453,6 +4453,110 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "core": true
  },
  {
+  "id": "feed-f63",
+  "surface": "feed",
+  "seq": 88,
+  "type": "vote",
+  "domain": null,
+  "prompt": "The music you loved at 15 — still good, or evidence?",
+  "options": [
+   "Still good",
+   "Evidence"
+  ],
+  "topic": "music",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f64",
+  "surface": "feed",
+  "seq": 89,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Marie Curie or Ada Lovelace — whose name should more kids know?",
+  "options": [
+   "Marie Curie",
+   "Ada Lovelace"
+  ],
+  "topic": "people",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f65",
+  "surface": "feed",
+  "seq": 90,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Subtitles on, even in your own language?",
+  "options": [
+   "Always on",
+   "Only when I need them"
+  ],
+  "topic": "movies",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f66",
+  "surface": "feed",
+  "seq": 91,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Should social media have a minimum age of 16?",
+  "options": [
+   "Yes, 16",
+   "Parents decide"
+  ],
+  "topic": "event",
+  "axis": null,
+  "test": null,
+  "political": true
+ },
+ {
+  "id": "feed-f67",
+  "surface": "feed",
+  "seq": 92,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Breakfast: the same thing every day, or never the same?",
+  "options": [
+   "Same every day",
+   "Never the same"
+  ],
+  "topic": "food",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-dl6",
+  "surface": "feed",
+  "seq": 93,
+  "type": "dial",
+  "domain": null,
+  "prompt": "At what age is an athlete past their peak?",
+  "options": [
+   "25–27 yrs",
+   "27–28 yrs",
+   "28–30 yrs",
+   "30–32 yrs",
+   "32–33 yrs",
+   "33–35 yrs",
+   "35–37 yrs",
+   "37–38 yrs",
+   "38–40 yrs",
+   "40–42 yrs",
+   "42–43 yrs",
+   "43–45 yrs"
+  ],
+  "topic": "sport",
+  "axis": null,
+  "test": null,
+  "lo": 25,
+  "hi": 45,
+  "unit": "yrs"
+ },
+ {
   "id": "group-gu0",
   "surface": "group",
   "seq": 0,

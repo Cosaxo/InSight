@@ -131,13 +131,6 @@ export function PathsCard() {
   const [, force] = React.useReducer((x) => x + 1, 0);
   React.useEffect(() => PATHS.sub(force), []);
 
-  // Walking a road again over a standing answer. Live only, and it exists
-  // because the two records disagree on purpose for the length of the walk:
-  // clearing the local walk cannot clear the SERVER's ending, so without
-  // this flag `answered` below would put the finished tree straight back
-  // and "Walk again" would do nothing visible.
-  const [rewalk, setRewalk] = React.useState(false);
-
   const live = LIVE.pathQs ? (LIVE.pathQs()[0] || null) : null;
   const st = srcOf(live);
 
@@ -149,7 +142,7 @@ export function PathsCard() {
   const localWalk = PATHS.walkOf(st.id);
   const mine = live && LIVE.myVotes ? LIVE.myVotes()[live.id] : null;
   const answered = mine != null ? (PATH_ENDINGS[Number(mine)] || '') : '';
-  const walk = rewalk ? localWalk : (answered || localWalk);
+  const walk = answered || localWalk;
   const done = walk.length >= 3;
 
   const node = done ? null : nodeAt(st.nodes, walk);
@@ -162,30 +155,24 @@ export function PathsCard() {
     const next = PATHS.choose(st.id, i);
     // The third fork is the answer. Live, that is when it goes to the
     // server — through the ordinary vote path, so the fold, the ledger, the
-    // by-cells and the voters panel all carry it with no special case. A
-    // second finished walk after "Walk again" is a D86 EDIT of the same
-    // answer, not a new one: you moved where you ended up.
+    // by-cells and the voters panel all carry it with no special case.
     if (!live || next.length < 3) return;
     const idx = PATH_ENDINGS.indexOf(next);
     if (idx < 0) return;
+    // A WALK IS FINAL (D211). "Walk again" stood here and re-walking wrote
+    // a D86 edit of the standing answer — a redo control on a card whose
+    // whole reveal is how rare your road was, moving the results it had
+    // just shown you. The only write is the first one. A standing answer
+    // at this point means a vote hydrated mid-walk (another device's, or
+    // this one's arriving late): the server's record wins and the local
+    // walk drops, the same snap-back a refused edit used to take —
+    // showing the raced walk would be showing an answer nobody stored.
     const prior = LIVE.myVotes ? LIVE.myVotes()[live.id] : null;
     if (prior == null) {
       if (LIVE.vote) LIVE.vote(live.id, String(idx));
-    } else if (Number(prior) !== idx && !(LIVE.editVote && LIVE.editVote(live.id, String(idx)))) {
-      // A refused edit (D86's 60s cooldown) leaves the standing answer as
-      // the record, so drop the local walk and fall back to it — the same
-      // snap-back setDial does with a bucket. Showing the walk the server
-      // refused would be showing an answer nobody stored.
+    } else if (Number(prior) !== idx) {
       PATHS.reset(st.id);
     }
-    // Either way the walk is finished and the server owns it again.
-    setRewalk(false);
-  }
-
-  function again() {
-    HAPTIC.tick();
-    PATHS.reset(st.id);
-    setRewalk(true);
   }
 
   const style = { '--pp-c': ppC(st.hue), '--pp-ink': ppInk(st.hue) };
@@ -230,13 +217,24 @@ export function PathsCard() {
             <div className="pp-line">{end.line}</div>
             {flow && (
               <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginTop: 9 }}>
-                <span className="pp-chip">you and {Math.round(myShare * 100)}% ended here</span>
-                <span className="pp-chip">1 in {Math.max(2, Math.round(1 / myShare))} walks your road</span>
+                {myShare > 0 ? (
+                  <>
+                    {/* "<1" when the true share rounds to zero: a card that
+                        says "you and 0% ended here" to the person standing
+                        there is wrong the way MapStats' nulls exist to
+                        prevent (D72), and 1/0 printed "1 in Infinity". */}
+                    <span className="pp-chip">you and {Math.round(myShare * 100) || '<1'}% ended here</span>
+                    <span className="pp-chip">1 in {Math.max(2, Math.round(1 / myShare))} walks your road</span>
+                  </>
+                ) : (
+                  // A crowd exists (flow is non-null) but none of it ended
+                  // where you did — the shape a fresh walk has while the
+                  // aggregate fold that will count it is still in flight,
+                  // and forever if nobody follows. Both are this sentence.
+                  <span className="pp-chip">you&rsquo;re the first to end here</span>
+                )}
               </div>
             )}
-          </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button className="pp-again" onClick={again}>Walk again</button>
           </div>
         </>
       )}

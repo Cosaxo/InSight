@@ -55,10 +55,10 @@ the verification — treat a successful seed as proof of both.
 3. **The remaining step: Actions → *Seed content* → Run workflow.** No
    sign-in, no dev machine, nothing to install.
 
-   578 questions land in `v2_questions`. Re-running is safe (idempotent,
+   584 questions land in `v2_questions`. Re-running is safe (idempotent,
    never resets the `active` kill switch) and, since D34, genuinely cheap:
    it rewrites only documents whose content changed and leaves `contentRev`
-   alone, so a reseed no longer costs every returning device a 578-read
+   alone, so a reseed no longer costs every returning device a 584-read
 bank refetch. The job summary reports `{written, skipped}` — a no-op
    reseed reports `written: 0`.
 
@@ -156,7 +156,8 @@ Both apps must be registered under `com.cosaxo.insight`:
   `providers: ["google.com"]` and `android/variables.gradle` sets
   `rgcfaIncludeGoogle = true`. Both are required — without the Gradle
   flag the Google libraries are `compileOnly`, so an Android build
-  compiles and ships but throws the moment anyone taps *Link Google*.
+  compiles and ships but throws the moment anyone taps *Continue with
+  Google* (the D134 gate — since D211 the only Google entry point).
 - Run `npm run sync` after any `capacitor.config.ts` change — the native
   shells read the copied config, not this file.
 
@@ -332,7 +333,7 @@ Both apps must be registered under `com.cosaxo.insight`:
   | User content → Other | Answers, test results | Yes | App functionality |
   | **Sensitive info** | Politics test result; gender if entered | Yes | App functionality |
   | Location → Coarse | City name (see below) | Yes | App functionality |
-  | Diagnostics → Crash data | Sentry, **on by default, opt-out in the privacy panel** (D76), uid only | Yes | App functionality |
+  | Diagnostics → Crash data | Sentry, **on, no in-app switch** (D76, toggle removed at D211), uid only | Yes | App functionality |
   | Purchases, Browsing, Search, Contacts, Ads | **None** | — | — |
 
   Three things to get right, because they are the ones that bite:
@@ -515,8 +516,8 @@ Until then links open the fallback page — degraded, not broken.
 - [ ] App opens frameless, header clear of the notch, dock clear of the
       home indicator (light + dark).
 - [ ] Anonymous session survives app restarts (same uid, map intact).
-- [ ] Link Google from the privacy panel; reinstall the app; sign in —
-      history restored.
+- [ ] Sign in with Google at the D134 gate (the panel's Link row left at
+      D211); reinstall the app; sign in — history restored.
 - [ ] Create a duo on one phone, join by code on another, both seal —
       after the next UTC midnight the reveal push arrives and opens the
       app.

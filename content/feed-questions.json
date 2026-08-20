@@ -1835,6 +1835,102 @@
           "count": 3100
         }
       ]
+    },
+    {
+      "id": "f63",
+      "core": false,
+      "cat": "music",
+      "type": "vote",
+      "prompt": "The music you loved at 15 — still good, or evidence?",
+      "options": [
+        {
+          "label": "Still good",
+          "count": 3100
+        },
+        {
+          "label": "Evidence",
+          "count": 2200
+        }
+      ]
+    },
+    {
+      "id": "f64",
+      "core": false,
+      "cat": "people",
+      "type": "vote",
+      "prompt": "Marie Curie or Ada Lovelace — whose name should more kids know?",
+      "options": [
+        {
+          "label": "Marie Curie",
+          "count": 3300
+        },
+        {
+          "label": "Ada Lovelace",
+          "count": 2400
+        }
+      ]
+    },
+    {
+      "id": "f65",
+      "core": false,
+      "cat": "movies",
+      "type": "vote",
+      "prompt": "Subtitles on, even in your own language?",
+      "options": [
+        {
+          "label": "Always on",
+          "count": 2900
+        },
+        {
+          "label": "Only when I need them",
+          "count": 3200
+        }
+      ]
+    },
+    {
+      "id": "f66",
+      "core": false,
+      "cat": "event",
+      "type": "vote",
+      "political": true,
+      "prompt": "Should social media have a minimum age of 16?",
+      "options": [
+        {
+          "label": "Yes, 16",
+          "count": 3600
+        },
+        {
+          "label": "Parents decide",
+          "count": 2500
+        }
+      ]
+    },
+    {
+      "id": "f67",
+      "core": false,
+      "cat": "food",
+      "type": "vote",
+      "prompt": "Breakfast: the same thing every day, or never the same?",
+      "options": [
+        {
+          "label": "Same every day",
+          "count": 2700
+        },
+        {
+          "label": "Never the same",
+          "count": 3000
+        }
+      ]
+    },
+    {
+      "id": "dl6",
+      "core": false,
+      "cat": "sport",
+      "type": "dial",
+      "prompt": "At what age is an athlete past their peak?",
+      "lo": 25,
+      "hi": 45,
+      "unit": "yrs"
     }
   ]
 }
