@@ -15,6 +15,7 @@ import { reportError } from '../../lib/sentry';
 // answers with the navigation, map-tab reads the where. ESM on all three
 // sides, so the coupling ratchet never counts it.
 import { onMapCue } from '../data/mapCue.ts';
+import { closeTopBackLayer } from '../data/backLayers';
 
 // The third tab, ON TRIAL (D166 §1) — lazy by requirement, not taste:
 // check:bundle has no eager headroom, and the trial clause wants the
@@ -208,6 +209,13 @@ function App() {
   backState.current = { person, city, ov, tab, backOv, setTweak };
   useEffect(() => (window.registerBackHandler ? window.registerBackHandler(() => {
     const s = backState.current;
+    // Bottom sheets first, because they sit on top of everything below —
+    // a sheet can be opened FROM a person overlay, never the other way
+    // round. They are not in `backState` because each Sheet holds its own
+    // open state inside whichever module rendered it; data/backLayers.ts
+    // is the one place that knows one is up, and what back did before it
+    // existed was quit the app (its header has the path).
+    if (closeTopBackLayer()) return true;
     if (s.person) { setPerson(null); return true; }
     if (s.city) { setCity(null); return true; }
     if (s.ov) { s.backOv(); return true; }
