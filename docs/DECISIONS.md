@@ -22371,3 +22371,69 @@ day one instead of an empty screen.
 the branch back, citing this record. A silent re-addition would be the
 same failure as the silent removal D166 forbade, in the direction that
 flatters the roadmap instead of the tree.
+
+## D218 · A pick answer snapshots who it meant, and the reveal carries it
+
+**2026-08-20.** **Status:** binding. Owner's call, on the roles
+reflection thread: the review of D204's implementation ranked this as
+the one backend change gating everything map-shaped — the crowns, a live
+group role map, and D204's `cast` dimension — and the owner said *"i
+like it, lets do number 2 aswell"* over the ranked list.
+
+### The problem, as D204 priced it
+
+A "pick" day's options ARE the group's members, in roster order: the
+bank question carries no options, `duelQFor` builds them from
+`g.memberUids`, and the answer stores only `optionIdx`. So the meaning
+of every stored pick is RELATIVE to a roster that changes — a join or a
+leave silently remaps every historical pick day, and two clients can
+hold different rosters on the same day, so one index can mean two
+different people at the moment of voting. That is why D204 called any
+fold over historical picks "a new fold with a real correctness hazard"
+and did not compute `cast`.
+
+### What shipped
+
+The answer snapshots WHO the index meant, at the moment of voting, and
+the reveal publishes it:
+
+- **Client** (`live.ts` `voteDuel`): on a pick question the payload
+  carries `pickUid` — the uid this client's own `memberUids[optionIdx]`
+  pointed at when the vote was cast.
+- **Rules** (`isDuelAnswer`): optional; when present it must be a
+  string, a CURRENT member's uid, and the question must be a pick
+  (empty bank options). Both get()s were already made by the clauses
+  beside it and repeated get()s dedupe within an evaluation, so the
+  validation costs no extra document access.
+- **Server** (`v2social` `revealGroupDay`): carried verbatim into the
+  reveal's vote objects — `revealVotes` spreads the vote through
+  unchanged.
+- **First reader** (`groupPortrait` → `LiveGroupsMirrorBody`): the
+  Answers rows label a pick day from the votes' own snapshots —
+  `majorityPickUid`, and `minePickUid` for the "you picked X" line —
+  falling back to the index path (the old behavior) when no snapshot
+  exists.
+
+### Forward-only, and what that means for `cast`
+
+Nothing rewrites history (D5 would not allow it): every reveal written
+before this record has index-only picks and reads exactly as before.
+The snapshot ACCRUES from the next pick reveal on. `cast` is still not
+computed — D204's other reason stands: pick days are a fraction of the
+rotation, and a dimension folded from a handful of snapshotted days is
+the dead axis D204 refused. What this record removes is the correctness
+hazard, so that when the data exists the fold is arithmetic rather than
+archaeology. The crowns and the group role map — MIRROR.md's "unbuilt
+rather than refused" — now have a source growing under them, and
+building either is its own decision when the days are there.
+
+### The disagreement rule, stated once
+
+When the counted majority votes carry snapshots that DISAGREE, the row
+labels by index-fallback rather than picking a side: a split snapshot
+means the index grouping itself was unsound for that day (two rosters,
+one index space), and papering it over with either name would be a
+claim the data does not make. Mixed old/new clients — some votes with a
+snapshot, some without — use the carriers' agreed name, which is the
+best available truth. `groupPortrait.test.ts` pins both halves, and
+`firestore-tests/rules.test.ts` pins the write shape.

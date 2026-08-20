@@ -37,11 +37,14 @@
 // it. Six remain, their shares renormalised from 83 to 100 because
 // `IS_archScores` also taxes rare types by log(maxShare/share) and a
 // table that does not sum to 100 quietly shifts every match. The pick
-// questions in the group bank could ground a real `cast` later — 7 of 24
-// are `kind: "pick"` and their options ARE the member list — but the
-// reveal doc does not store the option→uid mapping the answering client
-// used, so it is a new fold with a real correctness hazard, not a free
-// one. See D204 for the arithmetic.
+// questions in the group bank are what could ground a real `cast` — their
+// options ARE the member list — and since D218 each pick answer snapshots
+// the picked member's uid into the reveal, which removes the
+// roster-remapping hazard D204 priced. What still stands between here and
+// a live `cast` is DATA: the snapshot is forward-only, pick days are a
+// fraction of the rotation, and a dimension folded from zero or two
+// snapshotted days is the dead axis this file exists to refuse. See D204
+// for the arithmetic and D218 for the snapshot.
 import { duoRuns, type RevealDocLike } from "./duelRuns";
 import { groupPortrait, type PortraitReveal } from "./groupPortrait";
 

@@ -16,6 +16,12 @@ export interface PortraitVote {
   optionIdx: number;
   /** set only when this member answered a different question — see voteQid */
   qid?: string | null;
+  /**
+   * Who this vote's optionIdx MEANT on a "pick" day (D218) — snapshotted
+   * by the answering client, because the index is relative to a roster
+   * that changes. Absent on non-pick days and in reveals older than D218.
+   */
+  pickUid?: string | null;
 }
 
 export interface PortraitReveal {
@@ -70,6 +76,17 @@ export interface PortraitRow {
   offQuestion: number;
   /** true when MY answer was the off-question one — then `mine` is null */
   mineOffQuestion: boolean;
+  /**
+   * WHO the majority option meant, on a pick day (D218) — from the votes'
+   * own snapshots, never from indexing the current roster. Null unless
+   * every counted majority vote that carries a snapshot names the same
+   * person: clients can hold different rosters on the same day, and a
+   * split snapshot means the index grouping itself was unsound, which is
+   * not a thing to paper over with a name.
+   */
+  majorityPickUid: string | null;
+  /** same, for MY vote — who I picked, when my answer snapshotted it */
+  minePickUid: string | null;
 }
 
 export interface PortraitPerson {
@@ -131,6 +148,19 @@ export function portraitRow(reveal: PortraitReveal, myUid: string | null): Portr
   // must not count the day as one I played — a made-up alignment is the
   // fabrication D1 forbids, and it would be indistinguishable from a real one.
   const mine = minePlayed && !mineOffQuestion ? (mineVote as PortraitVote).optionIdx : null;
+  // The pick-day snapshots (D218). Only the counted votes on the majority
+  // option are consulted, and only unanimously: a mixed set (old and new
+  // clients, or genuinely different rosters) yields null and the reader
+  // falls back to the index rather than to a guessed name.
+  const majorityPicks = entries
+    .filter(([, v]) => v.optionIdx === majorityIdx)
+    .map(([, v]) => v.pickUid)
+    .filter((p): p is string => typeof p === "string" && p.length > 0);
+  const majorityPickUid =
+    majorityPicks.length > 0 && majorityPicks.every((p) => p === majorityPicks[0])
+      ? majorityPicks[0]
+      : null;
+  const minePick = mine != null ? (mineVote as PortraitVote).pickUid : null;
   return {
     day: reveal.day,
     qid: rowQid,
@@ -145,6 +175,8 @@ export function portraitRow(reveal: PortraitReveal, myUid: string | null): Portr
     // leaves both blocs with the majority rather than punishing the one
     // that happens to sit at the higher option index.
     withMajority: mine != null && counts[mine] === maxN,
+    majorityPickUid,
+    minePickUid: typeof minePick === "string" && minePick ? minePick : null,
   };
 }
 

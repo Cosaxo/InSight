@@ -1681,6 +1681,16 @@ const SOCIAL = {
           anchors: answerAnchors(),
         };
         if (typeof guessIdx === "number") payload.guessIdx = guessIdx;
+        // A "pick" day's options ARE the members, in THIS client's roster
+        // order — so an index alone goes stale the moment the roster
+        // changes, silently remapping every historical pick (the hazard
+        // D204 priced). The answer therefore snapshots WHO the index
+        // meant at the moment of voting (D218); the reveal carries it,
+        // and any later fold reads the uid, never the index.
+        if (q.kind === "pick") {
+          const pickUid = ((g.memberUids || []) as string[])[optionIdx];
+          if (typeof pickUid === "string" && pickUid) payload.pickUid = pickUid;
+        }
         await setDoc(doc(db, "v2_users", uid, "answers", aid), payload);
         cacheVote(aid, optionIdx);
       } catch (err) {

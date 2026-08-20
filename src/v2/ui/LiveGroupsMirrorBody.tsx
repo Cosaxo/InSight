@@ -123,8 +123,14 @@ function LgKicker({ children }: { children: React.ReactNode }) {
 
 // What a revealed day's majority actually said. "pick" questions carry no
 // bank options — their options ARE the members — so the label falls back
-// to the picked member's name.
-function lgOptionLabel(g: LiveGroup, qid: string | null, idx: number): string {
+// to the picked member's name. Since D218 a pick vote snapshots WHO its
+// index meant, and that snapshot is preferred: the index path below reads
+// the CURRENT roster order, which a join or leave silently remaps for
+// every historical pick day. The fallback survives for reveals older than
+// D218 and for a snapshot naming someone no longer in memberNames.
+function lgOptionLabel(g: LiveGroup, qid: string | null, idx: number, pickUid?: string | null): string {
+  const pickName = pickUid ? (g.memberNames || {})[pickUid] : null;
+  if (pickName) return pickName;
   const bankQ = qid ? (LIVE.social.bankQ(qid) as { options?: string[] } | null) : null;
   if (bankQ && bankQ.options && bankQ.options.length) return bankQ.options[idx] != null ? bankQ.options[idx] : `Option ${idx + 1}`;
   const uid = (g.memberUids || [])[idx];
@@ -164,7 +170,7 @@ function LgAnswersCard({ g, P }: { g: LiveGroup; P: GroupPortrait }) {
       <div style={{ marginTop: 6, display: "flex", flexDirection: "column" }}>
         {rows.map((r, ri) => {
           const prompt = lgPrompt(r.qid);
-          const mineLabel = r.mine != null && !r.withMajority ? lgOptionLabel(g, r.qid, r.mine) : null;
+          const mineLabel = r.mine != null && !r.withMajority ? lgOptionLabel(g, r.qid, r.mine, r.minePickUid) : null;
           return (
             // A real <button>, not a clickable <div>: this row expands and
             // collapses, so it is a control, and a control that only answers
@@ -184,7 +190,7 @@ function LgAnswersCard({ g, P }: { g: LiveGroup; P: GroupPortrait }) {
               }}
             >
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
-                <span style={{ fontFamily: "var(--sans)", fontSize: 14.5, fontWeight: 800, letterSpacing: "-0.01em", color: "var(--ink)", textWrap: "pretty" }}>{lgOptionLabel(g, r.qid, r.majorityIdx)}</span>
+                <span style={{ fontFamily: "var(--sans)", fontSize: 14.5, fontWeight: 800, letterSpacing: "-0.01em", color: "var(--ink)", textWrap: "pretty" }}>{lgOptionLabel(g, r.qid, r.majorityIdx, r.majorityPickUid)}</span>
                 <span style={{ flexShrink: 0, fontFamily: "var(--sans)", fontSize: 10.5, fontWeight: 700, color: "var(--ink-3)" }}>{r.day.slice(5)}</span>
               </div>
               {/* one dot per voter: filled = majority bloc, dark = you */}

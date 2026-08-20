@@ -168,6 +168,54 @@ describe("twin / contrarian need a spread, not just a sample", () => {
 // given to something else. Nothing that compares two optionIdx values may
 // look across that line: option 2 of one prompt has nothing to do with
 // option 2 of another.
+describe("the pick-day snapshot (D218)", () => {
+  // A pick vote may carry WHO its index meant, snapshotted by the
+  // answering client. The row surfaces it only when the counted majority
+  // votes agree — the index path a reader falls back to reads the CURRENT
+  // roster order, which is the remapping hazard the snapshot removes.
+  const pickRev = (n: number, votes: Record<string, { o: number; p?: string }>) => ({
+    day: day(n),
+    qid: "q" + n,
+    votes: Object.fromEntries(
+      Object.entries(votes).map(([u, v]) => [u, { optionIdx: v.o, ...(v.p ? { pickUid: v.p } : {}) }]),
+    ),
+  });
+
+  it("majorityPickUid is the person the majority's own snapshots name", () => {
+    const r = portraitRow(pickRev(1, { me: { o: 2, p: "b" }, a: { o: 2, p: "b" }, b: { o: 0, p: "me" } }), "me")!;
+    expect(r.majorityIdx).toBe(2);
+    expect(r.majorityPickUid).toBe("b");
+    expect(r.minePickUid).toBe("b");
+  });
+
+  it("a split snapshot on one index yields null, never a guessed name", () => {
+    // Two clients held different rosters, so the same index meant two
+    // different people — the grouping itself is unsound for this day, and
+    // that is not a thing to paper over with a name.
+    const r = portraitRow(pickRev(1, { me: { o: 1, p: "a" }, a: { o: 1, p: "b" }, b: { o: 0 } }), "me")!;
+    expect(r.majorityPickUid).toBeNull();
+  });
+
+  it("a majority where only some votes carry the snapshot uses the carriers' agreed name", () => {
+    // Mixed client versions: the pre-D218 vote has no snapshot; the ones
+    // that do agree, and their agreement is the best available truth.
+    const r = portraitRow(pickRev(1, { me: { o: 1, p: "a" }, a: { o: 1 }, b: { o: 1, p: "a" } }), "me")!;
+    expect(r.majorityPickUid).toBe("a");
+  });
+
+  it("pre-D218 reveals carry no snapshots and read as before", () => {
+    const r = portraitRow(rev(1, { me: 0, a: 0, b: 1 }), "me")!;
+    expect(r.majorityPickUid).toBeNull();
+    expect(r.minePickUid).toBeNull();
+  });
+
+  it("my snapshot is mine even when I am against the majority", () => {
+    const r = portraitRow(pickRev(1, { me: { o: 0, p: "a" }, a: { o: 1, p: "b" }, b: { o: 1, p: "b" } }), "me")!;
+    expect(r.majorityPickUid).toBe("b");
+    expect(r.minePickUid).toBe("a");
+  });
+});
+
 describe("votes answered against a different question", () => {
   // b was asked something else that day
   const split = (n: number, votes: Record<string, number>, odd: Record<string, string>) => ({
