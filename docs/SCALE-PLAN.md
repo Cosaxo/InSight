@@ -331,6 +331,21 @@ scorecard reads published aggregates, and pre-launch there are none. So
 before there are users, review is all there is, and the volume that makes
 this worth building is the volume that cannot be validated yet.
 
+**Taken further at D212 (2026-08-19), owner's direction.** The second
+non-dissolving item above — the human on the merge — is gone for
+question content: the lanes merge their own PRs on green gates, the farm
+promotes its own batches at a fixed pace, and the 1-in-20 audit became a
+standing `check:quality` warning a person spends down on their own clock
+rather than a gate that can stop the lanes. The first item (correlated
+blind spots → sampled audit) survives unchanged, as does everything that
+is not a bank append. D213 took the matching volume step the same day
+(feed daily at a 24/topic target; the duel lane's regulator and
+Routine). The order-of-work items 3 and 4 below are therefore taken —
+review reshaped past what this section proposed, production scaled by
+cadence rather than caps — with item 1 (pagination) already built at
+D161 and the split's fold enforcement still sequenced with first tail
+content.
+
 ## 4 · The interest model — `ATTENTION.md` tier 2, with the gap closed
 
 **Most of the signal already exists on the device and is thrown away.**

@@ -9,34 +9,54 @@ catalog run further down. If you are one of those runs: follow this
 document exactly; where it is silent, follow `CLAUDE.md` and stop rather
 than improvise. Written 2026-07-30, alongside `CATALOG-QUESTIONS.md` —
 the reflection that produced this design (AI joins the existing review
-pipeline as a *proposer*; humans stay the gate).
+pipeline as a *proposer*; humans stay the gate). **That parenthetical is
+history now, not the contract: D212 (2026-08-19) took the person out of
+the approval loop.** A run writes, reviews against the D162 contract,
+verifies with the gates, and merges its own PR once CI is green; the
+human's remaining holds are the kill switch (`active: false`, the
+operator console), the retrospective 1-in-20 audit, taxonomy creation
+(§ When no category fits — unchanged), and everything that is not a
+question (code, rules, schema — ordinary review, untouched by D212).
 
 ## The job in one sentence
 
 Find the thinnest topics in the daily-question archive, write a small batch
 of new questions in the product's voice, verify with the repo's own gates,
-and open a pull request for human review — or do nothing, loudly, if no
-topic is thin.
+open a pull request and merge it when every check is green (D212) — or do
+nothing, loudly, if no topic is thin.
 
 ## Hard rules (each one is load-bearing)
 
-1. **A PR is the only output.** Never push to `main`, never merge your own
-   PR, never touch a branch you didn't create — and a branch created by an
-   earlier run of the same lane counts as this lane's own: rolling a new
-   commit onto the lane's open PR is this rule working, not an exception
-   (§ The PR, 2026-08-03 — before that clause, runs read this rule strictly
-   and stacked a new branch per day, which is exactly how the #58 → #62 →
-   #65 pile happened). Human review is the gate the whole design rests on.
+1. **A PR is the only path to `main`, and green gates are the only path
+   to a merge.** Never push to `main` directly, never touch a branch you
+   didn't create — and a branch created by an earlier run of the same
+   lane counts as this lane's own: rolling a new commit onto the lane's
+   open PR is this rule working, not an exception (§ The PR, 2026-08-03 —
+   before that clause, runs read this rule strictly and stacked a new
+   branch per day, which is exactly how the #58 → #62 → #65 pile
+   happened). Until D212 this rule ended "never merge your own PR" and
+   human review was the gate; since D212 **the run merges its own PR once
+   every CI check reports success** (§ The PR has the procedure), the
+   catalog lane's standing direction extended to every lane. The gates
+   are the review; a PR that cannot go green is left open and reported,
+   never forced.
 2. **Questions only.** You may edit exactly one file:
    `src/v2/spec/daily-questions.js` (appending to the `Q` array). You may
    not touch `firestore.rules`, `functions/`, the live content seeds, map
    anchors, or anything else. If the job seems to need another file
-   changed, that is a finding for the PR description, not an edit. One
-   carve-out (2026-08-05): the run also refreshes the generated
-   `content/scorecard.json` — only ever via `npm run scorecard --
-   --fetch`, never by hand — per the scorecard section's self-refresh
-   contract. That file is measurement, not content; everything else
-   under `content/` stays untouchable.
+   changed, that is a finding for the PR description, not an edit. Two
+   carve-outs, each script-only. First (2026-08-05): the run also
+   refreshes the generated `content/scorecard.json` — only ever via
+   `npm run scorecard -- --fetch`, never by hand — per the scorecard
+   section's self-refresh contract; that file is measurement, not
+   content. Second (D212): the run promotes its own batch via
+   `npm run promote` — which writes `content/daily-questions.json`,
+   `content/provenance.json` and the regenerated
+   `functions/src/v2content.ts`, byte-for-byte through the script and
+   never by hand — plus the prose figures `check:figures` then names,
+   applying exactly the fix lines the gate prints (§ Promoting questions
+   has the procedure). Everything else under `content/` stays
+   untouchable.
 3. **No new categories.** Every question's `cat`/`alts` tops must be keys
    that already exist in `CAT_META` in that same file. Creating one is out
    of scope for every run on every surface; a question that fits none is
@@ -92,19 +112,31 @@ omitting it assumes 0, which over-generates. The constants live in
 `scripts/farm-budget.mjs` with the reasoning; `check:figures` holds the
 numbers quoted here equal to the script, and `farm-budget.test.mjs` pins
 the property the whole design rests on: **once the pen is full,
-sustained generation equals the human gate's measured promotion
-throughput** — the cap only binds during catch-up. D33's constraint
-("review capacity is the binding constraint, and a queue of unreviewed
-AI PRs is inventory, not progress") is unchanged; the regulator is that
-sentence as arithmetic, which is what makes the bigger cap safe.
+sustained generation equals promotion throughput** — the cap only binds
+during catch-up. Under D33 that throughput was a person's reading and
+"review capacity is the binding constraint" was the sentence the
+regulator turned into arithmetic; under D212 the person is out of the
+loop and the throughput is the promotion pace the run itself executes
+(`PROMOTE_PACE`, § Promoting questions). The regulator's shape survives
+both — which is what it was built for — and the queue it guards against
+is now a gate-refused batch rather than an unread one.
 
-### The review contract (D162) — what a reviewing run must do
+### The review contract (D162, re-scoped by D212) — what a reviewing run must do
 
 **Built 2026-08-15: the verdict is now a required field, not a habit.**
 Every farm and community row in `content/provenance.json` carries
 `review: { by: "ai" | "human", at, audited? }`, `check:quality` refuses a
 bank entry without one, and `npm run promote` refuses to write one
 without `--review`. Editorial rows carry none — editorial IS the human.
+**D212 changed who waits on whom, not what is judged:** the reviewing
+pass below still runs before anything merges, and its verdict is still a
+required fact — what went away is the person between the verdict and the
+bank. The 1-in-20 human audit survives as a retrospective check:
+`check:quality` now reports an audit shortfall as a warning that accrues
+instead of an error that blocks (a person falling behind on audits must
+not be able to stop the lanes — that was the dependence D212 removed),
+and what an audit finds is handled by the kill switch, not by a held
+merge.
 
 What a reviewing run judges is exactly the residue
 `question-quality.mjs` says it cannot measure, and nothing else:
@@ -126,34 +158,40 @@ What a reviewing run judges is exactly the residue
    reads — the reviewer shares the generator's tilt about what "belongs"
    in a topic, which is exactly the correlated-blind-spot rule below.
 
-**Two rules that are not about quality, and are the reason a human is
-still here at all:**
+**Two rules that are not about quality:**
 
 - **You are reviewing your own species' output.** A reviewing run shares
   the generator's tilt, so it is the least likely thing to notice a
   systematic one. This is why `--audited` exists: a person reads
-  1-in-`AUDIT_ONE_IN` and the gate holds the cumulative rate. Name the
-  audited ids; never claim a count.
-- **Never merge.** Hard rule 1 is unchanged and this section does not
-  touch it. An AI review moves the human from *reading every candidate*
-  to *approving a batch*; it does not remove the human from the merge,
-  because the two-gate design exists so a scheduled job never holds write
-  access to production content.
+  1-in-`AUDIT_ONE_IN`, and since D212 the gate reports the cumulative
+  rate as a standing warning rather than holding the lanes to it. Name
+  the audited ids; never claim a count. A run marks `audited: false`
+  honestly and moves on — the shortfall is the operator's to spend down,
+  and the kill switch is what acts on anything the audit finds.
+- **Merge on green, and only on green.** Hard rule 1 as amended by D212:
+  the gates are the review, so a run merges its own PR when every CI
+  check reports success and leaves it open — reported on issue #31 —
+  when one does not. The pre-D212 sentence here ("the two-gate design
+  exists so a scheduled job never holds write access to production
+  content") is the cost the owner priced and accepted in D212's record;
+  what bounds the blast radius now is the gate set in front of the merge
+  and the kill switch behind it.
 
 **Reshaped, not retired, 2026-08-15** ([`SCALE-PLAN.md`](SCALE-PLAN.md)
 §3). The owner has decided review is an AI job. The sentence survives
 intact — it is about capacity, not about who — and what changes is the
 human's unit of work: from *read every candidate* to *approve a batch and
 audit a sample*, with "does this split or slide" measured after the fact
-from published aggregates rather than predicted in review. Two things do
-not dissolve and are the reason a human stays in the loop at all:
-correlated blind spots (an AI reviewer shares the generator's tilt, so
-the audit sample is the check), and blast radius (the two-gate design
-exists so a scheduled job never holds write access to production content
-— hence the human on the merge, not on the reading). The regulator keeps
-its shape; the throughput it throttles to is simply a larger number.
-Building it graduates to a DECISIONS.md record — **taken as D162**
-(2026-08-15).
+from published aggregates rather than predicted in review. Building it
+graduated to **D162** (2026-08-15), which kept two human holds:
+correlated blind spots (the audit sample) and blast radius (the human on
+the merge). **D212 (2026-08-19) then removed the merge hold at the
+owner's direction** — measured against D162's own fortnight: the gates
+caught everything the person was positioned to catch (a cross-field
+dupe, over-long lines, a batch-mix refusal), while the person's queue
+was what zeroed the feed lane's budget and idled the catalog lane for
+four days. The audit hold stays, retrospective; the merge hold is gone;
+the kill switch is the backstop.
 
 Allocation of whatever the budget grants runs through three lanes in
 strict priority order (maintainer's direction, 2026-07-30, sharpened
@@ -418,25 +456,30 @@ abort the run with no push rather than force it green.
 
 ## The PR
 
+- **Merge it yourself, on green, in the same run (D212).** After every
+  local gate passes and the PR is open, wait for its CI checks; when
+  every required check reports success, squash-merge via the GitHub API
+  (the repo's merge shape — main's history is one commit per PR). Never
+  merge with a failing or still-pending check, never re-run a job to
+  outwait a real failure, and never push an empty commit to kick CI. If
+  a check fails and the fix is obvious and tiny, fix and re-push; if it
+  is not, leave the PR open and put the failure verbatim in the run's
+  issue #31 comment — an open lane PR now MEANS a gate refused it, which
+  is exactly what the next run's `--open` count and the roll-up rule
+  below are for.
 - **One open PR per lane — roll up, don't stack** (2026-08-03). If this
-  lane's previous PR is still open, do not open a second: check out its
-  branch, dedup against everything already on it, append one commit,
-  retitle the PR to cover the span, and add a dated section to its body.
-  The measured motivation is the 2026-08-01→03 catalog stack (#58 → #62
-  → #65): three PRs, one reviewer, and because each contained its
-  predecessors the only practical review unit was the newest anyway.
-  D33 already named review capacity the binding constraint; rolling up
-  stops new PRs joining the queue without touching the human gate. The
+  lane's previous PR is still open (post-D212: its gates failed, or its
+  merge was interrupted), do not open a second: check out its branch,
+  dedup against everything already on it, fix what CI refused if the fix
+  is within this lane's write surface, append one commit, retitle the PR
+  to cover the span, and add a dated section to its body. The measured
+  motivation is the 2026-08-01→03 catalog stack (#58 → #62 → #65). The
   one exception: if the open PR no longer merges cleanly into `main`,
   leave it for the human — open a fresh branch from `origin/main` and
-  note the standing conflict in both PR bodies. Transition case, spelled
-  out because the first run under this rule will hit it: if MORE than
-  one lane PR is already open (a pre-rule stack), roll onto the newest —
-  the one whose branch already contains the others — and list the
-  superseded PRs in its body as "contained here; close when this
-  merges". Closing them is the human's call, not the run's: the standing
-  queue drains at the gate, and this rule's job is only to stop it
-  growing.
+  note the standing conflict in both PR bodies. If MORE than one lane PR
+  is already open (a pre-rule stack), roll onto the newest — the one
+  whose branch already contains the others — and list the superseded PRs
+  in its body as "contained here; close when this merges".
 - Branch (when no lane PR is open): `claude/question-farm-<YYYY-MM-DD>`
   (UTC date; suffix `-2` etc. if it exists). One commit per run, message
   in the repo's voice.
@@ -447,9 +490,13 @@ abort the run with no push rather than force it green.
 - Title: `Question farm: <n> questions for <topics>`.
 - The body must say the questions are AI-generated by this scheduled job
   and name this document — provenance is part of the product's honesty
-  posture.
-- Do not merge it. Do not respond to reviews; the next run picks up any
-  merged feedback by reading the then-current archive.
+  posture. It must also carry the packet lines and the one-line-per-
+  question arguments the writing sections require: with no person on the
+  merge, the PR body is the audit's reading material, so a body that
+  skips them defeats the one human check that remains.
+- Human comments on a merged or open lane PR are direction, not
+  conversation: the next run reads them before writing, and treats an
+  explicit "stop"/"revert" as exactly that.
 
 ## The daily catalog-question run (a second, smaller job)
 
@@ -502,16 +549,21 @@ Rules, each load-bearing:
    never share a reveal.
 6. **Gates before the PR:** `npm run lint`, `check:globals`,
    `test:unit`, `build`. The tree stays green at every commit.
-7. **The PR is the gate, and there is at most one open** — the farm's
-   roll-up rule (§ The PR, 2026-08-03) applies verbatim: while a catalog
-   PR is open, each day's card is one more commit on its branch (dedup
-   against the cards already on it, retitle to cover the span, dated
-   body section), never a new PR stacked on top. Fresh branch
+7. **The gates are the gate, and there is at most one PR open** — the
+   farm's roll-up and merge rules (§ The PR, 2026-08-03 and D212) apply
+   verbatim: open the PR, and when every CI check reports success,
+   squash-merge it in the same run. This lane merged its own PRs on
+   green before any other — the owner's standing direction, run log
+   2026-08-1x — and D212 is that direction formalized and extended to
+   every lane. While a catalog PR is open (a gate refused it), each
+   day's card is one more commit on its branch (dedup against the cards
+   already on it, retitle to cover the span, dated body section), never
+   a new PR stacked on top. Fresh branch
    `claude/catalog-question-<date>` only when no catalog PR is open or
    the open one conflicts with `main`. Body states the card is
-   AI-generated by this scheduled job and names this section; do not
-   merge it. Log the PR link (or the no-op reason, or the verbatim
-   failure) as a comment on issue #31.
+   AI-generated by this scheduled job and names this section. Log the PR
+   link (or the no-op reason, or the verbatim failure) as a comment on
+   issue #31.
 
 ### Creating new catalogues (Sundays — a slot, not a mood)
 
@@ -582,20 +634,31 @@ Rules, each load-bearing:
    daily run, propose it in the PR body, never add it silently.
    Branch: `claude/catalog-domain-<name>`.
 
-## Promoting questions into the live seed (Phase B — D30)
+## Promoting questions into the live seed (Phase B — D30, automated at D212)
 
-Merged farm questions can now reach production, through a second gate.
-This is an **operator/dev-session job, never a scheduled run**: the farm
-keeps writing the spec-layer archive only, and a human carries questions
-across in a reviewed PR of their own. The two-gate shape is the point —
-AI proposes into the archive, a person decides what production serves.
+Merged farm questions reach production through promotion. Until D212
+this was an **operator/dev-session job, never a scheduled run** — the
+two-gate shape, a person deciding what production serves. **D212 made it
+the farm run's own step:** each run promotes up to **2 pen questions per
+run** (`PROMOTE_PACE` in `scripts/farm-budget.mjs`, held equal here by
+`check:figures`), oldest pen entries first, in the same PR as its new
+batch. Oldest-first is the rule rather than a curatorial pick — the pen
+is ordered by the same gates everything passed, and a run that skips an
+entry must say which and why in the PR body (a scorecard flag is a
+reason; taste is not). The pace is D97's ≥14/week target at the daily
+cadence, sits below the generation cap so the pen fills before it
+drains, and is what the budget regulator's steady state now tracks.
 
 The mechanics are all reuse (spec `Q` entries and
 `content/daily-questions.json` entries share a shape):
 
-1. Pick merged archive entries (the `dqx` series) worth serving live.
-   The archive is the holding pen; not everything in it has to graduate.
-2. `npm run promote -- --source farm dqx61 dqx62` — the script appends
+1. Take the oldest unpromoted archive entries (the `dqx` series), up to
+   the pace. The archive is still the holding pen — generation above the
+   pace accumulates there, which is what keeps a slow week from starving
+   promotion and a fast one from flooding it.
+2. `npm run promote -- --source farm --review ai dqx61 dqx62` (add
+   `--audited id,id` only for entries a person actually read) — the
+   script appends
    to `content/daily-questions.json` with the next free explicit `id`
    suffix, **copying prompts byte-for-byte** (live hydration joins the
    seeded bank to the demo layer by prompt-string equality — `liveSync`
@@ -609,30 +672,40 @@ The mechanics are all reuse (spec `Q` entries and
 3. `npm run build:content` (the promote script runs it), then
    `npm run check:content` and `npm run check:quality` — the dedup,
    id-shape, drift and provenance gates all fire here.
-4. PR with the provenance trail (which farm PR each question came from —
-   the JSON row carries source and vintage; the PR body carries the
-   links).
-5. After merge and deploy, an operator runs `seedContentV2`. The seed is
+4. `npm run check:figures`, and apply exactly the fix lines it prints: a
+   promotion moves the seeded bank count, which several launch docs
+   quote, and the gate names each stale sentence with the corrected text
+   (D212 — this used to be the human promoter's chore; it is mechanical,
+   which is why it could move).
+5. The promotion rides the same lane PR as the run's new batch, whose
+   body carries the provenance trail (which farm PR each question came
+   from — the JSON row carries source and vintage).
+6. After merge and deploy, an operator runs `seedContentV2`. The seed is
    merge-idempotent, never rewrites `active`, and (D34) writes only the
    documents whose content actually changed — so a promotion costs each
    returning device the handful of new questions rather than a full
    369-doc bank refetch. `contentRev` stays put; clients page the new
    questions in against their `updatedAt` cursor. New questions extend the
    daily rotation without remapping served days (the deck epoch, D30).
+   **This step stays the operator's after D212, deliberately**: it is
+   deployment, not approval — the seed callable needs production
+   credentials a scheduled run must never hold, and a merged-but-unseeded
+   promotion costs nothing (the bank simply updates on the next seed).
 
-Cadence arithmetic (D30, re-paced by D33, upscaled by D97): the daily
-surface consumes 7 questions/week; the lane's generation ceiling is the
-budget regulator's cap, throttled to promotion throughput once the pen
-is full. Promotion averaging ≥7/week keeps the bank growing faster than
-the calendar — users never see a repeat; **the D97 target is ≥14/week
-while the pen has stock**, which grows runway by a day per day and is
-what the bigger generation ceiling exists to feed. The archive absorbs
-whatever generation outruns promotion (it is the holding pen; not
-everything graduates). Every promoted question buys one day of runway; a
+Cadence arithmetic (D30, re-paced by D33, upscaled by D97, automated by
+D212): the daily surface consumes 7 questions/week; the lane's
+generation ceiling is the budget regulator's cap, throttled to promotion
+throughput once the pen is full. Promotion averaging ≥7/week keeps the
+bank growing faster than the calendar — users never see a repeat; **the
+D97 target is ≥14/week while the pen has stock**, which grows runway by
+a day per day, and D212's pace of 2/run at the daily cadence IS that
+target as arithmetic rather than an aspiration a person had to keep.
+The archive absorbs whatever generation outruns promotion (it is the
+holding pen — D208). Every promoted question buys one day of runway; a
 90-question bank alone is ~13 weeks even if promotion stops. The
 headroom limits are gated, not remembered: `check:quality` trips before
-the 3-digit daily id space or the client's `limit(1500)` bank fetch
-(D30: pagination, never another raise) can be reached silently.
+the 3-digit daily id space or the bank-size ceilings can be reached
+silently (the fetch itself paginates since D161).
 
 ## The learn-card lane (D32 — a single-gate lane, so the bar is higher)
 
@@ -725,7 +798,7 @@ grantable budget of 10. Rules for a learn run:
   `check:neighbors`, `check:globals`, `lint`, `test:unit`, `build`. Same
   PR shape and run log as the daily job.
 
-## The duel lane (D40, adopted 2026-08-06 — single gate, learn-style)
+## The duel lane (D40, adopted 2026-08-06; scheduled at D213 — single gate, learn-style)
 
 Duel questions live in `content/duel-questions.json` — three pools:
 `group`, `oneVsOne`, and `romantic` (D40 part 4: seeded as duo-surface
@@ -733,12 +806,31 @@ docs with `mode: "romantic"`, served only to pairs whose duo doc chose
 the pool). Like learn cards there is no spec-vs-live split to graduate
 across — the same file feeds the demo layer and the seeded bank — so a
 merged duel PR IS the production review: one gate, production-level bar.
-No Routine fires this lane yet; it runs when the maintainer asks a dev
-session (the learn lane's shape), and adding a Routine is an owner step
-recorded under Governance when taken. Rules for a duel run:
+**A Routine fires this lane** (D213; weekly — the inventory under
+Governance carries the schedule). Until then it ran only when the
+maintainer asked a dev session, and the measured result was the shape
+every unscheduled lane produced: nothing — twelve straight days without
+a duel question (2026-08-07 → 08-19) while the group pool sat at exactly
+one 24-day rotation, meaning a daily group's day 25 is a rerun. Rules
+for a duel run:
 
-- **Budget ≤4 questions/run, at most weekly to start.** A group sees one
-  question a day from a pool of 24; runway is the goal, not volume.
+- **Start every run with `npm run duel:budget -- --open <questions on
+  the open lane PR>`** (D213). The budget is computed, not flat: it
+  grants up to **4 duel questions per run** while any pool is short of
+  **48 questions per pool** (twice the shipped group rotation, so a
+  daily player goes ~7 weeks without a repeat), subtracts whatever
+  already sits unreviewed on the lane's open PR, and grants **zero** at
+  the target or at **4** unreviewed duel questions on that PR. It prints
+  the ALLOCATION — which pools to write into and how many each — and a
+  `signal:` line saying whether the guess-match band has anything to
+  read yet. This replaced D40's flat "≤4 questions/run, at most weekly
+  to start" — the exact shape D97, D115 and D145 removed from the other
+  lanes, and the last one standing. The constants live in
+  `scripts/duel-budget.mjs` with the reasoning, `check:figures` holds
+  the numbers quoted here equal to the script, and
+  `duel-budget.test.mjs` pins the properties — including that the dark
+  romantic pool counts at full weight, because its entries light up in
+  one operator step.
 - **Append only, at the end of the right array.** Group order is
   rotation order — interleaved us/pick/classic, never sorted. Both 1v1
   pools are ordered light → deep; append deep. Ids continue each series
@@ -763,8 +855,9 @@ recorded under Governance when taken. Rules for a duel run:
   the retire-proposal analogues: cite them in the PR body as
   `active: false` candidates; the kill switch stays the operator's.
 - **Every farm hard rule inherits**: the product's voice, no
-  place-scoped questions, never generated activity, PR-only output, the
-  roll-up rule for open lane PRs, and the run log on issue #31.
+  place-scoped questions, never generated activity, PR-only output with
+  the D212 merge-on-green step, the roll-up rule for open lane PRs, and
+  the run log on issue #31.
 - Gates before the PR: `npm run check:content`, `check:neighbors`,
   `check:globals`, `lint`, `test:unit`, `build`.
 
@@ -780,13 +873,16 @@ feed PR IS the production review: one gate, production-level bar. **A
 Routine fires this lane** (D145; twice weekly — the inventory under
 Governance carries the schedule). Until D145 it ran only when the
 maintainer asked a dev session, and across that whole period it produced
-nothing: every provenance row in the bank still reads `editorial`.
+nothing: every provenance row in the bank read `editorial` until the
+lane's first scheduled batch merged (#222, 2026-08-18).
 Rules, each load-bearing:
 
 - **Start every run with `npm run feed:budget -- --open <questions on the
   open lane PR>`** (D145). The budget is computed, not flat: it grants up
-  to **6 feed questions per run** while the bank is short of **12
-  servable questions per topic**, subtracts whatever already sits
+  to **6 feed questions per run** while the bank is short of **24
+  servable questions per topic** (raised from 12 at D213 — the owner's
+  volume decision; the script's constant block carries the arithmetic),
+  subtracts whatever already sits
   unreviewed on the lane's open PR, and grants **zero** at the target or
   at **6** unreviewed questions on that PR. It prints the ALLOCATION —
   which topics to write into and how many each — so thinnest-first is
@@ -862,11 +958,14 @@ Rules, each load-bearing:
   question it splits no answer budget, so check whether a straddler
   already in the bank covers the gap before writing into it.
 - **The lanes allocate the tail; a human allocates the core.** New feed
-  production lands core-absent (docs/SCALE-PLAN.md §1: absent means
-  tail), and no demand signal — however popular a topic reads — moves a
-  question INTO the core. Core membership is what the Mirror folds over,
-  and it stays a curatorial act with a human on the merge, exactly so
-  popularity cannot tilt the corpus toward what is already popular.
+  production declares `core: false` (docs/SCALE-PLAN.md §1 — false or
+  absent means tail on the wire, and `check:quality` requires the
+  declaration in the bank), and no demand signal — however popular a
+  topic reads — moves a question INTO the core. Core membership is what
+  the Mirror folds over, and it stays a curatorial act — since D212 the
+  one PER-QUESTION human act left in this pipeline, deliberately:
+  popularity must not tilt the corpus toward what is already popular,
+  and neither must a generator.
 - **Ship active.** The feed's retire path is real (`active: false`, the
   D52 shape) and stays the operator's; the lane never flips flags,
   and cites the scorecard's feed `retireProposals` in its PR body like
@@ -1098,13 +1197,16 @@ noticed a gap was indistinguishable from one that noticed and forgot.
   content, and the tension it does carry (a universal affordability
   question yields a per-city score for free) is recorded in D187 rather
   than settled.
-- **Writing the live seed catalog directly** (`content/`,
+- **Writing the live seed catalog by hand** (`content/`,
   `functions/src/v2content.ts`). This job deepens the spec-layer archive
-  only — that half of the rule stands. What changed (D30, 2026-08-01):
-  farm questions may now *graduate* to production through the human
-  promotion gate above. The farm itself still never touches `content/`;
-  a scheduled job with write access to the production bank is exactly
-  what the two-gate shape exists to prevent.
+  and promotes THROUGH THE SCRIPT only (`npm run promote`, the D212
+  carve-out in hard rule 2) — a run never hand-edits a content file. The
+  pre-D212 sentence here read "a scheduled job with write access to the
+  production bank is exactly what the two-gate shape exists to prevent";
+  D212 priced and reversed that, with the gate set and the kill switch
+  as the replacement bounds. What survives it: the script is the only
+  pen (byte-for-byte prompts, provenance rows, regenerated seed), and
+  the operator's `seedContentV2` step is untouched.
 - **New categories** — structural change (CAT_META hue, map-anchor
   relations, chips, and for learn a group in the Map's layout). No lane
   creates one; a run that cannot place a question drops it and proposes
@@ -1126,6 +1228,53 @@ noticed a gap was indistinguishable from one that noticed and forgot.
   `insight.feedPass.v1` where it already sits and never sends it. Reading
   local state on the device that wrote it is not collection; the farm's
   view is still the public aggregates and nothing else.
+
+### Surfaces that deliberately do not generate (D213 — the full census)
+
+D213's second half is a coverage rule: **every question type a reader
+can be served has a generation lane** (daily, feed `vote`/`dial`/
+`field`/`path`, learn, catalog picks and domains, and — since D213 —
+duels), **and every type without one has its reason recorded here** so
+absence stays a decision rather than drift. The owner's own carve-out
+("unless they have a very good reason not to, like the tests") is the
+bar each entry below has to meet:
+
+- **Test items (the five lenses) and the logic test** — frozen
+  instruments. Results are anchors the whole Mirror keys on; editing or
+  extending a shipped instrument re-keys every stored result, and the
+  logic answer key is a rules-level deny (anti-cheat). Owner-named
+  exception.
+- **The pulses** — repeating by definition (a line may only be drawn
+  through a question that repeats, D203). Generating new ones would
+  trade the product (the line through time) for novelty; the set is
+  small and editorial.
+- **Place-rating `rates` dailies** — editorial only (D187): sold
+  inventory's free twin, hard rule 6's boundary. A lane writing these
+  gives away the paid path.
+- **Feed `rank`** — not live-servable (D12): a rank answer is a
+  permutation and the whole ledger folds `optionIdx`. Making it servable
+  is a client+backend project, deferred, not a writing rule; until then
+  a generated rank card is inventory nobody can be served.
+- **Feed `duel`-type cards** — prototype legacy, superseded by the real
+  duel banks above.
+- **Scene cards (`sNN`)** — scenes are placeholder rooms; their card
+  pool ships with the scene design when that graduates.
+- **Foresight (`predict`/`read`)** — the engine stands unplaced since
+  D136 (it left the Mirror; no home surface). A lane writing predictions
+  for a surface nobody can reach is fabricated runway.
+- **Community suggestions** — a submission path, not a generation lane;
+  the public voting board is its own undecided decision (D138's
+  boundary), and its questions arrive with `source: "community"` through
+  the same promote machinery when picked.
+- **Sponsored questions** — a human contract path, never scheduled
+  (`source: "sponsor"`, D195); money does not get a robot.
+
+Deferred with arithmetic rather than excluded: **subtopic (`sub`)
+authoring** — the feed's second taxonomy level is shipped and dormant
+(`world-subtopics.js`: three stocked demo leaves, zero live questions
+tagged), and wiring the lane to stock leaves is the recorded next step
+of the volume plan once the ten parent topics level at the D213 target
+(a leaf below a levelled parent is depth where breadth is still owed).
 
 ## Future directions, recorded early (notes, not designs)
 
@@ -1252,11 +1401,12 @@ Each phase is its own reviewed change — nothing here is licence to start.
   on-device if built; it must never become server telemetry (the
   skip/pass line, D-series).
 
-### The duel lane (ADOPTED 2026-08-06 — see its section above)
+### The duel lane (ADOPTED 2026-08-06, SCHEDULED at D213 — see its section above)
 
-This note used to hold the proposal; D40's adoption made it real. All
-four parts shipped: single-source banks, the lane (its contract is "The
-duel lane" section above), the reveal-time cross-group signal the
+This note used to hold the proposal; D40's adoption made it real, and
+D213 gave it the regulator and the Routine every other lane already had.
+All four parts shipped: single-source banks, the lane (its contract is
+"The duel lane" section above), the reveal-time cross-group signal the
 scorecard's `duel` section reads, and the graduated romantic pool
 (seeded dark until the mode-aware client is the fleet — the adoption
 record in DECISIONS.md carries the activation step). Duel banks remain
@@ -1265,22 +1415,31 @@ lane is its own job with its own section.
 
 ## Governance
 
-The Routine that fires this job lives on the maintainer's claude.ai
-account (visible via the session's Routine tools; weekly cadence). It
-fires into the maintainer's ongoing dev session, not a fresh session per
-firing: the 2026-07-30 diagnostics (run-log issue #31) proved
-Routine-spawned fresh sessions get read-only git access and no GitHub
-API tools — three runs completed and lost their work at the push, one
-after finishing the entire job. Push notifications per run went away
-with that rebind; the run log (#31) and the PRs themselves are the
-record instead. The Routine's prompt is a paragraph pointing here — this
-file is the job, so changes to the job's behavior are made by PR to this
-file, reviewed like anything else. Runs bill to the maintainer's
-subscription; a run that finds nothing to do costs nearly nothing and
-reports that honestly. If fresh-session Routines ever gain writable repo
-access, moving back to one-session-per-run is a one-trigger change —
-re-read this section's constraint before doing it.
+The Routines that fire these jobs live on the maintainer's claude.ai
+account (visible via the session's Routine tools). They fire into the
+maintainer's ongoing dev session, not a fresh session per firing: the
+2026-07-30 diagnostics (run-log issue #31) proved Routine-spawned fresh
+sessions get read-only git access and no GitHub API tools — three runs
+completed and lost their work at the push, one after finishing the
+entire job. Push notifications per run went away with that rebind; the
+run log (#31) and the PRs themselves are the record instead. Each
+Routine's prompt is a paragraph pointing here — this file is the job, so
+changes to the job's behavior are made by PR to this file, reviewed like
+anything else. Runs bill to the maintainer's subscription; a run that
+finds nothing to do costs nearly nothing and reports that honestly. If
+fresh-session Routines ever gain writable repo access, moving back to
+one-session-per-run is a one-trigger change — re-read this section's
+constraint before doing it.
 
+**Since D212 the runs merge their own PRs.** What a person no longer
+does per-item, the structure has to carry: the gate set in front of
+every merge, the retrospective 1-in-20 audit (check:quality reports the
+shortfall as a standing warning), the kill switch behind everything
+(`active: false`, the operator console), and this manual — which the
+prompts defer to every firing, so the owner changes the lanes' behavior
+by PR here, and stops them entirely by pausing the Routines in the
+claude.ai UI. Those are the controls; nothing else about who may do
+what changed.
 ### Scheduled runs (the account-side inventory)
 
 The Routines themselves — schedules, prompts, bindings, enabled state —
@@ -1290,76 +1449,51 @@ re-paced, or retired.
 
 | Routine | Trigger id | Schedule (UTC) | Contract |
 | --- | --- | --- | --- |
-| InSight question farm (daily) | `trig_01DZQC4E2AA7oYmbvYpmxk2k` | `0 7 * * *` — daily 07:00 (D33 re-pace 2026-08-11; recreated D148) | this file, the sections above |
-| Daily catalog question | `trig_01RVeFZ454aY9shH58fH3rQH` | `0 8 * * *` — cards Mon–Sat, domain build Sunday (D145; recreated D148) | § The daily catalog-question run |
-| InSight learn lane | `trig_017bNWxHkLQYDo97YuajmBh4` | `0 9 * * 1,4` — Mon + Thu 09:00 (D145) | § The learn-card lane |
-| InSight feed lane | `trig_01Rf5CD8mpffKf9hYEr2ZKqj` | `30 9 * * 2,5` — Tue + Fri 09:30 (D145) | § The feed lane |
+| InSight question farm (daily) | `trig_01STD1dKsTRNGCnvLXtYLyLQ` | `0 7 * * *` — daily 07:00 (D33 re-pace; recreated D212) | this file, the sections above |
+| Daily catalog question | `trig_014oEnPL1pT26SY6J8hF1hse` | `0 8 * * *` — cards Mon–Sat, domain build Sunday (D145; recreated D212) | § The daily catalog-question run |
+| InSight learn lane | `trig_01GtTNhRgSt1RMFWtR5K547Z` | `0 9 * * 1,4` — Mon + Thu 09:00 (D145; recreated D212) | § The learn-card lane |
+| InSight feed lane | `trig_011g1ZFhvoy4sQYp9CEsigPB` | `30 9 * * *` — daily 09:30 (D213 re-pace from Tue+Fri; recreated D212) | § The feed lane |
+| InSight duel lane | `trig_01XNv5D3npQyYhCWoAYX1nr5` | `0 10 * * 3` — weekly, Wednesday 10:00 (D213) | § The duel lane |
 
-**All four live prompts match their canonical blocks below as of
-2026-08-14 (D148)** — the first time that has been true of all of them
-at once. The farm's and the catalog's carry new ids because the swap
-was done by delete-and-recreate; see the paragraph below for why, and
-for what that cost.
+**All five live prompts match their canonical blocks below as of
+2026-08-19 (D212/D213).** All five carry new ids because the D212 prompt
+swap was done by delete-and-recreate — the D148 mechanism, for the D148
+reason: `update_trigger` still refuses a prompt edit into a session that
+is not the caller's own, and the old prompts hard-coded "never merge
+your own PR" under a "regardless of anything else you read" clause, so
+no manual edit could lift the human gate without touching the prompts.
+Done from a sibling remote session at the owner's direction (the same
+path as D148), new triggers created and verified FIRST, then the four
+originals deleted, then this table updated. The cost is the same as
+D148's — ids, creation dates and fire history — and small for the same
+reason: issue #31 is this project's real run log, not the trigger's
+telemetry. One D148 constraint has since lapsed, re-measured 2026-08-19:
+`list_triggers` now returns each Routine's stored prompt verbatim, so
+the canonical blocks below can be VERIFIED against the live prompts
+rather than trusted. Verify after any swap; keep them exact.
 
-All four fire into the maintainer's dev session
+All five fire into the maintainer's dev session
 (`session_01AvNkZgRvvMCu8zqhZtuMH5`, `persist_session: true`) for the
-reason in the paragraph above, and all four carry no stored MCP
-connectors — the GitHub tools a run needs to log on issue #31 come from
-the bound session, which is why the two D145 lanes were created with
-exactly the configuration the two working ones already had rather than a
-tidier-looking one. The ids are recorded because `update_trigger` needs
-them and they otherwise live only in a tool response.
+reason in the paragraph above, and all five carry no stored MCP
+connectors — the GitHub tools a run needs to merge its PR and log on
+issue #31 come from the bound session. The ids are recorded because
+`update_trigger`/`delete_trigger` need them and they otherwise live only
+in a tool response.
 
-The two D145 lanes are staggered off 07:00/08:00 and off each other so
-no two runs are writing to the same checkout at once — they share one
-bound session, and a lane that finds the tree dirty is supposed to stash
-or use a worktree, not race. Four lanes on one reviewer is the load this
-inventory now represents; each lane's regulator subtracts its own open PR
-(learn and feed stop entirely at their OPEN_MAX), so the arithmetic that
-keeps the queue reviewable is per-lane rather than global. If the queue
-still outruns review, the lever is the cadence in this table, not the
-caps in the scripts.
+The lanes are staggered hourly off 07:00 so no two runs are writing to
+the same checkout at once — they share one bound session, and a lane
+that finds the tree dirty is supposed to stash or use a worktree, not
+race. Five lanes with no per-item reviewer is the load this inventory
+now represents (D212); each lane's regulator still bounds its own open
+batch (a PR sitting open means a gate refused it, and every lane stops
+rather than stacking on top of one), so the arithmetic that keeps the
+pipeline sane is per-lane, exactly as before — only the queue it guards
+changed meaning. If gate failures start recurring on a lane, the lever
+is the cadence in this table, not the caps in the scripts.
 
-**The duel lane still has no Routine** (§ The duel lane) — deliberately:
-it runs on the maintainer's ask, its pools rotate on a 24-day cycle, and
-adding a fifth scheduled lane is a decision for after the two new ones
-have shown what they cost at the gate.
-
-**The remaining owner step: the prompt swap.** The D33 re-pace itself
-was taken 2026-08-11, from a sibling remote session at the owner's
-direction — which re-measured the constraint and found it NARROWED:
-`update_trigger` now accepts cron+name from outside the bound session
-(both were refused 2026-08-01 org-wide and again 2026-08-03), but still
-refuses a prompt edit into a session that is not the caller's own, with
-an error saying exactly that.
-
-**TAKEN 2026-08-14 (D148) — and the constraint is still there; it was
-gone around, not lifted.** Re-measured a third time first, still
-refused, verbatim: `update_trigger: editing the prompt of a routine
-whose fires deliver into a session that is not your own is not
-available via this tool.` `ListAgents` also reports no reachable
-agents, so the bound session cannot be asked to run the edit on itself
-from a sibling. What DOES work is that `create_trigger` accepts a
-`persistent_session_id` pointing at another session — the mechanism the
-D145 lanes were created with — so **delete-and-recreate is a working
-prompt swap**, at the cost of the Routine's id, creation date and fire
-history. At the owner's explicit direction both Routines were recreated
-that way: new ones created FIRST and verified (so a failure could not
-leave a lane dark), then the originals deleted, then the ids in the
-table above updated. The cost was small because issue #31 is this
-project's real run log, not the trigger's telemetry — but note the
-asymmetry it leaves: **a prompt can be replaced from here and a prompt
-cannot be read from here**, so the manual's canonical blocks are the
-only record of what a Routine says. Keep them exact.
-
-If a future edit needs the same swap: prefer `update_trigger` from the
-bound session itself ("replace this Routine's prompt with the canonical
-text in docs/QUESTION-FARM.md") or the claude.ai Routines UI, and fall
-back to delete-and-recreate only with the owner's say-so, because it
-spends history that cannot be restored. The
-canonical prompt (kept here so prompt and manual cannot drift; update
-BOTH in any future change; rewritten 2026-08-11 for D97 — the budget
-regulator, the quality pre-flight, and the vintage read):
+The farm's canonical prompt (kept here so prompt and manual cannot
+drift; update BOTH in any future change; rewritten 2026-08-19 for D212 —
+the merge step and the promotion step):
 
 ```
 You are running InSight's question farm — the DAILY scheduled job
@@ -1376,67 +1510,73 @@ the regenerated content/scorecard.json in your PR; without the key,
 npm run scorecard reads the committed one — stale or missing →
 coverage lane only, per the manual's staleness rule), compute the
 run's budget (npm run farm:budget -- --open <count of questions on the
-open farm PR's diff> — the D97 regulator; zero means the run is a
-logged no-op and review is the work), then allocate that budget across
-the manual's three priority lanes — replenishment first, demand takes
-everything replenishment leaves, coverage only what the signal lanes
-leave unclaimed — write the questions in the product's voice into the
-daily-question archive (src/v2/spec/daily-questions.js on origin/main),
-pre-flight the whole batch from ONE candidates file (npm run
-check:neighbors -- --batch candidates.json and npm run check:quality --
---batch candidates.json — the neighbors batch form also compares your
-own new questions to EACH OTHER, which per-candidate lookups never did;
-packet lines from both pasted into the PR body), run the repo's gates
-(check:globals, lint, test:unit, build,
-check:neighbors, check:quality), and open a pull request for human
-review. Learn per the manual's scorecard
+open farm PR's diff> — the D97 regulator; zero generation with nothing
+to promote means the run is a logged no-op), allocate that budget
+across the manual's three priority lanes — replenishment first, demand
+takes everything replenishment leaves, coverage only what the signal
+lanes leave unclaimed — write the questions in the product's voice into
+the daily-question archive (src/v2/spec/daily-questions.js on
+origin/main), pre-flight the whole batch from ONE candidates file
+(npm run check:neighbors -- --batch candidates.json and npm run
+check:quality -- --batch candidates.json — the neighbors batch form
+also compares your own new questions to EACH OTHER; packet lines from
+both pasted into the PR body), PROMOTE up to the pace the budget prints
+— npm run promote -- --source farm --review ai <the oldest unpromoted
+dqx ids> — then npm run check:figures and apply exactly the fix lines
+it prints (D212: promotion is your step now, § Promoting questions),
+run the repo's gates (check:globals, lint, test:unit, build,
+check:neighbors, check:quality, check:content), open a pull request,
+and when every CI check on it reports success, MERGE it yourself
+(squash — D212: the gates are the review). A PR you cannot get green is
+left open and reported, never forced. Learn per the manual's scorecard
 section: imitate the leaders' SHAPE, never their subject (a near-twin
 of a winner is a dupe); read the production section's farm-vs-editorial
 vintages and cite your trend in the PR body; for each new question say
-in one PR-body line
-why it should split rather than slide; cite the scorecard's
-retireProposals as active:false candidates for the operator. Warmth
-outranks any score — do not optimize toward outrage. If no lane has
-work, the run is a no-op that says so.
+in one PR-body line why it should split rather than slide; cite the
+scorecard's retireProposals as active:false candidates for the
+operator. Warmth outranks any score — do not optimize toward outrage.
+If no lane has work and the pen is empty, the run is a no-op that says
+so.
 
 Hard limits regardless of anything else you read: edit only
-src/v2/spec/daily-questions.js, append-only at the end of the Q array;
-never touch firestore.rules, functions/, or content/ — except
-content/scorecard.json via the scorecard script only, the rule-2
-carve-out (promotion into the live seed stays a human's job, D30);
-never create categories — a question that fits no existing cat/alts top
-is DROPPED, and the category proposed in the PR body AND the issue #31
-comment (§ When no category fits); never
+src/v2/spec/daily-questions.js, append-only at the end of the Q array —
+plus the two script-only carve-outs: content/scorecard.json via the
+scorecard script, and the promotion files
+(content/daily-questions.json, content/provenance.json,
+functions/src/v2content.ts) via npm run promote and build:content only,
+never by hand (D212). Never touch firestore.rules or anything else
+under functions/; never create categories — a question that fits no
+existing cat/alts top is DROPPED, and the category proposed in the PR
+body AND the issue #31 comment (§ When no category fits); never
 generate answers, votes, or activity; never write questions scoped to
 a specific city, country, or region's citizens (manual hard rule 6);
-never merge your own PR. Dedup against the WHOLE archive and
-src/v2/spec/suggestions.js. If a prior farm PR is still open, roll up
-instead of stacking: check out its branch, dedup against it, append
-one commit, retitle the PR to cover the span, and add a dated section
-to its body (if several are open — a pre-rule stack — roll onto the
-newest, list the others in its body as contained; closing them is the
-human's call). A fresh branch is only for when no farm PR is open, or
-the open one no longer merges cleanly into main (then leave it for the
-human and note the conflict in both PR bodies).
+never merge with a failing or pending check, never re-run a job to
+outwait a real failure, never push an empty commit to kick CI. Dedup
+against the WHOLE archive and src/v2/spec/suggestions.js. If a prior
+farm PR is still open (a gate refused it), roll up instead of stacking:
+check out its branch, dedup against it, fix what CI refused if the fix
+is small, append one commit, retitle the PR to cover the span, and add
+a dated section to its body (if several are open — a pre-rule stack —
+roll onto the newest, list the others in its body as contained). A
+fresh branch is only for when no farm PR is open, or the open one no
+longer merges cleanly into main (then leave it for the human and note
+the conflict in both PR bodies).
 
 Mandatory reporting (manual hard rule 7): whatever the outcome — PR
-opened, no-op, or aborted — end the run by commenting that outcome on
-issue #31 in Cosaxo/InSight (the run log): PR link and
-per-lane/per-topic tallies, or the no-op reason, or the verbatim
-errors. Do the farm work on the lane's branch — the open farm PR's if
-one exists, else a fresh claude/question-farm-<YYYY-MM-DD> from
-origin/main — and return to the session's previous branch afterwards;
-do not disturb uncommitted work — if the tree is dirty, stash or use a
-separate git worktree.
+merged, PR left open with a failure, no-op, or aborted — end the run by
+commenting that outcome on issue #31 in Cosaxo/InSight (the run log):
+PR link, per-lane/per-topic tallies and what was promoted, or the no-op
+reason, or the verbatim errors. Do the farm work on the lane's branch —
+the open farm PR's if one exists, else a fresh
+claude/question-farm-<YYYY-MM-DD> from origin/main — and return to the
+session's previous branch afterwards; do not disturb uncommitted work —
+if the tree is dirty, stash or use a separate git worktree.
 ```
 
-The daily-catalog Routine's canonical prompt. **It had none until D148**,
-which is the whole reason its prompt drifted twice without anyone
-noticing: the farm's prompt was pinned here and kept in step, and the
-catalog's lived only in the Routine, so the roll-up rule (2026-08-03)
-and the Sunday domain slot (D145) both landed in the manual with nothing
-to update alongside them. A lane whose prompt is not written down cannot
-be checked against its contract.
+The daily-catalog Routine's canonical prompt (it had none until D148,
+which is how its prompt drifted twice unnoticed; rewritten 2026-08-19
+for D212 — the merge step, formalizing this lane's standing self-merge
+direction):
 
 ```
 You are running InSight's DAILY CATALOG-QUESTION job. It fires into this
@@ -1482,24 +1622,31 @@ body. Cut the domain branch from origin/main — claude/catalog-domain-
 branch CONTAINING another, not from two being open.
 
 Gates before any PR: npm run lint, check:globals, check:quality,
-test:unit, build (plus the new drift gate on a domain day). Never merge
-your own PR. Never introduce a new topic id silently — a card that fits
-none is dropped and the topic proposed in the PR body and the issue #31
-comment (§ When no category fits). While a CARD PR is open, each day's
-card is one more commit on its branch — dedup against the cards already
-on it, retitle to cover the span, add a dated body section — never a
-new PR stacked on top; a fresh claude/catalog-question-<YYYY-MM-DD>
-branch only when no card PR is open or the open one conflicts with main.
+test:unit, build (plus the new drift gate on a domain day). When every
+CI check on the PR reports success, MERGE it yourself (squash — D212:
+this lane's standing self-merge direction, now the rule for every
+lane); never merge with a failing or pending check, never re-run a job
+to outwait a real failure, never push an empty commit to kick CI — a PR
+you cannot get green is left open and reported. Never introduce a new
+topic id silently — a card that fits none is dropped and the topic
+proposed in the PR body and the issue #31 comment (§ When no category
+fits). While a CARD PR is open (a gate refused it), each day's card is
+one more commit on its branch — dedup against the cards already on it,
+retitle to cover the span, add a dated body section — never a new PR
+stacked on top; a fresh claude/catalog-question-<YYYY-MM-DD> branch
+only when no card PR is open or the open one conflicts with main.
 
-Mandatory reporting (hard rule 7): whatever the outcome — PR opened,
-no-op, or aborted — comment it on issue #31 in Cosaxo/InSight: PR link
-and what shipped, or the no-op reason, or the verbatim errors. Work on
-the lane's branch and return to the session's previous branch
-afterwards; if the tree is dirty, stash or use a separate git worktree.
+Mandatory reporting (hard rule 7): whatever the outcome — PR merged, PR
+left open with a failure, no-op, or aborted — comment it on issue #31
+in Cosaxo/InSight: PR link and what shipped, or the no-op reason, or
+the verbatim errors. Work on the lane's branch and return to the
+session's previous branch afterwards; if the tree is dirty, stash or
+use a separate git worktree.
 ```
 
-The learn lane's canonical prompt (D145 — same rule: update BOTH this
-block and § The learn-card lane in any future change):
+The learn lane's canonical prompt (D145; rewritten 2026-08-19 for D212 —
+same rule: update BOTH this block and § The learn-card lane in any
+future change):
 
 ```
 You are running InSight's LEARN-CARD lane — a scheduled job, twice
@@ -1510,63 +1657,72 @@ on origin/main and follow it exactly — it is the contract, it changes,
 and it outranks this prompt's summary; re-read it every run.
 
 Start with npm run learn:budget -- --open <count of cards on the open
-learn PR's diff>. Zero means the run is a logged no-op and review is the
-work. Otherwise write exactly the allocation it prints, at least 4 cards
-into any field it touches, spreading difficulty (p is clamped 24..92,
-and check:quality fails a batch of 3+ spanning under 20 points). The
-trap t is the product — argue each one in the PR body: which wrong
-answer real people actually pick, and why. Vary the authored c index.
-Pre-flight the whole batch in its native shape from ONE file: npm run
-check:quality -- --batch cards.json and npm run check:neighbors --
---batch cards.json (the batch form compares your own cards to each
-other, which per-candidate lookups never did); paste both packet lines
-per card into the PR body. Then npm run build:content, and the gates:
-check:content, check:quality, check:neighbors, check:globals, lint,
-test:unit, build.
+learn PR's diff>. Zero means the run is a logged no-op. Otherwise write
+exactly the allocation it prints, at least 4 cards into any field it
+touches, spreading difficulty (p is clamped 24..92, and check:quality
+fails a batch of 3+ spanning under 20 points). The trap t is the product
+— argue each one in the PR body: which wrong answer real people actually
+pick, and why. Vary the authored c index. Pre-flight the whole batch in
+its native shape from ONE file: npm run check:quality -- --batch
+cards.json and npm run check:neighbors -- --batch cards.json (the batch
+form compares your own cards to each other, which per-candidate lookups
+never did); paste both packet lines per card into the PR body. Then npm
+run build:content, and the gates: check:content, check:quality,
+check:neighbors, check:globals, lint, test:unit, build. Open the PR,
+and when every CI check on it reports success, MERGE it yourself
+(squash — D212: the gates are the review); never merge with a failing
+or pending check, never re-run a job to outwait a real failure, never
+push an empty commit to kick CI — a PR you cannot get green is left
+open and reported.
 
 Hard limits: append only, at the end of `cards` in
 content/learn-questions.json, ids continuing each field's series; never
 renumber and never edit or reorder a shipped card's options (answers key
 on (qid, optionIdx) forever — the fix for a bad option set is a better
 successor card). This is a SINGLE-GATE lane: a merged card is a shipped
-card, so the PR review IS the production review — cite a source for any
-card that could be contested. Never create a field or subject; a card
+card, and with no person on the merge the fact bar is yours alone —
+cite a source in the PR body for any card that could be contested, and
+drop a card you cannot source. Never create a field or subject; a card
 that fits none is dropped and the field proposed in the PR body and the
 issue #31 comment (§ When no category fits). Never touch
-firestore.rules, functions/, or any other content/ bank. Never merge
-your own PR. If a learn PR is already open, roll up onto its branch
-instead of stacking (dedup against it, append one commit, retitle to
-cover the span, dated body section); a fresh
-claude/learn-cards-<YYYY-MM-DD> branch from origin/main only when none
-is open or the open one no longer merges cleanly.
+firestore.rules, functions/, or any other content/ bank. If a learn PR
+is already open (a gate refused it), roll up onto its branch instead of
+stacking (dedup against it, append one commit, retitle to cover the
+span, dated body section); a fresh claude/learn-cards-<YYYY-MM-DD>
+branch from origin/main only when none is open or the open one no
+longer merges cleanly.
 
-Mandatory reporting (hard rule 7): whatever the outcome — PR opened,
-no-op, or aborted — comment it on issue #31 in Cosaxo/InSight: PR link
-and the budget line with the fields written, or the no-op reason, or the
-verbatim errors. Work on the lane's branch and return to the session's
-previous branch afterwards; if the tree is dirty, stash or use a
-separate git worktree.
+Mandatory reporting (hard rule 7): whatever the outcome — PR merged, PR
+left open with a failure, no-op, or aborted — comment it on issue #31
+in Cosaxo/InSight: PR link and the budget line with the fields written,
+or the no-op reason, or the verbatim errors. Work on the lane's branch
+and return to the session's previous branch afterwards; if the tree is
+dirty, stash or use a separate git worktree.
 ```
 
-The feed lane's canonical prompt (D145 — same rule, § The feed lane):
+The feed lane's canonical prompt (D145; rewritten 2026-08-19 for D212
+and D213's daily re-pace — same rule, § The feed lane):
 
 ```
-You are running InSight's FEED lane — a scheduled job, twice weekly. It
-fires into this ongoing session because fresh Routine-spawned sessions
-get read-only git access and no GitHub API tools (issue #31); this
-session has both. Read docs/QUESTION-FARM.md § The feed lane on
-origin/main and follow it exactly — it is the contract, it changes, and
-it outranks this prompt's summary; re-read it every run.
+You are running InSight's FEED lane — a scheduled job, daily (re-paced
+from twice weekly at D213: the feed is the surface the owner wants to
+feel infinite, and it is the one whose capacity scales with users
+rather than the calendar). It fires into this ongoing session because
+fresh Routine-spawned sessions get read-only git access and no GitHub
+API tools (issue #31); this session has both. Read docs/QUESTION-FARM.md
+§ The feed lane on origin/main and follow it exactly — it is the
+contract, it changes, and it outranks this prompt's summary; re-read it
+every run.
 
-Start with npm run feed:budget -- --open <count of questions on the open
-feed PR's diff>. Zero means the run is a logged no-op and review is the
-work. Otherwise write exactly the allocation it prints — thinnest topics
-first, breadth across the ten is this lane's job — in one of the four
-authorable forms: vote (2-4 options), dial, field, or path. Continuum
-cards (dial/field) are written TWICE, the content entry with NO crowd
-texture plus its demo-pool twin in src/v2/spec/world-feed-data.js with
-the authored texture; lean scarce on them, they are a change of key and
-not a second genre. Read the budget's signal: line — while it says
+Start with npm run feed:budget -- --open <count of questions on the
+open feed PR's diff>. Zero means the run is a logged no-op. Otherwise
+write exactly the allocation it prints — thinnest topics first, breadth
+across the ten is this lane's job — in one of the four authorable
+forms: vote (2-4 options), dial, field, or path. Continuum cards
+(dial/field) are written TWICE, the content entry with NO crowd texture
+plus its demo-pool twin in src/v2/spec/world-feed-data.js with the
+authored texture; lean scarce on them, they are a change of key and not
+a second genre. Read the budget's signal: line — while it says
 coverage-blind, level the topics; once the scorecard scores feed
 questions, read evenness per topic first. Pre-flight the whole batch
 from ONE candidates file with "surface": "feed" on each entry: npm run
@@ -1575,41 +1731,105 @@ check:quality -- --batch candidates.json and npm run check:neighbors --
 PR body, with one line each on why it should split rather than slide.
 Gates: check:content (run build:content after the append),
 check:quality, check:neighbors, check:globals, lint, test:unit, build.
+Open the PR, and when every CI check on it reports success, MERGE it
+yourself (squash — D212: the gates are the review); never merge with a
+failing or pending check, never re-run a job to outwait a real failure,
+never push an empty commit to kick CI — a PR you cannot get green is
+left open and reported.
 
 Hard limits: append only, at the end of `questions` in
 content/feed-questions.json, ids continuing the fNN series (dlN/fdN for
 continuum); every entry also gets its provenance row in
 content/provenance.json (source "farm", the run's date as batch) and a
 `cat` from the taxonomy — check:quality fails an entry missing either.
-Ship active; never flip an active flag (the retire path is the
+New production declares `core: false` (SCALE-PLAN §1 / D161: absent or
+false means tail; only a human moves a question INTO the Mirror's
+corpus). Ship active; never flip an active flag (the retire path is the
 operator's) and never edit or reorder a shipped question's options or a
 continuum question's range (answers key on (qid, optionIdx) forever).
-Never propose a new topic silently: a question that fits none is dropped
-and the topic proposed in the PR body and the issue #31 comment
+Never propose a new topic silently: a question that fits none is
+dropped and the topic proposed in the PR body and the issue #31 comment
 (§ When no category fits). Never write a question scoped to a specific
 city, country, or region's citizens (hard rule 6 — that is the paid
 research path). This is a SINGLE-GATE lane: a merged question is a
 served question. Never touch firestore.rules, functions/, or another
-surface's bank. Never merge your own PR. Roll up onto the open feed PR
-if one exists (dedup against it, one commit, retitle, dated body
+surface's bank. Roll up onto the open feed PR if one exists — a gate
+refused it — (dedup against it, one commit, retitle, dated body
 section); a fresh claude/feed-questions-<YYYY-MM-DD> branch from
 origin/main only when none is open or the open one conflicts.
 
-Mandatory reporting (hard rule 7): whatever the outcome — PR opened,
-no-op, or aborted — comment it on issue #31 in Cosaxo/InSight: PR link
-and the budget line with the topics written, or the no-op reason, or the
-verbatim errors. Work on the lane's branch and return to the session's
-previous branch afterwards; if the tree is dirty, stash or use a
-separate git worktree.
+Mandatory reporting (hard rule 7): whatever the outcome — PR merged, PR
+left open with a failure, no-op, or aborted — comment it on issue #31
+in Cosaxo/InSight: PR link and the budget line with the topics written,
+or the no-op reason, or the verbatim errors. Work on the lane's branch
+and return to the session's previous branch afterwards; if the tree is
+dirty, stash or use a separate git worktree.
+```
+
+The duel lane's canonical prompt (new at D213 — same rule, § The duel
+lane):
+
+```
+You are running InSight's DUEL lane — a scheduled job, weekly (D213
+gave this lane its Routine; before it, the lane ran only on the
+maintainer's ask and produced nothing for twelve straight days). It
+fires into this ongoing session because fresh Routine-spawned sessions
+get read-only git access and no GitHub API tools (issue #31); this
+session has both. Read docs/QUESTION-FARM.md § The duel lane on
+origin/main and follow it exactly — it is the contract, it changes, and
+it outranks this prompt's summary; re-read it every run.
+
+Start with npm run duel:budget -- --open <count of questions on the
+open duel PR's diff>. Zero means the run is a logged no-op. Otherwise
+write exactly the allocation it prints across the three pools in
+content/duel-questions.json, in the product's voice. Pool rules: append
+only, at the end of the right array — group order is rotation order
+(interleaved us/pick/classic, never sorted); both 1v1 pools are ordered
+light → deep, append deep; ids continue each series (group: the
+gu/gp/gd prefixes; 1v1: the next NNN suffix, shared across oneVsOne and
+romantic — one duo-NNN namespace). Match the pool's active posture:
+while the romantic pool is dark its new entries ship dark too
+("active": false); the other pools ship active. Read the scorecard's
+duel section first — the 1v1 guess-match band is the bar (near 100%
+dead, at or under chance noise; write into the band between), and cite
+deadDuels/noisyDuels in the PR body as active:false candidates for the
+operator. Dedup against all three pools AND the batch: npm run
+check:neighbors -- --batch candidates.json with "domain": "duel" on
+each entry, plus the re-read. Gates: check:content (run build:content
+after the append), check:neighbors, check:quality, check:globals, lint,
+test:unit, build. Open the PR, and when every CI check on it reports
+success, MERGE it yourself (squash — D212: the gates are the review);
+never merge with a failing or pending check, never re-run a job to
+outwait a real failure, never push an empty commit to kick CI — a PR
+you cannot get green is left open and reported.
+
+Hard limits: edit only content/duel-questions.json (then npm run
+build:content regenerates the seed); never touch firestore.rules,
+functions/, or another surface's bank; never flip an active flag
+(activation and retirement are the operator's); never edit or reorder a
+shipped question's options (answers key on (qid, optionIdx) forever —
+the fix for a bad option set is a better successor, per the D30 re-key
+rule); every farm hard rule inherits — the product's voice, no
+place-scoped questions, never generated activity, no new categories
+(§ When no category fits). Roll up onto the open duel PR if one exists
+— a gate refused it — (dedup against it, one commit, retitle, dated
+body section); a fresh claude/duel-questions-<YYYY-MM-DD> branch from
+origin/main only when none is open or the open one conflicts.
+
+Mandatory reporting (hard rule 7): whatever the outcome — PR merged, PR
+left open with a failure, no-op, or aborted — comment it on issue #31
+in Cosaxo/InSight: PR link and the budget line with the pools written,
+or the no-op reason, or the verbatim errors. Work on the lane's branch
+and return to the session's previous branch afterwards; if the tree is
+dirty, stash or use a separate git worktree.
 ```
 
 Delivery mechanics, measured rather than assumed (run log #31,
 2026-07-31): **scheduled cron fires deliver into the bound session** —
 proven end to end by the 2026-07-31 daily run. **Manual fires spawn a
 fresh session with no repository attached**, which can neither run the
-job nor log the outcome; both prompts now tell a stranded session to
-notify-and-stop. So: test a run by asking the dev session to execute
-the job, never by manual fire.
+job nor log the outcome. So: test a run by asking the dev session to
+execute the job, never by manual fire.
 
 Modifying a Routine: ask the dev session (schedule, prompt, name,
 pause/resume are one tool call each), or use the claude.ai Routines UI

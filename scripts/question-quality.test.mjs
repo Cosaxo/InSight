@@ -387,7 +387,18 @@ describe("the corpus itself", () => {
   });
 
   it("provenance is exactly in step with the banks, both directions", () => {
-    expect(checkProvenance(corpus)).toEqual([]);
+    expect(checkProvenance(corpus).errs).toEqual([]);
+  });
+
+  it("an audit shortfall warns and never fails (D212)", () => {
+    // The 1-in-20 sample keeps its D162 job retrospectively: a person
+    // auditing on their own clock must not be able to turn CI red by
+    // falling behind — that was the human gate D212 removed. If the bank
+    // currently satisfies the rate, this asserts the quiet case; either
+    // way the shortfall must be in `warn`, never `errs`.
+    const { errs, warn } = checkProvenance(corpus);
+    expect(errs.filter((e) => e.includes("audit"))).toEqual([]);
+    for (const w of warn) expect(w).toContain("does not block");
   });
 
   it("headroom tripwires are quiet today", () => {
