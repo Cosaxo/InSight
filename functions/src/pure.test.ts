@@ -13,6 +13,7 @@ import {
   prevDayKey,
   shouldReveal,
   nextStreak,
+  groupRevealStamp,
   PENDING_DAYS_KEEP,
   prunePendingDays,
   scanDays,
@@ -209,16 +210,23 @@ describe("prunePendingDays", () => {
 describe("scanDays", () => {
   const T = Date.UTC(2026, 6, 27, 12, 0, 0); // 2026-07-27T12:00Z
 
-  it("covers the whole pending window, not just yesterday", () => {
-    // The bug: the scan asked about utcDayKey(-1) and the schedule never
-    // passed a day, so a group-day was revealable during the single UTC day
-    // after it and never again — while rules accept a duel answer four days
-    // late and onV2AnswerCreated re-adds the day to pendingDays whenever one
-    // arrives. An answer syncing on D+2 re-opened a day nothing would ask
-    // about again. Both members had answered; the day sat pending forever.
+  it("covers the whole pending window oldest-first, not just yesterday", () => {
+    // The window bug: the scan asked about utcDayKey(-1) and the schedule
+    // never passed a day, so a group-day was revealable during the single
+    // UTC day after it and never again — while rules accept a duel answer
+    // four days late and onV2AnswerCreated re-adds the day to pendingDays
+    // whenever one arrives. An answer syncing on D+2 re-opened a day
+    // nothing would ask about again.
+    //
+    // The ORDER is pinned too, and it is oldest-first on purpose:
+    // nextStreak chains on "the previous reveal was yesterday", so a phone
+    // flushing three offline days needs them revealed in calendar order to
+    // rebuild its streak. Newest-first (the order until 2026-08-20) made
+    // every backfilled day reset the streak and walk lastRevealDay
+    // backwards.
     expect(scanDays(undefined, T)).toEqual([
-      "2026-07-26", "2026-07-25", "2026-07-24",
-      "2026-07-23", "2026-07-22", "2026-07-21",
+      "2026-07-21", "2026-07-22", "2026-07-23",
+      "2026-07-24", "2026-07-25", "2026-07-26",
     ]);
   });
 
@@ -228,7 +236,7 @@ describe("scanDays", () => {
     // exactly the days that can still change is the definition pendingDays
     // was given; the two drifting apart is how the gap reopens.
     expect(scanDays(undefined, T)).toHaveLength(PENDING_DAYS_KEEP);
-    const oldest = scanDays(undefined, T)[PENDING_DAYS_KEEP - 1];
+    const oldest = scanDays(undefined, T)[0];
     expect(prunePendingDays([oldest], "x", oldest)).toEqual([oldest]);
     expect(prunePendingDays([prevDayKey(oldest)], "x", oldest)).toEqual([]);
   });
@@ -241,9 +249,38 @@ describe("scanDays", () => {
 
   it("crosses a month boundary", () => {
     expect(scanDays(undefined, Date.UTC(2026, 7, 2, 3, 0, 0))).toEqual([
-      "2026-08-01", "2026-07-31", "2026-07-30",
-      "2026-07-29", "2026-07-28", "2026-07-27",
+      "2026-07-27", "2026-07-28", "2026-07-29",
+      "2026-07-30", "2026-07-31", "2026-08-01",
     ]);
+  });
+});
+
+// ── what a reveal writes onto the group ─────────────────────────
+
+describe("groupRevealStamp", () => {
+  it("chains a streak across consecutive backfilled days", () => {
+    // The offline-flush shape the oldest-first scan produces: D-3 then
+    // D-2 then D-1, each extending the last.
+    const s1 = groupRevealStamp("2026-07-23", "2026-07-24", 3);
+    expect(s1).toEqual({ streak: 4, lastRevealDay: "2026-07-24" });
+    const s2 = groupRevealStamp(s1!.lastRevealDay, "2026-07-25", s1!.streak);
+    expect(s2).toEqual({ streak: 5, lastRevealDay: "2026-07-25" });
+  });
+
+  it("resets to 1 across a gap, like nextStreak", () => {
+    expect(groupRevealStamp("2026-07-20", "2026-07-24", 9))
+      .toEqual({ streak: 1, lastRevealDay: "2026-07-24" });
+    expect(groupRevealStamp(null, "2026-07-24", 0))
+      .toEqual({ streak: 1, lastRevealDay: "2026-07-24" });
+  });
+
+  it("refuses to stamp a day at or before lastRevealDay", () => {
+    // The regression this pins: a late flush revealing an OLDER day after
+    // a newer one already stamped the group used to reset the streak and
+    // walk lastRevealDay backwards. The reveal doc still publishes; the
+    // group's bookkeeping stands.
+    expect(groupRevealStamp("2026-07-25", "2026-07-24", 4)).toBeNull();
+    expect(groupRevealStamp("2026-07-25", "2026-07-25", 4)).toBeNull();
   });
 });
 

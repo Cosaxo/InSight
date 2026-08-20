@@ -35,7 +35,7 @@ import {
   normalizeHandle,
   isPlausibleFcmToken,
   nextFcmTokens,
-  nextStreak,
+  groupRevealStamp,
   PENDING_DAYS_KEEP,
   prunePendingDays,
   publishableDuelAgg,
@@ -479,7 +479,6 @@ async function revealGroupDay(
   // update() that could fail on its own, leaving a published reveal whose
   // day the group had no record of — and the next run would then re-derive
   // the streak from a lastRevealDay that never advanced.
-  let streak = 0;
   let didReveal = false;
   // What the signal fold (below) needs from the committed reveal — captured
   // here because the transaction's own locals die with it.
@@ -490,7 +489,6 @@ async function revealGroupDay(
     // and a retry that bails early must not inherit the previous try's
     // verdict.
     didReveal = false;
-    streak = 0;
     aggQid = null;
     aggVotes = [];
     const [existing, gsnap, ...fresh] = await tx.getAll(
@@ -580,7 +578,14 @@ async function revealGroupDay(
       ),
       revealedAt: FieldValue.serverTimestamp(),
     });
-    streak = nextStreak(
+    // Null when this reveal is a backfill of a day at or before the
+    // group's lastRevealDay: the reveal itself publishes, but the streak
+    // bookkeeping must not move backwards for it (pure.ts has the full
+    // reasoning). The scan runs oldest-first precisely so consecutive
+    // backfilled days chain their streak; this guard is for the orders the
+    // scan cannot control — a second late flush, the operator lever, a
+    // capped-out run resuming.
+    const stamp = groupRevealStamp(
       gsnap.get("lastRevealDay"),
       dayKey,
       gsnap.get("streak") || 0,
@@ -590,8 +595,7 @@ async function revealGroupDay(
     // this day, and a reveal that exists while the day still reads as owing
     // one is the drift that would put the scan into a loop.
     tx.update(group.ref, {
-      streak,
-      lastRevealDay: dayKey,
+      ...(stamp || {}),
       pendingDays: prunePendingDays(gsnap.get("pendingDays"), dayKey, oldestKeptDay),
     });
     didReveal = true;

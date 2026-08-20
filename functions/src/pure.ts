@@ -176,9 +176,17 @@ export function prunePendingDays(
 // nothing. An explicit `dayKey` still means that day alone: the operator
 // lever and the e2e both pass one, and narrowing is what an operator
 // reaching for it during an incident usually wants.
+//
+// OLDEST FIRST, and the order is load-bearing: `nextStreak` chains on
+// "the previous reveal was yesterday", so a phone flushing three offline
+// days must have them revealed in calendar order to rebuild the streak.
+// The scan ran newest-first until 2026-08-20, which revealed D-1 before
+// D-2 — every backfilled day then reset the streak to 1 and walked
+// `lastRevealDay` backwards, stranding it on the oldest day (see also
+// groupRevealStamp, the transaction-side guard against the regression).
 export function scanDays(dayKey?: string, nowMs: number = Date.now()): string[] {
   if (dayKey) return [dayKey];
-  return Array.from({ length: PENDING_DAYS_KEEP }, (_, i) => utcDayKey(-(i + 1), nowMs));
+  return Array.from({ length: PENDING_DAYS_KEEP }, (_, i) => utcDayKey(i - PENDING_DAYS_KEEP, nowMs));
 }
 
 // ── reveal conditions + streaks (v2social) ──────────────────────
@@ -198,6 +206,30 @@ export function nextStreak(
   currentStreak: number,
 ): number {
   return lastRevealDay === prevDayKey(dayKey) ? currentStreak + 1 : 1;
+}
+
+// What the reveal transaction writes onto the GROUP for a revealed day —
+// or null when it must write nothing, because the day is a backfill of a
+// day at or before `lastRevealDay`. The reveal doc itself always publishes;
+// this guards only the group's streak bookkeeping.
+//
+// Why the guard exists: rules accept a duel answer up to four days late,
+// so the scan can legitimately reveal an OLDER day after a newer one has
+// already stamped the group (a second late flush, an operator lever run,
+// a capped-out scan resuming). Unguarded, that reveal walked
+// `lastRevealDay` backwards and reset the streak — game state corrupted by
+// data arriving in an order the design explicitly permits. Day keys are
+// ISO dates, so the lexical compare IS calendar order.
+export function groupRevealStamp(
+  lastRevealDay: string | null | undefined,
+  dayKey: string,
+  currentStreak: number,
+): { streak: number; lastRevealDay: string } | null {
+  if (typeof lastRevealDay === "string" && dayKey <= lastRevealDay) return null;
+  return {
+    streak: nextStreak(lastRevealDay, dayKey, currentStreak),
+    lastRevealDay: dayKey,
+  };
 }
 
 // Who a day's reveal may be shown to.
