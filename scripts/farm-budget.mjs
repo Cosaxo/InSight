@@ -11,9 +11,11 @@
 // unpromoted archive pen, plus whatever is sitting unreviewed on the lane's
 // open PR), and how much the pen is allowed to hold. The steady-state
 // consequence is the point: once the pen is full, generation exactly tracks
-// the human gate's measured throughput — promote more, and the next runs
-// write more; stop reviewing, and the tap closes itself. Raising RUN_CAP is
-// safe BECAUSE of this: the cap only binds during catch-up.
+// promotion throughput — promote more, and the next runs write more; stop
+// promoting, and the tap closes itself. Raising RUN_CAP is safe BECAUSE of
+// this: the cap only binds during catch-up. Under D162 the throughput being
+// tracked was a person's reading; under D212 it is PROMOTE_PACE below —
+// the regulator's shape survives both, which is what it was built for.
 //
 // The constants (quoted in QUESTION-FARM.md and held equal by
 // check:figures):
@@ -27,7 +29,20 @@
 //   OPEN_MAX   = 12  unreviewed questions on the lane's open roll-up PR at
 //                    which generation stops entirely. The roll-up rule
 //                    (QUESTION-FARM.md § The PR) keeps one PR per lane; this
-//                    keeps that one PR reviewable.
+//                    keeps that one PR bounded. Since D212 a PR normally
+//                    merges in the run that opened it, so this binds only
+//                    when a gate refused the batch and it sat — and a run
+//                    facing that should be fixing, not writing.
+//   PROMOTE_PACE = 2 pen questions the run itself promotes into the live
+//                    seed, oldest first, each run (D212 — promotion stopped
+//                    being a human's step). At the daily cadence that is
+//                    14/week, exactly D97's ≥14/week target while the pen
+//                    has stock: the daily consumes 7, so runway grows by a
+//                    day per day. It is deliberately BELOW RUN_CAP: the pen
+//                    fills before it drains, stays the buffer D208 says it
+//                    is, and generation settles at the promotion pace once
+//                    the pen is full — the same steady state as before,
+//                    with the person's reading replaced by arithmetic.
 //
 // The budget:
 //   supply = unpromoted archive + questions on the open lane PR
@@ -51,6 +66,7 @@ import { fileURLToPath } from "node:url";
 export const RUN_CAP = 8;
 export const PEN_TARGET = 56;
 export const OPEN_MAX = 12;
+export const PROMOTE_PACE = 2;
 
 // Pure: everything the CLI prints is derived from this one function, so the
 // test pins the budget the farm actually gets.
@@ -101,6 +117,13 @@ if (invokedDirectly) {
   console.log(`  pen: ${p.archive.unpromoted} unpromoted in the archive + ${open} on the open PR`
     + `${openIdx < 0 ? " (assumed — pass --open with the real count)" : ""} = ${supply} of ${PEN_TARGET}`);
   console.log(`  ${reason}`);
+  // D212: promotion is the run's own step now, not an operator's. The pace
+  // line prints even at zero stock so a run never has to infer whether
+  // promotion was considered — "0 of 2" is an answer, silence is not.
+  console.log(
+    `  promote: ${Math.min(PROMOTE_PACE, p.archive.unpromoted)} of ${PROMOTE_PACE} this run`
+    + ` (oldest pen entries first — npm run promote, D212)`,
+  );
 
   // The afternoon-distinguishing line (pulse's framing): a short runway
   // with a full pen is a promotion PR, a short runway with an empty one is

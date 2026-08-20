@@ -7,7 +7,7 @@
 // what the farm will actually do at steady state, which is the number the
 // review-capacity argument rests on.
 import { describe, it, expect } from "vitest";
-import { laneBudget, RUN_CAP, PEN_TARGET, OPEN_MAX } from "./farm-budget.mjs";
+import { laneBudget, RUN_CAP, PEN_TARGET, OPEN_MAX, PROMOTE_PACE } from "./farm-budget.mjs";
 
 describe("laneBudget", () => {
   it("grants the full cap to an empty pen", () => {
@@ -80,5 +80,10 @@ describe("laneBudget", () => {
     expect(PEN_TARGET).toBe(8 * 7);
     expect(RUN_CAP * 7).toBeGreaterThanOrEqual(PEN_TARGET);
     expect(OPEN_MAX).toBeGreaterThan(RUN_CAP);
+    // D212: the run promotes its own batch at a pace that is D97's ≥14/week
+    // target at the daily cadence, and sits below RUN_CAP so the pen fills
+    // before it drains — the buffer survives the automation.
+    expect(PROMOTE_PACE * 7).toBe(14);
+    expect(PROMOTE_PACE).toBeLessThan(RUN_CAP);
   });
 });

@@ -40,23 +40,31 @@
 //                      thin crowd thicker. Raising it is the D97 amendment
 //                      that waits on the scorecard showing the crowd keeping
 //                      up, not a consequence of this file existing.
-//   TOPIC_TARGET = 12  servable questions per topic. Not invented: it is the
-//                      depth `dilemma` already carries and `bigq` is one short
-//                      of, so the target is "level the ten at what the
-//                      best-covered already demonstrate". Ten topics at 12 is
-//                      120 servable feed questions — +52 on today's 68, which
-//                      lands the seeded bank near 565 against check:quality's
-//                      BANK_WARN, leaving the headroom the learn lane needs
-//                      for its own 182. (That constant was 1200, guarding an
-//                      unpaginated fetch; D161 paged the fetch and re-pointed
-//                      it at the localStorage cache budget, so the headroom
-//                      this paragraph reasons about got much larger.)
+//   TOPIC_TARGET = 24  servable questions per topic. Raised from 12 at D213
+//                      (the owner's volume decision — the feed should feel
+//                      infinite and topics fleshed out). 12 was "level the
+//                      ten at what the best-covered already demonstrates";
+//                      24 is the first waypoint past it, still nowhere near
+//                      "infinite" but chosen against the same two bounds:
+//                      the dilution cap below is a RATE bound so stock does
+//                      not dilute, and ten topics at 24 is 240 servable feed
+//                      questions — a seeded bank near 750 against
+//                      check:quality's BANK_WARN of 6000, headroom to spare.
+//                      (That constant was 1200, guarding an unpaginated
+//                      fetch; D161 paged the fetch and re-pointed it at the
+//                      localStorage cache budget, so the headroom this
+//                      paragraph reasons about got much larger.) Raise it
+//                      again when every topic levels and the lanes start
+//                      no-opping — the regulator makes that moment visible.
 //   OPEN_MAX     = 6   unreviewed questions on the lane's open roll-up PR at
 //                      which generation stops entirely. Equal to RUN_CAP and
 //                      subtracted from the budget, the learn lane's
 //                      single-gate shape rather than the daily lane's: with no
 //                      second gate behind the merge, the lane carries ONE
-//                      unreviewed batch at a time.
+//                      unreviewed batch at a time. Since D212 a PR normally
+//                      merges in the run that opened it, so a batch sitting
+//                      open means a gate refused it — and the right response
+//                      to that is a fix, not a second batch.
 //
 // The budget:
 //   deficit = Σ over topics of max(0, TOPIC_TARGET − servable questions)
@@ -84,7 +92,7 @@ import { fileURLToPath } from "node:url";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 export const RUN_CAP = 6;
-export const TOPIC_TARGET = 12;
+export const TOPIC_TARGET = 24;
 export const OPEN_MAX = 6;
 
 // The forms a reader can actually be served (QUESTION-FARM.md § The feed lane,

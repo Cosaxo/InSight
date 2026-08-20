@@ -21996,3 +21996,129 @@ was 6), `test:scripts`, `:policy-claims` `:public-copy` `:store-forms`
 `check:docs` after the index regeneration. Backend suites were not run —
 nothing in functions/, firestore.rules or the vote path changed (the
 card stopped CALLING editVote; the callable is untouched).
+
+## D212 · Questions ship without waiting for a person
+
+**2026-08-19.** **Status:** binding. Owner's ask, in their words:
+*"remove the need for a human to approve the questions."* This reverses
+the named human holds in D30 (promotion as an operator's second gate),
+D33's framing of review capacity as the binding constraint, and the
+merge half of D162 ("the human on the merge, not on the reading") — each
+priced below, none removed silently. The lanes' write surfaces, gate
+sets, and every content rule (append-only, option freeze, dedup, voice,
+hard rule 6) are unchanged: this record moves WHO waits, not WHAT is
+checked.
+
+### What shipped
+
+1. **Merge-on-green, every lane.** A lane run opens its PR as before
+   and, when every CI check reports success, squash-merges it in the
+   same run — the catalog lane's standing self-merge direction (run
+   log), formalized and extended. A PR that cannot go green is left
+   open and reported on issue #31; an open lane PR now MEANS a gate
+   refused it. Never with a failing or pending check, never an empty
+   commit to kick CI, never a re-run to outwait a real failure.
+2. **The farm promotes its own batch.** `PROMOTE_PACE = 2` in
+   `scripts/farm-budget.mjs` (pinned by `check:figures` and
+   `farm-budget.test.mjs`): each run promotes up to 2 oldest pen
+   entries via `npm run promote -- --source farm --review ai`, applies
+   the prose fixes `check:figures` prints, and ships promotion and
+   batch in one PR. At the daily cadence that is 14/week — D97's
+   ≥14/week target as arithmetic. The pace sits below RUN_CAP so the
+   pen fills before it drains (D208's buffer survives), and the D97
+   regulator's steady state now tracks the pace instead of a person's
+   reading. Hard rule 2 gains the matching script-only carve-out; the
+   operator's `seedContentV2` deploy step is deliberately untouched —
+   deployment is not approval, and a scheduled run still never holds
+   production credentials.
+3. **The 1-in-20 audit turns retrospective.** `check:quality`'s
+   cumulative audit-rate check moved from error to warning
+   (`checkProvenance` now returns `{errs, warn}`): the sample keeps its
+   D162 job — the only check on a reviewer that shares the generator's
+   blind spots — but a person falling behind on audits can no longer
+   turn CI red and stop the lanes, which was a human approval gate
+   wearing a sampling rate. The per-row review verdict and explicit
+   `audited` boolean stay hard errors: those are facts a run must
+   state, not work a person must keep up with.
+4. **The Routine prompts were swapped to match** — delete-and-recreate,
+   the D148 mechanism, because the old prompts hard-coded "never merge
+   your own PR" under a "regardless of anything else you read" clause
+   that would have overridden the manual. New ids in the Governance
+   table; created-and-verified first, originals deleted after.
+
+### What the owner gave up, said plainly
+
+The two-gate design existed so a scheduled job never decides what
+production serves. That property is gone for question content: a batch
+that passes every gate reaches the served bank with no person having
+read it. What bounds the blast radius now is the gate set in front of
+the merge (form, dedup, provenance, figures, the full test suite), the
+kill switch behind it (`active: false` — feed/duel; the daily's
+inability to retire is a standing gap D97 records), the retrospective
+audit, and scope: D212 covers QUESTION CONTENT lanes only. Code, rules,
+schema, functions, policy — everything that is not a bank append —
+keeps ordinary human review, and core membership (what the Mirror folds
+over) remains the one per-question human act, per D161/D206.
+
+### Measured, not asserted
+
+D162's own fortnight is the evidence the owner acted on: the gates
+caught what the person was positioned to catch (a cross-field dupe in
+#236, over-long `w` lines, #222's batch-mix refusal), while the
+person's queue was what actually bound — the feed lane's budget granted
+0 on 08-19 because #222 sat unreviewed, the catalog lane idled four
+days behind #73, and the daily farm wrote on one day in two weeks.
+Review found form errors the gates now also catch; the queue cost real
+production days every week.
+
+## D213 · Every servable type generates, and the feed goes daily
+
+**2026-08-19.** **Status:** binding. Owner's ask, in their words: *"try
+to make as many types of questions from the list generated unless they
+have a very good reason not to, like the tests"* — and, on volume:
+*"the generation of questions is still far too low to make the feed
+feel infinite and topics feel fleshed out."*
+
+### What shipped
+
+1. **The duel lane gets the regulator and the Routine every other lane
+   already had.** `scripts/duel-budget.mjs` (`RUN_CAP 4`,
+   `POOL_TARGET 48`, `OPEN_MAX 4`; pinned by `check:figures`, properties
+   in `duel-budget.test.mjs`, `npm run duel:budget`) replaces D40's flat
+   "≤4/run, at most weekly" — the last flat cap standing. A weekly
+   Routine (Wednesdays 10:00 UTC, Governance table) fires it. The
+   measured motivation: twelve straight days of zero duel production
+   while the group pool sat at exactly one 24-day rotation — day 25 is
+   a rerun. POOL_TARGET doubles that horizon; the dark romantic pool
+   counts at full weight because it lights up in one operator step.
+2. **The feed lane runs daily and aims deeper.** Cron `30 9 * * *`
+   (was Tue+Fri), and `TOPIC_TARGET` 12 → 24 in
+   `scripts/feed-budget.mjs`. At the unchanged RUN_CAP of 6 that is up
+   to 42/week against a 10×24 = 240-question level; the dilution bound
+   is a RATE bound, so the cap stays 6 and the raise is cadence and
+   stock, not crowd-thinning. The regulator self-stops at the target,
+   which is what makes the cadence safe to raise — and the moment every
+   topic levels, its no-ops are the visible signal to either raise the
+   target again or start stocking subtopic leaves.
+3. **The census of what deliberately does NOT generate** is recorded in
+   QUESTION-FARM.md § Surfaces that deliberately do not generate, one
+   reason each, so absence stays a decision: test items and the logic
+   test (frozen instruments — the owner's own named exception),
+   pulses (repeating by definition, D203), `rates` dailies (sold
+   inventory, D187/hard rule 6), feed `rank` (not live-servable, D12 —
+   a client+backend project, deferred), feed `duel` cards (legacy),
+   scenes (placeholder), Foresight (unplaced since D136), community
+   suggestions (a submission path with its board undecided, D138),
+   sponsored (a human contract path, D195).
+
+### Deferred with the arithmetic
+
+Subtopic (`sub`) authoring — the shipped, dormant second taxonomy level
+(`world-subtopics.js`: three stocked demo leaves, zero live questions
+tagged) — is the recorded NEXT volume step, sequenced after the ten
+parent topics level at 24: a leaf below an unlevelled parent is depth
+where breadth is still owed, and the offer gate (D96) means leaves
+light up by themselves the day live questions carry their tag. At
+42/week against a 136-question deficit the levelling takes roughly a
+month; the leaf step lands with its own gates (leaf ids in `sub`,
+stock-aware offers, budget counting) as its own change.

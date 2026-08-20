@@ -137,13 +137,12 @@ describe("loadFeedTopics", () => {
     // THE SECOND ASSERTION HERE USED TO BE
     // `topics.some((t) => t.questions < TOPIC_TARGET)`, which is not the
     // coverage property in this test's name — it is the DEFICIT'S CURRENT
-    // EXISTENCE, and this lane exists to remove it. Today four topics sit
-    // under 12 and it passes; the day the lane finishes levelling them it
-    // goes red for the lane having worked. `feed-budget.mjs` already writes
-    // the message for that state ("every topic is at the 12-question
-    // target"), so the script and its own test disagreed about whether it
-    // was reachable — the D208 shape, one lane over, found by sweeping for
-    // it after that one.
+    // EXISTENCE, and this lane exists to remove it. The day the lane
+    // finishes levelling the topics it would have gone red for the lane
+    // having worked. `feed-budget.mjs` already writes the message for that
+    // state ("every topic is at the target"), so the script and its own
+    // test disagreed about whether it was reachable — the D208 shape, one
+    // lane over, found by sweeping for it after that one.
     //
     // What the fold actually promises: a row per taxonomy id, in the
     // taxonomy's own order, whatever the level. It builds its counter from

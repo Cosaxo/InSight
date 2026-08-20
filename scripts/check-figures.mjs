@@ -171,6 +171,9 @@ const learnConst = constFrom("scripts/learn-budget.mjs");
 // not less: a manual quoting a bigger number than the script computes is the
 // one way a run could be told to spread the crowd thinner than the design says.
 const feedConst = constFrom("scripts/feed-budget.mjs");
+// The duel regulator's constants (D213), same reasoning as the other three
+// lanes': the duel section is what a scheduled run obeys.
+const duelConst = constFrom("scripts/duel-budget.mjs");
 // The style gate's own bounds. These are not a regulator's budget — they are
 // what check:quality REFUSES — so a drifted figure here is not a
 // mis-instructed run but a run instructed to write something the gate will
@@ -385,6 +388,17 @@ const FIGURES = [
     actual: budgetConst("OPEN_MAX"),
     fix: (n) => `"**${n}** unreviewed questions on the lane's open PR"`,
   },
+  // The D212 promotion pace — the number that replaced a person's reading as
+  // what the daily regulator's steady state tracks. A drifted figure here
+  // would tell a run to promote at a pace the arithmetic was not sized for.
+  {
+    file: "docs/QUESTION-FARM.md",
+    what: "the daily lane's per-run promotion pace (PROMOTE_PACE)",
+    // Wrap-tolerant like the learn/feed entries: the sentence breaks lines.
+    re: /promotes up to \*\*(\d+) pen questions per\s*\n?\s*run\*\*/,
+    actual: budgetConst("PROMOTE_PACE"),
+    fix: (n) => `"promotes up to **${n} pen questions per run**"`,
+  },
   // The four D115 learn-lane figures, quoted in § The learn-card lane.
   {
     file: "docs/QUESTION-FARM.md",
@@ -441,6 +455,28 @@ const FIGURES = [
     re: /\*\*(\d+)\*\* unreviewed questions on\s*\n?\s*that PR/,
     actual: feedConst("OPEN_MAX"),
     fix: (n) => `"**${n}** unreviewed questions on that PR"`,
+  },
+  // The three duel-lane figures (D213), quoted in § The duel lane.
+  {
+    file: "docs/QUESTION-FARM.md",
+    what: "the duel lane's per-run cap (RUN_CAP)",
+    re: /up to \*\*(\d+) duel questions per run\*\*/,
+    actual: duelConst("RUN_CAP"),
+    fix: (n) => `"up to **${n} duel questions per run**"`,
+  },
+  {
+    file: "docs/QUESTION-FARM.md",
+    what: "the duel per-pool depth target (POOL_TARGET)",
+    re: /\*\*(\d+) questions per\s*\n?\s*pool\*\*/,
+    actual: duelConst("POOL_TARGET"),
+    fix: (n) => `"**${n} questions per pool**"`,
+  },
+  {
+    file: "docs/QUESTION-FARM.md",
+    what: "the duel open-PR review ceiling (OPEN_MAX)",
+    re: /\*\*(\d+)\*\* unreviewed duel questions on\s*\n?\s*that PR/,
+    actual: duelConst("OPEN_MAX"),
+    fix: (n) => `"**${n}** unreviewed duel questions on that PR"`,
   },
   // The two Crossroads ceilings, quoted in § Crossroads stories. Not budget
   // figures like the eleven above but the same failure: the section is what

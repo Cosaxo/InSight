@@ -1041,7 +1041,9 @@ export function checkPathGenre(corpus) {
 export function checkProvenance(corpus) {
   const errs = [];
   const path = join(root, "content", "provenance.json");
-  if (!existsSync(path)) return ["content/provenance.json is missing — the D97 vintage join has nothing to read"];
+  if (!existsSync(path)) {
+    return { errs: ["content/provenance.json is missing — the D97 vintage join has nothing to read"], warn: [] };
+  }
   const prov = JSON.parse(readFileSync(path, "utf8"));
   // `sponsor` joined at D195 (docs/MONETIZATION.md path 2). It is a source
   // like the others — who wrote the question — and it is the one that has
@@ -1129,17 +1131,29 @@ export function checkProvenance(corpus) {
   // batch: at D162's 1-in-20 a weekly batch of seven rounds to zero, so a
   // per-batch gate would pass while nothing was ever audited. Cumulative
   // is the only shape that binds at both sizes.
+  //
+  // A WARNING since D212, not an error. As an error this was a human gate
+  // wearing a sampling rate: a person falling behind on audits turned CI
+  // red, which stopped the lanes — the exact dependence the owner removed.
+  // The sample keeps its D162 job (the only check on a reviewer that shares
+  // the generator's blind spots) but does it retrospectively: the gate
+  // reports the shortfall on every run, the operator audits on their own
+  // clock, and the kill switch (`active: false`) is what handles anything
+  // the audit then finds. What stays an ERROR above is the review verdict
+  // itself and its explicit `audited` boolean — those are facts a run must
+  // state, not work a person must keep up with.
+  const warn = [];
   if (aiReviewed.length) {
     const want = Math.ceil(aiReviewed.length / AUDIT_ONE_IN);
     const got = aiReviewed.filter((r) => r.audited).length;
     if (got < want) {
-      errs.push(
+      warn.push(
         `provenance: ${got} of ${aiReviewed.length} ai-reviewed questions carry an audit, want ≥ ${want} `
-        + `(D162's 1-in-${AUDIT_ONE_IN}) — the sample is the only check on a reviewer that shares the generator's blind spots`,
+        + `(D162's 1-in-${AUDIT_ONE_IN}, retrospective since D212) — audit when you can; the shortfall accrues, it does not block`,
       );
     }
   }
-  return errs;
+  return { errs, warn };
 }
 
 // ── headroom tripwires ──
@@ -1442,10 +1456,12 @@ if (invokedDirectly) {
     report("feed(demo)", q.id, errs, []);
   });
 
-  for (const e of checkProvenance(corpus)) {
+  const prov = checkProvenance(corpus);
+  for (const e of prov.errs) {
     failed = true;
     console.error(`  ✗ ${e}`);
   }
+  for (const w of prov.warn) console.log(`  • ${w}`);
   const head = checkHeadroom(corpus);
   for (const e of head.errs) {
     failed = true;
