@@ -104,7 +104,11 @@ describe("LiveRoomTabs · a fold that can fail, in three states", () => {
 describe("LiveRoomTabs · People, the one tab that discloses something new", () => {
   beforeEach(() => {
     LIVE.near.room = () => ({
-      people: [{ uid: "u1", type: "Host" }, { uid: "u2" }],
+      // "The Host", not "Host": the presence doc carries what myType()
+      // resolved (live.ts:2011), which is an IS_ARCHETYPES name verbatim.
+      // The short form was fixture-only and quietly made the mark below
+      // unresolvable, which is half of why it went four days undrawn.
+      people: [{ uid: "u1", type: "The Host" }, { uid: "u2" }],
       qs: { a: { "0": 3, "1": 1 } },
     });
   });
@@ -117,7 +121,36 @@ describe("LiveRoomTabs · People, the one tab that discloses something new", () 
     expect(screen.getByText("Someone")).toBeTruthy();
     // The archetype rides the presence doc (D176's `type`), so a phone
     // that never took the test simply has no badge — not a blank one.
-    expect(screen.getByText("Host")).toBeTruthy();
+    expect(screen.getByText("The Host")).toBeTruthy();
+  });
+
+  it("draws the type's MARK beside its name, not the name alone", () => {
+    // The regression this exists for: the row shipped as
+    // `<TypeMark type={p.type}>` and TypeMark takes `testKey` + `name`, so
+    // the prop was dropped, the signature never resolved and line 27's
+    // `return null` fired on every row. Nothing failed — the mark degrades
+    // to a missing glyph, and the @ts-expect-error on the untyped spec
+    // import is what kept tsc quiet.
+    //
+    // Asserted on the rendered SVG rather than on the props, because the
+    // props were the thing that was wrong: a test that mocked TypeMark
+    // would have passed against the bug.
+    const { container } = render(<LiveRoomTabs tab="people" />);
+    expect(container.querySelectorAll("svg").length).toBeGreaterThan(0);
+  });
+
+  it("draws no mark for a type no archetype table names", () => {
+    // The other half of D1's rule at this seam: `type` is a free string on
+    // a doc no client can read (it is whatever the writer's own table
+    // said), so a name this build cannot resolve gets NO mark rather than
+    // a fabricated one. Same shape as the phone that never took the test.
+    LIVE.near.room = () => ({
+      people: [{ uid: "u1", type: "Sorting Hat" }],
+      qs: { a: { "0": 3, "1": 1 } },
+    });
+    const { container } = render(<LiveRoomTabs tab="people" />);
+    expect(screen.getByText("Sorting Hat")).toBeTruthy();
+    expect(container.querySelectorAll("svg").length).toBe(0);
   });
 
   it("prints no match percentage when there is nothing to match on", () => {
@@ -216,7 +249,11 @@ describe("LiveRoomTabs · Answers and Compare read the room", () => {
 describe("LiveRoomTabs · People draws faces and can report one", () => {
   beforeEach(() => {
     LIVE.near.room = () => ({
-      people: [{ uid: "u1", type: "Host" }, { uid: "u2" }],
+      // "The Host", not "Host": the presence doc carries what myType()
+      // resolved (live.ts:2011), which is an IS_ARCHETYPES name verbatim.
+      // The short form was fixture-only and quietly made the mark below
+      // unresolvable, which is half of why it went four days undrawn.
+      people: [{ uid: "u1", type: "The Host" }, { uid: "u2" }],
       qs: {},
     });
     LIVE.faceFor = (uid: string) => (uid === "u1" ? "tok-123" : "");
