@@ -71,12 +71,31 @@ const METRICS = [
     description: "scheduledDuelReveals completed a scheduled (indexed) scan",
     filter: 'jsonPayload.metric="duel_reveal_run" AND jsonPayload.mode="indexed"',
   },
+  // The two NIGHTLY jobs. Both already emitted their metric — the emit side
+  // was never the gap; nothing was reading it. Registered here so the
+  // silence policies below have a metric to be absent from.
+  {
+    name: "patterns_fit",
+    description: "fitPatternsV2 completed a nightly fit (02:37 UTC)",
+    filter: 'jsonPayload.metric="patterns_fit"',
+  },
+  {
+    name: "velocity_scan",
+    description: "ledgerVelocityScan completed a nightly scan (03:47 UTC)",
+    filter: 'jsonPayload.metric="velocity_scan"',
+  },
 ];
 
 const POLICIES = [
   "monitoring/onV2AnswerCreated-errors.json",
   "monitoring/onV2AnswerCreated-contention.json",
   "monitoring/scheduledDuelReveals-silent.json",
+  // …and the same shape for the two nightly jobs, which had no policy at
+  // all until an audit counted the schedules against this list. A cron that
+  // stops running reports nothing: no error, no failed request, just a
+  // number on screen that quietly stops moving.
+  "monitoring/fitPatternsV2-silent.json",
+  "monitoring/ledgerVelocityScan-silent.json",
   // The odd one out, and deliberately so: the three above watch something
   // breaking, this one watches the app working expensively. It reads a
   // BUILT-IN Firestore metric rather than a log-based one, so it needs no

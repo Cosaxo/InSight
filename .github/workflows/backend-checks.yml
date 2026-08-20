@@ -114,11 +114,25 @@ jobs:
         with:
           distribution: temurin
           java-version: "21"
+      # PER-JOB SUFFIX, and restore-keys, and both halves matter.
+      #
+      # This job and the e2e job below had a BYTE-IDENTICAL key and both save
+      # on it, so which jar set the cache ended up holding was decided by
+      # whichever job finished first — and they download different emulators
+      # (firestore+storage here, firestore+auth+functions there). Adding
+      # restore-keys without the suffix would only have made the racy entry
+      # stickier.
+      #
+      # Keyed on firebase-tools' own downloadable-emulator manifest rather
+      # than the whole root lockfile: the jars track that file, so an
+      # unrelated dependency bump was re-downloading ~195 MB in each of two
+      # jobs. It is in the workspace by then — `npm ci` runs above.
       - name: Cache Firestore emulator
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/firebase/emulators
-          key: firebase-emulators-${{ hashFiles('package-lock.json') }}
+          key: firebase-emulators-rules-${{ hashFiles('node_modules/firebase-tools/lib/emulator/downloadableEmulatorInfo.json') }}
+          restore-keys: firebase-emulators-rules-
       # Firestore + Storage rules (storage.rules was previously untested
       # AND undeployed).
       - run: npm run test:rules
@@ -133,6 +147,15 @@ jobs:
         with:
           node-version: "22"
           cache: npm
+          # BOTH lockfiles, because this job installs both trees. Keyed on
+          # the root one alone, a /functions-only lockfile change left a
+          # stale ~/.npm that still restored on the primary key and was
+          # never re-saved — so the backend's package cache silently stopped
+          # refreshing. firebase-deploy.yml already does this, with the
+          # comment explaining why; this job was the one that missed it.
+          cache-dependency-path: |
+            package-lock.json
+            functions/package-lock.json
       - run: npm ci
       - run: npm ci --prefix functions
       # The functions emulator loads functions/lib — build first.
@@ -142,11 +165,13 @@ jobs:
         with:
           distribution: temurin
           java-version: "21"
+      # Its own key — see the rules job above for why sharing one was a race.
       - name: Cache Firebase emulators
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/firebase/emulators
-          key: firebase-emulators-${{ hashFiles('package-lock.json') }}
+          key: firebase-emulators-e2e-${{ hashFiles('node_modules/firebase-tools/lib/emulator/downloadableEmulatorInfo.json') }}
+          restore-keys: firebase-emulators-e2e-
       - run: npm run test:e2e
       # Right-to-erasure: observes leftovers with the admin SDK (rules
       # bypassed), because reading as another user cannot tell "deleted"
