@@ -117,22 +117,10 @@ describe("spec layer mounts in live mode", () => {
     expectNoBoundary("profile/live");
   });
 
-  it("renders the patterns tab live with no invented people (D166 §1, D167)", async () => {
-    // The tab is a lazy chunk — awaitText waits for it. In jsdom the
-    // loadings fetch cannot resolve, so the honest state here is the
-    // waiting card; what the case pins is that a LIVE mount never falls
-    // back to the prototype's synthetic crowd (560 people, fabricated
-    // "78% pick that" lines) and never trips the boundary.
-    const expectNoBoundary = mountLive();
-    fireEvent.click(screen.getByRole("button", { name: /^patterns$/i }));
-    await awaitText(/pattern fit|No patterns yet/i);
-    expectNoBoundary("patterns/live");
-    expect(document.body.textContent).toMatch(/pattern fit|No patterns yet/i);
-    // the demo-only sentence must not show on a live build…
-    expect(screen.queryByText(/only from real answers/i)).toBeNull();
-    // …and nothing fabricated may either (the prototype's engine size)
-    expect(document.body.textContent).not.toMatch(/560/);
-  });
+  // The patterns-tab live case (no invented people — D166 §1, D167) left
+  // with the mount at D214 and returns with it; the honesty rule it
+  // pinned still holds inside ui/PatternsTab.tsx, which is unreachable
+  // while unmounted.
 
   it("shows the real follow list in the live profile, none of the demo field", () => {
     // The General tab used to embed MirrorFieldBody pop="groups" — the

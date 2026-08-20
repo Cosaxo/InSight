@@ -9,8 +9,9 @@ decision by number. Read this file, then go there for where your task
 lives. Both are gated by `check:docs`, so neither can quietly stop being
 true.
 
-InSight is a three-tab app (patterns · daily · mirror), the third **on
-trial** (D166 §1 — see the patterns note below). The **daily** tab is where you
+InSight ships v1 as a two-tab app (daily · mirror); the third tab,
+**patterns**, is built and **unmounted for the release** (D214 — see the
+patterns note below). The **daily** tab is where you
 answer: one blind question a day, a feed under it, and sealed
 group/1v1 duels revealed the next day. The feed is finite *today* and the
 owner has decided it should not stay that way —
@@ -30,7 +31,10 @@ before changing anything on that tab. React 19 + TypeScript + Vite,
 Capacitor shells for iOS/Android, Firebase (anonymous-first auth,
 Firestore, Cloud Functions).
 
-**The patterns tab is ON TRIAL (D166 §1), shipped 2026-08-19.** Two
+**The patterns tab is UNMOUNTED FOR v1 (D214, 2026-08-20).** Built and
+shipped to main 2026-08-19 under D166 §1's trial; the owner scoped it
+out of the release, so the trial is paused rather than verdicted, and
+resumes with the mount. What stands, untouched and still gated: two
 lenses over the loading vectors a nightly server fit publishes
 (`functions/src/patterns.ts` → `v2_patterns/loadings`): the **Map** places
 every core question by how much its answer predicts the others, and the
@@ -38,13 +42,14 @@ every core question by how much its answer predicts the others, and the
 (pinned in `src/v2/data/patterns.test.ts`), graded in surprisal bits when
 the real vote lands through the ordinary vote path. Live data only: a
 build with no published loadings — the demo included — says so instead of
-drawing the prototype's 560 invented people. The tab loads lazily
-(`React.lazy` in `app-shell.jsx`), nothing outside it may depend on there
-being three (the daily ruler's near-end exit is the one licensed
-exception), and reversal — one import site, one `TABS` entry — is a
-decision recorded in `docs/DECISIONS.md`, never a silent removal. The
-plan was [`docs/VISION-V28.md`](docs/VISION-V28.md); the corpus is core
-only (D161), and which questions the fit folds is
+drawing the prototype's 560 invented people. The unmount spent exactly
+the joints D166 priced — the `React.lazy` import site and the `TABS`
+entry in `app-shell.jsx`, plus the daily ruler's near-end exit, its one
+licensed external dependence (`daily-split.jsx`) — and remounting is
+those three restorations. D214 records both directions; a silent
+re-addition would be the same failure as the silent removal D166
+forbade. The plan was [`docs/VISION-V28.md`](docs/VISION-V28.md); the
+corpus is core only (D161), and which questions the fit folds is
 `PATTERNS_QIDS` in `functions/src/patterns.ts`.
 
 **Answers are public (D98).** Any signed-in user may read any other

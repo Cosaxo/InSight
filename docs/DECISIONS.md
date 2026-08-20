@@ -22122,3 +22122,49 @@ light up by themselves the day live questions carry their tag. At
 42/week against a 136-question deficit the levelling takes roughly a
 month; the leaf step lands with its own gates (leaf ids in `sub`,
 stock-aware offers, budget counting) as its own change.
+
+## D214 · Patterns is out of the v1 release, and the trial pauses with the mount
+
+**Decided:** 2026-08-20 · **Status:** binding · **Owner's call**, on the
+release thread: *"not of patterns yet as that is not sure to be shiped
+with the relese it is probebly released later"*, then "do these" over the
+offered removal.
+
+D166 §1 adopted the third tab ON TRIAL and priced the reversal in
+advance: one `React.lazy` import site, one `TABS` entry, one branch in
+`daily-split.jsx`. This record spends exactly that price — and not as the
+trial's verdict. Nobody has the usage the trial's question needs
+(TestFlight has a handful of testers); the owner scoped v1 to the two
+tabs the pushed listing copy and the review argument already describe,
+and the store screenshots being recaptured today made the mismatch
+concrete: a capture-only run for the listing would have advertised a tab
+v1 does not ship.
+
+**What changed**, revert-shaped on purpose, one commit:
+
+- `app-shell.jsx` — the lazy import, the `TABS` entry, the `NAV_ONE`
+  row, the `goNav` branch, the `data-view`/accent arms, the mount and
+  the tab-bar glyph. The bar is two tabs again.
+- `daily-split.jsx` — the ruler's near-end exit, the one external
+  dependence D166 licensed, springs back like any other edge instead of
+  navigating. The far-end Mirror exit stands.
+- `smoke-nav.test.jsx` — the two cases that walked the tab are replaced
+  by the two the unmount owes: the bar is two tabs, and the retired
+  `goNav('patterns')` key is refused quietly — a stale caller (a
+  remembered gesture, an old build's deep link) must land nowhere, not
+  on a boundary. `smoke-live`'s no-invented-people case left with the
+  mount and returns with it; the honesty rule it pinned still holds
+  inside the unmounted component.
+
+**What deliberately stands:** `ui/PatternsTab.tsx`, the patterns data
+layer and its tests (the Oracle seal stays pinned in
+`src/v2/data/patterns.test.ts`), and the nightly fit, which keeps
+publishing `v2_patterns/loadings` to a tab nothing mounts. Left running
+on purpose: it costs one scheduled function a night, keeps the corpus
+continuously real, and means the remount ships against live loadings on
+day one instead of an empty screen.
+
+**Remounting is a recorded decision too** — the import, the entry and
+the branch back, citing this record. A silent re-addition would be the
+same failure as the silent removal D166 forbade, in the direction that
+flatters the roadmap instead of the tree.

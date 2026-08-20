@@ -77,28 +77,26 @@ describe("the daily's ruler is the nav (v17)", () => {
   });
 });
 
-// ── the patterns tab (v28 §1, ON TRIAL per D166 §1) ───────────────────
+// ── the patterns tab is unmounted for v1 (D214) ───────────────────────
 //
-// The tab body is a React.lazy chunk, so the click alone renders nothing —
-// the await lets the import resolve before asserting. What the demo owes
-// here is the HONEST state: the trial ships live data only, so a demo
-// mount must say so rather than draw the prototype's invented crowd.
-describe("the patterns tab (trial)", () => {
-  it("mounts lazily from the tab bar and shows the honest demo state", async () => {
+// The two cases that walked it live in this file's history and return
+// with the mount. What the unmount owes a test instead: the tab bar is
+// two tabs, and the retired nav key is a no-op rather than a crash — a
+// stale caller (a remembered deep link, an old build's gesture) must
+// land nowhere, not on a boundary.
+describe("the patterns tab is out (D214)", () => {
+  it("the tab bar carries two tabs and no patterns button", () => {
     const expectNoBoundary = mountApp();
-    fireEvent.click(screen.getByRole("button", { name: /^patterns$/i }));
-    await awaitText(/only from real answers/i);
-    expect(document.querySelector(".app").getAttribute("data-view")).toBe("patterns");
-    expect(document.body.textContent).toMatch(/only from real answers/i);
-    expectNoBoundary("patterns/demo");
+    expect(screen.queryByRole("button", { name: /^patterns$/i })).toBeNull();
+    expect(document.querySelectorAll(".tabbar .tab-btn").length).toBe(2);
+    expectNoBoundary("two-tab bar");
   });
 
-  it("the daily's near-end exit goes to patterns through goNav", async () => {
+  it("the retired nav key is refused quietly", () => {
     const expectNoBoundary = mountApp();
     act(() => { window.goNav("patterns"); });
-    await awaitText(/only from real answers/i);
-    expect(document.querySelector(".app").getAttribute("data-tab")).toBe("patterns");
-    expectNoBoundary("patterns via goNav");
+    expect(document.querySelector(".app").getAttribute("data-tab")).not.toBe("patterns");
+    expectNoBoundary("goNav('patterns') after D214");
   });
 });
 
