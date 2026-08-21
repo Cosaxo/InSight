@@ -34,7 +34,7 @@
 
 import { afterEach, beforeAll, expect, vi } from "vitest";
 import React from "react";
-import { act, cleanup, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 
 // 15s per test, not the 5s default: every case mounts the FULL app in jsdom,
 // and the v15 revision roughly doubled the spec layer's feed weight — the
@@ -160,6 +160,23 @@ export async function awaitNode(selector, max = 50) {
     await act(async () => { await new Promise((r) => setTimeout(r, 40)); });
   }
   return document.querySelector(selector);
+}
+
+/**
+ * Open the profile or search overlay from the header, and wait for it.
+ *
+ * ASYNC, and that is the app rather than the harness. Both overlays moved
+ * into the after-first-paint chunk at D223, so the header button awaits
+ * `loadOverlays()` before setting the state that mounts one — a click no
+ * longer paints in the same tick. Fourteen call sites asserted
+ * synchronously against a DOM that had not been written yet; one helper is
+ * what stops the fifteenth doing it again.
+ *
+ * Returns the dialog node, which is what most callers actually wanted.
+ */
+export async function openHeaderOverlay(name) {
+  fireEvent.click(screen.getByRole("button", { name: new RegExp(`^${name}$`, "i") }));
+  return awaitNode('[role="dialog"]');
 }
 
 // ── the feed's mounted window ──────────────────────────────────────────

@@ -128,15 +128,21 @@ jobs:
         env:
           CAPACITOR_BUILD: "1"
           VITE_V2_LIVE: "true"
-          # D134 — the test track requires an account before the app opens,
-          # which reverses D3's "never a wall" for this build and only this
-          # build. A repository variable rather than a literal so the public
-          # release can drop the wall without a code change: set
-          # REQUIRE_SIGNIN to anything other than "true" (or unset it) and
-          # the gate compiles to a pass-through. Anonymous-first is still
-          # what src/v2/data/live.ts does — the gate LINKS that session, so
-          # the uid and every answer already given survive the upgrade.
-          VITE_REQUIRE_SIGNIN: ${{ vars.REQUIRE_SIGNIN || 'true' }}
+          # D134 put the wall up for the TEST TRACK — an account before the
+          # app opens, so a tester's answers cannot die with their handset.
+          # D219 (2026-08-20) resolved the fork D134 left open: the store
+          # build ships anonymous-first, so the DEFAULT here is now the
+          # release posture and the repo is the record. Every install still
+          # gets a real account (D3) — the gate only LINKED that session,
+          # so nothing about attribution changes — and duplicate resistance
+          # was never the wall's job (App Check + D29 device binding own
+          # it). The variable survives as the override: set
+          # REQUIRE_SIGNIN=true to wall a specific test build. Unset now
+          # genuinely means pass-through — the old `|| 'true'` fallback
+          # contradicted a comment one line above it that promised exactly
+          # that. signInRequired() compares to the literal 'true', on
+          # purpose.
+          VITE_REQUIRE_SIGNIN: ${{ vars.REQUIRE_SIGNIN || 'false' }}
           VITE_FIREBASE_API_KEY: ${{ vars.VITE_FIREBASE_API_KEY }}
           VITE_FIREBASE_AUTH_DOMAIN: ${{ vars.VITE_FIREBASE_AUTH_DOMAIN }}
           VITE_FIREBASE_PROJECT_ID: ${{ vars.VITE_FIREBASE_PROJECT_ID }}

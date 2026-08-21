@@ -354,9 +354,9 @@ the rule expresses the whole invariant, so no callable; D40 part 4)
 
 v2_groups/{gid}/reveals/{day}      materialized by the reveal pipeline
   day, qid, votes { uid: {optionIdx, guessIdx?, pickUid?} }, names, members[], revealedAt
-  (pickUid — pick days only, D218: WHO the vote's optionIdx meant, in the
+  (pickUid — pick days only, D224: WHO the vote's optionIdx meant, in the
   roster order the answering client used; the index alone is remapped by
-  any join/leave. Absent in reveals older than D218)
+  any join/leave. Absent in reveals older than D224)
   (members is the membership snapshot the read rule gates on — not the
   parent group's current roster, which is what keeps the guarantee
   retroactive: D5's amendment. It is the members who were in the group ON
@@ -366,7 +366,7 @@ read: the reveal's own members · write: nobody (D5)
 
 Sealed duel answers live in the same answers subcollection as everything
 else, under composite ids (g_{gid}_{day}) with extra fields
-gid/day/guessIdx (plus pickUid on a "pick" day, D218 — a current member's
+gid/day/guessIdx (plus pickUid on a "pick" day, D224 — a current member's
 uid, rules-validated) — and they are the ONE surface the D98 public read
 excludes, as a `surface` value test rather than an owner-only path. That
 is the seal: the owner still reads their own, nobody else reads any, and
@@ -414,7 +414,7 @@ MOD_UIDS-gated callables (the D22 confinement)
 ## Functions
 
 - `seedContentV2` (callable; emulator or SEED_ADMIN_UIDS allowlist) — mirrors `/content` question banks
-  into `v2_questions` (600 docs, stable ids `daily-000`, `feed-<id>`,
+  into `v2_questions` (608 docs, stable ids `daily-000`, `feed-<id>`,
   `group-<id>`, `duo-000`, `test-<key>-NN`; idempotent merge; `active` written only on first create, preserving the
   operational kill switch). Bank source:
   `functions/src/v2content.ts`, generated from `/content/*.json`.
@@ -475,7 +475,7 @@ read: signed-in · write: nobody
 ## Read economics (client)
 
 A live boot costs ~20 reads, not ~380: one `v2_meta/app` read decides
-everything. The question bank (600 docs) caches in localStorage keyed by
+everything. The question bank (608 docs) caches in localStorage keyed by
 `contentRev`, and refreshes **incrementally** — one query for docs newer
 than the cache's `updatedAt` cursor, so a promotion cycle costs the
 handful of questions it added rather than the whole bank (D34;

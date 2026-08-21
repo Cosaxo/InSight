@@ -161,14 +161,7 @@ describe("twin / contrarian need a spread, not just a sample", () => {
   });
 });
 
-// ── a day the group did not all get the same question (D70/D71) ──
-// duelQFor uses the bank LENGTH as its modulus, so a promotion remaps the
-// rotation for whoever refreshed their cache first. The reveal is published
-// under the plurality question and stamps `qid` on the answers that were
-// given to something else. Nothing that compares two optionIdx values may
-// look across that line: option 2 of one prompt has nothing to do with
-// option 2 of another.
-describe("the pick-day snapshot (D218)", () => {
+describe("the pick-day snapshot (D224)", () => {
   // A pick vote may carry WHO its index meant, snapshotted by the
   // answering client. The row surfaces it only when the counted majority
   // votes agree — the index path a reader falls back to reads the CURRENT
@@ -197,13 +190,13 @@ describe("the pick-day snapshot (D218)", () => {
   });
 
   it("a majority where only some votes carry the snapshot uses the carriers' agreed name", () => {
-    // Mixed client versions: the pre-D218 vote has no snapshot; the ones
+    // Mixed client versions: the pre-D224 vote has no snapshot; the ones
     // that do agree, and their agreement is the best available truth.
     const r = portraitRow(pickRev(1, { me: { o: 1, p: "a" }, a: { o: 1 }, b: { o: 1, p: "a" } }), "me")!;
     expect(r.majorityPickUid).toBe("a");
   });
 
-  it("pre-D218 reveals carry no snapshots and read as before", () => {
+  it("pre-D224 reveals carry no snapshots and read as before", () => {
     const r = portraitRow(rev(1, { me: 0, a: 0, b: 1 }), "me")!;
     expect(r.majorityPickUid).toBeNull();
     expect(r.minePickUid).toBeNull();
@@ -216,6 +209,13 @@ describe("the pick-day snapshot (D218)", () => {
   });
 });
 
+// ── a day the group did not all get the same question (D70/D71) ──
+// duelQFor uses the bank LENGTH as its modulus, so a promotion remaps the
+// rotation for whoever refreshed their cache first. The reveal is published
+// under the plurality question and stamps `qid` on the answers that were
+// given to something else. Nothing that compares two optionIdx values may
+// look across that line: option 2 of one prompt has nothing to do with
+// option 2 of another.
 describe("votes answered against a different question", () => {
   // b was asked something else that day
   const split = (n: number, votes: Record<string, number>, odd: Record<string, string>) => ({

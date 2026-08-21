@@ -12,7 +12,7 @@ import { describe, expect, it, vi } from "vitest";
 import { act, fireEvent, screen, within } from "@testing-library/react";
 import { IS_DATA } from "../spec/sample-data.js";
 import { FRIENDS } from "../spec/follows.js";
-import { mountApp, registerSmokeHooks, SMOKE_TIMEOUT_MS } from "./mount-app.jsx";
+import { openHeaderOverlay, mountApp, registerSmokeHooks, SMOKE_TIMEOUT_MS } from "./mount-app.jsx";
 
 vi.setConfig({ testTimeout: SMOKE_TIMEOUT_MS });
 registerSmokeHooks();
@@ -86,33 +86,33 @@ describe("the mirror tab and the header's overlays", () => {
     expectNoBoundary("mirror circle · embedded relationship map");
   });
 
-  it("opens the profile overlay without tripping the boundary", () => {
+  it("opens the profile overlay without tripping the boundary", async () => {
     const expectNoBoundary = mountApp();
-    fireEvent.click(screen.getByRole("button", { name: /^profile$/i }));
+    await openHeaderOverlay("profile");
     expectNoBoundary("profile overlay");
   });
 
-  it("opens the search overlay without tripping the boundary", () => {
+  it("opens the search overlay without tripping the boundary", async () => {
     const expectNoBoundary = mountApp();
-    fireEvent.click(screen.getByRole("button", { name: /^search$/i }));
+    await openHeaderOverlay("search");
     expectNoBoundary("search overlay");
   });
 
-  it("keeps the demo scenes field in the demo profile", () => {
+  it("keeps the demo scenes field in the demo profile", async () => {
     // The control for smoke-live's "none of the demo scenes field" case: with
     // LIVE off the section must still render, or the live assertion passes for
     // a section that broke for any reason at all.
     mountApp();
-    fireEvent.click(screen.getByRole("button", { name: /^profile$/i }));
+    await openHeaderOverlay("profile");
     expect(screen.getByText(/Scenes you follow/i)).toBeTruthy();
   });
 
-  it("lists the seeded friends in the search overlay (demo keeps them)", () => {
+  it("lists the seeded friends in the search overlay (demo keeps them)", async () => {
     // The control for smoke-live's "shows no sample people" case: the same rows
     // must still render with LIVE off, or the live assertion would pass against
     // an overlay that had lost its people section for any reason at all.
     mountApp();
-    fireEvent.click(screen.getByRole("button", { name: /^search$/i }));
+    await openHeaderOverlay("search");
     const seed = FRIENDS.list()
       .map((id) => (IS_DATA.people || []).find((p) => p.id === id))
       .find((p) => p && p.name && !p.anon);

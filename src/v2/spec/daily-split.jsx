@@ -750,7 +750,7 @@ class DailySplit extends React.Component {
           h('div', { style: { padding: '10px 18px 8px', display: 'flex', alignItems: 'baseline', gap: 10 } },
             h('span', { style: { fontFamily: BRIC, fontWeight: 800, fontSize: 15, flexShrink: 0 } }, isCtx ? 'About this question' : isComments ? 'Comments' : 'Who voted'),
             h('span', { style: { fontWeight: 600, fontSize: 12, color: 'var(--ink-3)', flex: 1, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, S.text),
-            h('button', { onClick: closeSheet, 'aria-label': 'Close', style: { border: 'none', background: 'var(--surface-2)', width: 26, height: 26, borderRadius: '50%', cursor: 'pointer', fontSize: 13, fontWeight: 800, color: 'var(--ink-2)', flexShrink: 0, WebkitAppearance: 'none' } }, '\u2715')),
+            h('button', { className: 'tap44', onClick: closeSheet, 'aria-label': 'Close', style: { border: 'none', background: 'var(--surface-2)', width: 26, height: 26, borderRadius: '50%', cursor: 'pointer', fontSize: 13, fontWeight: 800, color: 'var(--ink-2)', flexShrink: 0, WebkitAppearance: 'none' } }, '\u2715')),
           h('div', { className: 'wf-sheet-body' }, isCtx ? ctxBody : isComments ? commentsBody : statsBody)), sheetHost) : null;
 
     // ── the daily, in its own container — one strong card, feed after ──
@@ -766,7 +766,7 @@ class DailySplit extends React.Component {
           h('span', { className: 'kicker', style: { marginBottom: 0 } }, (S.dayLabel || dayNames[wIdx]) + (catLabel ? ' \u00b7 ' + catLabel : ''))),
         wIdx !== 0 && h('button', { onClick: () => this.jumpTo(0), style: { border: 'none', background: 'none', padding: 0, cursor: 'pointer', fontWeight: 700, fontSize: 12, color: 'var(--ink-2)', WebkitAppearance: 'none', whiteSpace: 'nowrap' } }, '\u2039 back to today'),
         h('span', { style: { flex: 1 } }),
-        h('button', { className: 'press', onClick: () => { clearTimeout(this._sheetT); this.setState({ tab: 'ctx', sheetClosing: false }); }, 'aria-label': 'About this question', style: { flexShrink: 0, width: 20, height: 20, borderRadius: '50%', border: '0.5px solid var(--rule)', background: 'transparent', color: 'var(--ink-3)', fontFamily: BRIC, fontSize: 11.5, fontWeight: 800, lineHeight: 1, cursor: 'pointer', WebkitAppearance: 'none', padding: 0 } }, 'i'),
+        h('button', { className: 'press tap44', onClick: () => { clearTimeout(this._sheetT); this.setState({ tab: 'ctx', sheetClosing: false }); }, 'aria-label': 'About this question', style: { flexShrink: 0, width: 20, height: 20, borderRadius: '50%', border: '0.5px solid var(--rule)', background: 'transparent', color: 'var(--ink-3)', fontFamily: BRIC, fontSize: 11.5, fontWeight: 800, lineHeight: 1, cursor: 'pointer', WebkitAppearance: 'none', padding: 0 } }, 'i'),
         window.PassiveTag ? h(window.PassiveTag, { q: S, answered: voted }) : null),
       chipRow,
       h('div', { style: { fontFamily: BRIC, fontWeight: 800, fontSize: hier ? 37 : 31, lineHeight: 1.06, letterSpacing: hier ? -1.1 : -0.8, textWrap: 'balance' } }, S.text),

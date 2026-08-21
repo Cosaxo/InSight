@@ -202,7 +202,7 @@ describe("LiveGroupsMirrorBody · the day rows say what was actually chosen", ()
     expect(document.body.textContent).toMatch(/Me|Ada|Bo/);
   });
 
-  it("prefers a pick vote's own snapshot over the current roster order (D218)", () => {
+  it("prefers a pick vote's own snapshot over the current roster order (D224)", () => {
     // The votes below were cast when the roster ordered differently: the
     // majority sits at index 0, which TODAY'S memberUids resolve to "Me" —
     // the wrong person. Each vote snapshots who it meant, and the label

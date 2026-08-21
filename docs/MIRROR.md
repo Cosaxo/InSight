@@ -181,7 +181,7 @@ What the demo body showed and this one still does not — trait axes, "how
 they see you" crowns — is unbuilt rather than refused since D98. The
 compare populations it invented (`spec/compare-pop.js`, whose own comment
 says "Tuned, not random") are measured now. The crowns' data source began
-accruing at D218: a "pick" answer snapshots the picked member's uid into
+accruing at D224: a "pick" answer snapshots the picked member's uid into
 the reveal, so the votes stop being roster-relative indexes — building
 the crowns (or the role map) on those days is its own decision once
 enough of them exist.

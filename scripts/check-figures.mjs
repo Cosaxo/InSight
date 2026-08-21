@@ -48,8 +48,8 @@
 //
 // Run: node scripts/check-figures.mjs   (wired into CI's lint job)
 
-import { readFileSync } from "node:fs";
-import { resolve, dirname, join } from "node:path";
+import { readFileSync, readdirSync } from "node:fs";
+import { resolve, dirname, join, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { bankArray } from "./v2content-lib.mjs";
 
@@ -192,7 +192,33 @@ const qualityConst = constFrom("scripts/question-quality.mjs");
 // not, and comparing text is what the fix line has to write anyway.
 const appPkg = JSON.parse(read("package.json"));
 
+// How many functions actually ship, counted the way check-deploy-targets
+// counts them — the same directory walk and the same regex, not a hand-kept
+// file list. Hand-listing the sources is how this number would go stale a
+// second time: check-deploy-targets' own comment records a `moderation.ts`
+// miss from exactly that, which is why it reads the directory.
+//
+// functions/README.md said 17 while the deploy shipped 29, and that file is
+// where ORIENTATION §3 sends every newcomer for the backend. Twelve
+// functions' worth of drift in the one document whose job is to say what is
+// there.
+const shippedFunctions = readdirSync(resolve(root, "functions", "src"), { recursive: true })
+  .map((f) => String(f).split(sep).join("/"))
+  .filter((f) => f.endsWith(".ts") && !f.endsWith(".test.ts"))
+  .reduce(
+    (n, f) => n + [...read(`functions/src/${f}`)
+      .matchAll(/^export\s+const\s+[A-Za-z0-9_]+\s*=\s*on[A-Z]/gm)].length,
+    0,
+  );
+
 const FIGURES = [
+  {
+    file: "functions/README.md",
+    what: "functions that ship",
+    re: /(\d+) functions ship from this codebase/,
+    actual: String(shippedFunctions),
+    fix: (n) => `"${n} functions ship from this codebase"`,
+  },
   {
     file: "README.md",
     what: "rules tests (the repo map)",

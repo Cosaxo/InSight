@@ -38,7 +38,6 @@ import './spec/sheet-drag.js';
 import './spec/scroll-memory.js';
 import './spec/edge-fade.js';
 import './spec/iOS.jsx';
-import './spec/tweaks-panel.jsx';
 // primitives.jsx no longer publishes globals (D39) — its consumers import
 // it by name, so this line loads nothing anybody is waiting for. It stays
 // because check:globals rule 2 requires every file in spec/ to appear here,
@@ -112,7 +111,14 @@ import './spec/feed-read.js';
 // The feed itself — the four modules below — loads after first paint. See
 // loadWorldFeed() at the foot of this file.
 import './spec/daily-split.jsx';
-import './spec/search-overlay.jsx';
+// search-overlay.jsx and profile-overlay.jsx moved to the loadOverlays
+// group (still listed, still in order — the D25 move). Both are reachable
+// only by a tap on a header control, and the criterion this list used to
+// apply ("no control in the header or tabbar") was about the
+// SYNCHRONISATION, not the surface: app-shell's openDeferred awaits the
+// chunk before setting the state that mounts one, and since D223 every
+// member of LIVE_OVERLAYS goes through it. Their render sites take the
+// `window.X &&` form to match.
 import './spec/test-definitions.js';
 import './spec/passive-progress.js';
 import './spec/test-feed-data.js';
@@ -126,7 +132,7 @@ import './spec/passive-meter.jsx';
 // deleted it: the four core instruments fill from the feed and have no
 // sit-down flow, so there was nothing left for it to open.
 import './spec/lens-cards.jsx';
-import './spec/profile-overlay.jsx';
+// profile-overlay.jsx: see the note at search-overlay above.
 // person-mindmap.jsx, person-overlay.jsx, city-overlay.jsx and
 // suggestions.jsx load after first paint too, from the same group.
 import './spec/demographics.jsx';
@@ -325,6 +331,10 @@ export const loadOverlays = retryable(async () => {
   // First, because this list is spec-index's own order with the eager
   // modules removed and relmap.jsx sat above every other member of it.
   await import('./spec/relmap.jsx');
+  // …then the two the header opens, in the order they held in the eager
+  // list above (D223). ~12 KB of the entry chunk that only a tap reaches.
+  await import('./spec/search-overlay.jsx');
+  await import('./spec/profile-overlay.jsx');
   await import('./spec/person-mindmap.jsx');
   await import('./spec/person-overlay.jsx');
   await import('./spec/city-overlay.jsx');

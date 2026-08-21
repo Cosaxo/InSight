@@ -2992,5 +2992,55 @@
         "Self-knowledge"
       ]
     ]
+  },
+  {
+    "id": "122",
+    "type": "binary",
+    "prompt": "The team you support: inherited, or chosen?",
+    "tag": "How you got them",
+    "options": [
+      "Inherited",
+      "Chosen"
+    ],
+    "tone": "blend",
+    "cat": [
+      "Sport",
+      "Rooting"
+    ],
+    "alts": [
+      [
+        "Story",
+        "Memory"
+      ],
+      [
+        "Values",
+        "Loyalty"
+      ]
+    ]
+  },
+  {
+    "id": "123",
+    "type": "binary",
+    "prompt": "Rewatch a favourite, or risk something new?",
+    "tag": "Rewatch or risk",
+    "options": [
+      "Rewatch",
+      "Risk it"
+    ],
+    "tone": "light",
+    "cat": [
+      "Film",
+      "How you watch"
+    ],
+    "alts": [
+      [
+        "Interests",
+        "Taste"
+      ],
+      [
+        "Values",
+        "Openness"
+      ]
+    ]
   }
 ]

@@ -36,7 +36,7 @@ import { act, cleanup, fireEvent, render, screen, within } from "@testing-librar
 // the slowest cases sat at ~4.8s before it and tip over under suite load.
 vi.setConfig({ testTimeout: 15000 });
 import { FEED_OPTIONS, PATH_TITLE, fixtureSurfaceMismatch, installLive } from "./live-fixture";
-import { awaitText, growFeed } from "./mount-app";
+import { awaitText, growFeed, openHeaderOverlay } from "./mount-app";
 import { list as anchorList } from "../spec/map-anchors.js";
 import { IS_TESTS, IS_TEST_RESULTS } from "../spec/test-definitions.js";
 import { IS_ARCHETYPES } from "../spec/archetype-data.js";
@@ -73,8 +73,12 @@ afterEach(() => {
   live = undefined;
 });
 
-function mountLive(opts) {
+// `prep` runs between installLive and render — the seam for a case that
+// must shape the fixture's globals (an extra feed card, a pre-existing
+// store vote) before the first paint reads them.
+function mountLive(opts, prep) {
   live = installLive(opts);
+  if (prep) prep(live);
   errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
   render(<App />);
   return function expectNoBoundary(where) {
@@ -111,9 +115,9 @@ describe("spec layer mounts in live mode", () => {
     expect(screen.getByRole("button", { name: /^mirror$/i }).className).toContain("is-active");
   });
 
-  it("opens the profile overlay without tripping the boundary", () => {
+  it("opens the profile overlay without tripping the boundary", async () => {
     const expectNoBoundary = mountLive();
-    fireEvent.click(screen.getByRole("button", { name: /^profile$/i }));
+    await openHeaderOverlay("profile");
     expectNoBoundary("profile/live");
   });
 
@@ -122,7 +126,7 @@ describe("spec layer mounts in live mode", () => {
   // pinned still holds inside ui/PatternsTab.tsx, which is unreachable
   // while unmounted.
 
-  it("shows the real follow list in the live profile, none of the demo field", () => {
+  it("shows the real follow list in the live profile, none of the demo field", async () => {
     // The General tab used to embed MirrorFieldBody pop="groups" — the
     // scenes orbit with invented populations ("5.6k people" / "22k
     // people"), the closer-means-more-like-you distances, "Who's in your
@@ -132,20 +136,20 @@ describe("spec layer mounts in live mode", () => {
     // no likeness claims. The demo smoke suite asserts the demo field
     // still renders with LIVE off, so the pair pins the swap both ways.
     mountLive();
-    fireEvent.click(screen.getByRole("button", { name: /^profile$/i }));
+    await openHeaderOverlay("profile");
     expect(screen.getByText(/Scenes you follow/i)).toBeTruthy();
     expect(screen.queryByText(/closer = members more like you/i)).toBeNull();
     expect(screen.queryByText(/in your circles/i)).toBeNull();
     expect(screen.queryByText(/22k people/i)).toBeNull();
   });
 
-  it("opens the search overlay without tripping the boundary", () => {
+  it("opens the search overlay without tripping the boundary", async () => {
     const expectNoBoundary = mountLive();
-    fireEvent.click(screen.getByRole("button", { name: /^search$/i }));
+    await openHeaderOverlay("search");
     expectNoBoundary("search/live");
   });
 
-  it("shows no sample people in the search overlay", () => {
+  it("shows no sample people in the search overlay", async () => {
     // The overlay's Friends rows are sample-data personas wearing invented
     // relationships ("sister · since birth · 86% match"). Live mode has no
     // person graph at all (D3), so a live build listing them is a D1
@@ -154,7 +158,7 @@ describe("spec layer mounts in live mode", () => {
     // the same rows DO render with LIVE off, so this pair pins the gate in
     // both directions.
     mountLive();
-    fireEvent.click(screen.getByRole("button", { name: /^search$/i }));
+    await openHeaderOverlay("search");
     const seed = FRIENDS.list()
       .map((id) => (IS_DATA.people || []).find((p) => p.id === id))
       .find((p) => p && p.name && !p.anon);
@@ -802,7 +806,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
   it("offers the Roles tab live, and refuses under the floor", async () => {
     const expectNoBoundary = mountLive({ feedCards: 2 });
     await growFeed();
-    fireEvent.click(screen.getByRole("button", { name: /^profile$/i }));
+    await openHeaderOverlay("profile");
     await act(async () => {});
     const roles = screen.queryByRole("button", { name: "Roles" })
       || screen.queryByText("Roles");
@@ -1068,6 +1072,99 @@ describe("the live gates hold in the DOM, not just in the source", () => {
   });
 });
 
+// The feed dial's unit contract (D218), on the real mount. The store holds
+// the 12-bucket INDEX for a continuum answer; the feed's local state holds
+// the drag's own VALUE. The reconcile in componentDidMount used to copy
+// the index over the value on every store notify — so a card answered
+// "1 cups" on a 1–10 dial stood at "0 cups", off its own axis, and the
+// mirror then persisted it. One case per door: the in-session clobber,
+// the store-only fallback, and the residue a corrupted mirror still holds.
+describe("the feed dial keeps the value you slid (D218)", () => {
+  const DIAL_ID = "feed-fixture-dial";
+  const DIAL_PROMPT = "How many fixture cups is too many?";
+  const dialCard = () => ({
+    id: DIAL_ID,
+    cat: "culture",
+    type: "dial",
+    prompt: DIAL_PROMPT,
+    lo: 1, hi: 10, unit: "cups",
+    // live shape, as buildFeedGlobals emits it: 12 synthesized buckets
+    // whose counts ARE the crowd — empty here, the viewer's own bucket
+    // rides back in through dialDist
+    options: Array.from({ length: 12 }, (_, i) => ({ label: `b${i}`, count: 0 })),
+    n: 0,
+    live: true,
+  });
+  const addDial = (prep) => (handle) => {
+    window.WORLD_FEED_QS.push(dialCard());
+    if (prep) prep(handle);
+  };
+  // jsdom's localStorage is shared across this file and the feed both
+  // seeds from and persists to insight.feedVotes.v1 — start clean so no
+  // earlier case decides what the dial (or the notify-by-voting card 0)
+  // mounts as, and leave clean for the same reason.
+  beforeEach(() => { localStorage.clear(); });
+  afterEach(() => { localStorage.removeItem("insight.feedVotes.v1"); });
+
+  it("the committed value survives the store's next notify", async () => {
+    const expectNoBoundary = mountLive({}, addDial());
+    await growFeed();
+    const card = screen.getByText(DIAL_PROMPT).parentElement;
+    const slider = within(card).getByRole("slider");
+    // keyboard commit, because it is deterministic in jsdom: one step from
+    // the middle is frac 0.5 + 1/9 → value 7 of 1–10, which quantizes to
+    // bucket 8 — a pair the copy loop cannot tell apart from an edit.
+    fireEvent.keyDown(slider, { key: "ArrowRight" });
+    fireEvent.keyDown(slider, { key: "Enter" });
+    expect(within(card).getAllByText("7 cups").length).toBeGreaterThan(0);
+    // Any later notify replays the reconcile — voting another card is the
+    // cheapest real one. The old copy loop flipped the answer to "8 cups"
+    // here: the bucket index wearing the value's clothes.
+    act(() => { window.LIVE.vote("feed-fixture-0", "1"); });
+    expect(within(card).getAllByText("7 cups").length).toBeGreaterThan(0);
+    expect(within(card).queryByText("8 cups")).toBeNull();
+    expectNoBoundary("feed dial after notify");
+  });
+
+  it("a store-only answer renders as its bucket's value, never its index", async () => {
+    // Another device answered "1 cups" → optionIdx "0". This device has no
+    // raw value, so the card claims bucket 0's midpoint (≈1.4 → "1 cups").
+    // The pre-D218 reconcile copied the 0 in and the card said "0 cups" —
+    // a value the 1–10 axis cannot even hold.
+    const expectNoBoundary = mountLive({}, addDial((h) => { h.votes[DIAL_ID] = "0"; }));
+    await growFeed();
+    // A store notify replays the reconcile — without one this case passes
+    // on the fallback alone and pins nothing about the copy loop, which is
+    // exactly the door the cross-device report would come through.
+    act(() => { window.LIVE.vote("feed-fixture-0", "1"); });
+    // answered before this mount ever saw it, so the card parks behind the
+    // Answered expander (D133) — open it to reach the render
+    fireEvent.click(screen.getByRole("button", { name: /^Answered · 1$/ }));
+    const card = screen.getByText(DIAL_PROMPT).parentElement;
+    const you = within(card).getByText("you");
+    expect(you.previousSibling.textContent).toBe("1 cups");
+    expect(within(card).queryByText("0 cups")).toBeNull();
+    expectNoBoundary("feed dial from store");
+  });
+
+  it("heals the residue a pre-D218 mirror still holds", async () => {
+    // The reported device's exact state: the mirror kept the copied index
+    // (0), the store holds bucket "0". The card must read the store, not
+    // the residue — range is the tell, since 0 is off a 1–10 dial.
+    const expectNoBoundary = mountLive({}, addDial((h) => {
+      h.votes[DIAL_ID] = "0";
+      localStorage.setItem("insight.feedVotes.v1", JSON.stringify({ [DIAL_ID]: 0 }));
+    }));
+    await growFeed();
+    fireEvent.click(screen.getByRole("button", { name: /^Answered · 1$/ }));
+    const card = screen.getByText(DIAL_PROMPT).parentElement;
+    const you = within(card).getByText("you");
+    expect(you.previousSibling.textContent).toBe("1 cups");
+    expect(within(card).queryByText("0 cups")).toBeNull();
+    expectNoBoundary("feed dial healed");
+  });
+});
+
 // The demo persona must not become a live user's profile — on ANY mount.
 //
 // GeneralPanel seeds its state from localStorage and writes the whole blob
@@ -1089,8 +1186,8 @@ describe("live mode never inherits the sample persona (D55)", () => {
   const DEMO_JOB = "Editor · independent press";
   const DEMO_EDU = "MA Literature · Univ. of Oslo";
 
-  function openProfile() {
-    fireEvent.click(screen.getByRole("button", { name: /^profile$/i }));
+  async function openProfile() {
+    await openHeaderOverlay("profile");
   }
 
   // jsdom's localStorage is shared across cases in this file, and the panel
@@ -1098,7 +1195,7 @@ describe("live mode never inherits the sample persona (D55)", () => {
   // reads. (Case two failed exactly that way when it was written.)
   beforeEach(() => { localStorage.clear(); });
 
-  it("shows no demo vitals on a reopened profile, and anchors none", () => {
+  it("shows no demo vitals on a reopened profile, and anchors none", async () => {
     const saved = [];
     live = installLive();
     window.LIVE.saveAnchors = (a) => { saved.push(a); };
@@ -1107,13 +1204,13 @@ describe("live mode never inherits the sample persona (D55)", () => {
     // First open — writes the localStorage record that used to poison the
     // second one.
     const first = render(<App />);
-    openProfile();
+    await openProfile();
     expect(screen.queryByDisplayValue(DEMO_JOB)).toBeNull();
     first.unmount();
 
     // Second open, same device, same storage.
     render(<App />);
-    openProfile();
+    await openProfile();
     expect(
       screen.queryByDisplayValue(DEMO_JOB),
       "the sample persona's job came back on the second mount",
@@ -1134,7 +1231,7 @@ describe("live mode never inherits the sample persona (D55)", () => {
     }
   });
 
-  it("drops the v1 record's demo values but keeps what the user changed", () => {
+  it("drops the v1 record's demo values but keeps what the user changed", async () => {
     // A device that already ran the old build carries the persona on disk as
     // its own properties, by then indistinguishable from typed input. The
     // migration keeps every field that DIFFERS from the seed — only the user
@@ -1153,7 +1250,7 @@ describe("live mode never inherits the sample persona (D55)", () => {
     errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
     render(<App />);
-    openProfile();
+    await openProfile();
 
     expect(saved.length, "the anchors effect never ran — assertion is vacuous")
       .toBeGreaterThan(0);
@@ -1248,7 +1345,7 @@ describe("live mode never inherits the sample persona (D55)", () => {
     }
   });
 
-  it("hides the profile's map card while the ring is empty", () => {
+  it("hides the profile's map card while the ring is empty", async () => {
     // The wiring half: list() is only correct if what renders reads it.
     // MapThumbCard returns null on a zero-length ring.
     live = installLive();
@@ -1256,7 +1353,7 @@ describe("live mode never inherits the sample persona (D55)", () => {
     errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
     render(<App />);
-    openProfile();
+    await openProfile();
     expect(
       screen.queryByText(/^Your map$/),
       "the map card drew a ring with nothing in it",

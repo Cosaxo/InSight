@@ -178,9 +178,33 @@ export function gHash(s: string): number {
 }
 
 export function dayIndex(now: Date): number {
-  // Local-midnight day number so "today" rolls over with the user's clock.
-  const local = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  return Math.floor(local.getTime() / 86400000);
+  // The LOCAL CALENDAR day number, so "today" rolls over with the user's
+  // clock. Read off the local Y/M/D and numbered in UTC — the local parts
+  // are what makes it local; the UTC arithmetic is what keeps it a
+  // calendar count.
+  //
+  // It used to be `new Date(y, m, d).getTime() / 86400000` — local midnight
+  // as a UTC INSTANT — which leaks the zone's offset into the day number.
+  // East of UTC that instant falls on the previous UTC day, so the index
+  // came out one lower; at UTC and west it did not. Constant per zone, and
+  // therefore invisible… except in the zones whose offset CROSSES ZERO at a
+  // DST transition: the UK, Ireland, mainland Portugal, the Canaries,
+  // Casablanca. There the constant changes twice a year, and the day number
+  // stalls or jumps with it. Measured under TZ=Europe/London:
+  //
+  //   2026-03-29 → 20541, 2026-03-30 → 20541   (delta 0)
+  //   2026-10-25 → 20750, 2026-10-26 → 20752   (delta 2)
+  //
+  // Spring, the daily question does not change: `vote()` is create-only, so
+  // the card renders answered and there is no daily question that day, and
+  // "Yesterday" points at the wrong card. Autumn, a bank question is skipped
+  // and never served. `state.deckDay !== dayIndex()` also fails to fire at
+  // local midnight, and `dayLabel` below uses setDate, which is
+  // calendar-correct — so the two disagreed about what day it was.
+  //
+  // Date.UTC on local parts is stable across every transition because it
+  // never consults the offset at all.
+  return Math.floor(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()) / 86400000);
 }
 
 export function dayLabel(back: number, now: Date): string {
@@ -299,7 +323,21 @@ export function buildS(
 // past or present day's mapping at all. Residual limit, recorded: if
 // promotion lapses for longer than the bank's runway (n days after epoch),
 // the wrap returns and one reseed remaps history once.
-// 2026-08-01 as a local-midnight day number (dayIndex), the day D30 landed.
+// 2026-08-01 as a dayIndex, the day D30 landed.
+//
+// UNCHANGED by the DST fix above, and now true for the first time: 20666 is
+// the calendar day number for 2026-08-01, which is what dayIndex returns for
+// that date in EVERY zone. Under the old offset-leaking formula it was what
+// dayIndex returned at UTC and west of it, and one too high for everyone
+// east — so the constant matched its own description only for some readers.
+//
+// Re-deriving it cannot preserve both halves, because the old error was a
+// per-zone shift rather than a constant: +1 here would hold east-of-UTC
+// rotations still and move UTC and west instead. Keeping 20666 leaves UTC
+// and the Americas exactly where they were and moves everyone east by one
+// position, ONCE. That is the remap the paragraph above already accounts
+// for, and the direction is the right way round: east of UTC is where the
+// index was wrong.
 export const DECK_EPOCH = 20666;
 
 // One card per day, walking the bank backwards from `today` with a

@@ -2064,6 +2064,101 @@
           "count": 3200
         }
       ]
+    },
+    {
+      "id": "dl8",
+      "core": false,
+      "cat": "music",
+      "type": "dial",
+      "prompt": "How long should a concert be?",
+      "lo": 1,
+      "hi": 4,
+      "unit": "hrs"
+    },
+    {
+      "id": "f73",
+      "core": false,
+      "cat": "people",
+      "type": "vote",
+      "prompt": "Dinner with Napoleon, or with Cleopatra?",
+      "options": [
+        {
+          "label": "Napoleon",
+          "count": 2200
+        },
+        {
+          "label": "Cleopatra",
+          "count": 2900
+        }
+      ]
+    },
+    {
+      "id": "f74",
+      "core": false,
+      "cat": "movies",
+      "type": "vote",
+      "prompt": "Watch the trailer first, or go in blind?",
+      "options": [
+        {
+          "label": "Trailer first",
+          "count": 2800
+        },
+        {
+          "label": "Go in blind",
+          "count": 2400
+        }
+      ]
+    },
+    {
+      "id": "f75",
+      "core": false,
+      "cat": "event",
+      "type": "vote",
+      "prompt": "Election night: up late for the count, or read it in the morning?",
+      "options": [
+        {
+          "label": "Up all night",
+          "count": 2100
+        },
+        {
+          "label": "Morning headline",
+          "count": 3100
+        }
+      ]
+    },
+    {
+      "id": "f76",
+      "core": false,
+      "cat": "food",
+      "type": "vote",
+      "prompt": "Cake or pie?",
+      "options": [
+        {
+          "label": "Cake",
+          "count": 3300
+        },
+        {
+          "label": "Pie",
+          "count": 2500
+        }
+      ]
+    },
+    {
+      "id": "f77",
+      "core": false,
+      "cat": "sport",
+      "type": "vote",
+      "prompt": "Penalty shootouts: great drama, or a cruel coin flip?",
+      "options": [
+        {
+          "label": "Great drama",
+          "count": 2700
+        },
+        {
+          "label": "A cruel coin flip",
+          "count": 2600
+        }
+      ]
     }
   ]
 }

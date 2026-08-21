@@ -1303,7 +1303,7 @@ async function hydrate(): Promise<void> {
     const wf = JSON.parse(localStorage.getItem(WF_LS) || "{}") || {};
     state.feedBank.forEach((q) => {
       const v = state.votes[q.id];
-      if (v != null && wf[q.id] == null) wf[q.id] = Number(v);
+      if (v != null && wf[q.id] == null) wf[q.id] = mirrorVoteValue(q, Number(v));
     });
     localStorage.setItem(WF_LS, JSON.stringify(wf));
   } catch {
@@ -1318,6 +1318,32 @@ async function hydrate(): Promise<void> {
 function feedCounts(q: QuestionDoc & { id: string }): number[] {
   // subtract own vote only once the trigger has folded it in
   return countsFor(q.options, voteCtx(q.id));
+}
+
+// The WF_LS mirror's value for one stored answer. The mirror holds the
+// CONTROL's units, not the store's: a vote-shaped entry is the option
+// index, but a dial entry is a value on lo..hi and a field entry a point
+// {x,y}, while the answer doc's optionIdx for both is the 12-bucket index
+// (deck.ts — "a position on this range"). Mirroring the raw index
+// rendered it as the value — "0 cups" standing on a 1–10 card (D218) —
+// so a continuum answer mirrors as its bucket's midpoint instead, the
+// same read world-feed's dialVal/fieldVal derive when only the store
+// knows. The midpoint math duplicates dialBucketMid/fieldCellMid
+// (world-feed.jsx) because data/ cannot import the spec layer;
+// vote.test.ts pins the values so the twins cannot drift apart silently.
+function mirrorVoteValue(
+  q: QuestionDoc,
+  idx: number,
+): number | { x: number; y: number } {
+  if (q.type === "dial") {
+    const lo = q.lo ?? 0;
+    const hi = q.hi ?? 100;
+    return lo + ((idx + 0.5) / 12) * (hi - lo);
+  }
+  if (q.type === "field") {
+    return { x: ((idx % 4) + 0.5) * 25, y: (Math.floor(idx / 4) + 0.5) * (100 / 3) };
+  }
+  return idx;
 }
 
 // Replace the demo feed globals with live-shaped cards: real questions,
@@ -1572,10 +1598,16 @@ const SOCIAL = {
   },
   async createGroup(name: string, mode: string, displayName?: string) {
     const out = await callable<{ gid: string; inviteCode: string }>("createGroupV2", { name, mode, displayName });
+    // NOW the reveal push has something to notify about, so now is when it
+    // is fair to ask. After the call, not before: a prompt on top of a
+    // creation that then failed would be asking for nothing.
+    pushEarned();
     return out;
   },
   async joinGroup(code: string, displayName?: string) {
-    return callable<{ gid: string; name: string }>("joinGroupV2", { code, displayName });
+    const out = await callable<{ gid: string; name: string }>("joinGroupV2", { code, displayName });
+    pushEarned();
+    return out;
   },
   // ── handles and invitations (D122) ──
   //
@@ -1685,7 +1717,7 @@ const SOCIAL = {
         // order — so an index alone goes stale the moment the roster
         // changes, silently remapping every historical pick (the hazard
         // D204 priced). The answer therefore snapshots WHO the index
-        // meant at the moment of voting (D218); the reveal carries it,
+        // meant at the moment of voting (D224); the reveal carries it,
         // and any later fold reads the uid, never the index.
         if (q.kind === "pick") {
           const pickUid = ((g.memberUids || []) as string[])[optionIdx];
@@ -3807,7 +3839,13 @@ const LIVE = {
           const WF_LS = "insight.feedVotes.v1";
           const wf = JSON.parse(localStorage.getItem(WF_LS) || "{}") || {};
           if (qid in wf) {
-            wf[qid] = Number(prev);
+            // Through mirrorVoteValue, not Number(prev) directly: a dial's
+            // mirror entry is a VALUE, and restoring the bucket index here
+            // was D218's rarest door in. The raw drag the mirror held is
+            // gone (only the feed ever knew it) — the standing bucket's
+            // midpoint is the closest the doc can testify to.
+            const q = state.feedBank.find((x) => x.id === qid);
+            wf[qid] = q ? mirrorVoteValue(q, Number(prev)) : Number(prev);
             localStorage.setItem(WF_LS, JSON.stringify(wf));
           }
         } catch {
@@ -4056,6 +4094,28 @@ let refreshInFlight: Promise<void> | null = null;
 // change the new account's token was never written to its own document and
 // it received no reveal pushes until the next cold boot.
 let pushRegisteredFor: string | null = null;
+
+/**
+ * Ask for notification permission, at a moment that has earned it.
+ *
+ * Called after joining or creating a circle or a 1v1 — the acts that make a
+ * reveal possible, and therefore the first moments at which "your reveal is
+ * out" means anything. Boot deliberately does not call this (see initLive);
+ * push.ts has the iOS reasoning, which is that the decline is permanent.
+ *
+ * Fire-and-forget and idempotent: `registerPushForReveals` memoizes the
+ * token write per (uid, token), and the OS shows one prompt per install
+ * however many times it is asked. `pushRegisteredFor` is NOT consulted here
+ * — boot sets it after a silent registration, and this call is the one that
+ * may actually prompt, so gating on it would mean the prompt never happens.
+ */
+function pushEarned(): void {
+  const forUid = state.uid;
+  if (!forUid) return;
+  void import("./push")
+    .then((m) => m.registerPushForReveals(forUid, { ask: true }))
+    .catch(() => { /* native bridge absent, or the user said no */ });
+}
 let deviceBindAttemptedFor: string | null = null;
 
 export function refreshLive(): Promise<void> {
@@ -4087,6 +4147,11 @@ export function refreshLive(): Promise<void> {
     // fire-and-forget: reveal notifications on real devices (no-op on web).
     // Once per UID — re-registering on every reconnect would churn the
     // token array for no gain, but a new account needs its own.
+    //
+    // NO PROMPT HERE (`ask` defaults false). Boot only re-registers a device
+    // that has already granted permission; asking is deferred to the moments
+    // that make a reveal possible — see pushEarned() below and push.ts for
+    // why a boot-time prompt was costing the feature outright on iOS.
     if (pushRegisteredFor !== state.uid) {
       const forUid = state.uid as string;
       pushRegisteredFor = forUid;

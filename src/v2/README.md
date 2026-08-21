@@ -180,7 +180,7 @@ one rule, so each is individually visible and greppable:
 git grep -c "eslint-disable-next-line" -- src/v2/spec   # the live count
 ```
 
-That count is **29 across 12 files**. It is quoted here rather than left to
+That count is **28 across 11 files**. It is quoted here rather than left to
 the reader because this section previously claimed 42 long after the number
 had moved — a stale figure in the one paragraph whose job is to size the
 debt.
@@ -305,6 +305,16 @@ render **real user data** and each can lie in its own way. Mounting them
 inside the app (the two smoke files) proves they do not crash; these assert
 what they claim.
 
+That was a CONVENTION until 2026-08-20, and it drifted the way conventions
+do: an audit found nine panels with no suite at all — including
+`PatternsTab`, the entire shipped product of the on-trial third tab, at
+4.71% branch coverage, where one flipped ternary tells every user they
+answered the opposite of what they did. `npm run check:panel-suites` holds
+it now, as a ratchet: the panels still owed one are listed by name in that
+script and the count may only go down, and DELETING a suite fails it too.
+Run it for the live figure rather than quoting one here (D39,
+`check:figures`).
+
 | suite | the property it exists for |
 | --- | --- |
 | `LiveCohortBody` | an absent breakdown cell means ZERO and is still counted and named in words, because a silent gap reads as "this question doesn't exist here"; a question with no aggregate at all is a different state from an empty cohort and is not counted as either; nothing consults a `tooSmall` field (D98 — the row exists to catch its return) |
@@ -380,7 +390,7 @@ It is separate from `npm run lint` because that script carries
 "warn" tier to hold existing debt, and the alternative would be the blanket
 disable this file's Lint suppressions section exists to prevent.
 
-The baseline is **8**: 6 in `spec/`, plus two deliberate `autoFocus` keeps
+The baseline is **8**: 5 in `spec/`, plus two deliberate `autoFocus` keeps
 on picker search fields. It opened at 69 and came down in four steps — D23
 turned the mouse-only controls into buttons, D24 made every overlay and
 sheet a real modal dialog, D35 gave the Basics editor's selects explicit
@@ -391,7 +401,7 @@ screen reader), and D49 made the post-vote beat's Skip control a real
 button.
 
 What is left is **seven `no-autofocus` findings** and **one
-`no-static-element-interactions`** in `tweaks-panel.jsx`, the host-era debug
+`no-static-element-interactions`** in `src/dev/TweaksPanel.jsx`, the host-era debug
 panel rather than a user surface. (The v18 sync retired one more autofocus
 with the relmap add-circle input it replaced by rename-in-place.)
 

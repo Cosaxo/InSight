@@ -1,81 +1,72 @@
 # functions/
 
-Server-side compute for InSight. Currently one job: the population
-aggregator that rolls up Big Five vectors per geohash5 cell with
-k-anonymity, so AroundTab's "you vs your area" radar has something
-real to compare against.
+The server half of the v2 loop. Read [`docs/SCHEMA-V2.md`](../docs/SCHEMA-V2.md)
+for what gets written and [`docs/ORIENTATION.md`](../docs/ORIENTATION.md) §3
+for where everything else lives.
+
+*This file described a geohash5 population aggregator with a k-anonymity
+floor until 2026-08-20. D13 deleted that subsystem and D98 retired the
+model behind it; the text survived because `check:public-copy` is scoped to
+copy a USER reads, and ORIENTATION sends every newcomer here first. The
+rewrite is D223.*
 
 ## Layout
 
-- `src/index.ts` — the aggregator function. Two callable surfaces:
-  - `rebuildAreaAggregates` — HTTPS-callable for manual / dev runs.
-    **Operator-only**: `assertOperator()` requires the caller's uid to be
-    listed in the `SEED_ADMIN_UIDS` runtime variable. With anonymous-first
-    auth (D3), "any signed-in user" would have meant "anyone", and this is
-    a full-collection scan — a free cost-amplification lever. Idempotent,
-    and ends in a rotating batch write.
-  - `scheduledAreaAggregates` — runs every 6 hours via Cloud
-    Scheduler.
+- `src/ops.ts` — **where `setGlobalOptions` lives**, plus the two uid
+  allowlists (`assertOperator` → `SEED_ADMIN_UIDS`, `assertModerator` →
+  `MOD_UIDS`, deliberately disjoint) and `ENFORCE_APP_CHECK`.
+- `src/db.ts` — the one accessor for the named database (D165). Never call
+  `getFirestore()` directly; a bare handle binds to `(default)` and writes
+  land in a database nothing reads, with no error anywhere.
+- `src/v2.ts` — the seed callable and the aggregate triggers.
+  `onV2AnswerCreated` folds one answer into the private and published
+  aggregates through an idempotency ledger; `onV2AnswerUpdated` folds the
+  D86 edit's −old/+new delta through the same path.
+- `src/v2social.ts` — groups, duos, invites, the duel reveal scan and its
+  streaks, presence and the Near room fold, push token registration.
+- `src/patterns.ts` — the nightly rank-K fit over the agg-events ledger
+  that publishes `v2_patterns/loadings` (the Patterns tab's only source).
+  Deliberately off the hot write path.
+- `src/moderation.ts` — the flag tally, the server-picked queue, and the
+  moderator's three instruments. `docs/MODERATION.md` is the design.
+- `src/index.ts` — account deletion, and the re-exports the deploy reads.
+- `src/pure.ts` — the fold arithmetic, with no Firebase in it, so every
+  number this codebase publishes can be tested without an emulator. Most
+  of what is worth reading twice is here.
 
-## How the aggregator works
+## The one write
 
-1. Read every doc in `insight_discoverable` (users who've opted in
-   to being a discoverable position).
-2. For each discoverable, read their `insight_users/{uid}` profile.
-   Skip if no Big Five vector, or if `sharePrefs.big5 == "nobody"`.
-3. Bucket by the first 5 chars of the user's geohash (≈ 5 km × 5 km).
-4. Compute per-axis mean + standard deviation for each cell with
-   ≥ 5 contributors.
-5. Write to `aggregates_by_geohash5/{hash}`. Cells below the floor
-   are skipped (and any previously-published doc gets deleted, so
-   we don't leak old aggregates as populations shrink).
+Answering anything appends one answer document carrying a snapshot of the
+profile anchors it was written under. A trigger folds that snapshot into
+per-cohort counts and publishes them exactly, from the first answer.
+**Answers are public (D98)** — there is no k-anonymity floor, no publish
+cadence and no suppressed cells. Three things stay closed, none of them
+answers: the unscored logic answer key, flag authorship, and the presence
+cell.
 
-## Privacy
+## Testing
 
-- K-anonymity floor (`K_ANON_FLOOR = 20`): cells with fewer contributors
-  aren't published, and any previously-published doc for a cell that falls
-  below the floor is **deleted** rather than left stale. Separate floors
-  apply per stream — see `WORLD_K_ANON_FLOOR`, `CITY_K_ANON_FLOOR`,
-  `IMPRESSION_K_ANON_FLOOR` in `src/index.ts` and `AGG_MIN_N` in
-  `src/v2.ts`.
-- User opt-in chain: must be present in `insight_discoverable` AND
-  have shared their Big5 (sharePrefs.big5 ≠ "nobody"). Default
-  prefs include them; opting out is one toggle in SharingOverlay.
-- The Cloud Function writes via admin SDK (rules bypassed); the
-  rules forbid direct client writes to `aggregates_by_geohash5`.
-- Reads are open to any signed-in user — the published doc has no
-  individual identifiers.
+`npm test` runs the pure suites — the fold, the reveal and streak
+arithmetic, the queue, the allowlists — in plain node, no emulator. The
+loop-level suites live at the repo root and need Java 21:
+`npm run test:e2e`, `:erasure`, `:moderation`. `CLAUDE.md` §2 has the
+table of what each runner covers; they are not interchangeable.
 
 ## Deploy
 
+Rules and functions ship through `.github/workflows/firebase-deploy.yml`,
+which calls the same `backend-checks.yml` a pull request does — so what
+guards a PR is exactly what guards production. `docs/DEPLOYMENT.md` is the
+account of how it is wired.
+
 ```sh
-# From repo root
 npm --prefix functions install
-firebase deploy --only functions
+npm --prefix functions run build     # the emulator loads functions/lib
 ```
-
-Or with the standalone emulator:
-
-```sh
-cd functions
-npm install
-npm run serve  # starts the functions emulator on the configured project
-```
-
-## Trigger manually
-
-After deploy, you can kick the aggregator from the client side or
-via `firebase functions:shell`:
-
-```js
-rebuildAreaAggregates({})
-```
-
-Returns `{ cellsWritten, cellsDeleted, usersConsidered, usersIncluded }`.
 
 ## Deployed functions
 
-17 functions ship from this codebase (the deploy's `--only` list also
+29 functions ship from this codebase (the deploy's `--only` list also
 names `firestore:rules` and `firestore:indexes`, which are not functions).
 `scripts/check-deploy-targets.mjs` fails CI if an exported function is
 missing from that list — otherwise it would be built, tested, green and
@@ -86,3 +77,8 @@ Runtime options are set globally in `src/ops.ts`, not per function, and
 (256 MiB / 60 s). That placement is deliberate: `export { x } from "./v2"`
 is a hoisted re-export, so putting `setGlobalOptions` in `index.ts` would
 apply it to index's own functions and silently miss every v2 one.
+
+Every callable either demands App Check attestation or is named in
+`scripts/check-appcheck.mjs`'s exemption list with the reason it cannot
+and the allowlist that stands in — and since D221 that script checks the
+callable actually calls the gate its exemption names.

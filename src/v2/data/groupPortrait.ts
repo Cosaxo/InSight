@@ -17,9 +17,9 @@ export interface PortraitVote {
   /** set only when this member answered a different question — see voteQid */
   qid?: string | null;
   /**
-   * Who this vote's optionIdx MEANT on a "pick" day (D218) — snapshotted
+   * Who this vote's optionIdx MEANT on a "pick" day (D224) — snapshotted
    * by the answering client, because the index is relative to a roster
-   * that changes. Absent on non-pick days and in reveals older than D218.
+   * that changes. Absent on non-pick days and in reveals older than D224.
    */
   pickUid?: string | null;
 }
@@ -77,7 +77,7 @@ export interface PortraitRow {
   /** true when MY answer was the off-question one — then `mine` is null */
   mineOffQuestion: boolean;
   /**
-   * WHO the majority option meant, on a pick day (D218) — from the votes'
+   * WHO the majority option meant, on a pick day (D224) — from the votes'
    * own snapshots, never from indexing the current roster. Null unless
    * every counted majority vote that carries a snapshot names the same
    * person: clients can hold different rosters on the same day, and a
@@ -148,7 +148,7 @@ export function portraitRow(reveal: PortraitReveal, myUid: string | null): Portr
   // must not count the day as one I played — a made-up alignment is the
   // fabrication D1 forbids, and it would be indistinguishable from a real one.
   const mine = minePlayed && !mineOffQuestion ? (mineVote as PortraitVote).optionIdx : null;
-  // The pick-day snapshots (D218). Only the counted votes on the majority
+  // The pick-day snapshots (D224). Only the counted votes on the majority
   // option are consulted, and only unanimously: a mixed set (old and new
   // clients, or genuinely different rosters) yields null and the reader
   // falls back to the index rather than to a guessed name.

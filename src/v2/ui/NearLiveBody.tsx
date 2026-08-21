@@ -126,7 +126,7 @@ function NearSwitch({ on, busy, onToggle }: {
   return (
     <button type="button" role="switch" aria-checked={on} disabled={busy}
       aria-label="Share a rough location to count people near you"
-      className="press" onClick={onToggle}
+      className="press tap44" onClick={onToggle}
       style={{
         width: 46, height: 27, flexShrink: 0, padding: 2, borderRadius: 999,
         border: on ? "none" : NB_LINE, cursor: busy ? "default" : "pointer",

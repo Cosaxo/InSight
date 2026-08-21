@@ -123,11 +123,11 @@ function LgKicker({ children }: { children: React.ReactNode }) {
 
 // What a revealed day's majority actually said. "pick" questions carry no
 // bank options — their options ARE the members — so the label falls back
-// to the picked member's name. Since D218 a pick vote snapshots WHO its
+// to the picked member's name. Since D224 a pick vote snapshots WHO its
 // index meant, and that snapshot is preferred: the index path below reads
 // the CURRENT roster order, which a join or leave silently remaps for
 // every historical pick day. The fallback survives for reveals older than
-// D218 and for a snapshot naming someone no longer in memberNames.
+// D224 and for a snapshot naming someone no longer in memberNames.
 function lgOptionLabel(g: LiveGroup, qid: string | null, idx: number, pickUid?: string | null): string {
   const pickName = pickUid ? (g.memberNames || {})[pickUid] : null;
   if (pickName) return pickName;

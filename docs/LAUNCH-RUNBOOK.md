@@ -21,8 +21,8 @@ permanent non-blocker under D42, excused by `--ios`. **For an iOS launch
 the count is zero**, which is a change from 2026-08-04: the Team ID and the
 `REVERSED_CLIENT_ID` were the other two and both are filled.
 
-`check:store-listing` and `check:versions` pass; the daily bank is at 122
-questions of 600 seeded; the production backend is deployed. **Measured
+`check:store-listing` and `check:versions` pass; the daily bank is at 124
+questions of 608 seeded; the production backend is deployed. **Measured
 2026-08-04:** anonymous sign-in works (`accounts:signUp` returns an
 `idToken`, where it returned `ADMIN_ONLY_OPERATION` on 2026-08-03), the
 InSight web app is registered, and the default hosting site `prvfire33`
@@ -168,7 +168,7 @@ arithmetic.
       below because it documents how the gap was reasoned about while it
       was real.
       Actions → **Seed content** → Run workflow.
-      600 questions land in `v2_questions` — idempotent and, since D34,
+      608 questions land in `v2_questions` — idempotent and, since D34,
       cheap to repeat.
 
       **This step is now automatic for everything that follows it (D88):**
@@ -179,7 +179,7 @@ arithmetic.
       either way — `written: 0` means nothing landed.
 
       **It is unticked on purpose, and still is.** That run wrote **389**,
-      and the bank is **600** after the K=5 test expansion, D103's
+      and the bank is **608** after the K=5 test expansion, D103's
       retirement of the Thinking test and D114's continuum questions — so
       the difference is in the repo and not in production. Note that the gap now runs BOTH ways: 20
       `test-cognitive-*` questions are live in `v2_questions` and no longer
@@ -981,7 +981,7 @@ start.
       your own name.** There is no k-floor since D98: the first answer
       publishes exactly, so a count of 1 on your own device is that one
       answer and the who-voted sheet will name you. That is the product
-      working, not a leak — the 600 seeded questions are live regardless.
+      working, not a leak — the 608 seeded questions are live regardless.
       What used to sit here was the opposite warning (*"You're early"*
       under `AGG_MIN_N`, paused by D81 and removed entirely by D98).
 - [ ] **3.3 Walk the on-device verification list** — six checks, first
@@ -1301,7 +1301,7 @@ That is a tester-count problem, not a workflow problem.
       it for two policies is the worse trade. Both cover failures that look like nothing from the
       outside: the app keeps serving while the Mirror stops moving, or
       keeps moving while falling further behind. `DEPLOYMENT.md § Alerting`.
-- [x] **5.6 Version lockstep — holds at 2.0.0 build 22.**
+- [x] **5.6 Version lockstep — holds at 2.0.0 build 23.**
       *This line was stale three times, each one a bump behind 2.4 — build
       11 on 2026-08-13, build 12 later the same day, then 13 against a tree
       at 22.* It is the D39 shape — a figure kept current by intention —
@@ -1416,28 +1416,24 @@ That is a tester-count problem, not a workflow problem.
       optional upgrade rather than a login wall. Only add the Apple
       provider if a reviewer insists.
 
-      **That drafted reply is FALSE for any build this workflow makes
-      today, and the cause is a flag rather than a copy error.**
-      `ios-release.yml` sets `VITE_REQUIRE_SIGNIN` from
-      `vars.REQUIRE_SIGNIN` and **defaults it to `true`** (D134), so a
-      release build opens on a mandatory Google sign-in and nothing else
-      works until it succeeds. Every clause of the answer above — *no
-      account is required*, *an optional upgrade rather than a login wall*
-      — describes the build the flag turns OFF, not the one that ships by
-      default. Sending that reply with a walled binary argues against the
-      app the reviewer is holding, which is the same shape as a listing
-      contradicting its own nutrition label.
-
-      **So the submission build must either drop the wall or add Sign in
-      with Apple**, and D134 deliberately left which one open. Dropping it
-      is a repository variable and no code change: Settings → Secrets and
-      variables → Actions → **Variables** → set `REQUIRE_SIGNIN` to
-      `false`, then re-run *iOS release*. Anything other than the literal
-      `true` works — `signInRequired()` compares exactly, on purpose — but
-      set it explicitly rather than deleting it, so the next reader can see
-      which fork was taken. Adding Apple instead is a provider, a native
-      capability and a new review surface that `SHIP-CHECKLIST § 4.8` says
-      not to pre-build.
+      **RESOLVED 2026-08-20 (D219): the fork went the drop-the-wall way,
+      and the default itself now says so.** This step used to read: the
+      drafted reply is false for any build this workflow makes, because
+      `ios-release.yml` defaulted `VITE_REQUIRE_SIGNIN` to `true` (D134)
+      and a release build opened on a mandatory Google sign-in — every
+      clause of the 4.8 answer described the build the flag turns OFF.
+      The owner resolved it on the release thread (condition — everyone
+      has an account, answers attributed, duplicates hard — checked and
+      holding without the wall; D219 has the reasoning), and the workflow
+      default flipped to `'false'` **in the repo rather than in the
+      settings page**, so the record is where the next reader looks. The
+      variable survives as the override for a deliberately walled test
+      build (`REQUIRE_SIGNIN=true`); `signInRequired()` still compares to
+      the literal `true`, on purpose. Build 23 is the first wall-less
+      build; 22 and earlier ship the wall and are superseded. Adding
+      Apple instead remains un-pre-built (`SHIP-CHECKLIST § 4.8`) — it
+      joins only if a reviewer insists, in the rejection round this step
+      budgets.
 
       **The wall is also a 5.1.1(v) question, not only a 4.8 one**, and
       that is the more expensive half: Apple expects an app to be usable

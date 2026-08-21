@@ -889,7 +889,7 @@ describe("v2 answers (world-readable since D98; option edits only — D86)", () 
       doc(asUser("m4"), "v2_users", "m4", "answers", aid), duel(0)));
   });
 
-  it("a pick answer may snapshot WHO the index meant, and only honestly (D218)", async () => {
+  it("a pick answer may snapshot WHO the index meant, and only honestly (D224)", async () => {
     // A pick's optionIdx is relative to the roster order the answering
     // client held, which a join or leave silently remaps — so the answer
     // may carry `pickUid`, the member the index meant at the moment of
@@ -927,7 +927,7 @@ describe("v2 answers (world-readable since D98; option edits only — D86)", () 
     // snapshot on it is a claim about a list that was never shown
     await assertFails(setDoc(
       doc(asUser("s2"), "v2_users", "s2", "answers", aid), duel({ qid: "group-opt1", pickUid: "s1" })));
-    // absent stays legal — pre-D218 clients omit it
+    // absent stays legal — pre-D224 clients omit it
     await assertSucceeds(setDoc(
       doc(asUser("s2"), "v2_users", "s2", "answers", aid), duel({})));
   });
@@ -1663,6 +1663,13 @@ describe("moderation substrate: takes + flags (docs/MODERATION.md, D22)", () => 
     // every take — so the premise went and the gate with it.
     await assertSucceeds(setDoc(
       doc(asUser(STRANGER), "v2_flags", "t2_" + STRANGER), flag("t2", STRANGER)));
+    // …but not your OWN take, which is the same refusal the avatar arm
+    // makes. `t2` is OWNER's. Reporting yourself achieves one thing —
+    // spending a moderator's generation on something you can delete
+    // yourself — and three of your own accounts on your own take is the
+    // flag floor, so it was also a way to occupy the queue.
+    await assertFails(setDoc(
+      doc(asUser(OWNER), "v2_flags", "t2_" + OWNER), flag("t2", OWNER)));
     // Write-only, still, and this deny SURVIVES D98 on its own reasoning:
     // a reporter visible to the person they reported is a reporter who
     // stops reporting. Anti-retaliation, not answer privacy.
