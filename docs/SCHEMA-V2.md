@@ -353,7 +353,10 @@ a duo member may update duoMode alone (closed enum, affectedKeys-pinned —
 the rule expresses the whole invariant, so no callable; D40 part 4)
 
 v2_groups/{gid}/reveals/{day}      materialized by the reveal pipeline
-  day, qid, votes { uid: {optionIdx, guessIdx?} }, names, members[], revealedAt
+  day, qid, votes { uid: {optionIdx, guessIdx?, pickUid?} }, names, members[], revealedAt
+  (pickUid — pick days only, D224: WHO the vote's optionIdx meant, in the
+  roster order the answering client used; the index alone is remapped by
+  any join/leave. Absent in reveals older than D224)
   (members is the membership snapshot the read rule gates on — not the
   parent group's current roster, which is what keeps the guarantee
   retroactive: D5's amendment. It is the members who were in the group ON
@@ -363,7 +366,8 @@ read: the reveal's own members · write: nobody (D5)
 
 Sealed duel answers live in the same answers subcollection as everything
 else, under composite ids (g_{gid}_{day}) with extra fields
-gid/day/guessIdx — and they are the ONE surface the D98 public read
+gid/day/guessIdx (plus pickUid on a "pick" day, D224 — a current member's
+uid, rules-validated) — and they are the ONE surface the D98 public read
 excludes, as a `surface` value test rather than an owner-only path. That
 is the seal: the owner still reads their own, nobody else reads any, and
 the reveal doc publishes the whole table the next day. Rules require
@@ -506,7 +510,7 @@ not per boot. `LIVE.stats` reports `bankSource` / `answersFetched` /
 
 ## Verification
 
-- `npm run test:rules` — 115 rules tests (Firestore + Storage; the v2
+- `npm run test:rules` — 116 rules tests (Firestore + Storage; the v2
   surface, the anonymous-default lens, and the retired-v1 guard).
 - `firestore-tests/e2e-v2-loop.mjs` under
   `firebase emulators:exec --only auth,firestore,functions` — the full

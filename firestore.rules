@@ -471,7 +471,7 @@ service cloud.firestore {
         // which is why D98 leaves this function alone.
         function isDuelAnswer() {
           return request.resource.data.keys().hasOnly([
-              "qid", "surface", "optionIdx", "guessIdx",
+              "qid", "surface", "optionIdx", "guessIdx", "pickUid",
               "gid", "day", "answeredAt", "anchors",
             ])
             && request.resource.data.surface in ["group", "duo"]
@@ -517,7 +517,21 @@ service cloud.firestore {
             // beside it because the two bounds were written out twice; one
             // function means the next change to the index space cannot
             // reach one and miss the other.
-            && request.resource.data.get("guessIdx", 0) < duelIndexSpace();
+            && request.resource.data.get("guessIdx", 0) < duelIndexSpace()
+            // D224: on a "pick" day the answer also snapshots WHO its
+            // optionIdx meant — the roster order the answering client
+            // used — because the index alone goes stale the moment the
+            // roster changes. Optional (older clients omit it); when
+            // present it must be a current member's uid, and only a pick
+            // question (empty bank options) may carry one. Both get()s
+            // below are already made by the clauses above, and repeated
+            // get()s on one path are deduped within a rules evaluation,
+            // so this costs no extra document access.
+            && (!request.resource.data.keys().hasAny(["pickUid"])
+              || (request.resource.data.pickUid is string
+                && get(/databases/$(database)/documents/v2_questions/$(request.resource.data.qid)).data.options.size() == 0
+                && request.resource.data.pickUid
+                     in get(/databases/$(database)/documents/v2_groups/$(request.resource.data.gid)).data.memberUids));
         }
 
         // The daily pulse (D139): the same question answered once per

@@ -889,6 +889,49 @@ describe("v2 answers (world-readable since D98; option edits only — D86)", () 
       doc(asUser("m4"), "v2_users", "m4", "answers", aid), duel(0)));
   });
 
+  it("a pick answer may snapshot WHO the index meant, and only honestly (D224)", async () => {
+    // A pick's optionIdx is relative to the roster order the answering
+    // client held, which a join or leave silently remaps — so the answer
+    // may carry `pickUid`, the member the index meant at the moment of
+    // voting. Optional (older clients omit it); when present it must name
+    // a current member, and only a pick question (empty bank options) may
+    // carry one.
+    const GID = "g_snap";
+    const DAY = dayOffset(-1);
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_questions", "group-pick1"), {
+        surface: "group", seq: 0, type: "pick", prompt: "Who?", options: [],
+      });
+      await setDoc(doc(db, "v2_questions", "group-opt1"), {
+        surface: "group", seq: 1, type: "binary", prompt: "Which?", options: ["a", "b"],
+      });
+      await setDoc(doc(db, "v2_groups", GID), {
+        name: "Snap", mode: "group", memberUids: ["s0", "s1", "s2"],
+      });
+    });
+    const aid = `g_${GID}_${DAY}`;
+    const duel = (over: Record<string, unknown>) => ({
+      qid: "group-pick1", surface: "group", optionIdx: 1,
+      gid: GID, day: DAY, answeredAt: serverTimestamp(), anchors: {}, ...over,
+    });
+    // names a member → in
+    await assertSucceeds(setDoc(
+      doc(asUser("s0"), "v2_users", "s0", "answers", aid), duel({ pickUid: "s1" })));
+    // a stranger's uid is not a pick anyone at this table could have made
+    await assertFails(setDoc(
+      doc(asUser("s1"), "v2_users", "s1", "answers", aid), duel({ pickUid: "nobody" })));
+    // wrong type
+    await assertFails(setDoc(
+      doc(asUser("s1"), "v2_users", "s1", "answers", aid), duel({ pickUid: 1 })));
+    // a question WITH bank options has no members as options, so a
+    // snapshot on it is a claim about a list that was never shown
+    await assertFails(setDoc(
+      doc(asUser("s2"), "v2_users", "s2", "answers", aid), duel({ qid: "group-opt1", pickUid: "s1" })));
+    // absent stays legal — pre-D224 clients omit it
+    await assertSucceeds(setDoc(
+      doc(asUser("s2"), "v2_users", "s2", "answers", aid), duel({})));
+  });
+
   it("a duel guess is bounded by the question's options, not a flat 20", async () => {
     // The non-pick half of the same bound. A bank question with 3 options
     // has no 5th one to guess, but `guessIdx < 20` accepted it — and the

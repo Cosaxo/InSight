@@ -342,6 +342,17 @@ interface RevealVote {
    * someone's name on it, under a question they were never asked.
    */
   qid?: string;
+  /**
+   * Who this vote's optionIdx MEANT, on a "pick" day (D224) — the member
+   * the answering client's own roster order pointed at. Snapshotted by the
+   * client at vote time and validated against membership by the rules,
+   * because the index alone is relative to a roster that changes: a
+   * join/leave silently remaps every historical pick, and two clients can
+   * even hold different rosters on the same day. Absent on non-pick days
+   * and on picks from clients older than D224 — readers fall back to the
+   * index, they never invent a name.
+   */
+  pickUid?: string;
 }
 
 async function revealGroupDay(
@@ -523,6 +534,10 @@ async function revealGroupDay(
       const v: RevealVote = { optionIdx };
       const guessIdx = s.get("guessIdx");
       if (typeof guessIdx === "number") v.guessIdx = guessIdx;
+      // The pick-day snapshot (D224) — carried verbatim into the reveal;
+      // rules validated it against membership when the answer was written.
+      const pickUid = s.get("pickUid");
+      if (typeof pickUid === "string" && pickUid) v.pickUid = pickUid;
       freshEntries.push({ uid: members[i], qid: s.get("qid"), vote: v });
     });
     const freshQid = revealQid(freshEntries.map((e) => e.qid));

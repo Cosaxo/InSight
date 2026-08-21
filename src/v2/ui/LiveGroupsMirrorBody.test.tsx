@@ -202,6 +202,31 @@ describe("LiveGroupsMirrorBody · the day rows say what was actually chosen", ()
     expect(document.body.textContent).toMatch(/Me|Ada|Bo/);
   });
 
+  it("prefers a pick vote's own snapshot over the current roster order (D224)", () => {
+    // The votes below were cast when the roster ordered differently: the
+    // majority sits at index 0, which TODAY'S memberUids resolve to "Me" —
+    // the wrong person. Each vote snapshots who it meant, and the label
+    // must follow the snapshot, not the reshuffled index.
+    LIVE.social.bankQ = () => ({ prompt: "Who would you trust with a secret?", options: [] });
+    LIVE.social.revealHistory = () => [{
+      day: "2026-07-29",
+      qid: "group-gu0",
+      votes: {
+        u_me: { optionIdx: 2, pickUid: "u_ada" },
+        u_ada: { optionIdx: 0, pickUid: "u_bo" },
+        u_bo: { optionIdx: 0, pickUid: "u_bo" },
+      },
+    }];
+    render(<LiveGroupsMirrorBody />);
+    openTab("Answers");
+    expect(screen.getByText("Bo")).toBeTruthy();
+    expect(screen.queryByText("Me"), "the current-roster index leaked into a label").toBeNull();
+    // …and my own line reads MY snapshot: index 2 is "Bo" today, but the
+    // vote says who I actually picked.
+    fireEvent.click(screen.getByText("Bo"));
+    expect(screen.getByText(/you picked Ada/)).toBeTruthy();
+  });
+
   it("reports alignment over days the viewer actually played", () => {
     // I played both days and was with the majority on both.
     render(<LiveGroupsMirrorBody />);

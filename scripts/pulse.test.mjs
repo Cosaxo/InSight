@@ -298,7 +298,16 @@ describe("cost-arith reads its constants from source, not from memory", () => {
       //
       // RULE_READS is deliberately unchanged, for the D98 and D178 reason:
       // it charges the ANSWER-create paths, and flagging a take is not one.
-    ).toEqual({ gets: 23, exists: 3 });
+      //
+      // 23 → 25 gets at D224: isDuelAnswer's pickUid arm — one get() on
+      // /v2_questions (only a pick question, empty bank options, may carry
+      // the snapshot) and one on /v2_groups (the snapshot must name a
+      // current member). Both are documents the SAME evaluation already
+      // reads — the question via exists() and duelIndexSpace(), the group
+      // via the membership clause — so this is the D139 and D194 shape
+      // twice over: the site count moves, the billed cost does not, and
+      // RULE_READS.duel stays 3.
+    ).toEqual({ gets: 25, exists: 3 });
   });
 
   it("the answer trigger's transaction still issues the reads the model charges", () => {

@@ -5,15 +5,18 @@
 // `data/roles.test.ts` holds the arithmetic. What matters here is what the
 // screen does with it, and the three properties are all refusals:
 //
-//   1. A setting under its floor is NOT drawn. A role read off one
-//      revealed day is a coin flip with a name on it.
-//   2. When nothing clears the floor, the panel SAYS SO rather than
-//      drawing an empty rose — the same posture every other live surface
-//      takes when the fold cannot be done (D72).
-//   3. The average never stands alone once there is more than one
-//      setting: a role is only interesting beside the other roles you
-//      play, so the rows are part of the reading rather than a detail
-//      view of it.
+//   1. A setting under its floor gets a THIN ROW — its name and how far
+//      the count has got, in the floor's own unit — never a role. A role
+//      read off one revealed day is a coin flip with a name on it, and
+//      omitting the setting entirely (as this panel first shipped) made
+//      the average silently partial.
+//   2. When a section has no settings at all, the panel SAYS SO rather
+//      than drawing an empty rose — the same posture every other live
+//      surface takes when the fold cannot be done (D72). The sentence
+//      names the real gate: days both guessed, not "revealed days".
+//   3. The average never stands alone once there is anything beside it:
+//      a role is only interesting beside the other roles you play, so
+//      the rows are part of the reading rather than a detail view of it.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 
@@ -59,19 +62,63 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
-describe("when nothing clears the floor", () => {
-  it("says so, on both instruments, instead of drawing an empty rose", () => {
+describe("with no settings at all", () => {
+  it("says so, on both instruments, naming each floor's real unit", () => {
     render(<LiveRolesPanel />);
-    expect(screen.getByText(/No 1v1 has run 3 revealed days yet/)).toBeTruthy();
-    expect(screen.getByText(/No group has run 2 revealed days yet/)).toBeTruthy();
+    // "days you both guessed", not "revealed days": the duo gate counts
+    // scored days, and a pair can reveal five days and guess on two.
+    expect(screen.getByText(/No 1v1 has 3 days you both guessed yet/)).toBeTruthy();
+    expect(screen.getByText(/No group has 2 revealed days you played yet/)).toBeTruthy();
   });
+});
 
-  it("does not draw a role for a duel that has run two days", () => {
+describe("a setting under the floor", () => {
+  it("gets a thin row with its count, not a role and not silence", () => {
     ROOMS = [duoRoom("d1")];
     HIST.d1 = [dday("2026-08-01", [0, 1], [1, 1]), dday("2026-08-02", [0, 1], [1, 1])];
     render(<LiveRolesPanel />);
-    expect(screen.getByText(/No 1v1 has run 3 revealed days yet/)).toBeTruthy();
-    expect(screen.queryByText("Ada")).toBeNull();
+    expect(screen.getByText("Ada")).toBeTruthy();
+    expect(screen.getByText("2 of 3 days both guessed")).toBeTruthy();
+    // No role, no sentence: the row IS the explanation.
+    expect(screen.queryByText("The Mind Reader")).toBeNull();
+    expect(screen.queryByText(/No 1v1 has 3 days/)).toBeNull();
+  });
+
+  it("counts the floor's unit, not revealed days", () => {
+    // Three revealed days, guesses on only two — the old copy would have
+    // called this duel ready.
+    ROOMS = [duoRoom("d1")];
+    HIST.d1 = [
+      dday("2026-08-01", [0, 1], [1, 1]),
+      dday("2026-08-02", [0, 1], [1, 1]),
+      { day: "2026-08-03", qid: "q1", votes: { me: { optionIdx: 0 }, them: { optionIdx: 1 } }, names: { them: "Ada Lovelace" } },
+    ];
+    render(<LiveRolesPanel />);
+    expect(screen.getByText("2 of 3 days both guessed")).toBeTruthy();
+    expect(screen.queryByText("The Mind Reader")).toBeNull();
+  });
+
+  it("says a room with no reveals has none, rather than counting to zero", () => {
+    ROOMS = [{ id: "g1", mode: "group", name: "The Wednesday Six", memberUids: ["me", "a", "b"] }];
+    render(<LiveRolesPanel />);
+    expect(screen.getByText("The Wednesday Six")).toBeTruthy();
+    expect(screen.getByText("nothing revealed yet")).toBeTruthy();
+  });
+
+  it("sits beside a full reading, so the average is visibly not the whole list", () => {
+    ROOMS = [duoRoom("d1"), { id: "d2", mode: "duo", memberUids: ["me", "b"], memberNames: { b: "Bo Nilsen" } }];
+    HIST.d1 = [
+      dday("2026-08-01", [0, 1], [1, 1]),
+      dday("2026-08-02", [0, 1], [1, 1]),
+      dday("2026-08-03", [0, 1], [1, 1]),
+    ];
+    HIST.d2 = [{ day: "2026-08-01", qid: "q1", votes: { me: { optionIdx: 0, guessIdx: 1 }, b: { optionIdx: 1, guessIdx: 1 } }, names: { b: "Bo Nilsen" } }];
+    render(<LiveRolesPanel />);
+    // The qualifying duel draws the card AND its row; the thin one its row.
+    expect(screen.getByText("The Mind Reader")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Ada/ })).toBeTruthy();
+    expect(screen.getByText("Bo")).toBeTruthy();
+    expect(screen.getByText("1 of 3 days both guessed")).toBeTruthy();
   });
 });
 
@@ -159,6 +206,6 @@ describe("groups", () => {
     render(<LiveRolesPanel />);
     expect(screen.getByText("3 revealed days")).toBeTruthy();
     // …and the 1v1 half still refuses, independently.
-    expect(screen.getByText(/No 1v1 has run 3 revealed days yet/)).toBeTruthy();
+    expect(screen.getByText(/No 1v1 has 3 days you both guessed yet/)).toBeTruthy();
   });
 });
