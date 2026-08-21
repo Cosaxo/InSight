@@ -470,6 +470,27 @@
       75: 2,   // Bloodhound — below the floor
       0: 8,    // Not listed
     },
+    // daily catalog-question run, 2026-08-21 — landscape, the fourth
+    // countries canon: pk16 ranks where you'd live, pk18 kitchens, pk20
+    // flags; this one is what the postcards vote for, and its board is
+    // the travel feed's, not the emigrant's.
+    pk22: {
+      554: 29, // New Zealand — the standing champion of scenery polls
+      756: 24, // Switzerland — the Alps with trains through them
+      352: 18, // Iceland — the volcano-and-glacier vote
+      578: 15, // Norway — the fjords
+      380: 13, // Italy — beauty with lunch
+      392: 11, // Japan — gardens and Fuji
+      124: 9,  // Canada — the Rockies' share
+      300: 8,  // Greece — the islands
+      710: 7,  // South Africa — the Cape
+      360: 6,  // Indonesia — the Bali vote
+      191: 5,  // Croatia — clears the floor but not the top 10; folds
+      705: 5,  // Slovenia — same, the quiet favourite
+      64: 3,   // Bhutan — below the floor
+      604: 2,  // Peru — below the floor
+      0: 10,   // Not listed
+    },
   };
 
   // Baked demo segment slices, per question: how each cohort orders the
@@ -725,6 +746,18 @@
         Men: { 216: 9, 84: 7, 64: 6, 172: 5, 307: 5 },
       },
     },
+    pk22: {
+      ageBand: {
+        // the youth cell is the travel feed (Iceland, Bali); the older
+        // cell has been to Italy and knows it
+        '18-24': { 352: 9, 554: 7, 360: 6, 392: 5, 300: 4 },
+        '25-34': { 554: 8, 756: 7, 380: 6, 578: 5, 352: 4 },
+      },
+      gender: {
+        Women: { 380: 8, 300: 7, 554: 6, 352: 5, 360: 4 },
+        Men: { 554: 9, 578: 7, 756: 6, 124: 5, 710: 5 },
+      },
+    },
   };
 
   const api = {
@@ -876,5 +909,6 @@
     { id: 'pk19', cat: 'fav', type: 'pick', domain: 'dogs', prompt: 'The most beautiful dog?', n: 165 },
     { id: 'pk20', cat: 'fav', type: 'pick', domain: 'countries', prompt: 'The best flag in the world?', n: 163 },
     { id: 'pk21', cat: 'fav', type: 'pick', domain: 'dogs', prompt: 'The smartest dog?', n: 164 },
+    { id: 'pk22', cat: 'fav', type: 'pick', domain: 'countries', prompt: 'The most beautiful country?', n: 165 },
   ];
 })();
