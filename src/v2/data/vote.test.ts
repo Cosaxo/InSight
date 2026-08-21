@@ -41,6 +41,11 @@ const h = vi.hoisted(() => ({
   updateDocImpl: null as null | (() => Promise<void>),
   updateDocCalls: [] as Array<{ path: string; data: Record<string, unknown> }>,
   bankDocs: [] as FakeSnapshotDoc[],
+  // The uid's answers subcollection, served with real page semantics (sort,
+  // cursor, limit) so the cold-pull paging cases mean something; the page
+  // counter is how a case tells one round trip from three.
+  answerDocs: [] as FakeSnapshotDoc[],
+  answerQueryPages: 0,
   // Documents `v2_question_aggs` queries resolve to, and the id lists they
   // were asked for (D125). The learn prefetch's whole failure mode is
   // asking for a document id nobody writes — getDocs returns nothing, the
@@ -124,12 +129,14 @@ vi.mock("firebase/firestore", () => {
     query: (src: { path?: string }, ...parts: unknown[]) => ({
       __kind: "query", path: src?.path, parts,
     }),
-    where: (_field: unknown, _op: unknown, value: unknown) => ({ __kind: "where", value }),
+    where: (field: unknown, _op: unknown, value: unknown) => ({ __kind: "where", field, value }),
     orderBy: () => ({ __kind: "orderBy" }),
     // Required since D161 paged the bank fetch: live.ts destructures the
-    // whole Firestore surface, so a missing member throws at boot.
-    startAfter: () => ({ __kind: "startAfter" }),
-    limit: () => ({ __kind: "limit" }),
+    // whole Firestore surface, so a missing member throws at boot. The
+    // cursor and cap carry their values since the answers pull paged too —
+    // the paging case below needs real page semantics to mean anything.
+    startAfter: (cur: unknown) => ({ __kind: "startAfter", value: cur }),
+    limit: (n: number) => ({ __kind: "limit", value: n }),
     documentId: () => ({ __kind: "documentId" }),
     serverTimestamp: () => ({ __kind: "serverTimestamp" }),
     Timestamp: { fromMillis: (ms: number) => ({ ms }) },
@@ -158,6 +165,28 @@ vi.mock("firebase/firestore", () => {
           return Promise.reject(new Error("offline"));
         }
         return Promise.resolve(snapOf(h.aggDocs.filter((d) => ids.includes(d.id))));
+      }
+      if (q?.path === "v2_users/uid_test/answers") {
+        // Real Firestore semantics, like bank-cache.test.ts's bank arm:
+        // ordered by answeredAt asc, advanced past the cursor, capped at
+        // the limit. Without all three the answers-paging case would pass
+        // against a mock that hands everything back in one page — which is
+        // the bug, not the fix.
+        const parts = q.parts || [];
+        const at = (d: FakeSnapshotDoc) =>
+          (d.data.answeredAt as { toMillis(): number } | undefined)?.toMillis() ?? 0;
+        const lim = (parts.find((p) => p.__kind === "limit")?.value as number) ?? Infinity;
+        const wh = parts.find((p) => p.__kind === "where") as
+          | { field?: string; value?: { ms: number } } | undefined;
+        if (wh?.field === "answeredAt") {
+          return Promise.resolve(snapOf(h.answerDocs.filter((d) => at(d) > wh.value!.ms).slice(0, lim)));
+        }
+        if (wh?.field === "editedAt") return Promise.resolve(snapOf([]));
+        let docs = [...h.answerDocs].sort((a, b) => at(a) - at(b));
+        const after = parts.find((p) => p.__kind === "startAfter")?.value as { id: string } | undefined;
+        if (after) docs = docs.slice(docs.findIndex((d) => d.id === after.id) + 1);
+        h.answerQueryPages += 1;
+        return Promise.resolve(snapOf(docs.slice(0, lim)));
       }
       return Promise.resolve(snapOf([]));
     },
@@ -279,6 +308,8 @@ beforeEach(() => {
   h.aggDocs.length = 0;
   h.aggIdQueries.length = 0;
   h.aggFailIds.length = 0;
+  h.answerDocs = [];
+  h.answerQueryPages = 0;
   h.bankDocs = [
     {
       id: "q_1",
@@ -1136,6 +1167,40 @@ describe("LIVE.learnMine — the answer the trigger has not folded yet", () => {
       expect(h.reportError).toHaveBeenCalled();
     });
     expect(LIVE.learnMine("cell1")).toBeNull();
+  });
+});
+
+// ── the cold answers pull pages, and its cursor stays valid ──────────
+
+describe("cold answers pull (paged since 2026-08-20)", () => {
+  const answer = (i: number, ts: number): FakeSnapshotDoc => ({
+    id: `q_a${String(i).padStart(6, "0")}`,
+    data: { optionIdx: i % 4, answeredAt: { toMillis: () => ts, ms: ts } },
+  });
+
+  it("reads a subcollection larger than one page completely", async () => {
+    // The bug this pins: the cold pull was one `limit(1000)` shot, desc —
+    // past 1,000 answer docs the oldest were silently dropped, and because
+    // that one page seeded maxTs from the NEWEST doc, the incremental
+    // query could never reach the skipped ones again. The feed then
+    // re-offers answered questions and the create-only rule refuses every
+    // re-vote. Day-keyed pulse and duel answers cross 1,000 on time alone.
+    h.answerDocs = Array.from({ length: 2500 }, (_, i) => answer(i, 1000 + i));
+    const LIVE = await bootLive();
+    expect(h.answerQueryPages).toBe(3); // 1000 + 1000 + 500: the short page ends it
+    expect(Object.keys(LIVE.myVotes())).toHaveLength(2500);
+    // The persisted cursor covers exactly what is held — the newest stamp
+    // reached BY paging, not by trusting one page to be everything.
+    expect(JSON.parse(storage.getItem(ANS_LS) || "null").maxTs).toBe(1000 + 2499);
+  });
+
+  it("does not stop one page early on an exact multiple of the page", async () => {
+    // Same off-by-one the bank paging pins: after two full pages only a
+    // third, empty ask can prove the subcollection is finished.
+    h.answerDocs = Array.from({ length: 2000 }, (_, i) => answer(i, 1000 + i));
+    const LIVE = await bootLive();
+    expect(h.answerQueryPages).toBe(3);
+    expect(Object.keys(LIVE.myVotes())).toHaveLength(2000);
   });
 });
 

@@ -1142,24 +1142,11 @@ async function hydrate(): Promise<void> {
     } catch {
       /* refetch below */
     }
-    const aq = maxTs > 0
-      ? query(
-          collection(db, "v2_users", uidA, "answers"),
-          where("answeredAt", ">", Timestamp.fromMillis(maxTs)),
-          limit(400),
-        )
-      : query(
-          collection(db, "v2_users", uidA, "answers"),
-          orderBy("answeredAt", "desc"),
-          limit(1000),
-        );
     // Deliberately UNGUARDED, unlike the reads below. Answers are not
     // decoration: proceeding with a partial vote set makes the app offer
     // questions the user already answered, and the create-only rule then
     // refuses every one of those re-votes. Better to fail boot and render
     // the honest mock deck than to look live and reject the user's taps.
-    const asnap = await getDocs(aq);
-    state.stats.answersFetched = asnap.size;
     const fold = (d: { id: string; get: (f: string) => unknown }) => {
       const optionIdx = d.get("optionIdx");
       if (typeof optionIdx === "number") state.votes[d.id] = String(optionIdx);
@@ -1168,7 +1155,56 @@ async function hydrate(): Promise<void> {
       const et = d.get("editedAt") as { toMillis?: () => number } | undefined;
       if (et && typeof et.toMillis === "function") maxEditTs = Math.max(maxEditTs, et.toMillis());
     };
-    asnap.docs.forEach(fold);
+    state.stats.answersFetched = 0;
+    if (maxTs > 0) {
+      const asnap = await getDocs(query(
+        collection(db, "v2_users", uidA, "answers"),
+        where("answeredAt", ">", Timestamp.fromMillis(maxTs)),
+        limit(400),
+      ));
+      state.stats.answersFetched = asnap.size;
+      asnap.docs.forEach(fold);
+    } else {
+      // Cold cache: page the WHOLE subcollection, the same discipline the
+      // bank fetch learned at D161 — this was one `limit(1000)` shot until
+      // 2026-08-20, and past 1,000 answer docs (day-keyed pulse and duel
+      // answers cross that on time alone) the oldest were silently dropped
+      // while fold() seeded maxTs from the NEWEST, so the incremental
+      // query above could never reach the skipped ones again. The feed
+      // then re-offers answered questions and the create-only rule refuses
+      // every re-vote — the exact failure the comment above calls worth
+      // failing boot over, delivered quietly.
+      //
+      // ASCENDING, and the direction is the correctness argument: paging
+      // oldest-first means maxTs only ever covers docs actually held, so
+      // even a pull cut short (the loud cap below) leaves a VALID cursor —
+      // the next boot's incremental query resumes exactly where it
+      // stopped, instead of permanently skipping a gap. Termination is on
+      // a short page, never a believed count (see the bank fetch).
+      const ANS_PAGE = 1000;
+      const ANS_MAX_PAGES = 100;
+      let after: unknown = null;
+      let pages = 0;
+      for (;;) {
+        const page = await getDocs(query(
+          collection(db, "v2_users", uidA, "answers"),
+          orderBy("answeredAt"),
+          ...(after ? [startAfter(after)] : []),
+          limit(ANS_PAGE),
+        ));
+        state.stats.answersFetched += page.size;
+        page.docs.forEach(fold);
+        pages += 1;
+        if (page.size < ANS_PAGE) break;
+        if (pages >= ANS_MAX_PAGES) {
+          reportError(new Error(
+            `answers paging hit ANS_MAX_PAGES (${ANS_MAX_PAGES} x ${ANS_PAGE}) — resuming next boot from a valid cursor`,
+          ), { where: "hydrate.answersPaging" });
+          break;
+        }
+        after = page.docs[page.docs.length - 1];
+      }
+    }
     // D86 made one field mutable, so the incremental pull gained a second
     // cursor: an edit moves optionIdx WITHOUT moving answeredAt (the
     // cohort stamp is frozen), so a cache warmed before the edit would
