@@ -71,9 +71,15 @@
 	</array>
 	<!-- Location, when-in-use only (D9). Shown verbatim in the system
 	     prompt, so it says what actually happens rather than what the
-	     feature is called. -->
+	     feature is called — and since D84/D175 that is TWO things, not
+	     one: the one-time on-device city match, and (only if the user
+	     switches Near on) the ~200 m presence square that IS sent and
+	     stored while Near runs. The string claimed "used once … never
+	     sent anywhere" until 2026-08-20, which stopped being true the day
+	     Near shipped; web/privacy.html's location section is the wording
+	     this mirrors. -->
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Used once, on this device, to work out which city you are nearest so the daily can show how your city answered. Your coordinates are never sent anywhere and never stored — only the city name. You can skip this and pick your city from a list instead.</string>
+	<string>Used on this device to work out which city you are nearest, so the daily can show how your city answered — only the city name is kept, and you can pick your city from a list instead. If you switch on Near, a rough ~200-metre square worked out from your location is shared while Near is on, so the app can show how many people are around you. Your exact coordinates never leave this device.</string>
 	<!-- The same string again, for an authorisation this app never asks for.
 	     Apple's upload analysis reads the linked binary, not the call
 	     sites: @capacitor/geolocation depends on ion-ios-geolocation, whose
@@ -100,7 +106,7 @@
 	     request, and UIBackgroundModes above carries remote-notification
 	     only. The same check holds that pair too. -->
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>Used once, on this device, to work out which city you are nearest so the daily can show how your city answered. Your coordinates are never sent anywhere and never stored — only the city name. You can skip this and pick your city from a list instead.</string>
+	<string>Used on this device to work out which city you are nearest, so the daily can show how your city answered — only the city name is kept, and you can pick your city from a list instead. If you switch on Near, a rough ~200-metre square worked out from your location is shared while Near is on, so the app can show how many people are around you. Your exact coordinates never leave this device.</string>
 	<!-- PRECISE SINCE D175, and this key flipping is the whole of that
 	     decision on iOS. It used to be <true/>, which asked for a
 	     neighbourhood-level fix and showed "Precise: Off" in the permission
