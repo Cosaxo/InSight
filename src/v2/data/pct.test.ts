@@ -101,16 +101,27 @@ describe("sharePcts — the invariants, over the whole space", () => {
     // is floor(exact) or floor(exact)+1. The retired rule had no such bound
     // — the bucket carrying the residue could be several points out, which
     // is the same fact as the two failures above, seen from the input side.
+    //
+    // Accumulated and asserted ONCE, like its two siblings, and that is not
+    // a style point: the first draft called expect() in the innermost loop,
+    // which is ~300,000 assertion objects for the same walk. It ran in 2.9s
+    // here against vitest's 5s default and timed out on CI's slower runner
+    // — a test that was always going to cross, not a flake. Same vectors,
+    // same bound, ~20x faster.
+    const bad: string[] = [];
     for (let len = 2; len <= 12; len++) {
       for (const v of sampled(len, 12, 4_000)) {
         const total = v.reduce((a, b) => a + b, 0);
         const p = sharePcts(v);
-        for (let i = 0; i < len; i++) {
+        for (let i = 0; i < len && bad.length < 3; i++) {
           const exact = (v[i] * 100) / total;
-          expect(Math.abs(p[i] - exact), `${JSON.stringify(v)} idx ${i}`).toBeLessThan(1);
+          if (Math.abs(p[i] - exact) >= 1) {
+            bad.push(`${JSON.stringify(v)} idx ${i} -> ${p[i]}, exact ${exact.toFixed(3)}`);
+          }
         }
       }
     }
+    expect(bad).toEqual([]);
   });
 });
 
