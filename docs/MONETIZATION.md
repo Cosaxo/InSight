@@ -130,6 +130,17 @@ without telling the server who saw what. Building it graduates to a
 decision record, where the CPM-vs-flat question and the cadence cap get
 decided.
 
+**4 · Paid reports and cohort subscriptions — PROPOSED, not adopted
+([`PAID-PLAN.md`](PAID-PLAN.md), 2026-08-21).** The owner's extension of
+paths 1–2: downloadable reports packaging what already publishes,
+place-score subscriptions that run while paid, and cohort pricing by
+size and demand. It deliberately reshapes two standing sentences — the
+"no server-computed report for one customer" line below (to: reports
+package world-readable numbers only, and the built artifact itself
+publishes) and D86's frozen edit surface (a server-written edit-flow
+record) — so adopting it is a set of DECISIONS.md records, not a build
+ticket. Until then, everything on this page stands as written.
+
 ## Ruled out by standing posture
 
 Narrower than "no ads" — ads are path 3. What stays out is the
