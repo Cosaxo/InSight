@@ -23,6 +23,7 @@ import {
 import { getFunctions, connectFunctionsEmulator, httpsCallable } from "firebase/functions";
 import { initializeApp as adminInit } from "firebase-admin/app";
 import { getFirestore as adminFirestore } from "firebase-admin/firestore";
+import { getStorage as adminStorage } from "firebase-admin/storage";
 // The region the EMULATOR serves, taken from the functions' own compiled
 // output rather than repeated here (D201). `pretest:e2e` builds it, so
 // this harness cannot be pointed at a region the emulator is not on.
@@ -43,7 +44,9 @@ const db = getFirestore(app, E2E_DB_ID); connectFirestoreEmulator(db, "127.0.0.1
 // `allow read, write: if false` to every client by design (the queue is a
 // server-only surface of the confinement model). Same pattern as
 // e2e-delete-account.mjs.
-adminInit({ projectId: "demo-insight" });
+// storageBucket, because the avatar leg below reaches the bucket: an
+// admin handle without it throws on .bucket() rather than defaulting.
+adminInit({ projectId: "demo-insight", storageBucket: "demo-insight.appspot.com" });
 // The ADMIN handle needs the database too, and this is the one that got
 // missed first time round: it takes no argument, so it reads as fine and
 // silently targets `(default)`. It then wrote the question doc to one
@@ -163,6 +166,19 @@ if (!removed.data.ok || removed.data.advisory) fail("remove reply: " + JSON.stri
   // The queue entry is settled and gone — a removed take is not re-judged.
   const entry = await adb.doc(`v2_mod_queue/${T_REMOVE}`).get();
   if (entry.exists) fail("queue entry survived an enforced remove");
+  // …and so are its flags, which is the half that was missing and the one
+  // that mattered most. A remove used to leave them standing, and the daily
+  // tally is what the queue is RANKED by — so a removed take kept its count
+  // forever, kept ranking at the top of every rebuild, and was then skipped
+  // as already-hidden, burning a candidate slot each time. Step 7 below
+  // cannot see this: it asserts the take does not RE-QUEUE, which was true
+  // with the bug (hidden takes are skipped) and says nothing about what the
+  // skip costs. Twenty-five removes and the queue could reach nothing below
+  // the top twenty-five flag counts again.
+  const leftover = await adb.collection("v2_flags").where("takeId", "==", T_REMOVE).get();
+  if (!leftover.empty) {
+    fail(`remove left ${leftover.size} flag(s) standing — they rank a take that can never be queued`);
+  }
 }
 // The client half of the same fact: a circle MEMBER (the moderator caller
 // is one) can no longer read it — the soft-hide is the read rule working,
@@ -267,6 +283,61 @@ if (!wverdict.data.ok) fail("world remove reply: " + JSON.stringify(wverdict.dat
 await expectCode("the removed world take is refused to the world", "permission-denied",
   () => getDoc(doc(db, "v2_takes", WTAKE)));
 ok("world moderation: queued on stranger flags, removed, hidden from everyone");
+
+// ── 10 · a removed FACE leaves the bucket, not just gains a field ──
+//
+// D178 moderates avatars through this same queue, namespaced `av_{uid}`.
+// The remove verdict wrote `hidden: true` on the document and stopped
+// there — which hid the face everywhere the APP draws it, and nowhere
+// else. storage.rules grants avatars/{uid} to any signed-in caller with no
+// reference to that document, so the image a moderator had just removed
+// was still two ordinary API calls away.
+//
+// No Firestore assertion could have caught this: the document was correct.
+const FACE = "u_face_e2e";
+await adb.doc(`v2_avatars/${FACE}`).set({ token: "tokface0000", at: new Date(), hidden: false });
+await adminStorage().bucket().file(`avatars/${FACE}`).save(Buffer.from([0xff, 0xd8, 0xff]), {
+  contentType: "image/jpeg",
+});
+// SEEDED, AND PROVED SEEDED — the erasure suite's discipline, for the same
+// reason: an object that never landed makes "it is gone afterwards" pass
+// for the wrong reason, which is exactly what a Storage handle pointed at
+// the wrong bucket produces, silently.
+if (!(await adminStorage().bucket().file(`avatars/${FACE}`).exists())[0]) {
+  fail("seed did not land: avatars/" + FACE + " is not in the bucket");
+}
+// Three reporters, seeded through ADMIN rather than through the rules —
+// the flag shape is already pinned in rules.test.ts (including the
+// self-report refusal the avatar arm has always carried); what this leg is
+// for is the bucket, and three synthetic uids reach the flag floor without
+// three more anonymous sign-ins.
+for (const uid of ["u_rep_a", "u_rep_b", "u_rep_c"]) {
+  await adb.doc(`v2_flags/av_${FACE}_${uid}`).set({
+    takeId: `av_${FACE}`, gid: "avatar", uid, target: FACE, at: new Date(),
+  });
+}
+await httpsCallable(fns, "buildModQueueNow")({});
+const fq = await httpsCallable(fns, "fetchModQueue")({});
+const fitem = fq.data.items.find((i) => i.takeId === `av_${FACE}`);
+if (!fitem) fail("the reported face was not queued: " + JSON.stringify(fq.data.items));
+if (fitem.kind !== "avatar") fail("queued face is not kind=avatar: " + JSON.stringify(fitem));
+const fverdict = await httpsCallable(fns, "submitModVerdict")({
+  runId: "e2e-run-4", verdict: { takeId: `av_${FACE}`, verdict: "remove", policyLine: "H3" },
+});
+if (!fverdict.data.ok) fail("face remove reply: " + JSON.stringify(fverdict.data));
+if (fverdict.data.mediaRemoved !== true) {
+  fail("the verdict did not report removing the media: " + JSON.stringify(fverdict.data));
+}
+{
+  const av = await adb.doc(`v2_avatars/${FACE}`).get();
+  if (av.get("hidden") !== true) fail("remove verdict did not hide the avatar document");
+}
+// THE BYTES. The half that was missing, and the only half a stranger with
+// the token could still see.
+const [faceStillThere] = await adminStorage().bucket().file(`avatars/${FACE}`).exists();
+if (faceStillThere) fail("LEFTOVER after a remove verdict: the face's bytes (avatars/" + FACE + ")");
+ok("avatar moderation: removed face is hidden AND gone from the bucket");
+
 
 console.log("\nmoderation e2e: every leg green");
 // The client SDKs hold open connections; without an explicit exit the

@@ -7,7 +7,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { act, fireEvent, screen } from "@testing-library/react";
 import { OWNS_X } from "../spec/swipe-back.js";
-import { awaitNode, awaitText, mountApp, registerSmokeHooks, SMOKE_TIMEOUT_MS } from "./mount-app.jsx";
+import { openHeaderOverlay, awaitNode, awaitText, mountApp, registerSmokeHooks, SMOKE_TIMEOUT_MS } from "./mount-app.jsx";
 
 vi.setConfig({ testTimeout: SMOKE_TIMEOUT_MS });
 registerSmokeHooks();
@@ -74,6 +74,42 @@ describe("the daily's ruler is the nav (v17)", () => {
     expect(view()).toBe("track:world");
     fireEvent.click(screen.getByRole("button", { name: /^mirror$/i }));
     expect(view()).toBe("mirror:you");
+  });
+});
+
+describe("the tab bar says which tab you are on", () => {
+  it("marks exactly one tab current, and moves the mark when you switch", () => {
+    // The app's PRIMARY navigation was the only ruler in the tree with no
+    // current-tab semantics: `is-active` is a CSS class and the glyph takes
+    // a prop, and a screen reader sees neither. Eight other rulers use
+    // role="tab"/aria-selected and seven secondary pickers use
+    // aria-current — this one told nobody where they were.
+    //
+    // `page` rather than `true` because these are destinations, not tabs
+    // over a single panel: there is no tablist here, and claiming one would
+    // promise arrow-key navigation the bar does not implement.
+    //
+    // Written against three tabs, kept at two (D217 unmounted patterns):
+    // the assertion is "exactly one, and it follows", which is the property
+    // that has to hold at any TABS length — including three again, if the
+    // trial resumes.
+    const expectNoBoundary = mountApp();
+    const tabs = () => [...document.querySelectorAll(".tabbar .tab-btn")];
+    const current = () => tabs().filter((b) => b.getAttribute("aria-current") === "page");
+
+    expect(tabs().length, "the tab bar did not render").toBeGreaterThan(1);
+    expect(current().length, "no tab, or more than one, is marked current").toBe(1);
+    expect(current()[0].textContent).toContain("daily");
+
+    const mirror = tabs().find((b) => b.textContent.includes("mirror"));
+    act(() => { fireEvent.click(mirror); });
+    expect(current().length, "switching tabs left the mark on two of them").toBe(1);
+    expect(current()[0].textContent, "the mark did not follow the tab").toContain("mirror");
+    // …and the tab you left is not still claiming to be current.
+    expect(
+      tabs().find((b) => b.textContent.includes("daily")).getAttribute("aria-current"),
+    ).toBeNull();
+    expectNoBoundary("tab bar aria-current");
   });
 });
 
@@ -159,9 +195,9 @@ describe("the surfaces that own their drag are excluded from the axis swipes", (
   // inside the profile's scrolling body — the scrim grew as tall as the content
   // and the sheet landed at the bottom of the SCROLL, off-screen. The fix
   // portals it to the app frame; this pins the portal.
-  it("the lens ⓘ sheet mounts on the app frame, not in the scrolling page", () => {
+  it("the lens ⓘ sheet mounts on the app frame, not in the scrolling page", async () => {
     const expectNoBoundary = mountApp();
-    fireEvent.click(screen.getByRole("button", { name: /^profile$/i }));
+    await openHeaderOverlay("profile");
     fireEvent.click(screen.getByRole("button", { name: /^lenses$/i }));
     fireEvent.click(screen.getAllByRole("button", { name: /^what .* measures$/i })[0]);
     const scrim = document.querySelector(".wf-scrim");

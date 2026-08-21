@@ -11,8 +11,13 @@
 // on every feed card, and it does two things a reader would not guess: it adds
 // YOUR vote to the counts (the store deliberately excludes it — see
 // data/live.ts, "counts exclude the viewer's own vote"), and it forces the
-// rounded percentages to sum to exactly 100 by pushing the residue onto the
-// largest bucket. Both are correct and neither had a test.
+// rounded percentages to sum to exactly 100. Both are correct and neither had
+// a test.
+//
+// The rounding itself moved to data/pct.ts, shared with the Mirror's pctFor.
+// It used to push the whole residue onto the largest bucket — four lines
+// copied here and there — and that rule could hand the card's headline to a
+// side that did not win. pct.ts carries the measurement.
 //
 // These are real ESM exports, so the names leave the shared-global namespace
 // (D39). The porter had registered all of them on globalThis and nothing
@@ -23,14 +28,19 @@
 // with the function, because that reasoning is the reason the line is not
 // simpler than it looks.
 
+import { sharePcts } from '../data/pct';
+
 export function wfFmt(n) { return n >= 1000 ? (n / 1000).toFixed(1).replace(/\.0$/, '') + 'K' : '' + n; }
 
 export function wfPcts(counts, mineIdx) {
   const c = counts.map((n, i) => n + (mineIdx === i ? 1 : 0));
   const total = c.reduce((a, b) => a + b, 0);
-  const p = c.map((n) => Math.round((n / total) * 100));
-  p[p.indexOf(Math.max(...p))] += 100 - p.reduce((a, b) => a + b, 0);
-  return { p, total };
+  // The rounding is `sharePcts` (data/pct.ts), the same rule the Mirror's
+  // pctFor uses — one implementation rather than two copies of four lines,
+  // which is what kept them agreeing before and is not a thing to trust
+  // twice. What stays HERE is the +1 above: adding the viewer's own vote is
+  // this surface's convention, not the rounding's.
+  return { p: sharePcts(c), total };
 }
 
 // image placeholder tile art — topic-tinted, pattern varies per card so the

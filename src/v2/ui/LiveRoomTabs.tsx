@@ -49,8 +49,17 @@ import {
 // The type's own glyph, the same one the who-voted sheet and the People
 // lens draw — a badge on a person and a row in a population are one object
 // (D156).
+//
+// TYPE_TEST comes with it because TypeMark takes `testKey` + `name`, never a
+// `type` prop: the name alone does not say WHICH system named it, and the
+// component resolves the signature out of that system's archetype table.
+// Shipped here as `type={p.type}` and drew nothing for four days — the mark
+// is `return null` on an unresolvable signature, so the row degraded to a
+// missing glyph rather than an error, and the @ts-expect-error below is what
+// kept tsc from saying so. Pinned in LiveRoomTabs.test.tsx.
 // @ts-expect-error TS7016 — untyped spec module (the LiveSimilarityField pattern)
 import { TypeMark } from "../spec/type-marks.jsx";
+import { TYPE_TEST } from "../data/typeMix";
 
 const RT_LINE = "1px solid color-mix(in oklch, var(--rule), transparent 25%)";
 
@@ -151,7 +160,7 @@ function RoomPeople({ people }: { people: Array<{ uid: string; type?: string }> 
                   display: "flex", alignItems: "center", gap: 5, marginTop: 2,
                   fontFamily: "var(--sans)", fontSize: 11.5, fontWeight: 600, color: "var(--ink-3)",
                 }}>
-                  <TypeMark type={p.type} size={13} />
+                  <TypeMark testKey={TYPE_TEST} name={p.type} size={13} />
                   {p.type}
                 </span>
               ) : null}

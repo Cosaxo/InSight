@@ -1598,10 +1598,16 @@ const SOCIAL = {
   },
   async createGroup(name: string, mode: string, displayName?: string) {
     const out = await callable<{ gid: string; inviteCode: string }>("createGroupV2", { name, mode, displayName });
+    // NOW the reveal push has something to notify about, so now is when it
+    // is fair to ask. After the call, not before: a prompt on top of a
+    // creation that then failed would be asking for nothing.
+    pushEarned();
     return out;
   },
   async joinGroup(code: string, displayName?: string) {
-    return callable<{ gid: string; name: string }>("joinGroupV2", { code, displayName });
+    const out = await callable<{ gid: string; name: string }>("joinGroupV2", { code, displayName });
+    pushEarned();
+    return out;
   },
   // ── handles and invitations (D122) ──
   //
@@ -4078,6 +4084,28 @@ let refreshInFlight: Promise<void> | null = null;
 // change the new account's token was never written to its own document and
 // it received no reveal pushes until the next cold boot.
 let pushRegisteredFor: string | null = null;
+
+/**
+ * Ask for notification permission, at a moment that has earned it.
+ *
+ * Called after joining or creating a circle or a 1v1 — the acts that make a
+ * reveal possible, and therefore the first moments at which "your reveal is
+ * out" means anything. Boot deliberately does not call this (see initLive);
+ * push.ts has the iOS reasoning, which is that the decline is permanent.
+ *
+ * Fire-and-forget and idempotent: `registerPushForReveals` memoizes the
+ * token write per (uid, token), and the OS shows one prompt per install
+ * however many times it is asked. `pushRegisteredFor` is NOT consulted here
+ * — boot sets it after a silent registration, and this call is the one that
+ * may actually prompt, so gating on it would mean the prompt never happens.
+ */
+function pushEarned(): void {
+  const forUid = state.uid;
+  if (!forUid) return;
+  void import("./push")
+    .then((m) => m.registerPushForReveals(forUid, { ask: true }))
+    .catch(() => { /* native bridge absent, or the user said no */ });
+}
 let deviceBindAttemptedFor: string | null = null;
 
 export function refreshLive(): Promise<void> {
@@ -4109,6 +4137,11 @@ export function refreshLive(): Promise<void> {
     // fire-and-forget: reveal notifications on real devices (no-op on web).
     // Once per UID — re-registering on every reconnect would churn the
     // token array for no gain, but a new account needs its own.
+    //
+    // NO PROMPT HERE (`ask` defaults false). Boot only re-registers a device
+    // that has already granted permission; asking is deferred to the moments
+    // that make a reveal possible — see pushEarned() below and push.ts for
+    // why a boot-time prompt was costing the feature outright on iOS.
     if (pushRegisteredFor !== state.uid) {
       const forUid = state.uid as string;
       pushRegisteredFor = forUid;

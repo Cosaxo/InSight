@@ -10,7 +10,7 @@
 // total alone permits a single monolith.
 
 import { readdirSync, readFileSync, statSync } from "node:fs";
-import { resolve, dirname, join } from "node:path";
+import { resolve, dirname, join, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -746,6 +746,26 @@ const MAX_TOTAL_JS_KB = 2404;
 // deferral still paying for most of the roster. Band stays ~11 KB.
 const MAX_EAGER_KB = 880;
 
+// THE BYTES THAT ARE NOT JAVASCRIPT, which this gate could not see at all
+// until D223. It weighed dist/assets/*.js exclusively, so the stylesheet —
+// render-blocking, shipped on every paint — and the whole font directory
+// sat outside every ceiling in the repo. An audit found 12 italic
+// @font-face blocks and four woff2 files, 66 KB, for a voice styles.css
+// states has no italic and `.app em { font-style: normal }` enforces. Pure
+// package weight in the .ipa and .aab, zero runtime cost, and nothing could
+// have caught it.
+//
+// Two numbers rather than one because they fail differently: CSS is
+// render-blocking, so its bytes are on the critical path the way an eager
+// chunk is; fonts are fetched on demand and cost download size and store
+// footprint rather than first paint.
+//
+// Measured after that removal: 70 KB of CSS, 76 KB of fonts. The headroom
+// is deliberately small — these are not numbers that should drift upward
+// unnoticed, which is the whole reason they now have a gate.
+const MAX_CSS_KB = 78;
+const MAX_FONT_KB = 96;
+
 let files;
 try {
   files = readdirSync(ASSETS).filter((f) => f.endsWith(".js"));
@@ -768,6 +788,20 @@ const sized = files
 
 const totalKb = sized.reduce((n, s) => n + s.kb, 0);
 const over = sized.filter((s) => s.kb > MAX_CHUNK_KB);
+
+// The non-JS half. CSS lands in dist/assets beside the chunks; fonts are
+// copied from public/ to dist/fonts, so both roots are walked. A missing
+// directory is 0 rather than a throw — a demo build may not emit either.
+const kbOf = (dir, re) => {
+  try {
+    return readdirSync(dir, { recursive: true })
+      .map((f) => String(f).split(sep).join("/"))
+      .filter((f) => re.test(f))
+      .reduce((n, f) => n + statSync(join(dir, f)).size / 1024, 0);
+  } catch { return 0; }
+};
+const cssKb = kbOf(ASSETS, /\.css$/);
+const fontKb = kbOf(join(root, "dist"), /\.(woff2?|ttf|otf)$/);
 
 // ── IS SENTRY IN THIS BUNDLE? Asked of the bundle ────────────────────
 //
@@ -935,6 +969,26 @@ if (eagerKb > MAX_EAGER_KB) {
   failed = true;
 }
 
+// The non-JS ceilings. Applied on the same footing as the JS ones and,
+// like MAX_TOTAL_JS_KB, only on a build that was made as the shipping one —
+// a demo build's asset set is not this app's.
+if (!DEMO) {
+  for (const [what, kb, max] of [
+    ["stylesheet", cssKb, MAX_CSS_KB],
+    ["fonts", fontKb, MAX_FONT_KB],
+  ]) {
+    if (kb > max) {
+      console.error(
+        `check-bundle: ${what} is ${kb.toFixed(0)} KB, over the ${max} KB ceiling.\n`
+        + "  These bytes ship on every install and, for the stylesheet, block the\n"
+        + "  first paint. Trim them, or raise the ceiling here deliberately with a\n"
+        + "  note saying why.",
+      );
+      failed = true;
+    }
+  }
+}
+
 if (failed) {
   console.error(
     "\nEither trim what was added, or raise the ceiling in this script —\n"
@@ -955,7 +1009,9 @@ console.log(
     ? `bundle budget OK — SHIPPING bundle (VITE_V2_LIVE=true, Sentry in, `
       + `${sentryKb.toFixed(0)} KB over ${sentryChunks.length} chunk(s)), `
       + `${totalKb.toFixed(0)} KB total / ${eagerKb.toFixed(0)} KB eager `
-      + `(max ${MAX_TOTAL_JS_KB} / ${MAX_EAGER_KB})`
+      + `(max ${MAX_TOTAL_JS_KB} / ${MAX_EAGER_KB}); `
+      + `${cssKb.toFixed(0)} KB css / ${fontKb.toFixed(0)} KB fonts `
+      + `(max ${MAX_CSS_KB} / ${MAX_FONT_KB})`
     : `bundle budget OK on what was gradable — VITE_V2_LIVE=true, Sentry OUT, `
       + `${eagerKb.toFixed(0)} KB eager (max ${MAX_EAGER_KB}); `
       + `total ${totalKb.toFixed(0)} KB ungraded`,

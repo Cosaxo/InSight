@@ -127,14 +127,35 @@ export async function runPatternsFit(
     if (!entries.length) continue;
     // group by person; sort each person's day by qid so a replay
     // reproduces the run (the fit is order-sensitive within a day)
-    const byUid = new Map<string, PatternsObservation[]>();
+    //
+    // ONE OBSERVATION PER (person, question), LAST WINS. The ledger is a log
+    // of aggregate EVENTS, not of people: a D86 edit writes a second entry
+    // under a fresh `event.id` (v2.ts, the onV2AnswerUpdated handler), byte-
+    // identical in shape to the create it supersedes. Read as two rows, one
+    // person who answered 0 and changed their mind to 1 folds as two people
+    // who disagree — 30 of them became `{n: 60, marginal: 0}`, a p0 of 0.500
+    // against a truth of 0.050. That inflates the published basis
+    // `nextAsk(minBasis = 8)` gates the Oracle on, and whipsaws theta inside
+    // a single day.
+    //
+    // v2.ts:161 shows the theta consequence of edits was considered and
+    // accepted; the n and marginal dilution was not. Deduping here rather
+    // than at either write site because the ledger's two entries are both
+    // correct as AGGREGATE events — the -old/+new delta the counts need is
+    // exactly why the second one exists. It is only this reader that wants a
+    // person's latest answer instead.
+    //
+    // `ledgerDay` returns the day in `at` order, so the last entry for a pair
+    // is the newest.
+    const byUid = new Map<string, Map<string, number>>();
     for (const e of entries) {
-      const obs = byUid.get(e.uid) ?? [];
-      obs.push({ qid: e.qid, x: encodeAnswer(e.optionIdx as number) });
-      byUid.set(e.uid, obs);
+      const seen = byUid.get(e.uid) ?? new Map<string, number>();
+      seen.set(e.qid, encodeAnswer(e.optionIdx as number));
+      byUid.set(e.uid, seen);
     }
     const states = await store.getUsers([...byUid.keys()].sort());
-    for (const [uid, obs] of [...byUid.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1))) {
+    for (const [uid, seen] of [...byUid.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1))) {
+      const obs: PatternsObservation[] = [...seen.entries()].map(([qid, x]) => ({ qid, x }));
       obs.sort((a, b) => (a.qid < b.qid ? -1 : 1));
       const user = states.get(uid) ?? emptyUser(model.k);
       foldUserDay(model, user, obs);

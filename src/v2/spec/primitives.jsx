@@ -15,6 +15,7 @@
 // scripts/check-spec-globals.mjs guards that wiring, and its rule 4
 // counts what is left.
 import React from 'react';
+import { pushBackLayer } from '../data/backLayers';
 
 // Shared primitives — small components used across tabs
 const { useState, useEffect, useMemo, useRef } = React;
@@ -225,6 +226,25 @@ export function useDialog(onClose, label) {
 // nothing and keep covering the bar, which is the ordinary sheet grammar.
 export function Sheet({ onClose, closing, label, lift, children }) {
   const dlg = useDialog(onClose, label);
+  // Android back closes the sheet instead of quitting the app. useDialog
+  // above gives it Escape (D24); this is the platform's other back, and it
+  // needs its own mechanism because the back button is not a DOM event a
+  // focused dialog can receive — see data/backLayers.ts for what fell
+  // through before.
+  //
+  // A ref plus an empty dep list, deliberately: `onClose` is a fresh arrow
+  // on nearly every call site, so depending on it would push and pop the
+  // layer on every parent render and the stack's order would stop meaning
+  // anything. Registered once per mounted sheet, removed on unmount.
+  const closeRef = useRef(onClose);
+  // Refreshed in an effect rather than assigned during render: the latter is
+  // a react-hooks/refs error, and the rule is right — a ref written during
+  // render is invisible to the compiler's memoization. Depless, so it runs
+  // after every commit and the layer always closes through the CURRENT
+  // handler; the registration below stays keyed on nothing so the stack
+  // does not churn.
+  useEffect(() => { closeRef.current = onClose; });
+  useEffect(() => pushBackLayer(() => closeRef.current()), []);
   return (
     <div
       className={'wf-scrim' + (closing ? ' is-closing' : '')}

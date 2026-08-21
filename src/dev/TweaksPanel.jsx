@@ -1,8 +1,23 @@
-// Ported from design/spec-modules/tweaks-panel.jsx (the historical prototype — no sync
-// script survives; THIS file is the live source now, hand-edits and all).
-// Cross-module references resolve through the shared global scope and
-// spec-index.js load order is semantic — scripts/check-spec-globals.mjs
-// guards the wiring in CI.
+// The design-time Tweaks panel — DEV ONLY, and out of the shipped graph.
+//
+// Moved here from src/v2/spec/tweaks-panel.jsx (D223). Production could
+// never open it: the only `setOpen(true)` is behind
+// `if (!import.meta.env.DEV) return`. But it shared a module with
+// `useTweaks`, which app-shell reads on every render, so ~11.8 KB of
+// controls, drag handling and a 6.7 KB stylesheet string rode into the
+// entry chunk — the one place in this repo with no headroom to spare.
+//
+// app-shell now reaches it through a DEV-gated React.lazy, so a production
+// build has no import of this file at all and rolldown drops it whole. The
+// live hook is src/v2/data/tweaks.jsx.
+//
+// It lives under src/dev/ rather than src/v2/spec/ deliberately: the spec
+// layer's rules (spec-index.js's semantic order, check:globals rule 2) are
+// about modules that SHIP, and this one does not.
+//
+// Ported originally from design/spec-modules/tweaks-panel.jsx — the frozen
+// prototype's host-editor plumbing, which is why the protocol comments below
+// talk about a host rewriting a block on disk. No host exists any more.
 import React from 'react';
 
 
@@ -166,35 +181,6 @@ const __TWEAKS_STYLE = `
   .twk-chip svg{position:absolute;top:6px;left:6px;width:13px;height:13px;
     filter:drop-shadow(0 1px 1px rgba(0,0,0,.3))}
 `;
-
-// ── useTweaks ───────────────────────────────────────────────────────────────
-// Single source of truth for tweak values. setTweak persists via the host
-// (__edit_mode_set_keys → host rewrites the EDITMODE block on disk).
-export function useTweaks(defaults) {
-  const [values, setValues] = React.useState(defaults);
-  // Accepts either setTweak('key', value) or setTweak({ key: value, ... }) so a
-  // useState-style call doesn't write a "[object Object]" key into the persisted
-  // JSON block.
-  const setTweak = React.useCallback((keyOrEdits, val) => {
-    const edits = typeof keyOrEdits === 'object' && keyOrEdits !== null
-      ? keyOrEdits : { [keyOrEdits]: val };
-    setValues((prev) => ({ ...prev, ...edits }));
-    // Host-editor persistence — prototype tooling. Gated on DEV so the
-    // literal is dead-code-eliminated from a production bundle: in a
-    // shipped app there is no host, window.parent === window, and this
-    // posts a wildcard-origin message to ourselves for nothing.
-    if (import.meta.env.DEV) {
-      window.parent.postMessage({ type: '__edit_mode_set_keys', edits }, '*');
-    }
-    // Same-window signal so in-page listeners (deck-stage rail thumbnails)
-    // can react — the parent message only reaches the host, not peers.
-    // NOT gated: this is real in-app wiring, and the values themselves are
-    // set above, so the panel's own controls (dark mode included) work
-    // exactly as before in production.
-    window.dispatchEvent(new CustomEvent('tweakchange', { detail: edits }));
-  }, []);
-  return [values, setTweak];
-}
 
 // ── TweaksPanel ─────────────────────────────────────────────────────────────
 // Floating shell. Registers the protocol listener BEFORE announcing
@@ -594,17 +580,3 @@ export function TweakButton({ label, onClick, secondary = false }) {
             onClick={onClick}>{label}</button>
   );
 }
-
-Object.assign(window, {
-  useTweaks,
-  TweaksPanel,
-  TweakSection,
-  TweakRadio,
-  TweakButton,
-});
-
-;globalThis.useTweaks = typeof useTweaks === 'undefined' ? globalThis.useTweaks : useTweaks;
-;globalThis.TweaksPanel = typeof TweaksPanel === 'undefined' ? globalThis.TweaksPanel : TweaksPanel;
-;globalThis.TweakSection = typeof TweakSection === 'undefined' ? globalThis.TweakSection : TweakSection;
-;globalThis.TweakRadio = typeof TweakRadio === 'undefined' ? globalThis.TweakRadio : TweakRadio;
-;globalThis.TweakButton = typeof TweakButton === 'undefined' ? globalThis.TweakButton : TweakButton;

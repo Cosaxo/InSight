@@ -1090,6 +1090,18 @@ service cloud.firestore {
         && request.resource.data.gid is string
         && get(/databases/$(database)/documents/v2_takes/$(request.resource.data.takeId)).data.gid
           == request.resource.data.gid
+        // You cannot report your own take, the same refusal the avatar arm
+        // above makes for the same reason: the only thing it achieves is
+        // queueing a moderator to read something you could delete yourself
+        // ("your speech stays yours to withdraw", the delete rule below).
+        //
+        // It is also the cheapest half of a self-inflicted starvation: three
+        // of your own accounts on your own take is the flag floor, and the
+        // queue is ranked by flag count, so it was a way to spend a
+        // moderator's generation on nothing. Costs no extra read — this is
+        // the same get() the gid check one line up already performs.
+        && get(/databases/$(database)/documents/v2_takes/$(request.resource.data.takeId)).data.authorUid
+          != request.auth.uid
         // Flaggable by any signed-in user, at every scope. The circle arm
         // used to require membership on the reasoning that "a stranger
         // cannot flag speech they cannot read" — since D98 a stranger can

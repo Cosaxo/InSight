@@ -21,6 +21,7 @@
 // inversion that made "absent ≠ zero" a doctrine worth writing down.
 
 import type { AggDoc } from "./deck";
+import { sharePcts } from "./pct";
 
 /** dim → bucket → optionIdx → count, as published. */
 export type ByMap = Record<string, Record<string, Record<string, number>>>;
@@ -85,17 +86,17 @@ export function cellFor(
 /**
  * Integer percentages that sum to exactly 100.
  *
- * The largest share absorbs the rounding drift, which is the convention
- * every other split in this app uses — two surfaces rounding differently
- * on the same numbers is how a 51/49 becomes a 51/48 one screen over.
+ * The rule itself lives in data/pct.ts, shared with the feed's `wfPcts` —
+ * two surfaces rounding differently on the same numbers is how a 51/49
+ * becomes a 51/48 one screen over, and until that module existed the two
+ * agreed only by carrying the same four lines.
+ *
+ * It used to dump the whole rounding residue on the largest share, which
+ * could draw a smaller count LARGER than a bigger one and could move the
+ * top bar off the top count. pct.ts has the measurements.
  */
 export function pctFor(counts: readonly number[]): number[] {
-  const total = counts.reduce((a, b) => a + b, 0);
-  if (!total) return counts.map(() => 0);
-  const pct = counts.map((c) => Math.round((c / total) * 100));
-  const drift = 100 - pct.reduce((a, b) => a + b, 0);
-  if (drift) pct[pct.indexOf(Math.max(...pct))] += drift;
-  return pct;
+  return sharePcts(counts);
 }
 
 /**
@@ -268,8 +269,19 @@ export function headlineFor(counts: readonly number[], type?: string): Headline 
     // The top TWO points of the scale, read off its end rather than at
     // fixed indices: a Likert is five long today and the bank does not
     // promise it always will be.
-    const agree = counts.slice(-2).reduce((a, b) => a + b, 0);
-    return { kind: "agree", pct: Math.round((agree / n) * 100) };
+    //
+    // Summed from pctFor's OUTPUT, not divided locally. This branch used to
+    // do `Math.round((agree / n) * 100)`, which is the exact mistake the
+    // categorical branch's "62, not 63" case below exists to prevent — and
+    // it is worse here, because the number sits directly above the two bars
+    // it claims to summarize. Brute-forced over every 5-option vector with
+    // counts 0..12: 95,368 of them printed a headline the bars contradict,
+    // e.g. [0,0,1,0,7] printing "88% agree" over bars of 13 and 87.
+    //
+    // pctFor's shares sum to exactly 100, so summing a suffix of them is
+    // the agree share by construction, drift included.
+    const pct = pctFor(counts);
+    return { kind: "agree", pct: pct.slice(-2).reduce((a, b) => a + b, 0) };
   }
   const pct = pctFor(counts);
   const top = counts.reduce((t, v, i) => (v > counts[t] ? i : t), 0);

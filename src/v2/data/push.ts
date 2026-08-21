@@ -9,14 +9,37 @@ import { getDb } from "../../lib/firebase";
 import { reportError } from "../../lib/sentry";
 import { FUNCTIONS_REGION } from "../../lib/region";
 
-export async function registerPushForReveals(uid: string): Promise<void> {
+/**
+ * Register this device for reveal notifications.
+ *
+ * `ask` decides whether the OS PROMPT may be shown, and the split is the
+ * whole point of the parameter.
+ *
+ * WHY. This used to prompt from `initLive`, during boot, before first
+ * render — so the first thing a new install did was ask for notification
+ * permission, for a notification class ("your reveal is out") that cannot
+ * fire until the user has joined a circle or started a 1v1. On iOS the
+ * decline is PERMANENT: there is no second prompt, and the shipped reveal
+ * push then dies for everyone who tapped Not Now at a moment when nothing
+ * had earned it. Contrast locate.ts, which is gated behind an explicit tap
+ * with an Info.plist string saying what happens.
+ *
+ * So boot calls this with `ask: false` — which registers a device that has
+ * ALREADY granted permission (the returning user, every launch) and is
+ * otherwise a no-op — and the moments that make a reveal possible call it
+ * with `ask: true`.
+ */
+export async function registerPushForReveals(
+  uid: string,
+  { ask = false }: { ask?: boolean } = {},
+): Promise<void> {
   if (!Capacitor.isNativePlatform()) return;
   try {
     const { PushNotifications } = await import("@capacitor/push-notifications");
     let perm = await PushNotifications.checkPermissions();
     // Android 13+ reports "prompt-with-rationale" after a first
     // dismissal — still promptable, so ask in both states.
-    if (perm.receive === "prompt" || perm.receive === "prompt-with-rationale") {
+    if (ask && (perm.receive === "prompt" || perm.receive === "prompt-with-rationale")) {
       perm = await PushNotifications.requestPermissions();
     }
     if (perm.receive !== "granted") return;

@@ -36,7 +36,7 @@ import { act, cleanup, fireEvent, render, screen, within } from "@testing-librar
 // the slowest cases sat at ~4.8s before it and tip over under suite load.
 vi.setConfig({ testTimeout: 15000 });
 import { FEED_OPTIONS, PATH_TITLE, fixtureSurfaceMismatch, installLive } from "./live-fixture";
-import { awaitText, growFeed } from "./mount-app";
+import { awaitText, growFeed, openHeaderOverlay } from "./mount-app";
 import { list as anchorList } from "../spec/map-anchors.js";
 import { IS_TESTS, IS_TEST_RESULTS } from "../spec/test-definitions.js";
 import { IS_ARCHETYPES } from "../spec/archetype-data.js";
@@ -115,9 +115,9 @@ describe("spec layer mounts in live mode", () => {
     expect(screen.getByRole("button", { name: /^mirror$/i }).className).toContain("is-active");
   });
 
-  it("opens the profile overlay without tripping the boundary", () => {
+  it("opens the profile overlay without tripping the boundary", async () => {
     const expectNoBoundary = mountLive();
-    fireEvent.click(screen.getByRole("button", { name: /^profile$/i }));
+    await openHeaderOverlay("profile");
     expectNoBoundary("profile/live");
   });
 
@@ -126,7 +126,7 @@ describe("spec layer mounts in live mode", () => {
   // pinned still holds inside ui/PatternsTab.tsx, which is unreachable
   // while unmounted.
 
-  it("shows the real follow list in the live profile, none of the demo field", () => {
+  it("shows the real follow list in the live profile, none of the demo field", async () => {
     // The General tab used to embed MirrorFieldBody pop="groups" — the
     // scenes orbit with invented populations ("5.6k people" / "22k
     // people"), the closer-means-more-like-you distances, "Who's in your
@@ -136,20 +136,20 @@ describe("spec layer mounts in live mode", () => {
     // no likeness claims. The demo smoke suite asserts the demo field
     // still renders with LIVE off, so the pair pins the swap both ways.
     mountLive();
-    fireEvent.click(screen.getByRole("button", { name: /^profile$/i }));
+    await openHeaderOverlay("profile");
     expect(screen.getByText(/Scenes you follow/i)).toBeTruthy();
     expect(screen.queryByText(/closer = members more like you/i)).toBeNull();
     expect(screen.queryByText(/in your circles/i)).toBeNull();
     expect(screen.queryByText(/22k people/i)).toBeNull();
   });
 
-  it("opens the search overlay without tripping the boundary", () => {
+  it("opens the search overlay without tripping the boundary", async () => {
     const expectNoBoundary = mountLive();
-    fireEvent.click(screen.getByRole("button", { name: /^search$/i }));
+    await openHeaderOverlay("search");
     expectNoBoundary("search/live");
   });
 
-  it("shows no sample people in the search overlay", () => {
+  it("shows no sample people in the search overlay", async () => {
     // The overlay's Friends rows are sample-data personas wearing invented
     // relationships ("sister · since birth · 86% match"). Live mode has no
     // person graph at all (D3), so a live build listing them is a D1
@@ -158,7 +158,7 @@ describe("spec layer mounts in live mode", () => {
     // the same rows DO render with LIVE off, so this pair pins the gate in
     // both directions.
     mountLive();
-    fireEvent.click(screen.getByRole("button", { name: /^search$/i }));
+    await openHeaderOverlay("search");
     const seed = FRIENDS.list()
       .map((id) => (IS_DATA.people || []).find((p) => p.id === id))
       .find((p) => p && p.name && !p.anon);
@@ -806,7 +806,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
   it("offers the Roles tab live, and refuses under the floor", async () => {
     const expectNoBoundary = mountLive({ feedCards: 2 });
     await growFeed();
-    fireEvent.click(screen.getByRole("button", { name: /^profile$/i }));
+    await openHeaderOverlay("profile");
     await act(async () => {});
     const roles = screen.queryByRole("button", { name: "Roles" })
       || screen.queryByText("Roles");
@@ -1185,8 +1185,8 @@ describe("live mode never inherits the sample persona (D55)", () => {
   const DEMO_JOB = "Editor · independent press";
   const DEMO_EDU = "MA Literature · Univ. of Oslo";
 
-  function openProfile() {
-    fireEvent.click(screen.getByRole("button", { name: /^profile$/i }));
+  async function openProfile() {
+    await openHeaderOverlay("profile");
   }
 
   // jsdom's localStorage is shared across cases in this file, and the panel
@@ -1194,7 +1194,7 @@ describe("live mode never inherits the sample persona (D55)", () => {
   // reads. (Case two failed exactly that way when it was written.)
   beforeEach(() => { localStorage.clear(); });
 
-  it("shows no demo vitals on a reopened profile, and anchors none", () => {
+  it("shows no demo vitals on a reopened profile, and anchors none", async () => {
     const saved = [];
     live = installLive();
     window.LIVE.saveAnchors = (a) => { saved.push(a); };
@@ -1203,13 +1203,13 @@ describe("live mode never inherits the sample persona (D55)", () => {
     // First open — writes the localStorage record that used to poison the
     // second one.
     const first = render(<App />);
-    openProfile();
+    await openProfile();
     expect(screen.queryByDisplayValue(DEMO_JOB)).toBeNull();
     first.unmount();
 
     // Second open, same device, same storage.
     render(<App />);
-    openProfile();
+    await openProfile();
     expect(
       screen.queryByDisplayValue(DEMO_JOB),
       "the sample persona's job came back on the second mount",
@@ -1230,7 +1230,7 @@ describe("live mode never inherits the sample persona (D55)", () => {
     }
   });
 
-  it("drops the v1 record's demo values but keeps what the user changed", () => {
+  it("drops the v1 record's demo values but keeps what the user changed", async () => {
     // A device that already ran the old build carries the persona on disk as
     // its own properties, by then indistinguishable from typed input. The
     // migration keeps every field that DIFFERS from the seed — only the user
@@ -1249,7 +1249,7 @@ describe("live mode never inherits the sample persona (D55)", () => {
     errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
     render(<App />);
-    openProfile();
+    await openProfile();
 
     expect(saved.length, "the anchors effect never ran — assertion is vacuous")
       .toBeGreaterThan(0);
@@ -1344,7 +1344,7 @@ describe("live mode never inherits the sample persona (D55)", () => {
     }
   });
 
-  it("hides the profile's map card while the ring is empty", () => {
+  it("hides the profile's map card while the ring is empty", async () => {
     // The wiring half: list() is only correct if what renders reads it.
     // MapThumbCard returns null on a zero-length ring.
     live = installLive();
@@ -1352,7 +1352,7 @@ describe("live mode never inherits the sample persona (D55)", () => {
     errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
     render(<App />);
-    openProfile();
+    await openProfile();
     expect(
       screen.queryByText(/^Your map$/),
       "the map card drew a ring with nothing in it",

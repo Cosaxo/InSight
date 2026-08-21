@@ -69,6 +69,27 @@ describe("the sealed instrument", () => {
     expect(document.body.textContent).not.toMatch(/\d%/);
   });
 
+  it("fills the tile it actually called, not the other one", () => {
+    // `conf = rec.pred === 0 ? rec.p0 : 1 - rec.p0` — p0 is P(option 0), so
+    // predicting option 1 at p0 = 0.82 is 18% confident, not 82%. One
+    // character, and it type-checks either way.
+    //
+    // REHOUSED from PatternsTab.test.tsx, where this was written against
+    // the printed percentage. The 2026-08-20 redesign took the number off
+    // the screen — the case above pins that there is no percent sign — but
+    // it KEPT the branch and moved it to the fill's width, where the suite
+    // counted the fills and never measured them. A flip now draws the
+    // instrument almost full for a guess it was barely confident of.
+    const pct = () => [...document.querySelectorAll<HTMLElement>(".or-fill")]
+      .map((el) => el.style.getPropertyValue("--p"));
+
+    render(<PatternsOracle items={[QA, item("qb", 1)]} version={1} onUse={noop} />);
+    fireEvent.click(screen.getByText("qa-no"));
+    // GRADED calls option 0 at p0 = 0.82: tile 0 is the call, and it is the
+    // one that fills.
+    expect(pct(), "the Oracle filled the tile it did not call").toEqual(["82%", "18%"]);
+  });
+
   it("refuses the tap when no seal exists — no guess, no vote", () => {
     PATTERNS.seal.mockReturnValue(null);
     render(<PatternsOracle items={[QA]} version={1} onUse={noop} />);

@@ -35,6 +35,7 @@ import {
   normalizeHandle,
   isPlausibleFcmToken,
   nextFcmTokens,
+  movesPresentState,
   nextStreak,
   PENDING_DAYS_KEEP,
   prunePendingDays,
@@ -438,7 +439,15 @@ async function revealGroupDay(
       if (shouldReveal(mode, freshPlayed)) return;
       tx.update(group.ref, {
         pendingDays: prunePendingDays(gsnap.get("pendingDays"), dayKey, oldestKeptDay),
-        ...(mode === "duo" && gsnap.get("streak") ? { streak: 0 } : {}),
+        // Zeroing the streak is a statement about NOW — "you two missed a
+        // day" — so an old day settling empty must not make it. The scan
+        // walks newest-first and the operator's `full` mode covers six
+        // days, so this fired routinely on days already behind the last
+        // reveal. movesPresentState carries the arithmetic.
+        ...(mode === "duo"
+          && gsnap.get("streak")
+          && movesPresentState(gsnap.get("lastRevealDay"), dayKey)
+          ? { streak: 0 } : {}),
       });
     });
     return false;
@@ -580,20 +589,33 @@ async function revealGroupDay(
       ),
       revealedAt: FieldValue.serverTimestamp(),
     });
-    streak = nextStreak(
-      gsnap.get("lastRevealDay"),
-      dayKey,
-      gsnap.get("streak") || 0,
-    );
     // The day is settled, so it leaves pendingDays in the same write that
     // publishes the reveal — the scan must not find this group again for
     // this day, and a reveal that exists while the day still reads as owing
-    // one is the drift that would put the scan into a loop.
-    tx.update(group.ref, {
-      streak,
-      lastRevealDay: dayKey,
+    // one is the drift that would put the scan into a loop. That much is
+    // true of any day, backfilled or not.
+    const settle: Record<string, unknown> = {
       pendingDays: prunePendingDays(gsnap.get("pendingDays"), dayKey, oldestKeptDay),
-    });
+    };
+    // `streak` and `lastRevealDay` are the group's PRESENT tense, and only a
+    // day newer than the last reveal may move them. The scan walks
+    // newest-first, so without this a run that revealed yesterday and then
+    // reached an older pending day wrote lastRevealDay BACKWARDS and reset
+    // the streak to 1 — for filling a gap in. movesPresentState (pure.ts)
+    // has the sequence.
+    if (movesPresentState(gsnap.get("lastRevealDay"), dayKey)) {
+      streak = nextStreak(
+        gsnap.get("lastRevealDay"),
+        dayKey,
+        gsnap.get("streak") || 0,
+      );
+      settle.streak = streak;
+      settle.lastRevealDay = dayKey;
+    } else {
+      // Left where it was, not recomputed — the reveal above still published.
+      streak = gsnap.get("streak") || 0;
+    }
+    tx.update(group.ref, settle);
     didReveal = true;
   });
   if (!didReveal) return false;

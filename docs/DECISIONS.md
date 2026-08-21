@@ -22480,3 +22480,391 @@ own comment, which promised that UNSET compiles to a pass-through while
 insists, inside the rejection round 6.2 already budgets. Build 23 is
 the first build this applies to; 22 and earlier ship the wall and are
 superseded by it.
+
+## D220 · A settled report is spent, and the queue stopped ranking ghosts
+
+**2026-08-20.** **Status:** binding. Found by audit, not in service —
+there is no traffic yet, which is the only reason this is a fix rather
+than an incident report. Three defects in one pipeline, one of which
+needed no attacker and disabled moderation as a whole. D83's confinement
+design, its two instruments and the MOD_UIDS allowlist are unchanged:
+this record moves what the queue is BUILT from, never who may judge it.
+
+### The bug that needed nobody
+
+`submitModVerdict` swept `v2_flags` only on `verdict === "keep"`. A
+removed take therefore kept its flag count in the daily tally forever —
+and the tally is what `buildModQueueFrom` RANKS by, so the take kept
+sorting into the top 25 of every rebuild, where `runBuildModQueue` then
+skipped it as already-hidden. The slot went to nobody: the fold sliced
+to 25 *before* this file could learn the target was gone, so each skip
+cost a candidate rather than reallocating one.
+
+The arithmetic: `MOD_QUEUE_SIZE` is 25. After 25 organic removes the
+queue could reach nothing below the top twenty-five flag counts, ever
+again. With `MOD_ADVISORY` false since D83 and hand verdicts the only
+source, that is the whole enforcement path going quiet while every gate
+stayed green — including the moderation e2e, which asserted that a
+removed take does not RE-QUEUE (true with the bug: hidden takes are
+skipped) and never asked what the skip cost.
+
+Author-deleted takes leave flags behind the same way and always did, so
+the residue was not only moderator-made.
+
+### What shipped
+
+1. **A settled target's flags are cleared, wherever the settlement is
+   noticed.** `remove` sweeps like `keep`; the rebuild sweeps anything
+   it finds vanished or already hidden, so the tally self-heals on the
+   first run and the pre-existing residue drains rather than compounds.
+   `escalate` deliberately does not sweep — the take is unsettled, a
+   human is still to look at it, and the flags are the evidence. One
+   reader for all three (`clearFlagsFor`), now PAGED at 400: the old
+   single `WriteBatch` threw over 500 flags, *after* the verdict
+   transaction had committed, so a moderator saw a failure for a
+   decision that took and every retry hit `failed-precondition`.
+2. **The cut to 25 happens after the visibility filter.**
+   `buildModQueueFrom`'s `k` is now a candidate WINDOW
+   (`MOD_QUEUE_CANDIDATES = 100`) and the loop stops at 25 live entries.
+   Bounded at 4×: worst case 100 document reads instead of 25, only
+   while a tail of settled targets exists, which the sweep then drains.
+3. **Ties break on the earliest flag, not the take id.** At the floor
+   most takes sit on exactly `MOD_QUEUE_MIN_FLAGS`, so the tie-break
+   decides the whole queue below the busy head — and a world take's id
+   is `qid + "_" + uid` with `qid` a free 1–120 char string, so
+   id-ascending sold the front of every generation for three flags and
+   a `!` prefix. `at` is server-written (`== request.time` in the create
+   rule). EARLIEST, not the newest the audit proposed: fresh accounts
+   can always make a take newly flagged and can never make it older.
+4. **A per-author cap** (`MOD_QUEUE_PER_AUTHOR = 5`) on one account's
+   share of a generation, read from `authorUid` on a document already in
+   hand. Three free accounts (D3) and 75 flags could otherwise hold all
+   25 slots with one author's takes. An unknown author is never capped —
+   the cap stops crowding, and refusing to queue a take because its
+   author cannot be read would hide content from moderation on a
+   technicality.
+5. **You cannot flag your own take** (`isTakeFlag()`), the refusal the
+   avatar arm has carried since D178. Three of your own accounts on your
+   own take is the flag floor, so this was also a way to spend a
+   generation on something you could delete yourself. It reads
+   `authorUid` off the same `/v2_takes` document the arm already gets
+   twice — three sites, one document, one billed read, the D139/D194
+   shape. `RULE_READS` is unchanged for the D98/D178 reason: it charges
+   the ANSWER-create paths, and flagging is not one. The `pulse.test.mjs`
+   tripwire moves 22 → 23 gets.
+
+### What the gates could not see, and what now can
+
+Every one of these passed `npm run test:rules`, the moderation e2e, and
+all 35 static gates. What was missing was an assertion that a settled
+target's FLAGS are gone — the e2e now makes it, and reverting the sweep
+fails it with `remove left 3 flag(s) standing`. The queue-window and
+tie-break properties are pinned in `pure.test.ts`; the self-flag deny is
+pinned in `rules.test.ts` and fails without the rule.
+
+### Deferred with the arithmetic
+
+Flag RETENTION is still not a policy (D55 §11). These changes bound the
+tally by settlement rather than by age, which is strictly better than
+what was there and still not a TTL: a take that is flagged twice, below
+the floor of 3, holds two flags forever and nothing ever settles it. At
+1.2 KB of heap per snapshot doc the paged tally OOMs somewhere above
+100k flags — unchanged by this record, and the reason the retention
+decision is still owed.
+
+## D221 · Four things nothing was standing behind
+
+**2026-08-20.** **Status:** binding. The audit pass that produced D220,
+continued. Four unrelated defects with one thing in common: in each, a
+property the code states in prose had nothing underneath it — no gate, no
+executing test, and in two cases a test that had been quietly disarmed.
+
+### 1 · The agree headline contradicted the bars beneath it
+
+`headlineFor`'s `scale` branch computed `Math.round((agree / n) * 100)`
+instead of summing `pctFor`'s output. DECISIONS.md:11605 already records
+this exact mistake being removed from the categorical branch — *"A first
+draft of this had a local `pctOf` in the UI module… The '62%, not 63%'
+test case exists to keep it going through `pctFor` rather than dividing
+locally"* — and the scale branch, one `if` above it, kept doing it.
+
+Brute-forced over every 5-option vector with counts 0..12: **95,368**
+printed a headline the two bars under it do not add up to. `[0,0,1,0,7]`
+printed "88% agree" over bars of 13 and 87. Now summed from `pctFor`,
+whose shares total exactly 100, so the headline is the agree share by
+construction. The exhaustive sweep is the test.
+
+Not touched: `pctFor`'s own largest-share drift rule, which can render an
+option with MORE votes at a LOWER percentage at k=10
+(`[3,3,4,4,4,4,4,4,4,4]` → `[8,8,7,11,…]`). That is a different defect, it
+only bites rating histograms, and the fix has to move `wfPcts` in
+`world-feed-math.js` in the same commit or it introduces the cross-surface
+drift `pctFor` exists to prevent. Recorded, not bundled.
+
+### 2 · `dayIndex` lost a day every spring and skipped one every autumn
+
+`new Date(y, m, d).getTime() / 86400000` is local midnight as a UTC
+INSTANT, so the zone's offset leaks into the day number: one lower east of
+UTC, unchanged at UTC and west. Constant per zone, and therefore
+invisible — except where the offset CROSSES ZERO at a DST transition. The
+UK, Ireland, mainland Portugal, the Canaries, Casablanca. Measured under
+`TZ=Europe/London`:
+
+    2026-03-29 → 20541, 2026-03-30 → 20541   (delta 0)
+    2026-10-25 → 20750, 2026-10-26 → 20752   (delta 2)
+
+Spring: no daily question that day at all — `vote()` is create-only, so
+the card renders answered — and "Yesterday" points at the wrong card.
+Autumn: a bank question is skipped and never served. `state.deckDay !==
+dayIndex()` also failed to fire at local midnight, and `dayLabel` uses
+`setDate`, which is calendar-correct, so the two disagreed about the date.
+
+Now `Date.UTC` over the LOCAL parts, which never consults the offset.
+
+**The one-time remap, and why this direction.** `DECK_EPOCH` stays 20666.
+It cannot be re-derived to hold everyone still, because the old error was
+a per-zone shift and not a constant: +1 would freeze east-of-UTC rotations
+and move UTC and the Americas instead. Keeping it leaves UTC and west
+exactly where they were and moves everyone east by one position, once —
+and east of UTC is where the index was wrong. It also makes the constant's
+own description true for the first time: 20666 IS the calendar day number
+for 2026-08-01, which is now what `dayIndex` returns there in every zone.
+The cost is the one the epoch's own comment already accounts for: a 7-day
+pager whose answered cards are keyed by qid renders that history
+unanswered once. At today's population that is free.
+
+**The test is a child process, and that is the finding.** Setting
+`process.env.TZ` inside a vitest case does nothing: the threads pool
+resolved its zone before the file was imported and a thread does not
+re-read TZ — every zone reports offset 0. The first draft of this test did
+exactly that, passed, and **still passed against the original buggy
+`dayIndex`**. Only a fresh process gets a real zone, and CI runs UTC, where
+the bug cannot reproduce at all.
+
+### 3 · Android back quit the app from any open bottom sheet
+
+`app-shell`'s handler peeled person → city → overlay → tab and knew nothing
+about the eight `Sheet` instances, each holding its open state inside
+whichever module rendered it. Back fell through every branch, returned
+false, and `back.ts` called `App.exitApp()` — the exact failure that file's
+own header describes ("reads as a crash rather than a missing handler"),
+one layer deeper than the case it was written for. From the default tab
+with nothing open: tap the ⓘ on today's question, press back, app gone.
+
+`data/backLayers.ts` is a LIFO stack of transient closers — sheets nest, so
+a single slot would not do — registered by `Sheet` on mount and consulted
+by the shell's handler before any of its own levels. A real module rather
+than another `window.X`, because both consumers are already off the bridge:
+`check:globals` rule 4 stays at 392 instead of gaining two.
+
+It could ship because nothing tested the handler:
+`grep -rn registerBackHandler src/v2/test` returned nothing. D25's overlay
+work was proven by mount tests that never exercise back, and D24's Escape
+is a different mechanism — a back press is not a DOM event a focused dialog
+can receive.
+
+### 4 · The allowlist that stands in for App Check had never executed
+
+`assertOperator` and `assertModerator` are the whole control on the seven
+callables `check-appcheck.mjs` exempts from attestation — including
+`seedContentV2`, which rewrites the question bank. No test imported either;
+the only greps outside `functions/src` were comments. And every runner sets
+`FUNCTIONS_EMULATOR=true`, which is the bypass arm, so the production
+branch had never run in this repo.
+
+Worse, the gate on the DEPLOY path printed the exemption's reason as an OK
+line — "gated on SEED_ADMIN_UIDS" — and never checked it. Deleting the
+`assertOperator` call from `seedContentV2` left every gate green.
+
+Both closed: `functions/src/ops.test.ts` runs both asserters with
+`FUNCTIONS_EMULATOR` deleted (fail-closed on an unset list, whole-uid not
+prefix match, read at call time not load time, and the disjointness the
+prose claims), and `EXEMPT` entries now carry the `gate` they name, with
+the run asserting the callable's body calls it. `assertModerator` is
+exported for the first time, for the test.
+
+### The shape, again
+
+Every one of these passed all four runners and 35 gates. Two carried a test
+that had been disarmed without anyone noticing: the TZ case that could not
+see a zone, and `LiveRoomTabs.test.tsx`'s `type: "Host"` in D220's item 3.
+A test that cannot fail is worse than no test, because it is counted. Every
+fix here was reverted after the fact to confirm its test goes red.
+
+## D222 · One rounding rule, and it stopped drawing three votes above four
+
+**2026-08-20.** **Status:** binding. Follows D221 §1, which fixed the
+`scale` headline by routing it through `pctFor` and explicitly did NOT
+touch `pctFor` itself — the fix needed `wfPcts` to move in the same
+commit, and this is that commit.
+
+### The rule that looked right
+
+Both surfaces carried the same four lines: round each share, then push the
+whole residue onto the largest bucket.
+
+    const p = counts.map((c) => Math.round((c / total) * 100));
+    p[p.indexOf(Math.max(...p))] += 100 - p.reduce((a, b) => a + b, 0);
+
+It sums to 100, which is the property everyone checks. What it does not
+say is that the residue is not always one point: with many options the
+rounding errors accumulate, and the correction lands on ONE bucket however
+far that pushes it. Measured over 840,000 sampled count vectors of 6 to 12
+options — the live shapes, not a stress test: a 10-point rating, a
+12-bucket dial, a 4×3 field:
+
+- **13,307 (1.58%) drew a smaller count at a larger percentage.**
+  `[3,3,4,4,4,4,4,4,4,4]` gave `[8,8,7,11,…]`: an option with four votes
+  drawn shorter than one with three.
+- **8,646 handed the largest percentage to a bucket that did not have the
+  most votes.** `[5,7,1,9,1,7,10]` printed the 10-vote winner at 22% and a
+  9-vote option at 23%.
+
+The second is the sharper one, because `world-feed-math.test.js` **states
+that exact invariant** — *"a maximal bucket stays maximal. Rounding must
+never hand the card's headline to a side that did not win"* — and pinned
+it with four hand-picked vectors, every one of which passes under the
+broken rule. The test's own comment records a first draft being
+strengthened after a `Math.max`/`Math.min` swap survived it. The method
+was the problem, not the diligence: hand-picked cases can only check what
+someone already suspected.
+
+Under 6 options neither failure occurs, which is why this survived. The
+exhaustive sweep at lengths 2–5 is clean for both rules.
+
+### What shipped
+
+**`src/v2/data/pct.ts`, one implementation.** Largest remainder
+(Hamilton): floor every share, hand the remaining points to the largest
+fractional remainders, ties to the lower index. Zero inversions and zero
+misplaced maxima over the same 840,000 vectors, and not by luck — every
+result is `floor(exact)` or `floor(exact)+1` with the +1 handed out in
+remainder order, so `c[i] > c[j]` implies `p[i] >= p[j]`.
+
+Integer arithmetic (`c * 100` before the division, remainder as
+`c*100 - floor*total`), so no share can land on 24.999999999999996 and
+floor to 24. Counts are always whole votes; this is exact.
+
+`pctFor` and `wfPcts` both call it. That is the point: `pctFor`'s comment
+has always said two surfaces rounding differently on the same numbers is
+how a 51/49 becomes a 51/48 one screen over, and the two agreed only by
+carrying the same four lines each — the arrangement `check:logic-sync`
+(D57) and `check:calls` (D194) exist to police. One implementation needs
+no gate.
+
+### The cost, stated
+
+Equal counts can now render a point apart. `[1,1,1,3]` gives
+`[17,17,16,50]`; the old rule gave `[17,17,17,49]`. Both distort someone —
+the old one shaved a full point off the winner to keep the three ones
+level — and Hamilton's total deviation from the exact shares is smaller
+there (1.33 against 1.99). The reason to prefer it anyway is not the
+deviation: **unequal rendering of equal counts is a rounding artifact, and
+a smaller count drawn larger is a claim about the data that is false.**
+Only one of the two rules can tell the second kind of lie.
+
+That case is pinned by value in both suites so a revert is visible rather
+than merely red.
+
+### Two things worth carrying forward
+
+- **`tsc` caught what `lint` could not.** The first draft put the
+  cross-surface agreement case in `cohort.test.ts`, which is typed; it
+  imports `world-feed-math.js`, which is not, so `tsc -b` failed TS7016.
+  The suppression would have worked and would also have crossed the
+  boundary DECISIONS.md:3337 rests the no-`allowJs` argument on. The case
+  lives on the feed side instead, which is plain JS and is the surface
+  that owns the convention.
+- **The sweep is the test.** `data/pct.test.ts` is exhaustive to 5 options
+  (402,216 vectors) and fixed-seed sampled to 12, rather than a longer
+  list of hand-picked cases. Reverting `sharePcts` fails seven cases
+  across both surfaces.
+
+## D223 · The long tail, and the two things it declined to build
+
+**2026-08-20.** **Status:** binding. The rest of the audit that produced
+D220–D222, worked through in seven commits. Nothing here is a new idea;
+it is the tail of one pass, recorded together because the items share a
+diagnosis and because two of them were declined and that needs to be
+written down rather than left as silence.
+
+### The diagnosis, once more
+
+Every item was a property the repo states somewhere and nothing
+underneath enforces. That is D221's finding, and the tail is where it
+shows as VOLUME rather than as severity:
+
+- `functions/README.md` described a geohash5 aggregator with a
+  k-anonymity floor, in the present tense, with a copy-paste console
+  invocation. D13 deleted the subsystem; D98 retired the model. It
+  survived because `check:public-copy` reads copy a USER sees, and
+  ORIENTATION §3 sends every newcomer to this file first.
+- `src/v2/README.md` said "one suite each, mutation-checked" about
+  `ui/`. Nine panels had none.
+- `world-feed-math.test.js` ASSERTED "a maximal bucket stays maximal"
+  with four hand-picked vectors (D222).
+- `MONITORING.md` named "which of the other 12 functions has no alert"
+  as a question. Both nightly jobs already emitted their metric; nothing
+  read it.
+
+Four new gates came out of it, all client-side ratchets on `ci.yml`:
+`check:tap-targets`, `check:panel-suites`, plus CSS and font ceilings in
+`check:bundle` and a function-count figure in `check:figures`.
+
+### The eager chunk: 858 → 831 KB
+
+`MAX_EAGER_KB` is 880 and its own comment says it is not raiseable, so
+this is the number that decides what can ship next.
+
+- **The Tweaks panel** — ~12 KB of controls, drag handling and a 6.7 KB
+  stylesheet string that production *cannot open* (its only
+  `setOpen(true)` is behind `if (!import.meta.env.DEV) return`). It
+  shared a module with `useTweaks`, which app-shell reads every render.
+  Split to `data/tweaks.jsx` + `src/dev/TweaksPanel.jsx`, the window
+  publication deleted with it (D210's measurement is why that matters).
+- **Search and Profile** — ~15 KB only a header tap reaches. The
+  criterion that kept them eager ("no control in the header or tabbar")
+  was about SYNCHRONISATION, and `openDeferred` is that mechanism.
+- **The italic fonts** — 12 `@font-face` blocks and four woff2 files, 66
+  KB, for a voice `styles.css` states has no italic. `.app em {
+  font-style: normal }` is load-bearing now rather than tidy: without
+  the faces a browser would shear the roman into a fake oblique, on the
+  app's own wordmark.
+
+Two things worth keeping from that work. Deferring the overlays first
+tried the `window.X &&` guard form the other deferred overlays use, and
+**check:globals rule 4 refused it** — 39 → 41 in app-shell, because the
+guard costs two shared-global references where a bare name costs one.
+The bare name is safe for the same reason the guard is redundant: every
+path that sets `ov` now awaits the chunk. And that await **fixed a
+latent ReferenceError** — `openOverlay` said "All three are eager" and
+called `show()` with no await, which stopped being true at D200 when
+relmap moved into `loadOverlays` and stayed in `LIVE_OVERLAYS`.
+
+### Declined, with the arithmetic
+
+**A world take's `qid` is not checked to name a real question**
+(`firestore.rules`). Adding `exists()` is the consistent fix and the only
+one that closes it — a charset matcher restricts the alphabet and leaves
+the qid dimension unbounded. It is declined for now on cost and churn: it
+puts a billed read on every take create, and it needs a `v2_questions`
+doc seeded across the rules suite and the moderation e2e wherever a take
+is posted through the rules. D83's own reasoning is unaffected — "one
+account cannot stack a question under fresh ids" is still literally true
+— and since accounts are free (D3) total document count was already
+unbounded. What `exists()` would buy is bounding the qid dimension to the
+real bank, which is a cost-amplification control rather than an access
+one. Build it with the next change that touches those tests.
+
+**`displayName` has no report path.** `firestore.rules:213` accepts any
+60-char client string, D98 makes `v2_users` world-readable, and the name
+is drawn beside every face on Near's People tab, the Kindred cards and
+the profile. The only report arms in the product are takes (D83) and
+photos (D178), and `v2_flags`' create rule has only those two shapes —
+so D178 built the whole photo-report loop on the argument that "every
+surface that will draw this face already draws the NAME beside it", and
+the name it leaned on has no loop of its own. That is the stronger Apple
+guideline 1.2 gap and it is NOT a bug fix: it needs a flag shape, a
+queue kind, a moderator verdict that clears a name rather than hides a
+document, and a decision about what a cleared name shows instead. An
+owner-decision design, recorded here so it stops being invisible.

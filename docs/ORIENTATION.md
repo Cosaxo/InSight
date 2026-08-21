@@ -169,6 +169,8 @@ the static gates, and where each one runs.
 | `check:a11y` | ci | Accessibility, as a per-file ratchet, plus the four figures `src/v2/README.md` quotes about its own debt |
 | `check:labels` | ci | Every `htmlFor` / `aria-*` reference resolves to an id in the same file. jsx-a11y only checks the attribute is present |
 | `check:touch-zoom` | ci | No text field under 16px. One at 15px zooms the whole app on iOS and nothing zooms it back (D105) |
+| `check:tap-targets` | ci | No button drawn under 44px without a grown hit box. `jsx-a11y` has no size rule, so `check:a11y` stayed green while every sheet's Close button was 26px |
+| `check:panel-suites` | ci | One test suite per hand-written panel in `src/v2/ui/`, as a ratchet. The convention was written down and drifted to nine panels with none, including the on-trial tab's |
 | `check:purge` | ci | Every store persisting `insight.*` state hears the local purge. Deleting the keys is half a wipe if the in-memory copy writes itself back |
 | `check:bundle` | ci | Four ceilings, of which `MAX_EAGER_KB` is the one to quote for a first-paint claim. Refuses to grade a build not made as the shipping one, and withholds the total-JS ceiling when the Sentry DSN is unset (D191) |
 | `check:versions` | ci | Five version numbers that must move together across three files |

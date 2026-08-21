@@ -2,6 +2,8 @@
 // Runs in plain node (no browser, no firebase, no mocks): every function
 // under test takes explicit inputs.
 
+import { execFileSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
   buildS,
@@ -409,6 +411,69 @@ describe("day indices and gHash", () => {
     const night = dayIndex(new Date(2026, 6, 15, 23, 59, 59));
     expect(night).toBe(morning);
     expect(dayIndex(new Date(2026, 6, 16, 0, 0, 1))).toBe(morning + 1);
+  });
+
+  it("steps by 1 across a DST transition, and anchors the epoch, in a real zone", () => {
+    // The regression the two July dates above could not see. `dayIndex` was
+    // local midnight as a UTC INSTANT, which leaks the zone's offset into
+    // the day number — constant per zone, and therefore invisible, EXCEPT
+    // where the offset crosses zero at a transition. Measured before the
+    // fix, under Europe/London: 2026-03-29 and 2026-03-30 both gave 20541
+    // (no daily question that day, and "Yesterday" pointing at the wrong
+    // card), and 2026-10-25 → 20750 with 2026-10-26 → 20752 (a bank
+    // question skipped and never served).
+    //
+    // A CHILD PROCESS, and that is the finding rather than the ceremony:
+    // setting process.env.TZ inside the test does NOTHING here. Vitest runs
+    // on the threads pool (vite.config.ts explains why), the worker resolved
+    // its zone before this file was imported, and a thread does not re-read
+    // TZ — every zone reports offset 0. Verified by probing it: the first
+    // draft of this test set process.env.TZ, passed, and still passed
+    // against the ORIGINAL buggy dayIndex, which is the worst shape a test
+    // can take. Only a fresh process gets a real zone.
+    //
+    // The zone must also be a zero-CROSSING one to reproduce at all: east of
+    // UTC and west of it the old formula was merely off by a constant. CI
+    // runs UTC, where the bug is invisible by construction.
+    const deck = fileURLToPath(new URL("./deck.ts", import.meta.url));
+    const probe = (tz: string): Record<string, number> => {
+      const out = execFileSync(
+        process.execPath,
+        ["--experimental-strip-types", "--no-warnings", "-e", `
+          import(${JSON.stringify(deck)}).then((m) => {
+            const step = (y, mo, d) =>
+              m.dayIndex(new Date(y, mo, d + 1, 12)) - m.dayIndex(new Date(y, mo, d, 12));
+            console.log(JSON.stringify({
+              springForward: step(2026, 2, 29),
+              autumnBack: step(2026, 9, 25),
+              control: step(2026, 6, 15),
+              epoch: m.dayIndex(new Date(2026, 7, 1, 12)),
+              offsetJuly: new Date(2026, 6, 1).getTimezoneOffset(),
+            }));
+          });
+        `],
+        { env: { ...process.env, TZ: tz }, encoding: "utf8" },
+      );
+      return JSON.parse(out) as Record<string, number>;
+    };
+
+    // 0/+1 — the crossing the bug lived in. offsetJuly asserts the child
+    // really got the zone, so this can never quietly become a UTC re-run.
+    const london = probe("Europe/London");
+    expect(london.offsetJuly).toBe(-60);
+    expect(london.springForward).toBe(1);
+    expect(london.autumnBack).toBe(1);
+    expect(london.control).toBe(1);
+
+    // +1/+2 — east of UTC, never crossed zero, so its days always stepped
+    // correctly. What was wrong here is the ANCHOR: the old formula put it
+    // one below the constant, so the rotation depended on where you stood.
+    const oslo = probe("Europe/Oslo");
+    expect(oslo.offsetJuly).toBe(-120);
+    expect(oslo.springForward).toBe(1);
+    expect(oslo.epoch).toBe(DECK_EPOCH);
+    // …and the same anchor at UTC, which is where the constant was derived.
+    expect(london.epoch).toBe(DECK_EPOCH);
   });
 
   it("gHash is deterministic and bounded to [0, 997)", () => {

@@ -1620,6 +1620,13 @@ describe("moderation substrate: takes + flags (docs/MODERATION.md, D22)", () => 
     // every take — so the premise went and the gate with it.
     await assertSucceeds(setDoc(
       doc(asUser(STRANGER), "v2_flags", "t2_" + STRANGER), flag("t2", STRANGER)));
+    // …but not your OWN take, which is the same refusal the avatar arm
+    // makes. `t2` is OWNER's. Reporting yourself achieves one thing —
+    // spending a moderator's generation on something you can delete
+    // yourself — and three of your own accounts on your own take is the
+    // flag floor, so it was also a way to occupy the queue.
+    await assertFails(setDoc(
+      doc(asUser(OWNER), "v2_flags", "t2_" + OWNER), flag("t2", OWNER)));
     // Write-only, still, and this deny SURVIVES D98 on its own reasoning:
     // a reporter visible to the person they reported is a reporter who
     // stops reporting. Anti-retaliation, not answer privacy.
