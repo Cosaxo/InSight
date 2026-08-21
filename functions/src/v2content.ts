@@ -4698,6 +4698,109 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null
  },
  {
+  "id": "feed-dl8",
+  "surface": "feed",
+  "seq": 100,
+  "type": "dial",
+  "domain": null,
+  "prompt": "How long should a concert be?",
+  "options": [
+   "1–1 hrs",
+   "1–2 hrs",
+   "2–2 hrs",
+   "2–2 hrs",
+   "2–2 hrs",
+   "2–3 hrs",
+   "3–3 hrs",
+   "3–3 hrs",
+   "3–3 hrs",
+   "3–4 hrs",
+   "4–4 hrs",
+   "4–4 hrs"
+  ],
+  "topic": "music",
+  "axis": null,
+  "test": null,
+  "lo": 1,
+  "hi": 4,
+  "unit": "hrs"
+ },
+ {
+  "id": "feed-f73",
+  "surface": "feed",
+  "seq": 101,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Dinner with Napoleon, or with Cleopatra?",
+  "options": [
+   "Napoleon",
+   "Cleopatra"
+  ],
+  "topic": "people",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f74",
+  "surface": "feed",
+  "seq": 102,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Watch the trailer first, or go in blind?",
+  "options": [
+   "Trailer first",
+   "Go in blind"
+  ],
+  "topic": "movies",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f75",
+  "surface": "feed",
+  "seq": 103,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Election night: up late for the count, or read it in the morning?",
+  "options": [
+   "Up all night",
+   "Morning headline"
+  ],
+  "topic": "event",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f76",
+  "surface": "feed",
+  "seq": 104,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Cake or pie?",
+  "options": [
+   "Cake",
+   "Pie"
+  ],
+  "topic": "food",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f77",
+  "surface": "feed",
+  "seq": 105,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Penalty shootouts: great drama, or a cruel coin flip?",
+  "options": [
+   "Great drama",
+   "A cruel coin flip"
+  ],
+  "topic": "sport",
+  "axis": null,
+  "test": null
+ },
+ {
   "id": "group-gu0",
   "surface": "group",
   "seq": 0,
