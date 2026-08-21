@@ -116,7 +116,7 @@ import './spec/daily-split.jsx';
 // only by a tap on a header control, and the criterion this list used to
 // apply ("no control in the header or tabbar") was about the
 // SYNCHRONISATION, not the surface: app-shell's openDeferred awaits the
-// chunk before setting the state that mounts one, and since D217 every
+// chunk before setting the state that mounts one, and since D223 every
 // member of LIVE_OVERLAYS goes through it. Their render sites take the
 // `window.X &&` form to match.
 import './spec/test-definitions.js';
@@ -332,7 +332,7 @@ export const loadOverlays = retryable(async () => {
   // modules removed and relmap.jsx sat above every other member of it.
   await import('./spec/relmap.jsx');
   // …then the two the header opens, in the order they held in the eager
-  // list above (D217). ~12 KB of the entry chunk that only a tap reaches.
+  // list above (D223). ~12 KB of the entry chunk that only a tap reaches.
   await import('./spec/search-overlay.jsx');
   await import('./spec/profile-overlay.jsx');
   await import('./spec/person-mindmap.jsx');

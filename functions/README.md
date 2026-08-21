@@ -8,7 +8,7 @@ for where everything else lives.
 floor until 2026-08-20. D13 deleted that subsystem and D98 retired the
 model behind it; the text survived because `check:public-copy` is scoped to
 copy a USER reads, and ORIENTATION sends every newcomer here first. The
-rewrite is D217.*
+rewrite is D223.*
 
 ## Layout
 
@@ -80,5 +80,5 @@ apply it to index's own functions and silently miss every v2 one.
 
 Every callable either demands App Check attestation or is named in
 `scripts/check-appcheck.mjs`'s exemption list with the reason it cannot
-and the allowlist that stands in — and since D215 that script checks the
+and the allowlist that stands in — and since D221 that script checks the
 callable actually calls the gate its exemption names.

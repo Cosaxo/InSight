@@ -272,7 +272,7 @@
 }
 
 /* ── Voice ── one roman sans throughout; em carries no italic.
-   LOAD-BEARING SINCE THE ITALIC FACES WENT (D217). `em` is a styling hook
+   LOAD-BEARING SINCE THE ITALIC FACES WENT (D223). `em` is a styling hook
    here, not an emphasis: the wordmark, the figure numbers, a word in a
    title. There is no italic in the font set any more, so without this the
    browser SYNTHESISES an oblique by shearing the roman — which is worse

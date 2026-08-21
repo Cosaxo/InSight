@@ -20,9 +20,12 @@
 // loadings and answers the device already holds.
 //
 // The pair card's "pick this — and N% pick that" is the one place a pair
-// is counted directly, and only for the link actually on screen: the two
+// is counted directly, and only for the links actually on screen (the
+// selected question's own few since the 2026-08-20 standalone, D215): the
 // questions' voter samples intersected on the device (the D146 pattern —
-// a bounded sample that states its basis), never a pairwise store.
+// a bounded sample that states its basis), never a pairwise store. Rows
+// are fetched once per question per session (sayRows), so three links
+// sharing an endpoint cost four lists, not six.
 import LIVE from "./live";
 import { getDb, getFirestoreApi } from "../../lib/firebase";
 import { fetchVoters, VOTER_FETCH_CAP } from "./voters";
@@ -69,11 +72,25 @@ export interface PairSay {
   pick: string;
   /** …this share also picked `then`. */
   then: string;
+  /** The option indices behind the labels — what lets the Map say "you
+   * went the other way" from the viewer's own answers (2026-08-20
+   * standalone), without this module reading them. */
+  pickIdx: 0 | 1;
+  thenIdx: 0 | 1;
   pct: number;
   /** The unconditional share, for the tick the card draws. */
   base: number;
   /** People in both bounded samples — the stated basis. */
   both: number;
+}
+
+/** The Oracle's evidence reading: among the people in both bounded
+ * samples who took the viewer's side on the evidence question, the share
+ * that picked each side of the target. */
+export interface TellShare {
+  shares: [number, number];
+  /** People behind the shares — the stated basis (D146). */
+  n: number;
 }
 
 interface LoadingsDoc { k: number; q: Record<string, { v: number[]; n: number; sum: number }> }
@@ -83,6 +100,28 @@ let loaded = false; // fetched-and-absent is an answer too
 let loading: Promise<void> | null = null;
 let log: OracleRecord[] | null = null;
 const saySessionCache = new Map<string, PairSay | null>();
+const tellSessionCache = new Map<string, TellShare | null>();
+// One bounded voter fetch per question per session, shared by every pair
+// that touches it — say() used to refetch both lists per NEW pair, and the
+// three-link card (2026-08-20 standalone) would have tripled that. The
+// names map is shared for the same reason resolveNames caches: crowds
+// overlap. Cleared with everything else on the purge event.
+const sayRowCache = new Map<string, Promise<{ uid: string; optionIdx: number }[]>>();
+const sayNames: Record<string, string> = {};
+function sayRows(qid: string): Promise<{ uid: string; optionIdx: number }[]> {
+  let p = sayRowCache.get(qid);
+  if (!p) {
+    p = (async () => {
+      const db = await getDb();
+      return fetchVoters(db, qid, null, sayNames);
+    })();
+    // a failed fetch must not be cached as the crowd — drop it so the next
+    // open retries (the loadVoters absent-vs-empty rule, applied here)
+    p.catch(() => { if (sayRowCache.get(qid) === p) sayRowCache.delete(qid); });
+    sayRowCache.set(qid, p);
+  }
+  return p;
+}
 const subs = new Set<() => void>();
 const notify = () => subs.forEach((f) => { try { f(); } catch { /* a broken listener must not stop the rest */ } });
 
@@ -246,17 +285,16 @@ export const PATTERNS = {
    * prototype's own rule, and the basis is stated. Null = nothing worth
    * saying (too few in both samples, or no lift anywhere). */
   async say(qidA: string, qidB: string): Promise<PairSay | null> {
-    const key = qidA < qidB ? `${qidA}:${qidB}` : `${qidB}:${qidA}`;
+    // Directional key: the sentence reads A → B, so a pair opened from the
+    // other end is a different sentence — the rows underneath are shared
+    // through sayRows, so either order still costs one fetch per question.
+    const key = `${qidA}>${qidB}`;
     if (saySessionCache.has(key)) return saySessionCache.get(key) ?? null;
     const items = pool();
     const A = items.find((p) => p.q.id === qidA);
     const B = items.find((p) => p.q.id === qidB);
     if (!A || !B) return null;
-    const db = await getDb();
-    const [va, vb] = await Promise.all([
-      fetchVoters(db, qidA, null, {}),
-      fetchVoters(db, qidB, null, {}),
-    ]);
+    const [va, vb] = await Promise.all([sayRows(qidA), sayRows(qidB)]);
     const bByUid = new Map(vb.map((v) => [v.uid, v.optionIdx]));
     const cells = [[0, 0], [0, 0]];
     let both = 0;
@@ -280,6 +318,8 @@ export const PATTERNS = {
             best = {
               pick: A.q.options[x]?.label ?? "",
               then: B.q.options[y]?.label ?? "",
+              pickIdx: x as 0 | 1,
+              thenIdx: y as 0 | 1,
               pct: Math.round(cond * 100),
               base: Math.round(base * 100),
               both,
@@ -290,6 +330,26 @@ export const PATTERNS = {
     }
     saySessionCache.set(key, best);
     return best;
+  },
+  /** The Oracle's evidence line (2026-08-20 standalone): among the people
+   * in both bounded samples who took `evIdx` on the evidence question, how
+   * the target splits. Null under 12 such people — a share from fewer says
+   * nothing (the say() floor, D146). Same shared row cache as say(). */
+  async tell(targetQid: string, evQid: string, evIdx: 0 | 1): Promise<TellShare | null> {
+    const key = `${targetQid}?${evQid}:${evIdx}`;
+    if (tellSessionCache.has(key)) return tellSessionCache.get(key) ?? null;
+    const [vt, ve] = await Promise.all([sayRows(targetQid), sayRows(evQid)]);
+    const tByUid = new Map(vt.map((v) => [v.uid, v.optionIdx]));
+    let n = 0;
+    let c0 = 0;
+    for (const v of ve) {
+      if (v.optionIdx !== evIdx) continue;
+      const t = tByUid.get(v.uid);
+      if (t === 0) { n += 1; c0 += 1; } else if (t === 1) { n += 1; }
+    }
+    const out: TellShare | null = n >= 12 ? { shares: [c0 / n, 1 - c0 / n], n } : null;
+    tellSessionCache.set(key, out);
+    return out;
   },
   VOTER_FETCH_CAP,
   ensureLive,
@@ -309,6 +369,9 @@ window.addEventListener("insight:local-purge", () => {
   loadings = null;
   loaded = false;
   saySessionCache.clear();
+  tellSessionCache.clear();
+  sayRowCache.clear();
+  for (const k of Object.keys(sayNames)) delete sayNames[k];
   notify();
 });
 

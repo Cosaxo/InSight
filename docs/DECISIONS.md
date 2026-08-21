@@ -22123,7 +22123,365 @@ light up by themselves the day live questions carry their tag. At
 month; the leaf step lands with its own gates (leaf ids in `sub`,
 stock-aware offers, budget counting) as its own change.
 
-## D214 · A settled report is spent, and the queue stopped ranking ghosts
+## D214 · The People lens joins the Patterns trial
+
+**Decided:** 2026-08-20 · **Status:** binding, inside D166 §1's trial
+clause. The owner, delivering a new standalone build (`InSight_1.html`,
+2026-08-20) whose Patterns tab carries a third lens, on the plan in
+[`docs/PEOPLE-MAP.md`](PEOPLE-MAP.md): *"here is the visual no start your
+work"*. That plan's §0 asked for exactly one owner sentence — People
+joining the trial — and this is it, with the design attached.
+
+### 1 · What was adopted
+
+The Patterns tab gains a **People** lens: the crowd as a shared map with
+no centre — every dot a real voter, placed by a device-side solve over
+the same published loadings the Map and the Oracle already read, you
+among them, exact agreement stated with its basis on tap. The lens joins
+the tab **inside the existing trial**: it lives in the same lazy chunk,
+so D166 §1's reversal price (one import site, one `TABS` entry) is
+unchanged, and removing the lens alone is one `LENSES` entry plus its
+two files. The trial's end-of-trial question (does Patterns earn a tab)
+now gets asked of the tab at its social best, which is half the reason
+PEOPLE-MAP.md recommended building it.
+
+### 2 · What shipped, and where the arithmetic lives
+
+`src/v2/data/peopleMap.ts` (pure fold + geometry, tested without a
+device) and `src/v2/ui/PatternsPeople.tsx` (states and pixels), wired as
+`PatternsTab.tsx`'s third lens. No new backend, no new collection, no
+rules change, no new read shape: at most `PEOPLE_QUESTIONS` bounded
+voter-list queries per session through `loadVoters`' existing session
+cache, shared with the who-voted sheet, Kindred and the pair card. The
+cost story, the reading contract and the deferred variants (plane
+switching, the published whole-world map) are PEOPLE-MAP.md §2, §6–§8 —
+that file's status line now records the built half.
+
+### 3 · Two transpositions from the prototype, recorded
+
+- **The placement floor's denominator moved.** The prototype gated
+  "placed" at max(4, 32% of ALL your answers), against a simulated crowd
+  whose shares had no ceiling. Live shares are bounded by the fetch cap,
+  so the ratio runs over the fetch horizon instead — against unbounded
+  history, an active viewer's floor would exceed the cap and nobody
+  could ever be placed. `peopleMap.ts` carries the why at the fold.
+- **No invented names.** The prototype dressed nameless accounts in a
+  32-name roster; live draws them unlabeled and their card says
+  "Someone" — the who-voted convention, and D167's rule that the demo
+  cast never reaches a live surface.
+
+### 4 · What the same upload contained and this decision does NOT adopt
+
+The 2026-08-20 standalone also reshapes the Map lens (`.qm-*`: tie
+rails, topic chips, a legend key), rebuilds the Oracle as a two-tile
+instrument that prints no number (`.or-*`), and gives People
+per-population views (world · circle) behind a `pt-sub` chip row. None
+of that is ported, none is refused — each needs its own extraction and
+plan the way v28 got one. The People pieces are preserved at
+`design/standalone-people-2026-08-20/`; its README lists the unported
+remainder so the next reader does not mistake this record for a verdict
+on it.
+
+## D215 · The Map and the Oracle take the 2026-08-20 standalone's shape
+
+**Decided:** 2026-08-20 · **Status:** binding, inside D166 §1's trial
+clause. The owner, completing what D214 deliberately left: *"yes port
+the new map and oracle visuals as well"*. The remaining two lenses of
+the 2026-08-20 standalone's Patterns tab are adopted; the sources join
+the People pieces at `design/standalone-2026-08-20/` (renamed from the
+narrower name D214's record cites, now that it holds the whole tab).
+
+### 1 · What shipped
+
+- **The Map** (`src/v2/ui/PatternsMap.tsx`): the neutral ink-on-paper
+  field where topic colour appears only where it means something (the
+  tapped web, an active topic filter, the next-up beacon), three
+  discrete dot sizes, the strongest-tie chain on the idle card, a
+  "you went the other way" line when your own answers break a pattern
+  you sit in — and the layout's real news, the **archipelago passes**
+  in `data/patternsMap.ts` (`planeOf`): label-propagation communities
+  of the drawn web become islands, exaggerated once and held through
+  the relax, with the declutter gap tightened (17 → `PATTERNS_MIN_GAP`
+  10.5) because tight clusters ARE the signal.
+- **The Oracle** (`src/v2/ui/PatternsOracle.tsx`): one instrument, no
+  card — the guess an ink disc sealed on the seam, confidence a height
+  and a size, evidence an ink density, the verdict a glyph (solid when
+  it had you, a ring when you broke it), the record a one-baseline
+  ledger that re-lays itself by topic in the done state. No percentage
+  prints anywhere; the store's bits still power every height.
+- **The shell** (`PatternsTab.tsx` + `src/v2/ui/patterns.css`): the
+  one sub-row under the ruler — topic chips on the Map, run progress on
+  the Oracle, held empty at height for People — and the standalone's
+  own sheet, shipped with the lazy chunk.
+- **The store half** (`data/patterns.ts`): `say()` now keys its cache
+  by DIRECTION (the sentence reads A→B; the reverse order is a
+  different sentence and used to return the first-seen orientation),
+  carries the option indices so the Map can read the viewer's breaks
+  without the store reading their votes, and fetches each question's
+  voter rows ONCE per session (`sayRows`) — three links sharing an
+  endpoint cost four bounded lists, not six, and the pinned
+  either-order test holds unchanged. `tell()` is new: the Oracle's
+  evidence sentence as a real crowd reading over the same cached rows,
+  refusing under 12 people in both samples.
+
+### 2 · What the port refused, and why
+
+- **Counted sentences without a basis.** The prototype's say cards and
+  evidence line print shares with no sample size — it counted an
+  invented population and had none to state. Live cards append "of the
+  N in both samples" (D146), the one line this port adds to the design.
+- **"Start over" on the done state.** The prototype resets its
+  simulation; a live answer cannot be unanswered, so the done state
+  says what the pool will do instead.
+- **The tap-anywhere advance.** A clickable `<div>` over the whole
+  instrument is the a11y ratchet's exact case (unreachable without a
+  mouse, `check:a11y` caught it at 0 → 2); Next already advances, so
+  only real controls take input and the ratchet stays at its baseline.
+- **The engine.** `question-map.js`'s SVD fit stays unported, as at
+  D166/D214: loadings come from the nightly server fit; only the
+  layout's archipelago passes were arithmetic worth taking.
+
+### 3 · Still unported, still deliberate
+
+The People lens's per-population views (world · circle chips). A circle
+cut needs the circle's uids joined against the placed crowd and its own
+thin-state reading — a design with no decision behind it. The sub-row
+holds its height so the day it arrives nothing jumps.
+
+### 4 · The gates' word
+
+Unit 1534 green with four new lens-level cases (seal-gates-the-tap, no
+percentage on the reveal, no Start over, stated bases on the Map's
+sentences); lint 0; rule-4 ratchet flat at 392; `check:a11y` back at
+its baseline after the div fix; shipping bundle 2395/2404 KB total,
+eager unchanged at 855/880 — everything rides the Patterns lazy chunk,
+so D166's reversal price is still one import site and one `TABS` entry.
+
+## D216 · The People lens gets its populations
+
+**Decided:** 2026-08-20 · **Status:** binding, inside D166 §1's trial
+clause. The owner, on D215 §3's one remaining unported piece: *"port the
+population chips as well"*. The 2026-08-20 standalone's Patterns tab is
+now ported whole.
+
+### 1 · What shipped
+
+The People lens's sub-row carries the standalone's population chips —
+**Circle · your country's code · World** — and the lens narrows WHO is
+placed, never what is counted: shared and agree are the same figures in
+every view, and each population reframes, de-overlaps and labels its own
+picture (`foldPeople` gains a `keep` filter and a `circle` set;
+membership only, the arithmetic untouched and pinned so). Country
+membership reads the frozen city anchor's code (`countryOf`, D8's
+snapshot — never the live profile); circle membership reads the capped,
+session-cached follows list the Mirror's Circle stop already loads.
+Circle members wear a **"your circle"** chip instead of demographics in
+every population — the prototype's own swap. No new read shape: one
+`loadFollows` on top of the same bounded voter lists.
+
+### 2 · Three transpositions, recorded
+
+- **The circle's crowd floor is its own** (`PEOPLE_MIN_CROWD_CIRCLE`,
+  1). The world floor of eight guards an ANONYMOUS crowd — eight
+  strangers is the least that reads as one. The prototype never met the
+  question (its circle was sixteen invented friends); a live circle is
+  FOLLOW_CAP-bounded named people the viewer chose, each drawn with its
+  stated basis, so the view draws from the first placeable friend, and
+  its empty state names the real cause ("Nobody from your circle is
+  placed here yet") instead of the stranger line.
+- **The tie clause says "overall", not "here".** The share beside "You
+  both said X" is the fit's world marginal in every population — a
+  per-population share would be a new small-sample claim, and one word
+  keeps the sentence exactly true instead.
+- **The country chip only exists when it can be named.** The prototype
+  assumed a country; live, a viewer with no city anchor gets Circle ·
+  World and no unlabelable third stop.
+
+### 3 · The known limit, stated rather than discovered
+
+Every population filters the same universe: people found in the latest
+bounded samples of the questions the viewer answered. A circle member
+absent from those samples is not placed — the honest state says so, and
+the "you appear to each other as you both answer" line is literally the
+mechanism. If the circle view reads thin in practice, the door is the
+Circle stop's own read path (members' answers, `CIRCLE_ANSWER_CAP`) —
+a second rowsOf source for the fold, one bounded read per member, and
+its own decision when wanted.
+
+### 4 · The gates' word
+
+Unit green with eight population cases across the fold and the lens
+(filter-excludes, counts-invariant-under-filter, the chip swap, the
+circle floor, the circle empty state, the country cut); lint 0; rule-4
+flat; eager bundle unchanged — the chips live in the same lazy chunk as
+everything else on this tab.
+
+## D217 · Patterns is out of the v1 release, and the trial pauses with the mount
+
+**Decided:** 2026-08-20 · **Status:** binding · **Owner's call**, on the
+release thread: *"not of patterns yet as that is not sure to be shiped
+with the relese it is probebly released later"*, then "do these" over the
+offered removal. Written as D214 on its branch and renumbered on merge —
+main took D214–D216 for the People lens while the branch was open, the
+same collision D161–D165 record.
+
+D166 §1 adopted the third tab ON TRIAL and priced the reversal in
+advance: one `React.lazy` import site, one `TABS` entry, one branch in
+`daily-split.jsx`. This record spends exactly that price — and not as the
+trial's verdict. Nobody has the usage the trial's question needs
+(TestFlight has a handful of testers); the owner scoped v1 to the two
+tabs the pushed listing copy and the review argument already describe,
+and the store screenshots being recaptured the same day made the
+mismatch concrete: a capture-only run for the listing would have
+advertised a tab v1 does not ship.
+
+**The same-day irony, stated so it cannot read as a contradiction:**
+D214–D216 landed hours earlier from the parallel patterns thread — the
+People lens, the 2026-08-20 shapes, the population chips. They say what
+the tab IS; this record says when it SHIPS. Development continues on
+main against the same lazy chunk; the release build simply does not
+mount it. Both threads were the owner's, and this one merges after, so
+the unmount covers the tab as D214–D216 left it.
+
+**What changed**, revert-shaped on purpose, one commit:
+
+- `app-shell.jsx` — the lazy import, the `TABS` entry, the `NAV_ONE`
+  row, the `goNav` branch, the `data-view`/accent arms, the mount and
+  the tab-bar glyph. The bar is two tabs again.
+- `daily-split.jsx` — the ruler's near-end exit, the one external
+  dependence D166 licensed, springs back like any other edge instead of
+  navigating. The far-end Mirror exit stands.
+- `smoke-nav.test.jsx` — the two cases that walked the tab are replaced
+  by the two the unmount owes: the bar is two tabs, and the retired
+  `goNav('patterns')` key is refused quietly — a stale caller (a
+  remembered gesture, an old build's deep link) must land nowhere, not
+  on a boundary. `smoke-live`'s no-invented-people case left with the
+  mount and returns with it.
+
+**What deliberately stands:** `ui/PatternsTab.tsx` and the lens
+components under it, the patterns data layer and its tests (the Oracle
+seal stays pinned in `src/v2/data/patterns.test.ts`; the People lens's
+arithmetic in `peopleMap.test.ts`), and the nightly fit, which keeps
+publishing `v2_patterns/loadings` to a tab nothing mounts. Left running
+on purpose: it costs one scheduled function a night, keeps the corpus
+continuously real, and means the remount ships against live loadings on
+day one instead of an empty screen.
+
+**Remounting is a recorded decision too** — the import, the entry and
+the branch back, citing this record. A silent re-addition would be the
+same failure as the silent removal D166 forbade, in the direction that
+flatters the roadmap instead of the tree.
+
+## D218 · A continuum answer lives in two units, and the bucket arbitrates
+
+**Decided:** 2026-08-20 · **Status:** binding. Written as D217 on its
+branch and renumbered on merge — main took D217 for the release-scope
+call while the branch was open, the same collision D161–D165 and D217
+itself record. Owner report, off a
+device: the coffee dial ("How many coffees a day is too many?", 1–10)
+answered at 1 cup stood on the card as **"0 cups"** — a value its own
+axis cannot hold, the "you" dot off-screen left.
+
+### 1 · What was wrong
+
+A dial/field answer exists in two units, and deck.ts already said so:
+the answer doc's `optionIdx` is the **12-bucket index** ("a position on
+this range"), while the feed's local state and its WF_LS mirror hold the
+**control's units** — the drag's value on lo..hi, the field's point
+{x, y}. Three writers copied the index into the value's slot, and one
+reader did the reverse:
+
+- **world-feed's LIVE reconcile** (componentDidMount) copied
+  `myVotes()`'s number over local state on EVERY store notify — so the
+  card showed the picked value only until the next notify (the vote's
+  own ack, any agg poll), then flipped to the bucket index and the next
+  `wfSave` persisted it. This is the door the report came through:
+  1 cup → bucket 0 → "0 cups", standing.
+- **hydrate's WF_LS seeding** wrote `Number(optionIdx)` for every bank
+  answer the mirror lacked — the same wrong unit on every fresh device.
+- **editVote's refusal restore** put `Number(prev)` back into the
+  mirror — the index again, through the rarest door.
+- **`liveMine`** read local state (the raw value) as an option index
+  for the breakdown panel's "you" marker, so "7 cups" highlighted
+  bucket 7 while the answer lived in bucket 8.
+
+### 2 · The contract, recorded
+
+The store speaks indices; the feed speaks values; conversion happens at
+the boundary, in one direction per read:
+
+- The reconcile no longer copies a continuum id — the bucket
+  **arbitrates**: a local value that lands in the store's bucket is a
+  finer reading of the same answer and stays; anything else (no local
+  value, an edit from another device, a refused edit rolled back, or
+  copied-index residue the bucket math can tell apart) becomes the
+  bucket's **midpoint** — exactly what dialVal/fieldVal derive when only
+  the store knows. Vote-shaped cards keep the plain copy: the index IS
+  their unit.
+- hydrate seeds the mirror through `mirrorVoteValue` — midpoint for a
+  dial, cell point for a field, index for a vote — and the refusal
+  restore goes through the same helper. The midpoint math exists twice
+  (data/ cannot import the spec layer); vote.test.ts pins the values as
+  hand-computed literals so the twins cannot drift silently.
+- dialVal/fieldVal treat residue as absent and read the store instead:
+  a number OFF the card's range (dial), a non-point (field). Range is
+  the test because provenance is gone — **in-range residue is
+  indistinguishable from a real drag and stands**, the known limit; the
+  reconcile converges it on the next notify wherever
+  `bucket(residue) ≠ storedBucket`, and the user's next edit settles
+  the rest. `liveMine` reads the stored bucket for continuum cards.
+
+### 3 · The gates' word
+
+vote.test.ts: hydrate mirrors dial/field/vote each in its own unit (the
+drift-pin literals), and a refused edit restores the standing bucket's
+midpoint. smoke-live mounts all three doors: the committed value
+survives the store's next notify, a store-only answer renders as its
+bucket's value and never its index, and the reported device's exact
+residue (mirror 0, store bucket "0", 1–10 axis) heals to "1 cups".
+
+## D219 · The wall comes down for the store build: D134's fork, resolved
+
+**Decided:** 2026-08-20 · **Status:** binding · Owner's call on the
+release thread, with the condition stated first and checked before the
+flip: *"we can do a as long as that means that everyone has a account
+and question can be attribute to a spesific user that cant easly create
+duplicate acounts"*.
+
+The condition holds without the wall, and the wall was never what
+provided it:
+
+- **Every install gets a real account regardless.** Anonymous-first
+  (D3) signs the device in at first launch; every answer is owner-bound
+  to that uid by rules, and D98 publishes the attribution. There is no
+  no-account mode to fall into — the wall only gated WHICH account
+  starts things, and the gate always LINKED the existing session rather
+  than replacing it.
+- **Duplicate resistance never came from the wall** — a second Google
+  account is minutes. It comes from App Check on the account-creation
+  surface and from D29's device binding: one counted account per
+  physical device per calendar month, held in bits Apple keeps across
+  reinstalls. That layer is shipped end to end and soft; it hardens
+  when the owner's DeviceCheck key and the two native bridges land
+  (DEVICE-BIND.md), then flips per D37's sequence — trailing the
+  launch by design, which the runbook already classifies as a working
+  state.
+
+**What changed:** `ios-release.yml`'s default flips from `|| 'true'` to
+`|| 'false'`, so the DEFAULT is the release posture and the repo is the
+record — reviewable, unlike a settings-page variable, and set where the
+next reader will look. The variable survives as the override for a
+deliberately walled test build. The old default also contradicted its
+own comment, which promised that UNSET compiles to a pass-through while
+`|| 'true'` made unset mean walled; expression and comment now agree.
+
+**Not done, deliberately:** Sign in with Apple stays un-pre-built
+(SHIP-CHECKLIST §4.8's standing call) — added only if a reviewer
+insists, inside the rejection round 6.2 already budgets. Build 23 is
+the first build this applies to; 22 and earlier ship the wall and are
+superseded by it.
+
+## D220 · A settled report is spent, and the queue stopped ranking ghosts
 
 **2026-08-20.** **Status:** binding. Found by audit, not in service —
 there is no traffic yet, which is the only reason this is a fix rather
@@ -22214,9 +22572,9 @@ the floor of 3, holds two flags forever and nothing ever settles it. At
 100k flags — unchanged by this record, and the reason the retention
 decision is still owed.
 
-## D215 · Four things nothing was standing behind
+## D221 · Four things nothing was standing behind
 
-**2026-08-20.** **Status:** binding. The audit pass that produced D214,
+**2026-08-20.** **Status:** binding. The audit pass that produced D220,
 continued. Four unrelated defects with one thing in common: in each, a
 property the code states in prose had nothing underneath it — no gate, no
 executing test, and in two cases a test that had been quietly disarmed.
@@ -22329,13 +22687,13 @@ exported for the first time, for the test.
 
 Every one of these passed all four runners and 35 gates. Two carried a test
 that had been disarmed without anyone noticing: the TZ case that could not
-see a zone, and `LiveRoomTabs.test.tsx`'s `type: "Host"` in D214's item 3.
+see a zone, and `LiveRoomTabs.test.tsx`'s `type: "Host"` in D220's item 3.
 A test that cannot fail is worse than no test, because it is counted. Every
 fix here was reverted after the fact to confirm its test goes red.
 
-## D216 · One rounding rule, and it stopped drawing three votes above four
+## D222 · One rounding rule, and it stopped drawing three votes above four
 
-**2026-08-20.** **Status:** binding. Follows D215 §1, which fixed the
+**2026-08-20.** **Status:** binding. Follows D221 §1, which fixed the
 `scale` headline by routing it through `pctFor` and explicitly did NOT
 touch `pctFor` itself — the fix needed `wfPcts` to move in the same
 commit, and this is that commit.
@@ -22422,10 +22780,10 @@ than merely red.
   list of hand-picked cases. Reverting `sharePcts` fails seven cases
   across both surfaces.
 
-## D217 · The long tail, and the two things it declined to build
+## D223 · The long tail, and the two things it declined to build
 
 **2026-08-20.** **Status:** binding. The rest of the audit that produced
-D214–D216, worked through in seven commits. Nothing here is a new idea;
+D220–D222, worked through in seven commits. Nothing here is a new idea;
 it is the tail of one pass, recorded together because the items share a
 diagnosis and because two of them were declined and that needs to be
 written down rather than left as silence.
@@ -22433,7 +22791,7 @@ written down rather than left as silence.
 ### The diagnosis, once more
 
 Every item was a property the repo states somewhere and nothing
-underneath enforces. That is D215's finding, and the tail is where it
+underneath enforces. That is D221's finding, and the tail is where it
 shows as VOLUME rather than as severity:
 
 - `functions/README.md` described a geohash5 aggregator with a
@@ -22444,7 +22802,7 @@ shows as VOLUME rather than as severity:
 - `src/v2/README.md` said "one suite each, mutation-checked" about
   `ui/`. Nine panels had none.
 - `world-feed-math.test.js` ASSERTED "a maximal bucket stays maximal"
-  with four hand-picked vectors (D216).
+  with four hand-picked vectors (D222).
 - `MONITORING.md` named "which of the other 12 functions has no alert"
   as a question. Both nightly jobs already emitted their metric; nothing
   read it.

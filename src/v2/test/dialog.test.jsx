@@ -47,7 +47,7 @@ afterEach(() => {
 // `opener` is captured BEFORE the click, because the whole focus-restore
 // assertion is about returning to it.
 //
-// ASYNC since D217. Both of these overlays moved into the after-first-paint
+// ASYNC since D223. Both of these overlays moved into the after-first-paint
 // chunk, so the header button awaits `loadOverlays()` before setting the
 // state that mounts one — the click no longer paints in the same tick.
 // This is the app's real behaviour, not a test artifact: a synchronous

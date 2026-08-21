@@ -166,7 +166,7 @@ export async function awaitNode(selector, max = 50) {
  * Open the profile or search overlay from the header, and wait for it.
  *
  * ASYNC, and that is the app rather than the harness. Both overlays moved
- * into the after-first-paint chunk at D217, so the header button awaits
+ * into the after-first-paint chunk at D223, so the header button awaits
  * `loadOverlays()` before setting the state that mounts one — a click no
  * longer paints in the same tick. Fourteen call sites asserted
  * synchronously against a DOM that had not been written yet; one helper is

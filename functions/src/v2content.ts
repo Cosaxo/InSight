@@ -2604,6 +2604,42 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null
  },
  {
+  "id": "daily-122",
+  "surface": "daily",
+  "seq": 122,
+  "type": "binary",
+  "domain": null,
+  "prompt": "The team you support: inherited, or chosen?",
+  "options": [
+   "Inherited",
+   "Chosen"
+  ],
+  "topic": "blend",
+  "branch": "Sport",
+  "sub": "Rooting",
+  "tag": "How you got them",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-123",
+  "surface": "daily",
+  "seq": 123,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Rewatch a favourite, or risk something new?",
+  "options": [
+   "Rewatch",
+   "Risk it"
+  ],
+  "topic": "light",
+  "branch": "Film",
+  "sub": "How you watch",
+  "tag": "Rewatch or risk",
+  "axis": null,
+  "test": null
+ },
+ {
   "id": "feed-f01",
   "surface": "feed",
   "seq": 0,

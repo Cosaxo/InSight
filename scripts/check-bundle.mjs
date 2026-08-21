@@ -747,7 +747,7 @@ const MAX_TOTAL_JS_KB = 2404;
 const MAX_EAGER_KB = 880;
 
 // THE BYTES THAT ARE NOT JAVASCRIPT, which this gate could not see at all
-// until D217. It weighed dist/assets/*.js exclusively, so the stylesheet —
+// until D223. It weighed dist/assets/*.js exclusively, so the stylesheet —
 // render-blocking, shipped on every paint — and the whole font directory
 // sat outside every ceiling in the repo. An audit found 12 italic
 // @font-face blocks and four woff2 files, 66 KB, for a voice styles.css

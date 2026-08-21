@@ -1,11 +1,11 @@
 {
-  "generatedAt": "2026-08-20T07:17:43.355Z",
-  "daysSinceEpoch": 19,
+  "generatedAt": "2026-08-21T07:14:57.769Z",
+  "daysSinceEpoch": 20,
   "coverage": {
-    "questions": 208,
+    "questions": 214,
     "scored": 0,
-    "belowFloor": 6,
-    "unserved": 103
+    "belowFloor": 10,
+    "unserved": 102
   },
   "topics": {
     "Sport": {
@@ -145,7 +145,7 @@
       "avgEvenness": null
     },
     "food": {
-      "questions": 11,
+      "questions": 12,
       "scored": 0,
       "answers": 0,
       "strong": 0,
@@ -153,7 +153,7 @@
       "avgEvenness": null
     },
     "movies": {
-      "questions": 7,
+      "questions": 8,
       "scored": 0,
       "answers": 0,
       "strong": 0,
@@ -169,7 +169,7 @@
       "avgEvenness": null
     },
     "music": {
-      "questions": 6,
+      "questions": 7,
       "scored": 0,
       "answers": 0,
       "strong": 0,
@@ -177,7 +177,7 @@
       "avgEvenness": null
     },
     "event": {
-      "questions": 8,
+      "questions": 9,
       "scored": 0,
       "answers": 0,
       "strong": 0,
@@ -185,7 +185,7 @@
       "avgEvenness": null
     },
     "people": {
-      "questions": 5,
+      "questions": 6,
       "scored": 0,
       "answers": 0,
       "strong": 0,
@@ -193,7 +193,7 @@
       "avgEvenness": null
     },
     "bigq": {
-      "questions": 11,
+      "questions": 12,
       "scored": 0,
       "answers": 0,
       "strong": 0,
@@ -254,7 +254,7 @@
         "avgEvenness": null
       },
       "vote": {
-        "questions": 69,
+        "questions": 74,
         "scored": 0,
         "answers": 0,
         "strong": 0,
@@ -262,7 +262,7 @@
         "avgEvenness": null
       },
       "dial": {
-        "questions": 6,
+        "questions": 7,
         "scored": 0,
         "answers": 0,
         "strong": 0,
@@ -297,7 +297,7 @@
     "bySource": {
       "editorial": {
         "questions": 176,
-        "served": 93,
+        "served": 94,
         "scored": 0,
         "answers": 0,
         "strong": 0,
@@ -305,8 +305,8 @@
         "avgEvenness": null
       },
       "farm": {
-        "questions": 32,
-        "served": 12,
+        "questions": 38,
+        "served": 18,
         "scored": 0,
         "answers": 0,
         "strong": 0,
@@ -317,7 +317,7 @@
     "byVintage": {
       "editorial:prototype": {
         "questions": 118,
-        "served": 84,
+        "served": 85,
         "scored": 0,
         "answers": 0,
         "strong": 0,
@@ -386,13 +386,22 @@
         "strong": 0,
         "landslides": 0,
         "avgEvenness": null
+      },
+      "farm:2026-08-20": {
+        "questions": 6,
+        "served": 6,
+        "scored": 0,
+        "answers": 0,
+        "strong": 0,
+        "landslides": 0,
+        "avgEvenness": null
       }
     }
   },
   "retireProposals": [],
   "learn": {
     "coverage": {
-      "cards": 126,
+      "cards": 136,
       "scored": 0,
       "belowFloor": 10
     },
@@ -416,7 +425,7 @@
         "avgAbsGap": null
       },
       "evo": {
-        "cards": 8,
+        "cards": 13,
         "scored": 0,
         "answers": 0,
         "avgAbsGap": null
@@ -446,7 +455,7 @@
         "avgAbsGap": null
       },
       "earth": {
-        "cards": 8,
+        "cards": 13,
         "scored": 0,
         "answers": 0,
         "avgAbsGap": null
@@ -2110,6 +2119,136 @@
         "trapShare": null,
         "wrongCount": 0,
         "signal": "no-answers"
+      },
+      {
+        "qid": "learn-ear9",
+        "field": "earth",
+        "n": 4,
+        "prompt": "The second-highest mountain on Earth is…",
+        "total": 0,
+        "authoredP": 0.55,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-ear10",
+        "field": "earth",
+        "n": 4,
+        "prompt": "Which river carries the most water?",
+        "total": 0,
+        "authoredP": 0.48,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-ear11",
+        "field": "earth",
+        "n": 4,
+        "prompt": "Kilimanjaro, Africa's highest peak, is a…",
+        "total": 0,
+        "authoredP": 0.64,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-ear12",
+        "field": "earth",
+        "n": 4,
+        "prompt": "The river that carved the Grand Canyon is the…",
+        "total": 0,
+        "authoredP": 0.42,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-ear13",
+        "field": "earth",
+        "n": 4,
+        "prompt": "Which mountains draw the classic Europe–Asia line?",
+        "total": 0,
+        "authoredP": 0.58,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-evo9",
+        "field": "evo",
+        "n": 4,
+        "prompt": "Onboard leftovers from an ancestor — those structures are…",
+        "total": 0,
+        "authoredP": 0.66,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-evo10",
+        "field": "evo",
+        "n": 4,
+        "prompt": "England's peppered moths turned dark because…",
+        "total": 0,
+        "authoredP": 0.61,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-evo11",
+        "field": "evo",
+        "n": 4,
+        "prompt": "Most of life's history on Earth was spent as…",
+        "total": 0,
+        "authoredP": 0.71,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-evo12",
+        "field": "evo",
+        "n": 4,
+        "prompt": "Lucy, the famous fossil, was a…",
+        "total": 0,
+        "authoredP": 0.74,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
+      },
+      {
+        "qid": "learn-evo13",
+        "field": "evo",
+        "n": 4,
+        "prompt": "In biology, \"the fittest\" is the one that…",
+        "total": 0,
+        "authoredP": 0.44,
+        "measuredP": null,
+        "gap": null,
+        "trapShare": null,
+        "wrongCount": 0,
+        "signal": "no-answers"
       }
     ]
   },
@@ -3476,11 +3615,11 @@
       ],
       "type": "dilemma",
       "prompt": "Would you rather know the exact date of your death?",
-      "served": false,
+      "served": true,
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "unserved"
+      "signal": "below-floor"
     },
     {
       "qid": "daily-020",
@@ -6180,7 +6319,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "no-answers"
+      "signal": "below-floor"
     },
     {
       "qid": "feed-f60",
@@ -6311,6 +6450,96 @@
       ],
       "type": "dial",
       "prompt": "At what age is an athlete past their peak?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "below-floor"
+    },
+    {
+      "qid": "feed-f68",
+      "surface": "feed",
+      "topic": "music",
+      "topics": [
+        "music"
+      ],
+      "type": "vote",
+      "prompt": "Mozart or Beethoven?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f69",
+      "surface": "feed",
+      "topic": "people",
+      "topics": [
+        "people"
+      ],
+      "type": "vote",
+      "prompt": "Would you take fame, if it were offered?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f70",
+      "surface": "feed",
+      "topic": "movies",
+      "topics": [
+        "movies"
+      ],
+      "type": "vote",
+      "prompt": "The best seat in the cinema?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f71",
+      "surface": "feed",
+      "topic": "event",
+      "topics": [
+        "event"
+      ],
+      "type": "vote",
+      "prompt": "Should the Olympics settle in one permanent home?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-dl7",
+      "surface": "feed",
+      "topic": "food",
+      "topics": [
+        "food"
+      ],
+      "type": "dial",
+      "prompt": "How many coffees a day is too many?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "below-floor"
+    },
+    {
+      "qid": "feed-f72",
+      "surface": "feed",
+      "topic": "bigq",
+      "topics": [
+        "bigq"
+      ],
+      "type": "vote",
+      "prompt": "Would you live forever, if you could?",
       "served": true,
       "total": 0,
       "evenness": null,

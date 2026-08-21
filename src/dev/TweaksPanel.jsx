@@ -1,6 +1,6 @@
 // The design-time Tweaks panel — DEV ONLY, and out of the shipped graph.
 //
-// Moved here from src/v2/spec/tweaks-panel.jsx (D217). Production could
+// Moved here from src/v2/spec/tweaks-panel.jsx (D223). Production could
 // never open it: the only `setOpen(true)` is behind
 // `if (!import.meta.env.DEV) return`. But it shared a module with
 // `useTweaks`, which app-shell reads on every render, so ~11.8 KB of
