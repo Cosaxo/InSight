@@ -1,9 +1,12 @@
 # Paid questions, reports and cohort subscriptions — the plan
 
-**Status: plan, except §3's aggregate half — built at
-[D226](DECISIONS.md#d226--the-edit-flow-matrix--second-thoughts-become-a-published-number)
-(2026-08-22).** Requested by the owner 2026-08-21; everything else below
-is unbuilt and binds nothing. This page extends the recorded revenue
+**Status: plan, except §3's aggregate half
+([D226](DECISIONS.md#d226--the-edit-flow-matrix--second-thoughts-become-a-published-number))
+and §4's logic cut
+([D227](DECISIONS.md#d227--the-logic-cut--the-who-voted-sheet-groups-answers-by-the-verified-score))
+— both built 2026-08-22.** Requested by the owner 2026-08-21; everything
+else below is unbuilt and binds nothing. This page extends the recorded
+revenue
 paths ([`MONETIZATION.md`](MONETIZATION.md) paths 1–2, re-derived in
 [`SCALE-PLAN.md`](SCALE-PLAN.md) §5 and `NEXT-FUNCTIONALITY.md` §6's
 paid half) into the shape the owner asked for: **a buyer gets a
@@ -171,6 +174,12 @@ Either way the artifact is public data about people: a
 `check:policy-claims` holding it (D183's discipline).
 
 ## 4 · The logic score — filterable, never targetable
+
+**BUILT (D227, 2026-08-22)** — as the Logic cut on the who-voted sheet,
+the D146 type-cut shape: bands are quarters of the verified percentile,
+drawn in scale order with the type cut's own floors, the untested thin
+the basis and are never a band, and the privacy disclosure moved in the
+same commit. The boundaries below stand exactly as written.
 
 `testResults.logic` is server-written (D57), world-readable (D98), and
 the who-voted sheet already batch-resolves voter profiles — the D112

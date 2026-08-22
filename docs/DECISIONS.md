@@ -23072,3 +23072,70 @@ does not unwind it (index.ts phase 1b's principle).
   what it was — optionIdx + editedAt, daily/feed/test, 60s cooldown —
   and the rules did not move. What changed is what the server counts
   about an edit, not what a client may write.
+
+## D227 · The logic cut — the who-voted sheet groups answers by the verified score
+
+**2026-08-22.** **Status:** binding, built. Owner's call on the
+paid-reports thread ("do this", over PAID-PLAN.md §4's quick-win
+paragraph): the logic score becomes a cut on who voted. Same day as
+D226; the two are independent builds from the same plan.
+
+### What ships
+
+A **Logic** chip on the who-voted sheet (`LiveBreakdownPanel`), beside
+D146's Type chip and built on its exact rails: a client fold
+(`data/logicSplit.ts`) over the session's bounded voter sample, grouping
+by **quarters of the verified logic percentile** (`testResults.logic
+.pctile`, server-written D57) and redrawing the question's own options
+with each band's numbers.
+
+- **Zero extra reads, by construction.** The percentile is the third
+  rider on the profile document `resolveNames` already fetches for a
+  name (D112's argument, verbatim: no field mask, so it was on the wire
+  regardless). It rides the D129 persisted cache as `l` beside `n`/`s`
+  — same absent/null doctrine — and a cache written before this record
+  self-heals: the missing key puts the uid back through one profile
+  read, then holds. `profile-cache.test.ts` pins the round trip, the
+  healing, and that "untested" is a cached null rather than a refetch.
+- **The type cut's honesty rules, unchanged and shared.** Same rank and
+  shares floors (imported, not copied — four bands cut the same sample
+  more coarsely than the archetypes, so floors sized for the finer cut
+  hold a fortiori), counts under the floor, the basis stated under the
+  bars with both denominators, no roster (D149), never offered to a
+  continuum body. Two of its own: bands render in **scale order**, never
+  popularity order (a score scale re-sorted by n stops being a scale),
+  and the band guard is a **type test** — a row that never carried the
+  field reads as untested, because the falling-through alternative
+  files every legacy row in the bottom quarter, the one wrong answer
+  worse than none. `logicSplit.test.ts` pins both, plus the quartile
+  boundaries; the panel suite grew seven cases.
+- **Quarters, not scores.** A 63-vs-64 split is noise dressed as
+  insight, and anything finer drifts toward a leaderboard of strangers'
+  intelligence. The percentile rather than the marks because form eras
+  never mix (D61) and the percentile is the number the server computed
+  to be comparable.
+
+### The promise this narrows, and how it was moved
+
+`web/privacy.html` said answers are grouped by the Big Five "and only
+the Big Five is." That sentence is now false and was **amended in the
+same commit**: politics, values and social still never group answers
+(the pinned D146 half survives verbatim, and `typeSplit.SPLIT_TEST`
+still owns the instrument scope untouched); what groups answers is the
+Big Five and, separately, the verified logic score in four broad bands.
+A new `check:policy-claims` row pins the new half, so neither sentence
+can vanish quietly — the D202 discipline, third application. The
+data-inventory rows for `testResults` and the logic score both state
+the new scope, and the logic row says the honest exit plainly: not
+taking the test is not appearing in the cut.
+
+### What deliberately does not ship
+
+- **Not a breakdown dim.** `agg.by.logicBand` would publish per-city
+  intelligence readings — a census-grade product claim with D8-sized
+  consequences, not a filter. The cut is a bounded client sample that
+  says its basis, exactly like the type cut it mirrors.
+- **Not in the audience vocabulary.** Buyable cohorts stay the
+  published dims (D164; PAID-PLAN.md §4's fence): "ask only the smart
+  ones" is the precise-targeting compounding NEXT-FUNCTIONALITY §6
+  refuses, and this record does not move it.

@@ -319,6 +319,10 @@ const state = {
   // the whole document was on the wire whenever a name resolved — this
   // keeps what was already paid for). null = fetched, nothing usable.
   scores: {} as Record<string, ParsedResults | null>,
+  // The verified logic percentile, third rider on the profile read (D227
+  // — the who-voted sheet's Logic cut). Same absent/null doctrine as
+  // `scores`: absent = never fetched, null = fetched and untested.
+  logicPcts: {} as Record<string, number | null>,
   // uid → Storage download token for their photo, "" for none and for a
   // HIDDEN one (D178). Beside names and scores because it is filled by
   // the same batched read and has exactly their lifetime — a session
@@ -553,6 +557,7 @@ function loadProfileCache(): void {
     const now = Date.now();
     for (const [uid, v] of Object.entries(raw.e as Record<string, {
       n?: string; s?: Record<string, Record<string, number>> | null; t?: number;
+      l?: number | null;
     }>)) {
       if (!v || typeof v.t !== "number" || now - v.t > PROFILE_TTL_MS) continue;
       state.names[uid] = typeof v.n === "string" ? v.n : "";
@@ -560,6 +565,11 @@ function loadProfileCache(): void {
       // fetched (so resolveNames must ask), null = fetched and this account
       // has no usable results. Only the second is cacheable.
       if (v.s !== undefined) state.scores[uid] = v.s;
+      // Same doctrine for the logic percentile (D227). An entry written
+      // before D227 simply lacks the key, which leaves the uid absent from
+      // `logicPcts` — resolveNames then refetches that profile once and
+      // the cache self-heals.
+      if (v.l !== undefined) state.logicPcts[uid] = typeof v.l === "number" ? v.l : null;
       // THE FACE IS DELIBERATELY NOT CACHED ACROSS SESSIONS (D178). A
       // token held past a remove verdict would go on drawing a face
       // moderation took down, for as long as the TTL — which is the one
@@ -583,7 +593,9 @@ function writeProfileCache(): void {
       .slice(0, PROFILE_CACHE_CAP);
     const e: Record<string, unknown> = {};
     for (const u of uids) {
-      e[u] = { n: state.names[u], s: state.scores[u], t: profileSeen.get(u) ?? now };
+      // `l: undefined` serializes away, so a uid absent from `logicPcts`
+      // stays absent on disk — the absent/null line survives the round trip.
+      e[u] = { n: state.names[u], s: state.scores[u], l: state.logicPcts[u], t: profileSeen.get(u) ?? now };
     }
     localStorage.setItem(PROFILE_LS, JSON.stringify({ owner: state.uid, e }));
   } catch {
@@ -2422,7 +2434,7 @@ const LIVE = {
     state.votersLoading[qid] = true;
     try {
       const db = await getDb();
-      state.voters[qid] = await fetchVoters(db, qid, state.uid, state.names, state.scores);
+      state.voters[qid] = await fetchVoters(db, qid, state.uid, state.names, state.scores, state.logicPcts);
       saveProfileCache();
     } catch (err) {
       // Leave the key ABSENT rather than caching an empty list. The two
@@ -2586,11 +2598,12 @@ const LIVE = {
   // first surface on a question has resolved them.
   async loadNames(uids: readonly string[]): Promise<void> {
     const want = uids.filter((u) => u
-      && (!(u in state.names) || !(u in state.scores) || !(u in state.faces)));
+      && (!(u in state.names) || !(u in state.scores) || !(u in state.faces)
+        || !(u in state.logicPcts)));
     if (!want.length) return;
     try {
       const db = await getDb();
-      await resolveNames(db, want, state.names, state.scores, state.faces);
+      await resolveNames(db, want, state.names, state.scores, state.faces, state.logicPcts);
       saveProfileCache();
     } catch (err) {
       reportError(err, { where: "loadNames" });
@@ -3059,13 +3072,16 @@ const LIVE = {
   // filterable to exactly the people the bars counted; a type is not an
   // anchor, so the dim/bucket scoping every other cut uses cannot reach
   // it (LiveVotersPanel's `uids`).
-  voterScores(qid: string): { uid: string; optionIdx: number; results: ParsedResults | null }[] | null {
+  voterScores(qid: string): { uid: string; optionIdx: number; results: ParsedResults | null; logic: number | null }[] | null {
     const rows = state.voters[qid];
     if (!rows) return null;
     return rows.map((r) => ({
       uid: r.uid,
       optionIdx: r.optionIdx,
       results: state.scores[r.uid] ?? null,
+      // The verified logic percentile (D227), joined the same way — the
+      // Logic cut's fold lives in data/logicSplit.ts, one module over.
+      logic: state.logicPcts[r.uid] ?? null,
     }));
   },
 
@@ -3910,8 +3926,10 @@ function resetForNewUid(uid: string): void {
   state.votersLoading = {};
   state.names = {};
   // Scores ride the name cache (D112) and carry the same reasoning: other
-  // people's data, held to save reads.
+  // people's data, held to save reads. The logic percentiles (D227) are
+  // the same rider one field over.
   state.scores = {};
+  state.logicPcts = {};
   state.faces = {};
   // Both are about WHO ANSWERED, so both belong to the outgoing account:
   // a surviving `learnSent` would suppress the new account's first-attempt
