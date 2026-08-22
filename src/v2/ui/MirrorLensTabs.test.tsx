@@ -2,8 +2,8 @@
 //
 // The lens row (D119, reshaped at D136) — the tab bar every live Mirror
 // stop is navigated by: Answers · People · Scores · Explore · Compare on
-// the geographic stops, and the three of those Circle, Groups and Near
-// carry since D190.
+// the geographic stops, and the three of them that Circle, Groups and
+// Near carry (D190).
 //
 // `check:panel-suites` files this panel as "routing, no reading of its
 // own". That is why it went unwritten and it is not a reason it cannot
@@ -164,8 +164,8 @@ describe("MirrorLensTabs · the indicator points at the open tab", () => {
     expect(at("world", "answers")).toEqual({ n: "5", x: "translateX(0%)" });
     cleanup();
     // Compare is last of five, so the indicator is four of its own widths
-    // along — the step a hard-coded `--n` or an off-by-one index shows up
-    // at most plainly.
+    // along — the step where a hard-coded `--n` or an off-by-one index
+    // shows up most plainly.
     expect(at("world", "compare")).toEqual({ n: "5", x: "translateX(400%)" });
   });
 
@@ -240,7 +240,7 @@ describe("MirrorLensTabs · the row never scrolls, so the labels shrink", () => 
     // 10.5). jsdom lays nothing out, so the ladder itself is the only
     // executable form of "every label fits" — and pinning it is what the
     // row was missing when Foresight arrived as a seventh tab and drew at
-    // the size six were measured at for two decisions running.
+    // the size six was measured at.
     const size = (n: number) => {
       cleanup();
       render(<MirrorLensTabs tabs={wide(n)} open="" onOpen={noop} />);
