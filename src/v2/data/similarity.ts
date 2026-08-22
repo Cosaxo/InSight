@@ -281,6 +281,26 @@ export function parseTestResults(
   return Object.keys(out).length ? out : null;
 }
 
+/**
+ * The verified logic percentile off a profile's raw `testResults`, or
+ * null. Beside parseTestResults because it is the same job on the same
+ * field — a cross-user read surviving whatever shape it meets — but it is
+ * deliberately NOT part of ParsedResults: that type is "kind → dim →
+ * 0..100" and every consumer iterates it (flattenAxes feeds the likeness
+ * metric), so smuggling a non-instrument key in would quietly move
+ * Kindred's arithmetic. The logic result is also the one server-written
+ * entry (D57), so shape defense here is about strangers' documents in
+ * general, not about forgeability.
+ */
+export function parseLogicPct(raw: unknown): number | null {
+  if (!raw || typeof raw !== "object") return null;
+  const logic = (raw as { logic?: unknown }).logic;
+  if (!logic || typeof logic !== "object") return null;
+  const pct = Number((logic as { pctile?: unknown }).pctile);
+  if (!Number.isFinite(pct)) return null;
+  return Math.max(0, Math.min(100, Math.round(pct)));
+}
+
 // ── likeness ─────────────────────────────────────────────────────────
 
 /**

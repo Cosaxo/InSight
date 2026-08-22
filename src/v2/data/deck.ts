@@ -144,6 +144,13 @@ export interface AggDoc {
   // no answers in it — nothing is suppressed, so absent means zero and the
   // UI may draw it as such.
   by?: Record<string, Record<string, Record<string, number>>>;
+  // The edit-flow matrix (D226): from-option → to-option → count of D86
+  // edits, folded server-side beside the -old/+new move. Counts MOVES,
+  // not people (an answer edited twice appears under two pairs). Present
+  // only once a question has ever been edited — absent means "never
+  // edited", and nothing in the client renders it yet: it is here so the
+  // published doc's shape is stated where every other field's is.
+  edits?: Record<string, Record<string, number>>;
 }
 
 // The viewer-relative slice of store state a card needs: the question's

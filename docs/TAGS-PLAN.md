@@ -196,10 +196,10 @@ question keeps its public per-question aggregate — the honest split is
 what the buyer bought — but its rows are **excluded from the topic
 rollups lanes 1–2 read**, because production allocation must not be
 buyable any more than the Mirror's corpus is. And `also` is **refused on
-sponsored questions outright** (`check-content.mjs`, beside the rule
-that already holds `sponsor.audience` to one dim): a paid card reaches
-the audience it declared, and a buyer who wants two audiences buys two
-windows.
+sponsored questions outright** (`check-content.mjs`, beside the
+audience-tag rule — one dim at D195, one to three since D228): a paid
+card reaches the audience it declared, and a buyer who wants two
+audiences buys two windows.
 
 Downstream of the same arithmetic:
 

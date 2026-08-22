@@ -102,6 +102,10 @@ export const CLAIMS = [
     /metadata is\s+stripped on your device/i],
   ["D3 · no ads, no third-party analytics",
     /no third-party analytics or tracking/i],
+  ["D226 · a changed answer is counted publicly as a move between options",
+    /moves from one option to another/i],
+  ["D227 · the verified logic score also groups answers, in broad bands",
+    /verified logic score, in four broad\s+bands/i],
 ];
 
 /** Labels of every claim the given page source fails to state. */

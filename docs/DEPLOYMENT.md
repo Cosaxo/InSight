@@ -493,10 +493,16 @@ attribution, subtraction, republication, in that order.
    decrement `counts[optionIdx]` (or `ent[entity]`) and `total` per
    attributed answer, and the `by`/`entBy` cells for the anchors on that
    answer doc — the snapshot-at-vote-time rule (D8) is what makes this
-   subtraction exact rather than approximate.
+   subtraction exact rather than approximate. If the uid's ledger
+   entries show more than one `optionIdx` for a qid, the extras are D86
+   edits: each consecutive pair (ordered by `at`) is one cell of the
+   `edits` matrix (D226) — decrement `edits[from][to]` per pair, so the
+   ring's second thoughts leave with its votes.
 4. **Republish through the same floors.** Rewrite
    `v2_question_aggs/{qid}` from the corrected private doc exactly as the
-   trigger would: `{ counts, total, by }`, exact and whole — since D98
+   trigger would: `{ counts, total, by }` plus `edits` when the
+   corrected private doc still holds one (D226 — emit-when-set, like the
+   trigger), exact and whole — since D98
    there is no floor, no `tooSmall` and no suppression to reproduce.
    A hand-written public doc that
    skips the floors is a worse incident than the one being corrected.

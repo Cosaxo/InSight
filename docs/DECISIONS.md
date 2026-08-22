@@ -23002,3 +23002,212 @@ version now sells "packaging over public numbers, never access the
 public does not have". `PAID-PLAN.md` §0/§2/§9–§11: the publish
 requirement and the embargo open-question are gone; the read-set test
 stays as the hard line.
+
+## D226 · The edit-flow matrix — second thoughts become a published number
+
+**2026-08-22.** **Status:** binding, built. Owner's call on the
+paid-reports thread ("then build the edit flow matrix"), adopting
+`PAID-PLAN.md` §3's **aggregate half** — the one item of that plan §9
+ranks ahead of demand evidence, because it loses data every day it
+waits: an edit that happens before the trigger folds flows is
+unrecoverable, and nothing can backfill what was never recorded. Flows
+therefore ACCRUE from this deploy forward; every D86 edit before it is
+gone, which is the argument that put this first and the reason waiting
+longer had a price.
+
+### What ships
+
+One field on the aggregate docs: `edits` — from-option → to-option →
+count, folded by `onV2AnswerUpdated` beside the -old/+new move it
+already applies (`foldEditFlow`, `functions/src/pure.ts`).
+
+- **Moves, not people.** One person editing twice appears under two
+  pairs. Stitching moves into per-person journeys would need the
+  per-answer receipt the fold deliberately does not keep — and the
+  matrix is a statement about the question, not about anyone's path
+  through it. No diagonal cells (the trigger returns on from == to
+  before folding), and the map only grows: an edit is an event that
+  happened, so there is no -old/+new to commute and no clamp to guard.
+- **Folded after the retry guard.** A deferred edit (update delivered
+  before its create — `retargetCounts`'s false) throws before the fold,
+  so the eventual replay counts the move exactly once, on the delivery
+  that actually moves the vote.
+- **Carried through the whole-doc rewrites.** Both answer branches
+  write the agg docs with `merge: false`, so the create path now reads
+  and re-emits `edits` (emit-when-set — a never-edited question's doc
+  gains no key). This is the quiet-loss half of the build, and the e2e
+  pins it: step 7e asserts the published cell after the 1→0 move, and
+  the new 7f asserts the matrix survives the next create's rewrite.
+  `pure.test.ts` pins the arithmetic; the whole loop ran green against
+  the emulated trigger before this record was written.
+
+### The trail, because it is data about people
+
+Public like everything beside it (D98), and said where the repo says
+such things: one sentence in `web/privacy.html` ("counts the change
+itself, as moves from one option to another — moves, not people"),
+pinned by a new `check:policy-claims` row; the `v2_question_aggs` row in
+`docs/data-inventory.md` extended; `SCHEMA-V2.md` states the field in
+both the answer-update contract and the public-doc shape; and the D28
+correction runbook (`DEPLOYMENT.md`) now subtracts a ring's pairs —
+reconstructable from the ledger's `at`-ordered per-event entries while
+they live — and carries `edits` through the republish, so an operator
+following it verbatim cannot drop the matrix. Erasure posture is the
+counts' own: an anonymous tally, not attributable, so `deleteAccount`
+does not unwind it (index.ts phase 1b's principle).
+
+### What deliberately does not ship
+
+- **The per-voter mark** (`firstOptionIdx` on the answer doc) —
+  `PAID-PLAN.md` §11 question 1, still the owner's open call. The
+  matrix needed no answer-doc change and no rules change; the mark is
+  both, and publishing a person's retracted opinion forever deserves
+  its own record, not a rider on this one.
+- **Client rendering.** Nothing draws `edits` yet; `deck.ts`'s `AggDoc`
+  states the field so the published shape is documented where every
+  other field's is. A "second thoughts" reading is a product decision
+  for later; the reports (`PAID-PLAN.md` §2) are its first intended
+  reader.
+- **D86 is not widened.** The client-writable edit surface is exactly
+  what it was — optionIdx + editedAt, daily/feed/test, 60s cooldown —
+  and the rules did not move. What changed is what the server counts
+  about an edit, not what a client may write.
+
+## D227 · The logic cut — the who-voted sheet groups answers by the verified score
+
+**2026-08-22.** **Status:** binding, built. Owner's call on the
+paid-reports thread ("do this", over PAID-PLAN.md §4's quick-win
+paragraph): the logic score becomes a cut on who voted. Same day as
+D226; the two are independent builds from the same plan.
+
+### What ships
+
+A **Logic** chip on the who-voted sheet (`LiveBreakdownPanel`), beside
+D146's Type chip and built on its exact rails: a client fold
+(`data/logicSplit.ts`) over the session's bounded voter sample, grouping
+by **quarters of the verified logic percentile** (`testResults.logic
+.pctile`, server-written D57) and redrawing the question's own options
+with each band's numbers.
+
+- **Zero extra reads, by construction.** The percentile is the third
+  rider on the profile document `resolveNames` already fetches for a
+  name (D112's argument, verbatim: no field mask, so it was on the wire
+  regardless). It rides the D129 persisted cache as `l` beside `n`/`s`
+  — same absent/null doctrine — and a cache written before this record
+  self-heals: the missing key puts the uid back through one profile
+  read, then holds. `profile-cache.test.ts` pins the round trip, the
+  healing, and that "untested" is a cached null rather than a refetch.
+- **The type cut's honesty rules, unchanged and shared.** Same rank and
+  shares floors (imported, not copied — four bands cut the same sample
+  more coarsely than the archetypes, so floors sized for the finer cut
+  hold a fortiori), counts under the floor, the basis stated under the
+  bars with both denominators, no roster (D149), never offered to a
+  continuum body. Two of its own: bands render in **scale order**, never
+  popularity order (a score scale re-sorted by n stops being a scale),
+  and the band guard is a **type test** — a row that never carried the
+  field reads as untested, because the falling-through alternative
+  files every legacy row in the bottom quarter, the one wrong answer
+  worse than none. `logicSplit.test.ts` pins both, plus the quartile
+  boundaries; the panel suite grew seven cases.
+- **Quarters, not scores.** A 63-vs-64 split is noise dressed as
+  insight, and anything finer drifts toward a leaderboard of strangers'
+  intelligence. The percentile rather than the marks because form eras
+  never mix (D61) and the percentile is the number the server computed
+  to be comparable.
+
+### The promise this narrows, and how it was moved
+
+`web/privacy.html` said answers are grouped by the Big Five "and only
+the Big Five is." That sentence is now false and was **amended in the
+same commit**: politics, values and social still never group answers
+(the pinned D146 half survives verbatim, and `typeSplit.SPLIT_TEST`
+still owns the instrument scope untouched); what groups answers is the
+Big Five and, separately, the verified logic score in four broad bands.
+A new `check:policy-claims` row pins the new half, so neither sentence
+can vanish quietly — the D202 discipline, third application. The
+data-inventory rows for `testResults` and the logic score both state
+the new scope, and the logic row says the honest exit plainly: not
+taking the test is not appearing in the cut.
+
+### What deliberately does not ship
+
+- **Not a breakdown dim.** `agg.by.logicBand` would publish per-city
+  intelligence readings — a census-grade product claim with D8-sized
+  consequences, not a filter. The cut is a bounded client sample that
+  says its basis, exactly like the type cut it mirrors.
+- **Not in the audience vocabulary.** Buyable cohorts stay the
+  published dims (D164; PAID-PLAN.md §4's fence): "ask only the smart
+  ones" is the precise-targeting compounding NEXT-FUNCTIONALITY §6
+  refuses, and this record does not move it.
+
+## D228 · The buyer model: three dims, nameless if wanted, and the lens waits
+
+**2026-08-22.** **Status:** binding, built. Owner's three calls on the
+paid-reports thread, answering `PAID-PLAN.md` §11's open questions 2
+and 3 and adding one of his own: *"we can undo this decision if that is
+deemed sensible"* (the one-dim audience cap), and *"we don't need to
+print the company name that has paid for the question … and it can be
+individuals as well that might want to buy a question."* Same day as
+D226/D227; this one reshapes D195's buyer model rather than building a
+new surface.
+
+### 1 · The audience cap: one dim becomes one-to-three
+
+`sponsor.audience` now takes **one to three** dim → bucket entries from
+the published breakdown dims — the owner's example cohort ("men 20–30
+in the US") is exactly three — matched **conjunctively on the device**
+(`matches()` already iterated N entries; the cap was the whole change)
+with **every matched dim printed on the band** (`whyMatched` likewise).
+Three is the recorded coarseness ceiling: past it, compounding
+published dims starts shaping a person-sized query, which is the
+precise-targeting compounding `NEXT-FUNCTIONALITY.md` §6 refuses and
+this record does not touch. A key that is not a published dim matches
+nobody — `matches()` fails closed — so an unknown dim is unsellable
+inventory rather than a leak. Held by `check-content.mjs` (the D195
+one-tag rule, widened in place) and pinned by a `SponsorMark` test that
+asserts a three-dim purchase prints all three.
+
+### 2 · The buyer: individuals welcome, the name theirs, the word ours
+
+`sponsor.buyer` becomes **optional**. Companies and individuals both
+buy questions, and printing a person's name on every serve is theirs to
+want or to refuse — a nameless purchase simply omits the field
+(`check-content.mjs` refuses a blank string: "paid, namelessly" is an
+absence, never an empty name pretending to be one). The band renders
+from the block's **presence**: the word PAID, the window, and the
+audience line, with "The buyer" as the expanded copy's neutral noun —
+a noun, never a pseudonym.
+
+**What is deliberately NOT the buyer's to decline is the word PAID
+itself**, and the reasoning is recorded because the owner's ask could
+be read wider: one covert paid card would make every unpaid card
+suspect, so the marker is what keeps the free feed's honesty cheap to
+believe — it protects the house content more than it burdens the
+buyer. (It is also the consumer-law-shaped half: marking commercial
+content as commercial is the piece with legal weight; naming the buyer
+was always the app's own extra.) Removing the marker outright would be
+a different decision with different stakes, not taken here. Feed ADS
+are untouched: an ad without an advertiser is covert advertising, and
+D197's `advertiser` stays required. The contract-side purchase record
+always knows who paid; the card just may not say.
+
+### 3 · The Scores lens: report and place page first, the lens waits
+
+`PAID-PLAN.md` §11 question 3, resolved for v1: subscribed place
+metrics live in the **report and on a public place page**; the Scores
+lens does not mount them. If they ever mount, the recorded shape is a
+separate, disclosed band under the base scorecard — never mixed into
+the rows a reader takes as the app's own voice — and that mounting is
+its own decision, taken when a real subscription exists rather than
+ahead of one. The basic set stays editorial and unbuyable; tail-never-
+core stands.
+
+### The trail
+
+`check-content.mjs` rules; `data/sponsored.ts` `Sponsor` type;
+`ui/SponsorMark.tsx` nameless rendering plus its suite (PAID always,
+name when worn, all three dims printed); `SCHEMA-V2.md`,
+`content/README.md`, `MONETIZATION.md` path 2, `TAGS-PLAN.md` §3's
+parenthetical, and `PAID-PLAN.md` §§5–7/11 updated in the same commit.
+The bank still carries zero sponsored questions and the test asserting
+it stands — this record changes what may be sold, not what has been.
