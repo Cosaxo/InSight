@@ -472,6 +472,58 @@ was written either: nothing in `docs/` named any of the three runs or
 build 20's delivery until build 21's pre-flight read the run list.
 
 
+**Runs 34–36 delivered build 22 and the bump held; runs 37 and 38
+delivered build 23 and it did not** (D226, caught 2026-08-22). Both
+releases went out on 2026-08-20, and **neither was recorded** until this
+pre-flight read the run list — the D184 shape again, twice over.
+
+Build 22: run 34 (`32343292688`, 07:17:04Z) cancelled, run 35
+(`32343608284`, 07:21:11Z) step 17 `skipped` — the dry run — and run 36
+(`32344235798`, 07:29:16Z) `success`, 07:34:31Z → 07:36:04Z, 1m 33s of
+transfer. `UPLOAD SUCCEEDED with no errors`, delivery UUID
+`9da8aa74-295d-4c29-884f-c2d1f73e2187`, 6,067,024 bytes. All three
+archived `8a51773`, a pulse trail row. `appBuild` went 22 → 23 that
+evening in `1c13fb6` (#246) — the sixth bump to hold.
+
+Build 23: run 37 (`32407729599`, 19:15:59Z) step 17 `skipped` — the dry
+run — and run 38 (`32409230777`, 19:32:37Z) `success`, 19:37:30Z →
+19:38:52Z, 1m 22s of transfer. `UPLOAD SUCCEEDED with no errors`,
+delivery UUID `52d5a479-a4dd-4976-8f97-da9e381fad53`, 6,059,740 bytes.
+Sixth pair of this shape after 15/16, 23/24, 25/26, 27/28 and 32/33 — and
+the bump after it was skipped. Six that held (20, 21, 22, 28, 33, 36)
+against six skipped (18, 19, 24, 26, 31, 38).
+
+**Two releases sixteen hours apart on one working day, and the habit held
+for the first and not the second.** Nothing separates them except that
+build 22's number was read off step 17 and build 23's was not, which is
+D198's reading at its sharpest: the bump is not a follow-up task, it is
+the reading of step 17. Both uploads printed the workflow's own `Bump
+appBuild in package.json before the next run` line at step 18, so the
+reminder is not the missing part — it was on screen both times.
+
+**Build 23's two runs archived different commits, which is D159's trap
+firing on something that is not a pulse row.** Run 37 archived `1c13fb6`,
+run 38 archived `fe6a8e2`: D219 landed in the sixteen minutes between
+them, and what D219 moves is `ios-release.yml`'s `VITE_REQUIRE_SIGNIN`
+default, `'true'` → `'false'`. With `vars.REQUIRE_SIGNIN` unset — which
+is what D219 and 5.6's neighbour at 4.8 both assert — the dry run
+therefore archived a **walled** app and the upload shipped a **wall-less**
+one. `appBuild` was 23 at both, so the comparison this file is about cost
+nothing: the third worked example after runs 22 and 32/33, and the first
+where the commit in the gap is a feature rather than a Routine's trail
+row.
+
+**What it did cost is narrower than it reads, and worth stating exactly.**
+The diff between the two commits touches the build step's env and nothing
+after it — the plist write, the Ruby link step, the ad-hoc archive, the
+cloud-signed export and both entitlement gates are identical, so
+everything the dry run exists to prove was proven on the inputs the
+upload used. What went unrehearsed is the bundle: build 23 is the first
+wall-less build, and no dry run has ever archived that bundle. **A dry
+run derisks the signing, not the build** — and the two are the same run
+only when both dispatches name one commit.
+
+
 **Build 16's pre-flight found nothing to do either, which is the first
 time that has happened twice running** (D158, 2026-08-15). Run 21 was
 still the highest run in the list, its upload step still `success`,

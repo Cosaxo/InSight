@@ -23002,3 +23002,66 @@ version now sells "packaging over public numbers, never access the
 public does not have". `PAID-PLAN.md` §0/§2/§9–§11: the publish
 requirement and the embargo open-question are gone; the read-set test
 stays as the hard line.
+
+## D226 · Two releases shipped unrecorded, and the sixth skip is the one that costs
+
+**2026-08-22.** **Status:** binding. Found by build 24's pre-flight,
+which opened on a spent build number for the fourth time. Written on
+`claude/ios-release-prep-i8z3zb` — renumber on merge if main has minted
+D226 meanwhile, the D218/D224/D225 collision pattern.
+
+### What the run list said
+
+`appBuild` was 23 in the tree and 23 at run 38's `head_sha`, where step
+17 — `Upload to App Store Connect` — is `success`. Build 23 was
+delivered on 2026-08-20 at 19:38:52Z. A dispatch from this tree would
+have transferred a `.ipa` and then been refused for the build number,
+after the transfer: ~150 minutes of macOS quota at 10x, for an integer.
+
+Two releases were involved and **neither had a record in `docs/`** —
+not the run ids, not the deliveries, nothing. `IOS-RELEASE.md` now
+carries both, with the delivery UUIDs and byte counts read out of the
+logs rather than recalled.
+
+### The arithmetic
+
+Six bumps have held (runs 20, 21, 22, 28, 33, 36); six have been
+skipped (18, 19, 24, 26, 31, 38). Build 22 and build 23 went out
+sixteen hours apart on 2026-08-20 — the bump after the first was read
+off step 17 and held, the bump after the second was not made at all.
+That is D198's reading with the confounders removed: same tree, same
+day, same procedure written down in the same file, and the only
+difference is whether step 17's conclusion was read. Both uploads
+printed the workflow's own reminder at step 18, so the missing part is
+not a prompt.
+
+### What the pre-flight found that the procedure did not cover
+
+Build 23's dry run and its upload **archived different commits**. Run
+37 archived `1c13fb6`; run 38 archived `fe6a8e2`, D219's own commit,
+which landed in the sixteen minutes between the two dispatches. D159
+already names this trap and both prior instances were a pulse trail
+row — a JSONL line, semantically nothing. This one is a feature: D219
+flips `ios-release.yml`'s `VITE_REQUIRE_SIGNIN` default from `'true'`
+to `'false'`, so with the repository variable unset the dry run built a
+**walled** app and the upload shipped a **wall-less** one.
+
+**The loss is narrower than it first reads, and the boundary is the
+point.** The diff between the two commits touches the build step's env
+and nothing after it; the plist write, the link step, the ad-hoc
+archive, the cloud-signed export and both entitlement gates are
+identical. Everything the dry run exists to prove was proven on the
+inputs the upload used. What went unrehearsed is the bundle — build 23
+is the first wall-less build, and no dry run has archived that bundle.
+So: **a dry run derisks the signing, not the build**, and the two
+coincide only when both dispatches name one commit. Recorded rather
+than gated, because nothing in this tree can read the run list — the
+same reason D184 left the invariant a procedure.
+
+### The edits this record made
+
+`package.json` `appBuild` 23 → 24, with `check:versions --fix` writing
+it into `android/app/build.gradle` and `ios/App/App.xcodeproj`;
+`LAUNCH-RUNBOOK.md` 5.6's figure followed, because `check:figures` owns
+that number and went red until it did. `IOS-RELEASE.md` gains the
+build 22 and build 23 records.
