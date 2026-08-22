@@ -26,6 +26,7 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { installLive } from "./live-fixture";
 import { IS_TESTS, IS_TEST_RESULTS } from "../spec/test-definitions.js";
+import { PASSIVE } from "../spec/passive-progress.js";
 
 const LIKERT5 = ["Strongly disagree", "Disagree", "Neutral", "Agree", "Strongly agree"];
 
@@ -45,6 +46,7 @@ function bankFor(kind) {
 
 let ownProgress;
 let ownResult;
+let passiveStanding;
 let live;
 let demoResults;
 
@@ -52,6 +54,7 @@ beforeAll(async () => {
   // Imported here rather than at the top because result-card.jsx injects a
   // <style> at module scope — it needs the jsdom document to exist first.
   ({ ownProgress, ownResult } = await import("../spec/result-card.jsx"));
+  ({ passiveStanding } = await import("../spec/passive-meter.jsx"));
   demoResults = JSON.parse(JSON.stringify(IS_TEST_RESULTS));
 });
 
@@ -85,6 +88,10 @@ function withVotes(kind, picks) {
   const bank = bankFor(kind);
   live.LIVE.testFeedItems = () => bank;
   for (const [i, v] of Object.entries(picks)) live.votes[bank[i].id] = String(v);
+  // The real store notifies on every write and passive-meter.jsx holds its
+  // fold behind that signal; the fixture installs its own `subscribe`, so
+  // nothing here would reach the listener. PASSIVE's notify does.
+  PASSIVE.poke();
   return bank;
 }
 
@@ -148,5 +155,60 @@ describe("ownResult — a type appears once every axis is behind it", () => {
   it("refuses a half-answered one rather than drawing a type from it", () => {
     withVotes("big5", { 0: 4, 1: 4 });   // two items, both Openness
     expect(ownResult("big5")).toBeNull();
+  });
+});
+
+// ── the colour those same answers already justify (D230) ──────────────
+//
+// The fold reaching `ready` is what earns a TYPE, and the two cases above
+// pin that threshold. The colour is the other half: it comes from the same
+// dims long before they are ready, because a hue that moves with your
+// answers is not the claim a name is. What is asserted here is that it is
+// the CURRENT reading and not a family accent — the same answers moved to
+// different axes have to produce different hues, or the split is decorative.
+describe("passiveStanding — the two-tone split before there is a type", () => {
+  // Politics' items pair up by axis: 0,1 econ · 2,3 auth · 4,5 foreign ·
+  // 6,7 env. Extremes on one pair and dead-centre on the next make the
+  // first the dominant axis and the second the runner-up, which is exactly
+  // what the split is built from.
+  const HUES = { econ: 235, auth: 265, foreign: 195, env: 170 };
+
+  it("colours from the current fold, and names nothing", () => {
+    withVotes("political", { 0: 4, 1: 0, 2: 2, 3: 2 });   // econ extreme, auth neutral
+    const st = passiveStanding("political");
+    // Four answers of thirty: a type would be a claim, and there is none.
+    expect(ownResult("political")).toBeNull();
+    expect(st.standing).toBeNull();
+    // …and yet the row has a colour, and it is econ's over auth's.
+    expect(st.sp).not.toBeNull();
+    expect(st.sp.deep).toBe(`oklch(0.52 0.14 ${HUES.econ})`);
+    expect(st.sp.lift).toBe(`oklch(0.68 0.115 ${HUES.auth})`);
+    expect(st.col).toBe(st.sp.deep);
+  });
+
+  it("moves when the answers move", () => {
+    withVotes("political", { 4: 4, 5: 4, 6: 2, 7: 2 });   // foreign extreme, env neutral
+    const st = passiveStanding("political");
+    expect(st.sp.deep).toBe(`oklch(0.52 0.14 ${HUES.foreign})`);
+    expect(st.sp.lift).toBe(`oklch(0.68 0.115 ${HUES.env})`);
+  });
+
+  it("stays the flat category accent when nothing has been answered", () => {
+    withVotes("political", {});
+    const st = passiveStanding("political");
+    expect(st.sp).toBeNull();
+    expect(st.col).toBe(PASSIVE.META.political.accent);
+  });
+
+  it("still lets a stored result win, and name its type", () => {
+    // The demo persona's Politics result, put back on an account that has
+    // also answered four feed items. A stored result is a finished
+    // instrument; the fold is an estimate of the same thing from fewer
+    // answers, and ownResult's order has to hold for the colour too.
+    withVotes("political", { 4: 4, 5: 4, 6: 2, 7: 2 });
+    window.dispatchEvent(new CustomEvent("insight:test-results", { detail: demoResults }));
+    const st = passiveStanding("political");
+    expect(st.standing).toBe("Green Left");
+    expect(st.sp.deep).not.toBe(`oklch(0.52 0.14 ${HUES.foreign})`);
   });
 });

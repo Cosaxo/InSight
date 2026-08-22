@@ -39,6 +39,7 @@ import { FEED_OPTIONS, PATH_TITLE, fixtureSurfaceMismatch, installLive } from ".
 import { awaitText, growFeed, openHeaderOverlay } from "./mount-app";
 import { list as anchorList } from "../spec/map-anchors.js";
 import { IS_TESTS, IS_TEST_RESULTS } from "../spec/test-definitions.js";
+import { PASSIVE } from "../spec/passive-progress.js";
 import { IS_ARCHETYPES } from "../spec/archetype-data.js";
 import { resetNormCache } from "../data/testNorms";
 import { FRIENDS } from "../spec/follows.js";
@@ -1661,5 +1662,83 @@ describe("live mode never inherits the sample persona (D55)", () => {
     expect(Object.keys(IS_TEST_RESULTS)).toEqual(["values"]);
     expect(IS_TEST_RESULTS.political, "a demo result survived hydration")
       .toBeUndefined();
+  });
+});
+
+// ── the colour an instrument wears before it has a type (D230) ────────
+//
+// `TestProgress` (profile-overlay.jsx) is the card that stands where a
+// result would be, and it is LIVE-ONLY BY CONSTRUCTION: `ownProgress`
+// returns null without a live store, so every demo smoke mount walks past
+// this branch without executing a line of it. It draws the two-tone split
+// now — deep base, the runner-up axis' lighter tone laid on its right —
+// and that is a SHAPE, which is the class of thing check:globals, eslint
+// and tsc are all blind to and only a render can see. The hues themselves
+// are pinned at the fold (test/passive-fold-live.test.jsx); what is pinned
+// here is that the second tone reaches the DOM, and that it is absent when
+// there is nothing behind it.
+describe("the filling-in card wears where you stand (D230)", () => {
+  // Politics' items pair up by axis — 0,1 econ · 2,3 auth — so extremes on
+  // the first pair and dead centre on the second give the split a dominant
+  // hue and a runner-up. Built from the definition, so it cannot drift.
+  const polBank = () => IS_TESTS.political.questions.map((q, i) => ({
+    id: `t-pol-${String(i).padStart(2, "0")}`,
+    prompt: q.q,
+    test: "political",
+    surface: "test",
+    options: ["", "", "", "", ""],
+  }));
+
+  /** Mount live on the Politics profile tab, with `picks` already answered. */
+  async function openPolitics(picks) {
+    const bank = polBank();
+    const expectNoBoundary = mountLive({}, (l) => {
+      Object.defineProperty(window.LIVE, "testFeedItems", {
+        value: () => bank, writable: true, configurable: true,
+      });
+      for (const [i, v] of Object.entries(picks)) l.votes[bank[i].id] = String(v);
+      // A live account that has taken no sit-down test — otherwise the demo
+      // persona's stored Politics result answers first and the fold path
+      // this case exists for is never reached.
+      window.dispatchEvent(new CustomEvent("insight:test-results", { detail: {} }));
+      // passive-meter.jsx holds the fold behind the store's notify, and the
+      // fixture's `subscribe` never reaches that listener. PASSIVE's does.
+      PASSIVE.poke();
+      // The subtab is remembered on `window`, and reading it is how the
+      // overlay opens anywhere but General.
+      window.__profileSub = "politics";
+    });
+    await openHeaderOverlay("profile");
+    await act(async () => {});
+    return expectNoBoundary;
+  }
+
+  /** The filled part of the card's progress bar. */
+  function fillOf() {
+    const card = screen.getByText(/of 30 answered/).closest(".card");
+    expect(card, "the filling-in card did not render — test is vacuous").not.toBeNull();
+    return card.firstElementChild.firstElementChild;
+  }
+
+  afterEach(() => {
+    delete window.__profileSub;
+    // Put the demo seed back: it is module state in test-definitions.js and
+    // this block empties it.
+    window.dispatchEvent(new Event("insight:local-purge"));
+  });
+
+  it("lays the runner-up's tone over the bar, from four answers", async () => {
+    const expectNoBoundary = await openPolitics({ 0: 4, 1: 0, 2: 2, 3: 2 });
+    expect(fillOf().children.length, "the bar drew one flat tone").toBe(1);
+    expectNoBoundary("profile/politics");
+  });
+
+  it("draws one tone while nothing has been answered", async () => {
+    // The control, and it is load-bearing twice over: a card that always
+    // appended the second span would pass the case above, and a card that
+    // crashed on an empty fold would fail here rather than in production.
+    const expectNoBoundary = await openPolitics({});
+    expect(fillOf().children.length, "a second tone appeared out of no answers").toBe(0);
+    expectNoBoundary("profile/politics/empty");
   });
 });

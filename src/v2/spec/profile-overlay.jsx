@@ -7,6 +7,10 @@ import React from 'react';
 import { Av, useDialog } from './primitives.jsx';
 import { ownProgress, ResultProfileCard } from './result-card.jsx';
 import { RP_TESTS } from './result-rose.jsx';
+// Where the instrument currently stands, as a colour and a two-tone split
+// (D230). The same reading the feed's rings and the profiles sheet wear —
+// imported so there is one of it, not a second derivation on this card.
+import { passiveStanding } from './passive-meter.jsx';
 // CONVERTED off the shared-global bridge (D39, "convert on touch"): the
 // Roles subtab below needs to know whether the build is live, and reading
 // it through `window.LIVE` would have taken this file's cross-module count
@@ -92,12 +96,23 @@ function ProfileOverlay({ onClose, me }) {
   const TestProgress = ({ k }) => {
     const p = ownProgress(k);
     if (!p || p.ready) return null;
-    const hue = (RP_TESTS[k] || {}).banner || 'var(--accent)';
+    // This card is the state BEFORE there is a type, so the flat category
+    // accent was the only colour it could wear — `(RP_TESTS[k]||{}).banner`,
+    // which is the same TEST_HUE value `col` falls back to. D230 gave the
+    // partial fold a colour of its own, so the card can wear where you
+    // actually stand: tapping a two-tone row in the profiles sheet through
+    // to here now lands on the same two tones instead of on the family hue.
+    const { col: hue, sp } = passiveStanding(k);
     const pct = Math.round((p.answered / Math.max(1, p.total)) * 100);
     return (
       <div className="card" style={{ padding: 0, overflow: 'hidden', marginBottom: 14 }}>
         <div style={{ height: 3, background: `color-mix(in oklch, ${hue} 14%, var(--surface-3))` }}>
-          <div style={{ height: '100%', width: `${pct}%`, background: hue }}></div>
+          {/* deep base with the runner-up's lighter tone laid on its right —
+              the progress pill's own construction (passive-meter.jsx), at
+              bar scale, so the two read as one thing */}
+          <div style={{ height: '100%', width: `${pct}%`, display: 'flex', background: sp ? sp.deep : hue }}>
+            {sp ? <span style={{ marginLeft: 'auto', width: ((1 - sp.ratio) * 100).toFixed(1) + '%', background: sp.lift }}></span> : null}
+          </div>
         </div>
         <div style={{ padding: '15px 18px 17px' }}>
           <div className="kicker" style={{ color: hue }}>{(RP_TESTS[k] || {}).kicker || 'Filling in'}</div>
