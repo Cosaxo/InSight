@@ -38,8 +38,6 @@ const OWED = {
   LiveAnswerRows: "the Answers lens's rows; the arithmetic is cohort.ts, tested there",
   LiveCompareLens: "Compare's row list; its fold is data/compare.ts, tested there",
   MirrorLensTabs: "the lens tab bar (D136); routing, no reading of its own",
-  PulseCard: "the daily's pulse card — its trend half is PulseTrends, now covered",
-  SignInGate: "the pre-D3 gate; LiveSignInGate is the live one and has a suite",
   duelMarks: "glyph constants, no component",
   profileSetup: "the pre-typed setup; LiveProfileSetup is the live one and has a suite",
 };
