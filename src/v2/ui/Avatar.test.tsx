@@ -83,6 +83,27 @@ describe("photo or initials, per person", () => {
     expect(container.textContent).toBe("");
   });
 
+  it("re-reads the token when the SAME slot is handed a different person", () => {
+    // The case above mounts two avatars side by side, so each instance
+    // captures its own correct uid on its own first render — a
+    // capture-on-first-render bug survives it untouched, which is how
+    // property 1 came to be unheld. React keeps state by POSITION, and
+    // Near re-orders its roster under mounted components, so the failure
+    // is one instance being handed a second person: the classic
+    // `useRef(uid)` / `useState(() => LIVE.faceFor(uid))` mistake then
+    // draws the first person's photo under the second person's name, for
+    // as long as the list is on screen.
+    LIVE.faceFor = (uid: string) => (uid === "u_ada" ? "tok-ada" : "tok-grace");
+    const { container, rerender } = render(<Avatar uid="u_ada" name="Ada Lovelace" />);
+    expect(container.querySelector("img")?.getAttribute("src") ?? "").toContain("token=tok-ada");
+
+    rerender(<Avatar uid="u_grace" name="Grace Hopper" />);
+    const src = container.querySelector("img")?.getAttribute("src") ?? "";
+    expect(src, "the slot kept the previous person's token").toContain("token=tok-grace");
+    expect(src).toContain("avatars%2Fu_grace");
+    expect(src, "the slot kept the previous person's object").not.toContain("u_ada");
+  });
+
   it("falls back to initials for an account with no photo", () => {
     // The permanent state for most accounts, not a placeholder waiting.
     const { container } = render(<Avatar uid="u_ada" name="Ada Lovelace" />);

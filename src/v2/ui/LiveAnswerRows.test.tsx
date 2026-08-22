@@ -189,6 +189,26 @@ describe("your own answer", () => {
     expect(rowControls()[0].textContent).toMatch(/Coffee/);
   });
 
+  it("draws the collapsed bar in the shape of the split, and marks your segment", () => {
+    // `ArStack` — the mini-bar on EVERY collapsed row, and it had no
+    // assertion anywhere in this suite. `flexGrow: v` mutated to
+    // `flexGrow: 1` draws every question as five equal segments, whatever
+    // the split, and 25 cases stayed green: the one drawing of the
+    // distribution a reader sees without opening a row was unheld.
+    show([row("q", [60, 30, 10], { options: ["Cats", "Dogs", "Neither"], mine: 1 })]);
+    const segs = [...rowControls()[0].querySelectorAll("div > span")]
+      .filter((el) => (el.getAttribute("style") || "").includes("flex-grow"));
+    const grow = segs.map((el) => parseFloat(/flex-grow:\s*([\d.]+)/.exec(el.getAttribute("style") || "")?.[1] ?? "0"));
+    expect(grow, "the three segments are not in the 60/30/10 proportion").toHaveLength(3);
+    expect(grow[0]).toBeGreaterThan(grow[1]);
+    expect(grow[1]).toBeGreaterThan(grow[2]);
+    // …and your own segment carries the floor that keeps a 1% answer of
+    // yours findable, which no other segment gets.
+    const mineStyle = segs[1].getAttribute("style") || "";
+    expect(mineStyle).toMatch(/min-width:\s*8px/);
+    expect(segs[0].getAttribute("style") || "").toMatch(/min-width:\s*0/);
+  });
+
   it("explains the accent mark only when a mark is on screen", () => {
     show([row("a", [3, 7], { mine: 0 }), row("b", [1, 1])]);
     expect(screen.getByText("you")).toBeTruthy();

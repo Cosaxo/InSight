@@ -114,6 +114,7 @@ vi.mock("../../lib/firebase", () => ({
 }));
 
 const { default: PulseCard } = await import("./PulseCard");
+const PULSE = await import("../data/pulse");
 
 // UTC, because every key the store writes and reads is UTC (a local-midnight
 // fixture would answer into tomorrow's row for anyone east of Greenwich, on
@@ -322,6 +323,14 @@ describe("PulseCard · the reveal draws the crowd it names", () => {
     // the titles. An inverted scale draws the crowd upside down under a
     // caption that still reads correctly.
     const heights = PACE.map(barHeight);
+    // THE WHOLE RANKING, not just its ends. max===Brisk and min===Crawling
+    // are both true of a chart with no shape at all — a constant array
+    // satisfies both — so a flattened scale passed this case for as long
+    // as it existed. The five bars ordered against the five bins
+    // (5·10·20·38·27) is the assertion a flat chart cannot survive.
+    expect([...PACE].sort((a, b) => barHeight(b) - barHeight(a)))
+      .toEqual(["Brisk", "Flying", "Steady", "Dragging", "Crawling"]);
+    expect(new Set(heights).size, "every bar the same height is not a distribution").toBeGreaterThan(1);
     expect(Math.max(...heights)).toBe(barHeight("Brisk"));   // 38%, the largest
     expect(Math.min(...heights)).toBe(barHeight("Crawling")); // 5%, the smallest
   });
@@ -359,6 +368,25 @@ describe("PulseCard · the strip is this pulse's run, in asks", () => {
   });
 });
 
+describe("PulseCard · the answer is recorded against this pulse", () => {
+  it("votes on the pulse it was handed, not on the roster's first", async () => {
+    // Property 1's own named failure, and it was not held: mutating
+    // `PULSE.answer(id, s.v)` to `PULSE.answer(PULSE.first(), s.v)` passed
+    // all 17 cases. Every case that taps an option used the default pulse,
+    // where `id` and `first()` are the same string — so the sentence the
+    // header opens with ("recording every answer against the pace pulse")
+    // described a mutation nothing could catch. Tapping a NON-default
+    // pulse is the whole difference.
+    render(<PulseCard pid="pulse-sleep" />);
+    await settle();
+    fireEvent.click(screen.getByRole("button", { name: "Well" }));
+    await settle();
+
+    expect(LIVE.votePulse).toHaveBeenCalledTimes(1);
+    expect(LIVE.votePulse).toHaveBeenCalledWith("pulse-sleep", 3);
+  });
+});
+
 describe("PulseCard · the rhythm (D203)", () => {
   it("names this pulse's own cadence, and marks it in the group", async () => {
     // Cadence is per pulse — the card reading a global one would tell you
@@ -372,6 +400,24 @@ describe("PulseCard · the rhythm (D203)", () => {
       expect(screen.getByRole("radio", { name: other }).getAttribute("aria-checked"), `${other} was marked as current`)
         .toBe("false");
     }
+  });
+
+  it("writes the rhythm against THIS pulse, leaving the others alone", async () => {
+    // The two WRITE sites are what property 1 is actually about, and this
+    // one was unheld: `PULSE.setCadence(id, c)` mutated to
+    // `PULSE.setCadence(PULSE.first(), c)` passed the whole suite. Reading
+    // the cadence back is not enough — the read is per-pulse and correct
+    // either way, so only the neighbour's cadence can tell them apart.
+    // Setting your sleep rhythm would silently repoint the pace pulse's.
+    render(<PulseCard pid="pulse-sleep" />);
+    await settle();
+    const paceBefore = PULSE.cadence("pulse-pace");
+    fireEvent.click(screen.getByRole("button", { name: /How often this pulse asks/ }));
+    fireEvent.click(screen.getByRole("radio", { name: "Mon · Wed · Fri" }));
+    await settle();
+
+    expect(PULSE.cadence("pulse-sleep")).toBe("often");
+    expect(PULSE.cadence("pulse-pace"), "the neighbouring pulse's rhythm moved").toBe(paceBefore);
   });
 
   it("takes a new rhythm, says so, and closes the row", async () => {
