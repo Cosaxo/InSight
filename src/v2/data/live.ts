@@ -1641,15 +1641,31 @@ const SOCIAL = {
     notify();
     return out;
   },
-  async inviteToGroup(gid: string, to: string) {
-    return callable<{ ok: boolean }>("inviteToGroupV2", {
-      gid, to, displayName: state.profile.displayName,
+  /**
+   * Invite one account, or a whole selection (D230).
+   *
+   * The array is sent as an ARRAY rather than looped here: the server's
+   * per-hour budget charges per recipient, so a client-side loop would be
+   * N round trips against a cap that already counts them — and a partial
+   * failure halfway through would leave the picker with no honest way to
+   * say who got asked. `invited`/`skipped` come back for that.
+   */
+  async inviteToGroup(gid: string, to: string | readonly string[]) {
+    return callable<{ ok: boolean; invited?: string[]; skipped?: string[] }>("inviteToGroupV2", {
+      gid, to: Array.isArray(to) ? [...to] : to, displayName: state.profile.displayName,
     });
   },
   async acceptInvite(gid: string) {
     const out = await callable<{ gid: string; name: string }>("acceptGroupInviteV2", {
       gid, displayName: state.profile.displayName,
     });
+    // THE THIRD MOMENT THAT EARNS THE PROMPT (D230). createGroup and
+    // joinGroup have always called this; accepting an invitation is the
+    // same act by a different door and was the one that did not, so a
+    // person whose entire path into the app was "a friend invited me"
+    // could be in a circle and never once be asked. That is exactly the
+    // account an invitation push most needs to reach next time.
+    pushEarned();
     await this.loadInvites();
     return out;
   },
@@ -4121,7 +4137,7 @@ let pushRegisteredFor: string | null = null;
  * out" means anything. Boot deliberately does not call this (see initLive);
  * push.ts has the iOS reasoning, which is that the decline is permanent.
  *
- * Fire-and-forget and idempotent: `registerPushForReveals` memoizes the
+ * Fire-and-forget and idempotent: `registerPush` memoizes the
  * token write per (uid, token), and the OS shows one prompt per install
  * however many times it is asked. `pushRegisteredFor` is NOT consulted here
  * — boot sets it after a silent registration, and this call is the one that
@@ -4131,7 +4147,7 @@ function pushEarned(): void {
   const forUid = state.uid;
   if (!forUid) return;
   void import("./push")
-    .then((m) => m.registerPushForReveals(forUid, { ask: true }))
+    .then((m) => m.registerPush(forUid, { ask: true }))
     .catch(() => { /* native bridge absent, or the user said no */ });
 }
 let deviceBindAttemptedFor: string | null = null;
@@ -4174,7 +4190,7 @@ export function refreshLive(): Promise<void> {
       const forUid = state.uid as string;
       pushRegisteredFor = forUid;
       void import("./push")
-        .then((m) => m.registerPushForReveals(forUid))
+        .then((m) => m.registerPush(forUid))
         .catch(() => { if (pushRegisteredFor === forUid) pushRegisteredFor = null; });
     }
     // fire-and-forget, same shape: the D29 device-binding activation.

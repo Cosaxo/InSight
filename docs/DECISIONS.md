@@ -23275,3 +23275,151 @@ it into `android/app/build.gradle` and `ios/App/App.xcodeproj`;
 `LAUNCH-RUNBOOK.md` 5.6's figure followed, because `check:figures` owns
 that number and went red until it did. `IOS-RELEASE.md` gains the
 build 22 and build 23 records.
+
+## D230 · An invitation that notifies: the pick is the delivery
+
+**2026-08-22.** **Status:** binding. Owner's call, from "when someone
+makes a group or 1v1 you get a notification and can join if you want and
+vice versa if you want to invite someone" — after looking at the 1v1 and
+Circle first-run screens and reading them as still being about codes.
+
+### The screen was not the problem, and the reading was still right
+
+D122 already answered "invite codes feel clunky". It shipped handles, a
+registry, an invitation with consent, and an inbox, and it put the code
+field behind "Have an invite code?" — where the screenshots found it,
+open, because it is one tap from closed.
+
+So the complaint was not about the control. It was about this, the
+success message `LdAddByHandle` prints after an invitation is sent:
+
+> *"Invited @mira — they will see it next time they open InSight."*
+
+That sentence is the whole defect. D122 built the system and then
+delivered it by hoping. An invitation sat in a collection until the
+invitee happened to open the app on their own — which is worse than a
+code, because a code at least does something at the moment you hand it
+over. **The notification is the delivery**, and it is the only part that
+was missing.
+
+### Tied to being PICKED, never to a circle being created
+
+The owner's phrasing was "when someone makes a group or 1v1 you get a
+notification". Taken literally that is a broadcast, and it is refused:
+notifying on creation would carry a circle's name to people who were not
+invited, which is exactly the read `v2_groups`' member gate exists to
+prevent (it is why D122 denormalises `groupName` onto the invitation in
+the first place — an invitee cannot read the group they are invited to).
+With a follow cap of 50, naming a circle would also be up to 50
+notifications for one act.
+
+What survives is better than the literal reading, because it collapses
+two steps into one: **a circle is created with people in it.** The
+create screen carries a picker, the pick causes the invitation, and the
+invitation causes the notification. Nobody ever sees an empty room and
+goes looking for a way to tell anyone about it.
+
+### What shipped
+
+- **`LdPicker`** on the create screen — handle in, chip out, cap-aware
+  (a 1v1 has one seat, so the field closes after one pick rather than
+  offering a second person a room that cannot hold them).
+- **`inviteToGroupV2` takes one uid or many**, in one call, and writes
+  them in one batch. A single target keeps D122's exact error codes,
+  because `LdAddByHandle` turns them into sentences a person reads; a
+  batch skips and reports `invited`/`skipped` instead, because one
+  unreachable name must not cost the other seven their invitation.
+- **A push per invitation**, through the same fan-out the reveal uses.
+- **`acceptGroupInvite` now calls `pushEarned()`** — the third moment
+  that earns the prompt. `createGroup` and `joinGroup` always have; the
+  door most likely to be a new user's only one did not, so an account
+  whose entire path in was "a friend invited me" could sit in a circle
+  having never been asked.
+
+### Two channels, because a description is a claim
+
+The manifest names `reveals` as the default channel for incoming
+messages, so an invitation with no channel named would post there and
+wear "When a group or duo day is revealed." That is a false sentence on
+the one screen Android gives a person to turn this off, and it would
+make muting invitations cost them the reveal they opened the app for.
+So `invites` is its own channel, the client creates both at
+registration, and `sendPushToUids` names one explicitly on every send.
+Pinned in `push.test.ts`, both ids and both descriptions.
+
+### The budget charges per recipient
+
+`INVITES_PER_HOUR` counted CALLS. A batch would have made it meaningless
+the moment the picker shipped — one call, forty notifications — so
+`assertInviteBudget` takes a count and charges it. For a single invite
+the arithmetic is identical to what D122 shipped, so nothing about the
+old path moved. Asserted in the e2e against the real rate-limit document
+through the admin handle, because `v2_ratelimits` is server-only.
+
+### One fan-out, and a read it removed
+
+The FCM logic was inline in `revealGroupDay` and had accumulated four
+corrections the hard way: token→owners as a **list** so a shared device
+is pruned everywhere it lives, length bounds so a client cannot hand FCM
+a megabyte, **chunking** rather than the `.slice(0, 64)` that silently
+unnotified everyone past roughly the seventh member, and pruning on only
+the two **terminal** error codes so a transient failure never evicts a
+live device. Copying that for invitations would have meant maintaining
+all four twice, and the copy is always the one that rots. It is now
+`sendPushToUids`, with the collection and the bounds pure and tested
+(`pure.ts` `fcmFanout`).
+
+It also **never throws**, by construction. A notification is the last
+step of something that already succeeded, so FCM being down must not
+roll back a reveal that committed or an invitation that was written.
+The e2e pins exactly this: the emulator has no FCM, and inviting two
+people still reports two invitations.
+
+Moving the read into the sender removed a billed one. `revealGroupDay`
+fetched a push document per member next to the reads the reveal needs —
+**before** the `shouldReveal` gate, so every scanned day paid for it,
+including the majority that reveal nothing. It is now read after the
+reveal commits and only when there is something to announce.
+
+### Four limits, recorded
+
+1. **The first invitation to a brand-new account still lands silently.**
+   Permission is asked at the moments that earn it, never at boot (iOS
+   makes a decline permanent), so an account that has never created,
+   joined or accepted has no token. The inbox still shows the row; the
+   push starts working from their first acceptance onward. This is the
+   cost of D122's "anyone may invite anyone" meeting D3's anonymous-first
+   accounts, and it shrinks as the app grows.
+2. **Someone with no account is unchanged** — the link, and on Android
+   that link still cannot verify, because `assetlinks.json` carries
+   `REPLACE_WITH_PLAY_SIGNING_SHA256` (SHIP-CHECKLIST §3b, blocked on
+   Play Console access). Every Android invite to a stranger still lands
+   on the hosted page and degrades to copying a code. That is the
+   remaining half of the owner's complaint and it is a credential, not a
+   change.
+3. **A declined invitation can be re-sent and will ping again.**
+   Declining deletes the doc and tells the inviter nothing, deliberately
+   (D122: a "declined" state makes refusing someone a message you have to
+   send). The rate limit is still the whole defence and a block is still
+   the answer if invite spam becomes real. Still not built.
+4. **The picker searches handles and nothing else.** It does not trigger
+   `LIVE.loadCircle()` — that is one read per follow for a convenience —
+   and in live mode the follow graph is mostly people found by likeness
+   rather than friends anyway. The owner's model is that people look
+   their friends up, and the registry supports it; what does not yet is
+   `search-overlay.jsx`, which returns **no people at all** in a live
+   build (`samplePeople === false`, guarding D1's invented cast) while
+   `whoIs` is reached from exactly one place — inside a circle you have
+   already made. Wiring the app's own search to the registry is the next
+   piece and is not in this change.
+
+### What was measured rather than assumed
+
+The e2e refused the first draft of its own fixture: `inviteToGroupV2`
+skipped both targets because neither had a `v2_users` document, which
+joining by code alone never writes. That is not a gap in the app —
+claiming a handle writes the profile, so anyone findable by handle is
+invitable — but it is the reason the case now claims two handles and
+resolves them through the registry, which is the path the picker
+actually takes.
+

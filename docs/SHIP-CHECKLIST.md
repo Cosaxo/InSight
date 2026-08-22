@@ -503,13 +503,22 @@ app-open needs:
 1. `web/.well-known/assetlinks.json` — replace
    `REPLACE_WITH_PLAY_SIGNING_SHA256` with the Play App Signing SHA-256
    (Play Console → Setup → App signing).
-2. `web/.well-known/apple-app-site-association` — replace
-   `REPLACE_WITH_TEAM_ID` with the Apple Team ID.
+2. `web/.well-known/apple-app-site-association` — **done, 2026-08-05.**
+   It carries the real Team ID (`U2LVW456S7.com.cosaxo.insight`), and
+   this step said `REPLACE_WITH_TEAM_ID` for seventeen days after it
+   stopped being true. Left in place rather than deleted because a step
+   that reads "replace this" against a file that already holds the real
+   value is how a good credential gets overwritten with a placeholder.
 3. Redeploy hosting, reinstall the app, tap a link. Android:
    `adb shell pm get-app-links com.cosaxo.insight` should show verified.
    iOS re-fetches AASA on install (CDN-cached; allow up to a day).
 
-Until then links open the fallback page — degraded, not broken.
+Until then links open the fallback page — degraded, not broken. Android
+is the platform that is still there: step 1 is the only fingerprint
+outstanding, so every Android invite to somebody with no account lands
+on `web/join.html` and degrades to copying a code by hand. D230 fixed
+the notification half of the owner's complaint; this step is the other
+half, and it is a credential rather than a change.
 
 ## 4 · On-device verification list (first build)
 

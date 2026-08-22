@@ -921,5 +921,108 @@ ok("learn crowd stat: 5 first attempts, exact through per-answer publishes, 3/5 
     () => httpsCallable(pFns, "claimHandleV2")({ handle: "olaf_t" }));
 }
 
+// 14 · invitations: a batch, charged per person, surviving no FCM (D230)
+//
+// The notification is the whole point of D230, and the emulator has no
+// FCM — which makes that the case worth pinning here rather than a
+// weakness of the harness. `sendPushToUids` is best-effort BY
+// CONSTRUCTION: an invitation that was written must still be reported as
+// written when there is nowhere to send the notification. If that ever
+// regresses, inviting somebody starts throwing in exactly the
+// environments where nobody is watching it.
+{
+  const expectCode = async (label, code, op) => {
+    try {
+      await op();
+    } catch (e) {
+      if (e?.code === code) return ok(label);
+      return fail(`${label} — expected ${code}, got ${e?.code || e}`);
+    }
+    fail(`${label} — the operation was ALLOWED`);
+  };
+
+  const made = await httpsCallable(fns, "createGroupV2")({ name: "The Picked", mode: "group" });
+  const igid = made.data?.gid;
+  if (!igid) fail("createGroupV2 for the invite case: " + JSON.stringify(made.data));
+
+  // BOTH TARGETS CLAIM A HANDLE FIRST, and that is the real path rather
+  // than a convenience. inviteToGroupV2 refuses a uid with no `v2_users`
+  // document — without that check a typo'd uid writes an invitation
+  // nobody will ever see and the sender is told it worked — and joining
+  // by code alone never writes one. In the app that is not a gap: the
+  // picker resolves a HANDLE to a uid, claiming a handle writes the
+  // profile, so anyone findable is invitable. Inviting through the
+  // registry is what this sets up.
+  await httpsCallable(pFns, "claimHandleV2")({ handle: "bea" });
+  await httpsCallable(lateFns, "claimHandleV2")({ handle: "cass" });
+  const resolved = [];
+  for (const h of ["bea", "cass"]) {
+    const reg = await getDoc(doc(db, "v2_handles", h));
+    if (!reg.exists()) fail(`the registry has no entry for @${h}`);
+    resolved.push(reg.get("uid"));
+  }
+  if (resolved[0] !== partner.user.uid || resolved[1] !== latecomer.user.uid) {
+    fail("the registry resolved a handle to the wrong account");
+  }
+  ok("two handles claimed and resolved to their uids, the way the picker does");
+
+  const both = resolved;
+  const sent = await httpsCallable(fns, "inviteToGroupV2")({ gid: igid, to: both });
+  if (!sent.data?.ok) fail("inviteToGroupV2 refused a batch: " + JSON.stringify(sent.data));
+  if ((sent.data.invited || []).length !== 2) {
+    fail("the batch did not invite both: " + JSON.stringify(sent.data));
+  }
+  ok("one call invited two people, with no FCM to send the notification to");
+
+  // THROUGH THE ADMIN HANDLE, and the deny is the reason. D122 refused
+  // members the invitation list — the first draft allowed it so a circle
+  // could show who had been asked and had not answered, and that arm
+  // needed a get() on the group per read. So the INVITER cannot see what
+  // it just wrote; only the invitee can, by id. Asserting through the
+  // deny would mean weakening it for a test (rules.test.ts owns that
+  // side); this asserts the document the callable actually wrote.
+  for (const to of both) {
+    const inv = await adminDb.doc(`v2_groups/${igid}/invites/${to}`).get();
+    if (!inv.exists) fail("no invitation document for " + to);
+    // Denormalised because a collection-group query cannot filter on a
+    // document id — this is what makes the invitee's inbox one query.
+    if (inv.get("to") !== to) fail("`to` is not on the invitation for " + to);
+    // The circle is member-gated (it carries the code), and an invitee is
+    // by definition not a member — so the name has to ride along or the
+    // inbox has nothing to call it.
+    if (inv.get("groupName") !== "The Picked") fail("the circle's name did not ride along");
+  }
+  ok("each invitation carries its own `to` and the circle's name");
+
+  // CHARGED PER RECIPIENT. Counting a batch as one event would have made
+  // INVITES_PER_HOUR meaningless the moment the picker shipped: one call,
+  // forty notifications. Read through the admin handle — v2_ratelimits is
+  // server-only, and asserting through the deny would mean weakening it.
+  const budget = await adminDb.doc(`v2_ratelimits/invite_${uid}`).get();
+  const events = budget.get("events") || [];
+  if (events.length !== 2) fail(`the budget charged ${events.length} for a batch of 2`);
+  ok("the rate limit charged one event per recipient, not one per call");
+
+  // A duo has exactly one seat, so a batch of two is refused whole rather
+  // than half-applied — the shape a picker must not be able to talk the
+  // server into.
+  const duo = await httpsCallable(fns, "createGroupV2")({ name: "Just Us", mode: "duo" });
+  await expectCode("a batch larger than the seats left refused",
+    "functions/invalid-argument",
+    () => httpsCallable(fns, "inviteToGroupV2")({ gid: duo.data.gid, to: both }));
+  const leftover = await adminDb.collection(`v2_groups/${duo.data.gid}/invites`).get();
+  if (!leftover.empty) fail("the refused batch wrote invitations anyway");
+  ok("the refusal wrote nothing at all");
+
+  // …and the invitee can still accept, which is the only thing that puts
+  // a name into memberUids.
+  await httpsCallable(pFns, "acceptGroupInviteV2")({ gid: igid });
+  const after = await adminDb.doc(`v2_groups/${igid}`).get();
+  if (!(after.get("memberUids") || []).includes(partner.user.uid)) {
+    fail("accepting the invitation did not add the member");
+  }
+  ok("accepting an invitation is still what adds the member");
+}
+
 console.log("\nALL E2E CHECKS PASSED");
 process.exit(0);

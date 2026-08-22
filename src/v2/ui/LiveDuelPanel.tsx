@@ -112,14 +112,17 @@ function errText(e: unknown): string {
   return String((e instanceof Error && e.message) || e);
 }
 
-function LdInput({ value, onChange, placeholder, style }: {
+function LdInput({ value, onChange, placeholder, style, onEnter }: {
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
   style?: React.CSSProperties;
+  /** Enter submits. A picker you have to reach for a button to use is not one. */
+  onEnter?: () => void;
 }) {
   return (
     <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
+      onKeyDown={onEnter ? (e) => { if (e.key === "Enter") { e.preventDefault(); onEnter(); } } : undefined}
       style={{ border: LD_LINE, borderRadius: 10, padding: "11px 13px", fontFamily: "var(--sans)",
         fontSize: "var(--field-size)", fontWeight: 600, color: "var(--ink)", background: "var(--surface-2)",
         outline: "none", minWidth: 0, width: "100%", boxSizing: "border-box", ...style }} />
@@ -172,6 +175,107 @@ function LdOption({ label, onClick, tint, lead, disabled }: {
   );
 }
 
+// ── who is coming (D230) ─────────────────────────────────────────
+//
+// A circle used to be created EMPTY and populated afterwards, and that is
+// the whole reason a first-run screen could offer nothing but a code: at
+// the one moment you knew who you wanted, the app had nowhere to put
+// them. So you made a room, then went looking for a way to tell people.
+//
+// Picking is also what sends the notification. Creating a circle notifies
+// nobody — a circle's name reaching people who were not invited is
+// precisely the read v2_groups' member gate exists to refuse.
+//
+// SEARCH IS THE SOURCE, not the follow graph. In live mode that graph
+// fills from likeness surfaces (Kindred, voter lists), so it is mostly
+// people you have never met — the wrong list to pick friends out of. A
+// handle is an address you already know, the way a phone number is.
+// Nothing here triggers `LIVE.loadCircle()`: that is one read per follow,
+// and paying it for a convenience on the create screen is the kind of
+// fan-out this panel is careful about everywhere else.
+interface LdPick { uid: string; handle: string }
+
+function LdPicker({ picked, onChange, cap, busy: outerBusy }: {
+  picked: LdPick[];
+  onChange: (next: LdPick[]) => void;
+  cap: number;
+  busy?: boolean;
+}) {
+  const [h, setH] = React.useState("");
+  const [busy, setBusy] = React.useState(false);
+  const [msg, setMsg] = React.useState<string | null>(null);
+  const canonical = normalizeHandle(h);
+  const problem = handleProblem(h);
+  const full = picked.length >= cap;
+
+  const add = async () => {
+    if (!canonical || full || busy) return;
+    if (picked.some((p) => p.handle === canonical)) {
+      setMsg(`${atHandle(canonical)} is already on the list.`);
+      return;
+    }
+    setBusy(true); setMsg(null);
+    try {
+      const uid = await LIVE.social.whoIs(canonical);
+      // The same refusal LdAddByHandle gives, in the same words, and for
+      // the same reason: it does not say whether the handle is malformed
+      // or merely unclaimed, because to someone looking a person up
+      // those are one answer.
+      if (!uid) { setMsg(`No account is ${atHandle(canonical)}.`); setBusy(false); return; }
+      onChange([...picked, { uid, handle: canonical }]);
+      setH("");
+    } catch (e) {
+      setMsg(errText(e).replace(/^.*?: */, ""));
+    }
+    setBusy(false);
+  };
+
+  return (
+    <div style={col(8)}>
+      {picked.length > 0 && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+          {picked.map((p) => (
+            <button key={p.uid} className="press"
+              aria-label={`Remove ${atHandle(p.handle)}`}
+              onClick={() => onChange(picked.filter((x) => x.uid !== p.uid))}
+              style={{ display: "inline-flex", alignItems: "center", gap: 6, border: LD_LINE,
+                borderRadius: 999, background: "var(--surface-2)", padding: "6px 10px 6px 12px",
+                cursor: "pointer", fontFamily: "var(--mono, monospace)", fontSize: 12.5,
+                fontWeight: 700, color: "var(--ink)", WebkitAppearance: "none" }}>
+              {atHandle(p.handle)}
+              <span aria-hidden="true" style={{ fontSize: 14, color: "var(--ink-3)" }}>&times;</span>
+            </button>
+          ))}
+        </div>
+      )}
+      {/* The field goes away at the cap rather than failing on submit —
+          for a 1v1 the cap is one, and an open field there would invite
+          a second person into a room with one seat. */}
+      {!full && (
+        <div style={{ display: "flex", gap: 8 }}>
+          {/* NOT "their-handle", which is LdAddByHandle's. Both can be on
+              screen at once — the rail ends with this card while every
+              circle above it carries that one — and two identically
+              labelled fields that add to different circles is the kind of
+              ambiguity a person only discovers by inviting the wrong
+              person to the wrong room. */}
+          <LdInput value={h} onChange={setH} placeholder="@handle" onEnter={() => void add()}
+            style={{ fontFamily: "var(--mono, monospace)" }} />
+          <LdBtn disabled={outerBusy || busy || !canonical} onClick={() => void add()}>
+            {busy ? "\u2026" : "Add"}
+          </LdBtn>
+        </div>
+      )}
+      {(problem || msg) && (
+        <div role="status" style={{ fontSize: 12.5, fontWeight: 600, lineHeight: 1.4,
+          color: problem ? "var(--ink-3)" : "oklch(0.5 0.19 25)" }}>
+          {problem || msg}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── first-run: create or join ────────────────────────────────────
 function LdOnboard({ mode }: { mode?: string }) {
   const [name, setName] = React.useState("");
@@ -179,6 +283,7 @@ function LdOnboard({ mode }: { mode?: string }) {
   // field (consume = one prefill, not a haunting).
   const [code, setCode] = React.useState(() => consumeJoinCode() || "");
   const [codeOpen, setCodeOpen] = React.useState(false);
+  const [picked, setPicked] = React.useState<LdPick[]>([]);
   const [busy, setBusy] = React.useState(false);
   const [err, setErr] = React.useState<string | null>(null);
   const duo = mode === "duo";
@@ -198,6 +303,25 @@ function LdOnboard({ mode }: { mode?: string }) {
   const known = ldName().trim();
   const [typedMe, setTypedMe] = React.useState("");
   const me = known || typedMe.trim();
+  // Create, then invite the people already picked — one act on this
+  // screen, two calls under it.
+  //
+  // BEST-EFFORT on the second, and the order is the reason: by the time it
+  // runs the circle EXISTS, so a failed invitation must not surface as a
+  // failed creation and send somebody back to a screen whose circle was in
+  // fact made. It reports for itself instead of throwing into `go`'s catch.
+  const create = async () => {
+    const out = await S.createGroup(name.trim(), duo ? "duo" : "group", me || undefined);
+    const gid = (out as { gid?: string } | undefined)?.gid;
+    if (!gid || !picked.length) return out;
+    try {
+      await S.inviteToGroup(gid, picked.map((p) => p.uid));
+    } catch (e) {
+      setErr(`Circle made — the invitations did not send. ${errText(e).replace(/^.*?: */, "")}`);
+    }
+    return out;
+  };
+
   const go = async (fn: () => Promise<unknown>) => {
     setBusy(true); setErr(null);
     // Only the fallback writes: with a known name there is nothing new to
@@ -224,8 +348,13 @@ function LdOnboard({ mode }: { mode?: string }) {
             the profile when the client sends nothing, and sending an empty
             string would overwrite a name the profile already has. */}
         <LdBtn primary disabled={busy || !name.trim() || !me}
-          onClick={() => void go(() => S.createGroup(name.trim(), mode === "duo" ? "duo" : "group", me || undefined))}>Create</LdBtn>
+          onClick={() => void go(create)}>Create</LdBtn>
       </div>
+      {/* WHO IS COMING (D230) — the half of this screen that used to be a
+          code field. Optional: a circle with nobody in it yet is still a
+          legitimate thing to make, and the link is how you reach somebody
+          who has no account to hold a handle. */}
+      <LdPicker picked={picked} onChange={setPicked} cap={duo ? 1 : 31} busy={busy} />
       {/* THE CODE STOPS BEING THE SECOND HALF OF THIS SCREEN (D122).
           It used to sit here under an "OR JOIN WITH A CODE" rule, as a
           peer of Create — which made an eight-character string the thing

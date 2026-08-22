@@ -70,7 +70,7 @@ vi.mock("../../lib/sentry", () => ({
   setSentryUser: vi.fn(),
 }));
 
-vi.mock("./push", () => ({ registerPushForReveals: () => Promise.resolve() }));
+vi.mock("./push", () => ({ registerPush: () => Promise.resolve() }));
 vi.mock("firebase/functions", () => ({ getFunctions: vi.fn(), httpsCallable: vi.fn() }));
 
 vi.mock("firebase/firestore", () => {

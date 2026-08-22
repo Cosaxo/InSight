@@ -56,6 +56,10 @@ import {
   retargetCounts,
   retargetAnchors,
   foldEditFlow,
+  fcmFanout,
+  fcmBatches,
+  FCM_TOKEN_MAX,
+  FCM_BATCH,
 } from "./pure";
 
 // The bucket-churn threshold (pure.ts BUCKET_EVICT_BELOW). Not a
@@ -1789,5 +1793,76 @@ describe("roomQids", () => {
     expect(roomQids([{ id: "x" }, 3, null, undefined])).toEqual([]);
     expect(roomQids(["x".repeat(121)])).toEqual([]);
     expect(roomQids("not an array")).toEqual([]);
+  });
+});
+
+describe("fcmFanout", () => {
+  const tok = (s: string) => s.padEnd(40, "x");
+
+  it("maps every live token to its owners", () => {
+    const { owners, malformed } = fcmFanout([
+      { uid: "a", tokens: [tok("t1"), tok("t2")] },
+      { uid: "b", tokens: [tok("t3")] },
+    ]);
+    expect(malformed).toEqual([]);
+    expect([...owners.keys()]).toEqual([tok("t1"), tok("t2"), tok("t3")]);
+    expect(owners.get(tok("t1"))).toEqual(["a"]);
+  });
+
+  // The shared-device case, and the reason `owners` is a list. Pruning a
+  // dead token from only the first uid leaves it live on the second, and
+  // every later send fans out to a device FCM has already disowned.
+  it("keeps both owners of one token", () => {
+    const { owners } = fcmFanout([
+      { uid: "a", tokens: [tok("shared")] },
+      { uid: "b", tokens: [tok("shared")] },
+    ]);
+    expect(owners.get(tok("shared"))).toEqual(["a", "b"]);
+  });
+
+  it("lists a uid once for a token its own array repeats", () => {
+    const { owners } = fcmFanout([{ uid: "a", tokens: [tok("t"), tok("t")] }]);
+    expect(owners.get(tok("t"))).toEqual(["a"]);
+  });
+
+  // Bounds are SEND cost, not storage: rules cap the array length and
+  // never look inside it, so this is the only thing between a profile
+  // holding ten ~1MB strings and sendEachForMulticast being handed them.
+  it("refuses tokens outside the length bounds, and names who carried them", () => {
+    const { owners, malformed } = fcmFanout([
+      { uid: "a", tokens: ["short", "y".repeat(FCM_TOKEN_MAX + 1), 42, null, tok("ok")] },
+    ]);
+    expect([...owners.keys()]).toEqual([tok("ok")]);
+    expect(malformed).toEqual(["a"]);
+  });
+
+  // A malformed token must not cost the OTHER recipients their push —
+  // the one failure mode that would make a bad client a denial of
+  // service against everyone else in the circle.
+  it("still targets the rest when one uid's array is junk", () => {
+    const { owners, malformed } = fcmFanout([
+      { uid: "a", tokens: "not an array" },
+      { uid: "b", tokens: null },
+      { uid: "c", tokens: [tok("live")] },
+    ]);
+    expect([...owners.keys()]).toEqual([tok("live")]);
+    // Neither `a` nor `b` held a token to refuse — no array at all is a
+    // device that never registered, which is ordinary, not malformed.
+    expect(malformed).toEqual([]);
+  });
+});
+
+describe("fcmBatches", () => {
+  it("splits at FCM's ceiling and drops nothing", () => {
+    const tokens = Array.from({ length: FCM_BATCH + 7 }, (_, i) => `t${i}`);
+    const batches = fcmBatches(tokens);
+    expect(batches).toHaveLength(2);
+    expect(batches[0]).toHaveLength(FCM_BATCH);
+    expect(batches[1]).toHaveLength(7);
+    expect(batches.flat()).toEqual(tokens);
+  });
+
+  it("is empty for no tokens, so a caller can loop without a guard", () => {
+    expect(fcmBatches([])).toEqual([]);
   });
 });

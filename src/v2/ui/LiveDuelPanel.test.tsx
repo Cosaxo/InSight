@@ -771,3 +771,98 @@ describe("LiveDuelPanel · day history is bought, not assumed", () => {
     expect(screen.getByText("you said")).toBeTruthy();
   });
 });
+
+// ── create with people in it (D230) ────────────────────────────────
+//
+// The screen used to make an empty room and leave you to find a way to
+// tell anyone. What these hold is the property the change exists for:
+// the pick is what causes the invitation, and the invitation is what
+// causes the notification — so a create that picked nobody must invite
+// nobody, and a create that picked three must send one call carrying all
+// three.
+
+describe("LiveDuelPanel · creating with people picked", () => {
+  beforeEach(() => { LIVE.social.groups = () => []; });
+
+  const pick = async (handle: string, uid: string) => {
+    LIVE.social.whoIs = vi.fn(async () => uid);
+    fireEvent.change(screen.getByPlaceholderText("@handle"), { target: { value: handle } });
+    fireEvent.click(screen.getByRole("button", { name: /^Add$/ }));
+    await screen.findByRole("button", { name: new RegExp(`Remove @${handle}`, "i") });
+  };
+
+  it("invites everyone picked, in ONE call, with the uids behind the handles", async () => {
+    const create = vi.fn(async () => ({ gid: "g9", inviteCode: "AAAA1111" }));
+    const invite = vi.fn(async (gid: string, to: string | readonly string[]) => {
+      void gid; void to;
+      return { ok: true, invited: ["u_ada", "u_bea"], skipped: [] };
+    });
+    LIVE.social.createGroup = create;
+    LIVE.social.inviteToGroup = invite;
+    render(<LiveDuelPanel mode="group" />);
+
+    await pick("ada", "u_ada");
+    await pick("bea", "u_bea");
+    fireEvent.change(screen.getByPlaceholderText(/Group name/i), { target: { value: "Book Club" } });
+    fireEvent.click(screen.getByRole("button", { name: /^Create$/ }));
+
+    await waitFor(() => expect(invite).toHaveBeenCalled());
+    // ONE call, not one per person: the server's budget charges per
+    // recipient, so a loop here would be N round trips against a cap
+    // that already counts them.
+    expect(invite).toHaveBeenCalledTimes(1);
+    expect(invite.mock.calls[0][0]).toBe("g9");
+    expect(invite.mock.calls[0][1]).toEqual(["u_ada", "u_bea"]);
+  });
+
+  it("creates and invites nobody when nobody was picked", async () => {
+    const create = vi.fn(async () => ({ gid: "g9", inviteCode: "AAAA1111" }));
+    const invite = vi.fn(async () => ({ ok: true }));
+    LIVE.social.createGroup = create;
+    LIVE.social.inviteToGroup = invite;
+    render(<LiveDuelPanel mode="group" />);
+    fireEvent.change(screen.getByPlaceholderText(/Group name/i), { target: { value: "Book Club" } });
+    fireEvent.click(screen.getByRole("button", { name: /^Create$/ }));
+    await waitFor(() => expect(create).toHaveBeenCalled());
+    expect(invite, "an empty pick still notified somebody").not.toHaveBeenCalled();
+  });
+
+  it("refuses a handle nobody holds instead of adding a uid-less chip", async () => {
+    LIVE.social.whoIs = vi.fn(async () => null);
+    render(<LiveDuelPanel mode="group" />);
+    fireEvent.change(screen.getByPlaceholderText("@handle"), { target: { value: "ghost" } });
+    fireEvent.click(screen.getByRole("button", { name: /^Add$/ }));
+    expect(await screen.findByText(/No account is @ghost/i)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Remove @ghost/i })).toBeNull();
+  });
+
+  it("takes someone back off the list", async () => {
+    render(<LiveDuelPanel mode="group" />);
+    await pick("ada", "u_ada");
+    fireEvent.click(screen.getByRole("button", { name: /Remove @ada/i }));
+    expect(screen.queryByRole("button", { name: /Remove @ada/i })).toBeNull();
+  });
+
+  // A 1v1 has exactly one seat. An open field after the first pick would
+  // invite a second person into a room that cannot hold them — the server
+  // refuses it, but the screen should never have offered it.
+  it("closes the field at the cap, which for a 1v1 is one person", async () => {
+    render(<LiveDuelPanel mode="duo" />);
+    expect(screen.getByPlaceholderText("@handle")).toBeTruthy();
+    await pick("ada", "u_ada");
+    expect(screen.queryByPlaceholderText("@handle")).toBeNull();
+  });
+
+  // The circle EXISTS by the time the invitations run. Reporting this as
+  // a failed creation would send someone back to make a circle they
+  // already have.
+  it("says the circle was made when only the invitations failed", async () => {
+    LIVE.social.createGroup = vi.fn(async () => ({ gid: "g9", inviteCode: "AAAA1111" }));
+    LIVE.social.inviteToGroup = vi.fn(async () => { throw new Error("internal: too many invitations"); });
+    render(<LiveDuelPanel mode="group" />);
+    await pick("ada", "u_ada");
+    fireEvent.change(screen.getByPlaceholderText(/Group name/i), { target: { value: "Book Club" } });
+    fireEvent.click(screen.getByRole("button", { name: /^Create$/ }));
+    expect(await screen.findByText(/Circle made/i)).toBeTruthy();
+  });
+});

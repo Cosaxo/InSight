@@ -80,6 +80,18 @@ const DAILYSPLIT_DQ_SYNC = { s1: { prompt: 'Pineapple on pizza?', map: { yes: 0,
 // tile styles actually use (test/split-stage.test.js).
 export function sdSplitStageH(n) { return n <= 4 ? 244 : n * 53 + 123; }
 
+// Is the live store up and answering? Asked by both pending-target
+// consumers below (a tapped reveal, a tapped invitation).
+//
+// ONE shared-global read rather than three at each call site — the same
+// check written inline twice is six references to `window.LIVE` that
+// check:globals rule 4 counts, and rightly: every one of them is a name
+// resolved at render time that no import graph can see.
+const liveReady = () => {
+  const L = window.LIVE;
+  return !!(L && L.enabled && L.ready);
+};
+
 class DailySplit extends React.Component {
   state = {
     mode: this.props.mode || 'world', feedOpen: false, condensed: false, earlierOpen: false, reportFor: null,
@@ -125,10 +137,11 @@ class DailySplit extends React.Component {
     this._onPurge = () => this.setState({ dreplies: {}, cats: {}, votes: {} });
     window.addEventListener('insight:local-purge', this._onPurge);
     // the window event fires on every store notify AND on push-tap
-    // dispatch — either way, try to consume a pending reveal target
-    this._pendingHandler = () => this.consumePendingReveal();
+    // dispatch — either way, try to consume a pending reveal or
+    // invitation target (D230)
+    this._pendingHandler = () => this.consumePending();
     window.addEventListener('insight-live-update', this._pendingHandler);
-    this.consumePendingReveal();
+    this.consumePending();
     // Reconcile (not just repaint) on live-store changes: rolled-back
     // votes must un-vote the UI, and a late live boot (timeout path)
     // must hydrate answers recorded in earlier sessions.
@@ -144,7 +157,7 @@ class DailySplit extends React.Component {
         });
         return { votes };
       });
-      this.consumePendingReveal();
+      this.consumePending();
     });
     this.syncAppAccent();
     this.watchRuler();
@@ -155,11 +168,32 @@ class DailySplit extends React.Component {
   consumePendingReveal() {
     let gid = null;
     try { gid = sessionStorage.getItem('insight.pendingReveal'); } catch { /* best-effort */ }
-    if (!gid || !window.LIVE || !window.LIVE.enabled || !window.LIVE.ready) return;
+    if (!gid || !liveReady()) return false;
     const g = window.LIVE.social.groups().find((x) => x.id === gid);
-    if (!g) return;
+    if (!g) return false;
     try { sessionStorage.removeItem('insight.pendingReveal'); } catch { /* best-effort */ }
     this.setState({ mode: g.mode === 'duo' ? 'duo' : 'group' });
+    return true;
+  }
+
+  // A tapped INVITATION (D230) stores the mode, not a gid, and the
+  // asymmetry is structural: the tapper is not a member yet, so
+  // groups() cannot resolve the circle and the lookup above would find
+  // nothing at all. Land on the stop whose LdInvites draws the row.
+  consumePendingInvite() {
+    let mode = null;
+    try { mode = sessionStorage.getItem('insight.pendingInvite'); } catch { /* best-effort */ }
+    if (!mode || !liveReady()) return false;
+    try { sessionStorage.removeItem('insight.pendingInvite'); } catch { /* best-effort */ }
+    this.setState({ mode: mode === 'duo' ? 'duo' : 'group' });
+    return true;
+  }
+
+  // A reveal outranks an invitation: it is a circle you are already in,
+  // and it expires today. Both can be waiting after a batch of
+  // notifications, and landing on the invitation would bury the reveal.
+  consumePending() {
+    if (!this.consumePendingReveal()) this.consumePendingInvite();
   }
 
   // ── docking: once the in-flow ruler has scrolled away, the wordmark steps
