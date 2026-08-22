@@ -121,19 +121,33 @@ for (const q of entries) {
     } else {
       const extra = Object.keys(s).filter((k) => !["buyer", "audience"].includes(k));
       if (extra.length) errors.push(`${q.id}: sponsor carries ${extra.join(", ")} — only buyer and audience. No colour, no logo, no link`);
-      if (typeof s.buyer !== "string" || !s.buyer.trim()) {
-        errors.push(`${q.id}: a sponsored question names its buyer — an undisclosed one is the thing this field exists to prevent`);
-      } else if (s.buyer.length > 40) {
-        errors.push(`${q.id}: buyer name is ${s.buyer.length} chars (max 40) — it rides in a band, not a paragraph`);
+      // The buyer NAME is the buyer's choice since D228 — individuals may
+      // buy a question, and printing a person's name on every serve is
+      // theirs to want or to refuse. What stays non-optional is the PAID
+      // band itself: SponsorMark renders it from this block's PRESENCE,
+      // name or no name, because one covert paid card would make every
+      // unpaid card suspect. The contract-side purchase record still
+      // names who paid; the card just may not.
+      if (s.buyer !== undefined) {
+        if (typeof s.buyer !== "string" || !s.buyer.trim()) {
+          errors.push(`${q.id}: sponsor.buyer, when carried, is a non-empty name — for "paid, namelessly" omit the field rather than blanking it`);
+        } else if (s.buyer.length > 40) {
+          errors.push(`${q.id}: buyer name is ${s.buyer.length} chars (max 40) — it rides in a band, not a paragraph`);
+        }
       }
       if (s.audience !== undefined) {
         if (!s.audience || typeof s.audience !== "object" || Array.isArray(s.audience)) {
           errors.push(`${q.id}: sponsor.audience must be an object of dim → bucket`);
-        } else if (Object.keys(s.audience).length !== 1) {
-          // One tag, always. Two compound into targeting, which is the
-          // line docs/MONETIZATION.md draws and the reason a sponsored
-          // question may never be narrowed to a person.
-          errors.push(`${q.id}: sponsor.audience carries ${Object.keys(s.audience).length} tags — exactly one, or none`);
+        } else if (Object.keys(s.audience).length < 1 || Object.keys(s.audience).length > 3) {
+          // One to three tags since D228 — a cohort like "men 25-34 in
+          // the US" is three published dims, matched conjunctively on the
+          // device with EVERY matched dim printed on the band. Three is
+          // the coarseness ceiling: past it, compounding published dims
+          // starts shaping a person-sized query, which is the line
+          // docs/MONETIZATION.md draws. A key that is not a published dim
+          // matches nobody (data/sponsored.ts matches() fails closed), so
+          // an unknown dim is unsellable inventory rather than a leak.
+          errors.push(`${q.id}: sponsor.audience carries ${Object.keys(s.audience).length} tags — one to three, or none`);
         }
       }
     }

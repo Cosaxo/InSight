@@ -23139,3 +23139,75 @@ taking the test is not appearing in the cut.
   published dims (D164; PAID-PLAN.md §4's fence): "ask only the smart
   ones" is the precise-targeting compounding NEXT-FUNCTIONALITY §6
   refuses, and this record does not move it.
+
+## D228 · The buyer model: three dims, nameless if wanted, and the lens waits
+
+**2026-08-22.** **Status:** binding, built. Owner's three calls on the
+paid-reports thread, answering `PAID-PLAN.md` §11's open questions 2
+and 3 and adding one of his own: *"we can undo this decision if that is
+deemed sensible"* (the one-dim audience cap), and *"we don't need to
+print the company name that has paid for the question … and it can be
+individuals as well that might want to buy a question."* Same day as
+D226/D227; this one reshapes D195's buyer model rather than building a
+new surface.
+
+### 1 · The audience cap: one dim becomes one-to-three
+
+`sponsor.audience` now takes **one to three** dim → bucket entries from
+the published breakdown dims — the owner's example cohort ("men 20–30
+in the US") is exactly three — matched **conjunctively on the device**
+(`matches()` already iterated N entries; the cap was the whole change)
+with **every matched dim printed on the band** (`whyMatched` likewise).
+Three is the recorded coarseness ceiling: past it, compounding
+published dims starts shaping a person-sized query, which is the
+precise-targeting compounding `NEXT-FUNCTIONALITY.md` §6 refuses and
+this record does not touch. A key that is not a published dim matches
+nobody — `matches()` fails closed — so an unknown dim is unsellable
+inventory rather than a leak. Held by `check-content.mjs` (the D195
+one-tag rule, widened in place) and pinned by a `SponsorMark` test that
+asserts a three-dim purchase prints all three.
+
+### 2 · The buyer: individuals welcome, the name theirs, the word ours
+
+`sponsor.buyer` becomes **optional**. Companies and individuals both
+buy questions, and printing a person's name on every serve is theirs to
+want or to refuse — a nameless purchase simply omits the field
+(`check-content.mjs` refuses a blank string: "paid, namelessly" is an
+absence, never an empty name pretending to be one). The band renders
+from the block's **presence**: the word PAID, the window, and the
+audience line, with "The buyer" as the expanded copy's neutral noun —
+a noun, never a pseudonym.
+
+**What is deliberately NOT the buyer's to decline is the word PAID
+itself**, and the reasoning is recorded because the owner's ask could
+be read wider: one covert paid card would make every unpaid card
+suspect, so the marker is what keeps the free feed's honesty cheap to
+believe — it protects the house content more than it burdens the
+buyer. (It is also the consumer-law-shaped half: marking commercial
+content as commercial is the piece with legal weight; naming the buyer
+was always the app's own extra.) Removing the marker outright would be
+a different decision with different stakes, not taken here. Feed ADS
+are untouched: an ad without an advertiser is covert advertising, and
+D197's `advertiser` stays required. The contract-side purchase record
+always knows who paid; the card just may not say.
+
+### 3 · The Scores lens: report and place page first, the lens waits
+
+`PAID-PLAN.md` §11 question 3, resolved for v1: subscribed place
+metrics live in the **report and on a public place page**; the Scores
+lens does not mount them. If they ever mount, the recorded shape is a
+separate, disclosed band under the base scorecard — never mixed into
+the rows a reader takes as the app's own voice — and that mounting is
+its own decision, taken when a real subscription exists rather than
+ahead of one. The basic set stays editorial and unbuyable; tail-never-
+core stands.
+
+### The trail
+
+`check-content.mjs` rules; `data/sponsored.ts` `Sponsor` type;
+`ui/SponsorMark.tsx` nameless rendering plus its suite (PAID always,
+name when worn, all three dims printed); `SCHEMA-V2.md`,
+`content/README.md`, `MONETIZATION.md` path 2, `TAGS-PLAN.md` §3's
+parenthetical, and `PAID-PLAN.md` §§5–7/11 updated in the same commit.
+The bank still carries zero sponsored questions and the test asserting
+it stands — this record changes what may be sold, not what has been.

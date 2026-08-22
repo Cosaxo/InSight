@@ -40,11 +40,18 @@ v2_questions/{qid}                 canonical bank, seeded by seedContentV2
                       answers and aggregates persist either way
   core?               feed only (D161), and ABSENT MEANS TAIL — a question
                       is in the Mirror's corpus only if it says so
-  sponsor?            feed only (D195): { buyer, audience? } on a question
-                      somebody paid to ask. `audience` is at most ONE
-                      dim → bucket from the published breakdown dims, and
-                      the DEVICE matches it (data/sponsored.ts) — the
-                      server is never asked who should see what. The window
+  sponsor?            feed only (D195; buyer model D228): { buyer?,
+                      audience? } on a question somebody paid to ask —
+                      a company or an individual. `buyer` is the name the
+                      buyer chose to wear, or absent for a nameless
+                      purchase; the PAID band renders from this block's
+                      PRESENCE either way (the fact of payment is the
+                      app's disclosure, not the buyer's choice).
+                      `audience` is one to three dim → bucket entries
+                      from the published breakdown dims, matched
+                      conjunctively by the DEVICE (data/sponsored.ts) —
+                      the server is never asked who should see what — and
+                      every matched dim prints on the band. The window
                       is `until` above rather than a field here, so the
                       band's label and the serving filter are one value. A
                       sponsored question is never `core`
