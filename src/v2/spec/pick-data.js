@@ -491,6 +491,27 @@
       604: 2,  // Peru — below the floor
       0: 10,   // Not listed
     },
+    // daily catalog-question run, 2026-08-22 — names, the fourth dogs
+    // canon (pk09/pk13's class, worded around their "best name" frame so
+    // the lexical gate stays clear): not the dog, the WORD. The board
+    // belongs to names nobody says just once.
+    pk23: {
+      551: 27, // Xoloitzcuintle — the name of names; say it three times
+      464: 23, // Shih Tzu — the giggle vote
+      449: 17, // Schnauzer — fun in any accent
+      86: 14,  // Borzoi — the internet's favourite word era
+      164: 12, // Dachshund — a spelling test with legs
+      370: 10, // Papillon — butterfly, in French, for a dog
+      543: 9,  // Whippet — onomatopoeia for speed
+      52: 8,   // Basenji
+      411: 7,  // Puli — four letters, all mop
+      144: 6,  // Chihuahua
+      398: 5,  // Pomeranian — clears the floor but not the top 10; folds
+      533: 5,  // Weimaraner — same
+      1: 3,    // Affenpinscher — below the floor, criminally
+      367: 2,  // Otterhound — below the floor
+      0: 9,    // Not listed
+    },
   };
 
   // Baked demo segment slices, per question: how each cohort orders the
@@ -758,6 +779,18 @@
         Men: { 554: 9, 578: 7, 756: 6, 124: 5, 710: 5 },
       },
     },
+    pk23: {
+      ageBand: {
+        // the borzoi-word era makes the youth cell the meme board; the
+        // older cell says Schnauzer and Dachshund like it grew up with them
+        '18-24': { 86: 9, 551: 7, 464: 6, 411: 5, 144: 4 },
+        '25-34': { 551: 8, 449: 7, 164: 6, 464: 5, 543: 4 },
+      },
+      gender: {
+        Women: { 464: 8, 370: 7, 551: 6, 144: 5, 86: 4 },
+        Men: { 449: 9, 86: 7, 164: 6, 551: 5, 52: 5 },
+      },
+    },
   };
 
   const api = {
@@ -910,5 +943,6 @@
     { id: 'pk20', cat: 'fav', type: 'pick', domain: 'countries', prompt: 'The best flag in the world?', n: 163 },
     { id: 'pk21', cat: 'fav', type: 'pick', domain: 'dogs', prompt: 'The smartest dog?', n: 164 },
     { id: 'pk22', cat: 'fav', type: 'pick', domain: 'countries', prompt: 'The most beautiful country?', n: 165 },
+    { id: 'pk23', cat: 'fav', type: 'pick', domain: 'dogs', prompt: 'The most fun breed to say out loud?', n: 157 },
   ];
 })();
