@@ -524,6 +524,34 @@ run derisks the signing, not the build** — and the two are the same run
 only when both dispatches name one commit.
 
 
+**Runs 39 and 40 delivered build 24, the bump landed off step 17's
+conclusion, and both runs archived the same commit** (D229's own release,
+2026-08-22). Run 39 (`32573914036`, 12:46:43Z) step 17 `skipped` — the dry
+run, 7m 21s — and run 40 (`32574502233`, 12:59:43Z) `success`, 13:04:06Z →
+13:05:33Z, 1m 27s of transfer. `UPLOAD SUCCEEDED with no errors`, delivery
+UUID `007fd1db-b647-4d7a-8133-6d3cc31b6094`, 5,994,956 bytes. Seventh pair
+of this shape after 15/16, 23/24, 25/26, 27/28, 32/33 and 37/38.
+
+**Both archived `1ade973`, which is the first time a pair has been
+*checked* rather than merely happened to match.** D229 had just been
+written about build 23's pair archiving different commits, so the head_sha
+was read at each dispatch and compared: the merge landed at 12:45:30Z, the
+dry run went out at 12:46:43Z and the upload at 12:59:43Z, with `main`
+verified unmoved in the fourteen minutes between. Nothing pushed in the
+gap — the merge came through the App token, which does not re-trigger
+`pulse.yml`, so the trail row that split runs 37 and 38 never fired here.
+That is luck confirmed by a check rather than luck alone, and the check is
+the part worth repeating.
+
+So **build 24 is the first wall-less build whose shipped bundle a dry run
+actually archived.** D229 names the gap; this release is where it closes.
+
+Seven that held (20, 21, 22, 28, 33, 36, 40) against six skipped (18, 19,
+24, 26, 31, 38). The bump was made from step 17's step list while it was on
+screen — the only arrangement that has ever made it stick — and the record
+below it in the same session, which is the edit D180 found can be
+discharged separately and D184 found can be skipped entirely.
+
 **Build 16's pre-flight found nothing to do either, which is the first
 time that has happened twice running** (D158, 2026-08-15). Run 21 was
 still the highest run in the list, its upload step still `success`,
