@@ -1,15 +1,15 @@
 {
-  "generatedAt": "2026-08-21T07:14:57.769Z",
-  "daysSinceEpoch": 20,
+  "generatedAt": "2026-08-22T07:04:24.752Z",
+  "daysSinceEpoch": 21,
   "coverage": {
-    "questions": 214,
+    "questions": 222,
     "scored": 0,
     "belowFloor": 10,
-    "unserved": 102
+    "unserved": 103
   },
   "topics": {
     "Sport": {
-      "questions": 6,
+      "questions": 7,
       "scored": 0,
       "answers": 0,
       "strong": 0,
@@ -17,7 +17,7 @@
       "avgEvenness": null
     },
     "Film": {
-      "questions": 6,
+      "questions": 7,
       "scored": 0,
       "answers": 0,
       "strong": 0,
@@ -121,7 +121,7 @@
       "avgEvenness": null
     },
     "sport": {
-      "questions": 12,
+      "questions": 13,
       "scored": 0,
       "answers": 0,
       "strong": 0,
@@ -145,7 +145,7 @@
       "avgEvenness": null
     },
     "food": {
-      "questions": 12,
+      "questions": 13,
       "scored": 0,
       "answers": 0,
       "strong": 0,
@@ -153,7 +153,7 @@
       "avgEvenness": null
     },
     "movies": {
-      "questions": 8,
+      "questions": 9,
       "scored": 0,
       "answers": 0,
       "strong": 0,
@@ -169,7 +169,7 @@
       "avgEvenness": null
     },
     "music": {
-      "questions": 7,
+      "questions": 8,
       "scored": 0,
       "answers": 0,
       "strong": 0,
@@ -177,7 +177,7 @@
       "avgEvenness": null
     },
     "event": {
-      "questions": 9,
+      "questions": 10,
       "scored": 0,
       "answers": 0,
       "strong": 0,
@@ -185,7 +185,7 @@
       "avgEvenness": null
     },
     "people": {
-      "questions": 6,
+      "questions": 7,
       "scored": 0,
       "answers": 0,
       "strong": 0,
@@ -204,7 +204,7 @@
   "types": {
     "daily": {
       "binary": {
-        "questions": 40,
+        "questions": 42,
         "scored": 0,
         "answers": 0,
         "strong": 0,
@@ -254,7 +254,7 @@
         "avgEvenness": null
       },
       "vote": {
-        "questions": 74,
+        "questions": 79,
         "scored": 0,
         "answers": 0,
         "strong": 0,
@@ -262,7 +262,7 @@
         "avgEvenness": null
       },
       "dial": {
-        "questions": 7,
+        "questions": 8,
         "scored": 0,
         "answers": 0,
         "strong": 0,
@@ -297,7 +297,7 @@
     "bySource": {
       "editorial": {
         "questions": 176,
-        "served": 94,
+        "served": 95,
         "scored": 0,
         "answers": 0,
         "strong": 0,
@@ -305,8 +305,8 @@
         "avgEvenness": null
       },
       "farm": {
-        "questions": 38,
-        "served": 18,
+        "questions": 46,
+        "served": 24,
         "scored": 0,
         "answers": 0,
         "strong": 0,
@@ -317,7 +317,7 @@
     "byVintage": {
       "editorial:prototype": {
         "questions": 118,
-        "served": 85,
+        "served": 86,
         "scored": 0,
         "answers": 0,
         "strong": 0,
@@ -353,6 +353,15 @@
       },
       "farm:2026-08-19": {
         "questions": 14,
+        "served": 6,
+        "scored": 0,
+        "answers": 0,
+        "strong": 0,
+        "landslides": 0,
+        "avgEvenness": null
+      },
+      "farm:2026-08-21": {
+        "questions": 8,
         "served": 6,
         "scored": 0,
         "answers": 0,
@@ -3630,11 +3639,11 @@
       ],
       "type": "rating",
       "prompt": "How much of your life so far is luck?",
-      "served": false,
+      "served": true,
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "unserved"
+      "signal": "no-answers"
     },
     {
       "qid": "daily-021",
@@ -5152,6 +5161,36 @@
       "signal": "unserved"
     },
     {
+      "qid": "daily-122",
+      "surface": "daily",
+      "topic": "Sport",
+      "topics": [
+        "Sport"
+      ],
+      "type": "binary",
+      "prompt": "The team you support: inherited, or chosen?",
+      "served": false,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "unserved"
+    },
+    {
+      "qid": "daily-123",
+      "surface": "daily",
+      "topic": "Film",
+      "topics": [
+        "Film"
+      ],
+      "type": "binary",
+      "prompt": "Rewatch a favourite, or risk something new?",
+      "served": false,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "unserved"
+    },
+    {
       "qid": "feed-f01",
       "surface": "feed",
       "topic": "sport",
@@ -6540,6 +6579,96 @@
       ],
       "type": "vote",
       "prompt": "Would you live forever, if you could?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-dl8",
+      "surface": "feed",
+      "topic": "music",
+      "topics": [
+        "music"
+      ],
+      "type": "dial",
+      "prompt": "How long should a concert be?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f73",
+      "surface": "feed",
+      "topic": "people",
+      "topics": [
+        "people"
+      ],
+      "type": "vote",
+      "prompt": "Dinner with Napoleon, or with Cleopatra?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f74",
+      "surface": "feed",
+      "topic": "movies",
+      "topics": [
+        "movies"
+      ],
+      "type": "vote",
+      "prompt": "Watch the trailer first, or go in blind?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f75",
+      "surface": "feed",
+      "topic": "event",
+      "topics": [
+        "event"
+      ],
+      "type": "vote",
+      "prompt": "Election night: up late for the count, or read it in the morning?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f76",
+      "surface": "feed",
+      "topic": "food",
+      "topics": [
+        "food"
+      ],
+      "type": "vote",
+      "prompt": "Cake or pie?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f77",
+      "surface": "feed",
+      "topic": "sport",
+      "topics": [
+        "sport"
+      ],
+      "type": "vote",
+      "prompt": "Penalty shootouts: great drama, or a cruel coin flip?",
       "served": true,
       "total": 0,
       "evenness": null,
