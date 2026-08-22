@@ -473,7 +473,7 @@ build 20's delivery until build 21's pre-flight read the run list.
 
 
 **Runs 34–36 delivered build 22 and the bump held; runs 37 and 38
-delivered build 23 and it did not** (D226, caught 2026-08-22). Both
+delivered build 23 and it did not** (D229, caught 2026-08-22). Both
 releases went out on 2026-08-20, and **neither was recorded** until this
 pre-flight read the run list — the D184 shape again, twice over.
 
