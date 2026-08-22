@@ -33,21 +33,25 @@ all:**
   politics result (Art. 9) stay out structurally, and §4 keeps the
   logic score out too.
 
-**Reshaped — each needs its own DECISIONS.md record when built:**
+**Reshaped:**
 
-1. **"No demographic report computed server-side for one customer"**
-   (MONETIZATION.md, ruled-out list). The reshape: a report may be
-   computed server-side **iff every number in it is derivable from
-   world-readable data and the built report itself publishes at a
-   world-readable path**. The buyer then pays for packaging and
-   delivery, never for a private cut — "a convenience over data they
-   could read themselves" stays literally true, which is the sentence
-   that keeps the honesty pitch alive with money in the room. What
-   would still be refused: a report over data only the server can see.
-2. **D86's "do not widen the edit surface."** §3 adds one
-   *server-written* provenance artifact when an answer is edited. The
-   client-writable surface does not move — a rules test proves it —
-   but the doc shape grows, and D86 owns that doc shape.
+1. **"No demographic report computed server-side for one customer"
+   (MONETIZATION.md) — RESOLVED by removal, D225 (2026-08-22).** A day
+   after this plan proposed threading the needle (reports allowed iff
+   the built artifact also publishes), the owner removed the promise
+   instead — an unneeded promise is a standing liability. A report is
+   computed for the buyer and delivered privately; whether it also
+   publishes, and on what embargo, is a per-contract term. What
+   remains is fact rather than pledge, and it is the load-bearing
+   half: **every number must be derivable from world-readable data**
+   (§2), held by a test on the builder's read set. A report over data
+   only the server can see is still refused — that would be a private
+   tier of *data*, which D98's model has no place for.
+2. **D86's "do not widen the edit surface"** — needs its own record
+   when built. §3 adds one *server-written* provenance artifact when
+   an answer is edited. The client-writable surface does not move — a
+   rules test proves it — but the doc shape grows, and D86 owns that
+   doc shape.
 
 ## 1 · What is for sale — three products, one window
 
@@ -74,11 +78,12 @@ bought; it never runs a payment.
 ## 2 · The report — everything the app can honestly gather
 
 One rule decides every line item: **derivable from world-readable data,
-or not in the report.** That rule is what makes §0's reshape a reshape
-rather than a reversal, and it is testable — the report builder reads
-only collections `firestore.rules` grants to any signed-in user, plus
-the buyer's own purchase doc, and a test holds its read set to that
-list.
+or not in the report.** Since D225 removed the delivery promise this
+rule is the whole of the line — the report is the buyer's, privately,
+but a buyer-only *number* is still refused — and it is testable: the
+report builder reads only collections `firestore.rules` grants to any
+signed-in user, plus the buyer's own purchase doc, and a test holds its
+read set to that list.
 
 Contents, each with its source named:
 
@@ -106,15 +111,18 @@ Contents, each with its source named:
   `v2_patterns/loadings`): nearest neighbours by loading vector, named
   with their prompts. A paid question is tail (D161: the fit's corpus
   is core-only), so the builder computes its co-answer correlation
-  against `PATTERNS_QIDS` at build time — from public answers — and
-  the result publishes alongside the report, so the number exists on
-  the same terms as every other.
+  against `PATTERNS_QIDS` at build time, from public answers.
 - **Baselines**: the question's split against the world's on its
   nearest core neighbours, and for place metrics the place against
   country and world (the Scores lens's own comparators, D170/D187).
 
 **Form**: a rendered HTML report plus a CSV bundle (the roll, the
-matrix, the series), downloadable from the buyer's page (§7).
+matrix, the series), downloadable from the buyer's page (§7). The
+report is the buyer's: whether it also publishes, and on what embargo,
+is a per-contract term (D225), and when the first report ships,
+`web/privacy.html` says plainly that reports over the public data are
+sold — the D183 discipline; the page's current sale sentence is scoped
+to advertisers and does not cover this.
 **Cadence**: monthly while the window runs plus a final report at
 close; per billing period for subscriptions. **Build**: a scheduled
 job, not a client — the same species as the patterns fit, with its
@@ -312,7 +320,7 @@ every day it waits.
    nothing can backfill the votes already moved. Decision record,
    trigger fold, inventory row, policy sentence.
 2. **Report builder v1** (§2) — a script, run by hand per contract,
-   publishing the report artifact; sell by hand at hand-set prices.
+   delivered to the buyer; sell by hand at hand-set prices.
    This plus the existing D195 machinery is a complete sellable
    product with near-zero app code.
 3. **"Asked by you" + purchase records** (§7) — the first in-app build.
@@ -326,7 +334,7 @@ every day it waits.
 
 | Failure | Mitigation | Residual |
 | --- | --- | --- |
-| The report becomes a private data product | The §2 rule: public-derivable only, artifact publishes; a test on the builder's read set | An operator who widens the read set; the same trust every gate rests on |
+| The report drifts beyond what public data can produce | The §2 rule, held by the read-set test — D225 removed the delivery promise, not this | An operator who widens the read set; the same trust every gate rests on |
 | Demand inflates inventory instead of price | `SPONSOR_SLOT` stays the unit of sale; §6 prices the scarcity | Pressure to "just add a second slot" — the cap is one diff away, which is why it is a named constant |
 | Paid metrics read as the app's own voice | Never core; base scorecard unbuyable; lens separation disclosed if mounted at all | A reader who does not read bands |
 | Edit history chills honest edits | Aggregate matrix first; per-voter mark only by explicit decision | Once public, second thoughts are public — D98's own trade, at its sharpest |
@@ -343,8 +351,6 @@ chosen rather than defaulted:
 2. Audience cap: how many dims may a bought cohort compound? (§6)
 3. Do subscribed metrics mount in the Scores lens as a disclosed band,
    or stay report + public page only? (§5)
-4. Report cadence and whether a buyer may embargo nothing — the §2
-   rule says the artifact publishes; is same-day publication
-   acceptable to buyers, or does "publishes when the buyer's copy
-   ships" satisfy the line? (It does, if the delay is fixed and short
-   — but that sentence belongs in the decision record, not here.)
+A fourth — must the built report itself publish, and on what embargo?
+— lasted one day: **D225** (2026-08-22) removed the promise, and
+publication or embargo is now a per-contract term, not a rule.
