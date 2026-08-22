@@ -34,7 +34,6 @@ const UI = join(root, "src", "v2", "ui");
 // know. Removing a name from this list is the only direction it moves.
 const OWED = {
   duelMarks: "glyph constants, no component",
-  profileSetup: "the pre-typed setup; LiveProfileSetup is the live one and has a suite",
 };
 
 const panels = readdirSync(UI)
