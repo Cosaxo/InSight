@@ -259,10 +259,30 @@ export function ensureToday(force = false): Promise<void> {
   const today = utcKey(dayAt(DAYS - 1));
   if (todayAggs && loadedForKey === today && !force) return Promise.resolve();
   if (loadingToday) return loadingToday;
+  // THE EMPTY-ROSTER DECISION IS MADE OUT HERE, SYNCHRONOUSLY, and that
+  // placement is the whole fix (D228).
+  //
+  // `roster()` reads `LIVE.pulseQs()`, which is empty until the bank
+  // hydrates — an empty roster is the bank not having arrived, not a day
+  // with no pulses. This used to be the first branch INSIDE the async
+  // IIFE below, and there is no `await` before it, so the entire body ran
+  // synchronously: `finally { loadingToday = null }` executed BEFORE the
+  // `loadingToday = (...)()` assignment, which then overwrote the null
+  // with an already-SETTLED promise. From that moment `if (loadingToday)
+  // return loadingToday` answered every later call instantly and the
+  // crowd was never fetched again, for the life of the module. The purge
+  // listener resets `todayAggs` and `loadedForKey`, not this, so nothing
+  // recovered it either.
+  //
+  // Kept out of the promise, the in-flight slot is only ever taken by a
+  // call that really does fetch — and that one always suspends at
+  // `await fetchAggs`, so its `finally` cannot run early. Nothing is
+  // cached here: `loadedForKey` stays unset, so the call that arrives
+  // once the bank has landed does the work.
+  const ids = roster().map((q) => `${q.id}_${today}`);
+  if (!ids.length) return Promise.resolve();
   loadingToday = (async () => {
     try {
-      const ids = roster().map((q) => `${q.id}_${today}`);
-      if (!ids.length) { todayAggs = {}; loadedForKey = today; return; }
       const got = await fetchAggs(ids);
       const next: Record<string, DayAgg | null> = {};
       for (const q of roster()) next[q.id] = got.get(`${q.id}_${today}`) ?? null;

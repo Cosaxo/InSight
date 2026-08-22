@@ -23201,3 +23201,98 @@ reported green while it was a 48-line scratch probe with no assertions at
 all, and two passed individually while failing together because a file was
 still being edited. Structure, stability and an independent mutation are
 three different questions.
+
+## D228 · Two data-layer defects D227 found, fixed
+
+**2026-08-22.** **Status:** binding. D227 recorded eight defects and fixed
+none, on the rule that a test sweep must not quietly become a behaviour
+change. These are the two the owner picked out of that list.
+
+### 1 · `initialsOf` drew half a character
+
+`data/avatar.ts` indexed UTF-16 **code units**. `parts[0][0]` on a word
+beginning with an astral character takes the high surrogate and leaves the
+low one, so a multi-word name contributed an **unpaired surrogate** to the
+initials — tofu beside a correct letter, on the one surface whose whole
+job is drawing identity. Measured, old → new:
+
+| name | before | after |
+| --- | --- | --- |
+| `Ada 🎈` | `"A\uD83C"` broken | `"A🎈"` |
+| `🎈 Ada` | `"\uD83CA"` broken | `"🎈A"` |
+| `𝒜da Test` | `"\uD835T"` broken | `"𝒜T"` |
+| `Li 𠮷` | `"L\uD842"` broken | `"L𠮷"` |
+| `Ada Lovelace` · `Анна Каренина` · `josé ólafur` · `山田太郎` | correct | unchanged |
+
+The single-word branch was already right **by accident** — `slice(0, 2)`
+happens to take both halves of one astral character — which is why the bug
+survived every by-hand reading of a function this short. Spreading to code
+points gives both branches the same unit and makes the accident
+deliberate.
+
+`Avatar.test.tsx`'s pinned-defect case becomes the fix's case, as its own
+comment instructed. The assertion under all of it is the property rather
+than the four strings: nothing that comes out is a lone surrogate.
+
+### 2 · `ensureToday` latched its in-flight slot on a settled promise
+
+The interesting one, and the one this record exists for.
+
+`ensureToday`'s empty-roster branch sat **inside** the async IIFE:
+
+```ts
+loadingToday = (async () => {
+  try {
+    const ids = roster().map(…);
+    if (!ids.length) { todayAggs = {}; loadedForKey = today; return; }
+    const got = await fetchAggs(ids);      // the only await
+    …
+  } finally { loadingToday = null; }
+})();
+```
+
+There is no `await` before that early return, so on an empty roster the
+**entire body runs synchronously** — `finally { loadingToday = null }`
+included — and it runs BEFORE the `loadingToday = (…)()` assignment it is
+trying to clear. The assignment then stores an already-settled promise in
+the in-flight slot, and `if (loadingToday) return loadingToday` answers
+every later call instantly. The crowd is never fetched again for the life
+of the module. The purge listener (D51) resets `todayAggs` and
+`loadedForKey`, not that slot, so nothing recovers it.
+
+The fix is placement, not logic: the empty-roster decision moves OUT of
+the promise and is made synchronously, so the in-flight slot is only ever
+taken by a call that really fetches — and that call always suspends at
+`await fetchAggs`, so its `finally` cannot run early. Nothing is cached
+either, because an empty roster is the bank not having arrived rather than
+a day with no pulses: `loadedForKey` stays unset, and the call that
+arrives once the bank lands does the work.
+
+**Latent, not live — and the reachability argument is why it is fixed
+anyway.** The only caller is `PulseCard`'s mount effect, and
+`daily-split` builds its card list from `dueToday()`, which filters the
+same roster — so no card mounts to make the call while the bank is empty.
+But that effect is registered ABOVE `if (!PULSE.ready()) return null`, so
+it runs whenever a card mounts before the bank arrives, and the comment
+beside that return already promises "the effect above fills it". It would
+not have.
+
+`data/pulse-ensure.test.ts` holds it — a separate file because the case
+needs a LIVE store with a bank that changes underneath it, and
+`pulse.test.ts` mocks the store as `enabled: false`, which returns from
+the first line of the function. Three cases: the empty call does not
+poison the next one, a real load still caches, and `force` still refetches
+— the last two because the fix must not turn every mount into a query.
+
+### A note on believing an agent's report
+
+D227's write-up said this bug's mechanism was `loadingToday` latching on a
+settled promise, "the `finally` runs before the assignment". Reviewing it
+here, that looked wrong — there IS a `finally`, and the purge DOES reset —
+and this record was drafted describing a different mechanism (the
+`loadedForKey` cache) and calling the report inaccurate. Writing the test
+proved the original report exactly right, in both details, including the
+one about the purge. The reasoning that missed it is worth naming: an
+async function with no `await` before its return runs to completion
+synchronously, so its `finally` can execute before the caller has stored
+its promise. Reading the code was not enough; running it was.

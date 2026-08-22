@@ -31,8 +31,8 @@
 //      and this is the only suite that executes it at all. A "?" over an
 //      account that HAS a name, or two letters lifted from the wrong
 //      words, is a person mislabelled in the one place the app draws
-//      identity. One case is a DEFECT and is pinned as found rather than
-//      fixed — see "an emoji" below.
+//      identity. The astral-character case was a DEFECT when this suite
+//      was written and is fixed at D228; the case now holds the fix.
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 
@@ -222,20 +222,40 @@ describe("the initials, which are the permanent fallback", () => {
     expect(initialsFor("山田太郎")).toBe("山田");
   });
 
-  it("DEFECT: an emoji in a name yields half a character", () => {
-    // Found writing this suite; pinned as found rather than fixed,
-    // because the fix is in `data/avatar.ts` and this file may not reach
-    // it. `initialsOf` indexes UTF-16 CODE UNITS (`parts[0][0]`) and an
-    // emoji is two of them, so a name whose first or last word begins with
-    // an astral character contributes an UNPAIRED SURROGATE — tofu beside
-    // a correct letter, on a surface whose whole job is drawing identity.
-    // The fix is code points (`[...parts[0]][0]`), and it lands here: this
-    // expectation is the one to update.
-    const broken = initialsFor("Ada 🎈");
-    expect(broken).toBe("A\uD83C");
-    expect([...broken].some((ch) => ch >= "\uD800" && ch <= "\uDFFF")).toBe(true);
-    // A one-word emoji name escapes it, because `slice(0, 2)` happens to
-    // take both halves — which is why the bug is easy to miss by hand.
+  it("keeps a whole astral character, first word or last (D228)", () => {
+    // WAS A PINNED DEFECT, now the fix. `initialsOf` indexed UTF-16 code
+    // UNITS, so a word beginning with an emoji, a mathematical
+    // alphanumeric or a CJK extension B glyph contributed HALF of it —
+    // "Ada 🎈" drew "A\uD83C", an unpaired surrogate rendering as tofu
+    // beside a correct letter. Code points now, both branches.
+    expect(initialsFor("Ada 🎈")).toBe("A🎈");
+    expect(initialsFor("🎈 Ada")).toBe("🎈A");
+    // The one-word branch was already right BY ACCIDENT — `slice(0, 2)`
+    // happens to take both halves of one astral character — which is why
+    // the bug survived every by-hand reading. Kept so the accident cannot
+    // quietly become a regression.
     expect(initialsFor("🎈")).toBe("🎈");
+    // The property under all four, and the one a reader would actually
+    // notice: whatever comes out is renderable text, never a lone
+    // surrogate. This is what fails if the fold goes back to indexing.
+    // Spelled out rather than `String.isWellFormed`, which needs an ES2024
+    // lib this project does not target — and this says the thing directly:
+    // a high surrogate must be followed by a low one, and a low one must
+    // never stand alone. That is exactly what indexing code units breaks.
+    const loneSurrogate = (s: string): boolean => {
+      for (let i = 0; i < s.length; i++) {
+        const c = s.charCodeAt(i);
+        if (c >= 0xdc00 && c <= 0xdfff) return true;             // low, unpaired
+        if (c >= 0xd800 && c <= 0xdbff) {
+          const n = s.charCodeAt(i + 1);
+          if (!(n >= 0xdc00 && n <= 0xdfff)) return true;        // high, unfollowed
+          i++;
+        }
+      }
+      return false;
+    };
+    for (const name of ["Ada 🎈", "🎈 Ada", "𝒜da Test", "Li 𠮷", "🎈"]) {
+      expect(loneSurrogate(initialsFor(name)), `${name} produced a lone surrogate`).toBe(false);
+    }
   });
 });

@@ -122,6 +122,18 @@ export function tokenFromUrl(url: string): string {
 export function initialsOf(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (!parts.length) return "?";
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  // CODE POINTS, NOT CODE UNITS (D228). `parts[0][0]` indexes UTF-16, and
+  // an astral character — an emoji, a CJK extension B glyph — is two units
+  // wide, so a multi-word name whose first or last word starts with one
+  // contributed HALF of it: "Ada 🎈" drew "A\uD83C", an unpaired surrogate
+  // rendering as tofu beside a correct letter, on the one surface whose
+  // whole job is drawing identity.
+  //
+  // The single-word branch escaped it by accident — `slice(0, 2)` happens
+  // to take both halves of one astral character — which is why the bug
+  // survived every by-hand reading. Spreading gives both branches the same
+  // unit and makes the accident deliberate.
+  const cps = (s: string): string[] => [...s];
+  if (parts.length === 1) return cps(parts[0]).slice(0, 2).join("").toUpperCase();
+  return (cps(parts[0])[0] + cps(parts[parts.length - 1])[0]).toUpperCase();
 }
