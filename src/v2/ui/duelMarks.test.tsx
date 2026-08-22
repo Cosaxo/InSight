@@ -137,6 +137,14 @@ describe("the letters", () => {
   it("takes a person's initials from their name", () => {
     expect(draw(<DuelAv uid="u_ada" name="Ada Lovelace" />).textContent).toBe("AL");
     expect(draw(<DuelAv uid="u_ada" name="Ada" />).textContent).toBe("AD");
+    // THROUGH THE COMPONENT, on the input where the two rules diverge.
+    // The two lines above cannot see the swap this case exists for:
+    // `groupInitials` also returns AL and AD for them, so a `DuelAv` wired
+    // to the circle rule passes both. Only a leading "The" separates the
+    // rules, and until this line the person side never rendered one — the
+    // swap was caught two describes down, by the nameless dot, which is
+    // incidental rather than the property claiming to hold it.
+    expect(draw(<DuelAv uid="u_sun" name="The Sunday Club" />).textContent).toBe("TS");
   });
 
   it("reads a circle by the circle rule, which drops a leading The", () => {
