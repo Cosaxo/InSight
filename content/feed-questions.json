@@ -2159,6 +2159,109 @@
           "count": 2600
         }
       ]
+    },
+    {
+      "id": "f78",
+      "core": false,
+      "cat": "music",
+      "type": "vote",
+      "prompt": "One instrument, mastered overnight — which?",
+      "options": [
+        {
+          "label": "Piano",
+          "count": 3100
+        },
+        {
+          "label": "Guitar",
+          "count": 2800
+        },
+        {
+          "label": "Violin",
+          "count": 1200
+        },
+        {
+          "label": "Drums",
+          "count": 1400
+        }
+      ]
+    },
+    {
+      "id": "f79",
+      "core": false,
+      "cat": "people",
+      "type": "vote",
+      "prompt": "Meet your hero — or keep the myth?",
+      "options": [
+        {
+          "label": "Meet them",
+          "count": 2900
+        },
+        {
+          "label": "Keep the myth",
+          "count": 2500
+        }
+      ]
+    },
+    {
+      "id": "dl9",
+      "core": false,
+      "cat": "movies",
+      "type": "dial",
+      "prompt": "Trailers before the film — how many minutes is right?",
+      "lo": 0,
+      "hi": 30,
+      "unit": "min"
+    },
+    {
+      "id": "f80",
+      "core": false,
+      "cat": "event",
+      "type": "vote",
+      "prompt": "A total eclipse nearby — travel to stand in it?",
+      "options": [
+        {
+          "label": "Chase it",
+          "count": 3200
+        },
+        {
+          "label": "Watch the photos",
+          "count": 2100
+        }
+      ]
+    },
+    {
+      "id": "f81",
+      "core": false,
+      "cat": "food",
+      "type": "vote",
+      "prompt": "Cold leftovers the next morning: better, or sad?",
+      "options": [
+        {
+          "label": "Better",
+          "count": 2800
+        },
+        {
+          "label": "Sad",
+          "count": 2400
+        }
+      ]
+    },
+    {
+      "id": "f82",
+      "core": false,
+      "cat": "tech",
+      "type": "vote",
+      "prompt": "Paper books or an e-reader?",
+      "options": [
+        {
+          "label": "Paper",
+          "count": 3600
+        },
+        {
+          "label": "E-reader",
+          "count": 2200
+        }
+      ]
     }
   ]
 }
