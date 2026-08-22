@@ -30,18 +30,17 @@ import { signInRequired } from "./signInRequired";
 const Screen = React.lazy(() => import("./LiveSignInGate"));
 
 function SignInGate({ children }: { children?: React.ReactNode }) {
+  const [, tick] = React.useState(0);
+  // `LIVE.linked` flips when the anonymous session is upgraded, and the
+  // store announces that (D134's live.ts half) — without the subscription
+  // the wall would stay up after a successful sign-in.
+  React.useEffect(() => LIVE.subscribe(() => tick((t) => t + 1)), []);
 
   // An early return after hooks, which is safe here for a specific reason
   // rather than by luck: `signInRequired()` reads a value Vite substitutes
   // at BUILD time, so it is constant for the life of the process and the
   // hook order above can never change between renders of one instance.
   if (!signInRequired() || LIVE.linked) return <>{children}</>;
-
-  const [, tick] = React.useState(0);
-  // `LIVE.linked` flips when the anonymous session is upgraded, and the
-  // store announces that (D134's live.ts half) — without the subscription
-  // the wall would stay up after a successful sign-in.
-  React.useEffect(() => LIVE.subscribe(() => tick((t) => t + 1)), []);
 
   // `null` rather than a spinner: this is a local chunk on a phone's own
   // disk, and a spinner that shows for one frame is worse than nothing.
