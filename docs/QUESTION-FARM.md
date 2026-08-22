@@ -1287,6 +1287,46 @@ approval. (A note may also arrive already pointing at a **Proposed**
 record, as the duel lane does — the same rule seen from the other side:
 Proposed binds nothing until the owner adopts it.)
 
+### A pulse lane, very slow (owner note, 2026-08-22 — not adopted)
+
+The owner wants pulses to gain a **creation lane at a very low rate —
+about one per week**. That re-scopes the census entry above ("the set
+is small and editorial"), so adopting it is a decision record that
+amends D213's census, and these are the starting constraints:
+
+- **Creation compounds; nothing else in the farm does.** A daily
+  question is consumed and a feed question can retire, but a pulse is a
+  *standing* card: its option set freezes when it ships (D52), its
+  histories accrue, and `active: false` is a whole-series kill, not a
+  rotation. One per week is a ~57-pulse roster within a year, against
+  five today — so the honest unit for this lane is a **roster ceiling**
+  it fills toward, with "one per week" as the fill rate; past the
+  ceiling the lane proposes a swap (pause one, add one), never a pile.
+- **The default cadence must ship before the lane does.** `pulse.ts`'s
+  `defaultCad` falls back to **`daily`** for any id it does not know,
+  so today a new bank pulse arrives as a new *daily* card on every
+  device. At lane pace that crowds the daily tab within a month. A new
+  pulse must default `off` (a library you opt into — the cadence
+  picker is the discovery surface), which is a small client change and
+  a `pulse.test.ts` pin, and it is prerequisite work, not polish.
+- **The velocity bound moves.** `functions/src/velocity.ts` budgets
+  `pulseCount × scanWindowDays`; roster growth walks that term up. One
+  line and its test per the D139 design, but it is named here so the
+  lane's PR moves it rather than tripping it.
+- **Store forms bound the subject matter.** D166 §3 approved the
+  current wellbeing roster and `STORE-FORMS.md` answers Health
+  accordingly; a scheduled run authoring *new* health-adjacent pulses
+  is a run editing the app's store declarations by implication. The
+  lane writes inside the declared territory only, and anything that
+  would move a store form is proposed to a human, never merged.
+- **Gates before content**, the house order: `check:quality` grows
+  pulse rules (exactly five ordered steps, underscore-free ids, the
+  repeat-worthiness question — "would a line through this be worth
+  reading in a month?"), and given permanence plus sensitivity the lane
+  starts **propose-only** (human merge), unlike the D212 lanes — the
+  cost of a wrong pulse is forever, which is the bar D212's self-merge
+  argument never had to clear.
+
 ### Audience-tagged questions ("what kind of people get what kind of content")
 
 The wanted thing: use the collected stats to route content — outdoorsy

@@ -22937,3 +22937,68 @@ claim the data does not make. Mixed old/new clients — some votes with a
 snapshot, some without — use the carriers' agreed name, which is the
 best available truth. `groupPortrait.test.ts` pins both halves, and
 `firestore-tests/rules.test.ts` pins the write shape.
+## D225 · The no-private-report promise is removed, before anything needed it
+
+**2026-08-22.** **Status:** binding. Owner's call, on the paid-reports
+planning thread (the branch carrying `docs/PAID-PLAN.md`), one day after
+that plan proposed threading a needle through the promise instead.
+Written on that branch — renumber on merge if main has minted D225
+meanwhile, the D218/D224 collision pattern.
+
+### What was promised, and where it stood
+
+`MONETIZATION.md` § Ruled out by standing posture, the private-back-
+channel bullet, post-D98 wording: *"a buyer gets no read path a
+signed-in user does not have. No private export, no API, no demographic
+report computed server-side for one customer."* The same posture's
+one-sentence version ended *"no private tier, no buyer-only cut of the
+data."* `PAID-PLAN.md` §0 had proposed keeping the sentence alive by
+reshaping it — reports allowed iff every number is public-derivable
+AND the built artifact itself publishes.
+
+### The decision
+
+**The packaging half of the promise is removed outright.** A report or
+export may be computed server-side for one customer and delivered
+privately; whether it also publishes, and on what embargo, is a
+per-contract commercial choice, not a rule. The owner's reasoning,
+recorded because it is a general posture with reach beyond this bullet:
+*"we don't need to limit ourselves for no reason … it's good to not
+promise too much, as breaking a promise is worse than doing the
+action."* An unneeded promise is a standing liability: it either gets
+broken later (the worst outcome this repo knows) or it warps a build to
+route around it (what PAID-PLAN §0 was doing the day before).
+
+This removes a promise; it adopts no build. `PAID-PLAN.md` stays plan,
+and the first report still graduates through its own record.
+
+### What remains true, and what holds each piece
+
+- **Access is unchanged and still enforceable**: a buyer gets no read
+  path into the database a signed-in user does not have — no private
+  collection, no rules carve-out, nothing below-public. That half was
+  always the `firestore.rules`-holdable half, and it keeps being the
+  sentence a buyer contract cannot override.
+- **The sold numbers stay public-derivable.** A report's every figure
+  must be computable from world-readable data — not as a delivery
+  promise any more, but because the asset being sold is the honest
+  aggregate, and a buyer-only *number* (as opposed to buyer-only
+  packaging) would be a private tier of data, which D98's model has no
+  place for. Held, when a report builder exists, by a test on its read
+  set (`PAID-PLAN.md` §2), not by prose.
+- **The politics result never enters a report** (Art. 9 — public on a
+  profile is one posture; packaged into sold artifacts is another), and
+  **when reports first ship, `web/privacy.html` says plainly that
+  reports over the public data are sold** — the D183 discipline. The
+  page's current sale sentence is scoped to advertisers and survives
+  this record unchanged; verified against `check:policy-claims` before
+  this record was written.
+
+### The edits this record made
+
+`MONETIZATION.md`: the ruled-out bullet now carries only the access
+half, with the packaging half struck and cited here; the one-sentence
+version now sells "packaging over public numbers, never access the
+public does not have". `PAID-PLAN.md` §0/§2/§9–§11: the publish
+requirement and the embargo open-question are gone; the read-set test
+stays as the hard line.

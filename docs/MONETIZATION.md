@@ -130,6 +130,17 @@ without telling the server who saw what. Building it graduates to a
 decision record, where the CPM-vs-flat question and the cadence cap get
 decided.
 
+**4 · Paid reports and cohort subscriptions — PROPOSED, not adopted
+([`PAID-PLAN.md`](PAID-PLAN.md), 2026-08-21).** The owner's extension of
+paths 1–2: reports packaging what already publishes — computed for the
+buyer and delivered privately since **D225** removed the old
+no-server-report promise (2026-08-22) — place-score subscriptions that
+run while paid, and cohort pricing by size and demand. The standing
+sentences it still reshapes on adoption are D86's frozen edit surface (a
+server-written edit-flow record) and D195's one-dim audience cap, so
+adopting it is a set of DECISIONS.md records, not a build ticket. Until
+then, everything else on this page stands as written.
+
 ## Ruled out by standing posture
 
 Narrower than "no ads" — ads are path 3. What stays out is the
@@ -148,16 +159,26 @@ Narrower than "no ads" — ads are path 3. What stays out is the
   gone — the counts are exact to everyone, there is no floor, and the
   politics result is on a world-readable profile. What survives is
   narrower and still enforceable: **a buyer gets no read path a signed-in
-  user does not have.** No private export, no API, no demographic report
-  computed server-side for one customer. That is a line `firestore.rules`
-  can hold, and a buyer contract still cannot override it.
+  user does not have** — no private collection, no rules carve-out,
+  nothing below-public. That is the line `firestore.rules` can hold, and
+  a buyer contract still cannot override it. The *packaging* half this
+  bullet used to add — "no private export, no API, no demographic report
+  computed server-side for one customer" — was **removed at D225**
+  (2026-08-22, owner): a report assembled from world-readable data may be
+  computed for one buyer and delivered privately; an unneeded promise is
+  a standing liability, and what bounds a report is now a fact rather
+  than a pledge — every figure in it must be computable from the public
+  data, held by a test on the builder's read set when one exists
+  (`PAID-PLAN.md` §2).
 
 ## The one-sentence version
 
 Places, sponsors and feed advertisers pay to appear or to ask; users
-never pay with money; and the sold split is the same honest, exact
-number every user sees for free — no private tier, no buyer-only cut of
-the data.
+never pay with money; and the sold numbers are the same honest, exact
+numbers every user can read for free — what a buyer can additionally pay
+for is **packaging** over those public numbers (a report, privately
+delivered if the contract wants — D225), never access the public does
+not have.
 
 The clause that used to end "…nor with their identity" is deleted rather
 than softened. Since D98 a user's answers are public and attributed, so
