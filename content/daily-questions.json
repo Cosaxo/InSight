@@ -3042,5 +3042,59 @@
         "Openness"
       ]
     ]
+  },
+  {
+    "id": "124",
+    "type": "choice",
+    "prompt": "Which could you do perfectly, starting right now?",
+    "tag": "The instant skill",
+    "options": [
+      "Play an instrument",
+      "Speak a language",
+      "Draw anything",
+      "Fix anything"
+    ],
+    "tone": "blend",
+    "cat": [
+      "Skills",
+      "Wishlist"
+    ],
+    "alts": [
+      [
+        "Interests",
+        "Curiosity"
+      ],
+      [
+        "Story",
+        "Self"
+      ]
+    ]
+  },
+  {
+    "id": "125",
+    "type": "choice",
+    "prompt": "Your life so far reads most like…",
+    "tag": "The shape of it",
+    "options": [
+      "A straight line",
+      "A few sharp turns",
+      "A slow drift",
+      "Still chapter one"
+    ],
+    "tone": "deep",
+    "cat": [
+      "Story",
+      "Chapters"
+    ],
+    "alts": [
+      [
+        "Mind",
+        "Outlook"
+      ],
+      [
+        "Goals",
+        "The long game"
+      ]
+    ]
   }
 ]

@@ -2640,6 +2640,46 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null
  },
  {
+  "id": "daily-124",
+  "surface": "daily",
+  "seq": 124,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Which could you do perfectly, starting right now?",
+  "options": [
+   "Play an instrument",
+   "Speak a language",
+   "Draw anything",
+   "Fix anything"
+  ],
+  "topic": "blend",
+  "branch": "Skills",
+  "sub": "Wishlist",
+  "tag": "The instant skill",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-125",
+  "surface": "daily",
+  "seq": 125,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Your life so far reads most like…",
+  "options": [
+   "A straight line",
+   "A few sharp turns",
+   "A slow drift",
+   "Still chapter one"
+  ],
+  "topic": "deep",
+  "branch": "Story",
+  "sub": "Chapters",
+  "tag": "The shape of it",
+  "axis": null,
+  "test": null
+ },
+ {
   "id": "feed-f01",
   "surface": "feed",
   "seq": 0,
