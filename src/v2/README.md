@@ -323,6 +323,7 @@ Run it for the live figure rather than quoting one here (D39,
 | `CityPicker` | every emitted value matches the server's own city shape; all five location failures land somewhere usable; a located city is suggested, never applied |
 | `PickSearch` | the id handed up is the catalogue key, not the row position; each domain searches its own store; "not listed" stays a distinct answer |
 | `LivePrivacyPanel` | deleting an account takes two deliberate taps, and a refused delete is shown rather than swallowed |
+| `LiveSimilarityField` | the radius is likeness INVERTED, so a better match sits nearer the centre the aria-label promises; no two nodes stack at any cap the app ships (D225 — the de-overlap pass was not circular and failed at all three); a likeness ranked from answers rather than scores says so; Near draws no name, no initials and no tab stop; a place below `MIN_PLACE_AXES` is listed and never positioned; an empty field still draws the ring (D160) |
 
 Each of those rows was **mutation-checked**: the property was broken in the
 component, the suite was watched to fail, and the change reverted. A

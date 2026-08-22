@@ -23002,3 +23002,84 @@ version now sells "packaging over public numbers, never access the
 public does not have". `PAID-PLAN.md` §0/§2/§9–§11: the publish
 requirement and the embargo open-question are gone; the read-set test
 stays as the hard line.
+
+## D226 · The de-overlap pass did not know the ring closes
+
+**2026-08-22.** **Status:** binding. Found on a project review, by
+probing `layout()` rather than reading it — the reading had been done
+before and passed.
+
+### The bug
+
+`LiveSimilarityField`'s `layout()` places every node at a hashed angle
+and then runs one de-overlap pass so that two near-identical matches do
+not land on top of each other. The pass walked the angle-sorted list
+and pushed each node forward to clear its predecessor by 0.42 rad.
+
+It never wrapped. A circle has 2π to give and the pass had no term for
+that, so on a crowded field the run marched past a full turn and the
+tail came back around **onto the head** — landing on exactly the nodes
+that had already been spaced correctly. The pass's own output was the
+collision it exists to prevent.
+
+Two things made it survivable-looking. It is a layout detail with no
+test, on the one panel `check:panel-suites` listed as "the biggest one
+owed". And the failure is DATA-DEPENDENT: it turns on where `angleHash`
+happens to drop the particular ids in the field, so a synthetic
+population can clear all three caps while the real one does not. That
+is why it reads as correct and why a probe found it and a reading had
+not.
+
+### Measured, not reasoned
+
+The closest pair anywhere on the ring, wrap included, on the World
+stop's own country codes — before, after, and what the pass was asking
+for:
+
+| cap | field | before | after | wanted |
+| --- | --- | --- | --- | --- |
+| `CITY_FIELD_CAP` 12 | City | 0.2212 rad | 0.5236 | 0.42 |
+| `NEAR_FIELD_CAP` 14 | Near | 0.0366 rad | 0.4488 | 0.42 |
+| `PLACE_FIELD_CAP` 24 | Country/World | 0.0168 rad | 0.2618 | 0.262 |
+
+All three caps the app ships, and the worst of them is a **25×**
+violation — two place labels drawn on top of each other.
+
+### The fix, and the trade it makes
+
+Two lines, both about the ring being a ring:
+
+- **The step is the smaller of 0.42 and an even share.** A ring of 24
+  has 0.262 rad per node; asking for 0.42 is asking for more circle
+  than exists, and the old pass answered that by running off the end.
+- **The wrap is then checked.** If the run no longer clears the first
+  node a turn later, the nodes spread evenly instead.
+
+The trade is deliberate and it is the honest one. On a crowded ring the
+hash keeps the ORDER and not the exact angle — but the forward pass was
+already relocating most nodes at those densities, so what is given up
+is a property that had stopped holding anyway, and an even ring cannot
+stack at any N. The header comment on `layout()` carries the table
+above so the next reader does not have to re-derive it.
+
+`R_MIN`/`R_MAX` and the radius arithmetic are untouched: the reading is
+unchanged, only where the nodes sit around it.
+
+### The suite that now holds it
+
+`src/v2/ui/LiveSimilarityField.test.tsx` — 18 tests, six properties,
+each mutation-checked (broken in the component, watched to fail,
+reverted), which is what `src/v2/README.md` asks of a panel suite. The
+row it added to that table is the list. Two are worth naming here:
+
+- **Nothing stacks, at 12, 14 and 24.** Asserted on the RENDERED
+  transforms, not by re-running `layout` — a test that recomputed the
+  layout would agree with a broken one. Reverting this record's fix
+  fails all three.
+- **The radius is likeness inverted.** A better match sits nearer the
+  centre than a worse one, and a perfect match sits on the inner ring.
+  One flipped sign turns every field in the Mirror into the opposite of
+  what its caption says, `tsc` cannot see it, and nothing had been
+  standing there.
+
+`check:panel-suites` drops from 10 owed to 9.

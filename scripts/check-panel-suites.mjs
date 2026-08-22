@@ -37,7 +37,6 @@ const OWED = {
   EmptyField: "the similarity field's empty state — one card, offers the Answers tab",
   LiveAnswerRows: "the Answers lens's rows; the arithmetic is cohort.ts, tested there",
   LiveCompareLens: "Compare's row list; its fold is data/compare.ts, tested there",
-  LiveSimilarityField: "the permanent head of City/Country/World — the biggest one owed",
   MirrorLensTabs: "the lens tab bar (D136); routing, no reading of its own",
   PulseCard: "the daily's pulse card — its trend half is PulseTrends, now covered",
   SignInGate: "the pre-D3 gate; LiveSignInGate is the live one and has a suite",

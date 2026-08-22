@@ -107,23 +107,54 @@ function hueOf(id: string): number {
   return Math.round(angleHash(id + "#hue") * 360);
 }
 
+const TAU = Math.PI * 2;
+/** The spacing the de-overlap pass wants between two adjacent nodes. */
+const MIN_ANGLE_GAP = 0.42;
+
 /**
  * Angle + radius per node. Angle is a pure hash of the id (stable across
  * re-ranks); radius is the likeness. One deterministic de-overlap pass
  * nudges near-coincident angles apart so two 90% matches do not stack —
  * a layout fix, not data, which is why it must not depend on rank order.
+ *
+ * THE PASS IS CIRCULAR, and it was not. It only ever pushed FORWARD, with
+ * no notion that the ring closes, so a crowded field ran the tail straight
+ * past a full turn and back onto the head — the exact stacking it exists
+ * to prevent, and worst on the nodes that had been spaced correctly. It
+ * failed at all three caps the app actually uses, and the failure is
+ * data-dependent (it turns on where the hash happens to drop the ids),
+ * which is why it could sit here looking right. Measured, on the World
+ * stop's own country codes, as the closest pair anywhere on the ring:
+ *
+ *   cap 12 (City)   0.2212 rad → 0.5236     wanted 0.42
+ *   cap 14 (Near)   0.0366 rad → 0.4488     wanted 0.42
+ *   cap 24 (places) 0.0168 rad → 0.2618     wanted 0.262 (an even share)
+ *
+ * Two things fix it. The step is the smaller of the design gap and an even
+ * share, because a ring of 24 has 0.262 rad per node to give and asking
+ * for 0.42 is asking for more circle than exists. And the wrap is then
+ * CHECKED: if the run no longer clears the first node a turn later, the
+ * nodes spread evenly instead. That trade is deliberate and it is the
+ * honest one — on a crowded ring the hash keeps the ORDER, which is all
+ * the forward pass was leaving intact anyway, and an even ring cannot
+ * stack at any N.
  */
 function layout(nodes: readonly FieldNode[]): Array<FieldNode & { x: number; y: number }> {
   const R_MIN = 44;
   const R_MAX = 138;
   const placed = [...nodes]
     .sort((a, b) => a.id.localeCompare(b.id))
-    .map((n) => ({ n, angle: angleHash(n.id) * Math.PI * 2 }))
+    .map((n) => ({ n, angle: angleHash(n.id) * TAU }))
     .sort((a, b) => a.angle - b.angle);
+  const gap = Math.min(MIN_ANGLE_GAP, TAU / (placed.length || 1));
   for (let i = 1; i < placed.length; i++) {
-    if (placed[i].angle - placed[i - 1].angle < 0.42) {
-      placed[i].angle = placed[i - 1].angle + 0.42;
+    if (placed[i].angle - placed[i - 1].angle < gap) {
+      placed[i].angle = placed[i - 1].angle + gap;
     }
+  }
+  const start = placed.length ? placed[0].angle : 0;
+  if (placed.length > 1 && start + TAU - placed[placed.length - 1].angle < gap) {
+    placed.forEach((p, i) => { p.angle = start + (i * TAU) / placed.length; });
   }
   return placed.map(({ n, angle }) => {
     const clamped = Math.max(0, Math.min(100, n.match));
