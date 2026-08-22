@@ -104,7 +104,10 @@ anchors and answeredAt (the cohort stamp, D8), learn (D32's
 first-attempt measurement), duels (the seal), catalog answers (no canon
 delta path). The aggregate stays a plain fold because onV2AnswerUpdated
 applies the matching -old/+new delta with the total unchanged — the
-reconciliation D5 avoided now exists, in one trigger, ledger-deduped
+reconciliation D5 avoided now exists, in one trigger, ledger-deduped.
+Since D226 the same trigger also counts the move itself into the
+aggregate's public `edits` matrix (below); the answer doc is unchanged
+and the client-writable surface does not widen
 delete: nobody
 read: any signed-in user, EXCEPT duel answers (surface group/duo), which
 stay sealed until their reveal — a `surface` value test on the read rule.
@@ -159,6 +162,14 @@ v2_question_aggs/{qid}             the PUBLIC mirror, EXACT (D98)
                                    An absent cell is ZERO, not withheld.
                                    Includes the political items, whose
                                    D44 carve-out D98 reversed (D8)
+  edits { from: { to: n } }        the edit-flow matrix (D226): every D86
+                                   edit counted from → to. MOVES, not
+                                   people — one person editing twice
+                                   leaves two cells. Absent until a
+                                   question has ever been edited; both
+                                   answer branches carry it through their
+                                   whole-doc rewrites (v2.ts), and the
+                                   e2e's 7f step is what proves the carry
   { total,                         catalog questions: the canon — the top
     top {entity:n}, rest,          CANON_TOP_N entities, everything else
     by { dim: { bucket:            summed into `rest`. `canonTopN` is a

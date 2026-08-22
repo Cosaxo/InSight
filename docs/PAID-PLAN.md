@@ -1,7 +1,9 @@
 # Paid questions, reports and cohort subscriptions — the plan
 
-**Status: plan only.** Requested by the owner 2026-08-21; nothing below
-is built and nothing below binds. This page extends the recorded revenue
+**Status: plan, except §3's aggregate half — built at
+[D226](DECISIONS.md#d226--the-edit-flow-matrix--second-thoughts-become-a-published-number)
+(2026-08-22).** Requested by the owner 2026-08-21; everything else below
+is unbuilt and binds nothing. This page extends the recorded revenue
 paths ([`MONETIZATION.md`](MONETIZATION.md) paths 1–2, re-derived in
 [`SCALE-PLAN.md`](SCALE-PLAN.md) §5 and `NEXT-FUNCTIONALITY.md` §6's
 paid half) into the shape the owner asked for: **a buyer gets a
@@ -129,15 +131,21 @@ job, not a client — the same species as the patterns fit, with its
 cost measured into `COSTS.md` when it ships, not estimated in prose
 here.
 
-## 3 · Second thoughts — the one line item that needs new data
+## 3 · Second thoughts — the one line item that needed new data
 
-Today the pre-edit vote survives nowhere: rules allow `optionIdx` to
-move with an `editedAt` stamp (D86), and `onV2AnswerUpdated` reads the
-old value only in the trigger's before-snapshot, folds the −old/+new
-delta, and drops it. Nothing can report what nobody stored — and every
-day this waits, more first votes are unrecoverable, which makes this
+**The aggregate half is BUILT (D226, 2026-08-22)** — the matrix folds
+and publishes, with the trail (privacy sentence, claims pin, inventory
+row, runbook carry) landed beside it. The design below is kept as
+written; the per-voter half stays the owner's open call (§11).
+
+Before D226 the pre-edit vote survived nowhere: rules allow `optionIdx`
+to move with an `editedAt` stamp (D86), and `onV2AnswerUpdated` read the
+old value only in the trigger's before-snapshot, folded the −old/+new
+delta, and dropped it. Nothing can report what nobody stored — and every
+day it waited, more first votes were unrecoverable, which made this
 the **dearer-with-time item** (the `core` flag's argument) and the
-first code on the list in §9.
+first code on the list in §9. Flows accrue from the D226 deploy; edits
+before it are gone, as priced.
 
 **Proposal, smallest honest version first:**
 
@@ -315,10 +323,11 @@ SCALE-PLAN §5's sequencing rule governs: machinery on demand evidence,
 not ahead of it. Within that, the one exception is the item losing data
 every day it waits.
 
-1. **The edit-flow matrix** (§3, aggregate half) — the dearer-with-time
-   item: flows only exist from the day the trigger folds them, and
-   nothing can backfill the votes already moved. Decision record,
-   trigger fold, inventory row, policy sentence.
+1. **The edit-flow matrix** (§3, aggregate half) — **DONE, D226
+   (2026-08-22)**: decision record, trigger fold with the create-path
+   carry, e2e and unit pins, inventory row, policy sentence. Taken
+   first because flows only exist from the day the trigger folds them,
+   and nothing can backfill the votes already moved.
 2. **Report builder v1** (§2) — a script, run by hand per contract,
    delivered to the buyer; sell by hand at hand-set prices.
    This plus the existing D195 machinery is a complete sellable

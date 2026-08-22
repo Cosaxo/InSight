@@ -41,12 +41,14 @@ import {
   foldAnchors,
   foldCanonAnchors,
   canonTopN,
+  foldEditFlow,
   retargetAnchors,
   retargetCounts,
   seedDocMatches,
   seedOptionConflict,
   describeSeedOptionConflicts,
   type BreakdownCounts,
+  type EditFlow,
   type CanonCounts,
   type CatalogSpec,
   type SeedOptionConflict,
@@ -689,8 +691,13 @@ export const onV2AnswerCreated = onDocumentCreated(
         snap.get("anchors"),
         optionIdx,
       );
+      // The edit-flow matrix (D226) rides these same docs, and this write
+      // replaces the doc whole (merge: false) — so carry it, or the first
+      // create after an edit erases the flows. Emit-when-set: the common,
+      // never-edited question's doc gains no key.
+      const edits = priv.exists ? (priv.get("edits") as EditFlow | undefined) : undefined;
       tx.set(eventRef, ledgerEntry(event.params.uid, qid, optionIdx));
-      tx.set(privRef, { counts, total, by }, { merge: false });
+      tx.set(privRef, { counts, total, by, ...(edits ? { edits } : {}) }, { merge: false });
       // The public mirror, written on EVERY answer with exact counts.
       //
       // What used to be here, and why none of it is: a `tooSmall` flag
@@ -709,7 +716,7 @@ export const onV2AnswerCreated = onDocumentCreated(
       // write per answer to a single document keyed by qid, against
       // Firestore's ~1/sec/document (D7). The fix when it bites is
       // sharding or collapsing the two docs, not a floor.
-      tx.set(pubRef, { counts, total, by }, { merge: false });
+      tx.set(pubRef, { counts, total, by, ...(edits ? { edits } : {}) }, { merge: false });
     });
   },
 );
@@ -721,7 +728,10 @@ export const onV2AnswerCreated = onDocumentCreated(
 // answeredAt frozen — so what reaches here is always a -old/+new move with
 // the TOTAL unchanged: the person was counted once and still is, they just
 // hold a different option. Same ledger, same transaction discipline as the
-// create path; a redelivered edit is a no-op, not a double move.
+// create path; a redelivered edit is a no-op, not a double move. Since
+// D226 the move also folds one cell of the published edit-flow matrix
+// (`edits`, pure.ts) — the -old/+new keeps the counts honest, the matrix
+// keeps the CHANGE itself a number instead of a story nobody recorded.
 export const onV2AnswerUpdated = onDocumentUpdated(
   { ...HOT_TRIGGER, region: REGION, database: FIRESTORE_DB_ID, document: "v2_users/{uid}/answers/{qid}", retry: true },
   async (event) => {
@@ -770,15 +780,21 @@ export const onV2AnswerUpdated = onDocumentUpdated(
       // churn means the old vote is no longer represented (pure.ts has the
       // accounting). Bucket totals never move.
       retargetAnchors(by, after.get("anchors"), fromIdx, toIdx);
+      // The move itself is a published fact (D226): one cell of the
+      // from → to matrix, folded after the retry guard above so a
+      // deferred edit counts once, on the delivery that actually moves.
+      const edits: EditFlow =
+        (priv.exists && (priv.get("edits") as EditFlow)) || {};
+      foldEditFlow(edits, fromIdx, toIdx);
       tx.set(eventRef, ledgerEntry(event.params.uid, qid, toIdx));
-      tx.set(privRef, { counts, total, by }, { merge: false });
+      tx.set(privRef, { counts, total, by, edits }, { merge: false });
       // An edit always republishes now. It used to be conditional on
       // EDITS_REPUBLISH — a guard that existed because, under a publish
       // cadence, an edit's -old/+new leaves `total` unmoved, so a lone
       // republish at an unchanged total was visibly one person changing
       // their mind. With no cadence there is no stream to hide in and
       // nothing to hide from: the answer itself is readable.
-      tx.set(pubRef, { counts, total, by }, { merge: false });
+      tx.set(pubRef, { counts, total, by, edits }, { merge: false });
     });
   },
 );

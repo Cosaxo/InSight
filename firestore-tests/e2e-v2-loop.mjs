@@ -344,6 +344,10 @@ ok("breakdown: ageBand and city both 5/5; single-bucket country published");
   // and the edit must have moved WITHIN it: 8/2 after one voter's 1→0.
   if (!moved.by.country || JSON.stringify(moved.by.country.NO) !== JSON.stringify({ "0": 8, "1": 2 }))
     fail("edit did not move inside the country cell: " + JSON.stringify(moved.by.country));
+  // D226: the move itself is published — one cell of the edit-flow
+  // matrix, keyed from the option the person left to the one they hold.
+  if (JSON.stringify(moved.edits) !== JSON.stringify({ "1": { "0": 1 } }))
+    fail("edit-flow matrix wrong after the 1→0 move: " + JSON.stringify(moved.edits));
 
   // …and not again inside the minute: the cooldown is the write-amplification
   // bound on the one repeatable answer write (D7's arithmetic).
@@ -351,7 +355,35 @@ ok("breakdown: ageBand and city both 5/5; single-bucket country published");
     updateDoc(doc(db, "v2_users", uid, "answers", q0.id), {
       optionIdx: 1, editedAt: serverTimestamp(),
     }));
-  ok("D86 edit: -old/+new published, total 11 held, frozen cells moved cleanly, cooldown holds");
+  ok("D86 edit: -old/+new published, total 11 held, frozen cells moved cleanly, edit-flow cell published, cooldown holds");
+}
+
+// 7f · the matrix survives the next create (D226). The create path
+// rewrites both aggregate docs whole (merge: false), so a fresh answer
+// arriving after an edit is exactly the write that would silently erase
+// the flows if the trigger forgot to carry them through.
+{
+  const vApp = initializeApp({ projectId: "demo-insight", apiKey: "demo", appId: "demo" }, "postedit");
+  const vAuth = getAuth(vApp); connectAuthEmulator(vAuth, "http://127.0.0.1:9099", { disableWarnings: true });
+  const vDb = getFirestore(vApp, E2E_DB_ID); connectFirestoreEmulator(vDb, "127.0.0.1", 8080);
+  const u = await signInAnonymously(vAuth);
+  await setDoc(doc(vDb, "v2_users", u.user.uid, "answers", q0.id), {
+    qid: q0.id, surface: "daily", optionIdx: 1,
+    answeredAt: serverTimestamp(),
+    anchors: { ageBand: "35-44", country: "NO", city: "Bergen, NO" },
+  });
+  let twelve = null;
+  for (let i = 0; i < 20; i++) {
+    const snap = await getDoc(doc(db, "v2_question_aggs", q0.id));
+    if (snap.exists() && snap.get("total") === 12) { twelve = snap.data(); break; }
+    await new Promise((r) => setTimeout(r, 400));
+  }
+  if (!twelve) fail("12th answer never published");
+  if (twelve.counts["0"] !== 9 || twelve.counts["1"] !== 3)
+    fail("counts wrong after the post-edit create: " + JSON.stringify(twelve.counts));
+  if (JSON.stringify(twelve.edits) !== JSON.stringify({ "1": { "0": 1 } }))
+    fail("the create's whole-doc rewrite dropped the edit-flow matrix: " + JSON.stringify(twelve.edits));
+  ok("D226: edit-flow matrix carried through the next create's rewrite");
 }
 
 // 8 · the duel loop: create → join by code → sealed answers → reveal → streak

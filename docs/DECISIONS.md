@@ -23002,3 +23002,73 @@ version now sells "packaging over public numbers, never access the
 public does not have". `PAID-PLAN.md` §0/§2/§9–§11: the publish
 requirement and the embargo open-question are gone; the read-set test
 stays as the hard line.
+
+## D226 · The edit-flow matrix — second thoughts become a published number
+
+**2026-08-22.** **Status:** binding, built. Owner's call on the
+paid-reports thread ("then build the edit flow matrix"), adopting
+`PAID-PLAN.md` §3's **aggregate half** — the one item of that plan §9
+ranks ahead of demand evidence, because it loses data every day it
+waits: an edit that happens before the trigger folds flows is
+unrecoverable, and nothing can backfill what was never recorded. Flows
+therefore ACCRUE from this deploy forward; every D86 edit before it is
+gone, which is the argument that put this first and the reason waiting
+longer had a price.
+
+### What ships
+
+One field on the aggregate docs: `edits` — from-option → to-option →
+count, folded by `onV2AnswerUpdated` beside the -old/+new move it
+already applies (`foldEditFlow`, `functions/src/pure.ts`).
+
+- **Moves, not people.** One person editing twice appears under two
+  pairs. Stitching moves into per-person journeys would need the
+  per-answer receipt the fold deliberately does not keep — and the
+  matrix is a statement about the question, not about anyone's path
+  through it. No diagonal cells (the trigger returns on from == to
+  before folding), and the map only grows: an edit is an event that
+  happened, so there is no -old/+new to commute and no clamp to guard.
+- **Folded after the retry guard.** A deferred edit (update delivered
+  before its create — `retargetCounts`'s false) throws before the fold,
+  so the eventual replay counts the move exactly once, on the delivery
+  that actually moves the vote.
+- **Carried through the whole-doc rewrites.** Both answer branches
+  write the agg docs with `merge: false`, so the create path now reads
+  and re-emits `edits` (emit-when-set — a never-edited question's doc
+  gains no key). This is the quiet-loss half of the build, and the e2e
+  pins it: step 7e asserts the published cell after the 1→0 move, and
+  the new 7f asserts the matrix survives the next create's rewrite.
+  `pure.test.ts` pins the arithmetic; the whole loop ran green against
+  the emulated trigger before this record was written.
+
+### The trail, because it is data about people
+
+Public like everything beside it (D98), and said where the repo says
+such things: one sentence in `web/privacy.html` ("counts the change
+itself, as moves from one option to another — moves, not people"),
+pinned by a new `check:policy-claims` row; the `v2_question_aggs` row in
+`docs/data-inventory.md` extended; `SCHEMA-V2.md` states the field in
+both the answer-update contract and the public-doc shape; and the D28
+correction runbook (`DEPLOYMENT.md`) now subtracts a ring's pairs —
+reconstructable from the ledger's `at`-ordered per-event entries while
+they live — and carries `edits` through the republish, so an operator
+following it verbatim cannot drop the matrix. Erasure posture is the
+counts' own: an anonymous tally, not attributable, so `deleteAccount`
+does not unwind it (index.ts phase 1b's principle).
+
+### What deliberately does not ship
+
+- **The per-voter mark** (`firstOptionIdx` on the answer doc) —
+  `PAID-PLAN.md` §11 question 1, still the owner's open call. The
+  matrix needed no answer-doc change and no rules change; the mark is
+  both, and publishing a person's retracted opinion forever deserves
+  its own record, not a rider on this one.
+- **Client rendering.** Nothing draws `edits` yet; `deck.ts`'s `AggDoc`
+  states the field so the published shape is documented where every
+  other field's is. A "second thoughts" reading is a product decision
+  for later; the reports (`PAID-PLAN.md` §2) are its first intended
+  reader.
+- **D86 is not widened.** The client-writable edit surface is exactly
+  what it was — optionIdx + editedAt, daily/feed/test, 60s cooldown —
+  and the rules did not move. What changed is what the server counts
+  about an edit, not what a client may write.

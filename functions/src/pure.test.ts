@@ -55,6 +55,7 @@ import {
   presenceNeighbors,
   retargetCounts,
   retargetAnchors,
+  foldEditFlow,
 } from "./pure";
 
 // The bucket-churn threshold (pure.ts BUCKET_EVICT_BELOW). Not a
@@ -688,6 +689,43 @@ describe("retargetCounts / retargetAnchors — the D86 edit delta", () => {
     retargetAnchors(by, { gender: "Woman" }, 0, 1);
     expect(by.gender.Woman).toEqual({ "1": 2 });
     expect("0" in by.gender.Woman).toBe(false);
+  });
+});
+
+// The counts commute (-old/+new against +old); the matrix only ever grows,
+// because a move is an event that happened rather than a state to keep in
+// balance — so what these pin is the growth arithmetic and the "moves, not
+// people" shape a report will read.
+describe("foldEditFlow — the D226 edit-flow matrix", () => {
+  it("mints the from-row and counts the first move", () => {
+    const edits = {};
+    foldEditFlow(edits, 1, 0);
+    expect(edits).toEqual({ "1": { "0": 1 } });
+  });
+
+  it("accumulates repeat moves in one cell and fans out per destination", () => {
+    const edits = {};
+    foldEditFlow(edits, 1, 0);
+    foldEditFlow(edits, 1, 0);
+    foldEditFlow(edits, 1, 2);
+    expect(edits).toEqual({ "1": { "0": 2, "2": 1 } });
+  });
+
+  it("counts moves rather than people — a two-step journey leaves two cells", () => {
+    // One person voting 0→1 then 1→2 is two trigger deliveries, and the
+    // matrix records both: stitching them into one 0→2 journey would need
+    // the per-answer receipt the fold deliberately does not keep.
+    const edits = {};
+    foldEditFlow(edits, 0, 1);
+    foldEditFlow(edits, 1, 2);
+    expect(edits).toEqual({ "0": { "1": 1 }, "1": { "2": 1 } });
+  });
+
+  it("keys cells the way the sibling maps do — strings, minted on demand", () => {
+    const edits = { "3": { "0": 4 } };
+    foldEditFlow(edits, 3, 0);
+    foldEditFlow(edits, 0, 3);
+    expect(edits).toEqual({ "3": { "0": 5 }, "0": { "3": 1 } });
   });
 });
 
