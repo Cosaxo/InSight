@@ -23211,3 +23211,64 @@ name when worn, all three dims printed); `SCHEMA-V2.md`,
 parenthetical, and `PAID-PLAN.md` §§5–7/11 updated in the same commit.
 The bank still carries zero sponsored questions and the test asserting
 it stands — this record changes what may be sold, not what has been.
+
+## D229 · The report builder — a document built with a stranger's own window
+
+**2026-08-22.** **Status:** binding, built. The owner's "do that" over
+the recommended order: with D226–D228 merged (#257), the report builder
+is the next unbuilt piece `PAID-PLAN.md` does not gate on demand
+evidence. §9 item 2, taken.
+
+### What ships
+
+`npm run report -- --qid <id>` (`scripts/build-report.mjs`, arithmetic
+in `scripts/report-lib.mjs`, twenty tests in `build-report.test.mjs`):
+one hand-run invocation per contract, producing a **self-contained
+report.html** — no external asset, nothing fetched at view time, a
+document that says the same thing with the server gone — plus the CSV
+bundle (`voters`, `series`, `edits`, `breakdown`) under
+`reports/<qid>/<date>/`, which is gitignored: a deliverable is a copy
+that drifts from the data it summarized, not repository content.
+
+Sections, each with its basis printed: the exact split; the per-day
+series bucketed from public `answeredAt` stamps (gaps are real, never
+zero-filled); the D226 second-thoughts matrix ("moves, not people",
+with its 2026-08-22 accrual date stated); the full per-dim breakdown
+(absent cells are zero, D98); the D227 logic quarters (the untested
+thin the basis); most-similar questions — cosine neighbours over the
+published fit (`v2_patterns/loadings`) plus **Cramér's V over shared
+voters** against the fit's own core set, refused under `MIN_SHARED`
+(30) rather than scored as noise, with the one bound in the whole
+script (`ASSOC_VOTER_CAP`, 1500) printed whenever it binds; and the
+who-voted roll, in full, walked from the query's own cursor to the end
+(the D101 rule — paged, never capped-and-called-complete).
+
+### The read-set rule is structural, not promised
+
+`PAID-PLAN.md` §2's line — every figure derivable from world-readable
+data — is enforced by HOW the script authenticates: an **anonymous
+sign-in over the public web API key** (question-scorecard.mjs's
+`--fetch` pattern), so every read goes through `firestore.rules`
+exactly as a signed-in stranger's would, the answers query carrying the
+rules' own surface-value filter verbatim. There is no service account
+and must never be one: the day this script holds admin credentials is
+the day the constraint becomes prose. This is also why no read-set
+*test* ships — there is nothing to hold to a list, because the rules
+already are the list.
+
+### What deliberately does not ship
+
+- **No scheduling.** One run per contract, by hand — the report cadence
+  is a billing-period fact (`PAID-PLAN.md` §2) and belongs with the
+  contract machinery, not a cron minted before a buyer exists.
+- **No delivery or publication path.** Where the artifact goes is a
+  per-contract term (D225).
+- **No per-voter first-vote column.** The roll marks *that* an answer
+  was edited (`editedAt` is public); what it first said stays the
+  matrix's aggregate story until the owner takes `PAID-PLAN.md` §11's
+  one remaining open question.
+- **Two named twins, not shared code**: the REST decoder (scorecard)
+  and the logic quarters (`data/logicSplit.ts`) — the script is
+  stdlib-only `.mjs`, the app half is TS; each cites the other so drift
+  has an address, and `build-report.test.mjs` pins the quartile
+  boundaries to the app's.

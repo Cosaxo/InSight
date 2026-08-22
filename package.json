@@ -49,6 +49,7 @@
     "build:content": "node scripts/gen-v2content.mjs --write",
     "promote": "node scripts/promote-questions.mjs",
     "scorecard": "node scripts/question-scorecard.mjs",
+    "report": "node scripts/build-report.mjs",
     "farm:budget": "node scripts/farm-budget.mjs",
     "learn:budget": "node scripts/learn-budget.mjs",
     "feed:budget": "node scripts/feed-budget.mjs",

@@ -1,10 +1,12 @@
 # Paid questions, reports and cohort subscriptions — the plan
 
 **Status: plan, except §3's aggregate half
-([D226](DECISIONS.md#d226--the-edit-flow-matrix--second-thoughts-become-a-published-number))
-and §4's logic cut
+([D226](DECISIONS.md#d226--the-edit-flow-matrix--second-thoughts-become-a-published-number)),
+§4's logic cut
 ([D227](DECISIONS.md#d227--the-logic-cut--the-who-voted-sheet-groups-answers-by-the-verified-score))
-— both built 2026-08-22.** Requested by the owner 2026-08-21; everything
+and §2's report builder
+([D229](DECISIONS.md#d229--the-report-builder--a-document-built-with-a-strangers-own-window))
+— all built 2026-08-22.** Requested by the owner 2026-08-21; everything
 else below is unbuilt and binds nothing. This page extends the recorded
 revenue
 paths ([`MONETIZATION.md`](MONETIZATION.md) paths 1–2, re-derived in
@@ -81,6 +83,14 @@ disclosed content and (new, §7) the buyer's own list of what they
 bought; it never runs a payment.
 
 ## 2 · The report — everything the app can honestly gather
+
+**The builder is BUILT (D229, 2026-08-22)** — `npm run report -- --qid
+<id>` (`scripts/build-report.mjs` over the pure `report-lib.mjs`):
+report.html plus the CSV bundle, every section below implemented with
+its basis stated, and the read-set rule enforced structurally — the
+script signs in anonymously over the public web key, so it can only
+ever read what a signed-in stranger can. Selling and delivery stay the
+human half.
 
 One rule decides every line item: **derivable from world-readable data,
 or not in the report.** Since D225 removed the delivery promise this
@@ -339,10 +349,11 @@ every day it waits.
    carry, e2e and unit pins, inventory row, policy sentence. Taken
    first because flows only exist from the day the trigger folds them,
    and nothing can backfill the votes already moved.
-2. **Report builder v1** (§2) — a script, run by hand per contract,
-   delivered to the buyer; sell by hand at hand-set prices.
-   This plus the existing D195 machinery is a complete sellable
-   product with near-zero app code.
+2. **Report builder v1** (§2) — **DONE, D229 (2026-08-22)**: the
+   hand-run script, the CSV bundle, the structural read-set constraint.
+   Selling at hand-set prices stays the human half; this plus the D195
+   machinery is a complete sellable product with near-zero app code
+   remaining.
 3. **"Asked by you" + purchase records** (§7) — the first in-app build.
 4. **The score catalog and subscription serving** (§5) — including the
    audience-cap amendment (§6) and the Scores-lens decision.
