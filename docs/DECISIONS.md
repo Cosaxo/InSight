@@ -23083,3 +23083,121 @@ row it added to that table is the list. Two are worth naming here:
   standing there.
 
 `check:panel-suites` drops from 10 owed to 9.
+
+## D227 · The owed list reaches zero, and eight defects fall out of it
+
+**2026-08-22.** **Status:** binding. The other half of D226's finding: that
+record fixed a bug in the one panel `check:panel-suites` called "the
+biggest one owed", and the obvious next question was what the other nine
+were hiding.
+
+### What shipped
+
+A suite for every panel still on the list — **119 tests**, each property
+mutation-checked (broken in the component, watched to fail, reverted), the
+standard `src/v2/README.md` asks of a panel suite:
+
+| suite | tests | | suite | tests |
+| --- | --- | --- | --- | --- |
+| `LiveAnswerRows` | 25 | | `Avatar` | 14 |
+| `PulseCard` | 17 | | `MirrorLensTabs` | 12 |
+| `duelMarks` | 16 | | `EmptyField` | 8 |
+| `LiveCompareLens` | 15 | | `profileSetup` | 8 |
+| `SignInGate` | 4 | | | |
+
+**The OWED list is now empty, and that changes what the gate is.** It was
+a ratchet because the debt was ten; with nothing recorded, `unexplained`
+fires on the next panel added without a suite. It is a floor now, and the
+list is how it got there. 37/37 panels carry a suite.
+
+### The notes were excuses, and each one was wrong
+
+Every entry on that list carried a reason it had been skipped, and the
+reasons are the finding. "Routing, no reading of its own"
+(`MirrorLensTabs`) has three ways to lie that all type-check, the sharpest
+being an `open` that is not in `tabs` — which `LiveCohortBody` hands it
+every time you walk World → City with Explore up, and which must read as
+*nothing* rather than as the first tab. "Glyph constants, no component"
+(`duelMarks`) are components that colour a mark by an id, where
+`markHue(name || uid)` compiles, reads tidier, and gives two strangers one
+colour. "Decides nothing" (`Avatar`) holds the only defect in this sweep
+that looking twice does not correct — a captured uid dressing a whole list
+in one stranger's photo. A skip reason is a hypothesis, and none of these
+survived being tested.
+
+### Eight defects, none of them fixed here
+
+Every one is outside the panel that surfaced it, so each is recorded and
+asserted-as-found rather than repaired under cover of a test sweep. Where
+a suite pins current behaviour it says so in the failure message, so the
+fix fails loudly instead of silently:
+
+1. **`data/pulse`** — pausing a pulse hides the answer you already gave
+   today and puts the blind ask back, while the vote stays on the server.
+   `mineToday` reads `days()`, which nulls every day the cadence did not
+   ask on: right for the trend line, wrong for today's card.
+2. **`data/pulse`** — `ensureToday()` called while the bank is empty
+   latches `loadingToday` on a settled promise **for the life of the
+   module**, so every later call returns it and the crowd is never fetched
+   again. The local-purge reset does not clear it. The worst of the eight:
+   it is a permanent stuck state, not a wrong reading.
+3. **`data/avatar.ts:122`** — `initialsOf` indexes UTF-16 code UNITS, so a
+   name whose first or last word begins with an astral character yields an
+   UNPAIRED SURROGATE: `"Ada 🎈"` → `"A\uD83C"`, tofu beside a correct
+   letter on the one surface whose job is drawing identity. A one-word
+   emoji name escapes it because `slice(0, 2)` happens to take both
+   halves, which is why it is invisible by hand. Fix: code points.
+4. **`Avatar`** — a failed image load is remembered by uid for the
+   lifetime of the mount, so a NEW token for the SAME uid keeps drawing
+   initials. After a transient failure a fresh upload shows no photo until
+   the component unmounts.
+5. **`LiveAnswerRows`** — `standText` cannot tell "this cohort has no
+   answers" from "you have not answered", so a row can name your own pick
+   and say you did not answer it, on the same screen.
+6. **`LiveCompareLens`** — on the `people` basis the header counts
+   everyone who contributed an axis to ANY instrument, including
+   instruments no card was drawn for, so the basis overstates what the
+   drawn cards rest on. The `cells` basis refuses exactly this a dozen
+   lines above in the same function.
+7. **`LiveSimilarityField`** — `SfEmptyField` hands an EMPTY canvas to a
+   screen reader as a group named "Similarity field — closer to the centre
+   is more like you", a promise about nodes that are not there, where
+   `EmptyField` draws the identical picture `aria-hidden`. Only one of the
+   two can be right. Found because `EmptyField`'s suite compares the two
+   drawings against each other rather than pinning literals — the licensed
+   copy is only licensed while it stays a copy, and no gate can see them
+   drift.
+8. **`LiveDuelPanel`** — the member chip draws `YouChip` AND a text label
+   that is also the word "you", so the member list announces "you you".
+   `YouChip` is deliberately not `aria-hidden`, so the fix is the
+   consumer's.
+
+### What a suite declined to assert, and why that is the result
+
+Three properties were considered and dropped as untestable rather than
+pinned, which is the outcome the mutation rule exists to produce:
+`letterSpacing: init ? "normal" : "0"` in `DuelAv` is INERT (both values
+render identically for one or two glyphs, so no mutation of it can fail);
+`data-lens={t.id}` is read by nothing in the tree — src, scripts and css
+were grepped, the two spec-layer rows included; and forwarded props like
+`emptyNote` would only assert that React renders children. A test that
+cannot fail is worse than no test, and recording the reason is what stops
+the next reader adding it.
+
+### One gap found by not trusting the reports
+
+The mutation checks are self-reported, so they were spot-checked
+independently. `duelMarks` property 4 claimed each mark reads its own
+initials rule and that the swap survives tsc — but its person case used
+"Ada Lovelace" and "Ada", and `groupInitials` returns AL and AD for both.
+A `DuelAv` wired to the circle rule passed that test; the swap was caught
+two describes down by the nameless-dot case, incidentally. The rules
+separate on a leading "The", and the person side had never rendered one.
+One assertion through the component closed it.
+
+That is the general lesson and it is worth more than the fix: **a suite
+that passes is not evidence a suite exists.** One of these files was
+reported green while it was a 48-line scratch probe with no assertions at
+all, and two passed individually while failing together because a file was
+still being edited. Structure, stability and an independent mutation are
+three different questions.

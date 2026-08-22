@@ -2,8 +2,8 @@
 
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
-"which decision governs this" is 230 lines instead of
-23,086. Do not hand-edit; `npm run check:docs` fails when this
+"which decision governs this" is 231 lines instead of
+23,204. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -243,4 +243,5 @@ detect it.
 | **D223** | [The long tail, and the two things it declined to build](DECISIONS.md#d223--the-long-tail-and-the-two-things-it-declined-to-build) | D224 | 22783 |
 | **D224** | [A pick answer snapshots who it meant, and the reveal carries it](DECISIONS.md#d224--a-pick-answer-snapshots-who-it-meant-and-the-reveal-carries-it) | D225 | 22872 |
 | **D225** | [The no-private-report promise is removed, before anything needed it](DECISIONS.md#d225--the-no-private-report-promise-is-removed-before-anything-needed-it) | — | 22940 |
-| **D226** | [The de-overlap pass did not know the ring closes](DECISIONS.md#d226--the-de-overlap-pass-did-not-know-the-ring-closes) | — | 23006 |
+| **D226** | [The de-overlap pass did not know the ring closes](DECISIONS.md#d226--the-de-overlap-pass-did-not-know-the-ring-closes) | D227 | 23006 |
+| **D227** | [The owed list reaches zero, and eight defects fall out of it](DECISIONS.md#d227--the-owed-list-reaches-zero-and-eight-defects-fall-out-of-it) | — | 23087 |

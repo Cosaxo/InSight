@@ -37,6 +37,10 @@
 //   5. A REFUSED STORAGE IS NOT A CRASH. The write runs on the way out of
 //      the screen, ahead of the unmount — so an uncaught throw there
 //      hands a private-window user a screen that will not close.
+//   6. CLOSING TAKES THE HOST WITH IT. The root's unmount only empties
+//      the div this module appended; D51 makes the mount/close cycle
+//      repeatable inside one session, so the removal is what keeps a
+//      dead ground from being left per account the device signs into.
 //
 // `../data/live` is mocked, not booted (it imports Firebase). Nothing
 // else is: the gate's arithmetic and the real screen underneath it are
