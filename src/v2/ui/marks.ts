@@ -50,10 +50,26 @@ export function markHue(seed: string): number {
  * name — the caller decides what an anonymous member looks like, because
  * "Someone" and "?" are different claims.
  */
+// CODE POINTS, NOT CODE UNITS (D228). `w[0][0]` indexes UTF-16, and an
+// astral character — an emoji, a mathematical alphanumeric, a CJK
+// extension B glyph — is two units wide, so a name whose word begins with
+// one contributed HALF of it: an unpaired surrogate, drawn as tofu on a
+// rail whose whole job is telling people apart. `data/avatar.ts`'s
+// `initialsOf` carried the identical defect and is fixed the same way; the
+// two folds stay separate because they take different letters (first-two
+// words here, first-and-last there), not because they disagree about what
+// a character is.
+//
+// Both single-word branches were already right BY ACCIDENT — `slice(0, 2)`
+// happens to take both halves of one astral character — which is why this
+// survived every by-hand reading. One helper makes the accident deliberate.
+const firstCp = (s: string): string => [...s][0] ?? "";
+const twoCps = (s: string): string => [...s].slice(0, 2).join("");
+
 export function personInitials(name: string): string {
   const w = String(name || "").trim().split(/\s+/).filter(Boolean);
   if (!w.length) return "";
-  return (w.length > 1 ? w[0][0] + w[1][0] : w[0].slice(0, 2)).toUpperCase();
+  return (w.length > 1 ? firstCp(w[0]) + firstCp(w[1]) : twoCps(w[0])).toUpperCase();
 }
 
 /**
@@ -62,7 +78,7 @@ export function personInitials(name: string): string {
  */
 export function groupInitials(name: string): string {
   const w = String(name || "").replace(/^The\s+/i, "").split(/\s+/).filter(Boolean);
-  return (w.length > 1 ? w.slice(0, 2).map((x) => x[0]).join("") : (w[0] || "?").slice(0, 2)).toUpperCase();
+  return (w.length > 1 ? firstCp(w[0]) + firstCp(w[1]) : twoCps(w[0] || "?")).toUpperCase();
 }
 
 /** First name, for the places a full name will not fit. */

@@ -23234,6 +23234,34 @@ deliberate.
 comment instructed. The assertion under all of it is the property rather
 than the four strings: nothing that comes out is a lone surrogate.
 
+### 1b · …and so did `marks.ts`, twice
+
+`personInitials` and `groupInitials` (`src/v2/ui/marks.ts`) carried the
+identical defect and are fixed the same way. Noticed while fixing
+`initialsOf` and left out of the first pass as UI-layer scope; folded in
+on the owner's call rather than left as a known twin.
+
+They are the daily's social rail — the marks every group and 1v1 row
+identifies a person or a circle by — so the failure is the same one in the
+same place: half a glyph where a letter should be, on a surface whose only
+job is telling people apart.
+
+| input | `personInitials` | `groupInitials` |
+| --- | --- | --- |
+| `🎈 Ada` / `🎈 Club` | `"\uD83CA"` → `"🎈A"` | `"\uD83CC"` → `"🎈C"` |
+| `Ada 🎈` / `Club 🎈` | `"A\uD83C"` → `"A🎈"` | `"C\uD83C"` → `"C🎈"` |
+| `The 🎈 Club` | — | `"\uD83CC"` → `"🎈C"` |
+
+The last row is the one worth naming: `groupInitials` strips a leading
+"The" first, so the emoji becomes the FIRST word — the path with two
+chances to lose half a character rather than one.
+
+The two folds keep separate implementations on purpose. They take
+different letters — first-two-words here, first-and-last in
+`data/avatar.ts` — and `duelMarks.test.tsx` exists partly to prove each
+mark reads its own rule. What they now share is only what a character IS,
+which is not a product decision either of them gets to make differently.
+
 ### 2 · `ensureToday` latched its in-flight slot on a settled promise
 
 The interesting one, and the one this record exists for.
