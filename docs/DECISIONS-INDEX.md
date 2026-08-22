@@ -2,8 +2,8 @@
 
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
-"which decision governs this" is 232 lines instead of
-23,327. Do not hand-edit; `npm run check:docs` fails when this
+"which decision governs this" is 233 lines instead of
+23,402. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -244,5 +244,6 @@ detect it.
 | **D224** | [A pick answer snapshots who it meant, and the reveal carries it](DECISIONS.md#d224--a-pick-answer-snapshots-who-it-meant-and-the-reveal-carries-it) | D225 | 22872 |
 | **D225** | [The no-private-report promise is removed, before anything needed it](DECISIONS.md#d225--the-no-private-report-promise-is-removed-before-anything-needed-it) | — | 22940 |
 | **D226** | [The de-overlap pass did not know the ring closes](DECISIONS.md#d226--the-de-overlap-pass-did-not-know-the-ring-closes) | D227 | 23006 |
-| **D227** | [The owed list reaches zero, and eight defects fall out of it](DECISIONS.md#d227--the-owed-list-reaches-zero-and-eight-defects-fall-out-of-it) | D228 | 23087 |
-| **D228** | [Two data-layer defects D227 found, fixed](DECISIONS.md#d228--two-data-layer-defects-d227-found-fixed) | — | 23205 |
+| **D227** | [The owed list reaches zero, and eight defects fall out of it](DECISIONS.md#d227--the-owed-list-reaches-zero-and-eight-defects-fall-out-of-it) | D229 (+1) | 23087 |
+| **D228** | [Two data-layer defects D227 found, fixed](DECISIONS.md#d228--two-data-layer-defects-d227-found-fixed) | D229 | 23205 |
+| **D229** | [The three behaviour bugs from D227's list](DECISIONS.md#d229--the-three-behaviour-bugs-from-d227s-list) | — | 23328 |

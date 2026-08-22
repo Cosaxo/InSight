@@ -23324,3 +23324,78 @@ one about the purge. The reasoning that missed it is worth naming: an
 async function with no `await` before its return runs to completion
 synchronously, so its `finally` can execute before the caller has stored
 its promise. Reading the code was not enough; running it was.
+
+## D229 · The three behaviour bugs from D227's list
+
+**2026-08-22.** **Status:** binding. D227 recorded eight defects and fixed
+none; D228 took the two data-layer ones. These are the three that change
+what a user sees. The remaining three on that list are honesty and
+accessibility findings and are still open.
+
+Each was already pinned as-found by the suite that discovered it, with a
+failure message naming the fix — so every one of these fixes announced
+itself by turning its own case red, which is what that convention is for.
+
+### 1 · Changing a pulse's rhythm hid the answer you had just given
+
+`mineToday` read `days(pid)[DAYS - 1].v`, and `days()` nulls every day the
+cadence did not ask on. That gate is correct for the trend line — a weekly
+pulse must not draw a Tuesday it never offered — and wrong for today's
+card: **whether you answered today is a fact about what you did, not a
+scheduling question.** Read through the gate, pausing a pulse after
+answering took your own answer off the screen and put the blind ask back
+over it, while the vote sat on the server. Setting the cadence back made
+it reappear, so nothing was ever lost except the card's word for what you
+had done.
+
+Pausing was the loud case; choosing any rhythm that excludes today — a
+weekly pulse on a Wednesday — hit the identical gate quietly, and both
+are now pinned.
+
+The read moves into `mineOn`, shared with `days()` so the two cannot
+disagree about what an answer IS while disagreeing, correctly, about
+whether the schedule matters. `days()` keeps its gate: the mutation that
+removes it fails `pulse.test.ts`, which is the check that this fix did not
+over-reach into the trend.
+
+### 2 · A new photo stayed hidden behind an old failure
+
+`Avatar` remembered a failed image load by **uid**, for the lifetime of
+the mount. Keyed that way it already handled the case it was written for —
+Near re-orders under a mounted component and React keeps state at the
+POSITION, so a boolean would carry one person's dead token onto whoever
+scrolled into their row. What it could not see is the same person's NEW
+token: after a transient failure — a flaky network, an object caught
+mid-replace — a fresh upload from the account panel kept drawing initials
+until the component unmounted.
+
+Keyed by the URL, which is uid AND token, both are one condition. The
+half the fix must not break is pinned too: a re-render that changes
+nothing must still not retry a token already known to be dead.
+
+### 3 · A row that named your pick and denied it in the same breath
+
+`standingIn` returns null for two different reasons — the cohort has said
+nothing, or you have not answered — and `standText` rendered both as the
+second. So a row could print "You have not answered this one." directly
+under a chip naming your own pick.
+
+Reachable from the Near room, and **not only for a beat**: `loadRoom` is
+session-cached per cell, so a vote cast after the fold shows your chip
+against zero counts until you walk to another block.
+
+One null, two facts, so the fix asks which — in the same terms
+`standingIn` refuses on, rather than a second copy of the condition that
+could drift from it. When you have answered and the cell is still empty
+the line is "Your answer is not in this count yet.": not "nobody has
+answered", because you did and you are in this cohort, so the honest
+sentence explains the zeros rather than denying the chip. The other
+direction is pinned as well — with no pick of your own the sentence is
+about you, whatever the cohort has done.
+
+### Method
+
+Every fix was mutation-checked in BOTH directions: reverting it fails, and
+so does over-applying it. That second half is the one worth keeping — it
+is what caught that removing `days()`'s schedule gate would have fixed the
+card by breaking the trend.

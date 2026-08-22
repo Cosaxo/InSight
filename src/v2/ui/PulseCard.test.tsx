@@ -434,19 +434,12 @@ describe("PulseCard · the rhythm (D203)", () => {
     expect(screen.queryByRole("radiogroup"), "the chips stayed open after a choice").toBeNull();
   });
 
-  it("BUG — pausing a pulse hides the answer you already gave today", async () => {
-    // FLAGGED, NOT FIXED, and asserted as it behaves today so that fixing
-    // it fails here loudly rather than silently.
-    //
-    // `mineToday` reads `days()`, which nulls every day the cadence did not
-    // ask on — right for the trend line (a weekly pulse must not draw a
-    // Tuesday it never offered), wrong for today's card: change the rhythm
-    // after answering and your own answer leaves the screen and the blind
-    // ask comes back, while the vote stays on the server. The reveal
-    // returns if you set the cadence back, so nothing is lost except the
-    // card's word for what you did. The fix belongs in `data/pulse`
-    // (today's answer is not a scheduling question), which is outside this
-    // panel.
+  it("keeps today's answer on screen when the rhythm changes (D229)", async () => {
+    // WAS A FLAGGED DEFECT, now the fix. `mineToday` read `days()`, which
+    // nulls every day the cadence did not ask on — right for the trend
+    // line, wrong for today's card. Pausing after answering took your own
+    // answer off the screen and put the blind ask back over it, while the
+    // vote sat on the server.
     h.aggs[`pulse-pace_${dayKey(0)}`] = { counts: { "3": 1 }, total: 1 };
     h.votes["pulse-pace"] = { [dayKey(0)]: 3 };
     render(<PulseCard />);
@@ -457,10 +450,25 @@ describe("PulseCard · the rhythm (D203)", () => {
     fireEvent.click(screen.getByRole("radio", { name: "paused" }));
     await settle();
 
-    expect(text(), "FIXED? — then update this case: pausing no longer hides today's answer")
-      .not.toMatch(/you · Brisk/);
-    expect(options(), "the blind ask came back over an answer already recorded").toEqual(PACE);
-    expect(LIVE.votePulse, "the vote itself was never withdrawn").not.toHaveBeenCalled();
+    // Still yours, and still no blind ask over an answer already given.
+    expect(screen.getByText("you · Brisk"), "pausing hid an answer already recorded").toBeTruthy();
+    expect(options(), "the blind ask came back over an answer already recorded").not.toEqual(PACE);
+    expect(LIVE.votePulse, "the vote itself was never touched").not.toHaveBeenCalled();
+  });
+
+  it("…and when the new rhythm simply does not include today", async () => {
+    // Pausing is the loud case; this is the same fold and the quiet one.
+    // "Sundays" excludes today unless today is a Sunday, so a weekly
+    // rhythm chosen after answering hit exactly the same gate.
+    h.aggs[`pulse-pace_${dayKey(0)}`] = { counts: { "3": 1 }, total: 1 };
+    h.votes["pulse-pace"] = { [dayKey(0)]: 3 };
+    render(<PulseCard />);
+    await settle();
+    fireEvent.click(screen.getByRole("button", { name: /How often this pulse asks/ }));
+    fireEvent.click(screen.getByRole("radio", { name: "Sundays" }));
+    await settle();
+
+    expect(screen.getByText("you · Brisk")).toBeTruthy();
   });
 });
 

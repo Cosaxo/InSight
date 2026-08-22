@@ -148,6 +148,39 @@ describe("a photo that will not load", () => {
     rerender(<Avatar uid="u_grace" name="Grace Hopper" />);
     expect(container.querySelector("img")?.getAttribute("src")).toContain("avatars%2Fu_grace");
   });
+
+  it("retries a NEW token for the same person (D229)", () => {
+    // The other way a slot stops being about the same picture, and the one
+    // keying by uid could not see: same person, new upload. After a
+    // transient failure — a flaky network, an object caught mid-replace —
+    // the account panel's fresh photo kept drawing initials for the life
+    // of the mount, because the uid had not changed. Keyed by the URL,
+    // which is uid AND token, both cases are one condition.
+    let token = "tok-broken";
+    LIVE.faceFor = () => token;
+    const { container, rerender } = render(<Avatar uid="u_ada" name="Ada Lovelace" />);
+    fireEvent.error(container.querySelector("img")!);
+    expect(container.querySelector("img"), "the dead token should fall back").toBeNull();
+
+    // The upload lands and the store publishes a new token for the SAME uid.
+    token = "tok-fresh";
+    rerender(<Avatar uid="u_ada" name="Ada Lovelace" />);
+    const img = container.querySelector("img");
+    expect(img, "a new upload stayed hidden behind the old failure").not.toBeNull();
+    expect(img?.getAttribute("src")).toContain("token=tok-fresh");
+  });
+
+  it("keeps remembering a failure that has not been replaced", () => {
+    // The half the fix must not break: a re-render that changes nothing
+    // must not retry a token already known to be dead, or every parent
+    // notify re-requests an object that is not there.
+    LIVE.faceFor = () => "tok-gone";
+    const { container, rerender } = render(<Avatar uid="u_ada" name="Ada Lovelace" />);
+    fireEvent.error(container.querySelector("img")!);
+    rerender(<Avatar uid="u_ada" name="Ada Lovelace" size={40} />);
+    expect(container.querySelector("img")).toBeNull();
+    expect(container.textContent).toBe("AL");
+  });
 });
 
 describe("what is said out loud", () => {

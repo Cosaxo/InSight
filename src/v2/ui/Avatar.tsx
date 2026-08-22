@@ -24,11 +24,21 @@ export default function Avatar({ uid, name, size = 38 }: {
   size?: number;
 }) {
   // A load failure falls back rather than showing a broken image. Keyed by
-  // uid so a list that re-orders does not carry one person's failure onto
-  // another's row.
+  // the URL — which is uid AND token — so it survives the two ways a slot
+  // stops being about the same picture.
+  //
+  // Keyed by UID it already handled a re-ordering list: Near re-orders
+  // under a mounted component and React keeps state at the POSITION, so a
+  // boolean would carry one person's dead token onto whoever scrolls into
+  // their row. What it did NOT handle is the same person's NEW token
+  // (D229): after a transient failure — a flaky network, an object
+  // mid-replace — a fresh upload from the account panel kept drawing
+  // initials for the life of the mount, because the uid had not changed.
+  // The URL changes on either, so both are one condition.
   const [failed, setFailed] = React.useState("");
   const token = LIVE.faceFor(uid);
-  const src = failed === uid ? "" : avatarUrl(uid, token);
+  const url = avatarUrl(uid, token);
+  const src = failed && failed === url ? "" : url;
   const initials = initialsOf(name);
   const box: React.CSSProperties = {
     width: size, height: size, flexShrink: 0, borderRadius: "50%",
@@ -58,7 +68,7 @@ export default function Avatar({ uid, name, size = 38 }: {
         height={size}
         loading="lazy"
         decoding="async"
-        onError={() => setFailed(uid)}
+        onError={() => setFailed(url)}
         style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
       />
     </span>

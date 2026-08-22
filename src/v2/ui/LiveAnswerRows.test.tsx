@@ -163,18 +163,23 @@ describe("a question nobody here has answered", () => {
     expect(barText(opened(), "Yes")).toMatch(/0$/);
   });
 
-  it("cannot tell an empty cohort from a question you skipped — FLAGGED", () => {
+  it("tells an empty cohort from a question you skipped (D229)", () => {
+    // WAS A FLAGGED DEFECT, now the fix. `standingIn` refuses for two
+    // different reasons and `standText` rendered both as the second one,
+    // so this row said "You have not answered this one." under a chip
+    // naming your own pick two lines above it.
     unanswered();
-    // KNOWN DEFECT, asserted as it stands rather than as it should be.
-    // `standingIn` returns null for BOTH "the cohort has no answers" and
-    // "you have not answered", and `standText` renders that one null as
-    // the second sentence — on a row that is naming your own pick two
-    // lines above it. Reachable in the Near room, and not only in a
-    // one-beat window: `loadRoom` is session-cached per cell, so a vote
-    // cast after the fold shows your chip against zero counts until you
-    // walk to another block.
+    expect(rowControls()[0].textContent, "the chip should still name your pick").toMatch(/Yes/);
+    expect(screen.queryByText("You have not answered this one."), "the row contradicted its own chip").toBeNull();
+    expect(screen.getByText("Your answer is not in this count yet.")).toBeTruthy();
+  });
+
+  it("still says you have not answered when you have not", () => {
+    // The half the fix must not swallow: with no pick of your own, the
+    // sentence is about YOU, whatever the cohort has done. Both nulls
+    // reaching the same branch is exactly how the two got confused.
+    show([row("q", [0, 0], { options: ["Yes", "No"], text: "Is this asked here?" })]);
     expect(screen.getByText("You have not answered this one.")).toBeTruthy();
-    expect(rowControls()[0].textContent).toMatch(/Yes/);
   });
 });
 

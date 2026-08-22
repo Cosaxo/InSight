@@ -351,6 +351,27 @@ function aggFor(pid: string, key: string): DayAgg | null {
   return null;
 }
 
+/**
+ * What you answered on one day, as a step (1..5) — the read with NO
+ * schedule gate on it.
+ *
+ * Its own function so `days()` and `mineToday()` cannot disagree about
+ * what an answer is while disagreeing (correctly) about whether the
+ * schedule matters. The maps come in as parameters because `days()` has
+ * already paid for them once for the whole window; `demoSaved()` parses
+ * localStorage, and calling it per day would be twenty-one parses.
+ */
+function mineOn(
+  k: string,
+  mineLive: Record<string, number>,
+  mineDemo: Record<string, number>,
+  seeded: number | null,
+): number | null {
+  // optionIdx 0..4 → step 1..5
+  if (LIVE.enabled) return k in mineLive ? mineLive[k] + 1 : null;
+  return mineDemo[k] != null ? mineDemo[k] : seeded;
+}
+
 function days(pid: string): PulseDay[] {
   const cad = cadence(pid);
   const mineDemo = demoSaved()[pid] || {};
@@ -364,10 +385,10 @@ function days(pid: string): PulseDay[] {
     const scheduled = dueOn(cad, d);
     // A day the pulse never asked on carries no answer, even in the demo
     // room's seeded history — otherwise a weekly pulse would draw a
-    // Tuesday it was never offered on.
-    const mine = !scheduled ? null : LIVE.enabled
-      ? (k in mineLive ? mineLive[k] + 1 : null) // optionIdx 0..4 → step 1..5
-      : (mineDemo[k] != null ? mineDemo[k] : v);
+    // Tuesday it was never offered on. The SCHEDULE gate is this fold's,
+    // not the read's: `mineOn` below is what you actually answered, and
+    // `mineToday` wants that without this gate (D229).
+    const mine = !scheduled ? null : mineOn(k, mineLive, mineDemo, v);
     return {
       i, key: k, date: d, label: dayLabel(d), today: i === DAYS - 1,
       weekStart: i % 7 === 0, v: mine, scheduled,
@@ -506,8 +527,27 @@ export const PULSE = {
     return cutOf(agg, id).n;
   },
   mineToday(pid: string): number | null {
-    const d = days(pid);
-    return d[DAYS - 1].v;
+    // NOT `days(pid)[DAYS - 1].v` (D229). That fold nulls every day the
+    // cadence did not ask on, which is right for the trend line — a weekly
+    // pulse must not draw a Tuesday it never offered — and wrong here.
+    //
+    // Whether you answered TODAY is a fact about what you did, not a
+    // scheduling question. Read through the gate, changing a pulse's
+    // rhythm after answering took your own answer off the card and put the
+    // blind ask back over it, while the vote sat on the server: pausing
+    // hid it outright, and switching to a rhythm that does not include
+    // today did the same. Setting the cadence back made it reappear, so
+    // nothing was ever lost except the card's word for what you had done.
+    const k = utcKey(dayAt(DAYS - 1));
+    const hist = LIVE.enabled
+      ? null
+      : HISTORY[(window as { IS_PULSE_HISTORY?: string }).IS_PULSE_HISTORY ?? "typical"] ?? HISTORY.typical;
+    return mineOn(
+      k,
+      LIVE.enabled ? LIVE.pulseVotes(pid) : {},
+      LIVE.enabled ? {} : (demoSaved()[pid] || {}),
+      hist ? hist[DAYS - 1] ?? null : null,
+    );
   },
   /** Answer today. Live: the day-keyed write through the rules (create-
    * only — the store mirrors immediately, LIVE rolls back on refusal).
