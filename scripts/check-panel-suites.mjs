@@ -36,7 +36,6 @@ const OWED = {
   Avatar: "initials and the D178 photo fallback; drawn everywhere, decides nothing",
   EmptyField: "the similarity field's empty state — one card, offers the Answers tab",
   LiveCompareLens: "Compare's row list; its fold is data/compare.ts, tested there",
-  MirrorLensTabs: "the lens tab bar (D136); routing, no reading of its own",
   duelMarks: "glyph constants, no component",
   profileSetup: "the pre-typed setup; LiveProfileSetup is the live one and has a suite",
 };
