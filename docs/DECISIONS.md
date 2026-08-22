@@ -23272,3 +23272,55 @@ already are the list.
   stdlib-only `.mjs`, the app half is TS; each cites the other so drift
   has an address, and `build-report.test.mjs` pins the quartile
   boundaries to the app's.
+
+## D230 · The buyer's room — purchases on record, and a card only buyers see
+
+**2026-08-22.** **Status:** binding, built. The last demand-independent
+piece of `PAID-PLAN.md` §9 (item 3): where a buyer finds what they
+bought. Same thread as D226–D229.
+
+### The collection
+
+`v2_users/{uid}/purchases/{orderId}` — qid, kind (`question` /
+`subscription`), status, window, a denormalized `prompt` so the room can
+name a bought question without coupling to the bank (a paid question is
+tail and may outlive serving). **Owner-read, nobody-writes**: billing
+state is the buyer's own — the one owner-only *readable* class post-D98,
+and it discloses nothing by being closed, because the public fact of
+payment lives on the question's `sponsor` block (D195/D228). Writes are
+the operator's, admin SDK, at contract time — money does not get a robot
+(D195), and a client-writable purchase would be a forged invoice. Two
+rules tests pin both directions. Placed inside the `v2_users` subtree
+deliberately, so `deleteAccount`'s recursive delete erases it with the
+account — the erasure obligation is met by construction, not by a new
+arm.
+
+### The room
+
+`ui/LivePurchasesPanel` ("Asked by you"), mounted as a sibling card
+under the account panel by a real ESM import — a new panel does not join
+the global bridge (`check:globals` rule 4 only moves down). It renders
+**nothing** for an account with no orders, which is every account until
+a contract exists: one owner-only query on the profile sheet and zero
+pixels of rent charged to non-buyers. A buyer reads each order's name,
+kind, window/status, and the live count off `LIVE.aggFor` — the same
+public aggregate every card reads — under the room's one posture
+sentence, pinned by its suite: counts are the public numbers, and
+reports are built from them and delivered per contract (D225/D229).
+
+What the room deliberately is not: no checkout (commerce stays on the
+web/contract side — `NEXT-FUNCTIONALITY.md` §6), no in-app report
+download (delivery is a per-contract term, D225, and the artifact is
+built off-app, D229), no privileged numbers of any kind.
+
+### The trail
+
+`firestore.rules` + two `rules.test.ts` cases (118 now — the figure
+moved in `LOCAL-TESTING.md` and `SCHEMA-V2.md`); `LIVE.loadPurchases` /
+`LIVE.purchases` with the surface pin and the live fixture moved in the
+same commit; `data-inventory.md` row; a `web/privacy.html` bullet under
+"Who can see what" pinned by a new `check:policy-claims` row;
+`SCHEMA-V2.md` block; `LivePurchasesPanel.test.tsx` per
+`check:panel-suites`. With this, every code item `PAID-PLAN.md` does not
+gate on demand evidence is built: what remains is a buyer, users, and
+the pricing engine that waits for both.

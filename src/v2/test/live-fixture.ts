@@ -308,6 +308,10 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     foresightLog: () => ({}) as Record<string, unknown>,
     foresightLoading: () => false,
     scoreForesight: async () => {},
+    // The buyer's room (D230): the fixture account has bought nothing,
+    // which is the state every real account starts in.
+    loadPurchases: async () => {},
+    purchases: () => null,
     loadCircle: async () => {},
     circle: () => [
       {

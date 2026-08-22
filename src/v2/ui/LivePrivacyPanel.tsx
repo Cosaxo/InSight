@@ -27,6 +27,10 @@ import { atHandle } from "../data/handles";
 // invites and legal links share one constant — a domain change stays a
 // single edit (D3).
 import { SITE_ORIGIN as LP_SITE } from "../data/links";
+// The buyer's room (D230), a sibling card under this one. A real import,
+// not the bridge: it renders nothing for the near-universal non-buyer
+// case, so mounting it here costs everyone else nothing.
+import LivePurchasesPanel from "./LivePurchasesPanel";
 
 const LP_LINE = "1px solid color-mix(in oklch, var(--rule), transparent 25%)";
 
@@ -101,8 +105,9 @@ function LivePrivacyPanel() {
   );
 
   return (
-    <div className="card" style={{ marginBottom: 14, padding: "14px 16px" }}>
-      <div className="kicker" style={{ marginBottom: 4 }}>Account &amp; privacy</div>
+    <>
+      <div className="card" style={{ marginBottom: 14, padding: "14px 16px" }}>
+        <div className="kicker" style={{ marginBottom: 4 }}>Account &amp; privacy</div>
 
       {/* THE FACE, ABOVE THE NAME (D178). Both answer "who are you to
           other people", and the photo is the louder half — so it goes
@@ -249,7 +254,10 @@ function LivePrivacyPanel() {
           how much of a subject you see is the algorithm's job, not a
           lever's. Muting a topic outright survives, in the feed's own
           topic sheet, which is where it was always reachable. */}
-    </div>
+      </div>
+
+      <LivePurchasesPanel />
+    </>
   );
 }
 

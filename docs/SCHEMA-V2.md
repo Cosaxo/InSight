@@ -122,6 +122,20 @@ Game timing, not privacy. Cross-user reads go through the collection-group
 grant `match /{path=**}/answers/{aid}` and must carry a matching
 `where("surface","in",[…])` or Firestore refuses the query wholesale (D65)
 
+v2_users/{uid}/purchases/{orderId}   the buyer's room (D230)
+  qid, kind: question|subscription,
+  status: active|ended,
+  prompt (denormalized label),
+  boughtAt, until?
+read: OWNER ONLY — billing state is the buyer's own, and the public fact
+of payment lives on the question's sponsor block (D195/D228), so this is
+the one owner-only READABLE class post-D98 and it discloses nothing by
+being closed. write: nobody (operator, admin SDK, at contract time —
+money does not get a robot, D195; a client-writable purchase is a forged
+invoice). Erased with the account by phase 1b's recursive delete.
+Renders as the "Asked by you" card (ui/LivePurchasesPanel), which draws
+nothing for an account with no orders
+
 v2_aggs_private/{qid}              the trigger's working state (no readers)
   counts, total                    exact — same numbers as the public doc
   ent { entity: n }                catalog questions: per-entity counts
@@ -528,7 +542,7 @@ not per boot. `LIVE.stats` reports `bankSource` / `answersFetched` /
 
 ## Verification
 
-- `npm run test:rules` — 116 rules tests (Firestore + Storage; the v2
+- `npm run test:rules` — 118 rules tests (Firestore + Storage; the v2
   surface, the anonymous-default lens, and the retired-v1 guard).
 - `firestore-tests/e2e-v2-loop.mjs` under
   `firebase emulators:exec --only auth,firestore,functions` — the full

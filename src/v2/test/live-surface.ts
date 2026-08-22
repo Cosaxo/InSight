@@ -82,6 +82,10 @@ export const LIVE_MEMBERS = [
   // the per-dimension accuracy are pure folds the lens runs on it, so no
   // derived number lives here to disagree with its own rows.
   "loadForesight", "foresightLog", "foresightLoading", "scoreForesight",
+  // The buyer's room (D230) — owner-only orders, operator-written. Null
+  // while unfetched; the panel renders nothing for the near-universal
+  // empty case, which is why nothing else on this surface reads it.
+  "loadPurchases", "purchases",
   // The reason boot did not attach, rendered under the "Sample questions ·
   // reconnecting…" pill when it is tapped. It exists because that label
   // said a real user was on demo content without saying why, and an

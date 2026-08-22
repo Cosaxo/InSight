@@ -244,6 +244,22 @@ service cloud.firestore {
         allow read, write: if false;
       }
 
+      // Question purchases (D230) — the buyer's own commercial record:
+      // what they bought (a paid question or a place-score subscription),
+      // its window, its status. Owner-read because billing state is the
+      // buyer's own; the PUBLIC fact of payment lives on the question's
+      // sponsor block (D195/D228), so this needs no world grant and is
+      // the one owner-only readable class post-D98 — recorded in
+      // docs/data-inventory.md. Written only at contract time by the
+      // operator (admin SDK): money does not get a robot (D195), and a
+      // client-writable purchase would be a forged invoice. Inside the
+      // v2_users subtree so deleteAccount's recursive delete takes it
+      // with the account, no new arm.
+      match /purchases/{orderId} {
+        allow read: if request.auth != null && request.auth.uid == uid;
+        allow write: if false;
+      }
+
       // The follow graph (D101) — the Mirror's Circle stop.
       //
       // A follow is a BOOKMARK, not a permission grant, and that is the

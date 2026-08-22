@@ -106,6 +106,8 @@ export const CLAIMS = [
     /moves from one option to another/i],
   ["D227 · the verified logic score also groups answers, in broad bands",
     /verified logic score, in four broad\s+bands/i],
+  ["D230 · question purchases are readable only by their buyer",
+    /question purchases[\s\S]{0,80}?only you/i],
 ];
 
 /** Labels of every claim the given page source fails to state. */

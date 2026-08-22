@@ -2298,3 +2298,34 @@ describe("circle invitations (D122)", () => {
     }));
   });
 });
+
+// Question purchases (D230) — the buyer's own commercial record, and the
+// one owner-only READABLE class post-D98. What these hold: billing state
+// is the buyer's and nobody else's; nothing client-side can mint or edit
+// an order (a client-writable purchase is a forged invoice); and the
+// public fact of payment lives on the question's sponsor block, never
+// here — so a stranger losing this read loses no disclosure.
+describe("v2 purchases (D230)", () => {
+  const order = {
+    qid: "q_paid_1", kind: "question", status: "active",
+    boughtAt: new Date("2026-08-22T00:00:00Z"), until: "2026-11-22",
+  };
+
+  it("the buyer reads their own orders; a stranger cannot", async () => {
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_users", OWNER, "purchases", "o1"), order);
+    });
+    await assertSucceeds(getDoc(doc(asUser(OWNER), "v2_users", OWNER, "purchases", "o1")));
+    await assertFails(getDoc(doc(asUser(STRANGER), "v2_users", OWNER, "purchases", "o1")));
+  });
+
+  it("nobody writes from a client — the owner included", async () => {
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_users", OWNER, "purchases", "o1"), order);
+    });
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_users", OWNER, "purchases", "o2"), order));
+    await assertFails(updateDoc(doc(asUser(OWNER), "v2_users", OWNER, "purchases", "o1"), { status: "ended" }));
+    await assertFails(deleteDoc(doc(asUser(OWNER), "v2_users", OWNER, "purchases", "o1")));
+    await assertFails(setDoc(doc(asUser(STRANGER), "v2_users", OWNER, "purchases", "o3"), order));
+  });
+});

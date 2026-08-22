@@ -49,6 +49,9 @@ const LIVE = vi.hoisted(() => ({
   subscribe: () => () => {},
 }));
 vi.mock("../data/live", () => ({ default: LIVE, localName: () => "" }));
+// The buyer's room mounts as a sibling card (D230) and owns its own suite;
+// stubbed here so this one stays about the privacy panel's sentences.
+vi.mock("./LivePurchasesPanel", () => ({ default: () => null }));
 
 const { default: LivePrivacyPanel } = await import("./LivePrivacyPanel");
 

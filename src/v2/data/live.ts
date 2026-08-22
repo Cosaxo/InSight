@@ -355,6 +355,12 @@ const state = {
   // side, so the local copy can never be stale in a way that matters.
   foresight: null as Record<string, ForesightVerdict> | null,
   foresightLoading: false,
+  // The buyer's own orders (D230) — the "Asked by you" room's rows.
+  // Owner-only readable, operator-written at contract time; null is "not
+  // asked or failed", [] is "you have bought nothing", and nearly every
+  // account is [] forever, which is why the panel renders nothing then.
+  purchases: null as PurchaseRow[] | null,
+  purchasesLoading: false,
   // Open invitations to this account (D122). An empty array is a real
   // answer here — "nobody has invited you" — so unlike `circle` there is
   // no null state to distinguish from it: the inbox is fetched on the tap
@@ -394,6 +400,20 @@ const KINDRED_QUESTIONS = 12;
 // fold never counted. Hand-matched, like every other client/server pair
 // here; the server's cap is the one that binds.
 const ROOM_QIDS = 8;
+
+// One order in the buyer's room (D230) — the parsed, trustworthy view of
+// an operator-written purchase doc. `prompt` is a denormalized label the
+// contract tooling writes so the room can name a bought question without
+// coupling to the bank (a paid question is tail and may outlive serving).
+export interface PurchaseRow {
+  id: string;
+  qid: string;
+  kind: "question" | "subscription";
+  status: "active" | "ended";
+  prompt: string;
+  until?: string;
+  boughtAtMs: number;
+}
 
 // One take as the circle reads it. `hidden` is always false on anything a
 // non-author can list — the read rule is an equality on that boolean, not a
@@ -2786,6 +2806,47 @@ const LIVE = {
   followsLoading(): boolean {
     return state.followsLoading;
   },
+  // ── the buyer's room (D230) ──
+  //
+  // One owner-only query, on the tap that opens the account sheet. The
+  // order doc is operator-written (rules close every client write), so
+  // the parse below is about surviving shape drift across contract
+  // tooling, not about hostile input.
+  async loadPurchases(): Promise<void> {
+    const me = state.uid;
+    if (!this.enabled || !me || state.purchasesLoading || state.purchases) return;
+    state.purchasesLoading = true;
+    try {
+      const db = await getDb();
+      const { collection, getDocs } = await getFirestoreApi();
+      const snap = await getDocs(collection(db, "v2_users", me, "purchases"));
+      state.purchases = snap.docs
+        .map((d) => {
+          const at = d.get("boughtAt") as { toMillis?: () => number } | undefined;
+          return {
+            id: d.id,
+            qid: typeof d.get("qid") === "string" ? (d.get("qid") as string) : "",
+            kind: d.get("kind") === "subscription" ? "subscription" : "question",
+            status: d.get("status") === "ended" ? "ended" : "active",
+            prompt: typeof d.get("prompt") === "string" ? (d.get("prompt") as string) : "",
+            until: typeof d.get("until") === "string" ? (d.get("until") as string) : undefined,
+            boughtAtMs: typeof at?.toMillis === "function" ? at.toMillis() : 0,
+          } as PurchaseRow;
+        })
+        .sort((a, b) => b.boughtAtMs - a.boughtAtMs);
+    } catch (err) {
+      // Left null, loadFollows' convention: "could not ask" must not
+      // render as "you have bought nothing".
+      reportError(err, { where: "loadPurchases" });
+    } finally {
+      state.purchasesLoading = false;
+      notify();
+    }
+  },
+  /** The buyer's orders, newest first — null while unfetched or failed. */
+  purchases(): PurchaseRow[] | null {
+    return state.purchases;
+  },
   // ── Foresight (D126) ──
   //
   // The log, not the score. `recordOf`/`byDim` are pure folds the UI
@@ -3931,6 +3992,10 @@ function resetForNewUid(uid: string): void {
   state.scores = {};
   state.logicPcts = {};
   state.faces = {};
+  // The buyer's room is the outgoing account's own commercial record —
+  // the clearest possible case of state that must not survive a uid swap.
+  state.purchases = null;
+  state.purchasesLoading = false;
   // Both are about WHO ANSWERED, so both belong to the outgoing account:
   // a surviving `learnSent` would suppress the new account's first-attempt
   // sends for every card the old one answered, and a surviving `learnMine`

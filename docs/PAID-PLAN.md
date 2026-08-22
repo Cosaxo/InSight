@@ -1,12 +1,14 @@
 # Paid questions, reports and cohort subscriptions — the plan
 
-**Status: plan, except §3's aggregate half
+**Status: plan, except the demand-independent builds — all landed
+2026-08-22: §2's report builder
+([D229](DECISIONS.md#d229--the-report-builder--a-document-built-with-a-strangers-own-window)),
+§3's aggregate half
 ([D226](DECISIONS.md#d226--the-edit-flow-matrix--second-thoughts-become-a-published-number)),
 §4's logic cut
 ([D227](DECISIONS.md#d227--the-logic-cut--the-who-voted-sheet-groups-answers-by-the-verified-score))
-and §2's report builder
-([D229](DECISIONS.md#d229--the-report-builder--a-document-built-with-a-strangers-own-window))
-— all built 2026-08-22.** Requested by the owner 2026-08-21; everything
+and §7's buyer room
+([D230](DECISIONS.md#d230--the-buyers-room--purchases-on-record-and-a-card-only-buyers-see)).** Requested by the owner 2026-08-21; everything
 else below is unbuilt and binds nothing. This page extends the recorded
 revenue
 paths ([`MONETIZATION.md`](MONETIZATION.md) paths 1–2, re-derived in
@@ -294,6 +296,12 @@ individual — the PAID band stays the app's own either way (§7).
 
 ## 7 · Finding it — the slot is not the problem; the missing rooms are
 
+**The room and the record are BUILT (D230, 2026-08-22)** —
+`v2_users/{uid}/purchases` (owner-read, operator-written) and the
+"Asked by you" card on the profile sheet, which renders nothing for an
+account with no orders. The funnel below (the suggestion composer's
+paid door) stays unbuilt with the contract path it feeds.
+
 The voter-side placement is already not "the bottom of an endless
 scroll": the paid card holds a fixed early slot in the interleave
 (`SPONSOR_AT`, `data/sponsored.ts`) on every device it matches, daily,
@@ -354,7 +362,9 @@ every day it waits.
    Selling at hand-set prices stays the human half; this plus the D195
    machinery is a complete sellable product with near-zero app code
    remaining.
-3. **"Asked by you" + purchase records** (§7) — the first in-app build.
+3. **"Asked by you" + purchase records** (§7) — **DONE, D230
+   (2026-08-22)**: the owner-read collection, its rules and tests, and
+   the card only buyers see.
 4. **The score catalog and subscription serving** (§5) — including the
    audience-cap amendment (§6) and the Scores-lens decision.
 5. **The rate card and demand multipliers** (§6) — last, and only on
