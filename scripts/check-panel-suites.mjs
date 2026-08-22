@@ -33,8 +33,6 @@ const UI = join(root, "src", "v2", "ui");
 // The panels still owed a suite, each with what a reader would want to
 // know. Removing a name from this list is the only direction it moves.
 const OWED = {
-  Avatar: "initials and the D178 photo fallback; drawn everywhere, decides nothing",
-  EmptyField: "the similarity field's empty state — one card, offers the Answers tab",
   duelMarks: "glyph constants, no component",
   profileSetup: "the pre-typed setup; LiveProfileSetup is the live one and has a suite",
 };
