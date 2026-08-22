@@ -4841,6 +4841,111 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null
  },
  {
+  "id": "feed-f78",
+  "surface": "feed",
+  "seq": 106,
+  "type": "vote",
+  "domain": null,
+  "prompt": "One instrument, mastered overnight — which?",
+  "options": [
+   "Piano",
+   "Guitar",
+   "Violin",
+   "Drums"
+  ],
+  "topic": "music",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f79",
+  "surface": "feed",
+  "seq": 107,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Meet your hero — or keep the myth?",
+  "options": [
+   "Meet them",
+   "Keep the myth"
+  ],
+  "topic": "people",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-dl9",
+  "surface": "feed",
+  "seq": 108,
+  "type": "dial",
+  "domain": null,
+  "prompt": "Trailers before the film — how many minutes is right?",
+  "options": [
+   "0–3 min",
+   "3–5 min",
+   "5–8 min",
+   "8–10 min",
+   "10–13 min",
+   "13–15 min",
+   "15–18 min",
+   "18–20 min",
+   "20–23 min",
+   "23–25 min",
+   "25–28 min",
+   "28–30 min"
+  ],
+  "topic": "movies",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 30,
+  "unit": "min"
+ },
+ {
+  "id": "feed-f80",
+  "surface": "feed",
+  "seq": 109,
+  "type": "vote",
+  "domain": null,
+  "prompt": "A total eclipse nearby — travel to stand in it?",
+  "options": [
+   "Chase it",
+   "Watch the photos"
+  ],
+  "topic": "event",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f81",
+  "surface": "feed",
+  "seq": 110,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Cold leftovers the next morning: better, or sad?",
+  "options": [
+   "Better",
+   "Sad"
+  ],
+  "topic": "food",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f82",
+  "surface": "feed",
+  "seq": 111,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Paper books or an e-reader?",
+  "options": [
+   "Paper",
+   "E-reader"
+  ],
+  "topic": "tech",
+  "axis": null,
+  "test": null
+ },
+ {
   "id": "group-gu0",
   "surface": "group",
   "seq": 0,
