@@ -30,10 +30,21 @@
 import type { QuestionDoc } from "./deck";
 import { DIM_LABEL } from "./cohort";
 
-/** Who bought a question, and the one coarse tag they bought it against. */
+/** Who bought a question, and the coarse tags they bought it against. */
 export interface Sponsor {
-  buyer: string;
-  /** dim → bucket, at most one entry. Absent = shown to everyone. */
+  /**
+   * The name the buyer chose to wear, or absent for a nameless purchase
+   * (D228). Companies AND individuals buy questions, and printing a
+   * person's name on every serve is theirs to want or refuse — the PAID
+   * band renders either way, from this block's presence, because the
+   * fact of payment is the app's disclosure and not the buyer's choice.
+   */
+  buyer?: string;
+  /**
+   * dim → bucket, one to three entries (D228 widened D195's one),
+   * matched conjunctively — every named dim must agree. Absent = shown
+   * to everyone. Each matched dim is printed on the band (`whyMatched`).
+   */
   audience?: Record<string, string>;
 }
 

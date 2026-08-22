@@ -20,7 +20,7 @@ it mirrored, so editing it looked like changing the app and changed nothing.
 | File | Contents |
 |---|---|
 | `daily-questions.json` | The daily World question pool (126) — scale / binary / choice / rating / dilemma types |
-| `feed-questions.json` | Feed questions (82) + topic (10) and channel (4) definitions. Three optional fields ride here and nowhere else: `until` (the serving window, D179), `core` (the Mirror's corpus — absent means TAIL, D161) and `sponsor` (who paid, and the one coarse audience tag the device matches, D195 — none are set today, deliberately) |
+| `feed-questions.json` | Feed questions (82) + topic (10) and channel (4) definitions. Three optional fields ride here and nowhere else: `until` (the serving window, D179), `core` (the Mirror's corpus — absent means TAIL, D161) and `sponsor` (the paid block, D195/D228: an optional buyer name — companies or individuals, nameless allowed, the PAID band renders regardless — and one to three coarse audience tags the device matches conjunctively; none are set today, deliberately) |
 | `duel-questions.json` | Group daily bank (24: classic / pick-a-member / about-us), 1v1 bank (30) and the romantic 1v1 pool (20, `mode: "romantic"` — seeded `active: false` until the mode-aware client is the fleet, D40 part 4); the last two share the `duo` surface, 50 together. Single source since 2026-08-03: `src/v2/spec/duels-data.js` imports it for the demo layer (the D32 learn-data shape), so demo and seed cannot drift |
 | `tests.json` | The four core tests' item banks (big5 · political · values · attachment) — 160 items over one shared counter |
 | `lenses.json` | The nine lens banks (moral · risk · trust · time · taste · conflict · humor · thinking · culture) — the client minted these ids |

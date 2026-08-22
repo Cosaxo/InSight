@@ -40,11 +40,18 @@ v2_questions/{qid}                 canonical bank, seeded by seedContentV2
                       answers and aggregates persist either way
   core?               feed only (D161), and ABSENT MEANS TAIL — a question
                       is in the Mirror's corpus only if it says so
-  sponsor?            feed only (D195): { buyer, audience? } on a question
-                      somebody paid to ask. `audience` is at most ONE
-                      dim → bucket from the published breakdown dims, and
-                      the DEVICE matches it (data/sponsored.ts) — the
-                      server is never asked who should see what. The window
+  sponsor?            feed only (D195; buyer model D228): { buyer?,
+                      audience? } on a question somebody paid to ask —
+                      a company or an individual. `buyer` is the name the
+                      buyer chose to wear, or absent for a nameless
+                      purchase; the PAID band renders from this block's
+                      PRESENCE either way (the fact of payment is the
+                      app's disclosure, not the buyer's choice).
+                      `audience` is one to three dim → bucket entries
+                      from the published breakdown dims, matched
+                      conjunctively by the DEVICE (data/sponsored.ts) —
+                      the server is never asked who should see what — and
+                      every matched dim prints on the band. The window
                       is `until` above rather than a field here, so the
                       band's label and the serving filter are one value. A
                       sponsored question is never `core`
@@ -104,7 +111,10 @@ anchors and answeredAt (the cohort stamp, D8), learn (D32's
 first-attempt measurement), duels (the seal), catalog answers (no canon
 delta path). The aggregate stays a plain fold because onV2AnswerUpdated
 applies the matching -old/+new delta with the total unchanged — the
-reconciliation D5 avoided now exists, in one trigger, ledger-deduped
+reconciliation D5 avoided now exists, in one trigger, ledger-deduped.
+Since D226 the same trigger also counts the move itself into the
+aggregate's public `edits` matrix (below); the answer doc is unchanged
+and the client-writable surface does not widen
 delete: nobody
 read: any signed-in user, EXCEPT duel answers (surface group/duo), which
 stay sealed until their reveal — a `surface` value test on the read rule.
@@ -159,6 +169,14 @@ v2_question_aggs/{qid}             the PUBLIC mirror, EXACT (D98)
                                    An absent cell is ZERO, not withheld.
                                    Includes the political items, whose
                                    D44 carve-out D98 reversed (D8)
+  edits { from: { to: n } }        the edit-flow matrix (D226): every D86
+                                   edit counted from → to. MOVES, not
+                                   people — one person editing twice
+                                   leaves two cells. Absent until a
+                                   question has ever been edited; both
+                                   answer branches carry it through their
+                                   whole-doc rewrites (v2.ts), and the
+                                   e2e's 7f step is what proves the carry
   { total,                         catalog questions: the canon — the top
     top {entity:n}, rest,          CANON_TOP_N entities, everything else
     by { dim: { bucket:            summed into `rest`. `canonTopN` is a

@@ -245,6 +245,34 @@ describe("the profile cache survives a session", () => {
     expect(mod.default.ready).toBe(true);
     expect(mod.default.nameFor("uid_a")).toBe("");
   });
+
+  it("the logic percentile rides the same entry, and heals a pre-D227 cache", async () => {
+    h.profiles.uid_a = { displayName: "Ada", testResults: { logic: { pctile: 88 } } };
+    const first = await bootLive();
+    await first.default.loadVoters("q_1");
+    await settle();
+
+    const raw = JSON.parse(localStorage.getItem(PROFILE_LS) || "null");
+    expect(raw.e.uid_a.l).toBe(88);
+    // Untested persists as null, not as absence — absence means "never
+    // fetched" and would put the uid back into the query every session.
+    expect(raw.e.uid_b.l).toBeNull();
+
+    // A cache written BEFORE D227 lacks the key entirely. The next session
+    // must re-read those profiles once — the alternative is a sheet that
+    // shows every cached regular as "untested" forever — and then hold
+    // the answer like any other entry.
+    for (const v of Object.values(raw.e as Record<string, { l?: number | null }>)) delete v.l;
+    localStorage.setItem(PROFILE_LS, JSON.stringify(raw));
+    vi.resetModules();
+    h.profileReads.length = 0;
+    const second = await bootLive();
+    await second.default.loadVoters("q_1");
+    expect(h.profileReads.length).toBeGreaterThan(0);
+    await settle();
+    const healed = JSON.parse(localStorage.getItem(PROFILE_LS) || "null");
+    expect(healed.e.uid_a.l).toBe(88);
+  });
 });
 
 describe("resolveNames asks for what is missing, not for the union", () => {
@@ -320,6 +348,47 @@ describe("resolveNames asks for what is missing, not for the union", () => {
       await resolveNames({ __db: true } as never, ["u4"], names, undefined, faces);
       // The face query ran and found nothing, so "" is correct here.
       expect(faces.u4).toBe("");
+      expect(h.profileReads).toEqual([]);
+    })();
+  });
+
+  it("still reads the profile when the logic percentile is the missing half (D227)", () => {
+    // The pre-D227 warm cache: name and score in hand, logic never asked.
+    // Skipping the read would show the whole roster as "untested"; one
+    // round fills it and the maps agree from then on.
+    return (async () => {
+      const { resolveNames } = await import("./voters");
+      h.profiles = { u5: { displayName: "Ada", testResults: { logic: { pctile: 88 } } } };
+      const names: Record<string, string> = { u5: "Ada" };
+      const scores: Record<string, unknown> = { u5: null };
+      const logic: Record<string, number | null> = {};
+      await resolveNames(
+        { __db: true } as never, ["u5"], names,
+        scores as Record<string, never>, undefined, logic,
+      );
+      expect(h.profileReads).toEqual([["u5"]]);
+      expect(logic.u5).toBe(88);
+
+      h.profileReads.length = 0;
+      await resolveNames(
+        { __db: true } as never, ["u5"], names,
+        scores as Record<string, never>, undefined, logic,
+      );
+      expect(h.profileReads, "a healed cache was re-read").toEqual([]);
+    })();
+  });
+
+  it("caches 'untested' as null so absence is not re-fetched (D227)", () => {
+    return (async () => {
+      const { resolveNames } = await import("./voters");
+      h.profiles = { u6: { displayName: "Lin" } };
+      const names: Record<string, string> = {};
+      const logic: Record<string, number | null> = {};
+      await resolveNames({ __db: true } as never, ["u6"], names, undefined, undefined, logic);
+      expect(logic.u6).toBeNull();
+
+      h.profileReads.length = 0;
+      await resolveNames({ __db: true } as never, ["u6"], names, undefined, undefined, logic);
       expect(h.profileReads).toEqual([]);
     })();
   });

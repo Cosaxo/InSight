@@ -1,7 +1,12 @@
 # Paid questions, reports and cohort subscriptions — the plan
 
-**Status: plan only.** Requested by the owner 2026-08-21; nothing below
-is built and nothing below binds. This page extends the recorded revenue
+**Status: plan, except §3's aggregate half
+([D226](DECISIONS.md#d226--the-edit-flow-matrix--second-thoughts-become-a-published-number))
+and §4's logic cut
+([D227](DECISIONS.md#d227--the-logic-cut--the-who-voted-sheet-groups-answers-by-the-verified-score))
+— both built 2026-08-22.** Requested by the owner 2026-08-21; everything
+else below is unbuilt and binds nothing. This page extends the recorded
+revenue
 paths ([`MONETIZATION.md`](MONETIZATION.md) paths 1–2, re-derived in
 [`SCALE-PLAN.md`](SCALE-PLAN.md) §5 and `NEXT-FUNCTIONALITY.md` §6's
 paid half) into the shape the owner asked for: **a buyer gets a
@@ -129,15 +134,21 @@ job, not a client — the same species as the patterns fit, with its
 cost measured into `COSTS.md` when it ships, not estimated in prose
 here.
 
-## 3 · Second thoughts — the one line item that needs new data
+## 3 · Second thoughts — the one line item that needed new data
 
-Today the pre-edit vote survives nowhere: rules allow `optionIdx` to
-move with an `editedAt` stamp (D86), and `onV2AnswerUpdated` reads the
-old value only in the trigger's before-snapshot, folds the −old/+new
-delta, and drops it. Nothing can report what nobody stored — and every
-day this waits, more first votes are unrecoverable, which makes this
+**The aggregate half is BUILT (D226, 2026-08-22)** — the matrix folds
+and publishes, with the trail (privacy sentence, claims pin, inventory
+row, runbook carry) landed beside it. The design below is kept as
+written; the per-voter half stays the owner's open call (§11).
+
+Before D226 the pre-edit vote survived nowhere: rules allow `optionIdx`
+to move with an `editedAt` stamp (D86), and `onV2AnswerUpdated` read the
+old value only in the trigger's before-snapshot, folded the −old/+new
+delta, and dropped it. Nothing can report what nobody stored — and every
+day it waited, more first votes were unrecoverable, which made this
 the **dearer-with-time item** (the `core` flag's argument) and the
-first code on the list in §9.
+first code on the list in §9. Flows accrue from the D226 deploy; edits
+before it are gone, as priced.
 
 **Proposal, smallest honest version first:**
 
@@ -163,6 +174,12 @@ Either way the artifact is public data about people: a
 `check:policy-claims` holding it (D183's discipline).
 
 ## 4 · The logic score — filterable, never targetable
+
+**BUILT (D227, 2026-08-22)** — as the Logic cut on the who-voted sheet,
+the D146 type-cut shape: bands are quarters of the verified percentile,
+drawn in scale order with the type cut's own floors, the untested thin
+the basis and are never a band, and the privacy disclosure moved in the
+same commit. The boundaries below stand exactly as written.
 
 `testResults.logic` is server-written (D57), world-readable (D98), and
 the who-voted sheet already batch-resolves voter profiles — the D112
@@ -214,15 +231,15 @@ slot-days while a world metric occupies everyone's. "World is much more
 expensive because it is to everyone in the world" is not a pricing
 posture — it is what the inventory actually costs.
 
-**The Mirror boundary, stated before it is tested by money:** a paid
-metric is never `core`, so it can never enter the base scorecard fold —
-the basic set stays editorial and unbuyable. Whether subscribed metrics
-appear in the Scores lens *at all* is an owner decision at build time,
-with the honest version being a **separate, disclosed band** under the
-base card ("sponsored metrics", buyer named) — never mixed into the
-rows a reader takes as the app's own reading. The v1 that dodges the
-question: subscribed metrics live in the report and on a public place
-page, and the lens waits.
+**The Mirror boundary, decided (D228, 2026-08-22):** a paid metric is
+never `core`, so it can never enter the base scorecard fold — the basic
+set stays editorial and unbuyable. **Subscribed metrics stay out of the
+Scores lens in v1**: they live in the report and on a public place
+page, and the lens waits. If they ever mount, the recorded shape is a
+**separate, disclosed band** under the base card — never mixed into the
+rows a reader takes as the app's own reading — and that mounting is its
+own decision, taken when a real subscription exists rather than ahead
+of one.
 
 **Lapse**: a subscription that stops being paid flips the metric
 `active: false` — aggregates persist, the series keeps its history, a
@@ -256,14 +273,14 @@ PRs like every other catalog — a price a buyer cannot see is a price
 that can be quietly discriminated, and this repo's answer to that
 class of problem is always the same: publish the number.
 
-**One vocabulary widening this pricing needs, named as its own
-decision**: the owner's example cohort ("men 20–30 in the US") is three
-dims, and `sponsor.audience` is capped at ONE dim → bucket today
-(SCHEMA-V2, D195). `matches()`/`whyMatched()` already iterate N
-entries, so the mechanics are a cap change — but the *cap* was the
-targeting-coarseness promise, so raising it to two or three dims, with
-the band printing every matched dim, is a D195 amendment to record
-knowingly, not a constant to bump.
+**The vocabulary widening this pricing needs — DECIDED, D228
+(2026-08-22)**: `sponsor.audience` now takes **one to three dims** (the
+owner's example cohort — "men 20–30 in the US" — is exactly three),
+matched conjunctively on the device with every matched dim printed on
+the band. Three is the recorded coarseness ceiling: past it,
+compounding published dims starts shaping a person-sized query. The
+same record made the buyer **name** optional and the buyer possibly an
+individual — the PAID band stays the app's own either way (§7).
 
 ## 7 · Finding it — the slot is not the problem; the missing rooms are
 
@@ -281,9 +298,11 @@ everything around the buyer:
   is the point.
 - **A purchase record** — `v2_purchases/{buyerUid}/…` or similar:
   server-written at contract/checkout time, owner-read (a buyer's
-  billing state is their own; the *public* fact of sponsorship is
-  already on the question's `sponsor` row). New collection → rules,
-  rules tests, `data-inventory.md` row, `check:data-inventory`.
+  billing state is their own; the card's `sponsor` block still
+  discloses the *fact* of payment, and since D228 the name only when
+  the buyer chose to wear one — the purchase record is where who-paid
+  always lives). New collection → rules, rules tests,
+  `data-inventory.md` row, `check:data-inventory`.
 - **The funnel** — the suggestion composer's paid door
   (`NEXT-FUNCTIONALITY.md` §6): the free path ends at the community
   gate; "want it asked to a place, this week?" hands off to the web
@@ -315,10 +334,11 @@ SCALE-PLAN §5's sequencing rule governs: machinery on demand evidence,
 not ahead of it. Within that, the one exception is the item losing data
 every day it waits.
 
-1. **The edit-flow matrix** (§3, aggregate half) — the dearer-with-time
-   item: flows only exist from the day the trigger folds them, and
-   nothing can backfill the votes already moved. Decision record,
-   trigger fold, inventory row, policy sentence.
+1. **The edit-flow matrix** (§3, aggregate half) — **DONE, D226
+   (2026-08-22)**: decision record, trigger fold with the create-path
+   carry, e2e and unit pins, inventory row, policy sentence. Taken
+   first because flows only exist from the day the trigger folds them,
+   and nothing can backfill the votes already moved.
 2. **Report builder v1** (§2) — a script, run by hand per contract,
    delivered to the buyer; sell by hand at hand-set prices.
    This plus the existing D195 machinery is a complete sellable
@@ -347,10 +367,12 @@ every day it waits.
 Each is a decision the build will force; recorded here so they are
 chosen rather than defaulted:
 
-1. Per-voter `firstOptionIdx`, or aggregate flow matrix only? (§3)
-2. Audience cap: how many dims may a bought cohort compound? (§6)
-3. Do subscribed metrics mount in the Scores lens as a disclosed band,
-   or stay report + public page only? (§5)
-A fourth — must the built report itself publish, and on what embargo?
-— lasted one day: **D225** (2026-08-22) removed the promise, and
-publication or embargo is now a per-contract term, not a rule.
+1. Per-voter `firstOptionIdx`, or aggregate flow matrix only? (§3) —
+   the one still open.
+
+Three others closed within a day of this page existing: the
+report-publication question by removal (**D225** — publication and
+embargo are per-contract terms), and the audience cap and the
+Scores-lens mounting at **D228** (2026-08-22) — one to three dims with
+each printed on the band, and report + public place page for v1 with
+the lens waiting.

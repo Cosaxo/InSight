@@ -56,10 +56,13 @@
 // could lean on it. D202 demoted that constant to a default so a reader
 // could switch the population MIX between instruments — and the promise
 // in `web/privacy.html` that survived D202 is precisely the one this file
-// keeps: *answers* are grouped by the Big Five and by nothing else.
+// keeps: *answers* are grouped by no other INSTRUMENT than the Big Five.
 // Leaning on someone else's default for that would mean the promise had
 // no owner, so `SPLIT_TEST` below is explicit, passed at every call site,
-// and pinned by a test.
+// and pinned by a test. (Since D227 the verified logic score — not an
+// instrument, no dims, server-written — also groups answers, as its own
+// disclosed fold in logicSplit.ts; the page states both, and nothing
+// about that widening touches SPLIT_TEST's scope over the four.)
 //
 // Pure — no Firebase, no window, no LIVE. The caller joins voters to
 // scores (both already in the store) and hands the rows in, the way

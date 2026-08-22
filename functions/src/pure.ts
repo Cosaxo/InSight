@@ -864,6 +864,39 @@ export function retargetAnchors(
   return into;
 }
 
+// ── the edit-flow matrix (D226) ─────────────────────────────────
+//
+// Beside the -old/+new move, the edit itself is a published fact: a
+// from → to count matrix on the same aggregate docs, so "what people first
+// voted before they moved" is a number a report can print instead of a
+// story nobody recorded (docs/PAID-PLAN.md §3 — this is its aggregate
+// half; the per-voter mark stays deliberately unbuilt).
+//
+// It counts MOVES, not people: someone who edits twice appears twice,
+// under two pairs, because moves are what the trigger actually sees —
+// stitching them into per-person journeys would need the per-answer
+// receipt the fold deliberately does not keep. A diagonal cell cannot
+// occur (the trigger returns before folding when from == to), and unlike
+// the counts beside it this map only ever grows: an edit is an event that
+// happened, so there is no -old/+new to commute and no clamp to guard.
+// Erasure posture is the counts' own — deleting an account does not
+// unwind aggregates (index.ts phase 1b) — and the fake-ring correction
+// path can reconstruct a uid's pairs from the ledger's per-event entries
+// (`at`-stamped create idx, then each edit's toIdx) while they live.
+export type EditFlow = Record<string, Record<string, number>>;
+
+export function foldEditFlow(
+  into: EditFlow,
+  fromIdx: number,
+  toIdx: number,
+): EditFlow {
+  const from = String(fromIdx);
+  const row = into[from] || (into[from] = {});
+  const to = String(toIdx);
+  row[to] = (row[to] || 0) + 1;
+  return into;
+}
+
 // A bucket's total across every option — the quantity the floor is applied
 // to. Named for the bucket rather than the "cell" this used to say, because
 // `cell` was doing duty for both this and the per-option numbers inside it,

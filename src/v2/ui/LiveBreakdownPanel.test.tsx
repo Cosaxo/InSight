@@ -384,11 +384,13 @@ describe("LiveBreakdownPanel · continuum forms bring their own body", () => {
 // numbers. These cases are about that seam: the cut works, and it never
 // passes itself off as the census next to it.
 
-/** A voter row carrying a real Big Five, as `LIVE.voterScores` returns them. */
-const scored = (uid: string, optionIdx: number, dims: Record<string, number> | null) => ({
+/** A voter row carrying a real Big Five, as `LIVE.voterScores` returns
+ * them — `logic` rides the same rows since D227, null meaning untested. */
+const scored = (uid: string, optionIdx: number, dims: Record<string, number> | null, logic: number | null = null) => ({
   uid,
   optionIdx,
   results: dims ? { big5: dims } : null,
+  logic,
 });
 
 const QUIET = { O: 72, C: 55, E: 15, A: 58, N: 50 };
@@ -537,5 +539,89 @@ describe("LiveBreakdownPanel · the type cut", () => {
     fireEvent.click(chip(/^25-34 · 20/));
     expect(pctRow("Beach")).toMatch(/75%/);
     expect(screen.queryByText(/carry a Big Five/)).toBeNull();
+  });
+});
+
+describe("LiveBreakdownPanel · the logic cut (D227)", () => {
+  // A scored voter with no Big Five: the logic cut reads the percentile,
+  // the type cut would call this person untyped — the two cuts thin on
+  // different fields and neither borrows the other's basis.
+  const withPct = (tag: string, optionIdx: number, pct: number | null, n: number) =>
+    Array.from({ length: n }, (_, i) => scored(`${tag}${i}`, optionIdx, null, pct));
+
+  it("offers a Logic chip after the Type chip", () => {
+    render(<LiveBreakdownPanel qid="q1" options={OPTS} />);
+    expect(chip("Logic")).toBeTruthy();
+    expect(chip("Everyone").getAttribute("aria-pressed")).toBe("true");
+  });
+
+  it("asks for the voter list when opened, like the type cut", () => {
+    render(<LiveBreakdownPanel qid="q1" options={OPTS} />);
+    fireEvent.click(chip("Logic"));
+    expect(LIVE.loadVoters).toHaveBeenCalledWith("q1");
+  });
+
+  it("says it is still reading rather than claiming nobody is scored", () => {
+    LIVE.voterScores = () => null;
+    render(<LiveBreakdownPanel qid="q1" options={OPTS} />);
+    fireEvent.click(chip("Logic"));
+    expect(screen.getByText(/Reading who answered/)).toBeTruthy();
+  });
+
+  it("distinguishes 'nobody has a verified score' from 'still loading'", () => {
+    LIVE.voterScores = () => [scored("a", 0, QUIET), scored("b", 1, null)];
+    render(<LiveBreakdownPanel qid="q1" options={OPTS} />);
+    fireEvent.click(chip("Logic"));
+    expect(screen.queryByText(/Reading who answered/)).toBeNull();
+    // A Big Five is not a logic score: both rows are untested here.
+    expect(screen.getByText(/None of the 2 answers here carries a verified\s+logic score/)).toBeTruthy();
+  });
+
+  it("draws bands in scale order and shares once the sample is enough", () => {
+    // 60 scored, so shares are allowed. Bottom outnumbers top — a
+    // popularity order would lead with it; the scale must not.
+    LIVE.voterScores = () => [
+      ...withPct("t", 0, 90, 20),
+      ...withPct("b", 1, 5, 40),
+    ];
+    render(<LiveBreakdownPanel qid="q1" options={OPTS} />);
+    fireEvent.click(chip("Logic"));
+    // Scale order: the top quarter's chip opens by default despite 20 < 40.
+    expect(chip(/^Top quarter · 20/).getAttribute("aria-pressed")).toBe("true");
+    expect(pctRow("Beach")).toMatch(/100%/);
+    fireEvent.click(chip(/^Bottom quarter · 40/));
+    expect(pctRow("City break")).toMatch(/100%/);
+    expect(pctRow("Beach")).toMatch(/0%/);
+  });
+
+  it("states its basis with both denominators, and counts under the floor", () => {
+    LIVE.voterScores = () => [
+      ...withPct("t", 0, 80, 10),
+      ...withPct("n", 1, null, 3),
+    ];
+    render(<LiveBreakdownPanel qid="q1" options={OPTS} />);
+    fireEvent.click(chip("Logic"));
+    expect(screen.getByText(/Of the 13 answers this session has read,\s+10 carry a verified logic score/)).toBeTruthy();
+    expect(screen.getByText(/Too few for shares, so these are counts/)).toBeTruthy();
+    // Counts mode: the bar prints 10, not 100%.
+    expect(pctRow("Beach")).toMatch(/10(?!%)/);
+  });
+
+  it("marks the viewer's own band off their verified result", () => {
+    LIVE.myTestResults = () => ({ logic: { pctile: 92 } });
+    LIVE.voterScores = () => withPct("t", 0, 85, 12);
+    render(<LiveBreakdownPanel qid="q1" options={OPTS} />);
+    fireEvent.click(chip("Logic"));
+    expect(chip(/^Top quarter · 12 · you/)).toBeTruthy();
+  });
+
+  it("leaves the published cuts exactly as they were", () => {
+    LIVE.voterScores = () => withPct("t", 0, 85, 60);
+    render(<LiveBreakdownPanel qid="q1" options={OPTS} />);
+    fireEvent.click(chip("Logic"));
+    fireEvent.click(chip("Age"));
+    fireEvent.click(chip(/^25-34 · 20/));
+    expect(pctRow("Beach")).toMatch(/75%/);
+    expect(screen.queryByText(/verified logic score/)).toBeNull();
   });
 });

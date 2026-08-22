@@ -1,11 +1,16 @@
-// The disclosure on a sponsored question (D195).
+// The disclosure on a sponsored question (D195; the buyer model at D228).
 //
 // THE HOUSE RULE, recorded before the first paid deal and built here:
 // **the disclosure is the app's, never the buyer's.** So this band carries
 // no brand colour, no logo, no link and no creative — it is the app's own
-// ink, the word PAID, the buyer's name, and the window it was bought for.
-// It replaces the topic chip rather than sitting beside it, because a paid
-// card wearing a topic hue reads as house content with a note attached.
+// ink, the word PAID, the name the buyer chose to wear (or none — D228:
+// individuals buy questions too, and a name on every serve is theirs to
+// want or refuse), and the window it was bought for. The word itself is
+// NOT the buyer's to decline: one covert paid card would make every
+// unpaid card suspect, and the free feed's credibility is what the band
+// protects. It replaces the topic chip rather than sitting beside it,
+// because a paid card wearing a topic hue reads as house content with a
+// note attached.
 //
 // Everything a bought question could hide, it says instead:
 //
@@ -37,12 +42,18 @@ export default function SponsorMark(
   const [open, setOpen] = React.useState(false);
   const why = whyMatched(sponsor);
   const win = windowLabel(until);
+  // "The buyer" for a nameless purchase (D228) — a neutral noun, never a
+  // pseudonym, so the expanded copy stays grammatical without inventing
+  // an identity the buyer declined to wear.
+  const who = sponsor.buyer || "The buyer";
 
   return (
     <span style={{ display: "inline-flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
       <button className="press" onClick={(e) => { e.stopPropagation(); setOpen((o) => !o); }}
         aria-expanded={open}
-        aria-label={`Paid, by ${sponsor.buyer}. Why you are seeing this.`}
+        aria-label={sponsor.buyer
+          ? `Paid, by ${sponsor.buyer}. Why you are seeing this.`
+          : "Paid question. Why you are seeing this."}
         style={{
           display: "inline-flex", alignItems: "center", gap: 8, minWidth: 0,
           // The app's ink, deliberately. Nothing here takes a hue from the
@@ -53,10 +64,12 @@ export default function SponsorMark(
           fontFamily: "var(--sans)",
         }}>
         <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: "0.16em" }}>PAID</span>
-        <span style={{
-          fontSize: 12.5, fontWeight: 700, minWidth: 0,
-          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-        }}>{sponsor.buyer}</span>
+        {!!sponsor.buyer && (
+          <span style={{
+            fontSize: 12.5, fontWeight: 700, minWidth: 0,
+            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+          }}>{sponsor.buyer}</span>
+        )}
         {win && <span style={{ fontSize: 11.5, fontWeight: 600, opacity: 0.72, whiteSpace: "nowrap" }}>· {win}</span>}
       </button>
       {open && (
@@ -67,8 +80,8 @@ export default function SponsorMark(
         }}>
           <span>
             {why.length
-              ? `${sponsor.buyer} asked for ${why.join(" · ")}, and your profile says that.`
-              : `${sponsor.buyer} asked everyone — nothing about you decided this.`}
+              ? `${who} asked for ${why.join(" · ")}, and your profile says that.`
+              : `${who} asked everyone — nothing about you decided this.`}
           </span>
           <span>They get the same public numbers you do. There is no private cut.</span>
         </span>
