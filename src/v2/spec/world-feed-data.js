@@ -27,6 +27,12 @@ export const WORLD_TOPICS = [
   { id: 'event',   label: 'World events',   color: 'oklch(0.52 0.14 260)' },
   { id: 'people',  label: 'Famous people',  color: 'oklch(0.52 0.14 85)'  },
   { id: 'bigq',    label: 'Big questions',  color: 'oklch(0.52 0.14 290)' },
+  // the current-events lane (D231). A TIME, not a subject — which is what
+  // keeps it off 'event' (World events), whose questions are evergreen: a
+  // card here carries an ask window and stops being served when it closes.
+  // Hue 115 is the widest gap left in the row (85 -> 145), picked for
+  // distance from its neighbours rather than for a meaning.
+  { id: 'now',     label: 'Happening now',  color: 'oklch(0.52 0.14 115)' },
   { id: 'places',  label: 'Places',         color: 'oklch(0.52 0.14 60)'  },
   // catalogue picks are a FORMAT, not a subject — so they live on a channel, the
   // same way dilemmas and rankings do. It also means they always have a home:
@@ -44,17 +50,18 @@ window.WORLD_TOPICS = WORLD_TOPICS;
 // demo list, most of the seeded bank sat behind a door that no longer exists:
 // no chip, no follow, no search result could surface it. Until scenes have a
 // real backend, a live build runs every SUBJECT always-on; the chips' mute is
-// unchanged, so the coarse control a follow used to give is still there. The
-// two formats with no live stock stay out of the live row — the bank mapper
-// (data/live.ts) emits plain votes only, so `places` (rate cards) and `fav`
-// (catalogue picks) would be dead chips filtering nothing. Build flag rather
+// unchanged, so the coarse control a follow used to give is still there.
+// `fav` rides the live row since D14 went live — the bank mapper emits pick
+// cards from the seeded catalog questions, so the chip filters real stock.
+// `places` alone stays out: rate cards are still demo-only, and a chip over
+// no stock would be a dead filter. Build flag rather
 // than window.LIVE.enabled for learn-progress.js's reason: this runs at
 // module scope, before the live boot attaches — and the demoInProd fallback
 // needs the widening too, because a live build seeds zero follows and its
 // demo-pool fallback had the same dark subjects.
 const WFD_LIVE_BUILD = import.meta.env && import.meta.env.VITE_V2_LIVE === 'true';
 window.WORLD_CHANNELS = WFD_LIVE_BUILD
-  ? window.WORLD_TOPICS.filter((t) => t.id !== 'places' && t.id !== 'fav').map((t) => t.id)
+  ? window.WORLD_TOPICS.filter((t) => t.id !== 'places').map((t) => t.id)
   : ['dilemma', 'event', 'people', 'bigq', 'places', 'fav'];
 
 // ── question pool ──

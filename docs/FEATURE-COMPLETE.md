@@ -105,12 +105,20 @@ the live figures: `node scripts/farm-budget.mjs`,
   unblocks raising the farm budget; the sampled-audit rate is a starting
   figure, not a measured one. [`SCALE-RUNBOOK.md`](SCALE-RUNBOOK.md)
   Phase 3–4.
-- **The catalog lane's blocked half** (decided, D14/D15): films and
-  artists are wired into the trigger's domains but their catalogues do
-  not exist — an operator run of `scripts/build-catalog.mjs` against
-  Wikidata (unreachable from sandboxes; measured), then the demo cards,
-  the trademark check, and go-live. The pick surface stays unscored
-  until it is live. [`CATALOG-QUESTIONS.md`](CATALOG-QUESTIONS.md).
+- **The catalog lane's blocked half** (decided, D14/D15 — narrowed at
+  D232, again 2026-08-23): the pick surface is LIVE for every committed
+  domain (23 cards, `content/pick-questions.json` — the pokemon six
+  joined when the owner cleared the nominative-use check). What
+  remains: films/artists still need `scripts/build-catalog.mjs` run
+  against Wikidata. Diagnosed 2026-08-23: the sandbox's egress proxy
+  answers CONNECT 403 for `query.wikidata.org` — the environment's
+  network policy, not Wikidata and not the script (the one host it
+  needs; node's fetch takes the proxy with `NODE_USE_ENV_PROXY=1`,
+  verified) — so the fix is owner-side but one setting, not one
+  machine: allow the host in the Claude Code environment's network
+  policy and ask a session to run the build. After the catalogues
+  commit, the archive gets its first film/artist cards and `npm run
+  promote` takes them live. [`CATALOG-QUESTIONS.md`](CATALOG-QUESTIONS.md).
 - ~~**Pulse templates**~~ — **done 2026-08-19** with the roster commit:
   `content/pulse-questions.json` carries all five (pace, energy, sleep,
   focus, social) through the ordinary content gates.

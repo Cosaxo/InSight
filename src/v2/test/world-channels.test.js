@@ -31,18 +31,20 @@ describe("the always-on channel set, per build (D96)", () => {
     expect(channels).toEqual(["dilemma", "event", "people", "bigq", "places", "fav"]);
   });
 
-  it("live: every subject runs always-on; the two stockless formats stay out", async () => {
+  it("live: every subject runs always-on; only the stockless format stays out", async () => {
     vi.stubEnv("VITE_V2_LIVE", "true");
     const { channels, topics } = await feedData();
     expect(channels).toContain("sport");
     expect(channels).toContain("culture");
-    // data/live.ts's bank mapper emits plain votes only, so these two
-    // would be dead chips filtering nothing.
+    // `fav` carries real stock since D14 went live — the bank mapper emits
+    // pick cards from the seeded catalog questions, so its chip filters
+    // something and must be present.
+    expect(channels).toContain("fav");
+    // `places` alone is still a dead chip: rate cards remain demo-only.
     expect(channels).not.toContain("places");
-    expect(channels).not.toContain("fav");
     // Derived from the topic list, so a subject added later is reachable
     // by default rather than dark until someone remembers this list.
-    expect(channels).toEqual(topics.filter((t) => t.id !== "places" && t.id !== "fav").map((t) => t.id));
+    expect(channels).toEqual(topics.filter((t) => t.id !== "places").map((t) => t.id));
   });
 
   // D96 part 3's actual claim, checked against the bank instead of against
@@ -58,6 +60,21 @@ describe("the always-on channel set, per build (D96)", () => {
   // same sentence read from either end. The mount tests cannot check it —
   // this flag is read at module scope and the suites are demo builds — so
   // the invariant lives here, with the flag it depends on.
+  // D231's half of the same sentence, said explicitly because it is the
+  // one topic whose stock is live-only: `now` questions carry an ask
+  // window and nothing in the demo pool has one, so the prototype's fixed
+  // six deliberately leave it out (a chip filtering nothing is worse than
+  // no chip) — while a live build, which is where the stock is, must
+  // reach it or the whole lane is dark.
+  it("now is a live channel and not a demo one", async () => {
+    const demo = await feedData();
+    expect(demo.channels).not.toContain("now");
+    expect(demo.topics.map((t) => t.id)).toContain("now");
+    vi.resetModules();
+    vi.stubEnv("VITE_V2_LIVE", "true");
+    expect((await feedData()).channels).toContain("now");
+  });
+
   it("live: every topic the feed bank actually uses is one of those channels", async () => {
     vi.stubEnv("VITE_V2_LIVE", "true");
     const { channels } = await feedData();

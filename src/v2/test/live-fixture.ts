@@ -86,9 +86,48 @@ export interface LiveFixtureOptions {
    * nobody is served.
    */
   adCard?: boolean;
+  /**
+   * Append one live catalogue-pick card (D14 gone live) after the vote
+   * cards. Opt-in, but for feedCards' reason rather than sponsored's —
+   * the shipped bank DOES carry pick cards now; appending one to every
+   * case would just shift the card counts existing assertions hold.
+   * pickCanon/pickSegs/pickSeg above serve its board.
+   */
+  pickCard?: boolean;
+  /**
+   * Append one live rank card (D233), shaped as buildFeedGlobals emits
+   * it: items, a DERIVED crowd (1-based rank per item), votes from the
+   * agg total. Opt-in for pickCard's reason. `tooSmall` empties the
+   * crowd to null — the first-voter state, where the card must render
+   * your order without a crowd column.
+   */
+  rankCard?: boolean;
+  /**
+   * Give the LAST world card a current-events window (D231). Opt-in for
+   * the same reason `sponsored` is — a window is a property of one topic,
+   * and a fixture that always carried one would have every other live case
+   * asserting against a card the feed only serves for a week.
+   *
+   * The dates are computed from the run's own clock so the assertion is
+   * the same on any day: opens today, closes in three, which is four days
+   * left and a full ring.
+   *
+   * The card keeps the fixture's `culture` topic rather than taking `now`,
+   * and that is the test environment rather than a shortcut: these suites
+   * mount a DEMO build, whose channel list is the prototype's fixed six
+   * (world-feed-data.js reads the build flag at module scope, which is why
+   * world-channels.test.js re-imports to test the other side). A `now`
+   * card matches no demo channel and never reaches the pool. What is being
+   * pinned here is the ring, and a window is a property of the CARD — the
+   * topic that may carry one is check:quality's rule, held in the bank.
+   */
+  windowed?: boolean;
 }
 
 const OPTION_COLORS = ["var(--c-around)", "var(--c-today)", "var(--c-likeness)"];
+
+/** A UTC day key `n` days from now — live.ts's own arithmetic (D231). */
+const dayKey = (n: number) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
 
 // The feed card's prompt and options, exported so a test can target the feed
 // rather than the daily deck card sharing the screen with it. Strings chosen
@@ -97,6 +136,13 @@ export const FEED_PROMPT = "Fixture feed card: does the gate hold?";
 export const FEED_OPTIONS = ["Gate holds", "Gate leaks"];
 /** The fixture Crossroads story's title — unique, so a query binds to the card. */
 export const PATH_TITLE = "Fixture Crossroads: the forked road";
+
+// The pick card's prompt (D14) — unique for FEED_PROMPT's reason: a test
+// must be able to say which card it has hold of.
+export const PICK_PROMPT = "Fixture pick card: your favourite fixture?";
+
+// The rank card's prompt (D233), same rule.
+export const RANK_PROMPT = "Fixture rank card: order the fixtures";
 
 function liveQuestion(
   id: string,
@@ -448,6 +494,30 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
       total: tooSmall ? 0 : 100,
       live: true as const,
     }],
+    // Catalogue picks (D14 gone live). The fixture mirrors the real
+    // quartet: a create-only entity write into the shared votes map, and
+    // the three board reads in the demo store's shapes. One two-row board
+    // so the reveal has something to lay out; `tooSmall` empties it, the
+    // freshly-live state where the viewer's own pick is the whole crowd.
+    votePick: (qid: string, entity: number) => {
+      if (!votes[qid]) votes[qid] = String(entity);
+    },
+    pickCanon: () => (tooSmall
+      ? { top: [], rest: 0, total: 0, restEntities: 0, restBelowFloor: false }
+      : {
+          top: [{ entity: 128514, count: 9 }, { entity: 10084, count: 4 }],
+          rest: 3, total: 16, restEntities: 0, restBelowFloor: false,
+        }),
+    pickSegs: () => (tooSmall ? [] : [{ dim: "ageBand", bucket: "18-24" }]),
+    pickSeg: (_qid: string, dim: string, bucket: string) => (
+      !tooSmall && dim === "ageBand" && bucket === "18-24"
+        ? { rows: [{ entity: 128514, count: 5 }, { entity: 10084, count: 2 }], cohort: 7 }
+        : null),
+    // Rank answers (D233): the create-only order write, into the shared
+    // votes map in the store's own joined form.
+    voteRank: (qid: string, order: number[]) => {
+      if (!votes[qid]) votes[qid] = order.join(",");
+    },
     // Foresight CALL, tier A (D194). One open call, ungraded — the state
     // the feed head shows most of the time, and the one the mount tests
     // care about (the card renders, and it renders REAL bank shape rather
@@ -617,8 +687,46 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
       ...(opts.sponsored && i === Math.max(1, opts.feedCards ?? 1) - 1
         ? { sponsor: { buyer: "Fixture Transit", audience: { city: "Oslo, NO" } }, until: "2099-01-01" }
         : {}),
+      // D231: the ask window travels ON the card too, for the same reason
+      // — world-feed reads the fields buildFeedGlobals emits.
+      ...(opts.windowed && i === Math.max(1, opts.feedCards ?? 1) - 1
+        ? { from: dayKey(0), until: dayKey(3) }
+        : {}),
     }),
   );
+  // The live pick card, shaped exactly as buildFeedGlobals emits it: no
+  // options (the catalogue is the answer space), `n` from the agg total,
+  // and the domain one of the committed catalogues — emoji, matching the
+  // entities pickCanon above answers with.
+  if (opts.pickCard) {
+    (w.WORLD_FEED_QS as Dict[]).push({
+      id: "pick-fixture",
+      cat: "fav",
+      type: "pick",
+      domain: "emoji",
+      prompt: PICK_PROMPT,
+      n: tooSmall ? 0 : 16,
+      live: true,
+      noCountsYet: !!tooSmall,
+    });
+  }
+  // The live rank card (D233), buildFeedGlobals' own shape. The crowd is
+  // pre-derived (the store does that, not the card) — null in the
+  // tooSmall/first-voter arm, where renderRank must show your order and
+  // no crowd column rather than crashing on q.crowd[it].
+  if (opts.rankCard) {
+    (w.WORLD_FEED_QS as Dict[]).push({
+      id: "rank-fixture",
+      cat: "culture",
+      type: "rank",
+      prompt: RANK_PROMPT,
+      items: ["Alpha", "Beta", "Gamma", "Delta"],
+      crowd: tooSmall ? null : [1, 3, 2, 4],
+      votes: tooSmall ? 0 : 9,
+      live: true,
+      noCountsYet: !!tooSmall,
+    });
+  }
   w.TEST_FEED_QS = [];
   w.WORLD_FEED_COMMENTS = {};
 

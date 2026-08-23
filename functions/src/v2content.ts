@@ -21,6 +21,11 @@
 // forms' range/plane copy (D114), absent everywhere else; their options
 // are synthesized bucket/cell labels, so the D52 option freeze freezes
 // the range with them.
+// `domain` is non-null only on `type: "catalog"` (pick) entries — the
+// catalogue key space their `entity` answers validate against (D14/D15).
+// Pick entries carry no options: the shipped catalogue is the answer
+// space, and they are never `core` — an entity answer has no option
+// share for a cohort fold to read.
 // `also` is feed/pick-only (docs/TAGS-PLAN.md, D206): the topics a
 // question ALSO belongs to beside its `topic` home. Reach, never
 // placement — the client's filter/stock/search read topic ∪ also, the
@@ -34,7 +39,7 @@
 // admitted grading path, the earliest UTC day it may be graded, and the
 // expression the resolver RUNS. The outcome is not here — it lives in
 // v2_call_outcomes, so a reseed and the resolver never fight.
-export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; also?: string[]; branch?: string; sub?: string; tag?: string; rates?: string; axis: string | null; test: string | null; mode?: string; active?: boolean; political?: boolean; core?: boolean; until?: string; lo?: number; hi?: number; unit?: string; ends?: string[]; ax?: string[]; ay?: string[]; title?: string; intro?: string; hue?: number; nodes?: Record<string, { q: string; a: Array<{ t: string }> }>; endings?: Record<string, { name: string; line: string }>; sponsor?: { buyer: string; audience?: Record<string, string> }; tier?: string; resolvesAt?: string; rubric?: { kind: string; qid: string; test: string; threshold?: number; dim?: string; buckets?: string[] }; }
+export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; also?: string[]; branch?: string; sub?: string; tag?: string; rates?: string; axis: string | null; test: string | null; mode?: string; active?: boolean; political?: boolean; core?: boolean; from?: string; until?: string; lo?: number; hi?: number; unit?: string; ends?: string[]; ax?: string[]; ay?: string[]; title?: string; intro?: string; hue?: number; nodes?: Record<string, { q: string; a: Array<{ t: string }> }>; endings?: Record<string, { name: string; line: string }>; sponsor?: { buyer: string; audience?: Record<string, string> }; tier?: string; resolvesAt?: string; rubric?: { kind: string; qid: string; test: string; threshold?: number; dim?: string; buckets?: string[] }; }
 export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "daily-000",
@@ -2765,8 +2770,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "sport",
   "axis": null,
-  "test": null,
-  "core": true
+  "test": null
  },
  {
   "id": "feed-f04",
@@ -2887,8 +2891,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "food",
   "axis": null,
-  "test": null,
-  "core": true
+  "test": null
  },
  {
   "id": "feed-f11",
@@ -2991,8 +2994,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "movies",
   "axis": null,
-  "test": null,
-  "core": true
+  "test": null
  },
  {
   "id": "feed-f17",
@@ -3095,8 +3097,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "music",
   "axis": null,
-  "test": null,
-  "core": true
+  "test": null
  },
  {
   "id": "feed-f23",
@@ -3201,8 +3202,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "tech",
   "axis": null,
-  "test": null,
-  "core": true
+  "test": null
  },
  {
   "id": "feed-f29",
@@ -3308,8 +3308,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "culture",
   "axis": null,
-  "test": null,
-  "core": true
+  "test": null
  },
  {
   "id": "feed-f35",
@@ -3670,8 +3669,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "bigq",
   "axis": null,
-  "test": null,
-  "core": true
+  "test": null
  },
  {
   "id": "feed-s01",
@@ -3753,8 +3751,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "sport",
   "axis": null,
-  "test": null,
-  "core": true
+  "test": null
  },
  {
   "id": "feed-s06",
@@ -5086,6 +5083,385 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "A starter"
   ],
   "topic": "food",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-n01",
+  "surface": "feed",
+  "seq": 118,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Trump has labelled the Strait of Hormuz new US territory. Your read?",
+  "options": [
+   "A power grab",
+   "Keeping trade open"
+  ],
+  "topic": "now",
+  "axis": null,
+  "test": null,
+  "from": "2026-08-23",
+  "until": "2026-08-28",
+  "political": true
+ },
+ {
+  "id": "feed-n02",
+  "surface": "feed",
+  "seq": 119,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Crude is near $94. Has the pump changed how you get around?",
+  "options": [
+   "Driving less already",
+   "No change yet"
+  ],
+  "topic": "now",
+  "axis": null,
+  "test": null,
+  "from": "2026-08-23",
+  "until": "2026-08-31"
+ },
+ {
+  "id": "feed-n03",
+  "surface": "feed",
+  "seq": 120,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Evergrande's founder got life for fraud and bribery. That sentence is…",
+  "options": [
+   "About right",
+   "Too far"
+  ],
+  "topic": "now",
+  "axis": null,
+  "test": null,
+  "from": "2026-08-23",
+  "until": "2026-08-27"
+ },
+ {
+  "id": "feed-n04",
+  "surface": "feed",
+  "seq": 121,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Harry and Meghan move back to Britain, but keep no royal duties. Workable?",
+  "options": [
+   "It can work",
+   "Pick a side"
+  ],
+  "topic": "now",
+  "axis": null,
+  "test": null,
+  "from": "2026-08-23",
+  "until": "2026-09-03"
+ },
+ {
+  "id": "feed-n05",
+  "surface": "feed",
+  "seq": 122,
+  "type": "vote",
+  "domain": null,
+  "prompt": "A model published proofs for ten open problems in maths. Is that doing maths?",
+  "options": [
+   "It counts",
+   "Not until a human gets it"
+  ],
+  "topic": "now",
+  "axis": null,
+  "test": null,
+  "from": "2026-08-23",
+  "until": "2026-08-29"
+ },
+ {
+  "id": "feed-n06",
+  "surface": "feed",
+  "seq": 123,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Italy's fourth heatwave this summer, red alerts in 25 cities. Just summer now?",
+  "options": [
+   "This is normal now",
+   "Still an emergency"
+  ],
+  "topic": "now",
+  "axis": null,
+  "test": null,
+  "from": "2026-08-23",
+  "until": "2026-08-26"
+ },
+ {
+  "id": "pick-pk04",
+  "surface": "feed",
+  "seq": 1000,
+  "type": "catalog",
+  "domain": "emoji",
+  "prompt": "Your most-used emoji?",
+  "options": [],
+  "topic": "fav",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "pick-pk05",
+  "surface": "feed",
+  "seq": 1001,
+  "type": "catalog",
+  "domain": "emoji",
+  "prompt": "The most annoying emoji?",
+  "options": [],
+  "topic": "fav",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "pick-pk08",
+  "surface": "feed",
+  "seq": 1002,
+  "type": "catalog",
+  "domain": "emoji",
+  "prompt": "The emoji you’d tattoo?",
+  "options": [],
+  "topic": "fav",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "pick-pk10",
+  "surface": "feed",
+  "seq": 1003,
+  "type": "catalog",
+  "domain": "emoji",
+  "prompt": "The scariest emoji?",
+  "options": [],
+  "topic": "fav",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "pick-pk11",
+  "surface": "feed",
+  "seq": 1004,
+  "type": "catalog",
+  "domain": "elements",
+  "prompt": "Your favourite element?",
+  "options": [],
+  "topic": "fav",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "pick-pk12",
+  "surface": "feed",
+  "seq": 1005,
+  "type": "catalog",
+  "domain": "elements",
+  "prompt": "The element you’d be?",
+  "options": [],
+  "topic": "fav",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "pick-pk13",
+  "surface": "feed",
+  "seq": 1006,
+  "type": "catalog",
+  "domain": "elements",
+  "prompt": "The best-named element?",
+  "options": [],
+  "topic": "fav",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "pick-pk14",
+  "surface": "feed",
+  "seq": 1007,
+  "type": "catalog",
+  "domain": "elements",
+  "prompt": "The most dangerous element?",
+  "options": [],
+  "topic": "fav",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "pick-pk15",
+  "surface": "feed",
+  "seq": 1008,
+  "type": "catalog",
+  "domain": "emoji",
+  "prompt": "The most misunderstood emoji?",
+  "options": [],
+  "topic": "fav",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "pick-pk16",
+  "surface": "feed",
+  "seq": 1009,
+  "type": "catalog",
+  "domain": "countries",
+  "prompt": "The country you’d move to?",
+  "options": [],
+  "topic": "fav",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "pick-pk17",
+  "surface": "feed",
+  "seq": 1010,
+  "type": "catalog",
+  "domain": "dogs",
+  "prompt": "The dog you’d get?",
+  "options": [],
+  "topic": "fav",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "pick-pk18",
+  "surface": "feed",
+  "seq": 1011,
+  "type": "catalog",
+  "domain": "countries",
+  "prompt": "The country with the best food?",
+  "options": [],
+  "topic": "fav",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "pick-pk19",
+  "surface": "feed",
+  "seq": 1012,
+  "type": "catalog",
+  "domain": "dogs",
+  "prompt": "The most beautiful dog?",
+  "options": [],
+  "topic": "fav",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "pick-pk20",
+  "surface": "feed",
+  "seq": 1013,
+  "type": "catalog",
+  "domain": "countries",
+  "prompt": "The best flag in the world?",
+  "options": [],
+  "topic": "fav",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "pick-pk21",
+  "surface": "feed",
+  "seq": 1014,
+  "type": "catalog",
+  "domain": "dogs",
+  "prompt": "The smartest dog?",
+  "options": [],
+  "topic": "fav",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "pick-pk22",
+  "surface": "feed",
+  "seq": 1015,
+  "type": "catalog",
+  "domain": "countries",
+  "prompt": "The most beautiful country?",
+  "options": [],
+  "topic": "fav",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "pick-pk23",
+  "surface": "feed",
+  "seq": 1016,
+  "type": "catalog",
+  "domain": "dogs",
+  "prompt": "The most fun breed to say out loud?",
+  "options": [],
+  "topic": "fav",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "pick-pk01",
+  "surface": "feed",
+  "seq": 1017,
+  "type": "catalog",
+  "domain": "pokemon",
+  "prompt": "Favourite Pokémon?",
+  "options": [],
+  "topic": "fav",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "pick-pk02",
+  "surface": "feed",
+  "seq": 1018,
+  "type": "catalog",
+  "domain": "pokemon",
+  "prompt": "The scariest Pokémon?",
+  "options": [],
+  "topic": "fav",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "pick-pk03",
+  "surface": "feed",
+  "seq": 1019,
+  "type": "catalog",
+  "domain": "pokemon",
+  "prompt": "The cutest Pokémon?",
+  "options": [],
+  "topic": "fav",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "pick-pk06",
+  "surface": "feed",
+  "seq": 1020,
+  "type": "catalog",
+  "domain": "pokemon",
+  "prompt": "The strongest Pokémon?",
+  "options": [],
+  "topic": "fav",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "pick-pk07",
+  "surface": "feed",
+  "seq": 1021,
+  "type": "catalog",
+  "domain": "pokemon",
+  "prompt": "The Pokémon you’d be?",
+  "options": [],
+  "topic": "fav",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "pick-pk09",
+  "surface": "feed",
+  "seq": 1022,
+  "type": "catalog",
+  "domain": "pokemon",
+  "prompt": "The best Pokémon name?",
+  "options": [],
+  "topic": "fav",
   "axis": null,
   "test": null
  },

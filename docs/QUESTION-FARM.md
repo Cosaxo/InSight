@@ -279,10 +279,10 @@ calibration (authored `p` vs measured correct rate) and trap share
 and `weakTraps` advisories — read them before a learn run, cite them
 in its PR body, and remember they are proposals: editing a shipped
 card is a human PR at D32's production-level bar. The catalog surface
-is deliberately NOT scored yet: pick cards are unseeded and no client
-write path exists, so any qid scored today would be an invented key —
-the D15 failure class. Score it when the surface goes live and
-defines its ids.
+went live at D232 with its ids defined (`pick-<archive id>`,
+seventeen cards at go-live), so the old refusal to score it — "any
+qid scored today would be an invented key" — no longer holds;
+scoring it is now unblocked work, not a rule.
 
 Every run starts by reading it (`npm run scorecard` prints the
 summary). Then:
@@ -510,6 +510,13 @@ portfolio is the job's larger point, 2026-07-31 direction from the
 maintainer, and giving it a weekday is what finally made it happen).
 Same governance as the farm: this section is the contract, the PR is the
 human gate, and every outcome logs to issue #31.
+
+The archive is no longer the whole surface: since D232 a pick card can
+be PROMOTED into the live seed (`content/pick-questions.json`) with
+`npm run promote -- --source farm --review … pk<nn> …` — the same
+one-pen rule as the daily lane, byte-for-byte with a provenance row,
+refused for any domain whose catalogue is not committed. A run's job is
+unchanged (write the archive); promotion stays a human-initiated step.
 
 **Status: running.** Paused 2026-07-31 while Pokémon (three canons deep)
 was the only committed catalogue — the honest-question well was near its
@@ -930,6 +937,45 @@ Rules, each load-bearing:
   content append also adds the question's provenance row
   (`content/provenance.json`, `source: "farm"`, the run's date as
   batch) — `check:quality` fails a feed question without one.
+- **No tragedies** (D235). The owner's rule, and it binds every lane and
+  every surface: **this app does not put suffering to a vote.** Terror
+  attacks are the named example and the clearest case; the rule is wider —
+  mass-casualty events, atrocities, disasters with a death toll, a named
+  person's killing. A vote card under a death toll is a body count with
+  buttons: it asks a crowd to take a side on somebody's worst day, and
+  since D98 it publishes the exact split doing so. There is no answer to a
+  journalist asking why it exists, which is the owner's own reason — an
+  easy way to get the app in trouble.
+
+  It bites hardest on `now`, because news skews to catastrophe and the
+  pressure to ask the obvious question is highest exactly when asking it
+  is worst. **What it does not mean is "avoid serious news":** sanctions,
+  a verdict, an economic shock, a resignation are all ordinary questions.
+  The line is between a question about a POLICY or a CONSEQUENCE and one
+  that treats a specific atrocity as poll material.
+
+  `check:quality` carries a two-tier tripwire (rule `tragedy`) — an
+  unambiguous word list, plus an event word beside a casualty word, so
+  "markets crashed 8%" passes and "the crash that killed 14" does not.
+  Learn is carved out because a learn card has a right answer rather than
+  a side. **The tripwire is not the rule**, and a run that clears it has
+  not been cleared: the same prompt is ordinary in a quiet week and
+  grotesque in the week of an attack — "is airport security theatre?" is
+  the clean example — and no gate can see the week. Judged false positives
+  go in `ALLOW` under `tragedy`, with the reason.
+- **`now` is not this lane's to write** (D231). "Happening now" is the
+  current-events topic, and it is EDITORIAL: timeliness needs a person,
+  and a news question written by an unsupervised run is what this
+  document's governance exists to prevent. The exclusion is arithmetic
+  rather than instruction — `LANE_EXCLUDED` in `scripts/feed-budget.mjs`
+  keeps the topic out of the fold entirely, so it never appears in an
+  allocation and the run never has to remember. It is there because the
+  regulator would otherwise argue the other way every single run: a
+  brand-new topic is the largest deficit in the taxonomy, so
+  thinnest-first would point at it forever. A `now` question also carries
+  a `from`/`until` window with its own bounds and its own batch rule
+  (`check:quality`), and refuses prediction-shaped prompts — see D231
+  before writing one under an explicit instruction that lifts this rule.
 - **Every question carries a topic from the taxonomy** (`topics` in the
   same file), and since D145 `check:quality` refuses one without a `cat`
   rather than only validating the value when present — true in the data,

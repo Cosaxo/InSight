@@ -1044,6 +1044,39 @@ export function canonTopN(
   return { top, rest: total - shown };
 }
 
+// ─── rank answers: the order fold (D12 → D233) ──────────────────────────
+//
+// A ranking is an order, not an index. The published aggregate is one
+// number per item — the SUM of the (0-based) positions every answerer
+// gave it — plus the total, and that pair is enough to publish a crowd
+// order (sort by mean position, ascending). A full permutation histogram
+// stays unpublished for document-size and honesty-of-display reasons:
+// n! cells is not a reveal, and D12's original disclosure argument for
+// withholding it dissolved with the floors at D98.
+//
+// Element validation lives here rather than in rules because rules can
+// bound a list but not iterate it (no forall) — the same trust boundary
+// catalog keys cross. Null means "never aggregate this": wrong length,
+// non-integers, out-of-range indexes and duplicates are all the same
+// wrong shape, and a fold that guessed at repairs would be counting
+// answers nobody gave.
+export function validRankOrder(order: unknown, itemCount: number): number[] | null {
+  if (!Array.isArray(order) || order.length !== itemCount || itemCount < 2) return null;
+  const seen = new Set<number>();
+  for (const v of order) {
+    if (typeof v !== "number" || !Number.isInteger(v) || v < 0 || v >= itemCount) return null;
+    if (seen.has(v)) return null;
+    seen.add(v);
+  }
+  return order as number[];
+}
+
+/** Fold one validated order into the per-item position sums, in place. */
+export function foldRankOrder(pos: number[], order: number[]): number[] {
+  for (let p = 0; p < order.length; p++) pos[order[p]] += p;
+  return pos;
+}
+
 // ─── catalog breakdowns: how each segment orders the canon (D17) ────────
 //
 // D14 deferred per-anchor breakdowns for catalog questions with the
@@ -1442,6 +1475,27 @@ export const SEEDED_FIELDS = [
   // renaming one is refused rather than written, which is correct: every
   // stored walk is one of those names.)
   "title", "intro", "hue", "nodes", "endings",
+  // The rest of what the payload writes (D234). Three of these were
+  // always in the payload and never here (`mode`, `branch`, `sub`) — an
+  // edit to a daily's subject path could not reach a stored doc, because
+  // a field the compare ignores is a field the skip below freezes at
+  // create. The other nine were in neither place: SCHEMA-V2.md promised
+  // them on the doc and every client reader (isCore, the Scores tag/rates
+  // pair, the feed's until/sponsor/also) read hydrated docs that could
+  // not carry them — dark in production while every test seeded its own
+  // fixtures green. `sponsor` and `rubric` are objects and ride the same
+  // structural arm nodes/endings forced; `also`/array values ride the
+  // element-wise compare. Adding compare fields makes the next reseed
+  // rewrite exactly the docs whose stored form lacks them — the one-time
+  // repair, not a phantom.
+  "mode", "branch", "sub", "tag", "rates", "core", "until", "also",
+  "sponsor", "tier", "resolvesAt", "rubric",
+  // `from` (D231's window-open, the `until` twin) joined at the D231/D234
+  // merge: it arrived in a parallel thread with exactly the D234 gap —
+  // promised by the schema, read by the client's serving filter, written
+  // by nothing — and the merge is where the two threads first saw each
+  // other.
+  "from",
 ] as const;
 
 /**

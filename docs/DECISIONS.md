@@ -23366,6 +23366,606 @@ rather than assumed to:
   zero. A colour is a name-level guard's blind spot twice over — the
   pill it copies lives in another file.
 
+<<<<<<< HEAD
+## D231 · Current events get a lane: a topic that expires, and the questions to fill it
+
+**2026-08-23.** **Status:** binding, built. Owner's direction, opening a
+session on `claude/current-event-questions-kba24s`: *"lets start makeing
+the current event questions"*, then three answers that shaped it — build
+the whole lane and a first batch rather than either half; *"each question
+should have a uniqe timline fiting it but most should be towards the
+lower end"*; and the chip reads **Happening now**.
+
+[`docs/NEXT-FUNCTIONALITY.md`](NEXT-FUNCTIONALITY.md) §1 is the design
+this executes, written when the answer to "why no current events?" was
+"the daily deck is positional and cannot retire an entry" (D97). The
+verdict there was *build it on the feed*, and the feed had already been
+given half the machinery: `until` on a bank entry, a client-side
+`fresh()` filter, and shape checks in both content gates — all landed by
+D195, because a paid slot is a window too. What was missing was
+everything that makes it a **lane**: a topic to file the questions under,
+a second end so the window is a span rather than a deadline, bounds so
+"current" cannot mean months, a refusal for the one question-shape that
+belongs somewhere else, a card that says when it closes, and six
+questions.
+
+### The decisions
+
+**1 · `now` / "Happening now", and it is a TIME rather than a subject.**
+The taxonomy already carried `event` ("World events"), and the first
+instinct is that a news question goes there. It does not: `event`'s
+questions are evergreen — "Should voting be mandatory?", "Four-day work
+week: inevitable or fantasy?" — and they are still true next year. What
+distinguishes this lane is not what a question is about but how long it
+is worth asking, so the chip names the time. Hue 115, the widest gap left
+in the row (85 → 145), picked for distance from its neighbours and not
+for a meaning. Creating a topic is the human act farm hard rule 3
+reserves; this record is that act, taken by the owner in the message
+above.
+
+**2 · A window has two ends, and `from` ships to the device.** §1
+specified one field. `from` is the second, and it earns the wire for a
+reason a gate could not have supplied: the card draws its remaining time
+as a draining ring, and a ring needs the WHOLE to know what fraction is
+left. Deriving the start from `content/provenance.json`'s batch date
+would satisfy the gate and nothing else — provenance is a repo file that
+never reaches a phone.
+
+Having shipped it, `fresh()` reads both ends, so `from` is a real serving
+boundary and not just the ring's start: an editor writes next week's
+question this week and it appears on the day, instead of having to be
+awake to merge it.
+
+**3 · Three to twenty-one days served, and most of a batch at the short
+end.** §1 asked for "a bounded window so 'current' cannot mean months"
+and left the number open. The floor exists because a window shorter than
+a weekend polls whoever happened to open the app on a Tuesday — the
+feed's quality signal is per-question evenness, and a split measured on a
+handful of answers is noise, which is `feed-budget.mjs`'s dilution bound
+said about time instead of stock. The ceiling is §1's sentence as
+arithmetic: past three weeks the topic is lying in its own name.
+
+The owner's rule — every question gets the window that fits it, most
+towards the low end — is a property of a BATCH, so it is a batch rule: at
+least half of a `now` batch runs seven days or fewer. A single twenty-day
+question is a judgement call; six of them is a lane that has quietly
+become a monthly.
+
+**4 · A windowed question is never core.** The rule sponsored questions
+already had (docs/SCALE-PLAN.md §1), one field over and for a different
+reason. The Mirror's corpus has to be answerable by someone who arrives
+next year; a question only whoever was here that week could answer folds
+"when did you join" into a reading about what people believe.
+
+**5 · A prediction goes through the CALL door or not at all.** §1's first
+boundary, and D127's: a resolved call is the one number in the app a
+reader cannot recompute, and a wrong or never-resolved outcome marks real
+users wrong with nothing to appeal to. `check:quality` refuses a `now`
+prompt that opens as a future interrogative ("Will…", "Who will…") or
+pins a claim to a resolution date. It is a **tripwire, not a proof**:
+"AI will replace most jobs — agree?" is an opinion about the future that
+no rubric can settle, and it passes both patterns, which is correct. The
+`ALLOW` map takes judged false positives per finding, the neighbours
+discipline.
+
+**6 · The farm may not write this lane, and the allocator is where that
+holds.** §1 ends its "not doing" list with *farm-authored current
+events*: timeliness needs a human, and a news question written by an
+unsupervised job is what the farm's governance exists to prevent. Putting
+that in the run's instructions would not have survived, because the
+regulator argues the other way every run — a brand-new topic is 24
+questions short of `TOPIC_TARGET`, the largest deficit in the taxonomy,
+so thinnest-first would point every run straight at the one topic a run
+may not touch. `LANE_EXCLUDED` in `feed-budget.mjs` is the exclusion, and
+`feed-budget.test.mjs` pins it in both directions: `now` is in the
+taxonomy, and it is not in the fold.
+
+**7 · The farm's two batch-spread rules do not judge this lane; window
+staggering replaces them.** TOPIC spread is meaningless here — a `now`
+batch is single-topic by construction, so the rule would fail every batch
+the lane can legally write. FORM spread is meaningless for a reason worth
+writing down: the two continuum forms are authored twice, the second copy
+being permanent demo texture in `world-feed-data.js`, and a question
+about this week's news has no business becoming a card the demo build
+shows forever — while a `path` needs eight endings it would outlive by a
+fortnight. So the lane writes votes, and the form rule is not a bar it
+can clear, only one it can trip over.
+
+What replaces them is the rule this lane actually needs: closes must be
+distinct across a batch. Six questions expiring on one afternoon empty
+the topic in a day, and a topic filter offering an empty chip is §1's own
+"reads as abandoned", which it names as worse than not having the topic.
+
+**8 · The card wears its real deadline, and the decorative one steps
+aside.** `world-feed.jsx` already drew a draining ring — `renderClock`,
+picked by hash of the question id, counting down the hours of the wall
+day. Its own comment is the reason it was safe: *"purely a clock: it
+reads the wall time and nothing about the question, so it cannot disclose
+a count."* A `now` card has a real deadline, so it gets the same ring
+drawn from `askWindow()` and a `4d` beside it. **Never both on one
+card** — the invented ring beside a true one borrows its credibility —
+and the hash pick now skips windowed cards entirely so the grace note
+still lands somewhere.
+
+### What this did NOT build, and the arithmetic
+
+**§1's archive half has no surface to land on, and that is a finding, not
+a deferral by preference.** §1 asks that "the answer rows should print
+the ask window ('asked 12–19 Aug') so a reader a year later knows which
+crowd this was", sized as a `ui/LiveAnswerRows.tsx` / `cohortLabels.ts`
+change. Those rows cannot show a `now` question:
+`LiveCohortBody` builds them from `LIVE.aggregated()`, which walks
+`state.questions` — the **daily** bank — and then filters to
+`coreCorpus`. A feed question has not been able to reach that list since
+D161 scoped the corpus to core, and decision 4 above makes a `now`
+question permanently non-core. The sentence was written before both.
+
+The feed's own answered drawer cannot hold it either: `fresh()` filters
+the BANK at hydrate, so a closed question is gone from `state.feedBank`
+before anything asks whether the viewer answered it. **So the standing
+limit is: once a `now` question's window closes, the person who answered
+it can no longer see that they did.** The answer and the aggregate
+persist — nothing is lost, and the Mirror is unaffected because these
+were never in its corpus — but there is no screen that shows them.
+
+The cheap fix is known and deliberately not taken here: make the bank
+filter answer-aware (`fresh(q) || answered(q)`), which would leave a
+closed-but-answered card in the done drawer wearing its window. It is not
+one line where it looks like one — `fresh()` runs inside `hydrate()`
+before the vote state is loaded, so making it vote-aware means moving the
+filter or the load, and `state.feedBank` has eleven other consumers
+including search and the missing-aggregate fetch that would then see
+expired questions. That is its own change with its own tests, and pricing
+it honestly beat shipping a half of it under this record.
+
+**The window is a client-side serving filter, not a server truth.** §1
+said so and it still holds: `active: false` is the hard kill, and an
+expired question technically accepts answers a little longer because
+nobody is shown the card. If that gap ever matters, a scheduled function
+can flip `active` at the boundary — the pattern exists three times
+already. Note the free property on the other side: D86 refuses edits
+while a question is inactive, so retiring a current question also freezes
+its answers, which for a time-scoped question is a feature.
+
+### The first batch, and what it declined to ask
+
+Six questions, written against reporting from the week of 17–23 August
+2026 and verified against more than one outlet where the claim carries
+weight: the Strait of Hormuz map, oil near $94, Hui Ka Yan's life
+sentence, the Sussexes' return, a model's ten published proofs, and
+Italy's fourth heatwave. Windows 4, 5, 6, 7, 9 and 12 days, every close
+distinct, four of six at seven days or fewer. One carries `political:
+true` (the Hormuz card); the heatwave card does not, because it asks what
+the reader makes of the weather rather than what should be done about it.
+
+**The line the batch drew** — *promoted to the lane's rule the same day,
+with a gate: see [D235](#d235--no-tragedies-this-app-does-not-put-suffering-to-a-vote).*
+The same week carried airstrikes with named death tolls in Lebanon and a
+Russian strike on Kramatorsk. A vote card under a casualty count is not
+an opinion question, it is a body count with buttons, and this lane
+declines them. Policy, economics, justice,
+culture, science and climate all had live stories that week, which is the
+answer to whether the line costs anything.
+
+**Provenance says `farm`, and that is the honest row.** These questions
+were written by a machine in a session a person directed. `editorial`
+means "editorial IS the human" — the clause that exempts a row from
+proving it was read — and claiming it here would launder AI-written
+content as hand-written, which is the failure `checkProvenance`'s own
+comment names one field over. So: `source: farm`, `review: { by: "ai",
+audited: false }`, and the audit shortfall accrues where the gate already
+reports it. Provenance names the WRITER; `LANE_EXCLUDED` names the
+SCHEDULE; they are different facts and the two can disagree without
+either lying.
+
+### Cost, and what holds it
+
+Bank 624 → 630 questions, 155.1 → 156.8 KiB on the wire; every prose
+figure that quotes either was corrected where `check:figures` printed it
+(SCHEMA-V2, COSTS ×3, LAUNCH-RUNBOOK ×4, SHIP-CHECKLIST ×2). Shipping
+bundle: eager graph 832 → 833 KB, total 2356 → 2358 KB —
+`data/askWindow.ts` rides the `world-feed` chunk, since that file is its
+only importer.
+
+Gates, and one of them found a real hole in this change before CI could:
+
+- `check:content` owns the window's SHAPE (both fields feed-only, day
+  keys, ordered) and the core refusal; `check:quality` owns what the
+  window may contain. Deliberately no overlap — two gates restating one
+  rule is how one of them gets edited to match the other.
+- `scripts/question-quality.test.mjs` pins the per-question rules and the
+  batch rules, including that the ceiling day is itself legal: a bound
+  that refuses its own value is a bound nobody can write against.
+- `data/askWindow.test.ts` pins the arithmetic — both ends inclusive, the
+  drain, the month boundary, the clamp at each end, and null for the
+  ninety-nine per cent of questions with no window.
+- `test/smoke-live.test.jsx` executes the render, because the three
+  name-level guards cannot: the ring is drawn from a real window and the
+  wall-clock ring is not drawn on the same card.
+- `test/world-channels.test.js` pins that `now` is a channel in a LIVE
+  build and not in the demo one — the stock is live-only, and a chip
+  filtering nothing is worse than no chip.
+- **The pre-flight was blind and is not any more.** `--batch` builds its
+  candidates through `candidateOf`, which copies an explicit field list;
+  it dropped `from`, `until` and `sponsor`, so the first run of the real
+  batch printed six failures against a batch CI accepts, and the
+  staggering rule compared six `undefined` closes and called them a
+  collision. Same class as the `id` and `core` notes already in that
+  function — a pre-flight that drops a field judges a question by a rule
+  the corpus gate is not applying.
+
+## D232 · Catalog questions go live: seventeen picks, promoted through one pen
+
+**Decided:** 2026-08-23 · **Status:** built (this branch); the operator
+seed step and two held tranches remain
+
+**Decision.** D14's "one deliberate change" ships. Seventeen pick cards —
+every archive card whose domain has a committed catalogue and no open
+legal question: emoji ×5, elements ×4, countries ×4, dogs ×4 — are
+promoted from the demo archive (`src/v2/spec/pick-data.js`) into a new
+live bank, `content/pick-questions.json`, and served as live feed cards.
+The plan this executes is [RANK-CATALOG-LIVE.md](RANK-CATALOG-LIVE.md)
+§2, written the day before; deviations from it are recorded below.
+
+**What was already true, verified rather than assumed.** The backend
+needed zero changes: `firestore.rules` admits the entity shape
+(create-only, device-bound, each branch's `hasOnly` fencing the other's
+field), `onV2AnswerCreated` validates keys per-domain and publishes the
+canon — `{ total, top, rest, by }`, exact since D98 — and the committed
+catalogues carry drift gates. The e2e leg added here proved all of it
+against the emulator on the first run: fold, segment boards, all four
+shape refusals, the unknown-key drop at the trigger, and the Not-listed
+fold.
+
+**The pieces this change added, and the shape of each:**
+
+1. **Seed.** `pick` joins `CONTENT_SOURCES`; entries emit as
+   `surface: "feed"`, `type: "catalog"`, `options: []`, `topic: "fav"`,
+   id `pick-<archive id>` (kept verbatim — the archive id is the name
+   the demo's crowd data already keys on), seq continuing the feed's
+   counter (the romantic pool's precedent). Never `core`: an entity
+   answer has no option share for a cohort fold to read (D161's
+   absent-means-tail does the rest).
+2. **One pen.** `promote-questions.mjs` gained the pick lane: pk ids
+   promote byte-for-byte with provenance rows (`prov.pick`, D97/D162),
+   refusing unknown ids, re-promotions, mixed-lane runs and any domain
+   without a committed catalogue under `public/` (the QUESTION-FARM
+   rule, now enforced at both ends of the pipe — `check:content` holds
+   the same map). `check:quality` validates the seed with the same pick
+   rules AND holds it byte-equal to the archive by id, so a hand edit to
+   either copy fails CI.
+3. **Client.** `splitBanks` carves `type: "catalog"` into the feed lane
+   (the duel lane's "pick" precedent — no options is the doc's correct
+   shape, not damage). `buildFeedGlobals` emits the demo card's own
+   shape (`type: 'pick'`, `domain`, `n` from the agg). `LIVE.votePick`
+   is `vote()` transposed: create-only, optimistic with rollback, cached
+   on server ack, no edit path (the D86 arm cannot admit one — the old
+   doc carries no optionIdx — and `editVote` now says so before the
+   wire). `LIVE.pickCanon/pickSegs/pickSeg` hand the card its board in
+   exactly the shapes `PICKS.canon/segs/canonSeg` return, your unfolded
+   pick joined at read time (the store's own convention), so the card
+   switches source on `q.live` and reshapes nothing. Entity answers
+   hydrate through the same `votes` map as numeric strings; everything
+   that INTERPRETS the number routes through the question's type
+   (`mirrorVoteValue` wraps them `{ entity }`, the WF reconcile grew a
+   pick arm), which is what keeps a dex number out of an option index's
+   clothes.
+4. **The chip.** `fav` rejoins the live channel row — it filters real
+   stock now. `places` stays out: rate cards remain demo-only.
+5. **Copy, two live divergences (COPY.md §3 — claims, not word
+   counts).** The demo deliberately demonstrates the OLD floor's shape
+   (its store's comment says so), so its two floor sentences are false
+   on a live board: "a spot needs 5 votes" (exact counts since D98 — any
+   vote claims a spot) and the ghost row's "only you see this — too few
+   to count yet" (a live off-board pick counted, exactly, inside
+   "everyone else"). Live cards say "counted with everyone else — not on
+   the board yet" and drop the votes clause; the demo keeps both, still
+   true of what it demonstrates.
+
+**Held back, each with its reason:**
+
+- **The six pokemon cards** (pk01–03, 06, 07, 09) wait on the
+  nominative-use check CATALOG-QUESTIONS.md has required since the
+  sketch — "it gets a real answer, not an assumption." The promote lane
+  makes that tranche a one-command follow-up.
+- **Films/artists** stay the D15 operator step (Wikidata is refused at
+  CONNECT from every sandbox this repo has measured); both ends of the
+  pipe refuse their cards until `public/films.txt`/`artists.txt` exist.
+- **`feed-budget.mjs` deliberately unchanged**, reversing the plan's §2
+  item 3: the regulator computes per-SUBJECT breadth over
+  `feed-questions.json`'s ten topics, and pick cards live in a separate
+  file on a format channel with their own daily lane (D145) — adding
+  `catalog` to `SERVABLE_TYPES` would have been a no-op that implied the
+  opposite.
+- **No stats sheet, no who-voted for pick cards** — unchanged from the
+  demo: the card renders no engage row (`q.type !== 'pick'` at the
+  render site), so the D17 segment chips in the reveal are the whole
+  breakdown surface. Widening that is its own decision.
+- **`v2_users` answer docs gained no new collection** — the entity
+  answer rides the existing path, so `docs/data-inventory.md` is
+  unchanged (gate green).
+
+**Enforcement:** the e2e catalog leg (`firestore-tests/e2e-v2-loop.mjs`
+§9c); nine new client store cases (`vote.test.ts`: the mapper, the
+entity hydration + wrapped mirror, votePick's ack/rollback/create-only
+arms, editVote's refusal, canon/segs/seg shapes with the pending join
+and the Not-listed rule); `deck.test.ts` pins the carve-out inside the
+feed lane and nowhere else; two live smoke mounts (picker unanswered,
+published board answered — asserting the live copy and the absent floor
+clause); `world-channels.test.js` re-pinned to the new row;
+`check:quality`'s seed↔archive parity rule; `check:content`'s catalog
+arm (shape, domain, committed catalogue, never-core). Green at commit:
+1653 unit, 289 functions, 116 rules, the full e2e, lint, and every
+static gate — `check:globals`' ratchet came DOWN two (the pickSrc seam
+replaced two direct global reads), which the baseline now records.
+
+**The operator steps that make it visible:** merge, deploy (no backend
+change — the workflow chain reseeds), or run *Seed content* by hand;
+633 questions land, 17 of them picks. Nothing needs `bumpRev`: creates
+carry `updatedAt` and clients page them in.
+
+## D233 · Rank questions live: an answer carries an order, and the exclusion retires
+
+**Decided:** 2026-08-23 · **Status:** built (this branch); D12's "binding
+until the pipeline below exists" clause is hereby satisfied and that
+record closes
+
+**Decision.** The pipeline D12 priced ships, and the eight seeded rank
+questions return to the live feed as what they are. A rank answer is
+`order` — the item indexes in the answerer's sequence — with **no
+optionIdx at all**: D12's sketch said "order alongside optionIdx", and
+the refinement matters, because a synthetic index would let an order
+answer leak into every option-shaped fold, which is the poisoning D12
+pulled the cards for wearing a seatbelt. The plan this executes is
+[RANK-CATALOG-LIVE.md](RANK-CATALOG-LIVE.md) §3; D232's catalog
+go-live is the pattern it copies joint for joint.
+
+**The pieces:**
+
+1. **Rules** (`isRankAnswer`): keys `hasOnly [qid, surface, order,
+   answeredAt, anchors]`, feed-only, the list's size equal to the
+   question's own item count (the get() dedupes with the type/kill-
+   switch reads — one billed read, same as a vote). Rules cannot
+   iterate a list, so ELEMENTS are the trigger's — a rules test pins
+   that a non-permutation is admitted here by design and dies there.
+2. **The hole the same change closes.** `isWorldAnswer` now refuses
+   `type == "rank"` questions. Before D233 this was open in principle:
+   a rank doc carries real options, so a raw-API `optionIdx` write
+   passed the size bound and the vote fold would have clobbered a rank
+   aggregate's `{pos, total}` with `{counts}` — D12's failure through
+   the side door, reachable the moment rank docs got aggregates worth
+   corrupting. E2E-pinned ("the D12 side door").
+3. **The fold** (`onV2AnswerCreated`): the order branch mirrors the
+   entity branch — ledger-deduped transaction, one question-doc read
+   for the item count, `validRankOrder` (pure.ts: a permutation of
+   0..n-1 or null, never a repair), position sums folded in place,
+   `{total, pos}` published whole every answer. No `by` map: the
+   Mirror's cohort folds read option shares, which an order does not
+   have, and a breakdown with no reader is document growth for nothing.
+4. **The client**: `LIVE.voteRank` is the create-only write
+   (vote()'s optimistic shape; `editVote` refuses ranks before the
+   wire, matching the rules arm that cannot admit them);
+   `rankCrowdFor` (deck.ts) derives the demo's exact crowd contract —
+   `crowd[i]` = 1-based rank of item i — from the published sums **with
+   the viewer's own folded order subtracted first**, countsFor's
+   convention: at launch scale a "crowd" that includes you is mostly
+   you, and matching a reader against their own reflection would be the
+   reveal lying with true arithmetic. Null crowd = nobody ELSE has
+   ranked, and the card renders "You're first" instead of a perfect-
+   agreement mirror; `tapRank`'s completed order dispatches on live
+   cards and the reveal's match line loses the demo's arrow (the sheet
+   behind it, renderRankStats, is a fabricated friends cohort). The
+   stored form is the joined order ("2,0,1,3") in the same votes map,
+   and every consumer that interprets a value routes through the
+   question's type — the D232 discipline.
+5. **Corpus honesty.** The eight rank seeds now declare `core: false`
+   (check:quality demands the declaration be explicit) — an order
+   answer has no option share for a cohort reading to fold, so tail by
+   arithmetic, not by punishment. `SERVABLE_TYPES` gains rank
+   (feed-budget.mjs): a rank card covers its topic for a reader now,
+   which the regulator's counts must say.
+6. **The live engage row was already fenced** (`q.type === 'rank'`
+   returns null in renderEngage's live arm — pre-laid before this
+   change) and stays so: the voter list is option-shaped and skips
+   order docs, so v1 rank cards are reveal-only. Widening that is its
+   own decision.
+
+**Held/deferred, stated:** no rank edits (D86 stays one shape; an order
+edit is a -old/+new delta through the sums nobody has asked for); no
+permutation histogram (n! cells is not a reveal — the display argument
+survives D98 even though the disclosure one dissolved); no per-anchor
+rank breakdowns (no reader); the farm does not author ranks (the lane
+contract's question, QUESTION-FARM.md, deliberately not opened here).
+
+**Enforcement:** four rules cases (the shapes, the side door, the
+admitted-by-design non-permutation, the kill switch); three pure-fold
+cases (permutation validation, the sums, the derived order); e2e leg
+9d (exact first fold, four refusals, the trigger dropping [0,0,0,0]
+while a valid second order sums exactly — the emulator's own warning
+line is visible in the run log); nine client store cases (mapper shape,
+crowd derivation and its null, hydration + wrapped mirror, voteRank's
+ack/rollback/create-only/validation, editVote's refusal); rankCrowdFor
+unit cases including the subtract-own tie-break; two live smoke mounts
+(the full tap-to-rank loop against the derived crowd; the first-voter
+copy); the cost tripwires recounted with their ledgers extended (rules
+gets 25 → 30, same billed read; trigger tx.gets 5 → 8, the extra read
+absorbed into TRIGGER_READS' stated approximation). Green at commit:
+1665 unit, 292 functions, 120 rules, the full e2e, lint, and every
+static gate.
+
+**Deploy order, which matters here where D232 needed none:** functions
+first (the fold accepts orders), rules second (clients may write them),
+client last (clients start writing them) — no window where a shipped
+client writes a shape the backend refuses or drops. The deploy chain
+runs backend before hosting, which is this order; the record states it
+so a partial manual deploy cannot invert it.
+
+## D234 · The seed transports the doc shape the schema promises
+
+**Decided:** 2026-08-23 · **Status:** built (this branch), rides the
+D232/D233 PR; the reseed after it merges is the one-time repair
+
+**The finding, verified at every layer before anything moved.**
+`runSeedV2`'s payload is a whitelist, and its own comment warns that "a
+field the seed does not name never reaches Firestore." Twelve fields had
+fallen on the wrong side of that line. Nine were in the schema, in the
+client, and in no write: `core` (D161 — the Mirror's corpus flag),
+`tag`/`rates` (D187 — the Scores stop's noun column and its place
+filter, plus D205's anchor guard), `until` (D179), `sponsor` (D195),
+`also` (D206 — the doors), and the call trio `tier`/`resolvesAt`/
+`rubric` (D194). Three more — `mode`, `branch`, `sub` — were written on
+CREATE but absent from `SEEDED_FIELDS`, so the skip froze them at
+create: an edit to a daily's subject path could never reach a stored
+doc.
+
+**Why every gate was green while it was dark.** Server-side consumers
+read the COMPILED bank (`V2_QUESTIONS` — the patterns fit's core filter,
+the call resolver's rubrics, D44's no-slice set), so nothing serverside
+ever noticed. Client-side consumers read HYDRATED DOCS — and every suite
+that exercises them seeds its own fixtures with the fields present
+(vote.test's bankDocs, the live-fixture, rules fixtures), while the one
+harness that runs the real seed (the e2e) never asserted on doc shape.
+Production behavior implied by the gap, none of it test-visible: the
+Mirror's cohort lenses treating every feed question as tail, the Scores
+scorecards empty, doors dark, D205's city guard never firing.
+
+**The fix, three mirrors and a proof.** The payload gains the nine
+emit-when-set transports; `SEEDED_FIELDS` gains all twelve (with the
+one-time-repair consequence stated in place: the next reseed rewrites
+exactly the docs whose stored form lacks them — that is the repair, not
+a phantom); seed.test's `storedForm` mirrors both; and the e2e now
+asserts doc shape after the real seed (step 3b) — the assertion that
+would have caught this class the day it opened. `sponsor` and `rubric`
+ride the structural compare `nodes`/`endings` forced; arrays ride the
+element-wise arm.
+
+**What this deliberately does not do:** transport `political` (server-
+side only by design — D44 computes from content, no client reads it off
+docs, and the schema does not list it) or invent per-field backfill
+tooling — the ordinary reseed IS the backfill, `updatedAt` moves, and
+clients page the repaired docs in through the cursor like any edit.
+
+**Enforcement:** seed.test's two D234 cases (the transport proven
+against the real bank — each self-reporting if the bank stops carrying
+an example — and the missing-field mismatch that drives the repair
+write); the e2e's 3b; the no-op control now compares the FULL written
+shape, which is what caught `storedForm`'s own missing mirrors during
+the build.
+
+**Amendment (same day, the PR's review pass): dropped fields are
+deleted, not orphaned.** The compare gained the twelve fields; the
+WRITE could still not remove one — `{merge: true}` cannot delete — so a
+doc whose source dropped an emit-when-set field (D233's rank `core`
+flip is the live instance: eight docs would have stored `core: true`
+forever had the seed run between the two commits) would mismatch on
+every reseed, rewrite, and keep the field anyway: `updatedAt` churn
+with no convergence. The rewrite path now walks `SEEDED_FIELDS` and
+writes `FieldValue.delete()` for any field the stored doc carries that
+the payload does not. Computed on the rewrite path only, against the
+stored doc — `seedDocMatches` stays sentinel-free, so a repaired bank
+reseeds as a no-op. Third seed.test D234 case pins the sentinel and
+that a field absent on both sides gets none.
+
+## D235 · No tragedies: this app does not put suffering to a vote
+
+**2026-08-23.** **Status:** binding, built. Owner's rule, given on reading
+D231's first current-events batch: *"one note on these they should
+generly avoid tradgedies like terror attack as that is a easy way to get
+this app in truoble"*.
+
+D231's record already carried a line of this shape — the first batch
+declined the week's casualty stories (airstrikes in Lebanon, a strike on
+Kramatorsk) on the reasoning that a vote card under a death toll is a
+body count with buttons. That was **one writer's judgement inside one
+batch**, recorded as a note about what a batch did. This makes it the
+lane's rule, and gives it a gate, because a judgement that lives only in
+prose is one the next run under time pressure re-decides from scratch.
+
+### The rule
+
+**This app does not put suffering to a vote.** Terror attacks are the
+named example and the clearest case. The rule is wider: mass-casualty
+events, atrocities, disasters with a death toll, a named person's killing
+or victimhood.
+
+It binds every lane and every surface. It bites hardest on `now`, because
+that lane's whole job is what is happening this week and news skews to
+catastrophe — the pressure to ask the obvious question is highest exactly
+when asking it is worst.
+
+**Two reasons, and the owner gave the second.** The first is that the
+question is wrong on its own terms: it asks a crowd to take a side on
+somebody's worst day, and since D98 the app then publishes the exact
+split doing so, with no k-floor to hide behind. The second is the
+practical one — *"an easy way to get this app in trouble"* — and it is
+correct in a way worth writing down rather than assuming: there is no
+answer to a journalist, a store reviewer or a bereaved family asking why
+the question exists. A single screenshot is the whole story, and it would
+be a fair one.
+
+**What the rule is NOT.** It is not "avoid serious news". Sanctions, a
+verdict, an economic shock, a resignation, a policy fight are all
+ordinary questions and several are in the D231 batch. The line runs
+between a question about a POLICY or a CONSEQUENCE and one that treats a
+specific atrocity as poll material. "Should the sanctions be lifted?" is
+ours. "Was the attack preventable?" is not.
+
+### The gate, and its honest limits
+
+`check:quality` grows a `tragedy` tripwire beside the place-civic one,
+two tiers deep:
+
+- **Plain** — words unambiguous whatever surrounds them: terror,
+  massacre, genocide, atrocity, war crime, assassination, hostage,
+  kidnapping, torture, and their kin.
+- **Conjunction** — an EVENT word (attack, crash, strike, quake, flood,
+  siege…) only when a CASUALTY word (death toll, killed, victims,
+  wounded, fatalities…) appears with it.
+
+The second tier is the whole design. One flat list would either miss the
+thing or fail honest content, and the split is what separates *"markets
+crashed 8% — panic or noise?"* from *"the crash that killed 14"*. **A
+gate that reliably cries wolf is one whose waivers stop being read** —
+this file's own sentence, one rule over.
+
+**Measured before it shipped, over the full 653-entry generated bank:
+zero entries fire.** The three that trip a single tier and pass are
+exactly what the conjunction exists to spare — the Library of
+Alexandria's earthquake, what a gladiator fight usually ended in, and the
+Book of the Dead. That measurement is why the gate could be scoped to
+every surface rather than to `now` alone, which is where the owner's note
+pointed: the risk is identical if a daily question does it, and today the
+widening costs nothing.
+
+**Learn is carved out**, the same shape as the place tripwire and for a
+sharper reason than symmetry: a learn card has a RIGHT ANSWER. "Who was
+assassinated in 44 BC?" is history with one correct response and asks
+nobody to take a side, which is the entire thing this rule is about.
+Every other surface asks for a side.
+
+**The tripwire is not the rule, and clearing it is not clearance.** The
+same prompt is ordinary in a quiet week and grotesque in the week of an
+attack — *"is airport security theatre?"* is the clean example — and no
+word list can see the week. What the gate catches is the unambiguous
+case; judging the rest stays the writing run's job and the audit's.
+Judged false positives go in `ALLOW` under `tragedy`, with the reason,
+the neighbours pattern. Nothing is waived there today.
+
+### Where it is written down
+
+The rule is in [`QUESTION-FARM.md`](QUESTION-FARM.md) beside the lane's
+other hard rules and in [`NEXT-FUNCTIONALITY.md`](NEXT-FUNCTIONALITY.md)
+§1's boundaries, which now number three — it sits above the CALL boundary
+and the editorial-lane one, because it is the only one of the three whose
+cost is not a design regret.
+
+Both halves of the tripwire were verified to FAIL against the pre-change
+file rather than assumed to: neutering the call site fails the plain-word
+case and the casualty-conjunction case, while the three
+false-positive cases keep passing, which is the property that would
+otherwise rot silently.
+>>>>>>> origin/main
+
 ## D236 · The report builder ships, and reads as a signed-in user
 
 **2026-08-23.** **Status:** binding, built. Owner's call on the
@@ -23632,3 +24232,4 @@ inclusive, the 50 fallback, a skewed baseline moving its bands);
 e2e §7g holds the all-untested shape; the roll CSV is unchanged — the
 axes are the page's reading, and the roll already lets a buyer
 recompute any of it.
+=======
