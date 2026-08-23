@@ -250,6 +250,21 @@ for (const row of inventoryRows(inventory, named)) {
 }
 
 // ── CLI ──
+// The floor goes here and not below the report, which is where it first
+// landed — `problems` is read once, by the block underneath, so a push
+// after it is a finding nothing prints and an exit code that stays 0. A
+// gate against silent loss that failed silently; the CLI marker was moved
+// above an existing block rather than the block being moved under it.
+if (readerChecked < READER_FLOOR) {
+  problems.push(
+    `rule 2 covered ${readerChecked} row(s), down from ${READER_FLOOR}.\n` +
+      `    A row leaves the checked set silently — a read rule edited into a form\n` +
+      `    this declines to read, a \`Where\` cell that stopped naming its path, or a\n` +
+      `    parser that mis-attributed it. Find which, then lower READER_FLOOR\n` +
+      `    deliberately if the loss is correct.`,
+  );
+}
+
 // Guarded so a test can import the two parsers above without the report
 // running (and, on a failure, calling process.exit out from under vitest).
 // Same shape as check-public-copy.mjs.
@@ -265,16 +280,6 @@ if (invokedDirectly && problems.length) {
       "collection the filing was not derived against (D130).",
   );
   process.exit(1);
-}
-
-if (readerChecked < READER_FLOOR) {
-  problems.push(
-    `rule 2 covered ${readerChecked} row(s), down from ${READER_FLOOR}.\n` +
-      `    A row leaves the checked set silently — a read rule edited into a form\n` +
-      `    this declines to read, a \`Where\` cell that stopped naming its path, or a\n` +
-      `    parser that mis-attributed it. Find which, then lower READER_FLOOR\n` +
-      `    deliberately if the loss is correct.`,
-  );
 }
 
 const covered = collections.length - Object.keys(EXEMPT).length;

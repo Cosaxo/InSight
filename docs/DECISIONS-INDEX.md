@@ -2,8 +2,8 @@
 
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
-"which decision governs this" is 253 lines instead of
-25,252. Do not hand-edit; `npm run check:docs` fails when this
+"which decision governs this" is 254 lines instead of
+25,351. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -14,7 +14,7 @@ detect it.
 
 | # | Decision | Cited later by | Line |
 | --- | --- | --- | --- |
-| **D1** | [Comments and "who voted" are circle-scoped only](DECISIONS.md#d1--comments-and-who-voted-are-circle-scoped-only) | D237 (+37) | 14 |
+| **D1** | [Comments and "who voted" are circle-scoped only](DECISIONS.md#d1--comments-and-who-voted-are-circle-scoped-only) | D250 (+38) | 14 |
 | **D2** | ["Near" means geohash5 (~5 km), reusing the existing geo system](DECISIONS.md#d2--near-means-geohash5-5-km-reusing-the-existing-geo-system) | D84 (+3) | 29 |
 | **D3** | [Anonymous-first auth with account linking](DECISIONS.md#d3--anonymous-first-auth-with-account-linking) | D247 (+19) | 97 |
 | **D4** | [The v1 shelf, and the legacy boundary](DECISIONS.md#d4--the-v1-shelf-and-the-legacy-boundary) | D192 (+6) | 342 |
@@ -68,7 +68,7 @@ detect it.
 | **D48** | [Three limits accepted while closing the reveal-alert, bridge and boot-state gaps](DECISIONS.md#d48--three-limits-accepted-while-closing-the-reveal-alert-bridge-and-boot-state-gaps) | D59 | 4657 |
 | **D49** | [The Skip control becomes a button, the alert chain gets a gate, and the feed's split stops at its arithmetic](DECISIONS.md#d49--the-skip-control-becomes-a-button-the-alert-chain-gets-a-gate-and-the-feeds-split-stops-at-its-arithmetic) | — | 4710 |
 | **D50** | [A lens question in a live feed is a self-report item, not a poll](DECISIONS.md#d50--a-lens-question-in-a-live-feed-is-a-self-report-item-not-a-poll) | D146 (+6) | 4798 |
-| **D51** | [Deleting the keys is only half the wipe: every local store hears the purge](DECISIONS.md#d51--deleting-the-keys-is-only-half-the-wipe-every-local-store-hears-the-purge) | D203 (+5) | 4864 |
+| **D51** | [Deleting the keys is only half the wipe: every local store hears the purge](DECISIONS.md#d51--deleting-the-keys-is-only-half-the-wipe-every-local-store-hears-the-purge) | D250 (+6) | 4864 |
 | **D52** | [The content review: what got fixed, what got flagged, and the two lines that held](DECISIONS.md#d52--the-content-review-what-got-fixed-what-got-flagged-and-the-two-lines-that-held) | D203 (+7) | 4930 |
 | **D53** | [The logic test measured: zero ambiguity in 60,000 items, and the curve gets pinned](DECISIONS.md#d53--the-logic-test-measured-zero-ambiguity-in-60000-items-and-the-curve-gets-pinned) | D61 (+2) | 5020 |
 | **D54** | [The ledger gets eyes: a daily velocity scan, feeding manual review](DECISIONS.md#d54--the-ledger-gets-eyes-a-daily-velocity-scan-feeding-manual-review) | D130 (+2) | 5128 |
@@ -103,7 +103,7 @@ detect it.
 | **D83** | [World takes ship — D78 part 2 adopted, anonymous, behind enforcement](DECISIONS.md#d83--world-takes-ship--d78-part-2-adopted-anonymous-behind-enforcement) | D223 (+7) | 8051 |
 | **D84** | [Near by radius ships — presence cells, a count and nothing else](DECISIONS.md#d84--near-by-radius-ships--presence-cells-a-count-and-nothing-else) | D183 (+6) | 8173 |
 | **D85** | [The personality tests go to 5 items per dimension, and `cognitive` gets a question bank](DECISIONS.md#d85--the-personality-tests-go-to-5-items-per-dimension-and-cognitive-gets-a-question-bank) | D103 | 8250 |
-| **D86** | [Answers become editable — D5 amended, not repealed](DECISIONS.md#d86--answers-become-editable--d5-amended-not-repealed) | D242 (+18) | 8351 |
+| **D86** | [Answers become editable — D5 amended, not repealed](DECISIONS.md#d86--answers-become-editable--d5-amended-not-repealed) | D250 (+19) | 8351 |
 | **D87** | [Production writes require an approval; the `production` environment carries protection rules](DECISIONS.md#d87--production-writes-require-an-approval-the-production-environment-carries-protection-rules) | D127 (+2) | 8441 |
 | **D88** | [Seeding chains to the deploy, because the bank it writes is the deployed one](DECISIONS.md#d88--seeding-chains-to-the-deploy-because-the-bank-it-writes-is-the-deployed-one) | — | 8520 |
 | **D89** | [The feed's "knows this best" row is demo furniture — live mode refuses it](DECISIONS.md#d89--the-feeds-knows-this-best-row-is-demo-furniture--live-mode-refuses-it) | D133 (+2) | 8584 |
@@ -258,12 +258,13 @@ detect it.
 | **D238** | [The invite code stops being something a person reads](DECISIONS.md#d238--the-invite-code-stops-being-something-a-person-reads) | D240 | 24212 |
 | **D239** | [Found by name, not only by the address you memorised](DECISIONS.md#d239--found-by-name-not-only-by-the-address-you-memorised) | — | 24339 |
 | **D240** | [The link asks; the circle answers](DECISIONS.md#d240--the-link-asks-the-circle-answers) | D241 | 24458 |
-| **D241** | [Both doors at once: accepting an invitation clears the ask](DECISIONS.md#d241--both-doors-at-once-accepting-an-invitation-clears-the-ask) | — | 24566 |
+| **D241** | [Both doors at once: accepting an invitation clears the ask](DECISIONS.md#d241--both-doors-at-once-accepting-an-invitation-clears-the-ask) | D250 | 24566 |
 | **D242** | [The surface claim is an equality, and was the same test twice](DECISIONS.md#d242--the-surface-claim-is-an-equality-and-was-the-same-test-twice) | — | 24631 |
 | **D243** | [The inventory's reader column, held to the two rules a script may read literally](DECISIONS.md#d243--the-inventorys-reader-column-held-to-the-two-rules-a-script-may-read-literally) | D247 | 24721 |
 | **D244** | [Two shipped surfaces the bank never fetched](DECISIONS.md#d244--two-shipped-surfaces-the-bank-never-fetched) | — | 24804 |
 | **D245** | [Two numbers that contradicted the picture beside them](DECISIONS.md#d245--two-numbers-that-contradicted-the-picture-beside-them) | — | 24878 |
 | **D246** | [The volume ceiling was budgeting a window the scan does not read](DECISIONS.md#d246--the-volume-ceiling-was-budgeting-a-window-the-scan-does-not-read) | — | 24933 |
-| **D247** | [Three gates that did not hold, and the queue sweep that took someone else's evidence](DECISIONS.md#d247--three-gates-that-did-not-hold-and-the-queue-sweep-that-took-someone-elses-evidence) | — | 25022 |
+| **D247** | [Three gates that did not hold, and the queue sweep that took someone else's evidence](DECISIONS.md#d247--three-gates-that-did-not-hold-and-the-queue-sweep-that-took-someone-elses-evidence) | D250 | 25022 |
 | **D248** | [Four sentences that stopped being true, and two of them are now counted](DECISIONS.md#d248--four-sentences-that-stopped-being-true-and-two-of-them-are-now-counted) | — | 25128 |
-| **D249** | [The room cache is keyed by one cell and folded over nine](DECISIONS.md#d249--the-room-cache-is-keyed-by-one-cell-and-folded-over-nine) | — | 25195 |
+| **D249** | [The room cache is keyed by one cell and folded over nine](DECISIONS.md#d249--the-room-cache-is-keyed-by-one-cell-and-folded-over-nine) | D250 | 25195 |
+| **D250** | [Five the skeptics found, and one of them was two hours old](DECISIONS.md#d250--five-the-skeptics-found-and-one-of-them-was-two-hours-old) | — | 25253 |

@@ -25249,3 +25249,102 @@ account, which must go, **and a cell two away, which must not** — outside
 the block, so its roster cannot name this account and reaching it would be
 the sweep taking a roster it has no claim on. The first fails against the
 previous implementation.
+
+## D250 · Five the skeptics found, and one of them was two hours old
+
+**2026-08-23.** **Status:** binding. The adversarial pass over D241–D249
+refuted almost every finding as "already fixed at HEAD" and turned up five
+that were not.
+
+### 1 · `READER_FLOOR` was unreachable — a gate against silent loss, failing silently
+
+D247 §3 added a floor so rule 2's coverage could not fall without saying
+so. It pushed onto `problems` **after** the block that reads `problems`
+and exits, so the finding was never printed and the exit code stayed 0.
+
+Not a typo — a sequencing mistake with a cause worth naming: the CLI guard
+was inserted by putting a `// ── CLI ──` marker above an existing block,
+rather than by moving that block below everything that contributes to
+`problems`. Anything added between the two ends up dead. The floor moved
+above the report, and mutation-testing it (`READER_FLOOR = 28`) now fails
+as it should.
+
+### 2 · The daily ruler wore the demo's queue on every live install
+
+`daily-split.jsx` computed the "something waiting" dot from `DUELS` — the
+prototype store — three lines after it had already branched the duel
+bodies on `window.LIVE && window.LIVE.enabled`:
+
+```js
+const liveDuels = window.LIVE && window.LIVE.enabled;   // :993
+…
+const pendG = DUELS.groupsPending();                    // :999
+const pendD = DUELS.pendingDuos();
+```
+
+`groupsPending()` counts four hardcoded groups and `pendingDuos()` eight
+seeded partners. The only writers that can lower either —
+`answerGroup`/`answerDuo` — are called from `group-daily.jsx` and
+`duo-daily.jsx`, the demo bodies live mode never mounts, and the D51 purge
+resets to `normalize({})`, which **is** the 4/8 state. So every live
+install wore a permanent dot on Circle and 1v1, on day one, for a queue
+that does not exist and cannot empty.
+
+Live mode draws nothing there now. A live count would be a feature —
+nothing on `LIVE.social` computes "duels you have not answered today" — and
+D1 is the rule: where a live surface shows nothing, the data is absent.
+
+### 3 · The one control that points at the Map did nothing
+
+`window.goTab('map')`, on the "added to your map →" confirmation.
+`goTab` accepts a `MIRROR_POP_ID` (`you`/`circle`/`groups`/`near`/`world`)
+or a `TABS` id (`track`/`mirror`); `'map'` is neither, so it ran
+`closeAll()` and returned. A dead button rather than an error, on the one
+affordance the vote payoff offers.
+
+The Map **is** the Mirror's You stop — *"fully retracted — you, alone,
+visualized: the Map lives here"* (`mirror-tab.jsx`) — so `'you'` is the
+destination the toast was always naming.
+
+### 4 · A held-open re-pick was closed by the next store notify
+
+D86's re-pick opens by DELETING the local vote (`onReset`), and the live
+reconcile copies `LIVE.myVotes()` back over `state.votes` for every deck
+question with no edit-in-progress guard. The store still holds the old
+option — only `editVote` moves it — so any notify landing before the
+re-pick tap silently restored the vote and closed the affordance: the 60s
+aggregate refresh, the 4-minute presence beat, a take arriving. Held down
+for half a second, and the app took it away again, with nothing on screen
+saying why.
+
+`repick` is now an id, not a boolean — the same shape as `liveTakes` three
+lines below it and for the same reason, so paging to another day closes it
+implicitly. The reconcile skips that one question; a landed vote and
+`jumpTo` both clear it.
+
+### 5 · Two React panels, one frozen and one stuck
+
+- **`LiveRolesPanel`** memoised its room list on `[S]`, where `S` is
+  `LIVE.social` — a plain property on a module-level `const`, so the same
+  reference forever and a memo that runs once per mount. A circle that
+  finished hydrating a moment after the screen opened never appeared. The
+  memo was there for a real reason, which is why the naive fix is wrong:
+  `S.groups()` builds a new array per call, so keying the reveal-history
+  effect on the array re-runs the loader every render. The **ids** are the
+  stable thing to depend on.
+- **`usePeopleFinder`** left `busy` raised when a query was cleared
+  mid-lookup. The flag is raised inside the debounce and lowered in the
+  lookup's `finally` under `if (live)`, and the cleanup sets `live = false`
+  for the superseded run — so the empty-query exit, the one path that
+  starts no replacement lookup, had nothing left to lower it. Lowered
+  there and only there: a supersede by a non-empty query has its own run
+  to do it, and clearing unconditionally would blink the spinner once per
+  keystroke.
+
+  **Pinned at the hook, not through a panel, and that distinction is the
+  finding.** `LivePeopleSearch` hides its whole section on an empty query,
+  so a stuck flag reads there as "the section closed" — a test through it
+  passes either way, which one written first did.
+  `LdAddByHandle` keeps its field mounted and draws `Looking…`
+  unconditionally, which is where it becomes a permanent status message
+  under an empty box.
