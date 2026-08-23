@@ -25,6 +25,7 @@ import { Sheet } from './primitives.jsx';
 // rather than a copy of it (D11's claim, D42's citation; see the module).
 import { interleaveFeed, partitionAnswered } from '../data/feed-interleave.ts';
 import { SPONSOR_AT, partitionSponsored } from '../data/sponsored.ts';
+import { askWindow } from '../data/askWindow.ts';
 import { utcDayIndex } from '../data/deck.ts';
 import SponsorMark from '../ui/SponsorMark.tsx';
 import AdCard from '../ui/AdCard.tsx';
@@ -1602,6 +1603,27 @@ class WorldFeed extends React.Component {
       for (let i = 0; i < counts.length; i++) { acc += counts[i] / total; if (r < acc) { oi = i; break; } }
       return { ...f, oi };
     });
+  }
+
+  // A current-events card is closing for real (D231): the same ring, drained
+  // by the question's own window instead of by the hour of the day.
+  //
+  // This is the grace note below with a fact behind it. `renderClock` picks
+  // a card by hash and counts down the wall clock, which is honest only
+  // because it says nothing — a `now` card has a real deadline, and the two
+  // must never appear on the same card, or the invented one borrows the
+  // credibility of the real one. The kicker's ternary is where that holds.
+  renderWindow(T, win) {
+    const C = 2 * Math.PI * 7;
+    return (
+      <span title={`${win.daysLeft} of ${win.days} days left to answer`} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, flexShrink: 0, fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 11.5, color: 'var(--ink-2)' }}>
+        <svg width="16" height="16" viewBox="0 0 20 20" aria-hidden="true">
+          <circle cx="10" cy="10" r="7" fill="none" stroke="var(--rule)" strokeWidth="2.6"></circle>
+          <circle cx="10" cy="10" r="7" fill="none" stroke={T.color} strokeWidth="2.6" strokeLinecap="round" strokeDasharray={C} strokeDashoffset={C * (1 - win.frac)} transform="rotate(-90 10 10)"></circle>
+        </svg>
+        {win.label}
+      </span>
+    );
   }
 
   // One question in view is closing — a ring draining with the day. Purely a
@@ -3406,6 +3428,9 @@ class WorldFeed extends React.Component {
       ? { width: 7, height: 7, borderRadius: '50%', background: 'transparent', boxShadow: `inset 0 0 0 2px ${T.color}`, flexShrink: 0 }
       : { width: 6, height: 6, borderRadius: '50%', background: T.color, flexShrink: 0 };
     const bgText = WF_BGTEXT(q);
+    // Null on every card but this lane's, so it doubles as "does this
+    // question have a clock" (data/askWindow.ts).
+    const win = askWindow(q);
     const compact = this.props.density === 'compact';
     // focus mode: one question, hosted outside the feed (search results)
     const focus = !!this.props.focus;
@@ -3428,7 +3453,8 @@ class WorldFeed extends React.Component {
         ) : (
           <button className="press tap44" onClick={(e) => { e.stopPropagation(); clearTimeout(this._sheetT); this.setState({ sheet: { panel: 'bg', q, T } }); }} aria-label="About this question" style={{ flexShrink: 0, width: 20, height: 20, borderRadius: '50%', border: '0.5px solid var(--rule)', background: 'transparent', color: 'var(--ink-3)', fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 800, lineHeight: 1, cursor: 'pointer', WebkitAppearance: 'none', padding: 0 }}>i</button>
         )}
-        {F.closing && this.renderClock(T)}
+        {/* A real deadline outranks the decorative one — never both (D231). */}
+        {win ? this.renderWindow(T, win) : (F.closing && this.renderClock(T))}
         <span style={{ flex: 1 }}></span>
         {window.PassiveTag && <window.PassiveTag q={q} answered={answered}></window.PassiveTag>}
       </div>
@@ -3707,8 +3733,12 @@ class WorldFeed extends React.Component {
     // question id so it is stable across renders rather than jumping as the
     // list re-sorts, and never the very first card — the ring is a grace
     // note, not the thing you meet first.
+    // Never a card that carries a real window (D231) — the fake ring on a
+    // card with a true deadline is the one place this grace note would be
+    // read as information. Both fallbacks are filtered for the same reason.
+    const clockable = feedList.filter((q) => !askWindow(q));
     const closingId = this.opts.clock
-      ? ((feedList.slice(0, 8).find((q) => wfHash(q.id + ':close') < 0.3) || feedList[1] || {}).id)
+      ? ((clockable.slice(0, 8).find((q) => wfHash(q.id + ':close') < 0.3) || clockable[1] || {}).id)
       : null;
     // chip row = your scenes, your followed leaves, then the always-on channels
     const chips = [

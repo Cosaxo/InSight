@@ -32,7 +32,7 @@ Two discoveries reshaped the owner's list more than any opinion could:
 
 | Idea | Verdict | Size | The constraint that shapes it |
 | --- | --- | --- | --- |
-| Current events | **Build, on the feed** | S–M | Daily questions cannot retire (positional deck; D97 records the gap). The feed already has `active:false` and a topic taxonomy. |
+| Current events | **BUILT (D231)** | S–M | Daily questions cannot retire (positional deck; D97 records the gap). The feed already has `active:false` and a topic taxonomy. |
 | Over-time ("pulse") questions | **Build — the strongest idea on the list** | L | One answer per question is structural (`aid == qid`). The duel answers' day-keyed id (`g_{gid}_{day}`) is the working precedent to copy. |
 | Mood as the first pulse question | **Decide separately** | S on top | Mood tracking moves the store forms (Health is "not collected" today) and makes a public per-person series — both are owner decisions, not engineering. |
 | Types focus | **Build tier 1 now; tier 2 is a real decision** | M / L | Tier 1 rides data that is already public. Tier 2 (type as a breakdown dim) amends the standing "a test result is never a breakdown dim" claim (D8, `docs/data-inventory.md`). |
@@ -48,6 +48,13 @@ Two discoveries reshaped the owner's list more than any opinion could:
 
 **The wanted thing:** questions about what is happening now, which stop
 showing up once they are stale.
+
+*Status 2026-08-23: **BUILT** — D231 is the record. The `now` topic, both
+window ends, the bounds, the CALL refusal, the farm exclusion, the card's
+real ring and a first batch of six are live. Two things below did not
+survive contact and D231 carries both: the archive bullet's surface no
+longer exists (see the strikethrough note there), and `until` gained a
+partner rather than staying one field.*
 
 **Verdict: build it on the feed, not the daily.** The daily deck is
 positional and epoch-based (`computeDeckIds`, `src/v2/data/deck.ts`) —
@@ -87,7 +94,12 @@ switch the lane off entirely.
   the Mirror is the product — and the answer rows should print the ask
   window ("asked 12–19 Aug") so a reader a year later knows which crowd
   this was. That is a `ui/LiveAnswerRows.tsx` / `cohortLabels.ts`-sized
-  change.
+  change. **Not built, and not for want of trying (D231):** those rows
+  read `LIVE.aggregated()` filtered to `coreCorpus`, which is the DAILY
+  bank — a feed question has not been able to reach them since D161, and
+  a windowed question is permanently non-core. The feed's own answered
+  drawer cannot hold one either, because `fresh()` filters the bank at
+  hydrate. The standing limit, and its priced fix, are in D231.
 
 **Two boundaries, both already recorded elsewhere:**
 
@@ -596,9 +608,9 @@ displays disclosed content, it does not run a checkout.
 
 1. **Suggestions v1** (§6) — no schema collisions, mostly existing
    patterns, and it starts the community flywheel the other lanes want.
-2. **Current events on the feed** (§1) — small once §6 exists to feed
-   it; the ongoing cost is editorial, so gate the ship on being willing
-   to keep the topic alive.
+2. ~~**Current events on the feed** (§1)~~ — **done, D231.** The
+   ongoing cost is editorial and it starts now: the topic is live with
+   six questions, the longest of which closes 3 September.
 3. **Height** (§4) — the first new anchor dim; exercises the checklist
    §3 tier 2 will reuse.
 4. **Types tier 1** (§3) — visible product on data already public.

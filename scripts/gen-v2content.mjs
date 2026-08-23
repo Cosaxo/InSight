@@ -277,11 +277,18 @@ export function buildEntries(content = loadContent()) {
       ...(Array.isArray(q.ends) ? { ends: q.ends } : {}),
       ...(Array.isArray(q.ax) ? { ax: q.ax } : {}),
       ...(Array.isArray(q.ay) ? { ay: q.ay } : {}),
-      // Current-events window (docs/NEXT-FUNCTIONALITY.md §1): a feed
+      // Current-events window (docs/NEXT-FUNCTIONALITY.md §1, D231): a feed
       // entry with `until` stops being SERVED after that UTC day — a
       // client-side serving filter, emit-when-set. `active: false`
       // remains the hard, server-enforced kill; answers and aggregates
       // persist either way (the archive is the product).
+      //
+      // `from` is the other end, and it ships for one reason: the card
+      // draws the window as a draining ring, and a ring needs the WHOLE
+      // to know what fraction is left. Deriving the start from the
+      // provenance batch date would work in the gate and nowhere else —
+      // provenance.json is a repo file that never reaches a device.
+      ...(typeof q.from === "string" ? { from: q.from } : {}),
       ...(typeof q.until === "string" ? { until: q.until } : {}),
       // Sponsored questions (D195, docs/MONETIZATION.md path 2). A paid
       // question is an ORDINARY question with three extra facts: who
@@ -556,7 +563,7 @@ const HEADER =
   "// admitted grading path, the earliest UTC day it may be graded, and the\n" +
   "// expression the resolver RUNS. The outcome is not here — it lives in\n" +
   "// v2_call_outcomes, so a reseed and the resolver never fight.\n" +
-  "export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; also?: string[]; branch?: string; sub?: string; tag?: string; rates?: string; axis: string | null; test: string | null; mode?: string; active?: boolean; political?: boolean; core?: boolean; until?: string; lo?: number; hi?: number; unit?: string; ends?: string[]; ax?: string[]; ay?: string[]; title?: string; intro?: string; hue?: number; nodes?: Record<string, { q: string; a: Array<{ t: string }> }>; endings?: Record<string, { name: string; line: string }>; sponsor?: { buyer: string; audience?: Record<string, string> }; tier?: string; resolvesAt?: string; rubric?: { kind: string; qid: string; test: string; threshold?: number; dim?: string; buckets?: string[] }; }\n" +
+  "export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; also?: string[]; branch?: string; sub?: string; tag?: string; rates?: string; axis: string | null; test: string | null; mode?: string; active?: boolean; political?: boolean; core?: boolean; from?: string; until?: string; lo?: number; hi?: number; unit?: string; ends?: string[]; ax?: string[]; ay?: string[]; title?: string; intro?: string; hue?: number; nodes?: Record<string, { q: string; a: Array<{ t: string }> }>; endings?: Record<string, { name: string; line: string }>; sponsor?: { buyer: string; audience?: Record<string, string> }; tier?: string; resolvesAt?: string; rubric?: { kind: string; qid: string; test: string; threshold?: number; dim?: string; buckets?: string[] }; }\n" +
   "export const V2_QUESTIONS: V2SeedQuestion[] = ";
 
 // Feed ads (D197, docs/MONETIZATION.md path 3). A SEPARATE array from the

@@ -58,6 +58,21 @@ describe("the always-on channel set, per build (D96)", () => {
   // same sentence read from either end. The mount tests cannot check it —
   // this flag is read at module scope and the suites are demo builds — so
   // the invariant lives here, with the flag it depends on.
+  // D231's half of the same sentence, said explicitly because it is the
+  // one topic whose stock is live-only: `now` questions carry an ask
+  // window and nothing in the demo pool has one, so the prototype's fixed
+  // six deliberately leave it out (a chip filtering nothing is worse than
+  // no chip) — while a live build, which is where the stock is, must
+  // reach it or the whole lane is dark.
+  it("now is a live channel and not a demo one", async () => {
+    const demo = await feedData();
+    expect(demo.channels).not.toContain("now");
+    expect(demo.topics.map((t) => t.id)).toContain("now");
+    vi.resetModules();
+    vi.stubEnv("VITE_V2_LIVE", "true");
+    expect((await feedData()).channels).toContain("now");
+  });
+
   it("live: every topic the feed bank actually uses is one of those channels", async () => {
     vi.stubEnv("VITE_V2_LIVE", "true");
     const { channels } = await feedData();
