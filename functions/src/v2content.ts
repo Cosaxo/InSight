@@ -34,7 +34,7 @@
 // admitted grading path, the earliest UTC day it may be graded, and the
 // expression the resolver RUNS. The outcome is not here — it lives in
 // v2_call_outcomes, so a reseed and the resolver never fight.
-export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; also?: string[]; branch?: string; sub?: string; tag?: string; rates?: string; axis: string | null; test: string | null; mode?: string; active?: boolean; political?: boolean; core?: boolean; until?: string; lo?: number; hi?: number; unit?: string; ends?: string[]; ax?: string[]; ay?: string[]; title?: string; intro?: string; hue?: number; nodes?: Record<string, { q: string; a: Array<{ t: string }> }>; endings?: Record<string, { name: string; line: string }>; sponsor?: { buyer: string; audience?: Record<string, string> }; tier?: string; resolvesAt?: string; rubric?: { kind: string; qid: string; test: string; threshold?: number; dim?: string; buckets?: string[] }; }
+export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; also?: string[]; branch?: string; sub?: string; tag?: string; rates?: string; axis: string | null; test: string | null; mode?: string; active?: boolean; political?: boolean; core?: boolean; from?: string; until?: string; lo?: number; hi?: number; unit?: string; ends?: string[]; ax?: string[]; ay?: string[]; title?: string; intro?: string; hue?: number; nodes?: Record<string, { q: string; a: Array<{ t: string }> }>; endings?: Record<string, { name: string; line: string }>; sponsor?: { buyer: string; audience?: Record<string, string> }; tier?: string; resolvesAt?: string; rubric?: { kind: string; qid: string; test: string; threshold?: number; dim?: string; buckets?: string[] }; }
 export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "daily-000",
@@ -5088,6 +5088,109 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "food",
   "axis": null,
   "test": null
+ },
+ {
+  "id": "feed-n01",
+  "surface": "feed",
+  "seq": 118,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Trump has labelled the Strait of Hormuz new US territory. Your read?",
+  "options": [
+   "A power grab",
+   "Keeping trade open"
+  ],
+  "topic": "now",
+  "axis": null,
+  "test": null,
+  "from": "2026-08-23",
+  "until": "2026-08-28",
+  "political": true
+ },
+ {
+  "id": "feed-n02",
+  "surface": "feed",
+  "seq": 119,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Crude is near $94. Has the pump changed how you get around?",
+  "options": [
+   "Driving less already",
+   "No change yet"
+  ],
+  "topic": "now",
+  "axis": null,
+  "test": null,
+  "from": "2026-08-23",
+  "until": "2026-08-31"
+ },
+ {
+  "id": "feed-n03",
+  "surface": "feed",
+  "seq": 120,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Evergrande's founder got life for fraud and bribery. That sentence is…",
+  "options": [
+   "About right",
+   "Too far"
+  ],
+  "topic": "now",
+  "axis": null,
+  "test": null,
+  "from": "2026-08-23",
+  "until": "2026-08-27"
+ },
+ {
+  "id": "feed-n04",
+  "surface": "feed",
+  "seq": 121,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Harry and Meghan move back to Britain, but keep no royal duties. Workable?",
+  "options": [
+   "It can work",
+   "Pick a side"
+  ],
+  "topic": "now",
+  "axis": null,
+  "test": null,
+  "from": "2026-08-23",
+  "until": "2026-09-03"
+ },
+ {
+  "id": "feed-n05",
+  "surface": "feed",
+  "seq": 122,
+  "type": "vote",
+  "domain": null,
+  "prompt": "A model published proofs for ten open problems in maths. Is that doing maths?",
+  "options": [
+   "It counts",
+   "Not until a human gets it"
+  ],
+  "topic": "now",
+  "axis": null,
+  "test": null,
+  "from": "2026-08-23",
+  "until": "2026-08-29"
+ },
+ {
+  "id": "feed-n06",
+  "surface": "feed",
+  "seq": 123,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Italy's fourth heatwave this summer, red alerts in 25 cities. Just summer now?",
+  "options": [
+   "This is normal now",
+   "Still an emergency"
+  ],
+  "topic": "now",
+  "axis": null,
+  "test": null,
+  "from": "2026-08-23",
+  "until": "2026-08-26"
  },
  {
   "id": "group-gu0",

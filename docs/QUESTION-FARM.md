@@ -930,6 +930,19 @@ Rules, each load-bearing:
   content append also adds the question's provenance row
   (`content/provenance.json`, `source: "farm"`, the run's date as
   batch) — `check:quality` fails a feed question without one.
+- **`now` is not this lane's to write** (D231). "Happening now" is the
+  current-events topic, and it is EDITORIAL: timeliness needs a person,
+  and a news question written by an unsupervised run is what this
+  document's governance exists to prevent. The exclusion is arithmetic
+  rather than instruction — `LANE_EXCLUDED` in `scripts/feed-budget.mjs`
+  keeps the topic out of the fold entirely, so it never appears in an
+  allocation and the run never has to remember. It is there because the
+  regulator would otherwise argue the other way every single run: a
+  brand-new topic is the largest deficit in the taxonomy, so
+  thinnest-first would point at it forever. A `now` question also carries
+  a `from`/`until` window with its own bounds and its own batch rule
+  (`check:quality`), and refuses prediction-shaped prompts — see D231
+  before writing one under an explicit instruction that lifts this rule.
 - **Every question carries a topic from the taxonomy** (`topics` in the
   same file), and since D145 `check:quality` refuses one without a `cat`
   rather than only validating the value when present — true in the data,
