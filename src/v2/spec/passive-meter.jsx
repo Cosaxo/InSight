@@ -206,7 +206,7 @@ function PassiveMeter() {
                         <span aria-hidden="true" style={{ fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 19, lineHeight: 1, color: 'var(--ink-3)', flexShrink: 0 }}>{'\u203A'}</span>
                       </div>
                       {/* where you stand right now — provisional while segments are unfilled */}
-                      {standing && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>{TypeMark ? <TypeMark testKey={k} name={standing} size={18}></TypeMark> : null}<span style={{ fontFamily: 'var(--sans)', fontWeight: 650, fontSize: 13, letterSpacing: '-0.01em', color: `color-mix(in oklch, ${col} 78%, var(--ink))` }}>{standing}</span></span>}
+                      {standing && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}><TypeMark testKey={k} name={standing} size={18}></TypeMark><span style={{ fontFamily: 'var(--sans)', fontWeight: 650, fontSize: 13, letterSpacing: '-0.01em', color: `color-mix(in oklch, ${col} 78%, var(--ink))` }}>{standing}</span></span>}
                     </div>
                     {/* one dot per question — filled is answered. the count IS the visual; no numbers */}
                     <span ref={pmFrontier(done)} className="h-scroll" aria-hidden="true" style={{ display: 'flex', alignItems: 'center', gap: PM_DOT_GAP, overflowX: 'auto', overflowY: 'hidden', maxWidth: '100%' }}>

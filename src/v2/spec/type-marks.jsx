@@ -119,7 +119,7 @@ export function typeSplit(testKey, name, values) {
 // politics, values and social sheets lose their shares in a live build
 // and gain nothing — the alternative was keeping a fabricated number on
 // three sheets to avoid noticing it was fabricated on the fourth.
-function TypeIndexSheet({ testKey, onClose }) {
+export function TypeIndexSheet({ testKey, onClose }) {
   const [closing, setClosing] = React.useState(false);
   const close = () => { if (closing) return; setClosing(true); setTimeout(onClose, 230); };
   const sys = IS_ARCHETYPES[testKey];

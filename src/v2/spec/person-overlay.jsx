@@ -154,7 +154,7 @@ function PersonOverlay({ p: rawP, onClose, me }) {
   // unconditionally, React blows up on a mismatched hook order far from
   // the edit that caused it.
   const [, fBump] = React.useReducer((x) => x + 1, 0);
-  React.useEffect(() => (FRIENDS ? FRIENDS.subscribe(fBump) : undefined), []);
+  React.useEffect(() => FRIENDS.subscribe(fBump), []);
   const [confirmRemove, setConfirmRemove] = React.useState(false);
   // hoisted for the same reason as the two above: the mind-map still opens
   // full-screen from a tap, and its state must not sit past the early return.

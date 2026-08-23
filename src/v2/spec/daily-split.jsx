@@ -588,8 +588,8 @@ class DailySplit extends React.Component {
   }
   // cuts + subvalues come from the shared list (vote-cuts.js) so the daily and
   // the feed break a vote down exactly the same way
-  get statDimDefs() { return VOTECUTS ? VOTECUTS.dims() : [{ id: 'friends', label: 'Friends' }]; }
-  get statSubs() { return VOTECUTS ? VOTECUTS.subs(this.state.dim) : null; }
+  get statDimDefs() { return VOTECUTS.dims(); }
+  get statSubs() { return VOTECUTS.subs(this.state.dim); }
   get overrides() { return { 's1:age': [[64, 36], [55, 45], [44, 56], [34, 66]], 's4:age': [[54, 31, 15], [51, 34, 15], [44, 35, 21], [31, 37, 32]] }; }
 
   renderVals() {
@@ -748,14 +748,14 @@ class DailySplit extends React.Component {
     const statsBody = (() => {
         const legend = S.options;
         let friendRows = [], friendSummary = '', rows = [];
-        const youBand = (!isFriends && VOTECUTS) ? VOTECUTS.you(st.dim, st.dimAxis) : null;
+        const youBand = isFriends ? null : VOTECUTS.you(st.dim, st.dimAxis);
         if (isFriends) {
           friendRows = S.friends.map(f => { const o = S.options.find(x => x.id === f.opt); return { name: f.name, init: f.init, color: o.color, textColor: o.textColor, chipLabel: o.label, chipColor: o.color }; });
           const same = S.friends.filter(f => f.opt === myVote).length;
           friendSummary = voted ? same + ' of ' + S.friends.length + ' friends are on your side' : 'How your friends voted';
         } else {
           const cutKey = st.dimAxis ? st.dim + ':' + st.dimAxis : st.dim;
-          const gs = VOTECUTS ? VOTECUTS.groups(st.dim, st.dimAxis) : [];
+          const gs = VOTECUTS.groups(st.dim, st.dimAxis);
           const key = S.id + ':' + cutKey, ov = this.overrides[key];
           rows = gs.map((g, gi) => {
             let ps;
@@ -770,11 +770,11 @@ class DailySplit extends React.Component {
         const GRID = { display: 'grid', gridTemplateColumns: '96px 1fr', gap: 10, alignItems: 'center' };
         return h('div', { style: col(12) },
           h('div', { style: col(8) },
-            h('div', { className: 'h-scroll', ref: (el) => { const sg = 'd|' + st.dim; if (el && this._dSig1 !== sg) { this._dSig1 = sg; VOTECUTS && VOTECUTS.centerChip(el); } }, style: { display: 'flex', gap: 6, overflowX: 'auto' } },
+            h('div', { className: 'h-scroll', ref: (el) => { const sg = 'd|' + st.dim; if (el && this._dSig1 !== sg) { this._dSig1 = sg; VOTECUTS.centerChip(el); } }, style: { display: 'flex', gap: 6, overflowX: 'auto' } },
               this.statDimDefs.filter(dd => !dd.test).map(dd => h('button', { key: dd.id, 'data-on': st.dim === dd.id ? '1' : '0', onClick: () => this.setState({ dim: dd.id, dimAxis: null }), style: { flex: 'none', border: '1px solid ' + (st.dim === dd.id ? INK : 'var(--rule)'), borderRadius: 999, padding: '6px 13px', fontWeight: 700, fontSize: 12.5, cursor: 'pointer', whiteSpace: 'nowrap', background: st.dim === dd.id ? INK : 'var(--surface-2)', color: st.dim === dd.id ? PAPER : 'var(--ink-2)', WebkitAppearance: 'none' } }, dd.label))),
-            h('div', { className: 'h-scroll', ref: (el) => { const sg = 't|' + st.dim; if (el && this._dSig2 !== sg) { this._dSig2 = sg; VOTECUTS && VOTECUTS.centerChip(el); } }, style: { display: 'flex', gap: 6, overflowX: 'auto' } },
+            h('div', { className: 'h-scroll', ref: (el) => { const sg = 't|' + st.dim; if (el && this._dSig2 !== sg) { this._dSig2 = sg; VOTECUTS.centerChip(el); } }, style: { display: 'flex', gap: 6, overflowX: 'auto' } },
               this.statDimDefs.filter(dd => dd.test).map(dd => h('button', { key: dd.id, 'data-on': st.dim === dd.id ? '1' : '0', onClick: () => this.setState({ dim: dd.id, dimAxis: null }), style: { flex: 'none', border: '1px solid ' + (st.dim === dd.id ? INK : 'var(--rule)'), borderRadius: 999, padding: '6px 13px', fontWeight: 700, fontSize: 12.5, cursor: 'pointer', whiteSpace: 'nowrap', background: st.dim === dd.id ? INK : 'var(--surface-2)', color: st.dim === dd.id ? PAPER : 'var(--ink-2)', WebkitAppearance: 'none' } }, dd.label))),
-            this.statSubs && h('div', { className: 'h-scroll', ref: (row) => { const sig = st.dim + '|' + st.dimAxis; if (row && this._axSig !== sig) { this._axSig = sig; VOTECUTS && VOTECUTS.centerChip(row); } }, style: { display: 'flex', alignItems: 'center', gap: 4, overflowX: 'auto', paddingBottom: 2 } },
+            this.statSubs && h('div', { className: 'h-scroll', ref: (row) => { const sig = st.dim + '|' + st.dimAxis; if (row && this._axSig !== sig) { this._axSig = sig; VOTECUTS.centerChip(row); } }, style: { display: 'flex', alignItems: 'center', gap: 4, overflowX: 'auto', paddingBottom: 2 } },
               this.statSubs.map((sb, si) => { const on = (st.dimAxis || null) === sb.id; const rule = !!sb.tier && !(this.statSubs[si - 1] || {}).tier; return h(React.Fragment, { key: sb.id || 'type' },
                 rule ? h('span', { 'aria-hidden': 'true', style: { flex: 'none', alignSelf: 'stretch', width: 1, margin: '3px 5px', background: 'var(--rule)' } }) : null,
                 h('button', { 'data-on': on ? '1' : '0', onClick: () => this.setState({ dimAxis: sb.id }), style: { flex: 'none', border: 'none', borderRadius: 999, padding: '4px 11px', fontWeight: on ? 800 : 600, fontSize: 11.5, cursor: 'pointer', whiteSpace: 'nowrap', background: on ? 'var(--surface-3)' : 'transparent', color: on ? INK : 'var(--ink-3)', WebkitAppearance: 'none' } }, sb.label)); }))),

@@ -256,7 +256,7 @@ const COUPLING_BASELINE = {
   "src/v2/spec/profile-overlay.jsx": 6,
   "src/v2/spec/relmap-panels.jsx": 2,
   "src/v2/spec/relmap.jsx": 3,
-  "src/v2/spec/result-card.jsx": 17,
+  "src/v2/spec/result-card.jsx": 10,
   "src/v2/spec/search-overlay.jsx": 7,
   "src/v2/spec/segment-explorer.jsx": 1,
   "src/v2/spec/suggestions.jsx": 1,
