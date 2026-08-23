@@ -126,7 +126,7 @@ started measuring it (D39; see **The convention is shrinking** below).
 
 Seven modules are already off the bridge: `primitives.jsx`, `sample-data.js`,
 `daily-questions.js`, `world-catalogs.js`, `follows.js`, `result-rose.jsx`
-and `archetype-data.js` (D243 — the conversion that also lets the report
+and `archetype-data.js` (D253 — the conversion that also lets the report
 builder run the matcher under node) are ordinary ESM modules with named
 exports. They are still listed in `spec-index.js`, but nothing waits on
 their side effects — the line is inertia plus rule 2, not a dependency.

@@ -153,7 +153,7 @@ try {
 // mirror object is what the profile surfaces render, and without the drop
 // it keeps showing the previous account's results until an app restart.
 // In place, not reassigned: consumers hold references to this object.
-// Browser wiring only: since D243 this module also loads under plain
+// Browser wiring only: since D253 this module also loads under plain
 // node (the report builder imports archetype-data.js, which imports
 // IS_TEST_AVG above), where there is no window and nothing to purge or
 // hydrate. An environment guard, not a load-order one — the D108 rule

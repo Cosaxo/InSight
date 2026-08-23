@@ -447,13 +447,13 @@ ok("breakdown: ageBand and city both 5/5; single-bucket country published");
   const html = renderReportHtml(report);
   if (!html.includes("moves, not people"))
     fail("report page lost the D226 semantics line");
-  // The four type cuts (D243): nobody in this loop has taken a test, so
+  // The four type cuts (D253): nobody in this loop has taken a test, so
   // every cut is all-Untested — listed as a full row, never dropped —
   // and every named type renders at zero.
   const badCut = report.typeCuts.find((c) => c.tested !== 0 || c.rows[c.rows.length - 1].t !== 12);
   if (report.typeCuts.length !== 4 || badCut)
     fail("type cuts wrong on an untested crowd: " + JSON.stringify(report.typeCuts.map((c) => [c.kind, c.tested])));
-  // …and each instrument's axes ride under it (D244), five bands +
+  // …and each instrument's axes ride under it (D254), five bands +
   // Untested per axis, all twelve voters in the Untested row here too.
   const badAxis = report.typeCuts.find((c) =>
     !c.axes.length || c.axes.some((a) => a.rows.length !== 6 || a.rows[5].t !== 12));
